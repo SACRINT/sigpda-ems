@@ -3,6 +3,124 @@
 import { useState, useEffect } from 'react';
 import type { ExtractedPdfData } from '@/types/planning';
 
+// 15 Capacitaciones Laborales Oficiales BGE Puebla (MCCEMS 2025-2026)
+const FORMACIONES_LABORALES: string[] = [
+  "Administracion",
+  "Agricultura Sostenible de Traspatio",
+  "Area de la Salud",
+  "Comunicacion Grafica",
+  "Contabilidad",
+  "Domotica",
+  "Instalaciones Residenciales",
+  "Mecanica Dental",
+  "Preparacion de Alimentos Artesanales",
+  "Procesos Culinarios y Reposteria",
+  "Redes y Mantenimiento",
+  "Servicios Ecosistemicos",
+  "Sistemas Electricos",
+  "Tecnologia Informatica",
+  "Turismo",
+];
+
+// Mapa de submódulos por capacitación y semestre
+const UACS_LABORALES_MAPA: Record<string, {
+  sem3: { name: string }[];
+  sem4: { name: string }[];
+  sem5: { name: string }[];
+  sem6: { name: string }[];
+}> = {
+  "Administracion": {
+    sem3: [{name:"Submódulo I: Registra en los libros de contabilidad"},{name:"Submódulo II: Elabora documentos contables"}],
+    sem4: [{name:"Submódulo I: Tramita y controla documentos"},{name:"Submódulo II: Mantiene el sistema de información"}],
+    sem5: [{name:"Submódulo I: Realiza funciones administrativas"},{name:"Submódulo II: Aplica las TIC en las funciones de oficina"}],
+    sem6: [{name:"Submódulo I: Presta servicios al cliente"},{name:"Submódulo II: Efectúa proceso de cierre contable"}],
+  },
+  "Agricultura Sostenible de Traspatio": {
+    sem3: [{name:"Submódulo I: Siembra y cultiva hortalizas"},{name:"Submódulo II: Maneja abonos orgánicos"}],
+    sem4: [{name:"Submódulo I: Reproduce vegetativamente plantas"},{name:"Submódulo II: Controla plagas y enfermedades"}],
+    sem5: [{name:"Submódulo I: Cría y maneja animales de traspatio"},{name:"Submódulo II: Produce alimentos fermentados"}],
+    sem6: [{name:"Submódulo I: Elabora proyectos productivos"},{name:"Submódulo II: Comercializa productos agropecuarios"}],
+  },
+  "Area de la Salud": {
+    sem3: [{name:"Submódulo I: Aplica técnicas de primeros auxilios"},{name:"Submódulo II: Promueve la salud comunitaria"}],
+    sem4: [{name:"Submódulo I: Realiza estudios básicos de laboratorio"},{name:"Submódulo II: Maneja material y equipo de laboratorio"}],
+    sem5: [{name:"Submódulo I: Asiste al paciente hospitalizado"},{name:"Submódulo II: Apoya en la atención médica"}],
+    sem6: [{name:"Submódulo I: Realiza trámites médicos"},{name:"Submódulo II: Colabora en campañas de salud"}],
+  },
+  "Comunicacion Grafica": {
+    sem3: [{name:"Submódulo I: Aplica principios del diseño gráfico"},{name:"Submódulo II: Maneja herramientas de diseño digital"}],
+    sem4: [{name:"Submódulo I: Diseña material impreso"},{name:"Submódulo II: Elabora productos multimedia"}],
+    sem5: [{name:"Submódulo I: Produce contenidos audiovisuales"},{name:"Submódulo II: Diseña identidad corporativa"}],
+    sem6: [{name:"Submódulo I: Crea campañas publicitarias"},{name:"Submódulo II: Desarrolla proyectos de comunicación"}],
+  },
+  "Contabilidad": {
+    sem3: [{name:"Submódulo I: Registra operaciones contables"},{name:"Submódulo II: Elabora estados financieros básicos"}],
+    sem4: [{name:"Submódulo I: Calcula impuestos"},{name:"Submódulo II: Procesa nóminas"}],
+    sem5: [{name:"Submódulo I: Realiza auditorías internas"},{name:"Submódulo II: Controla inventarios"}],
+    sem6: [{name:"Submódulo I: Elabora declaraciones fiscales"},{name:"Submódulo II: Asesora en materia contable"}],
+  },
+  "Domotica": {
+    sem3: [{name:"Submódulo I: Instala sistemas de control"},{name:"Submódulo II: Configura dispositivos inteligentes"}],
+    sem4: [{name:"Submódulo I: Programa controladores lógicos"},{name:"Submódulo II: Instala redes de datos"}],
+    sem5: [{name:"Submódulo I: Integra sistemas domóticos"},{name:"Submódulo II: Maneja sistemas de seguridad electrónica"}],
+    sem6: [{name:"Submódulo I: Instala sistemas de ahorro energético"},{name:"Submódulo II: Realiza mantenimiento domótico"}],
+  },
+  "Instalaciones Residenciales": {
+    sem3: [{name:"Submódulo I: Realiza instalaciones eléctricas básicas"},{name:"Submódulo II: Instala luminarias y contactos"}],
+    sem4: [{name:"Submódulo I: Instala sistemas hidráulicos"},{name:"Submódulo II: Instala sistemas sanitarios"}],
+    sem5: [{name:"Submódulo I: Instala circuitos eléctricos residenciales"},{name:"Submódulo II: Realiza acabados en construcción"}],
+    sem6: [{name:"Submódulo I: Supervisa obras de construcción"},{name:"Submódulo II: Elabora presupuestos de obra"}],
+  },
+  "Mecanica Dental": {
+    sem3: [{name:"Submódulo I: Fabrica prótesis dentales parciales"},{name:"Submódulo II: Maneja materiales dentales"}],
+    sem4: [{name:"Submódulo I: Construye prótesis totales"},{name:"Submódulo II: Fabrica aparatos ortodóncicos"}],
+    sem5: [{name:"Submódulo I: Elabora restauraciones dentales"},{name:"Submódulo II: Opera equipos de laboratorio dental"}],
+    sem6: [{name:"Submódulo I: Realiza reparaciones protésicas"},{name:"Submódulo II: Aplica técnicas de acabado dental"}],
+  },
+  "Preparacion de Alimentos Artesanales": {
+    sem3: [{name:"Submódulo I: Elabora productos de panadería"},{name:"Submódulo II: Produce conservas artesanales"}],
+    sem4: [{name:"Submódulo I: Prepara alimentos fermentados"},{name:"Submódulo II: Elabora productos lácteos artesanales"}],
+    sem5: [{name:"Submódulo I: Produce dulces y confituras"},{name:"Submódulo II: Elabora bebidas artesanales"}],
+    sem6: [{name:"Submódulo I: Comercializa productos alimenticios"},{name:"Submódulo II: Gestiona microempresa alimentaria"}],
+  },
+  "Procesos Culinarios y Reposteria": {
+    sem3: [{name:"Submódulo I: Aplica técnicas culinarias básicas"},{name:"Submódulo II: Elabora salsas y guarniciones"}],
+    sem4: [{name:"Submódulo I: Prepara platillos de la gastronomía regional"},{name:"Submódulo II: Elabora postres y repostería"}],
+    sem5: [{name:"Submódulo I: Opera cocina de restaurante"},{name:"Submódulo II: Planea menús balanceados"}],
+    sem6: [{name:"Submódulo I: Administra servicio de alimentos"},{name:"Submódulo II: Emprende negocio gastronómico"}],
+  },
+  "Redes y Mantenimiento": {
+    sem3: [{name:"Submódulo I: Instala y configura redes LAN"},{name:"Submódulo II: Realiza mantenimiento de PC"}],
+    sem4: [{name:"Submódulo I: Administra sistemas operativos de red"},{name:"Submódulo II: Configura servicios de red"}],
+    sem5: [{name:"Submódulo I: Implementa seguridad en redes"},{name:"Submódulo II: Diagnostica fallas en equipos de cómputo"}],
+    sem6: [{name:"Submódulo I: Administra servidores"},{name:"Submódulo II: Brinda soporte técnico"}],
+  },
+  "Servicios Ecosistemicos": {
+    sem3: [{name:"Submódulo I: Identifica servicios ecosistémicos"},{name:"Submódulo II: Monitorea biodiversidad local"}],
+    sem4: [{name:"Submódulo I: Restaura ecosistemas degradados"},{name:"Submódulo II: Gestiona residuos sólidos"}],
+    sem5: [{name:"Submódulo I: Desarrolla proyectos agroecológicos"},{name:"Submódulo II: Aplica técnicas de ecoturismo"}],
+    sem6: [{name:"Submódulo I: Elabora diagnósticos ambientales"},{name:"Submódulo II: Gestiona proyectos ambientales comunitarios"}],
+  },
+  "Sistemas Electricos": {
+    sem3: [{name:"Submódulo I: Instala circuitos eléctricos básicos"},{name:"Submódulo II: Maneja instrumentos de medición"}],
+    sem4: [{name:"Submódulo I: Instala motores eléctricos"},{name:"Submódulo II: Realiza mantenimiento eléctrico"}],
+    sem5: [{name:"Submódulo I: Instala sistemas de control eléctrico"},{name:"Submódulo II: Maneja tableros eléctricos"}],
+    sem6: [{name:"Submódulo I: Realiza instalaciones industriales"},{name:"Submódulo II: Diagnostica fallas eléctricas"}],
+  },
+  "Tecnologia Informatica": {
+    sem3: [{name:"Submódulo I: Desarrolla algoritmos y programas básicos"},{name:"Submódulo II: Utiliza hojas de cálculo avanzadas"}],
+    sem4: [{name:"Submódulo I: Programa aplicaciones de escritorio"},{name:"Submódulo II: Administra bases de datos"}],
+    sem5: [{name:"Submódulo I: Desarrolla aplicaciones web"},{name:"Submódulo II: Implementa aplicaciones móviles"}],
+    sem6: [{name:"Submódulo I: Gestiona proyectos informáticos"},{name:"Submódulo II: Desarrolla sistemas de información"}],
+  },
+  "Turismo": {
+    sem3: [{name:"Submódulo I: Brinda atención al turista"},{name:"Submódulo II: Ofrece servicios de información turística"}],
+    sem4: [{name:"Submódulo I: Opera servicios de hospedaje"},{name:"Submódulo II: Organiza eventos y reuniones"}],
+    sem5: [{name:"Submódulo I: Diseña paquetes turísticos"},{name:"Submódulo II: Opera agencia de viajes"}],
+    sem6: [{name:"Submódulo I: Gestiona empresa turística"},{name:"Submódulo II: Promueve el turismo regional"}],
+  },
+};
+
 interface UACSelection {
   uacName: string;
   semester: number;
@@ -49,14 +167,43 @@ export default function StepUAC({ onNext }: Props) {
   const isFfeDisabled = form.semester < 5;
   const isProgresionesModel = form.semester >= 5;
 
-  // Extract unique specialties from catalog programs when in Formación Laboral mode
-  const specialties = form.component === 'laboral'
-    ? Array.from(new Set(catalogPrograms.map(p => p.curriculum_name).filter(Boolean))).sort() as string[]
+  // Para BGE usa las 15 capacitaciones oficiales; para otros subsistemas extrae curriculum_name del catálogo
+  const isBge = !selectedSubsystem || selectedSubsystem === 'bge';
+  const specialties: string[] = form.component === 'laboral'
+    ? (isBge
+        ? FORMACIONES_LABORALES
+        : Array.from(new Set(catalogPrograms.map(p => p.curriculum_name).filter(Boolean))).sort() as string[])
     : [];
 
-  // Filter UACs by the selected specialty
+  // Obtener nombres de UAC que pertenecen a la capacitación seleccionada en este semestre
+  const getUacNamesForCapacitacion = (cap: string, semester: number): string[] => {
+    if (!cap || !isBge) return [];
+    const semKey = `sem${semester}` as 'sem3' | 'sem4' | 'sem5' | 'sem6';
+    const capData = UACS_LABORALES_MAPA[cap];
+    if (!capData || !capData[semKey]) return [];
+    return capData[semKey].map(u => u.name);
+  };
+
+  // Filtrar UACs por capacitación seleccionada
   const filteredUacs = form.component === 'laboral'
-    ? catalogPrograms.filter(p => p.curriculum_name === selectedSpecialty)
+    ? (isBge && selectedSpecialty
+        ? (() => {
+            const semUacNames = getUacNamesForCapacitacion(selectedSpecialty, form.semester);
+            if (semUacNames.length === 0) {
+              // Si no hay UACs para este semestre específico, mostrar todas las de la capacitación
+              const allCapUacNames = [
+                ...(UACS_LABORALES_MAPA[selectedSpecialty]?.sem3 || []),
+                ...(UACS_LABORALES_MAPA[selectedSpecialty]?.sem4 || []),
+                ...(UACS_LABORALES_MAPA[selectedSpecialty]?.sem5 || []),
+                ...(UACS_LABORALES_MAPA[selectedSpecialty]?.sem6 || []),
+              ].map(u => u.name);
+              return catalogPrograms.filter(p => allCapUacNames.some(n => p.uac_name.toLowerCase().includes(n.toLowerCase().slice(0, 30))));
+            }
+            return catalogPrograms.filter(p =>
+              semUacNames.some(n => p.uac_name.toLowerCase().trim() === n.toLowerCase().trim())
+            );
+          })()
+        : catalogPrograms.filter(p => p.curriculum_name === selectedSpecialty))
     : catalogPrograms;
 
   // Fetch programs from catalog when semester, component or subsystem changes
@@ -90,24 +237,40 @@ export default function StepUAC({ onNext }: Props) {
           
           if (filteredPrograms.length > 0) {
             if (form.component === 'laboral') {
-              // Extract unique specialties
-              const specs = Array.from(
-                new Set(filteredPrograms.map((p: any) => p.curriculum_name).filter(Boolean))
-              ).sort() as string[];
+              // Usar las 15 capacitaciones oficiales BGE o las del catálogo para otros subsistemas
+              const isBgeLocal = !selectedSubsystem || selectedSubsystem === 'bge';
+              const specs: string[] = isBgeLocal
+                ? FORMACIONES_LABORALES
+                : Array.from(new Set(filteredPrograms.map((p: any) => p.curriculum_name).filter(Boolean))).sort() as string[];
               
               if (specs.length > 0) {
                 const initialSpec = specs[0];
                 setSelectedSpecialty(initialSpec);
                 
-                // Filter UACs by that specialty
-                const filtered = filteredPrograms.filter((p: any) => p.curriculum_name === initialSpec);
+                // Filtrar UACs de la primera capacitación usando el mapa oficial
+                let filtered: any[];
+                if (isBgeLocal) {
+                  const semKey = `sem${form.semester}` as 'sem3' | 'sem4' | 'sem5' | 'sem6';
+                  const capData = UACS_LABORALES_MAPA[initialSpec];
+                  const semUacNames = capData?.[semKey]?.map((u: any) => u.name) || [];
+                  if (semUacNames.length > 0) {
+                    filtered = filteredPrograms.filter((p: any) =>
+                      semUacNames.some((n: string) => p.uac_name.toLowerCase().trim() === n.toLowerCase().trim())
+                    );
+                  } else {
+                    filtered = filteredPrograms.slice(0, 2);
+                  }
+                } else {
+                  filtered = filteredPrograms.filter((p: any) => p.curriculum_name === initialSpec);
+                }
+
                 if (filtered.length > 0) {
                   const first = filtered[0];
                   setSelectedCatalogUac(first);
                   setForm(prev => ({
                     ...prev,
                     uacName: first.uac_name,
-                    curriculumName: first.curriculum_name || '',
+                    curriculumName: isBgeLocal ? initialSpec : (first.curriculum_name || ''),
                     subsystem: selectedSubsystem,
                   }));
                   setIsManualInput(false);
@@ -186,16 +349,40 @@ export default function StepUAC({ onNext }: Props) {
     } else {
       setIsManualInput(false);
       setSelectedSpecialty(val);
-      // Find UACs for this specialty
-      const uacsForSpec = catalogPrograms.filter(p => p.curriculum_name === val);
+      // Filtrar UACs por la capacitación seleccionada
+      let uacsForSpec: any[];
+      if (isBge) {
+        const semKey = `sem${form.semester}` as 'sem3' | 'sem4' | 'sem5' | 'sem6';
+        const capData = UACS_LABORALES_MAPA[val];
+        const semUacNames = capData?.[semKey]?.map((u: any) => u.name) || [];
+        if (semUacNames.length > 0) {
+          uacsForSpec = catalogPrograms.filter(p =>
+            semUacNames.some(n => p.uac_name.toLowerCase().trim() === n.toLowerCase().trim())
+          );
+        } else {
+          uacsForSpec = [];
+        }
+      } else {
+        uacsForSpec = catalogPrograms.filter(p => p.curriculum_name === val);
+      }
+
       if (uacsForSpec.length > 0) {
         const first = uacsForSpec[0];
         setSelectedCatalogUac(first);
         setForm(prev => ({
           ...prev,
           uacName: first.uac_name,
-          curriculumName: first.curriculum_name || '',
+          curriculumName: isBge ? val : (first.curriculum_name || ''),
         }));
+      } else {
+        // Capacitación válida pero sin UACs en catálogo para este semestre → modo manual
+        setSelectedCatalogUac(null);
+        setForm(prev => ({
+          ...prev,
+          uacName: '',
+          curriculumName: val,
+        }));
+        setIsManualInput(true);
       }
     }
   };
@@ -208,6 +395,7 @@ export default function StepUAC({ onNext }: Props) {
       setForm(prev => ({
         ...prev,
         uacName: '',
+        // Preservar la capacitación seleccionada como curriculumName
         curriculumName: form.component === 'laboral' ? selectedSpecialty : '',
       }));
     } else {
@@ -218,7 +406,10 @@ export default function StepUAC({ onNext }: Props) {
         setForm(prev => ({
           ...prev,
           uacName: form.component === 'ampliado' ? cleanSocioemotionalName(selected.uac_name, form.semester) : selected.uac_name,
-          curriculumName: selected.curriculum_name || '',
+          // Para BGE laboral, curriculumName = la capacitación elegida (no el curriculum_name genérico del catálogo)
+          curriculumName: (form.component === 'laboral' && isBge)
+            ? selectedSpecialty
+            : (selected.curriculum_name || ''),
         }));
       }
     }
