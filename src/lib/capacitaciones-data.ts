@@ -328,7 +328,7 @@ export function normalizeKey(text: string): string {
 export function getUacNamesForCapacitacion(capacitacion: string, semester: number): string[] {
   const normTarget = normalizeKey(capacitacion);
   for (const [capName, sems] of Object.entries(UACS_LABORALES_OFICIALES_BGE)) {
-    if (normalizeKey(capName) === normTarget || normTarget.includes(normalizeKey(capName)) || normalizeKey(capName).includes(normTarget)) {
+    if (normalizeKey(capName) === normTarget) {
       return sems[semester] || [];
     }
   }

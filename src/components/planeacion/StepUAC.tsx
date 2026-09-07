@@ -39,9 +39,9 @@ export default function StepUAC({ onNext }: Props) {
   const [form, setForm] = useState<UACSelection>({
     uacName: '',
     semester: 3,
-    component: 'laboral',
+    component: 'fundamental',
     subsystem: 'bge',
-    curriculumName: FORMACIONES_LABORALES_BGE[3], // 'Comunicación Gráfica' por defecto amigable
+    curriculumName: '',
   });
 
   const [catalogPrograms, setCatalogPrograms] = useState<any[]>([]);
@@ -49,7 +49,7 @@ export default function StepUAC({ onNext }: Props) {
   const [isManualInput, setIsManualInput] = useState(false);
   const [loadingPrograms, setLoadingPrograms] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [selectedSpecialty, setSelectedSpecialty] = useState<string>(FORMACIONES_LABORALES_BGE[3]);
+  const [selectedSpecialty, setSelectedSpecialty] = useState<string>('');
 
   const isLaboralDisabled = SEMESTERS_WITHOUT_LABORAL.includes(form.semester);
   const isFfeDisabled = form.semester < 5;
@@ -70,24 +70,24 @@ export default function StepUAC({ onNext }: Props) {
           : Array.from(new Set(catalogPrograms.map(p => p.curriculum_name).filter(Boolean))).sort() as string[])
     : [];
 
+  // Especialidad activa efectiva (evita estado vacío al cambiar de componente)
+  const activeSpecialty = selectedSpecialty || (form.component === 'laboral' ? (specialties[0] || '') : '');
+
   // Filtrar UACs según el componente y la capacitación seleccionada
   const filteredUacs: any[] = form.component === 'laboral'
     ? (() => {
-        if (!selectedSpecialty || selectedSpecialty === 'manual_specialty') {
-          return catalogPrograms;
+        if (!activeSpecialty || activeSpecialty === 'manual_specialty') {
+          return [];
         }
 
-        const normSpec = normalizeKey(selectedSpecialty);
+        const normSpec = normalizeKey(activeSpecialty);
 
-        // 1. Coincidencia por curriculum_name en catalogPrograms
-        let matches = catalogPrograms.filter(p => {
-          const normCur = normalizeKey(p.curriculum_name);
-          return normCur === normSpec || normCur.includes(normSpec) || normSpec.includes(normCur);
-        });
+        // 1. Coincidencia por curriculum_name en catalogPrograms (exacta normalizada)
+        let matches = catalogPrograms.filter(p => normalizeKey(p.curriculum_name) === normSpec);
 
         // 2. Para BGE, verificar contra los nombres oficiales de la capacitación en este semestre
         if (isBge) {
-          const expectedNames = getUacNamesForCapacitacion(selectedSpecialty, form.semester);
+          const expectedNames = getUacNamesForCapacitacion(activeSpecialty, form.semester);
           if (expectedNames.length > 0) {
             const foundByTitle = catalogPrograms.filter(p =>
               expectedNames.some(exp => normalizeKey(p.uac_name) === normalizeKey(exp))
@@ -101,7 +101,7 @@ export default function StepUAC({ onNext }: Props) {
                 uac_name: name,
                 semester: form.semester,
                 component: 'laboral',
-                curriculum_name: selectedSpecialty,
+                curriculum_name: activeSpecialty,
                 total_hours: 54,
                 learning_outcome: `Desarrollar competencias formativas y laborales en ${name}`,
                 activities: [{ order: 1, name: `Desarrollo de competencias en ${name}`, hours: 54 }],
@@ -157,16 +157,13 @@ export default function StepUAC({ onNext }: Props) {
             // Determinar la especialidad activa
             let currentSpec = selectedSpecialty;
             if (!currentSpec || currentSpec === 'manual_specialty' || !specs.some(s => normalizeKey(s) === normalizeKey(currentSpec))) {
-              currentSpec = specs.find(s => s === "Comunicación Gráfica") || specs[0] || '';
+              currentSpec = specs[0] || '';
               setSelectedSpecialty(currentSpec);
             }
 
             if (currentSpec && currentSpec !== 'manual_specialty') {
               const normSpec = normalizeKey(currentSpec);
-              let matches = filteredPrograms.filter((p: any) => {
-                const normCur = normalizeKey(p.curriculum_name);
-                return normCur === normSpec || normCur.includes(normSpec) || normSpec.includes(normCur);
-              });
+              let matches = filteredPrograms.filter((p: any) => normalizeKey(p.curriculum_name) === normSpec);
 
               if (isBgeLocal) {
                 const expected = getUacNamesForCapacitacion(currentSpec, form.semester);
@@ -215,7 +212,6 @@ export default function StepUAC({ onNext }: Props) {
                 subsystem: selectedSubsystem,
               }));
               setIsManualInput(false);
-              setSelectedSpecialty('');
             }
           }
         }
@@ -245,6 +241,50 @@ export default function StepUAC({ onNext }: Props) {
     }));
   };
 
+  // Manejador de cambio de componente curricular
+  const handleComponentChange = (newComponent: string) => {
+    const isLaboral = newComponent === 'laboral';
+    const defaultSpec = isBge ? FORMACIONES_LABORALES_BGE[0] : (CARRERAS_TECNICAS_OFICIALES[0] || '');
+    const specToUse = isLaboral ? (selectedSpecialty || defaultSpec) : '';
+
+    if (isLaboral) {
+      setSelectedSpecialty(specToUse);
+      setIsManualInput(false);
+
+      if (isBge) {
+        const expected = getUacNamesForCapacitacion(specToUse, form.semester);
+        if (expected.length > 0) {
+          const uacObj = {
+            id: `uac-oficial-${form.semester}-0`,
+            uac_name: expected[0],
+            semester: form.semester,
+            component: 'laboral',
+            curriculum_name: specToUse,
+            total_hours: 54,
+            learning_outcome: `Desarrollar competencias en ${expected[0]}`,
+            activities: [{ order: 1, name: expected[0], hours: 54 }],
+            contenidos_formativos: [{ order: 1, proposito: expected[0], hours: 54, contenidos: [expected[0]] }]
+          };
+          setSelectedCatalogUac(uacObj);
+          setForm(prev => ({
+            ...prev,
+            component: newComponent,
+            uacName: expected[0],
+            curriculumName: specToUse,
+          }));
+          return;
+        }
+      }
+    }
+
+    setForm(prev => ({
+      ...prev,
+      component: newComponent,
+      curriculumName: isLaboral ? specToUse : '',
+      uacName: '',
+    }));
+  };
+
   // Manejador de cambio de especialidad / capacitación
   const handleSpecialtyChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value;
@@ -258,10 +298,7 @@ export default function StepUAC({ onNext }: Props) {
       setIsManualInput(false);
 
       const normVal = normalizeKey(val);
-      let matches = catalogPrograms.filter(p => {
-        const normCur = normalizeKey(p.curriculum_name);
-        return normCur === normVal || normCur.includes(normVal) || normVal.includes(normCur);
-      });
+      let matches = catalogPrograms.filter(p => normalizeKey(p.curriculum_name) === normVal);
 
       if (isBge) {
         const expected = getUacNamesForCapacitacion(val, form.semester);
@@ -450,7 +487,7 @@ export default function StepUAC({ onNext }: Props) {
               <select
                 className="form-select"
                 value={form.component}
-                onChange={e => setForm({ ...form, component: e.target.value })}
+                onChange={e => handleComponentChange(e.target.value)}
               >
                 <option value="fundamental">Currículum Fundamental</option>
                 <option value="ext_obligatorio">F. Fundamental Extendida Obligatoria (FFEO)</option>
@@ -491,7 +528,7 @@ export default function StepUAC({ onNext }: Props) {
               </label>
               <select
                 className="form-select"
-                value={isManualInput && selectedSpecialty === 'manual_specialty' ? 'manual_specialty' : selectedSpecialty}
+                value={isManualInput && selectedSpecialty === 'manual_specialty' ? 'manual_specialty' : activeSpecialty}
                 onChange={handleSpecialtyChange}
               >
                 {specialties.map(spec => (
@@ -506,16 +543,24 @@ export default function StepUAC({ onNext }: Props) {
           <div className="form-group">
             <label className="form-label form-label-required">Nombre de la UAC</label>
             
-            {loadingPrograms ? (
+            {loadingPrograms && filteredUacs.length === 0 ? (
               <div className="form-input" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#666' }}>
                 <div className="spinner spinner-dark" style={{ width: '16px', height: '16px' }} />
-                <span>Cargando UACs del catálogo oficial...</span>
+                <span>
+                  {form.component === 'laboral'
+                    ? 'Cargando UACs oficiales...'
+                    : 'Cargando UACs del catálogo oficial...'}
+                </span>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <select
                   className="form-select"
-                  value={isManualInput ? 'manual' : (selectedCatalogUac?.id || (filteredUacs[0]?.id ?? 'manual'))}
+                  value={
+                    isManualInput || filteredUacs.length === 0
+                      ? 'manual'
+                      : (selectedCatalogUac?.id || (filteredUacs[0]?.id ?? 'manual'))
+                  }
                   onChange={handleUacSelectChange}
                 >
                   {filteredUacs.map((p) => {
@@ -536,7 +581,7 @@ export default function StepUAC({ onNext }: Props) {
                   <option value="manual">➕ Agregar otra UAC (capturar manualmente / subir PDF)</option>
                 </select>
 
-                {isManualInput && (
+                {(isManualInput || (filteredUacs.length === 0 && !loadingPrograms)) && (
                   <input
                     className="form-input animate-fade-in"
                     placeholder="Escribe el nombre de la UAC..."
