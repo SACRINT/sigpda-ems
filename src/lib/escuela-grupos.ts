@@ -54,22 +54,22 @@ export const UACS_LABORALES_MAPA: Record<string, {
   sem5: { name: string; abrev: string }[];
   sem6: { name: string; abrev: string }[];
 }> = {
-  "Administracion": {
+  "Administración": {
     sem3: [
       { name: "Entrega recursos materiales a otras áreas de una organización", abrev: "ENTR-REC" },
       { name: "Organiza recursos materiales a solicitud de un superior", abrev: "ORG-REC" }
     ],
     sem4: [
-      { name: "Proporciona atención y servicio al cliente en la organización", abrev: "ATN-CLI" },
-      { name: "Auxilia en el reclutamiento y selección de personal", abrev: "RECL-PERS" }
+      { name: "Captura información solicitada por un superior", abrev: "CAPT-INFO" },
+      { name: "Registra entrada y salida del personal de una organización", abrev: "REG-PERS" }
     ],
     sem5: [
       { name: "Elabora trámites administrativos básicos de una organización", abrev: "TRAM-ADM" },
       { name: "Organiza expedientes y documentación interna de las diferentes áreas de una organización", abrev: "ORG-EXP" }
     ],
     sem6: [
-      { name: "Apoya en la elaboración de nóminas y control de incidencias", abrev: "NOM-INC" },
-      { name: "Elabora reportes de inventarios y control de mercancías", abrev: "REP-INV" }
+      { name: "Proporciona información detallada y condiciones de venta de bienes y servicios", abrev: "INFO-VTA" },
+      { name: "Realiza ventas de bienes y servicios al público en general", abrev: "VTA-PUB" }
     ]
   },
   "Agricultura Sostenible de Traspatio": {
@@ -78,52 +78,52 @@ export const UACS_LABORALES_MAPA: Record<string, {
       { name: "Planea huerto para la producción agrícola sostenible de traspatio", abrev: "PLAN-HUERTO" }
     ],
     sem4: [
-      { name: "Produce hortalizas de manera sostenible en el huerto de traspatio", abrev: "PROD-HORT" },
-      { name: "Elabora abonos orgánicos e insumos agroecológicos", abrev: "ABON-ORG" }
+      { name: "Aplica manejo agroecológico en el sistema en el huerto de traspatio", abrev: "MAN-AGROE" },
+      { name: "Reconoce sistemas de producción y manejo agroecológico en el huerto de traspatio", abrev: "REC-AGROE" }
     ],
     sem5: [
       { name: "Aplica técnicas agroecológicas de conservación de suelo y agua, y de control de plagas y enfermedades", abrev: "TECN-AGROE" },
       { name: "Distingue técnicas agroecológicas de conservación de suelo y agua y de control de plagas y enfermedades", abrev: "DIST-AGROE" }
     ],
     sem6: [
-      { name: "Cosecha, maneja y conserva productos agrícolas de traspatio", abrev: "COS-PROD" },
-      { name: "Promueve la comercialización local de excedentes de producción", abrev: "COM-EXCED" }
+      { name: "Identifica manejo de la biodiversidad y su contribución a la soberanía alimentaria y el desarrollo sostenible", abrev: "BIODIV-SOB" },
+      { name: "Promueve prácticas agroecológicas, redes alimentarias y económicas alternativas para contribuir a la soberanía alimentaria y el desarrollo sostenible", abrev: "PRAC-AGROE" }
     ]
   },
-  "Area de la Salud": {
+  "Área de la Salud": {
     sem3: [
       { name: "Despacha medicamentos y material de curación de acuerdo con prescripciones médicas y productos farmacéuticos", abrev: "DESP-MED" },
       { name: "Lleva registro de recetas, inventarios de medicamentos y productos farmacéuticos", abrev: "REG-RECET" }
     ],
     sem4: [
-      { name: "Promueve hábitos de vida saludable y prevención de enfermedades en la comunidad", abrev: "PROM-SALUD" },
-      { name: "Aplica técnicas básicas de primeros auxilios y somatometría", abrev: "PRIM-AUX" }
+      { name: "Ordena las existencias de medicamentos en estantes y anaqueles", abrev: "ORD-MED" },
+      { name: "Participa en la preparación de medicamentos y otros compuestos bajo supervisión profesional químico farmacéutico", abrev: "PREP-MED" }
     ],
     sem5: [
       { name: "Asiste especialistas del área en las necesidades del paciente", abrev: "ASIST-PAC" },
       { name: "Asiste especialistas del área en las necesidades del paciente diagnosticado", abrev: "ASIST-DIAG" }
     ],
     sem6: [
-      { name: "Apoya en el cuidado holístico e higiene del paciente en el entorno comunitario", abrev: "CUID-PAC" },
-      { name: "Aplica medidas de bioseguridad y manejo de residuos peligrosos biológico-infecciosos", abrev: "BIO-SEG" }
+      { name: "Lava, empaqueta y esteriliza el material e instrumental utilizado en las distintas áreas del sector salud", abrev: "ESTERIL-MAT" },
+      { name: "Realiza diferentes actividades administrativas solicitadas", abrev: "ACT-ADM" }
     ]
   },
-  "Comunicacion Grafica": {
+  "Comunicación Gráfica": {
     sem3: [
       { name: "Elabora bocetos gráficos comprensibles y creativos a partir de las necesidades de comunicación gráfica requerida", abrev: "BOC-GRAF" },
       { name: "Ilustra dibujos en materiales artesanales o artísticos", abrev: "ILUS-DIB" }
     ],
     sem4: [
-      { name: "Produce elementos editoriales gráficos vectoriales y de mapa de bits", abrev: "PROD-EDIT" },
-      { name: "Diseña identidades visuales y marcas para la comunicación de proyectos", abrev: "DIS-MARCA" }
+      { name: "Reproduce bocetos gráficos básicos utilizando herramientas tradicionales o digitales", abrev: "REP-BOC" },
+      { name: "Utilizar elementos de comunicación visual y fuentes tipográficas para resolver problemas y necesidades de comunicación", abrev: "ELEM-VIS" }
     ],
     sem5: [
       { name: "Integra efectos visuales a imágenes y textos por medio de software o aplicaciones digitales de uso libre", abrev: "EFEC-VIS" },
       { name: "Utiliza técnicas de impresión para los diversos productos gráficos, artesanales, artísticos y publicitarios", abrev: "TECN-IMP" }
     ],
     sem6: [
-      { name: "Prepara archivos digitales para salidas de preprensa y medios digitales", abrev: "PRE-PRENSA" },
-      { name: "Desarrolla proyectos de diseño gráfico publicitario e industrial básico", abrev: "PROY-DIS" }
+      { name: "Emplea materiales amigables con el medio ambiente para productos gráficos, artísticos y publicitarios", abrev: "MAT-AMIG" },
+      { name: "Realiza maquetación de productos gráficos para publicidad y rotulación", abrev: "MAQ-GRAF" }
     ]
   },
   "Contabilidad": {
@@ -132,34 +132,34 @@ export const UACS_LABORALES_MAPA: Record<string, {
       { name: "Registra movimientos contables de una entidad económica, con base en documentos fuente", abrev: "REG-MOV" }
     ],
     sem4: [
-      { name: "Calcula nóminas y percepciones laborales de los trabajadores", abrev: "CALC-NOM" },
-      { name: "Realiza conciliaciones bancarias y arqueos de caja", abrev: "CONC-BANC" }
+      { name: "Realiza cálculos básicos para los informes financieros y contables, para su revisión", abrev: "CALC-FIN" },
+      { name: "Registra información para el pago de obligaciones, comerciales, laborales y fiscales", abrev: "REG-OBLIG" }
     ],
     sem5: [
       { name: "Realiza reportes básicos previos a los estados financieros", abrev: "REP-FIN" },
       { name: "Registra compras y ventas del sector comercial", abrev: "REG-COMP" }
     ],
     sem6: [
-      { name: "Auxilia en la determinación de obligaciones fiscales básicas", abrev: "DETERM-FISC" },
-      { name: "Elabora estados financieros básicos de una entidad económica", abrev: "EST-FIN" }
+      { name: "Organiza información para la elaboración de estados financieros básicos", abrev: "ORG-EST-FIN" },
+      { name: "Registra información que ayude al cálculo de impuestos del contribuyente", abrev: "CALC-IMP" }
     ]
   },
-  "Domotica": {
+  "Domótica": {
     sem3: [
       { name: "Separa componentes electrónicos y mecánicos de uso doméstico y comercial", abrev: "COMP-ELEC" },
       { name: "Separa componentes eléctricos y domóticos de uso doméstico y comercial", abrev: "COMP-DOM" }
     ],
     sem4: [
-      { name: "Instala sensores y actuadores en sistemas inteligentes residenciales", abrev: "INST-SENS" },
-      { name: "Configura redes de comunicación domótica inalámbricas y cableadas", abrev: "CONF-RED" }
+      { name: "Ensambla componentes electrónicos y domóticos para uso doméstico y comercial", abrev: "ENS-DOM" },
+      { name: "Simula circuitos electrónicos y domóticos para instalaciones domésticas y comerciales", abrev: "SIM-DOM" }
     ],
     sem5: [
       { name: "Asiste instalaciones de equipo de automatización y control para uso residencial y comercial", abrev: "ASIST-AUTO" },
       { name: "Opera equipo domótico en instalaciones residenciales y comerciales, bajo supervisión", abrev: "OP-DOM" }
     ],
     sem6: [
-      { name: "Programa escenarios de iluminación y seguridad en entornos inteligentes", abrev: "PROG-ESC" },
-      { name: "Brinda mantenimiento preventivo a sistemas domóticos instalados", abrev: "MANT-DOM" }
+      { name: "Aplica mantenimiento a equipo domótico residencial y comercial con supervisión de expertos", abrev: "MANT-DOM" },
+      { name: "Auxilia fabricación de equipo domótico para uso residencial y comercial", abrev: "FAB-DOM" }
     ]
   },
   "Instalaciones Residenciales": {
@@ -168,70 +168,70 @@ export const UACS_LABORALES_MAPA: Record<string, {
       { name: "Prepara materiales en cantidad y calidad especificada para llevar a cabo diferentes tipos de mezclas bajo la supervisión del experto", abrev: "PREP-MEZC" }
     ],
     sem4: [
-      { name: "Realiza instalaciones eléctricas residenciales monofásicas y bifásicas", abrev: "INST-ELEC" },
-      { name: "Ejecuta instalaciones hidráulicas y sanitarias básicas en vivienda", abrev: "INST-HIDR" }
+      { name: "Realiza cortes, ranuras en pisos, techos y muros en construcción e instalaciones residenciales", abrev: "CORTE-INST" },
+      { name: "Traslada materiales constructivos hacia sitios de trabajo bajo normas de seguridad", abrev: "TRASL-MAT" }
     ],
     sem5: [
       { name: "Coloca elementos constructivos básicos de una vivienda", abrev: "ELEM-CONST" },
       { name: "Limpia muebles, tuberías y conexiones para llevar a cabo diferentes instalaciones de una vivienda", abrev: "LIMP-TUB" }
     ],
     sem6: [
-      { name: "Mantiene y repara redes de agua potable y drenaje residencial", abrev: "MANT-AGUA" },
-      { name: "Instala equipos y accesorios de gas L.P. y gas natural bajo norma", abrev: "INST-GAS" }
+      { name: "Coloca muebles, tuberías y conexiones de acuerdo con instrucciones", abrev: "COL-TUB" },
+      { name: "Recupera materiales de construcción para su reuso", abrev: "REC-MAT" }
     ]
   },
-  "Mecanica Dental": {
+  "Mecánica Dental": {
     sem3: [
       { name: "Prepara modelos, moldes, porta impresiones, bloques o rodillos para realizar impresiones dentales parciales o totales", abrev: "PREP-MOLD" },
       { name: "Registra órdenes de trabajo siguiendo especificaciones y prescripciones para dispositivos y aparatos dentales", abrev: "REG-ORD" }
     ],
     sem4: [
-      { name: "Confecciona prótesis dentales removibles acrílicas y metálicas", abrev: "CONF-PROT" },
-      { name: "Elabora dentaduras totales y prótesis provisionales", abrev: "DENT-TOT" }
+      { name: "Prepara prótesis dentales fijas y removibles para el proceso de encerado", abrev: "PREP-PROT" },
+      { name: "Realiza actividades de colado de modelos protésicos calcinables con el fin de fabricar prótesis dentales", abrev: "COL-PROT" }
     ],
     sem5: [
       { name: "Modela alambres de diversos calibres para casos de aparatología ortodóntica", abrev: "MOD-ALAMB" },
       { name: "Realiza perfilado para prótesis dentales fijas y removibles", abrev: "PERF-PROT" }
     ],
     sem6: [
-      { name: "Elabora aparatos de ortodoncia retenedores y de expansión", abrev: "ORTO-RET" },
-      { name: "Pulido y terminado estético de dispositivos protésicos dentales", abrev: "PUL-ESTET" }
+      { name: "Apoya actividades de diseño de prótesis y aparatología dental de acuerdo con la prescripción médicoodontológica", abrev: "DIS-PROT" },
+      { name: "Repara aparatos ortopédicos y protésicos mediante herramientas manuales bajo la supervisión del experto", abrev: "REP-ORTO" }
     ]
   },
-  "Preparacion de Alimentos Artesanales": {
+  "Preparación de Alimentos Artesanales": {
     sem3: [
       { name: "Conserva frutas, verduras y legumbres a través de métodos tradicionales", abrev: "CONS-FRUT" },
       { name: "Transforma cereales y harinas para la elaboración de tortillas y productos afines", abrev: "TRANS-CER" }
     ],
     sem4: [
-      { name: "Elabora embutidos y productos cárnicos artesanales", abrev: "ELAB-EMBUT" },
-      { name: "Prepara lácteos, quesos y derivados lácteos artesanales", abrev: "PREP-LACT" }
+      { name: "Elabora productos utilizando azúcar para preparar dulces típicos", abrev: "DULC-TIP" },
+      { name: "Realiza distintos tipos de pan a base de harinas y otros ingredientes", abrev: "PAN-ART" }
     ],
     sem5: [
       { name: "Obtiene bebidas no alcohólicas mediante procedimientos simples", abrev: "OBT-BEB" },
       { name: "Prepara productos de carnes, derivados disponibles y sustitutos de proteína", abrev: "PREP-CARN" }
     ],
     sem6: [
-      { name: "Envasa y etiqueta conservas y alimentos procesados tradicionalmente", abrev: "ENV-CONS" },
-      { name: "Controla la inocuidad y calidad en la cocina artesanal", abrev: "INOC-ALIM" }
+      { name: "Elabora productos lácteos por métodos tradicionales", abrev: "PROD-LACT" },
+      { name: "Realiza productos utilizando aceites, grasas y condimentos a través de métodos tradicionales", abrev: "PROD-ACEIT" }
     ]
   },
-  "Procesos Culinarios y Reposteria": {
+  "Procesos Culinarios y Repostería": {
     sem3: [
       { name: "Elabora productos de panificación siguiendo procesos establecidos", abrev: "PROD-PAN" },
       { name: "Emplea productos, utensilios y conceptos culinarios durante el proceso de transformación de alimentos", abrev: "TRANS-ALIM" }
     ],
     sem4: [
-      { name: "Elabora bases de cocina fría y caliente para platillos de carta", abrev: "COC-FRIO" },
-      { name: "Decora y presenta platillos aplicando montajes vanguardistas", abrev: "DEC-PLAT" }
+      { name: "Elabora platillos aplicando normas de calidad e higiene", abrev: "PLAT-HIG" },
+      { name: "Elabora productos de repostería aplicando procesos establecidos", abrev: "REPOST-PROC" }
     ],
     sem5: [
       { name: "Determina costos de producción en la elaboración de platillos", abrev: "COST-PLAT" },
-      { name: "Prepara postres y productos de repostería básica", abrev: "PREP-POST" }
+      { name: "Prepara banquetes y servicios gastronómicos para eventos especiales", abrev: "BANQ-SERV" }
     ],
     sem6: [
-      { name: "Elabora pastelería fina, galletería y confitería", abrev: "PAST-FINA" },
-      { name: "Diseña menús equilibrados atendiendo requerimientos nutricionales", abrev: "DIS-MENU" }
+      { name: "Elabora productos culinarios nacionales en establecimientos de alimentos", abrev: "CULIN-NAC" },
+      { name: "Diseña y comercializa menús y servicios gastronómicos sustentables", abrev: "MENU-SUST" }
     ]
   },
   "Redes y Mantenimiento": {
@@ -240,70 +240,70 @@ export const UACS_LABORALES_MAPA: Record<string, {
       { name: "Usa técnicas y estrategias de mantenimiento del equipo de cómputo", abrev: "MANT-COMP" }
     ],
     sem4: [
-      { name: "Instala y configura sistemas operativos de cliente y servidor", abrev: "INST-SO" },
-      { name: "Diseña y ponchado de cableado estructurado UTP para redes LAN", abrev: "CAB-RED" }
+      { name: "Establece seguridad informática en equipos de cómputo", abrev: "SEG-COMP" },
+      { name: "Planea infraestructura de red internet e intranet en un entorno con supervisión del experto", abrev: "PLAN-RED" }
     ],
     sem5: [
       { name: "Administra redes de acuerdo con las condiciones y requerimientos de una organización", abrev: "ADM-REDES" },
       { name: "Brinda soporte en software de aplicación y hardware según los requerimientos del usuario", abrev: "SOP-SOFT" }
     ],
     sem6: [
-      { name: "Configura enrutadores y conmutadores para pequeñas y medianas empresas", abrev: "CONF-ROUT" },
-      { name: "Aplica políticas de seguridad informática y respaldo de datos", abrev: "SEG-DATOS" }
+      { name: "Asesora sobre directrices de seguridad en redes y equipos de cómputo a usuarios", abrev: "ASES-SEG" },
+      { name: "Ofrece soporte en software de aplicación y hardware según los requerimientos del usuario", abrev: "SOP-USUR" }
     ]
   },
-  "Servicios Ecosistemicos": {
+  "Servicios Ecosistémicos": {
     sem3: [
       { name: "Aplica técnicas de muestreo indicadas por el especialista", abrev: "TECN-MUEST" },
       { name: "Recopila muestras para las pruebas de niveles de contaminantes con guía del especialista", abrev: "RECOP-MUEST" }
     ],
     sem4: [
-      { name: "Evalúa la biodiversidad de flora y fauna en ecosistemas locales", abrev: "EVAL-BIODIV" },
-      { name: "Realiza monitoreo de calidad del agua y aire en la comunidad", abrev: "MON-AGUA" }
+      { name: "Aplica técnicas de muestreo de agua dulce indicadas por el especialista", abrev: "MUEST-AGUA" },
+      { name: "Aplica técnicas para el aprovechamiento del agua", abrev: "APROV-AGUA" }
     ],
     sem5: [
       { name: "Aplica técnicas para la siembra de diversas semillas forestales bajo supervisión", abrev: "SIEMB-FOR" },
       { name: "Realiza pruebas de suelos y fertilizantes para el mantenimiento del ecosistema forestal", abrev: "PRUEB-SUEL" }
     ],
     sem6: [
-      { name: "Promueve proyectos de reforestación y restauración de suelos", abrev: "REFOR-SUEL" },
-      { name: "Diseña senderos interpretativos y proyectos de educación ambiental", abrev: "ED-AMB" }
+      { name: "Elabora informe final de resultados de las pruebas bajo supervisión del especialista", abrev: "INF-PRUEB" },
+      { name: "Elabora presentación de resultados para su difusión bajo supervisión del especialista", abrev: "PRES-DIFUS" }
     ]
   },
-  "Sistemas Electricos": {
+  "Sistemas Eléctricos": {
     sem3: [
       { name: "Elabora empalmes acordes con las características de los hilos", abrev: "ELAB-EMP" },
       { name: "Limpia áreas de trabajo, equipo, materiales y herramientas utilizadas durante la actividad", abrev: "LIMP-HERR" }
     ],
     sem4: [
-      { name: "Monta canalizaciones, tubería conduit y cajas de registro eléctricas", abrev: "MONT-CANAL" },
-      { name: "Cablea circuitos de alumbrado y contactos comerciales", abrev: "CABL-ALUMB" }
+      { name: "Calcula voltaje de un sistema eléctrico empleando equipos de medición, la ley de Ohm y las leyes de Kirchhoff", abrev: "CALC-VOLT" },
+      { name: "Manipula sistemas eléctricos en componentes o aparatos siguiendo las fichas técnicas", abrev: "MANIP-SIST" }
     ],
     sem5: [
       { name: "Ensambla componentes sobre tableros en perfocel para circuitos eléctricos básicos", abrev: "ENS-PERF" },
       { name: "Reconoce planos de sistemas eléctricos en servicios domésticos y comerciales", abrev: "PLAN-ELEC" }
     ],
     sem6: [
-      { name: "Mantiene motores eléctricos monofásicos y trifásicos", abrev: "MANT-MOT" },
-      { name: "Instala subestaciones y tableros de distribución de baja tensión", abrev: "INST-TAB" }
+      { name: "Conoce el funcionamiento y clasificación de aparatos domésticos que incluyan motores universales y utiliza equipos de medición para realizar el diagnóstico", abrev: "DIAG-APAR" },
+      { name: "Realiza servicio preventivo a aparatos domésticos y en los sistemas eléctricos con supervisión del experto", abrev: "SERV-PREV" }
     ]
   },
-  "Tecnologia Informatica": {
+  "Tecnología Informática": {
     sem3: [
-      { name: "Utiliza herramientas de programación estructurada para solución de problemas simples", abrev: "PROG-ESTR" },
+      { name: "Elabora documentos electrónicos en diferentes procesadores de texto, relacionados con la ofimática", abrev: "DOC-OFIM" },
       { name: "Utiliza aplicaciones ofimáticas en distintos sistemas operativos", abrev: "APL-OFIM" }
     ],
     sem4: [
-      { name: "Desarrolla sitios web dinámicos con HTML, CSS y JavaScript", abrev: "DEV-WEB" },
-      { name: "Diseña y gestiona bases de datos relacionales simples", abrev: "BASES-DATOS" }
+      { name: "Elabora libros electrónicos en hojas de cálculo, relacionados con la ofimática", abrev: "HOJA-OFIM" },
+      { name: "Opera dispositivos de hardware y software para resguardo de información", abrev: "RESG-INFO" }
     ],
     sem5: [
       { name: "Elabora presentaciones electrónicas en diferentes aplicaciones relacionadas con la ofimática", abrev: "PRES-OFIM" },
       { name: "Opera dispositivos electrónicos multifuncionales en procesos administrativos", abrev: "OP-MULTIF" }
     ],
     sem6: [
-      { name: "Desarrolla aplicaciones móviles y sistemas orientados a objetos", abrev: "DEV-MOVIL" },
-      { name: "Implementa servicios en la nube e inteligencia artificial básica", abrev: "NUBE-IA" }
+      { name: "Maneja softwares de aplicación para comunicación síncrona y asíncrona", abrev: "SOFT-COM" },
+      { name: "Utiliza navegadores web en distintas plataformas digitales con propósitos administrativos", abrev: "NAV-WEB" }
     ]
   },
   "Turismo": {
@@ -312,19 +312,31 @@ export const UACS_LABORALES_MAPA: Record<string, {
       { name: "Muestra variedad de servicios que componen el catálogo de la planta turística", abrev: "SERV-TUR" }
     ],
     sem4: [
-      { name: "Diseña itinerarios y paquetes turísticos regionales y nacionales", abrev: "DIS-ITIN" },
-      { name: "Coordina recorridos guiados patrimonio cultural y natural", abrev: "RECORR-GUI" }
+      { name: "Recomienda planes turísticos de interés, diversión y esparcimiento de mayor ocupación nacional e internacional", abrev: "PLAN-TUR" },
+      { name: "Utiliza aparatos digitales o análogos para reservar y contratar servicios turísticos", abrev: "RESV-TUR" }
     ],
     sem5: [
       { name: "Asiste usuarios en la selección, adquisición y utilización eficiente de servicios turísticos requeridos", abrev: "ASIST-TUR" },
       { name: "Promociona sitios alternativos de lugares a visitar según necesidades del turista", abrev: "PROM-TUR" }
     ],
     sem6: [
-      { name: "Administra reservas hoteleras y pasajes en plataformas turísticas", abrev: "ADM-RESV" },
-      { name: "Organiza eventos, convenciones y ferias turísticas locales", abrev: "ORG-EVENT" }
+      { name: "Planea paquetes turísticos personalizados según necesidades del turista", abrev: "PAQ-TUR" },
+      { name: "Propone actividades específicas al usuario, según el catálogo turístico vigente", abrev: "ACT-TUR" }
     ]
   }
 };
+
+// Alias sin acentos para compatibilidad retroactiva total
+UACS_LABORALES_MAPA["Administracion"] = UACS_LABORALES_MAPA["Administración"];
+UACS_LABORALES_MAPA["Area de la Salud"] = UACS_LABORALES_MAPA["Área de la Salud"];
+UACS_LABORALES_MAPA["Comunicacion Grafica"] = UACS_LABORALES_MAPA["Comunicación Gráfica"];
+UACS_LABORALES_MAPA["Domotica"] = UACS_LABORALES_MAPA["Domótica"];
+UACS_LABORALES_MAPA["Mecanica Dental"] = UACS_LABORALES_MAPA["Mecánica Dental"];
+UACS_LABORALES_MAPA["Preparacion de Alimentos Artesanales"] = UACS_LABORALES_MAPA["Preparación de Alimentos Artesanales"];
+UACS_LABORALES_MAPA["Procesos Culinarios y Reposteria"] = UACS_LABORALES_MAPA["Procesos Culinarios y Repostería"];
+UACS_LABORALES_MAPA["Servicios Ecosistemicos"] = UACS_LABORALES_MAPA["Servicios Ecosistémicos"];
+UACS_LABORALES_MAPA["Sistemas Electricos"] = UACS_LABORALES_MAPA["Sistemas Eléctricos"];
+UACS_LABORALES_MAPA["Tecnologia Informatica"] = UACS_LABORALES_MAPA["Tecnología Informática"];
 
 /**
  * Optativas FFE Categorizadas por Cuadros (MCCEMS 2025-2026 Puebla)

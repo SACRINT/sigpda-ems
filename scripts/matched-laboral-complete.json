@@ -1,0 +1,272 @@
+{
+  "Redes y Mantenimiento": {
+    "sem3": [
+      "Actualiza equipos de cómputo de acuerdo con especificaciones del fabricante",
+      "Usa técnicas y estrategias de mantenimiento del equipo de cómputo"
+    ],
+    "sem4": [
+      "Establece seguridad informática en equipos de cómputo",
+      "Planea infraestructura de red internet e intranet en un entorno con supervisión del experto"
+    ],
+    "sem5": [
+      "Administra redes de acuerdo con las condiciones y requerimientos de una organización",
+      "Brinda soporte en software de aplicación y hardware según los requerimientos del usuario"
+    ],
+    "sem6": [
+      "Asesora sobre directrices de seguridad en redes y equipos de cómputo a usuarios",
+      "Ofrece soporte en software de aplicación y hardware según los requerimientos del usuario"
+    ]
+  },
+  "Servicios Ecosistemicos": {
+    "sem3": [
+      "Aplica técnicas de muestreo indicadas por el especialista",
+      "Recopila muestras para las pruebas de niveles de contaminantes con guía del especialista"
+    ],
+    "sem4": [
+      "Aplica técnicas de muestreo de agua dulce indicadas por el especialista",
+      "Aplica técnicas para el aprovechamiento del agua"
+    ],
+    "sem5": [
+      "Aplica técnicas para la siembra de diversas semillas forestales bajo supervisión",
+      "Realiza pruebas de suelos y fertilizantes para el mantenimiento del ecosistema forestal"
+    ],
+    "sem6": [
+      "Elabora informe final de resultados de las pruebas bajo supervisión del especialista",
+      "Elabora presentación de resultados para su difusión bajo supervisión del especialista"
+    ]
+  },
+  "Preparacion de Alimentos Artesanales": {
+    "sem3": [
+      "Conserva frutas, verduras y legumbres a través de métodos tradicionales",
+      "Transforma cereales y harinas para la elaboración de tortillas y productos afines"
+    ],
+    "sem4": [
+      "Elabora productos utilizando azúcar para preparar dulces típicos",
+      "Realiza distintos tipos de pan a base de harinas y otros ingredientes"
+    ],
+    "sem5": [
+      "Obtiene bebidas no alcohólicas mediante procedimientos simples",
+      "Prepara productos de carnes, derivados disponibles y sustitutos de proteína"
+    ],
+    "sem6": [
+      "Elabora productos lácteos por métodos tradicionales",
+      "Realiza productos utilizando aceites, grasas y condimentos a través de métodos tradicionales"
+    ]
+  },
+  "Agricultura Sostenible de Traspatio": {
+    "sem3": [
+      "Construye huerto para la producción agrícola sostenible de traspatio",
+      "Planea huerto para la producción agrícola sostenible de traspatio"
+    ],
+    "sem4": [
+      "Aplica manejo agroecológico en el sistema en el huerto de traspatio",
+      "Reconoce sistemas de producción y manejo agroecológico en el huerto de traspatio"
+    ],
+    "sem5": [
+      "Aplica técnicas agroecológicas de conservación de suelo y agua, y de control de plagas y enfermedades",
+      "Distingue técnicas agroecológicas de conservación de suelo y agua y de control de plagas y enfermedades"
+    ],
+    "sem6": [
+      "Identifica manejo de la biodiversidad y su contribución a la soberanía alimentaria y el desarrollo sostenible",
+      "Promueve prácticas agroecológicas, redes alimentarias y económicas alternativas para contribuir a la soberanía alimentaria y el desarrollo sostenible"
+    ]
+  },
+  "Area de la Salud": {
+    "sem3": [
+      "Despacha medicamentos y material de curación de acuerdo con prescripciones médicas y productos farmacéuticos",
+      "Lleva registro de recetas, inventarios de medicamentos y productos farmacéuticos"
+    ],
+    "sem4": [
+      "Ordena las existencias de medicamentos en estantes y anaqueles",
+      "Participa en la preparación de medicamentos y otros compuestos bajo supervisión profesional químico farmacéutico"
+    ],
+    "sem5": [
+      "Asiste especialistas del área en las necesidades del paciente",
+      "Asiste especialistas del área en las necesidades del paciente diagnosticado"
+    ],
+    "sem6": [
+      "Lava, empaqueta y esteriliza el material e instrumental utilizado en las distintas áreas del sector salud",
+      "Realiza diferentes actividades administrativas solicitadas"
+    ]
+  },
+  "Comunicacion Grafica": {
+    "sem3": [
+      "Elabora bocetos gráficos comprensibles y creativos a partir de las necesidades de comunicación gráfica requerida",
+      "Ilustra dibujos en materiales artesanales o artísticos"
+    ],
+    "sem4": [
+      "Reproduce bocetos gráficos básicos utilizando herramientas tradicionales o digitales",
+      "Utilizar elementos de comunicación visual y fuentes tipográficas para resolver problemas y necesidades de comunicación"
+    ],
+    "sem5": [
+      "Integra efectos visuales a imágenes y textos por medio de software o aplicaciones digitales de uso libre",
+      "Utiliza técnicas de impresión para los diversos productos gráficos, artesanales, artísticos y publicitarios"
+    ],
+    "sem6": [
+      "Emplea materiales amigables con el medio ambiente para productos gráficos, artísticos y publicitarios",
+      "Realiza maquetación de productos gráficos para publicidad y rotulación"
+    ]
+  },
+  "Tecnologia Informatica": {
+    "sem3": [
+      "Elabora documentos electrónicos en diferentes procesadores de texto, relacionados con la ofimática",
+      "Utiliza aplicaciones ofimáticas en distintos sistemas operativos"
+    ],
+    "sem4": [
+      "Elabora libros electrónicos en hojas de cálculo, relacionados con la ofimática",
+      "Opera dispositivos de hardware y software para resguardo de información"
+    ],
+    "sem5": [
+      "Elabora presentaciones electrónicas en diferentes aplicaciones relacionadas con la ofimática",
+      "Opera dispositivos electrónicos multifuncionales en procesos administrativos"
+    ],
+    "sem6": [
+      "Maneja softwares de aplicación para comunicación síncrona y asíncrona",
+      "Utiliza navegadores web en distintas plataformas digitales con propósitos administrativos"
+    ]
+  },
+  "Sistemas Electricos": {
+    "sem3": [
+      "Elabora empalmes acordes con las características de los hilos",
+      "Limpia áreas de trabajo, equipo, materiales y herramientas utilizadas durante la actividad"
+    ],
+    "sem4": [
+      "Calcula voltaje de un sistema eléctrico empleando equipos de medición, la ley de Ohm y las leyes de Kirchhoff",
+      "Manipula sistemas eléctricos en componentes o aparatos siguiendo las fichas técnicas"
+    ],
+    "sem5": [
+      "Ensambla componentes sobre tableros en perfocel para circuitos eléctricos básicos",
+      "Reconoce planos de sistemas eléctricos en servicios domésticos y comerciales"
+    ],
+    "sem6": [
+      "Conoce el funcionamiento y clasificación de aparatos domésticos que incluyan motores universales y utiliza equipos de medición para realizar el diagnóstico",
+      "Realiza servicio preventivo a aparatos domésticos y en los sistemas eléctricos con supervisión del experto"
+    ]
+  },
+  "Procesos Culinarios y Reposteria": {
+    "sem3": [
+      "Elabora productos de panificación siguiendo procesos establecidos",
+      "Emplea productos, utensilios y conceptos culinarios durante el proceso de transformación de alimentos"
+    ],
+    "sem4": [
+      "Elabora platillos aplicando normas de calidad e higiene",
+      "Elabora productos de repostería aplicando procesos establecidos"
+    ],
+    "sem5": [
+      "Determina costos de producción en la elaboración de platillos",
+      "Prepara banquetes y servicios gastronómicos para eventos especiales"
+    ],
+    "sem6": [
+      "Elabora productos culinarios nacionales en establecimientos de alimentos",
+      "Diseña y comercializa menús y servicios gastronómicos sustentables"
+    ]
+  },
+  "Administracion": {
+    "sem3": [
+      "Entrega recursos materiales a otras áreas de una organización",
+      "Organiza recursos materiales a solicitud de un superior"
+    ],
+    "sem4": [
+      "Captura información solicitada por un superior",
+      "Registra entrada y salida del personal de una organización"
+    ],
+    "sem5": [
+      "Elabora trámites administrativos básicos de una organización",
+      "Organiza expedientes y documentación interna de las diferentes áreas de una organización"
+    ],
+    "sem6": [
+      "Proporciona información detallada y condiciones de venta de bienes y servicios",
+      "Realiza ventas de bienes y servicios al público en general"
+    ]
+  },
+  "Turismo": {
+    "sem3": [
+      "Explica procesos de expedición de documentos oficiales en las instituciones gubernamentales correspondientes para transitar o viajar",
+      "Muestra variedad de servicios que componen el catálogo de la planta turística"
+    ],
+    "sem4": [
+      "Recomienda planes turísticos de interés, diversión y esparcimiento de mayor ocupación nacional e internacional",
+      "Utiliza aparatos digitales o análogos para reservar y contratar servicios turísticos"
+    ],
+    "sem5": [
+      "Asiste usuarios en la selección, adquisición y utilización eficiente de servicios turísticos requeridos",
+      "Promociona sitios alternativos de lugares a visitar según necesidades del turista"
+    ],
+    "sem6": [
+      "Planea paquetes turísticos personalizados según necesidades del turista",
+      "Propone actividades específicas al usuario, según el catálogo turístico vigente"
+    ]
+  },
+  "Instalaciones Residenciales": {
+    "sem3": [
+      "Interpreta croquis de diferentes instalaciones básicas de una vivienda",
+      "Prepara materiales en cantidad y calidad especificada para llevar a cabo diferentes tipos de mezclas bajo la supervisión del experto"
+    ],
+    "sem4": [
+      "Realiza cortes, ranuras en pisos, techos y muros en construcción e instalaciones residenciales",
+      "Traslada materiales constructivos hacia sitios de trabajo bajo normas de seguridad"
+    ],
+    "sem5": [
+      "Coloca elementos constructivos básicos de una vivienda",
+      "Limpia muebles, tuberías y conexiones para llevar a cabo diferentes instalaciones de una vivienda"
+    ],
+    "sem6": [
+      "Coloca muebles, tuberías y conexiones de acuerdo con instrucciones",
+      "Recupera materiales de construcción para su reuso"
+    ]
+  },
+  "Contabilidad": {
+    "sem3": [
+      "Opera programas de cómputo para efectuar el registro, cálculo, control y análisis de la información contable",
+      "Registra movimientos contables de una entidad económica, con base en documentos fuente"
+    ],
+    "sem4": [
+      "Realiza cálculos básicos para los informes financieros y contables, para su revisión",
+      "Registra información para el pago de obligaciones, comerciales, laborales y fiscales"
+    ],
+    "sem5": [
+      "Realiza reportes básicos previos a los estados financieros",
+      "Registra compras y ventas del sector comercial"
+    ],
+    "sem6": [
+      "Organiza información para la elaboración de estados financieros básicos",
+      "Registra información que ayude al cálculo de impuestos del contribuyente"
+    ]
+  },
+  "Mecanica Dental": {
+    "sem3": [
+      "Prepara modelos, moldes, porta impresiones, bloques o rodillos para realizar impresiones dentales parciales o totales",
+      "Registra órdenes de trabajo siguiendo especificaciones y prescripciones para dispositivos y aparatos dentales"
+    ],
+    "sem4": [
+      "Prepara prótesis dentales fijas y removibles para el proceso de encerado",
+      "Realiza actividades de colado de modelos protésicos calcinables con el fin de fabricar prótesis dentales"
+    ],
+    "sem5": [
+      "Modela alambres de diversos calibres para casos de aparatología ortodóntica",
+      "Realiza perfilado para prótesis dentales fijas y removibles"
+    ],
+    "sem6": [
+      "Apoya actividades de diseño de prótesis y aparatología dental de acuerdo con la prescripción médicoodontológica",
+      "Repara aparatos ortopédicos y protésicos mediante herramientas manuales bajo la supervisión del experto"
+    ]
+  },
+  "Domotica": {
+    "sem3": [
+      "Separa componentes electrónicos y mecánicos de uso doméstico y comercial",
+      "Separa componentes eléctricos y domóticos de uso doméstico y comercial"
+    ],
+    "sem4": [
+      "Ensambla componentes electrónicos y domóticos para uso doméstico y comercial",
+      "Simula circuitos electrónicos y domóticos para instalaciones domésticas y comerciales"
+    ],
+    "sem5": [
+      "Asiste instalaciones de equipo de automatización y control para uso residencial y comercial",
+      "Opera equipo domótico en instalaciones residenciales y comerciales, bajo supervisión"
+    ],
+    "sem6": [
+      "Aplica mantenimiento a equipo domótico residencial y comercial con supervisión de expertos",
+      "Auxilia fabricación de equipo domótico para uso residencial y comercial"
+    ]
+  }
+}
