@@ -3,6 +3,7 @@ import type { ProgramCatalogItem } from '@/lib/db';
 import type { RagContext } from '@/lib/rag-curricular';
 import { buildRagContextBlock } from '@/lib/rag-curricular';
 import { CATALOGO_METODOLOGIAS_ACTIVAS } from '@/lib/catalogo-metodologias';
+import { isTechnologicalSubsystem } from '@/lib/subsystem-config';
 
 export interface AuditFeedbackContext {
   overall_score: number;
@@ -35,44 +36,65 @@ export function buildUserPrompt(
   continuityInfo?: FfeContinuityContext | null,
   ragContext?: RagContext | null
 ): string {
-  // ── Hour distribution math ─────────────────────────────────────────────────
-  // The semester has 3 evaluation periods (cortes), each with 6 weeks.
-  // Weekly load = totalHours / 18  (rounded to nearest integer)
-  // Hours per corte = weeklyLoad × 6
-  // Expected values:
-  //   3 h/week → 18 h/corte (54 h total)
-  //   4 h/week → 24 h/corte (72 h total)
-  const totalHours = officialProgram?.total_hours || extractedData.totalHours || 54;
-  const weeklyLoad = Math.max(1, Math.round(totalHours / 18));
-  const hoursPerCorte = weeklyLoad * 6;
-  const hoursPerCorteVerified = Math.round(totalHours / 3);
-  const hpc = Number.isInteger(totalHours / 3) ? hoursPerCorteVerified : hoursPerCorte;
-
+  const subsystemKey = (officialProgram?.subsystem || context.subsystem || 'bge').toLowerCase();
+  const isTec = isTechnologicalSubsystem(subsystemKey);
   const isLaboral = component === 'laboral';
   const isTransitionSemester = semester >= 5; // 5to y 6to semestre aún usan progresiones en 2026-2027
+
+  // ── Hour distribution math ─────────────────────────────────────────────────
+  // BGE usa 18 semanas de mediación docente.
+  // Bachilleratos Tecnológicos (BT) usan 16 semanas de mediación docente oficial COSFAC.
+  const weeksPerSemester = isTec ? 16 : 18;
+  const totalHours = officialProgram?.total_hours || extractedData.totalHours || (isTec && isLaboral ? 80 : 54);
+  const weeklyLoad = Math.max(1, Math.round(totalHours / weeksPerSemester));
+  const hoursPerCorte = Math.round(totalHours / 3);
+  const hpc = hoursPerCorte;
 
   // ── Prepare Activities & Official Content ───────────────────────────────────
   let activitiesList: { name: string; hours: number; topics?: string[]; purpose?: string }[] = [];
 
   if (isLaboral) {
-    // Formación Laboral: Estrictamente 3 Actividades Clave (18h c/u = 54h totales)
-    if (officialProgram?.activities && Array.isArray(officialProgram.activities) && officialProgram.activities.length === 3) {
-      activitiesList = officialProgram.activities.map((a: any, idx: number) => ({
-        name: a.name || `Actividad Clave ${idx + 1}`,
-        hours: a.hours || 18,
-      }));
-    } else if (extractedData.activities && extractedData.activities.length === 3) {
-      activitiesList = extractedData.activities.map((a, idx) => ({
-        name: a.name || `Actividad Clave ${idx + 1}`,
-        hours: a.hours || 18,
-      }));
+    if (isTec) {
+      // Carrera Técnica BT: 3 Fases de la Competencia Profesional
+      const sourceActivities = (extractedData.activities && extractedData.activities.length > 0)
+        ? extractedData.activities
+        : (officialProgram?.activities && Array.isArray(officialProgram.activities) && officialProgram.activities.length > 0)
+          ? officialProgram.activities
+          : [];
+
+      if (sourceActivities.length > 0) {
+        activitiesList = sourceActivities.map((a: any, idx: number) => ({
+          name: a.name || `Fase ${idx + 1} de la Competencia Profesional`,
+          hours: a.hours || Math.round(totalHours / Math.max(1, sourceActivities.length)),
+        }));
+      } else {
+        const h1 = Math.round(totalHours / 3);
+        const h3 = totalHours - (h1 * 2);
+        activitiesList = [
+          { name: `Fase 1: Diagnóstico técnico, fundamentos y preparación operativa de ${extractedData.uacName}`, hours: h1 },
+          { name: `Fase 2: Ejecución práctica, procesos técnicos y aplicación en taller/laboratorio`, hours: h1 },
+          { name: `Fase 3: Simulación profesional, control de calidad y entrega de evidencias técnicas`, hours: h3 },
+        ];
+      }
     } else {
-      // Fallback a 3 Actividades Clave canónicas si vienen 4 o datos erróneos
-      activitiesList = [
-        { name: `Actividad Clave 1: Diagnóstico, fundamentación y preparación técnica de ${extractedData.uacName}`, hours: 18 },
-        { name: `Actividad Clave 2: Ejecución, procesamiento y desarrollo operativo de ${extractedData.uacName}`, hours: 18 },
-        { name: `Actividad Clave 3: Simulación profesional, control de calidad y entrega de evidencias técnicas`, hours: 18 },
-      ];
+      // Formación Laboral BGE: Estrictamente 3 Actividades Clave (18h c/u = 54h totales)
+      if (officialProgram?.activities && Array.isArray(officialProgram.activities) && officialProgram.activities.length === 3) {
+        activitiesList = officialProgram.activities.map((a: any, idx: number) => ({
+          name: a.name || `Actividad Clave ${idx + 1}`,
+          hours: a.hours || 18,
+        }));
+      } else if (extractedData.activities && extractedData.activities.length === 3) {
+        activitiesList = extractedData.activities.map((a, idx) => ({
+          name: a.name || `Actividad Clave ${idx + 1}`,
+          hours: a.hours || 18,
+        }));
+      } else {
+        activitiesList = [
+          { name: `Actividad Clave 1: Diagnóstico, fundamentación y preparación técnica de ${extractedData.uacName}`, hours: 18 },
+          { name: `Actividad Clave 2: Ejecución, procesamiento y desarrollo operativo de ${extractedData.uacName}`, hours: 18 },
+          { name: `Actividad Clave 3: Simulación profesional, control de calidad y entrega de evidencias técnicas`, hours: 18 },
+        ];
+      }
     }
   } else {
     // Componentes Fundamentales, Ampliados o FFE (Propósitos o Progresiones)
@@ -132,16 +154,17 @@ export function buildUserPrompt(
     bge: 'Bachillerato General Estatal (BGE)',
     digital: 'Bachillerato Digital',
     emsad: 'EMSAD',
-    cecyte: 'CECyTE',
-    cbtis: 'CBTIS',
-    cbta: 'CBTA',
+    tecnologico: 'Bachillerato Tecnológico (General)',
+    cecyte: 'CECyTE (Bachillerato Tecnológico)',
+    cbtis: 'CBTIS (DGETI - Bachillerato Tecnológico Industrial)',
+    cbta: 'CBTA (DGETAyCM - Bachillerato Tecnológico Agropecuario)',
     conalep: 'CONALEP',
     dgb: 'Preparatoria Federal / DGB',
     telebachillerato: 'Telebachillerato',
   };
 
   const componentLabels: Record<string, string> = {
-    laboral: 'Formación Laboral (3 Actividades Clave)',
+    laboral: isTec ? 'Carrera Técnica (Módulos y Submódulos Profesionales)' : 'Formación Laboral (3 Actividades Clave)',
     fundamental: 'Currículum Fundamental',
     ampliado: 'Currículum Ampliado',
     ext_optativo: 'Formación Fundamental Extendida (Optativa)',
@@ -149,7 +172,6 @@ export function buildUserPrompt(
   };
 
   const location = [context.municipality, context.state].filter(Boolean).join(', ');
-  const subsystemKey = (officialProgram?.subsystem || context.subsystem || 'bge').toLowerCase();
   const subsystemLabel = subsystemLabels[subsystemKey] || context.subsystem;
 
   const learningOutcome = officialProgram?.learning_outcome || extractedData.learningOutcome || 
@@ -237,13 +259,13 @@ UAC: ${extractedData.uacName}
 Semestre: ${semester}° Semestre
 Componente Curricular: ${componentLabels[component] || component}
 Carga Horaria Semestral TOTAL: ${totalHours} horas oficiales
-Carga Horaria Semanal: ${weeklyLoad} horas por semana
-Modelo Pedagógico Vigente: ${isLaboral ? '3 Actividades Clave (Formación Laboral)' : isTransitionSemester ? 'Progresiones de Aprendizaje (5° y 6° Semestre)' : 'Propósitos Formativos y Contenidos Temáticos (1° a 4° Semestre)'}
+Carga Horaria Semanal: ${weeklyLoad} horas por semana (${weeksPerSemester} semanas de mediación docente)
+Modelo Pedagógico Vigente: ${isLaboral ? (isTec ? 'Carrera Técnica por Módulos y Submódulos (Base 16 Semanas Oficial COSFAC)' : '3 Actividades Clave (Formación Laboral BGE)') : isTransitionSemester ? 'Progresiones de Aprendizaje (5° y 6° Semestre)' : 'Propósitos Formativos y Contenidos Temáticos (1° a 4° Semestre)'}
 
 Resultado de Aprendizaje / Propósito General Oficial:
 ${learningOutcome}
 
-${isLaboral ? 'ACTIVIDADES CLAVE OFICIALES DEL PROGRAMA (EXACTAMENTE 3, 18 HORAS CADA UNA):' : isTransitionSemester ? 'PROGRESIONES DE APRENDIZAJE OFICIALES DEL PROGRAMA:' : 'PROPÓSITOS FORMATIVOS Y CONTENIDOS TEMÁTICOS OFICIALES:'}
+${isLaboral ? (isTec ? 'FASES DE COMPETENCIA PROFESIONAL DEL SUBMÓDULO TÉCNICO:' : 'ACTIVIDADES CLAVE OFICIALES DEL PROGRAMA (EXACTAMENTE 3, 18 HORAS CADA UNA):') : isTransitionSemester ? 'PROGRESIONES DE APRENDIZAJE OFICIALES DEL PROGRAMA:' : 'PROPÓSITOS FORMATIVOS Y CONTENIDOS TEMÁTICOS OFICIALES:'}
 ${activitiesText}
 
 Evidencias e Instrumentos Sugeridos por el Programa Oficial:
@@ -252,17 +274,17 @@ ${ffeContinuityBlock}${auditRemediationBlock}
 ═══════════ DISTRIBUCIÓN HORARIA OBLIGATORIA POR CORTE ═══════════
 REGLA MATEMÁTICA ESTRICTA — NO MODIFICAR:
   • El semestre se divide en 3 Cortes de evaluación (Corte 1, Corte 2, Corte 3).
-  • Cada Corte tiene exactamente 6 semanas lectivas.
-  • Carga semanal de esta UAC: ${weeklyLoad} horas/semana.
-  • HORAS POR CORTE: ${weeklyLoad} h/semana × 6 semanas = ${hpc} horas exactas por Corte.
-  • TOTAL: ${hpc} h × 3 Cortes = ${hpc * 3} horas (debe cuadrar exactamente con la carga total de ${totalHours} h).
+  • Carga semanal de esta UAC: ${weeklyLoad} horas/semana (Base ${weeksPerSemester} semanas lectivas).
+  • HORAS POR CORTE: Distribución canónica en 3 Cortes lectivos: Corte 1: ${Math.round(totalHours / 3)}h, Corte 2: ${Math.round(totalHours / 3)}h, Corte 3: ${totalHours - 2 * Math.round(totalHours / 3)}h.
+  • TOTAL: ${totalHours} horas (debe cuadrar exactamente con la carga total oficial).
 
 DOSIFICACIÓN OBLIGATORIA:
-  - La suma de horas de las actividades asignadas al Corte 1 debe ser EXACTAMENTE ${hpc} horas.
-  - La suma de horas de las actividades asignadas al Corte 2 debe ser EXACTAMENTE ${hpc} horas.
-  - La suma de horas de las actividades asignadas al Corte 3 debe ser EXACTAMENTE ${hpc} horas.
-  - Si es Formación Laboral: Asigna la Actividad Clave 1 al Corte 1 (18h), la Actividad Clave 2 al Corte 2 (18h) y la Actividad Clave 3 al Corte 3 (18h).
-  - En la Sección IV, la suma de horas de las secuencias de cada Corte debe sumar exactamente ${hpc} horas.
+  - La suma de horas de las actividades asignadas al Corte 1 debe ser EXACTAMENTE ${Math.round(totalHours / 3)} horas.
+  - La suma de horas de las actividades asignadas al Corte 2 debe ser EXACTAMENTE ${Math.round(totalHours / 3)} horas.
+  - La suma de horas de las actividades asignadas al Corte 3 debe ser EXACTAMENTE ${totalHours - 2 * Math.round(totalHours / 3)} horas.
+  - Si es Formación Laboral (BGE): Asigna la Actividad Clave 1 al Corte 1 (18h), la Actividad Clave 2 al Corte 2 (18h) y la Actividad Clave 3 al Corte 3 (18h).
+  - Si es Carrera Técnica (Bachillerato Tecnológico): Asigna la Fase 1 al Corte 1 (${Math.round(totalHours / 3)}h), la Fase 2 al Corte 2 (${Math.round(totalHours / 3)}h) y la Fase 3 al Corte 3 (${totalHours - 2 * Math.round(totalHours / 3)}h).
+  - En la Sección IV, la suma de horas de las secuencias de cada Corte debe sumar exactamente la cuota asignada a dicho Corte.
 
 ═══════════ DATOS DEL DOCENTE Y PLANTEL ═══════════
 Docente: ${context.teacherName}
@@ -313,9 +335,9 @@ TOTAL HORAS CORTE 1: 3h + 13h + 2h = 18 horas ✓ (Coincide con la distribución
 ═══════════ INSTRUCCIONES DE CALIDAD PEDAGÓGICA EXIGIDAS ═══════════
 1. VINCULACIÓN SITUADA: Conecta explícitamente las secuencias de aprendizaje con la problemática del PAEC: "${context.paecProjectName || context.paecProblem.substring(0, 70)}".
 2. METODOLOGÍAS ACTIVAS: ${context.metodologiaActiva ? `Aplica EXCLUSIVAMENTE la metodología ${CATALOGO_METODOLOGIAS_ACTIVAS.find(m => m.id === context.metodologiaActiva)?.nombre ?? context.metodologiaActiva} respetando sus fases en el orden indicado arriba.` : 'Aplica estrictamente metodologías activas (Aprendizaje Basado en Proyectos, Estudio de Casos, Simulación y Prácticas de Campo). Prohibidas clases expositivas pasivas.'}
-3. SECCIÓN IV (DISEÑO DIDÁCTICO): Genera exactamente ${activitiesList.length} secuencias didácticas completas (Apertura, Desarrollo/Ejecución, Cierre/Conclusión).
    - Para asignaturas no laborales: Especifica obligatoriamente el "contenidoFormativo" oficial exacto desarrollado en la secuencia.
-   - Para Formación Laboral: Exige que el Desarrollo alcance Nivel 2 de complejidad técnica y el Cierre sea una simulación práctica evaluable con lista de cotejo/rúbrica.
+   - Para Formación Laboral (BGE): Exige que el Desarrollo alcance Nivel 2 de complejidad técnica y el Cierre sea una simulación práctica evaluable con lista de cotejo/rúbrica.
+   - Para Carrera Técnica (Bachillerato Tecnológico): Exige que el Desarrollo implemente prácticas de taller/laboratorio, simulación técnica y resolución de problemas profesionales reales con equipo o software correspondiente a la especialidad técnica.
 4. SECCIÓN V (EVALUACIÓN): Incluye el Acuerdo de Acreditación formal firmado y asegura que las ponderaciones sumen exactamente 100%.
 5. SECCIÓN VI (MATERIALES): En "teacherMaterials" incluye ÚNICAMENTE materiales diseñados por el docente (guías, manuales, hojas de trabajo). NUNCA infraestructura física escolar (proyector, internet, pizarrones).
 6. SECCIÓN I: Asigna el período de aplicación: ${context.applicationPeriod || 'Ciclo escolar 2026-2027'}.

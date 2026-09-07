@@ -6,7 +6,7 @@ import {
   getModulosPorSemestre,
   CarreraTecnica,
   ModuloCarrera
-} from "./carreras-tecnologicas";
+} from "./bt-carreras-catalog";
 
 export interface EscuelaEstructuraGrupos {
   gruposPrimerAno: number;   // 1er Año (1º o 2º Semestre)

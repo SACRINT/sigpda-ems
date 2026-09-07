@@ -300,15 +300,6 @@ export const UACS_LABORALES_OFICIALES_BGE: Record<string, Record<number, string[
   }
 };
 
-export const CARRERAS_TECNICAS_OFICIALES = [
-  "Contabilidad (Nuevo Prog. 2024)",
-  "Contabilidad (Plan Anterior)",
-  "Programación (Nuevo Prog. 2024)",
-  "Ofimática (Nuevo Prog. 2024)",
-  "Administración de Recursos Humanos (Nuevo Prog. 2024)",
-  "Soporte y Mantenimiento de Equipo de Cómputo (Plan Anterior)"
-] as const;
-
 /**
  * Normaliza cadenas para comparaciones seguras de texto sin importar tildes o mayúsculas.
  */

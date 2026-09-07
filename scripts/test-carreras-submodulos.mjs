@@ -1,4 +1,4 @@
-import { CARRERAS_TECNOLOGICAS } from '../src/lib/carreras-tecnologicas.ts';
+import { CARRERAS_TECNOLOGICAS } from '../src/lib/bt-carreras-catalog.ts';
 
 console.log('Total Carreras Tecnologicas:', CARRERAS_TECNOLOGICAS.length);
 let totalSubmodulos = 0;

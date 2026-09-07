@@ -1,6 +1,6 @@
 import fs from 'fs';
 import { neon } from '@neondatabase/serverless';
-import { CARRERAS_TECNOLOGICAS } from '../src/lib/carreras-tecnologicas.ts';
+import { CARRERAS_TECNOLOGICAS } from '../src/lib/bt-carreras-catalog.ts';
 
 const envContent = fs.readFileSync('.env.local', 'utf-8');
 const match = envContent.match(/DATABASE_URL=['"]?([^'"\r\n]+)['"]?/);

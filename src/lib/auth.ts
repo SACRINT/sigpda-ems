@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs';
 import { sql, upsertTeacher, getTeacherByEmail } from './db';
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'cambia-esto-por-un-secreto-generado-con-openssl',
   trustHost: true,
   session: { strategy: 'jwt' },
   providers: [

@@ -18,7 +18,7 @@ import {
   CATALOGO_PROPEDUTICAS_5TO,
   getModulosPorSemestre,
   CarreraTecnica,
-} from "@/lib/carreras-tecnologicas";
+} from "@/lib/bt-carreras-catalog";
 
 export interface GrupoConfigItem {
   capacitacionNombre: string;

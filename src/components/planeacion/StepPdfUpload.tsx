@@ -2,9 +2,10 @@
 
 import { useState, useCallback, useRef } from 'react';
 import type { ExtractedPdfData, KeyActivity } from '@/types/planning';
+import { isTechnologicalSubsystem } from '@/lib/subsystem-config';
 
 interface Props {
-  uacSelection: { uacName: string; semester: number; component: string };
+  uacSelection: { uacName: string; semester: number; component: string; subsystem?: string };
   initialData?: ExtractedPdfData | null;
   onNext: (data: ExtractedPdfData) => void;
   onBack: () => void;
@@ -13,20 +14,28 @@ interface Props {
 export default function StepPdfUpload({ uacSelection, initialData, onNext, onBack }: Props) {
   const isLaboral = uacSelection.component === 'laboral';
   const isProgresiones = uacSelection.semester >= 5;
+  const isTec = isTechnologicalSubsystem(uacSelection.subsystem);
+
   const activityLabel = isLaboral
-    ? 'Actividades Clave y Resultados Laborales'
+    ? (isTec
+        ? 'Competencias Profesionales y Actividades Clave del Submódulo'
+        : 'Actividades Clave y Resultados de la Capacitación')
     : isProgresiones
       ? 'Progresiones de Aprendizaje MCCEMS (Ciclo de Transición 26-27)'
       : 'Propósitos Formativos y Contenidos de Estudio (SEP 26-27)';
 
   const activityPlaceholder = isLaboral
-    ? 'Nombre de la Actividad Clave'
+    ? (isTec
+        ? 'Actividad clave / competencia profesional del submódulo'
+        : 'Nombre de la Actividad Clave de la capacitación')
     : isProgresiones
       ? 'Texto de la Progresión X...'
       : 'Nombre del Propósito Formativo (ej: Propósito 1, Bloque 1)';
 
   const addBtnLabel = isLaboral
-    ? '+ Agregar actividad clave'
+    ? (isTec
+        ? '+ Agregar actividad clave del submódulo'
+        : '+ Agregar actividad clave')
     : isProgresiones
       ? '+ Agregar progresión'
       : '+ Agregar propósito formativo';
@@ -304,7 +313,7 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
               className="form-input"
               value={formData.totalHours}
               min={10}
-              max={200}
+              max={400}
               onChange={e => setFormData({ ...formData, totalHours: Number(e.target.value) })}
               style={{ maxWidth: '140px' }}
               required
@@ -345,8 +354,8 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
                   </button>
                 </div>
 
-                {/* Sub-lista de Contenidos Formativos si el modelo no es de progresiones */}
-                {!isProgresiones && (
+                {/* Sub-lista de Contenidos Formativos si el modelo no es de progresiones Y NO es componente laboral/técnico */}
+                {!isProgresiones && !isLaboral && (
                   <div style={{ paddingLeft: '12px', marginTop: '6px' }}>
                     <div style={{ fontSize: '12px', color: '#475569', fontWeight: 500, marginBottom: '4px' }}>
                       📋 Contenidos / Temas de estudio asociados:

@@ -11,10 +11,12 @@ async function main() {
   const hash = await bcrypt.hash('Director2026!', 10);
   await sql`
     UPDATE teachers
-    SET password_hash = ${hash}
+    SET password_hash = ${hash},
+        role = 'administrador',
+        profile_completed = true
     WHERE email = 'sci211270@gmail.com'
   `;
-  console.log('Password hash updated for sci211270@gmail.com');
+  console.log('Password hash & admin role updated for sci211270@gmail.com');
 }
 
 main().catch(console.error);

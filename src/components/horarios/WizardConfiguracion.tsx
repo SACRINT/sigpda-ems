@@ -33,7 +33,7 @@ import {
 import {
   CARRERAS_TECNOLOGICAS,
   CATALOGO_PROPEDUTICAS_5TO
-} from "@/lib/carreras-tecnologicas";
+} from "@/lib/bt-carreras-catalog";
 
 export default function WizardConfiguracion({
   escuelaId,
