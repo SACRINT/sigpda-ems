@@ -1,6 +1,13 @@
 'use client';
 
 import React from 'react';
+import dynamic from 'next/dynamic';
+
+// Fase 11 — Mermaid support para guías de práctica
+const MarkdownWithMermaid = dynamic(
+  () => import('@/components/common/MarkdownWithMermaid'),
+  { ssr: false }
+);
 
 interface ExtraPreviewModalProps {
   isOpen: boolean;
@@ -229,7 +236,13 @@ export function ExtraPreviewModal({
         {/* Modal Content */}
         <div className="flex-1 p-6 overflow-y-auto bg-slate-50">
           <div className="max-w-3xl mx-auto px-4 py-6 bg-white border border-slate-200 shadow-sm rounded-xl">
-            {renderMarkdown(contentText)}
+            {type === 'practice_guide' ? (
+              // Guías de práctica: renderizado con soporte Mermaid (Fase 11)
+              <MarkdownWithMermaid markdown={contentText} />
+            ) : (
+              // Rúbricas, listas de cotejo, planes de clase: parser existente con tablas
+              renderMarkdown(contentText)
+            )}
           </div>
         </div>
 

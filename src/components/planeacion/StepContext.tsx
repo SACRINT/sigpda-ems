@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { ExtractedPdfData, TeacherContext } from '@/types/planning';
+import { CATALOGO_METODOLOGIAS_ACTIVAS, type MetodologiaActiva } from '@/lib/catalogo-metodologias';
+import { recomendarMetodologia } from '@/lib/recomendador-metodologia';
 
 interface Props {
   extractedData: ExtractedPdfData;
@@ -38,6 +40,7 @@ export default function StepContext({ extractedData, onNext, onBack }: Props) {
     paecProblem: '',
     schoolResources: '',
     studentContext: '',
+    metodologiaActiva: undefined,
   });
 
   const [paecLoading, setPaecLoading] = useState(false);
@@ -46,6 +49,19 @@ export default function StepContext({ extractedData, onNext, onBack }: Props) {
   const paecInputRef = useRef<HTMLInputElement>(null);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Sugerencia automática de metodología según UAC/materia
+  const uacName = (extractedData as { uacName?: string })?.uacName || '';
+  const component = (extractedData as { component?: string })?.component || '';
+  useEffect(() => {
+    if (uacName && !form.metodologiaActiva) {
+      const sugeridaId = recomendarMetodologia(uacName, component);
+      if (sugeridaId) {
+        setForm(f => ({ ...f, metodologiaActiva: sugeridaId }));
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uacName]);
 
   const handlePaecUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -356,6 +372,90 @@ export default function StepContext({ extractedData, onNext, onBack }: Props) {
                 </div>
 
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── SECCIÓN 3: Metodología Activa ────────────────────────── */}
+        <div className="card">
+          <div className="section-card" style={{ margin: 0 }}>
+            <div className="section-card-header">
+              <span style={{ fontSize: '18px' }}>🧪</span>
+              <span className="section-card-title">Metodología Activa</span>
+            </div>
+            <div className="section-card-body">
+              <p style={{ marginBottom: '12px', color: 'var(--c-gray-600)', fontSize: '14px' }}>
+                Elige la metodología con la que diseñarás las actividades. La IA adaptará la
+                secuencia didáctica a sus fases.
+                {uacName && (
+                  <span style={{ marginLeft: '6px', fontWeight: 600, color: 'var(--c-navy)' }}>
+                    (Sugerencia basada en &ldquo;{uacName}&rdquo;)
+                  </span>
+                )}
+              </p>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+                  gap: '10px',
+                }}
+              >
+                {CATALOGO_METODOLOGIAS_ACTIVAS.map((m: MetodologiaActiva) => {
+                  const isSelected = form.metodologiaActiva === m.id;
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => set({ metodologiaActiva: m.id })}
+                      style={{
+                        textAlign: 'left',
+                        padding: '12px 14px',
+                        border: isSelected
+                          ? '2px solid var(--c-amber)'
+                          : '1px solid var(--c-gray-200)',
+                        borderRadius: '10px',
+                        background: isSelected ? 'var(--c-amber-light, #fffbeb)' : '#fff',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        boxShadow: isSelected ? '0 0 0 3px rgba(245,158,11,0.15)' : 'none',
+                      }}
+                    >
+                      <div style={{ fontWeight: 700, marginBottom: '4px' }}>
+                        🧪 {m.nombreCorto}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: '12px',
+                          color: 'var(--c-gray-500)',
+                          lineHeight: '1.3',
+                        }}
+                      >
+                        {m.definicion.slice(0, 80)}{m.definicion.length > 80 ? '...' : ''}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              {form.metodologiaActiva && (() => {
+                const sel = CATALOGO_METODOLOGIAS_ACTIVAS.find((m: MetodologiaActiva) => m.id === form.metodologiaActiva);
+                return sel ? (
+                  <div
+                    style={{
+                      marginTop: '14px',
+                      padding: '12px',
+                      background: '#f0fdf4',
+                      border: '1px solid #bbf7d0',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                    }}
+                  >
+                    <strong>✅ {sel.nombre} seleccionada.</strong>{' '}
+                    <span style={{ color: 'var(--c-gray-600)' }}>
+                      Fases: {sel.fases.map((f: string) => f.split('.').slice(1).join('.').trim() || f).join(' → ')}
+                    </span>
+                  </div>
+                ) : null;
+              })()}
             </div>
           </div>
         </div>

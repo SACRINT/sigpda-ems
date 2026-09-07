@@ -38,6 +38,7 @@ export interface TeacherContext {
   paecProblem: string;           // Problemática comunitaria (requerido)
   schoolResources?: string;      // Recursos del plantel
   studentContext: string;        // Caracterización de estudiantes
+  metodologiaActiva?: string;    // ID de metodología activa (ej: 'abp', 'steam', 'abr')
 }
 
 export interface TransversalityItem {
@@ -136,6 +137,7 @@ export interface Planning {
   status: PlanningStatus;
   createdAt: Date;
   updatedAt: Date;
+  metodologiaActiva?: string;    // ID de metodología activa seleccionada por el docente
 }
 
 export interface CreatePlanningInput {
@@ -145,12 +147,13 @@ export interface CreatePlanningInput {
   curriculumName?: string;
   extractedData: ExtractedPdfData;
   context: TeacherContext;
+  metodologiaActiva?: string;    // ID de metodología activa seleccionada por el docente
 }
 
 export interface PlanningExtra {
   id: string;
   planningId: string;
-  type: 'rubric' | 'checklist' | 'material' | 'lesson_plan';
+  type: 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'practice_guide';
   title: string;
   keyIndex: number | null;
   contentText: string;

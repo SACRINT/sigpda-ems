@@ -83,6 +83,7 @@ export default function NuevaPlaneacionClient({ locale }: Props) {
           curriculumName: draft.uacSelection!.curriculumName,
           paecContext: ctx.paecProblem,
           extractedData: draft.extractedData,
+          metodologiaActiva: ctx.metodologiaActiva || undefined,
         }),
       });
       const data = await res.json();

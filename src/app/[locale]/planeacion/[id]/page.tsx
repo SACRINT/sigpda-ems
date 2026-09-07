@@ -42,6 +42,7 @@ export default async function PlanningDetailPage({
     status: planning.status as any,
     createdAt: planning.created_at,
     updatedAt: planning.updated_at,
+    metodologiaActiva: planning.metodologia_activa || undefined,
   };
 
   const extrasTyped: PlanningExtra[] = extras.map((ex) => ({

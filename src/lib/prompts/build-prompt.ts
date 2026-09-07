@@ -2,6 +2,7 @@ import type { ExtractedPdfData, TeacherContext } from '@/types/planning';
 import type { ProgramCatalogItem } from '@/lib/db';
 import type { RagContext } from '@/lib/rag-curricular';
 import { buildRagContextBlock } from '@/lib/rag-curricular';
+import { CATALOGO_METODOLOGIAS_ACTIVAS } from '@/lib/catalogo-metodologias';
 
 export interface AuditFeedbackContext {
   overall_score: number;
@@ -202,6 +203,32 @@ ${recsList.length > 0 ? recsList.join('\n') : '  - Integrar metodologías activa
   // ── RAG Context Block ───────────────────────────────────────────────────────
   const ragBlock = ragContext ? buildRagContextBlock(ragContext) : '';
 
+  // ── Bloque de Metodología Activa ─────────────────────────────────────────
+  // Se inyecta solo si el docente seleccionó una metodología en el wizard.
+  // Si no hay selección, el bloque se omite y la planeación usa el default del system prompt.
+  let metodologiaBlock = '';
+  if (context.metodologiaActiva) {
+    const met = CATALOGO_METODOLOGIAS_ACTIVAS.find(m => m.id === context.metodologiaActiva);
+    if (met) {
+      const fasesText = met.fases
+        .map((f, i) => `  ${i + 1}. ${f}`)
+        .join('\n');
+      metodologiaBlock = `
+═══════════ METODOLOGÍA ACTIVA SELECCIONADA POR EL DOCENTE ═══════════
+Metodología: ${met.nombre}
+Definición: ${met.definicion}
+Tipo de evidencia esperada: ${met.tipoEvidenciaSugerida}
+
+El estudiante DEBE vivir estas fases EN ORDEN durante la secuencia didáctica:
+${fasesText}
+
+OBLIGATORIO: Cada Actividad Clave o Propósito Formativo en la Sección IV debe
+estructurarse usando estas fases. Queda PROHIBIDO saltar fases, fusionarlas
+o convertirlas en explicación expositiva pasiva.
+`;
+    }
+  }
+
   // ── Prompt Completo ────────────────────────────────────────────────────────
   return `Genera una Planeación Didáctica completa y de nivel EXCELENCIA en formato oficial DBEPA 2026-2027 para:
 ${ragBlock}
@@ -257,9 +284,35 @@ ${context.paecProblem}
 Caracterización y Perfil de los Estudiantes:
 ${context.studentContext || 'Estudiantes de bachillerato con interés en proyectos prácticos y resolución de problemas comunitarios.'}
 
+${metodologiaBlock}
+═══════════ EJEMPLO DE REFERENCIA — SECCIÓN IV DE NIVEL EXCELENCIA (FEW-SHOT) ═══════════
+El siguiente es UN EJEMPLO de la calidad y estructura requerida para la Sección IV.
+Adapta el contenido a la UAC, semestre y contexto PAEC indicados arriba. NO copies este ejemplo.
+
+SECUENCIA DIDÁCTICA EJEMPLO (Propósito Formativo: Analizar circuitos eléctricos en C.A. | 18h | Corte 1):
+
+  APERTURA (3h):
+  - Actividad motivadora (1h): El docente presenta el caso real: "Apagones en la colonia Loma Bella de Tehuacán — ¿por qué ocurren?". Estudiantes en equipos discuten causas posibles y registran hipótesis en una tabla de anticipación.
+  - Exploración de saberes previos (1h): Cuestionario diagnóstico de 8 preguntas sobre corriente, voltaje y resistencia. El docente identifica concepciones erróneas comunes.
+  - Planteamiento de la situación problema PAEC (1h): "¿Cómo diseñaríamos un circuito de iluminación de emergencia para el centro comunitario de nuestra localidad?". Equipos establecen el reto a resolver durante el Corte 1.
+
+  DESARROLLO (13h):
+  - Construcción conceptual (3h): Miniclases de 20 min sobre Ley de Ohm, potencia y factor de potencia, intercaladas con ejercicios de aplicación inmediata (Taxonomía Bloom: Comprender → Aplicar).
+  - Investigación guiada (3h): Equipos consultan hojas de datos técnicos de dispositivos eléctricos reales, calculan cargas de un circuito de 10 luminarias LED y verifican con multímetro en el laboratorio.
+  - Fase ABR — Prototipado (4h): Cada equipo construye el circuito en tablero de madera: diagrama unifilar, conexión física, prueba de continuidad. Docente hace rondas de retroalimentación formativa con lista de cotejo de proceso.
+  - Análisis de resultados (3h): Equipos comparan resultados experimentales con valores teóricos, identifican fuentes de error y proponen mejoras al diseño (vinculación con el proyecto PAEC).
+
+  CIERRE (2h):
+  - Socialización (1h): Presentación de 5 min por equipo: muestran el circuito funcional, explican decisiones de diseño y proponen cómo se aplicaría en el centro comunitario.
+  - Reflexión metacognitiva (0.5h): Cada estudiante completa una ficha "¿Qué aprendí? — ¿Qué me costó trabajo? — ¿Cómo puedo mejorarlo?".
+  - Evaluación formativa (0.5h): Rúbrica analítica (4 criterios: diseño, ejecución, medición, reporte). Ponderación Corte 1: Proceso 40%, Producto 40%, Actitudinal 20%.
+
+TOTAL HORAS CORTE 1: 3h + 13h + 2h = 18 horas ✓ (Coincide con la distribución obligatoria)
+═══════════ FIN DEL EJEMPLO ═══════════
+
 ═══════════ INSTRUCCIONES DE CALIDAD PEDAGÓGICA EXIGIDAS ═══════════
 1. VINCULACIÓN SITUADA: Conecta explícitamente las secuencias de aprendizaje con la problemática del PAEC: "${context.paecProjectName || context.paecProblem.substring(0, 70)}".
-2. METODOLOGÍAS ACTIVAS: Aplica estrictamente metodologías activas (Aprendizaje Basado en Proyectos, Estudio de Casos, Simulación y Prácticas de Campo). Prohibidas clases expositivas pasivas.
+2. METODOLOGÍAS ACTIVAS: ${context.metodologiaActiva ? `Aplica EXCLUSIVAMENTE la metodología ${CATALOGO_METODOLOGIAS_ACTIVAS.find(m => m.id === context.metodologiaActiva)?.nombre ?? context.metodologiaActiva} respetando sus fases en el orden indicado arriba.` : 'Aplica estrictamente metodologías activas (Aprendizaje Basado en Proyectos, Estudio de Casos, Simulación y Prácticas de Campo). Prohibidas clases expositivas pasivas.'}
 3. SECCIÓN IV (DISEÑO DIDÁCTICO): Genera exactamente ${activitiesList.length} secuencias didácticas completas (Apertura, Desarrollo/Ejecución, Cierre/Conclusión).
    - Para asignaturas no laborales: Especifica obligatoriamente el "contenidoFormativo" oficial exacto desarrollado en la secuencia.
    - Para Formación Laboral: Exige que el Desarrollo alcance Nivel 2 de complejidad técnica y el Cierre sea una simulación práctica evaluable con lista de cotejo/rúbrica.

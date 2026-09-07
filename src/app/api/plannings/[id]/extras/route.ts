@@ -14,7 +14,9 @@ import {
   RUBRIC_PROMPT_TEMPLATE,
   MATERIAL_PROMPT_TEMPLATE,
   LESSON_PLAN_PROMPT_TEMPLATE,
+  PRACTICE_GUIDE_PROMPT_TEMPLATE,
 } from '@/lib/prompts/extras-prompts';
+import { obtenerMetodologiaPorId } from '@/lib/catalogo-metodologias';
 import type { GeneratedPlanningContent } from '@/types/planning';
 
 export const runtime = 'nodejs';
@@ -77,14 +79,18 @@ export async function POST(
       evidence = '',
       sessionNum = 1,
       totalSessions = 18,
+      practiceNumber = 1,
+      practiceTitle = '',
     } = body as {
-      type: 'rubric' | 'checklist' | 'material' | 'lesson_plan';
+      type: 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'practice_guide';
       title: string;
       keyIndex?: number | null;
       activityName?: string;
       evidence?: string;
       sessionNum?: number;
       totalSessions?: number;
+      practiceNumber?: number;
+      practiceTitle?: string;
     };
 
     if (!type || !title) {
@@ -102,7 +108,8 @@ export async function POST(
         planning.uac_name,
         activityName || `Actividad Clave ${keyIndex !== null ? keyIndex + 1 : ''}`,
         evidence || 'Evidencia de desempeño/producto',
-        instrumentType
+        instrumentType,
+        planning.metodologia_activa || undefined
       );
     } else if (type === 'material') {
       const uacContext = `
@@ -114,7 +121,8 @@ Resultados de Aprendizaje: ${(contentJson?.sectionII?.learningOutcomes || []).jo
         planning.uac_name,
         title,
         paecProblem,
-        uacContext
+        uacContext,
+        planning.metodologia_activa || undefined
       );
     } else if (type === 'lesson_plan') {
       const studentContext = planning.extracted_data?.studentContext || 'Estudiantes de bachillerato general estatal';
@@ -130,7 +138,36 @@ Resultados de Aprendizaje: ${(contentJson?.sectionII?.learningOutcomes || []).jo
         totalSessions,
         paecProblem,
         studentContext,
-        learningOutcome
+        learningOutcome,
+        planning.metodologia_activa || undefined
+      );
+    } else if (type === 'practice_guide') {
+      // ── Guía de Práctica para el Estudiante (Fase 3) ──────────────────────
+      const studentContext = planning.extracted_data?.studentContext || 'Estudiantes de bachillerato (15-18 años) en Puebla, México';
+      const learningOutcome =
+        keyIndex !== null && contentJson?.sectionII?.learningOutcomes?.[keyIndex]
+          ? contentJson.sectionII.learningOutcomes[keyIndex]
+          : 'Desarrollar competencias técnicas y socioemocionales aplicadas al contexto local';
+
+      // Fetch methodology phases from the catalog
+      let metodologiaFases: string[] | undefined;
+      if (planning.metodologia_activa) {
+        const metodologiaObj = obtenerMetodologiaPorId(planning.metodologia_activa);
+        metodologiaFases = metodologiaObj?.fases;
+      }
+
+      const resolvedPracticeTitle = practiceTitle || activityName || `Práctica ${practiceNumber}: ${planning.uac_name}`;
+
+      userPrompt = PRACTICE_GUIDE_PROMPT_TEMPLATE(
+        planning.uac_name,
+        activityName || `Actividad Clave ${keyIndex !== null ? keyIndex + 1 : practiceNumber}`,
+        practiceNumber,
+        resolvedPracticeTitle,
+        paecProblem,
+        learningOutcome,
+        studentContext,
+        planning.metodologia_activa || undefined,
+        metodologiaFases
       );
     } else {
       return NextResponse.json({ error: 'Tipo de recurso no válido' }, { status: 400 });

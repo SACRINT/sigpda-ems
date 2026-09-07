@@ -12,7 +12,9 @@ import { generatePlanningStream } from '@/lib/gemini';
 import { logActivity } from '@/lib/ai-provider';
 import { buildUserPrompt } from '@/lib/prompts/build-prompt';
 import { getUserLibraryContext } from '@/lib/context-extractor';
+import { searchCurriculum } from '@/lib/rag-curricular';
 import type { ExtractedPdfData, TeacherContext } from '@/types/planning';
+import type { RagContext } from '@/lib/rag-curricular';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -74,7 +76,28 @@ export async function POST(
       recommendations: previousAudit.recommendations,
     } : null;
 
-    // 4. Construir prompt con catálogo auténtico y feedback de auditoría
+    // 4. RAG Curricular: recuperar chunks semánticos relevantes (fail-safe, 3s timeout)
+    let ragContext: RagContext | null = null;
+    try {
+      const uacQuery = planning.uac_name || extractedData.uacName || '';
+      const ragPromise = searchCurriculum(uacQuery, {
+        semester: planning.semester as number,
+        component: planning.component as string,
+        subsystem: context.subsystem,
+        matchCount: 4,
+      });
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('RAG timeout')), 3000)
+      );
+      ragContext = await Promise.race([ragPromise, timeoutPromise]);
+      const chunkCount = ragContext?.chunks?.length ?? 0;
+      console.log(`[RAG] Found ${chunkCount} curriculum chunks for "${uacQuery}"`);
+    } catch (ragErr) {
+      console.warn('[RAG] Skipped (fail-safe):', (ragErr as Error).message);
+      ragContext = null;
+    }
+
+    // 5. Construir prompt con catálogo auténtico, RAG y feedback de auditoría
     const userPrompt = buildUserPrompt(
       extractedData,
       context,
@@ -82,7 +105,8 @@ export async function POST(
       planning.component as string,
       officialProgram,
       auditFeedback,
-      continuityInfo
+      continuityInfo,
+      ragContext
     );
 
     const libraryContext = await getUserLibraryContext(session.user.email!);

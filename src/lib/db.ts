@@ -199,11 +199,13 @@ export async function createPlanning(data: {
   curriculumName?: string;
   paecContext?: string;
   extractedData?: object;
+  metodologiaActiva?: string;   // ID de metodología activa seleccionada (ej: 'abp', 'steam')
 }) {
   const rows = await sql()`
     INSERT INTO plannings (
       teacher_id, uac_name, semester, component,
-      curriculum_name, paec_context, extracted_data, status
+      curriculum_name, paec_context, extracted_data, status,
+      metodologia_activa
     )
     VALUES (
       ${data.teacherId}::uuid,
@@ -213,7 +215,8 @@ export async function createPlanning(data: {
       ${data.curriculumName || null},
       ${data.paecContext || null},
       ${data.extractedData ? JSON.stringify(data.extractedData) : null},
-      'draft'
+      'draft',
+      ${data.metodologiaActiva || null}
     )
     RETURNING *
   `;
@@ -437,7 +440,7 @@ export async function getPlanningExtraById(id: string, teacherId: string) {
 export async function createPlanningExtra(
   data: {
     planningId: string;
-    type: 'rubric' | 'checklist' | 'material' | 'lesson_plan';
+    type: 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'practice_guide';
     title: string;
     keyIndex: number | null;
     contentText: string;

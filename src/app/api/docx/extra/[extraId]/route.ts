@@ -148,6 +148,8 @@ export async function GET(
         ? 'LISTA DE COTEJO'
         : extra.type === 'material'
         ? 'MATERIAL DIDÁCTICO'
+        : extra.type === 'practice_guide'
+        ? 'GUÍA DE PRÁCTICA DEL ESTUDIANTE'
         : 'PLAN DE CLASE';
 
     const lines = extra.content_text.split('\n');
