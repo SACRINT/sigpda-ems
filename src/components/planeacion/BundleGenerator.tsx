@@ -80,41 +80,41 @@ export function BundleGenerator({ planningId, uacName }: BundleGeneratorProps) {
   };
 
   return (
-    <div className="border border-gray-200 rounded-xl bg-white shadow-sm overflow-hidden">
-      <div className="px-4 py-3 bg-gradient-to-r from-emerald-50 to-teal-50 border-b border-gray-200">
+    <div className="border border-[var(--c-border)] rounded-xl bg-[var(--c-card-bg)] shadow-sm overflow-hidden">
+      <div className="px-4 py-3 bg-gradient-to-r from-emerald-950/40 to-teal-950/40 border-b border-[var(--c-border)]">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Package size={18} className="text-emerald-600" />
-            <h3 className="text-sm font-semibold text-gray-900">Bundles Didácticos de Aula</h3>
+            <Package size={18} className="text-emerald-400" />
+            <h3 className="text-sm font-semibold text-[var(--c-text)]">Bundles Didácticos de Aula</h3>
           </div>
           <button
             onClick={handleGenerateAll}
             disabled={generating === 'full'}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg transition-colors disabled:opacity-50"
           >
             {generating === 'full' ? <Loader2 size={14} className="animate-spin" /> : <Package size={14} />}
             {generating === 'full' ? 'Generando 4 materiales...' : 'Generar Todo (1-Click)'}
           </button>
         </div>
-        {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+        {error && <p className="mt-2 text-xs text-rose-400">{error}</p>}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4">
         {BUNDLE_TYPES.map(({ type, label, icon: Icon, desc }) => (
-          <div key={type} className="border border-gray-100 rounded-lg p-3 hover:bg-gray-50 transition-colors">
+          <div key={type} className="border border-[var(--c-border)] rounded-lg p-3 bg-[var(--c-bg-surface)] hover:bg-[var(--c-bg-elevated)] transition-colors">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2">
-                <Icon size={16} className="text-emerald-600" />
+                <Icon size={16} className="text-emerald-400" />
                 <div>
-                  <p className="text-sm font-medium text-gray-900">{label}</p>
-                  <p className="text-xs text-gray-500">{desc}</p>
+                  <p className="text-sm font-medium text-[var(--c-text)]">{label}</p>
+                  <p className="text-xs text-[var(--c-text-muted)]">{desc}</p>
                 </div>
               </div>
               <div className="flex items-center gap-1">
                 {results[type] && (
                   <button
                     onClick={() => handleDownload(type, results[type])}
-                    className="p-1 text-emerald-600 hover:bg-emerald-50 rounded"
+                    className="p-1 text-emerald-400 hover:bg-emerald-500/20 rounded"
                     title="Descargar"
                   >
                     <Download size={14} />
@@ -123,14 +123,14 @@ export function BundleGenerator({ planningId, uacName }: BundleGeneratorProps) {
                 <button
                   onClick={() => handleGenerate(type)}
                   disabled={generating === type || generating === 'full'}
-                  className="px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-100 hover:bg-emerald-200 rounded transition-colors disabled:opacity-50"
+                  className="px-2 py-1 text-xs font-medium text-emerald-300 bg-emerald-500/20 hover:bg-emerald-500/30 rounded transition-colors disabled:opacity-50"
                 >
                   {generating === type ? <Loader2 size={12} className="animate-spin" /> : results[type] ? 'Regenerar' : 'Generar'}
                 </button>
               </div>
             </div>
             {results[type] && (
-              <div className="mt-2 p-2 bg-gray-50 rounded text-xs text-gray-600 max-h-20 overflow-hidden">
+              <div className="mt-2 p-2 bg-[var(--c-bg-base)] border border-[var(--c-border)] rounded text-xs text-[var(--c-text-muted)] max-h-20 overflow-hidden">
                 {results[type].substring(0, 150)}...
               </div>
             )}

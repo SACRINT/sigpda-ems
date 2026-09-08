@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 /**
  * MermaidDiagram — Fase 11
@@ -63,7 +63,7 @@ export default function MermaidDiagram({ code, className = '' }: MermaidDiagramP
 
   if (error) {
     return (
-      <div style={{ background: '#fff7ed', border: '1px solid #f97316', borderRadius: '8px', padding: '12px 16px', fontSize: '12.5px', color: '#9a3412' }}>
+      <div style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '8px', padding: '12px 16px', fontSize: '12.5px', color: '#fbbf24' }}>
         <strong>⚠ No se pudo renderizar el diagrama:</strong>
         <pre style={{ marginTop: '6px', whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>{error}</pre>
       </div>
@@ -74,9 +74,9 @@ export default function MermaidDiagram({ code, className = '' }: MermaidDiagramP
     <div
       ref={containerRef}
       className={className}
-      style={{ overflowX: 'auto', textAlign: 'center', padding: '12px 0', minHeight: rendered ? undefined : '80px', background: rendered ? 'transparent' : '#f8fafc', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      style={{ overflowX: 'auto', textAlign: 'center', padding: '12px 0', minHeight: rendered ? undefined : '80px', background: rendered ? 'transparent' : 'var(--c-bg-surface)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
     >
-      {!rendered && <span style={{ fontSize: '12px', color: '#94a3b8' }}>Cargando diagrama…</span>}
+      {!rendered && <span style={{ fontSize: '12px', color: 'var(--c-text-muted)' }}>Cargando diagrama…</span>}
     </div>
   );
 }

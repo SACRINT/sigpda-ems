@@ -19,8 +19,8 @@ export function BundleGeneratorWrapper({ planningId, uacName }: BundleGeneratorW
 
   if (!Component) {
     return (
-      <div className="border border-gray-200 rounded-xl bg-white shadow-sm p-4">
-        <div className="animate-pulse text-gray-400 text-sm">Cargando bundles...</div>
+      <div className="border border-[var(--c-border)] rounded-xl bg-[var(--c-bg-surface)] shadow-sm p-4">
+        <div className="animate-pulse text-[var(--c-text-muted)] text-sm">Cargando bundles...</div>
       </div>
     );
   }

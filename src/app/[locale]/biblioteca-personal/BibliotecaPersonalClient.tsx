@@ -104,21 +104,21 @@ export function BibliotecaPersonalClient() {
   return (
     <div className="container mx-auto py-8 px-4 max-w-5xl">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-800">Biblioteca Documental Personal</h1>
-        <p className="text-slate-600 mt-2">
+        <h1 className="text-3xl font-bold text-[var(--c-text)]">Biblioteca Documental Personal</h1>
+        <p className="text-[var(--c-text-muted)] mt-2">
           Sube tus diagnósticos de grupo, FODA, y lineamientos escolares. La Inteligencia Artificial de SIGPDA-EMS leerá estos documentos y los tomará en cuenta automáticamente al generar tus planeaciones, PAEC, y proyectos.
         </p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
-        <div className="md:col-span-1 shadow-sm h-fit bg-white rounded-xl border border-slate-200">
-          <div className="p-6 border-b border-slate-100">
-            <h3 className="text-lg font-semibold text-slate-800">Subir Documento</h3>
-            <p className="text-sm text-slate-500 mt-1">Formatos soportados: PDF, TXT (Max 10MB)</p>
+        <div className="md:col-span-1 shadow-sm h-fit bg-[var(--c-card-bg)] rounded-xl border border-[var(--c-border)]">
+          <div className="p-6 border-b border-[var(--c-border)]">
+            <h3 className="text-lg font-semibold text-[var(--c-text)]">Subir Documento</h3>
+            <p className="text-sm text-[var(--c-text-muted)] mt-1">Formatos soportados: PDF, TXT (Max 10MB)</p>
           </div>
           <div className="p-6">
-            <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg border-slate-300 bg-slate-50 hover:bg-slate-100 transition-colors">
-              <Upload className="h-10 w-10 text-slate-400 mb-4" />
+            <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg border-white/20 bg-white/[0.03] hover:bg-white/[0.06] transition-colors">
+              <Upload className="h-10 w-10 text-[var(--c-text-muted)] mb-4" />
               <div className="relative">
                 <input
                   type="file"
@@ -129,7 +129,7 @@ export function BibliotecaPersonalClient() {
                 />
                 <button 
                   disabled={uploading}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 inline-flex items-center justify-center font-medium transition-colors"
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 disabled:opacity-50 inline-flex items-center justify-center font-medium transition-colors"
                 >
                   {uploading ? (
                     <>
@@ -141,52 +141,52 @@ export function BibliotecaPersonalClient() {
                 </button>
               </div>
             </div>
-            <p className="text-xs text-slate-500 mt-4 text-center">
+            <p className="text-xs text-[var(--c-text-muted)] mt-4 text-center">
               Esta información es privada y solo se usará para personalizar tus propias creaciones.
             </p>
           </div>
         </div>
 
-        <div className="md:col-span-2 shadow-sm bg-white rounded-xl border border-slate-200">
-          <div className="p-6 border-b border-slate-100">
-            <h3 className="text-lg font-semibold text-slate-800">Mis Documentos</h3>
-            <p className="text-sm text-slate-500 mt-1">
+        <div className="md:col-span-2 shadow-sm bg-[var(--c-card-bg)] rounded-xl border border-[var(--c-border)]">
+          <div className="p-6 border-b border-[var(--c-border)]">
+            <h3 className="text-lg font-semibold text-[var(--c-text)]">Mis Documentos</h3>
+            <p className="text-sm text-[var(--c-text-muted)] mt-1">
               Estos documentos forman parte de tu contexto educativo personal.
             </p>
           </div>
           <div className="p-6">
             {loading ? (
               <div className="flex justify-center p-8">
-                <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+                <Loader2 className="h-8 w-8 animate-spin text-[var(--c-accent)]" />
               </div>
             ) : docs.length === 0 ? (
-              <div className="text-center p-12 bg-slate-50 rounded-lg border border-slate-100">
-                <FileText className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-                <h3 className="text-lg font-medium text-slate-700">Tu biblioteca está vacía</h3>
-                <p className="text-slate-500 mt-1 text-sm">
+              <div className="text-center p-12 bg-white/[0.03] rounded-lg border border-[var(--c-border)]">
+                <FileText className="h-12 w-12 text-[var(--c-text-dim)] mx-auto mb-3" />
+                <h3 className="text-lg font-medium text-[var(--c-text)]">Tu biblioteca está vacía</h3>
+                <p className="text-[var(--c-text-muted)] mt-1 text-sm">
                   Sube documentos para que la IA comprenda mejor tu contexto escolar.
                 </p>
               </div>
             ) : (
               <div className="space-y-3">
                 {docs.map((doc) => (
-                  <div key={doc.id} className="flex items-center justify-between p-4 bg-white border rounded-lg hover:border-slate-300 transition-colors">
+                  <div key={doc.id} className="flex items-center justify-between p-4 bg-white/[0.04] border border-[var(--c-border)] rounded-lg hover:border-white/20 transition-colors">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                      <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg">
                         <File className="h-5 w-5" />
                       </div>
                       <div>
-                        <h4 className="font-medium text-sm text-slate-900 truncate max-w-[250px] sm:max-w-[400px]">
+                        <h4 className="font-medium text-sm text-[var(--c-text)] truncate max-w-[250px] sm:max-w-[400px]">
                           {doc.file_name}
                         </h4>
-                        <div className="flex text-xs text-slate-500 gap-3 mt-1">
+                        <div className="flex text-xs text-[var(--c-text-muted)] gap-3 mt-1">
                           <span>{new Date(doc.created_at).toLocaleDateString()}</span>
                           <span>{formatSize(doc.file_size)}</span>
                         </div>
                       </div>
                     </div>
                     <button 
-                      className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                      className="p-2 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-lg transition-colors"
                       onClick={() => handleDelete(doc.id)}
                     >
                       <Trash2 className="h-4 w-4" />

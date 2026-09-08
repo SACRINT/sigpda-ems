@@ -294,13 +294,13 @@ export function PlanningEditor({ planningId, content, onSave }: PlanningEditorPr
   if (!editor) return null;
 
   return (
-    <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
+    <div className="border border-[var(--c-border)] rounded-xl overflow-hidden bg-[var(--c-card-bg)] shadow-sm">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-b border-gray-200">
+      <div className="flex items-center justify-between px-4 py-2 bg-[var(--c-bg-surface)] border-b border-[var(--c-border)]">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-gray-700">Editor de Planeación</span>
+          <span className="text-sm font-medium text-[var(--c-text)]">Editor de Planeación</span>
           {aiStatus && (
-            <span className={`text-xs px-2 py-0.5 rounded-full ${isGenerating ? 'bg-violet-100 text-violet-700' : saved ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+            <span className={`text-xs px-2 py-0.5 rounded-full ${isGenerating ? 'bg-violet-500/20 text-violet-300' : saved ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/10 text-[var(--c-text-muted)]'}`}>
               {isGenerating ? <Loader2 size={10} className="inline animate-spin mr-1" /> : saved ? <Check size={10} className="inline mr-1" /> : null}
               {aiStatus}
             </span>
@@ -309,7 +309,7 @@ export function PlanningEditor({ planningId, content, onSave }: PlanningEditorPr
         <div className="flex items-center gap-2">
           <button
             onClick={handleExportDOCX}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-[var(--c-text-muted)] hover:text-[var(--c-text)] hover:bg-white/[0.08] rounded-lg transition-colors"
           >
             <FileDown size={14} />
             DOCX
@@ -317,7 +317,7 @@ export function PlanningEditor({ planningId, content, onSave }: PlanningEditorPr
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-colors disabled:opacity-50"
           >
             {isSaving ? <Loader2 size={14} className="animate-spin" /> : saved ? <Check size={14} /> : <Save size={14} />}
             {isSaving ? 'Guardando...' : saved ? 'Guardado' : 'Guardar'}
@@ -334,7 +334,7 @@ export function PlanningEditor({ planningId, content, onSave }: PlanningEditorPr
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-2 bg-gray-50 border-t border-gray-200 flex items-center justify-between text-xs text-gray-500">
+      <div className="px-4 py-2 bg-[var(--c-bg-surface)] border-t border-[var(--c-border)] flex items-center justify-between text-xs text-[var(--c-text-muted)]">
         <span>{editor.storage.characterCount?.characters?.() ?? editor.getText().length} caracteres</span>
         <span>Los cambios se guardan en JSON estructurado</span>
       </div>

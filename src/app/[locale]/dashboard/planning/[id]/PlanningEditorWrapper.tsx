@@ -20,8 +20,8 @@ export function PlanningEditorWrapper({ planningId, content }: PlanningEditorWra
 
   if (!EditorComponent) {
     return (
-      <div className="border border-gray-200 rounded-xl bg-white shadow-sm p-8 text-center">
-        <div className="animate-pulse text-gray-400">Cargando editor...</div>
+      <div className="border border-[var(--c-border)] rounded-xl bg-[var(--c-bg-surface)] shadow-sm p-8 text-center">
+        <div className="animate-pulse text-[var(--c-text-muted)]">Cargando editor...</div>
       </div>
     );
   }

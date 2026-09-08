@@ -411,22 +411,23 @@ export default function StepContext({ extractedData, onNext, onBack }: Props) {
                         textAlign: 'left',
                         padding: '12px 14px',
                         border: isSelected
-                          ? '2px solid var(--c-amber)'
-                          : '1px solid var(--c-gray-200)',
+                          ? '1px solid rgba(245,158,11,0.5)'
+                          : '1px solid var(--c-border)',
                         borderRadius: '10px',
-                        background: isSelected ? 'var(--c-amber-light, #fffbeb)' : '#fff',
+                        background: isSelected ? 'rgba(245,158,11,0.12)' : 'var(--c-bg-surface)',
+                        color: 'var(--c-text)',
                         cursor: 'pointer',
                         transition: 'all 0.15s ease',
                         boxShadow: isSelected ? '0 0 0 3px rgba(245,158,11,0.15)' : 'none',
                       }}
                     >
-                      <div style={{ fontWeight: 700, marginBottom: '4px' }}>
+                      <div style={{ fontWeight: 700, marginBottom: '4px', color: isSelected ? 'var(--c-amber)' : 'var(--c-text)' }}>
                         🧪 {m.nombreCorto}
                       </div>
                       <div
                         style={{
                           fontSize: '12px',
-                          color: 'var(--c-gray-500)',
+                          color: 'var(--c-text-muted)',
                           lineHeight: '1.3',
                         }}
                       >
@@ -443,14 +444,15 @@ export default function StepContext({ extractedData, onNext, onBack }: Props) {
                     style={{
                       marginTop: '14px',
                       padding: '12px',
-                      background: '#f0fdf4',
-                      border: '1px solid #bbf7d0',
+                      background: 'rgba(16,185,129,0.12)',
+                      border: '1px solid rgba(16,185,129,0.3)',
                       borderRadius: '8px',
                       fontSize: '13px',
+                      color: 'var(--c-text)',
                     }}
                   >
-                    <strong>✅ {sel.nombre} seleccionada.</strong>{' '}
-                    <span style={{ color: 'var(--c-gray-600)' }}>
+                    <strong style={{ color: '#34d399' }}>✅ {sel.nombre} seleccionada.</strong>{' '}
+                    <span style={{ color: 'var(--c-text-muted)' }}>
                       Fases: {sel.fases.map((f: string) => f.split('.').slice(1).join('.').trim() || f).join(' → ')}
                     </span>
                   </div>

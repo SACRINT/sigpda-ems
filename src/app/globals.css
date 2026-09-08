@@ -14,6 +14,7 @@
   --c-bg-gradient:    linear-gradient(160deg, #0d1530 0%, #080c18 60%, #020408 100%);
   --c-bg-surface:     rgba(255,255,255,0.04);
   --c-bg-elevated:    rgba(255,255,255,0.065);
+  --c-bg-subtle:      rgba(255,255,255,0.03);
   --c-bg-hover:       rgba(255,255,255,0.08);
   --c-card-bg:        rgba(13,21,48,0.8);
 
@@ -38,12 +39,13 @@
   /* Text — high contrast for dark backgrounds */
   --c-text:           #f0f4ff;
   --c-text-2:         rgba(240,244,255,0.82);
-  --c-text-muted:     rgba(240,244,255,0.60);
+  --c-text-muted:     rgba(240,244,255,0.65);
+  --c-text-dim:       rgba(240,244,255,0.45);
   --c-text-light:     rgba(240,244,255,0.38);
 
   /* Borders */
-  --c-border:         rgba(255,255,255,0.12);
-  --c-border-2:       rgba(255,255,255,0.18);
+  --c-border:         rgba(255,255,255,0.08);
+  --c-border-2:       rgba(255,255,255,0.12);
   --c-border-accent:  rgba(99,102,241,0.35);
 
   /* Semantic */
@@ -59,6 +61,15 @@
   --c-navy-light:     #818cf8;
   --c-blue-pale:      rgba(99,102,241,0.1);
   --c-green:          #10b981;
+  --c-gray-100:       rgba(255,255,255,0.04);
+  --c-gray-200:       rgba(255,255,255,0.08);
+  --c-gray-300:       rgba(255,255,255,0.15);
+  --c-gray-400:       rgba(240,244,255,0.45);
+  --c-gray-500:       rgba(240,244,255,0.60);
+  --c-gray-600:       rgba(240,244,255,0.75);
+  --c-amber-light:    rgba(245,158,11,0.12);
+  --c-emerald-light:  rgba(16,185,129,0.12);
+  --c-rose-light:     rgba(244,63,94,0.12);
 
   /* Spacing */
   --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px;
@@ -410,6 +421,31 @@ label, .form-label {
 .form-error { font-size: 12px; color: var(--c-error); }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); }
 .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--sp-4); }
+
+/* ── Semantic Card & Surface Utilities ───────────────────────────────────────── */
+.card-subtle {
+  background: var(--c-bg-subtle);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  padding: var(--sp-3) var(--sp-4);
+}
+.card-elevated {
+  background: var(--c-bg-elevated);
+  border: 1px solid var(--c-border-2);
+  border-radius: var(--r-md);
+  padding: var(--sp-3) var(--sp-4);
+}
+.activity-card-item {
+  background: var(--c-bg-elevated);
+  border: 1px solid var(--c-border-2);
+  border-radius: var(--r-md);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  transition: border-color 0.2s;
+}
+.activity-card-item:hover {
+  border-color: var(--c-border-accent);
+}
 
 /* ── Wizard-specific: override white card backgrounds ────────────────────── */
 /* These target the inline sectionCard style used in PmcWizardClient and PaecWizardClient */

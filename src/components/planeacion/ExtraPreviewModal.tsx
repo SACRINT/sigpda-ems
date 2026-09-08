@@ -60,9 +60,9 @@ export function ExtraPreviewModal({
       } else {
         if (inTable) {
           elements.push(
-            <div key={`table-${key++}`} className="overflow-x-auto my-4 border border-gray-200 rounded-lg">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-[#1A1A2E] text-white">
+            <div key={`table-${key++}`} className="overflow-x-auto my-4 border border-[var(--c-border)] rounded-lg">
+              <table className="min-w-full divide-y divide-[var(--c-border)]">
+                <thead className="bg-[var(--c-header-bg)] text-[var(--c-text)] border-b border-[var(--c-border)]">
                   <tr>
                     {tableHeaders.map((h, idx) => (
                       <th
@@ -74,11 +74,11 @@ export function ExtraPreviewModal({
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200 bg-white">
+                <tbody className="divide-y divide-[var(--c-border)] bg-[var(--c-bg-surface)]">
                   {tableRows.map((row, rIdx) => (
-                    <tr key={rIdx} className={rIdx % 2 === 1 ? 'bg-slate-50' : 'bg-white'}>
+                    <tr key={rIdx} className={rIdx % 2 === 1 ? 'bg-white/[0.02]' : 'bg-transparent'}>
                       {row.map((cell, cIdx) => (
-                        <td key={cIdx} className="px-4 py-2.5 text-sm text-gray-700 max-w-xs">
+                        <td key={cIdx} className="px-4 py-2.5 text-sm text-[var(--c-text-2)] max-w-xs">
                           {renderTextFormatting(cell)}
                         </td>
                       ))}
@@ -98,34 +98,34 @@ export function ExtraPreviewModal({
           elements.push(
             <h1
               key={key++}
-              className="text-2xl font-bold text-[#1A1A2E] mt-6 mb-3 border-b-2 border-[#E65100] pb-1"
+              className="text-2xl font-bold text-[var(--c-text)] mt-6 mb-3 border-b-2 border-[#E65100] pb-1"
             >
               {renderTextFormatting(line.replace('# ', ''))}
             </h1>
           );
         } else if (line.startsWith('## ')) {
           elements.push(
-            <h2 key={key++} className="text-xl font-semibold text-[#0F3460] mt-5 mb-2.5">
+            <h2 key={key++} className="text-xl font-semibold text-[var(--c-accent-bright)] mt-5 mb-2.5">
               {renderTextFormatting(line.replace('## ', ''))}
             </h2>
           );
         } else if (line.startsWith('### ')) {
           elements.push(
-            <h3 key={key++} className="text-lg font-semibold text-[#0F3460] mt-4 mb-2">
+            <h3 key={key++} className="text-lg font-semibold text-[var(--c-accent-bright)] mt-4 mb-2">
               {renderTextFormatting(line.replace('### ', ''))}
             </h3>
           );
         } else if (line.startsWith('- ') || line.startsWith('* ') || line.startsWith('• ')) {
           const cleanLine = line.substring(2);
           elements.push(
-            <li key={key++} className="ml-6 list-disc my-1 text-gray-700 text-sm leading-relaxed">
+            <li key={key++} className="ml-6 list-disc my-1 text-[var(--c-text-2)] text-sm leading-relaxed">
               {renderTextFormatting(cleanLine)}
             </li>
           );
         } else {
           // Paragraph
           elements.push(
-            <p key={key++} className="my-2.5 text-gray-700 text-sm leading-relaxed">
+            <p key={key++} className="my-2.5 text-[var(--c-text-2)] text-sm leading-relaxed">
               {renderTextFormatting(line)}
             </p>
           );
@@ -135,9 +135,9 @@ export function ExtraPreviewModal({
 
     if (inTable) {
       elements.push(
-        <div key={`table-${key++}`} className="overflow-x-auto my-4 border border-gray-200 rounded-lg">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-[#1A1A2E] text-white">
+        <div key={`table-${key++}`} className="overflow-x-auto my-4 border border-[var(--c-border)] rounded-lg">
+          <table className="min-w-full divide-y divide-[var(--c-border)]">
+            <thead className="bg-[var(--c-header-bg)] text-[var(--c-text)] border-b border-[var(--c-border)]">
               <tr>
                 {tableHeaders.map((h, idx) => (
                   <th
@@ -149,11 +149,11 @@ export function ExtraPreviewModal({
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200 bg-white">
+            <tbody className="divide-y divide-[var(--c-border)] bg-[var(--c-bg-surface)]">
               {tableRows.map((row, rIdx) => (
-                <tr key={rIdx} className={rIdx % 2 === 1 ? 'bg-slate-50' : 'bg-white'}>
+                <tr key={rIdx} className={rIdx % 2 === 1 ? 'bg-white/[0.02]' : 'bg-transparent'}>
                   {row.map((cell, cIdx) => (
-                    <td key={cIdx} className="px-4 py-2.5 text-sm text-gray-700 max-w-xs">
+                    <td key={cIdx} className="px-4 py-2.5 text-sm text-[var(--c-text-2)] max-w-xs">
                       {renderTextFormatting(cell)}
                     </td>
                   ))}
@@ -203,10 +203,10 @@ export function ExtraPreviewModal({
       : 'Plan de clase';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
-      <div className="flex flex-col w-full max-w-4xl max-h-[85vh] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
+      <div className="flex flex-col w-full max-w-4xl max-h-[85vh] bg-[var(--c-card-bg)] rounded-2xl shadow-2xl border border-[var(--c-border-2)] overflow-hidden">
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 bg-[#1A1A2E] text-white">
+        <div className="flex items-center justify-between px-6 py-4 bg-[var(--c-header-bg)] text-white border-b border-[var(--c-border)]">
           <div>
             <span className="px-2 py-0.5 text-xs font-semibold rounded bg-[#E65100] text-white uppercase tracking-wider mr-2">
               {typeLabel}
@@ -234,8 +234,8 @@ export function ExtraPreviewModal({
         </div>
 
         {/* Modal Content */}
-        <div className="flex-1 p-6 overflow-y-auto bg-slate-50">
-          <div className="max-w-3xl mx-auto px-4 py-6 bg-white border border-slate-200 shadow-sm rounded-xl">
+        <div className="flex-1 p-6 overflow-y-auto bg-[var(--c-bg-base)]">
+          <div className="max-w-3xl mx-auto px-4 py-6 bg-[var(--c-bg-surface)] border border-[var(--c-border)] shadow-sm rounded-xl">
             {type === 'practice_guide' ? (
               // Guías de práctica: renderizado con soporte Mermaid (Fase 11)
               <MarkdownWithMermaid markdown={contentText} />
@@ -247,10 +247,10 @@ export function ExtraPreviewModal({
         </div>
 
         {/* Modal Footer */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 bg-white">
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[var(--c-border)] bg-[var(--c-bg-surface)]">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors duration-150"
+            className="px-4 py-2 text-sm font-medium text-[var(--c-text)] bg-white/10 hover:bg-white/15 rounded-lg transition-colors duration-150"
           >
             Cerrar
           </button>

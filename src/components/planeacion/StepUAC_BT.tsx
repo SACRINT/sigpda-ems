@@ -633,7 +633,7 @@ export default function StepUAC_BT({ onNext, selectedSubsystem, onSubsystemChang
               value={form.curriculumName || ''}
               onChange={e => setForm({ ...form, curriculumName: e.target.value })}
               disabled={!isManualInput}
-              style={!isManualInput ? { backgroundColor: '#f5f5f5', color: '#666', cursor: 'not-allowed' } : {}}
+              style={!isManualInput ? { background: 'rgba(255,255,255,0.04)', color: 'var(--c-text-muted)', borderColor: 'var(--c-border)', cursor: 'not-allowed' } : {}}
             />
             <span className="form-hint">
               {isLaboral

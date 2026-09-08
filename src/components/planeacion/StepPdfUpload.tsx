@@ -177,8 +177,8 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
         </p>
 
         {hasPreloadedData && initialData && (
-          <div style={{ marginBottom: '20px', padding: '16px', border: '1px solid #e2e8f0', borderRadius: '8px', backgroundColor: '#f8fafc' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontWeight: 500, color: 'var(--c-navy)' }}>
+          <div style={{ marginBottom: '20px', padding: '16px', border: '1px solid var(--c-border)', borderRadius: '8px', background: 'var(--c-bg-surface)' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontWeight: 500, color: 'var(--c-accent-bright)' }}>
               <input
                 type="checkbox"
                 checked={isProgramCorrect}
@@ -187,7 +187,7 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
               />
               <span>Confirmo que el programa oficial ({initialData.year || 2025}) es el correcto para esta UAC</span>
             </label>
-            <p style={{ margin: '6px 0 0 28px', fontSize: '13px', color: '#64748b' }}>
+            <p style={{ margin: '6px 0 0 28px', fontSize: '13px', color: 'var(--c-text-muted)' }}>
               Si el programa seleccionado ya no es el actual o si sabes que hay uno más nuevo, desmarca esta casilla para subir el archivo PDF del programa más reciente.
             </p>
           </div>
@@ -323,7 +323,7 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
           <div className="form-group">
             <label className="form-label form-label-required">{activityLabel}</label>
             {formData.activities.map((a, idx) => (
-              <div key={idx} style={{ marginBottom: '12px', background: 'var(--c-bg-subtle, #f8fafc)', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+              <div key={idx} className="activity-card-item" style={{ marginBottom: '12px', background: 'var(--c-bg-elevated)', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--c-border-2)' }}>
                 <div className="activity-row" style={{ marginBottom: '6px' }}>
                   <input
                     className="form-input"
@@ -342,7 +342,7 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
                       onChange={e => updateActivity(idx, 'hours', Number(e.target.value))}
                       style={{ flex: 1, minWidth: '0' }}
                     />
-                    <span style={{ fontSize: '13px', color: '#64748b', whiteSpace: 'nowrap' }}>hrs</span>
+                    <span style={{ fontSize: '13px', color: 'var(--c-text-muted)', whiteSpace: 'nowrap' }}>hrs</span>
                   </div>
                   <button
                     type="button"
@@ -357,7 +357,7 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
                 {/* Sub-lista de Contenidos Formativos si el modelo no es de progresiones Y NO es componente laboral/técnico */}
                 {!isProgresiones && !isLaboral && (
                   <div style={{ paddingLeft: '12px', marginTop: '6px' }}>
-                    <div style={{ fontSize: '12px', color: '#475569', fontWeight: 500, marginBottom: '4px' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--c-text-muted)', fontWeight: 500, marginBottom: '4px' }}>
                       📋 Contenidos / Temas de estudio asociados:
                     </div>
                     {((formData.contenidosFormativos && formData.contenidosFormativos[idx]?.contenidos) || []).map((tema: string, tIdx: number) => (

@@ -35,8 +35,8 @@ export default async function PlanningDetailPage({
               <ArrowLeft size={20} />
             </Link>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">{planning.uacName}</h1>
-              <p className="text-sm text-gray-500 flex items-center gap-2">
+              <h1 className="text-xl font-bold text-[var(--c-text)]">{planning.uacName}</h1>
+              <p className="text-sm text-[var(--c-text-muted)] flex items-center gap-2">
                 <Calendar size={14} />
                 Semestre {planning.semester} · {planning.component} · {planning.status === 'generated' ? 'Generada' : planning.status === 'downloaded' ? 'Descargada' : 'Borrador'}
               </p>
@@ -47,7 +47,7 @@ export default async function PlanningDetailPage({
               href={`/api/docx/${planning.id}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-[var(--c-text)] bg-[var(--c-bg-surface)] border border-[var(--c-border-2)] rounded-lg hover:bg-[var(--c-bg-elevated)] transition-colors"
             >
               <FileDown size={16} />
               Descargar DOCX
@@ -62,11 +62,11 @@ export default async function PlanningDetailPage({
             content={planning.contentJson as any}
           />
         ) : (
-          <div className="text-center py-16 bg-gray-50 rounded-xl border border-gray-200">
-            <p className="text-gray-500">Esta planeación aún no tiene contenido generado.</p>
+          <div className="text-center py-16 bg-[var(--c-bg-surface)] rounded-xl border border-[var(--c-border)]">
+            <p className="text-[var(--c-text-muted)]">Esta planeación aún no tiene contenido generado.</p>
             <Link
               href={`/${locale}/nueva-planeacion`}
-              className="mt-4 inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="mt-4 inline-block px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500"
             >
               Generar planeación
             </Link>

@@ -739,9 +739,9 @@ export default function PlanningDetailClient({
             </div>
             <div className="section-card-body">
               {content?.sectionV?.evaluationAgreement && (
-                <div style={{ padding: '12px', background: '#F8FAFC', borderLeft: '3px solid var(--c-amber)', borderRadius: '6px', marginBottom: '16px', fontSize: '13.5px' }}>
-                  <p style={{ fontWeight: 600, color: 'var(--c-navy)', marginBottom: '4px' }}>Acuerdo de Acreditación / Evaluación:</p>
-                  <p style={{ color: '#475569', fontStyle: 'italic' }}>{content.sectionV.evaluationAgreement}</p>
+                <div style={{ padding: '12px', background: 'var(--c-bg-surface)', borderLeft: '3px solid var(--c-amber)', border: '1px solid var(--c-border)', borderRadius: '6px', marginBottom: '16px', fontSize: '13.5px' }}>
+                  <p style={{ fontWeight: 600, color: 'var(--c-accent-bright)', marginBottom: '4px' }}>Acuerdo de Acreditación / Evaluación:</p>
+                  <p style={{ color: 'var(--c-text-muted)', fontStyle: 'italic' }}>{content.sectionV.evaluationAgreement}</p>
                 </div>
               )}
 
@@ -863,14 +863,14 @@ export default function PlanningDetailClient({
                         justifyContent: 'space-between',
                         alignItems: 'center',
                         padding: '12px 16px',
-                        background: '#F8FAFC',
-                        border: '1px solid #E2E8F0',
+                        background: 'var(--c-bg-surface)',
+                        border: '1px solid var(--c-border)',
                         borderRadius: '8px',
                       }}
                     >
                       <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                         <span style={{ fontSize: '16px' }}>📄</span>
-                        <span style={{ fontWeight: 500, fontSize: '14px', color: 'var(--c-navy)' }}>{cleanMatName}</span>
+                        <span style={{ fontWeight: 500, fontSize: '14px', color: 'var(--c-text)' }}>{cleanMatName}</span>
                       </div>
                       
                       <div>
@@ -1227,8 +1227,8 @@ export default function PlanningDetailClient({
                 onClick={handleReAudit}
                 style={{
                   padding: '9px 18px', fontSize: '13px', fontWeight: 600,
-                  background: '#f0fdf4', border: '1.5px solid #059669', borderRadius: '8px',
-                  color: '#059669', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px',
+                  background: 'rgba(16,185,129,0.12)', border: '1.5px solid rgba(16,185,129,0.3)', borderRadius: '8px',
+                  color: '#34d399', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px',
                 }}
               >
                 🔄 Re-auditar
@@ -1240,12 +1240,12 @@ export default function PlanningDetailClient({
           {auditLoading && (
             <div style={{
               display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-              gap: '16px', padding: '60px 20px', background: '#f8fafc', borderRadius: '12px',
-              border: '1px dashed #cbd5e1',
+              gap: '16px', padding: '60px 20px', background: 'var(--c-bg-surface)', borderRadius: '12px',
+              border: '1px dashed var(--c-border-2)',
             }}>
               <div style={{
                 width: '48px', height: '48px', borderRadius: '50%',
-                border: '4px solid #e2e8f0', borderTopColor: '#059669',
+                border: '4px solid var(--c-border-2)', borderTopColor: 'var(--c-accent)',
                 animation: 'spin 0.8s linear infinite',
               }} />
               <p style={{ fontSize: '15px', color: 'var(--c-text-muted)', fontWeight: 500, margin: 0 }}>
@@ -1258,13 +1258,13 @@ export default function PlanningDetailClient({
           {/* Error */}
           {!auditLoading && auditError && (
             <div style={{
-              padding: '20px 24px', background: '#fff1f2', border: '1px solid #fda4af',
+              padding: '20px 24px', background: 'rgba(244,63,94,0.12)', border: '1px solid rgba(244,63,94,0.3)',
               borderRadius: '10px', display: 'flex', gap: '12px', alignItems: 'flex-start',
             }}>
               <span style={{ fontSize: '22px' }}>❌</span>
               <div>
-                <div style={{ fontWeight: 700, color: '#be123c', fontSize: '14px' }}>Error al ejecutar la auditoría</div>
-                <div style={{ color: '#e11d48', fontSize: '13px', marginTop: '4px' }}>{auditError}</div>
+                <div style={{ fontWeight: 700, color: '#fb7185', fontSize: '14px' }}>Error al ejecutar la auditoría</div>
+                <div style={{ color: '#f43f5e', fontSize: '13px', marginTop: '4px' }}>{auditError}</div>
                 <button
                   onClick={handleReAudit}
                   style={{
@@ -1399,19 +1399,19 @@ export default function PlanningDetailClient({
                           <span style={{ color: 'var(--c-text-muted)', fontSize: '13px' }}>{isExpanded ? '▲' : '▼'}</span>
                         </button>
                         {isExpanded && (
-                          <div style={{ padding: '14px 16px', background: '#fff', borderTop: `1px solid ${dimColor}22` }}>
-                            <p style={{ fontSize: '13.5px', color: '#334155', lineHeight: 1.6, margin: 0 }}>
+                          <div style={{ padding: '14px 16px', background: 'var(--c-bg-elevated)', borderTop: `1px solid ${dimColor}22` }}>
+                            <p style={{ fontSize: '13.5px', color: 'var(--c-text-2)', lineHeight: 1.6, margin: 0 }}>
                               {dim.feedback}
                             </p>
                             <div style={{ marginTop: '8px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                               <span style={{
                                 padding: '2px 10px', borderRadius: '99px', fontSize: '12px', fontWeight: 700,
-                                background: dim.status === 'cumple' ? '#dcfce7' : dim.status === 'parcial' ? '#fef9c3' : '#fee2e2',
-                                color: dim.status === 'cumple' ? '#166534' : dim.status === 'parcial' ? '#92400e' : '#991b1b',
+                                background: dim.status === 'cumple' ? 'rgba(16,185,129,0.15)' : dim.status === 'parcial' ? 'rgba(245,158,11,0.15)' : 'rgba(244,63,94,0.15)',
+                                color: dim.status === 'cumple' ? '#34d399' : dim.status === 'parcial' ? '#fcd34d' : '#fb7185',
                               }}>
                                 {dim.status === 'cumple' ? 'Cumple' : dim.status === 'parcial' ? 'Cumple Parcialmente' : 'No Cumple'}
                               </span>
-                              <span style={{ fontSize: '11px', color: '#94a3b8' }}>Ponderación: {Math.round((dim.weight ?? 0) * 100)}%</span>
+                              <span style={{ fontSize: '11px', color: 'var(--c-text-muted)' }}>Ponderación: {Math.round((dim.weight ?? 0) * 100)}%</span>
                             </div>
                           </div>
                         )}
@@ -1424,11 +1424,11 @@ export default function PlanningDetailClient({
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
                   {/* Fortalezas */}
                   {findings.fortalezas?.length > 0 && (
-                    <div style={{ padding: '16px', background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '10px' }}>
-                      <div style={{ fontWeight: 700, fontSize: '13px', color: '#166534', marginBottom: '10px' }}>✅ Fortalezas</div>
+                    <div style={{ padding: '16px', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '10px' }}>
+                      <div style={{ fontWeight: 700, fontSize: '13px', color: '#34d399', marginBottom: '10px' }}>✅ Fortalezas</div>
                       <ul style={{ margin: 0, paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         {findings.fortalezas.map((f: string, i: number) => (
-                          <li key={i} style={{ fontSize: '13px', color: '#14532d', lineHeight: 1.5 }}>{f}</li>
+                          <li key={i} style={{ fontSize: '13px', color: 'var(--c-text)', lineHeight: 1.5 }}>{f}</li>
                         ))}
                       </ul>
                     </div>
@@ -1436,11 +1436,11 @@ export default function PlanningDetailClient({
 
                   {/* Desalineaciones */}
                   {findings.desalineaciones?.length > 0 && (
-                    <div style={{ padding: '16px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '10px' }}>
-                      <div style={{ fontWeight: 700, fontSize: '13px', color: '#92400e', marginBottom: '10px' }}>⚠️ Desalineaciones Detectadas</div>
+                    <div style={{ padding: '16px', background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '10px' }}>
+                      <div style={{ fontWeight: 700, fontSize: '13px', color: '#fbbf24', marginBottom: '10px' }}>⚠️ Desalineaciones Detectadas</div>
                       <ul style={{ margin: 0, paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         {findings.desalineaciones.map((d: string, i: number) => (
-                          <li key={i} style={{ fontSize: '13px', color: '#78350f', lineHeight: 1.5 }}>{d}</li>
+                          <li key={i} style={{ fontSize: '13px', color: 'var(--c-text)', lineHeight: 1.5 }}>{d}</li>
                         ))}
                       </ul>
                     </div>
@@ -1448,11 +1448,11 @@ export default function PlanningDetailClient({
 
                   {/* Omisiones */}
                   {findings.omisiones_detectadas?.length > 0 && (
-                    <div style={{ padding: '16px', background: '#fff1f2', border: '1px solid #fda4af', borderRadius: '10px' }}>
-                      <div style={{ fontWeight: 700, fontSize: '13px', color: '#be123c', marginBottom: '10px' }}>❌ Contenidos Omitidos</div>
+                    <div style={{ padding: '16px', background: 'rgba(244,63,94,0.12)', border: '1px solid rgba(244,63,94,0.3)', borderRadius: '10px' }}>
+                      <div style={{ fontWeight: 700, fontSize: '13px', color: '#fb7185', marginBottom: '10px' }}>❌ Contenidos Omitidos</div>
                       <ul style={{ margin: 0, paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         {findings.omisiones_detectadas.map((o: string, i: number) => (
-                          <li key={i} style={{ fontSize: '13px', color: '#9f1239', lineHeight: 1.5 }}>{o}</li>
+                          <li key={i} style={{ fontSize: '13px', color: 'var(--c-text)', lineHeight: 1.5 }}>{o}</li>
                         ))}
                       </ul>
                     </div>
@@ -1565,7 +1565,7 @@ export default function PlanningDetailClient({
                         border: `1px solid ${bt.color}33`,
                         borderRadius: '10px',
                         overflow: 'hidden',
-                        background: '#fafafa',
+                        background: 'var(--c-bg-surface)',
                       }}
                     >
                       {/* Card header */}
@@ -1590,7 +1590,7 @@ export default function PlanningDetailClient({
                       {/* Card body */}
                       <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                         {error && (
-                          <div style={{ background: '#FEE2E2', border: '1px solid #EF4444', borderRadius: '6px', padding: '8px 12px', fontSize: '13px', color: '#dc2626' }}>
+                          <div style={{ background: 'rgba(244,63,94,0.12)', border: '1px solid rgba(244,63,94,0.3)', borderRadius: '6px', padding: '8px 12px', fontSize: '13px', color: '#fb7185' }}>
                             ⚠️ {error}
                           </div>
                         )}
@@ -1638,9 +1638,9 @@ export default function PlanningDetailClient({
                                 padding: '7px 12px',
                                 fontSize: '12px',
                                 fontWeight: 600,
-                                background: '#f1f5f9',
-                                color: '#475569',
-                                border: '1px solid #cbd5e1',
+                                background: 'var(--c-bg-elevated)',
+                                color: 'var(--c-text-muted)',
+                                border: '1px solid var(--c-border-2)',
                                 borderRadius: '6px',
                                 cursor: loading ? 'not-allowed' : 'pointer',
                               }}
@@ -1653,15 +1653,15 @@ export default function PlanningDetailClient({
                         {/* Expanded preview */}
                         {isExpanded && result && (
                           <div style={{
-                            background: '#fff',
-                            border: '1px solid #e2e8f0',
+                            background: 'var(--c-bg-base)',
+                            border: '1px solid var(--c-border-2)',
                             borderRadius: '6px',
                             padding: '12px',
                             maxHeight: '320px',
                             overflowY: 'auto',
                             fontSize: '12.5px',
                             lineHeight: 1.65,
-                            color: '#1e293b',
+                            color: 'var(--c-text)',
                             whiteSpace: 'pre-wrap',
                             fontFamily: 'monospace',
                           }}>
@@ -1710,17 +1710,17 @@ export default function PlanningDetailClient({
               {evalResult && !evalLoading && (
                 <>
                   {/* Score hero */}
-                  <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '24px', padding: '20px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                  <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '24px', padding: '20px', background: 'var(--c-bg-surface)', borderRadius: '10px', border: '1px solid var(--c-border)' }}>
                     <div style={{ textAlign: 'center', minWidth: '100px' }}>
                       <div style={{
                         width: '96px', height: '96px', borderRadius: '50%', margin: '0 auto 8px',
-                        background: `conic-gradient(${evalResult.nivelCumplimiento === 'COMPLETO' ? '#10b981' : evalResult.nivelCumplimiento === 'PARCIAL' ? '#f59e0b' : '#ef4444'} ${(evalResult.puntajeTotal / evalResult.puntajeMaximo) * 360}deg, #e2e8f0 0)`,
+                        background: `conic-gradient(${evalResult.nivelCumplimiento === 'COMPLETO' ? '#10b981' : evalResult.nivelCumplimiento === 'PARCIAL' ? '#f59e0b' : '#ef4444'} ${(evalResult.puntajeTotal / evalResult.puntajeMaximo) * 360}deg, var(--c-border) 0)`,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        boxShadow: '0 0 0 8px #fff inset',
+                        boxShadow: '0 0 0 8px var(--c-bg-surface) inset',
                       }}>
-                        <div style={{ background: '#fff', borderRadius: '50%', width: '72px', height: '72px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                          <span style={{ fontSize: '22px', fontWeight: 800, color: '#0f172a' }}>{evalResult.puntajeTotal}</span>
-                          <span style={{ fontSize: '11px', color: '#64748b' }}>/{evalResult.puntajeMaximo}</span>
+                        <div style={{ background: 'var(--c-card-bg)', borderRadius: '50%', width: '72px', height: '72px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                          <span style={{ fontSize: '22px', fontWeight: 800, color: 'var(--c-text)' }}>{evalResult.puntajeTotal}</span>
+                          <span style={{ fontSize: '11px', color: 'var(--c-text-muted)' }}>/{evalResult.puntajeMaximo}</span>
                         </div>
                       </div>
                       <div style={{ fontWeight: 700, fontSize: '13px', color: evalResult.nivelCumplimiento === 'COMPLETO' ? '#10b981' : evalResult.nivelCumplimiento === 'PARCIAL' ? '#d97706' : '#dc2626' }}>
@@ -1728,21 +1728,21 @@ export default function PlanningDetailClient({
                       </div>
                     </div>
                     <div style={{ flex: 1 }}>
-                      <p style={{ fontSize: '13px', color: '#475569', marginBottom: '8px' }}><strong>Rúbrica:</strong> {evalResult.rubricaUsada}</p>
+                      <p style={{ fontSize: '13px', color: 'var(--c-text-muted)', marginBottom: '8px' }}><strong>Rúbrica:</strong> {evalResult.rubricaUsada}</p>
                       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
                         {evalResult.puntosFuertes?.slice(0, 3).map((pf: string, i: number) => (
-                          <span key={i} style={{ background: '#dcfce7', color: '#166534', fontSize: '12px', padding: '3px 10px', borderRadius: '12px', fontWeight: 600 }}>✓ {pf}</span>
+                          <span key={i} style={{ background: 'rgba(16,185,129,0.15)', color: '#34d399', fontSize: '12px', padding: '3px 10px', borderRadius: '12px', fontWeight: 600 }}>✓ {pf}</span>
                         ))}
                       </div>
                       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                         {evalResult.mejorasUrgentes?.slice(0, 3).map((m: string, i: number) => (
-                          <span key={i} style={{ background: '#fef9c3', color: '#854d0e', fontSize: '12px', padding: '3px 10px', borderRadius: '12px', fontWeight: 600 }}>⚡ {m}</span>
+                          <span key={i} style={{ background: 'rgba(245,158,11,0.15)', color: '#fcd34d', fontSize: '12px', padding: '3px 10px', borderRadius: '12px', fontWeight: 600 }}>⚡ {m}</span>
                         ))}
                       </div>
                     </div>
                     <button
                       onClick={() => { setEvalLoaded(false); handleRunEvaluacion(); }}
-                      style={{ alignSelf: 'flex-start', padding: '8px 14px', fontSize: '12px', fontWeight: 600, background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer' }}
+                      style={{ alignSelf: 'flex-start', padding: '8px 14px', fontSize: '12px', fontWeight: 600, background: 'var(--c-bg-elevated)', color: 'var(--c-text)', border: '1px solid var(--c-border-2)', borderRadius: '6px', cursor: 'pointer' }}
                     >
                       🔄 Re-evaluar
                     </button>
@@ -1752,7 +1752,7 @@ export default function PlanningDetailClient({
                   <div style={{ overflowX: 'auto', marginBottom: '20px' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                       <thead>
-                        <tr style={{ background: '#0f172a', color: '#fff' }}>
+                        <tr style={{ background: 'var(--c-bg-elevated)', color: 'var(--c-text)', borderBottom: '1px solid var(--c-border-2)' }}>
                           <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 700 }}>Criterio</th>
                           <th style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 700 }}>Categoría</th>
                           <th style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 700 }}>Pts</th>
@@ -1762,18 +1762,18 @@ export default function PlanningDetailClient({
                       </thead>
                       <tbody>
                         {evalResult.criterios?.map((cr: any, idx: number) => (
-                          <tr key={idx} style={{ background: idx % 2 === 0 ? '#f8fafc' : '#fff', borderBottom: '1px solid #e2e8f0' }}>
-                            <td style={{ padding: '9px 12px', color: '#0f172a', fontWeight: 500 }}>{cr.criterio}</td>
-                            <td style={{ padding: '9px 12px', textAlign: 'center', color: '#475569', fontSize: '12px' }}>{cr.categoria}</td>
-                            <td style={{ padding: '9px 12px', textAlign: 'center', fontWeight: 700, color: cr.cumple === 'SI' ? '#059669' : cr.cumple === 'PARCIAL' ? '#d97706' : '#dc2626' }}>
+                          <tr key={idx} style={{ background: idx % 2 === 0 ? 'var(--c-bg-surface)' : 'transparent', borderBottom: '1px solid var(--c-border)' }}>
+                            <td style={{ padding: '9px 12px', color: 'var(--c-text)', fontWeight: 500 }}>{cr.criterio}</td>
+                            <td style={{ padding: '9px 12px', textAlign: 'center', color: 'var(--c-text-muted)', fontSize: '12px' }}>{cr.categoria}</td>
+                            <td style={{ padding: '9px 12px', textAlign: 'center', fontWeight: 700, color: cr.cumple === 'SI' ? '#10b981' : cr.cumple === 'PARCIAL' ? '#f59e0b' : '#f43f5e' }}>
                               {cr.puntajeObtenido}/{cr.puntajeMax}
                             </td>
                             <td style={{ padding: '9px 12px', textAlign: 'center' }}>
-                              <span style={{ background: cr.cumple === 'SI' ? '#dcfce7' : cr.cumple === 'PARCIAL' ? '#fef9c3' : '#fee2e2', color: cr.cumple === 'SI' ? '#166534' : cr.cumple === 'PARCIAL' ? '#92400e' : '#991b1b', padding: '2px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: 700 }}>
+                              <span style={{ background: cr.cumple === 'SI' ? 'rgba(16,185,129,0.15)' : cr.cumple === 'PARCIAL' ? 'rgba(245,158,11,0.15)' : 'rgba(244,63,94,0.15)', color: cr.cumple === 'SI' ? '#34d399' : cr.cumple === 'PARCIAL' ? '#fcd34d' : '#fb7185', padding: '2px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: 700 }}>
                                 {cr.cumple}
                               </span>
                             </td>
-                            <td style={{ padding: '9px 12px', color: '#475569', fontSize: '12.5px' }}>{cr.observacion}</td>
+                            <td style={{ padding: '9px 12px', color: 'var(--c-text-muted)', fontSize: '12.5px' }}>{cr.observacion}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1782,15 +1782,15 @@ export default function PlanningDetailClient({
 
                   {/* Retroalimentación */}
                   {evalResult.retroalimentacionDocente && (
-                    <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', padding: '16px' }}>
-                      <p style={{ fontWeight: 700, color: '#1e40af', marginBottom: '8px' }}>💬 Retroalimentación Docente</p>
-                      <p style={{ fontSize: '14px', color: '#1e293b', lineHeight: 1.7, margin: 0 }}>{evalResult.retroalimentacionDocente}</p>
+                    <div style={{ background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.3)', borderRadius: '8px', padding: '16px' }}>
+                      <p style={{ fontWeight: 700, color: 'var(--c-accent-bright)', marginBottom: '8px' }}>💬 Retroalimentación Docente</p>
+                      <p style={{ fontSize: '14px', color: 'var(--c-text)', lineHeight: 1.7, margin: 0 }}>{evalResult.retroalimentacionDocente}</p>
                     </div>
                   )}
                   {evalResult.alineacionPaecPec && (
-                    <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '16px', marginTop: '12px' }}>
-                      <p style={{ fontWeight: 700, color: '#166534', marginBottom: '8px' }}>🌿 Alineación PAEC/PEC</p>
-                      <p style={{ fontSize: '14px', color: '#1e293b', lineHeight: 1.7, margin: 0 }}>{evalResult.alineacionPaecPec}</p>
+                    <div style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '8px', padding: '16px', marginTop: '12px' }}>
+                      <p style={{ fontWeight: 700, color: '#34d399', marginBottom: '8px' }}>🌿 Alineación PAEC/PEC</p>
+                      <p style={{ fontSize: '14px', color: 'var(--c-text)', lineHeight: 1.7, margin: 0 }}>{evalResult.alineacionPaecPec}</p>
                     </div>
                   )}
                 </>
@@ -1798,7 +1798,7 @@ export default function PlanningDetailClient({
 
               {!evalLoading && !evalResult && !evalError && (
                 <div style={{ textAlign: 'center', padding: '40px 0' }}>
-                  <p style={{ color: '#64748b' }}>Iniciando evaluación automática…</p>
+                  <p style={{ color: 'var(--c-text-muted)' }}>Iniciando evaluación automática…</p>
                 </div>
               )}
             </div>
@@ -1889,21 +1889,21 @@ export default function PlanningDetailClient({
 
                       {/* BarChart — por semestre */}
                       {semesterBarData.length > 0 && (
-                        <div style={{ background: '#f8fafc', borderRadius: '10px', padding: '16px', border: '1px solid #e2e8f0' }}>
-                          <p style={{ fontWeight: 700, color: '#0f172a', marginBottom: '12px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <BarChart3 size={15} color="#1d4ed8"/> Planeaciones por Semestre
+                        <div style={{ background: 'var(--c-bg-surface)', borderRadius: '10px', padding: '16px', border: '1px solid var(--c-border)' }}>
+                          <p style={{ fontWeight: 700, color: 'var(--c-text)', marginBottom: '12px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <BarChart3 size={15} color="#818cf8"/> Planeaciones por Semestre
                           </p>
                           <ResponsiveContainer width="100%" height={180}>
                             <BarChart data={semesterBarData} margin={{ top: 4, right: 8, left: -20, bottom: 4 }}>
-                              <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} axisLine={false}/>
-                              <YAxis tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} axisLine={false} allowDecimals={false}/>
+                              <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--c-text-muted)' }} tickLine={false} axisLine={false}/>
+                              <YAxis tick={{ fontSize: 11, fill: 'var(--c-text-muted)' }} tickLine={false} axisLine={false} allowDecimals={false}/>
                               <Tooltip
-                                contentStyle={{ fontSize: '12px', borderRadius: '6px', border: '1px solid #e2e8f0' }}
+                                contentStyle={{ fontSize: '12px', borderRadius: '6px', border: '1px solid var(--c-border)', background: 'var(--c-card-bg)', color: 'var(--c-text)' }}
                                 formatter={(v: any) => [v, 'Planeaciones']}
                               />
-                              <Bar dataKey="value" fill="#1d4ed8" radius={[4, 4, 0, 0]}>
+                              <Bar dataKey="value" fill="#6366f1" radius={[4, 4, 0, 0]}>
                                 {semesterBarData.map((_, i) => (
-                                  <Cell key={i} fill={['#1d4ed8','#2563eb','#3b82f6','#60a5fa','#93c5fd','#bfdbfe'][i % 6]}/>
+                                  <Cell key={i} fill={['#6366f1','#818cf8','#3b82f6','#60a5fa','#93c5fd','#bfdbfe'][i % 6]}/>
                                 ))}
                               </Bar>
                             </BarChart>
@@ -1913,9 +1913,9 @@ export default function PlanningDetailClient({
 
                       {/* PieChart — por componente */}
                       {componentPieData.length > 0 && (
-                        <div style={{ background: '#f8fafc', borderRadius: '10px', padding: '16px', border: '1px solid #e2e8f0' }}>
-                          <p style={{ fontWeight: 700, color: '#0f172a', marginBottom: '12px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <Grid size={15} color="#059669"/> Distribución por Componente
+                        <div style={{ background: 'var(--c-bg-surface)', borderRadius: '10px', padding: '16px', border: '1px solid var(--c-border)' }}>
+                          <p style={{ fontWeight: 700, color: 'var(--c-text)', marginBottom: '12px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <Grid size={15} color="#34d399"/> Distribución por Componente
                           </p>
                           <ResponsiveContainer width="100%" height={180}>
                             <PieChart>
@@ -1931,10 +1931,10 @@ export default function PlanningDetailClient({
                                 ))}
                               </Pie>
                               <Tooltip
-                                contentStyle={{ fontSize: '12px', borderRadius: '6px', border: '1px solid #e2e8f0' }}
+                                contentStyle={{ fontSize: '12px', borderRadius: '6px', border: '1px solid var(--c-border)', background: 'var(--c-card-bg)', color: 'var(--c-text)' }}
                                 formatter={(v: any, name: any) => [v, name]}
                               />
-                              <Legend iconType="circle" iconSize={10} wrapperStyle={{ fontSize: '12px' }}/>
+                              <Legend iconType="circle" iconSize={10} wrapperStyle={{ fontSize: '12px', color: 'var(--c-text-muted)' }}/>
                             </PieChart>
                           </ResponsiveContainer>
                         </div>
@@ -1942,17 +1942,17 @@ export default function PlanningDetailClient({
 
                       {/* RadarChart — distribución de módulos */}
                       {radarData.some(r => r.A > 0) && (
-                        <div style={{ background: '#f8fafc', borderRadius: '10px', padding: '16px', border: '1px solid #e2e8f0' }}>
-                          <p style={{ fontWeight: 700, color: '#0f172a', marginBottom: '12px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <TrendingUp size={15} color="#7c3aed"/> Perfil Pedagógico General
+                        <div style={{ background: 'var(--c-bg-surface)', borderRadius: '10px', padding: '16px', border: '1px solid var(--c-border)' }}>
+                          <p style={{ fontWeight: 700, color: 'var(--c-text)', marginBottom: '12px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <TrendingUp size={15} color="#c084fc"/> Perfil Pedagógico General
                           </p>
                           <ResponsiveContainer width="100%" height={180}>
                             <RadarChart data={radarData}>
-                              <PolarGrid stroke="#e2e8f0"/>
-                              <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10, fill: '#64748b' }}/>
+                              <PolarGrid stroke="var(--c-border)"/>
+                              <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10, fill: 'var(--c-text-muted)' }}/>
                               <PolarRadiusAxis tick={{ fontSize: 9 }} axisLine={false} tickLine={false}/>
-                              <Radar name="Total" dataKey="A" stroke="#7c3aed" fill="#7c3aed" fillOpacity={0.25}/>
-                              <Tooltip contentStyle={{ fontSize: '12px', borderRadius: '6px' }}/>
+                              <Radar name="Total" dataKey="A" stroke="#a855f7" fill="#a855f7" fillOpacity={0.25}/>
+                              <Tooltip contentStyle={{ fontSize: '12px', borderRadius: '6px', border: '1px solid var(--c-border)', background: 'var(--c-card-bg)', color: 'var(--c-text)' }}/>
                             </RadarChart>
                           </ResponsiveContainer>
                         </div>
@@ -1966,21 +1966,21 @@ export default function PlanningDetailClient({
                           count: fb.total_count,
                         }));
                         return (
-                          <div style={{ background: '#f8fafc', borderRadius: '10px', padding: '16px', border: '1px solid #e2e8f0' }}>
-                            <p style={{ fontWeight: 700, color: '#0f172a', marginBottom: '12px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <Star size={15} color="#d97706"/> Ratings de Generación IA
+                          <div style={{ background: 'var(--c-bg-surface)', borderRadius: '10px', padding: '16px', border: '1px solid var(--c-border)' }}>
+                            <p style={{ fontWeight: 700, color: 'var(--c-text)', marginBottom: '12px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <Star size={15} color="#fbbf24"/> Ratings de Generación IA
                             </p>
                             <ResponsiveContainer width="100%" height={180}>
                               <BarChart data={fbBarData} layout="vertical" margin={{ top: 4, right: 24, left: 8, bottom: 4 }}>
-                                <XAxis type="number" domain={[0, 5]} tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} axisLine={false}/>
-                                <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} tickLine={false} axisLine={false} width={72}/>
+                                <XAxis type="number" domain={[0, 5]} tick={{ fontSize: 11, fill: 'var(--c-text-muted)' }} tickLine={false} axisLine={false}/>
+                                <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: 'var(--c-text-muted)' }} tickLine={false} axisLine={false} width={72}/>
                                 <Tooltip
-                                  contentStyle={{ fontSize: '12px', borderRadius: '6px', border: '1px solid #e2e8f0' }}
+                                  contentStyle={{ fontSize: '12px', borderRadius: '6px', border: '1px solid var(--c-border)', background: 'var(--c-card-bg)', color: 'var(--c-text)' }}
                                   formatter={(v: any) => [`${v}/5`, 'Rating']}
                                 />
                                 <Bar dataKey="rating" radius={[0, 4, 4, 0]}>
                                   {fbBarData.map((fb: any, i: number) => (
-                                    <Cell key={i} fill={fb.rating >= 4 ? '#059669' : fb.rating >= 3 ? '#d97706' : '#dc2626'}/>
+                                    <Cell key={i} fill={fb.rating >= 4 ? '#10b981' : fb.rating >= 3 ? '#f59e0b' : '#f43f5e'}/>
                                   ))}
                                 </Bar>
                               </BarChart>
@@ -1993,16 +1993,16 @@ export default function PlanningDetailClient({
                     {/* ── Recent plannings list ──────────────────────────── */}
                     {analyticsData.plannings?.recent && analyticsData.plannings.recent.length > 0 && (
                       <div>
-                        <p style={{ fontWeight: 700, color: '#0f172a', marginBottom: '10px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <Clock size={14} color="#0891b2"/> Últimas planeaciones
+                        <p style={{ fontWeight: 700, color: 'var(--c-text)', marginBottom: '10px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Clock size={14} color="#38bdf8"/> Últimas planeaciones
                         </p>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                           {analyticsData.plannings.recent.map((p: any, i: number) => (
-                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '13px' }}>
-                              <span style={{ fontWeight: 600, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <FileText size={13} color="#0891b2"/> {p.uac_name}
+                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'var(--c-bg-surface)', borderRadius: '6px', border: '1px solid var(--c-border)', fontSize: '13px' }}>
+                              <span style={{ fontWeight: 600, color: 'var(--c-text)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <FileText size={13} color="#38bdf8"/> {p.uac_name}
                               </span>
-                              <span style={{ color: '#64748b', fontSize: '12px' }}>
+                              <span style={{ color: 'var(--c-text-muted)', fontSize: '12px' }}>
                                 {new Date(p.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}
                               </span>
                             </div>
@@ -2032,24 +2032,24 @@ export default function PlanningDetailClient({
       {/* Modal Lista de Cotejo de Supervisión */}
       {showChecklistModal && (
         <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px'
         }}>
           <div style={{
-            background: '#ffffff', borderRadius: '12px', maxWidth: '750px', width: '100%',
-            maxHeight: '90vh', overflowY: 'auto', padding: '24px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.3)',
-            color: '#1e293b'
+            background: 'var(--c-card-bg)', border: '1px solid var(--c-border-2)', borderRadius: '12px', maxWidth: '750px', width: '100%',
+            maxHeight: '90vh', overflowY: 'auto', padding: '24px', boxShadow: 'var(--shadow-xl)',
+            color: 'var(--c-text)'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #e2e8f0', paddingBottom: '12px', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--c-border)', paddingBottom: '12px', marginBottom: '16px' }}>
               <div>
-                <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--c-text)', margin: 0 }}>
                   📋 Lista de Cotejo de Supervisión DBEPA (2026-2027)
                 </h3>
-                <p style={{ fontSize: '12.5px', color: '#64748b', margin: '4px 0 0 0' }}>
+                <p style={{ fontSize: '12.5px', color: 'var(--c-text-muted)', margin: '4px 0 0 0' }}>
                   Alineado a <em>03 Lista de cotejo Plan de Clase 1-4_SEM.pdf</em> y normativas del Bachillerato General Estatal.
                 </p>
               </div>
-              <button onClick={() => setShowChecklistModal(false)} style={{ background: '#f1f5f9', border: 'none', borderRadius: '6px', width: '32px', height: '32px', cursor: 'pointer', fontWeight: 'bold' }}>✕</button>
+              <button onClick={() => setShowChecklistModal(false)} style={{ background: 'var(--c-bg-elevated)', color: 'var(--c-text)', border: '1px solid var(--c-border)', borderRadius: '6px', width: '32px', height: '32px', cursor: 'pointer', fontWeight: 'bold' }}>✕</button>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -2066,17 +2066,17 @@ export default function PlanningDetailClient({
                 { label: 'Metacognición Formativa en Cierre', desc: 'Fase de Cierre orientada a la reflexión del aprendizaje y consolidación de competencias.', status: true },
                 { label: 'Instrumentos Objetivos de Evaluación', desc: 'Rúbricas analíticas y Listas de cotejo para Producto y Desempeño.', status: true }
               ].map((item, i) => (
-                <div key={i} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', padding: '10px 12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <div key={i} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', padding: '10px 12px', background: 'var(--c-bg-surface)', borderRadius: '8px', border: '1px solid var(--c-border)' }}>
                   <span style={{ background: '#10b981', color: '#fff', width: '22px', height: '22px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold', flexShrink: 0, marginTop: '2px' }}>✓</span>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: '14px', color: '#0f172a' }}>{i + 1}. {item.label}</div>
-                    <div style={{ fontSize: '12.5px', color: '#64748b', marginTop: '2px' }}>{item.desc}</div>
+                    <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--c-text)' }}>{i + 1}. {item.label}</div>
+                    <div style={{ fontSize: '12.5px', color: 'var(--c-text-muted)', marginTop: '2px' }}>{item.desc}</div>
                   </div>
                 </div>
               ))}
             </div>
 
-            <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--c-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '12px', color: '#10b981', fontWeight: 700 }}>
                 ✓ Cumplimiento del 100% verificado por DidácticaIA
               </span>

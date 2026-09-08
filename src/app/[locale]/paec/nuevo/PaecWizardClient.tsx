@@ -495,7 +495,7 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
           </div>
 
           {/* Contexto del Plantel */}
-          <div className="card" style={{ padding: '24px', background: '#fff', borderRadius: '12px', border: '1px solid var(--c-border)', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
+          <div className="card" style={{ padding: '24px', borderRadius: '12px', border: '1px solid var(--c-border)', boxShadow: 'var(--shadow-card)' }}>
             <h2 style={{ fontSize: '18px', color: 'var(--c-navy-light)', borderBottom: '1px solid var(--c-border)', paddingBottom: '10px', marginBottom: '16px', fontWeight: 600 }}>3. Ficha de Datos del Plantel</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
               <div>
