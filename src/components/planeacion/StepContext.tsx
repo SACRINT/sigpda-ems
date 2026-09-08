@@ -46,6 +46,7 @@ export default function StepContext({ extractedData, onNext, onBack }: Props) {
   const [paecLoading, setPaecLoading] = useState(false);
   const [paecSuccess, setPaecSuccess] = useState(false);
   const [paecError, setPaecError] = useState<string | null>(null);
+  const [isSuggestedProblem, setIsSuggestedProblem] = useState<boolean | null>(null);
   const paecInputRef = useRef<HTMLInputElement>(null);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -78,6 +79,7 @@ export default function StepContext({ extractedData, onNext, onBack }: Props) {
     setPaecLoading(true);
     setPaecSuccess(false);
     setPaecError(null);
+    setIsSuggestedProblem(null);
 
     try {
       const fd = new FormData();
@@ -93,6 +95,17 @@ export default function StepContext({ extractedData, onNext, onBack }: Props) {
           paecProblem: result.data.problem || prev.paecProblem,
           studentContext: result.data.studentContext || prev.studentContext,
         }));
+        if (typeof result.data.isSuggestedProblem === 'boolean') {
+          setIsSuggestedProblem(result.data.isSuggestedProblem);
+        }
+        // Limpiar error de validación en paecProblem si se obtuvo valor
+        if (result.data.problem) {
+          setErrors(prev => {
+            const copy = { ...prev };
+            delete copy.paecProblem;
+            return copy;
+          });
+        }
         setPaecSuccess(true);
       } else {
         setPaecError(result.error || 'No se pudieron extraer los datos automáticamente.');
@@ -341,15 +354,48 @@ export default function StepContext({ extractedData, onNext, onBack }: Props) {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label form-label-required">
-                    Problemática comunitaria detectada en el PAEC
-                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginBottom: '6px' }}>
+                    <label className="form-label form-label-required" style={{ margin: 0 }}>
+                      Problemática comunitaria detectada en el PAEC
+                    </label>
+                    {isSuggestedProblem === false && (
+                      <span className="badge badge-success" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', padding: '3px 8px', borderRadius: '4px' }}>
+                        ✓ Detectada en el PAEC
+                      </span>
+                    )}
+                    {isSuggestedProblem === true && (
+                      <span className="badge badge-warning" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', padding: '3px 8px', borderRadius: '4px', background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' }}>
+                        💡 Sugerida a partir del proyecto (editable)
+                      </span>
+                    )}
+                  </div>
+                  {isSuggestedProblem === false && (
+                    <div className="alert alert-success" style={{ margin: '0 0 8px 0', padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>✓</span>
+                      <span>Problemática detectada en el PAEC e integrada al formulario.</span>
+                    </div>
+                  )}
+                  {isSuggestedProblem === true && (
+                    <div className="alert alert-warning" style={{ margin: '0 0 8px 0', padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e' }}>
+                      <span>💡</span>
+                      <span>Problemática sugerida a partir del contexto del proyecto. Puedes personalizarla o editarla libremente.</span>
+                    </div>
+                  )}
                   <textarea
                     className="form-textarea"
                     rows={4}
                     placeholder="Describe la problemática social, ambiental o de salud que afecta a la comunidad. Ej: 'Alta incidencia de diabetes tipo 2 y obesidad en adultos mayores del municipio de Izúcar de Matamoros, agravada por el consumo de alimentos ultraprocesados y automedicación.'"
                     value={form.paecProblem}
-                    onChange={e => set({ paecProblem: e.target.value })}
+                    onChange={e => {
+                      set({ paecProblem: e.target.value });
+                      if (errors.paecProblem) {
+                        setErrors(prev => {
+                          const copy = { ...prev };
+                          delete copy.paecProblem;
+                          return copy;
+                        });
+                      }
+                    }}
                   />
                   {errors.paecProblem && <span className="form-error">{errors.paecProblem}</span>}
                   <span className="form-hint" style={{ color: 'var(--c-navy-light)', fontWeight: 500 }}>
