@@ -9,6 +9,10 @@ import {
 } from '@/lib/capacitaciones-data';
 import { SEMESTERS_WITHOUT_COMPONENT } from '@/lib/subsystem-config';
 import { cleanSocioemotionalName } from '@/lib/utils';
+import {
+  getActividadesClaveBGE,
+  getResultadoAprendizajeBGE,
+} from '@/lib/bge-actividades-clave-catalog';
 
 export interface UACSelection {
   uacName: string;
@@ -68,25 +72,31 @@ export default function StepUAC_BGE({ onNext, selectedSubsystem, onSubsystemChan
           if (foundByTitle.length > 0) {
             matches = foundByTitle;
           } else if (matches.length === 0) {
-            matches = expectedNames.map((name, i) => ({
-              id: `uac-bge-laboral-${form.semester}-${i}`,
-              uac_name: name,
-              semester: form.semester,
-              component: 'laboral',
-              curriculum_name: activeSpecialty,
-              total_hours: 54,
-              learning_outcome: `Desarrollar competencias formativas y laborales en ${name}`,
-              activities: [
-                { order: 1, name: `Actividad Clave 1: Diagnóstico y preparación técnica en ${name}`, hours: 18 },
-                { order: 2, name: `Actividad Clave 2: Ejecución técnica y operativa en ${name}`, hours: 18 },
-                { order: 3, name: `Actividad Clave 3: Simulación profesional y entrega de evidencias en ${name}`, hours: 18 },
-              ],
-              evidences: [
-                'Reporte de proceso técnico',
-                'Simulación operativa evaluable',
-                'Lista de cotejo / rúbrica de desempeño',
-              ],
-            }));
+            matches = expectedNames.map((name, i) => {
+              // uac_num: UAC1 = index 0 = uac_num 1, UAC2 = index 1 = uac_num 2
+              const uacNum = (i + 1) as 1 | 2;
+              const officialActivities = getActividadesClaveBGE(activeSpecialty, form.semester, uacNum);
+              const officialOutcome = getResultadoAprendizajeBGE(activeSpecialty, form.semester, uacNum);
+              return {
+                id: `uac-bge-laboral-${form.semester}-${i}`,
+                uac_name: name,
+                semester: form.semester,
+                component: 'laboral',
+                curriculum_name: activeSpecialty,
+                total_hours: 54,
+                learning_outcome: officialOutcome || `Desarrollar competencias en ${name}`,
+                activities: officialActivities || [
+                  { order: 1, name: name, hours: 18 },
+                  { order: 2, name: name, hours: 18 },
+                  { order: 3, name: name, hours: 18 },
+                ],
+                evidences: [
+                  'Reporte de proceso técnico',
+                  'Simulación operativa evaluable',
+                  'Lista de cotejo / rúbrica de desempeño',
+                ],
+              };
+            });
           }
         }
 
@@ -139,25 +149,30 @@ export default function StepUAC_BGE({ onNext, selectedSubsystem, onSubsystemChan
                 );
                 if (found.length > 0) matches = found;
                 else if (matches.length === 0) {
-                  matches = expected.map((name, i) => ({
-                    id: `uac-bge-laboral-${form.semester}-${i}`,
-                    uac_name: name,
-                    semester: form.semester,
-                    component: 'laboral',
-                    curriculum_name: currentSpec,
-                    total_hours: 54,
-                    learning_outcome: `Desarrollar competencias formativas y laborales en ${name}`,
-                    activities: [
-                      { order: 1, name: `Actividad Clave 1: Diagnóstico y preparación técnica en ${name}`, hours: 18 },
-                      { order: 2, name: `Actividad Clave 2: Ejecución técnica y operativa en ${name}`, hours: 18 },
-                      { order: 3, name: `Actividad Clave 3: Simulación profesional y entrega de evidencias en ${name}`, hours: 18 },
-                    ],
-                    evidences: [
-                      'Reporte de proceso técnico',
-                      'Simulación operativa evaluable',
-                      'Lista de cotejo / rúbrica de desempeño',
-                    ],
-                  }));
+                  matches = expected.map((name, i) => {
+                    const uacNum = (i + 1) as 1 | 2;
+                    const officialActivities = getActividadesClaveBGE(currentSpec, form.semester, uacNum);
+                    const officialOutcome = getResultadoAprendizajeBGE(currentSpec, form.semester, uacNum);
+                    return {
+                      id: `uac-bge-laboral-${form.semester}-${i}`,
+                      uac_name: name,
+                      semester: form.semester,
+                      component: 'laboral',
+                      curriculum_name: currentSpec,
+                      total_hours: 54,
+                      learning_outcome: officialOutcome || `Desarrollar competencias en ${name}`,
+                      activities: officialActivities || [
+                        { order: 1, name: name, hours: 18 },
+                        { order: 2, name: name, hours: 18 },
+                        { order: 3, name: name, hours: 18 },
+                      ],
+                      evidences: [
+                        'Reporte de proceso técnico',
+                        'Simulación operativa evaluable',
+                        'Lista de cotejo / rúbrica de desempeño',
+                      ],
+                    };
+                  });
                 }
               }
 
@@ -226,6 +241,8 @@ export default function StepUAC_BGE({ onNext, selectedSubsystem, onSubsystemChan
 
       const expected = getUacNamesForCapacitacion(specToUse, form.semester);
       if (expected.length > 0) {
+        const officialActivities = getActividadesClaveBGE(specToUse, form.semester, 1);
+        const officialOutcome = getResultadoAprendizajeBGE(specToUse, form.semester, 1);
         const uacObj = {
           id: `uac-bge-laboral-${form.semester}-0`,
           uac_name: expected[0],
@@ -233,11 +250,11 @@ export default function StepUAC_BGE({ onNext, selectedSubsystem, onSubsystemChan
           component: 'laboral',
           curriculum_name: specToUse,
           total_hours: 54,
-          learning_outcome: `Desarrollar competencias formativas y laborales en ${expected[0]}`,
-          activities: [
-            { order: 1, name: `Actividad Clave 1: Diagnóstico y preparación técnica en ${expected[0]}`, hours: 18 },
-            { order: 2, name: `Actividad Clave 2: Ejecución técnica y operativa en ${expected[0]}`, hours: 18 },
-            { order: 3, name: `Actividad Clave 3: Simulación profesional y entrega de evidencias en ${expected[0]}`, hours: 18 },
+          learning_outcome: officialOutcome || `Desarrollar competencias en ${expected[0]}`,
+          activities: officialActivities || [
+            { order: 1, name: expected[0], hours: 18 },
+            { order: 2, name: expected[0], hours: 18 },
+            { order: 3, name: expected[0], hours: 18 },
           ],
           evidences: [
             'Reporte de proceso técnico',
@@ -286,25 +303,30 @@ export default function StepUAC_BGE({ onNext, selectedSubsystem, onSubsystemChan
         if (found.length > 0) {
           matches = found;
         } else if (matches.length === 0) {
-          matches = expected.map((name, i) => ({
-            id: `uac-bge-laboral-${form.semester}-${i}`,
-            uac_name: name,
-            semester: form.semester,
-            component: 'laboral',
-            curriculum_name: val,
-            total_hours: 54,
-            learning_outcome: `Desarrollar competencias formativas y laborales en ${name}`,
-            activities: [
-              { order: 1, name: `Actividad Clave 1: Diagnóstico y preparación técnica en ${name}`, hours: 18 },
-              { order: 2, name: `Actividad Clave 2: Ejecución técnica y operativa en ${name}`, hours: 18 },
-              { order: 3, name: `Actividad Clave 3: Simulación profesional y entrega de evidencias en ${name}`, hours: 18 },
-            ],
-            evidences: [
-              'Reporte de proceso técnico',
-              'Simulación operativa evaluable',
-              'Lista de cotejo / rúbrica de desempeño',
-            ],
-          }));
+          matches = expected.map((name, i) => {
+            const uacNum = (i + 1) as 1 | 2;
+            const officialActivities = getActividadesClaveBGE(val, form.semester, uacNum);
+            const officialOutcome = getResultadoAprendizajeBGE(val, form.semester, uacNum);
+            return {
+              id: `uac-bge-laboral-${form.semester}-${i}`,
+              uac_name: name,
+              semester: form.semester,
+              component: 'laboral',
+              curriculum_name: val,
+              total_hours: 54,
+              learning_outcome: officialOutcome || `Desarrollar competencias en ${name}`,
+              activities: officialActivities || [
+                { order: 1, name: name, hours: 18 },
+                { order: 2, name: name, hours: 18 },
+                { order: 3, name: name, hours: 18 },
+              ],
+              evidences: [
+                'Reporte de proceso técnico',
+                'Simulación operativa evaluable',
+                'Lista de cotejo / rúbrica de desempeño',
+              ],
+            };
+          });
         }
       }
 
@@ -372,11 +394,17 @@ export default function StepUAC_BGE({ onNext, selectedSubsystem, onSubsystemChan
         uacName: selectedCatalogUac.uac_name,
         learningOutcome: selectedCatalogUac.learning_outcome,
         totalHours: selectedCatalogUac.total_hours || 54,
-        activities: selectedCatalogUac.activities || [
-          { order: 1, name: `Actividad Clave 1: Diagnóstico y preparación técnica en ${selectedCatalogUac.uac_name}`, hours: 18 },
-          { order: 2, name: `Actividad Clave 2: Ejecución técnica y operativa en ${selectedCatalogUac.uac_name}`, hours: 18 },
-          { order: 3, name: `Actividad Clave 3: Simulación profesional y entrega de evidencias en ${selectedCatalogUac.uac_name}`, hours: 18 },
-        ],
+        activities: selectedCatalogUac.activities ||
+          // Fallback: look up in static catalog by curriculum/semester/uac position
+          getActividadesClaveBGE(
+            selectedCatalogUac.curriculum_name,
+            selectedCatalogUac.semester,
+            1
+          ) || [
+            { order: 1 as const, name: selectedCatalogUac.uac_name, hours: 18 as const },
+            { order: 2 as const, name: selectedCatalogUac.uac_name, hours: 18 as const },
+            { order: 3 as const, name: selectedCatalogUac.uac_name, hours: 18 as const },
+          ],
         evidences: selectedCatalogUac.evidences,
         parseConfidence: 'high',
         year: selectedCatalogUac.year || 2025,

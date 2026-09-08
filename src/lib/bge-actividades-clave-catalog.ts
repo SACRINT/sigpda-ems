@@ -1,0 +1,1472 @@
+// AUTO-GENERATED — DO NOT EDIT MANUALLY
+// Source: scripts/extract-bge-official-laboral.py
+// Generated from: 15 PDFs oficiales BGE 2024 (Currículo Laboral)
+// Coverage: 15 capacitaciones / 120 UACs / 360 Actividades Clave
+
+export interface ActividadClave {
+  order: 1 | 2 | 3;
+  name: string;
+  hours: 18;
+}
+
+export interface UACEntry {
+  semester: 3 | 4 | 5 | 6;
+  uac_num: 1 | 2;
+  activities: [ActividadClave, ActividadClave, ActividadClave];
+  learning_outcome: string;
+  total_hours: 54;
+}
+
+export type BGECapacitacion =
+  | 'Administración'
+  | 'Agricultura Sostenible de Traspatio'
+  | 'Área de la Salud'
+  | 'Comunicación Gráfica'
+  | 'Contabilidad'
+  | 'Domótica'
+  | 'Instalaciones Residenciales'
+  | 'Mecánica Dental'
+  | 'Preparación de Alimentos Artesanales'
+  | 'Procesos Culinarios y Repostería'
+  | 'Redes y Mantenimiento'
+  | 'Servicios Ecosistémicos'
+  | 'Sistemas Eléctricos'
+  | 'Tecnología Informática'
+  | 'Turismo';
+
+// ============================================================
+// CATÁLOGO MAESTRO: 15 Capacitaciones BGE
+// ============================================================
+export const BGE_ACTIVIDADES_CATALOG: Record<string, UACEntry[]> = {
+  // --- Administración ---
+  "Administración": [
+    {
+      semester: 3,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Identifica estructura organizacional de una empresa", hours: 18 },
+        { order: 2, name: "Distingue recursos materiales necesarios para cada área de una organización", hours: 18 },
+        { order: 3, name: "Distribuye recursos materiales atendiendo a las requisiciones de cada departamento", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 3,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Registra recursos materiales de acuerdo con especificaciones", hours: 18 },
+        { order: 2, name: "Clasifica recursos materiales de acuerdo con necesidades de la organización", hours: 18 },
+        { order: 3, name: "Reporta recursos materiales necesarios para la organización bajo supervisión", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 4,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Recaba información solicitada por un superior", hours: 18 },
+        { order: 2, name: "Organiza información de acuerdo con formatos establecidos", hours: 18 },
+        { order: 3, name: "Registra información utilizando formatos físicos y digitales", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 4,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Identifica requisitos de ingreso, permanencia y salida conforme al reglamento interno de una organización", hours: 18 },
+        { order: 2, name: "Controla entrada y salida del personal de una organización con base en el reglamento interno", hours: 18 },
+        { order: 3, name: "Diseña formatos para registro de acceso a la organización", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 5,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Manipula documentación interna conforme a protocolos establecidos", hours: 18 },
+        { order: 2, name: "Clasifica expedientes y documentación interna de acuerdo con requerimientos", hours: 18 },
+        { order: 3, name: "Revisa documentación interna de una organización", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 5,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Redacta documentos administrativos solicitados por un superior", hours: 18 },
+        { order: 2, name: "Ejecuta procedimientos administrativos solicitados por un superior", hours: 18 },
+        { order: 3, name: "Monitorea trámites administrativos de cada área de una organización", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 6,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Recolecta características de bienes y servicios ofertados por una organización", hours: 18 },
+        { order: 2, name: "Identifica necesidades de posibles clientes para una venta final", hours: 18 },
+        { order: 3, name: "Brinda información detallada de bienes y servicios ofertados a posibles clientes", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 6,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Identifica estrategias y técnicas de venta con posibles clientes bajo supervisión", hours: 18 },
+        { order: 2, name: "Aplica estrategias y técnicas de venta con clientes bajo supervisión", hours: 18 },
+        { order: 3, name: "Registra ventas de bienes o servicios de acuerdo al sistema de una organización", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+  ],
+  // --- Agricultura Sostenible de Traspatio ---
+  "Agricultura Sostenible de Traspatio": [
+    {
+      semester: 3,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Analiza traspatio como sistema de producción agrícola integral", hours: 18 },
+        { order: 2, name: "Reconoce suelo como recurso agrícola vivo y el uso de abonos orgánicos para la sostenibilidad", hours: 18 },
+        { order: 3, name: "Planea huerto agroecológico de traspatio", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 3,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Ejecuta actividades para iniciar la producción agrícola de traspatio", hours: 18 },
+        { order: 2, name: "Elabora bioinsumos para una producción agroecológica de traspatio", hours: 18 },
+        { order: 3, name: "Construye huerto agroecológico de traspatio", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 4,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Identifica cultivos frutícolas y el manejo óptimo para su región", hours: 18 },
+        { order: 2, name: "Indaga cultivos básicos y el manejo adecuado para su entorno", hours: 18 },
+        { order: 3, name: "Reconoce cultivos hortícolas y el manejo adecuado", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 4,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Reproduce técnicas de manejo adecuadas a los árboles frutales", hours: 18 },
+        { order: 2, name: "Siembra cultivos básicos de acuerdo con las características de su región", hours: 18 },
+        { order: 3, name: "Aplica manejo agroecológico para el cultivo de hortalizas", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 5,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Reconoce técnicas de la agricultura de conservación de suelo y agua", hours: 18 },
+        { order: 2, name: "Indaga técnicas de captura y conservación de agua y tipos de riego", hours: 18 },
+        { order: 3, name: "Distingue tipos de plagas y enfermedades, y su manejo agroecológico", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 5,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Reproduce técnicas de conservación de suelo y agua", hours: 18 },
+        { order: 2, name: "Construye sistemas de captura y conservación de agua y riego asequibles", hours: 18 },
+        { order: 3, name: "Aplica técnicas agroecológicas para el control de plagas y enfermedades", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 6,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Distingue biodiversidad dentro y fuera del huerto como estrategia ecológica y productiva", hours: 18 },
+        { order: 2, name: "Conoce hongos comestibles y su manejo óptimo", hours: 18 },
+        { order: 3, name: "Identifica indicadores de sostenibilidad del huerto para evaluar su contribución a la soberanía alimentaria y el desarrollo sostenible", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 6,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Incrementa biodiversidad dentro y fuera del huerto para su sostenibilidad", hours: 18 },
+        { order: 2, name: "Cultiva hongos comestibles a partir de su manejo óptimo", hours: 18 },
+        { order: 3, name: "Aplica prácticas agroecológicas y promueve redes alimentarias, cooperativismo y economía solidaria como medios para el desarrollo sostenible y la soberanía alimentaria", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+  ],
+  // --- Área de la Salud ---
+  "Área de la Salud": [
+    {
+      semester: 3,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Registra inventarios de medicamentos y productos farmacéuticos", hours: 18 },
+        { order: 2, name: "Archiva recetas de medicamentos controlados", hours: 18 },
+        { order: 3, name: "Controla existencias de medicamentos y productos farmacéuticos", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 3,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Sirve clientes adecuadamente", hours: 18 },
+        { order: 2, name: "Asesora clientes en necesidades requeridas de farmacia", hours: 18 },
+        { order: 3, name: "Despacha insumos según prescripciones médicas y productos farmacéuticos", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 4,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Revisa existencias de medicamentos y material de curación", hours: 18 },
+        { order: 2, name: "Ordena existencias de medicamentos y productos farmacéuticos", hours: 18 },
+        { order: 3, name: "Válida inventarios cíclicos de los medicamentos y productos farmacéuticos existentes en el sistema", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 4,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Sigue instrucciones precisas para elaborar productos de limpieza del hogar para promover salud comunitaria", hours: 18 },
+        { order: 2, name: "Sigue instrucciones precisas para elaborar productos líquidos de higiene personal con procedimientos básicos para promover cuidado de la salud personal", hours: 18 },
+        { order: 3, name: "Sigue instrucciones precisas para elaborar productos sólidos de higiene personal con procedimientos básicos para promover cuidado de la salud personal", hours: 18 },
+      ],
+      learning_outcome: "Participar en la preparación de medicamentos y otros compuestos bajo supervisión profesional químico farmacéutico. 1. Seguir instrucciones precisas para elaborar productos de limpieza del hogar para promover salud comunitaria. 2. Seguir instrucciones precisas para elaborar productos líquidos de higiene personal con procedimientos básicos para promover el cuidado de la salud personal.",
+      total_hours: 54,
+    },
+    {
+      semester: 5,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Registra datos básicos del paciente", hours: 18 },
+        { order: 2, name: "Ordena expedientes del paciente", hours: 18 },
+        { order: 3, name: "Asiste especialistas en el control de sus citas", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 5,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Asiste especialistas (médico general y psicólogo) en la preparación del paciente diagnosticado", hours: 18 },
+        { order: 2, name: "Asiste especialistas (oftalmólogo y nutriólogo) en la preparación del paciente diagnosticado", hours: 18 },
+        { order: 3, name: "Asiste especialistas (dentista y ginecólogo) en la preparación del paciente diagnosticado", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 6,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Asiste unidades de atención en salud", hours: 18 },
+        { order: 2, name: "Empaqueta material e instrumental para su esterilización", hours: 18 },
+        { order: 3, name: "Distribuye material e instrumental requerido por las diferentes unidades del sector salud", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 6,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Programa citas de los pacientes recibiendo pagos y elaborando facturas", hours: 18 },
+        { order: 2, name: "Lleva registro de expedientes del paciente de forma manual o utilizando computadora", hours: 18 },
+        { order: 3, name: "Requisita información del paciente en los diferentes formatos de seguros", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+  ],
+  // --- Comunicación Gráfica ---
+  "Comunicación Gráfica": [
+    {
+      semester: 3,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Identifica formas de comunicación gráfica utilizadas a través del tiempo", hours: 18 },
+        { order: 2, name: "Elabora bocetos gráficos básicos comprensibles y creativos", hours: 18 },
+        { order: 3, name: "Utiliza creatividad para reproducir mensajes en comunicación gráfica", hours: 18 },
+      ],
+      learning_outcome: "Elaborar bocetos gráficos comprensibles y creativos a partir de las necesidades de comunicación gráfica requerida. • Identificar formas de comunicación gráfica utilizadas a través del tiempo. • Elaborar bocetos gráficos básicos comprensibles y creativos. • Utilizar creatividad para reproducir mensajes en comunicación gráfica.",
+      total_hours: 54,
+    },
+    {
+      semester: 3,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Elige técnicas artísticas o artesanales de dibujo", hours: 18 },
+        { order: 2, name: "Elige tipos de dibujo y su aplicación en la comunicación gráfica", hours: 18 },
+        { order: 3, name: "Reproduce ilustraciones en materiales artísticos o artesanales", hours: 18 },
+      ],
+      learning_outcome: "Ilustrar dibujos en materiales artesanales o artísticos. 1. Elegir técnicas artísticas o artesanales de dibujo. 2. Elegir tipos de dibujo y su aplicación en la comunicación gráfica. 3. Reproducir ilustraciones en materiales artísticos o artesanales.",
+      total_hours: 54,
+    },
+    {
+      semester: 4,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Emplea herramientas comerciales para bocetaje digital básico", hours: 18 },
+        { order: 2, name: "Maneja aplicaciones de uso libre para bocetaje digital básico", hours: 18 },
+        { order: 3, name: "Digitaliza bocetos artísticos o publicitarios por medio de herramientas o aplicaciones de uso libre", hours: 18 },
+      ],
+      learning_outcome: "Reproducir bocetos gráficos básicos utilizando herramientas tradicionales o digitales. 1. Emplear herramientas comerciales para bocetaje digital básico. 2. Manejar aplicaciones de uso libre para bocetaje digital básico. 3. Digitalizar bocetos artísticos o publicitarios por medio de herramientas o aplicaciones de uso libre.",
+      total_hours: 54,
+    },
+    {
+      semester: 4,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Emplea elementos básicos de la comunicación visual en productos gráficos", hours: 18 },
+        { order: 2, name: "Utiliza fuentes y familias tipográficas para resolver necesidades de comunicación en productos gráficos", hours: 18 },
+        { order: 3, name: "Aplica modos y psicología del color para resolver necesidades de comunicación", hours: 18 },
+      ],
+      learning_outcome: "Utilizar elementos de comunicación visual y fuentes tipográficas para resolver problemas y necesidades de comunicación. 1. Emplear elementos básicos de la comunicación visual en productos gráficos. 2. Utilizar fuentes y familias tipográficas para resolver necesidades de comunicación en productos gráficos. 3. Aplicar modos y psicología del color para resolver necesidades de comunicación.",
+      total_hours: 54,
+    },
+    {
+      semester: 5,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Utiliza técnicas de impresión artística y artesanal en productos gráficos", hours: 18 },
+        { order: 2, name: "Emplea técnicas de impresión industriales en productos gráficos", hours: 18 },
+        { order: 3, name: "Reproduce productos gráficos artesanales, artísticos o publicitarios por medio de diversas técnicas de impresión", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 5,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Retoca imágenes digitales por medio de software de uso libre", hours: 18 },
+        { order: 2, name: "Retoca imágenes digitales por medio de aplicaciones de uso libre", hours: 18 },
+        { order: 3, name: "Identifica requerimientos técnicos de tamaño, proporción y calidad de imágenes digitales para su reproducción en diversos medios", hours: 18 },
+      ],
+      learning_outcome: "Integrar efectos visuales a imágenes y textos por medio de software o aplicaciones digitales de uso libre. 1. Retocar imágenes digitales por medio de software de uso libre. 2. Retocar imágenes digitales por medio de aplicaciones de uso libre. 3. Identificar requerimientos técnicos de tamaño, proporción y calidad de imágenes digitales para su reproducción en diversos medios.",
+      total_hours: 54,
+    },
+    {
+      semester: 6,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Utiliza formas y técnicas de maquetación para productos artísticos, artesanales y publicitarios", hours: 18 },
+        { order: 2, name: "Elabora maquetación de productos gráficos artísticos y artesanales con colorimetría y elementos de comunicación visual", hours: 18 },
+        { order: 3, name: "Elabora maquetación asistida de productos publicitarios y promocionales a partir de necesidades específicas de comunicación", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 6,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Utiliza materiales de producción gráfica amigables con el medio ambiente", hours: 18 },
+        { order: 2, name: "Reproduce productos gráficos artesanales regionales", hours: 18 },
+        { order: 3, name: "Reproduce productos gráficos artísticos, publicitarios y regionales con materiales amigables con el medio ambiente", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+  ],
+  // --- Contabilidad ---
+  "Contabilidad": [
+    {
+      semester: 3,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Organiza documentos fuente de una entidad económica", hours: 18 },
+        { order: 2, name: "Registra información contable contenida en los documentos fuente", hours: 18 },
+        { order: 3, name: "Archiva documentos fuente de la entidad económica", hours: 18 },
+      ],
+      learning_outcome: "Registrar movimientos contables de una entidad económica, con base en documentos fuente. 1. Organizar documentos fuente de una entidad económica. 2. Registrar información contable contenida en los documentos fuente. 3. Archivar documentos fuente de la entidad económica.",
+      total_hours: 54,
+    },
+    {
+      semester: 3,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Elabora formatos de libros contables en hojas de cálculo", hours: 18 },
+        { order: 2, name: "Realiza formatos de Catálogo de cuentas y Pólizas contables", hours: 18 },
+        { order: 3, name: "Registra pólizas contables de Ingresos, Egresos y Diario", hours: 18 },
+      ],
+      learning_outcome: "Operar programas de cómputo para efectuar el registro, cálculo, control y análisis de la información contable. 1. Elaborar formatos de libros contables en hojas de cálculo. 2. Realizar formatos de Catálogo de cuentas y Pólizas contables. 3. Registrar pólizas contables de Ingresos, Egresos y Diario.",
+      total_hours: 54,
+    },
+    {
+      semester: 4,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Realiza Arqueo de caja", hours: 18 },
+        { order: 2, name: "Elabora Conciliación bancaria con la información contable proporcionada por los estados de cuenta bancarios y Auxiliares contables de Bancos", hours: 18 },
+        { order: 3, name: "Realiza inventario de mercancías en apoyo al departamento de compras", hours: 18 },
+      ],
+      learning_outcome: "Realizar cálculos básicos para los informes financieros y contables, para su revisión. 1. Realizar arqueo de caja. 2. Elaborar conciliación bancaria con la información contable proporcionada por los estados de cuenta bancarios y auxiliares contables de bancos. 3. Realizar inventario de mercancías en apoyo al departamento de compras.",
+      total_hours: 54,
+    },
+    {
+      semester: 4,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Elabora facturas de ingresos y egresos para efectos fiscales", hours: 18 },
+        { order: 2, name: "Registra asistencias, faltas y permisos de los trabajadores", hours: 18 },
+        { order: 3, name: "Registra información en la hoja de trabajo para el cumplimiento de impuestos", hours: 18 },
+      ],
+      learning_outcome: "Registrar información para el pago de obligaciones, comerciales, laborales y fiscales. 1. Elaborar facturas de ingresos y egresos para efectos fiscales. 2. Registrar asistencias, faltas y permisos de los trabajadores. 3. Registrar información en la hoja de trabajo para el cumplimiento de impuestos.",
+      total_hours: 54,
+    },
+    {
+      semester: 5,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Registra entradas y salidas de mercancías para el control del almacén", hours: 18 },
+        { order: 2, name: "Registra operaciones de compra y venta de mercancías utilizando el método de inventarios perpetuos", hours: 18 },
+        { order: 3, name: "Realiza operaciones básicas para obtener los saldos de compras y ventas", hours: 18 },
+      ],
+      learning_outcome: "Registrar compras y ventas del sector comercial. 1. Registrar entradas y salidas de mercancías para el control del almacén. 2. Registrar operaciones de compra y venta de mercancías utilizando el método de inventarios perpetuos. 3. Realizar operaciones básicas para obtener los saldos de compras y ventas.",
+      total_hours: 54,
+    },
+    {
+      semester: 5,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Ajusta cuentas de resultados y de balance, bajo la supervisión de un inmediato superior", hours: 18 },
+        { order: 2, name: "Registra operaciones en auxiliares de Mayor con la información proporcionada por la entidad económica", hours: 18 },
+        { order: 3, name: "Prepara información para la balanza de comprobación con el acompañamiento de un experto", hours: 18 },
+      ],
+      learning_outcome: "Realizar reportes básicos previos a los estados financieros. 1. Ajustar cuentas de resultados y de balance, bajo la supervisión de un inmediato superior. 2. Registrar operaciones en auxiliares de Mayor con la información proporcionada por la entidad económica. 3. Preparar información para la balanza de comprobación con el acompañamiento de un experto.",
+      total_hours: 54,
+    },
+    {
+      semester: 6,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Registra ingresos de los trabajadores para calcular las retenciones de ISR", hours: 18 },
+        { order: 2, name: "Registra ingresos y egresos de una persona física con actividad empresarial y profesional", hours: 18 },
+        { order: 3, name: "Organiza ingresos y egresos efectivamente cobrados para la determinación del IVA", hours: 18 },
+      ],
+      learning_outcome: "Registrar información que ayude al cálculo de impuestos del contribuyente. 1. Registrar ingresos de los trabajadores para calcular las retenciones de ISR. 2. Registrar ingresos y egresos de una persona física con actividad empresarial y profesional. 3. Organizar ingresos y egresos efectivamente cobrados para la determinación del IVA.",
+      total_hours: 54,
+    },
+    {
+      semester: 6,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Organiza información para el llenado del Estado de Resultados", hours: 18 },
+        { order: 2, name: "Captura datos contables para el llenado del Estado de Situación Financiera", hours: 18 },
+        { order: 3, name: "Realiza los asientos de apertura para el siguiente periodo contable", hours: 18 },
+      ],
+      learning_outcome: "Organizar información para la elaboración de estados financieros básicos. 1. Organizar información para el llenado del Estado de Resultados. 2. Capturar datos contables para el llenado del Estado de Situación Financiera. 3. Realizar los asientos de apertura para el siguiente periodo contable.",
+      total_hours: 54,
+    },
+  ],
+  // --- Domótica ---
+  "Domótica": [
+    {
+      semester: 3,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Utiliza conceptos aplicables a la electrónica, mecánica, mecatrónica con enfoque residencial y comercial", hours: 18 },
+        { order: 2, name: "Clasifica componentes electrónicos con características residenciales y comerciales con supervisión del experto", hours: 18 },
+        { order: 3, name: "Organiza componentes mecánicos con características residenciales y comerciales con supervisión del experto", hours: 18 },
+      ],
+      learning_outcome: "Separar componentes electrónicos y mecánicos de uso doméstico y comercial. 1. Utilizar conceptos aplicables a la electrónica, mecánica, mecatrónica con enfoque residencial y comercial. 2. Clasifica componentes electrónicos con características residenciales y comerciales con supervisión del experto. 3. Organizar componentes mecánicos con características residenciales y comerciales con supervisión del experto.",
+      total_hours: 54,
+    },
+    {
+      semester: 3,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Utiliza conceptos aplicables a la electricidad, domótica, algoritmos y programación con enfoque residencial y comercial", hours: 18 },
+        { order: 2, name: "Clasifica componentes eléctricos con características residenciales y comerciales con supervisión del experto", hours: 18 },
+        { order: 3, name: "Cataloga componentes domóticos para su aplicación en hogares y comercios con supervisión del experto", hours: 18 },
+      ],
+      learning_outcome: "Separar componentes eléctricos y domóticos de uso doméstico y comercial. 1. Utilizar conceptos aplicables a la electricidad, domótica, algoritmos y programación con enfoque residencial y comercial. 2. Clasificar componentes eléctricos con características residenciales y comerciales con supervisión del experto. 3. Catalogar componentes domóticos para su aplicación en hogares y comercios con supervisión del experto.",
+      total_hours: 54,
+    },
+    {
+      semester: 4,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Distingue sensores de acuerdo con su aplicación y funcionamiento para uso residencial y comercial con asesoría del experto", hours: 18 },
+        { order: 2, name: "Distingue componentes electromecánicos como: motores de corriente directa, motores paso a paso y servomotores; de acuerdo con su aplicación y funcionamiento para uso residencial y comercial con asesoría del experto", hours: 18 },
+        { order: 3, name: "Conoce diseños de circuitos con componentes eléctricos y electrónicos para uso residencial y comercial de tarea domótica específica con asesoría del experto", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 4,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Conoce secuencias lógicas bajo supervisión de expertos para cubrir necesidades con dispositivos autónomos residenciales y comerciales con asesoría del experto", hours: 18 },
+        { order: 2, name: "Simula dispositivos autónomos para cubrir necesidades específicas residenciales y comerciales con supervisión del experto", hours: 18 },
+        { order: 3, name: "Reproduce algoritmos de montaje de dispositivos autónomos indicados en el mercado para uso en hogar y comercio con supervisión del experto", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 5,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Reconoce algoritmos de operación de dispositivos domóticos con asesoría del experto", hours: 18 },
+        { order: 2, name: "Emplea algoritmos de reinicio e interrupción de dispositivos domóticos con supervisión del experto", hours: 18 },
+        { order: 3, name: "Emplea algoritmos de detección y corrección de fallas con supervisión del experto", hours: 18 },
+      ],
+      learning_outcome: "Operar equipo domótico en instalaciones residenciales y comerciales, bajo supervisión. 1. Reconocer algoritmos de operación de dispositivos domóticos con asesoría del experto. 2. Emplear algoritmos de reinicio e interrupción de dispositivos domóticos con supervisión del experto. 3. Emplear algoritmos de detección y corrección de fallas con supervisión del experto.",
+      total_hours: 54,
+    },
+    {
+      semester: 5,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Reconoce elementos para la instalación eléctrica y lógica de dispositivos domóticos residenciales y comerciales con asesoría del experto", hours: 18 },
+        { order: 2, name: "Lee planos arquitectónicos residenciales y comerciales con indicaciones eléctricas, hidráulicas y sanitarias para la instalación de dispositivos domóticos con asesoría del experto", hours: 18 },
+        { order: 3, name: "Conoce diseños arquitectónicos existentes de edificaciones que incluyen la instalación eléctrica y lógica de dispositivos domóticos y el uso de energías limpias con asesoría del experto", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 6,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Reproduce algoritmos de mantenimiento preventivo de dispositivos domóticos con asesoría del experto", hours: 18 },
+        { order: 2, name: "Reproduce algoritmos de mantenimiento preventivo para instalaciones de dispositivos domóticos con supervisión del experto", hours: 18 },
+        { order: 3, name: "Asiste en el mantenimiento correctivo a instalaciones domóticas guiado por el experto", hours: 18 },
+      ],
+      learning_outcome: "Aplica mantenimiento a equipo domótico residencial y comercial con supervisión de expertos. 1. Reproducir algoritmos de mantenimiento preventivo de dispositivos domóticos con asesoría del experto. 2. Reproducir algoritmos de mantenimiento preventivo para instalaciones de dispositivos domóticos con supervisión del experto. 3. Asistir en el mantenimiento correctivo a instalaciones domóticas guiado por el experto.",
+      total_hours: 54,
+    },
+    {
+      semester: 6,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Reconoce diseños de dispositivos domóticos de uso residencial y comercial con el apoyo y supervisión del experto", hours: 18 },
+        { order: 2, name: "Reproduce ensamblado de dispositivos domóticos de uso residencial y comercial con el apoyo y la supervisión del experto", hours: 18 },
+        { order: 3, name: "Reproduce programación de dispositivos domóticos de uso residencial y comercial con el apoyo y la supervisión del experto", hours: 18 },
+      ],
+      learning_outcome: "Auxiliar fabricación de equipo domótico para uso residencial y comercial. 1. Reconocer diseños de dispositivos domóticos de uso residencial y comercial con el apoyo y supervisión del experto. 2. Reproducir ensamblado de dispositivos domóticos de uso residencial y comercial con el apoyo y la supervisión del experto. 3. Reproducir programación de dispositivos domóticos de uso residencial y comercial con el apoyo y la supervisión del experto.",
+      total_hours: 54,
+    },
+  ],
+  // --- Instalaciones Residenciales ---
+  "Instalaciones Residenciales": [
+    {
+      semester: 3,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Identifica instalaciones básicas de una vivienda de acuerdo con los diferentes espacios", hours: 18 },
+        { order: 2, name: "Interpreta símbolos para la construcción e instalaciones hidráulicas, de gas y eléctricas", hours: 18 },
+        { order: 3, name: "Elabora croquis de construcción e instalaciones hidráulicas, de gas y eléctricas de una vivienda bajo la supervisión del experto", hours: 18 },
+      ],
+      learning_outcome: "Interpreta croquis de diferentes instalaciones básicas de una vivienda. 1. Identificar instalaciones básicas de una vivienda de acuerdo con los diferentes espacios. 2. Interpretar símbolos para la construcción e instalaciones hidráulicas, de gas y eléctricas. 3. Elaborar croquis de construcción e instalaciones hidráulicas, de gas y eléctricas de una vivienda bajo la supervisión del experto.",
+      total_hours: 54,
+    },
+    {
+      semester: 3,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Verifica materiales de construcción acordes a las necesidades de las instalaciones hidráulicas, de gas y eléctricas", hours: 18 },
+        { order: 2, name: "Cuantifica materiales como tuberías, conexiones, pegamentos, codos que son necesarios por cada instalación", hours: 18 },
+        { order: 3, name: "Verifica calidad del material a utilizar de acuerdo con manuales hidrosanitarios, de gas y eléctricos", hours: 18 },
+      ],
+      learning_outcome: "Preparar materiales en cantidad y calidad especificada para llevar a cabo diferentes tipos de mezclas bajo la supervisión del experto. 1. Verificar materiales de construcción de acuerdo con las necesidades de las instalaciones hidráulicas, de gas y eléctricas. 2. Cuantificar materiales como tuberías, conexiones, pegamentos, codos, que son necesarios por cada instalación. 3. Verificar calidad del material a utilizar de acuerdo con manuales hidrosanitarios, de gas y eléctricos.",
+      total_hours: 54,
+    },
+    {
+      semester: 4,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Verifica equipo de seguridad para trasladar materiales de construcción", hours: 18 },
+        { order: 2, name: "Utiliza equipo de seguridad para cada proceso de instalación eléctrica, hidrosanitaria y de gas", hours: 18 },
+        { order: 3, name: "Transporta material con base a normas, reglamentos de seguridad y prevención de riesgos", hours: 18 },
+      ],
+      learning_outcome: "Trasladar materiales constructivos hacia sitios de trabajo bajo normas de seguridad. 1. Verificar equipo de seguridad para trasladar materiales de construcción. 2. Utilizar equipo de seguridad para cada proceso de instalación eléctrica, hidrosanitaria y de gas. 3. Transportar materiales con base a normas, reglamentos de seguridad y prevención de riesgos.",
+      total_hours: 54,
+    },
+    {
+      semester: 4,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Organiza equipo y herramientas por categorías y uso residencial", hours: 18 },
+        { order: 2, name: "Realiza cortes y ranuras para la construcción bajo las indicaciones del experto", hours: 18 },
+        { order: 3, name: "Realiza cortes, ranuras en instalaciones hidráulicas, eléctricas y de gas bajo las indicaciones del experto", hours: 18 },
+      ],
+      learning_outcome: "Realizar cortes, ranuras en pisos, techos y muros en construcción e instalaciones residenciales. 1. Organizar equipo y herramientas por categorías y uso residencial. 2. Realizar cortes y ranuras para la construcción bajo las indicaciones del experto. 3. Realiza cortes, ranuras en instalaciones hidráulicas, eléctricas y de gas bajo las indicaciones del experto.",
+      total_hours: 54,
+    },
+    {
+      semester: 5,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Considera formas y manejo de los muebles, tuberías y conexiones para la construcción e instalaciones residenciales", hours: 18 },
+        { order: 2, name: "Clasifica materiales de plomería, hidráulica e instalaciones de gas de acuerdo con las dimensiones de la vivienda y los muebles", hours: 18 },
+        { order: 3, name: "Utiliza materiales y equipo para la limpieza de muebles, tuberías y conexiones", hours: 18 },
+      ],
+      learning_outcome: "Limpiar muebles, tuberías y conexiones para llevar a cabo diferentes instalaciones de una vivienda. 1. Considerar formas y manejo de los muebles, tuberías y conexiones para la construcción e instalaciones residenciales. 2. Clasificar materiales de plomería, hidráulica e instalaciones de gas de acuerdo con las dimensiones de la vivienda y los muebles. 3. Utilizar materiales y equipo para la limpieza de muebles, tuberías y conexiones.",
+      total_hours: 54,
+    },
+    {
+      semester: 5,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Reúne elementos constructivos básicos de una vivienda", hours: 18 },
+        { order: 2, name: "Traslada materiales requeridos al sitio de la obra", hours: 18 },
+        { order: 3, name: "Instala muebles y accesorios de acuerdo con lo especificado en el plano", hours: 18 },
+      ],
+      learning_outcome: "Colocar elementos constructivos básicos de una vivienda. 1. Reunir elementos constructivos básicos de una vivienda. 2. Trasladar materiales requeridos al sitio de la obra. 3. Instalar muebles y accesorios de acuerdo con lo especificado en el plano.",
+      total_hours: 54,
+    },
+    {
+      semester: 6,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Clasifica instalaciones sustentables de electricidad, hidrosanitarias y de gas", hours: 18 },
+        { order: 2, name: "Verifica viabilidad del espacio para la instalación sustentable", hours: 18 },
+        { order: 3, name: "Elabora croquis de la instalación residencial sustentable", hours: 18 },
+      ],
+      learning_outcome: "Colocar muebles, tuberías y conexiones de acuerdo con instrucciones. 1. Clasificar instalaciones sustentables de electricidad, hidrosanitarias y de gas. 2. Verificar viabilidad del espacio para la instalación sustentable. 3. Elaborar croquis de la instalación residencial sustentable.",
+      total_hours: 54,
+    },
+    {
+      semester: 6,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Clasifica material sobrante durante la construcción o instalación residencial", hours: 18 },
+        { order: 2, name: "Registra material sobrante en una bitácora, acorde con especificaciones del especialista", hours: 18 },
+        { order: 3, name: "Reutiliza material sobrante de manera sustentable", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+  ],
+  // --- Mecánica Dental ---
+  "Mecánica Dental": [
+    {
+      semester: 3,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Conoce anatomía dental básica", hours: 18 },
+        { order: 2, name: "Identifica características anatómicas y anomalías dentales", hours: 18 },
+        { order: 3, name: "Comprende especificaciones y prescripciones para aparatos protésicos", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 3,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Conoce materiales y técnicas de impresión dental, parcial y total", hours: 18 },
+        { order: 2, name: "Clasifica técnicas de impresión y modelado dental", hours: 18 },
+        { order: 3, name: "Elabora modelos, moldes, porta impresiones, bloques o rodillos en cera para realizar impresiones", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 4,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Reconoce insumos y materiales para la obtención de modelos", hours: 18 },
+        { order: 2, name: "Manipula materiales dentales siguiendo técnicas sistemáticas de colado", hours: 18 },
+        { order: 3, name: "Apoya elaborando modelos protésicos calcinables", hours: 18 },
+      ],
+      learning_outcome: "Realizar actividades de colado de modelos protésicos calcinables con el fin de fabricar prótesis dentales. 1. Reconocer insumos y materiales para la obtención de modelos. 2. Manipular materiales dentales siguiendo técnicas sistemáticas de colado. 3. Apoyar elaborando modelos protésicos calcinables.",
+      total_hours: 54,
+    },
+    {
+      semester: 4,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Moldea materiales para encerado de prótesis fija", hours: 18 },
+        { order: 2, name: "Moldea materiales para encerado de prótesis removible", hours: 18 },
+        { order: 3, name: "Colabora encerando prótesis dentales fijas y removibles", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 5,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Identifica técnicas de perfilado dental", hours: 18 },
+        { order: 2, name: "Analiza perfilado para prótesis dentales", hours: 18 },
+        { order: 3, name: "Comprende perfilado dental", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 5,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Reconoce diferentes tipos de alambres ortodónticos y sus características", hours: 18 },
+        { order: 2, name: "Manipula distintos calibres de alambres ortodónticos", hours: 18 },
+        { order: 3, name: "Desarrolla distinta aparatología ortodóntica de acuerdo a las prescripciones", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 6,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Elabora boceto de prótesis dental según su prescripción odontológica", hours: 18 },
+        { order: 2, name: "Participa diseñando el prototipo de prótesis dental fija y removible", hours: 18 },
+        { order: 3, name: "Apoya diseñando y elaborando puentes fijos y removibles de acuerdo con la prescripción odontológica", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 6,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Participa valorando para determinar el tipo de reparación de aparatos ortopédicos y protésicos", hours: 18 },
+        { order: 2, name: "Asiste procesos de reparación de prótesis fija y removible", hours: 18 },
+        { order: 3, name: "Apoya actividades de reparación de aparatos ortodónticos y ortopédicos", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+  ],
+  // --- Preparación de Alimentos Artesanales ---
+  "Preparación de Alimentos Artesanales": [
+    {
+      semester: 3,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Dispone Normas de Seguridad e higiene en la preparación de frutas, verduras y legumbres", hours: 18 },
+        { order: 2, name: "Conserva frutas, verduras y legumbres por deshidratación", hours: 18 },
+        { order: 3, name: "Conserva verduras y legumbres en salmuera y vinagre", hours: 18 },
+      ],
+      learning_outcome: "Conservar frutas, verduras y legumbres a través de métodos tradicionales. 1. Dispone Normas de Seguridad e higiene en la preparación de frutas y verduras. 2. Conservar frutas, verduras y legumbres por deshidratación. 3. Conservar verduras y legumbres en salmuera y vinagre.",
+      total_hours: 54,
+    },
+    {
+      semester: 3,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Aplica Principios de la Nixtamalización", hours: 18 },
+        { order: 2, name: "Elabora tortillas, totopo y tostada", hours: 18 },
+        { order: 3, name: "Elabora tamales, atoles y tortillas enriquecidas", hours: 18 },
+      ],
+      learning_outcome: "Transformar cereales y harinas para la elaboración de tortillas y productos afines. 1. Aplicar principios de la nixtamalización. 2. Elaborar tortillas, totopo y tostada. 3. Elaborar tamales, atoles y tortillas enriquecidas.",
+      total_hours: 54,
+    },
+    {
+      semester: 4,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Utiliza ingredientes en masas y mezclas", hours: 18 },
+        { order: 2, name: "Prepara diversos tipos de masas y preparados", hours: 18 },
+        { order: 3, name: "Prepara productos de panadería tradicional", hours: 18 },
+      ],
+      learning_outcome: "Realizar distintos tipos de pan a base de harinas y otros ingredientes. 1. Utilizar Ingredientes en masas y mezclas. 2. Preparar diversos tipos de masas y preparados. 3. Preparar productos de panadería tradicional.",
+      total_hours: 54,
+    },
+    {
+      semester: 4,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Elabora productos cristalizados", hours: 18 },
+        { order: 2, name: "Produce dulces típicos a base de semillas", hours: 18 },
+        { order: 3, name: "Prepara diversos dulces típicos mexicanos", hours: 18 },
+      ],
+      learning_outcome: "Elaborar productos utilizando azúcar para preparar dulces típicos. 1. Elaborar productos cristalizados. 2. Producir dulces típicos a base de semillas. 3. Preparar diversos dulces típicos mexicanos.",
+      total_hours: 54,
+    },
+    {
+      semester: 5,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Elabora té, tisanas e infusiones", hours: 18 },
+        { order: 2, name: "Elabora zumos, jugos y concentrados", hours: 18 },
+        { order: 3, name: "Prepara bebidas sin alcohol", hours: 18 },
+      ],
+      learning_outcome: "Obtener bebidas no alcohólicas mediante procedimientos simples. 1. Elaborar té, tisanas e infusiones. 2. Elaborar zumos, jugos y concentrados. 3. Preparar bebidas sin alcohol.",
+      total_hours: 54,
+    },
+    {
+      semester: 5,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Prepara productos a base de cerdo, res, curados y cocidos", hours: 18 },
+        { order: 2, name: "Prepara productos a base de aves marinadas y cocidas", hours: 18 },
+        { order: 3, name: "Prepara productos a base de soya procesada en diferentes presentaciones y sustitutos de proteína", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 6,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Elabora queso a partir de leche fresca", hours: 18 },
+        { order: 2, name: "Elabora crema y mantequilla a partir de leche fresca", hours: 18 },
+        { order: 3, name: "Elabora productos fermentados y derivados lácteos", hours: 18 },
+      ],
+      learning_outcome: "Elaborar productos lácteos por métodos tradicionales. 1. Elaborar queso a partir de leche fresca. 2. Elaborar crema y mantequilla a partir de leche fresca. 3. Elaborar productos fermentados y derivados lácteos.",
+      total_hours: 54,
+    },
+    {
+      semester: 6,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Prepara aceites saborizados", hours: 18 },
+        { order: 2, name: "Realiza emulsiones con aceites y grasas", hours: 18 },
+        { order: 3, name: "Elabora condimentos y especias", hours: 18 },
+      ],
+      learning_outcome: "Realizar productos utilizando aceites, grasas y condimentos a través de métodos tradicionales. 1. Preparar aceites saborizados. 2. Realizar emulsiones con aceites y grasas. 3. Elaborar condimentos y especias.",
+      total_hours: 54,
+    },
+  ],
+  // --- Procesos Culinarios y Repostería ---
+  "Procesos Culinarios y Repostería": [
+    {
+      semester: 3,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Elabora alimentos empleando materia prima específica aplicando conceptos culinarios", hours: 18 },
+        { order: 2, name: "Utiliza mobiliario y equipo propio de una cocina", hours: 18 },
+        { order: 3, name: "Produce alimentos aplicando técnicas y procesos culinarios establecidos", hours: 18 },
+      ],
+      learning_outcome: "Emplear productos, utensilios y conceptos culinarios durante el proceso de transformación de alimentos. 1. Elaborar alimentos empleando materia prima específica aplicando conceptos culinarios. 2. Utilizar mobiliario y equipo propio de una cocina. 3. Producir alimentos aplicando técnicas y procesos culinarios establecidos.",
+      total_hours: 54,
+    },
+    {
+      semester: 3,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Elabora productos de panificación con materia prima acorde a cada artículo", hours: 18 },
+        { order: 2, name: "Aplica procesos de elaboración de masas que se utilizan para producir pan", hours: 18 },
+        { order: 3, name: "Elabora productos de panificación de consumo común", hours: 18 },
+      ],
+      learning_outcome: "Elaborar productos de panificación siguiendo procesos establecidos. 1. Elaborar productos de panificación con materia prima acorde a cada artículo. 2. Aplicar procesos de elaboración de masas que se utilizan para producir pan. 3. Elaborar productos de panificación de consumo común.",
+      total_hours: 54,
+    },
+    {
+      semester: 4,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Elabora productos de repostería empleando materia prima y utensilios específicos", hours: 18 },
+        { order: 2, name: "Elabora productos de repostería horneados", hours: 18 },
+        { order: 3, name: "Elabora productos de repostería a base de gelificantes", hours: 18 },
+      ],
+      learning_outcome: "Elaborar productos de repostería aplicando procesos establecidos. 1. Elaborar productos de repostería empleando materia prima y utensilios específicos. 2. Elaborar productos de repostería horneados. 3. Elaborar productos de repostería a base de gelificantes.",
+      total_hours: 54,
+    },
+    {
+      semester: 4,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Elabora alimentos aplicando normas de seguridad en la cocina", hours: 18 },
+        { order: 2, name: "Elabora platillos operando normas de desinfección y almacenaje de la materia prima", hours: 18 },
+        { order: 3, name: "Produce alimentos aplicando normas de calidad e higiene", hours: 18 },
+      ],
+      learning_outcome: "Elaborar platillos aplicando normas de calidad e higiene. 1. Elaborar alimentos aplicando normas de seguridad en la cocina. 2. Elaborar platillos operando normas de desinfección y almacenaje de la materia prima. 3. Producir alimentos aplicando normas de calidad e higiene.",
+      total_hours: 54,
+    },
+    {
+      semester: 5,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Selecciona materia prima de la región para la elaboración de alimentos", hours: 18 },
+        { order: 2, name: "Aplica procesos de elaboración de platillos típicos de las regiones de Puebla", hours: 18 },
+        { order: 3, name: "Aplica procesos de elaboración de platillos típicos poblanos de temporada", hours: 18 },
+      ],
+      learning_outcome: "Elaborar productos culinarios típicos de la entidad federativa. 1. Seleccionar materia prima de la región para la elaboración de alimentos. 2. Aplicar procesos de elaboración de platillos típicos de las regiones de Puebla. 3. Aplicar procesos de elaboración de platillos típicos poblanos de temporada.",
+      total_hours: 54,
+    },
+    {
+      semester: 5,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Aplica métodos de cálculo de costos de productos alimenticios", hours: 18 },
+        { order: 2, name: "Elabora alimentos aplicando cálculo de costos de producción", hours: 18 },
+        { order: 3, name: "Sugiere precios de venta en la producción de alimentos", hours: 18 },
+      ],
+      learning_outcome: "Determinar costos de producción en la elaboración de platillos. 1. Aplicar métodos de cálculo de costos de productos alimenticios. 2. Elaborar alimentos aplicando cálculo de costos de producción. 3. Sugerir precios de venta en la producción de alimentos.",
+      total_hours: 54,
+    },
+    {
+      semester: 6,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Elabora platillos mexicanos de la zona norte siguiendo procesos establecidos", hours: 18 },
+        { order: 2, name: "Elabora platillos mexicanos de la zona centro siguiendo procesos establecidos", hours: 18 },
+        { order: 3, name: "Elabora platillos mexicanos de la zona sur siguiendo procesos establecidos", hours: 18 },
+      ],
+      learning_outcome: "Elaborar productos culinarios nacionales en establecimientos de alimentos. 1. Elaborar platillos mexicanos de la zona norte siguiendo procesos establecidos. 2. Elaborar platillos mexicanos de la zona centro siguiendo procesos establecidos. 3. Elaborar platillos mexicanos de la zona sur siguiendo procesos establecidos.",
+      total_hours: 54,
+    },
+    {
+      semester: 6,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Elabora platillos originarios de España en establecimientos de alimentos", hours: 18 },
+        { order: 2, name: "Elabora platillos orientales en establecimientos de alimentos", hours: 18 },
+        { order: 3, name: "Elabora platillos originarios de Italia en establecimientos de alimentos", hours: 18 },
+      ],
+      learning_outcome: "Elaborar productos culinarios internacionales en establecimientos de alimentos. 1. Elaborar platillos originarios de España en establecimientos de alimentos. 2. Elaborar platillos orientales en establecimientos de alimentos. 3. Elaborar platillos originarios de Italia en establecimientos de alimentos.",
+      total_hours: 54,
+    },
+  ],
+  // --- Redes y Mantenimiento ---
+  "Redes y Mantenimiento": [
+    {
+      semester: 3,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Realiza reparaciones menores al hardware siguiendo especificaciones de instalación con supervisión de un profesional", hours: 18 },
+        { order: 2, name: "Actualiza software para satisfacer las necesidades operativas del usuario con supervisión de un profesional", hours: 18 },
+        { order: 3, name: "Verifica rendimiento de la red y sus dispositivos con supervisión de un profesional", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 3,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Realiza mantenimiento preventivo con supervisión de un profesional", hours: 18 },
+        { order: 2, name: "Realiza mantenimiento correctivo con supervisión de un profesional", hours: 18 },
+        { order: 3, name: "Aplica software de gestión y planificación de mantenimiento con supervisión de un profesional", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 4,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Protege red de una organización con las medidas de seguridad de los sistemas operativos con supervisión de un profesional", hours: 18 },
+        { order: 2, name: "Utiliza Apps y programas de amenazas exteriores para proteger sistemas, datos y redes con supervisión de un profesional", hours: 18 },
+        { order: 3, name: "Mantiene seguros los datos de una organización a través de la infraestructura, las aplicaciones y las plataformas en línea con supervisión de un profesional", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 4,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Desglosa puntos de red en un entorno", hours: 18 },
+        { order: 2, name: "Configura dispositivos pasivos y activos de una red", hours: 18 },
+        { order: 3, name: "Desglosa reparto de dispositivos activos y pasivos de una red", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 5,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Elabora conexiones según el diseño aprobado con supervisión de un profesional", hours: 18 },
+        { order: 2, name: "Conecta dispositivos de acuerdo con diagrama aprobado bajo supervisión de un profesional", hours: 18 },
+        { order: 3, name: "Realiza pruebas de conectividad entre los equipos de red con supervisión de un profesional", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 5,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Registra usuarios según los protocolos de la organización con supervisión de un profesional", hours: 18 },
+        { order: 2, name: "Establece atributos a usuarios de acuerdo con los requerimientos de la organización bajo supervisión de un profesional", hours: 18 },
+        { order: 3, name: "Realiza cambios y actualizaciones en la red conforme a las necesidades de la organización con supervisión de un profesional", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 6,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Apoya usuarios de una organización en administrar la red de la organización con supervisión de un profesional", hours: 18 },
+        { order: 2, name: "Apoya usuarios de una organización a identificar incidentes de seguridad en la web con supervisión de un profesional", hours: 18 },
+        { order: 3, name: "Apoya usuarios de una organización en la recuperación de incidentes menores con supervisión de un profesional", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 6,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Utiliza canales digitales de respuesta inmediata para asistir al usuario en problemáticas simples con supervisión de un profesional", hours: 18 },
+        { order: 2, name: "Usa servicios de videotelefonía para ayudar al usuario en problemáticas simples con supervisión de un profesional", hours: 18 },
+        { order: 3, name: "Auxilia usuario de forma presencial en problemáticas simples y de varias instrucciones con supervisión de un profesional", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+  ],
+  // --- Servicios Ecosistémicos ---
+  "Servicios Ecosistémicos": [
+    {
+      semester: 3,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Emplea conceptos básicos de probabilidad y estadística", hours: 18 },
+        { order: 2, name: "Aplica técnicas de muestreo en vegetales", hours: 18 },
+        { order: 3, name: "Aplica técnicas de muestreo en animales", hours: 18 },
+      ],
+      learning_outcome: "Aplicar técnicas de muestreo indicadas por el especialista. 1. Emplear conceptos básicos de probabilidad y estadística. 2. Aplicar técnicas de muestreo en vegetales. 3. Aplicar técnicas de muestreo en animales.",
+      total_hours: 54,
+    },
+    {
+      semester: 3,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Utiliza instrumental y equipo de laboratorio", hours: 18 },
+        { order: 2, name: "Identifica tipos de contaminantes terrestres", hours: 18 },
+        { order: 3, name: "Aplica técnicas de tratamiento de muestras terrestres", hours: 18 },
+      ],
+      learning_outcome: "Recopilar muestras para las pruebas de niveles de contaminantes con guía del especialista. 1. Utilizar instrumental y equipo de laboratorio. 2. Identificar tipos de contaminantes terrestres. 3. Aplicar técnicas de tratamiento de muestras terrestres.",
+      total_hours: 54,
+    },
+    {
+      semester: 4,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Aplica técnicas de muestreo de agua dulce", hours: 18 },
+        { order: 2, name: "Identifica contaminantes en agua dulce", hours: 18 },
+        { order: 3, name: "Aplica técnicas de tratamiento de muestras de agua dulce", hours: 18 },
+      ],
+      learning_outcome: "Aplicar técnicas de muestreo de agua dulce indicadas por el especialista. 1. Aplicar técnicas de muestreo de agua dulce. 2. Identificar contaminantes en agua dulce. 3. Aplicar técnicas de tratamiento de muestras de agua dulce.",
+      total_hours: 54,
+    },
+    {
+      semester: 4,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Aplica técnicas de captación de agua", hours: 18 },
+        { order: 2, name: "Aplica técnicas de purificación de agua", hours: 18 },
+        { order: 3, name: "Aplica técnicas y estrategias que sirvan para el aprovechamiento del agua", hours: 18 },
+      ],
+      learning_outcome: "Aplicar técnicas para el aprovechamiento del agua. 1. Aplicar técnicas de captación de agua. 2. Aplicar técnicas de purificación de agua. 3. Aplica técnicas y estrategias que sirvan para el aprovechamiento del agua.",
+      total_hours: 54,
+    },
+    {
+      semester: 5,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Realiza pruebas básicas en suelos", hours: 18 },
+        { order: 2, name: "Elabora estrategias de conservación para los suelos", hours: 18 },
+        { order: 3, name: "Elige fertilizantes de acuerdo con su contexto", hours: 18 },
+      ],
+      learning_outcome: "Realizar pruebas de suelos y fertilizantes para el mantenimiento del ecosistema forestal. 1. Realizar pruebas básicas en suelos. 2. Elaborar estrategias de conservación para los suelos. 3. Elegir fertilizantes de acuerdo con su contexto.",
+      total_hours: 54,
+    },
+    {
+      semester: 5,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Elige especies forestales de siembra de acuerdo con el ecosistema", hours: 18 },
+        { order: 2, name: "Aplica técnicas de siembra considerando el tipo de semilla", hours: 18 },
+        { order: 3, name: "Elabora estrategias de prevención de plagas forestales", hours: 18 },
+      ],
+      learning_outcome: "Aplicar técnicas para la siembra de diversas semillas forestales bajo supervisión. 1. Elegir especies forestales de siembra de acuerdo con el ecosistema. 2. Aplicar técnicas de siembra considerando el tipo de semilla. 3. Elaborar estrategias de prevención de plagas forestales.",
+      total_hours: 54,
+    },
+    {
+      semester: 6,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Genera productos para el desarrollo del informe final", hours: 18 },
+        { order: 2, name: "Elabora informes finales de resultados", hours: 18 },
+        { order: 3, name: "Diseña presentaciones con gráficas, cuadros, imágenes y resúmenes para resultados", hours: 18 },
+      ],
+      learning_outcome: "Elaborar informe final de resultados de las pruebas bajo supervisión del especialista. 1. Generar productos para el desarrollo del informe final. 2. Elaborar informes finales de resultados. 3. Diseñar presentaciones con gráficas, cuadros, imágenes y resúmenes para resultados.",
+      total_hours: 54,
+    },
+    {
+      semester: 6,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Elabora logística para la presentación de resultados a la comunidad", hours: 18 },
+        { order: 2, name: "Escribe propuesta del informe de resultados para revisión del especialista", hours: 18 },
+        { order: 3, name: "Difunde resultados finales en distintos contextos", hours: 18 },
+      ],
+      learning_outcome: "Elaborar presentación de resultados para su difusión bajo supervisión del especialista. 1. Elaborar logística para la presentación de resultados a la comunidad. 2. Escribir propuesta del informe de resultados para revisión del especialista. 3. Difundir resultados finales en distintos contextos.",
+      total_hours: 54,
+    },
+  ],
+  // --- Sistemas Eléctricos ---
+  "Sistemas Eléctricos": [
+    {
+      semester: 3,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Clasifica cables conductores acordes con normas nacionales y sus características", hours: 18 },
+        { order: 2, name: "Utiliza materiales y herramientas con base en la aplicación de la norma eléctrica con ayuda del docente", hours: 18 },
+        { order: 3, name: "Realiza empalmes con cables y alambres de diferente clasificación para uso doméstico y residencial con asistencia del experto", hours: 18 },
+      ],
+      learning_outcome: "Elaborar empalmes acordes con las características de los hilos. 1. Clasificar cables conductores acordes con normas nacionales y sus características. 2. Utilizar materiales y herramientas con base en la aplicación de la norma eléctrica con ayuda del docente. 3. Realizar empalmes con cables y alambres de diferente clasificación para uso doméstico y residencial con asistencia del experto.",
+      total_hours: 54,
+    },
+    {
+      semester: 3,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Aplica ergonomía en el área de trabajo y comprende su importancia siguiendo instrucciones del docente", hours: 18 },
+        { order: 2, name: "Aplica normas nacionales de higiene y salud laboral acorde con la Norma Oficial Mexicana (NOM), Instituto de Ingenieros Eléctricos y electrónicos (IEEE), Sistema de calidad (QS 9000) y la Organización Internacional de normalización (ISO 9000) bajo la supervisión del docente", hours: 18 },
+        { order: 3, name: "Aplica normatividad laboral de acuerdo con protocolos de Protección civil bajo la supervisión del docente", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 4,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Elabora procedimientos de operación para revisión de circuitos y componentes eléctricos con ayuda del docente", hours: 18 },
+        { order: 2, name: "Aplica medidas de seguridad para manipular componentes eléctricos siguiendo instrucciones del docente", hours: 18 },
+        { order: 3, name: "Diagnostica aparatos eléctricos basado en la revisión mecánica y eléctrica con supervisión del experto", hours: 18 },
+      ],
+      learning_outcome: "Manipular sistemas eléctricos en componentes o aparatos siguiendo las fichas técnicas. 1. Elaborar procedimientos de operación para revisión de circuitos y componentes eléctricos con ayuda del docente. 2. Aplicar medidas de seguridad para manipular componentes eléctricos siguiendo instrucciones del docente. 3. Diagnosticar aparatos eléctricos basado en la revisión mecánica y eléctrica con supervisión del experto.",
+      total_hours: 54,
+    },
+    {
+      semester: 4,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Utiliza Ley de Ohm para análisis de circuitos eléctricos bajo la supervisión del docente", hours: 18 },
+        { order: 2, name: "Reconoce lectura de mallas y nodos con base en las Leyes de Kirchhoff", hours: 18 },
+        { order: 3, name: "Manipula corriente alterna para circuitos eléctricos domésticos y comerciales con ayuda del docente", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 5,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Reconoce planos en sistemas eléctricos", hours: 18 },
+        { order: 2, name: "Distingue normas de circuitos derivados en sistemas eléctricos", hours: 18 },
+        { order: 3, name: "Describe circuitos derivados en sistemas eléctricos", hours: 18 },
+      ],
+      learning_outcome: "Reconocer planos de sistemas eléctricos en servicios domésticos y comerciales. 1. Reconocer planos en sistemas eléctricos. 2. Distinguir normas de circuitos derivados en sistemas eléctricos. 3. Describir circuitos derivados en sistemas eléctricos.",
+      total_hours: 54,
+    },
+    {
+      semester: 5,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Clasifica componentes eléctricos ensamblados en tableros de perfocel siguiendo instrucciones del docente", hours: 18 },
+        { order: 2, name: "Ensambla tablero de perfocel para circuitos eléctricos básicos bajo la supervisión del docente", hours: 18 },
+        { order: 3, name: "Elabora circuitos eléctricos convencionales utilizados en instalaciones residenciales y comerciales repitiendo instrucciones del docente", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 6,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Conoce fundamentos operativos de las máquinas eléctricas universales", hours: 18 },
+        { order: 2, name: "Identifica características de las máquinas eléctricas, estáticas, lineales y rotatorias", hours: 18 },
+        { order: 3, name: "Utiliza instrumentos de medición en el diagnóstico preventivo de motores universales bajo la supervisión del docente", hours: 18 },
+      ],
+      learning_outcome: "Conocer el funcionamiento y clasificación de aparatos domésticos que incluyan motores universales y utiliza equipos de medición para realizar el diagnóstico. 1. Conocer fundamentos operativos de las máquinas eléctricas universales. 2. Identificar características de las máquinas eléctricas, estáticas, lineales y rotatorias. 3. Utilizar instrumentos de medición en el diagnóstico preventivo de motores universales bajo la supervisión del docente.",
+      total_hours: 54,
+    },
+    {
+      semester: 6,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Clasifica electrodomésticos y registra la lectura de las etiquetas con la finalidad de conocer sus capacidades técnicas con ayuda del docente", hours: 18 },
+        { order: 2, name: "Aplica estrategias para el mantenimiento preventivo de los aparatos de calefacción acompañado del docente", hours: 18 },
+        { order: 3, name: "Aplica estrategias para el mantenimiento preventivo de los aparatos con motores universales acompañado del docente", hours: 18 },
+      ],
+      learning_outcome: "Realizar servicio preventivo a aparatos domésticos y en los sistemas eléctricos con supervisión del experto. 1. Clasificar electrodomésticos y registra la lectura de las etiquetas con la finalidad de conocer sus capacidades técnicas con ayuda del docente. 2. Aplicar estrategias para el mantenimiento preventivo de los aparatos de calefacción acompañado del docente. 3. Aplicar estrategias para el mantenimiento preventivo de los aparatos con motores universales acompañado del docente.",
+      total_hours: 54,
+    },
+  ],
+  // --- Tecnología Informática ---
+  "Tecnología Informática": [
+    {
+      semester: 3,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Distingue funciones del sistema operativo por versión", hours: 18 },
+        { order: 2, name: "Aplica herramientas del sistema para la preservación del equipo e insumos", hours: 18 },
+        { order: 3, name: "Administra uso de los insumos en la operación del equipo de cómputo", hours: 18 },
+      ],
+      learning_outcome: "",
+      total_hours: 54,
+    },
+    {
+      semester: 3,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Configura modo de operación de la ventana del procesador de texto", hours: 18 },
+        { order: 2, name: "Manipula diversos tipos de texto", hours: 18 },
+        { order: 3, name: "Manipula imágenes, líneas, autoformas y WordArt", hours: 18 },
+      ],
+      learning_outcome: "Elaborar documentos electrónicos en diferentes procesadores de texto, relacionados con la ofimática. 1. Configurar modo de operación de la ventana del procesador de texto. 2. Manipular diversos tipos de texto. 3. Manipular imágenes, líneas, autoformas y WordArt.",
+      total_hours: 54,
+    },
+    {
+      semester: 4,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Resguarda información en equipos de computo", hours: 18 },
+        { order: 2, name: "Guarda información en distintas nubes de internet", hours: 18 },
+        { order: 3, name: "Manipula opciones de revisión y almacenamiento para realizar copias de seguridad", hours: 18 },
+      ],
+      learning_outcome: "Operar dispositivos de hardware y software para resguardo de información. 1. Resguardar información en equipos de cómputo. 2. Guardar información en distintas nubes de internet. 3. Manipular opciones de revisión y almacenamiento para realizar copias de seguridad.",
+      total_hours: 54,
+    },
+    {
+      semester: 4,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Adapta características de los elementos de una hoja de cálculo", hours: 18 },
+        { order: 2, name: "Realiza operaciones de cálculo dentro de una hoja electrónica", hours: 18 },
+        { order: 3, name: "Representa gráficamente los datos de una hoja de cálculo", hours: 18 },
+      ],
+      learning_outcome: "Elaborar libros electrónicos en hojas de cálculo, relacionados con la ofimática. 1. Adaptar características de los elementos de una hoja de cálculo. 2. Realizar operaciones de cálculo dentro de una hoja electrónica. 3. Representar gráficamente los datos de una hoja de cálculo.",
+      total_hours: 54,
+    },
+    {
+      semester: 5,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Configura características del documento electrónico", hours: 18 },
+        { order: 2, name: "Adapta características de los elementos de un presentador electrónico", hours: 18 },
+        { order: 3, name: "Desarrolla operaciones automatizadas en la elaboración de documentos electrónicos", hours: 18 },
+      ],
+      learning_outcome: "Elabora presentaciones electrónicas en diferentes aplicaciones relacionadas con la ofimática. 1. Configurar características del documento electrónico. 2. Adaptar características de los elementos de un presentador electrónico. 3. Desarrollar operaciones automatizadas en la elaboración de documentos electrónicos.",
+      total_hours: 54,
+    },
+    {
+      semester: 5,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Reconoce distintos tipos de mecanismos digitales de impresión", hours: 18 },
+        { order: 2, name: "Comprende uso de dispositivos de impresión láser e inyección de tinta", hours: 18 },
+        { order: 3, name: "Utiliza dispositivos digitales de impresión láser e inyección de tinta en procesos administrativos", hours: 18 },
+      ],
+      learning_outcome: "Operar dispositivos electrónicos multifuncionales en procesos administrativos. 1. Reconocer distintos tipos de mecanismos digitales de impresión. 2. Comprender uso de dispositivos de impresión láser e inyección de tinta. 3. Utilizar dispositivos digitales de impresión láser e inyección de tinta en procesos administrativos.",
+      total_hours: 54,
+    },
+    {
+      semester: 6,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Conoce características de un navegador de internet", hours: 18 },
+        { order: 2, name: "Configura seguridad de sus navegadores, para mayor protección", hours: 18 },
+        { order: 3, name: "Maneja herramientas de navegadores web", hours: 18 },
+      ],
+      learning_outcome: "Utilizar navegadores web en distintas plataformas digitales con propósitos administrativos. 1. Conocer características de un navegador de internet. 2. Configurar seguridad de sus navegadores, para mayor protección. 3. Manejar herramientas de navegadores web.",
+      total_hours: 54,
+    },
+    {
+      semester: 6,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Conoce distintas aplicaciones de comunicación", hours: 18 },
+        { order: 2, name: "Configura aplicaciones de comunicación, para adaptar a sus necesidades laborales administrativas", hours: 18 },
+        { order: 3, name: "Maneja mensajería instantánea, para actividades administrativas", hours: 18 },
+      ],
+      learning_outcome: "Manejar softwares de aplicación para comunicación síncrona y asíncrona. 1. Conocer distintas aplicaciones de comunicación. 2. Configurar aplicaciones de comunicación, para adaptar a sus necesidades laborales administrativas. 3. Manejar mensajería instantánea, para actividades administrativas.",
+      total_hours: 54,
+    },
+  ],
+  // --- Turismo ---
+  "Turismo": [
+    {
+      semester: 3,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Utiliza componentes turismo regionales", hours: 18 },
+        { order: 2, name: "Reconoce elementos que integran la planta turística", hours: 18 },
+        { order: 3, name: "Practica funciones administrativas de las agencias de viajes", hours: 18 },
+      ],
+      learning_outcome: "Mostrar variedad de servicios que componen el catálogo de la planta turística. 1. Utilizar componentes de turismo regionales. 2. Reconocer elementos que integran la planta turística. 3. Practicar funciones administrativas de las agencias de viajes.",
+      total_hours: 54,
+    },
+    {
+      semester: 3,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Orienta procesos de emisión de visa y pasaporte", hours: 18 },
+        { order: 2, name: "Enuncia requisitos para la expedición de visa y pasaporte", hours: 18 },
+        { order: 3, name: "Orienta turistas respecto a la expedición de documentos oficiales acorde con las instituciones gubernamentales", hours: 18 },
+      ],
+      learning_outcome: "Explicar procesos de expedición de documentos oficiales en las instituciones gubernamentales correspondientes, para transitar o viajar. 1. Orientar procesos de emisión de visa y pasaporte. 2. Enunciar requisitos para la expedición de visa y pasaporte. 3. Orientar turistas respecto a la expedición de documentos oficiales acorde con las instituciones gubernamentales.",
+      total_hours: 54,
+    },
+    {
+      semester: 4,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Clasifica tipos de turismo a nivel estatal y mundial", hours: 18 },
+        { order: 2, name: "Gestiona servicios turísticos entre los empresarios y clientes bajo la supervisión del experto", hours: 18 },
+        { order: 3, name: "Sugiere sitios turísticos en temporadas altas y bajas", hours: 18 },
+      ],
+      learning_outcome: "Recomendar planes turísticos de interés, diversión y esparcimiento de mayor ocupación nacional e internacional. 1. Clasificar tipos de turismo a nivel estatal y mundial. 2. Gestionar servicios turísticos entre los empresarios y clientes bajo la supervisión del experto. 3. Sugerir sitios turísticos en temporadas altas y bajas.",
+      total_hours: 54,
+    },
+    {
+      semester: 4,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Opera apps y sitios web para consultar gastos y costos de viajes", hours: 18 },
+        { order: 2, name: "Emplea herramientas digitales para dar orientación al turista de habla no hispana", hours: 18 },
+        { order: 3, name: "Registra reservaciones y contratos de viajes", hours: 18 },
+      ],
+      learning_outcome: "Utilizar aparatos digitales o análogos para reservar y contratar servicios turísticos. 1. Operar apps y sitios web para consultar gastos y costos de viajes. 2. Emplear herramientas digitales para dar orientación al turista de habla no hispana. 3. Registrar reservaciones y contratos de viajes.",
+      total_hours: 54,
+    },
+    {
+      semester: 5,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Fomenta atractivos ecoturísticos de la región", hours: 18 },
+        { order: 2, name: "Propone destinos turísticos de eventos temporales y permanentes", hours: 18 },
+        { order: 3, name: "Propone destinos turísticos local, regional y nacionales", hours: 18 },
+      ],
+      learning_outcome: "Asistir usuarios en la selección, adquisición y utilización eficiente de servicios turísticos requeridos. 1. Fomentar atractivos ecoturísticos de la región. 2. Proponer destinos turísticos de eventos temporales y permanentes. 3. Propone destinos turísticos local, regional y nacionales.",
+      total_hours: 54,
+    },
+    {
+      semester: 5,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Promueve servicios turísticos de lugares considerados patrimonio de la humanidad de la región", hours: 18 },
+        { order: 2, name: "Propone recorridos turísticos nacionales", hours: 18 },
+        { order: 3, name: "Promueve atractivos turísticos nacionales e internacionales", hours: 18 },
+      ],
+      learning_outcome: "Promocionar sitios alternativos de lugares a visitar según necesidades del turista. 1. Promover servicios turísticos de lugares considerados patrimonio de la humanidad de la región. 2. Proponer recorridos turísticos nacionales. 3. Promover atractivos turísticos nacionales e internacionales.",
+      total_hours: 54,
+    },
+    {
+      semester: 6,
+      uac_num: 1,
+      activities: [
+        { order: 1, name: "Promueve visitas a pueblos mágicos en México", hours: 18 },
+        { order: 2, name: "Diseña rutas turísticas de los patrimonios culturales nacionales", hours: 18 },
+        { order: 3, name: "Reconoce maravillas del mundo para su promoción", hours: 18 },
+      ],
+      learning_outcome: "Proponer actividades específicas al usuario, según el catálogo turístico vigente. 1. Promover visitas a pueblos mágicos en México. 2. Diseñar rutas turísticas de los patrimonios culturales nacionales. 3. Reconoce maravillas del mundo para su promoción.",
+      total_hours: 54,
+    },
+    {
+      semester: 6,
+      uac_num: 2,
+      activities: [
+        { order: 1, name: "Propone tours nacionales personalizados solicitados por el cliente", hours: 18 },
+        { order: 2, name: "Difunde tours de diversos lugares turísticos importantes de la República Mexicana", hours: 18 },
+        { order: 3, name: "Plantea costos de diversos tours adecuados al cliente", hours: 18 },
+      ],
+      learning_outcome: "Planear paquetes turísticos personalizados según necesidades del turista. 1. Proponer tours nacionales personalizados solicitados por el cliente. 2. Difundir tours de diversos lugares turísticos importantes de la República Mexicana. 3. Plantear costos de diversos tours adecuados al cliente.",
+      total_hours: 54,
+    },
+  ],
+};
+
+// ============================================================
+// UTILITY FUNCTIONS
+// ============================================================
+
+/** Normalize string: remove accents, lowercase, trim whitespace */
+function normalize(s: string): string {
+  return s
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+/** Find a curriculum in the catalog (case/accent insensitive) */
+function findCurriculum(capacitacion: string): UACEntry[] | null {
+  const normTarget = normalize(capacitacion);
+  for (const [key, val] of Object.entries(BGE_ACTIVIDADES_CATALOG)) {
+    if (normalize(key) === normTarget) return val;
+  }
+  // Partial match fallback
+  for (const [key, val] of Object.entries(BGE_ACTIVIDADES_CATALOG)) {
+    if (normalize(key).includes(normTarget) || normTarget.includes(normalize(key))) {
+      return val;
+    }
+  }
+  return null;
+}
+
+/**
+ * Get the 3 official Actividades Clave for a BGE UAC.
+ * Matches by capacitacion name, semester, and UAC number (1 or 2).
+ * Returns null if not found — caller must handle the fallback.
+ */
+export function getActividadesClaveBGE(
+  capacitacion: string,
+  semestre: number,
+  uacNum: 1 | 2
+): [ActividadClave, ActividadClave, ActividadClave] | null {
+  const entries = findCurriculum(capacitacion);
+  if (!entries) return null;
+  const entry = entries.find(e => e.semester === semestre && e.uac_num === uacNum);
+  return entry?.activities ?? null;
+}
+
+/**
+ * Get the official Resultado de Aprendizaje for a BGE UAC.
+ * Returns empty string if not found.
+ */
+export function getResultadoAprendizajeBGE(
+  capacitacion: string,
+  semestre: number,
+  uacNum: 1 | 2
+): string {
+  const entries = findCurriculum(capacitacion);
+  if (!entries) return '';
+  const entry = entries.find(e => e.semester === semestre && e.uac_num === uacNum);
+  return entry?.learning_outcome ?? '';
+}
+
+/**
+ * List all available BGE capacitacion names.
+ */
+export function listBGECapacitaciones(): string[] {
+  return Object.keys(BGE_ACTIVIDADES_CATALOG);
+}
