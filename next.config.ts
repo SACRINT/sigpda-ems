@@ -7,6 +7,9 @@ const nextConfig: NextConfig = {
   // Enable React strict mode for better development experience
   reactStrictMode: true,
 
+  // Vercel Skew Protection (routes older client sessions to matching build chunks)
+  deploymentId: process.env.VERCEL_DEPLOYMENT_ID || undefined,
+
   // Vercel Blob - allow images from blob storage
   images: {
     remotePatterns: [

@@ -3,6 +3,7 @@ import { getMessages } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { routing } from '@/i18n/routing';
 import type { Metadata } from 'next';
+import ChunkErrorListener from '@/components/common/ChunkErrorListener';
 import '../globals.css';
 
 export const metadata: Metadata = {
@@ -28,6 +29,7 @@ export default async function LocaleLayout({ children, params }: Props) {
   return (
     <html lang={locale}>
       <body>
+        <ChunkErrorListener />
         <NextIntlClientProvider messages={messages}>
           {children}
         </NextIntlClientProvider>
