@@ -181,6 +181,15 @@ async function seedHumanismo() {
     },
   ];
 
+  // 1. Eliminar cualquier registro erróneo en semestre 3
+  const deleted = await sql`
+    DELETE FROM programs_catalog
+    WHERE uac_name = 'Humanismo Mexicano' AND semester = 3
+    RETURNING id, uac_name, semester, subsystem
+  `;
+  console.log(`✓ Eliminados ${deleted.length} registros erróneos de semestre 3.`);
+
+  // 2. Insertar en semestre 1 oficial
   const subsystems = ['tecnologico', 'cbtis', 'cbta', 'cecyte'];
 
   for (const sub of subsystems) {
@@ -190,7 +199,7 @@ async function seedHumanismo() {
         learning_outcome, activities, evidences, contenidos_formativos, subsystem, model_type
       ) VALUES (
         'Humanismo Mexicano',
-        3,
+        1,
         'fundamental',
         'MCCEMS Puebla Oficial',
         2026,
@@ -213,7 +222,7 @@ async function seedHumanismo() {
         contenidos_formativos = EXCLUDED.contenidos_formativos,
         model_type = EXCLUDED.model_type
     `;
-    console.log(`✓ Inserted/Updated Humanismo Mexicano for subsystem: ${sub}`);
+    console.log(`✓ Insertado/Actualizado Humanismo Mexicano para 1er Semestre en subsistema: ${sub}`);
   }
 
   console.log('Seeding completed successfully!');
