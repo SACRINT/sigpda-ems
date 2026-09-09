@@ -100,7 +100,7 @@ Número de sesiones a generar: ${totalSesiones}
 
 CONTENIDO DE LA PLANEACIÓN BASE:
 """
-${planeacionTexto.slice(0, 12000)}
+${planeacionTexto}
 """
 
 Genera las ${totalSesiones} sesiones asegurando que la suma de tiempos de cada sesión sea de exactamente 50 o 100 minutos según la intensidad.`;

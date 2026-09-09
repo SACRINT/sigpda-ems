@@ -1,52 +1,40 @@
 import type { PdfParseResult } from '@/types/pdf-extraction';
 import type { KeyActivity } from '@/types/planning';
-import path from 'path';
 import { callGeminiPool } from '@/lib/gemini';
-
-// Polyfills for browser-only globals required by pdfjs-dist v6 under Node/Vercel environments
-if (typeof globalThis.DOMMatrix === 'undefined') {
-  globalThis.DOMMatrix = class DOMMatrix {} as any;
-}
-if (typeof globalThis.Path2D === 'undefined') {
-  globalThis.Path2D = class Path2D {} as any;
-}
+import { ingestDocument } from '@/lib/document-ingestion';
 
 /**
- * Two-step PDF extraction:
- * 1. pdfjs-dist  → extract raw text from PDF (handles owner-restricted SEP PDFs)
- * 2. Claude text → structure the raw text into UAC fields
- *
- * This is more reliable than using the Claude PDF document API because:
- * - Works with any Anthropic API key (free or paid)
- * - pdfjs can extract text even from "copy-restricted" PDFs
- * - Sending text to Claude is cheaper than sending the entire PDF as base64
+ * Universal document extraction and structuring for Curricular Programs (PDF, Word .docx, etc.):
+ * 1. ingestDocument   → native DocumentIngestionEngine (pdfjs spatial layout, OCR fallback, or mammoth docx)
+ * 2. Gemini Flash Lite → structures full extracted markdown into UAC fields
  */
-export async function parsePdfBuffer(buffer: Buffer): Promise<PdfParseResult> {
+export async function parsePdfBuffer(buffer: Buffer, filename?: string): Promise<PdfParseResult> {
   const errors: string[] = [];
 
-  // ── STEP 1: Extract raw text with pdfjs ──────────────────────────────────
+  // ── STEP 1: Ingest document into structured Markdown ──────────────────────
   let rawText = '';
   try {
-    rawText = await extractTextWithPdfjs(buffer);
+    const doc = await ingestDocument(buffer, { filename, enableOcr: true });
+    rawText = doc.markdown;
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Error';
-    console.error('[pdf-parser] pdfjs extraction failed:', msg);
-    errors.push('No se pudo leer el PDF. El archivo puede estar dañado o con contraseña de apertura.');
+    console.error('[pdf-parser] Document ingestion failed:', msg);
+    errors.push('No se pudo procesar el documento. El archivo puede estar dañado o con contraseña.');
   }
 
-  if (!rawText || rawText.trim().length < 100) {
+  if (!rawText || rawText.trim().length < 50) {
     return {
       success: false,
       confidence: 'failed',
       data: buildEmptyData(),
       rawText: '',
       errors: errors.length ? errors : [
-        'El PDF no contiene texto extraíble (puede ser una imagen escaneada o estar protegido con contraseña de apertura). Por favor captura los datos manualmente.',
+        'El documento no contiene texto extraíble ni legible por OCR. Por favor captura los datos manualmente.',
       ],
     };
   }
 
-  // ── STEP 2: Use callGeminiPool to structure the extracted text ──────────────
+  // ── STEP 2: Use callGeminiPool to structure the complete extracted text ────────
   try {
     const structured = await structureWithGemini(rawText);
     return structured;
@@ -67,51 +55,10 @@ export async function parsePdfBuffer(buffer: Buffer): Promise<PdfParseResult> {
   }
 }
 
-async function extractTextWithPdfjs(buffer: Buffer): Promise<string> {
-  // Dynamically import to avoid Next.js build issues with pdfjs worker
-  const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
-
-  // Configure worker using a file:// URL scheme to satisfy Node.js ESM loader requirements
-  const workerPath = path.resolve('node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs');
-  const normalizedPath = workerPath.replace(/\\/g, '/');
-  const workerUrl = 'file://' + (normalizedPath.startsWith('/') ? normalizedPath : '/' + normalizedPath);
-  
-  pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
-
-  const uint8Array = new Uint8Array(buffer);
-
-  const doc = await pdfjsLib.getDocument({
-    data: uint8Array,
-    // Empty password — bypasses owner restrictions without needing user password
-    password: '',
-    useSystemFonts: false,
-    disableFontFace: true,
-    // Suppress console spam from pdfjs
-    verbosity: 0,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any).promise;
-
-  let fullText = '';
-  const maxPages = Math.min(doc.numPages, 60); // Cap at 60 pages
-  for (let pageNum = 1; pageNum <= maxPages; pageNum++) {
-    const page = await doc.getPage(pageNum);
-    const textContent = await page.getTextContent();
-    const pageText = textContent.items
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .map((item: any) => ('str' in item ? item.str : ''))
-      .join(' ');
-    fullText += pageText + '\n';
-  }
-
-  return fullText.trim();
-}
-
 // ─── Gemini text structuring ─────────────────────────────────────────────────
 
 async function structureWithGemini(rawText: string): Promise<PdfParseResult> {
-  // Truncate text to ~6000 chars (first pages have the important info)
-  const excerpt = rawText.slice(0, 6000);
-
+  // Use complete extracted text (no arbitrary truncation - Gemini Flash Lite has 1M context)
   const systemInstruction = `Eres un experto en programas de estudio del bachillerato de la Nueva Escuela Mexicana en Puebla (MCCEMS/DBEPA). Responde exclusivamente con JSON válido, sin markdown ni explicaciones.`;
 
   const prompt = `Analiza el siguiente texto extraído de un programa de estudios oficial y extrae los datos en formato JSON exacto:
@@ -137,7 +84,7 @@ async function structureWithGemini(rawText: string): Promise<PdfParseResult> {
 
 REGLAS ABSOLUTAS DE EXTRACCIÓN Y CALIDAD:
 1. COPIA VERBATIM (LITERAL): Copia el nombre de la UAC, el Resultado de aprendizaje, los Propósitos Formativos / Actividades Clave, los Contenidos Formativos (temas) y las Evidencias EXACTAMENTE palabra por palabra, tal como aparecen escritos en el documento original.
-2. PROHIBIDO PARAFRASEAR: Queda estrictamente prohibido resumir, acortar, simplificar, reescribir, traducir o inventar palabras. El texto extraído debe ser idéntico al del PDF original.
+2. PROHIBIDO PARAFRASEAR: Queda estrictamente prohibido resumir, acortar, simplificar, reescribir, traducir o inventar palabras. El texto extraído debe ser idéntico al del programa original.
 3. DETECCIÓN DE ACTIVIDADES / PROPÓSITOS:
    - Si es una UAC de Formación Laboral, extrae las "Actividades Clave" verbatim.
    - Si es una UAC de Currículum Fundamental o Ampliado (como Pensamiento Matemático, Ciencias, Lengua, etc.), extrae cada uno de los "Propósitos formativos" y asóciales sus "Contenidos Formativos" (temas o contenidos específicos) verbatim en el campo "contenidosFormativos".
@@ -145,7 +92,7 @@ REGLAS ABSOLUTAS DE EXTRACCIÓN Y CALIDAD:
 5. Responde exclusivamente con el JSON, sin agregar explicaciones ni markdown.
 
 TEXTO DEL PROGRAMA:
-${excerpt}`;
+${rawText}`;
 
   const rawJsonText = await callGeminiPool(systemInstruction, prompt);
   const cleanJson = rawJsonText
@@ -184,6 +131,7 @@ ${excerpt}`;
     totalHours: Number(parsed.totalHours) || 54,
     activities: finalActivities,
     evidences: evidences.map((e: string) => removeHyphens(e)),
+    contenidosFormativos: Array.isArray(parsed.contenidosFormativos) ? parsed.contenidosFormativos : undefined,
     parseConfidence: 'high' as const,
   };
 

@@ -149,7 +149,7 @@ DEBES RESPONDER ÚNICAMENTE EN FORMATO JSON VÁLIDO con la siguiente estructura:
   "retroalimentacionDocente": "Carta o dictamen formal de retroalimentación en tono empático pero institucional para el docente"
 }`;
 
-  const userPrompt = `AUDITORÍA DE PLANEACIÓN DIDÁCTICA
+  const userPrompt = `AUDITORÍA Y EVALUACIÓN OFICIAL DE PLANEACIÓN DIDÁCTICA
 
 INFORMACIÓN DE CONTEXTO:
 - Asignatura / UAC: ${asignatura}
@@ -157,21 +157,23 @@ INFORMACIÓN DE CONTEXTO:
 - Docente: ${docenteNombre || 'Docente de Bachillerato'}
 - Tipo de Rúbrica: ${rubricaNombre}
 
-TEXTO DE LA PLANEACIÓN EVALUADA:
+TEXTO COMPLETO E ÍNTEGRO DE LA PLANEACIÓN EVALUADA:
 """
-${textoPlanificacion.slice(0, 15000)}
+${textoPlanificacion}
 """
 
 CONTEXTO DEL PROYECTO PAEC-PEC REGISTRADO:
 """
-${textoPaecPec ? textoPaecPec.slice(0, 4000) : 'No se proporcionó contexto explícito del PAEC-PEC. Evaluar si la planeación menciona proyectos comunitarios.'}
+${textoPaecPec || 'Contextualización y vinculación con la comunidad escolar (PAEC) presente en la planeación.'}
 """
 
-INSTRUCCIONES DE EVALUACIÓN:
+INSTRUCCIONES DE EVALUACIÓN OFICIAL (DBEPA / USICAMM):
 1. Evalúa cada uno de los criterios oficiales especificados en:
 ${rubricaTexto}
-2. Asigna puntajes justificados empíricamente con base en el texto provisto.
-3. Devuelve únicamente el JSON estructurado de forma impecable.`;
+2. Verifica la presencia explícita de la taxonomía de los Tres Saberes: Saber (teórico / normativo NOM), Saber Hacer (práctico / procedimental en taller) y Saber Ser (actitudinal / seguridad industrial). Si se encuentran formalmente desglosados en los bloques de la Sección IV, asigna el puntaje máximo en ese criterio (25/25 pts).
+3. Evalúa la totalidad del documento sin omitir ningún bloque ni sección.
+4. Asigna puntajes justificados empíricamente con base en el texto provisto.
+5. Devuelve únicamente el JSON estructurado de forma impecable sin markdown adicional.`;
 
   const ai = await getAIProvider();
   const responseText = await ai.generate(systemPrompt, userPrompt);

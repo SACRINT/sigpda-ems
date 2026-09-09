@@ -24,7 +24,7 @@ export async function POST(req: Request) {
     // Si se pasa planningId, cargar datos desde la base de datos
     if (planningId) {
       const rows = await db`
-        SELECT p.uac_name, p.semester, p.component, p.content_json, p.paec_context, t.name as teacher_name
+        SELECT p.id, p.uac_name, p.semester, p.component, p.content_json, p.paec_context, t.name as teacher_name
         FROM plannings p
         JOIN teachers t ON t.id = p.teacher_id
         WHERE p.id = ${planningId}::uuid
@@ -36,8 +36,25 @@ export async function POST(req: Request) {
         asignatura = planData.uac_name;
         semestre = planData.semester;
         docenteNombre = planData.teacher_name || docenteNombre;
+
         if (!textoEvaluado && planData.content_json) {
-          textoEvaluado = JSON.stringify(planData.content_json, null, 2);
+          const { getSafeEvaluationContext } = await import('@/lib/planning-integrity-system');
+          const safeContext = getSafeEvaluationContext(planData);
+          textoEvaluado = safeContext.formattedText;
+
+          // Si el contenido fue enriquecido con taxonomía explícita de saberes, persistirlo en la BD
+          if (safeContext.enrichedContent?.sectionIV?.activities?.[0]?.saberes && (!planData.content_json?.sectionIV?.activities?.[0]?.saberes)) {
+            try {
+              await db`
+                UPDATE plannings
+                SET content_json = ${JSON.stringify(safeContext.enrichedContent)}::jsonb,
+                    updated_at = NOW()
+                WHERE id = ${planningId}::uuid
+              `;
+            } catch (updateErr) {
+              console.warn('Could not auto-persist enriched saberes:', updateErr);
+            }
+          }
         }
       }
     }

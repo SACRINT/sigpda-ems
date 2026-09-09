@@ -75,6 +75,11 @@ If el componente curricular es "Formación Laboral" (laboral), aplica obligatori
    - Qué NO debe generar (PROHIBIDO): No aceptes actividades pasivas como resumir teorías, copiar formatos vacíos, transcribir conceptos o escuchar exposiciones pasivas.
 3. FASE DE CIERRE / CONCLUSIÓN (conclusion):
    - Consolidación y Simulación Práctica: La actividad final debe ser una simulación interactiva, juego de roles (ej: actuar como Jefe de Almacén y defender técnicamente el reporte) o exposición activa del modelo diseñado ante el grupo, defendiendo decisiones.
+DESGLOSE OBLIGATORIO DE LOS TRES SABERES (saberes):
+Por cada actividad o bloque de la Sección IV, debes desglosar explícitamente la taxonomía oficial de la SEP / USICAMM:
+- saber: Saber Teórico / Conceptual / Normativo (fundamentos teóricos, principios científicos/técnicos y Normas Oficiales Mexicanas NOM aplicables).
+- saberHacer: Saber Práctico / Procedimental (manejo de herramientas, ejecución en taller/laboratorio, levantamiento técnico, lectura/elaboración de planos o resolución práctica).
+- saberSer: Saber Actitudinal (seguridad industrial, uso obligatorio de EPP, trabajo colaborativo, ética profesional y compromiso comunitario PAEC).
 ═══════════════════════════════════════════════════════════════
 
 SECCIÓN V — ESTRATEGIA DE EVALUACIÓN FORMATIVA
@@ -139,6 +144,11 @@ Responde ÚNICAMENTE con un objeto JSON válido con la siguiente estructura exac
         "contenidoFormativo": "string (OBLIGATORIO si no es laboral: Nombre exacto del Contenido Formativo o tema del programa para el cual se diseña la secuencia, por ejemplo: 'Tablas de verdad')",
         "hours": number,
         "methodology": "string (nombre de la metodología activa usada)",
+        "saberes": {
+          "saber": "string (Saber teórico, conceptual y normativo NOM aplicable)",
+          "saberHacer": "string (Saber práctico, procedimental, taller y herramientas)",
+          "saberSer": "string (Saber actitudinal, seguridad industrial, EPP y ética)"
+        },
         "apertura": {
           "activities": "string (descripción detallada de la actividad detonadora)",
           "processes": "string (procesos de pensamiento activados)",

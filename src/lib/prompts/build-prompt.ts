@@ -338,6 +338,11 @@ TOTAL HORAS CORTE 1: 3h + 13h + 2h = 18 horas ✓ (Coincide con la distribución
    - Para asignaturas no laborales: Especifica obligatoriamente el "contenidoFormativo" oficial exacto desarrollado en la secuencia.
    - Para Formación Laboral (BGE): Exige que el Desarrollo alcance Nivel 2 de complejidad técnica y el Cierre sea una simulación práctica evaluable con lista de cotejo/rúbrica.
    - Para Carrera Técnica (Bachillerato Tecnológico): Exige que el Desarrollo implemente prácticas de taller/laboratorio, simulación técnica y resolución de problemas profesionales reales con equipo o software correspondiente a la especialidad técnica.
+3. TAXONOMÍA EXPLÍCITA DE LOS 3 SABERES (OBLIGATORIO EN CADA ACTIVIDAD DE LA SECCIÓN IV):
+   En cada bloque de 'activities' de la Sección IV, desglosa obligatoriamente el objeto "saberes":
+   - "saber": Conocimientos conceptuales, principios teóricos, normativas técnicas y fundamentos que el alumno domina.
+   - "saberHacer": Procedimientos aplicados, destrezas técnicas, mediciones, cálculos, manipulación de herramientas y resolución operativa.
+   - "saberSer": Actitudes profesionales, ética, seguridad e higiene, compromiso comunitario y trabajo colaborativo.
 4. SECCIÓN V (EVALUACIÓN): Incluye el Acuerdo de Acreditación formal firmado y asegura que las ponderaciones sumen exactamente 100%.
 5. SECCIÓN VI (MATERIALES): En "teacherMaterials" incluye ÚNICAMENTE materiales diseñados por el docente (guías, manuales, hojas de trabajo). NUNCA infraestructura física escolar (proyector, internet, pizarrones).
 6. SECCIÓN I: Asigna el período de aplicación: ${context.applicationPeriod || 'Ciclo escolar 2026-2027'}.

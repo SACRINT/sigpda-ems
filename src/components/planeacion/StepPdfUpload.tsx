@@ -85,12 +85,13 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
   };
 
   const handleFile = async (f: File) => {
-    if (!f.name.toLowerCase().endsWith('.pdf')) {
-      alert('Solo se aceptan archivos PDF.');
+    const lower = f.name.toLowerCase();
+    if (!lower.endsWith('.pdf') && !lower.endsWith('.docx') && !lower.endsWith('.txt')) {
+      alert('Solo se aceptan archivos PDF, Word (.docx) o texto (.txt).');
       return;
     }
-    if (f.size > 10 * 1024 * 1024) {
-      alert('El archivo no puede superar 10 MB.');
+    if (f.size > 20 * 1024 * 1024) {
+      alert('El archivo no puede superar 20 MB.');
       return;
     }
     setFile(f);
@@ -172,7 +173,7 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
       <div className="card" style={{ marginBottom: '20px' }}>
         <h2 className="card-title">Paso 2: Subir programa de estudios</h2>
         <p className="card-subtitle">
-          Sube el PDF de tu plan y programa de estudios. La plataforma extraerá los datos
+          Sube el archivo (PDF o Word .docx) de tu plan y programa de estudios. La plataforma extraerá los datos
           automáticamente. Siempre podrás editar cualquier campo antes de continuar.
         </p>
 
@@ -188,7 +189,7 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
               <span>Confirmo que el programa oficial ({initialData.year || 2025}) es el correcto para esta UAC</span>
             </label>
             <p style={{ margin: '6px 0 0 28px', fontSize: '13px', color: 'var(--c-text-muted)' }}>
-              Si el programa seleccionado ya no es el actual o si sabes que hay uno más nuevo, desmarca esta casilla para subir el archivo PDF del programa más reciente.
+              Si el programa seleccionado ya no es el actual o si sabes que hay uno más nuevo, desmarca esta casilla para subir el archivo (PDF o Word .docx) del programa más reciente.
             </p>
           </div>
         )}
@@ -202,7 +203,7 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
                   <strong>Programa de estudios no precargado</strong>
                 </div>
                 <p style={{ margin: 0, fontSize: '14px' }}>
-                  Esta asignatura aún no tiene sus propósitos formativos precargados en la base de datos de la escuela. Por favor sube el programa de estudios oficial (PDF) para extraer los datos de forma automática, o captúralos manualmente abajo.
+                  Esta asignatura aún no tiene sus propósitos formativos precargados en la base de datos de la escuela. Por favor sube el programa de estudios oficial (PDF o Word .docx) para extraer los datos de forma automática, o captúralos manualmente abajo.
                 </p>
               </div>
             )}
@@ -218,12 +219,12 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
                 onKeyDown={e => e.key === 'Enter' && inputRef.current?.click()}
               >
                 <div className="pdf-upload-icon">📄</div>
-                <p className="pdf-upload-title">Arrastra tu PDF aquí o haz clic para seleccionar</p>
-                <p className="pdf-upload-sub">Solo archivos PDF · Máximo 10 MB</p>
+                <p className="pdf-upload-title">Arrastra tu programa de estudios aquí (PDF o Word .docx)</p>
+                <p className="pdf-upload-sub">Archivos PDF o Word (.docx) · Máximo 20 MB</p>
                 <input
                   ref={inputRef}
                   type="file"
-                  accept=".pdf"
+                  accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
                   style={{ display: 'none' }}
                   onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])}
                 />

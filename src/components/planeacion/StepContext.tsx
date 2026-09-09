@@ -99,12 +99,13 @@ export default function StepContext({
   const handlePaecUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
-    if (!f.name.toLowerCase().endsWith('.pdf')) {
-      setPaecError('Solo se aceptan archivos PDF.');
+    const lower = f.name.toLowerCase();
+    if (!lower.endsWith('.pdf') && !lower.endsWith('.docx') && !lower.endsWith('.txt')) {
+      setPaecError('Solo se aceptan archivos PDF, Word (.docx) o texto (.txt).');
       return;
     }
-    if (f.size > 10 * 1024 * 1024) {
-      setPaecError('El archivo no puede superar 10 MB.');
+    if (f.size > 20 * 1024 * 1024) {
+      setPaecError('El archivo no puede superar 20 MB.');
       return;
     }
 
@@ -344,7 +345,7 @@ export default function StepContext({
 
                 {/* PAEC Upload Helper */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px', borderBottom: '1px solid #eee', paddingBottom: '16px' }}>
-                  <label className="form-label" style={{ fontWeight: 600 }}>¿Tienes el documento del PAEC-PEC en PDF?</label>
+                  <label className="form-label" style={{ fontWeight: 600 }}>¿Tienes el documento del PAEC-PEC (PDF o Word .docx)?</label>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                     <button
                       type="button"
@@ -354,12 +355,12 @@ export default function StepContext({
                       style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                     >
                       {paecLoading && <div className="spinner spinner-dark" style={{ width: '12px', height: '12px', borderWidth: '2px' }} />}
-                      <span>{paecLoading ? 'Extrayendo problemática...' : '📁 Cargar PAEC-PEC en PDF'}</span>
+                      <span>{paecLoading ? 'Extrayendo problemática...' : '📁 Cargar PAEC-PEC (PDF o Word)'}</span>
                     </button>
                     <input
                       ref={paecInputRef}
                       type="file"
-                      accept=".pdf"
+                      accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
                       style={{ display: 'none' }}
                       onChange={handlePaecUpload}
                     />

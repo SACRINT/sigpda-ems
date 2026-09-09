@@ -1,16 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail } from '@/lib/db';
-import path from 'path';
 import { callGeminiPool } from '@/lib/gemini';
-
-// Polyfills for browser-only globals required by pdfjs-dist v6 under Node/Vercel environments
-if (typeof globalThis.DOMMatrix === 'undefined') {
-  globalThis.DOMMatrix = class DOMMatrix {} as any;
-}
-if (typeof globalThis.Path2D === 'undefined') {
-  globalThis.Path2D = class Path2D {} as any;
-}
+import { ingestDocument } from '@/lib/document-ingestion';
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,7 +16,7 @@ export async function POST(request: NextRequest) {
     }
 
     const formData = await request.formData();
-    const file = formData.get('pdf') as File;
+    const file = (formData.get('pdf') as File) || (formData.get('file') as File);
 
     if (!file) {
       return NextResponse.json({ error: 'No se subió ningún archivo' }, { status: 400 });
@@ -33,17 +25,24 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // 1. Extracción inteligente de texto con scoring semántico PAEC (máx 40,000 caracteres)
-    let smartText = '';
+    // 1. Ingesta documental nativa (PDF Digital, Escaneado con OCR Flash Lite, o Word .docx)
+    let ingested;
     try {
-      smartText = await extractSmartPaecText(buffer);
-    } catch (err) {
-      console.error('[paec-parser] pdfjs extraction failed:', err);
-      return NextResponse.json({ error: 'No se pudo leer el archivo PDF. Asegúrate de que no esté dañado.' }, { status: 400 });
+      ingested = await ingestDocument(buffer, {
+        filename: file.name,
+        mimeType: file.type,
+        enableOcr: true,
+        teacherId: teacher.id,
+      });
+    } catch (err: any) {
+      console.error('[paec-parser] Document ingestion failed:', err);
+      return NextResponse.json({ error: `No se pudo leer el archivo: ${err.message || 'Formato no válido'}` }, { status: 400 });
     }
 
-    if (!smartText || smartText.trim().length < 80) {
-      return NextResponse.json({ error: 'El PDF no contiene texto legible.' }, { status: 400 });
+    const documentText = ingested.markdown || ingested.fullText;
+
+    if (!documentText || documentText.trim().length < 50) {
+      return NextResponse.json({ error: 'El archivo no contiene texto legible.' }, { status: 400 });
     }
 
     // 2. Extracción estructurada multi-nivel (IA NEM -> Heurísticas multi-ancla -> Síntesis como último recurso)
@@ -69,7 +68,7 @@ export async function POST(request: NextRequest) {
 
     // Nivel 1: Modelo de IA con prompt pedagógico NEM
     try {
-      const geminiResult = await structurePaecWithGemini(smartText);
+      const geminiResult = await structurePaecWithGemini(documentText);
       parsedData.projectName = geminiResult.projectName || null;
       parsedData.objective = geminiResult.objective || null;
       parsedData.problem = geminiResult.problem || null;
@@ -82,8 +81,8 @@ export async function POST(request: NextRequest) {
       console.warn('[paec-parser] Gemini call failed, falling back to heuristics:', err.message || err);
     }
 
-    // Nivel 2: Heurísticas multi-ancla sobre todo el texto estructurado
-    const heuristicResult = parsePaecHeuristics(smartText);
+    // Nivel 2: Heurísticas multi-ancla sobre el texto extraído
+    const heuristicResult = parsePaecHeuristics(ingested.fullText || documentText);
     if (!parsedData.projectName && heuristicResult.projectName) parsedData.projectName = heuristicResult.projectName;
     if (!parsedData.objective && heuristicResult.objective) parsedData.objective = heuristicResult.objective;
     if (!parsedData.studentContext && heuristicResult.studentContext) parsedData.studentContext = heuristicResult.studentContext;
@@ -99,7 +98,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Nivel 3: Síntesis como ÚLTIMO RECURSO
-    // Solo si tanto Gemini como las heurísticas no encontraron problemática en el PDF
+    // Solo si tanto Gemini como las heurísticas no encontraron problemática
     if (!parsedData.problem || parsedData.problem.trim().length === 0) {
       parsedData.problem = synthesizeProblemFallback(
         parsedData.projectName || '',
@@ -117,89 +116,6 @@ export async function POST(request: NextRequest) {
     console.error('POST /api/pdf/parse-paec error:', error);
     return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
   }
-}
-
-// ─── Extracción Inteligente por Scoring Semántico ──────────────────────────────
-async function extractSmartPaecText(buffer: Buffer): Promise<string> {
-  const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
-  
-  // Configure worker using a file:// URL scheme to satisfy Node.js ESM loader requirements
-  const workerPath = path.resolve('node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs');
-  const normalizedPath = workerPath.replace(/\\/g, '/');
-  const workerUrl = 'file://' + (normalizedPath.startsWith('/') ? normalizedPath : '/' + normalizedPath);
-  pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
-
-  const doc = await pdfjsLib.getDocument({
-    data: new Uint8Array(buffer),
-    password: '',
-    useSystemFonts: false,
-    disableFontFace: true,
-    verbosity: 0,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any).promise;
-
-  const totalPages = Math.min(doc.numPages, 45);
-  const pagesData: { pageNum: number; text: string; score: number }[] = [];
-
-  for (let i = 1; i <= totalPages; i++) {
-    const page = await doc.getPage(i);
-    const textContent = await page.getTextContent();
-    const pageText = textContent.items
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .map((item: any) => ('str' in item ? item.str : ''))
-      .join(' ');
-    
-    let score = 0;
-    const lower = pageText.toLowerCase();
-
-    // 1. "problemática" / "necesidades de la comunidad" → +10
-    if (/problem[aá]tica|necesidades\s+de\s+la\s+comunidad/i.test(lower)) score += 10;
-
-    // 2. "selección del problema" / "problema central" → +10
-    if (/selecci[oó]n\s+del\s+problema|problema\s+central/i.test(lower)) score += 10;
-
-    // 3. "etapa" + ("recuperación" | "análisis" | "selección") → +8
-    if (/etapa\s*[:\-\s\w]*(?:recuperaci[oó]n|an[aá]lisis|selecci[oó]n)/i.test(lower)) score += 8;
-
-    // 4. "diagnóstico" / "árbol de problemas" / "FODA" → +6
-    if (/diagn[oó]stico|[aá]rbol\s+de\s+problemas|foda/i.test(lower)) score += 6;
-
-    // 5. "justificación" / "propósito" / "objetivo general" → +4
-    if (/justificaci[oó]n|prop[oó]sito|objetivo\s+general/i.test(lower)) score += 4;
-
-    // 6. "caracterización" / "contexto" / "estudiantes" → +2
-    if (/caracterizaci[oó]n|contexto|estudiantes/i.test(lower)) score += 2;
-
-    pagesData.push({ pageNum: i, text: pageText, score });
-  }
-
-  // Siempre incluir páginas 1-3 (intro institucional, portada e índice)
-  // Además incluir páginas relevantes con score >= 6
-  const selectedPages = pagesData.filter(p => p.pageNum <= 3 || p.score >= 6);
-  
-  // Si no hubo páginas puntuadas después de la 3, conservar las primeras 8
-  const candidatePages = selectedPages.length > 3 ? selectedPages : pagesData.slice(0, Math.min(pagesData.length, 8));
-
-  // Ordenar cronológicamente por número de página
-  candidatePages.sort((a, b) => a.pageNum - b.pageNum);
-
-  // Ensamblar con delimitadores respetando el límite estricto de 40,000 caracteres
-  let assembled = '';
-  const MAX_CHARS = 40000;
-
-  for (const p of candidatePages) {
-    const pageBlock = `\n=== PÁGINA ${p.pageNum} ===\n${p.text}\n`;
-    if ((assembled.length + pageBlock.length) > MAX_CHARS) {
-      const remaining = MAX_CHARS - assembled.length;
-      if (remaining > 500) {
-        assembled += pageBlock.slice(0, remaining);
-      }
-      break;
-    }
-    assembled += pageBlock;
-  }
-
-  return assembled.trim();
 }
 
 // ─── Estructuración con IA (Prompt Especializado NEM) ─────────────────────────

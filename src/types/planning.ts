@@ -60,6 +60,11 @@ export interface KeyActivityPlan {
   apertura: ActivityPhase;
   ejecucion: ActivityPhase;
   conclusion: ActivityPhase;
+  saberes?: {
+    saber: string;       // Saber Teórico / Conceptual / Normativo NOM
+    saberHacer: string;  // Saber Práctico / Procedimental en Taller o Laboratorio
+    saberSer: string;    // Saber Actitudinal / Seguridad Industrial / Ética
+  };
 }
 
 export interface EvaluationRow {

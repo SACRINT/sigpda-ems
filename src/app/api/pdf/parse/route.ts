@@ -27,18 +27,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No se proporcionó un archivo' }, { status: 400 });
     }
 
-    if (!file.name.toLowerCase().endsWith('.pdf')) {
-      return NextResponse.json({ error: 'El archivo debe ser un PDF' }, { status: 400 });
+    const lowerName = file.name.toLowerCase();
+    const isSupported =
+      lowerName.endsWith('.pdf') ||
+      lowerName.endsWith('.docx') ||
+      lowerName.endsWith('.txt');
+
+    if (!isSupported) {
+      return NextResponse.json(
+        { error: 'El archivo debe ser un PDF, Word (.docx) o texto (.txt)' },
+        { status: 400 }
+      );
     }
 
-    if (file.size > 20 * 1024 * 1024) {
-      return NextResponse.json({ error: 'El archivo no puede superar 20 MB' }, { status: 400 });
+    if (file.size > 25 * 1024 * 1024) {
+      return NextResponse.json({ error: 'El archivo no puede superar 25 MB' }, { status: 400 });
     }
 
-    // Convert to buffer and parse using Claude AI
+    // Convert to buffer and parse using DocumentIngestionEngine + Gemini Flash Lite
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-    const parseResult = await parsePdfBuffer(buffer);
+    const parseResult = await parsePdfBuffer(buffer, file.name);
 
     return NextResponse.json({
       success: parseResult.success,

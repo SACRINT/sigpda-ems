@@ -51,6 +51,45 @@ export async function callGeminiPool(
   teacherId?: string,
   responseSchema?: object
 ): Promise<string> {
+  return callGeminiInternal({
+    systemInstruction,
+    prompt,
+    teacherId,
+    responseSchema,
+  });
+}
+
+export async function callGeminiMultimodalPool(
+  systemInstruction: string,
+  prompt: string,
+  inlineData: { mimeType: string; data: string },
+  teacherId?: string,
+  responseSchema?: object
+): Promise<string> {
+  return callGeminiInternal({
+    systemInstruction,
+    prompt,
+    inlineData,
+    teacherId,
+    responseSchema,
+  });
+}
+
+interface GeminiInternalParams {
+  systemInstruction: string;
+  prompt: string;
+  inlineData?: { mimeType: string; data: string };
+  teacherId?: string;
+  responseSchema?: object;
+}
+
+async function callGeminiInternal({
+  systemInstruction,
+  prompt,
+  inlineData,
+  teacherId,
+  responseSchema,
+}: GeminiInternalParams): Promise<string> {
   if (!process.env.DATABASE_URL) {
     throw new Error('[sigpda-ems] DATABASE_URL no configurada.');
   }
@@ -130,7 +169,8 @@ export async function callGeminiPool(
   console.log(
     `[sigpda-ems] 🔄 Generando con Llave: "${rotatedKeys[0].label}" ` +
     `(Índice: ${startIndex + 1}/${decryptedKeys.length}) - Modelo: ${modelToUse} ` +
-    `[${isPremium ? '⭐ Premium' : '⚡ Estándar'}]`
+    `[${isPremium ? '⭐ Premium' : '⚡ Estándar'}]` +
+    (inlineData ? ' [Multimodal PDF]' : '')
   );
 
   // 7. Intentar cada llave en orden rotado
@@ -143,7 +183,8 @@ export async function callGeminiPool(
         modelChain,
         systemInstruction,
         prompt,
-        responseSchema
+        responseSchema,
+        inlineData
       );
 
       // Registrar éxito
@@ -188,18 +229,31 @@ async function executeWithModelFallback(
   modelChain: string[],
   systemInstruction: string,
   prompt: string,
-  responseSchema?: object
+  responseSchema?: object,
+  inlineData?: { mimeType: string; data: string }
 ): Promise<string> {
   let lastError: any = null;
 
   for (const currentModel of modelChain) {
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${apiKey}`;
+
+      const parts: any[] = [];
+      if (inlineData) {
+        parts.push({
+          inlineData: {
+            mimeType: inlineData.mimeType,
+            data: inlineData.data,
+          },
+        });
+      }
+      parts.push({ text: prompt });
+
       const payload: any = {
-        contents: [{ parts: [{ text: prompt }] }],
+        contents: [{ parts }],
         systemInstruction: { parts: [{ text: systemInstruction }] },
         generationConfig: {
-          temperature: 0.4,
+          temperature: 0.2,
           topP: 0.95,
           responseMimeType: responseSchema ? 'application/json' : 'text/plain',
         },
@@ -213,7 +267,7 @@ async function executeWithModelFallback(
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(20000),
+        signal: AbortSignal.timeout(inlineData ? 45000 : 25000),
       });
 
       if (!res.ok) {
