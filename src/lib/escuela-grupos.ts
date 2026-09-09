@@ -691,13 +691,14 @@ export function obtenerAsignaturasParaGrupoTecnologico(
   }
 
   if (semestre === 3) {
-    // 6 Fundamentales (22h) + Módulo II Carrera (17h) = 39h
+    // 7 Fundamentales (24h) + Módulo II Carrera (17h)
     const fundamentales: { nombre: string; tipo: "FUNDAMENTAL" | "SOCIOEMOCIONAL"; horas: number }[] = [
       { nombre: "Lengua y Comunicación III", tipo: "FUNDAMENTAL", horas: 3 },
       { nombre: "Pensamiento Matemático III", tipo: "FUNDAMENTAL", horas: 4 },
       { nombre: "Ciencias Naturales, Experimentales y Tecnología III", tipo: "FUNDAMENTAL", horas: 4 },
       { nombre: "Pensamiento Filosófico y Humanidades III", tipo: "FUNDAMENTAL", horas: 5 },
       { nombre: "Inglés III", tipo: "FUNDAMENTAL", horas: 3 },
+      { nombre: "Humanismo Mexicano", tipo: "FUNDAMENTAL", horas: 2 },
       { nombre: "Formación Socioemocional III", tipo: "SOCIOEMOCIONAL", horas: 3 },
     ];
 
