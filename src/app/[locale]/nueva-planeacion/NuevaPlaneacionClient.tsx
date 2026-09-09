@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { ExtractedPdfData, TeacherContext } from '@/types/planning';
 import StepUAC from '@/components/planeacion/StepUAC';
@@ -49,13 +49,19 @@ export default function NuevaPlaneacionClient({ locale }: Props) {
   const router = useRouter();
 
   // All wizard state is persisted in localStorage automatically
-  const { state: draft, setState: setDraft, clearDraft } = useWizardPersistence<WizardDraft>(
+  const { state: draft, setState: setDraft, clearDraft, isHydrated } = useWizardPersistence<WizardDraft>(
     STORAGE_KEY,
     INITIAL_DRAFT
   );
 
+  const [isCreatingPlanning, setIsCreatingPlanning] = useState(false);
+  const [planningError, setPlanningError] = useState<string | null>(null);
+
   // Convenience setters
-  const setStep = (step: number) => setDraft(prev => ({ ...prev, step }));
+  const setStep = (step: number) => {
+    setPlanningError(null);
+    setDraft(prev => ({ ...prev, step }));
+  };
 
   const handleUACNext = (data: UACSelection, initialData?: ExtractedPdfData) => {
     setDraft(prev => ({
@@ -71,27 +77,47 @@ export default function NuevaPlaneacionClient({ locale }: Props) {
   };
 
   const handleContextNext = async (ctx: TeacherContext) => {
-    setDraft(prev => ({ ...prev, context: ctx, step: 4 }));
+    if (!draft.uacSelection) {
+      setPlanningError('Faltan los datos de la UAC. Por favor regresa al Paso 1.');
+      return;
+    }
+
+    setIsCreatingPlanning(true);
+    setPlanningError(null);
+
     try {
       const res = await fetch('/api/plannings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          uacName: draft.uacSelection!.uacName,
-          semester: draft.uacSelection!.semester,
-          component: draft.uacSelection!.component,
-          curriculumName: draft.uacSelection!.curriculumName,
+          uacName: draft.uacSelection.uacName,
+          semester: draft.uacSelection.semester,
+          component: draft.uacSelection.component,
+          curriculumName: draft.uacSelection.curriculumName,
           paecContext: ctx.paecProblem,
           extractedData: draft.extractedData,
           metodologiaActiva: ctx.metodologiaActiva || undefined,
         }),
       });
+
       const data = await res.json();
-      if (data.planning?.id) {
-        setDraft(prev => ({ ...prev, planningId: data.planning.id }));
+
+      if (!res.ok || !data.planning?.id) {
+        throw new Error(data.error || 'No se pudo registrar la planeación en el servidor.');
       }
-    } catch (err) {
+
+      // Transición ATÓMICA al paso 4 con el planningId ya verificado
+      setDraft(prev => ({
+        ...prev,
+        context: ctx,
+        planningId: data.planning.id,
+        step: 4,
+      }));
+    } catch (err: any) {
       console.error('Error creating planning record:', err);
+      setPlanningError(err.message || 'Error de conexión al crear el registro de la planeación.');
+    } finally {
+      setIsCreatingPlanning(false);
     }
   };
 
@@ -128,35 +154,50 @@ export default function NuevaPlaneacionClient({ locale }: Props) {
         </div>
 
         {/* Step content */}
-        {draft.step === 1 && (
-          <StepUAC onNext={handleUACNext} />
-        )}
+        {!isHydrated ? (
+          <div className="card" style={{ padding: '40px', textAlign: 'center' }}>
+            <div className="spinner spinner-dark" style={{ margin: '0 auto 12px', width: '24px', height: '24px' }} />
+            <p style={{ color: 'var(--c-text-muted)', fontSize: '14px', margin: 0 }}>
+              Restaurando borrador de planeación...
+            </p>
+          </div>
+        ) : (
+          <>
+            {draft.step === 1 && (
+              <StepUAC onNext={handleUACNext} />
+            )}
 
-        {draft.step === 2 && draft.uacSelection && (
-          <StepPdfUpload
-            uacSelection={draft.uacSelection}
-            initialData={draft.extractedData}
-            onNext={handlePdfNext}
-            onBack={() => setStep(1)}
-          />
-        )}
+            {draft.step === 2 && draft.uacSelection && (
+              <StepPdfUpload
+                uacSelection={draft.uacSelection}
+                initialData={draft.extractedData}
+                onNext={handlePdfNext}
+                onBack={() => setStep(1)}
+              />
+            )}
 
-        {draft.step === 3 && draft.extractedData && (
-          <StepContext
-            extractedData={draft.extractedData}
-            onNext={handleContextNext}
-            onBack={() => setStep(2)}
-          />
-        )}
+            {draft.step === 3 && draft.extractedData && (
+              <StepContext
+                extractedData={draft.extractedData}
+                initialContext={draft.context}
+                onNext={handleContextNext}
+                onBack={() => setStep(2)}
+                isSubmitting={isCreatingPlanning}
+                submissionError={planningError}
+              />
+            )}
 
-        {draft.step === 4 && draft.extractedData && draft.context && (
-          <StepGenerate
-            planningId={draft.planningId}
-            extractedData={draft.extractedData}
-            context={draft.context}
-            uacSelection={draft.uacSelection!}
-            onDone={handleDone}
-          />
+            {draft.step === 4 && draft.extractedData && draft.context && (
+              <StepGenerate
+                planningId={draft.planningId}
+                extractedData={draft.extractedData}
+                context={draft.context}
+                uacSelection={draft.uacSelection!}
+                onDone={handleDone}
+                onBack={() => setStep(3)}
+              />
+            )}
+          </>
         )}
       </div>
     </div>

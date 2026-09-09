@@ -52,12 +52,18 @@ export async function POST(request: NextRequest) {
       objective: string | null;
       problem: string | null;
       studentContext: string | null;
+      schoolName: string | null;
+      municipality: string | null;
+      cct: string | null;
       isSuggestedProblem: boolean;
     } = {
       projectName: null,
       objective: null,
       problem: null,
       studentContext: null,
+      schoolName: null,
+      municipality: null,
+      cct: null,
       isSuggestedProblem: false,
     };
 
@@ -68,19 +74,24 @@ export async function POST(request: NextRequest) {
       parsedData.objective = geminiResult.objective || null;
       parsedData.problem = geminiResult.problem || null;
       parsedData.studentContext = geminiResult.studentContext || null;
+      parsedData.schoolName = geminiResult.schoolName || null;
+      parsedData.municipality = geminiResult.municipality || null;
+      parsedData.cct = geminiResult.cct || null;
       parsedData.isSuggestedProblem = false;
     } catch (err: any) {
       console.warn('[paec-parser] Gemini call failed, falling back to heuristics:', err.message || err);
     }
 
     // Nivel 2: Heurísticas multi-ancla sobre todo el texto estructurado
-    // Si Gemini no encontró problemática o falló la llamada
+    const heuristicResult = parsePaecHeuristics(smartText);
+    if (!parsedData.projectName && heuristicResult.projectName) parsedData.projectName = heuristicResult.projectName;
+    if (!parsedData.objective && heuristicResult.objective) parsedData.objective = heuristicResult.objective;
+    if (!parsedData.studentContext && heuristicResult.studentContext) parsedData.studentContext = heuristicResult.studentContext;
+    if (!parsedData.schoolName && heuristicResult.schoolName) parsedData.schoolName = heuristicResult.schoolName;
+    if (!parsedData.municipality && heuristicResult.municipality) parsedData.municipality = heuristicResult.municipality;
+    if (!parsedData.cct && heuristicResult.cct) parsedData.cct = heuristicResult.cct;
+
     if (!parsedData.problem || parsedData.problem.trim().length === 0) {
-      const heuristicResult = parsePaecHeuristics(smartText);
-      if (!parsedData.projectName && heuristicResult.projectName) parsedData.projectName = heuristicResult.projectName;
-      if (!parsedData.objective && heuristicResult.objective) parsedData.objective = heuristicResult.objective;
-      if (!parsedData.studentContext && heuristicResult.studentContext) parsedData.studentContext = heuristicResult.studentContext;
-      
       if (heuristicResult.problem) {
         parsedData.problem = heuristicResult.problem;
         parsedData.isSuggestedProblem = false;
@@ -201,7 +212,10 @@ async function structurePaecWithGemini(smartText: string) {
   "projectName": "Nombre o título oficial del Proyecto Escolar Comunitario (PEC)",
   "objective": "Objetivo general, propósito formativo o meta del proyecto",
   "problem": "Problemática comunitaria detectada que se abordará en el PEC",
-  "studentContext": "Caracterización o contexto sociocultural y escolar de los estudiantes y el plantel"
+  "studentContext": "Caracterización o contexto sociocultural y escolar de los estudiantes y el plantel",
+  "schoolName": "Nombre oficial del plantel educativo o bachillerato (ej: Bachillerato General Estatal Héroes de la Patria)",
+  "municipality": "Municipio o localidad donde se encuentra el plantel (ej: Venustiano Carranza)",
+  "cct": "Clave de Centro de Trabajo CCT de 10 caracteres (ej: 21EBH0200X)"
 }
 
 INSTRUCCIONES CRÍTICAS PARA LA EXTRACCIÓN:
@@ -209,7 +223,10 @@ INSTRUCCIONES CRÍTICAS PARA LA EXTRACCIÓN:
 2. "projectName": Título del PEC (ej: "Comunidad Resiliente: Vida Saludable...", "EcoBachiller Recicla...", etc.).
 3. "objective": Propósito o meta formativa del proyecto comunitario.
 4. "studentContext": Ubicación del plantel, características de la localidad, entorno socioeconómico y características de los alumnos.
-5. Si no encuentras algún campo con certeza absoluta, asigna null.
+5. "schoolName": Nombre oficial del bachillerato o plantel (si aparece en portada o encabezados).
+6. "municipality": Municipio o localidad donde está ubicado el plantel.
+7. "cct": Clave CCT de 10 caracteres alfanuméricos (ej: 21EBH0200X).
+8. Si no encuentras algún campo con certeza absoluta, asigna null.
 
 TEXTO DEL DOCUMENTO:
 ${smartText}`;
@@ -229,6 +246,9 @@ function parsePaecHeuristics(text: string) {
   let objective: string | null = null;
   let problem: string | null = null;
   let studentContext: string | null = null;
+  let schoolName: string | null = null;
+  let municipality: string | null = null;
+  let cct: string | null = null;
 
   // 1. Nombre del proyecto
   const nameMatch1 = text.match(/(?:PEC titulado|PEC denominado|proyecto denominado|proyecto titulado)\s*[:\-\s]*["'«“](.*?)["'»”]/i) 
@@ -273,6 +293,24 @@ function parsePaecHeuristics(text: string) {
     studentContext = contextMatch[1].trim();
   }
 
+  // 5. Clave CCT (10 caracteres, ej: 21EBH0200X, 21ECT0017T)
+  const cctMatch = text.match(/\b([0-9]{2}[A-Z]{3}[0-9]{4}[A-Z])\b/);
+  if (cctMatch) {
+    cct = cctMatch[1].trim();
+  }
+
+  // 6. Nombre del plantel
+  const schoolMatch = text.match(/(?:Bachillerato\s+(?:General\s+Estatal|Tecnol[oó]gico|Digital)?|Plantel|Escuela|CBTIS|CBTA|CECyTE|CONALEP)[^\n\r,.;]{3,80}/i);
+  if (schoolMatch) {
+    schoolName = schoolMatch[0].trim();
+  }
+
+  // 7. Municipio / Localidad
+  const munMatch = text.match(/(?:Municipio|Localidad|Ubicaci[oó]n|en\s+el\s+municipio\s+de)[:\s]*([A-ZÁÉÍÓÚ][a-záéíóúñA-ZÁÉÍÓÚ\s]{3,40})(?:,|\.|\r?\n|$)/i);
+  if (munMatch) {
+    municipality = munMatch[1].trim();
+  }
+
   // Normalización de espacios y remoción de etiquetas de página
   const clean = (s: string) => s.replace(/=== PÁGINA \d+ ===/g, '').replace(/\s+/g, ' ').trim();
 
@@ -281,6 +319,9 @@ function parsePaecHeuristics(text: string) {
     objective: objective ? clean(objective) : null,
     problem: problem ? clean(problem) : null,
     studentContext: studentContext ? clean(studentContext) : null,
+    schoolName: schoolName ? clean(schoolName) : null,
+    municipality: municipality ? clean(municipality) : null,
+    cct: cct ? clean(cct) : null,
   };
 }
 

@@ -9,6 +9,7 @@ interface Props {
   context: TeacherContext;
   uacSelection: { uacName: string; semester: number; component: string };
   onDone: (id: string) => void;
+  onBack?: () => void;
 }
 
 type GenStep = 'preparing' | 'sending' | 'generating' | 'building' | 'done';
@@ -26,7 +27,7 @@ function delay(ms: number) {
 }
 
 export default function StepGenerate({
-  planningId, extractedData, context, onDone,
+  planningId, extractedData, context, onDone, onBack,
 }: Props) {
   const [currentStep, setCurrentStep] = useState<GenStep>('preparing');
   const [error, setError] = useState<string | null>(null);
@@ -128,12 +129,23 @@ export default function StepGenerate({
           <p style={{ color: 'var(--c-text-muted)', marginBottom: '24px', maxWidth: '380px', margin: '0 auto 24px' }}>
             {error}
           </p>
-          <button
-            className="btn btn-primary"
-            onClick={() => runGeneration()}
-          >
-            Intentar de nuevo
-          </button>
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+            {onBack && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={onBack}
+              >
+                ← Regresar al Paso 3
+              </button>
+            )}
+            <button
+              className="btn btn-primary"
+              onClick={() => runGeneration()}
+            >
+              Intentar de nuevo
+            </button>
+          </div>
         </div>
       </div>
     );

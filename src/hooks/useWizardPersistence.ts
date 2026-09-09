@@ -12,41 +12,38 @@ import { useState, useEffect, useRef, useCallback } from 'react';
  * @param initialState  The default state when no saved draft exists
  */
 export function useWizardPersistence<T>(storageKey: string, initialState: T) {
-  const [state, setStateInternal] = useState<T>(() => {
-    // Only run on client-side (Next.js SSR guard)
-    if (typeof window === 'undefined') return initialState;
+  // Always initialize with initialState to guarantee that server-side HTML
+  // and initial client-side hydration render EXACTLY the same DOM (preventing React #418 error)
+  const [state, setStateInternal] = useState<T>(initialState);
+  const [isHydrated, setIsHydrated] = useState(false);
+  const [hasDraft, setHasDraft] = useState(false);
+
+  // Restore state from localStorage ONLY after mounting on the client
+  useEffect(() => {
     try {
       const saved = window.localStorage.getItem(storageKey);
       if (saved) {
-        return JSON.parse(saved) as T;
+        const parsed = JSON.parse(saved) as T;
+        setStateInternal(parsed);
+        setHasDraft(true);
       }
     } catch (e) {
       console.warn(`[useWizardPersistence] Failed to restore draft for key "${storageKey}":`, e);
+    } finally {
+      setIsHydrated(true);
     }
-    return initialState;
-  });
+  }, [storageKey]);
 
-  // Track if we have a saved draft (for UI indicators)
-  const [hasDraft, setHasDraft] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return !!window.localStorage.getItem(storageKey);
-  });
-
-  // Prevent saving on the very first render (just restored from storage)
-  const isFirstRender = useRef(true);
-
+  // Save state to localStorage whenever it changes, but ONLY after initial hydration
   useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
+    if (!isHydrated) return;
     try {
       window.localStorage.setItem(storageKey, JSON.stringify(state));
       setHasDraft(true);
     } catch (e) {
       console.warn(`[useWizardPersistence] Failed to save draft for key "${storageKey}":`, e);
     }
-  }, [storageKey, state]);
+  }, [storageKey, state, isHydrated]);
 
   const setState = useCallback((update: T | ((prev: T) => T)) => {
     setStateInternal(update);
@@ -61,7 +58,7 @@ export function useWizardPersistence<T>(storageKey: string, initialState: T) {
     }
   }, [storageKey]);
 
-  return { state, setState, hasDraft, clearDraft };
+  return { state, setState, hasDraft, clearDraft, isHydrated };
 }
 
 /**

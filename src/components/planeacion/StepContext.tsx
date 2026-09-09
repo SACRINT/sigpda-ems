@@ -7,8 +7,11 @@ import { recomendarMetodologia } from '@/lib/recomendador-metodologia';
 
 interface Props {
   extractedData: ExtractedPdfData;
+  initialContext?: TeacherContext | null;
   onNext: (ctx: TeacherContext) => void;
   onBack: () => void;
+  isSubmitting?: boolean;
+  submissionError?: string | null;
 }
 
 const SUBSYSTEMS = [
@@ -25,23 +28,30 @@ const SUBSYSTEMS = [
   { value: 'otro',    label: 'Otro subsistema' },
 ];
 
-export default function StepContext({ extractedData, onNext, onBack }: Props) {
-  const [form, setForm] = useState<TeacherContext>({
-    teacherName: '',
-    schoolName: '',
-    municipality: '',
-    state: 'Puebla',
-    region: '',
-    subsystem: 'bge',
-    groupInfo: '',
-    applicationPeriod: '',
-    paecProjectName: '',
-    paecObjective: '',
-    paecProblem: '',
-    schoolResources: '',
-    studentContext: '',
-    metodologiaActiva: undefined,
-  });
+export default function StepContext({
+  extractedData,
+  initialContext,
+  onNext,
+  onBack,
+  isSubmitting = false,
+  submissionError = null,
+}: Props) {
+  const [form, setForm] = useState<TeacherContext>(() => ({
+    teacherName: initialContext?.teacherName || '',
+    schoolName: initialContext?.schoolName || '',
+    municipality: initialContext?.municipality || '',
+    state: initialContext?.state || 'Puebla',
+    region: initialContext?.region || '',
+    subsystem: initialContext?.subsystem || 'bge',
+    groupInfo: initialContext?.groupInfo || '',
+    applicationPeriod: initialContext?.applicationPeriod || '',
+    paecProjectName: initialContext?.paecProjectName || '',
+    paecObjective: initialContext?.paecObjective || '',
+    paecProblem: initialContext?.paecProblem || '',
+    schoolResources: initialContext?.schoolResources || '',
+    studentContext: initialContext?.studentContext || '',
+    metodologiaActiva: initialContext?.metodologiaActiva,
+  }));
 
   const [paecLoading, setPaecLoading] = useState(false);
   const [paecSuccess, setPaecSuccess] = useState(false);
@@ -50,6 +60,28 @@ export default function StepContext({ extractedData, onNext, onBack }: Props) {
   const paecInputRef = useRef<HTMLInputElement>(null);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Cargar automáticamente el perfil del docente autenticado si los campos están vacíos
+  useEffect(() => {
+    async function loadTeacherProfile() {
+      try {
+        const res = await fetch('/api/teacher-profile');
+        if (res.ok) {
+          const profile = await res.json();
+          setForm(prev => ({
+            ...prev,
+            teacherName: prev.teacherName || profile.name || '',
+            schoolName: prev.schoolName || profile.school_name || '',
+            municipality: prev.municipality || profile.municipality || '',
+            subsystem: prev.subsystem && prev.subsystem !== 'bge' ? prev.subsystem : (profile.subsystem || 'bge'),
+          }));
+        }
+      } catch (err) {
+        console.warn('[StepContext] Error al cargar perfil del docente:', err);
+      }
+    }
+    loadTeacherProfile();
+  }, []);
 
   // Sugerencia automática de metodología según UAC/materia
   const uacName = (extractedData as { uacName?: string })?.uacName || '';
@@ -94,18 +126,21 @@ export default function StepContext({ extractedData, onNext, onBack }: Props) {
           paecObjective: result.data.objective || prev.paecObjective,
           paecProblem: result.data.problem || prev.paecProblem,
           studentContext: result.data.studentContext || prev.studentContext,
+          schoolName: prev.schoolName || result.data.schoolName || prev.schoolName,
+          municipality: prev.municipality || result.data.municipality || prev.municipality,
         }));
         if (typeof result.data.isSuggestedProblem === 'boolean') {
           setIsSuggestedProblem(result.data.isSuggestedProblem);
         }
-        // Limpiar error de validación en paecProblem si se obtuvo valor
-        if (result.data.problem) {
-          setErrors(prev => {
-            const copy = { ...prev };
-            delete copy.paecProblem;
-            return copy;
-          });
-        }
+        // Limpiar error de validación en campos que ahora tienen valor
+        setErrors(prev => {
+          const copy = { ...prev };
+          if (result.data.problem) delete copy.paecProblem;
+          if (result.data.projectName) delete copy.paecProjectName;
+          if (result.data.schoolName) delete copy.schoolName;
+          if (result.data.municipality) delete copy.municipality;
+          return copy;
+        });
         setPaecSuccess(true);
       } else {
         setPaecError(result.error || 'No se pudieron extraer los datos automáticamente.');
@@ -119,14 +154,29 @@ export default function StepContext({ extractedData, onNext, onBack }: Props) {
 
   const validate = () => {
     const e: Record<string, string> = {};
-    if (!form.teacherName.trim()) e.teacherName = 'Requerido';
-    if (!form.schoolName.trim()) e.schoolName = 'Requerido';
-    if (!form.municipality.trim()) e.municipality = 'Requerido';
-    if (!form.paecProjectName?.trim()) e.paecProjectName = 'El nombre del proyecto PAEC es requerido';
+    if (!form.teacherName.trim()) e.teacherName = 'El nombre del docente es obligatorio';
+    if (!form.schoolName.trim()) e.schoolName = 'El nombre del plantel es obligatorio';
+    if (!form.municipality.trim()) e.municipality = 'El municipio es obligatorio';
+    if (!form.paecProjectName?.trim()) e.paecProjectName = 'El nombre del proyecto PAEC es obligatorio';
     if (!form.paecProblem.trim())
-      e.paecProblem = 'La problemática comunitaria es requerida para contextualizar las actividades';
+      e.paecProblem = 'La problemática comunitaria es obligatoria para contextualizar las actividades';
+    
     setErrors(e);
-    return Object.keys(e).length === 0;
+
+    const errorKeys = Object.keys(e);
+    if (errorKeys.length > 0) {
+      // Auto-desplazar la pantalla suavemente hacia el primer campo que falta
+      const firstKey = errorKeys[0];
+      setTimeout(() => {
+        const el = document.getElementById(`input-${firstKey}`) || document.querySelector(`[name="${firstKey}"]`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          (el as HTMLElement).focus();
+        }
+      }, 50);
+      return false;
+    }
+    return true;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -134,7 +184,18 @@ export default function StepContext({ extractedData, onNext, onBack }: Props) {
     if (validate()) onNext(form);
   };
 
-  const set = (field: Partial<TeacherContext>) => setForm(f => ({ ...f, ...field }));
+  const set = (field: Partial<TeacherContext>) => {
+    setForm(f => ({ ...f, ...field }));
+    // Limpiar error del campo modificado si ya tiene valor
+    const key = Object.keys(field)[0];
+    if (key && errors[key]) {
+      setErrors(prev => {
+        const copy = { ...prev };
+        delete copy[key];
+        return copy;
+      });
+    }
+  };
 
   return (
     <form onSubmit={handleSubmit}>
@@ -159,6 +220,8 @@ export default function StepContext({ extractedData, onNext, onBack }: Props) {
                 <div className="form-group">
                   <label className="form-label form-label-required">Nombre del(a) docente</label>
                   <input
+                    id="input-teacherName"
+                    name="teacherName"
                     className="form-input"
                     placeholder="Ej: Dra. María López Hernández"
                     value={form.teacherName}
@@ -171,6 +234,8 @@ export default function StepContext({ extractedData, onNext, onBack }: Props) {
                   <div className="form-group">
                     <label className="form-label form-label-required">Nombre del plantel</label>
                     <input
+                      id="input-schoolName"
+                      name="schoolName"
                       className="form-input"
                       placeholder="Ej: EMSAD 03 Héroes de la Patria"
                       value={form.schoolName}
@@ -181,6 +246,8 @@ export default function StepContext({ extractedData, onNext, onBack }: Props) {
                   <div className="form-group">
                     <label className="form-label form-label-required">Municipio</label>
                     <input
+                      id="input-municipality"
+                      name="municipality"
                       className="form-input"
                       placeholder="Ej: Izúcar de Matamoros"
                       value={form.municipality}
@@ -331,6 +398,8 @@ export default function StepContext({ extractedData, onNext, onBack }: Props) {
                     Nombre del proyecto PAEC/PEC
                   </label>
                   <input
+                    id="input-paecProjectName"
+                    name="paecProjectName"
                     className="form-input"
                     placeholder='Ej: "Salud Integral: Prevención de Enfermedades Crónicas en nuestra Comunidad"'
                     value={form.paecProjectName || ''}
@@ -345,6 +414,8 @@ export default function StepContext({ extractedData, onNext, onBack }: Props) {
                 <div className="form-group">
                   <label className="form-label">Objetivo general del proyecto</label>
                   <textarea
+                    id="input-paecObjective"
+                    name="paecObjective"
                     className="form-textarea"
                     rows={2}
                     placeholder="Ej: Desarrollar en los estudiantes habilidades para identificar, prevenir y orientar sobre enfermedades crónicas comunes en su comunidad."
@@ -382,6 +453,8 @@ export default function StepContext({ extractedData, onNext, onBack }: Props) {
                     </div>
                   )}
                   <textarea
+                    id="input-paecProblem"
+                    name="paecProblem"
                     className="form-textarea"
                     rows={4}
                     placeholder="Describe la problemática social, ambiental o de salud que afecta a la comunidad. Ej: 'Alta incidencia de diabetes tipo 2 y obesidad en adultos mayores del municipio de Izúcar de Matamoros, agravada por el consumo de alimentos ultraprocesados y automedicación.'"
@@ -510,10 +583,63 @@ export default function StepContext({ extractedData, onNext, onBack }: Props) {
 
       </div>
 
+      {/* Resumen de errores de validación o error de creación */}
+      {(Object.keys(errors).length > 0 || submissionError) && (
+        <div
+          role="alert"
+          style={{
+            marginTop: '20px',
+            padding: '14px 18px',
+            background: 'rgba(239, 68, 68, 0.12)',
+            border: '1px solid rgba(239, 68, 68, 0.4)',
+            borderRadius: '8px',
+            color: '#ef4444',
+            fontSize: '13.5px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
+            <span style={{ fontSize: '16px' }}>⚠️</span>
+            <span>
+              {submissionError
+                ? submissionError
+                : 'No se puede generar la planeación porque faltan campos obligatorios:'}
+            </span>
+          </div>
+          {!submissionError && Object.keys(errors).length > 0 && (
+            <ul style={{ margin: '8px 0 0 24px', padding: 0, listStyleType: 'disc', lineHeight: 1.6 }}>
+              {errors.teacherName && <li>Nombre del(a) docente</li>}
+              {errors.schoolName && <li>Nombre del plantel</li>}
+              {errors.municipality && <li>Municipio</li>}
+              {errors.paecProjectName && <li>Nombre del proyecto PAEC / PEC</li>}
+              {errors.paecProblem && <li>Problemática comunitaria detectada</li>}
+            </ul>
+          )}
+          {!submissionError && (
+            <p style={{ margin: '8px 0 0 0', fontSize: '12px', opacity: 0.9 }}>
+              Hemos desplazado la pantalla automáticamente hacia el primer campo pendiente para que puedas completarlo.
+            </p>
+          )}
+        </div>
+      )}
+
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px' }}>
-        <button type="button" className="btn btn-secondary" onClick={onBack}>← Atrás</button>
-        <button type="submit" className="btn btn-amber">
-          Generar planeación →
+        <button type="button" className="btn btn-secondary" onClick={onBack} disabled={isSubmitting}>
+          ← Atrás
+        </button>
+        <button
+          type="submit"
+          className="btn btn-amber"
+          disabled={isSubmitting}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', minWidth: '180px', justifyContent: 'center' }}
+        >
+          {isSubmitting ? (
+            <>
+              <div className="spinner spinner-dark" style={{ width: '14px', height: '14px', borderWidth: '2px' }} />
+              <span>Preparando planeación...</span>
+            </>
+          ) : (
+            <span>Generar planeación →</span>
+          )}
         </button>
       </div>
     </form>
