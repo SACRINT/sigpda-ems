@@ -515,7 +515,7 @@ export default function PlanningDetailClient({
                 className="btn btn-secondary"
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
               >
-                <Eye size={15} /> Vista Impresión A4
+                <Eye size={15} /> Vista Impresión Carta
               </button>
               <button
                 onClick={handlePublishClassroom}
@@ -608,7 +608,7 @@ export default function PlanningDetailClient({
           { key: 'extras',        label: 'Rúbricas',           icon: <Zap        size={15}/>, color: 'var(--c-blue-mid)' },
           { key: 'lessonPlans',   label: `Planes (${lessonSessions.length})`, icon: <Clock size={15}/>, color: 'var(--c-blue-mid)' },
           { key: 'practiceGuides',label: 'Guías',              icon: <BookOpen   size={15}/>, color: '#7c3aed' },
-          { key: 'a4print',       label: 'Formato A4',         icon: <Printer    size={15}/>, color: 'var(--c-blue-mid)' },
+          { key: 'a4print',       label: 'Formato Carta',      icon: <Printer    size={15}/>, color: 'var(--c-blue-mid)' },
           { key: 'audit',         label: 'Auditoría',          icon: <BarChart3  size={15}/>, color: '#059669' },
           { key: 'bundle',        label: 'Bundle',             icon: <Package    size={15}/>, color: '#b45309' },
           { key: 'evaluador',     label: 'Evaluador IA',       icon: <Award      size={15}/>, color: '#dc2626' },

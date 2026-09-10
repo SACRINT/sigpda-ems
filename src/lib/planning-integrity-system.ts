@@ -4,7 +4,7 @@
  * SISTEMA INTEGRAL DE INTEGRIDAD Y BLINDAJE DE ENTREGABLES DIDÁCTICOS (SIGPDA-EMS)
  * 
  * Garantiza la integridad, coherencia curricular y completitud de los 9 entregables:
- * {Planeación, Rúbricas, Planes (54), Guías, Formato A4, Auditoría, Bundle, Evaluador IA, Analytics}.
+ * {Planeación, Rúbricas, Planes (54), Guías, Formato Carta, Auditoría, Bundle, Evaluador IA, Analytics}.
  * 
  * Funciones clave:
  * 1. validatePlanningIntegrity: Valida que ninguna sección ni bloque esté truncado o incompleto.

@@ -15,7 +15,7 @@ export interface BundleResult {
 const SYSTEM_PROMPT = `Eres un generador de materiales didácticos para educación media superior en Puebla, México.
 Genera materiales complementarios EXACTOS y ALINEADOS con la planeación proporcionada.
 Sé conciso pero completo. Usa formato Markdown.
-Todos los materiales deben ser impresibles en formato A4.`;
+Todos los materiales deben ser impresibles en formato Carta.`;
 
 function buildBundlePrompt(
   content: GeneratedPlanningContent,
@@ -50,7 +50,7 @@ Genera una GUÍA DE TRABAJO DEL ALUMNO con los siguientes apartados:
 6. Recursos complementarios sugeridos
 7. Rúbrica de autoevaluación breve
 
-Formato: Markdown limpio, listo para imprimir en A4.`;
+Formato: Markdown limpio, listo para imprimir en tamaño Carta.`;
 
     case 'instrumento':
       return `${base}
@@ -62,7 +62,7 @@ Genera un INSTRUMENTO DE COEVALUACIÓN Y AUTOEVALUACIÓN con:
 5. Comentarios del docente
 6. Firma del alumno y fecha
 
-Formato: Tabla limpia en Markdown, imprimible A4.`;
+Formato: Tabla limpia en Markdown, imprimible en tamaño Carta.`;
 
     case 'diapositivas':
       return `${base}
@@ -147,8 +147,8 @@ export function bundleMarkdownToHtml(markdown: string, title: string): string {
   <meta charset="UTF-8">
   <title>${title}</title>
   <style>
-    @page { size: A4; margin: 2cm; }
-    body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 12pt; line-height: 1.6; color: #1a1a1a; max-width: 210mm; margin: 0 auto; padding: 2cm; }
+    @page { size: letter; margin: 2cm; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 12pt; line-height: 1.6; color: #1a1a1a; max-width: 215.9mm; margin: 0 auto; padding: 2cm; }
     h1 { font-size: 18pt; color: #1A3A5C; border-bottom: 2px solid #E8A020; padding-bottom: 8px; }
     h2 { font-size: 14pt; color: #2E6DA4; margin-top: 24px; }
     h3 { font-size: 12pt; color: #1A3A5C; }

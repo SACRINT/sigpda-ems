@@ -44,9 +44,9 @@ export function generateExtraPDF(extra: ExtraInput): jsPDF {
   const typeColor = TYPE_COLOR[extra.type] ?? NAVY;
   const typeLabel = TYPE_LABEL[extra.type] ?? 'RECURSO DIDÁCTICO';
 
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const pageWidth  = doc.internal.pageSize.getWidth();   // 210
-  const pageHeight = doc.internal.pageSize.getHeight();  // 297
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+  const pageWidth  = doc.internal.pageSize.getWidth();   // 215.9 mm (Carta)
+  const pageHeight = doc.internal.pageSize.getHeight();  // 279.4 mm (Carta)
   const margin = 13;
   const contentW = pageWidth - margin * 2;
   let y = margin;

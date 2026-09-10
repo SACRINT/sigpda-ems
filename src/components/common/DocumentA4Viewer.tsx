@@ -60,8 +60,8 @@ export default function DocumentA4Viewer({
           gap: 12px;
         }
         .a4-page {
-          width: 794px;
-          min-height: 1123px;
+          width: 816px;
+          min-height: 1056px;
           background: #ffffff;
           color: #1e293b;
           margin: 0 auto 32px auto;
@@ -130,7 +130,7 @@ export default function DocumentA4Viewer({
         }
         @media print {
           @page {
-            size: A4 portrait;
+            size: letter portrait;
             margin: 10mm;
           }
           body * {
@@ -169,7 +169,7 @@ export default function DocumentA4Viewer({
       {/* Toolbar */}
       <div className="a4-toolbar">
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '13px', fontWeight: 600, color: '#94a3b8' }}>Visor Editorial A4:</span>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: '#94a3b8' }}>Visor Editorial Carta:</span>
           <span style={{ fontSize: '12px', background: '#3b82f6', padding: '2px 8px', borderRadius: '4px', fontWeight: 700 }}>
             {planning.uacName} ({planning.semester}° Semestre)
           </span>

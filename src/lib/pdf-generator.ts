@@ -1,6 +1,6 @@
 /**
  * pdf-generator.ts — Generador PDF de Planeación Didáctica Oficial (SEP Puebla - DBEPA)
- * SIGPDA-EMS · Formato Oficial A4 (210mm x 297mm) con Membrete y Logotipos Oficiales
+ * SIGPDA-EMS · Formato Oficial Carta (215.9mm x 279.4mm) con Membrete y Logotipos Oficiales
  */
 
 import jsPDF from 'jspdf';
@@ -28,15 +28,15 @@ export async function generatePlanningPDF(
   // Cargar logotipos en Base64 si no fueron suministrados
   const logos = providedLogos || (await loadAllLogos());
 
-  // Formato A4 exacto: 210mm x 297mm
+  // Formato Carta exacto: 215.9mm x 279.4mm (Letter)
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
-    format: 'a4',
+    format: 'letter',
   });
 
-  const pageWidth = doc.internal.pageSize.getWidth();   // 210
-  const pageHeight = doc.internal.pageSize.getHeight(); // 297
+  const pageWidth = doc.internal.pageSize.getWidth();   // 215.9 mm (Carta)
+  const pageHeight = doc.internal.pageSize.getHeight(); // 279.4 mm (Carta)
   const margin = 12;
 
   let currentY = 8;
