@@ -199,7 +199,7 @@ export default function StepContext({
   };
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} autoComplete="off">
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
         {/* ── SECCIÓN 1: Datos del plantel ─────────────────────────── */}
@@ -224,6 +224,7 @@ export default function StepContext({
                     id="input-teacherName"
                     name="teacherName"
                     className="form-input"
+                    autoComplete="off"
                     placeholder="Ej: Dra. María López Hernández"
                     value={form.teacherName}
                     onChange={e => set({ teacherName: e.target.value })}
@@ -238,6 +239,7 @@ export default function StepContext({
                       id="input-schoolName"
                       name="schoolName"
                       className="form-input"
+                      autoComplete="off"
                       placeholder="Ej: EMSAD 03 Héroes de la Patria"
                       value={form.schoolName}
                       onChange={e => set({ schoolName: e.target.value })}
@@ -250,6 +252,7 @@ export default function StepContext({
                       id="input-municipality"
                       name="municipality"
                       className="form-input"
+                      autoComplete="off"
                       placeholder="Ej: Izúcar de Matamoros"
                       value={form.municipality}
                       onChange={e => set({ municipality: e.target.value })}
@@ -263,6 +266,7 @@ export default function StepContext({
                     <label className="form-label">Estado</label>
                     <input
                       className="form-input"
+                      autoComplete="off"
                       placeholder="Ej: Puebla"
                       value={form.state}
                       onChange={e => set({ state: e.target.value })}
@@ -273,6 +277,7 @@ export default function StepContext({
                     <label className="form-label">Región</label>
                     <input
                       className="form-input"
+                      autoComplete="off"
                       placeholder="Ej: Sierra Norte, Mixteca, Angelópolis..."
                       value={form.region}
                       onChange={e => set({ region: e.target.value })}
@@ -298,6 +303,7 @@ export default function StepContext({
                     <label className="form-label">Período de aplicación</label>
                     <input
                       className="form-input"
+                      autoComplete="off"
                       placeholder="Ej: Agosto – Diciembre 2026"
                       value={form.applicationPeriod || ''}
                       onChange={e => set({ applicationPeriod: e.target.value })}
@@ -309,6 +315,7 @@ export default function StepContext({
                   <label className="form-label">Grupos y número de estudiantes</label>
                   <input
                     className="form-input"
+                    autoComplete="off"
                     placeholder="Ej: 3°A (32 estudiantes), 3°B (30 estudiantes)"
                     value={form.groupInfo}
                     onChange={e => set({ groupInfo: e.target.value })}
@@ -319,6 +326,7 @@ export default function StepContext({
                   <label className="form-label">Recursos disponibles en el plantel</label>
                   <input
                     className="form-input"
+                    autoComplete="off"
                     placeholder="Ej: Proyector, internet básico, laboratorio de enfermería, sin computadoras para alumnos"
                     value={form.schoolResources || ''}
                     onChange={e => set({ schoolResources: e.target.value })}
@@ -344,7 +352,7 @@ export default function StepContext({
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
                 {/* PAEC Upload Helper */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px', borderBottom: '1px solid #eee', paddingBottom: '16px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px', borderBottom: '1px solid var(--c-border)', paddingBottom: '16px' }}>
                   <label className="form-label" style={{ fontWeight: 600 }}>¿Tienes el documento del PAEC-PEC (PDF o Word .docx)?</label>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                     <button
@@ -382,12 +390,12 @@ export default function StepContext({
 
                 <div
                   style={{
-                    background: 'var(--c-blue-pale)',
-                    border: '1px solid var(--c-blue-mid)',
+                    background: 'rgba(99,102,241,0.1)',
+                    border: '1px solid rgba(99,102,241,0.3)',
                     borderRadius: '8px',
                     padding: '12px 16px',
                     fontSize: '13px',
-                    color: 'var(--c-navy)',
+                    color: 'var(--c-text)',
                   }}
                 >
                   💡 El proyecto PAEC es el hilo conductor que vincula TODAS las actividades didácticas.
@@ -402,6 +410,7 @@ export default function StepContext({
                     id="input-paecProjectName"
                     name="paecProjectName"
                     className="form-input"
+                    autoComplete="off"
                     placeholder='Ej: "Salud Integral: Prevención de Enfermedades Crónicas en nuestra Comunidad"'
                     value={form.paecProjectName || ''}
                     onChange={e => set({ paecProjectName: e.target.value })}
@@ -436,7 +445,7 @@ export default function StepContext({
                       </span>
                     )}
                     {isSuggestedProblem === true && (
-                      <span className="badge badge-warning" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', padding: '3px 8px', borderRadius: '4px', background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' }}>
+                      <span className="badge badge-warning" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', padding: '3px 8px', borderRadius: '4px', background: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.3)' }}>
                         💡 Sugerida a partir del proyecto (editable)
                       </span>
                     )}
@@ -448,7 +457,7 @@ export default function StepContext({
                     </div>
                   )}
                   {isSuggestedProblem === true && (
-                    <div className="alert alert-warning" style={{ margin: '0 0 8px 0', padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e' }}>
+                    <div className="alert alert-warning" style={{ margin: '0 0 8px 0', padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', color: '#fbbf24' }}>
                       <span>💡</span>
                       <span>Problemática sugerida a partir del contexto del proyecto. Puedes personalizarla o editarla libremente.</span>
                     </div>
