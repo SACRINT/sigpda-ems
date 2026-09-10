@@ -81,6 +81,8 @@ export async function POST(
       totalSessions = 18,
       practiceNumber = 1,
       practiceTitle = '',
+      sessionTopic = '',
+      sessionFocus = '',
     } = body as {
       type: 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'practice_guide';
       title: string;
@@ -91,6 +93,8 @@ export async function POST(
       totalSessions?: number;
       practiceNumber?: number;
       practiceTitle?: string;
+      sessionTopic?: string;
+      sessionFocus?: string;
     };
 
     if (!type || !title) {
@@ -139,7 +143,9 @@ Resultados de Aprendizaje: ${(contentJson?.sectionII?.learningOutcomes || []).jo
         paecProblem,
         studentContext,
         learningOutcome,
-        planning.metodologia_activa || undefined
+        planning.metodologia_activa || undefined,
+        sessionTopic || undefined,
+        sessionFocus || undefined
       );
     } else if (type === 'practice_guide') {
       // ── Guía de Práctica para el Estudiante (Fase 3) ──────────────────────

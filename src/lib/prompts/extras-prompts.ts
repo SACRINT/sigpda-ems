@@ -138,12 +138,16 @@ export const LESSON_PLAN_PROMPT_TEMPLATE = (
   paecProblem: string,
   studentContext: string,
   learningOutcome: string,
-  metodologiaActiva?: string
+  metodologiaActiva?: string,
+  sessionTopic?: string,
+  sessionFocus?: string
 ) => `
 Genera un "Plan de Clase" (Lesson Plan) detallado para una sesión de clase de 50 minutos:
 UAC/Asignatura: ${uacName}
 Actividad Clave / Contenido de origen: ${activityName}
 Número de Sesión: Sesión ${sessionNum} de ${totalSessions}
+${sessionTopic ? `Tema Específico de la Sesión: ${sessionTopic}` : ''}
+${sessionFocus ? `Foco y Enfoque Pedagógico de la Sesión: ${sessionFocus}` : ''}
 Resultado de Aprendizaje (Programa): ${learningOutcome}
 Problemática PAEC: ${paecProblem}
 Caracterización de los estudiantes: ${studentContext}
