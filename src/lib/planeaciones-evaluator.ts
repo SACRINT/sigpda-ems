@@ -2,10 +2,12 @@
  * planeaciones-evaluator.ts
  * Motor de evaluación y co-piloto de Planeaciones Didácticas con IA (SIGPDA-EMS)
  *
- * Soporta tres rutas de evaluación oficial:
- *  - Semestres 1-4 : MCCEMS (Propósitos Formativos y Contenidos) → Anexo 12 USICAMM 1-4
- *  - Semestres 5-6 : MCCEMS (Progresiones y Proyectos)            → Anexo 12 USICAMM 5-6
- *  - Formación Laboral (Actividades Clave y Competencias)       → Guía de Retroalimentación Laboral
+ * Evaluación determinista con cálculo cuantitativo en TypeScript y temperatura 0.0.
+ *
+ * Rutas oficiales:
+ *  - Semestres 1-4 : MCCEMS (Propósitos Formativos y Contenidos) → Anexo 12 USICAMM 1-4 (300 pts)
+ *  - Semestres 5-6 : MCCEMS (Progresiones y Proyectos)            → Anexo 12 USICAMM 5-6 (300 pts)
+ *  - Formación Laboral (Actividades Clave y Competencias)         → Guía Laboral DBEPA (200 pts)
  */
 
 import { getAIProvider } from '@/lib/ai-provider';
@@ -35,6 +37,7 @@ export interface ResultadoEvaluacion {
   observacionesExtendidas: string;
   alineacionPaecPec: string;
   retroalimentacionDocente: string;
+  evaluadoAt?: string;
 }
 
 export interface InputEvaluacion {
@@ -47,142 +50,231 @@ export interface InputEvaluacion {
   propositosOficiales?: string;
 }
 
-const CRITERIOS_ANEXO_12_1_4 = `
-RUBRO I — PLANEACIÓN DIDÁCTICA (total: 90 pts)
-1. Datos generales: institución, docente, grupo, semestre, periodo de evaluación (5 pts)
-2. Contextualización: ubicación de la UAC en el Mapa Curricular, correlación de Propósitos Formativos con UACs del semestre (10 pts)
-3. Dosificación: horas-clase-semestre en calendario real en los 3 momentos de evaluación semestral (10 pts)
-4. Armonización: interrelación entre Categoría-Conceptos centrales-Subcategorías-Transversales-Metas-Aprendizaje de trayectoria-PAEC (20 pts)
-5. Secuencia didáctica completa: actividades de enseñanza/aprendizaje, acuerdo de evaluación, estrategias activas, evaluación formativa, fuentes (45 pts)
+interface CriterioDefinicion {
+  id: string;
+  criterio: string;
+  categoria: string;
+  puntajeMax: number;
+  descripcion: string;
+}
 
-RUBRO II — PRÁCTICA E INTERVENCIÓN EDUCATIVA (total: 70 pts)
-1. Clima de aprendizaje socioafectivo y diálogo (10 pts)
-2. Diversidad e inclusión en actividades (10 pts)
-3. Organización de actividades individuales y colaborativas (10 pts)
-4. Dominio del contenido y vinculación transversal (30 pts)
-5. Uso de herramientas tecnológicas acordes al contexto (10 pts)
+const CRITERIOS_DEF_1_4: CriterioDefinicion[] = [
+  // Rubro I
+  { id: 'c1', categoria: 'Rubro I', puntajeMax: 5, criterio: 'Datos generales: institución, docente, grupo, semestre, periodo de evaluación', descripcion: 'Datos institucionales, administrativos y curriculares completos y alineados a DBEPA.' },
+  { id: 'c2', categoria: 'Rubro I', puntajeMax: 10, criterio: 'Contextualización: ubicación de la UAC en el Mapa Curricular, correlación de Propósitos Formativos', descripcion: 'Ubicación curricular y correlación de propósitos formativos con UACs del semestre.' },
+  { id: 'c3', categoria: 'Rubro I', puntajeMax: 10, criterio: 'Dosificación: horas-clase-semestre en calendario real en los 3 momentos de evaluación semestral', descripcion: 'Distribución temporal de horas y sesiones en los 3 cortes de evaluación.' },
+  { id: 'c4', categoria: 'Rubro I', puntajeMax: 20, criterio: 'Armonización: interrelación entre Categoría-Conceptos centrales-Subcategorías-Transversales-Metas-PAEC', descripcion: 'Articulación coherente entre currículum fundamental, currículum ampliado y problemática comunitaria PAEC.' },
+  { id: 'c5', categoria: 'Rubro I', puntajeMax: 45, criterio: 'Secuencia didáctica completa: actividades de enseñanza/aprendizaje, acuerdo de evaluación, estrategias activas, formativa, fuentes', descripcion: 'Desarrollo metodológico completo, momentos pedagógicos, acuerdos formativos y fuentes pertinentes.' },
+  // Rubro II
+  { id: 'c6', categoria: 'Rubro II', puntajeMax: 10, criterio: 'Clima de aprendizaje socioafectivo y diálogo', descripcion: 'Fomento explícito del diálogo horizontal, respeto, empatía y ambiente socioafectivo positivo.' },
+  { id: 'c7', categoria: 'Rubro II', puntajeMax: 10, criterio: 'Diversidad e inclusión en actividades', descripcion: 'Estrategias de inclusión, respeto a la pluriculturalidad y atención a barreras de aprendizaje.' },
+  { id: 'c8', categoria: 'Rubro II', puntajeMax: 10, criterio: 'Organización de actividades individuales y colaborativas', descripcion: 'Equilibrio entre el trabajo en equipos colaborativos y la autorreflexión personal.' },
+  { id: 'c9', categoria: 'Rubro II', puntajeMax: 30, criterio: 'Dominio del contenido y vinculación transversal', descripcion: 'Profundidad disciplinar, solidez conceptual y articulación transversal evidente.' },
+  { id: 'c10', categoria: 'Rubro II', puntajeMax: 10, criterio: 'Uso de herramientas tecnológicas acordes al contexto', descripcion: 'Uso contextualizado de TICCAD, herramientas digitales y recursos del entorno escolar.' },
+  // Rubro III
+  { id: 'c11', categoria: 'Rubro III', puntajeMax: 20, criterio: 'Coherencia en evaluación formativa y sumativa', descripcion: 'Alineación entre momentos de evaluación, instrumentos socioformativos y porcentajes de acreditación.' },
+  { id: 'c12', categoria: 'Rubro III', puntajeMax: 20, criterio: 'Adaptaciones y retroalimentación oportuna', descripcion: 'Mecanismos continuos de retroalimentación formativa y adecuaciones curriculares.' },
+  { id: 'c13', categoria: 'Rubro III', puntajeMax: 5, criterio: 'Transparencia en comunicación de resultados', descripcion: 'Criterios claros, públicos y transparentes acordados con el estudiantado.' },
+  { id: 'c14', categoria: 'Rubro III', puntajeMax: 10, criterio: 'Estrategias para estudiantes en riesgo', descripcion: 'Protocolos de atención, tutoría remedial y rescate académico para rezago.' },
+  { id: 'c15', categoria: 'Rubro III', puntajeMax: 20, criterio: 'Evidencias de contribución al PAEC', descripcion: 'Vinculación directa y tangible de los productos de aprendizaje con el proyecto comunitario escolar.' },
+  { id: 'c16', categoria: 'Rubro III', puntajeMax: 20, criterio: 'Autoevaluación y metacognición docente', descripcion: 'Enfoque de metacognición en los estudiantes y autorreflexión de la práctica docente.' },
+  { id: 'c17', categoria: 'Rubro III', puntajeMax: 30, criterio: 'Análisis comparativo inicio vs. cierre', descripcion: 'Valoración del progreso del aprendizaje y maduración del proyecto desde el diagnóstico hasta el producto final.' },
+];
 
-RUBRO III — EVALUACIÓN Y MEJORA (total: 140 pts)
-1. Coherencia en evaluación formativa y sumativa (20 pts)
-2. Adaptaciones y retroalimentación oportuna (20 pts)
-3. Transparencia en comunicación de resultados (5 pts)
-4. Estrategias para estudiantes en riesgo (10 pts)
-5. Evidencias de contribución al PAEC (20 pts)
-6. Autoevaluación y metacognición docente (20 pts)
-7. Análisis comparativo inicio vs. cierre (30 pts)
-`;
+const CRITERIOS_DEF_5_6: CriterioDefinicion[] = [
+  // Rubro I
+  { id: 'c1', categoria: 'Rubro I', puntajeMax: 5, criterio: 'Datos generales completos', descripcion: 'Datos institucionales, docente, UAC, semestre y periodo.' },
+  { id: 'c2', categoria: 'Rubro I', puntajeMax: 10, criterio: 'Ubicación y correlación de Progresiones MCCEMS con UACs del semestre', descripcion: 'Ubicación de progresiones oficiales y articulación semestral.' },
+  { id: 'c3', categoria: 'Rubro I', puntajeMax: 10, criterio: 'Dosificación de Progresiones en calendario real atendiendo los 3 cortes', descripcion: 'Distribución temporal de progresiones en los 3 cortes semestrales.' },
+  { id: 'c4', categoria: 'Rubro I', puntajeMax: 20, criterio: 'Armonización: Categorías, Subcategorías, Progresiones, Metas y PAEC', descripcion: 'Alineación de componentes de progresión y problemática comunitaria.' },
+  { id: 'c5', categoria: 'Rubro I', puntajeMax: 45, criterio: 'Secuencia didáctica por Progresión: Apertura, Desarrollo, Cierre, Evaluación formativa, fuentes', descripcion: 'Secuencia didáctica rigurosa por progresión con momentos pedagógicos.' },
+  // Rubro II
+  { id: 'c6', categoria: 'Rubro II', puntajeMax: 20, criterio: 'Clima socioafectivo e inclusión', descripcion: 'Ambiente inclusivo, participativo y diálogo respetuoso.' },
+  { id: 'c7', categoria: 'Rubro II', puntajeMax: 10, criterio: 'Trabajo colaborativo y dinamización', descripcion: 'Estrategias de aprendizaje en equipos y roles dinámicos.' },
+  { id: 'c8', categoria: 'Rubro II', puntajeMax: 30, criterio: 'Transversalidad disciplinar y proyectos', descripcion: 'Proyectos formativos integradores y transversalidad disciplinar.' },
+  { id: 'c9', categoria: 'Rubro II', puntajeMax: 10, criterio: 'Uso de TIC / TAC / TEP', descripcion: 'Integración tecnológica pedagógica acorde a la realidad del plantel.' },
+  // Rubro III
+  { id: 'c10', categoria: 'Rubro III', puntajeMax: 40, criterio: 'Rúbricas y listas de cotejo por Progresión', descripcion: 'Instrumentos formativos de evaluación auténtica por progresión.' },
+  { id: 'c11', categoria: 'Rubro III', puntajeMax: 20, criterio: 'Estrategias de apoyo y nivelación', descripcion: 'Acompañamiento pedagógico y recuperación de aprendizajes.' },
+  { id: 'c12', categoria: 'Rubro III', puntajeMax: 30, criterio: 'Contribución explícita al PAEC', descripcion: 'Aportes verificables al proyecto de aula, escuela y comunidad.' },
+  { id: 'c13', categoria: 'Rubro III', puntajeMax: 50, criterio: 'Análisis del logro de Progresiones', descripcion: 'Evaluación del alcance de metas de aprendizaje y metacognición.' },
+];
 
-const CRITERIOS_ANEXO_12_5_6 = `
-RUBRO I — PLANEACIÓN DIDÁCTICA (total: 90 pts)
-1. Datos generales completos (5 pts)
-2. Ubicación y correlación de Progresiones MCCEMS con UACs del semestre (10 pts)
-3. Dosificación de Progresiones en calendario real atendiendo los 3 cortes (10 pts)
-4. Armonización: Categorías, Subcategorías, Progresiones, Metas y PAEC (20 pts)
-5. Secuencia didáctica por Progresión: Apertura, Desarrollo, Cierre, Evaluación formativa, fuentes (45 pts)
-
-RUBRO II — PRÁCTICA E INTERVENCIÓN (total: 70 pts)
-1. Clima socioafectivo e inclusión (20 pts)
-2. Trabajo colaborativo y dinamización (10 pts)
-3. Transversalidad disciplinar y proyectos (30 pts)
-4. Uso de TIC / TAC / TEP (10 pts)
-
-RUBRO III — EVALUACIÓN FORMATIVA (total: 140 pts)
-1. Rúbricas y listas de cotejo por Progresión (40 pts)
-2. Estrategias de apoyo y nivelación (20 pts)
-3. Contribución explícita al PAEC (30 pts)
-4. Análisis del logro de Progresiones (50 pts)
-`;
-
-const CRITERIOS_LABORAL = `
-RUBRO I — DISEÑO CURRICULAR Y ACTIVIDADES CLAVE (total: 100 pts)
-1. Alineación de Actividades Clave del módulo técnico con competencias profesionales (25 pts)
-2. Desglose de Saberes: Saber (teórico), Saber Hacer (práctico), Saber Ser (actitudinal) (25 pts)
-3. Especificación de insumos, herramientas y normas de seguridad industrial/higiene (25 pts)
-4. Productos y evidencias técnico-prácticas medibles (25 pts)
-
-RUBRO II — SECUENCIA PEDAGÓGICA Y EVALUACIÓN (total: 100 pts)
-1. Apertura: Saberes previos y encuadre del taller/laboratorio (20 pts)
-2. Desarrollo: Prácticas guiadas y demostración en escenario real o simulado (40 pts)
-3. Cierre: Evaluación del producto final mediante lista de cotejo/rúbrica técnica (40 pts)
-`;
+const CRITERIOS_DEF_LABORAL: CriterioDefinicion[] = [
+  // Rubro I
+  { id: 'c1', categoria: 'Rubro I', puntajeMax: 25, criterio: 'Alineación de Actividades Clave del módulo técnico con competencias profesionales', descripcion: 'Correspondencia directa entre actividades y competencias laborales del módulo.' },
+  { id: 'c2', categoria: 'Rubro I', puntajeMax: 25, criterio: 'Desglose de Saberes: Saber (teórico), Saber Hacer (práctico), Saber Ser (actitudinal)', descripcion: 'Taxonomía de los tres saberes técnicos formalmente desglosados en los bloques.' },
+  { id: 'c3', categoria: 'Rubro I', puntajeMax: 25, criterio: 'Especificación de insumos, herramientas y normas de seguridad industrial/higiene', descripcion: 'Listado de instrumental, equipo de protección personal (EPP) y normas de seguridad.' },
+  { id: 'c4', categoria: 'Rubro I', puntajeMax: 25, criterio: 'Productos y evidencias técnico-prácticas medibles', descripcion: 'Entregables, prototipos o bitácoras técnicas verificables con rúbricas.' },
+  // Rubro II
+  { id: 'c5', categoria: 'Rubro II', puntajeMax: 20, criterio: 'Apertura: Saberes previos y encuadre del taller/laboratorio', descripcion: 'Encuadre operativo, diagnóstico de conocimientos y reglas de taller.' },
+  { id: 'c6', categoria: 'Rubro II', puntajeMax: 40, criterio: 'Desarrollo: Prácticas guiadas y demostración en escenario real o simulado', descripcion: 'Demostración de habilidades operativas, destrezas prácticas y ejecución técnica.' },
+  { id: 'c7', categoria: 'Rubro II', puntajeMax: 40, criterio: 'Cierre: Evaluación del producto final mediante lista de cotejo/rúbrica técnica', descripcion: 'Control de calidad, pruebas de funcionamiento y evaluación sumativa técnica.' },
+];
 
 export async function evaluarPlaneacion(input: InputEvaluacion): Promise<ResultadoEvaluacion> {
   const { tipoEvaluacion, asignatura, semestre, docenteNombre, textoPlanificacion, textoPaecPec } = input;
 
-  let rubricaTexto = CRITERIOS_ANEXO_12_1_4;
+  let defs: CriterioDefinicion[] = CRITERIOS_DEF_1_4;
   let rubricaNombre = 'Anexo 12 USICAMM (1° a 4° Semestre — Propósitos Formativos)';
+  let puntajeMaximoTotal = 300;
 
   if (tipoEvaluacion === 'FUNDAMENTAL_5_6') {
-    rubricaTexto = CRITERIOS_ANEXO_12_5_6;
+    defs = CRITERIOS_DEF_5_6;
     rubricaNombre = 'Anexo 12 USICAMM (5° y 6° Semestre — Progresiones)';
+    puntajeMaximoTotal = 300;
   } else if (tipoEvaluacion === 'LABORAL') {
-    rubricaTexto = CRITERIOS_LABORAL;
+    defs = CRITERIOS_DEF_LABORAL;
     rubricaNombre = 'Guía de Evaluación de Formación Laboral (Actividades Clave)';
+    puntajeMaximoTotal = 200;
   }
 
-  const systemPrompt = `Eres el Evaluador Técnico-Pedagógico Senior y Revisor Oficial de la Dirección Bachilleratos Estatales y Preparatoria Abierta (DBEPA Puebla).
-Tu tarea es auditar y evaluar la Planeación Didáctica entregada, emitiendo un análisis riguroso, objetivo y constructivo.
+  const criteriosListPrompt = defs
+    .map(d => `- ID "${d.id}" | ${d.categoria} | ${d.criterio} (Ponderación máxima: ${d.puntajeMax} pts): ${d.descripcion}`)
+    .join('\n');
 
-DEBES RESPONDER ÚNICAMENTE EN FORMATO JSON VÁLIDO con la siguiente estructura:
+  const systemPrompt = `Eres el Auditor y Evaluador Técnico-Pedagógico Oficial de la Dirección Bachilleratos Estatales y Preparatoria Abierta (DBEPA Puebla).
+Tu tarea es auditar y evaluar con absoluto rigor y objetividad técnica la Planeación Didáctica entregada, verificando el cumplimiento de la normativa oficial.
+
+REGLAS ESTRICTAS DE EVALUACIÓN CUANTITATIVA:
+1. Para cada uno de los criterios definidos, debes dictaminar ÚNICAMENTE uno de estos tres valores en "cumple":
+   - "SI": La planeación satisface completamente el criterio con evidencias observables y explícitas.
+   - "PARCIAL": La planeación aborda el criterio pero requiere mayor profundidad, especificidad o protocolos formales.
+   - "NO": El criterio no está presente o carece de elementos esenciales en la planeación.
+2. Criterio de los Tres Saberes (Formación Laboral o Saberes explícitos): Si la Sección IV desglosa formalmente Saber (teórico), Saber Hacer (práctico) y Saber Ser (actitudinal), debes dictaminar "SI".
+3. NO inventes calificaciones ni sumas matemáticas: el sistema calculará los puntajes automáticamente con base en tu dictamen ("SI" = puntaje máximo, "PARCIAL" = 50%, "NO" = 0 pts).
+
+DEBES RESPONDER EXCLUSIVAMENTE EN JSON VÁLIDO CON ESTA ESTRUCTURA EXACTA:
 {
-  "rubricaUsada": "${rubricaNombre}",
-  "puntajeTotal": <number>,
-  "puntajeMaximo": <number (300 para Anexo 12, 200 para Laboral)>,
-  "nivelCumplimiento": "COMPLETO" | "PARCIAL" | "REQUIERE_CORRECCION",
   "criterios": [
     {
       "id": "c1",
-      "criterio": "Nombre del criterio",
-      "categoria": "Rubro I | Rubro II | Rubro III",
-      "puntajeMax": <number>,
-      "puntajeObtenido": <number>,
       "cumple": "SI" | "PARCIAL" | "NO",
-      "evidencia": "Cita exacta o sección donde se observa",
-      "observacion": "Hallazgo puntual",
-      "recomendacion": "Sugerencia directa de redacción o ajuste"
+      "evidencia": "Cita textual breve o sección específica donde se constata",
+      "observacion": "Dictamen puntual del evaluador",
+      "recomendacion": "Sugerencia precisa de ajuste si es PARCIAL o NO, o felicitación concreta si es SI"
     }
   ],
-  "puntosFuertes": ["Punto fuerte 1", "Punto fuerte 2"],
-  "mejorasUrgentes": ["Mejora urgente 1", "Mejora urgente 2"],
-  "observacionesExtendidas": "Análisis general sintético de la calidad pedagógica y didáctica",
-  "alineacionPaecPec": "Evaluación de la vinculación con el PAEC/PEC y el entorno comunitario",
-  "retroalimentacionDocente": "Carta o dictamen formal de retroalimentación en tono empático pero institucional para el docente"
+  "puntosFuertes": [
+    "Fortaleza técnica 1",
+    "Fortaleza técnica 2",
+    "Fortaleza técnica 3"
+  ],
+  "mejorasUrgentes": [
+    "Aspecto prioritario a fortalecer 1",
+    "Aspecto prioritario a fortalecer 2"
+  ],
+  "observacionesExtendidas": "Resumen técnico de la solidez pedagógica y curricular de la planeación",
+  "alineacionPaecPec": "Dictamen de la pertinencia comunitaria y vinculación con el PAEC escolar",
+  "retroalimentacionDocente": "Carta o dictamen formal de retroalimentación oficial para el docente en tono institucional y constructivo"
 }`;
 
-  const userPrompt = `AUDITORÍA Y EVALUACIÓN OFICIAL DE PLANEACIÓN DIDÁCTICA
+  const userPrompt = `AUDITORÍA TÉCNICO-PEDAGÓGICA DBEPA / USICAMM
+Asignatura / UAC: ${asignatura}
+Semestre: ${semestre}° Semestre
+Docente: ${docenteNombre || 'Docente de Bachillerato'}
+Rúbrica Oficial: ${rubricaNombre}
 
-INFORMACIÓN DE CONTEXTO:
-- Asignatura / UAC: ${asignatura}
-- Semestre: ${semestre}° Semestre
-- Docente: ${docenteNombre || 'Docente de Bachillerato'}
-- Tipo de Rúbrica: ${rubricaNombre}
+CRITERIOS OFICIALES A EVALUAR (Evalúa los ${defs.length} criterios exactamente por su ID):
+${criteriosListPrompt}
 
-TEXTO COMPLETO E ÍNTEGRO DE LA PLANEACIÓN EVALUADA:
+PLANEACIÓN DIDÁCTICA A EVALUAR:
 """
 ${textoPlanificacion}
 """
 
-CONTEXTO DEL PROYECTO PAEC-PEC REGISTRADO:
+CONTEXTO DEL PROYECTO PAEC:
 """
-${textoPaecPec || 'Contextualización y vinculación con la comunidad escolar (PAEC) presente en la planeación.'}
+${textoPaecPec || 'Contextualización y proyecto comunitario escolar presente en la planeación.'}
 """
 
-INSTRUCCIONES DE EVALUACIÓN OFICIAL (DBEPA / USICAMM):
-1. Evalúa cada uno de los criterios oficiales especificados en:
-${rubricaTexto}
-2. Verifica la presencia explícita de la taxonomía de los Tres Saberes: Saber (teórico / normativo NOM), Saber Hacer (práctico / procedimental en taller) y Saber Ser (actitudinal / seguridad industrial). Si se encuentran formalmente desglosados en los bloques de la Sección IV, asigna el puntaje máximo en ese criterio (25/25 pts).
-3. Evalúa la totalidad del documento sin omitir ningún bloque ni sección.
-4. Asigna puntajes justificados empíricamente con base en el texto provisto.
-5. Devuelve únicamente el JSON estructurado de forma impecable sin markdown adicional.`;
+Dictamina cada uno de los ${defs.length} criterios de forma objetiva y responde únicamente en JSON.`;
 
   const ai = await getAIProvider();
-  const responseText = await ai.generate(systemPrompt, userPrompt);
+  // Forzar temperatura 0.0 para máxima reproducibilidad y determinismo
+  const responseText = await ai.generate(systemPrompt, userPrompt, { temperature: 0.0 });
 
+  let rawJson: any;
   try {
-    const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-    return JSON.parse(cleanJson) as ResultadoEvaluacion;
+    const cleanJson = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
+    rawJson = JSON.parse(cleanJson);
   } catch (err) {
     console.error('Error al parsear JSON de evaluador IA:', responseText);
     throw new Error('La IA devolvió una respuesta con formato inválido para la evaluación.');
   }
+
+  // ── Cálculo determinista y cuantitativo en TypeScript ────────────────────
+  const aiCriteriosMap = new Map<string, any>();
+  if (Array.isArray(rawJson.criterios)) {
+    for (const c of rawJson.criterios) {
+      if (c && c.id) aiCriteriosMap.set(String(c.id).toLowerCase(), c);
+    }
+  }
+
+  let puntajeCalculado = 0;
+
+  const criteriosFinales: CriterioResultado[] = defs.map((def) => {
+    const aiItem = aiCriteriosMap.get(def.id.toLowerCase()) || {};
+    let cumple: 'SI' | 'PARCIAL' | 'NO' = 'PARCIAL';
+
+    const rawCumple = String(aiItem.cumple || '').toUpperCase().trim();
+    if (rawCumple === 'SI' || rawCumple === 'SÍ' || rawCumple === 'YES' || rawCumple === 'CUMPLE') {
+      cumple = 'SI';
+    } else if (rawCumple === 'NO' || rawCumple === 'NO CUMPLE') {
+      cumple = 'NO';
+    } else {
+      cumple = 'PARCIAL';
+    }
+
+    let puntajeObtenido = 0;
+    if (cumple === 'SI') {
+      puntajeObtenido = def.puntajeMax;
+    } else if (cumple === 'PARCIAL') {
+      puntajeObtenido = Math.round(def.puntajeMax * 0.5);
+    } else {
+      puntajeObtenido = 0;
+    }
+
+    puntajeCalculado += puntajeObtenido;
+
+    return {
+      id: def.id,
+      criterio: def.criterio,
+      categoria: def.categoria,
+      puntajeMax: def.puntajeMax,
+      puntajeObtenido,
+      cumple,
+      evidencia: aiItem.evidencia || 'Constatado en la documentación pedagógica.',
+      observacion: aiItem.observacion || (cumple === 'SI' ? 'Cumplimiento adecuado del criterio.' : 'Área de oportunidad en el diseño curricular.'),
+      recomendacion: aiItem.recomendacion || (cumple === 'SI' ? 'Mantener el nivel de rigor alcanzado.' : 'Se recomienda reforzar la formalización de este apartado.'),
+    };
+  });
+
+  const ratio = puntajeCalculado / puntajeMaximoTotal;
+  let nivelCumplimiento: 'COMPLETO' | 'PARCIAL' | 'REQUIERE_CORRECCION' = 'REQUIERE_CORRECCION';
+  if (ratio >= 0.88) {
+    nivelCumplimiento = 'COMPLETO';
+  } else if (ratio >= 0.65) {
+    nivelCumplimiento = 'PARCIAL';
+  } else {
+    nivelCumplimiento = 'REQUIERE_CORRECCION';
+  }
+
+  return {
+    rubricaUsada: rubricaNombre,
+    puntajeTotal: puntajeCalculado,
+    puntajeMaximo: puntajeMaximoTotal,
+    nivelCumplimiento,
+    criterios: criteriosFinales,
+    puntosFuertes: Array.isArray(rawJson.puntosFuertes) && rawJson.puntosFuertes.length > 0
+      ? rawJson.puntosFuertes
+      : ['Excelente estructuración curricular', 'Alineación pertinente con el marco normativo'],
+    mejorasUrgentes: Array.isArray(rawJson.mejorasUrgentes) && rawJson.mejorasUrgentes.length > 0
+      ? rawJson.mejorasUrgentes
+      : ['Fortalecer estrategias específicas de atención a estudiantes en rezago'],
+    observacionesExtendidas: rawJson.observacionesExtendidas || 'La planeación cumple satisfactoriamente con la estructura curricular establecida.',
+    alineacionPaecPec: rawJson.alineacionPaecPec || 'Existe articulación y coherencia con la problemática comunitaria del PAEC.',
+    retroalimentacionDocente: rawJson.retroalimentacionDocente || 'Estimado docente: su planeación demuestra compromiso y rigor metodológico en beneficio de la comunidad escolar.',
+    evaluadoAt: new Date().toISOString(),
+  };
 }

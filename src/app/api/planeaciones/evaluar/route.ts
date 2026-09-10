@@ -11,7 +11,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { planningId, tipoEvaluacion, textoPlanificacion, textoPaecPec } = body;
+    const { planningId, tipoEvaluacion, textoPlanificacion, textoPaecPec, forceReeval } = body;
 
     const db = neon(process.env.DATABASE_URL!);
 
@@ -24,7 +24,7 @@ export async function POST(req: Request) {
     // Si se pasa planningId, cargar datos desde la base de datos
     if (planningId) {
       const rows = await db`
-        SELECT p.id, p.uac_name, p.semester, p.component, p.content_json, p.paec_context, t.name as teacher_name
+        SELECT p.id, p.uac_name, p.semester, p.component, p.content_json, p.paec_context, p.evaluation_json, t.name as teacher_name
         FROM plannings p
         JOIN teachers t ON t.id = p.teacher_id
         WHERE p.id = ${planningId}::uuid
@@ -36,6 +36,15 @@ export async function POST(req: Request) {
         asignatura = planData.uac_name;
         semestre = planData.semester;
         docenteNombre = planData.teacher_name || docenteNombre;
+
+        // Si ya cuenta con evaluación guardada y no se solicita re-evaluación forzada, retornar caché (0 tokens)
+        if (!forceReeval && planData.evaluation_json) {
+          return NextResponse.json({
+            success: true,
+            resultado: planData.evaluation_json,
+            cached: true,
+          });
+        }
 
         if (!textoEvaluado && planData.content_json) {
           const { getSafeEvaluationContext } = await import('@/lib/planning-integrity-system');
@@ -87,7 +96,21 @@ export async function POST(req: Request) {
       textoPaecPec: textoPaecPec || planData?.paec_context || '',
     });
 
-    return NextResponse.json({ success: true, resultado });
+    // Persistir resultado en la base de datos para que no se pierda al salir
+    if (planningId) {
+      try {
+        await db`
+          UPDATE plannings
+          SET evaluation_json = ${JSON.stringify(resultado)}::jsonb,
+              updated_at = NOW()
+          WHERE id = ${planningId}::uuid
+        `;
+      } catch (dbErr) {
+        console.error('Error persistiendo evaluation_json en Neon DB:', dbErr);
+      }
+    }
+
+    return NextResponse.json({ success: true, resultado, cached: false });
   } catch (e: any) {
     console.error('API /api/planeaciones/evaluar error:', e);
     return NextResponse.json({ error: e.message || 'Error al evaluar planeación' }, { status: 500 });

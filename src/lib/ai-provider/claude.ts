@@ -15,12 +15,13 @@ export class ClaudeProvider implements AIProvider {
     this.modelId = modelId;
   }
 
-  async generate(systemPrompt: string, userPrompt: string): Promise<string> {
+  async generate(systemPrompt: string, userPrompt: string, options?: { temperature?: number }): Promise<string> {
     const client = new Anthropic({ apiKey: this.apiKey });
 
     const response = await client.messages.create({
       model: this.modelId,
       max_tokens: 8192,
+      temperature: options?.temperature !== undefined ? options.temperature : undefined,
       system: systemPrompt,
       messages: [{ role: 'user', content: userPrompt }],
     });

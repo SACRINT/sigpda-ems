@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import type { GeneratedPlanningContent, Planning, PlanningExtra } from '@/types/planning';
+import type { GeneratedPlanningContent, Planning, PlanningExtra, SecuenciaBloque, SecuenciaSesion } from '@/types/planning';
 import { ExtraPreviewModal } from '@/components/planeacion/ExtraPreviewModal';
 import DeletePlanningButton from '@/components/planeacion/DeletePlanningButton';
 import GenerationFeedback from '@/components/feedback/GenerationFeedback';
@@ -250,10 +250,84 @@ export default function PlanningDetailClient({
     });
   }
 
+  // ── Secuencia Didáctica por Sesión state ──────────────────────────────────
+  const [sequenceData, setSequenceData] = useState<Record<number, SecuenciaBloque>>(
+    (planning.sequenceJson as any) || {}
+  );
+  const [generatingSeqBlock, setGeneratingSeqBlock] = useState<number | null>(null);
+  const [editingSeqBlock, setEditingSeqBlock] = useState<number | null>(null);
+  const [editedSessions, setEditedSessions] = useState<Record<number, SecuenciaSesion[]>>({});
+  const [seqMessage, setSeqMessage] = useState<{ block: number; text: string; type: 'success' | 'error' } | null>(null);
+  const [expandedSeqBlock, setExpandedSeqBlock] = useState<number | null>(0);
+
+  const handleGenerateSecuencia = async (blockIndex: number) => {
+    setGeneratingSeqBlock(blockIndex);
+    setSeqMessage(null);
+    try {
+      const res = await fetch(`/api/planeaciones/${planning.id}/secuencia`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ blockIndex }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al generar secuencia didáctica');
+      setSequenceData(prev => ({ ...prev, [blockIndex]: data.sequence }));
+      setExpandedSeqBlock(blockIndex);
+      setSeqMessage({ block: blockIndex, text: '¡Secuencia didáctica generada y guardada con éxito!', type: 'success' });
+    } catch (err: any) {
+      setSeqMessage({ block: blockIndex, text: err.message || 'Error al generar secuencia', type: 'error' });
+    } finally {
+      setGeneratingSeqBlock(null);
+    }
+  };
+
+  const handleSaveSecuencia = async (blockIndex: number) => {
+    const sessionsToSave = editedSessions[blockIndex] || sequenceData[blockIndex]?.sessions;
+    if (!sessionsToSave) return;
+    try {
+      const res = await fetch(`/api/planeaciones/${planning.id}/secuencia`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ blockIndex, sessions: sessionsToSave }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al guardar');
+      setSequenceData(prev => ({ ...prev, [blockIndex]: data.sequence }));
+      setEditingSeqBlock(null);
+      setSeqMessage({ block: blockIndex, text: 'Cambios guardados exitosamente.', type: 'success' });
+    } catch (err: any) {
+      alert(err.message || 'Error al guardar cambios');
+    }
+  };
+
+  const handleStartEdit = (blockIndex: number) => {
+    if (!sequenceData[blockIndex]?.sessions) return;
+    setEditedSessions(prev => ({
+      ...prev,
+      [blockIndex]: JSON.parse(JSON.stringify(sequenceData[blockIndex].sessions)),
+    }));
+    setEditingSeqBlock(blockIndex);
+  };
+
+  const handleCancelEdit = (blockIndex: number) => {
+    setEditingSeqBlock(null);
+  };
+
+  const handleUpdateEditedSession = (blockIndex: number, sessionIdx: number, field: keyof SecuenciaSesion, val: any) => {
+    setEditedSessions(prev => {
+      const currentList = prev[blockIndex] ? [...prev[blockIndex]] : [...(sequenceData[blockIndex]?.sessions || [])];
+      if (currentList[sessionIdx]) {
+        currentList[sessionIdx] = { ...currentList[sessionIdx], [field]: val };
+      }
+      return { ...prev, [blockIndex]: currentList };
+    });
+  };
+
   // Generate detailed pedagogical sessions for all blocks using Session Progression Engine
   const blockSessionsMap: DetailedSession[][] = (content?.sectionIV?.activities || []).map((act, actIdx) => {
     const outcome = content?.sectionII?.learningOutcomes?.[actIdx] || '';
-    return generateBlockSessions(act, actIdx, act.hours || (isLaboral ? 18 : 12), outcome, isLaboral);
+    const savedSeq = sequenceData?.[actIdx] || null;
+    return generateBlockSessions(act, actIdx, act.hours || (isLaboral ? 18 : 12), outcome, isLaboral, savedSeq);
   });
   const allDetailedSessions: DetailedSession[] = blockSessionsMap.flat();
   const lessonSessions = allDetailedSessions;
@@ -339,19 +413,19 @@ export default function PlanningDetailClient({
   };
 
   // ── Evaluador state ─────────────────────────────────────────────────────
-  const [evalResult, setEvalResult]   = useState<any | null>(null);
+  const [evalResult, setEvalResult]   = useState<any | null>(planning.evaluationJson || null);
   const [evalLoading, setEvalLoading] = useState(false);
   const [evalError,   setEvalError]   = useState<string | null>(null);
-  const [evalLoaded,  setEvalLoaded]  = useState(false);
+  const [evalLoaded,  setEvalLoaded]  = useState(Boolean(planning.evaluationJson));
 
-  const handleRunEvaluacion = async () => {
+  const handleRunEvaluacion = async (forceReeval = false) => {
     setEvalLoading(true);
     setEvalError(null);
     try {
       const res = await fetch('/api/planeaciones/evaluar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planningId: planning.id }),
+        body: JSON.stringify({ planningId: planning.id, forceReeval }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error al evaluar la planeación.');
@@ -363,13 +437,6 @@ export default function PlanningDetailClient({
       setEvalLoading(false);
     }
   };
-
-  useEffect(() => {
-    if (activeTab === 'evaluador' && !evalLoaded && !evalLoading) {
-      handleRunEvaluacion();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
 
   // ── Analytics state ──────────────────────────────────────────────────────
   const [analyticsData, setAnalyticsData]   = useState<any | null>(null);
@@ -715,29 +782,363 @@ export default function PlanningDetailClient({
             </div>
           )}
 
-          {/* Section IV Summary */}
+          {/* Section IV: Secuencia Didáctica Completa por Momentos Pedagógicos (Opción A) */}
           <div className="section-card">
-            <div className="section-card-header">
-              <span className="section-card-title">IV. Diseño de Secuencia Didáctica (Actividades)</span>
+            <div className="section-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+              <div>
+                <span className="section-card-title">IV. Diseño de Secuencia Didáctica (Momentos Pedagógicos)</span>
+                <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--c-text-muted)' }}>
+                  Eslabón Didáctico Micro: Sesiones de 50 min distribuidas en Apertura, Desarrollo y Cierre.
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <span className="text-xs" style={{ background: 'var(--c-blue-pale)', color: 'var(--c-blue-mid)', padding: '4px 10px', borderRadius: '12px', fontWeight: 600 }}>
+                  MCCEMS / DBEPA
+                </span>
+              </div>
             </div>
-            <div className="section-card-body">
-              {content?.sectionIV?.activities?.map((a, i) => (
-                <div
-                  key={i}
-                  style={{
-                    padding: '14px 18px',
-                    background: i % 2 === 0 ? 'var(--c-blue-pale)' : 'var(--c-surface)',
-                    borderRadius: '8px',
-                    marginBottom: '8px',
-                    borderLeft: '4px solid var(--c-blue-mid)',
-                  }}
-                >
-                  <strong>{prefix}{i + 1}:</strong> {a.name}{' '}
-                  <span style={{ color: 'var(--c-text-muted)', fontSize: '13px' }}>({a.hours} hrs.)</span>
-                  {' — '}
-                  <em style={{ color: 'var(--c-navy-light)', fontWeight: 500 }}>{a.methodology}</em>
-                </div>
-              ))}
+
+            <div className="section-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {content?.sectionIV?.activities?.map((a, i) => {
+                const seq = sequenceData[i];
+                const hasSeq = Boolean(seq && seq.sessions && seq.sessions.length > 0);
+                const isGenerating = generatingSeqBlock === i;
+                const isEditing = editingSeqBlock === i;
+                const isExpanded = expandedSeqBlock === i;
+                const sessionsList: SecuenciaSesion[] = isEditing
+                  ? (editedSessions[i] || seq?.sessions || [])
+                  : (seq?.sessions || []);
+
+                const aperturaCount = sessionsList.filter(s => s.phase === 'Apertura').length;
+                const desarrolloCount = sessionsList.filter(s => s.phase === 'Desarrollo').length;
+                const cierreCount = sessionsList.filter(s => s.phase === 'Cierre').length;
+
+                return (
+                  <div
+                    key={i}
+                    style={{
+                      border: '1px solid var(--c-border)',
+                      borderRadius: '8px',
+                      overflow: 'hidden',
+                      background: 'var(--c-surface)',
+                    }}
+                  >
+                    {/* Block Header */}
+                    <div
+                      style={{
+                        padding: '14px 18px',
+                        background: i % 2 === 0 ? 'var(--c-blue-pale)' : 'var(--c-surface)',
+                        borderBottom: isExpanded ? '1px solid var(--c-border)' : 'none',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        gap: '12px',
+                      }}
+                    >
+                      <div style={{ flex: 1, minWidth: '240px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <strong style={{ fontSize: '15px', color: 'var(--c-navy)' }}>
+                            {prefix}{i + 1}: {a.name}
+                          </strong>
+                          <span style={{ fontSize: '12px', color: 'var(--c-text-muted)' }}>
+                            ({a.hours} hrs. — <em style={{ color: 'var(--c-navy-light)' }}>{a.methodology}</em>)
+                          </span>
+                        </div>
+
+                        {/* Status Badge */}
+                        <div style={{ marginTop: '6px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                          {hasSeq ? (
+                            <span style={{ fontSize: '11.5px', background: '#dcfce7', color: '#15803d', border: '1px solid #86efac', padding: '2px 8px', borderRadius: '12px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <CheckCircle size={13} /> Secuencia Didáctica Micro ({seq.sessions.length} sesiones de 50 min)
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '11.5px', background: '#fef3c7', color: '#b45309', border: '1px solid #fde68a', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>
+                              ⏳ Secuencia Micro Pendiente
+                            </span>
+                          )}
+
+                          {a.saberes && (
+                            <span style={{ fontSize: '11px', color: 'var(--c-text-muted)' }}>
+                              • Taxonomía 3 Saberes activa
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Header Actions */}
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                        {isGenerating ? (
+                          <span style={{ fontSize: '12px', color: 'var(--c-blue-mid)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                            <RefreshCw size={14} className="animate-spin" /> Diseñando sesiones con IA…
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (hasSeq) {
+                                if (confirm(`¿Deseas volver a generar la secuencia didáctica del Bloque ${i + 1} con IA? Se consumirán tokens de IA y se actualizarán las ${a.hours} sesiones.`)) {
+                                  handleGenerateSecuencia(i);
+                                }
+                              } else {
+                                handleGenerateSecuencia(i);
+                              }
+                            }}
+                            className="btn"
+                            style={{
+                              padding: '6px 12px',
+                              fontSize: '12px',
+                              fontWeight: 600,
+                              background: hasSeq ? 'var(--c-surface)' : 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
+                              color: hasSeq ? 'var(--c-text)' : '#fff',
+                              border: hasSeq ? '1px solid var(--c-border)' : 'none',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                            }}
+                          >
+                            <Zap size={13} /> {hasSeq ? '🔄 Regenerar con IA' : '⚡ Generar Secuencia (IA)'}
+                          </button>
+                        )}
+
+                        {hasSeq && (
+                          <button
+                            type="button"
+                            onClick={() => setExpandedSeqBlock(prev => prev === i ? null : i)}
+                            className="btn"
+                            style={{
+                              padding: '6px 12px',
+                              fontSize: '12px',
+                              fontWeight: 600,
+                              background: 'var(--c-surface)',
+                              border: '1px solid var(--c-border)',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                            }}
+                          >
+                            {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                            {isExpanded ? 'Ocultar' : 'Ver Sesiones'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Block Body Content */}
+                    {isExpanded && (
+                      <div style={{ padding: '16px 18px', background: 'var(--c-surface)' }}>
+                        {/* Feedback message banner */}
+                        {seqMessage && seqMessage.block === i && (
+                          <div
+                            style={{
+                              padding: '10px 14px',
+                              borderRadius: '6px',
+                              marginBottom: '14px',
+                              fontSize: '13px',
+                              fontWeight: 500,
+                              background: seqMessage.type === 'success' ? '#dcfce7' : '#fee2e2',
+                              color: seqMessage.type === 'success' ? '#166534' : '#991b1b',
+                              border: `1px solid ${seqMessage.type === 'success' ? '#86efac' : '#f87171'}`,
+                            }}
+                          >
+                            {seqMessage.text}
+                          </div>
+                        )}
+
+                        {hasSeq ? (
+                          <>
+                            {/* Summary & Edit Toolbar */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+                              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', fontSize: '11.5px' }}>
+                                <span style={{ padding: '3px 8px', borderRadius: '4px', background: 'rgba(2,132,199,0.12)', color: '#0284c7', border: '1px solid rgba(2,132,199,0.25)', fontWeight: 600 }}>
+                                  🔵 Apertura: {aperturaCount} ses.
+                                </span>
+                                <span style={{ padding: '3px 8px', borderRadius: '4px', background: 'rgba(5,150,105,0.12)', color: '#059669', border: '1px solid rgba(5,150,105,0.25)', fontWeight: 600 }}>
+                                  🟢 Desarrollo: {desarrolloCount} ses.
+                                </span>
+                                <span style={{ padding: '3px 8px', borderRadius: '4px', background: 'rgba(124,58,237,0.12)', color: '#7c3aed', border: '1px solid rgba(124,58,237,0.25)', fontWeight: 600 }}>
+                                  🟣 Cierre: {cierreCount} ses.
+                                </span>
+                                <span style={{ padding: '3px 8px', color: 'var(--c-text-muted)', fontStyle: 'italic' }}>
+                                  Total: {sessionsList.length} sesiones de 50 min
+                                </span>
+                              </div>
+
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                {isEditing ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSaveSecuencia(i)}
+                                      className="btn btn-primary"
+                                      style={{ padding: '5px 12px', fontSize: '12px', fontWeight: 600, background: '#16a34a', border: 'none', color: '#fff', borderRadius: '5px', cursor: 'pointer' }}
+                                    >
+                                      💾 Guardar Cambios
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCancelEdit(i)}
+                                      className="btn"
+                                      style={{ padding: '5px 12px', fontSize: '12px', background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)', borderRadius: '5px', cursor: 'pointer' }}
+                                    >
+                                      Cancelar
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleStartEdit(i)}
+                                    className="btn"
+                                    style={{ padding: '5px 12px', fontSize: '12px', fontWeight: 600, background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)', borderRadius: '5px', cursor: 'pointer' }}
+                                  >
+                                    ✏️ Editar Sesiones
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Sessions Table */}
+                            <div style={{ overflowX: 'auto' }}>
+                              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12.5px' }}>
+                                <thead>
+                                  <tr style={{ background: 'var(--c-navy)', color: '#fff' }}>
+                                    <th style={{ padding: '8px 10px', textAlign: 'center', width: '90px' }}>Sesión / Fase</th>
+                                    <th style={{ padding: '8px 10px', textAlign: 'left', minWidth: '180px' }}>Título Situado</th>
+                                    <th style={{ padding: '8px 10px', textAlign: 'left', minWidth: '220px' }}>Rol del Docente</th>
+                                    <th style={{ padding: '8px 10px', textAlign: 'left', minWidth: '220px' }}>Rol del Estudiante</th>
+                                    <th style={{ padding: '8px 10px', textAlign: 'left', minWidth: '160px' }}>Evidencia Formativa</th>
+                                    <th style={{ padding: '8px 10px', textAlign: 'left', minWidth: '140px' }}>Evaluación</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {sessionsList.map((s, sIdx) => {
+                                    const phaseColor =
+                                      s.phase === 'Apertura'
+                                        ? { bg: '#e0f2fe', text: '#0369a1', border: '#bae6fd' }
+                                        : s.phase === 'Cierre'
+                                        ? { bg: '#f3e8ff', text: '#7e22ce', border: '#e9d5ff' }
+                                        : { bg: '#dcfce7', text: '#15803d', border: '#86efac' };
+
+                                    return (
+                                      <tr
+                                        key={sIdx}
+                                        style={{
+                                          background: sIdx % 2 === 0 ? 'var(--c-card-bg, #fff)' : 'var(--c-blue-pale)',
+                                          borderBottom: '1px solid var(--c-border)',
+                                        }}
+                                      >
+                                        <td style={{ padding: '8px 10px', textAlign: 'center', verticalAlign: 'top' }}>
+                                          <div style={{ fontWeight: 700, fontSize: '12px' }}>S{s.sessionNum}</div>
+                                          <span
+                                            style={{
+                                              display: 'inline-block',
+                                              marginTop: '4px',
+                                              fontSize: '10px',
+                                              padding: '1px 6px',
+                                              borderRadius: '10px',
+                                              fontWeight: 600,
+                                              background: phaseColor.bg,
+                                              color: phaseColor.text,
+                                              border: `1px solid ${phaseColor.border}`,
+                                            }}
+                                          >
+                                            {s.phase}
+                                          </span>
+                                        </td>
+                                        <td style={{ padding: '8px 10px', verticalAlign: 'top' }}>
+                                          {isEditing ? (
+                                            <input
+                                              type="text"
+                                              value={s.title}
+                                              onChange={(e) => handleUpdateEditedSession(i, sIdx, 'title', e.target.value)}
+                                              style={{ width: '100%', fontSize: '12px', padding: '4px 6px', borderRadius: '4px', border: '1px solid var(--c-border)' }}
+                                            />
+                                          ) : (
+                                            <span style={{ fontWeight: 600, color: 'var(--c-navy)' }}>{s.title}</span>
+                                          )}
+                                        </td>
+                                        <td style={{ padding: '8px 10px', verticalAlign: 'top' }}>
+                                          {isEditing ? (
+                                            <textarea
+                                              value={s.teachingActivity}
+                                              rows={2}
+                                              onChange={(e) => handleUpdateEditedSession(i, sIdx, 'teachingActivity', e.target.value)}
+                                              style={{ width: '100%', fontSize: '12px', padding: '4px 6px', borderRadius: '4px', border: '1px solid var(--c-border)' }}
+                                            />
+                                          ) : (
+                                            <span style={{ lineHeight: 1.4 }}>{s.teachingActivity}</span>
+                                          )}
+                                        </td>
+                                        <td style={{ padding: '8px 10px', verticalAlign: 'top' }}>
+                                          {isEditing ? (
+                                            <textarea
+                                              value={s.learningActivity}
+                                              rows={2}
+                                              onChange={(e) => handleUpdateEditedSession(i, sIdx, 'learningActivity', e.target.value)}
+                                              style={{ width: '100%', fontSize: '12px', padding: '4px 6px', borderRadius: '4px', border: '1px solid var(--c-border)' }}
+                                            />
+                                          ) : (
+                                            <span style={{ lineHeight: 1.4 }}>{s.learningActivity}</span>
+                                          )}
+                                        </td>
+                                        <td style={{ padding: '8px 10px', verticalAlign: 'top' }}>
+                                          {isEditing ? (
+                                            <input
+                                              type="text"
+                                              value={s.evidence}
+                                              onChange={(e) => handleUpdateEditedSession(i, sIdx, 'evidence', e.target.value)}
+                                              style={{ width: '100%', fontSize: '12px', padding: '4px 6px', borderRadius: '4px', border: '1px solid var(--c-border)' }}
+                                            />
+                                          ) : (
+                                            <span style={{ fontStyle: 'italic' }}>{s.evidence}</span>
+                                          )}
+                                        </td>
+                                        <td style={{ padding: '8px 10px', verticalAlign: 'top' }}>
+                                          {isEditing ? (
+                                            <input
+                                              type="text"
+                                              value={s.evaluation || ''}
+                                              onChange={(e) => handleUpdateEditedSession(i, sIdx, 'evaluation', e.target.value)}
+                                              style={{ width: '100%', fontSize: '12px', padding: '4px 6px', borderRadius: '4px', border: '1px solid var(--c-border)' }}
+                                            />
+                                          ) : (
+                                            <span style={{ fontSize: '11.5px', color: 'var(--c-text-muted)' }}>{s.evaluation || 'Formativa continua'}</span>
+                                          )}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          </>
+                        ) : (
+                          <div style={{ textAlign: 'center', padding: '24px 16px', background: 'var(--c-blue-pale)', borderRadius: '8px', border: '1px dashed var(--c-blue-mid)' }}>
+                            <p style={{ fontWeight: 600, color: 'var(--c-navy)', marginBottom: '6px' }}>
+                              ⚡ Secuencia Didáctica Micro no generada para este bloque
+                            </p>
+                            <p style={{ fontSize: '13px', color: 'var(--c-text-muted)', maxWidth: '520px', margin: '0 auto 16px', lineHeight: 1.5 }}>
+                              Genera la secuencia de <strong>{a.hours} sesiones de 50 minutos</strong> con momentos didácticos (Apertura, Desarrollo, Cierre), actividades del docente y del estudiante, y evidencias formativas.
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => handleGenerateSecuencia(i)}
+                              className="btn btn-primary"
+                              style={{ padding: '8px 18px', fontSize: '13px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                            >
+                              <Zap size={14} /> Generar Secuencia Didáctica Micro con IA
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -2138,10 +2539,41 @@ export default function PlanningDetailClient({
                   <p style={{ fontWeight: 700, marginBottom: '4px' }}>⚠️ Error al evaluar</p>
                   <p style={{ fontSize: '14px', margin: 0 }}>{evalError}</p>
                   <button
-                    onClick={handleRunEvaluacion}
+                    onClick={() => handleRunEvaluacion(true)}
                     style={{ marginTop: '12px', padding: '8px 16px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}
                   >
                     🔄 Reintentar
+                  </button>
+                </div>
+              )}
+
+              {!evalResult && !evalLoading && !evalError && (
+                <div style={{ textAlign: 'center', padding: '48px 20px', background: 'var(--c-bg-surface)', borderRadius: '10px', border: '1px solid var(--c-border)' }}>
+                  <div style={{ fontSize: '42px', marginBottom: '12px' }}>🏅</div>
+                  <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--c-text)', marginBottom: '8px' }}>
+                    Auditoría Oficial con IA (Anexo 12 USICAMM / DBEPA)
+                  </h3>
+                  <p style={{ fontSize: '14px', color: 'var(--c-text-muted)', maxWidth: '560px', margin: '0 auto 20px', lineHeight: 1.5 }}>
+                    Esta planeación aún no ha sido evaluada. La IA auditará los criterios pedagógicos oficiales, asignará puntuaciones cuantitativas fijas y emitirá dictamen de mejora.
+                  </p>
+                  <button
+                    onClick={() => handleRunEvaluacion(false)}
+                    style={{
+                      padding: '12px 24px',
+                      fontSize: '14px',
+                      fontWeight: 700,
+                      background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 14px rgba(220, 38, 38, 0.4)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                    }}
+                  >
+                    🚀 Iniciar Evaluación IA Ahora
                   </button>
                 </div>
               )}
@@ -2180,7 +2612,11 @@ export default function PlanningDetailClient({
                       </div>
                     </div>
                     <button
-                      onClick={() => { setEvalLoaded(false); handleRunEvaluacion(); }}
+                      onClick={() => {
+                        if (confirm('¿Deseas volver a auditar esta planeación con la IA? Se consumirán tokens de IA para regenerar la evaluación.')) {
+                          handleRunEvaluacion(true);
+                        }
+                      }}
                       style={{ alignSelf: 'flex-start', padding: '8px 14px', fontSize: '12px', fontWeight: 600, background: 'var(--c-bg-elevated)', color: 'var(--c-text)', border: '1px solid var(--c-border-2)', borderRadius: '6px', cursor: 'pointer' }}
                     >
                       🔄 Re-evaluar

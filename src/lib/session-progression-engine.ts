@@ -7,7 +7,7 @@
  * títulos situados y descripciones claras de lo que se construye en cada sesión.
  */
 
-import type { KeyActivityPlan } from '@/types/planning';
+import type { KeyActivityPlan, SecuenciaBloque } from '@/types/planning';
 
 export interface DetailedSession {
   sessionNum: number;
@@ -23,6 +23,10 @@ export interface DetailedSession {
   title: string;
   description: string;
   focus: string;
+  teachingActivity?: string;
+  learningActivity?: string;
+  evidence?: string;
+  evaluation?: string;
 }
 
 const PHASE_STYLES = {
@@ -69,8 +73,28 @@ export function generateBlockSessions(
   activityIndex: number,
   totalHours?: number,
   learningOutcome?: string,
-  isLaboral: boolean = false
+  isLaboral: boolean = false,
+  savedSequence?: SecuenciaBloque | null
 ): DetailedSession[] {
+  // Si ya existe una secuencia guardada en sequence_json con IA o editada por el docente, usarla directamente
+  if (savedSequence && Array.isArray(savedSequence.sessions) && savedSequence.sessions.length > 0) {
+    return savedSequence.sessions.map((s) => ({
+      sessionNum: s.sessionNum,
+      totalSessions: savedSequence.sessions.length,
+      activityIndex,
+      activityName: activity.name,
+      phase: s.phase,
+      phaseColor: PHASE_STYLES[s.phase] || PHASE_STYLES.Desarrollo,
+      title: s.title,
+      teachingActivity: s.teachingActivity,
+      learningActivity: s.learningActivity,
+      evidence: s.evidence,
+      evaluation: s.evaluation,
+      description: `[Docente]: ${s.teachingActivity} | [Estudiantes]: ${s.learningActivity}`,
+      focus: `Evidencia: ${s.evidence}${s.evaluation ? ` | Instrumento: ${s.evaluation}` : ''}`,
+    }));
+  }
+
   const hours = totalHours || activity.hours || 12;
   const sessionsCount = hours; // 1 hora curricular = 1 sesión de 50 min
   const subtopics = extractSubtopics(activity.contenidoFormativo);

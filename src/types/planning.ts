@@ -143,7 +143,30 @@ export interface Planning {
   createdAt: Date;
   updatedAt: Date;
   metodologiaActiva?: string;    // ID de metodología activa seleccionada por el docente
+  evaluationJson?: any | null;
+  sequenceJson?: Record<number, SecuenciaBloque> | null;
 }
+
+export interface SecuenciaSesion {
+  sessionNum: number;
+  totalSessions: number;
+  phase: 'Apertura' | 'Desarrollo' | 'Cierre';
+  title: string;
+  teachingActivity: string; // Rol del docente
+  learningActivity: string; // Rol del estudiante
+  evidence: string;         // Evidencia o producto formativo
+  evaluation?: string;      // Criterio o instrumento formativo
+}
+
+export interface SecuenciaBloque {
+  blockIndex: number;
+  blockName: string;
+  hours: number;
+  sessions: SecuenciaSesion[];
+  updatedAt?: string;
+}
+
+export type SecuenciaCompleta = Record<number, SecuenciaBloque>;
 
 export interface CreatePlanningInput {
   uacName: string;
