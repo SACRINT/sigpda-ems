@@ -1775,11 +1775,11 @@ export default function PlanningDetailClient({
                     <div style={{ fontSize: '22px', fontWeight: 800, color: scoreColor }}>
                       {levelLabel[level] || level}
                     </div>
-                    <div style={{ fontSize: '13px', color: 'var(--c-text-muted)', marginTop: '4px' }}>
+                    <div style={{ fontSize: '13px', color: '#1e293b', marginTop: '4px' }}>
                       {auditReport.uac_name} · {auditReport.semester}° Semestre
                     </div>
                     {auditReport.created_at && (
-                      <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '6px' }}>
+                      <div style={{ fontSize: '12px', color: '#475569', marginTop: '6px' }}>
                         Auditado: {new Date(auditReport.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </div>
                     )}
@@ -1835,7 +1835,7 @@ export default function PlanningDetailClient({
                           }}>
                             {dimScore}/100
                           </span>
-                          <span style={{ color: 'var(--c-text-muted)', fontSize: '13px' }}>{isExpanded ? '▲' : '▼'}</span>
+                          <span style={{ color: '#64748b', fontSize: '13px' }}>{isExpanded ? '▲' : '▼'}</span>
                         </button>
                         {isExpanded && (
                           <div style={{ padding: '14px 16px', background: 'var(--c-bg-elevated)', borderTop: `1px solid ${dimColor}22` }}>
