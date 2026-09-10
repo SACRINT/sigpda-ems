@@ -152,7 +152,7 @@ export async function POST(
                 type: 'planeacion_ready',
                 title: 'Planeación Generada con Éxito',
                 message: `Tu planeación para ${planning.uac_name || 'tu asignatura'} (${planning.semester}° Semestre) está lista para revisión.`,
-                link: `/dashboard/planning/${id}`,
+                link: `/planeacion/${id}`,
                 severity: 'success',
                 channels: ['in_app'],
                 metadata: {

@@ -70,7 +70,7 @@ export async function evaluateAutomationRules(
             type: trigger,
             title: `⚡ Automatización: ${rule.nombre}`,
             message: messageText,
-            link: payload.planningId ? `/dashboard/planning/${payload.planningId}` : undefined,
+            link: payload.planningId ? `/planeacion/${payload.planningId}` : undefined,
             severity: payload.score !== undefined && payload.score < 70 ? 'warning' : 'info',
             channels: actions.channels || ['in_app'],
             metadata: {

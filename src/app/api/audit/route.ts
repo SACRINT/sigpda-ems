@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
           type: 'audit_result',
           title: `Auditoría Pedagógica: ${score}/100`,
           message: `Tu planeación obtuvo un nivel de cumplimiento: ${compliance}.`,
-          link: `/dashboard/planning/${planningId}`,
+          link: `/planeacion/${planningId}`,
           severity: score >= 80 ? 'success' : score >= 60 ? 'warning' : 'error',
           channels: ['in_app'],
           metadata: {

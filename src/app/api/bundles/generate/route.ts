@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
         type: 'bundle_generated',
         title: 'Bundle Didáctico Generado',
         message: `Se ha generado el paquete de materiales (${type === 'full' ? 'Suite Completa' : type}) para ${planning.uacName}.`,
-        link: `/dashboard/planning/${planningId}`,
+        link: `/planeacion/${planningId}`,
         severity: 'success',
         channels: ['in_app'],
         metadata: { planningId, bundleType: type, uacName: planning.uacName },

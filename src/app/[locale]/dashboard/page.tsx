@@ -81,7 +81,11 @@ export default async function DashboardPage({
           {plannings.map((p) => (
             <div key={p.id as string} className="planning-card">
               <div className="planning-card-header">
-                <h3 className="planning-card-title">{p.uac_name as string}</h3>
+                <h3 className="planning-card-title">
+                  <Link href={`/${locale}/planeacion/${p.id as string}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                    {p.uac_name as string}
+                  </Link>
+                </h3>
               </div>
               <div className="planning-card-meta">
                 <span className="badge badge-semester">{p.semester as number}° Sem</span>
@@ -97,7 +101,7 @@ export default async function DashboardPage({
               </p>
               <div className="planning-card-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 {(p.status === 'generated' || p.status === 'downloaded') && (
-                  <Link href={`/${locale}/dashboard/planning/${p.id as string}`} className="btn btn-secondary btn-sm">
+                  <Link href={`/${locale}/planeacion/${p.id as string}`} className="btn btn-secondary btn-sm">
                     ✏️ Editar
                   </Link>
                 )}
