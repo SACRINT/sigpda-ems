@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import type { Planning, GeneratedPlanningContent } from '@/types/planning';
+import type { Planning, GeneratedPlanningContent, SecuenciaBloque } from '@/types/planning';
 import { generatePlanningPDF } from '@/lib/pdf-generator';
 import { enrichWithExplicitSaberes } from '@/lib/planning-integrity-system';
 
@@ -25,6 +25,7 @@ export default function DocumentA4Viewer({
   const s4 = content?.sectionIV;
   const s5 = content?.sectionV;
   const s6 = content?.sectionVI;
+  const sequenceData = planning.sequenceJson as Record<number, SecuenciaBloque> | null | undefined;
 
   const handleDownloadPdf = async () => {
     try {
@@ -489,6 +490,53 @@ export default function DocumentA4Viewer({
                       )}
                     </td>
                   </tr>
+
+                  {/* Micro-Sesiones de 50 min (from sequence_json) */}
+                  {sequenceData && sequenceData[idx] && sequenceData[idx].sessions && sequenceData[idx].sessions.length > 0 && (() => {
+                    const sessions = sequenceData[idx].sessions;
+                    const phaseColors: Record<string, { bg: string; text: string }> = {
+                      Apertura:   { bg: '#e0f2fe', text: '#0369a1' },
+                      Desarrollo: { bg: '#dcfce7', text: '#15803d' },
+                      Cierre:     { bg: '#f3e8ff', text: '#7e22ce' },
+                    };
+                    return (
+                      <>
+                        <tr>
+                          <td colSpan={4} style={{ padding: '6px 8px', background: '#f1f5f9', borderBottom: '1px solid #e2e8f0' }}>
+                            <div style={{ fontSize: '9px', fontWeight: 700, color: '#1e293b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                              Sesiones de 50 minutos — {sessions.length} sesiones totales
+                            </div>
+                          </td>
+                        </tr>
+                        {/* Sub-header */}
+                        <tr style={{ background: '#e2e8f0' }}>
+                          <td style={{ padding: '4px 6px', fontSize: '8px', fontWeight: 700, color: '#475569', width: '8%' }}>Sesión</td>
+                          <td style={{ padding: '4px 6px', fontSize: '8px', fontWeight: 700, color: '#475569', width: '25%' }}>Título / Tema</td>
+                          <td style={{ padding: '4px 6px', fontSize: '8px', fontWeight: 700, color: '#475569', width: '30%' }}>Actividad del Docente</td>
+                          <td style={{ padding: '4px 6px', fontSize: '8px', fontWeight: 700, color: '#475569', width: '37%' }}>Actividad del Estudiante / Evidencia</td>
+                        </tr>
+                        {sessions.map((s, si) => {
+                          const pc = phaseColors[s.phase] || phaseColors.Desarrollo;
+                          return (
+                            <tr key={si} style={{ background: si % 2 === 0 ? '#fff' : '#f8fafc' }}>
+                              <td style={{ padding: '4px 6px', fontSize: '8px', textAlign: 'center' }}>
+                                <span style={{ display: 'inline-block', padding: '1px 5px', borderRadius: '3px', background: pc.bg, color: pc.text, fontWeight: 700, fontSize: '7.5px' }}>
+                                  {s.phase.charAt(0)}
+                                </span>
+                                <div style={{ fontSize: '7.5px', color: '#64748b', marginTop: '1px' }}>{s.sessionNum}/{s.totalSessions}</div>
+                              </td>
+                              <td style={{ padding: '4px 6px', fontSize: '8px', fontWeight: 600, color: '#1e293b', lineHeight: 1.3 }}>{s.title}</td>
+                              <td style={{ padding: '4px 6px', fontSize: '7.5px', color: '#334155', lineHeight: 1.3 }}>{s.teachingActivity}</td>
+                              <td style={{ padding: '4px 6px', fontSize: '7.5px', lineHeight: 1.3 }}>
+                                <div style={{ color: '#334155' }}>{s.learningActivity}</div>
+                                {s.evidence && <div style={{ fontSize: '7px', color: '#64748b', marginTop: '1px', fontStyle: 'italic' }}>Evidencia: {s.evidence}</div>}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </>
+                    );
+                  })()}
                 </tbody>
               </table>
             ))}

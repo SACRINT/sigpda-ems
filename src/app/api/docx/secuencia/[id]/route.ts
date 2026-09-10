@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, getPlanningById, markPlanningDownloaded } from '@/lib/db';
-import { generateDocx } from '@/lib/docx-generator';
+import { generateSecuenciaDocx } from '@/lib/docx-generator';
 import type { GeneratedPlanningContent } from '@/types/planning';
 
 export const runtime = 'nodejs';
@@ -27,11 +27,11 @@ export async function GET(
 
     const content = planning.content_json as GeneratedPlanningContent;
     const sequenceJson = (planning as any).sequence_json || null;
-    const docxBuffer = await generateDocx(content, sequenceJson);
+    const docxBuffer = await generateSecuenciaDocx(content, sequenceJson);
 
     await markPlanningDownloaded(id, teacher.id);
 
-    const filename = `Planeacion_${content.sectionI.uacName.substring(0, 40).replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚ\s]/g, '').replace(/\s+/g, '_')}_${content.sectionI.semester}Semestre_2026-2027.docx`;
+    const filename = `Secuencia_Didactica_${content.sectionI.uacName.substring(0, 40).replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚ\s]/g, '').replace(/\s+/g, '_')}_${content.sectionI.semester}Semestre_2026-2027.docx`;
 
     return new NextResponse(new Uint8Array(docxBuffer), {
       headers: {
@@ -41,7 +41,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error('DOCX generation error:', error);
-    return NextResponse.json({ error: 'Error al generar el documento' }, { status: 500 });
+    console.error('DOCX secuencia generation error:', error);
+    return NextResponse.json({ error: 'Error al generar el documento de secuencia' }, { status: 500 });
   }
 }

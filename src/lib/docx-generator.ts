@@ -313,7 +313,7 @@ function buildActivityTable(activity: GeneratedPlanningContent['sectionIV']['act
   });
 }
 
-function buildSectionIV(content: GeneratedPlanningContent): (Paragraph | Table)[] {
+function buildSectionIV(content: GeneratedPlanningContent, sequenceJson?: Record<number, { blockIndex: number; blockName: string; hours: number; sessions: { sessionNum: number; totalSessions: number; phase: string; title: string; teachingActivity: string; learningActivity: string; evidence: string; evaluation?: string }[] }> | null): (Paragraph | Table)[] {
   const isLaboral = content.sectionI.component?.toLowerCase().includes('laboral') || false;
   const label = isLaboral ? 'ACTIVIDAD CLAVE' : 'PROPÓSITO FORMATIVO';
 
@@ -326,6 +326,31 @@ function buildSectionIV(content: GeneratedPlanningContent): (Paragraph | Table)[
     elements.push(subH(`▶ ${label} ${i + 1}: ${activity.name} (${activity.hours} horas)`));
     elements.push(buildActivityTable(activity, isLaboral));
     elements.push(sp());
+
+    // Micro-Sesiones de 50 min
+    const blockSeq = sequenceJson?.[i];
+    if (blockSeq && blockSeq.sessions && blockSeq.sessions.length > 0) {
+      const sc = [Math.floor(CONTENT * 0.08), Math.floor(CONTENT * 0.22), Math.floor(CONTENT * 0.35), CONTENT - Math.floor(CONTENT * 0.08) - Math.floor(CONTENT * 0.22) - Math.floor(CONTENT * 0.35)];
+      const phaseColor: Record<string, string> = { Apertura: '0369a1', Desarrollo: '15803d', Cierre: '7e22ce' };
+      const sessRows: TableRow[] = [
+        new TableRow({ children: [tcH(`Sesiones de 50 minutos — ${blockSeq.sessions.length} sesiones totales`, { w: CONTENT, span: 4, align: AlignmentType.CENTER, size: 17 })] }),
+        new TableRow({ children: [tcM('Sesión', { w: sc[0], align: AlignmentType.CENTER }), tcM('Título / Tema', { w: sc[1] }), tcM('Actividad del Docente', { w: sc[2] }), tcM('Actividad del Estudiante / Evidencia', { w: sc[3] })] }),
+        ...blockSeq.sessions.map((s, si) => new TableRow({ children: [
+          new TableCell({ width: { size: sc[0], type: WidthType.DXA }, shading: { fill: si % 2 === 0 ? C.white : C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, verticalAlign: VerticalAlign.CENTER, children: [
+            new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `${s.phase.charAt(0)} ${s.sessionNum}/${s.totalSessions}`, bold: true, size: 14, font: 'Arial', color: phaseColor[s.phase] || '15803d' })] }),
+          ] }),
+          new TableCell({ width: { size: sc[1], type: WidthType.DXA }, shading: { fill: si % 2 === 0 ? C.white : C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [new Paragraph({ children: [new TextRun({ text: s.title, bold: true, size: 15, font: 'Arial', color: C.text })] })] }),
+          new TableCell({ width: { size: sc[2], type: WidthType.DXA }, shading: { fill: si % 2 === 0 ? C.white : C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [new Paragraph({ children: [new TextRun({ text: s.teachingActivity, size: 14, font: 'Arial', color: C.text })] })] }),
+          new TableCell({ width: { size: sc[3], type: WidthType.DXA }, shading: { fill: si % 2 === 0 ? C.white : C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [
+            new Paragraph({ children: [new TextRun({ text: s.learningActivity, size: 14, font: 'Arial', color: C.text })] }),
+            ...(s.evidence ? [new Paragraph({ spacing: { before: 40 }, children: [new TextRun({ text: `Evidencia: ${s.evidence}`, italics: true, size: 13, font: 'Arial', color: '64748b' })] })] : []),
+          ] }),
+        ] })),
+      ];
+      elements.push(new Table({ width: { size: CONTENT, type: WidthType.DXA }, columnWidths: sc, rows: sessRows }));
+      elements.push(sp());
+    }
+
     if (i < content.sectionIV.activities.length - 1) elements.push(pb());
   });
   return elements;
@@ -413,7 +438,8 @@ function buildSectionVII(): (Paragraph | Table)[] {
 // ── MAIN EXPORT ───────────────────────────────────────────────────────────────
 
 export async function generateDocx(
-  content: GeneratedPlanningContent
+  content: GeneratedPlanningContent,
+  sequenceJson?: Record<number, { blockIndex: number; blockName: string; hours: number; sessions: { sessionNum: number; totalSessions: number; phase: string; title: string; teachingActivity: string; learningActivity: string; evidence: string; evaluation?: string }[] }> | null
 ): Promise<Buffer> {
   const doc = new Document({
     styles: { default: { document: { run: { font: 'Arial', size: 20 } } } },
@@ -456,10 +482,69 @@ export async function generateDocx(
         pb(),
         ...buildSectionIII(content),
         pb(),
-        ...buildSectionIV(content),
+        ...buildSectionIV(content, sequenceJson),
         ...buildSectionV(content),
         pb(),
         ...buildSectionVI(content),
+        ...buildSectionVII(),
+      ],
+    }],
+  });
+
+  return Buffer.from(await Packer.toBuffer(doc));
+}
+
+/**
+ * Genera el documento Word (.docx) independiente para la Secuencia Didáctica Oficial
+ */
+export async function generateSecuenciaDocx(
+  content: GeneratedPlanningContent,
+  sequenceJson?: Record<number, { blockIndex: number; blockName: string; hours: number; sessions: { sessionNum: number; totalSessions: number; phase: string; title: string; teachingActivity: string; learningActivity: string; evidence: string; evaluation?: string }[] }> | null
+): Promise<Buffer> {
+  const doc = new Document({
+    styles: { default: { document: { run: { font: 'Arial', size: 20 } } } },
+    sections: [{
+      properties: {
+        page: {
+          size: { width: PAGE_W, height: 15840 },
+          margin: { top: MARGIN, bottom: MARGIN, left: MARGIN, right: MARGIN },
+        },
+      },
+      headers: {
+        default: new Header({
+          children: [new Paragraph({
+            alignment: AlignmentType.RIGHT,
+            children: [new TextRun({
+              text: 'SEP PUEBLA · SUBSECRETARÍA DE EDUCACIÓN MEDIA SUPERIOR · DBEPA 2026-2027',
+              size: 14, color: '666666', font: 'Arial',
+            })],
+          })],
+        }),
+      },
+      footers: {
+        default: new Footer({
+          children: [new Paragraph({
+            alignment: AlignmentType.CENTER,
+            border: { top: { style: BorderStyle.SINGLE, size: 4, color: C.accent, space: 1 } },
+            spacing: { before: 60 },
+            children: [
+              new TextRun({ text: 'Página ', size: 14, color: '777777', font: 'Arial' }),
+              new TextRun({ children: [PageNumber.CURRENT], size: 14, color: '777777', font: 'Arial' }),
+              new TextRun({ text: ' de ', size: 14, color: '777777', font: 'Arial' }),
+              new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 14, color: '777777', font: 'Arial' }),
+              new TextRun({ text: ' | Secuencia Didáctica Micro (Sesiones 50 min) · DBEPA', size: 14, color: '777777', font: 'Arial' }),
+            ],
+          })],
+        }),
+      },
+      children: [
+        secHeading('SECUENCIA DIDÁCTICA OFICIAL (ESLABÓN MICRO)'),
+        noteP('Desglose de sesiones de 50 minutos con momentos pedagógicos (Apertura, Desarrollo y Cierre) conforme al Marco Curricular Común de la EMS (MCCEMS NEM).'),
+        sp(),
+        ...buildSectionI(content),
+        sp(),
+        ...buildSectionIV(content, sequenceJson),
+        sp(),
         ...buildSectionVII(),
       ],
     }],

@@ -7,7 +7,7 @@ import { ExtraPreviewModal } from '@/components/planeacion/ExtraPreviewModal';
 import DeletePlanningButton from '@/components/planeacion/DeletePlanningButton';
 import GenerationFeedback from '@/components/feedback/GenerationFeedback';
 import DocumentA4Viewer from '@/components/common/DocumentA4Viewer';
-import { generatePlanningPDF } from '@/lib/pdf-generator';
+import { generatePlanningPDF, generateSecuenciaPDF } from '@/lib/pdf-generator';
 import { generateBlockSessions, type DetailedSession } from '@/lib/session-progression-engine';
 // ── Lucide Icons ────────────────────────────────────────────────────────────
 import {
@@ -333,10 +333,12 @@ export default function PlanningDetailClient({
   const lessonSessions = allDetailedSessions;
 
   // Download PDF handler
+  const [downloadingSeqPdf, setDownloadingSeqPdf] = useState<boolean>(false);
+
   const handleDownloadPdf = async () => {
     try {
       setDownloadingPdf(true);
-      const pdf = await generatePlanningPDF(planning);
+      const pdf = await generatePlanningPDF({ ...planning, sequenceJson: sequenceData });
       const filename = `Planeacion_${planning.uacName.replace(/\s+/g, '_')}_Semestre_${planning.semester}.pdf`;
       pdf.save(filename);
     } catch (e) {
@@ -344,6 +346,20 @@ export default function PlanningDetailClient({
       alert('Hubo un error al generar el archivo PDF.');
     } finally {
       setDownloadingPdf(false);
+    }
+  };
+
+  const handleDownloadSecuenciaPdf = async () => {
+    try {
+      setDownloadingSeqPdf(true);
+      const pdf = await generateSecuenciaPDF({ ...planning, sequenceJson: sequenceData });
+      const filename = `Secuencia_Didactica_${planning.uacName.replace(/\s+/g, '_')}_Semestre_${planning.semester}.pdf`;
+      pdf.save(filename);
+    } catch (e) {
+      console.error('Error generating Secuencia PDF:', e);
+      alert('Hubo un error al generar el archivo PDF de la secuencia didáctica.');
+    } finally {
+      setDownloadingSeqPdf(false);
     }
   };
 
@@ -760,20 +776,37 @@ export default function PlanningDetailClient({
               <div className="section-card-body" style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                   <thead>
-                    <tr style={{ background: 'var(--c-navy)', color: '#fff' }}>
-                      <th style={{ padding: '10px 14px', textAlign: 'left' }}>{activityLabel}</th>
-                      <th style={{ padding: '10px 14px', textAlign: 'center' }}>Corte de Evaluación</th>
-                      <th style={{ padding: '10px 14px', textAlign: 'center' }}>Horas</th>
+                    <tr style={{ background: 'var(--c-bg-elevated)', color: 'var(--c-text)', borderBottom: '1px solid var(--c-border)' }}>
+                      <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 700 }}>{activityLabel}</th>
+                      <th style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 700 }}>Corte de Evaluación</th>
+                      <th style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 700 }}>Horas</th>
                     </tr>
                   </thead>
                   <tbody>
                     {content.sectionII.activities.map((a, i) => (
-                      <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : 'var(--c-blue-pale)' }}>
-                        <td style={{ padding: '10px 14px', fontWeight: 500 }}>{a.name}</td>
-                        <td style={{ padding: '10px 14px', textAlign: 'center', color: 'var(--c-navy-light)', fontWeight: 600 }}>
-                          {a.corte || 'Corte ' + (i + 1)}
+                      <tr
+                        key={i}
+                        style={{
+                          background: i % 2 === 0 ? 'var(--c-bg-surface)' : 'var(--c-bg-elevated)',
+                          borderBottom: '1px solid var(--c-border)',
+                        }}
+                      >
+                        <td style={{ padding: '10px 14px', fontWeight: 500, color: 'var(--c-text)' }}>{a.name}</td>
+                        <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                          <span style={{
+                            display: 'inline-block',
+                            padding: '3px 12px',
+                            borderRadius: '12px',
+                            fontWeight: 700,
+                            fontSize: '12px',
+                            background: 'rgba(99, 102, 241, 0.15)',
+                            color: 'var(--c-accent-bright)',
+                            border: '1px solid var(--c-accent-border)',
+                          }}>
+                            {a.corte || 'Corte ' + (i + 1)}
+                          </span>
                         </td>
-                        <td style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 600 }}>{a.hours} hrs.</td>
+                        <td style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 600, color: 'var(--c-text)' }}>{a.hours} hrs.</td>
                       </tr>
                     ))}
                   </tbody>
@@ -791,8 +824,54 @@ export default function PlanningDetailClient({
                   Eslabón Didáctico Micro: Sesiones de 50 min distribuidas en Apertura, Desarrollo y Cierre.
                 </p>
               </div>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <span className="text-xs" style={{ background: 'var(--c-blue-pale)', color: 'var(--c-blue-mid)', padding: '4px 10px', borderRadius: '12px', fontWeight: 600 }}>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                {Object.keys(sequenceData).length > 0 && (
+                  <>
+                    <a
+                      href={`/api/docx/secuencia/${planning.id}`}
+                      className="btn"
+                      style={{
+                        padding: '5px 12px',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        background: 'rgba(99, 102, 241, 0.15)',
+                        border: '1px solid var(--c-accent-border)',
+                        color: 'var(--c-accent-bright)',
+                        borderRadius: '6px',
+                        textDecoration: 'none',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                      }}
+                      title="Descargar solo la Secuencia Didáctica oficial en Word (.docx)"
+                    >
+                      <Download size={13} /> Secuencia (Word)
+                    </a>
+                    <button
+                      type="button"
+                      onClick={handleDownloadSecuenciaPdf}
+                      disabled={downloadingSeqPdf}
+                      className="btn"
+                      style={{
+                        padding: '5px 12px',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        background: 'rgba(239, 68, 68, 0.15)',
+                        border: '1px solid rgba(239, 68, 68, 0.35)',
+                        color: '#f87171',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                      }}
+                      title="Descargar solo la Secuencia Didáctica oficial en PDF (.pdf)"
+                    >
+                      {downloadingSeqPdf ? <RefreshCw size={13} className="animate-spin" /> : <Download size={13} />} Secuencia (PDF)
+                    </button>
+                  </>
+                )}
+                <span className="text-xs" style={{ background: 'var(--c-accent-subtle)', color: 'var(--c-accent-bright)', padding: '4px 10px', borderRadius: '12px', fontWeight: 600, border: '1px solid var(--c-accent-border)' }}>
                   MCCEMS / DBEPA
                 </span>
               </div>
@@ -820,14 +899,14 @@ export default function PlanningDetailClient({
                       border: '1px solid var(--c-border)',
                       borderRadius: '8px',
                       overflow: 'hidden',
-                      background: 'var(--c-surface)',
+                      background: 'var(--c-bg-surface)',
                     }}
                   >
                     {/* Block Header */}
                     <div
                       style={{
                         padding: '14px 18px',
-                        background: i % 2 === 0 ? 'var(--c-blue-pale)' : 'var(--c-surface)',
+                        background: i % 2 === 0 ? 'var(--c-bg-surface)' : 'var(--c-bg-elevated)',
                         borderBottom: isExpanded ? '1px solid var(--c-border)' : 'none',
                         display: 'flex',
                         justifyContent: 'space-between',
@@ -838,22 +917,22 @@ export default function PlanningDetailClient({
                     >
                       <div style={{ flex: 1, minWidth: '240px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                          <strong style={{ fontSize: '15px', color: 'var(--c-navy)' }}>
+                          <strong style={{ fontSize: '15px', color: 'var(--c-accent-bright)' }}>
                             {prefix}{i + 1}: {a.name}
                           </strong>
                           <span style={{ fontSize: '12px', color: 'var(--c-text-muted)' }}>
-                            ({a.hours} hrs. — <em style={{ color: 'var(--c-navy-light)' }}>{a.methodology}</em>)
+                            ({a.hours} hrs. — <em style={{ color: 'var(--c-accent-bright)' }}>{a.methodology}</em>)
                           </span>
                         </div>
 
                         {/* Status Badge */}
                         <div style={{ marginTop: '6px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                           {hasSeq ? (
-                            <span style={{ fontSize: '11.5px', background: '#dcfce7', color: '#15803d', border: '1px solid #86efac', padding: '2px 8px', borderRadius: '12px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <span style={{ fontSize: '11.5px', background: 'rgba(16,185,129,0.15)', color: '#34d399', border: '1px solid rgba(16,185,129,0.3)', padding: '2px 8px', borderRadius: '12px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                               <CheckCircle size={13} /> Secuencia Didáctica Micro ({seq.sessions.length} sesiones de 50 min)
                             </span>
                           ) : (
-                            <span style={{ fontSize: '11.5px', background: '#fef3c7', color: '#b45309', border: '1px solid #fde68a', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>
+                            <span style={{ fontSize: '11.5px', background: 'rgba(245,158,11,0.15)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.3)', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>
                               ⏳ Secuencia Micro Pendiente
                             </span>
                           )}
@@ -912,7 +991,7 @@ export default function PlanningDetailClient({
                               padding: '6px 12px',
                               fontSize: '12px',
                               fontWeight: 600,
-                              background: 'var(--c-surface)',
+                              background: 'var(--c-bg-surface)',
                               border: '1px solid var(--c-border)',
                               borderRadius: '6px',
                               cursor: 'pointer',
@@ -930,7 +1009,7 @@ export default function PlanningDetailClient({
 
                     {/* Block Body Content */}
                     {isExpanded && (
-                      <div style={{ padding: '16px 18px', background: 'var(--c-surface)' }}>
+                      <div style={{ padding: '16px 18px', background: 'var(--c-bg-surface)' }}>
                         {/* Feedback message banner */}
                         {seqMessage && seqMessage.block === i && (
                           <div
@@ -939,10 +1018,9 @@ export default function PlanningDetailClient({
                               borderRadius: '6px',
                               marginBottom: '14px',
                               fontSize: '13px',
-                              fontWeight: 500,
-                              background: seqMessage.type === 'success' ? '#dcfce7' : '#fee2e2',
-                              color: seqMessage.type === 'success' ? '#166534' : '#991b1b',
-                              border: `1px solid ${seqMessage.type === 'success' ? '#86efac' : '#f87171'}`,
+                              background: seqMessage.type === 'success' ? 'rgba(16,185,129,0.15)' : 'rgba(244,63,94,0.15)',
+                              color: seqMessage.type === 'success' ? '#34d399' : '#fb7185',
+                              border: `1px solid ${seqMessage.type === 'success' ? 'rgba(16,185,129,0.3)' : 'rgba(244,63,94,0.3)'}`,
                             }}
                           >
                             {seqMessage.text}
@@ -952,25 +1030,25 @@ export default function PlanningDetailClient({
                         {hasSeq ? (
                           <>
                             {/* Summary & Edit Toolbar */}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
-                              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', fontSize: '11.5px' }}>
-                                <span style={{ padding: '3px 8px', borderRadius: '4px', background: 'rgba(2,132,199,0.12)', color: '#0284c7', border: '1px solid rgba(2,132,199,0.25)', fontWeight: 600 }}>
-                                  🔵 Apertura: {aperturaCount} ses.
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+                              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                <span style={{ fontSize: '11px', background: 'rgba(3,105,161,0.15)', color: '#38bdf8', padding: '2px 8px', borderRadius: '10px', fontWeight: 600, border: '1px solid rgba(56,189,248,0.3)' }}>
+                                  Apertura: {aperturaCount} ses.
                                 </span>
-                                <span style={{ padding: '3px 8px', borderRadius: '4px', background: 'rgba(5,150,105,0.12)', color: '#059669', border: '1px solid rgba(5,150,105,0.25)', fontWeight: 600 }}>
-                                  🟢 Desarrollo: {desarrolloCount} ses.
+                                <span style={{ fontSize: '11px', background: 'rgba(21,128,61,0.15)', color: '#4ade80', padding: '2px 8px', borderRadius: '10px', fontWeight: 600, border: '1px solid rgba(74,222,128,0.3)' }}>
+                                  Desarrollo: {desarrolloCount} ses.
                                 </span>
-                                <span style={{ padding: '3px 8px', borderRadius: '4px', background: 'rgba(124,58,237,0.12)', color: '#7c3aed', border: '1px solid rgba(124,58,237,0.25)', fontWeight: 600 }}>
-                                  🟣 Cierre: {cierreCount} ses.
+                                <span style={{ fontSize: '11px', background: 'rgba(126,34,206,0.15)', color: '#c084fc', padding: '2px 8px', borderRadius: '10px', fontWeight: 600, border: '1px solid rgba(192,132,252,0.3)' }}>
+                                  Cierre: {cierreCount} ses.
                                 </span>
-                                <span style={{ padding: '3px 8px', color: 'var(--c-text-muted)', fontStyle: 'italic' }}>
+                                <span style={{ fontSize: '11px', color: 'var(--c-text-muted)', alignSelf: 'center' }}>
                                   Total: {sessionsList.length} sesiones de 50 min
                                 </span>
                               </div>
 
-                              <div style={{ display: 'flex', gap: '8px' }}>
+                              <div>
                                 {isEditing ? (
-                                  <>
+                                  <div style={{ display: 'flex', gap: '6px' }}>
                                     <button
                                       type="button"
                                       onClick={() => handleSaveSecuencia(i)}
@@ -981,19 +1059,19 @@ export default function PlanningDetailClient({
                                     </button>
                                     <button
                                       type="button"
-                                      onClick={() => handleCancelEdit(i)}
+                                      onClick={() => setEditingSeqBlock(null)}
                                       className="btn"
-                                      style={{ padding: '5px 12px', fontSize: '12px', background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)', borderRadius: '5px', cursor: 'pointer' }}
+                                      style={{ padding: '5px 10px', fontSize: '12px', background: 'var(--c-bg-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text-muted)', borderRadius: '5px', cursor: 'pointer' }}
                                     >
                                       Cancelar
                                     </button>
-                                  </>
+                                  </div>
                                 ) : (
                                   <button
                                     type="button"
                                     onClick={() => handleStartEdit(i)}
                                     className="btn"
-                                    style={{ padding: '5px 12px', fontSize: '12px', fontWeight: 600, background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)', borderRadius: '5px', cursor: 'pointer' }}
+                                    style={{ padding: '5px 12px', fontSize: '12px', fontWeight: 600, background: 'var(--c-bg-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)', borderRadius: '5px', cursor: 'pointer' }}
                                   >
                                     ✏️ Editar Sesiones
                                   </button>
@@ -1005,7 +1083,7 @@ export default function PlanningDetailClient({
                             <div style={{ overflowX: 'auto' }}>
                               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12.5px' }}>
                                 <thead>
-                                  <tr style={{ background: 'var(--c-navy)', color: '#fff' }}>
+                                  <tr style={{ background: 'var(--c-bg-elevated)', color: 'var(--c-text)', borderBottom: '1px solid var(--c-border)' }}>
                                     <th style={{ padding: '8px 10px', textAlign: 'center', width: '90px' }}>Sesión / Fase</th>
                                     <th style={{ padding: '8px 10px', textAlign: 'left', minWidth: '180px' }}>Título Situado</th>
                                     <th style={{ padding: '8px 10px', textAlign: 'left', minWidth: '220px' }}>Rol del Docente</th>
@@ -1027,7 +1105,7 @@ export default function PlanningDetailClient({
                                       <tr
                                         key={sIdx}
                                         style={{
-                                          background: sIdx % 2 === 0 ? 'var(--c-card-bg, #fff)' : 'var(--c-blue-pale)',
+                                          background: sIdx % 2 === 0 ? 'var(--c-bg-surface)' : 'var(--c-bg-elevated)',
                                           borderBottom: '1px solid var(--c-border)',
                                         }}
                                       >
@@ -1058,7 +1136,7 @@ export default function PlanningDetailClient({
                                               style={{ width: '100%', fontSize: '12px', padding: '4px 6px', borderRadius: '4px', border: '1px solid var(--c-border)' }}
                                             />
                                           ) : (
-                                            <span style={{ fontWeight: 600, color: 'var(--c-navy)' }}>{s.title}</span>
+                                            <span style={{ fontWeight: 600, color: 'var(--c-accent-bright)' }}>{s.title}</span>
                                           )}
                                         </td>
                                         <td style={{ padding: '8px 10px', verticalAlign: 'top' }}>
@@ -1070,7 +1148,7 @@ export default function PlanningDetailClient({
                                               style={{ width: '100%', fontSize: '12px', padding: '4px 6px', borderRadius: '4px', border: '1px solid var(--c-border)' }}
                                             />
                                           ) : (
-                                            <span style={{ lineHeight: 1.4 }}>{s.teachingActivity}</span>
+                                            <span style={{ lineHeight: 1.4, color: 'var(--c-text-2)' }}>{s.teachingActivity}</span>
                                           )}
                                         </td>
                                         <td style={{ padding: '8px 10px', verticalAlign: 'top' }}>
@@ -1082,19 +1160,19 @@ export default function PlanningDetailClient({
                                               style={{ width: '100%', fontSize: '12px', padding: '4px 6px', borderRadius: '4px', border: '1px solid var(--c-border)' }}
                                             />
                                           ) : (
-                                            <span style={{ lineHeight: 1.4 }}>{s.learningActivity}</span>
+                                            <span style={{ lineHeight: 1.4, color: 'var(--c-text)' }}>{s.learningActivity}</span>
                                           )}
                                         </td>
                                         <td style={{ padding: '8px 10px', verticalAlign: 'top' }}>
                                           {isEditing ? (
                                             <input
                                               type="text"
-                                              value={s.evidence}
+                                              value={s.evidence || ''}
                                               onChange={(e) => handleUpdateEditedSession(i, sIdx, 'evidence', e.target.value)}
                                               style={{ width: '100%', fontSize: '12px', padding: '4px 6px', borderRadius: '4px', border: '1px solid var(--c-border)' }}
                                             />
                                           ) : (
-                                            <span style={{ fontStyle: 'italic' }}>{s.evidence}</span>
+                                            <span style={{ fontSize: '11.5px', color: 'var(--c-text-muted)' }}>{s.evidence || '—'}</span>
                                           )}
                                         </td>
                                         <td style={{ padding: '8px 10px', verticalAlign: 'top' }}>
@@ -1117,21 +1195,13 @@ export default function PlanningDetailClient({
                             </div>
                           </>
                         ) : (
-                          <div style={{ textAlign: 'center', padding: '24px 16px', background: 'var(--c-blue-pale)', borderRadius: '8px', border: '1px dashed var(--c-blue-mid)' }}>
-                            <p style={{ fontWeight: 600, color: 'var(--c-navy)', marginBottom: '6px' }}>
+                          <div style={{ textAlign: 'center', padding: '24px 16px', background: 'var(--c-bg-surface)', borderRadius: '8px', border: '1px dashed var(--c-border-accent)' }}>
+                            <p style={{ fontWeight: 600, color: 'var(--c-accent-bright)', marginBottom: '6px' }}>
                               ⚡ Secuencia Didáctica Micro no generada para este bloque
                             </p>
-                            <p style={{ fontSize: '13px', color: 'var(--c-text-muted)', maxWidth: '520px', margin: '0 auto 16px', lineHeight: 1.5 }}>
-                              Genera la secuencia de <strong>{a.hours} sesiones de 50 minutos</strong> con momentos didácticos (Apertura, Desarrollo, Cierre), actividades del docente y del estudiante, y evidencias formativas.
+                            <p style={{ fontSize: '13px', color: 'var(--c-text-muted)', maxWidth: '520px', margin: '0 auto', lineHeight: 1.5 }}>
+                              Usa el botón <strong>"Generar Secuencia (IA)"</strong> en el encabezado del bloque para generar las {a.hours} sesiones de 50 minutos con momentos didácticos (Apertura, Desarrollo, Cierre).
                             </p>
-                            <button
-                              type="button"
-                              onClick={() => handleGenerateSecuencia(i)}
-                              className="btn btn-primary"
-                              style={{ padding: '8px 18px', fontSize: '13px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                            >
-                              <Zap size={14} /> Generar Secuencia Didáctica Micro con IA
-                            </button>
                           </div>
                         )}
                       </div>
@@ -1166,12 +1236,12 @@ export default function PlanningDetailClient({
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                   <thead>
-                    <tr style={{ background: 'var(--c-navy)', color: '#fff' }}>
-                      <th style={{ padding: '10px 12px', textAlign: 'left' }}>Corte / Momento</th>
-                      <th style={{ padding: '10px 12px', textAlign: 'left' }}>Evidencia</th>
-                      <th style={{ padding: '10px 12px', textAlign: 'left' }}>Instrumento Propuesto</th>
-                      <th style={{ padding: '10px 12px', textAlign: 'center' }}>%</th>
-                      <th style={{ padding: '10px 12px', textAlign: 'center' }}>Herramientas Extra</th>
+                    <tr style={{ background: 'var(--c-bg-elevated)', color: 'var(--c-text)', borderBottom: '1px solid var(--c-border)' }}>
+                      <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 700 }}>Corte / Momento</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 700 }}>Evidencia</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 700 }}>Instrumento Propuesto</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 700 }}>%</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 700 }}>Herramientas Extra</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1185,14 +1255,14 @@ export default function PlanningDetailClient({
                       const isCurrentGenerating = generatingKey === loadingKey;
 
                       return (
-                        <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : 'var(--c-blue-pale)', borderBottom: '1px solid #E2E8F0' }}>
+                        <tr key={i} style={{ background: i % 2 === 0 ? 'var(--c-bg-surface)' : 'var(--c-bg-elevated)', borderBottom: '1px solid var(--c-border)' }}>
                           <td style={{ padding: '10px 12px' }}>
-                            <span style={{ fontWeight: 600 }}>{ev.moment}</span>
+                            <span style={{ fontWeight: 600, color: 'var(--c-text)' }}>{ev.moment}</span>
                             <div style={{ fontSize: '11px', color: 'var(--c-text-muted)' }}>{ev.type} · {ev.agent}</div>
                           </td>
-                          <td style={{ padding: '10px 12px', maxWidth: '220px' }}>{ev.evidence}</td>
-                          <td style={{ padding: '10px 12px', fontWeight: 500 }}>{ev.instrument}</td>
-                          <td style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 600 }}>{ev.percentage}%</td>
+                          <td style={{ padding: '10px 12px', maxWidth: '220px', color: 'var(--c-text-2)' }}>{ev.evidence}</td>
+                          <td style={{ padding: '10px 12px', fontWeight: 500, color: 'var(--c-text)' }}>{ev.instrument}</td>
+                          <td style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 600, color: 'var(--c-accent-bright)' }}>{ev.percentage}%</td>
                           <td style={{ padding: '10px 12px', textAlign: 'center' }}>
                             {generated ? (
                               <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
@@ -1893,16 +1963,16 @@ export default function PlanningDetailClient({
               <span className="section-card-title" style={{ color: '#fff' }}>📚 Guías de Práctica para el Estudiante (Estilo MPM Tecnológico)</span>
             </div>
             <div className="section-card-body">
-              <div style={{ padding: '12px', background: '#f5f3ff', borderLeft: '3px solid #7c3aed', borderRadius: '6px', marginBottom: '16px', fontSize: '13.5px' }}>
-                <p style={{ color: '#4c1d95', fontWeight: 600, marginBottom: '4px' }}>💡 ¿Qué es la Guía de Práctica para el Estudiante?</p>
-                <p style={{ color: '#6d28d9', marginBottom: '6px' }}>
+              <div style={{ padding: '12px', background: 'rgba(124, 58, 237, 0.12)', borderLeft: '3px solid #7c3aed', borderRadius: '6px', marginBottom: '16px', fontSize: '13.5px' }}>
+                <p style={{ color: '#c4b5fd', fontWeight: 600, marginBottom: '4px' }}>💡 ¿Qué es la Guía de Práctica para el Estudiante?</p>
+                <p style={{ color: 'var(--c-text)', marginBottom: '6px' }}>
                   Documento que el estudiante recibe directamente (impreso o digital) para guiar su aprendizaje autónomo.
                   Tiene la misma estructura que los manuales MPM2S12027 de los Bachilleratos Tecnológicos (CECyTE/DGETI),
                   incluyendo propósito, competencias, materiales, procedimiento por fases de la metodología activa,
                   preguntas de análisis (taxonomía Bloom), tabla de datos y autoevaluación formativa.
                 </p>
                 {planning.metodologiaActiva && (
-                  <p style={{ color: '#4c1d95', fontWeight: 700, fontSize: '13px' }}>
+                  <p style={{ color: '#a78bfa', fontWeight: 700, fontSize: '13px' }}>
                     🎯 Metodología activa seleccionada: <strong>{planning.metodologiaActiva}</strong> — las guías incluirán sus fases específicas.
                   </p>
                 )}
@@ -1923,17 +1993,17 @@ export default function PlanningDetailClient({
                     <div
                       key={actIdx}
                       style={{
-                        border: '1px solid #ddd6fe',
+                        border: '1px solid rgba(124, 58, 237, 0.25)',
                         borderRadius: '10px',
                         overflow: 'hidden',
-                        background: '#faf5ff',
+                        background: 'var(--c-bg-surface)',
                       }}
                     >
                       {/* Activity header */}
                       <div style={{
                         padding: '12px 16px',
-                        background: 'linear-gradient(90deg, #ede9fe, #f5f3ff)',
-                        borderBottom: '1px solid #ddd6fe',
+                        background: 'linear-gradient(90deg, rgba(124, 58, 237, 0.2), rgba(124, 58, 237, 0.08))',
+                        borderBottom: '1px solid rgba(124, 58, 237, 0.2)',
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
@@ -1941,10 +2011,10 @@ export default function PlanningDetailClient({
                         gap: '10px',
                       }}>
                         <div>
-                          <span style={{ fontWeight: 700, color: '#4c1d95', fontSize: '15px' }}>
+                          <span style={{ fontWeight: 700, color: '#e9d5ff', fontSize: '15px' }}>
                             📋 Práctica {practiceNum}: {practiceTitle}
                           </span>
-                          <div style={{ fontSize: '12px', color: '#7c3aed', marginTop: '2px' }}>
+                          <div style={{ fontSize: '12px', color: '#c4b5fd', marginTop: '2px' }}>
                             {act.hours} hrs · {act.methodology || 'Metodología activa'}
                           </div>
                         </div>
@@ -1952,13 +2022,13 @@ export default function PlanningDetailClient({
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                           {generatedGuide ? (
                             <>
-                              <span style={{ fontSize: '12px', color: '#059669', fontWeight: 600, background: '#d1fae5', padding: '3px 10px', borderRadius: '12px' }}>
+                              <span style={{ fontSize: '12px', color: '#34d399', fontWeight: 600, background: 'rgba(16,185,129,0.15)', padding: '3px 10px', borderRadius: '12px' }}>
                                 ✓ Guía generada
                               </span>
                               <button
                                 onClick={() => setPreviewExtra(generatedGuide)}
                                 className="btn"
-                                style={{ padding: '6px 14px', fontSize: '12px', background: '#ede9fe', border: '1px solid #7c3aed', color: '#7c3aed', borderRadius: '6px' }}
+                                style={{ padding: '6px 14px', fontSize: '12px', background: 'rgba(124,58,237,0.2)', border: '1px solid #7c3aed', color: '#c4b5fd', borderRadius: '6px' }}
                               >
                                 👁️ Ver Guía
                               </button>
@@ -1980,7 +2050,7 @@ export default function PlanningDetailClient({
                               <button
                                 onClick={() => handleDeleteExtra(generatedGuide.id)}
                                 className="btn"
-                                style={{ padding: '6px 12px', fontSize: '12px', background: '#FEE2E2', border: '1px solid #EF4444', color: '#EF4444', borderRadius: '6px' }}
+                                style={{ padding: '6px 12px', fontSize: '12px', background: 'rgba(244,63,94,0.15)', border: '1px solid rgba(244,63,94,0.3)', color: '#fb7185', borderRadius: '6px' }}
                               >
                                 🗑️
                               </button>
@@ -2043,7 +2113,7 @@ export default function PlanningDetailClient({
       )}
       {activeTab === 'a4print' && (
         <DocumentA4Viewer
-          planning={planning}
+          planning={{ ...planning, sequenceJson: sequenceData }}
           onDownloadDocx={() => {
             window.location.href = `/api/docx/${planning.id}`;
           }}
@@ -2122,8 +2192,8 @@ export default function PlanningDetailClient({
           {!auditLoading && !auditError && auditReport && (() => {
             const score: number = auditReport.overall_score ?? 0;
             const level: string = auditReport.compliance_level ?? 'requiere_mejora';
-            const scoreColor = score >= 80 ? '#059669' : score >= 60 ? '#d97706' : score >= 40 ? '#ea580c' : '#dc2626';
-            const scoreBg = score >= 80 ? '#f0fdf4' : score >= 60 ? '#fffbeb' : score >= 40 ? '#fff7ed' : '#fff1f2';
+            const scoreColor = score >= 80 ? '#34d399' : score >= 60 ? '#fbbf24' : score >= 40 ? '#fb923c' : '#f87171';
+            const scoreBg = score >= 80 ? 'rgba(16, 185, 129, 0.12)' : score >= 60 ? 'rgba(245, 158, 11, 0.12)' : score >= 40 ? 'rgba(234, 88, 12, 0.12)' : 'rgba(244, 63, 94, 0.12)';
             const levelLabel: Record<string, string> = {
               excelente: '🏆 Excelente',
               satisfactorio: '✅ Satisfactorio',
@@ -2140,7 +2210,7 @@ export default function PlanningDetailClient({
             const dimScores = auditReport.dimension_scores || {};
             const findings = auditReport.findings || {};
             const recommendations: any[] = auditReport.recommendations || [];
-            const sevColor: Record<string, string> = { alta: '#dc2626', media: '#d97706', baja: '#059669' };
+            const sevColor: Record<string, string> = { alta: '#f43f5e', media: '#f59e0b', baja: '#10b981' };
 
             return (
               <>
@@ -2155,7 +2225,7 @@ export default function PlanningDetailClient({
                     position: 'relative', width: '100px', height: '100px', flexShrink: 0,
                   }}>
                     <svg viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)', width: '100%', height: '100%' }}>
-                      <circle cx="50" cy="50" r="42" fill="none" stroke="#e2e8f0" strokeWidth="10" />
+                      <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="10" />
                       <circle
                         cx="50" cy="50" r="42" fill="none" stroke={scoreColor} strokeWidth="10"
                         strokeDasharray={`${(score / 100) * 263.9} 263.9`}
@@ -2176,11 +2246,11 @@ export default function PlanningDetailClient({
                     <div style={{ fontSize: '22px', fontWeight: 800, color: scoreColor }}>
                       {levelLabel[level] || level}
                     </div>
-                    <div style={{ fontSize: '13px', color: '#1e293b', marginTop: '4px' }}>
+                    <div style={{ fontSize: '13px', color: 'var(--c-text)', marginTop: '4px' }}>
                       {auditReport.uac_name} · {auditReport.semester}° Semestre
                     </div>
                     {auditReport.created_at && (
-                      <div style={{ fontSize: '12px', color: '#475569', marginTop: '6px' }}>
+                      <div style={{ fontSize: '12px', color: 'var(--c-text-muted)', marginTop: '6px' }}>
                         Auditado: {new Date(auditReport.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </div>
                     )}
@@ -2193,14 +2263,14 @@ export default function PlanningDetailClient({
                         <span style={{ fontSize: '11px', color: 'var(--c-text-muted)', width: '14px', textAlign: 'center' }}>
                           {statusIcon[dim.status] || '⚠️'}
                         </span>
-                        <div style={{ flex: 1, height: '6px', background: '#e2e8f0', borderRadius: '99px', overflow: 'hidden' }}>
+                        <div style={{ flex: 1, height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '99px', overflow: 'hidden' }}>
                           <div style={{
                             width: `${dim.score}%`, height: '100%',
-                            background: dim.score >= 80 ? '#059669' : dim.score >= 60 ? '#d97706' : '#dc2626',
+                            background: dim.score >= 80 ? '#10b981' : dim.score >= 60 ? '#f59e0b' : '#f43f5e',
                             borderRadius: '99px', transition: 'width 0.6s ease',
                           }} />
                         </div>
-                        <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--c-navy)', width: '28px', textAlign: 'right' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--c-text)', width: '28px', textAlign: 'right' }}>
                           {dim.score}
                         </span>
                       </div>
@@ -2210,12 +2280,12 @@ export default function PlanningDetailClient({
 
                 {/* Dimension Cards */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--c-navy)', margin: 0 }}>Detalle por Dimensión</h3>
+                  <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--c-text)', margin: 0 }}>Detalle por Dimensión</h3>
                   {Object.entries(dimScores).map(([key, dim]: [string, any]) => {
                     const isExpanded = expandedDimension === key;
                     const dimScore: number = dim.score ?? 0;
-                    const dimColor = dimScore >= 80 ? '#059669' : dimScore >= 60 ? '#d97706' : '#dc2626';
-                    const dimBg = dimScore >= 80 ? '#f0fdf4' : dimScore >= 60 ? '#fffbeb' : '#fff1f2';
+                    const dimColor = dimScore >= 80 ? '#34d399' : dimScore >= 60 ? '#fbbf24' : '#f87171';
+                    const dimBg = dimScore >= 80 ? 'rgba(16, 185, 129, 0.08)' : dimScore >= 60 ? 'rgba(245, 158, 11, 0.08)' : 'rgba(244, 63, 94, 0.08)';
                     return (
                       <div key={key} style={{ border: `1px solid ${dimColor}33`, borderRadius: '10px', overflow: 'hidden' }}>
                         <button
@@ -2227,7 +2297,7 @@ export default function PlanningDetailClient({
                           }}
                         >
                           <span style={{ fontSize: '18px' }}>{statusIcon[dim.status] || '⚠️'}</span>
-                          <span style={{ flex: 1, fontWeight: 700, fontSize: '14px', color: 'var(--c-navy)' }}>
+                          <span style={{ flex: 1, fontWeight: 700, fontSize: '14px', color: 'var(--c-text)' }}>
                             {dimLabel[key] || key}
                           </span>
                           <span style={{
@@ -2236,7 +2306,7 @@ export default function PlanningDetailClient({
                           }}>
                             {dimScore}/100
                           </span>
-                          <span style={{ color: '#64748b', fontSize: '13px' }}>{isExpanded ? '▲' : '▼'}</span>
+                          <span style={{ color: 'var(--c-text-muted)', fontSize: '13px' }}>{isExpanded ? '▲' : '▼'}</span>
                         </button>
                         {isExpanded && (
                           <div style={{ padding: '14px 16px', background: 'var(--c-bg-elevated)', borderTop: `1px solid ${dimColor}22` }}>
@@ -2300,11 +2370,11 @@ export default function PlanningDetailClient({
 
                   {/* Propósitos cubiertos */}
                   {findings.propositos_cubiertos?.length > 0 && (
-                    <div style={{ padding: '16px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '10px' }}>
-                      <div style={{ fontWeight: 700, fontSize: '13px', color: '#1e40af', marginBottom: '10px' }}>📌 Propósitos Cubiertos</div>
+                    <div style={{ padding: '16px', background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.3)', borderRadius: '10px' }}>
+                      <div style={{ fontWeight: 700, fontSize: '13px', color: '#818cf8', marginBottom: '10px' }}>📌 Propósitos Cubiertos</div>
                       <ul style={{ margin: 0, paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         {findings.propositos_cubiertos.map((p: string, i: number) => (
-                          <li key={i} style={{ fontSize: '13px', color: '#1e3a8a', lineHeight: 1.5 }}>{p}</li>
+                          <li key={i} style={{ fontSize: '13px', color: 'var(--c-text)', lineHeight: 1.5 }}>{p}</li>
                         ))}
                       </ul>
                     </div>
@@ -2314,11 +2384,11 @@ export default function PlanningDetailClient({
                 {/* Recommendations */}
                 {recommendations.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--c-navy)', margin: 0 }}>🎯 Recomendaciones del Auditor</h3>
+                    <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--c-text)', margin: 0 }}>🎯 Recomendaciones del Auditor</h3>
                     {recommendations.map((rec: any, i: number) => {
                       const sev: string = rec.severidad ?? 'media';
-                      const bg = sev === 'alta' ? '#fff1f2' : sev === 'media' ? '#fffbeb' : '#f0fdf4';
-                      const border = sev === 'alta' ? '#fda4af' : sev === 'media' ? '#fde68a' : '#86efac';
+                      const bg = sev === 'alta' ? 'rgba(244,63,94,0.12)' : sev === 'media' ? 'rgba(245,158,11,0.12)' : 'rgba(16,185,129,0.12)';
+                      const border = sev === 'alta' ? 'rgba(244,63,94,0.3)' : sev === 'media' ? 'rgba(245,158,11,0.3)' : 'rgba(16,185,129,0.3)';
                       return (
                         <div key={i} style={{
                           padding: '14px 16px', background: bg, border: `1px solid ${border}`,
@@ -2326,15 +2396,15 @@ export default function PlanningDetailClient({
                         }}>
                           <span style={{
                             padding: '2px 9px', borderRadius: '99px', fontSize: '11px', fontWeight: 700,
-                            background: sevColor[sev] ?? '#d97706', color: '#fff', flexShrink: 0, marginTop: '1px',
+                            background: sevColor[sev] ?? '#f59e0b', color: '#fff', flexShrink: 0, marginTop: '1px',
                           }}>
                             {sev.toUpperCase()}
                           </span>
                           <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                            <div style={{ fontSize: '11px', color: 'var(--c-text-muted)', fontWeight: 600, marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                               {dimLabel[rec.dimension] || rec.dimension}
                             </div>
-                            <div style={{ fontSize: '13.5px', color: '#1e293b', lineHeight: 1.6 }}>{rec.mensaje}</div>
+                            <div style={{ fontSize: '13.5px', color: 'var(--c-text)', lineHeight: 1.6 }}>{rec.mensaje}</div>
                           </div>
                         </div>
                       );
@@ -2356,9 +2426,9 @@ export default function PlanningDetailClient({
               <span className="section-card-title" style={{ color: '#fff' }}>📦 Bundle Didáctico Complementario</span>
             </div>
             <div className="section-card-body">
-              <div style={{ padding: '12px', background: '#fef3c7', borderLeft: '3px solid #b45309', borderRadius: '6px', marginBottom: '20px', fontSize: '13.5px' }}>
-                <p style={{ color: '#78350f', fontWeight: 600, marginBottom: '4px' }}>💡 ¿Qué es el Bundle Didáctico?</p>
-                <p style={{ color: '#92400e', margin: 0 }}>
+              <div style={{ padding: '12px', background: 'rgba(245, 158, 11, 0.12)', borderLeft: '3px solid #b45309', borderRadius: '6px', marginBottom: '20px', fontSize: '13.5px' }}>
+                <p style={{ color: '#fbbf24', fontWeight: 600, marginBottom: '4px' }}>💡 ¿Qué es el Bundle Didáctico?</p>
+                <p style={{ color: 'var(--c-text)', margin: 0 }}>
                   Conjunto de 4 materiales complementarios generados automáticamente a partir de tu planeación:
                   Guía del Alumno, Instrumento de Coevaluación, Guión de Diapositivas y Quiz Diagnóstico.
                   Genera cada uno individualmente o todos a la vez con <strong>Suite Completa</strong>.
