@@ -2717,14 +2717,14 @@ export default function PlanningDetailClient({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div className="section-card">
             <div className="section-card-header" style={{ background: 'linear-gradient(135deg, #4c1d95 0%, #7c3aed 100%)', color: '#fff' }}>
-              <span className="section-card-title" style={{ color: '#fff' }}>📚 Guías de Práctica para el Estudiante (Estilo MPM Tecnológico)</span>
+              <span className="section-card-title" style={{ color: '#fff' }}>📚 Guías de Práctica para el Estudiante</span>
             </div>
             <div className="section-card-body">
               <div style={{ padding: '12px', background: 'rgba(124, 58, 237, 0.12)', borderLeft: '3px solid #7c3aed', borderRadius: '6px', marginBottom: '16px', fontSize: '13.5px' }}>
                 <p style={{ color: '#c4b5fd', fontWeight: 600, marginBottom: '4px' }}>💡 ¿Qué es la Guía de Práctica para el Estudiante?</p>
                 <p style={{ color: 'var(--c-text)', marginBottom: '6px' }}>
-                  Documento que el estudiante recibe directamente (impreso o digital) para guiar su aprendizaje autónomo.
-                  Tiene la misma estructura que los manuales MPM2S12027 de los Bachilleratos Tecnológicos (CECyTE/DGETI),
+                  Documento que el estudiante recibe directamente (impreso o digital) para guiar su aprendizaje autónomo,
+                  diseñado bajo los lineamientos pedagógicos del Marco Curricular Común (MCCEMS),
                   incluyendo propósito, competencias, materiales, procedimiento por fases de la metodología activa,
                   preguntas de análisis (taxonomía Bloom), tabla de datos y autoevaluación formativa.
                 </p>

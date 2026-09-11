@@ -8,7 +8,7 @@
 //   checklist       → Lista de cotejo (Sí/No)
 //   material        → Material didáctico impreso (docente)
 //   lesson_plan     → Plan de clase 50 minutos (11 puntos USICAMM)
-//   practice_guide  → Guía de Práctica para el Estudiante (estilo MPM tecnológico)
+//   practice_guide  → Guía de Práctica para el Estudiante (MCCEMS)
 // ═══════════════════════════════════════════════════════════════════
 
 export const SYSTEM_PROMPT_EXTRAS = `
@@ -181,14 +181,13 @@ El documento debe incluir de forma explícita las siguientes secciones etiquetad
 `;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FASE 3: Guía de Práctica para el Estudiante (estilo MPM Tecnológico)
-// Basado en la estructura de las guías MPM2S12027 de CECyTE/DGETI Puebla
+// FASE 3: Guía de Práctica para el Estudiante (MCCEMS Formativo)
 // Optimizada para Metodologías Activas (ABR, Práctica de Taller, STEAM, ABP)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Genera una Guía de Práctica completa para el ESTUDIANTE.
- * Estructura basada en los manuales tecnológicos MPM2S12027 de Bachilleratos Tecnológicos Puebla.
+ * Diseñada bajo los lineamientos pedagógicos del Marco Curricular Común (MCCEMS).
  * El estudiante la recibe impresa o digital para guiar su aprendizaje autónomo.
  */
 export const PRACTICE_GUIDE_PROMPT_TEMPLATE = (
