@@ -45,6 +45,7 @@ export default async function PlanningDetailPage({
     metodologiaActiva: planning.metodologia_activa || undefined,
     evaluationJson: planning.evaluation_json || null,
     sequenceJson: planning.sequence_json || null,
+    workbooksJson: planning.workbooks_json || null,
   };
 
   const extrasTyped: PlanningExtra[] = extras.map((ex) => ({

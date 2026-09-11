@@ -363,4 +363,36 @@ sin abrirlos. La estrategia es catálogo curado manualmente en BD (NO carga masi
 5. **Fase 5:** Articulación Integral de la Suite (PAEC ↔ Planeación ↔ PMC ↔ PIPS).
 6. **Fase 6:** Memoria de Estilo Docente y Refinamiento Granular.
 
+---
+
+## 15. MOTOR EDITORIAL DE LIBROS DE TRABAJO ACTIVO (FINLANDIA-PUEBLA)
+
+> Documento de arquitectura detallado: [`docs/ARQUITECTURA_LIBROS_TRABAJO_EDITORIAL.md`](file:///c:/Proyectos_SACRINT/Proyecto_SIGPDA_EMS/SIGPDA_EMS/docs/ARQUITECTURA_LIBROS_TRABAJO_EDITORIAL.md)
+
+### 📚 Arquitectura de Redacción y Calidad Calibrada (Opción 3)
+1. **4 Redactores Concurrentes (`Promise.allSettled`):**
+   - **Foundation Writer (30%):** Concepto Cero (analogía cotidiana física), Yo Hago (ejemplo resuelto), Hacemos (práctica grupal), Tú Haces (reto autónomo).
+   - **Lab Writer (30%):** Protocolo experimental/taller, tabla de mediciones empíricas, matriz de resiliencia formativa de troubleshooting ("¿Qué hacer si falla?").
+   - **Project Writer (25%):** Misión orientada a resolver la problemática PAEC escolar con fases, especificaciones técnicas y criterios de aceptación.
+   - **Evaluation Writer (15%):** Rúbrica oficial NEM de 4 niveles (Excelente, Bueno, Suficiente, Requiere Apoyo), lista de cotejo objetiva, quiz de pensamiento crítico y reflexión metacognitiva.
+
+2. **Calibración Jerárquica de Calidad en Dos Niveles:**
+   - **Capa Bloque (Nivel 1 - `block-guide-orchestrator.ts`):**
+     - Target proporcional por tercio del semestre: Min = `targetWords.min / 3` (~8,333 BT / ~5,833 BGE), Ideal = ~13,333 BT / ~9,333 BGE.
+     - Pilotos reales: BT (11,263 palabras) y BGE (9,695 palabras) obtienen Score **95/100** (`accepted: true`, `qualityWarning: false`).
+     - Tolerancia y reintentos selectivos de redactores con score < 70 o placeholders `[...]`.
+   - **Capa Semestral (Nivel 2 - `master-workbook-compiler.ts`):**
+     - Umbral macro oficial: $\ge 25,000$ palabras (BT) / $\ge 17,500$ palabras (BGE).
+     - Penalización pedagógica: -10 puntos al score si algún bloque contiene advertencias de calidad activas.
+     - Compilación instantánea con **0 tokens de IA** en DOCX y PDF unificados con paginación corrida continua.
+
+3. **Gating en el Frontend (`PlanningDetailClient.tsx`):**
+   - Muestra el progreso en vivo: `"Bloque I: 11,263 palabras · Bloque II: pendiente · Bloque III: pendiente"`.
+   - Badge de volumen acumulado: `"Total: 11,263 / 25,000 palabras (45%)"`.
+   - Botón semestral habilitado exclusivamente cuando `allBlocksGenerated && semestralThresholdMet`.
+
+4. **Suite de Integración Fase 6:**
+   - Script automatizado: [`scratch/test_fase6_integration.ts`](file:///c:/Proyectos_SACRINT/Proyecto_SIGPDA_EMS/SIGPDA_EMS/scratch/test_fase6_integration.ts) (27/27 pruebas superadas exitosamente).
+
+
 

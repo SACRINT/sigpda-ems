@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import type { GeneratedPlanningContent, Planning, PlanningExtra, SecuenciaBloque, SecuenciaSesion } from '@/types/planning';
 import { ExtraPreviewModal } from '@/components/planeacion/ExtraPreviewModal';
@@ -9,6 +9,7 @@ import GenerationFeedback from '@/components/feedback/GenerationFeedback';
 import DocumentA4Viewer from '@/components/common/DocumentA4Viewer';
 import { generatePlanningPDF, generateSecuenciaPDF } from '@/lib/pdf-generator';
 import { generateBlockSessions, type DetailedSession } from '@/lib/session-progression-engine';
+import type { ActiveWorkTextbook, GenerationProgressState } from '@/types/work-textbook';
 // ── Lucide Icons ────────────────────────────────────────────────────────────
 import {
   FileText, Zap, Clock, BookOpen, Printer, BarChart3, Package,
@@ -322,6 +323,213 @@ export default function PlanningDetailClient({
       return { ...prev, [blockIndex]: currentList };
     });
   };
+
+  // ── Libros-Cuadernos de Trabajo Activo por Bloque (Fase 4: 35-80 págs / bloque) ─
+  interface BlockWorkbookItem {
+    loaded: boolean;
+    generating: boolean;
+    workbook: ActiveWorkTextbook | null;
+    version?: number;
+    progress: GenerationProgressState | null;
+    error: string | null;
+  }
+
+  const initialWorkbooks: Record<number, BlockWorkbookItem> = {};
+  const rawWorkbooks = ((planning as any).workbooksJson || (planning as any).workbooks_json || {}) as Record<string, any>;
+  (content?.sectionIV?.activities || []).forEach((_, idx) => {
+    const entry = rawWorkbooks[`block_${idx}`];
+    initialWorkbooks[idx] = {
+      loaded: Boolean(entry?.current),
+      generating: false,
+      workbook: entry?.current || null,
+      version: entry?.version || 1,
+      progress: null,
+      error: null,
+    };
+  });
+
+  const [blockWorkbooks, setBlockWorkbooks] = useState<Record<number, BlockWorkbookItem>>(initialWorkbooks);
+  const pollIntervalsRef = useRef<Record<number, NodeJS.Timeout>>({});
+
+  // Cleanup active polling intervals when component unmounts
+  useEffect(() => {
+    return () => {
+      Object.values(pollIntervalsRef.current).forEach(interval => {
+        if (interval) clearInterval(interval);
+      });
+    };
+  }, []);
+
+  // Sync / verify existing workbooks on mount
+  useEffect(() => {
+    const acts = content?.sectionIV?.activities || [];
+    acts.forEach(async (_, idx) => {
+      try {
+        const res = await fetch(`/api/planeaciones/${planning.id}/libro-bloque?blockIndex=${idx}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.workbook) {
+            setBlockWorkbooks(prev => ({
+              ...prev,
+              [idx]: {
+                ...prev[idx],
+                loaded: true,
+                workbook: data.workbook,
+                version: data.workbook.version || prev[idx]?.version || 1,
+              },
+            }));
+          }
+        }
+      } catch {
+        // ignore background fetch errors
+      }
+    });
+  }, [planning.id]);
+
+  const handleGenerateWorkbook = async (blockIndex: number) => {
+    setBlockWorkbooks(prev => ({
+      ...prev,
+      [blockIndex]: {
+        loaded: Boolean(prev[blockIndex]?.workbook),
+        generating: true,
+        workbook: prev[blockIndex]?.workbook || null,
+        version: prev[blockIndex]?.version || 1,
+        error: null,
+        progress: {
+          planningId: planning.id,
+          blockIndex,
+          phase: 'analyzing',
+          currentStep: 'Iniciando generación editorial del libro...',
+          percent: 5,
+          updatedAt: new Date().toISOString(),
+        },
+      },
+    }));
+
+    if (pollIntervalsRef.current[blockIndex]) {
+      clearInterval(pollIntervalsRef.current[blockIndex]);
+      delete pollIntervalsRef.current[blockIndex];
+    }
+
+    let isFinished = false;
+    const interval = setInterval(async () => {
+      if (isFinished) return;
+      try {
+        const progRes = await fetch(`/api/planeaciones/${planning.id}/libro-bloque/progreso?blockIndex=${blockIndex}`);
+        if (progRes.ok) {
+          const progData = await progRes.json();
+          if (progData?.progress) {
+            setBlockWorkbooks(prev => {
+              const cur = prev[blockIndex];
+              if (!cur || !cur.generating) return prev;
+              return {
+                ...prev,
+                [blockIndex]: {
+                  ...cur,
+                  progress: progData.progress,
+                },
+              };
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('[handleGenerateWorkbook] Polling warning:', err);
+      }
+    }, 2000);
+
+    pollIntervalsRef.current[blockIndex] = interval;
+
+    try {
+      const res = await fetch(`/api/planeaciones/${planning.id}/libro-bloque`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ blockIndex }),
+      });
+
+      isFinished = true;
+      if (pollIntervalsRef.current[blockIndex]) {
+        clearInterval(pollIntervalsRef.current[blockIndex]);
+        delete pollIntervalsRef.current[blockIndex];
+      }
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Error al generar el libro de trabajo');
+      }
+
+      setBlockWorkbooks(prev => ({
+        ...prev,
+        [blockIndex]: {
+          loaded: true,
+          generating: false,
+          workbook: data.workbook,
+          version: data.workbook?.version || 1,
+          progress: {
+            planningId: planning.id,
+            blockIndex,
+            phase: 'completed',
+            currentStep: '¡Libro-Cuaderno de Trabajo Activo generado exitosamente!',
+            percent: 100,
+            qualityScore: data.workbook?.qualityScore,
+            wordCount: data.wordCount || data.workbook?.totalWords,
+            totalWords: data.totalWords || data.workbook?.totalWords,
+            updatedAt: new Date().toISOString(),
+          },
+          error: null,
+        },
+      }));
+    } catch (err: any) {
+      isFinished = true;
+      if (pollIntervalsRef.current[blockIndex]) {
+        clearInterval(pollIntervalsRef.current[blockIndex]);
+        delete pollIntervalsRef.current[blockIndex];
+      }
+      setBlockWorkbooks(prev => ({
+        ...prev,
+        [blockIndex]: {
+          loaded: Boolean(prev[blockIndex]?.workbook),
+          generating: false,
+          workbook: prev[blockIndex]?.workbook || null,
+          version: prev[blockIndex]?.version || 1,
+          progress: null,
+          error: err.message || 'Error al generar el libro de trabajo',
+        },
+      }));
+    }
+  };
+
+  const totalWorkbookBlocks = content?.sectionIV?.activities?.length || 0;
+  const generatedWorkbookCount = (content?.sectionIV?.activities || []).filter(
+    (_, idx) => Boolean(blockWorkbooks[idx]?.workbook)
+  ).length;
+  const allBlocksGenerated = totalWorkbookBlocks > 0 && generatedWorkbookCount === totalWorkbookBlocks;
+
+  const isBt = isLaboral || (planning.component || '').toLowerCase().includes('laboral') || (planning.component || '').toLowerCase().includes('profesional');
+  const macroTargetWords = isBt ? 25000 : 17500;
+
+  const accumulatedWorkbookWords = (content?.sectionIV?.activities || []).reduce(
+    (acc, _, idx) => {
+      const wb = blockWorkbooks[idx]?.workbook;
+      const prog = blockWorkbooks[idx]?.progress;
+      const words = wb?.totalWords || prog?.totalWords || prog?.wordCount || 0;
+      return acc + words;
+    },
+    0
+  );
+
+  const blockWordCountDetails = (content?.sectionIV?.activities || []).map((_, idx) => {
+    const roman = idx === 0 ? 'I' : idx === 1 ? 'II' : idx === 2 ? 'III' : `${idx + 1}`;
+    const wb = blockWorkbooks[idx]?.workbook;
+    const prog = blockWorkbooks[idx]?.progress;
+    const words = wb?.totalWords || prog?.totalWords || prog?.wordCount;
+    if (words) {
+      return `Bloque ${roman}: ${words.toLocaleString()} palabras`;
+    }
+    return `Bloque ${roman}: pendiente`;
+  });
+
+  const semestralThresholdMet = accumulatedWorkbookWords >= macroTargetWords;
+  const semestralReady = allBlocksGenerated;
 
   // Generate detailed pedagogical sessions for all blocks using Session Progression Engine
   const blockSessionsMap: DetailedSession[][] = (content?.sectionIV?.activities || []).map((act, actIdx) => {
@@ -878,12 +1086,224 @@ export default function PlanningDetailClient({
             </div>
 
             <div className="section-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* ── BANNER MAESTRO SEMESTRAL (FASE 4: COMPILADOR SIN TOKENS IA) ── */}
+              <div
+                style={{
+                  borderRadius: '12px',
+                  padding: '18px 22px',
+                  background: allBlocksGenerated
+                    ? 'linear-gradient(135deg, rgba(30, 27, 75, 0.95) 0%, rgba(49, 46, 129, 0.95) 50%, rgba(30, 58, 138, 0.95) 100%)'
+                    : 'linear-gradient(135deg, rgba(15, 23, 42, 0.85) 0%, rgba(30, 41, 59, 0.75) 100%)',
+                  border: allBlocksGenerated
+                    ? '1.5px solid rgba(167, 139, 250, 0.5)'
+                    : '1px solid rgba(59, 130, 246, 0.25)',
+                  boxShadow: allBlocksGenerated
+                    ? '0 10px 30px -5px rgba(124, 58, 237, 0.35), 0 0 15px rgba(139, 92, 246, 0.2)'
+                    : '0 4px 12px rgba(0, 0, 0, 0.2)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '16px',
+                }}
+              >
+                <div style={{ flex: 1, minWidth: '300px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}>
+                    <span
+                      style={{
+                        background: allBlocksGenerated
+                          ? 'linear-gradient(135deg, #7c3aed 0%, #6366f1 100%)'
+                          : 'rgba(148, 163, 184, 0.15)',
+                        color: allBlocksGenerated ? '#ffffff' : '#cbd5e1',
+                        fontSize: '11.5px',
+                        fontWeight: 800,
+                        padding: '3px 10px',
+                        borderRadius: '20px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        border: allBlocksGenerated
+                          ? '1px solid rgba(196, 181, 253, 0.4)'
+                          : '1px solid rgba(148, 163, 184, 0.25)',
+                      }}
+                    >
+                      <Library size={13} /> Compendio Semestral Maestro
+                    </span>
+
+                    <span
+                      style={{
+                        fontSize: '11.5px',
+                        fontWeight: 700,
+                        padding: '3px 10px',
+                        borderRadius: '20px',
+                        background: allBlocksGenerated ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.18)',
+                        color: allBlocksGenerated ? '#34d399' : '#fcd34d',
+                        border: allBlocksGenerated ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(245, 158, 11, 0.35)',
+                      }}
+                    >
+                      {allBlocksGenerated ? `✓ ${generatedWorkbookCount} de ${totalWorkbookBlocks} Bloques Listos` : `${generatedWorkbookCount} de ${totalWorkbookBlocks} Bloques Listos`}
+                    </span>
+
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        background: 'rgba(255, 255, 255, 0.08)',
+                        color: '#94a3b8',
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                      }}
+                    >
+                      ⚡ 0 Tokens IA (Ensamblado Instantáneo)
+                    </span>
+                  </div>
+
+                  <h3 style={{ margin: '4px 0 6px', fontSize: '17px', fontWeight: 800, color: '#f8fafc', letterSpacing: '-0.01em' }}>
+                    Libro de Texto Semestral Consolidado (~150-200 Páginas)
+                  </h3>
+                  <p style={{ margin: 0, fontSize: '13px', color: '#cbd5e1', lineHeight: 1.5, maxWidth: '650px' }}>
+                    {semestralReady && semestralThresholdMet
+                      ? '¡Todos los bloques del semestre están generados y cumplen la meta macro oficial! Descarga el libro maestro unificado con numeración continua, índice consolidado y portadas oficiales SEP/DBEPA.'
+                      : semestralReady
+                      ? `Todos los bloques han sido generados con un volumen de ${accumulatedWorkbookWords.toLocaleString()} palabras (meta recomendada: ${macroTargetWords.toLocaleString()}). La descarga del compendio unificado está disponible.`
+                      : `Genera los libros individuales de cada bloque a continuación (${generatedWorkbookCount}/${totalWorkbookBlocks} listos). Al completar todos los bloques se desbloqueará la descarga del Libro Maestro Semestral.`}
+                  </p>
+
+                  {/* Detalle de palabras por bloque */}
+                  <div style={{ marginTop: '10px', fontSize: '12px', color: '#cbd5e1', display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 700, color: '#93c5fd' }}>Volumen por bloque:</span>
+                    <span>{blockWordCountDetails.join(' · ')}</span>
+                    <span style={{
+                      fontWeight: 700,
+                      color: semestralThresholdMet ? '#34d399' : '#fcd34d',
+                      background: semestralThresholdMet ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                      padding: '2px 8px',
+                      borderRadius: '10px',
+                      border: semestralThresholdMet ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(245, 158, 11, 0.3)',
+                    }}>
+                      Total: {accumulatedWorkbookWords.toLocaleString()} / {macroTargetWords.toLocaleString()} palabras ({Math.min(100, Math.round((accumulatedWorkbookWords / macroTargetWords) * 100))}%)
+                    </span>
+                  </div>
+                </div>
+
+                {/* Botones de Descarga Semestral */}
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  {semestralReady ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-start' }}>
+                      {!semestralThresholdMet && (
+                        <span style={{
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          color: '#f59e0b',
+                          background: 'rgba(245, 158, 11, 0.15)',
+                          border: '1px solid rgba(245, 158, 11, 0.3)',
+                          padding: '2px 8px',
+                          borderRadius: '6px',
+                        }}>
+                          ⚠️ Volumen parcial (&lt; {macroTargetWords.toLocaleString()} palabras) — Descarga habilitada
+                        </span>
+                      )}
+                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <a
+                          href={`/api/docx/libro-semestral/${planning.id}`}
+                          download
+                          className="btn"
+                          style={{
+                            padding: '9px 16px',
+                            fontSize: '13px',
+                            fontWeight: 700,
+                            background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                            color: '#ffffff',
+                            borderRadius: '8px',
+                            textDecoration: 'none',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '7px',
+                            boxShadow: '0 4px 14px rgba(37, 99, 235, 0.4)',
+                            border: '1px solid rgba(255, 255, 255, 0.2)',
+                            transition: 'transform 0.15s, box-shadow 0.15s',
+                          }}
+                          title="Descargar Libro Maestro Semestral completo en Word (.docx)"
+                        >
+                          <Download size={15} /> Compendio Semestral (Word)
+                        </a>
+                        <a
+                          href={`/api/pdf/libro-semestral/${planning.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn"
+                          style={{
+                            padding: '9px 16px',
+                            fontSize: '13px',
+                            fontWeight: 700,
+                            background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
+                            color: '#ffffff',
+                            borderRadius: '8px',
+                            textDecoration: 'none',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '7px',
+                            boxShadow: '0 4px 14px rgba(220, 38, 38, 0.4)',
+                            border: '1px solid rgba(255, 255, 255, 0.2)',
+                            transition: 'transform 0.15s, box-shadow 0.15s',
+                          }}
+                          title="Descargar o ver Libro Maestro Semestral completo en PDF (.pdf)"
+                        >
+                          <Download size={15} /> Compendio Semestral (PDF)
+                        </a>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', gap: '8px', opacity: 0.5, cursor: 'not-allowed' }}>
+                      <button
+                        disabled
+                        className="btn"
+                        style={{
+                          padding: '8px 14px',
+                          fontSize: '12.5px',
+                          fontWeight: 600,
+                          background: 'rgba(255, 255, 255, 0.06)',
+                          color: '#94a3b8',
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          borderRadius: '8px',
+                          cursor: 'not-allowed',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                        }}
+                      >
+                        <Download size={14} /> Semestral Word ({generatedWorkbookCount}/{totalWorkbookBlocks})
+                      </button>
+                      <button
+                        disabled
+                        className="btn"
+                        style={{
+                          padding: '8px 14px',
+                          fontSize: '12.5px',
+                          fontWeight: 600,
+                          background: 'rgba(255, 255, 255, 0.06)',
+                          color: '#94a3b8',
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          borderRadius: '8px',
+                          cursor: 'not-allowed',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                        }}
+                      >
+                        <Download size={14} /> Semestral PDF ({generatedWorkbookCount}/{totalWorkbookBlocks})
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               {content?.sectionIV?.activities?.map((a, i) => {
                 const seq = sequenceData[i];
                 const hasSeq = Boolean(seq && seq.sessions && seq.sessions.length > 0);
                 const isGenerating = generatingSeqBlock === i;
                 const isEditing = editingSeqBlock === i;
                 const isExpanded = expandedSeqBlock === i;
+                const wbItem = blockWorkbooks[i];
                 const sessionsList: SecuenciaSesion[] = isEditing
                   ? (editedSessions[i] || seq?.sessions || [])
                   : (seq?.sessions || []);
@@ -937,6 +1357,16 @@ export default function PlanningDetailClient({
                             </span>
                           )}
 
+                          {wbItem?.workbook ? (
+                            <span style={{ fontSize: '11.5px', background: 'rgba(16,185,129,0.15)', color: '#34d399', border: '1px solid rgba(16,185,129,0.3)', padding: '2px 8px', borderRadius: '12px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <BookOpen size={12} /> Libro de Bloque Listo
+                            </span>
+                          ) : wbItem?.generating ? (
+                            <span style={{ fontSize: '11.5px', background: 'rgba(59,130,246,0.15)', color: '#60a5fa', border: '1px solid rgba(59,130,246,0.3)', padding: '2px 8px', borderRadius: '12px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <RefreshCw size={12} className="animate-spin" /> Generando Libro
+                            </span>
+                          ) : null}
+
                           {a.saberes && (
                             <span style={{ fontSize: '11px', color: 'var(--c-text-muted)' }}>
                               • Taxonomía 3 Saberes activa
@@ -948,9 +1378,39 @@ export default function PlanningDetailClient({
                       {/* Header Actions */}
                       <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                         {isGenerating ? (
-                          <span style={{ fontSize: '12px', color: 'var(--c-blue-mid)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                            <RefreshCw size={14} className="animate-spin" /> Diseñando sesiones con IA…
-                          </span>
+                          <button
+                            type="button"
+                            disabled
+                            className="btn animate-pulse-subtle"
+                            style={{
+                              padding: '6px 14px',
+                              fontSize: '12px',
+                              fontWeight: 700,
+                              background: 'linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%)',
+                              color: '#ffffff',
+                              border: '1px solid rgba(59, 130, 246, 0.5)',
+                              borderRadius: '6px',
+                              cursor: 'wait',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              boxShadow: '0 0 14px rgba(37, 99, 235, 0.45)',
+                            }}
+                          >
+                            <span
+                              className="spinner"
+                              style={{
+                                width: '13px',
+                                height: '13px',
+                                borderWidth: '2px',
+                                borderColor: 'rgba(255, 255, 255, 0.3)',
+                                borderTopColor: '#ffffff',
+                                animation: 'spin 0.7s linear infinite',
+                              }}
+                            />
+                            <span>Diseñando sesiones con IA…</span>
+                            <span style={{ fontSize: '10.5px', opacity: 0.85, fontWeight: 500 }}>(espera ~15-20s)</span>
+                          </button>
                         ) : (
                           <button
                             type="button"
@@ -1005,6 +1465,303 @@ export default function PlanningDetailClient({
                           </button>
                         )}
                       </div>
+                    </div>
+
+                    {/* ── CUADERNO DE TRABAJO ACTIVO POR BLOQUE (FASE 4) ── */}
+                    <div
+                      style={{
+                        margin: '12px 16px 14px',
+                        padding: '14px 18px',
+                        borderRadius: '10px',
+                        background: wbItem?.workbook
+                          ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(30, 41, 59, 0.6) 100%)'
+                          : wbItem?.generating
+                          ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(30, 41, 59, 0.6) 100%)'
+                          : 'rgba(15, 23, 42, 0.5)',
+                        border: wbItem?.workbook
+                          ? '1px solid rgba(16, 185, 129, 0.35)'
+                          : wbItem?.generating
+                          ? '1px solid rgba(59, 130, 246, 0.4)'
+                          : '1px solid rgba(59, 130, 246, 0.2)',
+                        boxShadow: wbItem?.generating
+                          ? '0 0 16px rgba(59, 130, 246, 0.2)'
+                          : 'none',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                        <div style={{ flex: 1, minWidth: '260px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <span
+                              style={{
+                                background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                                color: '#fff',
+                                fontSize: '11px',
+                                fontWeight: 800,
+                                padding: '2px 8px',
+                                borderRadius: '4px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                              }}
+                            >
+                              <BookOpen size={12} /> Libro de Bloque (35-80 págs)
+                            </span>
+                            <strong style={{ fontSize: '14px', color: '#f1f5f9' }}>
+                              Cuaderno de Trabajo Activo · {prefix}{i + 1}
+                            </strong>
+
+                            {wbItem?.workbook ? (
+                              <span
+                                style={{
+                                  fontSize: '11px',
+                                  fontWeight: 700,
+                                  padding: '2px 8px',
+                                  borderRadius: '12px',
+                                  background: 'rgba(16, 185, 129, 0.2)',
+                                  color: '#34d399',
+                                  border: '1px solid rgba(16, 185, 129, 0.4)',
+                                }}
+                              >
+                                ✓ Generado (v{wbItem.version || 1}) · {wbItem.workbook.totalPages || (wbItem.workbook.missions?.length || 4) * 12} págs
+                              </span>
+                            ) : wbItem?.generating ? (
+                              <span
+                                style={{
+                                  fontSize: '11px',
+                                  fontWeight: 700,
+                                  padding: '2px 8px',
+                                  borderRadius: '12px',
+                                  background: 'rgba(59, 130, 246, 0.2)',
+                                  color: '#60a5fa',
+                                  border: '1px solid rgba(59, 130, 246, 0.4)',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                }}
+                              >
+                                <RefreshCw size={11} className="animate-spin" /> Generando con IA...
+                              </span>
+                            ) : (
+                              <span
+                                style={{
+                                  fontSize: '11px',
+                                  fontWeight: 600,
+                                  padding: '2px 8px',
+                                  borderRadius: '12px',
+                                  background: 'rgba(148, 163, 184, 0.15)',
+                                  color: '#94a3b8',
+                                  border: '1px solid rgba(148, 163, 184, 0.25)',
+                                }}
+                              >
+                                ⏳ Pendiente
+                              </span>
+                            )}
+
+                            {wbItem?.workbook?.qualityScore !== undefined && (
+                              <span
+                                style={{
+                                  fontSize: '11px',
+                                  fontWeight: 700,
+                                  padding: '2px 7px',
+                                  borderRadius: '12px',
+                                  background: wbItem.workbook.qualityScore >= 80 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                                  color: wbItem.workbook.qualityScore >= 80 ? '#34d399' : '#fbbf24',
+                                  border: `1px solid ${wbItem.workbook.qualityScore >= 80 ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
+                                }}
+                              >
+                                Calidad: {wbItem.workbook.qualityScore}/100
+                              </span>
+                            )}
+                          </div>
+
+                          <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#94a3b8', lineHeight: 1.4 }}>
+                            Incluye 4 misiones didácticas completas, retos escalonados, renglones caligráficos, tablas vacías, código/diagramas y evaluación NEM.
+                          </p>
+                        </div>
+
+                        {/* Acciones del Bloque */}
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                          {wbItem?.workbook ? (
+                            <>
+                              <a
+                                href={`/api/docx/libro-bloque/${planning.id}?blockIndex=${i}`}
+                                download
+                                className="btn"
+                                style={{
+                                  padding: '6px 12px',
+                                  fontSize: '12px',
+                                  fontWeight: 600,
+                                  background: 'rgba(37, 99, 235, 0.2)',
+                                  border: '1px solid rgba(59, 130, 246, 0.4)',
+                                  color: '#93c5fd',
+                                  borderRadius: '6px',
+                                  textDecoration: 'none',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  transition: 'all 0.15s',
+                                }}
+                                title="Descargar libro del bloque en Word (.docx)"
+                              >
+                                <Download size={13} /> Word (.docx)
+                              </a>
+
+                              <a
+                                href={`/api/pdf/libro-bloque/${planning.id}?blockIndex=${i}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn"
+                                style={{
+                                  padding: '6px 12px',
+                                  fontSize: '12px',
+                                  fontWeight: 600,
+                                  background: 'rgba(239, 68, 68, 0.18)',
+                                  border: '1px solid rgba(239, 68, 68, 0.4)',
+                                  color: '#f87171',
+                                  borderRadius: '6px',
+                                  textDecoration: 'none',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  transition: 'all 0.15s',
+                                }}
+                                title="Descargar o ver libro del bloque en PDF (.pdf)"
+                              >
+                                <Download size={13} /> PDF (.pdf)
+                              </a>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (confirm(`¿Regenerar el Libro de Trabajo del Bloque ${i + 1}? Se volverán a ejecutar los 4 redactores concurrentes con IA.`)) {
+                                    handleGenerateWorkbook(i);
+                                  }
+                                }}
+                                disabled={wbItem.generating}
+                                className="btn"
+                                style={{
+                                  padding: '6px 10px',
+                                  fontSize: '11.5px',
+                                  fontWeight: 600,
+                                  background: 'rgba(255, 255, 255, 0.06)',
+                                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                                  color: '#94a3b8',
+                                  borderRadius: '6px',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                }}
+                                title="Volver a generar este libro de bloque con IA"
+                              >
+                                <RefreshCw size={12} /> Regenerar
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleGenerateWorkbook(i)}
+                              disabled={wbItem?.generating}
+                              className="btn"
+                              style={{
+                                padding: '7px 14px',
+                                fontSize: '12.5px',
+                                fontWeight: 700,
+                                background: wbItem?.generating
+                                  ? 'rgba(59, 130, 246, 0.3)'
+                                  : 'linear-gradient(135deg, #059669 0%, #2563eb 100%)',
+                                color: '#ffffff',
+                                border: 'none',
+                                borderRadius: '6px',
+                                cursor: wbItem?.generating ? 'not-allowed' : 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                boxShadow: wbItem?.generating ? 'none' : '0 3px 10px rgba(5, 150, 105, 0.35)',
+                                transition: 'all 0.15s',
+                              }}
+                            >
+                              {wbItem?.generating ? (
+                                <>
+                                  <RefreshCw size={13} className="animate-spin" /> Generando...
+                                </>
+                              ) : (
+                                <>
+                                  <Zap size={13} /> Generar Libro de Bloque (IA)
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Barra de progreso en vivo durante la generación */}
+                      {wbItem?.generating && (
+                        <div style={{ marginTop: '12px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', fontSize: '11.5px' }}>
+                            <span style={{ color: '#93c5fd', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                              <RefreshCw size={12} className="animate-spin text-blue-400" />
+                              {wbItem.progress?.currentStep || 'Escribiendo misiones didácticas con IA...'}
+                            </span>
+                            <span style={{ color: '#60a5fa', fontWeight: 700 }}>
+                              {wbItem.progress?.percent || 15}%
+                            </span>
+                          </div>
+                          <div
+                            style={{
+                              height: '8px',
+                              background: 'rgba(255, 255, 255, 0.1)',
+                              borderRadius: '4px',
+                              overflow: 'hidden',
+                            }}
+                          >
+                            <div
+                              style={{
+                                height: '100%',
+                                width: `${Math.max(5, Math.min(100, wbItem.progress?.percent || 15))}%`,
+                                background: 'linear-gradient(90deg, #3b82f6 0%, #8b5cf6 50%, #10b981 100%)',
+                                borderRadius: '4px',
+                                transition: 'width 0.4s ease-in-out',
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Mensaje de error si falla */}
+                      {wbItem?.error && (
+                        <div
+                          style={{
+                            marginTop: '10px',
+                            padding: '8px 12px',
+                            background: 'rgba(239, 68, 68, 0.15)',
+                            border: '1px solid rgba(239, 68, 68, 0.35)',
+                            borderRadius: '6px',
+                            color: '#f87171',
+                            fontSize: '12px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                          }}
+                        >
+                          <AlertTriangle size={14} />
+                          <span>{wbItem.error}</span>
+                          <button
+                            onClick={() => handleGenerateWorkbook(i)}
+                            style={{
+                              marginLeft: 'auto',
+                              background: 'none',
+                              border: 'underline',
+                              color: '#fca5a5',
+                              cursor: 'pointer',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                            }}
+                          >
+                            Reintentar
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     {/* Block Body Content */}

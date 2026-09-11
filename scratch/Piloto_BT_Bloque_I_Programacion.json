@@ -1,0 +1,777 @@
+{
+  "id": "wtb-413c9b7a-31a3-404a-991b-f6f51bb565e3-b0",
+  "planningId": "413c9b7a-31a3-404a-991b-f6f51bb565e3",
+  "blockIndex": 0,
+  "blockName": "Bloque 1",
+  "version": 7,
+  "subsystem": "bt",
+  "targetPages": 65,
+  "totalPages": 50,
+  "totalWords": 11127,
+  "generatedAt": "2026-09-11T05:24:30.569Z",
+  "qualityScore": 93,
+  "qualityWarning": false,
+  "coverData": {
+    "title": "Cuaderno de Aprendizaje Activo: Bloque 1",
+    "subtitle": "Misiones Didácticas Orientadas al Proyecto PAEC Comunitario",
+    "subjectName": "Programación",
+    "semester": 2,
+    "blockNumber": 1,
+    "teacherName": "Blizzard2 GF",
+    "schoolName": "Francisco Z. Mena",
+    "cct": "21ECT0017T",
+    "paecProjectName": "Desarrollo de software y automatización digital comunitaria para comercios y talleres locales de Francisco Z. Mena, mitigando la brecha digital y optimizando el inventario comunitario."
+  },
+  "tableOfContents": [
+    {
+      "missionIndex": 1,
+      "title": "Misión 1: Fundamentación e Intuición — Encuadre, normas de seguridad y diagnóstico de saberes previos",
+      "sessionsRange": "Sesiones 1, 2, 3",
+      "pageEstimate": 6
+    },
+    {
+      "missionIndex": 2,
+      "title": "Misión 2: Laboratorio y Taller Experimental — Análisis de especificaciones técnicas y procedimientos (Etapa 1)",
+      "sessionsRange": "Sesiones 4, 5, 6, 7, 8, 9",
+      "pageEstimate": 8
+    },
+    {
+      "missionIndex": 3,
+      "title": "Misión 3: Construcción del Artefacto Real — Análisis de especificaciones técnicas y procedimientos (Etapa 7)",
+      "sessionsRange": "Sesiones 10, 11, 12, 13, 14, 15",
+      "pageEstimate": 6
+    },
+    {
+      "missionIndex": 4,
+      "title": "Misión 4: Demostración Integral y Evaluación Formativa — Control de calidad, pruebas de funcionamiento y coevaluación",
+      "sessionsRange": "Sesiones 16, 17, 18",
+      "pageEstimate": 5
+    }
+  ],
+  "missions": [
+    {
+      "missionIndex": 1,
+      "title": "Misión 1: Fundamentación e Intuición — Encuadre, normas de seguridad y diagnóstico de saberes previos",
+      "coveredSessions": [
+        1,
+        2,
+        3
+      ],
+      "sessionTopic": "Encuadre, normas de seguridad y diagnóstico de saberes previos",
+      "sessionFocus": "Encuadre, normas de seguridad y diagnóstico de saberes previos · Identificación de requerimientos técnicos, herramientas y normatividad · Identificación de requerimientos técnicos, herramientas y normatividad",
+      "phenomenonHook": {
+        "story": "En el corazón de la región norte del estado de Puebla, específicamente en el municipio de Francisco Z. Mena, la vida comunitaria vibra al ritmo del comercio local, los talleres artesanales y las pequeñas empresas familiares que sustentan la economía de la zona. A pesar de la riqueza cultural y la tenacidad de sus habitantes, los tenderos, mecánicos y artesanos locales enfrentan un obstáculo invisible pero implacable: la brecha digital y la gestión manual de sus inventarios. Don Filemón, un comerciante de abarrotes con más de treinta años en la comunidad de Metlaltoyuca, lleva el control de sus existencias en libretas desgastadas por el tiempo y la humedad. Cada tarde, tras cerrar las cortinas metálicas de su negocio, pasa horas buscando entre columnas de números por qué el frijol, el azúcar o el aceite no cuadran al final de la semana. Los errores humanos, el extravío de notas y la falta de respaldos físicos ponen en riesgo la estabilidad de su patrimonio y limitan las oportunidades de crecimiento para su familia. Este escenario no es un caso aislado; se repite en decenas de talleres mecánicos, fruterías y carpinterías de Francisco Z. Mena. Es aquí donde la programación y el pensamiento computacional dejan de ser conceptos abstractos contenidos en libros de texto para convertirse en herramientas de emancipación social y transformación tecnológica. Imagina que tú y tu equipo de compañeros de Educación Media Superior son convocados para diseñar una solución digital comunitaria: un sistema ligero, eficiente y adaptado a las condiciones locales que permita a Don Filemón y a otros comerciantes registrar entradas y salidas de mercancía con precisión milimétrica, utilizando equipos de cómputo básicos o incluso teléfonos celulares reciclados. Para lograr esta hazaña, antes de escribir una sola línea de código, debemos adentrarnos en los cimientos de la lógica, comprender cómo piensa una máquina y dominar las normas de seguridad y buenas prácticas que rigen a la industria del software a nivel internacional. Esta misión marca tu primer paso como arquitecto de software comunitario en Puebla.",
+        "detonatingQuestion": "¿Cómo podemos transformar un proceso manual y caótico de inventario en un sistema lógico, automatizado y seguro que resuelva un problema real en los comercios de Francisco Z. Mena?"
+      },
+      "conceptZero": {
+        "physicalAnalogy": "Para entender qué es la programación, las variables, la memoria y la lógica computacional sin enredarnos en tecnicismos intimidantes, pensemos en una cocina tradicional poblana durante los preparativos para una gran festividad, como la elaboración de mole poblano para el día de la comunidad. Imagina que la cocina es la memoria RAM de una computadora y que la cocinera principal es el procesador (CPU). Sobre la mesa de trabajo hay decenas de ingredientes: chiles, ajonjolí, chocolate, especias y caldo. Si la cocinera dejara todos los ingredientes amontonados sin orden en una sola cubeta, encontrar el chocolate o calcular la cantidad exacta de chiles tomaría horas, y el resultado sería un caos total. Para evitar este desastre, la cocinera utiliza recipientes etiquetados. Toma un frasco de vidrio transparente y le pega una etiqueta con la palabra 'azúcar'. Dentro coloca exclusivamente azúcar. Toma otro recipiente y le pone 'caldo_pollo'. Ahora bien, ¿qué pasa si la cocinera necesita sumar ingredientes o realizar una receta compleja? Sigue una serie de pasos estrictos, una receta de cocina escrita en un recetario. Esa receta indica un orden riguroso: paso 1, tostar los chiles; paso 2, freír las semillas; paso 3, licuar todo con el caldo. Si la cocinera se salta el paso 2 y pasa directamente al paso 3 sin haber tostado los chiles, la receta fracasa. En la programación informática ocurre exactamente lo mismo. Una variable es simplemente ese frasco rotulado (la cajita en la memoria) que guarda un valor específico (un número, un texto, un resultado). El código fuente es nuestra receta de cocina: una secuencia ordenada, lógica e inquebrantable de instrucciones paso a paso que la computadora (nuestra eficiente pero literal ayudante de cocina) ejecuta sin cuestionar. Si nuestras instrucciones son claras, ordenadas y seguras, obtendremos un platillo perfecto; si hay ambigüedades, la computadora se detendrá o arrojará un error. Esta analogía física de la cocina y los recipientes rotulados es la piedra angular sobre la cual construiremos todo nuestro conocimiento técnico en esta unidad de aprendizaje.",
+        "coreExplanation": "La programación de computadoras no es magia negra ni una habilidad reservada para mentes geniales desconectadas de la realidad; es, en esencia, el arte y la ciencia de estructurar el pensamiento lógico para resolver problemas mediante instrucciones comprensibles para un sistema electrónico. En el contexto de la Educación Media Superior bajo el estándar industrial y tecnológico, debemos concebir la programación como un proceso de ingeniería riguroso. Todo sistema de software se sustenta en tres pilares fundamentales: la entrada de datos (lo que el usuario proporciona, como el nombre de un producto en la tienda de Don Filemón), el procesamiento (la manipulación matemática o lógica de esos datos, como calcular el costo total de la venta aplicando un impuesto o un descuento) y la salida de datos (el resultado mostrado al usuario, ya sea en pantalla, en una impresora de tickets o guardado en un archivo permanente).\n\nPara profundizar en el concepto de 'Variable' desde una perspectiva industrial, debemos entender que la computadora cuenta con millones de casillas de memoria física llamadas bits y bytes. Gestionar directamente esas direcciones numéricas de memoria sería una tarea titánica y propensa a errores catastróficos. Por ello, los lenguajes de programación utilizan abstracciones llamadas variables. Una variable es un identificador simbólico (un nombre que nosotros elegimos) asociado a un espacio en la memoria RAM que puede almacenar un valor que cambiará o variará a lo largo de la ejecución del programa. Por ejemplo, en un sistema de inventario para comercios de Francisco Z. Mena, podríamos tener una variable llamada 'existencias_maiz'. Al iniciar el día, su valor es 100. Si un cliente compra 15 kilos, el programa toma el valor actual de la variable, le resta 15 y almacena el nuevo resultado (85) en el mismo espacio de memoria.\n\nEs fundamental comprender los tipos de datos básicos que estas variables pueden albergar. En la industria del software, un dato no es solo un número; tiene una naturaleza específica que determina cuánta memoria ocupa y qué operaciones se pueden realizar con él. Entre los tipos de datos primitivos más importantes encontramos:\n1. Enteros (int): Números sin parte decimal, positivos o negativos, ideales para contar unidades de productos, piezas en stock o número de clientes (ej. 45, -3, 0).\n2. Flujantes o Decimales (float / double): Números que contienen una parte fraccionaria separada por un punto, esenciales para manejar precios, pesos exactos de mercancía o porcentajes de IVA (ej. 15.50, 3.1416, 99.99).\n3. Cadenas de Texto (string): Secuencias de caracteres alfanuméricos encerrados entre comillas, utilizados para nombres de productos, direcciones, descripciones y mensajes en pantalla (ej. 'Aceite Comestible 1 Litro', 'Metlaltoyuca').\n4. Booleanos (bool): Valores de lógica binaria que sólo pueden adoptar dos estados: Verdadero (True) o Falso (False), fundamentales para evaluar condiciones como ¿Hay suficiente inventario? (True si stock > 0, False si stock == 0).\n\nNormas de seguridad y buenas prácticas industriales:\nEn el desarrollo de software profesional, la seguridad y la ética no son opcionales. Desde esta primera misión, debemos adoptar normas estrictas de la industria (como las convenciones de nomenclatura PEP 8 en Python o estándares ISO/IEC): \n- Naming Conventions (Convenciones de nombres): Las variables deben tener nombres descriptivos en minúsculas separados por guiones bajos (snake_case), evitando nombres ambiguos como 'x', 'a' o 'temp'. En lugar de usar 'p', utilizaremos 'precio_producto'.\n- Comentarios y Documentación: Todo código profesional debe estar documentado para que otros ingenieros o la propia comunidad puedan mantenerlo. Un código sin comentarios es una caja negra peligrosa.\n- Gestión de Errores y Seguridad Física: En un entorno industrial o comercial, un programa nunca debe fallar de manera imprevista ante un error del usuario (por ejemplo, que el usuario ingrese letras en lugar de un número al registrar un precio). El código debe anticiparse a estas fallas mediante validaciones preventivas. Asimismo, las normas de seguridad en el laboratorio de cómputo exigen mantener el espacio libre de líquidos, evitar conexiones eléctricas sobrecargadas y respetar las políticas de respaldo de información.\n\nA continuación, analiza los siguientes conceptos y complétalos en el cuaderno activo para consolidar tu comprensión teórica:\n\n<!--workbook:table:cols=Elemento,Analogía,Concepto Técnico,Aplicación-->\n| Frasco con etiqueta | Recipiente rotulado con nombre | Variable informática | Almacenar stock de un producto |\n| Receta de cocina | Pasos secuenciales para preparar un platillo | Algoritmo / Código fuente | Automatizar el cálculo de cambio |\n| Ayudante de cocina | Persona que ejecuta literal las órdenes | CPU / Procesador | Ejecutar operaciones matemáticas |\n\n<!--workbook:lines:rows=6-->\nRedacta con tus propias palabras por qué es peligroso para un negocio local en Puebla llevar el control de su inventario únicamente de memoria o en papel, y cómo la abstracción de variables resuelve este problema.\n\n<!--workbook:drawing:height=180-->\nRealiza un boceto esquemático de cómo imaginas que la memoria de una computadora almacena tres variables distintas (nombre del producto, precio y cantidad) utilizando la analogía de la cocina poblana."
+      },
+      "iDoSection": {
+        "stepByStepDemo": "A continuación, desarrollaremos una demostración guiada completa, un ejemplo maestro diseñado bajo estándares industriales. Este script en Python simula el módulo inicial de registro y control de inventario para el negocio de Don Filemón en Francisco Z. Mena. Analizaremos cada línea de código minuciosamente y revisaremos su arquitectura mediante un diagrama textual.\n\nDiagrama de Arquitectura del Sistema:\n[Inicio del Programa] ---> [Definición de Variables Iniciales] ---> [Entrada Interactiva de Datos del Usuario] ---> [Procesamiento Lógico y Aritmético] ---> [Validación de Stock] ---> [Salida de Resultados en Pantalla] ---> [Fin del Programa]\n\nA continuación se presenta el código fuente ejecutable completo y documentado:\n\n<!--workbook:code:lines=20-->\npython\n# Programa: Modulo Base de Inventario Comunitario\n# Autor: Estudiante de Educación Media Superior\n# Contexto: Francisco Z. Mena, Puebla\n# Descripcion: Este programa registra un producto, calcula el valor total del inventario\n# y valida si es necesario reabastecer stock.\n\nprint('=== SISTEMA DE GESTION DE INVENTARIO COMUNITARIO ===')\nprint('Ubicacion: Metlaltoyuca, Francisco Z. Mena, Puebla')\nprint('--------------------------------------------------')\n\n# 1. Definicion de variables iniciales con nomenclatura estandar (snake_case)\nnombre_comercio = 'Abarrotes Don Filemon'\nnombre_producto = 'Aceite Vegetal 1L'\nprecio_unitario = 35.50          # Tipo float (decimal)\ncantidad_stock = 12             # Tipo int (entero)\nlimite_minimo_reabastecimiento = 5 # Tipo int (entero)\n\n# 2. Mostrar estado actual del inventario\nprint('Comercio: ', nombre_comercio)\nprint('Producto registrado: ', nombre_producto)\nprint('Precio unitario: $', precio_unitario)\nprint('Unidades disponibles en bodega: ', cantidad_stock)\n\n# 3. Simulacion de una venta comunitaria de 4 unidades\nprint('\\n--- Registrando venta de 4 unidades ---')\nproductos_vendidos = 4\ncantidad_stock = cantidad_stock - productos_vendidos\n\n# 4. Calculo del valor total del inventario restante\nvalor_total_inventario = cantidad_stock * precio_unitario\n\n# 5. Salida de resultados actualizados\nprint('Stock actualizado despues de la venta: ', cantidad_stock)\nprint('Valor monetario total en inventario: $', valor_total_inventario)\n\n# 6. Estructura de decision condicional para alerta de reabastecimiento\nnecesita_reabastecer = cantidad_stock <= limite_minimo_reabastecimiento\nprint('¿Se requiere solicitar nuevo pedido al proveedor?: ', necesita_reabastecer)\n\nif necesita_reabastecer:\n    print('ALERTA INDUSTRIAL: El stock esta por debajo del limite seguro. Realizar pedido.')\nelse:\n    print('ESTADO OPTIMO: El inventario cuenta con suficientes unidades.')\n\nprint('--------------------------------------------------')\nprint('Fin de la ejecucion del modulo.')\n\n\nExplicación línea por línea del código maestro:\n- Líneas 1-5: Comentarios de cabecera que documentan el propósito del script, siguiendo los estándares de la industria para facilitar la auditoría y mantenimiento del software.\n- Líneas 7-9: Instrucciones `print()` que muestran mensajes estéticos en la terminal, situando geográficamente el software en Puebla y dando identidad al sistema.\n- Líneas 12-16: Declaración de variables clave (`nombre_comercio`, `nombre_producto`, `precio_unitario`, `cantidad_stock`, `limite_minimo_reabastecimiento`). Cada una utiliza un tipo de dato adecuado (cadenas de texto, números decimales y enteros) y nombres descriptivos sin abreviaturas confusas.\n- Líneas 19-22: Despliegue en pantalla de los valores iniciales almacenados en las variables para verificar el estado de partida del sistema.\n- Líneas 25-27: Simulación de una transacción comercial. Se declara la variable `productos_vendidos` y se actualiza el valor de `cantidad_stock` mediante una operación aritmética de resta, sobreescribiendo el espacio de memoria con el nuevo valor.\n- Línea 30: Cálculo del capital inmovilizado o disponible en bodega multiplicando las unidades restantes por el precio unitario.\n- Líneas 33-34: Impresión de los resultados actualizados para que el comerciante visualice de forma inmediata el impacto de la venta.\n- Líneas 37-43: Evaluación lógica mediante una variable booleana y una estructura condicional (`if-else`). Si las unidades en stock son menores o iguales al límite mínimo, el sistema emite una alerta industrial automatizada, previniendo el desabastecimiento en la comunidad."
+      },
+      "weDoSection": {
+        "guidedPractice": "Ahora es momento de trabajar en equipo. Con la guía de tu profesor y colaborando con tus compañeros, realizarán una práctica colaborativa titulada 'Diseño del Módulo de Control de Registro de Herramientas para un Taller Mecánico en Puebla'.\n\nInstrucciones para el equipo:\n1. Reúnete en equipos de tres o cuatro integrantes.\n2. Imaginen que un taller mecánico local en Francisco Z. Mena necesita controlar el préstamo y existencia de herramientas pesadas (llaves de cruz, gatos hidráulicos, pinzas de presión).\n3. Diseñen en su cuaderno activo una tabla donde definan al menos cinco variables que utilizaría un programa para controlar este taller, especificando su nombre industrial, su tipo de dato (entero, flotante, texto o booleano) y un ejemplo de valor inicial.\n4. Escriban en equipo el pseudocódigo o los pasos lógicos que seguiría el programa si un mecánico toma prestada una herramienta y luego la devuelve.\n\n<!--workbook:table:cols=Nombre de Variable,Tipo de Dato,Valor Inicial de Ejemplo,Propósito en el Taller-->\n| nombre_herramienta | Cadena de texto (string) | 'Llave stilson 14 pulgadas' | Identificar el tipo de herramienta |\n| total_unidades | Entero (int) | 8 | Conocer la cantidad física disponible |\n| costo_reposicion | Flotante (float) | 450.00 | Calcular valor monetario de pérdida |\n| herramienta_disponible | Booleano (bool) | True | Verificar si se puede prestar |\n| codigo_taller | Cadena de texto (string) | 'TALLER-MEC-01' | Identificar la sucursal comunitaria |\n\n<!--workbook:lines:rows=8-->\nRedacten como equipo la justificación de por qué seleccionaron esos tipos de datos específicos y qué riesgos existirían en el taller mecánico si utilizaran un tipo de dato incorrecto (por ejemplo, guardar el costo de reposición como texto en lugar de número flotante).\n\n<!--workbook:drawing:height=160-->\nDibujen un diagrama de flujo colaborativo que represente el proceso de préstamo de una herramienta en el taller mecánico.",
+        "workbookElements": [
+          {
+            "id": "wb-tag-7dkxn2p",
+            "type": "code",
+            "config": {}
+          },
+          {
+            "id": "wb-tag-vnrdth9",
+            "type": "table",
+            "config": {}
+          },
+          {
+            "id": "wb-tag-lnhegax",
+            "type": "lines",
+            "config": {
+              "rows": 8
+            }
+          }
+        ]
+      },
+      "youDoSection": {
+        "autonomousChallenge": "Ha llegado el momento de demostrar tu dominio autónomo absoluto mediante el reto individual 'Mi Primer Script de Inventario para Frutería Comunitaria'.\n\nContexto del Reto:\nImagina que una frutería comunitaria en Metlaltoyuca, Puebla, te ha contratado para crear un mini programa en Python que calcule el inventario diario de limones. Debes escribir un script completo que cumpla con los siguientes requisitos industriales obligatorios:\n1. Declarar al menos cuatro variables con nombres descriptivos en snake_case y tipos de datos correctos (`nombre_fruta`, `precio_kilo`, `kilos_disponibles`, `fruta_fresca`).\n2. Simular la venta de una cantidad específica de kilos de limones restándola del inventario total.\n3. Calcular el ingreso total obtenido por esa venta multiplicando los kilos vendidos por el precio por kilo.\n4. Utilizar una estructura condicional (`if-else`) para verificar si los kilos disponibles después de la venta son menores a 10 kilos; si es así, mostrar un mensaje de alerta indicando que es necesario surtir más fruta.\n5. Incluir comentarios detallados al inicio de cada bloque explicando tu código.\n\nEscribe tu código autónomo en el siguiente espacio:\n\n<!--workbook:code:lines=18-->\npython\n# Reto Autonomo: Control de Inventario de Fruteria en Puebla\n# Alumno: [Tu Nombre]\n# Contexto: Francisco Z. Mena, Puebla\n\nprint('=== CONTROL DE INVENTARIO: FRUTERIA COMUNITARIA ===')\n\n# 1. Declaracion de variables con tipos de datos correctos\nnombre_fruta = 'Limon Persa'\nprecio_kilo = 22.50          # Tipo float\nkilos_disponibles = 45.0     # Tipo float\nfruta_fresca = True          # Tipo booleano\n\n# 2. Despliegue de estado inicial\nprint('Producto: ', nombre_fruta)\nprint('Precio por kilo: $', precio_kilo)\nprint('Kilos disponibles en bodega: ', kilos_disponibles)\n\n# 3. Simulacion de venta de 15.5 kilos\nkilos_vendidos = 15.5\nkilos_disponibles = kilos_disponibles - kilos_vendidos\n\ningreso_venta = kilos_vendidos * precio_kilo\n\n# 4. Resultados de la transaccion\nprint('\\nKilos restantes despues de la venta: ', kilos_disponibles)\nprint('Ingreso total generado por la venta: $', ingreso_venta)\n\n# 5. Estructura condicional de alerta de stock\nalerta_surtir = kilos_disponibles < 10.0\n\nif alerta_surtir:\n    print('ALERTA: Quedan pocos kilos. Urge surtir nueva fruta.')\nelse:\n    print('ESTABILIDAD: Inventario suficiente en la fruteria.')\n\nprint('=== FIN DEL PROCESO DE INVENTARIO ===')\n\n\n<!--workbook:lines:rows=6-->\nEscribe una breve conclusión personal (máximo 5 renglones) sobre cómo este pequeño programa tecnológico podría ayudar a un comerciante local en Puebla a evitar pérdidas económicas.",
+        "workbookElements": [
+          {
+            "id": "wb-tag-wnkuhnr",
+            "type": "drawing",
+            "config": {}
+          },
+          {
+            "id": "wb-tag-ow6xqo8",
+            "type": "code",
+            "config": {}
+          },
+          {
+            "id": "wb-tag-zsjj131",
+            "type": "lines",
+            "config": {
+              "rows": 6
+            }
+          }
+        ]
+      },
+      "troubleshooting": [],
+      "formativeCheckpoint": {
+        "question": "¿De qué manera la correcta selección de los tipos de datos y el uso de variables con nombres descriptivos (estándar industrial) garantizan que un software desarrollado para comercios en Puebla sea confiable y fácil de mantener?",
+        "reflectionPrompts": [
+          "¿Cómo se relaciona la analogía de la cocina poblana con la forma en que la memoria de una computadora almacena y manipula datos?",
+          "¿Qué importancia tienen las normas de seguridad y buenas prácticas al programar soluciones tecnológicas para nuestra comunidad?"
+        ],
+        "criteriaChecklist": [
+          "Comprende y explica con claridad la analogía física de variables y algoritmos.",
+          "Identifica y utiliza correctamente los tipos de datos primitivos en código ejecutable.",
+          "Aplica normas de nomenclatura industrial (snake_case) y documentación en sus scripts.",
+          "Diseña soluciones lógicas orientadas a resolver problemáticas reales de comercio en Puebla."
+        ]
+      },
+      "wordCount": 2849
+    },
+    {
+      "missionIndex": 2,
+      "title": "Misión 2: Laboratorio y Taller Experimental — Análisis de especificaciones técnicas y procedimientos (Etapa 1)",
+      "coveredSessions": [
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "sessionTopic": "Análisis de especificaciones técnicas y procedimientos (Etapa 1)",
+      "sessionFocus": "Análisis de especificaciones técnicas y procedimientos (Etapa 1) · Práctica de taller: Ejecución y destrezas operativas (Etapa 2) · Sistematización y avance de bitácora técnica (Etapa 3) · Análisis de especificaciones técnicas y procedimientos (Etapa 4) · Práctica de taller: Ejecución y destrezas operativas (Etapa 5) · Sistematización y avance de bitácora técnica (Etapa 6)",
+      "phenomenonHook": {
+        "story": "Durante esta práctica en el aula o taller, abordaremos directamente cómo manipular variables operativas de Programación para resolver retos vinculados a Desarrollo de software y automatización digital comunitaria para comercios y talleres locales de Francisco Z. Mena, mitigando la brecha digital y optimizando el inventario comunitario..",
+        "detonatingQuestion": "¿De qué forma la precisión en la recolección de datos y la ejecución determina la confiabilidad del producto final?"
+      },
+      "conceptZero": {
+        "physicalAnalogy": "Cada medición experimental es como un mapa de navegación: un error de un milímetro en el punto de partida te lleva a kilómetros del destino.",
+        "coreExplanation": "Analizar rigurosamente las especificaciones técnicas, requerimientos funcionales y no funcionales, así como el diseño algorítmico modular para el desarrollo de un sistema de control de inventarios automatizado enfocado en mitigar la brecha digital y optimizar la gestión de comercios y talleres locales en Francisco Z. Mena, Puebla, aplicando buenas prácticas de programación estructurada, validación estricta de datos y control de excepciones en Python."
+      },
+      "iDoSection": {
+        "stepByStepDemo": "Protocolo Técnico:\n1. Preparación, configuración y verificación del entorno de desarrollo de software.\nEl primer paso crítico en cualquier ciclo de desarrollo de software profesional bajo el marco de la Nueva Escuela Mexicana (NEM) y el MCCEMS es asegurar la estandarización y correcta configuración del entorno de trabajo. Esto evita discrepancias entre equipos de cómputo y garantiza que la ejecución de los algoritmos sea idéntica en cualquier plataforma. Para iniciar, encienda su estación de trabajo, verifique que los periféricos funcionen adecuadamente y abra una terminal de comandos (PowerShell en Windows o Bash en entornos Unix). Verifique la versión exacta del intérprete de Python ejecutando el comando 'python --version' o 'python3 --version'. El sistema debe retornar una versión igual o superior a 3.10.0. En caso de discrepancias, notifique al instructor técnico de inmediato. A continuación, cree un directorio de trabajo dedicado para esta práctica utilizando el comando 'mkdir mision_2_inventarios' y acceda a él mediante 'cd mision_2_inventarios'. Abra Visual Studio Code desde esta terminal utilizando el comando 'code .'. Una vez abierto el editor, cree un archivo virtual de entorno con el comando 'python -m venv venv' y actívelo mediante 'source venv/bin/activate' en Linux/macOS o '.\\venv\\Scripts\\activate' en Windows. Esta práctica aísla las dependencias del proyecto y garantiza la reproducibilidad técnica exigida en los protocolos industriales y académicos. Registre sus observaciones iniciales en el espacio asignado en su cuaderno activo y verifique que la extensión de Pylint esté activa y configurada para detectar errores de sintaxis y estilo PEP 8 en tiempo real.\n<!--workbook:lines:rows=4-->\n\n2. Análisis e interpretación de requerimientos funcionales y no funcionales del FRS (Functional Requirements Specification).\nEn este paso nos adentraremos en la lectura crítica y descomposición técnica del documento de Especificación de Requerimientos de Software (FRS) diseñado para los pequeños comercios y talleres locales de Francisco Z. Mena (abarrotes, talleres mecánicos, papelerías y ferreterías comunitarias). La problemática PAEC exige desarrollar un sistema digital que resuelva el descontrol de mercancías, el registro manual propenso a errores humanos y la falta de alertas de stock mínimo. Lea detenidamente el FRS proporcionado en el anexo técnico. Identifique y desglose en su cuaderno activo al menos tres requerimientos funcionales críticos (por ejemplo: el sistema debe permitir el registro de altas, bajas y modificaciones de productos; el sistema debe calcular automáticamente el valor total del inventario en almacén; el sistema debe generar reportes de productos con stock crítico menor a cinco unidades) y dos requerimientos no funcionales (por ejemplo: el tiempo de respuesta en consultas de inventario no debe superar los 500 milisegundos; la interfaz de consola debe ser intuitiva y presentar un diseño estructurado mediante tablas de texto formateado). Comprender estos requerimientos antes de escribir una sola línea de código es la diferencia entre un software robusto y un desarrollo efímero. Documente la matriz de trazabilidad preliminar en la siguiente tabla de análisis.\n<!--workbook:lines:rows=5-->\n\n3. Diseño del diagrama de flujo lógico y arquitectura modular de funciones.\nAntes de programar, es una norma de ingeniería de software estructurar el flujo de control mediante pseudocódigo o diagramas de flujo. En este paso, el estudiante dibujará en su cuaderno de laboratorio el diagrama de flujo correspondiente al módulo central de control de inventario del comercio local. El sistema debe operar bajo un menú interactivo en bucle infinito controlado por una bandera booleana o una opción de salida explícita. El menú principal ofrecerá cuatro opciones obligatorias: 1) Registrar nuevo producto, 2) Consultar inventario actual, 3) Actualizar stock de producto existente, y 4) Salir del sistema. Cada opción debe estar representada por una función modular independiente en Python para cumplir con el principio de responsabilidad única (Single Responsibility Principle). Por ejemplo, la función 'registrar_producto(inventario)' recibirá como parámetro la estructura de datos principal (un diccionario o lista de diccionarios) y solicitará al usuario mediante entradas de consola ('input') el código del producto, la descripción, el precio unitario y la cantidad inicial en stock. Analice cómo se comportarán las estructuras de datos ante entradas vacías o caracteres alfabéticos cuando se espera un valor numérico. Trace el diagrama de flujo completo contemplando las rutas verdaderas y falsas para las validaciones de entrada.\n<!--workbook:lines:rows=5-->\n\n4. Implementación de la estructura de datos base y carga inicial de simulación comunitaria.\nProceda a crear un nuevo archivo de código fuente en su entorno de trabajo con el nombre 'sistema_inventario_paec.py'. En este paso inicializaremos la estructura de datos que simulará la base de datos local del comercio comunitario. Para optimizar el rendimiento y la legibilidad en Python, utilizaremos una lista de diccionarios, donde cada diccionario representa un artículo con las siguientes llaves estandarizadas: 'codigo' (cadena de texto alfanumérica única), 'nombre' (cadena de texto), 'precio' (número flotante positivo) y 'stock' (número entero no negativo). Escriba el bloque de código inicial que declare una lista llamada 'inventario_comunitario' precargada con al menos tres productos típicos de la región de Francisco Z. Mena (por ejemplo: 'Hules para emppaque agrícola', 'Clavos de acero 2 pulgadas', 'Aceite lubricante multigrado'). Comente cada línea explicando la razón técnica de la estructura de datos elegida en comparación con listas paralelas o matrices bidimensionales. Verifique que la ejecución inicial del script no arroje errores de sintaxis al declarar los tipos de datos.\n<!--workbook:lines:rows=4-->\n\n5. Desarrollo y codificación de la función de validación robusta de entradas numéricas y de texto.\nUno de los errores más comunes en los sistemas desarrollados para la gestión comunitaria es la caída abrupta del software ('crashes') debido a que el usuario ingresa letras cuando el sistema espera un número flotante o un entero. En este paso, programaremos una función robusta de entrada de datos llamada 'obtener_flotante_seguro(mensaje)' y 'obtener_entero_seguro(mensaje)'. Estas funciones utilizarán la estructura de control de excepciones 'try-except' de Python. Si el usuario introduce un valor no válido (por ejemplo, introducir la palabra 'cinco' en lugar del número '5'), el bloque 'except ValueError' interceptará el error, mostrará una advertencia clara en pantalla indicando el formato correcto y solicitará nuevamente el dato mediante un bucle 'while True' hasta que se reciba un valor válido. Esta técnica garantiza la robustez y resiliencia del software ante operadores con poca experiencia digital. Escriba y pruebe la función en su archivo de código, documentando el comportamiento del bloque de excepciones.\n<!--workbook:lines:rows=4-->\n\n6. Codificación de la función modular para el registro de altas de nuevos productos.\nImplemente la función 'registrar_producto(inventario)' en su script. Esta función debe solicitar al usuario el código único del producto. Antes de agregarlo a la lista, el algoritmo debe recorrer el inventario existente mediante un bucle de búsqueda para verificar que el código no esté duplicado; si ya existe, debe rechazar el registro y notificar al usuario. Si el código es único, procederá a solicitar el nombre, precio unitario y stock inicial utilizando las funciones de validación robustas desarrolladas en el paso anterior. Una vez recolectados y validados todos los campos, se empaquetará la información en un nuevo diccionario y se añadirá a la lista principal utilizando el método '.append()'. Imprima un mensaje de confirmación formateado que muestre los datos del producto recién registrado. Registre en su cuaderno las pruebas realizadas con códigos duplicados y valores erróneos.\n<!--workbook:lines:rows=4-->\n\n7. Codificación de la función de consulta y despliegue tabular de inventario.\nDesarrolle la función 'consultar_inventario(inventario)'. Esta función tiene la responsabilidad de recorrer la lista de diccionarios y mostrar todos los productos registrados de manera ordenada, limpia y estructurada, imitando una tabla profesional de base de datos en la consola de comandos. Utilice operadores de formato de cadenas en Python (f-strings con alineación y especificadores de ancho, por ejemplo: '{codigo:<10} | {nombre:<25} | ${precio:>8.2f} | {stock:>6} unidades'). Si el inventario está vacío, la función debe interceptar esta condición mediante una sentencia condicional 'if len(inventario) == 0:' y mostrar un aviso amigable informando que no existen registros actuales y sugiriendo dar de alta el primer producto. Calcule además el valor total monetario sumando el producto de 'precio * stock' de cada artículo e imprima el gran total del capital invertido en mercancía al pie de la tabla.\n<!--workbook:lines:rows=4-->\n\n8. Codificación de la función de actualización de stock y control de mermas o reabastecimiento.\nImplemente la función 'actualizar_stock(inventario)'. En un entorno comercial real, el inventario cambia constantemente debido a ventas, mermas o llegada de nueva mercancía desde proveedores regionales. Esta función solicitará al usuario el código del producto a modificar. Mediante una búsqueda secuencial, localizará el diccionario correspondiente. Una vez encontrado, mostrará el nombre actual y el stock disponible, preguntando al usuario si desea sumar stock (reabastecimiento) o restar stock (venta o merma), o bien reemplazar el valor absoluto. Utilice validaciones estrictas para asegurar que el stock resultante nunca sea menor a cero. Si el stock resultante cae por debajo de un umbral crítico de alerta (por ejemplo, menor o igual a 3 unidades), el sistema debe emitir un mensaje destacado de advertencia en color o con texto resaltado indicando '¡ALERTA: STOCK CRÍTICO!'. Documente en su cuaderno los resultados de las pruebas de actualización.\n<!--workbook:lines:rows=4-->\n\n9. Integración del ciclo principal de control (Main Loop) y manejo de salidas del sistema.\nEn este paso uniremos todos los módulos desarrollados en una estructura de control principal utilizando un bloque 'if __name__ == \\'__main__\\':'. Cree una función 'menu_principal()' que gestione el flujo general mediante un bucle 'while True'. El menú debe mostrar claramente las opciones numeradas. Utilice una estructura condicional 'if-elif-else' para direccionar la ejecución hacia la función correspondiente según la opción seleccionada por el usuario. Agregue la opción de salida (por ejemplo, opción 4 o 5) que ejecute un comando 'break' para romper el ciclo y despedirse amigablemente del usuario, asegurando que antes de cerrar se imprima un resumen de la sesión de trabajo. Pruebe la integración completa de todo el sistema navegando por todas las opciones del menú de forma consecutiva y sin interrupciones.\n<!--workbook:lines:rows=4-->\n\n10. Pruebas de caja blanca, depuración de errores sintácticos y validación lógica.\nUna vez integrado el código completo, es momento de realizar una auditoría de caja blanca. Revise línea por línea la indentación, el nombramiento de variables (asegurando el cumplimiento de la norma PEP 8 en español o inglés técnico estandarizado), la correcta apertura y cierre de paréntesis, y la ausencia de variables huérfanas que no se utilicen en el programa. Utilice el depurador integrado de Visual Studio Code (Debug mode) colocando puntos de interrupción ('breakpoints') en las líneas donde se procesan los cálculos de inventario y actualización de stock. Ejecute el programa paso a paso ('Step Over', 'Step Into') y observe en el panel lateral de variables cómo cambia el estado de la lista de diccionarios en tiempo real. Registre cualquier anomalía o desfase lógico detectado y corrija el código inmediatamente.\n<!--workbook:lines:rows=4-->\n\n11. Pruebas de caja negra y simulación de escenarios de uso comunitario real.\nSimule el rol de un comerciante de Francisco Z. Mena utilizando el sistema operativo de consola recién programado. Ejecute pruebas de caja negra ingresando casos extremos: intente registrar un producto con precio negativo, ingrese un código con espacios en blanco y caracteres especiales, intente actualizar el stock de un producto que no existe en la base de datos, y vacíe el inventario por completo para verificar la respuesta ante listas vacías. Cada uno de estos escenarios debe ser manejado limpiamente por el sistema mediante las excepciones programadas, sin mostrar errores largos en lenguaje de máquina ni cerrar abruptamente la aplicación. Anote los resultados de cada prueba de caja negra en la tabla de datos experimentales de su cuaderno activo.\n<!--workbook:lines:rows=4-->\n\n12. Documentación técnica del código, elaboración de manual de usuario y cierre de la práctica.\nComo paso final de esta primera etapa de laboratorio, redacte una documentación técnica concisa dentro del mismo archivo de código mediante comentarios de bloque ('\"\"\"...') explicando la arquitectura del sistema, los parámetros de entrada y salida de cada función, y las restricciones operativas. Asimismo, redacte un mini manual de usuario de tres párrafos dirigido al tendero o artesano local, explicando de forma sencilla cómo encender el sistema, cómo registrar su mercancía y qué hacer en caso de que aparezca una alerta de stock crítico. Guarde todos los archivos en su repositorio local, realice una última revisión contra la rúbrica de evaluación y entregue su cuaderno de notas y el archivo de código fuente al instructor técnico para su validación oficial."
+      },
+      "weDoSection": {
+        "guidedPractice": "Desarrollo guiado en equipo:\n\"\"\"\nUAC: Programación (BT - DBEPA / MCCEMS)\nMisión 2: Laboratorio y Taller Experimental - Análisis de especificaciones técnicas y procedimientos (Etapa 1)\nDescripción: Sistema automatizado de control de inventarios para comercios y talleres comunitarios en Francisco Z. Mena.\nAutor: Estudiante de Bachillerato Técnico\nFecha: 2024\n\"\"\"\n\ndef obtener_flotante_seguro(mensaje):\n    \"\"\"\n    Función para validar la entrada de datos numéricos flotantes (precios, costos).\n    Previene caídas del sistema por ingresos erróneos de texto.\n    \"\"\"\n    while True:\n        try:\n            valor = float(input(mensaje))\n            if valor < 0:\n                print('Error: El valor no puede ser negativo. Intente nuevamente.')\n                continue\n            return valor\n        except ValueError:\n            print('Error de formato: Ingrese un número válido (ejemplo: 150.50).')\n\ndef obtener_entero_seguro(mensaje):\n    \"\"\"\n    Función para validar la entrada de datos numéricos enteros (stock, cantidades).\n    Previene caídas del sistema por ingresos de decimales o letras.\n    \"\"\"\n    while True:\n        try:\n            valor = int(input(mensaje))\n            if valor < 0:\n                print('Error: La cantidad no puede ser negativa. Intente nuevamente.')\n                continue\n            return valor\n        except ValueError:\n            print('Error de formato: Ingrese un número entero válido (ejemplo: 12).')\n\ndef registrar_producto(inventario):\n    \"\"\"\n    Módulo de alta de nuevos productos en el inventario comunitario.\n    Verifica unicidad de código y solicita datos validados.\n    \"\"\"\n    print('\\n--- REGISTRO DE NUEVO PRODUCTO ---')\n    codigo = input('Ingrese el código alfanumérico único del producto: ').strip()\n    \n    # Validación de código duplicado\n    for producto in inventario:\n        if producto['codigo'] == codigo:\n            print(f'Error crítico: El código {codigo} ya está registrado en el sistema.')\n            return\n            \n    nombre = input('Ingrese el nombre descriptivo del producto: ').strip()\n    if not nombre:\n        print('Error: El nombre del producto no puede estar vacío.')\n        return\n        \n    precio = obtener_flotante_seguro('Ingrese el precio unitario ($): ')\n    stock = obtener_entero_seguro('Ingrese la cantidad inicial en stock: ')\n    \n    nuevo_producto = {\n        'codigo': codigo,\n        'nombre': nombre,\n        'precio': precio,\n        'stock': stock\n    }\n    \n    inventario.append(nuevo_producto)\n    print(f'¡Éxito! Producto \\'{nombre}\\' registrado correctamente en el inventario.')\n\ndef consultar_inventario(inventario):\n    \"\"\"\n    Módulo de consulta y despliegue tabular del inventario actual.\n    Calcula el valor total monetario almacenado.\n    \"\"\"\n    print('\\n--- INVENTARIO GENERAL DE COMERCIO LOCAL ---')\n    if len(inventario) == 0:\n        print('El inventario se encuentra actualmente vacío. Registre productos para comenzar.')\n        return\n        \n    print(f'{\\'CODIGO\\':<10} | {\\'DESCRIPCION PRODUCTO\\':<25} | {\\'PRECIO\\':>10} | {\\'STOCK\\':>8} | {\\'SUBTOTAL\\':>12}')\n    print('-' * 75)\n    \n    valor_total_inventario = 0.0\n    for p in inventario:\n        subtotal = p['precio'] * p['stock']\n        valor_total_inventario += subtotal\n        print(f\"{p['codigo']:<10} | {p['nombre']:<25} | ${p['precio']:>9.2f} | {p['stock']:>8} | ${subtotal:>11.2f}\")\n        \n    print('-' * 75)\n    print(f'VALOR TOTAL DEL INVENTARIO EN ALMACÉN: ${valor_total_inventario:.2f}\\n')\n\ndef actualizar_stock(inventario):\n    \"\"\"\n    Módulo de actualización de stock (reabastecimiento o venta).\n    Incluye alertas automáticas de stock crítico.\n    \"\"\"\n    print('\\n--- ACTUALIZACIÓN DE STOCK Y EXISTENCIAS ---')\n    if len(inventario) == 0:\n        print('No hay productos registrados para actualizar.')\n        return\n        \n    codigo = input('Ingrese el código del producto a actualizar: ').strip()\n    producto_encontrado = None\n    \n    for p in inventario:\n        if p['codigo'] == codigo:\n            producto_encontrado = p\n            break\n            \n    if producto_encontrado is None:\n        print(f'Error: No se encontró ningún producto con el código {codigo}.')\n        return\n        \n    print(f\"Producto seleccionado: {producto_encontrado['nombre']} | Stock actual: {producto_encontrado['stock']}\")\n    print('Seleccione la operación a realizar:')\n    print('1. Sumar stock (Reabastecimiento)')\n    print('2. Restar stock (Venta o Merma)')\n    print('3. Reemplazar stock por valor absoluto')\n    \n    opcion = obtener_entero_seguro('Ingrese opción de actualización (1-3): ')\n    \n    if opcion == 1:\n        cantidad = obtener_entero_seguro('Ingrese la cantidad a agregar: ')\n        producto_encontrado['stock'] += cantidad\n        print(f'Stock actualizado con éxito. Nuevo stock: {producto_encontrado[\"stock\"]}')\n    elif opcion == 2:\n        cantidad = obtener_entero_seguro('Ingrese la cantidad a descontar: ')\n        if cantidad > producto_encontrado['stock']:\n            print('Error: No se puede descontar una cantidad mayor al stock disponible.')\n        else:\n            producto_encontrado['stock'] -= cantidad\n            print(f'Stock actualizado con éxito. Nuevo stock: {producto_encontrado[\"stock\"]}')\n    elif opcion == 3:\n        cantidad = obtener_entero_seguro('Ingrese el nuevo stock absoluto: ')\n        producto_encontrado['stock'] = cantidad\n        print(f'Stock actualizado con éxito. Nuevo stock: {producto_encontrado[\"stock\"]}')\n    else:\n        print('Opción no válida. Operación cancelada.')\n        return\n        \n    # Verificación de alerta de stock crítico (umbral menor o igual a 3 unidades)\n    if producto_encontrado['stock'] <= 3:\n        print(f'*** ¡ALERTA COMUNITARIA: STOCK CRÍTICO! El producto \\'{producto_encontrado[\"nombre\"]}\\' tiene {producto_encontrado[\"stock\"]} unidades restantes. Reabastezca pronto. ***')\n\ndef menu_principal():\n    \"\"\"\n    Función principal que controla el flujo de ejecución del software comunitario.\n    \"\"\"\n    # Carga inicial de simulación comunitaria (Francisco Z. Mena)\n    inventario_comunitario = [\n        {'codigo': 'AGR01', 'nombre': 'Hules Empaque Agrícola', 'precio': 45.50, 'stock': 12},\n        {'codigo': 'HER02', 'nombre': 'Clavos Acero 2 Pulgadas', 'precio': 38.00, 'stock': 2},\n        {'codigo': 'LUB03', 'nombre': 'Aceite Multigrado 4T', 'precio': 125.00, 'stock': 5}\n    ]\n    \n    while True:\n        print('\\n==================================================')\n        print(' SISTEMA DE GESTIÓN DE INVENTARIOS - PAEC Z. MENA ')\n        print('==================================================')\n        print('1. Registrar nuevo producto')\n        print('2. Consultar inventario y valor total')\n        print('3. Actualizar stock (Entrada / Salida)')\n        print('4. Salir del sistema')\n        \n        opcion = obtener_entero_seguro('Seleccione una opción del menú (1-4): ')\n        \n        if opcion == 1:\n            registrar_producto(inventario_comunitario)\n        elif opcion == 2:\n            consultar_inventario(inventario_comunitario)\n        elif opcion == 3:\n            actualizar_stock(inventario_comunitario)\n        elif opcion == 4:\n            print('\\nGracias por utilizar el sistema de automatización comunitaria.')\n            print('Cerrando sesión de trabajo de forma segura. ¡Hasta pronto!')\n            break\n        else:\n            print('Error: Opción fuera de rango. Por favor seleccione un número entre 1 y 4.')\n\nif __name__ == '__main__':\n    menu_principal()\n",
+        "workbookElements": [
+          {
+            "id": "wb-tag-vzvg31g",
+            "type": "lines",
+            "config": {
+              "rows": 4
+            }
+          },
+          {
+            "id": "wb-tag-z5xe2a9",
+            "type": "lines",
+            "config": {
+              "rows": 5
+            }
+          }
+        ]
+      },
+      "youDoSection": {
+        "autonomousChallenge": "Modifique el script en Python desarrollado en esta práctica para incorporar un nuevo submódulo modular llamado 'eliminar_producto(inventario)'. Este submódulo debe solicitar al usuario el código alfanumérico del artículo que desea dar de baja definitiva del inventario comunitario de Francisco Z. Mena. El algoritmo debe realizar una búsqueda exhaustiva del elemento en la lista de diccionarios. Antes de ejecutar la eliminación física mediante el método '.pop()' o la instrucción 'del', el programa debe mostrar por consola todos los detalles del producto encontrado (código, nombre, precio y stock actual) y exigir una confirmación explícita de seguridad preguntando: '¿Está seguro de eliminar este producto del sistema comunitario? (s/n): '. Si el usuario ingresa 's' o 'S', se procederá a eliminar el registro y se imprimirá un mensaje de confirmación de baja exitosa; si el usuario ingresa 'n' o cualquier otro carácter, la operación se cancelará de inmediato. Asimismo, asegúrese de que si el código ingresado no existe en la base de datos, el sistema maneje el caso elegantemente informando al operador sin generar excepciones no controladas. Integre esta nueva opción en el menú principal reenumerando las opciones correspondientes de manera coherente y documente sus pruebas en el cuaderno activo.",
+        "workbookElements": [
+          {
+            "id": "wb-tag-tnxizfw",
+            "type": "lines",
+            "config": {
+              "rows": 5
+            }
+          },
+          {
+            "id": "wb-tag-94wsuym",
+            "type": "lines",
+            "config": {
+              "rows": 4
+            }
+          },
+          {
+            "id": "wb-tag-n9uyyu0",
+            "type": "lines",
+            "config": {
+              "rows": 4
+            }
+          },
+          {
+            "id": "wb-tag-c1foawr",
+            "type": "lines",
+            "config": {
+              "rows": 4
+            }
+          },
+          {
+            "id": "wb-tag-turx9az",
+            "type": "lines",
+            "config": {
+              "rows": 4
+            }
+          },
+          {
+            "id": "wb-tag-kr6vek5",
+            "type": "lines",
+            "config": {
+              "rows": 4
+            }
+          },
+          {
+            "id": "wb-tag-eh27vjz",
+            "type": "lines",
+            "config": {
+              "rows": 4
+            }
+          },
+          {
+            "id": "wb-tag-7q1uzlj",
+            "type": "lines",
+            "config": {
+              "rows": 4
+            }
+          },
+          {
+            "id": "wb-tag-5q1uhgz",
+            "type": "lines",
+            "config": {
+              "rows": 4
+            }
+          }
+        ]
+      },
+      "troubleshooting": [
+        {
+          "id": "tb-bt-1",
+          "symptom": "La terminal arroja el error 'SyntaxError: invalid syntax' al ejecutar el script de Python en el laboratorio.",
+          "cause": "Falta de un carácter de cierre (como paréntesis, comillas o dos puntos) en la línea de código señalada por el intérprete.",
+          "solution": "1. Revisa el número de línea indicado en el error. 2. Verifica que todas las estructuras de control (if, for, def) terminen con dos puntos (:). 3. Comprueba que cada paréntesis o comilla abierta tenga su respectivo cierre.",
+          "prevention": "Utiliza un editor de código con resaltado de sintaxis y autocompletado habilitado antes de ejecutar las pruebas.",
+          "rootCause": "Falta de un carácter de cierre (como paréntesis, comillas o dos puntos) en la línea de código señalada por el intérprete.",
+          "solutionSteps": [
+            "Revisa el número de línea indicado en el error.",
+            "Verifica que todas las estructuras de control (if, for, def) terminen con dos puntos (:).",
+            "Comprueba que cada paréntesis o comilla abierta tenga su respectivo cierre."
+          ],
+          "preventionTip": "Utiliza un editor de código con resaltado de sintaxis y autocompletado habilitado antes de ejecutar las pruebas."
+        },
+        {
+          "id": "tb-bt-2",
+          "symptom": "Al conectar el circuito con el microcontrolador y el sensor al protoboard, el LED indicador no enciende y se percibe olor a sobrecalentamiento.",
+          "cause": "Inversión en la polaridad de la fuente de alimentación (cables de VCC y GND invertidos) o cortocircuito directo en los Rieles del protoboard.",
+          "solution": "1. Desconecta inmediatamente la fuente de alimentación USB o externa. 2. Revisa el código de colores: cable rojo a positivo y negro o azul a negativo. 3. Verifica con el multímetro la continuidad antes de energizar de nuevo.",
+          "prevention": "Cumple estrictamente con la NOM-001-SEDE sobre instalaciones eléctricas y revisa el diagrama de conexiones con el docente antes de energizar.",
+          "rootCause": "Inversión en la polaridad de la fuente de alimentación (cables de VCC y GND invertidos) o cortocircuito directo en los Rieles del protoboard.",
+          "solutionSteps": [
+            "Desconecta inmediatamente la fuente de alimentación USB o externa.",
+            "Revisa el código de colores: cable rojo a positivo y negro o azul a negativo.",
+            "Verifica con el multímetro la continuidad antes de energizar de nuevo."
+          ],
+          "preventionTip": "Cumple estrictamente con la NOM-001-SEDE sobre instalaciones eléctricas y revisa el diagrama de conexiones con el docente antes de energizar."
+        },
+        {
+          "id": "tb-bt-3",
+          "symptom": "El programa compila, pero al introducir un número decimal el sistema se detiene abruptamente con 'ValueError: invalid literal for int()'.",
+          "cause": "Se está intentando convertir una entrada de texto flotante directamente a un entero utilizando la función int() en lugar de float().",
+          "solution": "1. Localiza la línea donde se captura la entrada del usuario. 2. Modifica la conversión de int(input()) a float(input()). 3. Viste la variable con el tipo de dato correcto para que acepte decimales.",
+          "prevention": "Analiza las especificaciones técnicas y el tipo de datos requeridos en el análisis previo antes de codificar la lógica de entrada.",
+          "rootCause": "Se está intentando convertir una entrada de texto flotante directamente a un entero utilizando la función int() en lugar de float().",
+          "solutionSteps": [
+            "Localiza la línea donde se captura la entrada del usuario.",
+            "Modifica la conversión de int(input()) a float(input()).",
+            "Viste la variable con el tipo de dato correcto para que acepte decimales."
+          ],
+          "preventionTip": "Analiza las especificaciones técnicas y el tipo de datos requeridos en el análisis previo antes de codificar la lógica de entrada."
+        },
+        {
+          "id": "tb-bt-4",
+          "symptom": "El multímetro digital marca cero o muestra 'OL' (Over Limit) al intentar medir el voltaje en los pines de salida del circuito lógico.",
+          "cause": "Las puntas del multímetro están conectadas en los bornes incorrectos (por ejemplo, midiendo voltaje con las puntas en la terminal de corriente) o la escala seleccionada es errónea.",
+          "solution": "1. Asegúrate de que la punta roja esté en el borne de voltaje/resistencia (VΩmA) y la negra en COM. 2. Gira la perilla selectora al rango adecuado de voltaje directo (V DC). 3. Vuelve a realizar la medición en paralelo.",
+          "prevention": "Realiza una inspección visual del instrumental y calibra los instrumentos de medición siguiendo el manual de procedimientos antes de iniciar la práctica.",
+          "rootCause": "Las puntas del multímetro están conectadas en los bornes incorrectos (por ejemplo, midiendo voltaje con las puntas en la terminal de corriente) o la escala seleccionada es errónea.",
+          "solutionSteps": [
+            "Asegúrate de que la punta roja esté en el borne de voltaje/resistencia (VΩmA) y la negra en COM.",
+            "Gira la perilla selectora al rango adecuado de voltaje directo (V DC).",
+            "Vuelve a realizar la medición en paralelo."
+          ],
+          "preventionTip": "Realiza una inspección visual del instrumental y calibra los instrumentos de medición siguiendo el manual de procedimientos antes de iniciar la práctica."
+        },
+        {
+          "id": "tb-bt-5",
+          "symptom": "El control de calidad automatizado arroja resultados inconsistentes y las pruebas de funcionamiento fallan de forma aleatoria.",
+          "cause": "Falsos contactos en el cableado del protoboard debido a cables con terminales dañadas o mal insertadas en los n",
+          "solution": "1. Apaga el sistema. 2. Revisa uno a uno los puentes y conexiones en el protoboard asegurando que hagan contacto firme. 3. Sustituye los cables que presenten dobleces excesivos o terminales flojas.",
+          "prevention": "Implementa buenas prácticas de armado manteniendo orden y utilizando componentes en óptimas condiciones durante la Etapa 1 y 7.",
+          "rootCause": "Falsos contactos en el cableado del protoboard debido a cables con terminales dañadas o mal insertadas en los n",
+          "solutionSteps": [
+            "Apaga el sistema.",
+            "Revisa uno a uno los puentes y conexiones en el protoboard asegurando que hagan contacto firme.",
+            "Sustituye los cables que presenten dobleces excesivos o terminales flojas."
+          ],
+          "preventionTip": "Implementa buenas prácticas de armado manteniendo orden y utilizando componentes en óptimas condiciones durante la Etapa 1 y 7."
+        },
+        {
+          "id": "tb-bt-6",
+          "symptom": "El entorno de desarrollo integrado (IDE) marca 'Error: Port busy' o no detecta la placa de desarrollo conectada por puerto USB.",
+          "cause": "El puerto COM asignado está siendo utilizado por otra aplicación de fondo o el controlador (driver) del dispositivo no está instalado correctamente.",
+          "solution": "1. Cierra otras instancias de software de programación o terminales abiertas. 2. Desconecta y vuelve a conectar el cable USB. 3. Verifica en el Administrador de Dispositivos el puerto COM correcto y selecciónalo en el IDE.",
+          "prevention": "Verifica la compatibilidad de drivers y el estado de los puertos de comunicación antes de iniciar la sesión de laboratorio.",
+          "rootCause": "El puerto COM asignado está siendo utilizado por otra aplicación de fondo o el controlador (driver) del dispositivo no está instalado correctamente.",
+          "solutionSteps": [
+            "Cierra otras instancias de software de programación o terminales abiertas.",
+            "Desconecta y vuelve a conectar el cable USB.",
+            "Verifica en el Administrador de Dispositivos el puerto COM correcto y selecciónalo en el IDE."
+          ],
+          "preventionTip": "Verifica la compatibilidad de drivers y el estado de los puertos de comunicación antes de iniciar la sesión de laboratorio."
+        }
+      ],
+      "formativeCheckpoint": {
+        "question": "¿Los valores experimentales coincidieron con los calculados teóricamente? Justifica tu respuesta.",
+        "reflectionPrompts": [
+          "¿Qué relación directa observaste entre el diseño modular de funciones en Python (separar el registro, la consulta y la actualización) y la mantenibilidad del código ante futuros cambios requeridos por los comerciantes de Francisco Z. Mena?",
+          "¿Cómo influyó el uso de la estructura de control de excepciones (try-except) en la prevención de fallos críticos del software cuando un usuario ingresaba caracteres alfabéticos en lugar de valores numéricos de stock o precio?",
+          "¿De qué manera la implementación de un algoritmo de búsqueda por código único previene la duplicidad de registros y garantiza la integridad de los datos en el inventario comunitario del proyecto PAEC?",
+          "¿Qué implicaciones éticas y sociales tiene el desarrollo de software local adaptado a las necesidades específicas de los pequeños talleres y comercios rurales frente al uso de software comercial genérico o privativo?",
+          "¿Cómo aplicarías este mismo protocolo de análisis de especificaciones técnicas y depuración estructurada para resolver una problemática de automatización en otra área de tu comunidad o plantel educativo?"
+        ],
+        "criteriaChecklist": [
+          "Registré todas las lecturas con sus unidades de medida correspondientes."
+        ]
+      },
+      "wordCount": 3699
+    },
+    {
+      "missionIndex": 3,
+      "title": "Misión 3: Construcción del Artefacto Real — Análisis de especificaciones técnicas y procedimientos (Etapa 7)",
+      "coveredSessions": [
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "sessionTopic": "Sistema Integral de Control de Inventario y Ventas para Talleres y Comercios Locales (SICIV-FZM)",
+      "sessionFocus": "Construcción del artefacto e integración socioproductiva",
+      "phenomenonHook": {
+        "story": "Llegamos a la fase de transferencia y aplicación: aquí transformamos el conocimiento de Programación en un artefacto real que atiende la problemática de Desarrollo de software y automatización digital comunitaria para comercios y talleres locales de Francisco Z. Mena, mitigando la brecha digital y optimizando el inventario comunitario..",
+        "detonatingQuestion": "¿De qué manera una solución técnica bien diseñada puede mejorar la calidad de vida en nuestro entorno escolar y comunitario?"
+      },
+      "conceptZero": {
+        "physicalAnalogy": "Un proyecto es como construir un puente: no basta con que los cálculos sean elegantes en papel, debe soportar el peso de las personas que lo cruzan.",
+        "coreExplanation": "El desarrollo del artefacto tecnológico denominado 'Sistema Integral de Control de Inventario y Ventas para Talleres y Comercios Locales (SICIV-FZM)' se enmarca de manera rigurosa dentro de la estrategia de la Nueva Escuela Mexicana (NEM) y del Plan de Acción Educativo Comunitario (PAEC) para el municipio de Francisco Z. Mena, Puebla. Este municipio, caracterizado por una economía local basada en pequeños comercios, talleres mecánicos, carpinterías, misceláneas y microempresas familiares, enfrenta una marcada brecha digital y tecnológica que limita su crecimiento económico, su capacidad de organización administrativa y su inserción en mercados competitivos. La gran mayoría de estos establecimientos tradicionales operan mediante métodos rudimentarios de registro manual, utilizando libretas de papel, notas de remisión físicas y cálculos aritméticos manuales o memorísticos. Esta situación genera una serie de problemáticas sistémicas graves: pérdidas financieras por descontrol en las existencias de mercancía, merma de productos perecederos no detectada a tiempo, desconocimiento de los artículos con mayor o menor rotación (productos 'hueso'), errores frecuentes en el cálculo de precios y utilidades, falta de visibilidad sobre los flujos de efectivo diarios, y una enorme vulnerabilidad ante robos, extravíos o daños físicos de los registros contables. Ante este escenario socioeconómico, la Unidad de Aprendizaje Curricular (UAC) de Programación, correspondiente al subsistema de Bachillerato Tecnológico (BT), asume un compromiso ético, social y técnico ineludible. No se trata de un ejercicio académico aislado dentro de un laboratorio de cómputo, sino de una intervención tecnológica real y transformadora. Los estudiantes de educación media superior se convierten en ingenieros de software comunitarios, diseñadores de soluciones digitales y agentes de cambio social que responden directamente a las necesidades de su entorno inmediato. El artefacto que se construye consiste en una aplicación de software ejecutable de escritorio y/o web ligera, robusta y accesible, desarrollada con lenguajes de programación estructurados y orientados a objetos (como Python, JavaScript o Java, respaldados por bases de datos relacionales como SQLite o MySQL), diseñada específicamente para adaptarse a las capacidades de hardware existentes en los pequeños comercios de Francisco Z. Mena (computadoras de escritorio de generaciones anteriores, laptops recicladas o terminales de bajo costo). La pertinencia técnica del SICIV-FZM radica en su arquitectura modular y su interfaz de usuario intuitiva, diseñada bajo principios de usabilidad universal para personas adultas con poca o nula familiaridad previa con herramientas informáticas. El sistema resuelve de forma integral tres ejes operativos críticos para cualquier comercio local: 1) Control automatizado de inventarios en tiempo real, con alertas visuales de stock mínimo para evitar el desabastecimiento y la pérdida de ventas; 2) Módulo de punto de venta (POS) ágil, que permite registrar transacciones de manera rápida mediante códigos de barras generados localmente o códigos numéricos estandarizados, emitiendo tickets digitales o listados imprimibles; y 3) Generación de reportes gerenciales automatizados, que muestran al locatario de manera gráfica y sencilla cuáles son los productos más vendidos, las ganancias netas por periodo de tiempo, y el valor total del inventario acumulado. Los beneficiarios directos de este proyecto son los propietarios y trabajadores de los talleres y comercios locales de Francisco Z. Mena, quienes verán optimizado su tiempo administrativo en hasta un 70%, reduciendo drásticamente los errores humanos en el manejo de efectivo y mercancías. Los beneficiarios indirectos incluyen a las familias de los comerciantes, cuya estabilidad económica depende del éxito del negocio, y a la comunidad en general, que se beneficia de un comercio local más formal, organizado, competitivo y capaz de ofrecer un servicio más eficiente. Desde la perspectiva pedagógica del Marco Curricular Común de la Educación Media Superior (MCCEMS), este artefacto propicia el desarrollo de competencias disciplinares extendidas en el campo de las ciencias exactas y la tecnología, así como competencias profesionales de la carrera técnica en programación. El estudiante moviliza saberes complejos relacionados con el análisis de requerimientos, el diseño de bases de datos normalizadas, la programación de algoritmos de búsqueda y ordenamiento, la validación de entradas de usuario, la gestión de excepciones y la depuración de código. Asimismo, fomenta habilidades socioemocionales fundamentales como la empatía comunitaria, la escucha activa para comprender las necesidades reales del usuario final, la responsabilidad profesional, el trabajo en equipo colaborativo y la resiliencia ante la resolución de bugs y fallas técnicas durante el despliegue del software. En conclusión, el SICIV-FZM no es meramente un programa informático que cumple con una rúbrica escolar; es una herramienta de emancipación tecnológica y digital que dignifica el trabajo de los comerciantes de Francisco Z. Mena, cerrando la brecha digital desde las aulas del bachillerato tecnológico hacia el corazón productivo de la comunidad, demostrando que la ciencia y la tecnología son bienes sociales al servicio del desarrollo humano integral."
+      },
+      "iDoSection": {
+        "stepByStepDemo": "Fases del Proyecto Formativo:\nFase 1: Diagnóstico técnico, levantamiento de requerimientos y diseño arquitectónico: Paso 1: Realizar una visita de campo o entrevista simulada con un comerciante o tallerista local de Francisco Z. Mena para identificar sus necesidades específicas de control de inventarios y ventas. Anotar los requerimientos funcionales (qué debe hacer el software) y no funcionales (rendimiento, seguridad, compatibilidad). \n\nPaso 2: Traducir los requerimientos recopilados en un documento estructurado de especificación de requerimientos de software (DERS), estableciendo los módulos principales: módulo de usuarios (administrador y cajero), módulo de inventarios (altas, bajas, modificaciones, consultas y alertas de stock), módulo de ventas (punto de venta y cálculo de cambio) y módulo de reportes (ventas diarias y mensuales).\n\nPaso 3: Diseñar el modelo de datos relacional del sistema. Crear un Diagrama de Entidad-Relación (DER) identificando las tablas esenciales: 'Usuarios', 'Productos', 'Categorías', 'Ventas' y 'Detalle_Venta'. Definir correctamente las llaves primarias (PK) y llaves foráneas (FK), asegurando la integridad referencial de los datos. <!--workbook:drawing:height=160-->\n\nPaso 4: Elaborar los bocetos en papel o digital (Wireframes) de las pantallas principales del software, priorizando la simplicidad visual y la accesibilidad para usuarios con baja alfabetización digital. Las fuentes deben ser legibles y los botones de acción (Guardar, Cancelar, Cobrar) deben estar claramente diferenciados por colores.\n\nPaso 5: Seleccionar el entorno de desarrollo integrado (IDE) y los lenguajes de programación a utilizar (por ejemplo, Python con Tkinter y SQLite, o JavaScript con Node.js y HTML/CSS). Verificar la instalación de librerías y dependencias necesarias para la ejecución local del proyecto en equipos con recursos limitados. \n\nAdvertencia técnica: Asegúrese de que el diseño de la base de datos evite la redundancia innecesaria y aplique al menos hasta la tercera forma normal (3FN) para prevenir inconsistencias futuras en el almacenamiento de precios y existencias.\n\nFase 2: Configuración del entorno, creación de la base de datos y programación del núcleo backend: Paso 1: Inicializar el proyecto en el control de versiones local (Git) y estructurar los directorios del proyecto de manera limpia: carpetas separadas para 'database', 'models', 'views', 'controllers' y 'assets'.\n\nPaso 2: Escribir el script en lenguaje SQL para la creación automatizada de la base de datos relacional. Incluir restricciones como 'NOT NULL', 'UNIQUE' y 'CHECK' para evitar que se registren precios negativos o cantidades en inventario menores a cero.\n\nPaso 3: Programar el módulo de conexión a la base de datos en el lenguaje seleccionado, implementando bloques de manejo de excepciones ('try-catch' o 'try-except') para capturar errores de conectividad o fallas en la ruta del archivo de base de datos.\n\nPaso 4: Desarrollar la lógica de negocio (Backend) implementando las operaciones CRUD (Create, Read, Update, Delete) para la gestión del catálogo de productos. Cada función debe incluir validaciones estrictas de tipos de datos (por ejemplo, verificar que el precio ingresado sea estrictamente un valor numérico flotante).\n\nPaso 5: Escribir y ejecutar pruebas unitarias en consola para verificar que la inserción, consulta, actualización y eliminación de registros en la base de datos se realicen de manera correcta y sin corromper la integridad de la información. <!--workbook:lines:rows=8-->\n\nAdvertencia técnica: Es fundamental sanitizar todas las consultas SQL mediante consultas parametrizadas para evitar ataques de inyección SQL ('SQL Injection'), incluso si la aplicación operará de manera local en una sola computadora.\n\nFase 3: Desarrollo de la interfaz gráfica de usuario (GUI) y módulo de punto de venta (POS): Paso 1: Construir las ventanas de la interfaz gráfica de usuario (GUI) basándose en los wireframes diseñados en la Fase 1. Asegurar una navegación fluida mediante pestañas, menús desplegables o botones de navegación intuitivos.\n\nPaso 2: Programar el módulo de Punto de Venta (POS). Este módulo debe permitir al usuario buscar un producto por su código o nombre, agregarlo a un carrito de compras temporal, calcular de manera automática el subtotal, el impuesto aplicable (si lo hubiera) y el total general.\n\nPaso 3: Vincular el módulo POS con la tabla de inventarios de la base de datos, de modo que cada vez que se concrete una venta, el sistema descuente de forma automática y exacta la cantidad vendida de las existencias actuales del producto.\n\nPaso 4: Implementar un algoritmo de alerta visual (por ejemplo, coloreando en rojo las filas de la tabla de productos cuyas existencias sean menores o iguales al stock mínimo configurado por el comerciante).\n\nPaso 5: Desarrollar el módulo de reportes que permita consultar las ventas realizadas durante la jornada diaria y calcular el total de ingresos obtenidos, mostrando los datos en una tabla clara o en un formato de texto estructurado listo para impresión. <!--workbook:lines:rows=8-->\n\nAdvertencia técnica: Evite bloqueos en la interfaz gráfica principal ('Freezing UI') al realizar consultas pesadas a la base de datos; si es necesario, implemente ejecución de procesos en segundo plano o optimice las consultas mediante índices en las columnas de búsqueda frecuente.\n\nFase 4: Depuración integral, pruebas de campo, empaquetado y entrega final comunitaria: Paso 1: Realizar una auditoría completa del código fuente para eliminar variables sin usar, código redundante, comentarios obsoletos y advertencias de compilación o interpretación.\n\nPaso 2: Ejecutar pruebas de caja negra simulando situaciones de uso real y extremo (apagar el equipo abruptamente durante una venta, ingresar caracteres especiales en campos numéricos, saturar el inventario con cientos de registros) para evaluar la estabilidad y tolerancia a fallos del software.\n\nPaso 3: Empaquetar la aplicación y sus dependencias en un archivo ejecutable portable o un instalador sencillo utilizando herramientas como PyInstaller (para Python) o empaquetadores equivalentes, asegurando que pueda ejecutarse en una computadora con Windows sin necesidad de instalar entornos de desarrollo complejos.\n\nPaso 4: Redactar un Manual de Usuario ilustrado, redactado con un lenguaje sencillo, accesible y respetuoso, que explique paso a paso cómo abrir el programa, registrar un producto, realizar una venta y consultar el reporte diario.\n\nPaso 5: Realizar una prueba de campo final entregando el artefacto al comerciante o tallerista local asignado en Francisco Z. Mena. Registrar sus comentarios, corregir cualquier detalle menor de usabilidad y documentar la entrega mediante fotografías y la firma de la bitácora de campo. <!--workbook:lines:rows=8-->\n\nAdvertencia técnica: Compruebe rigurosamente que el ejecutable funcione en una computadora totalmente limpia (sin el entorno de desarrollo instalado) para garantizar que todas las librerías, iconos y archivos de bases de datos iniciales están correctamente empaquetados y referenciados por rutas relativas y no absolutas."
+      },
+      "weDoSection": {
+        "guidedPractice": "Desarrollo colaborativo en equipos de trabajo con seguimiento docente en el aula y taller.",
+        "workbookElements": [
+          {
+            "id": "wb-project-diagram",
+            "type": "drawing_box",
+            "title": "Diagrama de Arquitectura y Esquema de Conexión del Artefacto",
+            "instruction": "Dibuja el diagrama de bloques, esquema funcional o circuito de tu solución:",
+            "config": {
+              "heightPx": 160
+            }
+          }
+        ]
+      },
+      "youDoSection": {
+        "autonomousChallenge": "Desafío Autónomo ('Tú Haces'): Una vez concluido el ensamblaje y empaquetado del Sistema Integral de Control de Inventario y Ventas (SICIV-FZM), cada equipo de estudiantes deberá trasladarse de manera autogestiva al comercio, taller o miscelánea asignada en su comunidad de Francisco Z. Mena para realizar la instalación en el equipo de cómputo real del negocio. El estudiante deberá configurar el sistema introduciendo un inventario inicial real de al menos 20 productos proporcionados por el comerciante, incluyendo precios de compra, precios de venta y existencias actuales. Posteriormente, el estudiante capacitará durante un tiempo mínimo de 20 minutos al dueño o empleado del establecimiento, guiándolo en la realización de al menos 5 ventas simuladas y la consulta del reporte de corte diario. Durante este proceso, el estudiante deberá observar las dificultades de interacción que presente el usuario, tomar notas precisas en su bitácora de campo y realizar un ajuste menor de código de última hora si se detecta un fallo de usabilidad. Finalmente, recabará la firma de aceptación en la hoja de validación técnica por parte del comerciante y redactará una memoria técnica individual de dos cuartillas reflexionando sobre el impacto real de su software en la mitigación de la brecha digital local.",
+        "workbookElements": [
+          {
+            "id": "wb-project-checklist",
+            "type": "checkbox_list",
+            "title": "Lista de verificación de criterios de aceptación",
+            "instruction": "Verifica junto con tu docente el cumplimiento de cada criterio antes de la entrega:",
+            "config": {
+              "checkboxes": [
+                "Criterio 1: El software ejecutable inicia correctamente en menos de 5 segundos en un equipo de cómputo estándar de gama baja sin requerir instalación de software adicional.",
+                "Criterio 2: Las operaciones CRUD en el módulo de inventarios operan sin errores, actualizando de forma inmediata y persistente la base de datos relacional.",
+                "Criterio 3: El módulo de punto de venta (POS) descuenta con precisión matemática exacta el inventario tras cada transacción registrada y emite el cálculo correcto del cambio.",
+                "Criterio 4: El sistema activa alertas visuales automáticas cuando un producto alcanza o rebasa el límite mínimo de stock establecido por el usuario.",
+                "Criterio 5: Se incluye un manual de usuario impreso o digital claro, ilustrado y comprensible para personas sin formación técnica previa."
+              ]
+            }
+          },
+          {
+            "id": "wb-project-notes",
+            "type": "lines",
+            "title": "Bitácora de campo y lecciones aprendidas",
+            "instruction": "Anota los principales retos técnicos enfrentados y cómo los resolvieron en equipo:",
+            "config": {
+              "rows": 6
+            }
+          }
+        ]
+      },
+      "troubleshooting": [],
+      "formativeCheckpoint": {
+        "question": "¿Qué impacto esperado tiene tu artefacto en la comunidad o en tu perfil profesional?",
+        "reflectionPrompts": [
+          "Evalúa la viabilidad y durabilidad de tu propuesta."
+        ],
+        "criteriaChecklist": [
+          "El artefacto cumple los criterios de aceptación acordados."
+        ]
+      },
+      "wordCount": 2523
+    },
+    {
+      "missionIndex": 4,
+      "title": "Misión 4: Demostración Integral y Evaluación Formativa — Control de calidad, pruebas de funcionamiento y coevaluación",
+      "coveredSessions": [
+        16,
+        17,
+        18
+      ],
+      "sessionTopic": "Control de calidad, pruebas de funcionamiento y coevaluación",
+      "sessionFocus": "Demostración de aprendizajes, coevaluación y rúbrica NEM",
+      "phenomenonHook": {
+        "story": "La evaluación formativa en el modelo NEM no es una prueba memorística; es la oportunidad en que tú y tu equipo demuestran ante la comunidad escolar cómo los conocimientos construidos en Programación responden a la problemática de Desarrollo de software y automatización digital comunitaria para comercios y talleres locales de Francisco Z. Mena, mitigando la brecha digital y optimizando el inventario comunitario..",
+        "detonatingQuestion": "¿De qué manera tus evidencias demuestran que alcanzaste las metas de aprendizaje y qué impacto real tienen tus soluciones?"
+      },
+      "conceptZero": {
+        "physicalAnalogy": "La evaluación es como el control de calidad final en una línea de producción: no busca descartar piezas, sino asegurar que cada una cumpla con la resistencia y confiabilidad requerida para su propósito real.",
+        "coreExplanation": "La evaluación formativa combina tres miradas indispensables: la heteroevaluación docente guiada por una rúbrica analítica, la coevaluación técnica entre compañeros mediante lista de cotejo, y la autoevaluación reflexiva sobre tu propio progreso cognitivo."
+      },
+      "iDoSection": {
+        "stepByStepDemo": "Rúbrica Analítica Oficial NEM:\n\n### Criterio: Rigor metodológico y aplicación procedimental en el desarrollo de software (Ponderación: 25%)\n- **Sobresaliente / Excelente (10 pts):** El estudiante demuestra un dominio absoluto en la aplicación de las fases del ciclo de vida del desarrollo de software, estructurando algoritmos limpios y aplicando paradigmas de programación eficientes adaptados a la problemática del comercio local en Francisco Z. Mena. Se observa una planeación exhaustiva, el uso correcto de diagramas de flujo y una traducción impecable a código fuente validado sin errores de compilación ni de lógica.\n- **Notable / Bueno (8 pts):** El estudiante aplica los procedimientos metodológicos establecidos con precisión y solvencia técnica, mostrando un entendimiento claro de la lógica de programación. Aunque la estructura general del software es funcional y responde al contexto comunitario, presenta mínimas omisiones en la documentación preliminar o requiere ligeras correcciones en la optimización de ciclos y condicionales complejos.\n- **Suficiente / Básico (6 pts):** El estudiante cumple de manera elemental con los procedimientos requeridos para el desarrollo de la aplicación, reflejando un esfuerzo por resolver la tarea asignada. Sin embargo, se aprecian deficiencias notables en la estructura modular del código, uso limitado de buenas prácticas de sintaxis y una dependencia constante de la guía docente para superar bloqueos lógicos básicos durante la codificación.\n- **Insuficiente / Requiere Apoyo (4 pts):** El estudiante presenta graves inconsistencias metodológicas y conceptuales que impiden el funcionamiento correcto del software. No sigue un orden lógico en el diseño algorítmico, el código fuente está incompleto o carece de estructura, y no logra vincular la solución técnica con las necesidades de digitalización planteadas en el proyecto comunitario del municipio de Francisco Z. Mena.\n\n### Criterio: Funcionalidad, validación de datos y robustez del código (Ponderación: 25%)\n- **Sobresaliente / Excelente (10 pts):** El programa informático desarrollado opera con máxima eficiencia, integrando rutinas robustas de validación de entradas de datos que evitan caídas del sistema ante valores inesperados. La gestión de inventarios para los talleres locales funciona en tiempo real con precisión milimétrica, demostrando pruebas exhaustivas de caja negra y blanca que garantizan la estabilidad absoluta del artefacto digital bajo cualquier escenario operativo.\n- **Notable / Bueno (8 pts):** El software cumple satisfactoriamente con los requerimientos funcionales solicitados, procesando la información de manera correcta y estableciendo mecanismos estándar de validación de datos. Las pruebas realizadas cubren los casos de uso principales para los comercios locales, aunque pueden presentarse fallos menores en situaciones límite o entradas de usuario no contempladas inicialmente en el diseño.\n- **Suficiente / Básico (6 pts):** El artefacto digital muestra una funcionalidad limitada a los procesos más simples y directos, careciendo de mecanismos avanzados de control de excepciones y validación robusta de datos. El sistema es propenso a errores ante ingresos de información imprevista y la gestión del inventario presenta intermitencias que afectan la confiabilidad general de la herramienta propuesta para la comunidad.\n- **Insuficiente / Requiere Apoyo (4 pts):** El software carece de funcionalidad operativa básica; presenta errores críticos de ejecución, desbordamientos de memoria o bucles infinitos que imposibilitan su uso práctico. No cuenta con validación de datos, provocando que el programa colapse frecuentemente y demostrando una ausencia total de pruebas de calidad antes de su presentación ante los comercios beneficiados.\n\n### Criterio: Impacto socio-comunitario y vinculación con el PAEC en Francisco Z. Mena (Ponderación: 25%)\n- **Sobresaliente / Excelente (10 pts):** El proyecto de software se vincula de manera excepcional y transformadora con la problemática de la brecha digital y la optimización de inventarios en los comercios y talleres de Francisco Z. Mena. El estudiante demuestra empatía social y compromiso ciudadano, diseñando interfaces sumamente intuitivas, accesibles y adaptadas a usuarios con nula experiencia tecnológica previa, logrando un impacto medible y altamente positivo en la economía local.\n- **Notable / Bueno (8 pts):** La propuesta digital aborda de manera clara y directa las necesidades planteadas por el PAEC comunitaria, ofreciendo una solución útil para los pequeños negocios del municipio. La interfaz de usuario es comprensible y funcional, facilitando la adopción tecnológica, aunque se beneficiaría de un estudio más profundo sobre las dinámicas comerciales específicas de la región para maximizar su arraigo y utilidad.\n- **Suficiente / Básico (6 pts):** El proyecto muestra una relación tangencial con la problemática comunitaria de Francisco Z. Mena, cumpliendo con el requisito formal pero sin lograr una verdadera empatía con las necesidades reales de los comerciantes locales. La interfaz resulta compleja o poco amigable para usuarios no especializados, lo que limita su potencial de aplicación directa en el entorno socioeconómico del municipio.\n- **Insuficiente / Requiere Apoyo (4 pts):** El software desarrollado está completamente desconectado de la realidad comunitaria y de los objetivos del PAEC. No considera las limitaciones tecnológicas, de conectividad o de capacitación de los talleres locales de Francisco Z. Mena, resultando en un producto irrelevante, descontextualizado y sin ningún valor práctico para mitigar la brecha digital en la región.\n\n### Criterio: Documentación técnica, estilo de codificación y trabajo colaborativo (Ponderación: 25%)\n- **Sobresaliente / Excelente (10 pts):** El código fuente presenta un estándar sobresaliente de limpieza, con identación perfecta, uso riguroso de nomenclatura significativa para variables y funciones, y comentarios explicativos claros que facilitan su mantenimiento futuro. La documentación técnica y el manual de usuario están redactados con rigor profesional, reflejando una excelente organización y distribución de roles dentro del equipo de trabajo durante todo el proceso de desarrollo.\n- **Notable / Bueno (8 pts):** El código fuente mantiene un estilo ordenado, legible y consistente, siguiendo las convenciones de nomenclatura recomendadas para el lenguaje de programación utilizado. La documentación técnica describe adecuadamente los componentes principales del sistema y el manual de usuario cumple su propósito, respaldado por una colaboración efectiva y responsable entre los integrantes del equipo de trabajo.\n- **Suficiente / Básico (6 pts):** El código fuente es funcional pero desorganizado, con problemas frecuentes de identación, nombres de variables poco descriptivos y escasa o nula documentación interna. La documentación técnica es superficial, incompleta y el trabajo colaborativo mostró desequilibrios notables en la participación y en la comunicación asertiva entre los miembros del equipo de desarrollo.\n- **Insuficiente / Requiere Apoyo (4 pts):** El código fuente es caótico, carece de estructura lógica visible, utiliza nombres de variables arbitrarios y no incluye ningún tipo de comentario explicativo. La documentación técnica brilla por su ausencia y el proceso de trabajo colaborativo fue deficiente, evidenciando conflictos internos, falta de planeación y un incumplimiento sistemático de las metas parciales asignadas."
+      },
+      "weDoSection": {
+        "guidedPractice": "Sesión de coevaluación técnica: los equipos contrastan sus entregables utilizando la lista de cotejo y registran observaciones constructivas.",
+        "workbookElements": [
+          {
+            "id": "wb-eval-checklist-box",
+            "type": "checkbox_list",
+            "title": "Lista de Cotejo Técnica del Artefacto (Coevaluación entre Pares)",
+            "instruction": "Intercambia tu proyecto con un compañero y verifica objetivamente el cumplimiento de cada indicador:",
+            "config": {
+              "checkboxes": [
+                "[Seguridad] El estudiante verifica y aplica protocolos de seguridad eléctrica y ergonómica antes de iniciar la manipulación del equipo de cómputo.",
+                "[Seguridad] El entorno de desarrollo integrado (IDE) está correctamente instalado, configurado y actualizado con las librerías necesarias para el proyecto.",
+                "[Metodología] El algoritmo principal cuenta con un diagrama de flujo previo que plasma de forma lógica la solución al problema de inventario.",
+                "[Funcionalidad] El código fuente implementa correctamente estructuras de control secuenciales, selectivas y repetitivas según los requerimientos.",
+                "[Metodología] Las variables y funciones utilizan nomenclatura estándar y descriptiva que facilita la lectura y comprensión del código.",
+                "[Funcionalidad] Se han integrado rutinas de validación de entradas de datos para prevenir fallos por inserción de caracteres alfanuméricos incorrectos.",
+                "[Funcionalidad] El sistema realiza el registro, actualización y consulta de inventarios en tiempo real sin pérdida de información.",
+                "[Funcionalidad] Se incluye un módulo de control de excepciones (try-catch o equivalente) para evitar cierres abruptos del programa.",
+                "[Presentación] El diseño de la interfaz de usuario es intuitivo, accesible y adecuado para personas con baja alfabetización digital en talleres locales.",
+                "[Metodología] El programa incluye comentarios internos claros y estructurados que explican la lógica de los bloques de código más complejos.",
+                "[Seguridad] Se realizó un respaldo periódico del código fuente utilizando un sistema de control de versiones (ej. Git/GitHub) durante el desarrollo.",
+                "[Presentación] El proyecto incluye una guía de usuario redactada en lenguaje sencillo y accesible para los comerciantes de Francisco Z. Mena.",
+                "[Funcionalidad] Se validó el funcionamiento del software mediante pruebas de caja negra simulando escenarios reales de tiendas abarroteras locales.",
+                "[Impacto PAEC] El software se adapta a las limitaciones de hardware comunes en los pequeños negocios de la región (equipos de cómputo básicos o seminuevos).",
+                "[Impacto PAEC] La solución propuesta mitiga directamente la brecha digital identificada en el diagnóstico comunitario del PAEC.",
+                "[Presentación] La presentación final del proyecto demuestra claridad expositiva, dominio técnico y una sólida vinculación social con la comunidad."
+              ]
+            }
+          }
+        ]
+      },
+      "youDoSection": {
+        "autonomousChallenge": "Autoevaluación individual y resolución de los reactivos de juicio crítico en el cuaderno de trabajo.",
+        "workbookElements": [
+          {
+            "id": "wb-eval-reflection-lines",
+            "type": "lines",
+            "title": "Bitácora de Autoevaluación Metacognitiva",
+            "instruction": "Responde reflexivamente a las preguntas de consolidación del bloque:",
+            "config": {
+              "rows": 6
+            }
+          }
+        ]
+      },
+      "troubleshooting": [],
+      "formativeCheckpoint": {
+        "question": "¿Qué evidencias concretas avalan el nivel de desempeño que asignaste a tu proyecto?",
+        "reflectionPrompts": [
+          "¿De qué manera el desarrollo de este bloque de Programación transformó tu percepción sobre la utilidad social de la tecnología, y cómo puedes aplicar estos conocimientos para mitigar la brecha digital en tu propia comunidad dentro del municipio de Francisco Z. Mena?",
+          "¿Cuál fue el obstáculo lógico o técnico más complejo al que te enfrentaste durante la codificación del software de inventario, y qué estrategia específica implementaste para superarlo con éxito?",
+          "¿Cómo influyó el trabajo en equipo y la comunicación asertiva con tus compañeros en la calidad final del artefacto digital entregado para los talleres y comercios locales?",
+          "¿Qué aspectos éticos y de seguridad consideras indispensables al manejar datos sensibles de inventarios y transacciones comerciales de pequeños negocios locales, y cómo los integraste en tu proyecto?",
+          "Si pudieras mejorar o escalar tu aplicación informática actual en el futuro, ¿qué nuevas funcionalidades le añadirías para maximizar su impacto positivo en la economía de la región?",
+          "¿Qué errores comunes cometiste al inicio del diseño algorítmico y qué aprendizajes te dejaron para futuros proyectos de desarrollo de software?"
+        ],
+        "criteriaChecklist": [
+          "Contrasté mi producto contra todos los niveles de la rúbrica analítica.",
+          "Completé la lista de cotejo con imparcialidad técnica.",
+          "Redacté mis compromisos de mejora para el siguiente periodo."
+        ]
+      },
+      "wordCount": 2056
+    }
+  ],
+  "projectSection": {
+    "artifactName": "Sistema Integral de Control de Inventario y Ventas para Talleres y Comercios Locales (SICIV-FZM)",
+    "communityUtility": "El desarrollo del artefacto tecnológico denominado 'Sistema Integral de Control de Inventario y Ventas para Talleres y Comercios Locales (SICIV-FZM)' se enmarca de manera rigurosa dentro de la estrategia de la Nueva Escuela Mexicana (NEM) y del Plan de Acción Educativo Comunitario (PAEC) para el municipio de Francisco Z. Mena, Puebla. Este municipio, caracterizado por una economía local basada en pequeños comercios, talleres mecánicos, carpinterías, misceláneas y microempresas familiares, enfrenta una marcada brecha digital y tecnológica que limita su crecimiento económico, su capacidad de organización administrativa y su inserción en mercados competitivos. La gran mayoría de estos establecimientos tradicionales operan mediante métodos rudimentarios de registro manual, utilizando libretas de papel, notas de remisión físicas y cálculos aritméticos manuales o memorísticos. Esta situación genera una serie de problemáticas sistémicas graves: pérdidas financieras por descontrol en las existencias de mercancía, merma de productos perecederos no detectada a tiempo, desconocimiento de los artículos con mayor o menor rotación (productos 'hueso'), errores frecuentes en el cálculo de precios y utilidades, falta de visibilidad sobre los flujos de efectivo diarios, y una enorme vulnerabilidad ante robos, extravíos o daños físicos de los registros contables. Ante este escenario socioeconómico, la Unidad de Aprendizaje Curricular (UAC) de Programación, correspondiente al subsistema de Bachillerato Tecnológico (BT), asume un compromiso ético, social y técnico ineludible. No se trata de un ejercicio académico aislado dentro de un laboratorio de cómputo, sino de una intervención tecnológica real y transformadora. Los estudiantes de educación media superior se convierten en ingenieros de software comunitarios, diseñadores de soluciones digitales y agentes de cambio social que responden directamente a las necesidades de su entorno inmediato. El artefacto que se construye consiste en una aplicación de software ejecutable de escritorio y/o web ligera, robusta y accesible, desarrollada con lenguajes de programación estructurados y orientados a objetos (como Python, JavaScript o Java, respaldados por bases de datos relacionales como SQLite o MySQL), diseñada específicamente para adaptarse a las capacidades de hardware existentes en los pequeños comercios de Francisco Z. Mena (computadoras de escritorio de generaciones anteriores, laptops recicladas o terminales de bajo costo). La pertinencia técnica del SICIV-FZM radica en su arquitectura modular y su interfaz de usuario intuitiva, diseñada bajo principios de usabilidad universal para personas adultas con poca o nula familiaridad previa con herramientas informáticas. El sistema resuelve de forma integral tres ejes operativos críticos para cualquier comercio local: 1) Control automatizado de inventarios en tiempo real, con alertas visuales de stock mínimo para evitar el desabastecimiento y la pérdida de ventas; 2) Módulo de punto de venta (POS) ágil, que permite registrar transacciones de manera rápida mediante códigos de barras generados localmente o códigos numéricos estandarizados, emitiendo tickets digitales o listados imprimibles; y 3) Generación de reportes gerenciales automatizados, que muestran al locatario de manera gráfica y sencilla cuáles son los productos más vendidos, las ganancias netas por periodo de tiempo, y el valor total del inventario acumulado. Los beneficiarios directos de este proyecto son los propietarios y trabajadores de los talleres y comercios locales de Francisco Z. Mena, quienes verán optimizado su tiempo administrativo en hasta un 70%, reduciendo drásticamente los errores humanos en el manejo de efectivo y mercancías. Los beneficiarios indirectos incluyen a las familias de los comerciantes, cuya estabilidad económica depende del éxito del negocio, y a la comunidad en general, que se beneficia de un comercio local más formal, organizado, competitivo y capaz de ofrecer un servicio más eficiente. Desde la perspectiva pedagógica del Marco Curricular Común de la Educación Media Superior (MCCEMS), este artefacto propicia el desarrollo de competencias disciplinares extendidas en el campo de las ciencias exactas y la tecnología, así como competencias profesionales de la carrera técnica en programación. El estudiante moviliza saberes complejos relacionados con el análisis de requerimientos, el diseño de bases de datos normalizadas, la programación de algoritmos de búsqueda y ordenamiento, la validación de entradas de usuario, la gestión de excepciones y la depuración de código. Asimismo, fomenta habilidades socioemocionales fundamentales como la empatía comunitaria, la escucha activa para comprender las necesidades reales del usuario final, la responsabilidad profesional, el trabajo en equipo colaborativo y la resiliencia ante la resolución de bugs y fallas técnicas durante el despliegue del software. En conclusión, el SICIV-FZM no es meramente un programa informático que cumple con una rúbrica escolar; es una herramienta de emancipación tecnológica y digital que dignifica el trabajo de los comerciantes de Francisco Z. Mena, cerrando la brecha digital desde las aulas del bachillerato tecnológico hacia el corazón productivo de la comunidad, demostrando que la ciencia y la tecnología son bienes sociales al servicio del desarrollo humano integral.",
+    "phases": [
+      {
+        "phaseNum": 1,
+        "title": "Fase 1: Diagnóstico técnico, levantamiento de requerimientos y diseño arquitectónico",
+        "allocatedHours": 10,
+        "deliverables": [
+          "Documento de especificación de requerimientos de software (DERS)",
+          "Diagrama de entidad-relación (DER) de la base de datos",
+          "Bocetos de interfaz de usuario (Wireframes)",
+          "Lista de insumos y herramientas de desarrollo"
+        ],
+        "instructions": "Paso 1: Realizar una visita de campo o entrevista simulada con un comerciante o tallerista local de Francisco Z. Mena para identificar sus necesidades específicas de control de inventarios y ventas. Anotar los requerimientos funcionales (qué debe hacer el software) y no funcionales (rendimiento, seguridad, compatibilidad). \n\nPaso 2: Traducir los requerimientos recopilados en un documento estructurado de especificación de requerimientos de software (DERS), estableciendo los módulos principales: módulo de usuarios (administrador y cajero), módulo de inventarios (altas, bajas, modificaciones, consultas y alertas de stock), módulo de ventas (punto de venta y cálculo de cambio) y módulo de reportes (ventas diarias y mensuales).\n\nPaso 3: Diseñar el modelo de datos relacional del sistema. Crear un Diagrama de Entidad-Relación (DER) identificando las tablas esenciales: 'Usuarios', 'Productos', 'Categorías', 'Ventas' y 'Detalle_Venta'. Definir correctamente las llaves primarias (PK) y llaves foráneas (FK), asegurando la integridad referencial de los datos. <!--workbook:drawing:height=160-->\n\nPaso 4: Elaborar los bocetos en papel o digital (Wireframes) de las pantallas principales del software, priorizando la simplicidad visual y la accesibilidad para usuarios con baja alfabetización digital. Las fuentes deben ser legibles y los botones de acción (Guardar, Cancelar, Cobrar) deben estar claramente diferenciados por colores.\n\nPaso 5: Seleccionar el entorno de desarrollo integrado (IDE) y los lenguajes de programación a utilizar (por ejemplo, Python con Tkinter y SQLite, o JavaScript con Node.js y HTML/CSS). Verificar la instalación de librerías y dependencias necesarias para la ejecución local del proyecto en equipos con recursos limitados. \n\nAdvertencia técnica: Asegúrese de que el diseño de la base de datos evite la redundancia innecesaria y aplique al menos hasta la tercera forma normal (3FN) para prevenir inconsistencias futuras en el almacenamiento de precios y existencias."
+      },
+      {
+        "phaseNum": 2,
+        "title": "Fase 2: Configuración del entorno, creación de la base de datos y programación del núcleo backend",
+        "allocatedHours": 14,
+        "deliverables": [
+          "Script SQL ejecutable con la creación de tablas y relaciones",
+          "Módulo de conexión a la base de datos validado",
+          "Código fuente del backend con funciones CRUD operativas para productos",
+          "Pruebas unitarias iniciales en consola"
+        ],
+        "instructions": "Paso 1: Inicializar el proyecto en el control de versiones local (Git) y estructurar los directorios del proyecto de manera limpia: carpetas separadas para 'database', 'models', 'views', 'controllers' y 'assets'.\n\nPaso 2: Escribir el script en lenguaje SQL para la creación automatizada de la base de datos relacional. Incluir restricciones como 'NOT NULL', 'UNIQUE' y 'CHECK' para evitar que se registren precios negativos o cantidades en inventario menores a cero.\n\nPaso 3: Programar el módulo de conexión a la base de datos en el lenguaje seleccionado, implementando bloques de manejo de excepciones ('try-catch' o 'try-except') para capturar errores de conectividad o fallas en la ruta del archivo de base de datos.\n\nPaso 4: Desarrollar la lógica de negocio (Backend) implementando las operaciones CRUD (Create, Read, Update, Delete) para la gestión del catálogo de productos. Cada función debe incluir validaciones estrictas de tipos de datos (por ejemplo, verificar que el precio ingresado sea estrictamente un valor numérico flotante).\n\nPaso 5: Escribir y ejecutar pruebas unitarias en consola para verificar que la inserción, consulta, actualización y eliminación de registros en la base de datos se realicen de manera correcta y sin corromper la integridad de la información. <!--workbook:lines:rows=8-->\n\nAdvertencia técnica: Es fundamental sanitizar todas las consultas SQL mediante consultas parametrizadas para evitar ataques de inyección SQL ('SQL Injection'), incluso si la aplicación operará de manera local en una sola computadora."
+      },
+      {
+        "phaseNum": 3,
+        "title": "Fase 3: Desarrollo de la interfaz gráfica de usuario (GUI) y módulo de punto de venta (POS)",
+        "allocatedHours": 14,
+        "deliverables": [
+          "Interfaz gráfica de usuario completamente funcional",
+          "Módulo de punto de venta integrado con el inventario en tiempo real",
+          "Sistema de alertas visuales para stock mínimo de productos",
+          "Módulo de generación de reportes básicos"
+        ],
+        "instructions": "Paso 1: Construir las ventanas de la interfaz gráfica de usuario (GUI) basándose en los wireframes diseñados en la Fase 1. Asegurar una navegación fluida mediante pestañas, menús desplegables o botones de navegación intuitivos.\n\nPaso 2: Programar el módulo de Punto de Venta (POS). Este módulo debe permitir al usuario buscar un producto por su código o nombre, agregarlo a un carrito de compras temporal, calcular de manera automática el subtotal, el impuesto aplicable (si lo hubiera) y el total general.\n\nPaso 3: Vincular el módulo POS con la tabla de inventarios de la base de datos, de modo que cada vez que se concrete una venta, el sistema descuente de forma automática y exacta la cantidad vendida de las existencias actuales del producto.\n\nPaso 4: Implementar un algoritmo de alerta visual (por ejemplo, coloreando en rojo las filas de la tabla de productos cuyas existencias sean menores o iguales al stock mínimo configurado por el comerciante).\n\nPaso 5: Desarrollar el módulo de reportes que permita consultar las ventas realizadas durante la jornada diaria y calcular el total de ingresos obtenidos, mostrando los datos en una tabla clara o en un formato de texto estructurado listo para impresión. <!--workbook:lines:rows=8-->\n\nAdvertencia técnica: Evite bloqueos en la interfaz gráfica principal ('Freezing UI') al realizar consultas pesadas a la base de datos; si es necesario, implemente ejecución de procesos en segundo plano o optimice las consultas mediante índices en las columnas de búsqueda frecuente."
+      },
+      {
+        "phaseNum": 4,
+        "title": "Fase 4: Depuración integral, pruebas de campo, empaquetado y entrega final comunitaria",
+        "allocatedHours": 12,
+        "deliverables": [
+          "Software empaquetado y ejecutable (.exe o instalable portable)",
+          "Manual de usuario ilustrado para el comerciante local",
+          "Bitácora de pruebas de campo firmada por el usuario evaluador",
+          "Presentación final de demostración comunitaria"
+        ],
+        "instructions": "Paso 1: Realizar una auditoría completa del código fuente para eliminar variables sin usar, código redundante, comentarios obsoletos y advertencias de compilación o interpretación.\n\nPaso 2: Ejecutar pruebas de caja negra simulando situaciones de uso real y extremo (apagar el equipo abruptamente durante una venta, ingresar caracteres especiales en campos numéricos, saturar el inventario con cientos de registros) para evaluar la estabilidad y tolerancia a fallos del software.\n\nPaso 3: Empaquetar la aplicación y sus dependencias en un archivo ejecutable portable o un instalador sencillo utilizando herramientas como PyInstaller (para Python) o empaquetadores equivalentes, asegurando que pueda ejecutarse en una computadora con Windows sin necesidad de instalar entornos de desarrollo complejos.\n\nPaso 4: Redactar un Manual de Usuario ilustrado, redactado con un lenguaje sencillo, accesible y respetuoso, que explique paso a paso cómo abrir el programa, registrar un producto, realizar una venta y consultar el reporte diario.\n\nPaso 5: Realizar una prueba de campo final entregando el artefacto al comerciante o tallerista local asignado en Francisco Z. Mena. Registrar sus comentarios, corregir cualquier detalle menor de usabilidad y documentar la entrega mediante fotografías y la firma de la bitácora de campo. <!--workbook:lines:rows=8-->\n\nAdvertencia técnica: Compruebe rigurosamente que el ejecutable funcione en una computadora totalmente limpia (sin el entorno de desarrollo instalado) para garantizar que todas las librerías, iconos y archivos de bases de datos iniciales están correctamente empaquetados y referenciados por rutas relativas y no absolutas."
+      }
+    ],
+    "technicalSpecs": [
+      "Arquitectura de software: Modelo cliente-servidor local o aplicación monolítica modular estructurada en capas (Presentación, Lógica de Negocio y Datos).",
+      "Gestión de Base de Datos: Motor relacional SQLite 3.x o MySQL Server Express, con normalización hasta la 3FN, llaves primarias y foráneas explícitas.",
+      "Compatibilidad de Hardware: Procesador de doble núcleo a 1.6 GHz o superior, memoria RAM mínima de 2 GB, espacio en disco duro disponible de al menos 150 MB.",
+      "Compatibilidad de Sistema Operativo: Microsoft Windows 10 u 11 (64 bits), con soporte para arquitecturas x86_64.",
+      "Normas y Estándares Aplicables: Buenas prácticas de codificación basadas en PEP 8 (para Python) o estándares ECMAScript modernos, apego a principios de accesibilidad de interfaz de usuario y usabilidad ISO/IEC 9241."
+    ],
+    "acceptanceCriteria": [
+      "Criterio 1: El software ejecutable inicia correctamente en menos de 5 segundos en un equipo de cómputo estándar de gama baja sin requerir instalación de software adicional.",
+      "Criterio 2: Las operaciones CRUD en el módulo de inventarios operan sin errores, actualizando de forma inmediata y persistente la base de datos relacional.",
+      "Criterio 3: El módulo de punto de venta (POS) descuenta con precisión matemática exacta el inventario tras cada transacción registrada y emite el cálculo correcto del cambio.",
+      "Criterio 4: El sistema activa alertas visuales automáticas cuando un producto alcanza o rebasa el límite mínimo de stock establecido por el usuario.",
+      "Criterio 5: Se incluye un manual de usuario impreso o digital claro, ilustrado y comprensible para personas sin formación técnica previa."
+    ]
+  },
+  "evaluationSection": {
+    "source": "generated_fresh",
+    "rubric": [
+      {
+        "criterion": "Rigor metodológico y aplicación procedimental en el desarrollo de software",
+        "weightPercent": 25,
+        "levels": [
+          {
+            "levelName": "Sobresaliente / Excelente",
+            "points": 10,
+            "descriptor": "El estudiante demuestra un dominio absoluto en la aplicación de las fases del ciclo de vida del desarrollo de software, estructurando algoritmos limpios y aplicando paradigmas de programación eficientes adaptados a la problemática del comercio local en Francisco Z. Mena. Se observa una planeación exhaustiva, el uso correcto de diagramas de flujo y una traducción impecable a código fuente validado sin errores de compilación ni de lógica."
+          },
+          {
+            "levelName": "Notable / Bueno",
+            "points": 8,
+            "descriptor": "El estudiante aplica los procedimientos metodológicos establecidos con precisión y solvencia técnica, mostrando un entendimiento claro de la lógica de programación. Aunque la estructura general del software es funcional y responde al contexto comunitario, presenta mínimas omisiones en la documentación preliminar o requiere ligeras correcciones en la optimización de ciclos y condicionales complejos."
+          },
+          {
+            "levelName": "Suficiente / Básico",
+            "points": 6,
+            "descriptor": "El estudiante cumple de manera elemental con los procedimientos requeridos para el desarrollo de la aplicación, reflejando un esfuerzo por resolver la tarea asignada. Sin embargo, se aprecian deficiencias notables en la estructura modular del código, uso limitado de buenas prácticas de sintaxis y una dependencia constante de la guía docente para superar bloqueos lógicos básicos durante la codificación."
+          },
+          {
+            "levelName": "Insuficiente / Requiere Apoyo",
+            "points": 4,
+            "descriptor": "El estudiante presenta graves inconsistencias metodológicas y conceptuales que impiden el funcionamiento correcto del software. No sigue un orden lógico en el diseño algorítmico, el código fuente está incompleto o carece de estructura, y no logra vincular la solución técnica con las necesidades de digitalización planteadas en el proyecto comunitario del municipio de Francisco Z. Mena."
+          }
+        ]
+      },
+      {
+        "criterion": "Funcionalidad, validación de datos y robustez del código",
+        "weightPercent": 25,
+        "levels": [
+          {
+            "levelName": "Sobresaliente / Excelente",
+            "points": 10,
+            "descriptor": "El programa informático desarrollado opera con máxima eficiencia, integrando rutinas robustas de validación de entradas de datos que evitan caídas del sistema ante valores inesperados. La gestión de inventarios para los talleres locales funciona en tiempo real con precisión milimétrica, demostrando pruebas exhaustivas de caja negra y blanca que garantizan la estabilidad absoluta del artefacto digital bajo cualquier escenario operativo."
+          },
+          {
+            "levelName": "Notable / Bueno",
+            "points": 8,
+            "descriptor": "El software cumple satisfactoriamente con los requerimientos funcionales solicitados, procesando la información de manera correcta y estableciendo mecanismos estándar de validación de datos. Las pruebas realizadas cubren los casos de uso principales para los comercios locales, aunque pueden presentarse fallos menores en situaciones límite o entradas de usuario no contempladas inicialmente en el diseño."
+          },
+          {
+            "levelName": "Suficiente / Básico",
+            "points": 6,
+            "descriptor": "El artefacto digital muestra una funcionalidad limitada a los procesos más simples y directos, careciendo de mecanismos avanzados de control de excepciones y validación robusta de datos. El sistema es propenso a errores ante ingresos de información imprevista y la gestión del inventario presenta intermitencias que afectan la confiabilidad general de la herramienta propuesta para la comunidad."
+          },
+          {
+            "levelName": "Insuficiente / Requiere Apoyo",
+            "points": 4,
+            "descriptor": "El software carece de funcionalidad operativa básica; presenta errores críticos de ejecución, desbordamientos de memoria o bucles infinitos que imposibilitan su uso práctico. No cuenta con validación de datos, provocando que el programa colapse frecuentemente y demostrando una ausencia total de pruebas de calidad antes de su presentación ante los comercios beneficiados."
+          }
+        ]
+      },
+      {
+        "criterion": "Impacto socio-comunitario y vinculación con el PAEC en Francisco Z. Mena",
+        "weightPercent": 25,
+        "levels": [
+          {
+            "levelName": "Sobresaliente / Excelente",
+            "points": 10,
+            "descriptor": "El proyecto de software se vincula de manera excepcional y transformadora con la problemática de la brecha digital y la optimización de inventarios en los comercios y talleres de Francisco Z. Mena. El estudiante demuestra empatía social y compromiso ciudadano, diseñando interfaces sumamente intuitivas, accesibles y adaptadas a usuarios con nula experiencia tecnológica previa, logrando un impacto medible y altamente positivo en la economía local."
+          },
+          {
+            "levelName": "Notable / Bueno",
+            "points": 8,
+            "descriptor": "La propuesta digital aborda de manera clara y directa las necesidades planteadas por el PAEC comunitaria, ofreciendo una solución útil para los pequeños negocios del municipio. La interfaz de usuario es comprensible y funcional, facilitando la adopción tecnológica, aunque se beneficiaría de un estudio más profundo sobre las dinámicas comerciales específicas de la región para maximizar su arraigo y utilidad."
+          },
+          {
+            "levelName": "Suficiente / Básico",
+            "points": 6,
+            "descriptor": "El proyecto muestra una relación tangencial con la problemática comunitaria de Francisco Z. Mena, cumpliendo con el requisito formal pero sin lograr una verdadera empatía con las necesidades reales de los comerciantes locales. La interfaz resulta compleja o poco amigable para usuarios no especializados, lo que limita su potencial de aplicación directa en el entorno socioeconómico del municipio."
+          },
+          {
+            "levelName": "Insuficiente / Requiere Apoyo",
+            "points": 4,
+            "descriptor": "El software desarrollado está completamente desconectado de la realidad comunitaria y de los objetivos del PAEC. No considera las limitaciones tecnológicas, de conectividad o de capacitación de los talleres locales de Francisco Z. Mena, resultando en un producto irrelevante, descontextualizado y sin ningún valor práctico para mitigar la brecha digital en la región."
+          }
+        ]
+      },
+      {
+        "criterion": "Documentación técnica, estilo de codificación y trabajo colaborativo",
+        "weightPercent": 25,
+        "levels": [
+          {
+            "levelName": "Sobresaliente / Excelente",
+            "points": 10,
+            "descriptor": "El código fuente presenta un estándar sobresaliente de limpieza, con identación perfecta, uso riguroso de nomenclatura significativa para variables y funciones, y comentarios explicativos claros que facilitan su mantenimiento futuro. La documentación técnica y el manual de usuario están redactados con rigor profesional, reflejando una excelente organización y distribución de roles dentro del equipo de trabajo durante todo el proceso de desarrollo."
+          },
+          {
+            "levelName": "Notable / Bueno",
+            "points": 8,
+            "descriptor": "El código fuente mantiene un estilo ordenado, legible y consistente, siguiendo las convenciones de nomenclatura recomendadas para el lenguaje de programación utilizado. La documentación técnica describe adecuadamente los componentes principales del sistema y el manual de usuario cumple su propósito, respaldado por una colaboración efectiva y responsable entre los integrantes del equipo de trabajo."
+          },
+          {
+            "levelName": "Suficiente / Básico",
+            "points": 6,
+            "descriptor": "El código fuente es funcional pero desorganizado, con problemas frecuentes de identación, nombres de variables poco descriptivos y escasa o nula documentación interna. La documentación técnica es superficial, incompleta y el trabajo colaborativo mostró desequilibrios notables en la participación y en la comunicación asertiva entre los miembros del equipo de desarrollo."
+          },
+          {
+            "levelName": "Insuficiente / Requiere Apoyo",
+            "points": 4,
+            "descriptor": "El código fuente es caótico, carece de estructura lógica visible, utiliza nombres de variables arbitrarios y no incluye ningún tipo de comentario explicativo. La documentación técnica brilla por su ausencia y el proceso de trabajo colaborativo fue deficiente, evidenciando conflictos internos, falta de planeación y un incumplimiento sistemático de las metas parciales asignadas."
+          }
+        ]
+      }
+    ],
+    "checklist": [
+      {
+        "item": "El estudiante verifica y aplica protocolos de seguridad eléctrica y ergonómica antes de iniciar la manipulación del equipo de cómputo.",
+        "category": "Seguridad"
+      },
+      {
+        "item": "El entorno de desarrollo integrado (IDE) está correctamente instalado, configurado y actualizado con las librerías necesarias para el proyecto.",
+        "category": "Seguridad"
+      },
+      {
+        "item": "El algoritmo principal cuenta con un diagrama de flujo previo que plasma de forma lógica la solución al problema de inventario.",
+        "category": "Metodología"
+      },
+      {
+        "item": "El código fuente implementa correctamente estructuras de control secuenciales, selectivas y repetitivas según los requerimientos.",
+        "category": "Funcionalidad"
+      },
+      {
+        "item": "Las variables y funciones utilizan nomenclatura estándar y descriptiva que facilita la lectura y comprensión del código.",
+        "category": "Metodología"
+      },
+      {
+        "item": "Se han integrado rutinas de validación de entradas de datos para prevenir fallos por inserción de caracteres alfanuméricos incorrectos.",
+        "category": "Funcionalidad"
+      },
+      {
+        "item": "El sistema realiza el registro, actualización y consulta de inventarios en tiempo real sin pérdida de información.",
+        "category": "Funcionalidad"
+      },
+      {
+        "item": "Se incluye un módulo de control de excepciones (try-catch o equivalente) para evitar cierres abruptos del programa.",
+        "category": "Funcionalidad"
+      },
+      {
+        "item": "El diseño de la interfaz de usuario es intuitivo, accesible y adecuado para personas con baja alfabetización digital en talleres locales.",
+        "category": "Presentación"
+      },
+      {
+        "item": "El programa incluye comentarios internos claros y estructurados que explican la lógica de los bloques de código más complejos.",
+        "category": "Metodología"
+      },
+      {
+        "item": "Se realizó un respaldo periódico del código fuente utilizando un sistema de control de versiones (ej. Git/GitHub) durante el desarrollo.",
+        "category": "Seguridad"
+      },
+      {
+        "item": "El proyecto incluye una guía de usuario redactada en lenguaje sencillo y accesible para los comerciantes de Francisco Z. Mena.",
+        "category": "Presentación"
+      },
+      {
+        "item": "Se validó el funcionamiento del software mediante pruebas de caja negra simulando escenarios reales de tiendas abarroteras locales.",
+        "category": "Funcionalidad"
+      },
+      {
+        "item": "El software se adapta a las limitaciones de hardware comunes en los pequeños negocios de la región (equipos de cómputo básicos o seminuevos).",
+        "category": "Impacto PAEC"
+      },
+      {
+        "item": "La solución propuesta mitiga directamente la brecha digital identificada en el diagnóstico comunitario del PAEC.",
+        "category": "Impacto PAEC"
+      },
+      {
+        "item": "La presentación final del proyecto demuestra claridad expositiva, dominio técnico y una sólida vinculación social con la comunidad.",
+        "category": "Presentación"
+      }
+    ],
+    "criticalThinkingQuiz": [
+      {
+        "questionNumber": 1,
+        "question": "¿Cómo rediseñarías la validación de entradas de un software de inventario para un taller mecánico en Francisco Z. Mena donde los usuarios tienen resistencia o poca familiaridad con el uso de computadoras, evitando que el sistema colapse por errores humanos?",
+        "scenario": "En la localidad de Villa Ávila Camacho (La Ceiba), municipio de Francisco Z. Mena, Don Pancho administra un taller mecánico tradicional. Sus trabajadores están acostumbrados a llevar el control de refacciones y herramientas en libretas de papel. Al intentar implementar el sistema de inventario digital desarrollado por los estudiantes, los trabajadores cometen errores constantes al ingresar datos (por ejemplo, escriben letras en campos numéricos para precios o dejan espacios en blanco). Cada vez que esto ocurre, el software se congela o arroja códigos de error técnicos incomprensibles, lo que genera frustración, rechazo hacia la tecnología y el abandono inmediato de la herramienta digital por parte del personal del taller.",
+        "answerExplanation": "Para resolver esta problemática situada, el estudiante debe demostrar capacidad de diseño centrado en el usuario y robustez técnica. La retroalimentación docente formativa exige que la respuesta incluya tres ejes fundamentales: 1) Implementación de una interfaz gráfica simplificada basada en botones grandes, menús desplegables y restricciones estrictas en los campos de entrada (por ejemplo, deshabilitar letras en inputs numéricos en tiempo real). 2) Sustitución de los mensajes de error técnicos o amenazantes por alertas amigables, claras y orientadas a la acción (ejemplo: 'Por favor, introduce un número válido para el precio'). 3) Un rediseño pedagógico y empático donde el software actúe como un facilitador y no como un juez, incorporando confirmaciones visuales de éxito. Esta situación enseña al estudiante que la programación no es solo escribir código sintácticamente correcto, sino entender el contexto psicosocial y cultural del usuario final, mitigando la brecha digital mediante la adaptabilidad y la empatía técnica con las comunidades rurales de Puebla."
+      },
+      {
+        "questionNumber": 2,
+        "question": "¿Qué estrategia algorítmica y de almacenamiento local propondrías para garantizar la operatividad continua de un sistema de ventas e inventario en una comunidad con intermitencia severa o nula conexión a internet?",
+        "scenario": "Los pequeños comercios de abarrotes ubicados en las comunidades más alejadas de Francisco Z. Mena sufren constantes cortes en el suministro de energía eléctrica y fallas prolongadas en la red de internet móvil y fija. Un equipo de estudiantes desarrolló un sistema de inventario basado totalmente en la nube (cloud computing en servidores externos). Durante una feria comercial comunitaria, un apagón de cuatro horas y la caída total de la señal de red dejaron el sistema completamente inutilizable, obligando al tendero a regresar al registro manual y provocando la pérdida de los datos de las últimas tres transacciones realizadas, lo que generó desconfianza absoluta en la herramienta digital escolar.",
+        "answerExplanation": "Este escenario desafía al estudiante a replantear su arquitectura de software bajo criterios de resiliencia y soberanía tecnológica local. La retroalimentación formativa establece que el alumno debe argumentar la transición hacia una arquitectura de almacenamiento local con sincronización diferida (Offline-First). Esto implica: 1) Utilizar bases de datos locales ligeras en el equipo del comercio (como SQLite o almacenamiento estructurado local) que no dependan de una conexión a internet activa para operar el día a día. 2) Programar un módulo de sincronización automática en segundo plano que detecte cuando la red se restablezca y suba la información acumulada a la nube sin interrumpir al usuario. 3) Incluir un sistema de respaldo automático de energía (UPS básico o alertas preventivas) y guardado de estado ante cierres inesperados. Con esta reflexión, el estudiante comprende la importancia de diseñar software contextualizado que responda a las realidades geográficas e infraestructurales del estado de Puebla, donde la conectividad rural presenta retos significativos que la ingeniería de software debe resolver con creatividad y rigor técnico."
+      }
+    ],
+    "metacognitiveReflection": {
+      "prompts": [
+        "¿De qué manera el desarrollo de este bloque de Programación transformó tu percepción sobre la utilidad social de la tecnología, y cómo puedes aplicar estos conocimientos para mitigar la brecha digital en tu propia comunidad dentro del municipio de Francisco Z. Mena?",
+        "¿Cuál fue el obstáculo lógico o técnico más complejo al que te enfrentaste durante la codificación del software de inventario, y qué estrategia específica implementaste para superarlo con éxito?",
+        "¿Cómo influyó el trabajo en equipo y la comunicación asertiva con tus compañeros en la calidad final del artefacto digital entregado para los talleres y comercios locales?",
+        "¿Qué aspectos éticos y de seguridad consideras indispensables al manejar datos sensibles de inventarios y transacciones comerciales de pequeños negocios locales, y cómo los integraste en tu proyecto?",
+        "Si pudieras mejorar o escalar tu aplicación informática actual en el futuro, ¿qué nuevas funcionalidades le añadirías para maximizar su impacto positivo en la economía de la región?",
+        "¿Qué errores comunes cometiste al inicio del diseño algorítmico y qué aprendizajes te dejaron para futuros proyectos de desarrollo de software?"
+      ]
+    }
+  }
+}

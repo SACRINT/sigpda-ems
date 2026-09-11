@@ -1,0 +1,779 @@
+{
+  "id": "wtb-215643ee-47ad-436a-85df-ea0c8ca39ca4-b0",
+  "planningId": "215643ee-47ad-436a-85df-ea0c8ca39ca4",
+  "blockIndex": 0,
+  "blockName": "Aplica conceptos básicos de lógica matemática en situaciones de su contexto para desarrollar esquemas de razonamiento estructurado.",
+  "version": 3,
+  "subsystem": "bge",
+  "targetPages": 42,
+  "totalPages": 35,
+  "totalWords": 8786,
+  "generatedAt": "2026-09-11T05:25:11.599Z",
+  "qualityScore": 93,
+  "qualityWarning": false,
+  "coverData": {
+    "title": "Cuaderno de Aprendizaje Activo: Aplica conceptos básicos de lógica matemática en situaciones de su contexto para desarrollar esquemas de razonamiento estructurado.",
+    "subtitle": "Misiones Didácticas Orientadas al Proyecto PAEC Comunitario",
+    "subjectName": "Pensamiento Matemático I",
+    "semester": 1,
+    "blockNumber": 1,
+    "teacherName": "Samuel CI",
+    "schoolName": "Héroes de la Patria",
+    "cct": "21EBH0200X",
+    "paecProjectName": "Problemáticas o necesidades de la comunidad 6 a) Etapa uno. 6 b) Etapa dos. 6 c) Etapa tres: 6 FASE II.- Definición del Proyecto Escolar Comunitario (PEC): 7 1) Introducción, justificación 7 2) Propósito 7 3) Alcance y temporalidad del PEC 8 4) Análisis del PEC 9 5) Diseño de fases y actividades del PEC 11 6) Diseño general del PEC 13 7) Plan op"
+  },
+  "tableOfContents": [
+    {
+      "missionIndex": 1,
+      "title": "Misión 1: Fundamentación e Intuición — Encuadre, exploración de saberes previos y diagnóstico contextual",
+      "sessionsRange": "Sesiones 1, 2",
+      "pageEstimate": 4
+    },
+    {
+      "missionIndex": 2,
+      "title": "Misión 2: Laboratorio y Taller Experimental — Indagación guiada y análisis conceptual (Etapa 1)",
+      "sessionsRange": "Sesiones 3, 4, 5, 6",
+      "pageEstimate": 5
+    },
+    {
+      "missionIndex": 3,
+      "title": "Misión 3: Construcción del Artefacto Real — Trabajo colaborativo: Aplicación y resolución situada (Etapa 5)",
+      "sessionsRange": "Sesiones 7, 8, 9, 10",
+      "pageEstimate": 5
+    },
+    {
+      "missionIndex": 4,
+      "title": "Misión 4: Demostración Integral y Evaluación Formativa — Integración del producto formativo y coevaluación entre pares",
+      "sessionsRange": "Sesiones 11, 12",
+      "pageEstimate": 5
+    }
+  ],
+  "missions": [
+    {
+      "missionIndex": 1,
+      "title": "Misión 1: Fundamentación e Intuición — Encuadre, exploración de saberes previos y diagnóstico contextual",
+      "coveredSessions": [
+        1,
+        2
+      ],
+      "sessionTopic": "Encuadre, exploración de saberes previos y diagnóstico contextual",
+      "sessionFocus": "Encuadre, exploración de saberes previos y diagnóstico contextual · Problematización comunitaria y definición de preguntas detonadoras",
+      "phenomenonHook": {
+        "story": "En el corazón de la comunidad de San Andrés Cholula, Puebla, las familias de agricultores y comerciantes locales enfrentan un dilema cotidiano durante la temporada de lluvias y la preparación para la gran feria patronal. Doña Elena, productora de plantas de ornato y flores de cempasúchil en los terrenos cercanos a la pirámide, se enfrenta cada octubre a la incertidumbre de calcular con precisión la cantidad exacta de agua, abono y tiempo de exposición al sol que requieren sus cultivos para florecer exactamente el 24 de octubre, ni un día antes ni un día después. Si se equivoca en la estimación de las variables climáticas o en la secuencia lógica de riego, su cosecha se pudre o se retrasa, lo que afecta directamente la economía de su hogar y la tradición del pueblo. Por otro lado, su nieto Mateo, estudiante de primer semestre de Bachillerato General Estatal (BGE), observa cómo en el mercado municipal los comerciantes discuten sobre cómo organizar los puestos, optimizar los pasillos y establecer turnos justos para la venta sin que se estorben o generen caos vehicular en las angostas calles empedradas. Mateo comprende que el desorden no es producto de la mala fe de la gente, sino de la ausencia de un razonamiento estructurado, de un método claro para conectar premisas, causas y efectos. Ambas situaciones —la del cultivo agrícola condicionado por factores naturales y la organización social del comercio— no son más que un reflejo de un fenómeno matemático latente: la necesidad humana de ordenar el pensamiento, establecer reglas claras y deducir conclusiones certeras a partir de premisas reales. En esta misión, nos adentraremos en este fenómeno poblano para descubrir cómo la lógica matemática y el pensamiento formal no son fórmulas frías en un libro de texto, sino las herramientas invisibles con las que construimos el orden de nuestra vida comunitaria.",
+        "detonatingQuestion": "¿De qué manera podemos estructurar nuestras ideas y las condiciones de nuestro entorno en Puebla mediante un razonamiento lógico para resolver problemas cotidianos con precisión y justicia?"
+      },
+      "conceptZero": {
+        "physicalAnalogy": "Para comprender qué es el pensamiento matemático y la lógica formal sin temor a los símbolos extraños, imagina que estás en el histórico mercado de la Merced en la ciudad de Puebla preparando una cemita tradicional. Sobre la mesa de madera tienes diversos ingredientes organizados: pan, milanesa, quesillo, aguacate, pápalo y chipotle. Cada ingrediente ocupa un lugar específico y cumple una función única. Si decides alterar arbitrariamente la secuencia lógica de preparación —por ejemplo, colocando el aguacate directamente sobre la mesa y encima el pan, o intentando morder el chipotle antes de armar la torta— el resultado final deja de ser una cemita comestible para convertirse en un desorden caótico. La lógica matemática funciona exactamente igual que la preparación de la cemita: es el conjunto de reglas invisibles pero estrictas que dictan cómo se combinan los elementos (conceptos, proposiciones, premisas) para que el resultado final (la conclusión) tenga sentido, sea coherente y útil para la realidad. Piensa en una variable o en una proposición lógica como si fuera un cajón rotulado en el taller de carpintería de tu tío en Amalucan. Si el cajón dice 'clavos de dos pulgadas', sabes perfectamente qué hay dentro; si alguien mete tornillos o piedras, el sistema falla. La fundamentación y la intuición son el proceso mediante el cual abrimos esos cajones por primera vez, tocamos los materiales, entendemos para qué sirven y descubrimos que las matemáticas no son magia ni memorización, sino el arte de ordenar las ideas de forma tan natural como seguir una receta de cocina o trazar una ruta segura para llegar a la escuela.",
+        "coreExplanation": "En el estudio del Pensamiento Matemático I dentro del marco de la Educación Media Superior en Puebla y bajo el modelo de indagación científica y dialógica, el concepto cero representa el punto de partida fundamental: la construcción del razonamiento a partir de la intuición y la experiencia sensible. Antes de formalizar cualquier proposición molecular, tabla de verdad o argumento deductivo, el estudiante debe comprender que la lógica es la estructura ósea del pensamiento humano. \n\nPara profundizar en esto, analicemos la naturaleza de las proposiciones. Una proposición es toda oración o enunciado declarativo del cual tiene sentido afirmar que es verdadero o falso, pero no ambas cosas a la vez. Por ejemplo, en el contexto poblano, la afirmación 'El Popocatépetl registra actividad volcánica constante' es una proposición porque podemos verificar su veracidad observando la realidad. En contraste, una exclamación como '¡Qué hermoso día!' o una pregunta como '¿A qué hora llegaremos a Atlixco?' no son proposiciones lógicas porque no afirman un valor de verdad definitivo.\n\nEl pensamiento lógico se divide fundamentalmente en dos grandes vertientes que dialogan entre sí: el razonamiento inductivo y el razonamiento deductivo. El razonamiento inductivo parte de la observación de casos particulares en nuestro entorno —por ejemplo, notar que durante tres años consecutivos las heladas en Tecamachalco se adelantan cuando desciende la temperatura en la Sierra Negra— para inferir una regla general. Sin embargo, la inducción nos da probabilidad, no certeza absoluta. Aquí es donde interviene la deducción: partiendo de principios generales aceptados como verdaderos, aplicamos reglas estrictas de inferencia para llegar a conclusiones particulares ineludibles.\n\nImagina que estás analizando el consumo de agua potable en tu comunidad escolar. Mediante la indagación dialógica, te reúnes con tus compañeras y compañeros para debatir: ¿Qué causa el desperdicio? ¿Qué premisas podemos establecer? Si establecemos como premisa uno que 'Todas las fugas no atendidas en las tuberías generan pérdida de recurso' y como premisa dos que 'Los baños del edificio B tienen una fuga no atendida', la conclusión lógica ineludible es que 'Los baños del edificio B están generando pérdida de recurso'. Este encadenamiento de ideas es la esencia de la lógica matemática.\n\nEn este bloque, aprenderemos a traducir estas situaciones cotidianas del estado de Puebla a un lenguaje formal. No se trata de memorizar tablas de verdad como autómatas, sino de entender por qué una falacia (un argumento falso que parece verdadero) es como un camino sin salida en las calles laberínticas del centro histórico de Puebla: al principio parece que vas bien, pero de repente te das cuenta de que estás atrapado en una contradicción. Desarrollar un pensamiento estructurado nos protege de las falacias en la vida diaria, en las redes sociales y en la toma de decisiones comunitarias."
+      },
+      "iDoSection": {
+        "stepByStepDemo": "A continuación, desarrollaremos una demostración guiada paso a paso ('Yo Hago') modelando cómo transformar un problema real de la comunidad en un esquema de razonamiento lógico formal.\n\nCASO DE ESTUDIO: La movilidad urbana y los tiempos de traslado en la Vía Atlixcáyotl durante las horas pico.\n\nPASO 1: Observación y recopilación de datos empíricos (Indagación científica). \nEl docente observa junto con el grupo que, de lunes a viernes entre las 7:00 y las 8:30 horas, el tiempo de traslado desde la caseta de Atlixco hasta la zona de Angelópolis en Puebla aumenta drásticamente. Se registran las siguientes premisas basadas en el comportamiento vehicular:\n- Premisa A: Si hay un cierre parcial de carriles por mantenimiento, entonces el tráfico vehicular se vuelve lento.\n- Premisa B: Si el tráfico vehicular se vuelve lento, entonces los estudiantes y trabajadores llegan tarde a sus destinos.\n\nPASO 2: Identificación y simbolización de proposiciones simples.\nDefiniremos variables proposicionales (letras minúsculas) para cada afirmación básica:\n- p: Hay un cierre parcial de carriles por mantenimiento.\n- q: El tráfico vehicular se vuelve lento.\n- r: Los estudiantes y trabajadores llegan tarde a sus destinos.\n\nPASO 3: Construcción de argumentos moleculares utilizando conectivos lógicos.\nUtilizando los símbolos de la lógica proposicional:\n- Condicional (Si... entonces): $\\rightarrow$\n- Negación (No): $\\sim$\n- Conjunción (Y): $\\land$\n\nFormalizamos las premisas del paso 1:\n- Premisa 1: $p \\rightarrow q$\n- Premisa 2: $q \\rightarrow r$\n\nPASO 4: Aplicación de la regla de inferencia (Silogismo Hipotético).\nEl docente explica que, por las leyes de la lógica formal, si $p$ implica a $q$, y $q$ implica a $r$, entonces lógicamente $p$ implica a $r$ (Silogismo Hipotético: $[(p \\rightarrow q) \\land (q \\rightarrow r)] \\rightarrow (p \\rightarrow r)$).\n\nConclusión derivada: Si hay un cierre parcial de carriles por mantenimiento ($p$), entonces los estudiantes y trabajadores llegan tarde a sus destinos ($r$).\n\nPASO 5: Verificación y análisis dialógico.\nEl docente cuestiona al grupo: ¿Qué pasaría si afirmamos que 'Como los estudiantes llegaron tarde ($r$), forzosamente hubo cierre de carriles ($p$)'? Abre el diálogo para que los alumnos descubran que esto sería una falacia de afirmación del consecuente, ya que el retraso pudo deberse a otra causa (como una manifestación o una falla en el transporte público), demostrando así la importancia del rigor matemático en el análisis de la realidad poblana."
+      },
+      "weDoSection": {
+        "guidedPractice": "Actividad colaborativa guiada ('Hacemos Juntos'). Reúnete en equipos de tres o cuatro integrantes para resolver el siguiente caso situado en el contexto escolar del BGE en Puebla.\n\nCASO A RESOLVER: El comité de ecología de la escuela desea implementar un programa de separación de basura, pero nota que los contenedores orgánicos e inorgánicos suelen amanecer mezclados.\n\nInstrucción 1: Lean detenidamente las siguientes afirmaciones cotidianas y discútanlas en equipo para identificar cuáles de ellas pueden considerarse proposiciones lógicas y cuáles no.\n\n<!--workbook:table:cols=Afirmación Cotidiana,¿Es Proposición Lógica?,Justificación Razonada,Valor de Verdad Tentativo-->\n\nInstrucción 2: Construyan un esquema de razonamiento deductivo (similar al silogismo hipotético visto en la demostración) utilizando tres premisas relacionadas con el reciclaje en su escuela. Escriban su razonamiento en los siguientes renglones.\n\n<!--workbook:lines:rows=10-->\n\nInstrucción 3: Elaboren un boceto o diagrama esquemático que represente visualmente cómo se conectan lógicamente las causas del problema de la basura con las posibles soluciones dentro de su plantel educativo.\n\n<!--workbook:drawing:height=180-->",
+        "workbookElements": [
+          {
+            "id": "wb-tag-xbaz9ub",
+            "type": "table",
+            "config": {}
+          },
+          {
+            "id": "wb-tag-pcxxv8l",
+            "type": "lines",
+            "config": {
+              "rows": 10
+            }
+          },
+          {
+            "id": "wb-tag-gevyya5",
+            "type": "drawing",
+            "config": {}
+          }
+        ]
+      },
+      "youDoSection": {
+        "autonomousChallenge": "Reto autónomo individual ('Tú Haces'). Es momento de demostrar tu capacidad de análisis lógico aplicando los conceptos aprendidos a una situación completamente nueva de tu elección dentro de tu comunidad en Puebla (por ejemplo: el consumo de energía eléctrica en casa, la distribución de tiempos para estudiar y trabajar, o el rendimiento de los cultivos familiares).\n\nInstrucción 1: Describe brevemente en el siguiente espacio una problemática real de tu entorno comunitario o familiar que requiera un análisis ordenado.\n\n<!--workbook:lines:rows=6-->\n\nInstrucción 2: Define al menos tres proposiciones simples ($p, q, r$) relacionadas con tu problemática, asígnales un símbolo y construye un argumento lógico formal utilizando conectivos (condicional, negación o conjunción). Escribe el desarrollo paso a paso.\n\n<!--workbook:lines:rows=12-->\n\nInstrucción 3: Escribe una conclusión reflexiva donde expliques de qué manera el uso de este razonamiento estructurado te permite tomar mejores decisiones en tu vida diaria como estudiante de Bachillerato General Estatal.",
+        "workbookElements": [
+          {
+            "id": "wb-tag-lcd50bn",
+            "type": "lines",
+            "config": {
+              "rows": 6
+            }
+          },
+          {
+            "id": "wb-tag-tstesza",
+            "type": "lines",
+            "config": {
+              "rows": 12
+            }
+          }
+        ]
+      },
+      "troubleshooting": [],
+      "formativeCheckpoint": {
+        "question": "¿De qué manera la traducción de un problema cotidiano de Puebla a un lenguaje de proposiciones lógicas transforma nuestra forma de actuar ante la incertidumbre?",
+        "reflectionPrompts": [
+          "¿En qué momento de mi vida diaria suelo caer en falacias o razonamientos desordenados?",
+          "¿Cómo contribuyó el diálogo con mis compañeros a clarificar mi comprensión del concepto cero y la lógica matemática?"
+        ],
+        "criteriaChecklist": [
+          "Distingue correctamente entre proposiciones lógicas y enunciados no proposicionales.",
+          "Identifica analogías físicas cotidianas para explicar conceptos abstractos.",
+          "Participa activamente en la indagación dialógica y colaborativa.",
+          "Aplica esquemas deductivos básicos a problemáticas reales de su entorno."
+        ]
+      },
+      "wordCount": 1828
+    },
+    {
+      "missionIndex": 2,
+      "title": "Misión 2: Laboratorio y Taller Experimental — Indagación guiada y análisis conceptual (Etapa 1)",
+      "coveredSessions": [
+        3,
+        4,
+        5,
+        6
+      ],
+      "sessionTopic": "Indagación guiada y análisis conceptual (Etapa 1)",
+      "sessionFocus": "Indagación guiada y análisis conceptual (Etapa 1) · Trabajo colaborativo: Aplicación y resolución situada (Etapa 2) · Construcción de evidencias intermedias del bloque (Etapa 3) · Indagación guiada y análisis conceptual (Etapa 4)",
+      "phenomenonHook": {
+        "story": "Durante esta práctica en el aula o taller, abordaremos directamente cómo manipular variables operativas de Pensamiento Matemático I para resolver retos vinculados a Problemáticas o necesidades de la comunidad 6 a) Etapa uno. 6 b) Etapa dos. 6 c) Etapa tres: 6 FASE II.- Definición del Proyecto Escolar Comunitario (PEC): 7 1) Introducción, justificación 7 2) Propósito 7 3) Alcance y temporalidad del PEC 8 4) Análisis del PEC 9 5) Diseño de fases y actividades del PEC 11 6) Diseño general del PEC 13 7) Plan op.",
+        "detonatingQuestion": "¿De qué forma la precisión en la recolección de datos y la ejecución determina la confiabilidad del producto final?"
+      },
+      "conceptZero": {
+        "physicalAnalogy": "Cada medición experimental es como un mapa de navegación: un error de un milímetro en el punto de partida te lleva a kilómetros del destino.",
+        "coreExplanation": "Desarrollar y aplicar modelos matemáticos lineales y cuadráticos mediante la indagación guiada, la toma de datos empíricos y el análisis de variables socio-comunitarias, para resolver una necesidad específica identificada en la Fase II del Proyecto Escolar Comunitario (PEC) bajo los lineamientos del MCCEMS y la Nueva Escuela Mexicana."
+      },
+      "iDoSection": {
+        "stepByStepDemo": "Protocolo Técnico:\n1. Delimitación y encuadre del problema comunitario bajo la Fase II del PEC. En este paso inicial, los estudiantes se organizan en brigadas comunitarias para recorrer el perímetro de estudio seleccionado en su comunidad (por ejemplo, una zona de cultivo con riego por goteo ineficiente, un parque público con déficit de iluminación o un talud con riesgo de erosión). El propósito técnico es identificar la variable independiente (causa) y la variable dependiente (efecto). Se debe realizar una entrevista rápida a un miembro de la comunidad para contrastar la percepción empírica con los datos cuantitativos que se recopilarán a continuación. ¿Por qué es fundamental este paso? Porque el pensamiento matemático en el Bachillerato General Estatal (BGE) no es una abstracción aislada, sino una herramienta de transformación social situada en la realidad de Puebla. Precaución operativa: Mantenerse siempre en equipo y respetar las normativas de tránsito y convivencia local.\n<!--workbook:lines:rows=4-->\n\n2. Diseño y construcción del marco de medición espacial y temporal. Utilizando el flexómetro y el kit de estacas, establezca un eje de coordenadas cartesiano físico sobre el terreno o área de estudio asignada. Marque puntos equidistantes a intervalos regulares (por ejemplo, cada metro lineal o cada bloque de tiempo de 5 minutos). El rigor en la colocación de las estacas garantiza que los errores de paralaje y de calibración instrumental sean mínimos. Registre las coordenadas iniciales (x=0, y=0) como punto de referencia absoluto. Explique en su bitácora cómo el sistema de referencia elegido simplifica o complica el posterior modelado algebraico.\n<!--workbook:lines:rows=4-->\n\n3. Calibración y prueba en vacío de los instrumentos de medición. Antes de iniciar la recolección masiva de datos, cada brigada debe realizar tres mediciones de prueba sobre una distancia o intervalo patrón conocido (por ejemplo, una longitud exacta de 3 metros). Si el instrumento presenta una desviación sistemática superior al 2%, debe aplicarse un factor de corrección lineal o descartar el dispositivo. Este paso enseña el concepto metrológico de error experimental y precisión. Anote los valores obtenidos en la siguiente sub-tabla de calibración para justificar la confiabilidad del estudio.\n<!--workbook:lines:rows=4-->\n\n4. Ejecución del protocolo de toma de datos empíricos (Serie 1: Comportamiento Lineal). En este bloque procedimental, los estudiantes varían la variable independiente (por ejemplo, el tiempo transcurrido o la distancia desde la fuente) y miden el impacto sobre la variable dependiente (por ejemplo, el volumen de agua recolectado o la intensidad lumínica). Realice un mínimo de 10 mediciones consecutivas, registrando cada triplicado para calcular un promedio representativo que mitigue los errores aleatorios de lectura.\n<!--workbook:lines:rows=4-->\n\n5. Ejecución del protocolo de toma de datos empíricos (Serie 2: Comportamiento No Lineal / Cuadrático). Replique el procedimiento anterior pero introduciendo una condición donde la tasa de cambio no sea constante, como la aceleración de un cuerpo en caída libre o el área de un terreno delimitado por un perímetro fijo. Anote cuidadosamente los incrementos no lineales observados. ¿Cómo responde la variable dependiente ante crecimientos aritméticos de la variable independiente? Describa el fenómeno físicamente en su cuaderno.\n<!--workbook:lines:rows=4-->\n\n6. Vuelco y organización de datos en la matriz analítica de trabajo. Transfiera todos los datos brutos obtenidos en el campo hacia la tabla analítica central de la práctica. Asegúrese de incluir las unidades de medida correctas en cada columna (metros, segundos, litros, Joules, etc.). Utilice notación científica cuando los valores superen los umbrales de tres cifras significativas. Este paso estructura la información para su posterior manipulación algebraica.\n<!--workbook:lines:rows=4-->\n\n7. Representación gráfica preliminar en papel milimétrico (Diagrama de Dispersión). En una hoja milimétrica con escala perfectamente proporcionada, trace los ejes coordenados (X y Y). Grafique cada uno de los puntos experimentales de la Serie 1 y la Serie 2. Observe la tendencia visual que forman los puntos. ¿Se alinean sobre una recta, describen una parábola, o muestran una asíntota? La inspección visual es el primer filtro analítico antes de aplicar cualquier fórmula algebraica compleja.\n<!--workbook:lines:rows=4-->\n\n8. Determinación de la pendiente y la ordenada al origen por el método de dos puntos. Seleccione dos puntos representativos (x1, y1) y (x2, y2) de su gráfica lineal. Aplique la fórmula de la pendiente m = (y2 - y1) / (x2 - x1). Interprete el significado físico o social de esta pendiente en el contexto de su comunidad (por ejemplo: 'por cada metro adicional de distancia, el caudal disminuye 0.45 litros por minuto'). Luego, determine la ecuación de la recta en su forma pendiente-ordenada: y = mx + b.\n<!--workbook:lines:rows=4-->\n\n9. Construcción del modelo algebraico cuadrático para los datos no lineales. Para la Serie 2, asuma una forma general de la función cuadrática: f(x) = ax^2 + bx + c. Utilizando tres puntos críticos de su tabla experimental (por ejemplo, el vértice, el corte con el eje y un punto extremo), plantee un sistema de tres ecuaciones con tres incógnitas (a, b, c). Resuelva el sistema utilizando métodos algebraicos formales (sustitución, suma y resta, o determinantes). Verifique que la parábola modelada cruce por los puntos experimentales con un margen de error menor al 5%.\n<!--workbook:lines:rows=4-->\n\n10. Digitalización y procesamiento de datos mediante hoja de cálculo. Transcriba la matriz de datos a una aplicación de hoja de cálculo digital en su dispositivo móvil o computadora. Utilice las funciones nativas para trazar la línea de tendencia automática (regresión lineal y polinómica de segundo orden). Compare el coeficiente de determinación (R^2) obtenido por la hoja de cálculo con el cálculo manual realizado en los pasos 8 y 9. Analice las discrepancias causadas por el redondeo humano frente a la precisión de doble precisión del procesador digital.\n<!--workbook:lines:rows=4-->\n\n11. Análisis de sensibilidad y evaluación del dominio y rango del modelo. Un modelo matemático no es válido para cualquier valor numérico. Analice las restricciones físicas del entorno comunitario para definir el dominio y el rango reales de su función. Por ejemplo, si la variable x representa metros de longitud, no puede tomar valores negativos. Responda: ¿Cuál es el valor máximo o mínimo que puede alcanzar la función dentro de las restricciones operativas del PEC?\n<!--workbook:lines:rows=4-->\n\n12. Formulación de escenarios predictivos y simulación matemática. Utilice los modelos algebraicos obtenidos (tanto la función lineal como la cuadrática) para realizar tres predicciones sobre situaciones que aún no han ocurrido en el terreno comunitario (por ejemplo: ¿qué pasaría si duplicamos la inversión en materiales o si el tiempo de exposición al fenómeno se triplica?). Esta capacidad predictiva es la cúspide del Pensamiento Matemático I aplicado a la resolución de problemas reales.\n<!--workbook:lines:rows=4-->\n\n13. Redacción de conclusiones técnicas y estructuración de la propuesta para el PEC. Con base en los resultados analíticos, redacte una síntesis ejecutiva de media cuartilla donde proponga una solución concreta basada en evidencias matemáticas para la problemática comunitaria abordada. Incluya gráficas, ecuaciones y tablas como anexos técnicos que respalden su propuesta ante las autoridades escolares y comunitarias.\n<!--workbook:lines:rows=4-->\n\n14. Limpieza, orden y entrega final del cuaderno activo y área de trabajo. Recoja todo el material de medición, verifique que los flexómetros estén limpios y secos, y entregue el espacio de trabajo en óptimas condiciones. Revise que su cuaderno activo contenga todas las firmas, tablas llenas y operaciones algebraicas desglosadas con orden y claridad.\n<!--workbook:lines:rows=4-->"
+      },
+      "weDoSection": {
+        "guidedPractice": "Desarrollo guiado en equipo:\nPROTOCOLO EXPERIMENTAL Y DE MODELACIÓN MATEMÁTICA AVANZADA (BGE - PENSAMIENTO MATEMÁTICO I)\n\nIntroducción Metodológica:\nEl presente protocolo establece los lineamientos rigurosos para la recolección, tratamiento estadístico y modelación algebraica de los datos empíricos obtenidos en el entorno comunitario de Puebla. En el marco del MCCEMS, el estudiante de Bachillerato General Estatal debe trascender la simple aritmética y dominar el tránsito del lenguaje verbal al lenguaje algebraico, interpretando funciones lineales y cuadráticas como descripciones exactas de fenómenos reales.\n\nFase A: Validación y Limpieza de Datos Experimentales\n1. Eliminación de valores atípicos (Outliers): Si una medición difiere de la media aritmética del triplicado en más de dos desviaciones estándar, se considera un error de lectura instrumental y debe ser descartada o repetida.\n2. Cálculo de la media muestral:\n   x_prom = (x_1 + x_2 + x_3) / 3\n3. Determinación del error absoluto y relativo porcentual:\n   Error_Absoluto = |Valor_Teórico - Valor_Medido|\n   Error_Relativo_% = (Error_Absoluto / Valor_Teórico) * 100\n\nFase B: Modelación Lineal y Determinación de Tasas de Cambio\nCuando el fenómeno comunitario muestra un comportamiento proporcional (por ejemplo, el costo total en función del número de herramientas adquiridas), se aplica el modelo analítico:\n   f(x) = mx + b\nDonde:\n- m representa la pendiente o tasa de cambio constante.\n- b representa el costo base o condición inicial (ordenada al origen).\nPara calcular m experimentalmente a partir de la recta de mejor ajuste por mínimos cuadrados, se utiliza la siguiente fórmula estadística analítica:\n   m = [ n * sum(x*y) - sum(x) * sum(y) ] / [ n * sum(x^2) - (sum(x))^2 ]\n   b = [ sum(y) - m * sum(x) ] / n\nEste procedimiento garantiza que la recta minimize la suma de los cuadrados de las distancias verticales desde los puntos experimentales hasta la línea de tendencia.\n\nFase C: Modelación Cuadrática y Análisis del Vértice\nCuando el fenómeno presenta aceleración, curvatura o puntos de optimización (por ejemplo, la maximización del área de un terreno comunal cercado con un perímetro fijo), el comportamiento se rige por la función polinómica de segundo grado:\n   f(x) = ax^2 + bx + c\nPara encontrar el punto máximo o mínimo del sistema (Vértice de la parábola), se emplean las coordenadas analíticas:\n   h = -b / (2a)\n   k = f(h) = c - (b^2 / (4a))\nEsta herramienta matemática permite resolver problemas prácticos de optimización de recursos dentro del Proyecto Escolar Comunitario (PEC), asegurando el aprovechamiento máximo de materiales, energía o espacio físico en beneficio de la comunidad poblana.",
+        "workbookElements": [
+          {
+            "id": "wb-tag-2e72v1y",
+            "type": "lines",
+            "config": {
+              "rows": 4
+            }
+          },
+          {
+            "id": "wb-tag-44tz4lb",
+            "type": "lines",
+            "config": {
+              "rows": 4
+            }
+          }
+        ]
+      },
+      "youDoSection": {
+        "autonomousChallenge": "Desafío Autónomo Situado (Tú Haces): En tu comunidad de origen en Puebla, se ha detectado que el consumo de agua potable en una llave pública comunitaria presenta un desperdicio creciente conforme transcurren las horas del día, siguiendo un patrón no lineal. Imagina que has tomado 8 mediciones de caudal (en litros por minuto) a lo largo de un turno de 8 horas. Con base en los puntos (1, 2.5), (4, 8.0) y (8, 18.0), construye de manera totalmente autónoma el modelo algebraico cuadrático f(x) = ax^2 + bx + c que describa este fenómeno de desperdicio. Una vez obtenido el polinomio, calcula algebraicamente en qué hora exacta (valor de x) el caudal alcanza los 12 litros por minuto, y redacta una recomendación técnica de 5 líneas dirigida a las autoridades auxiliares de tu localidad para mitigar esta problemática con base en tu modelo matemático.",
+        "workbookElements": [
+          {
+            "id": "wb-tag-jnqetj7",
+            "type": "lines",
+            "config": {
+              "rows": 4
+            }
+          },
+          {
+            "id": "wb-tag-5q05gy2",
+            "type": "lines",
+            "config": {
+              "rows": 4
+            }
+          },
+          {
+            "id": "wb-tag-somz499",
+            "type": "lines",
+            "config": {
+              "rows": 4
+            }
+          },
+          {
+            "id": "wb-tag-xadmbdp",
+            "type": "lines",
+            "config": {
+              "rows": 4
+            }
+          },
+          {
+            "id": "wb-tag-vbxapqf",
+            "type": "lines",
+            "config": {
+              "rows": 4
+            }
+          },
+          {
+            "id": "wb-tag-fo74z6m",
+            "type": "lines",
+            "config": {
+              "rows": 4
+            }
+          },
+          {
+            "id": "wb-tag-l960waj",
+            "type": "lines",
+            "config": {
+              "rows": 4
+            }
+          },
+          {
+            "id": "wb-tag-zzryogt",
+            "type": "lines",
+            "config": {
+              "rows": 4
+            }
+          },
+          {
+            "id": "wb-tag-6kpvo8s",
+            "type": "lines",
+            "config": {
+              "rows": 4
+            }
+          },
+          {
+            "id": "wb-tag-l5otu7i",
+            "type": "lines",
+            "config": {
+              "rows": 4
+            }
+          },
+          {
+            "id": "wb-tag-ug6m74r",
+            "type": "lines",
+            "config": {
+              "rows": 4
+            }
+          },
+          {
+            "id": "wb-tag-ik2oi4n",
+            "type": "lines",
+            "config": {
+              "rows": 4
+            }
+          }
+        ]
+      },
+      "troubleshooting": [
+        {
+          "id": "tb-bge-1",
+          "symptom": "El estudiante confunde la implicación condicional (p → q) con una equivalencia bicondicional (p ↔ q) al argumentar un problema contextualizado.",
+          "cause": "Falta de distinción conceptual entre la suficiencia y la necesidad en el lenguaje cotidiano versus el formal.",
+          "solution": "1. Revisa la tabla de verdad de la implicación condicional. 2. Identifica que si p es falsa, la proposición p → q sigue siendo verdadera. 3. Redacta el argumento usando estrictamente la estructura 'Si [hipótesis], entonces [conclusión]'.",
+          "prevention": "Realiza ejercicios previos de traducción del lenguaje natural al simbólico, enfatizando las palabras clave como 'sólo si' o 'es condición suficiente'.",
+          "rootCause": "Falta de distinción conceptual entre la suficiencia y la necesidad en el lenguaje cotidiano versus el formal.",
+          "solutionSteps": [
+            "Revisa la tabla de verdad de la implicación condicional.",
+            "Identifica que si p es falsa, la proposición p → q sigue siendo verdadera.",
+            "Redacta el argumento usando estrictamente la estructura 'Si [hipótesis], entonces [conclusión]'."
+          ],
+          "preventionTip": "Realiza ejercicios previos de traducción del lenguaje natural al simbólico, enfatizando las palabras clave como 'sólo si' o 'es condición suficiente'."
+        },
+        {
+          "id": "tb-bge-2",
+          "symptom": "Al negar una proposición compuesta con conjunción (p ∧ q), el alumno niega ambos términos pero mantiene el conector 'y' (escribe ~p ∧ ~q).",
+          "cause": "Aplicación incorrecta de las Leyes de De Morgan y sesgo intuitivo de distribución directa.",
+          "solution": "1. Recuerda la primera Ley de De Morgan: la negación de una conjunción es la disyunción de las negaciones. 2. Cambia el conector 'y' (∧) por 'o' (∨). 3. Reescribe la expresión final como (~p ∨ ~q).",
+          "prevention": "Anota las Leyes de De Morgan en un formulario visible y practica la negación de enunciados cotidianos antes de pasar a la formalización.",
+          "rootCause": "Aplicación incorrecta de las Leyes de De Morgan y sesgo intuitivo de distribución directa.",
+          "solutionSteps": [
+            "Recuerda la primera Ley de De Morgan: la negación de una conjunción es la disyunción de las negaciones.",
+            "Cambia el conector 'y' (∧) por 'o' (∨).",
+            "Reescribe la expresión final como (~p ∨ ~q)."
+          ],
+          "preventionTip": "Anota las Leyes de De Morgan en un formulario visible y practica la negación de enunciados cotidianos antes de pasar a la formalización."
+        },
+        {
+          "id": "tb-bge-3",
+          "symptom": "El equipo no logra validar un argumento formal porque llega a una contradicción (P y ~P) pero asume que el razonamiento es correcto.",
+          "cause": "Confusión conceptual entre falacia, contingencia y contradicción en los esquemas de razonamiento deductivo.",
+          "solution": "1. Revisa paso a paso la tabla de verdad o las premisas utilizadas en el razonamiento. 2. Identifica en qué paso se introdujo una premisa opuesta a la inicial. 3. Concluye que la aparición de una contradicción invalida el argumento por reducción al absurdo no controlada.",
+          "prevention": "Verifica la consistencia interna del conjunto de premisas antes de iniciar cualquier demostración formal.",
+          "rootCause": "Confusión conceptual entre falacia, contingencia y contradicción en los esquemas de razonamiento deductivo.",
+          "solutionSteps": [
+            "Revisa paso a paso la tabla de verdad o las premisas utilizadas en el razonamiento.",
+            "Identifica en qué paso se introdujo una premisa opuesta a la inicial.",
+            "Concluye que la aparición de una contradicción invalida el argumento por reducción al absurdo no controlada."
+          ],
+          "preventionTip": "Verifica la consistencia interna del conjunto de premisas antes de iniciar cualquier demostración formal."
+        },
+        {
+          "id": "tb-bge-4",
+          "symptom": "En la actividad colaborativa, los integrantes del equipo llegan a conclusiones lógicas totalmente opuestas utilizando las mismas premisas.",
+          "cause": "Ambigüedad semántica en el uso de cuantificadores ('todos', 'algunos') y falta de definición clara del universo de discurso.",
+          "solution": "1. Definan explícitamente el conjunto universo (U) sobre el cual están trabajando. 2. Sustituyan los términos ambiguos por cuantificadores universales o existenciales estrictos. 3. Construyan un diagrama de Venn para visualizar el contexto del problema.",
+          "prevention": "Establecer un glosario de términos y definir el universo de discurso al inicio de cualquier análisis de situaciones contextuales.",
+          "rootCause": "Ambigüedad semántica en el uso de cuantificadores ('todos', 'algunos') y falta de definición clara del universo de discurso.",
+          "solutionSteps": [
+            "Definan explícitamente el conjunto universo (U) sobre el cual están trabajando.",
+            "Sustituyan los términos ambiguos por cuantificadores universales o existenciales estrictos.",
+            "Construyan un diagrama de Venn para visualizar el contexto del problema."
+          ],
+          "preventionTip": "Establecer un glosario de términos y definir el universo de discurso al inicio de cualquier análisis de situaciones contextuales."
+        },
+        {
+          "id": "tb-bge-5",
+          "symptom": "El alumno descarta un argumento válido porque el resultado contradice su intuición o creencia personal sobre el tema abordado.",
+          "cause": "Sesgo de confirmación y falta de separación entre la validez formal de un argumento y la verdad material de sus premisas.",
+          "solution": "1. Evalúa la estructura lógica independientemente del contenido semántico asignando letras a las proposiciones. 2. Comprueba si la conclusión se deriva estrictamente de las premisas mediante reglas de inferencia. 3. Acepta la validez formal aunque el resultado parezca contraintuitivo.",
+          "prevention": "Trabajar primero con variables abstractas (p, q, r) antes de aplicar la lógica a problemáticas sociocognitivas complejas.",
+          "rootCause": "Sesgo de confirmación y falta de separación entre la validez formal de un argumento y la verdad material de sus premisas.",
+          "solutionSteps": [
+            "Evalúa la estructura lógica independientemente del contenido semántico asignando letras a las proposiciones.",
+            "Comprueba si la conclusión se deriva estrictamente de las premisas mediante reglas de inferencia.",
+            "Acepta la validez formal aunque el resultado parezca contraintuitivo."
+          ],
+          "preventionTip": "Trabajar primero con variables abstractas (p, q, r) antes de aplicar la lógica a problemáticas sociocognitivas complejas."
+        },
+        {
+          "id": "tb-bge-6",
+          "symptom": "Durante la coevaluación, el estudiante señala que el compañero está equivocado pero no puede justificar su señalamiento con reglas lógicas.",
+          "cause": "Argumentación basada en opiniones o apreciaciones subjetivas en lugar de fundamentación en esquemas de razonamiento estructurado.",
+          "solution": "1. Regresa al producto formativo y localiza la premisa cuestionada. 2. Identifica la regla de inferencia o equivalencia lógica aplicable (Modus Ponens, Modus Tollens, etc.). 3. Redacta la retroalimentación basándote exclusivamente en la estructura formal evaluada.",
+          "prevention": "Utiliza rúbricas detalladas que incluyan criterios específicos de lógica matemática para guiar tanto la autoevaluación como la coevaluación.",
+          "rootCause": "Argumentación basada en opiniones o apreciaciones subjetivas en lugar de fundamentación en esquemas de razonamiento estructurado.",
+          "solutionSteps": [
+            "Regresa al producto formativo y localiza la premisa cuestionada.",
+            "Identifica la regla de inferencia o equivalencia lógica aplicable (Modus Ponens, Modus Tollens, etc.).",
+            "Redacta la retroalimentación basándote exclusivamente en la estructura formal evaluada."
+          ],
+          "preventionTip": "Utiliza rúbricas detalladas que incluyan criterios específicos de lógica matemática para guiar tanto la autoevaluación como la coevaluación."
+        }
+      ],
+      "formativeCheckpoint": {
+        "question": "¿Los valores experimentales coincidieron con los calculados teóricamente? Justifica tu respuesta.",
+        "reflectionPrompts": [
+          "¿Qué relación directa observaste entre la variable independiente manipulada en el terreno y la respuesta del sistema comunitario, y cómo se refleja esto en la pendiente de tu modelo lineal?",
+          "¿De qué manera influyó el margen de tolerancia y la precisión instrumental (flexómetro, cronómetro) en la obtención de un coeficiente de determinación (R^2) aceptable durante la regresión?",
+          "¿Por qué es crucial definir correctamente el dominio y el rango de una función matemática al aplicarla a un problema real de infraestructura o recursos en tu comunidad?",
+          "¿Cómo contribuye el pensamiento matemático y la modelación algebraica a la fundamentación científica de la Fase II de tu Proyecto Escolar Comunitario (PEC)?",
+          "¿Qué limitaciones encontraste al intentar ajustar un modelo matemático ideal a un entorno comunitario real donde intervienen variables aleatorias o factores socioeconómicos imprevistos?"
+        ],
+        "criteriaChecklist": [
+          "Registré todas las lecturas con sus unidades de medida correspondientes."
+        ]
+      },
+      "wordCount": 2317
+    },
+    {
+      "missionIndex": 3,
+      "title": "Misión 3: Construcción del Artefacto Real — Trabajo colaborativo: Aplicación y resolución situada (Etapa 5)",
+      "coveredSessions": [
+        7,
+        8,
+        9,
+        10
+      ],
+      "sessionTopic": "Sistema Geométrico y Financiero de Riego por Goteo Comunitario y Presupuestal (SIGER-1)",
+      "sessionFocus": "Construcción del artefacto e integración socioproductiva",
+      "phenomenonHook": {
+        "story": "Llegamos a la fase de transferencia y aplicación: aquí transformamos el conocimiento de Pensamiento Matemático I en un artefacto real que atiende la problemática de Problemáticas o necesidades de la comunidad 6 a) Etapa uno. 6 b) Etapa dos. 6 c) Etapa tres: 6 FASE II.- Definición del Proyecto Escolar Comunitario (PEC): 7 1) Introducción, justificación 7 2) Propósito 7 3) Alcance y temporalidad del PEC 8 4) Análisis del PEC 9 5) Diseño de fases y actividades del PEC 11 6) Diseño general del PEC 13 7) Plan op.",
+        "detonatingQuestion": "¿De qué manera una solución técnica bien diseñada puede mejorar la calidad de vida en nuestro entorno escolar y comunitario?"
+      },
+      "conceptZero": {
+        "physicalAnalogy": "Un proyecto es como construir un puente: no basta con que los cálculos sean elegantes en papel, debe soportar el peso de las personas que lo cruzan.",
+        "coreExplanation": "El presente proyecto encarna la culminación del pensamiento matemático aplicado a la realidad socioeducativa y comunitaria del estado de Puebla, alineándose de manera rigurosa con el Plan de Atención Escolar Comunitaria (PAEC). En el marco de la Fase II del Proyecto Escolar Comunitario (PEC), específicamente respondiendo a las necesidades de optimización de recursos hídricos y seguridad alimentaria en zonas de alta marginación agrícola y semiurbana, el artefacto denominado 'Sistema Geométrico y Financiero de Riego por Goteo Comunitario y Presupuestal (SIGER-1)' se erige como una solución tecnológica y comunitaria tangible, replicable y de alto impacto socioeconómico. \n\nLa problemática central detectada en la comunidad mediante la Etapa Uno, Dos y Tres del diagnóstico participativo es la escasez crónica de agua potable y de uso agrícola durante los periodos de estiaje, aunada a la falta de herramientas de cálculo aritmético, algebraico y financiero básico en las familias campesinas y pequeños productores locales para optimizar sus costos de producción, dimensionar sus terrenos de cultivo y calcular con precisión los volúmenes de agua, presiones hidrostáticas, pendientes topográficas y los costos de inversión y retorno de capital. Tradicionalmente, los agricultores de la región realizan la siembra y el riego de forma empírica, lo que genera un desperdicio estimado del 60% del recurso hídrico por evaporación y escorrentía superficial, además de una pérdida constante de capital debido a compras excesivas o insuficientes de insumos, mangueras, conectores, fertilizantes y sistemas de almacenamiento.\n\nAnte esta realidad apremiante, el SIGER-1 no es un simple modelo didáctico de cartón ni un resumen teórico sin aplicación práctica; se trata de un artefacto híbrido compuesto por dos grandes módulos interconectados: un prototipo físico funcional de un sistema de riego por goteo a escala real calibrado mediante razones trigonométricas, proporciones geométricas, cálculo de volúmenes de cilindros y prismas rectulares, y un manual de software ejecutable en hoja de cálculo avanzada o aplicación móvil de código abierto que automatiza el presupuesto financiero, el análisis de punto de equilibrio, el cálculo de amortización de créditos rurales y la proyección de flujo de efectivo para pequeñas parcelas familiares de traspatio o hectáreas ejidales.\n\nPara dimensionar el alcance y la pertinencia técnica del artefacto, es fundamental detallar la vinculación de sus componentes con los ejes rectores del MCCEMS y el PAEC:\n1. Beneficiarios directos y indirectos: Los beneficiarios directos son los 45 productores agrícolas de la comunidad escolar y ejidal que colaboran en el proyecto, así como sus familias, quienes verán reducida su carga de trabajo físico en un 40% y optimizarán el uso del agua en sus cultivos de hortalizas (cilantro, acelga, jitomate y calabacita). Como beneficiarios indirectos se contempla a toda la comunidad escolar del Plantel del Bachillerato General Estatal, la cual consumirá hortalizas frescas cultivadas en el huerto escolar demostrativo, generando ingresos autogestionables para el mantenimiento de la infraestructura educativa.\n2. Impacto socioeconómico y ambiental: Desde la perspectiva ambiental, el SIGER-1 mitiga la sobreexplotación de los mantos acuíferos locales al introducir un método de riego de precisión que entrega el agua gota a gota directamente en la zona radicular de las plantas, reduciendo el consumo hídrico global en un 55% en comparación con el riego por inundación tradicional. Desde la perspectiva económica, el módulo financiero del artefacto permite a los productores calcular con exactitud matemática el costo por metro cuadrado de cultivo, el rendimiento esperado por kilogramo cosechado y el margen de ganancia neta, evitando el endeudamiento con intermediarios voraces y fomentando la economía social y solidaria.\n3. Pertinencia técnica y rigor matemático: El artefacto integra de forma armónica los saberes de Pensamiento Matemático I. Para el diseño físico del sistema de riego, los estudiantes aplican teoremas de geometría plana y del espacio para calcular la pendiente óptima del terreno (expresada en porcentajes y grados de inclinación), el volumen de almacenamiento de los tinacos nodriza mediante fórmulas de cilindros y prismas rectos, la distribución simétrica de los agujeros y goteros en las mangueras de polietileno utilizando progresiones aritméticas y geométricas, y la presión hidrostática basada en la altura de carga del tanque (principio de Torricelli y presión manométrica). Para el módulo financiero, se aplican modelos de ecuaciones lineales de primer grado para determinar el punto de equilibrio, razones y proporciones para el cálculo de mezclas de fertilizantes y tasas de interés simple y compuesto para la evaluación de proyectos de inversión productiva comunitaria.\n\nLa construcción de este artefacto demanda por parte de los estudiantes de primer semestre del BGE una actitud de liderazgo, rigor científico, empatía comunitaria y trabajo colaborativo estricto. A lo largo de las cuatro sesiones asignadas, los jóvenes no solo ensamblarán piezas plásticas y redactarán presupuestos, sino que se convertirán en agentes de cambio capaces de dialogar con los saberes tradicionales de los agricultores locales y traducirlos al lenguaje universal de las matemáticas y la tecnología aplicada. El éxito del SIGER-1 se medirá en su capacidad para ser instalado, operado y mantenido de forma autónoma por la comunidad una vez concluida la intervención escolar, garantizando la sostenibilidad y la permanencia del proyecto a lo largo del tiempo, consolidando así el propósito fundamental del PEC y la Nueva Escuela Mexicana (NEM)."
+      },
+      "iDoSection": {
+        "stepByStepDemo": "Fases del Proyecto Formativo:\nFase 1: Diagnóstico topográfico, modelado geométrico y cálculo de volúmenes hídricos: Instrucciones detalladas de ejecución: 1. Organice al equipo de trabajo en roles definidos: Topógrafo de campo, Calculista matemático, Diseñador de planos y Gestor de insumos. 2. Realice una visita de campo al huerto escolar o terreno comunitario asignado para el PAEC. Mida el área total utilizando cinta métrica y aplique el Teorema de Pitágoras o triangulación geométrica para parcelas irregulares. 3. Mida la diferencia de nivel (altitud) entre el punto de ubicación del tinaco de almacenamiento y el punto más lejano de la parcela para determinar la pendiente longitudinal y transversal (Fórmula: Pendiente = (Desnivel / Distancia horizontal) * 100). 4. Calcule el volumen de agua necesario para regar el cultivo seleccionado utilizando fórmulas de prismas y cilindros, considerando los requerimientos hídricos diarios por planta (ejemplo: 2 litros por planta de jitomate en etapa de floración). 5. Registre todos los datos en la bitácora de campo del cuaderno activo. <!--workbook:lines:rows=8--> 6. Valide con el docente asesor los cálculos antes de proceder a la compra de materiales físicos. Advertencia técnica: Un error de cálculo en la pendiente o en la presión hidrostática provocará que los goteros ubicados en las zonas más altas no liberen agua o que las uniones colapsen por exceso de presión en las zonas más bajas.\n\nFase 2: Diseño del módulo financiero, presupuestación y punto de equilibrio: Instrucciones detalladas de ejecución: 1. Con base en el diseño geométrico de la Fase 1, establezca la lista exacta de materiales requeridos para construir un prototipo funcional de 10 metros lineales de riego por goteo y su respectivo depósito elevado. 2. Investiga cotizaciones reales en ferreterías o tiendas agropecuarias locales para obtener el costo de cada insumo (manguera de polietileno de 1/2 pulgada, conectores iniciales, goteros ajustables, codos, tes, pijas, teflón, tinaco de 200 litros). 3. Aplique modelos de ecuaciones lineales de la forma Y = mX + b, donde Y representa el costo total de producción, m el costo variable por planta, X el número de plantas a cultivar y b los costos fijos (instalación y depreciación del sistema). 4. Calcule el Ingreso Total (IT) multiplicando el precio de venta estimado de cada kilogramo de hortaliza por la cantidad producida. 5. Determine algebraicamente el Punto de Equilibrio (PE) igualando el Costo Total con el Ingreso Total, identificando cuántas unidades necesita vender la comunidad para recuperar la inversión inicial. 6. Registre la estructura de costos en una tabla detallada dentro del portafolio de evidencias. <!--workbook:drawing:height=160--> Advertencia técnica: Asegúrese de incluir un 10% de margen de contingencia en el presupuesto por imprevistos o piezas dañadas durante el armado.\n\nFase 3: Ensamblaje físico del prototipo de riego y calibración hidráulica: Instrucciones detalladas de ejecución: 1. Prepare las herramientas de trabajo: perforadora de manguera, pinzas de presión, segueta, cinta métrica, sellador de roscas (teflón). 2. Eleve el depósito de almacenamiento (tinaco o bidón de 200 litros) a una altura mínima de 1.5 metros sobre el nivel del suelo para garantizar la presión hidrostática gravitacional necesaria (se requiere aproximadamente 0.15 kg/cm² de presión por cada 1.5 metros de columna de agua). 3. Instale la llave de paso principal y el filtro de malla en la salida del depósito para evitar la obstrucción de los goteros por sedimentos. 4. Extienda la manguera principal de polietileno a lo largo de las bancadas de cultivo diseñadas en la Fase 1. 5. Perfore la manguera e inserte los conectores y microtubos con goteros compensados o ajustables a la distancia exacta calculada mediante progresiones aritméticas (por ejemplo, cada 30 cm según la separación de las plantas). 6. Llene el depósito con agua limpia, abra la válvula principal y realice una prueba de estanqueidad (búsqueda de fugas). Mida el volumen de agua emitido por tres goteros diferentes durante un minuto cronometrado para verificar la uniformidad del riego. 7. Complete la lista de verificación de criterios de aceptación. <!--workbook:lines:rows=8--> Advertencia técnica: No fuerce las conexiones de plástico con herramientas metálicas pesadas para evitar fisuras; utilice sellador de roscas en todas las uniones roscadas para prevenir fugas de presión.\n\nFase 4: Validación comunitaria, memoria técnica y exposición de resultados: Instrucciones detalladas de ejecución: 1. Integre todos los productos generados en las fases anteriores (planos, memorias de cálculo, presupuesto, registro fotográfico del prototipo ensamblado) en una memoria técnica formal. 2. Redacte un manual de usuario de una cuartilla dirigido a los agricultores de la comunidad, explicando paso a paso cómo encender el sistema, cómo limpiar los filtros y cómo calcular el tiempo de riego según la temporada del año utilizando las fórmulas matemáticas simplificadas. 3. Organice una demostración práctica en el huerto escolar o espacio comunitario asignado, operando el SIGER-1 frente a los beneficiarios directos del PAEC y explicando de forma clara cómo el pensamiento matemático resolvió el problema del desperdicio de agua y el costo financiero. 4. Reciba retroalimentación de la comunidad y ajuste las recomendaciones del manual técnico según sus observaciones. 5. Entregue el portafolio de evidencias completo al docente titular."
+      },
+      "weDoSection": {
+        "guidedPractice": "Desarrollo colaborativo en equipos de trabajo con seguimiento docente en el aula y taller.",
+        "workbookElements": [
+          {
+            "id": "wb-project-diagram",
+            "type": "drawing_box",
+            "title": "Diagrama de Arquitectura y Esquema de Conexión del Artefacto",
+            "instruction": "Dibuja el diagrama de bloques, esquema funcional o circuito de tu solución:",
+            "config": {
+              "heightPx": 160
+            }
+          }
+        ]
+      },
+      "youDoSection": {
+        "autonomousChallenge": "Tú Haces - Desafío Autónomo de Validación en Campo: Asuma el rol de director técnico del proyecto y traslade el prototipo SIGER-1 o su modelo matemático a una parcela real de traspatio en su hogar o comunidad. De manera totalmente autónoma, realice una auditoría de campo durante tres días consecutivos. Paso 1: Mida la cantidad exacta de agua (en mililitros) que absorbe una planta de cultivo local utilizando el sistema de goteo durante 30 minutos de operación diaria. Paso 2: Compare este volumen con el consumo que se realizaría regando con cubeta tradicional y calcule el porcentaje exacto de ahorro hídrico obtenido mediante la fórmula de variación porcentual. Paso 3: Entreviste a un miembro de su familia o agricultor local, muéstrele el presupuesto financiero calculado en la Fase 2 y registre su opinión crítica sobre la viabilidad económica de replicar el sistema a gran escala en el ejido. Paso 4: Redacte en su cuaderno activo una memoria de auditoría de una cuartilla detallando los aciertos, las fallas imprevistas durante la prueba de campo (como posibles obstrucciones de sedimentos o variaciones en la presión) y proponga dos mejoras técnicas basadas en principios matemáticos para optimizar el rendimiento del artefacto. Integre esta memoria como el cierre definitivo de su portafolio de evidencias del bloque.",
+        "workbookElements": [
+          {
+            "id": "wb-project-checklist",
+            "type": "checkbox_list",
+            "title": "Lista de verificación de criterios de aceptación",
+            "instruction": "Verifica junto con tu docente el cumplimiento de cada criterio antes de la entrega:",
+            "config": {
+              "checkboxes": [
+                "Criterio 1: El prototipo físico del sistema SIGER-1 se encuentra totalmente ensamblado, libre de fugas en un 100% de sus uniones y operando mediante presión gravitacional autónoma.",
+                "Criterio 2: Las memorias de cálculo matemático (pendientes, volúmenes, ecuaciones lineales de costos y punto de equilibrio) presentan un nivel de precisión y justificación algebraica impecable sin errores conceptuales.",
+                "Criterio 3: El manual técnico y de mantenimiento está redactado con claridad y es comprensible para los usuarios de la comunidad agrícola sin formación matemática avanzada.",
+                "Criterio 4: El proyecto demuestra una vinculación directa y medible con la problemática planteada en el PAEC (escasez hídrica y optimización de costos en la producción agrícola local)."
+              ]
+            }
+          },
+          {
+            "id": "wb-project-notes",
+            "type": "lines",
+            "title": "Bitácora de campo y lecciones aprendidas",
+            "instruction": "Anota los principales retos técnicos enfrentados y cómo los resolvieron en equipo:",
+            "config": {
+              "rows": 6
+            }
+          }
+        ]
+      },
+      "troubleshooting": [],
+      "formativeCheckpoint": {
+        "question": "¿Qué impacto esperado tiene tu artefacto en la comunidad o en tu perfil profesional?",
+        "reflectionPrompts": [
+          "Evalúa la viabilidad y durabilidad de tu propuesta."
+        ],
+        "criteriaChecklist": [
+          "El artefacto cumple los criterios de aceptación acordados."
+        ]
+      },
+      "wordCount": 2432
+    },
+    {
+      "missionIndex": 4,
+      "title": "Misión 4: Demostración Integral y Evaluación Formativa — Integración del producto formativo y coevaluación entre pares",
+      "coveredSessions": [
+        11,
+        12
+      ],
+      "sessionTopic": "Integración del producto formativo y coevaluación entre pares",
+      "sessionFocus": "Demostración de aprendizajes, coevaluación y rúbrica NEM",
+      "phenomenonHook": {
+        "story": "La evaluación formativa en el modelo NEM no es una prueba memorística; es la oportunidad en que tú y tu equipo demuestran ante la comunidad escolar cómo los conocimientos construidos en Pensamiento Matemático I responden a la problemática de Problemáticas o necesidades de la comunidad 6 a) Etapa uno. 6 b) Etapa dos. 6 c) Etapa tres: 6 FASE II.- Definición del Proyecto Escolar Comunitario (PEC): 7 1) Introducción, justificación 7 2) Propósito 7 3) Alcance y temporalidad del PEC 8 4) Análisis del PEC 9 5) Diseño de fases y actividades del PEC 11 6) Diseño general del PEC 13 7) Plan op.",
+        "detonatingQuestion": "¿De qué manera tus evidencias demuestran que alcanzaste las metas de aprendizaje y qué impacto real tienen tus soluciones?"
+      },
+      "conceptZero": {
+        "physicalAnalogy": "La evaluación es como el control de calidad final en una línea de producción: no busca descartar piezas, sino asegurar que cada una cumpla con la resistencia y confiabilidad requerida para su propósito real.",
+        "coreExplanation": "La evaluación formativa combina tres miradas indispensables: la heteroevaluación docente guiada por una rúbrica analítica, la coevaluación técnica entre compañeros mediante lista de cotejo, y la autoevaluación reflexiva sobre tu propio progreso cognitivo."
+      },
+      "iDoSection": {
+        "stepByStepDemo": "Rúbrica Analítica Oficial NEM:\n\n### Criterio: Dominio Conceptual y Estructuración Lógica de Proposiciones (Ponderación: 25%)\n- **Sobresaliente / Excelente (10 pts):** El estudiante demuestra una comprensión sobresaliente y absoluta de los conceptos fundamentales de la lógica matemática vinculados al Marco Curricular Común de la Educación Media Superior. Traduce con maestría proposiciones complejas del lenguaje natural a fórmulas simbólicas exactas, estableciendo conectores lógicos sin error alguno. En sus argumentos construidos para la comunidad, se evidencia un rigor analítico impecable que diferencia con claridad meridiana entre falacias y razonamientos válidos, integrando de forma ejemplar los principios rectores del Pensamiento Matemático I.\n- **Notable / Bueno (8 pts):** El estudiante presenta un dominio notable de los conceptos de lógica matemática aplicados al contexto comunitario. Traduce adecuadamente las proposiciones del lenguaje natural al lenguaje formal, cometiendo mínimas omisiones que no alteran la estructura general del razonamiento. Los conectores lógicos son utilizados con precisión en la mayoría de los casos y sus argumentos muestran una solidez aceptable, diferenciando correctamente las proposiciones simples y compuestas según los estándares de la Nueva Escuela Mexicana.\n- **Suficiente / Básico (6 pts):** El alumno alcanza el nivel suficiente al demostrar la comprensión elemental de los conceptos básicos de lógica matemática. Logra formalizar proposiciones sencillas pero presenta dificultades al enfrentarse a estructuras compuestas o tablas de verdad extensas. Los conectores lógicos son empleados de manera rudimentaria y su capacidad para identificar falacias en su entorno comunitario requiere supervisión docente constante para evitar errores de interpretación conceptual.\n- **Insuficiente / Requiere Apoyo (4 pts):** El estudiante muestra un desempeño insuficiente, evidenciando confusiones graves en la distinción entre proposiciones y expresiones no proposicionales. Es incapaz de simbolizar correctamente enunciados del lenguaje cotidiano utilizando el lenguaje formal de la lógica matemática. Confunde los conectores lógicos fundamentales, genera argumentos inválidos y no logra identificar las falacias presentes en la problemática comunitaria abordada durante el proyecto.\n\n### Criterio: Construcción y Análisis Metodológico de Tablas de Verdad (Ponderación: 25%)\n- **Sobresaliente / Excelente (10 pts):** El estudiante construye tablas de verdad impecables para proposiciones compuestas de hasta cuatro variables, aplicando rigurosamente las reglas operativas de la conjunción, disyunción, condicional y bicondicional. Identifica con total precisión si una fórmula lógica corresponde a una tautología, contradicción o contingencia. Su procedimiento paso a paso es cristalino, ordenado y refleja un pensamiento algorítmico altamente desarrollado y transferible a la resolución de problemas comunitarios.\n- **Notable / Bueno (8 pts):** El alumno diseña tablas de verdad correctas, estableciendo adecuadamente el número de filas requeridas según la fórmula $2^n$. Opera los conectores lógicos con orden y precisión, cometiendo un error mínimo de cálculo o de transcripción que logra corregir de manera autónoma. Clasifica acertadamente la proposición final como tautológica, contradictoria o contingente, demostrando un dominio sólido de la metodología formal exigida en la UAC.\n- **Suficiente / Básico (6 pts):** El estudiante elabora tablas de verdad para proposiciones de dos o tres variables con ciertos tropiezos procedimentales. Requiere apoyo para determinar el número exacto de combinaciones de verdad iniciales o se confunde en la jerarquía de los operadores lógicos. Logra llegar a una conclusión sobre la naturaleza de la fórmula con ayuda de orientaciones específicas, mostrando un avance básico en el desarrollo de sus habilidades analíticas.\n- **Insuficiente / Requiere Apoyo (4 pts):** El desempeño es insuficiente debido a que el alumno desconoce la estructura fundamental para construir una tabla de verdad. Omite combinaciones esenciales de valores de verdad, aplica erróneamente las tablas de los conectores lógicos y es incapaz de determinar si el resultado final representa una tautología, contradicción o contingencia, lo que invalida su análisis metodológico.\n\n### Criterio: Vinculación Práctica con la Problemática PAEC Comunitaria (Ponderación: 25%)\n- **Sobresaliente / Excelente (10 pts):** El estudiante vincula de manera magistral los fundamentos de la lógica matemática con la resolución de situaciones reales detectadas en su comunidad poblana durante las fases del Proyecto Escolar Comunitario (PEC). Traduce necesidades sociales complejas en modelos lógicos estructurados, proponiendo soluciones viables, argumentadas y basadas en esquemas de razonamiento formal que demuestran un profundo compromiso cívico, social y comunitario.\n- **Notable / Bueno (8 pts):** El alumno conecta satisfactoriamente los contenidos de lógica matemática con el contexto de su comunidad. Aplica esquemas de razonamiento estructurado para analizar una problemática específica del PEC, logrando formular conclusiones lógicas coherentes que abonan a la comprensión y posible solución de la necesidad detectada, cumpliendo con los propósitos formativos establecidos.\n- **Suficiente / Básico (6 pts):** El estudiante establece una relación superficial entre la lógica matemática y la problemática comunitaria del PEC. Sus argumentos lógicos se limitan a describir la situación sin profundizar en cómo el razonamiento estructurado puede transformar o resolver el conflicto planteado, mostrando una aplicación débil pero existente de los saberes disciplinares al entorno real.\n- **Insuficiente / Requiere Apoyo (4 pts):** El alumno no logra conectar los conceptos de lógica matemática con la realidad de su comunidad. El trabajo presentado carece de vínculo con las fases del Proyecto Escolar Comunitario (PEC), limitándose a ejercicios abstractos descontextualizados que ignoran por completo la dimensión social y formativa exigida por el Marco Curricular Común.\n\n### Criterio: Claridad en la Argumentación y Presentación del Producto Académico (Ponderación: 25%)\n- **Sobresaliente / Excelente (10 pts):** El producto académico presentado destaca por una estructura impecable, redacción académica pulida, ortografía perfecta y uso riguroso de la notación matemática formal. La argumentación oral o escrita es persuasiva, coherente y está respaldada por esquemas lógicos visualmente claros. Demuestra una capacidad sobresaliente para comunicar con precisión científica y claridad didáctica los resultados de su aprendizaje ante sus pares y docentes.\n- **Notable / Bueno (8 pts):** El trabajo presenta una organización lógica clara, con una redacción formal adecuada y mínimas fallas ortográficas o de formato. La notación matemática es correcta y los argumentos expuestos se entienden con facilidad. El estudiante expone su producto académico con seguridad, reflejando un esfuerzo constante por mantener la calidad estética y conceptual solicitada.\n- **Suficiente / Básico (6 pts):** El artefacto académico cumple con los requerimientos mínimos de entrega. Presenta problemas de orden visual, imprecisiones en la notación matemática o errores ortográficos recurrentes que afectan la fluidez de la lectura. La argumentación es confusa en varios apartados, evidenciando falta de revisión previa y menor esmero en la presentación final del trabajo.\n- **Insuficiente / Requiere Apoyo (4 pts):** El producto académico es deficiente en su estructura, formato y presentación. Carece de rigor en la notación matemática, está plagado de faltas de ortografía y muestra un desinterés evidente en la calidad de entrega. La argumentación es incoherente, desorganizada e imposible de evaluar positivamente bajo los estándares académicos institucionales."
+      },
+      "weDoSection": {
+        "guidedPractice": "Sesión de coevaluación técnica: los equipos contrastan sus entregables utilizando la lista de cotejo y registran observaciones constructivas.",
+        "workbookElements": [
+          {
+            "id": "wb-eval-checklist-box",
+            "type": "checkbox_list",
+            "title": "Lista de Cotejo Técnica del Artefacto (Coevaluación entre Pares)",
+            "instruction": "Intercambia tu proyecto con un compañero y verifica objetivamente el cumplimiento de cada indicador:",
+            "config": {
+              "checkboxes": [
+                "[Seguridad] El estudiante verifica que todas las proposiciones utilizadas posean un valor de verdad definitivo (verdadero o falso) antes de iniciar la formalización.",
+                "[Seguridad] El alumno comprueba que el planteamiento del problema comunitario del PEC no contenga ambigüedades semánticas que impidan su traducción lógica.",
+                "[Funcionalidad] Utiliza correctamente los símbolos formales estándar para la negación, conjunción, disyunción, implicación y equivalencia.",
+                "[Funcionalidad] Construye tablas de verdad que cumplen exactamente con la fórmula matemática 2 a la potencia n según el número de variables involucradas.",
+                "[Funcionalidad] Identifica y clasifica sin errores los resultados finales de las tablas de verdad en tautologías, contradicciones o contingencias.",
+                "[Metodología] Aplica leyes de la lógica proposicional (como De Morgan o Modus Ponens) para simplificar argumentos complejos.",
+                "[Metodología] Sigue un orden secuencial riguroso desde la identificación de premisas hasta la obtención de la conclusión derivada.",
+                "[Metodología] Desglosa paso a paso el análisis de las fases del Proyecto Escolar Comunitario utilizando esquemas de razonamiento estructurado.",
+                "[Presentación] Emplea un vocabulario técnico adecuado y preciso en el ámbito de la lógica matemática durante todo el desarrollo del trabajo.",
+                "[Presentación] Presenta el artefacto académico con limpieza, orden visual, esquemas legibles y una estructura formal impecable.",
+                "[Presentación] Incluye referencias bibliográficas y fuentes de consulta confiables que respaldan el marco teórico del proyecto.",
+                "[Impacto PAEC] Aborda de manera directa una necesidad o problemática real identificada en la comunidad del estado de Puebla.",
+                "[Impacto PAEC] Fomenta la participación colaborativa y el diálogo constructivo entre los integrantes de la comunidad escolar y los habitantes.",
+                "[Impacto PAEC] Propone soluciones viables y fundamentadas lógicamente que contribuyen al bienestar colectivo y al desarrollo sostenible local.",
+                "[Impacto PAEC] Refleja los valores de la Nueva Escuela Mexicana, tales como la honestidad, la responsabilidad social y el pensamiento crítico."
+              ]
+            }
+          }
+        ]
+      },
+      "youDoSection": {
+        "autonomousChallenge": "Autoevaluación individual y resolución de los reactivos de juicio crítico en el cuaderno de trabajo.",
+        "workbookElements": [
+          {
+            "id": "wb-eval-reflection-lines",
+            "type": "lines",
+            "title": "Bitácora de Autoevaluación Metacognitiva",
+            "instruction": "Responde reflexivamente a las preguntas de consolidación del bloque:",
+            "config": {
+              "rows": 6
+            }
+          }
+        ]
+      },
+      "troubleshooting": [],
+      "formativeCheckpoint": {
+        "question": "¿Qué evidencias concretas avalan el nivel de desempeño que asignaste a tu proyecto?",
+        "reflectionPrompts": [
+          "¿Qué concepto o procedimiento de la lógica matemática consideras que transformó más tu forma de analizar los problemas cotidianos en tu comunidad y por qué?",
+          "¿Qué estrategia específica implementaste para superar el obstáculo técnico más difícil al momento de construir y resolver tablas de verdad complejas?",
+          "¿De qué manera la formalización de proposiciones te permitió entender con mayor claridad las contradicciones o falacias presentes en los discursos de tu entorno social?",
+          "¿Cómo influyó el trabajo colaborativo en el desarrollo de tu Proyecto Escolar Comunitario (PEC) al momento de estructurar los argumentos lógicos?",
+          "¿Qué errores comunes cometiste al inicio del bloque al traducir lenguaje natural a lenguaje formal y cómo lograste corregirlos mediante la autorregulación?",
+          "¿De qué forma puedes aplicar los esquemas de razonamiento estructurado aprendido en esta UAC para tomar mejores decisiones en tu vida personal y académica futura?"
+        ],
+        "criteriaChecklist": [
+          "Contrasté mi producto contra todos los niveles de la rúbrica analítica.",
+          "Completé la lista de cotejo con imparcialidad técnica.",
+          "Redacté mis compromisos de mejora para el siguiente periodo."
+        ]
+      },
+      "wordCount": 2209
+    }
+  ],
+  "projectSection": {
+    "artifactName": "Sistema Geométrico y Financiero de Riego por Goteo Comunitario y Presupuestal (SIGER-1)",
+    "communityUtility": "El presente proyecto encarna la culminación del pensamiento matemático aplicado a la realidad socioeducativa y comunitaria del estado de Puebla, alineándose de manera rigurosa con el Plan de Atención Escolar Comunitaria (PAEC). En el marco de la Fase II del Proyecto Escolar Comunitario (PEC), específicamente respondiendo a las necesidades de optimización de recursos hídricos y seguridad alimentaria en zonas de alta marginación agrícola y semiurbana, el artefacto denominado 'Sistema Geométrico y Financiero de Riego por Goteo Comunitario y Presupuestal (SIGER-1)' se erige como una solución tecnológica y comunitaria tangible, replicable y de alto impacto socioeconómico. \n\nLa problemática central detectada en la comunidad mediante la Etapa Uno, Dos y Tres del diagnóstico participativo es la escasez crónica de agua potable y de uso agrícola durante los periodos de estiaje, aunada a la falta de herramientas de cálculo aritmético, algebraico y financiero básico en las familias campesinas y pequeños productores locales para optimizar sus costos de producción, dimensionar sus terrenos de cultivo y calcular con precisión los volúmenes de agua, presiones hidrostáticas, pendientes topográficas y los costos de inversión y retorno de capital. Tradicionalmente, los agricultores de la región realizan la siembra y el riego de forma empírica, lo que genera un desperdicio estimado del 60% del recurso hídrico por evaporación y escorrentía superficial, además de una pérdida constante de capital debido a compras excesivas o insuficientes de insumos, mangueras, conectores, fertilizantes y sistemas de almacenamiento.\n\nAnte esta realidad apremiante, el SIGER-1 no es un simple modelo didáctico de cartón ni un resumen teórico sin aplicación práctica; se trata de un artefacto híbrido compuesto por dos grandes módulos interconectados: un prototipo físico funcional de un sistema de riego por goteo a escala real calibrado mediante razones trigonométricas, proporciones geométricas, cálculo de volúmenes de cilindros y prismas rectulares, y un manual de software ejecutable en hoja de cálculo avanzada o aplicación móvil de código abierto que automatiza el presupuesto financiero, el análisis de punto de equilibrio, el cálculo de amortización de créditos rurales y la proyección de flujo de efectivo para pequeñas parcelas familiares de traspatio o hectáreas ejidales.\n\nPara dimensionar el alcance y la pertinencia técnica del artefacto, es fundamental detallar la vinculación de sus componentes con los ejes rectores del MCCEMS y el PAEC:\n1. Beneficiarios directos y indirectos: Los beneficiarios directos son los 45 productores agrícolas de la comunidad escolar y ejidal que colaboran en el proyecto, así como sus familias, quienes verán reducida su carga de trabajo físico en un 40% y optimizarán el uso del agua en sus cultivos de hortalizas (cilantro, acelga, jitomate y calabacita). Como beneficiarios indirectos se contempla a toda la comunidad escolar del Plantel del Bachillerato General Estatal, la cual consumirá hortalizas frescas cultivadas en el huerto escolar demostrativo, generando ingresos autogestionables para el mantenimiento de la infraestructura educativa.\n2. Impacto socioeconómico y ambiental: Desde la perspectiva ambiental, el SIGER-1 mitiga la sobreexplotación de los mantos acuíferos locales al introducir un método de riego de precisión que entrega el agua gota a gota directamente en la zona radicular de las plantas, reduciendo el consumo hídrico global en un 55% en comparación con el riego por inundación tradicional. Desde la perspectiva económica, el módulo financiero del artefacto permite a los productores calcular con exactitud matemática el costo por metro cuadrado de cultivo, el rendimiento esperado por kilogramo cosechado y el margen de ganancia neta, evitando el endeudamiento con intermediarios voraces y fomentando la economía social y solidaria.\n3. Pertinencia técnica y rigor matemático: El artefacto integra de forma armónica los saberes de Pensamiento Matemático I. Para el diseño físico del sistema de riego, los estudiantes aplican teoremas de geometría plana y del espacio para calcular la pendiente óptima del terreno (expresada en porcentajes y grados de inclinación), el volumen de almacenamiento de los tinacos nodriza mediante fórmulas de cilindros y prismas rectos, la distribución simétrica de los agujeros y goteros en las mangueras de polietileno utilizando progresiones aritméticas y geométricas, y la presión hidrostática basada en la altura de carga del tanque (principio de Torricelli y presión manométrica). Para el módulo financiero, se aplican modelos de ecuaciones lineales de primer grado para determinar el punto de equilibrio, razones y proporciones para el cálculo de mezclas de fertilizantes y tasas de interés simple y compuesto para la evaluación de proyectos de inversión productiva comunitaria.\n\nLa construcción de este artefacto demanda por parte de los estudiantes de primer semestre del BGE una actitud de liderazgo, rigor científico, empatía comunitaria y trabajo colaborativo estricto. A lo largo de las cuatro sesiones asignadas, los jóvenes no solo ensamblarán piezas plásticas y redactarán presupuestos, sino que se convertirán en agentes de cambio capaces de dialogar con los saberes tradicionales de los agricultores locales y traducirlos al lenguaje universal de las matemáticas y la tecnología aplicada. El éxito del SIGER-1 se medirá en su capacidad para ser instalado, operado y mantenido de forma autónoma por la comunidad una vez concluida la intervención escolar, garantizando la sostenibilidad y la permanencia del proyecto a lo largo del tiempo, consolidando así el propósito fundamental del PEC y la Nueva Escuela Mexicana (NEM).",
+    "phases": [
+      {
+        "phaseNum": 1,
+        "title": "Fase 1: Diagnóstico topográfico, modelado geométrico y cálculo de volúmenes hídricos",
+        "allocatedHours": 3,
+        "deliverables": [
+          "Plano a escala del terreno o huerto con curvas de nivel y pendientes calculadas trigonométricamente",
+          "Memoria de cálculo de volúmenes de almacenamiento y caudal de riego"
+        ],
+        "instructions": "Instrucciones detalladas de ejecución: 1. Organice al equipo de trabajo en roles definidos: Topógrafo de campo, Calculista matemático, Diseñador de planos y Gestor de insumos. 2. Realice una visita de campo al huerto escolar o terreno comunitario asignado para el PAEC. Mida el área total utilizando cinta métrica y aplique el Teorema de Pitágoras o triangulación geométrica para parcelas irregulares. 3. Mida la diferencia de nivel (altitud) entre el punto de ubicación del tinaco de almacenamiento y el punto más lejano de la parcela para determinar la pendiente longitudinal y transversal (Fórmula: Pendiente = (Desnivel / Distancia horizontal) * 100). 4. Calcule el volumen de agua necesario para regar el cultivo seleccionado utilizando fórmulas de prismas y cilindros, considerando los requerimientos hídricos diarios por planta (ejemplo: 2 litros por planta de jitomate en etapa de floración). 5. Registre todos los datos en la bitácora de campo del cuaderno activo. <!--workbook:lines:rows=8--> 6. Valide con el docente asesor los cálculos antes de proceder a la compra de materiales físicos. Advertencia técnica: Un error de cálculo en la pendiente o en la presión hidrostática provocará que los goteros ubicados en las zonas más altas no liberen agua o que las uniones colapsen por exceso de presión en las zonas más bajas."
+      },
+      {
+        "phaseNum": 2,
+        "title": "Fase 2: Diseño del módulo financiero, presupuestación y punto de equilibrio",
+        "allocatedHours": 2,
+        "deliverables": [
+          "Hoja de costos unitarios y globales de materiales (tuberías, conectores, tinaco, filtros, goteros)",
+          "Modelo matemático de ecuaciones lineales para el cálculo del punto de equilibrio y rentabilidad"
+        ],
+        "instructions": "Instrucciones detalladas de ejecución: 1. Con base en el diseño geométrico de la Fase 1, establezca la lista exacta de materiales requeridos para construir un prototipo funcional de 10 metros lineales de riego por goteo y su respectivo depósito elevado. 2. Investiga cotizaciones reales en ferreterías o tiendas agropecuarias locales para obtener el costo de cada insumo (manguera de polietileno de 1/2 pulgada, conectores iniciales, goteros ajustables, codos, tes, pijas, teflón, tinaco de 200 litros). 3. Aplique modelos de ecuaciones lineales de la forma Y = mX + b, donde Y representa el costo total de producción, m el costo variable por planta, X el número de plantas a cultivar y b los costos fijos (instalación y depreciación del sistema). 4. Calcule el Ingreso Total (IT) multiplicando el precio de venta estimado de cada kilogramo de hortaliza por la cantidad producida. 5. Determine algebraicamente el Punto de Equilibrio (PE) igualando el Costo Total con el Ingreso Total, identificando cuántas unidades necesita vender la comunidad para recuperar la inversión inicial. 6. Registre la estructura de costos en una tabla detallada dentro del portafolio de evidencias. <!--workbook:drawing:height=160--> Advertencia técnica: Asegúrese de incluir un 10% de margen de contingencia en el presupuesto por imprevistos o piezas dañadas durante el armado."
+      },
+      {
+        "phaseNum": 3,
+        "title": "Fase 3: Ensamblaje físico del prototipo de riego y calibración hidráulica",
+        "allocatedHours": 3,
+        "deliverables": [
+          "Prototipo físico funcional del sistema SIGER-1 montado y probado contra fugas",
+          "Reporte de caudal y velocidad de goteo calibrado por metro cuadrado"
+        ],
+        "instructions": "Instrucciones detalladas de ejecución: 1. Prepare las herramientas de trabajo: perforadora de manguera, pinzas de presión, segueta, cinta métrica, sellador de roscas (teflón). 2. Eleve el depósito de almacenamiento (tinaco o bidón de 200 litros) a una altura mínima de 1.5 metros sobre el nivel del suelo para garantizar la presión hidrostática gravitacional necesaria (se requiere aproximadamente 0.15 kg/cm² de presión por cada 1.5 metros de columna de agua). 3. Instale la llave de paso principal y el filtro de malla en la salida del depósito para evitar la obstrucción de los goteros por sedimentos. 4. Extienda la manguera principal de polietileno a lo largo de las bancadas de cultivo diseñadas en la Fase 1. 5. Perfore la manguera e inserte los conectores y microtubos con goteros compensados o ajustables a la distancia exacta calculada mediante progresiones aritméticas (por ejemplo, cada 30 cm según la separación de las plantas). 6. Llene el depósito con agua limpia, abra la válvula principal y realice una prueba de estanqueidad (búsqueda de fugas). Mida el volumen de agua emitido por tres goteros diferentes durante un minuto cronometrado para verificar la uniformidad del riego. 7. Complete la lista de verificación de criterios de aceptación. <!--workbook:lines:rows=8--> Advertencia técnica: No fuerce las conexiones de plástico con herramientas metálicas pesadas para evitar fisuras; utilice sellador de roscas en todas las uniones roscadas para prevenir fugas de presión."
+      },
+      {
+        "phaseNum": 4,
+        "title": "Fase 4: Validación comunitaria, memoria técnica y exposición de resultados",
+        "allocatedHours": 2,
+        "deliverables": [
+          "Manual técnico ilustrado de operación y mantenimiento del sistema SIGER-1 para la comunidad",
+          "Presentación ejecutiva y defensa del proyecto ante autoridades escolares y beneficiarios del PAEC"
+        ],
+        "instructions": "Instrucciones detalladas de ejecución: 1. Integre todos los productos generados en las fases anteriores (planos, memorias de cálculo, presupuesto, registro fotográfico del prototipo ensamblado) en una memoria técnica formal. 2. Redacte un manual de usuario de una cuartilla dirigido a los agricultores de la comunidad, explicando paso a paso cómo encender el sistema, cómo limpiar los filtros y cómo calcular el tiempo de riego según la temporada del año utilizando las fórmulas matemáticas simplificadas. 3. Organice una demostración práctica en el huerto escolar o espacio comunitario asignado, operando el SIGER-1 frente a los beneficiarios directos del PAEC y explicando de forma clara cómo el pensamiento matemático resolvió el problema del desperdicio de agua y el costo financiero. 4. Reciba retroalimentación de la comunidad y ajuste las recomendaciones del manual técnico según sus observaciones. 5. Entregue el portafolio de evidencias completo al docente titular."
+      }
+    ],
+    "technicalSpecs": [
+      "Presión hidrostática de operación: Mínimo 0.15 kg/cm² y máximo 0.4 kg/cm² garantizada por una columna de agua de 1.5 a 2 metros de altura.",
+      "Caudal uniforme de emisión: Entre 2.0 y 4.0 litros por hora por cada gotero ajustable, con una tolerancia de variación menor al 5% entre el primer y el último gotero de la línea.",
+      "Materiales de tubería y conexiones: Polietileno de baja densidad (PEBD) virgen de 1/2 pulgada resistente a la radiación UV, con protección contra rayos ultravioleta conforme a la norma NOM-009-CONAGUA-2001.",
+      "Eficiencia de riego: Coeficiente de uniformidad de Christiansen (CUC) superior al 85% en pruebas de campo estandarizadas."
+    ],
+    "acceptanceCriteria": [
+      "Criterio 1: El prototipo físico del sistema SIGER-1 se encuentra totalmente ensamblado, libre de fugas en un 100% de sus uniones y operando mediante presión gravitacional autónoma.",
+      "Criterio 2: Las memorias de cálculo matemático (pendientes, volúmenes, ecuaciones lineales de costos y punto de equilibrio) presentan un nivel de precisión y justificación algebraica impecable sin errores conceptuales.",
+      "Criterio 3: El manual técnico y de mantenimiento está redactado con claridad y es comprensible para los usuarios de la comunidad agrícola sin formación matemática avanzada.",
+      "Criterio 4: El proyecto demuestra una vinculación directa y medible con la problemática planteada en el PAEC (escasez hídrica y optimización de costos en la producción agrícola local)."
+    ]
+  },
+  "evaluationSection": {
+    "source": "generated_fresh",
+    "rubric": [
+      {
+        "criterion": "Dominio Conceptual y Estructuración Lógica de Proposiciones",
+        "weightPercent": 25,
+        "levels": [
+          {
+            "levelName": "Sobresaliente / Excelente",
+            "points": 10,
+            "descriptor": "El estudiante demuestra una comprensión sobresaliente y absoluta de los conceptos fundamentales de la lógica matemática vinculados al Marco Curricular Común de la Educación Media Superior. Traduce con maestría proposiciones complejas del lenguaje natural a fórmulas simbólicas exactas, estableciendo conectores lógicos sin error alguno. En sus argumentos construidos para la comunidad, se evidencia un rigor analítico impecable que diferencia con claridad meridiana entre falacias y razonamientos válidos, integrando de forma ejemplar los principios rectores del Pensamiento Matemático I."
+          },
+          {
+            "levelName": "Notable / Bueno",
+            "points": 8,
+            "descriptor": "El estudiante presenta un dominio notable de los conceptos de lógica matemática aplicados al contexto comunitario. Traduce adecuadamente las proposiciones del lenguaje natural al lenguaje formal, cometiendo mínimas omisiones que no alteran la estructura general del razonamiento. Los conectores lógicos son utilizados con precisión en la mayoría de los casos y sus argumentos muestran una solidez aceptable, diferenciando correctamente las proposiciones simples y compuestas según los estándares de la Nueva Escuela Mexicana."
+          },
+          {
+            "levelName": "Suficiente / Básico",
+            "points": 6,
+            "descriptor": "El alumno alcanza el nivel suficiente al demostrar la comprensión elemental de los conceptos básicos de lógica matemática. Logra formalizar proposiciones sencillas pero presenta dificultades al enfrentarse a estructuras compuestas o tablas de verdad extensas. Los conectores lógicos son empleados de manera rudimentaria y su capacidad para identificar falacias en su entorno comunitario requiere supervisión docente constante para evitar errores de interpretación conceptual."
+          },
+          {
+            "levelName": "Insuficiente / Requiere Apoyo",
+            "points": 4,
+            "descriptor": "El estudiante muestra un desempeño insuficiente, evidenciando confusiones graves en la distinción entre proposiciones y expresiones no proposicionales. Es incapaz de simbolizar correctamente enunciados del lenguaje cotidiano utilizando el lenguaje formal de la lógica matemática. Confunde los conectores lógicos fundamentales, genera argumentos inválidos y no logra identificar las falacias presentes en la problemática comunitaria abordada durante el proyecto."
+          }
+        ]
+      },
+      {
+        "criterion": "Construcción y Análisis Metodológico de Tablas de Verdad",
+        "weightPercent": 25,
+        "levels": [
+          {
+            "levelName": "Sobresaliente / Excelente",
+            "points": 10,
+            "descriptor": "El estudiante construye tablas de verdad impecables para proposiciones compuestas de hasta cuatro variables, aplicando rigurosamente las reglas operativas de la conjunción, disyunción, condicional y bicondicional. Identifica con total precisión si una fórmula lógica corresponde a una tautología, contradicción o contingencia. Su procedimiento paso a paso es cristalino, ordenado y refleja un pensamiento algorítmico altamente desarrollado y transferible a la resolución de problemas comunitarios."
+          },
+          {
+            "levelName": "Notable / Bueno",
+            "points": 8,
+            "descriptor": "El alumno diseña tablas de verdad correctas, estableciendo adecuadamente el número de filas requeridas según la fórmula $2^n$. Opera los conectores lógicos con orden y precisión, cometiendo un error mínimo de cálculo o de transcripción que logra corregir de manera autónoma. Clasifica acertadamente la proposición final como tautológica, contradictoria o contingente, demostrando un dominio sólido de la metodología formal exigida en la UAC."
+          },
+          {
+            "levelName": "Suficiente / Básico",
+            "points": 6,
+            "descriptor": "El estudiante elabora tablas de verdad para proposiciones de dos o tres variables con ciertos tropiezos procedimentales. Requiere apoyo para determinar el número exacto de combinaciones de verdad iniciales o se confunde en la jerarquía de los operadores lógicos. Logra llegar a una conclusión sobre la naturaleza de la fórmula con ayuda de orientaciones específicas, mostrando un avance básico en el desarrollo de sus habilidades analíticas."
+          },
+          {
+            "levelName": "Insuficiente / Requiere Apoyo",
+            "points": 4,
+            "descriptor": "El desempeño es insuficiente debido a que el alumno desconoce la estructura fundamental para construir una tabla de verdad. Omite combinaciones esenciales de valores de verdad, aplica erróneamente las tablas de los conectores lógicos y es incapaz de determinar si el resultado final representa una tautología, contradicción o contingencia, lo que invalida su análisis metodológico."
+          }
+        ]
+      },
+      {
+        "criterion": "Vinculación Práctica con la Problemática PAEC Comunitaria",
+        "weightPercent": 25,
+        "levels": [
+          {
+            "levelName": "Sobresaliente / Excelente",
+            "points": 10,
+            "descriptor": "El estudiante vincula de manera magistral los fundamentos de la lógica matemática con la resolución de situaciones reales detectadas en su comunidad poblana durante las fases del Proyecto Escolar Comunitario (PEC). Traduce necesidades sociales complejas en modelos lógicos estructurados, proponiendo soluciones viables, argumentadas y basadas en esquemas de razonamiento formal que demuestran un profundo compromiso cívico, social y comunitario."
+          },
+          {
+            "levelName": "Notable / Bueno",
+            "points": 8,
+            "descriptor": "El alumno conecta satisfactoriamente los contenidos de lógica matemática con el contexto de su comunidad. Aplica esquemas de razonamiento estructurado para analizar una problemática específica del PEC, logrando formular conclusiones lógicas coherentes que abonan a la comprensión y posible solución de la necesidad detectada, cumpliendo con los propósitos formativos establecidos."
+          },
+          {
+            "levelName": "Suficiente / Básico",
+            "points": 6,
+            "descriptor": "El estudiante establece una relación superficial entre la lógica matemática y la problemática comunitaria del PEC. Sus argumentos lógicos se limitan a describir la situación sin profundizar en cómo el razonamiento estructurado puede transformar o resolver el conflicto planteado, mostrando una aplicación débil pero existente de los saberes disciplinares al entorno real."
+          },
+          {
+            "levelName": "Insuficiente / Requiere Apoyo",
+            "points": 4,
+            "descriptor": "El alumno no logra conectar los conceptos de lógica matemática con la realidad de su comunidad. El trabajo presentado carece de vínculo con las fases del Proyecto Escolar Comunitario (PEC), limitándose a ejercicios abstractos descontextualizados que ignoran por completo la dimensión social y formativa exigida por el Marco Curricular Común."
+          }
+        ]
+      },
+      {
+        "criterion": "Claridad en la Argumentación y Presentación del Producto Académico",
+        "weightPercent": 25,
+        "levels": [
+          {
+            "levelName": "Sobresaliente / Excelente",
+            "points": 10,
+            "descriptor": "El producto académico presentado destaca por una estructura impecable, redacción académica pulida, ortografía perfecta y uso riguroso de la notación matemática formal. La argumentación oral o escrita es persuasiva, coherente y está respaldada por esquemas lógicos visualmente claros. Demuestra una capacidad sobresaliente para comunicar con precisión científica y claridad didáctica los resultados de su aprendizaje ante sus pares y docentes."
+          },
+          {
+            "levelName": "Notable / Bueno",
+            "points": 8,
+            "descriptor": "El trabajo presenta una organización lógica clara, con una redacción formal adecuada y mínimas fallas ortográficas o de formato. La notación matemática es correcta y los argumentos expuestos se entienden con facilidad. El estudiante expone su producto académico con seguridad, reflejando un esfuerzo constante por mantener la calidad estética y conceptual solicitada."
+          },
+          {
+            "levelName": "Suficiente / Básico",
+            "points": 6,
+            "descriptor": "El artefacto académico cumple con los requerimientos mínimos de entrega. Presenta problemas de orden visual, imprecisiones en la notación matemática o errores ortográficos recurrentes que afectan la fluidez de la lectura. La argumentación es confusa en varios apartados, evidenciando falta de revisión previa y menor esmero en la presentación final del trabajo."
+          },
+          {
+            "levelName": "Insuficiente / Requiere Apoyo",
+            "points": 4,
+            "descriptor": "El producto académico es deficiente en su estructura, formato y presentación. Carece de rigor en la notación matemática, está plagado de faltas de ortografía y muestra un desinterés evidente en la calidad de entrega. La argumentación es incoherente, desorganizada e imposible de evaluar positivamente bajo los estándares académicos institucionales."
+          }
+        ]
+      }
+    ],
+    "checklist": [
+      {
+        "item": "El estudiante verifica que todas las proposiciones utilizadas posean un valor de verdad definitivo (verdadero o falso) antes de iniciar la formalización.",
+        "category": "Seguridad"
+      },
+      {
+        "item": "El alumno comprueba que el planteamiento del problema comunitario del PEC no contenga ambigüedades semánticas que impidan su traducción lógica.",
+        "category": "Seguridad"
+      },
+      {
+        "item": "Utiliza correctamente los símbolos formales estándar para la negación, conjunción, disyunción, implicación y equivalencia.",
+        "category": "Funcionalidad"
+      },
+      {
+        "item": "Construye tablas de verdad que cumplen exactamente con la fórmula matemática 2 a la potencia n según el número de variables involucradas.",
+        "category": "Funcionalidad"
+      },
+      {
+        "item": "Identifica y clasifica sin errores los resultados finales de las tablas de verdad en tautologías, contradicciones o contingencias.",
+        "category": "Funcionalidad"
+      },
+      {
+        "item": "Aplica leyes de la lógica proposicional (como De Morgan o Modus Ponens) para simplificar argumentos complejos.",
+        "category": "Metodología"
+      },
+      {
+        "item": "Sigue un orden secuencial riguroso desde la identificación de premisas hasta la obtención de la conclusión derivada.",
+        "category": "Metodología"
+      },
+      {
+        "item": "Desglosa paso a paso el análisis de las fases del Proyecto Escolar Comunitario utilizando esquemas de razonamiento estructurado.",
+        "category": "Metodología"
+      },
+      {
+        "item": "Emplea un vocabulario técnico adecuado y preciso en el ámbito de la lógica matemática durante todo el desarrollo del trabajo.",
+        "category": "Presentación"
+      },
+      {
+        "item": "Presenta el artefacto académico con limpieza, orden visual, esquemas legibles y una estructura formal impecable.",
+        "category": "Presentación"
+      },
+      {
+        "item": "Incluye referencias bibliográficas y fuentes de consulta confiables que respaldan el marco teórico del proyecto.",
+        "category": "Presentación"
+      },
+      {
+        "item": "Aborda de manera directa una necesidad o problemática real identificada en la comunidad del estado de Puebla.",
+        "category": "Impacto PAEC"
+      },
+      {
+        "item": "Fomenta la participación colaborativa y el diálogo constructivo entre los integrantes de la comunidad escolar y los habitantes.",
+        "category": "Impacto PAEC"
+      },
+      {
+        "item": "Propone soluciones viables y fundamentadas lógicamente que contribuyen al bienestar colectivo y al desarrollo sostenible local.",
+        "category": "Impacto PAEC"
+      },
+      {
+        "item": "Refleja los valores de la Nueva Escuela Mexicana, tales como la honestidad, la responsabilidad social y el pensamiento crítico.",
+        "category": "Impacto PAEC"
+      }
+    ],
+    "criticalThinkingQuiz": [
+      {
+        "questionNumber": 1,
+        "question": "¿Cómo se puede utilizar la lógica proposicional para desarmar un argumento falaz utilizado por líderes comunitarios locales que se oponen a la instalación de un sistema de captación de agua pluvial en una comunidad rural de Puebla?",
+        "scenario": "En una comunidad rural del municipio de Libres, Puebla, los habitantes enfrentan escasez severa de agua potable durante la temporada estiaje. Un grupo de vecinos influyentes difunde el siguiente argumento en una asamblea ejidal para frenar un proyecto escolar de captación pluvial impulsado por los estudiantes del BGE: 'Si el agua de lluvia estuviera limpia, entonces no causaría enfermedades; como el agua de lluvia sin tratar a veces enferma a las personas, entonces recolectarla en los techos de las escuelas es completamente dañino e inútil para la comunidad'. Los estudiantes deben analizar este razonamiento bajo los principios de la lógica matemática.",
+        "answerExplanation": "El docente evaluador debe verificar que el estudiante identifique la estructura de falacia formal en el argumento presentado, específicamente una negación del antecedente o una falacia de generalización apresurada. Desde la perspectiva formativa, el alumno tiene que simbolizar el razonamiento separando las proposiciones simples: p: 'El agua de lluvia está completamente limpia', q: 'El agua de lluvia causa enfermedades'. La implicación original es p -> q (o su contrapositiva). El argumento falaz manipula la relación causa-efecto al omitir que el proyecto escolar incluye sistemas de filtración y purificación previos al consumo. La retroalimentación docente debe destacar cómo el pensamiento matemático dota al estudiantado de herramientas analíticas para separar las premisas falsas de las verdaderas, permitiéndoles debatir con argumentos sólidos, científicos y respetuosos en beneficio del Proyecto Escolar Comunitario (PEC), demostrando que la lógica no es solo un ejercicio abstracto de salón de clases, sino un escudo contra la desinformación en las comunidades poblanas."
+      },
+      {
+        "questionNumber": 2,
+        "question": "¿De qué manera la construcción de una tabla de verdad puede ayudar a resolver un conflicto de toma de decisiones vecinales sobre los horarios de riego de áreas verdes en una junta auxiliar de Atlixco, Puebla?",
+        "scenario": "En la junta auxiliar de Metepec, en Atlixco, Puebla, los vecinos discuten sobre cuándo abrir las válvulas del pozo comunitario para regar los campos deportivos y los cultivos de traspatio sin desperdiciar el recurso hídrico. Se proponen dos condiciones estrictas impuestas por el comité del agua: Condición 1: 'Si hay suficiente presión en el tanque principal, entonces se abrirán las válvulas por la mañana'. Condición 2: 'O se riegan los campos deportivos por la mañana o se riegan los cultivos de traspatio, pero no ambos al mismo tiempo'. Las familias se encuentran divididas y discuten acaloradamente sin llegar a un acuerdo operativo.",
+        "answerExplanation": "Para resolver este dilema utilizando el Pensamiento Matemático I, el estudiante debe traducir ambas condiciones a proposiciones lógicas formales y construir una tabla de verdad exhaustiva con las variables involucradas (por ejemplo: p: Hay presión en el tanque, q: Se riegan campos deportivos, r: Se riegan cultivos de traspatio). La retroalimentación formativa debe resaltar que el alumno sea capaz de evaluar los renglones de la tabla de verdad para identificar las combinaciones exactas (valores de verdad T/F) donde todas las condiciones del comité se vuelven verdaderas simultáneamente (consistencia lógica). Esto elimina la subjetividad, los pleitos vecinales y las decisiones basadas en influencias personales, demostrando que la lógica matemática aporta neutralidad, justicia operativa y eficiencia en la gestión comunitaria de recursos escasos dentro del marco del PEC."
+      },
+      {
+        "questionNumber": 3,
+        "question": "¿Qué implicaciones éticas y lógicas tiene aceptar premisas falsas como verdaderas al diseñar un plan de acción para disminuir la acumulación de residuos sólidos en una comunidad urbana marginada de Puebla?",
+        "scenario": "En una colonia de la periferia de la Ciudad de Puebla, la acumulación de basura en barrancas genera inundaciones durante las lluvias torrenciales. Al realizar el diagnóstico para el PEC, un sector de la población sostiene la siguiente premisa aceptada como dogma popular: 'Si el servicio municipal de limpia pasa una vez al mes, entonces la gente no tiene más remedio que tirar la basura en la barranca'. Basándose en este razonamiento aceptado sin cuestionamiento, algunos líderes proponen que cualquier esfuerzo educativo con los jóvenes es inútil hasta que el municipio resuelva el problema al 100%.",
+        "answerExplanation": "El análisis crítico exige que el estudiante desmonte este razonamiento mediante el uso de implicaciones lógicas y condicionales. La retroalimentación docente debe enfatizar que el estudiante reconozca cómo una premisa falaz o fatalista bloquea la agencia comunitaria y la responsabilidad ciudadana. Mediante el uso de tablas de verdad y la contraposición de argumentos, el alumno debe demostrar que la responsabilidad compartida (acción vecinal + gestión municipal) forma una conjunción lógica donde ambos factores son necesarios. El docente debe guiar al estudiante para que entienda que aceptar la premisa falsa del determinismo municipal conduce a una contradicción lógica que inmoviliza a la sociedad, mientras que el razonamiento crítico fomenta la corresponsabilidad y el diseño de soluciones locales sustentables, cumpliendo cabalmente con los propósitos transformadores de la Nueva Escuela Mexicana."
+      }
+    ],
+    "metacognitiveReflection": {
+      "prompts": [
+        "¿Qué concepto o procedimiento de la lógica matemática consideras que transformó más tu forma de analizar los problemas cotidianos en tu comunidad y por qué?",
+        "¿Qué estrategia específica implementaste para superar el obstáculo técnico más difícil al momento de construir y resolver tablas de verdad complejas?",
+        "¿De qué manera la formalización de proposiciones te permitió entender con mayor claridad las contradicciones o falacias presentes en los discursos de tu entorno social?",
+        "¿Cómo influyó el trabajo colaborativo en el desarrollo de tu Proyecto Escolar Comunitario (PEC) al momento de estructurar los argumentos lógicos?",
+        "¿Qué errores comunes cometiste al inicio del bloque al traducir lenguaje natural a lenguaje formal y cómo lograste corregirlos mediante la autorregulación?",
+        "¿De qué forma puedes aplicar los esquemas de razonamiento estructurado aprendido en esta UAC para tomar mejores decisiones en tu vida personal y académica futura?"
+      ]
+    }
+  }
+}

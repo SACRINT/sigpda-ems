@@ -249,13 +249,20 @@ async function executeWithModelFallback(
       }
       parts.push({ text: prompt });
 
+      const wantsJson = Boolean(
+        responseSchema ||
+        systemInstruction.includes('JSON') ||
+        prompt.includes('JSON')
+      );
+
       const payload: any = {
         contents: [{ parts }],
         systemInstruction: { parts: [{ text: systemInstruction }] },
         generationConfig: {
           temperature: 0.2,
           topP: 0.95,
-          responseMimeType: responseSchema ? 'application/json' : 'text/plain',
+          maxOutputTokens: 8192,
+          responseMimeType: wantsJson ? 'application/json' : 'text/plain',
         },
       };
 
@@ -267,7 +274,7 @@ async function executeWithModelFallback(
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(inlineData ? 45000 : 25000),
+        signal: AbortSignal.timeout(inlineData ? 90000 : 120000),
       });
 
       if (!res.ok) {

@@ -145,6 +145,7 @@ export interface Planning {
   metodologiaActiva?: string;    // ID de metodología activa seleccionada por el docente
   evaluationJson?: any | null;
   sequenceJson?: Record<number, SecuenciaBloque> | null;
+  workbooksJson?: Record<string, any> | null;
 }
 
 export interface SecuenciaSesion {
