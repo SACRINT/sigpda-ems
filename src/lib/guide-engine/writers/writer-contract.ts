@@ -6,7 +6,7 @@
  * concurrentes del motor editorial (Foundation, Lab, Project, Evaluation).
  */
 
-import type { Planning } from '@/types/planning';
+import type { Planning, KeyActivityPlan } from '@/types/planning';
 import type { DetailedSession } from '@/lib/session-progression-engine';
 import type { MissionBlueprint } from '../blueprint-architect-agent';
 import type {
@@ -15,6 +15,41 @@ import type {
   ProjectSection,
   EvaluationSection,
 } from '@/types/work-textbook';
+
+/**
+ * Actividades extraídas directamente de la planeación didáctica (Section IV)
+ * para garantizar alineación entre planeación → secuencia → guía.
+ */
+export interface PlanningActivities {
+  /** Descripción textual de la fase de Apertura (activities + processes + materials) */
+  apertura: {
+    description: string;
+    processes: string;
+    materials: string;
+  };
+  /** Descripción textual de la fase de Desarrollo/Ejecución */
+  ejecucion: {
+    description: string;
+    processes: string;
+    materials: string;
+  };
+  /** Descripción textual de la fase de Cierre/Conclusión */
+  conclusion: {
+    description: string;
+    processes: string;
+    materials: string;
+  };
+  /** Saberes que el estudiante debe demostrar al finalizar */
+  saberes?: {
+    saber: string;
+    saberHacer: string;
+    saberSer: string;
+  };
+  /** Contenido formativo específico a cubrir */
+  contenidoFormativo?: string;
+  /** Metodología seleccionada por el docente */
+  methodology?: string;
+}
 
 export interface WriterInput {
   planning: Planning;
@@ -29,6 +64,8 @@ export interface WriterInput {
   subsystem: 'bge' | 'bt';
   uacName: string;
   targetWords: { min: number; ideal: number; max: number };
+  /** Actividades de la planeación para alinear contenido de la guía */
+  planningActivities?: PlanningActivities;
 }
 
 export interface WriterOutput {

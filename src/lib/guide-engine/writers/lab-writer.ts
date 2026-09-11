@@ -34,8 +34,34 @@ BASE DE CONOCIMIENTO REUTILIZADA (SEMILLA CANÓNICA PRE-VALIDADA):
 Reutiliza e integra esta base técnica adaptándola a la comunidad PAEC y al nivel de los estudiantes.`;
   }
 
+  // ── Construir contexto de alineación con la planeación ──
+  let planningAlignmentChunk = '';
+  if (input.planningActivities) {
+    const pa = input.planningActivities;
+    planningAlignmentChunk = `
+ALINEACIÓN OBLIGATORIA CON LA PLANEACIÓN DIDÁCTICA:
+La actividad planificada por el docente para este bloque tiene las siguientes fases. DEBES generar contenido que las implemente fielmente:
+
+DESARROLLO PLANIFICADO (ejecución - esta es la fase principal de esta misión): ${pa.ejecucion.description || 'No especificado'}
+PROCESOS DE DESARROLLO: ${pa.ejecucion.processes || 'No especificados'}
+MATERIALES DE DESARROLLO: ${pa.ejecucion.materials || 'No especificados'}
+
+APERTURA PLANIFICADA (para contextualizar la práctica): ${pa.apertura.description || 'No especificada'}
+CIERRE PLANIFICADO (para vincular con la reflexión): ${pa.conclusion.description || 'No especificado'}
+${pa.saberes ? `SABERES A DESARROLLAR EN ESTA PRÁCTICA:
+- Saber (teórico): ${pa.saberes.saber}
+- Saber Hacer (procedimental - PRINCIPAL): ${pa.saberes.saberHacer}
+- Saber Ser (actitudinal): ${pa.saberes.saberSer}` : ''}
+${pa.contenidoFormativo ? `CONTENIDO FORMATIVO ESPECÍFICO: ${pa.contenidoFormativo}` : ''}
+${pa.methodology ? `METODOLOGÍA SELECCIONADA: ${pa.methodology}` : ''}
+
+REGLA DE ALINEACIÓN: El procedimiento del laboratorio DEBE implementar las actividades de desarrollo/ejecución planificadas. El objetivo DEBE estar vinculado con los saberes planificados. Los materiales DEBEN corresponder a los materiales de la planeación. NO generes una práctica que no esté contemplada en la planeación.
+`;
+  }
+
   const systemInstruction = `Eres un instructor técnico y científico de alto nivel para Bachillerato en Puebla (DBEPA / MCCEMS).
 Tu tarea es redactar la misión práctica de laboratorio o taller ("${missionTitle}") para la UAC: "${input.uacName}" (${input.subsystem.toUpperCase()}).
+${planningAlignmentChunk}
 
 REGLAS DE RIGOR TÉCNICO, PROFUNDIDAD Y CUADERNO ACTIVO:
 1. Objetivo de la práctica: Una formulación técnica rigurosa y contundente contextualizada en la realidad productiva o comunitaria.

@@ -35,8 +35,33 @@ export async function generateEvaluationSection(input: WriterInput): Promise<Wri
 - Lista de cotejo previa: ${JSON.stringify(extras.checklist || extras.lista_verificacion || {})}`;
   }
 
+  // ── Construir contexto de alineación con la planeación ──
+  let planningAlignmentChunk = '';
+  if (input.planningActivities) {
+    const pa = input.planningActivities;
+    planningAlignmentChunk = `
+ALINEACIÓN OBLIGATORIA CON LA PLANEACIÓN DIDÁCTICA:
+La actividad planificada por el docente para este bloque tiene las siguientes fases. Los instrumentos de evaluación DEBEN evaluar lo planificado:
+
+CIERRE PLANIFICADO (conclusión y evaluación): ${pa.conclusion.description || 'No especificado'}
+PROCESOS DE CIERRE: ${pa.conclusion.processes || 'No especificados'}
+MATERIALES DE CIERRE: ${pa.conclusion.materials || 'No especificados'}
+
+DESARROLLO PLANIFICADO (para evaluar las evidencias de la fase de desarrollo): ${pa.ejecucion.description || 'No especificado'}
+APERTURA PLANIFICADA (para contextualizar la evaluación): ${pa.apertura.description || 'No especificada'}
+${pa.saberes ? `SABERES QUE LOS INSTRUMENTOS DEBEN EVALUAR:
+- Saber (teórico): ${pa.saberes.saber}
+- Saber Hacer (procedimental): ${pa.saberes.saberHacer}
+- Saber Ser (actitudinal): ${pa.saberes.saberSer}` : ''}
+${pa.contenidoFormativo ? `CONTENIDO FORMATIVO A EVALUAR: ${pa.contenidoFormativo}` : ''}
+
+REGLA DE ALINEACIÓN: La rúbrica DEBE evaluar los saberes planificados. La lista de cotejo DEBE verificar las actividades de desarrollo planificadas. Los escenarios del cuestionario DEBEN estar situados en el contexto de la problemática PAEC. NO generes instrumentos que evalúen contenidos no contemplados en la planeación.
+`;
+  }
+
   const systemInstruction = `Eres un evaluador educativo de élite especializado en el Marco Curricular Común de la Educación Media Superior (NEM / DBEPA Puebla).
 Tu tarea es redactar el paquete integral de 4 instrumentos de evaluación formativa y sumativa para el bloque de la UAC: "${input.uacName}" (${input.subsystem.toUpperCase()}).
+${planningAlignmentChunk}
 
 ESTÁNDARES FORMATIVOS OBLIGATORIOS Y METAS DE EXTENSIÓN NEM:
 1. Rúbrica analítica por niveles de desempeño (800 a 1,200 palabras):

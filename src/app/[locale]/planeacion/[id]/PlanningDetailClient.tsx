@@ -175,6 +175,10 @@ export default function PlanningDetailClient({
       practiceTitle?: string;
       sessionTopic?: string;
       sessionFocus?: string;
+      teachingActivity?: string;
+      learningActivity?: string;
+      evaluation?: string;
+      phase?: string;
     }
   ) {
     // Generate unique key for loading state
@@ -2641,6 +2645,11 @@ export default function PlanningDetailClient({
                                           activityName: session.activityName,
                                           sessionTopic: session.title,
                                           sessionFocus: session.focus,
+                                          teachingActivity: session.teachingActivity,
+                                          learningActivity: session.learningActivity,
+                                          evidence: session.evidence,
+                                          evaluation: session.evaluation,
+                                          phase: session.phase,
                                         }
                                       )
                                     }

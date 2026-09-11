@@ -126,6 +126,18 @@ REQUISITOS DEL MATERIAL:
 5. Estructura el documento usando títulos (# y ##), tablas y listas en Markdown para que sea fácil de leer y exportar.
 `;
 
+export interface LessonPlanSessionAlignment {
+  phase?: string;
+  teachingActivity?: string;
+  learningActivity?: string;
+  evidence?: string;
+  evaluation?: string;
+  saberes?: { saber: string; saberHacer: string; saberSer: string } | null;
+  macroApertura?: string;
+  macroEjecucion?: string;
+  macroConclusion?: string;
+}
+
 /**
  * Prompt templates for generating Lesson Plans (Planes de Clase)
  * Aligned 100% with the 11 points of "03 Lista de cotejo Plan de Clase 1-2_SEM.pdf"
@@ -140,7 +152,8 @@ export const LESSON_PLAN_PROMPT_TEMPLATE = (
   learningOutcome: string,
   metodologiaActiva?: string,
   sessionTopic?: string,
-  sessionFocus?: string
+  sessionFocus?: string,
+  sessionAlignment?: LessonPlanSessionAlignment
 ) => `
 Genera un "Plan de Clase" (Lesson Plan) detallado para una sesión de clase de 50 minutos:
 UAC/Asignatura: ${uacName}
@@ -152,6 +165,24 @@ Resultado de Aprendizaje (Programa): ${learningOutcome}
 Problemática PAEC: ${paecProblem}
 Caracterización de los estudiantes: ${studentContext}
 ${buildMetodologiaLine(metodologiaActiva)}
+${sessionAlignment?.teachingActivity || sessionAlignment?.learningActivity || sessionAlignment?.evidence ? `
+══════════════════════════════════════════════════════════
+ALINEACIÓN OBLIGATORIA CON LA SECUENCIA DIDÁCTICA OFICIAL:
+══════════════════════════════════════════════════════════
+Esta clase de 50 minutos tiene asignada la siguiente actividad específica en la secuencia didáctica:
+- Fase/Momento: ${sessionAlignment.phase || (sessionNum === 1 ? 'Apertura' : 'Desarrollo')}
+- Consigna y Rol del Docente: ${sessionAlignment.teachingActivity || 'Mediación pedagógica y acompañamiento situado.'}
+- Actividad Activa del Estudiante: ${sessionAlignment.learningActivity || 'Construcción colaborativa de saberes.'}
+- Evidencia Tangible Esperada: ${sessionAlignment.evidence || 'Evidencia de desempeño o apunte formativo.'}
+${sessionAlignment.evaluation ? `- Instrumento/Criterio de Evaluación: ${sessionAlignment.evaluation}` : ''}
+${sessionAlignment.saberes ? `- Saberes de Referencia:
+  • Teórico: ${sessionAlignment.saberes.saber}
+  • Procedimental: ${sessionAlignment.saberes.saberHacer}
+  • Actitudinal: ${sessionAlignment.saberes.saberSer}` : ''}
+
+DIRECTRIZ DE ALINEACIÓN:
+La IA DEBE desglosar y enriquecer esta actividad planificada, manteniendo la intención pedagógica del docente. Los 50 minutos de clase (Apertura 10 min, Desarrollo 30 min, Cierre 10 min) deben ser el guion operativo minuto a minuto de CÓMO se ejecuta en el aula exactamente esta actividad: el docente debe mediar la consigna indicada, los alumnos deben ejecutar el rol activo indicado y la evidencia de la clase debe ser "${sessionAlignment.evidence || 'la evidencia acordada'}". Puedes agregar detalles, preguntas mediadoras, ejemplos contextualizados y pasos operativos, pero NO puedes inventar temas nuevos o evidencias distintas a las planificadas.
+` : ''}
 REQUISITOS DEL PLAN DE CLASE (100% Alineado a la Lista de Cotejo oficial del supervisor):
 El documento debe incluir de forma explícita las siguientes secciones etiquetadas en Markdown:
 
@@ -185,6 +216,14 @@ El documento debe incluir de forma explícita las siguientes secciones etiquetad
 // Optimizada para Metodologías Activas (ABR, Práctica de Taller, STEAM, ABP)
 // ─────────────────────────────────────────────────────────────────────────────
 
+export interface PracticeGuideAlignment {
+  saberes?: { saber: string; saberHacer: string; saberSer: string } | null;
+  devSessionsSummary?: string;
+  plannedMaterials?: string[];
+  plannedReferences?: string[];
+  plannedEjecucion?: string;
+}
+
 /**
  * Genera una Guía de Práctica completa para el ESTUDIANTE.
  * Diseñada bajo los lineamientos pedagógicos del Marco Curricular Común (MCCEMS).
@@ -199,7 +238,8 @@ export const PRACTICE_GUIDE_PROMPT_TEMPLATE = (
   learningOutcome: string,
   studentContext: string,
   metodologiaActiva?: string,
-  metodologiaFases?: string[]
+  metodologiaFases?: string[],
+  practiceAlignment?: PracticeGuideAlignment
 ) => `
 Genera una **Guía de Práctica para el Estudiante** completa, lista para imprimir o compartir en PDF/digital. Esta guía está destinada directamente al estudiante de bachillerato, NO al docente.
 
@@ -213,6 +253,23 @@ Datos de la guía:
 - Perfil del estudiante: ${studentContext}
 ${metodologiaActiva ? `- Metodología Activa aplicada: **${metodologiaActiva}**` : ''}
 ${metodologiaFases && metodologiaFases.length > 0 ? `- Fases de la metodología:\n${metodologiaFases.map((f, i) => `  ${i + 1}. ${f}`).join('\n')}` : ''}
+${practiceAlignment ? `
+══════════════════════════════════════════════════════════
+ALINEACIÓN OBLIGATORIA CON LA PLANEACIÓN Y SECUENCIA DIDÁCTICA:
+══════════════════════════════════════════════════════════
+Esta Guía de Práctica para el Estudiante debe implementar directamente lo planificado en el bloque:
+${practiceAlignment.plannedEjecucion ? `- Actividad Central Planificada (Desarrollo/Ejecución): ${practiceAlignment.plannedEjecucion}` : ''}
+${practiceAlignment.devSessionsSummary ? `- Sesiones prácticas y de laboratorio en el aula/taller:
+${practiceAlignment.devSessionsSummary}` : ''}
+${practiceAlignment.saberes ? `- Saberes a desarrollar:
+  • Saber (Teórico): ${practiceAlignment.saberes.saber}
+  • Saber Hacer (Procedimental - Práctica): ${practiceAlignment.saberes.saberHacer}
+  • Saber Ser (Actitudinal / Seguridad): ${practiceAlignment.saberes.saberSer}` : ''}
+${practiceAlignment.plannedMaterials && practiceAlignment.plannedMaterials.length > 0 ? `- Materiales planificados en el bloque: ${practiceAlignment.plannedMaterials.join(', ')}` : ''}
+
+DIRECTRIZ DE ALINEACIÓN DE LA GUÍA:
+La IA DEBE desglosar y enriquecer las actividades prácticas planificadas por el docente. El procedimiento por fases, el formato de registro de datos y la evidencia final entregable DEBEN corresponder a las sesiones de desarrollo y a los saberes prácticos especificados arriba. Puedes detallar los pasos técnicos, precauciones y preguntas reflexivas, pero NO debes inventar prácticas ni materiales no contemplados en la planeación.
+` : ''}
 
 ══════════════════════════════════════════════════════════
 ESTRUCTURA OBLIGATORIA DE LA GUÍA (formato Markdown limpio):

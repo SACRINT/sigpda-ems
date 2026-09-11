@@ -22,8 +22,34 @@ export async function generateProjectMission(input: WriterInput): Promise<Writer
     : [Math.max(1, input.sessions.length - 3), Math.max(2, input.sessions.length - 2)];
   const missionTitle = projectMission ? projectMission.title : `Misión 3: Construcción del Artefacto Real`;
 
+  // ── Construir contexto de alineación con la planeación ──
+  let planningAlignmentChunk = '';
+  if (input.planningActivities) {
+    const pa = input.planningActivities;
+    planningAlignmentChunk = `
+ALINEACIÓN OBLIGATORIA CON LA PLANEACIÓN DIDÁCTICA:
+La actividad planificada por el docente para este bloque tiene las siguientes fases. DEBES generar un proyecto que las implemente fielmente:
+
+DESARROLLO PLANIFICADO (ejecución - la construcción del artefacto DEBE implementar esto): ${pa.ejecucion.description || 'No especificado'}
+PROCESOS DE DESARROLLO: ${pa.ejecucion.processes || 'No especificados'}
+MATERIALES DE DESARROLLO: ${pa.ejecucion.materials || 'No especificados'}
+
+APERTURA PLANIFICADA (contexto del proyecto): ${pa.apertura.description || 'No especificada'}
+CIERRE PLANIFICADO (evaluación del proyecto): ${pa.conclusion.description || 'No especificado'}
+${pa.saberes ? `SABERES QUE EL PROYECTO DEBE DEMOSTRAR:
+- Saber (teórico): ${pa.saberes.saber}
+- Saber Hacer (procedimental): ${pa.saberes.saberHacer}
+- Saber Ser (actitudinal): ${pa.saberes.saberSer}` : ''}
+${pa.contenidoFormativo ? `CONTENIDO FORMATIVO ESPECÍFICO: ${pa.contenidoFormativo}` : ''}
+${pa.methodology ? `METODOLOGÍA SELECCIONADA: ${pa.methodology}` : ''}
+
+REGLA DE ALINEACIÓN: Las fases del proyecto DEBEN implementar las actividades de desarrollo/ejecución planificadas. Los criterios de aceptación DEBEN evaluar los saberes planificados. El artefacto DEBE ser una respuesta directa a lo planteado en la planeación. NO generes un proyecto que no esté contemplado en la planeación.
+`;
+  }
+
   const systemInstruction = `Eres un diseñador pedagógico y director de proyectos socioproductivos para Educación Media Superior en Puebla (MCCEMS).
 Tu tarea es redactar la misión cumbre del bloque: la construcción de un "Artefacto Tecnológico o Comunitario Real" para la UAC: "${input.uacName}" (${input.subsystem.toUpperCase()}).
+${planningAlignmentChunk}
 
 REGLAS DE RELEVANCIA, PROFUNDIDAD Y TRANSFERENCIA:
 1. El artefacto NO es un resumen ni una maqueta escolar inútil: es un producto auténtico (un sistema de automatización, software ejecutable, prototipo funcional, filtro ecológico, guía técnica comunitaria, dispositivo de medición) útil para la vida diaria o el empleo.

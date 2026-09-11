@@ -17,7 +17,8 @@ import {
   PRACTICE_GUIDE_PROMPT_TEMPLATE,
 } from '@/lib/prompts/extras-prompts';
 import { obtenerMetodologiaPorId } from '@/lib/catalogo-metodologias';
-import type { GeneratedPlanningContent } from '@/types/planning';
+import type { GeneratedPlanningContent, SecuenciaBloque } from '@/types/planning';
+import { generateBlockSessions } from '@/lib/session-progression-engine';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60; // Claude call could take up to 60s
@@ -83,6 +84,10 @@ export async function POST(
       practiceTitle = '',
       sessionTopic = '',
       sessionFocus = '',
+      teachingActivity = '',
+      learningActivity = '',
+      evaluation = '',
+      phase = '',
     } = body as {
       type: 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'practice_guide';
       title: string;
@@ -95,6 +100,10 @@ export async function POST(
       practiceTitle?: string;
       sessionTopic?: string;
       sessionFocus?: string;
+      teachingActivity?: string;
+      learningActivity?: string;
+      evaluation?: string;
+      phase?: string;
     };
 
     if (!type || !title) {
@@ -135,6 +144,27 @@ Resultados de Aprendizaje: ${(contentJson?.sectionII?.learningOutcomes || []).jo
           ? contentJson.sectionII.learningOutcomes[keyIndex]
           : 'Resultado de aprendizaje general';
 
+      // ── Recuperar datos de la secuencia didáctica y planeación con fallback automático ──
+      const seqData = ((planning as any).sequence_json || (planning as any).sequenceJson) as Record<number, SecuenciaBloque> | null;
+      const currentBlockSeq = keyIndex !== null && seqData ? seqData[keyIndex] : null;
+      let sessionFromSeq = currentBlockSeq?.sessions?.find((s) => s.sessionNum === sessionNum);
+
+      const currentBlockActivity = keyIndex !== null ? contentJson?.sectionIV?.activities?.[keyIndex] : null;
+
+      // Si la secuencia aún no se ha guardado en BD con IA, usar el motor heurístico como fallback
+      if (!sessionFromSeq && currentBlockActivity) {
+        const isLaboral = planning.component === 'laboral';
+        const fallbackSessions = generateBlockSessions(currentBlockActivity, keyIndex!, totalSessions, learningOutcome, isLaboral);
+        sessionFromSeq = fallbackSessions.find((s) => s.sessionNum === sessionNum) as any;
+      }
+
+      const resolvedPhase = phase || sessionFromSeq?.phase || (sessionNum === 1 ? 'Apertura' : 'Desarrollo');
+      const resolvedTopic = sessionTopic || sessionFromSeq?.title || '';
+      const resolvedTeaching = teachingActivity || sessionFromSeq?.teachingActivity || '';
+      const resolvedLearning = learningActivity || sessionFromSeq?.learningActivity || '';
+      const resolvedEvidence = evidence || sessionFromSeq?.evidence || '';
+      const resolvedEvaluation = evaluation || sessionFromSeq?.evaluation || '';
+
       userPrompt = LESSON_PLAN_PROMPT_TEMPLATE(
         planning.uac_name,
         activityName || `Actividad Clave ${keyIndex !== null ? keyIndex + 1 : ''}`,
@@ -144,8 +174,19 @@ Resultados de Aprendizaje: ${(contentJson?.sectionII?.learningOutcomes || []).jo
         studentContext,
         learningOutcome,
         planning.metodologia_activa || undefined,
-        sessionTopic || undefined,
-        sessionFocus || undefined
+        resolvedTopic || undefined,
+        sessionFocus || undefined,
+        {
+          phase: resolvedPhase,
+          teachingActivity: resolvedTeaching,
+          learningActivity: resolvedLearning,
+          evidence: resolvedEvidence,
+          evaluation: resolvedEvaluation,
+          saberes: currentBlockActivity?.saberes || null,
+          macroApertura: currentBlockActivity?.apertura?.activities,
+          macroEjecucion: currentBlockActivity?.ejecucion?.activities,
+          macroConclusion: currentBlockActivity?.conclusion?.activities,
+        }
       );
     } else if (type === 'practice_guide') {
       // ── Guía de Práctica para el Estudiante (Fase 3) ──────────────────────
@@ -162,6 +203,25 @@ Resultados de Aprendizaje: ${(contentJson?.sectionII?.learningOutcomes || []).jo
         metodologiaFases = metodologiaObj?.fases;
       }
 
+      const currentBlockActivity = keyIndex !== null ? contentJson?.sectionIV?.activities?.[keyIndex] : null;
+
+      // ── Recuperar sesiones de desarrollo para alinear el procedimiento de la guía ──
+      const seqData = ((planning as any).sequence_json || (planning as any).sequenceJson) as Record<number, SecuenciaBloque> | null;
+      let blockSessions = keyIndex !== null && seqData ? seqData[keyIndex]?.sessions : null;
+
+      if ((!blockSessions || blockSessions.length === 0) && currentBlockActivity) {
+        const isLaboral = planning.component === 'laboral';
+        blockSessions = generateBlockSessions(currentBlockActivity, keyIndex!, currentBlockActivity.hours || 12, learningOutcome, isLaboral) as any;
+      }
+
+      const devSessions = (blockSessions || []).filter((s) => s.phase === 'Desarrollo');
+      const devSessionsSummary = devSessions.length > 0
+        ? devSessions.map((s) => `• Sesión ${s.sessionNum}: ${s.title} — [Estudiante]: ${s.learningActivity || (s as any).description || 'Práctica guiada'} (Evidencia: ${s.evidence || 'Reporte'})`).join('\n')
+        : undefined;
+
+      const studentMaterials = contentJson?.sectionVI?.studentMaterials || [];
+      const references = contentJson?.sectionVI?.references || [];
+
       const resolvedPracticeTitle = practiceTitle || activityName || `Práctica ${practiceNumber}: ${planning.uac_name}`;
 
       userPrompt = PRACTICE_GUIDE_PROMPT_TEMPLATE(
@@ -173,7 +233,14 @@ Resultados de Aprendizaje: ${(contentJson?.sectionII?.learningOutcomes || []).jo
         learningOutcome,
         studentContext,
         planning.metodologia_activa || undefined,
-        metodologiaFases
+        metodologiaFases,
+        {
+          saberes: currentBlockActivity?.saberes || null,
+          plannedEjecucion: currentBlockActivity?.ejecucion?.activities,
+          devSessionsSummary,
+          plannedMaterials: studentMaterials,
+          plannedReferences: references,
+        }
       );
     } else {
       return NextResponse.json({ error: 'Tipo de recurso no válido' }, { status: 400 });

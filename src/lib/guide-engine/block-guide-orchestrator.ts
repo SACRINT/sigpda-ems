@@ -34,7 +34,7 @@ import { generateProjectMission } from './writers/project-writer';
 import { generateEvaluationSection } from './writers/evaluation-writer';
 import { generateTroubleshootingMatrix } from './resilience-agent';
 import { validateBlockGuideQuality } from './quality-validator';
-import type { WriterInput, WriterOutput } from './writers/writer-contract';
+import type { WriterInput, WriterOutput, PlanningActivities } from './writers/writer-contract';
 import type {
   ActiveWorkTextbook,
   CanonicalSeed,
@@ -142,6 +142,30 @@ export async function generateBlockWorkTextbook(
   const currentBlockActivity = blockActivities[blockIndex];
   const blockName = currentBlockActivity?.name || `Bloque ${blockIndex + 1}`;
 
+  // ── Construcción de PlanningActivities para alineación guía ↔ planeación ──
+  const planningActivities: PlanningActivities | undefined = currentBlockActivity
+    ? {
+        apertura: {
+          description: currentBlockActivity.apertura?.activities || '',
+          processes: currentBlockActivity.apertura?.processes || '',
+          materials: currentBlockActivity.apertura?.materials || '',
+        },
+        ejecucion: {
+          description: currentBlockActivity.ejecucion?.activities || '',
+          processes: currentBlockActivity.ejecucion?.processes || '',
+          materials: currentBlockActivity.ejecucion?.materials || '',
+        },
+        conclusion: {
+          description: currentBlockActivity.conclusion?.activities || '',
+          processes: currentBlockActivity.conclusion?.processes || '',
+          materials: currentBlockActivity.conclusion?.materials || '',
+        },
+        saberes: currentBlockActivity.saberes,
+        contenidoFormativo: currentBlockActivity.contenidoFormativo,
+        methodology: currentBlockActivity.methodology,
+      }
+    : undefined;
+
   // ── Fase 2: Extracción de Contexto Curricular Oficial ───────────────────
   await reportProgress(planningId, blockIndex, {
     phase: 'blueprint',
@@ -224,6 +248,7 @@ export async function generateBlockWorkTextbook(
       ideal: Math.round(blockIdealWords * 0.25),
       max: Math.round(blockMaxWords * 0.25),
     },
+    planningActivities,
   };
 
   // ── Fase 6: Redacción Concurrente con Promise.allSettled() ─────────────

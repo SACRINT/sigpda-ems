@@ -23,9 +23,40 @@ export async function generateFoundationMission(input: WriterInput): Promise<Wri
 
   const approach = input.subsystem === 'bt' ? 'estándar industrial y tecnológico' : 'indagación científica y dialógica';
 
+  // ── Construir contexto de alineación con la planeación ──
+  let planningAlignmentChunk = '';
+  if (input.planningActivities) {
+    const pa = input.planningActivities;
+    planningAlignmentChunk = `
+ALINEACIÓN OBLIGATORIA CON LA PLANEACIÓN DIDÁCTICA:
+La actividad planificada por el docente para este bloque tiene las siguientes fases. DEBES generar contenido que las implemente fielmente:
+
+APERTURA PLANIFICADA (actividades): ${pa.apertura.description || 'No especificada'}
+PROCESOS DE APERTURA: ${pa.apertura.processes || 'No especificados'}
+MATERIALES DE APERTURA: ${pa.apertura.materials || 'No especificados'}
+
+DESARROLLO PLANIFICADO (ejecución): ${pa.ejecucion.description || 'No especificado'}
+PROCESOS DE DESARROLLO: ${pa.ejecucion.processes || 'No especificados'}
+MATERIALES DE DESARROLLO: ${pa.ejecucion.materials || 'No especificados'}
+
+CIERRE PLANIFICADO (conclusión): ${pa.conclusion.description || 'No especificado'}
+PROCESOS DE CIERRE: ${pa.conclusion.processes || 'No especificados'}
+MATERIALES DE CIERRE: ${pa.conclusion.materials || 'No especificados'}
+${pa.saberes ? `SABERES A DESARROLLAR:
+- Saber (teórico): ${pa.saberes.saber}
+- Saber Hacer (procedimental): ${pa.saberes.saberHacer}
+- Saber Ser (actitudinal): ${pa.saberes.saberSer}` : ''}
+${pa.contenidoFormativo ? `CONTENIDO FORMATIVO ESPECÍFICO: ${pa.contenidoFormativo}` : ''}
+${pa.methodology ? `METODOLOGÍA SELECCIONADA: ${pa.methodology}` : ''}
+
+REGLA DE ALINEACIÓN: El Concepto Cero DEBE conectar con la apertura planificada. El "Yo Hago" DEBE implementar las actividades de desarrollo planificadas. El "Tú Haces" DEBE evaluar los saberes planificados. NO generes actividades que no estén contempladas en la planeación.
+`;
+  }
+
   const systemInstruction = `Eres un pedagogo experto en Educación Media Superior en México y en el modelo educativo de Finlandia (Phenomenon-Based Learning).
 Tu tarea es redactar la primera misión formativa del estudiante ("Misión 1: Fundamentación e Intuición - Concepto Cero") para el libro de texto activo de la UAC: "${input.uacName}" (${input.subsystem.toUpperCase()}).
 Enfoque pedagógico obligatorio: "${approach}".
+${planningAlignmentChunk}
 
 REGLAS PEDAGÓGICAS Y EXTENSIÓN ESTRICTA:
 1. "Concepto Cero" y Explicación Central (2,000-3,000 palabras en total entre physicalAnalogy y coreExplanation): NUNCA introduzcas una fórmula, código o teoría sin antes explicarla con una ANALOGÍA FÍSICA COTIDIANA profunda (ejemplo: "una variable es como una caja rotulada con un nombre y un valor dentro"). Sin jerga previa, solo intuición pura, desglosando cada aspecto minuciosamente con múltiples ejemplos cotidianos y comparativas.

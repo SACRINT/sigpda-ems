@@ -98,17 +98,32 @@ export async function POST(
     }
     const desarrolloCount = sessionsCount - aperturaCount - cierreCount;
 
+    const aperturaText = blockActivity.apertura?.activities || '';
+    const aperturaProcesses = blockActivity.apertura?.processes || '';
+    const aperturaMaterials = blockActivity.apertura?.materials || '';
+
+    const ejecucionText = blockActivity.ejecucion?.activities || '';
+    const ejecucionProcesses = blockActivity.ejecucion?.processes || '';
+    const ejecucionMaterials = blockActivity.ejecucion?.materials || '';
+
+    const conclusionText = blockActivity.conclusion?.activities || '';
+    const conclusionProcesses = blockActivity.conclusion?.processes || '';
+    const conclusionMaterials = blockActivity.conclusion?.materials || '';
+
     const systemPrompt = `Eres un Diseñador Curricular Senior y Especialista en Didáctica del Bachillerato General Estatal (DBEPA Puebla / MCCEMS).
 Tu tarea es generar la SECUENCIA DIDÁCTICA MICRO detallada para cada una de las ${sessionsCount} sesiones de 50 minutos del Bloque/Actividad ${blockIndex + 1}.
 
-REQUISITOS PEDAGÓGICOS ESTRICTOS:
+DIRECTRIZ DE ALINEACIÓN PEDAGÓGICA FUNDAMENTAL:
+La IA DEBE desglosar y enriquecer las actividades planificadas por el docente para este bloque, manteniendo estrictamente su intención formativa. Puede agregar detalles, ejemplos contextualizados, dinámicas participativas y pasos operativos, pero NO puede inventar temas nuevos o propósitos ajenos a la actividad planificada.
+
+REQUISITOS PEDAGÓGICOS:
 1. Debes generar exactamente ${sessionsCount} sesiones numeradas del 1 al ${sessionsCount}.
-2. Distribución de momentos pedagógicos:
-   - Sesiones 1 a ${aperturaCount}: Fase de "Apertura" (encuadre, saberes previos, problematización y normas de seguridad).
-   - Sesiones ${aperturaCount + 1} a ${aperturaCount + desarrolloCount}: Fase de "Desarrollo" (análisis conceptual, fundamentación, prácticas guiadas en taller/aula, resolución de problemas y elaboración de evidencias intermedias).
-   - Sesiones ${aperturaCount + desarrolloCount + 1} a ${sessionsCount}: Fase de "Cierre" (integración del producto final, coevaluación con rúbricas/listas de cotejo, evaluación sumativa y metacognición).
-3. Cada sesión debe tener un título pedagógico situado y concreto, actividades claras para el rol del docente y rol del estudiante, y la evidencia o producto tangible generado en esos 50 minutos.
-4. Si se especifican los Tres Saberes (Saber, Saber Hacer, Saber Ser), debes incorporarlos de manera secuencial a lo largo del desarrollo.
+2. Distribución y congruencia de momentos pedagógicos:
+   - Sesiones 1 a ${aperturaCount} (Fase de "Apertura"): Desglosan operativamente la APERTURA PLANIFICADA (encuadre, exploración de saberes previos, problematización PAEC y normas de seguridad).
+   - Sesiones ${aperturaCount + 1} a ${aperturaCount + desarrolloCount} (Fase de "Desarrollo"): Desglosan operativamente el DESARROLLO/EJECUCIÓN PLANIFICADO (análisis conceptual, fundamentación, prácticas guiadas en taller/aula, resolución de problemas y elaboración de evidencias intermedias).
+   - Sesiones ${aperturaCount + desarrolloCount + 1} a ${sessionsCount} (Fase de "Cierre"): Desglosan operativamente la CONCLUSIÓN/CIERRE PLANIFICADO (integración del producto final, coevaluación con rúbricas/listas de cotejo, evaluación sumativa y metacognición).
+3. Cada sesión debe tener un título pedagógico situado y concreto, actividades claras y diferenciadas para el rol del docente y rol del estudiante, y la evidencia o producto tangible generado en esos 50 minutos.
+4. Incorpora los Tres Saberes (Saber, Saber Hacer, Saber Ser) de manera secuencial y progresiva en las sesiones de desarrollo.
 
 DEBES RESPONDER EXCLUSIVAMENTE EN FORMATO JSON VÁLIDO con la siguiente estructura:
 {
@@ -138,7 +153,23 @@ ${saberes ? `- Taxonomía de Saberes:
 ${blockActivity.contenidoFormativo ? `- Contenido Formativo Clave: ${blockActivity.contenidoFormativo}` : ''}
 - Contexto Comunitario PAEC: ${paecContext || 'Problematización comunitaria local.'}
 
-Genera la secuencia didáctica completa de exactamente ${sessionsCount} sesiones estructurada en JSON.`;
+ACTIVIDADES PLANIFICADAS EN LA PLANEACIÓN DIDÁCTICA (SECCIÓN IV) — FUENTE OBLIGATORIA:
+• FASE DE APERTURA:
+  - Actividades docentes y de alumnos: ${aperturaText || 'Recuperación de saberes previos y diagnóstico situacional'}
+  ${aperturaProcesses ? `- Procesos cognitivos: ${aperturaProcesses}` : ''}
+  ${aperturaMaterials ? `- Materiales requeridos: ${aperturaMaterials}` : ''}
+
+• FASE DE DESARROLLO (EJECUCIÓN):
+  - Actividades docentes y de alumnos: ${ejecucionText || 'Desarrollo conceptual, prácticas guiadas y resolución de retos'}
+  ${ejecucionProcesses ? `- Procesos cognitivos: ${ejecucionProcesses}` : ''}
+  ${ejecucionMaterials ? `- Materiales requeridos: ${ejecucionMaterials}` : ''}
+
+• FASE DE CIERRE (CONCLUSIÓN):
+  - Actividades docentes y de alumnos: ${conclusionText || 'Síntesis de aprendizajes, evaluación formativa y reflexión metacognitiva'}
+  ${conclusionProcesses ? `- Procesos cognitivos: ${conclusionProcesses}` : ''}
+  ${conclusionMaterials ? `- Materiales requeridos: ${conclusionMaterials}` : ''}
+
+Genera la secuencia didáctica completa de exactamente ${sessionsCount} sesiones estructurada en JSON, desglosando fielmente estas actividades planificadas.`;
 
     const ai = await getAIProvider();
     const responseText = await ai.generate(systemPrompt, userPrompt, { temperature: 0.2 });

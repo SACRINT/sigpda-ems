@@ -195,6 +195,61 @@ En la interfaz docente ([`PlanningDetailClient.tsx`](file:///c:/Proyectos_SACRIN
 
 ---
 
+## 9. Sistema de Alineación Pedagógica (Planeación → Guía)
+
+### Problema Identificado
+La generación original de las guías de trabajo creaba contenido nuevo desde cero usando IA, **sin usar las actividades detalladas que el docente planteó en la planeación didáctica**. Esto causaba que:
+- Las actividades de apertura/desarrollo/cierre de la planeación fueran ignoradas por los writers.
+- La IA generara contenido nuevo que podía no coincidir con lo planeado.
+- No existiera una única fuente de verdad para "qué actividades se deben enseñar".
+
+### Solución: `PlanningActivities` en el WriterInput
+
+Se agregó al contrato `WriterInput` un campo `planningActivities` que contiene las actividades extraídas directamente de `contentJson.sectionIV.activities[blockIndex]`:
+
+```typescript
+// writer-contract.ts
+export interface PlanningActivities {
+  apertura: { description: string; processes: string; materials: string };
+  ejecucion: { description: string; processes: string; materials: string };
+  conclusion: { description: string; processes: string; materials: string };
+  saberes?: { saber: string; saberHacer: string; saberSer: string };
+  contenidoFormativo?: string;
+  methodology?: string;
+}
+```
+
+### Flujo de Datos Corregido
+
+```
+Planeación (Section IV)              Orchestrator                   Writers (4)
+─────────────────────────            ─────────────────              ─────────────
+activities[blockIndex].apertura ──→ planningActivities.apertura ──→ Prompt AI
+activities[blockIndex].ejecucion ─→ planningActivities.ejecucion → Prompt AI
+activities[blockIndex].conclusion → planningActivities.conclusion → Prompt AI
+activities[blockIndex].saberes ────→ planningActivities.saberes ──→ Prompt AI
+activities[blockIndex].contenido ──→ planningActivities.contenido → Prompt AI
+```
+
+### Restricciones de Alineación por Writer
+
+| Writer | Restricción de Alineación |
+| :--- | :--- |
+| **Foundation** | El Concepto Cero DEBE conectar con la apertura planificada. El "Yo Hago" DEBE implementar las actividades de desarrollo planificadas. |
+| **Lab** | El procedimiento del laboratorio DEBE implementar las actividades de desarrollo/ejecución planificadas. Los materiales DEBEN corresponder a los de la planeación. |
+| **Project** | Las fases del proyecto DEBEN implementar las actividades de desarrollo/ejecución planificadas. Los criterios de aceptación DEBEN evaluar los saberes planificados. |
+| **Evaluation** | La rúbrica DEBE evaluar los saberes planificados. La lista de cotejo DEBE verificar las actividades de desarrollo planificadas. |
+
+### Archivos Modificados
+- `src/lib/guide-engine/writers/writer-contract.ts`: Interfaz `PlanningActivities` + campo en `WriterInput`
+- `src/lib/guide-engine/block-guide-orchestrator.ts`: Extracción de actividades desde `contentJson.sectionIV`
+- `src/lib/guide-engine/writers/foundation-writer.ts`: Prompt con alineación de apertura
+- `src/lib/guide-engine/writers/lab-writer.ts`: Prompt con alineación de desarrollo/ejecución
+- `src/lib/guide-engine/writers/project-writer.ts`: Prompt con alineación de proyecto
+- `src/lib/guide-engine/writers/evaluation-writer.ts`: Prompt con alineación de evaluación
+
+---
+
 ## 8. Resultados de las Pruebas de Integración (Fase 6)
 
 Ejecutadas con la suite automatizada [`scratch/test_fase6_integration.ts`](file:///c:/Proyectos_SACRINT/Proyecto_SIGPDA_EMS/SIGPDA_EMS/scratch/test_fase6_integration.ts):

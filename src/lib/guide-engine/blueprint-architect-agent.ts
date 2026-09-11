@@ -189,18 +189,23 @@ export function buildBlockBlueprint(params: {
       normalizeToDetailedSession(s, blockIndex, blockName)
     );
   } else {
-    // Autogeneración silenciosa en 5ms (0 tokens IA)
+    // Autogeneración silenciosa en 5ms leyendo directamente la Sección IV planificada
     const isLaboral = curriculum.subsystem === 'bt' || curriculum.component === 'laboral';
-    const hours = curriculum.subsystem === 'bt' ? 18 : 12;
-    const mockActivity: KeyActivityPlan = {
-      name: blockName,
+    const content = (planning.contentJson || (planning as any).content_json) as any;
+    const realActivity = content?.sectionIV?.activities?.[blockIndex];
+    const hours = realActivity?.hours || (curriculum.subsystem === 'bt' ? 18 : 12);
+    const activityPlan: KeyActivityPlan = {
+      name: realActivity?.name || blockName,
       hours,
-      methodology: planning.metodologiaActiva || 'abp',
-      apertura: { activities: 'Presentación del dilema formativo y saberes previos', processes: 'Diálogo guiado', materials: 'Cuaderno de trabajo' },
-      ejecucion: { activities: 'Indagación experimental, modelación y análisis', processes: 'Trabajo activo', materials: 'Instrumental y software' },
-      conclusion: { activities: 'Síntesis, evaluación y coevaluación', processes: 'Reflexión metacognitiva', materials: 'Rúbrica' },
+      methodology: realActivity?.methodology || planning.metodologiaActiva || 'abp',
+      apertura: realActivity?.apertura || { activities: 'Encuadre, saberes previos y problematización', processes: '', materials: '' },
+      ejecucion: realActivity?.ejecucion || { activities: 'Indagación, práctica y resolución situada', processes: '', materials: '' },
+      conclusion: realActivity?.conclusion || { activities: 'Síntesis, coevaluación y metacognición', processes: '', materials: '' },
+      contenidoFormativo: realActivity?.contenidoFormativo,
+      saberes: realActivity?.saberes,
     };
-    sessions = generateBlockSessions(mockActivity, blockIndex, hours, undefined, isLaboral);
+    const outcome = content?.sectionII?.learningOutcomes?.[blockIndex] || '';
+    sessions = generateBlockSessions(activityPlan, blockIndex, hours, outcome, isLaboral);
   }
 
   // 2. Agrupar sesiones en Misiones coherentes usando s.phase y s.title
