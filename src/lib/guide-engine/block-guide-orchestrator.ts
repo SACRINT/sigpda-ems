@@ -85,6 +85,7 @@ export async function generateBlockWorkTextbook(
   blockIndex: number,
   options: OrchestratorOptions = {}
 ): Promise<ActiveWorkTextbook> {
+  const startTime = Date.now();
   const maxRetries = options.maxRetriesPerWriter ?? 2;
 
   // ── Fase 1: Análisis y Recuperación de Datos ─────────────────────────────
@@ -347,11 +348,22 @@ export async function generateBlockWorkTextbook(
 
   // Si hay redactores reintentables, ejecutar reintentos específicos (máx 2 por redactor)
   if (validation.retryableWriters.length > 0) {
+    const MAX_TOTAL_TIME_MS = 70_000; // 70 segundos (20s de margen para Vercel)
+
     for (const writerType of validation.retryableWriters) {
+      if (Date.now() - startTime > MAX_TOTAL_TIME_MS) {
+        console.warn('[ORCHESTRATOR] Time limit approaching, assembling with current content');
+        break; // Ensamblar con lo que se generó hasta ahora
+      }
+
       let attempts = 0;
       let improved = false;
 
       while (attempts < maxRetries && !improved) {
+        if (Date.now() - startTime > MAX_TOTAL_TIME_MS) {
+          console.warn('[ORCHESTRATOR] Time limit approaching in retry loop, assembling with current content');
+          break;
+        }
         attempts++;
         console.log(`[orchestrator] Reintentando ${writerType} (Intento ${attempts}/${maxRetries})...`);
 

@@ -66,17 +66,17 @@ ${planningAlignmentChunk}
 REGLAS DE RIGOR TÉCNICO, PROFUNDIDAD Y CUADERNO ACTIVO:
 1. Objetivo de la práctica: Una formulación técnica rigurosa y contundente contextualizada en la realidad productiva o comunitaria.
 2. Materiales necesarios: Lista formal exhaustiva con especificaciones técnicas, normas de seguridad y casilla de verificación [✓] para cada insumo, equipo o software.
-3. Procedimiento paso a paso numerado (2,000 a 3,000 palabras, 12-20 pasos detallados): Cada paso debe incluir explicación técnica profunda del "por qué" y del "cómo", precauciones operativas y espacios orientados <!--workbook:lines:rows=3--> o tablas para que el estudiante registre sus mediciones y observaciones empíricas.
+3. Procedimiento paso a paso numerado (800 a 1,200 palabras, 8-12 pasos detallados): Cada paso debe incluir explicación técnica del "por qué" y del "cómo", precauciones operativas y espacios orientados <!--workbook:lines:rows=3--> o tablas para que el estudiante registre sus mediciones y observaciones empíricas.
 4. Tabla de datos vacía: Genera encabezados descriptivos completos y filas con la etiqueta <!--workbook:table:cols=Parámetro,Teórico,Medición 1,Medición 2,Error,Unidad--> para que el alumno la llene en clase.
-5. Código ejecutable o protocolo experimental (1,000 a 2,000 palabras): En BT: bloques de código reales, funcionales, completos y comentados línea a línea, acompañados de cajas de código sombreadas <!--workbook:code:lines=15--> para pruebas y variantes. En BGE: protocolo experimental minucioso de toma de datos y modelado.
-6. Desafío autónomo situado (You Do - 200 a 350 palabras): Una consigna rigurosa y desafiante donde el estudiante, de manera autónoma, debe modificar parámetros, resolver una falla inducida o adaptar el procedimiento a una variante de su comunidad PAEC.
-7. Preguntas de reflexión y análisis (500 a 800 palabras): 4 a 6 preguntas de desarrollo amplio que conecten directamente los datos experimentales con la teoría formal y con el entorno PAEC.
+5. Código ejecutable o protocolo experimental (400 a 600 palabras): En BT: bloques de código reales, funcionales, completos y comentados línea a línea, acompañados de cajas de código sombreadas <!--workbook:code:lines=15--> para pruebas y variantes. En BGE: protocolo experimental minucioso de toma de datos y modelado.
+6. Desafío autónomo situado (You Do - 150 a 250 palabras): Una consigna rigurosa y desafiante donde el estudiante, de manera autónoma, debe modificar parámetros, resolver una falla inducida o adaptar el procedimiento a una variante de su comunidad PAEC.
+7. Preguntas de reflexión y análisis (200 a 350 palabras): 4 a 6 preguntas de desarrollo amplio que conecten directamente los datos experimentales con la teoría formal y con el entorno PAEC.
 8. Depuración rápida (Common errors): Al menos 3 casos de estudio de Síntoma → Causa Raíz → Solución detallada paso a paso → Medida preventiva.
 9. REGLA ESTRICTA DE SINTAXIS JSON PARA CÓDIGO Y DIÁLOGOS:
    Para fragmentos de código o cadenas (ejemplo: print('Hola'), input('Ingresa dato: ')), usa EXCLUSIVAMENTE comillas simples ('...'). NUNCA coloques comillas dobles sin escapar dentro de un valor de texto JSON.
 ${seedPromptChunk}
 
-IMPORTANTE: Esta misión debe tener MÍNIMO ${input.targetWords.min} palabras en total. No la acortes. Incluye explicaciones detalladas, ejemplos múltiples, pasos numerados extensos y espacios amplios para que el estudiante trabaje.
+IMPORTANTE: Esta misión debe tener entre 1,500 y 2,000 palabras en total. Incluye explicaciones detalladas, ejemplos técnicos, pasos numerados y espacios amplios para que el estudiante trabaje.
 
 Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
 {
@@ -85,10 +85,10 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
   "materialsList": ["✓ Insumo / Herramienta 1", "✓ Software / Equipo 2", "✓ Instrumento de medición 3"],
   "stepByStepProcedure": "1. Paso uno detallado con explicación técnica amplia...\\n<!--workbook:lines:rows=3-->\\n2. Paso dos...",
   "dataTableColumns": ["Variable / Muestra", "Valor Calculado", "Lectura 1", "Lectura 2", "Unidad"],
-  "executableCodeOrProtocol": "En BT: código ejecutable completo y comentado (1,000-2,000 palabras). En BGE: protocolo experimental exhaustivo...",
-  "autonomousChallenge": "Instrucción y desafío técnico autónomo (Tú Haces) de 200-350 palabras donde el alumno resuelve individualmente una variante o problema nuevo...",
+  "executableCodeOrProtocol": "En BT: código ejecutable completo y comentado (400-600 palabras). En BGE: protocolo experimental exhaustivo...",
+  "autonomousChallenge": "Instrucción y desafío técnico autónomo (Tú Haces) de 150-250 palabras donde el alumno resuelve individualmente una variante o problema nuevo...",
   "reflectionQuestions": [
-    "¿Qué relación observaste entre la variable manipulada y la respuesta del sistema? (Desarrollo amplio de análisis)",
+    "¿Qué relación observaste entre la variable manipulada y la respuesta del sistema? (Desarrollo de análisis)",
     "¿Cómo influyó el margen de tolerancia del instrumental en los resultados?",
     "¿De qué manera este procedimiento técnico previene accidentes o fallas operativas?",
     "¿Cómo aplicarías este mismo procedimiento para resolver un problema en tu comunidad?"
@@ -108,17 +108,16 @@ Subsistema: ${input.subsystem.toUpperCase()}
 Misión: ${missionTitle}
 Sesiones asignadas: Sesiones ${coveredSessions.join(', ')}
 Problemática PAEC: ${input.paecContext}
-Meta de palabras para esta misión: mínimo ${input.targetWords.min} palabras (ideal ${input.targetWords.ideal} palabras).
+Meta de palabras para esta misión: aproximadamente 1,500 a 2,000 palabras.
 
-DISTRIBUCIÓN OBLIGATORIA DE PALABRAS:
-- stepByStepProcedure: 2,000 a 3,000 palabras (desarrolla cada paso con extrema profundidad técnica)
-- executableCodeOrProtocol: 1,000 a 2,000 palabras (código fuente funcional y exhaustivo o protocolo riguroso)
-- autonomousChallenge: 200 a 350 palabras (desafío técnico autónomo situado para el estudiante)
-- reflectionQuestions: 500 a 800 palabras (análisis técnico y transferencia al entorno)
+DISTRIBUCIÓN SUGERIDA DE PALABRAS:
+- stepByStepProcedure: 800 a 1,200 palabras (desarrolla cada paso con claridad y rigor técnico)
+- executableCodeOrProtocol: 400 a 600 palabras (código fuente funcional o protocolo experimental)
+- autonomousChallenge: 150 a 250 palabras (desafío técnico autónomo situado)
+- reflectionQuestions: 200 a 350 palabras (análisis técnico y transferencia)
 
-IMPORTANTE: Esta sección debe tener MÍNIMO 2,000 palabras en su procedimiento y más de ${input.targetWords.min} palabras en total. No la acortes.
-Incluye explicaciones detalladas, ejemplos múltiples, pasos numerados extensos,
-y espacios amplios para que el estudiante trabaje.
+IMPORTANTE: Proporciona un desarrollo técnico completo y riguroso de ~1,500-2,000 palabras en total.
+Incluye explicaciones claras, pasos numerados y espacios para que el estudiante trabaje.
 
 Redacta la Misión Práctica de Laboratorio/Taller completa:`;
 
