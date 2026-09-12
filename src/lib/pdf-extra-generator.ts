@@ -123,7 +123,8 @@ export function generateExtraPDF(extra: ExtraInput): jsPDF {
             content: cell,
             styles: {
               fillColor: rowIdx % 2 === 0 ? WHITE : GRAY_BG,
-              halign: (isCheck ? 'center' : (cellIdx === 0 ? 'left' : 'left')) as 'center' | 'left',
+              halign: (isCheck ? 'center' : 'left') as 'center' | 'left',
+              fontStyle: (cellIdx === 0 && colCount === 5 ? 'bold' : 'normal') as 'bold' | 'normal',
             },
           };
         })

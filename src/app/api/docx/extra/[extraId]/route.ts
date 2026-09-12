@@ -222,6 +222,11 @@ export async function GET(
     let tableHeaders: string[] = [];
     let tableData: string[][] = [];
 
+    const isRubric = extra.type === 'rubric';
+    const pageW = isRubric ? PH : PW;
+    const pageH = isRubric ? PW : PH;
+    const contentW = pageW - MG * 2;
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
 
@@ -248,7 +253,7 @@ export async function GET(
         // We exited table block or it's a blank line
         if (inTable) {
           // Compile table
-          docChildren.push(createWordTable(tableHeaders, tableData));
+          docChildren.push(createWordTable(tableHeaders, tableData, contentW));
           docChildren.push(new Paragraph({ spacing: { before: 80, after: 80 } }));
           inTable = false;
         }
@@ -261,7 +266,7 @@ export async function GET(
 
     // Edge case: table at the very end of file
     if (inTable) {
-      docChildren.push(createWordTable(tableHeaders, tableData));
+      docChildren.push(createWordTable(tableHeaders, tableData, contentW));
     }
 
     // Assemble DOCX document
@@ -271,7 +276,7 @@ export async function GET(
         {
           properties: {
             page: {
-              size: { width: PW, height: PH },
+              size: { width: pageW, height: pageH },
               margin: { top: MG, right: MG, bottom: MG, left: MG },
             },
           },
@@ -340,35 +345,28 @@ export async function GET(
 }
 
 // Helper to create styled Table from parsed markdown rows
-function createWordTable(headers: string[], dataRows: string[][]) {
+function createWordTable(headers: string[], dataRows: string[][], tableWidth: number = CW) {
   const colCount = headers.length;
   const colWidths: number[] = [];
 
   // Table columns layouts heuristics
   if (colCount === 5) {
-    // Rubric (Criterio, Excelente, Satisfactorio, Suficiente, Insuficiente)
-    colWidths.push(
-      Math.floor(CW * 0.22),
-      Math.floor(CW * 0.22),
-      Math.floor(CW * 0.22),
-      Math.floor(CW * 0.17),
-      CW - Math.floor(CW * 0.22) * 3 - Math.floor(CW * 0.17)
-    );
+    // Rubric: Criterio + 4 levels
+    const c1 = Math.floor(tableWidth * 0.24);
+    const rest = Math.floor((tableWidth - c1) / 4);
+    colWidths.push(c1, rest, rest, rest, tableWidth - c1 - rest * 3);
   } else if (colCount === 4) {
     // Checklist (Criterio, Sí, No, Observaciones)
-    colWidths.push(
-      Math.floor(CW * 0.5),
-      Math.floor(CW * 0.12),
-      Math.floor(CW * 0.12),
-      CW - Math.floor(CW * 0.5) - Math.floor(CW * 0.12) * 2
-    );
+    const c1 = Math.floor(tableWidth * 0.5);
+    const c2 = Math.floor(tableWidth * 0.12);
+    colWidths.push(c1, c2, c2, tableWidth - c1 - c2 * 2);
   } else {
     // Equal distribution
-    const equalWidth = Math.floor(CW / colCount);
+    const equalWidth = Math.floor(tableWidth / colCount);
     for (let i = 0; i < colCount - 1; i++) {
       colWidths.push(equalWidth);
     }
-    colWidths.push(CW - equalWidth * (colCount - 1));
+    colWidths.push(tableWidth - equalWidth * (colCount - 1));
   }
 
   const tableRows: TableRow[] = [];
@@ -404,7 +402,7 @@ function createWordTable(headers: string[], dataRows: string[][]) {
       new TableRow({
         height: { value: 450, rule: 'atLeast' },
         children: rowCells.map((cellText, cellIndex) => {
-          const colWidth = colWidths[cellIndex] || Math.floor(CW / colCount);
+          const colWidth = colWidths[cellIndex] || Math.floor(tableWidth / colCount);
           const isNumOrCheck = cellText === 'Sí' || cellText === 'No' || cellText.match(/^\d+%/);
 
           return new TableCell({
@@ -426,7 +424,7 @@ function createWordTable(headers: string[], dataRows: string[][]) {
   });
 
   return new Table({
-    width: { size: CW, type: WidthType.DXA },
+    width: { size: tableWidth, type: WidthType.DXA },
     columnWidths: colWidths,
     rows: tableRows,
   });

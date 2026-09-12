@@ -322,17 +322,37 @@ function buildRubricaEvaluacionMarkdown(workbook: ActiveWorkTextbook): string {
   if (evalSec?.rubric && evalSec.rubric.length > 0) {
     parts.push('## RÚBRICA ANALÍTICA DE DESEMPEÑO (4 NIVELES NEM)\n');
 
-    // Build ONE unified table: Criterio | Sobresaliente | Notable | Suficiente | Insuficiente
-    const levelNames = ['Sobresaliente / Excelente', 'Notable / Bueno', 'Suficiente / Básico', 'Insuficiente / Requiere Apoyo'];
-    const headerRow = `| Criterio y Ponderación | ${levelNames.join(' | ')} |`;
+    // Nombres estándar de niveles con sus puntos en los encabezados de columna
+    const standardLevels = [
+      { name: 'Sobresaliente / Excelente', defaultPts: 10 },
+      { name: 'Notable / Bueno', defaultPts: 8 },
+      { name: 'Suficiente / Básico', defaultPts: 6 },
+      { name: 'Insuficiente / Requiere Apoyo', defaultPts: 4 },
+    ];
+
+    const firstLevels = evalSec.rubric[0]?.levels || [];
+    const levelHeaders = standardLevels.map((std, idx) => {
+      const pts = firstLevels[idx]?.points ?? std.defaultPts;
+      return `${std.name} (${pts} pts)`;
+    });
+
+    const headerRow = `| Criterio de Evaluación y Ponderación | ${levelHeaders.join(' | ')} |`;
     const separatorRow = `|---|---|---|---|---|`;
     parts.push(headerRow);
     parts.push(separatorRow);
 
     for (const crit of evalSec.rubric) {
-      const critCell = `${crit.criterion} (${crit.weightPercent}%)`;
-      const levelCells = (crit.levels || []).map(lvl => `**${lvl.levelName}** (${lvl.points} pts): ${lvl.descriptor}`);
-      // Pad to 4 levels if needed
+      const critCell = `**${crit.criterion.replace(/\|/g, '/')}** (${crit.weightPercent}%)`;
+      const levelCells = (crit.levels || []).map((lvl) => {
+        // Limpiar saltos de línea y pipes para mantener la integridad de la fila Markdown
+        const cleanDesc = (lvl.descriptor || '')
+          .replace(/[\r\n]+/g, ' ')
+          .replace(/\|/g, '/')
+          .trim();
+        return cleanDesc || '—';
+      });
+
+      // Asegurar 4 columnas de descriptores
       while (levelCells.length < 4) levelCells.push('—');
       parts.push(`| ${critCell} | ${levelCells.join(' | ')} |`);
     }
@@ -371,18 +391,36 @@ function buildInstrumentosEvaluacionMarkdown(workbook: ActiveWorkTextbook): stri
   parts.push(`# INSTRUMENTOS DE EVALUACIÓN OFICIALES · BLOQUE ${blockNum}`);
   parts.push(`**Asignatura:** ${workbook.coverData?.subjectName || ''} | **Plantel:** ${workbook.coverData?.schoolName || ''}\n`);
 
-  // 1. Rúbricas Analíticas
+  // 1. Rúbricas Analíticas Unificadas
   if (evalSec?.rubric && evalSec.rubric.length > 0) {
-    parts.push('## 1. RÚBRICA ANALÍTICA DE DESEMPEÑO (4 NIVELES)\n');
+    parts.push('## 1. RÚBRICA ANALÍTICA DE DESEMPEÑO (4 NIVELES NEM)\n');
+    const standardLevels = [
+      { name: 'Sobresaliente / Excelente', defaultPts: 10 },
+      { name: 'Notable / Bueno', defaultPts: 8 },
+      { name: 'Suficiente / Básico', defaultPts: 6 },
+      { name: 'Insuficiente / Requiere Apoyo', defaultPts: 4 },
+    ];
+    const firstLevels = evalSec.rubric[0]?.levels || [];
+    const levelHeaders = standardLevels.map((std, idx) => {
+      const pts = firstLevels[idx]?.points ?? std.defaultPts;
+      return `${std.name} (${pts} pts)`;
+    });
+
+    parts.push(`| Criterio de Evaluación y Ponderación | ${levelHeaders.join(' | ')} |`);
+    parts.push('|---|---|---|---|---|');
     for (const crit of evalSec.rubric) {
-      parts.push(`### Criterio: ${crit.criterion} (Ponderación: ${crit.weightPercent}%)`);
-      parts.push('| Nivel | Puntos | Descriptor de Desempeño |');
-      parts.push('|---|---|---|');
-      for (const lvl of crit.levels || []) {
-        parts.push(`| **${lvl.levelName}** | ${lvl.points} pts | ${lvl.descriptor} |`);
-      }
-      parts.push('\n');
+      const critCell = `**${crit.criterion.replace(/\|/g, '/')}** (${crit.weightPercent}%)`;
+      const levelCells = (crit.levels || []).map((lvl) => {
+        const cleanDesc = (lvl.descriptor || '')
+          .replace(/[\r\n]+/g, ' ')
+          .replace(/\|/g, '/')
+          .trim();
+        return cleanDesc || '—';
+      });
+      while (levelCells.length < 4) levelCells.push('—');
+      parts.push(`| ${critCell} | ${levelCells.join(' | ')} |`);
     }
+    parts.push('\n');
   }
 
   // 2. Listas de Cotejo

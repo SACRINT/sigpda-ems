@@ -126,7 +126,9 @@ export function ExtraPreviewModal({
                           style={{
                             padding: '10px 14px',
                             fontSize: '13px',
-                            color: 'var(--c-text-2, #cbd5e1)',
+                            color: cIdx === 0 && tableHeaders.length === 5 ? 'var(--c-text, #f8fafc)' : 'var(--c-text-2, #cbd5e1)',
+                            fontWeight: cIdx === 0 && tableHeaders.length === 5 ? 600 : 'normal',
+                            minWidth: cIdx === 0 && tableHeaders.length === 5 ? '190px' : '160px',
                             verticalAlign: 'top',
                             borderRight: cIdx < row.length - 1 ? '1px solid rgba(255,255,255,0.04)' : undefined,
                           }}
