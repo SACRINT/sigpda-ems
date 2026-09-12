@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import dynamic from 'next/dynamic';
 
 // Fase 11 — Mermaid support para guías de práctica
@@ -24,6 +24,15 @@ export function ExtraPreviewModal({
   contentText,
   type,
 }: ExtraPreviewModalProps) {
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   // Simple Markdown to HTML parser
@@ -60,25 +69,68 @@ export function ExtraPreviewModal({
       } else {
         if (inTable) {
           elements.push(
-            <div key={`table-${key++}`} className="overflow-x-auto my-4 border border-[var(--c-border)] rounded-lg">
-              <table className="min-w-full divide-y divide-[var(--c-border)]">
-                <thead className="bg-[var(--c-header-bg)] text-[var(--c-text)] border-b border-[var(--c-border)]">
+            <div
+              key={`table-${key++}`}
+              style={{
+                overflowX: 'auto',
+                margin: '16px 0',
+                border: '1px solid var(--c-border, rgba(255,255,255,0.12))',
+                borderRadius: '8px',
+              }}
+            >
+              <table
+                style={{
+                  minWidth: '100%',
+                  borderCollapse: 'collapse',
+                  textAlign: 'left',
+                }}
+              >
+                <thead
+                  style={{
+                    background: 'var(--c-header-bg, #1e293b)',
+                    color: 'var(--c-text, #f8fafc)',
+                    borderBottom: '1px solid var(--c-border, rgba(255,255,255,0.12))',
+                  }}
+                >
                   <tr>
                     {tableHeaders.map((h, idx) => (
                       <th
                         key={idx}
-                        className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap"
+                        style={{
+                          padding: '10px 14px',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em',
+                          whiteSpace: 'nowrap',
+                          borderRight: idx < tableHeaders.length - 1 ? '1px solid rgba(255,255,255,0.06)' : undefined,
+                        }}
                       >
                         {h}
                       </th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[var(--c-border)] bg-[var(--c-bg-surface)]">
+                <tbody style={{ background: 'var(--c-bg-surface, #0f172a)' }}>
                   {tableRows.map((row, rIdx) => (
-                    <tr key={rIdx} className={rIdx % 2 === 1 ? 'bg-white/[0.02]' : 'bg-transparent'}>
+                    <tr
+                      key={rIdx}
+                      style={{
+                        background: rIdx % 2 === 1 ? 'rgba(255,255,255,0.02)' : 'transparent',
+                        borderBottom: rIdx < tableRows.length - 1 ? '1px solid rgba(255,255,255,0.06)' : undefined,
+                      }}
+                    >
                       {row.map((cell, cIdx) => (
-                        <td key={cIdx} className="px-4 py-2.5 text-sm text-[var(--c-text-2)] max-w-xs">
+                        <td
+                          key={cIdx}
+                          style={{
+                            padding: '10px 14px',
+                            fontSize: '13px',
+                            color: 'var(--c-text-2, #cbd5e1)',
+                            verticalAlign: 'top',
+                            borderRight: cIdx < row.length - 1 ? '1px solid rgba(255,255,255,0.04)' : undefined,
+                          }}
+                        >
                           {renderTextFormatting(cell)}
                         </td>
                       ))}
@@ -98,34 +150,78 @@ export function ExtraPreviewModal({
           elements.push(
             <h1
               key={key++}
-              className="text-2xl font-bold text-[var(--c-text)] mt-6 mb-3 border-b-2 border-[#E65100] pb-1"
+              style={{
+                fontSize: '20px',
+                fontWeight: 800,
+                color: 'var(--c-text, #f8fafc)',
+                marginTop: '24px',
+                marginBottom: '12px',
+                borderBottom: '2px solid #E65100',
+                paddingBottom: '6px',
+              }}
             >
               {renderTextFormatting(line.replace('# ', ''))}
             </h1>
           );
         } else if (line.startsWith('## ')) {
           elements.push(
-            <h2 key={key++} className="text-xl font-semibold text-[var(--c-accent-bright)] mt-5 mb-2.5">
+            <h2
+              key={key++}
+              style={{
+                fontSize: '17px',
+                fontWeight: 700,
+                color: 'var(--c-accent-bright, #38bdf8)',
+                marginTop: '20px',
+                marginBottom: '10px',
+              }}
+            >
               {renderTextFormatting(line.replace('## ', ''))}
             </h2>
           );
         } else if (line.startsWith('### ')) {
           elements.push(
-            <h3 key={key++} className="text-lg font-semibold text-[var(--c-accent-bright)] mt-4 mb-2">
+            <h3
+              key={key++}
+              style={{
+                fontSize: '15px',
+                fontWeight: 600,
+                color: 'var(--c-accent-bright, #38bdf8)',
+                marginTop: '16px',
+                marginBottom: '8px',
+              }}
+            >
               {renderTextFormatting(line.replace('### ', ''))}
             </h3>
           );
         } else if (line.startsWith('- ') || line.startsWith('* ') || line.startsWith('• ')) {
           const cleanLine = line.substring(2);
           elements.push(
-            <li key={key++} className="ml-6 list-disc my-1 text-[var(--c-text-2)] text-sm leading-relaxed">
+            <li
+              key={key++}
+              style={{
+                marginLeft: '24px',
+                listStyleType: 'disc',
+                margin: '4px 0 4px 24px',
+                color: 'var(--c-text-2, #cbd5e1)',
+                fontSize: '13.5px',
+                lineHeight: 1.6,
+              }}
+            >
               {renderTextFormatting(cleanLine)}
             </li>
           );
         } else {
           // Paragraph
           elements.push(
-            <p key={key++} className="my-2.5 text-[var(--c-text-2)] text-sm leading-relaxed">
+            <p
+              key={key++}
+              style={{
+                margin: '10px 0',
+                color: 'var(--c-text-2, #cbd5e1)',
+                fontSize: '13.5px',
+                lineHeight: 1.6,
+              }}
+            >
               {renderTextFormatting(line)}
             </p>
           );
@@ -135,25 +231,68 @@ export function ExtraPreviewModal({
 
     if (inTable) {
       elements.push(
-        <div key={`table-${key++}`} className="overflow-x-auto my-4 border border-[var(--c-border)] rounded-lg">
-          <table className="min-w-full divide-y divide-[var(--c-border)]">
-            <thead className="bg-[var(--c-header-bg)] text-[var(--c-text)] border-b border-[var(--c-border)]">
+        <div
+          key={`table-${key++}`}
+          style={{
+            overflowX: 'auto',
+            margin: '16px 0',
+            border: '1px solid var(--c-border, rgba(255,255,255,0.12))',
+            borderRadius: '8px',
+          }}
+        >
+          <table
+            style={{
+              minWidth: '100%',
+              borderCollapse: 'collapse',
+              textAlign: 'left',
+            }}
+          >
+            <thead
+              style={{
+                background: 'var(--c-header-bg, #1e293b)',
+                color: 'var(--c-text, #f8fafc)',
+                borderBottom: '1px solid var(--c-border, rgba(255,255,255,0.12))',
+              }}
+            >
               <tr>
                 {tableHeaders.map((h, idx) => (
                   <th
                     key={idx}
-                    className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap"
+                    style={{
+                      padding: '10px 14px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                      whiteSpace: 'nowrap',
+                      borderRight: idx < tableHeaders.length - 1 ? '1px solid rgba(255,255,255,0.06)' : undefined,
+                    }}
                   >
                     {h}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-[var(--c-border)] bg-[var(--c-bg-surface)]">
+            <tbody style={{ background: 'var(--c-bg-surface, #0f172a)' }}>
               {tableRows.map((row, rIdx) => (
-                <tr key={rIdx} className={rIdx % 2 === 1 ? 'bg-white/[0.02]' : 'bg-transparent'}>
+                <tr
+                  key={rIdx}
+                  style={{
+                    background: rIdx % 2 === 1 ? 'rgba(255,255,255,0.02)' : 'transparent',
+                    borderBottom: rIdx < tableRows.length - 1 ? '1px solid rgba(255,255,255,0.06)' : undefined,
+                  }}
+                >
                   {row.map((cell, cIdx) => (
-                    <td key={cIdx} className="px-4 py-2.5 text-sm text-[var(--c-text-2)] max-w-xs">
+                    <td
+                      key={cIdx}
+                      style={{
+                        padding: '10px 14px',
+                        fontSize: '13px',
+                        color: 'var(--c-text-2, #cbd5e1)',
+                        verticalAlign: 'top',
+                        borderRight: cIdx < row.length - 1 ? '1px solid rgba(255,255,255,0.04)' : undefined,
+                      }}
+                    >
                       {renderTextFormatting(cell)}
                     </td>
                   ))}
@@ -184,7 +323,7 @@ export function ExtraPreviewModal({
 
       if (isBold) {
         return (
-          <strong key={bIdx} className="font-semibold text-slate-900">
+          <strong key={bIdx} style={{ fontWeight: 700, color: '#f8fafc' }}>
             {cleanText}
           </strong>
         );
@@ -200,42 +339,132 @@ export function ExtraPreviewModal({
       ? 'Lista de cotejo'
       : type === 'material'
       ? 'Material didáctico'
+      : type === 'practice_guide'
+      ? 'Guía de práctica'
       : 'Plan de clase';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
-      <div className="flex flex-col w-full max-w-4xl max-h-[85vh] bg-[var(--c-card-bg)] rounded-2xl shadow-2xl border border-[var(--c-border-2)] overflow-hidden">
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 99999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'rgba(5, 10, 20, 0.82)',
+        backdropFilter: 'blur(8px)',
+        padding: '16px',
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          width: '100%',
+          maxWidth: '920px',
+          maxHeight: '88vh',
+          background: 'var(--c-card-bg, #0f172a)',
+          borderRadius: '16px',
+          border: '1px solid rgba(255, 255, 255, 0.15)',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 30px rgba(59, 130, 246, 0.15)',
+          overflow: 'hidden',
+        }}
+      >
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 bg-[var(--c-header-bg)] text-white border-b border-[var(--c-border)]">
-          <div>
-            <span className="px-2 py-0.5 text-xs font-semibold rounded bg-[#E65100] text-white uppercase tracking-wider mr-2">
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '16px 24px',
+            background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.12)',
+            color: '#fff',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+            <span
+              style={{
+                padding: '4px 10px',
+                fontSize: '11px',
+                fontWeight: 700,
+                borderRadius: '6px',
+                background: '#E65100',
+                color: '#fff',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                flexShrink: 0,
+              }}
+            >
               {typeLabel}
             </span>
-            <h2 className="inline-block text-lg font-bold truncate max-w-lg align-middle">
+            <h2
+              style={{
+                margin: 0,
+                fontSize: '16px',
+                fontWeight: 700,
+                color: '#f8fafc',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
               {title}
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full hover:bg-white/10 text-slate-300 hover:text-white transition-colors duration-150"
+            style={{
+              background: 'rgba(255,255,255,0.08)',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '6px 10px',
+              cursor: 'pointer',
+              color: '#94a3b8',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.15s ease',
+            }}
             aria-label="Cerrar modal"
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.18)';
+              (e.currentTarget as HTMLElement).style.color = '#fff';
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.08)';
+              (e.currentTarget as HTMLElement).style.color = '#94a3b8';
+            }}
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={2.5}
-              stroke="currentColor"
-              className="w-5 h-5"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            ✕
           </button>
         </div>
 
         {/* Modal Content */}
-        <div className="flex-1 p-6 overflow-y-auto bg-[var(--c-bg-base)]">
-          <div className="max-w-3xl mx-auto px-4 py-6 bg-[var(--c-bg-surface)] border border-[var(--c-border)] shadow-sm rounded-xl">
+        <div
+          style={{
+            flex: 1,
+            padding: '24px',
+            overflowY: 'auto',
+            background: 'var(--c-bg-base, #070d19)',
+          }}
+        >
+          <div
+            style={{
+              maxWidth: '820px',
+              margin: '0 auto',
+              padding: '24px',
+              background: 'var(--c-bg-surface, #0f172a)',
+              border: '1px solid var(--c-border, rgba(255, 255, 255, 0.08))',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.3)',
+              borderRadius: '12px',
+              color: 'var(--c-text, #f1f5f9)',
+            }}
+          >
             {type === 'practice_guide' ? (
               // Guías de práctica: renderizado con soporte Mermaid (Fase 11)
               <MarkdownWithMermaid markdown={contentText} />
@@ -247,10 +476,30 @@ export function ExtraPreviewModal({
         </div>
 
         {/* Modal Footer */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[var(--c-border)] bg-[var(--c-bg-surface)]">
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            gap: '12px',
+            padding: '12px 24px',
+            borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+            background: 'var(--c-bg-surface, #0f172a)',
+          }}
+        >
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-[var(--c-text)] bg-white/10 hover:bg-white/15 rounded-lg transition-colors duration-150"
+            className="btn"
+            style={{
+              padding: '8px 18px',
+              fontSize: '13px',
+              fontWeight: 600,
+              color: '#f8fafc',
+              background: 'rgba(255, 255, 255, 0.1)',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              borderRadius: '8px',
+              cursor: 'pointer',
+            }}
           >
             Cerrar
           </button>

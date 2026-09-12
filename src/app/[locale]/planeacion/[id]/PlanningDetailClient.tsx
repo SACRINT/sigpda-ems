@@ -3165,9 +3165,7 @@ export default function PlanningDetailClient({
                 {content?.sectionIV?.activities?.map((act, actIdx) => {
                   const practiceNum = actIdx + 1;
                   const practiceTitle = `${act.name.substring(0, 60)}`;
-                  const generatedGuide = extras.find(
-                    (ex) => ex.type === 'practice_guide' && ex.keyIndex === actIdx
-                  );
+                  const generatedGuide = findExtra('practice_guide', actIdx);
                   const loadingKey = `practice_guide-${actIdx}--`;
                   const isCurrentGenerating = generatingKey?.startsWith(loadingKey);
 
