@@ -126,8 +126,14 @@ export async function cascadeBlockMaterials(
       insertedCount++;
     }
 
-    // 4. Insertar Rúbrica Analítica de Desempeño del Bloque
-    if (extracted.instrumentosEvaluacion) {
+    // 4. Insertar Rúbrica Analítica de Desempeño del Bloque (Contenido exclusivo de rúbrica)
+    const rubricContent = extracted.rubricaEvaluacion || (
+      extracted.instrumentosEvaluacion && extracted.instrumentosEvaluacion.includes('## 2. LISTA DE COTEJO')
+        ? extracted.instrumentosEvaluacion.split('## 2. LISTA DE COTEJO')[0].trim()
+        : extracted.instrumentosEvaluacion
+    );
+
+    if (rubricContent) {
       await db`
         INSERT INTO planning_extras (
           planning_id,
@@ -141,13 +147,22 @@ export async function cascadeBlockMaterials(
           'rubric',
           ${`Rúbrica Analítica de Evaluación · Bloque ${blockNum}: ${blockTitle}`},
           ${blockIndex},
-          ${extracted.instrumentosEvaluacion},
+          ${rubricContent},
           NOW()
         )
       `;
       insertedCount++;
+    }
 
-      // Lista de Cotejo formativa vinculada al bloque
+    // 5. Insertar Lista de Cotejo Formativa del Bloque (Contenido exclusivo de checklist)
+    const checklistContent = extracted.listaCotejo || (
+      extracted.instrumentosEvaluacion && extracted.instrumentosEvaluacion.includes('## 2. LISTA DE COTEJO')
+        ? `# LISTA DE COTEJO DE VERIFICACIÓN FORMATIVA · BLOQUE ${blockNum}\n\n` +
+          extracted.instrumentosEvaluacion.split('## 2. LISTA DE COTEJO')[1].trim()
+        : extracted.instrumentosEvaluacion
+    );
+
+    if (checklistContent) {
       await db`
         INSERT INTO planning_extras (
           planning_id,
@@ -161,7 +176,7 @@ export async function cascadeBlockMaterials(
           'checklist',
           ${`Lista de Cotejo Formativa · Bloque ${blockNum}: ${blockTitle}`},
           ${blockIndex},
-          ${extracted.instrumentosEvaluacion},
+          ${checklistContent},
           NOW()
         )
       `;

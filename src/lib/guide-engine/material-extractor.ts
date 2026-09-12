@@ -47,6 +47,8 @@ export interface ExtractedBlockMaterials {
   planesDeClase: PlanDeClaseDerivado[];
   guiaDelBloque: string;
   instrumentosEvaluacion: string;
+  rubricaEvaluacion?: string;
+  listaCotejo?: string;
   materialDidactico: string;
   quiz: Array<{
     questionNumber: number;
@@ -141,6 +143,8 @@ export function extractMaterialsFromWorkbook(workbook: ActiveWorkTextbook): Extr
   const guiaDelBloque = buildGuiaDelBloqueMarkdown(workbook);
 
   // 3. Extraer Instrumentos de Evaluación (Rúbricas analíticas oficiales de 4 niveles y listas de cotejo)
+  const rubricaEvaluacion = buildRubricaEvaluacionMarkdown(workbook);
+  const listaCotejo = buildListaCotejoMarkdown(workbook);
   const instrumentosEvaluacion = buildInstrumentosEvaluacionMarkdown(workbook);
 
   // 4. Extraer Material Didáctico (Insumos, reactivos, herramientas y equipo por sesión)
@@ -171,6 +175,8 @@ export function extractMaterialsFromWorkbook(workbook: ActiveWorkTextbook): Extr
     planesDeClase,
     guiaDelBloque,
     instrumentosEvaluacion,
+    rubricaEvaluacion,
+    listaCotejo,
     materialDidactico,
     quiz,
   };
@@ -305,11 +311,57 @@ function buildGuiaDelBloqueMarkdown(workbook: ActiveWorkTextbook): string {
   return parts.join('\n');
 }
 
+function buildRubricaEvaluacionMarkdown(workbook: ActiveWorkTextbook): string {
+  const parts: string[] = [];
+  const evalSec = workbook.evaluationSection;
+  const blockNum = (workbook.blockIndex ?? 0) + 1;
+
+  parts.push(`# RÚBRICA ANALÍTICA DE EVALUACIÓN · BLOQUE ${blockNum}`);
+  parts.push(`**Asignatura:** ${workbook.coverData?.subjectName || ''} | **Plantel:** ${workbook.coverData?.schoolName || ''}\n`);
+
+  if (evalSec?.rubric && evalSec.rubric.length > 0) {
+    parts.push('## RÚBRICA ANALÍTICA DE DESEMPEÑO (4 NIVELES NEM)\n');
+    for (const crit of evalSec.rubric) {
+      parts.push(`### Criterio: ${crit.criterion} (Ponderación: ${crit.weightPercent}%)`);
+      parts.push('| Nivel | Puntos | Descriptor de Desempeño |');
+      parts.push('|---|---|---|');
+      for (const lvl of crit.levels || []) {
+        parts.push(`| **${lvl.levelName}** | ${lvl.points} pts | ${lvl.descriptor} |`);
+      }
+      parts.push('\n');
+    }
+  }
+
+  return parts.join('\n');
+}
+
+function buildListaCotejoMarkdown(workbook: ActiveWorkTextbook): string {
+  const parts: string[] = [];
+  const evalSec = workbook.evaluationSection;
+  const blockNum = (workbook.blockIndex ?? 0) + 1;
+
+  parts.push(`# LISTA DE COTEJO DE PRODUCTO Y DESEMPEÑO · BLOQUE ${blockNum}`);
+  parts.push(`**Asignatura:** ${workbook.coverData?.subjectName || ''} | **Plantel:** ${workbook.coverData?.schoolName || ''}\n`);
+
+  if (evalSec?.checklist && evalSec.checklist.length > 0) {
+    parts.push('## LISTA DE COTEJO FORMATIVA DE VERIFICACIÓN\n');
+    parts.push('| Categoría | Indicador / Criterio de Verificación | Cumple (Sí/No) | Observaciones |');
+    parts.push('|---|---|---|---|');
+    for (const item of evalSec.checklist) {
+      parts.push(`| ${item.category} | ${item.item} | [ ] Sí  [ ] No | |`);
+    }
+    parts.push('\n');
+  }
+
+  return parts.join('\n');
+}
+
 function buildInstrumentosEvaluacionMarkdown(workbook: ActiveWorkTextbook): string {
   const parts: string[] = [];
   const evalSec = workbook.evaluationSection;
+  const blockNum = (workbook.blockIndex ?? 0) + 1;
 
-  parts.push(`# INSTRUMENTOS DE EVALUACIÓN OFICIALES · BLOQUE ${workbook.blockIndex ?? 1}`);
+  parts.push(`# INSTRUMENTOS DE EVALUACIÓN OFICIALES · BLOQUE ${blockNum}`);
   parts.push(`**Asignatura:** ${workbook.coverData?.subjectName || ''} | **Plantel:** ${workbook.coverData?.schoolName || ''}\n`);
 
   // 1. Rúbricas Analíticas
