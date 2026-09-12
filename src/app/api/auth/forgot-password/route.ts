@@ -30,13 +30,9 @@ export async function POST(req: NextRequest) {
 
     await setTeacherResetToken(cleanEmail, token, expires);
 
-    // En producción se enviaría por email (Resend/SendGrid/Nodemailer).
-    console.log(`[AUTH] Token de recuperación generado para ${cleanEmail}: ${token}`);
-
     return NextResponse.json({
       success: true,
       message: 'Si el correo está registrado, recibirás un enlace para restablecer tu contraseña.',
-      resetToken: process.env.NODE_ENV === 'development' ? token : undefined,
     });
   } catch (error: any) {
     console.error('Error en /api/auth/forgot-password:', error);

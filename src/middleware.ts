@@ -22,7 +22,14 @@ const protectedPaths = [
   '/mis-escuelas',
 ];
 
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || '';
+function isEnvAdmin(email: string): boolean {
+  const cleanEmail = email.toLowerCase().trim();
+  const envAdmins = (process.env.ADMIN_EMAILS || process.env.ADMIN_EMAIL || '')
+    .split(',')
+    .map((e) => e.toLowerCase().trim())
+    .filter(Boolean);
+  return envAdmins.includes(cleanEmail);
+}
 
 async function getTeacherStatus(email: string) {
   try {
@@ -60,8 +67,8 @@ export async function middleware(request: NextRequest) {
 
     const email = session.user.email;
 
-    // 2. Admin → acceso total sin restricciones
-    if (email === ADMIN_EMAIL) {
+    // 2. Admin por variable de entorno → acceso total sin restricciones
+    if (isEnvAdmin(email)) {
       return intlMiddleware(request);
     }
 

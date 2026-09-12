@@ -1,11 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { neon } from '@neondatabase/serverless';
-
-function requireAdmin(email: string): boolean {
-  const adminEmail = process.env.ADMIN_EMAIL;
-  return !!adminEmail && adminEmail === email;
-}
+import { sql } from '@/lib/db';
+import { isAdmin } from '@/lib/admin-unified';
 
 /**
  * POST /api/admin/migrate-roles
@@ -18,11 +14,12 @@ export async function POST() {
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
-    if (!requireAdmin(session.user.email)) {
+    const authorized = await isAdmin(session.user.email);
+    if (!authorized) {
       return NextResponse.json({ error: 'Acceso restringido al superadmin' }, { status: 403 });
     }
 
-    const db = neon(process.env.DATABASE_URL!);
+    const db = sql();
     const results: string[] = [];
 
     // 1. Asegurar columna `role` en teachers

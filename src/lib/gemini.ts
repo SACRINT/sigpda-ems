@@ -15,6 +15,8 @@ import { neon } from '@neondatabase/serverless';
 import { SYSTEM_PROMPT } from './prompts/system-prompt';
 import { generateStreamWithRotation, resolveUserIsPremium } from './ai-provider';
 import { sanitizeGeminiModel } from './ai-provider/gemini';
+import { parseAIResponse } from './ai-response-parser';
+import { PlanningContentSchema } from './ai-schemas';
 import type { GeneratedPlanningContent } from '@/types/planning';
 
 // ── Puntero global de Round-Robin ─────────────────────────────────────────────
@@ -331,13 +333,15 @@ export async function generatePlanning(
 ): Promise<GeneratedPlanningContent> {
   const text = await callGeminiPool(SYSTEM_PROMPT, userPrompt, teacherId);
 
-  let parsed: GeneratedPlanningContent;
-  try {
-    const clean = text.replace(/^```(?:json)?\n?/m, '').replace(/\n?```$/m, '').trim();
-    parsed = JSON.parse(clean);
-  } catch {
-    throw new Error('La IA retornó una respuesta JSON inválida. Por favor intenta de nuevo.');
+  const parseResult = parseAIResponse<GeneratedPlanningContent>(text, PlanningContentSchema as any, {
+    contextName: 'gemini-generate-planning',
+  });
+
+  if (!parseResult.success) {
+    throw new Error(`La IA retornó una respuesta JSON inválida: ${parseResult.error}`);
   }
+
+  const parsed = parseResult.data;
 
   if (!parsed.sectionI || !parsed.sectionII || !parsed.sectionIV) {
     throw new Error('La respuesta de la IA está incompleta. Por favor intenta de nuevo.');

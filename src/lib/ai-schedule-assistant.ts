@@ -11,6 +11,8 @@
 
 import { getAIProvider } from "@/lib/ai-provider";
 import { callGeminiPool } from "@/lib/gemini";
+import { parseAIResponse } from "@/lib/ai-response-parser";
+import { ScheduleAssistantResponseSchema } from "@/lib/ai-schemas";
 
 export interface BloqueoDocenteIA {
   docenteId: string;
@@ -207,13 +209,17 @@ Responde exclusivamente con el JSON estructurado.`;
       rawResponse = await callGeminiPool(systemInstruction, prompt, escuelaId);
     }
 
-    const cleanJson = rawResponse
-      .replace(/```json/gi, "")
-      .replace(/```/g, "")
-      .trim();
+    const parseResult = parseAIResponse<RespuestaIAHorario>(
+      rawResponse,
+      ScheduleAssistantResponseSchema as any,
+      { contextName: 'ai-schedule-assistant' }
+    );
 
-    const parsed = JSON.parse(cleanJson) as RespuestaIAHorario;
-    return parsed;
+    if (parseResult.success) {
+      return parseResult.data;
+    }
+
+    throw new Error(parseResult.error);
   } catch (error) {
     console.error("[ai-schedule-assistant] Error procesando comando de horario:", error);
     return {

@@ -13,8 +13,8 @@
  * En BGE: Enfocado en errores conceptuales, dificultades de cálculo y experimentos fallidos.
  */
 
-import { callGeminiPool } from '@/lib/gemini';
-import { robustJsonParse } from './json-repair';
+import { generateWithRotation } from '@/lib/ai-provider';
+import { robustJsonParse } from '@/lib/ai-response-parser';
 import type { CanonicalSeed, TroubleshootItem } from '@/types/work-textbook';
 
 export interface ResilienceInput {
@@ -87,7 +87,7 @@ Semillas técnicas previas: ${seedErrors.map((s) => s.symptom).join('; ') || 'Ni
 Genera los 5 a 8 casos más relevantes de la matriz "¿Qué hacer si falla?":`;
 
   try {
-    const rawResponse = await callGeminiPool(systemInstruction, prompt, input.teacherId);
+    const rawResponse = await generateWithRotation(systemInstruction, prompt, input.teacherId);
     const parsed = robustJsonParse(rawResponse);
 
     if (Array.isArray(parsed) && parsed.length > 0) {

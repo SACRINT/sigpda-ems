@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { getTeacherByEmail } from '@/lib/db';
-import { neon } from '@neondatabase/serverless';
-
-const sql = neon(process.env.DATABASE_URL!);
+import { getTeacherByEmail, sql } from '@/lib/db';
 
 export async function GET() {
   try {
@@ -17,7 +14,8 @@ export async function GET() {
       return NextResponse.json({ error: 'Docente no encontrado' }, { status: 404 });
     }
 
-    const projects = await sql`
+    const db = sql();
+    const projects = await db`
       SELECT
         p.id,
         p.teacher_id,
@@ -77,7 +75,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const [project] = await sql`
+    const db = sql();
+    const [project] = await db`
       INSERT INTO pmc_projects (
         teacher_id,
         school_name,

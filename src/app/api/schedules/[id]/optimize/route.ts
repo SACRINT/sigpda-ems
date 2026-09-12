@@ -3,6 +3,8 @@ import { auth } from '@/lib/auth';
 import { getTeacherByEmail, getScheduleById, updateSchedule } from '@/lib/db';
 import { resolverHorario, SolverParams } from '@/lib/horarios/solver';
 import { generateWithRotation } from '@/lib/ai-provider';
+import { parseAIResponse } from '@/lib/ai-response-parser';
+import { ScheduleOptimizationSchema } from '@/lib/ai-schemas';
 
 export async function POST(
   request: NextRequest,
@@ -50,7 +52,7 @@ export async function POST(
     }
 
     // Análisis Pedagógico con IA mediante ai-provider
-    let aiSuggestions = [];
+    let aiSuggestions: any[] = [];
     if (aiFeedback) {
       const systemPrompt = `Eres un asesor experto en gestión y organización escolar de Educación Media Superior (DBEPA Puebla). Tu tarea es evaluar una plantilla de horarios y emitir diagnósticos y recomendaciones de optimización pedagógica para directores. Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
 {
@@ -74,9 +76,14 @@ Genera el diagnóstico de balance y recomendaciones de optimización.`;
 
       try {
         const aiResponse = await generateWithRotation(systemPrompt, userPrompt, teacher.id);
-        const cleanJson = aiResponse.replace(/^```(?:json)?\n?/m, '').replace(/\n?```$/m, '').trim();
-        const parsed = JSON.parse(cleanJson);
-        aiSuggestions = parsed;
+        const parseResult = parseAIResponse(aiResponse, ScheduleOptimizationSchema, {
+          contextName: 'schedule-optimize-suggestions',
+        });
+        if (parseResult.success) {
+          aiSuggestions = parseResult.data;
+        } else {
+          throw new Error(parseResult.error);
+        }
       } catch (aiErr) {
         console.warn('AI suggestions generation non-critical warning:', aiErr);
         aiSuggestions = [

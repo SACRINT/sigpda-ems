@@ -14,10 +14,10 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const targetUserId = body.userId || currentUserId;
+    const targetUserId = currentUserId;
 
     if (!targetUserId) {
-      return NextResponse.json({ error: 'Usuario no identificado' }, { status: 400 });
+      return NextResponse.json({ error: 'No autorizado o usuario no identificado' }, { status: 401 });
     }
 
     if (!body.title || !body.message) {

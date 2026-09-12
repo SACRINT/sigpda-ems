@@ -149,3 +149,15 @@ export function parseAIResponse<T>(
     cleanedJson: JSON.stringify(validationResult.data),
   };
 }
+
+/**
+ * Parseo y reparación robusta de JSON sin requerir esquema Zod previo.
+ * Utiliza jsonrepair y las estrategias de limpieza del pipeline central.
+ */
+export function robustJsonParse<T = any>(raw: string): T {
+  const parsed = parseAIResponse(raw, z.any());
+  if (!parsed.success || parsed.data === undefined) {
+    throw new Error(parsed.error || `[robustJsonParse] No se pudo parsear el JSON de IA: ${raw.substring(0, 100)}...`);
+  }
+  return parsed.data as T;
+}

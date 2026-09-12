@@ -13,6 +13,10 @@ export interface SignatureData {
   documentId: string;
 }
 
+const esc = (s: string | null | undefined): string =>
+  String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] || c));
+
+
 export interface VerificationResult {
   valid: boolean;
   signature?: SignatureData;
@@ -165,33 +169,33 @@ export function buildVerificationPageHtml(signature: SignatureData, valid: boole
   <div class="card">
     <div class="header">
       <div class="status-icon ${valid ? 'valid' : 'invalid'}">${valid ? '✓' : '✗'}</div>
-      <div class="status-text">${statusText}</div>
-      <div class="status-detail">${statusDetail}</div>
+      <div class="status-text">${esc(statusText)}</div>
+      <div class="status-detail">${esc(statusDetail)}</div>
     </div>
     <div class="details">
       <div class="detail-row">
         <span class="detail-label">Firmado por</span>
-        <span class="detail-value">${signature.signerName}</span>
+        <span class="detail-value">${esc(signature.signerName)}</span>
       </div>
       <div class="detail-row">
         <span class="detail-label">Rol</span>
-        <span class="detail-value">${signature.signerRole}</span>
+        <span class="detail-value">${esc(signature.signerRole)}</span>
       </div>
       <div class="detail-row">
         <span class="detail-label">CCT</span>
-        <span class="detail-value">${signature.cct}</span>
+        <span class="detail-value">${esc(signature.cct)}</span>
       </div>
       <div class="detail-row">
         <span class="detail-label">Tipo de documento</span>
-        <span class="detail-value">${signature.documentType}</span>
+        <span class="detail-value">${esc(signature.documentType)}</span>
       </div>
       <div class="detail-row">
         <span class="detail-label">Fecha de firma</span>
-        <span class="detail-value">${new Date(signature.timestamp).toLocaleString('es-MX')}</span>
+        <span class="detail-value">${esc(new Date(signature.timestamp).toLocaleString('es-MX'))}</span>
       </div>
       <div class="hash-box">
         <div class="hash-label">Hash SHA-256</div>
-        <div class="hash-value">${signature.hash}</div>
+        <div class="hash-value">${esc(signature.hash)}</div>
       </div>
     </div>
     <div class="footer">

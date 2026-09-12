@@ -1634,6 +1634,30 @@ export default function PlanningDetailClient({
                                 <Download size={13} /> PDF (.pdf)
                               </a>
 
+                              <a
+                                href={`/api/planeaciones/${planning.id}/materiales-bloque?blockIndex=${i}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn"
+                                style={{
+                                  padding: '6px 12px',
+                                  fontSize: '12px',
+                                  fontWeight: 600,
+                                  background: 'rgba(16, 185, 129, 0.18)',
+                                  border: '1px solid rgba(16, 185, 129, 0.4)',
+                                  color: '#6ee7b7',
+                                  borderRadius: '6px',
+                                  textDecoration: 'none',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  transition: 'all 0.15s',
+                                }}
+                                title="Ver Suite de Materiales Derivados (24 Planes de Clase, Guía del Bloque e Instrumentos a 0 tokens)"
+                              >
+                                <FileText size={13} /> 📑 Suite (24 Planes)
+                              </a>
+
                               <button
                                 type="button"
                                 onClick={() => {

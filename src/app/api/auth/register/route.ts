@@ -5,7 +5,7 @@ import { getTeacherByEmail, createTeacherWithPassword } from '@/lib/db';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name, email, password, confirmPassword, schoolName, cct, municipality, subsystem, role } = body;
+    const { name, email, password, confirmPassword, schoolName, cct, municipality, subsystem } = body;
 
     if (!name || !email || !password) {
       return NextResponse.json(
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
       cct: cct?.toUpperCase().trim(),
       municipality: municipality?.trim(),
       subsystem: subsystem?.toLowerCase().trim() || 'bge',
-      role: role || 'docente',
+      role: 'docente',
     });
 
     return NextResponse.json({

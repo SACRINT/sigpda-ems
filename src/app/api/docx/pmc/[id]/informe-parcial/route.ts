@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { getTeacherByEmail } from '@/lib/db';
-import { neon } from '@neondatabase/serverless';
+import { getTeacherByEmail, sql } from '@/lib/db';
 import { generatePmcInformeDocx, type PmcProject } from '@/lib/pmc-docx-generator';
 
 export const runtime = 'nodejs';
-
-const sql = neon(process.env.DATABASE_URL!);
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -23,8 +20,9 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
     }
 
     const { id } = await params;
+    const db = sql();
 
-    const [project] = await sql`
+    const [project] = await db`
       SELECT *
       FROM pmc_projects
       WHERE id = ${id}

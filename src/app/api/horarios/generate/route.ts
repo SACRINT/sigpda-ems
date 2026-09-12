@@ -1,5 +1,6 @@
 import { auth } from '@/lib/auth';
-import { neon } from '@neondatabase/serverless';
+import { sql } from '@/lib/db';
+import { isAdmin } from '@/lib/admin-unified';
 import { NextResponse } from 'next/server';
 import { resolverHorario, SolverParams } from '@/lib/horarios/solver';
 
@@ -10,12 +11,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-    const sql = neon(process.env.DATABASE_URL!);
-    const teacherRows = await sql`SELECT role FROM teachers WHERE email = ${session.user.email} LIMIT 1`;
+    const db = sql();
+    const teacherRows = await db`SELECT role FROM teachers WHERE email = ${session.user.email} LIMIT 1`;
     const role = teacherRows[0]?.role || 'docente';
+    const isUserAdmin = await isAdmin(session.user.email);
 
     // Verificar rol de director o admin
-    if (!['administrador', 'director', 'supervisor', 'atp'].includes(role) && session.user.email !== process.env.ADMIN_EMAIL) {
+    if (!['administrador', 'director', 'supervisor', 'atp'].includes(role) && !isUserAdmin) {
       return NextResponse.json({ error: 'Acceso exclusivo para directores y supervisores.' }, { status: 403 });
     }
 

@@ -4,7 +4,7 @@
  */
 
 import { auth } from '@/lib/auth';
-import { neon } from '@neondatabase/serverless';
+import { isAdmin } from '@/lib/admin-unified';
 import { NextResponse } from 'next/server';
 
 export async function requireAdmin(): Promise<string> {
@@ -14,20 +14,9 @@ export async function requireAdmin(): Promise<string> {
   }
 
   const email = session.user.email;
+  const authorized = await isAdmin(email);
 
-  if (process.env.ADMIN_EMAIL === email) return email;
-
-  try {
-    const sql = neon(process.env.DATABASE_URL!);
-    const rows = await sql`SELECT email FROM admins WHERE email = ${email} LIMIT 1`;
-    if (rows.length > 0) return email;
-    
-    const tRows = await sql`SELECT role FROM teachers WHERE email = ${email} LIMIT 1`;
-    if (tRows.length > 0 && tRows[0].role === 'administrador') return email;
-    
-    throw new Error('FORBIDDEN');
-  } catch (err: any) {
-    if (err.message === 'FORBIDDEN') throw err;
+  if (!authorized) {
     throw new Error('FORBIDDEN');
   }
 

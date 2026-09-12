@@ -12,6 +12,7 @@
 
 import { neon } from '@neondatabase/serverless';
 import { generateWithRotation } from '@/lib/ai-provider';
+import { robustJsonParse } from '@/lib/ai-response-parser';
 
 export interface DimensionAudit {
   score: number; // 0 a 100
@@ -57,30 +58,6 @@ export interface AuditReport {
   official_program_ref?: any;
   audited_by: string;
   created_at?: string;
-}
-
-function extractJsonFromResponse(raw: string): any {
-  try {
-    // 1. Direct JSON parse
-    return JSON.parse(raw);
-  } catch {
-    // 2. Extract ```json code block
-    const match = raw.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-    if (match) {
-      try {
-        return JSON.parse(match[1]);
-      } catch {}
-    }
-    // 3. Extract between first { and last }
-    const firstBrace = raw.indexOf('{');
-    const lastBrace = raw.lastIndexOf('}');
-    if (firstBrace !== -1 && lastBrace > firstBrace) {
-      try {
-        return JSON.parse(raw.slice(firstBrace, lastBrace + 1));
-      } catch {}
-    }
-    throw new Error('No se pudo extraer una estructura JSON válida de la respuesta del modelo.');
-  }
 }
 
 export async function runPedagogicalAudit(planningId: string, options: { teacherId?: string, isPremium?: boolean } = {}): Promise<AuditReport> {
@@ -239,7 +216,7 @@ Realiza la auditoría exhaustiva y devuelve el objeto JSON con la evaluación de
 
   // 4. Ejecutar con IA mediante src/lib/ai-provider
   const rawAiResponse = await generateWithRotation(systemPrompt, userPrompt, teacherId, options.isPremium);
-  const parsed = extractJsonFromResponse(rawAiResponse);
+  const parsed = robustJsonParse(rawAiResponse);
 
   // 5. Normalizar puntuación y nivel de cumplimiento
   const overallScore = Math.max(0, Math.min(100, Math.round(Number(parsed.overall_score) || 0)));

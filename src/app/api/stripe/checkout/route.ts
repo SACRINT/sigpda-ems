@@ -37,19 +37,24 @@ export async function POST(req: Request) {
     else limit = 1;
 
     if (!process.env.STRIPE_SECRET_KEY || !stripe) {
-      console.warn('No STRIPE_SECRET_KEY found. Mocking successful checkout.');
+      if (process.env.NODE_ENV === 'production') {
+        return NextResponse.json({ error: 'Pasarela de pagos Stripe no configurada en producción' }, { status: 503 });
+      }
+
+      console.warn('No STRIPE_SECRET_KEY found. Mocking successful checkout (development only).');
       
       try {
+        await sql()`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS mock BOOLEAN DEFAULT false`;
         await sql()`
           DELETE FROM subscriptions WHERE teacher_id = ${teacher.id}::uuid
         `;
         await sql()`
           INSERT INTO subscriptions (
             teacher_id, plan_name, plan_subjects, status, 
-            stripe_customer_id, stripe_subscription_id, current_period_end
+            stripe_customer_id, stripe_subscription_id, current_period_end, mock
           ) VALUES (
             ${teacher.id}::uuid, ${planName}, ${limit}, 'active', 
-            'mock_cus_123', 'mock_sub_123', NOW() + INTERVAL '30 days'
+            'mock_cus_123', 'mock_sub_123', NOW() + INTERVAL '30 days', true
           )
         `;
       } catch (e) {

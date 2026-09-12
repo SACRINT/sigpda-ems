@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   plan_subjects       INTEGER NOT NULL DEFAULT 0,
   status              TEXT NOT NULL DEFAULT 'inactive', -- 'active' | 'past_due' | 'canceled' | 'inactive'
   current_period_end  TIMESTAMPTZ,
+  mock                BOOLEAN DEFAULT false,
   created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

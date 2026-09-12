@@ -11,6 +11,8 @@
  */
 
 import { getAIProvider } from '@/lib/ai-provider';
+import { parseAIResponse } from '@/lib/ai-response-parser';
+import { PlaneacionEvaluacionSchema } from '@/lib/ai-schemas';
 
 export type TipoEvaluacion = 'FUNDAMENTAL_1_4' | 'FUNDAMENTAL_5_6' | 'LABORAL';
 
@@ -194,14 +196,16 @@ Dictamina cada uno de los ${defs.length} criterios de forma objetiva y responde 
   // Forzar temperatura 0.0 para máxima reproducibilidad y determinismo
   const responseText = await ai.generate(systemPrompt, userPrompt, { temperature: 0.0 });
 
-  let rawJson: any;
-  try {
-    const cleanJson = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
-    rawJson = JSON.parse(cleanJson);
-  } catch (err) {
-    console.error('Error al parsear JSON de evaluador IA:', responseText);
-    throw new Error('La IA devolvió una respuesta con formato inválido para la evaluación.');
+  const parseResult = parseAIResponse(responseText, PlaneacionEvaluacionSchema, {
+    contextName: 'planeaciones-evaluator',
+  });
+
+  if (!parseResult.success) {
+    console.error('Error al parsear JSON de evaluador IA:', responseText, parseResult.error);
+    throw new Error(`La IA devolvió una respuesta con formato inválido para la evaluación: ${parseResult.error}`);
   }
+
+  const rawJson: any = parseResult.data;
 
   // ── Cálculo determinista y cuantitativo en TypeScript ────────────────────
   const aiCriteriosMap = new Map<string, any>();

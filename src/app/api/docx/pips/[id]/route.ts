@@ -1,12 +1,9 @@
-// src/app/api/docx/pips/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { getTeacherByEmail } from '@/lib/db';
-import { neon } from '@neondatabase/serverless';
+import { getTeacherByEmail, sql } from '@/lib/db';
 import { generatePipsDocx } from '@/lib/pips-docx-generator';
 
 export const runtime = 'nodejs';
-const sql = neon(process.env.DATABASE_URL!);
 
 export async function GET(
   _req: NextRequest,
@@ -22,7 +19,8 @@ export async function GET(
       return NextResponse.json({ error: 'Docente no encontrado' }, { status: 404 });
 
     const { id } = await params;
-    const [row] = await sql`
+    const db = sql();
+    const [row] = await db`
       SELECT * FROM pips_projects
       WHERE id = ${id}::uuid AND teacher_id = ${teacher.id}::uuid
     `;

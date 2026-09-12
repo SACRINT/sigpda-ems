@@ -3,6 +3,8 @@ import { auth } from '@/lib/auth';
 import { getTeacherByEmail } from '@/lib/db';
 import { callGeminiPool } from '@/lib/gemini';
 import { ingestDocument } from '@/lib/document-ingestion';
+import { parseAIResponse } from '@/lib/ai-response-parser';
+import { PaecExtractedDocSchema } from '@/lib/ai-schemas';
 import type { PaecOperationalActivity, PaecParseResult } from '@/types/planning';
 
 export async function POST(request: NextRequest) {
@@ -170,12 +172,12 @@ TEXTO DEL DOCUMENTO:
 ${smartText}`;
 
   const rawJsonText = await callGeminiPool(systemInstruction, prompt);
-  const cleanJson = rawJsonText
-    .replace(/^```(?:json)?\n?/m, '')
-    .replace(/\n?```$/m, '')
-    .trim();
+  const parseResult = parseAIResponse(rawJsonText, PaecExtractedDocSchema, { contextName: 'paec_pdf_parse' });
+  if (!parseResult.success) {
+    throw new Error(`Error estructurando PAEC con IA: ${parseResult.error}`);
+  }
 
-  return JSON.parse(cleanJson);
+  return parseResult.data;
 }
 
 // ─── Heurísticas Multi-Ancla sobre Todo el Texto ──────────────────────────────

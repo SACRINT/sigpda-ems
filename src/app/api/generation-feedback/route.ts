@@ -1,14 +1,8 @@
-// src/app/api/generation-feedback/route.ts
-// POST — Guarda el feedback del usuario sobre una generación de IA
-// GET  — Consulta el feedback del usuario para una entidad específica
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { getTeacherByEmail } from '@/lib/db';
-import { neon } from '@neondatabase/serverless';
+import { getTeacherByEmail, sql } from '@/lib/db';
 
 export const runtime = 'nodejs';
-
-const sql = neon(process.env.DATABASE_URL!);
 
 // ─── POST /api/generation-feedback ───────────────────────────────────────────
 export async function POST(request: NextRequest) {
@@ -46,8 +40,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Tipo de entidad inválido' }, { status: 400 });
     }
 
+    const db = sql();
     // Upsert: si ya existe un feedback del mismo usuario/entidad, actualiza
-    const [row] = await sql`
+    const [row] = await db`
       INSERT INTO generation_feedback
         (teacher_id, entity_type, entity_id, rating, comment, dimension)
       VALUES
@@ -85,7 +80,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Faltan parámetros' }, { status: 400 });
     }
 
-    const rows = await sql`
+    const db = sql();
+    const rows = await db`
       SELECT rating, comment, dimension, created_at
       FROM generation_feedback
       WHERE teacher_id = ${teacher.id}::uuid

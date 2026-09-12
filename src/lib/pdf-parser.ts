@@ -2,6 +2,8 @@ import type { PdfParseResult } from '@/types/pdf-extraction';
 import type { KeyActivity } from '@/types/planning';
 import { callGeminiPool } from '@/lib/gemini';
 import { ingestDocument } from '@/lib/document-ingestion';
+import { parseAIResponse } from '@/lib/ai-response-parser';
+import { PdfProgramExtractSchema } from '@/lib/ai-schemas';
 
 /**
  * Universal document extraction and structuring for Curricular Programs (PDF, Word .docx, etc.):
@@ -101,12 +103,11 @@ TEXTO DEL PROGRAMA:
 ${rawText}`;
 
   const rawJsonText = await callGeminiPool(systemInstruction, prompt);
-  const cleanJson = rawJsonText
-    .replace(/^```(?:json)?\n?/m, '')
-    .replace(/\n?```$/m, '')
-    .trim();
-
-  const parsed = JSON.parse(cleanJson);
+  const parseResult = parseAIResponse(rawJsonText, PdfProgramExtractSchema, { contextName: 'pdf_program_extract' });
+  if (!parseResult.success) {
+    throw new Error(`Error estructurando programa con IA: ${parseResult.error}`);
+  }
+  const parsed = parseResult.data;
 
   const activities: KeyActivity[] = Array.isArray(parsed.activities)
     ? parsed.activities

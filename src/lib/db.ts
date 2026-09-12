@@ -31,7 +31,12 @@ export async function getTeacherByEmail(email: string) {
     WHERE email = ${email.toLowerCase().trim()}
     LIMIT 1
   `;
-  return rows[0] || null;
+  const teacher = rows[0] || null;
+  if (teacher && teacher.custom_api_key) {
+    const { decryptKey } = await import('@/lib/ai-provider/key-rotator');
+    teacher.custom_api_key = decryptKey(teacher.custom_api_key);
+  }
+  return teacher;
 }
 
 export async function getTeacherById(id: string) {
@@ -43,7 +48,12 @@ export async function getTeacherById(id: string) {
     WHERE id = ${id}::uuid
     LIMIT 1
   `;
-  return rows[0] || null;
+  const teacher = rows[0] || null;
+  if (teacher && teacher.custom_api_key) {
+    const { decryptKey } = await import('@/lib/ai-provider/key-rotator');
+    teacher.custom_api_key = decryptKey(teacher.custom_api_key);
+  }
+  return teacher;
 }
 
 export async function createTeacherWithPassword(data: {
@@ -103,10 +113,15 @@ export async function verifyAndResetPassword(token: string, newPasswordHash: str
 }
 
 export async function updateTeacherKey(teacherId: string, customApiKey: string | null, customApiProvider: string | null) {
+  let encryptedKey = customApiKey;
+  if (customApiKey) {
+    const { encryptKey } = await import('@/lib/ai-provider/key-rotator');
+    encryptedKey = encryptKey(customApiKey);
+  }
   const rows = await sql()`
     UPDATE teachers
     SET
-      custom_api_key = ${customApiKey},
+      custom_api_key = ${encryptedKey},
       custom_api_provider = ${customApiProvider}
     WHERE id = ${teacherId}::uuid
     RETURNING id, email, custom_api_provider
@@ -1083,63 +1098,71 @@ export async function saveBlockWorkbook(
   const client = sql();
   const blockKey = `block_${blockIndex}`;
 
-  // 1. Obtener los workbooks actuales de la planeación verificando existencia
-  const rows = await client`
-    SELECT id, workbooks_json
-    FROM plannings
-    WHERE id = ${planningId}::uuid
-    LIMIT 1
-  `;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    // 1. Obtener los workbooks actuales de la planeación verificando existencia
+    const rows = await client`
+      SELECT id, workbooks_json
+      FROM plannings
+      WHERE id = ${planningId}::uuid
+      LIMIT 1
+    `;
 
-  if (!rows || rows.length === 0) {
-    return { version: 0, success: false, error: 'Planning not found' };
+    if (!rows || rows.length === 0) {
+      return { version: 0, success: false, error: 'Planning not found' };
+    }
+
+    const currentWorkbooks = (rows[0]?.workbooks_json || {}) as Record<string, any>;
+    const existingBlockData = currentWorkbooks[blockKey] || { version: 0, history: [] };
+    const expectedVersion = existingBlockData.version || 0;
+    const newVersion = expectedVersion + 1;
+    workbook.version = newVersion;
+
+    const historyItem = existingBlockData.current
+      ? {
+          version: existingBlockData.version,
+          generatedAt: existingBlockData.current.generatedAt,
+          totalPages: existingBlockData.current.totalPages,
+          totalWords: existingBlockData.current.totalWords,
+          qualityScore: existingBlockData.current.qualityScore,
+          qualityWarning: existingBlockData.current.qualityWarning,
+        }
+      : null;
+
+    const updatedHistory = [...(existingBlockData.history || [])];
+    if (historyItem) {
+      updatedHistory.push(historyItem);
+    }
+
+    const blockEntry = {
+      version: newVersion,
+      current: workbook,
+      history: updatedHistory,
+    };
+
+    const updateResult = await client`
+      UPDATE plannings
+      SET workbooks_json = jsonb_set(
+        COALESCE(workbooks_json, '{}'::jsonb),
+        ARRAY[${blockKey}],
+        ${JSON.stringify(blockEntry)}::jsonb,
+        true
+      ),
+      updated_at = NOW()
+      WHERE id = ${planningId}::uuid
+        AND (
+          workbooks_json IS NULL 
+          OR workbooks_json->${blockKey} IS NULL 
+          OR COALESCE((workbooks_json->${blockKey}->>'version')::int, 0) = ${expectedVersion}
+        )
+      RETURNING id
+    `;
+
+    if (updateResult && updateResult.length > 0) {
+      return { version: newVersion, success: true };
+    }
   }
 
-  const currentWorkbooks = (rows[0]?.workbooks_json || {}) as Record<string, any>;
-  const existingBlockData = currentWorkbooks[blockKey] || { version: 0, history: [] };
-  const newVersion = (existingBlockData.version || 0) + 1;
-  workbook.version = newVersion;
-
-  const historyItem = existingBlockData.current
-    ? {
-        version: existingBlockData.version,
-        generatedAt: existingBlockData.current.generatedAt,
-        totalPages: existingBlockData.current.totalPages,
-        totalWords: existingBlockData.current.totalWords,
-        qualityScore: existingBlockData.current.qualityScore,
-        qualityWarning: existingBlockData.current.qualityWarning,
-      }
-    : null;
-
-  const updatedHistory = existingBlockData.history || [];
-  if (historyItem) {
-    updatedHistory.push(historyItem);
-  }
-
-  const blockEntry = {
-    version: newVersion,
-    current: workbook,
-    history: updatedHistory,
-  };
-
-  const updateResult = await client`
-    UPDATE plannings
-    SET workbooks_json = jsonb_set(
-      COALESCE(workbooks_json, '{}'::jsonb),
-      ARRAY[${blockKey}],
-      ${JSON.stringify(blockEntry)}::jsonb,
-      true
-    ),
-    updated_at = NOW()
-    WHERE id = ${planningId}::uuid
-    RETURNING id
-  `;
-
-  if (!updateResult || updateResult.length === 0) {
-    return { version: 0, success: false, error: 'Failed to update planning' };
-  }
-
-  return { version: newVersion, success: true };
+  return { version: 0, success: false, error: 'Conflicto de concurrencia al guardar workbook' };
 }
 
 /**

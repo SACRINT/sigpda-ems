@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { getTeacherByEmail } from '@/lib/db';
-import { neon } from '@neondatabase/serverless';
-
-const sql = neon(process.env.DATABASE_URL!);
+import { getTeacherByEmail, sql } from '@/lib/db';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -56,8 +53,9 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
     }
 
     const { id } = await params;
+    const db = sql();
 
-    const [project] = await sql`
+    const [project] = await db`
       SELECT *
       FROM pmc_projects
       WHERE id = ${id}::uuid
@@ -88,9 +86,10 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
     }
 
     const { id } = await params;
+    const db = sql();
 
     // Verify ownership first
-    const [existing] = await sql`
+    const [existing] = await db`
       SELECT id FROM pmc_projects
       WHERE id = ${id}::uuid
         AND teacher_id = ${teacher.id}::uuid
@@ -105,7 +104,7 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
     const b = body;
     const toJson = (v: unknown) => (v !== undefined ? JSON.stringify(v) : null);
 
-    const [updated] = await sql`
+    const [updated] = await db`
       UPDATE pmc_projects SET
         school_name           = COALESCE(${b.school_name as string ?? null}, school_name),
         school_cct            = COALESCE(${b.school_cct as string ?? null}, school_cct),
@@ -158,8 +157,9 @@ export async function DELETE(_request: NextRequest, { params }: RouteContext) {
     }
 
     const { id } = await params;
+    const db = sql();
 
-    const [deleted] = await sql`
+    const [deleted] = await db`
       DELETE FROM pmc_projects
       WHERE id = ${id}::uuid
         AND teacher_id = ${teacher.id}::uuid

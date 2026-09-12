@@ -11,6 +11,8 @@ import {
 import { generatePlanningStream } from '@/lib/gemini';
 import { logActivity } from '@/lib/ai-provider';
 import { buildUserPrompt } from '@/lib/prompts/build-prompt';
+import { parseAIResponse } from '@/lib/ai-response-parser';
+import { PlanningContentSchema } from '@/lib/ai-schemas';
 import { getUserLibraryContext } from '@/lib/context-extractor';
 import { searchCurriculum } from '@/lib/rag-curricular';
 import type { ExtractedPdfData, TeacherContext } from '@/types/planning';
@@ -145,11 +147,15 @@ export async function POST(
 
           // Once generation is finished, parse and save to database
           try {
-            const cleanJson = accumulatedText
-              .replace(/^```(?:json)?\n?/m, '')
-              .replace(/\n?```$/m, '')
-              .trim();
-            const parsedContent = JSON.parse(cleanJson);
+            const parseResult = parseAIResponse<any>(accumulatedText, PlanningContentSchema, {
+              contextName: 'plannings-generate-stream',
+            });
+
+            if (!parseResult.success) {
+              throw new Error(parseResult.error);
+            }
+
+            const parsedContent = parseResult.data;
             
             // Persistir la actividad operativa del PAEC en sectionI del content_json
             if (!parsedContent.sectionI) {

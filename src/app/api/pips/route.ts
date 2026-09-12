@@ -1,10 +1,7 @@
 // src/app/api/pips/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { getTeacherByEmail } from '@/lib/db';
-import { neon } from '@neondatabase/serverless';
-
-const sql = neon(process.env.DATABASE_URL!);
+import { getTeacherByEmail, sql } from '@/lib/db';
 
 // GET — list all PIPS of the current teacher
 export async function GET() {
@@ -17,7 +14,8 @@ export async function GET() {
     if (!teacher)
       return NextResponse.json({ error: 'Docente no encontrado' }, { status: 404 });
 
-    const projects = await sql`
+    const db = sql();
+    const projects = await db`
       SELECT id, zona_nombre, zona_clave, supervisor_name, ciclo_escolar,
              num_planteles, current_step, status, created_at, updated_at
       FROM pips_projects
@@ -44,8 +42,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Docente no encontrado' }, { status: 404 });
 
     const body = await req.json();
+    const db = sql();
 
-    const [project] = await sql`
+    const [project] = await db`
       INSERT INTO pips_projects (
         teacher_id, zona_clave, zona_nombre, supervisor_name,
         municipio_sede, municipios_atiende, num_planteles,

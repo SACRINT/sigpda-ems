@@ -1,10 +1,6 @@
-// src/app/api/pips/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { getTeacherByEmail } from '@/lib/db';
-import { neon } from '@neondatabase/serverless';
-
-const sql = neon(process.env.DATABASE_URL!);
+import { getTeacherByEmail, sql } from '@/lib/db';
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
@@ -20,7 +16,8 @@ export async function GET(_req: NextRequest, { params }: RouteCtx) {
     if (!teacher)
       return NextResponse.json({ error: 'Docente no encontrado' }, { status: 404 });
 
-    const [project] = await sql`
+    const db = sql();
+    const [project] = await db`
       SELECT * FROM pips_projects
       WHERE id = ${id}::uuid AND teacher_id = ${teacher.id}::uuid
     `;
@@ -48,8 +45,9 @@ export async function PUT(req: NextRequest, { params }: RouteCtx) {
       return NextResponse.json({ error: 'Docente no encontrado' }, { status: 404 });
 
     const body = await req.json();
+    const db = sql();
 
-    const [project] = await sql`
+    const [project] = await db`
       UPDATE pips_projects SET
         zona_clave                 = COALESCE(${body.zona_clave ?? null}, zona_clave),
         zona_nombre                = COALESCE(${body.zona_nombre ?? null}, zona_nombre),
@@ -103,7 +101,8 @@ export async function DELETE(_req: NextRequest, { params }: RouteCtx) {
     if (!teacher)
       return NextResponse.json({ error: 'Docente no encontrado' }, { status: 404 });
 
-    await sql`
+    const db = sql();
+    await db`
       DELETE FROM pips_projects
       WHERE id = ${id}::uuid AND teacher_id = ${teacher.id}::uuid
     `;

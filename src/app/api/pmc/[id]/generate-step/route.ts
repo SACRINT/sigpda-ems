@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { getTeacherByEmail } from '@/lib/db';
-import { neon } from '@neondatabase/serverless';
+import { getTeacherByEmail, sql } from '@/lib/db';
 import { logActivity } from '@/lib/ai-provider';
 import { callGeminiPool } from '@/lib/gemini';
 import { getUserLibraryContext } from '@/lib/context-extractor';
@@ -11,8 +10,6 @@ import { PmcDiagnosticoSchema, PmcPlanAccionSchema } from '@/lib/ai-schemas';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
-
-const sql = neon(process.env.DATABASE_URL!);
 
 type RouteContext = { params: Promise<{ id: string }> };
 type StepType = 'normativa' | 'diagnostico' | 'plan_accion';
@@ -54,8 +51,9 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     }
 
     const { id } = await params;
+    const db = sql();
 
-    const [project] = await sql`
+    const [project] = await db`
       SELECT *
       FROM pmc_projects
       WHERE id = ${id}
@@ -100,7 +98,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         generado_en: now,
       };
 
-      const [updated] = await sql`
+      const [updated] = await db`
         UPDATE pmc_projects
         SET normativa = ${JSON.stringify(normativaJson)},
             current_step = GREATEST(current_step, 2),
@@ -188,7 +186,7 @@ Responde con JSON con exactamente estas 5 claves. Texto formal y técnico. NO in
       }
       const parsedDiag = parseResult.data;
 
-      const [updated] = await sql`
+      const [updated] = await db`
         UPDATE pmc_projects
         SET diagnostico_generado = ${JSON.stringify(parsedDiag)},
             current_step = GREATEST(current_step, 3),
@@ -347,7 +345,7 @@ Responde con JSON con esta estructura EXACTA:
       }
       const parsedPlan = parseResult.data;
 
-      const [updated] = await sql`
+      const [updated] = await db`
         UPDATE pmc_projects
         SET plan_accion = ${JSON.stringify(parsedPlan)},
             current_step = GREATEST(current_step, 4),

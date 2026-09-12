@@ -10,8 +10,8 @@
  * - Preguntas de reflexión y conexión con la teoría.
  */
 
-import { callGeminiPool } from '@/lib/gemini';
-import { robustJsonParse } from '../json-repair';
+import { generateWithRotation } from '@/lib/ai-provider';
+import { robustJsonParse } from '@/lib/ai-response-parser';
 import { extractWorkbookTags } from '../workbook-tags';
 import type { MissionSection, WorkbookElement, TroubleshootItem } from '@/types/work-textbook';
 import { type WriterInput, type WriterOutput, evaluateQuality } from './writer-contract';
@@ -123,7 +123,7 @@ y espacios amplios para que el estudiante trabaje.
 Redacta la Misión Práctica de Laboratorio/Taller completa:`;
 
   try {
-    const rawResponse = await callGeminiPool(systemInstruction, prompt, input.planning.teacherId);
+    const rawResponse = await generateWithRotation(systemInstruction, prompt, input.planning.teacherId);
     const parsed = robustJsonParse(rawResponse);
 
     // Extraer o generar tags de cuaderno activo

@@ -4,8 +4,13 @@ import Credentials from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import { sql, upsertTeacher, getTeacherByEmail } from './db';
 
+const authSecret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+if (!authSecret) {
+  throw new Error('AUTH_SECRET or NEXTAUTH_SECRET environment variable is required');
+}
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'cambia-esto-por-un-secreto-generado-con-openssl',
+  secret: authSecret,
   trustHost: true,
   session: { strategy: 'jwt' },
   providers: [

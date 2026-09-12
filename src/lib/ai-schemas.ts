@@ -341,3 +341,160 @@ export const PmcPlanAccionSchema = z.object({
   metas_institucionales: z.array(PmcMetaInstitucionalSchema).min(1, 'Debe incluir al menos una meta institucional'),
   metas_personales: z.array(PmcMetaPersonalSchema).default([]),
 });
+
+// ============================================================================
+// 4. PROGRAMAS CURRICULARES (PDF EXTRACTION)
+// ============================================================================
+
+export const PdfProgramExtractSchema = z.object({
+  uacName: z.string().default(''),
+  semester: z.coerce.number().optional().default(1),
+  learningOutcome: z.string().default(''),
+  totalHours: z.coerce.number().default(54),
+  activities: z.array(z.object({
+    name: z.string().default(''),
+    hours: z.coerce.number().optional().default(18),
+    order: z.coerce.number().optional().default(1),
+  })).default([]),
+  evidences: z.array(z.string()).default([]),
+  contenidosFormativos: z.array(z.object({
+    proposito: z.string().default(''),
+    contenidos: z.array(z.string()).default([]),
+  })).optional(),
+});
+
+export type PdfProgramExtractDTO = z.infer<typeof PdfProgramExtractSchema>;
+
+// ============================================================================
+// 5. PAEC DOCUMENT EXTRACTION
+// ============================================================================
+
+export const PaecExtractedDocSchema = z.object({
+  projectName: z.string().nullable().optional(),
+  objective: z.string().nullable().optional(),
+  problem: z.string().nullable().optional(),
+  studentContext: z.string().nullable().optional(),
+  schoolName: z.string().nullable().optional(),
+  municipality: z.string().nullable().optional(),
+  cct: z.string().nullable().optional(),
+  planOperativo: z.array(z.object({
+    asignatura: z.string().default(''),
+    actividad: z.string().default(''),
+    propositoFormativo: z.string().optional().default(''),
+    estrategiaDidactica: z.string().optional().default(''),
+    semana: z.string().optional().default(''),
+    fase: z.string().optional().default(''),
+    progresion: z.string().optional().default(''),
+  })).default([]),
+});
+
+export type PaecExtractedDocDTO = z.infer<typeof PaecExtractedDocSchema>;
+
+// ============================================================================
+// 6. HORARIOS SOLVER PARAMS
+// ============================================================================
+
+export const HorarioSolverParamsSchema = z.object({
+  grupos: z.array(z.any()).min(1, 'Se requiere al menos un grupo'),
+  docentes: z.array(z.any()).min(1, 'Se requiere al menos un docente'),
+  cargas: z.array(z.any()).min(1, 'Se requieren cargas horarias'),
+  dias: z.array(z.string()).optional(),
+  bloquesPorDia: z.number().optional(),
+  bloqueReceso: z.number().optional(),
+  horasSemanales: z.number().optional(),
+});
+
+export type HorarioSolverParamsDTO = z.infer<typeof HorarioSolverParamsSchema>;
+
+// ============================================================================
+// 7. PLANEACIÓN DIDÁCTICA COMPLETA (GENERATED PLANNING CONTENT)
+// ============================================================================
+
+export const PlanningContentSchema = z.object({
+  sectionI: z.record(z.string(), z.any()),
+  sectionII: z.record(z.string(), z.any()),
+  sectionIII: z.record(z.string(), z.any()).optional().default({}),
+  sectionIV: z.record(z.string(), z.any()),
+  sectionV: z.record(z.string(), z.any()).optional().default({}),
+}).passthrough();
+
+export type PlanningContentDTO = z.infer<typeof PlanningContentSchema>;
+
+// ============================================================================
+// 8. EVALUACIÓN Y AUDITORÍA DE PLANEACIONES (23 CRITERIOS NEM)
+// ============================================================================
+
+export const PlaneacionEvaluacionSchema = z.object({
+  criterios: z.array(z.object({
+    id: z.string(),
+    cumple: z.preprocess((val) => {
+      const s = String(val || '').toUpperCase().trim();
+      if (s === 'SI' || s === 'SÍ') return 'SI';
+      if (s === 'NO') return 'NO';
+      return 'PARCIAL';
+    }, z.enum(['SI', 'PARCIAL', 'NO'])),
+    evidencia: z.string().default(''),
+    retroalimentacion: z.string().default(''),
+  })).default([]),
+  puntosFuertes: z.array(z.string()).optional(),
+  mejorasUrgentes: z.array(z.string()).optional(),
+  observacionesExtendidas: z.string().optional(),
+  alineacionPaecPec: z.string().optional(),
+  retroalimentacionDocente: z.string().optional(),
+  analisis_integral: z.string().optional(),
+}).passthrough();
+
+export type PlaneacionEvaluacionDTO = z.infer<typeof PlaneacionEvaluacionSchema>;
+
+// ============================================================================
+// 9. ASISTENTE INTELIGENTE DE HORARIOS (COMANDOS Y RESTRICCIONES)
+// ============================================================================
+
+export const ScheduleAssistantResponseSchema = z.object({
+  explicacion: z.string().default(''),
+  acciones: z.array(z.object({
+    tipo: z.string(),
+    bloqueosDocentes: z.array(z.any()).optional(),
+    bloqueosGrupos: z.array(z.any()).optional(),
+    restriccionDistribucion: z.enum(['MAX_1_HR_DIA', 'BLOQUES_DOBLES_CONTINUOS']).optional(),
+    asignatura: z.string().optional(),
+    grupoId: z.string().optional(),
+    docenteId: z.string().optional(),
+    diaOrigen: z.number().optional(),
+    periodoOrigen: z.number().optional(),
+    diaDestino: z.number().optional(),
+    periodoDestino: z.number().optional(),
+    origen: z.any().optional(),
+    destino: z.any().optional(),
+    dias: z.array(z.number()).optional(),
+    periodos: z.array(z.any()).optional(),
+    intermedias: z.boolean().optional(),
+  })).default([]),
+  factible: z.boolean().default(true),
+  advertencia: z.string().optional(),
+});
+
+export type ScheduleAssistantResponseDTO = z.infer<typeof ScheduleAssistantResponseSchema>;
+
+// ============================================================================
+// 10. OPTIMIZACIÓN Y BALANCE DE HORARIOS
+// ============================================================================
+
+export const ScheduleOptimizationSchema = z.preprocess((input) => {
+  if (Array.isArray(input)) return input;
+  if (input && typeof input === 'object') {
+    const obj = input as any;
+    if (Array.isArray(obj.sugerencias)) return obj.sugerencias;
+    if (Array.isArray(obj.diagnosticos)) return obj.diagnosticos;
+    return [input];
+  }
+  return [];
+}, z.array(z.object({
+  diagnostico_general: z.string().default('Horario analizado.'),
+  score_balance: z.coerce.number().default(85),
+  puntos_fuertes: z.array(z.string()).default([]),
+  areas_mejora: z.array(z.string()).default([]),
+})));
+
+export type ScheduleOptimizationDTO = z.infer<typeof ScheduleOptimizationSchema>;
+

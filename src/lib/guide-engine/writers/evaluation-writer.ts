@@ -13,8 +13,8 @@
  * - Devuelve WriterOutput uniforme con section: MissionSection obligatorio y evaluationSection estructurado.
  */
 
-import { callGeminiPool } from '@/lib/gemini';
-import { robustJsonParse } from '../json-repair';
+import { generateWithRotation } from '@/lib/ai-provider';
+import { robustJsonParse } from '@/lib/ai-response-parser';
 import type {
   EvaluationSection,
   EvaluationRubricCriterion,
@@ -138,7 +138,7 @@ y espacios amplios para que el estudiante trabaje.
 Genera el paquete oficial de 4 instrumentos de evaluación NEM:`;
 
   try {
-    const rawResponse = await callGeminiPool(systemInstruction, prompt, input.planning.teacherId);
+    const rawResponse = await generateWithRotation(systemInstruction, prompt, input.planning.teacherId);
     const parsed = robustJsonParse(rawResponse);
 
     const evaluationSection: EvaluationSection = {

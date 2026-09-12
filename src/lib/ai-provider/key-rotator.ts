@@ -8,7 +8,6 @@
  * - Prioridad de clave de usuario: si se pasa un teacherId, se usa su clave primero
  */
 
-import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
 import { neon } from '@neondatabase/serverless';
 import type { ApiKeyRecord } from './types';
 
@@ -21,6 +20,8 @@ function getEncKey(): Buffer {
 }
 
 export function encryptKey(plain: string): string {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { createCipheriv, randomBytes } = require('crypto');
   const iv = randomBytes(16);
   const cipher = createCipheriv('aes-256-cbc', getEncKey(), iv);
   let enc = cipher.update(plain, 'utf8', 'hex');
@@ -28,13 +29,21 @@ export function encryptKey(plain: string): string {
   return iv.toString('hex') + ':' + enc;
 }
 
-function decryptKey(encrypted: string): string {
-  const [ivHex, data] = encrypted.split(':');
-  const iv = Buffer.from(ivHex, 'hex');
-  const decipher = createDecipheriv('aes-256-cbc', getEncKey(), iv);
-  let decrypted = decipher.update(data, 'hex', 'utf8');
-  decrypted += decipher.final('utf8');
-  return decrypted;
+export function decryptKey(encrypted: string): string {
+  if (!encrypted || !encrypted.includes(':')) return encrypted;
+  try {
+    const [ivHex, data] = encrypted.split(':');
+    if (!ivHex || !data || ivHex.length !== 32) return encrypted;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { createDecipheriv } = require('crypto');
+    const iv = Buffer.from(ivHex, 'hex');
+    const decipher = createDecipheriv('aes-256-cbc', getEncKey(), iv);
+    let decrypted = decipher.update(data, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
+  } catch {
+    return encrypted;
+  }
 }
 
 // ── DB helpers ───────────────────────────────────────────────────────────────
@@ -139,7 +148,7 @@ async function getTeacherKey(teacherId: string, provider: string): Promise<strin
         AND custom_api_provider = ${provider}
     `;
     if (rows[0]?.custom_api_key) {
-      return rows[0].custom_api_key as string;
+      return decryptKey(rows[0].custom_api_key as string);
     }
   } catch { /* non-critical */ }
   return null;

@@ -1,8 +1,6 @@
-// src/app/api/pips/[id]/generate/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { getTeacherByEmail } from '@/lib/db';
-import { neon } from '@neondatabase/serverless';
+import { getTeacherByEmail, sql } from '@/lib/db';
 import { generateWithRotation, logActivity } from '@/lib/ai-provider';
 import {
   PIPS_SYSTEM_PROMPT,
@@ -15,8 +13,6 @@ import { getNormativaForGenerator } from '@/lib/normativa-context';
 
 export const runtime = 'nodejs';
 export const maxDuration = 180; // 3 minutos máximo en Next.js/Vercel
-
-const sql = neon(process.env.DATABASE_URL!);
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -36,9 +32,10 @@ export async function POST(
     }
 
     const { id } = await params;
+    const db = sql();
 
     // Obtener los datos actuales del proyecto PIPS
-    const [row] = await sql`
+    const [row] = await db`
       SELECT * FROM pips_projects
       WHERE id = ${id}::uuid AND teacher_id = ${teacher.id}::uuid
     `;
@@ -121,7 +118,7 @@ export async function POST(
     ].join('\n\n');
 
     // Guardar el contenido final y marcar el proyecto como completado
-    await sql`
+    await db`
       UPDATE pips_projects
       SET generated_content = ${fullContent},
           status = 'completed',
