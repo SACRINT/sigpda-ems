@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getPlanningById, getBlockWorkbook, getTeacherByEmail } from '@/lib/db';
-import { generateBlockWorkTextbook } from '@/lib/guide-engine/block-guide-orchestrator';
 
 export const runtime = 'nodejs';
 export const maxDuration = 90;
@@ -39,7 +38,15 @@ export async function GET(
     }
 
     const blockIndex = parseInt(blockIndexParam, 10);
-    const workbook = await getBlockWorkbook(id, blockIndex);
+    let workbook = await getBlockWorkbook(id, blockIndex);
+
+    if (!workbook) {
+      const { getLatestGenerationJob } = await import('@/lib/db');
+      const latestJob = await getLatestGenerationJob(id, blockIndex);
+      if (latestJob && latestJob.status === 'completed' && latestJob.result) {
+        workbook = latestJob.result;
+      }
+    }
 
     if (!workbook) {
       return NextResponse.json({
@@ -64,7 +71,7 @@ export async function GET(
   }
 }
 
-// ── POST: Generar el Libro de Trabajo para un bloque específico ─────────────
+// ── POST: Iniciar la generación asíncrona mediante Job Queue ─────────────────
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -81,8 +88,8 @@ export async function POST(
     }
 
     const { id } = await params;
-    const body = await request.json();
-    const { blockIndex, customHours } = body;
+    const body = await request.json().catch(() => ({}));
+    const { blockIndex } = body;
 
     if (blockIndex === undefined || blockIndex === null) {
       return NextResponse.json({ error: 'blockIndex es requerido' }, { status: 400 });
@@ -96,23 +103,35 @@ export async function POST(
       return NextResponse.json({ error: 'No tienes permiso para acceder a esta planeación' }, { status: 403 });
     }
 
-    // Iniciar orquestador editorial completo
-    const workbook = await generateBlockWorkTextbook(id, Number(blockIndex), {
-      customHours: customHours ? Number(customHours) : undefined,
-    });
+    const { createGenerationJob } = await import('@/lib/db');
+    const { processGenerationJob } = await import('@/lib/job-worker');
+    const { after } = await import('next/server');
+
+    const job = await createGenerationJob(id, teacher.id, Number(blockIndex));
+
+    if (job.status === 'pending') {
+      after(async () => {
+        try {
+          await processGenerationJob(job.id);
+        } catch (err: any) {
+          console.error(`[POST /libro-bloque] Worker background error for job ${job.id}:`, err?.message);
+        }
+      });
+    }
 
     return NextResponse.json({
       success: true,
-      message: 'Libro de Aprendizaje Activo generado exitosamente',
-      workbook,
-      wordCount: workbook.totalWords,
-      totalWords: workbook.totalWords,
-    });
+      jobId: job.id,
+      status: job.status,
+      progress: job.progress,
+      message: 'Trabajo de generación iniciado en segundo plano',
+    }, { status: 202 });
   } catch (error: any) {
     console.error('[POST /api/planeaciones/[id]/libro-bloque] Error:', error);
     return NextResponse.json(
-      { error: error.message || 'Error al generar el libro de trabajo' },
+      { error: error.message || 'Error al iniciar la generación del libro de trabajo' },
       { status: 500 }
     );
   }
 }
+

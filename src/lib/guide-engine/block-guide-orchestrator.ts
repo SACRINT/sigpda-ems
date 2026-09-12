@@ -24,6 +24,7 @@ import {
   saveCanonicalSeed,
   saveBlockWorkbook,
   updateWorkbookProgress,
+  updateGenerationJobProgress,
   incrementSeedUsage,
 } from '@/lib/db';
 import { extractCurriculumContext } from './curriculum-context-agent';
@@ -75,6 +76,7 @@ interface RawPlanningRow {
 export interface OrchestratorOptions {
   customHours?: number;
   maxRetriesPerWriter?: number;
+  jobId?: string;
 }
 
 /**
@@ -87,9 +89,22 @@ export async function generateBlockWorkTextbook(
 ): Promise<ActiveWorkTextbook> {
   const startTime = Date.now();
   const maxRetries = options.maxRetriesPerWriter ?? 2;
+  const jobId = options.jobId;
+
+  const notifyProgress = async (params: {
+    phase: GenerationProgressState['phase'];
+    currentStep: string;
+    percent: number;
+    qualityScore?: number;
+    wordCount?: number;
+    totalWords?: number;
+    error?: string;
+  }) => {
+    await reportProgress(planningId, blockIndex, params, jobId);
+  };
 
   // ── Fase 1: Análisis y Recuperación de Datos ─────────────────────────────
-  await reportProgress(planningId, blockIndex, {
+  await notifyProgress({
     phase: 'analyzing',
     currentStep: 'Recuperando planeación docente y contexto curricular...',
     percent: 10,
@@ -168,7 +183,7 @@ export async function generateBlockWorkTextbook(
     : undefined;
 
   // ── Fase 2: Extracción de Contexto Curricular Oficial ───────────────────
-  await reportProgress(planningId, blockIndex, {
+  await notifyProgress({
     phase: 'blueprint',
     currentStep: 'Estructurando contexto normativo y aprendizajes de trayectoria...',
     percent: 20,
@@ -183,7 +198,7 @@ export async function generateBlockWorkTextbook(
   });
 
   // ── Fase 3: Blueprint de Dosificación y Clustering de Misiones ─────────
-  await reportProgress(planningId, blockIndex, {
+  await notifyProgress({
     phase: 'blueprint',
     currentStep: 'Diseñando misiones pedagógicas sesión por sesión...',
     percent: 30,
@@ -253,7 +268,7 @@ export async function generateBlockWorkTextbook(
   };
 
   // ── Fase 6: Redacción Concurrente con Promise.allSettled() ─────────────
-  await reportProgress(planningId, blockIndex, {
+  await notifyProgress({
     phase: 'writing',
     currentStep: 'Redactando concurrentemente las 4 dimensiones del libro...',
     percent: 50,
@@ -310,7 +325,7 @@ export async function generateBlockWorkTextbook(
   });
 
   // ── Fase 7: Zona de Depuración y Resiliencia ────────────────────────────
-  await reportProgress(planningId, blockIndex, {
+  await notifyProgress({
     phase: 'troubleshooting',
     currentStep: 'Generando matriz formativa "¿Qué hacer si falla?"...',
     percent: 70,
@@ -330,7 +345,7 @@ export async function generateBlockWorkTextbook(
   });
 
   // ── Fase 8: Validación de Calidad y Reintentos Dirigidos ────────────────
-  await reportProgress(planningId, blockIndex, {
+  await notifyProgress({
     phase: 'validating',
     currentStep: 'Auditando estándares pedagógicos y volumen de palabras...',
     percent: 85,
@@ -348,22 +363,11 @@ export async function generateBlockWorkTextbook(
 
   // Si hay redactores reintentables, ejecutar reintentos específicos (máx 2 por redactor)
   if (validation.retryableWriters.length > 0) {
-    const MAX_TOTAL_TIME_MS = 70_000; // 70 segundos (20s de margen para Vercel)
-
     for (const writerType of validation.retryableWriters) {
-      if (Date.now() - startTime > MAX_TOTAL_TIME_MS) {
-        console.warn('[ORCHESTRATOR] Time limit approaching, assembling with current content');
-        break; // Ensamblar con lo que se generó hasta ahora
-      }
-
       let attempts = 0;
       let improved = false;
 
       while (attempts < maxRetries && !improved) {
-        if (Date.now() - startTime > MAX_TOTAL_TIME_MS) {
-          console.warn('[ORCHESTRATOR] Time limit approaching in retry loop, assembling with current content');
-          break;
-        }
         attempts++;
         console.log(`[orchestrator] Reintentando ${writerType} (Intento ${attempts}/${maxRetries})...`);
 
@@ -568,7 +572,7 @@ export async function generateBlockWorkTextbook(
   }
 
   // ── Fase 11: Finalización ──────────────────────────────────────────────
-  await reportProgress(planningId, blockIndex, {
+  await notifyProgress({
     phase: 'completed',
     currentStep: 'Libro-Cuaderno de Trabajo Activo completado y listo para descarga.',
     percent: 100,
@@ -594,7 +598,8 @@ async function reportProgress(
     wordCount?: number;
     totalWords?: number;
     error?: string;
-  }
+  },
+  jobId?: string
 ): Promise<void> {
   const state: GenerationProgressState = {
     planningId,
@@ -611,6 +616,16 @@ async function reportProgress(
   await updateWorkbookProgress(planningId, blockIndex, state).catch((err: any) =>
     console.warn('[Orchestrator] Progress update failed:', err?.message)
   );
+
+  if (jobId) {
+    await updateGenerationJobProgress(jobId, {
+      progress: params.percent,
+      current_phase: params.phase,
+      current_step: params.currentStep,
+    }).catch((err: any) =>
+      console.warn('[Orchestrator] Job progress update failed:', err?.message)
+    );
+  }
 }
 
 /**
