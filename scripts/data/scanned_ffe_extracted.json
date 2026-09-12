@@ -1,0 +1,66 @@
+{
+  "Psicología I": {
+    "uac_name": "Psicología I",
+    "semester": 5,
+    "progresiones": [
+      {
+        "order": 1,
+        "name": "A partir de la pregunta ¿Cuál es el origen y objeto de estudio de la psicología?, los estudiantes analizan las reflexiones filosóficas sobre la mente y el cuerpo, así como los primeros avances para comprender la conducta humana. Estas experiencias a través de la historia permitieron paulatinamente sentar las bases de la psicología, las cuales orientan al estudiantado a la comprensión de sí mismo y el entorno, así como la aplicación en la vida cotidiana."
+      },
+      {
+        "order": 2,
+        "name": "Profundiza en la evolución histórica de la psicología como ciencia, desde la fundación del primer laboratorio experimental hasta las corrientes contemporáneas. El estudiantado a través de la experimentación de fenómenos observables (comportamiento, reacciones fisiológicas, interacción social) indaga el surgimiento y desarrollo de diferentes paradigmas psicológicos. Al analizar las similitudes y diferencias entre estos enfoques, así como su relación con el contexto histórico y social, los estudiantes desarrollarán un pensamiento crítico y una comprensión más profunda de la diversidad de fenómenos y teorías que caracterizan a la psicología actual."
+      },
+      {
+        "order": 3,
+        "name": "Identifica las ideas centrales de las principales corrientes psicológicas, valorando su impacto en el avance de la ciencia. Se busca que el estudiante aplique los conocimientos teóricos a contextos prácticos, reflexionando sobre sus experiencias. A través de estrategias de indagación, estudio de casos y análisis con problemas de su entorno, las y los estudiantes contrastan similitudes y diferencias de las corrientes psicológicas. Desarrollando las habilidades necesarias para comprender su propio comportamiento y el de los demás, utilizando lo aprendido para potenciar sus aptitudes sociales, tomar decisiones informadas y afrontar situaciones de la vida cotidiana de manera más efectiva."
+      },
+      {
+        "order": 4,
+        "name": "A través de la pregunta ¿Cuáles son las principales áreas de especialización dentro de la Psicología y cómo se aplican en diferentes contextos? El estudiantado identifica y describe las principales áreas de especialización dentro de la Psicología, comprendiendo sus características, principios y aplicaciones prácticas. Para que los estudiantes reconozcan su importancia en diversos contextos y establezcan conexiones entre los conceptos teóricos aprendidos y las experiencias personales de los estudiantes, promoviendo una integración significativa de la teoría con la práctica."
+      },
+      {
+        "order": 5,
+        "name": "Comprende la relación entre el sistema nervioso y el comportamiento humano. Mediante el análisis de casos cotidianos, identifica las funciones de las diversas partes del sistema nervioso y cómo estas influyen directamente en el comportamiento, para que el estudiantado conozca las bases fisiológicas que sustentan el comportamiento humano y comprendan cómo la complejidad de nuestras conductas se relaciona con el funcionamiento del sistema nervioso. Estos saberes habilitan al estudiantado en la toma de decisiones conscientes sobre su estilo de vida, promoviendo su bienestar a partir de sus experiencias de vida."
+      },
+      {
+        "order": 6,
+        "name": "Explorar la influencia de las hormonas y los neurotransmisores en la conducta, comprendiendo el funcionamiento en el cuerpo humano. Investigando cómo las hormonas afectan el comportamiento y el estado de ánimo, para identificar su impacto en la salud física y mental. Este análisis puede contribuir a reconocer la importancia de adoptar hábitos de vida saludables que favorezcan un equilibrio hormonal y que aporten a un estado de ánimo positivo contribuyendo a una mejor calidad de vida."
+      }
+    ]
+  },
+  "Pensamiento Filosófico II": {
+    "uac_name": "Pensamiento Filosófico II",
+    "semester": 6,
+    "progresiones": [
+      {
+        "order": 1,
+        "name": "El estudiantado identifica epistemologías no occidentales (latinoamericanas, africanas y asiáticas) como herramientas para comprender temas relacionados con los procesos de identidad, alteridad, colonialismo y decolonialidad presentes en su entorno inmediato."
+      },
+      {
+        "order": 2,
+        "name": "Retoma las cosmovisiones y filosofías de los pueblos originarios de América para que las reconozca y valore dentro de sus raíces y saberes en la construcción de su identidad personal y colectiva."
+      },
+      {
+        "order": 3,
+        "name": "El estudiantado identifica y comprende las características del pensamiento filosófico mesoamericano con el propósito de reflexionar cómo se construyó la identidad nacional."
+      },
+      {
+        "order": 4,
+        "name": "El estudiantado identifica la filosofía novohispana para valorar una de las perspectivas que constituyen su identidad."
+      },
+      {
+        "order": 5,
+        "name": "Examina los postulados de ilustrados criollos (Clavijero, Alzate y Ramírez, Teresa de Mier, Hidalgo y Morelos) que desarrollaron las perspectivas filosóficas humanistas durante la Nueva España y la Independencia reconociendo la influencia de estos principios ilustrados y liberales, cuya vigencia permanece en el México actual."
+      },
+      {
+        "order": 6,
+        "name": "Comprende el ideal político conservador y las ideas filosóficas liberales del periodo republicano en México en el siglo XIX, para contrastar en su vida diaria la influencia que estas han tenido en la construcción de su pensamiento y de las instituciones actuales."
+      },
+      {
+        "order": 7,
+        "name": "Reconoce la influencia del Positivismo mexicano en la construcción social, económica y educativa del Porfiriato con los principios de “amor, orden y progreso”, para que cuestione si dicha corriente de pensamiento propició desigualdades sistémicas o impulsó el crecimiento de México."
+      }
+    ]
+  }
+}

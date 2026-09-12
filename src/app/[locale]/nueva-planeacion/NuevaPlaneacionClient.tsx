@@ -97,6 +97,7 @@ export default function NuevaPlaneacionClient({ locale }: Props) {
           paecContext: ctx.paecProblem,
           extractedData: draft.extractedData,
           metodologiaActiva: ctx.metodologiaActiva || undefined,
+          paecOperationalActivity: (ctx.usePaecActivity !== false && ctx.paecOperationalActivity) ? ctx.paecOperationalActivity : undefined,
         }),
       });
 

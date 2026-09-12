@@ -26,8 +26,8 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Call parser
-    const parseResult = await parsePdfBuffer(buffer);
+    // Call parser with multi-UAC book support
+    const parseResult = await parsePdfBuffer(buffer, file.name, semester);
 
     if (!parseResult.success && parseResult.errors.length > 0) {
       return NextResponse.json({
@@ -39,13 +39,14 @@ export async function POST(request: NextRequest) {
 
     const data = parseResult.data as any;
     const totalHours = data?.totalHours || 54;
+    const effectiveSemester = semester || data?.semester || (totalHours > 70 ? 3 : 1);
 
     // Return the extracted data formatted for programs_catalog
     return NextResponse.json({
       success: true,
       extracted: {
         uac_name: data?.uacName || 'Nueva UAC',
-        semester: semester || (totalHours > 70 ? 3 : 1),
+        semester: effectiveSemester,
         component: component,
         subsystem: subsystem,
         total_hours: totalHours,
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
         activities: data?.activities || [],
         evidences: data?.evidences || [],
         contenidos_formativos: data?.contenidosFormativos || [],
-        model_type: (semester && semester >= 5) ? 'progresiones' : 'propositos_contenidos',
+        model_type: effectiveSemester >= 5 ? 'progresiones' : 'propositos_contenidos',
         curriculum_name: data?.curriculumName || null,
         year: 2026,
       },

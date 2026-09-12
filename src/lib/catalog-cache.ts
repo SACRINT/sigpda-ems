@@ -51,7 +51,7 @@ export async function getFilteredCachedPrograms(
     if (normalizedComponent !== null && p.component !== normalizedComponent) return false;
     if (normalizedSubsystem !== null) {
       const pSub = (p.subsystem || 'all').toLowerCase();
-      if (pSub !== 'all' && pSub !== normalizedSubsystem) return false;
+      if (pSub !== 'all' && pSub !== normalizedSubsystem && pSub !== 'bge') return false;
     }
     return true;
   });
@@ -72,12 +72,12 @@ export async function getCachedProgramByUacAndSemester(
   const comp = component && component !== 'all' ? component : null;
   const sub = subsystem && subsystem !== 'all' ? subsystem.toLowerCase() : null;
 
-  // 1. Coincidencia exacta
+  // 1. Coincidencia exacta con subsistema o fallback a 'bge'
   const exact = allPrograms.find(p => 
     p.uac_name.toLowerCase() === target &&
     (sem === null || p.semester === sem) &&
     (comp === null || p.component === comp) &&
-    (sub === null || (p.subsystem || 'bge').toLowerCase() === sub)
+    (sub === null || (p.subsystem || 'bge').toLowerCase() === sub || (p.subsystem || '').toLowerCase() === 'bge')
   );
   if (exact) return exact;
 

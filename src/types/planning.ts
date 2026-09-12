@@ -24,6 +24,29 @@ export interface ExtractedPdfData {
   contenidosFormativos?: any;
 }
 
+export interface PaecOperationalActivity {
+  asignatura: string;
+  actividad: string;
+  propositoFormativo?: string;
+  estrategiaDidactica?: string;
+  semana?: string;
+  fase?: string;
+  progresion?: string;
+  isPrescheduled: boolean; // true = proveniente de la tabla oficial del PAEC; false = sugerida o manual
+}
+
+export interface PaecParseResult {
+  projectName: string | null;
+  objective: string | null;
+  problem: string | null;
+  studentContext: string | null;
+  schoolName: string | null;
+  municipality: string | null;
+  cct: string | null;
+  isSuggestedProblem: boolean;
+  planOperativo?: PaecOperationalActivity[];
+}
+
 export interface TeacherContext {
   teacherName: string;
   schoolName: string;
@@ -36,6 +59,8 @@ export interface TeacherContext {
   paecProjectName?: string;      // Nombre del proyecto PAEC/PEC
   paecObjective?: string;        // Objetivo general del proyecto
   paecProblem: string;           // Problemática comunitaria (requerido)
+  paecOperationalActivity?: PaecOperationalActivity | null; // Actividad del plan operativo
+  usePaecActivity?: boolean;     // Switch para respetar e integrar la actividad del PAEC
   schoolResources?: string;      // Recursos del plantel
   studentContext: string;        // Caracterización de estudiantes
   metodologiaActiva?: string;    // ID de metodología activa (ej: 'abp', 'steam', 'abr')
@@ -94,6 +119,7 @@ export interface GeneratedPlanningContent {
     period?: string;
     totalHoursWeekly?: number;
     totalHoursSemester?: number;
+    paecOperationalActivity?: PaecOperationalActivity | null;
   };
   // Section II - Curricular Intent
   sectionII: {
@@ -137,6 +163,7 @@ export interface Planning {
   component: CurriculumComponent;
   curriculumName: string;
   paecContext: string;
+  paecOperationalActivity?: PaecOperationalActivity | null;
   extractedData: ExtractedPdfData | null;
   contentJson: GeneratedPlanningContent | null;
   status: PlanningStatus;

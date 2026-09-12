@@ -327,20 +327,20 @@ Adapta el contenido a la UAC, semestre y contexto PAEC indicados arriba. NO copi
 SECUENCIA DIDÁCTICA EJEMPLO (Propósito Formativo: Analizar circuitos eléctricos en C.A. | 18h | Corte 1):
 
   APERTURA (3h):
-  - Actividad motivadora (1h): El docente presenta el caso real: "Apagones en la colonia Loma Bella de Tehuacán — ¿por qué ocurren?". Estudiantes en equipos discuten causas posibles y registran hipótesis en una tabla de anticipación.
-  - Exploración de saberes previos (1h): Cuestionario diagnóstico de 8 preguntas sobre corriente, voltaje y resistencia. El docente identifica concepciones erróneas comunes.
-  - Planteamiento de la situación problema PAEC (1h): "¿Cómo diseñaríamos un circuito de iluminación de emergencia para el centro comunitario de nuestra localidad?". Equipos establecen el reto a resolver durante el Corte 1.
+  - Fenómeno Situado y Disonancia Cognitiva (1h): El docente presenta el caso real observable: "Apagones y caída de tensión en la colonia Loma Bella de Tehuacán al encender soldadoras de arco — ¿por qué parpadean las luces?". En equipos observan el fenómeno, formulan preguntas de indagación y registran hipótesis iniciales en su libreta de campo.
+  - Activación y cuestionamiento (1h): Preguntas socráticas diagnósticas sobre corriente, voltaje y resistencia. El docente sondea concepciones previas y guía a los estudiantes a reconocer la necesidad de medir variables físicas reales.
+  - Planteamiento del reto PAEC (1h): "¿Cómo diseñaríamos un circuito de iluminación de emergencia eficiente para el centro comunitario?". Equipos delimitan el reto y definen roles de trabajo colaborativo.
 
   DESARROLLO (13h):
-  - Construcción conceptual (3h): Miniclases de 20 min sobre Ley de Ohm, potencia y factor de potencia, intercaladas con ejercicios de aplicación inmediata (Taxonomía Bloom: Comprender → Aplicar).
-  - Investigación guiada (3h): Equipos consultan hojas de datos técnicos de dispositivos eléctricos reales, calculan cargas de un circuito de 10 luminarias LED y verifican con multímetro en el laboratorio.
-  - Fase ABR — Prototipado (4h): Cada equipo construye el circuito en tablero de madera: diagrama unifilar, conexión física, prueba de continuidad. Docente hace rondas de retroalimentación formativa con lista de cotejo de proceso.
-  - Análisis de resultados (3h): Equipos comparan resultados experimentales con valores teóricos, identifican fuentes de error y proponen mejoras al diseño (vinculación con el proyecto PAEC).
+  - Indagación empírica y simulación (3h): Equipos modelan el comportamiento de la carga en simulador PhET (Circuits AC/DC) y contrastan con la Ley de Ohm y potencia eléctrica (Bloom: Analizar).
+  - Medición y laboratorio con sensores (3h): Con la app móvil Phyphox / multímetro del taller, los equipos miden caídas de potencial y consumo de 10 luminarias LED. Distribuyen roles: operador de medición, registrador de datos y analista de variables.
+  - Fase ABR — Prototipado (4h): Cada equipo construye el circuito físico en tablero de prueba: diagrama unifilar, conexiones seguras y prueba de continuidad bajo normas de seguridad NOM. El docente acompaña con lista de cotejo formativa.
+  - Análisis de datos y optimización (3h): Contrastan valores experimentales medidos vs. cálculos teóricos, identificando fuentes de pérdida de energía y mejoras al diseño para la comunidad.
 
   CIERRE (2h):
-  - Socialización (1h): Presentación de 5 min por equipo: muestran el circuito funcional, explican decisiones de diseño y proponen cómo se aplicaría en el centro comunitario.
-  - Reflexión metacognitiva (0.5h): Cada estudiante completa una ficha "¿Qué aprendí? — ¿Qué me costó trabajo? — ¿Cómo puedo mejorarlo?".
-  - Evaluación formativa (0.5h): Rúbrica analítica (4 criterios: diseño, ejecución, medición, reporte). Ponderación Corte 1: Proceso 40%, Producto 40%, Actitudinal 20%.
+  - Defensa pública técnica (1h): Cada equipo presenta y defiende su solución ante el grupo en 5 min, justificando sus decisiones técnicas con los datos obtenidos en el laboratorio.
+  - Reflexión metacognitiva y crecimiento (0.5h): Autoevaluación dialógica: "¿Qué comprendí del fenómeno? ¿Qué dificultad técnica superamos y cómo?".
+  - Evaluación formativa (0.5h): Rúbrica analítica centrada en el proceso y la calidad técnica del producto entregable.
 
 TOTAL HORAS CORTE 1: 3h + 13h + 2h = 18 horas ✓ (Coincide con la distribución obligatoria)
 ═══════════ FIN DEL EJEMPLO ═══════════

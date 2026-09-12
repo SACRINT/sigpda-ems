@@ -8,7 +8,7 @@ import { ingestDocument } from '@/lib/document-ingestion';
  * 1. ingestDocument   → native DocumentIngestionEngine (pdfjs spatial layout, OCR fallback, or mammoth docx)
  * 2. Gemini Flash Lite → structures full extracted markdown into UAC fields
  */
-export async function parsePdfBuffer(buffer: Buffer, filename?: string): Promise<PdfParseResult> {
+export async function parsePdfBuffer(buffer: Buffer, filename?: string, targetSemester?: number): Promise<PdfParseResult> {
   const errors: string[] = [];
 
   // ── STEP 1: Ingest document into structured Markdown ──────────────────────
@@ -36,7 +36,7 @@ export async function parsePdfBuffer(buffer: Buffer, filename?: string): Promise
 
   // ── STEP 2: Use callGeminiPool to structure the complete extracted text ────────
   try {
-    const structured = await structureWithGemini(rawText);
+    const structured = await structureWithGemini(rawText, targetSemester);
     return structured;
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Error desconocido';
@@ -57,14 +57,20 @@ export async function parsePdfBuffer(buffer: Buffer, filename?: string): Promise
 
 // ─── Gemini text structuring ─────────────────────────────────────────────────
 
-async function structureWithGemini(rawText: string): Promise<PdfParseResult> {
+async function structureWithGemini(rawText: string, targetSemester?: number): Promise<PdfParseResult> {
   // Use complete extracted text (no arbitrary truncation - Gemini Flash Lite has 1M context)
   const systemInstruction = `Eres un experto en programas de estudio del bachillerato de la Nueva Escuela Mexicana en Puebla (MCCEMS/DBEPA). Responde exclusivamente con JSON válido, sin markdown ni explicaciones.`;
 
+  const semesterDirective = targetSemester
+    ? `ATENCIÓN: Este documento oficial contiene programas de estudio para múltiples semestres. Extrae EXCLUSIVAMENTE el programa correspondiente al Semestre ${targetSemester} (ejemplo: si targetSemester es 3, extrae los datos de 3er semestre / Pensamiento Matemático III / UAC III).`
+    : `Si el documento contiene programas de múltiples semestres o UACs, extrae el primer programa completo y reporta el semestre correspondiente en el campo "semester".`;
+
   const prompt = `Analiza el siguiente texto extraído de un programa de estudios oficial y extrae los datos en formato JSON exacto:
+${semesterDirective}
 
 {
   "uacName": "Nombre completo de la UAC (Unidad de Aprendizaje Curricular) tal como aparece literalmente en el documento",
+  "semester": número entero del semestre (1 a 6),
   "learningOutcome": "Resultado de aprendizaje completo tal como aparece en el documento",
   "totalHours": número entero de horas totales de la carga horaria de la UAC,
   "activities": [

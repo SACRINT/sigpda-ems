@@ -53,6 +53,15 @@ export async function POST(
       );
     }
 
+    // Hydrate paecOperationalActivity from DB if missing in context payload
+    const existingSectionI = (planning.content_json as any)?.sectionI;
+    if (!context.paecOperationalActivity && existingSectionI?.paecOperationalActivity) {
+      context.paecOperationalActivity = existingSectionI.paecOperationalActivity;
+      if (context.usePaecActivity === undefined) {
+        context.usePaecActivity = true;
+      }
+    }
+
     // 1. Consultar programa auténtico oficial de programs_catalog
     const officialProgram = await getProgramByUacAndSemester(
       planning.uac_name || extractedData.uacName,
@@ -142,6 +151,16 @@ export async function POST(
               .trim();
             const parsedContent = JSON.parse(cleanJson);
             
+            // Persistir la actividad operativa del PAEC en sectionI del content_json
+            if (!parsedContent.sectionI) {
+              parsedContent.sectionI = {};
+            }
+            if (context.paecOperationalActivity && context.usePaecActivity !== false) {
+              parsedContent.sectionI.paecOperationalActivity = context.paecOperationalActivity;
+            } else if (existingSectionI?.paecOperationalActivity) {
+              parsedContent.sectionI.paecOperationalActivity = existingSectionI.paecOperationalActivity;
+            }
+
             await updatePlanningContent(id, teacher.id, parsedContent);
 
             // Send Realtime / In-App Notification (Phase 8A.1)

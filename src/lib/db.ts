@@ -205,12 +205,16 @@ export async function createPlanning(data: {
   paecContext?: string;
   extractedData?: object;
   metodologiaActiva?: string;   // ID de metodología activa seleccionada (ej: 'abp', 'steam')
+  paecOperationalActivity?: object | null;
+  contentJson?: object | null;
 }) {
+  const initialContent = data.contentJson || (data.paecOperationalActivity ? { sectionI: { paecOperationalActivity: data.paecOperationalActivity } } : null);
+
   const rows = await sql()`
     INSERT INTO plannings (
       teacher_id, uac_name, semester, component,
       curriculum_name, paec_context, extracted_data, status,
-      metodologia_activa
+      metodologia_activa, content_json
     )
     VALUES (
       ${data.teacherId}::uuid,
@@ -221,7 +225,8 @@ export async function createPlanning(data: {
       ${data.paecContext || null},
       ${data.extractedData ? JSON.stringify(data.extractedData) : null},
       'draft',
-      ${data.metodologiaActiva || null}
+      ${data.metodologiaActiva || null},
+      ${initialContent ? JSON.stringify(initialContent) : null}
     )
     RETURNING *
   `;
@@ -316,7 +321,7 @@ export async function getProgramsCatalog(semester?: number, component?: string, 
     FROM programs_catalog
     WHERE (${sem}::int IS NULL OR semester = ${sem})
       AND (${normalizedComponent}::text IS NULL OR component = ${normalizedComponent})
-      AND (${normalizedSubsystem}::text IS NULL OR subsystem = ${normalizedSubsystem} OR subsystem = 'all' OR subsystem IS NULL)
+      AND (${normalizedSubsystem}::text IS NULL OR subsystem = ${normalizedSubsystem} OR subsystem = 'bge' OR subsystem = 'all' OR subsystem IS NULL)
     ORDER BY semester ASC, component ASC, uac_name ASC
   `;
 }
@@ -327,7 +332,7 @@ export async function getProgramsCatalogForPaec(semesters: number[], subsystem?:
     return client`
       SELECT uac_name, semester, component, subsystem, model_type
       FROM programs_catalog
-      WHERE semester = ANY(${semesters}) AND (subsystem = ${subsystem.toLowerCase()} OR subsystem = 'all' OR subsystem IS NULL)
+      WHERE semester = ANY(${semesters}) AND (subsystem = ${subsystem.toLowerCase()} OR subsystem = 'bge' OR subsystem = 'all' OR subsystem IS NULL)
       ORDER BY semester, uac_name ASC
     `;
   }
@@ -613,7 +618,8 @@ export async function getProgramByUacAndSemester(
   const comp = component && component !== 'all' ? component : null;
   const sub = subsystem && subsystem !== 'all' ? subsystem.toLowerCase() : null;
 
-  const rows = await client`
+  // 1. Intento con el subsistema específico o fallback canónico 'bge'
+  let rows = await client`
     SELECT *
     FROM programs_catalog
     WHERE (
@@ -622,12 +628,33 @@ export async function getProgramByUacAndSemester(
       OR ${uacName.trim()} ILIKE ('%' || uac_name || '%')
     )
     AND (${sem}::int IS NULL OR semester = ${sem})
+    AND (${comp}::text IS NULL OR component = ${comp})
+    AND (${sub}::text IS NULL OR subsystem = ${sub} OR subsystem = 'bge' OR subsystem = 'all')
     ORDER BY 
       CASE WHEN LOWER(uac_name) = LOWER(${uacName.trim()}) THEN 0 ELSE 1 END,
-      CASE WHEN ${comp}::text IS NOT NULL AND component = ${comp} THEN 0 ELSE 1 END,
-      CASE WHEN ${sub}::text IS NOT NULL AND subsystem = ${sub} THEN 0 ELSE 1 END
+      CASE WHEN ${sub}::text IS NOT NULL AND subsystem = ${sub} THEN 0 ELSE 1 END,
+      CASE WHEN subsystem = 'bge' THEN 0 ELSE 1 END
     LIMIT 1
   `;
+
+  // 2. Fallback sin restricción de componente si no se encontró
+  if (rows.length === 0) {
+    rows = await client`
+      SELECT *
+      FROM programs_catalog
+      WHERE (
+        uac_name ILIKE ${uacName.trim()} 
+        OR uac_name ILIKE ${'%' + uacName.trim() + '%'}
+        OR ${uacName.trim()} ILIKE ('%' || uac_name || '%')
+      )
+      AND (${sem}::int IS NULL OR semester = ${sem})
+      ORDER BY 
+        CASE WHEN LOWER(uac_name) = LOWER(${uacName.trim()}) THEN 0 ELSE 1 END,
+        CASE WHEN subsystem = 'bge' THEN 0 ELSE 1 END
+      LIMIT 1
+    `;
+  }
+
   return (rows[0] as ProgramCatalogItem) || null;
 }
 

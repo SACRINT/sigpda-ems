@@ -32,11 +32,37 @@ SECCIÓN III — TRANSVERSALIDAD
 Contiene: vinculación con el Currículum Fundamental (Lengua y Comunicación, Pensamiento Matemático, Cultura Digital, Ciencias Naturales Experimentales y Tecnología, Ciencias Sociales, Humanidades) y con el Currículum Ampliado (Habilidades para la Vida y el Trabajo — HVyT, y Conceptos Centrales de la Educación para el Desarrollo Sostenible — CoCEDS). Para cada elemento describe brevemente cómo la UAC se vincula con él.
 
 SECCIÓN IV — DISEÑO DE ESCENARIOS DE APRENDIZAJE (SECUENCIA DE ACTIVIDADES DIDÁCTICAS)
-Contiene: una secuencia completa para CADA Actividad Clave (si es laboral) o para CADA Propósito Formativo (si no es laboral), con las tres fases:
-  - APERTURA: Actividad detonadora (situación problema, caso real, objeto cotidiano). Activa conocimientos previos.
-  - EJECUCIÓN/DESARROLLO: Actividades paso a paso por sesiones. OBLIGATORIO usar EXCLUSIVAMENTE metodologías activas.
-  - CONCLUSIÓN/CIERRE: Presentación de resultados, reflexión metacognitiva, entrega de evidencias.
+Contiene: una secuencia completa para CADA Actividad Clave (si es laboral) o para CADA Propósito Formativo / Progresión (si no es laboral), con las tres fases oficiales:
+
+BLINDAJE NORMATIVO USICAMM / DBEPA (ESTRUCTURA OFICIAL CANÓNICA):
+Se conservan obligatoriamente los tres momentos canónicos oficiales:
+  - APERTURA (apertura): Exploración de conocimientos previos y activación cognitiva.
+  - EJECUCIÓN/DESARROLLO (ejecucion): Actividades eslabonadas paso a paso por sesiones. Nivel 2 de complejidad. OBLIGATORIO usar metodologías activas.
+  - CONCLUSIÓN/CIERRE (conclusion): Consolidación, defensa de resultados, reflexión metacognitiva y evaluación formativa.
   - OBLIGATORIO PARA ASIGNATURAS NO LABORALES (Currículum Fundamental o Ampliado): Debes especificar el "contenidoFormativo" (el tema de estudio específico del programa de estudios, por ejemplo: 'Tablas de verdad' o 'Sistemas de conteo') para el cual se diseñó la secuencia didáctica, vinculándolo a su Propósito Formativo correspondiente.
+
+MOTOR PEDAGÓGICO FINLANDÉS INFILTRADO (Ilmiöoppiminen / Aprendizaje Basado en Fenómenos):
+1. FASE DE APERTURA (apertura):
+   - PUNTO DE PARTIDA OBLIGATORIO: FENÓMENO SITUADO DE LA COMUNIDAD (Disonancia Cognitiva).
+     Quedan prohibidas las aperturas teóricas tradicionales ("hoy veremos el concepto X"). La sesión debe arrancar con un enigma, contradicción empírica o fenómeno observable del entorno de Puebla o de la comunidad (ej. por qué parpadean las luces del mercado cuando se enciende una soldadora, por qué se acidifica el pozo de agua local, el dilema del encarecimiento del transporte rural).
+   - Los estudiantes observan, formulan preguntas de indagación y plantean hipótesis iniciales.
+   - El saber disciplinar se introduce no como un dogma memorístico, sino como una herramienta necesaria para desentrañar el fenómeno presentado.
+
+2. FASE DE EJECUCIÓN/DESARROLLO (ejecucion):
+   - INDAGACIÓN EMPÍRICA Y CONSTRUCCIÓN ACTIVA CON LABORATORIOS CONTEMPORÁNEOS:
+     Los estudiantes ponen a prueba sus hipótesis manipulando variables y midiendo fenómenos reales paso a paso por sesiones. De acuerdo con la disciplina, el docente propone el uso de herramientas tecnológicas contemporáneas accesibles:
+       • Ciencias Naturales y Experimentales (Física): Phyphox (usando los sensores propios del teléfono: acelerómetro, giroscopio, acústica, presión barométrica) y simulaciones PhET.
+       • Química y Biología: PhET (reacciones, reactivo limitante, pH) y visores moleculares accesibles.
+       • Pensamiento Matemático: GeoGebra Móvil y Desmos (modelado de curvas reales, optimización y funciones dinámicas).
+       • Cultura Digital y Tecnologías: Google Colab (Python en la nube desde el celular) y Tinkercad Circuits.
+       • Humanidades, Ciencias Sociales y Formación Laboral: Organizadores de pensamiento complejo, hojas de cálculo colaborativas, Canva y diagramas de flujo de procesos organizacionales.
+   - DIRECTRIZ DE EQUIDAD E INCLUSIÓN TECNOLÓGICA (OBLIGATORIA):
+     El uso de aplicaciones en celular es una HERRAMIENTA PEDAGÓGICA SUGERIDA, NUNCA un requisito excluyente. Cada actividad que proponga un laboratorio digital debe incluir un protocolo colaborativo: los estudiantes trabajan en parejas o ternas distribuyendo roles ("Operador del sensor", "Registrador de datos" y "Analista de variables"), y se debe prever siempre la alternativa con instrumental físico análogo del aula (reglas, cronómetros, balanzas caseras). Para planteles sin cobertura digital, el docente puede demostrar la medición con su propio celular o con un prototipo físico, mientras los estudiantes registran los datos en su hoja de campo. El aprendizaje no depende del dispositivo, sino de la indagación.
+
+3. FASE DE CONCLUSIÓN/CIERRE (conclusion):
+   - DEFENSA PÚBLICA Y EVALUACIÓN FORMATIVA PARA EL CRECIMIENTO:
+     Los equipos no solo entregan una libreta para calificar; presentan y defienden técnicamente sus conclusiones y prototipos ante el grupo, respaldando sus decisiones con los datos medidos en el laboratorio.
+   - Diálogo metacognitivo de crecimiento: Cada estudiante reflexiona: ¿Qué comprendí del fenómeno? ¿Qué error detectamos en el experimento y cómo lo resolvimos? ¿Cómo mejora esto a mi comunidad?
 
 METODOLOGÍAS ACTIVAS OBLIGATORIAS (debes seleccionar y variar la metodología más idónea para cada Actividad Clave o Propósito Formativo según el área de conocimiento y el contexto):
   • Aprendizaje Basado en Proyectos (ABP): Proyecto integrador auténtico que responde a una problemática comunitaria articulada con el PAEC.
@@ -183,7 +209,7 @@ Responde ÚNICAMENTE con un objeto JSON válido con la siguiente estructura exac
   "sectionVI": {
     "studentMaterials": ["string"],
     "teacherMaterials": ["string (OBLIGATORIO: Proponer únicamente materiales creados o elaborados físicamente/digitalmente por el docente como infografías, presentaciones, hojas de trabajo, guías, rúbricas impresas, etc. PROHIBIDO proponer proyectores, computadoras, internet, pizarrones o marcadores aquí)"],
-    "digital": ["string (Aquí sí debes colocar recursos del plantel como proyectores, computadoras, internet, plataformas de aprendizaje y simuladores)"],
+    "digital": ["string (Recursos digitales del plantel y herramientas sugeridas: Phyphox, PhET, GeoGebra, Tinkercad, Google Colab, simuladores offline, plataformas y conectividad)"],
     "spaces": ["string"],
     "references": ["string (referencias formales: básica con autor, título, editorial, y complementaria/digital con ligas a NOMs oficiales u otros)"]
   },

@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { getTeacherByEmail } from '@/lib/db';
 import { callGeminiPool } from '@/lib/gemini';
 import { ingestDocument } from '@/lib/document-ingestion';
+import type { PaecOperationalActivity, PaecParseResult } from '@/types/planning';
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,16 +47,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Extracción estructurada multi-nivel (IA NEM -> Heurísticas multi-ancla -> Síntesis como último recurso)
-    const parsedData: {
-      projectName: string | null;
-      objective: string | null;
-      problem: string | null;
-      studentContext: string | null;
-      schoolName: string | null;
-      municipality: string | null;
-      cct: string | null;
-      isSuggestedProblem: boolean;
-    } = {
+    const parsedData: PaecParseResult = {
       projectName: null,
       objective: null,
       problem: null,
@@ -64,6 +56,7 @@ export async function POST(request: NextRequest) {
       municipality: null,
       cct: null,
       isSuggestedProblem: false,
+      planOperativo: [],
     };
 
     // Nivel 1: Modelo de IA con prompt pedagógico NEM
@@ -77,6 +70,20 @@ export async function POST(request: NextRequest) {
       parsedData.municipality = geminiResult.municipality || null;
       parsedData.cct = geminiResult.cct || null;
       parsedData.isSuggestedProblem = false;
+      if (Array.isArray(geminiResult.planOperativo) && geminiResult.planOperativo.length > 0) {
+        parsedData.planOperativo = geminiResult.planOperativo
+          .filter((item: any) => item && (item.asignatura || item.uac) && item.actividad)
+          .map((item: any) => ({
+            asignatura: String(item.asignatura || item.uac || '').trim(),
+            actividad: String(item.actividad || '').trim(),
+            propositoFormativo: item.propositoFormativo ? String(item.propositoFormativo).trim() : undefined,
+            estrategiaDidactica: item.estrategiaDidactica ? String(item.estrategiaDidactica).trim() : undefined,
+            semana: item.semana ? String(item.semana).trim() : undefined,
+            fase: item.fase ? String(item.fase).trim() : undefined,
+            progresion: item.progresion ? String(item.progresion).trim() : undefined,
+            isPrescheduled: true,
+          }));
+      }
     } catch (err: any) {
       console.warn('[paec-parser] Gemini call failed, falling back to heuristics:', err.message || err);
     }
@@ -89,6 +96,9 @@ export async function POST(request: NextRequest) {
     if (!parsedData.schoolName && heuristicResult.schoolName) parsedData.schoolName = heuristicResult.schoolName;
     if (!parsedData.municipality && heuristicResult.municipality) parsedData.municipality = heuristicResult.municipality;
     if (!parsedData.cct && heuristicResult.cct) parsedData.cct = heuristicResult.cct;
+    if ((!parsedData.planOperativo || parsedData.planOperativo.length === 0) && heuristicResult.planOperativo?.length) {
+      parsedData.planOperativo = heuristicResult.planOperativo;
+    }
 
     if (!parsedData.problem || parsedData.problem.trim().length === 0) {
       if (heuristicResult.problem) {
@@ -131,7 +141,18 @@ async function structurePaecWithGemini(smartText: string) {
   "studentContext": "Caracterización o contexto sociocultural y escolar de los estudiantes y el plantel",
   "schoolName": "Nombre oficial del plantel educativo o bachillerato (ej: Bachillerato General Estatal Héroes de la Patria)",
   "municipality": "Municipio o localidad donde se encuentra el plantel (ej: Venustiano Carranza)",
-  "cct": "Clave de Centro de Trabajo CCT de 10 caracteres (ej: 21EBH0200X)"
+  "cct": "Clave de Centro de Trabajo CCT de 10 caracteres (ej: 21EBH0200X)",
+  "planOperativo": [
+    {
+      "asignatura": "Nombre de la Asignatura / UAC (ej: Pensamiento Matemático I)",
+      "actividad": "Nombre o descripción de la actividad acordada en el PAEC",
+      "propositoFormativo": "Propósito formativo o aprendizaje esperado",
+      "estrategiaDidactica": "Estrategia didáctica o metodología",
+      "semana": "Semana o semanas de aplicación (ej: Semana 3)",
+      "fase": "Fase del proyecto (ej: Fase 2: Acción y Aprendizaje)",
+      "progresion": "Progresión o meta curricular si se indica"
+    }
+  ]
 }
 
 INSTRUCCIONES CRÍTICAS PARA LA EXTRACCIÓN:
@@ -142,7 +163,8 @@ INSTRUCCIONES CRÍTICAS PARA LA EXTRACCIÓN:
 5. "schoolName": Nombre oficial del bachillerato o plantel (si aparece en portada o encabezados).
 6. "municipality": Municipio o localidad donde está ubicado el plantel.
 7. "cct": Clave CCT de 10 caracteres alfanuméricos (ej: 21EBH0200X).
-8. Si no encuentras algún campo con certeza absoluta, asigna null.
+8. "planOperativo": Busca de manera exhaustiva tablas o secciones tituladas "Plan Operativo", "Cronograma Operativo del PEC", "Plan de Trabajo por Asignaturas", "Cronograma de Actividades", "Mapeo de UACs" o "Matriz de Vinculación Curricular". Extrae un elemento para CADA asignatura o UAC que tenga una actividad asignada (incluyendo Pensamiento Matemático, Lengua y Comunicación, La Materia y sus Interacciones, Ciencias Sociales, Humanidades, Cultura Digital, Inglés, etc. en cualquier semestre del proyecto). Si no se contemplan actividades por asignatura, retorna un arreglo vacío [].
+9. Si no encuentras algún campo con certeza absoluta, asigna null (o [] en planOperativo).
 
 TEXTO DEL DOCUMENTO:
 ${smartText}`;
@@ -157,7 +179,16 @@ ${smartText}`;
 }
 
 // ─── Heurísticas Multi-Ancla sobre Todo el Texto ──────────────────────────────
-function parsePaecHeuristics(text: string) {
+function parsePaecHeuristics(text: string): {
+  projectName: string | null;
+  objective: string | null;
+  problem: string | null;
+  studentContext: string | null;
+  schoolName: string | null;
+  municipality: string | null;
+  cct: string | null;
+  planOperativo: PaecOperationalActivity[];
+} {
   let projectName: string | null = null;
   let objective: string | null = null;
   let problem: string | null = null;
@@ -165,6 +196,8 @@ function parsePaecHeuristics(text: string) {
   let schoolName: string | null = null;
   let municipality: string | null = null;
   let cct: string | null = null;
+
+  const planOperativo = parsePlanOperativoHeuristics(text);
 
   // 1. Nombre del proyecto
   const nameMatch1 = text.match(/(?:PEC titulado|PEC denominado|proyecto denominado|proyecto titulado)\s*[:\-\s]*["'«“](.*?)["'»”]/i) 
@@ -238,7 +271,81 @@ function parsePaecHeuristics(text: string) {
     schoolName: schoolName ? clean(schoolName) : null,
     municipality: municipality ? clean(municipality) : null,
     cct: cct ? clean(cct) : null,
+    planOperativo,
   };
+}
+
+// ─── Extractor Heurístico de Tablas del Plan Operativo ─────────────────────────
+function parsePlanOperativoHeuristics(text: string): PaecOperationalActivity[] {
+  const activities: PaecOperationalActivity[] = [];
+  const lines = text.split(/\r?\n/);
+
+  let inTable = false;
+  let colMap = {
+    fase: -1,
+    actividad: -1,
+    asignatura: -1,
+    proposito: -1,
+    estrategia: -1,
+    semana: -1,
+    progresion: -1,
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line.startsWith('|') || !line.endsWith('|')) {
+      inTable = false;
+      continue;
+    }
+
+    const cells = line.split('|').map(c => c.trim()).slice(1, -1);
+    if (cells.length < 2) continue;
+
+    // Normalizar celdas para detección de cabeceras
+    const lowerCells = cells.map(c => c.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''));
+    const hasAsignatura = lowerCells.some(c => c.includes('asignatura') || c.includes('uac') || c.includes('materia') || c.includes('disciplina'));
+    const hasActividad = lowerCells.some(c => c.includes('actividad') || c.includes('accion') || c.includes('tarea'));
+
+    if (hasAsignatura && hasActividad) {
+      inTable = true;
+      colMap = {
+        fase: lowerCells.findIndex(c => c.includes('fase') || c.includes('etapa')),
+        actividad: lowerCells.findIndex(c => c.includes('actividad') || c.includes('accion') || c.includes('tarea')),
+        asignatura: lowerCells.findIndex(c => c.includes('asignatura') || c.includes('uac') || c.includes('materia') || c.includes('disciplina')),
+        proposito: lowerCells.findIndex(c => c.includes('proposito') || c.includes('aprendizaje') || c.includes('objetivo')),
+        estrategia: lowerCells.findIndex(c => c.includes('estrategia') || c.includes('metodolog')),
+        semana: lowerCells.findIndex(c => c.includes('semana') || c.includes('periodo') || c.includes('fecha') || c.includes('tiempo')),
+        progresion: lowerCells.findIndex(c => c.includes('progresion') || c.includes('meta')),
+      };
+      continue;
+    }
+
+    // Saltar línea separadora |---|---|
+    if (inTable && cells.every(c => /^[-:\s]+$/.test(c))) {
+      continue;
+    }
+
+    // Extraer fila de datos de la tabla
+    if (inTable && colMap.asignatura !== -1 && colMap.actividad !== -1) {
+      const asigText = cells[colMap.asignatura] || '';
+      const actText = cells[colMap.actividad] || '';
+
+      if (asigText && actText && !asigText.toLowerCase().includes('asignatura') && asigText.length > 2) {
+        activities.push({
+          asignatura: asigText.replace(/\*\*/g, '').trim(),
+          actividad: actText.replace(/\*\*/g, '').trim(),
+          fase: colMap.fase !== -1 && cells[colMap.fase] ? cells[colMap.fase].replace(/\*\*/g, '').trim() : undefined,
+          propositoFormativo: colMap.proposito !== -1 && cells[colMap.proposito] ? cells[colMap.proposito].replace(/\*\*/g, '').trim() : undefined,
+          estrategiaDidactica: colMap.estrategia !== -1 && cells[colMap.estrategia] ? cells[colMap.estrategia].replace(/\*\*/g, '').trim() : undefined,
+          semana: colMap.semana !== -1 && cells[colMap.semana] ? cells[colMap.semana].replace(/\*\*/g, '').trim() : undefined,
+          progresion: colMap.progresion !== -1 && cells[colMap.progresion] ? cells[colMap.progresion].replace(/\*\*/g, '').trim() : undefined,
+          isPrescheduled: true,
+        });
+      }
+    }
+  }
+
+  return activities;
 }
 
 // ─── Síntesis Contextual de Respaldo (Último Recurso) ──────────────────────────

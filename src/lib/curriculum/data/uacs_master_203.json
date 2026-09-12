@@ -1,0 +1,1220 @@
+[
+  {
+    "semester": 1,
+    "uac_name": "Ciencias Naturales, Experimentales y Tecnología I",
+    "component": "fundamental",
+    "total_hours": 72
+  },
+  {
+    "semester": 1,
+    "uac_name": "Ciencias Sociales I",
+    "component": "fundamental",
+    "total_hours": 36
+  },
+  {
+    "semester": 1,
+    "uac_name": "Cultura Digital I",
+    "component": "fundamental",
+    "total_hours": 54
+  },
+  {
+    "semester": 1,
+    "uac_name": "Pensamiento Matemático I",
+    "component": "fundamental",
+    "total_hours": 72
+  },
+  {
+    "semester": 1,
+    "uac_name": "Lengua y Comunicación I",
+    "component": "fundamental",
+    "total_hours": 54
+  },
+  {
+    "semester": 1,
+    "uac_name": "Inglés I",
+    "component": "fundamental",
+    "total_hours": 54
+  },
+  {
+    "semester": 1,
+    "uac_name": "Humanidades I",
+    "component": "fundamental",
+    "total_hours": 72
+  },
+  {
+    "semester": 2,
+    "uac_name": "Ciencias Naturales, Experimentales y Tecnología II",
+    "component": "fundamental",
+    "total_hours": 72
+  },
+  {
+    "semester": 2,
+    "uac_name": "Ciencias Sociales II",
+    "component": "fundamental",
+    "total_hours": 36
+  },
+  {
+    "semester": 2,
+    "uac_name": "Cultura Digital II",
+    "component": "fundamental",
+    "total_hours": 36
+  },
+  {
+    "semester": 2,
+    "uac_name": "Pensamiento Matemático II",
+    "component": "fundamental",
+    "total_hours": 72
+  },
+  {
+    "semester": 2,
+    "uac_name": "Lengua y Comunicación II",
+    "component": "fundamental",
+    "total_hours": 54
+  },
+  {
+    "semester": 2,
+    "uac_name": "Inglés II",
+    "component": "fundamental",
+    "total_hours": 54
+  },
+  {
+    "semester": 2,
+    "uac_name": "Humanidades II",
+    "component": "fundamental",
+    "total_hours": 72
+  },
+  {
+    "semester": 3,
+    "uac_name": "Ciencias Naturales, Experimentales y Tecnología III",
+    "component": "fundamental",
+    "total_hours": 72
+  },
+  {
+    "semester": 3,
+    "uac_name": "Pensamiento Matemático III",
+    "component": "fundamental",
+    "total_hours": 72
+  },
+  {
+    "semester": 3,
+    "uac_name": "Lengua y Comunicación III",
+    "component": "fundamental",
+    "total_hours": 54
+  },
+  {
+    "semester": 3,
+    "uac_name": "Inglés III",
+    "component": "fundamental",
+    "total_hours": 54
+  },
+  {
+    "semester": 3,
+    "uac_name": "Humanidades III",
+    "component": "fundamental",
+    "total_hours": 90
+  },
+  {
+    "semester": 4,
+    "uac_name": "Ciencias Naturales, Experimentales y Tecnología IV",
+    "component": "fundamental",
+    "total_hours": 72
+  },
+  {
+    "semester": 4,
+    "uac_name": "Conciencia Histórica I",
+    "component": "fundamental",
+    "total_hours": 54
+  },
+  {
+    "semester": 4,
+    "uac_name": "Inglés IV",
+    "component": "fundamental",
+    "total_hours": 54
+  },
+  {
+    "semester": 4,
+    "uac_name": "Ciencias Sociales III",
+    "component": "fundamental",
+    "total_hours": 72
+  },
+  {
+    "semester": 5,
+    "uac_name": "Ciencias Naturales, Experimentales y Tecnología V",
+    "component": "fundamental",
+    "total_hours": 72
+  },
+  {
+    "semester": 5,
+    "uac_name": "Conciencia Histórica II",
+    "component": "fundamental",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Ciencias Naturales, Experimentales y Tecnología VI",
+    "component": "fundamental",
+    "total_hours": 72
+  },
+  {
+    "semester": 6,
+    "uac_name": "Conciencia Histórica III",
+    "component": "fundamental",
+    "total_hours": 54
+  },
+  {
+    "semester": 1,
+    "uac_name": "Actividades Artísticas y Culturales I",
+    "component": "socioemocional",
+    "total_hours": 36
+  },
+  {
+    "semester": 1,
+    "uac_name": "Actividades Físicas y Deportivas I",
+    "component": "socioemocional",
+    "total_hours": 36
+  },
+  {
+    "semester": 2,
+    "uac_name": "Actividades Artísticas y Culturales II",
+    "component": "socioemocional",
+    "total_hours": 36
+  },
+  {
+    "semester": 2,
+    "uac_name": "Actividades Físicas y Deportivas II",
+    "component": "socioemocional",
+    "total_hours": 36
+  },
+  {
+    "semester": 3,
+    "uac_name": "Formación Socioemocional III",
+    "component": "socioemocional",
+    "total_hours": 36
+  },
+  {
+    "semester": 4,
+    "uac_name": "Formación Socioemocional IV",
+    "component": "socioemocional",
+    "total_hours": 36
+  },
+  {
+    "semester": 5,
+    "uac_name": "Formación Socioemocional V",
+    "component": "socioemocional",
+    "total_hours": 36
+  },
+  {
+    "semester": 1,
+    "uac_name": "Laboratorio de Investigación",
+    "component": "ffeo",
+    "total_hours": 54
+  },
+  {
+    "semester": 2,
+    "uac_name": "Taller de Ciencias I",
+    "component": "ffeo",
+    "total_hours": 72
+  },
+  {
+    "semester": 3,
+    "uac_name": "Taller de Ciencias II",
+    "component": "ffeo",
+    "total_hours": 54
+  },
+  {
+    "semester": 4,
+    "uac_name": "Taller de Cultura Digital I",
+    "component": "ffeo",
+    "total_hours": 18
+  },
+  {
+    "semester": 4,
+    "uac_name": "Temas Selectos de Matemáticas I",
+    "component": "ffeo",
+    "total_hours": 72
+  },
+  {
+    "semester": 4,
+    "uac_name": "Pensamiento Literario",
+    "component": "ffeo",
+    "total_hours": 54
+  },
+  {
+    "semester": 4,
+    "uac_name": "Espacio y Sociedad",
+    "component": "ffeo",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Taller de Pensamiento Variacional I",
+    "component": "ffeo",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Temas Selectos de Matemáticas II",
+    "component": "ffeo",
+    "total_hours": 72
+  },
+  {
+    "semester": 5,
+    "uac_name": "Comunicación y Sociedad I",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Raíces Etimológicas del Español I",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Inglés V",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Taller Pensamiento Variacional I",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Dibujo Técnico I",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Pensamiento Matemático Aplicado a las Finanzas I",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Taller de Probabilidad y Estadística I",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Salud Integral I",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Análisis de Fenómenos y Procesos Biológicos",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Análisis de Fenómenos Físicos I",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Organización del Flujo de Materia y Energía en los Organismos I",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Fundamentos de Administración I",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Procesos Contables I",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Derecho y Sociedad I",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Economía I. La Función de los Agentes Económicos en la Sociedad",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Temas Selectos de Ciencias Sociales I",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Psicología I",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Lógica y Pensamiento Crítico",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Pensamiento Filosófico I",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Arte y Cultura I",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Comunicación y Sociedad II",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Raíces Etimológicas del Español II",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Inglés VI",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Taller Pensamiento Variacional II",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Dibujo Técnico II",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Pensamiento Matemático Aplicado a las Finanzas II",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Taller de Probabilidad y Estadística II",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Salud Integral II",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Temas Selectos de Biología",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Análisis de Fenómenos Físicos II",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Organización del Flujo de Materia y Energía en los Organismos II",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Fundamentos de Administración II",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Procesos Contables II",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Derecho y Sociedad II",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Economía II. Política Económica y Política Pública Mexicana",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Temas Selectos de Ciencias Sociales II",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Psicología II",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Experiencia Estética",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Pensamiento Filosófico II",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Arte y Cultura II",
+    "component": "ffe_optativa",
+    "total_hours": 54
+  },
+  {
+    "semester": 3,
+    "uac_name": "Entrega recursos materiales a otras áreas de una organización",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 3,
+    "uac_name": "Organiza recursos materiales a solicitud de un superior",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 4,
+    "uac_name": "Captura información solicitada por un superior",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 4,
+    "uac_name": "Registra entrada y salida del personal de una organización",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Elabora trámites administrativos básicos de una organización",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Organiza expedientes y documentación interna de las diferentes áreas de una organización",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Proporciona información detallada y condiciones de venta de bienes y servicios",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Realiza ventas de bienes y servicios al público en general",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 3,
+    "uac_name": "Construye huerto para la producción agrícola sostenible de traspatio",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 3,
+    "uac_name": "Planea huerto para la producción agrícola sostenible de traspatio",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 4,
+    "uac_name": "Aplica manejo agroecológico en el sistema en el huerto de traspatio",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 4,
+    "uac_name": "Reconoce sistemas de producción y manejo agroecológico en el huerto de traspatio",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Aplica técnicas agroecológicas de conservación de suelo y agua, y de control de plagas y enfermedades",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Distingue técnicas agroecológicas de conservación de suelo y agua y de control de plagas y enfermedades",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Identifica manejo de la biodiversidad y su contribución a la soberanía alimentaria y el desarrollo sostenible",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Promueve prácticas agroecológicas, redes alimentarias y económicas alternativas para contribuir a la soberanía alimentaria y el desarrollo sostenible",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 3,
+    "uac_name": "Despacha medicamentos y material de curación de acuerdo con prescripciones médicas y productos farmacéuticos",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 3,
+    "uac_name": "Lleva registro de recetas, inventarios de medicamentos y productos farmacéuticos",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 4,
+    "uac_name": "Ordena las existencias de medicamentos en estantes y anaqueles",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 4,
+    "uac_name": "Participa en la preparación de medicamentos y otros compuestos bajo supervisión profesional químico farmacéutico",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Asiste especialistas del área en las necesidades del paciente",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Asiste especialistas del área en las necesidades del paciente diagnosticado",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Lava, empaqueta y esteriliza el material e instrumental utilizado en las distintas áreas del sector salud",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Realiza diferentes actividades administrativas solicitadas",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 3,
+    "uac_name": "Elabora bocetos gráficos comprensibles y creativos a partir de las necesidades de comunicación gráfica requerida",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 3,
+    "uac_name": "Ilustra dibujos en materiales artesanales o artísticos",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 4,
+    "uac_name": "Reproduce bocetos gráficos básicos utilizando herramientas tradicionales o digitales",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 4,
+    "uac_name": "Utilizar elementos de comunicación visual y fuentes tipográficas para resolver problemas y necesidades de comunicación",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Integra efectos visuales a imágenes y textos por medio de software o aplicaciones digitales de uso libre",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Utiliza técnicas de impresión para los diversos productos gráficos, artesanales, artísticos y publicitarios",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Emplea materiales amigables con el medio ambiente para productos gráficos, artísticos y publicitarios",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Realiza maquetación de productos gráficos para publicidad y rotulación",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 3,
+    "uac_name": "Opera programas de cómputo para efectuar el registro, cálculo, control y análisis de la información contable",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 3,
+    "uac_name": "Registra movimientos contables de una entidad económica, con base en documentos fuente",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 4,
+    "uac_name": "Realiza cálculos básicos para los informes financieros y contables, para su revisión",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 4,
+    "uac_name": "Registra información para el pago de obligaciones, comerciales, laborales y fiscales",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Realiza reportes básicos previos a los estados financieros",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Registra compras y ventas del sector comercial",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Organiza información para la elaboración de estados financieros básicos",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Registra información que ayude al cálculo de impuestos del contribuyente",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 3,
+    "uac_name": "Separa componentes electrónicos y mecánicos de uso doméstico y comercial",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 3,
+    "uac_name": "Separa componentes eléctricos y domóticos de uso doméstico y comercial",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 4,
+    "uac_name": "Ensambla componentes electrónicos y domóticos para uso doméstico y comercial",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 4,
+    "uac_name": "Simula circuitos electrónicos y domóticos para instalaciones domésticas y comerciales",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Asiste instalaciones de equipo de automatización y control para uso residencial y comercial",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Opera equipo domótico en instalaciones residenciales y comerciales, bajo supervisión",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Aplica mantenimiento a equipo domótico residencial y comercial con supervisión de expertos",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Auxilia fabricación de equipo domótico para uso residencial y comercial",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 3,
+    "uac_name": "Interpreta croquis de diferentes instalaciones básicas de una vivienda",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 3,
+    "uac_name": "Prepara materiales en cantidad y calidad especificada para llevar a cabo diferentes tipos de mezclas bajo la supervisión del experto",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 4,
+    "uac_name": "Realiza cortes, ranuras en pisos, techos y muros en construcción e instalaciones residenciales",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 4,
+    "uac_name": "Traslada materiales constructivos hacia sitios de trabajo bajo normas de seguridad",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Coloca elementos constructivos básicos de una vivienda",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Limpia muebles, tuberías y conexiones para llevar a cabo diferentes instalaciones de una vivienda",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Coloca muebles, tuberías y conexiones de acuerdo con instrucciones",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Recupera materiales de construcción para su reuso",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 3,
+    "uac_name": "Prepara modelos, moldes, porta impresiones, bloques o rodillos para realizar impresiones dentales parciales o totales",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 3,
+    "uac_name": "Registra órdenes de trabajo siguiendo especificaciones y prescripciones para dispositivos y aparatos dentales",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 4,
+    "uac_name": "Prepara prótesis dentales fijas y removibles para el proceso de encerado",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 4,
+    "uac_name": "Realiza actividades de colado de modelos protésicos calcinables con el fin de fabricar prótesis dentales",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Modela alambres de diversos calibres para casos de aparatología ortodóntica",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Realiza perfilado para prótesis dentales fijas y removibles",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Apoya actividades de diseño de prótesis y aparatología dental de acuerdo con la prescripción médicoodontológica",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Repara aparatos ortopédicos y protésicos mediante herramientas manuales bajo la supervisión del experto",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 3,
+    "uac_name": "Conserva frutas, verduras y legumbres a través de métodos tradicionales",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 3,
+    "uac_name": "Transforma cereales y harinas para la elaboración de tortillas y productos afines",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 4,
+    "uac_name": "Elabora productos utilizando azúcar para preparar dulces típicos",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 4,
+    "uac_name": "Realiza distintos tipos de pan a base de harinas y otros ingredientes",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Obtiene bebidas no alcohólicas mediante procedimientos simples",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Prepara productos de carnes, derivados disponibles y sustitutos de proteína",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Elabora productos lácteos por métodos tradicionales",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Realiza productos utilizando aceites, grasas y condimentos a través de métodos tradicionales",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 3,
+    "uac_name": "Elabora productos de panificación siguiendo procesos establecidos",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 3,
+    "uac_name": "Emplea productos, utensilios y conceptos culinarios durante el proceso de transformación de alimentos",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 4,
+    "uac_name": "Elabora platillos aplicando normas de calidad e higiene",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 4,
+    "uac_name": "Elabora productos de repostería aplicando procesos establecidos",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Determina costos de producción en la elaboración de platillos",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Prepara banquetes y servicios gastronómicos para eventos especiales",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Elabora productos culinarios nacionales en establecimientos de alimentos",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Diseña y comercializa menús y servicios gastronómicos sustentables",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 3,
+    "uac_name": "Actualiza equipos de cómputo de acuerdo con especificaciones del fabricante",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 3,
+    "uac_name": "Usa técnicas y estrategias de mantenimiento del equipo de cómputo",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 4,
+    "uac_name": "Establece seguridad informática en equipos de cómputo",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 4,
+    "uac_name": "Planea infraestructura de red internet e intranet en un entorno con supervisión del experto",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Administra redes de acuerdo con las condiciones y requerimientos de una organización",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Brinda soporte en software de aplicación y hardware según los requerimientos del usuario",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Asesora sobre directrices de seguridad en redes y equipos de cómputo a usuarios",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Ofrece soporte en software de aplicación y hardware según los requerimientos del usuario",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 3,
+    "uac_name": "Aplica técnicas de muestreo indicadas por el especialista",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 3,
+    "uac_name": "Recopila muestras para las pruebas de niveles de contaminantes con guía del especialista",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 4,
+    "uac_name": "Aplica técnicas de muestreo de agua dulce indicadas por el especialista",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 4,
+    "uac_name": "Aplica técnicas para el aprovechamiento del agua",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Aplica técnicas para la siembra de diversas semillas forestales bajo supervisión",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Realiza pruebas de suelos y fertilizantes para el mantenimiento del ecosistema forestal",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Elabora informe final de resultados de las pruebas bajo supervisión del especialista",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Elabora presentación de resultados para su difusión bajo supervisión del especialista",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 3,
+    "uac_name": "Elabora empalmes acordes con las características de los hilos",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 3,
+    "uac_name": "Limpia áreas de trabajo, equipo, materiales y herramientas utilizadas durante la actividad",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 4,
+    "uac_name": "Calcula voltaje de un sistema eléctrico empleando equipos de medición, la ley de Ohm y las leyes de Kirchhoff",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 4,
+    "uac_name": "Manipula sistemas eléctricos en componentes o aparatos siguiendo las fichas técnicas",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Ensambla componentes sobre tableros en perfocel para circuitos eléctricos básicos",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Reconoce planos de sistemas eléctricos en servicios domésticos y comerciales",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Conoce el funcionamiento y clasificación de aparatos domésticos que incluyan motores universales y utiliza equipos de medición para realizar el diagnóstico",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Realiza servicio preventivo a aparatos domésticos y en los sistemas eléctricos con supervisión del experto",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 3,
+    "uac_name": "Elabora documentos electrónicos en diferentes procesadores de texto, relacionados con la ofimática",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 3,
+    "uac_name": "Utiliza aplicaciones ofimáticas en distintos sistemas operativos",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 4,
+    "uac_name": "Elabora libros electrónicos en hojas de cálculo, relacionados con la ofimática",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 4,
+    "uac_name": "Opera dispositivos de hardware y software para resguardo de información",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Elabora presentaciones electrónicas en diferentes aplicaciones relacionadas con la ofimática",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Opera dispositivos electrónicos multifuncionales en procesos administrativos",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Maneja softwares de aplicación para comunicación síncrona y asíncrona",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Utiliza navegadores web en distintas plataformas digitales con propósitos administrativos",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 3,
+    "uac_name": "Explica procesos de expedición de documentos oficiales en las instituciones gubernamentales correspondientes para transitar o viajar",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 3,
+    "uac_name": "Muestra variedad de servicios que componen el catálogo de la planta turística",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 4,
+    "uac_name": "Recomienda planes turísticos de interés, diversión y esparcimiento de mayor ocupación nacional e internacional",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 4,
+    "uac_name": "Utiliza aparatos digitales o análogos para reservar y contratar servicios turísticos",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Asiste usuarios en la selección, adquisición y utilización eficiente de servicios turísticos requeridos",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 5,
+    "uac_name": "Promociona sitios alternativos de lugares a visitar según necesidades del turista",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Planea paquetes turísticos personalizados según necesidades del turista",
+    "component": "laboral",
+    "total_hours": 54
+  },
+  {
+    "semester": 6,
+    "uac_name": "Propone actividades específicas al usuario, según el catálogo turístico vigente",
+    "component": "laboral",
+    "total_hours": 54
+  }
+]

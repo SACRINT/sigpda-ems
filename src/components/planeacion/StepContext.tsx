@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import type { ExtractedPdfData, TeacherContext } from '@/types/planning';
+import type { ExtractedPdfData, TeacherContext, PaecOperationalActivity } from '@/types/planning';
 import { CATALOGO_METODOLOGIAS_ACTIVAS, type MetodologiaActiva } from '@/lib/catalogo-metodologias';
 import { recomendarMetodologia } from '@/lib/recomendador-metodologia';
 
@@ -28,6 +28,54 @@ const SUBSYSTEMS = [
   { value: 'otro',    label: 'Otro subsistema' },
 ];
 
+/**
+ * Función de coincidencia difusa para emparejar la UAC seleccionada con
+ * las asignaturas listadas en el Plan Operativo del PAEC
+ */
+function matchSubject(targetUac: string, paecSubject: string): boolean {
+  if (!targetUac || !paecSubject) return false;
+  const clean = (s: string) =>
+    s
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  const tNorm = clean(targetUac);
+  const pNorm = clean(paecSubject);
+
+  if (tNorm === pNorm) return true;
+  if (tNorm.includes(pNorm) || pNorm.includes(tNorm)) return true;
+
+  // Normalizar números romanos y arábigos: ' i' <-> ' 1', ' ii' <-> ' 2', ' iii' <-> ' 3', etc.
+  const toArabic = (s: string) =>
+    s
+      .replace(/\bvi\b/g, '6')
+      .replace(/\bv\b/g, '5')
+      .replace(/\biv\b/g, '4')
+      .replace(/\biii\b/g, '3')
+      .replace(/\bii\b/g, '2')
+      .replace(/\bi\b/g, '1');
+
+  const tArabic = toArabic(tNorm);
+  const pArabic = toArabic(pNorm);
+
+  if (tArabic === pArabic) return true;
+  if (tArabic.includes(pArabic) || pArabic.includes(tArabic)) return true;
+
+  // Comparación por palabras clave significativas (ej: "pensamiento matematico", "materia interacciones")
+  const tWords = tArabic.split(' ').filter(w => w.length > 3);
+  const pWords = pArabic.split(' ').filter(w => w.length > 3);
+  if (tWords.length > 0 && pWords.length > 0) {
+    const common = tWords.filter(w => pWords.includes(w));
+    if (common.length >= Math.min(2, tWords.length)) return true;
+  }
+
+  return false;
+}
+
 export default function StepContext({
   extractedData,
   initialContext,
@@ -48,6 +96,8 @@ export default function StepContext({
     paecProjectName: initialContext?.paecProjectName || '',
     paecObjective: initialContext?.paecObjective || '',
     paecProblem: initialContext?.paecProblem || '',
+    paecOperationalActivity: initialContext?.paecOperationalActivity || null,
+    usePaecActivity: initialContext?.usePaecActivity !== false,
     schoolResources: initialContext?.schoolResources || '',
     studentContext: initialContext?.studentContext || '',
     metodologiaActiva: initialContext?.metodologiaActiva,
@@ -57,6 +107,13 @@ export default function StepContext({
   const [paecSuccess, setPaecSuccess] = useState(false);
   const [paecError, setPaecError] = useState<string | null>(null);
   const [isSuggestedProblem, setIsSuggestedProblem] = useState<boolean | null>(null);
+  const [detectedPaecActivity, setDetectedPaecActivity] = useState<PaecOperationalActivity | null>(
+    () => initialContext?.paecOperationalActivity || null
+  );
+  const [hasPlanOperativoScan, setHasPlanOperativoScan] = useState<boolean>(
+    () => Boolean(initialContext?.paecOperationalActivity)
+  );
+  const [showManualPaecEntry, setShowManualPaecEntry] = useState<boolean>(false);
   const paecInputRef = useRef<HTMLInputElement>(null);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -121,6 +178,22 @@ export default function StepContext({
       const result = await res.json();
 
       if (res.ok && result.data) {
+        // Emparejamiento automático con el Plan Operativo del PAEC
+        let matchedAct: PaecOperationalActivity | null = null;
+        if (Array.isArray(result.data.planOperativo) && result.data.planOperativo.length > 0) {
+          matchedAct = result.data.planOperativo.find((item: PaecOperationalActivity) =>
+            matchSubject(uacName, item.asignatura)
+          ) || null;
+        }
+
+        if (matchedAct) {
+          setDetectedPaecActivity(matchedAct);
+          setShowManualPaecEntry(false);
+        } else {
+          setDetectedPaecActivity(null);
+        }
+        setHasPlanOperativoScan(true);
+
         setForm(prev => ({
           ...prev,
           paecProjectName: result.data.projectName || prev.paecProjectName,
@@ -129,7 +202,10 @@ export default function StepContext({
           studentContext: result.data.studentContext || prev.studentContext,
           schoolName: prev.schoolName || result.data.schoolName || prev.schoolName,
           municipality: prev.municipality || result.data.municipality || prev.municipality,
+          paecOperationalActivity: matchedAct || prev.paecOperationalActivity || null,
+          usePaecActivity: matchedAct ? true : prev.usePaecActivity,
         }));
+
         if (typeof result.data.isSuggestedProblem === 'boolean') {
           setIsSuggestedProblem(result.data.isSuggestedProblem);
         }
@@ -484,6 +560,233 @@ export default function StepContext({
                   <span className="form-hint" style={{ color: 'var(--c-navy-light)', fontWeight: 500 }}>
                     Esta problemática aparecerá en la Sección II y guiará las actividades de la Sección IV.
                   </span>
+                </div>
+
+                {/* ── SUB-SECCIÓN: Plan Operativo del PAEC (Actividad por Asignatura) ── */}
+                <div
+                  style={{
+                    border: detectedPaecActivity
+                      ? '1px solid rgba(16, 185, 129, 0.4)'
+                      : hasPlanOperativoScan
+                        ? '1px solid rgba(59, 130, 246, 0.3)'
+                        : '1px solid var(--c-border)',
+                    background: detectedPaecActivity
+                      ? 'rgba(16, 185, 129, 0.05)'
+                      : hasPlanOperativoScan
+                        ? 'rgba(59, 130, 246, 0.03)'
+                        : 'var(--c-surface-card, rgba(255,255,255,0.02))',
+                    borderRadius: '8px',
+                    padding: '14px 16px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '18px' }}>📋</span>
+                      <span style={{ fontWeight: 600, fontSize: '14px', color: 'var(--c-text)' }}>
+                        Plan Operativo del PAEC — Vinculación de {uacName || 'tu Asignatura'}
+                      </span>
+                    </div>
+                    {detectedPaecActivity && (
+                      <span className="badge badge-success" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', padding: '3px 8px', borderRadius: '4px' }}>
+                        ✓ Actividad Oficial Detectada en PAEC
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Escenario A: Actividad Oficial Detectada en el PAEC */}
+                  {detectedPaecActivity ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <div style={{ fontSize: '13px', color: 'var(--c-text-secondary)' }}>
+                        El colectivo escolar del plantel acordó colegiadamente en el PAEC la siguiente actividad para <strong>{detectedPaecActivity.asignatura}</strong>:
+                      </div>
+
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label className="form-label" style={{ fontSize: '12px', fontWeight: 600 }}>Actividad oficial programada (puedes complementarla o editarla):</label>
+                        <textarea
+                          className="form-textarea"
+                          rows={2}
+                          value={form.paecOperationalActivity?.actividad || ''}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setForm(prev => ({
+                              ...prev,
+                              paecOperationalActivity: prev.paecOperationalActivity
+                                ? { ...prev.paecOperationalActivity, actividad: val }
+                                : { asignatura: uacName, actividad: val, isPrescheduled: true }
+                            }));
+                          }}
+                        />
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', fontSize: '12px', background: 'rgba(0,0,0,0.06)', padding: '10px 12px', borderRadius: '6px' }}>
+                        {detectedPaecActivity.semana && (
+                          <div>
+                            <span style={{ color: 'var(--c-text-muted)', display: 'block' }}>Semana / Fase:</span>
+                            <strong>{detectedPaecActivity.semana} {detectedPaecActivity.fase ? `(${detectedPaecActivity.fase})` : ''}</strong>
+                          </div>
+                        )}
+                        {detectedPaecActivity.estrategiaDidactica && (
+                          <div>
+                            <span style={{ color: 'var(--c-text-muted)', display: 'block' }}>Estrategia Didáctica:</span>
+                            <strong>{detectedPaecActivity.estrategiaDidactica}</strong>
+                          </div>
+                        )}
+                        {(detectedPaecActivity.propositoFormativo || detectedPaecActivity.progresion) && (
+                          <div>
+                            <span style={{ color: 'var(--c-text-muted)', display: 'block' }}>Propósito / Progresión:</span>
+                            <strong>{detectedPaecActivity.propositoFormativo || detectedPaecActivity.progresion}</strong>
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
+                        <input
+                          type="checkbox"
+                          id="chk-use-paec-activity"
+                          checked={form.usePaecActivity !== false}
+                          onChange={e => setForm(prev => ({ ...prev, usePaecActivity: e.target.checked }))}
+                          style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                        />
+                        <label htmlFor="chk-use-paec-activity" style={{ fontSize: '13px', cursor: 'pointer', fontWeight: 500, color: 'var(--c-text)' }}>
+                          Respetar e integrar formalmente esta actividad oficial en mi planeación didáctica (Sección III y IV)
+                        </label>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Escenario B y C: No detectada o Fallback manual */
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {hasPlanOperativoScan && (
+                        <div className="alert alert-info" style={{ margin: 0, padding: '10px 12px', fontSize: '13px', background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', color: 'var(--c-text)' }}>
+                          ℹ️ <strong>Asignatura sin actividad preasignada en el Plan Operativo:</strong> El documento PAEC no contempla una fila específica para <em>{uacName || 'esta materia'}</em>. La plataforma propondrá automáticamente actividades de vinculación transversal en la Sección III y IV orientadas a la problemática comunitaria.
+                        </div>
+                      )}
+
+                      {!showManualPaecEntry && (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                          <span style={{ fontSize: '12px', color: 'var(--c-text-secondary)' }}>
+                            ¿Tu colectivo escolar acordó una actividad para tu materia o deseas capturarla de forma manual?
+                          </span>
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => {
+                              setShowManualPaecEntry(true);
+                              setForm(prev => ({
+                                ...prev,
+                                usePaecActivity: true,
+                                paecOperationalActivity: prev.paecOperationalActivity || {
+                                  asignatura: uacName,
+                                  actividad: '',
+                                  isPrescheduled: false,
+                                }
+                              }));
+                            }}
+                            style={{ fontSize: '12px', padding: '4px 10px' }}
+                          >
+                            ✏️ Capturar actividad manualmente
+                          </button>
+                        </div>
+                      )}
+
+                      {showManualPaecEntry && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '6px', borderTop: '1px dashed var(--c-border)', paddingTop: '10px' }}>
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label className="form-label" style={{ fontSize: '12px', fontWeight: 600 }}>
+                              Actividad acordada para {uacName || 'tu asignatura'} en el PAEC:
+                            </label>
+                            <textarea
+                              className="form-textarea"
+                              rows={2}
+                              placeholder="Ej: Taller 'El Veneno en la Etiqueta' para medir pH y calcular concentración de azúcares..."
+                              value={form.paecOperationalActivity?.actividad || ''}
+                              onChange={e => {
+                                const val = e.target.value;
+                                setForm(prev => ({
+                                  ...prev,
+                                  paecOperationalActivity: {
+                                    ...(prev.paecOperationalActivity || { asignatura: uacName, isPrescheduled: false }),
+                                    actividad: val,
+                                  }
+                                }));
+                              }}
+                            />
+                          </div>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>
+                            <div className="form-group" style={{ margin: 0 }}>
+                              <label className="form-label" style={{ fontSize: '11px' }}>Estrategia didáctica sugerida (opcional):</label>
+                              <input
+                                className="form-input"
+                                placeholder="Ej: Taller experimental, debate, infografía..."
+                                value={form.paecOperationalActivity?.estrategiaDidactica || ''}
+                                onChange={e => {
+                                  const val = e.target.value;
+                                  setForm(prev => ({
+                                    ...prev,
+                                    paecOperationalActivity: {
+                                      ...(prev.paecOperationalActivity || { asignatura: uacName, actividad: '', isPrescheduled: false }),
+                                      estrategiaDidactica: val,
+                                    }
+                                  }));
+                                }}
+                              />
+                            </div>
+                            <div className="form-group" style={{ margin: 0 }}>
+                              <label className="form-label" style={{ fontSize: '11px' }}>Semana o Fase de aplicación (opcional):</label>
+                              <input
+                                className="form-input"
+                                placeholder="Ej: Semana 5 (Fase 2)"
+                                value={form.paecOperationalActivity?.semana || ''}
+                                onChange={e => {
+                                  const val = e.target.value;
+                                  setForm(prev => ({
+                                    ...prev,
+                                    paecOperationalActivity: {
+                                      ...(prev.paecOperationalActivity || { asignatura: uacName, actividad: '', isPrescheduled: false }),
+                                      semana: val,
+                                    }
+                                  }));
+                                }}
+                              />
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <input
+                                type="checkbox"
+                                id="chk-use-manual-paec"
+                                checked={form.usePaecActivity !== false}
+                                onChange={e => setForm(prev => ({ ...prev, usePaecActivity: e.target.checked }))}
+                                style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                              />
+                              <label htmlFor="chk-use-manual-paec" style={{ fontSize: '12px', cursor: 'pointer', color: 'var(--c-text)' }}>
+                                Integrar esta actividad manual en la planeación (Sección III y IV)
+                              </label>
+                            </div>
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => {
+                                setShowManualPaecEntry(false);
+                                setForm(prev => ({
+                                  ...prev,
+                                  paecOperationalActivity: null,
+                                  usePaecActivity: false,
+                                }));
+                              }}
+                              style={{ fontSize: '11px', padding: '2px 8px' }}
+                            >
+                              Cancelar captura manual
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="form-group">

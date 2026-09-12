@@ -111,18 +111,22 @@ export const MATERIAL_PROMPT_TEMPLATE = (
   uacContext: string,
   metodologiaActiva?: string
 ) => `
-Genera el contenido detallado y completo del siguiente material didáctico impreso para clase:
+Genera el contenido didáctico completo, listo para imprimir y usar en el aula, para el siguiente recurso:
 Nombre del Material: ${materialName}
 UAC/Asignatura: ${uacName}
 Problemática PAEC asociada: ${paecProblem}
 Contexto General de la Planeación:
 ${uacContext}
 ${buildMetodologiaLine(metodologiaActiva)}
-REQUISITOS DEL MATERIAL:
-1. NO uses marcadores de posición (placeholders) como "[escribir aquí]", "etc.". Escribe el texto real completo, listo para imprimir y fotocopiar.
-2. Si es una "Ficha Técnica" o "Tabla", incluye datos técnicos reales, calibres, normas oficiales mexicanas aplicables (ej: NOM-001-SEDE-2012) y descripciones detalladas de uso.
-3. Si es un "Cuestionario Diagnóstico", redacta las preguntas reales (mínimo 5), con opciones y una clave de respuestas comentada con notas pedagógicas para el docente al final.
-4. Si son "Tarjetas de Casos Prácticos", redacta al menos 3 casos ficticios realistas situados en comunidades rurales o urbanas del Estado de Puebla, planteando un problema cotidiano de la comunidad y la solución técnica esperada.
+
+DIRECTRICES PEDAGÓGICAS DE NIVEL EXCELENCIA:
+1. PROHIBICIÓN DE CONTENIDO SUPERFICIAL: Queda prohibido generar cuestionarios vacíos de falso/verdadero, resúmenes enciclopédicos pasivos o listas de definiciones descontextualizadas.
+2. FORMATOS REQUERIDOS SEGÚN EL TIPO DE RECURSO:
+   - Si es "Tarjeta de Dilema Situado": Plantea un caso real de una comunidad o sector productivo de Puebla donde exista un conflicto técnico, ético, ambiental o económico. Incluye: (a) Hechos y datos numéricos verificables, (b) Dos posturas en conflicto, (c) Preguntas socráticas de deliberación fundamentada, y (d) Criterio de dictamen técnico.
+   - Si es "Organizador Visual de Pensamiento": Estructura una rutina de pensamiento visible (ej. "Veo - Pienso - Me pregunto", "Causa - Efecto - Solución Sistémica" o "Matriz de Disonancia Cognitiva") con cajas de texto y tablas listas para ser llenadas por el estudiante.
+   - Si es "Ficha Técnica o Protocolo de Laboratorio": Especifica parámetros técnicos reales, fórmulas operativas, tablas de calibración de sensores o instrumentos y advertencias de seguridad NOM aplicables.
+3. Cuando el material involucre mediciones o experimentación, incluye al menos una tabla de datos reales o simulados que el estudiante pueda haber obtenido con las herramientas digitales de la práctica (Phyphox, PhET, etc.) o con instrumentos físicos del aula.
+4. Escribe el contenido REAL completo en Markdown. Cero marcadores de posición (placeholders) como "[escribir aquí]" o "etc.".
 5. Estructura el documento usando títulos (# y ##), tablas y listas en Markdown para que sea fácil de leer y exportar.
 `;
 
@@ -308,6 +312,16 @@ Incluye materiales reales, accesibles en localidades del Estado de Puebla.
 **3.2 Recursos digitales o de consulta:**
 - Liga o referencia real (norma NOM, manual técnico, libro, plataforma educativa)
 - Mínimo 2 referencias verificables.
+
+**3.3 Preparación de tu Laboratorio Móvil (Onboarding Paso a Paso):**
+Si esta práctica utiliza sensores del celular o simuladores digitales (ej. Phyphox, PhET, GeoGebra, Tinkercad, Google Colab):
+- **Herramienta recomendada:** [Nombre de la App o Simulador sugerido] (100% gratuita, ligera, sin costo ni anuncios invasivos).
+- **Cómo obtenerla sin gastar datos:** Descárgala previamente en casa o con la red del plantel desde Play Store (Android) o App Store (iOS). *Nota importante:* Una vez instalada, la app funciona de manera **totalmente offline (fuera de línea)**, por lo que NO consumirás saldo ni datos móviles durante la clase.
+- **Permisos y Calibración Rápida:** Abre la aplicación y acepta únicamente el permiso necesario para la práctica (ej. en Phyphox: acceso a sensores de movimiento o micrófono). Sigue la ruta de menú indicada y calibra en cero sobre una superficie plana antes de iniciar las lecturas.
+- **Protocolo de Inclusión y Roles Colaborativos:** Si tu teléfono no tiene espacio, no cuenta con el sensor requerido o no llevas celular hoy, **no te preocupes**. Trabajarás en equipo de 2 o 3 integrantes donde se rotarán los siguientes roles con igual valor de aprendizaje:
+  • *Operador/a Técnico:* Manipula el dispositivo o el montaje físico.
+  • *Registrador/a de Campo:* Anota los datos medidos y controla las repeticiones.
+  • *Analista de Datos:* Contrasta las mediciones con los conceptos teóricos y elabora conclusiones.
 
 ---
 
