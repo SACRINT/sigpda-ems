@@ -75,21 +75,15 @@ export async function renderWorkbookToPdf(
     currentY = drawMission(doc, mission, i + 1, workbook.subsystem, margin, contentWidth, pageHeight, currentY);
   }
 
-  // ── 4. Proyecto Integrador Formativo (Solo si no está ya integrado en las misiones) ──
-  const hasProjectInMissions = workbook.missions.some(
-    (m) => m.missionIndex === 3 || /proyecto|artefacto/i.test(m.title)
-  );
-  if (workbook.projectSection && !hasProjectInMissions) {
+  // ── 4. Proyecto Integrador Formativo ───────────────────────────────────────
+  if (workbook.projectSection) {
     doc.addPage();
     currentY = margin + 8;
     currentY = drawProjectSection(doc, workbook.projectSection, margin, contentWidth, pageHeight, currentY);
   }
 
-  // ── 5. Evaluación Formativa y Sumativa NEM (Solo si no está ya integrada en las misiones) ──
-  const hasEvalInMissions = workbook.missions.some(
-    (m) => m.missionIndex === 4 || /evaluaci[oó]n|demostraci[oó]n/i.test(m.title)
-  );
-  if (workbook.evaluationSection && !hasEvalInMissions) {
+  // ── 5. Evaluación Formativa y Sumativa NEM (Rúbrica y Lista de Cotejo) ─────
+  if (workbook.evaluationSection) {
     doc.addPage();
     currentY = margin + 8;
     currentY = drawEvaluationSection(doc, workbook.evaluationSection, margin, contentWidth, pageHeight, currentY);
@@ -141,6 +135,7 @@ function drawCoverPage(
   pageHeight: number,
   margin: number
 ) {
+  const contentWidth = pageWidth - margin * 2;
   let y = margin;
 
   // Franja superior institucional
@@ -240,9 +235,12 @@ function drawCoverPage(
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(...DARK_TEXT);
-  doc.text(`Docente Titular: ${workbook.coverData.teacherName}`, margin + 4, y);
-
-  y += 12;
+  const teacherText = `Docente Titular: ${workbook.coverData.teacherName || 'Docente de Bachillerato'}`;
+  const teacherLines = doc.splitTextToSize(teacherText, contentWidth - 8);
+  teacherLines.forEach((tLine: string, tIdx: number) => {
+    doc.text(tLine, margin + 4, y + tIdx * 4.5);
+  });
+  y += Math.max(10, teacherLines.length * 4.5 + 4);
   doc.setDrawColor(180, 190, 205);
   doc.setLineWidth(0.4);
 
@@ -465,24 +463,30 @@ function drawMission(
     .replace(/^misi[oó]n\s*\d+\s*:\s*/i, '')
     .trim();
 
-  y = ensureVerticalSpace(doc, y, 22, margin, pageHeight);
+  const titleText = `MISIÓN ${missionNumber}: ${cleanMissionTitle.toUpperCase()}`;
+  const titleLines = doc.splitTextToSize(titleText, contentWidth - 8);
+  const titleBoxH = Math.max(10, titleLines.length * 5 + 4);
+  y = ensureVerticalSpace(doc, y, titleBoxH + 4, margin, pageHeight);
   doc.setFillColor(...NAVY);
-  doc.rect(margin, y, contentWidth, 10, 'F');
+  doc.rect(margin, y, contentWidth, titleBoxH, 'F');
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10.5);
+  doc.setFontSize(10);
   doc.setTextColor(255, 255, 255);
-  doc.text(`MISIÓN ${missionNumber}: ${cleanMissionTitle.toUpperCase()}`, margin + 3, y + 6.8);
+  titleLines.forEach((line: string, idx: number) => {
+    doc.text(line, margin + 3, y + 5 + idx * 5);
+  });
+  y += titleBoxH + 4;
 
-  y += 14;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(...MID_BLUE);
-  doc.text(
-    `Sesiones asignadas: ${mission.coveredSessions?.join(', ') || 'N/A'} | Enfoque: ${mission.sessionFocus}`,
-    margin,
-    y
-  );
-  y += 7;
+  const subtitleText = `Sesiones asignadas: ${mission.coveredSessions?.join(', ') || 'N/A'} | Enfoque: ${mission.sessionFocus}`;
+  const subtitleLines = doc.splitTextToSize(subtitleText, contentWidth);
+  y = ensureVerticalSpace(doc, y, subtitleLines.length * 4 + 2, margin, pageHeight);
+  subtitleLines.forEach((line: string, idx: number) => {
+    doc.text(line, margin, y + idx * 4);
+  });
+  y += subtitleLines.length * 4 + 4;
 
   // 1. Enganche y Desafío Situado
   y = drawSectionHeader(doc, '1. Enganche y Desafío Situado en la Comunidad', margin, y, pageHeight);

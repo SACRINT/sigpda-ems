@@ -194,7 +194,7 @@ Responde ÚNICAMENTE con un objeto JSON válido con la siguiente estructura exac
     ]
   },
   "sectionV": {
-    "evaluationAgreement": "string (redacción del acuerdo o contrato de evaluación y acreditación firmado y acordado con el grupo de estudiantes al inicio del semestre, detallando criterios de asistencia, entrega de trabajos, comportamiento, y ponderaciones acordadas)",
+    "evaluationAgreement": "string (redacción formal del acuerdo o contrato de evaluación y acreditación acordado con el grupo al inicio del semestre, detallando: (a) criterios de asistencia, entrega de evidencias, disciplina y ponderaciones acordadas; (b) PROTOCOLO DE ATENCIÓN AL REZAGO: tutoría entre pares, sesiones de reforzamiento y guías de recuperación formativa para estudiantes con bajo rendimiento; (c) ADECUACIONES PARA BAP (Barreras para el Aprendizaje y la Participación): ajustes razonables como materiales con contraste visual, tiempo extendido en evaluaciones, evaluación diversificada y adaptaciones curriculares concretas para alumnos con discapacidad, condiciones socioeconómicas adversas o rezago académico)",
     "evaluations": [
       {
         "type": "Diagnóstica|Formativa|Sumativa",
