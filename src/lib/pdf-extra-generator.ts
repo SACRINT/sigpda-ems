@@ -44,9 +44,11 @@ export function generateExtraPDF(extra: ExtraInput): jsPDF {
   const typeColor = TYPE_COLOR[extra.type] ?? NAVY;
   const typeLabel = TYPE_LABEL[extra.type] ?? 'RECURSO DIDÁCTICO';
 
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
-  const pageWidth  = doc.internal.pageSize.getWidth();   // 215.9 mm (Carta)
-  const pageHeight = doc.internal.pageSize.getHeight();  // 279.4 mm (Carta)
+  // Rubrics use landscape orientation for wider tables
+  const isRubric = extra.type === 'rubric';
+  const doc = new jsPDF({ orientation: isRubric ? 'landscape' : 'portrait', unit: 'mm', format: 'letter' });
+  const pageWidth  = doc.internal.pageSize.getWidth();   // 279.4 mm (landscape) or 215.9 mm (portrait)
+  const pageHeight = doc.internal.pageSize.getHeight();  // 215.9 mm (landscape) or 279.4 mm (portrait)
   const margin = 13;
   const contentW = pageWidth - margin * 2;
   let y = margin;

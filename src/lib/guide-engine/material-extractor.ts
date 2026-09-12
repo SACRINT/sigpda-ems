@@ -321,15 +321,22 @@ function buildRubricaEvaluacionMarkdown(workbook: ActiveWorkTextbook): string {
 
   if (evalSec?.rubric && evalSec.rubric.length > 0) {
     parts.push('## RÚBRICA ANALÍTICA DE DESEMPEÑO (4 NIVELES NEM)\n');
+
+    // Build ONE unified table: Criterio | Sobresaliente | Notable | Suficiente | Insuficiente
+    const levelNames = ['Sobresaliente / Excelente', 'Notable / Bueno', 'Suficiente / Básico', 'Insuficiente / Requiere Apoyo'];
+    const headerRow = `| Criterio y Ponderación | ${levelNames.join(' | ')} |`;
+    const separatorRow = `|---|---|---|---|---|`;
+    parts.push(headerRow);
+    parts.push(separatorRow);
+
     for (const crit of evalSec.rubric) {
-      parts.push(`### Criterio: ${crit.criterion} (Ponderación: ${crit.weightPercent}%)`);
-      parts.push('| Nivel | Puntos | Descriptor de Desempeño |');
-      parts.push('|---|---|---|');
-      for (const lvl of crit.levels || []) {
-        parts.push(`| **${lvl.levelName}** | ${lvl.points} pts | ${lvl.descriptor} |`);
-      }
-      parts.push('\n');
+      const critCell = `${crit.criterion} (${crit.weightPercent}%)`;
+      const levelCells = (crit.levels || []).map(lvl => `**${lvl.levelName}** (${lvl.points} pts): ${lvl.descriptor}`);
+      // Pad to 4 levels if needed
+      while (levelCells.length < 4) levelCells.push('—');
+      parts.push(`| ${critCell} | ${levelCells.join(' | ')} |`);
     }
+    parts.push('\n');
   }
 
   return parts.join('\n');

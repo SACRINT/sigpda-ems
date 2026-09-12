@@ -48,9 +48,9 @@ function simpleMarkdownToHtml(md: string): string {
   return md
     // Headers
     .replace(/^#### (.+)$/gm, '<h4 style="font-size:14px;font-weight:700;margin:14px 0 4px;">$1</h4>')
-    .replace(/^### (.+)$/gm, '<h3 style="font-size:15px;font-weight:700;margin:16px 0 6px;color:#0f172a;">$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2 style="font-size:16px;font-weight:800;margin:18px 0 8px;color:#1d4ed8;">$1</h2>')
-    .replace(/^# (.+)$/gm, '<h1 style="font-size:18px;font-weight:900;margin:20px 0 10px;color:#1d4ed8;">$1</h1>')
+    .replace(/^### (.+)$/gm, '<h3 style="font-size:15px;font-weight:700;margin:16px 0 6px;color:var(--c-text, #0f172a);">\$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2 style="font-size:16px;font-weight:800;margin:18px 0 8px;color:var(--c-accent-bright, #1d4ed8);">\$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1 style="font-size:18px;font-weight:900;margin:20px 0 10px;color:var(--c-accent-bright, #1d4ed8);">\$1</h1>')
     // Bold / Italic
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
@@ -71,7 +71,7 @@ export default function MarkdownWithMermaid({ markdown }: Props) {
   const segments = parseMarkdownSegments(markdown);
 
   return (
-    <div style={{ fontFamily: 'Inter, system-ui, sans-serif', color: '#1e293b', lineHeight: 1.65 }}>
+    <div style={{ fontFamily: 'Inter, system-ui, sans-serif', color: 'var(--c-text, #1e293b)', lineHeight: 1.65 }}>
       {segments.map((seg, i) => {
         if (seg.type === 'mermaid') {
           return (
