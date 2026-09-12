@@ -178,7 +178,8 @@ export async function generateWithRotation(
   systemPrompt: string,
   userPrompt: string,
   teacherId?: string,
-  isPremium = false
+  isPremium = false,
+  options?: { temperature?: number; jsonMode?: boolean; maxTokens?: number }
 ): Promise<string> {
   const { provider, model } = await getActiveConfig(isPremium);
 
@@ -186,7 +187,7 @@ export async function generateWithRotation(
   try {
     return await withKeyRotation(provider, async (apiKey) => {
       const ai = buildProvider(provider, model, apiKey);
-      return ai.generate(systemPrompt, userPrompt);
+      return ai.generate(systemPrompt, userPrompt, options);
     }, teacherId);
   } catch (primaryErr: any) {
     console.warn(
@@ -201,7 +202,7 @@ export async function generateWithRotation(
       try {
         const result = await withKeyRotation(altProvider, async (apiKey) => {
           const ai = buildProvider(altProvider, altModel, apiKey);
-          return ai.generate(systemPrompt, userPrompt);
+          return ai.generate(systemPrompt, userPrompt, options);
         });
         console.log(`[ai-provider] ✅ Fallback provider "${altProvider}" (${altModel}) succeeded.`);
         return result;

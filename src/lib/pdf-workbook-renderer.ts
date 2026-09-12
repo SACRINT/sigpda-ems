@@ -291,11 +291,11 @@ export function printParagraph(
   } = {}
 ): number {
   const {
-    size = 8,
+    size = 8.5,
     fontStyle = 'normal',
     fontName = 'helvetica',
     color = DARK_TEXT,
-    lineHeight = 3.8,
+    lineHeight = 4.2,
   } = options;
 
   doc.setFont(fontName, fontStyle);
@@ -494,10 +494,10 @@ function drawMission(
   });
   y += 3;
 
-  // Pregunta Detonadora en caja
+  // Pregunta Detonadora en caja destacada
   const detText = `Pregunta Detonadora: ${mission.phenomenonHook.detonatingQuestion}`;
   const detLines = doc.splitTextToSize(detText, contentWidth - 8);
-  const boxH = Math.max(12, detLines.length * 4.2 + 6);
+  const boxH = Math.max(22, detLines.length * 4.2 + 8);
   y = ensureVerticalSpace(doc, y, boxH + 4, margin, pageHeight);
 
   doc.setFillColor(254, 243, 199); // Fondo ámbar suave
@@ -505,9 +505,9 @@ function drawMission(
   doc.setLineWidth(0.4);
   doc.rect(margin, y, contentWidth, boxH, 'FD');
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
+  doc.setFontSize(8.5);
   doc.setTextColor(...NAVY);
-  doc.text(detLines, margin + 4, y + 4.8);
+  doc.text(detLines, margin + 4, y + 5.5);
   y += boxH + 6;
 
   // 2. Concepto Cero
@@ -675,17 +675,18 @@ function drawPdfWorkbookElement(
 
   switch (element.type) {
     case 'lines': {
-      const count = element.config?.rows || 4;
-      const neededHeight = count * 6 + 6;
+      const count = Math.max(element.config?.rows || 8, 8);
+      const lineSpacing = 6.5;
+      const neededHeight = count * lineSpacing + 8;
       y = ensureVerticalSpace(doc, y, neededHeight, margin, pageHeight);
 
       doc.setDrawColor(190, 200, 215);
-      doc.setLineWidth(0.3);
+      doc.setLineWidth(0.35);
       for (let r = 0; r < count; r++) {
-        y += 6;
-        doc.line(margin + 5, y, margin + contentWidth, y);
+        y += lineSpacing;
+        doc.line(margin + 4, y, margin + contentWidth, y);
       }
-      y += 4;
+      y += 6;
       break;
     }
 
@@ -697,27 +698,27 @@ function drawPdfWorkbookElement(
       ];
       for (const cb of cbs) {
         y = printParagraph(doc, `[  ]  ${cb}`, y, margin + 2, contentWidth - 2, pageHeight, {
-          size: 7.5,
+          size: 8,
           fontStyle: 'normal',
           color: DARK_TEXT,
-          lineHeight: 4.5,
+          lineHeight: 4.8,
         });
       }
-      y += 2;
+      y += 3;
       break;
     }
 
     case 'empty_table':
     case 'data_recording': {
       const cols = element.config?.cols || ['Variable / Parámetro', 'Valor Esperado', 'Registro Observado', 'Notas'];
-      const sampleRows = element.config?.sampleRows || 4;
+      const sampleRows = Math.max(element.config?.sampleRows || 6, 6);
 
       const body = [];
       for (let r = 0; r < sampleRows; r++) {
         body.push(cols.map(() => ' '));
       }
 
-      y = ensureVerticalSpace(doc, y, 28, margin, pageHeight);
+      y = ensureVerticalSpace(doc, y, 36, margin, pageHeight);
 
       autoTable(doc, {
         startY: y,
@@ -726,25 +727,25 @@ function drawPdfWorkbookElement(
         head: [cols],
         body,
         theme: 'grid',
-        headStyles: { fillColor: [241, 245, 249], textColor: NAVY, fontSize: 7, fontStyle: 'bold' },
-        styles: { fontSize: 7, minCellHeight: 6, overflow: 'linebreak' },
+        headStyles: { fillColor: [241, 245, 249], textColor: NAVY, fontSize: 7.5, fontStyle: 'bold' },
+        styles: { fontSize: 7.5, minCellHeight: 7.5, overflow: 'linebreak' },
       });
 
-      y = (doc as any).lastAutoTable.finalY + 4;
+      y = (doc as any).lastAutoTable.finalY + 6;
       break;
     }
 
     case 'code_box': {
-      const initialCode = element.config?.initialCode || '// Escribe tus comandos o bloque de código:\n\n\n';
+      const initialCode = element.config?.initialCode || '// Escribe tus comandos, desarrollo analítico o bloque de código:\n\n\n\n\n';
       const rawLines = initialCode.split('\n');
-      const lineH = 4.2;
-      const padTop = 4;
-      const padBot = 4;
+      const lineH = 4.4;
+      const padTop = 5;
+      const padBot = 5;
       const maxLinesPerPage = Math.max(10, Math.floor((pageHeight - margin * 2 - 24) / lineH));
 
       for (let i = 0; i < rawLines.length; i += maxLinesPerPage) {
         const linesChunk = rawLines.slice(i, i + maxLinesPerPage);
-        const calculatedHeight = Math.max(20, linesChunk.length * lineH + padTop + padBot);
+        const calculatedHeight = Math.max(45, linesChunk.length * lineH + padTop + padBot);
 
         y = ensureVerticalSpace(doc, y, calculatedHeight, margin, pageHeight);
 
@@ -754,30 +755,30 @@ function drawPdfWorkbookElement(
         doc.rect(margin, y, contentWidth, calculatedHeight, 'FD');
 
         doc.setFont('courier', 'normal');
-        doc.setFontSize(7.5);
+        doc.setFontSize(8);
         doc.setTextColor(...DARK_TEXT);
         linesChunk.forEach((line, idx) => {
-          doc.text(line || ' ', margin + 3, y + padTop + idx * lineH);
+          doc.text(line || ' ', margin + 4, y + padTop + idx * lineH);
         });
-        y += calculatedHeight + 4;
+        y += calculatedHeight + 6;
       }
       break;
     }
 
     case 'drawing_box': {
-      y = ensureVerticalSpace(doc, y, 36, margin, pageHeight);
+      y = ensureVerticalSpace(doc, y, 52, margin, pageHeight);
       doc.setFillColor(...LIGHT_BG);
       doc.setDrawColor(160, 174, 192);
       doc.setLineWidth(0.4);
-      doc.rect(margin, y, contentWidth, 32, 'FD');
+      doc.rect(margin, y, contentWidth, 45, 'FD');
 
       doc.setFont('helvetica', 'italic');
-      doc.setFontSize(7.5);
+      doc.setFontSize(8);
       doc.setTextColor(...MUTED_TEXT);
-      doc.text('[ Espacio de dibujo técnico, diagramación o boceto a mano ]', margin + contentWidth / 2, y + 16, {
+      doc.text('[ Espacio de dibujo técnico, diagramación, gráfica o boceto a mano ]', margin + contentWidth / 2, y + 22.5, {
         align: 'center',
       });
-      y += 36;
+      y += 50;
       break;
     }
   }

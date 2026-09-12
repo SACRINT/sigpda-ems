@@ -122,7 +122,13 @@ Incluye explicaciones claras, pasos numerados y espacios para que el estudiante 
 Redacta la Misión Práctica de Laboratorio/Taller completa:`;
 
   try {
-    const rawResponse = await generateWithRotation(systemInstruction, prompt, input.planning.teacherId);
+    const rawResponse = await generateWithRotation(
+      systemInstruction,
+      prompt,
+      input.planning.teacherId,
+      false,
+      { jsonMode: true, maxTokens: 8192 }
+    );
     const parsed = robustJsonParse(rawResponse);
 
     // Extraer o generar tags de cuaderno activo

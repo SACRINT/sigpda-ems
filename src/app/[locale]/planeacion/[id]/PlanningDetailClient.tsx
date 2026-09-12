@@ -144,22 +144,46 @@ export default function PlanningDetailClient({
   const [extras, setExtras] = useState<PlanningExtra[]>(initialExtras);
   const [generatingKey, setGeneratingKey] = useState<string | null>(null);
   const [previewExtra, setPreviewExtra] = useState<PlanningExtra | null>(null);
+  const [syncingSuite, setSyncingSuite] = useState<number | null>(null);
+
+  const loadExtras = async () => {
+    try {
+      const res = await fetch(`/api/plannings/${planning.id}/extras`);
+      if (res.ok) {
+        const data = await res.json();
+        setExtras(data);
+      }
+    } catch (err) {
+      console.error('Failed to load extras:', err);
+    }
+  };
 
   // Fetch extras on mount (to ensure sync)
   useEffect(() => {
-    async function loadExtras() {
-      try {
-        const res = await fetch(`/api/plannings/${planning.id}/extras`);
-        if (res.ok) {
-          const data = await res.json();
-          setExtras(data);
-        }
-      } catch (err) {
-        console.error('Failed to load extras:', err);
-      }
-    }
     loadExtras();
   }, [planning.id]);
+
+  const handleSyncSuite = async (blockIdx: number) => {
+    setSyncingSuite(blockIdx);
+    try {
+      const res = await fetch(`/api/planeaciones/${planning.id}/materiales-bloque?blockIndex=${blockIdx}`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al sincronizar materiales del bloque');
+
+      // Recargar extras en estado React
+      await loadExtras();
+
+      // Auto-navegar a la pestaña de Planes para ver las 24 sesiones
+      setActiveTab('lessonPlans');
+      alert(`¡Suite del Bloque ${blockIdx + 1} sincronizada con éxito!\nSe derivaron los 24 Planes de Clase, Rúbricas y Materiales Didácticos.`);
+    } catch (err: any) {
+      alert(err.message || 'Error al sincronizar la Suite');
+    } finally {
+      setSyncingSuite(null);
+    }
+  };
 
   // Generate extra handler
   async function handleGenerateExtra(
@@ -238,7 +262,8 @@ export default function PlanningDetailClient({
   function findExtra(type: string, keyIndex: number | null, title?: string, sessionNum?: number) {
     return extras.find((ex) => {
       if (ex.type !== type) return false;
-      if (ex.keyIndex !== keyIndex) return false;
+      const exKey = (ex as any).keyIndex !== undefined ? (ex as any).keyIndex : (ex as any).key_index;
+      if (keyIndex !== null && exKey !== keyIndex) return false;
       if (type === 'lesson_plan' && sessionNum !== undefined) {
         return (
           ex.title.includes(`Sesión ${sessionNum} `) ||
@@ -499,6 +524,7 @@ export default function PlanningDetailClient({
                   error: null,
                 },
               }));
+              loadExtras();
             }
           } else if (statusData.status === 'failed') {
             isFinished = true;
@@ -942,7 +968,7 @@ export default function PlanningDetailClient({
       <div style={{ display: 'flex', borderBottom: '2px solid var(--c-border)', gap: '4px', marginBottom: '8px', flexWrap: 'wrap' }}>
         {([
           { key: 'planning',      label: 'Planeación',         icon: <FileText   size={15}/>, color: 'var(--c-blue-mid)' },
-          { key: 'extras',        label: 'Rúbricas',           icon: <Zap        size={15}/>, color: 'var(--c-blue-mid)' },
+          { key: 'extras',        label: 'Rúbricas y Materiales', icon: <Zap     size={15}/>, color: 'var(--c-blue-mid)' },
           { key: 'lessonPlans',   label: `Planes (${lessonSessions.length})`, icon: <Clock size={15}/>, color: 'var(--c-blue-mid)' },
           { key: 'practiceGuides',label: 'Guías',              icon: <BookOpen   size={15}/>, color: '#7c3aed' },
           { key: 'a4print',       label: 'Formato Carta',      icon: <Printer    size={15}/>, color: 'var(--c-blue-mid)' },
@@ -1515,6 +1541,7 @@ export default function PlanningDetailClient({
 
                     {/* ── CUADERNO DE TRABAJO ACTIVO POR BLOQUE (FASE 4) ── */}
                     <div
+                      id={`workbook-card-${i}`}
                       style={{
                         margin: '12px 16px 14px',
                         padding: '14px 18px',
@@ -1676,10 +1703,10 @@ export default function PlanningDetailClient({
                                 <Download size={13} /> PDF (.pdf)
                               </a>
 
-                              <a
-                                href={`/api/planeaciones/${planning.id}/materiales-bloque?blockIndex=${i}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                              <button
+                                type="button"
+                                onClick={() => handleSyncSuite(i)}
+                                disabled={syncingSuite === i}
                                 className="btn"
                                 style={{
                                   padding: '6px 12px',
@@ -1689,16 +1716,16 @@ export default function PlanningDetailClient({
                                   border: '1px solid rgba(16, 185, 129, 0.4)',
                                   color: '#6ee7b7',
                                   borderRadius: '6px',
-                                  textDecoration: 'none',
+                                  cursor: 'pointer',
                                   display: 'inline-flex',
                                   alignItems: 'center',
                                   gap: '5px',
                                   transition: 'all 0.15s',
                                 }}
-                                title="Ver Suite de Materiales Derivados (24 Planes de Clase, Guía del Bloque e Instrumentos a 0 tokens)"
+                                title="Sincronizar Suite (24 Planes de Clase, Rúbricas y Materiales Didácticos)"
                               >
-                                <FileText size={13} /> 📑 Suite (24 Planes)
-                              </a>
+                                <FileText size={13} /> {syncingSuite === i ? '⏳ Sincronizando Suite…' : '📑 Suite (24 Planes)'}
+                              </button>
 
                               <button
                                 type="button"
@@ -2044,207 +2071,530 @@ export default function PlanningDetailClient({
       {/* TAB CONTENT: EXTRAS & INSTRUMENTS */}
       {activeTab === 'extras' && (
         <>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
           
-          {/* Section V - Instruments generation */}
-          <div className="section-card">
-            <div className="section-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span className="section-card-title">A. Instrumentos de Evaluación Propuestos</span>
-              <span className="text-xs" style={{ color: 'var(--c-navy-light)', fontWeight: 600 }}>Trinomio de Evaluación</span>
+          {/* Header Banner */}
+          <div className="section-card" style={{
+            background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            padding: '20px 24px',
+            borderRadius: '10px',
+            color: '#f8fafc'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Zap size={20} color="#f59e0b" /> Instrumentos de Evaluación y Materiales Didácticos Oficiales
+                </h3>
+                <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: '#94a3b8' }}>
+                  Estructurados en secciones continuas por Bloque curricular (NEM / DBEPA Puebla 2026-2027).
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <span style={{
+                  background: 'rgba(16, 185, 129, 0.15)',
+                  border: '1px solid rgba(16, 185, 129, 0.4)',
+                  color: '#6ee7b7',
+                  padding: '4px 12px',
+                  borderRadius: '20px',
+                  fontSize: '12px',
+                  fontWeight: 600
+                }}>
+                  NEM Trinomio Evaluativo
+                </span>
+              </div>
             </div>
-            <div className="section-card-body">
-              {content?.sectionV?.evaluationAgreement && (
-                <div style={{ padding: '12px', background: 'var(--c-bg-surface)', borderLeft: '3px solid var(--c-amber)', border: '1px solid var(--c-border)', borderRadius: '6px', marginBottom: '16px', fontSize: '13.5px' }}>
-                  <p style={{ fontWeight: 600, color: 'var(--c-accent-bright)', marginBottom: '4px' }}>Acuerdo de Acreditación / Evaluación:</p>
-                  <p style={{ color: 'var(--c-text-muted)', fontStyle: 'italic' }}>{content.sectionV.evaluationAgreement}</p>
+          </div>
+
+          {/* Acuerdo Institucional de Acreditación Semestral */}
+          {content?.sectionV?.evaluationAgreement && (
+            <div className="section-card">
+              <div className="section-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span className="section-card-title">Acuerdo Institucional de Evaluación / Acreditación</span>
+                <span className="text-xs" style={{ color: 'var(--c-navy-light)', fontWeight: 600 }}>Anexo 12 DBEPA</span>
+              </div>
+              <div className="section-card-body">
+                <div style={{ padding: '14px 18px', background: 'var(--c-bg-surface)', borderLeft: '4px solid var(--c-amber)', border: '1px solid var(--c-border)', borderRadius: '6px', fontSize: '13.5px' }}>
+                  <p style={{ fontWeight: 700, color: 'var(--c-accent-bright)', marginBottom: '6px' }}>Pacto Pedagógico con el Grupo:</p>
+                  <p style={{ color: 'var(--c-text-muted)', fontStyle: 'italic', margin: 0, lineHeight: 1.5 }}>{content.sectionV.evaluationAgreement}</p>
                 </div>
-              )}
+              </div>
+            </div>
+          )}
 
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                  <thead>
-                    <tr style={{ background: 'var(--c-bg-elevated)', color: 'var(--c-text)', borderBottom: '1px solid var(--c-border)' }}>
-                      <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 700 }}>Corte / Momento</th>
-                      <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 700 }}>Evidencia</th>
-                      <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 700 }}>Instrumento Propuesto</th>
-                      <th style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 700 }}>%</th>
-                      <th style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 700 }}>Herramientas Extra</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {content?.sectionV?.evaluations?.map((ev, i) => {
-                      const isDiagnostic = ev.type?.toLowerCase().includes('diagn') || ev.percentage === 0;
-                      const instrumentType = ev.instrument?.toLowerCase().includes('rubri') ? 'rubric' : 'checklist';
-                      
-                      // Match extra
-                      const generated = findExtra(instrumentType, i);
-                      const loadingKey = `${instrumentType}-${i}--${ev.evidence}`;
-                      const isCurrentGenerating = generatingKey === loadingKey;
+          {/* SECCIONES CONTINUAS POR BLOQUE (En la misma página) */}
+          {(content?.sectionIV?.activities || []).map((act, actIdx) => {
+            const roman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'][actIdx] || `${actIdx + 1}`;
+            const blockNumStr = isLaboral ? `AC ${actIdx + 1}` : `Bloque ${roman}`;
+            const blockTitle = act.name || `Bloque ${roman}`;
 
-                      return (
-                        <tr key={i} style={{ background: i % 2 === 0 ? 'var(--c-bg-surface)' : 'var(--c-bg-elevated)', borderBottom: '1px solid var(--c-border)' }}>
-                          <td style={{ padding: '10px 12px' }}>
-                            <span style={{ fontWeight: 600, color: 'var(--c-text)' }}>{ev.moment}</span>
-                            <div style={{ fontSize: '11px', color: 'var(--c-text-muted)' }}>{ev.type} · {ev.agent}</div>
-                          </td>
-                          <td style={{ padding: '10px 12px', maxWidth: '220px', color: 'var(--c-text-2)' }}>{ev.evidence}</td>
-                          <td style={{ padding: '10px 12px', fontWeight: 500, color: 'var(--c-text)' }}>{ev.instrument}</td>
-                          <td style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 600, color: 'var(--c-accent-bright)' }}>{ev.percentage}%</td>
-                          <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                            {generated ? (
-                              <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+            // Buscar recursos derivados de este bloque
+            const rubricExtra = findExtra('rubric', actIdx);
+            const checklistExtra = findExtra('checklist', actIdx);
+            const materialExtra = findExtra('material', actIdx);
+            const guideExtra = findExtra('practice_guide', actIdx);
+
+            const hasWorkbook = Boolean(blockWorkbooks[actIdx]?.workbook);
+            const hasAnyMaterial = Boolean(rubricExtra || checklistExtra || materialExtra || guideExtra);
+
+            return (
+              <div key={actIdx} className="section-card" style={{ border: hasAnyMaterial ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid var(--c-border)' }}>
+                {/* Header de Bloque */}
+                <div
+                  className="section-card-header"
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '10px',
+                    background: hasAnyMaterial
+                      ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(15, 23, 42, 0.4) 100%)'
+                      : 'var(--c-bg-elevated)',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                    <span
+                      style={{
+                        background: hasAnyMaterial
+                          ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)'
+                          : 'linear-gradient(135deg, #475569 0%, #64748b 100%)',
+                        color: '#ffffff',
+                        fontSize: '12px',
+                        fontWeight: 800,
+                        padding: '3px 10px',
+                        borderRadius: '6px',
+                        letterSpacing: '0.04em',
+                      }}
+                    >
+                      {blockNumStr}
+                    </span>
+                    <span className="section-card-title" style={{ fontSize: '15.5px', fontWeight: 700 }}>
+                      ─── {blockNumStr}: {blockTitle} ───
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    {hasAnyMaterial ? (
+                      <span
+                        style={{
+                          fontSize: '11.5px',
+                          fontWeight: 700,
+                          padding: '3px 10px',
+                          borderRadius: '12px',
+                          background: 'rgba(16, 185, 129, 0.15)',
+                          border: '1px solid rgba(16, 185, 129, 0.35)',
+                          color: '#34d399',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        <CheckCircle size={12} /> Instrumentos Disponibles
+                      </span>
+                    ) : (
+                      <span
+                        style={{
+                          fontSize: '11.5px',
+                          fontWeight: 600,
+                          padding: '3px 10px',
+                          borderRadius: '12px',
+                          background: 'rgba(148, 163, 184, 0.12)',
+                          border: '1px solid rgba(148, 163, 184, 0.25)',
+                          color: '#94a3b8',
+                        }}
+                      >
+                        ⏳ Pendiente
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Contenido de la sección */}
+                <div className="section-card-body">
+                  {hasAnyMaterial || hasWorkbook ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                      {/* Grid de 4 recursos */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '14px' }}>
+                        
+                        {/* 1. Rúbrica Analítica Oficial */}
+                        <div style={{
+                          padding: '16px',
+                          background: 'var(--c-bg-surface)',
+                          border: '1px solid var(--c-border)',
+                          borderRadius: '8px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          gap: '12px'
+                        }}>
+                          <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                              <span style={{ fontSize: '11px', fontWeight: 700, color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                Instrumento Normativo
+                              </span>
+                              <span style={{ fontSize: '11px', color: 'var(--c-text-muted)' }}>4 Niveles NEM</span>
+                            </div>
+                            <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: 'var(--c-text)' }}>
+                              📊 Rúbrica Analítica de Evaluación ({blockNumStr})
+                            </h4>
+                            <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: 'var(--c-text-muted)', lineHeight: 1.4 }}>
+                              Descriptores cualitativos por niveles de dominio (Sobresaliente, Notable, Suficiente e Insuficiente) vinculados a los aprendizajes del bloque.
+                            </p>
+                          </div>
+
+                          <div>
+                            {rubricExtra ? (
+                              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                                 <button
-                                  onClick={() => setPreviewExtra(generated)}
+                                  onClick={() => setPreviewExtra(rubricExtra)}
                                   className="btn"
-                                  style={{ padding: '4px 8px', fontSize: '11px', background: 'var(--c-blue-pale)', border: '1px solid var(--c-blue-mid)', color: 'var(--c-blue-mid)', borderRadius: '4px' }}
+                                  style={{ padding: '5px 10px', fontSize: '11.5px', background: 'var(--c-blue-pale)', border: '1px solid var(--c-blue-mid)', color: 'var(--c-blue-mid)', borderRadius: '4px', fontWeight: 600 }}
                                 >
                                   👁️ Ver
                                 </button>
                                 <a
-                                  href={`/api/docx/extra/${generated.id}`}
+                                  href={`/api/docx/extra/${rubricExtra.id}`}
                                   className="btn btn-amber"
-                                  style={{ padding: '4px 8px', fontSize: '11px', borderRadius: '4px', textDecoration: 'none' }}
+                                  style={{ padding: '5px 10px', fontSize: '11.5px', borderRadius: '4px', textDecoration: 'none', fontWeight: 600 }}
                                 >
                                   ↓ Word
                                 </a>
                                 <a
-                                  href={`/api/pdf/extra/${generated.id}`}
+                                  href={`/api/pdf/extra/${rubricExtra.id}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="btn"
-                                  style={{ padding: '4px 8px', fontSize: '11px', borderRadius: '4px', textDecoration: 'none', background: '#dc2626', color: '#fff', fontWeight: 600 }}
+                                  style={{ padding: '5px 10px', fontSize: '11.5px', borderRadius: '4px', textDecoration: 'none', background: '#dc2626', color: '#fff', fontWeight: 600 }}
                                 >
                                   ↓ PDF
                                 </a>
                                 <button
-                                  onClick={() => handleDeleteExtra(generated.id)}
+                                  onClick={() => handleDeleteExtra(rubricExtra.id)}
                                   className="btn"
-                                  style={{ padding: '4px 8px', fontSize: '11px', background: '#FEE2E2', border: '1px solid #EF4444', color: '#EF4444', borderRadius: '4px' }}
+                                  title="Eliminar rúbrica"
+                                  style={{ padding: '5px 8px', fontSize: '11.5px', background: '#FEE2E2', border: '1px solid #EF4444', color: '#EF4444', borderRadius: '4px' }}
                                 >
                                   🗑️
                                 </button>
                               </div>
                             ) : (
                               <button
-                                onClick={() =>
-                                  handleGenerateExtra(
-                                    instrumentType,
-                                    `${ev.instrument}: ${ev.evidence.substring(0, 30)}...`,
-                                    i,
-                                    { evidence: ev.evidence, activityName: ev.moment }
-                                  )
-                                }
-                                disabled={generatingKey !== null}
+                                onClick={() => handleSyncSuite(actIdx)}
+                                disabled={syncingSuite === actIdx}
                                 className="btn btn-navy"
-                                style={{ padding: '6px 12px', fontSize: '11px', borderRadius: '4px', background: 'var(--c-blue-mid)', color: '#fff', border: 'none', cursor: 'pointer' }}
+                                style={{ padding: '6px 12px', fontSize: '11.5px', borderRadius: '4px', cursor: 'pointer' }}
                               >
-                                {isCurrentGenerating ? '⏳ Generando...' : `⚡ Generar ${instrumentType === 'rubric' ? 'Rúbrica' : 'Lista'}`}
+                                {syncingSuite === actIdx ? '⏳ Sincronizando…' : '⚡ Extraer del Libro'}
                               </button>
                             )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
+                          </div>
+                        </div>
 
-          {/* Section VI - Classroom Materials */}
-          <div className="section-card">
-            <div className="section-card-header">
-              <span className="section-card-title">B. Materiales Didácticos Impresos del Docente</span>
-            </div>
-            <div className="section-card-body">
-              <p style={{ fontSize: '13px', color: 'var(--c-text-muted)', marginBottom: '14px' }}>
-                Genera el contenido técnico real y completo de los materiales sugeridos en la Sección VI.
-              </p>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {content?.sectionVI?.teacherMaterials?.map((mat, idx) => {
-                  const cleanMatName = mat.replace(/^[•\s\-\*]+/g, '').trim();
-                  
-                  // Match extra
-                  const generated = findExtra('material', null, cleanMatName);
-                  const loadingKey = `material--${cleanMatName}`;
-                  const isCurrentGenerating = generatingKey === loadingKey;
+                        {/* 2. Lista de Cotejo Formativa */}
+                        <div style={{
+                          padding: '16px',
+                          background: 'var(--c-bg-surface)',
+                          border: '1px solid var(--c-border)',
+                          borderRadius: '8px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          gap: '12px'
+                        }}>
+                          <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                              <span style={{ fontSize: '11px', fontWeight: 700, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                Instrumento Formativo
+                              </span>
+                              <span style={{ fontSize: '11px', color: 'var(--c-text-muted)' }}>Dicotómico</span>
+                            </div>
+                            <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: 'var(--c-text)' }}>
+                              ✅ Lista de Cotejo de Verificación ({blockNumStr})
+                            </h4>
+                            <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: 'var(--c-text-muted)', lineHeight: 1.4 }}>
+                              Reactivos observables y verificables para la autoevaluación y coevaluación del producto formativo del bloque.
+                            </p>
+                          </div>
 
-                  return (
-                    <div
-                      key={idx}
-                      style={{
+                          <div>
+                            {checklistExtra ? (
+                              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                                <button
+                                  onClick={() => setPreviewExtra(checklistExtra)}
+                                  className="btn"
+                                  style={{ padding: '5px 10px', fontSize: '11.5px', background: 'var(--c-blue-pale)', border: '1px solid var(--c-blue-mid)', color: 'var(--c-blue-mid)', borderRadius: '4px', fontWeight: 600 }}
+                                >
+                                  👁️ Ver
+                                </button>
+                                <a
+                                  href={`/api/docx/extra/${checklistExtra.id}`}
+                                  className="btn btn-amber"
+                                  style={{ padding: '5px 10px', fontSize: '11.5px', borderRadius: '4px', textDecoration: 'none', fontWeight: 600 }}
+                                >
+                                  ↓ Word
+                                </a>
+                                <a
+                                  href={`/api/pdf/extra/${checklistExtra.id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="btn"
+                                  style={{ padding: '5px 10px', fontSize: '11.5px', borderRadius: '4px', textDecoration: 'none', background: '#dc2626', color: '#fff', fontWeight: 600 }}
+                                >
+                                  ↓ PDF
+                                </a>
+                                <button
+                                  onClick={() => handleDeleteExtra(checklistExtra.id)}
+                                  className="btn"
+                                  title="Eliminar lista de cotejo"
+                                  style={{ padding: '5px 8px', fontSize: '11.5px', background: '#FEE2E2', border: '1px solid #EF4444', color: '#EF4444', borderRadius: '4px' }}
+                                >
+                                  🗑️
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => handleSyncSuite(actIdx)}
+                                disabled={syncingSuite === actIdx}
+                                className="btn btn-navy"
+                                style={{ padding: '6px 12px', fontSize: '11.5px', borderRadius: '4px', cursor: 'pointer' }}
+                              >
+                                {syncingSuite === actIdx ? '⏳ Sincronizando…' : '⚡ Extraer del Libro'}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* 3. Materiales Didácticos del Docente */}
+                        <div style={{
+                          padding: '16px',
+                          background: 'var(--c-bg-surface)',
+                          border: '1px solid var(--c-border)',
+                          borderRadius: '8px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          gap: '12px'
+                        }}>
+                          <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                              <span style={{ fontSize: '11px', fontWeight: 700, color: '#8b5cf6', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                Soporte Docente
+                              </span>
+                              <span style={{ fontSize: '11px', color: 'var(--c-text-muted)' }}>Insumos Técnicos</span>
+                            </div>
+                            <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: 'var(--c-text)' }}>
+                              📦 Materiales Didácticos e Insumos ({blockNumStr})
+                            </h4>
+                            <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: 'var(--c-text-muted)', lineHeight: 1.4 }}>
+                              Guión técnico, reactivos didácticos, casos análogos, recursos digitales y requerimientos de aula/taller.
+                            </p>
+                          </div>
+
+                          <div>
+                            {materialExtra ? (
+                              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                                <button
+                                  onClick={() => setPreviewExtra(materialExtra)}
+                                  className="btn"
+                                  style={{ padding: '5px 10px', fontSize: '11.5px', background: 'var(--c-blue-pale)', border: '1px solid var(--c-blue-mid)', color: 'var(--c-blue-mid)', borderRadius: '4px', fontWeight: 600 }}
+                                >
+                                  👁️ Ver
+                                </button>
+                                <a
+                                  href={`/api/docx/extra/${materialExtra.id}`}
+                                  className="btn btn-amber"
+                                  style={{ padding: '5px 10px', fontSize: '11.5px', borderRadius: '4px', textDecoration: 'none', fontWeight: 600 }}
+                                >
+                                  ↓ Word
+                                </a>
+                                <a
+                                  href={`/api/pdf/extra/${materialExtra.id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="btn"
+                                  style={{ padding: '5px 10px', fontSize: '11.5px', borderRadius: '4px', textDecoration: 'none', background: '#dc2626', color: '#fff', fontWeight: 600 }}
+                                >
+                                  ↓ PDF
+                                </a>
+                                <button
+                                  onClick={() => handleDeleteExtra(materialExtra.id)}
+                                  className="btn"
+                                  title="Eliminar material didáctico"
+                                  style={{ padding: '5px 8px', fontSize: '11.5px', background: '#FEE2E2', border: '1px solid #EF4444', color: '#EF4444', borderRadius: '4px' }}
+                                >
+                                  🗑️
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => handleSyncSuite(actIdx)}
+                                disabled={syncingSuite === actIdx}
+                                className="btn btn-navy"
+                                style={{ padding: '6px 12px', fontSize: '11.5px', borderRadius: '4px', cursor: 'pointer' }}
+                              >
+                                {syncingSuite === actIdx ? '⏳ Sincronizando…' : '⚡ Extraer del Libro'}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* 4. Guía de Trabajo Activo del Estudiante */}
+                        <div style={{
+                          padding: '16px',
+                          background: 'var(--c-bg-surface)',
+                          border: '1px solid var(--c-border)',
+                          borderRadius: '8px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          gap: '12px'
+                        }}>
+                          <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                              <span style={{ fontSize: '11px', fontWeight: 700, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                Cuaderno de Práctica
+                              </span>
+                              <span style={{ fontSize: '11px', color: 'var(--c-text-muted)' }}>Estudiante</span>
+                            </div>
+                            <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: 'var(--c-text)' }}>
+                              📘 Guía de Aprendizaje Activo ({blockNumStr})
+                            </h4>
+                            <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: 'var(--c-text-muted)', lineHeight: 1.4 }}>
+                              Secuencia de desafíos autónomos, matrices de resolución técnica y espacios de práctica activa para el alumno.
+                            </p>
+                          </div>
+
+                          <div>
+                            {guideExtra ? (
+                              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                                <button
+                                  onClick={() => setPreviewExtra(guideExtra)}
+                                  className="btn"
+                                  style={{ padding: '5px 10px', fontSize: '11.5px', background: 'var(--c-blue-pale)', border: '1px solid var(--c-blue-mid)', color: 'var(--c-blue-mid)', borderRadius: '4px', fontWeight: 600 }}
+                                >
+                                  👁️ Ver
+                                </button>
+                                <a
+                                  href={`/api/docx/extra/${guideExtra.id}`}
+                                  className="btn btn-amber"
+                                  style={{ padding: '5px 10px', fontSize: '11.5px', borderRadius: '4px', textDecoration: 'none', fontWeight: 600 }}
+                                >
+                                  ↓ Word
+                                </a>
+                                <a
+                                  href={`/api/pdf/extra/${guideExtra.id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="btn"
+                                  style={{ padding: '5px 10px', fontSize: '11.5px', borderRadius: '4px', textDecoration: 'none', background: '#dc2626', color: '#fff', fontWeight: 600 }}
+                                >
+                                  ↓ PDF
+                                </a>
+                                <button
+                                  onClick={() => handleDeleteExtra(guideExtra.id)}
+                                  className="btn"
+                                  title="Eliminar guía"
+                                  style={{ padding: '5px 8px', fontSize: '11.5px', background: '#FEE2E2', border: '1px solid #EF4444', color: '#EF4444', borderRadius: '4px' }}
+                                >
+                                  🗑️
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => handleSyncSuite(actIdx)}
+                                disabled={syncingSuite === actIdx}
+                                className="btn btn-navy"
+                                style={{ padding: '6px 12px', fontSize: '11.5px', borderRadius: '4px', cursor: 'pointer' }}
+                              >
+                                {syncingSuite === actIdx ? '⏳ Sincronizando…' : '⚡ Extraer del Libro'}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                      </div>
+
+                      {/* Barra de estado del bloque */}
+                      <div style={{
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        padding: '12px 16px',
-                        background: 'var(--c-bg-surface)',
-                        border: '1px solid var(--c-border)',
-                        borderRadius: '8px',
-                      }}
-                    >
-                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                        <span style={{ fontSize: '16px' }}>📄</span>
-                        <span style={{ fontWeight: 500, fontSize: '14px', color: 'var(--c-text)' }}>{cleanMatName}</span>
-                      </div>
-                      
-                      <div>
-                        {generated ? (
-                          <div style={{ display: 'flex', gap: '6px' }}>
-                            <button
-                              onClick={() => setPreviewExtra(generated)}
-                              className="btn"
-                              style={{ padding: '6px 12px', fontSize: '12px', background: 'var(--c-blue-pale)', border: '1px solid var(--c-blue-mid)', color: 'var(--c-blue-mid)', borderRadius: '4px' }}
-                            >
-                              👁️ Ver en Pantalla
-                            </button>
-                            <a
-                              href={`/api/docx/extra/${generated.id}`}
-                              className="btn btn-amber"
-                              style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '4px', textDecoration: 'none' }}
-                            >
-                              ↓ Descargar Word
-                            </a>
-                            <a
-                              href={`/api/pdf/extra/${generated.id}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '4px', textDecoration: 'none', background: '#dc2626', color: '#fff', fontWeight: 600 }}
-                            >
-                              ↓ Descargar PDF
-                            </a>
-                            <button
-                              onClick={() => handleDeleteExtra(generated.id)}
-                              className="btn"
-                              style={{ padding: '6px 12px', fontSize: '12px', background: '#FEE2E2', border: '1px solid #EF4444', color: '#EF4444', borderRadius: '4px' }}
-                            >
-                              🗑️
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() =>
-                              handleGenerateExtra(
-                                'material',
-                                cleanMatName,
-                                null,
-                                {}
-                              )
-                            }
-                            disabled={generatingKey !== null}
-                            className="btn btn-navy"
-                            style={{ padding: '6px 14px', fontSize: '12px', borderRadius: '4px', border: 'none', cursor: 'pointer' }}
-                          >
-                            {isCurrentGenerating ? '⏳ Redactando...' : '⚡ Generar Material Impreso'}
-                          </button>
-                        )}
+                        flexWrap: 'wrap',
+                        gap: '8px',
+                        padding: '10px 14px',
+                        background: 'rgba(59, 130, 246, 0.05)',
+                        border: '1px solid rgba(59, 130, 246, 0.15)',
+                        borderRadius: '6px',
+                        fontSize: '12px'
+                      }}>
+                        <span style={{ color: 'var(--c-text-muted)' }}>
+                          💡 Materiales e instrumentos sincronizados atómicamente a 0 tokens a partir del Libro de Trabajo.
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleSyncSuite(actIdx)}
+                          disabled={syncingSuite === actIdx}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#3b82f6',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            fontSize: '12px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                        >
+                          <RefreshCw size={12} className={syncingSuite === actIdx ? 'animate-spin' : ''} />
+                          {syncingSuite === actIdx ? 'Sincronizando…' : 'Volver a sincronizar Suite'}
+                        </button>
                       </div>
                     </div>
-                  );
-                })}
+                  ) : (
+                    /* Tarjeta de Bloque Pendiente */
+                    <div style={{
+                      padding: '24px 20px',
+                      background: 'rgba(30, 41, 59, 0.3)',
+                      border: '1px dashed rgba(148, 163, 184, 0.25)',
+                      borderRadius: '8px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      textAlign: 'center',
+                      gap: '12px'
+                    }}>
+                      <div style={{ fontSize: '28px' }}>🕒</div>
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'var(--c-text)' }}>
+                          {blockNumStr}: Pendiente de Generación
+                        </h4>
+                        <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: 'var(--c-text-muted)', maxWidth: '540px', lineHeight: 1.5 }}>
+                          Los instrumentos oficiales de evaluación (rúbricas y listas de cotejo), la guía activa del alumno y los insumos didácticos se generarán automáticamente en cascada al crear el <strong>Libro de Trabajo del {blockNumStr}</strong>.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveTab('planning');
+                          setTimeout(() => {
+                            const el = document.getElementById(`workbook-card-${actIdx}`);
+                            if (el) el.scrollIntoView({ behavior: 'smooth' });
+                          }, 100);
+                        }}
+                        className="btn btn-navy"
+                        style={{ padding: '8px 16px', fontSize: '12.5px', fontWeight: 600, borderRadius: '6px', marginTop: '4px' }}
+                      >
+                        ⚡ Ir a Generar Libro del {blockNumStr}
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          </div>
+            );
+          })}
+
         </div>
 
         {/* Feedback Widget */}

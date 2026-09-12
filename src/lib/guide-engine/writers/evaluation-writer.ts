@@ -138,7 +138,13 @@ y espacios amplios para que el estudiante trabaje.
 Genera el paquete oficial de 4 instrumentos de evaluación NEM:`;
 
   try {
-    const rawResponse = await generateWithRotation(systemInstruction, prompt, input.planning.teacherId);
+    const rawResponse = await generateWithRotation(
+      systemInstruction,
+      prompt,
+      input.planning.teacherId,
+      false,
+      { jsonMode: true, maxTokens: 8192 }
+    );
     const parsed = robustJsonParse(rawResponse);
 
     const evaluationSection: EvaluationSection = {

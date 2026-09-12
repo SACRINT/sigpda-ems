@@ -58,6 +58,12 @@ export async function processGenerationJob(jobId: string): Promise<GenerationJob
       console.warn(`[job-worker] Advertencia al persistir en plannings:`, err?.message)
     );
 
+    // Cascada automática de materiales derivados a planning_extras (24 planes, rúbricas, materiales)
+    const { cascadeBlockMaterials } = await import('@/lib/guide-engine/cascade-block-materials');
+    await cascadeBlockMaterials(job.planning_id, job.block_index, workbook, job.teacher_id).catch((cascadeErr) =>
+      console.warn(`[job-worker] Advertencia en cascada de materiales:`, cascadeErr?.message)
+    );
+
     // Marcar el job como completado
     await completeGenerationJob(jobId, workbook);
 

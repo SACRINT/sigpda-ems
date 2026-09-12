@@ -442,13 +442,20 @@ export async function deleteProgramCatalogItem(id: string) {
 // ─── Planning Extras queries ──────────────────────────────────────────────────
 
 export async function getPlanningExtras(planningId: string, teacherId: string) {
-  return sql()`
+  const rows = await sql()`
     SELECT pe.id, pe.planning_id, pe.type, pe.title, pe.key_index, pe.content_text, pe.created_at
     FROM planning_extras pe
     JOIN plannings p ON pe.planning_id = p.id
     WHERE pe.planning_id = ${planningId}::uuid AND p.teacher_id = ${teacherId}::uuid
     ORDER BY pe.created_at ASC
   `;
+  return rows.map((r: any) => ({
+    ...r,
+    planningId: r.planning_id,
+    keyIndex: r.key_index,
+    contentText: r.content_text,
+    createdAt: r.created_at,
+  }));
 }
 
 export async function getPlanningExtraById(id: string, teacherId: string) {
@@ -459,7 +466,15 @@ export async function getPlanningExtraById(id: string, teacherId: string) {
     WHERE pe.id = ${id}::uuid AND p.teacher_id = ${teacherId}::uuid
     LIMIT 1
   `;
-  return rows[0] || null;
+  if (!rows || rows.length === 0) return null;
+  const r = rows[0] as any;
+  return {
+    ...r,
+    planningId: r.planning_id,
+    keyIndex: r.key_index,
+    contentText: r.content_text,
+    createdAt: r.created_at,
+  };
 }
 
 export async function createPlanningExtra(
@@ -493,7 +508,14 @@ export async function createPlanningExtra(
     )
     RETURNING id, planning_id, type, title, key_index, content_text, created_at
   `;
-  return rows[0];
+  const r = rows[0] as any;
+  return {
+    ...r,
+    planningId: r.planning_id,
+    keyIndex: r.key_index,
+    contentText: r.content_text,
+    createdAt: r.created_at,
+  };
 }
 
 export async function deletePlanningExtra(id: string, teacherId: string) {

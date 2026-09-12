@@ -122,7 +122,13 @@ y espacios amplios para que el estudiante trabaje.
 Redacta la Misión del Proyecto y Construcción del Artefacto Real:`;
 
   try {
-    const rawResponse = await generateWithRotation(systemInstruction, prompt, input.planning.teacherId);
+    const rawResponse = await generateWithRotation(
+      systemInstruction,
+      prompt,
+      input.planning.teacherId,
+      false,
+      { jsonMode: true, maxTokens: 8192 }
+    );
     const parsed = robustJsonParse(rawResponse);
 
     const phases = (parsed.phases || []).map((p: any, i: number) => ({

@@ -111,6 +111,45 @@ export function parseAIResponse<T>(
     }
   }
 
+  // Intento D: Rescate defensivo de campos en respuestas truncadas o con comillas rotas
+  if (!parsedObj || typeof parsedObj !== 'object') {
+    try {
+      const rescued: Record<string, any> = {};
+      // Regex que busca pares clave-valor de tipo string: "clave": "valor..."
+      const fieldRegex = /"([a-zA-Z0-9_-]+)"\s*:\s*"((?:[^"\\]|\\.)*)"/g;
+      let match;
+      while ((match = fieldRegex.exec(text)) !== null) {
+        const key = match[1];
+        const val = match[2].replace(/\\"/g, '"').replace(/\\n/g, '\n');
+        rescued[key] = val;
+      }
+
+      // Si no capturó suficientes con comillas cerradas, buscar campos multilinea truncados
+      if (Object.keys(rescued).length < 2) {
+        const knownKeys = [
+          'phenomenonStory', 'detonatingQuestion', 'physicalAnalogy', 'coreExplanation',
+          'iDoDemo', 'weDoPractice', 'youDoChallenge', 'stepByStepDemo', 'guidedPractice',
+          'autonomousChallenge', 'story', 'physicalAnalogy', 'artifactName', 'communityUtility'
+        ];
+        for (let kIdx = 0; kIdx < knownKeys.length; kIdx++) {
+          const k = knownKeys[kIdx];
+          const pattern = new RegExp(`"${k}"\\s*:\\s*"([\\s\\S]*?)(?="\\s*,\\s*"[a-zA-Z0-9_-]+"|"$|}\\s*$)`, 'i');
+          const kMatch = text.match(pattern);
+          if (kMatch && kMatch[1]) {
+            rescued[k] = kMatch[1].trim().replace(/\\"/g, '"');
+          }
+        }
+      }
+
+      if (Object.keys(rescued).length >= 2) {
+        parsedObj = rescued;
+        warnings.push(`Sintaxis JSON recuperada mediante extractor defensivo de campos (${Object.keys(rescued).length} campos rescatados)`);
+      }
+    } catch {
+      // Ignorar fallo en rescate defensivo
+    }
+  }
+
   // 5. Parseo nativo a objeto JavaScript
   if (!parsedObj || typeof parsedObj !== 'object') {
     return {

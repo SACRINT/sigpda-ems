@@ -492,10 +492,8 @@ export async function generateBlockWorkTextbook(
   const evaluationSection: EvaluationSection = evalOut.evaluationSection || defaultEvaluationSection;
 
   const totalWords = validation.totalWordCount;
-  const totalPages = Math.max(
-    curriculumContext.subsystem === 'bt' ? 50 : 35,
-    Math.round(totalWords / 450)
-  );
+  // Estimación transparente y real basada en densidad editorial de texto y espacios de trabajo:
+  const totalPages = Math.max(1, Math.round(totalWords / 450));
 
   const tableOfContents = missions.map((m, idx) => ({
     missionIndex: idx + 1,

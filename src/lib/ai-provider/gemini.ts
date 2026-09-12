@@ -24,7 +24,11 @@ export class GeminiProvider implements AIProvider {
     this.modelId = sanitizeGeminiModel(modelId);
   }
 
-  async generate(systemPrompt: string, userPrompt: string, options?: { temperature?: number }): Promise<string> {
+  async generate(
+    systemPrompt: string,
+    userPrompt: string,
+    options?: { temperature?: number; jsonMode?: boolean; maxTokens?: number }
+  ): Promise<string> {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.modelId}:generateContent?key=${this.apiKey}`;
     const payload = {
       contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
@@ -32,7 +36,8 @@ export class GeminiProvider implements AIProvider {
       generationConfig: {
         temperature: options?.temperature !== undefined ? options.temperature : 0.4,
         topP: 0.95,
-        responseMimeType: 'text/plain',
+        maxOutputTokens: options?.maxTokens || 8192,
+        responseMimeType: options?.jsonMode ? 'application/json' : 'text/plain',
       },
     };
 

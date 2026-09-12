@@ -3,10 +3,11 @@ import { auth } from '@/lib/auth';
 import { getTeacherByEmail, getBlockWorkbook, sql } from '@/lib/db';
 import { isAdmin } from '@/lib/admin-unified';
 import { extractMaterialsFromWorkbook } from '@/lib/guide-engine/material-extractor';
+import { cascadeBlockMaterials } from '@/lib/guide-engine/cascade-block-materials';
 
-export async function GET(
+async function handleMaterialesBloque(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  paramsPromise: Promise<{ id: string }>
 ) {
   try {
     const session = await auth();
@@ -14,9 +15,9 @@ export async function GET(
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-    const { id: planningId } = await params;
+    const { id: planningId } = await paramsPromise;
     const { searchParams } = new URL(request.url);
-    const blockIndex = parseInt(searchParams.get('blockIndex') || '1', 10);
+    const blockIndex = parseInt(searchParams.get('blockIndex') || '0', 10);
 
     if (isNaN(blockIndex) || blockIndex < 0) {
       return NextResponse.json({ error: 'blockIndex inválido' }, { status: 400 });
@@ -25,7 +26,7 @@ export async function GET(
     // 1. Verificar existencia y pertenencia de la planeación
     const db = sql();
     const planRows = await db`
-      SELECT id, teacher_id, title
+      SELECT id, teacher_id, uac_name
       FROM plannings
       WHERE id = ${planningId}::uuid
       LIMIT 1
@@ -52,17 +53,26 @@ export async function GET(
     if (!workbook) {
       return NextResponse.json({
         success: false,
-        error: `El Libro de Bloque ${blockIndex} aún no ha sido generado. Primero genera el Libro de Bloque para derivar automáticamente sus materiales.`,
+        error: `El Libro de Bloque ${blockIndex + 1} aún no ha sido generado. Primero genera el Libro de Bloque para derivar automáticamente sus materiales.`,
       }, { status: 404 });
     }
 
-    // 3. Extracción determinística pura en memoria (<5ms, 0 tokens)
+    // 3. Cascada automática determinística hacia planning_extras (<15ms, 0 tokens)
+    const cascadeResult = await cascadeBlockMaterials(
+      planningId,
+      blockIndex,
+      workbook,
+      currentTeacher?.id
+    );
+
+    // 4. Extracción para respuesta
     const materials = extractMaterialsFromWorkbook(workbook);
 
     return NextResponse.json({
       success: true,
       blockIndex,
-      planningTitle: planRows[0].title,
+      planningTitle: planRows[0].uac_name,
+      cascade: cascadeResult,
       materials,
     });
   } catch (error: any) {
@@ -70,3 +80,18 @@ export async function GET(
     return NextResponse.json({ error: 'Error interno al derivar materiales de bloque' }, { status: 500 });
   }
 }
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  return handleMaterialesBloque(request, params);
+}
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  return handleMaterialesBloque(request, params);
+}
+

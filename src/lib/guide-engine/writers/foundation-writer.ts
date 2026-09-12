@@ -113,7 +113,13 @@ y espacios amplios para que el estudiante trabaje.
 Redacta la Misión de Fundamentación e Intuición completa con máxima profundidad:`;
 
   try {
-    const rawResponse = await generateWithRotation(systemInstruction, prompt, input.planning.teacherId);
+    const rawResponse = await generateWithRotation(
+      systemInstruction,
+      prompt,
+      input.planning.teacherId,
+      false,
+      { jsonMode: true, maxTokens: 8192 }
+    );
     const parsed = robustJsonParse(rawResponse);
 
     // Extraer tags de cuaderno presentes en la respuesta

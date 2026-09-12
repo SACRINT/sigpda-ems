@@ -12,7 +12,11 @@ export interface AIProvider {
   /**
    * Generate text (non-streaming). Returns the full response as a string.
    */
-  generate(systemPrompt: string, userPrompt: string, options?: { temperature?: number }): Promise<string>;
+  generate(
+    systemPrompt: string,
+    userPrompt: string,
+    options?: { temperature?: number; jsonMode?: boolean; maxTokens?: number }
+  ): Promise<string>;
 
   /**
    * Generate text as an async stream of string chunks.
