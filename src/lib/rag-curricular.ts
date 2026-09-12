@@ -105,17 +105,18 @@ async function fallbackTextSearch(
 
   try {
     const searchTerms = query.split(/\s+/).filter(t => t.length > 3).slice(0, 5);
-    const conditions = searchTerms.map(t => `chunk_text ILIKE '%${t}%'`).join(' OR ');
-
-    let whereClause = `WHERE ${conditions || '1=1'}`;
-    if (semester) whereClause += ` AND semester = ${semester}`;
-    if (component) whereClause += ` AND component = '${component}'`;
-    if (subsystem) whereClause += ` AND subsystem = '${subsystem}'`;
+    const patterns = searchTerms.length > 0 ? searchTerms.map(t => `%${t}%`) : ['%'];
 
     const results = await sql()`
       SELECT id, program_id, uac_name, semester, component, chunk_text, 0.5 as similarity
       FROM curriculum_embeddings
-      ${whereClause}
+      WHERE (
+        ${patterns.length === 0} = true
+        OR chunk_text ILIKE ANY(${patterns})
+      )
+      AND (${semester || null}::int IS NULL OR semester = ${semester || null}::int)
+      AND (${component || null}::text IS NULL OR component = ${component || null}::text)
+      AND (${subsystem || null}::text IS NULL OR subsystem = ${subsystem || null}::text)
       LIMIT ${matchCount}
     ` as CurriculumChunk[];
 

@@ -42,7 +42,12 @@ export async function GET(
     const workbook = await getBlockWorkbook(id, blockIndex);
 
     if (!workbook) {
-      return NextResponse.json({ error: 'Libro de trabajo no encontrado para este bloque' }, { status: 404 });
+      return NextResponse.json({
+        workbook: null,
+        found: false,
+        wordCount: 0,
+        totalWords: 0,
+      }, { status: 200 });
     }
 
     return NextResponse.json({

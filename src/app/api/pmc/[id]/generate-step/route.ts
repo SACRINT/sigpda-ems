@@ -6,6 +6,8 @@ import { logActivity } from '@/lib/ai-provider';
 import { callGeminiPool } from '@/lib/gemini';
 import { getUserLibraryContext } from '@/lib/context-extractor';
 import { getNormativaForGenerator, getStructuredNormativaForGenerator } from '@/lib/normativa-context';
+import { parseAIResponse } from '@/lib/ai-response-parser';
+import { PmcDiagnosticoSchema, PmcPlanAccionSchema } from '@/lib/ai-schemas';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -36,12 +38,7 @@ function parseJson<T = unknown>(val: unknown): T | Record<string, never> {
   }
 }
 
-function cleanJsonResponse(text: string): string {
-  return text
-    .replace(/^```(?:json)?\n?/m, '')
-    .replace(/\n?```$/m, '')
-    .trim();
-}
+
 
 // ─── Route ───────────────────────────────────────────────────────────────────
 export async function POST(request: NextRequest, { params }: RouteContext) {
@@ -181,15 +178,15 @@ Responde con JSON con exactamente estas 5 claves. Texto formal y técnico. NO in
         throw new Error('Respuesta vacía del proveedor de IA');
       }
 
-      let parsedDiag: object;
-      try {
-        parsedDiag = JSON.parse(cleanJsonResponse(rawText));
-      } catch {
+      const parseResult = parseAIResponse(rawText, PmcDiagnosticoSchema, { contextName: 'pmc_diagnostico' });
+      if (!parseResult.success) {
+        console.error('Failed to parse PMC diagnostico:', parseResult.error);
         return NextResponse.json(
-          { error: 'La IA no retornó un formato JSON válido. Por favor reintenta.' },
+          { error: `Error al validar estructura de diagnóstico PMC: ${parseResult.error}` },
           { status: 500 }
         );
       }
+      const parsedDiag = parseResult.data;
 
       const [updated] = await sql`
         UPDATE pmc_projects
@@ -340,15 +337,15 @@ Responde con JSON con esta estructura EXACTA:
         throw new Error('Respuesta vacía del proveedor de IA');
       }
 
-      let parsedPlan: object;
-      try {
-        parsedPlan = JSON.parse(cleanJsonResponse(rawText));
-      } catch {
+      const parseResult = parseAIResponse(rawText, PmcPlanAccionSchema, { contextName: 'pmc_plan_accion' });
+      if (!parseResult.success) {
+        console.error('Failed to parse PMC plan_accion:', parseResult.error);
         return NextResponse.json(
-          { error: 'La IA no retornó un formato JSON válido. Por favor reintenta.' },
+          { error: `Error al validar estructura de plan de acción PMC: ${parseResult.error}` },
           { status: 500 }
         );
       }
+      const parsedPlan = parseResult.data;
 
       const [updated] = await sql`
         UPDATE pmc_projects

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import type { PaecProject, CommunityContext, SchoolContext } from '@/types/paec';
+import type { PaecProject, CommunityContext, SchoolContext, PaecAuditResult, PaecAuditCriterion } from '@/types/paec';
 import { clearAllWizardDrafts } from '@/hooks/useWizardPersistence';
 
 const PAEC_DRAFT_KEY = 'didactica_paec_draft';
@@ -51,13 +51,14 @@ const STEPS = [
   { num: 2, label: 'Justificación y Propósitos' },
   { num: 3, label: 'Mapeo de UACs' },
   { num: 4, label: 'Cronograma' },
-  { num: 5, label: 'Plan Operativo' },
-  { num: 6, label: 'Anexos Técnicos' },
+  { num: 5, label: 'Detalle Curricular' },
+  { num: 6, label: 'Plan Operativo' },
+  { num: 7, label: 'Anexos Técnicos' },
 ];
 
 const CYCLE_LABELS: Record<string, string> = {
-  A: 'Semestre A (1° y 3°)',
-  B: 'Semestre B (2° y 4°)',
+  A: 'Semestre A (1°, 3° y 5°)',
+  B: 'Semestre B (2°, 4° y 6°)',
   annual: 'Proyecto Completo (1° al 6°)',
 };
 
@@ -150,6 +151,13 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
   const [isEditingContent, setIsEditingContent] = useState(false);
   const [editPayload, setEditPayload] = useState<any>(null);
 
+  // Quality Audit States (Step 7)
+  const [auditResult, setAuditResult] = useState<PaecAuditResult | null>(null);
+  const [loadingAudit, setLoadingAudit] = useState(false);
+  const [auditError, setAuditError] = useState<string | null>(null);
+  const [showAuditDetails, setShowAuditDetails] = useState(false);
+  const [auditFilter, setAuditFilter] = useState<'all' | 'deficient'>('deficient');
+
   // Auto-save form draft to localStorage whenever step-1 form fields change (only when no projectId)
   const isFirstRenderDraft = useRef(true);
   useEffect(() => {
@@ -220,6 +228,35 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
     }
   }
 
+  // Fetch PAEC Quality Audit (Step 7)
+  async function fetchAudit(pId: string) {
+    setLoadingAudit(true);
+    setAuditError(null);
+    try {
+      const res = await fetch(`/api/paec/${pId}/audit`);
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Error al ejecutar la auditoría de calidad.');
+      }
+      const data = await res.json();
+      if (data.audit) {
+        setAuditResult(data.audit);
+      }
+    } catch (err) {
+      console.error('Error fetching audit:', err);
+      setAuditError(err instanceof Error ? err.message : 'Error al consultar la auditoría.');
+    } finally {
+      setLoadingAudit(false);
+    }
+  }
+
+  // Auto-fetch audit when loading or entering Step 7 with generated Annexes
+  useEffect(() => {
+    if (activeStep === 7 && projectId && project?.fase2Anexos) {
+      fetchAudit(projectId);
+    }
+  }, [activeStep, projectId, !!project?.fase2Anexos]);
+
   // Handle Form Submission (Create Project)
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -283,6 +320,9 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
 
       const data = await res.json();
       setProject(data.project);
+      if (activeStep === 7 && data.project?.id) {
+        fetchAudit(data.project.id);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error en la comunicación con la IA.');
     } finally {
@@ -298,8 +338,9 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
       case 2: return JSON.parse(JSON.stringify(project.fase2Justificacion));
       case 3: return JSON.parse(JSON.stringify(project.fase2Mapeo));
       case 4: return JSON.parse(JSON.stringify(project.fase2Cronograma));
-      case 5: return JSON.parse(JSON.stringify(project.fase2PlanOperativo));
-      case 6: return JSON.parse(JSON.stringify(project.fase2Anexos));
+      case 5: return JSON.parse(JSON.stringify(project.fase2DetalleCurricular));
+      case 6: return JSON.parse(JSON.stringify(project.fase2PlanOperativo));
+      case 7: return JSON.parse(JSON.stringify(project.fase2Anexos));
       default: return null;
     }
   }
@@ -316,8 +357,9 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
         case 2: fieldName = 'fase2_justificacion'; break;
         case 3: fieldName = 'fase2_mapeo'; break;
         case 4: fieldName = 'fase2_cronograma'; break;
-        case 5: fieldName = 'fase2_plan_operativo'; break;
-        case 6: fieldName = 'fase2_anexos'; break;
+        case 5: fieldName = 'fase2_detalle_curricular'; break;
+        case 6: fieldName = 'fase2_plan_operativo'; break;
+        case 7: fieldName = 'fase2_anexos'; break;
       }
 
       const res = await fetch(`/api/paec/${projectId}`, {
@@ -339,6 +381,9 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
       setProject(data.project);
       setIsEditingContent(false);
       setEditPayload(null);
+      if (activeStep === 7 && data.project?.id) {
+        fetchAudit(data.project.id);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al guardar la edición.');
     } finally {
@@ -755,8 +800,9 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
       case 2: return !!project.fase2Justificacion;
       case 3: return !!project.fase2Mapeo;
       case 4: return !!project.fase2Cronograma;
-      case 5: return !!project.fase2PlanOperativo;
-      case 6: return !!project.fase2Anexos;
+      case 5: return !!project.fase2DetalleCurricular;
+      case 6: return !!project.fase2PlanOperativo;
+      case 7: return !!project.fase2Anexos;
       default: return false;
     }
   }
@@ -780,7 +826,7 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
             {CYCLE_LABELS[cycleType]}
           </span>
           <span className="badge" style={{ backgroundColor: project?.status === 'completed' ? '#28a745' : '#ffc107', color: project?.status === 'completed' ? '#fff' : '#212529' }}>
-            {project?.status === 'completed' ? 'Completado' : `Borrador — Paso ${project?.currentStep || 1} de 6`}
+            {project?.status === 'completed' ? 'Completado' : `Borrador — Paso ${project?.currentStep || 1} de 7`}
           </span>
           {project?.fase2Anexos && (
             <a href={`/api/docx/paec/${projectId}`} className="btn btn-amber btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: 'var(--c-amber)', color: '#fff', marginLeft: 'auto' }}>
@@ -834,9 +880,10 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
               {activeStep === 1 && 'La Inteligencia Artificial recopilará los datos de la comunidad y del plantel para estructurar las 4 tablas oficiales de diagnóstico y realizar el análisis FODA del proyecto.'}
               {activeStep === 2 && 'Se redactará la justificación formal del proyecto, los 5 pilares estratégicos de viabilidad, los propósitos integrales (educativo, social y funcional) y las metas del PEC.'}
               {activeStep === 3 && 'La IA cruzará las asignaturas activas de tus semestres seleccionados (Modelo de Relevos) con la problemática común para detallar los temas prácticos de aprendizaje transversal.'}
-              {activeStep === 4 && 'Estructuración del plan macro dividiendo las etapas del proyecto escolar en 6 fases bimestrales ordenadas cronológicamente.'}
-              {activeStep === 5 && 'Desglose detallado de las actividades del día a día (semanas 1 a 16) con metodologías activas y entrega de la estafeta de relevos semestral.'}
-              {activeStep === 6 && 'Generación de todas las plantillas administrativas y de control, incluyendo la minuta de acuerdos, reportes y cuestionarios de impacto social.'}
+              {activeStep === 4 && 'Estructuración del plan macro dividiendo las etapas del proyecto escolar en 6 fases bimestrales ordenadas cronológicamente con asignaturas responsables y justificación pedagógica.'}
+              {activeStep === 5 && 'Matriz de Detalle Curricular por Semestre: fundamentación curricular inquebrantable (propósitos formativos o progresiones de aprendizaje NOM-MCCEMS) y vinculación con fases para cada UAC.'}
+              {activeStep === 6 && 'Desglose detallado del plan operativo de actividades (semanas 1 a 16) con 8 columnas oficiales, metodologías activas y entrega de relevos semestral.'}
+              {activeStep === 7 && 'Generación del sistema integral de anexos técnicos estructurados: minutas con firmas, seguimiento semanal semafórico, reporte mensual y cuestionarios Likert.'}
             </p>
 
             <button
@@ -1254,10 +1301,11 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                   <thead>
                     <tr style={{ background: 'var(--c-navy)', color: '#fff' }}>
-                      <th style={{ padding: '8px 12px', textAlign: 'left', width: '20%' }}>Fase Bimestral</th>
-                      <th style={{ padding: '8px 12px', textAlign: 'left', width: '25%' }}>Objetivo de la Etapa</th>
-                      <th style={{ padding: '8px 12px', textAlign: 'left' }}>Macro-Actividades del Proyecto</th>
-                      <th style={{ padding: '8px 12px', textAlign: 'center', width: '15%' }}>Semestre</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'left', width: '18%' }}>Fase Bimestral</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'left', width: '22%' }}>Objetivo de la Etapa</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'left', width: '24%' }}>Macro-Actividades del Proyecto</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'left', width: '24%' }}>Asignaturas Responsables y Justificación</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'center', width: '12%' }}>Semestre</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1294,6 +1342,21 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
                             r.macroActivities
                           )}
                         </td>
+                        <td style={{ padding: '8px 12px', lineHeight: 1.4 }}>
+                          {isEditingContent ? (
+                            <textarea
+                              value={r.responsibleSubjects || ''}
+                              onChange={(e) => {
+                                const copy = [...editPayload];
+                                copy[i].responsibleSubjects = e.target.value;
+                                setEditPayload(copy);
+                              }}
+                              style={{ width: '100%', padding: '6px', fontSize: '12.5px', borderRadius: '4px', border: '1px solid #ccc', minHeight: '60px', fontFamily: 'inherit' }}
+                            />
+                          ) : (
+                            r.responsibleSubjects || 'Todas las asignaturas vinculadas'
+                          )}
+                        </td>
                         <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600 }}>{r.semesterInvolved}</td>
                       </tr>
                     ))}
@@ -1302,22 +1365,97 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
               </div>
             )}
 
-            {/* Step 5 Visual Render */}
-            {activeStep === 5 && project.fase2PlanOperativo && (
+            {/* Step 5 Visual Render: Detalle Curricular */}
+            {activeStep === 5 && project.fase2DetalleCurricular && (
+              <div>
+                <h3 style={{ fontSize: '15px', color: 'var(--c-navy-light)', fontWeight: 600, marginBottom: '10px' }}>
+                  Matriz de Detalle Curricular por Semestre (Fundamentación y Progresiones / Propósitos NOM-MCCEMS)
+                </h3>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                  <thead>
+                    <tr style={{ background: 'var(--c-navy)', color: '#fff' }}>
+                      <th style={{ padding: '8px 12px', textAlign: 'center', width: '8%' }}>Sem</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'left', width: '22%' }}>Asignatura (UAC)</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'left', width: '25%' }}>Progresiones o Propósitos Formativos</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'center', width: '15%' }}>Fase(s) del Proyecto</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'left', width: '30%' }}>Justificación Curricular</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(isEditingContent && editPayload ? editPayload : project.fase2DetalleCurricular).map((r: any, i: number) => (
+                      <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : 'var(--c-blue-pale)', borderBottom: '1px solid var(--c-border)' }}>
+                        <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600 }}>{r.semester}°</td>
+                        <td style={{ padding: '8px 12px', fontWeight: 600 }}>{r.uacName}</td>
+                        <td style={{ padding: '8px 12px', lineHeight: 1.4 }}>
+                          {isEditingContent ? (
+                            <textarea
+                              value={r.progressionsOrPurposes}
+                              onChange={(e) => {
+                                const copy = [...editPayload];
+                                copy[i].progressionsOrPurposes = e.target.value;
+                                setEditPayload(copy);
+                              }}
+                              style={{ width: '100%', padding: '6px', fontSize: '12px', borderRadius: '4px', border: '1px solid #ccc', minHeight: '60px', fontFamily: 'inherit' }}
+                            />
+                          ) : (
+                            r.progressionsOrPurposes
+                          )}
+                        </td>
+                        <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                          {isEditingContent ? (
+                            <input
+                              type="text"
+                              value={r.projectPhases}
+                              onChange={(e) => {
+                                const copy = [...editPayload];
+                                copy[i].projectPhases = e.target.value;
+                                setEditPayload(copy);
+                              }}
+                              style={{ width: '100%', padding: '6px', fontSize: '12px', borderRadius: '4px', border: '1px solid #ccc' }}
+                            />
+                          ) : (
+                            r.projectPhases
+                          )}
+                        </td>
+                        <td style={{ padding: '8px 12px', lineHeight: 1.4 }}>
+                          {isEditingContent ? (
+                            <textarea
+                              value={r.curricularJustification}
+                              onChange={(e) => {
+                                const copy = [...editPayload];
+                                copy[i].curricularJustification = e.target.value;
+                                setEditPayload(copy);
+                              }}
+                              style={{ width: '100%', padding: '6px', fontSize: '12px', borderRadius: '4px', border: '1px solid #ccc', minHeight: '60px', fontFamily: 'inherit' }}
+                            />
+                          ) : (
+                            r.curricularJustification
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Step 6 Visual Render: Plan Operativo */}
+            {activeStep === 6 && project.fase2PlanOperativo && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                 {project.fase2PlanOperativo.semestreA && project.fase2PlanOperativo.semestreA.length > 0 && (
                   <div>
-                    <h3 style={{ fontSize: '15px', color: 'var(--c-navy-light)', fontWeight: 600, marginBottom: '10px' }}>Plan Operativo: Semestre A (3° y 5° Semestre - Bloque A)</h3>
+                    <h3 style={{ fontSize: '15px', color: 'var(--c-navy-light)', fontWeight: 600, marginBottom: '10px' }}>Plan Operativo: Semestre A (1°, 3° y 5° Semestre)</h3>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                       <thead>
                         <tr style={{ background: 'var(--c-navy)', color: '#fff' }}>
-                          <th style={{ padding: '6px 10px', textAlign: 'left', width: '12%' }}>Fase</th>
-                          <th style={{ padding: '6px 10px', textAlign: 'left', width: '28%' }}>Actividad Semanal</th>
-                          <th style={{ padding: '6px 10px', textAlign: 'left', width: '18%' }}>UAC</th>
-                          <th style={{ padding: '6px 10px', textAlign: 'center', width: '8%' }}>Progresión</th>
-                          <th style={{ padding: '6px 10px', textAlign: 'left', width: '12%' }}>Estrategia</th>
-                          <th style={{ padding: '6px 10px', textAlign: 'center', width: '8%' }}>Semana</th>
-                          <th style={{ padding: '6px 10px', textAlign: 'left', width: '14%' }}>Responsables</th>
+                          <th style={{ padding: '6px 10px', textAlign: 'left', width: '10%' }}>Fase</th>
+                          <th style={{ padding: '6px 10px', textAlign: 'left', width: '22%' }}>Actividad Semanal</th>
+                          <th style={{ padding: '6px 10px', textAlign: 'left', width: '15%' }}>UAC</th>
+                          <th style={{ padding: '6px 10px', textAlign: 'center', width: '8%' }}>Progresión / Propósito</th>
+                          <th style={{ padding: '6px 10px', textAlign: 'left', width: '11%' }}>Estrategia</th>
+                          <th style={{ padding: '6px 10px', textAlign: 'center', width: '7%' }}>Semana</th>
+                          <th style={{ padding: '6px 10px', textAlign: 'left', width: '13%' }}>Responsables</th>
+                          <th style={{ padding: '6px 10px', textAlign: 'left', width: '14%' }}>Inst. Evaluación</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1374,6 +1512,22 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
                                 r.responsibles
                               )}
                             </td>
+                            <td style={{ padding: '6px 10px' }}>
+                              {isEditingContent ? (
+                                <input
+                                  type="text"
+                                  value={r.evaluationInstrument || ''}
+                                  onChange={(e) => {
+                                    const copy = { ...editPayload };
+                                    copy.semestreA[i].evaluationInstrument = e.target.value;
+                                    setEditPayload(copy);
+                                  }}
+                                  style={{ width: '100%', padding: '4px', fontSize: '11.5px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                />
+                              ) : (
+                                r.evaluationInstrument || 'Rúbrica'
+                              )}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -1383,17 +1537,18 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
 
                 {project.fase2PlanOperativo.semestreB && project.fase2PlanOperativo.semestreB.length > 0 && (
                   <div>
-                    <h3 style={{ fontSize: '15px', color: 'var(--c-navy-light)', fontWeight: 600, marginBottom: '10px' }}>Plan Operativo: Semestre B (4° y 6° Semestre - Bloque B)</h3>
+                    <h3 style={{ fontSize: '15px', color: 'var(--c-navy-light)', fontWeight: 600, marginBottom: '10px' }}>Plan Operativo: Semestre B (2°, 4° y 6° Semestre)</h3>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                       <thead>
                         <tr style={{ background: 'var(--c-navy)', color: '#fff' }}>
-                          <th style={{ padding: '6px 10px', textAlign: 'left', width: '12%' }}>Fase</th>
-                          <th style={{ padding: '6px 10px', textAlign: 'left', width: '28%' }}>Actividad Semanal</th>
-                          <th style={{ padding: '6px 10px', textAlign: 'left', width: '18%' }}>UAC</th>
-                          <th style={{ padding: '6px 10px', textAlign: 'center', width: '8%' }}>Progresión</th>
-                          <th style={{ padding: '6px 10px', textAlign: 'left', width: '12%' }}>Estrategia</th>
-                          <th style={{ padding: '6px 10px', textAlign: 'center', width: '8%' }}>Semana</th>
-                          <th style={{ padding: '6px 10px', textAlign: 'left', width: '14%' }}>Responsables</th>
+                          <th style={{ padding: '6px 10px', textAlign: 'left', width: '10%' }}>Fase</th>
+                          <th style={{ padding: '6px 10px', textAlign: 'left', width: '22%' }}>Actividad Semanal</th>
+                          <th style={{ padding: '6px 10px', textAlign: 'left', width: '15%' }}>UAC</th>
+                          <th style={{ padding: '6px 10px', textAlign: 'center', width: '8%' }}>Progresión / Propósito</th>
+                          <th style={{ padding: '6px 10px', textAlign: 'left', width: '11%' }}>Estrategia</th>
+                          <th style={{ padding: '6px 10px', textAlign: 'center', width: '7%' }}>Semana</th>
+                          <th style={{ padding: '6px 10px', textAlign: 'left', width: '13%' }}>Responsables</th>
+                          <th style={{ padding: '6px 10px', textAlign: 'left', width: '14%' }}>Inst. Evaluación</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1450,6 +1605,22 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
                                 r.responsibles
                               )}
                             </td>
+                            <td style={{ padding: '6px 10px' }}>
+                              {isEditingContent ? (
+                                <input
+                                  type="text"
+                                  value={r.evaluationInstrument || ''}
+                                  onChange={(e) => {
+                                    const copy = { ...editPayload };
+                                    copy.semestreB[i].evaluationInstrument = e.target.value;
+                                    setEditPayload(copy);
+                                  }}
+                                  style={{ width: '100%', padding: '4px', fontSize: '11.5px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                />
+                              ) : (
+                                r.evaluationInstrument || 'Rúbrica'
+                              )}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -1459,104 +1630,422 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
               </div>
             )}
 
-            {/* Step 6 Visual Render */}
-            {activeStep === 6 && project.fase2Anexos && (
+            {/* Step 7 Visual Render: Anexos Técnicos */}
+            {activeStep === 7 && project.fase2Anexos && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <div style={{ padding: '16px', background: 'var(--c-gray)', borderRadius: '8px' }}>
-                  <h3 style={{ fontSize: '15px', color: 'var(--c-navy)', fontWeight: 600, marginBottom: '8px' }}>Anexo 1: Minuta de Reunión 2.0</h3>
-                  {isEditingContent ? (
-                    <textarea
-                      value={editPayload?.anexo1 || ''}
-                      onChange={(e) => {
-                        const copy = { ...editPayload };
-                        copy.anexo1 = e.target.value;
-                        setEditPayload(copy);
-                      }}
-                      style={{ width: '100%', padding: '8px', fontSize: '12px', borderRadius: '6px', border: '1px solid #ccc', minHeight: '180px', fontFamily: 'monospace' }}
-                    />
-                  ) : (
-                    <p style={{ fontSize: '13px', whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>{project.fase2Anexos.anexo1}</p>
-                  )}
+                  <h3 style={{ fontSize: '15px', color: 'var(--c-navy)', fontWeight: 600, marginBottom: '8px' }}>Anexo 1: Minuta de Instalación del Comité PAEC</h3>
+                  <pre style={{ fontSize: '12px', whiteSpace: 'pre-wrap', fontFamily: 'monospace', margin: 0 }}>
+                    {typeof project.fase2Anexos.anexo1Minuta === 'object'
+                      ? JSON.stringify(project.fase2Anexos.anexo1Minuta, null, 2)
+                      : (project.fase2Anexos.anexo1 || JSON.stringify(project.fase2Anexos, null, 2))}
+                  </pre>
                 </div>
                 <div style={{ padding: '16px', background: 'var(--c-gray)', borderRadius: '8px' }}>
-                  <h3 style={{ fontSize: '15px', color: 'var(--c-navy)', fontWeight: 600, marginBottom: '8px' }}>Anexo 2: Cuadro de Seguimiento de Actividades</h3>
-                  {isEditingContent ? (
-                    <textarea
-                      value={editPayload?.anexo2 || ''}
-                      onChange={(e) => {
-                        const copy = { ...editPayload };
-                        copy.anexo2 = e.target.value;
-                        setEditPayload(copy);
-                      }}
-                      style={{ width: '100%', padding: '8px', fontSize: '12px', borderRadius: '6px', border: '1px solid #ccc', minHeight: '180px', fontFamily: 'monospace' }}
-                    />
-                  ) : (
-                    <p style={{ fontSize: '13px', whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>{project.fase2Anexos.anexo2}</p>
-                  )}
+                  <h3 style={{ fontSize: '15px', color: 'var(--c-navy)', fontWeight: 600, marginBottom: '8px' }}>Anexo 2: Cuadro de Seguimiento Semanal con Semáforo</h3>
+                  <pre style={{ fontSize: '12px', whiteSpace: 'pre-wrap', fontFamily: 'monospace', margin: 0 }}>
+                    {typeof project.fase2Anexos.anexo2Seguimiento === 'object'
+                      ? JSON.stringify(project.fase2Anexos.anexo2Seguimiento, null, 2)
+                      : (project.fase2Anexos.anexo2 || '')}
+                  </pre>
                 </div>
                 <div style={{ padding: '16px', background: 'var(--c-gray)', borderRadius: '8px' }}>
                   <h3 style={{ fontSize: '15px', color: 'var(--c-navy)', fontWeight: 600, marginBottom: '8px' }}>Anexo 3: Reporte Mensual de Avances</h3>
-                  {isEditingContent ? (
-                    <textarea
-                      value={editPayload?.anexo3 || ''}
-                      onChange={(e) => {
-                        const copy = { ...editPayload };
-                        copy.anexo3 = e.target.value;
-                        setEditPayload(copy);
-                      }}
-                      style={{ width: '100%', padding: '8px', fontSize: '12px', borderRadius: '6px', border: '1px solid #ccc', minHeight: '180px', fontFamily: 'monospace' }}
-                    />
-                  ) : (
-                    <p style={{ fontSize: '13px', whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>{project.fase2Anexos.anexo3}</p>
-                  )}
+                  <pre style={{ fontSize: '12px', whiteSpace: 'pre-wrap', fontFamily: 'monospace', margin: 0 }}>
+                    {typeof project.fase2Anexos.anexo3ReporteMensual === 'object'
+                      ? JSON.stringify(project.fase2Anexos.anexo3ReporteMensual, null, 2)
+                      : (project.fase2Anexos.anexo3 || '')}
+                  </pre>
                 </div>
                 <div style={{ padding: '16px', background: 'var(--c-gray)', borderRadius: '8px' }}>
-                  <h3 style={{ fontSize: '15px', color: 'var(--c-navy)', fontWeight: 600, marginBottom: '8px' }}>Anexo 4: Cuestionario de Impacto Social</h3>
-                  {isEditingContent ? (
-                    <textarea
-                      value={editPayload?.anexo4 || ''}
-                      onChange={(e) => {
-                        const copy = { ...editPayload };
-                        copy.anexo4 = e.target.value;
-                        setEditPayload(copy);
-                      }}
-                      style={{ width: '100%', padding: '8px', fontSize: '12px', borderRadius: '6px', border: '1px solid #ccc', minHeight: '180px', fontFamily: 'monospace' }}
-                    />
-                  ) : (
-                    <p style={{ fontSize: '13px', whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>{project.fase2Anexos.anexo4}</p>
-                  )}
+                  <h3 style={{ fontSize: '15px', color: 'var(--c-navy)', fontWeight: 600, marginBottom: '8px' }}>Anexo 4: Cuestionario de Impacto Comunitario (Escala Likert 1-5)</h3>
+                  <pre style={{ fontSize: '12px', whiteSpace: 'pre-wrap', fontFamily: 'monospace', margin: 0 }}>
+                    {typeof project.fase2Anexos.anexo4ImpactoComunidad === 'object'
+                      ? JSON.stringify(project.fase2Anexos.anexo4ImpactoComunidad, null, 2)
+                      : (project.fase2Anexos.anexo4 || '')}
+                  </pre>
                 </div>
                 <div style={{ padding: '16px', background: 'var(--c-gray)', borderRadius: '8px' }}>
                   <h3 style={{ fontSize: '15px', color: 'var(--c-navy)', fontWeight: 600, marginBottom: '8px' }}>Anexo 5: Cuestionario de Autoevaluación de Estudiantes</h3>
-                  {isEditingContent ? (
-                    <textarea
-                      value={editPayload?.anexo5 || ''}
-                      onChange={(e) => {
-                        const copy = { ...editPayload };
-                        copy.anexo5 = e.target.value;
-                        setEditPayload(copy);
-                      }}
-                      style={{ width: '100%', padding: '8px', fontSize: '12px', borderRadius: '6px', border: '1px solid #ccc', minHeight: '180px', fontFamily: 'monospace' }}
-                    />
-                  ) : (
-                    <p style={{ fontSize: '13px', whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>{project.fase2Anexos.anexo5}</p>
-                  )}
+                  <pre style={{ fontSize: '12px', whiteSpace: 'pre-wrap', fontFamily: 'monospace', margin: 0 }}>
+                    {typeof project.fase2Anexos.anexo5AutoevaluacionEstudiantes === 'object'
+                      ? JSON.stringify(project.fase2Anexos.anexo5AutoevaluacionEstudiantes, null, 2)
+                      : (project.fase2Anexos.anexo5 || '')}
+                  </pre>
                 </div>
                 <div style={{ padding: '16px', background: 'var(--c-gray)', borderRadius: '8px' }}>
-                  <h3 style={{ fontSize: '15px', color: 'var(--c-navy)', fontWeight: 600, marginBottom: '8px' }}>Anexo 6: Plantilla del Informe Final y Socialización</h3>
-                  {isEditingContent ? (
-                    <textarea
-                      value={editPayload?.anexo6 || ''}
-                      onChange={(e) => {
-                        const copy = { ...editPayload };
-                        copy.anexo6 = e.target.value;
-                        setEditPayload(copy);
+                  <h3 style={{ fontSize: '15px', color: 'var(--c-navy)', fontWeight: 600, marginBottom: '8px' }}>Anexo 6: Cuestionario de Evaluación para Docentes y Colegiado</h3>
+                  <pre style={{ fontSize: '12px', whiteSpace: 'pre-wrap', fontFamily: 'monospace', margin: 0 }}>
+                    {typeof project.fase2Anexos.anexo6EvaluacionColegiado === 'object'
+                      ? JSON.stringify(project.fase2Anexos.anexo6EvaluacionColegiado, null, 2)
+                      : (project.fase2Anexos.anexo6 || '')}
+                  </pre>
+                </div>
+
+                {/* Tarjeta de Auditoría de Calidad Técnica PAEC (23 Criterios DBEPA/NEM) */}
+                <div style={{
+                  marginTop: '16px',
+                  padding: '24px',
+                  borderRadius: '12px',
+                  background: 'rgba(13,21,48,0.92)',
+                  border: `1px solid ${
+                    !auditResult ? 'rgba(255,255,255,0.15)' :
+                    auditResult.percentage >= 90 ? 'rgba(16, 185, 129, 0.45)' :
+                    auditResult.percentage >= 70 ? 'rgba(245, 158, 11, 0.45)' :
+                    'rgba(239, 68, 68, 0.45)'
+                  }`,
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.35)',
+                }}>
+                  {/* Header de la Tarjeta */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '20px' }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '22px' }}>📋</span>
+                        <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#f0f4ff', margin: 0 }}>
+                          Auditoría de Calidad Técnica PAEC (23 Criterios DBEPA/NEM)
+                        </h3>
+                      </div>
+                      <p style={{ color: 'rgba(240,244,255,0.65)', fontSize: '13px', margin: '4px 0 0' }}>
+                        Evaluación integral de rigor normativo, FODA, transversalidad UAC, cronograma macro, plan de relevos y anexos.
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={() => projectId && fetchAudit(projectId)}
+                      disabled={loadingAudit}
+                      className="btn btn-ghost btn-sm"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        border: '1px solid rgba(255,255,255,0.15)',
+                        color: '#f0f4ff',
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        cursor: loadingAudit ? 'not-allowed' : 'pointer'
                       }}
-                      style={{ width: '100%', padding: '8px', fontSize: '12px', borderRadius: '6px', border: '1px solid #ccc', minHeight: '180px', fontFamily: 'monospace' }}
-                    />
-                  ) : (
-                    <p style={{ fontSize: '13px', whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>{project.fase2Anexos.anexo6}</p>
+                      title="Volver a ejecutar auditoría de calidad"
+                    >
+                      {loadingAudit ? (
+                        <>
+                          <span className="spinner" style={{ width: '12px', height: '12px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                          Auditando...
+                        </>
+                      ) : (
+                        <>🔄 Re-auditar</>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Estado Cargando */}
+                  {loadingAudit && !auditResult && (
+                    <div style={{ textAlign: 'center', padding: '32px', color: 'rgba(240,244,255,0.7)' }}>
+                      <span className="spinner" style={{ display: 'inline-block', width: '28px', height: '28px', border: '3px solid rgba(99,102,241,0.2)', borderTopColor: '#818cf8', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                      <p style={{ marginTop: '12px', fontSize: '14px' }}>Ejecutando evaluación de los 23 criterios DBEPA/NEM...</p>
+                    </div>
                   )}
+
+                  {/* Estado Error */}
+                  {auditError && !auditResult && (
+                    <div style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '16px', borderRadius: '8px', color: '#fca5a5' }}>
+                      <div style={{ fontWeight: 600, marginBottom: '6px' }}>Error al obtener la auditoría:</div>
+                      <div style={{ fontSize: '13px' }}>{auditError}</div>
+                      <button
+                        onClick={() => projectId && fetchAudit(projectId)}
+                        className="btn btn-sm"
+                        style={{ marginTop: '10px', background: '#ef4444', color: '#fff', border: 'none' }}
+                      >
+                        Reintentar Auditoría
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Visualización de Resultados */}
+                  {auditResult && (() => {
+                    const scorePct = Math.round(auditResult.percentage);
+                    const isGreen = scorePct >= 90;
+                    const isYellow = scorePct >= 70 && scorePct < 90;
+                    const isRed = scorePct < 70;
+
+                    const semaforoColor = isGreen ? '#10b981' : isYellow ? '#f59e0b' : '#ef4444';
+                    const semaforoBg = isGreen ? 'rgba(16, 185, 129, 0.12)' : isYellow ? 'rgba(245, 158, 11, 0.12)' : 'rgba(239, 68, 68, 0.12)';
+                    const semaforoBorder = isGreen ? 'rgba(16, 185, 129, 0.4)' : isYellow ? 'rgba(245, 158, 11, 0.4)' : 'rgba(239, 68, 68, 0.4)';
+
+                    const statusTitle = auditResult.status === 'aprobado_excelente'
+                      ? 'Aprobado con Excelencia'
+                      : auditResult.status === 'aprobado'
+                      ? 'Aprobado'
+                      : 'Requiere Ajustes';
+
+                    const deficientCount = auditResult.summary.failedCount;
+                    const warningCount = auditResult.summary.warningCount;
+                    const attentionTotal = deficientCount + warningCount;
+
+                    const criteriaToRender = auditFilter === 'deficient'
+                      ? auditResult.criteria.filter(c => c.status === 'fail' || c.status === 'warning')
+                      : auditResult.criteria;
+
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                        {/* Semáforo Visual & Bloque de Puntaje */}
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                          gap: '16px',
+                          alignItems: 'center',
+                          background: semaforoBg,
+                          border: `1px solid ${semaforoBorder}`,
+                          padding: '20px',
+                          borderRadius: '10px'
+                        }}>
+                          {/* Semáforo Físico & Puntaje Grande */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                            {/* Dispositivo de Semáforo con 3 luces */}
+                            <div style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '8px',
+                              background: '#090d1a',
+                              padding: '8px 10px',
+                              borderRadius: '20px',
+                              border: '1px solid rgba(255,255,255,0.15)',
+                              boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.6)'
+                            }}>
+                              {/* Luz Verde */}
+                              <div
+                                title="Verde (≥90): Aprobado con Excelencia"
+                                style={{
+                                  width: '18px',
+                                  height: '18px',
+                                  borderRadius: '50%',
+                                  background: isGreen ? '#10b981' : '#064e3b',
+                                  boxShadow: isGreen ? '0 0 12px #10b981, 0 0 4px #10b981' : 'none',
+                                  border: '1px solid rgba(0,0,0,0.5)',
+                                  transition: 'all 0.3s ease'
+                                }}
+                              />
+                              {/* Luz Amarilla */}
+                              <div
+                                title="Amarillo (70-89): Aprobado con Observaciones"
+                                style={{
+                                  width: '18px',
+                                  height: '18px',
+                                  borderRadius: '50%',
+                                  background: isYellow ? '#f59e0b' : '#78350f',
+                                  boxShadow: isYellow ? '0 0 12px #f59e0b, 0 0 4px #f59e0b' : 'none',
+                                  border: '1px solid rgba(0,0,0,0.5)',
+                                  transition: 'all 0.3s ease'
+                                }}
+                              />
+                              {/* Luz Roja */}
+                              <div
+                                title="Rojo (<70): Requiere Ajustes"
+                                style={{
+                                  width: '18px',
+                                  height: '18px',
+                                  borderRadius: '50%',
+                                  background: isRed ? '#ef4444' : '#7f1d1d',
+                                  boxShadow: isRed ? '0 0 12px #ef4444, 0 0 4px #ef4444' : 'none',
+                                  border: '1px solid rgba(0,0,0,0.5)',
+                                  transition: 'all 0.3s ease'
+                                }}
+                              />
+                            </div>
+
+                            {/* Puntaje y Estatus */}
+                            <div>
+                              <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                                <span style={{ fontSize: '38px', fontWeight: 800, color: semaforoColor, lineHeight: 1 }}>
+                                  {scorePct}%
+                                </span>
+                                <span style={{ fontSize: '14px', color: 'rgba(240,244,255,0.6)', fontWeight: 500 }}>
+                                  ({auditResult.totalScore} / 92 pts)
+                                </span>
+                              </div>
+                              <div style={{ marginTop: '6px' }}>
+                                <span style={{
+                                  display: 'inline-block',
+                                  padding: '4px 10px',
+                                  borderRadius: '12px',
+                                  fontSize: '12px',
+                                  fontWeight: 700,
+                                  background: semaforoColor,
+                                  color: '#fff',
+                                  letterSpacing: '0.3px',
+                                  textTransform: 'uppercase'
+                                }}>
+                                  {isGreen ? '🟢 ' : isYellow ? '🟡 ' : '🔴 '}
+                                  {statusTitle}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* 3 Contadores de Criterios */}
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                            <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.25)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+                              <div style={{ fontSize: '20px', fontWeight: 800, color: '#10b981' }}>{auditResult.summary.passedCount}</div>
+                              <div style={{ fontSize: '11px', color: '#6ee7b7', fontWeight: 600 }}>Pasados</div>
+                            </div>
+                            <div style={{ background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.25)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+                              <div style={{ fontSize: '20px', fontWeight: 800, color: '#f59e0b' }}>{auditResult.summary.warningCount}</div>
+                              <div style={{ fontSize: '11px', color: '#fcd34d', fontWeight: 600 }}>Advertencias</div>
+                            </div>
+                            <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.25)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+                              <div style={{ fontSize: '20px', fontWeight: 800, color: '#ef4444' }}>{auditResult.summary.failedCount}</div>
+                              <div style={{ fontSize: '11px', color: '#fca5a5', fontWeight: 600 }}>Fallidos</div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Botones de Control y Expansión */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '12px' }}>
+                          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                            {auditResult.status === 'requiere_ajustes' ? (
+                              <button
+                                onClick={() => {
+                                  setShowAuditDetails(!showAuditDetails);
+                                  setAuditFilter('deficient');
+                                }}
+                                className="btn btn-sm"
+                                style={{
+                                  backgroundColor: showAuditDetails && auditFilter === 'deficient' ? '#ef4444' : 'rgba(239,68,68,0.2)',
+                                  color: '#fff',
+                                  border: '1px solid rgba(239,68,68,0.5)',
+                                  fontWeight: 600,
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                <span>{showAuditDetails && auditFilter === 'deficient' ? '▲ Ocultar criterios deficientes' : `⚠️ Ver criterios deficientes (${attentionTotal})`}</span>
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  setShowAuditDetails(!showAuditDetails);
+                                  if (!showAuditDetails) setAuditFilter('all');
+                                }}
+                                className="btn btn-sm"
+                                style={{
+                                  backgroundColor: showAuditDetails ? 'rgba(99,102,241,0.3)' : 'rgba(99,102,241,0.15)',
+                                  color: '#a5b4fc',
+                                  border: '1px solid rgba(99,102,241,0.4)',
+                                  fontWeight: 600,
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                {showAuditDetails ? '▲ Ocultar desglose de criterios' : '🔍 Ver desglose de criterios'}
+                              </button>
+                            )}
+
+                            {showAuditDetails && (
+                              <div style={{ display: 'inline-flex', borderRadius: '6px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.15)' }}>
+                                <button
+                                  onClick={() => setAuditFilter('deficient')}
+                                  style={{
+                                    padding: '5px 10px',
+                                    fontSize: '11.5px',
+                                    background: auditFilter === 'deficient' ? 'rgba(239,68,68,0.3)' : 'transparent',
+                                    color: auditFilter === 'deficient' ? '#fca5a5' : 'rgba(240,244,255,0.6)',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    fontWeight: auditFilter === 'deficient' ? 700 : 400
+                                  }}
+                                >
+                                  Solo Deficientes / Advertencias ({attentionTotal})
+                                </button>
+                                <button
+                                  onClick={() => setAuditFilter('all')}
+                                  style={{
+                                    padding: '5px 10px',
+                                    fontSize: '11.5px',
+                                    background: auditFilter === 'all' ? 'rgba(99,102,241,0.3)' : 'transparent',
+                                    color: auditFilter === 'all' ? '#a5b4fc' : 'rgba(240,244,255,0.6)',
+                                    border: 'none',
+                                    borderLeft: '1px solid rgba(255,255,255,0.15)',
+                                    cursor: 'pointer',
+                                    fontWeight: auditFilter === 'all' ? 700 : 400
+                                  }}
+                                >
+                                  Todos los 23 Criterios
+                                </button>
+                              </div>
+                            )}
+                          </div>
+
+                          <div style={{ fontSize: '12px', color: 'rgba(240,244,255,0.5)' }}>
+                            {isGreen && '✓ El proyecto cumple plenamente los estándares pedagógicos DBEPA.'}
+                            {isYellow && '⚠️ Se recomiendan ajustes menores antes de la difusión oficial.'}
+                            {isRed && '❗ Se requiere subsanar los criterios en rojo para cumplir la normativa NEM.'}
+                          </div>
+                        </div>
+
+                        {/* Listado Desplegable de Criterios */}
+                        {showAuditDetails && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '420px', overflowY: 'auto', paddingRight: '4px' }}>
+                            {criteriaToRender.length === 0 ? (
+                              <div style={{ padding: '20px', textAlign: 'center', background: 'rgba(16,185,129,0.1)', borderRadius: '8px', color: '#6ee7b7' }}>
+                                🎉 ¡Excelente! No se encontraron criterios deficientes ni advertencias en este proyecto.
+                              </div>
+                            ) : (
+                              criteriaToRender.map((c) => {
+                                const isPass = c.status === 'pass';
+                                const isWarn = c.status === 'warning';
+                                const cardBorder = isPass ? 'rgba(16,185,129,0.3)' : isWarn ? 'rgba(245,158,11,0.3)' : 'rgba(239,68,68,0.3)';
+                                const cardBg = isPass ? 'rgba(16,185,129,0.05)' : isWarn ? 'rgba(245,158,11,0.05)' : 'rgba(239,68,68,0.05)';
+                                const badgeBg = isPass ? '#10b981' : isWarn ? '#f59e0b' : '#ef4444';
+
+                                return (
+                                  <div
+                                    key={c.id}
+                                    style={{
+                                      padding: '12px 14px',
+                                      borderRadius: '8px',
+                                      background: cardBg,
+                                      border: `1px solid ${cardBorder}`,
+                                      display: 'flex',
+                                      flexDirection: 'column',
+                                      gap: '6px'
+                                    }}
+                                  >
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <span style={{ fontWeight: 700, color: '#f0f4ff', fontSize: '13px' }}>
+                                          Criterio {c.id}: {c.name}
+                                        </span>
+                                        <span style={{ fontSize: '11px', color: 'rgba(240,244,255,0.5)', background: 'rgba(255,255,255,0.08)', padding: '2px 6px', borderRadius: '4px' }}>
+                                          {c.dimension}
+                                        </span>
+                                      </div>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <span style={{ fontSize: '11.5px', color: 'rgba(240,244,255,0.7)' }}>
+                                          Puntaje: <strong>{c.score}/4</strong> ({c.expectedLevel})
+                                        </span>
+                                        <span style={{ fontSize: '10.5px', padding: '2px 8px', borderRadius: '10px', background: badgeBg, color: '#fff', fontWeight: 700, textTransform: 'uppercase' }}>
+                                          {isPass ? 'Cumple' : isWarn ? 'Advertencia' : 'Deficiente'}
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    <div style={{ fontSize: '12.5px', color: 'rgba(240,244,255,0.85)', lineHeight: 1.4 }}>
+                                      <strong style={{ color: isPass ? '#6ee7b7' : isWarn ? '#fde68a' : '#fca5a5' }}>Feedback: </strong>
+                                      {c.feedback}
+                                    </div>
+
+                                    <div style={{ fontSize: '11.5px', color: 'rgba(240,244,255,0.5)', fontStyle: 'italic' }}>
+                                      <strong>Evidencia encontrada: </strong>{c.evidenceFound}
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             )}
@@ -1572,7 +2061,7 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
                 </button>
               )}
               
-              {activeStep < 6 ? (
+              {activeStep < 7 ? (
                 <button
                   onClick={() => {
                     setActiveStep(activeStep + 1);

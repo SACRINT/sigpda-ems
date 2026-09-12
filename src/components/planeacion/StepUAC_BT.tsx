@@ -85,7 +85,7 @@ export default function StepUAC_BT({ onNext, selectedSubsystem, onSubsystemChang
     if (isLaboral && activeCarrera && activeModulo && activeSubmodulo && !isManualInput) {
       setForm(prev => ({
         ...prev,
-        uacName: `Submódulo ${selectedSubmoduloIndex + 1}: ${activeSubmodulo.nombre}`,
+        uacName: activeSubmodulo.uac_name || `Submódulo ${selectedSubmoduloIndex + 1}: ${activeSubmodulo.nombre}`,
         curriculumName: activeCarrera.nombre,
         subsystem: selectedSubsystem,
       }));
@@ -234,34 +234,56 @@ export default function StepUAC_BT({ onNext, selectedSubsystem, onSubsystemChang
       const horasPorFase = Math.round(horasTotales / 3);
       const horasFase3 = horasTotales - (horasPorFase * 2);
 
+      const hasAuthenticActivities = Boolean(activeSubmodulo.actividades && activeSubmodulo.actividades.length > 0);
+
+      const activities = hasAuthenticActivities
+        ? activeSubmodulo.actividades!.map(a => ({
+            order: a.order,
+            name: a.name,
+            hours: a.hours,
+          }))
+        : [
+            {
+              order: 1,
+              name: `Fase 1: Diagnóstico técnico, marco normativo y preparación operativa de ${activeSubmodulo.nombre}`,
+              hours: horasPorFase,
+            },
+            {
+              order: 2,
+              name: `Fase 2: Ejecución práctica, procesos operativos y aplicación en taller/laboratorio`,
+              hours: horasPorFase,
+            },
+            {
+              order: 3,
+              name: `Fase 3: Simulación profesional, control de calidad y entrega de evidencias técnicas`,
+              hours: horasFase3,
+            },
+          ];
+
+      const contenidosFormativos = hasAuthenticActivities
+        ? activeSubmodulo.actividades!.map(a => ({
+            order: a.order,
+            actividad: a.name,
+            saberes: a.saberes || [],
+          }))
+        : null;
+
+      const learningOutcome = activeModulo.resultadoAprendizaje ||
+        `Desarrollar las competencias profesionales y laborales correspondientes al ${activeModulo.nombre}: "${activeSubmodulo.nombre}" de la Carrera Técnica en ${activeCarrera.nombre}, integrando saberes técnicos, habilidades prácticas y estándares de la industria.`;
+
       const initialData: ExtractedPdfData = {
         uacName: form.uacName,
-        learningOutcome: `Desarrollar las competencias profesionales y laborales correspondientes al ${activeModulo.nombre}: "${activeSubmodulo.nombre}" de la Carrera Técnica en ${activeCarrera.nombre}, integrando saberes técnicos, habilidades prácticas y estándares de la industria.`,
+        learningOutcome,
         totalHours: horasTotales,
-        activities: [
-          {
-            order: 1,
-            name: `Fase 1: Diagnóstico técnico, marco normativo y preparación operativa de ${activeSubmodulo.nombre}`,
-            hours: horasPorFase,
-          },
-          {
-            order: 2,
-            name: `Fase 2: Ejecución práctica, procesos operativos y aplicación en taller/laboratorio`,
-            hours: horasPorFase,
-          },
-          {
-            order: 3,
-            name: `Fase 3: Simulación profesional, control de calidad y entrega de evidencias técnicas`,
-            hours: horasFase3,
-          },
-        ],
+        activities,
         evidences: [
-          'Portafolio de evidencias y reportes técnicos de laboratorio/taller',
-          'Práctica demostrativa de simulación profesional evaluable',
-          'Lista de cotejo / rúbrica de desempeño de competencia laboral',
+          'Portafolio de evidencias de prácticas técnicas y de laboratorio',
+          'Reporte técnico de ejecución de competencias laborales',
+          'Guía de observación / Rúbrica de desempeño técnico profesional',
         ],
         parseConfidence: 'high',
         year: activeCarrera.tipoPrograma === 'nuevo' ? 2024 : 2016,
+        contenidosFormativos,
       };
 
       onNext(form, initialData);
@@ -529,9 +551,26 @@ export default function StepUAC_BT({ onNext, selectedSubsystem, onSubsystemChang
                   <div>
                     <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Actividades de Competencia</div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: '#10b981' }}>
-                      3 Fases Técnicas ({Math.round(activeSubmodulo.horasTotales / 3)}h c/u)
+                      {activeSubmodulo.actividades && activeSubmodulo.actividades.length > 0
+                        ? `${activeSubmodulo.actividades.length} Actividades Clave Oficiales`
+                        : `3 Fases Técnicas (${Math.round(activeSubmodulo.horasTotales / 3)}h c/u)`}
                     </div>
                   </div>
+                  {activeSubmodulo.actividades && activeSubmodulo.actividades.length > 0 && (
+                    <div style={{ gridColumn: '1 / -1', marginTop: 4, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginBottom: 4 }}>
+                        Actividades Clave Oficiales (COSFAC / Acuerdo 09/05/24):
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {activeSubmodulo.actividades.map((act) => (
+                          <div key={act.order} style={{ fontSize: 12, color: '#e2e8f0', display: 'flex', gap: 6 }}>
+                            <span style={{ color: '#10b981', fontWeight: 600 }}>•</span>
+                            <span>{act.name} <strong style={{ color: '#94a3b8' }}>({act.hours} hrs)</strong></span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

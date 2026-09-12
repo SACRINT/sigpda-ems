@@ -1,0 +1,1886 @@
+{
+  "timestamp": "2026-09-12T05:16:05.046Z",
+  "summary": {
+    "totalTests": 18,
+    "passedTests": 18,
+    "failedTests": 0
+  },
+  "checks": [
+    {
+      "checkId": "CYCLE_A_SEMESTERS",
+      "description": "Ciclo A incluye semestres 1, 3 y 5 (desbloqueo de 5° semestre comprobado)",
+      "passed": true,
+      "details": {
+        "foundSemesters": [
+          1,
+          3,
+          5
+        ],
+        "totalUacs": 218,
+        "hasSem5": true
+      }
+    },
+    {
+      "checkId": "CYCLE_B_SEMESTERS",
+      "description": "Ciclo B incluye semestres 2, 4 y 6 (desbloqueo de 6° semestre comprobado)",
+      "passed": true,
+      "details": {
+        "foundSemesters": [
+          2,
+          4,
+          6
+        ],
+        "totalUacs": 274,
+        "hasSem6": true
+      }
+    },
+    {
+      "checkId": "CYCLE_ANNUAL_SEMESTERS",
+      "description": "Ciclo Anual incluye semestres del 1 al 6 completos",
+      "passed": true,
+      "details": {
+        "foundSemesters": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "totalUacs": 492
+      }
+    },
+    {
+      "checkId": "PROMPT_1_DIAGNOSTICO",
+      "description": "buildPrompt1Diagnostico genera estructura para las 4 tablas oficiales y FODA",
+      "passed": true,
+      "details": {
+        "promptLength": 3425
+      }
+    },
+    {
+      "checkId": "PROMPT_2_JUSTIFICACION",
+      "description": "buildPrompt2Justificacion genera justificación, pilares y propósitos (educativo, social, funcional)",
+      "passed": true,
+      "details": {
+        "promptLength": 2900
+      }
+    },
+    {
+      "checkId": "PASO_3_MAPEO_CYCLE_A",
+      "description": "Paso 3 genera prompt con UACs de semestres 1, 3 y 5 y aplica reglas de nomenclatura NEM",
+      "passed": true,
+      "details": {
+        "hasPropRule": true,
+        "hasProgRule": true,
+        "hasSem5InPrompt": true
+      }
+    },
+    {
+      "checkId": "PROMPT_4_CRONOGRAMA",
+      "description": "buildPrompt4Cronograma exige 5 columnas oficiales con justificación pedagógica",
+      "passed": true,
+      "details": {
+        "promptLength": 4310,
+        "has5ColsRule": true
+      }
+    },
+    {
+      "checkId": "PROMPT_5_DETALLE_CURRICULAR",
+      "description": "Paso 5 recibe Mapeo + Cronograma y exige estructura de 5 columnas con reglas NOM-MCCEMS",
+      "passed": true,
+      "details": {
+        "p5HasMapeoContext": true,
+        "p5HasCronContext": true,
+        "p5HasNomRules": true,
+        "p5Has5Cols": true
+      }
+    },
+    {
+      "checkId": "PASO_5_DETALLE_CURRICULAR_OUTPUT",
+      "description": "Salida del Paso 5 valida las 5 columnas y aplica correctamente Propósitos (1°-4°) vs Progresiones (5°-6°)",
+      "passed": true,
+      "details": {
+        "totalRows": 9,
+        "allRowsValidStep5": true,
+        "sem5UsesProg": true,
+        "sem1UsesProp": true
+      }
+    },
+    {
+      "checkId": "PASO_6_CHUNKING_ALGORITHM",
+      "description": "Chunking divide 15 UACs en 3 bloques de 5-8 UACs",
+      "passed": true,
+      "details": {
+        "totalUacs": 15,
+        "chunkSizes": [
+          6,
+          6,
+          3
+        ],
+        "totalChunks": 3
+      }
+    },
+    {
+      "checkId": "PROMPT_6_PLAN_OPERATIVO_BLOQUE",
+      "description": "buildPrompt6PlanOperativoPorBloque incluye cláusula anti-alucinación y especificación de 8 columnas",
+      "passed": true,
+      "details": {
+        "hasAntiHallucination": true,
+        "has8ColsSpec": true
+      }
+    },
+    {
+      "checkId": "PASO_6_8_COLUMNS_VERIFICATION",
+      "description": "Plan Operativo consolidado posee las 8 columnas oficiales completas y no nulas",
+      "passed": true,
+      "details": {
+        "totalRows": 5,
+        "semestreARows": 5,
+        "semestreBRows": 0,
+        "allRowsHave8Cols": true
+      }
+    },
+    {
+      "checkId": "PROMPT_7_ANEXOS_STRUCTURE",
+      "description": "buildPrompt7Anexos exige formato JSON estructurado con los 6 anexos oficiales completos",
+      "passed": true,
+      "details": {
+        "hasAnexo1": true,
+        "hasAnexo2": true,
+        "hasAnexo3": true,
+        "hasAnexo4": true,
+        "hasAnexo5": true,
+        "hasAnexo6": true
+      }
+    },
+    {
+      "checkId": "PASO_7_ANEXOS_STRUCTURED_JSON",
+      "description": "Los 6 anexos del Paso 7 cumplen con todos los esquemas tabulares y normativos oficiales",
+      "passed": true,
+      "details": {
+        "anexo1Valid": true,
+        "anexo2Valid": true,
+        "anexo3Valid": true,
+        "anexo4Valid": true,
+        "anexo5Valid": true,
+        "anexo6Valid": true
+      }
+    },
+    {
+      "checkId": "PASO_3_MAPEO_CYCLE_B",
+      "description": "Paso 3 genera prompt con UACs de semestres 2, 4 y 6 (desbloqueo de 6° comprobado)",
+      "passed": true,
+      "details": {
+        "prompt3BHasSem6": true,
+        "prompt3BHasProgRule": true
+      }
+    },
+    {
+      "checkId": "PASO_5_DETALLE_CURRICULAR_CYCLE_B",
+      "description": "Paso 5 en Ciclo B valida las 5 columnas y aplica correctamente Propósitos (2° y 4°) vs Progresiones (6°)",
+      "passed": true,
+      "details": {
+        "sem6UsesProg": true,
+        "sem2And4UseProp": true
+      }
+    },
+    {
+      "checkId": "PASO_6_PLAN_OPERATIVO_CYCLE_B",
+      "description": "Plan Operativo en Ciclo B consolida todas las filas en semestreB (pares) con 8 columnas",
+      "passed": true,
+      "details": {
+        "totalRows": 5,
+        "semestreARows": 0,
+        "semestreBRows": 5
+      }
+    },
+    {
+      "checkId": "PASO_6_PLAN_OPERATIVO_ANNUAL",
+      "description": "Plan Operativo en Ciclo Anual distribuye UACs equitativamente entre semestreA (impares) y semestreB (pares)",
+      "passed": true,
+      "details": {
+        "semestreARows": 3,
+        "semestreBRows": 3
+      }
+    }
+  ],
+  "cycleSimulations": {
+    "cycleA": {
+      "projectName": "Eco-Comunidad Limpia 2026: Separación de Residuos Sólidos",
+      "cycleType": "A",
+      "semesters": [
+        1,
+        3,
+        5
+      ],
+      "totalCatalogUacs": 218,
+      "fase1_diagnostico": {
+        "tabla1": [
+          {
+            "col1": "Geográfico",
+            "col2": "Municipio con zonas agrícolas y semiurbanas."
+          }
+        ],
+        "tabla2": [
+          {
+            "col1": "Infraestructura",
+            "col2": "Plantel con 12 aulas y espacios verdes."
+          }
+        ],
+        "tabla3": [
+          {
+            "aspect": "Fortalezas",
+            "analysis": "Comunidad docente comprometida y brigadas estudiantiles."
+          }
+        ],
+        "tabla4": [
+          {
+            "col1": "Fase 1",
+            "col2": "Diagnóstico participativo con encuestas vecinales."
+          }
+        ]
+      },
+      "fase2_justificacion": {
+        "projectName": "Eco-Comunidad Limpia 2026",
+        "problemStatement": "Manejo inadecuado de residuos sólidos urbanos y falta de cultura de reciclaje en la comunidad escolar y vecinal",
+        "pilares": [
+          "Pilar 1: Cultura Ambiental",
+          "Pilar 2: Salud Colectiva",
+          "Pilar 3: Transversalidad Curricular"
+        ]
+      },
+      "fase2_mapeo": [
+        {
+          "semester": 1,
+          "uacName": "Lengua y Comunicación I",
+          "topic": "Diseño de instrumentos de diálogo y encuestas comunitarias",
+          "linking": "Propósito Formativo 1: Elabora mensajes orales y escritos aplicando análisis reflexivo para recabar datos del entorno."
+        },
+        {
+          "semester": 1,
+          "uacName": "Pensamiento Matemático I",
+          "topic": "Tratamiento estadístico del volumen de residuos sólidos generados",
+          "linking": "Propósito Formativo 2: Modela situaciones reales mediante representaciones cuantitativas y gráficos estadísticos."
+        },
+        {
+          "semester": 1,
+          "uacName": "Cultura Digital I",
+          "topic": "Procesamiento de datos y diseño de infografías digitales de concientización",
+          "linking": "Propósito Formativo 1: Aplica herramientas digitales para la sistematización ética de información comunitaria."
+        },
+        {
+          "semester": 3,
+          "uacName": "Lengua y Comunicación III",
+          "topic": "Redacción de crónicas comunitarias y ensayos argumentativos sobre el impacto ambiental",
+          "linking": "Propósito Formativo 3: Desarrolla textos argumentativos complejos para promover cambios de conducta social."
+        },
+        {
+          "semester": 3,
+          "uacName": "Ecosistemas: Interacciones, Energía y Dinámica",
+          "topic": "Análisis biológico de ciclos biogeoquímicos afectados por tiraderos a cielo abierto",
+          "linking": "Propósito Formativo 1: Explica el flujo de materia y energía en los ecosistemas locales."
+        },
+        {
+          "semester": 3,
+          "uacName": "Conciencia Histórica I",
+          "topic": "Evolución histórica del poblamiento y transformación ecológica de la región",
+          "linking": "Propósito Formativo 2: Examina procesos históricos de cambio territorial y ambiental."
+        },
+        {
+          "semester": 5,
+          "uacName": "Filosofía y Epistemología",
+          "topic": "Fundamentación ética de la responsabilidad intergeneracional y el cuidado del bien común",
+          "linking": "Progresión de Aprendizaje 4: Argumenta sobre dilemas éticos contemporáneos y el imperativo ecológico comunitario."
+        },
+        {
+          "semester": 5,
+          "uacName": "Pensamiento Matemático V",
+          "topic": "Modelación matemática de curvas de degradación de polímeros y balance de masa",
+          "linking": "Progresión de Aprendizaje 2: Aplica el cálculo y modelos diferenciales para estimar tiempos de descomposición."
+        },
+        {
+          "semester": 5,
+          "uacName": "Ciencias de la Salud I",
+          "topic": "Diagnóstico de riesgos epidemiológicos por vectores derivados de acumulación de basura",
+          "linking": "Progresión de Aprendizaje 3: Evalúa determinantes sociales y ambientales de la salud pública en la localidad."
+        }
+      ],
+      "fase2_cronograma": [
+        {
+          "phase": "Fase 1: Indagación, Diagnóstico Científico y Acuerdos Comunitarios (Septiembre-Octubre)",
+          "objective": "Levantar el censo diagnóstico de residuos sólidos y formalizar el Comité Escolar Comunitario.",
+          "macroActivities": "Aplicación de encuestas vecinales, pesaje de basura escolar, asamblea de instalación del Comité.",
+          "responsibleSubjects": "Lengua y Comunicación I (elabora encuestas), Pensamiento Matemático I (procesa muestra estadística), Ciencias de la Salud I (identifica focos de infección).",
+          "semesterInvolved": "1.er y 5.° Semestre"
+        },
+        {
+          "phase": "Fase 2: Ideación, Diseño Técnico, Prototipado e Ingeniería del Proyecto (Noviembre-Diciembre)",
+          "objective": "Diseñar contenedores clasificadores y formular composteros biológicos adaptados a la zona.",
+          "macroActivities": "Cálculo de volúmenes, prototipado con material reciclado, formulación de bio-preparados con bacterias degradadoras.",
+          "responsibleSubjects": "Pensamiento Matemático V (modelación de volúmenes), Ecosistemas (monitoreo de compostaje), Cultura Digital I (modelado 3D de contenedores).",
+          "semesterInvolved": "3.er y 5.° Semestre"
+        },
+        {
+          "phase": "Fase 3: Preparación, Creación de Manuales Técnicos y Transferencia Semestral (Enero)",
+          "objective": "Consolidar el Manual Técnico de Transferencia y preparar el relevo operativo intersemestral.",
+          "macroActivities": "Redacción del paquete técnico de transferencia, asamblea de entrega de estafeta entre semestres.",
+          "responsibleSubjects": "Filosofía y Epistemología (reflexión ética del relevo), Lengua y Comunicación III (edición del manual técnico).",
+          "semesterInvolved": "1.°, 3.° y 5.° Semestre"
+        },
+        {
+          "phase": "Fase 4: Despliegue Operativo, Producción a Escala y Lanzamiento Comunitario (Febrero-Marzo)",
+          "objective": "Instalar estaciones de separación de residuos en 3 colonias aledañas.",
+          "macroActivities": "Jornadas de instalación comunitaria, colocación de señalética, talleres vecinales de compostaje.",
+          "responsibleSubjects": "Lengua y Comunicación II, Pensamiento Matemático II, Conservación de la Energía.",
+          "semesterInvolved": "2.° y 4.° Semestre"
+        },
+        {
+          "phase": "Fase 5: Aplicación Territorial, Instalación y Transferencia Comunitaria Directa (Abril-Mayo)",
+          "objective": "Operación continua del centro de acopio y monitoreo de indicadores de reducción de basura.",
+          "macroActivities": "Pesaje semanal de residuos desviados de tiraderos, venta de material reciclable para fondos escolares.",
+          "responsibleSubjects": "Recursos Socioemocionales II, Ecología y Medio Ambiente.",
+          "semesterInvolved": "2.°, 4.° y 6.° Semestre"
+        },
+        {
+          "phase": "Fase 6: Reflexión Metacognitiva, Evaluación de Impacto (Pre vs. Post) y Socialización Abierta (Junio)",
+          "objective": "Medir el impacto social y ecológico del PEC y presentar cuentas en asamblea comunitaria abierta.",
+          "macroActivities": "Aplicación de cuestionarios de impacto social, análisis comparativo Pre vs Post, feria comunitaria de resultados.",
+          "responsibleSubjects": "Todas las UACs activas del ciclo.",
+          "semesterInvolved": "1.° al 6.° Semestre"
+        }
+      ],
+      "fase2_detalle_curricular": [
+        {
+          "semester": 1,
+          "uacName": "Lengua y Comunicación I",
+          "progressionsOrPurposes": "Propósito Formativo 1, 2: Diseño de instrumentos de diálogo y encuestas comunitarias",
+          "projectPhases": "Fase 1 y Fase 2",
+          "curricularJustification": "Los estudiantes articulan conocimientos teóricos con el trabajo de campo del PEC para diseño de instrumentos de diálogo y encuestas comunitarias."
+        },
+        {
+          "semester": 1,
+          "uacName": "Pensamiento Matemático I",
+          "progressionsOrPurposes": "Propósito Formativo 1, 2: Tratamiento estadístico del volumen de residuos sólidos generados",
+          "projectPhases": "Fase 1 y Fase 2",
+          "curricularJustification": "Los estudiantes articulan conocimientos teóricos con el trabajo de campo del PEC para tratamiento estadístico del volumen de residuos sólidos generados."
+        },
+        {
+          "semester": 1,
+          "uacName": "Cultura Digital I",
+          "progressionsOrPurposes": "Propósito Formativo 1, 2: Procesamiento de datos y diseño de infografías digitales de concientización",
+          "projectPhases": "Fase 1 y Fase 2",
+          "curricularJustification": "Los estudiantes articulan conocimientos teóricos con el trabajo de campo del PEC para procesamiento de datos y diseño de infografías digitales de concientización."
+        },
+        {
+          "semester": 3,
+          "uacName": "Lengua y Comunicación III",
+          "progressionsOrPurposes": "Propósito Formativo 1, 2: Redacción de crónicas comunitarias y ensayos argumentativos sobre el impacto ambiental",
+          "projectPhases": "Fase 2 y Fase 3",
+          "curricularJustification": "Los estudiantes articulan conocimientos teóricos con el trabajo de campo del PEC para redacción de crónicas comunitarias y ensayos argumentativos sobre el impacto ambiental."
+        },
+        {
+          "semester": 3,
+          "uacName": "Ecosistemas: Interacciones, Energía y Dinámica",
+          "progressionsOrPurposes": "Propósito Formativo 1, 2: Análisis biológico de ciclos biogeoquímicos afectados por tiraderos a cielo abierto",
+          "projectPhases": "Fase 2 y Fase 3",
+          "curricularJustification": "Los estudiantes articulan conocimientos teóricos con el trabajo de campo del PEC para análisis biológico de ciclos biogeoquímicos afectados por tiraderos a cielo abierto."
+        },
+        {
+          "semester": 3,
+          "uacName": "Conciencia Histórica I",
+          "progressionsOrPurposes": "Propósito Formativo 1, 2: Evolución histórica del poblamiento y transformación ecológica de la región",
+          "projectPhases": "Fase 2 y Fase 3",
+          "curricularJustification": "Los estudiantes articulan conocimientos teóricos con el trabajo de campo del PEC para evolución histórica del poblamiento y transformación ecológica de la región."
+        },
+        {
+          "semester": 5,
+          "uacName": "Filosofía y Epistemología",
+          "progressionsOrPurposes": "Progresión de Aprendizaje 3, 4: Fundamentación ética de la responsabilidad intergeneracional y el cuidado del bien común",
+          "projectPhases": "Fase 1, Fase 2 y Fase 3",
+          "curricularJustification": "Los estudiantes articulan conocimientos teóricos con el trabajo de campo del PEC para fundamentación ética de la responsabilidad intergeneracional y el cuidado del bien común."
+        },
+        {
+          "semester": 5,
+          "uacName": "Pensamiento Matemático V",
+          "progressionsOrPurposes": "Progresión de Aprendizaje 3, 4: Modelación matemática de curvas de degradación de polímeros y balance de masa",
+          "projectPhases": "Fase 1, Fase 2 y Fase 3",
+          "curricularJustification": "Los estudiantes articulan conocimientos teóricos con el trabajo de campo del PEC para modelación matemática de curvas de degradación de polímeros y balance de masa."
+        },
+        {
+          "semester": 5,
+          "uacName": "Ciencias de la Salud I",
+          "progressionsOrPurposes": "Progresión de Aprendizaje 3, 4: Diagnóstico de riesgos epidemiológicos por vectores derivados de acumulación de basura",
+          "projectPhases": "Fase 1, Fase 2 y Fase 3",
+          "curricularJustification": "Los estudiantes articulan conocimientos teóricos con el trabajo de campo del PEC para diagnóstico de riesgos epidemiológicos por vectores derivados de acumulación de basura."
+        }
+      ],
+      "fase2_plan_operativo": {
+        "semestreA": [
+          {
+            "phase": "Fase 1",
+            "activity": "Levantamiento de encuestas diagnósticas domiciliarias sobre tipos de residuos",
+            "uac": "Lengua y Comunicación I",
+            "progression": "Propósito Formativo 1",
+            "strategy": "Aprendizaje Basado en Proyectos (ABP)",
+            "week": "Semana 2",
+            "responsibles": "Estudiantes de 1.er Semestre y Docente Titular",
+            "evaluationInstrument": "Rúbrica analítica de desempeño en campo"
+          },
+          {
+            "phase": "Fase 1",
+            "activity": "Cálculo de medias ponderadas y varianza muestral de desperdicios orgánicos",
+            "uac": "Pensamiento Matemático I",
+            "progression": "Propósito Formativo 2",
+            "strategy": "STEAM",
+            "week": "Semana 3",
+            "responsibles": "Estudiantes de 1.er Semestre y Docente Titular",
+            "evaluationInstrument": "Lista de cotejo para reporte estadístico"
+          },
+          {
+            "phase": "Fase 2",
+            "activity": "Construcción y calibración de compostero piloto con control de lixiviados",
+            "uac": "Ecosistemas: Interacciones, Energía y Dinámica",
+            "progression": "Propósito Formativo 1",
+            "strategy": "Aprendizaje-Servicio (ApS)",
+            "week": "Semana 6",
+            "responsibles": "Estudiantes de 3.er Semestre y Facilitador Comunitario",
+            "evaluationInstrument": "Guía de observación técnica de bitácora"
+          },
+          {
+            "phase": "Fase 2",
+            "activity": "Evaluación epidemiológica y bacteriológica del entorno del compostero escolar",
+            "uac": "Ciencias de la Salud I",
+            "progression": "Progresión 3",
+            "strategy": "Design Thinking",
+            "week": "Semana 8",
+            "responsibles": "Estudiantes de 5.° Semestre y Promotor de Salud",
+            "evaluationInstrument": "Portafolio de evidencias de laboratorio"
+          },
+          {
+            "phase": "Fase 3",
+            "activity": "Redacción y ensamble final del Manual Técnico de Transferencia Intersemestral",
+            "uac": "Filosofía y Epistemología",
+            "progression": "Progresión 4",
+            "strategy": "Aprendizaje Dialógico",
+            "week": "Semana 13",
+            "responsibles": "Estudiantes de 5.° Semestre y Coordinación PAEC",
+            "evaluationInstrument": "Producto terminado con rúbrica"
+          }
+        ],
+        "semestreB": []
+      },
+      "fase2_anexos": {
+        "anexo1Minuta": {
+          "cct": "21EBH0048X",
+          "fecha": "15 de Septiembre de 2026",
+          "tipoReunion": "Asamblea de Instalación del Comité Escolar Comunitario y Formalización de Acuerdos",
+          "acuerdos": [
+            {
+              "no": 1,
+              "acuerdo": "Aprobación unánime del diagnóstico situacional de residuos",
+              "responsable": "Dirección y Comité",
+              "fechaLimite": "Semana 2",
+              "estatus": "Cumplido"
+            },
+            {
+              "no": 2,
+              "acuerdo": "Conformación de brigadas interdisciplinarias de pesaje",
+              "responsable": "Colegiado Docente",
+              "fechaLimite": "Semana 3",
+              "estatus": "En proceso"
+            },
+            {
+              "no": 3,
+              "acuerdo": "Establecimiento del convenio de recolección diferenciada con el municipio",
+              "responsable": "Comité de Vinculación",
+              "fechaLimite": "Semana 5",
+              "estatus": "Programado"
+            }
+          ],
+          "firmas": [
+            {
+              "cargo": "Director del Plantel",
+              "nombre": "Mtro. Fernando Morales"
+            },
+            {
+              "cargo": "Coordinador PAEC",
+              "nombre": "Profr. Samuel Saldaña"
+            },
+            {
+              "cargo": "Representante Comunitario",
+              "nombre": "C. Beatriz Ramírez Pérez"
+            },
+            {
+              "cargo": "Presidente Sociedad de Alumnos",
+              "nombre": "Alumna Valeria Sánchez"
+            }
+          ]
+        },
+        "anexo2Seguimiento": [
+          {
+            "semana": "Semana 1",
+            "fase": "Fase 1",
+            "uac": "Lengua y Comunicación I",
+            "metaOperativa": "Instalación de brigadas",
+            "evidencia": "Lista de registro firmada",
+            "avancePorcentaje": 100,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 2",
+            "fase": "Fase 1",
+            "uac": "Ciencias Sociales I",
+            "metaOperativa": "Levantamiento de encuestas",
+            "evidencia": "120 cuestionarios completados",
+            "avancePorcentaje": 95,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 3",
+            "fase": "Fase 1",
+            "uac": "Pensamiento Matemático I",
+            "metaOperativa": "Base de datos diagnóstica",
+            "evidencia": "Gráficos de barras de residuos",
+            "avancePorcentaje": 90,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 4",
+            "fase": "Fase 1",
+            "uac": "Cultura Digital I",
+            "metaOperativa": "Infografía comunitaria",
+            "evidencia": "Carteles impresos y digitales",
+            "avancePorcentaje": 100,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 5",
+            "fase": "Fase 2",
+            "uac": "Química I",
+            "metaOperativa": "Análisis de pH en composteo",
+            "evidencia": "Bitácora experimental",
+            "avancePorcentaje": 85,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 6",
+            "fase": "Fase 2",
+            "uac": "Ecosistemas",
+            "metaOperativa": "Construcción de cajón de compost",
+            "evidencia": "Cajón de 1.5m instalado",
+            "avancePorcentaje": 100,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 7",
+            "fase": "Fase 2",
+            "uac": "Pensamiento Matemático V",
+            "metaOperativa": "Cálculo de capacidad volumétrica",
+            "evidencia": "Reporte de cubicaje",
+            "avancePorcentaje": 90,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 8",
+            "fase": "Fase 2",
+            "uac": "Ciencias de la Salud I",
+            "metaOperativa": "Inspección sanitaria vecinal",
+            "evidencia": "Checklist epidemiológico",
+            "avancePorcentaje": 80,
+            "semaforo": "amarillo"
+          },
+          {
+            "semana": "Semana 9",
+            "fase": "Fase 3",
+            "uac": "Conciencia Histórica I",
+            "metaOperativa": "Mapeo de zonas históricas limpias",
+            "evidencia": "Mapa temático local",
+            "avancePorcentaje": 90,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 10",
+            "fase": "Fase 3",
+            "uac": "Lengua y Comunicación III",
+            "metaOperativa": "Borrador del manual técnico",
+            "evidencia": "Capítulos I y II redactados",
+            "avancePorcentaje": 85,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 11",
+            "fase": "Fase 3",
+            "uac": "Filosofía y Epistemología",
+            "metaOperativa": "Círculo de reflexión ética",
+            "evidencia": "Minuta de discusión grupal",
+            "avancePorcentaje": 95,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 12",
+            "fase": "Fase 3",
+            "uac": "Capacitación en Administración",
+            "metaOperativa": "Presupuesto de réplica",
+            "evidencia": "Hoja de costos unitarios",
+            "avancePorcentaje": 100,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 13",
+            "fase": "Fase 3",
+            "uac": "UAC Transversal",
+            "metaOperativa": "Sesión de entrega intersemestral",
+            "evidencia": "Acta de relevo acordada",
+            "avancePorcentaje": 90,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 14",
+            "fase": "Fase 3",
+            "uac": "Coordinación Colegiada",
+            "metaOperativa": "Firma de paquetes técnicos",
+            "evidencia": "Paquete con firmas de docentes",
+            "avancePorcentaje": 100,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 15",
+            "fase": "Fase 3",
+            "uac": "Todas las UACs",
+            "metaOperativa": "Evaluación formativa transversal",
+            "evidencia": "100% de rúbricas asentadas",
+            "avancePorcentaje": 95,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 16",
+            "fase": "Fase 3",
+            "uac": "Dirección Escolar",
+            "metaOperativa": "Rendición comunitaria de cuentas",
+            "evidencia": "Minuta de asamblea final",
+            "avancePorcentaje": 100,
+            "semaforo": "verde"
+          }
+        ],
+        "anexo3ReporteMensual": {
+          "periodo": "Primer Bimestre (Septiembre - Octubre 2026)",
+          "resumenEjecutivo": "El proyecto inició conforme al cronograma de la Fase 1, logrando una participación del 92% del estudiantado y la vinculación con 40 familias vecinas.",
+          "logros": [
+            "Instalación formal del Comité Escolar Comunitario con actas firmadas.",
+            "Levantamiento exitoso de 120 encuestas de residuos sólidos.",
+            "Articulación sin fisuras entre UACs de 1.er, 3.er y 5.° semestre."
+          ],
+          "dificultades": [
+            "Disponibilidad limitada de contenedores metálicos para acopio temporal.",
+            "Coordinación de horarios con padres de familia comerciantes."
+          ],
+          "accionesAjuste": [
+            "Construcción de contenedores de madera reciclada por brigadas estudiantiles.",
+            "Sesiones informativas dominicales breves de 30 minutos."
+          ]
+        },
+        "anexo4ImpactoComunidad": {
+          "titulo": "Cuestionario de Medición de Impacto y Transformación Comunitaria (Aplicación PRE y POST)",
+          "tipoAplicacion": "PRE/POST",
+          "reactivos": [
+            {
+              "reactivo": "La problemática de residuos afecta directamente la calidad de vida de mi familia.",
+              "dimension": "Pertinencia Situacional"
+            },
+            {
+              "reactivo": "He observado un compromiso visible de los estudiantes en la mejora del entorno vecinal.",
+              "dimension": "Vinculación Comunitaria"
+            },
+            {
+              "reactivo": "Las actividades del bachillerato aportan soluciones prácticas y viables a la colonia.",
+              "dimension": "Efectividad de la Propuesta"
+            },
+            {
+              "reactivo": "He participado en reuniones, consultas o faenas convocadas por el plantel para el PEC.",
+              "dimension": "Participación Ciudadana"
+            },
+            {
+              "reactivo": "Considero que el proyecto ha generado mayor conciencia ecológica en la comunidad.",
+              "dimension": "Transformación Social"
+            },
+            {
+              "reactivo": "Recomiendo ampliamente la continuidad de este proyecto escolar en el próximo ciclo.",
+              "dimension": "Sostenibilidad"
+            }
+          ],
+          "escala": {
+            "1": "Totalmente en desacuerdo",
+            "2": "En desacuerdo",
+            "3": "Neutral / Indiferente",
+            "4": "De acuerdo",
+            "5": "Totalmente de acuerdo"
+          }
+        },
+        "anexo5AutoevaluacionEstudiantes": {
+          "titulo": "Rúbrica de Autoevaluación y Coevaluación de Autonomía y Habilidades Blandas Estudiantiles",
+          "tipoAplicacion": "FINAL",
+          "reactivos": [
+            {
+              "reactivo": "Participé de manera puntual, proactiva y colaborativa en mi brigada asignada.",
+              "dimension": "Colaboración y Trabajo en Equipo"
+            },
+            {
+              "reactivo": "Apliqué conocimientos de mis materias para resolver problemas concretos de mi localidad.",
+              "dimension": "Pensamiento Crítico y Transferencia"
+            },
+            {
+              "reactivo": "Me comuniqué con respeto, claridad y asertividad con vecinos y compañeros.",
+              "dimension": "Comunicación Asertiva"
+            },
+            {
+              "reactivo": "Propuse soluciones creativas ante imprevistos durante las jornadas de campo.",
+              "dimension": "Creatividad y Resiliencia"
+            },
+            {
+              "reactivo": "Reflexioné sobre la responsabilidad social y ética de mis acciones como ciudadano.",
+              "dimension": "Metacognición y Ética Ciudadana"
+            },
+            {
+              "reactivo": "Gestioné adecuadamente mi tiempo para entregar productos y evidencias requeridas.",
+              "dimension": "Autonomía y Autorregulación"
+            }
+          ],
+          "escala": {
+            "1": "Nivel Inicial (Requiere apoyo permanente)",
+            "2": "Nivel Básico (Cumplimiento parcial con supervisión)",
+            "3": "Nivel Satisfactorio (Autonomía funcional)",
+            "4": "Nivel Avanzado (Desempeño destacado y colaborativo)",
+            "5": "Nivel Sobresaliente (Liderazgo transformador y proactivo)"
+          }
+        },
+        "anexo6EvaluacionColegiado": {
+          "titulo": "Cuestionario de Evaluación para Docentes y Trabajo Colegiado del PAEC",
+          "tipoAplicacion": "FINAL",
+          "reactivos": [
+            {
+              "reactivo": "La transversalidad planificada articuló efectivamente los contenidos entre semestres.",
+              "dimension": "Interdisciplinariedad"
+            },
+            {
+              "reactivo": "El tiempo dedicado al PEC no sacrificó la cobertura del programa de estudios regular.",
+              "dimension": "Gestión Curricular"
+            },
+            {
+              "reactivo": "Las sesiones de colegiado facilitaron el seguimiento oportuno y la resolución de dudas.",
+              "dimension": "Coordinación Docente"
+            },
+            {
+              "reactivo": "Los instrumentos formativos transversales permitieron evaluar con objetividad.",
+              "dimension": "Evaluación Formativa"
+            },
+            {
+              "reactivo": "El PEC incrementó el interés, sentido de pertenencia y motivación de los alumnos.",
+              "dimension": "Impacto en el Estudiantado"
+            },
+            {
+              "reactivo": "El equipo directivo proporcionó los recursos y facilidades institucionales necesarias.",
+              "dimension": "Liderazgo Directivo"
+            }
+          ],
+          "escala": {
+            "1": "Totalmente en desacuerdo",
+            "2": "En desacuerdo",
+            "3": "Neutral",
+            "4": "De acuerdo",
+            "5": "Totalmente de acuerdo"
+          }
+        }
+      }
+    },
+    "cycleB": {
+      "projectName": "Agua Limpia y Segura para Nuestra Escuela y Comunidad 2026",
+      "cycleType": "B",
+      "semesters": [
+        2,
+        4,
+        6
+      ],
+      "totalCatalogUacs": 274,
+      "fase1_diagnostico": {
+        "tabla1": [
+          {
+            "col1": "Geográfico",
+            "col2": "Municipio con zonas agrícolas y semiurbanas."
+          }
+        ],
+        "tabla2": [
+          {
+            "col1": "Infraestructura",
+            "col2": "Plantel con 12 aulas y espacios verdes."
+          }
+        ],
+        "tabla3": [
+          {
+            "aspect": "Fortalezas",
+            "analysis": "Comunidad docente comprometida y brigadas estudiantiles."
+          }
+        ],
+        "tabla4": [
+          {
+            "col1": "Fase 1",
+            "col2": "Diagnóstico participativo con encuestas vecinales."
+          }
+        ]
+      },
+      "fase2_justificacion": {
+        "projectName": "Agua Limpia y Segura 2026",
+        "problemStatement": "Contaminación y desabasto de agua potable en la periferia escolar",
+        "pilares": [
+          "Pilar 1: Captación Pluvial",
+          "Pilar 2: Salud Comunitaria",
+          "Pilar 3: Innovación Tecnológica"
+        ]
+      },
+      "fase2_mapeo": [
+        {
+          "semester": 2,
+          "uacName": "Lengua y Comunicación II",
+          "topic": "Campaña de difusión sobre la potabilización del agua",
+          "linking": "Propósito Formativo 1: Redacta textos expositivos para informar sobre el cuidado del recurso hídrico."
+        },
+        {
+          "semester": 2,
+          "uacName": "Pensamiento Matemático II",
+          "topic": "Medición de caudal y consumo por habitante en la colonia",
+          "linking": "Propósito Formativo 2: Resuelve problemas de variación proporcional directa e inversa."
+        },
+        {
+          "semester": 4,
+          "uacName": "Conservación de la Energía y sus Interacciones",
+          "topic": "Filtración y sistemas de bombeo solar para captación pluvial",
+          "linking": "Propósito Formativo 1: Modela transferencias de energía en sistemas mecánicos e hidráulicos."
+        },
+        {
+          "semester": 4,
+          "uacName": "Pensamiento Matemático IV",
+          "topic": "Modelos trigonométricos para calcular pendiente de escorrentía pluvial",
+          "linking": "Propósito Formativo 3: Aplica razones trigonométricas en problemas topográficos."
+        },
+        {
+          "semester": 6,
+          "uacName": "Ecología y Medio Ambiente",
+          "topic": "Evaluación fisicoquímica y microbiológica del agua de lluvia almacenada",
+          "linking": "Progresión de Aprendizaje 2: Diseña estrategias de monitoreo ecológico y sustentabilidad comunitaria."
+        },
+        {
+          "semester": 6,
+          "uacName": "Ciencias de la Salud II",
+          "topic": "Prevención de enfermedades gastrointestinales por consumo de agua no tratada",
+          "linking": "Progresión de Aprendizaje 4: Promueve estilos de vida saludables y medidas sanitarias preventivas."
+        }
+      ],
+      "fase2_cronograma": [
+        {
+          "phase": "Fase 1: Diagnóstico de Calidad del Agua y Organización Vecinal (Febrero-Marzo)",
+          "objective": "Tomar muestras de agua en 20 tomas domiciliarias y capacitar al Comité de Agua.",
+          "macroActivities": "Toma de muestras, análisis básico de turbidez y cloro residual, asamblea comunitaria.",
+          "responsibleSubjects": "Lengua y Comunicación II, Pensamiento Matemático II, Ciencias de la Salud II.",
+          "semesterInvolved": "2.° y 6.° Semestre"
+        },
+        {
+          "phase": "Fase 2: Prototipado de Filtros de Grava, Arena y Carbón Activado (Abril-Mayo)",
+          "objective": "Construir 5 filtros de captación pluvial de bajo costo para uso comunitario.",
+          "macroActivities": "Armado de lechos filtrantes, pruebas de flujo volumétrico y purificación.",
+          "responsibleSubjects": "Conservación de la Energía, Pensamiento Matemático IV, Ecología.",
+          "semesterInvolved": "4.° y 6.° Semestre"
+        },
+        {
+          "phase": "Fase 3: Socialización, Talleres de Mantenimiento y Evaluación de Impacto (Junio-Julio)",
+          "objective": "Entregar manuales de operación de filtros y medir disminución de compras de pipas de agua.",
+          "macroActivities": "Feria comunitaria del agua, taller de cambio de carbón activado, encuesta de satisfacción.",
+          "responsibleSubjects": "Todas las UACs del Ciclo B.",
+          "semesterInvolved": "2.°, 4.° y 6.° Semestre"
+        }
+      ],
+      "fase2_detalle_curricular": [
+        {
+          "semester": 2,
+          "uacName": "Lengua y Comunicación II",
+          "progressionsOrPurposes": "Propósito Formativo 1: Campaña de difusión sobre la potabilización del agua",
+          "projectPhases": "Fase 1",
+          "curricularJustification": "Los estudiantes desarrollan competencias en torno a la problemática del agua potable aplicando conceptos de Lengua y Comunicación II."
+        },
+        {
+          "semester": 2,
+          "uacName": "Pensamiento Matemático II",
+          "progressionsOrPurposes": "Propósito Formativo 1: Medición de caudal y consumo por habitante en la colonia",
+          "projectPhases": "Fase 1",
+          "curricularJustification": "Los estudiantes desarrollan competencias en torno a la problemática del agua potable aplicando conceptos de Pensamiento Matemático II."
+        },
+        {
+          "semester": 4,
+          "uacName": "Conservación de la Energía y sus Interacciones",
+          "progressionsOrPurposes": "Propósito Formativo 1: Filtración y sistemas de bombeo solar para captación pluvial",
+          "projectPhases": "Fase 2",
+          "curricularJustification": "Los estudiantes desarrollan competencias en torno a la problemática del agua potable aplicando conceptos de Conservación de la Energía y sus Interacciones."
+        },
+        {
+          "semester": 4,
+          "uacName": "Pensamiento Matemático IV",
+          "progressionsOrPurposes": "Propósito Formativo 1: Modelos trigonométricos para calcular pendiente de escorrentía pluvial",
+          "projectPhases": "Fase 2",
+          "curricularJustification": "Los estudiantes desarrollan competencias en torno a la problemática del agua potable aplicando conceptos de Pensamiento Matemático IV."
+        },
+        {
+          "semester": 6,
+          "uacName": "Ecología y Medio Ambiente",
+          "progressionsOrPurposes": "Progresión de Aprendizaje 2: Evaluación fisicoquímica y microbiológica del agua de lluvia almacenada",
+          "projectPhases": "Fase 1, 2 y 3",
+          "curricularJustification": "Los estudiantes desarrollan competencias en torno a la problemática del agua potable aplicando conceptos de Ecología y Medio Ambiente."
+        },
+        {
+          "semester": 6,
+          "uacName": "Ciencias de la Salud II",
+          "progressionsOrPurposes": "Progresión de Aprendizaje 2: Prevención de enfermedades gastrointestinales por consumo de agua no tratada",
+          "projectPhases": "Fase 1, 2 y 3",
+          "curricularJustification": "Los estudiantes desarrollan competencias en torno a la problemática del agua potable aplicando conceptos de Ciencias de la Salud II."
+        }
+      ],
+      "fase2_plan_operativo": {
+        "semestreA": [],
+        "semestreB": [
+          {
+            "phase": "Fase 1",
+            "activity": "Diseño de folletos informativos sobre higiene del agua y almacenamiento seguro",
+            "uac": "Lengua y Comunicación II",
+            "progression": "Propósito Formativo 1",
+            "strategy": "Aprendizaje Basado en Problemas (ABP)",
+            "week": "Semana 2",
+            "responsibles": "Alumnos de 2.° semestre y Maestro titular",
+            "evaluationInstrument": "Rúbrica para texto informativo"
+          },
+          {
+            "phase": "Fase 1",
+            "activity": "Cálculo del volumen diario de captación pluvial en techumbres escolares",
+            "uac": "Pensamiento Matemático II",
+            "progression": "Propósito Formativo 2",
+            "strategy": "STEAM",
+            "week": "Semana 4",
+            "responsibles": "Alumnos de 2.° semestre",
+            "evaluationInstrument": "Lista de cotejo matemática"
+          },
+          {
+            "phase": "Fase 2",
+            "activity": "Ensamblaje del filtro piloto de arena y gravas calibradas",
+            "uac": "Conservación de la Energía y sus Interacciones",
+            "progression": "Propósito Formativo 1",
+            "strategy": "Aprendizaje-Servicio (ApS)",
+            "week": "Semana 7",
+            "responsibles": "Alumnos de 4.° semestre",
+            "evaluationInstrument": "Guía de observación técnica"
+          },
+          {
+            "phase": "Fase 2",
+            "activity": "Análisis bacteriológico y pruebas de coliformes totales en agua filtrada",
+            "uac": "Ecología y Medio Ambiente",
+            "progression": "Progresión 2",
+            "strategy": "Método Científico Experimental",
+            "week": "Semana 9",
+            "responsibles": "Alumnos de 6.° semestre y Químico Asesor",
+            "evaluationInstrument": "Reporte de laboratorio con escala estimativa"
+          },
+          {
+            "phase": "Fase 3",
+            "activity": "Campaña de vacunación y desparasitación escolar vinculada a la salud comunitaria",
+            "uac": "Ciencias de la Salud II",
+            "progression": "Progresión 4",
+            "strategy": "Aprendizaje Comunitario",
+            "week": "Semana 12",
+            "responsibles": "Alumnos de 6.° semestre y Centro de Salud",
+            "evaluationInstrument": "Rúbrica holística de vinculación comunitaria"
+          }
+        ]
+      },
+      "fase2_anexos": {
+        "anexo1Minuta": {
+          "cct": "21EBH0048X",
+          "fecha": "15 de Septiembre de 2026",
+          "tipoReunion": "Asamblea Comunitaria de Gestión del Agua Potable y Filtros Pluviales",
+          "acuerdos": [
+            {
+              "no": 1,
+              "acuerdo": "Aprobación unánime del diagnóstico situacional de residuos",
+              "responsable": "Dirección y Comité",
+              "fechaLimite": "Semana 2",
+              "estatus": "Cumplido"
+            },
+            {
+              "no": 2,
+              "acuerdo": "Conformación de brigadas interdisciplinarias de pesaje",
+              "responsable": "Colegiado Docente",
+              "fechaLimite": "Semana 3",
+              "estatus": "En proceso"
+            },
+            {
+              "no": 3,
+              "acuerdo": "Establecimiento del convenio de recolección diferenciada con el municipio",
+              "responsable": "Comité de Vinculación",
+              "fechaLimite": "Semana 5",
+              "estatus": "Programado"
+            }
+          ],
+          "firmas": [
+            {
+              "cargo": "Director del Plantel",
+              "nombre": "Mtro. Fernando Morales"
+            },
+            {
+              "cargo": "Coordinador PAEC",
+              "nombre": "Profr. Samuel Saldaña"
+            },
+            {
+              "cargo": "Representante Comunitario",
+              "nombre": "C. Beatriz Ramírez Pérez"
+            },
+            {
+              "cargo": "Presidente Sociedad de Alumnos",
+              "nombre": "Alumna Valeria Sánchez"
+            }
+          ]
+        },
+        "anexo2Seguimiento": [
+          {
+            "semana": "Semana 1",
+            "fase": "Fase 1",
+            "uac": "Lengua y Comunicación I",
+            "metaOperativa": "Instalación de brigadas",
+            "evidencia": "Lista de registro firmada",
+            "avancePorcentaje": 100,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 2",
+            "fase": "Fase 1",
+            "uac": "Ciencias Sociales I",
+            "metaOperativa": "Levantamiento de encuestas",
+            "evidencia": "120 cuestionarios completados",
+            "avancePorcentaje": 95,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 3",
+            "fase": "Fase 1",
+            "uac": "Pensamiento Matemático I",
+            "metaOperativa": "Base de datos diagnóstica",
+            "evidencia": "Gráficos de barras de residuos",
+            "avancePorcentaje": 90,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 4",
+            "fase": "Fase 1",
+            "uac": "Cultura Digital I",
+            "metaOperativa": "Infografía comunitaria",
+            "evidencia": "Carteles impresos y digitales",
+            "avancePorcentaje": 100,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 5",
+            "fase": "Fase 2",
+            "uac": "Química I",
+            "metaOperativa": "Análisis de pH en composteo",
+            "evidencia": "Bitácora experimental",
+            "avancePorcentaje": 85,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 6",
+            "fase": "Fase 2",
+            "uac": "Ecosistemas",
+            "metaOperativa": "Construcción de cajón de compost",
+            "evidencia": "Cajón de 1.5m instalado",
+            "avancePorcentaje": 100,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 7",
+            "fase": "Fase 2",
+            "uac": "Pensamiento Matemático V",
+            "metaOperativa": "Cálculo de capacidad volumétrica",
+            "evidencia": "Reporte de cubicaje",
+            "avancePorcentaje": 90,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 8",
+            "fase": "Fase 2",
+            "uac": "Ciencias de la Salud I",
+            "metaOperativa": "Inspección sanitaria vecinal",
+            "evidencia": "Checklist epidemiológico",
+            "avancePorcentaje": 80,
+            "semaforo": "amarillo"
+          },
+          {
+            "semana": "Semana 9",
+            "fase": "Fase 3",
+            "uac": "Conciencia Histórica I",
+            "metaOperativa": "Mapeo de zonas históricas limpias",
+            "evidencia": "Mapa temático local",
+            "avancePorcentaje": 90,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 10",
+            "fase": "Fase 3",
+            "uac": "Lengua y Comunicación III",
+            "metaOperativa": "Borrador del manual técnico",
+            "evidencia": "Capítulos I y II redactados",
+            "avancePorcentaje": 85,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 11",
+            "fase": "Fase 3",
+            "uac": "Filosofía y Epistemología",
+            "metaOperativa": "Círculo de reflexión ética",
+            "evidencia": "Minuta de discusión grupal",
+            "avancePorcentaje": 95,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 12",
+            "fase": "Fase 3",
+            "uac": "Capacitación en Administración",
+            "metaOperativa": "Presupuesto de réplica",
+            "evidencia": "Hoja de costos unitarios",
+            "avancePorcentaje": 100,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 13",
+            "fase": "Fase 3",
+            "uac": "UAC Transversal",
+            "metaOperativa": "Sesión de entrega intersemestral",
+            "evidencia": "Acta de relevo acordada",
+            "avancePorcentaje": 90,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 14",
+            "fase": "Fase 3",
+            "uac": "Coordinación Colegiada",
+            "metaOperativa": "Firma de paquetes técnicos",
+            "evidencia": "Paquete con firmas de docentes",
+            "avancePorcentaje": 100,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 15",
+            "fase": "Fase 3",
+            "uac": "Todas las UACs",
+            "metaOperativa": "Evaluación formativa transversal",
+            "evidencia": "100% de rúbricas asentadas",
+            "avancePorcentaje": 95,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 16",
+            "fase": "Fase 3",
+            "uac": "Dirección Escolar",
+            "metaOperativa": "Rendición comunitaria de cuentas",
+            "evidencia": "Minuta de asamblea final",
+            "avancePorcentaje": 100,
+            "semaforo": "verde"
+          }
+        ],
+        "anexo3ReporteMensual": {
+          "periodo": "Ciclo B: Febrero - Junio 2026",
+          "resumenEjecutivo": "Instalación de 5 filtros pluviales y reducción del 40% en consumo de agua en pipas.",
+          "logros": [
+            "Instalación formal del Comité Escolar Comunitario con actas firmadas.",
+            "Levantamiento exitoso de 120 encuestas de residuos sólidos.",
+            "Articulación sin fisuras entre UACs de 1.er, 3.er y 5.° semestre."
+          ],
+          "dificultades": [
+            "Disponibilidad limitada de contenedores metálicos para acopio temporal.",
+            "Coordinación de horarios con padres de familia comerciantes."
+          ],
+          "accionesAjuste": [
+            "Construcción de contenedores de madera reciclada por brigadas estudiantiles.",
+            "Sesiones informativas dominicales breves de 30 minutos."
+          ]
+        },
+        "anexo4ImpactoComunidad": {
+          "titulo": "Cuestionario de Medición de Impacto y Transformación Comunitaria (Aplicación PRE y POST)",
+          "tipoAplicacion": "PRE/POST",
+          "reactivos": [
+            {
+              "reactivo": "La problemática de residuos afecta directamente la calidad de vida de mi familia.",
+              "dimension": "Pertinencia Situacional"
+            },
+            {
+              "reactivo": "He observado un compromiso visible de los estudiantes en la mejora del entorno vecinal.",
+              "dimension": "Vinculación Comunitaria"
+            },
+            {
+              "reactivo": "Las actividades del bachillerato aportan soluciones prácticas y viables a la colonia.",
+              "dimension": "Efectividad de la Propuesta"
+            },
+            {
+              "reactivo": "He participado en reuniones, consultas o faenas convocadas por el plantel para el PEC.",
+              "dimension": "Participación Ciudadana"
+            },
+            {
+              "reactivo": "Considero que el proyecto ha generado mayor conciencia ecológica en la comunidad.",
+              "dimension": "Transformación Social"
+            },
+            {
+              "reactivo": "Recomiendo ampliamente la continuidad de este proyecto escolar en el próximo ciclo.",
+              "dimension": "Sostenibilidad"
+            }
+          ],
+          "escala": {
+            "1": "Totalmente en desacuerdo",
+            "2": "En desacuerdo",
+            "3": "Neutral / Indiferente",
+            "4": "De acuerdo",
+            "5": "Totalmente de acuerdo"
+          }
+        },
+        "anexo5AutoevaluacionEstudiantes": {
+          "titulo": "Rúbrica de Autoevaluación y Coevaluación de Autonomía y Habilidades Blandas Estudiantiles",
+          "tipoAplicacion": "FINAL",
+          "reactivos": [
+            {
+              "reactivo": "Participé de manera puntual, proactiva y colaborativa en mi brigada asignada.",
+              "dimension": "Colaboración y Trabajo en Equipo"
+            },
+            {
+              "reactivo": "Apliqué conocimientos de mis materias para resolver problemas concretos de mi localidad.",
+              "dimension": "Pensamiento Crítico y Transferencia"
+            },
+            {
+              "reactivo": "Me comuniqué con respeto, claridad y asertividad con vecinos y compañeros.",
+              "dimension": "Comunicación Asertiva"
+            },
+            {
+              "reactivo": "Propuse soluciones creativas ante imprevistos durante las jornadas de campo.",
+              "dimension": "Creatividad y Resiliencia"
+            },
+            {
+              "reactivo": "Reflexioné sobre la responsabilidad social y ética de mis acciones como ciudadano.",
+              "dimension": "Metacognición y Ética Ciudadana"
+            },
+            {
+              "reactivo": "Gestioné adecuadamente mi tiempo para entregar productos y evidencias requeridas.",
+              "dimension": "Autonomía y Autorregulación"
+            }
+          ],
+          "escala": {
+            "1": "Nivel Inicial (Requiere apoyo permanente)",
+            "2": "Nivel Básico (Cumplimiento parcial con supervisión)",
+            "3": "Nivel Satisfactorio (Autonomía funcional)",
+            "4": "Nivel Avanzado (Desempeño destacado y colaborativo)",
+            "5": "Nivel Sobresaliente (Liderazgo transformador y proactivo)"
+          }
+        },
+        "anexo6EvaluacionColegiado": {
+          "titulo": "Cuestionario de Evaluación para Docentes y Trabajo Colegiado del PAEC",
+          "tipoAplicacion": "FINAL",
+          "reactivos": [
+            {
+              "reactivo": "La transversalidad planificada articuló efectivamente los contenidos entre semestres.",
+              "dimension": "Interdisciplinariedad"
+            },
+            {
+              "reactivo": "El tiempo dedicado al PEC no sacrificó la cobertura del programa de estudios regular.",
+              "dimension": "Gestión Curricular"
+            },
+            {
+              "reactivo": "Las sesiones de colegiado facilitaron el seguimiento oportuno y la resolución de dudas.",
+              "dimension": "Coordinación Docente"
+            },
+            {
+              "reactivo": "Los instrumentos formativos transversales permitieron evaluar con objetividad.",
+              "dimension": "Evaluación Formativa"
+            },
+            {
+              "reactivo": "El PEC incrementó el interés, sentido de pertenencia y motivación de los alumnos.",
+              "dimension": "Impacto en el Estudiantado"
+            },
+            {
+              "reactivo": "El equipo directivo proporcionó los recursos y facilidades institucionales necesarias.",
+              "dimension": "Liderazgo Directivo"
+            }
+          ],
+          "escala": {
+            "1": "Totalmente en desacuerdo",
+            "2": "En desacuerdo",
+            "3": "Neutral",
+            "4": "De acuerdo",
+            "5": "Totalmente de acuerdo"
+          }
+        }
+      }
+    },
+    "cycleAnnual": {
+      "projectName": "Huerto Escolar Agroecológico y Soberanía Alimentaria 2026-2027",
+      "cycleType": "annual",
+      "semesters": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "totalCatalogUacs": 492,
+      "fase1_diagnostico": {
+        "tabla1": [
+          {
+            "col1": "Geográfico",
+            "col2": "Municipio con zonas agrícolas y semiurbanas."
+          }
+        ],
+        "tabla2": [
+          {
+            "col1": "Infraestructura",
+            "col2": "Plantel con 12 aulas y espacios verdes."
+          }
+        ],
+        "tabla3": [
+          {
+            "aspect": "Fortalezas",
+            "analysis": "Comunidad docente comprometida y brigadas estudiantiles."
+          }
+        ],
+        "tabla4": [
+          {
+            "col1": "Fase 1",
+            "col2": "Diagnóstico participativo con encuestas vecinales."
+          }
+        ]
+      },
+      "fase2_justificacion": {
+        "projectName": "Huerto Escolar Agroecológico",
+        "problemStatement": "Malnutrición y falta de espacios sustentables de producción alimentaria en el plantel",
+        "pilares": [
+          "Pilar 1: Agroecología",
+          "Pilar 2: Soberanía Alimentaria",
+          "Pilar 3: Economía Social"
+        ]
+      },
+      "fase2_mapeo": [
+        {
+          "semester": 1,
+          "uacName": "Lengua y Comunicación I",
+          "topic": "Diagnóstico de necesidades alimentarias",
+          "linking": "Propósito Formativo 1"
+        },
+        {
+          "semester": 2,
+          "uacName": "Pensamiento Matemático II",
+          "topic": "Cálculo de áreas para huerto escolar",
+          "linking": "Propósito Formativo 2"
+        },
+        {
+          "semester": 3,
+          "uacName": "Ecosistemas",
+          "topic": "Ciclos de nutrientes y preparación de composta",
+          "linking": "Propósito Formativo 1"
+        },
+        {
+          "semester": 4,
+          "uacName": "Conservación de la Energía",
+          "topic": "Sistemas de riego por goteo con energía solar",
+          "linking": "Propósito Formativo 1"
+        },
+        {
+          "semester": 5,
+          "uacName": "Filosofía y Epistemología",
+          "topic": "Soberanía alimentaria y ética del consumo local",
+          "linking": "Progresión de Aprendizaje 3"
+        },
+        {
+          "semester": 6,
+          "uacName": "Ecología y Medio Ambiente",
+          "topic": "Monitoreo de biodiversidad en el agroecosistema escolar",
+          "linking": "Progresión de Aprendizaje 2"
+        }
+      ],
+      "fase2_cronograma": [
+        {
+          "phase": "Fase 1: Diagnóstico Nutricional y Diseño de Huerto (Septiembre-Octubre)",
+          "objective": "Delimitar áreas de cultivo y diagnosticar hábitos nutricionales.",
+          "macroActivities": "Medición de terrenos, encuestas de hábitos de alimentación.",
+          "responsibleSubjects": "Lengua y Comunicación I, Pensamiento Matemático I.",
+          "semesterInvolved": "1.er Semestre"
+        },
+        {
+          "phase": "Fase 2: Preparación de Suelo y Siembra de Hortalizas (Noviembre-Diciembre)",
+          "objective": "Sembrar 6 variedades de hortalizas nativas con composta orgánica.",
+          "macroActivities": "Acolchado, preparación de sustratos y siembra en almácigos.",
+          "responsibleSubjects": "Ecosistemas, Filosofía y Epistemología.",
+          "semesterInvolved": "3.er y 5.° Semestre"
+        },
+        {
+          "phase": "Fase 3: Transferencia Semestral y Relevo Operativo (Enero)",
+          "objective": "Capacitar a brigadas de relevo para la segunda mitad del ciclo escolar.",
+          "macroActivities": "Bitácoras de riego y relevo intersemestral.",
+          "responsibleSubjects": "Colegiado Docente.",
+          "semesterInvolved": "1.°, 3.° y 5.° Semestre"
+        },
+        {
+          "phase": "Fase 4: Instalación de Riego por Goteo y Cosecha Temprana (Febrero-Marzo)",
+          "objective": "Implementar riego tecnificado y recolectar primeras cosechas.",
+          "macroActivities": "Instalación de mangueras y cosecha de rábano y acelga.",
+          "responsibleSubjects": "Conservación de la Energía, Pensamiento Matemático II.",
+          "semesterInvolved": "2.° y 4.° Semestre"
+        },
+        {
+          "phase": "Fase 5: Conservación y Elaboración de Alimentos Saludables (Abril-Mayo)",
+          "objective": "Procesar conservas y elaborar recetas nutritivas comunitarias.",
+          "macroActivities": "Talleres de deshidratación solar y conservas artesanales.",
+          "responsibleSubjects": "Ecología y Medio Ambiente, Ciencias de la Salud.",
+          "semesterInvolved": "4.° y 6.° Semestre"
+        },
+        {
+          "phase": "Fase 6: Feria Gastronómica y Evaluación Metacognitiva Final (Junio)",
+          "objective": "Celebrar la feria escolar y medir impacto en hábitos de alimentación.",
+          "macroActivities": "Presentación comunitaria, degustación y encuesta PRE/POST.",
+          "responsibleSubjects": "Todas las UACs activas.",
+          "semesterInvolved": "1.° al 6.° Semestre"
+        }
+      ],
+      "fase2_detalle_curricular": [
+        {
+          "semester": 1,
+          "uacName": "Lengua y Comunicación I",
+          "progressionsOrPurposes": "Propósito Formativo 1",
+          "projectPhases": "Fases 1, 2, 3",
+          "curricularJustification": "Integración curricular anual para el proyecto Huerto Escolar Sustentable."
+        },
+        {
+          "semester": 2,
+          "uacName": "Pensamiento Matemático II",
+          "progressionsOrPurposes": "Propósito Formativo 1",
+          "projectPhases": "Fases 4, 5, 6",
+          "curricularJustification": "Integración curricular anual para el proyecto Huerto Escolar Sustentable."
+        },
+        {
+          "semester": 3,
+          "uacName": "Ecosistemas",
+          "progressionsOrPurposes": "Propósito Formativo 1",
+          "projectPhases": "Fases 1, 2, 3",
+          "curricularJustification": "Integración curricular anual para el proyecto Huerto Escolar Sustentable."
+        },
+        {
+          "semester": 4,
+          "uacName": "Conservación de la Energía",
+          "progressionsOrPurposes": "Propósito Formativo 1",
+          "projectPhases": "Fases 4, 5, 6",
+          "curricularJustification": "Integración curricular anual para el proyecto Huerto Escolar Sustentable."
+        },
+        {
+          "semester": 5,
+          "uacName": "Filosofía y Epistemología",
+          "progressionsOrPurposes": "Progresión de Aprendizaje 2",
+          "projectPhases": "Fases 1, 2, 3",
+          "curricularJustification": "Integración curricular anual para el proyecto Huerto Escolar Sustentable."
+        },
+        {
+          "semester": 6,
+          "uacName": "Ecología y Medio Ambiente",
+          "progressionsOrPurposes": "Progresión de Aprendizaje 2",
+          "projectPhases": "Fases 4, 5, 6",
+          "curricularJustification": "Integración curricular anual para el proyecto Huerto Escolar Sustentable."
+        }
+      ],
+      "fase2_plan_operativo": {
+        "semestreA": [
+          {
+            "phase": "Fase 1",
+            "activity": "Diagnóstico de hábitos nutricionales comunitarios",
+            "uac": "Lengua y Comunicación I",
+            "progression": "Propósito 1",
+            "strategy": "ABP",
+            "week": "Semana 2",
+            "responsibles": "Alumnos de 1.°",
+            "evaluationInstrument": "Rúbrica analítica"
+          },
+          {
+            "phase": "Fase 2",
+            "activity": "Análisis biológico de lombricomposta",
+            "uac": "Ecosistemas",
+            "progression": "Propósito 1",
+            "strategy": "STEAM",
+            "week": "Semana 6",
+            "responsibles": "Alumnos de 3.°",
+            "evaluationInstrument": "Lista de cotejo"
+          },
+          {
+            "phase": "Fase 2",
+            "activity": "Debate bioético sobre semillas transgénicas vs criollas",
+            "uac": "Filosofía y Epistemología",
+            "progression": "Progresión 3",
+            "strategy": "Debate dialógico",
+            "week": "Semana 10",
+            "responsibles": "Alumnos de 5.°",
+            "evaluationInstrument": "Rúbrica de debate"
+          }
+        ],
+        "semestreB": [
+          {
+            "phase": "Fase 4",
+            "activity": "Cálculo de eficiencia de riego por goteo",
+            "uac": "Pensamiento Matemático II",
+            "progression": "Propósito 2",
+            "strategy": "STEAM",
+            "week": "Semana 18",
+            "responsibles": "Alumnos de 2.°",
+            "evaluationInstrument": "Prueba práctica"
+          },
+          {
+            "phase": "Fase 4",
+            "activity": "Montaje de panel fotovoltaico para bomba de agua",
+            "uac": "Conservación de la Energía",
+            "progression": "Propósito 1",
+            "strategy": "ApS",
+            "week": "Semana 22",
+            "responsibles": "Alumnos de 4.°",
+            "evaluationInstrument": "Guía de observación"
+          },
+          {
+            "phase": "Fase 5",
+            "activity": "Auditoría de huella ecológica del huerto",
+            "uac": "Ecología y Medio Ambiente",
+            "progression": "Progresión 2",
+            "strategy": "Investigación de campo",
+            "week": "Semana 28",
+            "responsibles": "Alumnos de 6.°",
+            "evaluationInstrument": "Portafolio de evidencias"
+          }
+        ]
+      },
+      "fase2_anexos": {
+        "anexo1Minuta": {
+          "cct": "21EBH0048X",
+          "fecha": "15 de Septiembre de 2026",
+          "tipoReunion": "Asamblea de Instalación del Comité Escolar Comunitario y Formalización de Acuerdos",
+          "acuerdos": [
+            {
+              "no": 1,
+              "acuerdo": "Aprobación unánime del diagnóstico situacional de residuos",
+              "responsable": "Dirección y Comité",
+              "fechaLimite": "Semana 2",
+              "estatus": "Cumplido"
+            },
+            {
+              "no": 2,
+              "acuerdo": "Conformación de brigadas interdisciplinarias de pesaje",
+              "responsable": "Colegiado Docente",
+              "fechaLimite": "Semana 3",
+              "estatus": "En proceso"
+            },
+            {
+              "no": 3,
+              "acuerdo": "Establecimiento del convenio de recolección diferenciada con el municipio",
+              "responsable": "Comité de Vinculación",
+              "fechaLimite": "Semana 5",
+              "estatus": "Programado"
+            }
+          ],
+          "firmas": [
+            {
+              "cargo": "Director del Plantel",
+              "nombre": "Mtro. Fernando Morales"
+            },
+            {
+              "cargo": "Coordinador PAEC",
+              "nombre": "Profr. Samuel Saldaña"
+            },
+            {
+              "cargo": "Representante Comunitario",
+              "nombre": "C. Beatriz Ramírez Pérez"
+            },
+            {
+              "cargo": "Presidente Sociedad de Alumnos",
+              "nombre": "Alumna Valeria Sánchez"
+            }
+          ]
+        },
+        "anexo2Seguimiento": [
+          {
+            "semana": "Semana 1",
+            "fase": "Fase 1",
+            "uac": "Lengua y Comunicación I",
+            "metaOperativa": "Instalación de brigadas",
+            "evidencia": "Lista de registro firmada",
+            "avancePorcentaje": 100,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 2",
+            "fase": "Fase 1",
+            "uac": "Ciencias Sociales I",
+            "metaOperativa": "Levantamiento de encuestas",
+            "evidencia": "120 cuestionarios completados",
+            "avancePorcentaje": 95,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 3",
+            "fase": "Fase 1",
+            "uac": "Pensamiento Matemático I",
+            "metaOperativa": "Base de datos diagnóstica",
+            "evidencia": "Gráficos de barras de residuos",
+            "avancePorcentaje": 90,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 4",
+            "fase": "Fase 1",
+            "uac": "Cultura Digital I",
+            "metaOperativa": "Infografía comunitaria",
+            "evidencia": "Carteles impresos y digitales",
+            "avancePorcentaje": 100,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 5",
+            "fase": "Fase 2",
+            "uac": "Química I",
+            "metaOperativa": "Análisis de pH en composteo",
+            "evidencia": "Bitácora experimental",
+            "avancePorcentaje": 85,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 6",
+            "fase": "Fase 2",
+            "uac": "Ecosistemas",
+            "metaOperativa": "Construcción de cajón de compost",
+            "evidencia": "Cajón de 1.5m instalado",
+            "avancePorcentaje": 100,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 7",
+            "fase": "Fase 2",
+            "uac": "Pensamiento Matemático V",
+            "metaOperativa": "Cálculo de capacidad volumétrica",
+            "evidencia": "Reporte de cubicaje",
+            "avancePorcentaje": 90,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 8",
+            "fase": "Fase 2",
+            "uac": "Ciencias de la Salud I",
+            "metaOperativa": "Inspección sanitaria vecinal",
+            "evidencia": "Checklist epidemiológico",
+            "avancePorcentaje": 80,
+            "semaforo": "amarillo"
+          },
+          {
+            "semana": "Semana 9",
+            "fase": "Fase 3",
+            "uac": "Conciencia Histórica I",
+            "metaOperativa": "Mapeo de zonas históricas limpias",
+            "evidencia": "Mapa temático local",
+            "avancePorcentaje": 90,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 10",
+            "fase": "Fase 3",
+            "uac": "Lengua y Comunicación III",
+            "metaOperativa": "Borrador del manual técnico",
+            "evidencia": "Capítulos I y II redactados",
+            "avancePorcentaje": 85,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 11",
+            "fase": "Fase 3",
+            "uac": "Filosofía y Epistemología",
+            "metaOperativa": "Círculo de reflexión ética",
+            "evidencia": "Minuta de discusión grupal",
+            "avancePorcentaje": 95,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 12",
+            "fase": "Fase 3",
+            "uac": "Capacitación en Administración",
+            "metaOperativa": "Presupuesto de réplica",
+            "evidencia": "Hoja de costos unitarios",
+            "avancePorcentaje": 100,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 13",
+            "fase": "Fase 3",
+            "uac": "UAC Transversal",
+            "metaOperativa": "Sesión de entrega intersemestral",
+            "evidencia": "Acta de relevo acordada",
+            "avancePorcentaje": 90,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 14",
+            "fase": "Fase 3",
+            "uac": "Coordinación Colegiada",
+            "metaOperativa": "Firma de paquetes técnicos",
+            "evidencia": "Paquete con firmas de docentes",
+            "avancePorcentaje": 100,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 15",
+            "fase": "Fase 3",
+            "uac": "Todas las UACs",
+            "metaOperativa": "Evaluación formativa transversal",
+            "evidencia": "100% de rúbricas asentadas",
+            "avancePorcentaje": 95,
+            "semaforo": "verde"
+          },
+          {
+            "semana": "Semana 16",
+            "fase": "Fase 3",
+            "uac": "Dirección Escolar",
+            "metaOperativa": "Rendición comunitaria de cuentas",
+            "evidencia": "Minuta de asamblea final",
+            "avancePorcentaje": 100,
+            "semaforo": "verde"
+          }
+        ],
+        "anexo3ReporteMensual": {
+          "periodo": "Primer Bimestre (Septiembre - Octubre 2026)",
+          "resumenEjecutivo": "El proyecto inició conforme al cronograma de la Fase 1, logrando una participación del 92% del estudiantado y la vinculación con 40 familias vecinas.",
+          "logros": [
+            "Instalación formal del Comité Escolar Comunitario con actas firmadas.",
+            "Levantamiento exitoso de 120 encuestas de residuos sólidos.",
+            "Articulación sin fisuras entre UACs de 1.er, 3.er y 5.° semestre."
+          ],
+          "dificultades": [
+            "Disponibilidad limitada de contenedores metálicos para acopio temporal.",
+            "Coordinación de horarios con padres de familia comerciantes."
+          ],
+          "accionesAjuste": [
+            "Construcción de contenedores de madera reciclada por brigadas estudiantiles.",
+            "Sesiones informativas dominicales breves de 30 minutos."
+          ]
+        },
+        "anexo4ImpactoComunidad": {
+          "titulo": "Cuestionario de Medición de Impacto y Transformación Comunitaria (Aplicación PRE y POST)",
+          "tipoAplicacion": "PRE/POST",
+          "reactivos": [
+            {
+              "reactivo": "La problemática de residuos afecta directamente la calidad de vida de mi familia.",
+              "dimension": "Pertinencia Situacional"
+            },
+            {
+              "reactivo": "He observado un compromiso visible de los estudiantes en la mejora del entorno vecinal.",
+              "dimension": "Vinculación Comunitaria"
+            },
+            {
+              "reactivo": "Las actividades del bachillerato aportan soluciones prácticas y viables a la colonia.",
+              "dimension": "Efectividad de la Propuesta"
+            },
+            {
+              "reactivo": "He participado en reuniones, consultas o faenas convocadas por el plantel para el PEC.",
+              "dimension": "Participación Ciudadana"
+            },
+            {
+              "reactivo": "Considero que el proyecto ha generado mayor conciencia ecológica en la comunidad.",
+              "dimension": "Transformación Social"
+            },
+            {
+              "reactivo": "Recomiendo ampliamente la continuidad de este proyecto escolar en el próximo ciclo.",
+              "dimension": "Sostenibilidad"
+            }
+          ],
+          "escala": {
+            "1": "Totalmente en desacuerdo",
+            "2": "En desacuerdo",
+            "3": "Neutral / Indiferente",
+            "4": "De acuerdo",
+            "5": "Totalmente de acuerdo"
+          }
+        },
+        "anexo5AutoevaluacionEstudiantes": {
+          "titulo": "Rúbrica de Autoevaluación y Coevaluación de Autonomía y Habilidades Blandas Estudiantiles",
+          "tipoAplicacion": "FINAL",
+          "reactivos": [
+            {
+              "reactivo": "Participé de manera puntual, proactiva y colaborativa en mi brigada asignada.",
+              "dimension": "Colaboración y Trabajo en Equipo"
+            },
+            {
+              "reactivo": "Apliqué conocimientos de mis materias para resolver problemas concretos de mi localidad.",
+              "dimension": "Pensamiento Crítico y Transferencia"
+            },
+            {
+              "reactivo": "Me comuniqué con respeto, claridad y asertividad con vecinos y compañeros.",
+              "dimension": "Comunicación Asertiva"
+            },
+            {
+              "reactivo": "Propuse soluciones creativas ante imprevistos durante las jornadas de campo.",
+              "dimension": "Creatividad y Resiliencia"
+            },
+            {
+              "reactivo": "Reflexioné sobre la responsabilidad social y ética de mis acciones como ciudadano.",
+              "dimension": "Metacognición y Ética Ciudadana"
+            },
+            {
+              "reactivo": "Gestioné adecuadamente mi tiempo para entregar productos y evidencias requeridas.",
+              "dimension": "Autonomía y Autorregulación"
+            }
+          ],
+          "escala": {
+            "1": "Nivel Inicial (Requiere apoyo permanente)",
+            "2": "Nivel Básico (Cumplimiento parcial con supervisión)",
+            "3": "Nivel Satisfactorio (Autonomía funcional)",
+            "4": "Nivel Avanzado (Desempeño destacado y colaborativo)",
+            "5": "Nivel Sobresaliente (Liderazgo transformador y proactivo)"
+          }
+        },
+        "anexo6EvaluacionColegiado": {
+          "titulo": "Cuestionario de Evaluación para Docentes y Trabajo Colegiado del PAEC",
+          "tipoAplicacion": "FINAL",
+          "reactivos": [
+            {
+              "reactivo": "La transversalidad planificada articuló efectivamente los contenidos entre semestres.",
+              "dimension": "Interdisciplinariedad"
+            },
+            {
+              "reactivo": "El tiempo dedicado al PEC no sacrificó la cobertura del programa de estudios regular.",
+              "dimension": "Gestión Curricular"
+            },
+            {
+              "reactivo": "Las sesiones de colegiado facilitaron el seguimiento oportuno y la resolución de dudas.",
+              "dimension": "Coordinación Docente"
+            },
+            {
+              "reactivo": "Los instrumentos formativos transversales permitieron evaluar con objetividad.",
+              "dimension": "Evaluación Formativa"
+            },
+            {
+              "reactivo": "El PEC incrementó el interés, sentido de pertenencia y motivación de los alumnos.",
+              "dimension": "Impacto en el Estudiantado"
+            },
+            {
+              "reactivo": "El equipo directivo proporcionó los recursos y facilidades institucionales necesarias.",
+              "dimension": "Liderazgo Directivo"
+            }
+          ],
+          "escala": {
+            "1": "Totalmente en desacuerdo",
+            "2": "En desacuerdo",
+            "3": "Neutral",
+            "4": "De acuerdo",
+            "5": "Totalmente de acuerdo"
+          }
+        }
+      }
+    }
+  }
+}

@@ -12,9 +12,9 @@ export const metadata: Metadata = {
 };
 
 const CYCLE_LABELS: Record<string, string> = {
-  A: 'Semestre A (3° y 5°)',
-  B: 'Semestre B (4° y 6°)',
-  annual: 'Ciclo Anual (3° a 6°)',
+  A: 'Semestre A (1°, 3° y 5°)',
+  B: 'Semestre B (2°, 4° y 6°)',
+  annual: 'Ciclo Anual (1° al 6°)',
 };
 
 export default async function PaecDashboardPage({
@@ -92,7 +92,7 @@ export default async function PaecDashboardPage({
                     backgroundColor: p.status === 'completed' ? '#28a745' : '#ffc107',
                     color: p.status === 'completed' ? '#fff' : '#212529'
                   }}>
-                    {p.status === 'completed' ? 'Completado' : `Paso ${p.current_step} de 6`}
+                    {p.status === 'completed' ? 'Completado' : `Paso ${p.current_step} de 7`}
                   </span>
                 </div>
               </div>

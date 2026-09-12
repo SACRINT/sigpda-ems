@@ -12,12 +12,24 @@ import {
   buildPrompt2Justificacion,
   buildPrompt3Mapeo,
   buildPrompt4Cronograma,
-  buildPrompt5PlanOperativo,
-  buildPrompt6Anexos,
+  buildPrompt5DetalleCurricular,
+  buildPrompt6PlanOperativoPorBloque,
+  buildPrompt7Anexos,
 } from '@/lib/prompts/paec-prompts';
-import { getAIProvider, logActivity } from '@/lib/ai-provider';
+import { logActivity } from '@/lib/ai-provider';
 import { callGeminiPool } from '@/lib/gemini';
 import { getUserLibraryContext } from '@/lib/context-extractor';
+import { parseAIResponse } from '@/lib/ai-response-parser';
+import {
+  PaecPaso1Schema,
+  PaecPaso2Schema,
+  PaecPaso3Schema,
+  PaecPaso4Schema,
+  PaecPaso5Schema,
+  PaecPaso6BlockSchema,
+  PaecPaso7Schema,
+} from '@/lib/ai-schemas';
+import { MapeoRow, PlanOperativoRow, PlanOperativoData } from '@/types/paec';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -46,12 +58,16 @@ export async function POST(
     const body = await request.json();
     const { step } = body as { step: number };
 
-    if (!step || step < 1 || step > 6) {
-      return NextResponse.json({ error: 'Número de paso no válido (debe ser de 1 a 6)' }, { status: 400 });
+    if (!step || step < 1 || step > 7) {
+      return NextResponse.json({ error: 'Número de paso no válido (debe ser de 1 a 7)' }, { status: 400 });
     }
+
+    // Inyectar contexto de la biblioteca documental si existe
+    const libraryContext = await getUserLibraryContext(session.user.email);
 
     let userPrompt = '';
     let fieldName = '';
+    let planOperativoData: PlanOperativoData | null = null;
 
     switch (step) {
       case 1: {
@@ -76,19 +92,18 @@ export async function POST(
           return NextResponse.json({ error: 'Debes completar el Paso 2 primero' }, { status: 400 });
         }
         const justStr = JSON.stringify(project.fase2_justificacion);
-        
-        // Filter UAC catalog by cycle type: Semesters 5 and 6 are excluded for this school year (old programs)
+
         let semesters: number[] = [];
         if (project.cycle_type === 'A') {
-          semesters = [1, 3];
+          semesters = [1, 3, 5];
         } else if (project.cycle_type === 'B') {
-          semesters = [2, 4];
+          semesters = [2, 4, 6];
         } else {
-          semesters = [1, 2, 3, 4];
+          semesters = [1, 2, 3, 4, 5, 6];
         }
 
         const allUacs = await getProgramsCatalogForPaec(semesters) as { uac_name: string; semester: number; component: string }[];
-        
+
         // Filter laboral/ffe UACs based on school selection
         const schoolCtx = (project.school_context || {}) as { activeLaboralUacs?: string[]; activeFfeUacs?: string[] };
         const activeLaboral = schoolCtx.activeLaboralUacs || [];
@@ -120,59 +135,171 @@ export async function POST(
         break;
       }
       case 5: {
-        fieldName = 'fase2_plan_operativo';
-        if (!project.fase2_cronograma) {
-          return NextResponse.json({ error: 'Debes completar el Paso 4 primero' }, { status: 400 });
+        fieldName = 'fase2_detalle_curricular';
+        if (!project.fase2_mapeo || !project.fase2_cronograma) {
+          return NextResponse.json(
+            { error: 'Debes completar el Paso 3 (Mapeo) y el Paso 4 (Cronograma) primero' },
+            { status: 400 }
+          );
         }
+        const mapeoStr = JSON.stringify(project.fase2_mapeo);
         const cronStr = JSON.stringify(project.fase2_cronograma);
-        userPrompt = buildPrompt5PlanOperativo(cronStr, project.cycle_type);
+        userPrompt = buildPrompt5DetalleCurricular(mapeoStr, cronStr, project.cycle_type);
         break;
       }
       case 6: {
+        fieldName = 'fase2_plan_operativo';
+        if (!project.fase2_cronograma || !project.fase2_detalle_curricular) {
+          return NextResponse.json(
+            { error: 'Debes completar el Paso 4 (Cronograma) y el Paso 5 (Detalle Curricular) primero' },
+            { status: 400 }
+          );
+        }
+
+        const mapeo = (project.fase2_mapeo || []) as MapeoRow[];
+        if (mapeo.length === 0) {
+          return NextResponse.json(
+            { error: 'No hay asignaturas en el Mapeo Curricular para generar el Plan Operativo' },
+            { status: 400 }
+          );
+        }
+
+        const cronStr = JSON.stringify(project.fase2_cronograma);
+        const detStr = JSON.stringify(project.fase2_detalle_curricular);
+
+        // Chunk UACs in blocks of 5 to 8 (default: 6)
+        const uacList = mapeo.map((m) => ({
+          uacName: m.uacName,
+          semester: Number(m.semester),
+        }));
+
+        const CHUNK_SIZE = 6;
+        const chunks: { uacName: string; semester: number }[][] = [];
+        for (let i = 0; i < uacList.length; i += CHUNK_SIZE) {
+          chunks.push(uacList.slice(i, i + CHUNK_SIZE));
+        }
+
+        const allPlanRows: PlanOperativoRow[] = [];
+
+        for (let i = 0; i < chunks.length; i++) {
+          const blockPrompt = buildPrompt6PlanOperativoPorBloque(
+            cronStr,
+            detStr,
+            chunks[i],
+            project.cycle_type,
+            i + 1,
+            chunks.length
+          );
+
+          let chunkPrompt = blockPrompt;
+          if (libraryContext) {
+            chunkPrompt = `${chunkPrompt}\n\n${libraryContext}`;
+          }
+
+          console.log(`Generating PAEC Step 6 block ${i + 1}/${chunks.length} using callGeminiPool...`);
+          const blockText = await callGeminiPool(PAEC_SYSTEM_PROMPT, chunkPrompt, teacher.id);
+          if (!blockText) {
+            throw new Error(`Respuesta vacía del proveedor de IA en bloque ${i + 1}`);
+          }
+
+          const parseResult = parseAIResponse(blockText, PaecPaso6BlockSchema, {
+            contextName: `paec_step_6_block_${i + 1}`,
+          });
+
+          if (!parseResult.success) {
+            console.error(`Error parsing JSON in block ${i + 1}:`, parseResult.error);
+            throw new Error(`La IA retornó un formato no válido en el bloque ${i + 1} del Plan Operativo: ${parseResult.error}`);
+          }
+
+          allPlanRows.push(...(parseResult.data as PlanOperativoRow[]));
+        }
+
+        // Split into semestreA (1, 3, 5) and semestreB (2, 4, 6)
+        const getSemesterForUac = (uacName: string): number => {
+          const clean = (uacName || '').trim().toLowerCase();
+          for (const m of mapeo) {
+            const mClean = (m.uacName || '').trim().toLowerCase();
+            if (mClean === clean || clean.includes(mClean) || mClean.includes(clean)) {
+              return Number(m.semester);
+            }
+          }
+          return project.cycle_type === 'B' ? 2 : 1;
+        };
+
+        const semestreA: PlanOperativoRow[] = [];
+        const semestreB: PlanOperativoRow[] = [];
+
+        for (const row of allPlanRows) {
+          const sem = getSemesterForUac(row.uac);
+          if (sem % 2 === 1) {
+            semestreA.push(row);
+          } else {
+            semestreB.push(row);
+          }
+        }
+
+        planOperativoData = { semestreA, semestreB };
+        break;
+      }
+      case 7: {
         fieldName = 'fase2_anexos';
         if (!project.fase2_plan_operativo) {
-          return NextResponse.json({ error: 'Debes completar el Paso 5 primero' }, { status: 400 });
+          return NextResponse.json({ error: 'Debes completar el Paso 6 (Plan Operativo) primero' }, { status: 400 });
         }
-        const planStr = JSON.stringify(project.fase2_plan_operativo);
-        userPrompt = buildPrompt6Anexos(planStr);
+        const projectSummary = JSON.stringify({
+          projectName: project.project_name,
+          problemStatement: project.problem_statement,
+          cycleType: project.cycle_type,
+          cronograma: project.fase2_cronograma,
+          planOperativo: project.fase2_plan_operativo,
+        });
+        userPrompt = buildPrompt7Anexos(projectSummary);
         break;
       }
     }
 
-    // Inyectar contexto de la biblioteca documental si existe
-    const libraryContext = await getUserLibraryContext(session.user.email!);
-
-    // NOTA: La normativa oficial NO se inyecta en PAEC-PEC.
-    // Decisión del usuario (2026-08-08): solo PMC y PIPS llevan
-    // fundamentación jurídica; los PAEC reales de la Zona 004 no citan leyes.
-
-    // Construir el prompt completo: prompt base + biblioteca
-    let fullUserPrompt = userPrompt;
-    if (libraryContext) {
-      fullUserPrompt = `${fullUserPrompt}\n\n${libraryContext}`;
-    }
-
-    // Call AI via pool engine (reads active model from platform_config)
-    console.log(`Generating PAEC Step ${step} using callGeminiPool...`);
-    const text = await callGeminiPool(PAEC_SYSTEM_PROMPT, fullUserPrompt, teacher.id);
-
-    if (!text) {
-      throw new Error('Respuesta vacía del proveedor de IA');
-    }
-
     let parsedJson: object;
-    try {
-      const cleanJson = text
-        .replace(/^```(?:json)?\n?/m, '')
-        .replace(/\n?```$/m, '')
-        .trim();
-      parsedJson = JSON.parse(cleanJson);
-    } catch (err) {
-      console.error('Failed to parse AI response:', text.substring(0, 500));
-      return NextResponse.json(
-        { error: 'La IA no retornó un formato JSON válido. Por favor reintenta.' },
-        { status: 500 }
-      );
+
+    if (step === 6) {
+      if (!planOperativoData) {
+        throw new Error('Error al consolidar los bloques del Plan Operativo');
+      }
+      parsedJson = planOperativoData;
+    } else {
+      let fullUserPrompt = userPrompt;
+      if (libraryContext) {
+        fullUserPrompt = `${fullUserPrompt}\n\n${libraryContext}`;
+      }
+
+      // Call AI via pool engine (reads active model from platform_config)
+      console.log(`Generating PAEC Step ${step} using callGeminiPool...`);
+      const text = await callGeminiPool(PAEC_SYSTEM_PROMPT, fullUserPrompt, teacher.id);
+
+      if (!text) {
+        throw new Error('Respuesta vacía del proveedor de IA');
+      }
+
+      let stepSchema: any;
+      switch (step) {
+        case 1: stepSchema = PaecPaso1Schema; break;
+        case 2: stepSchema = PaecPaso2Schema; break;
+        case 3: stepSchema = PaecPaso3Schema; break;
+        case 4: stepSchema = PaecPaso4Schema; break;
+        case 5: stepSchema = PaecPaso5Schema; break;
+        case 7: stepSchema = PaecPaso7Schema; break;
+        default: throw new Error(`Paso ${step} no soportado`);
+      }
+
+      const parseResult = parseAIResponse(text, stepSchema, { contextName: `paec_step_${step}` });
+      if (!parseResult.success) {
+        console.error(`Failed to parse AI response for Step ${step}:`, parseResult.error);
+        return NextResponse.json(
+          { error: `Error al estructurar el Paso ${step}: ${parseResult.error}` },
+          { status: 500 }
+        );
+      }
+
+      parsedJson = parseResult.data as object;
     }
 
     // Save to Neon DB
@@ -186,7 +313,7 @@ export async function POST(
 
     // Log activity
     await logActivity({
-      teacherEmail: session.user.email!,
+      teacherEmail: session.user.email,
       action: `generate_paec_step_${step}`,
       entityType: 'paec',
       entityId: id,

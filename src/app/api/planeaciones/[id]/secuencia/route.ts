@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { neon } from '@neondatabase/serverless';
-import { getAIProvider } from '@/lib/ai-provider';
+import { generateWithRetry } from '@/lib/ai-retry-manager';
+import { SecuenciaResponseSchema } from '@/lib/ai-schemas';
 import type { SecuenciaBloque, SecuenciaSesion } from '@/types/planning';
 
 export const runtime = 'nodejs';
@@ -171,24 +172,20 @@ ACTIVIDADES PLANIFICADAS EN LA PLANEACIÓN DIDÁCTICA (SECCIÓN IV) — FUENTE O
 
 Genera la secuencia didáctica completa de exactamente ${sessionsCount} sesiones estructurada en JSON, desglosando fielmente estas actividades planificadas.`;
 
-    const ai = await getAIProvider();
-    const responseText = await ai.generate(systemPrompt, userPrompt, { temperature: 0.2 });
+    const { data: parsedResponse, attempts, warnings } = await generateWithRetry(
+      systemPrompt,
+      userPrompt,
+      SecuenciaResponseSchema,
+      {
+        route: 'planeaciones/secuencia',
+        baseTemperature: 0.2,
+        maxRetries: 3,
+      }
+    );
 
-    let parsed: any;
-    try {
-      const cleanJson = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
-      parsed = JSON.parse(cleanJson);
-    } catch (err) {
-      console.error('Error parseando JSON de secuencia didáctica:', responseText);
-      throw new Error('La IA devolvió un formato inválido para la secuencia didáctica.');
-    }
+    const rawSessions = parsedResponse.sessions;
 
-    const rawSessions: any[] = Array.isArray(parsed.sessions) ? parsed.sessions : [];
-    if (rawSessions.length === 0) {
-      throw new Error('La IA no generó las sesiones requeridas.');
-    }
-
-    const formattedSessions: SecuenciaSesion[] = rawSessions.map((s, idx) => {
+    const formattedSessions: SecuenciaSesion[] = rawSessions.slice(0, sessionsCount).map((s, idx) => {
       const sNum = idx + 1;
       let phase: 'Apertura' | 'Desarrollo' | 'Cierre' = 'Desarrollo';
       if (sNum <= aperturaCount) phase = 'Apertura';
@@ -198,13 +195,36 @@ Genera la secuencia didáctica completa de exactamente ${sessionsCount} sesiones
         sessionNum: sNum,
         totalSessions: sessionsCount,
         phase: s.phase === 'Apertura' || s.phase === 'Desarrollo' || s.phase === 'Cierre' ? s.phase : phase,
-        title: s.title || `Sesión ${sNum}: Construcción de aprendizajes`,
-        teachingActivity: s.teachingActivity || 'Mediación pedagógica y acompañamiento continuo.',
-        learningActivity: s.learningActivity || 'Participación activa y desarrollo de actividades formativas.',
-        evidence: s.evidence || 'Evidencia de trabajo en libreta o bitácora de taller.',
-        evaluation: s.evaluation || 'Evaluación formativa continua.',
+        title: s.title,
+        teachingActivity: s.teachingActivity,
+        learningActivity: s.learningActivity,
+        evidence: s.evidence,
+        evaluation: s.evaluation,
       };
     });
+
+    // Si la IA generó menos sesiones que las requeridas por el bloque, completar con la progresión temática
+    while (formattedSessions.length < sessionsCount) {
+      const sNum = formattedSessions.length + 1;
+      let phase: 'Apertura' | 'Desarrollo' | 'Cierre' = 'Desarrollo';
+      if (sNum <= aperturaCount) phase = 'Apertura';
+      else if (sNum > sessionsCount - cierreCount) phase = 'Cierre';
+
+      formattedSessions.push({
+        sessionNum: sNum,
+        totalSessions: sessionsCount,
+        phase,
+        title: `Sesión ${sNum}: ${phase === 'Cierre' ? 'Evaluación formativa y síntesis' : 'Práctica guiada y consolidación de saberes'}`,
+        teachingActivity: phase === 'Cierre'
+          ? 'Coordinación de la plenaria de evaluación formativa y retroalimentación grupal.'
+          : 'Acompañamiento en el aula, aclaración de dudas y supervisión de la práctica.',
+        learningActivity: phase === 'Cierre'
+          ? 'Coevaluación con rúbrica, autoevaluación reflexiva y consolidación del producto formativo.'
+          : 'Resolución colaborativa de ejercicios y avance en la evidencia del bloque.',
+        evidence: phase === 'Cierre' ? 'Rúbrica/Lista de cotejo completada y producto final del bloque.' : 'Bitácora de trabajo y resolución de ejercicios.',
+        evaluation: phase === 'Cierre' ? 'Heteroevaluación formativa y sumativa.' : 'Evaluación formativa continua.',
+      });
+    }
 
     const currentSequence: Record<number, SecuenciaBloque> = plan.sequence_json || {};
     const newBlockData: SecuenciaBloque = {
@@ -230,6 +250,8 @@ Genera la secuencia didáctica completa de exactamente ${sessionsCount} sesiones
       blockIndex,
       sequence: newBlockData,
       fullSequence: currentSequence,
+      attempts,
+      warnings,
     });
   } catch (error: any) {
     console.error('POST /api/planeaciones/[id]/secuencia error:', error);

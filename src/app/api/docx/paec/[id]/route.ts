@@ -36,6 +36,7 @@ export async function GET(
       fase2Justificacion: rawProject.fase2_justificacion as any,
       fase2Mapeo: rawProject.fase2_mapeo as any,
       fase2Cronograma: rawProject.fase2_cronograma as any,
+      fase2DetalleCurricular: rawProject.fase2_detalle_curricular as any,
       fase2PlanOperativo: rawProject.fase2_plan_operativo as any,
       fase2Anexos: rawProject.fase2_anexos as any,
       status: rawProject.status as any,

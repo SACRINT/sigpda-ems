@@ -546,7 +546,7 @@ export async function updatePaecProjectStep(
   fieldName: string,
   stepData: object
 ) {
-  const status = step === 6 ? 'completed' : 'draft';
+  const status = step === 7 ? 'completed' : 'draft';
   const dataStr = JSON.stringify(stepData);
 
   let rows;
@@ -575,6 +575,13 @@ export async function updatePaecProjectStep(
     rows = await sql()`
       UPDATE paec_projects
       SET fase2_cronograma = ${dataStr}::jsonb, current_step = ${step}, status = ${status}, updated_at = NOW()
+      WHERE id = ${id}::uuid AND teacher_id = ${teacherId}::uuid
+      RETURNING *
+    `;
+  } else if (fieldName === 'fase2_detalle_curricular') {
+    rows = await sql()`
+      UPDATE paec_projects
+      SET fase2_detalle_curricular = ${dataStr}::jsonb, current_step = ${step}, status = ${status}, updated_at = NOW()
       WHERE id = ${id}::uuid AND teacher_id = ${teacherId}::uuid
       RETURNING *
     `;

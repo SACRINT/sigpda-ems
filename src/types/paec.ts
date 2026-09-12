@@ -70,7 +70,16 @@ export interface CronogramaRow {
   phase: string;
   objective: string;
   macroActivities: string;
+  responsibleSubjects: string;
   semesterInvolved: string;
+}
+
+export interface DetalleCurricularRow {
+  semester: number;
+  uacName: string;
+  progressionsOrPurposes: string;
+  projectPhases: string;
+  curricularJustification: string;
 }
 
 export interface PlanOperativoRow {
@@ -81,6 +90,7 @@ export interface PlanOperativoRow {
   strategy: string;
   week: string;
   responsibles: string;
+  evaluationInstrument: string;
 }
 
 export interface PlanOperativoData {
@@ -88,13 +98,89 @@ export interface PlanOperativoData {
   semestreB: PlanOperativoRow[];
 }
 
+export interface MinutaAcuerdoItem {
+  no: number;
+  acuerdo: string;
+  responsable: string;
+  fechaLimite: string;
+  estatus: string;
+}
+
+export interface MinutaData {
+  cct?: string;
+  fecha: string;
+  tipoReunion: string;
+  acuerdos: MinutaAcuerdoItem[];
+  firmas: { cargo: string; nombre: string }[];
+}
+
+export interface SeguimientoRow {
+  semana: string;
+  fase: string;
+  uac: string;
+  metaOperativa: string;
+  evidencia: string;
+  avancePorcentaje: number;
+  semaforo: 'verde' | 'amarillo' | 'rojo';
+}
+
+export interface ReporteMensualData {
+  periodo: string;
+  resumenEjecutivo?: string;
+  logros: string[];
+  dificultades: string[];
+  accionesAjuste: string[];
+}
+
+export interface LikertSurveyItem {
+  reactivo: string;
+  dimension: string;
+}
+
+export interface LikertSurveyData {
+  titulo: string;
+  tipoAplicacion?: string; // 'PRE' | 'POST' | 'PRE/POST' | 'FINAL'
+  reactivos: LikertSurveyItem[];
+  escala: Record<string, string>;
+}
+
 export interface AnexosData {
-  anexo1: string; // Minuta
-  anexo2: string; // Seguimiento
-  anexo3: string; // Reporte mensual
-  anexo4: string; // Cuestionario comunidad
-  anexo5: string; // Autoevaluación
-  anexo6: string; // Informe final
+  anexo1Minuta?: MinutaData;
+  anexo2Seguimiento?: SeguimientoRow[];
+  anexo3ReporteMensual?: ReporteMensualData;
+  anexo4ImpactoComunidad?: LikertSurveyData;
+  anexo5AutoevaluacionEstudiantes?: LikertSurveyData;
+  anexo6EvaluacionColegiado?: LikertSurveyData;
+  // Compatibilidad hacia atrás para proyectos existentes almacenados como texto/markdown
+  anexo1?: string;
+  anexo2?: string;
+  anexo3?: string;
+  anexo4?: string;
+  anexo5?: string;
+  anexo6?: string;
+}
+
+export interface PaecAuditCriterion {
+  id: number;
+  name: string;
+  dimension: string;
+  expectedLevel: string; // 'Bueno (4)'
+  score: number; // 1 a 4
+  status: 'pass' | 'warning' | 'fail';
+  feedback: string;
+  evidenceFound: string;
+}
+
+export interface PaecAuditResult {
+  totalScore: number; // Max 92 (23 * 4) o normalizado
+  percentage: number;
+  status: 'aprobado_excelente' | 'aprobado' | 'requiere_ajustes';
+  criteria: PaecAuditCriterion[];
+  summary: {
+    passedCount: number;
+    warningCount: number;
+    failedCount: number;
+  };
 }
 
 export interface PaecProject {
@@ -103,7 +189,7 @@ export interface PaecProject {
   projectName: string;
   problemStatement: string;
   cycleType: CycleType;
-  currentStep: number;
+  currentStep: number; // 1 a 7
   
   communityContext: CommunityContext;
   schoolContext: SchoolContext;
@@ -112,6 +198,7 @@ export interface PaecProject {
   fase2Justificacion: Fase2Justificacion | null;
   fase2Mapeo: MapeoRow[] | null;
   fase2Cronograma: CronogramaRow[] | null;
+  fase2DetalleCurricular: DetalleCurricularRow[] | null;
   fase2PlanOperativo: PlanOperativoData | null;
   fase2Anexos: AnexosData | null;
   
