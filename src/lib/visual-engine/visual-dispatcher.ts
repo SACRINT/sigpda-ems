@@ -23,6 +23,12 @@ import {
   generateHistoricalFlow,
   generateSocialStatsChart,
 } from './generators/humanities-generator';
+import {
+  generateTechnicalFlow,
+  generateBlockDiagram,
+  generateGanttChart,
+  generateSafetyChecklistVisual,
+} from './generators/laboral-generator';
 
 const STEM_KEYWORDS = [
   'pensamiento matemático',
@@ -66,6 +72,36 @@ const HUMANITIES_KEYWORDS = [
   'lengua y comunicacion',
 ];
 
+const LABORAL_KEYWORDS = [
+  'formacion para el trabajo',
+  'formación para el trabajo',
+  'capacitacion para el trabajo',
+  'capacitación para el trabajo',
+  'soporte y mantenimiento',
+  'mantenimiento',
+  'equipo de computo',
+  'equipo de cómputo',
+  'tecnologias de la informacion',
+  'tecnologías de la información',
+  'diseno grafico',
+  'diseño gráfico',
+  'contabilidad',
+  'administracion',
+  'administración',
+  'electronica',
+  'electrónica',
+  'electricidad',
+  'mecanica',
+  'mecánica',
+  'agropecuario',
+  'salud comunitaria',
+  'enfermeria',
+  'enfermería',
+  'seguridad e higiene',
+  'taller tecnico',
+  'taller técnico',
+];
+
 /**
  * Determina si una UAC pertenece al área STEM / Ciencias Exactas.
  */
@@ -89,6 +125,17 @@ export function isHumanitiesSubject(uacName: string): boolean {
 }
 
 /**
+ * Determina si una UAC pertenece al área de Formación para el Trabajo / Capacitación Laboral.
+ */
+export function isLaboralSubject(uacName: string): boolean {
+  const norm = uacName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return LABORAL_KEYWORDS.some((kw) => {
+    const normKw = kw.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return norm.includes(normKw);
+  });
+}
+
+/**
  * Despacha el recurso gráfico vectorial adecuado según la asignatura, el tema
  * y el contexto completo de la misión (coreExplanation + physicalAnalogy).
  *
@@ -100,8 +147,9 @@ export function isHumanitiesSubject(uacName: string): boolean {
 export function dispatchVisual(uacName: string, topic: string, contextText?: string): VisualResult | null {
   const isStem = isStemSubject(uacName);
   const isHumanities = isHumanitiesSubject(uacName);
+  const isLaboral = isLaboralSubject(uacName);
 
-  if (!isStem && !isHumanities) {
+  if (!isStem && !isHumanities && !isLaboral) {
     return null;
   }
 
@@ -249,6 +297,67 @@ export function dispatchVisual(uacName: string, topic: string, contextText?: str
 
     return generateConceptMap([], [], {
       title: `Estructura Conceptual Formativa: ${topic.slice(0, 42)}`,
+    });
+  }
+
+  // ── C. DISPATCHER ÁREA FORMACIÓN PARA EL TRABAJO / LABORAL ────────────────
+  if (isLaboral) {
+    // 1. Matriz de Seguridad Industrial, EPP y Normatividad NOM-STPS
+    if (
+      searchText.includes('seguridad') ||
+      searchText.includes('epp') ||
+      searchText.includes('esd') ||
+      searchText.includes('nom') ||
+      searchText.includes('norma') ||
+      searchText.includes('proteccion') ||
+      searchText.includes('riesgo') ||
+      searchText.includes('higiene') ||
+      searchText.includes('accidente') ||
+      searchText.includes('emergencia')
+    ) {
+      return generateSafetyChecklistVisual([], {
+        title: `Seguridad y EPP: ${topic.slice(0, 42)}`,
+      });
+    }
+
+    // 2. Cronograma de Operaciones y Diagrama de Gantt
+    if (
+      searchText.includes('cronograma') ||
+      searchText.includes('gantt') ||
+      searchText.includes('planeacion') ||
+      searchText.includes('semanas') ||
+      searchText.includes('etapas') ||
+      searchText.includes('orden de trabajo') ||
+      searchText.includes('avance') ||
+      searchText.includes('calendario')
+    ) {
+      return generateGanttChart([], {
+        title: `Cronograma Técnico: ${topic.slice(0, 42)}`,
+      });
+    }
+
+    // 3. Diagrama de Bloques y Arquitectura de Sistemas
+    if (
+      searchText.includes('sistema') ||
+      searchText.includes('bloques') ||
+      searchText.includes('arquitectura') ||
+      searchText.includes('modulo') ||
+      searchText.includes('circuito') ||
+      searchText.includes('red') ||
+      searchText.includes('hardware') ||
+      searchText.includes('fuente') ||
+      searchText.includes('alimentacion') ||
+      searchText.includes('sensores') ||
+      searchText.includes('actuadores')
+    ) {
+      return generateBlockDiagram([], {
+        title: `Arquitectura Modular: ${topic.slice(0, 42)}`,
+      });
+    }
+
+    // 4. Diagrama de Procedimiento Técnico / Flujo de Taller (Default para laboral)
+    return generateTechnicalFlow([], {
+      title: `Procedimiento Técnico: ${topic.slice(0, 42)}`,
     });
   }
 

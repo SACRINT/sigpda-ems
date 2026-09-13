@@ -14,15 +14,17 @@ flowchart TD
     subgraph Generadores Vectoriales [Capa 0: Generación Determinística]
         C1[stem-generator.ts\n6 Generadores STEM]
         C2[humanities-generator.ts\n4 Generadores Humanidades]
-        C3[laboral-generator.ts\nFuturo: Laboral / Técnico]
+        C3[laboral-generator.ts\n4 Generadores Laboral / Técnico]
     end
     
     B -->|UAC STEM + Keywords| C1
     B -->|UAC Humanidades + Keywords| C2
-    B -->|Sin coincidencia / Laboral| NULL[null / Sin Gráfico Seguro]
+    B -->|UAC Laboral + Keywords| C3
+    B -->|Sin coincidencia| NULL[null / Sin Gráfico Seguro]
     
     C1 --> D[VisualResult]
     C2 --> D
+    C3 --> D
     
     subgraph Contrato VisualResult [Regla de Oro: Cero Etiquetas text]
         D -->|svg: string\nSolo geometrías puras| E[svg-to-png.ts\nSharp / librsvg\n180 DPI / JPEG 85]
@@ -58,7 +60,7 @@ Los motores de rasterización basados en librsvg/sharp en entornos Linux y conte
 
 ---
 
-## 3. Catálogo de Generadores Disponibles (10 Generadores)
+## 3. Catálogo de Generadores Disponibles (14 Generadores)
 
 ### A. Área STEM / Ciencias Exactas (`stem-generator.ts` — 6 Generadores)
 | # | Generador | Descripción | Asignaturas Típicas |
@@ -78,11 +80,19 @@ Los motores de rasterización basados en librsvg/sharp en entornos Linux y conte
 | 9 | `generateHistoricalFlow` | Diagrama de flujo horizontal causal de 4 fases: Antecedentes ➔ Detonante ➔ Consecuencias ➔ Conclusión | Historia, Estructura Socioeconómica |
 | 10 | `generateSocialStatsChart` | Gráfica de barras horizontales con ejes graduados y etiquetas largas para indicadores sociodemográficos | Ciencias Sociales, Geografía, Demografía |
 
+### C. Área Formación para el Trabajo / Técnico (`laboral-generator.ts` — 4 Generadores)
+| # | Generador | Descripción | Asignaturas Típicas |
+|---|---|---|---|
+| 11 | `generateTechnicalFlow` | Diagrama de flujo operativo en 4 fases con indicadores de calidad y flechas chevron | Soporte Técnico, Mantenimiento, Redes, Taller |
+| 12 | `generateBlockDiagram` | Diagrama de arquitectura de sistemas (Entrada ➔ Procesamiento con bucle de Control/Retroalimentación ➔ Salida) | Informática, Electrónica, Sistemas, Circuitos |
+| 13 | `generateGanttChart` | Matriz de cronograma y plan de trabajo semanal con barras horizontales de progreso y responsables | Administración, Emprendimiento, Proyectos |
+| 14 | `generateSafetyChecklistVisual` | Matriz de seguridad industrial NOM-STPS con nivel de criticidad, EPP requerido y casillas interactivas | Seguridad e Higiene, Taller Mecánico/Eléctrico |
+
 ---
 
-## 4. Guía Paso a Paso: Cómo Agregar un Nuevo Generador (ej. Laboral / Técnico)
+## 4. Guía Paso a Paso: Cómo Agregar un Nuevo Generador (ej. Lengua y Comunicación)
 
-Para crear un nuevo generador determinístico (por ejemplo, para Formación para el Trabajo: diagramas de bloques técnicos o protocolos de seguridad):
+Para crear un nuevo generador determinístico para futuras áreas curriculares:
 
 ### Paso 1: Definir los tipos y el generador
 Crear el generador en `src/lib/visual-engine/generators/laboral-generator.ts` importando `VisualAnnotation` y `VisualResult`:
