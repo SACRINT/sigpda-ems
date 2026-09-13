@@ -54,12 +54,20 @@ ${planningAlignmentChunk}
 REGLAS DE RELEVANCIA, PROFUNDIDAD Y TRANSFERENCIA:
 1. El artefacto NO es un resumen ni una maqueta escolar inútil: es un producto auténtico (un sistema de automatización, software ejecutable, prototipo funcional, filtro ecológico, guía técnica comunitaria, dispositivo de medición) útil para la vida diaria o el empleo.
 2. Descripción y Utilidad Comunitaria (1,000 a 1,500 palabras): Vinculación explícita, profunda y detallada con la problemática comunitaria PAEC: "${input.paecContext}", justificando beneficiarios directos, impacto socioeconómico y pertinencia técnica.
-3. Estructura por fases de construcción progresivas (1,500 a 2,000 palabras en total entre 3 a 5 fases): Cada fase debe incluir desglose exhaustivo de actividades, horas dedicadas, roles de equipo, entregables verificables y directrices paso a paso con advertencias técnicas.
-4. Criterios de aceptación objetivos y especificaciones técnicas: Lista verificable de condiciones exactas, tolerancias, métricas y normas aplicables NOM/ISO que demuestran que el artefacto funciona.
-5. Rúbrica de evaluación formativa del proyecto (500 a 800 palabras): Criterios de evaluación multidimensionales desglosados en los 4 niveles oficiales NEM: Excelente (10-9), Bueno (8-7), Suficiente (6-5) e Insuficiente (4-1).
-6. Espacio para portafolio de evidencias: etiquetas de cuaderno activo para diagrama de arquitectura (<!--workbook:drawing:height=160-->), lista de verificación de criterios de aceptación y bitácora de campo (<!--workbook:lines:rows=8-->).
-7. Desafío autónomo situado (You Do - 200 a 350 palabras): Directrices y retos de validación de campo donde el estudiante de forma autónoma ensambla, calibra, prueba o audita el artefacto en su entorno escolar o comunitario.
-8. REGLA ESTRICTA DE SINTAXIS JSON:
+3. Objetivos Formativos y Materiales Requeridos:
+   - learningObjectives: 3 a 5 objetivos de aprendizaje específicos con verbos de orden superior (diseñar, construir, implementar, evaluar) vinculados a saberes formativos.
+   - requiredMaterials: Lista detallada y exhaustiva de materiales, herramientas, insumos, instrumentos de medición y software con especificaciones y cantidades recomendadas.
+4. Pasos Estructurados de Ejecución y Fases (1,500 a 2,000 palabras en total):
+   - executionSteps: 6 a 8 pasos procedimentales secuenciales y concisos que guían el ensamble o desarrollo integral.
+   - phases: 3 a 5 fases progresivas detalladas con entregables verificables, horas asignadas e instrucciones paso a paso minuciosas.
+5. Criterios de Entrega y Aceptación Técnica:
+   - deliveryCriteria: 4 a 6 criterios formales y condiciones obligatorias para la entrega del artefacto (formato, fecha límite simbólica, memoria técnica, sustentación).
+   - acceptanceCriteria: Condiciones funcionales operativas medibles con tolerancias y normas NOM/ISO aplicables.
+6. Bitácora de Registro y Portafolio:
+   - registrationFormat: Plantilla estructurada de bitácora de campo que defina sesiones, actividades, incidencias técnicas, validación docente y espacio para firmas/sellos.
+7. Rúbrica de evaluación formativa del proyecto (500 a 800 palabras): Criterios de evaluación multidimensionales desglosados en los 4 niveles oficiales NEM: Excelente (10-9), Bueno (8-7), Suficiente (6-5) e Insuficiente (4-1).
+8. Desafío autónomo situado (You Do - 200 a 350 palabras): Directrices y retos de validación de campo donde el estudiante de forma autónoma ensambla, calibra, prueba o audita el artefacto en su entorno escolar o comunitario.
+9. REGLA ESTRICTA DE SINTAXIS JSON:
    Para cadenas de texto, citas o especificaciones, usa EXCLUSIVAMENTE comillas simples ('...'). NUNCA coloques comillas dobles sin escapar dentro de un valor de texto JSON.
 
 IMPORTANTE: Esta misión debe tener MÍNIMO ${input.targetWords.min} palabras en total. No la acortes. Incluye explicaciones detalladas, especificaciones minuciosas, pasos de construcción estructurados y espacios amplios para el trabajo de campo del estudiante.
@@ -68,6 +76,31 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
 {
   "artifactName": "Nombre motivador y descriptivo del artefacto...",
   "communityUtility": "Descripción extensa y exhaustiva (1,000-1,500 palabras) de qué construye el estudiante, para quién sirve, impacto y por qué es relevante...",
+  "learningObjectives": [
+    "Diseñar la arquitectura técnica del artefacto integrando los saberes procedimentales del bloque.",
+    "Construir y verificar el prototipo funcional bajo normativas aplicables y criterios de seguridad.",
+    "Validar el impacto comunitario del artefacto en el entorno de la problemática PAEC."
+  ],
+  "requiredMaterials": [
+    "Material o componente 1 con especificación técnica exacta y cantidad",
+    "Herramienta o software especializado 2 con versión o tolerancia requerida",
+    "Instrumental de medición o insumo auxiliar 3"
+  ],
+  "executionSteps": [
+    "1. Planificación y acopio: Organizar los insumos y revisar la compatibilidad técnica de los componentes.",
+    "2. Diagramación y diseño: Elaborar el plano funcional o arquitectura en la libreta técnica.",
+    "3. Ensamble o codificación: Desarrollar el núcleo operativo siguiendo las especificaciones.",
+    "4. Calibración y pruebas unitarias: Verificar variables bajo condiciones controladas.",
+    "5. Integración comunitaria: Implementar el artefacto en el escenario del problema PAEC.",
+    "6. Documentación final: Completar la memoria técnica y bitácora de campo para la entrega."
+  ],
+  "deliveryCriteria": [
+    "Prototipo o artefacto 100% operativo y seguro para su demostración ante el grupo.",
+    "Memoria técnica impresa o digital con esquemas funcionales y cálculos justificativos.",
+    "Bitácora de campo firmada en cada fase por el docente asesor.",
+    "Presentación ejecutiva o póster técnico demostrando el impacto en la comunidad."
+  ],
+  "registrationFormat": "BITÁCORA TÉCNICA DE PROYECTO\\nSemana/Sesión: [   ]  |  Fecha: [           ]  |  Equipo: [                 ]\\nActividad Ejecutada: ________________________________________________\\nParámetros Obtenidos: ________________  Tolerancia/Error: ___________\\nIncidencia o Desafío Técnico: _______________________________________\\nSolución Implementada: _____________________________________________\\nFirma Docente: ___________________  Sello de Aprobación: [   ]",
   "phases": [
     {
       "phaseNum": 1,
@@ -111,6 +144,9 @@ Meta de palabras para esta misión: mínimo ${input.targetWords.min} palabras (i
 
 DISTRIBUCIÓN OBLIGATORIA DE PALABRAS:
 - communityUtility (descripción y pertinencia): 1,000 a 1,500 palabras
+- learningObjectives y requiredMaterials: listas estructuradas y exhaustivas
+- executionSteps y deliveryCriteria: pasos procedimentales y criterios rigurosos
+- registrationFormat: formato de bitácora y registro de portafolio
 - phases (instrucciones detalladas por fases de construcción): 1,500 a 2,000 palabras
 - autonomousChallenge (validación autónoma de campo): 200 a 350 palabras
 - rubricSummary (criterios y descriptores analíticos): 500 a 800 palabras
@@ -129,7 +165,29 @@ Redacta la Misión del Proyecto y Construcción del Artefacto Real:`;
       false,
       { jsonMode: true, maxTokens: 8192 }
     );
-    const parsed = robustJsonParse(rawResponse);
+    let parsed = robustJsonParse(rawResponse);
+
+    // Validación de extensión mínima (MEJORA 1)
+    const objCount = Array.isArray(parsed.learningObjectives) ? parsed.learningObjectives.length : 0;
+    if (objCount < 3) {
+      console.warn(`[ProjectWriter] learningObjectives tiene solo ${objCount} items (< 3). Reintentando con instrucción estricta...`);
+      try {
+        const retryPrompt = `${prompt}\n\n[REQUISITO CRÍTICO DE PROFUNDIDAD]: Tu respuesta anterior tuvo menos de 3 objetivos en 'learningObjectives'. Genera OBLIGATORIAMENTE al menos 3 a 5 'learningObjectives' exhaustivos, orientados al logro de competencias integrales y vinculados al problema comunitario PAEC.`;
+        const retryResponse = await generateWithRotation(
+          systemInstruction,
+          retryPrompt,
+          input.planning.teacherId,
+          false,
+          { jsonMode: true, maxTokens: 8192 }
+        );
+        const retryParsed = robustJsonParse(retryResponse);
+        if (Array.isArray(retryParsed.learningObjectives) && retryParsed.learningObjectives.length >= objCount) {
+          parsed = retryParsed;
+        }
+      } catch (retryErr) {
+        console.warn('[ProjectWriter] Error en reintento, preservando primera respuesta:', retryErr);
+      }
+    }
 
     const phases = (parsed.phases || []).map((p: any, i: number) => ({
       phaseNum: p.phaseNum || i + 1,
@@ -142,6 +200,40 @@ Redacta la Misión del Proyecto y Construcción del Artefacto Real:`;
     const projectSection: ProjectSection = {
       artifactName: parsed.artifactName || `Solución Aplicada para ${input.uacName}`,
       communityUtility: parsed.communityUtility || `Mejora técnica orientada a ${input.paecContext}`,
+      learningObjectives: Array.isArray(parsed.learningObjectives) && parsed.learningObjectives.length > 0
+        ? parsed.learningObjectives
+        : [
+            `Diseñar e implementar una solución integral de ${input.uacName} para mitigar ${input.paecContext}.`,
+            'Aplicar procedimientos técnicos y normas de calidad en la construcción del artefacto.',
+            'Evaluar la efectividad del producto mediante pruebas de campo y bitácora de registro.',
+          ],
+      requiredMaterials: Array.isArray(parsed.requiredMaterials) && parsed.requiredMaterials.length > 0
+        ? parsed.requiredMaterials
+        : [
+            'Insumos específicos de la disciplina según la fase de planeación.',
+            'Instrumental y herramientas de taller con especificaciones de seguridad.',
+            'Cuaderno o bitácora de registro técnico para control de avances.',
+          ],
+      executionSteps: Array.isArray(parsed.executionSteps) && parsed.executionSteps.length > 0
+        ? parsed.executionSteps
+        : [
+            '1. Diagnóstico y definición de alcances con el equipo de trabajo.',
+            '2. Diseño de arquitectura y especificación de parámetros operativos.',
+            '3. Ensamble, configuración o desarrollo procedimental del artefacto.',
+            '4. Pruebas de funcionamiento y calibración de tolerancias.',
+            '5. Despliegue situado para evaluación de impacto en el entorno escolar/comunitario.',
+            '6. Elaboración de memoria técnica y entrega final ante el grupo.',
+          ],
+      deliveryCriteria: Array.isArray(parsed.deliveryCriteria) && parsed.deliveryCriteria.length > 0
+        ? parsed.deliveryCriteria
+        : [
+            'Artefacto o prototipo completamente operativo y verificado.',
+            'Memoria técnica con memoria de cálculo o diagrama arquitectónico.',
+            'Bitácora de registro con seguimiento firmado de cada fase.',
+          ],
+      registrationFormat: typeof parsed.registrationFormat === 'string' && parsed.registrationFormat.trim().length > 20
+        ? parsed.registrationFormat.trim()
+        : 'REGISTRO DE BITÁCORA Y CONTROL DE AVANCE DEL PROYECTO\nSesión/Fecha: _______________ | Integrantes del equipo: _________________________________\nAvance realizado: _____________________________________________________________________\nParámetros verificados: ____________________ | Observaciones docentes: ___________________\nFirma de validación: ________________________',
       phases,
       technicalSpecs: parsed.technicalSpecs || ['Estándares de calidad y funcionalidad técnica'],
       acceptanceCriteria: parsed.acceptanceCriteria || ['El producto final opera de forma verificable'],

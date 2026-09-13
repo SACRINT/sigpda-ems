@@ -399,32 +399,56 @@ export function getOfficialNemFallback(level: 'sobresaliente' | 'notable' | 'suf
  * Normaliza nombres en inglés ('needs support', etc.) y provee descripción pedagógica completa.
  */
 export function getRubricLevelDescriptor(
-  levels: { levelName: string; descriptor: string; points?: number }[] | undefined,
+  levels: any,
   targetLevel: 'sobresaliente' | 'notable' | 'suficiente' | 'insuficiente'
 ): string {
-  if (!levels || levels.length === 0) {
+  if (!levels) {
     return getOfficialNemFallback(targetLevel);
   }
 
-  const aliases: Record<string, string[]> = {
-    sobresaliente: ['sobresaliente', 'excelente', 'avanzado', '10-9', 'expert', 'excellent', 'outstanding'],
-    notable: ['notable', 'bueno', 'competente', '8-7', 'proficient', 'good', 'satisfactory'],
-    suficiente: ['suficiente', 'básico', 'en desarrollo', '6-5', 'basic', 'sufficient', 'developing'],
-    insuficiente: ['insuficiente', 'requiere apoyo', 'inicial', '4-1', 'needs support', 'needs improvement', 'unsatisfactory', 'inadequate'],
-  };
-
-  const targets = aliases[targetLevel] || [];
-  for (const l of levels) {
-    const nameLower = (l.levelName || '').toLowerCase().trim();
-    if (targets.some((t) => nameLower.includes(t)) && l.descriptor && l.descriptor.trim().length > 3) {
-      return l.descriptor;
+  // 1. Si levels es un objeto tipo { sobresaliente: "...", notable: "..." }
+  if (typeof levels === 'object' && !Array.isArray(levels)) {
+    if (typeof levels[targetLevel] === 'string' && levels[targetLevel].trim().length > 3) {
+      return levels[targetLevel].trim();
+    }
+    const aliases: Record<string, string[]> = {
+      sobresaliente: ['sobresaliente', 'excelente', 'avanzado', '10-9'],
+      notable: ['notable', 'bueno', 'competente', '8-7'],
+      suficiente: ['suficiente', 'básico', 'en desarrollo', '6-5'],
+      insuficiente: ['insuficiente', 'requiere apoyo', 'inicial', '4-1'],
+    };
+    const targets = aliases[targetLevel] || [];
+    for (const [k, v] of Object.entries(levels)) {
+      const kLower = k.toLowerCase().trim();
+      if (targets.some((t) => kLower.includes(t)) && typeof v === 'string' && v.trim().length > 3) {
+        return v.trim();
+      }
     }
   }
 
-  const indexMap = { sobresaliente: 0, notable: 1, suficiente: 2, insuficiente: 3 };
-  const idx = indexMap[targetLevel];
-  if (levels[idx]?.descriptor && levels[idx].descriptor.trim().length > 5) {
-    return levels[idx].descriptor;
+  // 2. Si levels es un array tipo [ { levelName: '...', descriptor: '...' } ]
+  if (Array.isArray(levels) && levels.length > 0) {
+    const aliases: Record<string, string[]> = {
+      sobresaliente: ['sobresaliente', 'excelente', 'avanzado', '10-9', 'expert', 'excellent', 'outstanding'],
+      notable: ['notable', 'bueno', 'competente', '8-7', 'proficient', 'good', 'satisfactory'],
+      suficiente: ['suficiente', 'básico', 'en desarrollo', '6-5', 'basic', 'sufficient', 'developing'],
+      insuficiente: ['insuficiente', 'requiere apoyo', 'inicial', '4-1', 'needs support', 'needs improvement', 'unsatisfactory', 'inadequate'],
+    };
+
+    const targets = aliases[targetLevel] || [];
+    for (const l of levels) {
+      if (!l) continue;
+      const nameLower = (l.levelName || '').toLowerCase().trim();
+      if (targets.some((t) => nameLower.includes(t)) && l.descriptor && l.descriptor.trim().length > 3) {
+        return l.descriptor.trim();
+      }
+    }
+
+    const indexMap = { sobresaliente: 0, notable: 1, suficiente: 2, insuficiente: 3 };
+    const idx = indexMap[targetLevel];
+    if (levels[idx]?.descriptor && levels[idx].descriptor.trim().length > 5) {
+      return levels[idx].descriptor.trim();
+    }
   }
 
   return getOfficialNemFallback(targetLevel);
@@ -590,7 +614,95 @@ async function drawMission(
     color: DARK_TEXT,
     lineHeight: 3.8,
   });
-  y += 6;
+  y += 3;
+
+  if (mission.conceptZero.narrativeExplanation) {
+    y = printParagraph(doc, mission.conceptZero.narrativeExplanation, y, margin, contentWidth, pageHeight, {
+      size: 8,
+      fontStyle: 'normal',
+      color: DARK_TEXT,
+      lineHeight: 3.8,
+    });
+    y += 4;
+  }
+
+  // Ejemplo Resuelto Paso a Paso (CPA / NEM)
+  if (mission.conceptZero.solvedExample) {
+    const ex = mission.conceptZero.solvedExample;
+    y = ensureVerticalSpace(doc, y, 32, margin, pageHeight);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...NAVY);
+    doc.text('Ejemplo Modelo Resuelto Paso a Paso:', margin, y);
+    y += 4.5;
+
+    // Enunciado
+    y = printParagraph(doc, `Problema: ${ex.problemStatement}`, y, margin + 3, contentWidth - 3, pageHeight, {
+      size: 8,
+      fontStyle: 'bold',
+      color: DARK_TEXT,
+      lineHeight: 3.8,
+    });
+    y += 2;
+
+    // Pasos
+    for (let sIdx = 0; sIdx < (ex.solutionSteps || []).length; sIdx++) {
+      const step = ex.solutionSteps[sIdx];
+      y = printParagraph(doc, `• Paso ${sIdx + 1}: ${step}`, y, margin + 5, contentWidth - 5, pageHeight, {
+        size: 7.8,
+        fontStyle: 'normal',
+        color: DARK_TEXT,
+        lineHeight: 3.6,
+      });
+    }
+    y += 2;
+
+    // Interpretación
+    if (ex.interpretation) {
+      y = printParagraph(doc, `Conclusión pedagógica: ${ex.interpretation}`, y, margin + 3, contentWidth - 3, pageHeight, {
+        size: 7.8,
+        fontStyle: 'italic',
+        color: MID_BLUE,
+        lineHeight: 3.6,
+      });
+      y += 4;
+    }
+  }
+
+  // Tabla de Contraste (Concepto vs. Error Común)
+  if (mission.conceptZero.contrastTable && mission.conceptZero.contrastTable.length > 0) {
+    y = ensureVerticalSpace(doc, y, 30, margin, pageHeight);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...NAVY);
+    doc.text('Matriz de Contrastación Conceptual y Prevención de Errores:', margin, y);
+    y += 4.5;
+
+    const contrastBody = mission.conceptZero.contrastTable.map((row) => [
+      row.correctConcept,
+      row.commonMisconception,
+      row.reasoning,
+    ]);
+
+    autoTable(doc, {
+      startY: y,
+      margin: { left: margin, right: margin },
+      head: [['Concepto Técnico Válido', 'Error Frecuente / Concepto Erróneo', 'Fundamentación']],
+      body: contrastBody,
+      theme: 'grid',
+      headStyles: { fillColor: MID_BLUE, textColor: [255, 255, 255], fontSize: 7.5, fontStyle: 'bold' },
+      styles: { fontSize: 7.2, cellPadding: 2, textColor: DARK_TEXT },
+      columnStyles: {
+        0: { cellWidth: Math.floor(contentWidth * 0.35) },
+        1: { cellWidth: Math.floor(contentWidth * 0.35) },
+        2: { cellWidth: 'auto' },
+      },
+    });
+
+    y = (doc as any).lastAutoTable.finalY + 6;
+  }
+
+  y += 4;
 
   // ── 2.1 Gráfico STEM Conceptual / Espacio de Tabulación Activo ─────────────
   if (subjectName) {
@@ -906,7 +1018,7 @@ function drawProjectSection(
 
   y += 15;
   y = printParagraph(doc, `Artefacto Central: ${project.artifactName}`, y, margin, contentWidth, pageHeight, {
-    size: 9,
+    size: 9.5,
     fontStyle: 'bold',
     color: MID_BLUE,
     lineHeight: 4.5,
@@ -919,6 +1031,93 @@ function drawProjectSection(
     lineHeight: 3.8,
   });
   y += 4;
+
+  // Objetivos de Aprendizaje del Proyecto
+  if (project.learningObjectives && project.learningObjectives.length > 0) {
+    y = ensureVerticalSpace(doc, y, 18, margin, pageHeight);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...NAVY);
+    doc.text('Objetivos Formativos y de Aprendizaje del Proyecto:', margin, y);
+    y += 4.5;
+
+    for (const obj of project.learningObjectives) {
+      y = printParagraph(doc, `[✓]  ${obj}`, y, margin + 3, contentWidth - 3, pageHeight, {
+        size: 7.8,
+        fontStyle: 'normal',
+        color: DARK_TEXT,
+        lineHeight: 3.8,
+      });
+    }
+    y += 3;
+  }
+
+  // Materiales e Insumos Requeridos
+  if (project.requiredMaterials && project.requiredMaterials.length > 0) {
+    y = ensureVerticalSpace(doc, y, 18, margin, pageHeight);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...NAVY);
+    doc.text('Materiales, Herramientas e Insumos Requeridos:', margin, y);
+    y += 4.5;
+
+    for (const mat of project.requiredMaterials) {
+      const matStr = typeof mat === 'string'
+        ? mat
+        : mat && typeof mat === 'object'
+        ? `${(mat as any).item || ''} ${(mat as any).quantity ? `[${(mat as any).quantity}]` : ''} ${(mat as any).notes ? `— ${(mat as any).notes}` : ''}`.trim()
+        : String(mat);
+      y = printParagraph(doc, `[  ]  ${matStr}`, y, margin + 3, contentWidth - 3, pageHeight, {
+        size: 7.8,
+        fontStyle: 'normal',
+        color: DARK_TEXT,
+        lineHeight: 3.8,
+      });
+    }
+    y += 3;
+  }
+
+  // Pasos Estructurados de Ejecución Procedimental
+  if (project.executionSteps && project.executionSteps.length > 0) {
+    y = ensureVerticalSpace(doc, y, 18, margin, pageHeight);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...NAVY);
+    doc.text('Secuencia Procedimental de Construcción:', margin, y);
+    y += 4.5;
+
+    for (const step of project.executionSteps) {
+      let stepStr = '';
+      if (typeof step === 'string') {
+        stepStr = step;
+      } else if (step && typeof step === 'object') {
+        const s = step as any;
+        const num = s.stepNumber ? `Paso ${s.stepNumber}: ` : '';
+        const title = s.title ? `${s.title}. ` : '';
+        const desc = s.description || '';
+        const hrs = s.estimatedHours ? ` (${s.estimatedHours} hrs)` : '';
+        const deliv = s.deliverable ? ` [Entregable: ${s.deliverable}]` : '';
+        stepStr = `${num}${title}${desc}${hrs}${deliv}`.trim();
+      } else {
+        stepStr = String(step);
+      }
+      y = printParagraph(doc, stepStr, y, margin + 3, contentWidth - 3, pageHeight, {
+        size: 7.8,
+        fontStyle: 'normal',
+        color: DARK_TEXT,
+        lineHeight: 3.8,
+      });
+    }
+    y += 3;
+  }
+
+  // Cronograma por Fases
+  y = ensureVerticalSpace(doc, y, 16, margin, pageHeight);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(...NAVY);
+  doc.text('Cronograma y Entregables por Fases de Desarrollo:', margin, y);
+  y += 4.5;
 
   const phaseBody = project.phases.map((p) => [
     `Fase ${p.phaseNum}`,
@@ -945,7 +1144,102 @@ function drawProjectSection(
     },
   });
 
-  return (doc as any).lastAutoTable.finalY + 8;
+  y = (doc as any).lastAutoTable.finalY + 6;
+
+  // Criterios de Entrega y Aceptación
+  const criteriaList = [
+    ...(project.acceptanceCriteria || []).map((c) => `[Criterio de Aceptación] ${c}`),
+    ...(project.deliveryCriteria || []).map((d) => `[Condición de Entrega] ${d}`),
+  ];
+
+  if (criteriaList.length > 0) {
+    y = ensureVerticalSpace(doc, y, 20, margin, pageHeight);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...NAVY);
+    doc.text('Criterios de Aceptación y Condiciones de Entrega Final:', margin, y);
+    y += 4.5;
+
+    for (const crit of criteriaList) {
+      y = printParagraph(doc, `• ${crit}`, y, margin + 3, contentWidth - 3, pageHeight, {
+        size: 7.6,
+        fontStyle: 'normal',
+        color: DARK_TEXT,
+        lineHeight: 3.6,
+      });
+    }
+    y += 3;
+  }
+
+  // Formato de Bitácora y Registro de Avance
+  if (project.registrationFormat) {
+    y = ensureVerticalSpace(doc, y, 38, margin, pageHeight);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...NAVY);
+    doc.text('Bitácora Técnica de Campo y Registro de Avances en Portafolio:', margin, y);
+    y += 4.5;
+
+    doc.setFillColor(...LIGHT_BG);
+    doc.setDrawColor(180, 195, 215);
+    doc.setLineWidth(0.4);
+    const boxHeight = 28;
+    doc.roundedRect(margin, y, contentWidth, boxHeight, 2, 2, 'FD');
+
+    doc.setFont('courier', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(...DARK_TEXT);
+
+    let regFormatText = '';
+    if (typeof project.registrationFormat === 'string') {
+      regFormatText = project.registrationFormat;
+    } else if (typeof project.registrationFormat === 'object') {
+      const rf = project.registrationFormat as any;
+      const parts: string[] = [];
+      if (rf.sections && Array.isArray(rf.sections)) {
+        parts.push(`Secciones: ${rf.sections.join(' | ')}`);
+      }
+      if (rf.suggestedFields && Array.isArray(rf.suggestedFields)) {
+        parts.push(`Campos: ${rf.suggestedFields.join(' | ')}`);
+      }
+      regFormatText = parts.join('\n') || JSON.stringify(rf);
+    } else {
+      regFormatText = String(project.registrationFormat);
+    }
+
+    const logLines = doc.splitTextToSize(regFormatText, contentWidth - 6);
+    logLines.slice(0, 5).forEach((line: string, idx: number) => {
+      doc.text(line, margin + 3, y + 5 + idx * 4.5);
+    });
+    y += boxHeight + 6;
+
+    // Tabla de registro de bitácora y firmas de asesoría docente
+    y = ensureVerticalSpace(doc, y, 46, margin, pageHeight);
+    autoTable(doc, {
+      startY: y,
+      margin: { left: margin, right: margin },
+      head: [['Sesión / Fecha', 'Actividad Procedimental Desarrollada', 'Evidencia Obtenida', 'Firma y Sello Docente']],
+      body: [
+        ['Sesión 1: ___/___/2026', ' ', ' ', ' '],
+        ['Sesión 2: ___/___/2026', ' ', ' ', ' '],
+        ['Sesión 3: ___/___/2026', ' ', ' ', ' '],
+        ['Sesión 4: ___/___/2026', ' ', ' ', ' '],
+        ['Sesión 5: ___/___/2026', ' ', ' ', ' '],
+      ],
+      theme: 'grid',
+      headStyles: { fillColor: MID_BLUE, textColor: [255, 255, 255], fontSize: 7, fontStyle: 'bold' },
+      styles: { fontSize: 7, minCellHeight: 8, textColor: DARK_TEXT },
+      columnStyles: {
+        0: { cellWidth: 35 },
+        1: { cellWidth: 'auto' },
+        2: { cellWidth: 45 },
+        3: { cellWidth: 35, halign: 'center' },
+      },
+    });
+    y = (doc as any).lastAutoTable.finalY + 6;
+  }
+
+  return y;
 }
 
 function drawEvaluationSection(
@@ -970,7 +1264,7 @@ function drawEvaluationSection(
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(...NAVY);
-  doc.text('Rúbrica Analítica Oficial por Niveles de Desempeño:', margin, y);
+  doc.text('1. Rúbrica Analítica Oficial por Niveles de Desempeño:', margin, y);
   y += 4;
 
   const rubricBody = evalSection.rubric.map((crit) => [
@@ -1002,13 +1296,13 @@ function drawEvaluationSection(
 
   y = (doc as any).lastAutoTable.finalY + 6;
 
-  // Lista de cotejo
+  // 2. Lista de cotejo
   if (evalSection.checklist && evalSection.checklist.length > 0) {
     y = ensureVerticalSpace(doc, y, 30, margin, pageHeight);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8.5);
     doc.setTextColor(...NAVY);
-    doc.text('Lista de Cotejo de Verificación Técnica del Entregable:', margin, y);
+    doc.text('2. Lista de Cotejo de Verificación Técnica del Entregable:', margin, y);
     y += 4;
 
     const chkBody = evalSection.checklist.map((item) => [
@@ -1033,6 +1327,213 @@ function drawEvaluationSection(
     });
 
     y = (doc as any).lastAutoTable.finalY + 6;
+  }
+
+  // 3. Evaluación Formativa Escalonada por Niveles de Dominio (Tiered Exercises)
+  if (evalSection.tieredExercises && evalSection.tieredExercises.length > 0) {
+    y = ensureVerticalSpace(doc, y, 24, margin, pageHeight);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...NAVY);
+    doc.text('3. Evaluación Formativa Escalonada por Niveles de Dominio Cognitivo:', margin, y);
+    y += 5;
+
+    for (const tier of evalSection.tieredExercises) {
+      y = ensureVerticalSpace(doc, y, 16, margin, pageHeight);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8.5);
+      const isBasico = tier.level === 'basico' || (tier.level as string) === 'básico';
+      const isIntermedio = tier.level === 'intermedio';
+      const tierColor: [number, number, number] =
+        isBasico ? MID_BLUE : isIntermedio ? GOLD : NAVY;
+      doc.setTextColor(...tierColor);
+      const lvlLabel = (tier.levelName || (tier.level ? `Nivel ${tier.level}` : 'Nivel')).toUpperCase();
+      doc.text(`▸ ${lvlLabel}`, margin + 2, y);
+      y += 4;
+
+      if (tier.description) {
+        y = printParagraph(doc, tier.description, y, margin + 4, contentWidth - 4, pageHeight, {
+          size: 7.5,
+          fontStyle: 'italic',
+          color: MUTED_TEXT,
+          lineHeight: 3.5,
+        });
+        y += 2;
+      }
+
+      for (const ex of tier.exercises || []) {
+        y = ensureVerticalSpace(doc, y, 36, margin, pageHeight);
+
+        const exNum = ex.number || (ex as any).exerciseNumber || 1;
+        const exStmt = ex.statement || (ex as any).problemStatement || '';
+        const exContext = ex.contextOrData || (ex as any).contexto || '';
+        const exHint = ex.hint || (ex as any).pista || '';
+        const exCriteria = ex.expectedOutputOrCriteria || (ex as any).evaluationCriteria || '';
+
+        // Enunciado
+        y = printParagraph(doc, `Ejercicio ${exNum}: ${exStmt}`, y, margin + 4, contentWidth - 4, pageHeight, {
+          size: 8,
+          fontStyle: 'bold',
+          color: DARK_TEXT,
+          lineHeight: 3.8,
+        });
+
+        // Contexto o datos
+        if (exContext) {
+          y = printParagraph(doc, `Datos: ${exContext}`, y, margin + 6, contentWidth - 6, pageHeight, {
+            size: 7.5,
+            fontStyle: 'normal',
+            color: MUTED_TEXT,
+            lineHeight: 3.5,
+          });
+        }
+
+        // Pista de andamiaje
+        if (exHint) {
+          y = printParagraph(doc, `Pista: ${exHint}`, y, margin + 6, contentWidth - 6, pageHeight, {
+            size: 7.2,
+            fontStyle: 'italic',
+            color: MID_BLUE,
+            lineHeight: 3.4,
+          });
+        }
+
+        // Criterio de validación
+        if (exCriteria) {
+          y = printParagraph(doc, `Criterio esperado: ${exCriteria}`, y, margin + 6, contentWidth - 6, pageHeight, {
+            size: 7.2,
+            fontStyle: 'normal',
+            color: MUTED_TEXT,
+            lineHeight: 3.4,
+          });
+        }
+        y += 1;
+
+        // Renglones caligráficos para resolución del estudiante
+        const lineCount = 4;
+        const lineSpacing = 5.5;
+        y = ensureVerticalSpace(doc, y, lineCount * lineSpacing + 4, margin, pageHeight);
+        doc.setDrawColor(200, 212, 228);
+        doc.setLineWidth(0.3);
+        for (let l = 0; l < lineCount; l++) {
+          y += lineSpacing;
+          doc.line(margin + 6, y, margin + contentWidth, y);
+        }
+        y += 4;
+      }
+      y += 3;
+    }
+  }
+
+  // 4. Cuestionario de Juicio Crítico Situado
+  if (evalSection.criticalThinkingQuiz && evalSection.criticalThinkingQuiz.length > 0) {
+    y = ensureVerticalSpace(doc, y, 22, margin, pageHeight);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...NAVY);
+    doc.text('4. Cuestionario Formativo de Juicio Crítico y Transferencia:', margin, y);
+    y += 4.5;
+
+    for (const q of evalSection.criticalThinkingQuiz) {
+      y = ensureVerticalSpace(doc, y, 28, margin, pageHeight);
+      y = printParagraph(doc, `Pregunta ${q.questionNumber}: ${q.question}`, y, margin + 3, contentWidth - 3, pageHeight, {
+        size: 8,
+        fontStyle: 'bold',
+        color: DARK_TEXT,
+        lineHeight: 3.8,
+      });
+
+      if (q.scenario) {
+        y = printParagraph(doc, `Escenario: ${q.scenario}`, y, margin + 5, contentWidth - 5, pageHeight, {
+          size: 7.5,
+          fontStyle: 'italic',
+          color: MUTED_TEXT,
+          lineHeight: 3.5,
+        });
+      }
+
+      // 3 renglones de respuesta
+      const lineSpacing = 5.5;
+      y = ensureVerticalSpace(doc, y, 3 * lineSpacing + 3, margin, pageHeight);
+      doc.setDrawColor(200, 212, 228);
+      doc.setLineWidth(0.3);
+      for (let l = 0; l < 3; l++) {
+        y += lineSpacing;
+        doc.line(margin + 5, y, margin + contentWidth, y);
+      }
+      y += 4;
+    }
+  }
+
+  // 5. Reflexión Metacognitiva y Autoevaluación Formativa
+  if (evalSection.metacognitiveReflection) {
+    const meta = evalSection.metacognitiveReflection;
+    const hasPrompts = meta.prompts && meta.prompts.length > 0;
+    const hasScale = meta.selfAssessmentScale && meta.selfAssessmentScale.length > 0;
+
+    if (hasPrompts || hasScale) {
+      y = ensureVerticalSpace(doc, y, 24, margin, pageHeight);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8.5);
+      doc.setTextColor(...NAVY);
+      doc.text('5. Reflexión Metacognitiva y Autoevaluación del Aprendiz:', margin, y);
+      y += 4.5;
+
+      if (hasPrompts) {
+        for (const prompt of meta.prompts) {
+          y = ensureVerticalSpace(doc, y, 24, margin, pageHeight);
+          y = printParagraph(doc, `• ${prompt}`, y, margin + 3, contentWidth - 3, pageHeight, {
+            size: 7.8,
+            fontStyle: 'normal',
+            color: DARK_TEXT,
+            lineHeight: 3.8,
+          });
+
+          // 3 renglones de respuesta
+          const lineSpacing = 5.5;
+          y = ensureVerticalSpace(doc, y, 3 * lineSpacing + 2, margin, pageHeight);
+          doc.setDrawColor(200, 212, 228);
+          doc.setLineWidth(0.3);
+          for (let l = 0; l < 3; l++) {
+            y += lineSpacing;
+            doc.line(margin + 5, y, margin + contentWidth, y);
+          }
+          y += 3;
+        }
+      }
+
+      if (hasScale) {
+        y = ensureVerticalSpace(doc, y, 28, margin, pageHeight);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(...NAVY);
+        doc.text('Escala de Autovaloración Formativa (1: En desarrollo, 5: Dominio consolidado):', margin + 3, y);
+        y += 4;
+
+        const scaleBody = meta.selfAssessmentScale!.map((s) => [
+          s.dimension,
+          s.description,
+          '[ 1 ]  [ 2 ]  [ 3 ]  [ 4 ]  [ 5 ]',
+        ]);
+
+        autoTable(doc, {
+          startY: y,
+          margin: { left: margin, right: margin },
+          head: [['Dimensión del Aprendizaje', 'Criterio de Desempeño Autoevaluado', 'Escala']],
+          body: scaleBody,
+          theme: 'grid',
+          headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontSize: 7, fontStyle: 'bold' },
+          styles: { fontSize: 6.8, cellPadding: 2, textColor: DARK_TEXT },
+          columnStyles: {
+            0: { cellWidth: 42, fontStyle: 'bold' },
+            1: { cellWidth: 'auto' },
+            2: { cellWidth: 38, halign: 'center' },
+          },
+        });
+
+        y = (doc as any).lastAutoTable.finalY + 6;
+      }
+    }
   }
 
   return y;

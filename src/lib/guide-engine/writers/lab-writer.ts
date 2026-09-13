@@ -69,7 +69,12 @@ REGLAS DE RIGOR TÉCNICO, PROFUNDIDAD Y CUADERNO ACTIVO:
 3. Procedimiento paso a paso numerado (1,500 a 2,500 palabras, 10-16 pasos detallados): Cada paso debe incluir explicación técnica profunda del "por qué" y del "cómo", precauciones operativas y espacios orientados <!--workbook:lines:rows=3--> o tablas para que el estudiante registre sus mediciones y observaciones empíricas.
 4. Tabla de datos vacía: Genera encabezados descriptivos completos y filas con la etiqueta <!--workbook:table:cols=Parámetro,Teórico,Medición 1,Medición 2,Error,Unidad--> para que el alumno la llene en clase.
 5. Código ejecutable o protocolo experimental (800 a 1,500 palabras): En BT: bloques de código reales, funcionales, completos y comentados línea a línea, acompañados de cajas de código sombreadas <!--workbook:code:lines=15--> para pruebas y variantes. En BGE: protocolo experimental minucioso de toma de datos y modelado.
-6. Desafío autónomo situado (You Do - 200 a 350 palabras): Una consigna rigurosa y desafiante donde el estudiante, de manera autónoma, debe modificar parámetros, resolver una falla inducida o adaptar el procedimiento a una variante de su comunidad PAEC.
+6. Desafío autónomo individual estructurado ("Tú Haces" - 350 a 600 palabras):
+   OBLIGATORIAMENTE redactado en EXACTAMENTE 5 a 7 PASOS NUMERADOS CORRELATIVOS (Paso 1 al Paso 5, 6 o 7). Cada paso debe contener:
+   a) Instrucción procedimental precisa con parámetros y variables cuantitativas concretas.
+   b) Acción técnica u operativa que el estudiante realiza individualmente sin auxilio directo.
+   c) Espacio de comprobación, cálculo o verificación <!--workbook:lines:rows=2--> o casilla de control.
+   d) Vinculación directa con una variante del problema escolar/comunitario PAEC: "${input.paecContext}".
 7. Preguntas de reflexión y análisis (350 a 500 palabras): 4 a 6 preguntas de desarrollo amplio que conecten directamente los datos experimentales con la teoría formal y con el entorno PAEC.
 8. Depuración rápida (Common errors): Al menos 3 casos de estudio de Síntoma → Causa Raíz → Solución detallada paso a paso → Medida preventiva.
 9. REGLA ESTRICTA DE SINTAXIS JSON PARA CÓDIGO Y DIÁLOGOS:
@@ -86,7 +91,7 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
   "stepByStepProcedure": "1. Paso uno detallado con explicación técnica amplia...\\n<!--workbook:lines:rows=3-->\\n2. Paso dos...",
   "dataTableColumns": ["Variable / Muestra", "Valor Calculado", "Lectura 1", "Lectura 2", "Unidad"],
   "executableCodeOrProtocol": "En BT: código ejecutable completo y comentado (800-1,500 palabras). En BGE: protocolo experimental exhaustivo...",
-  "autonomousChallenge": "Instrucción y desafío técnico autónomo (Tú Haces) de 200-350 palabras donde el alumno resuelve individualmente una variante o problema nuevo...",
+  "autonomousChallenge": "Desafío autónomo individual estructurado en 5 a 7 pasos numerados:\\n1. Paso uno con instrucción cuantitativa precisa...\\n2. Paso dos...\\n3. Paso tres...\\n4. Paso cuatro...\\n5. Paso cinco...\\n6. Paso seis...",
   "reflectionQuestions": [
     "¿Qué relación observaste entre la variable manipulada y la respuesta del sistema? (Desarrollo amplio de análisis)",
     "¿Cómo influyó el margen de tolerancia del instrumental en los resultados?",
@@ -113,7 +118,7 @@ Meta de palabras para esta misión: mínimo ${input.targetWords.min} palabras (i
 DISTRIBUCIÓN SUGERIDA DE PALABRAS:
 - stepByStepProcedure: 1,500 a 2,500 palabras (desarrolla cada paso con claridad y rigor técnico)
 - executableCodeOrProtocol: 800 a 1,500 palabras (código fuente funcional o protocolo experimental)
-- autonomousChallenge: 200 a 350 palabras (desafío técnico autónomo situado)
+- autonomousChallenge: 350 a 600 palabras (OBLIGATORIAMENTE de 5 a 7 pasos numerados correlativos con instrucciones técnicas precisas)
 - reflectionQuestions: 350 a 500 palabras (análisis técnico y transferencia)
 
 IMPORTANTE: Proporciona un desarrollo técnico completo y riguroso de ~${input.targetWords.ideal} palabras en total.
@@ -129,7 +134,34 @@ Redacta la Misión Práctica de Laboratorio/Taller completa:`;
       false,
       { jsonMode: true, maxTokens: 8192 }
     );
-    const parsed = robustJsonParse(rawResponse);
+    let parsed = robustJsonParse(rawResponse);
+
+    // Validación de extensión mínima (MEJORA 1)
+    const challengeText = typeof parsed.autonomousChallenge === 'string' ? parsed.autonomousChallenge : '';
+    const stepMatches = challengeText.match(/(?:Paso\s*\d+|\b\d+[\.\)])/gi) || [];
+    const stepCount = stepMatches.length;
+
+    if (stepCount < 5) {
+      console.warn(`[LabWriter] autonomousChallenge tiene solo ${stepCount} pasos (< 5). Reintentando con instrucción estricta...`);
+      try {
+        const retryPrompt = `${prompt}\n\n[REQUISITO CRÍTICO DE PROFUNDIDAD]: Tu respuesta anterior tuvo menos de 5 pasos en 'autonomousChallenge'. Redacta OBLIGATORIAMENTE el 'autonomousChallenge' en EXACTAMENTE 5 a 7 PASOS NUMERADOS (Paso 1 al Paso 5, 6 o 7), cada uno con una instrucción cuantitativa clara, variables precisas y acción técnica concreta del estudiante.`;
+        const retryResponse = await generateWithRotation(
+          systemInstruction,
+          retryPrompt,
+          input.planning.teacherId,
+          false,
+          { jsonMode: true, maxTokens: 8192 }
+        );
+        const retryParsed = robustJsonParse(retryResponse);
+        const retryText = typeof retryParsed.autonomousChallenge === 'string' ? retryParsed.autonomousChallenge : '';
+        const retryMatches = retryText.match(/(?:Paso\s*\d+|\b\d+[\.\)])/gi) || [];
+        if (retryMatches.length >= stepCount) {
+          parsed = retryParsed;
+        }
+      } catch (retryErr) {
+        console.warn('[LabWriter] Error en reintento, preservando primera respuesta:', retryErr);
+      }
+    }
 
     // Extraer o generar tags de cuaderno activo
     const materialsText = Array.isArray(parsed.materialsList) ? parsed.materialsList.join(' ') : (parsed.materialsList || '');
@@ -139,7 +171,7 @@ Redacta la Misión Práctica de Laboratorio/Taller completa:`;
       : '';
     const autonomousChallenge = typeof parsed.autonomousChallenge === 'string' && parsed.autonomousChallenge.trim().length > 30
       ? parsed.autonomousChallenge.trim()
-      : `Desafío autónomo individual (Tú Haces): Aplica de manera independiente el procedimiento aprendido alterando una variable crítica de la práctica. Registra las variaciones obtenidas, analiza el margen de error y documenta cómo este ajuste optimiza la solución planteada para la problemática comunitaria de ${input.paecContext}.`;
+      : `Desafío autónomo individual (Tú Haces):\n1. Configura el escenario experimental o entorno de trabajo verificando las condiciones iniciales.\n2. Modifica una variable operativa o parámetro crítico (-20% o +20%) respecto a la prueba base.\n3. Ejecuta la medición u operación por duplicado anotando lecturas en tu libreta técnica.\n4. Calcula la desviación o porcentaje de variación obtenido respecto al valor esperado.\n5. Evalúa el impacto de dicha variación en la solución del reto comunitario PAEC (${input.paecContext}).\n6. Documenta tus conclusiones y presenta la evidencia validada a tu docente.`;
 
     const fullText = [
       parsed.objective,

@@ -12,9 +12,9 @@ const MarkdownWithMermaid = dynamic(
 interface ExtraPreviewModalProps {
   isOpen: boolean;
   onClose: () => void;
-  title: string;
-  contentText: string;
-  type: string;
+  title?: string | null;
+  contentText?: string | null;
+  type?: string | null;
 }
 
 export function ExtraPreviewModal({
@@ -36,7 +36,8 @@ export function ExtraPreviewModal({
   if (!isOpen) return null;
 
   // Simple Markdown to HTML parser
-  function renderMarkdown(markdown: string) {
+  function renderMarkdown(markdown?: string | null) {
+    if (!markdown) return null;
     const lines = markdown.split('\n');
     const elements: React.ReactNode[] = [];
 
@@ -467,12 +468,21 @@ export function ExtraPreviewModal({
               color: 'var(--c-text, #f1f5f9)',
             }}
           >
-            {type === 'practice_guide' ? (
+            {!(contentText || '').trim() ? (
+              <div style={{ padding: '48px 24px', textAlign: 'center', color: '#94a3b8' }}>
+                <p style={{ fontSize: '18px', fontWeight: 600, marginBottom: '8px', color: '#cbd5e1' }}>
+                  📄 Sin contenido disponible
+                </p>
+                <p style={{ fontSize: '13px', color: '#64748b', maxWidth: '420px', margin: '0 auto', lineHeight: 1.5 }}>
+                  Este recurso aún no contiene texto generado o está pendiente de sincronización.
+                </p>
+              </div>
+            ) : type === 'practice_guide' ? (
               // Guías de práctica: renderizado con soporte Mermaid (Fase 11)
-              <MarkdownWithMermaid markdown={contentText} />
+              <MarkdownWithMermaid markdown={contentText || ''} />
             ) : (
               // Rúbricas, listas de cotejo, planes de clase: parser existente con tablas
-              renderMarkdown(contentText)
+              renderMarkdown(contentText || '')
             )}
           </div>
         </div>

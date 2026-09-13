@@ -149,20 +149,14 @@ export async function renderWorkbookToDocx(
     children.push(new Paragraph({ children: [new PageBreak()] }));
   }
 
-  // ── 4. Sección de Proyecto Formativo Comunitario (Solo si no está ya integrada en las misiones) ──
-  const hasProjectInMissions = workbook.missions.some(
-    (m) => m.missionIndex === 3 || /proyecto|artefacto/i.test(m.title)
-  );
-  if (workbook.projectSection && !hasProjectInMissions) {
+  // ── 4. Sección de Proyecto Formativo Comunitario ───────────────────────────
+  if (workbook.projectSection) {
     children.push(...buildProjectSection(workbook.projectSection, workbook.coverData));
     children.push(new Paragraph({ children: [new PageBreak()] }));
   }
 
-  // ── 5. Sección de Evaluación Formativa y Sumativa NEM (Solo si no está ya integrada en las misiones) ──
-  const hasEvalInMissions = workbook.missions.some(
-    (m) => m.missionIndex === 4 || /evaluaci[oó]n|demostraci[oó]n/i.test(m.title)
-  );
-  if (workbook.evaluationSection && !hasEvalInMissions) {
+  // ── 5. Sección de Evaluación Formativa y Sumativa NEM ─────────────────────
+  if (workbook.evaluationSection) {
     children.push(...buildEvaluationSection(workbook.evaluationSection, workbook.coverData));
   }
 
@@ -603,6 +597,119 @@ function buildMissionContent(
     })
   );
 
+  if (mission.conceptZero.narrativeExplanation) {
+    elements.push(
+      new Paragraph({
+        spacing: { after: 200, line: 360 },
+        children: [
+          new TextRun({
+            text: mission.conceptZero.narrativeExplanation,
+            size: 22,
+            color: C.darkText,
+            font: 'Calibri',
+          }),
+        ],
+      })
+    );
+  }
+
+  if (mission.conceptZero.solvedExample) {
+    const ex = mission.conceptZero.solvedExample;
+    elements.push(
+      new Paragraph({
+        spacing: { before: 180, after: 80 },
+        children: [
+          new TextRun({
+            text: 'Ejemplo Modelo Resuelto Paso a Paso (CPA / NEM):',
+            bold: true,
+            size: 24,
+            color: C.navy,
+            font: 'Arial',
+          }),
+        ],
+      }),
+      new Paragraph({
+        spacing: { after: 80, line: 340 },
+        children: [
+          new TextRun({ text: 'Problema: ', bold: true, size: 21, color: C.darkText, font: 'Calibri' }),
+          new TextRun({ text: ex.problemStatement, size: 21, color: C.darkText, font: 'Calibri' }),
+        ],
+      })
+    );
+
+    for (let sIdx = 0; sIdx < (ex.solutionSteps || []).length; sIdx++) {
+      elements.push(
+        new Paragraph({
+          spacing: { after: 50, line: 320 },
+          children: [
+            new TextRun({ text: `• Paso ${sIdx + 1}: `, bold: true, size: 20, color: C.midBlue, font: 'Calibri' }),
+            new TextRun({ text: ex.solutionSteps[sIdx], size: 20, color: C.darkText, font: 'Calibri' }),
+          ],
+        })
+      );
+    }
+
+    if (ex.interpretation) {
+      elements.push(
+        new Paragraph({
+          spacing: { before: 80, after: 150, line: 320 },
+          children: [
+            new TextRun({ text: 'Conclusión pedagógica: ', bold: true, italics: true, size: 20, color: C.navy, font: 'Calibri' }),
+            new TextRun({ text: ex.interpretation, italics: true, size: 20, color: C.darkText, font: 'Calibri' }),
+          ],
+        })
+      );
+    }
+  }
+
+  if (mission.conceptZero.contrastTable && mission.conceptZero.contrastTable.length > 0) {
+    elements.push(
+      new Paragraph({
+        spacing: { before: 180, after: 80 },
+        children: [
+          new TextRun({
+            text: 'Matriz de Contrastación Conceptual y Prevención de Errores:',
+            bold: true,
+            size: 24,
+            color: C.navy,
+            font: 'Arial',
+          }),
+        ],
+      })
+    );
+
+    const ctCols = [
+      { title: 'Concepto Técnico Válido', w: Math.floor(CONTENT_W * 0.35) },
+      { title: 'Error Frecuente / Concepto Erróneo', w: Math.floor(CONTENT_W * 0.35) },
+      { title: 'Fundamentación', w: Math.floor(CONTENT_W * 0.30) },
+    ];
+
+    const ctRows: TableRow[] = [
+      new TableRow({
+        children: ctCols.map((c) => cell(c.title, { w: c.w, bold: true, fill: C.midBlue, color: C.white })),
+      }),
+    ];
+
+    mission.conceptZero.contrastTable.forEach((row) => {
+      ctRows.push(
+        new TableRow({
+          children: [
+            cell(row.correctConcept, { bold: true }),
+            cell(row.commonMisconception, { color: 'C0392B' }),
+            cell(row.reasoning),
+          ],
+        })
+      );
+    });
+
+    elements.push(
+      new Table({
+        width: { size: CONTENT_W, type: WidthType.DXA },
+        rows: ctRows,
+      })
+    );
+  }
+
   // 3. Yo Hago (Demostración)
   elements.push(
     new Paragraph({
@@ -1038,19 +1145,126 @@ function buildProjectSection(project: ProjectSection, cover: ActiveWorkTextbook[
         }),
       ],
     }),
+  ];
+
+  // Objetivos de Aprendizaje
+  if (project.learningObjectives && project.learningObjectives.length > 0) {
+    elements.push(
+      new Paragraph({
+        spacing: { before: 150, after: 80 },
+        children: [
+          new TextRun({
+            text: 'Objetivos Formativos y de Aprendizaje del Proyecto:',
+            bold: true,
+            size: 22,
+            color: C.navy,
+            font: 'Calibri',
+          }),
+        ],
+      })
+    );
+    for (const obj of project.learningObjectives) {
+      elements.push(
+        new Paragraph({
+          spacing: { after: 50 },
+          children: [
+            new TextRun({ text: `[✓]  ${obj}`, size: 20, font: 'Calibri' }),
+          ],
+        })
+      );
+    }
+  }
+
+  // Materiales e Insumos
+  if (project.requiredMaterials && project.requiredMaterials.length > 0) {
+    elements.push(
+      new Paragraph({
+        spacing: { before: 150, after: 80 },
+        children: [
+          new TextRun({
+            text: 'Materiales, Herramientas e Insumos Requeridos:',
+            bold: true,
+            size: 22,
+            color: C.navy,
+            font: 'Calibri',
+          }),
+        ],
+      })
+    );
+    for (const mat of project.requiredMaterials) {
+      const matStr = typeof mat === 'string'
+        ? mat
+        : mat && typeof mat === 'object'
+        ? `${(mat as any).item || ''} ${(mat as any).quantity ? `[${(mat as any).quantity}]` : ''} ${(mat as any).notes ? `— ${(mat as any).notes}` : ''}`.trim()
+        : String(mat);
+      elements.push(
+        new Paragraph({
+          spacing: { after: 50 },
+          children: [
+            new TextRun({ text: `☐  ${matStr}`, size: 20, font: 'Calibri' }),
+          ],
+        })
+      );
+    }
+  }
+
+  // Pasos de Ejecución Procedimental
+  if (project.executionSteps && project.executionSteps.length > 0) {
+    elements.push(
+      new Paragraph({
+        spacing: { before: 150, after: 80 },
+        children: [
+          new TextRun({
+            text: 'Secuencia Procedimental de Construcción:',
+            bold: true,
+            size: 22,
+            color: C.navy,
+            font: 'Calibri',
+          }),
+        ],
+      })
+    );
+    for (const step of project.executionSteps) {
+      let stepStr = '';
+      if (typeof step === 'string') {
+        stepStr = step;
+      } else if (step && typeof step === 'object') {
+        const s = step as any;
+        const num = s.stepNumber ? `Paso ${s.stepNumber}: ` : '';
+        const title = s.title ? `${s.title}. ` : '';
+        const desc = s.description || '';
+        const hrs = s.estimatedHours ? ` (${s.estimatedHours} hrs)` : '';
+        const deliv = s.deliverable ? ` [Entregable: ${s.deliverable}]` : '';
+        stepStr = `${num}${title}${desc}${hrs}${deliv}`.trim();
+      } else {
+        stepStr = String(step);
+      }
+      elements.push(
+        new Paragraph({
+          spacing: { after: 50 },
+          children: [
+            new TextRun({ text: stepStr, size: 20, font: 'Calibri' }),
+          ],
+        })
+      );
+    }
+  }
+
+  // Cronograma de Fases
+  elements.push(
     new Paragraph({
-      spacing: { before: 150, after: 100 },
+      spacing: { before: 180, after: 100 },
       children: [
         new TextRun({
           text: 'Cronograma de Fases de Construcción y Entregables:',
           bold: true,
-          size: 24,
+          size: 22,
           color: C.navy,
           font: 'Calibri',
         }),
       ],
-    }),
-  ];
+    })
+  );
 
   const colW1 = Math.floor(CONTENT_W * 0.15);
   const colW2 = Math.floor(CONTENT_W * 0.30);
@@ -1088,6 +1302,127 @@ function buildProjectSection(project: ProjectSection, cover: ActiveWorkTextbook[
     })
   );
 
+  // Criterios de Entrega y Aceptación
+  const criteriaList = [
+    ...(project.acceptanceCriteria || []).map((c) => `[Criterio de Aceptación] ${c}`),
+    ...(project.deliveryCriteria || []).map((d) => `[Condición de Entrega] ${d}`),
+  ];
+  if (criteriaList.length > 0) {
+    elements.push(
+      new Paragraph({
+        spacing: { before: 180, after: 80 },
+        children: [
+          new TextRun({
+            text: 'Criterios de Aceptación y Condiciones de Entrega Final:',
+            bold: true,
+            size: 22,
+            color: C.navy,
+            font: 'Calibri',
+          }),
+        ],
+      })
+    );
+    for (const crit of criteriaList) {
+      elements.push(
+        new Paragraph({
+          spacing: { after: 50 },
+          children: [
+            new TextRun({ text: `• ${crit}`, size: 20, font: 'Calibri' }),
+          ],
+        })
+      );
+    }
+  }
+
+  // Bitácora de Campo
+  if (project.registrationFormat) {
+    elements.push(
+      new Paragraph({
+        spacing: { before: 180, after: 80 },
+        children: [
+          new TextRun({
+            text: 'Bitácora Técnica de Campo y Registro de Avances en Portafolio:',
+            bold: true,
+            size: 22,
+            color: C.navy,
+            font: 'Calibri',
+          }),
+        ],
+      })
+    );
+    let regFormatText = '';
+    if (typeof project.registrationFormat === 'string') {
+      regFormatText = project.registrationFormat;
+    } else if (typeof project.registrationFormat === 'object') {
+      const rf = project.registrationFormat as any;
+      const parts: string[] = [];
+      if (rf.sections && Array.isArray(rf.sections)) {
+        parts.push(`Secciones requeridas:\n${rf.sections.map((s: string) => ` • ${s}`).join('\n')}`);
+      }
+      if (rf.suggestedFields && Array.isArray(rf.suggestedFields)) {
+        parts.push(`Campos sugeridos:\n${rf.suggestedFields.map((f: string) => ` - ${f}`).join('\n')}`);
+      }
+      regFormatText = parts.join('\n\n') || JSON.stringify(rf, null, 2);
+    } else {
+      regFormatText = String(project.registrationFormat);
+    }
+
+    elements.push(
+      new Table({
+        width: { size: CONTENT_W, type: WidthType.DXA },
+        rows: [
+          new TableRow({
+            children: [
+              cell(regFormatText, {
+                fill: C.lightBg,
+                size: 18,
+                font: 'Consolas',
+              }),
+            ],
+          }),
+        ],
+      })
+    );
+
+    // Tabla de registro de bitácora y firmas de asesoría docente
+    const logColW1 = Math.floor(CONTENT_W * 0.22);
+    const logColW2 = Math.floor(CONTENT_W * 0.40);
+    const logColW3 = Math.floor(CONTENT_W * 0.20);
+    const logColW4 = Math.floor(CONTENT_W * 0.18);
+
+    const logRows: TableRow[] = [
+      new TableRow({
+        children: [
+          cell('Sesión / Fecha', { w: logColW1, bold: true, fill: C.midBlue, color: C.white }),
+          cell('Actividad Procedimental Desarrollada', { w: logColW2, bold: true, fill: C.midBlue, color: C.white }),
+          cell('Evidencia Obtenida', { w: logColW3, bold: true, fill: C.midBlue, color: C.white }),
+          cell('Firma y Sello Docente', { w: logColW4, bold: true, fill: C.midBlue, color: C.white, align: AlignmentType.CENTER }),
+        ],
+      }),
+    ];
+
+    for (let s = 1; s <= 5; s++) {
+      logRows.push(
+        new TableRow({
+          children: [
+            cell(`Sesión ${s}: ___/___/2026`, { w: logColW1 }),
+            cell(' ', { w: logColW2 }),
+            cell(' ', { w: logColW3 }),
+            cell(' ', { w: logColW4 }),
+          ],
+        })
+      );
+    }
+
+    elements.push(
+      new Paragraph({ spacing: { before: 100 } }),
+      new Table({
+        width: { size: CONTENT_W, type: WidthType.DXA },
+        rows: logRows,
+      })
+    );
+  }
+
   return elements;
 }
 
@@ -1109,7 +1444,7 @@ function buildEvaluationSection(evalSection: EvaluationSection, cover: ActiveWor
       spacing: { after: 200 },
       children: [
         new TextRun({
-          text: 'Rúbrica Analítica por Niveles de Desempeño Oficiales (DBEPA Puebla):',
+          text: '1. Rúbrica Analítica por Niveles de Desempeño Oficiales (DBEPA Puebla):',
           bold: true,
           size: 24,
           color: C.midBlue,
@@ -1164,7 +1499,7 @@ function buildEvaluationSection(evalSection: EvaluationSection, cover: ActiveWor
         spacing: { before: 300, after: 150 },
         children: [
           new TextRun({
-            text: 'Lista de Verificación Técnica del Entregable:',
+            text: '2. Lista de Verificación Técnica del Entregable:',
             bold: true,
             size: 24,
             color: C.navy,
@@ -1206,6 +1541,336 @@ function buildEvaluationSection(evalSection: EvaluationSection, cover: ActiveWor
         rows: chkRows,
       })
     );
+  }
+
+  // 3. Evaluación Formativa Escalonada por Niveles de Dominio (Tiered Exercises)
+  if (evalSection.tieredExercises && evalSection.tieredExercises.length > 0) {
+    elements.push(
+      new Paragraph({
+        spacing: { before: 300, after: 120 },
+        children: [
+          new TextRun({
+            text: '3. Evaluación Formativa Escalonada por Niveles de Dominio Cognitivo:',
+            bold: true,
+            size: 26,
+            color: C.navy,
+            font: 'Arial',
+          }),
+        ],
+      })
+    );
+
+    for (const tier of evalSection.tieredExercises || []) {
+      const isBasico = tier.level === 'basico' || (tier.level as string) === 'básico';
+      const isIntermedio = tier.level === 'intermedio';
+      const tierColor =
+        isBasico ? C.midBlue : isIntermedio ? C.gold : C.navy;
+      const lvlLabel = (tier.levelName || (tier.level ? `Nivel ${tier.level}` : 'Nivel')).toUpperCase();
+
+      elements.push(
+        new Paragraph({
+          spacing: { before: 180, after: 60 },
+          children: [
+            new TextRun({
+              text: `▸ ${lvlLabel}`,
+              bold: true,
+              size: 22,
+              color: tierColor,
+              font: 'Calibri',
+            }),
+          ],
+        })
+      );
+
+      if (tier.description) {
+        elements.push(
+          new Paragraph({
+            spacing: { after: 100 },
+            children: [
+              new TextRun({
+                text: tier.description,
+                italics: true,
+                size: 20,
+                color: C.mutedText,
+                font: 'Calibri',
+              }),
+            ],
+          })
+        );
+      }
+
+      for (const ex of tier.exercises || []) {
+        const exNum = ex.number || (ex as any).exerciseNumber || 1;
+        const exStmt = ex.statement || (ex as any).problemStatement || '';
+
+        elements.push(
+          new Paragraph({
+            spacing: { before: 100, after: 40 },
+            children: [
+              new TextRun({
+                text: `Ejercicio ${exNum}: `,
+                bold: true,
+                size: 20,
+                color: C.navy,
+                font: 'Calibri',
+              }),
+              new TextRun({
+                text: exStmt,
+                size: 20,
+                font: 'Calibri',
+              }),
+            ],
+          })
+        );
+
+        if (ex.contextOrData) {
+          elements.push(
+            new Paragraph({
+              spacing: { after: 40 },
+              children: [
+                new TextRun({ text: 'Datos/Contexto: ', bold: true, size: 18, color: C.mutedText, font: 'Calibri' }),
+                new TextRun({ text: ex.contextOrData, size: 18, color: C.mutedText, font: 'Calibri' }),
+              ],
+            })
+          );
+        }
+
+        if (ex.hint) {
+          elements.push(
+            new Paragraph({
+              spacing: { after: 40 },
+              children: [
+                new TextRun({ text: 'Pista: ', italics: true, bold: true, size: 18, color: C.midBlue, font: 'Calibri' }),
+                new TextRun({ text: ex.hint, italics: true, size: 18, color: C.midBlue, font: 'Calibri' }),
+              ],
+            })
+          );
+        }
+
+        elements.push(
+          new Paragraph({
+            spacing: { after: 60 },
+            children: [
+              new TextRun({ text: 'Criterio esperado: ', bold: true, size: 18, color: C.darkText, font: 'Calibri' }),
+              new TextRun({ text: ex.expectedOutputOrCriteria, size: 18, color: C.darkText, font: 'Calibri' }),
+            ],
+          })
+        );
+
+        // Renglones caligráficos para resolución
+        const lineRows: TableRow[] = [];
+        for (let l = 0; l < 3; l++) {
+          lineRows.push(
+            new TableRow({
+              children: [
+                new TableCell({
+                  width: { size: CONTENT_W, type: WidthType.DXA },
+                  borders: dottedBorder(),
+                  margins: cellPadding(),
+                  children: [new Paragraph({ spacing: { before: 80, after: 80 }, children: [] })],
+                }),
+              ],
+            })
+          );
+        }
+        elements.push(
+          new Table({
+            width: { size: CONTENT_W, type: WidthType.DXA },
+            rows: lineRows,
+          })
+        );
+      }
+    }
+  }
+
+  // 4. Cuestionario de Juicio Crítico
+  if (evalSection.criticalThinkingQuiz && evalSection.criticalThinkingQuiz.length > 0) {
+    elements.push(
+      new Paragraph({
+        spacing: { before: 250, after: 100 },
+        children: [
+          new TextRun({
+            text: '4. Cuestionario Formativo de Juicio Crítico y Transferencia:',
+            bold: true,
+            size: 24,
+            color: C.navy,
+            font: 'Arial',
+          }),
+        ],
+      })
+    );
+
+    for (const q of evalSection.criticalThinkingQuiz) {
+      elements.push(
+        new Paragraph({
+          spacing: { before: 100, after: 40 },
+          children: [
+            new TextRun({
+              text: `Pregunta ${q.questionNumber}: `,
+              bold: true,
+              size: 20,
+              color: C.navy,
+              font: 'Calibri',
+            }),
+            new TextRun({
+              text: q.question,
+              size: 20,
+              font: 'Calibri',
+            }),
+          ],
+        })
+      );
+
+      if (q.scenario) {
+        elements.push(
+          new Paragraph({
+            spacing: { after: 60 },
+            children: [
+              new TextRun({ text: 'Escenario: ', italics: true, bold: true, size: 18, color: C.mutedText, font: 'Calibri' }),
+              new TextRun({ text: q.scenario, italics: true, size: 18, color: C.mutedText, font: 'Calibri' }),
+            ],
+          })
+        );
+      }
+
+      // Renglones de respuesta
+      const ansRows: TableRow[] = [];
+      for (let l = 0; l < 3; l++) {
+        ansRows.push(
+          new TableRow({
+            children: [
+              new TableCell({
+                width: { size: CONTENT_W, type: WidthType.DXA },
+                borders: dottedBorder(),
+                margins: cellPadding(),
+                children: [new Paragraph({ spacing: { before: 80, after: 80 }, children: [] })],
+              }),
+            ],
+          })
+        );
+      }
+      elements.push(
+        new Table({
+          width: { size: CONTENT_W, type: WidthType.DXA },
+          rows: ansRows,
+        })
+      );
+    }
+  }
+
+  // 5. Reflexión Metacognitiva y Autoevaluación Formativa
+  if (evalSection.metacognitiveReflection) {
+    const meta = evalSection.metacognitiveReflection;
+    const hasPrompts = meta.prompts && meta.prompts.length > 0;
+    const hasScale = meta.selfAssessmentScale && meta.selfAssessmentScale.length > 0;
+
+    if (hasPrompts || hasScale) {
+      elements.push(
+        new Paragraph({
+          spacing: { before: 250, after: 100 },
+          children: [
+            new TextRun({
+              text: '5. Reflexión Metacognitiva y Autoevaluación del Aprendiz:',
+              bold: true,
+              size: 24,
+              color: C.navy,
+              font: 'Arial',
+            }),
+          ],
+        })
+      );
+
+      if (hasPrompts) {
+        for (const prompt of meta.prompts) {
+          elements.push(
+            new Paragraph({
+              spacing: { before: 100, after: 40 },
+              children: [
+                new TextRun({
+                  text: `• ${prompt}`,
+                  size: 20,
+                  color: C.darkText,
+                  font: 'Calibri',
+                }),
+              ],
+            })
+          );
+
+          // 3 renglones de respuesta
+          const metaRows: TableRow[] = [];
+          for (let l = 0; l < 3; l++) {
+            metaRows.push(
+              new TableRow({
+                children: [
+                  new TableCell({
+                    width: { size: CONTENT_W, type: WidthType.DXA },
+                    borders: dottedBorder(),
+                    margins: cellPadding(),
+                    children: [new Paragraph({ spacing: { before: 80, after: 80 }, children: [] })],
+                  }),
+                ],
+              })
+            );
+          }
+          elements.push(
+            new Table({
+              width: { size: CONTENT_W, type: WidthType.DXA },
+              rows: metaRows,
+            })
+          );
+        }
+      }
+
+      if (hasScale) {
+        elements.push(
+          new Paragraph({
+            spacing: { before: 150, after: 80 },
+            children: [
+              new TextRun({
+                text: 'Escala de Autovaloración Formativa (1: En desarrollo, 5: Dominio consolidado):',
+                bold: true,
+                size: 20,
+                color: C.navy,
+                font: 'Calibri',
+              }),
+            ],
+          })
+        );
+
+        const scaleCols = [
+          { title: 'Dimensión del Aprendizaje', w: Math.floor(CONTENT_W * 0.35) },
+          { title: 'Criterio de Desempeño Autoevaluado', w: Math.floor(CONTENT_W * 0.45) },
+          { title: 'Autovaloración', w: Math.floor(CONTENT_W * 0.20) },
+        ];
+
+        const scaleRows: TableRow[] = [
+          new TableRow({
+            children: scaleCols.map((col) =>
+              cell(col.title, { w: col.w, bold: true, fill: C.navy, color: C.white })
+            ),
+          }),
+        ];
+
+        meta.selfAssessmentScale!.forEach((item) => {
+          scaleRows.push(
+            new TableRow({
+              children: [
+                cell(item.dimension, { bold: true }),
+                cell(item.description),
+                cell('[ 1 ]  [ 2 ]  [ 3 ]  [ 4 ]  [ 5 ]', { align: AlignmentType.CENTER }),
+              ],
+            })
+          );
+        });
+
+        elements.push(
+          new Table({
+            width: { size: CONTENT_W, type: WidthType.DXA },
+            rows: scaleRows,
+          })
+        );
+      }
+    }
   }
 
   return elements;

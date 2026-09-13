@@ -299,12 +299,60 @@ function buildGuiaDelBloqueMarkdown(workbook: ActiveWorkTextbook): string {
     const p = workbook.projectSection;
     parts.push(`## PROYECTO INTEGRADOR: ${p.artifactName.toUpperCase()}`);
     parts.push(`**Utilidad Comunitaria:** ${p.communityUtility}\n`);
+
+    if (p.learningObjectives && p.learningObjectives.length > 0) {
+      parts.push('### Objetivos Formativos:');
+      for (const obj of p.learningObjectives) {
+        parts.push(`- ${obj}`);
+      }
+      parts.push('');
+    }
+
+    if (p.requiredMaterials && p.requiredMaterials.length > 0) {
+      parts.push('### Materiales e Insumos:');
+      for (const mat of p.requiredMaterials) {
+        parts.push(`- [ ] ${mat}`);
+      }
+      parts.push('');
+    }
+
+    if (p.executionSteps && p.executionSteps.length > 0) {
+      parts.push('### Secuencia de Construcción:');
+      for (const step of p.executionSteps) {
+        parts.push(`- ${step}`);
+      }
+      parts.push('');
+    }
+
     if (p.phases && p.phases.length > 0) {
       parts.push('### Fases de Ejecución:');
       for (const ph of p.phases) {
         parts.push(`- **Fase ${ph.phaseNum}: ${ph.title}** (${ph.allocatedHours} hrs): ${ph.instructions}`);
       }
       parts.push('');
+    }
+
+    if (p.deliveryCriteria && p.deliveryCriteria.length > 0) {
+      parts.push('### Criterios de Entrega:');
+      for (const crit of p.deliveryCriteria) {
+        parts.push(`- ${crit}`);
+      }
+      parts.push('');
+    }
+  }
+
+  // Evaluación Escalonada por Niveles
+  if (workbook.evaluationSection?.tieredExercises && workbook.evaluationSection.tieredExercises.length > 0) {
+    parts.push('## EVALUACIÓN FORMATIVA ESCALONADA POR NIVELES\n');
+    for (const tier of workbook.evaluationSection.tieredExercises) {
+      parts.push(`### ${tier.levelName.toUpperCase()}`);
+      if (tier.description) parts.push(`*${tier.description}*\n`);
+      for (const ex of tier.exercises) {
+        parts.push(`**Ejercicio ${ex.number}:** ${ex.statement}`);
+        if (ex.contextOrData) parts.push(`- *Datos/Contexto:* ${ex.contextOrData}`);
+        if (ex.hint) parts.push(`- *Pista:* ${ex.hint}`);
+        parts.push(`- *Criterio esperado:* ${ex.expectedOutputOrCriteria}\n`);
+      }
     }
   }
 

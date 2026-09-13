@@ -53,6 +53,17 @@ export interface MissionSection {
   conceptZero: {
     physicalAnalogy: string;      // Analogía intuitiva de la vida diaria
     coreExplanation: string;      // Fundamento conceptual claro sin tecnicismos innecesarios
+    narrativeExplanation?: string;// Dos párrafos detallados de fundamentación epistémica
+    solvedExample?: {             // Ejemplo resuelto paso a paso
+      problemStatement: string;
+      solutionSteps: string[];
+      interpretation: string;
+    };
+    contrastTable?: {             // Tabla de contraste entre concepto y error común
+      correctConcept: string;
+      commonMisconception: string;
+      reasoning: string;
+    }[];
   };
   iDoSection: {
     stepByStepDemo: string;       // Demostración guiada resuelta por el autor ("Yo Hago")
@@ -86,6 +97,11 @@ export interface ProjectPhase {
 export interface ProjectSection {
   artifactName: string;          // Prototipo, código, filtro, sistema contable, etc.
   communityUtility: string;      // Utilidad concreta para la vida diaria o empleo
+  learningObjectives?: string[]; // Objetivos formativos y de aprendizaje del proyecto
+  requiredMaterials?: string[];  // Materiales e insumos requeridos con especificaciones
+  executionSteps?: string[];     // Pasos estructurados de ejecución procedimental
+  deliveryCriteria?: string[];   // Criterios y condiciones de entrega del entregable
+  registrationFormat?: string;   // Formato de bitácora y registro de avance en portafolio
   phases: ProjectPhase[];
   technicalSpecs: string[];      // Normas NOM/ISO o especificaciones técnicas
   acceptanceCriteria: string[];  // Criterios objetivos de funcionamiento
@@ -103,6 +119,21 @@ export interface EvaluationRubricCriterion {
   levels: EvaluationRubricLevel[];
 }
 
+export interface TieredExercise {
+  number: number;
+  statement: string;
+  contextOrData?: string;
+  expectedOutputOrCriteria: string;
+  hint?: string;
+}
+
+export interface TieredExerciseLevel {
+  level: 'basico' | 'intermedio' | 'avanzado';
+  levelName: string;
+  description: string;
+  exercises: TieredExercise[];
+}
+
 export interface EvaluationSection {
   source: 'reused_from_extras' | 'generated_fresh';
   rubric: EvaluationRubricCriterion[];
@@ -110,6 +141,7 @@ export interface EvaluationSection {
     item: string;
     category: string;
   }[];
+  tieredExercises?: TieredExerciseLevel[];
   criticalThinkingQuiz: {
     questionNumber: number;
     question: string;
@@ -119,6 +151,10 @@ export interface EvaluationSection {
   }[];
   metacognitiveReflection: {
     prompts: string[];
+    selfAssessmentScale?: {
+      dimension: string;
+      description: string;
+    }[];
   };
 }
 

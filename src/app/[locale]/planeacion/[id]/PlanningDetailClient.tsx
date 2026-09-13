@@ -4148,9 +4148,9 @@ export default function PlanningDetailClient({
         <ExtraPreviewModal
           isOpen={previewExtra !== null}
           onClose={() => setPreviewExtra(null)}
-          title={previewExtra.title}
-          contentText={previewExtra.contentText}
-          type={previewExtra.type}
+          title={previewExtra.title || 'Vista Previa'}
+          contentText={previewExtra.contentText || (previewExtra as any).content_text || ''}
+          type={previewExtra.type || 'document'}
         />
       )}
 

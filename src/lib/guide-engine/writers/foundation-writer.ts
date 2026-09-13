@@ -59,7 +59,13 @@ Enfoque pedagógico obligatorio: "${approach}".
 ${planningAlignmentChunk}
 
 REGLAS PEDAGÓGICAS Y EXTENSIÓN ESTRICTA:
-1. "Concepto Cero" y Explicación Central (2,000-3,000 palabras en total entre physicalAnalogy y coreExplanation): NUNCA introduzcas una fórmula, código o teoría sin antes explicarla con una ANALOGÍA FÍSICA COTIDIANA profunda (ejemplo: "una variable es como una caja rotulada con un nombre y un valor dentro"). Sin jerga previa, solo intuición pura, desglosando cada aspecto minuciosamente con múltiples ejemplos cotidianos y comparativas.
+1. "Concepto Cero" y Explicación Central (MÍNIMO 2,000 a 3,000 palabras en total entre physicalAnalogy y coreExplanation):
+   - physicalAnalogy: Analogía física cotidiana vívida, tangible e intuitiva (mínimo 1 párrafo completo de 80 a 140 palabras) ambientada en la vida real o en la comunidad sin tecnicismos previos (ej: "una variable es como un cajón rotulado con un nombre en una ferretería de Puebla...").
+   - coreExplanation: Debe estructurarse OBLIGATORIAMENTE con:
+     a) Al menos 2 párrafos explicativos amplios y profundos que formalicen el concepto conectándolo directamente con la analogía física.
+     b) Un EJEMPLO RESUELTO PASO A PASO ("Ejemplo Modelo Demostrativo") con datos cuantitativos o procedimentales claros, desarrollo analítico minucioso y explicación de cada decisión.
+     c) Una tabla de contraste <!--workbook:table:cols=Aspecto Cotidiano,Concepto Técnico Formal,Función en el Problema--> que fije el andamiaje cognitivo.
+   NUNCA introduzcas una fórmula o código sin antes recorrer este andamiaje.
 2. Gancho fenomenológico situado en Puebla: Un relato amplio y contextualizado de un desafío real de Puebla que enganche de inmediato al estudiante con el proyecto PAEC: "${input.paecContext}".
 3. "Yo Hago" (Demostración guiada, 1,500-2,000 palabras): Un tutorial y ejemplo maestro resuelto paso a paso donde el docente modela y demuestra con exhaustividad. En BT: incluye código fuente ejecutable completo, explicación línea por línea y diagrama de flujo o arquitectura textual. En BGE: experimento guiado, modelación matemática o análisis de caso exhaustivo.
 4. "Hacemos Juntos" (Práctica colaborativa, 1,000-1,500 palabras): Una actividad guiada donde los estudiantes resuelven en equipo un caso similar con acompañamiento, múltiples ejercicios intermedios y andamiaje.
@@ -79,8 +85,8 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
 {
   "phenomenonStory": "Relato fenomenológico motivador situado en Puebla...",
   "detonatingQuestion": "¿Pregunta detonadora de pensamiento crítico?",
-  "physicalAnalogy": "Analogía cotidiana física intuitiva...",
-  "coreExplanation": "Explicación conceptual profunda de 2,000-3,000 palabras formalizando la idea sin tecnicismos innecesarios...",
+  "physicalAnalogy": "Analogía cotidiana física e intuitiva de al menos 1 párrafo descriptivo completo...",
+  "coreExplanation": "Explicación conceptual profunda estructurada obligatoriamente en al menos 2 párrafos explicativos + 1 ejemplo resuelto paso a paso con datos y justificación + tabla comparativa de andamiaje...",
   "iDoDemo": "Demostración guiada paso a paso ('Yo Hago') de 1,500-2,000 palabras con ejemplo resuelto (en BT código ejecutable completo comentado, en BGE cálculo o experimento)...",
   "weDoPractice": "Actividad colaborativa guiada ('Hacemos Juntos') de 1,000-1,500 palabras con instrucciones claras y etiquetas <!--workbook:...-->...",
   "youDoChallenge": "Reto autónomo individual ('Tú Haces') de 800-1,200 palabras con etiquetas <!--workbook:...-->...",
@@ -120,7 +126,30 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
       false,
       { jsonMode: true, maxTokens: 8192 }
     );
-    const parsed = robustJsonParse(rawResponse);
+    let parsed = robustJsonParse(rawResponse);
+
+    // Validación de extensión mínima (MEJORA 1)
+    const coreWords = (parsed.coreExplanation || '').split(/\s+/).filter(Boolean).length;
+    if (coreWords < 500) {
+      console.warn(`[FoundationWriter] coreExplanation tiene solo ${coreWords} palabras (< 500). Reintentando con instrucción estricta...`);
+      try {
+        const retryPrompt = `${prompt}\n\n[REQUISITO CRÍTICO DE PROFUNDIDAD]: Tu respuesta anterior fue insuficiente (${coreWords} palabras en coreExplanation). Redacta OBLIGATORIAMENTE un 'coreExplanation' de MÍNIMO 500 palabras con al menos dos párrafos explicativos extensos, desarrollando paso a paso la fundamentación formal y física del concepto sin resumir.`;
+        const retryResponse = await generateWithRotation(
+          systemInstruction,
+          retryPrompt,
+          input.planning.teacherId,
+          false,
+          { jsonMode: true, maxTokens: 8192 }
+        );
+        const retryParsed = robustJsonParse(retryResponse);
+        const retryWords = (retryParsed.coreExplanation || '').split(/\s+/).filter(Boolean).length;
+        if (retryWords > coreWords) {
+          parsed = retryParsed;
+        }
+      } catch (retryErr) {
+        console.warn('[FoundationWriter] Error en reintento, preservando primera respuesta:', retryErr);
+      }
+    }
 
     // Extraer tags de cuaderno presentes en la respuesta
     const fullTextForTags = `${parsed.iDoDemo || ''}\n${parsed.weDoPractice || ''}\n${parsed.youDoChallenge || ''}`;

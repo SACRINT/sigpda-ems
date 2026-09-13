@@ -127,9 +127,10 @@ export async function cascadeBlockMaterials(
     }
 
     // 4. Insertar Rúbrica Analítica de Desempeño del Bloque (Contenido exclusivo de rúbrica)
+    const splitRegex = /##\s*2\.\s*(?:LISTA|Checklist)/i;
     const rubricContent = extracted.rubricaEvaluacion || (
-      extracted.instrumentosEvaluacion && extracted.instrumentosEvaluacion.includes('## 2. LISTA DE COTEJO')
-        ? extracted.instrumentosEvaluacion.split('## 2. LISTA DE COTEJO')[0].trim()
+      extracted.instrumentosEvaluacion && splitRegex.test(extracted.instrumentosEvaluacion)
+        ? extracted.instrumentosEvaluacion.split(splitRegex)[0].trim()
         : extracted.instrumentosEvaluacion
     );
 
@@ -155,12 +156,17 @@ export async function cascadeBlockMaterials(
     }
 
     // 5. Insertar Lista de Cotejo Formativa del Bloque (Contenido exclusivo de checklist)
-    const checklistContent = extracted.listaCotejo || (
-      extracted.instrumentosEvaluacion && extracted.instrumentosEvaluacion.includes('## 2. LISTA DE COTEJO')
-        ? `# LISTA DE COTEJO DE VERIFICACIÓN FORMATIVA · BLOQUE ${blockNum}\n\n` +
-          extracted.instrumentosEvaluacion.split('## 2. LISTA DE COTEJO')[1].trim()
+    const checklistRaw = extracted.listaCotejo || (
+      extracted.instrumentosEvaluacion && splitRegex.test(extracted.instrumentosEvaluacion)
+        ? extracted.instrumentosEvaluacion.split(splitRegex)[1].trim()
         : extracted.instrumentosEvaluacion
     );
+
+    const checklistContent = checklistRaw
+      ? (checklistRaw.startsWith('#')
+          ? checklistRaw
+          : `# LISTA DE COTEJO DE VERIFICACIÓN FORMATIVA · BLOQUE ${blockNum}\n\n` + checklistRaw)
+      : '';
 
     if (checklistContent) {
       await db`

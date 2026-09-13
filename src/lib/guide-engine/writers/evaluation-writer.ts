@@ -80,10 +80,16 @@ ESTÁNDARES FORMATIVOS OBLIGATORIOS Y METAS DE EXTENSIÓN NEM:
    - Cada escenario debe tener una narrativa rica, una pregunta reflexiva profunda y un estándar de respuesta / retroalimentación formativa de más de 150 palabras.
 4. Autoevaluación formativa y metacognición (500 a 800 palabras):
    - 5 a 8 preguntas abiertas de autocrítica constructiva, análisis de dificultades, superación de errores y transferencia del aprendizaje a la vida real.
-5. REGLA ESTRICTA DE SINTAXIS JSON:
+5. Evaluación Formativa Escalonada por Niveles de Dominio (tieredExercises - 800 a 1,200 palabras):
+   OBLIGATORIAMENTE genera ejercicios prácticos y problemas de aplicación situados, organizados en 3 niveles cognitivos claramente diferenciados:
+   - Nivel Básico (Comprensión y aplicación directa): 2 o más ejercicios con datos claros, fórmulas o procedimientos directos y criterio de solución esperado.
+   - Nivel Intermedio (Análisis, modelación o resolución procedimental de variables combinadas en contexto): 2 o más ejercicios con datos contextualizados en la comunidad o taller.
+   - Nivel Avanzado (Juicio crítico, optimización, diagnóstico de fallas o transferencia comunitaria): 2 o más problemas desafiantes de alto orden de pensamiento.
+   Cada ejercicio debe tener: number, statement (enunciado detallado), contextOrData (datos/fórmulas/condiciones), expectedOutputOrCriteria (criterio o valor esperado) y hint opcional. Total mínimo: 6 ejercicios.
+6. REGLA ESTRICTA DE SINTAXIS JSON:
    Para cadenas de texto, citas o especificaciones, usa EXCLUSIVAMENTE comillas simples ('...'). NUNCA coloques comillas dobles sin escapar dentro de un valor de texto JSON.
 
-IMPORTANTE: Esta sección debe tener MÍNIMO 2,000 palabras en total y cumplir con las metas asignadas. No la acortes. Incluye explicaciones detalladas, descriptores extensos y escenarios enriquecidos.
+IMPORTANTE: Esta sección debe tener MÍNIMO 2,000 palabras en total y cumplir con las metas asignadas. No la acortes. Incluye explicaciones detalladas, descriptores extensos, escenarios enriquecidos y los 6 ejercicios escalonados completos.
 ${extrasContext}
 
 Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
@@ -102,6 +108,66 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
   ],
   "checklist": [
     { "item": "Verifica parámetros y condiciones de seguridad antes de operar el equipo o software", "category": "Seguridad" }
+  ],
+  "tieredExercises": [
+    {
+      "level": "basico",
+      "levelName": "Nivel Básico: Comprensión y Aplicación Directa",
+      "description": "Reactivos de ejecución directa y consolidación procedimental sin variables intervinientes.",
+      "exercises": [
+        {
+          "number": 1,
+          "statement": "Enunciado del ejercicio directo 1 con datos concretos...",
+          "contextOrData": "Datos iniciales: variable X = valor, variable Y = valor...",
+          "expectedOutputOrCriteria": "Resultado numérico o procedimental exacto esperado con justificación breve.",
+          "hint": "Recuerda aplicar directamente la fórmula o definición fundamental."
+        },
+        {
+          "number": 2,
+          "statement": "Enunciado del ejercicio directo 2...",
+          "contextOrData": "Condiciones operativas estándar...",
+          "expectedOutputOrCriteria": "Criterio de validación técnica."
+        }
+      ]
+    },
+    {
+      "level": "intermedio",
+      "levelName": "Nivel Intermedio: Análisis y Modelación en Contexto",
+      "description": "Problemas situados con variables contextuales de Puebla o taller técnico.",
+      "exercises": [
+        {
+          "number": 3,
+          "statement": "Problema contextualizado 1 vinculando dos o más conceptos...",
+          "contextOrData": "Escenario operativo o socioproductivo de la comunidad...",
+          "expectedOutputOrCriteria": "Modelo matemático o desarrollo paso a paso justificando el resultado."
+        },
+        {
+          "number": 4,
+          "statement": "Problema contextualizado 2...",
+          "contextOrData": "Parámetros y restricciones de operación...",
+          "expectedOutputOrCriteria": "Solución procedimental completa."
+        }
+      ]
+    },
+    {
+      "level": "avanzado",
+      "levelName": "Nivel Avanzado: Optimización, Diagnóstico y Transferencia",
+      "description": "Desafíos de alto orden cognitivo con análisis crítico y propuesta de mejora.",
+      "exercises": [
+        {
+          "number": 5,
+          "statement": "Desafío de optimización o detección de fallas complejas...",
+          "contextOrData": "Caso de estudio con inconsistencia técnica o reto de eficiencia...",
+          "expectedOutputOrCriteria": "Propuesta fundada de resolución y balance costo-beneficio o impacto comunitario."
+        },
+        {
+          "number": 6,
+          "statement": "Desafío de transferencia comunitaria PAEC...",
+          "contextOrData": "Situación real no estructurada...",
+          "expectedOutputOrCriteria": "Estrategia integral de intervención técnica."
+        }
+      ]
+    }
   ],
   "criticalThinkingQuiz": [
     {
@@ -128,6 +194,7 @@ Meta de palabras para esta misión: mínimo ${input.targetWords.min} palabras (i
 DISTRIBUCIÓN OBLIGATORIA DE PALABRAS:
 - rubric: 800 a 1,200 palabras (descriptores amplios y detallados en cada escala)
 - checklist: 500 a 800 palabras (15-20 reactivos bien explicados)
+- tieredExercises: 800 a 1,200 palabras (3 niveles con 2+ ejercicios cada uno, con enunciados completos y datos)
 - criticalThinkingQuiz: 800 a 1,200 palabras (escenarios situados con explicaciones docentes completas)
 - metacognitiveReflection: 500 a 800 palabras (preguntas abiertas de desarrollo reflexivo)
 
@@ -135,7 +202,7 @@ IMPORTANTE: Esta sección debe tener MÍNIMO 2,000 palabras en total y al menos 
 Incluye explicaciones detalladas, ejemplos múltiples, pasos numerados extensos,
 y espacios amplios para que el estudiante trabaje.
 
-Genera el paquete oficial de 4 instrumentos de evaluación NEM:`;
+Genera el paquete oficial de 4 instrumentos de evaluación NEM con ejercicios escalonados:`;
 
   try {
     const rawResponse = await generateWithRotation(
@@ -145,12 +212,41 @@ Genera el paquete oficial de 4 instrumentos de evaluación NEM:`;
       false,
       { jsonMode: true, maxTokens: 8192 }
     );
-    const parsed = robustJsonParse(rawResponse);
+    let parsed = robustJsonParse(rawResponse);
+
+    // Validación de extensión mínima (MEJORA 1)
+    const tiers = Array.isArray(parsed.tieredExercises) ? parsed.tieredExercises : [];
+    const has3Levels = tiers.length >= 3;
+    const allHave2Exercises = has3Levels && tiers.every((t: any) => Array.isArray(t.exercises) && t.exercises.length >= 2);
+
+    if (!has3Levels || !allHave2Exercises) {
+      console.warn(`[EvaluationWriter] tieredExercises tiene niveles o ejercicios insuficientes (${tiers.length} niveles). Reintentando con instrucción estricta...`);
+      try {
+        const retryPrompt = `${prompt}\n\n[REQUISITO CRÍTICO DE PROFUNDIDAD]: Tu respuesta anterior no cumplió la estructura de 'tieredExercises'. Es OBLIGATORIO incluir EXACTAMENTE 3 NIVELES ('basico', 'intermedio', 'avanzado') y al menos 2 EJERCICIOS POR CADA NIVEL (mínimo 6 ejercicios en total), con sus datos, pistas de andamiaje y criterios de evaluación.`;
+        const retryResponse = await generateWithRotation(
+          systemInstruction,
+          retryPrompt,
+          input.planning.teacherId,
+          false,
+          { jsonMode: true, maxTokens: 8192 }
+        );
+        const retryParsed = robustJsonParse(retryResponse);
+        const retryTiers = Array.isArray(retryParsed.tieredExercises) ? retryParsed.tieredExercises : [];
+        if (retryTiers.length >= tiers.length) {
+          parsed = retryParsed;
+        }
+      } catch (retryErr) {
+        console.warn('[EvaluationWriter] Error en reintento, preservando primera respuesta:', retryErr);
+      }
+    }
 
     const evaluationSection: EvaluationSection = {
       source: 'generated_fresh',
       rubric: parsed.rubric || [],
       checklist: parsed.checklist || [],
+      tieredExercises: Array.isArray(parsed.tieredExercises) && parsed.tieredExercises.length > 0
+        ? parsed.tieredExercises
+        : undefined,
       criticalThinkingQuiz: parsed.criticalThinkingQuiz || [],
       metacognitiveReflection: parsed.metacognitiveReflection || {
         prompts: ['Reflexiona sobre tu aprendizaje en este bloque.'],
@@ -181,7 +277,7 @@ Genera el paquete oficial de 4 instrumentos de evaluación NEM:`;
     };
   } catch (err: any) {
     console.error('[generateEvaluationSection] Error:', err);
-    // Fallback estructurado de evaluación NEM
+    // Fallback estructurado de evaluación NEM con 3 niveles escalonados
     const fallbackEval: EvaluationSection = {
       source: 'generated_fresh',
       rubric: [
@@ -210,6 +306,65 @@ Genera el paquete oficial de 4 instrumentos de evaluación NEM:`;
         { item: 'Presentación formal del reporte y bitácora de trabajo completa', category: 'Formato' },
         { item: 'Demostración de funcionamiento del artefacto o prototipo', category: 'Técnico' },
         { item: 'Participación honesta y reflexiva en la sesión de coevaluación', category: 'Actitudinal' },
+      ],
+      tieredExercises: [
+        {
+          level: 'basico',
+          levelName: 'Nivel Básico: Comprensión y Algoritmos Directos',
+          description: 'Ejercicios de aplicación directa de conceptos esenciales del bloque.',
+          exercises: [
+            {
+              number: 1,
+              statement: `Identifica y define los conceptos rectores de ${input.uacName} estudiados en este bloque, señalando su unidad de medida y formulación base.`,
+              contextOrData: 'Conceptos fundamentales y definiciones técnicas tratadas en la sesión inicial.',
+              expectedOutputOrCriteria: 'Definición precisa y aplicación directa sin errores conceptuales.',
+            },
+            {
+              number: 2,
+              statement: 'Calcula o resuelve un caso elemental aplicando el procedimiento modelado en la sección "Yo Hago".',
+              contextOrData: 'Valores nominales de referencia indicados en el cuaderno de trabajo.',
+              expectedOutputOrCriteria: 'Resultado cuantitativo exacto con sustitución paso a paso.',
+            },
+          ],
+        },
+        {
+          level: 'intermedio',
+          levelName: 'Nivel Intermedio: Modelación y Análisis en Contexto',
+          description: 'Problemas de aplicación procedimental con variables combinadas en situaciones reales.',
+          exercises: [
+            {
+              number: 3,
+              statement: `Modela una situación de tu entorno escolar donde intervengan las variables de ${input.uacName}, calculando los parámetros resultantes.`,
+              contextOrData: `Entorno escolar y comunitario vinculado a ${input.paecContext}.`,
+              expectedOutputOrCriteria: 'Modelo estructurado con tabla de variables y desarrollo matemático/lógico.',
+            },
+            {
+              number: 4,
+              statement: 'Determina las condiciones óptimas de operación o respuesta ante una variación imprevista en las condiciones iniciales.',
+              contextOrData: 'Incremento del 15% en la carga o demanda operativa.',
+              expectedOutputOrCriteria: 'Análisis de sensibilidad y justificación procedimental fundamentada.',
+            },
+          ],
+        },
+        {
+          level: 'avanzado',
+          levelName: 'Nivel Avanzado: Juicio Crítico y Transferencia Socioproductiva',
+          description: 'Retos de alta complejidad cognitiva para optimización y solución de problemáticas comunitarias.',
+          exercises: [
+            {
+              number: 5,
+              statement: `Diseña una propuesta de optimización técnica que resuelva una limitación detectada en la comunidad escolar relacionada con ${input.paecContext}.`,
+              contextOrData: 'Restricciones de presupuesto, sustentabilidad y normativas vigentes aplicables.',
+              expectedOutputOrCriteria: 'Propuesta técnica viable con justificación de impacto social y cálculos de soporte.',
+            },
+            {
+              number: 6,
+              statement: 'Audita y diagnostica una falla inducida en el sistema o procedimiento, deduciendo la causa raíz y proponiendo la medida preventiva.',
+              contextOrData: 'Registro de datos anómalos obtenidos en las pruebas de campo.',
+              expectedOutputOrCriteria: 'Informe de diagnóstico técnico con ruta crítica de corrección.',
+            },
+          ],
+        },
       ],
       criticalThinkingQuiz: [
         {
@@ -334,9 +489,12 @@ function getEvaluationRealText(evaluationSection: EvaluationSection): string {
   const checklistText = (evaluationSection.checklist || [])
     .map((i) => `${i.item || ''} ${i.category || ''}`)
     .join(' ');
+  const tieredText = (evaluationSection.tieredExercises || [])
+    .map((lvl) => `${lvl.levelName} ${lvl.description} ${(lvl.exercises || []).map((e) => `${e.statement} ${e.contextOrData || ''} ${e.expectedOutputOrCriteria || ''} ${e.hint || ''}`).join(' ')}`)
+    .join(' ');
   const quizText = (evaluationSection.criticalThinkingQuiz || [])
     .map((q) => `${q.question || ''} ${q.scenario || ''} ${q.answerExplanation || ''}`)
     .join(' ');
   const metaText = (evaluationSection.metacognitiveReflection?.prompts || []).join(' ');
-  return [rubricText, checklistText, quizText, metaText].filter(Boolean).join(' ');
+  return [rubricText, checklistText, tieredText, quizText, metaText].filter(Boolean).join(' ');
 }
