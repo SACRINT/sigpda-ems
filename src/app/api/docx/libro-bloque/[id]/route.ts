@@ -40,7 +40,15 @@ export async function GET(
       return NextResponse.json({ error: 'No tienes permiso para acceder a esta planeación' }, { status: 403 });
     }
 
-    const workbook = await getBlockWorkbook(id, blockIndex);
+    let workbook = await getBlockWorkbook(id, blockIndex);
+    if (!workbook) {
+      const { getLatestGenerationJob } = await import('@/lib/db');
+      const latestJob = await getLatestGenerationJob(id, blockIndex);
+      if (latestJob && latestJob.status === 'completed' && latestJob.result) {
+        workbook = latestJob.result;
+      }
+    }
+
     if (!workbook) {
       return NextResponse.json(
         { error: 'El libro de trabajo para este bloque aún no ha sido generado' },

@@ -216,3 +216,24 @@ export interface PlanningExtra {
   createdAt: Date;
 }
 
+export interface ImageAsset {
+  id: string;
+  planningId: string;
+  blockIndex: number;
+  missionIndex: number;
+  source: 'openverse' | 'synthetic_svg' | 'upload';
+  externalId?: string | null;
+  title: string;
+  creator?: string | null;
+  creatorUrl?: string | null;
+  license: string;
+  licenseUrl?: string | null;
+  sourceUrl?: string | null;
+  imageUrl: string;
+  thumbnailUrl?: string | null;
+  caption: string;
+  width?: number | null;
+  height?: number | null;
+  createdAt: Date;
+}
+

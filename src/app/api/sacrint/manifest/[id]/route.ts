@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { getPlanningById, getBlockWorkbook, getTeacherByEmail } from '@/lib/db';
-import { renderWorkbookToPdf } from '@/lib/pdf-workbook-renderer';
+import { getPlanningById, getAllBlockWorkbooks, getTeacherByEmail } from '@/lib/db';
+import { exportSacrintCourseManifest } from '@/lib/sacrint-manifest-exporter';
 import type { Planning } from '@/types/planning';
+import type { ActiveWorkTextbook } from '@/types/work-textbook';
 
 export const runtime = 'nodejs';
-export const maxDuration = 90;
+export const maxDuration = 60;
 
 export async function GET(
   request: NextRequest,
@@ -23,37 +24,12 @@ export async function GET(
     }
 
     const { id } = await params;
-    const url = new URL(request.url);
-    const blockIndexParam = url.searchParams.get('blockIndex');
-
-    if (blockIndexParam === null) {
-      return NextResponse.json({ error: 'blockIndex query param es requerido' }, { status: 400 });
-    }
-
-    const blockIndex = parseInt(blockIndexParam, 10);
     const rawPlanning = await getPlanningById(id);
-
     if (!rawPlanning) {
       return NextResponse.json({ error: 'Planeación no encontrada' }, { status: 404 });
     }
     if (rawPlanning.teacher_id !== teacher.id) {
       return NextResponse.json({ error: 'No tienes permiso para acceder a esta planeación' }, { status: 403 });
-    }
-
-    let workbook = await getBlockWorkbook(id, blockIndex);
-    if (!workbook) {
-      const { getLatestGenerationJob } = await import('@/lib/db');
-      const latestJob = await getLatestGenerationJob(id, blockIndex);
-      if (latestJob && latestJob.status === 'completed' && latestJob.result) {
-        workbook = latestJob.result;
-      }
-    }
-
-    if (!workbook) {
-      return NextResponse.json(
-        { error: 'El libro de trabajo para este bloque aún no ha sido generado' },
-        { status: 404 }
-      );
     }
 
     const planning: Planning = {
@@ -71,22 +47,43 @@ export async function GET(
       updatedAt: rawPlanning.updated_at,
     };
 
-    const pdfBuffer = await renderWorkbookToPdf(workbook, planning);
-    const cleanUac = (planning.uacName || 'UAC').replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ_ -]/g, '').trim();
-    const filename = `Libro_Trabajo_Activo_B${blockIndex + 1}_${cleanUac}.pdf`;
+    const workbooksMap = await getAllBlockWorkbooks(id);
+    const blockKeys = Object.keys(workbooksMap).sort((a, b) => {
+      const numA = parseInt(a.replace('block_', ''), 10);
+      const numB = parseInt(b.replace('block_', ''), 10);
+      return numA - numB;
+    });
 
-    return new NextResponse(new Uint8Array(pdfBuffer), {
+    const workbooks: ActiveWorkTextbook[] = [];
+    for (const key of blockKeys) {
+      if (workbooksMap[key]?.current) {
+        workbooks.push(workbooksMap[key].current);
+      }
+    }
+
+    if (workbooks.length === 0) {
+      return NextResponse.json(
+        { error: 'No existen libros de trabajo generados para exportar el manifiesto' },
+        { status: 404 }
+      );
+    }
+
+    const manifest = exportSacrintCourseManifest(planning, workbooks);
+    const cleanUac = (planning.uacName || 'UAC').replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ_ -]/g, '').trim();
+    const filename = `sacrint_course_manifest_${cleanUac}.json`;
+
+    return new NextResponse(JSON.stringify(manifest, null, 2), {
       status: 200,
       headers: {
-        'Content-Type': 'application/pdf',
+        'Content-Type': 'application/json; charset=utf-8',
         'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
         'Cache-Control': 'no-cache',
       },
     });
   } catch (error: any) {
-    console.error('[GET /api/pdf/libro-bloque/[id]] Error:', error);
+    console.error('[GET /api/sacrint/manifest/[id]] Error:', error);
     return NextResponse.json(
-      { error: error.message || 'Error al descargar el libro PDF' },
+      { error: error.message || 'Error al exportar el manifiesto de curso' },
       { status: 500 }
     );
   }

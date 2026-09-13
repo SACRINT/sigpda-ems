@@ -1322,6 +1322,30 @@ export default function PlanningDetailClient({
                         >
                           <Download size={15} /> Compendio Semestral (PDF)
                         </a>
+                        <a
+                          href={`/api/sacrint/manifest/${planning.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn"
+                          style={{
+                            padding: '9px 16px',
+                            fontSize: '13px',
+                            fontWeight: 700,
+                            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                            color: '#ffffff',
+                            borderRadius: '8px',
+                            textDecoration: 'none',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '7px',
+                            boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)',
+                            border: '1px solid rgba(255, 255, 255, 0.2)',
+                            transition: 'transform 0.15s, box-shadow 0.15s',
+                          }}
+                          title="Descargar Manifiesto Institucional de Curso para SACRINT_SYSTEMS (.json)"
+                        >
+                          <Download size={15} /> Manifiesto SACRINT (JSON)
+                        </a>
                       </div>
                     </div>
                   ) : (
