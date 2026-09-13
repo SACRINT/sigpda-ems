@@ -1119,17 +1119,31 @@ export default function PmcWizardClient({ locale, teacherId, teacherName, teache
             <div style={sectionCard}>
               <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#818cf8', marginBottom: '16px' }}>📥 Documentos para descargar</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', flexWrap: 'wrap' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, color: '#ef4444', marginBottom: '4px' }}>📕 PMC Oficial en PDF (Formato SEP Puebla)</div>
+                    <div style={{ fontSize: '13px', color: 'rgba(240,244,255,0.7)' }}>Documento PDF inmutable con membrete oficial del Gobierno de Puebla, escudos SEP/DBEPA, matriz FODA, metas y bloque de 3 firmas listo para impresión o firma electrónica.</div>
+                  </div>
+                  <a
+                    href={`/api/pdf/pmc/${projectId}`}
+                    className="btn btn-primary"
+                    style={{ flexShrink: 0, backgroundColor: '#c0392b', borderColor: '#c0392b', color: '#fff', fontWeight: 600, textDecoration: 'none' }}
+                  >
+                    ↓ Descargar PDF Oficial
+                  </a>
+                </div>
+
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: '8px', flexWrap: 'wrap' }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, color: '#818cf8', marginBottom: '4px' }}>📄 PMC Completo 2025-2026</div>
-                    <div style={{ fontSize: '13px', color: 'rgba(240,244,255,0.6)' }}>Documento Word con todas las secciones: portada, normativa, diagnóstico, plan de acción, metas individuales y firmas</div>
+                    <div style={{ fontWeight: 700, color: '#818cf8', marginBottom: '4px' }}>📄 PMC Completo (Word Editable)</div>
+                    <div style={{ fontSize: '13px', color: 'rgba(240,244,255,0.6)' }}>Documento Word (.docx) editable con todas las secciones para realizar ajustes manuales si se requieren.</div>
                   </div>
                   <a
                     href={`/api/docx/pmc/${projectId}`}
                     className="btn btn-primary"
                     style={{ flexShrink: 0, backgroundColor: 'var(--c-navy)', borderColor: 'var(--c-navy)', textDecoration: 'none' }}
                   >
-                    ↓ Descargar PMC
+                    ↓ Descargar Word
                   </a>
                 </div>
 

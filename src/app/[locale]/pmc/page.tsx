@@ -115,6 +115,9 @@ export default async function PmcDashboardPage({
                     </Link>
                     {p.status === 'completed' && (
                       <>
+                        <a href={`/api/pdf/pmc/${p.id as string}`} className="btn btn-sm" style={{ backgroundColor: '#c0392b', borderColor: '#c0392b', color: '#fff', fontWeight: 600 }}>
+                          ↓ PMC Oficial PDF
+                        </a>
                         <a href={`/api/docx/pmc/${p.id as string}`} className="btn btn-primary btn-sm" style={{ backgroundColor: 'var(--c-navy)', borderColor: 'var(--c-navy)', color: '#fff' }}>
                           ↓ PMC Word
                         </a>

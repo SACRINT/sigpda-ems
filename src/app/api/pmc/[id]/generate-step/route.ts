@@ -7,6 +7,8 @@ import { getUserLibraryContext } from '@/lib/context-extractor';
 import { getNormativaForGenerator, getStructuredNormativaForGenerator } from '@/lib/normativa-context';
 import { parseAIResponse } from '@/lib/ai-response-parser';
 import { PmcDiagnosticoSchema, PmcPlanAccionSchema } from '@/lib/ai-schemas';
+import { getSubscriptionStatus } from '@/lib/subscription-gate';
+import { z } from 'zod';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -19,10 +21,10 @@ type StepType = 'normativa' | 'diagnostico' | 'plan_accion';
 // Fallback automático si la BD está vacía (ver getNormativaFallback en normativa-context.ts).
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-function safeStr(val: unknown): string {
-  if (val === null || val === undefined) return 'N/D';
-  if (typeof val === 'string') return val || 'N/D';
-  return String(val);
+function safeStr(val: unknown, fallback = 'N/D'): string {
+  if (val === null || val === undefined) return fallback;
+  const str = String(val).trim();
+  return str.length > 0 ? str : fallback;
 }
 
 function parseJson<T = unknown>(val: unknown): T | Record<string, never> {
@@ -48,6 +50,18 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     const teacher = await getTeacherByEmail(session.user.email);
     if (!teacher) {
       return NextResponse.json({ error: 'Docente no encontrado' }, { status: 404 });
+    }
+
+    // PASO 1 — Gate de suscripción institucional en PMC
+    const subStatus = await getSubscriptionStatus(teacher.id, teacher.email);
+    if (!subStatus.hasActiveSubscription && !subStatus.isAdmin) {
+      return NextResponse.json(
+        {
+          error:
+            'Se requiere una suscripción activa o institucional para generar componentes del Plan de Mejora Continua (PMC) con IA.',
+        },
+        { status: 403 }
+      );
     }
 
     const { id } = await params;
@@ -179,15 +193,50 @@ Responde con JSON con exactamente estas 5 claves. Texto formal y técnico. NO in
         throw new Error('Respuesta vacía del proveedor de IA');
       }
 
+      let parsedDiag: z.infer<typeof PmcDiagnosticoSchema>;
+      let fodaWarning: string | undefined = undefined;
+
       const parseResult = parseAIResponse(rawText, PmcDiagnosticoSchema, { contextName: 'pmc_diagnostico' });
-      if (!parseResult.success) {
-        logger.error('Failed to parse PMC diagnostico:', parseResult.error);
-        return NextResponse.json(
-          { error: `Error al validar estructura de diagnóstico PMC: ${parseResult.error}` },
-          { status: 500 }
-        );
+      if (parseResult.success) {
+        parsedDiag = parseResult.data;
+      } else {
+        logger.warn('Initial PMC diagnostico parsing failed, attempting flexible regex fallback:', {
+          error: parseResult.error,
+        });
+
+        const extractField = (pattern: RegExp): string => {
+          const m = rawText.match(pattern);
+          return m && m[1] ? m[1].replace(/["}\]\\]/g, '').trim() : '';
+        };
+
+        const pres = extractField(/(?:"presentacion"|presentación|1\.)\s*[:=\-]\s*"?([\s\S]*?)(?=(?:"contexto"|contexto|2\.)|$)/i);
+        const cont = extractField(/(?:"contexto"|contexto|2\.)\s*[:=\-]\s*"?([\s\S]*?)(?=(?:"analisis_indicadores"|análisis|3\.)|$)/i);
+        const ind = extractField(/(?:"analisis_indicadores"|analisis_indicadores|3\.)\s*[:=\-]\s*"?([\s\S]*?)(?=(?:"sintesis_foda"|síntesis|foda|4\.)|$)/i);
+        const fodaExtracted = extractField(/(?:"sintesis_foda"|sintesis_foda|foda|4\.)\s*[:=\-]\s*"?([\s\S]*?)(?=(?:"priorizacion"|priorización|5\.)|$)/i);
+        const prio = extractField(/(?:"priorizacion"|priorizacion|5\.)\s*[:=\-]\s*"?([\s\S]*?)(?=$|")/i);
+
+        if (pres.length >= 10 && cont.length >= 10 && fodaExtracted.length >= 10) {
+          parsedDiag = {
+            presentacion: pres,
+            contexto: cont,
+            analisis_indicadores: ind.length >= 10 ? ind : 'Análisis de indicadores académicos del ciclo escolar anterior.',
+            sintesis_foda: fodaExtracted,
+            priorizacion: prio.length >= 10 ? prio : 'Priorización de objetivos orientados a la retención y aprovechamiento.',
+          };
+          logger.info('PMC diagnostico recovered successfully via flexible regex fallback');
+        } else {
+          // Si no se pudieron aislar las 5 claves, guardar texto crudo y advertencia
+          fodaWarning = 'El FODA necesita revisión manual (la respuesta de IA no devolvió el formato estándar pero se preservó el texto generado).';
+          logger.warn('PMC FODA fallback activated: raw text preserved with manual review flag');
+          parsedDiag = {
+            presentacion: pres.length >= 10 ? pres : `Presentación oficial del PMC — Plantel ${safeStr(project.school_name)} (Ciclo ${safeStr(project.ciclo_escolar)}).`,
+            contexto: cont.length >= 10 ? cont : safeStr(project.diagnostico_comunidad, 'Diagnóstico contextual escolar e institucional.'),
+            analisis_indicadores: ind.length >= 10 ? ind : `Indicadores base: Aprobación ${indic.aprobacion_ant ?? 'N/D'}%, Reprobación ${indic.reprobacion_ant ?? 'N/D'}%, Abandono ${indic.abandono_ant ?? 'N/D'}%.`,
+            sintesis_foda: rawText.length > 50 ? rawText.substring(0, 1500) : 'El análisis FODA necesita revisión manual por parte del colectivo docente.',
+            priorizacion: prio.length >= 10 ? prio : 'Priorización colegiada pendiente de confirmación en el Consejo Técnico Escolar.',
+          };
+        }
       }
-      const parsedDiag = parseResult.data;
 
       const [updated] = await db`
         UPDATE pmc_projects
@@ -199,7 +248,13 @@ Responde con JSON con exactamente estas 5 claves. Texto formal y técnico. NO in
         RETURNING *
       `;
       await logActivity({ teacherEmail: teacher.email, action: 'generate_pmc_diagnostico', entityType: 'pmc', entityId: id, success: true });
-      return NextResponse.json({ success: true, step, diagnostico_generado: parsedDiag, project: updated });
+      return NextResponse.json({
+        success: true,
+        step,
+        diagnostico_generado: parsedDiag,
+        warning: fodaWarning,
+        project: updated,
+      });
     }
 
     // ── PLAN DE ACCIÓN ───────────────────────────────────────────────────────
@@ -249,9 +304,20 @@ Responde con JSON con exactamente estas 5 claves. Texto formal y técnico. NO in
         : 0;
 
       const staffData = parseJson<{ nombre?: string; cargo?: string }[]>(project.staff_data);
-      const staffList = Array.isArray(staffData)
-        ? staffData.map((s) => `- ${s.nombre ?? 'N/D'} — ${s.cargo ?? 'N/D'}`).join('\n')
+      const MAX_STAFF = subStatus.isAdmin ? 100 : 35;
+      const isStaffTruncated = Array.isArray(staffData) && staffData.length > MAX_STAFF;
+      const cappedStaff = Array.isArray(staffData) ? staffData.slice(0, MAX_STAFF) : [];
+      if (isStaffTruncated) {
+        logger.warn('Truncated staff list for PMC generation to prevent token overflow', {
+          total: staffData.length,
+          capped: MAX_STAFF,
+          teacherEmail: teacher.email,
+        });
+      }
+      const staffList = cappedStaff.length > 0
+        ? cappedStaff.map((s) => `- ${s.nombre ?? 'N/D'} — ${s.cargo ?? 'N/D'}`).join('\n')
         : 'No especificado';
+      const effectiveStaffCount = cappedStaff.length > 0 ? cappedStaff.length : (project.total_staff ?? 0);
 
       const prompt = `Eres un evaluador y planeador experto en la Mejora Continua para planteles BGE/TBC de Puebla bajo los LINEAMIENTOS DBEPA 2025-2026.
 
@@ -273,7 +339,7 @@ INDICADORES OFICIALES:
 CATEGORÍAS Y TEMAS PRIORIZADOS POR EL DIRECTOR:
 ${categoriasList}
 
-PERSONAL DEL PLANTEL (${project.total_staff ?? 0} trabajadores):
+PERSONAL DEL PLANTEL (${effectiveStaffCount} trabajadores considerados):
 ${staffList}
 
 ═══════════════════════════════════════════
@@ -298,7 +364,7 @@ CRITERIOS DE EXCELENCIA DE LA SUPERVISIÓN (DBEPA):
    - Estructura SMART: Verbo de acción en infinitivo + objeto/área de enfoque + indicador porcentual o numérico exacto + plazo definido + medio o estrategia clave.
 
 6. METAS INDIVIDUALES POR CARGO:
-   - Una meta individual SMART por cada uno de los ${project.total_staff ?? 0} trabajadores listados, acorde a su función específica (Director, Docente, Orientador, etc.) y con su entregable cualitativo correspondiente.
+   - Una meta individual SMART por cada uno de los ${effectiveStaffCount} trabajadores listados, acorde a su función específica (Director, Docente, Orientador, etc.) y con su entregable cualitativo correspondiente.
 
 Responde con JSON con esta estructura EXACTA:
 {
@@ -366,7 +432,7 @@ Responde con JSON con esta estructura EXACTA:
 
     return NextResponse.json({ error: 'Paso no reconocido' }, { status: 400 });
   } catch (error) {
-    console.error('PMC generate-step error:', error);
+    logger.error('PMC generate-step error:', { error });
     const message = error instanceof Error ? error.message : 'Error desconocido';
     return NextResponse.json({ error: message }, { status: 500 });
   }

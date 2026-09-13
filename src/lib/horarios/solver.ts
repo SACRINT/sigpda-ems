@@ -31,8 +31,10 @@ export interface AulaInput {
 export interface CargaInput {
   id: string;
   docenteId: string;
+  personalId?: string;
   grupoId: string;
   asignaturaId: string;
+  uacName?: string;
   horasSemanales: number;
   esHoraDoblePermitida?: boolean;
   requiereAulaEspecial?: boolean;
@@ -51,7 +53,9 @@ export interface CeldaFijaInput {
 export interface RestriccionDocenteInput {
   docenteId: string;
   diasIndisponibles?: number[]; // ej. [3] para Miércoles, [4] para Jueves
+  diasNoDisponibles?: number[];
   periodosIndisponibles?: { dia: number; periodo: number }[];
+  horasBloqueadas?: { dia: number; periodo: number }[];
 }
 
 export interface SolverParams {
@@ -92,6 +96,8 @@ export interface MetricasCalidadHorario {
 
 export interface SolverResult {
   exito: boolean;
+  success?: boolean;
+  error?: string;
   celdas: CeldaResultado[];
   conflictos: string[];
   metricas: MetricasCalidadHorario;
@@ -117,6 +123,7 @@ interface UnitInternal {
 }
 
 import { normalizarId } from '@/lib/utils/normalize';
+import { logger } from '@/lib/logger';
 export { normalizarId };
 
 export function isSlotBloqueadoOIndisponible(
@@ -188,7 +195,7 @@ export function resolverHorario(params: SolverParams): SolverResult {
   }
 
   const globalStartTime = Date.now();
-  const GLOBAL_TIME_LIMIT = 8000; // 8s max limit for serverless environment
+  const GLOBAL_TIME_LIMIT = 30000; // Timeout máximo de 30 segundos (30,000 ms)
 
   // Mapa de alias para normalización bidireccional de IDs y nombres de grupos, docentes y aulas
   const aliasMap = new Map<string, string[]>();
@@ -244,7 +251,7 @@ export function resolverHorario(params: SolverParams): SolverResult {
   for (const r of restriccionesDocentes) {
     const docId = normalizarId(r.docenteId);
     const aliases = aliasMap.get(docId) || [docId];
-    const dias = r.diasIndisponibles || (r as any).diasNoDisponibles || [];
+    const dias = r.diasIndisponibles || r.diasNoDisponibles || [];
     for (const d of dias) {
       for (let p = 1; p <= horasPorDia; p++) {
         for (const a of aliases) {
@@ -252,7 +259,7 @@ export function resolverHorario(params: SolverParams): SolverResult {
         }
       }
     }
-    const periodos = r.periodosIndisponibles || (r as any).horasBloqueadas || [];
+    const periodos = r.periodosIndisponibles || r.horasBloqueadas || [];
     for (const item of periodos) {
       for (const a of aliases) {
         docenteIndisponibleSet.add(`${item.dia}_${item.periodo}_${a}`);
@@ -321,7 +328,7 @@ export function resolverHorario(params: SolverParams): SolverResult {
     for (const c of grpCargas) {
       const docId = normalizarId(c.docenteId);
       const fijadas = fijasGrp.filter(
-        f => normalizarId(f.docenteId) === docId && (f.asignaturaId === c.asignaturaId || f.asignaturaId === (c as any).uacName)
+        f => normalizarId(f.docenteId) === docId && (f.asignaturaId === c.asignaturaId || f.asignaturaId === c.uacName)
       ).length;
       const countRestante = Math.max(0, c.horasSemanales - fijadas);
 
@@ -337,7 +344,7 @@ export function resolverHorario(params: SolverParams): SolverResult {
           id: uCounter++,
           grupoId: grpId,
           docenteId: docId,
-          asignaturaId: c.asignaturaId || (c as any).uacName,
+          asignaturaId: c.asignaturaId || c.uacName || "",
           aulaId: c.aulaEspecialId,
           cargaId: c.id,
           esFija: false,
@@ -505,7 +512,7 @@ export function resolverHorario(params: SolverParams): SolverResult {
     let stagnationCounter = 0;
     let bestConflicts = totalConflicts;
 
-    while (totalConflicts > 0 && step < 120000 && (Date.now() - t0 < 3000)) {
+    while (totalConflicts > 0 && step < 120000 && (Date.now() - t0 < 3000) && (Date.now() - globalStartTime < GLOBAL_TIME_LIMIT)) {
       step++;
 
       if (totalConflicts < bestConflicts) {
@@ -726,6 +733,36 @@ export function resolverHorario(params: SolverParams): SolverResult {
     solverRun = bestRun;
   }
 
+  // Verificación estricta de timeout de 30 segundos (30,000 ms)
+  const tiempoTrasMultiStart = Date.now() - globalStartTime;
+  if (tiempoTrasMultiStart >= GLOBAL_TIME_LIMIT && (!solverRun.success || solverRun.conflicts > 0)) {
+    logger.warn(`[SOLVER TIMEOUT] Conflicto no resoluble en tiempo límite tras ${tiempoTrasMultiStart}ms`, {
+      tiempoMs: tiempoTrasMultiStart,
+      grupos: grupos.length,
+      docentes: docentes.length,
+      cargas: cargas.length
+    });
+    return {
+      exito: false,
+      success: false,
+      error: 'Conflicto no resoluble en tiempo límite',
+      celdas: [],
+      conflictos: ['Conflicto no resoluble en tiempo límite'],
+      metricas: {
+        totalClasesProgramadas: 0,
+        totalClasesRequeridas: totalRequeridas,
+        huecosDocentes: 0,
+        huecosGrupos: 0,
+        diasAisladosDocentes: 0,
+        materiasSinDispersion: 0,
+        bloquesDoblesExitosos: 0,
+        softScore: 0,
+        tiempoEjecucionMs: tiempoTrasMultiStart
+      },
+      distribucionDocentes: []
+    };
+  }
+
   // 7. Construir celdas de resultado
   const resultCeldas: CeldaResultado[] = [];
   const conflictos: string[] = [];
@@ -880,7 +917,9 @@ export function resolverHorario(params: SolverParams): SolverResult {
   );
 
   if (celdasEnSlotsBloqueados.length > 0) {
-    console.error(`[SOLVER VIOLATION] Se detectaron ${celdasEnSlotsBloqueados.length} celdas en slots bloqueados.`, celdasEnSlotsBloqueados);
+    logger.error(`[SOLVER VIOLATION] Se detectaron ${celdasEnSlotsBloqueados.length} celdas en slots bloqueados.`, {
+      violaciones: celdasEnSlotsBloqueados.length
+    });
     for (const viol of celdasEnSlotsBloqueados) {
       conflictos.push(`Conflicto de bloqueo: La clase de ${viol.asignaturaId} (Grupo: ${viol.grupoId}, Docente: ${viol.docenteId}) cayó en un slot bloqueado en Día ${viol.diaSemana} Hora ${viol.periodo}.`);
     }
@@ -888,8 +927,40 @@ export function resolverHorario(params: SolverParams): SolverResult {
 
   const tiempoEjecucionMs = Date.now() - globalStartTime;
 
+  if (tiempoEjecucionMs >= GLOBAL_TIME_LIMIT && !solverRun.success) {
+    logger.warn(`[SOLVER TIMEOUT] Conflicto no resoluble en tiempo límite tras ${tiempoEjecucionMs}ms`, {
+      tiempoMs: tiempoEjecucionMs,
+      grupos: grupos.length,
+      docentes: docentes.length,
+      cargas: cargas.length
+    });
+    return {
+      exito: false,
+      success: false,
+      error: 'Conflicto no resoluble en tiempo límite',
+      celdas: [],
+      conflictos: ['Conflicto no resoluble en tiempo límite'],
+      metricas: {
+        totalClasesProgramadas: resultCeldas.length,
+        totalClasesRequeridas: totalRequeridas,
+        huecosDocentes,
+        huecosGrupos,
+        diasAisladosDocentes,
+        materiasSinDispersion,
+        bloquesDoblesExitosos,
+        softScore,
+        tiempoEjecucionMs
+      },
+      distribucionDocentes: []
+    };
+  }
+
+  const isSuccess = solverRun.success && celdasEnSlotsBloqueados.length === 0;
+
   return {
-    exito: solverRun.success && celdasEnSlotsBloqueados.length === 0,
+    exito: isSuccess,
+    success: isSuccess,
+    error: isSuccess ? undefined : (conflictos[0] || 'No se pudo generar el horario'),
     celdas: resultCeldas,
     conflictos,
     metricas: {

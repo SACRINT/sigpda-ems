@@ -29,6 +29,38 @@ function clearPaecDraft() {
   try { window.localStorage.removeItem(PAEC_DRAFT_KEY); } catch { /* ignore */ }
 }
 
+/** Reads cached step data (Step 4 or 5) from localStorage */
+function getCachedPaecStep(pId: string, stepNum: 4 | 5): unknown | null {
+  if (typeof window === 'undefined' || !pId) return null;
+  try {
+    const raw = window.localStorage.getItem(`paec_cache_${pId}_step${stepNum}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Saves step data (Step 4 or 5) to localStorage */
+function setCachedPaecStep(pId: string, stepNum: 4 | 5, data: unknown) {
+  if (typeof window === 'undefined' || !pId || !data) return;
+  try {
+    window.localStorage.setItem(`paec_cache_${pId}_step${stepNum}`, JSON.stringify(data));
+  } catch { /* storage full or unavailable */ }
+}
+
+/** Invalidates cached steps when an earlier step is regenerated */
+function invalidatePaecStepCache(pId: string, startingFromStep: number) {
+  if (typeof window === 'undefined' || !pId) return;
+  try {
+    if (startingFromStep <= 4) {
+      window.localStorage.removeItem(`paec_cache_${pId}_step4`);
+    }
+    if (startingFromStep <= 5) {
+      window.localStorage.removeItem(`paec_cache_${pId}_step5`);
+    }
+  } catch { /* ignore */ }
+}
+
 interface PaecFormDraft {
   projectName: string;
   problemStatement: string;
@@ -103,6 +135,24 @@ const FFE_PAIRS = [
   { name5: 'Probabilidad y Estadística I (PM)', name6: 'Probabilidad y Estadística II (PM)', label: 'Probabilidad y Estadística (PM)' },
 ];
 
+function classifyError(err: unknown): { message: string; type: 'timeout' | 'json' | 'rate_limit' | 'network' | 'unknown' } {
+  const msg = err instanceof Error ? err.message : String(err);
+  const lower = msg.toLowerCase();
+  if (lower.includes('timeout') || lower.includes('tiempo') || lower.includes('504') || lower.includes('408')) {
+    return { type: 'timeout', message: 'Timeout de red: El servidor tardó más de 120s en procesar la fase. Por favor reintenta.' };
+  }
+  if (lower.includes('json') || lower.includes('validar estructura') || lower.includes('schema') || lower.includes('malform')) {
+    return { type: 'json', message: 'JSON malformado: La estructura retornada por el modelo de IA no cumple la validación oficial DBEPA.' };
+  }
+  if (lower.includes('rate limit') || lower.includes('429') || lower.includes('límite') || lower.includes('cuota')) {
+    return { type: 'rate_limit', message: 'Límite de API alcanzado: Se superó la cuota de peticiones o el límite por minuto de la IA.' };
+  }
+  if (lower.includes('failed to fetch') || lower.includes('network') || lower.includes('conexión') || lower.includes('offline')) {
+    return { type: 'network', message: 'Error de red o conexión: No se pudo establecer comunicación con el servidor.' };
+  }
+  return { type: 'unknown', message: msg || 'Error al generar la fase con IA.' };
+}
+
 export default function PaecWizardClient({ locale, initialId }: Props) {
   const router = useRouter();
 
@@ -116,6 +166,8 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
   const [generating, setGenerating] = useState(false);
   const [activeStep, setActiveStep] = useState(1);
   const [error, setError] = useState<string | null>(null);
+  const [errorType, setErrorType] = useState<'timeout' | 'json' | 'rate_limit' | 'network' | 'unknown' | null>(null);
+  const [retryCount, setRetryCount] = useState<Record<number, number>>({});
 
   // Form States (Paso 1: Datos Base) — initialized from saved draft if present
   const [projectName, setProjectName] = useState(savedDraft?.projectName ?? '');
@@ -132,12 +184,75 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
   });
 
   const [school, setSchool] = useState<SchoolContext>(savedDraft?.school ?? {
+    cct: '',
+    schoolName: '',
+    municipality: '',
+    locality: '',
+    schoolZone: '',
     enrollment: '',
     teacherCount: '',
     indicators: '',
     previousPrograms: '',
     facilities: '',
   });
+
+  const [cctSearching, setCctSearching] = useState(false);
+  const [cctWarning, setCctWarning] = useState<string | null>(null);
+
+  // Autocompletado de CCT mediante el catálogo de Puebla
+  const handleCctLookup = async (cctInput: string) => {
+    const clean = cctInput.trim().toUpperCase();
+    if (!clean || clean.length < 5) {
+      setCctWarning(null);
+      return;
+    }
+    setCctSearching(true);
+    setCctWarning(null);
+    try {
+      const res = await fetch(`/api/admin/catalogo-escuelas?cct=${encodeURIComponent(clean)}`);
+      const data = await res.json();
+      if (res.ok && data.success && data.escuela) {
+        const esc = data.escuela;
+        setSchool(prev => ({
+          ...prev,
+          cct: esc.cct || clean,
+          schoolName: esc.nombre || prev.schoolName,
+          municipality: esc.municipio || prev.municipality,
+          locality: esc.localidad || prev.locality,
+          schoolZone: esc.zona || prev.schoolZone,
+        }));
+        // Si la comunidad no tiene ubicación definida, sugerir la del catálogo
+        setCommunity(prev => ({
+          ...prev,
+          location: prev.location?.trim() ? prev.location : `${esc.localidad ? esc.localidad + ', ' : ''}${esc.municipio ? esc.municipio + ', ' : ''}Puebla`,
+        }));
+        setCctWarning(null);
+      } else {
+        setCctWarning('CCT no encontrado en el catálogo de Puebla');
+      }
+    } catch {
+      setCctWarning('Error de conexión al consultar el catálogo');
+    } finally {
+      setCctSearching(false);
+    }
+  };
+
+  // Restaurar caché de Step 4 o 5 al navegar entre pasos
+  useEffect(() => {
+    if (!projectId || !project) return;
+    if (activeStep === 4 && !project.fase2Cronograma) {
+      const cached4 = getCachedPaecStep(projectId, 4);
+      if (cached4) {
+        setProject(prev => prev ? ({ ...prev, fase2Cronograma: cached4 as any }) : prev);
+      }
+    }
+    if (activeStep === 5 && !project.fase2DetalleCurricular) {
+      const cached5 = getCachedPaecStep(projectId, 5);
+      if (cached5) {
+        setProject(prev => prev ? ({ ...prev, fase2DetalleCurricular: cached5 as any }) : prev);
+      }
+    }
+  }, [activeStep, projectId, project]);
 
   // Catalogs and Selections
   const [laboralCatalog, setLaboralCatalog] = useState<{ uac_name: string; semester: number; curriculum_name: string }[]>([]);
@@ -206,6 +321,19 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
       const data = await res.json();
       
       const p = data.project as PaecProject;
+      // Sincronizar e hidratar caché local de Steps 4 y 5
+      if (p.fase2Cronograma) {
+        setCachedPaecStep(id, 4, p.fase2Cronograma);
+      } else {
+        const cached4 = getCachedPaecStep(id, 4);
+        if (cached4) (p as any).fase2Cronograma = cached4;
+      }
+      if (p.fase2DetalleCurricular) {
+        setCachedPaecStep(id, 5, p.fase2DetalleCurricular);
+      } else {
+        const cached5 = getCachedPaecStep(id, 5);
+        if (cached5) (p as any).fase2DetalleCurricular = cached5;
+      }
       setProject(p);
       setProjectName(p.projectName);
       setProblemStatement(p.problemStatement);
@@ -257,11 +385,21 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
     }
   }, [activeStep, projectId, !!project?.fase2Anexos]);
 
+  const isStep1Valid = Boolean(
+    projectName.trim() &&
+    problemStatement.trim() &&
+    community.location?.trim() &&
+    community.demographics?.trim() &&
+    community.economy?.trim() &&
+    school.enrollment?.trim() &&
+    school.teacherCount?.trim()
+  );
+
   // Handle Form Submission (Create Project)
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    if (!projectName || !problemStatement) {
-      alert('Por favor completa los campos requeridos: Nombre del proyecto y Problemática.');
+    if (!isStep1Valid) {
+      setError('Por favor completa todos los campos obligatorios marcados con asterisco rojo (*) antes de continuar.');
       return;
     }
 
@@ -296,7 +434,7 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
       setProjectId(data.project.id);
       router.push(`/${locale}/paec/nuevo?id=${data.project.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ocurrió un error.');
+      setError(err instanceof Error ? err.message : 'Ocurrió un error al registrar el proyecto.');
       setLoading(false);
     }
   }
@@ -304,8 +442,18 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
   // Handle Step Generation (Call Claude API)
   async function generateCurrentStep() {
     if (!projectId) return;
+
+    // Invalidar caché si el usuario regenera un paso anterior
+    if (activeStep < 4) {
+      invalidatePaecStepCache(projectId, 4);
+    } else if (activeStep === 4) {
+      invalidatePaecStepCache(projectId, 5);
+    }
+
+    const currentRetries = retryCount[activeStep] || 0;
     setGenerating(true);
     setError(null);
+    setErrorType(null);
     try {
       const res = await fetch(`/api/paec/${projectId}/generate-step`, {
         method: 'POST',
@@ -314,17 +462,37 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Error al generar los contenidos con IA.');
+        const data = await res.json().catch(() => ({}));
+        const status = res.status;
+        let errMsg = data.error || `Error del servidor HTTP ${status}`;
+        if (status === 504 || status === 408) {
+          errMsg = 'Timeout de red: El servidor tardó más de 120s en procesar la fase.';
+        } else if (status === 429) {
+          errMsg = 'Límite de API alcanzado: Demasiadas solicitudes simultáneas a la IA.';
+        }
+        throw new Error(errMsg);
       }
 
       const data = await res.json();
       setProject(data.project);
+
+      // Guardar en caché si se generó Step 4 o Step 5
+      if (activeStep === 4 && data.project?.fase2Cronograma) {
+        setCachedPaecStep(projectId, 4, data.project.fase2Cronograma);
+      }
+      if (activeStep === 5 && data.project?.fase2DetalleCurricular) {
+        setCachedPaecStep(projectId, 5, data.project.fase2DetalleCurricular);
+      }
+
+      setRetryCount((prev) => ({ ...prev, [activeStep]: 0 }));
       if (activeStep === 7 && data.project?.id) {
         fetchAudit(data.project.id);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error en la comunicación con la IA.');
+      const classified = classifyError(err);
+      setError(classified.message);
+      setErrorType(classified.type);
+      setRetryCount((prev) => ({ ...prev, [activeStep]: currentRetries + 1 }));
     } finally {
       setGenerating(false);
     }
@@ -430,7 +598,9 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
             <h2 style={{ fontSize: '18px', color: '#818cf8', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '10px', marginBottom: '16px', fontWeight: 700 }}>1. Identificación del Proyecto</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
-                <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px', color: 'rgba(240,244,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Nombre Preliminar del Proyecto Escolar Comunitario *</label>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px', color: 'rgba(240,244,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Nombre Preliminar del Proyecto Escolar Comunitario <span style={{ color: '#ef4444' }}>*</span>
+                </label>
                 <input
                   type="text"
                   required
@@ -441,7 +611,9 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
                 />
               </div>
               <div>
-                <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px', color: 'rgba(240,244,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Problemática o Necesidad seleccionada por el Comité del Plantel *</label>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px', color: 'rgba(240,244,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Problemática o Necesidad seleccionada por el Comité del Plantel <span style={{ color: '#ef4444' }}>*</span>
+                </label>
                 <textarea
                   required
                   rows={3}
@@ -452,7 +624,9 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
                 />
               </div>
               <div>
-                <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px', color: 'rgba(240,244,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Ciclo Semestral / Bloque de Relevo *</label>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px', color: 'rgba(240,244,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Ciclo Semestral / Bloque de Relevo <span style={{ color: '#ef4444' }}>*</span>
+                </label>
                 <select
                   value={cycleType}
                   onChange={(e) => setCycleType(e.target.value as any)}
@@ -477,9 +651,12 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
               <div>
-                <label style={{ display: 'block', fontWeight: 500, marginBottom: '6px', fontSize: '13px' }}>Ubicación Geográfica y Nombre de la Localidad</label>
+                <label style={{ display: 'block', fontWeight: 500, marginBottom: '6px', fontSize: '13px' }}>
+                  Ubicación Geográfica y Nombre de la Localidad <span style={{ color: '#ef4444' }}>*</span>
+                </label>
                 <input
                   type="text"
+                  required
                   placeholder="Ej: San Antonio Tepetitlán, Municipio de Chignahuapan, Puebla"
                   value={community.location}
                   onChange={(e) => setCommunity({ ...community, location: e.target.value })}
@@ -487,9 +664,12 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
                 />
               </div>
               <div>
-                <label style={{ display: 'block', fontWeight: 500, marginBottom: '6px', fontSize: '13px' }}>Situación Demográfica</label>
+                <label style={{ display: 'block', fontWeight: 500, marginBottom: '6px', fontSize: '13px' }}>
+                  Situación Demográfica <span style={{ color: '#ef4444' }}>*</span>
+                </label>
                 <input
                   type="text"
+                  required
                   placeholder="Ej: Población de 4,200 habitantes, mayoría joven menor de 25 años"
                   value={community.demographics}
                   onChange={(e) => setCommunity({ ...community, demographics: e.target.value })}
@@ -497,9 +677,12 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
                 />
               </div>
               <div>
-                <label style={{ display: 'block', fontWeight: 500, marginBottom: '6px', fontSize: '13px' }}>Actividades Socioeconómicas Principales</label>
+                <label style={{ display: 'block', fontWeight: 500, marginBottom: '6px', fontSize: '13px' }}>
+                  Actividades Socioeconómicas Principales <span style={{ color: '#ef4444' }}>*</span>
+                </label>
                 <input
                   type="text"
+                  required
                   placeholder="Ej: Agricultura de temporal, comercio local y artesanías"
                   value={community.economy}
                   onChange={(e) => setCommunity({ ...community, economy: e.target.value })}
@@ -540,13 +723,110 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
           </div>
 
           {/* Contexto del Plantel */}
-          <div className="card" style={{ padding: '24px', borderRadius: '12px', border: '1px solid var(--c-border)', boxShadow: 'var(--shadow-card)' }}>
-            <h2 style={{ fontSize: '18px', color: 'var(--c-navy-light)', borderBottom: '1px solid var(--c-border)', paddingBottom: '10px', marginBottom: '16px', fontWeight: 600 }}>3. Ficha de Datos del Plantel</h2>
+          <div className="card" style={{ padding: '24px', background: 'rgba(13,21,48,0.75)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '10px', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+              <h2 style={{ fontSize: '18px', color: '#818cf8', margin: 0, fontWeight: 700 }}>3. Ficha de Datos del Plantel</h2>
+              {cctSearching && (
+                <span style={{ fontSize: '12px', color: '#38bdf8' }}>🔍 Buscando en catálogo de Puebla...</span>
+              )}
+            </div>
+
+            {/* Búsqueda y Autocompletado por CCT */}
+            <div style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: '8px', padding: '14px', marginBottom: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', alignItems: 'flex-start' }}>
+                <div>
+                  <label style={{ display: 'block', fontWeight: 600, marginBottom: '4px', fontSize: '12px', color: '#818cf8', textTransform: 'uppercase' }}>
+                    Clave CCT (Puebla)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ej: 21EBH0200X"
+                    value={school.cct || ''}
+                    onChange={(e) => {
+                      const val = e.target.value.toUpperCase();
+                      setSchool(prev => ({ ...prev, cct: val }));
+                      if (val.length >= 7) {
+                        handleCctLookup(val);
+                      } else {
+                        setCctWarning(null);
+                      }
+                    }}
+                    onBlur={() => {
+                      if (school.cct && school.cct.length >= 5) {
+                        handleCctLookup(school.cct);
+                      }
+                    }}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.05)', color: '#f0f4ff', fontFamily: 'monospace', fontWeight: 700 }}
+                  />
+                  {cctWarning && (
+                    <div style={{ color: '#f87171', fontSize: '11.5px', marginTop: '4px', fontWeight: 500 }}>
+                      ⚠️ {cctWarning} (puedes capturar los datos manualmente)
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontWeight: 500, marginBottom: '4px', fontSize: '12px', color: 'rgba(240,244,255,0.7)' }}>
+                    Nombre del Plantel
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ej: Bachillerato Digital Núm. 46"
+                    value={school.schoolName || ''}
+                    onChange={(e) => setSchool(prev => ({ ...prev, schoolName: e.target.value }))}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.05)', color: '#f0f4ff' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontWeight: 500, marginBottom: '4px', fontSize: '12px', color: 'rgba(240,244,255,0.7)' }}>
+                    Municipio
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ej: Venustiano Carranza"
+                    value={school.municipality || ''}
+                    onChange={(e) => setSchool(prev => ({ ...prev, municipality: e.target.value }))}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.05)', color: '#f0f4ff' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontWeight: 500, marginBottom: '4px', fontSize: '12px', color: 'rgba(240,244,255,0.7)' }}>
+                    Localidad
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ej: San José"
+                    value={school.locality || ''}
+                    onChange={(e) => setSchool(prev => ({ ...prev, locality: e.target.value }))}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.05)', color: '#f0f4ff' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontWeight: 500, marginBottom: '4px', fontSize: '12px', color: 'rgba(240,244,255,0.7)' }}>
+                    Zona Escolar
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ej: Zona Escolar 004"
+                    value={school.schoolZone || ''}
+                    onChange={(e) => setSchool(prev => ({ ...prev, schoolZone: e.target.value }))}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.05)', color: '#f0f4ff' }}
+                  />
+                </div>
+              </div>
+            </div>
+
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
               <div>
-                <label style={{ display: 'block', fontWeight: 500, marginBottom: '6px', fontSize: '13px' }}>Matrícula Escolar (Estudiantes)</label>
+                <label style={{ display: 'block', fontWeight: 500, marginBottom: '6px', fontSize: '13px' }}>
+                  Matrícula Escolar (Estudiantes) <span style={{ color: '#ef4444' }}>*</span>
+                </label>
                 <input
                   type="text"
+                  required
                   placeholder="Ej: 280 alumnos inscritos en ambos semestres"
                   value={school.enrollment}
                   onChange={(e) => setSchool({ ...school, enrollment: e.target.value })}
@@ -554,9 +834,12 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
                 />
               </div>
               <div>
-                <label style={{ display: 'block', fontWeight: 500, marginBottom: '6px', fontSize: '13px' }}>Plantilla Docente</label>
+                <label style={{ display: 'block', fontWeight: 500, marginBottom: '6px', fontSize: '13px' }}>
+                  Plantilla Docente <span style={{ color: '#ef4444' }}>*</span>
+                </label>
                 <input
                   type="text"
+                  required
                   placeholder="Ej: 12 docentes, 1 orientador y 2 administrativos"
                   value={school.teacherCount}
                   onChange={(e) => setSchool({ ...school, teacherCount: e.target.value })}
@@ -783,9 +1066,26 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
           </div>
 
           <div style={{ textAlign: 'right' }}>
-            <button type="submit" className="btn btn-primary" style={{ padding: '12px 28px', fontSize: '16px', background: 'linear-gradient(135deg, var(--c-navy) 0%, var(--c-navy-light) 100%)', border: 'none', cursor: 'pointer' }}>
-              Guardar y Empezar Generación →
+            <button
+              type="submit"
+              disabled={!isStep1Valid || loading}
+              className="btn btn-primary"
+              style={{
+                padding: '12px 28px',
+                fontSize: '16px',
+                background: (!isStep1Valid || loading) ? '#64748b' : 'linear-gradient(135deg, var(--c-navy) 0%, var(--c-navy-light) 100%)',
+                border: 'none',
+                cursor: (!isStep1Valid || loading) ? 'not-allowed' : 'pointer',
+                opacity: (!isStep1Valid || loading) ? 0.6 : 1,
+              }}
+            >
+              {loading ? 'Guardando...' : 'Guardar y Empezar Generación →'}
             </button>
+            {!isStep1Valid && (
+              <p style={{ color: '#ef4444', fontSize: '13px', marginTop: '6px' }}>
+                * Por favor completa todos los campos obligatorios marcados con asterisco (*) antes de continuar.
+              </p>
+            )}
           </div>
         </form>
       </div>
@@ -867,7 +1167,53 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
         
         {error && (
           <div style={{ backgroundColor: 'rgba(244,63,94,0.12)', color: '#fb7185', border: '1px solid rgba(244,63,94,0.25)', padding: '16px', borderRadius: '8px', marginBottom: '20px' }}>
-            <strong>Error:</strong> {error}
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '15px', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {errorType === 'timeout' && '⏳ Timeout de red'}
+                  {errorType === 'json' && '⚠️ Respuesta IA malformada (JSON)'}
+                  {errorType === 'rate_limit' && '🚦 Límite de API alcanzado'}
+                  {errorType === 'network' && '📡 Error de conexión de red'}
+                  {(!errorType || errorType === 'unknown') && '❌ Error al procesar la fase'}
+                </div>
+                <div style={{ fontSize: '14px', lineHeight: 1.5 }}>{error}</div>
+                <div style={{ fontSize: '12px', color: 'rgba(251,113,133,0.8)', marginTop: '4px' }}>
+                  Intentos realizados: {retryCount[activeStep] || 0} de 3
+                </div>
+              </div>
+              {(retryCount[activeStep] || 0) < 3 ? (
+                <button
+                  type="button"
+                  onClick={generateCurrentStep}
+                  disabled={generating}
+                  className="btn btn-primary"
+                  style={{
+                    backgroundColor: '#e11d48',
+                    borderColor: '#be123c',
+                    color: '#fff',
+                    padding: '8px 16px',
+                    fontSize: '13px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    cursor: generating ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {generating ? (
+                    <>
+                      <span className="spinner" style={{ width: '12px', height: '12px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                      Reintentando...
+                    </>
+                  ) : (
+                    <>↻ Reintentar (Paso {activeStep})</>
+                  )}
+                </button>
+              ) : (
+                <div style={{ fontSize: '12px', backgroundColor: 'rgba(0,0,0,0.2)', padding: '6px 10px', borderRadius: '4px', color: '#fda4af' }}>
+                  Límite de reintentos alcanzado (3/3)
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -948,9 +1294,16 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
                       onClick={generateCurrentStep}
                       disabled={generating}
                       className="btn btn-ghost"
-                      style={{ fontSize: '13px', color: 'var(--c-navy-light)', textDecoration: 'underline' }}
+                      style={{ fontSize: '13px', color: 'var(--c-navy-light)', textDecoration: 'underline', display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: generating ? 'not-allowed' : 'pointer' }}
                     >
-                      {generating ? 'Regenerando...' : 'Regenerar esta fase 🔄'}
+                      {generating ? (
+                        <>
+                          <span className="spinner" style={{ width: '12px', height: '12px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'var(--c-navy-light)', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                          Regenerando fase...
+                        </>
+                      ) : (
+                        'Regenerar esta fase 🔄'
+                      )}
                     </button>
                   </>
                 )}
@@ -2074,10 +2427,13 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
                   Siguiente Fase (Paso {activeStep + 1}) →
                 </button>
               ) : (
-                <div style={{ marginLeft: 'auto', display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <div style={{ marginLeft: 'auto', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
                   <span style={{ color: '#28a745', fontWeight: 600 }}>🎉 ¡Proyecto PAEC-PEC Completo!</span>
                   <a href={`/api/docx/paec/${projectId}`} className="btn btn-amber" style={{ backgroundColor: 'var(--c-amber)', color: '#fff' }}>
-                    Descargar Proyecto Completo (Word)
+                    ↓ Descargar Word
+                  </a>
+                  <a href={`/api/pdf/paec/${projectId}`} className="btn btn-primary" style={{ backgroundColor: '#c0392b', borderColor: '#c0392b', color: '#fff' }}>
+                    ↓ PAEC Oficial PDF
                   </a>
                 </div>
               )}

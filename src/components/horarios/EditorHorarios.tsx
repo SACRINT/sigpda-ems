@@ -36,16 +36,25 @@ import {
 } from "@/lib/horarios/exportador";
 import { reacomodarHorarioConRipple } from "@/lib/horarios/ripple-solver";
 import { normalizarId } from "@/lib/utils/normalize";
+import { SCHOOL_YEAR } from "@/lib/config";
+import type {
+  EscuelaHorarios,
+  GrupoHorario,
+  DocenteHorario,
+  AulaHorario,
+  CargaHoraria,
+  HorarioGenerado
+} from "@/lib/horarios/types";
 
 interface Props {
-  escuela: any;
-  horarioInicial: any;
-  grupos: any[];
-  docentes: any[];
-  aulas: any[];
-  cargas: any[];
+  escuela: EscuelaHorarios;
+  horarioInicial: HorarioGenerado | null;
+  grupos: GrupoHorario[];
+  docentes: DocenteHorario[];
+  aulas: AulaHorario[];
+  cargas: CargaHoraria[];
   onVolverAWizard: () => void;
-  onGuardarHorario?: (horarioGuardado: any) => void;
+  onGuardarHorario?: (horarioGuardado: HorarioGenerado) => void;
   esAdmin?: boolean;
 }
 
@@ -371,7 +380,7 @@ export default function EditorHorarios({
 
   const horasGrupoActual = React.useMemo(() => {
     if (!grupoActivoObj) return numHorasPorDia;
-    return (grupoActivoObj as any).horasPorDia || numHorasPorDia;
+    return grupoActivoObj.horasPorDia || grupoActivoObj.horas_por_dia || numHorasPorDia;
   }, [grupoActivoObj, numHorasPorDia]);
 
   const periodosVisibles = React.useMemo(() => {
@@ -814,14 +823,15 @@ export default function EditorHorarios({
       horario?.celdas?.some((c: any) => c.docenteId === d.id)
     );
 
-    const zonaEscolarEfectiva = (escuela as any)?.zonaEscolar || (escuela as any)?.zona || "";
+    const zonaEscolarEfectiva = escuela?.zonaEscolar || escuela?.zona || "";
+    const cicloNombre = typeof horario?.cicloEscolar === "object" ? horario?.cicloEscolar?.nombre : horario?.cicloEscolar;
 
     if (opcion === "LIBRO_COMPLETO") {
       await exportarLibroIntegralExcel({
         nombreEscuela: escuela?.nombre || escuela?.school_name || "Mi Plantel",
         cct: escuela?.cct || "CCT",
         zonaEscolar: zonaEscolarEfectiva,
-        cicloEscolar: (horario as any)?.cicloEscolar?.nombre || "2026-2027",
+        cicloEscolar: cicloNombre || SCHOOL_YEAR,
         dias: diasLectivos,
         numHorasPorDia,
         grupos: (gruposActivos.length > 0 ? gruposActivos : grupos).map(g => ({ id: g.id, nombre: g.nombre })),
@@ -830,9 +840,9 @@ export default function EditorHorarios({
           nombre: `${d.nombre} ${d.apellidoPaterno || ""}`.trim()
         })),
         aulas: (aulas && aulas.length > 0 ? aulas : [{ id: "aula_gral", nombre: "Aulas Generales", tipo: "General" }]).map(a => ({
-          id: a.id,
+          id: a.id || "aula_gral",
           nombre: a.nombre,
-          tipo: a.tipo
+          tipo: a.tipo || "General"
         })),
         obtenerCeldaGrupo: (grupoId, dia, periodo) => {
           const c = horario?.celdas?.find((cc: any) => cc.diaSemana === dia && cc.periodo === periodo && cc.grupoId === grupoId);
@@ -999,7 +1009,7 @@ export default function EditorHorarios({
       nombreEscuela: escuela?.nombre || escuela?.school_name || "Mi Plantel",
       cct: escuela?.cct || "CCT",
       zonaEscolar: zonaEscolarEfectiva,
-      cicloEscolar: (horario as any)?.cicloEscolar?.nombre || "2026-2027",
+      cicloEscolar: (typeof horario?.cicloEscolar === "object" ? horario?.cicloEscolar?.nombre : horario?.cicloEscolar) || SCHOOL_YEAR,
       tipoVista: tipoVistaPDF,
       tituloTabla,
       dias: diasLectivos,

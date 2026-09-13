@@ -7,13 +7,21 @@ import { parsearExcelPersonal, descargarPlantillaExcelDocentes, DocenteImportado
 import { parsearExcelMatriz, parsearLibroIntegralExcel, descargarPlantillaIntegralHorarios, descargarPlantillaMatrizDocente, ResultadoParseoMatriz, ResultadoLibroIntegral } from "@/lib/excel-matriz";
 import { normalizeUnicode } from "@/lib/utils/normalize";
 
+import type {
+  ConfiguracionHorario,
+  GrupoHorario,
+  AulaHorario,
+  DocenteHorario,
+  CargaHoraria
+} from "@/lib/horarios/types";
+
 interface Props {
   escuelaId: string;
-  configInicial: any;
-  gruposIniciales: any[];
-  aulasIniciales: any[];
-  docentesIniciales: any[];
-  cargasIniciales: any[];
+  configInicial: ConfiguracionHorario;
+  gruposIniciales: GrupoHorario[];
+  aulasIniciales: AulaHorario[];
+  docentesIniciales: DocenteHorario[];
+  cargasIniciales: CargaHoraria[];
   onGenerarClick: (params?: any) => void;
   pasoInicial?: number;
   onStepChange?: (paso: number) => void;
@@ -142,7 +150,7 @@ export default function WizardConfiguracion({
       if (configInicial.escuela.nombre) setNombreEscuela(configInicial.escuela.nombre);
       if (configInicial.escuela.cct) setCctEscuela(configInicial.escuela.cct);
       if (configInicial.escuela.zonaEscolar || configInicial.escuela.zona) {
-        setZonaEscolar(configInicial.escuela.zonaEscolar || configInicial.escuela.zona);
+        setZonaEscolar(configInicial.escuela.zonaEscolar || configInicial.escuela.zona || "");
       }
       setInicializadoConfig(true);
     } else if (gruposIniciales && gruposIniciales.length > 0) {
@@ -495,10 +503,10 @@ export default function WizardConfiguracion({
         const tieneLaboral = sem >= 3;
         const capFinal = grupoExistente?.capacitacionNombre || grupoDbOficial?.capacitacionNombre || grupoBaseTrack?.capacitacionNombre || FORMACIONES_LABORALES[i % FORMACIONES_LABORALES.length];
 
-        const hrsDia = (grupoEnMemoria as any)?.horasPorDia
-          || (grupoEnMemoria as any)?.horas_por_dia
-          || (grupoDbOficial as any)?.horasPorDia
-          || (grupoDbOficial as any)?.horas_por_dia
+        const hrsDia = grupoEnMemoria?.horasPorDia
+          || grupoEnMemoria?.horas_por_dia
+          || grupoDbOficial?.horasPorDia
+          || grupoDbOficial?.horas_por_dia
           || (esTecnologico || grupoExistente?.carreraTecnicaId || grupoDbOficial?.carreraTecnicaId ? (sem === 3 ? 8 : sem === 5 ? 7 : 6) : (sem === 1 ? 5 : 6));
 
         nuevosGrupos.push({
@@ -506,7 +514,7 @@ export default function WizardConfiguracion({
           nombre: nombreGrupo,
           semestre: sem,
           horasPorDia: Number(hrsDia),
-          customUacs: grupoExistente?.customUacs || (grupoDbOficial as any)?.customUacs || undefined,
+          customUacs: grupoExistente?.customUacs || grupoDbOficial?.customUacs || undefined,
           capacitacionNombre: tieneLaboral ? capFinal : undefined,
           ffeoSocioemocional: tieneLaboral ? socioCalculado : undefined,
           ffeOptativas: (Array.isArray(ffeOpts) && ffeOpts.length > 0) ? ffeOpts : [
@@ -515,9 +523,9 @@ export default function WizardConfiguracion({
             FFE_OPTATIVAS_CATALOGO[7],
             FFE_OPTATIVAS_CATALOGO[8]
           ],
-          carreraTecnicaId: grupoExistente?.carreraTecnicaId || (grupoExistente as any)?.carrera_tecnica_id || grupoDbOficial?.carreraTecnicaId || (grupoDbOficial as any)?.carrera_tecnica_id || grupoBaseTrack?.carreraTecnicaId || (grupoBaseTrack as any)?.carrera_tecnica_id || (esTecnologico ? "contabilidad" : undefined),
-          versionPrograma: grupoExistente?.versionPrograma || (grupoExistente as any)?.version_programa || grupoDbOficial?.versionPrograma || (grupoDbOficial as any)?.version_programa || grupoBaseTrack?.versionPrograma || (grupoBaseTrack as any)?.version_programa || (esTecnologico ? "nuevo" : undefined),
-          materiaPropedutica5to: grupoExistente?.materiaPropedutica5to || (grupoExistente as any)?.materia_propedutica_5to || grupoDbOficial?.materiaPropedutica5to || (grupoDbOficial as any)?.materia_propedutica_5to || grupoBaseTrack?.materiaPropedutica5to || (grupoBaseTrack as any)?.materia_propedutica_5to || (esTecnologico ? "Derecho y Sociedad I" : undefined)
+          carreraTecnicaId: grupoExistente?.carreraTecnicaId || grupoExistente?.carrera_tecnica_id || grupoDbOficial?.carreraTecnicaId || grupoDbOficial?.carrera_tecnica_id || grupoBaseTrack?.carreraTecnicaId || grupoBaseTrack?.carrera_tecnica_id || (esTecnologico ? "contabilidad" : undefined),
+          versionPrograma: grupoExistente?.versionPrograma || grupoExistente?.version_programa || grupoDbOficial?.versionPrograma || grupoDbOficial?.version_programa || grupoBaseTrack?.versionPrograma || grupoBaseTrack?.version_programa || (esTecnologico ? "nuevo" : undefined),
+          materiaPropedutica5to: grupoExistente?.materiaPropedutica5to || grupoExistente?.materia_propedutica_5to || grupoDbOficial?.materiaPropedutica5to || grupoDbOficial?.materia_propedutica_5to || grupoBaseTrack?.materiaPropedutica5to || grupoBaseTrack?.materia_propedutica_5to || (esTecnologico ? "Derecho y Sociedad I" : undefined)
         });
       }
     }
@@ -2517,7 +2525,7 @@ export default function WizardConfiguracion({
                                     {uac.tipo?.startsWith("LABORAL") ? (
                                       <div>
                                         <span style={{ fontSize: "0.6875rem", fontWeight: 800, color: "#94a3b8", display: "block" }}>
-                                          Formación Laboral {uac.tipo === "LABORAL_A" ? '"A"' : '"B"'} ({(uac as any).capNombre})
+                                          Formación Laboral {uac.tipo === "LABORAL_A" ? '"A"' : '"B"'} ({uac.capNombre})
                                         </span>
                                         <div style={{ display: "flex", alignItems: "center", gap: "0.25rem", flexWrap: "wrap" }}>
                                           {uac.esDividida && (

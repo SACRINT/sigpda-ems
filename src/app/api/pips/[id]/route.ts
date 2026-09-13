@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, sql } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
@@ -27,7 +28,7 @@ export async function GET(_req: NextRequest, { params }: RouteCtx) {
 
     return NextResponse.json({ project });
   } catch (error) {
-    console.error('Error loading PIPS:', error);
+    logger.error('Error loading PIPS:', error);
     return NextResponse.json({ error: 'Error interno' }, { status: 500 });
   }
 }
@@ -84,7 +85,7 @@ export async function PUT(req: NextRequest, { params }: RouteCtx) {
 
     return NextResponse.json({ success: true, project });
   } catch (error) {
-    console.error('Error updating PIPS:', error);
+    logger.error('Error updating PIPS:', error);
     return NextResponse.json({ error: 'Error al actualizar el PIPS' }, { status: 500 });
   }
 }
@@ -102,14 +103,19 @@ export async function DELETE(_req: NextRequest, { params }: RouteCtx) {
       return NextResponse.json({ error: 'Docente no encontrado' }, { status: 404 });
 
     const db = sql();
-    await db`
+    const [deleted] = await db`
       DELETE FROM pips_projects
       WHERE id = ${id}::uuid AND teacher_id = ${teacher.id}::uuid
+      RETURNING id
     `;
 
-    return NextResponse.json({ success: true });
+    if (!deleted) {
+      return NextResponse.json({ error: 'Proyecto PIPS no encontrado o no autorizado para eliminar' }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, deletedId: deleted.id });
   } catch (error) {
-    console.error('Error deleting PIPS:', error);
+    logger.error('Error deleting PIPS:', error);
     return NextResponse.json({ error: 'Error al eliminar el PIPS' }, { status: 500 });
   }
 }

@@ -2,12 +2,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { PipsProject, PipsPlantele, PipsProblematica, PipsObjetivo, PipsCronogramaActividad } from '@/types/pips';
+import { SCHOOL_YEAR } from '@/lib/config';
 
 // ─── Step labels ──────────────────────────────────────────────────────────────
 const STEPS = [
   { n: 1, label: 'Datos de la Zona' },
   { n: 2, label: 'Presentación' },
-  { n: 3, label: 'Evaluación Anterior' },
+  { n: 3, label: 'Directorio de Escuelas' },
   { n: 4, label: 'Diagnóstico Territorial' },
   { n: 5, label: 'Objetivos y Metas' },
   { n: 6, label: 'Cronograma y Cierre' },
@@ -24,7 +25,7 @@ function defaultPips(): Partial<PipsProject> {
     num_planteles: 17,
     subsistema: 'BGE',
     modalidad: 'Escolarizada',
-    ciclo_escolar: '2026-2027',
+    ciclo_escolar: SCHOOL_YEAR,
     atps: 'Ing. Samuel Cruz Interial, Imelda Hernández García, Víctor Manuel Sáenz Cuellar, Lilia Castillo Leyva',
     presentacion_supervisor: '',
     pips_anterior_realizado: true,
@@ -87,6 +88,138 @@ export default function PipsWizard({ locale }: { locale: string }) {
   const [generating, setGenerating] = useState(false);
   const [msg, setMsg] = useState('');
   const [newPlantele, setNewPlantele] = useState<PipsPlantele>({ no: 1, cct: '', nombre: '', localidad: '', municipio: '', hombres: 0, mujeres: 0, total: 0 });
+
+  // Estados de Previsualización y Modales (Paso 2, 3 y 5)
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [showCsvModal, setShowCsvModal] = useState(false);
+  const [csvText, setCsvText] = useState('');
+  const [csvParsed, setCsvParsed] = useState<{
+    no: number;
+    cct: string;
+    nombre: string;
+    localidad: string;
+    municipio: string;
+    hombres: number;
+    mujeres: number;
+    total: number;
+    isValidCct: boolean;
+  }[]>([]);
+  const [csvError, setCsvError] = useState<string | null>(null);
+  const [cctSearching, setCctSearching] = useState(false);
+  const [cctWarning, setCctWarning] = useState<string | null>(null);
+
+  // Autocompletado de CCT mediante el catálogo de Puebla
+  const handleCctLookup = async (cctInput: string) => {
+    const clean = cctInput.trim().toUpperCase();
+    if (!clean || clean.length < 7) {
+      setCctWarning(null);
+      return;
+    }
+    setCctSearching(true);
+    setCctWarning(null);
+    try {
+      const res = await fetch(`/api/admin/catalogo-escuelas?cct=${encodeURIComponent(clean)}`);
+      const data = await res.json();
+      if (res.ok && data.success && data.escuela) {
+        setNewPlantele(prev => ({
+          ...prev,
+          cct: data.escuela.cct || clean,
+          nombre: data.escuela.nombre || prev.nombre,
+          municipio: data.escuela.municipio || prev.municipio,
+          localidad: data.escuela.localidad || prev.localidad,
+        }));
+        setCctWarning(null);
+      } else {
+        setCctWarning('CCT no encontrado en el catálogo de Puebla');
+      }
+    } catch {
+      setCctWarning('Error de conexión al consultar el catálogo');
+    } finally {
+      setCctSearching(false);
+    }
+  };
+
+  // Parser para Importador CSV
+  const parseCsvContent = (content: string) => {
+    setCsvError(null);
+    const lines = content.trim().split(/\r?\n/).filter(line => line.trim().length > 0);
+    if (lines.length === 0) {
+      setCsvError('El archivo CSV está vacío');
+      setCsvParsed([]);
+      return;
+    }
+
+    const firstLine = lines[0];
+    const sep = firstLine.includes('\t') ? '\t' : firstLine.includes(';') ? ';' : ',';
+    const header = firstLine.split(sep).map(h => h.trim().toLowerCase().replace(/["']/g, ''));
+
+    let nombreIdx = header.findIndex(h => h.includes('nombre') || h.includes('plantel') || h.includes('escuela'));
+    let cctIdx = header.findIndex(h => h === 'cct' || h.includes('clave'));
+    let hIdx = header.findIndex(h => h.includes('matricula_h') || h.includes('hombres') || h.includes('hom') || h === 'h');
+    let mIdx = header.findIndex(h => h.includes('matricula_m') || h.includes('mujeres') || h.includes('muj') || h === 'm');
+
+    // Por defecto asumir [nombre, cct, matricula_h, matricula_m]
+    if (nombreIdx === -1 && cctIdx === -1) {
+      nombreIdx = 0;
+      cctIdx = 1;
+      hIdx = 2;
+      mIdx = 3;
+    }
+
+    const rows: typeof csvParsed = [];
+    const startIndex = (lines[0].toLowerCase().includes('nombre') || lines[0].toLowerCase().includes('cct')) ? 1 : 0;
+
+    for (let i = startIndex; i < lines.length; i++) {
+      const parts = lines[i].split(sep).map(p => p.trim().replace(/^["']|["']$/g, ''));
+      if (parts.length < 2) continue;
+
+      const rawNombre = parts[nombreIdx] || `Plantel ${rows.length + 1}`;
+      const rawCct = (parts[cctIdx] || '').toUpperCase();
+      const hVal = parseInt(parts[hIdx] || '0', 10) || 0;
+      const mVal = parseInt(parts[mIdx] || '0', 10) || 0;
+      const isValidCct = /^[0-9]{2}[A-Z0-9]{8}$/i.test(rawCct) || rawCct.startsWith('21');
+
+      rows.push({
+        no: rows.length + 1,
+        cct: rawCct,
+        nombre: rawNombre,
+        localidad: '',
+        municipio: '',
+        hombres: hVal,
+        mujeres: mVal,
+        total: hVal + mVal,
+        isValidCct,
+      });
+    }
+
+    if (rows.length === 0) {
+      setCsvError('No se encontraron registros de escuelas válidos en el CSV');
+    }
+    setCsvParsed(rows);
+  };
+
+  const confirmCsvImport = () => {
+    if (csvParsed.length === 0) return;
+    const currentList = pips.planteles_json ?? [];
+    const startNo = currentList.length + 1;
+    const mappedToImport: PipsPlantele[] = csvParsed.map((r, idx) => ({
+      no: startNo + idx,
+      cct: r.cct,
+      nombre: r.nombre,
+      localidad: r.localidad || 'Puebla',
+      municipio: r.municipio || 'Venustiano Carranza',
+      hombres: r.hombres,
+      mujeres: r.mujeres,
+      total: r.total,
+    }));
+
+    const combined = [...currentList, ...mappedToImport];
+    set('planteles_json', combined);
+    set('num_planteles', combined.length);
+    setShowCsvModal(false);
+    setCsvText('');
+    setCsvParsed([]);
+  };
 
   // Load existing project
   useEffect(() => {
@@ -196,7 +329,7 @@ export default function PipsWizard({ locale }: { locale: string }) {
         {inp('Número de planteles', pips.num_planteles ?? 1, v => set('num_planteles', parseInt(v) || 1), { type: 'number' })}
         {inp('Tipo de subsistema', pips.subsistema ?? '', v => set('subsistema', v), { placeholder: 'ej. BGE, BD, COBACH' })}
         {inp('Modalidad', pips.modalidad ?? '', v => set('modalidad', v), { placeholder: 'ej. Escolarizada' })}
-        {inp('Ciclo escolar', pips.ciclo_escolar ?? '', v => set('ciclo_escolar', v), { placeholder: 'ej. 2026-2027' })}
+        {inp('Ciclo escolar', pips.ciclo_escolar ?? '', v => set('ciclo_escolar', v), { placeholder: `ej. ${SCHOOL_YEAR}` })}
       </div>
       {inp('Personal ATP (nombres separados por coma)', pips.atps ?? '', v => set('atps', v), { rows: 2, placeholder: 'ej. Juan Pérez, María González...' })}
     </div>
@@ -216,123 +349,310 @@ export default function PipsWizard({ locale }: { locale: string }) {
     </div>
   );
 
-  // ── Step 3 ── Reflexión PIPS anterior
-  const step3 = (
-    <div style={cardStyle}>
-      {sectionTitle('Reflexión del PIPS del ciclo anterior')}
-      <div style={{ marginBottom: 20 }}>
-        <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: 'var(--c-text-muted)' }}>
-          ¿Realizó PIPS en el ciclo escolar anterior?
-        </label>
-        <div style={{ display: 'flex', gap: 12 }}>
-          {['Sí', 'No'].map(opt => (
-            <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14, color: 'var(--c-text)' }}>
-              <input
-                type="radio"
-                checked={opt === 'Sí' ? !!pips.pips_anterior_realizado : !pips.pips_anterior_realizado}
-                onChange={() => set('pips_anterior_realizado', opt === 'Sí')}
-              />
-              {opt}
-            </label>
-          ))}
-        </div>
-      </div>
-      {pips.pips_anterior_realizado ? (
-        <>
-          {inp('Reflexión general del PIPS anterior', pips.reflexion_pips_anterior ?? '', v => set('reflexion_pips_anterior', v), {
-            rows: 5, placeholder: 'Describe los principales resultados, logros y aprendizajes del PIPS del ciclo anterior...',
-          })}
-          {inp('Fortalezas identificadas (una por línea)', pips.fortalezas_anterior ?? '', v => set('fortalezas_anterior', v), {
-            rows: 4, placeholder: '• Todos los planteles entregaron el PAEC-PEC...\n• Se consolidó el equipo ATP...',
-          })}
-          {inp('Áreas de oportunidad (una por línea)', pips.areas_oportunidad_anterior ?? '', v => set('areas_oportunidad_anterior', v), {
-            rows: 4, placeholder: '• Errores de alineación curricular en el 60% de los planteles...\n• Falta de comités completos...',
-          })}
-        </>
-      ) : (
-        <div style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: 10, padding: 16, fontSize: 13, color: 'var(--c-text-muted)' }}>
-          <strong style={{ color: '#818cf8' }}>Protocolo Anexo 1 (DBEPA):</strong> Si no realizó PIPS en el ciclo anterior,
-          el diagnóstico deberá basarse en al menos 3 problemáticas pedagógicas identificadas durante el ciclo,
-          los instrumentos utilizados para detectarlas y los objetivos/metas que se abordaron.
-          Registra esa información en el paso de Diagnóstico (paso 4).
-        </div>
-      )}
-    </div>
-  );
+  const planteles = pips.planteles_json ?? [];
+  const totalHombres = planteles.reduce((sum, p) => sum + (Number(p.hombres) || 0), 0);
+  const totalMujeres = planteles.reduce((sum, p) => sum + (Number(p.mujeres) || 0), 0);
+  const granTotalAlumnos = planteles.reduce((sum, p) => sum + (Number(p.total) || (Number(p.hombres) || 0) + (Number(p.mujeres) || 0)), 0);
 
-  // ── Step 4 ── Diagnóstico y problemáticas
-  const step4 = (
+  // ── Step 3 ── Directorio de Escuelas y Reflexión PIPS anterior
+  const step3 = (
     <>
-      {/* Planteles */}
+      {/* Directorio de Escuelas y Concentrado Zonal */}
       <div style={cardStyle}>
-        {sectionTitle('Planteles de la zona escolar')}
-        <p style={{ fontSize: 13, color: 'var(--c-text-muted)', marginBottom: 16 }}>
-          Agrega los planteles con su matrícula. Puedes ingresar los datos uno a uno.
-        </p>
-        {(pips.planteles_json ?? []).length > 0 && (
-          <div style={{ overflowX: 'auto', marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 12 }}>
+          <div>
+            {sectionTitle('Directorio de Escuelas y Concentrado Zonal')}
+            <p style={{ fontSize: 13, color: 'var(--c-text-muted)', margin: '4px 0 0' }}>
+              Concentrado oficial de planteles adscritos a la zona escolar con desglose de matrícula.
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => setShowPreviewModal(true)}
+              className="btn btn-secondary btn-sm"
+              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, padding: '6px 12px' }}
+            >
+              📋 Exportar vista previa
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowCsvModal(true)}
+              className="btn btn-primary btn-sm"
+              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, padding: '6px 12px' }}
+            >
+              📥 Importar directorio desde CSV
+            </button>
+          </div>
+        </div>
+
+        {/* KPI resumen */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, margin: '16px 0' }}>
+          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
+            <div style={{ fontSize: 11, color: 'var(--c-text-muted)', textTransform: 'uppercase' }}>Planteles</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: '#818cf8', marginTop: 2 }}>{planteles.length}</div>
+          </div>
+          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
+            <div style={{ fontSize: 11, color: 'var(--c-text-muted)', textTransform: 'uppercase' }}>Hombres</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: '#38bdf8', marginTop: 2 }}>{totalHombres}</div>
+          </div>
+          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
+            <div style={{ fontSize: 11, color: 'var(--c-text-muted)', textTransform: 'uppercase' }}>Mujeres</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: '#f472b6', marginTop: 2 }}>{totalMujeres}</div>
+          </div>
+          <div style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.3)', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
+            <div style={{ fontSize: 11, color: '#818cf8', textTransform: 'uppercase', fontWeight: 600 }}>Total Zonal</div>
+            <div style={{ fontSize: 18, fontWeight: 900, color: '#ffffff', marginTop: 2 }}>{granTotalAlumnos}</div>
+          </div>
+        </div>
+
+        {/* Tabla Concentrado Zonal */}
+        {planteles.length > 0 ? (
+          <div style={{ overflowX: 'auto', marginBottom: 16, border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8 }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
-                <tr style={{ background: 'rgba(99,102,241,0.15)' }}>
-                  {['No.', 'CCT', 'Nombre', 'Localidad', 'Municipio', 'H', 'M', 'Total', ''].map(h => (
-                    <th key={h} style={{ padding: '6px 8px', textAlign: 'center', color: 'var(--c-text-muted)', fontWeight: 600 }}>{h}</th>
-                  ))}
+                <tr style={{ background: 'rgba(99,102,241,0.2)' }}>
+                  <th style={{ padding: '8px', textAlign: 'center', color: '#c7d2fe', fontWeight: 700 }}>No.</th>
+                  <th style={{ padding: '8px', textAlign: 'left', color: '#c7d2fe', fontWeight: 700 }}>Nombre del Plantel</th>
+                  <th style={{ padding: '8px', textAlign: 'center', color: '#c7d2fe', fontWeight: 700 }}>CCT</th>
+                  <th style={{ padding: '8px', textAlign: 'left', color: '#c7d2fe', fontWeight: 700 }}>Localidad</th>
+                  <th style={{ padding: '8px', textAlign: 'left', color: '#c7d2fe', fontWeight: 700 }}>Municipio</th>
+                  <th style={{ padding: '8px', textAlign: 'right', color: '#38bdf8', fontWeight: 700 }}>Matrícula H</th>
+                  <th style={{ padding: '8px', textAlign: 'right', color: '#f472b6', fontWeight: 700 }}>Matrícula M</th>
+                  <th style={{ padding: '8px', textAlign: 'right', color: '#4ade80', fontWeight: 800 }}>Total</th>
+                  <th style={{ padding: '8px', textAlign: 'center', color: '#c7d2fe' }}></th>
                 </tr>
               </thead>
               <tbody>
-                {(pips.planteles_json ?? []).map((pl, i) => (
-                  <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                    {[pl.no, pl.cct, pl.nombre, pl.localidad, pl.municipio, pl.hombres, pl.mujeres, pl.total].map((v, j) => (
-                      <td key={j} style={{ padding: '5px 8px', textAlign: 'center', color: 'var(--c-text)', fontSize: 12 }}>{String(v)}</td>
-                    ))}
-                    <td>
+                {planteles.map((pl, i) => (
+                  <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.015)' }}>
+                    <td style={{ padding: '7px 8px', textAlign: 'center', color: 'var(--c-text-muted)' }}>{pl.no || i + 1}</td>
+                    <td style={{ padding: '7px 8px', fontWeight: 600, color: 'var(--c-text)' }}>{pl.nombre}</td>
+                    <td style={{ padding: '7px 8px', textAlign: 'center', fontFamily: 'monospace', color: '#818cf8', fontWeight: 600 }}>{pl.cct}</td>
+                    <td style={{ padding: '7px 8px', color: 'var(--c-text-muted)' }}>{pl.localidad || '—'}</td>
+                    <td style={{ padding: '7px 8px', color: 'var(--c-text-muted)' }}>{pl.municipio || '—'}</td>
+                    <td style={{ padding: '7px 8px', textAlign: 'right', color: '#38bdf8' }}>{pl.hombres}</td>
+                    <td style={{ padding: '7px 8px', textAlign: 'right', color: '#f472b6' }}>{pl.mujeres}</td>
+                    <td style={{ padding: '7px 8px', textAlign: 'right', fontWeight: 700, color: '#4ade80' }}>{pl.total || (pl.hombres + pl.mujeres)}</td>
+                    <td style={{ padding: '7px 8px', textAlign: 'center' }}>
                       <button
-                        onClick={() => set('planteles_json', (pips.planteles_json ?? []).filter((_, idx) => idx !== i))}
-                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 12 }}
+                        type="button"
+                        onClick={() => {
+                          const updated = planteles.filter((_, idx) => idx !== i);
+                          set('planteles_json', updated);
+                          set('num_planteles', updated.length);
+                        }}
+                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 13 }}
+                        title="Eliminar plantel"
                       >✕</button>
                     </td>
                   </tr>
                 ))}
               </tbody>
+              <tfoot>
+                <tr style={{ background: 'rgba(99,102,241,0.15)', borderTop: '2px solid rgba(99,102,241,0.3)', fontWeight: 800 }}>
+                  <td colSpan={5} style={{ padding: '8px 12px', textAlign: 'right', color: '#ffffff', textTransform: 'uppercase' }}>
+                    Concentrado Total Zonal:
+                  </td>
+                  <td style={{ padding: '8px', textAlign: 'right', color: '#38bdf8' }}>{totalHombres}</td>
+                  <td style={{ padding: '8px', textAlign: 'right', color: '#f472b6' }}>{totalMujeres}</td>
+                  <td style={{ padding: '8px', textAlign: 'right', color: '#4ade80', fontSize: 13 }}>{granTotalAlumnos}</td>
+                  <td></td>
+                </tr>
+              </tfoot>
             </table>
           </div>
-        )}
-        <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: '16px', border: '1px dashed rgba(255,255,255,0.1)' }}>
-          <p style={{ fontSize: 12, color: 'var(--c-text-muted)', marginBottom: 12 }}>➕ Agregar plantel</p>
-          <div style={{ display: 'grid', gridTemplateColumns: '60px 1fr 2fr 1fr 1fr 70px 70px', gap: 8 }}>
-            {(['No.', 'CCT', 'Nombre del plantel', 'Localidad', 'Municipio', 'Hombres', 'Mujeres'] as const).map((label, idx) => {
-              const keys: (keyof PipsPlantele)[] = ['no', 'cct', 'nombre', 'localidad', 'municipio', 'hombres', 'mujeres'];
-              return (
-                <div key={label}>
-                  <label style={{ fontSize: 11, color: 'var(--c-text-muted)', display: 'block', marginBottom: 3 }}>{label}</label>
-                  <input
-                    type={idx === 0 || idx >= 5 ? 'number' : 'text'}
-                    value={String(newPlantele[keys[idx]])}
-                    onChange={e => setNewPlantele(prev => ({
-                      ...prev,
-                      [keys[idx]]: idx === 0 || idx >= 5 ? parseInt(e.target.value) || 0 : e.target.value,
-                      total: idx === 5 ? (parseInt(e.target.value) || 0) + prev.mujeres : idx === 6 ? prev.hombres + (parseInt(e.target.value) || 0) : prev.total,
-                    }))}
-                    style={{ width: '100%', padding: '7px 8px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.05)', color: 'var(--c-text)', fontSize: 12 }}
-                  />
-                </div>
-              );
-            })}
+        ) : (
+          <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: 8, padding: '24px', textAlign: 'center', color: 'var(--c-text-muted)', marginBottom: 16 }}>
+            No hay planteles agregados en este PIPS. Puedes importar un archivo CSV o agregar escuelas individualmente.
           </div>
-          <button
-            onClick={() => {
-              const pl = { ...newPlantele, total: newPlantele.hombres + newPlantele.mujeres };
-              set('planteles_json', [...(pips.planteles_json ?? []), pl]);
-              setNewPlantele({ no: (pips.planteles_json ?? []).length + 2, cct: '', nombre: '', localidad: '', municipio: '', hombres: 0, mujeres: 0, total: 0 });
-            }}
-            className="btn btn-secondary btn-sm"
-            style={{ marginTop: 10 }}
-          >
-            Agregar plantel
-          </button>
+        )}
+
+        {/* Formulario individual con Autocompletado CCT */}
+        <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: '16px', border: '1px dashed rgba(255,255,255,0.1)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--c-text)', margin: 0 }}>➕ Agregar plantel individualmente</p>
+            {cctSearching && (
+              <span style={{ fontSize: 11, color: '#38bdf8' }}>🔍 Buscando en catálogo de Puebla...</span>
+            )}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '60px 140px 2fr 1fr 1fr 70px 70px', gap: 8 }}>
+            <div>
+              <label style={{ fontSize: 11, color: 'var(--c-text-muted)', display: 'block', marginBottom: 3 }}>No.</label>
+              <input
+                type="number"
+                value={newPlantele.no}
+                onChange={e => setNewPlantele(prev => ({ ...prev, no: parseInt(e.target.value) || 1 }))}
+                style={{ width: '100%', padding: '7px 8px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.05)', color: 'var(--c-text)', fontSize: 12 }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, color: 'var(--c-text-muted)', display: 'block', marginBottom: 3 }}>CCT</label>
+              <input
+                type="text"
+                value={newPlantele.cct}
+                placeholder="21EBH0000X"
+                onChange={e => {
+                  const val = e.target.value.toUpperCase();
+                  setNewPlantele(prev => ({ ...prev, cct: val }));
+                  if (val.length >= 10) {
+                    handleCctLookup(val);
+                  } else {
+                    setCctWarning(null);
+                  }
+                }}
+                onBlur={() => {
+                  if (newPlantele.cct && newPlantele.cct.length >= 8) {
+                    handleCctLookup(newPlantele.cct);
+                  }
+                }}
+                style={{ width: '100%', padding: '7px 8px', borderRadius: 6, border: cctWarning ? '1px solid #ef4444' : '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.05)', color: 'var(--c-text)', fontSize: 12 }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, color: 'var(--c-text-muted)', display: 'block', marginBottom: 3 }}>Nombre del plantel</label>
+              <input
+                type="text"
+                value={newPlantele.nombre}
+                placeholder="Nombre del Bachillerato"
+                onChange={e => setNewPlantele(prev => ({ ...prev, nombre: e.target.value }))}
+                style={{ width: '100%', padding: '7px 8px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.05)', color: 'var(--c-text)', fontSize: 12 }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, color: 'var(--c-text-muted)', display: 'block', marginBottom: 3 }}>Localidad</label>
+              <input
+                type="text"
+                value={newPlantele.localidad}
+                placeholder="Localidad"
+                onChange={e => setNewPlantele(prev => ({ ...prev, localidad: e.target.value }))}
+                style={{ width: '100%', padding: '7px 8px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.05)', color: 'var(--c-text)', fontSize: 12 }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, color: 'var(--c-text-muted)', display: 'block', marginBottom: 3 }}>Municipio</label>
+              <input
+                type="text"
+                value={newPlantele.municipio}
+                placeholder="Municipio"
+                onChange={e => setNewPlantele(prev => ({ ...prev, municipio: e.target.value }))}
+                style={{ width: '100%', padding: '7px 8px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.05)', color: 'var(--c-text)', fontSize: 12 }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, color: 'var(--c-text-muted)', display: 'block', marginBottom: 3 }}>Hombres</label>
+              <input
+                type="number"
+                value={newPlantele.hombres}
+                onChange={e => {
+                  const h = parseInt(e.target.value, 10) || 0;
+                  setNewPlantele(prev => ({ ...prev, hombres: h, total: h + prev.mujeres }));
+                }}
+                style={{ width: '100%', padding: '7px 8px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.05)', color: 'var(--c-text)', fontSize: 12 }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, color: 'var(--c-text-muted)', display: 'block', marginBottom: 3 }}>Mujeres</label>
+              <input
+                type="number"
+                value={newPlantele.mujeres}
+                onChange={e => {
+                  const m = parseInt(e.target.value, 10) || 0;
+                  setNewPlantele(prev => ({ ...prev, mujeres: m, total: prev.hombres + m }));
+                }}
+                style={{ width: '100%', padding: '7px 8px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.05)', color: 'var(--c-text)', fontSize: 12 }}
+              />
+            </div>
+          </div>
+
+          {cctWarning && (
+            <div style={{ color: '#ef4444', fontSize: '11px', marginTop: '6px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+              ⚠️ {cctWarning}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
+            <button
+              type="button"
+              onClick={() => {
+                if (!newPlantele.nombre.trim() || !newPlantele.cct.trim()) {
+                  alert('Por favor ingresa al menos el CCT y el Nombre del plantel');
+                  return;
+                }
+                const pl = { ...newPlantele, total: newPlantele.hombres + newPlantele.mujeres };
+                const updatedList = [...planteles, pl];
+                set('planteles_json', updatedList);
+                set('num_planteles', updatedList.length);
+                setNewPlantele({
+                  no: updatedList.length + 1,
+                  cct: '',
+                  nombre: '',
+                  localidad: '',
+                  municipio: '',
+                  hombres: 0,
+                  mujeres: 0,
+                  total: 0
+                });
+                setCctWarning(null);
+              }}
+              className="btn btn-secondary btn-sm"
+            >
+              + Agregar plantel al directorio
+            </button>
+            <span style={{ fontSize: 12, color: 'var(--c-text-muted)' }}>
+              Total estimado: <strong>{newPlantele.hombres + newPlantele.mujeres}</strong> alumnos
+            </span>
+          </div>
         </div>
       </div>
 
+      {/* Reflexión PIPS anterior */}
+      <div style={cardStyle}>
+        {sectionTitle('Reflexión del PIPS del ciclo anterior')}
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: 'var(--c-text-muted)' }}>
+            ¿Realizó PIPS en el ciclo escolar anterior?
+          </label>
+          <div style={{ display: 'flex', gap: 12 }}>
+            {['Sí', 'No'].map(opt => (
+              <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14, color: 'var(--c-text)' }}>
+                <input
+                  type="radio"
+                  checked={opt === 'Sí' ? !!pips.pips_anterior_realizado : !pips.pips_anterior_realizado}
+                  onChange={() => set('pips_anterior_realizado', opt === 'Sí')}
+                />
+                {opt}
+              </label>
+            ))}
+          </div>
+        </div>
+        {pips.pips_anterior_realizado ? (
+          <>
+            {inp('Reflexión general del PIPS anterior', pips.reflexion_pips_anterior ?? '', v => set('reflexion_pips_anterior', v), {
+              rows: 5, placeholder: 'Describe los principales resultados, logros y aprendizajes del PIPS del ciclo anterior...',
+            })}
+            {inp('Fortalezas identificadas (una por línea)', pips.fortalezas_anterior ?? '', v => set('fortalezas_anterior', v), {
+              rows: 4, placeholder: '• Todos los planteles entregaron el PAEC-PEC...\n• Se consolidó el equipo ATP...',
+            })}
+            {inp('Áreas de oportunidad (una por línea)', pips.areas_oportunidad_anterior ?? '', v => set('areas_oportunidad_anterior', v), {
+              rows: 4, placeholder: '• Errores de alineación curricular en el 60% de los planteles...\n• Falta de comités completos...',
+            })}
+          </>
+        ) : (
+          <div style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: 10, padding: 16, fontSize: 13, color: 'var(--c-text-muted)' }}>
+            <strong style={{ color: '#818cf8' }}>Protocolo Anexo 1 (DBEPA):</strong> Si no realizó PIPS en el ciclo anterior,
+            el diagnóstico deberá basarse en al menos 3 problemáticas pedagógicas identificadas durante el ciclo,
+            los instrumentos utilizados para detectarlas y los objetivos/metas que se abordaron.
+            Registra esa información en el paso de Diagnóstico (paso 4).
+          </div>
+        )}
+      </div>
+    </>
+  );
+
+  // ── Step 4 ── Diagnóstico y problemáticas
+  const step4 = (
+    <>
       {/* Contexto */}
       <div style={cardStyle}>
         {sectionTitle('Contexto socioeducativo y diagnóstico')}
@@ -530,13 +850,22 @@ export default function PipsWizard({ locale }: { locale: string }) {
             {generating ? '⏳ Generando Cartografía...' : '🤖 Generar Cartografía con IA'}
           </button>
           {projectId && pips.status === 'completed' && (
-            <a
-              href={`/api/docx/pips/${projectId}`}
-              className="btn"
-              style={{ background: '#f59e0b', color: '#fff', border: 'none', fontSize: 14, padding: '12px 28px', textDecoration: 'none', borderRadius: 8, display: 'inline-block' }}
-            >
-              ↓ Descargar Word Oficial
-            </a>
+            <>
+              <a
+                href={`/api/pdf/pips/${projectId}`}
+                className="btn"
+                style={{ background: '#c0392b', color: '#fff', border: 'none', fontSize: 14, padding: '12px 28px', textDecoration: 'none', borderRadius: 8, display: 'inline-block', fontWeight: 600 }}
+              >
+                ↓ Descargar PDF Oficial
+              </a>
+              <a
+                href={`/api/docx/pips/${projectId}`}
+                className="btn"
+                style={{ background: '#f59e0b', color: '#fff', border: 'none', fontSize: 14, padding: '12px 28px', textDecoration: 'none', borderRadius: 8, display: 'inline-block' }}
+              >
+                ↓ Descargar Word Oficial
+              </a>
+            </>
           )}
         </div>
       </div>
@@ -591,6 +920,340 @@ export default function PipsWizard({ locale }: { locale: string }) {
           </button>
         )}
       </div>
+
+      {/* ── Modal: Exportar Vista Previa del Concentrado Zonal (Paso 2) ── */}
+      {showPreviewModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+          onClick={() => setShowPreviewModal(false)}
+        >
+          <div
+            style={{
+              background: 'var(--c-bg-card, #1e293b)',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              borderRadius: 16,
+              maxWidth: 850,
+              width: '100%',
+              maxHeight: '90vh',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+              overflow: 'hidden',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header del modal */}
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--c-text, #fff)' }}>
+                  📋 Concentrado Zonal de Escuelas — Vista Previa
+                </h3>
+                <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--c-text-muted)' }}>
+                  {pips.zona_nombre || 'Zona Escolar'} ({pips.zona_clave || 'S/C'}) • Ciclo: {pips.ciclo_escolar || SCHOOL_YEAR} • Supervisor: {pips.supervisor_name || 'No asignado'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPreviewModal(false)}
+                style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: 'var(--c-text-muted)', fontSize: 18, cursor: 'pointer', borderRadius: 8, width: 32, height: 32 }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Contenido de la tabla formateada */}
+            <div style={{ padding: '16px 20px', overflowY: 'auto', flex: 1 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 16 }}>
+                <div style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: 8, padding: '10px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 11, color: '#818cf8', fontWeight: 600 }}>Planteles</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: '#fff' }}>{planteles.length}</div>
+                </div>
+                <div style={{ background: 'rgba(56,189,248,0.1)', border: '1px solid rgba(56,189,248,0.25)', borderRadius: 8, padding: '10px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 11, color: '#38bdf8', fontWeight: 600 }}>Matrícula Hombres</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: '#fff' }}>{totalHombres}</div>
+                </div>
+                <div style={{ background: 'rgba(244,114,182,0.1)', border: '1px solid rgba(244,114,182,0.25)', borderRadius: 8, padding: '10px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 11, color: '#f472b6', fontWeight: 600 }}>Matrícula Mujeres</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: '#fff' }}>{totalMujeres}</div>
+                </div>
+                <div style={{ background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.25)', borderRadius: 8, padding: '10px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 11, color: '#4ade80', fontWeight: 600 }}>Total Alumnos</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: '#fff' }}>{granTotalAlumnos}</div>
+                </div>
+              </div>
+
+              {planteles.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: 32, color: 'var(--c-text-muted)', fontStyle: 'italic' }}>
+                  No se han registrado escuelas en este PIPS.
+                </div>
+              ) : (
+                <div style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, overflow: 'hidden' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                    <thead>
+                      <tr style={{ background: 'rgba(99,102,241,0.25)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                        <th style={{ padding: '8px 10px', textAlign: 'center', color: '#c7d2fe' }}>No.</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'left', color: '#c7d2fe' }}>Nombre de la Escuela</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'center', color: '#c7d2fe' }}>CCT</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'left', color: '#c7d2fe' }}>Municipio</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'right', color: '#38bdf8' }}>Hombres</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'right', color: '#f472b6' }}>Mujeres</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'right', color: '#4ade80', fontWeight: 700 }}>Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {planteles.map((p, idx) => (
+                        <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
+                          <td style={{ padding: '6px 10px', textAlign: 'center', color: 'var(--c-text-muted)' }}>{p.no || idx + 1}</td>
+                          <td style={{ padding: '6px 10px', fontWeight: 600, color: 'var(--c-text)' }}>{p.nombre}</td>
+                          <td style={{ padding: '6px 10px', textAlign: 'center', fontFamily: 'monospace', color: '#818cf8' }}>{p.cct}</td>
+                          <td style={{ padding: '6px 10px', color: 'var(--c-text-muted)' }}>{p.municipio || p.localidad || '—'}</td>
+                          <td style={{ padding: '6px 10px', textAlign: 'right', color: '#38bdf8' }}>{p.hombres}</td>
+                          <td style={{ padding: '6px 10px', textAlign: 'right', color: '#f472b6' }}>{p.mujeres}</td>
+                          <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 700, color: '#4ade80' }}>{p.total || (Number(p.hombres) + Number(p.mujeres))}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr style={{ background: 'rgba(99,102,241,0.2)', borderTop: '2px solid rgba(99,102,241,0.4)', fontWeight: 800 }}>
+                        <td colSpan={4} style={{ padding: '8px 10px', textAlign: 'right', color: '#fff', textTransform: 'uppercase' }}>
+                          Total Concentrado Zonal:
+                        </td>
+                        <td style={{ padding: '8px 10px', textAlign: 'right', color: '#38bdf8' }}>{totalHombres}</td>
+                        <td style={{ padding: '8px 10px', textAlign: 'right', color: '#f472b6' }}>{totalMujeres}</td>
+                        <td style={{ padding: '8px 10px', textAlign: 'right', color: '#4ade80', fontSize: 13 }}>{granTotalAlumnos}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Footer con acciones */}
+            <div style={{ padding: '12px 20px', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  const headers = ['No.', 'Nombre', 'CCT', 'Municipio', 'Hombres', 'Mujeres', 'Total'];
+                  const rows = planteles.map(p => [
+                    p.no || '',
+                    p.nombre || '',
+                    p.cct || '',
+                    p.municipio || p.localidad || '',
+                    p.hombres,
+                    p.mujeres,
+                    p.total || (Number(p.hombres) + Number(p.mujeres)),
+                  ]);
+                  const tsv = [headers.join('\t'), ...rows.map(r => r.join('\t'))].join('\n');
+                  navigator.clipboard.writeText(tsv);
+                  alert('Tabla copiada al portapapeles en formato tabular para Excel / Google Sheets.');
+                }}
+                className="btn btn-secondary btn-sm"
+                style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+              >
+                📋 Copiar para Excel/Sheets
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowPreviewModal(false)}
+                className="btn btn-primary btn-sm"
+              >
+                Cerrar vista previa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal: Importador CSV para PIPS (Paso 5) ── */}
+      {showCsvModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+          onClick={() => setShowCsvModal(false)}
+        >
+          <div
+            style={{
+              background: 'var(--c-bg-card, #1e293b)',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              borderRadius: 16,
+              maxWidth: 750,
+              width: '100%',
+              maxHeight: '90vh',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+              overflow: 'hidden',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header del modal */}
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--c-text, #fff)' }}>
+                  📥 Importar Directorio de Escuelas desde CSV
+                </h3>
+                <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--c-text-muted)' }}>
+                  Formato admitido: <code>nombre, CCT, matricula_h, matricula_m</code> (valores separados por comas o tabulaciones)
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCsvModal(false)}
+                style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: 'var(--c-text-muted)', fontSize: 18, cursor: 'pointer', borderRadius: 8, width: 32, height: 32 }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Contenido del importador */}
+            <div style={{ padding: '16px 20px', overflowY: 'auto', flex: 1 }}>
+              {/* Selector de archivo CSV */}
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--c-text)', marginBottom: 6 }}>
+                  1. Cargar archivo (.csv, .txt):
+                </label>
+                <input
+                  type="file"
+                  accept=".csv, .txt, .tsv"
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onload = ev => {
+                        const content = ev.target?.result as string;
+                        if (content) {
+                          setCsvText(content);
+                          parseCsvContent(content);
+                        }
+                      };
+                      reader.readAsText(file);
+                    }
+                  }}
+                  style={{ fontSize: 12, color: 'var(--c-text-muted)' }}
+                />
+              </div>
+
+              {/* Pegar texto CSV directamente */}
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--c-text)', marginBottom: 6 }}>
+                  2. O pegar datos en formato texto:
+                </label>
+                <textarea
+                  value={csvText}
+                  onChange={e => {
+                    setCsvText(e.target.value);
+                    parseCsvContent(e.target.value);
+                  }}
+                  rows={5}
+                  placeholder={`nombre, CCT, matricula_h, matricula_m\nBachillerato Digital Núm. 46, 21EBH0200X, 45, 52\nBachillerato Gral. Lázaro Cárdenas, 21EBH0018G, 120, 135`}
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    borderRadius: 8,
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    background: 'rgba(255,255,255,0.03)',
+                    color: 'var(--c-text)',
+                    fontFamily: 'monospace',
+                    fontSize: 12,
+                    resize: 'vertical',
+                  }}
+                />
+              </div>
+
+              {/* Error de validación */}
+              {csvError && (
+                <div style={{ padding: '10px 12px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, color: '#fca5a5', fontSize: 12, marginBottom: 14 }}>
+                  ⚠️ {csvError}
+                </div>
+              )}
+
+              {/* Previsualización de los datos parseados */}
+              {csvParsed.length > 0 && (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#4ade80' }}>
+                      ✓ {csvParsed.length} escuela(s) detectadas para importar
+                    </span>
+                    <span style={{ fontSize: 11, color: 'var(--c-text-muted)' }}>
+                      Mostrando previsualización
+                    </span>
+                  </div>
+                  <div style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, overflow: 'hidden', maxHeight: 200, overflowY: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                      <thead>
+                        <tr style={{ background: 'rgba(255,255,255,0.05)' }}>
+                          <th style={{ padding: '6px', textAlign: 'left', color: 'var(--c-text-muted)' }}>Escuela</th>
+                          <th style={{ padding: '6px', textAlign: 'center', color: 'var(--c-text-muted)' }}>CCT</th>
+                          <th style={{ padding: '6px', textAlign: 'right', color: 'var(--c-text-muted)' }}>H</th>
+                          <th style={{ padding: '6px', textAlign: 'right', color: 'var(--c-text-muted)' }}>M</th>
+                          <th style={{ padding: '6px', textAlign: 'right', color: 'var(--c-text-muted)' }}>Total</th>
+                          <th style={{ padding: '6px', textAlign: 'center', color: 'var(--c-text-muted)' }}>Validación</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {csvParsed.map((r, idx) => (
+                          <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                            <td style={{ padding: '5px 6px', fontWeight: 600 }}>{r.nombre}</td>
+                            <td style={{ padding: '5px 6px', textAlign: 'center', fontFamily: 'monospace' }}>{r.cct}</td>
+                            <td style={{ padding: '5px 6px', textAlign: 'right' }}>{r.hombres}</td>
+                            <td style={{ padding: '5px 6px', textAlign: 'right' }}>{r.mujeres}</td>
+                            <td style={{ padding: '5px 6px', textAlign: 'right', fontWeight: 700, color: '#4ade80' }}>{r.total}</td>
+                            <td style={{ padding: '5px 6px', textAlign: 'center' }}>
+                              {r.isValidCct ? (
+                                <span style={{ color: '#4ade80', fontSize: 11 }}>✓ CCT Válido</span>
+                              ) : (
+                                <span style={{ color: '#f59e0b', fontSize: 11 }}>⚠️ CCT no estándar</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer del modal */}
+            <div style={{ padding: '12px 20px', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button
+                type="button"
+                onClick={() => setShowCsvModal(false)}
+                className="btn btn-secondary btn-sm"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmCsvImport}
+                disabled={csvParsed.length === 0}
+                className="btn btn-primary btn-sm"
+              >
+                Confirmar e importar ({csvParsed.length})
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

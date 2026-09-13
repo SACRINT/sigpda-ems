@@ -107,9 +107,14 @@ export default async function PaecDashboardPage({
                     {p.status === 'completed' ? 'Ver' : 'Continuar'}
                   </Link>
                   {p.status === 'completed' && (
-                    <a href={`/api/docx/paec/${p.id as string}`} className="btn btn-primary btn-sm" style={{ backgroundColor: 'var(--c-amber)', borderColor: 'var(--c-amber)', color: '#fff' }}>
-                      ↓ Word
-                    </a>
+                    <>
+                      <a href={`/api/docx/paec/${p.id as string}`} className="btn btn-primary btn-sm" style={{ backgroundColor: 'var(--c-amber)', borderColor: 'var(--c-amber)', color: '#fff' }}>
+                        ↓ Word
+                      </a>
+                      <a href={`/api/pdf/paec/${p.id as string}`} className="btn btn-primary btn-sm" style={{ backgroundColor: '#c0392b', borderColor: '#c0392b', color: '#fff' }}>
+                        ↓ PAEC Oficial PDF
+                      </a>
+                    </>
                   )}
                   <DeletePaecButton id={p.id as string} />
                 </div>

@@ -11,6 +11,11 @@ export interface CommunityContext {
 }
 
 export interface SchoolContext {
+  cct?: string;
+  schoolName?: string;
+  municipality?: string;
+  locality?: string;
+  schoolZone?: string;
   enrollment?: string;
   teacherCount?: string;
   indicators?: string;

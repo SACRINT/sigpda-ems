@@ -34,6 +34,8 @@ import { MapeoRow, PlanOperativoRow, PlanOperativoData } from '@/types/paec';
 export const runtime = 'nodejs';
 export const maxDuration = 120;
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -180,41 +182,8 @@ export async function POST(
         }
 
         const allPlanRows: PlanOperativoRow[] = [];
+        const failedChunks: { block: number; uacs: string[]; error: string }[] = [];
 
-        for (let i = 0; i < chunks.length; i++) {
-          const blockPrompt = buildPrompt6PlanOperativoPorBloque(
-            cronStr,
-            detStr,
-            chunks[i],
-            project.cycle_type,
-            i + 1,
-            chunks.length
-          );
-
-          let chunkPrompt = blockPrompt;
-          if (libraryContext) {
-            chunkPrompt = `${chunkPrompt}\n\n${libraryContext}`;
-          }
-
-          logger.info(`Generating PAEC Step 6 block ${i + 1}/${chunks.length} using generateWithRotation...`);
-          const blockText = await generateWithRotation(PAEC_SYSTEM_PROMPT, chunkPrompt, teacher.id);
-          if (!blockText) {
-            throw new Error(`Respuesta vacía del proveedor de IA en bloque ${i + 1}`);
-          }
-
-          const parseResult = parseAIResponse(blockText, PaecPaso6BlockSchema, {
-            contextName: `paec_step_6_block_${i + 1}`,
-          });
-
-          if (!parseResult.success) {
-            logger.error(`Error parsing JSON in block ${i + 1}:`, parseResult.error);
-            throw new Error(`La IA retornó un formato no válido en el bloque ${i + 1} del Plan Operativo: ${parseResult.error}`);
-          }
-
-          allPlanRows.push(...(parseResult.data as PlanOperativoRow[]));
-        }
-
-        // Split into semestreA (1, 3, 5) and semestreB (2, 4, 6)
         const getSemesterForUac = (uacName: string): number => {
           const clean = (uacName || '').trim().toLowerCase();
           for (const m of mapeo) {
@@ -226,19 +195,98 @@ export async function POST(
           return project.cycle_type === 'B' ? 2 : 1;
         };
 
-        const semestreA: PlanOperativoRow[] = [];
-        const semestreB: PlanOperativoRow[] = [];
+        const splitIntoSemesters = (rows: PlanOperativoRow[]): PlanOperativoData => {
+          const semestreA: PlanOperativoRow[] = [];
+          const semestreB: PlanOperativoRow[] = [];
+          for (const row of rows) {
+            const sem = getSemesterForUac(row.uac);
+            if (sem % 2 === 1) {
+              semestreA.push(row);
+            } else {
+              semestreB.push(row);
+            }
+          }
+          return { semestreA, semestreB };
+        };
 
-        for (const row of allPlanRows) {
-          const sem = getSemesterForUac(row.uac);
-          if (sem % 2 === 1) {
-            semestreA.push(row);
-          } else {
-            semestreB.push(row);
+        for (let i = 0; i < chunks.length; i++) {
+          const blockNum = i + 1;
+          const blockPrompt = buildPrompt6PlanOperativoPorBloque(
+            cronStr,
+            detStr,
+            chunks[i],
+            project.cycle_type,
+            blockNum,
+            chunks.length
+          );
+
+          let chunkPrompt = blockPrompt;
+          if (libraryContext) {
+            chunkPrompt = `${chunkPrompt}\n\n${libraryContext}`;
+          }
+
+          let chunkSuccess = false;
+          let attempt = 0;
+          const maxRetries = 2;
+          let delay = 1500;
+
+          while (attempt <= maxRetries && !chunkSuccess) {
+            try {
+              logger.info(`[PAEC-Step6] Generando bloque ${blockNum}/${chunks.length} (intento ${attempt + 1}/${maxRetries + 1})...`);
+              const blockText = await generateWithRotation(PAEC_SYSTEM_PROMPT, chunkPrompt, teacher.id);
+              if (!blockText) {
+                throw new Error(`Respuesta vacía del proveedor de IA en bloque ${blockNum}`);
+              }
+
+              const parseResult = parseAIResponse(blockText, PaecPaso6BlockSchema, {
+                contextName: `paec_step_6_block_${blockNum}`,
+              });
+
+              if (!parseResult.success) {
+                throw new Error(`Formato no válido en bloque ${blockNum}: ${parseResult.error}`);
+              }
+
+              const blockRows = parseResult.data as PlanOperativoRow[];
+              allPlanRows.push(...blockRows);
+              chunkSuccess = true;
+
+              // Checkpoint parcial: persistir filas acumuladas en la BD tras cada chunk
+              const partialData = splitIntoSemesters(allPlanRows);
+              await updatePaecProjectStep(
+                id,
+                teacher.id,
+                6,
+                'fase2_plan_operativo',
+                partialData
+              );
+              logger.info(`[PAEC-Step6] Checkpoint guardado en BD tras bloque ${blockNum}/${chunks.length} (${allPlanRows.length} UACs acumuladas).`);
+
+            } catch (err: any) {
+              attempt++;
+              logger.warn(`[PAEC-Step6] Falla en bloque ${blockNum} (intento ${attempt}/${maxRetries + 1}): ${err?.message || err}`);
+              if (attempt <= maxRetries) {
+                logger.info(`[PAEC-Step6] Reintentando bloque ${blockNum} en ${delay}ms...`);
+                await sleep(delay);
+                delay *= 2;
+              } else {
+                failedChunks.push({
+                  block: blockNum,
+                  uacs: chunks[i].map((u) => u.uacName),
+                  error: err?.message || 'Error desconocido',
+                });
+              }
+            }
           }
         }
 
-        planOperativoData = { semestreA, semestreB };
+        if (allPlanRows.length === 0 && failedChunks.length > 0) {
+          throw new Error(`No se pudo generar ningún bloque del Plan Operativo: ${failedChunks.map((f) => `Bloque ${f.block} (${f.error})`).join(', ')}`);
+        }
+
+        planOperativoData = splitIntoSemesters(allPlanRows);
+        if (failedChunks.length > 0) {
+          logger.warn(`[PAEC-Step6] Plan Operativo completado parcialmente con ${allPlanRows.length} filas. Bloques con falla: ${failedChunks.map(f => f.block).join(', ')}`);
+        }
         break;
       }
       case 7: {
@@ -292,7 +340,7 @@ export async function POST(
 
       const parseResult = parseAIResponse(text, stepSchema, { contextName: `paec_step_${step}` });
       if (!parseResult.success) {
-        console.error(`Failed to parse AI response for Step ${step}:`, parseResult.error);
+        logger.error(`Failed to parse AI response for Step ${step}:`, parseResult.error);
         return NextResponse.json(
           { error: `Error al estructurar el Paso ${step}: ${parseResult.error}` },
           { status: 500 }

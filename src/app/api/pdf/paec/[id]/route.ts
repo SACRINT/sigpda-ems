@@ -1,28 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, getPaecProjectById } from '@/lib/db';
-import { generatePaecDocx } from '@/lib/paec-docx-generator';
+import { generatePaecPDF } from '@/lib/paec-pdf-generator';
 import type { PaecProject } from '@/types/paec';
 import { SCHOOL_YEAR } from '@/lib/config';
 import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+type RouteContext = { params: Promise<{ id: string }> };
+
+export async function GET(request: NextRequest, { params }: RouteContext) {
   try {
     const session = await auth();
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
     const teacher = await getTeacherByEmail(session.user.email);
-    if (!teacher) return NextResponse.json({ error: 'Docente no encontrado' }, { status: 404 });
+    if (!teacher) {
+      return NextResponse.json({ error: 'Docente no encontrado' }, { status: 404 });
+    }
 
     const { id } = await params;
     const rawProject = await getPaecProjectById(id, teacher.id);
-    if (!rawProject) return NextResponse.json({ error: 'Proyecto no encontrado' }, { status: 404 });
+    if (!rawProject) {
+      return NextResponse.json({ error: 'Proyecto no encontrado' }, { status: 404 });
+    }
 
     // Cast raw database project row to PaecProject
     const project: PaecProject = {
@@ -46,30 +49,29 @@ export async function GET(
       updatedAt: rawProject.updated_at,
     };
 
-    if (!project.fase2Anexos) {
-      return NextResponse.json(
-        { error: 'El proyecto no está completo. Genera todos los pasos antes de descargar.' },
-        { status: 400 }
-      );
-    }
-
-    const docxBuffer = await generatePaecDocx(project, teacher.name);
+    const pdfBuffer = await generatePaecPDF(project, teacher.name);
 
     const safeProjName = project.projectName
       .substring(0, 30)
       .replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚ\s]/g, '')
       .replace(/\s+/g, '_');
-    const filename = `Proyecto_PEC_${safeProjName}_${SCHOOL_YEAR}.docx`;
+    const filename = `Proyecto_PEC_${safeProjName}_${SCHOOL_YEAR}.pdf`;
 
-    return new NextResponse(new Uint8Array(docxBuffer), {
+    const uint8 = new Uint8Array(pdfBuffer);
+    return new NextResponse(uint8, {
+      status: 200,
       headers: {
-        'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'Content-Disposition': `attachment; filename="${filename}"`,
-        'Content-Length': docxBuffer.byteLength.toString(),
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
+        'Content-Length': String(uint8.byteLength),
       },
     });
-  } catch (error) {
-    logger.error('PAEC DOCX download error:', { error });
-    return NextResponse.json({ error: 'Error al generar el archivo Word' }, { status: 500 });
+  } catch (error: any) {
+    logger.error('PAEC PDF generation error:', { error: error?.message || String(error) });
+    const message = error instanceof Error ? error.message : 'Error desconocido';
+    return NextResponse.json(
+      { error: `Error al generar el documento PDF del PAEC: ${message}` },
+      { status: 500 }
+    );
   }
 }

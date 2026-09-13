@@ -1,7 +1,13 @@
+/**
+ * Endpoint Oficial Consolidado de Resolución y Persistencia de Horarios Escolares.
+ * Maneja normalización de docentes, jornadas por grupo, ejecución del solver y persistencia en Neon DB.
+ * Nota: Reemplaza y consolida la ruta deprecada /api/horarios/generate.
+ */
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { sql, getTeacherByEmail } from "@/lib/db";
 import { resolverHorario, SolverParams } from "@/lib/horarios/solver";
+import { logger } from "@/lib/logger";
 
 export async function POST(req: NextRequest) {
   try {
@@ -160,8 +166,8 @@ export async function POST(req: NextRequest) {
             updated_at = NOW()
         WHERE teacher_id = ${teacher.id}::uuid
       `;
-    } catch (e) {
-      console.warn("[api/horarios/generar] Error guardando horario_generado en horario_config:", e);
+    } catch (e: any) {
+      logger.warn("[api/horarios/generar] Error guardando horario_generado en horario_config", { error: e?.message || String(e) });
     }
 
     return NextResponse.json({
@@ -173,7 +179,7 @@ export async function POST(req: NextRequest) {
       resultado
     });
   } catch (error: any) {
-    console.error("[api/horarios/generar] Error en POST:", error);
+    logger.error("[api/horarios/generar] Error en POST:", error);
     return NextResponse.json({ error: error.message || "Error al generar horario con IA" }, { status: 500 });
   }
 }
@@ -197,13 +203,13 @@ export async function DELETE(req: NextRequest) {
             updated_at = NOW()
         WHERE teacher_id = ${teacher.id}::uuid
       `;
-    } catch (e) {
-      console.warn("[api/horarios/generar DELETE] Error limpiando horario_generado:", e);
+    } catch (e: any) {
+      logger.warn("[api/horarios/generar DELETE] Error limpiando horario_generado", { error: e?.message || String(e) });
     }
 
     return NextResponse.json({ success: true, message: "Horario eliminado correctamente" });
   } catch (error: any) {
-    console.error("[api/horarios/generar] Error en DELETE:", error);
+    logger.error("[api/horarios/generar] Error en DELETE:", error);
     return NextResponse.json({ error: "Error al eliminar horario" }, { status: 500 });
   }
 }

@@ -79,14 +79,43 @@ export async function POST(
     );
     totalPersonal.total = totalPersonal.docentes + totalPersonal.responsables + totalPersonal.apoyo;
 
-    // ── Ejecución de la IA por Chunks (Secuencial con Rotación) ─────────────
-    logger.info(`[PIPS-Gen] Iniciando generación de PIPS para Zona 004 en 3 partes...`);
+async function generateChunkWithRetry(
+  systemPrompt: string,
+  userPrompt: string,
+  teacherId: string,
+  chunkName: string,
+  maxRetries = 2
+): Promise<string> {
+  let attempt = 0;
+  let delay = 1500;
+  while (attempt <= maxRetries) {
+    try {
+      logger.info(`[PIPS-Gen] Generando ${chunkName} (intento ${attempt + 1}/${maxRetries + 1})...`);
+      const result = await generateWithRotation(systemPrompt, userPrompt, teacherId);
+      if (result && result.trim().length > 0) {
+        return result;
+      }
+      throw new Error(`Respuesta vacía al generar ${chunkName}`);
+    } catch (err: any) {
+      attempt++;
+      logger.warn(`[PIPS-Gen] Falla en ${chunkName} (intento ${attempt}/${maxRetries + 1}): ${err?.message || err}`);
+      if (attempt > maxRetries) {
+        throw err;
+      }
+      logger.info(`[PIPS-Gen] Esperando ${delay}ms antes de reintentar ${chunkName}...`);
+      await sleep(delay);
+      delay *= 2;
+    }
+  }
+  throw new Error(`No se pudo generar ${chunkName} tras ${maxRetries + 1} intentos.`);
+}
+
+    // ── Ejecución de la IA por Chunks (Secuencial con Rotación & Checkpoints) ───
+    logger.info(`[PIPS-Gen] Iniciando generación de PIPS para Zona 004 en 3 partes con checkpoints...`);
 
     const libraryContext = await getUserLibraryContext(teacher.email);
 
     // PARTE 1: Presentación + Fundamentación Normativa + Diagnóstico
-    // Inyectamos la normativa oficial en el Chunk 1, que incluye la sección
-    // "FUNDAMENTACIÓN NORMATIVA" del PIPS. El contexto de biblioteca complementa.
     const normativaContext = await getNormativaForGenerator('pips');
     const prompt1 = getChunk1Prompt(row, plantelesData, totalAlumnos, totalPersonal);
 
@@ -94,22 +123,54 @@ export async function POST(
     if (normativaContext) prompt1WithCtx = `${normativaContext}\n\n${prompt1WithCtx}`;
     if (libraryContext) prompt1WithCtx = `${libraryContext}\n\n${prompt1WithCtx}`;
 
-    const chunk1Result = await generateWithRotation(PIPS_SYSTEM_PROMPT, prompt1WithCtx, teacher.id);
-    logger.info(`[PIPS-Gen] Parte 1 generada exitosamente. Esperando cooldown...`);
-    await sleep(1000); // 1s de cooldown para evitar RPM limits en la API Key
+    const chunk1Result = await generateChunkWithRetry(
+      PIPS_SYSTEM_PROMPT,
+      prompt1WithCtx,
+      teacher.id,
+      'Parte 1 (Presentación + Normativa + Diagnóstico)'
+    );
 
-    // PARTE 2
-    const prompt2 = getChunk2Prompt(row, chunk1Result);
-    const prompt2WithCtx = libraryContext ? `${libraryContext}\n\n${prompt2}` : prompt2;
-    const chunk2Result = await generateWithRotation(PIPS_SYSTEM_PROMPT, prompt2WithCtx, teacher.id);
-    logger.info(`[PIPS-Gen] Parte 2 generada exitosamente. Esperando cooldown...`);
+    // Checkpoint 1: Persistir resultado parcial
+    await db`
+      UPDATE pips_projects
+      SET generated_content = ${chunk1Result},
+          updated_at = NOW()
+      WHERE id = ${id}::uuid
+    `;
+    logger.info(`[PIPS-Gen] Checkpoint 1/3 guardado exitosamente en BD. Esperando cooldown...`);
     await sleep(1000);
 
-    // PARTE 3
-    const prompt3 = getChunk3Prompt(row, chunk1Result + '\n\n' + chunk2Result);
+    // PARTE 2: Problemáticas Prioritarias y Metas Zonales
+    const prompt2 = getChunk2Prompt(row, chunk1Result);
+    const prompt2WithCtx = libraryContext ? `${libraryContext}\n\n${prompt2}` : prompt2;
+    const chunk2Result = await generateChunkWithRetry(
+      PIPS_SYSTEM_PROMPT,
+      prompt2WithCtx,
+      teacher.id,
+      'Parte 2 (Problemáticas y Metas Zonales)'
+    );
+
+    // Checkpoint 2: Persistir resultado parcial acumulado
+    const partialContent1_2 = [chunk1Result, chunk2Result].join('\n\n');
+    await db`
+      UPDATE pips_projects
+      SET generated_content = ${partialContent1_2},
+          updated_at = NOW()
+      WHERE id = ${id}::uuid
+    `;
+    logger.info(`[PIPS-Gen] Checkpoint 2/3 guardado exitosamente en BD. Esperando cooldown...`);
+    await sleep(1000);
+
+    // PARTE 3: Cronograma y Evaluación
+    const prompt3 = getChunk3Prompt(row, partialContent1_2);
     const prompt3WithCtx = libraryContext ? `${libraryContext}\n\n${prompt3}` : prompt3;
-    const chunk3Result = await generateWithRotation(PIPS_SYSTEM_PROMPT, prompt3WithCtx, teacher.id);
-    logger.info(`[PIPS-Gen] Parte 3 generada exitosamente. Armando resultado...`);
+    const chunk3Result = await generateChunkWithRetry(
+      PIPS_SYSTEM_PROMPT,
+      prompt3WithCtx,
+      teacher.id,
+      'Parte 3 (Cronograma y Mecanismos de Evaluación)'
+    );
+    logger.info(`[PIPS-Gen] Parte 3 generada exitosamente. Consolidando documento final...`);
 
     // Unir las tres partes en un único documento Markdown estructurado
     const fullContent = [
@@ -127,6 +188,7 @@ export async function POST(
           updated_at = NOW()
       WHERE id = ${id}::uuid
     `;
+    logger.info(`[PIPS-Gen] Checkpoint 3/3 finalizado y guardado con status 'completed'.`);
 
     // Registrar actividad en la plataforma
     await logActivity({
@@ -139,8 +201,11 @@ export async function POST(
     });
 
     return NextResponse.json({ success: true, content: fullContent });
-  } catch (error) {
+  } catch (error: any) {
     logger.error('POST /api/pips/[id]/generate error:', error);
-    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
+    return NextResponse.json({ 
+      error: error?.message || 'Error interno del servidor al generar PIPS',
+      hasPartialCheckpoint: true
+    }, { status: 500 });
   }
 }

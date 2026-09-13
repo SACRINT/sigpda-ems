@@ -131,13 +131,22 @@ export default async function PipsDashboardPage({
                     {proj.status === 'completed' ? 'Ver / Editar' : 'Continuar'}
                   </Link>
                   {proj.status === 'completed' && (
-                    <a
-                      href={`/api/docx/pips/${proj.id as string}`}
-                      className="btn btn-primary btn-sm"
-                      style={{ backgroundColor: 'var(--c-amber)', borderColor: 'var(--c-amber)', color: '#fff' }}
-                    >
-                      ↓ Descargar Word
-                    </a>
+                    <>
+                      <a
+                        href={`/api/pdf/pips/${proj.id as string}`}
+                        className="btn btn-sm"
+                        style={{ backgroundColor: '#c0392b', borderColor: '#c0392b', color: '#fff', fontWeight: 600 }}
+                      >
+                        ↓ PIPS Oficial PDF
+                      </a>
+                      <a
+                        href={`/api/docx/pips/${proj.id as string}`}
+                        className="btn btn-primary btn-sm"
+                        style={{ backgroundColor: 'var(--c-amber)', borderColor: 'var(--c-amber)', color: '#fff' }}
+                      >
+                        ↓ Descargar Word
+                      </a>
+                    </>
                   )}
                   <DeletePipsButton id={proj.id as string} />
                 </div>
