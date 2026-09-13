@@ -15,6 +15,7 @@ import { robustJsonParse } from '@/lib/ai-response-parser';
 import { extractWorkbookTags } from '../workbook-tags';
 import type { MissionSection, WorkbookElement, TroubleshootItem } from '@/types/work-textbook';
 import { type WriterInput, type WriterOutput, evaluateQuality } from './writer-contract';
+import { buildPlanningAlignmentPrompt } from './planning-alignment-prompt';
 
 export async function generateLabMission(input: WriterInput): Promise<WriterOutput> {
   const labMission = input.missions.find((m) => m.missionType === 'lab') || input.missions[1] || input.missions[0];
@@ -22,81 +23,45 @@ export async function generateLabMission(input: WriterInput): Promise<WriterOutp
   const missionTitle = labMission ? labMission.title : `Misión 2: Laboratorio y Taller Experimental`;
 
   // Construir contexto de semilla canónica si existe
-  let seedPromptChunk = 'ESTADO DE SEMILLA CANÓNICA: No existe semilla previa para este tema. Genera el contenido técnico desde cero con máximo rigor.';
+  let seedPromptChunk = '';
   if (input.canonicalSeed) {
     seedPromptChunk = `
-BASE DE CONOCIMIENTO REUTILIZADA (SEMILLA CANÓNICA PRE-VALIDADA):
-- Título base: ${input.canonicalSeed.content.title}
-- Procedimientos estándar: ${input.canonicalSeed.content.procedures.join('; ')}
+BASE DE CONOCIMIENTO (SEMILLA CANÓNICA PRE-VALIDADA):
+- Título: ${input.canonicalSeed.content.title}
+- Procedimientos: ${input.canonicalSeed.content.procedures.join('; ')}
 - Materiales: ${input.canonicalSeed.content.materials.join(', ')}
-- Normativa aplicable: ${input.canonicalSeed.content.nomNorms?.join(', ') || 'Buenas prácticas NOM/ISO'}
-- Errores comunes previos: ${input.canonicalSeed.content.commonErrors?.map((e) => e.symptom).join('; ') || 'Ninguno registrado'}
-Reutiliza e integra esta base técnica adaptándola a la comunidad PAEC y al nivel de los estudiantes.`;
+- Normativa: ${input.canonicalSeed.content.nomNorms?.join(', ') || 'NOM/ISO'}
+- Errores comunes: ${input.canonicalSeed.content.commonErrors?.map((e) => e.symptom).join('; ') || 'Ninguno'}`;
   }
 
-  // ── Construir contexto de alineación con la planeación ──
-  let planningAlignmentChunk = '';
-  if (input.planningActivities) {
-    const pa = input.planningActivities;
-    planningAlignmentChunk = `
-ALINEACIÓN OBLIGATORIA CON LA PLANEACIÓN DIDÁCTICA:
-La actividad planificada por el docente para este bloque tiene las siguientes fases. DEBES generar contenido que las implemente fielmente:
-
-DESARROLLO PLANIFICADO (ejecución - esta es la fase principal de esta misión): ${pa.ejecucion.description || 'No especificado'}
-PROCESOS DE DESARROLLO: ${pa.ejecucion.processes || 'No especificados'}
-MATERIALES DE DESARROLLO: ${pa.ejecucion.materials || 'No especificados'}
-
-APERTURA PLANIFICADA (para contextualizar la práctica): ${pa.apertura.description || 'No especificada'}
-CIERRE PLANIFICADO (para vincular con la reflexión): ${pa.conclusion.description || 'No especificado'}
-${pa.saberes ? `SABERES A DESARROLLAR EN ESTA PRÁCTICA:
-- Saber (teórico): ${pa.saberes.saber}
-- Saber Hacer (procedimental - PRINCIPAL): ${pa.saberes.saberHacer}
-- Saber Ser (actitudinal): ${pa.saberes.saberSer}` : ''}
-${pa.contenidoFormativo ? `CONTENIDO FORMATIVO ESPECÍFICO: ${pa.contenidoFormativo}` : ''}
-${pa.methodology ? `METODOLOGÍA SELECCIONADA: ${pa.methodology}` : ''}
-
-REGLA DE ALINEACIÓN: El procedimiento del laboratorio DEBE implementar las actividades de desarrollo/ejecución planificadas. El objetivo DEBE estar vinculado con los saberes planificados. Los materiales DEBEN corresponder a los materiales de la planeación. NO generes una práctica que no esté contemplada en la planeación.
-`;
-  }
+  const planningAlignmentChunk = buildPlanningAlignmentPrompt(input.planningActivities, 'lab');
 
   const systemInstruction = `Eres un instructor técnico y científico de alto nivel para Bachillerato en Puebla (DBEPA / MCCEMS).
 Tu tarea es redactar la misión práctica de laboratorio o taller ("${missionTitle}") para la UAC: "${input.uacName}" (${input.subsystem.toUpperCase()}).
 ${planningAlignmentChunk}
-
-REGLAS DE RIGOR TÉCNICO, PROFUNDIDAD Y CUADERNO ACTIVO:
-1. Objetivo de la práctica: Una formulación técnica rigurosa y contundente contextualizada en la realidad productiva o comunitaria.
-2. Materiales necesarios: Lista formal exhaustiva con especificaciones técnicas, normas de seguridad y casilla de verificación [✓] para cada insumo, equipo o software.
-3. Procedimiento paso a paso numerado (1,500 a 2,500 palabras, 10-16 pasos detallados): Cada paso debe incluir explicación técnica profunda del "por qué" y del "cómo", precauciones operativas y espacios orientados <!--workbook:lines:rows=3--> o tablas para que el estudiante registre sus mediciones y observaciones empíricas.
-4. Tabla de datos vacía: Genera encabezados descriptivos completos y filas con la etiqueta <!--workbook:table:cols=Parámetro,Teórico,Medición 1,Medición 2,Error,Unidad--> para que el alumno la llene en clase.
-5. Código ejecutable o protocolo experimental (800 a 1,500 palabras): En BT: bloques de código reales, funcionales, completos y comentados línea a línea, acompañados de cajas de código sombreadas <!--workbook:code:lines=15--> para pruebas y variantes. En BGE: protocolo experimental minucioso de toma de datos y modelado.
-6. Desafío autónomo individual estructurado ("Tú Haces" - 350 a 600 palabras):
-   OBLIGATORIAMENTE redactado en EXACTAMENTE 5 a 7 PASOS NUMERADOS CORRELATIVOS (Paso 1 al Paso 5, 6 o 7). Cada paso debe contener:
-   a) Instrucción procedimental precisa con parámetros y variables cuantitativas concretas.
-   b) Acción técnica u operativa que el estudiante realiza individualmente sin auxilio directo.
-   c) Espacio de comprobación, cálculo o verificación <!--workbook:lines:rows=2--> o casilla de control.
-   d) Vinculación directa con una variante del problema escolar/comunitario PAEC: "${input.paecContext}".
-7. Preguntas de reflexión y análisis (350 a 500 palabras): 4 a 6 preguntas de desarrollo amplio que conecten directamente los datos experimentales con la teoría formal y con el entorno PAEC.
-8. Depuración rápida (Common errors): Al menos 3 casos de estudio de Síntoma → Causa Raíz → Solución detallada paso a paso → Medida preventiva.
-9. REGLA ESTRICTA DE SINTAXIS JSON PARA CÓDIGO Y DIÁLOGOS:
-   Para fragmentos de código o cadenas (ejemplo: print('Hola'), input('Ingresa dato: ')), usa EXCLUSIVAMENTE comillas simples ('...'). NUNCA coloques comillas dobles sin escapar dentro de un valor de texto JSON.
 ${seedPromptChunk}
 
-IMPORTANTE: Esta misión debe tener entre ${input.targetWords.min} y ${input.targetWords.ideal} palabras en total. Proporciona explicaciones técnicas profundas, pasos numerados detallados y espacios orientados para que el estudiante trabaje.
+DIRECTIVAS TÉCNICAS Y METAS DE EXTENSIÓN:
+1. Objetivo y Materiales: Formulación técnica rigurosa y lista de insumos con casilla de verificación [✓].
+2. Procedimiento paso a paso (1,500 a 2,500 palabras, 10-16 pasos): Explicación técnica de cada paso con espacios <!--workbook:lines:rows=3--> o tablas.
+3. Tabla de datos vacía: Encabezados descriptivos con <!--workbook:table:cols=Parámetro,Teórico,Medición 1,Medición 2,Error,Unidad-->.
+4. Código o protocolo experimental (800 a 1,500 palabras): Bloques de código reales y comentados en BT; protocolo experimental exhaustivo en BGE.
+5. Reto autónomo ("Tú Haces" - 350 a 600 palabras): EXACTAMENTE 5 a 7 PASOS NUMERADOS con variables cuantitativas y vinculación PAEC: "${input.paecContext}".
+6. Preguntas y Casos de Error: 4-6 preguntas analíticas amplias y al menos 3 casos de fallo (Síntoma → Causa → Solución → Prevención).
+7. Sintaxis JSON: Usa comillas simples ('...') en código/citas. Cero comillas dobles sin escapar dentro de valores JSON.
 
 Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
 {
   "labTitle": "Título oficial de la práctica...",
-  "objective": "Objetivo de la práctica claro y contundente...",
-  "materialsList": ["✓ Insumo / Herramienta 1", "✓ Software / Equipo 2", "✓ Instrumento de medición 3"],
-  "stepByStepProcedure": "1. Paso uno detallado con explicación técnica amplia...\\n<!--workbook:lines:rows=3-->\\n2. Paso dos...",
-  "dataTableColumns": ["Variable / Muestra", "Valor Calculado", "Lectura 1", "Lectura 2", "Unidad"],
-  "executableCodeOrProtocol": "En BT: código ejecutable completo y comentado (800-1,500 palabras). En BGE: protocolo experimental exhaustivo...",
-  "autonomousChallenge": "Desafío autónomo individual estructurado en 5 a 7 pasos numerados:\\n1. Paso uno con instrucción cuantitativa precisa...\\n2. Paso dos...\\n3. Paso tres...\\n4. Paso cuatro...\\n5. Paso cinco...\\n6. Paso seis...",
+  "objective": "Objetivo claro y contundente...",
+  "materialsList": ["✓ Insumo / Herramienta 1", "✓ Software / Equipo 2"],
+  "stepByStepProcedure": "1. Paso uno con explicación técnica...\\n<!--workbook:lines:rows=3-->\\n2. Paso dos...",
+  "dataTableColumns": ["Parámetro", "Valor Teórico", "Medición 1", "Medición 2", "Unidad"],
+  "executableCodeOrProtocol": "Código ejecutable completo comentado o protocolo experimental...",
+  "autonomousChallenge": "1. Paso uno con instrucción cuantitativa...\\n2. Paso dos...\\n3. Paso tres...\\n4. Paso cuatro...\\n5. Paso cinco...",
   "reflectionQuestions": [
-    "¿Qué relación observaste entre la variable manipulada y la respuesta del sistema? (Desarrollo amplio de análisis)",
-    "¿Cómo influyó el margen de tolerancia del instrumental en los resultados?",
-    "¿De qué manera este procedimiento técnico previene accidentes o fallas operativas?",
-    "¿Cómo aplicarías este mismo procedimiento para resolver un problema en tu comunidad?"
+    "¿Qué relación observaste entre la variable manipulada y la respuesta del sistema?",
+    "¿Cómo aplicarías este procedimiento para resolver un problema en tu comunidad?"
   ],
   "quickTroubleshooting": [
     {
@@ -121,12 +86,10 @@ DISTRIBUCIÓN SUGERIDA DE PALABRAS:
 - autonomousChallenge: 350 a 600 palabras (OBLIGATORIAMENTE de 5 a 7 pasos numerados correlativos con instrucciones técnicas precisas)
 - reflectionQuestions: 350 a 500 palabras (análisis técnico y transferencia)
 
-IMPORTANTE: Proporciona un desarrollo técnico completo y riguroso de ~${input.targetWords.ideal} palabras en total.
-Incluye explicaciones claras, pasos numerados y espacios para que el estudiante trabaje.
-
 Redacta la Misión Práctica de Laboratorio/Taller completa:`;
 
   try {
+    let attempt: 1 | 2 = 1;
     const rawResponse = await generateWithRotation(
       systemInstruction,
       prompt,
@@ -142,6 +105,7 @@ Redacta la Misión Práctica de Laboratorio/Taller completa:`;
     const stepCount = stepMatches.length;
 
     if (stepCount < 5) {
+      attempt = 2;
       console.warn(`[LabWriter] autonomousChallenge tiene solo ${stepCount} pasos (< 5). Reintentando con instrucción estricta...`);
       try {
         const retryPrompt = `${prompt}\n\n[REQUISITO CRÍTICO DE PROFUNDIDAD]: Tu respuesta anterior tuvo menos de 5 pasos en 'autonomousChallenge'. Redacta OBLIGATORIAMENTE el 'autonomousChallenge' en EXACTAMENTE 5 a 7 PASOS NUMERADOS (Paso 1 al Paso 5, 6 o 7), cada uno con una instrucción cuantitativa clara, variables precisas y acción técnica concreta del estudiante.`;
@@ -296,6 +260,12 @@ Redacta la Misión Práctica de Laboratorio/Taller completa:`;
       subsystem: input.subsystem,
       workbookElementsCount: workbookElements.length,
     });
+
+    if (attempt === 1) {
+      console.log(`[LabWriter] ✅ Generado en intento 1 — ${wordCount} palabras`);
+    } else {
+      console.log(`[LabWriter] ⚠️ Reintento necesario — ${wordCount} palabras en intento 2`);
+    }
 
     return {
       type: 'lab',

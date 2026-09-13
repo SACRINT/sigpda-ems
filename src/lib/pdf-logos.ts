@@ -27,6 +27,7 @@ async function blobToBase64(blob: Blob): Promise<string> {
 
 /**
  * Carga una imagen desde una URL pública en el cliente y la transforma a Data URL Base64
+ * optimizada a un ancho máximo de 400px y formato JPEG (calidad 80).
  */
 async function fetchImageAsBase64(url: string): Promise<string> {
   if (typeof window !== 'undefined') {
@@ -35,17 +36,57 @@ async function fetchImageAsBase64(url: string): Promise<string> {
       throw new Error(`No se pudo cargar la imagen desde ${url} (${response.status})`);
     }
     const blob = await response.blob();
-    return await blobToBase64(blob);
+
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const maxWidth = 400;
+        let width = img.width;
+        let height = img.height;
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          blobToBase64(blob).then(resolve);
+          return;
+        }
+        // Fondo blanco para que no se oscurezca la transparencia al convertir a JPEG
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.8));
+      };
+      img.onerror = () => {
+        blobToBase64(blob).then(resolve);
+      };
+      img.src = URL.createObjectURL(blob);
+    });
   }
 
-  // Fallback para ejecución en entorno Node / Server
+  // Fallback para ejecución en entorno Node / Server con sharp
   try {
     const fs = await import('fs');
     const path = await import('path');
     const filePath = path.join(process.cwd(), 'public', url.startsWith('/') ? url.slice(1) : url);
     if (fs.existsSync(filePath)) {
       const buffer = fs.readFileSync(filePath);
-      return `data:image/png;base64,${buffer.toString('base64')}`;
+      try {
+        const sharp = (await import('sharp')).default;
+        const resizedBuffer = await sharp(buffer)
+          .flatten({ background: '#FFFFFF' })
+          .resize({ width: 400, withoutEnlargement: true })
+          .jpeg({ quality: 80 })
+          .toBuffer();
+        return `data:image/jpeg;base64,${resizedBuffer.toString('base64')}`;
+      } catch (sharpErr) {
+        console.warn(`[pdf-logos] sharp resize falló para ${url}, usando buffer directo:`, sharpErr);
+        return `data:image/png;base64,${buffer.toString('base64')}`;
+      }
     }
   } catch (err) {
     console.warn(`[pdf-logos] Fallback de lectura de imagen falló para ${url}:`, err);

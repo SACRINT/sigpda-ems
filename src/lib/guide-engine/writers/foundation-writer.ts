@@ -15,6 +15,7 @@ import { robustJsonParse } from '@/lib/ai-response-parser';
 import { extractWorkbookTags } from '../workbook-tags';
 import type { MissionSection, WorkbookElement } from '@/types/work-textbook';
 import { type WriterInput, type WriterOutput, evaluateQuality } from './writer-contract';
+import { buildPlanningAlignmentPrompt } from './planning-alignment-prompt';
 
 export async function generateFoundationMission(input: WriterInput): Promise<WriterOutput> {
   const foundationMission = input.missions.find((m) => m.missionType === 'foundation') || input.missions[0];
@@ -22,74 +23,33 @@ export async function generateFoundationMission(input: WriterInput): Promise<Wri
   const missionTitle = foundationMission ? foundationMission.title : `Misión 1: Fundamentación e Intuición`;
 
   const approach = input.subsystem === 'bt' ? 'estándar industrial y tecnológico' : 'indagación científica y dialógica';
-
-  // ── Construir contexto de alineación con la planeación ──
-  let planningAlignmentChunk = '';
-  if (input.planningActivities) {
-    const pa = input.planningActivities;
-    planningAlignmentChunk = `
-ALINEACIÓN OBLIGATORIA CON LA PLANEACIÓN DIDÁCTICA:
-La actividad planificada por el docente para este bloque tiene las siguientes fases. DEBES generar contenido que las implemente fielmente:
-
-APERTURA PLANIFICADA (actividades): ${pa.apertura.description || 'No especificada'}
-PROCESOS DE APERTURA: ${pa.apertura.processes || 'No especificados'}
-MATERIALES DE APERTURA: ${pa.apertura.materials || 'No especificados'}
-
-DESARROLLO PLANIFICADO (ejecución): ${pa.ejecucion.description || 'No especificado'}
-PROCESOS DE DESARROLLO: ${pa.ejecucion.processes || 'No especificados'}
-MATERIALES DE DESARROLLO: ${pa.ejecucion.materials || 'No especificados'}
-
-CIERRE PLANIFICADO (conclusión): ${pa.conclusion.description || 'No especificado'}
-PROCESOS DE CIERRE: ${pa.conclusion.processes || 'No especificados'}
-MATERIALES DE CIERRE: ${pa.conclusion.materials || 'No especificados'}
-${pa.saberes ? `SABERES A DESARROLLAR:
-- Saber (teórico): ${pa.saberes.saber}
-- Saber Hacer (procedimental): ${pa.saberes.saberHacer}
-- Saber Ser (actitudinal): ${pa.saberes.saberSer}` : ''}
-${pa.contenidoFormativo ? `CONTENIDO FORMATIVO ESPECÍFICO: ${pa.contenidoFormativo}` : ''}
-${pa.methodology ? `METODOLOGÍA SELECCIONADA: ${pa.methodology}` : ''}
-
-REGLA DE ALINEACIÓN: El Concepto Cero DEBE conectar con la apertura planificada. El "Yo Hago" DEBE implementar las actividades de desarrollo planificadas. El "Tú Haces" DEBE evaluar los saberes planificados. NO generes actividades que no estén contempladas en la planeación.
-`;
-  }
+  const planningAlignmentChunk = buildPlanningAlignmentPrompt(input.planningActivities, 'foundation');
 
   const systemInstruction = `Eres un pedagogo experto en Educación Media Superior en México y en el modelo educativo de Finlandia (Phenomenon-Based Learning).
-Tu tarea es redactar la primera misión formativa del estudiante ("Misión 1: Fundamentación e Intuición - Concepto Cero") para el libro de texto activo de la UAC: "${input.uacName}" (${input.subsystem.toUpperCase()}).
-Enfoque pedagógico obligatorio: "${approach}".
+Tu tarea es redactar la primera misión formativa ("Misión 1: Fundamentación e Intuición - Concepto Cero") para el libro de texto activo de: "${input.uacName}" (${input.subsystem.toUpperCase()}).
+Enfoque pedagógico: "${approach}".
 ${planningAlignmentChunk}
 
-REGLAS PEDAGÓGICAS Y EXTENSIÓN ESTRICTA:
-1. "Concepto Cero" y Explicación Central (MÍNIMO 2,000 a 3,000 palabras en total entre physicalAnalogy y coreExplanation):
-   - physicalAnalogy: Analogía física cotidiana vívida, tangible e intuitiva (mínimo 1 párrafo completo de 80 a 140 palabras) ambientada en la vida real o en la comunidad sin tecnicismos previos (ej: "una variable es como un cajón rotulado con un nombre en una ferretería de Puebla...").
-   - coreExplanation: Debe estructurarse OBLIGATORIAMENTE con:
-     a) Al menos 2 párrafos explicativos amplios y profundos que formalicen el concepto conectándolo directamente con la analogía física.
-     b) Un EJEMPLO RESUELTO PASO A PASO ("Ejemplo Modelo Demostrativo") con datos cuantitativos o procedimentales claros, desarrollo analítico minucioso y explicación de cada decisión.
-     c) Una tabla de contraste <!--workbook:table:cols=Aspecto Cotidiano,Concepto Técnico Formal,Función en el Problema--> que fije el andamiaje cognitivo.
-   NUNCA introduzcas una fórmula o código sin antes recorrer este andamiaje.
-2. Gancho fenomenológico situado en Puebla: Un relato amplio y contextualizado de un desafío real de Puebla que enganche de inmediato al estudiante con el proyecto PAEC: "${input.paecContext}".
-3. "Yo Hago" (Demostración guiada, 1,500-2,000 palabras): Un tutorial y ejemplo maestro resuelto paso a paso donde el docente modela y demuestra con exhaustividad. En BT: incluye código fuente ejecutable completo, explicación línea por línea y diagrama de flujo o arquitectura textual. En BGE: experimento guiado, modelación matemática o análisis de caso exhaustivo.
-4. "Hacemos Juntos" (Práctica colaborativa, 1,000-1,500 palabras): Una actividad guiada donde los estudiantes resuelven en equipo un caso similar con acompañamiento, múltiples ejercicios intermedios y andamiaje.
-5. "Tú Haces" (Reto autónomo, 800-1,200 palabras): Un desafío individual integral de aplicación real para que el alumno demuestre dominio autónomo y registre sus resultados.
-6. Cuaderno activo: Incluye al menos 2 a 4 etiquetas <!--workbook:...--> por sección:
-   - <!--workbook:lines:rows=8--> para renglones donde el alumno redacta hipótesis o justificaciones amplias.
-   - <!--workbook:table:cols=Elemento,Analogía,Concepto Técnico,Aplicación--> para tablas de análisis.
-   - <!--workbook:code:lines=15--> para cajas de código o terminal en BT.
-   - <!--workbook:drawing:height=160--> para bocetos o esquemas conceptuales.
-7. CERO placeholders genéricos como [escribe aquí] o "...". Todo el contenido debe ser riguroso, completo y en español formal mexicano (SEP).
-8. REGLA ESTRICTA DE SINTAXIS JSON PARA CÓDIGO Y DIÁLOGOS:
-   Para cadenas de texto o fragmentos de código (ej: print('Hola'), input('Ingresa dato: ')), usa EXCLUSIVAMENTE comillas simples ('...'). NUNCA coloques comillas dobles sin escapar dentro de un valor de texto JSON.
-
-IMPORTANTE: Cada sección debe ser sumamente extensa y completa. No la acortes. Incluye explicaciones detalladas, ejemplos múltiples, pasos numerados extensos y espacios amplios para que el estudiante trabaje.
+REGLAS DE PROFUNDIDAD Y CUADERNO ACTIVO:
+1. Concepto Cero (MÍNIMO 2,000-3,000 palabras en total entre physicalAnalogy y coreExplanation):
+   - physicalAnalogy: Analogía cotidiana vívida e intuitiva (80-140 palabras) de la vida real o comunidad, sin tecnicismos previos.
+   - coreExplanation: Al menos 2 párrafos explicativos extensos + 1 EJEMPLO RESUELTO PASO A PASO con datos cuantitativos/procedimentales + 1 tabla de contraste <!--workbook:table:cols=Aspecto Cotidiano,Concepto Técnico Formal,Función en el Problema-->.
+2. Gancho fenomenológico: Desafío real motivador de Puebla contextualizado en el proyecto PAEC: "${input.paecContext}".
+3. Yo Hago (1,500-2,000 palabras): Tutorial maestro modelado paso a paso (código funcional comentado en BT; modelación/experimento en BGE).
+4. Hacemos Juntos (1,000-1,500 palabras): Práctica colaborativa en equipo con andamiaje y ejercicios intermedios.
+5. Tú Haces (800-1,200 palabras): Desafío individual de aplicación real con espacios de trabajo.
+6. Cuaderno activo: Incluye 2-4 etiquetas <!--workbook:...--> (lines:rows=8, table:cols=..., code:lines=15, drawing:height=160).
+7. Sintaxis JSON: Usa comillas simples ('...') en código/citas. Cero comillas dobles sin escapar dentro de valores JSON.
 
 Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
 {
-  "phenomenonStory": "Relato fenomenológico motivador situado en Puebla...",
+  "phenomenonStory": "Relato fenomenológico motivador...",
   "detonatingQuestion": "¿Pregunta detonadora de pensamiento crítico?",
-  "physicalAnalogy": "Analogía cotidiana física e intuitiva de al menos 1 párrafo descriptivo completo...",
-  "coreExplanation": "Explicación conceptual profunda estructurada obligatoriamente en al menos 2 párrafos explicativos + 1 ejemplo resuelto paso a paso con datos y justificación + tabla comparativa de andamiaje...",
-  "iDoDemo": "Demostración guiada paso a paso ('Yo Hago') de 1,500-2,000 palabras con ejemplo resuelto (en BT código ejecutable completo comentado, en BGE cálculo o experimento)...",
-  "weDoPractice": "Actividad colaborativa guiada ('Hacemos Juntos') de 1,000-1,500 palabras con instrucciones claras y etiquetas <!--workbook:...-->...",
-  "youDoChallenge": "Reto autónomo individual ('Tú Haces') de 800-1,200 palabras con etiquetas <!--workbook:...-->...",
+  "physicalAnalogy": "Analogía cotidiana física e intuitiva...",
+  "coreExplanation": "Explicación conceptual profunda (2 párrafos + ejemplo resuelto paso a paso + tabla comparativa)...",
+  "iDoDemo": "Demostración guiada paso a paso ('Yo Hago')...",
+  "weDoPractice": "Actividad colaborativa guiada ('Hacemos Juntos')...",
+  "youDoChallenge": "Reto autónomo individual ('Tú Haces')...",
   "formativeCheckpoint": {
     "question": "Pregunta de reflexión metacognitiva...",
     "reflectionPrompts": ["Pregunta de reflexión 1", "Pregunta de reflexión 2"],
@@ -106,19 +66,16 @@ Sesiones cubiertas: Sesiones ${coveredSessions.join(', ')}
 Perfil de estudiantes: ${input.studentProfile}
 Meta de palabras para esta misión: mínimo ${input.targetWords.min} palabras (ideal ${input.targetWords.ideal} palabras).
 
-DISTRIBUCIÓN OBLIGATORIA DE PALABRAS POR CAMPO:
+DISTRIBUCIÓN OBLIGATORIA DE PALABRAS:
 - coreExplanation + physicalAnalogy: 2,000 a 3,000 palabras
 - iDoDemo: 1,500 a 2,000 palabras
 - weDoPractice: 1,000 a 1,500 palabras
 - youDoChallenge: 800 a 1,200 palabras
 
-IMPORTANTE: Esta sección debe tener MÍNIMO ${input.targetWords.min} palabras. No la acortes.
-Incluye explicaciones detalladas, ejemplos múltiples, pasos numerados extensos,
-y espacios amplios para que el estudiante trabaje.
-
 Redacta la Misión de Fundamentación e Intuición completa con máxima profundidad:`;
 
   try {
+    let attempt: 1 | 2 = 1;
     const rawResponse = await generateWithRotation(
       systemInstruction,
       prompt,
@@ -131,6 +88,7 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
     // Validación de extensión mínima (MEJORA 1)
     const coreWords = (parsed.coreExplanation || '').split(/\s+/).filter(Boolean).length;
     if (coreWords < 500) {
+      attempt = 2;
       console.warn(`[FoundationWriter] coreExplanation tiene solo ${coreWords} palabras (< 500). Reintentando con instrucción estricta...`);
       try {
         const retryPrompt = `${prompt}\n\n[REQUISITO CRÍTICO DE PROFUNDIDAD]: Tu respuesta anterior fue insuficiente (${coreWords} palabras en coreExplanation). Redacta OBLIGATORIAMENTE un 'coreExplanation' de MÍNIMO 500 palabras con al menos dos párrafos explicativos extensos, desarrollando paso a paso la fundamentación formal y física del concepto sin resumir.`;
@@ -226,6 +184,12 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
       subsystem: input.subsystem,
       workbookElementsCount: workbookElements.length,
     });
+
+    if (attempt === 1) {
+      console.log(`[FoundationWriter] ✅ Generado en intento 1 — ${wordCount} palabras`);
+    } else {
+      console.log(`[FoundationWriter] ⚠️ Reintento necesario — ${wordCount} palabras en intento 2`);
+    }
 
     return {
       type: 'foundation',

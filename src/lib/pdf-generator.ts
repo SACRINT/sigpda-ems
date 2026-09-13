@@ -47,7 +47,8 @@ export async function generatePlanningPDF(
     // Logo Izquierdo: Gobierno de Puebla (w: 34mm, h: 14.6mm, aspect ~2.32)
     if (logos.gobierno) {
       try {
-        doc.addImage(logos.gobierno, 'PNG', margin, currentY, 34, 14.6);
+        const fmt = logos.gobierno.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
+        doc.addImage(logos.gobierno, fmt, margin, currentY, 34, 14.6);
       } catch (err) {
         console.warn('Error insertando logo Gobierno en PDF:', err);
       }
@@ -56,7 +57,8 @@ export async function generatePlanningPDF(
     // Logo Centro: SEP Puebla (w: 30mm, h: 8.6mm, aspect ~3.48)
     if (logos.sep) {
       try {
-        doc.addImage(logos.sep, 'PNG', (pageWidth - 30) / 2, currentY - 1, 30, 8.6);
+        const fmt = logos.sep.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
+        doc.addImage(logos.sep, fmt, (pageWidth - 30) / 2, currentY - 1, 30, 8.6);
       } catch (err) {
         console.warn('Error insertando logo SEP en PDF:', err);
       }
@@ -65,7 +67,8 @@ export async function generatePlanningPDF(
     // Logo Derecho: Supervisión 004 (w: 30mm, h: 11.6mm, aspect ~2.57)
     if (logos.supervision) {
       try {
-        doc.addImage(logos.supervision, 'PNG', pageWidth - margin - 30, currentY, 30, 11.6);
+        const fmt = logos.supervision.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
+        doc.addImage(logos.supervision, fmt, pageWidth - margin - 30, currentY, 30, 11.6);
       } catch (err) {
         console.warn('Error insertando logo Supervisión en PDF:', err);
       }
@@ -376,13 +379,16 @@ export async function generateSecuenciaPDF(
 
   // Logos oficiales
   if (logos.gobierno) {
-    try { doc.addImage(logos.gobierno, 'PNG', margin, currentY, 34, 14.6); } catch (e) { /* ignore */ }
+    const fmt = logos.gobierno.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
+    try { doc.addImage(logos.gobierno, fmt, margin, currentY, 34, 14.6); } catch (e) { /* ignore */ }
   }
   if (logos.sep) {
-    try { doc.addImage(logos.sep, 'PNG', (pageWidth - 30) / 2, currentY - 1, 30, 8.6); } catch (e) { /* ignore */ }
+    const fmt = logos.sep.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
+    try { doc.addImage(logos.sep, fmt, (pageWidth - 30) / 2, currentY - 1, 30, 8.6); } catch (e) { /* ignore */ }
   }
   if (logos.supervision) {
-    try { doc.addImage(logos.supervision, 'PNG', pageWidth - margin - 30, currentY, 30, 11.6); } catch (e) { /* ignore */ }
+    const fmt = logos.supervision.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
+    try { doc.addImage(logos.supervision, fmt, pageWidth - margin - 30, currentY, 30, 11.6); } catch (e) { /* ignore */ }
   }
 
   currentY += 9;

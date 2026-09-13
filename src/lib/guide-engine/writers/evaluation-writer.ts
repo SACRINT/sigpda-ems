@@ -22,6 +22,7 @@ import type {
   WorkbookElement,
 } from '@/types/work-textbook';
 import { type WriterInput, type WriterOutput, evaluateQuality } from './writer-contract';
+import { buildPlanningAlignmentPrompt } from './planning-alignment-prompt';
 
 export async function generateEvaluationSection(input: WriterInput): Promise<WriterOutput> {
   const extras = input.existingExtras || {};
@@ -30,121 +31,79 @@ export async function generateEvaluationSection(input: WriterInput): Promise<Wri
 
   let extrasContext = '';
   if (hasExistingRubric || hasExistingChecklist) {
-    extrasContext = `\nANTECEDENTES DE EVALUACIÓN DE LA PLANEACIÓN (utilízalos como referencia/semilla pero amplíalos con máximo detalle):
+    extrasContext = `\nANTECEDENTES DE EVALUACIÓN DE LA PLANEACIÓN (referencia):
 - Rúbrica previa: ${JSON.stringify(extras.rubric || extras.rubrica || {})}
-- Lista de cotejo previa: ${JSON.stringify(extras.checklist || extras.lista_verificacion || {})}`;
+- Lista previa: ${JSON.stringify(extras.checklist || extras.lista_verificacion || {})}`;
   }
 
-  // ── Construir contexto de alineación con la planeación ──
-  let planningAlignmentChunk = '';
-  if (input.planningActivities) {
-    const pa = input.planningActivities;
-    planningAlignmentChunk = `
-ALINEACIÓN OBLIGATORIA CON LA PLANEACIÓN DIDÁCTICA:
-La actividad planificada por el docente para este bloque tiene las siguientes fases. Los instrumentos de evaluación DEBEN evaluar lo planificado:
+  const planningAlignmentChunk = buildPlanningAlignmentPrompt(input.planningActivities, 'evaluation');
 
-CIERRE PLANIFICADO (conclusión y evaluación): ${pa.conclusion.description || 'No especificado'}
-PROCESOS DE CIERRE: ${pa.conclusion.processes || 'No especificados'}
-MATERIALES DE CIERRE: ${pa.conclusion.materials || 'No especificados'}
-
-DESARROLLO PLANIFICADO (para evaluar las evidencias de la fase de desarrollo): ${pa.ejecucion.description || 'No especificado'}
-APERTURA PLANIFICADA (para contextualizar la evaluación): ${pa.apertura.description || 'No especificada'}
-${pa.saberes ? `SABERES QUE LOS INSTRUMENTOS DEBEN EVALUAR:
-- Saber (teórico): ${pa.saberes.saber}
-- Saber Hacer (procedimental): ${pa.saberes.saberHacer}
-- Saber Ser (actitudinal): ${pa.saberes.saberSer}` : ''}
-${pa.contenidoFormativo ? `CONTENIDO FORMATIVO A EVALUAR: ${pa.contenidoFormativo}` : ''}
-
-REGLA DE ALINEACIÓN: La rúbrica DEBE evaluar los saberes planificados. La lista de cotejo DEBE verificar las actividades de desarrollo planificadas. Los escenarios del cuestionario DEBEN estar situados en el contexto de la problemática PAEC. NO generes instrumentos que evalúen contenidos no contemplados en la planeación.
-`;
-  }
-
-  const systemInstruction = `Eres un evaluador educativo de élite especializado en el Marco Curricular Común de la Educación Media Superior (NEM / DBEPA Puebla).
-Tu tarea es redactar el paquete integral de 4 instrumentos de evaluación formativa y sumativa para el bloque de la UAC: "${input.uacName}" (${input.subsystem.toUpperCase()}).
+  const systemInstruction = `Eres un evaluador educativo de élite especializado en el Marco Curricular Común de la EMS (NEM / DBEPA Puebla).
+Tu tarea es redactar el paquete integral de 4 instrumentos de evaluación formativa y sumativa para: "${input.uacName}" (${input.subsystem.toUpperCase()}).
 ${planningAlignmentChunk}
-
-ESTÁNDARES FORMATIVOS OBLIGATORIOS Y METAS DE EXTENSIÓN NEM:
-1. Rúbrica analítica por niveles de desempeño (800 a 1,200 palabras):
-   - Exactamente 4 escalas oficiales:
-     - 10-9: Sobresaliente / Excelente
-     - 8-7: Notable / Bueno
-     - 6-5: Suficiente / Básico
-     - 4-1: Insuficiente / Requiere Apoyo
-   - 4 a 6 criterios técnicos y formativos exhaustivos (la suma de pesos debe ser 100%).
-   - Cada descriptor debe ser un párrafo completo de 40 a 60 palabras explicando con precisión técnica qué debe observarse en el producto del estudiante.
-2. Lista de verificación técnica del artefacto/producto (500 a 800 palabras):
-   - 15 a 20 reactivos minuciosamente descritos, clasificados en categorías (Seguridad, Funcionalidad, Metodología, Presentación, Impacto PAEC).
-   - Cada reactivo debe redactarse de forma observable y medible.
-3. Cuestionario de juicio crítico situado (800 a 1,200 palabras):
-   - 3 a 5 escenarios reales problemáticos situados en comunidades de Puebla.
-   - Cada escenario debe tener una narrativa rica, una pregunta reflexiva profunda y un estándar de respuesta / retroalimentación formativa de más de 150 palabras.
-4. Autoevaluación formativa y metacognición (500 a 800 palabras):
-   - 5 a 8 preguntas abiertas de autocrítica constructiva, análisis de dificultades, superación de errores y transferencia del aprendizaje a la vida real.
-5. Evaluación Formativa Escalonada por Niveles de Dominio (tieredExercises - 800 a 1,200 palabras):
-   OBLIGATORIAMENTE genera ejercicios prácticos y problemas de aplicación situados, organizados en 3 niveles cognitivos claramente diferenciados:
-   - Nivel Básico (Comprensión y aplicación directa): 2 o más ejercicios con datos claros, fórmulas o procedimientos directos y criterio de solución esperado.
-   - Nivel Intermedio (Análisis, modelación o resolución procedimental de variables combinadas en contexto): 2 o más ejercicios con datos contextualizados en la comunidad o taller.
-   - Nivel Avanzado (Juicio crítico, optimización, diagnóstico de fallas o transferencia comunitaria): 2 o más problemas desafiantes de alto orden de pensamiento.
-   Cada ejercicio debe tener: number, statement (enunciado detallado), contextOrData (datos/fórmulas/condiciones), expectedOutputOrCriteria (criterio o valor esperado) y hint opcional. Total mínimo: 6 ejercicios.
-6. REGLA ESTRICTA DE SINTAXIS JSON:
-   Para cadenas de texto, citas o especificaciones, usa EXCLUSIVAMENTE comillas simples ('...'). NUNCA coloques comillas dobles sin escapar dentro de un valor de texto JSON.
-
-IMPORTANTE: Esta sección debe tener MÍNIMO 2,000 palabras en total y cumplir con las metas asignadas. No la acortes. Incluye explicaciones detalladas, descriptores extensos, escenarios enriquecidos y los 6 ejercicios escalonados completos.
 ${extrasContext}
+
+ESTÁNDARES FORMATIVOS OBLIGATORIOS Y METAS NEM:
+1. Rúbrica analítica (800-1,200 palabras): Exactamente 4 escalas (Excelente 10-9, Bueno 8-7, Suficiente 6-5, Requiere Apoyo 4-1) y 4 a 6 criterios (suma 100%).
+2. Lista de verificación técnica (500-800 palabras): 15 a 20 reactivos medibles clasificados por categorías.
+3. Cuestionario de juicio crítico (800-1,200 palabras): 3 a 5 escenarios reales en Puebla con retroalimentación docente formativa > 150 palabras.
+4. Autoevaluación metacognitiva (500-800 palabras): 5 a 8 preguntas abiertas de reflexión y transferencia.
+5. Evaluación Escalonada (tieredExercises - 800-1,200 palabras): EXACTAMENTE 3 NIVELES ('basico', 'intermedio', 'avanzado') con al menos 2 ejercicios por nivel (mínimo 6 ejercicios en total) con statement, contextOrData, expectedOutputOrCriteria y hint.
+6. Sintaxis JSON: Usa comillas simples ('...') en código/citas. Cero comillas dobles sin escapar dentro de valores JSON.
 
 Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
 {
   "rubric": [
     {
-      "criterion": "Rigor metodológico y aplicación procedimental",
+      "criterion": "Rigor metodológico y procedimental",
       "weightPercent": 25,
       "levels": [
-        { "levelName": "Excelente", "points": 10, "descriptor": "Sobresaliente (10-9): Aplica los protocolos sin errores con dominio autónomo..." },
-        { "levelName": "Bueno", "points": 8, "descriptor": "Notable (8-7): Aplica los protocolos con precisión y mínimas omisiones..." },
-        { "levelName": "Suficiente", "points": 6, "descriptor": "Suficiente (6-5): Cumple los procedimientos básicos requeridos..." },
-        { "levelName": "Requiere Apoyo", "points": 4, "descriptor": "Insuficiente (4-1): Presenta inconsistencias que impiden el resultado..." }
+        { "levelName": "Excelente", "points": 10, "descriptor": "Sobresaliente (10-9): Dominio autónomo y riguroso..." },
+        { "levelName": "Bueno", "points": 8, "descriptor": "Notable (8-7): Procedimientos precisos..." },
+        { "levelName": "Suficiente", "points": 6, "descriptor": "Suficiente (6-5): Cumple lo básico..." },
+        { "levelName": "Requiere Apoyo", "points": 4, "descriptor": "Insuficiente (4-1): Requiere asesoría..." }
       ]
     }
   ],
   "checklist": [
-    { "item": "Verifica parámetros y condiciones de seguridad antes de operar el equipo o software", "category": "Seguridad" }
+    { "item": "Verifica parámetros y condiciones de seguridad", "category": "Seguridad" }
   ],
   "tieredExercises": [
     {
       "level": "basico",
       "levelName": "Nivel Básico: Comprensión y Aplicación Directa",
-      "description": "Reactivos de ejecución directa y consolidación procedimental sin variables intervinientes.",
+      "description": "Reactivos de ejecución directa y consolidación procedimental.",
       "exercises": [
         {
           "number": 1,
-          "statement": "Enunciado del ejercicio directo 1 con datos concretos...",
-          "contextOrData": "Datos iniciales: variable X = valor, variable Y = valor...",
-          "expectedOutputOrCriteria": "Resultado numérico o procedimental exacto esperado con justificación breve.",
-          "hint": "Recuerda aplicar directamente la fórmula o definición fundamental."
+          "statement": "Enunciado del ejercicio 1...",
+          "contextOrData": "Datos: variable X = valor...",
+          "expectedOutputOrCriteria": "Resultado numérico o criterio esperado.",
+          "hint": "Pista de andamiaje..."
         },
         {
           "number": 2,
-          "statement": "Enunciado del ejercicio directo 2...",
-          "contextOrData": "Condiciones operativas estándar...",
-          "expectedOutputOrCriteria": "Criterio de validación técnica."
+          "statement": "Enunciado del ejercicio 2...",
+          "contextOrData": "Condiciones operativas...",
+          "expectedOutputOrCriteria": "Criterio de validación."
         }
       ]
     },
     {
       "level": "intermedio",
       "levelName": "Nivel Intermedio: Análisis y Modelación en Contexto",
-      "description": "Problemas situados con variables contextuales de Puebla o taller técnico.",
+      "description": "Problemas situados con variables contextuales de Puebla o taller.",
       "exercises": [
         {
           "number": 3,
-          "statement": "Problema contextualizado 1 vinculando dos o más conceptos...",
-          "contextOrData": "Escenario operativo o socioproductivo de la comunidad...",
-          "expectedOutputOrCriteria": "Modelo matemático o desarrollo paso a paso justificando el resultado."
+          "statement": "Problema contextualizado 1...",
+          "contextOrData": "Escenario socioproductivo...",
+          "expectedOutputOrCriteria": "Desarrollo paso a paso."
         },
         {
           "number": 4,
           "statement": "Problema contextualizado 2...",
-          "contextOrData": "Parámetros y restricciones de operación...",
+          "contextOrData": "Parámetros y restricciones...",
           "expectedOutputOrCriteria": "Solución procedimental completa."
         }
       ]
@@ -152,19 +111,19 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
     {
       "level": "avanzado",
       "levelName": "Nivel Avanzado: Optimización, Diagnóstico y Transferencia",
-      "description": "Desafíos de alto orden cognitivo con análisis crítico y propuesta de mejora.",
+      "description": "Desafíos de alto orden cognitivo y propuesta de mejora.",
       "exercises": [
         {
           "number": 5,
-          "statement": "Desafío de optimización o detección de fallas complejas...",
-          "contextOrData": "Caso de estudio con inconsistencia técnica o reto de eficiencia...",
-          "expectedOutputOrCriteria": "Propuesta fundada de resolución y balance costo-beneficio o impacto comunitario."
+          "statement": "Desafío de optimización o diagnóstico...",
+          "contextOrData": "Caso de estudio técnico...",
+          "expectedOutputOrCriteria": "Propuesta fundada de resolución."
         },
         {
           "number": 6,
           "statement": "Desafío de transferencia comunitaria PAEC...",
           "contextOrData": "Situación real no estructurada...",
-          "expectedOutputOrCriteria": "Estrategia integral de intervención técnica."
+          "expectedOutputOrCriteria": "Estrategia integral de intervención."
         }
       ]
     }
@@ -172,15 +131,15 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
   "criticalThinkingQuiz": [
     {
       "questionNumber": 1,
-      "question": "¿Pregunta de juicio crítico o resolución ética/técnica?",
-      "scenario": "Situación problemática contextualizada en una comunidad de Puebla de al menos 100 palabras...",
-      "answerExplanation": "Justificación formativa exhaustiva y retroalimentación docente esperada de al menos 150 palabras..."
+      "question": "¿Pregunta de juicio crítico o resolución?",
+      "scenario": "Situación problemática en comunidad de Puebla...",
+      "answerExplanation": "Justificación formativa y retroalimentación docente > 150 palabras..."
     }
   ],
   "metacognitiveReflection": {
     "prompts": [
-      "¿Qué aprendizaje de este bloque consideras más transformador para tu vida y por qué?",
-      "¿Qué estrategia implementaste para superar el obstáculo técnico más difícil del bloque?"
+      "¿Qué aprendizaje de este bloque consideras más transformador y por qué?",
+      "¿Qué estrategia implementaste para superar el obstáculo técnico más difícil?"
     ]
   }
 }`;
@@ -191,20 +150,17 @@ Bloque: ${input.blockName} (Índice ${input.blockIndex})
 Problemática PAEC comunitaria: ${input.paecContext}
 Meta de palabras para esta misión: mínimo ${input.targetWords.min} palabras (ideal ${input.targetWords.ideal} palabras).
 
-DISTRIBUCIÓN OBLIGATORIA DE PALABRAS:
-- rubric: 800 a 1,200 palabras (descriptores amplios y detallados en cada escala)
-- checklist: 500 a 800 palabras (15-20 reactivos bien explicados)
-- tieredExercises: 800 a 1,200 palabras (3 niveles con 2+ ejercicios cada uno, con enunciados completos y datos)
-- criticalThinkingQuiz: 800 a 1,200 palabras (escenarios situados con explicaciones docentes completas)
-- metacognitiveReflection: 500 a 800 palabras (preguntas abiertas de desarrollo reflexivo)
-
-IMPORTANTE: Esta sección debe tener MÍNIMO 2,000 palabras en total y al menos ${input.targetWords.min} palabras. No la acortes.
-Incluye explicaciones detalladas, ejemplos múltiples, pasos numerados extensos,
-y espacios amplios para que el estudiante trabaje.
+DISTRIBUCIÓN SUGERIDA DE PALABRAS:
+- rubric: 800 a 1,200 palabras
+- checklist: 500 a 800 palabras
+- tieredExercises: 800 a 1,200 palabras (3 niveles, mínimo 6 ejercicios completos)
+- criticalThinkingQuiz: 800 a 1,200 palabras
+- metacognitiveReflection: 500 a 800 palabras
 
 Genera el paquete oficial de 4 instrumentos de evaluación NEM con ejercicios escalonados:`;
 
   try {
+    let attempt: 1 | 2 = 1;
     const rawResponse = await generateWithRotation(
       systemInstruction,
       prompt,
@@ -220,6 +176,7 @@ Genera el paquete oficial de 4 instrumentos de evaluación NEM con ejercicios es
     const allHave2Exercises = has3Levels && tiers.every((t: any) => Array.isArray(t.exercises) && t.exercises.length >= 2);
 
     if (!has3Levels || !allHave2Exercises) {
+      attempt = 2;
       console.warn(`[EvaluationWriter] tieredExercises tiene niveles o ejercicios insuficientes (${tiers.length} niveles). Reintentando con instrucción estricta...`);
       try {
         const retryPrompt = `${prompt}\n\n[REQUISITO CRÍTICO DE PROFUNDIDAD]: Tu respuesta anterior no cumplió la estructura de 'tieredExercises'. Es OBLIGATORIO incluir EXACTAMENTE 3 NIVELES ('basico', 'intermedio', 'avanzado') y al menos 2 EJERCICIOS POR CADA NIVEL (mínimo 6 ejercicios en total), con sus datos, pistas de andamiaje y criterios de evaluación.`;
@@ -265,6 +222,12 @@ Genera el paquete oficial de 4 instrumentos de evaluación NEM con ejercicios es
       subsystem: input.subsystem,
       workbookElementsCount: 2, // 2 workbook elements reales generados en buildEvaluationMissionSection
     });
+
+    if (attempt === 1) {
+      console.log(`[EvaluationWriter] ✅ Generado en intento 1 — ${wordCount} palabras`);
+    } else {
+      console.log(`[EvaluationWriter] ⚠️ Reintento necesario — ${wordCount} palabras en intento 2`);
+    }
 
     return {
       type: 'evaluation',

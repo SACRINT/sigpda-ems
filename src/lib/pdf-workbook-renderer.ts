@@ -155,15 +155,17 @@ function drawCoverPage(
   doc.setFillColor(...NAVY);
   doc.rect(0, 0, pageWidth, 28, 'F');
 
-  // Insertar logos si están disponibles
+  // Insertar logos si están disponibles (detectando formato JPEG o PNG)
   if (logos.gobierno) {
     try {
-      doc.addImage(logos.gobierno, 'PNG', margin, 5, 26, 11);
+      const fmt = logos.gobierno.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
+      doc.addImage(logos.gobierno, fmt, margin, 5, 26, 11);
     } catch {}
   }
   if (logos.sep) {
     try {
-      doc.addImage(logos.sep, 'PNG', pageWidth / 2 - 13, 5, 26, 8.5);
+      const fmt = logos.sep.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
+      doc.addImage(logos.sep, fmt, pageWidth / 2 - 13, 5, 26, 8.5);
     } catch {}
   }
 
@@ -709,13 +711,13 @@ async function drawMission(
     const contextText = `${mission.conceptZero.physicalAnalogy || ''} ${mission.conceptZero.coreExplanation || ''}`;
     const svgVisual = dispatchVisual(subjectName, mission.title, contextText);
     if (svgVisual) {
-      const pngBuffer = await svgToPngBuffer(svgVisual.svg);
-      if (pngBuffer) {
+      const imgResult = await svgToPngBuffer(svgVisual.svg);
+      if (imgResult) {
         const imgW = Math.min(135, contentWidth * 0.76);
         const imgH = imgW * 0.65;
         y = ensureVerticalSpace(doc, y, imgH + 16, margin, pageHeight);
         const imgX = margin + (contentWidth - imgW) / 2;
-        doc.addImage(pngBuffer, 'PNG', imgX, y, imgW, imgH);
+        doc.addImage(imgResult.buffer, imgResult.format, imgX, y, imgW, imgH);
 
         // Dibujar anotaciones de texto encima de la imagen
         if (svgVisual.annotations.length > 0) {
