@@ -127,20 +127,43 @@ Para superar el estándar de los libros de texto tradicionales (CECyTE, DGETI, D
 ## 5. Hoja de Ruta de Implementación por Fases (Sin Afectar Producción)
 
 ### Fase 1: Motor Gráfico Determinístico dentro de SIGPDA_EMS (SVG & Matemáticas)
-- [ ] Crear `src/lib/visual-engine/svg-math-plotter.ts` para graficar funciones en 2D sin dependencias externas pesadas.
-- [ ] Crear `src/lib/visual-engine/rough-geometry.ts` para figuras geométricas y diagramas de bloques.
-- [ ] Conectar la inserción de SVGs directos en `pdf-workbook-renderer.ts` y en `ExtraPreviewModal.tsx`.
+- [x] Crear generadores matemáticos y vectoriales (`stem-generator.ts`, `humanities-generator.ts`, `laboral-generator.ts`) para graficar funciones en 2D y diagramas sin dependencias externas pesadas.
+- [x] Crear generadores de figuras geométricas, diagramas de bloques, flujos técnicos y listas de seguridad con anotaciones desacopladas (cero tags `<text>`).
+- [x] Conectar la inserción de gráficos en `pdf-workbook-renderer.ts`, `docx-workbook-renderer.ts`, `cascade-block-materials.ts` y en `ExtraPreviewModal.tsx`.
 
 ### Fase 2: License Engine & Cliente de Medios Abiertos (Openverse)
-- [ ] Crear migración para la tabla `image_assets` en Neon PostgreSQL.
-- [ ] Crear cliente de búsqueda `src/lib/visual-engine/openverse-client.ts` con filtro estricto de licencias comerciales (CC0, CC-BY, CC-BY-SA).
-- [ ] Formatear el pie de imprenta / pie de figura legal en cada imagen insertada en el PDF.
+- [x] Crear migración y funciones ORM para la tabla `image_assets` en Neon PostgreSQL (`src/lib/db.ts`).
+- [x] Crear cliente de búsqueda `src/lib/visual-engine/openverse-client.ts` con filtro estricto de licencias educativas/comerciales (CC0, CC-BY, CC-BY-SA).
+- [x] Formatear el pie de imprenta y pie de figura legal institucional en cada imagen insertada en PDF y DOCX.
 
 ### Fase 3: Quality Gate Pedagógico (Patrón Claw-ED)
-- [ ] Reforzar `quality-validator.ts` con validación de:
-  - Presencia obligatoria de componente pictórico (diagrama/gráfica) en la Misión 1 y 2.
-  - Criterios HQPBL en la Misión 3 (Proyecto Comunitario).
-  - Andamiaje BAP en el Acuerdo de Evaluación.
+- [x] Implementar `src/lib/guide-engine/pedagogical-quality-gate.ts` con:
+  - Distribución cognitiva equilibrada según la Taxonomía de Bloom (LOTS vs HOTS).
+  - Criterios HQPBL (High Quality Project Based Learning) en la Misión Comunitaria PAEC.
+  - Mitigación de Barreras para el Aprendizaje y la Participación (BAP) y Diseño Universal (DUA).
+  - Score institucional ponderado (0-100) y dictamen formal (A+, A, B, C, D).
 
 ### Fase 4: Exportación del Manifest para SACRINT_SYSTEMS
-- [ ] Generar un archivo JSON estandarizado (`sacrint_course_manifest.json`) que permita al proyecto hermano **SACRINT_Systems_IA** importar la planeación y convertirla en un aula interactiva con simulaciones y agentes.
+- [x] Generar el constructor estandarizado (`src/lib/export/sacrint-course-manifest.ts`) que permite exportar el `SACRINTCourseManifest` para que el orquestador hermano **SACRINT_Systems_IA** levante aulas virtuales, simulaciones interactivas y agentes pedagógicos.
+
+---
+
+## 6. Consolidación de Arquitectura y Eliminación de Deuda Técnica (Septiembre 2026)
+
+Para garantizar un código mantenible, libre de parches frágiles y desacoplado, se completó la auditoría y refactorización estructural del repositorio:
+
+1. **Eliminación de Archivos Basura:**
+   - Se eliminaron los respaldos obsoletos `src/lib/prompts/*.bak_20260911`.
+2. **Conexión Unificada de `visual-asset-manager`:**
+   - Los 3 motores de salida (`pdf-workbook-renderer.ts`, `docx-workbook-renderer.ts` y `cascade-block-materials.ts`) ahora consumen `resolveVisualForMission`, garantizando la resolución multicapa (Capa 0 determinística + Capa 1 Openverse CC + BD `image_assets`).
+3. **Centralización de Normalización Unicode:**
+   - Se creó `src/lib/utils/normalize.ts` con la función compartida `normalizeUnicode(str)`.
+   - Se reemplazaron las 23 ocurrencias dispersas en 10 archivos por la función única.
+4. **Centralización de URLs de API Externa:**
+   - Se creó `src/lib/config.ts` exportando `API_CONFIG` (`gemini`, `openverse`, `mermaid`).
+   - Se desacoplaron las URLs en `gemini.ts`, `rag-curricular.ts`, `ai-provider/gemini.ts`, `openverse-client.ts`, `mermaid-renderer.ts` y rutas administrativas de prueba.
+5. **Centralización de Identificadores y Cargos Escolares:**
+   - Se incorporaron `normalizarId` y `normalizarCargo` en `src/lib/utils/normalize.ts`, eliminando duplicaciones en el solver de horarios, chain-swap, editor de horarios y rutas de importación docente.
+6. **Verificación Estricta de Tipos:**
+   - Validación completa con `npx tsc --noEmit` resultando en 0 errores de compilación.
+
