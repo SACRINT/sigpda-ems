@@ -9,6 +9,7 @@
 
 import { findCanonicalSeed, saveCanonicalSeed, incrementSeedUsage } from '@/lib/db';
 import type { CanonicalSeed, TroubleshootItem } from '@/types/work-textbook';
+import { normalizeUnicode } from '@/lib/utils/normalize';
 
 // Semillas canónicas iniciales pre-validadas (calidad 100) para arrancar de inmediato
 const DEFAULT_PREVALIDATED_SEEDS: CanonicalSeed[] = [
@@ -119,9 +120,9 @@ export async function getCanonicalSeed(params: {
   }
 
   // 2. Consultar semillas pre-validadas de arranque
-  const normTopic = topic.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const normTopic = normalizeUnicode(topic);
   const match = DEFAULT_PREVALIDATED_SEEDS.find((s) => {
-    const sTopic = s.topic.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const sTopic = normalizeUnicode(s.topic);
     const sUac = s.uacId.toLowerCase();
     return sTopic.includes(normTopic) || normTopic.includes(sTopic) || uacId.toLowerCase().includes(sUac);
   });

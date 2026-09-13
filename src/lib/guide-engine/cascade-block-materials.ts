@@ -12,7 +12,7 @@
 import { sql } from '@/lib/db';
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
 import { extractMaterialsFromWorkbook, type PlanDeClaseDerivado } from './material-extractor';
-import { dispatchVisual } from '@/lib/visual-engine/visual-dispatcher';
+import { resolveVisualForMission } from '@/lib/visual-engine/visual-asset-manager';
 
 export interface CascadeResult {
   success: boolean;
@@ -222,12 +222,22 @@ export async function cascadeBlockMaterials(
     for (let mIdx = 0; mIdx < (workbook.missions || []).length; mIdx++) {
       const mission = workbook.missions[mIdx];
       const contextText = `${mission.conceptZero?.physicalAnalogy || ''} ${mission.conceptZero?.coreExplanation || ''}`;
-      const visual = dispatchVisual(subjectName, mission.title, contextText);
-      if (visual) {
+      const resolved = await resolveVisualForMission({
+        planningId,
+        uacName: subjectName,
+        blockIndex,
+        missionIndex: mIdx + 1,
+        missionTitle: mission.title,
+        contextText,
+      });
+      if (resolved) {
         const visualTitle = `Recurso Gráfico Misión ${mIdx + 1}: ${mission.title}`;
         const visualPayload = JSON.stringify({
-          svg: visual.svg,
-          annotations: visual.annotations,
+          type: resolved.type,
+          svg: resolved.svg,
+          annotations: resolved.annotations || [],
+          mediaAsset: resolved.mediaAsset,
+          caption: resolved.caption,
           missionNumber: mIdx + 1,
           missionTitle: mission.title,
           subjectName,

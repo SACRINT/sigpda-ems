@@ -37,7 +37,7 @@ import {
   NumberFormat,
   ImageRun,
 } from 'docx';
-import { dispatchVisual } from '@/lib/visual-engine/visual-dispatcher';
+import { resolveVisualForMission } from '@/lib/visual-engine/visual-asset-manager';
 import { svgToPngBuffer } from '@/lib/visual-engine/svg-to-png';
 import type {
   ActiveWorkTextbook,
@@ -152,7 +152,9 @@ export async function renderWorkbookToDocx(
       mission,
       i + 1,
       workbook.subsystem,
-      workbook.coverData?.subjectName
+      workbook.coverData?.subjectName,
+      planning?.id,
+      workbook.blockIndex
     );
     children.push(...missionElements);
     children.push(new Paragraph({ children: [new PageBreak()] }));
@@ -484,7 +486,9 @@ async function buildMissionContent(
   mission: MissionSection,
   missionNumber: number,
   subsystem: string,
-  subjectName?: string
+  subjectName?: string,
+  planningId?: string,
+  blockIndex?: number
 ): Promise<(Paragraph | Table)[]> {
   const elements: (Paragraph | Table)[] = [];
 
@@ -723,9 +727,16 @@ async function buildMissionContent(
   // ── 2.1 Gráfico Determinístico / Espacio Conceptual Activo ─────────────────
   if (subjectName) {
     const contextText = `${mission.conceptZero.physicalAnalogy || ''} ${mission.conceptZero.coreExplanation || ''}`;
-    const svgVisual = dispatchVisual(subjectName, mission.title, contextText);
-    if (svgVisual) {
-      const imgResult = await svgToPngBuffer(svgVisual.svg);
+    const resolvedVisual = await resolveVisualForMission({
+      planningId,
+      uacName: subjectName,
+      blockIndex: blockIndex ?? 0,
+      missionIndex: missionNumber,
+      missionTitle: mission.title,
+      contextText,
+    });
+    if (resolvedVisual && resolvedVisual.type === 'vector_svg' && resolvedVisual.svg) {
+      const imgResult = await svgToPngBuffer(resolvedVisual.svg);
       if (imgResult) {
         elements.push(
           new Paragraph({
@@ -744,7 +755,7 @@ async function buildMissionContent(
             spacing: { after: 180 },
             children: [
               new TextRun({
-                text: `Figura M${missionNumber}.1 — Representación gráfica conceptual y espacio de tabulación guiada`,
+                text: resolvedVisual.caption,
                 italics: true,
                 size: 16, // 8pt
                 color: C.mutedText,

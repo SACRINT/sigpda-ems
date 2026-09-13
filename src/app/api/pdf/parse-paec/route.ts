@@ -6,6 +6,7 @@ import { ingestDocument } from '@/lib/document-ingestion';
 import { parseAIResponse } from '@/lib/ai-response-parser';
 import { PaecExtractedDocSchema } from '@/lib/ai-schemas';
 import type { PaecOperationalActivity, PaecParseResult } from '@/types/planning';
+import { normalizeUnicode } from '@/lib/utils/normalize';
 
 export async function POST(request: NextRequest) {
   try {
@@ -304,7 +305,7 @@ function parsePlanOperativoHeuristics(text: string): PaecOperationalActivity[] {
     if (cells.length < 2) continue;
 
     // Normalizar celdas para detección de cabeceras
-    const lowerCells = cells.map(c => c.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''));
+    const lowerCells = cells.map(c => normalizeUnicode(c));
     const hasAsignatura = lowerCells.some(c => c.includes('asignatura') || c.includes('uac') || c.includes('materia') || c.includes('disciplina'));
     const hasActividad = lowerCells.some(c => c.includes('actividad') || c.includes('accion') || c.includes('tarea'));
 

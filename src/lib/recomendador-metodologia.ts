@@ -9,6 +9,7 @@
  */
 
 import { CATALOGO_METODOLOGIAS_ACTIVAS, type MetodologiaActiva } from '@/lib/catalogo-metodologias';
+import { normalizeUnicode } from '@/lib/utils/normalize';
 
 // ─── Reglas de recomendación (orden importa: primera coincidencia gana) ───────
 
@@ -120,7 +121,7 @@ export function recomendarMetodologia(
   component: string,
   _subsystem?: string
 ): string {
-  const uacLower = uacName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const uacLower = normalizeUnicode(uacName);
   const componentLower = component.toLowerCase();
 
   for (const regla of REGLAS) {
@@ -138,9 +139,8 @@ export function recomendarMetodologia(
 
     // Verificar palabras clave en el nombre de la UAC
     if (regla.keywordsUac) {
-      const uacNorm = uacLower.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
       const match = regla.keywordsUac.some(kw =>
-        uacNorm.includes(kw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''))
+        uacLower.includes(normalizeUnicode(kw))
       );
       if (match) return regla.metodologiaId;
     }

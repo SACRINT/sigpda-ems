@@ -18,6 +18,7 @@ import { sanitizeGeminiModel } from './ai-provider/gemini';
 import { parseAIResponse } from './ai-response-parser';
 import { PlanningContentSchema } from './ai-schemas';
 import type { GeneratedPlanningContent } from '@/types/planning';
+import { API_CONFIG } from './config';
 
 // ── Puntero global de Round-Robin ─────────────────────────────────────────────
 // Avanza en cada llamada a callGeminiPool para garantizar que las generaciones
@@ -238,7 +239,7 @@ async function executeWithModelFallback(
 
   for (const currentModel of modelChain) {
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${apiKey}`;
+      const url = `${API_CONFIG.gemini}/${currentModel}:generateContent?key=${apiKey}`;
 
       const parts: any[] = [];
       if (inlineData) {

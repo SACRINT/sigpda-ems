@@ -24,7 +24,7 @@ import type {
 } from '@/types/work-textbook';
 import type { Planning } from '@/types/planning';
 import { loadAllLogos } from './pdf-logos';
-import { dispatchVisual } from '@/lib/visual-engine/visual-dispatcher';
+import { resolveVisualForMission } from '@/lib/visual-engine/visual-asset-manager';
 import { svgToPngBuffer } from '@/lib/visual-engine/svg-to-png';
 import type { VisualAnnotation } from '@/lib/visual-engine/generators/stem-generator';
 
@@ -84,7 +84,9 @@ export async function renderWorkbookToPdf(
       contentWidth,
       pageHeight,
       currentY,
-      workbook.coverData.subjectName
+      workbook.coverData.subjectName,
+      planning.id,
+      workbook.blockIndex
     );
   }
 
@@ -540,7 +542,9 @@ async function drawMission(
   contentWidth: number,
   pageHeight: number,
   startY: number,
-  subjectName?: string
+  subjectName?: string,
+  planningId?: string,
+  blockIndex?: number
 ): Promise<number> {
   let y = startY;
 
@@ -706,37 +710,46 @@ async function drawMission(
 
   y += 4;
 
-  // ── 2.1 Gráfico STEM Conceptual / Espacio de Tabulación Activo ─────────────
+  // ── 2.1 Gráfico Conceptual / Espacio de Tabulación Activo ──────────────────
   if (subjectName) {
     const contextText = `${mission.conceptZero.physicalAnalogy || ''} ${mission.conceptZero.coreExplanation || ''}`;
-    const svgVisual = dispatchVisual(subjectName, mission.title, contextText);
-    if (svgVisual) {
-      const imgResult = await svgToPngBuffer(svgVisual.svg);
-      if (imgResult) {
-        const imgW = Math.min(135, contentWidth * 0.76);
-        const imgH = imgW * 0.65;
-        y = ensureVerticalSpace(doc, y, imgH + 16, margin, pageHeight);
-        const imgX = margin + (contentWidth - imgW) / 2;
-        doc.addImage(imgResult.buffer, imgResult.format, imgX, y, imgW, imgH);
+    const resolvedVisual = await resolveVisualForMission({
+      planningId,
+      uacName: subjectName,
+      blockIndex: blockIndex ?? 0,
+      missionIndex: missionNumber,
+      missionTitle: mission.title,
+      contextText,
+    });
+    if (resolvedVisual) {
+      if (resolvedVisual.type === 'vector_svg' && resolvedVisual.svg) {
+        const imgResult = await svgToPngBuffer(resolvedVisual.svg);
+        if (imgResult) {
+          const imgW = Math.min(135, contentWidth * 0.76);
+          const imgH = imgW * 0.65;
+          y = ensureVerticalSpace(doc, y, imgH + 16, margin, pageHeight);
+          const imgX = margin + (contentWidth - imgW) / 2;
+          doc.addImage(imgResult.buffer, imgResult.format, imgX, y, imgW, imgH);
 
-        // Dibujar anotaciones de texto encima de la imagen
-        if (svgVisual.annotations.length > 0) {
-          drawVisualAnnotations(doc, svgVisual.annotations, imgX, y, imgW, imgH);
+          // Dibujar anotaciones de texto encima de la imagen
+          if (resolvedVisual.annotations && resolvedVisual.annotations.length > 0) {
+            drawVisualAnnotations(doc, resolvedVisual.annotations, imgX, y, imgW, imgH);
+          }
+
+          y += imgH + 3.5;
+
+          // Pie de figura institucional
+          doc.setFont('helvetica', 'italic');
+          doc.setFontSize(7.5);
+          doc.setTextColor(...MUTED_TEXT);
+          doc.text(
+            resolvedVisual.caption,
+            margin + contentWidth / 2,
+            y,
+            { align: 'center' }
+          );
+          y += 6.5;
         }
-
-        y += imgH + 3.5;
-
-        // Pie de figura institucional
-        doc.setFont('helvetica', 'italic');
-        doc.setFontSize(7.5);
-        doc.setTextColor(...MUTED_TEXT);
-        doc.text(
-          `Figura M${missionNumber}.1 — Representación gráfica conceptual y espacio de tabulación guiada`,
-          margin + contentWidth / 2,
-          y,
-          { align: 'center' }
-        );
-        y += 6.5;
       }
     }
   }

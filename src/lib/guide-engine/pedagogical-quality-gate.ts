@@ -10,6 +10,7 @@
  */
 
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
+import { normalizeUnicode } from '@/lib/utils/normalize';
 
 export interface BloomDistribution {
   recordar: number;    // %
@@ -65,11 +66,11 @@ const BLOOM_VERB_LEVELS: Record<keyof Omit<BloomDistribution, 'dominantLevel' | 
  */
 export function auditBloomTaxonomy(textbook: ActiveWorkTextbook): BloomDistribution {
   // Extraer texto representativo de acciones pedagógicas
-  const textCorpus = [
+  const textCorpus = normalizeUnicode([
     textbook.missions.map(m => `${m.title} ${m.sessionFocus} ${m.iDoSection?.stepByStepDemo || ''} ${m.weDoSection?.guidedPractice || ''} ${m.youDoSection?.autonomousChallenge || ''}`).join(' '),
     textbook.projectSection ? `${textbook.projectSection.artifactName} ${(textbook.projectSection.learningObjectives || []).join(' ')} ${(textbook.projectSection.executionSteps || []).join(' ')}` : '',
     textbook.evaluationSection?.rubric?.map(r => r.criterion).join(' ') || '',
-  ].join(' ').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  ].join(' '));
 
   const counts: Record<string, number> = {
     recordar: 0,

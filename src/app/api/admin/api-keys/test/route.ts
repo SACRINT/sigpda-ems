@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 import { createDecipheriv } from 'crypto';
 import { requireAdmin, adminUnauthorized, adminForbidden } from '@/lib/admin-auth';
+import { API_CONFIG } from '@/lib/config';
 
 function getDb() { return neon(process.env.DATABASE_URL!); }
 
@@ -31,7 +32,7 @@ async function pingProvider(provider: string, model: string, apiKey: string): Pr
   try {
     if (provider === 'gemini') {
       // Gemini REST API
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const url = `${API_CONFIG.gemini}/${model}:generateContent?key=${apiKey}`;
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

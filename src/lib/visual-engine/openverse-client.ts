@@ -6,6 +6,8 @@
  * para ilustraciones y fotografías científicas en libros de texto de EMS.
  */
 
+import { API_CONFIG } from '@/lib/config';
+
 export interface OpenverseImageResult {
   id: string;
   title: string;
@@ -81,7 +83,7 @@ export async function searchOpenverseImages(
     .replace(/\s+/g, ' ')
     .trim();
 
-  const url = new URL('https://api.openverse.org/v1/images/');
+  const url = new URL(API_CONFIG.openverse.endsWith('/') ? API_CONFIG.openverse : `${API_CONFIG.openverse}/`);
   url.searchParams.set('q', cleanQuery);
   url.searchParams.set('page_size', String(pageSize));
   url.searchParams.set('mature', 'false');

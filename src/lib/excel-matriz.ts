@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { normalizeUnicode } from '@/lib/utils/normalize';
 
 export interface CargaImportada {
   semestre: number;
@@ -425,7 +426,7 @@ import { DocenteImportado, normalizarCargo } from './excel-plantilla';
 function buscarValorColumnaFila(row: Record<string, any>, palabrasClave: string[]): any {
   const keys = Object.keys(row);
   for (const k of keys) {
-    const kNorm = k.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const kNorm = normalizeUnicode(k.trim());
     for (const kw of palabrasClave) {
       if (kNorm === kw || kNorm.includes(kw)) {
         if (row[k] !== undefined && row[k] !== null && String(row[k]).trim() !== '') {

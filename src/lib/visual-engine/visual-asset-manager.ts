@@ -17,6 +17,7 @@ import {
   getImageAssetsByBlock,
 } from '@/lib/db';
 import type { ImageAsset } from '@/types/planning';
+import { normalizeUnicode } from '@/lib/utils/normalize';
 
 export interface ResolveVisualOptions {
   planningId?: string;
@@ -55,9 +56,9 @@ const NATURAL_SCIENCES_KEYWORDS = [
 ];
 
 export function isNaturalScienceSubject(uacName: string): boolean {
-  const norm = uacName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const norm = normalizeUnicode(uacName);
   return NATURAL_SCIENCES_KEYWORDS.some((kw) => {
-    const normKw = kw.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const normKw = normalizeUnicode(kw);
     return norm.includes(normKw);
   });
 }

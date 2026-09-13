@@ -9,6 +9,7 @@
  */
 
 import zlib from 'zlib';
+import { API_CONFIG } from '@/lib/config';
 
 export interface RenderedDiagram {
   type: 'image' | 'structured-table';
@@ -38,7 +39,7 @@ export async function renderMermaidDiagram(
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
     // Intento A: POST directo con text/plain
-    let response = await fetch('https://kroki.io/mermaid/png', {
+    let response = await fetch(API_CONFIG.mermaid, {
       method: 'POST',
       headers: {
         'Content-Type': 'text/plain; charset=utf-8',
@@ -57,7 +58,7 @@ export async function renderMermaidDiagram(
       try {
         const deflated = zlib.deflateSync(Buffer.from(cleanCode, 'utf8'));
         const base64Url = deflated.toString('base64').replace(/\+/g, '-').replace(/\//g, '_');
-        response = await fetch(`https://kroki.io/mermaid/png/${base64Url}`, {
+        response = await fetch(`${API_CONFIG.mermaid}/${base64Url}`, {
           method: 'GET',
           headers: { Accept: 'image/png' },
           signal: controller.signal,

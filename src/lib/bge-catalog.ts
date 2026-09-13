@@ -4,6 +4,8 @@
  * Total de UACs Oficiales: 203
  */
 
+import { normalizeUnicode } from '@/lib/utils/normalize';
+
 export type BGEComponent = 'fundamental' | 'socioemocional' | 'ffeo' | 'ffe_optativa' | 'laboral';
 
 export interface BGEUAC {
@@ -1646,11 +1648,11 @@ export const BGE_UACS_MASTER: BGEUAC[] = [
  * Busca una UAC en el catálogo de Bachillerato General por coincidencia difusa
  */
 export function findBgeUac(searchTerm: string, semester?: number): BGEUAC | undefined {
-  const norm = searchTerm.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  const norm = normalizeUnicode(searchTerm).trim();
   
   return BGE_UACS_MASTER.find(u => {
     if (semester && u.semester !== semester) return false;
-    const uNorm = u.uacName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const uNorm = normalizeUnicode(u.uacName);
     return uNorm.includes(norm) || norm.includes(uNorm);
   });
 }

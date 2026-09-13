@@ -1,4 +1,5 @@
 import type { AIProvider } from './types';
+import { API_CONFIG } from '@/lib/config';
 
 /**
  * Normalizes Gemini model names to enforce strictly authorized models:
@@ -29,7 +30,7 @@ export class GeminiProvider implements AIProvider {
     userPrompt: string,
     options?: { temperature?: number; jsonMode?: boolean; maxTokens?: number }
   ): Promise<string> {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.modelId}:generateContent?key=${this.apiKey}`;
+    const url = `${API_CONFIG.gemini}/${this.modelId}:generateContent?key=${this.apiKey}`;
     const payload = {
       contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
       systemInstruction: { parts: [{ text: systemPrompt }] },
@@ -60,7 +61,7 @@ export class GeminiProvider implements AIProvider {
   }
 
   async *generateStream(systemPrompt: string, userPrompt: string): AsyncGenerator<string> {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.modelId}:streamGenerateContent?key=${this.apiKey}&alt=sse`;
+    const url = `${API_CONFIG.gemini}/${this.modelId}:streamGenerateContent?key=${this.apiKey}&alt=sse`;
     const payload = {
       contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
       systemInstruction: { parts: [{ text: systemPrompt }] },

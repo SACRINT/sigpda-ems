@@ -5,6 +5,7 @@ import { Sparkles, Users, BookOpen, Clock, AlertCircle, ShieldCheck, UserCheck, 
 import toast from "react-hot-toast";
 import { parsearExcelPersonal, descargarPlantillaExcelDocentes, DocenteImportado } from "@/lib/excel-plantilla";
 import { parsearExcelMatriz, parsearLibroIntegralExcel, descargarPlantillaIntegralHorarios, descargarPlantillaMatrizDocente, ResultadoParseoMatriz, ResultadoLibroIntegral } from "@/lib/excel-matriz";
+import { normalizeUnicode } from "@/lib/utils/normalize";
 
 interface Props {
   escuelaId: string;
@@ -994,8 +995,8 @@ export default function WizardConfiguracion({
   const matchUacCarga = (cargaUac: string, cargaAsigId: string, uacObj: any) => {
     if (!uacObj) return false;
     if (cargaUac === uacObj.uacName || (cargaAsigId && cargaAsigId === uacObj.id)) return true;
-    const normCarga = (cargaUac || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
-    const normObj = (uacObj.uacName || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
+    const normCarga = normalizeUnicode(cargaUac || '').trim().toUpperCase();
+    const normObj = normalizeUnicode(uacObj.uacName || '').trim().toUpperCase();
     if (normCarga === normObj) return true;
     if (normCarga.includes('TALLER DE CIENCIAS') && normObj.includes('TALLER DE CIENCIAS')) return true;
     return false;

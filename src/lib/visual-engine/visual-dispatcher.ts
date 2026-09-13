@@ -29,6 +29,7 @@ import {
   generateGanttChart,
   generateSafetyChecklistVisual,
 } from './generators/laboral-generator';
+import { normalizeUnicode } from '@/lib/utils/normalize';
 
 const STEM_KEYWORDS = [
   'pensamiento matemático',
@@ -106,9 +107,9 @@ const LABORAL_KEYWORDS = [
  * Determina si una UAC pertenece al área STEM / Ciencias Exactas.
  */
 export function isStemSubject(uacName: string): boolean {
-  const norm = uacName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const norm = normalizeUnicode(uacName);
   return STEM_KEYWORDS.some((kw) => {
-    const normKw = kw.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const normKw = normalizeUnicode(kw);
     return norm.includes(normKw);
   });
 }
@@ -117,9 +118,9 @@ export function isStemSubject(uacName: string): boolean {
  * Determina si una UAC pertenece al área de Humanidades o Ciencias Sociales.
  */
 export function isHumanitiesSubject(uacName: string): boolean {
-  const norm = uacName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const norm = normalizeUnicode(uacName);
   return HUMANITIES_KEYWORDS.some((kw) => {
-    const normKw = kw.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const normKw = normalizeUnicode(kw);
     return norm.includes(normKw);
   });
 }
@@ -128,9 +129,9 @@ export function isHumanitiesSubject(uacName: string): boolean {
  * Determina si una UAC pertenece al área de Formación para el Trabajo / Capacitación Laboral.
  */
 export function isLaboralSubject(uacName: string): boolean {
-  const norm = uacName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const norm = normalizeUnicode(uacName);
   return LABORAL_KEYWORDS.some((kw) => {
-    const normKw = kw.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const normKw = normalizeUnicode(kw);
     return norm.includes(normKw);
   });
 }
@@ -154,8 +155,7 @@ export function dispatchVisual(uacName: string, topic: string, contextText?: str
   }
 
   // Combinar título + contexto para máxima cobertura de keywords
-  const searchText = `${topic} ${contextText || ''}`.toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const searchText = normalizeUnicode(`${topic} ${contextText || ''}`);
 
   // ── A. DISPATCHER ÁREA STEM / CIENCIAS EXACTAS ────────────────────────────
   if (isStem) {
@@ -288,7 +288,7 @@ export function dispatchVisual(uacName: string, topic: string, contextText?: str
     }
 
     // 5. Por defecto en Humanidades según UAC (Historia/Conciencia -> Línea de Tiempo, otras -> Mapa Conceptual)
-    const normUac = uacName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const normUac = normalizeUnicode(uacName);
     if (normUac.includes('historia') || normUac.includes('conciencia historica')) {
       return generateTimeline([], {
         title: `Línea de Tiempo Histórica: ${topic.slice(0, 42)}`,

@@ -3,6 +3,7 @@
  * Retrieves relevant curriculum content from pgvector for prompt enhancement.
  */
 import { sql } from '@/lib/db';
+import { API_CONFIG } from './config';
 
 // ── Gemini embedding model ────────────────────────────────────────────────
 const EMBEDDING_MODEL = 'text-embedding-004';
@@ -32,7 +33,7 @@ export async function generateEmbedding(text: string): Promise<number[]> {
   if (!apiKey) throw new Error('GEMINI_API_KEY not configured');
 
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${EMBEDDING_MODEL}:embedContent?key=${apiKey}`,
+    `${API_CONFIG.gemini}/${EMBEDDING_MODEL}:embedContent?key=${apiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
