@@ -213,6 +213,23 @@ export function ExtraPreviewModal({
               {renderTextFormatting(cleanLine)}
             </li>
           );
+        } else if (line.startsWith('<svg') || line.includes('<svg')) {
+          elements.push(
+            <div
+              key={key++}
+              style={{
+                maxWidth: '750px',
+                margin: '16px auto',
+                background: '#ffffff',
+                borderRadius: '8px',
+                padding: '16px',
+                textAlign: 'center',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.2)',
+                overflow: 'hidden',
+              }}
+              dangerouslySetInnerHTML={{ __html: line }}
+            />
+          );
         } else {
           // Paragraph
           elements.push(
@@ -335,6 +352,147 @@ export function ExtraPreviewModal({
     });
   }
 
+  function renderVisualResource(content: string) {
+    let svg = '';
+    let annotations: Array<{
+      text: string;
+      svgX: number;
+      svgY: number;
+      fontSize: number;
+      bold?: boolean;
+      color?: string;
+      align?: 'left' | 'center' | 'end';
+    }> = [];
+    let missionNumber: number | undefined;
+    let missionTitle: string | undefined;
+    let subjectName: string | undefined;
+
+    const trimmed = content.trim();
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        svg = parsed.svg || '';
+        annotations = parsed.annotations || [];
+        missionNumber = parsed.missionNumber;
+        missionTitle = parsed.missionTitle;
+        subjectName = parsed.subjectName;
+      } catch {
+        svg = trimmed;
+      }
+    } else {
+      svg = trimmed;
+    }
+
+    if (!svg.startsWith('<svg')) {
+      return (
+        <div style={{ padding: '24px', textAlign: 'center', color: '#f87171' }}>
+          <p style={{ margin: 0, fontSize: '15px', fontWeight: 600 }}>⚠️ Formato gráfico no reconocido</p>
+        </div>
+      );
+    }
+
+    // Inyectar anotaciones tipográficas como elementos <text> en el SVG para visualización web nítida
+    let enrichedSvg = svg;
+    if (annotations.length > 0 && !svg.includes('<text')) {
+      const textElements = annotations
+        .map((a) => {
+          const anchor = a.align === 'center' ? 'middle' : a.align === 'end' ? 'end' : 'start';
+          const weight = a.bold ? '700' : '500';
+          const color = a.color || '#1e293b';
+          const escapedText = a.text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+          return `<text x="${a.svgX}" y="${a.svgY}" text-anchor="${anchor}" font-size="${a.fontSize}" font-weight="${weight}" fill="${color}" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">${escapedText}</text>`;
+        })
+        .join('\n');
+      enrichedSvg = svg.replace('</svg>', `${textElements}\n</svg>`);
+    }
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center', width: '100%' }}>
+        {missionTitle && (
+          <div style={{ textAlign: 'center', width: '100%' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              {subjectName ? `${subjectName} · ` : ''}Misión {missionNumber || 1}
+            </span>
+            <h3 style={{ margin: '4px 0 0 0', fontSize: '18px', fontWeight: 700, color: '#f8fafc' }}>
+              {missionTitle}
+            </h3>
+          </div>
+        )}
+
+        {/* Lienzo SVG de Alta Resolución */}
+        <div
+          style={{
+            width: '100%',
+            maxWidth: '750px',
+            background: '#ffffff',
+            borderRadius: '12px',
+            padding: '24px 16px',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 0 15px rgba(59, 130, 246, 0.1)',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            overflow: 'hidden',
+          }}
+          dangerouslySetInnerHTML={{ __html: enrichedSvg }}
+        />
+
+        {/* Pie de figura institucional */}
+        <div style={{ textAlign: 'center', maxWidth: '650px' }}>
+          <p style={{ margin: 0, fontSize: '12.5px', fontStyle: 'italic', color: '#94a3b8' }}>
+            Figura M{missionNumber || 1}.1 — Recurso gráfico vectorial determinístico ($0.00 USD, 0 tokens)
+          </p>
+          <p style={{ margin: '4px 0 0 0', fontSize: '11.5px', color: '#64748b' }}>
+            Renderizado vectorial en alta resolución. Este diagrama se incrusta nativamente en el Libro-Cuaderno de Aprendizaje Activo (PDF y DOCX).
+          </p>
+        </div>
+
+        {/* Desglose de etiquetas y elementos si existen */}
+        {annotations.length > 0 && (
+          <div
+            style={{
+              width: '100%',
+              maxWidth: '750px',
+              marginTop: '4px',
+              padding: '16px',
+              background: 'rgba(255, 255, 255, 0.03)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              borderRadius: '8px',
+            }}
+          >
+            <h4 style={{ margin: '0 0 10px 0', fontSize: '13px', fontWeight: 700, color: '#e2e8f0' }}>
+              📌 Elementos y Etiquetas Clave del Diagrama ({annotations.length}):
+            </h4>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              {annotations.map((ann, idx) => (
+                <span
+                  key={idx}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    fontSize: '11px',
+                    fontWeight: ann.bold ? 700 : 500,
+                    background: 'rgba(56, 189, 248, 0.1)',
+                    border: '1px solid rgba(56, 189, 248, 0.25)',
+                    color: ann.color || '#38bdf8',
+                  }}
+                >
+                  {ann.text}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   const typeLabel =
     type === 'rubric'
       ? 'Rúbrica analítica'
@@ -344,6 +502,8 @@ export function ExtraPreviewModal({
       ? 'Material didáctico'
       : type === 'practice_guide'
       ? 'Guía de práctica'
+      : type === 'visual'
+      ? 'Recurso Gráfico Vectorial'
       : 'Plan de clase';
 
   return (
@@ -477,6 +637,9 @@ export function ExtraPreviewModal({
                   Este recurso aún no contiene texto generado o está pendiente de sincronización.
                 </p>
               </div>
+            ) : type === 'visual' || (contentText || '').trim().startsWith('{"svg"') || (contentText || '').trim().startsWith('<svg') ? (
+              // Recursos gráficos vectoriales (Visual Engine)
+              renderVisualResource(contentText || '')
             ) : type === 'practice_guide' ? (
               // Guías de práctica: renderizado con soporte Mermaid (Fase 11)
               <MarkdownWithMermaid markdown={contentText || ''} />

@@ -2133,9 +2133,14 @@ export default function PlanningDetailClient({
             const checklistExtra = findExtra('checklist', actIdx);
             const materialExtra = findExtra('material', actIdx);
             const guideExtra = findExtra('practice_guide', actIdx);
+            const visualExtras = extras.filter((ex) => {
+              if (ex.type !== 'visual') return false;
+              const exKey = (ex as any).keyIndex !== undefined ? (ex as any).keyIndex : (ex as any).key_index;
+              return exKey === actIdx;
+            });
 
             const hasWorkbook = Boolean(blockWorkbooks[actIdx]?.workbook);
-            const hasAnyMaterial = Boolean(rubricExtra || checklistExtra || materialExtra || guideExtra);
+            const hasAnyMaterial = Boolean(rubricExtra || checklistExtra || materialExtra || guideExtra || visualExtras.length > 0);
 
             return (
               <div key={actIdx} className="section-card" style={{ border: hasAnyMaterial ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid var(--c-border)' }}>
@@ -2499,6 +2504,71 @@ export default function PlanningDetailClient({
                                 >
                                   🗑️
                                 </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => handleSyncSuite(actIdx)}
+                                disabled={syncingSuite === actIdx}
+                                className="btn btn-navy"
+                                style={{ padding: '6px 12px', fontSize: '11.5px', borderRadius: '4px', cursor: 'pointer' }}
+                              >
+                                {syncingSuite === actIdx ? '⏳ Sincronizando…' : '⚡ Extraer del Libro'}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* 5. Recursos Gráficos y Visuales Vectoriales */}
+                        <div style={{
+                          padding: '16px',
+                          background: 'var(--c-bg-surface)',
+                          border: '1px solid var(--c-border)',
+                          borderRadius: '8px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          gap: '12px',
+                          gridColumn: '1 / -1'
+                        }}>
+                          <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                              <span style={{ fontSize: '11px', fontWeight: 700, color: '#ec4899', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                Motor Visual Capa 0
+                              </span>
+                              <span style={{ fontSize: '11px', color: 'var(--c-text-muted)' }}>
+                                {visualExtras.length > 0 ? `${visualExtras.length} Diagramas Generados` : 'Visualización Vectorial'}
+                              </span>
+                            </div>
+                            <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: 'var(--c-text)' }}>
+                              🎨 Recursos Gráficos del Bloque ({blockNumStr})
+                            </h4>
+                            <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: 'var(--c-text-muted)', lineHeight: 1.4 }}>
+                              Diagramas vectoriales generativos (STEM, Humanidades, Económico-Administrativas) insertados en las misiones del libro de trabajo.
+                            </p>
+                          </div>
+
+                          <div>
+                            {visualExtras.length > 0 ? (
+                              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                                {visualExtras.map((vExtra, vIdx) => (
+                                  <div key={vExtra.id || vIdx} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(236, 72, 153, 0.08)', border: '1px solid rgba(236, 72, 153, 0.25)', borderRadius: '6px', padding: '4px 8px' }}>
+                                    <button
+                                      onClick={() => setPreviewExtra(vExtra)}
+                                      className="btn"
+                                      style={{ padding: '4px 8px', fontSize: '11.5px', background: 'var(--c-bg-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)', borderRadius: '4px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                    >
+                                      👁️ {vExtra.title || `Gráfico Misión ${vIdx + 1}`}
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteExtra(vExtra.id)}
+                                      className="btn"
+                                      title="Eliminar gráfico"
+                                      style={{ padding: '4px 6px', fontSize: '11px', background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer' }}
+                                    >
+                                      🗑️
+                                    </button>
+                                  </div>
+                                ))}
                               </div>
                             ) : (
                               <button

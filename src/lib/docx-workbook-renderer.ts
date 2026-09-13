@@ -35,7 +35,10 @@ import {
   Footer,
   PageNumber,
   NumberFormat,
+  ImageRun,
 } from 'docx';
+import { dispatchVisual } from '@/lib/visual-engine/visual-dispatcher';
+import { svgToPngBuffer } from '@/lib/visual-engine/svg-to-png';
 import type {
   ActiveWorkTextbook,
   MissionSection,
@@ -145,7 +148,13 @@ export async function renderWorkbookToDocx(
   // ── 3. Misiones Didácticas (Foundation, Lab, Project, Evaluation) ───────────
   for (let i = 0; i < workbook.missions.length; i++) {
     const mission = workbook.missions[i];
-    children.push(...buildMissionContent(mission, i + 1, workbook.subsystem));
+    const missionElements = await buildMissionContent(
+      mission,
+      i + 1,
+      workbook.subsystem,
+      workbook.coverData?.subjectName
+    );
+    children.push(...missionElements);
     children.push(new Paragraph({ children: [new PageBreak()] }));
   }
 
@@ -471,11 +480,12 @@ function buildTableOfContents(workbook: ActiveWorkTextbook): (Paragraph | Table)
   return items;
 }
 
-function buildMissionContent(
+async function buildMissionContent(
   mission: MissionSection,
   missionNumber: number,
-  subsystem: string
-): (Paragraph | Table)[] {
+  subsystem: string,
+  subjectName?: string
+): Promise<(Paragraph | Table)[]> {
   const elements: (Paragraph | Table)[] = [];
 
   const cleanMissionTitle = mission.title
@@ -708,6 +718,43 @@ function buildMissionContent(
         rows: ctRows,
       })
     );
+  }
+
+  // ── 2.1 Gráfico Determinístico / Espacio Conceptual Activo ─────────────────
+  if (subjectName) {
+    const contextText = `${mission.conceptZero.physicalAnalogy || ''} ${mission.conceptZero.coreExplanation || ''}`;
+    const svgVisual = dispatchVisual(subjectName, mission.title, contextText);
+    if (svgVisual) {
+      const imgResult = await svgToPngBuffer(svgVisual.svg);
+      if (imgResult) {
+        elements.push(
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { before: 200, after: 80 },
+            children: [
+              new ImageRun({
+                data: imgResult.buffer,
+                transformation: { width: 500, height: 325 },
+                type: 'jpg',
+              }),
+            ],
+          }),
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 180 },
+            children: [
+              new TextRun({
+                text: `Figura M${missionNumber}.1 — Representación gráfica conceptual y espacio de tabulación guiada`,
+                italics: true,
+                size: 16, // 8pt
+                color: C.mutedText,
+                font: 'Calibri',
+              }),
+            ],
+          })
+        );
+      }
+    }
   }
 
   // 3. Yo Hago (Demostración)

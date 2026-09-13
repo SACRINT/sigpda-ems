@@ -12,6 +12,7 @@
 import { sql } from '@/lib/db';
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
 import { extractMaterialsFromWorkbook, type PlanDeClaseDerivado } from './material-extractor';
+import { dispatchVisual } from '@/lib/visual-engine/visual-dispatcher';
 
 export interface CascadeResult {
   success: boolean;
@@ -126,14 +127,8 @@ export async function cascadeBlockMaterials(
       insertedCount++;
     }
 
-    // 4. Insertar Rúbrica Analítica de Desempeño del Bloque (Contenido exclusivo de rúbrica)
-    const splitRegex = /##\s*2\.\s*(?:LISTA|Checklist)/i;
-    const rubricContent = extracted.rubricaEvaluacion || (
-      extracted.instrumentosEvaluacion && splitRegex.test(extracted.instrumentosEvaluacion)
-        ? extracted.instrumentosEvaluacion.split(splitRegex)[0].trim()
-        : extracted.instrumentosEvaluacion
-    );
-
+    // 4. Insertar Rúbrica Analítica de Desempeño del Bloque (Contenido estructurado oficial)
+    const rubricContent = extracted.rubricaEvaluacion || extracted.instrumentosEvaluacion || '';
     if (rubricContent) {
       await db`
         INSERT INTO planning_extras (
@@ -155,19 +150,8 @@ export async function cascadeBlockMaterials(
       insertedCount++;
     }
 
-    // 5. Insertar Lista de Cotejo Formativa del Bloque (Contenido exclusivo de checklist)
-    const checklistRaw = extracted.listaCotejo || (
-      extracted.instrumentosEvaluacion && splitRegex.test(extracted.instrumentosEvaluacion)
-        ? extracted.instrumentosEvaluacion.split(splitRegex)[1].trim()
-        : extracted.instrumentosEvaluacion
-    );
-
-    const checklistContent = checklistRaw
-      ? (checklistRaw.startsWith('#')
-          ? checklistRaw
-          : `# LISTA DE COTEJO DE VERIFICACIÓN FORMATIVA · BLOQUE ${blockNum}\n\n` + checklistRaw)
-      : '';
-
+    // 5. Insertar Lista de Cotejo Formativa del Bloque (Contenido estructurado oficial)
+    const checklistContent = extracted.listaCotejo || '';
     if (checklistContent) {
       await db`
         INSERT INTO planning_extras (
@@ -189,7 +173,7 @@ export async function cascadeBlockMaterials(
       insertedCount++;
     }
 
-    // 5. Insertar Materiales Didácticos e Insumos del Docente del Bloque
+    // 6. Insertar Materiales Didácticos e Insumos del Docente del Bloque
     if (extracted.materialDidactico) {
       await db`
         INSERT INTO planning_extras (
@@ -211,7 +195,7 @@ export async function cascadeBlockMaterials(
       insertedCount++;
     }
 
-    // 6. Insertar Guía de Aprendizaje Activo del Estudiante del Bloque
+    // 7. Insertar Guía de Aprendizaje Activo del Estudiante del Bloque
     if (extracted.guiaDelBloque) {
       await db`
         INSERT INTO planning_extras (
@@ -231,6 +215,43 @@ export async function cascadeBlockMaterials(
         )
       `;
       insertedCount++;
+    }
+
+    // 8. Insertar Recursos Gráficos Determinísticos del Bloque (Visual Engine)
+    const subjectName = workbook.coverData?.subjectName || '';
+    for (let mIdx = 0; mIdx < (workbook.missions || []).length; mIdx++) {
+      const mission = workbook.missions[mIdx];
+      const contextText = `${mission.conceptZero?.physicalAnalogy || ''} ${mission.conceptZero?.coreExplanation || ''}`;
+      const visual = dispatchVisual(subjectName, mission.title, contextText);
+      if (visual) {
+        const visualTitle = `Recurso Gráfico Misión ${mIdx + 1}: ${mission.title}`;
+        const visualPayload = JSON.stringify({
+          svg: visual.svg,
+          annotations: visual.annotations,
+          missionNumber: mIdx + 1,
+          missionTitle: mission.title,
+          subjectName,
+        });
+
+        await db`
+          INSERT INTO planning_extras (
+            planning_id,
+            type,
+            title,
+            key_index,
+            content_text,
+            created_at
+          ) VALUES (
+            ${planningId}::uuid,
+            'visual',
+            ${visualTitle},
+            ${blockIndex},
+            ${visualPayload},
+            NOW()
+          )
+        `;
+        insertedCount++;
+      }
     }
 
     const endTime = performance.now();
