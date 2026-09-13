@@ -35,13 +35,7 @@ import {
   getHashColor
 } from "@/lib/horarios/exportador";
 import { reacomodarHorarioConRipple } from "@/lib/horarios/ripple-solver";
-
-function normalizarId(val: any): string {
-  if (val == null) return "";
-  if (typeof val === "string") return val.trim();
-  if (typeof val === "object" && val.id) return String(val.id).trim();
-  return String(val).trim();
-}
+import { normalizarId } from "@/lib/utils/normalize";
 
 interface Props {
   escuela: any;

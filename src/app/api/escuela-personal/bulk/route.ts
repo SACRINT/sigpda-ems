@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { sql, getTeacherByEmail } from '@/lib/db';
+import { normalizarCargo } from '@/lib/utils/normalize';
 
 async function getDirectorId(email: string) {
   const teacher = await getTeacherByEmail(email);
@@ -10,16 +11,7 @@ async function getDirectorId(email: string) {
   return teacher.id as string;
 }
 
-function normalizarCargo(cargoRaw: any): string {
-  if (!cargoRaw) return 'DOCENTE';
-  const str = String(cargoRaw).trim().toUpperCase();
-  if (str.includes('DOC') || str.includes('PROF') || str.includes('MAESTR') || str.includes('CATEDRATICO')) return 'DOCENTE';
-  if (str.includes('DIR') || str.includes('RECT') || str.includes('SUBDIR') || str.includes('COORDINAD')) return 'DIRECTIVO';
-  if (str.includes('PREF') || str.includes('DISCIPLIN')) return 'PREFECTO';
-  if (str.includes('ORIENT') || str.includes('TUTOR') || str.includes('PSICO') || str.includes('TRABAJO')) return 'ORIENTADOR';
-  if (str.includes('ADMIN') || str.includes('SECRET') || str.includes('OFICIN') || str.includes('CONTAB') || str.includes('ASISTEN') || str.includes('APOYO')) return 'ADMINISTRATIVO';
-  return 'OTRO';
-}
+
 
 export async function POST(req: Request) {
   try {

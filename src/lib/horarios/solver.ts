@@ -116,12 +116,8 @@ interface UnitInternal {
   validSlots: number[];
 }
 
-export function normalizarId(val: any): string {
-  if (val == null) return "";
-  if (typeof val === "string") return val.trim();
-  if (typeof val === "object" && val.id) return String(val.id).trim();
-  return String(val).trim();
-}
+import { normalizarId } from '@/lib/utils/normalize';
+export { normalizarId };
 
 export function isSlotBloqueadoOIndisponible(
   dia: number,

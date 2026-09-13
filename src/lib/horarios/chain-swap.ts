@@ -1,4 +1,5 @@
 import { CeldaHorario, GrupoLimiteInfo } from "./ripple-solver";
+import { normalizarId } from '@/lib/utils/normalize';
 
 export interface SwapMove {
   cellFromIndex: number;
@@ -14,12 +15,7 @@ export interface ChainResult {
   error?: string;
 }
 
-export const normalizarId = (val: any): string => {
-  if (val == null) return "";
-  if (typeof val === "string") return val.trim();
-  if (typeof val === "object" && val.id) return String(val.id).trim();
-  return String(val).trim();
-};
+export { normalizarId };
 
 // Ocupación global O(1) para validaciones instantáneas
 function buildOccupancy(celdas: CeldaHorario[]) {
