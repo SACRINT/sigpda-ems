@@ -2,8 +2,8 @@
  * visual-dispatcher.ts — Enrutador y Despachador de Recursos Visuales
  * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
  *
- * Analiza la UAC y el tema/título de la misión para suministrar el gráfico
- * determinístico adecuado.
+ * Analiza la UAC, el tema/título y el contexto de la misión para suministrar
+ * el gráfico determinístico adecuado.
  * - Fase 1: Área STEM activa (Pensamiento Matemático, Física, Química, etc.).
  * - Fases posteriores: Retorna null de forma segura para Humanidades, Sociales y Laboral.
  */
@@ -16,6 +16,7 @@ import {
   generateTriangle,
   generateRectangle,
 } from './generators/stem-generator';
+import type { VisualResult } from './generators/stem-generator';
 
 const STEM_KEYWORDS = [
   'pensamiento matemático',
@@ -43,84 +44,92 @@ export function isStemSubject(uacName: string): boolean {
 }
 
 /**
- * Despacha el recurso gráfico vectorial adecuado según la asignatura y el tema.
+ * Despacha el recurso gráfico vectorial adecuado según la asignatura, el tema
+ * y el contexto completo de la misión (coreExplanation + physicalAnalogy).
  *
- * @param uacName Nombre de la Unidad de Aprendizaje Curricular (ej: "Pensamiento Matemático III")
- * @param topic Tema o título de la misión (ej: "Misión 2: Modelación de Parábolas y Ecuaciones Cuadráticas")
- * @returns Cadena SVG en formato string, o null si la disciplina aún no tiene generador activo.
+ * @param uacName Nombre de la UAC (ej: "Pensamiento Matemático III")
+ * @param topic Título de la misión
+ * @param contextText Texto combinado de coreExplanation + physicalAnalogy para mejor detección
+ * @returns VisualResult con SVG + anotaciones, o null si la disciplina no tiene generador.
  */
-export function dispatchVisual(uacName: string, topic: string): string | null {
-  // 1. Si no es STEM, delegar a null (Fase 2+ integrará humanidades, sociales y laboral)
+export function dispatchVisual(uacName: string, topic: string, contextText?: string): VisualResult | null {
   if (!isStemSubject(uacName)) {
     return null;
   }
 
-  const normTopic = topic.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  // Combinar título + contexto para máxima cobertura de keywords
+  const searchText = `${topic} ${contextText || ''}`.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
-  // 2. Parábolas y Ecuaciones Cuadráticas
+  // 1. Parábolas y Ecuaciones Cuadráticas
   if (
-    normTopic.includes('parabola') ||
-    normTopic.includes('cuadrat') ||
-    normTopic.includes('segundo grado') ||
-    normTopic.includes('trayectoria') ||
-    normTopic.includes('vertice')
+    searchText.includes('parabola') ||
+    searchText.includes('cuadrat') ||
+    searchText.includes('segundo grado') ||
+    searchText.includes('trayectoria') ||
+    searchText.includes('vertice')
   ) {
     return generateQuadraticGraph(1, 0, -4, {
       title: 'Modelación Gráfica: Función Cuadrática f(x) = x² - 4',
     });
   }
 
-  // 3. Ecuaciones y Funciones Lineales
+  // 2. Ecuaciones y Funciones Lineales
   if (
-    normTopic.includes('lineal') ||
-    normTopic.includes('recta') ||
-    normTopic.includes('primer grado') ||
-    normTopic.includes('pendiente')
+    searchText.includes('lineal') ||
+    searchText.includes('recta') ||
+    searchText.includes('primer grado') ||
+    searchText.includes('pendiente') ||
+    searchText.includes('funcion lineal')
   ) {
     return generateLinearGraph(1.5, 1, {
       title: 'Modelación Gráfica: Función Lineal f(x) = 1.5x + 1',
     });
   }
 
-  // 4. Sistemas de Ecuaciones Lineales (Intersección de Rectas)
+  // 3. Sistemas de Ecuaciones Lineales
   if (
-    normTopic.includes('sistema') ||
-    normTopic.includes('interseccion') ||
-    normTopic.includes('simultane') ||
-    normTopic.includes('2x2')
+    searchText.includes('sistema') ||
+    searchText.includes('interseccion') ||
+    searchText.includes('simultane') ||
+    searchText.includes('2x2')
   ) {
     return generateLinearSystemGraph(1, -1, -0.5, 3.5, {
       title: 'Sistema de Ecuaciones: Intersección L₁ y L₂',
     });
   }
 
-  // 5. Triángulos, Teorema de Pitágoras y Trigonometría
+  // 4. Triángulos, Teorema de Pitágoras y Trigonometría
   if (
-    normTopic.includes('triangulo') ||
-    normTopic.includes('pitagoras') ||
-    normTopic.includes('trigonometr') ||
-    normTopic.includes('cateto') ||
-    normTopic.includes('hipotenusa')
+    searchText.includes('triangulo') ||
+    searchText.includes('pitagoras') ||
+    searchText.includes('trigonometr') ||
+    searchText.includes('cateto') ||
+    searchText.includes('hipotenusa') ||
+    searchText.includes('razon trigonometrica') ||
+    searchText.includes('seno') ||
+    searchText.includes('coseno') ||
+    searchText.includes('tangente')
   ) {
     return generateTriangle(4, 3, 5, {
       title: 'Geometría Plana: Triángulo Rectángulo y Teorema de Pitágoras',
     });
   }
 
-  // 6. Rectángulos, Polígonos, Áreas y Perímetros
+  // 5. Rectángulos, Polígonos, Áreas y Perímetros
   if (
-    normTopic.includes('rectangulo') ||
-    normTopic.includes('area') ||
-    normTopic.includes('perimetro') ||
-    normTopic.includes('poligono') ||
-    normTopic.includes('cuadrilatero')
+    searchText.includes('rectangulo') ||
+    searchText.includes('area') ||
+    searchText.includes('perimetro') ||
+    searchText.includes('poligono') ||
+    searchText.includes('cuadrilatero')
   ) {
     return generateRectangle(8, 5, {
       title: 'Geometría Aplicada: Cálculo de Perímetro y Área',
     });
   }
 
-  // 7. Por defecto en STEM: Plano Cartesiano graduado para práctica y tabulación
+  // 6. Por defecto en STEM: Plano Cartesiano graduado
   return generateCartesianPlane({
     title: 'Plano Cartesiano para Tabulación y Bosquejo de Datos',
   });

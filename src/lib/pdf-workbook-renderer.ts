@@ -26,6 +26,7 @@ import type { Planning } from '@/types/planning';
 import { loadAllLogos } from './pdf-logos';
 import { dispatchVisual } from '@/lib/visual-engine/visual-dispatcher';
 import { svgToPngBuffer } from '@/lib/visual-engine/svg-to-png';
+import type { VisualAnnotation } from '@/lib/visual-engine/generators/stem-generator';
 
 // ── Paleta de Colores Institucionales DBEPA ──────────────────────────────────
 const NAVY: [number, number, number] = [31, 56, 100];       // #1F3864
@@ -279,6 +280,53 @@ export function ensureVerticalSpace(
     return margin + 8;
   }
   return currentY;
+}
+
+/**
+ * Dibuja anotaciones de texto del Visual Engine en el PDF usando jsPDF.
+ * Convierte coordenadas del viewBox SVG a coordenadas del PDF.
+ *
+ * @param doc Documento jsPDF
+ * @param annotations Lista de anotaciones del generador visual
+ * @param imgX Posición X de la imagen PNG insertada en el PDF (mm)
+ * @param imgY Posición Y de la imagen PNG insertada en el PDF (mm)
+ * @param imgW Ancho de la imagen PNG en el PDF (mm)
+ * @param imgH Alto de la imagen PNG en el PDF (mm)
+ * @param svgWidth Ancho del viewBox SVG (unidades SVG, default 500)
+ * @param svgHeight Alto del viewBox SVG (unidades SVG, default 350)
+ */
+function drawVisualAnnotations(
+  doc: jsPDF,
+  annotations: VisualAnnotation[],
+  imgX: number,
+  imgY: number,
+  imgW: number,
+  imgH: number,
+  svgWidth = 500,
+  svgHeight = 350,
+): void {
+  const scaleX = imgW / svgWidth;
+  const scaleY = imgH / svgHeight;
+
+  for (const ann of annotations) {
+    const pdfX = imgX + ann.svgX * scaleX;
+    const pdfY = imgY + ann.svgY * scaleY;
+
+    // Escalar tamaño de fuente proporcionalmente
+    const scaledSize = Math.max(4, ann.fontSize * scaleX * 2.6);
+    doc.setFontSize(scaledSize);
+    doc.setFont('helvetica', ann.bold ? 'bold' : 'normal');
+
+    // Parsear color hex a RGB
+    const hex = (ann.color || '#1e293b').replace('#', '');
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    doc.setTextColor(r, g, b);
+
+    const jsAlign = ann.align === 'end' ? 'right' : ann.align || 'left';
+    doc.text(ann.text, pdfX, pdfY, { align: jsAlign });
+  }
 }
 
 /**
@@ -546,16 +594,22 @@ async function drawMission(
 
   // ── 2.1 Gráfico STEM Conceptual / Espacio de Tabulación Activo ─────────────
   if (subjectName) {
-    const topicText = `${mission.title} ${mission.conceptZero.coreExplanation || ''}`;
-    const svgVisual = dispatchVisual(subjectName, topicText);
+    const contextText = `${mission.conceptZero.physicalAnalogy || ''} ${mission.conceptZero.coreExplanation || ''}`;
+    const svgVisual = dispatchVisual(subjectName, mission.title, contextText);
     if (svgVisual) {
-      const pngBuffer = await svgToPngBuffer(svgVisual);
+      const pngBuffer = await svgToPngBuffer(svgVisual.svg);
       if (pngBuffer) {
         const imgW = Math.min(135, contentWidth * 0.76);
         const imgH = imgW * 0.65;
         y = ensureVerticalSpace(doc, y, imgH + 16, margin, pageHeight);
         const imgX = margin + (contentWidth - imgW) / 2;
         doc.addImage(pngBuffer, 'PNG', imgX, y, imgW, imgH);
+
+        // Dibujar anotaciones de texto encima de la imagen
+        if (svgVisual.annotations.length > 0) {
+          drawVisualAnnotations(doc, svgVisual.annotations, imgX, y, imgW, imgH);
+        }
+
         y += imgH + 3.5;
 
         // Pie de figura institucional
