@@ -9,8 +9,8 @@
  * 4. La IA genera explicaciones pedagógicas de los cambios y métricas de calidad.
  */
 
-import { getAIProvider } from "@/lib/ai-provider";
-import { callGeminiPool } from "@/lib/gemini";
+import { generateWithRotation } from "@/lib/ai-provider";
+import { logger } from "@/lib/logger";
 import { parseAIResponse } from "@/lib/ai-response-parser";
 import { ScheduleAssistantResponseSchema } from "@/lib/ai-schemas";
 
@@ -198,16 +198,13 @@ SOLICITUD DEL DIRECTOR:
 Responde exclusivamente con el JSON estructurado.`;
 
   try {
-    let rawResponse = "";
-
-    // Intentar primero con ai-provider institucional
-    try {
-      const ai = await getAIProvider(true);
-      rawResponse = await ai.generate(systemInstruction, prompt);
-    } catch (providerErr) {
-      console.warn("[ai-schedule-assistant] Fallback a callGeminiPool:", providerErr);
-      rawResponse = await callGeminiPool(systemInstruction, prompt, escuelaId);
-    }
+    const rawResponse = await generateWithRotation(
+      systemInstruction,
+      prompt,
+      escuelaId,
+      true,
+      { jsonMode: true }
+    );
 
     const parseResult = parseAIResponse<RespuestaIAHorario>(
       rawResponse,

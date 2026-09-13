@@ -13,6 +13,7 @@ import { sql } from '@/lib/db';
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
 import { extractMaterialsFromWorkbook, type PlanDeClaseDerivado } from './material-extractor';
 import { resolveVisualForMission } from '@/lib/visual-engine/visual-asset-manager';
+import { logger } from '@/lib/logger';
 
 export interface CascadeResult {
   success: boolean;
@@ -267,7 +268,7 @@ export async function cascadeBlockMaterials(
     const endTime = performance.now();
     const executionTimeMs = Math.round((endTime - startTime) * 100) / 100;
 
-    console.log(
+    logger.info(
       `[cascadeBlockMaterials] ✅ Bloque ${blockIndex} sincronizado: ${planes.length} planes de clase y ${insertedCount} extras en ${executionTimeMs}ms.`
     );
 
@@ -280,7 +281,7 @@ export async function cascadeBlockMaterials(
     };
   } catch (error: any) {
     const errorMsg = error?.message || String(error);
-    console.error(`[cascadeBlockMaterials] ❌ Error en cascada del bloque ${blockIndex}:`, error);
+    logger.error(`[cascadeBlockMaterials] ❌ Error en cascada del bloque ${blockIndex}:`, error);
     return {
       success: false,
       blockIndex,

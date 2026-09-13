@@ -14,6 +14,7 @@ import {
   PageBreak,
   HeadingLevel,
 } from 'docx';
+import { SCHOOL_YEAR } from '@/lib/config';
 
 // ─── Color Palette ───────────────────────────────────────────────────────────
 const C = {
@@ -999,7 +1000,7 @@ export async function generatePmcInformeDocx(
           new TableRow({ children: [tcSub('¿Cuáles cambios fueron más efectivos?'), tc('El seguimiento personalizado directo y la comunicación previa con padres de familia.')] }),
           new TableRow({ children: [tcSub('Justificación del no cumplimiento total (si aplica)'), tc(isMetaCompleted ? 'N/A — Meta cumplida en su totalidad.' : 'Requerimiento de mayor tiempo de consolidación en el siguiente ciclo escolar.')] }),
           new TableRow({ children: [tcSub('¿Es factible cumplir la meta en el próximo ciclo?'), tc('Sí, factible y prioritario.')] }),
-          new TableRow({ children: [tcSub('Nueva fecha o ciclo propuesto'), tc(isFinal ? 'Ciclo Escolar 2026-2027' : 'Término del Ciclo 2025-2026 (Semestre B)')] }),
+          new TableRow({ children: [tcSub('Nueva fecha o ciclo propuesto'), tc(isFinal ? `Ciclo Escolar ${SCHOOL_YEAR}` : 'Término del Ciclo 2025-2026 (Semestre B)')] }),
           new TableRow({ children: [tcSub('Nuevas estrategias propuestas para el siguiente ciclo'), tc('Sistematizar la alerta temprana desde las primeras 4 semanas del semestre e integrar herramientas digitales de monitoreo.')] }),
         ],
         [Math.floor(CONTENT * 0.38), Math.floor(CONTENT * 0.62)]

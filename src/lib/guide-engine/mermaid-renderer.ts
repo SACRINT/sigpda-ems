@@ -10,6 +10,7 @@
 
 import zlib from 'zlib';
 import { API_CONFIG } from '@/lib/config';
+import { logger } from '@/lib/logger';
 
 export interface RenderedDiagram {
   type: 'image' | 'structured-table';
@@ -63,8 +64,8 @@ export async function renderMermaidDiagram(
           headers: { Accept: 'image/png' },
           signal: controller.signal,
         }).catch(() => null);
-      } catch {
-        // Fallback
+      } catch (deflateErr) {
+        logger.warn('[Mermaid] Error preparando payload Kroki GET fallback:', { error: deflateErr });
       }
     }
 
@@ -78,7 +79,7 @@ export async function renderMermaidDiagram(
     if (response && response.ok) {
       const contentType = response.headers.get('content-type') || '';
       if (!contentType.includes('image/png')) {
-        console.warn('[Mermaid] Kroki returned non-PNG content:', contentType);
+        logger.warn('[Mermaid] Kroki returned non-PNG content:', { contentType });
         await response.body?.cancel().catch(() => {});
         const parsedTable = parseMermaidToFlowTable(cleanCode, options.title);
         return {
@@ -99,7 +100,7 @@ export async function renderMermaidDiagram(
       };
     }
   } catch (err) {
-    console.warn('[renderMermaidDiagram] Kroki API no disponible o timeout; usando fallback a tabla estructurada:', err);
+    logger.warn('[renderMermaidDiagram] Kroki API no disponible o timeout; usando fallback a tabla estructurada:', { error: err });
   }
 
   // 2. Fallback: Parseo determinista a tabla de flujo estructurada

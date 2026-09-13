@@ -16,8 +16,8 @@ import {
   buildPrompt6PlanOperativoPorBloque,
   buildPrompt7Anexos,
 } from '@/lib/prompts/paec-prompts';
-import { logActivity } from '@/lib/ai-provider';
-import { callGeminiPool } from '@/lib/gemini';
+import { logActivity, generateWithRotation } from '@/lib/ai-provider';
+import { logger } from '@/lib/logger';
 import { getUserLibraryContext } from '@/lib/context-extractor';
 import { parseAIResponse } from '@/lib/ai-response-parser';
 import {
@@ -196,8 +196,8 @@ export async function POST(
             chunkPrompt = `${chunkPrompt}\n\n${libraryContext}`;
           }
 
-          console.log(`Generating PAEC Step 6 block ${i + 1}/${chunks.length} using callGeminiPool...`);
-          const blockText = await callGeminiPool(PAEC_SYSTEM_PROMPT, chunkPrompt, teacher.id);
+          logger.info(`Generating PAEC Step 6 block ${i + 1}/${chunks.length} using generateWithRotation...`);
+          const blockText = await generateWithRotation(PAEC_SYSTEM_PROMPT, chunkPrompt, teacher.id);
           if (!blockText) {
             throw new Error(`Respuesta vacía del proveedor de IA en bloque ${i + 1}`);
           }
@@ -207,7 +207,7 @@ export async function POST(
           });
 
           if (!parseResult.success) {
-            console.error(`Error parsing JSON in block ${i + 1}:`, parseResult.error);
+            logger.error(`Error parsing JSON in block ${i + 1}:`, parseResult.error);
             throw new Error(`La IA retornó un formato no válido en el bloque ${i + 1} del Plan Operativo: ${parseResult.error}`);
           }
 
@@ -271,9 +271,9 @@ export async function POST(
         fullUserPrompt = `${fullUserPrompt}\n\n${libraryContext}`;
       }
 
-      // Call AI via pool engine (reads active model from platform_config)
-      console.log(`Generating PAEC Step ${step} using callGeminiPool...`);
-      const text = await callGeminiPool(PAEC_SYSTEM_PROMPT, fullUserPrompt, teacher.id);
+      // Call AI via rotation engine (reads active model from platform_config)
+      logger.info(`Generating PAEC Step ${step} using generateWithRotation...`);
+      const text = await generateWithRotation(PAEC_SYSTEM_PROMPT, fullUserPrompt, teacher.id);
 
       if (!text) {
         throw new Error('Respuesta vacía del proveedor de IA');
@@ -322,7 +322,7 @@ export async function POST(
 
     return NextResponse.json({ success: true, step, data: parsedJson, project: updatedProject });
   } catch (error) {
-    console.error('PAEC Generation step error:', error);
+    logger.error('PAEC Generation step error:', error);
     const message = error instanceof Error ? error.message : 'Error desconocido';
     return NextResponse.json({ error: message || 'Error al generar el paso' }, { status: 500 });
   }

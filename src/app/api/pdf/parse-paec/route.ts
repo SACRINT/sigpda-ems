@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail } from '@/lib/db';
-import { callGeminiPool } from '@/lib/gemini';
+import { generateWithRotation, resolveUserIsPremium } from '@/lib/ai-provider';
+import { logger } from '@/lib/logger';
 import { ingestDocument } from '@/lib/document-ingestion';
 import { parseAIResponse } from '@/lib/ai-response-parser';
 import { PaecExtractedDocSchema } from '@/lib/ai-schemas';
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
         teacherId: teacher.id,
       });
     } catch (err: any) {
-      console.error('[paec-parser] Document ingestion failed:', err);
+      logger.error('[paec-parser] Document ingestion failed:', err);
       return NextResponse.json({ error: `No se pudo leer el archivo: ${err.message || 'Formato no válido'}` }, { status: 400 });
     }
 
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest) {
 
     // Nivel 1: Modelo de IA con prompt pedagógico NEM
     try {
-      const geminiResult = await structurePaecWithGemini(documentText);
+      const geminiResult = await structurePaecWithAI(documentText, teacher.id);
       parsedData.projectName = geminiResult.projectName || null;
       parsedData.objective = geminiResult.objective || null;
       parsedData.problem = geminiResult.problem || null;
@@ -132,7 +133,7 @@ export async function POST(request: NextRequest) {
 }
 
 // ─── Estructuración con IA (Prompt Especializado NEM) ─────────────────────────
-async function structurePaecWithGemini(smartText: string) {
+async function structurePaecWithAI(smartText: string, teacherId?: string) {
   const systemInstruction = `Eres un experto pedagógico en el Programa Aula, Escuela y Comunidad (PAEC) y el Proyecto Escolar Comunitario (PEC) de la Nueva Escuela Mexicana (NEM) en la Educación Media Superior (Puebla, México). Tu tarea es analizar con máxima fidelidad los diagnósticos, problemas y contextos del proyecto. Responde exclusivamente con un objeto JSON válido, sin markdown ni explicaciones adicionales.`;
 
   const prompt = `Analiza el siguiente texto de un documento oficial PAEC/PEC de un bachillerato y extrae en formato JSON:
@@ -172,7 +173,14 @@ INSTRUCCIONES CRÍTICAS PARA LA EXTRACCIÓN:
 TEXTO DEL DOCUMENTO:
 ${smartText}`;
 
-  const rawJsonText = await callGeminiPool(systemInstruction, prompt);
+  const isPremium = await resolveUserIsPremium(teacherId);
+  const rawJsonText = await generateWithRotation(
+    systemInstruction,
+    prompt,
+    teacherId,
+    isPremium,
+    { jsonMode: true }
+  );
   const parseResult = parseAIResponse(rawJsonText, PaecExtractedDocSchema, { contextName: 'paec_pdf_parse' });
   if (!parseResult.success) {
     throw new Error(`Error estructurando PAEC con IA: ${parseResult.error}`);

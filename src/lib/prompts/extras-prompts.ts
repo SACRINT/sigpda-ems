@@ -11,6 +11,8 @@
 //   practice_guide  → Guía de Práctica para el Estudiante (MCCEMS)
 // ═══════════════════════════════════════════════════════════════════
 
+import { SCHOOL_YEAR } from '@/lib/config';
+
 export const SYSTEM_PROMPT_EXTRAS = `
 Eres un asesor pedagógico de la Dirección de Bachilleratos Estatales y Preparatoria Abierta (DBEPA) de la SEP Puebla, experto en la Nueva Escuela Mexicana (NEM) y el Marco Curricular Común de la Educación Media Superior (MCCEMS).
 Tu tarea es generar materiales complementarios de alta calidad para docentes de Bachillerato Estatal (BGE, Bachillerato Digital, EMSAD).
@@ -281,7 +283,7 @@ ESTRUCTURA OBLIGATORIA DE LA GUÍA (formato Markdown limpio):
 
 ## 📋 GUÍA DE PRÁCTICA No. ${practiceNumber}
 ### ${practiceTitle}
-**UAC:** ${uacName} | **Ciclo Escolar:** 2026-2027 | **Semestre:** ___ | **Grupo:** ___
+**UAC:** ${uacName} | **Ciclo Escolar:** ${SCHOOL_YEAR} | **Semestre:** ___ | **Grupo:** ___
 **Nombre del estudiante:** _____________________________ | **Fecha:** _____________
 
 ---

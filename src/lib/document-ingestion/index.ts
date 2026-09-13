@@ -9,6 +9,7 @@ import { parseScannedPdfWithGemini } from './parsers/pdf-scanned';
 import { parseDocxDocument } from './parsers/docx-parser';
 import { parsePlainTextDocument } from './parsers/text-parser';
 import type { IngestedDocument, IngestOptions } from './types';
+import { logger } from '@/lib/logger';
 
 export * from './types';
 export { parseDigitalPdf } from './parsers/pdf-digital';
@@ -28,22 +29,15 @@ export async function ingestDocument(
   const mimeLower = (options.mimeType || '').toLowerCase();
 
   // 1. Detección de Word (.docx)
-  const isDocx =
+  if (
     filenameLower.endsWith('.docx') ||
     mimeLower.includes('wordprocessingml') ||
-    mimeLower.includes('msword') ||
-    mimeLower.includes('officedocument');
-
-  if (isDocx) {
-    try {
-      return await parseDocxDocument(buffer);
-    } catch (err: any) {
-      console.error('[DocumentIngestion] Error al procesar archivo DOCX:', err);
-      throw new Error(`No se pudo leer el archivo Word (.docx): ${err.message || err}`);
-    }
+    mimeLower.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+  ) {
+    return parseDocxDocument(buffer);
   }
 
-  // 2. Detección de Texto plano (.txt, .md)
+  // 2. Detección de Archivos de Texto (.txt, .md)
   const isPlainText =
     filenameLower.endsWith('.txt') ||
     filenameLower.endsWith('.md') ||
@@ -67,7 +61,7 @@ export async function ingestDocument(
 
     // Si es un documento escaneado (imagen sin texto digital) y OCR está activo
     if (enableOcr) {
-      console.log('[DocumentIngestion] PDF digital sin texto seleccionable detectado. Activando OCR Multimodal con Gemini Flash Lite...');
+      logger.info('[DocumentIngestion] PDF digital sin texto seleccionable detectado. Activando OCR Multimodal con Gemini Flash Lite...');
       return await parseScannedPdfWithGemini(buffer, options.teacherId);
     }
 
@@ -75,7 +69,7 @@ export async function ingestDocument(
   } catch (err: any) {
     // Si la extracción digital arrojó un error irrecuperable y OCR está habilitado, intentar OCR como salvaguarda
     if (enableOcr) {
-      console.warn('[DocumentIngestion] Falló extracción digital con pdfjs, intentando OCR como salvaguarda:', err.message);
+      logger.warn('[DocumentIngestion] Falló extracción digital con pdfjs, intentando OCR como salvaguarda:', { message: err.message });
       try {
         return await parseScannedPdfWithGemini(buffer, options.teacherId);
       } catch (ocrErr: any) {

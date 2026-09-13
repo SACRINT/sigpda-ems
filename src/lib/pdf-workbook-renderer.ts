@@ -27,6 +27,8 @@ import { loadAllLogos } from './pdf-logos';
 import { resolveVisualForMission } from '@/lib/visual-engine/visual-asset-manager';
 import { svgToPngBuffer } from '@/lib/visual-engine/svg-to-png';
 import type { VisualAnnotation } from '@/lib/visual-engine/generators/stem-generator';
+import { SCHOOL_YEAR } from '@/lib/config';
+import { logger } from '@/lib/logger';
 
 // ── Paleta de Colores Institucionales DBEPA ──────────────────────────────────
 const NAVY: [number, number, number] = [31, 56, 100];       // #1F3864
@@ -57,7 +59,10 @@ export async function renderWorkbookToPdf(
   const contentWidth = pageWidth - margin * 2;
 
   // Cargar logotipos en Base64
-  const logos = await loadAllLogos().catch(() => ({ gobierno: '', sep: '', supervision: '' }));
+  const logos = await loadAllLogos().catch((e) => {
+    logger.warn('[pdf-workbook-renderer] No se pudieron cargar logos institucionales:', { error: e });
+    return { gobierno: '', sep: '', supervision: '' };
+  });
 
   let currentY = margin;
 
@@ -68,7 +73,7 @@ export async function renderWorkbookToPdf(
   doc.addPage();
   currentY = margin + 6;
   drawTableOfContents(doc, workbook, margin, contentWidth, currentY);
-  currentY = (doc as any).lastAutoTable.finalY + 12;
+  currentY = doc.lastAutoTable!.finalY + 12;
 
   // ── 3. Misiones Didácticas ─────────────────────────────────────────────────
   for (let i = 0; i < workbook.missions.length; i++) {
@@ -105,7 +110,7 @@ export async function renderWorkbookToPdf(
   }
 
   // ── 6. Encabezado Sutil y Pie de Página en Todas las Páginas ───────────────
-  const totalPages = (doc as any).internal.getNumberOfPages();
+  const totalPages = doc.getNumberOfPages();
 
   for (let p = 1; p <= totalPages; p++) {
     doc.setPage(p);
@@ -162,13 +167,17 @@ function drawCoverPage(
     try {
       const fmt = logos.gobierno.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
       doc.addImage(logos.gobierno, fmt, margin, 5, 26, 11);
-    } catch {}
+    } catch (e) {
+      logger.warn('[pdf-workbook-renderer] Error insertando logo de gobierno:', { error: e });
+    }
   }
   if (logos.sep) {
     try {
       const fmt = logos.sep.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
       doc.addImage(logos.sep, fmt, pageWidth / 2 - 13, 5, 26, 8.5);
-    } catch {}
+    } catch (e) {
+      logger.warn('[pdf-workbook-renderer] Error insertando logo de SEP:', { error: e });
+    }
   }
 
   doc.setFont('helvetica', 'bold');
@@ -265,7 +274,7 @@ function drawCoverPage(
   doc.line(margin + 24, y, pageWidth - margin - 4, y);
 
   y += 10;
-  doc.text('Grupo: ____________    Turno: ____________    Ciclo Escolar: 2026-2027', margin + 4, y);
+  doc.text(`Grupo: ____________    Turno: ____________    Ciclo Escolar: ${SCHOOL_YEAR}`, margin + 4, y);
 }
 
 /**
@@ -705,7 +714,7 @@ async function drawMission(
       },
     });
 
-    y = (doc as any).lastAutoTable.finalY + 6;
+    y = doc.lastAutoTable!.finalY + 6;
   }
 
   y += 4;
@@ -824,7 +833,7 @@ async function drawMission(
       },
     });
 
-    y = (doc as any).lastAutoTable.finalY + 6;
+    y = doc.lastAutoTable!.finalY + 6;
   }
 
   // 7. Checkpoint Formativo
@@ -958,7 +967,7 @@ function drawPdfWorkbookElement(
         styles: { fontSize: 7.5, minCellHeight: 7.5, overflow: 'linebreak' },
       });
 
-      y = (doc as any).lastAutoTable.finalY + 6;
+      y = doc.lastAutoTable!.finalY + 6;
       break;
     }
 
@@ -1159,7 +1168,7 @@ function drawProjectSection(
     },
   });
 
-  y = (doc as any).lastAutoTable.finalY + 6;
+  y = doc.lastAutoTable!.finalY + 6;
 
   // Criterios de Entrega y Aceptación
   const criteriaList = [
@@ -1251,7 +1260,7 @@ function drawProjectSection(
         3: { cellWidth: 35, halign: 'center' },
       },
     });
-    y = (doc as any).lastAutoTable.finalY + 6;
+    y = doc.lastAutoTable!.finalY + 6;
   }
 
   return y;
@@ -1309,7 +1318,7 @@ function drawEvaluationSection(
     },
   });
 
-  y = (doc as any).lastAutoTable.finalY + 6;
+  y = doc.lastAutoTable!.finalY + 6;
 
   // 2. Lista de cotejo
   if (evalSection.checklist && evalSection.checklist.length > 0) {
@@ -1341,7 +1350,7 @@ function drawEvaluationSection(
       },
     });
 
-    y = (doc as any).lastAutoTable.finalY + 6;
+    y = doc.lastAutoTable!.finalY + 6;
   }
 
   // 3. Evaluación Formativa Escalonada por Niveles de Dominio (Tiered Exercises)
@@ -1546,7 +1555,7 @@ function drawEvaluationSection(
           },
         });
 
-        y = (doc as any).lastAutoTable.finalY + 6;
+        y = doc.lastAutoTable!.finalY + 6;
       }
     }
   }

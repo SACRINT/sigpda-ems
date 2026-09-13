@@ -13,6 +13,7 @@
  */
 
 import type { GeneratedPlanningContent, Planning, KeyActivityPlan } from '@/types/planning';
+import { SCHOOL_YEAR } from '@/lib/config';
 
 export interface IntegrityValidationResult {
   isValid: boolean;
@@ -271,7 +272,7 @@ export function getSafeEvaluationContext(
   lines.push(`PLANEACIÓN DIDÁCTICA OFICIAL — ${uacTitle.toUpperCase()}`);
   lines.push(`SEMESTRE: ${planning.semester}° Semestre | COMPONENTE: ${component.toUpperCase()}`);
   lines.push(`DOCENTE: ${s1?.teacherName || 'Docente Responsable'} | PLANTEL: ${s1?.schoolName || 'Bachillerato General'} (CCT: ${s1?.cct || '21EBH0000X'})`);
-  lines.push(`HORAS TOTALES: ${s1?.totalHours || 54}h | CICLO: ${s1?.schoolYear || '2026-2027'}`);
+  lines.push(`HORAS TOTALES: ${s1?.totalHours || 54}h | CICLO: ${s1?.schoolYear || SCHOOL_YEAR}`);
   lines.push('================================================================================\n');
 
   lines.push('I. DATOS DE IDENTIFICACIÓN INSTITUCIONAL Y CURRICULAR:');

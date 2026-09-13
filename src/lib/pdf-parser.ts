@@ -1,6 +1,7 @@
 import type { PdfParseResult } from '@/types/pdf-extraction';
 import type { KeyActivity } from '@/types/planning';
-import { callGeminiPool } from '@/lib/gemini';
+import { generateWithRotation, resolveUserIsPremium } from '@/lib/ai-provider';
+import { logger } from '@/lib/logger';
 import { ingestDocument } from '@/lib/document-ingestion';
 import { parseAIResponse } from '@/lib/ai-response-parser';
 import { PdfProgramExtractSchema } from '@/lib/ai-schemas';
@@ -8,19 +9,19 @@ import { PdfProgramExtractSchema } from '@/lib/ai-schemas';
 /**
  * Universal document extraction and structuring for Curricular Programs (PDF, Word .docx, etc.):
  * 1. ingestDocument   → native DocumentIngestionEngine (pdfjs spatial layout, OCR fallback, or mammoth docx)
- * 2. Gemini Flash Lite → structures full extracted markdown into UAC fields
+ * 2. AI Provider (Gemini / Claude / Multi-provider) → structures full extracted markdown into UAC fields
  */
-export async function parsePdfBuffer(buffer: Buffer, filename?: string, targetSemester?: number): Promise<PdfParseResult> {
+export async function parsePdfBuffer(buffer: Buffer, filename?: string, targetSemester?: number, teacherId?: string): Promise<PdfParseResult> {
   const errors: string[] = [];
 
   // ── STEP 1: Ingest document into structured Markdown ──────────────────────
   let rawText = '';
   try {
-    const doc = await ingestDocument(buffer, { filename, enableOcr: true });
+    const doc = await ingestDocument(buffer, { filename, enableOcr: true, teacherId });
     rawText = doc.markdown;
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Error';
-    console.error('[pdf-parser] Document ingestion failed:', msg);
+    logger.error('[pdf-parser] Document ingestion failed:', err);
     errors.push('No se pudo procesar el documento. El archivo puede estar dañado o con contraseña.');
   }
 
@@ -36,13 +37,13 @@ export async function parsePdfBuffer(buffer: Buffer, filename?: string, targetSe
     };
   }
 
-  // ── STEP 2: Use callGeminiPool to structure the complete extracted text ────────
+  // ── STEP 2: Use AI Provider to structure the complete extracted text ────────
   try {
-    const structured = await structureWithGemini(rawText, targetSemester);
+    const structured = await structureWithAI(rawText, targetSemester, teacherId);
     return structured;
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Error desconocido';
-    console.error('[pdf-parser] Gemini structuring failed:', msg);
+    logger.error('[pdf-parser] AI structuring failed:', err);
 
     // Return partial data — let user complete manually
     return {
@@ -57,9 +58,9 @@ export async function parsePdfBuffer(buffer: Buffer, filename?: string, targetSe
   }
 }
 
-// ─── Gemini text structuring ─────────────────────────────────────────────────
+// ─── AI text structuring ─────────────────────────────────────────────────────
 
-async function structureWithGemini(rawText: string, targetSemester?: number): Promise<PdfParseResult> {
+async function structureWithAI(rawText: string, targetSemester?: number, teacherId?: string): Promise<PdfParseResult> {
   // Use complete extracted text (no arbitrary truncation - Gemini Flash Lite has 1M context)
   const systemInstruction = `Eres un experto en programas de estudio del bachillerato de la Nueva Escuela Mexicana en Puebla (MCCEMS/DBEPA). Responde exclusivamente con JSON válido, sin markdown ni explicaciones.`;
 
@@ -102,7 +103,14 @@ REGLAS ABSOLUTAS DE EXTRACCIÓN Y CALIDAD:
 TEXTO DEL PROGRAMA:
 ${rawText}`;
 
-  const rawJsonText = await callGeminiPool(systemInstruction, prompt);
+  const isPremium = await resolveUserIsPremium(teacherId);
+  const rawJsonText = await generateWithRotation(
+    systemInstruction,
+    prompt,
+    teacherId,
+    isPremium,
+    { jsonMode: true }
+  );
   const parseResult = parseAIResponse(rawJsonText, PdfProgramExtractSchema, { contextName: 'pdf_program_extract' });
   if (!parseResult.success) {
     throw new Error(`Error estructurando programa con IA: ${parseResult.error}`);

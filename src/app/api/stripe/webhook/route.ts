@@ -3,6 +3,7 @@ import { headers } from 'next/headers';
 import Stripe from 'stripe';
 import { getStripe } from '@/lib/stripe';
 import { sql } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 // ─── Webhook de Stripe ────────────────────────────────────────────────────────
 // En App Router req.text() funciona correctamente para obtener el body raw sin config especial.
@@ -18,7 +19,7 @@ export async function POST(req: Request) {
 
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
   if (!webhookSecret) {
-    console.error('[Webhook] STRIPE_WEBHOOK_SECRET not set');
+    logger.error('[Webhook] STRIPE_WEBHOOK_SECRET not set');
     return NextResponse.json({ error: 'Webhook not configured' }, { status: 500 });
   }
 
@@ -26,11 +27,11 @@ export async function POST(req: Request) {
   try {
     event = getStripe().webhooks.constructEvent(body, sig, webhookSecret);
   } catch (err: any) {
-    console.error('[Webhook] Signature verification failed:', err.message);
+    logger.error('[Webhook] Signature verification failed:', err);
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
   }
 
-  console.log('[Webhook] Event received:', event.type);
+  logger.info('[Webhook] Event received:', { type: event.type });
 
   try {
     switch (event.type) {
@@ -64,12 +65,13 @@ export async function POST(req: Request) {
       }
 
       default:
-        console.log('[Webhook] Unhandled event type:', event.type);
+        logger.info('[Webhook] Unhandled event type:', { type: event.type });
+        break;
     }
 
     return NextResponse.json({ received: true });
   } catch (err: any) {
-    console.error('[Webhook] Handler error:', err);
+    logger.error('[Webhook] Handler error:', err);
     return NextResponse.json({ error: 'Handler failed' }, { status: 500 });
   }
 }
@@ -154,7 +156,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     }
   }
 
-  console.log(`[Webhook] Subscription activated for teacher ${teacherId}, plan: ${planId}`);
+  logger.info(`[Webhook] Subscription activated for teacher ${teacherId}, plan: ${planId}`);
 }
 
 async function handleSubscriptionUpdated(sub: Stripe.Subscription) {
@@ -175,7 +177,7 @@ async function handleSubscriptionUpdated(sub: Stripe.Subscription) {
     WHERE stripe_subscription_id = ${stripeSubscriptionId}
   `;
 
-  console.log(`[Webhook] Subscription ${stripeSubscriptionId} updated: ${status}`);
+  logger.info(`[Webhook] Subscription ${stripeSubscriptionId} updated: ${status}`);
 }
 
 async function handleSubscriptionDeleted(sub: Stripe.Subscription) {
@@ -187,7 +189,7 @@ async function handleSubscriptionDeleted(sub: Stripe.Subscription) {
     WHERE stripe_subscription_id = ${stripeSubscriptionId}
   `;
 
-  console.log(`[Webhook] Subscription ${stripeSubscriptionId} canceled`);
+  logger.info(`[Webhook] Subscription ${stripeSubscriptionId} canceled`);
 }
 
 async function handlePaymentFailed(invoice: Stripe.Invoice) {
@@ -199,5 +201,5 @@ async function handlePaymentFailed(invoice: Stripe.Invoice) {
     WHERE stripe_customer_id = ${stripeCustomerId}
   `;
 
-  console.log(`[Webhook] Payment failed for customer ${stripeCustomerId}`);
+  logger.info(`[Webhook] Payment failed for customer ${stripeCustomerId}`);
 }

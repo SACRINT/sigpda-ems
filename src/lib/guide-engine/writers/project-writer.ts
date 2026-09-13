@@ -15,6 +15,7 @@ import { robustJsonParse } from '@/lib/ai-response-parser';
 import type { MissionSection, ProjectSection, WorkbookElement } from '@/types/work-textbook';
 import { type WriterInput, type WriterOutput, evaluateQuality } from './writer-contract';
 import { buildPlanningAlignmentPrompt } from './planning-alignment-prompt';
+import { logger } from '@/lib/logger';
 
 export async function generateProjectMission(input: WriterInput): Promise<WriterOutput> {
   const projectMission = input.missions.find((m) => m.missionType === 'project') || input.missions[input.missions.length - 2] || input.missions[0];
@@ -142,7 +143,7 @@ Redacta la Misión del Proyecto y Construcción del Artefacto Real:`;
           parsed = retryParsed;
         }
       } catch (retryErr) {
-        console.warn('[ProjectWriter] Error en reintento, preservando primera respuesta:', retryErr);
+        logger.warn('[ProjectWriter] Error en reintento, preservando primera respuesta:', { error: String(retryErr) });
       }
     }
 
@@ -280,9 +281,9 @@ Redacta la Misión del Proyecto y Construcción del Artefacto Real:`;
     });
 
     if (attempt === 1) {
-      console.log(`[ProjectWriter] ✅ Generado en intento 1 — ${wordCount} palabras`);
+      logger.info(`[ProjectWriter] ✅ Generado en intento 1 — ${wordCount} palabras`);
     } else {
-      console.log(`[ProjectWriter] ⚠️ Reintento necesario — ${wordCount} palabras en intento 2`);
+      logger.info(`[ProjectWriter] ⚠️ Reintento necesario — ${wordCount} palabras en intento 2`);
     }
 
     return {
@@ -295,7 +296,7 @@ Redacta la Misión del Proyecto y Construcción del Artefacto Real:`;
       warnings: quality.warnings,
     };
   } catch (err: any) {
-    console.error('[generateProjectMission] Error:', err);
+    logger.error('[generateProjectMission] Error:', err);
     // Fallback estructurado de proyecto
     const fallbackProject: ProjectSection = {
       artifactName: `Artefacto Integrador: Solución para ${input.uacName}`,

@@ -4,6 +4,7 @@ import {
   PageBreak, Header, Footer, PageNumber, HeadingLevel,
 } from 'docx';
 import type { PaecProject } from '@/types/paec';
+import { SCHOOL_YEAR } from '@/lib/config';
 
 // DBEPA Institutional Color Palette
 const C = {
@@ -152,7 +153,7 @@ export async function generatePaecDocx(p: PaecProject, teacherName: string): Pro
       spacing: { before: 100, after: 300 },
       children: [
         new TextRun({
-          text: 'Programa Aula, Escuela y Comunidad (PAEC) — Ciclo Escolar 2026-2027',
+          text: `Programa Aula, Escuela y Comunidad (PAEC) — Ciclo Escolar ${SCHOOL_YEAR}`,
           bold: true,
           size: 20,
           color: C.accent,

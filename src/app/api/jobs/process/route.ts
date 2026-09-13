@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { claimNextPendingJob, getGenerationJobById } from '@/lib/db';
 import { processGenerationJob } from '@/lib/job-worker';
+import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60; // Máximo permitido en plan gratuito Hobby (y compatible con Pro)
@@ -51,7 +52,7 @@ async function handleProcess(request: NextRequest) {
       });
     }
 
-    console.log(`[api/jobs/process] Iniciando procesamiento de job ${jobToProcess.id}...`);
+    logger.info(`[api/jobs/process] Iniciando procesamiento de job ${jobToProcess.id}...`);
 
     // Procesar el trabajo
     const completedJob = await processGenerationJob(jobToProcess.id);
@@ -64,7 +65,7 @@ async function handleProcess(request: NextRequest) {
       wordCount: completedJob?.result?.totalWords || 0,
     });
   } catch (error: any) {
-    console.error('[api/jobs/process] Error al procesar trabajo:', error);
+    logger.error('[api/jobs/process] Error al procesar trabajo:', error);
     return NextResponse.json(
       {
         success: false,

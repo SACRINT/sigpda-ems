@@ -27,6 +27,7 @@ import {
   updateGenerationJobProgress,
   incrementSeedUsage,
 } from '@/lib/db';
+import { logger } from '@/lib/logger';
 import { extractCurriculumContext } from './curriculum-context-agent';
 import { buildBlockBlueprint } from './blueprint-architect-agent';
 import { generateFoundationMission } from './writers/foundation-writer';
@@ -204,7 +205,10 @@ export async function generateBlockWorkTextbook(
     percent: 30,
   });
 
-  const extrasRows = await getPlanningExtras(planningId, planning.teacherId).catch(() => []);
+  const extrasRows = await getPlanningExtras(planningId, planning.teacherId).catch((err: any) => {
+    logger.warn('[orchestrator] Error obteniendo extras:', { error: err?.message });
+    return [];
+  });
   const existingExtras: Record<string, unknown> = {};
   for (const extra of extrasRows) {
     existingExtras[extra.type] = extra.content_text || extra;
@@ -234,7 +238,7 @@ export async function generateBlockWorkTextbook(
       await incrementSeedUsage(canonicalSeed.id);
     }
   } catch (seedErr) {
-    console.warn('[orchestrator] Error al buscar semilla canónica:', seedErr);
+    logger.warn('[orchestrator] Error al buscar semilla canónica:', { error: String(seedErr) });
   }
 
   // ── Fase 5: Preparación de Inputs para los 4 Redactores ────────────────
@@ -369,7 +373,7 @@ export async function generateBlockWorkTextbook(
 
       while (attempts < maxRetries && !improved) {
         attempts++;
-        console.log(`[orchestrator] Reintentando ${writerType} (Intento ${attempts}/${maxRetries})...`);
+        logger.info(`[orchestrator] Reintentando ${writerType} (Intento ${attempts}/${maxRetries})...`);
 
         try {
           const split = writerSplits[writerType];
@@ -394,7 +398,7 @@ export async function generateBlockWorkTextbook(
             improved = true;
           }
         } catch (retryErr) {
-          console.warn(`[orchestrator] Falló reintento de ${writerType}:`, retryErr);
+          logger.warn(`[orchestrator] Falló reintento de ${writerType}:`, { error: String(retryErr) });
         }
       }
     }
@@ -565,7 +569,7 @@ export async function generateBlockWorkTextbook(
       qualityScore: validation.qualityScore,
     };
     await saveCanonicalSeed(seedCandidate).catch((e) =>
-      console.warn('[orchestrator] Error al guardar semilla canónica:', e)
+      logger.warn('[orchestrator] Error al guardar semilla canónica:', { error: String(e) })
     );
   }
 
@@ -612,7 +616,7 @@ async function reportProgress(
     updatedAt: new Date().toISOString(),
   };
   await updateWorkbookProgress(planningId, blockIndex, state).catch((err: any) =>
-    console.warn('[Orchestrator] Progress update failed:', err?.message)
+    logger.warn('[Orchestrator] Progress update failed:', { error: err?.message })
   );
 
   if (jobId) {
@@ -621,7 +625,7 @@ async function reportProgress(
       current_phase: params.phase,
       current_step: params.currentStep,
     }).catch((err: any) =>
-      console.warn('[Orchestrator] Job progress update failed:', err?.message)
+      logger.warn('[Orchestrator] Job progress update failed:', { error: err?.message })
     );
   }
 }
@@ -636,7 +640,7 @@ async function runWriterSafely(
   try {
     return await fn();
   } catch (err: any) {
-    console.error(`[runWriterSafely] Falló el redactor ${type}:`, err);
+    logger.error(`[runWriterSafely] Falló el redactor ${type}:`, err);
     throw err;
   }
 }

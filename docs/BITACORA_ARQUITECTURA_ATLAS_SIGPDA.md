@@ -167,3 +167,34 @@ Para garantizar un código mantenible, libre de parches frágiles y desacoplado,
 6. **Verificación Estricta de Tipos:**
    - Validación completa con `npx tsc --noEmit` resultando en 0 errores de compilación.
 
+---
+
+## 7. Blindaje Arquitectónico y Limpieza Estructural de Producción (Septiembre 2026)
+
+Se ejecutó la fase de blindaje arquitectónico integral en 5 pasos prioritarios para erradicar la deuda técnica y consolidar la robustez en producción:
+
+1. **Centralización del Ciclo Escolar (`SCHOOL_YEAR`):**
+   - Se definió `export const SCHOOL_YEAR = '2026-2027';` en `src/lib/config.ts`.
+   - Se sustituyeron todas las cadenas hardcodeadas en los generadores de PDF (`pdf-generator.ts`, `pdf-workbook-renderer.ts`, `pdf-extra-generator.ts`), documentos Word (`pmc-docx-generator.ts`, `paec-docx-generator.ts`), exportadores SACRINT (`sacrint-manifest-exporter.ts`), prompts de generación (`build-prompt.ts`, `extras-prompts.ts`) y el sistema de integridad de planeaciones.
+
+2. **Tipado Estricto de `jspdf-autotable` y Erradicación de `(doc as any)`:**
+   - Se creó el archivo de declaración de tipos `src/types/jspdf-autotable.d.ts`, extendiendo la interfaz `jsPDF` con `lastAutoTable?: { finalY: number }` y la estructura interna de páginas.
+   - Se reemplazaron todas las llamadas inseguras `(doc as any).internal.getNumberOfPages()` por la API oficial nativa de jsPDF `doc.getNumberOfPages()`.
+   - Se eliminaron las 22 ocurrencias de `(doc as any)` en `pdf-workbook-renderer.ts`, `pdf-generator.ts`, `pdf-extra-generator.ts` y `src/lib/horarios/exportador.ts`.
+
+3. **Migración Integral a Logging Estructurado (`logger`):**
+   - Se erradicaron todos los `console.log` de producción en favor de `logger` (`src/lib/logger.ts`), garantizando sanitización automática de datos sensibles (tokens, llaves API, secrets).
+   - Se migraron los 4 writers del motor pedagógico (`foundation-writer.ts`, `lab-writer.ts`, `project-writer.ts`, `evaluation-writer.ts`), orquestadores (`cascade-block-materials.ts`, `block-guide-orchestrator.ts`), workers de fondo (`job-worker.ts`, `api/jobs/process/route.ts`), webhooks de Stripe, asistentes de horarios y rutas API de generación (`plannings/[id]/generate`, `plannings/[id]/extras`, `pips/[id]/generate`, `paec/[id]/generate-step`).
+
+4. **Blindaje de Bloques `catch` Silenciosos:**
+   - Se auditaron y protegieron todos los bloques `catch` vacíos o desatendidos en `pdf-workbook-renderer.ts`, `mermaid-renderer.ts`, `canonical-seed-repository.ts`, `block-guide-orchestrator.ts` y `subscription-gate.ts`, asegurando trazabilidad y observabilidad mediante `logger.warn` y `logger.error` contextuales.
+
+5. **Unificación de Consumo de IA bajo `@/lib/ai-provider`:**
+   - Se migraron todos los consumidores de IA del sistema hacia `@/lib/ai-provider`, incorporando `generateWithRotation`, `generateStreamWithRotation` y `generateMultimodalWithRotation`.
+   - Se eliminó el acoplamiento directo a `@/lib/gemini` en los parsers curriculares (`pdf-parser.ts`, `pdf-scanned.ts`), asistente de horarios (`ai-schedule-assistant.ts`) y rutas de generación (`pmc/[id]/generate-step`, `pdf/parse-paec`, `plannings/[id]/generate`, `plannings/[id]/extras`).
+   - El sistema cuenta ahora con rotación transparente de API keys y conmutación por falla (fallback multinivel: OpenRouter, Mistral, OpenAI, Claude, Gemini) en toda la plataforma.
+
+6. **Validación de Calidad y Tipos:**
+   - Compilación completa con TypeScript (`npx tsc --noEmit`) con código de salida 0 (cero errores, cero advertencias de tipo).
+
+

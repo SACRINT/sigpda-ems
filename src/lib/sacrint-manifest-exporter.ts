@@ -10,6 +10,7 @@
 import type { Planning } from '@/types/planning';
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
 import { runPedagogicalAudit, type PedagogicalAuditResult } from '@/lib/guide-engine/pedagogical-quality-gate';
+import { SCHOOL_YEAR } from '@/lib/config';
 
 export interface SacrintManifestModule {
   blockIndex: number;
@@ -172,7 +173,7 @@ export function exportSacrintCourseManifest(
       uacName: planning.uacName,
       semester: planning.semester,
       component: planning.component,
-      curriculumName: planning.curriculumName || 'MCCEMS 2026-2027',
+      curriculumName: planning.curriculumName || `MCCEMS ${SCHOOL_YEAR}`,
       paecContext: planning.paecContext,
     },
     institution: {

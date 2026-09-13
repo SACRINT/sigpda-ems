@@ -8,3 +8,5 @@ export const API_CONFIG = {
   openverse: 'https://api.openverse.org/v1/images',
   mermaid: 'https://kroki.io/mermaid/png',
 };
+
+export const SCHOOL_YEAR = '2026-2027';

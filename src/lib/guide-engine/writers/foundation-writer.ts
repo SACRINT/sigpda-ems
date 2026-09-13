@@ -16,6 +16,7 @@ import { extractWorkbookTags } from '../workbook-tags';
 import type { MissionSection, WorkbookElement } from '@/types/work-textbook';
 import { type WriterInput, type WriterOutput, evaluateQuality } from './writer-contract';
 import { buildPlanningAlignmentPrompt } from './planning-alignment-prompt';
+import { logger } from '@/lib/logger';
 
 export async function generateFoundationMission(input: WriterInput): Promise<WriterOutput> {
   const foundationMission = input.missions.find((m) => m.missionType === 'foundation') || input.missions[0];
@@ -105,7 +106,7 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
           parsed = retryParsed;
         }
       } catch (retryErr) {
-        console.warn('[FoundationWriter] Error en reintento, preservando primera respuesta:', retryErr);
+        logger.warn('[FoundationWriter] Error en reintento, preservando primera respuesta:', { error: String(retryErr) });
       }
     }
 
@@ -186,9 +187,9 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
     });
 
     if (attempt === 1) {
-      console.log(`[FoundationWriter] ✅ Generado en intento 1 — ${wordCount} palabras`);
+      logger.info(`[FoundationWriter] ✅ Generado en intento 1 — ${wordCount} palabras`);
     } else {
-      console.log(`[FoundationWriter] ⚠️ Reintento necesario — ${wordCount} palabras en intento 2`);
+      logger.info(`[FoundationWriter] ⚠️ Reintento necesario — ${wordCount} palabras en intento 2`);
     }
 
     return {
@@ -200,7 +201,7 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
       warnings: quality.warnings,
     };
   } catch (err: any) {
-    console.error('[generateFoundationMission] Error:', err);
+    logger.error('[generateFoundationMission] Error:', err);
     // Fallback de resiliencia estructurado
     const fallbackSection: MissionSection = {
       missionIndex: foundationMission?.missionIndex || 1,

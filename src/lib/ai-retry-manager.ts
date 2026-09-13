@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { parseAIResponse } from './ai-response-parser';
 import { getAIProvider } from './ai-provider';
+import { logger } from './logger';
 
 // ============================================================================
 // MÉTRICAS Y OBSERVABILIDAD EN MEMORIA
@@ -153,7 +154,7 @@ export async function generateWithRetry<T>(
           metrics.firstAttemptSuccessCount++;
         } else {
           metrics.retrySuccessCount++;
-          console.log(`[AI-RETRY] [${route}] ✅ Recuperación exitosa en intento ${attempt}/${maxRetries}`);
+          logger.info(`[AI-RETRY] [${route}] ✅ Recuperación exitosa en intento ${attempt}/${maxRetries}`);
         }
 
         return {

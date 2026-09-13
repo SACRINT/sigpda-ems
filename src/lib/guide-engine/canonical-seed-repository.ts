@@ -10,6 +10,7 @@
 import { findCanonicalSeed, saveCanonicalSeed, incrementSeedUsage } from '@/lib/db';
 import type { CanonicalSeed, TroubleshootItem } from '@/types/work-textbook';
 import { normalizeUnicode } from '@/lib/utils/normalize';
+import { logger } from '@/lib/logger';
 
 // Semillas canónicas iniciales pre-validadas (calidad 100) para arrancar de inmediato
 const DEFAULT_PREVALIDATED_SEEDS: CanonicalSeed[] = [
@@ -111,12 +112,12 @@ export async function getCanonicalSeed(params: {
     if (dbSeed) {
       // Incrementar contador de reutilización de forma asíncrona
       if (dbSeed.id) {
-        incrementSeedUsage(dbSeed.id).catch(console.warn);
+        incrementSeedUsage(dbSeed.id).catch((e) => logger.warn('Failed to increment seed usage', { error: e }));
       }
       return dbSeed;
     }
   } catch (err) {
-    console.warn('[getCanonicalSeed] Database lookup warning:', err);
+    logger.warn('[getCanonicalSeed] Database lookup warning:', { error: err });
   }
 
   // 2. Consultar semillas pre-validadas de arranque
@@ -143,7 +144,7 @@ export async function registerLearnedSeed(seed: CanonicalSeed): Promise<boolean>
     const saved = await saveCanonicalSeed(seed);
     return Boolean(saved);
   } catch (err) {
-    console.error('[registerLearnedSeed] Error saving seed:', err);
+    logger.error('[registerLearnedSeed] Error saving seed:', err);
     return false;
   }
 }

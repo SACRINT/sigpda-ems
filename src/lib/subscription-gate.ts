@@ -5,6 +5,7 @@
  */
 
 import { sql } from './db';
+import { logger } from './logger';
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || '';
 
@@ -58,7 +59,9 @@ export async function getSubscriptionStatus(
       if (roleRows.length > 0 && roleRows[0].role === 'administrador') {
         isAdmin = true;
       }
-    } catch {}
+    } catch (err) {
+      logger.warn('[subscription-gate] Error consultando rol de docente:', { error: err });
+    }
   }
 
   if (isAdmin) {

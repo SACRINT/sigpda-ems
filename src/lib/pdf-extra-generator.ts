@@ -6,6 +6,7 @@
 
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { SCHOOL_YEAR } from '@/lib/config';
 
 // ── Paleta institucional DBEPA ──────────────────────────────────────────────
 const NAVY: [number, number, number]     = [26, 26, 46];   // #1A1A2E
@@ -61,7 +62,7 @@ export function generateExtraPDF(extra: ExtraInput): jsPDF {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(...(GRAY_BG));
-  doc.text('DBEPA PUEBLA — SECUENCIAS DIDÁCTICAS 2026-2027', pageWidth / 2, 10, { align: 'center' });
+  doc.text(`DBEPA PUEBLA — SECUENCIAS DIDÁCTICAS ${SCHOOL_YEAR}`, pageWidth / 2, 10, { align: 'center' });
 
   // Type label (gold)
   doc.setFontSize(13);
@@ -139,7 +140,7 @@ export function generateExtraPDF(extra: ExtraInput): jsPDF {
       pageBreak: 'auto',
     });
 
-    y = (doc as any).lastAutoTable.finalY + 4;
+    y = doc.lastAutoTable!.finalY + 4;
     inTable = false;
     tableHeaders = [];
     tableData = [];
@@ -265,7 +266,7 @@ export function generateExtraPDF(extra: ExtraInput): jsPDF {
   if (inTable) flushTable();
 
   // ── Footer on every page ───────────────────────────────────────────────────
-  const totalPages: number = (doc as any).internal.getNumberOfPages();
+  const totalPages: number = doc.getNumberOfPages();
   for (let p = 1; p <= totalPages; p++) {
     doc.setPage(p);
     // Accent line

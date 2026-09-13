@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, sql } from '@/lib/db';
-import { logActivity } from '@/lib/ai-provider';
-import { callGeminiPool } from '@/lib/gemini';
+import { generateWithRotation, resolveUserIsPremium, logActivity } from '@/lib/ai-provider';
+import { logger } from '@/lib/logger';
 import { getUserLibraryContext } from '@/lib/context-extractor';
 import { getNormativaForGenerator, getStructuredNormativaForGenerator } from '@/lib/normativa-context';
 import { parseAIResponse } from '@/lib/ai-response-parser';
@@ -167,10 +167,13 @@ Genera el apartado de DIAGNÓSTICO del PMC con:
 
 Responde con JSON con exactamente estas 5 claves. Texto formal y técnico. NO inventes datos no proporcionados.`;
 
-      const rawText = await callGeminiPool(
+      const isPremium = await resolveUserIsPremium(teacher.id);
+      const rawText = await generateWithRotation(
         'Eres un asistente experto en planeación educativa para el BGE de Puebla. Responde siempre con JSON válido y bien formado.',
         prompt,
-        teacher.id
+        teacher.id,
+        isPremium,
+        { jsonMode: true }
       );
       if (!rawText) {
         throw new Error('Respuesta vacía del proveedor de IA');
@@ -178,7 +181,7 @@ Responde con JSON con exactamente estas 5 claves. Texto formal y técnico. NO in
 
       const parseResult = parseAIResponse(rawText, PmcDiagnosticoSchema, { contextName: 'pmc_diagnostico' });
       if (!parseResult.success) {
-        console.error('Failed to parse PMC diagnostico:', parseResult.error);
+        logger.error('Failed to parse PMC diagnostico:', parseResult.error);
         return NextResponse.json(
           { error: `Error al validar estructura de diagnóstico PMC: ${parseResult.error}` },
           { status: 500 }
@@ -326,10 +329,13 @@ Responde con JSON con esta estructura EXACTA:
   ]
 }`;
 
-      const rawText = await callGeminiPool(
+      const isPremium = await resolveUserIsPremium(teacher.id);
+      const rawText = await generateWithRotation(
         'Eres un asistente experto en planeación educativa para el BGE de Puebla. Responde siempre con JSON válido y bien formado. Nunca omitas metas institucionales para los temas indicados.',
         prompt,
-        teacher.id
+        teacher.id,
+        isPremium,
+        { jsonMode: true }
       );
       if (!rawText) {
         throw new Error('Respuesta vacía del proveedor de IA');
@@ -337,7 +343,7 @@ Responde con JSON con esta estructura EXACTA:
 
       const parseResult = parseAIResponse(rawText, PmcPlanAccionSchema, { contextName: 'pmc_plan_accion' });
       if (!parseResult.success) {
-        console.error('Failed to parse PMC plan_accion:', parseResult.error);
+        logger.error('Failed to parse PMC plan_accion:', parseResult.error);
         return NextResponse.json(
           { error: `Error al validar estructura de plan de acción PMC: ${parseResult.error}` },
           { status: 500 }

@@ -19,6 +19,7 @@ import { parseAIResponse } from './ai-response-parser';
 import { PlanningContentSchema } from './ai-schemas';
 import type { GeneratedPlanningContent } from '@/types/planning';
 import { API_CONFIG } from './config';
+import { logger } from './logger';
 
 // ── Puntero global de Round-Robin ─────────────────────────────────────────────
 // Avanza en cada llamada a callGeminiPool para garantizar que las generaciones
@@ -169,7 +170,7 @@ async function callGeminiInternal({
     ...decryptedKeys.slice(0, startIndex),
   ];
 
-  console.log(
+  logger.info(
     `[sigpda-ems] 🔄 Generando con Llave: "${rotatedKeys[0].label}" ` +
     `(Índice: ${startIndex + 1}/${decryptedKeys.length}) - Modelo: ${modelToUse} ` +
     `[${isPremium ? '⭐ Premium' : '⚡ Estándar'}]` +
@@ -201,7 +202,7 @@ async function callGeminiInternal({
 
       return result;
     } catch (err: any) {
-      console.warn(`[sigpda-ems] Advertencia en llave "${keyRecord.label}": ${err.message}`);
+      logger.warn(`[sigpda-ems] Advertencia en llave "${keyRecord.label}": ${err.message}`);
 
       const is429 =
         err.message?.includes('429') ||

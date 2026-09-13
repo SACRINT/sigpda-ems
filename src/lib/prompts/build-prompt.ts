@@ -4,6 +4,7 @@ import type { RagContext } from '@/lib/rag-curricular';
 import { buildRagContextBlock } from '@/lib/rag-curricular';
 import { CATALOGO_METODOLOGIAS_ACTIVAS } from '@/lib/catalogo-metodologias';
 import { isTechnologicalSubsystem } from '@/lib/subsystem-config';
+import { SCHOOL_YEAR } from '@/lib/config';
 
 export interface AuditFeedbackContext {
   overall_score: number;
@@ -293,7 +294,7 @@ Municipio / Estado: ${location}
 ${context.region ? `Región: ${context.region}` : ''}
 Subsistema: ${subsystemLabel}
 Grupos: ${context.groupInfo || 'Grupo A'}
-Período de aplicación: ${context.applicationPeriod || 'Ciclo escolar 2026-2027'}
+Período de aplicación: ${context.applicationPeriod || `Ciclo escolar ${SCHOOL_YEAR}`}
 Recursos disponibles: ${context.schoolResources || 'Recursos básicos de aula y tecnología accesible'}
 
 ═══════════ PROYECTO PAEC/PEC (VINCULACIÓN COMUNITARIA OBLIGATORIA) ═══════════
@@ -359,7 +360,7 @@ ${(context.usePaecActivity !== false && context.paecOperationalActivity?.activid
    - "saberSer": Actitudes profesionales, ética, seguridad e higiene, compromiso comunitario y trabajo colaborativo.
 4. SECCIÓN V (EVALUACIÓN): Incluye el Acuerdo de Acreditación formal firmado y asegura que las ponderaciones sumen exactamente 100%.
 5. SECCIÓN VI (MATERIALES): En "teacherMaterials" incluye ÚNICAMENTE materiales diseñados por el docente (guías, manuales, hojas de trabajo). NUNCA infraestructura física escolar (proyector, internet, pizarrones).
-6. SECCIÓN I: Asigna el período de aplicación: ${context.applicationPeriod || 'Ciclo escolar 2026-2027'}.
+6. SECCIÓN I: Asigna el período de aplicación: ${context.applicationPeriod || `Ciclo escolar ${SCHOOL_YEAR}`}.
 
 Responde ÚNICAMENTE con el objeto JSON válido que cumpla la estructura exacta solicitada en el system prompt.`;
 }

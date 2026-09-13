@@ -8,8 +8,9 @@ import {
   getFfeContinuity,
   getAuditResultByPlanningId,
 } from '@/lib/db';
-import { generatePlanningStream } from '@/lib/gemini';
-import { logActivity } from '@/lib/ai-provider';
+import { generateStreamWithRotation, resolveUserIsPremium, logActivity } from '@/lib/ai-provider';
+import { SYSTEM_PROMPT } from '@/lib/prompts/system-prompt';
+import { logger } from '@/lib/logger';
 import { buildUserPrompt } from '@/lib/prompts/build-prompt';
 import { parseAIResponse } from '@/lib/ai-response-parser';
 import { PlanningContentSchema } from '@/lib/ai-schemas';
@@ -102,9 +103,9 @@ export async function POST(
       );
       ragContext = await Promise.race([ragPromise, timeoutPromise]);
       const chunkCount = ragContext?.chunks?.length ?? 0;
-      console.log(`[RAG] Found ${chunkCount} curriculum chunks for "${uacQuery}"`);
+      logger.info(`[RAG] Found ${chunkCount} curriculum chunks for "${uacQuery}"`);
     } catch (ragErr) {
-      console.warn('[RAG] Skipped (fail-safe):', (ragErr as Error).message);
+      logger.warn('[RAG] Skipped (fail-safe):', { message: (ragErr as Error).message });
       ragContext = null;
     }
 
@@ -138,7 +139,8 @@ export async function POST(
       async start(controller) {
         let accumulatedText = '';
         try {
-          const textGenerator = await generatePlanningStream(fullUserPrompt, teacher.id);
+          const isPremium = await resolveUserIsPremium(teacher.id);
+          const textGenerator = generateStreamWithRotation(SYSTEM_PROMPT, fullUserPrompt, teacher.id, isPremium);
           
           for await (const chunk of textGenerator) {
             accumulatedText += chunk;
@@ -189,7 +191,7 @@ export async function POST(
                 },
               });
             } catch (notifErr) {
-              console.warn('Could not dispatch planeacion_ready notification:', notifErr);
+              logger.warn('Could not dispatch planeacion_ready notification:', { error: notifErr });
             }
 
             // Log successful generation
@@ -201,14 +203,14 @@ export async function POST(
               success: true,
             });
           } catch (dbErr) {
-            console.error('Failed to parse or save accumulated JSON stream to database:', dbErr);
+            logger.error('Failed to parse or save accumulated JSON stream to database:', dbErr);
           }
 
 
           controller.close();
         } catch (streamErr) {
           const errMsg = streamErr instanceof Error ? streamErr.message : 'Error desconocido al generar';
-          console.error('Stream generation error:', errMsg);
+          logger.error('Stream generation error:', errMsg);
           // Send the error as a readable marker through the stream so the frontend can show it
           controller.enqueue(encoder.encode(`__ERROR__:${errMsg}`));
           controller.close();

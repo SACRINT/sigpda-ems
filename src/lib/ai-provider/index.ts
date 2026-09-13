@@ -23,6 +23,7 @@ import { GeminiProvider, sanitizeGeminiModel } from './gemini';
 import { ClaudeProvider } from './claude';
 import { OpenAICompatibleProvider } from './openai';
 import type { AIProvider } from './types';
+import { logger } from '@/lib/logger';
 
 export type { AIProvider };
 
@@ -190,7 +191,7 @@ export async function generateWithRotation(
       return ai.generate(systemPrompt, userPrompt, options);
     }, teacherId);
   } catch (primaryErr: any) {
-    console.warn(
+    logger.warn(
       `[ai-provider] Primary provider "${provider}" pool exhausted. ` +
       `Trying alternative providers...`
     );
@@ -204,10 +205,10 @@ export async function generateWithRotation(
           const ai = buildProvider(altProvider, altModel, apiKey);
           return ai.generate(systemPrompt, userPrompt, options);
         });
-        console.log(`[ai-provider] ✅ Fallback provider "${altProvider}" (${altModel}) succeeded.`);
+        logger.info(`[ai-provider] ✅ Fallback provider "${altProvider}" (${altModel}) succeeded.`);
         return result;
       } catch (altErr: any) {
-        console.warn(
+        logger.warn(
           `[ai-provider] Fallback provider "${altProvider}" also failed: ${altErr.message}`
         );
       }
@@ -244,6 +245,21 @@ export async function* generateStreamWithRotation(
   const finalModel = resolved.modelOverride || model;
   const ai = buildProvider(provider, finalModel, resolved.apiKey);
   yield* ai.generateStream(systemPrompt, userPrompt);
+}
+
+/**
+ * Genera texto a partir de datos multimodales (ej: PDF escaneado en base64) utilizando
+ * el pool de llaves con rotación y modelos optimizados para visión/OCR documental.
+ */
+export async function generateMultimodalWithRotation(
+  systemPrompt: string,
+  userPrompt: string,
+  inlineData: { mimeType: string; data: string },
+  teacherId?: string,
+  isPremium = false
+): Promise<string> {
+  const { callGeminiMultimodalPool } = await import('@/lib/gemini');
+  return callGeminiMultimodalPool(systemPrompt, userPrompt, inlineData, teacherId);
 }
 
 // ── Activity logging helper ─────────────────────────────────────────────────

@@ -16,6 +16,7 @@ import { extractWorkbookTags } from '../workbook-tags';
 import type { MissionSection, WorkbookElement, TroubleshootItem } from '@/types/work-textbook';
 import { type WriterInput, type WriterOutput, evaluateQuality } from './writer-contract';
 import { buildPlanningAlignmentPrompt } from './planning-alignment-prompt';
+import { logger } from '@/lib/logger';
 
 export async function generateLabMission(input: WriterInput): Promise<WriterOutput> {
   const labMission = input.missions.find((m) => m.missionType === 'lab') || input.missions[1] || input.missions[0];
@@ -123,7 +124,7 @@ Redacta la Misión Práctica de Laboratorio/Taller completa:`;
           parsed = retryParsed;
         }
       } catch (retryErr) {
-        console.warn('[LabWriter] Error en reintento, preservando primera respuesta:', retryErr);
+        logger.warn('[LabWriter] Error en reintento, preservando primera respuesta:', { error: String(retryErr) });
       }
     }
 
@@ -262,9 +263,9 @@ Redacta la Misión Práctica de Laboratorio/Taller completa:`;
     });
 
     if (attempt === 1) {
-      console.log(`[LabWriter] ✅ Generado en intento 1 — ${wordCount} palabras`);
+      logger.info(`[LabWriter] ✅ Generado en intento 1 — ${wordCount} palabras`);
     } else {
-      console.log(`[LabWriter] ⚠️ Reintento necesario — ${wordCount} palabras en intento 2`);
+      logger.info(`[LabWriter] ⚠️ Reintento necesario — ${wordCount} palabras en intento 2`);
     }
 
     return {
@@ -276,7 +277,7 @@ Redacta la Misión Práctica de Laboratorio/Taller completa:`;
       warnings: quality.warnings,
     };
   } catch (err: any) {
-    console.error('[generateLabMission] Error:', err);
+    logger.error('[generateLabMission] Error:', err);
     // Fallback estructurado de laboratorio
     const fallbackSection: MissionSection = {
       missionIndex: labMission?.missionIndex || 2,

@@ -18,11 +18,12 @@ import {
   type GenerationJob,
 } from '@/lib/db';
 import { generateBlockWorkTextbook } from './guide-engine/block-guide-orchestrator';
+import { logger } from '@/lib/logger';
 
 export async function processGenerationJob(jobId: string): Promise<GenerationJob | null> {
   const job = await getGenerationJobById(jobId);
   if (!job) {
-    console.error(`[job-worker] Job ${jobId} no encontrado`);
+    logger.error(`[job-worker] Job ${jobId} no encontrado`);
     return null;
   }
 
@@ -41,7 +42,7 @@ export async function processGenerationJob(jobId: string): Promise<GenerationJob
     });
   }
 
-  console.log(`[job-worker] Procesando job ${jobId} (Planeación: ${job.planning_id}, Bloque: ${job.block_index})...`);
+  logger.info(`[job-worker] Procesando job ${jobId} (Planeación: ${job.planning_id}, Bloque: ${job.block_index})...`);
 
   try {
     // Ejecutar el orquestador editorial completo
@@ -55,27 +56,27 @@ export async function processGenerationJob(jobId: string): Promise<GenerationJob
 
     // Persistir el workbook en la planeación (versionamiento histórico)
     await saveBlockWorkbook(job.planning_id, job.block_index, workbook).catch((err) =>
-      console.warn(`[job-worker] Advertencia al persistir en plannings:`, err?.message)
+      logger.warn(`[job-worker] Advertencia al persistir en plannings:`, err?.message)
     );
 
     // Cascada automática de materiales derivados a planning_extras (24 planes, rúbricas, materiales)
     const { cascadeBlockMaterials } = await import('@/lib/guide-engine/cascade-block-materials');
     await cascadeBlockMaterials(job.planning_id, job.block_index, workbook, job.teacher_id).catch((cascadeErr) =>
-      console.warn(`[job-worker] Advertencia en cascada de materiales:`, cascadeErr?.message)
+      logger.warn(`[job-worker] Advertencia en cascada de materiales:`, cascadeErr?.message)
     );
 
     // Marcar el job como completado
     await completeGenerationJob(jobId, workbook);
 
-    console.log(`[job-worker] Job ${jobId} completado exitosamente con ${workbook.totalWords} palabras.`);
+    logger.info(`[job-worker] Job ${jobId} completado exitosamente con ${workbook.totalWords} palabras.`);
 
     return await getGenerationJobById(jobId);
   } catch (error: any) {
     const errorMsg = error?.message || String(error) || 'Error desconocido durante la generación';
-    console.error(`[job-worker] Falló job ${jobId}:`, error);
+    logger.error(`[job-worker] Falló job ${jobId}:`, error);
 
     await failGenerationJob(jobId, errorMsg).catch((failErr) =>
-      console.error(`[job-worker] No se pudo marcar job como fallido:`, failErr)
+      logger.error(`[job-worker] No se pudo marcar job como fallido:`, failErr)
     );
 
     throw error;

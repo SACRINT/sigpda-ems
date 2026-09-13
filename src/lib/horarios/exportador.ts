@@ -276,7 +276,7 @@ export function exportarHorarioPDF(datos: DatosExportacionHorario) {
       margin: { left: 14, right: 14 }
     });
 
-    const finalY = (doc as any).lastAutoTable?.finalY || 135;
+    const finalY = doc.lastAutoTable?.finalY || 135;
 
     // ── 6. Bloque Formal de Firmas Institucionales (3 Columnas Anti-Colisión) ──
     const yFirmas = Math.min(176, Math.max(finalY + 3.5, 136));

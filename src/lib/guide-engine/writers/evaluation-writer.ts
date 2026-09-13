@@ -23,6 +23,7 @@ import type {
 } from '@/types/work-textbook';
 import { type WriterInput, type WriterOutput, evaluateQuality } from './writer-contract';
 import { buildPlanningAlignmentPrompt } from './planning-alignment-prompt';
+import { logger } from '@/lib/logger';
 
 export async function generateEvaluationSection(input: WriterInput): Promise<WriterOutput> {
   const extras = input.existingExtras || {};
@@ -193,7 +194,7 @@ Genera el paquete oficial de 4 instrumentos de evaluación NEM con ejercicios es
           parsed = retryParsed;
         }
       } catch (retryErr) {
-        console.warn('[EvaluationWriter] Error en reintento, preservando primera respuesta:', retryErr);
+        logger.warn('[EvaluationWriter] Error en reintento, preservando primera respuesta:', { error: String(retryErr) });
       }
     }
 
@@ -224,9 +225,9 @@ Genera el paquete oficial de 4 instrumentos de evaluación NEM con ejercicios es
     });
 
     if (attempt === 1) {
-      console.log(`[EvaluationWriter] ✅ Generado en intento 1 — ${wordCount} palabras`);
+      logger.info(`[EvaluationWriter] ✅ Generado en intento 1 — ${wordCount} palabras`);
     } else {
-      console.log(`[EvaluationWriter] ⚠️ Reintento necesario — ${wordCount} palabras en intento 2`);
+      logger.info(`[EvaluationWriter] ⚠️ Reintento necesario — ${wordCount} palabras en intento 2`);
     }
 
     return {
@@ -239,7 +240,7 @@ Genera el paquete oficial de 4 instrumentos de evaluación NEM con ejercicios es
       warnings: quality.warnings,
     };
   } catch (err: any) {
-    console.error('[generateEvaluationSection] Error:', err);
+    logger.error('[generateEvaluationSection] Error:', err);
     // Fallback estructurado de evaluación NEM con 3 niveles escalonados
     const fallbackEval: EvaluationSection = {
       source: 'generated_fresh',

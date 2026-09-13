@@ -7,6 +7,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { GeneratedPlanningContent, Planning, SecuenciaBloque } from '@/types/planning';
 import { loadAllLogos } from './pdf-logos';
+import { SCHOOL_YEAR } from '@/lib/config';
 
 const NAVY: [number, number, number] = [31, 56, 100];       // #1F3864 - Azul Institucional
 const BLUE_MID: [number, number, number] = [46, 116, 181];   // #2E74B5 - Azul Secundario
@@ -150,7 +151,7 @@ export async function generatePlanningPDF(
         { content: 'Horas Semanales / Totales:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
         { content: `${s1?.totalHoursWeekly || 4} hrs/sem · ${s1?.totalHours || 64} hrs/semestre` },
         { content: 'Periodo de Aplicación:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-        { content: s1?.applicationPeriod || s1?.period || 'Semestre 2026-2027' },
+        { content: s1?.applicationPeriod || s1?.period || `Semestre ${SCHOOL_YEAR}` },
       ],
     ],
     theme: 'grid',
@@ -158,7 +159,7 @@ export async function generatePlanningPDF(
     margin: { left: margin, right: margin },
   });
 
-  currentY = (doc as any).lastAutoTable.finalY + 3.5;
+  currentY = doc.lastAutoTable!.finalY + 3.5;
 
   // ─── Sección II: Propósito y Metas Formativas ─────────────────────────────
   autoTable(doc, {
@@ -183,7 +184,7 @@ export async function generatePlanningPDF(
     margin: { left: margin, right: margin },
   });
 
-  currentY = (doc as any).lastAutoTable.finalY + 3.5;
+  currentY = doc.lastAutoTable!.finalY + 3.5;
 
   // ─── Sección III: Transversalidad y PAEC ──────────────────────────────────
   const transItems = [
@@ -209,7 +210,7 @@ export async function generatePlanningPDF(
     margin: { left: margin, right: margin },
   });
 
-  currentY = (doc as any).lastAutoTable.finalY + 3.5;
+  currentY = doc.lastAutoTable!.finalY + 3.5;
 
   // ─── Sección IV: Secuencia Didáctica por Momentos ─────────────────────────
   const activities = s4?.activities || [];
@@ -276,7 +277,7 @@ export async function generatePlanningPDF(
       pageBreak: 'auto',
     });
 
-    currentY = (doc as any).lastAutoTable.finalY + 3.5;
+    currentY = doc.lastAutoTable!.finalY + 3.5;
   }
 
   // ─── Sección V: Evaluación y Ponderaciones ────────────────────────────────
@@ -302,7 +303,7 @@ export async function generatePlanningPDF(
       pageBreak: 'avoid',
     });
 
-    currentY = (doc as any).lastAutoTable.finalY + 3.5;
+    currentY = doc.lastAutoTable!.finalY + 3.5;
   }
 
   // ─── Firmas Oficiales Tripartitas (Docente / Director / Supervisión) ─────
@@ -332,7 +333,7 @@ export async function generatePlanningPDF(
   });
 
   // ─── Pie de Página en Todas las Hojas ─────────────────────────────────────
-  const totalPages = (doc as any).internal.getNumberOfPages();
+  const totalPages = doc.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
     doc.setFontSize(7);
@@ -425,7 +426,7 @@ export async function generateSecuenciaPDF(
   doc.setFontSize(7.5);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...TEXT_DARK);
-  doc.text('DESGLOSE DETALLADO DE SESIONES DE 50 MINUTOS · CICLO ESCOLAR 2026-2027', pageWidth / 2, currentY, { align: 'center' });
+  doc.text(`DESGLOSE DETALLADO DE SESIONES DE 50 MINUTOS · CICLO ESCOLAR ${SCHOOL_YEAR}`, pageWidth / 2, currentY, { align: 'center' });
   currentY += 3.5;
 
   doc.setDrawColor(...GOLD_LINE);
@@ -454,7 +455,7 @@ export async function generateSecuenciaPDF(
         { content: 'Componente:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
         { content: s1?.component || 'Formación Fundamental' },
         { content: 'Ciclo Escolar:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-        { content: s1?.schoolYear || '2026-2027' },
+        { content: s1?.schoolYear || SCHOOL_YEAR },
       ],
     ],
     theme: 'grid',
@@ -462,7 +463,7 @@ export async function generateSecuenciaPDF(
     margin: { left: margin, right: margin },
   });
 
-  currentY = (doc as any).lastAutoTable.finalY + 4;
+  currentY = doc.lastAutoTable!.finalY + 4;
 
   // Bloques y Sesiones
   const activities = s4?.activities || [];
@@ -531,7 +532,7 @@ export async function generateSecuenciaPDF(
       pageBreak: 'auto',
     });
 
-    currentY = (doc as any).lastAutoTable.finalY + 4;
+    currentY = doc.lastAutoTable!.finalY + 4;
   });
 
   // Firmas oficiales
@@ -561,7 +562,7 @@ export async function generateSecuenciaPDF(
   });
 
   // Paginación en pie de página
-  const totalPages = (doc as any).internal.getNumberOfPages();
+  const totalPages = doc.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
     doc.setFontSize(7);

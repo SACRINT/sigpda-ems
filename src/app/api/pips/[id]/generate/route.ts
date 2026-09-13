@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, sql } from '@/lib/db';
 import { generateWithRotation, logActivity } from '@/lib/ai-provider';
+import { logger } from '@/lib/logger';
 import {
   PIPS_SYSTEM_PROMPT,
   getChunk1Prompt,
@@ -79,7 +80,7 @@ export async function POST(
     totalPersonal.total = totalPersonal.docentes + totalPersonal.responsables + totalPersonal.apoyo;
 
     // ── Ejecución de la IA por Chunks (Secuencial con Rotación) ─────────────
-    console.log(`[PIPS-Gen] Iniciando generación de PIPS para Zona 004 en 3 partes...`);
+    logger.info(`[PIPS-Gen] Iniciando generación de PIPS para Zona 004 en 3 partes...`);
 
     const libraryContext = await getUserLibraryContext(teacher.email);
 
@@ -94,21 +95,21 @@ export async function POST(
     if (libraryContext) prompt1WithCtx = `${libraryContext}\n\n${prompt1WithCtx}`;
 
     const chunk1Result = await generateWithRotation(PIPS_SYSTEM_PROMPT, prompt1WithCtx, teacher.id);
-    console.log(`[PIPS-Gen] Parte 1 generada exitosamente. Esperando cooldown...`);
+    logger.info(`[PIPS-Gen] Parte 1 generada exitosamente. Esperando cooldown...`);
     await sleep(1000); // 1s de cooldown para evitar RPM limits en la API Key
 
     // PARTE 2
     const prompt2 = getChunk2Prompt(row, chunk1Result);
     const prompt2WithCtx = libraryContext ? `${libraryContext}\n\n${prompt2}` : prompt2;
     const chunk2Result = await generateWithRotation(PIPS_SYSTEM_PROMPT, prompt2WithCtx, teacher.id);
-    console.log(`[PIPS-Gen] Parte 2 generada exitosamente. Esperando cooldown...`);
+    logger.info(`[PIPS-Gen] Parte 2 generada exitosamente. Esperando cooldown...`);
     await sleep(1000);
 
     // PARTE 3
     const prompt3 = getChunk3Prompt(row, chunk1Result + '\n\n' + chunk2Result);
     const prompt3WithCtx = libraryContext ? `${libraryContext}\n\n${prompt3}` : prompt3;
     const chunk3Result = await generateWithRotation(PIPS_SYSTEM_PROMPT, prompt3WithCtx, teacher.id);
-    console.log(`[PIPS-Gen] Parte 3 generada exitosamente. Armando resultado...`);
+    logger.info(`[PIPS-Gen] Parte 3 generada exitosamente. Armando resultado...`);
 
     // Unir las tres partes en un único documento Markdown estructurado
     const fullContent = [
@@ -138,11 +139,8 @@ export async function POST(
     });
 
     return NextResponse.json({ success: true, content: fullContent });
-  } catch (error: any) {
-    console.error('Error generating PIPS por chunks:', error);
-    return NextResponse.json(
-      { error: 'Error al generar el PIPS con IA: ' + (error?.message || 'Error desconocido') },
-      { status: 500 }
-    );
+  } catch (error) {
+    logger.error('POST /api/pips/[id]/generate error:', error);
+    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
   }
 }

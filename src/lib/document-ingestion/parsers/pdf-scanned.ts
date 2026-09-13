@@ -4,7 +4,7 @@
  * Utiliza estrictamente gemini-3.5-flash-lite / gemini-3.1-flash-lite con el pool de llaves en rotación.
  */
 
-import { callGeminiMultimodalPool } from '@/lib/gemini';
+import { generateMultimodalWithRotation, resolveUserIsPremium } from '@/lib/ai-provider';
 import type { IngestedDocument } from '../types';
 
 export async function parseScannedPdfWithGemini(
@@ -22,14 +22,16 @@ Tu tarea es leer y transcribir con máxima precisión este documento escaneado o
 
   const userPrompt = `Transcribe íntegramente todo el contenido de este documento PDF escaneado a Markdown estructurado oficial.`;
 
-  const markdownResult = await callGeminiMultimodalPool(
+  const isPremium = await resolveUserIsPremium(teacherId);
+  const markdownResult = await generateMultimodalWithRotation(
     systemInstruction,
     userPrompt,
     {
       mimeType: 'application/pdf',
       data: base64Data,
     },
-    teacherId
+    teacherId,
+    isPremium
   );
 
   const cleanMarkdown = markdownResult.trim();
