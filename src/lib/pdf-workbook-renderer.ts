@@ -24,6 +24,8 @@ import type {
 } from '@/types/work-textbook';
 import type { Planning } from '@/types/planning';
 import { loadAllLogos } from './pdf-logos';
+import { dispatchVisual } from '@/lib/visual-engine/visual-dispatcher';
+import { svgToPngBuffer } from '@/lib/visual-engine/svg-to-png';
 
 // ── Paleta de Colores Institucionales DBEPA ──────────────────────────────────
 const NAVY: [number, number, number] = [31, 56, 100];       // #1F3864
@@ -72,7 +74,17 @@ export async function renderWorkbookToPdf(
     const mission = workbook.missions[i];
     doc.addPage();
     currentY = margin + 8;
-    currentY = drawMission(doc, mission, i + 1, workbook.subsystem, margin, contentWidth, pageHeight, currentY);
+    currentY = await drawMission(
+      doc,
+      mission,
+      i + 1,
+      workbook.subsystem,
+      margin,
+      contentWidth,
+      pageHeight,
+      currentY,
+      workbook.coverData.subjectName
+    );
   }
 
   // ── 4. Proyecto Integrador Formativo ───────────────────────────────────────
@@ -445,7 +457,7 @@ function drawSectionHeader(
   return y + 4.5;
 }
 
-function drawMission(
+async function drawMission(
   doc: jsPDF,
   mission: MissionSection,
   missionNumber: number,
@@ -453,8 +465,9 @@ function drawMission(
   margin: number,
   contentWidth: number,
   pageHeight: number,
-  startY: number
-): number {
+  startY: number,
+  subjectName?: string
+): Promise<number> {
   let y = startY;
 
   // Franja de título de misión (sanitizada para evitar doble prefijo "Misión X: Misión X:")
@@ -530,6 +543,35 @@ function drawMission(
     lineHeight: 3.8,
   });
   y += 6;
+
+  // ── 2.1 Gráfico STEM Conceptual / Espacio de Tabulación Activo ─────────────
+  if (subjectName) {
+    const topicText = `${mission.title} ${mission.conceptZero.coreExplanation || ''}`;
+    const svgVisual = dispatchVisual(subjectName, topicText);
+    if (svgVisual) {
+      const pngBuffer = await svgToPngBuffer(svgVisual);
+      if (pngBuffer) {
+        const imgW = Math.min(135, contentWidth * 0.76);
+        const imgH = imgW * 0.65;
+        y = ensureVerticalSpace(doc, y, imgH + 16, margin, pageHeight);
+        const imgX = margin + (contentWidth - imgW) / 2;
+        doc.addImage(pngBuffer, 'PNG', imgX, y, imgW, imgH);
+        y += imgH + 3.5;
+
+        // Pie de figura institucional
+        doc.setFont('helvetica', 'italic');
+        doc.setFontSize(7.5);
+        doc.setTextColor(...MUTED_TEXT);
+        doc.text(
+          `Figura M${missionNumber}.1 — Representación gráfica conceptual y espacio de tabulación guiada`,
+          margin + contentWidth / 2,
+          y,
+          { align: 'center' }
+        );
+        y += 6.5;
+      }
+    }
+  }
 
   // 3. Yo Hago (Demostración)
   y = drawSectionHeader(doc, '3. Yo Hago: Demostración y Protocolo Guiado por el Docente', margin, y, pageHeight);
