@@ -50,6 +50,12 @@ import type {
 } from '@/types/work-textbook';
 import type { Planning } from '@/types/planning';
 import { getRubricLevelDescriptor } from '@/lib/pdf-workbook-renderer';
+import {
+  resolveMaterialString,
+  resolveStepDetails,
+  resolveExercise,
+  formatRegistrationFormatText,
+} from '@/types/workbook-legacy';
 
 // ── Paleta de Colores Institucionales DBEPA ──────────────────────────────────
 const C = {
@@ -1251,11 +1257,7 @@ function buildProjectSection(project: ProjectSection, cover: ActiveWorkTextbook[
       })
     );
     for (const mat of project.requiredMaterials) {
-      const matStr = typeof mat === 'string'
-        ? mat
-        : mat && typeof mat === 'object'
-        ? `${(mat as any).item || ''} ${(mat as any).quantity ? `[${(mat as any).quantity}]` : ''} ${(mat as any).notes ? `— ${(mat as any).notes}` : ''}`.trim()
-        : String(mat);
+      const matStr = resolveMaterialString(mat);
       elements.push(
         new Paragraph({
           spacing: { after: 50 },
@@ -1284,25 +1286,12 @@ function buildProjectSection(project: ProjectSection, cover: ActiveWorkTextbook[
       })
     );
     for (const step of project.executionSteps) {
-      let stepStr = '';
-      if (typeof step === 'string') {
-        stepStr = step;
-      } else if (step && typeof step === 'object') {
-        const s = step as any;
-        const num = s.stepNumber ? `Paso ${s.stepNumber}: ` : '';
-        const title = s.title ? `${s.title}. ` : '';
-        const desc = s.description || '';
-        const hrs = s.estimatedHours ? ` (${s.estimatedHours} hrs)` : '';
-        const deliv = s.deliverable ? ` [Entregable: ${s.deliverable}]` : '';
-        stepStr = `${num}${title}${desc}${hrs}${deliv}`.trim();
-      } else {
-        stepStr = String(step);
-      }
+      const { stepText } = resolveStepDetails(step);
       elements.push(
         new Paragraph({
           spacing: { after: 50 },
           children: [
-            new TextRun({ text: stepStr, size: 20, font: 'Calibri' }),
+            new TextRun({ text: stepText, size: 20, font: 'Calibri' }),
           ],
         })
       );
@@ -1409,22 +1398,7 @@ function buildProjectSection(project: ProjectSection, cover: ActiveWorkTextbook[
         ],
       })
     );
-    let regFormatText = '';
-    if (typeof project.registrationFormat === 'string') {
-      regFormatText = project.registrationFormat;
-    } else if (typeof project.registrationFormat === 'object') {
-      const rf = project.registrationFormat as any;
-      const parts: string[] = [];
-      if (rf.sections && Array.isArray(rf.sections)) {
-        parts.push(`Secciones requeridas:\n${rf.sections.map((s: string) => ` • ${s}`).join('\n')}`);
-      }
-      if (rf.suggestedFields && Array.isArray(rf.suggestedFields)) {
-        parts.push(`Campos sugeridos:\n${rf.suggestedFields.map((f: string) => ` - ${f}`).join('\n')}`);
-      }
-      regFormatText = parts.join('\n\n') || JSON.stringify(rf, null, 2);
-    } else {
-      regFormatText = String(project.registrationFormat);
-    }
+    const regFormatText = formatRegistrationFormatText(project.registrationFormat, 'docx');
 
     elements.push(
       new Table({
@@ -1658,23 +1632,22 @@ function buildEvaluationSection(evalSection: EvaluationSection, cover: ActiveWor
         );
       }
 
-      for (const ex of tier.exercises || []) {
-        const exNum = ex.number || (ex as any).exerciseNumber || 1;
-        const exStmt = ex.statement || (ex as any).problemStatement || '';
+      for (let i = 0; i < (tier.exercises || []).length; i++) {
+        const normEx = resolveExercise(tier.exercises[i], i + 1);
 
         elements.push(
           new Paragraph({
             spacing: { before: 100, after: 40 },
             children: [
               new TextRun({
-                text: `Ejercicio ${exNum}: `,
+                text: `Ejercicio ${normEx.number}: `,
                 bold: true,
                 size: 20,
                 color: C.navy,
                 font: 'Calibri',
               }),
               new TextRun({
-                text: exStmt,
+                text: normEx.statement,
                 size: 20,
                 font: 'Calibri',
               }),
@@ -1682,39 +1655,41 @@ function buildEvaluationSection(evalSection: EvaluationSection, cover: ActiveWor
           })
         );
 
-        if (ex.contextOrData) {
+        if (normEx.contextOrData) {
           elements.push(
             new Paragraph({
               spacing: { after: 40 },
               children: [
                 new TextRun({ text: 'Datos/Contexto: ', bold: true, size: 18, color: C.mutedText, font: 'Calibri' }),
-                new TextRun({ text: ex.contextOrData, size: 18, color: C.mutedText, font: 'Calibri' }),
+                new TextRun({ text: normEx.contextOrData, size: 18, color: C.mutedText, font: 'Calibri' }),
               ],
             })
           );
         }
 
-        if (ex.hint) {
+        if (normEx.hint) {
           elements.push(
             new Paragraph({
               spacing: { after: 40 },
               children: [
                 new TextRun({ text: 'Pista: ', italics: true, bold: true, size: 18, color: C.midBlue, font: 'Calibri' }),
-                new TextRun({ text: ex.hint, italics: true, size: 18, color: C.midBlue, font: 'Calibri' }),
+                new TextRun({ text: normEx.hint, italics: true, size: 18, color: C.midBlue, font: 'Calibri' }),
               ],
             })
           );
         }
 
-        elements.push(
-          new Paragraph({
-            spacing: { after: 60 },
-            children: [
-              new TextRun({ text: 'Criterio esperado: ', bold: true, size: 18, color: C.darkText, font: 'Calibri' }),
-              new TextRun({ text: ex.expectedOutputOrCriteria, size: 18, color: C.darkText, font: 'Calibri' }),
-            ],
-          })
-        );
+        if (normEx.expectedOutputOrCriteria) {
+          elements.push(
+            new Paragraph({
+              spacing: { after: 60 },
+              children: [
+                new TextRun({ text: 'Criterio esperado: ', bold: true, size: 18, color: C.darkText, font: 'Calibri' }),
+                new TextRun({ text: normEx.expectedOutputOrCriteria, size: 18, color: C.darkText, font: 'Calibri' }),
+              ],
+            })
+          );
+        }
 
         // Renglones caligráficos para resolución
         const lineRows: TableRow[] = [];

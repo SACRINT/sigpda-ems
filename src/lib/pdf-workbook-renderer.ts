@@ -29,6 +29,12 @@ import { svgToPngBuffer } from '@/lib/visual-engine/svg-to-png';
 import type { VisualAnnotation } from '@/lib/visual-engine/generators/stem-generator';
 import { SCHOOL_YEAR } from '@/lib/config';
 import { logger } from '@/lib/logger';
+import {
+  resolveMaterialString,
+  resolveStepDetails,
+  resolveExercise,
+  formatRegistrationFormatText,
+} from '@/types/workbook-legacy';
 
 // ── Paleta de Colores Institucionales DBEPA ──────────────────────────────────
 const NAVY: [number, number, number] = [31, 56, 100];       // #1F3864
@@ -1086,11 +1092,7 @@ function drawProjectSection(
     y += 4.5;
 
     for (const mat of project.requiredMaterials) {
-      const matStr = typeof mat === 'string'
-        ? mat
-        : mat && typeof mat === 'object'
-        ? `${(mat as any).item || ''} ${(mat as any).quantity ? `[${(mat as any).quantity}]` : ''} ${(mat as any).notes ? `— ${(mat as any).notes}` : ''}`.trim()
-        : String(mat);
+      const matStr = resolveMaterialString(mat);
       y = printParagraph(doc, `[  ]  ${matStr}`, y, margin + 3, contentWidth - 3, pageHeight, {
         size: 7.8,
         fontStyle: 'normal',
@@ -1111,21 +1113,8 @@ function drawProjectSection(
     y += 4.5;
 
     for (const step of project.executionSteps) {
-      let stepStr = '';
-      if (typeof step === 'string') {
-        stepStr = step;
-      } else if (step && typeof step === 'object') {
-        const s = step as any;
-        const num = s.stepNumber ? `Paso ${s.stepNumber}: ` : '';
-        const title = s.title ? `${s.title}. ` : '';
-        const desc = s.description || '';
-        const hrs = s.estimatedHours ? ` (${s.estimatedHours} hrs)` : '';
-        const deliv = s.deliverable ? ` [Entregable: ${s.deliverable}]` : '';
-        stepStr = `${num}${title}${desc}${hrs}${deliv}`.trim();
-      } else {
-        stepStr = String(step);
-      }
-      y = printParagraph(doc, stepStr, y, margin + 3, contentWidth - 3, pageHeight, {
+      const { stepText } = resolveStepDetails(step);
+      y = printParagraph(doc, stepText, y, margin + 3, contentWidth - 3, pageHeight, {
         size: 7.8,
         fontStyle: 'normal',
         color: DARK_TEXT,
@@ -1214,22 +1203,7 @@ function drawProjectSection(
     doc.setFontSize(7);
     doc.setTextColor(...DARK_TEXT);
 
-    let regFormatText = '';
-    if (typeof project.registrationFormat === 'string') {
-      regFormatText = project.registrationFormat;
-    } else if (typeof project.registrationFormat === 'object') {
-      const rf = project.registrationFormat as any;
-      const parts: string[] = [];
-      if (rf.sections && Array.isArray(rf.sections)) {
-        parts.push(`Secciones: ${rf.sections.join(' | ')}`);
-      }
-      if (rf.suggestedFields && Array.isArray(rf.suggestedFields)) {
-        parts.push(`Campos: ${rf.suggestedFields.join(' | ')}`);
-      }
-      regFormatText = parts.join('\n') || JSON.stringify(rf);
-    } else {
-      regFormatText = String(project.registrationFormat);
-    }
+    const regFormatText = formatRegistrationFormatText(project.registrationFormat, 'pdf');
 
     const logLines = doc.splitTextToSize(regFormatText, contentWidth - 6);
     logLines.slice(0, 5).forEach((line: string, idx: number) => {
@@ -1385,17 +1359,13 @@ function drawEvaluationSection(
         y += 2;
       }
 
-      for (const ex of tier.exercises || []) {
+      for (let i = 0; i < (tier.exercises || []).length; i++) {
         y = ensureVerticalSpace(doc, y, 36, margin, pageHeight);
 
-        const exNum = ex.number || (ex as any).exerciseNumber || 1;
-        const exStmt = ex.statement || (ex as any).problemStatement || '';
-        const exContext = ex.contextOrData || (ex as any).contexto || '';
-        const exHint = ex.hint || (ex as any).pista || '';
-        const exCriteria = ex.expectedOutputOrCriteria || (ex as any).evaluationCriteria || '';
+        const normEx = resolveExercise(tier.exercises[i], i + 1);
 
         // Enunciado
-        y = printParagraph(doc, `Ejercicio ${exNum}: ${exStmt}`, y, margin + 4, contentWidth - 4, pageHeight, {
+        y = printParagraph(doc, `Ejercicio ${normEx.number}: ${normEx.statement}`, y, margin + 4, contentWidth - 4, pageHeight, {
           size: 8,
           fontStyle: 'bold',
           color: DARK_TEXT,
@@ -1403,8 +1373,8 @@ function drawEvaluationSection(
         });
 
         // Contexto o datos
-        if (exContext) {
-          y = printParagraph(doc, `Datos: ${exContext}`, y, margin + 6, contentWidth - 6, pageHeight, {
+        if (normEx.contextOrData) {
+          y = printParagraph(doc, `Datos: ${normEx.contextOrData}`, y, margin + 6, contentWidth - 6, pageHeight, {
             size: 7.5,
             fontStyle: 'normal',
             color: MUTED_TEXT,
@@ -1413,8 +1383,8 @@ function drawEvaluationSection(
         }
 
         // Pista de andamiaje
-        if (exHint) {
-          y = printParagraph(doc, `Pista: ${exHint}`, y, margin + 6, contentWidth - 6, pageHeight, {
+        if (normEx.hint) {
+          y = printParagraph(doc, `Pista: ${normEx.hint}`, y, margin + 6, contentWidth - 6, pageHeight, {
             size: 7.2,
             fontStyle: 'italic',
             color: MID_BLUE,
@@ -1423,8 +1393,8 @@ function drawEvaluationSection(
         }
 
         // Criterio de validación
-        if (exCriteria) {
-          y = printParagraph(doc, `Criterio esperado: ${exCriteria}`, y, margin + 6, contentWidth - 6, pageHeight, {
+        if (normEx.expectedOutputOrCriteria) {
+          y = printParagraph(doc, `Criterio esperado: ${normEx.expectedOutputOrCriteria}`, y, margin + 6, contentWidth - 6, pageHeight, {
             size: 7.2,
             fontStyle: 'normal',
             color: MUTED_TEXT,

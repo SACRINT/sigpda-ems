@@ -1,5 +1,7 @@
 // src/lib/prompts/pips-chunks.ts
 
+import { SCHOOL_YEAR } from '@/lib/config';
+
 /**
  * PIPS Generation Prompts - Chunked Architecture
  *
@@ -10,17 +12,17 @@
  */
 
 export const PIPS_SYSTEM_PROMPT = `Eres un experto en supervisión escolar y planificación pedagógica del Bachillerato General Estatal (BGE) en Puebla, México.
-Tu tarea es generar secciones de alta calidad para el Plan de Intervención Pedagógica de Supervisión (PIPS) 2026-2027 de la Zona Escolar 004.
+Tu tarea es generar secciones de alta calidad para el Plan de Intervención Pedagógica de Supervisión (PIPS) ${SCHOOL_YEAR} de la Zona Escolar 004.
 
 Directrices institucionales del PIPS en Puebla:
 1. Usar un lenguaje formal, institucional y con sólida fundamentación técnico-pedagógica.
 2. Alineación rigurosa a los principios de la Nueva Escuela Mexicana (NEM) y el MCCEMS.
 3. Incorporar los municipios de cobertura: Venustiano Carranza, Francisco Z. Mena, Pantepec y Jalpan.
 4. NUNCA inventes nombres de planteles, claves CCT ni estadísticas. Todo debe salir de los datos provistos.
-5. El calendario y cronograma se anclan en las directrices del Plan Anual de Trabajo (PAT) 2025-2026 proyectado a 2026-2027 como fechas preliminares.`;
+5. El calendario y cronograma se anclan en las directrices del Plan Anual de Trabajo (PAT) 2025-2026 proyectado a ${SCHOOL_YEAR} como fechas preliminares.`;
 
 export function getChunk1Prompt(row: any, plantelesData: any[], totalAlumnos: number, totalPersonal: any): string {
-  return `Genera la **PARTE 1** del Plan de Intervención Pedagógica de Supervisión (PIPS) 2026-2027.
+  return `Genera la **PARTE 1** del Plan de Intervención Pedagógica de Supervisión (PIPS) ${SCHOOL_YEAR}.
 
 Información base de la supervisión:
 - Zona escolar: ${row.zona_nombre} (Clave: ${row.zona_clave ?? '21FMS0020X'})
@@ -70,7 +72,7 @@ Menciona la fundamentación normativa aplicable a la supervisión escolar.
 - **Qué contenía el PIPS anterior:** Describe de forma crítica qué estructura y alcances tuvo.
 - **Fortalezas del plan anterior:** Cita los aciertos reales (ej. cronograma mensual, acompañamiento).
 - **Áreas de mejora detectadas:** Analiza por qué era básico (ej. no desagregaba datos por plantel, carecía de FODA).
-- **Compromiso para este PIPS 2026-2027:** Describe cómo este plan corrige esas deficiencias (desagregación de abandono, análisis de plantillas y alineación con el PAT).
+- **Compromiso para este PIPS ${SCHOOL_YEAR}:** Describe cómo este plan corrige esas deficiencias (desagregación de abandono, análisis de plantillas y alineación con el PAT).
 
 # 4. DIAGNÓSTICO DE LA ZONA ESCOLAR
 - **Datos generales de la supervisión:** Redacta un análisis integrador de las características físicas, geográficas y administrativas.
@@ -101,7 +103,7 @@ Genera un análisis FODA exhaustivo y adaptado específicamente al diagnóstico 
 - **Debilidades:** Planteles críticos sin personal de apoyo administrativo, escuelas con matrícula baja y alta precarización.
 - **Amenazas:** Dispersión geográfica, riesgos externos como migración o violencia familiar.
 
-# 6. OBJETIVOS DE INTERVENCIÓN PEDAGÓGICA (Ciclo 2026-2027)
+# 6. OBJETIVOS DE INTERVENCIÓN PEDAGÓGICA (Ciclo ${SCHOOL_YEAR})
 - **Objetivo General:** (Debe enfocarse en el acompañamiento técnico-pedagógico y administrativo diferenciado de la supervisión y los ATP).
 - **Objetivos Específicos y Metas SMART:**
   * Genera tres objetivos específicos correspondientes a los 3 ámbitos principales:
@@ -114,7 +116,7 @@ Asegúrate de que la redacción sea formal, madura y completa. Devuelve únicame
 }
 
 export function getChunk3Prompt(row: any, chunk1And2Result: string): string {
-  return `Con base en toda la planeación de objetivos y el diagnóstico previo de la Zona Escolar 004, genera la **PARTE 3 (Y FINAL)** del Plan de Intervención Pedagógica de Supervisión (PIPS) 2026-2027.
+  return `Con base en toda la planeación de objetivos y el diagnóstico previo de la Zona Escolar 004, genera la **PARTE 3 (Y FINAL)** del Plan de Intervención Pedagógica de Supervisión (PIPS) ${SCHOOL_YEAR}.
 
 ---
 **CONTEXTO DE OBJETIVOS GENERADOS (Como referencia):**
@@ -125,14 +127,14 @@ ${chunk1And2Result.slice(-3000)}
 
 # 7. PLAN DE ACCIÓN, ESTRATEGIAS Y CRONOGRAMA INSTITUCIONAL
 - **Líneas de Acción y Estrategias:** Describe las estrategias concretas del equipo de supervisión (ej. visitas in situ focalizadas a planteles prioritarios, talleres de alineación de progresiones NEM).
-- **Cronograma de Actividades Anclado al PAT 2026-2027 (Tentativo):**
+- **Cronograma de Actividades Anclado al PAT ${SCHOOL_YEAR} (Tentativo):**
   * Presenta la proyección de actividades y entregables oficiales en los meses clave del ciclo escolar:
     - Octubre 2026: Elaboración final y entrega del PIPS a la DBEPA.
     - Noviembre 2026: Primera evidencia de Cultura de Paz y primer reporte de visita técnica de ATPs.
     - Febrero 2027: Reporte intermedio de Avances del PIPS a la DBEPA.
     - Mayo 2027: Segunda evidencia de Cultura de Paz y visitas de seguimiento.
     - Junio/Julio 2027: Entrega de Reporte de Resultados y Reporte Final del PIPS.
-  * Nota importante aclaratoria sobre la provisionalidad del PAT 2026-2027 hasta la publicación oficial.
+  * Nota importante aclaratoria sobre la provisionalidad del PAT ${SCHOOL_YEAR} hasta la publicación oficial.
 
 # 8. SEGUIMIENTO, ACOMPAÑAMIENTO Y EVALUACIÓN DEL PLAN
 - **Mecanismos de Acompañamiento:** Instrumentos (bitácoras de visita, rúbricas de alineación).

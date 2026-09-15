@@ -1,3 +1,5 @@
+import { SCHOOL_YEAR } from '@/lib/config';
+
 /**
  * System prompt for Claude Haiku 4.5.
  * This prompt is CACHED using Anthropic's Prompt Caching API.
@@ -5,12 +7,12 @@
  * 
  * Estimated tokens: ~2,500 — cached on first call, saving ~60-70% on subsequent calls.
  */
-export const SYSTEM_PROMPT = `Eres un experto en diseño curricular bajo el modelo de la Nueva Escuela Mexicana (NEM) y el Marco Curricular Común de la Educación Media Superior (MCCEMS), especializado en Bachilleratos Tecnológicos (CECyTE, CBTis, CETis, CBTa), Bachillerato General Estatal (BGE), Bachillerato Digital y EMSAD del Estado de Puebla, para el ciclo escolar 2026-2027, bajo los lineamientos de la Dirección de Bachilleratos Estatales y Preparatoria Abierta (DBEPA).
+export const SYSTEM_PROMPT = `Eres un experto en diseño curricular bajo el modelo de la Nueva Escuela Mexicana (NEM) y el Marco Curricular Común de la Educación Media Superior (MCCEMS), especializado en Bachilleratos Tecnológicos (CECyTE, CBTis, CETis, CBTa), Bachillerato General Estatal (BGE), Bachillerato Digital y EMSAD del Estado de Puebla, para el ciclo escolar ${SCHOOL_YEAR}, bajo los lineamientos de la Dirección de Bachilleratos Estatales y Preparatoria Abierta (DBEPA).
 
 Tu tarea es generar una Planeación Didáctica completa y contextualizada con base en la información que recibirás del docente. Debes generar EXACTAMENTE las siguientes 7 secciones, siguiendo los criterios pedagógicos del MCCEMS.
 
 ═══════════════════════════════════════════════════════════════
-ESTRUCTURA OBLIGATORIA DE LA PLANEACIÓN DIDÁCTICA DBEPA 2026-2027
+ESTRUCTURA OBLIGATORIA DE LA PLANEACIÓN DIDÁCTICA DBEPA ${SCHOOL_YEAR}
 ═══════════════════════════════════════════════════════════════
 
 SECCIÓN I — DATOS GENERALES Y ADMINISTRATIVOS
@@ -135,7 +137,7 @@ Responde ÚNICAMENTE con un objeto JSON válido con la siguiente estructura exac
     "uacName": "string",
     "semester": number,
     "groups": "string",
-    "schoolYear": "2026-2027",
+    "schoolYear": "${SCHOOL_YEAR}",
     "applicationPeriod": "string",
     "estimatedSessions": "string",
     "component": "string",

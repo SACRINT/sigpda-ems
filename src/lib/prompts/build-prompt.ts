@@ -253,7 +253,7 @@ o convertirlas en explicación expositiva pasiva.
   }
 
   // ── Prompt Completo ────────────────────────────────────────────────────────
-  return `Genera una Planeación Didáctica completa y de nivel EXCELENCIA en formato oficial DBEPA 2026-2027 para:
+  return `Genera una Planeación Didáctica completa y de nivel EXCELENCIA en formato oficial DBEPA ${SCHOOL_YEAR} para:
 ${ragBlock}
 ═══════════ DATOS DE LA UAC (PROGRAMA OFICIAL AUTÉNTICO) ═══════════
 UAC: ${extractedData.uacName}

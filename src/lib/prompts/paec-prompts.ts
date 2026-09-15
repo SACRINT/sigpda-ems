@@ -1,4 +1,6 @@
-export const PAEC_SYSTEM_PROMPT = `Actúa consistentemente como un consorcio experto en Educación Media Superior de la Nueva Escuela Mexicana (NEM) integrado por: un Formador Pedagógico NEM, un Arquitecto de Estructuras Educativas y un Estratega Curricular Transversal de Proyectos Escolares Comunitarios (PAEC-PEC 2026-2027) adscrito a la Dirección de Bachilleratos Estatales y Preparatoria Abierta (DBEPA Puebla). Tu objetivo es diseñar un Proyecto Escolar Comunitario (PEC) de nivel EXCELENCIA alineado al 100% con la Rúbrica Oficial PAEC-PEC 2025-2026.
+import { SCHOOL_YEAR } from '@/lib/config';
+
+export const PAEC_SYSTEM_PROMPT = `Actúa consistentemente como un consorcio experto en Educación Media Superior de la Nueva Escuela Mexicana (NEM) integrado por: un Formador Pedagógico NEM, un Arquitecto de Estructuras Educativas y un Estratega Curricular Transversal de Proyectos Escolares Comunitarios (PAEC-PEC ${SCHOOL_YEAR}) adscrito a la Dirección de Bachilleratos Estatales y Preparatoria Abierta (DBEPA Puebla). Tu objetivo es diseñar un Proyecto Escolar Comunitario (PEC) de nivel EXCELENCIA alineado al 100% con la Rúbrica Oficial PAEC-PEC 2025-2026.
 
 Reglas Críticas de Operación:
 1. Fidelidad Estructural: Conserva de forma estricta los títulos, estructuras y claves del JSON solicitado.
@@ -25,7 +27,7 @@ export function buildPrompt1Diagnostico(
   schoolContext: string,
   problem: string
 ): string {
-  return `Genera la FASE I: Diagnóstico Colectivo y Metodología de Análisis del PAEC-PEC (Ciclo Escolar 2026-2027) para Bachilleratos Generales Estatales de Puebla.
+  return `Genera la FASE I: Diagnóstico Colectivo y Metodología de Análisis del PAEC-PEC (Ciclo Escolar ${SCHOOL_YEAR}) para Bachilleratos Generales Estatales de Puebla.
 
 Problemática seleccionada por la comunidad y el plantel:
 "${problem}"
@@ -90,7 +92,7 @@ export function buildPrompt2Justificacion(
   projectName: string,
   problem: string
 ): string {
-  return `Redacta la FASE II: Definición, Justificación y Diseño General del PEC conforme al Criterio 7 de la Rúbrica Oficial PAEC-PEC (Ciclo Escolar 2026-2027).
+  return `Redacta la FASE II: Definición, Justificación y Diseño General del PEC conforme al Criterio 7 de la Rúbrica Oficial PAEC-PEC (Ciclo Escolar ${SCHOOL_YEAR}).
 
 Nombre del Proyecto: "${projectName}"
 Problemática Asignada: "${problem}"
@@ -104,7 +106,7 @@ DIRECTRICES OBLIGATORIAS:
    a) MAGNITUD: Dimensión física, territorial y humana del problema; porcentaje y número estimado de habitantes/familias afectadas.
    b) INTERÉS: Razones por las cuales el problema moviliza genuinamente la vocación de estudiantes, docentes y padres de familia.
    c) FACTIBILIDAD: Viabilidad técnica, operativa y financiera para resolver o mitigar la problemática con las capacidades del bachillerato.
-   d) OPORTUNIDAD: Razones estratégicas por las cuales el ciclo escolar 2026-2027 es el momento exacto para actuar.
+   d) OPORTUNIDAD: Razones estratégicas por las cuales el ciclo escolar ${SCHOOL_YEAR} es el momento exacto para actuar.
 2. CINCO PILARES ESTRATÉGICOS: Lista detallada de al menos 5 pilares metodológicos e institucionales que sostienen el proyecto.
 3. PROPÓSITO TRIDIMENSIONAL (QUÉ Y PARA QUÉ):
    - Educativo: Competencias cognitivas, disciplinares y socioemocionales específicas que desarrollarán los estudiantes.
@@ -115,7 +117,7 @@ DIRECTRICES OBLIGATORIAS:
 Debes retornar un objeto JSON con la siguiente estructura exacta:
 {
   "projectName": "${projectName}",
-  "introduction": "1. MAGNITUD: La problemática impacta a más de ... habitantes y genera un rezago del ...% en ... 2. INTERÉS: Los estudiantes y la comunidad manifiestan un alto compromiso debido a ... 3. FACTIBILIDAD: El plantel cuenta con talleres, asesoría docente y vinculación comunitaria que garantizan su ejecución sin costos onerosos ... 4. OPORTUNIDAD: La coyuntura del ciclo 2026-2027 y la alineación a la NEM brindan el marco regulatorio idóneo ...",
+  "introduction": "1. MAGNITUD: La problemática impacta a más de ... habitantes y genera un rezago del ...% en ... 2. INTERÉS: Los estudiantes y la comunidad manifiestan un alto compromiso debido a ... 3. FACTIBILIDAD: El plantel cuenta con talleres, asesoría docente y vinculación comunitaria que garantizan su ejecución sin costos onerosos ... 4. OPORTUNIDAD: La coyuntura del ciclo ${SCHOOL_YEAR} y la alineación a la NEM brindan el marco regulatorio idóneo ...",
   "pilares": [
     "Conexión Directa con Necesidades del Plantel y la Comunidad: Diagnóstico vivo y territorializado",
     "Desarrollo de Competencias Transversales: Pensamiento crítico, resolución colaborativa y compromiso ético ciudadano",
@@ -162,7 +164,7 @@ export function buildPrompt3Mapeo(
     .map((u) => `- Semestre ${u.semester}: ${u.uac_name}`)
     .join('\n');
 
-  return `Realiza la Matriz de Mapeo Curricular y Transversalidad del PEC para TODAS las asignaturas activas en el Ciclo Escolar 2026-2027 (DBEPA Puebla).
+  return `Realiza la Matriz de Mapeo Curricular y Transversalidad del PEC para TODAS las asignaturas activas en el Ciclo Escolar ${SCHOOL_YEAR} (DBEPA Puebla).
 
 Contexto y Fundamentación del Proyecto:
 ${justificacionText}
@@ -204,7 +206,7 @@ export function buildPrompt4Cronograma(
     relevosText = `Ciclo Anual Completo (Fases 1 a 6 de Septiembre a Junio integrando 1.° a 6.° semestre de manera continua).`;
   }
 
-  return `Diseña la tabla oficial de "Diseño General: Fases de Implementación del PEC" en 6 Fases Bimestrales para el Ciclo Escolar 2026-2027 bajo el estándar estricto de 5 COLUMNAS de la Rúbrica DBEPA / COSFAC.
+  return `Diseña la tabla oficial de "Diseño General: Fases de Implementación del PEC" en 6 Fases Bimestrales para el Ciclo Escolar ${SCHOOL_YEAR} bajo el estándar estricto de 5 COLUMNAS de la Rúbrica DBEPA / COSFAC.
 
 Mapeo Curricular de Referencia:
 ${mapeoSummary}
@@ -243,7 +245,7 @@ export function buildPrompt5DetalleCurricular(
   cronogramaSummary: string,
   cycleType: string
 ): string {
-  return `Diseña la "Matriz de Detalle Curricular por Semestre" del PEC para el Ciclo Escolar 2026-2027 conforme al Manual de Arquitectura de Sistema DBEPA / COSFAC.
+  return `Diseña la "Matriz de Detalle Curricular por Semestre" del PEC para el Ciclo Escolar ${SCHOOL_YEAR} conforme al Manual de Arquitectura de Sistema DBEPA / COSFAC.
 
 Mapeo Curricular Aprobado:
 ${mapeoSummary}
@@ -299,7 +301,7 @@ export function buildPrompt6PlanOperativoSemestreA(
     .map((u) => `- ${u.uacName} (${u.semester}.° Semestre)`)
     .join('\n');
 
-  return `Diseña la programación operativa de 16 SEMANAS para el SEMESTRE A (Fases 1, 2 y 3: Septiembre a Enero) del PEC (Ciclo Escolar 2026-2027) para el siguiente bloque de asignaturas (Bloque ${blockIndex} de ${totalBlocks}).
+  return `Diseña la programación operativa de 16 SEMANAS para el SEMESTRE A (Fases 1, 2 y 3: Septiembre a Enero) del PEC (Ciclo Escolar ${SCHOOL_YEAR}) para el siguiente bloque de asignaturas (Bloque ${blockIndex} de ${totalBlocks}).
 
 Asignaturas a Programar en este Bloque (Semestres Impares: 1.°, 3.°, 5.°):
 ${uacListText}
@@ -367,7 +369,7 @@ export function buildPrompt7PlanOperativoSemestreB(
     .map((u) => `- ${u.uacName} (${u.semester}.° Semestre)`)
     .join('\n');
 
-  return `Diseña la programación operativa de 16 SEMANAS para el SEMESTRE B (Fases 4, 5 y 6: Febrero a Junio) del PEC (Ciclo Escolar 2026-2027) para el siguiente bloque de asignaturas (Bloque ${blockIndex} de ${totalBlocks}).
+  return `Diseña la programación operativa de 16 SEMANAS para el SEMESTRE B (Fases 4, 5 y 6: Febrero a Junio) del PEC (Ciclo Escolar ${SCHOOL_YEAR}) para el siguiente bloque de asignaturas (Bloque ${blockIndex} de ${totalBlocks}).
 
 Asignaturas a Programar en este Bloque (Semestres Pares: 2.°, 4.°, 6.°):
 ${uacListText}
@@ -415,7 +417,7 @@ export function buildPrompt8ImplementacionYAnexos(
   planASummary: string,
   planBSummary: string
 ): string {
-  return `Genera el SISTEMA INTEGRAL DE IMPLEMENTACIÓN TERRITORIAL, OFICIOS Y PORTAFOLIO DE 6 ANEXOS TÉCNICOS del PEC (Ciclo Escolar 2026-2027) conforme a los Criterios 18 a 23 de la Rúbrica Oficial DBEPA / COSFAC.
+  return `Genera el SISTEMA INTEGRAL DE IMPLEMENTACIÓN TERRITORIAL, OFICIOS Y PORTAFOLIO DE 6 ANEXOS TÉCNICOS del PEC (Ciclo Escolar ${SCHOOL_YEAR}) conforme a los Criterios 18 a 23 de la Rúbrica Oficial DBEPA / COSFAC.
 
 Datos y Fundamentación del Proyecto:
 ${projectSummary}
@@ -483,7 +485,7 @@ Debes responder ÚNICAMENTE con un objeto JSON con la siguiente estructura exact
       "destinatario": "C. Presidente Auxiliar Municipal",
       "cargo": "Presidente de la Junta Auxiliar",
       "institucion": "H. Presidencia Auxiliar",
-      "asunto": "Solicitud de Colaboración Institucional y Respaldo Operativo para el Proyecto PAEC-PEC 2026-2027",
+      "asunto": "Solicitud de Colaboración Institucional y Respaldo Operativo para el Proyecto PAEC-PEC ${SCHOOL_YEAR}",
       "propuestaColaboracion": "Se solicita apoyo para facilitar el acceso a espacios públicos comunitarios, asesoría en gestión de residuos y respaldo en seguridad preventiva para las brigadas estudiantiles durante las visitas situadas."
     },
     {
@@ -623,7 +625,7 @@ export function buildPrompt9GobernanzaEInformeSupervision(
   planBSummary: string,
   implementacionSummary: string
 ): string {
-  return `Genera la FASE IV: GOBERNANZA ESCOLAR E INFORME FINAL DE RENDICIÓN DE CUENTAS del PEC (Ciclo Escolar 2026-2027) para la Supervisión Escolar 004 y la Dirección General (DBEPA Puebla).
+  return `Genera la FASE IV: GOBERNANZA ESCOLAR E INFORME FINAL DE RENDICIÓN DE CUENTAS del PEC (Ciclo Escolar ${SCHOOL_YEAR}) para la Supervisión Escolar 004 y la Dirección General (DBEPA Puebla).
 
 Datos del Proyecto:
 ${projectSummary}
@@ -706,7 +708,7 @@ Debes responder ÚNICAMENTE con un objeto JSON con la siguiente estructura exact
     }
   },
   "informeSupervision": {
-    "resumenEjecutivo": "El Proyecto Escolar Comunitario (PEC) desarrollado durante el Ciclo Escolar 2026-2027 alcanzó un nivel de consolidación sobresaliente, integrando al 100% de la matrícula en los semestres activos e incidiendo de manera verificable en el polígono comunitario seleccionado...",
+    "resumenEjecutivo": "El Proyecto Escolar Comunitario (PEC) desarrollado durante el Ciclo Escolar ${SCHOOL_YEAR} alcanzó un nivel de consolidación sobresaliente, integrando al 100% de la matrícula en los semestres activos e incidiendo de manera verificable en el polígono comunitario seleccionado...",
     "metasVsLogros": [
       {
         "meta": "Involucrar al 100% de la matrícula de semestres activos en brigadas del PEC",
