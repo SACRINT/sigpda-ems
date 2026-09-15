@@ -1,4 +1,5 @@
 import { neon } from '@neondatabase/serverless';
+import { logger } from '@/lib/logger';
 
 export async function getUserLibraryContext(email: string): Promise<string> {
   try {
@@ -30,7 +31,7 @@ export async function getUserLibraryContext(email: string): Promise<string> {
     context += '--- FIN DEL CONTEXTO DE LA BIBLIOTECA ---\n';
     return context;
   } catch (error) {
-    console.error('Error in getUserLibraryContext:', error);
+    logger.error('Error in getUserLibraryContext:', error);
     return ''; // Failsafe, do not block generation if DB fails
   }
 }

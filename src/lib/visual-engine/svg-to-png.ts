@@ -8,6 +8,7 @@
  */
 
 import sharp from 'sharp';
+import { logger } from '@/lib/logger';
 
 /**
  * Convierte una cadena SVG a una imagen rasterizada optimizada para jsPDF.
@@ -38,7 +39,7 @@ export async function svgToPngBuffer(
 
     return { buffer: jpegBuffer, format: 'JPEG' };
   } catch (error) {
-    console.error('[VisualEngine] Error al convertir SVG a imagen con sharp:', error);
+    logger.error('[VisualEngine] Error al convertir SVG a imagen con sharp:', error);
     return null;
   }
 }

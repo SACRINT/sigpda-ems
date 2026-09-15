@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
           }));
       }
     } catch (err: any) {
-      console.warn('[paec-parser] Gemini call failed, falling back to heuristics:', err.message || err);
+      logger.warn('[paec-parser] Gemini call failed, falling back to heuristics:', err.message || err);
     }
 
     // Nivel 2: Heurísticas multi-ancla sobre el texto extraído
@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
       data: parsedData,
     });
   } catch (error) {
-    console.error('POST /api/pdf/parse-paec error:', error);
+    logger.error('POST /api/pdf/parse-paec error:', error);
     return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
   }
 }

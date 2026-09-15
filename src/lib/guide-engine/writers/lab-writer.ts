@@ -107,7 +107,7 @@ Redacta la Misión Práctica de Laboratorio/Taller completa:`;
 
     if (stepCount < 5) {
       attempt = 2;
-      console.warn(`[LabWriter] autonomousChallenge tiene solo ${stepCount} pasos (< 5). Reintentando con instrucción estricta...`);
+      logger.warn(`[LabWriter] autonomousChallenge tiene solo ${stepCount} pasos (< 5). Reintentando con instrucción estricta...`);
       try {
         const retryPrompt = `${prompt}\n\n[REQUISITO CRÍTICO DE PROFUNDIDAD]: Tu respuesta anterior tuvo menos de 5 pasos en 'autonomousChallenge'. Redacta OBLIGATORIAMENTE el 'autonomousChallenge' en EXACTAMENTE 5 a 7 PASOS NUMERADOS (Paso 1 al Paso 5, 6 o 7), cada uno con una instrucción cuantitativa clara, variables precisas y acción técnica concreta del estudiante.`;
         const retryResponse = await generateWithRotation(

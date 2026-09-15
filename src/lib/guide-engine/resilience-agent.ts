@@ -15,6 +15,7 @@
 
 import { generateWithRotation } from '@/lib/ai-provider';
 import { robustJsonParse } from '@/lib/ai-response-parser';
+import { logger } from '@/lib/logger';
 import type { CanonicalSeed, TroubleshootItem } from '@/types/work-textbook';
 
 export interface ResilienceInput {
@@ -117,7 +118,7 @@ Genera los 5 a 8 casos más relevantes de la matriz "¿Qué hacer si falla?":`;
       return merged.slice(0, 8);
     }
   } catch (err) {
-    console.error('[generateTroubleshootingMatrix] Error:', err);
+    logger.error('[generateTroubleshootingMatrix] Error:', err);
   }
 
   // Fallback estructurado de resiliencia

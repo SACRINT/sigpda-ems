@@ -221,13 +221,35 @@ export const PaecPaso6BlockSchema = z.preprocess((input: any) => {
   return input;
 }, z.array(PlanOperativoRowSchema).min(1, 'El bloque debe contener al menos 1 actividad operativa'));
 
+export const PaecPaso6PlanSchema = z.preprocess((input: any) => {
+  if (Array.isArray(input)) return input;
+  if (input && typeof input === 'object') {
+    const list = input.semestreA || input.planSemestreA || input.activities || input.actividades || input.rows || input.planOperativo;
+    if (Array.isArray(list)) return list;
+    const anyArr = Object.values(input).find((v) => Array.isArray(v));
+    if (anyArr) return anyArr;
+  }
+  return input;
+}, z.array(PlanOperativoRowSchema).min(1, 'Debe incluir al menos una actividad para el Semestre A'));
+
+export const PaecPaso7PlanSchema = z.preprocess((input: any) => {
+  if (Array.isArray(input)) return input;
+  if (input && typeof input === 'object') {
+    const list = input.semestreB || input.planSemestreB || input.activities || input.actividades || input.rows || input.planOperativo;
+    if (Array.isArray(list)) return list;
+    const anyArr = Object.values(input).find((v) => Array.isArray(v));
+    if (anyArr) return anyArr;
+  }
+  return input;
+}, z.array(PlanOperativoRowSchema).min(1, 'Debe incluir al menos una actividad para el Semestre B'));
+
 export const PaecPaso6FullSchema = z.object({
   semestreA: z.array(PlanOperativoRowSchema),
   semestreB: z.array(PlanOperativoRowSchema),
 });
 
-// PASO 7: Portafolio de Anexos Técnicos (6 Anexos)
-const Anexo1MinutaSchema = z.object({
+// PASO 7 / 8: Portafolio de Anexos Técnicos e Implementación Territorial
+export const Anexo1MinutaSchema = z.object({
   cct: z.string().default(''),
   fecha: z.string().default(''),
   tipoReunion: z.string().default('Instalación del Comité Escolar Comunitario'),
@@ -244,7 +266,7 @@ const Anexo1MinutaSchema = z.object({
   })).min(1),
 });
 
-const Anexo2SeguimientoRowSchema = z.object({
+export const Anexo2SeguimientoRowSchema = z.object({
   semana: z.string().default(''),
   fase: z.string().default(''),
   uac: z.string().default(''),
@@ -261,7 +283,7 @@ const Anexo2SeguimientoRowSchema = z.object({
   ),
 });
 
-const Anexo3ReporteMensualSchema = z.object({
+export const Anexo3ReporteMensualSchema = z.object({
   periodo: z.string().default(''),
   resumenEjecutivo: z.string().default(''),
   logros: z.array(z.string().min(1)).default([]),
@@ -269,12 +291,12 @@ const Anexo3ReporteMensualSchema = z.object({
   accionesAjuste: z.array(z.string().min(1)).default([]),
 });
 
-const ReactivoInstrumentoSchema = z.object({
+export const ReactivoInstrumentoSchema = z.object({
   reactivo: z.string().min(1),
   dimension: z.string().min(1),
 });
 
-const InstrumentoEvaluacionGenericoSchema = z.object({
+export const InstrumentoEvaluacionGenericoSchema = z.object({
   titulo: z.string().default('Instrumento de Evaluación'),
   tipoAplicacion: z.string().default('FINAL'),
   reactivos: z.array(ReactivoInstrumentoSchema).min(1),
@@ -300,6 +322,128 @@ export const PaecPaso7Schema = z.preprocess((input: any) => {
   anexo4ImpactoComunidad: InstrumentoEvaluacionGenericoSchema,
   anexo5AutoevaluacionEstudiantes: InstrumentoEvaluacionGenericoSchema,
   anexo6EvaluacionColegiado: InstrumentoEvaluacionGenericoSchema,
+}));
+
+// PASO 8: Implementación Territorial, Oficios y Anexos
+export const CartaInvitacionSchema = z.object({
+  asunto: z.string().default('Convocatoria a Asamblea General PAEC-PEC'),
+  fecha: z.string().default(''),
+  destinatarios: z.string().default('Comunidad Escolar y Vecinal'),
+  cuerpo: z.string().min(10, 'Cuerpo de la carta requerido'),
+  fechaReunion: z.string().default(''),
+  hora: z.string().default(''),
+  lugar: z.string().default(''),
+  objetivos: z.array(z.string()).default([]),
+  firmante: z.string().default('Dirección Escolar'),
+  cargo: z.string().default('Director'),
+});
+
+export const OficioAliadoSchema = z.object({
+  destinatario: z.string().min(1, 'Destinatario requerido'),
+  cargo: z.string().default(''),
+  institucion: z.string().default(''),
+  asunto: z.string().min(1, 'Asunto requerido'),
+  propuestaColaboracion: z.string().min(10, 'Propuesta de colaboración requerida'),
+});
+
+export const SesionLanzamientoSchema = z.object({
+  fecha: z.string().default(''),
+  dinamica: z.string().default(''),
+  participantes: z.string().default(''),
+  acuerdosEstudiantiles: z.array(z.string()).default([]),
+}).optional();
+
+export const PaecPaso8ImplementacionSchema = z.preprocess((input: any) => {
+  if (input && typeof input === 'object') {
+    return {
+      cartaInvitacion: input.cartaInvitacion || input.carta || {},
+      minutaArranque: input.minutaArranque || input.minuta || input.anexo1Minuta || {},
+      oficiosAliados: input.oficiosAliados || input.oficios || [],
+      sesionLanzamiento: input.sesionLanzamiento || undefined,
+      anexos: input.anexos || {
+        anexo1Minuta: input.anexo1Minuta || input.minutaArranque || {},
+        anexo2Seguimiento: input.anexo2Seguimiento || [],
+        anexo3ReporteMensual: input.anexo3ReporteMensual || {},
+        anexo4ImpactoComunidad: input.anexo4ImpactoComunidad || {},
+        anexo5AutoevaluacionEstudiantes: input.anexo5AutoevaluacionEstudiantes || {},
+        anexo6EvaluacionColegiado: input.anexo6EvaluacionColegiado || {},
+      },
+    };
+  }
+  return input;
+}, z.object({
+  cartaInvitacion: CartaInvitacionSchema,
+  minutaArranque: Anexo1MinutaSchema,
+  oficiosAliados: z.array(OficioAliadoSchema).min(1, 'Debe incluir al menos un oficio para aliados'),
+  sesionLanzamiento: SesionLanzamientoSchema,
+  anexos: PaecPaso7Schema.optional(),
+}));
+
+// PASO 9: Gobernanza Escolar e Informe de Rendición de Cuentas (Supervisión 004)
+export const CalendarioItemSchema = z.object({
+  tipo: z.string().min(1, 'Tipo de comité o nivel de gobernanza requerido'),
+  frecuencia: z.string().default('Bimestral'),
+  participantes: z.string().min(1, 'Participantes requeridos'),
+  objetivo: z.string().min(5, 'Objetivo de la sesión requerido'),
+  evidencia: z.string().default('Minuta de reunión'),
+});
+
+export const MetodologiaEvaluacionSchema = z.object({
+  ambitos: z.array(z.string()).min(1, 'Debe incluir al menos un ámbito formativo'),
+  preguntasGuiaNem: z.object({
+    dondeEstamos: z.string().min(5, 'Respuesta requerida para ¿Dónde estamos?'),
+    haciaDondeVamos: z.string().min(5, 'Respuesta requerida para ¿Hacia dónde vamos?'),
+    comoSuperamos: z.string().min(5, 'Respuesta requerida para ¿Cómo superamos las brechas?'),
+  }),
+});
+
+export const MetaLogroRowSchema = z.object({
+  meta: z.string().min(1, 'Meta requerida'),
+  indicador: z.string().default('Porcentaje de cumplimiento'),
+  programado: z.string().default('100%'),
+  alcanzado: z.string().default('100%'),
+  porcentaje: z.coerce.number().default(100),
+  estatus: z.string().default('Cumplida'),
+});
+
+export const InformeSupervisionSchema = z.object({
+  resumenEjecutivo: z.string().min(20, 'Resumen ejecutivo de rendición de cuentas requerido'),
+  metasVsLogros: z.array(MetaLogroRowSchema).min(1, 'Debe incluir metas vs logros'),
+  analisisPrePost: z.object({
+    participacionTotal: z.string().default(''),
+    alcanceComunitario: z.string().default(''),
+    cambioConocimientos: z.string().default(''),
+    desarrolloCompetencias: z.string().default(''),
+  }),
+  evidencias: z.array(z.string()).default([]),
+  obstaculos: z.array(z.object({
+    dificultad: z.string().default(''),
+    solucion: z.string().default(''),
+  })).default([]),
+  sostenibilidad: z.array(z.string()).default([]),
+  firmas: z.object({
+    responsableInforme: z.string().default('Coordinador PAEC'),
+    autoridadEscolar: z.string().default('Director del Plantel'),
+  }).optional(),
+});
+
+export const PaecPaso9GobernanzaSchema = z.preprocess((input: any) => {
+  if (input && typeof input === 'object') {
+    return {
+      gobernanza: input.gobernanza || {
+        calendario: input.calendario || [],
+        metodologiaEvaluacion: input.metodologiaEvaluacion || input.evaluacion || {},
+      },
+      informeSupervision: input.informeSupervision || input.informe || input.supervision || {},
+    };
+  }
+  return input;
+}, z.object({
+  gobernanza: z.object({
+    calendario: z.array(CalendarioItemSchema).min(2, 'Debe incluir al menos 2 niveles en el calendario de gobernanza'),
+    metodologiaEvaluacion: MetodologiaEvaluacionSchema,
+  }),
+  informeSupervision: InformeSupervisionSchema,
 }));
 
 // ============================================================================
@@ -483,7 +627,7 @@ export type ScheduleAssistantResponseDTO = z.infer<typeof ScheduleAssistantRespo
 export const ScheduleOptimizationSchema = z.preprocess((input) => {
   if (Array.isArray(input)) return input;
   if (input && typeof input === 'object') {
-    const obj = input as any;
+    const obj = input as Record<string, unknown>;
     if (Array.isArray(obj.sugerencias)) return obj.sugerencias;
     if (Array.isArray(obj.diagnosticos)) return obj.diagnosticos;
     return [input];

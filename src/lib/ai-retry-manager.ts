@@ -137,7 +137,7 @@ export async function generateWithRetry<T>(
       if (!rawResponse || !rawResponse.trim()) {
         metrics.failuresTotalByReason.EMPTY_RESPONSE++;
         lastError = 'La IA devolvió una respuesta vacía';
-        console.warn(`[AI-RETRY] [${route}] Intento ${attempt}/${maxRetries} falló: Respuesta vacía`);
+        logger.warn(`[AI-RETRY] [${route}] Intento ${attempt}/${maxRetries} falló: Respuesta vacía`);
         continue;
       }
 
@@ -172,17 +172,17 @@ export async function generateWithRetry<T>(
         metrics.failuresTotalByReason.JSON_SYNTAX_ERROR++;
       }
 
-      console.warn(`[AI-RETRY] [${route}] Intento ${attempt}/${maxRetries} falló: ${lastError}`);
+      logger.warn(`[AI-RETRY] [${route}] Intento ${attempt}/${maxRetries} falló: ${lastError}`);
     } catch (callErr: any) {
       metrics.failuresTotalByReason.UNKNOWN_ERROR++;
       lastError = callErr.message || 'Excepción no controlada durante llamada a IA';
-      console.error(`[AI-RETRY] [${route}] Excepción en intento ${attempt}/${maxRetries}:`, callErr);
+      logger.error(`[AI-RETRY] [${route}] Excepción en intento ${attempt}/${maxRetries}:`, callErr);
     }
   }
 
   // Si se agotaron todos los reintentos
   metrics.totalFailedAfterMaxRetries++;
   const finalMsg = `Error al generar respuesta estructurada tras ${maxRetries} intentos en la ruta [${route}]. Último error: ${lastError}`;
-  console.error(`[AI-RETRY] [${route}] ❌ Fallo definitivo tras ${maxRetries} intentos.`);
+  logger.error(`[AI-RETRY] [${route}] ❌ Fallo definitivo tras ${maxRetries} intentos.`);
   throw new Error(finalMsg);
 }

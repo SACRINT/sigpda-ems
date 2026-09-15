@@ -27,6 +27,7 @@ import {
   PageOrientation
 } from "docx";
 import { getSubjectColors } from "./subject-colors";
+import { SCHOOL_YEAR } from "@/lib/config";
 
 export interface FilaExportacion {
   encabezado: string;
@@ -138,7 +139,7 @@ export function exportarHorarioPDF(datos: DatosExportacionHorario) {
     doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8.5);
-    doc.text(`HORARIO OFICIAL DE CLASES — CICLO ESCOLAR ${datos.cicloEscolar || "2026-2027"}`, pageWidth / 2, 27.2, { align: "center" });
+    doc.text(`HORARIO OFICIAL DE CLASES — CICLO ESCOLAR ${datos.cicloEscolar || SCHOOL_YEAR}`, pageWidth / 2, 27.2, { align: "center" });
 
     // ── 4. Barra de Metadatos Ejecutiva (Y=30.5 a 38.5 mm) ──
     doc.setFillColor(241, 245, 249); // #F1F5F9
@@ -459,7 +460,7 @@ export async function exportarHorarioDOCX(datos: DatosExportacionHorario) {
         spacing: { after: 80 },
         children: [
           new TextRun({
-            text: `HORARIO OFICIAL: ${fila.encabezado.toUpperCase()} ${fila.subtitulo ? " - " + fila.subtitulo : ""}   •   CICLO ESCOLAR ${datos.cicloEscolar || "2026-2027"}`,
+            text: `HORARIO OFICIAL: ${fila.encabezado.toUpperCase()} ${fila.subtitulo ? " - " + fila.subtitulo : ""}   •   CICLO ESCOLAR ${datos.cicloEscolar || SCHOOL_YEAR}`,
             bold: true,
             size: 16,
             color: NAVY,
@@ -697,7 +698,7 @@ export async function exportarHorarioExcel(datos: DatosExportacionHorario) {
 
     ws.mergeCells("A3:F3");
     const cellA3 = ws.getCell("A3");
-    cellA3.value = `PLANTEL: ${datos.nombreEscuela.toUpperCase()}   C.C.T.: ${datos.cct.toUpperCase()}   CICLO ESCOLAR: ${datos.cicloEscolar || "2026-2027"}`;
+    cellA3.value = `PLANTEL: ${datos.nombreEscuela.toUpperCase()}   C.C.T.: ${datos.cct.toUpperCase()}   CICLO ESCOLAR: ${datos.cicloEscolar || SCHOOL_YEAR}`;
     cellA3.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF1F5F9" } };
     cellA3.font = { bold: true, size: 9, color: { argb: "FF334155" } };
     cellA3.alignment = { horizontal: "center", vertical: "middle" };
@@ -930,7 +931,7 @@ export async function exportarLibroIntegralExcel(datos: DatosLibroIntegralExcel)
 
     ws.mergeCells("A3:F3");
     const c3 = ws.getCell("A3");
-    c3.value = `PLANTEL: ${datos.nombreEscuela.toUpperCase()}   C.C.T.: ${datos.cct.toUpperCase()}   CICLO: ${datos.cicloEscolar || "2026-2027"}`;
+    c3.value = `PLANTEL: ${datos.nombreEscuela.toUpperCase()}   C.C.T.: ${datos.cct.toUpperCase()}   CICLO: ${datos.cicloEscolar || SCHOOL_YEAR}`;
     c3.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF1F5F9" } };
     c3.font = { bold: true, size: 9, color: { argb: "FF334155" } };
     c3.alignment = { horizontal: "center", vertical: "middle" };
@@ -1294,7 +1295,7 @@ export async function exportarHorarioWhatsApp(
   ctx.shadowBlur = 0;
   ctx.fillStyle = "#94A3B8";
   ctx.font = `600 ${isStory ? "14.5px" : "12.5px"} system-ui, -apple-system, sans-serif`;
-  ctx.fillText(`C.C.T.: ${datos.cct.toUpperCase()}   •   CICLO: ${datos.cicloEscolar || "2026-2027"}`, padX + iconSize + 14, padY + (isStory ? 44 : 37));
+  ctx.fillText(`C.C.T.: ${datos.cct.toUpperCase()}   •   CICLO: ${datos.cicloEscolar || SCHOOL_YEAR}`, padX + iconSize + 14, padY + (isStory ? 44 : 37));
 
   // Badge Zona Escolar
   const badgeW = isStory ? 140 : 120;

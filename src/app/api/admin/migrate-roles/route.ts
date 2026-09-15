@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { sql } from '@/lib/db';
 import { isAdmin } from '@/lib/admin-unified';
 
+import { logger } from '@/lib/logger';
 /**
  * POST /api/admin/migrate-roles
  * Crea las tablas necesarias para el sistema de roles y personal por plantel.
@@ -112,7 +113,7 @@ export async function POST() {
       results,
     });
   } catch (error: any) {
-    console.error('[admin/migrate-roles] Error:', error);
+    logger.error('[admin/migrate-roles] Error:', error);
     return NextResponse.json({ error: error.message || 'Error en migración' }, { status: 500 });
   }
 }

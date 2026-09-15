@@ -39,6 +39,7 @@ import {
 } from 'docx';
 import { resolveVisualForMission } from '@/lib/visual-engine/visual-asset-manager';
 import { svgToPngBuffer } from '@/lib/visual-engine/svg-to-png';
+import { SCHOOL_YEAR } from '@/lib/config';
 import type {
   ActiveWorkTextbook,
   MissionSection,
@@ -404,7 +405,7 @@ function buildCoverSection(workbook: ActiveWorkTextbook, planning: Planning): Pa
       spacing: { after: 200 },
       children: [
         new TextRun({
-          text: 'Grupo: _________   Turno: _________   Ciclo Escolar: 2026-2027',
+          text: `Grupo: _________   Turno: _________   Ciclo Escolar: ${SCHOOL_YEAR}`,
           size: 20,
           color: C.mutedText,
           font: 'Calibri',

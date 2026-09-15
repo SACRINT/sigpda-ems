@@ -13,6 +13,7 @@ import { generateWithRotation } from "@/lib/ai-provider";
 import { logger } from "@/lib/logger";
 import { parseAIResponse } from "@/lib/ai-response-parser";
 import { ScheduleAssistantResponseSchema } from "@/lib/ai-schemas";
+import type { z } from "zod";
 
 export interface BloqueoDocenteIA {
   docenteId: string;
@@ -208,7 +209,7 @@ Responde exclusivamente con el JSON estructurado.`;
 
     const parseResult = parseAIResponse<RespuestaIAHorario>(
       rawResponse,
-      ScheduleAssistantResponseSchema as any,
+      ScheduleAssistantResponseSchema as unknown as z.ZodType<RespuestaIAHorario>,
       { contextName: 'ai-schedule-assistant' }
     );
 
@@ -218,7 +219,7 @@ Responde exclusivamente con el JSON estructurado.`;
 
     throw new Error(parseResult.error);
   } catch (error) {
-    console.error("[ai-schedule-assistant] Error procesando comando de horario:", error);
+    logger.error("[ai-schedule-assistant] Error procesando comando de horario:", error);
     return {
       explicacion: "No pude interpretar la instrucción en este momento. Por favor verifica los nombres de docentes o materias e intenta nuevamente.",
       acciones: [],

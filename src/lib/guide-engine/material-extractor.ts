@@ -252,7 +252,7 @@ function buildPlanDeClase(
 
 function buildGuiaDelBloqueMarkdown(workbook: ActiveWorkTextbook): string {
   const parts: string[] = [];
-  const cover = workbook.coverData || ({} as any);
+  const cover = (workbook.coverData || {}) as Record<string, any>; // fallback tipado defensivo
 
   parts.push(`# GUÍA DE TRABAJO DEL ESTUDIANTE · BLOQUE ${workbook.blockIndex ?? 1}`);
   parts.push(`**Asignatura / UAC:** ${cover.subjectName || ''}`);

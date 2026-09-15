@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { getTeacherByEmail, getPaecProjectsByTeacher, createPaecProject } from '@/lib/db';
 import type { CreatePaecInput } from '@/types/paec';
 
+import { logger } from '@/lib/logger';
 export async function GET() {
   try {
     const session = await auth();
@@ -24,7 +25,7 @@ export async function GET() {
     const projects = await getPaecProjectsByTeacher(teacher.id);
     return NextResponse.json({ projects });
   } catch (error) {
-    console.error('Error fetching PAEC projects:', error);
+    logger.error('Error fetching PAEC projects:', error);
     return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
   }
 }
@@ -66,7 +67,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, project });
   } catch (error) {
-    console.error('Error creating PAEC project:', error);
+    logger.error('Error creating PAEC project:', error);
     return NextResponse.json({ error: 'Error al crear el proyecto' }, { status: 500 });
   }
 }

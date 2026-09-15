@@ -3,6 +3,7 @@ import Google from 'next-auth/providers/google';
 import Credentials from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import { sql, upsertTeacher, getTeacherByEmail } from './db';
+import { logger } from './logger';
 
 const authSecret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
 if (!authSecret) {
@@ -59,10 +60,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           id: teacher.id,
           name: teacher.name,
           email: teacher.email,
-          role: teacher.role || 'docente',
-          school_name: teacher.school_name || '',
-          cct: teacher.cct || '',
-          subsystem: teacher.subsystem || 'bge',
+          role: teacher.role,
+          school_name: teacher.school_name,
+          cct: teacher.cct,
+          subsystem: teacher.subsystem,
         };
       },
     }),
@@ -78,7 +79,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           });
           return true;
         } catch (error) {
-          console.error('Error upserting teacher on sign in:', error);
+          logger.error('Error upserting teacher on sign in:', { error, email: user.email });
           return false;
         }
       }
@@ -87,10 +88,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.role = (user as any).role || 'docente';
-        token.school_name = (user as any).school_name || '';
-        token.cct = (user as any).cct || '';
-        token.subsystem = (user as any).subsystem || '';
+        token.role = user.role || 'docente';
+        token.school_name = user.school_name || '';
+        token.cct = user.cct || '';
+        token.subsystem = user.subsystem || '';
       }
       if (token.email) {
         try {
@@ -102,17 +103,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             token.cct = t.cct || '';
             token.subsystem = t.subsystem || '';
           }
-        } catch {}
+        } catch (error) {
+          logger.error('Failed to enrich JWT token with teacher data from DB:', { error, email: token.email });
+        }
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user && token) {
-        (session.user as any).id = token.id;
-        (session.user as any).role = token.role;
-        (session.user as any).school_name = token.school_name;
-        (session.user as any).cct = token.cct;
-        (session.user as any).subsystem = token.subsystem;
+        session.user.id = (token.id as string) || '';
+        session.user.role = (token.role as string) || 'docente';
+        session.user.school_name = (token.school_name as string) || '';
+        session.user.cct = (token.cct as string) || '';
+        session.user.subsystem = (token.subsystem as string) || '';
       }
       return session;
     },

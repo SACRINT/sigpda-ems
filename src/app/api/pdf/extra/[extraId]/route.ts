@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { getTeacherByEmail, getPlanningExtraById } from '@/lib/db';
 import { generateExtraPDF } from '@/lib/pdf-extra-generator';
 
+import { logger } from '@/lib/logger';
 export const runtime = 'nodejs';
 
 export async function GET(
@@ -56,7 +57,7 @@ export async function GET(
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Error desconocido';
-    console.error('[pdf/extra] Error:', msg);
+    logger.error('[pdf/extra] Error:', msg);
     return new Response(`Error generando PDF: ${msg}`, { status: 500 });
   }
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { sql } from "@/lib/db";
 
+import { logger } from '@/lib/logger';
 export async function GET(req: NextRequest) {
   try {
     const session = await auth();
@@ -44,7 +45,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ personal });
   } catch (error: any) {
-    console.error("[api/expedientes/personal] Error:", error);
+    logger.error("[api/expedientes/personal] Error:", error);
     return NextResponse.json({ personal: [] });
   }
 }

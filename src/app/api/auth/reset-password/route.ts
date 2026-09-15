@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { verifyAndResetPassword } from '@/lib/db';
 
+import { logger } from '@/lib/logger';
 export async function POST(req: NextRequest) {
   try {
     const { token, newPassword, confirmPassword } = await req.json();
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest) {
       message: 'Contraseña restablecida exitosamente. Ya puedes iniciar sesión con tu nueva contraseña.',
     });
   } catch (error: any) {
-    console.error('Error en /api/auth/reset-password:', error);
+    logger.error('Error en /api/auth/reset-password:', error);
     return NextResponse.json(
       { error: 'Error al restablecer la contraseña.' },
       { status: 500 }

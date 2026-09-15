@@ -1,6 +1,7 @@
 import { auth } from '@/lib/auth';
 import { neon } from '@neondatabase/serverless';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 export async function POST() {
   try {
@@ -14,7 +15,7 @@ export async function POST() {
 
     return NextResponse.json({ success: true, timestamp: new Date().toISOString() });
   } catch (e: any) {
-    console.error('Heartbeat error:', e);
+    logger.error('Heartbeat error:', e);
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }

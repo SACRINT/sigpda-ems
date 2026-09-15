@@ -62,7 +62,9 @@ export function auditPaecProject(project: PaecProject): PaecAuditResult {
 
   // C2: Características Comunidad — tabla1 tiene ≥6 filas
   {
-    const tabla1 = project.fase1Diagnostico?.tabla1 || (project.fase1Diagnostico as any)?.tabla1_caracteristicas || [];
+    type LooseTableRow = Record<string, string | undefined>;
+    const f1 = project.fase1Diagnostico as unknown as Record<string, unknown> | undefined;
+    const tabla1 = (f1?.tabla1 || f1?.tabla1_caracteristicas || []) as unknown as LooseTableRow[];
     let score = 1;
     let status: 'pass' | 'warning' | 'fail' = 'fail';
     let feedback = 'No se encontró la matriz de diagnóstico comunitario (Tabla 1).';
@@ -94,11 +96,13 @@ export function auditPaecProject(project: PaecProject): PaecAuditResult {
 
   // C3: FODA — tabla3 tiene exactamente 4 aspectos (F, O, D, A)
   {
-    const tabla3 = project.fase1Diagnostico?.tabla3 || (project.fase1Diagnostico as any)?.tabla3_foda || [];
-    const hasF = tabla3.some((r: any) => /fortaleza|f/i.test(r.aspect || r.aspecto || ''));
-    const hasO = tabla3.some((r: any) => /oportunidad|o/i.test(r.aspect || r.aspecto || ''));
-    const hasD = tabla3.some((r: any) => /debilidad|d/i.test(r.aspect || r.aspecto || ''));
-    const hasA = tabla3.some((r: any) => /amenaza|a/i.test(r.aspect || r.aspecto || ''));
+    type LooseTableRow = Record<string, string | undefined>;
+    const f1 = project.fase1Diagnostico as unknown as Record<string, unknown> | undefined;
+    const tabla3 = (f1?.tabla3 || f1?.tabla3_foda || []) as unknown as LooseTableRow[];
+    const hasF = tabla3.some((r) => /fortaleza|f/i.test(r.aspect || r.aspecto || ''));
+    const hasO = tabla3.some((r) => /oportunidad|o/i.test(r.aspect || r.aspecto || ''));
+    const hasD = tabla3.some((r) => /debilidad|d/i.test(r.aspect || r.aspecto || ''));
+    const hasA = tabla3.some((r) => /amenaza|a/i.test(r.aspect || r.aspecto || ''));
     const all4 = hasF && hasO && hasD && hasA;
 
     let score = 1;
@@ -132,7 +136,9 @@ export function auditPaecProject(project: PaecProject): PaecAuditResult {
 
   // C4: Selección del Problema — tabla4 tiene 3 etapas
   {
-    const tabla4 = project.fase1Diagnostico?.tabla4 || (project.fase1Diagnostico as any)?.tabla4_seleccion || [];
+    type LooseTableRow = Record<string, string | undefined>;
+    const f1 = project.fase1Diagnostico as unknown as Record<string, unknown> | undefined;
+    const tabla4 = (f1?.tabla4 || f1?.tabla4_seleccion || []) as unknown as LooseTableRow[];
     let score = 1;
     let status: 'pass' | 'warning' | 'fail' = 'fail';
     let feedback = 'No se documentó la metodología de selección y jerarquización del problema (Tabla 4).';

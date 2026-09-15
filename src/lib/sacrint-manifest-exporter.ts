@@ -24,6 +24,7 @@ export interface SacrintManifestModule {
     title: string;
     sessionTopic: string;
     sessionFocus: string;
+    visualOrDiagram?: string;
     phenomenonHook: {
       story: string;
       detonatingQuestion: string;
@@ -93,10 +94,11 @@ export function exportSacrintCourseManifest(
 ): SacrintCourseManifest {
   const content = planning.contentJson;
   const activities = content?.sectionIV?.activities || [];
-  const schoolName = content?.sectionI?.schoolName || (planning.extractedData as any)?.schoolName || 'Plantel de Educación Media Superior';
-  const cct = content?.sectionI?.cct || (planning.extractedData as any)?.cct;
-  const subsystem = content?.sectionI?.subsystem || (planning.extractedData as any)?.subsystem || 'BGE';
-  const teacherName = content?.sectionI?.teacherName || (planning.extractedData as any)?.teacherName;
+  const ext = planning.extractedData as Record<string, unknown> | null;
+  const schoolName = content?.sectionI?.schoolName || (typeof ext?.schoolName === 'string' ? ext.schoolName : undefined) || 'Plantel de Educación Media Superior';
+  const cct = content?.sectionI?.cct || (typeof ext?.cct === 'string' ? ext.cct : undefined);
+  const subsystem = content?.sectionI?.subsystem || (typeof ext?.subsystem === 'string' ? ext.subsystem : undefined) || 'BGE';
+  const teacherName = content?.sectionI?.teacherName || (typeof ext?.teacherName === 'string' ? ext.teacherName : undefined);
 
   // Realizar auditoría pedagógica global sobre el primer libro representativo
   let globalAudit: SacrintCourseManifest['globalPedagogicalAudit'];
@@ -129,6 +131,7 @@ export function exportSacrintCourseManifest(
         title: m.title,
         sessionTopic: m.sessionTopic || '',
         sessionFocus: m.sessionFocus || '',
+        visualOrDiagram: m.iDoSection?.visualOrDiagram || undefined,
         phenomenonHook: {
           story: m.phenomenonHook?.story || '',
           detonatingQuestion: m.phenomenonHook?.detonatingQuestion || '',

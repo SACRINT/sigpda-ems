@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getPlanningById, getTeacherByEmail, getGenerationJobById, getBlockWorkbook, getLatestGenerationJob } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
 
@@ -72,7 +73,7 @@ export async function GET(
       totalWords: workbook.totalWords || 0,
     });
   } catch (error: any) {
-    console.error('[GET /api/planeaciones/[id]/libro-bloque/result] Error:', error);
+    logger.error('[GET /api/planeaciones/[id]/libro-bloque/result] Error:', error);
     return NextResponse.json(
       { error: error.message || 'Error al obtener resultado del libro' },
       { status: 500 }

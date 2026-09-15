@@ -44,7 +44,7 @@ export async function GET(
     return NextResponse.json(extras);
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Error desconocido';
-    console.error('GET extras error:', msg);
+    logger.error('GET extras error:', error);
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
@@ -275,7 +275,7 @@ Resultados de Aprendizaje: ${(contentJson?.sectionII?.learningOutcomes || []).jo
     return NextResponse.json({ success: true, extra: newExtra });
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Error al generar recurso extra';
-    console.error('POST extras error:', msg);
+    logger.error('POST extras error:', error);
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
@@ -307,7 +307,7 @@ export async function DELETE(
     return NextResponse.json({ success: true });
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Error al eliminar recurso extra';
-    console.error('DELETE extras error:', msg);
+    logger.error('DELETE extras error:', error);
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

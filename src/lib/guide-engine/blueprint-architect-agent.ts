@@ -181,7 +181,7 @@ export function buildBlockBlueprint(params: {
 
   // 1. Obtener las sesiones desde sequenceJson / sequence_json o autogenerarlas si no existen
   let sessions: DetailedSession[] = [];
-  const sequenceData = planning.sequenceJson || (planning as any).sequence_json || {};
+  const sequenceData = planning.sequenceJson || (planning as Record<string, any>).sequence_json || {};
   const currentBlockSeq = sequenceData[blockIndex];
 
   if (currentBlockSeq && Array.isArray(currentBlockSeq.sessions) && currentBlockSeq.sessions.length > 0) {
@@ -191,7 +191,7 @@ export function buildBlockBlueprint(params: {
   } else {
     // Autogeneración silenciosa en 5ms leyendo directamente la Sección IV planificada
     const isLaboral = curriculum.subsystem === 'bt' || curriculum.component === 'laboral';
-    const content = (planning.contentJson || (planning as any).content_json) as any;
+    const content = (planning.contentJson || (planning as Record<string, any>).content_json) as Record<string, any> | undefined;
     const realActivity = content?.sectionIV?.activities?.[blockIndex];
     const hours = realActivity?.hours || (curriculum.subsystem === 'bt' ? 18 : 12);
     const activityPlan: KeyActivityPlan = {

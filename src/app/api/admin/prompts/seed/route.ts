@@ -23,6 +23,7 @@ Reglas:
 
 import { PIPS_SYSTEM_PROMPT } from '@/lib/prompts/pips-chunks';
 
+import { logger } from '@/lib/logger';
 export async function POST() {
   try {
     await requireAdmin();
@@ -71,7 +72,7 @@ export async function POST() {
   } catch (e: any) {
     if (e.message === 'UNAUTHORIZED') return adminUnauthorized();
     if (e.message === 'FORBIDDEN') return adminForbidden();
-    console.error('POST /api/admin/prompts/seed error:', e);
+    logger.error('POST /api/admin/prompts/seed error:', e);
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }

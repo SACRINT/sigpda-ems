@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, getPlanningsByTeacher, createPlanning } from '@/lib/db';
 import { canCreatePlanningForSubject, lockSubjectInSubscription } from '@/lib/subscription-gate';
+import { logger } from '@/lib/logger';
 
 export async function GET() {
   try {
@@ -16,7 +17,7 @@ export async function GET() {
     const plannings = await getPlanningsByTeacher(teacher.id);
     return NextResponse.json({ plannings });
   } catch (error) {
-    console.error('GET /api/plannings error:', error);
+    logger.error('GET /api/plannings error:', error);
     return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
   }
 }
@@ -84,14 +85,14 @@ export async function POST(request: NextRequest) {
           component
         );
       } catch (lockErr) {
-        console.warn('[plannings POST] Could not lock subject:', lockErr);
+        logger.warn('[plannings POST] Could not lock subject:', { error: lockErr });
         // No fallamos la creación si esto falla
       }
     }
 
     return NextResponse.json({ planning }, { status: 201 });
   } catch (error) {
-    console.error('POST /api/plannings error:', error);
+    logger.error('POST /api/plannings error:', error);
     return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
   }
 }

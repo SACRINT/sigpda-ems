@@ -31,7 +31,7 @@ function formatPlanDeClaseMarkdown(
   plan: PlanDeClaseDerivado,
   workbook: ActiveWorkTextbook
 ): string {
-  const cover = workbook.coverData || ({} as any);
+  const cover = (workbook.coverData || {}) as Record<string, any>; // fallback tipado defensivo
   const uacName = cover.subjectName || 'Formación Disciplinar';
   const semester = cover.semester || 1;
 

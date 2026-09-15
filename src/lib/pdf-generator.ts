@@ -8,6 +8,7 @@ import autoTable from 'jspdf-autotable';
 import type { GeneratedPlanningContent, Planning, SecuenciaBloque } from '@/types/planning';
 import { loadAllLogos } from './pdf-logos';
 import { SCHOOL_YEAR } from '@/lib/config';
+import { logger } from './logger';
 
 const NAVY: [number, number, number] = [31, 56, 100];       // #1F3864 - Azul Institucional
 const BLUE_MID: [number, number, number] = [46, 116, 181];   // #2E74B5 - Azul Secundario
@@ -51,7 +52,7 @@ export async function generatePlanningPDF(
         const fmt = logos.gobierno.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
         doc.addImage(logos.gobierno, fmt, margin, currentY, 34, 14.6);
       } catch (err) {
-        console.warn('Error insertando logo Gobierno en PDF:', err);
+        logger.warn('[PDF-Gen] Error insertando logo Gobierno en PDF:', { error: err });
       }
     }
 
@@ -61,7 +62,7 @@ export async function generatePlanningPDF(
         const fmt = logos.sep.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
         doc.addImage(logos.sep, fmt, (pageWidth - 30) / 2, currentY - 1, 30, 8.6);
       } catch (err) {
-        console.warn('Error insertando logo SEP en PDF:', err);
+        logger.warn('[PDF-Gen] Error insertando logo SEP en PDF:', { error: err });
       }
     }
 
@@ -71,7 +72,7 @@ export async function generatePlanningPDF(
         const fmt = logos.supervision.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
         doc.addImage(logos.supervision, fmt, pageWidth - margin - 30, currentY, 30, 11.6);
       } catch (err) {
-        console.warn('Error insertando logo Supervisión en PDF:', err);
+        logger.warn('[PDF-Gen] Error insertando logo Supervisión en PDF:', { error: err });
       }
     }
 
@@ -381,15 +382,27 @@ export async function generateSecuenciaPDF(
   // Logos oficiales
   if (logos.gobierno) {
     const fmt = logos.gobierno.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
-    try { doc.addImage(logos.gobierno, fmt, margin, currentY, 34, 14.6); } catch (e) { /* ignore */ }
+    try {
+      doc.addImage(logos.gobierno, fmt, margin, currentY, 34, 14.6);
+    } catch (e) {
+      logger.warn('[PDF-Gen] Error insertando logo Gobierno en portada:', { error: e });
+    }
   }
   if (logos.sep) {
     const fmt = logos.sep.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
-    try { doc.addImage(logos.sep, fmt, (pageWidth - 30) / 2, currentY - 1, 30, 8.6); } catch (e) { /* ignore */ }
+    try {
+      doc.addImage(logos.sep, fmt, (pageWidth - 30) / 2, currentY - 1, 30, 8.6);
+    } catch (e) {
+      logger.warn('[PDF-Gen] Error insertando logo SEP en portada:', { error: e });
+    }
   }
   if (logos.supervision) {
     const fmt = logos.supervision.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
-    try { doc.addImage(logos.supervision, fmt, pageWidth - margin - 30, currentY, 30, 11.6); } catch (e) { /* ignore */ }
+    try {
+      doc.addImage(logos.supervision, fmt, pageWidth - margin - 30, currentY, 30, 11.6);
+    } catch (e) {
+      logger.warn('[PDF-Gen] Error insertando logo Supervisión en portada:', { error: e });
+    }
   }
 
   currentY += 9;

@@ -16,6 +16,7 @@ import { parseAIResponse } from '@/lib/ai-response-parser';
 import { PlanningContentSchema } from '@/lib/ai-schemas';
 import { getUserLibraryContext } from '@/lib/context-extractor';
 import { searchCurriculum } from '@/lib/rag-curricular';
+import { extractIdempotencyKey, checkIdempotencyKey, createIdempotencyKey } from '@/lib/idempotency';
 import type { ExtractedPdfData, TeacherContext } from '@/types/planning';
 import type { RagContext } from '@/lib/rag-curricular';
 
@@ -41,6 +42,23 @@ export async function POST(
     const planning = await getPlanningById(id, teacher.id);
     if (!planning) {
       return NextResponse.json({ error: 'Planeación no encontrada' }, { status: 404 });
+    }
+
+    // Mejora #24: Verificación de Idempotencia y Deduplicación
+    const idempotencyKey = extractIdempotencyKey(request);
+    const cachedResult = await checkIdempotencyKey(idempotencyKey, teacher.id, `/api/plannings/${id}/generate`);
+    if (cachedResult) {
+      if (typeof cachedResult === 'string') {
+        return new Response(cachedResult, {
+          headers: {
+            'Content-Type': 'text/plain; charset=utf-8',
+            'X-Idempotency-Hit': 'true',
+          },
+        });
+      }
+      return NextResponse.json(cachedResult, {
+        headers: { 'X-Idempotency-Hit': 'true' },
+      });
     }
 
     const body = await request.json();
@@ -202,6 +220,16 @@ export async function POST(
               entityId: id,
               success: true,
             });
+
+            // Mejora #24: Guardar resultado en key de idempotencia
+            if (idempotencyKey) {
+              await createIdempotencyKey(
+                idempotencyKey,
+                teacher.id,
+                `/api/plannings/${id}/generate`,
+                accumulatedText
+              );
+            }
           } catch (dbErr) {
             logger.error('Failed to parse or save accumulated JSON stream to database:', dbErr);
           }
@@ -228,7 +256,7 @@ export async function POST(
 
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Error desconocido';
-    console.error('Generate planning error:', message);
+    logger.error('Generate planning error:', error);
     return NextResponse.json(
       { error: message || 'Error al generar la planeación' },
       { status: 500 }

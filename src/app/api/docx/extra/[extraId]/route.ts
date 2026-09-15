@@ -20,6 +20,7 @@ import {
   PageNumber,
 } from 'docx';
 
+import { logger } from '@/lib/logger';
 export const runtime = 'nodejs';
 
 // Theme Colors matching institutional palette
@@ -339,7 +340,7 @@ export async function GET(
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Error desconocido';
-    console.error('Export docx extra error:', msg);
+    logger.error('Export docx extra error:', msg);
     return new Response(`Error: ${msg}`, { status: 500 });
   }
 }

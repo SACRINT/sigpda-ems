@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { neon } from '@neondatabase/serverless';
+import { logger } from '@/lib/logger';
 import { signOutAction, signOutPlain } from '@/lib/server-actions';
 import SignOutButton from './SignOutButton';
 import HeartbeatSender from './HeartbeatSender';
@@ -16,14 +17,25 @@ type Props = {
 
 async function getUserRole(email: string): Promise<{ isAdmin: boolean; role: string }> {
   if (process.env.ADMIN_EMAIL === email) return { isAdmin: true, role: 'administrador' };
-  try {
-    const sql = neon(process.env.DATABASE_URL!);
-    const adminRows = await sql`SELECT email FROM admins WHERE email = ${email} LIMIT 1`;
-    if (adminRows.length > 0) return { isAdmin: true, role: 'administrador' };
-    
-    const teacherRows = await sql`SELECT role FROM teachers WHERE email = ${email} LIMIT 1`;
-    if (teacherRows.length > 0) return { isAdmin: false, role: teacherRows[0].role };
-  } catch {}
+  
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const sql = neon(process.env.DATABASE_URL!);
+      const adminRows = await sql`SELECT email FROM admins WHERE email = ${email} LIMIT 1`;
+      if (adminRows.length > 0) return { isAdmin: true, role: 'administrador' };
+      
+      const teacherRows = await sql`SELECT role FROM teachers WHERE email = ${email} LIMIT 1`;
+      if (teacherRows.length > 0) return { isAdmin: false, role: teacherRows[0].role };
+      return { isAdmin: false, role: 'docente' };
+    } catch (err) {
+      if (attempt === 1) {
+        logger.warn(`[AppLayout] Error fetching user role for ${email}, retrying...`, { attempt, error: err });
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      } else {
+        logger.error(`[AppLayout] Failed to fetch user role after retry for ${email}, defaulting to 'docente'`, { error: err });
+      }
+    }
+  }
   return { isAdmin: false, role: 'docente' };
 }
 
@@ -40,7 +52,8 @@ async function getMaintenanceStatus(): Promise<{ active: boolean; message: strin
       active: cfg.maintenance_mode === 'true',
       message: cfg.maintenance_message || 'La plataforma está en mantenimiento. Por favor regresa más tarde.',
     };
-  } catch {
+  } catch (err) {
+    logger.warn('[AppLayout] Error checking maintenance status, defaulting to inactive', { error: err });
     return { active: false, message: '' };
   }
 }

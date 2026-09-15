@@ -4,6 +4,7 @@ import { getPlanningById, getBlockWorkbook, getTeacherByEmail } from '@/lib/db';
 import { renderWorkbookToPdf } from '@/lib/pdf-workbook-renderer';
 import type { Planning } from '@/types/planning';
 
+import { logger } from '@/lib/logger';
 export const runtime = 'nodejs';
 export const maxDuration = 90;
 
@@ -84,7 +85,7 @@ export async function GET(
       },
     });
   } catch (error: any) {
-    console.error('[GET /api/pdf/libro-bloque/[id]] Error:', error);
+    logger.error('[GET /api/pdf/libro-bloque/[id]] Error:', error);
     return NextResponse.json(
       { error: error.message || 'Error al descargar el libro PDF' },
       { status: 500 }

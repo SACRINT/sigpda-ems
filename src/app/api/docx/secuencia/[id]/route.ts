@@ -4,6 +4,7 @@ import { getTeacherByEmail, getPlanningById, markPlanningDownloaded } from '@/li
 import { generateSecuenciaDocx } from '@/lib/docx-generator';
 import type { GeneratedPlanningContent } from '@/types/planning';
 
+import { logger } from '@/lib/logger';
 export const runtime = 'nodejs';
 
 export async function GET(
@@ -41,7 +42,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error('DOCX secuencia generation error:', error);
+    logger.error('DOCX secuencia generation error:', error);
     return NextResponse.json({ error: 'Error al generar el documento de secuencia' }, { status: 500 });
   }
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { sql, getTeacherByEmail } from "@/lib/db";
 
+import { logger } from '@/lib/logger';
 export async function GET(req: NextRequest) {
   try {
     const session = await auth();
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest) {
         ORDER BY apellido_paterno ASC, nombre ASC
       `;
     } catch (e) {
-      console.warn("[api/horarios/catalogos GET] Error consultando escuela_personal:", e);
+      logger.warn("[api/horarios/catalogos GET] Error consultando escuela_personal:", e);
     }
 
     const docentes = rows.map((p: any) => ({
@@ -39,7 +40,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ success: true, docentes });
   } catch (error: any) {
-    console.error("[api/horarios/catalogos GET] Error:", error);
+    logger.error("[api/horarios/catalogos GET] Error:", error);
     return NextResponse.json({ error: "Error al obtener catálogo" }, { status: 500 });
   }
 }
@@ -86,7 +87,7 @@ export async function POST(req: NextRequest) {
         `;
         if (rows[0]?.id) docenteId = rows[0].id;
       } catch (e) {
-        console.warn("[api/horarios/catalogos POST] Insert escuela_personal error:", e);
+        logger.warn("[api/horarios/catalogos POST] Insert escuela_personal error:", e);
       }
 
       const docente = {
@@ -103,7 +104,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ error: "Acción no soportada" }, { status: 400 });
   } catch (error: any) {
-    console.error("[api/horarios/catalogos POST] Error:", error);
+    logger.error("[api/horarios/catalogos POST] Error:", error);
     return NextResponse.json({ error: "Error al procesar catálogo" }, { status: 500 });
   }
 }

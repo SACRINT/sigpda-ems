@@ -4,6 +4,7 @@ import {
   PageBreak, Header, Footer, PageNumber, HeadingLevel,
 } from 'docx';
 import type { GeneratedPlanningContent } from '@/types/planning';
+import { SCHOOL_YEAR } from '@/lib/config';
 
 // ── Color palette (DBEPA institutional) ─────────────────────────────────────────────
 const C = {
@@ -36,11 +37,11 @@ function tc(
   opts: {
     w?: number; span?: number; bold?: boolean; fill?: string;
     color?: string; size?: number; align?: typeof AlignmentType[keyof typeof AlignmentType];
-    valign?: typeof VerticalAlign[keyof typeof VerticalAlign]; italics?: boolean;
+    valign?: 'top' | 'center' | 'bottom'; italics?: boolean;
   } = {}
 ): TableCell {
   const { w, span = 1, bold = false, fill = C.white, color = C.text,
-    size = 18, align = AlignmentType.LEFT, valign = VerticalAlign.CENTER,
+    size = 18, align = AlignmentType.LEFT, valign = 'center',
     italics = false } = opts;
 
   return new TableCell({
@@ -49,8 +50,7 @@ function tc(
     shading: { fill, type: ShadingType.CLEAR },
     borders: bdr(),
     margins: CELLMRG,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    verticalAlign: valign as any,
+    verticalAlign: valign,
     children: [new Paragraph({
       alignment: align,
       spacing: { before: 50, after: 50 },
@@ -146,7 +146,7 @@ function buildCover(content: GeneratedPlanningContent): (Paragraph | Table)[] {
       children: [
         new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'SECRETARÍA DE EDUCACIÓN PÚBLICA DE PUEBLA', bold: true, size: 20, color: C.white, font: 'Arial' })] }),
         new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Dirección de Bachilleratos Estatales y Preparatoria Abierta (DBEPA)', size: 17, color: 'AACCEE', font: 'Arial' })] }),
-        new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Ciclo Escolar 2026-2027', size: 17, color: 'AACCEE', font: 'Arial' })] }),
+        new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `Ciclo Escolar ${SCHOOL_YEAR}`, size: 17, color: 'AACCEE', font: 'Arial' })] }),
       ],
     })]})], [CONTENT]),
     sp(),
@@ -169,7 +169,7 @@ function buildCover(content: GeneratedPlanningContent): (Paragraph | Table)[] {
       new TableRow({ children: [tcL('Semestre:', { w: cL }), tc(`${s1.semester}er / ${s1.semester}º Semestre`, { w: cR, fill: C.alt })] }),
       new TableRow({ children: [tcL('Carga Horaria:', { w: cL }), tc(`${s1.totalHours} horas`, { w: cR })] }),
       new TableRow({ children: [tcL('Subsistema:', { w: cL }), tc(s1.subsystem, { w: cR, fill: C.alt })] }),
-      new TableRow({ children: [tcL('Marco de Referencia:', { w: cL }), tc('NEM · MCCEMS · Lineamientos DBEPA 2026-2027', { w: cR })] }),
+      new TableRow({ children: [tcL('Marco de Referencia:', { w: cL }), tc(`NEM · MCCEMS · Lineamientos DBEPA ${SCHOOL_YEAR}`, { w: cR })] }),
     ], [cL, cR]),
     pb(),
   ];
@@ -288,12 +288,11 @@ function buildActivityTable(activity: GeneratedPlanningContent['sectionIV']['act
   ];
 
   // If it's not laboral and has a defined Contenido Formativo, add a row for it
-  const actAny = activity as any;
-  if (!isLaboral && actAny.contenidoFormativo) {
+  if (!isLaboral && activity.contenidoFormativo) {
     rows.push(new TableRow({
       children: [
         new TableCell({ columnSpan: 1, shading: { fill: C.mid, type: ShadingType.CLEAR }, borders: bdr(), margins: { top: 60, bottom: 60, left: 80, right: 80 }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Tema / Contenido:', bold: true, size: 17, color: C.white, font: 'Arial' })] })] }),
-        new TableCell({ columnSpan: 3, shading: { fill: C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [new Paragraph({ children: [new TextRun({ text: actAny.contenidoFormativo, bold: true, size: 18, font: 'Arial', color: C.dark })] })] })
+        new TableCell({ columnSpan: 3, shading: { fill: C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [new Paragraph({ children: [new TextRun({ text: activity.contenidoFormativo, bold: true, size: 18, font: 'Arial', color: C.dark })] })] })
       ]
     }));
   }
@@ -431,7 +430,7 @@ function buildSectionVII(): (Paragraph | Table)[] {
       new TableRow({ children: [tc('Fecha: ___/___/______', { w: c3 }), tc('Fecha: ___/___/______', { w: c3, fill: C.alt }), tc('Fecha: ___/___/______', { w: c3+rem })] }),
     ], [c3, c3, c3+rem]),
     sp(),
-    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 200 }, children: [new TextRun({ text: 'DBEPA Puebla 2026-2027 | departamento.academico.dbepa@seppue.gob.mx', size: 16, color: '777777', font: 'Arial' })] }),
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 200 }, children: [new TextRun({ text: `DBEPA Puebla ${SCHOOL_YEAR} | departamento.academico.dbepa@seppue.gob.mx`, size: 16, color: '777777', font: 'Arial' })] }),
   ];
 }
 
@@ -455,7 +454,7 @@ export async function generateDocx(
           children: [new Paragraph({
             spacing: { before: 0, after: 60 },
             border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: C.accent, space: 1 } },
-            children: [new TextRun({ text: `DBEPA Puebla 2026-2027 | ${content.sectionI.uacName} | ${content.sectionI.semester}° Semestre`, size: 14, color: '777777', font: 'Arial' })],
+            children: [new TextRun({ text: `DBEPA Puebla ${SCHOOL_YEAR} | ${content.sectionI.uacName} | ${content.sectionI.semester}° Semestre`, size: 14, color: '777777', font: 'Arial' })],
           })],
         }),
       },
@@ -470,7 +469,7 @@ export async function generateDocx(
               new TextRun({ children: [PageNumber.CURRENT], size: 14, color: '777777', font: 'Arial' }),
               new TextRun({ text: ' de ', size: 14, color: '777777', font: 'Arial' }),
               new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 14, color: '777777', font: 'Arial' }),
-              new TextRun({ text: ' | NEM · MCCEMS · Lineamientos DBEPA 2026-2027', size: 14, color: '777777', font: 'Arial' }),
+              new TextRun({ text: ` | NEM · MCCEMS · Lineamientos DBEPA ${SCHOOL_YEAR}`, size: 14, color: '777777', font: 'Arial' }),
             ],
           })],
         }),
@@ -515,7 +514,7 @@ export async function generateSecuenciaDocx(
           children: [new Paragraph({
             alignment: AlignmentType.RIGHT,
             children: [new TextRun({
-              text: 'SEP PUEBLA · SUBSECRETARÍA DE EDUCACIÓN MEDIA SUPERIOR · DBEPA 2026-2027',
+              text: `SEP PUEBLA · SUBSECRETARÍA DE EDUCACIÓN MEDIA SUPERIOR · DBEPA ${SCHOOL_YEAR}`,
               size: 14, color: '666666', font: 'Arial',
             })],
           })],

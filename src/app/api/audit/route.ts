@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { neon } from '@neondatabase/serverless';
 import { runPedagogicalAudit } from '@/lib/audit-engine';
 
+import { logger } from '@/lib/logger';
 export async function POST(req: NextRequest) {
   try {
     const session = await auth();
@@ -45,7 +46,7 @@ export async function POST(req: NextRequest) {
           },
         });
       } catch (notifErr) {
-        console.warn('Could not dispatch audit_result notification:', notifErr);
+        logger.warn('Could not dispatch audit_result notification:', notifErr);
       }
     }
 
@@ -55,7 +56,7 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('[API /api/audit POST Error]:', error);
+    logger.error('[API /api/audit POST Error]:', error);
     return NextResponse.json(
       { error: error.message || 'Error al ejecutar la auditoría pedagógica.' },
       { status: 500 }
@@ -142,7 +143,7 @@ export async function GET(req: NextRequest) {
       }
     });
   } catch (error: any) {
-    console.error('[API /api/audit GET Error]:', error);
+    logger.error('[API /api/audit GET Error]:', error);
     return NextResponse.json(
       { error: error.message || 'Error al obtener el listado de auditorías.' },
       { status: 500 }

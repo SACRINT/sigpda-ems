@@ -4,6 +4,7 @@ import { getPlanningById, getAllBlockWorkbooks, getTeacherByEmail } from '@/lib/
 import { exportSacrintCourseManifest } from '@/lib/sacrint-manifest-exporter';
 import type { Planning } from '@/types/planning';
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
+import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -81,7 +82,7 @@ export async function GET(
       },
     });
   } catch (error: any) {
-    console.error('[GET /api/sacrint/manifest/[id]] Error:', error);
+    logger.error('[GET /api/sacrint/manifest/[id]] Error:', error);
     return NextResponse.json(
       { error: error.message || 'Error al exportar el manifiesto de curso' },
       { status: 500 }

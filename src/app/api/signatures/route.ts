@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { getTeacherByEmail, getPlanningById } from '@/lib/db';
 import { signDocument, getVerificationUrl } from '@/lib/digital-signature';
 import { sql } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
         metadata: { planningId, hash: signature.hash, uacName: planning.uacName },
       });
     } catch (notifErr) {
-      console.warn('Could not dispatch document_signed notification:', notifErr);
+      logger.warn('Could not dispatch document_signed notification:', notifErr);
     }
 
     return NextResponse.json({
@@ -73,7 +74,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Signing error:', error);
+    logger.error('Signing error:', error);
     return NextResponse.json({ error: 'Error al firmar documento' }, { status: 500 });
   }
 }

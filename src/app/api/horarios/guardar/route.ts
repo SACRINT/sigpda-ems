@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { sql, getTeacherByEmail } from "@/lib/db";
+import { logger } from "@/lib/logger";
 
 export async function POST(req: NextRequest) {
   try {
@@ -25,7 +26,9 @@ export async function POST(req: NextRequest) {
     try {
       const existing = await sql()`SELECT horario_generado FROM horario_config WHERE teacher_id = ${teacher.id}::uuid LIMIT 1`;
       prevMetricas = existing[0]?.horario_generado?.scoreMetricas || {};
-    } catch {}
+    } catch (err) {
+      logger.warn('[HorariosGuardar] Failed to read prevMetricas from horario_config', { error: err, teacherId: teacher.id });
+    }
 
     const horarioActualizado = {
       id: horarioId,
@@ -44,7 +47,7 @@ export async function POST(req: NextRequest) {
         WHERE teacher_id = ${teacher.id}::uuid
       `;
     } catch (e) {
-      console.warn("[api/horarios/guardar] Error actualizando horario_generado:", e);
+      logger.warn("[api/horarios/guardar] Error actualizando horario_generado:", { error: e });
     }
 
     return NextResponse.json({
@@ -53,7 +56,7 @@ export async function POST(req: NextRequest) {
       horario: horarioActualizado
     });
   } catch (error: any) {
-    console.error("[api/horarios/guardar] Error en POST:", error);
+    logger.error("[api/horarios/guardar] Error en POST:", { error });
     return NextResponse.json(
       { error: "Error al guardar los cambios del horario." },
       { status: 500 }

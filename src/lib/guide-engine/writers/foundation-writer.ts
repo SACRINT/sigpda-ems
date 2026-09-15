@@ -90,7 +90,7 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
     const coreWords = (parsed.coreExplanation || '').split(/\s+/).filter(Boolean).length;
     if (coreWords < 500) {
       attempt = 2;
-      console.warn(`[FoundationWriter] coreExplanation tiene solo ${coreWords} palabras (< 500). Reintentando con instrucción estricta...`);
+      logger.warn(`[FoundationWriter] coreExplanation tiene solo ${coreWords} palabras (< 500). Reintentando con instrucción estricta...`);
       try {
         const retryPrompt = `${prompt}\n\n[REQUISITO CRÍTICO DE PROFUNDIDAD]: Tu respuesta anterior fue insuficiente (${coreWords} palabras en coreExplanation). Redacta OBLIGATORIAMENTE un 'coreExplanation' de MÍNIMO 500 palabras con al menos dos párrafos explicativos extensos, desarrollando paso a paso la fundamentación formal y física del concepto sin resumir.`;
         const retryResponse = await generateWithRotation(

@@ -6,9 +6,10 @@
  */
 
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import autoTable, { type RowInput } from 'jspdf-autotable';
 import { loadAllLogos } from './pdf-logos';
 import { SCHOOL_YEAR } from '@/lib/config';
+import { logger } from './logger';
 import type { PipsPlantele, PipsObjetivo, PipsCronogramaActividad } from '@/types/pips';
 
 const NAVY: [number, number, number] = [31, 56, 100];       // #1F3864 - Azul Institucional DBEPA
@@ -68,19 +69,25 @@ export async function generatePipsPDF(
     try {
       const fmt = logos.gobierno.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
       doc.addImage(logos.gobierno, fmt, margin, curY, 36, 15);
-    } catch {}
+    } catch (err) {
+      logger.warn('[PIPS-PDF] Error agregando logotipo de gobierno en portada', { error: err });
+    }
   }
   if (logos.sep) {
     try {
       const fmt = logos.sep.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
       doc.addImage(logos.sep, fmt, (pageWidth - 32) / 2, curY, 32, 9);
-    } catch {}
+    } catch (err) {
+      logger.warn('[PIPS-PDF] Error agregando logotipo SEP en portada', { error: err });
+    }
   }
   if (logos.supervision) {
     try {
       const fmt = logos.supervision.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
       doc.addImage(logos.supervision, fmt, pageWidth - margin - 32, curY, 32, 12);
-    } catch {}
+    } catch (err) {
+      logger.warn('[PIPS-PDF] Error agregando logotipo de supervisión en portada', { error: err });
+    }
   }
 
   curY += 22;
@@ -261,7 +268,7 @@ export async function generatePipsPDF(
   addSectionHeader('3. DIAGNÓSTICO TERRITORIAL Y MATRÍCULA POR PLANTEL');
 
   if (planteles.length > 0) {
-    const plantelRows = planteles.map((pl, i) => [
+    const plantelRows: RowInput[] = planteles.map((pl, i) => [
       { content: `${pl.no || i + 1}`, styles: { halign: 'center' as const, fontStyle: 'bold' as const, fillColor: GRAY_BG } },
       safeStr(pl.cct),
       safeStr(pl.nombre),
@@ -275,7 +282,7 @@ export async function generatePipsPDF(
     // Fila totalizadora
     plantelRows.push([
       { content: '', styles: { fillColor: NAVY } },
-      { content: 'TOTALES ZONA', styles: { colSpan: 4, fontStyle: 'bold' as const, halign: 'right' as const, fillColor: NAVY, textColor: [255, 255, 255] } } as any,
+      { content: 'TOTALES ZONA', colSpan: 4, styles: { fontStyle: 'bold' as const, halign: 'right' as const, fillColor: NAVY, textColor: [255, 255, 255] } },
       { content: `${totalH}`, styles: { fontStyle: 'bold' as const, halign: 'center' as const, fillColor: NAVY, textColor: [255, 255, 255] } },
       { content: `${totalM}`, styles: { fontStyle: 'bold' as const, halign: 'center' as const, fillColor: NAVY, textColor: [255, 255, 255] } },
       { content: `${totalT}`, styles: { fontStyle: 'bold' as const, halign: 'center' as const, fillColor: NAVY, textColor: [...GOLD_LINE] } },

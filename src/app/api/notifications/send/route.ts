@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { getTeacherByEmail } from '@/lib/db';
 import { sendNotification } from '@/lib/notifications';
 
+import { logger } from '@/lib/logger';
 export async function POST(req: NextRequest) {
   try {
     const session = await auth();
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, notification: result.notification }, { status: 201 });
   } catch (error: any) {
-    console.error('Error in POST /api/notifications/send:', error);
+    logger.error('Error in POST /api/notifications/send:', error);
     return NextResponse.json({ error: error.message || 'Error al enviar notificación' }, { status: 500 });
   }
 }

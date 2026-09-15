@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 
+import { logger } from '@/lib/logger';
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -52,7 +53,7 @@ export async function GET(
       audit: rows[0]
     });
   } catch (error: any) {
-    console.error('[API /api/audit/[id] GET Error]:', error);
+    logger.error('[API /api/audit/[id] GET Error]:', error);
     return NextResponse.json(
       { error: error.message || 'Error al obtener el reporte de auditoría.' },
       { status: 500 }
@@ -79,7 +80,7 @@ export async function DELETE(
       message: 'Auditoría eliminada exitosamente.'
     });
   } catch (error: any) {
-    console.error('[API /api/audit/[id] DELETE Error]:', error);
+    logger.error('[API /api/audit/[id] DELETE Error]:', error);
     return NextResponse.json(
       { error: error.message || 'Error al eliminar la auditoría.' },
       { status: 500 }

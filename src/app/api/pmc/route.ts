@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, sql } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 export async function GET() {
   try {
@@ -39,7 +40,7 @@ export async function GET() {
 
     return NextResponse.json({ projects });
   } catch (error) {
-    console.error('Error fetching PMC projects:', error);
+    logger.error('Error fetching PMC projects:', error);
     return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
   }
 }
@@ -105,7 +106,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, project }, { status: 201 });
   } catch (error) {
-    console.error('Error creating PMC project:', error);
+    logger.error('Error creating PMC project:', error);
     return NextResponse.json({ error: 'Error al crear el proyecto' }, { status: 500 });
   }
 }

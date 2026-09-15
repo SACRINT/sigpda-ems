@@ -128,7 +128,7 @@ Redacta la Misión del Proyecto y Construcción del Artefacto Real:`;
     const objCount = Array.isArray(parsed.learningObjectives) ? parsed.learningObjectives.length : 0;
     if (objCount < 3) {
       attempt = 2;
-      console.warn(`[ProjectWriter] learningObjectives tiene solo ${objCount} items (< 3). Reintentando con instrucción estricta...`);
+      logger.warn(`[ProjectWriter] learningObjectives tiene solo ${objCount} items (< 3). Reintentando con instrucción estricta...`);
       try {
         const retryPrompt = `${prompt}\n\n[REQUISITO CRÍTICO DE PROFUNDIDAD]: Tu respuesta anterior tuvo menos de 3 objetivos en 'learningObjectives'. Genera OBLIGATORIAMENTE al menos 3 a 5 'learningObjectives' exhaustivos, orientados al logro de competencias integrales y vinculados al problema comunitario PAEC.`;
         const retryResponse = await generateWithRotation(

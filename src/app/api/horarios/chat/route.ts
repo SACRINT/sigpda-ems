@@ -6,6 +6,7 @@ import { resolverHorario } from "@/lib/horarios/solver";
 import { moverCelda, intercambiarCeldas, bloquearLibre } from "@/lib/horarios/mutations";
 import { buscarCadenaSwap, normalizarId } from "@/lib/horarios/chain-swap";
 
+import { logger } from '@/lib/logger';
 export async function POST(req: NextRequest) {
   try {
     const session = await auth();
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest) {
         ORDER BY apellido_paterno ASC, nombre ASC
       `;
     } catch (e) {
-      console.warn("[api/horarios/chat] Error consultando tablas de horarios:", e);
+      logger.warn("[api/horarios/chat] Error consultando tablas de horarios:", e);
     }
 
     const configDB = configRows[0] || null;
@@ -135,7 +136,7 @@ export async function POST(req: NextRequest) {
           WHERE teacher_id = ${teacherId}::uuid
         `;
       } catch (e) {
-        console.warn("[api/horarios/chat] Error actualizando horario no factible:", e);
+        logger.warn("[api/horarios/chat] Error actualizando horario no factible:", e);
       }
 
       return NextResponse.json({
@@ -379,7 +380,7 @@ export async function POST(req: NextRequest) {
         WHERE teacher_id = ${teacherId}::uuid
       `;
     } catch (e) {
-      console.warn("[api/horarios/chat] Error actualizando horario_generado:", e);
+      logger.warn("[api/horarios/chat] Error actualizando horario_generado:", e);
     }
 
     return NextResponse.json({
@@ -389,7 +390,7 @@ export async function POST(req: NextRequest) {
       horario: horarioActualizado
     });
   } catch (error: any) {
-    console.error("[api/horarios/chat] Error en POST:", error);
+    logger.error("[api/horarios/chat] Error en POST:", error);
     return NextResponse.json({ error: "Error al procesar mensaje en el chat IA" }, { status: 500 });
   }
 }
@@ -406,7 +407,7 @@ export async function DELETE(req: NextRequest) {
       mensaje: "Historial de chat reiniciado correctamente."
     });
   } catch (error: any) {
-    console.error("[api/horarios/chat] Error en DELETE:", error);
+    logger.error("[api/horarios/chat] Error en DELETE:", error);
     return NextResponse.json({ error: "Error al limpiar el historial del chat" }, { status: 500 });
   }
 }

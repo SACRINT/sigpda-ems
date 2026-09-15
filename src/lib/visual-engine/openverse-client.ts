@@ -7,6 +7,7 @@
  */
 
 import { API_CONFIG } from '@/lib/config';
+import { logger } from '@/lib/logger';
 
 export interface OpenverseImageResult {
   id: string;
@@ -106,7 +107,7 @@ export async function searchOpenverseImages(
     clearTimeout(timer);
 
     if (!response.ok) {
-      console.warn(`[OpenverseClient] API status ${response.status} for query "${cleanQuery}"`);
+      logger.warn(`[OpenverseClient] API status ${response.status} for query "${cleanQuery}"`);
       return [];
     }
 
@@ -145,9 +146,9 @@ export async function searchOpenverseImages(
   } catch (err: any) {
     clearTimeout(timer);
     if (err.name === 'AbortError') {
-      console.warn(`[OpenverseClient] Timeout (${timeoutMs}ms) buscando "${cleanQuery}"`);
+      logger.warn(`[OpenverseClient] Timeout (${timeoutMs}ms) buscando "${cleanQuery}"`);
     } else {
-      console.warn(`[OpenverseClient] Error en fetch: ${err.message}`);
+      logger.warn(`[OpenverseClient] Error en fetch: ${err.message}`);
     }
     return [];
   }

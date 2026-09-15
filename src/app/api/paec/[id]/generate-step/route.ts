@@ -4,8 +4,13 @@ import {
   getTeacherByEmail,
   getPaecProjectById,
   updatePaecProjectStep,
+  updatePaecQualityAudit,
   getProgramsCatalogForPaec,
 } from '@/lib/db';
+import {
+  validatePaecStepResult,
+  calculateGlobalPaecScore,
+} from '@/lib/paec-quality-gate';
 import {
   PAEC_SYSTEM_PROMPT,
   buildPrompt1Diagnostico,
@@ -13,8 +18,10 @@ import {
   buildPrompt3Mapeo,
   buildPrompt4Cronograma,
   buildPrompt5DetalleCurricular,
-  buildPrompt6PlanOperativoPorBloque,
-  buildPrompt7Anexos,
+  buildPrompt6PlanOperativoSemestreA,
+  buildPrompt7PlanOperativoSemestreB,
+  buildPrompt8ImplementacionYAnexos,
+  buildPrompt9GobernanzaEInformeSupervision,
 } from '@/lib/prompts/paec-prompts';
 import { logActivity, generateWithRotation } from '@/lib/ai-provider';
 import { logger } from '@/lib/logger';
@@ -27,9 +34,11 @@ import {
   PaecPaso4Schema,
   PaecPaso5Schema,
   PaecPaso6BlockSchema,
-  PaecPaso7Schema,
+  PaecPaso8ImplementacionSchema,
+  PaecPaso9GobernanzaSchema,
 } from '@/lib/ai-schemas';
-import { MapeoRow, PlanOperativoRow, PlanOperativoData } from '@/types/paec';
+import { MapeoRow, PlanOperativoRow, PaecProject } from '@/types/paec';
+import { extractIdempotencyKey, checkIdempotencyKey, createIdempotencyKey } from '@/lib/idempotency';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -60,8 +69,24 @@ export async function POST(
     const body = await request.json();
     const { step } = body as { step: number };
 
-    if (!step || step < 1 || step > 7) {
-      return NextResponse.json({ error: 'Número de paso no válido (debe ser de 1 a 7)' }, { status: 400 });
+    if (!step || step < 1 || step > 9) {
+      return NextResponse.json(
+        { error: 'Número de paso no válido (debe ser de 1 a 9)' },
+        { status: 400 }
+      );
+    }
+
+    // Mejora #24: Verificación de Idempotencia y Deduplicación
+    const idempotencyKey = extractIdempotencyKey(request);
+    const cachedResult = await checkIdempotencyKey(
+      idempotencyKey,
+      teacher.id,
+      `/api/paec/${id}/generate-step?step=${step}`
+    );
+    if (cachedResult) {
+      return NextResponse.json(cachedResult, {
+        headers: { 'X-Idempotency-Hit': 'true' },
+      });
     }
 
     // Inyectar contexto de la biblioteca documental si existe
@@ -69,9 +94,12 @@ export async function POST(
 
     let userPrompt = '';
     let fieldName = '';
-    let planOperativoData: PlanOperativoData | null = null;
+    let stepResultData: any = null;
 
     switch (step) {
+      // ----------------------------------------------------------------------
+      // PASO 1: Diagnóstico Comunitario y Escolar
+      // ----------------------------------------------------------------------
       case 1: {
         fieldName = 'fase1_diagnostico';
         const comm = JSON.stringify(project.community_context);
@@ -79,19 +107,33 @@ export async function POST(
         userPrompt = buildPrompt1Diagnostico(comm, school, project.problem_statement);
         break;
       }
+
+      // ----------------------------------------------------------------------
+      // PASO 2: Justificación y Diseño General
+      // ----------------------------------------------------------------------
       case 2: {
         fieldName = 'fase2_justificacion';
         if (!project.fase1_diagnostico) {
-          return NextResponse.json({ error: 'Debes completar el Paso 1 primero' }, { status: 400 });
+          return NextResponse.json(
+            { error: 'Debes completar el Paso 1 (Diagnóstico) primero' },
+            { status: 400 }
+          );
         }
         const diagStr = JSON.stringify(project.fase1_diagnostico);
         userPrompt = buildPrompt2Justificacion(diagStr, project.project_name, project.problem_statement);
         break;
       }
+
+      // ----------------------------------------------------------------------
+      // PASO 3: Mapeo Curricular de UACs (100% Cobertura)
+      // ----------------------------------------------------------------------
       case 3: {
         fieldName = 'fase2_mapeo';
         if (!project.fase2_justificacion) {
-          return NextResponse.json({ error: 'Debes completar el Paso 2 primero' }, { status: 400 });
+          return NextResponse.json(
+            { error: 'Debes completar el Paso 2 (Justificación) primero' },
+            { status: 400 }
+          );
         }
         const justStr = JSON.stringify(project.fase2_justificacion);
 
@@ -104,14 +146,21 @@ export async function POST(
           semesters = [1, 2, 3, 4, 5, 6];
         }
 
-        const allUacs = await getProgramsCatalogForPaec(semesters) as { uac_name: string; semester: number; component: string }[];
+        const allUacs = (await getProgramsCatalogForPaec(semesters)) as {
+          uac_name: string;
+          semester: number;
+          component: string;
+        }[];
 
-        // Filter laboral/ffe UACs based on school selection
-        const schoolCtx = (project.school_context || {}) as { activeLaboralUacs?: string[]; activeFfeUacs?: string[] };
+        // Filtrar UACs laborales y FFE de acuerdo al contexto del plantel
+        const schoolCtx = (project.school_context || {}) as {
+          activeLaboralUacs?: string[];
+          activeFfeUacs?: string[];
+        };
         const activeLaboral = schoolCtx.activeLaboralUacs || [];
         const activeFfe = schoolCtx.activeFfeUacs || [];
 
-        const uacs = allUacs.filter(u => {
+        const uacs = allUacs.filter((u) => {
           if (u.component === 'fundamental' || u.component === 'ampliado') {
             return true;
           }
@@ -127,15 +176,26 @@ export async function POST(
         userPrompt = buildPrompt3Mapeo(justStr, uacs);
         break;
       }
+
+      // ----------------------------------------------------------------------
+      // PASO 4: Cronograma General de Implementación (6 Fases / 5 Columnas)
+      // ----------------------------------------------------------------------
       case 4: {
         fieldName = 'fase2_cronograma';
         if (!project.fase2_mapeo) {
-          return NextResponse.json({ error: 'Debes completar el Paso 3 primero' }, { status: 400 });
+          return NextResponse.json(
+            { error: 'Debes completar el Paso 3 (Mapeo Curricular) primero' },
+            { status: 400 }
+          );
         }
         const mapeoStr = JSON.stringify(project.fase2_mapeo);
         userPrompt = buildPrompt4Cronograma(mapeoStr, project.cycle_type);
         break;
       }
+
+      // ----------------------------------------------------------------------
+      // PASO 5: Matriz de Detalle Curricular por Semestre
+      // ----------------------------------------------------------------------
       case 5: {
         fieldName = 'fase2_detalle_curricular';
         if (!project.fase2_mapeo || !project.fase2_cronograma) {
@@ -149,8 +209,12 @@ export async function POST(
         userPrompt = buildPrompt5DetalleCurricular(mapeoStr, cronStr, project.cycle_type);
         break;
       }
+
+      // ----------------------------------------------------------------------
+      // PASO 6: Plan Operativo Semestre A (Fases 1, 2 y 3: Semanas 1 a 16)
+      // ----------------------------------------------------------------------
       case 6: {
-        fieldName = 'fase2_plan_operativo';
+        fieldName = 'fase3_plan_operativo_a';
         if (!project.fase2_cronograma || !project.fase2_detalle_curricular) {
           return NextResponse.json(
             { error: 'Debes completar el Paso 4 (Cronograma) y el Paso 5 (Detalle Curricular) primero' },
@@ -166,56 +230,35 @@ export async function POST(
           );
         }
 
+        // Asignaturas de semestres impares (1°, 3°, 5°)
+        let uacListA = mapeo
+          .filter((m) => Number(m.semester) % 2 === 1)
+          .map((m) => ({ uacName: m.uacName, semester: Number(m.semester) }));
+
+        // Si el proyecto es estrictamente Ciclo B pero ejecutan paso 6, usar todas
+        if (uacListA.length === 0) {
+          uacListA = mapeo.map((m) => ({ uacName: m.uacName, semester: Number(m.semester) }));
+        }
+
         const cronStr = JSON.stringify(project.fase2_cronograma);
         const detStr = JSON.stringify(project.fase2_detalle_curricular);
 
-        // Chunk UACs in blocks of 5 to 8 (default: 6)
-        const uacList = mapeo.map((m) => ({
-          uacName: m.uacName,
-          semester: Number(m.semester),
-        }));
-
-        const CHUNK_SIZE = 6;
+        // Chunking anti-timeout: Bloques de máximo 6 UACs si supera 8 UACs
+        const CHUNK_SIZE = uacListA.length > 8 ? 6 : uacListA.length;
         const chunks: { uacName: string; semester: number }[][] = [];
-        for (let i = 0; i < uacList.length; i += CHUNK_SIZE) {
-          chunks.push(uacList.slice(i, i + CHUNK_SIZE));
+        for (let i = 0; i < uacListA.length; i += CHUNK_SIZE) {
+          chunks.push(uacListA.slice(i, i + CHUNK_SIZE));
         }
 
-        const allPlanRows: PlanOperativoRow[] = [];
-        const failedChunks: { block: number; uacs: string[]; error: string }[] = [];
-
-        const getSemesterForUac = (uacName: string): number => {
-          const clean = (uacName || '').trim().toLowerCase();
-          for (const m of mapeo) {
-            const mClean = (m.uacName || '').trim().toLowerCase();
-            if (mClean === clean || clean.includes(mClean) || mClean.includes(clean)) {
-              return Number(m.semester);
-            }
-          }
-          return project.cycle_type === 'B' ? 2 : 1;
-        };
-
-        const splitIntoSemesters = (rows: PlanOperativoRow[]): PlanOperativoData => {
-          const semestreA: PlanOperativoRow[] = [];
-          const semestreB: PlanOperativoRow[] = [];
-          for (const row of rows) {
-            const sem = getSemesterForUac(row.uac);
-            if (sem % 2 === 1) {
-              semestreA.push(row);
-            } else {
-              semestreB.push(row);
-            }
-          }
-          return { semestreA, semestreB };
-        };
+        const allRowsSemA: PlanOperativoRow[] = [];
+        const failedChunks: { block: number; error: string }[] = [];
 
         for (let i = 0; i < chunks.length; i++) {
           const blockNum = i + 1;
-          const blockPrompt = buildPrompt6PlanOperativoPorBloque(
+          const blockPrompt = buildPrompt6PlanOperativoSemestreA(
             cronStr,
             detStr,
             chunks[i],
-            project.cycle_type,
             blockNum,
             chunks.length
           );
@@ -232,10 +275,10 @@ export async function POST(
 
           while (attempt <= maxRetries && !chunkSuccess) {
             try {
-              logger.info(`[PAEC-Step6] Generando bloque ${blockNum}/${chunks.length} (intento ${attempt + 1}/${maxRetries + 1})...`);
+              logger.info(`[PAEC-Step6] Generando bloque ${blockNum}/${chunks.length} Semestre A (intento ${attempt + 1}/${maxRetries + 1})...`);
               const blockText = await generateWithRotation(PAEC_SYSTEM_PROMPT, chunkPrompt, teacher.id);
               if (!blockText) {
-                throw new Error(`Respuesta vacía del proveedor de IA en bloque ${blockNum}`);
+                throw new Error(`Respuesta vacía del proveedor en bloque ${blockNum}`);
               }
 
               const parseResult = parseAIResponse(blockText, PaecPaso6BlockSchema, {
@@ -243,35 +286,25 @@ export async function POST(
               });
 
               if (!parseResult.success) {
-                throw new Error(`Formato no válido en bloque ${blockNum}: ${parseResult.error}`);
+                throw new Error(`Error de formato en bloque ${blockNum}: ${parseResult.error}`);
               }
 
               const blockRows = parseResult.data as PlanOperativoRow[];
-              allPlanRows.push(...blockRows);
+              allRowsSemA.push(...blockRows);
               chunkSuccess = true;
 
-              // Checkpoint parcial: persistir filas acumuladas en la BD tras cada chunk
-              const partialData = splitIntoSemesters(allPlanRows);
-              await updatePaecProjectStep(
-                id,
-                teacher.id,
-                6,
-                'fase2_plan_operativo',
-                partialData
-              );
-              logger.info(`[PAEC-Step6] Checkpoint guardado en BD tras bloque ${blockNum}/${chunks.length} (${allPlanRows.length} UACs acumuladas).`);
-
+              // Checkpoint parcial en BD
+              await updatePaecProjectStep(id, teacher.id, 6, 'fase3_plan_operativo_a', allRowsSemA);
+              logger.info(`[PAEC-Step6] Checkpoint guardado tras bloque ${blockNum}/${chunks.length} (${allRowsSemA.length} filas acumuladas).`);
             } catch (err: any) {
               attempt++;
               logger.warn(`[PAEC-Step6] Falla en bloque ${blockNum} (intento ${attempt}/${maxRetries + 1}): ${err?.message || err}`);
               if (attempt <= maxRetries) {
-                logger.info(`[PAEC-Step6] Reintentando bloque ${blockNum} en ${delay}ms...`);
                 await sleep(delay);
                 delay *= 2;
               } else {
                 failedChunks.push({
                   block: blockNum,
-                  uacs: chunks[i].map((u) => u.uacName),
                   error: err?.message || 'Error desconocido',
                 });
               }
@@ -279,48 +312,214 @@ export async function POST(
           }
         }
 
-        if (allPlanRows.length === 0 && failedChunks.length > 0) {
-          throw new Error(`No se pudo generar ningún bloque del Plan Operativo: ${failedChunks.map((f) => `Bloque ${f.block} (${f.error})`).join(', ')}`);
+        if (allRowsSemA.length === 0 && failedChunks.length > 0) {
+          throw new Error(`Fallo al generar el Plan Semestre A: ${failedChunks.map((f) => `Bloque ${f.block} (${f.error})`).join(', ')}`);
         }
 
-        planOperativoData = splitIntoSemesters(allPlanRows);
-        if (failedChunks.length > 0) {
-          logger.warn(`[PAEC-Step6] Plan Operativo completado parcialmente con ${allPlanRows.length} filas. Bloques con falla: ${failedChunks.map(f => f.block).join(', ')}`);
-        }
+        // Sincronizar también con la estructura legacy fase2_plan_operativo
+        const existingSemB = project.fase3_plan_operativo_b || (project.fase2_plan_operativo as any)?.semestreB || [];
+        await updatePaecProjectStep(id, teacher.id, 6, 'fase2_plan_operativo', {
+          semestreA: allRowsSemA,
+          semestreB: existingSemB,
+        });
+
+        stepResultData = allRowsSemA;
         break;
       }
+
+      // ----------------------------------------------------------------------
+      // PASO 7: Plan Operativo Semestre B (Fases 4, 5 y 6: Semanas 1 a 16)
+      // ----------------------------------------------------------------------
       case 7: {
-        fieldName = 'fase2_anexos';
-        if (!project.fase2_plan_operativo) {
-          return NextResponse.json({ error: 'Debes completar el Paso 6 (Plan Operativo) primero' }, { status: 400 });
+        fieldName = 'fase3_plan_operativo_b';
+        if (!project.fase2_cronograma || !project.fase2_detalle_curricular) {
+          return NextResponse.json(
+            { error: 'Debes completar el Paso 4 (Cronograma) y el Paso 5 (Detalle Curricular) primero' },
+            { status: 400 }
+          );
         }
+
+        const mapeo = (project.fase2_mapeo || []) as MapeoRow[];
+        if (mapeo.length === 0) {
+          return NextResponse.json(
+            { error: 'No hay asignaturas en el Mapeo Curricular para generar el Plan Operativo' },
+            { status: 400 }
+          );
+        }
+
+        // Asignaturas de semestres pares (2°, 4°, 6°)
+        let uacListB = mapeo
+          .filter((m) => Number(m.semester) % 2 === 0)
+          .map((m) => ({ uacName: m.uacName, semester: Number(m.semester) }));
+
+        // Si el proyecto es estrictamente Ciclo A pero ejecutan paso 7, usar todas
+        if (uacListB.length === 0) {
+          uacListB = mapeo.map((m) => ({ uacName: m.uacName, semester: Number(m.semester) }));
+        }
+
+        const cronStr = JSON.stringify(project.fase2_cronograma);
+        const detStr = JSON.stringify(project.fase2_detalle_curricular);
+
+        // Chunking anti-timeout: Bloques de máximo 6 UACs si supera 8 UACs
+        const CHUNK_SIZE = uacListB.length > 8 ? 6 : uacListB.length;
+        const chunks: { uacName: string; semester: number }[][] = [];
+        for (let i = 0; i < uacListB.length; i += CHUNK_SIZE) {
+          chunks.push(uacListB.slice(i, i + CHUNK_SIZE));
+        }
+
+        const allRowsSemB: PlanOperativoRow[] = [];
+        const failedChunks: { block: number; error: string }[] = [];
+
+        for (let i = 0; i < chunks.length; i++) {
+          const blockNum = i + 1;
+          const blockPrompt = buildPrompt7PlanOperativoSemestreB(
+            cronStr,
+            detStr,
+            chunks[i],
+            blockNum,
+            chunks.length
+          );
+
+          let chunkPrompt = blockPrompt;
+          if (libraryContext) {
+            chunkPrompt = `${chunkPrompt}\n\n${libraryContext}`;
+          }
+
+          let chunkSuccess = false;
+          let attempt = 0;
+          const maxRetries = 2;
+          let delay = 1500;
+
+          while (attempt <= maxRetries && !chunkSuccess) {
+            try {
+              logger.info(`[PAEC-Step7] Generando bloque ${blockNum}/${chunks.length} Semestre B (intento ${attempt + 1}/${maxRetries + 1})...`);
+              const blockText = await generateWithRotation(PAEC_SYSTEM_PROMPT, chunkPrompt, teacher.id);
+              if (!blockText) {
+                throw new Error(`Respuesta vacía del proveedor en bloque ${blockNum}`);
+              }
+
+              const parseResult = parseAIResponse(blockText, PaecPaso6BlockSchema, {
+                contextName: `paec_step_7_block_${blockNum}`,
+              });
+
+              if (!parseResult.success) {
+                throw new Error(`Error de formato en bloque ${blockNum}: ${parseResult.error}`);
+              }
+
+              const blockRows = parseResult.data as PlanOperativoRow[];
+              allRowsSemB.push(...blockRows);
+              chunkSuccess = true;
+
+              // Checkpoint parcial en BD
+              await updatePaecProjectStep(id, teacher.id, 7, 'fase3_plan_operativo_b', allRowsSemB);
+              logger.info(`[PAEC-Step7] Checkpoint guardado tras bloque ${blockNum}/${chunks.length} (${allRowsSemB.length} filas acumuladas).`);
+            } catch (err: any) {
+              attempt++;
+              logger.warn(`[PAEC-Step7] Falla en bloque ${blockNum} (intento ${attempt}/${maxRetries + 1}): ${err?.message || err}`);
+              if (attempt <= maxRetries) {
+                await sleep(delay);
+                delay *= 2;
+              } else {
+                failedChunks.push({
+                  block: blockNum,
+                  error: err?.message || 'Error desconocido',
+                });
+              }
+            }
+          }
+        }
+
+        if (allRowsSemB.length === 0 && failedChunks.length > 0) {
+          throw new Error(`Fallo al generar el Plan Semestre B: ${failedChunks.map((f) => `Bloque ${f.block} (${f.error})`).join(', ')}`);
+        }
+
+        // Sincronizar también con la estructura legacy fase2_plan_operativo
+        const existingSemA = project.fase3_plan_operativo_a || (project.fase2_plan_operativo as any)?.semestreA || [];
+        await updatePaecProjectStep(id, teacher.id, 7, 'fase2_plan_operativo', {
+          semestreA: existingSemA,
+          semestreB: allRowsSemB,
+        });
+
+        stepResultData = allRowsSemB;
+        break;
+      }
+
+      // ----------------------------------------------------------------------
+      // PASO 8: Implementación Territorial, Minutas, Oficios y 6 Anexos
+      // ----------------------------------------------------------------------
+      case 8: {
+        fieldName = 'fase3_implementacion';
+        const hasPlan = project.fase3_plan_operativo_a || project.fase3_plan_operativo_b || project.fase2_plan_operativo;
+        if (!hasPlan) {
+          return NextResponse.json(
+            { error: 'Debes completar al menos un Plan Operativo (Paso 6 o 7) primero' },
+            { status: 400 }
+          );
+        }
+
         const projectSummary = JSON.stringify({
           projectName: project.project_name,
           problemStatement: project.problem_statement,
           cycleType: project.cycle_type,
           cronograma: project.fase2_cronograma,
-          planOperativo: project.fase2_plan_operativo,
+          justificacion: project.fase2_justificacion,
         });
-        userPrompt = buildPrompt7Anexos(projectSummary);
+        const planASummary = JSON.stringify(project.fase3_plan_operativo_a || (project.fase2_plan_operativo as any)?.semestreA || []);
+        const planBSummary = JSON.stringify(project.fase3_plan_operativo_b || (project.fase2_plan_operativo as any)?.semestreB || []);
+
+        userPrompt = buildPrompt8ImplementacionYAnexos(projectSummary, planASummary, planBSummary);
+        break;
+      }
+
+      // ----------------------------------------------------------------------
+      // PASO 9: Gobernanza Escolar e Informe de Rendición de Cuentas
+      // ----------------------------------------------------------------------
+      case 9: {
+        fieldName = 'fase4_gobernanza_e_informe';
+        const hasImpl = project.fase3_implementacion || project.fase2_anexos;
+        if (!hasImpl) {
+          return NextResponse.json(
+            { error: 'Debes completar el Paso 8 (Implementación y Anexos) primero' },
+            { status: 400 }
+          );
+        }
+
+        const projectSummary = JSON.stringify({
+          projectName: project.project_name,
+          problemStatement: project.problem_statement,
+          cycleType: project.cycle_type,
+          cronograma: project.fase2_cronograma,
+          justificacion: project.fase2_justificacion,
+        });
+        const planASummary = JSON.stringify(project.fase3_plan_operativo_a || (project.fase2_plan_operativo as any)?.semestreA || []);
+        const planBSummary = JSON.stringify(project.fase3_plan_operativo_b || (project.fase2_plan_operativo as any)?.semestreB || []);
+        const implSummary = JSON.stringify(project.fase3_implementacion || project.fase2_anexos || {});
+
+        userPrompt = buildPrompt9GobernanzaEInformeSupervision(
+          projectSummary,
+          planASummary,
+          planBSummary,
+          implSummary
+        );
         break;
       }
     }
 
     let parsedJson: object;
 
-    if (step === 6) {
-      if (!planOperativoData) {
-        throw new Error('Error al consolidar los bloques del Plan Operativo');
+    // Si el paso fue 6 o 7, los datos ya fueron generados y consolidados mediante chunking
+    if (step === 6 || step === 7) {
+      if (!stepResultData) {
+        throw new Error(`Error al consolidar las actividades del Paso ${step}`);
       }
-      parsedJson = planOperativoData;
+      parsedJson = stepResultData;
     } else {
       let fullUserPrompt = userPrompt;
       if (libraryContext) {
         fullUserPrompt = `${fullUserPrompt}\n\n${libraryContext}`;
       }
 
-      // Call AI via rotation engine (reads active model from platform_config)
-      logger.info(`Generating PAEC Step ${step} using generateWithRotation...`);
+      logger.info(`[PAEC] Generando Paso ${step} mediante generateWithRotation...`);
       const text = await generateWithRotation(PAEC_SYSTEM_PROMPT, fullUserPrompt, teacher.id);
 
       if (!text) {
@@ -334,7 +533,8 @@ export async function POST(
         case 3: stepSchema = PaecPaso3Schema; break;
         case 4: stepSchema = PaecPaso4Schema; break;
         case 5: stepSchema = PaecPaso5Schema; break;
-        case 7: stepSchema = PaecPaso7Schema; break;
+        case 8: stepSchema = PaecPaso8ImplementacionSchema; break;
+        case 9: stepSchema = PaecPaso9GobernanzaSchema; break;
         default: throw new Error(`Paso ${step} no soportado`);
       }
 
@@ -350,7 +550,7 @@ export async function POST(
       parsedJson = parseResult.data as object;
     }
 
-    // Save to Neon DB
+    // Persistir el resultado definitivo en la BD Neon
     const updatedProject = await updatePaecProjectStep(
       id,
       teacher.id,
@@ -359,7 +559,31 @@ export async function POST(
       parsedJson
     );
 
-    // Log activity
+    // FASE C: Quality Gate Oficial — Evaluación normativa por paso
+    const stepAudit = validatePaecStepResult(step, parsedJson);
+    logger.info(`[PAEC Quality Gate] Paso ${step} evaluado: Score ${stepAudit.score}/100 (${stepAudit.estatus})`);
+
+    // Si score < 60 en algún criterio (score <= 2 de 4): registrar warning pero NO bloquear
+    for (const crit of stepAudit.criterios) {
+      if (crit.score <= 2) {
+        logger.warn(
+          `[PAEC Quality Gate Warning] Paso ${step} - Criterio ${crit.id} (${crit.name}): Puntaje ${crit.score}/4 (<60%). Observación: ${crit.feedback}`
+        );
+      }
+    }
+
+    // Al completar el paso 9: calcular auditoría global de los 23 criterios y persistir en BD Neon
+    let globalAudit = null;
+    if (step === 9) {
+      globalAudit = calculateGlobalPaecScore(updatedProject);
+      await updatePaecQualityAudit(id, teacher.id, globalAudit);
+      updatedProject.qualityAudit = globalAudit;
+      logger.info(
+        `[PAEC Quality Gate] Auditoría Global completada para Proyecto ${id}: Score ${globalAudit.score}/100 (${globalAudit.estatus})`
+      );
+    }
+
+    // Registrar actividad en bitácora
     await logActivity({
       teacherEmail: session.user.email,
       action: `generate_paec_step_${step}`,
@@ -368,7 +592,25 @@ export async function POST(
       success: true,
     });
 
-    return NextResponse.json({ success: true, step, data: parsedJson, project: updatedProject });
+    const responsePayload = {
+      success: true,
+      step,
+      data: parsedJson,
+      project: updatedProject,
+      stepAudit,
+      globalAudit,
+    };
+
+    if (idempotencyKey) {
+      await createIdempotencyKey(
+        idempotencyKey,
+        teacher.id,
+        `/api/paec/${id}/generate-step?step=${step}`,
+        responsePayload
+      );
+    }
+
+    return NextResponse.json(responsePayload);
   } catch (error) {
     logger.error('PAEC Generation step error:', error);
     const message = error instanceof Error ? error.message : 'Error desconocido';

@@ -12,7 +12,7 @@
  * 3. getSafeEvaluationContext: Genera el contexto evaluativo 100% completo, sin cortes artificiales.
  */
 
-import type { GeneratedPlanningContent, Planning, KeyActivityPlan } from '@/types/planning';
+import type { GeneratedPlanningContent, Planning, KeyActivityPlan, CurriculumComponent } from '@/types/planning';
 import { SCHOOL_YEAR } from '@/lib/config';
 
 export interface IntegrityValidationResult {
@@ -245,18 +245,34 @@ export function enrichWithExplicitSaberes(
  * GARANTÍA CRÍTICA: No aplica ningún truncamiento artificial (.slice).
  * Entrega el documento 100% íntegro con formato Markdown / JSON estructurado.
  */
+export type PlanningEvaluationInput = Planning | {
+  content_json?: GeneratedPlanningContent | Record<string, unknown> | null;
+  contentJson?: GeneratedPlanningContent | Record<string, unknown> | null;
+  uac_name?: string;
+  uacName?: string;
+  semester: number;
+  component?: string;
+  paec_context?: string;
+  paecContext?: string;
+};
+
 export function getSafeEvaluationContext(
-  planning: Planning | { content_json?: any; contentJson?: any; uac_name?: string; uacName?: string; semester: number; component?: string; paec_context?: string; paecContext?: string }
+  planning: PlanningEvaluationInput
 ): {
   formattedText: string;
   enrichedContent: GeneratedPlanningContent;
   integrity: IntegrityValidationResult;
 } {
-  const rawContent = (planning as any).content_json || (planning as any).contentJson || {};
+  const p = planning as Partial<Planning> & {
+    content_json?: GeneratedPlanningContent | null;
+    uac_name?: string;
+    paec_context?: string;
+  };
+  const rawContent = (p.content_json || p.contentJson || {}) as GeneratedPlanningContent;
   const enrichedContent = enrichWithExplicitSaberes(rawContent);
-  const component = (planning as any).component || enrichedContent.sectionI?.component || 'fundamental';
+  const component = (p.component || enrichedContent.sectionI?.component || 'fundamental') as CurriculumComponent;
   const integrity = validatePlanningIntegrity(enrichedContent, component);
-  const uacTitle = (planning as any).uacName || (planning as any).uac_name || enrichedContent.sectionI?.uacName || 'UAC';
+  const uacTitle = p.uacName || p.uac_name || enrichedContent.sectionI?.uacName || 'UAC';
 
   const s1 = enrichedContent.sectionI;
   const s2 = enrichedContent.sectionII;
@@ -282,7 +298,7 @@ export function getSafeEvaluationContext(
   lines.push('II. PROPÓSITO FORMATIVO, METAS Y VINCULACIÓN COMUNITARIA:');
   lines.push(`- Propósito General: ${s2?.purpose || 'No especificado'}`);
   lines.push(`- Metas de Aprendizaje / Resultados: ${(s2?.learningOutcomes || []).join('; ')}`);
-  lines.push(`- Vinculación PAEC/Problemática: ${s2?.paecConnection || (planning as any).paec_context || 'Vinculación comunitaria activa.'}`);
+  lines.push(`- Vinculación PAEC/Problemática: ${s2?.paecConnection || p.paecContext || p.paec_context || 'Vinculación comunitaria activa.'}`);
   lines.push(`- Dosificación de Bloques / Actividades Clave:`);
   (s2?.activities || []).forEach((act, i) => {
     lines.push(`  * ${act.corte || `Corte ${i + 1}`}: ${act.name} (${act.hours} hrs)`);

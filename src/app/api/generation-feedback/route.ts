@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, sql } from '@/lib/db';
 
+import { logger } from '@/lib/logger';
 export const runtime = 'nodejs';
 
 // ─── POST /api/generation-feedback ───────────────────────────────────────────
@@ -54,7 +55,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, id: row?.id });
   } catch (error) {
-    console.error('Feedback POST error:', error);
+    logger.error('Feedback POST error:', error);
     return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
   }
 }
@@ -93,7 +94,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ feedback: rows[0] ?? null });
   } catch (error) {
-    console.error('Feedback GET error:', error);
+    logger.error('Feedback GET error:', error);
     return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
   }
 }

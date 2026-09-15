@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getPlanningById, getBlockWorkbook, getTeacherByEmail } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
 export const maxDuration = 90;
@@ -63,7 +64,7 @@ export async function GET(
       totalWords: workbook?.totalWords || 0,
     });
   } catch (error: any) {
-    console.error('[GET /api/planeaciones/[id]/libro-bloque] Error:', error);
+    logger.error('[GET /api/planeaciones/[id]/libro-bloque] Error:', error);
     return NextResponse.json(
       { error: error.message || 'Error al obtener libro de trabajo' },
       { status: 500 }
@@ -114,7 +115,7 @@ export async function POST(
         try {
           await processGenerationJob(job.id);
         } catch (err: any) {
-          console.error(`[POST /libro-bloque] Worker background error for job ${job.id}:`, err?.message);
+          logger.error(`[POST /libro-bloque] Worker background error for job ${job.id}:`, err);
         }
       });
     }
@@ -127,7 +128,7 @@ export async function POST(
       message: 'Trabajo de generación iniciado en segundo plano',
     }, { status: 202 });
   } catch (error: any) {
-    console.error('[POST /api/planeaciones/[id]/libro-bloque] Error:', error);
+    logger.error('[POST /api/planeaciones/[id]/libro-bloque] Error:', error);
     return NextResponse.json(
       { error: error.message || 'Error al iniciar la generación del libro de trabajo' },
       { status: 500 }

@@ -20,6 +20,7 @@ import type { ActiveWorkTextbook } from '@/types/work-textbook';
 import { renderWorkbookToDocx } from '@/lib/docx-workbook-renderer';
 import { renderWorkbookToPdf } from '@/lib/pdf-workbook-renderer';
 import { validateSemestralGuideQuality, type SemestralValidationOutput } from '@/lib/guide-engine/quality-validator';
+import { logger } from '@/lib/logger';
 
 export interface CompileSemestralOptions {
   format?: 'docx' | 'pdf' | 'both';
@@ -103,7 +104,7 @@ function buildConsolidatedBook(
   });
 
   if (!semestralQuality.accepted || semestralQuality.qualityWarning) {
-    console.warn(
+    logger.warn(
       `[master-workbook-compiler] Compendio Semestral con advertencias: words=${totalWords}/${semestralQuality.macroMinWords}, score=${semestralQuality.qualityScore}.`,
       semestralQuality.warnings
     );

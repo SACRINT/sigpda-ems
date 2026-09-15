@@ -4,6 +4,7 @@ import { neon } from '@neondatabase/serverless';
 // @ts-expect-error - pdf-parse has no default export in its types but works at runtime
 import pdfParse from 'pdf-parse';
 
+import { logger } from '@/lib/logger';
 // GET: List documents in library
 export async function GET(req: NextRequest) {
   try {
@@ -23,7 +24,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ docs });
   } catch (error: any) {
-    console.error('GET /api/biblioteca-personal error:', error);
+    logger.error('GET /api/biblioteca-personal error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -71,7 +72,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error('POST /api/biblioteca-personal error:', error);
+    logger.error('POST /api/biblioteca-personal error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -97,7 +98,7 @@ export async function DELETE(req: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error('DELETE /api/biblioteca-personal error:', error);
+    logger.error('DELETE /api/biblioteca-personal error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

@@ -1,5 +1,6 @@
 import { createNotification, NotificationItem } from '@/lib/db';
 import { evaluateAutomationRules } from '@/lib/automation-engine';
+import { logger } from '@/lib/logger';
 
 export interface SendNotificationOptions {
   userId: string;
@@ -51,13 +52,13 @@ export async function sendNotification(options: SendNotificationOptions) {
           metadata: options.metadata,
         }, options.userId);
       } catch (autoErr) {
-        console.warn('Automation engine warning:', autoErr);
+        logger.warn('Automation engine warning:', autoErr);
       }
     }
 
     return { success: true, notification: saved };
   } catch (error: any) {
-    console.error('Error in sendNotification:', error);
+    logger.error('Error in sendNotification:', error);
     return { success: false, error: error.message };
   }
 }
@@ -91,7 +92,7 @@ async function sendEmailNotification(data: { to?: string; subject: string; body:
         }),
       });
     } catch (e) {
-      console.warn('Resend email delivery skipped:', e);
+      logger.warn('Resend email delivery skipped:', e);
     }
   }
 }

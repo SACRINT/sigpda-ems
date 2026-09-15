@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { getTeacherByEmail } from '@/lib/db';
 import { parsePdfBuffer } from '@/lib/pdf-parser';
 
+import { logger } from '@/lib/logger';
 export const runtime = 'nodejs';
 export const maxDuration = 60; // Claude PDF extraction can take up to 40-50s for large files
 
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest) {
       errors: parseResult.errors,
     });
   } catch (error) {
-    console.error('PDF parse error:', error);
+    logger.error('PDF parse error:', error);
     return NextResponse.json(
       { error: 'Error al procesar el PDF. Por favor intenta de nuevo.' },
       { status: 500 }

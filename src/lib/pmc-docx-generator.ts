@@ -50,7 +50,7 @@ function tc(
     color?: string;
     size?: number;
     align?: (typeof AlignmentType)[keyof typeof AlignmentType];
-    valign?: (typeof VerticalAlign)[keyof typeof VerticalAlign];
+    valign?: 'top' | 'center' | 'bottom';
     italics?: boolean;
   } = {}
 ): TableCell {
@@ -62,7 +62,7 @@ function tc(
     color = C.text,
     size = 18,
     align = AlignmentType.LEFT,
-    valign = VerticalAlign.CENTER,
+    valign = 'center',
     italics = false,
   } = opts;
 
@@ -72,8 +72,7 @@ function tc(
     shading: { fill, type: ShadingType.CLEAR },
     borders: bdr(),
     margins: CELLMRG,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    verticalAlign: valign as any,
+    verticalAlign: valign,
     children: [
       new Paragraph({
         alignment: align,

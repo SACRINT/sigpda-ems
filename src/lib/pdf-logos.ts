@@ -3,6 +3,8 @@
  * SIGPDA-EMS · Membrete Institucional
  */
 
+import { logger } from '@/lib/logger';
+
 let cachedLogoGobierno: string | null = null;
 let cachedLogoSep: string | null = null;
 let cachedLogoSupervision: string | null = null;
@@ -84,12 +86,12 @@ async function fetchImageAsBase64(url: string): Promise<string> {
           .toBuffer();
         return `data:image/jpeg;base64,${resizedBuffer.toString('base64')}`;
       } catch (sharpErr) {
-        console.warn(`[pdf-logos] sharp resize falló para ${url}, usando buffer directo:`, sharpErr);
+        logger.warn(`[pdf-logos] sharp resize falló para ${url}, usando buffer directo:`, sharpErr);
         return `data:image/png;base64,${buffer.toString('base64')}`;
       }
     }
   } catch (err) {
-    console.warn(`[pdf-logos] Fallback de lectura de imagen falló para ${url}:`, err);
+    logger.warn(`[pdf-logos] Fallback de lectura de imagen falló para ${url}:`, err);
   }
 
   return '';
@@ -103,7 +105,7 @@ export async function getLogoGobierno(): Promise<string> {
   try {
     cachedLogoGobierno = await fetchImageAsBase64('/images/logo-gobierno-puebla.png');
   } catch (e) {
-    console.error('Error cargando logo Gobierno de Puebla:', e);
+    logger.error('Error cargando logo Gobierno de Puebla:', e);
     return '';
   }
   return cachedLogoGobierno;
@@ -117,7 +119,7 @@ export async function getLogoSep(): Promise<string> {
   try {
     cachedLogoSep = await fetchImageAsBase64('/images/logo-sep-puebla.png');
   } catch (e) {
-    console.error('Error cargando logo SEP Puebla:', e);
+    logger.error('Error cargando logo SEP Puebla:', e);
     return '';
   }
   return cachedLogoSep;
@@ -131,7 +133,7 @@ export async function getLogoSupervision(): Promise<string> {
   try {
     cachedLogoSupervision = await fetchImageAsBase64('/images/logo-supervision-004.png');
   } catch (e) {
-    console.error('Error cargando logo Supervisión 004:', e);
+    logger.error('Error cargando logo Supervisión 004:', e);
     return '';
   }
   return cachedLogoSupervision;

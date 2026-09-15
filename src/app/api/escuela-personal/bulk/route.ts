@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { sql, getTeacherByEmail } from '@/lib/db';
 import { normalizarCargo } from '@/lib/utils/normalize';
 
+import { logger } from '@/lib/logger';
 async function getDirectorId(email: string) {
   const teacher = await getTeacherByEmail(email);
   if (!teacher) return null;
@@ -79,7 +80,7 @@ export async function POST(req: Request) {
           }
         }
       } catch (err: any) {
-        console.error(`[bulk personal] Error fila ${i + 1}:`, err);
+        logger.error(`[bulk personal] Error fila ${i + 1}:`, err);
         errores.push(`Fila ${i + 1} (${nom} ${apP}): ${err.message || 'Error en BD'}`);
       }
     }
@@ -94,7 +95,7 @@ export async function POST(req: Request) {
         ORDER BY apellido_paterno ASC, nombre ASC
       `;
     } catch (e) {
-      console.warn('[escuela-personal bulk POST] Error consultando lista final:', e);
+      logger.warn('[escuela-personal bulk POST] Error consultando lista final:', e);
     }
 
     const personalFormateado = rows.map((p: any) => ({
@@ -116,7 +117,7 @@ export async function POST(req: Request) {
       docentes: personalFormateado,
     });
   } catch (err: any) {
-    console.error('[escuela-personal bulk POST]', err);
+    logger.error('[escuela-personal bulk POST]', err);
     return NextResponse.json({ error: 'Error interno del servidor al procesar la carga masiva' }, { status: 500 });
   }
 }

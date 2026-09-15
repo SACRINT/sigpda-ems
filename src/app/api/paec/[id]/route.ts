@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, getPaecProjectById, deletePaecProject, updatePaecProjectStep } from '@/lib/db';
 
+import { logger } from '@/lib/logger';
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -25,7 +26,7 @@ export async function GET(
 
     return NextResponse.json({ project });
   } catch (error) {
-    console.error('Error fetching PAEC project details:', error);
+    logger.error('Error fetching PAEC project details:', error);
     return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
   }
 }
@@ -56,7 +57,7 @@ export async function PUT(
     const updated = await updatePaecProjectStep(id, teacher.id, step, fieldName, stepData);
     return NextResponse.json({ success: true, project: updated });
   } catch (error) {
-    console.error('Error updating PAEC project step:', error);
+    logger.error('Error updating PAEC project step:', error);
     return NextResponse.json({ error: 'Error al actualizar el proyecto' }, { status: 500 });
   }
 }
@@ -80,7 +81,7 @@ export async function DELETE(
     await deletePaecProject(id, teacher.id);
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting PAEC project:', error);
+    logger.error('Error deleting PAEC project:', error);
     return NextResponse.json({ error: 'Error al eliminar el proyecto' }, { status: 500 });
   }
 }

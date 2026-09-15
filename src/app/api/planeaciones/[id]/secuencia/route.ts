@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { neon } from '@neondatabase/serverless';
 import { generateWithRetry } from '@/lib/ai-retry-manager';
 import { SecuenciaResponseSchema } from '@/lib/ai-schemas';
+import { logger } from '@/lib/logger';
 import type { SecuenciaBloque, SecuenciaSesion } from '@/types/planning';
 
 export const runtime = 'nodejs';
@@ -34,7 +35,7 @@ export async function GET(
 
     return NextResponse.json({ sequence: rows[0].sequence_json || {} });
   } catch (error: any) {
-    console.error('GET secuencia error:', error);
+    logger.error('GET secuencia error:', error);
     return NextResponse.json({ error: error.message || 'Error al obtener secuencia' }, { status: 500 });
   }
 }
@@ -254,7 +255,7 @@ Genera la secuencia didáctica completa de exactamente ${sessionsCount} sesiones
       warnings,
     });
   } catch (error: any) {
-    console.error('POST /api/planeaciones/[id]/secuencia error:', error);
+    logger.error('POST /api/planeaciones/[id]/secuencia error:', error);
     return NextResponse.json({ error: error.message || 'Error al generar secuencia didáctica' }, { status: 500 });
   }
 }
@@ -318,7 +319,7 @@ export async function PUT(
       fullSequence: currentSequence,
     });
   } catch (error: any) {
-    console.error('PUT /api/planeaciones/[id]/secuencia error:', error);
+    logger.error('PUT /api/planeaciones/[id]/secuencia error:', error);
     return NextResponse.json({ error: error.message || 'Error al guardar cambios de la secuencia' }, { status: 500 });
   }
 }

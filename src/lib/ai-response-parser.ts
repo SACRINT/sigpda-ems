@@ -5,13 +5,21 @@ export interface ParseAIResponseOptions {
   contextName?: string;
 }
 
-export interface ParseAIResponseResult<T> {
-  success: boolean;
-  data: T;
-  warnings: string[];
-  error?: string;
-  cleanedJson?: string;
-}
+export type ParseAIResponseResult<T> =
+  | {
+      success: true;
+      data: T;
+      warnings: string[];
+      error?: undefined;
+      cleanedJson?: string;
+    }
+  | {
+      success: false;
+      data?: undefined;
+      warnings: string[];
+      error: string;
+      cleanedJson?: string;
+    };
 
 /**
  * Pipeline centralizado de 6 pasos para parsear, reparar y validar respuestas JSON de LLMs.
@@ -35,7 +43,6 @@ export function parseAIResponse<T>(
   if (!rawText || typeof rawText !== 'string' || !rawText.trim()) {
     return {
       success: false,
-      data: undefined as any,
       warnings,
       error: `${context}Respuesta vacía o nula del modelo de IA`,
     };
@@ -154,7 +161,6 @@ export function parseAIResponse<T>(
   if (!parsedObj || typeof parsedObj !== 'object') {
     return {
       success: false,
-      data: undefined as any,
       warnings,
       error: `${context}No se pudo estructurar un JSON válido a partir de la respuesta de la IA`,
       cleanedJson: jsonCandidate.substring(0, 400),
@@ -174,7 +180,6 @@ export function parseAIResponse<T>(
 
     return {
       success: false,
-      data: undefined as any,
       warnings,
       error: `${context}Validación de esquema Zod fallida: ${formattedErrors}`,
       cleanedJson: JSON.stringify(parsedObj).substring(0, 400),

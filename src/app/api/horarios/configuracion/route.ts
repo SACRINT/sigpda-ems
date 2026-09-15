@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { sql, getTeacherByEmail } from "@/lib/db";
+import { logger } from "@/lib/logger";
 
 export async function GET(req: NextRequest) {
   try {
@@ -96,7 +97,9 @@ export async function GET(req: NextRequest) {
       try {
         await sql()`UPDATE horario_config SET mapa_curricular_completado = TRUE WHERE teacher_id = ${teacherId}::uuid`;
         escuela.mapaCurricularCompletado = true;
-      } catch {}
+      } catch (err) {
+        logger.error('[HorariosConfig] Error actualizando mapa_curricular_completado en DB:', { error: err, teacherId });
+      }
     }
 
     // ── Cargas guardadas ───────────────────────────────────────────────
@@ -136,7 +139,7 @@ export async function GET(req: NextRequest) {
         ORDER BY apellido_paterno ASC, nombre ASC
       `;
     } catch (e) {
-      console.warn("[api/horarios/configuracion GET] Error consultando escuela_personal:", e);
+      logger.warn("[api/horarios/configuracion GET] Error consultando escuela_personal:", e);
     }
 
     let docentes = personalRows.map((p: any) => ({
@@ -175,7 +178,7 @@ export async function GET(req: NextRequest) {
       horario: configDB?.horario_generado || null,
     });
   } catch (error: any) {
-    console.error("[api/horarios/configuracion GET]", error);
+    logger.error("[api/horarios/configuracion GET]", error);
     return NextResponse.json({ error: "Error al cargar configuración de horario" }, { status: 500 });
   }
 }
@@ -238,9 +241,11 @@ export async function POST(req: NextRequest) {
           SET custom_preferences = ${JSON.stringify(updatedPrefs)}::jsonb
           WHERE id = ${teacherId}::uuid
         `;
-      } catch {}
+      } catch (err) {
+        logger.error('[HorariosConfig] Error sincronizando zona_escolar en perfil de docente:', { error: err, teacherId });
+      }
     } catch (e) {
-      console.error("[api/horarios/configuracion POST] Error guardando config:", e);
+      logger.error("[api/horarios/configuracion POST] Error guardando config:", { error: e });
     }
 
     // ── 2. Guardar grupos (upsert por teacher_id + nombre) ─────────────
@@ -255,7 +260,7 @@ export async function POST(req: NextRequest) {
               AND NOT (nombre = ANY(${nombresActivos}))
           `;
         } catch (e) {
-          console.warn("[api/horarios/configuracion POST] Error purgando grupos obsoletos:", e);
+          logger.warn("[api/horarios/configuracion POST] Error purgando grupos obsoletos:", e);
         }
       }
 
@@ -295,7 +300,7 @@ export async function POST(req: NextRequest) {
               horas_por_dia           = EXCLUDED.horas_por_dia
           `;
         } catch (e) {
-          console.error("[api/horarios/configuracion POST] Error guardando grupo:", g.nombre, e);
+          logger.error("[api/horarios/configuracion POST] Error guardando grupo:", g.nombre, e);
         }
       }
     }
@@ -328,14 +333,14 @@ export async function POST(req: NextRequest) {
               requiere_aula_esp = EXCLUDED.requiere_aula_esp
           `;
         } catch (e) {
-          console.error("[api/horarios/configuracion POST] Error guardando carga:", c.uacName, e);
+          logger.error("[api/horarios/configuracion POST] Error guardando carga:", c.uacName, e);
         }
       }
     }
 
     return NextResponse.json({ success: true, message: "Configuración guardada correctamente" });
   } catch (error: any) {
-    console.error("[api/horarios/configuracion POST]", error);
+    logger.error("[api/horarios/configuracion POST]", error);
     return NextResponse.json({ error: "Error al guardar configuración" }, { status: 500 });
   }
 }
@@ -363,12 +368,12 @@ export async function DELETE(req: NextRequest) {
         WHERE teacher_id = ${teacherId}::uuid
       `;
     } catch (e) {
-      console.error("[api/horarios/configuracion DELETE]", e);
+      logger.error("[api/horarios/configuracion DELETE]", e);
     }
 
     return NextResponse.json({ success: true, message: "Datos del horario limpiados correctamente" });
   } catch (error: any) {
-    console.error("[api/horarios/configuracion DELETE]", error);
+    logger.error("[api/horarios/configuracion DELETE]", error);
     return NextResponse.json({ error: "Error al limpiar datos" }, { status: 500 });
   }
 }

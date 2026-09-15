@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 import { requireAdmin, adminUnauthorized, adminForbidden } from '@/lib/admin-auth';
+import { logger } from '@/lib/logger';
 
 function getDb() { return neon(process.env.DATABASE_URL!); }
 
@@ -13,8 +14,10 @@ export async function GET(req: NextRequest) {
     const search = searchParams.get('q') || '';
 
     // is_blocked / is_premium may not exist in older DBs — safe migration guards
-    await sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS is_blocked BOOLEAN DEFAULT FALSE`.catch(() => {});
-    await sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS is_premium BOOLEAN DEFAULT FALSE`.catch(() => {});
+    await sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS is_blocked BOOLEAN DEFAULT FALSE`
+      .catch((err) => { logger.warn('[AdminUsers] Migration guard is_blocked warning', { error: err }); });
+    await sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS is_premium BOOLEAN DEFAULT FALSE`
+      .catch((err) => { logger.warn('[AdminUsers] Migration guard is_premium warning', { error: err }); });
     // Note: last_seen_at & custom_preferences are in schema.sql DDL since 2026-08-05
 
     const teachers = search
@@ -56,7 +59,7 @@ export async function GET(req: NextRequest) {
   } catch (e: any) {
     if (e.message === 'UNAUTHORIZED') return adminUnauthorized();
     if (e.message === 'FORBIDDEN') return adminForbidden();
-    console.error('GET /api/admin/users error:', e);
+    logger.error('GET /api/admin/users error:', { error: e });
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
@@ -79,9 +82,12 @@ export async function PUT(req: NextRequest) {
       }
     }
 
-    await sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS is_blocked BOOLEAN DEFAULT FALSE`.catch(() => {});
-    await sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'docente'`.catch(() => {});
-    await sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS is_premium BOOLEAN DEFAULT FALSE`.catch(() => {});
+    await sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS is_blocked BOOLEAN DEFAULT FALSE`
+      .catch((err) => { logger.warn('[AdminUsers] Migration guard is_blocked warning', { error: err }); });
+    await sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'docente'`
+      .catch((err) => { logger.warn('[AdminUsers] Migration guard role warning', { error: err }); });
+    await sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS is_premium BOOLEAN DEFAULT FALSE`
+      .catch((err) => { logger.warn('[AdminUsers] Migration guard is_premium warning', { error: err }); });
 
     if (isBlocked !== undefined) {
       await sql`UPDATE teachers SET is_blocked = ${isBlocked} WHERE id = ${teacherId}`;

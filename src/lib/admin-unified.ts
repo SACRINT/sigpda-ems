@@ -1,4 +1,5 @@
 import { sql } from './db';
+import { logger } from './logger';
 
 /**
  * Sistema Unificado de Autorización Administrativa (SIGPDA-EMS)
@@ -31,7 +32,10 @@ export async function isAdmin(email?: string | null): Promise<boolean> {
       SELECT email FROM admins
       WHERE LOWER(email) = ${cleanEmail}
       LIMIT 1
-    `.catch(() => []);
+    `.catch((err) => {
+      logger.warn('[isAdmin] Fallo al consultar tabla admins:', { error: err });
+      return [];
+    });
     if (adminRows.length > 0) {
       return true;
     }
@@ -41,12 +45,15 @@ export async function isAdmin(email?: string | null): Promise<boolean> {
       SELECT role FROM teachers
       WHERE LOWER(email) = ${cleanEmail}
       LIMIT 1
-    `.catch(() => []);
+    `.catch((err) => {
+      logger.warn('[isAdmin] Fallo al consultar tabla teachers:', { error: err });
+      return [];
+    });
     if (teacherRows.length > 0 && teacherRows[0].role === 'administrador') {
       return true;
     }
   } catch (err) {
-    console.warn('[isAdmin] Error al verificar permisos en base de datos:', err);
+    logger.warn('[isAdmin] Error al verificar permisos en base de datos:', { error: err });
   }
 
   return false;

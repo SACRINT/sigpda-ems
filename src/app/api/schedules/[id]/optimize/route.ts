@@ -5,6 +5,7 @@ import { resolverHorario, SolverParams } from '@/lib/horarios/solver';
 import { generateWithRotation } from '@/lib/ai-provider';
 import { parseAIResponse } from '@/lib/ai-response-parser';
 import { ScheduleOptimizationSchema } from '@/lib/ai-schemas';
+import { logger } from '@/lib/logger';
 
 export async function POST(
   request: NextRequest,
@@ -85,7 +86,7 @@ Genera el diagnóstico de balance y recomendaciones de optimización.`;
           throw new Error(parseResult.error);
         }
       } catch (aiErr) {
-        console.warn('AI suggestions generation non-critical warning:', aiErr);
+        logger.warn('AI suggestions generation non-critical warning:', aiErr);
         aiSuggestions = [
           {
             diagnostico_general: 'Horario estructurado con distribución funcional y sin empalmes detectados.',
@@ -119,7 +120,7 @@ Genera el diagnóstico de balance y recomendaciones de optimización.`;
       solverResult,
     });
   } catch (error: any) {
-    console.error('POST /api/schedules/[id]/optimize error:', error);
+    logger.error('POST /api/schedules/[id]/optimize error:', error);
     return NextResponse.json({ error: error.message || 'Error al optimizar el horario' }, { status: 500 });
   }
 }

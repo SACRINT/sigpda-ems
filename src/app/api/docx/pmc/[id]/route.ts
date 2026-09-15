@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, sql } from '@/lib/db';
 import { generatePmcDocx, type PmcProject } from '@/lib/pmc-docx-generator';
-
+import { calculateGlobalPmcScore } from '@/lib/pmc-quality-gate';
+import { logger } from '@/lib/logger';
 export const runtime = 'nodejs';
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -33,6 +34,9 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
       return new NextResponse('Proyecto no encontrado', { status: 404 });
     }
 
+    const audit = calculateGlobalPmcScore(project as unknown as PmcProject);
+    logger.info(`[PMC DOCX Export] Quality Gate: ${audit.percentage}% (${audit.overallStatus}) for project ${id}`);
+
     const buffer = await generatePmcDocx(project as PmcProject);
 
     const schoolName = (project.school_name as string | undefined) ?? 'PMC';
@@ -47,10 +51,12 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
           'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
         'Content-Length': String(uint8.byteLength),
+        'X-Quality-Score': String(audit.percentage),
+        'X-Quality-Status': audit.overallStatus,
       },
     });
   } catch (error) {
-    console.error('Error generating PMC DOCX:', error);
+    logger.error('Error generating PMC DOCX:', error);
     const message = error instanceof Error ? error.message : 'Error desconocido';
     return new NextResponse(`Error al generar el documento: ${message}`, { status: 500 });
   }

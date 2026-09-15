@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, sql } from '@/lib/db';
 
+import { logger } from '@/lib/logger';
 // GET — list all PIPS of the current teacher
 export async function GET() {
   try {
@@ -25,7 +26,7 @@ export async function GET() {
 
     return NextResponse.json({ projects });
   } catch (error) {
-    console.error('Error fetching PIPS:', error);
+    logger.error('Error fetching PIPS:', error);
     return NextResponse.json({ error: 'Error interno' }, { status: 500 });
   }
 }
@@ -88,7 +89,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, project }, { status: 201 });
   } catch (error) {
-    console.error('Error creating PIPS:', error);
+    logger.error('Error creating PIPS:', error);
     return NextResponse.json({ error: 'Error al crear el PIPS' }, { status: 500 });
   }
 }

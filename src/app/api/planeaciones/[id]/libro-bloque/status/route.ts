@@ -3,6 +3,7 @@ import { after } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getPlanningById, getTeacherByEmail, getGenerationJobById, getLatestGenerationJob } from '@/lib/db';
 import { processGenerationJob } from '@/lib/job-worker';
+import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
 
@@ -62,7 +63,7 @@ export async function GET(
           try {
             await processGenerationJob(job.id);
           } catch (err: any) {
-            console.warn(`[status] Auto-trigger falló para job ${job.id}:`, err?.message);
+            logger.warn(`[status] Auto-trigger falló para job ${job.id}:`, { error: err?.message || err });
           }
         });
       }
@@ -83,7 +84,7 @@ export async function GET(
       updatedAt: job.updated_at,
     });
   } catch (error: any) {
-    console.error('[GET /api/planeaciones/[id]/libro-bloque/status] Error:', error);
+    logger.error('[GET /api/planeaciones/[id]/libro-bloque/status] Error:', error);
     return NextResponse.json(
       { error: error.message || 'Error al consultar estado del trabajo' },
       { status: 500 }

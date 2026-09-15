@@ -178,7 +178,7 @@ Genera el paquete oficial de 4 instrumentos de evaluación NEM con ejercicios es
 
     if (!has3Levels || !allHave2Exercises) {
       attempt = 2;
-      console.warn(`[EvaluationWriter] tieredExercises tiene niveles o ejercicios insuficientes (${tiers.length} niveles). Reintentando con instrucción estricta...`);
+      logger.warn(`[EvaluationWriter] tieredExercises tiene niveles o ejercicios insuficientes (${tiers.length} niveles). Reintentando con instrucción estricta...`);
       try {
         const retryPrompt = `${prompt}\n\n[REQUISITO CRÍTICO DE PROFUNDIDAD]: Tu respuesta anterior no cumplió la estructura de 'tieredExercises'. Es OBLIGATORIO incluir EXACTAMENTE 3 NIVELES ('basico', 'intermedio', 'avanzado') y al menos 2 EJERCICIOS POR CADA NIVEL (mínimo 6 ejercicios en total), con sus datos, pistas de andamiaje y criterios de evaluación.`;
         const retryResponse = await generateWithRotation(

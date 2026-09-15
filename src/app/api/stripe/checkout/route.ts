@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { getTeacherByEmail, sql } from '@/lib/db';
 import https from 'https';
+import { logger } from '@/lib/logger';
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY?.trim();
 const stripe = stripeSecretKey
@@ -41,7 +42,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Pasarela de pagos Stripe no configurada en producción' }, { status: 503 });
       }
 
-      console.warn('No STRIPE_SECRET_KEY found. Mocking successful checkout (development only).');
+      logger.warn('No STRIPE_SECRET_KEY found. Mocking successful checkout (development only).');
       
       try {
         await sql()`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS mock BOOLEAN DEFAULT false`;
@@ -58,7 +59,7 @@ export async function POST(req: Request) {
           )
         `;
       } catch (e) {
-        console.error('Error inserting mock subscription:', e);
+        logger.error('Error inserting mock subscription:', e);
       }
       
       // Si no hay key de stripe, simulamos el éxito para desarrollo
@@ -96,7 +97,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ url: checkoutSession.url });
   } catch (error: any) {
-    console.error('Stripe checkout error:', error);
+    logger.error('Stripe checkout error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

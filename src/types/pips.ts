@@ -74,3 +74,32 @@ export interface PipsProject {
   created_at?: string;
   updated_at?: string;
 }
+
+export interface PipsAuditCriterion {
+  id: string;
+  dimension: string;
+  name: string;
+  description: string;
+  weight: number;
+  maxScore: number;
+  score: number;
+  status: 'pass' | 'warning' | 'fail';
+  feedback: string;
+  evidenceFound: string;
+}
+
+export interface PipsQualityAudit {
+  totalScore: number;
+  maxPossibleScore: number;
+  percentage: number;
+  overallStatus: 'EXCELENTE' | 'SATISFACTORIO' | 'EN_DESARROLLO' | 'REQUIERE_REVISION';
+  passedCriteria: number;
+  warningCriteria: number;
+  failedCriteria: number;
+  criteria: PipsAuditCriterion[];
+  dimensionScores: Record<string, { score: number; maxScore: number; percentage: number }>;
+  strengths: string[];
+  criticalRecommendations: string[];
+  auditedAt: string;
+}
+

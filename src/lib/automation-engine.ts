@@ -1,4 +1,5 @@
 import { getAutomationRules, createNotification } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 export interface AutomationPayload {
   userId: string;
@@ -83,6 +84,6 @@ export async function evaluateAutomationRules(
       }
     }
   } catch (err) {
-    console.error('Error evaluating automation rules:', err);
+    logger.error('Error evaluating automation rules:', err);
   }
 }

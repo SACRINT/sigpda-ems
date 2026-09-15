@@ -83,21 +83,39 @@ class Logger {
     return new Logger(`${this.moduleName}:${moduleName}`);
   }
 
-  public debug(message: string, context?: LogContext) {
+  public debug(message: any, context?: any) {
     if (process.env.NODE_ENV !== 'production' || process.env.DEBUG === 'true') {
-      console.debug(`[DEBUG][${this.moduleName}] ${message}`, context ? sanitizeLogData(context) : '');
+      if (typeof message !== 'string') {
+        console.debug(`[DEBUG][${this.moduleName}]`, sanitizeLogData(message), context ? sanitizeLogData(context) : '');
+      } else {
+        console.debug(`[DEBUG][${this.moduleName}] ${message}`, context ? sanitizeLogData(context) : '');
+      }
     }
   }
 
-  public info(message: string, context?: LogContext) {
-    console.info(`[INFO][${this.moduleName}] ${message}`, context ? sanitizeLogData(context) : '');
+  public info(message: any, context?: any) {
+    if (typeof message !== 'string') {
+      console.info(`[INFO][${this.moduleName}]`, sanitizeLogData(message), context ? sanitizeLogData(context) : '');
+    } else {
+      console.info(`[INFO][${this.moduleName}] ${message}`, context ? sanitizeLogData(context) : '');
+    }
   }
 
-  public warn(message: string, context?: LogContext) {
-    console.warn(`[WARN][${this.moduleName}] ${message}`, context ? sanitizeLogData(context) : '');
+  public warn(message: any, context?: any) {
+    if (typeof message !== 'string') {
+      console.warn(`[WARN][${this.moduleName}]`, sanitizeLogData(message), context ? sanitizeLogData(context) : '');
+    } else {
+      console.warn(`[WARN][${this.moduleName}] ${message}`, context ? sanitizeLogData(context) : '');
+    }
   }
 
-  public error(message: string, error?: any, context?: LogContext) {
+  public error(message: any, error?: any, context?: any) {
+    if (typeof message !== 'string') {
+      const cleanError = sanitizeLogData(message);
+      const cleanExtra = error ? sanitizeLogData(error) : undefined;
+      console.error(`[ERROR][${this.moduleName}]`, cleanError, cleanExtra ?? '');
+      return;
+    }
     const cleanError = error ? sanitizeLogData(error) : undefined;
     const cleanContext = context ? sanitizeLogData(context) : undefined;
     console.error(

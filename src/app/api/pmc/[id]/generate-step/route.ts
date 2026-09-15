@@ -8,6 +8,7 @@ import { getNormativaForGenerator, getStructuredNormativaForGenerator } from '@/
 import { parseAIResponse } from '@/lib/ai-response-parser';
 import { PmcDiagnosticoSchema, PmcPlanAccionSchema } from '@/lib/ai-schemas';
 import { getSubscriptionStatus } from '@/lib/subscription-gate';
+import { extractIdempotencyKey, checkIdempotencyKey, createIdempotencyKey } from '@/lib/idempotency';
 import { z } from 'zod';
 
 export const runtime = 'nodejs';
@@ -88,6 +89,19 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       );
     }
 
+    // Mejora #24: Verificación de Idempotencia y Deduplicación
+    const idempotencyKey = extractIdempotencyKey(request);
+    const cachedResult = await checkIdempotencyKey(
+      idempotencyKey,
+      teacher.id,
+      `/api/pmc/${id}/generate-step?step=${step}`
+    );
+    if (cachedResult) {
+      return NextResponse.json(cachedResult, {
+        headers: { 'X-Idempotency-Hit': 'true' },
+      });
+    }
+
     const now = new Date().toISOString();
     const libraryContext = await getUserLibraryContext(teacher.email);
 
@@ -121,7 +135,16 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
           AND teacher_id = ${teacher.id}
         RETURNING *
       `;
-      return NextResponse.json({ success: true, step, data: normativaJson, project: updated });
+      const responsePayload = { success: true, step, data: normativaJson, project: updated };
+      if (idempotencyKey) {
+        await createIdempotencyKey(
+          idempotencyKey,
+          teacher.id,
+          `/api/pmc/${id}/generate-step?step=${step}`,
+          responsePayload
+        );
+      }
+      return NextResponse.json(responsePayload);
     }
 
     // ── DIAGNÓSTICO ──────────────────────────────────────────────────────────
@@ -248,13 +271,22 @@ Responde con JSON con exactamente estas 5 claves. Texto formal y técnico. NO in
         RETURNING *
       `;
       await logActivity({ teacherEmail: teacher.email, action: 'generate_pmc_diagnostico', entityType: 'pmc', entityId: id, success: true });
-      return NextResponse.json({
+      const responsePayload = {
         success: true,
         step,
         diagnostico_generado: parsedDiag,
         warning: fodaWarning,
         project: updated,
-      });
+      };
+      if (idempotencyKey) {
+        await createIdempotencyKey(
+          idempotencyKey,
+          teacher.id,
+          `/api/pmc/${id}/generate-step?step=${step}`,
+          responsePayload
+        );
+      }
+      return NextResponse.json(responsePayload);
     }
 
     // ── PLAN DE ACCIÓN ───────────────────────────────────────────────────────
@@ -427,7 +459,16 @@ Responde con JSON con esta estructura EXACTA:
         RETURNING *
       `;
       await logActivity({ teacherEmail: teacher.email, action: 'generate_pmc_plan_accion', entityType: 'pmc', entityId: id, success: true });
-      return NextResponse.json({ success: true, step, plan_accion: parsedPlan, project: updated });
+      const responsePayload = { success: true, step, plan_accion: parsedPlan, project: updated };
+      if (idempotencyKey) {
+        await createIdempotencyKey(
+          idempotencyKey,
+          teacher.id,
+          `/api/pmc/${id}/generate-step?step=${step}`,
+          responsePayload
+        );
+      }
+      return NextResponse.json(responsePayload);
     }
 
     return NextResponse.json({ error: 'Paso no reconocido' }, { status: 400 });

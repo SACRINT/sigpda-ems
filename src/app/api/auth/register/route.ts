@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { getTeacherByEmail, createTeacherWithPassword } from '@/lib/db';
 
+import { logger } from '@/lib/logger';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -64,7 +65,7 @@ export async function POST(req: NextRequest) {
       },
     }, { status: 201 });
   } catch (error: any) {
-    console.error('Error en /api/auth/register:', error);
+    logger.error('Error en /api/auth/register:', error);
     return NextResponse.json(
       { error: error.message || 'Error interno del servidor al registrar usuario.' },
       { status: 500 }

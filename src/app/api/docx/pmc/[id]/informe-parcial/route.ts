@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { getTeacherByEmail, sql } from '@/lib/db';
 import { generatePmcInformeDocx, type PmcProject } from '@/lib/pmc-docx-generator';
 
+import { logger } from '@/lib/logger';
 export const runtime = 'nodejs';
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -50,7 +51,7 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
       },
     });
   } catch (error) {
-    console.error('Error generating PMC Informe Parcial DOCX:', error);
+    logger.error('Error generating PMC Informe Parcial DOCX:', error);
     const message = error instanceof Error ? error.message : 'Error desconocido';
     return new NextResponse(`Error al generar el documento: ${message}`, { status: 500 });
   }

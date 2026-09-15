@@ -4,7 +4,10 @@ import type {
   CanonicalSeed,
   GenerationProgressState,
 } from '@/types/work-textbook';
-import type { ImageAsset } from '@/types/planning';
+import type { ImageAsset, PlanningExtra } from '@/types/planning';
+import type { PaecProject } from '@/types/paec';
+import { SCHOOL_YEAR } from '@/lib/config';
+import { logger } from '@/lib/logger';
 
 // ─── Lazy SQL client ────────────────────────────────────────────────────────
 // Instantiated on first call at runtime, not at build time.
@@ -395,40 +398,30 @@ export async function createProgramCatalogItem(data: ProgramCatalogItem) {
 }
 
 export async function updateProgramCatalogItem(id: string, data: Partial<ProgramCatalogItem>) {
-  const existing = await sql()`SELECT * FROM programs_catalog WHERE id = ${id}::uuid LIMIT 1`;
-  if (existing.length === 0) return null;
-
-  const current = existing[0];
-  const uac_name = data.uac_name !== undefined ? data.uac_name.trim() : current.uac_name;
-  const semester = data.semester !== undefined ? data.semester : current.semester;
-  const component = data.component !== undefined ? data.component : current.component;
-  const curriculum_name = data.curriculum_name !== undefined ? data.curriculum_name : current.curriculum_name;
-  const year = data.year !== undefined ? data.year : current.year;
-  const total_hours = data.total_hours !== undefined ? data.total_hours : current.total_hours;
-  const learning_outcome = data.learning_outcome !== undefined ? data.learning_outcome : current.learning_outcome;
-  const activities = data.activities !== undefined ? JSON.stringify(data.activities) : JSON.stringify(current.activities);
-  const evidences = data.evidences !== undefined ? JSON.stringify(data.evidences) : JSON.stringify(current.evidences);
-  const contenidos_formativos = data.contenidos_formativos !== undefined ? JSON.stringify(data.contenidos_formativos) : (current.contenidos_formativos ? JSON.stringify(current.contenidos_formativos) : null);
-  const subsystem = data.subsystem !== undefined ? data.subsystem.toLowerCase() : current.subsystem;
-  const model_type = data.model_type !== undefined ? data.model_type : current.model_type;
+  const uac_name = data.uac_name !== undefined ? data.uac_name.trim() : null;
+  const activities = data.activities !== undefined ? JSON.stringify(data.activities) : null;
+  const evidences = data.evidences !== undefined ? JSON.stringify(data.evidences) : null;
+  const contenidos_formativos = data.contenidos_formativos !== undefined ? JSON.stringify(data.contenidos_formativos) : null;
+  const subsystem = data.subsystem !== undefined ? data.subsystem.toLowerCase() : null;
 
   const rows = await sql()`
     UPDATE programs_catalog SET
-      uac_name = ${uac_name},
-      semester = ${semester},
-      component = ${component},
-      curriculum_name = ${curriculum_name},
-      year = ${year},
-      total_hours = ${total_hours},
-      learning_outcome = ${learning_outcome},
-      activities = ${activities}::jsonb,
-      evidences = ${evidences}::jsonb,
-      contenidos_formativos = ${contenidos_formativos ? contenidos_formativos : null}::jsonb,
-      subsystem = ${subsystem},
-      model_type = ${model_type}
+      uac_name = COALESCE(${uac_name}, uac_name),
+      semester = COALESCE(${data.semester ?? null}, semester),
+      component = COALESCE(${data.component ?? null}, component),
+      curriculum_name = COALESCE(${data.curriculum_name ?? null}, curriculum_name),
+      year = COALESCE(${data.year ?? null}, year),
+      total_hours = COALESCE(${data.total_hours ?? null}, total_hours),
+      learning_outcome = COALESCE(${data.learning_outcome ?? null}, learning_outcome),
+      activities = CASE WHEN ${activities}::text IS NOT NULL THEN ${activities}::jsonb ELSE activities END,
+      evidences = CASE WHEN ${evidences}::text IS NOT NULL THEN ${evidences}::jsonb ELSE evidences END,
+      contenidos_formativos = CASE WHEN ${contenidos_formativos}::text IS NOT NULL THEN ${contenidos_formativos}::jsonb ELSE contenidos_formativos END,
+      subsystem = COALESCE(${subsystem}, subsystem),
+      model_type = COALESCE(${data.model_type ?? null}, model_type)
     WHERE id = ${id}::uuid
     RETURNING *
   `;
+  if (!rows || rows.length === 0) return null;
   return rows[0];
 }
 
@@ -442,6 +435,29 @@ export async function deleteProgramCatalogItem(id: string) {
 
 // ─── Planning Extras queries ──────────────────────────────────────────────────
 
+export interface PlanningExtraRecord extends PlanningExtra {
+  planning_id: string;
+  key_index: number | null;
+  content_text: string;
+  created_at: Date;
+}
+
+export function mapRawPlanningExtra(r: Record<string, any>): PlanningExtraRecord {
+  return {
+    id: r.id as string,
+    planningId: r.planning_id as string,
+    planning_id: r.planning_id as string,
+    type: r.type as 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'practice_guide' | 'visual',
+    title: r.title as string,
+    keyIndex: r.key_index as number | null,
+    key_index: r.key_index as number | null,
+    contentText: r.content_text as string,
+    content_text: r.content_text as string,
+    createdAt: r.created_at as Date,
+    created_at: r.created_at as Date,
+  };
+}
+
 export async function getPlanningExtras(planningId: string, teacherId: string) {
   const rows = await sql()`
     SELECT pe.id, pe.planning_id, pe.type, pe.title, pe.key_index, pe.content_text, pe.created_at
@@ -450,13 +466,7 @@ export async function getPlanningExtras(planningId: string, teacherId: string) {
     WHERE pe.planning_id = ${planningId}::uuid AND p.teacher_id = ${teacherId}::uuid
     ORDER BY pe.created_at ASC
   `;
-  return rows.map((r: any) => ({
-    ...r,
-    planningId: r.planning_id,
-    keyIndex: r.key_index,
-    contentText: r.content_text,
-    createdAt: r.created_at,
-  }));
+  return rows.map((r: Record<string, any>) => mapRawPlanningExtra(r));
 }
 
 export async function getPlanningExtraById(id: string, teacherId: string) {
@@ -468,14 +478,7 @@ export async function getPlanningExtraById(id: string, teacherId: string) {
     LIMIT 1
   `;
   if (!rows || rows.length === 0) return null;
-  const r = rows[0] as any;
-  return {
-    ...r,
-    planningId: r.planning_id,
-    keyIndex: r.key_index,
-    contentText: r.content_text,
-    createdAt: r.created_at,
-  };
+  return mapRawPlanningExtra(rows[0] as Record<string, any>);
 }
 
 export async function createPlanningExtra(
@@ -509,14 +512,7 @@ export async function createPlanningExtra(
     )
     RETURNING id, planning_id, type, title, key_index, content_text, created_at
   `;
-  const r = rows[0] as any;
-  return {
-    ...r,
-    planningId: r.planning_id,
-    keyIndex: r.key_index,
-    contentText: r.content_text,
-    createdAt: r.created_at,
-  };
+  return mapRawPlanningExtra(rows[0] as Record<string, any>);
 }
 
 export async function deletePlanningExtra(id: string, teacherId: string) {
@@ -577,70 +573,146 @@ export async function createPaecProject(data: {
   return rows[0];
 }
 
+export function mapRawPaecProject(raw: any) {
+  if (!raw) return null;
+  return {
+    id: raw.id,
+    teacherId: raw.teacher_id,
+    projectName: raw.project_name,
+    problemStatement: raw.problem_statement,
+    cycleType: raw.cycle_type,
+    currentStep: raw.current_step,
+    communityContext: raw.community_context || {},
+    schoolContext: raw.school_context || {},
+    fase1Diagnostico: raw.fase1_diagnostico || null,
+    fase2Justificacion: raw.fase2_justificacion || null,
+    fase2Mapeo: raw.fase2_mapeo || null,
+    fase2Cronograma: raw.fase2_cronograma || null,
+    fase2DetalleCurricular: raw.fase2_detalle_curricular || null,
+    fase2PlanOperativo: raw.fase2_plan_operativo || null,
+    fase2Anexos: raw.fase2_anexos || null,
+    fase3PlanOperativoA: raw.fase3_plan_operativo_a || null,
+    fase3PlanOperativoB: raw.fase3_plan_operativo_b || null,
+    fase3Implementacion: raw.fase3_implementacion || null,
+    fase4Gobernanza: raw.fase4_gobernanza || null,
+    fase4InformeSupervision: raw.fase4_informe_supervision || null,
+    qualityAudit: raw.quality_audit || null,
+    status: raw.status || 'draft',
+    createdAt: raw.created_at,
+    updatedAt: raw.updated_at,
+  };
+}
+
+export const PAEC_STEP_FIELD_MAP: Record<number, string> = {
+  1: 'fase1_diagnostico',
+  2: 'fase2_justificacion',
+  3: 'fase2_mapeo',
+  4: 'fase2_cronograma',
+  5: 'fase2_detalle_curricular',
+  6: 'fase3_plan_operativo_a',
+  7: 'fase3_plan_operativo_b',
+  8: 'fase3_implementacion',
+  9: 'fase4_gobernanza_e_informe',
+};
+
+const ALLOWED_PAEC_FIELDS = new Set([
+  'fase1_diagnostico',
+  'fase2_justificacion',
+  'fase2_mapeo',
+  'fase2_cronograma',
+  'fase2_detalle_curricular',
+  'fase3_plan_operativo_a',
+  'fase3_plan_operativo_b',
+  'fase3_implementacion',
+  'fase4_gobernanza',
+  'fase4_informe_supervision',
+  'fase4_gobernanza_e_informe',
+  'fase2_plan_operativo',
+  'fase2_anexos',
+]);
+
 export async function updatePaecProjectStep(
   id: string,
   teacherId: string,
   step: number,
   fieldName: string,
   stepData: object
-) {
-  const status = step === 7 ? 'completed' : 'draft';
+): Promise<PaecProject> {
+  if (!id || !teacherId) {
+    throw new Error('Identificadores de proyecto o docente inválidos.');
+  }
+  if (typeof step !== 'number' || step < 1 || step > 9) {
+    throw new Error(`Paso inválido (${step}): Debe estar comprendido entre 1 y 9.`);
+  }
+
+  const targetField = fieldName || PAEC_STEP_FIELD_MAP[step];
+  if (!ALLOWED_PAEC_FIELDS.has(targetField)) {
+    throw new Error(`Campo de paso no válido: ${targetField}`);
+  }
+
+  const status = step >= 9 ? 'completed' : 'draft';
   const dataStr = JSON.stringify(stepData);
 
-  let rows;
-  if (fieldName === 'fase1_diagnostico') {
-    rows = await sql()`
-      UPDATE paec_projects
-      SET fase1_diagnostico = ${dataStr}::jsonb, current_step = ${step}, status = ${status}, updated_at = NOW()
-      WHERE id = ${id}::uuid AND teacher_id = ${teacherId}::uuid
-      RETURNING *
-    `;
-  } else if (fieldName === 'fase2_justificacion') {
-    rows = await sql()`
-      UPDATE paec_projects
-      SET fase2_justificacion = ${dataStr}::jsonb, current_step = ${step}, status = ${status}, updated_at = NOW()
-      WHERE id = ${id}::uuid AND teacher_id = ${teacherId}::uuid
-      RETURNING *
-    `;
-  } else if (fieldName === 'fase2_mapeo') {
-    rows = await sql()`
-      UPDATE paec_projects
-      SET fase2_mapeo = ${dataStr}::jsonb, current_step = ${step}, status = ${status}, updated_at = NOW()
-      WHERE id = ${id}::uuid AND teacher_id = ${teacherId}::uuid
-      RETURNING *
-    `;
-  } else if (fieldName === 'fase2_cronograma') {
-    rows = await sql()`
-      UPDATE paec_projects
-      SET fase2_cronograma = ${dataStr}::jsonb, current_step = ${step}, status = ${status}, updated_at = NOW()
-      WHERE id = ${id}::uuid AND teacher_id = ${teacherId}::uuid
-      RETURNING *
-    `;
-  } else if (fieldName === 'fase2_detalle_curricular') {
-    rows = await sql()`
-      UPDATE paec_projects
-      SET fase2_detalle_curricular = ${dataStr}::jsonb, current_step = ${step}, status = ${status}, updated_at = NOW()
-      WHERE id = ${id}::uuid AND teacher_id = ${teacherId}::uuid
-      RETURNING *
-    `;
-  } else if (fieldName === 'fase2_plan_operativo') {
-    rows = await sql()`
-      UPDATE paec_projects
-      SET fase2_plan_operativo = ${dataStr}::jsonb, current_step = ${step}, status = ${status}, updated_at = NOW()
-      WHERE id = ${id}::uuid AND teacher_id = ${teacherId}::uuid
-      RETURNING *
-    `;
-  } else if (fieldName === 'fase2_anexos') {
-    rows = await sql()`
-      UPDATE paec_projects
-      SET fase2_anexos = ${dataStr}::jsonb, current_step = ${step}, status = ${status}, updated_at = NOW()
-      WHERE id = ${id}::uuid AND teacher_id = ${teacherId}::uuid
-      RETURNING *
-    `;
-  } else {
-    throw new Error('Campo de paso no válido');
+  const anexosPart = targetField === 'fase3_implementacion' ? (stepData as Record<string, any>).anexos : null;
+  const anexosStr = anexosPart ? JSON.stringify(anexosPart) : null;
+
+  const gobStr = targetField === 'fase4_gobernanza_e_informe' ? JSON.stringify((stepData as Record<string, any>).gobernanza || {}) : null;
+  const infStr = targetField === 'fase4_gobernanza_e_informe' ? JSON.stringify((stepData as Record<string, any>).informeSupervision || {}) : null;
+
+  const rows = await sql()`
+    UPDATE paec_projects
+    SET
+      fase1_diagnostico = CASE WHEN ${targetField} = 'fase1_diagnostico' THEN ${dataStr}::jsonb ELSE fase1_diagnostico END,
+      fase2_justificacion = CASE WHEN ${targetField} = 'fase2_justificacion' THEN ${dataStr}::jsonb ELSE fase2_justificacion END,
+      fase2_mapeo = CASE WHEN ${targetField} = 'fase2_mapeo' THEN ${dataStr}::jsonb ELSE fase2_mapeo END,
+      fase2_cronograma = CASE WHEN ${targetField} = 'fase2_cronograma' THEN ${dataStr}::jsonb ELSE fase2_cronograma END,
+      fase2_detalle_curricular = CASE WHEN ${targetField} = 'fase2_detalle_curricular' THEN ${dataStr}::jsonb ELSE fase2_detalle_curricular END,
+      fase3_plan_operativo_a = CASE WHEN ${targetField} = 'fase3_plan_operativo_a' THEN ${dataStr}::jsonb ELSE fase3_plan_operativo_a END,
+      fase3_plan_operativo_b = CASE WHEN ${targetField} = 'fase3_plan_operativo_b' THEN ${dataStr}::jsonb ELSE fase3_plan_operativo_b END,
+      fase3_implementacion = CASE WHEN ${targetField} = 'fase3_implementacion' THEN ${dataStr}::jsonb ELSE fase3_implementacion END,
+      fase4_gobernanza = CASE
+        WHEN ${targetField} = 'fase4_gobernanza' THEN ${dataStr}::jsonb
+        WHEN ${targetField} = 'fase4_gobernanza_e_informe' THEN ${gobStr}::jsonb
+        ELSE fase4_gobernanza
+      END,
+      fase4_informe_supervision = CASE
+        WHEN ${targetField} = 'fase4_informe_supervision' THEN ${dataStr}::jsonb
+        WHEN ${targetField} = 'fase4_gobernanza_e_informe' THEN ${infStr}::jsonb
+        ELSE fase4_informe_supervision
+      END,
+      fase2_anexos = CASE
+        WHEN ${targetField} = 'fase3_implementacion' AND ${anexosStr}::text IS NOT NULL THEN ${anexosStr}::jsonb
+        WHEN ${targetField} = 'fase2_anexos' THEN ${dataStr}::jsonb
+        ELSE fase2_anexos
+      END,
+      fase2_plan_operativo = CASE WHEN ${targetField} = 'fase2_plan_operativo' THEN ${dataStr}::jsonb ELSE fase2_plan_operativo END,
+      current_step = ${step},
+      status = ${status},
+      updated_at = NOW()
+    WHERE id = ${id}::uuid AND teacher_id = ${teacherId}::uuid
+    RETURNING *
+  `;
+
+  if (!rows || rows.length === 0) {
+    throw new Error(`No se pudo actualizar el proyecto PAEC ${id} (no encontrado o no autorizado).`);
   }
-  return rows[0];
+  return mapRawPaecProject(rows[0]) as PaecProject;
+}
+
+export async function updatePaecQualityAudit(
+  id: string,
+  teacherId: string,
+  auditData: object
+): Promise<PaecProject | null> {
+  const dataStr = JSON.stringify(auditData);
+  const rows = await sql()`
+    UPDATE paec_projects
+    SET quality_audit = ${dataStr}::jsonb, updated_at = NOW()
+    WHERE id = ${id}::uuid AND teacher_id = ${teacherId}::uuid
+    RETURNING *
+  `;
+  if (!rows || rows.length === 0) return null;
+  return mapRawPaecProject(rows[0]) as PaecProject;
 }
 
 export async function deletePaecProject(id: string, teacherId: string) {
@@ -784,7 +856,7 @@ export async function createSchedule(data: ScheduleItem) {
       ${data.title},
       ${data.school_name || null},
       ${data.cct || null},
-      ${data.cycle_year || '2026-2027'},
+      ${data.cycle_year || SCHOOL_YEAR},
       ${data.period || 'A'},
       ${data.status || 'published'},
       ${JSON.stringify(data.config || {})}::jsonb,
@@ -803,36 +875,32 @@ export async function createSchedule(data: ScheduleItem) {
 
 export async function updateSchedule(id: string, teacherId: string, data: Partial<ScheduleItem>) {
   const client = sql();
-  const existing = await getScheduleById(id, teacherId);
-  if (!existing) return null;
-
-  const title = data.title !== undefined ? data.title : existing.title;
-  const status = data.status !== undefined ? data.status : existing.status;
-  const config = data.config !== undefined ? JSON.stringify(data.config) : JSON.stringify(existing.config);
-  const grupos = data.grupos !== undefined ? JSON.stringify(data.grupos) : JSON.stringify(existing.grupos);
-  const docentes = data.docentes !== undefined ? JSON.stringify(data.docentes) : JSON.stringify(existing.docentes);
-  const aulas = data.aulas !== undefined ? JSON.stringify(data.aulas) : JSON.stringify(existing.aulas);
-  const cargas = data.cargas !== undefined ? JSON.stringify(data.cargas) : JSON.stringify(existing.cargas);
-  const celdas = data.celdas !== undefined ? JSON.stringify(data.celdas) : JSON.stringify(existing.celdas);
-  const metricas = data.metricas !== undefined ? JSON.stringify(data.metricas) : JSON.stringify(existing.metricas);
-  const aiLog = data.ai_optimization_log !== undefined ? JSON.stringify(data.ai_optimization_log) : JSON.stringify(existing.ai_optimization_log);
+  const config = data.config !== undefined ? JSON.stringify(data.config) : null;
+  const grupos = data.grupos !== undefined ? JSON.stringify(data.grupos) : null;
+  const docentes = data.docentes !== undefined ? JSON.stringify(data.docentes) : null;
+  const aulas = data.aulas !== undefined ? JSON.stringify(data.aulas) : null;
+  const cargas = data.cargas !== undefined ? JSON.stringify(data.cargas) : null;
+  const celdas = data.celdas !== undefined ? JSON.stringify(data.celdas) : null;
+  const metricas = data.metricas !== undefined ? JSON.stringify(data.metricas) : null;
+  const aiLog = data.ai_optimization_log !== undefined ? JSON.stringify(data.ai_optimization_log) : null;
 
   const rows = await client`
     UPDATE schedules SET
-      title = ${title},
-      status = ${status},
-      config = ${config}::jsonb,
-      grupos = ${grupos}::jsonb,
-      docentes = ${docentes}::jsonb,
-      aulas = ${aulas}::jsonb,
-      cargas = ${cargas}::jsonb,
-      celdas = ${celdas}::jsonb,
-      metricas = ${metricas}::jsonb,
-      ai_optimization_log = ${aiLog}::jsonb,
+      title = COALESCE(${data.title ?? null}, title),
+      status = COALESCE(${data.status ?? null}, status),
+      config = CASE WHEN ${config}::text IS NOT NULL THEN ${config}::jsonb ELSE config END,
+      grupos = CASE WHEN ${grupos}::text IS NOT NULL THEN ${grupos}::jsonb ELSE grupos END,
+      docentes = CASE WHEN ${docentes}::text IS NOT NULL THEN ${docentes}::jsonb ELSE docentes END,
+      aulas = CASE WHEN ${aulas}::text IS NOT NULL THEN ${aulas}::jsonb ELSE aulas END,
+      cargas = CASE WHEN ${cargas}::text IS NOT NULL THEN ${cargas}::jsonb ELSE cargas END,
+      celdas = CASE WHEN ${celdas}::text IS NOT NULL THEN ${celdas}::jsonb ELSE celdas END,
+      metricas = CASE WHEN ${metricas}::text IS NOT NULL THEN ${metricas}::jsonb ELSE metricas END,
+      ai_optimization_log = CASE WHEN ${aiLog}::text IS NOT NULL THEN ${aiLog}::jsonb ELSE ai_optimization_log END,
       updated_at = NOW()
     WHERE id = ${id}::uuid AND teacher_id = ${teacherId}::uuid
     RETURNING *
   `;
+  if (!rows || rows.length === 0) return null;
   return rows[0];
 }
 
@@ -1057,7 +1125,7 @@ export async function findCanonicalSeed(
       updatedAt: r.updated_at,
     };
   } catch (err) {
-    console.warn('[findCanonicalSeed] Warning:', err);
+    logger.warn('[findCanonicalSeed] Warning:', err);
     return null;
   }
 }
@@ -1103,13 +1171,26 @@ export async function saveCanonicalSeed(seed: CanonicalSeed): Promise<CanonicalS
     `;
 
     if (rows && rows.length > 0) {
-      return rows[0] as any;
+      const r = rows[0];
+      return {
+        id: r.id,
+        uacId: r.uac_id,
+        subsystem: r.subsystem,
+        topic: r.topic,
+        practiceType: r.practice_type,
+        content: r.content,
+        source: r.source,
+        qualityScore: r.quality_score,
+        timesUsed: r.times_used,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+      };
     }
 
     // Si no retornó fila modificada, la semilla existente tiene mejor o igual calidad
     return await findCanonicalSeed(seed.uacId, cleanTopic, seed.subsystem);
   } catch (err) {
-    console.error('[saveCanonicalSeed] Error:', err);
+    logger.error('[saveCanonicalSeed] Error:', err);
     return null;
   }
 }
@@ -1127,7 +1208,7 @@ export async function incrementSeedUsage(seedId: string): Promise<void> {
       WHERE id = ${seedId}::uuid
     `;
   } catch (err) {
-    console.warn('[incrementSeedUsage] Error:', err);
+    logger.warn('[incrementSeedUsage] Error:', err);
   }
 }
 
@@ -1264,20 +1345,11 @@ export async function updateWorkbookProgress(
 ): Promise<void> {
   const client = sql();
   const blockKey = `block_${blockIndex}`;
-
-  const rows = await client`
-    SELECT workbook_progress
-    FROM plannings
-    WHERE id = ${planningId}::uuid
-    LIMIT 1
-  `;
-
-  const currentProgress = (rows[0]?.workbook_progress || {}) as Record<string, any>;
-  currentProgress[blockKey] = progress;
+  const patchObj = JSON.stringify({ [blockKey]: progress });
 
   await client`
     UPDATE plannings
-    SET workbook_progress = ${JSON.stringify(currentProgress)}::jsonb
+    SET workbook_progress = COALESCE(workbook_progress, '{}'::jsonb) || ${patchObj}::jsonb
     WHERE id = ${planningId}::uuid
   `;
 }
@@ -1532,6 +1604,29 @@ export interface SaveImageAssetInput {
   height?: number | null;
 }
 
+export function mapRawImageAsset(r: Record<string, any>): ImageAsset {
+  return {
+    id: r.id,
+    planningId: r.planning_id,
+    blockIndex: r.block_index,
+    missionIndex: r.mission_index,
+    source: r.source,
+    externalId: r.external_id,
+    title: r.title,
+    creator: r.creator,
+    creatorUrl: r.creator_url,
+    license: r.license,
+    licenseUrl: r.license_url,
+    sourceUrl: r.source_url,
+    imageUrl: r.image_url,
+    thumbnailUrl: r.thumbnail_url,
+    caption: r.caption,
+    width: r.width,
+    height: r.height,
+    createdAt: r.created_at,
+  };
+}
+
 export async function saveImageAsset(asset: SaveImageAssetInput): Promise<ImageAsset> {
   const client = sql();
   const rows = await client`
@@ -1562,27 +1657,7 @@ export async function saveImageAsset(asset: SaveImageAssetInput): Promise<ImageA
               image_url, thumbnail_url, caption, width, height, created_at
   `;
 
-  const r = rows[0] as any;
-  return {
-    id: r.id,
-    planningId: r.planning_id,
-    blockIndex: r.block_index,
-    missionIndex: r.mission_index,
-    source: r.source,
-    externalId: r.external_id,
-    title: r.title,
-    creator: r.creator,
-    creatorUrl: r.creator_url,
-    license: r.license,
-    licenseUrl: r.license_url,
-    sourceUrl: r.source_url,
-    imageUrl: r.image_url,
-    thumbnailUrl: r.thumbnail_url,
-    caption: r.caption,
-    width: r.width,
-    height: r.height,
-    createdAt: r.created_at,
-  };
+  return mapRawImageAsset(rows[0] as Record<string, any>);
 }
 
 export async function getImageAssetsByBlock(planningId: string, blockIndex: number): Promise<ImageAsset[]> {
@@ -1596,26 +1671,7 @@ export async function getImageAssetsByBlock(planningId: string, blockIndex: numb
     ORDER BY mission_index ASC, created_at ASC
   `;
 
-  return rows.map((r: any) => ({
-    id: r.id,
-    planningId: r.planning_id,
-    blockIndex: r.block_index,
-    missionIndex: r.mission_index,
-    source: r.source,
-    externalId: r.external_id,
-    title: r.title,
-    creator: r.creator,
-    creatorUrl: r.creator_url,
-    license: r.license,
-    licenseUrl: r.license_url,
-    sourceUrl: r.source_url,
-    imageUrl: r.image_url,
-    thumbnailUrl: r.thumbnail_url,
-    caption: r.caption,
-    width: r.width,
-    height: r.height,
-    createdAt: r.created_at,
-  }));
+  return rows.map((r: Record<string, any>) => mapRawImageAsset(r));
 }
 
 export async function getImageAssetByMission(
@@ -1637,27 +1693,7 @@ export async function getImageAssetByMission(
   `;
 
   if (!rows || rows.length === 0) return null;
-  const r = rows[0] as any;
-  return {
-    id: r.id,
-    planningId: r.planning_id,
-    blockIndex: r.block_index,
-    missionIndex: r.mission_index,
-    source: r.source,
-    externalId: r.external_id,
-    title: r.title,
-    creator: r.creator,
-    creatorUrl: r.creator_url,
-    license: r.license,
-    licenseUrl: r.license_url,
-    sourceUrl: r.source_url,
-    imageUrl: r.image_url,
-    thumbnailUrl: r.thumbnail_url,
-    caption: r.caption,
-    width: r.width,
-    height: r.height,
-    createdAt: r.created_at,
-  };
+  return mapRawImageAsset(rows[0] as Record<string, any>);
 }
 
 export async function deleteImageAsset(id: string): Promise<boolean> {

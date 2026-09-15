@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin, adminUnauthorized, adminForbidden } from '@/lib/admin-auth';
 import { parsePdfBuffer } from '@/lib/pdf-parser';
 
+import { logger } from '@/lib/logger';
 export const runtime = 'nodejs';
 export const maxDuration = 120; // 2 minutes max for PDF parsing + Gemini call
 
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     if (error.message === 'UNAUTHORIZED') return adminUnauthorized();
     if (error.message === 'FORBIDDEN') return adminForbidden();
-    console.error('POST /api/admin/programs/extract error:', error);
+    logger.error('POST /api/admin/programs/extract error:', error);
     return NextResponse.json({ error: error.message || 'Error al procesar el PDF' }, { status: 500 });
   }
 }

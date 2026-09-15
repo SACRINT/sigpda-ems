@@ -5,6 +5,7 @@
 // en los prompts de PMC, PAEC, PIPS y Planeaciones.
 
 import { neon } from '@neondatabase/serverless';
+import { logger } from '@/lib/logger';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -87,7 +88,7 @@ export async function getNormativaForGenerator(
 
     return buildNormativaBlock(rows as unknown as NormativaArticulo[], generador);
   } catch (error) {
-    console.error('[normativa-context] Error obteniendo normativa de BD:', error);
+    logger.error('[normativa-context] Error obteniendo normativa de BD:', error);
     // Si hay error de BD, usa fallback sin bloquear la generación
     return FALLBACK_NORMATIVA[generador];
   }
@@ -178,7 +179,7 @@ export async function getStructuredNormativaForGenerator(
     // Reasignar orden secuencial para la presentación
     return result.map((doc, idx) => ({ ...doc, orden: idx + 1 }));
   } catch (error) {
-    console.error('[normativa-context] Error obteniendo normativa estructurada de BD:', error);
+    logger.error('[normativa-context] Error obteniendo normativa estructurada de BD:', error);
     return getStructuredFallback(generador);
   }
 }

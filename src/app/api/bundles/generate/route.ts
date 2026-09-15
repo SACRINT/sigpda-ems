@@ -4,6 +4,7 @@ import { getTeacherByEmail, getPlanningById } from '@/lib/db';
 import { generateBundle, generateFullBundle } from '@/lib/bundle-generator';
 import type { GeneratedPlanningContent } from '@/types/planning';
 
+import { logger } from '@/lib/logger';
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
@@ -52,12 +53,12 @@ export async function POST(request: NextRequest) {
         metadata: { planningId, bundleType: type, uacName: planning.uacName },
       });
     } catch (notifErr) {
-      console.warn('Could not dispatch bundle_generated notification:', notifErr);
+      logger.warn('Could not dispatch bundle_generated notification:', notifErr);
     }
 
     return NextResponse.json(responseData);
   } catch (error) {
-    console.error('Bundle generation error:', error);
+    logger.error('Bundle generation error:', error);
     return NextResponse.json({ error: 'Error al generar bundle' }, { status: 500 });
   }
 

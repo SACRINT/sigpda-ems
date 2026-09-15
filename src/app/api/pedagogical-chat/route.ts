@@ -3,6 +3,7 @@ import { generateWithRotation } from '@/lib/ai-provider';
 import { neon } from '@neondatabase/serverless';
 import { NextResponse } from 'next/server';
 
+import { logger } from '@/lib/logger';
 // Extender el timeout de Vercel a 60s para llamadas de IA
 export const maxDuration = 60;
 
@@ -95,7 +96,7 @@ REGLAS OBLIGATORIAS DE RESPUESTA:
 
     return NextResponse.json({ success: true, reply });
   } catch (e: any) {
-    console.error('API /api/pedagogical-chat error:', e);
+    logger.error('API /api/pedagogical-chat error:', e);
     return NextResponse.json({ error: e.message || 'Error en el asistente pedagógico' }, { status: 500 });
   }
 }

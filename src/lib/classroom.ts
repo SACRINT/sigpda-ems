@@ -6,6 +6,7 @@
 
 import { getPlanningById } from '@/lib/db';
 import type { GeneratedPlanningContent } from '@/types/planning';
+import { logger } from '@/lib/logger';
 
 export interface ClassroomConfigStatus {
   configured: boolean;
@@ -176,7 +177,7 @@ export async function publishPlanningToGoogleClassroom(planningId: string, teach
           topicsCreated++;
         }
       } catch (topicErr) {
-        console.warn(`[Classroom] No se pudo crear tema ${topicName}:`, topicErr);
+        logger.warn(`[Classroom] No se pudo crear tema ${topicName}:`, topicErr);
       }
 
       // Crear Tarea / CourseWork
@@ -216,7 +217,7 @@ export async function publishPlanningToGoogleClassroom(planningId: string, teach
           assignmentsCreated++;
         }
       } catch (workErr) {
-        console.warn(`[Classroom] No se pudo crear tarea para actividad ${i + 1}:`, workErr);
+        logger.warn(`[Classroom] No se pudo crear tarea para actividad ${i + 1}:`, workErr);
       }
     }
 
@@ -230,7 +231,7 @@ export async function publishPlanningToGoogleClassroom(planningId: string, teach
       message: `¡Curso publicado con éxito en Google Classroom! Se crearon ${topicsCreated} temas y ${assignmentsCreated} tareas formativas.`,
     };
   } catch (error: any) {
-    console.error('[publishPlanningToGoogleClassroom error]:', error);
+    logger.error('[publishPlanningToGoogleClassroom error]:', error);
     return {
       success: false,
       configured: true,

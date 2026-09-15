@@ -132,7 +132,7 @@ export async function generateBlockWorkTextbook(
     region: 'Puebla',
     subsystem: normalizedSubsystem,
     groupInfo: rawPlanning.semester ? `${rawPlanning.semester}° Semestre` : 'Grupo A',
-    paecProjectName: rawPlanning.paec_project_name || (rawPlanning.content_json as any)?.sectionI?.paecProjectName || (rawPlanning.extracted_data as any)?.paecProjectName || rawPlanning.paec_context || 'Proyecto Escolar Comunitario PAEC',
+    paecProjectName: rawPlanning.paec_project_name || (rawPlanning.content_json as Record<string, any>)?.sectionI?.paecProjectName || (rawPlanning.extracted_data as Record<string, any>)?.paecProjectName || rawPlanning.paec_context || 'Proyecto Escolar Comunitario PAEC',
     paecProblem: rawPlanning.paec_context || 'Mejora del entorno escolar y convivencia comunitaria',
     studentContext: 'Estudiantes de educación media superior de Puebla con diversos estilos de aprendizaje.',
   };
@@ -540,7 +540,7 @@ export async function generateBlockWorkTextbook(
   if (validation.accepted) {
     await saveBlockWorkbook(planningId, blockIndex, activeWorkTextbook);
   } else {
-    console.warn(
+    logger.warn(
       `[Orchestrator] Block ${blockIndex} NOT accepted: qualityScore=${validation.qualityScore}, words=${validation.totalWordCount}. Guardando con advertencia activa.`
     );
     activeWorkTextbook.qualityWarning = true;

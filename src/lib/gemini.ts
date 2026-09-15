@@ -17,6 +17,7 @@ import { generateStreamWithRotation, resolveUserIsPremium } from './ai-provider'
 import { sanitizeGeminiModel } from './ai-provider/gemini';
 import { parseAIResponse } from './ai-response-parser';
 import { PlanningContentSchema } from './ai-schemas';
+import type { z } from 'zod';
 import type { GeneratedPlanningContent } from '@/types/planning';
 import { API_CONFIG } from './config';
 import { logger } from './logger';
@@ -127,7 +128,7 @@ async function callGeminiInternal({
       AND error_count >= 5
       AND last_error_at IS NOT NULL
       AND last_error_at <= ${cooldownTime.toISOString()}
-  `.catch(err => console.error('[sigpda-ems] Error reactivando llaves:', err));
+  `.catch(err => logger.error('[sigpda-ems] Error reactivando llaves:', err));
 
   // 4. Cargar llaves activas del pool (Gemini)
   const keys = await sql`
@@ -198,7 +199,9 @@ async function callGeminiInternal({
             usage_count = usage_count + 1,
             last_used_at = NOW()
         WHERE id = ${keyRecord.id}
-      `.catch(() => {});
+      `.catch((e) => {
+        logger.warn('[GeminiPool] No se pudo registrar éxito de api_key', { keyId: keyRecord.id, error: e });
+      });
 
       return result;
     } catch (err: any) {
@@ -217,7 +220,9 @@ async function callGeminiInternal({
               last_error_at = NOW(),
               is_active = CASE WHEN error_count + 1 >= 5 THEN false ELSE is_active END
           WHERE id = ${keyRecord.id}
-        `.catch(() => {});
+        `.catch((e) => {
+          logger.warn('[GeminiPool] No se pudo actualizar error_count de api_key', { keyId: keyRecord.id, error: e });
+        });
       }
       // 429 → no penalizar la llave, pasar a la siguiente del pool
     }
@@ -285,7 +290,7 @@ async function executeWithModelFallback(
         const errText = await res.text();
         // 404 = modelo descontinuado → intentar el siguiente de la cadena
         if (res.status === 404 || errText.toLowerCase().includes('not found')) {
-          console.warn(`[sigpda-ems] Modelo "${currentModel}" no encontrado (404), probando siguiente...`);
+          logger.warn(`[sigpda-ems] Modelo "${currentModel}" no encontrado (404), probando siguiente...`);
           continue;
         }
         throw new Error(`HTTP ${res.status}: ${errText}`);
@@ -335,9 +340,13 @@ export async function generatePlanning(
 ): Promise<GeneratedPlanningContent> {
   const text = await callGeminiPool(SYSTEM_PROMPT, userPrompt, teacherId);
 
-  const parseResult = parseAIResponse<GeneratedPlanningContent>(text, PlanningContentSchema as any, {
-    contextName: 'gemini-generate-planning',
-  });
+  const parseResult = parseAIResponse<GeneratedPlanningContent>(
+    text,
+    PlanningContentSchema as unknown as z.ZodType<GeneratedPlanningContent>,
+    {
+      contextName: 'gemini-generate-planning',
+    }
+  );
 
   if (!parseResult.success) {
     throw new Error(`La IA retornó una respuesta JSON inválida: ${parseResult.error}`);

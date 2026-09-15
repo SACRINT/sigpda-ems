@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, sql } from '@/lib/db';
 import { generatePipsDocx } from '@/lib/pips-docx-generator';
-
+import { calculateGlobalPipsScore } from '@/lib/pips-quality-gate';
+import type { PipsProject } from '@/types/pips';
+import { logger } from '@/lib/logger';
 export const runtime = 'nodejs';
 
 export async function GET(
@@ -27,6 +29,9 @@ export async function GET(
     if (!row)
       return NextResponse.json({ error: 'Proyecto no encontrado' }, { status: 404 });
 
+    const audit = calculateGlobalPipsScore(row as unknown as PipsProject);
+    logger.info(`[PIPS DOCX Export] Quality Gate: ${audit.percentage}% (${audit.overallStatus}) for project ${id}`);
+
     const buffer = await generatePipsDocx(row as any);
 
     const filename = `PIPS_${(row.zona_nombre as string).replace(/\s+/g, '_')}_${row.ciclo_escolar}.docx`;
@@ -36,10 +41,12 @@ export async function GET(
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         'Content-Disposition': `attachment; filename="${filename}"`,
+        'X-Quality-Score': String(audit.percentage),
+        'X-Quality-Status': audit.overallStatus,
       },
     });
   } catch (error) {
-    console.error('Error generating PIPS docx:', error);
+    logger.error('Error generating PIPS docx:', error);
     return NextResponse.json({ error: 'Error al generar el documento' }, { status: 500 });
   }
 }

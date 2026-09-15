@@ -5,6 +5,7 @@ import { auth } from '@/lib/auth';
 import { getTeacherByEmail } from '@/lib/db';
 import { getTeacherProgressSummary } from '@/lib/pedagogical-analytics';
 
+import { logger } from '@/lib/logger';
 export const runtime = 'nodejs';
 
 export async function GET() {
@@ -22,7 +23,7 @@ export async function GET() {
     const summary = await getTeacherProgressSummary(teacher.id, teacher.email);
     return NextResponse.json(summary);
   } catch (error) {
-    console.error('Pedagogical analytics GET error:', error);
+    logger.error('Pedagogical analytics GET error:', error);
     return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
   }
 }

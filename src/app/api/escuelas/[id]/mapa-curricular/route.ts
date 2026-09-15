@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { sql, getTeacherByEmail } from "@/lib/db";
 
+import { logger } from '@/lib/logger';
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function POST(
@@ -50,7 +51,7 @@ export async function POST(
           WHERE id = ${targetTeacherId}::uuid;
         `;
       } catch (e) {
-        console.error("[api/escuelas/[id]/mapa-curricular POST] Error actualizando subsistema en teachers:", e);
+        logger.error("[api/escuelas/[id]/mapa-curricular POST] Error actualizando subsistema en teachers:", e);
       }
     }
 
@@ -104,7 +105,7 @@ export async function POST(
         await sql()`DELETE FROM horario_grupos WHERE id = ANY(${idsAEliminar}::uuid[])`;
       }
     } catch (e) {
-      console.warn("[api/escuelas/[id]/mapa-curricular POST] Error podando grupos excedentes:", e);
+      logger.warn("[api/escuelas/[id]/mapa-curricular POST] Error podando grupos excedentes:", e);
     }
 
     // 2. Guardar gruposConfig si se proporcionaron
@@ -151,7 +152,7 @@ export async function POST(
       message: "Mapa curricular y estructura del plantel guardados exitosamente",
     });
   } catch (error: any) {
-    console.error("[api/escuelas/[id]/mapa-curricular POST] Error:", error);
+    logger.error("[api/escuelas/[id]/mapa-curricular POST] Error:", error);
     return NextResponse.json(
       { error: error?.message || "Error al guardar mapa curricular" },
       { status: 500 }
@@ -204,7 +205,7 @@ export async function DELETE(
       message: "Mapa curricular y grupos reiniciados correctamente",
     });
   } catch (error: any) {
-    console.error("[api/escuelas/[id]/mapa-curricular DELETE] Error:", error);
+    logger.error("[api/escuelas/[id]/mapa-curricular DELETE] Error:", error);
     return NextResponse.json(
       { error: error?.message || "Error al reiniciar mapa curricular" },
       { status: 500 }

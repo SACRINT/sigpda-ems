@@ -48,12 +48,17 @@ export async function renderMermaidDiagram(
       },
       body: cleanCode,
       signal: controller.signal,
-    }).catch(() => null);
+    }).catch((err) => {
+      logger.warn('[Mermaid] Fallo en fetch Kroki POST:', { error: err });
+      return null;
+    });
 
     // Intento B: Si POST no responde ok, cancelar body e intentar GET con base64 deflated (estándar Kroki GET)
     if (!response || !response.ok) {
       if (response) {
-        await response.body?.cancel().catch(() => {});
+        await response.body?.cancel().catch((err) => {
+          logger.warn('[Mermaid] Fallo al cancelar stream de respuesta:', { error: err });
+        });
         response = null;
       }
       try {
@@ -63,7 +68,10 @@ export async function renderMermaidDiagram(
           method: 'GET',
           headers: { Accept: 'image/png' },
           signal: controller.signal,
-        }).catch(() => null);
+        }).catch((err) => {
+          logger.warn('[Mermaid] Fallo en fetch Kroki GET fallback:', { error: err });
+          return null;
+        });
       } catch (deflateErr) {
         logger.warn('[Mermaid] Error preparando payload Kroki GET fallback:', { error: deflateErr });
       }
@@ -72,7 +80,9 @@ export async function renderMermaidDiagram(
     clearTimeout(timer);
 
     if (response && !response.ok) {
-      await response.body?.cancel().catch(() => {});
+      await response.body?.cancel().catch((err) => {
+        logger.warn('[Mermaid] Fallo al cancelar stream no-ok:', { error: err });
+      });
       response = null;
     }
 
@@ -80,7 +90,9 @@ export async function renderMermaidDiagram(
       const contentType = response.headers.get('content-type') || '';
       if (!contentType.includes('image/png')) {
         logger.warn('[Mermaid] Kroki returned non-PNG content:', { contentType });
-        await response.body?.cancel().catch(() => {});
+        await response.body?.cancel().catch((err) => {
+          logger.warn('[Mermaid] Fallo al cancelar stream de tipo inesperado:', { error: err });
+        });
         const parsedTable = parseMermaidToFlowTable(cleanCode, options.title);
         return {
           type: 'structured-table',

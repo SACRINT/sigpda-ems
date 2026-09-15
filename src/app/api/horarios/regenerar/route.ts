@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { sql, getTeacherByEmail } from "@/lib/db";
 import { resolverHorario, SolverParams } from "@/lib/horarios/solver";
 
+import { logger } from '@/lib/logger';
 export async function POST(req: NextRequest) {
   try {
     const session = await auth();
@@ -26,7 +27,7 @@ export async function POST(req: NextRequest) {
         SELECT * FROM horario_config WHERE teacher_id = ${teacherId}::uuid LIMIT 1
       `;
     } catch (e) {
-      console.warn("[api/horarios/regenerar POST] Error consultando horario_config:", e);
+      logger.warn("[api/horarios/regenerar POST] Error consultando horario_config:", e);
     }
     const configRow = configRows[0] || null;
 
@@ -265,7 +266,7 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error("[api/horarios/regenerar] Error reoptimizando horario:", error);
+    logger.error("[api/horarios/regenerar] Error reoptimizando horario:", error);
     return NextResponse.json({ error: error.message || "Error interno al reoptimizar horario" }, { status: 500 });
   }
 }
@@ -320,7 +321,7 @@ export async function DELETE(req: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error("[api/horarios/regenerar] Error limpiando horario:", error);
+    logger.error("[api/horarios/regenerar] Error limpiando horario:", error);
     return NextResponse.json({ error: error.message || "Error interno al limpiar horario" }, { status: 500 });
   }
 }

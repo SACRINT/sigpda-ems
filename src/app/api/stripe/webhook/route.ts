@@ -87,7 +87,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const stripePriceId = session.metadata?.stripe_price_id || null;
 
   if (!teacherId || !planId) {
-    console.error('[Webhook] Missing metadata in checkout session:', session.id);
+    logger.error('[Webhook] Missing metadata in checkout session:', { sessionId: session.id });
     return;
   }
 

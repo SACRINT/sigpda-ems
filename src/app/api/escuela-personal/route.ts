@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { sql, getTeacherByEmail } from '@/lib/db';
 
+import { logger } from '@/lib/logger';
 async function getDirectorId(email: string) {
   const teacher = await getTeacherByEmail(email);
   if (!teacher) return null;
@@ -32,7 +33,7 @@ export async function GET() {
 
     return NextResponse.json({ personal });
   } catch (err: any) {
-    console.error('[escuela-personal GET]', err);
+    logger.error('[escuela-personal GET]', err);
     return NextResponse.json({ error: 'Error interno' }, { status: 500 });
   }
 }
@@ -84,7 +85,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, id: result[0].id });
   } catch (err: any) {
-    console.error('[escuela-personal POST]', err);
+    logger.error('[escuela-personal POST]', err);
     return NextResponse.json({ error: 'Error interno' }, { status: 500 });
   }
 }
@@ -127,7 +128,7 @@ export async function PUT(req: Request) {
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    console.error('[escuela-personal PUT]', err);
+    logger.error('[escuela-personal PUT]', err);
     return NextResponse.json({ error: 'Error interno' }, { status: 500 });
   }
 }
@@ -154,7 +155,7 @@ export async function DELETE(req: Request) {
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    console.error('[escuela-personal DELETE]', err);
+    logger.error('[escuela-personal DELETE]', err);
     return NextResponse.json({ error: 'Error interno' }, { status: 500 });
   }
 }

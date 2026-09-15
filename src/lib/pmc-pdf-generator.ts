@@ -8,6 +8,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { loadAllLogos } from './pdf-logos';
 import { SCHOOL_YEAR } from '@/lib/config';
+import { logger } from './logger';
 import type { PmcProject } from './pmc-docx-generator';
 
 const NAVY: [number, number, number] = [31, 56, 100];       // #1F3864 - Azul Institucional DBEPA
@@ -62,19 +63,25 @@ export async function generatePmcPDF(
     try {
       const fmt = logos.gobierno.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
       doc.addImage(logos.gobierno, fmt, margin, curY, 36, 15);
-    } catch {}
+    } catch (err) {
+      logger.warn('[PMC-PDF] Error agregando logotipo de gobierno en portada', { error: err });
+    }
   }
   if (logos.sep) {
     try {
       const fmt = logos.sep.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
       doc.addImage(logos.sep, fmt, (pageWidth - 32) / 2, curY, 32, 9);
-    } catch {}
+    } catch (err) {
+      logger.warn('[PMC-PDF] Error agregando logotipo SEP en portada', { error: err });
+    }
   }
   if (logos.supervision) {
     try {
       const fmt = logos.supervision.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
       doc.addImage(logos.supervision, fmt, pageWidth - margin - 32, curY, 32, 12);
-    } catch {}
+    } catch (err) {
+      logger.warn('[PMC-PDF] Error agregando logotipo de supervisión en portada', { error: err });
+    }
   }
 
   curY += 22;

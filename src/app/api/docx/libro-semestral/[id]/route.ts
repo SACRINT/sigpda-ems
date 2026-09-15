@@ -4,6 +4,7 @@ import { getPlanningById, getTeacherByEmail } from '@/lib/db';
 import { compileSemestralWorkbook } from '@/lib/master-workbook-compiler';
 import type { Planning } from '@/types/planning';
 
+import { logger } from '@/lib/logger';
 export const runtime = 'nodejs';
 export const maxDuration = 90;
 
@@ -63,7 +64,7 @@ export async function GET(
       },
     });
   } catch (error: any) {
-    console.error('[GET /api/docx/libro-semestral/[id]] Error:', error);
+    logger.error('[GET /api/docx/libro-semestral/[id]] Error:', error);
     return NextResponse.json(
       { error: error.message || 'Error al compilar el libro semestral DOCX' },
       { status: 500 }

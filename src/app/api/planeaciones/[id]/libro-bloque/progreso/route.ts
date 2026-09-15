@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getWorkbookProgress, getTeacherByEmail, getPlanningById } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
 
@@ -41,7 +42,7 @@ export async function GET(
 
     return NextResponse.json({ progress });
   } catch (error: any) {
-    console.error('[GET /api/planeaciones/[id]/libro-bloque/progreso] Error:', error);
+    logger.error('[GET /api/planeaciones/[id]/libro-bloque/progreso] Error:', error);
     return NextResponse.json(
       { error: error.message || 'Error al consultar progreso' },
       { status: 500 }

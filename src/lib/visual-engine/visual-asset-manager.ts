@@ -18,6 +18,7 @@ import {
 } from '@/lib/db';
 import type { ImageAsset } from '@/types/planning';
 import { normalizeUnicode } from '@/lib/utils/normalize';
+import { logger } from '@/lib/logger';
 
 export interface ResolveVisualOptions {
   planningId?: string;
@@ -134,7 +135,7 @@ export async function resolveVisualForMission(
               height: top.height,
             });
           } catch (dbErr) {
-            console.warn('[VisualAssetManager] No se pudo persistir activo Openverse:', dbErr);
+            logger.warn('[VisualAssetManager] No se pudo persistir activo Openverse:', dbErr);
           }
         }
 
@@ -164,7 +165,7 @@ export async function resolveVisualForMission(
         };
       }
     } catch (openverseErr) {
-      console.warn('[VisualAssetManager] Fallback a Capa 0 tras error Openverse:', openverseErr);
+      logger.warn('[VisualAssetManager] Fallback a Capa 0 tras error Openverse:', openverseErr);
     }
   }
 

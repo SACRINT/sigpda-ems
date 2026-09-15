@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { getTeacherByEmail, setTeacherResetToken } from '@/lib/db';
 
+import { logger } from '@/lib/logger';
 export async function POST(req: NextRequest) {
   try {
     const { email } = await req.json();
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
       message: 'Si el correo está registrado, recibirás un enlace para restablecer tu contraseña.',
     });
   } catch (error: any) {
-    console.error('Error en /api/auth/forgot-password:', error);
+    logger.error('Error en /api/auth/forgot-password:', error);
     return NextResponse.json(
       { error: 'Error al procesar la solicitud de recuperación.' },
       { status: 500 }

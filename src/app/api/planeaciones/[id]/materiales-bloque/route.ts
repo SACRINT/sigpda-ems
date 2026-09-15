@@ -4,6 +4,7 @@ import { getTeacherByEmail, getBlockWorkbook, sql } from '@/lib/db';
 import { isAdmin } from '@/lib/admin-unified';
 import { extractMaterialsFromWorkbook } from '@/lib/guide-engine/material-extractor';
 import { cascadeBlockMaterials } from '@/lib/guide-engine/cascade-block-materials';
+import { logger } from '@/lib/logger';
 
 async function handleMaterialesBloque(
   request: NextRequest,
@@ -76,7 +77,7 @@ async function handleMaterialesBloque(
       materials,
     });
   } catch (error: any) {
-    console.error('[API /materiales-bloque] Error:', error);
+    logger.error('[API /materiales-bloque] Error:', error);
     return NextResponse.json({ error: 'Error interno al derivar materiales de bloque' }, { status: 500 });
   }
 }

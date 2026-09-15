@@ -4,6 +4,7 @@ import { getPlanningById, getBlockWorkbook, getTeacherByEmail } from '@/lib/db';
 import { renderWorkbookToDocx } from '@/lib/docx-workbook-renderer';
 import type { Planning } from '@/types/planning';
 
+import { logger } from '@/lib/logger';
 export const runtime = 'nodejs';
 export const maxDuration = 90;
 
@@ -84,7 +85,7 @@ export async function GET(
       },
     });
   } catch (error: any) {
-    console.error('[GET /api/docx/libro-bloque/[id]] Error:', error);
+    logger.error('[GET /api/docx/libro-bloque/[id]] Error:', error);
     return NextResponse.json(
       { error: error.message || 'Error al descargar el libro DOCX' },
       { status: 500 }

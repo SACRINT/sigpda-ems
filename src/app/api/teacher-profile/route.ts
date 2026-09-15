@@ -1,6 +1,7 @@
 import { auth } from '@/lib/auth';
 import { neon } from '@neondatabase/serverless';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 export async function POST(req: Request) {
   try {
@@ -67,7 +68,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error('[teacher-profile] Error:', error);
+    logger.error('[teacher-profile] Error:', error);
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }
@@ -98,7 +99,7 @@ export async function GET() {
 
     return NextResponse.json(rows[0]);
   } catch (error: any) {
-    console.error('[teacher-profile] GET Error:', error);
+    logger.error('[teacher-profile] GET Error:', error);
     return NextResponse.json({ error: 'Error interno' }, { status: 500 });
   }
 }

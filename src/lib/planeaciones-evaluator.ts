@@ -13,6 +13,7 @@
 import { getAIProvider } from '@/lib/ai-provider';
 import { parseAIResponse } from '@/lib/ai-response-parser';
 import { PlaneacionEvaluacionSchema } from '@/lib/ai-schemas';
+import { logger } from '@/lib/logger';
 
 export type TipoEvaluacion = 'FUNDAMENTAL_1_4' | 'FUNDAMENTAL_5_6' | 'LABORAL';
 
@@ -201,7 +202,7 @@ Dictamina cada uno de los ${defs.length} criterios de forma objetiva y responde 
   });
 
   if (!parseResult.success) {
-    console.error('Error al parsear JSON de evaluador IA:', responseText, parseResult.error);
+    logger.error('Error al parsear JSON de evaluador IA:', { responseText, error: parseResult.error });
     throw new Error(`La IA devolvió una respuesta con formato inválido para la evaluación: ${parseResult.error}`);
   }
 

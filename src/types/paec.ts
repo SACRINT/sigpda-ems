@@ -188,13 +188,111 @@ export interface PaecAuditResult {
   };
 }
 
+export interface PaecCartaInvitacion {
+  asunto: string;
+  fecha: string;
+  destinatarios: string;
+  cuerpo: string;
+  fechaReunion: string;
+  hora: string;
+  lugar: string;
+  objetivos: string[];
+  firmante: string;
+  cargo: string;
+}
+
+export interface PaecOficioAliado {
+  destinatario: string;
+  cargo: string;
+  institucion: string;
+  asunto: string;
+  propuestaColaboracion: string;
+}
+
+export interface PaecSesionLanzamiento {
+  fecha: string;
+  dinamica: string;
+  participantes: string;
+  acuerdosEstudiantiles: string[];
+}
+
+export interface PaecImplementacion {
+  cartaInvitacion: PaecCartaInvitacion;
+  minutaArranque: MinutaData;
+  oficiosAliados: PaecOficioAliado[];
+  sesionLanzamiento?: PaecSesionLanzamiento;
+}
+
+export interface PaecCalendarioItem {
+  tipo: string;
+  frecuencia: string;
+  participantes: string;
+  objetivo: string;
+  evidencia: string;
+}
+
+export interface PaecGobernanza {
+  calendario: PaecCalendarioItem[];
+  metodologiaEvaluacion: {
+    ambitos: string[];
+    preguntasGuiaNem: {
+      dondeEstamos: string;
+      haciaDondeVamos: string;
+      comoSuperamos: string;
+    };
+  };
+}
+
+export interface PaecMetaLogroRow {
+  meta: string;
+  indicador: string;
+  programado: string;
+  alcanzado: string;
+  porcentaje: number;
+  estatus: string;
+}
+
+export interface PaecInformeSupervision {
+  resumenEjecutivo: string;
+  metasVsLogros: PaecMetaLogroRow[];
+  analisisPrePost: {
+    participacionTotal: string;
+    alcanceComunitario: string;
+    cambioConocimientos: string;
+    desarrolloCompetencias: string;
+  };
+  evidencias: string[];
+  obstaculos: { dificultad: string; solucion: string }[];
+  sostenibilidad: string[];
+  firmas?: {
+    responsableInforme: string;
+    autoridadEscolar: string;
+  };
+}
+
+export interface PaecQualityAudit {
+  score: number; // 0 a 100
+  criterios: PaecAuditCriterion[];
+  estatus: 'aprobado_excelente' | 'aprobado' | 'requiere_ajustes';
+  criteria?: PaecAuditCriterion[];
+  totalScore?: number;
+  percentage?: number;
+  status?: 'aprobado_excelente' | 'aprobado' | 'requiere_ajustes';
+  summary?: {
+    passedCount: number;
+    warningCount: number;
+    failedCount: number;
+  };
+  updatedAt?: string;
+}
+
 export interface PaecProject {
   id: string;
   teacherId: string;
   projectName: string;
   problemStatement: string;
   cycleType: CycleType;
-  currentStep: number; // 1 a 7
+  currentStep: number; // 1 a 9
   
   communityContext: CommunityContext;
   schoolContext: SchoolContext;
@@ -204,8 +302,16 @@ export interface PaecProject {
   fase2Mapeo: MapeoRow[] | null;
   fase2Cronograma: CronogramaRow[] | null;
   fase2DetalleCurricular: DetalleCurricularRow[] | null;
-  fase2PlanOperativo: PlanOperativoData | null;
+  fase2PlanOperativo: PlanOperativoData | null; // Compatibilidad hacia atrás
   fase2Anexos: AnexosData | null;
+
+  // Nuevos campos Motor PAEC-PEC 2.0
+  fase3PlanOperativoA: PlanOperativoRow[] | null;
+  fase3PlanOperativoB: PlanOperativoRow[] | null;
+  fase3Implementacion: PaecImplementacion | null;
+  fase4Gobernanza: PaecGobernanza | null;
+  fase4InformeSupervision: PaecInformeSupervision | null;
+  qualityAudit: PaecQualityAudit | null;
   
   status: PaecStatus;
   createdAt: Date;
@@ -219,3 +325,4 @@ export interface CreatePaecInput {
   communityContext: CommunityContext;
   schoolContext: SchoolContext;
 }
+

@@ -11,6 +11,7 @@ import {
 } from '@/lib/prompts/pips-chunks';
 import { getUserLibraryContext } from '@/lib/context-extractor';
 import { getNormativaForGenerator } from '@/lib/normativa-context';
+import { extractIdempotencyKey, checkIdempotencyKey, createIdempotencyKey } from '@/lib/idempotency';
 
 export const runtime = 'nodejs';
 export const maxDuration = 180; // 3 minutos máximo en Next.js/Vercel
@@ -18,7 +19,7 @@ export const maxDuration = 180; // 3 minutos máximo en Next.js/Vercel
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -33,6 +34,20 @@ export async function POST(
     }
 
     const { id } = await params;
+
+    // Mejora #24: Verificación de Idempotencia y Deduplicación
+    const idempotencyKey = extractIdempotencyKey(req);
+    const cachedResult = await checkIdempotencyKey(
+      idempotencyKey,
+      teacher.id,
+      `/api/pips/${id}/generate`
+    );
+    if (cachedResult) {
+      return NextResponse.json(cachedResult, {
+        headers: { 'X-Idempotency-Hit': 'true' },
+      });
+    }
+
     const db = sql();
 
     // Obtener los datos actuales del proyecto PIPS
@@ -200,7 +215,17 @@ async function generateChunkWithRetry(
       tokensApprox: Math.round(fullContent.length / 4),
     });
 
-    return NextResponse.json({ success: true, content: fullContent });
+    const responsePayload = { success: true, content: fullContent };
+    if (idempotencyKey) {
+      await createIdempotencyKey(
+        idempotencyKey,
+        teacher.id,
+        `/api/pips/${id}/generate`,
+        responsePayload
+      );
+    }
+
+    return NextResponse.json(responsePayload);
   } catch (error: any) {
     logger.error('POST /api/pips/[id]/generate error:', error);
     return NextResponse.json({ 

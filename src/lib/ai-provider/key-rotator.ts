@@ -10,6 +10,7 @@
 
 import { neon } from '@neondatabase/serverless';
 import type { ApiKeyRecord } from './types';
+import { logger } from '@/lib/logger';
 
 // ── Encryption / Decryption ──────────────────────────────────────────────────
 
@@ -192,7 +193,7 @@ export async function resolveKey(
       };
     }
   } catch (err) {
-    console.warn('[key-rotator] DB lookup failed, using env fallback:', err);
+    logger.warn('[key-rotator] DB lookup failed, using env fallback:', err);
   }
 
   // 3. Env var fallback
@@ -295,11 +296,11 @@ export async function withKeyRotation<T>(
       if (keyId && source === 'pool') {
         if (isPermanentError) {
           // Bad credential: increment error count (may lead to deactivation)
-          console.warn(`[key-rotator] Permanent credential error on key ${keyId}. Recording error.`);
+          logger.warn(`[key-rotator] Permanent credential error on key ${keyId}. Recording error.`);
           await recordError(keyId);
         } else if (isRateLimit) {
           // Transient quota: just update last_error_at without penalizing
-          console.warn(`[key-rotator] Rate-limit on key ${keyId}. NOT penalizing — will rotate.`);
+          logger.warn(`[key-rotator] Rate-limit on key ${keyId}. NOT penalizing — will rotate.`);
           try {
             const sql = getDb();
             await sql`UPDATE api_keys SET last_error_at = NOW() WHERE id = ${keyId}`;
@@ -310,7 +311,7 @@ export async function withKeyRotation<T>(
 
       if ((isRateLimit || !isPermanentError) && i < attempts.length - 1) {
         // Rotate to next key transparently for rate-limits and transient errors
-        console.warn(
+        logger.warn(
           `[key-rotator] Key #${i + 1} (${source}:${keyId ?? 'env'}) failed (${
             isRateLimit ? 'rate-limit' : 'transient'
           }). Rotating to key #${i + 2}/${attempts.length}...`

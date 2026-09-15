@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { getTeacherByEmail, getPaecProjectById } from '@/lib/db';
-import { auditPaecProject } from '@/lib/paec-validator';
+import { getTeacherByEmail, getPaecProjectById, mapRawPaecProject } from '@/lib/db';
+import { calculateGlobalPaecScore, formatAuditReport } from '@/lib/paec-quality-gate';
 import type { PaecProject } from '@/types/paec';
 
+import { logger } from '@/lib/logger';
 export const runtime = 'nodejs';
 
 export async function GET(
@@ -27,29 +28,13 @@ export async function GET(
       return NextResponse.json({ error: 'Proyecto no encontrado' }, { status: 404 });
     }
 
-    // Mapear el registro de base de datos a PaecProject
-    const project: PaecProject = {
-      id: rawProject.id,
-      teacherId: rawProject.teacher_id,
-      projectName: rawProject.project_name,
-      problemStatement: rawProject.problem_statement,
-      cycleType: rawProject.cycle_type,
-      currentStep: rawProject.current_step,
-      communityContext: rawProject.community_context || {},
-      schoolContext: rawProject.school_context || {},
-      fase1Diagnostico: rawProject.fase1_diagnostico || null,
-      fase2Justificacion: rawProject.fase2_justificacion || null,
-      fase2Mapeo: rawProject.fase2_mapeo || null,
-      fase2Cronograma: rawProject.fase2_cronograma || null,
-      fase2DetalleCurricular: rawProject.fase2_detalle_curricular || null,
-      fase2PlanOperativo: rawProject.fase2_plan_operativo || null,
-      fase2Anexos: rawProject.fase2_anexos || null,
-      status: rawProject.status,
-      createdAt: rawProject.created_at,
-      updatedAt: rawProject.updated_at,
-    };
+    const project = mapRawPaecProject(rawProject);
+    if (!project) {
+      return NextResponse.json({ error: 'Error al procesar el proyecto' }, { status: 500 });
+    }
 
-    const audit = auditPaecProject(project);
+    const audit = calculateGlobalPaecScore(project);
+    const reportText = formatAuditReport(audit);
 
     return NextResponse.json({
       success: true,
@@ -58,9 +43,10 @@ export async function GET(
       currentStep: project.currentStep,
       status: project.status,
       audit,
+      reportText,
     });
   } catch (error) {
-    console.error('Error al auditar proyecto PAEC:', error);
+    logger.error('Error al auditar proyecto PAEC:', error);
     return NextResponse.json(
       { error: 'Error interno al evaluar el proyecto PAEC' },
       { status: 500 }

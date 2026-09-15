@@ -11,6 +11,7 @@ import {
   NotificationItem
 } from '@/lib/db';
 
+import { logger } from '@/lib/logger';
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
@@ -35,7 +36,7 @@ export async function GET(request: NextRequest) {
       unreadCount,
     });
   } catch (error: any) {
-    console.error('GET /api/notifications error:', error);
+    logger.error('GET /api/notifications error:', error);
     return NextResponse.json({ error: error.message || 'Error al obtener notificaciones' }, { status: 500 });
   }
 }
@@ -73,7 +74,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true, notification: created });
   } catch (error: any) {
-    console.error('POST /api/notifications error:', error);
+    logger.error('POST /api/notifications error:', error);
     return NextResponse.json({ error: error.message || 'Error al crear notificación' }, { status: 500 });
   }
 }
@@ -105,7 +106,7 @@ export async function PATCH(request: NextRequest) {
     const updated = await markNotificationAsRead(id, teacher.id);
     return NextResponse.json({ ok: true, notification: updated });
   } catch (error: any) {
-    console.error('PATCH /api/notifications error:', error);
+    logger.error('PATCH /api/notifications error:', error);
     return NextResponse.json({ error: error.message || 'Error al actualizar notificación' }, { status: 500 });
   }
 }
@@ -132,7 +133,7 @@ export async function DELETE(request: NextRequest) {
     const deleted = await deleteNotification(id, teacher.id);
     return NextResponse.json({ ok: true, deleted });
   } catch (error: any) {
-    console.error('DELETE /api/notifications error:', error);
+    logger.error('DELETE /api/notifications error:', error);
     return NextResponse.json({ error: error.message || 'Error al eliminar notificación' }, { status: 500 });
   }
 }

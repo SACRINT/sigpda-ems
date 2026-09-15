@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, getScheduleById, updateSchedule, deleteSchedule, ScheduleItem } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 export async function GET(
   request: NextRequest,
@@ -27,7 +28,7 @@ export async function GET(
 
     return NextResponse.json({ ok: true, schedule });
   } catch (error: any) {
-    console.error('GET /api/schedules/[id] error:', error);
+    logger.error('GET /api/schedules/[id] error:', error);
     return NextResponse.json({ error: error.message || 'Error interno' }, { status: 500 });
   }
 }
@@ -57,7 +58,7 @@ export async function PUT(
 
     return NextResponse.json({ ok: true, schedule: updated });
   } catch (error: any) {
-    console.error('PUT /api/schedules/[id] error:', error);
+    logger.error('PUT /api/schedules/[id] error:', error);
     return NextResponse.json({ error: error.message || 'Error al actualizar el horario' }, { status: 500 });
   }
 }
@@ -86,7 +87,7 @@ export async function DELETE(
 
     return NextResponse.json({ ok: true, deleted });
   } catch (error: any) {
-    console.error('DELETE /api/schedules/[id] error:', error);
+    logger.error('DELETE /api/schedules/[id] error:', error);
     return NextResponse.json({ error: error.message || 'Error al eliminar el horario' }, { status: 500 });
   }
 }

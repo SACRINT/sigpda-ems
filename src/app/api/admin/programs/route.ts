@@ -8,6 +8,7 @@ import {
 } from '@/lib/db';
 import { getFilteredCachedPrograms, invalidateCatalogCache } from '@/lib/catalog-cache';
 
+import { logger } from '@/lib/logger';
 export async function GET(request: NextRequest) {
   try {
     await requireAdmin();
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     if (error.message === 'UNAUTHORIZED') return adminUnauthorized();
     if (error.message === 'FORBIDDEN') return adminForbidden();
-    console.error('GET /api/admin/programs error:', error);
+    logger.error('GET /api/admin/programs error:', error);
     return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
   }
 }
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     if (error.message === 'UNAUTHORIZED') return adminUnauthorized();
     if (error.message === 'FORBIDDEN') return adminForbidden();
-    console.error('POST /api/admin/programs error:', error);
+    logger.error('POST /api/admin/programs error:', error);
     return NextResponse.json({ error: error.message || 'Error al guardar programa' }, { status: 500 });
   }
 }
@@ -75,7 +76,7 @@ export async function PUT(request: NextRequest) {
   } catch (error: any) {
     if (error.message === 'UNAUTHORIZED') return adminUnauthorized();
     if (error.message === 'FORBIDDEN') return adminForbidden();
-    console.error('PUT /api/admin/programs error:', error);
+    logger.error('PUT /api/admin/programs error:', error);
     return NextResponse.json({ error: error.message || 'Error al actualizar programa' }, { status: 500 });
   }
 }
@@ -96,7 +97,7 @@ export async function DELETE(request: NextRequest) {
   } catch (error: any) {
     if (error.message === 'UNAUTHORIZED') return adminUnauthorized();
     if (error.message === 'FORBIDDEN') return adminForbidden();
-    console.error('DELETE /api/admin/programs error:', error);
+    logger.error('DELETE /api/admin/programs error:', error);
     return NextResponse.json({ error: error.message || 'Error al eliminar programa' }, { status: 500 });
   }
 }

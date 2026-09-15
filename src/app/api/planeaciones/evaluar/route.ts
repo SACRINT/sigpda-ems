@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth';
 import { neon } from '@neondatabase/serverless';
 import { NextResponse } from 'next/server';
 import { evaluarPlaneacion, TipoEvaluacion } from '@/lib/planeaciones-evaluator';
+import { logger } from '@/lib/logger';
 
 export async function POST(req: Request) {
   try {
@@ -61,7 +62,7 @@ export async function POST(req: Request) {
                 WHERE id = ${planningId}::uuid
               `;
             } catch (updateErr) {
-              console.warn('Could not auto-persist enriched saberes:', updateErr);
+              logger.warn('Could not auto-persist enriched saberes:', { error: updateErr });
             }
           }
         }
@@ -106,13 +107,13 @@ export async function POST(req: Request) {
           WHERE id = ${planningId}::uuid
         `;
       } catch (dbErr) {
-        console.error('Error persistiendo evaluation_json en Neon DB:', dbErr);
+        logger.error('Error persistiendo evaluation_json en Neon DB:', dbErr);
       }
     }
 
     return NextResponse.json({ success: true, resultado, cached: false });
   } catch (e: any) {
-    console.error('API /api/planeaciones/evaluar error:', e);
+    logger.error('API /api/planeaciones/evaluar error:', e);
     return NextResponse.json({ error: e.message || 'Error al evaluar planeación' }, { status: 500 });
   }
 }

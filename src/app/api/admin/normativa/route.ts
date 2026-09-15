@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin, adminUnauthorized, adminForbidden } from '@/lib/admin-auth';
 import { neon } from '@neondatabase/serverless';
 
+import { logger } from '@/lib/logger';
 export const runtime = 'nodejs';
 
 function getDb() {
@@ -81,7 +82,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ documentos, stats: stats[0] || {} });
   } catch (error: any) {
-    console.error('[admin/normativa] Error en GET:', error);
+    logger.error('[admin/normativa] Error en GET:', error);
     return NextResponse.json({ error: error.message || 'Error al obtener normativa' }, { status: 500 });
   }
 }
@@ -198,7 +199,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ error: 'Acción no reconocida' }, { status: 400 });
   } catch (error: any) {
-    console.error('[admin/normativa] Error en POST:', error);
+    logger.error('[admin/normativa] Error en POST:', error);
     return NextResponse.json({ error: error.message || 'Error procesando solicitud' }, { status: 500 });
   }
 }
@@ -267,7 +268,7 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({ error: 'Acción no reconocida' }, { status: 400 });
   } catch (error: any) {
-    console.error('[admin/normativa] Error en PATCH:', error);
+    logger.error('[admin/normativa] Error en PATCH:', error);
     return NextResponse.json({ error: error.message || 'Error al actualizar' }, { status: 500 });
   }
 }
@@ -300,7 +301,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ error: 'Debes proporcionar articulo_id o documento_id' }, { status: 400 });
   } catch (error: any) {
-    console.error('[admin/normativa] Error en DELETE:', error);
+    logger.error('[admin/normativa] Error en DELETE:', error);
     return NextResponse.json({ error: error.message || 'Error al eliminar' }, { status: 500 });
   }
 }

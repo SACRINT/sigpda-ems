@@ -4,6 +4,7 @@
  */
 import { sql } from '@/lib/db';
 import { API_CONFIG } from './config';
+import { logger } from '@/lib/logger';
 
 // ── Gemini embedding model ────────────────────────────────────────────────
 const EMBEDDING_MODEL = 'text-embedding-004';
@@ -85,7 +86,7 @@ export async function searchCurriculum(
     return { chunks: results, query };
   } catch (err) {
     // Fallback: text-based search if pgvector is not available
-    console.warn('Vector search failed, falling back to text search:', (err as Error).message);
+    logger.warn('Vector search failed, falling back to text search:', (err as Error).message);
     return fallbackTextSearch(query, options);
   }
 }
@@ -123,7 +124,7 @@ async function fallbackTextSearch(
 
     return { chunks: results, query };
   } catch (err) {
-    console.error('Fallback text search also failed:', err);
+    logger.error('Fallback text search also failed:', err);
     return { chunks: [], query };
   }
 }
@@ -155,8 +156,8 @@ FIN DEL CONTEXTO RAG
  */
 export async function isRagPopulated(): Promise<boolean> {
   try {
-    const result = await sql()`SELECT COUNT(*) as count FROM curriculum_embeddings` as any[];
-    return result[0]?.count > 0;
+    const result = await sql()`SELECT COUNT(*) as count FROM curriculum_embeddings` as Array<{ count: string | number }>;
+    return Number(result[0]?.count) > 0;
   } catch {
     return false;
   }

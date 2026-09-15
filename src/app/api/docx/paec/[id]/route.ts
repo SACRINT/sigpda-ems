@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { getTeacherByEmail, getPaecProjectById } from '@/lib/db';
+import { getTeacherByEmail, getPaecProjectById, mapRawPaecProject } from '@/lib/db';
 import { generatePaecDocx } from '@/lib/paec-docx-generator';
 import type { PaecProject } from '@/types/paec';
 import { SCHOOL_YEAR } from '@/lib/config';
@@ -25,26 +25,8 @@ export async function GET(
     if (!rawProject) return NextResponse.json({ error: 'Proyecto no encontrado' }, { status: 404 });
 
     // Cast raw database project row to PaecProject
-    const project: PaecProject = {
-      id: rawProject.id,
-      teacherId: rawProject.teacher_id,
-      projectName: rawProject.project_name,
-      problemStatement: rawProject.problem_statement,
-      cycleType: rawProject.cycle_type as any,
-      currentStep: rawProject.current_step,
-      communityContext: rawProject.community_context as any,
-      schoolContext: rawProject.school_context as any,
-      fase1Diagnostico: rawProject.fase1_diagnostico as any,
-      fase2Justificacion: rawProject.fase2_justificacion as any,
-      fase2Mapeo: rawProject.fase2_mapeo as any,
-      fase2Cronograma: rawProject.fase2_cronograma as any,
-      fase2DetalleCurricular: rawProject.fase2_detalle_curricular as any,
-      fase2PlanOperativo: rawProject.fase2_plan_operativo as any,
-      fase2Anexos: rawProject.fase2_anexos as any,
-      status: rawProject.status as any,
-      createdAt: rawProject.created_at,
-      updatedAt: rawProject.updated_at,
-    };
+    const project = mapRawPaecProject(rawProject);
+    if (!project) return NextResponse.json({ error: 'Proyecto no encontrado' }, { status: 404 });
 
     if (!project.fase2Anexos) {
       return NextResponse.json(

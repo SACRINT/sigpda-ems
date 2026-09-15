@@ -1,7 +1,7 @@
-// src/app/api/teacher-key/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, updateTeacherKey } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 // GET /api/teacher-key — check current config status (returns masked value if present)
 export async function GET() {
@@ -25,7 +25,7 @@ export async function GET() {
       preview: hasKey ? `...${teacher.custom_api_key.slice(-4)}` : null,
     });
   } catch (err: any) {
-    console.error('Error fetching teacher key state:', err);
+    logger.error('Error fetching teacher key state:', err);
     return NextResponse.json({ error: err.message || 'Error interno' }, { status: 500 });
   }
 }
@@ -57,7 +57,7 @@ export async function PUT(req: NextRequest) {
       provider: finalProvider,
     });
   } catch (err: any) {
-    console.error('Error saving teacher key:', err);
+    logger.error('Error saving teacher key:', err);
     return NextResponse.json({ error: err.message || 'Error interno' }, { status: 500 });
   }
 }

@@ -3,6 +3,7 @@ import { after } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getPlanningById, getTeacherByEmail, createGenerationJob } from '@/lib/db';
 import { processGenerationJob } from '@/lib/job-worker';
+import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -48,7 +49,7 @@ export async function POST(
         try {
           await processGenerationJob(job.id);
         } catch (workerErr: any) {
-          console.error(`[POST /create] Error en worker asíncrono para job ${job.id}:`, workerErr?.message);
+          logger.error(`[POST /create] Error en worker asíncrono para job ${job.id}:`, workerErr);
         }
       });
     }
@@ -66,7 +67,7 @@ export async function POST(
       { status: 202 }
     );
   } catch (error: any) {
-    console.error('[POST /api/planeaciones/[id]/libro-bloque/create] Error:', error);
+    logger.error('[POST /api/planeaciones/[id]/libro-bloque/create] Error:', error);
     return NextResponse.json(
       { error: error.message || 'Error al iniciar la generación del libro' },
       { status: 500 }

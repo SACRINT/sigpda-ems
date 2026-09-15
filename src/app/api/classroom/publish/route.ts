@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { publishPlanningToGoogleClassroom, checkClassroomConfig } from '@/lib/classroom';
 
+import { logger } from '@/lib/logger';
 export async function GET() {
   const config = checkClassroomConfig();
   return NextResponse.json({
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(result, { status: 200 });
   } catch (error: any) {
-    console.error('[API classroom/publish POST error]:', error);
+    logger.error('[API classroom/publish POST error]:', error);
     return NextResponse.json(
       {
         success: false,

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, getSchedules, createSchedule, ScheduleItem } from '@/lib/db';
+import { logger } from '@/lib/logger';
+import { SCHOOL_YEAR } from '@/lib/config';
 
 export async function GET(request: NextRequest) {
   try {
@@ -24,7 +26,7 @@ export async function GET(request: NextRequest) {
     const schedules = await getSchedules(teacherId, status);
     return NextResponse.json({ ok: true, schedules });
   } catch (error: any) {
-    console.error('GET /api/schedules error:', error);
+    logger.error('GET /api/schedules error:', error);
     return NextResponse.json({ error: error.message || 'Error interno del servidor' }, { status: 500 });
   }
 }
@@ -55,7 +57,7 @@ export async function POST(request: NextRequest) {
       title: body.title,
       school_name: body.school_name || teacher.school_name || 'Plantel Oficial',
       cct: body.cct || teacher.cct || 'SIN CCT',
-      cycle_year: body.cycle_year || '2026-2027',
+      cycle_year: body.cycle_year || SCHOOL_YEAR,
       period: body.period || 'A',
       status: body.status || 'published',
       config: body.config || {},
@@ -71,7 +73,7 @@ export async function POST(request: NextRequest) {
     const created = await createSchedule(newSchedule);
     return NextResponse.json({ ok: true, schedule: created });
   } catch (error: any) {
-    console.error('POST /api/schedules error:', error);
+    logger.error('POST /api/schedules error:', error);
     return NextResponse.json({ error: error.message || 'Error al guardar el horario' }, { status: 500 });
   }
 }

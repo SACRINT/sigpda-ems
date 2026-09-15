@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { getTeacherByEmail } from '@/lib/db';
 import { createStripePortalSession } from '@/lib/stripe';
 import { sql } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 export async function POST(req: Request) {
   try {
@@ -40,7 +41,7 @@ export async function POST(req: Request) {
 
     return NextResponse.redirect(portalSession.url, 303);
   } catch (error: any) {
-    console.error('[Stripe Portal] Error:', error);
+    logger.error('[Stripe Portal] Error:', error);
     return NextResponse.json(
       { error: error.message || 'Error interno' },
       { status: 500 }
