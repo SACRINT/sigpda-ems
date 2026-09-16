@@ -24,6 +24,11 @@ async function main() {
   `;
 
   await sql`
+    CREATE INDEX IF NOT EXISTS idx_idempotency_teacher 
+    ON idempotency_keys(teacher_id);
+  `;
+
+  await sql`
     CREATE INDEX IF NOT EXISTS idx_idempotency_expires 
     ON idempotency_keys(expires_at);
   `;

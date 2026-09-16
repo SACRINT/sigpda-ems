@@ -256,6 +256,21 @@ POST /api/pips/[id]/generate  Body: { chunk: 1|2|3 }
 - Integración PIPS: enriquece Chunk 1
 - Admin UI: gestión catálogo normativo
 
+### Módulo 6 — Visual Assets Pipeline & Openverse CC
+- Conector Openverse API (`openverse-client.ts` + `image-downloader.ts`)
+- Búsqueda semántica de fotos abiertas con licencias Creative Commons (CC0, PDM, CC-BY, CC-BY-SA)
+- Optimización binaria en memoria con `sharp` (JPEG, max 800px, quality 82)
+- Persistencia en tabla `image_assets` (PostgreSQL Neon)
+- Fallback determinístico suave a Capa 0 (SVG sintético)
+- Renderizado multimodal con pie de figura y atribución de autor en PDF (`pdf-workbook-renderer.ts`) y DOCX (`docx-workbook-renderer.ts`)
+
+### Módulo 7 — Idempotencia y Auditoría de Generación (Bundles)
+- Tabla `generation_audit_logs` con clave única `idempotency_key VARCHAR(64)` y `status` ('processing', 'completed', 'failed')
+- Prevención de doble submit en `/api/bundles/generate`:
+  - 200 OK con payload cacheado si ya existe y status='completed' (header `X-Idempotency-Hit: true`)
+  - 409 Conflict con `Retry-After: 5` si status='processing'
+  - Inserción atómica y fallback graceful si la BD presenta degradación
+
 ---
 
 ## 8. SCRIPTS DE MIGRACIÓN
@@ -271,6 +286,7 @@ NUNCA usar: npx dotenv-cli (falla por PSSecurityException en PowerShell Windows)
 | scripts/apply-stripe-schema.js | Ejecutado |
 | scripts/apply-biblioteca-schema.js | Ejecutado |
 | scripts/apply-analytics-schema.js | Ejecutado |
+| scripts/migrate_idempotency_v1.ts | Ejecutado |
 | scripts/apply-normativa-schema.js | Pendiente |
 | scripts/seed-normativa.js | Pendiente |
 

@@ -230,6 +230,7 @@ export async function cascadeBlockMaterials(
         missionIndex: mIdx + 1,
         missionTitle: mission.title,
         contextText,
+        preferOpenverseMedia: true,
       });
       if (resolved) {
         const visualTitle = `Recurso Gráfico Misión ${mIdx + 1}: ${mission.title}`;

@@ -27,7 +27,8 @@ export interface ResolveVisualOptions {
   missionIndex: number;
   missionTitle: string;
   contextText?: string;
-  preferOpenverseForSciences?: boolean;
+  preferOpenverseMedia?: boolean;
+  preferOpenverseForSciences?: boolean; // Deprecated alias
 }
 
 export interface ResolvedVisual {
@@ -65,9 +66,41 @@ export function isNaturalScienceSubject(uacName: string): boolean {
 }
 
 /**
+ * Extrae términos de búsqueda inteligentes a partir del título de la misión y la asignatura,
+ * removiendo palabras vacías para maximizar la relevancia en Openverse/Wikimedia.
+ */
+export function buildSmartSearchQuery(uacName: string, missionTitle: string): string {
+  const stopWords = new Set([
+    'de', 'la', 'el', 'en', 'para', 'los', 'las', 'un', 'una', 'y', 'o', 'del', 'al', 'con', 'por', 'sobre', 'su', 'sus',
+    'mision', 'misión', 'bloque', 'actividad', 'progresion', 'progresión', 'proposito', 'propósito', 'taller', 'laboratorio',
+    'introduccion', 'introducción', 'desarrollo', 'estudio', 'analisis', 'análisis', 'general', 'fase', 'tema', 'unidad',
+    'que', 'como', 'cual', 'quien', 'donde', 'hacer', 'aplicacion', 'aplicación', 'conceptual', 'practica', 'práctica',
+    'primer', 'segundo', 'tercer', 'cuarto', 'quinto', 'sexto'
+  ]);
+
+  const cleanWords = (text: string) =>
+    text
+      .toLowerCase()
+      .replace(/[^\w\sáéíóúÁÉÍÓÚñÑüÜ]/g, ' ')
+      .split(/\s+/)
+      .filter((w) => w.length > 2 && !stopWords.has(w));
+
+  const missionWords = cleanWords(missionTitle);
+  const uacWords = cleanWords(uacName);
+
+  const selected = missionWords.slice(0, 3);
+  if (selected.length < 2 && uacWords.length > 0) {
+    selected.push(...uacWords.slice(0, 2 - selected.length));
+  }
+
+  const query = selected.join(' ').trim();
+  return query || uacName.slice(0, 40);
+}
+
+/**
  * Resuelve el recurso visual óptimo para una misión de aprendizaje:
- * - Si es una ciencia natural/experimental y se solicita Openverse, intenta obtener una imagen CC-BY real.
- * - Si no, o si falla la red, despacha el gráfico vectorial sintético determinístico (Capa 0).
+ * - Si está habilitada la búsqueda de medios abiertos (preferOpenverseMedia), intenta obtener una imagen CC real.
+ * - Si no, o si falla la red/búsqueda, despacha el gráfico vectorial sintético determinístico (Capa 0).
  */
 export async function resolveVisualForMission(
   options: ResolveVisualOptions
@@ -79,8 +112,11 @@ export async function resolveVisualForMission(
     missionIndex,
     missionTitle,
     contextText,
-    preferOpenverseForSciences = false,
+    preferOpenverseMedia,
+    preferOpenverseForSciences,
   } = options;
+
+  const preferMedia = preferOpenverseMedia ?? preferOpenverseForSciences ?? false;
 
   // 1. Si hay planningId, verificar si ya existe un activo persistido en BD
   if (planningId) {
@@ -98,17 +134,36 @@ export async function resolveVisualForMission(
     }
   }
 
-  // 2. Si es ciencia natural y está habilitada la búsqueda de medios abiertos
-  if (preferOpenverseForSciences && isNaturalScienceSubject(uacName)) {
+  // 2. Si está habilitada la búsqueda de medios abiertos en cualquier área
+  if (preferMedia) {
     try {
-      const searchQuery = `${missionTitle} science`.slice(0, 50);
-      const openverseImages = await searchOpenverseImages({
+      const searchQuery = buildSmartSearchQuery(uacName, missionTitle);
+      let openverseImages = await searchOpenverseImages({
         query: searchQuery,
         subjectName: uacName,
         missionNumber: missionIndex,
-        pageSize: 1,
-        timeoutMs: 3000,
+        pageSize: 2,
+        timeoutMs: 3500,
       });
+
+      // Si la búsqueda específica no devolvió resultados, intentar con la disciplina general
+      if (openverseImages.length === 0) {
+        const fallbackSubjectQuery = uacName
+          .toLowerCase()
+          .replace(/[^\w\sáéíóúÁÉÍÓÚñÑüÜ]/g, ' ')
+          .replace(/\b(i|ii|iii|iv|v|vi|1|2|3|4|5|6)\b/g, '')
+          .trim();
+
+        if (fallbackSubjectQuery && fallbackSubjectQuery !== searchQuery) {
+          openverseImages = await searchOpenverseImages({
+            query: fallbackSubjectQuery,
+            subjectName: uacName,
+            missionNumber: missionIndex,
+            pageSize: 1,
+            timeoutMs: 2500,
+          });
+        }
+      }
 
       if (openverseImages.length > 0) {
         const top = openverseImages[0];

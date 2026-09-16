@@ -39,6 +39,7 @@ import {
 } from 'docx';
 import { resolveVisualForMission } from '@/lib/visual-engine/visual-asset-manager';
 import { svgToPngBuffer } from '@/lib/visual-engine/svg-to-png';
+import { downloadAndProcessImage } from '@/lib/visual-engine/image-downloader';
 import { SCHOOL_YEAR } from '@/lib/config';
 import type {
   ActiveWorkTextbook,
@@ -731,7 +732,7 @@ async function buildMissionContent(
     );
   }
 
-  // ── 2.1 Gráfico Determinístico / Espacio Conceptual Activo ─────────────────
+  // ── 2.1 Gráfico Determinístico / Fotografía Situacional Activa ────────────
   if (subjectName) {
     const contextText = `${mission.conceptZero.physicalAnalogy || ''} ${mission.conceptZero.coreExplanation || ''}`;
     const resolvedVisual = await resolveVisualForMission({
@@ -741,36 +742,74 @@ async function buildMissionContent(
       missionIndex: missionNumber,
       missionTitle: mission.title,
       contextText,
+      preferOpenverseMedia: true,
     });
-    if (resolvedVisual && resolvedVisual.type === 'vector_svg' && resolvedVisual.svg) {
-      const imgResult = await svgToPngBuffer(resolvedVisual.svg);
-      if (imgResult) {
-        elements.push(
-          new Paragraph({
-            alignment: AlignmentType.CENTER,
-            spacing: { before: 200, after: 80 },
-            children: [
-              new ImageRun({
-                data: imgResult.buffer,
-                transformation: { width: 500, height: 325 },
-                type: 'jpg',
-              }),
-            ],
-          }),
-          new Paragraph({
-            alignment: AlignmentType.CENTER,
-            spacing: { after: 180 },
-            children: [
-              new TextRun({
-                text: resolvedVisual.caption,
-                italics: true,
-                size: 16, // 8pt
-                color: C.mutedText,
-                font: 'Calibri',
-              }),
-            ],
-          })
-        );
+    if (resolvedVisual) {
+      if (resolvedVisual.type === 'vector_svg' && resolvedVisual.svg) {
+        const imgResult = await svgToPngBuffer(resolvedVisual.svg);
+        if (imgResult) {
+          elements.push(
+            new Paragraph({
+              alignment: AlignmentType.CENTER,
+              spacing: { before: 200, after: 80 },
+              children: [
+                new ImageRun({
+                  data: imgResult.buffer,
+                  transformation: { width: 500, height: 325 },
+                  type: 'jpg',
+                }),
+              ],
+            }),
+            new Paragraph({
+              alignment: AlignmentType.CENTER,
+              spacing: { after: 180 },
+              children: [
+                new TextRun({
+                  text: resolvedVisual.caption,
+                  italics: true,
+                  size: 16, // 8pt
+                  color: C.mutedText,
+                  font: 'Calibri',
+                }),
+              ],
+            })
+          );
+        }
+      } else if (resolvedVisual.type === 'openverse_media' && resolvedVisual.mediaAsset) {
+        const imgUrl = resolvedVisual.mediaAsset.thumbnailUrl || resolvedVisual.mediaAsset.imageUrl;
+        const imgResult = await downloadAndProcessImage(imgUrl);
+        if (imgResult) {
+          const ratio = imgResult.height / imgResult.width;
+          const targetWidth = 500;
+          const targetHeight = Math.round(Math.min(380, Math.max(200, targetWidth * (ratio || 0.65))));
+
+          elements.push(
+            new Paragraph({
+              alignment: AlignmentType.CENTER,
+              spacing: { before: 200, after: 80 },
+              children: [
+                new ImageRun({
+                  data: imgResult.buffer,
+                  transformation: { width: targetWidth, height: targetHeight },
+                  type: 'jpg',
+                }),
+              ],
+            }),
+            new Paragraph({
+              alignment: AlignmentType.CENTER,
+              spacing: { after: 180 },
+              children: [
+                new TextRun({
+                  text: resolvedVisual.caption,
+                  italics: true,
+                  size: 16, // 8pt
+                  color: C.mutedText,
+                  font: 'Calibri',
+                }),
+              ],
+            })
+          );
+        }
       }
     }
   }

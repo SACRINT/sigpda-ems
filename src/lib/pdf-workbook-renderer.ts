@@ -26,6 +26,7 @@ import type { Planning } from '@/types/planning';
 import { loadAllLogos } from './pdf-logos';
 import { resolveVisualForMission } from '@/lib/visual-engine/visual-asset-manager';
 import { svgToPngBuffer } from '@/lib/visual-engine/svg-to-png';
+import { downloadAndProcessImage } from '@/lib/visual-engine/image-downloader';
 import type { VisualAnnotation } from '@/lib/visual-engine/generators/stem-generator';
 import { SCHOOL_YEAR } from '@/lib/config';
 import { logger } from '@/lib/logger';
@@ -96,7 +97,7 @@ export async function renderWorkbookToPdf(
       pageHeight,
       currentY,
       workbook.coverData.subjectName,
-      planning.id,
+      planning?.id,
       workbook.blockIndex
     );
   }
@@ -225,14 +226,15 @@ function drawCoverPage(
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
-  doc.setTextColor(...NAVY);
-  const titleLines = doc.splitTextToSize(workbook.coverData.title.toUpperCase(), pageWidth - margin * 2 - 16);
+  const coverTitle = (workbook.coverData.title || workbook.blockName || workbook.coverData.subjectName || 'CUADERNO DE APRENDIZAJE ACTIVO').toUpperCase();
+  const titleLines = doc.splitTextToSize(coverTitle, pageWidth - margin * 2 - 16);
   doc.text(titleLines, pageWidth / 2, y + 16, { align: 'center' });
 
   doc.setFont('helvetica', 'italic');
   doc.setFontSize(9.5);
   doc.setTextColor(...GOLD);
-  const subLines = doc.splitTextToSize(workbook.coverData.subtitle, pageWidth - margin * 2 - 16);
+  const coverSub = workbook.coverData.subtitle || workbook.blockName || 'Bachillerato General Estatal · MCCEMS Puebla';
+  const subLines = doc.splitTextToSize(coverSub, pageWidth - margin * 2 - 16);
   doc.text(subLines, pageWidth / 2, y + 30, { align: 'center' });
 
   doc.setFont('helvetica', 'bold');
@@ -494,7 +496,16 @@ function drawTableOfContents(
     startY + 5
   );
 
-  const tableBody = workbook.tableOfContents.map((m) => {
+  const tocEntries = (workbook.tableOfContents && workbook.tableOfContents.length > 0)
+    ? workbook.tableOfContents
+    : (workbook.missions || []).map((m, idx) => ({
+        missionIndex: idx + 1,
+        title: m.title,
+        sessionsRange: `Sesión ${idx * 2 + 1}-${idx * 2 + 2}`,
+        pageEstimate: 4,
+      }));
+
+  const tableBody = tocEntries.map((m) => {
     const cleanTitle = m.title
       .replace(/^\[.*?\]\s*/, '')
       .replace(/^misi[oó]n\s*\d+\s*:\s*/i, '')
@@ -725,7 +736,7 @@ async function drawMission(
 
   y += 4;
 
-  // ── 2.1 Gráfico Conceptual / Espacio de Tabulación Activo ──────────────────
+  // ── 2.1 Gráfico Conceptual / Fotografía Situacional Activa ─────────────────
   if (subjectName) {
     const contextText = `${mission.conceptZero.physicalAnalogy || ''} ${mission.conceptZero.coreExplanation || ''}`;
     const resolvedVisual = await resolveVisualForMission({
@@ -735,6 +746,7 @@ async function drawMission(
       missionIndex: missionNumber,
       missionTitle: mission.title,
       contextText,
+      preferOpenverseMedia: true,
     });
     if (resolvedVisual) {
       if (resolvedVisual.type === 'vector_svg' && resolvedVisual.svg) {
@@ -757,13 +769,30 @@ async function drawMission(
           doc.setFont('helvetica', 'italic');
           doc.setFontSize(7.5);
           doc.setTextColor(...MUTED_TEXT);
-          doc.text(
-            resolvedVisual.caption,
-            margin + contentWidth / 2,
-            y,
-            { align: 'center' }
-          );
-          y += 6.5;
+          const captionLines = doc.splitTextToSize(resolvedVisual.caption, contentWidth * 0.88);
+          doc.text(captionLines, margin + contentWidth / 2, y, { align: 'center' });
+          y += (captionLines.length * 3.2) + 3.5;
+        }
+      } else if (resolvedVisual.type === 'openverse_media' && resolvedVisual.mediaAsset) {
+        const imgUrl = resolvedVisual.mediaAsset.thumbnailUrl || resolvedVisual.mediaAsset.imageUrl;
+        const imgResult = await downloadAndProcessImage(imgUrl);
+        if (imgResult) {
+          const imgW = Math.min(140, contentWidth * 0.8);
+          const ratio = imgResult.height / imgResult.width;
+          const imgH = Math.min(92, Math.max(50, imgW * (ratio || 0.65)));
+          y = ensureVerticalSpace(doc, y, imgH + 18, margin, pageHeight);
+          const imgX = margin + (contentWidth - imgW) / 2;
+          doc.addImage(imgResult.buffer, imgResult.format, imgX, y, imgW, imgH);
+
+          y += imgH + 3.5;
+
+          // Pie de figura y atribución legal CC
+          doc.setFont('helvetica', 'italic');
+          doc.setFontSize(7.5);
+          doc.setTextColor(...MUTED_TEXT);
+          const captionLines = doc.splitTextToSize(resolvedVisual.caption, contentWidth * 0.88);
+          doc.text(captionLines, margin + contentWidth / 2, y, { align: 'center' });
+          y += (captionLines.length * 3.2) + 4;
         }
       }
     }
