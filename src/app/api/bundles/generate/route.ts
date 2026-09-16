@@ -4,7 +4,7 @@ import { auth } from '@/lib/auth';
 import { getTeacherByEmail, getPlanningById, sql } from '@/lib/db';
 import { generateBundle, generateFullBundle } from '@/lib/bundle-generator';
 import type { GeneratedPlanningContent } from '@/types/planning';
-import { extractIdempotencyKey, checkIdempotencyKey, createIdempotencyKey } from '@/lib/idempotency';
+import { extractIdempotencyKey, createIdempotencyKey } from '@/lib/idempotency';
 import { logger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
@@ -177,7 +177,7 @@ export async function POST(request: NextRequest) {
         teacher.id,
         '/api/bundles/generate',
         responseData
-      ).catch(() => {});
+      ).catch((e) => logger.warn('[bundles/generate] No se pudo guardar clave legacy:', e));
     }
 
     // ── 6. Notificación In-App (Phase 8A.1) ──────────────────────────────────

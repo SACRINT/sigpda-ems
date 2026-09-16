@@ -29,6 +29,14 @@ import {
   generateGanttChart,
   generateSafetyChecklistVisual,
 } from './generators/laboral-generator';
+import {
+  extractYears,
+  extractTermDefs,
+  extractPercentStats,
+  extractEnumSteps,
+  extractSafetyChecks,
+  extractSystemBlocks,
+} from './content-extractor';
 import { normalizeUnicode } from '@/lib/utils/normalize';
 
 const STEM_KEYWORDS = [
@@ -235,15 +243,50 @@ export function dispatchVisual(uacName: string, topic: string, contextText?: str
 
   // ── B. DISPATCHER ÁREA HUMANIDADES Y CIENCIAS SOCIALES ─────────────────────
   if (isHumanities) {
+    const rawContext = `${topic}\n${contextText || ''}`;
+
     // 1. Diagramas de Flujo Histórico Causal (procesos históricos, revoluciones, movimientos sociales)
     if (
       searchText.includes('proceso historico') ||
       searchText.includes('revolucion') ||
       searchText.includes('movimiento social')
     ) {
-      return generateHistoricalFlow([], {
+      const { historicalSteps } = extractEnumSteps(rawContext);
+      if (historicalSteps.length > 0) {
+        const res = generateHistoricalFlow(historicalSteps, {
+          title: `Flujo Causal: ${topic.slice(0, 42)}`,
+        });
+        res.metadata = {
+          type: 'historical_flow',
+          realItemCount: historicalSteps.length,
+          isFallback: false,
+        };
+        return res;
+      }
+
+      // Si no hay pasos enumerados pero sí fechas históricas, despachar Línea de Tiempo
+      const years = extractYears(rawContext);
+      if (years.length >= 2) {
+        const res = generateTimeline(years, {
+          title: `Línea de Tiempo: ${topic.slice(0, 42)}`,
+        });
+        res.metadata = {
+          type: 'timeline',
+          realItemCount: years.length,
+          isFallback: false,
+        };
+        return res;
+      }
+
+      const res = generateHistoricalFlow([], {
         title: `Flujo Causal: ${topic.slice(0, 42)}`,
       });
+      res.metadata = {
+        type: 'historical_flow',
+        realItemCount: 0,
+        isFallback: true,
+      };
+      return res;
     }
 
     // 2. Gráficas Estadísticas Sociales / Demografía (demografía, población, estadística social)
@@ -252,9 +295,16 @@ export function dispatchVisual(uacName: string, topic: string, contextText?: str
       searchText.includes('poblacion') ||
       searchText.includes('estadistica social')
     ) {
-      return generateSocialStatsChart([], {
+      const stats = extractPercentStats(rawContext);
+      const res = generateSocialStatsChart(stats, {
         title: `Indicadores Sociales: ${topic.slice(0, 42)}`,
       });
+      res.metadata = {
+        type: 'social_stats',
+        realItemCount: stats.length,
+        isFallback: stats.length === 0,
+      };
+      return res;
     }
 
     // 3. Líneas de Tiempo (cronologías, siglos, etapas, periodos históricos)
@@ -266,9 +316,16 @@ export function dispatchVisual(uacName: string, topic: string, contextText?: str
       searchText.includes('etapa') ||
       searchText.includes('epoca')
     ) {
-      return generateTimeline([], {
+      const events = extractYears(rawContext);
+      const res = generateTimeline(events, {
         title: `Línea de Tiempo: ${topic.slice(0, 42)}`,
       });
+      res.metadata = {
+        type: 'timeline',
+        realItemCount: events.length,
+        isFallback: events.length === 0,
+      };
+      return res;
     }
 
     // 4. Mapas Conceptuales (Filosofía, Ética, Literatura, Sociología, Geografía, conceptos)
@@ -282,26 +339,49 @@ export function dispatchVisual(uacName: string, topic: string, contextText?: str
       searchText.includes('pensamiento') ||
       searchText.includes('moral')
     ) {
-      return generateConceptMap([], [], {
+      const { nodes, edges } = extractTermDefs(rawContext, topic);
+      const res = generateConceptMap(nodes, edges, {
         title: `Mapa Conceptual: ${topic.slice(0, 42)}`,
       });
+      res.metadata = {
+        type: 'concept_map',
+        realItemCount: nodes.length > 0 ? nodes.length - 1 : 0,
+        isFallback: nodes.length === 0,
+      };
+      return res;
     }
 
     // 5. Por defecto en Humanidades según UAC (Historia/Conciencia -> Línea de Tiempo, otras -> Mapa Conceptual)
     const normUac = normalizeUnicode(uacName);
     if (normUac.includes('historia') || normUac.includes('conciencia historica')) {
-      return generateTimeline([], {
+      const events = extractYears(rawContext);
+      const res = generateTimeline(events, {
         title: `Línea de Tiempo Histórica: ${topic.slice(0, 42)}`,
       });
+      res.metadata = {
+        type: 'timeline',
+        realItemCount: events.length,
+        isFallback: events.length === 0,
+      };
+      return res;
     }
 
-    return generateConceptMap([], [], {
+    const { nodes, edges } = extractTermDefs(rawContext, topic);
+    const res = generateConceptMap(nodes, edges, {
       title: `Estructura Conceptual Formativa: ${topic.slice(0, 42)}`,
     });
+    res.metadata = {
+      type: 'concept_map',
+      realItemCount: nodes.length > 0 ? nodes.length - 1 : 0,
+      isFallback: nodes.length === 0,
+    };
+    return res;
   }
 
   // ── C. DISPATCHER ÁREA FORMACIÓN PARA EL TRABAJO / LABORAL ────────────────
   if (isLaboral) {
+    const rawContext = `${topic}\n${contextText || ''}`;
+
     // 1. Matriz de Seguridad Industrial, EPP y Normatividad NOM-STPS
     if (
       searchText.includes('seguridad') ||
@@ -315,9 +395,16 @@ export function dispatchVisual(uacName: string, topic: string, contextText?: str
       searchText.includes('accidente') ||
       searchText.includes('emergencia')
     ) {
-      return generateSafetyChecklistVisual([], {
+      const safetyChecks = extractSafetyChecks(rawContext);
+      const res = generateSafetyChecklistVisual(safetyChecks, {
         title: `Seguridad y EPP: ${topic.slice(0, 42)}`,
       });
+      res.metadata = {
+        type: 'safety_checklist',
+        realItemCount: safetyChecks.length,
+        isFallback: safetyChecks.length === 0,
+      };
+      return res;
     }
 
     // 2. Cronograma de Operaciones y Diagrama de Gantt
@@ -331,9 +418,16 @@ export function dispatchVisual(uacName: string, topic: string, contextText?: str
       searchText.includes('avance') ||
       searchText.includes('calendario')
     ) {
-      return generateGanttChart([], {
+      const { ganttTasks } = extractEnumSteps(rawContext);
+      const res = generateGanttChart(ganttTasks, {
         title: `Cronograma Técnico: ${topic.slice(0, 42)}`,
       });
+      res.metadata = {
+        type: 'gantt_chart',
+        realItemCount: ganttTasks.length,
+        isFallback: ganttTasks.length === 0,
+      };
+      return res;
     }
 
     // 3. Diagrama de Bloques y Arquitectura de Sistemas
@@ -350,15 +444,29 @@ export function dispatchVisual(uacName: string, topic: string, contextText?: str
       searchText.includes('sensores') ||
       searchText.includes('actuadores')
     ) {
-      return generateBlockDiagram([], {
+      const blocks = extractSystemBlocks(rawContext);
+      const res = generateBlockDiagram(blocks, {
         title: `Arquitectura Modular: ${topic.slice(0, 42)}`,
       });
+      res.metadata = {
+        type: 'block_diagram',
+        realItemCount: blocks.length,
+        isFallback: blocks.length === 0,
+      };
+      return res;
     }
 
     // 4. Diagrama de Procedimiento Técnico / Flujo de Taller (Default para laboral)
-    return generateTechnicalFlow([], {
+    const { technicalSteps } = extractEnumSteps(rawContext);
+    const res = generateTechnicalFlow(technicalSteps, {
       title: `Procedimiento Técnico: ${topic.slice(0, 42)}`,
     });
+    res.metadata = {
+      type: 'technical_flow',
+      realItemCount: technicalSteps.length,
+      isFallback: technicalSteps.length === 0,
+    };
+    return res;
   }
 
   return null;

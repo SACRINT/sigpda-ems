@@ -3,6 +3,8 @@
  * Creates cryptographic seals and QR codes for document validation.
  */
 
+import { getAppBaseUrl } from '@/lib/config';
+
 export interface SignatureData {
   hash: string;
   timestamp: string;
@@ -64,7 +66,7 @@ export async function signDocument(
  * Generate verification URL for QR code
  */
 export function getVerificationUrl(hash: string, baseUrl?: string): string {
-  const base = baseUrl || (typeof window !== 'undefined' ? window.location.origin : 'https://sigpda-ems.vercel.app');
+  const base = baseUrl ? baseUrl.replace(/\/+$/, '') : getAppBaseUrl();
   return `${base}/validar/${hash}`;
 }
 

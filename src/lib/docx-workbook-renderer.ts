@@ -36,6 +36,7 @@ import {
   PageNumber,
   NumberFormat,
   ImageRun,
+  type ISectionOptions,
 } from 'docx';
 import { resolveVisualForMission } from '@/lib/visual-engine/visual-asset-manager';
 import { svgToPngBuffer } from '@/lib/visual-engine/svg-to-png';
@@ -49,7 +50,7 @@ import type {
   EvaluationSection,
   ProjectSection,
 } from '@/types/work-textbook';
-import type { Planning } from '@/types/planning';
+import type { Planning, ImageAsset } from '@/types/planning';
 import { getRubricLevelDescriptor } from '@/lib/pdf-workbook-renderer';
 import {
   resolveMaterialString,
@@ -57,11 +58,30 @@ import {
   resolveExercise,
   formatRegistrationFormatText,
 } from '@/types/workbook-legacy';
+import { extractCalloutBox, type CalloutBoxData } from '@/lib/visual-engine/callout-box';
+import crypto from 'crypto';
+import QRCode from 'qrcode';
+import { getVerificationUrl } from '@/lib/digital-signature';
+import { extractComparisonTable, type ComparisonTableData } from '@/lib/visual-engine/comparison-table';
+import {
+  extractGlossaryTerms,
+  stripMarkdown,
+  deduplicateMediaAssets,
+  type GlossaryItem,
+} from '@/lib/visual-engine/content-extractor';
+import {
+  generateBookCover,
+  generateContraportadaData,
+  type ContraportadaData,
+  type BookCoverOptions,
+} from '@/lib/visual-engine/cover-generator';
+import { logger } from '@/lib/logger';
 
 // ── Paleta de Colores Institucionales DBEPA ──────────────────────────────────
 const C = {
   navy: '1F3864',       // Primario institucional
   midBlue: '2E74B5',    // Secundario
+  vino: '800020',       // Vino oficial Puebla
   gold: 'E8A020',       // Acento / Dorado SEP
   darkText: '1E293B',   // Texto principal
   mutedText: '64748B',  // Texto secundario
@@ -71,6 +91,18 @@ const C = {
   codeBorder: 'CBD5E1', // Borde caja código
   border: 'E2E8F0',     // Bordes generales
   white: 'FFFFFF',
+};
+
+// Colores temáticos de sección (coincidentes con PDF)
+const SECTION_HEX = {
+  enganche: '1F3864',
+  concepto: '1F3864',
+  yoHago: '2563EB',     // Azul (#2563eb)
+  hacemos: '7C3AED',    // Púrpura (#7c3aed)
+  tuHaces: 'D97706',    // Ámbar (#d97706)
+  resiliencia: '800020',// Guinda
+  checkpoint: '059669', // Esmeralda (#059669)
+  evaluacion: '059669', // Esmeralda (#059669)
 };
 
 const PAGE_W = 12240;   // Carta en DXA (8.5in * 1440)
@@ -141,19 +173,85 @@ function cell(
 export async function renderWorkbookToDocx(
   workbook: ActiveWorkTextbook,
   planning: Planning,
-  options: { includeAnswerKey?: boolean } = {}
+  options: {
+    includeAnswerKey?: boolean;
+    coverBuffer?: Buffer;
+    forceFallbackCover?: boolean;
+  } = {}
 ): Promise<Buffer> {
   const children: (Paragraph | Table)[] = [];
 
-  // ── 1. Portada Institucional ───────────────────────────────────────────────
-  children.push(...buildCoverSection(workbook, planning));
-  children.push(new Paragraph({ children: [new PageBreak()] }));
+  const coverOpts: BookCoverOptions = {
+    plantelNombre: workbook.coverData?.schoolName || 'Bachillerato General Oficial',
+    cct: workbook.coverData?.cct || '21ECT0017T',
+    uacName: workbook.coverData?.subjectName || workbook.blockName,
+    semestre: (() => {
+      const raw = workbook.coverData?.semester;
+      if (raw === undefined || raw === null) return 'Segundo Semestre';
+      const clean = String(raw).replace(/"/g, '').replace(/\bSEMESTRE\b(\s+SEMESTRE\b)+/gi, 'SEMESTRE').trim();
+      return /\bsemestre\b/i.test(clean) ? clean : `${clean}° Semestre`;
+    })(),
+    cicloEscolar: SCHOOL_YEAR,
+    blockName: workbook.blockName,
+    blockIndex: workbook.blockIndex,
+    subsystem: workbook.subsystem || 'BGE',
+    paecProjectName: workbook.coverData?.paecProjectName,
+    docente: workbook.coverData?.teacherName,
+    forceFallback: options.forceFallbackCover,
+  };
 
-  // ── 2. Índice de Misiones y Estructura ──────────────────────────────────────
-  children.push(...buildTableOfContents(workbook));
-  children.push(new Paragraph({ children: [new PageBreak()] }));
+  const usedOpenverseAssets: ImageAsset[] = [];
 
-  // ── 3. Misiones Didácticas (Foundation, Lab, Project, Evaluation) ───────────
+  // ── 1. Portada Editorial Personalizada (Fase V2 & V5) ───────────────────────────
+  let coverBuffer = options.coverBuffer;
+  if (!coverBuffer) {
+    const coverRes = await generateBookCover(coverOpts).catch((e) => {
+      logger.warn('[docx-workbook-renderer] Error generando portada editorial:', { error: e, planningId: planning?.id });
+      return null;
+    });
+    if (coverRes?.buffer) {
+      coverBuffer = coverRes.buffer;
+    }
+  }
+
+  const coverSectionChildren: (Paragraph | Table)[] = [];
+  if (coverBuffer) {
+    // Ajuste 1: fit-inside de 1200x1600 (ratio 0.75) dentro de carta 816x1056 -> 792x1056 px (0% deformación)
+    coverSectionChildren.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 0, after: 0 },
+        children: [
+          new ImageRun({
+            data: coverBuffer,
+            transformation: { width: 792, height: 1056 },
+            type: 'jpg',
+          }),
+        ],
+      })
+    );
+  } else {
+    coverSectionChildren.push(...buildCoverSection(workbook, planning));
+  }
+
+  // ── 2. Páginas Preliminares (Mi Plantel + TOC) (Fase V4 & V5) ─────────────
+  const preliminaryChildren: (Paragraph | Table)[] = [];
+  const hasPlantelData = Boolean(
+    (workbook.coverData?.schoolName || planning?.contentJson?.sectionI?.schoolName) &&
+    (workbook.coverData?.cct || planning?.contentJson?.sectionI?.cct) &&
+    (workbook.coverData?.paecProjectName || workbook.projectSection?.communityUtility || planning?.paecContext || planning?.contentJson?.sectionII?.paecConnection)
+  );
+
+  if (hasPlantelData) {
+    preliminaryChildren.push(...buildDocxPlantelComunidadSection(workbook, planning));
+    preliminaryChildren.push(new Paragraph({ children: [new PageBreak()] }));
+  }
+
+  preliminaryChildren.push(...buildTableOfContents(workbook));
+
+  // ── 3. Páginas Interiores de Contenido Didáctico (Fase V5) ─────────────────
+  const bodyChildren: (Paragraph | Table)[] = [];
+
   for (let i = 0; i < workbook.missions.length; i++) {
     const mission = workbook.missions[i];
     const missionElements = await buildMissionContent(
@@ -162,87 +260,190 @@ export async function renderWorkbookToDocx(
       workbook.subsystem,
       workbook.coverData?.subjectName,
       planning?.id,
-      workbook.blockIndex
+      workbook.blockIndex,
+      usedOpenverseAssets
     );
-    children.push(...missionElements);
-    children.push(new Paragraph({ children: [new PageBreak()] }));
+    bodyChildren.push(...missionElements);
+    bodyChildren.push(new Paragraph({ children: [new PageBreak()] }));
   }
 
-  // ── 4. Sección de Proyecto Formativo Comunitario ───────────────────────────
+  // Proyecto Formativo Comunitario
   if (workbook.projectSection) {
-    children.push(...buildProjectSection(workbook.projectSection, workbook.coverData));
-    children.push(new Paragraph({ children: [new PageBreak()] }));
+    bodyChildren.push(...buildProjectSection(workbook.projectSection, workbook.coverData));
+    bodyChildren.push(new Paragraph({ children: [new PageBreak()] }));
   }
 
-  // ── 5. Sección de Evaluación Formativa y Sumativa NEM ─────────────────────
+  // Evaluación Formativa y Sumativa NEM
   if (workbook.evaluationSection) {
-    children.push(...buildEvaluationSection(workbook.evaluationSection, workbook.coverData));
+    bodyChildren.push(...buildEvaluationSection(workbook.evaluationSection, workbook.coverData));
+    bodyChildren.push(new Paragraph({ children: [new PageBreak()] }));
+  }
+
+  // Sello digital y folio SHA-256
+  const bookHash = crypto
+    .createHash('sha256')
+    .update(`${coverOpts.cct}|${coverOpts.uacName}|${coverOpts.cicloEscolar}|sigpda-ems-mccems-2026`)
+    .digest('hex');
+
+  // Página de Créditos Institucionales y Atribuciones Creative Commons (Fase V5)
+  const uniqueOpenverseAssets = deduplicateMediaAssets(usedOpenverseAssets);
+  bodyChildren.push(...buildDocxCreditsSection(uniqueOpenverseAssets, coverOpts, bookHash));
+
+  // ── 4. Contraportada Institucional (Fase V2) ──────────────────────────────
+  const contraportadaChildren: (Paragraph | Table)[] = [];
+  const contraportadaData = await generateContraportadaData({ ...coverOpts, hash: bookHash }).catch((e) => {
+    logger.warn('[docx-workbook-renderer] Error generando contraportada:', { error: e, planningId: planning?.id });
+    return null;
+  });
+  if (contraportadaData) {
+    contraportadaChildren.push(...buildDocxContraportada(contraportadaData));
+  }
+
+  // ── 5. Ensamblaje Multisección con Aislamiento Estricto de Encabezados (Fase V5) ──
+  const shortSubject = (workbook.coverData?.subjectName || workbook.blockName).length > 42
+    ? (workbook.coverData?.subjectName || workbook.blockName).slice(0, 39) + '...'
+    : (workbook.coverData?.subjectName || workbook.blockName);
+
+  const rawSchool = workbook.coverData?.schoolName || 'BGE';
+  const schoolSigla = rawSchool
+    .replace(/Bachillerato General (Estatal|Oficial)\s*/i, '')
+    .replace(/Preparatoria Abierta\s*/i, '')
+    .slice(0, 26)
+    .trim() || 'DBEPA';
+  const cctClean = workbook.coverData?.cct || '';
+  const footerSchoolText = cctClean ? `${schoolSigla} (${cctClean})` : schoolSigla;
+
+  const docSections: ISectionOptions[] = [];
+
+  // Sección 1: Portada (Márgenes en 0, sin encabezado, sin pie)
+  docSections.push({
+    properties: {
+      page: {
+        margin: coverBuffer
+          ? { top: 0, bottom: 0, left: 0, right: 0 }
+          : { top: MARGIN, bottom: MARGIN, left: MARGIN, right: MARGIN },
+      },
+    },
+    headers: {},
+    footers: {},
+    children: coverSectionChildren,
+  });
+
+  // Sección 2: Preliminares (Plantel + TOC) — sin headers
+  if (preliminaryChildren.length > 0) {
+    docSections.push({
+      properties: {
+        page: {
+          margin: { top: MARGIN, bottom: MARGIN, left: MARGIN, right: MARGIN },
+        },
+      },
+      headers: {},
+      footers: {
+        default: new Footer({
+          children: [
+            new Paragraph({
+              alignment: AlignmentType.CENTER,
+              children: [
+                new TextRun({
+                  text: `Cuaderno de Aprendizaje Activo · DBEPA Puebla · ${footerSchoolText}`,
+                  size: 16,
+                  color: C.mutedText,
+                  font: 'Calibri',
+                }),
+              ],
+            }),
+          ],
+        }),
+      },
+      children: preliminaryChildren,
+    });
+  }
+
+  // Sección 3: Contenido Interior (Misiones, Proyecto, Evaluación, Créditos) — Header y Footer institucionales
+  docSections.push({
+    properties: {
+      page: {
+        margin: { top: MARGIN, bottom: MARGIN, left: MARGIN, right: MARGIN },
+      },
+    },
+    headers: {
+      default: new Header({
+        children: [
+          new Paragraph({
+            alignment: AlignmentType.RIGHT,
+            children: [
+              new TextRun({
+                text: `${shortSubject} · ${workbook.blockName} (DBEPA Puebla)`,
+                size: 16,
+                color: C.mutedText,
+                font: 'Calibri',
+              }),
+            ],
+          }),
+        ],
+      }),
+    },
+    footers: {
+      default: new Footer({
+        children: [
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [
+              new TextRun({
+                text: 'Cuaderno de Aprendizaje Activo · Página ',
+                size: 16,
+                color: C.mutedText,
+                font: 'Calibri',
+              }),
+              new TextRun({
+                children: [PageNumber.CURRENT],
+                size: 16,
+                color: C.mutedText,
+                font: 'Calibri',
+                bold: true,
+              }),
+              new TextRun({
+                text: ' de ',
+                size: 16,
+                color: C.mutedText,
+                font: 'Calibri',
+              }),
+              new TextRun({
+                children: [PageNumber.TOTAL_PAGES],
+                size: 16,
+                color: C.mutedText,
+                font: 'Calibri',
+              }),
+              new TextRun({
+                text: ` · ${footerSchoolText}`,
+                size: 16,
+                color: C.mutedText,
+                font: 'Calibri',
+              }),
+            ],
+          }),
+        ],
+      }),
+    },
+    children: bodyChildren,
+  });
+
+  // Sección 4: Contraportada (sin headers ni footers)
+  if (contraportadaChildren.length > 0) {
+    docSections.push({
+      properties: {
+        page: {
+          margin: { top: MARGIN, bottom: MARGIN, left: MARGIN, right: MARGIN },
+        },
+      },
+      headers: {},
+      footers: {},
+      children: contraportadaChildren,
+    });
   }
 
   const doc = new Document({
-    sections: [
-      {
-        properties: {
-          page: {
-            margin: { top: MARGIN, bottom: MARGIN, left: MARGIN, right: MARGIN },
-          },
-        },
-        headers: {
-          default: new Header({
-            children: [
-              new Paragraph({
-                alignment: AlignmentType.RIGHT,
-                children: [
-                  new TextRun({
-                    text: `${workbook.coverData.subjectName} · ${workbook.blockName} (DBEPA Puebla)`,
-                    size: 16,
-                    color: C.mutedText,
-                    font: 'Calibri',
-                  }),
-                ],
-              }),
-            ],
-          }),
-        },
-        footers: {
-          default: new Footer({
-            children: [
-              new Paragraph({
-                alignment: AlignmentType.CENTER,
-                children: [
-                  new TextRun({
-                    text: 'Cuaderno de Aprendizaje Activo · Página ',
-                    size: 16,
-                    color: C.mutedText,
-                    font: 'Calibri',
-                  }),
-                  new TextRun({
-                    children: [PageNumber.CURRENT],
-                    size: 16,
-                    color: C.mutedText,
-                    font: 'Calibri',
-                    bold: true,
-                  }),
-                  new TextRun({
-                    text: ' de ',
-                    size: 16,
-                    color: C.mutedText,
-                    font: 'Calibri',
-                  }),
-                  new TextRun({
-                    children: [PageNumber.TOTAL_PAGES],
-                    size: 16,
-                    color: C.mutedText,
-                    font: 'Calibri',
-                  }),
-                ],
-              }),
-            ],
-          }),
-        },
-        children,
-      },
-    ],
+    sections: docSections,
   });
 
   return Buffer.from(await Packer.toBuffer(doc));
@@ -309,7 +510,7 @@ function buildCoverSection(workbook: ActiveWorkTextbook, planning: Planning): Pa
       spacing: { before: 400, after: 150 },
       children: [
         new TextRun({
-          text: cover.title.toUpperCase(),
+          text: (cover.title || workbook.blockName || 'CUADERNO DE APRENDIZAJE ACTIVO').toUpperCase(),
           bold: true,
           size: 36, // 18pt
           color: C.navy,
@@ -322,7 +523,7 @@ function buildCoverSection(workbook: ActiveWorkTextbook, planning: Planning): Pa
       spacing: { after: 300 },
       children: [
         new TextRun({
-          text: cover.subtitle,
+          text: cover.subtitle || `Bloque Formativo: ${workbook.blockName || ''}`,
           italics: true,
           size: 24, // 12pt
           color: C.gold,
@@ -422,6 +623,775 @@ function buildCoverSection(workbook: ActiveWorkTextbook, planning: Planning): Pa
   ];
 }
 
+/**
+ * Construye la sección de créditos institucionales y atribuciones Creative Commons en DOCX (Fase V5).
+ */
+function buildDocxCreditsSection(
+  uniqueAssets: ImageAsset[],
+  coverOpts: BookCoverOptions,
+  bookHash: string
+): (Paragraph | Table)[] {
+  const elements: (Paragraph | Table)[] = [];
+
+  // Título
+  elements.push(
+    new Paragraph({
+      spacing: { before: 240, after: 120 },
+      children: [
+        new TextRun({
+          text: 'Créditos Institucionales y Atribuciones de Propiedad Intelectual',
+          bold: true,
+          size: 24, // 12pt
+          color: C.navy,
+          font: 'Calibri',
+        }),
+      ],
+    }),
+    new Paragraph({
+      spacing: { after: 160 },
+      children: [
+        new TextRun({
+          text: 'Cuaderno de Aprendizaje Activo diseñado e impreso en estricto apego a los principios del Marco Curricular Común de la Educación Media Superior (MCCEMS 2026-2027) y la Nueva Escuela Mexicana (NEM). Los recursos didácticos, esquemas formativos y materiales de apoyo integran derechos de autor y licenciamientos abiertos con fines exclusivamente educativos.',
+          size: 18,
+          color: C.darkText,
+          font: 'Calibri',
+        }),
+      ],
+    })
+  );
+
+  // Atribuciones Openverse
+  elements.push(
+    new Paragraph({
+      spacing: { before: 160, after: 80 },
+      children: [
+        new TextRun({
+          text: 'Recursos Visuales y Atribuciones Creative Commons',
+          bold: true,
+          size: 20,
+          color: C.midBlue,
+          font: 'Calibri',
+        }),
+      ],
+    })
+  );
+
+  if (uniqueAssets.length > 0) {
+    const headerRow = new TableRow({
+      tableHeader: true,
+      children: [
+        cell('Ref.', { w: 1000, bold: true, fill: C.navy, color: C.white, size: 16 }),
+        cell('Título de la Obra', { w: 3200, bold: true, fill: C.navy, color: C.white, size: 16 }),
+        cell('Autor / Creador', { w: 2600, bold: true, fill: C.navy, color: C.white, size: 16 }),
+        cell('Licencia CC', { w: 1800, bold: true, fill: C.navy, color: C.white, size: 16 }),
+        cell('Fuente / Repositorio', { w: 1640, bold: true, fill: C.navy, color: C.white, size: 16 }),
+      ],
+    });
+
+    const bodyRows = uniqueAssets.map((asset, idx) => {
+      const cleanTitle = stripMarkdown(asset.title || 'Fotografía didáctica');
+      const cleanCreator = stripMarkdown(asset.creator || 'Autor no especificado');
+      const cleanLic = stripMarkdown(asset.license || 'CC BY-SA');
+      const rawSource = asset.sourceUrl || asset.externalId || 'Openverse';
+      const cleanSource = stripMarkdown(rawSource);
+      return new TableRow({
+        children: [
+          cell(`Fig. ${idx + 1}`, { w: 1000, bold: true, size: 16 }),
+          cell(cleanTitle, { w: 3200, size: 16 }),
+          cell(cleanCreator, { w: 2600, size: 16 }),
+          cell(cleanLic, { w: 1800, size: 16 }),
+          cell(cleanSource, { w: 1640, size: 16 }),
+        ],
+      });
+    });
+
+    elements.push(
+      new Table({
+        width: { size: CONTENT_W, type: WidthType.DXA },
+        borders: thinBorder(),
+        rows: [headerRow, ...bodyRows],
+      })
+    );
+  } else {
+    elements.push(
+      new Paragraph({
+        spacing: { after: 140 },
+        children: [
+          new TextRun({
+            text: 'Iconografía Vectorial Pedagógica: Todos los organizadores gráficos, diagramas de flujo y esquemas visuales integrados en este cuaderno didáctico fueron modelados y renderizados directamente por el motor didáctico SIGPDA-EMS bajo el Marco Curricular Común de la EMS.',
+            italics: true,
+            size: 18,
+            color: C.mutedText,
+            font: 'Calibri',
+          }),
+        ],
+      })
+    );
+  }
+
+  // Directorio Institucional
+  elements.push(
+    new Paragraph({
+      spacing: { before: 200, after: 80 },
+      children: [
+        new TextRun({
+          text: 'Directorio Institucional y Producción Editorial',
+          bold: true,
+          size: 20,
+          color: C.navy,
+          font: 'Calibri',
+        }),
+      ],
+    })
+  );
+
+  const credRows = [
+    ['Dirección General:', 'Secretaría de Educación Pública del Estado de Puebla'],
+    ['Subsecretaría:', 'Subsecretaría de Educación Media Superior'],
+    ['Dirección de Área:', 'Dirección de Bachilleratos Estatales y Preparatoria Abierta (DBEPA)'],
+    ['Plataforma:', 'Sistema Integral de Gestión Pedagógica y Docente Activa (SIGPDA-EMS)'],
+    ['Plantel Educativo:', `${coverOpts.plantelNombre} (CCT: ${coverOpts.cct})`],
+    ['Unidad de Aprendizaje:', `${coverOpts.uacName} · Bloque ${coverOpts.blockIndex ?? 1}`],
+    ['Docente Titular:', coverOpts.docente || 'Academia Docente'],
+    ['Ciclo Escolar:', coverOpts.cicloEscolar || SCHOOL_YEAR],
+  ];
+
+  elements.push(
+    new Table({
+      width: { size: CONTENT_W, type: WidthType.DXA },
+      borders: {
+        top: { style: BorderStyle.NONE },
+        bottom: { style: BorderStyle.NONE },
+        left: { style: BorderStyle.NONE },
+        right: { style: BorderStyle.NONE },
+      },
+      rows: credRows.map(([label, val]) =>
+        new TableRow({
+          children: [
+            cell(label, { w: 3200, bold: true, color: C.navy, size: 16 }),
+            cell(val, { w: CONTENT_W - 3200, size: 16 }),
+          ],
+        })
+      ),
+    })
+  );
+
+  // Sello SHA-256
+  elements.push(
+    new Paragraph({
+      spacing: { before: 200, after: 40 },
+      children: [
+        new TextRun({
+          text: 'Folio Digital de Autenticidad Criptográfica (SHA-256):',
+          bold: true,
+          size: 16,
+          color: C.navy,
+          font: 'Calibri',
+        }),
+      ],
+    }),
+    new Paragraph({
+      spacing: { after: 120 },
+      children: [
+        new TextRun({
+          text: bookHash,
+          size: 14,
+          color: C.mutedText,
+          font: 'Courier New',
+        }),
+      ],
+    })
+  );
+
+  return elements;
+}
+
+/**
+ * Construye la sección de contraportada institucional en DOCX con QR y sello (Fase V2).
+ */
+function buildDocxContraportada(data: ContraportadaData): (Paragraph | Table)[] {
+  const elements: (Paragraph | Table)[] = [];
+
+  elements.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 240, after: 80 },
+      children: [
+        new TextRun({
+          text: 'SISTEMA INTEGRAL DE GESTIÓN Y PLANEACIÓN DIDÁCTICA AUTÓNOMA (SIGPDA-EMS)',
+          bold: true,
+          size: 20,
+          color: C.navy,
+          font: 'Arial',
+        }),
+      ],
+    }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 240 },
+      children: [
+        new TextRun({
+          text: 'FICHA DE ACREDITACIÓN CURRICULAR Y VALIDACIÓN INSTITUCIONAL',
+          bold: true,
+          size: 17,
+          color: C.gold,
+          font: 'Arial',
+        }),
+      ],
+    })
+  );
+
+  const tableRows: TableRow[] = [
+    new TableRow({
+      children: [
+        new TableCell({
+          width: { size: 3000, type: WidthType.DXA },
+          shading: { fill: C.navy, type: ShadingType.CLEAR },
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({ text: 'PLANTEL', bold: true, size: 16, color: C.white, font: 'Arial' }),
+              ],
+            }),
+          ],
+        }),
+        new TableCell({
+          width: { size: 6500, type: WidthType.DXA },
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({ text: data.plantelNombre, bold: true, size: 16, color: C.darkText, font: 'Calibri' }),
+              ],
+            }),
+          ],
+        }),
+      ],
+    }),
+    new TableRow({
+      children: [
+        new TableCell({
+          width: { size: 3000, type: WidthType.DXA },
+          shading: { fill: C.lightBg, type: ShadingType.CLEAR },
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({ text: 'CLAVE C.C.T.', bold: true, size: 16, color: C.navy, font: 'Arial' }),
+              ],
+            }),
+          ],
+        }),
+        new TableCell({
+          width: { size: 6500, type: WidthType.DXA },
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({ text: data.cct, size: 16, color: C.darkText, font: 'Calibri' }),
+              ],
+            }),
+          ],
+        }),
+      ],
+    }),
+    new TableRow({
+      children: [
+        new TableCell({
+          width: { size: 3000, type: WidthType.DXA },
+          shading: { fill: C.lightBg, type: ShadingType.CLEAR },
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({ text: 'SUBSISTEMA', bold: true, size: 16, color: C.navy, font: 'Arial' }),
+              ],
+            }),
+          ],
+        }),
+        new TableCell({
+          width: { size: 6500, type: WidthType.DXA },
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({ text: `${data.subsystem} · BACHILLERATO ESTATAL PUEBLA`, size: 16, color: C.darkText, font: 'Calibri' }),
+              ],
+            }),
+          ],
+        }),
+      ],
+    }),
+    new TableRow({
+      children: [
+        new TableCell({
+          width: { size: 3000, type: WidthType.DXA },
+          shading: { fill: C.lightBg, type: ShadingType.CLEAR },
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({ text: 'ASIGNATURA (UAC)', bold: true, size: 16, color: C.navy, font: 'Arial' }),
+              ],
+            }),
+          ],
+        }),
+        new TableCell({
+          width: { size: 6500, type: WidthType.DXA },
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({ text: data.uacName, bold: true, size: 16, color: C.darkText, font: 'Calibri' }),
+              ],
+            }),
+          ],
+        }),
+      ],
+    }),
+    new TableRow({
+      children: [
+        new TableCell({
+          width: { size: 3000, type: WidthType.DXA },
+          shading: { fill: C.lightBg, type: ShadingType.CLEAR },
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({ text: 'SEMESTRE / CICLO', bold: true, size: 16, color: C.navy, font: 'Arial' }),
+              ],
+            }),
+          ],
+        }),
+        new TableCell({
+          width: { size: 6500, type: WidthType.DXA },
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({ text: `${data.semestre} · CICLO ESCOLAR ${data.cicloEscolar}`, size: 16, color: C.darkText, font: 'Calibri' }),
+              ],
+            }),
+          ],
+        }),
+      ],
+    }),
+    new TableRow({
+      children: [
+        new TableCell({
+          width: { size: 3000, type: WidthType.DXA },
+          shading: { fill: C.lightBg, type: ShadingType.CLEAR },
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({ text: 'DOCENTE TITULAR', bold: true, size: 16, color: C.navy, font: 'Arial' }),
+              ],
+            }),
+          ],
+        }),
+        new TableCell({
+          width: { size: 6500, type: WidthType.DXA },
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({ text: data.docente, size: 16, color: C.darkText, font: 'Calibri' }),
+              ],
+            }),
+          ],
+        }),
+      ],
+    }),
+    new TableRow({
+      children: [
+        new TableCell({
+          width: { size: 3000, type: WidthType.DXA },
+          shading: { fill: C.lightBg, type: ShadingType.CLEAR },
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({ text: 'PROYECTO PAEC', bold: true, size: 16, color: C.navy, font: 'Arial' }),
+              ],
+            }),
+          ],
+        }),
+        new TableCell({
+          width: { size: 6500, type: WidthType.DXA },
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({ text: data.paecProjectName, size: 16, color: C.darkText, font: 'Calibri' }),
+              ],
+            }),
+          ],
+        }),
+      ],
+    }),
+  ];
+
+  elements.push(
+    new Table({
+      rows: tableRows,
+      width: { size: 9500, type: WidthType.DXA },
+      alignment: AlignmentType.CENTER,
+      margins: { top: 100, bottom: 100, left: 140, right: 140 },
+    })
+  );
+
+  // QR Code Image
+  elements.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 260, after: 100 },
+      children: [
+        new ImageRun({
+          data: data.qrBuffer,
+          transformation: { width: 140, height: 140 },
+          type: 'png',
+        }),
+      ],
+    }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 60 },
+      children: [
+        new TextRun({
+          text: 'FOLIO DE CONTROL CRIPTOGRÁFICO INSTITUCIONAL:',
+          bold: true,
+          size: 16,
+          color: C.navy,
+          font: 'Arial',
+        }),
+      ],
+    }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 60 },
+      children: [
+        new TextRun({
+          text: data.hash.slice(0, 36) + '...',
+          size: 15,
+          color: C.midBlue,
+          font: 'Consolas',
+        }),
+      ],
+    }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 200 },
+      children: [
+        new TextRun({
+          text: `Enlace de validación: ${data.verificationUrl}`,
+          italics: true,
+          size: 14,
+          color: C.mutedText,
+          font: 'Calibri',
+        }),
+      ],
+    }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 100 },
+      children: [
+        new TextRun({
+          text: 'Documento generado conforme a los lineamientos del MCCEMS 2026-2027 · DBEPA Puebla.',
+          size: 14,
+          color: C.mutedText,
+          font: 'Calibri',
+        }),
+      ],
+    })
+  );
+
+  return elements;
+}
+
+function buildDocxPlantelComunidadSection(
+  workbook: ActiveWorkTextbook,
+  planning: Planning | null | undefined
+): (Paragraph | Table)[] {
+  const elements: (Paragraph | Table)[] = [];
+
+  elements.push(
+    new Paragraph({
+      spacing: { before: 180, after: 120 },
+      children: [
+        new TextRun({
+          text: 'IDENTIDAD DEL PLANTEL Y VINCULACIÓN COMUNITARIA',
+          bold: true,
+          size: 28, // 14pt
+          color: C.navy,
+          font: 'Arial',
+        }),
+      ],
+    }),
+    new Paragraph({
+      spacing: { after: 200 },
+      children: [
+        new TextRun({
+          text: `DIRECCIÓN DE BACHILLERATOS ESTATALES Y PREPARATORIA ABIERTA · MCCEMS ${SCHOOL_YEAR}`,
+          bold: true,
+          size: 18,
+          color: C.gold,
+          font: 'Arial',
+        }),
+      ],
+    }),
+    new Paragraph({
+      spacing: { after: 240 },
+      children: [
+        new TextRun({
+          text: 'Ficha técnica de contextualización escolar y articulación didáctica del Proyecto de Aula, Escuela y Comunidad (PAEC):',
+          size: 20,
+          color: C.darkText,
+          font: 'Calibri',
+        }),
+      ],
+    })
+  );
+
+  const schoolName = workbook.coverData?.schoolName || planning?.contentJson?.sectionI?.schoolName || 'Bachillerato General Oficial';
+  const cct = workbook.coverData?.cct || planning?.contentJson?.sectionI?.cct || '21ECT0017T';
+  const subsystem = (workbook.subsystem || planning?.contentJson?.sectionI?.subsystem || 'BGE').toUpperCase();
+  const municipality = (workbook.coverData as any)?.municipality || 'Puebla, Pue.';
+  const teacherName = workbook.coverData?.teacherName || planning?.contentJson?.sectionI?.teacherName || 'Academia Docente del Plantel';
+  const subjectName = workbook.coverData?.subjectName || workbook.blockName || planning?.uacName || 'Formación Fundamental';
+  const semesterStr = workbook.coverData?.semester !== undefined ? `${workbook.coverData.semester}° Semestre` : 'Segundo Semestre';
+  const paecProjectName = workbook.coverData?.paecProjectName || workbook.projectSection?.artifactName || planning?.paecContext || 'Transformación Productiva y Social Comunitaria';
+  const paecChallenge = workbook.projectSection?.communityUtility || (workbook.coverData as any)?.paecProblem || planning?.paecContext || 'Atención prioritaria al desarrollo comunitario y sustentabilidad local.';
+
+  // Tabla 1: Ficha Institucional
+  elements.push(
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        new TableRow({
+          children: [
+            cell('Dato Institucional', { w: 3200, bold: true, fill: C.navy, color: C.white }),
+            cell('Información Oficial Registrada', { w: 6400, bold: true, fill: C.navy, color: C.white }),
+          ],
+        }),
+        new TableRow({ children: [cell('Plantel Educativo:', { bold: true, color: C.navy }), cell(schoolName)] }),
+        new TableRow({ children: [cell('Clave CCT:', { bold: true, color: C.navy }), cell(cct)] }),
+        new TableRow({ children: [cell('Subsistema:', { bold: true, color: C.navy }), cell(subsystem)] }),
+        new TableRow({ children: [cell('Municipio / Región:', { bold: true, color: C.navy }), cell(municipality)] }),
+        new TableRow({ children: [cell('Asignatura (UAC):', { bold: true, color: C.navy }), cell(subjectName)] }),
+        new TableRow({ children: [cell('Semestre y Ciclo:', { bold: true, color: C.navy }), cell(`${semesterStr} · ${SCHOOL_YEAR}`)] }),
+        new TableRow({ children: [cell('Docente Titular:', { bold: true, color: C.navy }), cell(teacherName)] }),
+      ],
+    }),
+    new Paragraph({ spacing: { before: 240, after: 120 } })
+  );
+
+  // Tabla 2: Proyecto PAEC
+  elements.push(
+    new Paragraph({
+      spacing: { after: 120 },
+      children: [
+        new TextRun({
+          text: 'Proyecto de Aula, Escuela y Comunidad (PAEC) — Eje Articulador Territorial:',
+          bold: true,
+          size: 20,
+          color: C.navy,
+          font: 'Arial',
+        }),
+      ],
+    }),
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        new TableRow({
+          children: [
+            cell('Eje del Proyecto Comunitario', { w: 3200, bold: true, fill: C.vino, color: C.white }),
+            cell('Diagnóstico y Desafío Situado', { w: 6400, bold: true, fill: C.vino, color: C.white }),
+          ],
+        }),
+        new TableRow({ children: [cell('Denominación del Proyecto:', { bold: true, color: C.vino }), cell(paecProjectName)] }),
+        new TableRow({ children: [cell('Problemática / Desafío:', { bold: true, color: C.vino }), cell(paecChallenge)] }),
+        new TableRow({
+          children: [
+            cell('Articulación Formativa:', { bold: true, color: C.vino }),
+            cell('Las misiones didácticas de este libro activo proveen el andamiaje experimental y técnico para transformar positivamente la comunidad.'),
+          ],
+        }),
+      ],
+    }),
+    new Paragraph({ spacing: { before: 280, after: 160 } })
+  );
+
+  // Bloque de Firmas
+  elements.push(
+    new Paragraph({
+      spacing: { after: 120 },
+      children: [
+        new TextRun({
+          text: 'Validación Colegiada y Autorización Escolar:',
+          bold: true,
+          size: 18,
+          color: C.navy,
+          font: 'Arial',
+        }),
+      ],
+    }),
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        new TableRow({
+          children: [
+            cell('Docente Titular de la UAC\n\n_______________________\nFirma y Fecha de Aplicación', { w: 3200, align: AlignmentType.CENTER }),
+            cell('Presidente de Academia\n\n_______________________\nValidación Pedagógica Colegiada', { w: 3200, align: AlignmentType.CENTER }),
+            cell('Dirección del Plantel\n\n_______________________\nSello Oficial CCT y Resguardo', { w: 3200, align: AlignmentType.CENTER }),
+          ],
+        }),
+      ],
+    })
+  );
+
+  return elements;
+}
+
+function buildDocxGlossaryTable(terms: GlossaryItem[]): (Paragraph | Table)[] {
+  const elements: (Paragraph | Table)[] = [];
+
+  elements.push(
+    new Paragraph({
+      spacing: { before: 200, after: 100 },
+      children: [
+        new TextRun({
+          text: 'GLOSARIO CONCEPTUAL CLAVE DE LA MISIÓN (MCCEMS)',
+          bold: true,
+          size: 19,
+          color: C.vino,
+          font: 'Arial',
+        }),
+      ],
+    })
+  );
+
+  const rows: TableRow[] = [
+    new TableRow({
+      children: [
+        cell('Término Clave', { w: 2800, bold: true, fill: C.vino, color: C.white }),
+        cell('Definición y Contexto Operativo', { w: 6800, bold: true, fill: C.vino, color: C.white }),
+      ],
+    }),
+  ];
+
+  for (const item of terms) {
+    rows.push(
+      new TableRow({
+        children: [
+          cell(item.term, { bold: true, color: C.navy }),
+          cell(item.definition),
+        ],
+      })
+    );
+  }
+
+  elements.push(
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows,
+    }),
+    new Paragraph({ spacing: { after: 160 } })
+  );
+
+  return elements;
+}
+
+async function buildDocxMissionQrBox(verificationUrl: string, hashMission: string): Promise<Table> {
+  let qrBuffer: Buffer | null = null;
+  try {
+    qrBuffer = await QRCode.toBuffer(verificationUrl, {
+      type: 'png',
+      margin: 1,
+      width: 140,
+      color: { dark: '#1F3864', light: '#FFFFFF' },
+    });
+  } catch (err) {
+    logger.warn('[docx-workbook-renderer] Error generando QR de misión:', err);
+  }
+
+  const qrCellChildren: Paragraph[] = [];
+  if (qrBuffer) {
+    qrCellChildren.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [
+          new ImageRun({
+            data: qrBuffer,
+            transformation: { width: 75, height: 75 },
+            type: 'png',
+          }),
+        ],
+      })
+    );
+  } else {
+    qrCellChildren.push(new Paragraph({ text: '[QR]' }));
+  }
+
+  const textCellChildren: Paragraph[] = [
+    new Paragraph({
+      spacing: { before: 40, after: 40 },
+      children: [
+        new TextRun({
+          text: 'VERIFICACIÓN Y TRAZABILIDAD CURRICULAR (MCCEMS)',
+          bold: true,
+          size: 17,
+          color: C.navy,
+          font: 'Arial',
+        }),
+      ],
+    }),
+    new Paragraph({
+      spacing: { after: 40 },
+      children: [
+        new TextRun({
+          text: 'Verifica este material didáctico · Escanea el código QR para constatar la autoría oficial docente y trazabilidad formativa según los lineamientos de la Nueva Escuela Mexicana.',
+          size: 15,
+          color: C.darkText,
+          font: 'Calibri',
+        }),
+      ],
+    }),
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: `Sello Digital: ${hashMission.slice(0, 24)}... · DBEPA Puebla · ${SCHOOL_YEAR}`,
+          italics: true,
+          size: 13,
+          color: C.mutedText,
+          font: 'Consolas',
+        }),
+      ],
+    }),
+  ];
+
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            width: { size: 1800, type: WidthType.DXA },
+            verticalAlign: VerticalAlign.CENTER,
+            shading: { fill: C.lightBg, type: ShadingType.CLEAR, color: 'auto' },
+            borders: {
+              top: { style: BorderStyle.SINGLE, size: 4, color: C.border },
+              bottom: { style: BorderStyle.SINGLE, size: 4, color: C.border },
+              left: { style: BorderStyle.SINGLE, size: 16, color: C.navy },
+              right: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+            },
+            children: qrCellChildren,
+          }),
+          new TableCell({
+            width: { size: 7800, type: WidthType.DXA },
+            verticalAlign: VerticalAlign.CENTER,
+            shading: { fill: C.lightBg, type: ShadingType.CLEAR, color: 'auto' },
+            borders: {
+              top: { style: BorderStyle.SINGLE, size: 4, color: C.border },
+              bottom: { style: BorderStyle.SINGLE, size: 4, color: C.border },
+              left: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+              right: { style: BorderStyle.SINGLE, size: 4, color: C.border },
+            },
+            children: textCellChildren,
+          }),
+        ],
+      }),
+    ],
+  });
+}
+
 function buildTableOfContents(workbook: ActiveWorkTextbook): (Paragraph | Table)[] {
   const items: (Paragraph | Table)[] = [
     new Paragraph({
@@ -460,7 +1430,16 @@ function buildTableOfContents(workbook: ActiveWorkTextbook): (Paragraph | Table)
     }),
   ];
 
-  workbook.tableOfContents.forEach((item) => {
+  const tocItems =
+    workbook.tableOfContents ||
+    workbook.missions.map((m, i) => ({
+      missionIndex: i + 1,
+      title: m.title,
+      sessionsRange: 'Sesiones 1 a 4',
+      pageEstimate: 6,
+    }));
+
+  tocItems.forEach((item) => {
     const cleanTitle = item.title
       .replace(/^\[.*?\]\s*/, '')
       .replace(/^misi[oó]n\s*\d+\s*:\s*/i, '')
@@ -490,13 +1469,264 @@ function buildTableOfContents(workbook: ActiveWorkTextbook): (Paragraph | Table)
   return items;
 }
 
+/**
+ * 1. Tabla Comparativa DOCX: renderiza pares comparativos o cuadros de contraste
+ */
+function buildDocxComparisonTable(compTable: ComparisonTableData): (Paragraph | Table)[] {
+  const rows: TableRow[] = [
+    new TableRow({
+      children: [
+        cell(compTable.headers[0], { w: Math.floor(CONTENT_W * 0.42), bold: true, fill: C.midBlue, color: C.white }),
+        cell(compTable.headers[1], { w: Math.floor(CONTENT_W * 0.58), bold: true, fill: C.midBlue, color: C.white }),
+      ],
+    }),
+  ];
+
+  compTable.rows.forEach((r, idx) => {
+    const rowBg = idx % 2 === 1 ? C.lightBg : C.white;
+    rows.push(
+      new TableRow({
+        children: [
+          cell(r[0], { w: Math.floor(CONTENT_W * 0.42), bold: true, fill: rowBg }),
+          cell(r[1], { w: Math.floor(CONTENT_W * 0.58), fill: rowBg }),
+        ],
+      })
+    );
+  });
+
+  const result: (Paragraph | Table)[] = [];
+  if (compTable.title) {
+    result.push(
+      new Paragraph({
+        spacing: { before: 180, after: 80 },
+        children: [
+          new TextRun({
+            text: compTable.title,
+            bold: true,
+            size: 22,
+            color: C.navy,
+            font: 'Arial',
+          }),
+        ],
+      })
+    );
+  }
+
+  result.push(
+    new Table({
+      width: { size: CONTENT_W, type: WidthType.DXA },
+      rows,
+    })
+  );
+
+  if (compTable.caption) {
+    result.push(
+      new Paragraph({
+        spacing: { before: 60, after: 120 },
+        children: [
+          new TextRun({
+            text: compTable.caption,
+            italics: true,
+            size: 16,
+            color: C.mutedText,
+            font: 'Calibri',
+          }),
+        ],
+      })
+    );
+  }
+
+  return result;
+}
+
+/**
+ * 2. Cajas de Llamado (Callout Box) DOCX: tarjeta con fondo suave y cinta lateral
+ */
+function buildDocxCalloutBox(callout: CalloutBoxData): Table {
+  const accentHex = (callout.accent || '#2563eb').replace('#', '');
+  const bgHex = (callout.bgHex || 'EFF6FF').replace('#', '');
+
+  const cleanTitle = stripMarkdown(callout.title).toUpperCase();
+  const cleanBody = stripMarkdown(callout.body || callout.content);
+  const cleanTakeaway = callout.keyTakeaway ? stripMarkdown(callout.keyTakeaway) : '';
+
+  const childrenParagraphs: Paragraph[] = [
+    new Paragraph({
+      spacing: { before: 60, after: 60 },
+      children: [
+        new TextRun({
+          text: `[ ${callout.icon || '•'} ${cleanTitle} ]`,
+          bold: true,
+          size: 18,
+          color: accentHex,
+          font: 'Arial',
+        }),
+      ],
+    }),
+    new Paragraph({
+      spacing: { after: cleanTakeaway ? 60 : 60, line: 320 },
+      children: [
+        new TextRun({
+          text: cleanBody,
+          size: 20,
+          color: C.darkText,
+          font: 'Calibri',
+        }),
+      ],
+    }),
+  ];
+
+  if (cleanTakeaway) {
+    childrenParagraphs.push(
+      new Paragraph({
+        spacing: { after: 60 },
+        children: [
+          new TextRun({
+            text: `• Clave: ${cleanTakeaway}`,
+            bold: true,
+            italics: true,
+            size: 18,
+            color: accentHex,
+            font: 'Calibri',
+          }),
+        ],
+      })
+    );
+  }
+
+  return new Table({
+    width: { size: CONTENT_W, type: WidthType.DXA },
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            width: { size: CONTENT_W, type: WidthType.DXA },
+            shading: { fill: bgHex, type: ShadingType.CLEAR },
+            borders: {
+              top: { style: BorderStyle.SINGLE, size: 4, color: 'E2E8F0' },
+              bottom: { style: BorderStyle.SINGLE, size: 4, color: 'E2E8F0' },
+              left: { style: BorderStyle.SINGLE, size: 24, color: accentHex },
+              right: { style: BorderStyle.SINGLE, size: 4, color: 'E2E8F0' },
+            },
+            margins: { top: 120, bottom: 120, left: 180, right: 180 },
+            children: childrenParagraphs,
+          }),
+        ],
+      }),
+    ],
+  });
+}
+
+/**
+ * 3. Cintas de Encabezado de Sección DOCX: celda sombreada con borde temático
+ */
+function buildDocxSectionHeader(title: string, colorHex: string = C.navy): Table {
+  return new Table({
+    width: { size: CONTENT_W, type: WidthType.DXA },
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            width: { size: CONTENT_W, type: WidthType.DXA },
+            shading: { fill: 'F1F5F9', type: ShadingType.CLEAR },
+            borders: {
+              top: { style: BorderStyle.NONE },
+              bottom: { style: BorderStyle.SINGLE, size: 6, color: colorHex },
+              left: { style: BorderStyle.SINGLE, size: 24, color: colorHex },
+              right: { style: BorderStyle.NONE },
+            },
+            margins: { top: 100, bottom: 100, left: 180, right: 180 },
+            children: [
+              new Paragraph({
+                spacing: { before: 40, after: 40 },
+                children: [
+                  new TextRun({
+                    text: title.toUpperCase(),
+                    bold: true,
+                    size: 22,
+                    color: colorHex,
+                    font: 'Arial',
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+    ],
+  });
+}
+
+/**
+ * 4. Tareas con Casillas [  ] y Renglones Punteados para Respuesta Escrita
+ */
+function buildDocxPracticeTasks(rawText: string, defaultTaskCount: number = 3): (Paragraph | Table)[] {
+  if (!rawText) return [];
+
+  const lines = rawText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const tasks: string[] = [];
+
+  for (const line of lines) {
+    const taskMatch = line.match(/^(\d+[\.\)]|[-*•])\s*(.+)$/);
+    if (taskMatch && taskMatch[2].length > 10) {
+      tasks.push(taskMatch[2]);
+    }
+  }
+
+  if (tasks.length === 0) {
+    for (const line of lines) {
+      if (line.length > 25 && !line.startsWith('#')) {
+        tasks.push(line);
+      }
+      if (tasks.length >= defaultTaskCount) break;
+    }
+  }
+
+  const selectedTasks = tasks.slice(0, 4);
+  if (selectedTasks.length === 0) {
+    return [
+      new Paragraph({
+        spacing: { after: 150, line: 360 },
+        children: [new TextRun({ text: rawText, size: 22, color: C.darkText, font: 'Calibri' })],
+      }),
+    ];
+  }
+
+  const elements: (Paragraph | Table)[] = [];
+  const dotLine = '· · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·';
+
+  for (let idx = 0; idx < selectedTasks.length; idx++) {
+    const taskText = selectedTasks[idx];
+    elements.push(
+      new Paragraph({
+        spacing: { before: 120, after: 60 },
+        children: [
+          new TextRun({ text: `[  ] Tarea ${idx + 1}: `, bold: true, size: 21, color: C.darkText, font: 'Calibri' }),
+          new TextRun({ text: taskText, size: 21, color: C.darkText, font: 'Calibri' }),
+        ],
+      }),
+      new Paragraph({
+        spacing: { after: 40 },
+        children: [new TextRun({ text: dotLine, size: 18, color: '94A3B8', font: 'Consolas' })],
+      }),
+      new Paragraph({
+        spacing: { after: 100 },
+        children: [new TextRun({ text: dotLine, size: 18, color: '94A3B8', font: 'Consolas' })],
+      })
+    );
+  }
+
+  return elements;
+}
+
 async function buildMissionContent(
   mission: MissionSection,
   missionNumber: number,
   subsystem: string,
   subjectName?: string,
   planningId?: string,
-  blockIndex?: number
+  blockIndex?: number,
+  openverseCollector?: ImageAsset[]
 ): Promise<(Paragraph | Table)[]> {
   const elements: (Paragraph | Table)[] = [];
 
@@ -535,20 +1765,9 @@ async function buildMissionContent(
 
   // 1. Enganche Situado
   elements.push(
+    buildDocxSectionHeader('1. Enganche y Desafío Situado en la Comunidad', SECTION_HEX.enganche),
     new Paragraph({
-      spacing: { before: 200, after: 100 },
-      children: [
-        new TextRun({
-          text: '1. Enganche y Desafío Situado en la Comunidad',
-          bold: true,
-          size: 26, // 13pt
-          color: C.navy,
-          font: 'Arial',
-        }),
-      ],
-    }),
-    new Paragraph({
-      spacing: { after: 150, line: 360 }, // 1.5 line spacing
+      spacing: { before: 100, after: 150, line: 360 }, // 1.5 line spacing
       children: [
         new TextRun({
           text: mission.phenomenonHook.story,
@@ -580,22 +1799,13 @@ async function buildMissionContent(
     })
   );
 
+  const conceptFullText = `${mission.conceptZero.physicalAnalogy || ''}\n${mission.conceptZero.coreExplanation || ''}\n${mission.conceptZero.narrativeExplanation || ''}`;
+
   // 2. Concepto Cero
   elements.push(
+    buildDocxSectionHeader('2. Concepto Cero: Analogía Intuitiva y Fundamento', SECTION_HEX.concepto),
     new Paragraph({
-      spacing: { before: 200, after: 100 },
-      children: [
-        new TextRun({
-          text: '2. Concepto Cero: Analogía Intuitiva y Fundamento',
-          bold: true,
-          size: 26,
-          color: C.navy,
-          font: 'Arial',
-        }),
-      ],
-    }),
-    new Paragraph({
-      spacing: { after: 150, line: 360 },
+      spacing: { before: 100, after: 150, line: 360 },
       children: [
         new TextRun({
           text: `Analogía Cotidiana: ${mission.conceptZero.physicalAnalogy}`,
@@ -730,11 +1940,32 @@ async function buildMissionContent(
         rows: ctRows,
       })
     );
+  } else {
+    // Si no cuenta con contrastTable explícita de IA, generar matriz de contraste comparativa si detecta pares reales
+    const compTable = extractComparisonTable(conceptFullText, cleanMissionTitle, subjectName);
+    if (compTable) {
+      elements.push(...buildDocxComparisonTable(compTable));
+    }
+  }
+
+  // ── 2.05 Glosario Conceptual Clave de la Misión (Fase V4) ───────────────────
+  const glossaryTerms = extractGlossaryTerms(mission.conceptZero?.coreExplanation || '');
+  if (glossaryTerms && glossaryTerms.length >= 2) {
+    elements.push(...buildDocxGlossaryTable(glossaryTerms));
   }
 
   // ── 2.1 Gráfico Determinístico / Fotografía Situacional Activa ────────────
   if (subjectName) {
-    const contextText = `${mission.conceptZero.physicalAnalogy || ''} ${mission.conceptZero.coreExplanation || ''}`;
+    const contextText = [
+      mission.phenomenonHook?.story,
+      mission.phenomenonHook?.detonatingQuestion,
+      mission.conceptZero?.physicalAnalogy,
+      mission.conceptZero?.coreExplanation,
+      mission.conceptZero?.narrativeExplanation,
+      mission.iDoSection?.stepByStepDemo,
+      mission.weDoSection?.guidedPractice,
+      mission.youDoSection?.autonomousChallenge,
+    ].filter(Boolean).join('\n\n');
     const resolvedVisual = await resolveVisualForMission({
       planningId,
       uacName: subjectName,
@@ -779,6 +2010,9 @@ async function buildMissionContent(
         const imgUrl = resolvedVisual.mediaAsset.thumbnailUrl || resolvedVisual.mediaAsset.imageUrl;
         const imgResult = await downloadAndProcessImage(imgUrl);
         if (imgResult) {
+          if (openverseCollector) {
+            openverseCollector.push(resolvedVisual.mediaAsset);
+          }
           const ratio = imgResult.height / imgResult.width;
           const targetWidth = 500;
           const targetHeight = Math.round(Math.min(380, Math.max(200, targetWidth * (ratio || 0.65))));
@@ -814,22 +2048,22 @@ async function buildMissionContent(
     }
   }
 
+  // Tarjeta de Idea Clave destacada (Callout Box) posterior al recurso visual
+  const conceptCallout = extractCalloutBox(conceptFullText, {
+    missionNumber,
+    defaultType: 'idea_clave',
+    defaultTitle: 'Idea Clave de la Misión',
+    defaultSubjectName: subjectName,
+  });
+  if (conceptCallout) {
+    elements.push(buildDocxCalloutBox(conceptCallout));
+  }
+
   // 3. Yo Hago (Demostración)
   elements.push(
+    buildDocxSectionHeader('3. Yo Hago: Demostración y Protocolo Guiado por el Docente', SECTION_HEX.yoHago),
     new Paragraph({
-      spacing: { before: 200, after: 100 },
-      children: [
-        new TextRun({
-          text: '3. Yo Hago: Demostración y Protocolo Guiado por el Docente',
-          bold: true,
-          size: 26,
-          color: C.navy,
-          font: 'Arial',
-        }),
-      ],
-    }),
-    new Paragraph({
-      spacing: { after: 250, line: 360 },
+      spacing: { before: 100, after: 200, line: 360 },
       children: [
         new TextRun({
           text: mission.iDoSection.stepByStepDemo,
@@ -841,31 +2075,21 @@ async function buildMissionContent(
     })
   );
 
+  // Tip de Taller / Seguridad Operativa destacado
+  const demoCallout = extractCalloutBox(mission.iDoSection.stepByStepDemo || '', {
+    missionNumber,
+    defaultType: 'tip_taller',
+    defaultTitle: 'Tip de Taller y Seguridad Operativa',
+    defaultSubjectName: subjectName,
+  });
+  if (demoCallout) {
+    elements.push(buildDocxCalloutBox(demoCallout));
+  }
+
   // 4. Nosotros Hacemos (Práctica Colaborativa)
   elements.push(
-    new Paragraph({
-      spacing: { before: 200, after: 100 },
-      children: [
-        new TextRun({
-          text: '4. Nosotros Hacemos: Práctica Guiada y Cuaderno Activo',
-          bold: true,
-          size: 26,
-          color: C.navy,
-          font: 'Arial',
-        }),
-      ],
-    }),
-    new Paragraph({
-      spacing: { after: 150, line: 360 },
-      children: [
-        new TextRun({
-          text: mission.weDoSection.guidedPractice,
-          size: 22,
-          color: C.darkText,
-          font: 'Calibri',
-        }),
-      ],
-    })
+    buildDocxSectionHeader('4. Nosotros Hacemos: Práctica Guiada y Cuaderno Activo', SECTION_HEX.hacemos),
+    ...buildDocxPracticeTasks(mission.weDoSection.guidedPractice)
   );
 
   if (mission.weDoSection.workbookElements) {
@@ -876,29 +2100,8 @@ async function buildMissionContent(
 
   // 5. Tú Haces (Reto Autónomo)
   elements.push(
-    new Paragraph({
-      spacing: { before: 200, after: 100 },
-      children: [
-        new TextRun({
-          text: '5. Tú Haces: Reto Autónomo de Aplicación Real',
-          bold: true,
-          size: 26,
-          color: C.navy,
-          font: 'Arial',
-        }),
-      ],
-    }),
-    new Paragraph({
-      spacing: { after: 150, line: 360 },
-      children: [
-        new TextRun({
-          text: mission.youDoSection.autonomousChallenge,
-          size: 22,
-          color: C.darkText,
-          font: 'Calibri',
-        }),
-      ],
-    })
+    buildDocxSectionHeader('5. Tú Haces: Reto Autónomo de Aplicación Real', SECTION_HEX.tuHaces),
+    ...buildDocxPracticeTasks(mission.youDoSection.autonomousChallenge)
   );
 
   if (mission.youDoSection.workbookElements) {
@@ -910,18 +2113,7 @@ async function buildMissionContent(
   // 6. Troubleshooting (Zona de Depuración)
   if (mission.troubleshooting && mission.troubleshooting.length > 0) {
     elements.push(
-      new Paragraph({
-        spacing: { before: 250, after: 100 },
-        children: [
-          new TextRun({
-            text: '6. Matriz de Resiliencia y Depuración: "¿Qué hacer si falla?"',
-            bold: true,
-            size: 26,
-            color: C.navy,
-            font: 'Arial',
-          }),
-        ],
-      }),
+      buildDocxSectionHeader('6. Matriz de Resiliencia y Depuración: "¿Qué hacer si falla?"', SECTION_HEX.resiliencia),
       buildTroubleshootTable(mission.troubleshooting)
     );
   }
@@ -929,20 +2121,9 @@ async function buildMissionContent(
   // 7. Checkpoint Formativo
   if (mission.formativeCheckpoint) {
     elements.push(
+      buildDocxSectionHeader('7. Punto de Control Formativo (Metacognición y Criterios)', SECTION_HEX.checkpoint),
       new Paragraph({
-        spacing: { before: 250, after: 100 },
-        children: [
-          new TextRun({
-            text: '7. Punto de Control Formativo (Metacognición y Criterios)',
-            bold: true,
-            size: 26,
-            color: C.navy,
-            font: 'Arial',
-          }),
-        ],
-      }),
-      new Paragraph({
-        spacing: { after: 100 },
+        spacing: { before: 100, after: 100 },
         children: [
           new TextRun({
             text: `Pregunta de autoevaluación: ${mission.formativeCheckpoint.question}`,
@@ -989,6 +2170,14 @@ async function buildMissionContent(
       });
     }
   }
+
+  // ── Cierre de Misión: QR Institucional de Validación y Sello Curricular (Fase V4) ──
+  const hashMission = crypto
+    .createHash('sha256')
+    .update(`${planningId || 'sigpda'}|${blockIndex ?? 0}|${missionNumber}`)
+    .digest('hex');
+  const missionVerificationUrl = getVerificationUrl(hashMission);
+  elements.push(await buildDocxMissionQrBox(missionVerificationUrl, hashMission));
 
   return elements;
 }

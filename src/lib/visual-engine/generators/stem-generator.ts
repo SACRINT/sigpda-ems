@@ -41,6 +41,11 @@ export interface VisualAnnotation {
 export interface VisualResult {
   svg: string;
   annotations: VisualAnnotation[];
+  metadata?: {
+    type: string;
+    realItemCount: number;
+    isFallback: boolean;
+  };
 }
 
 // Colores Institucionales
