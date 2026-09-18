@@ -1,9 +1,5 @@
 /**
- * @deprecated Este módulo está obsoleto. Usar `pdf-workbook-renderer.ts` para planeaciones V7.
- * Se mantiene por compatibilidad con DocumentA4Viewer y PlanningDetailClient.
- * Será eliminado cuando ambas migraciones a V7 estén completas.
- *
- * pdf-generator.ts — Generador PDF de Planeación Didáctica Oficial (SEP Puebla - DBEPA)
+ * planning-pdf-renderer.ts — Generador PDF de Planeación Didáctica Oficial (SEP Puebla - DBEPA)
  * SIGPDA-EMS · Formato Oficial Carta (215.9mm x 279.4mm) con Membrete y Logotipos Oficiales
  */
 
@@ -20,7 +16,6 @@ const GOLD_LINE: [number, number, number] = [232, 160, 32];  // #E8A020 - Dorado
 const GRAY_BG: [number, number, number] = [242, 244, 248];   // #F2F4F8 - Fondo Filas
 const TEXT_DARK: [number, number, number] = [30, 41, 59];    // #1E293B - Texto
 
-/** @deprecated Usar renderWorkbookToPdf() de pdf-workbook-renderer.ts */
 export async function generatePlanningPDF(
   planning: Planning,
   providedLogos?: { gobierno?: string; sep?: string; supervision?: string }
@@ -359,7 +354,6 @@ export async function generatePlanningPDF(
 export const generatePlanningPdf = generatePlanningPDF;
 
 /**
- * @deprecated Usar renderWorkbookToPdf() de pdf-workbook-renderer.ts
  * Generador PDF Oficial para la Secuencia Didáctica (Eslabón Micro)
  * Diseñado para entrega académica ante la Supervisión Escolar / Dirección
  */
