@@ -21,6 +21,16 @@ import crypto from 'crypto';
 import { logger } from '@/lib/logger';
 import { getVerificationUrl } from '@/lib/digital-signature';
 import { SCHOOL_YEAR } from '@/lib/config';
+import {
+  detectCurricularArea,
+  buildThematicVectorBackground,
+  type CurricularArea,
+} from './thematic-backgrounds';
+import {
+  searchOpenverseImages,
+  getRotationalContextKeyword,
+} from './openverse-client';
+import { downloadAndProcessImage } from './image-downloader';
 
 export interface BookCoverOptions {
   plantelNombre: string;
@@ -42,7 +52,12 @@ export interface CoverGenerationResult {
   isFallback: boolean;
   latencyMs: number;
   costEstimateUsd: number;
-  source: 'flux_schnell' | 'deterministic_svg_fallback';
+  source:
+    | 'flux_schnell'
+    | 'openverse_situated'
+    | 'deterministic_svg_thematic'
+    | 'deterministic_svg_fallback';
+  thematicArea?: CurricularArea;
 }
 
 export interface ContraportadaData {
@@ -81,19 +96,18 @@ function cleanSemesterString(raw: string | undefined): string {
 
 /**
  * Divide un título largo en líneas equilibradas para renderizado SVG (máximo 3 líneas)
- * y calcula un fontSize que garantiza que ninguna línea desborde el ancho disponible (960px).
+ * y calcula un fontSize que garantiza que ninguna línea desborde el ancho disponible (920px).
  *
- * Fórmula de estimación: ancho = fontSize * 0.62 * maxChars.
- * Mientras exceda 960px, reduce fontSize de 2 en 2 (mínimo 34).
- * Si excede con 2 líneas o maxChars > 30 y hay >= 3 palabras, divide en 3 líneas.
+ * Fórmula de estimación: ancho = fontSize * 0.75 * maxChars.
+ * Mientras exceda 920px, reduce fontSize de 2 en 2 (mínimo 34).
  */
-function layoutTitleForSvg(text: string, maxWidth = 960): { lines: string[]; fontSize: number } {
+function layoutTitleForSvg(text: string, maxWidth = 920): { lines: string[]; fontSize: number } {
   const clean = text.trim();
   const words = clean.split(/\s+/);
 
   if (words.length <= 1) {
     let fs = 64;
-    while (fs * 0.62 * clean.length > maxWidth && fs > 34) {
+    while (fs * 0.75 * clean.length > maxWidth && fs > 34) {
       fs -= 2;
     }
     return { lines: [clean], fontSize: fs };
@@ -127,31 +141,41 @@ function layoutTitleForSvg(text: string, maxWidth = 960): { lines: string[]; fon
     return res;
   }
 
+  // 0. Intentar en 1 sola línea primero (prioridad si cabe confortablemente >= 48px)
+  //    Factor 0.75 calibrado para mayúsculas ultra-bold (weight 900)
+  let fs1 = 64;
+  while (fs1 * 0.75 * clean.length > maxWidth && fs1 > 34) {
+    fs1 -= 2;
+  }
+  if (fs1 * 0.75 * clean.length <= maxWidth && fs1 >= 48) {
+    return { lines: [clean], fontSize: fs1 };
+  }
+
   // 1. Intentar en 2 líneas
   let lines = partition(2);
   let maxChars = Math.max(...lines.map((l) => l.length));
   let fs = 58;
 
-  while (fs * 0.62 * maxChars > maxWidth && fs > 34) {
+  while (fs * 0.75 * maxChars > maxWidth && fs > 34) {
     fs -= 2;
   }
 
-  // 2. Si excede con fs=34 o maxChars > 30 y palabras >= 3, particionar en 3 líneas
-  if ((fs * 0.62 * maxChars > maxWidth || (maxChars > 30 && words.length >= 3)) && words.length >= 3) {
+  // Si con 2 líneas se reduce demasiado o el texto es muy largo, probar 3 líneas
+  if ((fs <= 38 || maxChars > 28) && words.length >= 3) {
     const lines3 = partition(3);
     const maxChars3 = Math.max(...lines3.map((l) => l.length));
-    let fs3 = 48;
-    while (fs3 * 0.62 * maxChars3 > maxWidth && fs3 > 34) {
+    let fs3 = 50;
+    while (fs3 * 0.75 * maxChars3 > maxWidth && fs3 > 34) {
       fs3 -= 2;
     }
-    if (fs3 * 0.62 * maxChars3 <= maxWidth) {
-      lines = lines3;
-      fs = fs3;
+    if (fs3 > fs) {
+      return { lines: lines3, fontSize: fs3 };
     }
   }
 
   return { lines, fontSize: fs };
 }
+
 
 /**
  * Genera el marcado SVG de alta definición (1200 x 1600 px) para la portada institucional Capa 0.
@@ -175,51 +199,20 @@ function buildDeterministicCoverSvg(opts: BookCoverOptions): string {
   const lineSpacing = titleFontSize + 12;
   const totalTitleOffset = (titleLines.length - 1) * lineSpacing;
 
+  const area = detectCurricularArea(opts.uacName);
+
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1600" width="1200" height="1600">
   <defs>
-    <!-- Gradientes Institucionales -->
-    <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#07101E" />
-      <stop offset="35%" stop-color="#0F2445" />
-      <stop offset="70%" stop-color="#1F3864" />
-      <stop offset="100%" stop-color="#14274E" />
-    </linearGradient>
+    <!-- Gradientes Institucionales Base -->
     <linearGradient id="goldGrad" x1="0" y1="0" x2="1" y2="0">
       <stop offset="0%" stop-color="#E8A020" />
       <stop offset="50%" stop-color="#F6C90E" />
       <stop offset="100%" stop-color="#E8A020" />
     </linearGradient>
-    <linearGradient id="wineGrad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#800020" />
-      <stop offset="100%" stop-color="#4A0012" />
-    </linearGradient>
-    <linearGradient id="blueAccentGrad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#2E74B5" stop-opacity="0.6" />
-      <stop offset="100%" stop-color="#1F3864" stop-opacity="0.1" />
-    </linearGradient>
-
-    <!-- Patrón geométrico sutil de fondo -->
-    <pattern id="gridPattern" width="60" height="60" patternUnits="userSpaceOnUse">
-      <circle cx="30" cy="30" r="1.5" fill="#FFFFFF" fill-opacity="0.08" />
-      <path d="M 60 0 L 0 60 M 0 0 L 60 60" stroke="#FFFFFF" stroke-width="0.5" stroke-opacity="0.03" />
-    </pattern>
   </defs>
 
-  <!-- Fondo Principal -->
-  <rect width="1200" height="1600" fill="url(#bgGrad)" />
-  <rect width="1200" height="1600" fill="url(#gridPattern)" />
-
-  <!-- Formas geométricas dinámicas de composición editorial -->
-  <!-- Polígono Puebla Wine superior derecho -->
-  <path d="M 750 0 L 1200 0 L 1200 420 L 980 340 Z" fill="url(#wineGrad)" opacity="0.85" />
-  <path d="M 740 0 L 760 0 L 1200 350 L 1200 370 Z" fill="url(#goldGrad)" opacity="0.9" />
-
-  <!-- Diagonal Azul Medio inferior izquierda -->
-  <polygon points="0,1150 520,1600 0,1600" fill="url(#blueAccentGrad)" />
-  <polygon points="0,1280 360,1600 0,1600" fill="#2E74B5" opacity="0.2" />
-
-  <!-- Franja decorativa dorada inferior -->
-  <rect x="0" y="1520" width="1200" height="12" fill="url(#goldGrad)" />
+  <!-- Fondo Temático Vectorial Situado V7 (${area}) -->
+  ${buildThematicVectorBackground(area)}
 
   <!-- ── 1. ENCABEZADO INSTITUCIONAL SUPERIOR ── -->
   <rect x="0" y="0" width="1200" height="145" fill="#060C16" fill-opacity="0.85" />
@@ -574,107 +567,64 @@ function buildGenerativeTypographyOverlaySvg(opts: BookCoverOptions): string {
 }
 
 /**
- * Genera la portada institucional determinista de alta definición (Capa 0).
- * No realiza llamadas externas y nunca arroja error.
+ * Construye un prompt documental situado en el contexto escolar y comunitario de Puebla / México
+ * para el modelo generativo FLUX.1-schnell (V7).
+ * Reemplaza la geometría abstracta anterior por fotografía editorial situada.
  */
-export async function generateFallbackCover(opts: BookCoverOptions): Promise<CoverGenerationResult> {
-  const start = Date.now();
-  try {
-    const svg = buildDeterministicCoverSvg(opts);
-    const jpegBuffer = await sharp(Buffer.from(svg, 'utf8'), { density: 180 })
-      .flatten({ background: '#07101E' })
-      .jpeg({ quality: 92 })
-      .toBuffer();
+export function buildSituatedFluxPrompt(opts: BookCoverOptions, area: CurricularArea): string {
+  const cleanUac = opts.uacName.replace(/[^a-zA-Z0-9\sáéíóúÁÉÍÓÚñÑ]/g, '').trim();
+  const areaKeywords: Record<CurricularArea, string> = {
+    ciencias: 'science laboratory, experiments, glassware, scientific investigation, Puebla high school chemistry workshop',
+    matematicas: 'mathematics classroom, geometric drawing models, collaborative problem solving, Puebla academy',
+    humanidades: 'humanities seminar, library, literature and philosophy discussion, Mexican students in civic dialogue',
+    tecnologia: 'vocational workshop, robotics workbench, electronic circuits, digital technology education Puebla',
+    salud: 'health sciences training laboratory, anatomical models, first aid and community wellness workshop',
+    social: 'civic community project, social sciences field work, Mexican historical culture and community assembly',
+  };
 
-    return {
-      buffer: jpegBuffer,
-      format: 'JPEG',
-      isFallback: true,
-      latencyMs: Date.now() - start,
-      costEstimateUsd: 0,
-      source: 'deterministic_svg_fallback',
-    };
-  } catch (error) {
-    logger.warn('[CoverGenerator] Error inesperado en generateFallbackCover, generando buffer minimalista:', error);
-    // Buffer de emergencia mínimo en caso de fallo crítico de sharp
-    const emergencySvg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1600" viewBox="0 0 1200 1600"><rect width="1200" height="1600" fill="#1F3864"/><text x="600" y="800" font-family="Arial" font-size="48" fill="#FFFFFF" text-anchor="middle">${escapeXml(opts.uacName)}</text></svg>`;
-    const emergencyBuffer = await sharp(Buffer.from(emergencySvg, 'utf8')).jpeg().toBuffer();
-    return {
-      buffer: emergencyBuffer,
-      format: 'JPEG',
-      isFallback: true,
-      latencyMs: Date.now() - start,
-      costEstimateUsd: 0,
-      source: 'deterministic_svg_fallback',
-    };
-  }
+  const context = areaKeywords[area] || 'active vocational education classroom in Puebla Mexico';
+
+  return `Editorial documentary photograph of Mexican high school students in an active learning classroom in Puebla, Mexico, engaged in ${cleanUac}, ${context}. Authentic classroom atmosphere, warm natural lighting, professional high quality educational publishing, Hasselblad medium format photography, sharp 8k resolution, elegant, no text, no letters, no words, no signs, empty central composition`;
 }
 
 /**
- * Genera la portada editorial del libro.
- *
- * Cumple Condición 1:
- * - Lee la API key exclusivamente de variables de entorno (FLUX_API_KEY o TOGETHER_API_KEY).
- * - Si no está definida, vacía, o si falla la red, degrada silenciosamente a generateFallbackCover()
- *   sin lanzar error ni mostrar nada al usuario.
+ * Capa 2: Búsqueda y curación de fotografía educativa de dominio público / CC en Openverse
+ * utilizando términos contextuales situados rotativos (Puebla, México, taller vocacional).
  */
-export async function generateBookCover(opts: BookCoverOptions): Promise<CoverGenerationResult> {
-  const start = Date.now();
-
-  if (opts.forceFallback) {
-    return generateFallbackCover(opts);
-  }
-
-  const apiKey = (process.env.FLUX_API_KEY || process.env.TOGETHER_API_KEY || '').trim();
-
-  // Si la variable no existe o está vacía -> degradación silenciosa inmediata
-  if (!apiKey) {
-    return generateFallbackCover(opts);
-  }
-
+export async function searchCoverFromOpenverse(
+  opts: BookCoverOptions,
+  area: CurricularArea
+): Promise<Buffer | null> {
   try {
-    const cleanUac = opts.uacName.replace(/[^a-zA-Z0-9\sáéíóúÁÉÍÓÚñÑ]/g, '').trim();
-    const prompt = `Abstract minimalist academic editorial textbook cover background for ${cleanUac}, subtle conceptual geometry, deep navy blue (#1F3864) and rich gold (#E8A020) palette, clean modern educational art, cinematic studio lighting, sharp 8k resolution, elegant, no text, no letters, no words, no signs, empty central space`;
+    const contextual = getRotationalContextKeyword(opts.blockIndex ?? 0);
+    const query = `${opts.uacName} ${contextual}`;
 
-    // Timeout de 10s para no retrasar la generación del libro
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    let results = await searchOpenverseImages({
+      query,
+      pageSize: 4,
+      timeoutMs: 4000,
+    });
 
-    const response = await fetch('https://api.together.xyz/v1/images/generations', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'black-forest-labs/FLUX.1-schnell',
-        prompt,
-        width: 1024,
-        height: 1344,
-        steps: 4,
-        n: 1,
-        response_format: 'b64_json',
-      }),
-      signal: controller.signal,
-    }).finally(() => clearTimeout(timeoutId));
-
-    if (!response.ok) {
-      logger.warn(`[CoverGenerator] FLUX endpoint devolvió HTTP ${response.status}. Degradando en silencio.`);
-      return generateFallbackCover(opts);
+    if (!results || results.length === 0) {
+      results = await searchOpenverseImages({
+        query: `${area} education vocational`,
+        pageSize: 4,
+        timeoutMs: 4000,
+      });
     }
 
-    const data = await response.json();
-    const b64 = data?.data?.[0]?.b64_json;
-    if (!b64) {
-      logger.warn('[CoverGenerator] Respuesta FLUX sin b64_json. Degradando en silencio.');
-      return generateFallbackCover(opts);
+    if (!results || results.length === 0) {
+      return null;
     }
 
-    const bgBuffer = Buffer.from(b64, 'base64');
+    const candidate = results.find((r) => r.url && !r.url.endsWith('.svg')) || results[0];
+    if (!candidate?.url) return null;
+
+    const processed = await downloadAndProcessImage(candidate.url, 5000);
+    if (!processed?.buffer) return null;
+
     const overlaySvg = buildGenerativeTypographyOverlaySvg(opts);
-
-    // Componer tipografía nítida sobre el fondo generado
-    const compositeBuffer = await sharp(bgBuffer)
+    const compositeBuffer = await sharp(processed.buffer)
       .resize(1200, 1600, { fit: 'cover' })
       .composite([
         {
@@ -683,21 +633,158 @@ export async function generateBookCover(opts: BookCoverOptions): Promise<CoverGe
           left: 0,
         },
       ])
-      .jpeg({ quality: 92 })
+      .jpeg({ quality: 88 })
+      .toBuffer();
+
+    return compositeBuffer;
+  } catch (err) {
+    logger.warn('[CoverGenerator] Falla silenciosa en búsqueda Openverse para portada:', err);
+    return null;
+  }
+}
+
+/**
+ * Genera la portada institucional determinista de alta definición (Capa 0 / Tier 3).
+ * Utiliza composiciones vectoriales matemáticas temáticas por área curricular (thematic-backgrounds).
+ * No realiza llamadas externas y nunca arroja error.
+ */
+export async function generateFallbackCover(opts: BookCoverOptions): Promise<CoverGenerationResult> {
+  const start = Date.now();
+  const area = detectCurricularArea(opts.uacName);
+  try {
+    const svg = buildDeterministicCoverSvg(opts);
+    const jpegBuffer = await sharp(Buffer.from(svg, 'utf8'), { density: 150 })
+      .flatten({ background: '#07101E' })
+      .jpeg({ quality: 88 })
       .toBuffer();
 
     return {
-      buffer: compositeBuffer,
+      buffer: jpegBuffer,
       format: 'JPEG',
-      isFallback: false,
+      isFallback: true,
       latencyMs: Date.now() - start,
-      costEstimateUsd: 0.003, // FLUX.1-schnell standard rate ~$0.003 / image
-      source: 'flux_schnell',
+      costEstimateUsd: 0,
+      source: 'deterministic_svg_thematic',
+      thematicArea: area,
     };
   } catch (error) {
-    logger.warn('[CoverGenerator] Excepción al llamar FLUX endpoint. Degradando en silencio:', error);
+    logger.warn('[CoverGenerator] Error inesperado en generateFallbackCover, generando buffer minimalista:', error);
+    // Buffer de emergencia mínimo en caso de fallo crítico de sharp
+    const emergencySvg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1600" viewBox="0 0 1200 1600"><rect width="1200" height="1600" fill="#1F3864"/><text x="600" y="800" font-family="Arial" font-size="48" fill="#FFFFFF" text-anchor="middle">${escapeXml(opts.uacName)}</text></svg>`;
+    const emergencyBuffer = await sharp(Buffer.from(emergencySvg, 'utf8')).jpeg({ quality: 80 }).toBuffer();
+    return {
+      buffer: emergencyBuffer,
+      format: 'JPEG',
+      isFallback: true,
+      latencyMs: Date.now() - start,
+      costEstimateUsd: 0,
+      source: 'deterministic_svg_fallback',
+      thematicArea: area,
+    };
+  }
+}
+
+/**
+ * Genera la portada editorial del libro siguiendo la arquitectura de 3 niveles V7:
+ * - Tier 1: FLUX.1-schnell con prompt documental situado (escuelas/talleres de México/Puebla) + overlay tipográfico.
+ * - Tier 2: Openverse Creative Commons con keywords situados rotativos + overlay tipográfico.
+ * - Tier 3: Motor vectorial matemático SVG por área curricular (6 composiciones de alta calidad) rasterizado a 150 DPI.
+ */
+export async function generateBookCover(opts: BookCoverOptions): Promise<CoverGenerationResult> {
+  const start = Date.now();
+  const area = detectCurricularArea(opts.uacName);
+
+  if (opts.forceFallback) {
     return generateFallbackCover(opts);
   }
+
+  const apiKey = (process.env.FLUX_API_KEY || process.env.TOGETHER_API_KEY || '').trim();
+
+  // ── TIER 1: FLUX.1-schnell generativo situado ──
+  if (apiKey) {
+    try {
+      const prompt = buildSituatedFluxPrompt(opts, area);
+
+      // Timeout de 10s para no retrasar la generación del libro
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+      const response = await fetch('https://api.together.xyz/v1/images/generations', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'black-forest-labs/FLUX.1-schnell',
+          prompt,
+          width: 1024,
+          height: 1344,
+          steps: 4,
+          n: 1,
+          response_format: 'b64_json',
+        }),
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timeoutId));
+
+      if (response.ok) {
+        const data = await response.json();
+        const b64 = data?.data?.[0]?.b64_json;
+        if (b64) {
+          const bgBuffer = Buffer.from(b64, 'base64');
+          const overlaySvg = buildGenerativeTypographyOverlaySvg(opts);
+
+          // Componer tipografía nítida sobre el fondo generado
+          const compositeBuffer = await sharp(bgBuffer)
+            .resize(1200, 1600, { fit: 'cover' })
+            .composite([
+              {
+                input: Buffer.from(overlaySvg, 'utf8'),
+                top: 0,
+                left: 0,
+              },
+            ])
+            .jpeg({ quality: 88 })
+            .toBuffer();
+
+          return {
+            buffer: compositeBuffer,
+            format: 'JPEG',
+            isFallback: false,
+            latencyMs: Date.now() - start,
+            costEstimateUsd: 0.003,
+            source: 'flux_schnell',
+            thematicArea: area,
+          };
+        }
+      } else {
+        logger.warn(`[CoverGenerator] FLUX endpoint devolvió HTTP ${response.status}. Procediendo a Tier 2.`);
+      }
+    } catch (error) {
+      logger.warn('[CoverGenerator] Excepción al llamar FLUX endpoint. Procediendo a Tier 2:', error);
+    }
+  }
+
+  // ── TIER 2: Openverse con términos situados rotativos ──
+  try {
+    const openverseBuffer = await searchCoverFromOpenverse(opts, area);
+    if (openverseBuffer) {
+      return {
+        buffer: openverseBuffer,
+        format: 'JPEG',
+        isFallback: false,
+        latencyMs: Date.now() - start,
+        costEstimateUsd: 0,
+        source: 'openverse_situated',
+        thematicArea: area,
+      };
+    }
+  } catch (err) {
+    logger.warn('[CoverGenerator] Error en Tier 2 Openverse. Procediendo a Tier 3:', err);
+  }
+
+  // ── TIER 3: Fallback Vectorial Temático Matemático (100% Determinista y Offline) ──
+  return generateFallbackCover(opts);
 }
 
 /**

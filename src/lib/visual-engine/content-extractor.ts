@@ -582,5 +582,167 @@ export function deduplicateMediaAssets(assets: ImageAsset[]): ImageAsset[] {
   return unique;
 }
 
+// ── Extractores V6: Pedagogía de Vida Diaria ────────────────────────────────
+// REGLA: 0 tokens LLM, 100% deterministas, retornan null si no detectan suficientes datos reales.
+
+/**
+ * Extrae una conexión real con la vida diaria del estudiante desde el texto de la misión.
+ * Detecta actividades concretas del hogar, taller, comunidad o escuela.
+ * Retorna null si el texto no tiene suficiente contenido real (< 80 chars de contexto).
+ */
+export function extractRealLifeConnection(
+  missionText: string,
+  uacName: string
+): { context: string; householdApplication: string; communityImpact: string } | null {
+  if (!missionText || missionText.trim().length < 80) return null;
+
+  const clean = cleanText(missionText);
+
+  // Patrones de aplicaciones cotidianas concretas (verbos de acción con objetos reales)
+  const householdKeywords = [
+    /(?:en\s+(?:tu|el|la|su)\s+)?(?:casa|hogar|cocina|baño|taller|cuarto|jardín|patio|colonia|comunidad|municipio|escuela|plantel|trabajo)/gi,
+    /(?:mide|calcula|registra|identifica|entrevista|observa|diagnostica|elabora|construye|diseña|aplica)\s+\w+/gi,
+    /(?:consumo|gasto|temperatura|voltaje|presión|caudal|velocidad|peso|distancia|tiempo)\s+\w+/gi,
+  ];
+
+  // Detectar frases con palabras de aplicación cotidiana
+  const sentences = clean.split(/[.!?;]/g).filter(s => s.trim().length > 20);
+  const contextSentences: string[] = [];
+  const appSentences: string[] = [];
+
+  for (const sent of sentences) {
+    const isHousehold = householdKeywords.some(rx => rx.test(sent));
+    if (isHousehold) {
+      if (appSentences.length === 0) appSentences.push(sent.trim());
+      else contextSentences.push(sent.trim());
+    }
+  }
+
+  // Si no detecta aplicaciones concretas, generar desde el contexto de la UAC
+  const uacClean = uacName.replace(/\s+(I|II|III|IV|V|VI)$/i, '').trim();
+  const contextStr = contextSentences[0] ||
+    clean.slice(0, 120).replace(/\s+\S*$/, '') + '...';
+
+  const appStr = appSentences[0] || null;
+  if (!appStr || appStr.length < 15) return null;
+
+  // Construir impacto comunitario
+  const communityImpact = `Aplica los conceptos de ${uacClean} para identificar, diagnosticar o mejorar una situación real en tu colonia, escuela o comunidad local.`;
+
+  return {
+    context: contextStr.slice(0, 180),
+    householdApplication: appStr.slice(0, 200),
+    communityImpact: communityImpact.slice(0, 200),
+  };
+}
+
+/**
+ * Sintetiza 3 preguntas de diagnóstico de saberes previos desde el texto de la misión.
+ * Las preguntas son situadas en la experiencia cotidiana del alumno.
+ * Retorna null si no hay suficiente texto para generar preguntas válidas (< 100 chars).
+ */
+export function extractDiagnosticQuestions(
+  missionText: string,
+  uacName: string
+): { context: string; questions: string[] } | null {
+  if (!missionText || missionText.trim().length < 100) return null;
+
+  const clean = cleanText(missionText);
+  const uacClean = uacName.replace(/\s+(I|II|III|IV|V|VI)$/i, '').trim();
+
+  // Extraer los primeros términos clave del texto (negritas, mayúsculas, o con ":")
+  const boldTerms: string[] = [];
+  const boldMatches = missionText.matchAll(/\*\*([^*]{3,35})\*\*/g);
+  for (const m of boldMatches) {
+    if (boldTerms.length < 3) boldTerms.push(m[1].trim());
+  }
+
+  const capsMatches = clean.matchAll(/\b([A-ZÁÉÍÓÚÑ]{4,20})\b/g);
+  for (const m of capsMatches) {
+    const term = m[1];
+    if (!boldTerms.includes(term) && boldTerms.length < 4) {
+      boldTerms.push(term.charAt(0) + term.slice(1).toLowerCase());
+    }
+  }
+
+  // No hay términos detectables
+  if (boldTerms.length === 0) return null;
+
+  const firstTerm = boldTerms[0] || uacClean;
+  const secondTerm = boldTerms[1] || 'este tema';
+  const thirdTerm = boldTerms[2] || 'estas ideas';
+
+  const contextStr = `Antes de comenzar esta misión, reflexiona brevemente sobre lo que ya sabes de "${firstTerm}" y su presencia en tu vida cotidiana.`;
+
+  const questions: string[] = [
+    `¿Has observado o experimentado algo relacionado con "${firstTerm}" en tu casa, comunidad o entorno escolar? Describe brevemente qué has visto o vivido.`,
+    `¿Qué crees que significa "${secondTerm}" y para qué crees que sirve en la vida real o en el trabajo?`,
+    `Si tuvieras que explicarle "${thirdTerm}" a un familiar o amigo con palabras sencillas, ¿qué le dirías?`,
+  ];
+
+  return { context: contextStr, questions };
+}
+
+/**
+ * Extrae un tip técnico o de seguridad operativa de alta prioridad desde el texto de la misión.
+ * Prioriza advertencias de normas NOM, seguridad eléctrica, química, o claves de rigor metodológico.
+ * Retorna null si no detecta un tip real con suficiente contenido.
+ */
+export function extractSafetyOrCriticalTip(
+  missionText: string,
+  subsystem: string = 'bge'
+): string | null {
+  if (!missionText || missionText.trim().length < 50) return null;
+
+  const clean = cleanText(missionText);
+  const sentences = clean.split(/[.!?;]/g).filter(s => s.trim().length > 20);
+
+  // Patrones de seguridad y rigor técnico de alta prioridad
+  const safetyPatterns = [
+    /\b(?:NOM|ISO|OSHA|IEC|IEEE)\b/i,
+    /\b(?:seguridad|precaución|advertencia|peligro|riesgo|ESD|electroestát|descargas?)\b/i,
+    /\b(?:nunca|siempre|obligatorio|imprescindible|critical|evit[ae])\b/i,
+    /\b(?:norma|estándar|protocolo|procedimiento)\s+\w+/i,
+    /\b(?:verificar|comprobar|confirmar|revisar)\s+(?:antes|siempre|primero)\b/i,
+  ];
+
+  for (const sent of sentences) {
+    const hasSafety = safetyPatterns.some(p => p.test(sent));
+    if (hasSafety && sent.trim().length >= 30) {
+      return sent.trim().slice(0, 200);
+    }
+  }
+
+  // Para subsistema BT (técnico), generar tip de seguridad contextualizado
+  if (subsystem?.toLowerCase() === 'bt') {
+    const hasEquipment = /\b(?:equipo|herramienta|instrumento|dispositivo|circuito|cable|fusible|voltaje|corriente)\b/i.test(clean);
+    if (hasEquipment) {
+      return 'Antes de manipular cualquier equipo o circuito: desconecta la alimentación, verifica con multímetro que no hay tensión residual, y usa equipo de protección personal (EPP) apropiado.';
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Construye los descriptores del Semáforo de Aprendizaje Metacognitivo para una misión.
+ * Los tres descriptores son situados en la vida diaria del estudiante.
+ * Nunca retorna null — siempre genera semáforo genérico válido.
+ */
+export function buildMetacognitiveTrafficLight(
+  missionTitle: string,
+  uacName: string
+): { green: string; yellow: string; red: string } {
+  const titleClean = missionTitle.replace(/^misi[oó]n\s*\d+\s*:\s*/i, '').trim().slice(0, 50);
+  const uacClean = uacName.replace(/\s+(I|II|III|IV|V|VI)$/i, '').trim().slice(0, 40);
+
+  return {
+    green: `Comprendo ${titleClean} con claridad. Puedo explicarlo y aplicarlo en situaciones reales de mi comunidad o trabajo sin ayuda.`,
+    yellow: `Entiendo los conceptos principales de ${uacClean}, pero necesito más práctica o un ejemplo adicional para aplicarlos con confianza.`,
+    red: `Tengo dudas sobre ${titleClean}. Requiero asesoría del docente, revisar el Concepto Cero o practicar con un compañero antes de continuar.`,
+  };
+}
+
+
 
 

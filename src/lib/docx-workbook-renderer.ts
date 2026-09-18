@@ -38,7 +38,11 @@ import {
   ImageRun,
   type ISectionOptions,
 } from 'docx';
-import { resolveVisualForMission } from '@/lib/visual-engine/visual-asset-manager';
+import {
+  resolveVisualForMission,
+  resolveEquipmentVisualForMission,
+  type ResolvedEquipmentVisual,
+} from '@/lib/visual-engine/visual-asset-manager';
 import { svgToPngBuffer } from '@/lib/visual-engine/svg-to-png';
 import { downloadAndProcessImage } from '@/lib/visual-engine/image-downloader';
 import { SCHOOL_YEAR } from '@/lib/config';
@@ -1618,6 +1622,132 @@ function buildDocxCalloutBox(callout: CalloutBoxData): Table {
 }
 
 /**
+ * Ficha Técnica de Equipamiento / Material Didáctico DOCX (Nivel 1 Contextual)
+ */
+function buildDocxEquipmentCard(equipmentVisual: ResolvedEquipmentVisual): (Paragraph | Table)[] {
+  const { detected, buffer, caption, format } = equipmentVisual;
+  const imageRun = new ImageRun({
+    data: buffer,
+    transformation: { width: 170, height: 120 },
+    type: format.toLowerCase() === 'png' ? 'png' : 'jpg',
+  });
+
+  const textParagraphs: Paragraph[] = [
+    new Paragraph({
+      spacing: { before: 40, after: 30 },
+      children: [
+        new TextRun({
+          text: `[ FICHA TÉCNICA · ${detected.category.toUpperCase().replace(/_/g, ' ')} ]`,
+          bold: true,
+          size: 16,
+          color: C.navy,
+          font: 'Arial',
+        }),
+      ],
+    }),
+    new Paragraph({
+      spacing: { after: 40 },
+      children: [
+        new TextRun({
+          text: detected.name.toUpperCase(),
+          bold: true,
+          size: 20,
+          color: C.midBlue,
+          font: 'Arial',
+        }),
+      ],
+    }),
+    new Paragraph({
+      spacing: { after: 40, line: 300 },
+      children: [
+        new TextRun({
+          text: `Función didáctica: ${detected.technicalRole}`,
+          size: 18,
+          color: C.darkText,
+          font: 'Calibri',
+        }),
+      ],
+    }),
+  ];
+
+  if (detected.safetyRule) {
+    textParagraphs.push(
+      new Paragraph({
+        spacing: { after: 40 },
+        children: [
+          new TextRun({
+            text: `⚠️ Seguridad y Protocolo: ${detected.safetyRule}`,
+            bold: true,
+            italics: true,
+            size: 16,
+            color: C.gold,
+            font: 'Calibri',
+          }),
+        ],
+      })
+    );
+  }
+
+  textParagraphs.push(
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: caption,
+          italics: true,
+          size: 14,
+          color: C.mutedText,
+          font: 'Calibri',
+        }),
+      ],
+    })
+  );
+
+  const table = new Table({
+    width: { size: CONTENT_W, type: WidthType.DXA },
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            width: { size: Math.floor(CONTENT_W * 0.32), type: WidthType.DXA },
+            verticalAlign: VerticalAlign.CENTER,
+            shading: { fill: C.white, type: ShadingType.CLEAR, color: 'auto' },
+            borders: {
+              top: { style: BorderStyle.SINGLE, size: 4, color: C.border },
+              bottom: { style: BorderStyle.SINGLE, size: 4, color: C.border },
+              left: { style: BorderStyle.SINGLE, size: 16, color: C.navy },
+              right: { style: BorderStyle.SINGLE, size: 4, color: C.border },
+            },
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [imageRun],
+              }),
+            ],
+          }),
+          new TableCell({
+            width: { size: Math.floor(CONTENT_W * 0.68), type: WidthType.DXA },
+            verticalAlign: VerticalAlign.CENTER,
+            shading: { fill: C.lightBg, type: ShadingType.CLEAR, color: 'auto' },
+            borders: {
+              top: { style: BorderStyle.SINGLE, size: 4, color: C.border },
+              bottom: { style: BorderStyle.SINGLE, size: 4, color: C.border },
+              left: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+              right: { style: BorderStyle.SINGLE, size: 4, color: C.border },
+            },
+            children: textParagraphs,
+          }),
+        ],
+      }),
+    ],
+  });
+
+  return [
+    table,
+    new Paragraph({ spacing: { after: 120 } }),
+  ];
+}
+
+/**
  * 3. Cintas de Encabezado de Sección DOCX: celda sombreada con borde temático
  */
 function buildDocxSectionHeader(title: string, colorHex: string = C.navy): Table {
@@ -2048,6 +2178,26 @@ async function buildMissionContent(
     }
   }
 
+  // ── 2.15 Ficha Técnica Contextual / Imagen de Demostración (Hero) ─────────────
+  let equipmentVisual: ResolvedEquipmentVisual | null = null;
+  if (subjectName) {
+    try {
+      equipmentVisual = await resolveEquipmentVisualForMission(mission, subjectName, {
+        preferSidebar: false,
+      });
+      if (equipmentVisual?.mediaAsset && openverseCollector) {
+        openverseCollector.push(equipmentVisual.mediaAsset);
+      }
+    } catch (err) {
+      logger.warn('[docx-workbook-renderer] Error resolviendo equipo contextual:', err);
+    }
+  }
+
+  // Si no es Hero (el 70% de los casos), renderizar como Ficha Técnica antes de la Demostración
+  if (equipmentVisual && !equipmentVisual.isHero) {
+    elements.push(...buildDocxEquipmentCard(equipmentVisual));
+  }
+
   // Tarjeta de Idea Clave destacada (Callout Box) posterior al recurso visual
   const conceptCallout = extractCalloutBox(conceptFullText, {
     missionNumber,
@@ -2061,7 +2211,40 @@ async function buildMissionContent(
 
   // 3. Yo Hago (Demostración)
   elements.push(
-    buildDocxSectionHeader('3. Yo Hago: Demostración y Protocolo Guiado por el Docente', SECTION_HEX.yoHago),
+    buildDocxSectionHeader('3. Yo Hago: Demostración y Protocolo Guiado por el Docente', SECTION_HEX.yoHago)
+  );
+
+  // Si equipmentVisual fue marcado como Hero (30% demostrativo), se renderiza como imagen principal del Yo Hago
+  if (equipmentVisual && equipmentVisual.isHero) {
+    elements.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 140, after: 80 },
+        children: [
+          new ImageRun({
+            data: equipmentVisual.buffer,
+            transformation: { width: 480, height: 270 },
+            type: equipmentVisual.format.toLowerCase() === 'png' ? 'png' : 'jpg',
+          }),
+        ],
+      }),
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 140 },
+        children: [
+          new TextRun({
+            text: equipmentVisual.caption,
+            italics: true,
+            size: 16, // 8pt
+            color: C.mutedText,
+            font: 'Calibri',
+          }),
+        ],
+      })
+    );
+  }
+
+  elements.push(
     new Paragraph({
       spacing: { before: 100, after: 200, line: 360 },
       children: [

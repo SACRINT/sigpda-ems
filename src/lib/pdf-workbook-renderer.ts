@@ -24,7 +24,11 @@ import type {
 } from '@/types/work-textbook';
 import type { Planning, ImageAsset } from '@/types/planning';
 import { loadAllLogos } from './pdf-logos';
-import { resolveVisualForMission } from '@/lib/visual-engine/visual-asset-manager';
+import {
+  resolveVisualForMission,
+  resolveEquipmentVisualForMission,
+  type ResolvedEquipmentVisual,
+} from '@/lib/visual-engine/visual-asset-manager';
 import { svgToPngBuffer } from '@/lib/visual-engine/svg-to-png';
 import { downloadAndProcessImage } from '@/lib/visual-engine/image-downloader';
 import type { VisualAnnotation } from '@/lib/visual-engine/generators/stem-generator';
@@ -45,6 +49,10 @@ import {
   extractGlossaryTerms,
   stripMarkdown,
   deduplicateMediaAssets,
+  extractDiagnosticQuestions,
+  extractRealLifeConnection,
+  extractSafetyOrCriticalTip,
+  buildMetacognitiveTrafficLight,
   type GlossaryItem,
 } from '@/lib/visual-engine/content-extractor';
 import {
@@ -53,28 +61,113 @@ import {
   type ContraportadaData,
   type BookCoverOptions,
 } from '@/lib/visual-engine/cover-generator';
+import {
+  loadEditorialFonts,
+  setFontHeading,
+  setFontBody,
+  setFontCaption,
+  areEditorialFontsLoaded,
+} from '@/lib/visual-engine/font-loader';
+import {
+  drawMissionBanner,
+  drawSectionRibbon,
+  drawCalloutBox,
+  drawComparisonTable as drawEditorialComparisonTable,
+  drawDiagnosticSection,
+  drawMetacognitiveLight,
+  drawGlossaryWidget,
+  drawRealLifeWidget,
+  drawSafetyWidget,
+  drawPageHeader,
+  drawPageFooter,
+} from '@/lib/visual-engine/pdf-components';
+import {
+  ColumnFlowManager,
+  type PageContext,
+} from '@/lib/visual-engine/column-flow-manager';
+import {
+  generateMissionRubric,
+  drawMissionRubricTable,
+} from '@/lib/visual-engine/mission-rubric-generator';
+import {
+  COLOR,
+  PAGE,
+  TYPE,
+  LEADING,
+  SPACING,
+  RADIUS,
+  STROKE,
+  type RGB,
+  getMissionColor,
+  missionTint,
+} from '@/lib/visual-engine/design-tokens';
 
-// ── Paleta de Colores Institucionales DBEPA ──────────────────────────────────
-const NAVY: [number, number, number] = [31, 56, 100];       // #1F3864
-const MID_BLUE: [number, number, number] = [46, 116, 181];   // #2E74B5
-const VINO_PUEBLA: [number, number, number] = [128, 0, 32];  // #800020
-const GOLD: [number, number, number] = [232, 160, 32];      // #E8A020
-const DARK_TEXT: [number, number, number] = [30, 41, 59];    // #1E293B
-const MUTED_TEXT: [number, number, number] = [100, 116, 139];// #64748B
-const LIGHT_BG: [number, number, number] = [248, 250, 252];  // #F8FAFC
-const CODE_BG: [number, number, number] = [243, 244, 246];   // #F3F4F6
+// ── Paleta de Colores Institucionales DBEPA (Consumida desde Design Tokens) ──
+const NAVY: RGB = COLOR.NAVY;
+const MID_BLUE: RGB = COLOR.MID_BLUE;
+const VINO_PUEBLA: RGB = COLOR.DARK_MAROON;
+const GOLD: RGB = COLOR.GOLD;
+const DARK_TEXT: RGB = COLOR.TEXT_PRIMARY;
+const MUTED_TEXT: RGB = COLOR.MUTED_TEXT;
+const LIGHT_BG: RGB = COLOR.LIGHT_BG;
+const CODE_BG: RGB = COLOR.TABLE_ALT_ROW;
+const EMERALD: RGB = COLOR.MISSION[2];
 
 // Colores de acento para encabezados de sección
-const SECTION_COLORS: Record<string, [number, number, number]> = {
-  enganche: [31, 56, 100],      // Navy
-  concepto: [31, 56, 100],      // Navy
-  yoHago: [37, 99, 235],        // Azul (#2563eb)
-  hacemos: [124, 58, 237],      // Púrpura (#7c3aed)
-  tuHaces: [217, 119, 6],       // Ámbar (#d97706)
-  resiliencia: [128, 0, 32],    // Wine
-  checkpoint: [5, 150, 105],    // Esmeralda (#059669)
-  evaluacion: [5, 150, 105],    // Esmeralda (#059669)
+const SECTION_COLORS: Record<string, RGB> = {
+  enganche: COLOR.NAVY,
+  concepto: COLOR.NAVY,
+  yoHago: COLOR.TEXT_ACCENT,
+  hacemos: COLOR.MISSION[1],
+  tuHaces: COLOR.MISSION[3],
+  resiliencia: COLOR.DARK_MAROON,
+  checkpoint: COLOR.MISSION[2],
+  evaluacion: COLOR.MISSION[2],
+  diagnostica: COLOR.DIAGNOSTIC_BORDER,
+  semaforo: COLOR.MISSION[2],
+  vidaReal: COLOR.REAL_LIFE_ACCENT,
 };
+
+// ── Geometría de Retícula de 2 Columnas (V6 Sidebar) ────────────────────────
+// Página Carta: 215.9 mm × 279.4 mm · Márgen: 14 mm · contentWidth: 187.9 mm
+// Zona Principal (68%): 127.6 mm · Sidebar (28%): 52.7 mm · Gap: 3.6 mm
+const SIDEBAR_RATIO = 0.28;
+const MAIN_RATIO = 0.68;
+const SIDEBAR_GAP = 3.6;  // mm entre columna principal y sidebar
+
+/**
+ * GUARDIÁN ARQUITECTÓNICO DE ANCHO DE TEXTO — V7
+ *
+ * Garantiza que NINGÚN valor de ancho de texto exceda el límite de la zona asignada.
+ * Toda función de componente DEBE pasar su drawWidth por esta función antes de
+ * usarlo en splitTextToSize() o doc.text().
+ *
+ * Sin este guardián, un caller que pase contentWidth total en lugar de mainW
+ * produce desbordamiento hacia el sidebar. Con este guardián, el peor caso
+ * es que el texto use el ancho correcto aunque el caller se equivoque.
+ *
+ * @param drawWidth  El ancho que se pretende usar (puede venir de mainW o contentWidth)
+ * @param maxAllowed Límite máximo permitido — SIEMPRE debe ser mainW o sideW según la zona
+ * @param padding    Padding interno de la caja (se resta del límite)
+ */
+function clampTextWidth(drawWidth: number, maxAllowed: number, padding = 0): number {
+  return Math.min(drawWidth, maxAllowed) - padding;
+}
+
+/** Calcula anchos de la retícula de 2 columnas dado el contentWidth completo */
+function getSidebarLayout(contentWidth: number): {
+  mainW: number;   // Ancho de la zona de desarrollo principal
+  sideW: number;   // Ancho de la columna lateral
+  sideX: number;   // X absoluta del inicio del sidebar (relativa al margen izquierdo = margin)
+  sideXAbs: number; // X absoluta en el PDF (margin + sideX)
+} {
+  const mainW = Math.floor(contentWidth * MAIN_RATIO);
+  const sideW = Math.floor(contentWidth * SIDEBAR_RATIO);
+  const sideX = mainW + SIDEBAR_GAP;
+  return { mainW, sideW, sideX, sideXAbs: 0 }; // sideXAbs calculated at call site with margin
+}
+
+
 
 // ── Mapa de Emojis a Texto WinAnsi Seguro ─────────────────────────────────────
 const EMOJI_TO_TEXT: Record<string, string> = {
@@ -125,6 +218,9 @@ export async function renderWorkbookToPdf(
     format: 'letter',
   });
 
+  // V7: Inicializar fuentes editoriales oficiales (Lato Regular/Bold + Montserrat Bold)
+  loadEditorialFonts(doc);
+
   const pageWidth = doc.internal.pageSize.getWidth();   // 215.9 mm
   const pageHeight = doc.internal.pageSize.getHeight(); // 279.4 mm
   const margin = 14;
@@ -158,6 +254,10 @@ export async function renderWorkbookToPdf(
     forceFallback: options.forceFallbackCover,
   };
 
+  // Mapa de contexto por página para la segunda pasada de cabeceras y pies editoriales
+  const pageContextMap = new Map<number, PageContext>();
+  pageContextMap.set(1, { isSpecialPage: true, uacName: coverOpts.uacName });
+
   // ── 1. Portada Editorial Personalizada (Fase V2) ───────────────────────────
   if (options.coverBuffer) {
     doc.addImage(options.coverBuffer, 'JPEG', 0, 0, pageWidth, pageHeight);
@@ -185,12 +285,14 @@ export async function renderWorkbookToPdf(
   if (hasPlantelData) {
     doc.addPage();
     plantelPageNumber = doc.getNumberOfPages();
+    pageContextMap.set(plantelPageNumber, { isSpecialPage: true, uacName: coverOpts.uacName });
     drawPlantelComunidadPage(doc, workbook, planning, margin, contentWidth, pageHeight);
   }
 
   // ── 3. Índice de Misiones (Página Reservada para TOC Real) ───────────────────
   doc.addPage();
   const tocPageNumber = doc.getNumberOfPages();
+  pageContextMap.set(tocPageNumber, { isSpecialPage: true, uacName: coverOpts.uacName });
   const tocStartY = margin + 6;
 
   // ── 4. Misiones Didácticas ─────────────────────────────────────────────────
@@ -214,6 +316,14 @@ export async function renderWorkbookToPdf(
       pageNumber: missionStartPage,
     });
 
+    pageContextMap.set(missionStartPage, {
+      uacName: workbook.coverData.subjectName,
+      missionTitle: `Misión ${i + 1}: ${cleanTitle}`,
+      missionColor: getMomentColor(i + 1),
+      blockName: workbook.blockName,
+      sectionLabel: `Misión ${i + 1}`,
+    });
+
     currentY = margin + 8;
     currentY = await drawMission(
       doc,
@@ -227,7 +337,9 @@ export async function renderWorkbookToPdf(
       workbook.coverData.subjectName,
       planning?.id,
       workbook.blockIndex,
-      usedOpenverseAssets
+      usedOpenverseAssets,
+      pageContextMap,
+      workbook.blockName
     );
   }
 
@@ -235,6 +347,13 @@ export async function renderWorkbookToPdf(
   if (workbook.projectSection) {
     doc.addPage();
     const projectStartPage = doc.getNumberOfPages();
+    pageContextMap.set(projectStartPage, {
+      uacName: workbook.coverData.subjectName,
+      missionTitle: 'Proyecto Integrador PAEC',
+      missionColor: NAVY,
+      blockName: workbook.blockName,
+      sectionLabel: 'Proyecto PAEC',
+    });
     realTocEntries.push({
       sectionLabel: 'Proyecto PAEC',
       title: workbook.projectSection.artifactName || 'Proyecto Integrador Comunitario',
@@ -249,6 +368,13 @@ export async function renderWorkbookToPdf(
   if (workbook.evaluationSection) {
     doc.addPage();
     const evalStartPage = doc.getNumberOfPages();
+    pageContextMap.set(evalStartPage, {
+      uacName: workbook.coverData.subjectName,
+      missionTitle: 'Evaluación Formativa y Autovaloración',
+      missionColor: NAVY,
+      blockName: workbook.blockName,
+      sectionLabel: 'Evaluación NEM',
+    });
     realTocEntries.push({
       sectionLabel: 'Evaluación NEM',
       title: 'Evaluación Formativa y Autovaloración',
@@ -267,6 +393,13 @@ export async function renderWorkbookToPdf(
 
   // ── 8. Página de Créditos Institucionales y Atribuciones Creative Commons (Fase V5) ──
   doc.addPage();
+  const creditsPageNumber = doc.getNumberOfPages();
+  pageContextMap.set(creditsPageNumber, {
+    uacName: workbook.coverData.subjectName,
+    missionTitle: 'Créditos y Atribuciones',
+    missionColor: NAVY,
+    blockName: workbook.blockName,
+  });
   const uniqueOpenverseAssets = deduplicateMediaAssets(usedOpenverseAssets);
   const bookHash = crypto
     .createHash('sha256')
@@ -285,6 +418,8 @@ export async function renderWorkbookToPdf(
 
   // ── 9. Contraportada Institucional con QR y Sello Criptográfico ───────────
   doc.addPage();
+  const contraportadaPageNumber = doc.getNumberOfPages();
+  pageContextMap.set(contraportadaPageNumber, { isSpecialPage: true, uacName: coverOpts.uacName });
   const contraportadaData = await generateContraportadaData({ ...coverOpts, hash: bookHash }).catch((e) => {
     logger.warn('[pdf-workbook-renderer] Error generando datos de contraportada:', e);
     return null;
@@ -294,7 +429,7 @@ export async function renderWorkbookToPdf(
     drawContraportadaPage(doc, contraportadaData, pageWidth, pageHeight, margin);
   }
 
-  // ── 10. SEGUNDA PASADA: Encabezados y Pies de Página en Páginas Interiores (Fase V5) ──
+  // ── 10. SEGUNDA PASADA: Encabezados y Pies de Página Editoriales ───────────
   // Ajuste 2: Se ejecuta estrictamente después de renderizar todo el contenido.
   // Excluye con variables dinámicas: Portada (1), Plantel (si existe), TOC y Contraportada.
   const totalPages = doc.getNumberOfPages();
@@ -307,81 +442,56 @@ export async function renderWorkbookToPdf(
   }
   excludedPages.add(totalPages); // Contraportada
 
-  const shortSubject = sanitizePdfText(
-    workbook.coverData.subjectName.length > 42
-      ? workbook.coverData.subjectName.slice(0, 39) + '...'
-      : workbook.coverData.subjectName
-  );
-
-  const rawSchool = workbook.coverData?.schoolName || 'BGE';
-  const schoolSigla = sanitizePdfText(
-    rawSchool
-      .replace(/Bachillerato General (Estatal|Oficial)\s*/i, '')
-      .replace(/Preparatoria Abierta\s*/i, '')
-      .slice(0, 26)
-      .trim() || 'DBEPA'
-  );
-  const cctClean = sanitizePdfText(workbook.coverData?.cct || '');
-  const footerSchoolText = cctClean ? `${schoolSigla} (${cctClean})` : schoolSigla;
-
   for (let p = 1; p <= totalPages; p++) {
     doc.setPage(p);
 
-    // Exclusión estricta de portada, plantel, TOC y contraportada (sin headers ni footers)
     if (excludedPages.has(p)) {
       continue;
     }
 
-    // Determinar color de acento según la sección de la página
-    let accentColor: [number, number, number] = NAVY;
-    for (let idx = realTocEntries.length - 1; idx >= 0; idx--) {
-      if (p >= realTocEntries[idx].pageNumber) {
-        if (realTocEntries[idx].sectionLabel.startsWith('Misión')) {
-          const momentColors: [number, number, number][] = [
-            SECTION_COLORS.yoHago,
-            SECTION_COLORS.hacemos,
-            SECTION_COLORS.tuHaces,
-            SECTION_COLORS.checkpoint,
-          ];
-          accentColor = momentColors[idx % momentColors.length];
-        } else if (realTocEntries[idx].sectionLabel.includes('PAEC')) {
-          accentColor = SECTION_COLORS.resiliencia;
-        } else if (realTocEntries[idx].sectionLabel.includes('Evaluación')) {
-          accentColor = SECTION_COLORS.evaluacion;
+    let ctx = pageContextMap.get(p);
+    if (ctx?.isSpecialPage) {
+      continue;
+    }
+
+    // Si una página interna no tiene contexto explícito, heredar del anterior no especial
+    if (!ctx) {
+      for (let prev = p - 1; prev >= 1; prev--) {
+        const prevCtx = pageContextMap.get(prev);
+        if (prevCtx && !prevCtx.isSpecialPage) {
+          ctx = prevCtx;
+          pageContextMap.set(p, ctx);
+          break;
         }
-        break;
       }
     }
 
-    // Banda superior con color de acento del momento
-    doc.setFillColor(...accentColor);
-    doc.rect(margin, 7.8, contentWidth, 0.9, 'F');
+    const uacName = ctx?.uacName || workbook.coverData.subjectName;
+    const missionTitle = ctx?.missionTitle;
+    const missionColor = ctx?.missionColor || NAVY;
 
-    // Texto de encabezado interior
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.5);
-    doc.setTextColor(...MUTED_TEXT);
-    doc.text(
-      `${shortSubject} · ${workbook.blockName} — DBEPA Puebla`,
+    // Cabecera Editorial oficial V7
+    drawPageHeader(doc, {
+      uacName,
+      missionTitle,
       margin,
-      11.5
-    );
+      contentWidth,
+      y: 8,
+      missionColor,
+      isEvenPage: p % 2 === 0,
+    });
 
-    // Línea divisoria sutil inferior
-    doc.setDrawColor(226, 232, 240);
-    doc.setLineWidth(0.2);
-    doc.line(margin, 12.8, pageWidth - margin, 12.8);
-
-    // Footer interior con numeración continua real sobre totalPages
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.5);
-    doc.setTextColor(...MUTED_TEXT);
-    doc.text(
-      `Cuaderno de Aprendizaje Activo · Pág. ${p} de ${totalPages} · ${footerSchoolText}`,
-      pageWidth / 2,
-      pageHeight - 7,
-      { align: 'center' }
-    );
+    // Pie de Página Editorial oficial V7
+    drawPageFooter(doc, {
+      schoolName: workbook.coverData?.schoolName,
+      cct: workbook.coverData?.cct,
+      pageNum: p,
+      totalPages,
+      margin,
+      contentWidth,
+      pageHeight,
+      blockName: ctx?.blockName || workbook.blockName,
+    });
   }
 
   return Buffer.from(doc.output('arraybuffer'));
@@ -422,26 +532,26 @@ function drawCoverPage(
     }
   }
 
-  doc.setFont('helvetica', 'bold');
+  setFontBody(doc, 'bold');
   doc.setFontSize(10);
   doc.setTextColor(255, 255, 255);
   doc.text('SECRETARÍA DE EDUCACIÓN PÚBLICA DE PUEBLA', pageWidth / 2, 22, { align: 'center' });
 
   y = 38;
 
-  doc.setFont('helvetica', 'bold');
+  setFontBody(doc, 'bold');
   doc.setFontSize(9);
   doc.setTextColor(...MID_BLUE);
   doc.text('DIRECCIÓN DE BACHILLERATOS ESTATALES Y PREPARATORIA ABIERTA (DBEPA)', pageWidth / 2, y, { align: 'center' });
 
   y += 7;
-  doc.setFont('helvetica', 'bold');
+  setFontBody(doc, 'bold');
   doc.setFontSize(11);
   doc.setTextColor(...DARK_TEXT);
   doc.text(workbook.coverData.schoolName || 'Bachillerato del Estado de Puebla', pageWidth / 2, y, { align: 'center' });
 
   y += 5;
-  doc.setFont('helvetica', 'normal');
+  setFontBody(doc, 'normal');
   doc.setFontSize(8.5);
   doc.setTextColor(...MUTED_TEXT);
   doc.text(
@@ -459,20 +569,35 @@ function drawCoverPage(
   doc.setLineWidth(0.6);
   doc.roundedRect(margin, y, pageWidth - margin * 2, 55, 3, 3, 'S');
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
+  // -- Título de portada: ajuste adaptativo para caber en 1 sola línea --
+  // Reduce el tamaño de fuente desde 18pt hasta 12pt (umbral de legibilidad)
+  // antes de permitir el salto a 2 líneas.
   const coverTitle = (workbook.coverData.title || workbook.blockName || workbook.coverData.subjectName || 'CUADERNO DE APRENDIZAJE ACTIVO').toUpperCase();
-  const titleLines = doc.splitTextToSize(coverTitle, pageWidth - margin * 2 - 16);
-  doc.text(titleLines, pageWidth / 2, y + 16, { align: 'center' });
+  const maxTitleW = pageWidth - margin * 2 - 16;
+  let titleFontSize = 18;
+  const MIN_TITLE_SIZE = 12;
+  // Reducir tamaño hasta que quede en 1 línea o lleguemos al mínimo
+  while (titleFontSize > MIN_TITLE_SIZE) {
+    doc.setFontSize(titleFontSize);
+    const testLines = doc.splitTextToSize(coverTitle, maxTitleW);
+    if (testLines.length <= 1) break;
+    titleFontSize -= 0.5;
+  }
+  setFontBody(doc, 'bold');
+  doc.setFontSize(titleFontSize);
+  doc.setTextColor(...DARK_TEXT);
+  const titleLines = doc.splitTextToSize(coverTitle, maxTitleW);
+  doc.text(titleLines.slice(0, 2), pageWidth / 2, y + 16, { align: 'center' });
 
-  doc.setFont('helvetica', 'italic');
+
+  setFontCaption(doc);
   doc.setFontSize(9.5);
   doc.setTextColor(...GOLD);
   const coverSub = workbook.coverData.subtitle || workbook.blockName || 'Bachillerato General Estatal · MCCEMS Puebla';
   const subLines = doc.splitTextToSize(coverSub, pageWidth - margin * 2 - 16);
   doc.text(subLines, pageWidth / 2, y + 30, { align: 'center' });
 
-  doc.setFont('helvetica', 'bold');
+  setFontBody(doc, 'bold');
   doc.setFontSize(10.5);
   doc.setTextColor(...DARK_TEXT);
   doc.text(
@@ -485,12 +610,12 @@ function drawCoverPage(
   y += 68;
 
   // Proyecto PAEC
-  doc.setFont('helvetica', 'bold');
+  setFontBody(doc, 'bold');
   doc.setFontSize(9);
   doc.setTextColor(...NAVY);
   doc.text('PROYECTO COMUNITARIO ESCOLAR (PAEC):', margin + 4, y);
   y += 5;
-  doc.setFont('helvetica', 'italic');
+  setFontCaption(doc);
   doc.setFontSize(8.5);
   doc.setTextColor(...DARK_TEXT);
   const paecLines = doc.splitTextToSize(
@@ -501,7 +626,7 @@ function drawCoverPage(
   y += paecLines.length * 4.5 + 8;
 
   // Datos de Estudiante y Docente
-  doc.setFont('helvetica', 'bold');
+  setFontBody(doc, 'bold');
   doc.setFontSize(9);
   doc.setTextColor(...DARK_TEXT);
   const teacherText = `Docente Titular: ${workbook.coverData.teacherName || 'Docente de Bachillerato'}`;
@@ -538,20 +663,20 @@ function drawCreditsPage(
   // 1. Encabezado de la Página de Créditos
   doc.setFillColor(...NAVY);
   doc.rect(margin, y, contentWidth, 8, 'F');
-  doc.setFont('helvetica', 'bold');
+  setFontBody(doc, 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(255, 255, 255);
   doc.text('CRÉDITOS INSTITUCIONALES Y ATRIBUCIONES LEGALES', margin + contentWidth / 2, y + 5.5, { align: 'center' });
   y += 12;
 
   // Subtítulo y Marco Curricular
-  doc.setFont('helvetica', 'bold');
+  setFontBody(doc, 'bold');
   doc.setFontSize(8);
   doc.setTextColor(...DARK_TEXT);
   doc.text('MARCO CURRICULAR COMÚN DE LA EDUCACIÓN MEDIA SUPERIOR (MCCEMS 2026-2027)', margin, y);
   y += 4.5;
 
-  doc.setFont('helvetica', 'normal');
+  setFontBody(doc, 'normal');
   doc.setFontSize(7.2);
   doc.setTextColor(...MUTED_TEXT);
   const introLines = doc.splitTextToSize(
@@ -562,7 +687,7 @@ function drawCreditsPage(
   y += introLines.length * 3.3 + 4;
 
   // 2. Sección de Atribuciones Creative Commons
-  doc.setFont('helvetica', 'bold');
+  setFontBody(doc, 'bold');
   doc.setFontSize(8);
   doc.setTextColor(...MID_BLUE);
   doc.text('RECURSOS VISUALES Y ATRIBUCIONES CREATIVE COMMONS', margin, y);
@@ -609,7 +734,7 @@ function drawCreditsPage(
     doc.roundedRect(margin, y, contentWidth, 14, 2, 2, 'F');
     doc.setDrawColor(226, 232, 240);
     doc.roundedRect(margin, y, contentWidth, 14, 2, 2, 'S');
-    doc.setFont('helvetica', 'italic');
+    setFontCaption(doc);
     doc.setFontSize(7);
     doc.setTextColor(...DARK_TEXT);
     const noPhotoLines = doc.splitTextToSize(
@@ -621,7 +746,7 @@ function drawCreditsPage(
   }
 
   // 3. Directorio Institucional y Equipo Editorial
-  doc.setFont('helvetica', 'bold');
+  setFontBody(doc, 'bold');
   doc.setFontSize(8);
   doc.setTextColor(...NAVY);
   doc.text('DIRECTORIO INSTITUCIONAL Y PRODUCCIÓN EDITORIAL', margin, y);
@@ -663,7 +788,7 @@ function drawCreditsPage(
   doc.roundedRect(margin, y, contentWidth, 14, 2, 2, 'F');
   doc.setDrawColor(203, 213, 225);
   doc.roundedRect(margin, y, contentWidth, 14, 2, 2, 'S');
-  doc.setFont('helvetica', 'bold');
+  setFontBody(doc, 'bold');
   doc.setFontSize(7);
   doc.setTextColor(...NAVY);
   doc.text('FOLIO DIGITAL DE AUTENTICIDAD CRIPTOGRÁFICA (SHA-256):', margin + 3, y + 4.5);
@@ -695,7 +820,7 @@ function drawContraportadaPage(
   doc.setFillColor(...GOLD);
   doc.rect(0, 27, pageWidth, 1.5, 'F');
 
-  doc.setFont('helvetica', 'bold');
+  setFontBody(doc, 'bold');
   doc.setFontSize(9.5);
   doc.setTextColor(255, 255, 255);
   doc.text(
@@ -715,7 +840,7 @@ function drawContraportadaPage(
   // Encabezado de la tarjeta
   doc.setFillColor(...NAVY);
   doc.rect(margin, y, contentWidth, 14, 'F');
-  doc.setFont('helvetica', 'bold');
+  setFontBody(doc, 'bold');
   doc.setFontSize(9.5);
   doc.setTextColor(255, 255, 255);
   doc.text('FICHA DE ACREDITACIÓN CURRICULAR Y SELLO INSTITUCIONAL', pageWidth / 2, y + 9.5, {
@@ -736,12 +861,12 @@ function drawContraportadaPage(
   ];
 
   for (const item of dataItems) {
-    doc.setFont('helvetica', 'bold');
+    setFontBody(doc, 'bold');
     doc.setFontSize(8.5);
     doc.setTextColor(...NAVY);
     doc.text(item.label, margin + 8, y);
 
-    doc.setFont('helvetica', 'normal');
+    setFontBody(doc, 'normal');
     doc.setFontSize(8.5);
     doc.setTextColor(...DARK_TEXT);
     doc.text(item.value, margin + 46, y);
@@ -774,7 +899,7 @@ function drawContraportadaPage(
   y += qrBoxSize + 14;
 
   // Folio y Leyendas
-  doc.setFont('helvetica', 'bold');
+  setFontBody(doc, 'bold');
   doc.setFontSize(9);
   doc.setTextColor(...NAVY);
   doc.text('FOLIO DE CONTROL CRIPTOGRÁFICO INSTITUCIONAL:', pageWidth / 2, y, { align: 'center' });
@@ -786,7 +911,7 @@ function drawContraportadaPage(
   doc.text(data.hash.slice(0, 36) + '...', pageWidth / 2, y, { align: 'center' });
 
   y += 6;
-  doc.setFont('helvetica', 'normal');
+  setFontBody(doc, 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(...MUTED_TEXT);
   doc.text(`Enlace de validación: ${data.verificationUrl}`, pageWidth / 2, y, { align: 'center' });
@@ -798,12 +923,12 @@ function drawContraportadaPage(
   doc.setLineWidth(0.4);
   doc.roundedRect(margin, y, contentWidth, 30, 3, 3, 'FD');
 
-  doc.setFont('helvetica', 'bold');
+  setFontBody(doc, 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(...NAVY);
   doc.text('AVISO DE INTEGRIDAD Y DERECHOS CURRICULARES MCCEMS', margin + 6, y + 6);
 
-  doc.setFont('helvetica', 'normal');
+  setFontBody(doc, 'normal');
   doc.setFontSize(6.8);
   doc.setTextColor(...MUTED_TEXT);
   const legalLines = [
@@ -820,7 +945,7 @@ function drawContraportadaPage(
   // Franja inferior
   doc.setFillColor(...NAVY);
   doc.rect(0, pageHeight - 12, pageWidth, 12, 'F');
-  doc.setFont('helvetica', 'normal');
+  setFontBody(doc, 'normal');
   doc.setFontSize(7);
   doc.setTextColor(255, 255, 255);
   doc.text(
@@ -882,7 +1007,7 @@ function drawVisualAnnotations(
     // Escalar tamaño de fuente proporcionalmente
     const scaledSize = Math.max(4, ann.fontSize * scaleX * 2.6);
     doc.setFontSize(scaledSize);
-    doc.setFont('helvetica', ann.bold ? 'bold' : 'normal');
+    setFontBody(doc, ann.bold ? 'bold' : 'normal');
 
     // Parsear color hex a RGB
     const hex = (ann.color || '#1e293b').replace('#', '');
@@ -913,14 +1038,16 @@ export function printParagraph(
     fontName?: 'helvetica' | 'courier';
     color?: [number, number, number];
     lineHeight?: number;
+    justify?: boolean;
   } = {}
 ): number {
   const {
-    size = 8.5,
+    size = 9.0,
     fontStyle = 'normal',
     fontName = 'helvetica',
     color = DARK_TEXT,
-    lineHeight = 4.2,
+    lineHeight = 4.8,
+    justify = true,
   } = options;
 
   // Sanitizar texto en una sola pasada al inicio: elimina asteriscos markdown y caracteres no-WinAnsi
@@ -941,7 +1068,12 @@ export function printParagraph(
       doc.setFontSize(size);
       doc.setTextColor(...color);
     }
-    doc.text(lines[i], margin, y);
+    const isLastLine = i === lines.length - 1;
+    if (justify && !isLastLine) {
+      doc.text(lines[i], margin, y, { maxWidth: contentWidth, align: 'justify' });
+    } else {
+      doc.text(lines[i], margin, y);
+    }
     y += lineHeight;
   }
 
@@ -1038,12 +1170,12 @@ function drawRealTableOfContents(
   contentWidth: number,
   startY: number
 ) {
-  doc.setFont('helvetica', 'bold');
+  setFontBody(doc, 'bold');
   doc.setFontSize(12);
   doc.setTextColor(...NAVY);
   doc.text('ÍNDICE GENERAL Y DOSIFICACIÓN DIDÁCTICA', margin, startY);
 
-  doc.setFont('helvetica', 'normal');
+  setFontBody(doc, 'normal');
   doc.setFontSize(8.5);
   doc.setTextColor(...DARK_TEXT);
   doc.text(
@@ -1101,20 +1233,20 @@ function drawPlantelComunidadPage(
   doc.setFillColor(...GOLD);
   doc.rect(margin, y + 11.2, contentWidth, 0.8, 'F');
 
-  doc.setFont('helvetica', 'bold');
+  setFontBody(doc, 'bold');
   doc.setFontSize(10.5);
   doc.setTextColor(255, 255, 255);
   doc.text('IDENTIDAD DEL PLANTEL Y VINCULACIÓN COMUNITARIA', margin + 5, y + 8);
 
   y += 18;
 
-  doc.setFont('helvetica', 'bold');
+  setFontBody(doc, 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(...NAVY);
   doc.text(`DIRECCIÓN DE BACHILLERATOS ESTATALES Y PREPARATORIA ABIERTA · MCCEMS ${SCHOOL_YEAR}`, margin, y);
   y += 5;
 
-  doc.setFont('helvetica', 'normal');
+  setFontBody(doc, 'normal');
   doc.setFontSize(7.8);
   doc.setTextColor(...DARK_TEXT);
   doc.text(
@@ -1167,7 +1299,7 @@ function drawPlantelComunidadPage(
   y = doc.lastAutoTable!.finalY + 8;
 
   // Bloque PAEC
-  doc.setFont('helvetica', 'bold');
+  setFontBody(doc, 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(...NAVY);
   doc.text('Proyecto de Aula, Escuela y Comunidad (PAEC) — Eje Articulador Territorial:', margin, y);
@@ -1198,7 +1330,7 @@ function drawPlantelComunidadPage(
 
   // Cuadro de Compromisos y Acreditación de Firmas
   y = ensureVerticalSpace(doc, y, 32, margin, pageHeight);
-  doc.setFont('helvetica', 'bold');
+  setFontBody(doc, 'bold');
   doc.setFontSize(8);
   doc.setTextColor(...NAVY);
   doc.text('Validación Colegiada y Autorización Escolar:', margin, y);
@@ -1211,11 +1343,11 @@ function drawPlantelComunidadPage(
   doc.setDrawColor(180, 190, 205);
   doc.setLineWidth(0.4);
   doc.line(margin, sigY, margin + colW, sigY);
-  doc.setFont('helvetica', 'normal');
+  setFontBody(doc, 'normal');
   doc.setFontSize(6.8);
   doc.setTextColor(...DARK_TEXT);
   doc.text('Docente Titular de la UAC', margin + colW / 2, sigY + 3.5, { align: 'center' });
-  doc.setFont('helvetica', 'italic');
+  setFontCaption(doc);
   doc.setFontSize(6);
   doc.setTextColor(...MUTED_TEXT);
   doc.text('Firma y Fecha de Aplicación', margin + colW / 2, sigY + 6.5, { align: 'center' });
@@ -1223,11 +1355,11 @@ function drawPlantelComunidadPage(
   // Línea 2: Presidente de Academia
   const col2X = margin + colW + 5;
   doc.line(col2X, sigY, col2X + colW, sigY);
-  doc.setFont('helvetica', 'normal');
+  setFontBody(doc, 'normal');
   doc.setFontSize(6.8);
   doc.setTextColor(...DARK_TEXT);
   doc.text('Presidente de Academia de Área', col2X + colW / 2, sigY + 3.5, { align: 'center' });
-  doc.setFont('helvetica', 'italic');
+  setFontCaption(doc);
   doc.setFontSize(6);
   doc.setTextColor(...MUTED_TEXT);
   doc.text('Validación Pedagógica Colegiada', col2X + colW / 2, sigY + 6.5, { align: 'center' });
@@ -1235,11 +1367,11 @@ function drawPlantelComunidadPage(
   // Línea 3: Dirección del Plantel
   const col3X = col2X + colW + 5;
   doc.line(col3X, sigY, col3X + colW, sigY);
-  doc.setFont('helvetica', 'normal');
+  setFontBody(doc, 'normal');
   doc.setFontSize(6.8);
   doc.setTextColor(...DARK_TEXT);
   doc.text('Dirección del Plantel / Sello CCT', col3X + colW / 2, sigY + 3.5, { align: 'center' });
-  doc.setFont('helvetica', 'italic');
+  setFontCaption(doc);
   doc.setFontSize(6);
   doc.setTextColor(...MUTED_TEXT);
   doc.text('Autorización y Resguardo Escolar', col3X + colW / 2, sigY + 6.5, { align: 'center' });
@@ -1249,7 +1381,7 @@ function drawPdfGlossaryBox(
   doc: jsPDF,
   terms: GlossaryItem[],
   margin: number,
-  contentWidth: number,
+  drawWidth: number,   // CONTRATO: debe ser mainW cuando se llama desde drawMission
   pageHeight: number,
   startY: number
 ): number {
@@ -1260,9 +1392,12 @@ function drawPdfGlossaryBox(
     definition: sanitizePdfText(stripMarkdown(t.definition)),
   }));
 
+  // GUARDIÁN: ancho de texto clampeado
+  const safeTermW = clampTextWidth(drawWidth, drawWidth, 14);
+
   let totalDefLines = 0;
   for (const item of cleanTerms) {
-    const lines = doc.splitTextToSize(`${item.term}: ${item.definition}`, contentWidth - 14);
+    const lines = doc.splitTextToSize(`${item.term}: ${item.definition}`, safeTermW);
     totalDefLines += lines.length;
   }
   const boxHeight = Math.max(18, 9 + totalDefLines * 3.8);
@@ -1270,33 +1405,35 @@ function drawPdfGlossaryBox(
   let y = ensureVerticalSpace(doc, startY, boxHeight + 4, margin, pageHeight);
 
   doc.setFillColor(248, 250, 252);
-  doc.roundedRect(margin, y, contentWidth, boxHeight, 1.5, 1.5, 'F');
+  doc.roundedRect(margin, y, drawWidth, boxHeight, 1.5, 1.5, 'F');
 
   doc.setFillColor(...VINO_PUEBLA);
   doc.roundedRect(margin, y, 3.5, boxHeight, 1.2, 1.2, 'F');
 
   doc.setDrawColor(226, 232, 240);
   doc.setLineWidth(0.3);
-  doc.roundedRect(margin, y, contentWidth, boxHeight, 1.5, 1.5, 'S');
+  doc.roundedRect(margin, y, drawWidth, boxHeight, 1.5, 1.5, 'S');
 
-  doc.setFont('helvetica', 'bold');
+  setFontBody(doc, 'bold');
   doc.setFontSize(8.2);
   doc.setTextColor(...VINO_PUEBLA);
-  doc.text('GLOSARIO CONCEPTUAL CLAVE DE LA MISIÓN (MCCEMS):', margin + 7, y + 4.8);
+  doc.text('GLOSARIO CONCEPTUAL CLAVE DE LA MISION (MCCEMS):', margin + 7, y + 4.8);
 
   let textY = y + 8.8;
   for (const item of cleanTerms) {
-    doc.setFont('helvetica', 'bold');
+    setFontBody(doc, 'bold');
     doc.setFontSize(7.6);
     doc.setTextColor(...NAVY);
     const prefix = `• ${item.term}: `;
     doc.text(prefix, margin + 7, textY);
     const prefixWidth = doc.getTextWidth(prefix);
 
-    doc.setFont('helvetica', 'normal');
+    setFontBody(doc, 'normal');
     doc.setFontSize(7.4);
     doc.setTextColor(...DARK_TEXT);
-    const defLines = doc.splitTextToSize(item.definition, contentWidth - 14 - prefixWidth);
+    // GUARDIÁN: la definición nunca supera safeTermW - prefixWidth
+    const safeDefW = clampTextWidth(drawWidth, drawWidth, 14 + prefixWidth);
+    const defLines = doc.splitTextToSize(item.definition, safeDefW);
     doc.text(defLines, margin + 7 + prefixWidth, textY);
     textY += Math.max(4.2, defLines.length * 3.6 + 1.5);
   }
@@ -1309,7 +1446,7 @@ async function drawMissionQrBox(
   verificationUrl: string,
   missionHash: string,
   margin: number,
-  contentWidth: number,
+  drawWidth: number,   // CONTRATO: debe ser mainW cuando se llama desde drawMission
   pageHeight: number,
   startY: number
 ): Promise<number> {
@@ -1317,14 +1454,14 @@ async function drawMissionQrBox(
   let y = ensureVerticalSpace(doc, startY, boxHeight + 4, margin, pageHeight);
 
   doc.setFillColor(248, 250, 252);
-  doc.roundedRect(margin, y, contentWidth, boxHeight, 1.5, 1.5, 'F');
+  doc.roundedRect(margin, y, drawWidth, boxHeight, 1.5, 1.5, 'F');
 
   doc.setFillColor(...NAVY);
   doc.roundedRect(margin, y, 3.5, boxHeight, 1.2, 1.2, 'F');
 
   doc.setDrawColor(203, 213, 225);
   doc.setLineWidth(0.3);
-  doc.roundedRect(margin, y, contentWidth, boxHeight, 1.5, 1.5, 'S');
+  doc.roundedRect(margin, y, drawWidth, boxHeight, 1.5, 1.5, 'S');
 
   try {
     const qrBuffer = await QRCode.toBuffer(verificationUrl, {
@@ -1335,30 +1472,39 @@ async function drawMissionQrBox(
     });
     doc.addImage(qrBuffer, 'PNG', margin + 6, y + 3, 16, 16);
   } catch (err) {
-    logger.warn('[pdf-workbook-renderer] Error generando QR de misión:', err);
+    logger.warn('[pdf-workbook-renderer] Error generando QR de mision:', err);
   }
 
   const textX = margin + 26;
-  const availW = contentWidth - 30;
+  // GUARDIÁN: el texto de verificación nunca excede drawWidth
+  const availW = clampTextWidth(drawWidth, drawWidth, 30);
 
-  doc.setFont('helvetica', 'bold');
+  setFontBody(doc, 'bold');
   doc.setFontSize(7.8);
   doc.setTextColor(...NAVY);
   doc.text('VERIFICACIÓN Y TRAZABILIDAD CURRICULAR (MCCEMS)', textX, y + 5.5);
 
-  doc.setFont('helvetica', 'normal');
+  setFontBody(doc, 'normal');
   doc.setFontSize(6.8);
   doc.setTextColor(...DARK_TEXT);
   const legend = 'Verifica este material · Escanea el código QR para constatar la autoría docente oficial, progresión de aprendizaje y sello de acreditación institucional.';
   const legendLines = doc.splitTextToSize(legend, availW);
   doc.text(legendLines, textX, y + 9.2);
 
-  doc.setFont('helvetica', 'italic');
+  setFontCaption(doc);
   doc.setFontSize(6.2);
   doc.setTextColor(...MUTED_TEXT);
   doc.text(`Sello Digital: ${missionHash.slice(0, 24)}... · DBEPA Puebla · ${SCHOOL_YEAR}`, textX, y + 18.5);
 
   return y + boxHeight + 4;
+}
+
+/**
+ * Retorna el color de acento editorial para una misión según su número.
+ * Obtiene el color funcional desde el token system central (COLOR.MISSION).
+ */
+function getMomentColor(missionNumber: number): RGB {
+  return getMissionColor(missionNumber);
 }
 
 function drawSectionHeader(
@@ -1368,105 +1514,34 @@ function drawSectionHeader(
   contentWidth: number,
   y: number,
   pageHeight: number,
-  themeColor: [number, number, number] = NAVY
+  themeColor: [number, number, number] = NAVY,
+  ensureSpaceFn?: (y: number, neededH: number) => number
 ): number {
   const ribbonHeight = 7.5;
-  y = ensureVerticalSpace(doc, y, ribbonHeight + 8, margin, pageHeight);
-
-  // Fondo sutil de tarjeta
-  doc.setFillColor(241, 245, 249); // slate-100 suave
-  doc.roundedRect(margin, y, contentWidth, ribbonHeight, 1.2, 1.2, 'F');
-
-  // Franja o píldora lateral con el color temático
-  doc.setFillColor(...themeColor);
-  doc.roundedRect(margin, y, 4, ribbonHeight, 1.2, 1.2, 'F');
-
-  // Borde inferior sutil
-  doc.setDrawColor(...themeColor);
-  doc.setLineWidth(0.3);
-  doc.line(margin + 4, y + ribbonHeight, margin + contentWidth, y + ribbonHeight);
-
-  // Título en negrita estilizado
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8.5);
-  doc.setTextColor(...themeColor);
-  doc.text(sanitizePdfText(stripMarkdown(title)).toUpperCase(), margin + 7, y + 5.1);
-
-  return y + ribbonHeight + 4.5;
+  const checkSpace = ensureSpaceFn || ((cy: number, nh: number) => ensureVerticalSpace(doc, cy, nh, margin, pageHeight));
+  y = checkSpace(y, ribbonHeight + 8);
+  return drawSectionRibbon(doc, {
+    title,
+    margin,
+    drawWidth: contentWidth,
+    y,
+    themeColor,
+    ribbonHeight,
+  });
 }
 
 function drawPdfCallout(
   doc: jsPDF,
   callout: CalloutBoxData,
   margin: number,
-  contentWidth: number,
+  drawWidth: number,   // CONTRATO: debe ser mainW cuando se llama desde drawMission
   pageHeight: number,
-  y: number
+  y: number,
+  ensureSpaceFn?: (y: number, neededH: number) => number
 ): number {
-  const barColor = callout.accentRgb || [37, 99, 235];
-  const bgColor = callout.bgRgb || [239, 246, 255];
-
-  // Sanitizar título y construir badge 100% WinAnsi / ASCII
-  const rawIcon = callout.icon || '';
-  const iconText = EMOJI_TO_TEXT[rawIcon] || (rawIcon ? sanitizePdfText(rawIcon) : '') || '•';
-  const cleanTitle = sanitizePdfText(stripMarkdown(callout.title)).toUpperCase();
-  const badgeLabel = `[ ${iconText} · ${cleanTitle} ]`;
-
-  const cleanContent = sanitizePdfText(stripMarkdown(callout.content || callout.body || ''));
-  const cleanTakeaway = callout.keyTakeaway ? sanitizePdfText(stripMarkdown(callout.keyTakeaway)) : '';
-
-  const availableTextWidth = contentWidth - 12;
-  const contentLines = doc.splitTextToSize(cleanContent, availableTextWidth);
-  const takeawayLines = cleanTakeaway
-    ? doc.splitTextToSize(`• Clave: ${cleanTakeaway}`, availableTextWidth)
-    : [];
-
-  const textLinesCount = contentLines.length + takeawayLines.length;
-  const boxHeight = Math.max(18, 9 + textLinesCount * 3.8);
-
-  y = ensureVerticalSpace(doc, y, boxHeight + 4, margin, pageHeight);
-
-  // Fondo suave
-  doc.setFillColor(...bgColor);
-  doc.roundedRect(margin, y, contentWidth, boxHeight, 1.5, 1.5, 'F');
-
-  // Barra de acento izquierda
-  doc.setFillColor(...barColor);
-  doc.roundedRect(margin, y, 3.5, boxHeight, 1.2, 1.2, 'F');
-
-  // Borde exterior suave
-  doc.setDrawColor(226, 232, 240);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(margin, y, contentWidth, boxHeight, 1.5, 1.5, 'S');
-
-  // Badge / Título
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(...barColor);
-  doc.text(badgeLabel, margin + 7, y + 4.8);
-
-  // Contenido
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.8);
-  doc.setTextColor(...DARK_TEXT);
-  let textY = y + 8.5;
-  for (const line of contentLines) {
-    doc.text(line, margin + 7, textY);
-    textY += 3.7;
-  }
-
-  // Clave / Takeaway opcional
-  if (takeawayLines.length > 0) {
-    doc.setFont('helvetica', 'italic');
-    doc.setFontSize(7.5);
-    doc.setTextColor(...barColor);
-    for (const line of takeawayLines) {
-      doc.text(line, margin + 7, textY);
-      textY += 3.5;
-    }
-  }
-
-  return y + boxHeight + 4;
+  const checkSpace = ensureSpaceFn || ((cy: number, nh: number) => ensureVerticalSpace(doc, cy, nh, margin, pageHeight));
+  y = checkSpace(y, 22);
+  return drawCalloutBox(doc, callout, margin, drawWidth, y);
 }
 
 function drawPdfComparisonTable(
@@ -1475,16 +1550,18 @@ function drawPdfComparisonTable(
   margin: number,
   contentWidth: number,
   pageHeight: number,
-  y: number
+  y: number,
+  ensureSpaceFn?: (y: number, neededH: number) => number
 ): number {
   if (!tableData.rows || tableData.rows.length === 0) return y;
 
   const cleanTitle = tableData.title ? sanitizePdfText(stripMarkdown(tableData.title)) : '';
   const headerHeight = cleanTitle ? 10 : 4;
-  y = ensureVerticalSpace(doc, y, 32 + headerHeight, margin, pageHeight);
+  const checkSpace = ensureSpaceFn || ((cy: number, nh: number) => ensureVerticalSpace(doc, cy, nh, margin, pageHeight));
+  y = checkSpace(y, 32 + headerHeight);
 
   if (cleanTitle) {
-    doc.setFont('helvetica', 'bold');
+    setFontBody(doc, 'bold');
     doc.setFontSize(8.2);
     doc.setTextColor(...NAVY);
     doc.text(cleanTitle, margin, y);
@@ -1534,7 +1611,7 @@ function drawPdfComparisonTable(
   y = doc.lastAutoTable?.finalY ?? (y + 25);
 
   if (tableData.caption) {
-    doc.setFont('helvetica', 'italic');
+    setFontCaption(doc);
     doc.setFontSize(6.8);
     doc.setTextColor(...MUTED_TEXT);
     doc.text(tableData.caption, margin, y + 3.5);
@@ -1548,10 +1625,11 @@ function drawPracticeTasksWithDottedLines(
   doc: jsPDF,
   rawText: string,
   margin: number,
-  contentWidth: number,
+  drawWidth: number,   // CONTRATO: debe ser mainW cuando se llama desde drawMission
   pageHeight: number,
   y: number,
-  defaultTaskCount: number = 3
+  defaultTaskCount: number = 3,
+  ensureSpaceFn?: (y: number, neededH: number) => number
 ): number {
   if (!rawText) return y;
 
@@ -1576,7 +1654,7 @@ function drawPracticeTasksWithDottedLines(
 
   const selectedTasks = tasks.slice(0, 4);
   if (selectedTasks.length === 0) {
-    return printParagraph(doc, rawText, y, margin, contentWidth, pageHeight, {
+    return printParagraph(doc, rawText, y, margin, drawWidth, pageHeight, {
       size: 8,
       fontStyle: 'normal',
       color: DARK_TEXT,
@@ -1584,13 +1662,16 @@ function drawPracticeTasksWithDottedLines(
     });
   }
 
+  const checkSpace = ensureSpaceFn || ((cy: number, nh: number) => ensureVerticalSpace(doc, cy, nh, margin, pageHeight));
+
   for (let idx = 0; idx < selectedTasks.length; idx++) {
     const cleanTaskText = sanitizePdfText(stripMarkdown(selectedTasks[idx]));
-    const taskLines = doc.splitTextToSize(`[  ] Tarea ${idx + 1}: ${cleanTaskText}`, contentWidth - 4);
+    // GUARDIÁN: texto de tarea nunca excede drawWidth
+    const taskLines = doc.splitTextToSize(`[  ] Tarea ${idx + 1}: ${cleanTaskText}`, clampTextWidth(drawWidth, drawWidth, 4));
     const neededH = taskLines.length * 4 + 18;
-    y = ensureVerticalSpace(doc, y, neededH, margin, pageHeight);
+    y = checkSpace(y, neededH);
 
-    doc.setFont('helvetica', 'bold');
+    setFontBody(doc, 'bold');
     doc.setFontSize(7.8);
     doc.setTextColor(...DARK_TEXT);
     taskLines.forEach((tl: string, i: number) => {
@@ -1603,9 +1684,9 @@ function drawPracticeTasksWithDottedLines(
     doc.setLineDashPattern([1, 1.5], 0);
 
     y += 4.5;
-    doc.line(margin + 6, y, margin + contentWidth, y);
+    doc.line(margin + 6, y, margin + drawWidth, y);
     y += 4.5;
-    doc.line(margin + 6, y, margin + contentWidth, y);
+    doc.line(margin + 6, y, margin + drawWidth, y);
 
     doc.setLineDashPattern([], 0);
     y += 3.5;
@@ -1626,11 +1707,17 @@ async function drawMission(
   subjectName?: string,
   planningId?: string,
   blockIndex?: number,
-  openverseCollector?: ImageAsset[]
+  openverseCollector?: ImageAsset[],
+  pageContextMap?: Map<number, PageContext>,
+  blockName?: string
 ): Promise<number> {
   let y = startY;
 
-  // Franja de título de misión (sanitizada para evitar doble prefijo "Misión X: Misión X:")
+  // ── V7: Pre-calcular geometría de dos columnas ───────────────────────────────
+  const { mainW, sideW } = getSidebarLayout(contentWidth);
+  const sideXAbs = margin + mainW + SIDEBAR_GAP;
+
+  // Sanitizar título de misión
   const cleanMissionTitle = sanitizePdfText(stripMarkdown(
     mission.title
       .replace(/^\[.*?\]\s*/, '')
@@ -1638,81 +1725,158 @@ async function drawMission(
       .trim()
   ));
 
-  const titleText = `MISIÓN ${missionNumber}: ${cleanMissionTitle.toUpperCase()}`;
-  const titleLines = doc.splitTextToSize(titleText, contentWidth - 8);
-  const titleBoxH = Math.max(10, titleLines.length * 5 + 4);
-  y = ensureVerticalSpace(doc, y, titleBoxH + 4, margin, pageHeight);
-  doc.setFillColor(...NAVY);
-  doc.rect(margin, y, contentWidth, titleBoxH, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(255, 255, 255);
-  titleLines.forEach((line: string, idx: number) => {
-    doc.text(line, margin + 3, y + 5 + idx * 5);
-  });
-  y += titleBoxH + 4;
+  // Glosario para sidebar (extraído del coreExplanation)
+  const sidebarGlossary = extractGlossaryTerms(mission.conceptZero?.coreExplanation || '');
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(...MID_BLUE);
-  const subtitleText = sanitizePdfText(stripMarkdown(`Sesiones asignadas: ${mission.coveredSessions?.join(', ') || 'N/A'} | Enfoque: ${mission.sessionFocus}`));
-  const subtitleLines = doc.splitTextToSize(subtitleText, contentWidth);
-  y = ensureVerticalSpace(doc, y, subtitleLines.length * 4 + 2, margin, pageHeight);
-  subtitleLines.forEach((line: string, idx: number) => {
-    doc.text(line, margin, y + idx * 4);
+  // Conexión con vida real: provista en el tipo o extraída determinísticamente
+  const realLifeConn = mission.realLifeConnection ||
+    extractRealLifeConnection(
+      `${mission.phenomenonHook?.story || ''} ${mission.conceptZero?.coreExplanation || ''} ${mission.youDoSection?.autonomousChallenge || ''}`,
+      subjectName || 'la asignatura'
+    );
+
+  // Tip de seguridad: provisto o extraído
+  const safetyTip = mission.safetyOrWorkshopTip ||
+    extractSafetyOrCriticalTip(
+      `${mission.iDoSection?.stepByStepDemo || ''} ${mission.conceptZero?.coreExplanation || ''}`,
+      subsystem
+    );
+
+  // Hash QR de la misión (para sidebar)
+  const hashMission = crypto
+    .createHash('sha256')
+    .update(`${planningId || 'sigpda'}|${blockIndex ?? 0}|${missionNumber}`)
+    .digest('hex');
+  const missionVerificationUrl = getVerificationUrl(hashMission);
+
+  let qrBuf: Buffer | undefined;
+  try {
+    qrBuf = await QRCode.toBuffer(missionVerificationUrl, {
+      type: 'png',
+      margin: 1,
+      width: 120,
+      color: { dark: '#1F3864', light: '#FFFFFF' },
+    });
+  } catch {
+    /* QR opcional */
+  }
+
+  const momentColor = getMomentColor(missionNumber);
+
+  // ── V7 Nivel 1: Resolución de Imagen Contextual por Contenido (Equipo Técnico) ──
+  const equipmentVisual = await resolveEquipmentVisualForMission(mission, subjectName, {
+    preferSidebar: true,
   });
-  y += subtitleLines.length * 4 + 4;
+
+  if (equipmentVisual?.mediaAsset && openverseCollector) {
+    openverseCollector.push(equipmentVisual.mediaAsset);
+  }
+
+  // ── Capa 5: Motor de Flujo de Columnas y Sidebar Rotativo V7 ───────────────
+  const flow = new ColumnFlowManager({
+    doc,
+    margin,
+    contentWidth,
+    pageHeight,
+    mainW,
+    sideW,
+    sideXAbs,
+    pageContextMap: pageContextMap || new Map(),
+    subjectName: subjectName || 'UAC',
+    blockName: blockName || 'Bloque',
+    missionNumber,
+    cleanMissionTitle,
+    momentColor,
+    qrBuffer: qrBuf,
+    verificationUrl: missionVerificationUrl,
+    missionHash: hashMission,
+    glossaryTerms: sidebarGlossary,
+    realLifeConnection: realLifeConn,
+    safetyTip,
+    physicalAnalogy: mission.conceptZero?.physicalAnalogy,
+    equipmentCard: equipmentVisual && !equipmentVisual.isHero ? {
+      detected: equipmentVisual.detected,
+      imageBuffer: equipmentVisual.buffer,
+      imageFormat: equipmentVisual.format,
+    } : null,
+  });
+
+  const checkSpace = (cy: number, nh: number) => flow.ensureVerticalSpace(cy, nh);
+
+  // ── V7: Banner Editorial de Misión ────────
+  const bannerH = 22;
+  y = checkSpace(y, bannerH + 4);
+
+  y = drawMissionBanner(doc, {
+    missionNumber,
+    title: cleanMissionTitle,
+    sessionFocus: mission.sessionFocus,
+    uacLabel: subjectName || 'UAC',
+    sessionsStr: mission.coveredSessions?.join(', ') || `${missionNumber * 2 - 1}-${missionNumber * 2}`,
+    momentColor,
+    margin,
+    mainW,
+    contentWidth,
+    y,
+    bannerH,
+  });
+
+  // Inicializar primera página del sidebar rotativo
+  flow.initFirstPage(y);
+
+  // ── V7: Evaluación Diagnóstica (al inicio de la misión) ─────────────────────
+  const diagEval = mission.diagnosticEvaluation ||
+    extractDiagnosticQuestions(
+      `${mission.phenomenonHook?.story || ''} ${mission.conceptZero?.coreExplanation || ''}`,
+      subjectName || 'la asignatura'
+    );
+
+  if (diagEval && diagEval.questions && diagEval.questions.length > 0) {
+    const diagQs = diagEval.questions.slice(0, 3);
+    const estDiagH = Math.max(28, 12 + diagQs.length * 9);
+    y = checkSpace(y, estDiagH + 4);
+
+    y = drawDiagnosticSection(
+      doc,
+      { context: diagEval.context, questions: diagQs },
+      margin,
+      mainW,
+      y
+    );
+  }
 
   // 1. Enganche y Desafío Situado
-  y = drawSectionHeader(doc, '1. Enganche y Desafío Situado en la Comunidad', margin, contentWidth, y, pageHeight, SECTION_COLORS.enganche);
-  y = printParagraph(doc, mission.phenomenonHook.story, y, margin, contentWidth, pageHeight, {
-    size: 8,
-    fontStyle: 'normal',
-    color: DARK_TEXT,
-    lineHeight: 3.8,
-  });
+  y = drawSectionHeader(doc, '1. Enganche y Desafio Situado en la Comunidad', margin, mainW, y, pageHeight, SECTION_COLORS.enganche, checkSpace);
+  y = flow.printMainParagraph(mission.phenomenonHook.story, y, { size: 8, color: DARK_TEXT, lineHeight: 4.0 });
   y += 3;
 
   // Pregunta Detonadora en caja destacada
   const detText = sanitizePdfText(stripMarkdown(`Pregunta Detonadora: ${mission.phenomenonHook.detonatingQuestion}`));
-  const detLines = doc.splitTextToSize(detText, contentWidth - 8);
-  const boxH = Math.max(22, detLines.length * 4.2 + 8);
-  y = ensureVerticalSpace(doc, y, boxH + 4, margin, pageHeight);
+  setFontBody(doc, 'bold');
+  doc.setFontSize(8.5);
+  const detLines = doc.splitTextToSize(detText, mainW - 12);
+  const detBoxH = Math.max(18, detLines.length * 4.2 + 8);
+  y = checkSpace(y, detBoxH + 4);
 
-  doc.setFillColor(254, 243, 199); // Fondo ámbar suave
+  doc.setFillColor(254, 243, 199);
   doc.setDrawColor(...GOLD);
   doc.setLineWidth(0.4);
-  doc.rect(margin, y, contentWidth, boxH, 'FD');
-  doc.setFont('helvetica', 'bold');
+  doc.roundedRect(margin, y, mainW, detBoxH, 1.5, 1.5, 'FD');
+  setFontBody(doc, 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(...NAVY);
-  doc.text(detLines, margin + 4, y + 5.5);
-  y += boxH + 6;
+  doc.text(detLines, margin + 5, y + 5.5);
+  y += detBoxH + 6;
 
   // 2. Concepto Cero
-  y = drawSectionHeader(doc, '2. Concepto Cero: Analogía Intuitiva y Fundamento', margin, contentWidth, y, pageHeight, SECTION_COLORS.concepto);
-  y = printParagraph(doc, `Analogía Física Cotidiana: ${mission.conceptZero.physicalAnalogy}`, y, margin, contentWidth, pageHeight, {
-    size: 8,
-    fontStyle: 'italic',
-    color: DARK_TEXT,
-    lineHeight: 3.8,
-  });
+  y = drawSectionHeader(doc, '2. Concepto Cero: Analogia Intuitiva y Fundamento', margin, mainW, y, pageHeight, SECTION_COLORS.concepto, checkSpace);
+  y = flow.printMainParagraph(`Analogia Fisica Cotidiana: ${mission.conceptZero.physicalAnalogy}`, y, { size: 8, fontStyle: 'italic', color: DARK_TEXT, lineHeight: 4.0 });
   y += 2;
-  y = printParagraph(doc, mission.conceptZero.coreExplanation, y, margin, contentWidth, pageHeight, {
-    size: 8,
-    fontStyle: 'normal',
-    color: DARK_TEXT,
-    lineHeight: 3.8,
-  });
+  y = flow.printMainParagraph(mission.conceptZero.coreExplanation, y, { size: 8, color: DARK_TEXT, lineHeight: 4.0 });
   y += 3;
 
   if (mission.conceptZero.narrativeExplanation) {
-    y = printParagraph(doc, mission.conceptZero.narrativeExplanation, y, margin, contentWidth, pageHeight, {
-      size: 8,
-      fontStyle: 'normal',
-      color: DARK_TEXT,
-      lineHeight: 3.8,
-    });
+    y = flow.printMainParagraph(mission.conceptZero.narrativeExplanation, y, { size: 8, color: DARK_TEXT, lineHeight: 4.0 });
     y += 4;
   }
 
@@ -1721,63 +1885,45 @@ async function drawMission(
   const conceptCallout = extractCalloutBox(conceptFullText, {
     missionNumber,
     defaultType: 'idea_clave',
-    defaultTitle: 'Idea Clave de la Misión',
+    defaultTitle: 'Idea Clave de la Mision',
     defaultSubjectName: subjectName,
   });
   if (conceptCallout) {
-    y = drawPdfCallout(doc, conceptCallout, margin, contentWidth, pageHeight, y);
+    y = drawPdfCallout(doc, conceptCallout, margin, mainW, pageHeight, y, checkSpace);
   }
 
   // Ejemplo Resuelto Paso a Paso (CPA / NEM)
   if (mission.conceptZero.solvedExample) {
     const ex = mission.conceptZero.solvedExample;
-    y = ensureVerticalSpace(doc, y, 32, margin, pageHeight);
-    doc.setFont('helvetica', 'bold');
+    y = checkSpace(y, 32);
+    setFontBody(doc, 'bold');
     doc.setFontSize(8.5);
     doc.setTextColor(...NAVY);
     doc.text('Ejemplo Modelo Resuelto Paso a Paso:', margin, y);
     y += 4.5;
 
-    // Enunciado
-    y = printParagraph(doc, `Problema: ${ex.problemStatement}`, y, margin + 3, contentWidth - 3, pageHeight, {
-      size: 8,
-      fontStyle: 'bold',
-      color: DARK_TEXT,
-      lineHeight: 3.8,
-    });
+    y = flow.printMainParagraph(`Problema: ${ex.problemStatement}`, y, { size: 8, fontStyle: 'bold', color: DARK_TEXT });
     y += 2;
 
-    // Pasos
     for (let sIdx = 0; sIdx < (ex.solutionSteps || []).length; sIdx++) {
       const step = ex.solutionSteps[sIdx];
-      y = printParagraph(doc, `• Paso ${sIdx + 1}: ${step}`, y, margin + 5, contentWidth - 5, pageHeight, {
-        size: 7.8,
-        fontStyle: 'normal',
-        color: DARK_TEXT,
-        lineHeight: 3.6,
-      });
+      y = flow.printMainParagraph(`Paso ${sIdx + 1}: ${step}`, y, { size: 7.8, color: DARK_TEXT, lineHeight: 3.8 });
     }
     y += 2;
 
-    // Interpretación
     if (ex.interpretation) {
-      y = printParagraph(doc, `Conclusión pedagógica: ${ex.interpretation}`, y, margin + 3, contentWidth - 3, pageHeight, {
-        size: 7.8,
-        fontStyle: 'italic',
-        color: MID_BLUE,
-        lineHeight: 3.6,
-      });
+      y = flow.printMainParagraph(`Conclusion pedagogica: ${ex.interpretation}`, y, { size: 7.8, fontStyle: 'italic', color: MID_BLUE, lineHeight: 3.8 });
       y += 4;
     }
   }
 
-  // Tabla de Contraste (Concepto vs. Error Común) o Matriz Comparativa Sintetizada
+  // Tabla de Contraste (Concepto vs. Error Común)
   if (mission.conceptZero.contrastTable && mission.conceptZero.contrastTable.length > 0) {
-    y = ensureVerticalSpace(doc, y, 30, margin, pageHeight);
-    doc.setFont('helvetica', 'bold');
+    y = checkSpace(y, 30);
+    setFontBody(doc, 'bold');
     doc.setFontSize(8.5);
     doc.setTextColor(...NAVY);
-    doc.text('Matriz de Contrastación Conceptual y Prevención de Errores:', margin, y);
+    doc.text('Matriz de Contrastacion Conceptual y Prevencion de Errores:', margin, y);
     y += 4.5;
 
     const contrastBody = mission.conceptZero.contrastTable.map((row) => [
@@ -1789,34 +1935,36 @@ async function drawMission(
     autoTable(doc, {
       startY: y,
       margin: { left: margin, right: margin },
-      head: [['Concepto Técnico Válido', 'Error Frecuente / Concepto Erróneo', 'Fundamentación']],
+      tableWidth: mainW,
+      head: [['Concepto Valido', 'Error Frecuente', 'Fundamentacion']],
       body: contrastBody,
       theme: 'grid',
       headStyles: { fillColor: MID_BLUE, textColor: [255, 255, 255], fontSize: 7.5, fontStyle: 'bold' },
       styles: { fontSize: 7.2, cellPadding: 2, textColor: DARK_TEXT },
       columnStyles: {
-        0: { cellWidth: Math.floor(contentWidth * 0.35) },
-        1: { cellWidth: Math.floor(contentWidth * 0.35) },
+        0: { cellWidth: Math.floor(mainW * 0.35) },
+        1: { cellWidth: Math.floor(mainW * 0.35) },
         2: { cellWidth: 'auto' },
       },
+      didDrawPage: (data) => flow.onAutoTablePage(data.pageNumber),
     });
 
     y = doc.lastAutoTable?.finalY ?? (y + 30);
     y += 6;
   } else {
-    // Si no cuenta con contrastTable explícita de IA, generar matriz de contraste comparativa visual si detecta pares reales
     const compTable = extractComparisonTable(conceptFullText, cleanMissionTitle, subjectName);
     if (compTable) {
-      y = drawPdfComparisonTable(doc, compTable, margin, contentWidth, pageHeight, y);
+      y = drawPdfComparisonTable(doc, compTable, margin, mainW, pageHeight, y, checkSpace);
     }
   }
 
   y += 4;
 
-  // ── 2.05 Glosario Conceptual Clave de la Misión (Fase V4) ───────────────────
+  // ── 2.05 Glosario en zona principal (complementa el sidebar) ───────────────
   const glossaryTerms = extractGlossaryTerms(mission.conceptZero?.coreExplanation || '');
-  if (glossaryTerms && glossaryTerms.length >= 2) {
-    y = drawPdfGlossaryBox(doc, glossaryTerms, margin, contentWidth, pageHeight, y);
+  if (glossaryTerms && glossaryTerms.length >= 3) {
+    y = checkSpace(y, 28);
+    y = drawPdfGlossaryBox(doc, glossaryTerms, margin, mainW, pageHeight, y);
   }
 
   // ── 2.1 Gráfico Conceptual / Fotografía Situacional Activa ─────────────────
@@ -1831,79 +1979,83 @@ async function drawMission(
       mission.weDoSection?.guidedPractice,
       mission.youDoSection?.autonomousChallenge,
     ].filter(Boolean).join('\n\n');
-    const resolvedVisual = await resolveVisualForMission({
-      planningId,
-      uacName: subjectName,
-      blockIndex: blockIndex ?? 0,
-      missionIndex: missionNumber,
-      missionTitle: mission.title,
-      contextText,
-      preferOpenverseMedia: true,
-    });
-    if (resolvedVisual) {
-      if (resolvedVisual.type === 'vector_svg' && resolvedVisual.svg) {
-        const imgResult = await svgToPngBuffer(resolvedVisual.svg);
-        if (imgResult) {
-          const imgW = Math.min(135, contentWidth * 0.76);
-          const imgH = imgW * 0.65;
-          y = ensureVerticalSpace(doc, y, imgH + 16, margin, pageHeight);
-          const imgX = margin + (contentWidth - imgW) / 2;
-          doc.addImage(imgResult.buffer, imgResult.format, imgX, y, imgW, imgH);
+    if (equipmentVisual && equipmentVisual.isHero) {
+      const imgW = Math.min(105, mainW * 0.85);
+      const imgH = 55;
+      y = checkSpace(y, imgH + 16);
+      const imgX = margin + (mainW - imgW) / 2;
+      doc.addImage(equipmentVisual.buffer, equipmentVisual.format, imgX, y, imgW, imgH);
+      y += imgH + 3.5;
+      setFontCaption(doc);
+      doc.setFontSize(7.5);
+      doc.setTextColor(...MUTED_TEXT);
+      const captionLines = doc.splitTextToSize(equipmentVisual.caption, mainW * 0.88);
+      doc.text(captionLines, margin + mainW / 2, y, { align: 'center' });
+      y += (captionLines.length * 3.2) + 4;
+    } else {
+      const resolvedVisual = await resolveVisualForMission({
+        planningId,
+        uacName: subjectName,
+        blockIndex: blockIndex ?? 0,
+        missionIndex: missionNumber,
+        missionTitle: mission.title,
+        contextText,
+        preferOpenverseMedia: true,
+      });
+      if (resolvedVisual) {
+        if (resolvedVisual.type === 'vector_svg' && resolvedVisual.svg) {
+          const imgResult = await svgToPngBuffer(resolvedVisual.svg);
+          if (imgResult) {
+            const imgW = Math.min(120, mainW * 0.88);
+            const imgH = imgW * 0.65;
+            y = checkSpace(y, imgH + 16);
+            const imgX = margin + (mainW - imgW) / 2;
+            doc.addImage(imgResult.buffer, imgResult.format, imgX, y, imgW, imgH);
 
-          // Dibujar anotaciones de texto encima de la imagen
-          if (resolvedVisual.annotations && resolvedVisual.annotations.length > 0) {
-            drawVisualAnnotations(doc, resolvedVisual.annotations, imgX, y, imgW, imgH);
+            if (resolvedVisual.annotations && resolvedVisual.annotations.length > 0) {
+              drawVisualAnnotations(doc, resolvedVisual.annotations, imgX, y, imgW, imgH);
+            }
+
+            y += imgH + 3.5;
+            setFontCaption(doc);
+            doc.setFontSize(7.5);
+            doc.setTextColor(...MUTED_TEXT);
+            const captionLines = doc.splitTextToSize(resolvedVisual.caption, mainW * 0.88);
+            doc.text(captionLines, margin + mainW / 2, y, { align: 'center' });
+            y += (captionLines.length * 3.2) + 3.5;
           }
+        } else if (resolvedVisual.type === 'openverse_media' && resolvedVisual.mediaAsset) {
+          const imgUrl = resolvedVisual.mediaAsset.thumbnailUrl || resolvedVisual.mediaAsset.imageUrl;
+          const imgResult = await downloadAndProcessImage(imgUrl);
+          if (imgResult) {
+            if (openverseCollector) {
+              openverseCollector.push(resolvedVisual.mediaAsset);
+            }
+            const imgW = Math.min(120, mainW * 0.88);
+            const ratio = imgResult.height / imgResult.width;
+            const imgH = Math.min(80, Math.max(50, imgW * (ratio || 0.65)));
+            y = checkSpace(y, imgH + 18);
+            const imgX = margin + (mainW - imgW) / 2;
+            doc.addImage(imgResult.buffer, imgResult.format, imgX, y, imgW, imgH);
 
-          y += imgH + 3.5;
-
-          // Pie de figura institucional
-          doc.setFont('helvetica', 'italic');
-          doc.setFontSize(7.5);
-          doc.setTextColor(...MUTED_TEXT);
-          const captionLines = doc.splitTextToSize(resolvedVisual.caption, contentWidth * 0.88);
-          doc.text(captionLines, margin + contentWidth / 2, y, { align: 'center' });
-          y += (captionLines.length * 3.2) + 3.5;
-        }
-      } else if (resolvedVisual.type === 'openverse_media' && resolvedVisual.mediaAsset) {
-        const imgUrl = resolvedVisual.mediaAsset.thumbnailUrl || resolvedVisual.mediaAsset.imageUrl;
-        const imgResult = await downloadAndProcessImage(imgUrl);
-        if (imgResult) {
-          if (openverseCollector) {
-            openverseCollector.push(resolvedVisual.mediaAsset);
+            y += imgH + 3.5;
+            setFontCaption(doc);
+            doc.setFontSize(7.5);
+            doc.setTextColor(...MUTED_TEXT);
+            const captionLines = doc.splitTextToSize(resolvedVisual.caption, mainW * 0.88);
+            doc.text(captionLines, margin + mainW / 2, y, { align: 'center' });
+            y += (captionLines.length * 3.2) + 4;
           }
-          const imgW = Math.min(140, contentWidth * 0.8);
-          const ratio = imgResult.height / imgResult.width;
-          const imgH = Math.min(92, Math.max(50, imgW * (ratio || 0.65)));
-          y = ensureVerticalSpace(doc, y, imgH + 18, margin, pageHeight);
-          const imgX = margin + (contentWidth - imgW) / 2;
-          doc.addImage(imgResult.buffer, imgResult.format, imgX, y, imgW, imgH);
-
-          y += imgH + 3.5;
-
-          // Pie de figura y atribución legal CC
-          doc.setFont('helvetica', 'italic');
-          doc.setFontSize(7.5);
-          doc.setTextColor(...MUTED_TEXT);
-          const captionLines = doc.splitTextToSize(resolvedVisual.caption, contentWidth * 0.88);
-          doc.text(captionLines, margin + contentWidth / 2, y, { align: 'center' });
-          y += (captionLines.length * 3.2) + 4;
         }
       }
     }
   }
 
-  // 3. Yo Hago (Demostración)
-  y = drawSectionHeader(doc, '3. Yo Hago: Demostración y Protocolo Guiado por el Docente', margin, contentWidth, y, pageHeight, SECTION_COLORS.yoHago);
-  y = printParagraph(doc, mission.iDoSection.stepByStepDemo, y, margin, contentWidth, pageHeight, {
-    size: 8,
-    fontStyle: 'normal',
-    color: DARK_TEXT,
-    lineHeight: 3.8,
-  });
+  // 3. Yo Hago (Demostración) — zona principal
+  y = drawSectionHeader(doc, '3. Yo Hago: Demostracion y Protocolo Guiado por el Docente', margin, mainW, y, pageHeight, SECTION_COLORS.yoHago, checkSpace);
+  y = drawPracticeTasksWithDottedLines(doc, mission.iDoSection.stepByStepDemo, margin, mainW, pageHeight, y, 3, checkSpace);
   y += 3;
 
-  // Tip de Taller / Seguridad Operativa destacado
   const demoCallout = extractCalloutBox(mission.iDoSection.stepByStepDemo || '', {
     missionNumber,
     defaultType: 'tip_taller',
@@ -1911,59 +2063,60 @@ async function drawMission(
     defaultSubjectName: subjectName,
   });
   if (demoCallout) {
-    y = drawPdfCallout(doc, demoCallout, margin, contentWidth, pageHeight, y);
+    y = drawPdfCallout(doc, demoCallout, margin, mainW, pageHeight, y, checkSpace);
   }
 
   // 4. Nosotros Hacemos (Práctica Colaborativa)
-  y = drawSectionHeader(doc, '4. Nosotros Hacemos: Práctica Guiada en Equipo', margin, contentWidth, y, pageHeight, SECTION_COLORS.hacemos);
-  y = drawPracticeTasksWithDottedLines(doc, mission.weDoSection.guidedPractice, margin, contentWidth, pageHeight, y);
+  y = drawSectionHeader(doc, '4. Nosotros Hacemos: Practica Guiada en Equipo', margin, mainW, y, pageHeight, SECTION_COLORS.hacemos, checkSpace);
+  y = drawPracticeTasksWithDottedLines(doc, mission.weDoSection.guidedPractice, margin, mainW, pageHeight, y, 3, checkSpace);
   y += 4;
 
   if (mission.weDoSection.workbookElements) {
     for (const el of mission.weDoSection.workbookElements) {
-      y = drawPdfWorkbookElement(doc, el, margin, contentWidth, pageHeight, y);
+      y = drawPdfWorkbookElement(doc, el, margin, mainW, pageHeight, y, checkSpace);
     }
   }
 
   // 5. Tú Haces (Reto Autónomo)
-  y = drawSectionHeader(doc, '5. Tú Haces: Reto Autónomo de Aplicación', margin, contentWidth, y, pageHeight, SECTION_COLORS.tuHaces);
-  y = drawPracticeTasksWithDottedLines(doc, mission.youDoSection.autonomousChallenge, margin, contentWidth, pageHeight, y);
+  y = drawSectionHeader(doc, '5. Tu Haces: Reto Autonomo con Evidencia Cotidiana', margin, mainW, y, pageHeight, SECTION_COLORS.tuHaces, checkSpace);
+  y = drawPracticeTasksWithDottedLines(doc, mission.youDoSection.autonomousChallenge, margin, mainW, pageHeight, y, 3, checkSpace);
   y += 4;
 
   if (mission.youDoSection.workbookElements) {
     for (const el of mission.youDoSection.workbookElements) {
-      y = drawPdfWorkbookElement(doc, el, margin, contentWidth, pageHeight, y);
+      y = drawPdfWorkbookElement(doc, el, margin, mainW, pageHeight, y, checkSpace);
     }
   }
 
   // 6. Matriz de Resiliencia / Troubleshooting
   if (mission.troubleshooting && mission.troubleshooting.length > 0) {
-    y = drawSectionHeader(doc, '6. Matriz de Resiliencia: "¿Qué hacer si falla?"', margin, contentWidth, y, pageHeight, SECTION_COLORS.resiliencia);
-    y = ensureVerticalSpace(doc, y, 30, margin, pageHeight);
+    y = drawSectionHeader(doc, '6. Matriz de Resiliencia: Que hacer si falla?', margin, mainW, y, pageHeight, SECTION_COLORS.resiliencia, checkSpace);
+    y = checkSpace(y, 30);
 
     const troubleBody = mission.troubleshooting.map((t) => [
       sanitizePdfText(stripMarkdown(t.symptom)),
       sanitizePdfText(stripMarkdown(t.rootCause || t.cause || 'Desajuste')),
       Array.isArray(t.solutionSteps)
-        ? t.solutionSteps.map((s) => sanitizePdfText(stripMarkdown(s))).join('\n• ')
+        ? t.solutionSteps.map((s) => sanitizePdfText(stripMarkdown(s))).join('\n')
         : sanitizePdfText(stripMarkdown(String(t.solutionSteps || t.solution || ''))),
       sanitizePdfText(stripMarkdown(t.preventionTip || t.prevention || 'Revisar manual')),
     ]);
 
     autoTable(doc, {
       startY: y,
-      margin: { left: margin, right: margin },
-      head: [['Síntoma / Falla', 'Causa Raíz', 'Solución Metódica', 'Prevención']],
+      margin: { left: margin, right: margin + contentWidth - mainW },
+      head: [['Sintoma / Falla', 'Causa Raiz', 'Solucion Metodica', 'Prevencion']],
       body: troubleBody,
       theme: 'grid',
       headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontSize: 7, fontStyle: 'bold' },
       styles: { fontSize: 6.8, cellPadding: 2, textColor: DARK_TEXT },
       columnStyles: {
-        0: { cellWidth: 42, fontStyle: 'bold', textColor: MID_BLUE },
-        1: { cellWidth: 42 },
+        0: { cellWidth: 36, fontStyle: 'bold', textColor: MID_BLUE },
+        1: { cellWidth: 36 },
         2: { cellWidth: 'auto' },
-        3: { cellWidth: 38 },
+        3: { cellWidth: 28 },
       },
+      didDrawPage: (data) => flow.onAutoTablePage(data.pageNumber),
     });
 
     y = doc.lastAutoTable?.finalY ?? (y + 30);
@@ -1972,61 +2125,81 @@ async function drawMission(
 
   // 7. Checkpoint Formativo
   if (mission.formativeCheckpoint) {
-    y = drawSectionHeader(doc, '7. Punto de Control Formativo (Metacognición)', margin, contentWidth, y, pageHeight, SECTION_COLORS.checkpoint);
-    y = printParagraph(doc, `Pregunta formativa: ${mission.formativeCheckpoint.question}`, y, margin, contentWidth, pageHeight, {
-      size: 8,
-      fontStyle: 'bold',
-      color: MID_BLUE,
-      lineHeight: 4,
-    });
+    y = drawSectionHeader(doc, '7. Punto de Control Formativo (Metacognicion)', margin, mainW, y, pageHeight, SECTION_COLORS.checkpoint, checkSpace);
+    y = flow.printMainParagraph(`Pregunta formativa: ${mission.formativeCheckpoint.question}`, y, { size: 8, fontStyle: 'bold', color: MID_BLUE, lineHeight: 4 });
     y += 2;
 
     if (mission.formativeCheckpoint.reflectionPrompts) {
-      for (const p of mission.formativeCheckpoint.reflectionPrompts) {
-        y = printParagraph(doc, `• ${p}`, y, margin + 2, contentWidth - 2, pageHeight, {
-          size: 7.5,
-          fontStyle: 'normal',
-          color: DARK_TEXT,
-          lineHeight: 3.8,
-        });
+      for (const rp of mission.formativeCheckpoint.reflectionPrompts) {
+        y = flow.printMainParagraph(`${rp}`, y, { size: 7.5, color: DARK_TEXT, lineHeight: 3.8 });
       }
     }
 
     if (mission.formativeCheckpoint.criteriaChecklist) {
-      y = ensureVerticalSpace(doc, y, 16, margin, pageHeight);
-      doc.setFont('helvetica', 'bold');
+      y = checkSpace(y, 16);
+      setFontBody(doc, 'bold');
       doc.setFontSize(7.5);
       doc.setTextColor(...DARK_TEXT);
-      doc.text('Criterios de Verificación:', margin, y);
+      doc.text('Criterios de Verificacion:', margin, y);
       y += 4;
 
       for (const crit of mission.formativeCheckpoint.criteriaChecklist) {
-        y = printParagraph(doc, `[  ]  ${crit}`, y, margin + 2, contentWidth - 2, pageHeight, {
-          size: 7.5,
-          fontStyle: 'normal',
-          color: DARK_TEXT,
-          lineHeight: 3.8,
-        });
+        y = flow.printMainParagraph(`[  ]  ${crit}`, y, { size: 7.5, color: DARK_TEXT, lineHeight: 3.8 });
       }
     }
   }
 
-  // ── Cierre de Misión: QR Institucional de Validación y Sello Curricular (Fase V4) ──
-  const hashMission = crypto
-    .createHash('sha256')
-    .update(`${planningId || 'sigpda'}|${blockIndex ?? 0}|${missionNumber}`)
-    .digest('hex');
-  const missionVerificationUrl = getVerificationUrl(hashMission);
-  y = await drawMissionQrBox(
-    doc,
-    missionVerificationUrl,
-    hashMission,
-    margin,
-    contentWidth,
-    pageHeight,
-    y
-  );
+  // ── V7: Semáforo de Aprendizaje Metacognitivo (cierre de misión) ─────────────
+  const trafficLight = mission.metacognitiveTrafficLight ||
+    buildMetacognitiveTrafficLight(mission.title, subjectName || 'la asignatura');
 
+  if (trafficLight) {
+    const semBoxH = 36;
+    y = checkSpace(y, semBoxH + 4);
+
+    y = drawMetacognitiveLight(
+      doc,
+      {
+        green: trafficLight.green,
+        yellow: trafficLight.yellow,
+        red: trafficLight.red,
+      },
+      margin,
+      mainW,
+      y
+    );
+  }
+
+  // ── V7: Rúbrica Analítica Formativa de la Misión (MCCEMS) ───────────────────
+  const missionRubric = (mission as any).missionRubric ||
+    generateMissionRubric(mission, subjectName, blockName);
+
+  if (missionRubric && missionRubric.length > 0) {
+    y = checkSpace(y, 44);
+    y = drawMissionRubricTable(
+      doc,
+      missionRubric,
+      margin,
+      mainW,
+      y,
+      momentColor
+    );
+    y += 2;
+  }
+
+  // ── Cierre de Misión: Sello Curricular MCCEMS al pie si quedó espacio ────────
+  {
+    const sealText = `SELLO CURRICULAR MCCEMS · Hash: ${hashMission.slice(0, 20)}... · DBEPA Puebla · ${SCHOOL_YEAR}`;
+    y = checkSpace(y, 10);
+    setFontBody(doc, 'normal');
+    doc.setFontSize(6.2);
+    doc.setTextColor(...MUTED_TEXT);
+    const sealLines = doc.splitTextToSize(sanitizePdfText(sealText), mainW);
+    doc.text(sealLines, margin, y);
+    y += sealLines.length * 3.2 + 4;
+  }
+
+  flow.finalize();
   return y;
 }
 
@@ -2036,9 +2209,11 @@ function drawPdfWorkbookElement(
   margin: number,
   contentWidth: number,
   pageHeight: number,
-  startY: number
+  startY: number,
+  ensureSpaceFn?: (y: number, neededH: number) => number
 ): number {
   let y = startY;
+  const checkSpace = ensureSpaceFn || ((cy: number, nh: number) => ensureVerticalSpace(doc, cy, nh, margin, pageHeight));
 
   if (element.title) {
     y = printParagraph(doc, `[Actividad] ${element.title}`, y, margin, contentWidth, pageHeight, {
@@ -2064,7 +2239,7 @@ function drawPdfWorkbookElement(
       const count = Math.max(element.config?.rows || 8, 8);
       const lineSpacing = 6.5;
       const neededHeight = count * lineSpacing + 8;
-      y = ensureVerticalSpace(doc, y, neededHeight, margin, pageHeight);
+      y = checkSpace(y, neededHeight);
 
       doc.setDrawColor(190, 200, 215);
       doc.setLineWidth(0.35);
@@ -2104,7 +2279,7 @@ function drawPdfWorkbookElement(
         body.push(cols.map(() => ' '));
       }
 
-      y = ensureVerticalSpace(doc, y, 36, margin, pageHeight);
+      y = checkSpace(y, 36);
 
       autoTable(doc, {
         startY: y,
@@ -2158,7 +2333,7 @@ function drawPdfWorkbookElement(
       doc.setLineWidth(0.4);
       doc.rect(margin, y, contentWidth, 45, 'FD');
 
-      doc.setFont('helvetica', 'italic');
+      setFontCaption(doc);
       doc.setFontSize(8);
       doc.setTextColor(...MUTED_TEXT);
       doc.text('[ Espacio de dibujo técnico, diagramación, gráfica o boceto a mano ]', margin + contentWidth / 2, y + 22.5, {
@@ -2185,7 +2360,7 @@ function drawProjectSection(
   y = ensureVerticalSpace(doc, y, 22, margin, pageHeight);
   doc.setFillColor(...NAVY);
   doc.rect(margin, y, contentWidth, 10, 'F');
-  doc.setFont('helvetica', 'bold');
+  setFontBody(doc, 'bold');
   doc.setFontSize(10);
   doc.setTextColor(255, 255, 255);
   doc.text('PROYECTO FORMATIVO INTEGRADOR: ARTEFACTO COMUNITARIO', margin + 3, y + 6.8);
@@ -2209,7 +2384,7 @@ function drawProjectSection(
   // Objetivos de Aprendizaje del Proyecto
   if (project.learningObjectives && project.learningObjectives.length > 0) {
     y = ensureVerticalSpace(doc, y, 18, margin, pageHeight);
-    doc.setFont('helvetica', 'bold');
+    setFontBody(doc, 'bold');
     doc.setFontSize(8.5);
     doc.setTextColor(...NAVY);
     doc.text('Objetivos Formativos y de Aprendizaje del Proyecto:', margin, y);
@@ -2229,7 +2404,7 @@ function drawProjectSection(
   // Materiales e Insumos Requeridos
   if (project.requiredMaterials && project.requiredMaterials.length > 0) {
     y = ensureVerticalSpace(doc, y, 18, margin, pageHeight);
-    doc.setFont('helvetica', 'bold');
+    setFontBody(doc, 'bold');
     doc.setFontSize(8.5);
     doc.setTextColor(...NAVY);
     doc.text('Materiales, Herramientas e Insumos Requeridos:', margin, y);
@@ -2250,7 +2425,7 @@ function drawProjectSection(
   // Pasos Estructurados de Ejecución Procedimental
   if (project.executionSteps && project.executionSteps.length > 0) {
     y = ensureVerticalSpace(doc, y, 18, margin, pageHeight);
-    doc.setFont('helvetica', 'bold');
+    setFontBody(doc, 'bold');
     doc.setFontSize(8.5);
     doc.setTextColor(...NAVY);
     doc.text('Secuencia Procedimental de Construcción:', margin, y);
@@ -2270,7 +2445,7 @@ function drawProjectSection(
 
   // Cronograma por Fases
   y = ensureVerticalSpace(doc, y, 16, margin, pageHeight);
-  doc.setFont('helvetica', 'bold');
+  setFontBody(doc, 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(...NAVY);
   doc.text('Cronograma y Entregables por Fases de Desarrollo:', margin, y);
@@ -2311,7 +2486,7 @@ function drawProjectSection(
 
   if (criteriaList.length > 0) {
     y = ensureVerticalSpace(doc, y, 20, margin, pageHeight);
-    doc.setFont('helvetica', 'bold');
+    setFontBody(doc, 'bold');
     doc.setFontSize(8.5);
     doc.setTextColor(...NAVY);
     doc.text('Criterios de Aceptación y Condiciones de Entrega Final:', margin, y);
@@ -2331,7 +2506,7 @@ function drawProjectSection(
   // Formato de Bitácora y Registro de Avance
   if (project.registrationFormat) {
     y = ensureVerticalSpace(doc, y, 38, margin, pageHeight);
-    doc.setFont('helvetica', 'bold');
+    setFontBody(doc, 'bold');
     doc.setFontSize(8.5);
     doc.setTextColor(...NAVY);
     doc.text('Bitácora Técnica de Campo y Registro de Avances en Portafolio:', margin, y);
@@ -2397,13 +2572,13 @@ function drawEvaluationSection(
   y = ensureVerticalSpace(doc, y, 22, margin, pageHeight);
   doc.setFillColor(...NAVY);
   doc.rect(margin, y, contentWidth, 10, 'F');
-  doc.setFont('helvetica', 'bold');
+  setFontBody(doc, 'bold');
   doc.setFontSize(10);
   doc.setTextColor(255, 255, 255);
   doc.text('INSTRUMENTOS OFICIALES DE EVALUACIÓN NEM (DBEPA PUEBLA)', margin + 3, y + 6.8);
 
   y += 14;
-  doc.setFont('helvetica', 'bold');
+  setFontBody(doc, 'bold');
   doc.setFontSize(9);
   doc.setTextColor(...NAVY);
   doc.text('1. Rúbrica Analítica Oficial por Niveles de Desempeño:', margin, y);
@@ -2443,7 +2618,7 @@ function drawEvaluationSection(
   // 2. Lista de cotejo
   if (evalSection.checklist && evalSection.checklist.length > 0) {
     y = ensureVerticalSpace(doc, y, 30, margin, pageHeight);
-    doc.setFont('helvetica', 'bold');
+    setFontBody(doc, 'bold');
     doc.setFontSize(8.5);
     doc.setTextColor(...NAVY);
     doc.text('2. Lista de Cotejo de Verificación Técnica del Entregable:', margin, y);
@@ -2476,7 +2651,7 @@ function drawEvaluationSection(
   // 3. Evaluación Formativa Escalonada por Niveles de Dominio (Tiered Exercises)
   if (evalSection.tieredExercises && evalSection.tieredExercises.length > 0) {
     y = ensureVerticalSpace(doc, y, 24, margin, pageHeight);
-    doc.setFont('helvetica', 'bold');
+    setFontBody(doc, 'bold');
     doc.setFontSize(9);
     doc.setTextColor(...NAVY);
     doc.text('3. Evaluación Formativa Escalonada por Niveles de Dominio Cognitivo:', margin, y);
@@ -2484,7 +2659,7 @@ function drawEvaluationSection(
 
     for (const tier of evalSection.tieredExercises) {
       y = ensureVerticalSpace(doc, y, 16, margin, pageHeight);
-      doc.setFont('helvetica', 'bold');
+      setFontBody(doc, 'bold');
       doc.setFontSize(8.5);
       const isBasico = tier.level === 'basico' || (tier.level as string) === 'básico';
       const isIntermedio = tier.level === 'intermedio';
@@ -2568,7 +2743,7 @@ function drawEvaluationSection(
   // 4. Cuestionario de Juicio Crítico Situado
   if (evalSection.criticalThinkingQuiz && evalSection.criticalThinkingQuiz.length > 0) {
     y = ensureVerticalSpace(doc, y, 22, margin, pageHeight);
-    doc.setFont('helvetica', 'bold');
+    setFontBody(doc, 'bold');
     doc.setFontSize(8.5);
     doc.setTextColor(...NAVY);
     doc.text('4. Cuestionario Formativo de Juicio Crítico y Transferencia:', margin, y);
@@ -2613,7 +2788,7 @@ function drawEvaluationSection(
 
     if (hasPrompts || hasScale) {
       y = ensureVerticalSpace(doc, y, 24, margin, pageHeight);
-      doc.setFont('helvetica', 'bold');
+      setFontBody(doc, 'bold');
       doc.setFontSize(8.5);
       doc.setTextColor(...NAVY);
       doc.text('5. Reflexión Metacognitiva y Autoevaluación del Aprendiz:', margin, y);
@@ -2644,7 +2819,7 @@ function drawEvaluationSection(
 
       if (hasScale) {
         y = ensureVerticalSpace(doc, y, 28, margin, pageHeight);
-        doc.setFont('helvetica', 'bold');
+        setFontBody(doc, 'bold');
         doc.setFontSize(8);
         doc.setTextColor(...NAVY);
         doc.text('Escala de Autovaloración Formativa (1: En desarrollo, 5: Dominio consolidado):', margin + 3, y);

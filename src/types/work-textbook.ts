@@ -84,6 +84,27 @@ export interface MissionSection {
     criteriaChecklist: string[];
   };
   wordCount: number;
+
+  // ── Campos opcionales V6: Pedagogía de Vida Diaria ─────────────────────────
+  /** Evaluación diagnóstica de saberes previos al inicio de la misión (3 preguntas situadas). */
+  diagnosticEvaluation?: {
+    context: string;                // Contexto o situación introductoria del diagnóstico
+    questions: string[];            // 3 preguntas de activación de conocimientos previos
+  };
+  /** Conexión explícita con aplicaciones de la vida diaria del estudiante. */
+  realLifeConnection?: {
+    context: string;                // Descripción breve de la conexión cotidiana
+    householdApplication: string;   // Actividad concreta en el hogar (medir, identificar, entrevistar)
+    communityImpact: string;        // Impacto o utilidad comunitaria observable
+  };
+  /** Semáforo de autoevaluación metacognitiva al cierre de la misión. */
+  metacognitiveTrafficLight?: {
+    green: string;    // Descriptor: "Domino y puedo aplicar esto en mi vida diaria"
+    yellow: string;   // Descriptor: "Lo entiendo pero necesito más práctica"
+    red: string;      // Descriptor: "Tengo dudas significativas, requiero asesoría"
+  };
+  /** Tip técnico de seguridad o rigor metodológico para el sidebar (extraído o provisto). */
+  safetyOrWorkshopTip?: string;
 }
 
 export interface ProjectPhase {

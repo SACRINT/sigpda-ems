@@ -17,8 +17,16 @@ import {
   getImageAssetsByBlock,
 } from '@/lib/db';
 import type { ImageAsset } from '@/types/planning';
+import type { MissionSection } from '@/types/work-textbook';
 import { normalizeUnicode } from '@/lib/utils/normalize';
 import { logger } from '@/lib/logger';
+import {
+  getPrimaryEquipmentForMission,
+  type DetectedObject,
+} from './object-extractor';
+import { generateObjectBlueprintSvg } from './object-svg-generator';
+import { downloadAndProcessImage } from './image-downloader';
+import { svgToPngBuffer } from './svg-to-png';
 
 export interface ResolveVisualOptions {
   planningId?: string;
@@ -239,3 +247,132 @@ export async function resolveVisualForMission(
     caption,
   };
 }
+
+// ── 4. RESOLUCIÓN DE IMÁGENES CONTEXTUALES DE EQUIPO TÉCNICO (NIVEL 1) ────────
+
+export interface ResolvedEquipmentVisual {
+  detected: DetectedObject;
+  sourceType: 'openverse_photo' | 'blueprint_svg';
+  buffer: Buffer;
+  format: 'JPEG' | 'PNG';
+  caption: string;
+  isHero: boolean;
+  mediaAsset?: ImageAsset;
+}
+
+// Caché en memoria por sesión (evita re-descargar o re-renderizar el mismo equipo)
+const equipmentAssetCache = new Map<string, ResolvedEquipmentVisual>();
+
+/**
+ * Valida de forma ligera y estricta que la imagen devuelta por Openverse
+ * contenga las palabras clave bilingües del objeto en su título, tags o URL,
+ * descartando resultados inconexos antes de descargarlos.
+ */
+export function isImageRelevanceValid(
+  image: OpenverseImageResult,
+  detected: DetectedObject
+): boolean {
+  const targetTokens = detected.keywordsBilingual.map((k) => k.toLowerCase().trim());
+  const title = (image.title || '').toLowerCase();
+  const landingUrl = (image.foreignLandingUrl || '').toLowerCase();
+  const url = (image.url || '').toLowerCase();
+  const combinedMeta = `${title} ${landingUrl} ${url}`;
+
+  return targetTokens.some((tok) => tok.length > 2 && combinedMeta.includes(tok));
+}
+
+/**
+ * Resuelve el activo visual de equipamiento técnico para la misión:
+ * 1. Detecta la herramienta o instrumento prioritario en el texto.
+ * 2. Consulta la caché en memoria para cero latencia recurrente.
+ * 3. Intenta obtener foto CC en Openverse validando bilingüemente su relevancia.
+ * 4. Fallback garantizado: Genera y rasteriza el SVG técnico Blueprint institucional.
+ */
+export async function resolveEquipmentVisualForMission(
+  mission: MissionSection,
+  subjectName?: string,
+  options?: { preferSidebar?: boolean }
+): Promise<ResolvedEquipmentVisual | null> {
+  const detected = getPrimaryEquipmentForMission(mission, subjectName);
+  if (!detected) return null;
+
+  const cacheKey = `${detected.id}_${subjectName || 'uac'}`;
+  if (equipmentAssetCache.has(cacheKey)) {
+    return equipmentAssetCache.get(cacheKey)!;
+  }
+
+  // 1. Intentar obtener foto real en Openverse con validación de relevancia
+  try {
+    const searchResults = await searchOpenverseImages({
+      query: detected.englishQuery,
+      subjectName,
+      missionNumber: mission.missionIndex,
+      pageSize: 3,
+      timeoutMs: 3500,
+    });
+
+    for (const item of searchResults) {
+      if (isImageRelevanceValid(item, detected)) {
+        const downloadUrl = item.thumbnail || item.url;
+        const processed = await downloadAndProcessImage(downloadUrl, 4000);
+        if (processed && processed.buffer) {
+          const visual: ResolvedEquipmentVisual = {
+            detected,
+            sourceType: 'openverse_photo',
+            buffer: processed.buffer,
+            format: 'JPEG',
+            caption: `${detected.name} — ${detected.technicalRole}`,
+            isHero: !options?.preferSidebar && detected.confidence >= 0.9 && detected.category === 'herramienta_taller',
+            mediaAsset: {
+              id: item.id,
+              planningId: '',
+              blockIndex: 0,
+              missionIndex: mission.missionIndex,
+              source: 'openverse',
+              externalId: item.id,
+              title: item.title,
+              creator: item.creator,
+              creatorUrl: item.creatorUrl,
+              license: item.license,
+              licenseUrl: item.licenseUrl,
+              sourceUrl: item.foreignLandingUrl,
+              imageUrl: item.url,
+              thumbnailUrl: item.thumbnail,
+              caption: `${detected.name} (CC ${item.license.toUpperCase()})`,
+              width: processed.width,
+              height: processed.height,
+              createdAt: new Date(),
+            },
+          };
+          equipmentAssetCache.set(cacheKey, visual);
+          return visual;
+        }
+      }
+    }
+  } catch (err) {
+    logger.warn('[VisualAssetManager] Error consultando Openverse para equipo, usando SVG blueprint:', { error: err });
+  }
+
+  // 2. Fallback determinístico a SVG Técnico Blueprint
+  try {
+    const svg = generateObjectBlueprintSvg(detected.svgKey, detected.name);
+    const pngResult = await svgToPngBuffer(svg, 180);
+    if (pngResult && pngResult.buffer) {
+      const visual: ResolvedEquipmentVisual = {
+        detected,
+        sourceType: 'blueprint_svg',
+        buffer: pngResult.buffer,
+        format: 'JPEG',
+        caption: `Esquema técnico: ${detected.name} — ${detected.technicalRole}`,
+        isHero: !options?.preferSidebar && detected.category === 'herramienta_taller',
+      };
+      equipmentAssetCache.set(cacheKey, visual);
+      return visual;
+    }
+  } catch (err) {
+    logger.warn('[VisualAssetManager] Error rasterizando SVG blueprint:', { error: err });
+  }
+
+  return null;
+}
+

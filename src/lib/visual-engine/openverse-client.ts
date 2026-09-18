@@ -25,12 +25,27 @@ export interface OpenverseImageResult {
   caption: string;
 }
 
+export const SITUATED_KEYWORDS = [
+  'mexico',
+  'puebla',
+  'vocational workshop',
+  'laboratorio escolar',
+  'technical education',
+  'bachillerato tecnico',
+] as const;
+
+export function getRotationalContextKeyword(seed = 0): string {
+  const idx = Math.abs(seed) % SITUATED_KEYWORDS.length;
+  return SITUATED_KEYWORDS[idx];
+}
+
 export interface OpenverseSearchOptions {
   query: string;
   subjectName?: string;
   missionNumber?: number;
   pageSize?: number;
   timeoutMs?: number;
+  contextualKeyword?: string;
 }
 
 /**
@@ -72,6 +87,7 @@ export async function searchOpenverseImages(
     missionNumber = 1,
     pageSize = 3,
     timeoutMs = 4000,
+    contextualKeyword,
   } = options;
 
   if (!query || query.trim().length < 2) {
@@ -79,10 +95,14 @@ export async function searchOpenverseImages(
   }
 
   // Sanitizar query
-  const cleanQuery = query
+  let cleanQuery = query
     .replace(/[^\w\sáéíóúÁÉÍÓÚñÑüÜ-]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+
+  if (contextualKeyword && !cleanQuery.toLowerCase().includes(contextualKeyword.toLowerCase())) {
+    cleanQuery = `${cleanQuery} ${contextualKeyword}`;
+  }
 
   const url = new URL(API_CONFIG.openverse.endsWith('/') ? API_CONFIG.openverse : `${API_CONFIG.openverse}/`);
   url.searchParams.set('q', cleanQuery);
