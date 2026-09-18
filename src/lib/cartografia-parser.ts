@@ -14,7 +14,6 @@ import type {
   CartografiaPlantelItem,
   CartografiaMomento1Conocer,
   CartografiaMomento2Organizar,
-  CartografiaZonaProject,
 } from '@/types/cartografia';
 import { sql } from './db';
 import { logger } from './logger';
@@ -35,7 +34,7 @@ export interface ParseCartografiaOptions {
  * Parsea el archivo de zona y construye los Momentos 1 y 2 con capas cuantitativa y cualitativa.
  */
 export async function parseCartografiaMatriz(
-  input: Buffer | Uint8Array | ArrayBuffer | any[],
+  input: Buffer | Uint8Array | ArrayBuffer | unknown[],
   options?: ParseCartografiaOptions
 ): Promise<{
   success: boolean;
@@ -44,7 +43,7 @@ export async function parseCartografiaMatriz(
   error?: string;
 }> {
   try {
-    const statsResult: ParsePmcResult = parsePmcStatistics(input, {
+    const statsResult: ParsePmcResult = parsePmcStatistics(input as Parameters<typeof parsePmcStatistics>[0], {
       zonaNumero: options?.zonaNumero || '004',
       cicloEscolar: options?.cicloEscolar || '2026-2027',
     });
@@ -169,7 +168,7 @@ export async function parseCartografiaMatriz(
       momento1,
       momento2,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[CartografiaParser] Error al procesar matriz de zona:', error);
     return {
       success: false,
@@ -178,7 +177,7 @@ export async function parseCartografiaMatriz(
         capaCuantitativa: { promedioAbandonoZona: 0, promedioEficienciaZona: 0, promedioAprovechamientoZona: 0, promedioReprobacionZona: 0, matriculaTotal: 0, plantelesAtencionPrioritaria: [], resumenEstadistico911F11: '' },
         capaCualitativa: { problematicasComunes: [], factoresContextuales: [], vinculacionPaecZona: [], desafiosSocioeconomicos: '' },
       },
-      error: error?.message || 'Error desconocido al parsear la matriz de zona.',
+      error: error instanceof Error ? error.message : 'Error desconocido al parsear la matriz de zona.',
     };
   }
 }
