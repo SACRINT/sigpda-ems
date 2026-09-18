@@ -4,6 +4,7 @@ import { routing } from './i18n/routing';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { neon } from '@neondatabase/serverless';
+import { logger } from '@/lib/logger';
 
 const intlMiddleware = createMiddleware(routing);
 
@@ -44,12 +45,13 @@ async function getTeacherStatus(email: string) {
       LIMIT 1
     `;
     return rows[0] || null;
-  } catch {
+  } catch (error) {
+    logger.warn('Error al consultar estado del docente en proxy:', error);
     return null;
   }
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const locale = pathname.split('/')[1] || 'es';
   const pathWithoutLocale = pathname.replace(/^\/(?:es|en)/, '') || '/';

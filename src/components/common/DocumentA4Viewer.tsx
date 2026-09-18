@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import type { Planning, GeneratedPlanningContent, SecuenciaBloque } from '@/types/planning';
+// @deprecated — migrar a pdf-workbook-renderer.ts cuando se actualice este componente
 import { generatePlanningPDF } from '@/lib/pdf-generator';
 import { enrichWithExplicitSaberes } from '@/lib/planning-integrity-system';
 

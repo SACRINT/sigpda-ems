@@ -7,6 +7,7 @@ import { ExtraPreviewModal } from '@/components/planeacion/ExtraPreviewModal';
 import DeletePlanningButton from '@/components/planeacion/DeletePlanningButton';
 import GenerationFeedback from '@/components/feedback/GenerationFeedback';
 import DocumentA4Viewer from '@/components/common/DocumentA4Viewer';
+// @deprecated — migrar a pdf-workbook-renderer.ts cuando se actualice este componente
 import { generatePlanningPDF, generateSecuenciaPDF } from '@/lib/pdf-generator';
 import { generateBlockSessions, type DetailedSession } from '@/lib/session-progression-engine';
 import type { ActiveWorkTextbook, GenerationProgressState } from '@/types/work-textbook';

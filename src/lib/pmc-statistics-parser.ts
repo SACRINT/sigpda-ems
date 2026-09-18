@@ -1,8 +1,8 @@
 /**
  * pmc-statistics-parser.ts
- * Parser oficial de datos estadísticos Formato 911 / F11 / DBEPA Puebla (SIGPDA-EMS)
+ * Parser oficial de datos estadísticos Formato 911.7G / F11C / EDIEMS / ESA — DBEPA Puebla (SIGPDA-EMS)
  * 
- * Procesa la matriz oficial de estadísticas escolares (Formato 911, F11 y metas de zona)
+ * Procesa la matriz oficial de estadísticas escolares (911.7G, F11C, EDIEMS, ESA y metas de zona)
  * extrayendo matrícula, calificaciones, aprobación, abandono y eficiencia terminal.
  * Calcula promedios de zona, brechas diagnósticas e inyecta la línea base real al PMC.
  */
