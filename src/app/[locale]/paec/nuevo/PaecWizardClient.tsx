@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type {
@@ -31,6 +31,7 @@ import {
   FFE_OPTATIVAS_CATALOGO,
 } from '@/lib/escuela-grupos';
 import { CARRERAS_TECNICAS_BT } from '@/lib/bt-carreras-catalog';
+import type { SchoolZoneContextResponse } from '@/lib/zone-sync-service';
 
 const PAEC_DRAFT_KEY = 'didactica_paec_draft';
 
@@ -259,6 +260,72 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
 
   const [cctSearching, setCctSearching] = useState(false);
   const [cctWarning, setCctWarning] = useState<string | null>(null);
+
+  // Zona Context Bridge (Fase 9)
+  const [zonaData, setZonaData] = useState<SchoolZoneContextResponse | null>(null);
+  const [showZonaModal, setShowZonaModal] = useState(false);
+  const [loadingZona, setLoadingZona] = useState(false);
+  const [zonaFeedback, setZonaFeedback] = useState<string | null>(null);
+
+  const handleConsultarZona = useCallback(async () => {
+    const targetCct = (school.cct || '').trim().toUpperCase();
+    if (!targetCct) {
+      setError('Por favor ingresa primero la Clave CCT de tu plantel en la Ficha del Plantel.');
+      return;
+    }
+    setLoadingZona(true);
+    setZonaFeedback(null);
+    try {
+      const res = await fetch(`/api/paec/zona-context?cct=${encodeURIComponent(targetCct)}`);
+      const data: SchoolZoneContextResponse & { message?: string } = await res.json();
+      if (!res.ok || !data.found) {
+        setZonaFeedback(data.message || 'No se encontró Cartografía de Zona activa para este CCT escolar.');
+      } else {
+        setZonaData(data);
+        setShowZonaModal(true);
+      }
+    } catch {
+      setZonaFeedback('Error de comunicación al consultar la Cartografía de Zona.');
+    } finally {
+      setLoadingZona(false);
+    }
+  }, [school.cct]);
+
+  const handleAplicarSugerenciasZona = () => {
+    if (!zonaData || !zonaData.zona) return;
+    const { zona, plantel } = zonaData;
+
+    if (plantel) {
+      setSchool(prev => ({
+        ...prev,
+        schoolName: prev.schoolName || plantel.nombre,
+        municipality: prev.municipality || plantel.municipio,
+        locality: prev.locality || plantel.localidad,
+        schoolZone: prev.schoolZone || (zona.identificacion.zonaNumero ? `Zona ${zona.identificacion.zonaNumero}` : prev.schoolZone),
+        enrollment: prev.enrollment || `${plantel.matricula} estudiantes (Registrado en 911/F11)`,
+        teacherCount: prev.teacherCount || (plantel.docentesCount ? `${plantel.docentesCount} docentes` : prev.teacherCount),
+      }));
+
+      if (plantel.paecProyecto && !projectName.trim()) {
+        setProjectName(plantel.paecProyecto);
+      }
+      if (plantel.paecProblematica && !problemStatement.trim()) {
+        setProblemStatement(plantel.paecProblematica);
+      }
+    }
+
+    if (zona.momento3Territorio?.descripcionTerritorial && !community.location?.trim()) {
+      setCommunity(prev => ({
+        ...prev,
+        location: `${plantel?.localidad ? plantel.localidad + ', ' : ''}${plantel?.municipio ? plantel.municipio + ', ' : ''}Puebla`,
+        environment: prev.environment || (zona.momento3Territorio?.conectividadInfraestructura ? `Condiciones territoriales: ${zona.momento3Territorio.conectividadInfraestructura}` : prev.environment),
+      }));
+    }
+
+    setShowZonaModal(false);
+    setZonaFeedback('✅ Datos y contexto territorial de la Cartografía de Zona aplicados exitosamente a tu PAEC.');
+    setTimeout(() => setZonaFeedback(null), 4000);
+  };
 
   // Autocompletado de CCT mediante el catálogo de Puebla
   const handleCctLookup = async (cctInput: string) => {
@@ -911,29 +978,67 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
                   <label style={{ display: 'block', fontWeight: 600, marginBottom: '4px', fontSize: '12px', color: '#818cf8', textTransform: 'uppercase' }}>
                     Clave CCT (Puebla)
                   </label>
-                  <input
-                    type="text"
-                    placeholder="Ej: 21EBH0200X"
-                    value={school.cct || ''}
-                    onChange={(e) => {
-                      const val = e.target.value.toUpperCase();
-                      setSchool(prev => ({ ...prev, cct: val }));
-                      if (val.length >= 7) {
-                        handleCctLookup(val);
-                      } else {
-                        setCctWarning(null);
-                      }
-                    }}
-                    onBlur={() => {
-                      if (school.cct && school.cct.length >= 5) {
-                        handleCctLookup(school.cct);
-                      }
-                    }}
-                    style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.05)', color: '#f0f4ff', fontFamily: 'monospace', fontWeight: 700 }}
-                  />
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      type="text"
+                      placeholder="Ej: 21EBH0200X"
+                      value={school.cct || ''}
+                      onChange={(e) => {
+                        const val = e.target.value.toUpperCase();
+                        setSchool(prev => ({ ...prev, cct: val }));
+                        if (val.length >= 7) {
+                          handleCctLookup(val);
+                        } else {
+                          setCctWarning(null);
+                        }
+                      }}
+                      onBlur={() => {
+                        if (school.cct && school.cct.length >= 5) {
+                          handleCctLookup(school.cct);
+                        }
+                      }}
+                      style={{ flex: 1, padding: '8px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.05)', color: '#f0f4ff', fontFamily: 'monospace', fontWeight: 700 }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleConsultarZona}
+                      disabled={loadingZona}
+                      style={{
+                        padding: '8px 12px',
+                        background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '6px',
+                        fontSize: '11.5px',
+                        fontWeight: 700,
+                        cursor: loadingZona ? 'wait' : 'pointer',
+                        whiteSpace: 'nowrap',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        boxShadow: '0 2px 8px rgba(99,102,241,0.3)',
+                      }}
+                      title="Consultar diagnóstico, estadísticas 911/F11 y contexto territorial desde la Cartografía de Zona Escolar"
+                    >
+                      {loadingZona ? '⏳ Consultando...' : '✨ Consultar Zona'}
+                    </button>
+                  </div>
                   {cctWarning && (
                     <div style={{ color: '#f87171', fontSize: '11.5px', marginTop: '4px', fontWeight: 500 }}>
                       ⚠️ {cctWarning} (puedes capturar los datos manualmente)
+                    </div>
+                  )}
+                  {zonaFeedback && (
+                    <div style={{
+                      color: zonaFeedback.startsWith('✅') ? '#34d399' : '#fbbf24',
+                      fontSize: '11.5px',
+                      marginTop: '6px',
+                      fontWeight: 600,
+                      background: 'rgba(0,0,0,0.2)',
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                    }}>
+                      {zonaFeedback}
                     </div>
                   )}
                 </div>
@@ -3641,6 +3746,224 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
               )}
             </div>
 
+          </div>
+        )}
+
+        {/* Modal de Sincronización con Cartografía de Zona (Fase 9) */}
+        {showZonaModal && zonaData?.zona && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(5, 10, 25, 0.82)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '20px',
+          }}>
+            <div style={{
+              background: '#0d1530',
+              border: '1px solid rgba(99, 102, 241, 0.35)',
+              borderRadius: '16px',
+              maxWidth: '680px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              padding: '28px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.65)',
+              color: '#f0f4ff',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#c7d2fe' }}>
+                    🗺️ Cartografía de Zona Escolar Disponible
+                  </h3>
+                  <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#94a3b8' }}>
+                    Sincronización asistida para el PAEC basada en la DBEPA MCCEMS 2026-2027
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowZonaModal(false)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#94a3b8',
+                    fontSize: '20px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Ficha de la Zona */}
+              <div style={{
+                background: '#1e293b',
+                borderRadius: '10px',
+                padding: '14px',
+                marginBottom: '14px',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                gap: '10px',
+              }}>
+                <div>
+                  <span style={{ fontSize: '11px', color: '#94a3b8', display: 'block' }}>Zona Escolar</span>
+                  <strong style={{ fontSize: '13px', color: '#818cf8' }}>
+                    {zonaData.zona.identificacion.zonaNumero ? `Zona ${zonaData.zona.identificacion.zonaNumero}` : 'Zona Oficial'}
+                  </strong>
+                </div>
+                <div>
+                  <span style={{ fontSize: '11px', color: '#94a3b8', display: 'block' }}>Supervisión</span>
+                  <strong style={{ fontSize: '13px', color: '#f1f5f9' }}>
+                    {zonaData.zona.identificacion.supervisorName || 'Supervisión de Zona'}
+                  </strong>
+                </div>
+                <div>
+                  <span style={{ fontSize: '11px', color: '#94a3b8', display: 'block' }}>Subsistema</span>
+                  <strong style={{ fontSize: '13px', color: '#f1f5f9' }}>
+                    {zonaData.zona.identificacion.subsistema || 'EMS Puebla'}
+                  </strong>
+                </div>
+                <div>
+                  <span style={{ fontSize: '11px', color: '#94a3b8', display: 'block' }}>Ciclo Escolar</span>
+                  <strong style={{ fontSize: '13px', color: '#f1f5f9' }}>
+                    {zonaData.zona.identificacion.cicloEscolar || '2026-2027'}
+                  </strong>
+                </div>
+              </div>
+
+              {/* Indicadores 911/F11 del Plantel */}
+              {zonaData.plantel && (
+                <div style={{
+                  background: '#0f172a',
+                  border: '1px solid #334155',
+                  borderRadius: '10px',
+                  padding: '12px 14px',
+                  marginBottom: '14px',
+                }}>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#38bdf8', textTransform: 'uppercase' }}>
+                    📊 Línea Base 911/F11 Registrada para tu Plantel:
+                  </span>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginTop: '8px' }}>
+                    <div style={{ background: '#1e293b', padding: '8px', borderRadius: '6px', textAlign: 'center' }}>
+                      <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block' }}>Matrícula</span>
+                      <strong style={{ fontSize: '14px', color: '#f8fafc' }}>{zonaData.plantel.matricula}</strong>
+                    </div>
+                    <div style={{ background: '#1e293b', padding: '8px', borderRadius: '6px', textAlign: 'center' }}>
+                      <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block' }}>Abandono</span>
+                      <strong style={{ fontSize: '14px', color: '#fbbf24' }}>{zonaData.plantel.abandono}%</strong>
+                    </div>
+                    <div style={{ background: '#1e293b', padding: '8px', borderRadius: '6px', textAlign: 'center' }}>
+                      <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block' }}>Efic. Terminal</span>
+                      <strong style={{ fontSize: '14px', color: '#34d399' }}>{zonaData.plantel.eficienciaTerminal}%</strong>
+                    </div>
+                    <div style={{ background: '#1e293b', padding: '8px', borderRadius: '6px', textAlign: 'center' }}>
+                      <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block' }}>Reprobación</span>
+                      <strong style={{ fontSize: '14px', color: '#f87171' }}>{zonaData.plantel.reprobacion}%</strong>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Registro previo en Cartografía (si existe) */}
+              {zonaData.plantel?.paecProyecto && (
+                <div style={{
+                  background: 'rgba(99, 102, 241, 0.1)',
+                  border: '1px solid rgba(99, 102, 241, 0.3)',
+                  borderRadius: '10px',
+                  padding: '12px 14px',
+                  marginBottom: '14px',
+                }}>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#a5b4fc', textTransform: 'uppercase' }}>
+                    📌 PAEC Pre-registrado en la Cartografía de Zona:
+                  </span>
+                  <p style={{ margin: '4px 0 2px', fontSize: '13px', fontWeight: 700, color: '#fff' }}>
+                    {zonaData.plantel.paecProyecto}
+                  </p>
+                  {zonaData.plantel.paecProblematica && (
+                    <p style={{ margin: 0, fontSize: '12px', color: '#cbd5e1' }}>
+                      {zonaData.plantel.paecProblematica}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Diagnóstico Territorial de Zona */}
+              {zonaData.zona.momento3Territorio?.descripcionTerritorial && (
+                <div style={{
+                  background: '#0f172a',
+                  border: '1px solid #334155',
+                  borderRadius: '10px',
+                  padding: '12px 14px',
+                  marginBottom: '14px',
+                }}>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#a78bfa', textTransform: 'uppercase' }}>
+                    📍 Diagnóstico Territorial de Zona (Momento 3):
+                  </span>
+                  <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#cbd5e1', lineHeight: 1.4 }}>
+                    {zonaData.zona.momento3Territorio.descripcionTerritorial}
+                  </p>
+                </div>
+              )}
+
+              {/* Problemáticas Comunes de la Zona */}
+              {zonaData.zona.problematicasComunes && zonaData.zona.problematicasComunes.length > 0 && (
+                <div style={{
+                  background: '#0f172a',
+                  border: '1px solid #334155',
+                  borderRadius: '10px',
+                  padding: '12px 14px',
+                  marginBottom: '18px',
+                }}>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#38bdf8', textTransform: 'uppercase' }}>
+                    🎯 Problemáticas Comunitarias Identificadas en la Zona:
+                  </span>
+                  <ul style={{ margin: '6px 0 0', paddingLeft: '18px', fontSize: '12px', color: '#cbd5e1' }}>
+                    {zonaData.zona.problematicasComunes.map((prob, idx) => (
+                      <li key={idx} style={{ marginBottom: '4px' }}>{prob}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Botones de acción */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowZonaModal(false)}
+                  style={{
+                    padding: '8px 16px',
+                    background: 'transparent',
+                    border: '1px solid #475569',
+                    borderRadius: '8px',
+                    color: '#94a3b8',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                  }}
+                >
+                  Cerrar sin aplicar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAplicarSugerenciasZona}
+                  style={{
+                    padding: '8px 18px',
+                    background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  ✨ Aplicar sugerencias de zona a mi PAEC
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
