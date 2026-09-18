@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import type { PipsProject, PipsPlantele, PipsProblematica, PipsObjetivo, PipsCronogramaActividad } from '@/types/pips';
+import type { PipsProject, PipsPlantele, PipsCronogramaActividad } from '@/types/pips';
 import { SCHOOL_YEAR } from '@/lib/config';
 import ExcelUploadZone from '@/components/cartografia/ExcelUploadZone';
 
@@ -300,6 +300,70 @@ export default function PipsWizard({ locale }: { locale: string }) {
       setMsg('Error de conexión. Intenta de nuevo.');
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const [generatingMomento, setGeneratingMomento] = useState<string | null>(null);
+
+  const generateMomento = async (momentoNum: '3' | '4' | '5' | 'memoria') => {
+    let currentId = projectId;
+    setGeneratingMomento(momentoNum);
+    setMsg('');
+    try {
+      if (!currentId) {
+        const res = await fetch('/api/pips', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...pips, current_step: step, status: 'draft' }),
+        });
+        const data = await res.json();
+        if (data.project?.id) {
+          currentId = data.project.id as string;
+          setProjectId(currentId);
+          router.replace(`/${locale}/pips/nuevo?id=${currentId}`);
+        } else {
+          throw new Error('No se pudo inicializar el proyecto para generar el momento.');
+        }
+      } else {
+        await fetch(`/api/pips/${currentId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...pips, current_step: step }),
+        });
+      }
+
+      setMsg(`✨ Generando Momento ${momentoNum} con IA (DBEPA Puebla)...`);
+      const res = await fetch(`/api/pips/${currentId}/cartografia/generate-momento?momento=${momentoNum}`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || `Error al generar el Momento ${momentoNum}`);
+      }
+
+      if (momentoNum === '3') {
+        set('momento3_ubicar', data.data);
+        if (data.data.descripcionTerritorial) {
+          const prevDiag = pips.diagnostico_contexto ? `${pips.diagnostico_contexto}\n\n` : '';
+          set('diagnostico_contexto', `${prevDiag}${data.data.descripcionTerritorial}\n\nMovilidad y Conectividad:\n${data.data.movilidadTransporte}\n${data.data.conectividadInfraestructura}`);
+        }
+      } else if (momentoNum === '4') {
+        set('momento4_analizar', data.data);
+      } else if (momentoNum === '5') {
+        set('momento5_decidir', data.data);
+        if (data.data.metaGeneralZona) {
+          set('objetivo_general', data.data.metaGeneralZona);
+        }
+      } else if (momentoNum === 'memoria') {
+        set('memoria_pedagogica', data.data);
+      }
+
+      setMsg(`✅ Momento ${momentoNum === 'memoria' ? 'Memoria Pedagógica' : momentoNum} generado y persistido con éxito.`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Error al generar momento con IA';
+      setMsg(`❌ ${message}`);
+    } finally {
+      setGeneratingMomento(null);
     }
   };
 
@@ -750,12 +814,243 @@ export default function PipsWizard({ locale }: { locale: string }) {
           + Agregar problemática
         </button>
       </div>
+
+      {/* ─── Momento 3: Ubicar (Mapeo Escuela-Territorio) ─── */}
+      <div style={{ ...cardStyle, border: '1px solid rgba(56, 189, 248, 0.3)', background: 'rgba(56, 189, 248, 0.03)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <div>
+            <span style={{ fontSize: 10, fontWeight: 800, background: '#0284c7', color: '#fff', padding: '3px 8px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              Momento 3 · DBEPA Puebla
+            </span>
+            <h4 style={{ margin: '6px 0 0', fontSize: 16, color: 'var(--c-text)' }}>
+              🗺️ Mapeo Escuela-Territorio y Recursos Comunitarios
+            </h4>
+          </div>
+          <button
+            type="button"
+            onClick={() => generateMomento('3')}
+            disabled={generatingMomento !== null || saving}
+            className="btn btn-sm"
+            style={{
+              background: '#0284c7',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 8,
+              padding: '8px 14px',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            {generatingMomento === '3' ? '⏳ Generando Mapeo...' : '✨ Generar Momento 3 con IA'}
+          </button>
+        </div>
+
+        {pips.momento3_ubicar ? (
+          <div style={{ fontSize: 13, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ background: 'rgba(255,255,255,0.03)', padding: 12, borderRadius: 8 }}>
+              <strong style={{ color: '#38bdf8' }}>Descripción Territorial:</strong>
+              <p style={{ margin: '4px 0 0', color: 'var(--c-text)', lineHeight: 1.5 }}>
+                {pips.momento3_ubicar.descripcionTerritorial}
+              </p>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div style={{ background: 'rgba(255,255,255,0.03)', padding: 10, borderRadius: 8 }}>
+                <strong style={{ color: '#38bdf8', fontSize: 12 }}>🚌 Movilidad y Transporte:</strong>
+                <p style={{ margin: '4px 0 0', color: 'var(--c-text-muted)', fontSize: 12 }}>
+                  {pips.momento3_ubicar.movilidadTransporte}
+                </p>
+              </div>
+              <div style={{ background: 'rgba(255,255,255,0.03)', padding: 10, borderRadius: 8 }}>
+                <strong style={{ color: '#38bdf8', fontSize: 12 }}>📡 Conectividad e Infraestructura:</strong>
+                <p style={{ margin: '4px 0 0', color: 'var(--c-text-muted)', fontSize: 12 }}>
+                  {pips.momento3_ubicar.conectividadInfraestructura}
+                </p>
+              </div>
+            </div>
+            {pips.momento3_ubicar.recursosAliados?.length > 0 && (
+              <div style={{ background: 'rgba(255,255,255,0.02)', padding: 10, borderRadius: 8 }}>
+                <strong style={{ color: '#38bdf8', fontSize: 12 }}>🤝 Recursos y Aliados Comunitarios:</strong>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+                  {pips.momento3_ubicar.recursosAliados.map((rec, idx) => (
+                    <span
+                      key={idx}
+                      style={{
+                        background: 'rgba(2, 132, 199, 0.15)',
+                        border: '1px solid rgba(2, 132, 199, 0.3)',
+                        borderRadius: 6,
+                        padding: '4px 8px',
+                        fontSize: 11,
+                        color: '#bae6fd',
+                      }}
+                    >
+                      🏷️ {rec.nombre} ({rec.tipo}) — {rec.vinculacionPedagogica}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p style={{ fontSize: 12, color: 'var(--c-text-muted)', margin: 0 }}>
+            Presiona el botón para georreferenciar la relación escuela-territorio, rutas de movilidad y recursos aliados con IA.
+          </p>
+        )}
+      </div>
+
+      {/* ─── Momento 4: Analizar (Triangulación de las 4 Perspectivas) ─── */}
+      <div style={{ ...cardStyle, border: '1px solid rgba(168, 85, 247, 0.3)', background: 'rgba(168, 85, 247, 0.03)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <div>
+            <span style={{ fontSize: 10, fontWeight: 800, background: '#7e22ce', color: '#fff', padding: '3px 8px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              Momento 4 · DBEPA Puebla
+            </span>
+            <h4 style={{ margin: '6px 0 0', fontSize: 16, color: 'var(--c-text)' }}>
+              🔍 Triangulación de Perspectivas y Retos Pedagógicos CREAA
+            </h4>
+          </div>
+          <button
+            type="button"
+            onClick={() => generateMomento('4')}
+            disabled={generatingMomento !== null || saving}
+            className="btn btn-sm"
+            style={{
+              background: '#7e22ce',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 8,
+              padding: '8px 14px',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            {generatingMomento === '4' ? '⏳ Analizando...' : '✨ Generar Momento 4 con IA'}
+          </button>
+        </div>
+
+        {pips.momento4_analizar ? (
+          <div style={{ fontSize: 13, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div style={{ background: 'rgba(255,255,255,0.03)', padding: 10, borderRadius: 8, borderLeft: '3px solid #c084fc' }}>
+                <strong style={{ color: '#c084fc', fontSize: 12 }}>🏛️ Directivos:</strong>
+                <p style={{ margin: '4px 0 0', color: 'var(--c-text-muted)', fontSize: 12, lineHeight: 1.4 }}>
+                  {pips.momento4_analizar.triangulacion.directivos}
+                </p>
+              </div>
+              <div style={{ background: 'rgba(255,255,255,0.03)', padding: 10, borderRadius: 8, borderLeft: '3px solid #c084fc' }}>
+                <strong style={{ color: '#c084fc', fontSize: 12 }}>👨‍🏫 Colectivos Docentes:</strong>
+                <p style={{ margin: '4px 0 0', color: 'var(--c-text-muted)', fontSize: 12, lineHeight: 1.4 }}>
+                  {pips.momento4_analizar.triangulacion.docentes}
+                </p>
+              </div>
+              <div style={{ background: 'rgba(255,255,255,0.03)', padding: 10, borderRadius: 8, borderLeft: '3px solid #c084fc' }}>
+                <strong style={{ color: '#c084fc', fontSize: 12 }}>👨‍👩‍👧 Alumnos y Familias:</strong>
+                <p style={{ margin: '4px 0 0', color: 'var(--c-text-muted)', fontSize: 12, lineHeight: 1.4 }}>
+                  {pips.momento4_analizar.triangulacion.alumnosFamilias}
+                </p>
+              </div>
+              <div style={{ background: 'rgba(255,255,255,0.03)', padding: 10, borderRadius: 8, borderLeft: '3px solid #c084fc' }}>
+                <strong style={{ color: '#c084fc', fontSize: 12 }}>🧭 Supervisión y ATP:</strong>
+                <p style={{ margin: '4px 0 0', color: 'var(--c-text-muted)', fontSize: 12, lineHeight: 1.4 }}>
+                  {pips.momento4_analizar.triangulacion.supervisionAtp}
+                </p>
+              </div>
+            </div>
+
+            {pips.momento4_analizar.retosPedagogicosCreaa?.length > 0 && (
+              <div style={{ background: 'rgba(255,255,255,0.02)', padding: 10, borderRadius: 8 }}>
+                <strong style={{ color: '#c084fc', fontSize: 12 }}>🎯 Retos Pedagógicos CREAA:</strong>
+                <ul style={{ margin: '6px 0 0', paddingLeft: 18, color: 'var(--c-text-muted)', fontSize: 12 }}>
+                  {pips.momento4_analizar.retosPedagogicosCreaa.map((r, idx) => (
+                    <li key={idx} style={{ marginBottom: 3 }}>{r}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p style={{ fontSize: 12, color: 'var(--c-text-muted)', margin: 0 }}>
+            Aplica la metodología de triangulación para contrastar las 4 voces del territorio (Directores, Docentes, Alumnos y Supervisión).
+          </p>
+        )}
+      </div>
     </>
   );
 
   // ── Step 5 ── Objetivos y metas
   const step5 = (
     <>
+      {/* ─── Momento 5: Decidir (Meta General CREAA + 3 Líneas Oficiales DBEPA) ─── */}
+      <div style={{ ...cardStyle, border: '1px solid rgba(245, 158, 11, 0.3)', background: 'rgba(245, 158, 11, 0.03)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <div>
+            <span style={{ fontSize: 10, fontWeight: 800, background: '#d97706', color: '#fff', padding: '3px 8px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              Momento 5 · DBEPA Puebla
+            </span>
+            <h4 style={{ margin: '6px 0 0', fontSize: 16, color: 'var(--c-text)' }}>
+              🎯 Meta General CREAA y 3 Líneas de Acción Oficiales
+            </h4>
+          </div>
+          <button
+            type="button"
+            onClick={() => generateMomento('5')}
+            disabled={generatingMomento !== null || saving}
+            className="btn btn-sm"
+            style={{
+              background: '#d97706',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 8,
+              padding: '8px 14px',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            {generatingMomento === '5' ? '⏳ Decidiendo...' : '✨ Generar Momento 5 con IA'}
+          </button>
+        </div>
+
+        {pips.momento5_decidir ? (
+          <div style={{ fontSize: 13, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ background: 'rgba(217, 119, 6, 0.1)', padding: 12, borderRadius: 8, border: '1px solid rgba(217, 119, 6, 0.2)' }}>
+              <strong style={{ color: '#fbbf24' }}>📐 Meta General de Zona (Fórmula Sintáctica CREAA):</strong>
+              <p style={{ margin: '4px 0 0', color: 'var(--c-text)', fontWeight: 600, lineHeight: 1.4 }}>
+                {pips.momento5_decidir.metaGeneralZona}
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <strong style={{ color: '#fbbf24', fontSize: 12 }}>📋 Las 3 Líneas de Acción Oficiales de la DBEPA:</strong>
+              {pips.momento5_decidir.lineasAccion?.map((linea, idx) => (
+                <div key={idx} style={{ background: 'rgba(255,255,255,0.03)', padding: 10, borderRadius: 8 }}>
+                  <div style={{ fontWeight: 700, color: 'var(--c-text)', fontSize: 12 }}>
+                    Línea {linea.numero}: {linea.titulo}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--c-text-muted)', marginTop: 4 }}>
+                    <strong>Responsables:</strong> {linea.responsables} | <strong>Entregables:</strong> {linea.entregables}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <p style={{ fontSize: 12, color: 'var(--c-text-muted)', margin: 0 }}>
+            Genera la meta general bajo la fórmula estricta CREAA y las 3 líneas de acción oficiales para el acompañamiento docente y directivo.
+          </p>
+        )}
+      </div>
+
       <div style={cardStyle}>
         {sectionTitle('Objetivo general del PIPS')}
         {inp('Objetivo general', pips.objetivo_general ?? '', v => set('objetivo_general', v), {
@@ -859,11 +1154,67 @@ export default function PipsWizard({ locale }: { locale: string }) {
         <AddCronogramaRow onAdd={(act: PipsCronogramaActividad) => set('cronograma_json', [...(pips.cronograma_json ?? []), act])} />
       </div>
 
-      {/* Generar */}
+      {/* ─── Memoria Pedagógica Viva (Cierre y Trascendencia) ─── */}
+      <div style={{ ...cardStyle, border: '1px solid rgba(34, 197, 94, 0.3)', background: 'rgba(34, 197, 94, 0.03)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <div>
+            <span style={{ fontSize: 10, fontWeight: 800, background: '#15803d', color: '#fff', padding: '3px 8px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              Memoria Pedagógica · DBEPA Puebla
+            </span>
+            <h4 style={{ margin: '6px 0 0', fontSize: 16, color: 'var(--c-text)' }}>
+              🌱 Memoria Pedagógica Viva: ¿Qué logramos?, ¿Cómo?, ¿Qué aprendimos?
+            </h4>
+          </div>
+          <button
+            type="button"
+            onClick={() => generateMomento('memoria')}
+            disabled={generatingMomento !== null || saving}
+            className="btn btn-sm"
+            style={{
+              background: '#15803d',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 8,
+              padding: '8px 14px',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            {generatingMomento === 'memoria' ? '⏳ Sistematizando...' : '✨ Generar Memoria con IA'}
+          </button>
+        </div>
+
+        {pips.memoria_pedagogica ? (
+          <div style={{ fontSize: 13, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ background: 'rgba(255,255,255,0.03)', padding: 10, borderRadius: 8 }}>
+              <strong style={{ color: '#4ade80', fontSize: 12 }}>¿Qué logramos?</strong>
+              <p style={{ margin: '4px 0 0', color: 'var(--c-text)', fontSize: 12, lineHeight: 1.4 }}>{pips.memoria_pedagogica.queLogramos}</p>
+            </div>
+            <div style={{ background: 'rgba(255,255,255,0.03)', padding: 10, borderRadius: 8 }}>
+              <strong style={{ color: '#4ade80', fontSize: 12 }}>¿Cómo lo logramos?</strong>
+              <p style={{ margin: '4px 0 0', color: 'var(--c-text)', fontSize: 12, lineHeight: 1.4 }}>{pips.memoria_pedagogica.comoLoLogramos}</p>
+            </div>
+            <div style={{ background: 'rgba(255,255,255,0.03)', padding: 10, borderRadius: 8 }}>
+              <strong style={{ color: '#4ade80', fontSize: 12 }}>¿Qué aprendimos?</strong>
+              <p style={{ margin: '4px 0 0', color: 'var(--c-text)', fontSize: 12, lineHeight: 1.4 }}>{pips.memoria_pedagogica.queAprendimos}</p>
+            </div>
+          </div>
+        ) : (
+          <p style={{ fontSize: 12, color: 'var(--c-text-muted)', margin: 0 }}>
+            Sistematiza el impacto territorial y pedagógico respondiendo a las tres preguntas clave de la DBEPA.
+          </p>
+        )}
+      </div>
+
+      {/* Generar y Descargar */}
       <div style={{ ...cardStyle, textAlign: 'center', border: '1px solid rgba(99,102,241,0.3)', background: 'rgba(99,102,241,0.05)' }}>
-        {sectionTitle('✅ Generar Cartografía de Zona con IA')}
+        {sectionTitle('✅ Generar y Exportar Cartografía de Zona')}
         <p style={{ fontSize: 13, color: 'var(--c-text-muted)', marginBottom: 20 }}>
-          La IA consolidará toda la información territorial ingresada y completará la Cartografía de Zona Escolar con redacción profesional, diagnósticos cuantitativos, objetivos estratégicos y cronograma oficial.
+          La Cartografía de Zona Escolar integra los 5 Momentos metodológicos, diagnósticos 911/F11, metas CREAA y la Memoria Pedagógica en formato oficial para entrega ante la DBEPA.
         </p>
         {msg && (
           <div style={{ padding: '10px 16px', borderRadius: 8, background: msg.startsWith('✅') ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', color: msg.startsWith('✅') ? '#22c55e' : '#ef4444', marginBottom: 16, fontSize: 13 }}>
@@ -877,8 +1228,32 @@ export default function PipsWizard({ locale }: { locale: string }) {
             className="btn btn-primary"
             style={{ fontSize: 14, padding: '12px 28px' }}
           >
-            {generating ? '⏳ Generando Cartografía...' : '🤖 Generar Cartografía con IA'}
+            {generating ? '⏳ Consolidando...' : '🤖 Consolidar con IA'}
           </button>
+          {projectId && (
+            <a
+              href={`/api/pdf/cartografia/${projectId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn"
+              style={{
+                background: '#1F3864',
+                color: '#fff',
+                border: '1.5px solid #E8A020',
+                fontSize: 14,
+                padding: '12px 24px',
+                textDecoration: 'none',
+                borderRadius: 8,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                fontWeight: 700,
+                boxShadow: '0 4px 12px rgba(31, 56, 100, 0.4)',
+              }}
+            >
+              📄 Descargar Cartografía Oficial DBEPA (PDF)
+            </a>
+          )}
           {projectId && pips.status === 'completed' && (
             <>
               <a
@@ -886,7 +1261,7 @@ export default function PipsWizard({ locale }: { locale: string }) {
                 className="btn"
                 style={{ background: '#c0392b', color: '#fff', border: 'none', fontSize: 14, padding: '12px 28px', textDecoration: 'none', borderRadius: 8, display: 'inline-block', fontWeight: 600 }}
               >
-                ↓ Descargar PDF Oficial
+                ↓ Descargar PDF Resumen
               </a>
               <a
                 href={`/api/docx/pips/${projectId}`}
