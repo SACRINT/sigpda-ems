@@ -732,3 +732,118 @@ export const ScheduleOptimizationSchema = z.preprocess((input) => {
 
 export type ScheduleOptimizationDTO = z.infer<typeof ScheduleOptimizationSchema>;
 
+// ============================================================================
+// 11. CARTOGRAFÍA DE ZONA ESCOLAR SCHEMAS (DBEPA PUEBLA MCCEMS 2026-2027)
+// ============================================================================
+
+export const RecursoComunitarioSchema = z.object({
+  nombre: z.string().default('Recurso Comunitario'),
+  tipo: z.preprocess((val) => {
+    const s = String(val || '').toLowerCase();
+    if (s.includes('salud')) return 'salud';
+    if (s.includes('depor')) return 'deportivo';
+    if (s.includes('cultur')) return 'cultural';
+    if (s.includes('produc')) return 'productivo';
+    if (s.includes('educa')) return 'educativo';
+    return 'comunitario';
+  }, z.enum(['salud', 'deportivo', 'cultural', 'productivo', 'educativo', 'comunitario'])).default('comunitario'),
+  ubicacion: z.string().default('Comunidad de la Zona'),
+  vinculacionPedagogica: z.string().default('Vinculación con proyectos formativos y comunitarios.'),
+});
+
+export const CartografiaMomento3Schema = z.preprocess((input) => {
+  if (input && typeof input === 'object') {
+    const obj = input as Record<string, unknown>;
+    return obj.momento3Ubicar || obj.momento3 || obj.ubicar || input;
+  }
+  return input;
+}, z.object({
+  descripcionTerritorial: z.string().min(1, 'La descripción territorial es requerida'),
+  comunidadesProcedencia: z.array(z.string()).default([]),
+  movilidadTransporte: z.string().default('Acceso y movilidad estándar en la región.'),
+  conectividadInfraestructura: z.string().default('Infraestructura y conectividad de zona escolar.'),
+  recursosAliados: z.array(RecursoComunitarioSchema).default([]),
+  mapaContextual: z.string().default('Distribución espacial de planteles y nodos comunitarios.'),
+}));
+
+export type CartografiaMomento3DTO = z.infer<typeof CartografiaMomento3Schema>;
+
+export const TriangulacionPerspectivasSchema = z.object({
+  directivos: z.string().default('Visión de gestión y clima escolar.'),
+  docentes: z.string().default('Retos en aula y adaptaciones pedagógicas.'),
+  alumnosFamilias: z.string().default('Pertinencia social y condiciones del entorno.'),
+  supervisionAtp: z.string().default('Acompañamiento situado y asesoría pedagógica.'),
+});
+
+export const CartografiaMomento4Schema = z.preprocess((input) => {
+  if (input && typeof input === 'object') {
+    const obj = input as Record<string, unknown>;
+    return obj.momento4Analizar || obj.momento4 || obj.analizar || input;
+  }
+  return input;
+}, z.object({
+  triangulacion: TriangulacionPerspectivasSchema,
+  patronesRecurrentes: z.array(z.string()).default([]),
+  retosPedagogicosCreaa: z.array(z.string()).default([]),
+  acuerdosAutonomiaConsejo: z.array(z.string()).default([]),
+}));
+
+export type CartografiaMomento4DTO = z.infer<typeof CartografiaMomento4Schema>;
+
+export const LineaAccionOficialSchema = z.object({
+  numero: z.preprocess((val) => {
+    const n = Number(val);
+    if (n === 2) return 2;
+    if (n === 3) return 3;
+    return 1;
+  }, z.union([z.literal(1), z.literal(2), z.literal(3)])).default(1),
+  titulo: z.string().default('Línea de Acción'),
+  accionesEspecificas: z.array(z.string()).default([]),
+  recursos: z.array(z.string()).default([]),
+  responsables: z.string().default('Supervisión y Colectivos Docentes'),
+  entregables: z.string().default('Evidencias de acompañamiento'),
+  estrategiaSeguimiento: z.string().default('Sesiones de Consejo Técnico y visitas situadas'),
+  periodoEjecucion: z.string().default('Ciclo Escolar 2026-2027'),
+});
+
+export const CartografiaMomento5Schema = z.preprocess((input) => {
+  if (input && typeof input === 'object') {
+    const obj = input as Record<string, unknown>;
+    return obj.momento5Decidir || obj.momento5 || obj.decidir || input;
+  }
+  return input;
+}, z.object({
+  metaGeneralZona: z.string().min(1, 'La meta general de zona con fórmula CREAA es requerida'),
+  indicadoresCreaaAsociados: z.array(z.string()).default([]),
+  lineasAccion: z.array(LineaAccionOficialSchema).default([]),
+  compromisosSupervision: z.array(z.string()).default([]),
+}));
+
+export type CartografiaMomento5DTO = z.infer<typeof CartografiaMomento5Schema>;
+
+export const IndicadoresCambioSchema = z.object({
+  proceso: z.string().default('Transformación en la planeación y evaluación formativa.'),
+  creaa: z.string().default('Impacto positivo en indicadores CREAA.'),
+  impactoTerritorial: z.string().default('Fortalecimiento del vínculo escuela-comunidad.'),
+});
+
+export const CartografiaMemoriaSchema = z.preprocess((input) => {
+  if (input && typeof input === 'object') {
+    const obj = input as Record<string, unknown>;
+    return obj.memoriaPedagogica || obj.memoria || input;
+  }
+  return input;
+}, z.object({
+  queLogramos: z.string().min(1, 'La respuesta a ¿Qué logramos? es requerida'),
+  comoLoLogramos: z.string().min(1, 'La respuesta a ¿Cómo lo logramos? es requerida'),
+  queAprendimos: z.string().min(1, 'La respuesta a ¿Qué aprendimos? es requerida'),
+  indicadoresCambio: IndicadoresCambioSchema.default({
+    proceso: 'Transformación en la planeación y evaluación formativa.',
+    creaa: 'Impacto positivo en indicadores CREAA.',
+    impactoTerritorial: 'Fortalecimiento del vínculo escuela-comunidad.',
+  }),
+  hojaDeRutaProximoCiclo: z.array(z.string()).default([]),
+}));
+
+export type CartografiaMemoriaDTO = z.infer<typeof CartografiaMemoriaSchema>;
+

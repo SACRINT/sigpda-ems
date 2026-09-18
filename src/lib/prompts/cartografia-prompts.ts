@@ -18,7 +18,9 @@
 import type {
   CartografiaMomento1Conocer,
   CartografiaMomento2Organizar,
-  CartografiaZonaProject,
+  CartografiaMomento3Ubicar,
+  CartografiaMomento4Analizar,
+  CartografiaMomento5Decidir,
 } from '@/types/cartografia';
 
 export const CARTOGRAFIA_SYSTEM_PROMPT = `Eres el Asesor Técnico Pedagógico y Cartógrafo Líder de la Dirección de Bachilleratos Estatales y Preparatoria Abierta (DBEPA) de Puebla, México.
@@ -231,3 +233,280 @@ Genera un objeto JSON estrictamente estructurado con las siguientes secciones:
 
 Responde ÚNICAMENTE con el JSON válido.`;
 }
+
+// ─── CONTEXTO BASE REUTILIZABLE ──────────────────────────────────────────────
+export interface CartografiaIdentificacion {
+  zonaNumero: string;
+  zonaClave: string;
+  supervisorName: string;
+  municipioSede: string;
+  municipiosAtiende: string;
+  subsistema: string;
+  cicloEscolar: string;
+  atps: string[];
+}
+
+function renderBaseStats(
+  identificacion: CartografiaIdentificacion,
+  momento1: CartografiaMomento1Conocer,
+  momento2: CartografiaMomento2Organizar,
+  libraryContext?: string
+): string {
+  const numPlanteles = momento1.planteles.length;
+  const matTotal = momento1.matriculaTotalZona;
+  const promAbandono = momento2.capaCuantitativa.promedioAbandonoZona;
+  const promEficiencia = momento2.capaCuantitativa.promedioEficienciaZona;
+  const promCalificaciones = momento2.capaCuantitativa.promedioAprovechamientoZona;
+  const promReprobacion = momento2.capaCuantitativa.promedioReprobacionZona;
+
+  const plantelesResumen = momento1.planteles
+    .slice(0, 15)
+    .map(
+      (p) =>
+        `- ${p.nombre} (${p.cct}): Matrícula ${p.matricula}, Abandono ${p.abandono}%, Eficiencia ${p.eficienciaTerminal}%, Promedio ${p.promedioGeneral}. Proyecto PAEC: "${p.paecProyecto}"`
+    )
+    .join('\n');
+
+  return `DATOS INSTITUCIONALES DE LA ZONA:
+- Zona Escolar: ${identificacion.zonaNumero} (Clave: ${identificacion.zonaClave}) | Subsistema: ${identificacion.subsistema}
+- Supervisor(a): ${identificacion.supervisorName} | Ciclo Escolar: ${identificacion.cicloEscolar}
+- Municipio Sede: ${identificacion.municipioSede} | Municipios de Cobertura: ${identificacion.municipiosAtiende}
+- Total de Planteles: ${numPlanteles} | Matrícula Total Atendida: ${matTotal} estudiantes
+- Equipo ATP: ${identificacion.atps.join(', ') || 'Equipo de Asesoría de Zona'}
+
+${libraryContext ? `CONTEXTO DE BIBLIOTECA DOCENTE:\n${libraryContext}\n` : ''}
+LÍNEA BASE ESTADÍSTICA 911.7G / F11C:
+- Promedio Abandono: ${promAbandono}% | Eficiencia Terminal: ${promEficiencia}%
+- Promedio Calificaciones: ${promCalificaciones} | Reprobación: ${promReprobacion}%
+- Planteles Atención Prioritaria: ${momento2.capaCuantitativa.plantelesAtencionPrioritaria.slice(0, 5).join(', ') || 'En rangos promedio'}
+
+CAPA CUALITATIVA SITUADA (PAEC Y RETOS TERRITORIALES):
+- Problemáticas comunes PAEC: ${momento2.capaCualitativa.problematicasComunes.slice(0, 3).join('; ')}
+- Desafíos socioeconómicos: ${momento2.capaCualitativa.desafiosSocioeconomicos}
+
+MUESTRA DE PLANTELES:
+${plantelesResumen}`;
+}
+
+// ─── MOMENTO 3: UBICAR ───────────────────────────────────────────────────────
+export function buildMomento3UbicarPrompt(
+  identificacion: CartografiaIdentificacion,
+  momento1: CartografiaMomento1Conocer,
+  momento2: CartografiaMomento2Organizar,
+  libraryContext?: string
+): string {
+  const base = renderBaseStats(identificacion, momento1, momento2, libraryContext);
+  return `${base}
+
+═══════════════════════════════════════════════════════════════════════════════
+TAREA: GENERAR MOMENTO 3: UBICAR (MAPEO ESCUELA-TERRITORIO Y RECURSOS COMUNITARIOS)
+═══════════════════════════════════════════════════════════════════════════════
+Bajo el Modelo Educativo 2025 y MCCEMS de la DBEPA Puebla, elabora el mapeo contextual y territorial de la zona.
+Genera un objeto JSON estrictamente con la siguiente estructura:
+
+{
+  "descripcionTerritorial": "Narrativa amplia (2-3 párrafos) de la georreferenciación y relación escuela-territorio en los municipios de ${identificacion.municipiosAtiende}, Puebla.",
+  "comunidadesProcedencia": ["Comunidad Principal A", "Comunidad B", "Comunidad C", "Comunidad D"],
+  "movilidadTransporte": "Análisis situado sobre las rutas de traslado, tiempos de recorrido de los estudiantes y su impacto directo en la puntualidad y retención escolar.",
+  "conectividadInfraestructura": "Diagnóstico de conectividad digital, acceso a internet y recursos tecnológicos en los planteles y hogares de la zona.",
+  "recursosAliados": [
+    {
+      "nombre": "Nombre de institución, centro de salud o cooperativa local",
+      "tipo": "salud",
+      "ubicacion": "${identificacion.municipioSede}",
+      "vinculacionPedagogica": "Vinculación directa con los proyectos comunitarios PAEC de los planteles de la zona"
+    },
+    {
+      "nombre": "Biblioteca comunitaria o espacio cultural",
+      "tipo": "cultural",
+      "ubicacion": "Cabecera municipal",
+      "vinculacionPedagogica": "Foros inter-escolares y fortalecimiento de la lectoescritura situada"
+    },
+    {
+      "nombre": "Unidad productiva, artesanal o agropecuaria",
+      "tipo": "productivo",
+      "ubicacion": "Región de atención",
+      "vinculacionPedagogica": "Proyectos de inserción sociolaboral y desarrollo sostenible comunitario"
+    }
+  ],
+  "mapaContextual": "Descripción sinóptica de la distribución espacial de los ${momento1.planteles.length} planteles y los nodos de convergencia comunitaria."
+}
+
+Responde ÚNICAMENTE con el JSON válido.`;
+}
+
+// ─── MOMENTO 4: ANALIZAR ─────────────────────────────────────────────────────
+export function buildMomento4AnalizarPrompt(
+  identificacion: CartografiaIdentificacion,
+  momento1: CartografiaMomento1Conocer,
+  momento2: CartografiaMomento2Organizar,
+  momento3?: CartografiaMomento3Ubicar,
+  libraryContext?: string
+): string {
+  const base = renderBaseStats(identificacion, momento1, momento2, libraryContext);
+  const contextoTerritorial = momento3 ? `\nCONTEXTO TERRITORIAL (MOMENTO 3 PREVIO):\n- Movilidad: ${momento3.movilidadTransporte}\n- Conectividad: ${momento3.conectividadInfraestructura}\n` : '';
+
+  return `${base}
+${contextoTerritorial}
+═══════════════════════════════════════════════════════════════════════════════
+TAREA: GENERAR MOMENTO 4: ANALIZAR (TRIANGULACIÓN DE LAS 4 PERSPECTIVAS Y RETOS CREAA)
+═══════════════════════════════════════════════════════════════════════════════
+Aplica la metodología de triangulación de la DBEPA Puebla contrastando la voz de los 4 actores fundamentales.
+Genera un objeto JSON estrictamente con la siguiente estructura:
+
+{
+  "triangulacion": {
+    "directivos": "Perspectiva estratégica de directores: retos de gestión, optimización de plantillas docentes, clima institucional y retención en semestres de alto riesgo.",
+    "docentes": "Perspectiva de colectivos docentes: desafíos pedagógicos en aula, barreras de aprendizaje en pensamiento matemático y comunicación, y adaptación de fichas formativas.",
+    "alumnosFamilias": "Perspectiva comunitaria (alumnos y padres): pertinencia social de lo aprendido, limitaciones socioeconómicas, necesidades de transporte y aspiraciones formativas.",
+    "supervisionAtp": "Perspectiva de la Supervisión y Asesoría Técnica: detección de asimetrías entre planteles, acompañamiento formativo situado y arbitraje institucional."
+  },
+  "patronesRecurrentes": [
+    "Patrón recurrente 1 detectado en los planteles de la zona escolar",
+    "Patrón recurrente 2 sobre hábitos de estudio o impacto del trabajo estudiantil",
+    "Patrón recurrente 3 sobre necesidades de formación continua docente"
+  ],
+  "retosPedagogicosCreaa": [
+    "Reto prioritario para elevar la Cobertura y Retención escolar en la zona",
+    "Reto pedagógico para abatir la Reprobación en áreas fundamentales",
+    "Reto formativo para consolidar la transversalidad de los proyectos PAEC"
+  ],
+  "acuerdosAutonomiaConsejo": [
+    "Acuerdo colegiado de zona para flexibilizar la dosificación curricular ante contingencias territoriales",
+    "Acuerdo de intercambio de secuencias didácticas y proyectos integradores entre docentes de la zona"
+  ]
+}
+
+Responde ÚNICAMENTE con el JSON válido.`;
+}
+
+// ─── MOMENTO 5: DECIDIR ──────────────────────────────────────────────────────
+export function buildMomento5DecidirPrompt(
+  identificacion: CartografiaIdentificacion,
+  momento1: CartografiaMomento1Conocer,
+  momento2: CartografiaMomento2Organizar,
+  momento3?: CartografiaMomento3Ubicar,
+  momento4?: CartografiaMomento4Analizar,
+  libraryContext?: string
+): string {
+  const base = renderBaseStats(identificacion, momento1, momento2, libraryContext);
+  const contextoPrevio = momento4 ? `\nRETOS PEDAGÓGICOS IDENTIFICADOS:\n- ${momento4.retosPedagogicosCreaa.join('; ')}\n` : '';
+
+  return `${base}
+${contextoPrevio}
+═══════════════════════════════════════════════════════════════════════════════
+TAREA: GENERAR MOMENTO 5: DECIDIR (META GENERAL CREAA + 3 LÍNEAS DE ACCIÓN DBEPA)
+═══════════════════════════════════════════════════════════════════════════════
+REGLA INQUEBRANTABLE PARA LA META GENERAL DE ZONA:
+Debe cumplir estrictamente la fórmula sintáctica CREAA:
+[VERBO EN INFINITIVO] + [INDICADOR/PORCENTAJE] + [POBLACIÓN DE LA ZONA] + [ESTRATEGIA TERRITORIAL] + [PERIODO Y TERRITORIO]
+
+LAS 3 LÍNEAS DE ACCIÓN OFICIALES DE LA DBEPA PUEBLA:
+- Línea 1: Acompañamiento a la autonomía docente y curricular situada
+- Línea 2: Acompañamiento directivo para la gestión participativa y clima escolar
+- Línea 3: Acompañamiento integral a las trayectorias formativas y proyectos comunitarios
+
+Genera un objeto JSON estrictamente con la siguiente estructura:
+
+{
+  "metaGeneralZona": "Incrementar en un 4.5% el promedio de permanencia y eficiencia terminal de los 1,850 estudiantes de la Zona Escolar ${identificacion.zonaNumero} mediante el acompañamiento formativo situado, comunidades de práctica docente y articulación de proyectos PAEC durante el ciclo escolar ${identificacion.cicloEscolar}.",
+  "indicadoresCreaaAsociados": [
+    "Porcentaje de Eficiencia Terminal zonal",
+    "Tasa de Abandono Escolar acumulado",
+    "Porcentaje de Aprobación en áreas de acceso al conocimiento",
+    "Proyectos PAEC con impacto comunitario validado"
+  ],
+  "lineasAccion": [
+    {
+      "numero": 1,
+      "titulo": "Acompañamiento a la autonomía docente y curricular situada",
+      "accionesEspecificas": [
+        "Talleres vivenciales de codiseño curricular y contextualización de progresiones",
+        "Observación de aula formativa sin carácter punitivo con retroalimentación dialógica",
+        "Red de intercambio pedagógico inter-bachilleratos en áreas de pensamiento lógico y comunicación"
+      ],
+      "recursos": ["Fichas formativas DBEPA 2025", "Materiales digitales compartidos", "Guías de observación dialógica"],
+      "responsables": "Equipo de Asesores Técnicos Pedagógicos (ATP) y Academias de Zona",
+      "entregables": "Portafolio digital de secuencias didácticas contextualizadas y bitácoras de diálogo pedagógico",
+      "estrategiaSeguimiento": "Revisiones trimestrales en sesiones de Consejo Técnico de Zona",
+      "periodoEjecucion": "Agosto 2026 - Julio 2027"
+    },
+    {
+      "numero": 2,
+      "titulo": "Acompañamiento directivo para la gestión participativa y clima escolar",
+      "accionesEspecificas": [
+        "Círculos de liderazgo pedagógico y gestión de la convivencia armónica para directores",
+        "Estandarización de protocolos de prevención del abandono temprano",
+        "Estrategias de articulación con comités escolares de administración participativa"
+      ],
+      "recursos": ["Guías de gestión directiva DBEPA", "Manual de convivencia escolar de Puebla"],
+      "responsables": "Supervisión Escolar y Directores de los ${momento1.planteles.length} planteles",
+      "entregables": "Actas de acuerdos de Consejo Directivo y diagnóstico semestral de clima escolar",
+      "estrategiaSeguimiento": "Reuniones bimensuales de seguimiento y visitas de supervisión acompañante",
+      "periodoEjecucion": "Septiembre 2026 - Junio 2027"
+    },
+    {
+      "numero": 3,
+      "titulo": "Acompañamiento integral a las trayectorias formativas y proyectos comunitarios",
+      "accionesEspecificas": [
+        "Tutoría personalizada a estudiantes en situación de vulnerabilidad académica o económica",
+        "Muestra Zonal de Proyectos Comunitarios PAEC con participación de actores locales",
+        "Monitoreo nominal de estudiantes en riesgo de deserción en los tres momentos del ciclo"
+      ],
+      "recursos": ["Sistema de alerta temprana SIGPDA-EMS", "Redes de apoyo comunitario", "Formatos PAEC"],
+      "responsables": "Supervisión Escolar, Tutores Escolares y Comités de Vinculación",
+      "entregables": "Madrina/Padrino de trayectoria para alumnos en riesgo y catálogo de proyectos comunitarios",
+      "estrategiaSeguimiento": "Cortes nominales de permanencia en cada evaluación parcial",
+      "periodoEjecucion": "Agosto 2026 - Julio 2027"
+    }
+  ],
+  "compromisosSupervision": [
+    "Garantizar visitas de acompañamiento situado al 100% de los planteles priorizando el diálogo reflexivo",
+    "Facilitar la articulación con dependencias del sector salud y cultura en beneficio de las comunidades escolares",
+    "Reconocer y difundir las experiencias exitosas de autonomía profesional emanadas de la zona"
+  ]
+}
+
+Responde ÚNICAMENTE con el JSON válido.`;
+}
+
+// ─── MEMORIA PEDAGÓGICA ──────────────────────────────────────────────────────
+export function buildMemoriaPedagogicaPrompt(
+  identificacion: CartografiaIdentificacion,
+  momento1: CartografiaMomento1Conocer,
+  momento2: CartografiaMomento2Organizar,
+  momento5?: CartografiaMomento5Decidir,
+  libraryContext?: string
+): string {
+  const base = renderBaseStats(identificacion, momento1, momento2, libraryContext);
+  const contextoMeta = momento5 ? `\nMETA GENERAL DE ZONA DECIDIDA:\n${momento5.metaGeneralZona}\n` : '';
+
+  return `${base}
+${contextoMeta}
+═══════════════════════════════════════════════════════════════════════════════
+TAREA: GENERAR LA MEMORIA PEDAGÓGICA VIVA (CIERRE Y TRASCENDENCIA DEL CICLO)
+═══════════════════════════════════════════════════════════════════════════════
+Sistematiza la experiencia pedagógica de la zona escolar respondiendo con rigor y sensibilidad a las tres preguntas eje de la DBEPA Puebla:
+¿Qué logramos?, ¿Cómo lo logramos?, y ¿Qué aprendimos?
+
+Genera un objeto JSON estrictamente con la siguiente estructura:
+
+{
+  "queLogramos": "Resultados sustantivos del acompañamiento en la Zona Escolar contrastados con los propósitos del Modelo Educativo 2025 y las metas CREAA trazadas.",
+  "comoLoLogramos": "Descripción profunda de las estrategias situadas, adaptaciones de autonomía profesional, dinámicas colegiadas y articulación territorial que permitieron los avances.",
+  "queAprendimos": "Reflexión crítica y propositiva sobre los obstáculos superados, la pertinencia de los recursos formativos utilizados y las fortalezas docentes que emergieron en el territorio.",
+  "indicadoresCambio": {
+    "proceso": "Transformación tangible en la práctica docente: mayor diversificación en evaluación formativa y planeación vinculada al contexto comunitario.",
+    "creaa": "Evolución comparativa positiva en los indicadores de permanencia, aprobación y egreso oportuno de los estudiantes.",
+    "impactoTerritorial": "Apropiación social del bachillerato en las comunidades y fortalecimiento de la corresponsabilidad comunitaria."
+  },
+  "hojaDeRutaProximoCiclo": [
+    "Prioridad 1 para la planeación del siguiente ciclo escolar basada en la evidencia acumulada",
+    "Prioridad 2 sobre focalización del acompañamiento situado en planteles con mayor dispersión",
+    "Prioridad 3 sobre consolidación de las redes de aprendizaje y comunidades docentes de práctica"
+  ]
+}
+
+Responde ÚNICAMENTE con el JSON válido.`;
+}
+
