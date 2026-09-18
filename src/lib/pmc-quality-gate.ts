@@ -297,6 +297,22 @@ function evalC8_MetasInstitucionales(p: PmcProject): PmcAuditCriterion {
   const metas = (Array.isArray(plan.metas_institucionales) ? plan.metas_institucionales : []);
   const count = metas.length;
 
+  const VERB_REGEX = /^(aumentar|incrementar|reducir|disminuir|elevar|consolidar|fortalecer|mejorar|lograr|garantizar|promover|atender|desarrollar|implementar)/i;
+  const PERCENT_REGEX = /[0-9]+(\.[0-9]+)?%|[0-9]+\s*(alumnos|estudiantes|puntos)/i;
+  const POBLACION_REGEX = /(alumnos?|estudiantes?|jóvenes|comunidad|docentes?|plantel)/i;
+  const ESTRATEGIA_REGEX = /(mediante|a través de|implementando|desarrollando|articulando|con base en|con apoyo)/i;
+  const PERIODO_REGEX = /(ciclo|2026|2027|semestre|escolar|puebla|término)/i;
+
+  const creaaCompliant = metas.filter(m => {
+    const text = m.meta || '';
+    const hasVerb = VERB_REGEX.test(text.trim());
+    const hasNum = PERCENT_REGEX.test(text);
+    const hasPoblacion = POBLACION_REGEX.test(text);
+    const hasEstrategia = ESTRATEGIA_REGEX.test(text) || (hasText(m.estrategia, 20));
+    const hasPeriodo = PERIODO_REGEX.test(text) || (hasText(m.periodo_fin, 3));
+    return hasVerb && hasNum && hasPoblacion && hasEstrategia && hasPeriodo;
+  }).length;
+
   const validMetas = metas.filter(m =>
     hasText(m.meta, 15) &&
     hasText(m.estrategia, 15) &&
@@ -307,12 +323,16 @@ function evalC8_MetasInstitucionales(p: PmcProject): PmcAuditCriterion {
   let status: 'pass' | 'warning' | 'fail' = 'fail';
   let feedback = 'No hay metas institucionales estructuradas en el plan de acción.';
 
-  if (count >= 2 && validMetas >= 2) {
+  if (count >= 2 && validMetas >= 2 && creaaCompliant >= 1) {
     score = 14;
     status = 'pass';
-    feedback = 'Metas institucionales formuladas con objetivos claros, estrategias y entregables verificables.';
+    feedback = `Metas institucionales formuladas con fórmula oficial CREAA ([VERBO] + [%] + [POBLACIÓN] + [ESTRATEGIA] + [PERIODO Y TERRITORIO]) y entregables verificables.`;
+  } else if (count >= 2 && validMetas >= 2) {
+    score = 8;
+    status = 'warning';
+    feedback = 'Metas institucionales completas pero sin cumplimiento estricto de la fórmula oficial CREAA ([VERBO] + [%] + [POBLACIÓN] + [ESTRATEGIA] + [PERIODO Y TERRITORIO]).';
   } else if (count >= 1) {
-    score = 7;
+    score = 6;
     status = 'warning';
     feedback = 'Metas institucionales presentes pero con descripción incompleta de estrategia o entregables.';
   }
@@ -320,14 +340,14 @@ function evalC8_MetasInstitucionales(p: PmcProject): PmcAuditCriterion {
   return {
     id: 'PMC-C8',
     dimension: PMC_DIMENSIONS.DIM4,
-    name: 'Metas Institucionales SMART y Entregables',
-    description: 'Valora la formulación de metas cuantificables, estrategias de ejecución y productos verificables.',
+    name: 'Metas Institucionales CREAA y Entregables Técnicos',
+    description: 'Valora la formulación de metas con la fórmula sintáctica CREAA, estrategias situadas y productos verificables.',
     weight: 14,
     maxScore: 14,
     score,
     status,
     feedback,
-    evidenceFound: `${count} metas institucionales registradas (${validMetas} con ficha técnica completa).`,
+    evidenceFound: `${count} metas institucionales registradas (${validMetas} con ficha técnica completa, ${creaaCompliant} con fórmula CREAA estricta).`,
   };
 }
 
@@ -476,6 +496,8 @@ export function calculateGlobalPmcScore(project: PmcProject): PmcQualityAudit {
     auditedAt: new Date().toISOString(),
   };
 }
+
+export const auditPmcProject = calculateGlobalPmcScore;
 
 export function formatPmcAuditReport(audit: PmcQualityAudit): string {
   const lines: string[] = [

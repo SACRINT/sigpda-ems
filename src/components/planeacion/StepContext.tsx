@@ -52,13 +52,14 @@ function matchSubject(targetUac: string, paecSubject: string): boolean {
 
   // Normalizar números romanos y arábigos: ' i' <-> ' 1', ' ii' <-> ' 2', ' iii' <-> ' 3', etc.
   const toArabic = (s: string) =>
-    s
-      .replace(/\bvi\b/g, '6')
-      .replace(/\bv\b/g, '5')
-      .replace(/\biv\b/g, '4')
-      .replace(/\biii\b/g, '3')
-      .replace(/\bii\b/g, '2')
-      .replace(/\bi\b/g, '1');
+    ` ${s} `
+      .replace(/\bvi\b/gi, '6')
+      .replace(/\bv\b/gi, '5')
+      .replace(/\biv\b/gi, '4')
+      .replace(/\biii\b/gi, '3')
+      .replace(/\bii\b/gi, '2')
+      .replace(/\bi\b/gi, '1')
+      .trim();
 
   const tArabic = toArabic(tNorm);
   const pArabic = toArabic(pNorm);
