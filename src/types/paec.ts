@@ -10,6 +10,24 @@ export interface CommunityContext {
   environment?: string;
 }
 
+export type SchoolType = 'general' | 'tecnico' | 'telebachillerato';
+
+export interface GroupTrackConfig {
+  groupId: string;          // Ej: "1-A", "3-A", "5-B"
+  groupName: string;        // Ej: "1° A", "3° A", "5° B"
+  semester: number;         // 1..6
+  trackId?: string;         // id o nombre de capacitación laboral o carrera BT
+  trackName?: string;       // nombre descriptivo
+  ffeSelections?: string[]; // nombres de asignaturas FFE asignadas a este grupo
+}
+
+export interface UniqueUacItem {
+  uacName: string;
+  semester: number;
+  component: 'fundamental' | 'laboral' | 'ffe' | 'profesional_bt';
+  originTrack?: string;
+}
+
 export interface SchoolContext {
   cct?: string;
   schoolName?: string;
@@ -21,10 +39,17 @@ export interface SchoolContext {
   indicators?: string;
   previousPrograms?: string;
   facilities?: string;
+  schoolType?: SchoolType;
   activeLaboralUacs?: string[];
   activeFfeUacs?: string[];
+  activeBtCarreras?: string[];
   groupsConfig?: string;
   groupsCount?: string;
+  groupStructure?: {
+    semestersConfig: Record<number, number>;
+    groupAssignments: GroupTrackConfig[];
+  };
+  uniqueUacsList?: UniqueUacItem[];
 }
 
 export interface TableRow2Cols {

@@ -9,6 +9,8 @@ import { parseAIResponse } from '@/lib/ai-response-parser';
 import { PmcDiagnosticoSchema, PmcPlanAccionSchema } from '@/lib/ai-schemas';
 import { getSubscriptionStatus } from '@/lib/subscription-gate';
 import { extractIdempotencyKey, checkIdempotencyKey, createIdempotencyKey } from '@/lib/idempotency';
+import { buildPmcDiagnosticoPrompt, buildPmcPlanAccionPrompt } from '@/lib/prompts/pmc-prompts';
+import type { PmcProject, PmcStatisticalContext } from '@/types/pmc';
 import { z } from 'zod';
 
 export const runtime = 'nodejs';
@@ -167,42 +169,12 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         amenazas?: string;
       }>(project.foda);
 
-      const prompt = `Eres un experto en gestión directiva de planteles de Bachillerato General del Estado de Puebla (BGE), alineado a los Lineamientos para la Planeación de la Mejora Continua 2025-2026 de la DBEPA.
+      const rawStats = project.statistical_context ? parseJson<PmcStatisticalContext>(project.statistical_context) : undefined;
+      const statisticalContext: PmcStatisticalContext | undefined = (rawStats && 'plantel' in rawStats)
+        ? (rawStats as PmcStatisticalContext)
+        : ((indic as any)?.statistical_context?.plantel ? ((indic as any).statistical_context as PmcStatisticalContext) : undefined);
 
-${libraryContext}
-
-Con base en la siguiente información del plantel "${safeStr(project.school_name)}" (CCT: ${safeStr(project.school_cct)}), ubicado en ${safeStr(project.locality)}, municipio de ${safeStr(project.municipality)}, Puebla:
-
-Contexto comunitario:
-${safeStr(project.diagnostico_comunidad)}
-
-Indicadores académicos del ciclo anterior:
-- Aprobación: ${indic.aprobacion_ant ?? 'N/D'}%
-- Reprobación: ${indic.reprobacion_ant ?? 'N/D'}%
-- Abandono escolar: ${indic.abandono_ant ?? 'N/D'}%
-- Eficiencia terminal: ${indic.et_ant ?? 'N/D'}%
-
-Metas para el ciclo ${safeStr(project.ciclo_escolar)}:
-- Aprobación: ${indic.aprobacion_meta ?? 'N/D'}%
-- Abandono: ${indic.abandono_meta ?? 'N/D'}%
-- Eficiencia terminal: ${indic.et_meta ?? 'N/D'}%
-
-Matrícula: ${indic.matricula ?? 'N/D'} alumnos
-
-FODA del plantel:
-- Fortalezas: ${safeStr(foda.fortalezas)}
-- Oportunidades: ${safeStr(foda.oportunidades)}
-- Debilidades: ${safeStr(foda.debilidades)}
-- Amenazas: ${safeStr(foda.amenazas)}
-
-Genera el apartado de DIAGNÓSTICO del PMC con:
-1. presentacion: (texto de presentación del PMC, 2-3 párrafos, mención a NEM y MCCEMS, qué es el PMC y su importancia)
-2. contexto: (narrativa del contexto comunitario y del plantel, 2-3 párrafos con datos reales proporcionados)
-3. analisis_indicadores: (análisis interpretativo de los indicadores académicos con datos numéricos, justificación de metas, 2-3 párrafos)
-4. sintesis_foda: (síntesis del FODA en 2 párrafos: áreas de fortaleza y áreas de oportunidad detectadas)
-5. priorizacion: (narrativa de priorización de problemas para el ciclo, 1-2 párrafos)
-
-Responde con JSON con exactamente estas 5 claves. Texto formal y técnico. NO inventes datos no proporcionados.`;
+      const prompt = buildPmcDiagnosticoPrompt(project as unknown as PmcProject, statisticalContext, libraryContext);
 
       const isPremium = await resolveUserIsPremium(teacher.id);
       const rawText = await generateWithRotation(
@@ -351,81 +323,12 @@ Responde con JSON con exactamente estas 5 claves. Texto formal y técnico. NO in
         : 'No especificado';
       const effectiveStaffCount = cappedStaff.length > 0 ? cappedStaff.length : (project.total_staff ?? 0);
 
-      const prompt = `Eres un evaluador y planeador experto en la Mejora Continua para planteles BGE/TBC de Puebla bajo los LINEAMIENTOS DBEPA 2025-2026.
+      const rawStats = project.statistical_context ? parseJson<PmcStatisticalContext>(project.statistical_context) : undefined;
+      const statisticalContext: PmcStatisticalContext | undefined = (rawStats && 'plantel' in rawStats)
+        ? (rawStats as PmcStatisticalContext)
+        : ((indic as any)?.statistical_context?.plantel ? ((indic as any).statistical_context as PmcStatisticalContext) : undefined);
 
-${libraryContext}
-
-CONTEXTO DEL PLANTEL:
-- Nombre: ${safeStr(project.school_name)} | CCT: ${safeStr(project.school_cct)} | Ciclo: ${safeStr(project.ciclo_escolar)}
-- Director(a): ${safeStr(project.director_name)}
-- Municipio: ${safeStr(project.municipality)}, ${safeStr(project.locality)}
-
-DIAGNÓSTICO GENERADO:
-${diagnosticoResumen}
-
-INDICADORES OFICIALES:
-- Abandono: ${indic.abandono_ant ?? 'N/D'}% → Meta: ${indic.abandono_meta ?? 'N/D'}%
-- Aprobación: ${indic.aprobacion_ant ?? 'N/D'}% → Meta: ${indic.aprobacion_meta ?? 'N/D'}%
-- Eficiencia terminal: ${indic.et_ant ?? 'N/D'}% → Meta: ${indic.et_meta ?? 'N/D'}%
-
-CATEGORÍAS Y TEMAS PRIORIZADOS POR EL DIRECTOR:
-${categoriasList}
-
-PERSONAL DEL PLANTEL (${effectiveStaffCount} trabajadores considerados):
-${staffList}
-
-═══════════════════════════════════════════
-CRITERIOS DE EXCELENCIA DE LA SUPERVISIÓN (DBEPA):
-═══════════════════════════════════════════
-
-1. COHERENCIA MATEMÁTICA Y ESTADÍSTICA:
-   - La 'linea_base' de cada meta DEBE coincidir exactamente con los valores porcentuales del diagnóstico anterior.
-   - El objetivo planteado en 'meta' DEBE guardar una proporción matemática lógica con la línea base (ej. si la aprobación es del 78%, la meta debe ser incrementarla al 85%, no poner números incongruentes).
-
-2. VINCULACIÓN EXPLÍCITA DEL FODA:
-   - En 'diagnostico_meta' y en 'estrategia', menciona explícitamente qué Fortaleza, Oportunidad, Debilidad o Amenaza específica detectada en el FODA se está atendiendo.
-
-3. ENTREGABLES TÉCNICOS CUALITATIVOS (NO EVIDENCIAS SUPERFICIALES):
-   - Cada 'entregable' DEBE ser un instrumento técnico con análisis cualitativo. Ejemplos válidos: "Informe bimestral de seguimiento con análisis cualitativo de causas raíz de reprobación", "Bitácora de acompañamiento tutoral con matriz de riesgo", "Convenio formal de colaboración institucional con plan de trabajo". NUNCA solo "listas de asistencia" ni "fotografías".
-
-4. HITOS DE EVALUACIÓN PARCIAL Y ALERTAS TEMPRANAS:
-   - Incluye dentro de las estrategias puntos de corte o reportes de alertas tempranas (ej. en la semana 6 y 12 del semestre) antes de los periodos críticos de evaluación.
-
-5. METAS SMART ESTRUCTURADAS (1 POR CADA TEMA PRIORIZADO):
-   - Genera EXACTAMENTE UNA meta institucional por cada TEMA seleccionado (Total: ${totalTemas} metas institucionales).
-   - Estructura SMART: Verbo de acción en infinitivo + objeto/área de enfoque + indicador porcentual o numérico exacto + plazo definido + medio o estrategia clave.
-
-6. METAS INDIVIDUALES POR CARGO:
-   - Una meta individual SMART por cada uno de los ${effectiveStaffCount} trabajadores listados, acorde a su función específica (Director, Docente, Orientador, etc.) y con su entregable cualitativo correspondiente.
-
-Responde con JSON con esta estructura EXACTA:
-{
-  "metas_institucionales": [
-    {
-      "categoria": "1",
-      "nombre_categoria": "Categoría 1: Desarrollo académico y aprendizaje",
-      "tema": "Nombre exacto del tema seleccionado",
-      "diagnostico_meta": "Problemática y hallazgo FODA específico que justifica esta meta...",
-      "meta": "Verbo en infinitivo + qué + indicador cuantitativo exacto + plazo. Ej: Reducir la reprobación del 15% al 8% al término del ciclo 2025-2026 mediante tutorías focalizadas en semanas 6 y 12.",
-      "estrategia": "1. Acción concreta con hito de alerta temprana. 2. Acción vinculada a debilidad FODA. 3. Acción de evaluación cualitativa.",
-      "linea_base": "Valor actual del indicador (% o cifra exacta coincidente con el diagnóstico)",
-      "personal_designado": "Nombre — Cargo",
-      "entregable": "Documento técnico cualitativo de evidencia (ej. Informe de seguimiento con análisis de causas raíz)",
-      "periodo_inicio": "08/2025",
-      "periodo_fin": "06/2026"
-    }
-  ],
-  "metas_personales": [
-    {
-      "nombre": "Nombre del trabajador",
-      "cargo": "Cargo exacto",
-      "meta_individual": "Meta SMART específica para su función con verbo + indicador + plazo",
-      "estrategia": "Acciones concretas que ejecutará este trabajador",
-      "entregable": "Documento o informe cualitativo de evidencia que entregará",
-      "periodo": "agosto 2025 - junio 2026"
-    }
-  ]
-}`;
+      const prompt = buildPmcPlanAccionPrompt(project as unknown as PmcProject, statisticalContext, libraryContext);
 
       const isPremium = await resolveUserIsPremium(teacher.id);
       const rawText = await generateWithRotation(

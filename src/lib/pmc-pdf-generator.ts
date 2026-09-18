@@ -9,7 +9,7 @@ import autoTable from 'jspdf-autotable';
 import { loadAllLogos } from './pdf-logos';
 import { SCHOOL_YEAR } from '@/lib/config';
 import { logger } from './logger';
-import type { PmcProject } from './pmc-docx-generator';
+import type { PmcProject, PmcStatisticalContext } from '@/types/pmc';
 
 const NAVY: [number, number, number] = [31, 56, 100];       // #1F3864 - Azul Institucional DBEPA
 const BLUE_MID: [number, number, number] = [46, 116, 181];   // #2E74B5 - Azul Secundario
@@ -287,21 +287,48 @@ export async function generatePmcPDF(
   doc.text('2.2 Indicadores Educativos (Línea Base vs Meta Institucional):', margin, curY);
   curY += 4;
 
+  const statsCtx: PmcStatisticalContext | undefined = project.statistical_context || (indAcad as any)?.statistical_context;
+  const pStats = statsCtx?.plantel;
+  const zStats = statsCtx?.zona;
+
+  const matAnt = pStats?.matricula ?? indAcad.matricula ?? 220;
+  const apAnt = pStats?.aprobadosPorcentaje ?? indAcad.aprobacion_ant ?? 85;
+  const repAnt = pStats?.reprobacion ?? indAcad.reprobacion_ant ?? 15;
+  const abAnt = pStats?.abandono ?? indAcad.abandono_ant ?? 7.5;
+  const etAnt = pStats?.eficienciaTerminal ?? indAcad.et_ant ?? 82;
+  const promF11 = pStats?.promedioGeneral ?? pStats?.promedioCalificaciones;
+
+  const apMeta = indAcad.aprobacion_meta ?? (Number(apAnt) + 5);
+  const abMeta = indAcad.abandono_meta ?? Math.max(0, Number(abAnt) - 2.5);
+  const etMeta = indAcad.et_meta ?? (Number(etAnt) + 6);
+
+  const indicRows: any[][] = [
+    ['Tasa de Aprobación Escolar (F11C)', `${apAnt}%`, `${apMeta}%`, `+${(Number(apMeta) - Number(apAnt)).toFixed(1)}% Mejora`],
+    ['Índice de Reprobación Escolar (F11C)', `${repAnt}%`, `${Math.max(0, 100 - Number(apMeta)).toFixed(1)}%`, 'Reducción Progresiva'],
+    ['Abandono Escolar / Deserción (911.7)', `${abAnt}%`, `${abMeta}%`, `${(Number(abMeta) - Number(abAnt)).toFixed(1)}% Retención`],
+    ['Eficiencia Terminal / Egreso (911.7G)', `${etAnt}%`, `${etMeta}%`, `+${(Number(etMeta) - Number(etAnt)).toFixed(1)}% Graduación`],
+    ['Matrícula Escolar Oficial (911.7G)', `${matAnt} estudiantes`, `${matAnt} estudiantes`, 'Sostenimiento'],
+  ];
+
+  if (promF11 !== undefined) {
+    indicRows.push(['Promedio General de Calificaciones (F11C)', `${promF11}`, `${(Number(promF11) + 0.5).toFixed(2)}`, '+0.50 Aprovechamiento']);
+  }
+
+  if (zStats) {
+    indicRows.push([
+      { content: `Comparativo de Zona Escolar (${zStats.zonaNumero || 'Regional'}): Media Abandono ${zStats.promedioAbandono}%, Media Eficiencia ${zStats.promedioEficiencia}% (Prioridad: ${zStats.brechasDiagnostico.prioridadIntervencion.toUpperCase()})`, colSpan: 4, styles: { fontStyle: 'italic' as const, fillColor: BLUE_LIGHT, textColor: NAVY } }
+    ]);
+  }
+
   autoTable(doc, {
     startY: curY,
     head: [[
-      { content: 'Indicador Clave de Rendimiento', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
+      { content: 'Indicador Oficial (Fuente: 911 / F11)', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
       { content: 'Ciclo Anterior (Línea Base)', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], halign: 'center' } },
       { content: `Meta Proyectada (${cicloTexto})`, styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], halign: 'center' } },
       { content: 'Variación Esperada', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], halign: 'center' } },
     ]],
-    body: [
-      ['Tasa de Aprobación Escolar', `${safeStr(indAcad.aprobacion_ant, '85')}%`, `${safeStr(indAcad.aprobacion_meta, '90')}%`, '+5.0% Mejora'],
-      ['Índice de Reprobación', `${safeStr(indAcad.reprobacion_ant, '15')}%`, `${100 - (Number(indAcad.aprobacion_meta) || 90)}%`, 'Reducción Progresiva'],
-      ['Abandono Escolar (Deserción)', `${safeStr(indAcad.abandono_ant, '7.5')}%`, `${safeStr(indAcad.abandono_meta, '5.0')}%`, '-2.5% Retención'],
-      ['Eficiencia Terminal (ET)', `${safeStr(indAcad.et_ant, '82')}%`, `${safeStr(indAcad.et_meta, '88')}%`, '+6.0% Graduación'],
-      ['Matrícula Escolar Atendida', `${safeStr(indAcad.matricula, '250')} estudiantes`, `${safeStr(indAcad.matricula, '250')} estudiantes`, 'Sostenimiento'],
-    ],
+    body: indicRows,
     theme: 'grid',
     styles: { fontSize: 7, cellPadding: 2, textColor: TEXT_DARK, lineColor: [210, 220, 235] },
     margin: { left: margin, right: margin },

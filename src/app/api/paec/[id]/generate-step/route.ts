@@ -37,7 +37,8 @@ import {
   PaecPaso8ImplementacionSchema,
   PaecPaso9GobernanzaSchema,
 } from '@/lib/ai-schemas';
-import { MapeoRow, PlanOperativoRow, PaecProject } from '@/types/paec';
+import { MapeoRow, PlanOperativoRow, PaecProject, DetalleCurricularRow, UniqueUacItem, SchoolType, GroupTrackConfig } from '@/types/paec';
+import { consolidarUacsUnicasPlantel } from '@/lib/escuela-grupos';
 import { extractIdempotencyKey, checkIdempotencyKey, createIdempotencyKey } from '@/lib/idempotency';
 
 export const runtime = 'nodejs';
@@ -152,28 +153,74 @@ export async function POST(
           component: string;
         }[];
 
-        // Filtrar UACs laborales y FFE de acuerdo al contexto del plantel
+        // Regla de Oro Curricular: Cero Duplicados a nivel Plantel
         const schoolCtx = (project.school_context || {}) as {
+          schoolType?: SchoolType;
           activeLaboralUacs?: string[];
           activeFfeUacs?: string[];
+          activeBtCarreras?: string[];
+          groupStructure?: {
+            semestersConfig: Record<number, number>;
+            groupAssignments: GroupTrackConfig[];
+          };
+          uniqueUacsList?: UniqueUacItem[];
         };
-        const activeLaboral = schoolCtx.activeLaboralUacs || [];
-        const activeFfe = schoolCtx.activeFfeUacs || [];
 
-        const uacs = allUacs.filter((u) => {
-          if (u.component === 'fundamental' || u.component === 'ampliado') {
-            return true;
-          }
-          if (u.component === 'laboral') {
-            return activeLaboral.includes(u.uac_name);
-          }
-          if (u.component === 'ext_obligatorio' || u.component === 'ext_optativo') {
-            return activeFfe.includes(u.uac_name);
-          }
-          return false;
-        });
+        const uacsItems: UniqueUacItem[] = (schoolCtx.uniqueUacsList && schoolCtx.uniqueUacsList.length > 0)
+          ? schoolCtx.uniqueUacsList
+          : consolidarUacsUnicasPlantel({
+              semesters,
+              schoolType: schoolCtx.schoolType,
+              groupAssignments: schoolCtx.groupStructure?.groupAssignments,
+              activeLaboralUacs: schoolCtx.activeLaboralUacs,
+              activeFfeUacs: schoolCtx.activeFfeUacs,
+              activeBtCarreras: schoolCtx.activeBtCarreras,
+              dbFundamentalUacs: allUacs,
+            });
 
-        userPrompt = buildPrompt3Mapeo(justStr, uacs);
+        const uacs = uacsItems.map((u) => ({
+          uac_name: u.uacName,
+          semester: u.semester,
+        }));
+
+        // Chunking anti-timeout si supera 16 UACs (ej. 27 UACs en escuelas multi-grupo)
+        if (uacs.length > 16) {
+          const CHUNK_SIZE = 12;
+          const chunks: { uac_name: string; semester: number }[][] = [];
+          for (let i = 0; i < uacs.length; i += CHUNK_SIZE) {
+            chunks.push(uacs.slice(i, i + CHUNK_SIZE));
+          }
+
+          const allMapeoRows: MapeoRow[] = [];
+          for (let i = 0; i < chunks.length; i++) {
+            const blockNum = i + 1;
+            const blockPrompt = buildPrompt3Mapeo(justStr, chunks[i]);
+            let chunkPrompt = blockPrompt;
+            if (libraryContext) {
+              chunkPrompt = `${chunkPrompt}\n\n${libraryContext}`;
+            }
+
+            logger.info(`[PAEC-Step3] Generando bloque de Mapeo ${blockNum}/${chunks.length} (${chunks[i].length} UACs)...`);
+            const blockText = await generateWithRotation(PAEC_SYSTEM_PROMPT, chunkPrompt, teacher.id);
+            if (!blockText) {
+              throw new Error(`Respuesta vacía del proveedor en bloque de Mapeo ${blockNum}`);
+            }
+
+            const parseResult = parseAIResponse(blockText, PaecPaso3Schema, {
+              contextName: `paec_step_3_block_${blockNum}`,
+            });
+
+            if (!parseResult.success) {
+              throw new Error(`Error de formato en bloque de Mapeo ${blockNum}: ${parseResult.error}`);
+            }
+
+            allMapeoRows.push(...(parseResult.data as MapeoRow[]));
+          }
+
+          stepResultData = allMapeoRows;
+        } else {
+          userPrompt = buildPrompt3Mapeo(justStr, uacs);
+        }
         break;
       }
 
@@ -204,9 +251,52 @@ export async function POST(
             { status: 400 }
           );
         }
-        const mapeoStr = JSON.stringify(project.fase2_mapeo);
+        const mapeo = project.fase2_mapeo as MapeoRow[];
+        const mapeoStr = JSON.stringify(mapeo);
         const cronStr = JSON.stringify(project.fase2_cronograma);
-        userPrompt = buildPrompt5DetalleCurricular(mapeoStr, cronStr, project.cycle_type);
+
+        // Chunking anti-timeout si el mapeo supera 14 UACs
+        if (mapeo.length > 14) {
+          const CHUNK_SIZE = 10;
+          const chunks: MapeoRow[][] = [];
+          for (let i = 0; i < mapeo.length; i += CHUNK_SIZE) {
+            chunks.push(mapeo.slice(i, i + CHUNK_SIZE));
+          }
+
+          const allDetalleRows: DetalleCurricularRow[] = [];
+          for (let i = 0; i < chunks.length; i++) {
+            const blockNum = i + 1;
+            const blockPrompt = buildPrompt5DetalleCurricular(
+              JSON.stringify(chunks[i]),
+              cronStr,
+              project.cycle_type
+            );
+            let chunkPrompt = blockPrompt;
+            if (libraryContext) {
+              chunkPrompt = `${chunkPrompt}\n\n${libraryContext}`;
+            }
+
+            logger.info(`[PAEC-Step5] Generando bloque de Detalle Curricular ${blockNum}/${chunks.length} (${chunks[i].length} UACs)...`);
+            const blockText = await generateWithRotation(PAEC_SYSTEM_PROMPT, chunkPrompt, teacher.id);
+            if (!blockText) {
+              throw new Error(`Respuesta vacía del proveedor en bloque de Detalle ${blockNum}`);
+            }
+
+            const parseResult = parseAIResponse(blockText, PaecPaso5Schema, {
+              contextName: `paec_step_5_block_${blockNum}`,
+            });
+
+            if (!parseResult.success) {
+              throw new Error(`Error de formato en bloque de Detalle ${blockNum}: ${parseResult.error}`);
+            }
+
+            allDetalleRows.push(...(parseResult.data as DetalleCurricularRow[]));
+          }
+
+          stepResultData = allDetalleRows;
+        } else {
+          userPrompt = buildPrompt5DetalleCurricular(mapeoStr, cronStr, project.cycle_type);
+        }
         break;
       }
 
@@ -507,11 +597,8 @@ export async function POST(
 
     let parsedJson: object;
 
-    // Si el paso fue 6 o 7, los datos ya fueron generados y consolidados mediante chunking
-    if (step === 6 || step === 7) {
-      if (!stepResultData) {
-        throw new Error(`Error al consolidar las actividades del Paso ${step}`);
-      }
+    // Si el paso fue procesado mediante chunking (Paso 6, 7, o 3 y 5 con múltiples UACs)
+    if (stepResultData) {
       parsedJson = stepResultData;
     } else {
       let fullUserPrompt = userPrompt;

@@ -1,12 +1,15 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type {
   PaecProject,
   CommunityContext,
   SchoolContext,
+  SchoolType,
+  GroupTrackConfig,
+  UniqueUacItem,
   PaecAuditResult,
   PaecAuditCriterion,
   PaecQualityAudit,
@@ -21,6 +24,13 @@ import type {
   LikertSurveyData,
 } from '@/types/paec';
 import { clearAllWizardDrafts } from '@/hooks/useWizardPersistence';
+import {
+  consolidarUacsUnicasPlantel,
+  FORMACIONES_LABORALES,
+  UACS_LABORALES_MAPA,
+  FFE_OPTATIVAS_CATALOGO,
+} from '@/lib/escuela-grupos';
+import { CARRERAS_TECNICAS_BT } from '@/lib/bt-carreras-catalog';
 
 const PAEC_DRAFT_KEY = 'didactica_paec_draft';
 
@@ -83,10 +93,14 @@ interface PaecFormDraft {
   cycleType: 'A' | 'B' | 'annual';
   community: CommunityContext;
   school: SchoolContext;
+  schoolType?: SchoolType;
   selectedLaboral: string[];
   selectedFfe: string[];
+  selectedBtCarreras?: string[];
   groupsCount: string;
   groupsConfig: string;
+  groupAssignments?: GroupTrackConfig[];
+  semestersConfig?: Record<number, number>;
 }
 
 interface Props {
@@ -138,6 +152,25 @@ const CAPACITACION_TITLES: Record<string, string> = {
   'Sistemas Electricos': '⚡ Sistemas Eléctricos',
   'Tecnologia Informatica': '💾 Tecnología Informática',
   'Turismo': '✈️ Turismo',
+};
+
+export const FFE_PACKAGES: Record<string, { label: string; subjects: string[] }> = {
+  'fisico_matematico': {
+    label: '📐 Físico-Matemático',
+    subjects: ['Análisis de Fenómenos Físicos I', 'Dibujo Técnico I', 'Taller de Pensamiento Variacional I', 'Taller de Probabilidad y Estadística I']
+  },
+  'quimico_biologico': {
+    label: '🧬 Químico-Biológico',
+    subjects: ['Análisis de Fenómenos y Procesos Biológicos', 'Salud Integral I', 'Organización del Flujo de Materia y Energía en los Organismos I', 'Taller de Probabilidad y Estadística I']
+  },
+  'economico_admin': {
+    label: '📊 Económico-Administrativo',
+    subjects: ['Fundamentos de Administración I', 'Procesos Contables I', 'Economía I. La Función de los Agentes Económicos en la Sociedad', 'Pensamiento Matemático Aplicado a las Finanzas I']
+  },
+  'humanidades_sociales': {
+    label: '🏛️ Humanidades y Ciencias Sociales',
+    subjects: ['Derecho y Sociedad I', 'Psicología I', 'Temas Selectos de Ciencias Sociales I', 'Pensamiento Filosófico I']
+  }
 };
 
 const FFE_PAIRS = [
@@ -289,6 +322,58 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
   const [selectedFfe, setSelectedFfe] = useState<string[]>(savedDraft?.selectedFfe ?? []);
   const [groupsCount, setGroupsCount] = useState(savedDraft?.groupsCount ?? '1');
   const [groupsConfig, setGroupsConfig] = useState(savedDraft?.groupsConfig ?? '');
+  const [schoolType, setSchoolType] = useState<SchoolType>(savedDraft?.schoolType ?? 'general');
+  const [selectedBtCarreras, setSelectedBtCarreras] = useState<string[]>(savedDraft?.selectedBtCarreras ?? []);
+  const [semestersConfig, setSemestersConfig] = useState<Record<number, number>>(
+    savedDraft?.semestersConfig ?? { 1: 1, 3: 1, 5: 1 }
+  );
+  const [groupAssignments, setGroupAssignments] = useState<GroupTrackConfig[]>(
+    savedDraft?.groupAssignments ?? []
+  );
+
+  // Sincronizar grupos por semestre cuando cambia la configuración o el ciclo
+  useEffect(() => {
+    const sems = cycleType === 'A' ? [1, 3, 5] : cycleType === 'B' ? [2, 4, 6] : [1, 2, 3, 4, 5, 6];
+    const LETRAS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+    setGroupAssignments((prev) => {
+      const updated: GroupTrackConfig[] = [];
+      for (const sem of sems) {
+        const count = Math.max(1, Math.min(8, semestersConfig[sem] || 1));
+        for (let i = 0; i < count; i++) {
+          const letter = LETRAS[i] || `${i + 1}`;
+          const gId = `${sem}-${letter}`;
+          const gName = `${sem}° ${letter}`;
+          const existing = prev.find((g) => g.groupId === gId || (g.semester === sem && g.groupName === gName));
+          if (existing) {
+            updated.push(existing);
+          } else {
+            updated.push({
+              groupId: gId,
+              groupName: gName,
+              semester: sem,
+              trackId: '',
+              trackName: '',
+              ffeSelections: [],
+            });
+          }
+        }
+      }
+      return updated;
+    });
+  }, [cycleType, semestersConfig]);
+
+  // Cómputo en tiempo real de UACs Únicas Consolidadas (Regla de Oro Curricular: Cero Duplicados)
+  const uniqueUacsList = useMemo(() => {
+    const sems = cycleType === 'A' ? [1, 3, 5] : cycleType === 'B' ? [2, 4, 6] : [1, 2, 3, 4, 5, 6];
+    return consolidarUacsUnicasPlantel({
+      semesters: sems,
+      schoolType,
+      groupAssignments,
+      activeLaboralUacs: selectedLaboral,
+      activeFfeUacs: selectedFfe,
+      activeBtCarreras: selectedBtCarreras,
+    });
+  }, [cycleType, schoolType, groupAssignments, selectedLaboral, selectedFfe, selectedBtCarreras]);
 
   // Manual Edit States
   const [isEditingContent, setIsEditingContent] = useState(false);
@@ -324,8 +409,22 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
   useEffect(() => {
     if (isFirstRenderDraft.current) { isFirstRenderDraft.current = false; return; }
     if (projectId) return; // project already in DB, no need to save draft
-    savePaecDraft({ projectName, problemStatement, cycleType, community, school, selectedLaboral, selectedFfe, groupsCount, groupsConfig });
-  }, [projectId, projectName, problemStatement, cycleType, community, school, selectedLaboral, selectedFfe, groupsCount, groupsConfig]);
+    savePaecDraft({
+      projectName,
+      problemStatement,
+      cycleType,
+      community,
+      school,
+      schoolType,
+      selectedLaboral,
+      selectedFfe,
+      selectedBtCarreras,
+      groupsCount,
+      groupsConfig,
+      groupAssignments,
+      semestersConfig,
+    });
+  }, [projectId, projectName, problemStatement, cycleType, community, school, schoolType, selectedLaboral, selectedFfe, selectedBtCarreras, groupsCount, groupsConfig, groupAssignments, semestersConfig]);
 
   // Load UAC lists for select checklists
   useEffect(() => {
@@ -389,6 +488,12 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
         setSchool(p.schoolContext);
         setSelectedLaboral(p.schoolContext.activeLaboralUacs || []);
         setSelectedFfe(p.schoolContext.activeFfeUacs || []);
+        setSelectedBtCarreras(p.schoolContext.activeBtCarreras || []);
+        setSchoolType(p.schoolContext.schoolType || 'general');
+        if (p.schoolContext.groupStructure) {
+          setSemestersConfig(p.schoolContext.groupStructure.semestersConfig || { 1: 1, 3: 1, 5: 1 });
+          setGroupAssignments(p.schoolContext.groupStructure.groupAssignments || []);
+        }
         setGroupsCount(p.schoolContext.groupsCount || '1');
         setGroupsConfig(p.schoolContext.groupsConfig || '');
       }
@@ -468,10 +573,17 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
           communityContext: community,
           schoolContext: {
             ...school,
+            schoolType,
             activeLaboralUacs: selectedLaboral,
             activeFfeUacs: selectedFfe,
+            activeBtCarreras: selectedBtCarreras,
             groupsConfig,
             groupsCount,
+            groupStructure: {
+              semestersConfig,
+              groupAssignments,
+            },
+            uniqueUacsList,
           },
         }),
       });
@@ -942,38 +1054,283 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
 
           {/* Estructura de Grupos, Capacitaciones y FFE */}
           <div className="card" style={{ padding: '24px', background: 'rgba(13,21,48,0.75)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
-            <h2 style={{ fontSize: '18px', color: '#818cf8', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '10px', marginBottom: '16px', fontWeight: 700 }}>4. Estructura de Grupos y Materias Específicas</h2>
-            <p style={{ margin: '-10px 0 16px', fontSize: '13px', color: 'rgba(240,244,255,0.6)' }}>
-              Configura los grupos y selecciona las capacitaciones o asignaturas del componente laboral y FFE activas en tu plantel.
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
-                <div>
-                  <label style={{ display: 'block', fontWeight: 500, marginBottom: '6px', fontSize: '13px' }}>Número de Grupos por Semestre</label>
-                  <input
-                    type="text"
-                    placeholder="Ej: 3 grupos (A, B, C)"
-                    value={groupsCount}
-                    onChange={(e) => setGroupsCount(e.target.value)}
-                    style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--c-border)' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontWeight: 500, marginBottom: '6px', fontSize: '13px' }}>Grupos específicos asignados a este proyecto</label>
-                  <input
-                    type="text"
-                    placeholder="Ej: 1°A, 2°A, 3°A, 4°A (o Dejar vacío para todos)"
-                    value={groupsConfig}
-                    onChange={(e) => setGroupsConfig(e.target.value)}
-                    style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--c-border)' }}
-                  />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px', marginBottom: '16px' }}>
+              <div>
+                <h2 style={{ fontSize: '18px', color: '#818cf8', margin: 0, fontWeight: 700 }}>4. Estructura Curricular y Grupos del Plantel</h2>
+                <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'rgba(240,244,255,0.6)' }}>
+                  Regla de Oro PAEC: Tronco fundamental único por semestre + trayectos específicos por grupo sin asignaturas duplicadas.
+                </p>
+              </div>
+              <span style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '20px', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)', color: '#a5b4fc', fontWeight: 600 }}>
+                {schoolType === 'tecnico' ? '⚙️ Bachillerato Tecnológico' : '🏫 Bachillerato General'}
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {/* 4.1 Tipo de Plantel */}
+              <div>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '8px', fontSize: '13.5px', color: '#f0f4ff' }}>
+                  Modalidad Oficial del Plantel
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                  {[
+                    { id: 'general' as const, label: '🏫 Bachillerato General (BGE)', desc: 'Capacitaciones laborales y optativas FFE' },
+                    { id: 'tecnico' as const, label: '⚙️ Bachillerato Tecnológico (BT)', desc: 'Módulos profesionales de carreras técnicas' },
+                    { id: 'telebachillerato' as const, label: '🌄 Telebachillerato Comunitario', desc: 'Malla comunitaria articulada' },
+                  ].map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => setSchoolType(m.id)}
+                      style={{
+                        padding: '12px',
+                        borderRadius: '8px',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        background: schoolType === m.id ? 'rgba(99,102,241,0.2)' : 'rgba(255,255,255,0.03)',
+                        border: `1px solid ${schoolType === m.id ? '#6366f1' : 'rgba(255,255,255,0.1)'}`,
+                        color: schoolType === m.id ? '#ffffff' : 'rgba(240,244,255,0.7)',
+                      }}
+                    >
+                      <div style={{ fontWeight: 600, fontSize: '13px', color: schoolType === m.id ? '#818cf8' : '#f0f4ff' }}>{m.label}</div>
+                      <div style={{ fontSize: '11px', marginTop: '4px', opacity: 0.8 }}>{m.desc}</div>
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              <div>
-                <p style={{ fontSize: '12px', color: 'var(--c-text-muted)', margin: '4px 0 0' }}>
-                  El proyecto transversal cruzará únicamente las asignaturas seleccionadas a continuación para evitar sobrecargar los planes de los docentes.
+              {/* 4.2 Presets de Grupos */}
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+                  <label style={{ fontWeight: 600, fontSize: '13.5px', color: '#f0f4ff' }}>
+                    Estructura de Grupos por Semestre Activo
+                  </label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    {[
+                      { label: 'Estructura 1-1-1', n: 1 },
+                      { label: 'Estructura 2-2-2', n: 2 },
+                      { label: 'Estructura 3-3-3', n: 3 },
+                    ].map((p) => (
+                      <button
+                        key={p.label}
+                        type="button"
+                        onClick={() => {
+                          const sems = cycleType === 'A' ? [1, 3, 5] : cycleType === 'B' ? [2, 4, 6] : [1, 2, 3, 4, 5, 6];
+                          const newConfig: Record<number, number> = {};
+                          sems.forEach((s) => (newConfig[s] = p.n));
+                          setSemestersConfig(newConfig);
+                          setGroupsCount(`${p.n} grupo${p.n > 1 ? 's' : ''} por semestre`);
+                        }}
+                        style={{
+                          fontSize: '11px',
+                          padding: '4px 10px',
+                          borderRadius: '6px',
+                          border: '1px solid rgba(255,255,255,0.15)',
+                          background: 'rgba(255,255,255,0.05)',
+                          color: '#a5b4fc',
+                          cursor: 'pointer',
+                          fontWeight: 500,
+                        }}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Contadores por semestre activo */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px', marginBottom: '16px' }}>
+                  {(cycleType === 'A' ? [1, 3, 5] : cycleType === 'B' ? [2, 4, 6] : [1, 2, 3, 4, 5, 6]).map((sem) => (
+                    <div key={sem} style={{ padding: '10px 14px', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div>
+                        <div style={{ fontSize: '11px', color: '#a5b4fc', fontWeight: 600 }}>{sem}° Semestre</div>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: '#ffffff' }}>
+                          {semestersConfig[sem] || 1} {((semestersConfig[sem] || 1) > 1 ? 'grupos' : 'grupo')}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const cur = semestersConfig[sem] || 1;
+                            if (cur > 1) setSemestersConfig((prev) => ({ ...prev, [sem]: cur - 1 }));
+                          }}
+                          style={{ width: '24px', height: '24px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.1)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}
+                        >
+                          -
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const cur = semestersConfig[sem] || 1;
+                            if (cur < 8) setSemestersConfig((prev) => ({ ...prev, [sem]: cur + 1 }));
+                          }}
+                          style={{ width: '24px', height: '24px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.1)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 4.3 Asignación por Grupo (Laboral / FFE / BT) */}
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '16px' }}>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13.5px', color: '#f0f4ff' }}>
+                  Asignación de Trayectos Especializados por Grupo
+                </label>
+                <p style={{ fontSize: '12px', color: 'rgba(240,244,255,0.6)', margin: '0 0 14px' }}>
+                  Las materias del tronco fundamental aplican automáticamente una sola vez. Asigna aquí qué formación laboral, FFE o carrera cursa cada grupo para incluirlas sin duplicados.
                 </p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {groupAssignments.map((grp) => {
+                    const isLaboralSem = grp.semester === 3 || grp.semester === 4;
+                    const isFfeSem = grp.semester === 5 || grp.semester === 6;
+
+                    if (!isLaboralSem && !isFfeSem && schoolType !== 'tecnico') {
+                      return (
+                        <div key={grp.groupId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: '6px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                          <span style={{ fontWeight: 600, fontSize: '13px', color: '#a5b4fc' }}>Grupo {grp.groupName}</span>
+                          <span style={{ fontSize: '11.5px', color: 'rgba(240,244,255,0.6)' }}>Tronco Fundamental MCCEMS (Unificado)</span>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div key={grp.groupId} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', gap: '10px' }}>
+                        <div style={{ minWidth: '120px' }}>
+                          <span style={{ fontWeight: 700, fontSize: '13.5px', color: '#ffffff' }}>Grupo {grp.groupName}</span>
+                          <div style={{ fontSize: '11px', color: '#818cf8', marginTop: '2px' }}>
+                            {schoolType === 'tecnico' ? 'Carrera Técnica BT' : isLaboralSem ? 'Formación Laboral (3°-4°)' : 'Paquete FFE (5°-6°)'}
+                          </div>
+                        </div>
+
+                        <div style={{ flex: '1', minWidth: '240px' }}>
+                          {schoolType === 'tecnico' ? (
+                            <select
+                              value={grp.trackId || ''}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setGroupAssignments((prev) =>
+                                  prev.map((g) => (g.groupId === grp.groupId ? { ...g, trackId: val, trackName: val } : g))
+                                );
+                              }}
+                              style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: '#0f172a', color: '#f0f4ff', fontSize: '12.5px' }}
+                            >
+                              <option value="">Selecciona Carrera Técnica BT...</option>
+                              {CARRERAS_TECNICAS_BT.map((c) => (
+                                <option key={c.id} value={c.id}>{c.nombre}</option>
+                              ))}
+                            </select>
+                          ) : isLaboralSem ? (
+                            <select
+                              value={grp.trackName || ''}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setGroupAssignments((prev) =>
+                                  prev.map((g) => (g.groupId === grp.groupId ? { ...g, trackId: val, trackName: val } : g))
+                                );
+                              }}
+                              style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: '#0f172a', color: '#f0f4ff', fontSize: '12.5px' }}
+                            >
+                              <option value="">Selecciona Capacitación Laboral...</option>
+                              {FORMACIONES_LABORALES.map((f) => (
+                                <option key={f} value={f}>{f}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <select
+                              value={grp.trackId || ''}
+                              onChange={(e) => {
+                                const pkgKey = e.target.value;
+                                const pkg = FFE_PACKAGES[pkgKey];
+                                setGroupAssignments((prev) =>
+                                  prev.map((g) =>
+                                    g.groupId === grp.groupId
+                                      ? {
+                                          ...g,
+                                          trackId: pkgKey,
+                                          trackName: pkg ? pkg.label : 'Personalizado',
+                                          ffeSelections: pkg ? pkg.subjects : g.ffeSelections,
+                                        }
+                                      : g
+                                  )
+                                );
+                              }}
+                              style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: '#0f172a', color: '#f0f4ff', fontSize: '12.5px' }}
+                            >
+                              <option value="">Selecciona Paquete FFE Propedéutico...</option>
+                              {Object.entries(FFE_PACKAGES).map(([k, p]) => (
+                                <option key={k} value={k}>{p.label}</option>
+                              ))}
+                            </select>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 4.4 PREVISUALIZACIÓN EN TIEMPO REAL: CERO DUPLICADOS */}
+              <div style={{ marginTop: '6px', padding: '16px', borderRadius: '10px', background: 'linear-gradient(135deg, rgba(30,41,59,0.8) 0%, rgba(15,23,42,0.9) 100%)', border: '1px solid rgba(99,102,241,0.3)', boxShadow: '0 4px 15px rgba(0,0,0,0.25)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '18px' }}>🎯</span>
+                      <h3 style={{ margin: 0, fontSize: '15px', color: '#ffffff', fontWeight: 700 }}>
+                        Padrón Curricular Consolidado del PAEC
+                      </h3>
+                      <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '12px', background: 'rgba(16,185,129,0.2)', color: '#34d399', fontWeight: 600, border: '1px solid rgba(16,185,129,0.4)' }}>
+                        ✓ CERO DUPLICADOS
+                      </span>
+                    </div>
+                    <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'rgba(240,244,255,0.7)' }}>
+                      Fórmula Oficial: Fundamental (1 vez) ∪ Laborales Únicas ∪ FFE Únicas ∪ BT Únicos
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                    <span style={{ fontSize: '26px', fontWeight: 800, color: '#818cf8' }}>{uniqueUacsList.length}</span>
+                    <span style={{ fontSize: '12px', color: 'rgba(240,244,255,0.8)', fontWeight: 600 }}>UACs Únicas</span>
+                  </div>
+                </div>
+
+                {/* Badges de Desglose */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '12px' }}>
+                  <span style={{ fontSize: '11.5px', padding: '4px 10px', borderRadius: '6px', background: 'rgba(30,58,138,0.5)', border: '1px solid rgba(59,130,246,0.3)', color: '#93c5fd', fontWeight: 500 }}>
+                    📘 Fundamental: {uniqueUacsList.filter((u) => u.component === 'fundamental').length}
+                  </span>
+                  <span style={{ fontSize: '11.5px', padding: '4px 10px', borderRadius: '6px', background: 'rgba(6,78,59,0.5)', border: '1px solid rgba(16,185,129,0.3)', color: '#6ee7b7', fontWeight: 500 }}>
+                    💼 Laboral: {uniqueUacsList.filter((u) => u.component === 'laboral').length}
+                  </span>
+                  <span style={{ fontSize: '11.5px', padding: '4px 10px', borderRadius: '6px', background: 'rgba(88,28,135,0.5)', border: '1px solid rgba(168,85,247,0.3)', color: '#d8b4fe', fontWeight: 500 }}>
+                    🧬 FFE: {uniqueUacsList.filter((u) => u.component === 'ffe').length}
+                  </span>
+                  {schoolType === 'tecnico' && (
+                    <span style={{ fontSize: '11.5px', padding: '4px 10px', borderRadius: '6px', background: 'rgba(120,53,15,0.5)', border: '1px solid rgba(245,158,11,0.3)', color: '#fcd34d', fontWeight: 500 }}>
+                      ⚙️ Profesional BT: {uniqueUacsList.filter((u) => u.component === 'profesional_bt').length}
+                    </span>
+                  )}
+                </div>
+
+                {/* Vista previa colapsable de las materias */}
+                <div style={{ marginTop: '12px', maxHeight: '160px', overflowY: 'auto', padding: '8px 12px', borderRadius: '6px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '6px' }}>
+                    {uniqueUacsList.map((u, i) => (
+                      <div key={`${u.semester}-${u.uacName}-${i}`} style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '6px', color: 'rgba(240,244,255,0.85)' }}>
+                        <span style={{ padding: '1px 5px', borderRadius: '3px', background: 'rgba(255,255,255,0.1)', fontWeight: 600, fontSize: '10px' }}>
+                          {u.semester}°
+                        </span>
+                        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={u.uacName}>
+                          {u.uacName}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
 
               {/* Laboral Checklist */}

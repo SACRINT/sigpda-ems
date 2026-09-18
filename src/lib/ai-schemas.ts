@@ -21,6 +21,18 @@ export const SecuenciaSesionSchema = z.object({
   learningActivity: z.string().min(1, 'La actividad de aprendizaje es requerida'),
   evidence: z.string().min(1, 'La evidencia de aprendizaje es requerida'),
   evaluation: z.string().min(1, 'El instrumento de evaluación es requerido'),
+  procesoPensamiento: z.enum([
+    'asombro',
+    'problematizacion',
+    'traduccion',
+    'conceptualizacion',
+    'razonamiento',
+    'indagacion',
+    'reflexion',
+    'transferencia',
+  ]).optional(),
+  utilidadReal: z.string().optional(),
+  garantiaDualOffline: z.string().optional(),
 });
 
 export type SecuenciaSesionDTO = z.infer<typeof SecuenciaSesionSchema>;
@@ -549,6 +561,84 @@ export const HorarioSolverParamsSchema = z.object({
 });
 
 export type HorarioSolverParamsDTO = z.infer<typeof HorarioSolverParamsSchema>;
+
+// ============================================================================
+// 6.B. RETO SITUADO, DIAGNÓSTICO 3D, 8 PROCESOS Y BITÁCORA 50-20-30
+// ============================================================================
+
+export const RetoSituadoSchema = z.object({
+  titulo: z.string().default('Reto Situado de Aprendizaje'),
+  verboInfinitivo: z.string().min(1, 'Verbo en infinitivo requerido'),
+  contextoLocal: z.string().min(1, 'Contexto local requerido'),
+  problematicaReal: z.string().min(1, 'Problemática real requerida'),
+  propositoCurricular: z.string().min(1, 'Propósito curricular requerido'),
+  retoCompleto: z.string().min(10, 'Redacción del reto situado requerida'),
+  validacion: z.object({
+    hasInfinitiveVerb: z.boolean().default(true),
+    hasLocalContext: z.boolean().default(true),
+    hasRealProblem: z.boolean().default(true),
+    hasCurricularAlignment: z.boolean().default(true),
+    score: z.number().default(4),
+    feedback: z.array(z.string()).default([]),
+    isApproved: z.boolean().default(true),
+    repairedText: z.string().optional(),
+  }).optional(),
+});
+
+export type RetoSituadoDTO = z.infer<typeof RetoSituadoSchema>;
+
+export const DiagnosticoSituado3DSchema = z.object({
+  dimensionTerritorial: z.string().default(''),
+  dimensionPraxisJuvenil: z.string().default(''),
+  dimensionAulaEdiems: z.string().default(''),
+});
+
+export type DiagnosticoSituado3DDTO = z.infer<typeof DiagnosticoSituado3DSchema>;
+
+export const ProcesoPensamientoFaseSchema = z.object({
+  proceso: z.enum([
+    'asombro',
+    'problematizacion',
+    'traduccion',
+    'conceptualizacion',
+    'razonamiento',
+    'indagacion',
+    'reflexion',
+    'transferencia',
+  ]),
+  descripcion: z.string().default(''),
+  actividadEstudiante: z.string().default(''),
+  utilidadReal: z.string().default(''),
+  garantiaDualOffline: z.string().default(''),
+});
+
+export type ProcesoPensamientoFaseDTO = z.infer<typeof ProcesoPensamientoFaseSchema>;
+
+export const BitacoraEstudianteRowSchema = z.object({
+  no: z.coerce.number().default(1),
+  nombreEstudiante: z.string().min(1, 'Nombre del estudiante requerido'),
+  participativo: z.boolean().default(true),
+  dialogante: z.boolean().default(true),
+  cuestionador: z.boolean().default(false),
+  apoyo: z.boolean().default(true),
+  evidenciaColectivaCalificacion: z.coerce.number().default(9),
+  evidenciaIndividualCalificacion: z.coerce.number().default(8.5),
+  notasAcompanamiento: z.string().default(''),
+});
+
+export type BitacoraEstudianteRowDTO = z.infer<typeof BitacoraEstudianteRowSchema>;
+
+export const Bitacora502030Schema = z.object({
+  uacName: z.string().default(''),
+  corteEvaluativo: z.enum(['Corte 1', 'Corte 2', 'Corte 3']).default('Corte 1'),
+  criterioProceso50: z.string().default(''),
+  evidenciaColectiva20: z.string().default(''),
+  evidenciaIndividual30: z.string().default(''),
+  ticketSalidaPregunta: z.string().default(''),
+  filasEstudiantes: z.array(BitacoraEstudianteRowSchema).default([]),
+});
+
+export type Bitacora502030DTO = z.infer<typeof Bitacora502030Schema>;
 
 // ============================================================================
 // 7. PLANEACIÓN DIDÁCTICA COMPLETA (GENERATED PLANNING CONTENT)

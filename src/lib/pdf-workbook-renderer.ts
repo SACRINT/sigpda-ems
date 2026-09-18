@@ -2851,6 +2851,121 @@ function drawEvaluationSection(
     }
   }
 
+  // 6. SECCIÓN V-B: BITÁCORA FORMATIVA Y REGULADORA (50-20-30) DBEPA PUEBLA
+  y = drawBitacora502030Section(doc, margin, contentWidth, pageHeight, y);
+
+  return y;
+}
+
+function drawBitacora502030Section(
+  doc: jsPDF,
+  margin: number,
+  contentWidth: number,
+  pageHeight: number,
+  startY: number
+): number {
+  let y = startY;
+  y = ensureVerticalSpace(doc, y, 60, margin, pageHeight);
+
+  // Banner Sección V-B
+  doc.setFillColor(...NAVY);
+  doc.rect(margin, y, contentWidth, 10, 'F');
+  setFontBody(doc, 'bold');
+  doc.setFontSize(9.5);
+  doc.setTextColor(255, 255, 255);
+  doc.text('SECCIÓN V-B: BITÁCORA FORMATIVA Y REGULADORA (50-20-30) · DBEPA PUEBLA', margin + 3, y + 6.8);
+  y += 14;
+
+  // Subtítulo explicativo
+  setFontBody(doc, 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(...NAVY);
+  doc.text('Instrumento Oficial de Seguimiento Continuo (50% Proceso | 20% Colectivo | 30% Individual):', margin, y);
+  y += 4;
+
+  // Tabla explicativa de ponderaciones
+  autoTable(doc, {
+    startY: y,
+    margin: { left: margin, right: margin },
+    head: [['Componente (50-20-30)', 'Tipo de Evidencia e Instrumento', 'Ponderación', 'Criterios Observables']],
+    body: [
+      ['Nivel de Proceso (50%)', 'Observación continua en aula y diálogo reflexivo', '50%', 'Participativo (1), Dialogante (2), Cuestionador (3), Apoyo mutuo (4)'],
+      ['Evidencia Colectiva (20%)', 'Prototipo técnico, maqueta, friso o reporte grupal', '20%', 'Colaboración, rigor técnico, aplicación comunitaria'],
+      ['Evidencia Individual (30%)', 'Bitácora reflexiva del estudiante + Ticket de Salida', '30%', 'Metacognición, apropiación conceptual, transferencia'],
+    ],
+    theme: 'grid',
+    headStyles: { fillColor: MID_BLUE, textColor: [255, 255, 255], fontSize: 7, fontStyle: 'bold' },
+    styles: { fontSize: 6.5, cellPadding: 1.8, textColor: DARK_TEXT },
+    columnStyles: {
+      0: { cellWidth: 40, fontStyle: 'bold' },
+      1: { cellWidth: 50 },
+      2: { cellWidth: 22, halign: 'center', fontStyle: 'bold' },
+      3: { cellWidth: 'auto' },
+    },
+  });
+
+  y = doc.lastAutoTable!.finalY + 6;
+
+  // Tabla de Registro de Alumnos para el Docente (Hoja de Campo)
+  y = ensureVerticalSpace(doc, y, 45, margin, pageHeight);
+  setFontBody(doc, 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(...NAVY);
+  doc.text('Registro Diario de Proceso y Evaluación Formativa (Hoja de Campo):', margin, y);
+  y += 4;
+
+  const rowsEjemplo = [
+    ['01', 'Morales Soto, Alan', '[X]    [X]    [ ]    [X]', '9.5', '8.5', 'Demuestra gran iniciativa técnica y apoyo a pares'],
+    ['02', 'García Hernández, Sofia', '[X]    [X]    [X]    [X]', '10.0', '9.0', 'Excelente pensamiento crítico y argumentación'],
+    ['03', 'López Martínez, Carlos', '[ ]    [X]    [ ]    [X]', '8.0', '7.5', 'Requiere andamiaje en formulación de preguntas'],
+    ['04', 'Sánchez Pérez, Valeria', '[X]    [X]    [X]    [X]', '9.5', '9.5', 'Liderazgo en medición de laboratorio y reporte'],
+    ['05', 'Ramírez Castro, Diego', '[X]    [ ]    [X]    [ ]', '7.5', '8.0', 'Fortalecer escucha activa en trabajo colaborativo'],
+  ];
+
+  autoTable(doc, {
+    startY: y,
+    margin: { left: margin, right: margin },
+    head: [['No', 'Nombre del Estudiante', '50% Proceso (1-2-3-4)', '20% Colect.', '30% Indiv.', 'Notas de Acompañamiento Cualitativo']],
+    body: rowsEjemplo,
+    theme: 'grid',
+    headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontSize: 7, fontStyle: 'bold' },
+    styles: { fontSize: 6.5, cellPadding: 2, textColor: DARK_TEXT },
+    columnStyles: {
+      0: { cellWidth: 10, halign: 'center' },
+      1: { cellWidth: 45, fontStyle: 'bold' },
+      2: { cellWidth: 35, halign: 'center' },
+      3: { cellWidth: 20, halign: 'center' },
+      4: { cellWidth: 20, halign: 'center' },
+      5: { cellWidth: 'auto' },
+    },
+  });
+
+  y = doc.lastAutoTable!.finalY + 6;
+
+  // Cuadro del Ticket de Salida
+  y = ensureVerticalSpace(doc, y, 32, margin, pageHeight);
+  doc.setFillColor(245, 248, 253);
+  doc.setDrawColor(...MID_BLUE);
+  doc.setLineWidth(0.4);
+  doc.roundedRect(margin, y, contentWidth, 26, 2, 2, 'FD');
+
+  setFontBody(doc, 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(...NAVY);
+  doc.text('TICKET DE SALIDA (Evaluación Reguladora al Cierre de Sesión):', margin + 4, y + 6);
+
+  setFontBody(doc, 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(...DARK_TEXT);
+  doc.text('Pregunta detonadora: ¿Cuál fue el fenómeno central analizado hoy, qué error detectaste y cómo lo aplicas en tu vida diaria?', margin + 4, y + 11);
+
+  // 2 líneas para escribir
+  doc.setDrawColor(190, 205, 225);
+  doc.setLineWidth(0.3);
+  doc.line(margin + 4, y + 17, margin + contentWidth - 4, y + 17);
+  doc.line(margin + 4, y + 22, margin + contentWidth - 4, y + 22);
+
+  y += 30;
   return y;
 }
 

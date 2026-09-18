@@ -103,3 +103,6 @@ export interface PipsQualityAudit {
   auditedAt: string;
 }
 
+// Re-export oficial para evolución PIPS -> Cartografía de Zona
+export * from './cartografia';
+

@@ -1,0 +1,233 @@
+/**
+ * cartografia-prompts.ts
+ * Generador de prompts oficiales para la Cartografía de Zona Escolar
+ * SIGPDA-EMS · DBEPA Puebla MCCEMS Ciclo Escolar 2026-2027
+ * 
+ * Basado en las orientaciones oficiales de la DBEPA:
+ * "Del PIPS a la Cartografía de Zona Escolar: Cambiar la mirada para tomar mejores decisiones de acompañamiento pedagógico"
+ * 
+ * Estructura oficial:
+ * 1. Momento 1: Conocer (Planteles, comunidades, matrícula)
+ * 2. Momento 2: Organizar (Capa Cuantitativa 911/F11 + Capa Cualitativa PAEC/PMC)
+ * 3. Momento 3: Ubicar (Mapeo escuela-territorio, recursos y aliados comunitarios)
+ * 4. Momento 4: Analizar (Triangulación de 4 Perspectivas: Directivos, Docentes, Alumnos/Familias, Supervisión/ATP)
+ * 5. Momento 5: Decidir (Meta General CREAA + 3 Líneas de Acción Oficiales DBEPA)
+ * 6. Memoria Pedagógica (¿Qué logramos?, ¿Cómo lo logramos?, ¿Qué aprendimos?)
+ */
+
+import type {
+  CartografiaMomento1Conocer,
+  CartografiaMomento2Organizar,
+  CartografiaZonaProject,
+} from '@/types/cartografia';
+
+export const CARTOGRAFIA_SYSTEM_PROMPT = `Eres el Asesor Técnico Pedagógico y Cartógrafo Líder de la Dirección de Bachilleratos Estatales y Preparatoria Abierta (DBEPA) de Puebla, México.
+Tu misión es estructurar la Cartografía Educativa de Zona Escolar para el Ciclo Escolar 2026–2027 bajo el Modelo Educativo 2025 y el MCCEMS.
+
+PRINCIPIOS INSTITUCIONALES DE LA CARTOGRAFÍA DE ZONA (DBEPA PUEBLA):
+1. TRANSICIÓN DEL PIPS A LA CARTOGRAFÍA:
+   El Plan de Intervención Pedagógica de Supervisión (PIPS) ha cumplido su ciclo por ser un recopilador estático de cifras. La Cartografía no es un nuevo trámite burocrático; es una herramienta viva de navegación territorial para comprender la realidad, acompañar a los colectivos docentes y tomar decisiones situadas y pertinentes.
+2. LOS 5 MOMENTOS OFICIALES:
+   - Momento 1: CONOCER (Identificación del territorio: qué tenemos, quiénes somos, dónde estamos).
+   - Momento 2: ORGANIZAR (Capa Cuantitativa de síntomas [911.7G y F11C] + Capa Cualitativa de contexto [PAEC y PMC]).
+   - Momento 3: UBICAR (Mapeo escuela-comunidad, rutas de movilidad, conectividad y aliados comunitarios).
+   - Momento 4: ANALIZAR (Metodología de Triangulación: Directivos, Docentes, Alumnos/Familias y Supervisión/ATP).
+   - Momento 5: DECIDIR (Meta General CREAA + 3 Líneas de Acción Oficiales DBEPA).
+3. MEMORIA PEDAGÓGICA VIVA:
+   Sistematizar no el trámite administrativo, sino la transformación real respondiendo a: ¿Qué logramos?, ¿Cómo lo logramos?, y ¿Qué aprendimos?
+4. FÓRMULA SINTÁCTICA CREAA OBLIGATORIA:
+   [VERBO EN INFINITIVO] + [INDICADOR/PORCENTAJE] + [POBLACIÓN DE LA ZONA] + [ESTRATEGIA TERRITORIAL] + [PERIODO Y TERRITORIO].`;
+
+/**
+ * Prompt para generar los Momentos 3, 4, 5 y la Memoria Pedagógica de la Cartografía
+ */
+export function buildCartografiaFullPrompt(
+  identificacion: {
+    zonaNumero: string;
+    zonaClave: string;
+    supervisorName: string;
+    municipioSede: string;
+    municipiosAtiende: string;
+    subsistema: string;
+    cicloEscolar: string;
+    atps: string[];
+  },
+  momento1: CartografiaMomento1Conocer,
+  momento2: CartografiaMomento2Organizar,
+  libraryContext?: string
+): string {
+  const numPlanteles = momento1.planteles.length;
+  const matTotal = momento1.matriculaTotalZona;
+  const promAbandono = momento2.capaCuantitativa.promedioAbandonoZona;
+  const promEficiencia = momento2.capaCuantitativa.promedioEficienciaZona;
+  const promCalificaciones = momento2.capaCuantitativa.promedioAprovechamientoZona;
+  const promReprobacion = momento2.capaCuantitativa.promedioReprobacionZona;
+
+  const plantelesResumen = momento1.planteles
+    .slice(0, 20)
+    .map(
+      (p) =>
+        `- ${p.nombre} (CCT: ${p.cct}): Matrícula ${p.matricula}, Abandono ${p.abandono}%, Eficiencia ${p.eficienciaTerminal}%, Promedio ${p.promedioGeneral}. Proyecto PAEC: "${p.paecProyecto}"`
+    )
+    .join('\n');
+
+  return `DATOS INSTITUCIONALES DE LA ZONA ESCOLAR:
+- Zona Escolar: ${identificacion.zonaNumero} (Clave: ${identificacion.zonaClave})
+- Subsistema: ${identificacion.subsistema} | Ciclo Escolar: ${identificacion.cicloEscolar}
+- Supervisor(a): ${identificacion.supervisorName}
+- Municipio Sede: ${identificacion.municipioSede}
+- Municipios de Cobertura: ${identificacion.municipiosAtiende}
+- Asesores Técnicos Pedagógicos (ATP): ${identificacion.atps.join(', ') || 'Equipo de Asesoría de Zona'}
+- Total de Planteles: ${numPlanteles} planteles oficiales
+- Matrícula Total Atendida: ${matTotal} estudiantes
+
+${libraryContext || ''}
+
+CAPA CUANTITATIVA CONSOLIDADA (Línea Base 911.7G y F11C):
+- Promedio de Abandono Escolar en la Zona: ${promAbandono}%
+- Promedio de Eficiencia Terminal en la Zona: ${promEficiencia}%
+- Promedio General de Aprovechamiento (F11C): ${promCalificaciones}
+- Promedio de Reprobación en la Zona: ${promReprobacion}%
+- Planteles con prioridad de acompañamiento intensivo:
+${momento2.capaCuantitativa.plantelesAtencionPrioritaria.map((pl) => `  * ${pl}`).join('\n') || '  * Todos en rangos de estabilidad promedio'}
+
+CAPA CUALITATIVA SITUADA (PAEC y Contexto Territorial):
+- Problemáticas comunes en proyectos PAEC:
+${momento2.capaCualitativa.problematicasComunes.map((pr) => `  * ${pr}`).join('\n')}
+- Desafíos socioeconómicos y geográficos:
+  ${momento2.capaCualitativa.desafiosSocioeconomicos}
+
+MUESTRA DE PLANTELES DE LA ZONA:
+${plantelesResumen}
+
+═══════════════════════════════════════════════════════════════════════════════
+TAREA: GENERAR LA CARTOGRAFÍA DE ZONA ESCOLAR (MOMENTOS 3, 4, 5 Y MEMORIA)
+═══════════════════════════════════════════════════════════════════════════════
+Genera un objeto JSON estrictamente estructurado con las siguientes secciones:
+
+{
+  "momento3Ubicar": {
+    "descripcionTerritorial": "Narrativa amplia (3 párrafos) de la georreferenciación y relación escuela-territorio en los municipios de ${identificacion.municipiosAtiende}, Puebla.",
+    "comunidadesProcedencia": ["Comunidad A", "Comunidad B", "Comunidad C", "Comunidad D"],
+    "movilidadTransporte": "Análisis de las rutas de traslado, tiempos de recorrido de los estudiantes y su impacto en la puntualidad y permanencia escolar.",
+    "conectividadInfraestructura": "Diagnóstico de conectividad digital, acceso a internet y recursos tecnológicos en los planteles y hogares de la zona.",
+    "recursosAliados": [
+      {
+        "nombre": "Nombre de institución, centro de salud o cooperativa",
+        "tipo": "salud | deportivo | cultural | productivo | comunitario",
+        "ubicacion": "Localidad/Municipio",
+        "vinculacionPedagogica": "Cómo se vincula con los proyectos PAEC de los planteles vecinos"
+      },
+      {
+        "nombre": "Espacio cultural o biblioteca comunitaria",
+        "tipo": "cultural",
+        "ubicacion": "Cabecera municipal",
+        "vinculacionPedagogica": "Encuentros de lectura y foros de divulgación científica inter-bachilleratos"
+      },
+      {
+        "nombre": "Asociación agropecuaria o artesanal local",
+        "tipo": "productivo",
+        "ubicacion": "Municipio sede",
+        "vinculacionPedagogica": "Talleres de formación para el trabajo y proyectos de desarrollo sustentable"
+      }
+    ],
+    "mapaContextual": "Descripción sinóptica de la distribución espacial de los ${numPlanteles} planteles y los nodos comunitarios clave."
+  },
+  "momento4Analizar": {
+    "triangulacion": {
+      "directivos": "Perspectiva estratégica de directores: retos de gestión, optimización de plantillas, retención en semestres críticos y clima institucional.",
+      "docentes": "Perspectiva de colectivos docentes: desafíos didácticos en aula, rezago en matemáticas y comunicación, y adaptación de fichas formativas.",
+      "alumnosFamilias": "Perspectiva comunitaria (alumnos y padres): relevancia social de los aprendizajes, necesidades de apoyo económico/transporte y aspiraciones formativas.",
+      "supervisionAtp": "Mirada del equipo de supervisión: acompañamiento situado, retroalimentación formativa y vinculación entre escuelas de la microrregión."
+    },
+    "patronesRecurrentes": [
+      "Patrón 1 identificado a través de la triangulación",
+      "Patrón 2 sobre factores que inciden en el abandono escolar",
+      "Patrón 3 sobre fortalezas didácticas compartidas entre planteles"
+    ],
+    "retosPedagogicosCreaa": [
+      "Reto 1: Disminución de la reprobación mediante codiseño de evaluación formativa",
+      "Reto 2: Alerta temprana en semanas 6 y 12 para reducir el abandono del ${promAbandono}%",
+      "Reto 3: Impulso a la eficiencia terminal articulando proyectos comunitarios PAEC"
+    ],
+    "acuerdosAutonomiaConsejo": [
+      "Acuerdo de autonomía docente tomado en Consejo Académico de Zona 1",
+      "Acuerdo de adaptación curricular situada 2"
+    ]
+  },
+  "momento5Decidir": {
+    "metaGeneralZona": "[VERBO EN INFINITIVO] + [% O CIFRA] + [POBLACIÓN DE LA ZONA] + [ESTRATEGIA TERRITORIAL] + [PERIODO Y TERRITORIO]",
+    "indicadoresCreaaAsociados": [
+      "Abandono Escolar (Línea base ${promAbandono}%)",
+      "Eficiencia Terminal (Línea base ${promEficiencia}%)",
+      "Resultados de Aprendizaje / EDIEMS-ESA (Línea base ${promCalificaciones})"
+    ],
+    "lineasAccion": [
+      {
+        "numero": 1,
+        "titulo": "Línea de Acción 1: Homologación y seguimiento a resultados diagnósticos (EDIEMS / ESA / F11C)",
+        "accionesEspecificas": [
+          "Análisis colegiado en academia de zona de los cortes diagnósticos iniciales (agosto-septiembre 2026)",
+          "Diseño e intercambio de secuencias de nivelación didáctica contextualizada en Matemáticas y Lenguaje",
+          "Alineación curricular con base en los reportes post-test de diciembre 2026 y marzo 2027"
+        ],
+        "recursos": ["Resultados de pruebas estandarizadas", "Fichas temáticas de formación", "Plataformas DBEPA"],
+        "responsables": "Supervisión Escolar, ATPs y Colegiados de Asignatura de los ${numPlanteles} planteles",
+        "entregables": "Informe analítico de zona, bancos de reactivos situados y matrices de nivelación",
+        "estrategiaSeguimiento": "Evaluación en sesiones de Consejo Académico y seguimiento en semanas clave del calendario oficial",
+        "periodoEjecucion": "Agosto 2026 - Enero 2027"
+      },
+      {
+        "numero": 2,
+        "titulo": "Línea de Acción 2: Articulación del PAEC por plantel y a nivel zona escolar",
+        "accionesEspecificas": [
+          "Mapeo de problemáticas comunitarias concurrentes en los ${numPlanteles} planteles",
+          "Desarrollo de proyectos interdisciplinarios PAEC con impacto microrregional",
+          "Muestra de proyectos comunitarios y foros de saberes territoriales en mayo 2027"
+        ],
+        "recursos": ["Proyectos escolares PAEC", "Espacios comunitarios", "Aliados estratégicos locales"],
+        "responsables": "Directores de plantel, docentes coordinadores de proyecto y comités estudiantiles",
+        "entregables": "Memoria de proyectos PAEC de zona con rúbricas de impacto socioformativo",
+        "estrategiaSeguimiento": "Revisión trimestral de evidencias y visitas de acompañamiento situado",
+        "periodoEjecucion": "Septiembre 2026 - Mayo 2027"
+      },
+      {
+        "numero": 3,
+        "titulo": "Línea de Acción 3: Participación en Encuentros Académicos, Alertas Tempranas y Retención Estudiantil",
+        "accionesEspecificas": [
+          "Instalación de la Red de Alerta Temprana de Zona para detección oportuna de riesgo de deserción en semanas 6 y 12",
+          "Conformación de comités de tutoría y círculos de acompañamiento socioemocional",
+          "Organización del Encuentro de Ciencia, Arte y Tecnología de la Zona Escolar ${identificacion.zonaNumero}"
+        ],
+        "recursos": ["Protocolos de alerta temprana DBEPA", "Convocatorias oficiales", "Directorios comunitarios"],
+        "responsables": "Supervisión Escolar, Asesores Técnicos, Directores y Tutores Escolares",
+        "entregables": "Padrón de estudiantes en riesgo con plan de rescate individual y reporte de participación",
+        "estrategiaSeguimiento": "Cortes bimestrales de retención y análisis de causas de baja",
+        "periodoEjecucion": "Septiembre 2026 - Julio 2027"
+      }
+    ],
+    "compromisosSupervision": [
+      "Brindar al menos 3 visitas de acompañamiento pedagógico situado por plantel priorizando diálogo con docentes",
+      "Gestionar espacios de diálogo inter-institucional con autoridades municipales de la región",
+      "Difundir buenas prácticas de autonomía docente documentadas en la zona"
+    ]
+  },
+  "memoriaPedagogica": {
+    "queLogramos": "Resultados sustantivos del acompañamiento en la Zona Escolar contrastados con los propósitos del Modelo Educativo 2025.",
+    "comoLoLogramos": "Descripción de las estrategias situadas, adaptaciones de autonomía profesional y dinámicas de colegiado que permitieron los avances.",
+    "queAprendimos": "Reflexión crítica sobre los obstáculos encontrados, la pertinencia de las fichas formativas y las fortalezas que emergieron en el territorio.",
+    "indicadoresCambio": {
+      "proceso": "Transformación en la práctica docente: mayor diversificación en evaluación formativa y planeación vinculada al contexto comunitario.",
+      "creaa": "Evolución tangible en los indicadores de cobertura, retención estudiantil, aprobación y eficiencia terminal.",
+      "impactoTerritorial": "Fortalecimiento del vínculo escuela-comunidad y apropiación social del bachillerato en la región."
+    },
+    "hojaDeRutaProximoCiclo": [
+      "Recomendación 1 para la planeación del Ciclo 2027-2028 basada en la evidencia acumulada",
+      "Recomendación 2 sobre focalización del acompañamiento en planteles con mayor dispersión",
+      "Recomendación 3 sobre consolidación de la autonomía profesional en los Consejos Académicos"
+    ]
+  }
+}
+
+Responde ÚNICAMENTE con el JSON válido.`;
+}

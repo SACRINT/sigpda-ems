@@ -40,3 +40,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 /scratch
+
+# testing and artifacts
+scripts/output/
+scripts/*.ps1
+scripts/test_*.ts

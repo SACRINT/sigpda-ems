@@ -3318,5 +3318,176 @@ function buildEvaluationSection(evalSection: EvaluationSection, cover: ActiveWor
     }
   }
 
+  // 6. SECCIÓN V-B: BITÁCORA FORMATIVA Y REGULADORA (50-20-30) · DBEPA PUEBLA
+  elements.push(
+    new Paragraph({
+      spacing: { before: 360, after: 120 },
+      children: [
+        new TextRun({
+          text: 'SECCIÓN V-B: BITÁCORA FORMATIVA Y REGULADORA (50-20-30) · DBEPA PUEBLA',
+          bold: true,
+          size: 20,
+          color: C.navy,
+        }),
+      ],
+    }),
+    new Paragraph({
+      spacing: { before: 80, after: 140 },
+      children: [
+        new TextRun({
+          text: 'Instrumento Oficial de Seguimiento Continuo (50% Proceso | 20% Colectivo | 30% Individual):',
+          bold: true,
+          size: 16,
+          color: C.navy,
+        }),
+      ],
+    })
+  );
+
+  // Tabla explicativa 50-20-30
+  const bitacoraExplainCols = [
+    { title: 'Componente (50-20-30)', w: Math.floor(CONTENT_W * 0.25) },
+    { title: 'Tipo de Evidencia e Instrumento', w: Math.floor(CONTENT_W * 0.32) },
+    { title: 'Ponderación', w: Math.floor(CONTENT_W * 0.15) },
+    { title: 'Criterios Observables', w: Math.floor(CONTENT_W * 0.28) },
+  ];
+
+  const bitacoraExplainRows: TableRow[] = [
+    new TableRow({
+      children: bitacoraExplainCols.map((col) =>
+        cell(col.title, { w: col.w, bold: true, fill: C.navy, color: C.white })
+      ),
+    }),
+    new TableRow({
+      children: [
+        cell('Nivel de Proceso (50%)', { bold: true }),
+        cell('Observación continua en aula y diálogo reflexivo'),
+        cell('50%', { align: AlignmentType.CENTER, bold: true }),
+        cell('Participativo (1), Dialogante (2), Cuestionador (3), Apoyo mutuo (4)'),
+      ],
+    }),
+    new TableRow({
+      children: [
+        cell('Evidencia Colectiva (20%)', { bold: true }),
+        cell('Prototipo técnico, maqueta, friso o reporte grupal'),
+        cell('20%', { align: AlignmentType.CENTER, bold: true }),
+        cell('Colaboración, rigor técnico, aplicación comunitaria'),
+      ],
+    }),
+    new TableRow({
+      children: [
+        cell('Evidencia Individual (30%)', { bold: true }),
+        cell('Bitácora reflexiva del estudiante + Ticket de Salida'),
+        cell('30%', { align: AlignmentType.CENTER, bold: true }),
+        cell('Metacognición, apropiación conceptual, transferencia'),
+      ],
+    }),
+  ];
+
+  elements.push(
+    new Table({
+      width: { size: CONTENT_W, type: WidthType.DXA },
+      rows: bitacoraExplainRows,
+    }),
+    new Paragraph({
+      spacing: { before: 240, after: 120 },
+      children: [
+        new TextRun({
+          text: 'Registro Diario de Proceso y Evaluación Formativa (Hoja de Campo):',
+          bold: true,
+          size: 16,
+          color: C.navy,
+        }),
+      ],
+    })
+  );
+
+  // Tabla Hoja de Campo
+  const campoCols = [
+    { title: 'No', w: Math.floor(CONTENT_W * 0.06) },
+    { title: 'Nombre del Estudiante', w: Math.floor(CONTENT_W * 0.30) },
+    { title: '50% Proceso (1-2-3-4)', w: Math.floor(CONTENT_W * 0.20) },
+    { title: '20% Colect.', w: Math.floor(CONTENT_W * 0.12) },
+    { title: '30% Indiv.', w: Math.floor(CONTENT_W * 0.12) },
+    { title: 'Notas de Acompañamiento', w: Math.floor(CONTENT_W * 0.20) },
+  ];
+
+  const campoRows: TableRow[] = [
+    new TableRow({
+      children: campoCols.map((col) =>
+        cell(col.title, { w: col.w, bold: true, fill: C.navy, color: C.white })
+      ),
+    }),
+  ];
+
+  const estudiantesEjemplo = [
+    ['01', 'Morales Soto, Alan', '[X]   [X]   [ ]   [X]', '9.5', '8.5', 'Demuestra gran iniciativa técnica y apoyo a pares'],
+    ['02', 'García Hernández, Sofia', '[X]   [X]   [X]   [X]', '10.0', '9.0', 'Excelente pensamiento crítico y argumentación'],
+    ['03', 'López Martínez, Carlos', '[ ]   [X]   [ ]   [X]', '8.0', '7.5', 'Requiere andamiaje en formulación de preguntas'],
+    ['04', 'Sánchez Pérez, Valeria', '[X]   [X]   [X]   [X]', '9.5', '9.5', 'Liderazgo en medición de laboratorio y reporte'],
+    ['05', 'Ramírez Castro, Diego', '[X]   [ ]   [X]   [ ]', '7.5', '8.0', 'Fortalecer escucha activa en trabajo colaborativo'],
+  ];
+
+  estudiantesEjemplo.forEach((row) => {
+    campoRows.push(
+      new TableRow({
+        children: [
+          cell(row[0], { align: AlignmentType.CENTER }),
+          cell(row[1], { bold: true }),
+          cell(row[2], { align: AlignmentType.CENTER }),
+          cell(row[3], { align: AlignmentType.CENTER }),
+          cell(row[4], { align: AlignmentType.CENTER }),
+          cell(row[5]),
+        ],
+      })
+    );
+  });
+
+  elements.push(
+    new Table({
+      width: { size: CONTENT_W, type: WidthType.DXA },
+      rows: campoRows,
+    }),
+    new Paragraph({
+      spacing: { before: 240, after: 80 },
+      children: [
+        new TextRun({
+          text: 'TICKET DE SALIDA (Evaluación Reguladora al Cierre de Sesión):',
+          bold: true,
+          size: 16,
+          color: C.navy,
+        }),
+      ],
+    }),
+    new Paragraph({
+      spacing: { before: 40, after: 160 },
+      children: [
+        new TextRun({
+          text: 'Pregunta detonadora: ¿Cuál fue el fenómeno central analizado hoy, qué error detectaste y cómo lo aplicas en tu vida diaria?',
+          size: 15,
+          color: C.darkText,
+        }),
+      ],
+    }),
+    new Paragraph({
+      spacing: { before: 80, after: 80 },
+      children: [
+        new TextRun({
+          text: '_________________________________________________________________________________',
+          color: 'C8D4E4',
+        }),
+      ],
+    }),
+    new Paragraph({
+      spacing: { before: 80, after: 160 },
+      children: [
+        new TextRun({
+          text: '_________________________________________________________________________________',
+          color: 'C8D4E4',
+        }),
+      ],
+    })
+  );
+
   return elements;
 }

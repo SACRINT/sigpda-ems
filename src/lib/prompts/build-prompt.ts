@@ -361,6 +361,13 @@ ${(context.usePaecActivity !== false && context.paecOperationalActivity?.activid
 4. SECCIÓN V (EVALUACIÓN): Incluye el Acuerdo de Acreditación formal firmado y asegura que las ponderaciones sumen exactamente 100%.
 5. SECCIÓN VI (MATERIALES): En "teacherMaterials" incluye ÚNICAMENTE materiales diseñados por el docente (guías, manuales, hojas de trabajo). NUNCA infraestructura física escolar (proyector, internet, pizarrones).
 6. SECCIÓN I: Asigna el período de aplicación: ${context.applicationPeriod || `Ciclo escolar ${SCHOOL_YEAR}`}.
+7. SECCIÓN II (RETO SITUADO 4/4 Y DIAGNÓSTICO EN 3 DIMENSIONES):
+   - "retoSituado": Genera un reto de alta utilidad real con verbo en infinitivo (Diseñar, Construir, Diagnosticar, Evaluar, Mitigar, Optimizar), contexto local concreto de Puebla (${location}), problemática real de la comunidad ("${context.paecProblem.substring(0, 80)}") y propósito curricular articulado.
+   - "diagnosticoSituado3D": Desarrolla la dimensión territorial, la dimensión de praxis juvenil (reconociendo al 44% de alumnos que trabajan) y la dimensión de aula/EDIEMS (rezago diagnóstico y BAP).
+8. SECCIÓN IV (8 PROCESOS DE PENSAMIENTO Y MODELO FINLANDÉS):
+   - "procesosPensamiento": Desglosa los 8 procesos cognitivos oficiales (asombro, problematizacion, traduccion, conceptualizacion, razonamiento, indagacion, reflexion, transferencia) indicando para cada uno su "utilidadReal" cotidiana y su "garantiaDualOffline" en aula (material análogo). CERO tareas de relleno o memorísticas pasivas.
+9. SECCIÓN V-B (BITÁCORA FORMATIVA Y REGULADORA 50-20-30):
+   - "bitacora502030": Genera la bitácora oficial con criterioProceso50 (observando participativo, dialogante, cuestionador, apoyo), evidenciaColectiva20, evidenciaIndividual30, ticketSalidaPregunta y 4-5 estudiantes representativos con calificaciones y notas cualitativas de acompañamiento.
 
 Responde ÚNICAMENTE con el objeto JSON válido que cumpla la estructura exacta solicitada en el system prompt.`;
 }

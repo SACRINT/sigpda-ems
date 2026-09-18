@@ -7,6 +7,7 @@ import {
   CarreraTecnica,
   ModuloCarrera
 } from "./bt-carreras-catalog";
+import type { UniqueUacItem, SchoolType, GroupTrackConfig } from '@/types/paec';
 
 export interface EscuelaEstructuraGrupos {
   gruposPrimerAno: number;   // 1er Año (1º o 2º Semestre)
@@ -802,4 +803,192 @@ export function obtenerAsignaturasParaGrupoTecnologico(
 
   return [...fundamentales6, propedeutica6, ...modulares6];
 }
+
+export interface ConsolidacionParams {
+  semesters: number[];
+  schoolType?: SchoolType;
+  groupAssignments?: GroupTrackConfig[];
+  activeLaboralUacs?: string[];
+  activeFfeUacs?: string[];
+  activeBtCarreras?: string[];
+  dbFundamentalUacs?: { uac_name: string; semester: number; component?: string }[];
+}
+
+/**
+ * Regla de Oro Curricular del PAEC (Nivel Plantel — CERO DUPLICADOS):
+ * UACs_PAEC = Fundamental_Único ∪ Laborales_Únicas ∪ FFE_Únicas ∪ Módulos_BT_Únicos
+ * 
+ * Garantiza que:
+ * - El tronco común se incluye exactamente UNA VEZ por semestre (no se repite por grupo).
+ * - Las capacitaciones laborales y FFE se unen matemáticamente sin duplicados.
+ * - Los módulos de carreras técnicas de Bachillerato Tecnológico se integran sin duplicados.
+ */
+export function consolidarUacsUnicasPlantel(params: ConsolidacionParams): UniqueUacItem[] {
+  const {
+    semesters,
+    schoolType = 'general',
+    groupAssignments = [],
+    activeLaboralUacs = [],
+    activeFfeUacs = [],
+    activeBtCarreras = [],
+    dbFundamentalUacs = [],
+  } = params;
+
+  const resultMap = new Map<string, UniqueUacItem>();
+
+  // 1. TRONCO FUNDAMENTAL ÚNICO POR SEMESTRE
+  for (const sem of semesters) {
+    const fundFromDb = dbFundamentalUacs.filter(
+      u => u.semester === sem && (!u.component || u.component === 'fundamental' || u.component === 'ampliado')
+    );
+
+    if (fundFromDb.length > 0) {
+      for (const u of fundFromDb) {
+        const key = `${sem}__${u.uac_name.trim().toLowerCase()}`;
+        if (!resultMap.has(key)) {
+          resultMap.set(key, {
+            uacName: u.uac_name.trim(),
+            semester: sem,
+            component: 'fundamental',
+          });
+        }
+      }
+    } else {
+      const asignaturasSem = schoolType === 'tecnico'
+        ? (sem === 1 ? obtenerAsignaturas1erSemestreTecnologico() : obtenerAsignaturasParaGrupoTecnologico(sem, ''))
+        : obtenerAsignaturasParaGrupo(sem, 'Administracion');
+
+      for (const asig of asignaturasSem) {
+        if (asig.tipo === 'FUNDAMENTAL' || asig.tipo === 'SOCIOEMOCIONAL') {
+          const key = `${sem}__${asig.nombre.trim().toLowerCase()}`;
+          if (!resultMap.has(key)) {
+            resultMap.set(key, {
+              uacName: asig.nombre.trim(),
+              semester: sem,
+              component: 'fundamental',
+            });
+          }
+        }
+      }
+    }
+  }
+
+  // 2. FORMACIÓN LABORAL (CAPACITACIONES BGE)
+  const gruposConCapacitacion = groupAssignments.filter(g => g.trackName || g.trackId);
+  for (const g of gruposConCapacitacion) {
+    const track = (g.trackName || g.trackId || '').trim();
+    if (!track) continue;
+
+    const semKey = `sem${g.semester}` as 'sem3' | 'sem4' | 'sem5' | 'sem6';
+    const capData = UACS_LABORALES_MAPA[track];
+
+    if (capData && capData[semKey]) {
+      for (const sub of capData[semKey]) {
+        const key = `${g.semester}__${sub.name.trim().toLowerCase()}`;
+        if (!resultMap.has(key)) {
+          resultMap.set(key, {
+            uacName: sub.name.trim(),
+            semester: g.semester,
+            component: 'laboral',
+            originTrack: track,
+          });
+        }
+      }
+    }
+  }
+
+  // Fallback para activeLaboralUacs pre-existentes
+  for (const labUac of activeLaboralUacs) {
+    for (const sem of semesters) {
+      const semKey = `sem${sem}` as 'sem3' | 'sem4' | 'sem5' | 'sem6';
+      let found = false;
+      for (const capName of Object.keys(UACS_LABORALES_MAPA)) {
+        const subList = UACS_LABORALES_MAPA[capName]?.[semKey] || [];
+        if (subList.some(s => s.name.trim().toLowerCase() === labUac.trim().toLowerCase())) {
+          const key = `${sem}__${labUac.trim().toLowerCase()}`;
+          if (!resultMap.has(key)) {
+            resultMap.set(key, {
+              uacName: labUac.trim(),
+              semester: sem,
+              component: 'laboral',
+              originTrack: capName,
+            });
+          }
+          found = true;
+          break;
+        }
+      }
+      if (found) break;
+    }
+  }
+
+  // 3. FORMACIÓN FUNDAMENTAL EXTENDIDA (FFE EN BGE - 5° y 6°)
+  const gruposConFfe = groupAssignments.filter(g => g.ffeSelections && g.ffeSelections.length > 0);
+  for (const g of gruposConFfe) {
+    for (const ffeName of g.ffeSelections || []) {
+      const nameClean = ffeName.trim();
+      if (!nameClean) continue;
+      const finalName = g.semester === 6 ? obtenerFfeSemestre6(nameClean) : nameClean;
+      const key = `${g.semester}__${finalName.toLowerCase()}`;
+      if (!resultMap.has(key)) {
+        resultMap.set(key, {
+          uacName: finalName,
+          semester: g.semester,
+          component: 'ffe',
+          originTrack: g.groupName,
+        });
+      }
+    }
+  }
+
+  // Fallback para activeFfeUacs pre-existentes
+  for (const ffeUac of activeFfeUacs) {
+    for (const sem of semesters) {
+      if (sem === 5 || sem === 6) {
+        const finalName = sem === 6 ? obtenerFfeSemestre6(ffeUac.trim()) : ffeUac.trim();
+        const key = `${sem}__${finalName.toLowerCase()}`;
+        if (!resultMap.has(key)) {
+          resultMap.set(key, {
+            uacName: finalName,
+            semester: sem,
+            component: 'ffe',
+          });
+        }
+      }
+    }
+  }
+
+  // 4. MÓDULOS PROFESIONALES DE BACHILLERATO TECNOLÓGICO
+  const carrerasActivas = new Set<string>([
+    ...activeBtCarreras,
+    ...groupAssignments.filter(g => g.trackId && schoolType === 'tecnico').map(g => g.trackId!),
+  ]);
+
+  for (const carreraId of carrerasActivas) {
+    for (const sem of semesters) {
+      if (sem >= 2) {
+        const modulo = getModulosPorSemestre(carreraId, sem);
+        if (modulo && modulo.submodulos) {
+          for (const sub of modulo.submodulos) {
+            const key = `${sem}__${sub.nombre.trim().toLowerCase()}`;
+            if (!resultMap.has(key)) {
+              resultMap.set(key, {
+                uacName: sub.nombre.trim(),
+                semester: sem,
+                component: 'profesional_bt',
+                originTrack: carreraId,
+              });
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return Array.from(resultMap.values()).sort((a, b) => {
+    if (a.semester !== b.semester) return a.semester - b.semester;
+    return a.uacName.localeCompare(b.uacName);
+  });
+}
+
 

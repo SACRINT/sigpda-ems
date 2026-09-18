@@ -92,6 +92,77 @@ export interface KeyActivityPlan {
   };
 }
 
+export interface RetoSituadoValidation {
+  hasInfinitiveVerb: boolean;      // 1. Verbo en infinitivo
+  hasLocalContext: boolean;        // 2. Contexto local/comunitario específico
+  hasRealProblem: boolean;         // 3. Problemática o fenómeno real de la vida cotidiana
+  hasCurricularAlignment: boolean; // 4. Alineado al propósito/progresión del programa
+  score: number;                   // 0 a 4
+  feedback: string[];
+  isApproved: boolean;             // true si score === 4
+  repairedText?: string;
+}
+
+export interface RetoSituado {
+  titulo: string;
+  verboInfinitivo: string;
+  contextoLocal: string;
+  problematicaReal: string;
+  propositoCurricular: string;
+  retoCompleto: string;
+  validacion?: RetoSituadoValidation;
+}
+
+export interface DiagnosticoSituado3D {
+  dimensionTerritorial: string;   // Geografía, dispersión, transporte, contexto comunitario
+  dimensionPraxisJuvenil: string; // 44% estudiantes trabajadores, saberes empíricos, resiliencia
+  dimensionAulaEdiems: string;    // Línea base EDIEMS/ESA (42% aciertos ingreso), BAP
+}
+
+export type ProcesoPensamientoTipo =
+  | 'asombro'
+  | 'problematizacion'
+  | 'traduccion'
+  | 'conceptualizacion'
+  | 'razonamiento'
+  | 'indagacion'
+  | 'reflexion'
+  | 'transferencia';
+
+export interface ProcesoPensamientoFase {
+  proceso: ProcesoPensamientoTipo;
+  descripcion: string;
+  actividadEstudiante: string;
+  utilidadReal: string; // Garantía finlandesa: aplicación directa en la vida real
+  garantiaDualOffline: string; // Alternativa analógica en aula (gis, papel bond, bitácora)
+}
+
+export interface BitacoraEstudianteRow {
+  no: number;
+  nombreEstudiante: string;
+  // 50% Nivel de Proceso (Observación continua)
+  participativo: boolean; // (1)
+  dialogante: boolean;    // (2)
+  cuestionador: boolean;  // (3)
+  apoyo: boolean;         // (4)
+  // 20% Evidencia Colectiva
+  evidenciaColectivaCalificacion: number; // e.g. 0-10 o ponderado
+  // 30% Evidencia Individual
+  evidenciaIndividualCalificacion: number; // Bitácora + Ticket de Salida
+  // Notas de Acompañamiento
+  notasAcompanamiento: string;
+}
+
+export interface Bitacora502030 {
+  uacName: string;
+  corteEvaluativo: 'Corte 1' | 'Corte 2' | 'Corte 3';
+  criterioProceso50: string;      // Rúbrica/criterios de observación
+  evidenciaColectiva20: string;   // Nombre del friso, modelo o prototipo colectivo
+  evidenciaIndividual30: string;  // Ticket de salida / bitácora reflexiva personal
+  ticketSalidaPregunta: string;   // Pregunta detonadora del ticket de salida
+  filasEstudiantes: BitacoraEstudianteRow[];
+}
+
 export interface EvaluationRow {
   type: string;
   agent: string;
@@ -127,6 +198,8 @@ export interface GeneratedPlanningContent {
     learningOutcomes: string[];
     paecConnection: string;
     activities: KeyActivity[];
+    retoSituado?: RetoSituado;
+    diagnosticoSituado3D?: DiagnosticoSituado3D;
   };
   // Section III - Transversality
   sectionIII: {
@@ -137,11 +210,13 @@ export interface GeneratedPlanningContent {
   sectionIV: {
     note: string;
     activities: KeyActivityPlan[];
+    procesosPensamiento?: ProcesoPensamientoFase[];
   };
   // Section V - Formative Evaluation
   sectionV: {
     evaluationAgreement?: string; // Acuerdo de acreditación firmado con el grupo (Anexo 12)
     evaluations: EvaluationRow[];
+    bitacora502030?: Bitacora502030;
   };
   // Section VI - Resources
   sectionVI: {
@@ -184,6 +259,9 @@ export interface SecuenciaSesion {
   learningActivity: string; // Rol del estudiante
   evidence: string;         // Evidencia o producto formativo
   evaluation?: string;      // Criterio o instrumento formativo
+  procesoPensamiento?: ProcesoPensamientoTipo; // 8 procesos de pensamiento
+  utilidadReal?: string;    // Garantía finlandesa: aplicación directa en la vida real
+  garantiaDualOffline?: string; // Alternativa análoga en aula (gis, papel bond, bitácora)
 }
 
 export interface SecuenciaBloque {

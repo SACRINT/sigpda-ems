@@ -1063,12 +1063,70 @@ export async function generatePaecPDF(
   const planA: PlanOperativoRow[] = p.fase3PlanOperativoA || (p as Record<string, any>).fase2PlanSemestreA || p.fase2PlanOperativo?.semestreA || [];
   const planB: PlanOperativoRow[] = p.fase3PlanOperativoB || (p as Record<string, any>).fase2PlanSemestreB || p.fase2PlanOperativo?.semestreB || [];
 
+  const parseWeekNum = (weekVal: unknown): number => {
+    if (typeof weekVal === 'number') return weekVal;
+    if (!weekVal) return 0;
+    const match = String(weekVal).match(/\d+/);
+    return match ? parseInt(match[0], 10) : 0;
+  };
+
+  const partitionPlanRows = (rows: PlanOperativoRow[]): { rangeLabel: string; rows: PlanOperativoRow[] }[] => {
+    if (rows.length === 0) {
+      return [
+        { rangeLabel: 'Semanas 1 a 4', rows: [] },
+        { rangeLabel: 'Semanas 5 a 8', rows: [] },
+        { rangeLabel: 'Semanas 9 a 12', rows: [] },
+        { rangeLabel: 'Semanas 13 a 16', rows: [] },
+      ];
+    }
+
+    const b1: PlanOperativoRow[] = [];
+    const b2: PlanOperativoRow[] = [];
+    const b3: PlanOperativoRow[] = [];
+    const b4: PlanOperativoRow[] = [];
+    const unassigned: PlanOperativoRow[] = [];
+
+    rows.forEach((r) => {
+      const w = parseWeekNum(r.week);
+      if (w >= 1 && w <= 4) b1.push(r);
+      else if (w >= 5 && w <= 8) b2.push(r);
+      else if (w >= 9 && w <= 12) b3.push(r);
+      else if (w >= 13 && w <= 16) b4.push(r);
+      else unassigned.push(r);
+    });
+
+    if (b1.length > 0 || b2.length > 0 || b3.length > 0 || b4.length > 0) {
+      unassigned.forEach((r, idx) => {
+        if (idx % 4 === 0) b1.push(r);
+        else if (idx % 4 === 1) b2.push(r);
+        else if (idx % 4 === 2) b3.push(r);
+        else b4.push(r);
+      });
+      return [
+        { rangeLabel: 'Semanas 1 a 4', rows: b1 },
+        { rangeLabel: 'Semanas 5 a 8', rows: b2 },
+        { rangeLabel: 'Semanas 9 a 12', rows: b3 },
+        { rangeLabel: 'Semanas 13 a 16', rows: b4 },
+      ];
+    }
+
+    const chunkSize = Math.ceil(rows.length / 4);
+    return [
+      { rangeLabel: 'Semanas 1 a 4', rows: rows.slice(0, chunkSize) },
+      { rangeLabel: 'Semanas 5 a 8', rows: rows.slice(chunkSize, chunkSize * 2) },
+      { rangeLabel: 'Semanas 9 a 12', rows: rows.slice(chunkSize * 2, chunkSize * 3) },
+      { rangeLabel: 'Semanas 13 a 16', rows: rows.slice(chunkSize * 3) },
+    ];
+  };
+
   const formatLandscapePlanChunk = (
     rowsChunk: PlanOperativoRow[],
     titleText: string,
     chunkRange: string,
     isFinalWeekHighlight = false
   ) => {
+    if (rowsChunk.length === 0) return;
+
     doc.addPage('letter', 'landscape');
     const pW = doc.internal.pageSize.getWidth();   // 279.4 mm
     const cW = pW - margin * 2;                    // 251.4 mm
@@ -1078,7 +1136,7 @@ export async function generatePaecPDF(
     curY += 10;
 
     const bodyData = rowsChunk.map((r) => {
-      const isW16 = isFinalWeekHighlight && r.week === '16';
+      const isW16 = isFinalWeekHighlight && String(r.week).includes('16');
       return [
         { content: isW16 ? '★ 16' : safeStr(r.week), styles: { halign: 'center' as const, fontStyle: 'bold' as const, fillColor: isW16 ? GOLD_LIGHT : GRAY_BG } },
         { content: safeStr(r.phase), styles: { fontStyle: (isW16 ? 'bold' : 'normal') as 'bold' | 'normal', fillColor: isW16 ? GOLD_LIGHT : undefined } },
@@ -1107,36 +1165,54 @@ export async function generatePaecPDF(
       ],
       body: bodyData,
       theme: 'grid',
+      showHead: 'everyPage',
       styles: { fontSize: 7, cellPadding: 2.2, overflow: 'linebreak' },
       headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5 },
       columnStyles: {
         0: { halign: 'center' },
       },
-      margin: { left: margin, right: margin },
+      margin: { left: margin, right: margin, top: 20, bottom: 20 },
     });
   };
 
-  // PÁGINA 12: Semestre A Semanas 1 a 4
-  formatLandscapePlanChunk(planA.slice(0, 4), 'Macro-Fase III (A): Plan Operativo Territorial — Semestre A', 'Semanas 1 a 4 (Fase I: Diagnóstico)');
-  // PÁGINA 13: Semestre A Semanas 5 a 8
-  formatLandscapePlanChunk(planA.slice(4, 8), 'Macro-Fase III (A): Plan Operativo Territorial — Semestre A', 'Semanas 5 a 8 (Fase II: Diseño)');
-  // PÁGINA 14: Semestre A Semanas 9 a 12
-  formatLandscapePlanChunk(planA.slice(8, 12), 'Macro-Fase III (A): Plan Operativo Territorial — Semestre A', 'Semanas 9 a 12 (Fase III: Gestión)');
-  // PÁGINA 15: Semestre A Semanas 13 a 16
-  formatLandscapePlanChunk(planA.slice(12, 16), 'Macro-Fase III (A): Plan Operativo Territorial — Semestre A', 'Semanas 13 a 16 (Fase IV: Ejecución)');
+  // Semestre A: Paginación dinámica por fases sin recortar filas
+  const blocksA = partitionPlanRows(planA);
+  const phaseSubtitlesA = [
+    '(Fase I: Diagnóstico)',
+    '(Fase II: Diseño)',
+    '(Fase III: Gestión)',
+    '(Fase IV: Ejecución)',
+  ];
+  blocksA.forEach((b, idx) => {
+    if (b.rows.length > 0) {
+      formatLandscapePlanChunk(
+        b.rows,
+        'Macro-Fase III (A): Plan Operativo Territorial — Semestre A',
+        `${b.rangeLabel} ${phaseSubtitlesA[idx] || ''}`
+      );
+    }
+  });
 
   // ═════════════════════════════════════════════════════════════════════════════
-  // MACRO-FASE III (B): PLAN OPERATIVO — SEMESTRE B (PÁGINAS 16 A 19 EN LANDSCAPE)
-  // 4 PÁGINAS DEDICADAS: W1-4 (P16), W5-8 (P17), W9-12 (P18), W13-16 (P19)
+  // MACRO-FASE III (B): PLAN OPERATIVO — SEMESTRE B (EN LANDSCAPE)
   // ═════════════════════════════════════════════════════════════════════════════
-  // PÁGINA 16: Semestre B Semanas 1 a 4
-  formatLandscapePlanChunk(planB.slice(0, 4), 'Macro-Fase III (B): Plan Operativo Territorial — Semestre B', 'Semanas 1 a 4 (Fase IV: Intervención)');
-  // PÁGINA 17: Semestre B Semanas 5 a 8
-  formatLandscapePlanChunk(planB.slice(4, 8), 'Macro-Fase III (B): Plan Operativo Territorial — Semestre B', 'Semanas 5 a 8 (Fase V: Monitoreo)');
-  // PÁGINA 18: Semestre B Semanas 9 a 12
-  formatLandscapePlanChunk(planB.slice(8, 12), 'Macro-Fase III (B): Plan Operativo Territorial — Semestre B', 'Semanas 9 a 12 (Fase V: Evaluación)');
-  // PÁGINA 19: Semestre B Semanas 13 a 16 (con Feria Comunitaria)
-  formatLandscapePlanChunk(planB.slice(12, 16), 'Macro-Fase III (B): Plan Operativo Territorial — Semestre B', 'Semanas 13 a 16 (Fase VI: Cierre y Feria Comunitaria)', true);
+  const blocksB = partitionPlanRows(planB);
+  const phaseSubtitlesB = [
+    '(Fase IV: Intervención)',
+    '(Fase V: Monitoreo)',
+    '(Fase V: Evaluación)',
+    '(Fase VI: Cierre y Feria Comunitaria)',
+  ];
+  blocksB.forEach((b, idx) => {
+    if (b.rows.length > 0) {
+      formatLandscapePlanChunk(
+        b.rows,
+        'Macro-Fase III (B): Plan Operativo Territorial — Semestre B',
+        `${b.rangeLabel} ${phaseSubtitlesB[idx] || ''}`,
+        idx === 3 // isFinalWeekHighlight para Feria Comunitaria en Sem 16
+      );
+    }
+  });
 
   // ═════════════════════════════════════════════════════════════════════════════
   // MACRO-FASE III (C): FORMALIZACIÓN INSTITUCIONAL (RETORNO A PORTRAIT)

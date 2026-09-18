@@ -24,6 +24,60 @@ export interface PmcIndicadoresAcademicos {
   matricula?: number;
 }
 
+export interface PmcStatisticalPlantel {
+  cct: string;
+  nombre: string;
+  turno: string;
+  // ── Del 911.7G (Fin de Cursos / Inicio) ──────────────────────────
+  matricula: number;           // Del 911.7G
+  egresados?: number;          // Del 911.7G → para calcular Eficiencia Terminal
+  aprobados?: number;          // Del 911.7G
+  reprobados?: number;         // Del 911.7G
+  bajasDefinitivas?: number;   // Del 911.7G → para calcular Abandono
+  eficienciaTerminal: number;  // Calculada: (egresados / matrículaInicial) × 100
+  abandono: number;            // Calculada: (bajasDefinitivas / matrículaInicial) × 100
+  reprobacion: number;         // % Reprobación oficial (compatibilidad con cálculos de zona)
+
+  // ── Del F11C (Control Escolar) ───────────────────────────────────
+  promedioGeneral: number;     // Promedio general del grupo/alumno
+  promediosPorAsignatura: Record<string, number>; // ej: { "Pensamiento Matemático": 7.5, "Lenguaje y Comunicación": 8.2 }
+  aprobadosPorcentaje: number;
+  reprobadosPorcentaje: number;
+  estudiantesAprobados?: number;   // Compatibilidad
+  promedioCalificaciones?: number; // Compatibilidad
+
+  // ── EDIEMS/ESA (evaluaciones externas DBEPA, independientes del F11) ───
+  ediemsPre?: number;
+  ediemsPost?: number;
+  esaPre?: number;
+  esaPost?: number;
+}
+
+export interface PmcStatisticalZona {
+  zonaNumero?: string;
+  totalPlanteles: number;
+  matriculaTotal: number;
+  promedioAbandono: number;
+  promedioEficiencia: number;
+  promedioReprobacion: number;
+  promedioCalificaciones?: number;
+  brechasDiagnostico: {
+    brechaAbandonoVsZona: number;
+    brechaEficienciaVsZona: number;
+    brechaReprobacionVsZona: number;
+    prioridadIntervencion: 'alta' | 'media' | 'baja';
+    observaciones: string[];
+  };
+}
+
+export interface PmcStatisticalContext {
+  fuente: 'formato_911' | 'formato_f11' | 'matriz_combinada_excel' | 'manual';
+  plantel: PmcStatisticalPlantel;
+  zona?: PmcStatisticalZona;
+  cicloEscolar?: string;
+  parsedAt: string;
+}
+
 export interface PmcFodaData {
   fortalezas?: string;
   oportunidades?: string;
@@ -94,6 +148,7 @@ export interface PmcProject {
   normativa?: Record<string, string> | unknown;
   diagnostico_generado?: PmcDiagnosticoGenerado | unknown;
   plan_accion?: PmcPlanAccion | unknown;
+  statistical_context?: PmcStatisticalContext;
   current_step?: number;
   status?: string;
   created_at?: string;
