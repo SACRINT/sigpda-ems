@@ -21,13 +21,8 @@ import {
   buildMomento4AnalizarPrompt,
   buildMomento5DecidirPrompt,
   buildMemoriaPedagogicaPrompt,
-  type CartografiaIdentificacion,
 } from '@/lib/prompts/cartografia-prompts';
-import type {
-  CartografiaMomento1Conocer,
-  CartografiaMomento2Organizar,
-  CartografiaPlantelItem,
-} from '@/types/cartografia';
+import { buildCartografiaBaseContext } from '@/lib/cartografia-context-builder';
 import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
@@ -82,87 +77,7 @@ export async function POST(req: NextRequest, { params }: RouteCtx) {
     }
 
     // 3. Reconstruir datos base de la zona (Momentos 1 y 2)
-    const atpsList = Array.isArray(project.atps)
-      ? project.atps
-      : typeof project.atps === 'string'
-      ? project.atps.split(',').map((s: string) => s.trim()).filter(Boolean)
-      : [];
-
-    const identificacion: CartografiaIdentificacion = {
-      zonaNumero: String(project.zona_nombre || '004').replace(/[^0-9]/g, '') || '004',
-      zonaClave: project.zona_clave || '21FMS0004Z',
-      supervisorName: project.supervisor_name || teacher.name || 'Supervisor Escolar',
-      municipioSede: project.municipio_sede || 'Venustiano Carranza',
-      municipiosAtiende: project.municipios_atiende || 'Venustiano Carranza, Francisco Z. Mena, Pantepec, Jalpan',
-      subsistema: project.subsistema || 'Bachilleratos Estatales',
-      cicloEscolar: project.ciclo_escolar || '2026-2027',
-      atps: atpsList,
-    };
-
-    const rawPlanteles = Array.isArray(project.planteles_json) ? (project.planteles_json as Record<string, unknown>[]) : [];
-    const planteles: CartografiaPlantelItem[] = rawPlanteles.map((p, idx: number) => ({
-      no: idx + 1,
-      cct: String(p.cct || `CCT-${idx + 1}`),
-      nombre: String(p.nombre || `Bachillerato ${idx + 1}`),
-      localidad: String(p.localidad || 'Comunidad escolar'),
-      municipio: String(p.municipio || identificacion.municipioSede),
-      turno: String(p.turno || 'MATUTINO'),
-      matricula: Number(p.matricula) || Number(p.total) || 0,
-      egresados: Number(p.egresados) || 0,
-      bajasDefinitivas: Number(p.bajasDefinitivas) || 0,
-      eficienciaTerminal: Number(p.eficienciaTerminal) || 85,
-      abandono: Number(p.abandono) || 5,
-      reprobacion: Number(p.reprobacion) || 8,
-      promedioGeneral: Number(p.promedioGeneral) || Number(p.promedioCalificaciones) || 8.0,
-      paecProyecto: String(p.paecProyecto || 'Proyecto Comunitario Integrador en proceso'),
-      paecProblematica: String(p.paecProblematica || 'Reto socioformativo del entorno local'),
-    }));
-
-    const matriculaTotalZona = planteles.reduce((sum, p) => sum + p.matricula, 0);
-    const plantelesConMatricula = planteles.filter((p) => p.matricula > 0);
-    const divisor = plantelesConMatricula.length > 0 ? plantelesConMatricula.length : (planteles.length || 1);
-
-    const promAbandono = parseFloat((plantelesConMatricula.reduce((a, b) => a + b.abandono, 0) / divisor).toFixed(2));
-    const promEficiencia = parseFloat((plantelesConMatricula.reduce((a, b) => a + b.eficienciaTerminal, 0) / divisor).toFixed(2));
-    const promAprovechamiento = parseFloat((plantelesConMatricula.reduce((a, b) => a + b.promedioGeneral, 0) / divisor).toFixed(2));
-    const promReprobacion = parseFloat((plantelesConMatricula.reduce((a, b) => a + b.reprobacion, 0) / divisor).toFixed(2));
-
-    const plantelesAtencionPrioritaria = planteles
-      .filter((p) => p.abandono > promAbandono + 3 || p.eficienciaTerminal < promEficiencia - 5)
-      .map((p) => `${p.nombre} (Abandono: ${p.abandono}%, ET: ${p.eficienciaTerminal}%)`);
-
-    const rawProblems = Array.isArray(project.problematicas_json) ? (project.problematicas_json as Record<string, unknown>[]) : [];
-    const problematicasComunes = rawProblems.map((pr) => String(pr.titulo || pr.descripcion || '')).filter(Boolean);
-
-    const momento1: CartografiaMomento1Conocer = {
-      planteles,
-      matriculaTotalZona,
-      municipiosCobertura: [identificacion.municipioSede, identificacion.municipiosAtiende],
-      sedesPlanteles: planteles.map((p) => `${p.nombre} [${p.cct}]`),
-      caracterizacionInicial: project.diagnostico_contexto || `Zona escolar ${identificacion.zonaNumero} con ${planteles.length} planteles.`,
-    };
-
-    const momento2: CartografiaMomento2Organizar = {
-      capaCuantitativa: {
-        promedioAbandonoZona: promAbandono,
-        promedioEficienciaZona: promEficiencia,
-        promedioAprovechamientoZona: promAprovechamiento,
-        promedioReprobacionZona: promReprobacion,
-        matriculaTotal: matriculaTotalZona,
-        plantelesAtencionPrioritaria,
-        resumenEstadistico911F11: `Consolidado 911/F11: Abandono ${promAbandono}%, Eficiencia ${promEficiencia}%, Aprovechamiento ${promAprovechamiento}, Reprobación ${promReprobacion}%.`,
-      },
-      capaCualitativa: {
-        problematicasComunes: problematicasComunes.length > 0 ? problematicasComunes : [
-          'Vulnerabilidad económica y trabajo estudiantil vespertino o por temporadas.',
-          'Dificultades de transporte y dispersión geográfica en comunidades de origen.',
-          'Brechas de conectividad digital en planteles y hogares rurales.',
-        ],
-        factoresContextuales: ['Actividades agropecuarias y comerciales locales predominantes.'],
-        vinculacionPaecZona: planteles.map((p) => `${p.nombre}: ${p.paecProyecto}`),
-        desafiosSocioeconomicos: 'Dispersión territorial y traslados prolongados que elevan el riesgo de deserción en primeros semestres.',
-      },
-    };
+    const { identificacion, momento1, momento2 } = buildCartografiaBaseContext(project, teacher);
 
     // 4. Contexto pedagógico de biblioteca docente
     let libraryContext: string | undefined;
