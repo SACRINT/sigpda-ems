@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import type { ExtractedPdfData, TeacherContext, PaecOperationalActivity } from '@/types/planning';
 import { CATALOGO_METODOLOGIAS_ACTIVAS, type MetodologiaActiva } from '@/lib/catalogo-metodologias';
 import { recomendarMetodologia } from '@/lib/recomendador-metodologia';
+import { logger } from '@/lib/logger';
 
 interface Props {
   extractedData: ExtractedPdfData;
@@ -132,9 +133,39 @@ export default function StepContext({
             municipality: prev.municipality || profile.municipality || '',
             subsystem: prev.subsystem && prev.subsystem !== 'bge' ? prev.subsystem : (profile.subsystem || 'bge'),
           }));
+
+          // Interconexión automática PAEC ↔ Planeación
+          if (profile.cct && !initialContext?.paecProblem) {
+            try {
+              const uac = (extractedData as { uacName?: string })?.uacName || '';
+              const sem = (extractedData as { semester?: number })?.semester;
+              const pRes = await fetch(`/api/paec/context?cct=${encodeURIComponent(profile.cct)}&uac=${encodeURIComponent(uac)}${sem ? `&semester=${sem}` : ''}`);
+              if (pRes.ok) {
+                const pData = await pRes.json();
+                if (pData.found) {
+                  setForm(prev => ({
+                    ...prev,
+                    paecProjectName: prev.paecProjectName || pData.projectName || '',
+                    paecProblem: prev.paecProblem || pData.problemStatement || '',
+                    schoolName: prev.schoolName || pData.schoolName || profile.school_name || '',
+                    municipality: prev.municipality || pData.municipality || profile.municipality || '',
+                    paecOperationalActivity: pData.operationalActivity || prev.paecOperationalActivity,
+                    usePaecActivity: Boolean(pData.operationalActivity),
+                  }));
+                  if (pData.operationalActivity) {
+                    setDetectedPaecActivity(pData.operationalActivity);
+                    setHasPlanOperativoScan(true);
+                  }
+                  setPaecSuccess(true);
+                }
+              }
+            } catch {
+              // Silencioso si no hay conexión o PAEC registrado
+            }
+          }
         }
       } catch (err) {
-        console.warn('[StepContext] Error al cargar perfil del docente:', err);
+        logger.warn('Error al cargar perfil del docente:', err);
       }
     }
     loadTeacherProfile();
