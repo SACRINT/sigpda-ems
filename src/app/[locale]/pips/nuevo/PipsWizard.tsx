@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { PipsProject, PipsPlantele, PipsProblematica, PipsObjetivo, PipsCronogramaActividad } from '@/types/pips';
 import { SCHOOL_YEAR } from '@/lib/config';
+import ExcelUploadZone from '@/components/cartografia/ExcelUploadZone';
 
 // ─── Step labels ──────────────────────────────────────────────────────────────
 const STEPS = [
@@ -92,6 +93,7 @@ export default function PipsWizard({ locale }: { locale: string }) {
   // Estados de Previsualización y Modales (Paso 2, 3 y 5)
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [showCsvModal, setShowCsvModal] = useState(false);
+  const [showExcelUpload, setShowExcelUpload] = useState(false);
   const [csvText, setCsvText] = useState('');
   const [csvParsed, setCsvParsed] = useState<{
     no: number;
@@ -369,6 +371,14 @@ export default function PipsWizard({ locale }: { locale: string }) {
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button
               type="button"
+              onClick={() => setShowExcelUpload(prev => !prev)}
+              className="btn btn-primary btn-sm"
+              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, padding: '6px 14px', background: '#059669', borderColor: '#047857', color: '#ffffff', fontWeight: 700 }}
+            >
+              📊 Cargar Excel (911.7G / F11C)
+            </button>
+            <button
+              type="button"
               onClick={() => setShowPreviewModal(true)}
               className="btn btn-secondary btn-sm"
               style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, padding: '6px 12px' }}
@@ -385,6 +395,26 @@ export default function PipsWizard({ locale }: { locale: string }) {
             </button>
           </div>
         </div>
+
+        {/* Asistente de Carga Excel Interactivo (Formato 911.7G / F11C / DBEPA) */}
+        {showExcelUpload && (
+          <div style={{ margin: '16px 0' }}>
+            <ExcelUploadZone
+              zonaNumero={pips.zona_nombre?.replace(/[^0-9]/g, '') || '004'}
+              cicloEscolar={pips.ciclo_escolar || SCHOOL_YEAR}
+              onDataInjected={({ planteles: importedPlanteles, diagnosticoText }) => {
+                set('planteles_json', importedPlanteles);
+                set('num_planteles', importedPlanteles.length);
+                if (diagnosticoText && (!pips.diagnostico_contexto || pips.diagnostico_contexto.length < 50)) {
+                  set('diagnostico_contexto', diagnosticoText);
+                }
+                setShowExcelUpload(false);
+                setMsg(`✅ Se importaron exitosamente ${importedPlanteles.length} planteles desde la matriz oficial de Excel.`);
+              }}
+              onClose={() => setShowExcelUpload(false)}
+            />
+          </div>
+        )}
 
         {/* KPI resumen */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, margin: '16px 0' }}>

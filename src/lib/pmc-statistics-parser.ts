@@ -54,7 +54,8 @@ export function parsePmcStatistics(
     if (Array.isArray(input)) {
       rows = input;
     } else {
-      const workbook = XLSX.read(input, { type: 'buffer' });
+      const isBuffer = typeof Buffer !== 'undefined' && typeof Buffer.isBuffer === 'function' && Buffer.isBuffer(input);
+      const workbook = XLSX.read(input, { type: isBuffer ? 'buffer' : 'array' });
       // Buscar hoja 'Punto de partida', '911', 'F11' o la primera hoja
       const sheetName = workbook.SheetNames.find((name) => {
         const n = normalizeHeader(name);
@@ -145,6 +146,7 @@ export function parsePmcStatistics(
       // Ignorar filas de totales, promedios o vacías
       if (!cctRaw && !nombreRaw) continue;
       if (nombreRaw.toLowerCase().includes('total') || nombreRaw.toLowerCase().includes('promedio')) continue;
+      if (cctRaw.toLowerCase().includes('total') || cctRaw.toLowerCase().includes('promedio')) continue;
 
       const matricula = parseFloat(String(row[colMap['matricula'] ?? 3] || '0').replace(/[^0-9.]/g, '')) || 0;
       if (matricula <= 0 && !cctRaw.startsWith('21')) continue;
