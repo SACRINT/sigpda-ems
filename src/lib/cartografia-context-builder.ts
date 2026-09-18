@@ -9,6 +9,10 @@ import type {
   CartografiaPlantelItem,
   CartografiaMomento1Conocer,
   CartografiaMomento2Organizar,
+  CartografiaMomento3Ubicar,
+  CartografiaMomento4Analizar,
+  CartografiaMomento5Decidir,
+  CartografiaMemoriaPedagogica,
 } from '@/types/cartografia';
 import type { CartografiaIdentificacion } from '@/lib/prompts/cartografia-prompts';
 
@@ -126,5 +130,97 @@ export function buildCartografiaBaseContext(
     plantelesAtencionPrioritaria,
     momento1,
     momento2,
+  };
+}
+
+export interface CartografiaMomentos3a5 {
+  momento3Ubicar: CartografiaMomento3Ubicar;
+  momento4Analizar: CartografiaMomento4Analizar;
+  momento5Decidir: CartografiaMomento5Decidir;
+  memoriaPedagogica?: CartografiaMemoriaPedagogica;
+}
+
+/**
+ * Obtiene los Momentos 3, 4, 5 y Memoria Pedagógica desde el registro de base de datos,
+ * o provee estructuras de respaldo (fallbacks) alineadas a lineamientos DBEPA Puebla
+ * si aún no han sido generados mediante IA (H-013).
+ */
+export function getCartografiaMomentos(
+  row: Record<string, unknown>,
+  plantelesCount: number = 0
+): CartografiaMomentos3a5 {
+  const momento3Ubicar: CartografiaMomento3Ubicar = (row.momento3_ubicar as CartografiaMomento3Ubicar) || {
+    descripcionTerritorial: 'Mapeo contextual en proceso de integración territorial.',
+    comunidadesProcedencia: ['Comunidades de influencia de la zona escolar'],
+    movilidadTransporte: 'Rutas de transporte terrestre con tiempos variables de traslado.',
+    conectividadInfraestructura: 'Conectividad básica disponible en centros escolares.',
+    recursosAliados: [
+      {
+        nombre: 'Centro Comunitario de Salud',
+        tipo: 'salud',
+        ubicacion: String(row.municipio_sede || 'Cabecera Municipal'),
+        vinculacionPedagogica: 'Prevención de riesgos y hábitos saludables',
+      },
+    ],
+    mapaContextual: `Distribución territorial de los ${plantelesCount} planteles de la zona.`,
+  };
+
+  const momento4Analizar: CartografiaMomento4Analizar = (row.momento4_analizar as CartografiaMomento4Analizar) || {
+    triangulacion: {
+      directivos: 'Gestión directiva orientada a la permanencia y clima armónico.',
+      docentes: 'Retos pedagógicos centrados en la contextualización de progresiones.',
+      alumnosFamilias: 'Necesidad de pertinencia social y apoyo a trayectorias educativas.',
+      supervisionAtp: 'Acompañamiento situado y asesoría pedagógica continua.',
+    },
+    patronesRecurrentes: ['Dispersión y necesidades de flexibilización curricular.'],
+    retosPedagogicosCreaa: ['Abatir el rezago en habilidades fundamentales de pensamiento.'],
+    acuerdosAutonomiaConsejo: ['Intercambio de planeaciones y proyectos integradores situados.'],
+  };
+
+  const momento5Decidir: CartografiaMomento5Decidir = (row.momento5_decidir as CartografiaMomento5Decidir) || {
+    metaGeneralZona: `Incrementar en 3.5% la permanencia escolar de los estudiantes de la Zona Escolar mediante acompañamiento situado durante el ciclo ${row.ciclo_escolar || '2026-2027'}.`,
+    indicadoresCreaaAsociados: ['Eficiencia terminal', 'Abandono escolar', 'Aprobación general'],
+    lineasAccion: [
+      {
+        numero: 1,
+        titulo: 'Acompañamiento a la autonomía docente y curricular situada',
+        accionesEspecificas: ['Talleres de codiseño curricular y observación dialógica'],
+        recursos: ['Fichas formativas DBEPA'],
+        responsables: 'Supervisión y Asesores Técnicos',
+        entregables: 'Portafolio de secuencias didácticas',
+        estrategiaSeguimiento: 'Cortes bimestrales en Consejo Técnico',
+        periodoEjecucion: 'Ciclo Escolar 2026-2027',
+      },
+      {
+        numero: 2,
+        titulo: 'Acompañamiento directivo para la gestión participativa y clima escolar',
+        accionesEspecificas: ['Círculos de liderazgo pedagógico y protocolos de permanencia'],
+        recursos: ['Guías de gestión directiva'],
+        responsables: 'Supervisión y Directores',
+        entregables: 'Diagnóstico de clima escolar y actas de acuerdos',
+        estrategiaSeguimiento: 'Reuniones de zona',
+        periodoEjecucion: 'Ciclo Escolar 2026-2027',
+      },
+      {
+        numero: 3,
+        titulo: 'Acompañamiento integral a las trayectorias formativas y proyectos comunitarios',
+        accionesEspecificas: ['Tutoría y seguimiento nominal de estudiantes en riesgo'],
+        recursos: ['Formatos PAEC y sistema de alerta'],
+        responsables: 'Tutores escolares y comités de vinculación',
+        entregables: 'Padrón de seguimiento a trayectorias',
+        estrategiaSeguimiento: 'Evaluaciones parciales',
+        periodoEjecucion: 'Ciclo Escolar 2026-2027',
+      },
+    ],
+    compromisosSupervision: ['Visitas de acompañamiento situado al 100% de los planteles.'],
+  };
+
+  const memoriaPedagogica: CartografiaMemoriaPedagogica | undefined = row.memoria_pedagogica as CartografiaMemoriaPedagogica | undefined;
+
+  return {
+    momento3Ubicar,
+    momento4Analizar,
+    momento5Decidir,
+    memoriaPedagogica,
   };
 }
