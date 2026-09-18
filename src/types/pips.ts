@@ -1,4 +1,11 @@
 // src/types/pips.ts
+import type {
+  CartografiaMomento3Ubicar,
+  CartografiaMomento4Analizar,
+  CartografiaMomento5Decidir,
+  CartografiaMemoriaPedagogica,
+} from './cartografia';
+
 export interface PipsPlantele {
   no: number;
   cct: string;
@@ -67,6 +74,11 @@ export interface PipsProject {
   cronograma_json: PipsCronogramaActividad[];
   // Paso 8 — Evaluación / cierre
   evaluacion_json: { indicador: string; meta: string; instrumento: string }[];
+  // Cartografía de Zona Escolar (Momentos 3 a 5 y Memoria Pedagógica)
+  momento3_ubicar?: CartografiaMomento3Ubicar;
+  momento4_analizar?: CartografiaMomento4Analizar;
+  momento5_decidir?: CartografiaMomento5Decidir;
+  memoria_pedagogica?: CartografiaMemoriaPedagogica;
   // Meta
   generated_content?: string;
   current_step: number;
