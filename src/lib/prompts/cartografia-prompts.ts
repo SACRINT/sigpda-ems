@@ -41,7 +41,18 @@ PRINCIPIOS INSTITUCIONALES DE LA CARTOGRAFÍA DE ZONA (DBEPA PUEBLA):
    [VERBO EN INFINITIVO] + [INDICADOR/PORCENTAJE] + [POBLACIÓN DE LA ZONA] + [ESTRATEGIA TERRITORIAL] + [PERIODO Y TERRITORIO].`;
 
 /**
- * Prompt para generar los Momentos 3, 4, 5 y la Memoria Pedagógica de la Cartografía
+ * Prompt monolítico legacy para generar los Momentos 3, 4, 5 y la Memoria Pedagógica en un solo llamado.
+ * 
+ * @deprecated En el runtime oficial de SIGPDA-EMS (Fase 8+), la generación es modular por momento
+ * para evitar timeouts de serverless (180s) y prevenir desbordamiento de ventana de contexto.
+ * Utilice en su lugar:
+ * - `buildMomento3UbicarPrompt`
+ * - `buildMomento4AnalizarPrompt`
+ * - `buildMomento5DecidirPrompt`
+ * - `buildMemoriaPedagogicaPrompt`
+ * a través de `/api/pips/[id]/cartografia/generate-momento`.
+ * 
+ * Se conserva únicamente como fallback arquitectónico para scripts batch, pruebas offline o migraciones.
  */
 export function buildCartografiaFullPrompt(
   identificacion: {
