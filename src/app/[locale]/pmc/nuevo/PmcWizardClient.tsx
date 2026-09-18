@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { clearAllWizardDrafts } from '@/hooks/useWizardPersistence';
+import type { SchoolZoneContextResponse } from '@/lib/zone-sync-service';
 
 const PMC_DRAFT_KEY = 'didactica_pmc_draft';
 
@@ -266,6 +267,66 @@ export default function PmcWizardClient({ locale, teacherId, teacherName, teache
     existingProject?.plan_accion || null
   );
 
+  // Zona Context Bridge (Fase 9)
+  const [zonaData, setZonaData] = useState<SchoolZoneContextResponse | null>(null);
+  const [showZonaModal, setShowZonaModal] = useState(false);
+  const [loadingZona, setLoadingZona] = useState(false);
+  const [zonaFeedback, setZonaFeedback] = useState<string | null>(null);
+
+  const handleConsultarZona = useCallback(async () => {
+    const targetCct = schoolCct.trim();
+    if (!targetCct) {
+      setError('Por favor ingresa primero la Clave de Centro de Trabajo (CCT).');
+      return;
+    }
+    setLoadingZona(true);
+    setZonaFeedback(null);
+    try {
+      const res = await fetch(`/api/pmc/zona-context?cct=${encodeURIComponent(targetCct)}`);
+      const data: SchoolZoneContextResponse = await res.json();
+      if (!res.ok || !data.found) {
+        setZonaFeedback('No se encontró Cartografía de Zona activa para este CCT escolar.');
+      } else {
+        setZonaData(data);
+        setShowZonaModal(true);
+      }
+    } catch {
+      setZonaFeedback('Error al consultar la Cartografía de Zona.');
+    } finally {
+      setLoadingZona(false);
+    }
+  }, [schoolCct]);
+
+  const handleAplicarSugerenciasZona = () => {
+    if (!zonaData || !zonaData.zona) return;
+    const { zona, plantel } = zonaData;
+
+    if (zona.identificacion.zonaNumero && !schoolZone) {
+      setSchoolZone(`Zona ${zona.identificacion.zonaNumero}`);
+    }
+    if (zona.identificacion.supervisorName && !supervisorName) {
+      setSupervisorName(zona.identificacion.supervisorName);
+    }
+
+    if (plantel) {
+      setIndicadores(prev => ({
+        ...prev,
+        matricula: prev.matricula ?? plantel.matricula,
+        abandono_ant: prev.abandono_ant ?? plantel.abandono,
+        et_ant: prev.et_ant ?? plantel.eficienciaTerminal,
+        reprobacion_ant: prev.reprobacion_ant ?? plantel.reprobacion,
+      }));
+    }
+
+    if (zona.momento3Territorio?.descripcionTerritorial && !diagnosticoComunidad.trim()) {
+      setDiagnosticoComunidad(zona.momento3Territorio.descripcionTerritorial);
+    }
+
+    setShowZonaModal(false);
+    setZonaFeedback('✅ Datos y sugerencias de la Cartografía de Zona aplicados exitosamente a tu PMC.');
+    setTimeout(() => setZonaFeedback(null), 4000);
+  };
+
   // Auto-save step-1 form fields to localStorage (only when no project in DB yet)
   const isFirstRenderDraft = useRef(true);
   useEffect(() => {
@@ -526,7 +587,26 @@ export default function PmcWizardClient({ locale, teacherId, teacherName, teache
                   <input style={inputStyle} value={schoolName} onChange={e => setSchoolName(e.target.value)} placeholder="Ej: Bachillerato General Oficial 'Lázaro Cárdenas'" />
                 </div>
                 <div>
-                  <label style={labelStyle}>Clave de Centro de Trabajo (CCT) *</label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={labelStyle}>Clave de Centro de Trabajo (CCT) *</label>
+                    <button
+                      type="button"
+                      onClick={handleConsultarZona}
+                      disabled={loadingZona || !schoolCct.trim()}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: schoolCct.trim() ? '#818cf8' : 'rgba(255,255,255,0.3)',
+                        fontSize: '11px',
+                        cursor: schoolCct.trim() ? 'pointer' : 'not-allowed',
+                        fontWeight: 600,
+                        textDecoration: 'underline',
+                        marginBottom: '4px',
+                      }}
+                    >
+                      {loadingZona ? '🔍 Consultando...' : '✨ Consultar Datos de Zona'}
+                    </button>
+                  </div>
                   <input style={inputStyle} value={schoolCct} onChange={e => setSchoolCct(e.target.value.toUpperCase())} placeholder="Ej: 21EBH0000A" maxLength={12} />
                   <small style={{ color: 'var(--c-text-muted)', fontSize: '11px' }}>Formato: 21EBH0000X (10 caracteres)</small>
                 </div>
@@ -666,6 +746,61 @@ export default function PmcWizardClient({ locale, teacherId, teacherName, teache
               Proporciona los datos del contexto comunitario, los indicadores académicos del ciclo anterior
               y el análisis FODA. La IA usará esta información para redactar el diagnóstico oficial.
             </p>
+
+            {/* Banner Asistente de Cartografía de Zona */}
+            <div style={{
+              background: 'rgba(99, 102, 241, 0.12)',
+              border: '1px solid rgba(99, 102, 241, 0.28)',
+              borderRadius: '10px',
+              padding: '12px 16px',
+              marginBottom: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              flexWrap: 'wrap',
+            }}>
+              <div>
+                <strong style={{ color: '#c7d2fe', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  🗺️ Sincronización con Cartografía de Zona
+                </strong>
+                <p style={{ margin: '2px 0 0', color: 'rgba(240, 244, 255, 0.6)', fontSize: '12px' }}>
+                  Puedes heredar los indicadores oficiales 911/F11 y el diagnóstico territorial aprobados por tu supervisión escolar.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleConsultarZona}
+                disabled={loadingZona || !schoolCct.trim()}
+                style={{
+                  padding: '7px 14px',
+                  background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: schoolCct.trim() ? 'pointer' : 'not-allowed',
+                }}
+              >
+                {loadingZona ? 'Consultando...' : '✨ Consultar Datos de Zona'}
+              </button>
+            </div>
+
+            {zonaFeedback && (
+              <div style={{
+                background: 'rgba(16, 185, 129, 0.15)',
+                border: '1px solid #10b981',
+                color: '#6ee7b7',
+                borderRadius: '8px',
+                padding: '10px 14px',
+                marginBottom: '16px',
+                fontSize: '13px',
+                fontWeight: 600,
+              }}>
+                {zonaFeedback}
+              </div>
+            )}
 
             {/* Contexto Comunitario */}
             <div style={sectionCard}>
@@ -896,7 +1031,7 @@ export default function PmcWizardClient({ locale, teacherId, teacherName, teache
               )}
               {!diagnosticoGenerado && generating !== 'diagnostico' && (
                 <div style={{ padding: '24px', textAlign: 'center', color: 'rgba(240,244,255,0.45)', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', fontSize: '13px' }}>
-                  Haz clic en "Generar Diagnóstico" para que la IA redacte el diagnóstico oficial del PMC
+                  Haz clic en &quot;Generar Diagnóstico&quot; para que la IA redacte el diagnóstico oficial del PMC
                 </div>
               )}
               {generating === 'diagnostico' && (
@@ -1221,6 +1356,150 @@ export default function PmcWizardClient({ locale, teacherId, teacherName, teache
             </Link>
           )}
         </div>
+
+        {/* MODAL DE CONSULTA DE CARTOGRAFÍA DE ZONA */}
+        {showZonaModal && zonaData?.zona && (
+          <div style={{
+            position: 'fixed', inset: 0, zIndex: 1100,
+            background: 'rgba(0, 0, 0, 0.75)', backdropFilter: 'blur(4px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '20px',
+          }}>
+            <div style={{
+              background: '#1e293b',
+              border: '1px solid #475569',
+              borderRadius: '16px',
+              maxWidth: '650px',
+              width: '100%',
+              maxHeight: '85vh',
+              overflowY: 'auto',
+              padding: '24px',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#f8fafc' }}>
+                    🗺️ Cartografía de Zona {zonaData.zona.identificacion.zonaNumero}
+                  </h3>
+                  <span style={{ fontSize: '13px', color: '#94a3b8' }}>
+                    Supervisor(a): <strong style={{ color: '#e2e8f0' }}>{zonaData.zona.identificacion.supervisorName}</strong> · Clave: {zonaData.zona.identificacion.zonaClave}
+                  </span>
+                </div>
+                <button
+                  onClick={() => setShowZonaModal(false)}
+                  style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '20px', cursor: 'pointer' }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Metas CREAA */}
+              {zonaData.zona.momento5Metas?.metaGeneralZona && (
+                <div style={{
+                  background: 'rgba(99, 102, 241, 0.12)',
+                  border: '1px solid rgba(99, 102, 241, 0.3)',
+                  borderRadius: '10px',
+                  padding: '12px 14px',
+                  marginBottom: '14px',
+                }}>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#818cf8', textTransform: 'uppercase' }}>
+                    🎯 Meta Estratégica de Zona (Fórmula CREAA):
+                  </span>
+                  <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#e0e7ff', lineHeight: 1.4 }}>
+                    {zonaData.zona.momento5Metas.metaGeneralZona}
+                  </p>
+                </div>
+              )}
+
+              {/* Indicadores 911/F11 del Plantel */}
+              {zonaData.plantel && (
+                <div style={{
+                  background: '#0f172a',
+                  border: '1px solid #334155',
+                  borderRadius: '10px',
+                  padding: '12px 14px',
+                  marginBottom: '14px',
+                }}>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#38bdf8', textTransform: 'uppercase' }}>
+                    📊 Línea Base 911/F11 Registrada para tu Plantel:
+                  </span>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginTop: '8px' }}>
+                    <div style={{ background: '#1e293b', padding: '8px', borderRadius: '6px', textAlign: 'center' }}>
+                      <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block' }}>Matrícula</span>
+                      <strong style={{ fontSize: '14px', color: '#f8fafc' }}>{zonaData.plantel.matricula}</strong>
+                    </div>
+                    <div style={{ background: '#1e293b', padding: '8px', borderRadius: '6px', textAlign: 'center' }}>
+                      <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block' }}>Abandono</span>
+                      <strong style={{ fontSize: '14px', color: '#fbbf24' }}>{zonaData.plantel.abandono}%</strong>
+                    </div>
+                    <div style={{ background: '#1e293b', padding: '8px', borderRadius: '6px', textAlign: 'center' }}>
+                      <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block' }}>Efic. Terminal</span>
+                      <strong style={{ fontSize: '14px', color: '#34d399' }}>{zonaData.plantel.eficienciaTerminal}%</strong>
+                    </div>
+                    <div style={{ background: '#1e293b', padding: '8px', borderRadius: '6px', textAlign: 'center' }}>
+                      <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block' }}>Reprobación</span>
+                      <strong style={{ fontSize: '14px', color: '#f87171' }}>{zonaData.plantel.reprobacion}%</strong>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Diagnóstico Territorial */}
+              {zonaData.zona.momento3Territorio?.descripcionTerritorial && (
+                <div style={{
+                  background: '#0f172a',
+                  border: '1px solid #334155',
+                  borderRadius: '10px',
+                  padding: '12px 14px',
+                  marginBottom: '18px',
+                }}>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#a78bfa', textTransform: 'uppercase' }}>
+                    📍 Diagnóstico Territorial Sugerido (Momento 3):
+                  </span>
+                  <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#cbd5e1', lineHeight: 1.4 }}>
+                    {zonaData.zona.momento3Territorio.descripcionTerritorial}
+                  </p>
+                </div>
+              )}
+
+              {/* Botones de acción */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowZonaModal(false)}
+                  style={{
+                    padding: '8px 16px',
+                    background: 'transparent',
+                    border: '1px solid #475569',
+                    borderRadius: '8px',
+                    color: '#94a3b8',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                  }}
+                >
+                  Cerrar sin aplicar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAplicarSugerenciasZona}
+                  style={{
+                    padding: '8px 18px',
+                    background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  ✨ Aplicar sugerencias de zona a mi PMC
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
