@@ -163,7 +163,7 @@ function buildCartesianPlaneBase(options: StemVisualOptions = {}): { svg: string
  * A. Plano Cartesiano Graduado con Cuadrícula
  */
 export function generateCartesianPlane(options: StemVisualOptions = {}): VisualResult {
-  const { svg, mapper, annotations } = buildCartesianPlaneBase(options);
+  const { svg, annotations } = buildCartesianPlaneBase(options);
   return { svg: svg + `</svg>`, annotations };
 }
 
@@ -202,9 +202,10 @@ export function generateLinearGraph(m = 1.5, b = 1, options: StemVisualOptions =
  * C. Gráfica de Función Cuadrática (Parábola) y = ax² + bx + c
  */
 export function generateQuadraticGraph(a = 1, b = 0, c = -4, options: StemVisualOptions = {}): VisualResult {
-  const eqSignB = b >= 0 ? `+ ${b}x` : `- ${Math.abs(b)}x`;
-  const eqSignC = c >= 0 ? `+ ${c}` : `- ${Math.abs(c)}`;
-  const eqStr = `f(x) = ${a === 1 ? '' : a === -1 ? '-' : a}x² ${b !== 0 ? eqSignB : ''} ${c !== 0 ? eqSignC : ''}`;
+  const eqParts = [`f(x) = ${a === 1 ? '' : a === -1 ? '-' : a}x²`];
+  if (b !== 0) eqParts.push(b > 0 ? `+ ${b}x` : `- ${Math.abs(b)}x`);
+  if (c !== 0) eqParts.push(c > 0 ? `+ ${c}` : `- ${Math.abs(c)}`);
+  const eqStr = eqParts.join(' ');
 
   const { svg: baseSvg, mapper, annotations } = buildCartesianPlaneBase({
     ...options,

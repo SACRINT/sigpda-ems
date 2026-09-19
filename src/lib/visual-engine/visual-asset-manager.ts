@@ -263,7 +263,7 @@ export async function resolveVisualForMission(
   }
 
   // 3. Despachar gráfico sintético determinístico de Capa 0
-  const vectorResult = dispatchVisual(uacName, missionTitle, contextText);
+  const vectorResult = dispatchVisual(uacName, missionTitle, contextText, missionIndex);
   if (!vectorResult) {
     return null;
   }

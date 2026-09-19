@@ -163,15 +163,110 @@ export function isLaboralSubject(uacName: string): boolean {
 }
 
 /**
- * Despacha el recurso gráfico vectorial adecuado según la asignatura, el tema
- * y el contexto completo de la misión (coreExplanation + physicalAnalogy).
+ * Intenta extraer parámetros m y b de expresiones lineales explícitas en el texto:
+ * Ejemplos: "f(x) = 2x - 3", "y = -1.5x + 4", "f(x) = -x + 2", "y = 0.5x", "y = x + 1"
+ */
+function tryExtractLinearParameters(text: string): { m: number; b: number; title: string } | null {
+  const clean = text.replace(/−/g, '-').replace(/[–—]/g, '-');
+  const eqRegex = /(?:f\s*\(\s*x\s*\)|y)\s*=\s*([+-]?\s*\d*(?:\.\d+)?)\s*\*?\s*x(?:\s*([+-])\s*(\d+(?:\.\d+)?))?/i;
+  const match = clean.match(eqRegex);
+  if (match) {
+    const mStr = match[1].replace(/\s+/g, '');
+    let m = 1;
+    if (mStr === '' || mStr === '+') m = 1;
+    else if (mStr === '-') m = -1;
+    else {
+      const parsed = parseFloat(mStr);
+      if (!isNaN(parsed)) m = parsed;
+    }
+
+    let b = 0;
+    if (match[2] && match[3]) {
+      const sign = match[2] === '-' ? -1 : 1;
+      const parsedB = parseFloat(match[3]);
+      if (!isNaN(parsedB)) b = sign * parsedB;
+    }
+
+    if (Math.abs(m) <= 6 && Math.abs(b) <= 6 && (m !== 0 || b !== 0)) {
+      const bSign = b >= 0 ? `+ ${b}` : `- ${Math.abs(b)}`;
+      return {
+        m,
+        b,
+        title: `Modelación Gráfica: Función Lineal f(x) = ${m}x ${b !== 0 ? bSign : ''}`.trim(),
+      };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Intenta extraer parámetros a, b, c de expresiones cuadráticas en el texto:
+ * Ejemplos: "f(x) = x² - 4", "y = -x^2 + 4", "f(x) = 2x² - 3x + 1"
+ */
+function tryExtractQuadraticParameters(text: string): { a: number; b: number; c: number; title: string } | null {
+  const clean = text.replace(/−/g, '-').replace(/[–—]/g, '-');
+  const quadRegex = /(?:f\s*\(\s*x\s*\)|y)\s*=\s*([+-]?\s*\d*(?:\.\d+)?)\s*\*?\s*x\s*(?:\^2|²)(?:\s*([+-]\s*\d*(?:\.\d+)?)\s*\*?\s*x)?(?:\s*([+-])\s*(\d+(?:\.\d+)?))?/i;
+  const match = clean.match(quadRegex);
+  if (match) {
+    const aStr = match[1].replace(/\s+/g, '');
+    let a = 1;
+    if (aStr === '' || aStr === '+') a = 1;
+    else if (aStr === '-') a = -1;
+    else {
+      const parsed = parseFloat(aStr);
+      if (!isNaN(parsed)) a = parsed;
+    }
+
+    let b = 0;
+    if (match[2]) {
+      const bStr = match[2].replace(/\s+/g, '');
+      if (bStr === '' || bStr === '+') b = 1;
+      else if (bStr === '-') b = -1;
+      else {
+        const parsedB = parseFloat(bStr);
+        if (!isNaN(parsedB)) b = parsedB;
+      }
+    }
+
+    let c = 0;
+    if (match[3] && match[4]) {
+      const sign = match[3] === '-' ? -1 : 1;
+      const parsedC = parseFloat(match[4]);
+      if (!isNaN(parsedC)) c = sign * parsedC;
+    }
+
+    if (Math.abs(a) <= 4 && Math.abs(b) <= 6 && Math.abs(c) <= 6 && a !== 0) {
+      const eqSignB = b >= 0 ? `+ ${b}x` : `- ${Math.abs(b)}x`;
+      const eqSignC = c >= 0 ? `+ ${c}` : `- ${Math.abs(c)}`;
+      const eqStr = `f(x) = ${a === 1 ? '' : a === -1 ? '-' : a}x² ${b !== 0 ? eqSignB : ''} ${c !== 0 ? eqSignC : ''}`.trim();
+      return {
+        a,
+        b,
+        c,
+        title: `Modelación Gráfica: Función Cuadrática ${eqStr}`,
+      };
+    }
+  }
+  return null;
+}
+
+/**
+ * Despacha el recurso gráfico vectorial adecuado según la asignatura, el tema,
+ * el contexto completo de la misión y el índice de misión para evitar repeticiones.
  *
  * @param uacName Nombre de la UAC (ej: "Pensamiento Matemático III")
  * @param topic Título de la misión
  * @param contextText Texto combinado de coreExplanation + physicalAnalogy para mejor detección
+ * @param missionIndex Índice de la misión (1-based) para variar parámetros y progresiones
  * @returns VisualResult con SVG + anotaciones, o null si la disciplina no tiene generador.
  */
-export function dispatchVisual(uacName: string, topic: string, contextText?: string): VisualResult | null {
+export function dispatchVisual(
+  uacName: string,
+  topic: string,
+  contextText?: string,
+  missionIndex = 1
+): VisualResult | null {
   const isStem = isStemSubject(uacName);
   const isHumanities = isHumanitiesSubject(uacName);
   const isLaboral = isLaboralSubject(uacName);
@@ -181,6 +276,8 @@ export function dispatchVisual(uacName: string, topic: string, contextText?: str
 
   // ── A. DISPATCHER ÁREA STEM / CIENCIAS EXACTAS ────────────────────────────
   if (isStem) {
+    const rawContext = `${topic} ${contextText || ''}`;
+
     // 1. Parábolas y Ecuaciones Cuadráticas
     if (
       searchText.includes('parabola') ||
@@ -189,12 +286,54 @@ export function dispatchVisual(uacName: string, topic: string, contextText?: str
       searchText.includes('trayectoria') ||
       searchText.includes('vertice')
     ) {
+      const extracted = tryExtractQuadraticParameters(rawContext);
+      if (extracted) {
+        return generateQuadraticGraph(extracted.a, extracted.b, extracted.c, {
+          title: extracted.title,
+        });
+      }
+
+      // Variación pedagógica por misión
+      const mod = ((missionIndex - 1) % 3) + 1;
+      if (mod === 2) {
+        return generateQuadraticGraph(-1, 0, 4, {
+          title: 'Tiro Parabólico y Altura Máxima: f(x) = -x² + 4',
+        });
+      }
+      if (mod === 3) {
+        return generateQuadraticGraph(1, -2, -3, {
+          title: 'Optimización y Vértice Desplazado: f(x) = x² - 2x - 3',
+        });
+      }
       return generateQuadraticGraph(1, 0, -4, {
         title: 'Modelación Gráfica: Función Cuadrática f(x) = x² - 4',
       });
     }
 
-    // 2. Ecuaciones y Funciones Lineales
+    // 2. Sistemas de Ecuaciones Lineales (prioridad si se menciona sistema o 2x2)
+    if (
+      searchText.includes('sistema') ||
+      searchText.includes('interseccion') ||
+      searchText.includes('simultane') ||
+      searchText.includes('2x2')
+    ) {
+      const mod = ((missionIndex - 1) % 3) + 1;
+      if (mod === 2) {
+        return generateLinearSystemGraph(1.5, -2, -1, 3, {
+          title: 'Punto de Equilibrio: Intersección de Oferta y Demanda',
+        });
+      }
+      if (mod === 3) {
+        return generateLinearSystemGraph(0.8, 1, -1.2, 5, {
+          title: 'Análisis Comparativo de Costos: Intersección L₁ y L₂',
+        });
+      }
+      return generateLinearSystemGraph(1, -1, -0.5, 3.5, {
+        title: 'Sistema de Ecuaciones 2x2: Intersección L₁ y L₂',
+      });
+    }
+
+    // 3. Ecuaciones y Funciones Lineales
     if (
       searchText.includes('lineal') ||
       searchText.includes('recta') ||
@@ -202,20 +341,44 @@ export function dispatchVisual(uacName: string, topic: string, contextText?: str
       searchText.includes('pendiente') ||
       searchText.includes('funcion lineal')
     ) {
+      const extracted = tryExtractLinearParameters(rawContext);
+      if (extracted) {
+        return generateLinearGraph(extracted.m, extracted.b, {
+          title: extracted.title,
+        });
+      }
+
+      // Si la misión es de evaluación formativa / consolidación / tabulación del mini-reto
+      if (
+        searchText.includes('evaluacion formativa') ||
+        searchText.includes('mini-reto') ||
+        searchText.includes('tabulacion') ||
+        searchText.includes('bosquejo')
+      ) {
+        return generateCartesianPlane({
+          title: `Plano Cartesiano para Tabulación y Gráfica del Mini-Reto M${missionIndex}`,
+        });
+      }
+
+      // Variación secuencial por misión para evitar repetición
+      const mod = ((missionIndex - 1) % 4) + 1;
+      if (mod === 2) {
+        return generateLinearGraph(-1, 3, {
+          title: 'Comportamiento de la Pendiente: Función Decreciente f(x) = -x + 3',
+        });
+      }
+      if (mod === 3) {
+        return generateLinearSystemGraph(1.2, -1, -0.6, 3.5, {
+          title: 'Modelación de Costos e Ingresos: Punto de Equilibrio',
+        });
+      }
+      if (mod === 4) {
+        return generateCartesianPlane({
+          title: `Plano Cartesiano para Tabulación y Bosquejo: Misión ${missionIndex}`,
+        });
+      }
       return generateLinearGraph(1.5, 1, {
         title: 'Modelación Gráfica: Función Lineal f(x) = 1.5x + 1',
-      });
-    }
-
-    // 3. Sistemas de Ecuaciones Lineales
-    if (
-      searchText.includes('sistema') ||
-      searchText.includes('interseccion') ||
-      searchText.includes('simultane') ||
-      searchText.includes('2x2')
-    ) {
-      return generateLinearSystemGraph(1, -1, -0.5, 3.5, {
-        title: 'Sistema de Ecuaciones: Intersección L₁ y L₂',
       });
     }
 
@@ -231,8 +394,19 @@ export function dispatchVisual(uacName: string, topic: string, contextText?: str
       searchText.includes('coseno') ||
       searchText.includes('tangente')
     ) {
+      const mod = ((missionIndex - 1) % 3) + 1;
+      if (mod === 2) {
+        return generateTriangle(8, 6, 10, {
+          title: 'Razones Trigonométricas en Triángulo Semejante (6-8-10)',
+        });
+      }
+      if (mod === 3) {
+        return generateTriangle(12, 5, 13, {
+          title: 'Teorema de Pitágoras: Cálculo de Hipotenusa (5-12-13)',
+        });
+      }
       return generateTriangle(4, 3, 5, {
-        title: 'Geometría Plana: Triángulo Rectángulo y Teorema de Pitágoras',
+        title: 'Geometría Plana: Triángulo Rectángulo (3-4-5) y Pitágoras',
       });
     }
 
@@ -244,12 +418,39 @@ export function dispatchVisual(uacName: string, topic: string, contextText?: str
       searchText.includes('poligono') ||
       searchText.includes('cuadrilatero')
     ) {
+      const mod = ((missionIndex - 1) % 3) + 1;
+      if (mod === 2) {
+        return generateRectangle(10, 4, {
+          title: 'Optimización de Espacio: Terreno Rectangular (10 × 4)',
+        });
+      }
+      if (mod === 3) {
+        return generateRectangle(6, 6, {
+          title: 'Cuadrilátero Regular: Propiedades de Simetría y Área (6 × 6)',
+        });
+      }
       return generateRectangle(8, 5, {
         title: 'Geometría Aplicada: Cálculo de Perímetro y Área',
       });
     }
 
-    // 6. Por defecto en STEM: Plano Cartesiano graduado
+    // 6. Por defecto en STEM: Variación didáctica según número de misión
+    const defaultMod = ((missionIndex - 1) % 4) + 1;
+    if (defaultMod === 2) {
+      return generateLinearGraph(1, 0, {
+        title: 'Función Identidad y Escala de Medición f(x) = x',
+      });
+    }
+    if (defaultMod === 3) {
+      return generateRectangle(7, 4, {
+        title: 'Espacio de Trabajo y Modelado Cuantitativo',
+      });
+    }
+    if (defaultMod === 4) {
+      return generateCartesianPlane({
+        title: `Plano Cartesiano Milimétrico: Taller y Consolidación M${missionIndex}`,
+      });
+    }
     return generateCartesianPlane({
       title: 'Plano Cartesiano para Tabulación y Bosquejo de Datos',
     });
