@@ -35,7 +35,7 @@ const TYPE_LABEL: Record<string, string> = {
   practice_guide: 'GUÍA DE PRÁCTICA DEL ESTUDIANTE',
 };
 
-interface ExtraInput {
+export interface ExtraInput {
   id: string;
   title: string;
   type: string;
