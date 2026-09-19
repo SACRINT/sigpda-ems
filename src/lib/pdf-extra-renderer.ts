@@ -16,7 +16,6 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import {
   COLORS,
-  COLOR,
   type RGB,
 } from '@/lib/visual-engine/design-tokens';
 import {
@@ -292,7 +291,7 @@ export function renderExtraDocument(
       },
     });
 
-    y = (doc as any).lastAutoTable.finalY + 4;
+    y = (doc.lastAutoTable?.finalY ?? y) + 4;
     inTable = false;
     tableHeaders = [];
     tableData = [];
