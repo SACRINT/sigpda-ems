@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 export type PlanningStatus = 'draft' | 'generated' | 'downloaded';
 
 // Open string to support all subsystems (BGE, Digital, EMSAD, CECyTE, CBTIS, CBTA, CONALEP, DGB, etc.)
@@ -22,6 +21,7 @@ export interface ExtractedPdfData {
   rawText?: string;
   parseConfidence: 'high' | 'medium' | 'low' | 'failed';
   year?: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   contenidosFormativos?: any;
 }
 
@@ -246,8 +246,10 @@ export interface Planning {
   createdAt: Date;
   updatedAt: Date;
   metodologiaActiva?: string;    // ID de metodología activa seleccionada por el docente
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   evaluationJson?: any | null;
   sequenceJson?: Record<number, SecuenciaBloque> | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   workbooksJson?: Record<string, any> | null;
 }
 
