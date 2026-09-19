@@ -12,7 +12,7 @@ import { vi, describe, it, expect, beforeAll, beforeEach } from 'vitest';
 
 const { neonResultQueue, mockNeonTaggedFn, MOCK_AI_RESPONSE } = vi.hoisted(() => {
   const neonResultQueue: unknown[][] = [];
-  const mockNeonTaggedFn = vi.fn((_strings: TemplateStringsArray, ..._values: unknown[]) => {
+  const mockNeonTaggedFn = vi.fn(() => {
     const next = neonResultQueue.shift();
     return Promise.resolve(next ?? []);
   });
@@ -173,5 +173,44 @@ describe('audit-engine.ts — Pedagogical Audit', () => {
 
     const report = await runPedagogicalAudit('planning-uuid-001');
     expect(report.compliance_level).toBe('excelente');
+  });
+
+  // ── Edge cases: NaN / valores extremos ────────────────────────────────────
+
+  it('normalización: overall_score=NaN resulta en 0 (no rompe el pipeline)', async () => {
+    const aiNaN = JSON.stringify({ ...JSON.parse(MOCK_AI_RESPONSE), overall_score: 'no-es-numero' });
+    (generateWithRotation as ReturnType<typeof vi.fn>).mockResolvedValueOnce(aiNaN);
+    enqueue([MOCK_PLANNING], [MOCK_OFFICIAL_PROGRAM], [], MOCK_INSERTED);
+
+    const report = await runPedagogicalAudit('planning-uuid-001');
+    // Number('no-es-numero') === NaN → Math.round(NaN || 0) === 0
+    expect(report.overall_score).toBe(0);
+    expect(report.compliance_level).toBe('no_alineado');
+  });
+
+  it('normalización: overall_score negativo se clampea a 0', async () => {
+    const aiNegative = JSON.stringify({ ...JSON.parse(MOCK_AI_RESPONSE), overall_score: -25 });
+    (generateWithRotation as ReturnType<typeof vi.fn>).mockResolvedValueOnce(aiNegative);
+    enqueue([MOCK_PLANNING], [MOCK_OFFICIAL_PROGRAM], [], MOCK_INSERTED);
+
+    const report = await runPedagogicalAudit('planning-uuid-001');
+    expect(report.overall_score).toBe(0);
+    expect(report.compliance_level).toBe('no_alineado');
+  });
+
+  it('normalización: thresholds compliance_level — 74 → requiere_mejora, 59 → no_alineado', async () => {
+    // Score 74 → requiere_mejora
+    const ai74 = JSON.stringify({ ...JSON.parse(MOCK_AI_RESPONSE), overall_score: 74 });
+    (generateWithRotation as ReturnType<typeof vi.fn>).mockResolvedValueOnce(ai74);
+    enqueue([MOCK_PLANNING], [MOCK_OFFICIAL_PROGRAM], [], MOCK_INSERTED);
+    const r74 = await runPedagogicalAudit('planning-uuid-001');
+    expect(r74.compliance_level).toBe('requiere_mejora');
+
+    // Score 59 → no_alineado
+    const ai59 = JSON.stringify({ ...JSON.parse(MOCK_AI_RESPONSE), overall_score: 59 });
+    (generateWithRotation as ReturnType<typeof vi.fn>).mockResolvedValueOnce(ai59);
+    enqueue([MOCK_PLANNING], [MOCK_OFFICIAL_PROGRAM], [], MOCK_INSERTED);
+    const r59 = await runPedagogicalAudit('planning-uuid-001');
+    expect(r59.compliance_level).toBe('no_alineado');
   });
 });

@@ -12,7 +12,7 @@ import { vi, describe, it, expect, beforeAll, beforeEach } from 'vitest';
 
 const { sqlResultQueue, mockTaggedFn, mockSqlFn } = vi.hoisted(() => {
   const sqlResultQueue: unknown[][] = [];
-  const mockTaggedFn = vi.fn((_strings: TemplateStringsArray, ..._values: unknown[]) => {
+  const mockTaggedFn = vi.fn(() => {
     const next = sqlResultQueue.shift();
     return Promise.resolve(next ?? []);
   });
