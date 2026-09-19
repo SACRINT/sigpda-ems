@@ -50,7 +50,10 @@ export function generateExtraPDF(extra: ExtraInput): jsPDF {
   const isRubric = extra.type === 'rubric';
   const doc = new jsPDF({ orientation: isRubric ? 'landscape' : 'portrait', unit: 'mm', format: 'letter' });
 
-  // Inicializar fuentes editoriales oficiales (Lato Regular/Bold + Montserrat Bold)
+  // H-028: Inicializar fuentes editoriales oficiales (Lato Regular/Bold + Montserrat Bold).
+  // Nota arquitectónica: loadEditorialFonts mapea transparentemente las llamadas doc.setFont('helvetica', ...)
+  // hacia Montserrat Bold (para encabezados y negritas >= 13pt) y Lato Regular/Bold (para cuerpo y tablas),
+  // garantizando tipografía editorial sin requerir reescribir las directivas legacy de jsPDF.
   loadEditorialFonts(doc);
 
   const pageWidth  = doc.internal.pageSize.getWidth();   // 279.4 mm (landscape) or 215.9 mm (portrait)
