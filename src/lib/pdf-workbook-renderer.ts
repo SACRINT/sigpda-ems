@@ -56,6 +56,7 @@ import {
   type GlossaryItem,
 } from '@/lib/visual-engine/content-extractor';
 import {
+  generateBookCover,
   generateContraportadaData,
   type ContraportadaData,
   type BookCoverOptions,
@@ -245,14 +246,37 @@ export async function renderWorkbookToPdf(
   const pageContextMap = new Map<number, PageContext>();
   pageContextMap.set(1, { isSpecialPage: true, uacName: coverOpts.uacName });
 
-  // ── 1. Portada Editorial Personalizada (Fase V2/V7) ─────────────────────────
+  // ── 1. Portada Editorial Personalizada (Fase V2/V7 - H-027) ────────────────
   // Si se provee un buffer pre-generado de portada (e.g. subida manual), se incrusta directamente.
-  // De lo contrario, se invoca drawCoverPage en jsPDF con el diseño V7 dark-institutional completo,
-  // garantizando tipografía vectorial nativa y CERO glifos tofu en Linux/Vercel serverless.
   if (options.coverBuffer) {
     doc.addImage(options.coverBuffer, 'JPEG', 0, 0, pageWidth, pageHeight);
   } else {
-    drawCoverPage(doc, workbook, logos, pageWidth, pageHeight, margin);
+    const hasFluxKey = Boolean((process.env.FLUX_API_KEY || process.env.TOGETHER_API_KEY || '').trim());
+    let coverRendered = false;
+
+    // H-027: Si existe clave FLUX y no se fuerza fallback, intentar portada generativa Tier 1 situada
+    if (hasFluxKey && !options.forceFallbackCover) {
+      try {
+        const coverResult = await generateBookCover(coverOpts).catch((e) => {
+          logger.warn('[pdf-workbook-renderer] Error generando portada generativa con FLUX:', e);
+          return null;
+        });
+
+        // Solo usar el buffer generado si es generativo real (Tier 1 FLUX), no fallback SVG con riesgo de tofu
+        if (coverResult?.buffer && !coverResult.isFallback) {
+          doc.addImage(coverResult.buffer, 'JPEG', 0, 0, pageWidth, pageHeight);
+          coverRendered = true;
+        }
+      } catch (e) {
+        logger.warn('[pdf-workbook-renderer] Fallo inesperado en portada generativa FLUX:', e);
+      }
+    }
+
+    // Si no hay clave FLUX, falló, o es fallback determinista: dibujar portada vectorial nativa en jsPDF
+    // garantizando diseño V7 dark-institutional completo y CERO glifos tofu en Linux/Vercel serverless.
+    if (!coverRendered) {
+      drawCoverPage(doc, workbook, logos, pageWidth, pageHeight, margin);
+    }
   }
 
   // ── 2. Página "Mi plantel / Mi comunidad" (Fase V4) ────────────────────────
