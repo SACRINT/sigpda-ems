@@ -29,6 +29,7 @@ import {
   resolveEquipmentVisualForMission,
 } from '@/lib/visual-engine/visual-asset-manager';
 import { svgToPngBuffer } from '@/lib/visual-engine/svg-to-png';
+import { isStemSubject } from '@/lib/visual-engine/visual-dispatcher';
 import { downloadAndProcessImage } from '@/lib/visual-engine/image-downloader';
 import type { VisualAnnotation } from '@/lib/visual-engine/generators/stem-generator';
 import { SCHOOL_YEAR } from '@/lib/config';
@@ -1492,7 +1493,15 @@ function drawSectionHeader(
 ): number {
   const ribbonHeight = 7.5;
   const checkSpace = ensureSpaceFn || ((cy: number, nh: number) => ensureVerticalSpace(doc, cy, nh, margin, pageHeight));
-  y = checkSpace(y, ribbonHeight + 8);
+  y = checkSpace(y, ribbonHeight + 12);
+
+  // Separador visual fino entre secciones
+  doc.setDrawColor(203, 213, 225); // slate-300
+  doc.setLineWidth(0.2);
+  doc.setLineDashPattern([2, 3], 0);
+  doc.line(margin, y - 2, margin + contentWidth, y - 2);
+  doc.setLineDashPattern([], 0);
+
   return drawSectionRibbon(doc, {
     title,
     margin,
@@ -1950,7 +1959,7 @@ async function drawMission(
     y = drawPdfGlossaryBox(doc, glossaryTerms, margin, mainW, pageHeight, y);
   }
 
-  // ── 2.1 Gráfico Conceptual / Fotografía Situacional Activa ─────────────────
+  // ── 2.1 Gráfico Conceptual STEM o Fotografía Situacional ─────────────────
   if (subjectName) {
     const contextText = [
       mission.phenomenonHook?.story,
@@ -1962,7 +1971,45 @@ async function drawMission(
       mission.weDoSection?.guidedPractice,
       mission.youDoSection?.autonomousChallenge,
     ].filter(Boolean).join('\n\n');
-    if (equipmentVisual && equipmentVisual.isHero) {
+
+    const subjectIsStem = isStemSubject(subjectName);
+
+    if (subjectIsStem) {
+      // ── RAMA STEM: Siempre gráfica vectorial matemática/científica ──────────
+      // El equipmentVisual va al sidebar (equipmentCard en ColumnFlowManager).
+      // NO bloqueamos la gráfica conceptual con el blueprint de equipo.
+      const resolvedVisual = await resolveVisualForMission({
+        planningId,
+        uacName: subjectName,
+        blockIndex: blockIndex ?? 0,
+        missionIndex: missionNumber,
+        missionTitle: mission.title,
+        contextText,
+        preferOpenverseMedia: false, // Forzar vector SVG para STEM — fotos son irrelevantes en Matemáticas
+        usedAssetIds: assignedAssetKeys,
+      });
+      if (resolvedVisual?.type === 'vector_svg' && resolvedVisual.svg) {
+        const imgResult = await svgToPngBuffer(resolvedVisual.svg);
+        if (imgResult) {
+          const imgW = Math.min(mainW * 0.92, 124);
+          const imgH = imgW * 0.68;
+          y = checkSpace(y, imgH + 18);
+          const imgX = margin + (mainW - imgW) / 2;
+          doc.addImage(imgResult.buffer, imgResult.format, imgX, y, imgW, imgH);
+          if (resolvedVisual.annotations && resolvedVisual.annotations.length > 0) {
+            drawVisualAnnotations(doc, resolvedVisual.annotations, imgX, y, imgW, imgH);
+          }
+          y += imgH + 3.5;
+          setFontCaption(doc);
+          doc.setFontSize(7.5);
+          doc.setTextColor(...MUTED_TEXT);
+          const captionLines = doc.splitTextToSize(resolvedVisual.caption, mainW * 0.88);
+          doc.text(captionLines, margin + mainW / 2, y, { align: 'center' });
+          y += (captionLines.length * 3.2) + 4;
+        }
+      }
+    } else if (equipmentVisual && equipmentVisual.isHero) {
+      // ── RAMA NO-STEM (hero): Imagen contextual de equipo/herramienta ────────
       const imgW = Math.min(105, mainW * 0.85);
       const imgH = 55;
       y = checkSpace(y, imgH + 16);
@@ -1976,6 +2023,7 @@ async function drawMission(
       doc.text(captionLines, margin + mainW / 2, y, { align: 'center' });
       y += (captionLines.length * 3.2) + 4;
     } else {
+      // ── RAMA NO-STEM (fallback): Openverse o vector genérico ────────────────
       const resolvedVisual = await resolveVisualForMission({
         planningId,
         uacName: subjectName,
@@ -1995,11 +2043,9 @@ async function drawMission(
             y = checkSpace(y, imgH + 16);
             const imgX = margin + (mainW - imgW) / 2;
             doc.addImage(imgResult.buffer, imgResult.format, imgX, y, imgW, imgH);
-
             if (resolvedVisual.annotations && resolvedVisual.annotations.length > 0) {
               drawVisualAnnotations(doc, resolvedVisual.annotations, imgX, y, imgW, imgH);
             }
-
             y += imgH + 3.5;
             setFontCaption(doc);
             doc.setFontSize(7.5);
@@ -2021,7 +2067,6 @@ async function drawMission(
             y = checkSpace(y, imgH + 18);
             const imgX = margin + (mainW - imgW) / 2;
             doc.addImage(imgResult.buffer, imgResult.format, imgX, y, imgW, imgH);
-
             y += imgH + 3.5;
             setFontCaption(doc);
             doc.setFontSize(7.5);
