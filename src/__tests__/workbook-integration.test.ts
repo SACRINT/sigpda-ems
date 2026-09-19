@@ -215,6 +215,7 @@ function makeIntegrationWorkbook(): ActiveWorkTextbook {
     ],
     tieredExercises: [
       {
+        level: 'basico',
         levelName: 'Nivel 1 - Comprensión Básica',
         description: 'Identificación y formulación directa de sistemas 2x2.',
         exercises: [
