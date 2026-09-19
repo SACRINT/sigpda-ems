@@ -1,4 +1,5 @@
 import type { ActiveWorkTextbook, MissionSection } from '@/types/work-textbook';
+import type { SecuenciaBloque } from '@/types/planning';
 import { isStemSubject, isHumanitiesSubject } from '@/lib/visual-engine/visual-dispatcher';
 
 /**
@@ -64,11 +65,16 @@ export interface ExtractedBlockMaterials {
 /**
  * Función pura determinística que extrae los 24 Planes de Clase, la Guía de Trabajo,
  * los Instrumentos de Evaluación y el Material Didáctico del Libro de Bloque (ActiveWorkTextbook).
+ * Opcionalmente integra la secuencia didáctica guardada (SecuenciaBloque) para desacoplar
+ * pedagógicamente cada una de las sesiones individuales y evitar clones homogéneos.
  *
  * Rendimiento: < 5 ms de ejecución en memoria.
  * Costo: 0 llamadas de red / 0 tokens de IA.
  */
-export function extractMaterialsFromWorkbook(workbook: ActiveWorkTextbook): ExtractedBlockMaterials {
+export function extractMaterialsFromWorkbook(
+  workbook: ActiveWorkTextbook,
+  blockSequence?: SecuenciaBloque | null
+): ExtractedBlockMaterials {
   const startTime = performance.now();
 
   const missions = workbook.missions || [];
@@ -87,7 +93,7 @@ export function extractMaterialsFromWorkbook(workbook: ActiveWorkTextbook): Extr
 
       for (const sNum of sessions) {
         if (sNum <= TARGET_SESSIONS) {
-          planesDeClase.push(buildPlanDeClase(workbook, mission, sNum));
+          planesDeClase.push(buildPlanDeClase(workbook, mission, sNum, blockSequence));
         }
       }
     }
@@ -134,7 +140,7 @@ export function extractMaterialsFromWorkbook(workbook: ActiveWorkTextbook): Extr
       const parentMission = missions.length > 0
         ? missions[(i - 1) % missions.length]
         : fallbackMission;
-      planesDeClase.push(buildPlanDeClase(workbook, parentMission, i));
+      planesDeClase.push(buildPlanDeClase(workbook, parentMission, i, blockSequence));
     }
   }
 
@@ -166,12 +172,13 @@ export function extractMaterialsFromWorkbook(workbook: ActiveWorkTextbook): Extr
 
   const endTime = performance.now();
   const executionTimeMs = Math.round((endTime - startTime) * 100) / 100;
+  const blockNum = (workbook.blockIndex ?? 0) + 1;
 
   return {
     metadata: {
       extractedAt: new Date().toISOString(),
-      blockIndex: workbook.blockIndex ?? 1,
-      blockName: workbook.blockName || `Bloque ${workbook.blockIndex ?? 1}`,
+      blockIndex: blockNum,
+      blockName: workbook.blockName || `Bloque ${blockNum}`,
       totalPlanesClase: planesDeClase.length,
       subjectName: workbook.coverData?.subjectName || '',
       schoolName: workbook.coverData?.schoolName || '',
@@ -193,17 +200,22 @@ export function extractMaterialsFromWorkbook(workbook: ActiveWorkTextbook): Extr
 function buildPlanDeClase(
   workbook: ActiveWorkTextbook,
   mission: MissionSection,
-  sessionNum: number
+  sessionNum: number,
+  blockSequence?: SecuenciaBloque | null
 ): PlanDeClaseDerivado {
   const paecText = workbook.coverData?.paecProjectName
     ? `Vinculación PAEC: ${workbook.coverData.paecProjectName}. Impacto escolar y comunitario.`
     : 'Transversalidad comunitaria y socioemocional alineada al MCCEMS.';
 
-  const aperturaDocente = mission.phenomenonHook?.story
+  // Buscar si la sesión específica está modelada en la secuencia didáctica guardada (SecuenciaBloque)
+  const sessionFromSeq = blockSequence?.sessions?.find((s) => s.sessionNum === sessionNum);
+
+  // Valores base de la misión macro
+  const aperturaDocenteBase = mission.phenomenonHook?.story
     ? `Presentar el fenómeno contextual: "${mission.phenomenonHook.story.slice(0, 180)}..." y moderar lluvia de ideas.`
     : 'Presentar el desafío de la sesión y activar saberes previos mediante preguntas detonadoras.';
 
-  const aperturaEstudiante = mission.phenomenonHook?.detonatingQuestion
+  const aperturaEstudianteBase = mission.phenomenonHook?.detonatingQuestion
     ? `Analizar la situación problemática y reflexionar sobre la interrogante: "${mission.phenomenonHook.detonatingQuestion}".`
     : 'Participar activamente en la recuperación de saberes previos y registrar reflexiones iniciales.';
 
@@ -211,38 +223,117 @@ function buildPlanDeClase(
     ? `Analogía cotidiana: ${mission.conceptZero.physicalAnalogy}`
     : 'Conexión con conceptos fundamentales y experiencias previas.';
 
-  const desarrolloDocente = mission.iDoSection?.stepByStepDemo
+  const desarrolloDocenteBase = mission.iDoSection?.stepByStepDemo
     ? `Demostración paso a paso (Yo Hago): Modelado explícito del procedimiento. ${mission.iDoSection.stepByStepDemo.slice(0, 220)}...`
     : 'Modelado instruccional y acompañamiento guiado durante la resolución de ejercicios.';
 
-  const desarrolloEstudiante = `Práctica guiada ("Hacemos"): ${mission.weDoSection?.guidedPractice ? mission.weDoSection.guidedPractice.slice(0, 140) + '...' : 'Trabajo colaborativo'}. Reto autónomo ("Tú Haces"): ${mission.youDoSection?.autonomousChallenge ? mission.youDoSection.autonomousChallenge.slice(0, 140) + '...' : 'Resolución individual en cuaderno de trabajo'}.`;
+  const desarrolloEstudianteBase = `Práctica guiada ("Hacemos"): ${mission.weDoSection?.guidedPractice ? mission.weDoSection.guidedPractice.slice(0, 140) + '...' : 'Trabajo colaborativo'}. Reto autónomo ("Tú Haces"): ${mission.youDoSection?.autonomousChallenge ? mission.youDoSection.autonomousChallenge.slice(0, 140) + '...' : 'Resolución individual en cuaderno de trabajo'}.`;
 
-  const cierreDocente = `Monitorear el checkpoint formativo: "${mission.formativeCheckpoint?.question || 'Evaluación de salida'}". Retroalimentar errores comunes detectados.`;
+  const cierreDocenteBase = `Monitorear el checkpoint formativo: "${mission.formativeCheckpoint?.question || 'Evaluación de salida'}". Retroalimentar errores comunes detectados.`;
 
-  const cierreEstudiante = `Resolver checkpoint formativo, autoevaluar con lista de cotejo y responder reflexión metacognitiva: ${mission.formativeCheckpoint?.reflectionPrompts?.[0] || '¿Cómo aplico lo aprendido?'}.`;
+  const cierreEstudianteBase = `Resolver checkpoint formativo, autoevaluar con lista de cotejo y responder reflexión metacognitiva: ${mission.formativeCheckpoint?.reflectionPrompts?.[0] || '¿Cómo aplico lo aprendido?'}.`;
 
-  const evaluacionFormativa = mission.formativeCheckpoint?.question || 'Checkpoint de comprensión y resolución de problema aplicado';
+  // Desacoplamiento pedagógico por fase si existe sesión en la secuencia
+  let aperturaDocente = aperturaDocenteBase;
+  let aperturaEstudiante = aperturaEstudianteBase;
+  let desarrolloDocente = desarrolloDocenteBase;
+  let desarrolloEstudiante = desarrolloEstudianteBase;
+  let cierreDocente = cierreDocenteBase;
+  let cierreEstudiante = cierreEstudianteBase;
+  let tiempoApertura = 10;
+  let tiempoDesarrollo = 30;
+  let tiempoCierre = 10;
+
+  if (sessionFromSeq) {
+    if (sessionFromSeq.phase === 'Apertura') {
+      tiempoApertura = 15;
+      tiempoDesarrollo = 25;
+      tiempoCierre = 10;
+      aperturaDocente = sessionFromSeq.teachingActivity || aperturaDocenteBase;
+      aperturaEstudiante = sessionFromSeq.learningActivity || aperturaEstudianteBase;
+      if (mission.iDoSection?.stepByStepDemo) {
+        desarrolloDocente = `Modelado introductorio: ${mission.iDoSection.stepByStepDemo.slice(0, 180)}...`;
+      }
+      if (mission.weDoSection?.guidedPractice) {
+        desarrolloEstudiante = `Exploración inicial grupal: ${mission.weDoSection.guidedPractice.slice(0, 140)}...`;
+      }
+    } else if (sessionFromSeq.phase === 'Cierre') {
+      tiempoApertura = 10;
+      tiempoDesarrollo = 25;
+      tiempoCierre = 15;
+      aperturaDocente = `Encuadre de entrega y socialización: Revisión de rúbrica para ${sessionFromSeq.title}.`;
+      aperturaEstudiante = `Verificar criterios de calidad en bitácora y preparar producto de sesión.`;
+      desarrolloDocente = sessionFromSeq.teachingActivity || desarrolloDocenteBase;
+      desarrolloEstudiante = sessionFromSeq.learningActivity || desarrolloEstudianteBase;
+      cierreDocente = `Moderación de coevaluación y síntesis de cierre para ${sessionFromSeq.title}.`;
+      cierreEstudiante = `Presentación de evidencias, coevaluación y autoevaluación formativa.`;
+    } else {
+      // Desarrollo
+      tiempoApertura = 10;
+      tiempoDesarrollo = 30;
+      tiempoCierre = 10;
+      aperturaDocente = `Activación focalizada: Conectar sesión anterior con el reto "${sessionFromSeq.title}".`;
+      aperturaEstudiante = `Recuperar insumos previos y organizar mesa de trabajo colaborativa.`;
+      desarrolloDocente = sessionFromSeq.teachingActivity || desarrolloDocenteBase;
+      desarrolloEstudiante = sessionFromSeq.learningActivity || desarrolloEstudianteBase;
+      cierreDocente = sessionFromSeq.evaluation
+        ? `Monitoreo del avance: ${sessionFromSeq.evaluation}. Retroalimentación formativa inmediata.`
+        : cierreDocenteBase;
+      cierreEstudiante = sessionFromSeq.evidence
+        ? `Registro de avance sobre "${sessionFromSeq.evidence}" y revisión de dudas críticas.`
+        : cierreEstudianteBase;
+    }
+  }
+
+  // Título pedagógico desacoplado
+  const rawTitle = sessionFromSeq?.title;
+  const tituloSesion = rawTitle
+    ? (rawTitle.toLowerCase().includes(`sesión ${sessionNum}`) || rawTitle.toLowerCase().includes(`sesion ${sessionNum}`)
+        ? rawTitle
+        : `${rawTitle} · Sesión ${sessionNum}`)
+    : `${mission.title || 'Misión de Aprendizaje'} · Sesión ${sessionNum}`;
+
+  const propósitoOMeta = sessionFromSeq?.evidence
+    ? `Consolidar: ${sessionFromSeq.evidence} (${sessionFromSeq.phase || 'Formativa'})`
+    : (mission.sessionFocus || mission.sessionTopic || mission.title);
+
+  const transversalidad = sessionFromSeq?.utilidadReal
+    ? `${paecText} Aplicación en contexto real: ${sessionFromSeq.utilidadReal}.`
+    : paecText;
+
+  const metodologiaActiva = sessionFromSeq?.procesoPensamiento
+    ? `Aprendizaje Activo focalizado en ${sessionFromSeq.procesoPensamiento} y Modelado Cognitivo (I Do - We Do - You Do)`
+    : 'Aprendizaje Basado en Retos y Modelado Cognitivo (I Do - We Do - You Do)';
+
+  const recursosDidacticos = sessionFromSeq?.garantiaDualOffline
+    ? `Cuaderno de Trabajo Activo, bitácora de trabajo. Estrategia dual sin conectividad: ${sessionFromSeq.garantiaDualOffline}`
+    : 'Cuaderno de Trabajo Activo del estudiante, bitácora de taller/laboratorio, instrumental didáctico.';
+
+  const productoEsperado = sessionFromSeq?.evidence
+    ? sessionFromSeq.evidence
+    : `Evidencia práctica documentada de la Misión ${mission.missionIndex} (Sesión ${sessionNum})`;
+
+  const evaluacionFormativa = sessionFromSeq?.evaluation || mission.formativeCheckpoint?.question || 'Checkpoint de comprensión y resolución de problema aplicado';
   const metacognicion = mission.formativeCheckpoint?.reflectionPrompts?.join(' ') || 'Identificación de fortalezas y áreas de mejora en el proceso de aprendizaje.';
-  const productoEsperado = `Evidencia práctica documentada de la Misión ${mission.missionIndex} (Sesión ${sessionNum})`;
 
   return {
     numeroSesion: sessionNum,
     duracionMinutos: 50,
-    tituloSesion: `${mission.title || 'Misión de Aprendizaje'} · Sesión ${sessionNum}`,
-    propósitoOMeta: mission.sessionFocus || mission.sessionTopic || mission.title,
-    transversalidad: paecText,
+    tituloSesion,
+    propósitoOMeta,
+    transversalidad,
     apertura: {
       actividadDocente: aperturaDocente,
       actividadEstudiante: aperturaEstudiante,
       saberesPrevios: saberes,
-      tiempoMinutos: 10,
+      tiempoMinutos: tiempoApertura,
     },
     desarrollo: {
       actividadDocente: desarrolloDocente,
       actividadEstudiante: desarrolloEstudiante,
-      metodologiaActiva: 'Aprendizaje Basado en Retos y Modelado Cognitivo (I Do - We Do - You Do)',
-      recursosDidacticos: 'Cuaderno de Trabajo Activo del estudiante, bitácora de taller/laboratorio, instrumental didáctico.',
-      tiempoMinutos: 30,
+      metodologiaActiva,
+      recursosDidacticos,
+      tiempoMinutos: tiempoDesarrollo,
     },
     cierre: {
       actividadDocente: cierreDocente,
@@ -250,17 +341,20 @@ function buildPlanDeClase(
       evaluacionFormativa,
       metacognicion,
       productoEsperado,
-      tiempoMinutos: 10,
+      tiempoMinutos: tiempoCierre,
     },
-    instrumentoEvaluacion: `Rúbrica de Desempeño y Lista de Cotejo · Misión ${mission.missionIndex}`,
+    instrumentoEvaluacion: sessionFromSeq?.evaluation
+      ? `${sessionFromSeq.evaluation} · Sesión ${sessionNum}`
+      : `Rúbrica de Desempeño y Lista de Cotejo · Misión ${mission.missionIndex}`,
   };
 }
 
 function buildGuiaDelBloqueMarkdown(workbook: ActiveWorkTextbook): string {
   const parts: string[] = [];
   const cover = (workbook.coverData || {}) as Record<string, unknown>;
+  const blockNum = (workbook.blockIndex ?? 0) + 1;
 
-  parts.push(`# GUÍA DE TRABAJO DEL ESTUDIANTE · BLOQUE ${workbook.blockIndex ?? 1}`);
+  parts.push(`# GUÍA DE TRABAJO DEL ESTUDIANTE · BLOQUE ${blockNum}`);
   parts.push(`**Asignatura / UAC:** ${(cover.subjectName as string) || ''}`);
   parts.push(`**Plantel:** ${(cover.schoolName as string) || ''} | **Semestre:** ${(cover.semester as number | string) || 1}°`);
   if (cover.paecProjectName) parts.push(`**Proyecto PAEC:** ${cover.paecProjectName as string}`);
@@ -658,8 +752,9 @@ function buildMaterialDidacticoMarkdown(
   planes: PlanDeClaseDerivado[]
 ): string {
   const parts: string[] = [];
+  const blockNum = (workbook.blockIndex ?? 0) + 1;
   parts.push(`# REQUERIMIENTOS DE MATERIAL DIDÁCTICO E INSUMOS`);
-  parts.push(`**Bloque ${workbook.blockIndex ?? 1}** · ${workbook.coverData?.subjectName || ''}\n`);
+  parts.push(`**Bloque ${blockNum}** · ${workbook.coverData?.subjectName || ''}\n`);
 
   parts.push('## INVENTARIO DE MATERIALES Y CONSUMIBLES POR SESIÓN\n');
   parts.push('| Sesión | Misión / Práctica | Materiales e Insumos Didácticos | Espacio Requerido |');

@@ -11,6 +11,7 @@
 
 import { sql } from '@/lib/db';
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
+import type { SecuenciaBloque } from '@/types/planning';
 import { extractMaterialsFromWorkbook, type PlanDeClaseDerivado } from './material-extractor';
 import { resolveVisualForMission } from '@/lib/visual-engine/visual-asset-manager';
 import { logger } from '@/lib/logger';
@@ -92,8 +93,22 @@ export async function cascadeBlockMaterials(
   try {
     const db = sql();
 
-    // 1. Extraer materiales determinísticamente del Libro de Bloque
-    const extracted = extractMaterialsFromWorkbook(workbook);
+    // 0. Consultar sequence_json para este planning para desacoplar pedagógicamente las sesiones
+    let blockSequence: SecuenciaBloque | null = null;
+    try {
+      const planningRows = await db`
+        SELECT sequence_json FROM plannings WHERE id = ${planningId}::uuid
+      `;
+      if (planningRows.length > 0 && planningRows[0].sequence_json) {
+        const rawSeq = planningRows[0].sequence_json as Record<string | number, SecuenciaBloque>;
+        blockSequence = rawSeq[blockIndex] ?? rawSeq[String(blockIndex)] ?? null;
+      }
+    } catch (seqErr) {
+      logger.warn(`[cascadeBlockMaterials] Advertencia al obtener sequence_json para planning ${planningId}:`, seqErr);
+    }
+
+    // 1. Extraer materiales determinísticamente del Libro de Bloque inyectando la secuencia didáctica
+    const extracted = extractMaterialsFromWorkbook(workbook, blockSequence);
     const planes = extracted.planesDeClase || [];
     const blockNum = blockIndex + 1;
     const blockTitle = workbook.blockName || `Bloque ${blockNum}`;
