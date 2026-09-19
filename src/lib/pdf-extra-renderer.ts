@@ -27,6 +27,7 @@ import type { CalloutBoxData } from '@/lib/visual-engine/callout-box';
 import {
   resolveHeaderBranding,
   resolveFooterBranding,
+  INSTITUTIONAL_DEFAULTS,
   type BrandingContext,
 } from '@/lib/document-branding';
 
@@ -185,7 +186,7 @@ export function renderExtraDocument(
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7.5);
     doc.setTextColor(...WHITE);
-    doc.text(`DBEPA PUEBLA · ${branding.shortLabel} · ${extra.title.substring(0, 55)}`, margin, 8);
+    doc.text(`${INSTITUTIONAL_DEFAULTS.ORGANISMO} · ${branding.shortLabel} · ${extra.title.substring(0, 55)}`, margin, 8);
     doc.setTextColor(...GOLD);
     doc.text(branding.cycle, pageWidth - margin, 8, { align: 'right' });
     y = margin + 6;
@@ -284,7 +285,7 @@ export function renderExtraDocument(
           doc.setFont('helvetica', 'bold');
           doc.setFontSize(7.5);
           doc.setTextColor(...WHITE);
-          doc.text(`DBEPA PUEBLA · ${branding.shortLabel} · ${extra.title.substring(0, 55)}`, margin, 8);
+          doc.text(`${INSTITUTIONAL_DEFAULTS.ORGANISMO} · ${branding.shortLabel} · ${extra.title.substring(0, 55)}`, margin, 8);
           doc.setTextColor(...GOLD);
           doc.text(branding.cycle, pageWidth - margin, 8, { align: 'right' });
         }
