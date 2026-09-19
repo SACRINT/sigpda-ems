@@ -75,6 +75,11 @@ function formatPlanDeClaseMarkdown(
 
 /**
  * Ejecuta la cascada de derivación y persistencia de materiales para un bloque específico.
+ *
+ * @param planningId - ID de la planeación didáctica
+ * @param blockIndex - Índice del bloque (0 a 2)
+ * @param workbook - Estructura de libro activo con planes y rúbricas
+ * @param teacherId - ID del docente propietario (opcional, para trazabilidad y auditoría)
  */
 export async function cascadeBlockMaterials(
   planningId: string,
@@ -83,7 +88,6 @@ export async function cascadeBlockMaterials(
   teacherId?: string
 ): Promise<CascadeResult> {
   const startTime = performance.now();
-  void teacherId;
 
   try {
     const db = sql();
@@ -271,7 +275,8 @@ export async function cascadeBlockMaterials(
     const executionTimeMs = Math.round((endTime - startTime) * 100) / 100;
 
     logger.info(
-      `[cascadeBlockMaterials] ✅ Bloque ${blockIndex} sincronizado: ${planes.length} planes de clase y ${insertedCount} extras en ${executionTimeMs}ms.`
+      `[cascadeBlockMaterials] ✅ Bloque ${blockIndex} sincronizado: ${planes.length} planes de clase y ${insertedCount} extras en ${executionTimeMs}ms.` +
+        (teacherId ? ` (docente: ${teacherId})` : '')
     );
 
     return {
