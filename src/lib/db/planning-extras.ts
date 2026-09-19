@@ -15,7 +15,7 @@ export function mapRawPlanningExtra(r: Record<string, unknown>): PlanningExtraRe
     id: r.id as string,
     planningId: r.planning_id as string,
     planning_id: r.planning_id as string,
-    type: r.type as 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'practice_guide' | 'visual',
+    type: r.type as 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'practice_guide' | 'teacher_guide' | 'visual',
     title: r.title as string,
     keyIndex: (r.key_index as number | null) ?? null,
     key_index: (r.key_index as number | null) ?? null,
@@ -52,7 +52,7 @@ export async function getPlanningExtraById(id: string, teacherId: string) {
 export async function createPlanningExtra(
   data: {
     planningId: string;
-    type: 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'practice_guide' | 'visual';
+    type: 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'practice_guide' | 'teacher_guide' | 'visual';
     title: string;
     keyIndex: number | null;
     contentText: string;

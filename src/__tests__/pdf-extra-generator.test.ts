@@ -116,6 +116,30 @@ Objetivo: Determinar la concentración de ácido acético en muestra comercial.
     expect(doc.getNumberOfPages()).toBeGreaterThanOrEqual(1);
   });
 
+  // ── TEST 4b: Solucionario Docente con claves pedagógicas (H-045) ───────────
+  it('Test 4b: Genera solucionario docente con tipo dedicado teacher_guide y paleta institucional', () => {
+    const teacherGuideInput = makeFixture({
+      type: 'teacher_guide',
+      title: 'Solucionario y Guía Pedagógica del Docente — Bloque 1',
+      content_text: `
+# SOLUCIONARIO Y GUÍA DE MEDIACIÓN PEDAGÓGICA (USO EXCLUSIVO DOCENTE)
+CONFIDENCIAL: Material de apoyo técnico exclusivo para la mediación en aula.
+
+> NOTA DIDÁCTICA: Anticipar errores comunes en el despeje de variables.
+
+### Clave de Resolución del Reto STEM
+1. Identificación de variables y planteamiento.
+2. Procedimiento paso a paso comprobado.
+3. Rúbrica de retroalimentación inmediata.
+      `.trim(),
+    });
+
+    const doc = generateExtraPDF(teacherGuideInput);
+    expect(doc.getNumberOfPages()).toBeGreaterThanOrEqual(1);
+    const buffer = doc.output('arraybuffer');
+    expect(buffer.byteLength).toBeGreaterThan(1000);
+  });
+
   // ── TEST 5: Material Didáctico conceptual con párrafos y viñetas ───────────
   it('Test 5: Genera material didáctico informativo con bloques conceptuales y viñetas', () => {
     const materialInput = makeFixture({

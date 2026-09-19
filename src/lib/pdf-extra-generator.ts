@@ -30,6 +30,7 @@ const TYPE_COLOR: Record<string, [number, number, number]> = {
   material:       [120, 53, 15], // brown
   lesson_plan:    [26, 26, 46],  // navy
   practice_guide: [76, 29, 149], // violet #4c1d95
+  teacher_guide:  [27, 107, 138], // institutional teal #1B6B8A (Apertura docente)
 };
 
 const TYPE_LABEL: Record<string, string> = {
@@ -38,6 +39,7 @@ const TYPE_LABEL: Record<string, string> = {
   material:       'MATERIAL DIDÁCTICO',
   lesson_plan:    'PLAN DE CLASE (50 min)',
   practice_guide: 'GUÍA DE PRÁCTICA DEL ESTUDIANTE',
+  teacher_guide:  'SOLUCIONARIO Y GUÍA DE MEDIACIÓN DOCENTE',
 };
 
 export interface ExtraInput {

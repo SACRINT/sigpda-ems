@@ -350,7 +350,7 @@ describe('db-extended-coverage (Fase 22) — Schedules, Notifications, Workbooks
       mockQueryFn.mockResolvedValueOnce([{
         id: 'extra-new',
         planning_id: 'plan-001',
-        type: 'practice_guide',
+        type: 'teacher_guide',
         title: 'Solucionario Docente',
         key_index: 0,
         content_text: '# Solucionario...',
@@ -359,12 +359,13 @@ describe('db-extended-coverage (Fase 22) — Schedules, Notifications, Workbooks
 
       const created = await createPlanningExtra({
         planningId: 'plan-001',
-        type: 'practice_guide',
+        type: 'teacher_guide',
         title: 'Solucionario Docente',
         keyIndex: 0,
         contentText: '# Solucionario...',
       }, 'teach-001');
       expect(created.id).toBe('extra-new');
+      expect(created.type).toBe('teacher_guide');
       expect(created.title).toBe('Solucionario Docente');
 
       // Eliminación

@@ -502,6 +502,8 @@ export function ExtraPreviewModal({
       ? 'Material didáctico'
       : type === 'practice_guide'
       ? 'Guía de práctica'
+      : type === 'teacher_guide'
+      ? 'Solucionario docente'
       : type === 'visual'
       ? 'Recurso Gráfico Vectorial'
       : 'Plan de clase';
@@ -640,8 +642,8 @@ export function ExtraPreviewModal({
             ) : type === 'visual' || (contentText || '').trim().startsWith('{"svg"') || (contentText || '').trim().startsWith('<svg') ? (
               // Recursos gráficos vectoriales (Visual Engine)
               renderVisualResource(contentText || '')
-            ) : type === 'practice_guide' ? (
-              // Guías de práctica: renderizado con soporte Mermaid (Fase 11)
+            ) : type === 'practice_guide' || type === 'teacher_guide' ? (
+              // Guías de práctica y solucionarios: renderizado con soporte Mermaid (Fase 11)
               <MarkdownWithMermaid markdown={contentText || ''} />
             ) : (
               // Rúbricas, listas de cotejo, planes de clase: parser existente con tablas

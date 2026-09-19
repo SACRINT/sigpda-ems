@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 export type PlanningStatus = 'draft' | 'generated' | 'downloaded';
 
 // Open string to support all subsystems (BGE, Digital, EMSAD, CECyTE, CBTIS, CBTA, CONALEP, DGB, etc.)
@@ -287,7 +288,7 @@ export interface CreatePlanningInput {
 export interface PlanningExtra {
   id: string;
   planningId: string;
-  type: 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'practice_guide' | 'visual';
+  type: 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'practice_guide' | 'teacher_guide' | 'visual';
   title: string;
   keyIndex: number | null;
   contentText: string;

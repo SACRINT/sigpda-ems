@@ -235,7 +235,7 @@ export async function cascadeBlockMaterials(
           created_at
         ) VALUES (
           ${planningId}::uuid,
-          'practice_guide',
+          'teacher_guide',
           ${`Solucionario y Guía Pedagógica del Docente · Bloque ${blockNum}: ${blockTitle}`},
           ${blockIndex},
           ${extracted.solucionarioDocente},
