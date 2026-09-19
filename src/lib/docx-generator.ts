@@ -6,6 +6,7 @@ import {
 import type { GeneratedPlanningContent } from '@/types/planning';
 import { SCHOOL_YEAR } from '@/lib/config';
 import { PHASE_COLORS_HEX } from '@/lib/visual-engine/design-tokens';
+import { bdr } from '@/lib/docx-helpers';
 
 // ── Color palette (DBEPA institutional) ─────────────────────────────────────────────
 const C = {
@@ -25,11 +26,6 @@ const C = {
 const PAGE_W  = 12240;
 const MARGIN  = 720;
 const CONTENT = PAGE_W - MARGIN * 2;
-
-function bdr(color = 'AAAAAA') {
-  const b = { style: BorderStyle.SINGLE, size: 4, color };
-  return { top: b, bottom: b, left: b, right: b };
-}
 
 const CELLMRG = { top: 80, bottom: 80, left: 140, right: 140 };
 

@@ -3,6 +3,8 @@ import { auth } from '@/lib/auth';
 import { getTeacherByEmail, getPlanningById, markPlanningDownloaded } from '@/lib/db';
 import { generateDocx } from '@/lib/docx-generator';
 import type { GeneratedPlanningContent } from '@/types/planning';
+import { sanitizeDocFilename } from '@/lib/document-branding';
+import { SCHOOL_YEAR } from '@/lib/config';
 
 import { logger } from '@/lib/logger';
 export const runtime = 'nodejs';
@@ -32,7 +34,7 @@ export async function GET(
 
     await markPlanningDownloaded(id, teacher.id);
 
-    const filename = `Planeacion_${content.sectionI.uacName.substring(0, 40).replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚ\s]/g, '').replace(/\s+/g, '_')}_${content.sectionI.semester}Semestre_2026-2027.docx`;
+    const filename = `${sanitizeDocFilename(`Planeacion_${content.sectionI.uacName}_${content.sectionI.semester}Semestre_${SCHOOL_YEAR}`, 80)}.docx`;
 
     return new NextResponse(new Uint8Array(docxBuffer), {
       headers: {

@@ -44,6 +44,7 @@ import type {
   PaecMetaLogroRow,
 } from '@/types/paec';
 import { SCHOOL_YEAR } from '@/lib/config';
+import { bdr } from '@/lib/docx-helpers';
 
 // Paleta Institucional Oficial DBEPA / SEP Puebla
 const C = {
@@ -224,11 +225,6 @@ export function parseFodaData(rawT3: any): ParsedFoda {
   }
 
   return { fortalezas, oportunidades, debilidades, amenazas, estFO, estDO, estFA, estDA };
-}
-
-function bdr(color = C.border, size = 4) {
-  const b = { style: BorderStyle.SINGLE, size, color };
-  return { top: b, bottom: b, left: b, right: b };
 }
 
 const CELLMRG = { top: 90, bottom: 90, left: 130, right: 130 };
