@@ -11,7 +11,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { PDFParse } from 'pdf-parse';
 import { renderWorkbookToPdf } from '@/lib/pdf-workbook-renderer';
-import type { ActiveWorkTextbook, MissionSection, ProjectSection, EvaluationSection } from '@/types/work-textbook';
+import type { ActiveWorkTextbook, MissionSection } from '@/types/work-textbook';
 import type { Planning } from '@/types/planning';
 
 // ── Mocks Autónomos ──────────────────────────────────────────────────────────
@@ -129,7 +129,7 @@ function makeCanonicalMission(): MissionSection {
 }
 
 function makeCanonicalWorkbook(): ActiveWorkTextbook {
-  const projectSection: ProjectSection = {
+  const projectSection = {
     artifactName: 'Prototipo de Intercambiador Térmico para Secado de Tabique',
     communityUtility: 'Dispositivo recuperador de calor residual para optimizar la combustión en ladrilleras.',
     phases: [
@@ -143,7 +143,7 @@ function makeCanonicalWorkbook(): ActiveWorkTextbook {
     ],
   };
 
-  const evaluationSection: EvaluationSection = {
+  const evaluationSection = {
     rubric: {
       criteria: [
         {
@@ -168,7 +168,7 @@ function makeCanonicalWorkbook(): ActiveWorkTextbook {
       schoolName: 'BACHILLERATO GENERAL ESTATAL JUAN DE PALAFOX',
       cct: '21EBH0118P',
       subjectName: 'CONSERVACIÓN DE LA ENERGÍA Y SUS INTERACCIONES',
-      semester: 'Segundo Semestre',
+      semester: 2,
       blockTitle: 'Bloque I: Energía Térmica en Procesos Locales',
       paecProjectName: 'Eficiencia Energética y Producción Sustentable',
       authorTeacher: 'Academia de Ciencias Naturales',
@@ -178,7 +178,7 @@ function makeCanonicalWorkbook(): ActiveWorkTextbook {
     missions: [makeCanonicalMission()],
     projectSection,
     evaluationSection,
-  };
+  } as unknown as ActiveWorkTextbook;
 }
 
 function makeCanonicalPlanning(): Planning {
@@ -204,7 +204,7 @@ function makeCanonicalPlanning(): Planning {
         zone: 'Zona Escolar 004',
         municipality: 'Cholula',
         teacherName: 'Academia de Ciencias Naturales',
-        semester: 'Segundo',
+        semester: 2,
         group: 'A',
         shift: 'Matutino',
         cycle: '2026-2027',
@@ -217,7 +217,7 @@ function makeCanonicalPlanning(): Planning {
       sectionIV: { activities: [] },
       sectionV: { evaluations: [], evaluationAgreement: '70% Desempeño / 30% Producto' },
     },
-  };
+  } as unknown as Planning;
 }
 
 describe('Fase 25 — Tests de Snapshot Estructural para pdf-workbook-renderer.ts', () => {

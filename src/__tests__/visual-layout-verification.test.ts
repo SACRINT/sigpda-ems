@@ -16,7 +16,7 @@ import { PDFParse } from 'pdf-parse';
 import * as fs from 'fs';
 import * as path from 'path';
 import { renderWorkbookToPdf } from '@/lib/pdf-workbook-renderer';
-import type { ActiveWorkTextbook, MissionSection, ProjectSection, EvaluationSection } from '@/types/work-textbook';
+import type { ActiveWorkTextbook, MissionSection } from '@/types/work-textbook';
 import type { Planning } from '@/types/planning';
 
 // ── Mocks para Entorno Autónomo ──────────────────────────────────────────────
@@ -140,7 +140,7 @@ function buildMission(idx: number, startSession: number): MissionSection {
 }
 
 function buildVerificationWorkbook(): ActiveWorkTextbook {
-  const projectSection: ProjectSection = {
+  const projectSection = {
     artifactName: 'Manual de Costos y Catálogo de Mezclas para Artesanos de San Jerónimo',
     communityUtility: 'Guía técnica aplicada para calcular mezclas de materias primas con mínimo desperdicio.',
     phases: [
@@ -161,7 +161,7 @@ function buildVerificationWorkbook(): ActiveWorkTextbook {
     ],
   };
 
-  const evaluationSection: EvaluationSection = {
+  const evaluationSection = {
     rubric: {
       criteria: [
         {
@@ -193,7 +193,7 @@ function buildVerificationWorkbook(): ActiveWorkTextbook {
       schoolName: 'BACHILLERATO GENERAL ESTATAL EMILIANO ZAPATA',
       cct: '21EBH0245K',
       subjectName: 'PENSAMIENTO MATEMÁTICO II',
-      semester: 'Segundo Semestre',
+      semester: 2,
       blockTitle: 'Bloque I: Modelación de Restricciones Lineales',
       paecProjectName: 'Preservación y Tecnificación de Talleres Artesanales Comunitarios',
       authorTeacher: 'Prof. Marco Antonio Morales Vázquez',
@@ -206,7 +206,7 @@ function buildVerificationWorkbook(): ActiveWorkTextbook {
     ],
     projectSection,
     evaluationSection,
-  };
+  } as unknown as ActiveWorkTextbook;
 }
 
 function buildVerificationPlanning(): Planning {
@@ -232,7 +232,7 @@ function buildVerificationPlanning(): Planning {
         zone: 'Zona Escolar 004',
         municipality: 'Puebla',
         teacherName: 'Prof. Marco Antonio Morales Vázquez',
-        semester: 'Segundo',
+        semester: 2,
         group: 'A y B',
         shift: 'Matutino',
         cycle: '2026-2027',
@@ -245,7 +245,7 @@ function buildVerificationPlanning(): Planning {
       sectionIV: { activities: [] },
       sectionV: { evaluations: [], evaluationAgreement: '80% Portafolio de Evidencias / 20% Desempeño' },
     },
-  };
+  } as unknown as Planning;
 }
 
 describe('Fase 24 — Verificación Visual de Maquetación y Badges de Sesión', () => {
