@@ -1748,9 +1748,30 @@ function buildDocxEquipmentCard(equipmentVisual: ResolvedEquipmentVisual): (Para
 }
 
 /**
- * 3. Cintas de Encabezado de Sección DOCX: celda sombreada con borde temático
+ * 3. Cintas de Encabezado de Sección DOCX: celda sombreada con borde temático y badge
  */
-function buildDocxSectionHeader(title: string, colorHex: string = C.navy): Table {
+function buildDocxSectionHeader(title: string, colorHex: string = C.navy, badge?: string): Table {
+  const runs: TextRun[] = [
+    new TextRun({
+      text: title.toUpperCase(),
+      bold: true,
+      size: 22,
+      color: colorHex,
+      font: 'Arial',
+    }),
+  ];
+  if (badge) {
+    runs.push(
+      new TextRun({
+        text: `   ${badge}`,
+        bold: true,
+        size: 18,
+        color: colorHex,
+        font: 'Calibri',
+      })
+    );
+  }
+
   return new Table({
     width: { size: CONTENT_W, type: WidthType.DXA },
     rows: [
@@ -1769,13 +1790,52 @@ function buildDocxSectionHeader(title: string, colorHex: string = C.navy): Table
             children: [
               new Paragraph({
                 spacing: { before: 40, after: 40 },
+                children: runs,
+              }),
+            ],
+          }),
+        ],
+      }),
+    ],
+  });
+}
+
+/**
+ * 3B. Separador Institucional de Sesión DOCX (con emojis admitidos)
+ */
+function buildDocxSessionDivider(sessionNumber: number, phaseLabel: string, colorHex: string = '1B6B8A', durationMin: number = 50): Table {
+  return new Table({
+    width: { size: CONTENT_W, type: WidthType.DXA },
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            width: { size: CONTENT_W, type: WidthType.DXA },
+            shading: { fill: 'F8FAFC', type: ShadingType.CLEAR },
+            borders: {
+              top: { style: BorderStyle.SINGLE, size: 6, color: colorHex },
+              bottom: { style: BorderStyle.SINGLE, size: 6, color: colorHex },
+              left: { style: BorderStyle.SINGLE, size: 24, color: colorHex },
+              right: { style: BorderStyle.SINGLE, size: 6, color: colorHex },
+            },
+            margins: { top: 120, bottom: 120, left: 180, right: 180 },
+            children: [
+              new Paragraph({
+                spacing: { before: 50, after: 50 },
                 children: [
                   new TextRun({
-                    text: title.toUpperCase(),
+                    text: `⏱️ SESIÓN ${sessionNumber} (${durationMin} MIN) `,
                     bold: true,
                     size: 22,
                     color: colorHex,
                     font: 'Arial',
+                  }),
+                  new TextRun({
+                    text: `| FASE: ${phaseLabel.toUpperCase()}`,
+                    bold: true,
+                    size: 20,
+                    color: '475569',
+                    font: 'Calibri',
                   }),
                 ],
               }),
@@ -1894,9 +1954,20 @@ async function buildMissionContent(
     })
   );
 
+  const coveredSessions = (mission.coveredSessions && mission.coveredSessions.length > 0)
+    ? mission.coveredSessions
+    : [missionNumber * 2 - 1, missionNumber * 2];
+
+  // ── Sesión 1: Apertura y Modelado ───────────────────────────────────────────
+  const s1 = coveredSessions[0];
+  const s1Phase = coveredSessions.length === 1
+    ? 'Apertura, Modelado y Práctica'
+    : 'Apertura y Modelado Conceptual';
+  elements.push(buildDocxSessionDivider(s1, s1Phase, '1B6B8A', 50));
+
   // 1. Enganche Situado
   elements.push(
-    buildDocxSectionHeader('1. Enganche y Desafío Situado en la Comunidad', SECTION_HEX.enganche),
+    buildDocxSectionHeader('📖 1. Enganche y Desafío Situado en la Comunidad', SECTION_HEX.enganche, '[SITUACIÓN REAL]'),
     new Paragraph({
       spacing: { before: 100, after: 150, line: 360 }, // 1.5 line spacing
       children: [
@@ -1934,7 +2005,7 @@ async function buildMissionContent(
 
   // 2. Concepto Cero
   elements.push(
-    buildDocxSectionHeader('2. Concepto Cero: Analogía Intuitiva y Fundamento', SECTION_HEX.concepto),
+    buildDocxSectionHeader('💡 2. Concepto Cero: Analogía Intuitiva y Fundamento', SECTION_HEX.concepto, '[LEO Y COMPRENDO]'),
     new Paragraph({
       spacing: { before: 100, after: 150, line: 360 },
       children: [
@@ -2211,9 +2282,14 @@ async function buildMissionContent(
     elements.push(buildDocxCalloutBox(conceptCallout));
   }
 
+  // Si la misión abarca 3 o más sesiones, la Sesión 2 inicia en el Modelado Docente
+  if (coveredSessions.length >= 3) {
+    elements.push(buildDocxSessionDivider(coveredSessions[1], 'Modelado y Práctica Guiada', '1B6B3A', 50));
+  }
+
   // 3. Yo Hago (Demostración)
   elements.push(
-    buildDocxSectionHeader('3. Yo Hago: Demostración y Protocolo Guiado por el Docente', SECTION_HEX.yoHago)
+    buildDocxSectionHeader('👨‍🏫 3. Yo Hago: Demostración y Protocolo Guiado por el Docente', SECTION_HEX.yoHago, '[MODELO DOCENTE]')
   );
 
   // Si equipmentVisual fue marcado como Hero (30% demostrativo), se renderiza como imagen principal del Yo Hago
@@ -2271,9 +2347,14 @@ async function buildMissionContent(
     elements.push(buildDocxCalloutBox(demoCallout));
   }
 
+  // Si la misión abarca exactamente 2 sesiones (caso estándar), la Sesión 2 inicia en la Práctica Guiada
+  if (coveredSessions.length === 2) {
+    elements.push(buildDocxSessionDivider(coveredSessions[1], 'Práctica Guiada, Reto y Cierre', '1B6B3A', 50));
+  }
+
   // 4. Nosotros Hacemos (Práctica Colaborativa)
   elements.push(
-    buildDocxSectionHeader('4. Nosotros Hacemos: Práctica Guiada y Cuaderno Activo', SECTION_HEX.hacemos),
+    buildDocxSectionHeader('👥 4. Nosotros Hacemos: Práctica Guiada y Cuaderno Activo', SECTION_HEX.hacemos, '[TRABAJO EN EQUIPO]'),
     ...buildDocxPracticeTasks(mission.weDoSection.guidedPractice)
   );
 
@@ -2283,9 +2364,14 @@ async function buildMissionContent(
     }
   }
 
+  // Si la misión abarca 3 o más sesiones, la Sesión 3 inicia en el Reto Autónomo y Cierre
+  if (coveredSessions.length >= 3) {
+    elements.push(buildDocxSessionDivider(coveredSessions[2], 'Reto Autónomo y Cierre Formativo', '6B3A1B', 50));
+  }
+
   // 5. Tú Haces (Reto Autónomo)
   elements.push(
-    buildDocxSectionHeader('5. Tú Haces: Reto Autónomo de Aplicación Real', SECTION_HEX.tuHaces),
+    buildDocxSectionHeader('✏️ 5. Tú Haces: Reto Autónomo de Aplicación Real', SECTION_HEX.tuHaces, '[HAGO Y RESUELVO]'),
     ...buildDocxPracticeTasks(mission.youDoSection.autonomousChallenge)
   );
 
@@ -2298,7 +2384,7 @@ async function buildMissionContent(
   // 6. Troubleshooting (Zona de Depuración)
   if (mission.troubleshooting && mission.troubleshooting.length > 0) {
     elements.push(
-      buildDocxSectionHeader('6. Matriz de Resiliencia y Depuración: "¿Qué hacer si falla?"', SECTION_HEX.resiliencia),
+      buildDocxSectionHeader('⚠️ 6. Matriz de Resiliencia y Depuración: "¿Qué hacer si falla?"', SECTION_HEX.resiliencia, '[ERROR COMÚN]'),
       buildTroubleshootTable(mission.troubleshooting)
     );
   }
@@ -2306,7 +2392,7 @@ async function buildMissionContent(
   // 7. Checkpoint Formativo
   if (mission.formativeCheckpoint) {
     elements.push(
-      buildDocxSectionHeader('7. Punto de Control Formativo (Metacognición y Criterios)', SECTION_HEX.checkpoint),
+      buildDocxSectionHeader('🎯 7. Punto de Control Formativo (Metacognición y Criterios)', SECTION_HEX.checkpoint, '[MI ENTREGA]'),
       new Paragraph({
         spacing: { before: 100, after: 100 },
         children: [

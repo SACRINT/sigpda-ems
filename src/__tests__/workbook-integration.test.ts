@@ -416,4 +416,40 @@ describe('Workbook Engine — Test de Integración End-to-End (renderWorkbookToP
     expect(pdfData.text).toContain('Misión 1');
     expect(pdfData.text).toContain('Misión 2');
   }, 25000);
+
+  // ── TEST 4 (Etapa 1): Badges de sesión y divisores WinAnsi ─────────────────
+  it('Test 4 (Etapa 1): Renderiza divisores de sesión institucionales y badges de acción cognitiva WinAnsi sin emojis en jsPDF', async () => {
+    const workbook = makeIntegrationWorkbook();
+    // Misión con 2 sesiones estándar
+    workbook.missions[0].coveredSessions = [1, 2];
+    const planning = makeIntegrationPlanning();
+    const buffer = await renderWorkbookToPdf(workbook, planning, { forceFallbackCover: true });
+
+    const pdfData = await extractPdfData(buffer);
+
+    // 1. Verificación de divisores de sesión con texto WinAnsi
+    expect(pdfData.text).toContain('SESION 1 (50 MIN)');
+    expect(pdfData.text).toContain('APERTURA Y MODELADO CONCEPTUAL');
+    expect(pdfData.text).toContain('SESION 2 (50 MIN)');
+    expect(pdfData.text).toContain('PRACTICA GUIADA, RETO Y CIERRE');
+
+    // 2. Verificación de badges cognitivos en ribbons
+    expect(pdfData.text).toContain('[ SITUACION REAL ]');
+    expect(pdfData.text).toContain('[ LEO Y COMPRENDO ]');
+    expect(pdfData.text).toContain('[ MODELO DOCENTE ]');
+    expect(pdfData.text).toContain('[ TRABAJO EN EQUIPO ]');
+    expect(pdfData.text).toContain('[ HAGO Y RESUELVO ]');
+    expect(pdfData.text).toContain('[ ERROR COMUN ]');
+    expect(pdfData.text).toContain('[ MI ENTREGA ]');
+
+    // 3. Garantizar ausencia de emojis en el render de jsPDF (solo WinAnsi)
+    expect(pdfData.text).not.toContain('⏱️');
+    expect(pdfData.text).not.toContain('📖');
+    expect(pdfData.text).not.toContain('💡');
+    expect(pdfData.text).not.toContain('👨‍🏫');
+    expect(pdfData.text).not.toContain('👥');
+    expect(pdfData.text).not.toContain('✏️');
+    expect(pdfData.text).not.toContain('⚠️');
+    expect(pdfData.text).not.toContain('🎯');
+  }, 25000);
 });

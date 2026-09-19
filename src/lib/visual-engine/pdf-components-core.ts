@@ -12,7 +12,7 @@
  * - Cabeceras y pies de página editoriales
  */
 
-import type jsPDF from 'jspdf';
+import { GState, type jsPDF } from 'jspdf';
 import {
   COLOR,
   RADIUS,
@@ -130,18 +130,18 @@ export function drawMissionBanner(doc: jsPDF, opts: MissionBannerOptions): numbe
   setFontHeading(doc);
   doc.setFontSize(26);
   doc.setTextColor(255, 255, 255);
-  doc.setGState(new (doc as any).GState({ opacity: 0.18 }));
+  doc.setGState(new GState({ opacity: 0.18 }));
   doc.text(numStr, margin + 3, y + actualBannerH - 3);
-  doc.setGState(new (doc as any).GState({ opacity: 1 }));
+  doc.setGState(new GState({ opacity: 1 }));
 
   // Etiqueta UAC / Sesiones en píldora o texto superior
   setFontHeading(doc);
   doc.setFontSize(6.5);
   doc.setTextColor(255, 255, 255);
-  doc.setGState(new (doc as any).GState({ opacity: 0.85 }));
+  doc.setGState(new GState({ opacity: 0.85 }));
   const cleanUac = sanitizePdfText(uacLabel.slice(0, 38));
   doc.text(`${cleanUac} · SES. ${sessionsStr}`, margin + 22, y + 6.0);
-  doc.setGState(new (doc as any).GState({ opacity: 1 }));
+  doc.setGState(new GState({ opacity: 1 }));
 
   // Título de misión en Montserrat Bold
   setFontHeading(doc);
@@ -160,10 +160,10 @@ export function drawMissionBanner(doc: jsPDF, opts: MissionBannerOptions): numbe
     setFontBody(doc, 'normal');
     doc.setFontSize(6.8);
     doc.setTextColor(255, 255, 255);
-    doc.setGState(new (doc as any).GState({ opacity: 0.85 }));
+    doc.setGState(new GState({ opacity: 0.85 }));
     const focusY = isMultiLine ? y + 20.6 : y + actualBannerH - 3.2;
     doc.text(focusStr, margin + 22, focusY);
-    doc.setGState(new (doc as any).GState({ opacity: 1 }));
+    doc.setGState(new GState({ opacity: 1 }));
   }
 
   return y + actualBannerH + SPACING.AFTER_SECTION;
@@ -178,6 +178,7 @@ export interface SectionRibbonOptions {
   y: number;
   themeColor?: RGB;
   ribbonHeight?: number;
+  badge?: string;
 }
 
 export function drawSectionRibbon(doc: jsPDF, opts: SectionRibbonOptions): number {
@@ -187,6 +188,7 @@ export function drawSectionRibbon(doc: jsPDF, opts: SectionRibbonOptions): numbe
     drawWidth,
     themeColor = COLOR.NAVY,
     ribbonHeight = 7.5,
+    badge,
   } = opts;
   const y = opts.y;
 
@@ -203,13 +205,87 @@ export function drawSectionRibbon(doc: jsPDF, opts: SectionRibbonOptions): numbe
   doc.setLineWidth(STROKE.THIN);
   doc.line(margin + 4, y + ribbonHeight, margin + drawWidth, y + ribbonHeight);
 
-  // Título en Montserrat Bold estilizado
+  // Badge en píldora a la derecha si está definido (WinAnsi)
+  let reservedBadgeW = 0;
+  if (badge) {
+    setFontHeading(doc);
+    doc.setFontSize(6.2);
+    const cleanBadge = sanitizePdfText(badge).toUpperCase();
+    const badgeTextW = doc.getTextWidth(cleanBadge);
+    const badgePillW = badgeTextW + 5.5;
+    const badgeX = margin + drawWidth - badgePillW - 2.5;
+    reservedBadgeW = badgePillW + 5;
+
+    doc.setFillColor(...themeColor);
+    doc.roundedRect(badgeX, y + 1.2, badgePillW, ribbonHeight - 2.4, RADIUS.SM, RADIUS.SM, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.text(cleanBadge, badgeX + 2.75, y + 4.9);
+  }
+
+  // Título en Montserrat Bold estilizado (restringido para no solapar el badge)
   setFontHeading(doc);
   doc.setFontSize(TYPE.H3);
   doc.setTextColor(...themeColor);
-  doc.text(sanitizePdfText(stripMarkdown(title)).toUpperCase(), margin + 7, y + 5.1);
+  const maxTitleW = drawWidth - 10 - reservedBadgeW;
+  const cleanTitle = sanitizePdfText(stripMarkdown(title)).toUpperCase();
+  const truncatedTitle = doc.splitTextToSize(cleanTitle, maxTitleW)[0] || cleanTitle;
+  doc.text(truncatedTitle, margin + 7, y + 5.1);
 
   return y + ribbonHeight + SPACING.AFTER_SECTION;
+}
+
+// ── 2B. SEPARADOR INSTITUCIONAL DE SESIÓN (WINANSI) ───────────────────────────
+
+export interface SessionDividerOptions {
+  sessionNumber: number;
+  durationMin?: number;
+  phaseLabel: string;
+  themeColor?: RGB;
+  margin: number;
+  drawWidth: number;
+  y: number;
+}
+
+export function drawSessionDivider(doc: jsPDF, opts: SessionDividerOptions): number {
+  const {
+    sessionNumber,
+    durationMin = 50,
+    phaseLabel,
+    themeColor = COLOR.PHASE_APERTURA,
+    margin,
+    drawWidth,
+  } = opts;
+  const y = opts.y;
+  const dividerH = 9.0;
+
+  // Fondo sutil de tarjeta con borde temático
+  doc.setFillColor(...COLOR.TABLE_ALT_ROW);
+  doc.setDrawColor(...themeColor);
+  doc.setLineWidth(STROKE.THIN);
+  doc.roundedRect(margin, y, drawWidth, dividerH, RADIUS.SM, RADIUS.SM, 'FD');
+
+  // Badge izquierdo relleno con el color de la fase
+  const badgeText = `SESION ${sessionNumber} (${durationMin} MIN)`;
+  setFontHeading(doc);
+  doc.setFontSize(7.2);
+  const badgeW = doc.getTextWidth(badgeText) + 7;
+  doc.setFillColor(...themeColor);
+  doc.roundedRect(margin, y, badgeW, dividerH, RADIUS.SM, RADIUS.SM, 'F');
+  doc.rect(margin + badgeW - 2, y, 2, dividerH, 'F'); // Relleno de empalme derecho
+
+  doc.setTextColor(255, 255, 255);
+  doc.text(badgeText, margin + 3.5, y + 6.0);
+
+  // Etiqueta de fase a la derecha del badge en texto de alta legibilidad
+  setFontHeading(doc);
+  doc.setFontSize(7.5);
+  doc.setTextColor(...themeColor);
+  const cleanPhase = sanitizePdfText(phaseLabel).toUpperCase();
+  const maxPhaseW = drawWidth - badgeW - 10;
+  const phaseLines = doc.splitTextToSize(`FASE: ${cleanPhase}`, maxPhaseW);
+  doc.text(phaseLines[0] || `FASE: ${cleanPhase}`, margin + badgeW + 4.5, y + 6.0);
+
+  return y + dividerH + SPACING.AFTER_SECTION;
 }
 
 // ── 3. CAJA PEDAGÓGICA (CALLOUT) CON BADGE TIPO PÍLDORA ───────────────────────

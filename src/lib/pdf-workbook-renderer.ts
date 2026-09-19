@@ -70,6 +70,7 @@ import {
 import {
   drawMissionBanner,
   drawSectionRibbon,
+  drawSessionDivider,
   drawCalloutBox,
   drawDiagnosticSection,
   drawMetacognitiveLight,
@@ -1633,7 +1634,8 @@ function drawSectionHeader(
   y: number,
   pageHeight: number,
   themeColor: [number, number, number] = NAVY,
-  ensureSpaceFn?: (y: number, neededH: number) => number
+  ensureSpaceFn?: (y: number, neededH: number) => number,
+  badge?: string
 ): number {
   const ribbonHeight = 7.5;
   const checkSpace = ensureSpaceFn || ((cy: number, nh: number) => ensureVerticalSpace(doc, cy, nh, margin, pageHeight));
@@ -1653,6 +1655,7 @@ function drawSectionHeader(
     y,
     themeColor,
     ribbonHeight,
+    badge,
   });
 }
 
@@ -1960,6 +1963,27 @@ async function drawMission(
   // Inicializar primera página del sidebar rotativo
   flow.initFirstPage(y);
 
+  // ── V7.1: Determinación de Sesiones Asignadas y Divisores Editoriales ─────────
+  const coveredSessions = (mission.coveredSessions && mission.coveredSessions.length > 0)
+    ? mission.coveredSessions
+    : [missionNumber * 2 - 1, missionNumber * 2];
+
+  // ── Sesión 1: Apertura y Modelado ───────────────────────────────────────────
+  const s1 = coveredSessions[0];
+  const s1Phase = coveredSessions.length === 1
+    ? 'APERTURA, MODELADO Y PRACTICA'
+    : 'APERTURA Y MODELADO CONCEPTUAL';
+  y = checkSpace(y, 14);
+  y = drawSessionDivider(doc, {
+    sessionNumber: s1,
+    durationMin: 50,
+    phaseLabel: s1Phase,
+    themeColor: COLOR.PHASE_APERTURA,
+    margin,
+    drawWidth: mainW,
+    y,
+  });
+
   // ── V7: Evaluación Diagnóstica (al inicio de la misión) ─────────────────────
   const diagEval = mission.diagnosticEvaluation ||
     extractDiagnosticQuestions(
@@ -1982,7 +2006,7 @@ async function drawMission(
   }
 
   // 1. Enganche y Desafío Situado
-  y = drawSectionHeader(doc, '1. Enganche y Desafio Situado en la Comunidad', margin, mainW, y, pageHeight, SECTION_COLORS.enganche, checkSpace);
+  y = drawSectionHeader(doc, '1. Enganche y Desafio Situado en la Comunidad', margin, mainW, y, pageHeight, SECTION_COLORS.enganche, checkSpace, '[ SITUACION REAL ]');
   y = flow.printMainParagraph(mission.phenomenonHook.story, y, { size: 8, color: DARK_TEXT, lineHeight: 4.0, parseParagraphs: true });
   y += 3;
 
@@ -2005,7 +2029,7 @@ async function drawMission(
   y += detBoxH + 6;
 
   // 2. Concepto Cero
-  y = drawSectionHeader(doc, '2. Concepto Cero: Analogia Intuitiva y Fundamento', margin, mainW, y, pageHeight, SECTION_COLORS.concepto, checkSpace);
+  y = drawSectionHeader(doc, '2. Concepto Cero: Analogia Intuitiva y Fundamento', margin, mainW, y, pageHeight, SECTION_COLORS.concepto, checkSpace, '[ LEO Y COMPRENDO ]');
   y = flow.printMainParagraph(`Analogia Fisica Cotidiana: ${mission.conceptZero.physicalAnalogy}`, y, { size: 8, fontStyle: 'italic', color: DARK_TEXT, lineHeight: 4.0 });
   y += 2;
   y = flow.printMainParagraph(mission.conceptZero.coreExplanation, y, { size: 8, color: DARK_TEXT, lineHeight: 4.0, parseParagraphs: true });
@@ -2224,8 +2248,22 @@ async function drawMission(
     }
   }
 
+  // Si la misión abarca 3 o más sesiones, la Sesión 2 inicia en el Modelado Docente
+  if (coveredSessions.length >= 3) {
+    y = checkSpace(y, 14);
+    y = drawSessionDivider(doc, {
+      sessionNumber: coveredSessions[1],
+      durationMin: 50,
+      phaseLabel: 'MODELADO Y PRACTICA GUIADA',
+      themeColor: COLOR.PHASE_EJECUCION,
+      margin,
+      drawWidth: mainW,
+      y,
+    });
+  }
+
   // 3. Yo Hago (Demostración) — zona principal
-  y = drawSectionHeader(doc, '3. Yo Hago: Demostracion y Protocolo Guiado por el Docente', margin, mainW, y, pageHeight, SECTION_COLORS.yoHago, checkSpace);
+  y = drawSectionHeader(doc, '3. Yo Hago: Demostracion y Protocolo Guiado por el Docente', margin, mainW, y, pageHeight, SECTION_COLORS.yoHago, checkSpace, '[ MODELO DOCENTE ]');
   y = drawPracticeTasksWithDottedLines(doc, mission.iDoSection.stepByStepDemo, margin, mainW, pageHeight, y, 3, checkSpace);
   y += 3;
 
@@ -2239,8 +2277,22 @@ async function drawMission(
     y = drawPdfCallout(doc, demoCallout, margin, mainW, pageHeight, y, checkSpace);
   }
 
+  // Si la misión abarca exactamente 2 sesiones (caso estándar), la Sesión 2 inicia en la Práctica Guiada
+  if (coveredSessions.length === 2) {
+    y = checkSpace(y, 14);
+    y = drawSessionDivider(doc, {
+      sessionNumber: coveredSessions[1],
+      durationMin: 50,
+      phaseLabel: 'PRACTICA GUIADA, RETO Y CIERRE',
+      themeColor: COLOR.PHASE_EJECUCION,
+      margin,
+      drawWidth: mainW,
+      y,
+    });
+  }
+
   // 4. Nosotros Hacemos (Práctica Colaborativa)
-  y = drawSectionHeader(doc, '4. Nosotros Hacemos: Practica Guiada en Equipo', margin, mainW, y, pageHeight, SECTION_COLORS.hacemos, checkSpace);
+  y = drawSectionHeader(doc, '4. Nosotros Hacemos: Practica Guiada en Equipo', margin, mainW, y, pageHeight, SECTION_COLORS.hacemos, checkSpace, '[ TRABAJO EN EQUIPO ]');
   y = drawPracticeTasksWithDottedLines(doc, mission.weDoSection.guidedPractice, margin, mainW, pageHeight, y, 3, checkSpace);
   y += 4;
 
@@ -2250,8 +2302,22 @@ async function drawMission(
     }
   }
 
+  // Si la misión abarca 3 o más sesiones, la Sesión 3 inicia en el Reto Autónomo y Cierre
+  if (coveredSessions.length >= 3) {
+    y = checkSpace(y, 14);
+    y = drawSessionDivider(doc, {
+      sessionNumber: coveredSessions[2],
+      durationMin: 50,
+      phaseLabel: 'RETO AUTONOMO Y CIERRE FORMATIVO',
+      themeColor: COLOR.PHASE_CONCLUSION,
+      margin,
+      drawWidth: mainW,
+      y,
+    });
+  }
+
   // 5. Tú Haces (Reto Autónomo)
-  y = drawSectionHeader(doc, '5. Tu Haces: Reto Autonomo con Evidencia Cotidiana', margin, mainW, y, pageHeight, SECTION_COLORS.tuHaces, checkSpace);
+  y = drawSectionHeader(doc, '5. Tu Haces: Reto Autonomo con Evidencia Cotidiana', margin, mainW, y, pageHeight, SECTION_COLORS.tuHaces, checkSpace, '[ HAGO Y RESUELVO ]');
   y = drawPracticeTasksWithDottedLines(doc, mission.youDoSection.autonomousChallenge, margin, mainW, pageHeight, y, 3, checkSpace);
   y += 4;
 
@@ -2263,7 +2329,7 @@ async function drawMission(
 
   // 6. Matriz de Resiliencia / Troubleshooting
   if (mission.troubleshooting && mission.troubleshooting.length > 0) {
-    y = drawSectionHeader(doc, '6. Matriz de Resiliencia: Que hacer si falla?', margin, mainW, y, pageHeight, SECTION_COLORS.resiliencia, checkSpace);
+    y = drawSectionHeader(doc, '6. Matriz de Resiliencia: Que hacer si falla?', margin, mainW, y, pageHeight, SECTION_COLORS.resiliencia, checkSpace, '[ ERROR COMUN ]');
     y = checkSpace(y, 30);
 
     const troubleBody = mission.troubleshooting.map((t) => [
@@ -2298,7 +2364,7 @@ async function drawMission(
 
   // 7. Checkpoint Formativo
   if (mission.formativeCheckpoint) {
-    y = drawSectionHeader(doc, '7. Punto de Control Formativo (Metacognicion)', margin, mainW, y, pageHeight, SECTION_COLORS.checkpoint, checkSpace);
+    y = drawSectionHeader(doc, '7. Punto de Control Formativo (Metacognicion)', margin, mainW, y, pageHeight, SECTION_COLORS.checkpoint, checkSpace, '[ MI ENTREGA ]');
     y = flow.printMainParagraph(`Pregunta formativa: ${mission.formativeCheckpoint.question}`, y, { size: 8, fontStyle: 'bold', color: MID_BLUE, lineHeight: 4 });
     y += 2;
 

@@ -178,6 +178,11 @@ export const COLOR = {
   GOLD:             [245, 158,  11] as RGB,
   GOLD_LIGHT:       [254, 243, 199] as RGB,
 
+  // Colores de Fase de Sesión Institucionales (reutilizados del planificador DBEPA)
+  PHASE_APERTURA:   [27, 107, 138] as RGB, // #1B6B8A (Apertura / Modelado)
+  PHASE_EJECUCION:  [27, 107,  58] as RGB, // #1B6B3A (Desarrollo / Práctica)
+  PHASE_CONCLUSION: [107, 58,  27] as RGB, // #6B3A1B (Cierre / Consolidación)
+
   // Legacy aliases para retrocompatibilidad con el renderer
   NAVY:             [17,  30,  64]  as RGB,
   MID_BLUE:         [37,   99, 235] as RGB,
