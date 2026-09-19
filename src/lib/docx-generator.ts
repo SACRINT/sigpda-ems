@@ -5,6 +5,7 @@ import {
 } from 'docx';
 import type { GeneratedPlanningContent } from '@/types/planning';
 import { SCHOOL_YEAR } from '@/lib/config';
+import { PHASE_COLORS_HEX } from '@/lib/visual-engine/design-tokens';
 
 // ── Color palette (DBEPA institutional) ─────────────────────────────────────────────
 const C = {
@@ -12,9 +13,9 @@ const C = {
   mid:    '2E6DA4',
   light:  'D6E4F0',
   alt:    'EBF3FA',
-  apertura: '1B6B8A',
-  ejecucion:'1B6B3A',
-  conclusion:'6B3A1B',
+  apertura: PHASE_COLORS_HEX.apertura,
+  ejecucion: PHASE_COLORS_HEX.ejecucion,
+  conclusion: PHASE_COLORS_HEX.conclusion,
   accent: 'E8A020',
   white:  'FFFFFF',
   gray:   'F0F4F8',

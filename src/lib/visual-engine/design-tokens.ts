@@ -181,7 +181,9 @@ export const COLOR = {
   // Colores de Fase de Sesión Institucionales (reutilizados del planificador DBEPA)
   PHASE_APERTURA:   [27, 107, 138] as RGB, // #1B6B8A (Apertura / Modelado)
   PHASE_EJECUCION:  [27, 107,  58] as RGB, // #1B6B3A (Desarrollo / Práctica)
+  PHASE_DESARROLLO: [27, 107,  58] as RGB, // #1B6B3A (Desarrollo / Ejecución - alias)
   PHASE_CONCLUSION: [107, 58,  27] as RGB, // #6B3A1B (Cierre / Consolidación)
+  PHASE_CIERRE:     [107, 58,  27] as RGB, // #6B3A1B (Cierre / Conclusión - alias)
 
   // Legacy aliases para retrocompatibilidad con el renderer
   NAVY:             [17,  30,  64]  as RGB,
@@ -190,6 +192,16 @@ export const COLOR = {
   MUTED_TEXT:       [130, 140, 155] as RGB,
   LIGHT_BG:         [241, 245, 249] as RGB,
   DARK_MAROON:      [80,    0,   0] as RGB,
+} as const;
+
+export const COLORS = COLOR;
+
+export const PHASE_COLORS_HEX = {
+  apertura:   '1B6B8A',
+  desarrollo: '1B6B3A',
+  ejecucion:  '1B6B3A',
+  cierre:     '6B3A1B',
+  conclusion: '6B3A1B',
 } as const;
 
 // -- Helpers ------------------------------------------------------------------

@@ -9,6 +9,7 @@ import type { GeneratedPlanningContent, Planning, SecuenciaBloque } from '@/type
 import { loadAllLogos } from './pdf-logos';
 import { SCHOOL_YEAR } from '@/lib/config';
 import { logger } from './logger';
+import { COLORS } from './visual-engine/design-tokens';
 
 const NAVY: [number, number, number] = [31, 56, 100];       // #1F3864 - Azul Institucional
 const BLUE_MID: [number, number, number] = [46, 116, 181];   // #2E74B5 - Azul Secundario
@@ -16,10 +17,8 @@ const GOLD_LINE: [number, number, number] = [232, 160, 32];  // #E8A020 - Dorado
 const GRAY_BG: [number, number, number] = [242, 244, 248];   // #F2F4F8 - Fondo Filas
 const TEXT_DARK: [number, number, number] = [30, 41, 59];    // #1E293B - Texto
 
-// Colores institucionales de fases didácticas (homologados DBEPA)
-const PHASE_APERTURA: [number, number, number]   = [27, 107, 138]; // #1B6B8A - Apertura / Exploración
-const PHASE_DESARROLLO: [number, number, number] = [27, 107, 58];  // #1B6B3A - Desarrollo / Ejecución
-const PHASE_CIERRE: [number, number, number]     = [107, 58, 27];  // #6B3A1B - Cierre / Conclusión
+// Colores institucionales de fases didácticas (homologados DBEPA vía design-tokens)
+const { PHASE_APERTURA, PHASE_DESARROLLO, PHASE_CIERRE } = COLORS;
 
 export async function generatePlanningPDF(
   planning: Planning,

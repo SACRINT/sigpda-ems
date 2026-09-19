@@ -8,6 +8,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { SCHOOL_YEAR } from '@/lib/config';
 import { loadEditorialFonts } from '@/lib/visual-engine/font-loader';
+import { COLORS } from '@/lib/visual-engine/design-tokens';
 
 // ── Paleta institucional DBEPA ──────────────────────────────────────────────
 const NAVY: [number, number, number]     = [26, 26, 46];   // #1A1A2E
@@ -18,10 +19,8 @@ const GRAY_BG: [number, number, number]  = [238, 243, 251]; // #EEF3FB rowAlt
 const TEXT: [number, number, number]     = [26, 26, 26];   // #1A1A1A
 const WHITE: [number, number, number]    = [255, 255, 255];
 
-// Colores institucionales de fases didácticas (homologados DBEPA)
-const PHASE_APERTURA: [number, number, number]   = [27, 107, 138]; // #1B6B8A (Apertura)
-const PHASE_DESARROLLO: [number, number, number] = [27, 107, 58];  // #1B6B3A (Desarrollo / Ejecución)
-const PHASE_CIERRE: [number, number, number]     = [107, 58, 27];  // #6B3A1B (Cierre / Conclusión)
+// Colores institucionales de fases didácticas (homologados DBEPA vía design-tokens)
+const { PHASE_APERTURA, PHASE_DESARROLLO, PHASE_CIERRE } = COLORS;
 
 // Accent color per extra type
 const TYPE_COLOR: Record<string, [number, number, number]> = {
