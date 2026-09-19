@@ -14,6 +14,7 @@
  */
 
 import type jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import {
   COLOR,
   SIDEBAR_GAP,
@@ -419,6 +420,31 @@ export class ColumnFlowManager {
   }
 
   /**
+   * Detecta y extrae una tabla Markdown (| Col 1 | Col 2 |) si el bloque de texto la contiene.
+   */
+  private tryExtractMarkdownTable(text: string): { headers: string[]; rows: string[][] } | null {
+    if (!text || !text.includes('|')) return null;
+    const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const tableLines = lines.filter((l) => l.startsWith('|') && l.endsWith('|'));
+    if (tableLines.length >= 2) {
+      const dividerIdx = tableLines.findIndex((l) => /^\|[\s\-:|]+\|$/.test(l));
+      if (dividerIdx > 0) {
+        const headers = tableLines[0]
+          .split('|')
+          .slice(1, -1)
+          .map((c) => sanitizePdfText(c.trim()));
+        const rows = tableLines
+          .slice(dividerIdx + 1)
+          .map((r) => r.split('|').slice(1, -1).map((c) => sanitizePdfText(c.trim())));
+        if (headers.length > 0 && rows.length > 0) {
+          return { headers, rows };
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
    * Imprime un párrafo en la columna principal con justificación completa (excepto última línea)
    * y avanza de página con columna y sidebar sincronizados cuando es necesario.
    */
@@ -442,7 +468,7 @@ export class ColumnFlowManager {
       lineHeight = 4.8,
       justify = true,
       parseParagraphs = false,
-      paragraphSpacing = 2.5,
+      paragraphSpacing = 3.5,
     } = opts;
 
     const clean = sanitizePdfText(stripMarkdown(text || ''));
@@ -454,10 +480,16 @@ export class ColumnFlowManager {
     let py = startPY;
 
     if (parseParagraphs) {
+      // Pre-proceso: forzar separación de párrafo (\n\n) antes de pasos numerados, listas y viñetas
+      const stepProtected = clean
+        .replace(/(?:^|\n|\.\s+)(Paso\s+\d+\s*[:\-])/gi, '\n\n$1')
+        .replace(/(?:^|\n)(\d+[\.\)]\s+)/g, '\n\n$1')
+        .replace(/(?:^|\n)([•\-\*]\s+)/g, '\n\n$1');
+
       // Normalizar saltos simples \n a espacio (el texto de IA rara vez usa \n\n)
-      // pero preservar los \n\n reales como separadores de párrafo.
-      const normalized = clean
-        .replace(/\r?\n\r?\n/g, '\u0000')  // Proteger dobles saltos
+      // pero preservar los \n\n reales y forzados como separadores de párrafo.
+      const normalized = stepProtected
+        .replace(/\r?\n\r?\n+/g, '\u0000')  // Proteger dobles saltos
         .replace(/\r?\n/g, ' ')           // Colapsar saltos simples a espacio
         .replace(/\u0000/g, '\n\n')        // Restaurar dobles saltos
         .replace(/  +/g, ' ');            // Normalizar espacios múltiples
@@ -481,6 +513,28 @@ export class ColumnFlowManager {
         const isBullet = /^[•\-\*]\s+/.test(p) || /^\d+[\.\)]\s+/.test(p);
         const leftMargin = isBullet ? this.margin + 3.5 : this.margin;
         const pWidth = isBullet ? this.mainW - 3.5 : this.mainW;
+
+        const mdTable = this.tryExtractMarkdownTable(p);
+        if (mdTable) {
+          if (py + 25 > this.contentBottom) {
+            py = this.advancePage();
+          }
+          autoTable(this.doc, {
+            startY: py,
+            margin: { left: leftMargin, right: this.doc.internal.pageSize.getWidth() - (leftMargin + pWidth) },
+            tableWidth: pWidth,
+            head: [mdTable.headers],
+            body: mdTable.rows,
+            theme: 'grid',
+            headStyles: { fillColor: COLOR.TABLE_HEADER_BG, textColor: [255, 255, 255], fontSize: 7, fontStyle: 'bold' },
+            styles: { fontSize: 6.8, cellPadding: 2, textColor: COLOR.TEXT_PRIMARY },
+            didDrawPage: (data) => this.onAutoTablePage(data.pageNumber),
+          });
+          py = (this.doc as jsPDF & { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY ?? (py + 20);
+          py += paragraphSpacing;
+          continue;
+        }
+
         const lines = this.doc.splitTextToSize(p, pWidth);
 
         for (let li = 0; li < lines.length; li++) {
