@@ -4,7 +4,7 @@
  */
 
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import autoTable, { RowInput } from 'jspdf-autotable';
 import type { GeneratedPlanningContent, Planning, SecuenciaBloque } from '@/types/planning';
 import { loadAllLogos } from './pdf-logos';
 import { SCHOOL_YEAR } from '@/lib/config';
@@ -15,6 +15,11 @@ const BLUE_MID: [number, number, number] = [46, 116, 181];   // #2E74B5 - Azul S
 const GOLD_LINE: [number, number, number] = [232, 160, 32];  // #E8A020 - Dorado Oficial SEP
 const GRAY_BG: [number, number, number] = [242, 244, 248];   // #F2F4F8 - Fondo Filas
 const TEXT_DARK: [number, number, number] = [30, 41, 59];    // #1E293B - Texto
+
+// Colores institucionales de fases didácticas (homologados DBEPA)
+const PHASE_APERTURA: [number, number, number]   = [27, 107, 138]; // #1B6B8A - Apertura / Exploración
+const PHASE_DESARROLLO: [number, number, number] = [27, 107, 58];  // #1B6B3A - Desarrollo / Ejecución
+const PHASE_CIERRE: [number, number, number]     = [107, 58, 27];  // #6B3A1B - Cierre / Conclusión
 
 export async function generatePlanningPDF(
   planning: Planning,
@@ -216,7 +221,7 @@ export async function generatePlanningPDF(
   // ─── Sección IV: Secuencia Didáctica por Momentos ─────────────────────────
   const activities = s4?.activities || [];
   const sequenceData = planning.sequenceJson as Record<number, SecuenciaBloque> | null | undefined;
-  const activityRows: any[] = [];
+  const activityRows: RowInput[] = [];
 
   activities.forEach((act, idx) => {
     activityRows.push([
@@ -256,9 +261,12 @@ export async function generatePlanningPDF(
         },
       ]);
       blockSeq.sessions.forEach((s) => {
-        const phaseShort = s.phase === 'Apertura' ? 'A' : s.phase === 'Desarrollo' ? 'D' : 'C';
+        const isAp = s.phase === 'Apertura';
+        const isDes = s.phase === 'Desarrollo';
+        const phaseShort = isAp ? 'A' : isDes ? 'D' : 'C';
+        const phaseColor = isAp ? PHASE_APERTURA : isDes ? PHASE_DESARROLLO : PHASE_CIERRE;
         activityRows.push([
-          { content: `${phaseShort} ${s.sessionNum}/${s.totalSessions}`, styles: { fontStyle: 'bold', cellWidth: 20, fontSize: 6 } },
+          { content: `${phaseShort} ${s.sessionNum}/${s.totalSessions}`, styles: { fontStyle: 'bold', cellWidth: 20, fontSize: 6, textColor: phaseColor } },
           { content: s.title, styles: { fontStyle: 'bold', fontSize: 6 } },
           { content: s.teachingActivity, styles: { fontSize: 5.8 } },
           { content: `${s.learningActivity}${s.evidence ? `\nEvidencia: ${s.evidence}` : ''}`, styles: { fontSize: 5.8 } },
@@ -484,7 +492,7 @@ export async function generateSecuenciaPDF(
     const blockSeq = sequenceData?.[idx];
     const sessions = blockSeq?.sessions || [];
 
-    const rows: any[] = [];
+    const rows: RowInput[] = [];
 
     if (sessions.length > 0) {
       rows.push([
@@ -502,11 +510,13 @@ export async function generateSecuenciaPDF(
       ]);
 
       sessions.forEach((s) => {
-        const phaseColor = s.phase === 'Apertura' ? [3, 105, 161] : s.phase === 'Desarrollo' ? [21, 128, 61] : [126, 34, 206];
+        const isAp = s.phase === 'Apertura';
+        const isDes = s.phase === 'Desarrollo';
+        const phaseColor = isAp ? PHASE_APERTURA : isDes ? PHASE_DESARROLLO : PHASE_CIERRE;
         rows.push([
           {
             content: `S${s.sessionNum}/${s.totalSessions}\n[${s.phase}]`,
-            styles: { fontStyle: 'bold', fontSize: 6.5, halign: 'center', textColor: phaseColor as [number, number, number] },
+            styles: { fontStyle: 'bold', fontSize: 6.5, halign: 'center', textColor: phaseColor },
           },
           { content: s.title, styles: { fontStyle: 'bold', fontSize: 6.5 } },
           { content: s.teachingActivity, styles: { fontSize: 6.2 } },
@@ -516,15 +526,15 @@ export async function generateSecuenciaPDF(
     } else {
       // Fallback a momentos macro si no se generó secuencia micro
       rows.push([
-        { content: 'Apertura (Exploración):', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 38 } },
+        { content: 'Apertura (Exploración):', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 38, textColor: PHASE_APERTURA } },
         { content: act.apertura?.activities || 'Recuperación de conocimientos previos.', colSpan: 3 },
       ]);
       rows.push([
-        { content: 'Desarrollo (Construcción):', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
+        { content: 'Desarrollo (Construcción):', styles: { fontStyle: 'bold', fillColor: GRAY_BG, textColor: PHASE_DESARROLLO } },
         { content: act.ejecucion?.activities || 'Construcción y análisis.', colSpan: 3 },
       ]);
       rows.push([
-        { content: 'Cierre (Metacognición):', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
+        { content: 'Cierre (Metacognición):', styles: { fontStyle: 'bold', fillColor: GRAY_BG, textColor: PHASE_CIERRE } },
         { content: act.conclusion?.activities || 'Síntesis y evaluación.', colSpan: 3 },
       ]);
     }

@@ -18,6 +18,11 @@ const GRAY_BG: [number, number, number]  = [238, 243, 251]; // #EEF3FB rowAlt
 const TEXT: [number, number, number]     = [26, 26, 26];   // #1A1A1A
 const WHITE: [number, number, number]    = [255, 255, 255];
 
+// Colores institucionales de fases didácticas (homologados DBEPA)
+const PHASE_APERTURA: [number, number, number]   = [27, 107, 138]; // #1B6B8A (Apertura)
+const PHASE_DESARROLLO: [number, number, number] = [27, 107, 58];  // #1B6B3A (Desarrollo / Ejecución)
+const PHASE_CIERRE: [number, number, number]     = [107, 58, 27];  // #6B3A1B (Cierre / Conclusión)
+
 // Accent color per extra type
 const TYPE_COLOR: Record<string, [number, number, number]> = {
   rubric:         [15, 52, 96],  // MID blue
@@ -128,12 +133,31 @@ export function generateExtraPDF(extra: ExtraInput): jsPDF {
       body: tableData.map((row, rowIdx) =>
         row.map((cell, cellIdx) => {
           const isCheck = cell === 'Sí' || cell === 'No' || /^\d+%$/.test(cell);
+          const cellLower = cell.toLowerCase();
+          const isApertura = cellIdx === 0 && cellLower.includes('apertura');
+          const isDesarrollo = cellIdx === 0 && (cellLower.includes('desarrollo') || cellLower.includes('ejecución') || cellLower.includes('ejecucion'));
+          const isCierre = cellIdx === 0 && (cellLower.includes('cierre') || cellLower.includes('conclusión') || cellLower.includes('conclusion'));
+
+          let cellTextColor: [number, number, number] = TEXT;
+          let cellFontStyle: 'bold' | 'normal' = (cellIdx === 0 && colCount === 5 ? 'bold' : 'normal');
+          if (isApertura) {
+            cellTextColor = PHASE_APERTURA;
+            cellFontStyle = 'bold';
+          } else if (isDesarrollo) {
+            cellTextColor = PHASE_DESARROLLO;
+            cellFontStyle = 'bold';
+          } else if (isCierre) {
+            cellTextColor = PHASE_CIERRE;
+            cellFontStyle = 'bold';
+          }
+
           return {
             content: cell,
             styles: {
               fillColor: rowIdx % 2 === 0 ? WHITE : GRAY_BG,
               halign: (isCheck ? 'center' : 'left') as 'center' | 'left',
-              fontStyle: (cellIdx === 0 && colCount === 5 ? 'bold' : 'normal') as 'bold' | 'normal',
+              fontStyle: cellFontStyle,
+              textColor: cellTextColor,
             },
           };
         })
@@ -258,11 +282,24 @@ export function generateExtraPDF(extra: ExtraInput): jsPDF {
     // H2
     if (line.startsWith('## ')) {
       const text = line.replace(/^## /, '');
+      const lower = text.toLowerCase();
+      let headingColor = MID;
+      let lineColor = ACCENT;
+      if (lower.includes('apertura')) {
+        headingColor = PHASE_APERTURA;
+        lineColor = PHASE_APERTURA;
+      } else if (lower.includes('desarrollo') || lower.includes('ejecución') || lower.includes('ejecucion')) {
+        headingColor = PHASE_DESARROLLO;
+        lineColor = PHASE_DESARROLLO;
+      } else if (lower.includes('cierre') || lower.includes('conclusión') || lower.includes('conclusion')) {
+        headingColor = PHASE_CIERRE;
+        lineColor = PHASE_CIERRE;
+      }
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(8.5);
-      doc.setTextColor(...MID);
+      doc.setTextColor(...headingColor);
       doc.text(text, margin, y);
-      doc.setDrawColor(...ACCENT);
+      doc.setDrawColor(...lineColor);
       doc.setLineWidth(0.4);
       doc.line(margin, y + 1, margin + doc.getTextWidth(text), y + 1);
       y += 6;
@@ -272,9 +309,18 @@ export function generateExtraPDF(extra: ExtraInput): jsPDF {
     // H3
     if (line.startsWith('### ')) {
       const text = line.replace(/^### /, '');
+      const lower = text.toLowerCase();
+      let headingColor = MID;
+      if (lower.includes('apertura')) {
+        headingColor = PHASE_APERTURA;
+      } else if (lower.includes('desarrollo') || lower.includes('ejecución') || lower.includes('ejecucion')) {
+        headingColor = PHASE_DESARROLLO;
+      } else if (lower.includes('cierre') || lower.includes('conclusión') || lower.includes('conclusion')) {
+        headingColor = PHASE_CIERRE;
+      }
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(8);
-      doc.setTextColor(...MID);
+      doc.setTextColor(...headingColor);
       doc.text(text, margin, y);
       y += 5.5;
       continue;

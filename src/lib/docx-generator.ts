@@ -1,7 +1,7 @@
 import {
   Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
   AlignmentType, BorderStyle, WidthType, ShadingType, VerticalAlign,
-  PageBreak, Header, Footer, PageNumber, HeadingLevel,
+  PageBreak, Header, Footer, PageNumber,
 } from 'docx';
 import type { GeneratedPlanningContent } from '@/types/planning';
 import { SCHOOL_YEAR } from '@/lib/config';
@@ -330,13 +330,21 @@ function buildSectionIV(content: GeneratedPlanningContent, sequenceJson?: Record
     const blockSeq = sequenceJson?.[i];
     if (blockSeq && blockSeq.sessions && blockSeq.sessions.length > 0) {
       const sc = [Math.floor(CONTENT * 0.08), Math.floor(CONTENT * 0.22), Math.floor(CONTENT * 0.35), CONTENT - Math.floor(CONTENT * 0.08) - Math.floor(CONTENT * 0.22) - Math.floor(CONTENT * 0.35)];
-      const phaseColor: Record<string, string> = { Apertura: '0369a1', Desarrollo: '15803d', Cierre: '7e22ce' };
+      const phaseColor: Record<string, string> = {
+        Apertura: C.apertura,
+        Desarrollo: C.ejecucion,
+        Ejecución: C.ejecucion,
+        Ejecucion: C.ejecucion,
+        Cierre: C.conclusion,
+        Conclusión: C.conclusion,
+        Conclusion: C.conclusion,
+      };
       const sessRows: TableRow[] = [
         new TableRow({ children: [tcH(`Sesiones de 50 minutos — ${blockSeq.sessions.length} sesiones totales`, { w: CONTENT, span: 4, align: AlignmentType.CENTER, size: 17 })] }),
         new TableRow({ children: [tcM('Sesión', { w: sc[0], align: AlignmentType.CENTER }), tcM('Título / Tema', { w: sc[1] }), tcM('Actividad del Docente', { w: sc[2] }), tcM('Actividad del Estudiante / Evidencia', { w: sc[3] })] }),
         ...blockSeq.sessions.map((s, si) => new TableRow({ children: [
           new TableCell({ width: { size: sc[0], type: WidthType.DXA }, shading: { fill: si % 2 === 0 ? C.white : C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, verticalAlign: VerticalAlign.CENTER, children: [
-            new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `${s.phase.charAt(0)} ${s.sessionNum}/${s.totalSessions}`, bold: true, size: 14, font: 'Arial', color: phaseColor[s.phase] || '15803d' })] }),
+            new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `${s.phase.charAt(0)} ${s.sessionNum}/${s.totalSessions}`, bold: true, size: 14, font: 'Arial', color: phaseColor[s.phase] || C.ejecucion })] }),
           ] }),
           new TableCell({ width: { size: sc[1], type: WidthType.DXA }, shading: { fill: si % 2 === 0 ? C.white : C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [new Paragraph({ children: [new TextRun({ text: s.title, bold: true, size: 15, font: 'Arial', color: C.text })] })] }),
           new TableCell({ width: { size: sc[2], type: WidthType.DXA }, shading: { fill: si % 2 === 0 ? C.white : C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [new Paragraph({ children: [new TextRun({ text: s.teachingActivity, size: 14, font: 'Arial', color: C.text })] })] }),
