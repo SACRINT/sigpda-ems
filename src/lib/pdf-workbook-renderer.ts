@@ -56,13 +56,13 @@ import {
   type GlossaryItem,
 } from '@/lib/visual-engine/content-extractor';
 import {
-  generateBookCover,
   generateContraportadaData,
   type ContraportadaData,
   type BookCoverOptions,
 } from '@/lib/visual-engine/cover-generator';
 import {
   loadEditorialFonts,
+  setFontHeading,
   setFontBody,
   setFontCaption,
 } from '@/lib/visual-engine/font-loader';
@@ -245,20 +245,14 @@ export async function renderWorkbookToPdf(
   const pageContextMap = new Map<number, PageContext>();
   pageContextMap.set(1, { isSpecialPage: true, uacName: coverOpts.uacName });
 
-  // ── 1. Portada Editorial Personalizada (Fase V2) ───────────────────────────
+  // ── 1. Portada Editorial Personalizada (Fase V2/V7) ─────────────────────────
+  // Si se provee un buffer pre-generado de portada (e.g. subida manual), se incrusta directamente.
+  // De lo contrario, se invoca drawCoverPage en jsPDF con el diseño V7 dark-institutional completo,
+  // garantizando tipografía vectorial nativa y CERO glifos tofu en Linux/Vercel serverless.
   if (options.coverBuffer) {
     doc.addImage(options.coverBuffer, 'JPEG', 0, 0, pageWidth, pageHeight);
   } else {
-    const coverResult = await generateBookCover(coverOpts).catch((e) => {
-      logger.warn('[pdf-workbook-renderer] Error generando portada editorial:', e);
-      return null;
-    });
-
-    if (coverResult?.buffer) {
-      doc.addImage(coverResult.buffer, 'JPEG', 0, 0, pageWidth, pageHeight);
-    } else {
-      drawCoverPage(doc, workbook, logos, pageWidth, pageHeight, margin);
-    }
+    drawCoverPage(doc, workbook, logos, pageWidth, pageHeight, margin);
   }
 
   // ── 2. Página "Mi plantel / Mi comunidad" (Fase V4) ────────────────────────
@@ -497,17 +491,22 @@ function drawCoverPage(
   margin: number
 ) {
   const contentWidth = pageWidth - margin * 2;
-  let y = margin;
 
-  // Franja superior institucional
-  doc.setFillColor(...NAVY);
-  doc.rect(0, 0, pageWidth, 28, 'F');
+  // 1. Fondo completo Dark Navy (#07101E)
+  doc.setFillColor(7, 16, 30);
+  doc.rect(0, 0, pageWidth, pageHeight, 'F');
 
-  // Insertar logos si están disponibles (detectando formato JPEG o PNG)
+  // 2. Encabezado Institucional Superior (y: 0 - 24mm)
+  doc.setFillColor(6, 12, 22);
+  doc.rect(0, 0, pageWidth, 24, 'F');
+  doc.setFillColor(232, 160, 32); // Línea dorada de acento
+  doc.rect(0, 23.4, pageWidth, 0.6, 'F');
+
+  // Logotipos oficiales en encabezado
   if (logos.gobierno) {
     try {
       const fmt = logos.gobierno.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
-      doc.addImage(logos.gobierno, fmt, margin, 5, 26, 11);
+      doc.addImage(logos.gobierno, fmt, margin, 4, 25, 12);
     } catch (e) {
       logger.warn('[pdf-workbook-renderer] Error insertando logo de gobierno:', { error: e });
     }
@@ -515,123 +514,236 @@ function drawCoverPage(
   if (logos.sep) {
     try {
       const fmt = logos.sep.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
-      doc.addImage(logos.sep, fmt, pageWidth / 2 - 13, 5, 26, 8.5);
+      doc.addImage(logos.sep, fmt, pageWidth - margin - 25, 4.5, 25, 11);
     } catch (e) {
       logger.warn('[pdf-workbook-renderer] Error insertando logo de SEP:', { error: e });
     }
   }
 
-  setFontBody(doc, 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(255, 255, 255);
-  doc.text('SECRETARÍA DE EDUCACIÓN PÚBLICA DE PUEBLA', pageWidth / 2, 22, { align: 'center' });
-
-  y = 38;
-
-  setFontBody(doc, 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(...MID_BLUE);
-  doc.text('DIRECCIÓN DE BACHILLERATOS ESTATALES Y PREPARATORIA ABIERTA (DBEPA)', pageWidth / 2, y, { align: 'center' });
-
-  y += 7;
-  setFontBody(doc, 'bold');
-  doc.setFontSize(11);
-  doc.setTextColor(...DARK_TEXT);
-  doc.text(workbook.coverData.schoolName || 'Bachillerato del Estado de Puebla', pageWidth / 2, y, { align: 'center' });
-
-  y += 5;
-  setFontBody(doc, 'normal');
+  setFontHeading(doc);
   doc.setFontSize(8.5);
-  doc.setTextColor(...MUTED_TEXT);
-  doc.text(
-    `Clave C.C.T.: ${workbook.coverData.cct || '21ECT0017T'} | Subsistema: ${(workbook.subsystem || 'BGE').toUpperCase()}`,
-    pageWidth / 2,
-    y,
-    { align: 'center' }
-  );
+  doc.setTextColor(255, 255, 255);
+  doc.text('SECRETARÍA DE EDUCACIÓN PÚBLICA DEL ESTADO DE PUEBLA', pageWidth / 2, 8.5, { align: 'center' });
 
-  y += 15;
-  // Cuadro decorativo central
-  doc.setFillColor(...LIGHT_BG);
-  doc.roundedRect(margin, y, pageWidth - margin * 2, 55, 3, 3, 'F');
-  doc.setDrawColor(...MID_BLUE);
-  doc.setLineWidth(0.6);
-  doc.roundedRect(margin, y, pageWidth - margin * 2, 55, 3, 3, 'S');
+  doc.setFontSize(7.2);
+  doc.setTextColor(232, 160, 32);
+  doc.text('DIRECCIÓN DE BACHILLERATOS ESTATALES Y PREPARATORIA ABIERTA (DBEPA)', pageWidth / 2, 13.8, { align: 'center' });
 
-  // -- Título de portada: ajuste adaptativo para caber en 1 sola línea --
-  // Reduce el tamaño de fuente desde 18pt hasta 12pt (umbral de legibilidad)
-  // antes de permitir el salto a 2 líneas.
-  const coverTitle = (workbook.coverData.title || workbook.blockName || workbook.coverData.subjectName || 'CUADERNO DE APRENDIZAJE ACTIVO').toUpperCase();
-  const maxTitleW = pageWidth - margin * 2 - 16;
+  setFontBody(doc, 'normal');
+  doc.setFontSize(6.2);
+  doc.setTextColor(148, 163, 184);
+  doc.text(`SUBSECRETARÍA DE EDUCACIÓN MEDIA SUPERIOR · MCCEMS ${SCHOOL_YEAR}`, pageWidth / 2, 19, { align: 'center' });
+
+  // 3. Ficha del Plantel y Subsistema (y: 28 - 49mm)
+  doc.setFillColor(11, 27, 51);
+  doc.roundedRect(margin, 28, contentWidth, 21, 2.5, 2.5, 'F');
+  doc.setDrawColor(46, 116, 181);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(margin, 28, contentWidth, 21, 2.5, 2.5, 'S');
+
+  // Barra de acento dorada lateral izquierda
+  doc.setFillColor(232, 160, 32);
+  doc.roundedRect(margin, 28, 2.5, 21, 1, 1, 'F');
+
+  const schoolName = (workbook.coverData?.schoolName || 'Bachillerato General Oficial').toUpperCase();
+  setFontHeading(doc);
+  doc.setFontSize(9.5);
+  doc.setTextColor(255, 255, 255);
+  const schoolLines = doc.splitTextToSize(schoolName, contentWidth - 14);
+  doc.text(schoolLines[0], margin + 6, 34);
+
+  const cct = workbook.coverData?.cct || '21ECT0017T';
+  const subsistema = (workbook.subsystem || 'BGE').toUpperCase();
+  const rawSem = workbook.coverData?.semester;
+  const semStr = rawSem ? (String(rawSem).toLowerCase().includes('semestre') ? String(rawSem) : `${rawSem}° Semestre`) : 'Segundo Semestre';
+
+  setFontHeading(doc);
+  doc.setFontSize(7.2);
+  doc.setTextColor(232, 160, 32);
+  doc.text(`CLAVE C.C.T.: ${cct}   ·   SUBSISTEMA: ${subsistema}   ·   ${semStr.toUpperCase()}`, margin + 6, 40.5);
+
+  setFontBody(doc, 'normal');
+  doc.setFontSize(6.2);
+  doc.setTextColor(148, 163, 184);
+  doc.text(`Ciclo Escolar Oficial ${SCHOOL_YEAR}   |   Coordinación de Desarrollo Curricular EMS Puebla`, margin + 6, 45.5);
+
+  // 4. Núcleo Editorial Hero UAC (y: 52 - 190mm)
+  doc.setFillColor(8, 20, 38);
+  doc.roundedRect(margin, 52, contentWidth, 138, 3, 3, 'F');
+  doc.setDrawColor(31, 56, 100);
+  doc.setLineWidth(0.4);
+  doc.roundedRect(margin, 52, contentWidth, 138, 3, 3, 'S');
+
+  // Badges superiores
+  doc.setFillColor(31, 56, 100);
+  doc.setDrawColor(46, 116, 181);
+  doc.setLineWidth(0.2);
+  doc.roundedRect(margin + 6, 56, 62, 5.5, 1.2, 1.2, 'FD');
+  setFontHeading(doc);
+  doc.setFontSize(6.2);
+  doc.setTextColor(246, 201, 14);
+  doc.text('NUEVA ESCUELA MEXICANA (NEM)', margin + 37, 59.8, { align: 'center' });
+
+  setFontHeading(doc);
+  doc.setFontSize(6.2);
+  doc.setTextColor(148, 163, 184);
+  doc.text('RECURSO SOCIOCOGNITIVO / SOCIOEMOCIONAL', margin + 73, 59.8);
+
+  // Título Principal UAC con auto-escalado
+  const rawTitle = (workbook.coverData?.subjectName || workbook.blockName || 'CUADERNO DE APRENDIZAJE ACTIVO').toUpperCase();
   let titleFontSize = 18;
-  const MIN_TITLE_SIZE = 12;
-  // Reducir tamaño hasta que quede en 1 línea o lleguemos al mínimo
-  while (titleFontSize > MIN_TITLE_SIZE) {
+  const maxTitleW = contentWidth - 16;
+  while (titleFontSize > 12) {
     doc.setFontSize(titleFontSize);
-    const testLines = doc.splitTextToSize(coverTitle, maxTitleW);
-    if (testLines.length <= 1) break;
+    const testLines = doc.splitTextToSize(rawTitle, maxTitleW);
+    if (testLines.length <= 2) break;
     titleFontSize -= 0.5;
   }
-  setFontBody(doc, 'bold');
+  setFontHeading(doc);
   doc.setFontSize(titleFontSize);
-  doc.setTextColor(...DARK_TEXT);
-  const titleLines = doc.splitTextToSize(coverTitle, maxTitleW);
-  doc.text(titleLines.slice(0, 2), pageWidth / 2, y + 16, { align: 'center' });
+  doc.setTextColor(255, 255, 255);
+  const titleLines = doc.splitTextToSize(rawTitle, maxTitleW);
+  doc.text(titleLines, margin + 8, 70);
+  const yDivider = 70 + (titleLines.length - 1) * (titleFontSize * 0.42) + 5;
 
+  // Divisor dorado
+  doc.setDrawColor(232, 160, 32);
+  doc.setLineWidth(0.7);
+  doc.line(margin + 8, yDivider, pageWidth - margin - 8, yDivider);
 
-  setFontCaption(doc);
-  doc.setFontSize(9.5);
-  doc.setTextColor(...GOLD);
-  const coverSub = workbook.coverData.subtitle || workbook.blockName || 'Bachillerato General Estatal · MCCEMS Puebla';
-  const subLines = doc.splitTextToSize(coverSub, pageWidth - margin * 2 - 16);
-  doc.text(subLines, pageWidth / 2, y + 30, { align: 'center' });
+  // Bloque curricular formativo
+  const yBlock = yDivider + 4;
+  doc.setFillColor(13, 30, 56);
+  doc.setDrawColor(46, 116, 181);
+  doc.setLineWidth(0.2);
+  doc.roundedRect(margin + 8, yBlock, contentWidth - 16, 18, 1.8, 1.8, 'FD');
 
-  setFontBody(doc, 'bold');
-  doc.setFontSize(10.5);
-  doc.setTextColor(...DARK_TEXT);
-  doc.text(
-    `UAC: ${workbook.coverData.subjectName} (${workbook.coverData.semester}° Semestre)`,
-    pageWidth / 2,
-    y + 44,
-    { align: 'center' }
-  );
+  setFontHeading(doc);
+  doc.setFontSize(6.5);
+  doc.setTextColor(232, 160, 32);
+  doc.text('ORGANIZACIÓN CURRICULAR POR PROGRESIONES', margin + 12, yBlock + 5);
 
-  y += 68;
-
-  // Proyecto PAEC
-  setFontBody(doc, 'bold');
+  const blockTitle = workbook.blockName
+    ? ((workbook.blockIndex !== undefined ? `BLOQUE ${workbook.blockIndex + 1}: ` : '') + workbook.blockName)
+    : 'FORMACIÓN FUNDAMENTAL Y LABORAL';
+  setFontHeading(doc);
   doc.setFontSize(9);
-  doc.setTextColor(...NAVY);
-  doc.text('PROYECTO COMUNITARIO ESCOLAR (PAEC):', margin + 4, y);
-  y += 5;
-  setFontCaption(doc);
-  doc.setFontSize(8.5);
-  doc.setTextColor(...DARK_TEXT);
-  const paecLines = doc.splitTextToSize(
-    workbook.coverData.paecProjectName || 'Vinculación de aprendizajes disciplinares con el contexto comunitario.',
-    pageWidth - margin * 2 - 8
-  );
-  doc.text(paecLines, margin + 4, y);
-  y += paecLines.length * 4.5 + 8;
+  doc.setTextColor(255, 255, 255);
+  const bLines = doc.splitTextToSize(blockTitle, contentWidth - 24);
+  doc.text(bLines.slice(0, 2), margin + 12, yBlock + 11.5);
 
-  // Datos de Estudiante y Docente
-  setFontBody(doc, 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(...DARK_TEXT);
-  const teacherText = `Docente Titular: ${workbook.coverData.teacherName || 'Docente de Bachillerato'}`;
-  const teacherLines = doc.splitTextToSize(teacherText, contentWidth - 8);
-  teacherLines.forEach((tLine: string, tIdx: number) => {
-    doc.text(tLine, margin + 4, y + tIdx * 4.5);
+  // Proyecto PAEC (si está disponible)
+  let yPillars = yBlock + 21;
+  if (workbook.coverData?.paecProjectName) {
+    const yPaec = yBlock + 21;
+    doc.setFillColor(128, 0, 32);
+    doc.setDrawColor(248, 113, 113);
+    doc.setLineWidth(0.2);
+    doc.roundedRect(margin + 8, yPaec, contentWidth - 16, 14, 1.8, 1.8, 'FD');
+
+    setFontHeading(doc);
+    doc.setFontSize(6.2);
+    doc.setTextColor(248, 113, 113);
+    doc.text('PROYECTO ESCOLAR COMUNITARIO (PAEC)', margin + 12, yPaec + 4.5);
+
+    setFontBody(doc, 'bold');
+    doc.setFontSize(7.2);
+    doc.setTextColor(255, 255, 255);
+    const paecLines = doc.splitTextToSize(workbook.coverData.paecProjectName, contentWidth - 24);
+    doc.text(paecLines.slice(0, 1), margin + 12, yPaec + 9.5);
+    yPillars = yPaec + 17;
+  }
+
+  // 4 Pilares del Aprendizaje Activo
+  setFontHeading(doc);
+  doc.setFontSize(6.2);
+  doc.setTextColor(148, 163, 184);
+  doc.text('ARQUITECTURA DE APRENDIZAJE ACTIVO:', margin + 8, yPillars + 3);
+
+  const pillSpacing = 2.5;
+  const pillW = (contentWidth - 16 - pillSpacing * 3) / 4;
+  const pillars = ['1. Concepto Cero', '2. Práctica Guiada', '3. Reto Autónomo', '4. Rúbrica & Resiliencia'];
+  pillars.forEach((pText, pIdx) => {
+    const px = margin + 8 + pIdx * (pillW + pillSpacing);
+    doc.setFillColor(31, 56, 100);
+    doc.roundedRect(px, yPillars + 5, pillW, 7, 1.2, 1.2, 'F');
+    setFontHeading(doc);
+    doc.setFontSize(5.8);
+    doc.setTextColor(255, 255, 255);
+    doc.text(pText, px + pillW / 2, yPillars + 9.5, { align: 'center' });
   });
-  y += Math.max(10, teacherLines.length * 4.5 + 4);
-  doc.setDrawColor(180, 190, 205);
+
+  // 5. Tarjeta Inferior de Identidad y Alumno (y: 194 - 262mm)
+  doc.setFillColor(11, 25, 44);
+  doc.roundedRect(margin, 194, contentWidth, 68, 2.5, 2.5, 'F');
+  doc.setDrawColor(232, 160, 32);
   doc.setLineWidth(0.4);
+  doc.roundedRect(margin, 194, contentWidth, 68, 2.5, 2.5, 'S');
 
-  doc.text('Estudiante:', margin + 4, y);
-  doc.line(margin + 24, y, pageWidth - margin - 4, y);
+  setFontHeading(doc);
+  doc.setFontSize(12);
+  doc.setTextColor(232, 160, 32);
+  doc.text('CUADERNO DE APRENDIZAJE ACTIVO', margin + 8, 202);
 
-  y += 10;
-  doc.text(`Grupo: ____________    Turno: ____________    Ciclo Escolar: ${SCHOOL_YEAR}`, margin + 4, y);
+  setFontHeading(doc);
+  doc.setFontSize(7.5);
+  doc.setTextColor(255, 255, 255);
+  doc.text('Edición Oficial para el Estudiante · Con Espacios Interactivos y Talleres de Aplicación', margin + 8, 207);
+
+  setFontBody(doc, 'normal');
+  doc.setFontSize(6.2);
+  doc.setTextColor(148, 163, 184);
+  doc.text('Diseñado para el desarrollo de progresiones de aprendizaje, pensamiento crítico y proyectos integradores.', margin + 8, 211.5);
+
+  const teacherText = `Docente Titular: ${workbook.coverData?.teacherName || 'Docente de Bachillerato'}`;
+  setFontBody(doc, 'bold');
+  doc.setFontSize(7);
+  doc.setTextColor(232, 160, 32);
+  doc.text(teacherText, margin + 8, 217);
+
+  // Casillas de datos para el alumno
+  const box1W = 86;
+  doc.setFillColor(19, 39, 67);
+  doc.setDrawColor(46, 116, 181);
+  doc.setLineWidth(0.2);
+  doc.roundedRect(margin + 8, 221, box1W, 18, 1.5, 1.5, 'FD');
+  setFontHeading(doc);
+  doc.setFontSize(5.8);
+  doc.setTextColor(148, 163, 184);
+  doc.text('NOMBRE DEL ESTUDIANTE:', margin + 11, 226);
+  doc.setDrawColor(71, 85, 105);
+  doc.line(margin + 11, 234, margin + 90, 234);
+
+  const box2X = margin + 98;
+  const box2W = 38;
+  doc.roundedRect(box2X, 221, box2W, 18, 1.5, 1.5, 'FD');
+  setFontHeading(doc);
+  doc.setFontSize(5.8);
+  doc.setTextColor(148, 163, 184);
+  doc.text('GRUPO / TURNO:', box2X + 3, 226);
+  doc.line(box2X + 3, 234, box2X + box2W - 3, 234);
+
+  const box3X = margin + 140;
+  const box3W = contentWidth - 148;
+  doc.roundedRect(box3X, 221, box3W, 18, 1.5, 1.5, 'FD');
+  setFontHeading(doc);
+  doc.setFontSize(5.8);
+  doc.setTextColor(148, 163, 184);
+  doc.text('NÚMERO DE LISTA:', box3X + 3, 226);
+  doc.line(box3X + 3, 234, box3X + box3W - 3, 234);
+
+  setFontBody(doc, 'normal');
+  doc.setFontSize(6.2);
+  doc.setTextColor(148, 163, 184);
+  doc.text(`Subsistema Oficial: ${(workbook.subsystem || 'BGE').toUpperCase()} · Modalidad Escolarizada · Ciclo Escolar: ${SCHOOL_YEAR}`, margin + 8, 255);
+
+  // 6. Cintillo de Pie Oficial (y: 266 - 279.4mm)
+  doc.setFillColor(4, 8, 16);
+  doc.rect(0, 266, pageWidth, 13.4, 'F');
+  setFontBody(doc, 'bold');
+  doc.setFontSize(6.5);
+  doc.setTextColor(100, 116, 139);
+  doc.text(`PUEBLA, MÉXICO · SECRETARÍA DE EDUCACIÓN PÚBLICA · SISTEMA SIGPDA-EMS MCCEMS ${SCHOOL_YEAR}`, pageWidth / 2, 274, { align: 'center' });
 }
 
 /**
@@ -1040,7 +1152,7 @@ export function printParagraph(
     lineHeight = 4.8,
     justify = true,
     parseParagraphs = false,
-    paragraphSpacing = 2.5,
+    paragraphSpacing = 3.5,
   } = options;
 
   // Sanitizar texto en una sola pasada al inicio: elimina asteriscos markdown y caracteres no-WinAnsi
@@ -1053,7 +1165,11 @@ export function printParagraph(
   let y = startY;
 
   if (parseParagraphs) {
-    const rawParagraphs = cleanText.split(/\r?\n\r?\n/).map((p) => p.trim()).filter(Boolean);
+    const stepProtected = cleanText
+      .replace(/(?:^|\n|\.\s+)(Paso\s+\d+\s*[:\-])/gi, '\n\n$1')
+      .replace(/(?:^|\n)(\d+[\.\)]\s+)/g, '\n\n$1')
+      .replace(/(?:^|\n)([•\-\*]\s+)/g, '\n\n$1');
+    const rawParagraphs = stepProtected.split(/\r?\n\r?\n/).map((p) => p.trim()).filter(Boolean);
     for (let pIdx = 0; pIdx < rawParagraphs.length; pIdx++) {
       const p = rawParagraphs[pIdx];
       const isBullet = /^[•\-\*]\s+/.test(p) || /^\d+[\.\)]\s+/.test(p);
