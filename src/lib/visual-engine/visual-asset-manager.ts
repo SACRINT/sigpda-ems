@@ -14,7 +14,6 @@ import { searchOpenverseImages, type OpenverseImageResult } from './openverse-cl
 import {
   saveImageAsset,
   getImageAssetByMission,
-  getImageAssetsByBlock,
 } from '@/lib/db';
 import type { ImageAsset } from '@/types/planning';
 import type { MissionSection } from '@/types/work-textbook';
@@ -37,6 +36,7 @@ export interface ResolveVisualOptions {
   contextText?: string;
   preferOpenverseMedia?: boolean;
   preferOpenverseForSciences?: boolean; // Deprecated alias
+  usedAssetIds?: Set<string>;
 }
 
 export interface ResolvedVisual {
@@ -126,16 +126,26 @@ export async function resolveVisualForMission(
 
   const preferMedia = preferOpenverseMedia ?? preferOpenverseForSciences ?? false;
 
-  // 1. Si hay planningId, verificar si ya existe un activo persistido en BD
+  // 1. Si hay planningId, verificar si ya existe un activo persistido en BD que no esté duplicado
   if (planningId) {
     try {
       const existing = await getImageAssetByMission(planningId, blockIndex, missionIndex);
       if (existing) {
-        return {
-          type: existing.source === 'openverse' ? 'openverse_media' : 'vector_svg',
-          mediaAsset: existing,
-          caption: existing.caption,
-        };
+        const isDuplicate = options.usedAssetIds && (
+          (existing.externalId && options.usedAssetIds.has(existing.externalId)) ||
+          (existing.imageUrl && options.usedAssetIds.has(existing.imageUrl))
+        );
+        if (!isDuplicate) {
+          if (options.usedAssetIds) {
+            if (existing.externalId) options.usedAssetIds.add(existing.externalId);
+            if (existing.imageUrl) options.usedAssetIds.add(existing.imageUrl);
+          }
+          return {
+            type: existing.source === 'openverse' ? 'openverse_media' : 'vector_svg',
+            mediaAsset: existing,
+            caption: existing.caption,
+          };
+        }
       }
     } catch {
       // Continuar con resolución en memoria si falla consulta de base de datos
@@ -150,7 +160,7 @@ export async function resolveVisualForMission(
         query: searchQuery,
         subjectName: uacName,
         missionNumber: missionIndex,
-        pageSize: 2,
+        pageSize: 4,
         timeoutMs: 3500,
       });
 
@@ -167,14 +177,24 @@ export async function resolveVisualForMission(
             query: fallbackSubjectQuery,
             subjectName: uacName,
             missionNumber: missionIndex,
-            pageSize: 1,
+            pageSize: 4,
             timeoutMs: 2500,
           });
         }
       }
 
-      if (openverseImages.length > 0) {
-        const top = openverseImages[0];
+      // Deduplicación contra activos ya asignados en el libro
+      const candidate = openverseImages.find((img) => {
+        if (!options.usedAssetIds) return true;
+        return !options.usedAssetIds.has(img.id) && !options.usedAssetIds.has(img.url);
+      });
+
+      if (candidate) {
+        const top = candidate;
+        if (options.usedAssetIds) {
+          options.usedAssetIds.add(top.id);
+          options.usedAssetIds.add(top.url);
+        }
         let savedAsset: ImageAsset | undefined;
 
         if (planningId) {

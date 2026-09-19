@@ -46,6 +46,7 @@ export interface OpenverseSearchOptions {
   pageSize?: number;
   timeoutMs?: number;
   contextualKeyword?: string;
+  page?: number;
 }
 
 /**
@@ -88,6 +89,7 @@ export async function searchOpenverseImages(
     pageSize = 3,
     timeoutMs = 4000,
     contextualKeyword,
+    page,
   } = options;
 
   if (!query || query.trim().length < 2) {
@@ -107,6 +109,9 @@ export async function searchOpenverseImages(
   const url = new URL(API_CONFIG.openverse.endsWith('/') ? API_CONFIG.openverse : `${API_CONFIG.openverse}/`);
   url.searchParams.set('q', cleanQuery);
   url.searchParams.set('page_size', String(pageSize));
+  // Rotación segura entre páginas 1 a 5 para diversificar imágenes sin exceder límites de resultados
+  const pageParam = page ?? ((Math.max(0, missionNumber) % 5) + 1);
+  url.searchParams.set('page', String(pageParam));
   url.searchParams.set('mature', 'false');
   // Filtro de licencias seguras para uso educativo y reedición
   url.searchParams.set('license_type', 'commercial,modification');
@@ -134,25 +139,25 @@ export async function searchOpenverseImages(
     const data = await response.json();
     const results = Array.isArray(data.results) ? data.results : [];
 
-    return results.map((item: any, idx: number): OpenverseImageResult => {
-      const title = item.title || `Ilustración científica sobre ${cleanQuery}`;
-      const creator = item.creator || 'Dominio Público / Wikimedia';
-      const license = item.license || 'cc-by';
-      const licenseVersion = item.license_version || '4.0';
+    return results.map((item: Record<string, unknown>, idx: number): OpenverseImageResult => {
+      const title = (typeof item.title === 'string' ? item.title : '') || `Ilustración científica sobre ${cleanQuery}`;
+      const creator = (typeof item.creator === 'string' ? item.creator : '') || 'Dominio Público / Wikimedia';
+      const license = (typeof item.license === 'string' ? item.license : '') || 'cc-by';
+      const licenseVersion = (typeof item.license_version === 'string' ? item.license_version : '') || '4.0';
 
       return {
         id: String(item.id || ''),
         title,
         creator,
-        creatorUrl: item.creator_url || undefined,
+        creatorUrl: typeof item.creator_url === 'string' ? item.creator_url : undefined,
         license,
         licenseVersion,
-        licenseUrl: item.license_url || `https://creativecommons.org/licenses/${license.toLowerCase()}/${licenseVersion}/`,
-        foreignLandingUrl: item.foreign_landing_url || item.url || '',
-        url: item.url || item.thumbnail || '',
-        thumbnail: item.thumbnail || item.url || '',
-        width: item.width || undefined,
-        height: item.height || undefined,
+        licenseUrl: typeof item.license_url === 'string' ? item.license_url : `https://creativecommons.org/licenses/${license.toLowerCase()}/${licenseVersion}/`,
+        foreignLandingUrl: (typeof item.foreign_landing_url === 'string' ? item.foreign_landing_url : '') || (typeof item.url === 'string' ? item.url : ''),
+        url: (typeof item.url === 'string' ? item.url : '') || (typeof item.thumbnail === 'string' ? item.thumbnail : ''),
+        thumbnail: (typeof item.thumbnail === 'string' ? item.thumbnail : '') || (typeof item.url === 'string' ? item.url : ''),
+        width: typeof item.width === 'number' ? item.width : undefined,
+        height: typeof item.height === 'number' ? item.height : undefined,
         caption: buildInstitutionalCaption(
           title,
           creator,
@@ -163,12 +168,14 @@ export async function searchOpenverseImages(
         ),
       };
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     clearTimeout(timer);
-    if (err.name === 'AbortError') {
+    const errorName = (err as { name?: string })?.name;
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    if (errorName === 'AbortError') {
       logger.warn(`[OpenverseClient] Timeout (${timeoutMs}ms) buscando "${cleanQuery}"`);
     } else {
-      logger.warn(`[OpenverseClient] Error en fetch: ${err.message}`);
+      logger.warn(`[OpenverseClient] Error en fetch: ${errorMessage}`);
     }
     return [];
   }

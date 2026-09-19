@@ -31,6 +31,9 @@ import {
   getRotationalContextKeyword,
 } from './openverse-client';
 import { downloadAndProcessImage } from './image-downloader';
+import { montserratBoldB64 } from './fonts/montserrat-bold';
+import { latoRegularB64 } from './fonts/lato-regular';
+import { latoBoldB64 } from './fonts/lato-bold';
 
 export interface BookCoverOptions {
   plantelNombre: string;
@@ -152,8 +155,8 @@ function layoutTitleForSvg(text: string, maxWidth = 920): { lines: string[]; fon
   }
 
   // 1. Intentar en 2 líneas
-  let lines = partition(2);
-  let maxChars = Math.max(...lines.map((l) => l.length));
+  const lines = partition(2);
+  const maxChars = Math.max(...lines.map((l) => l.length));
   let fs = 58;
 
   while (fs * 0.75 * maxChars > maxWidth && fs > 34) {
@@ -176,6 +179,51 @@ function layoutTitleForSvg(text: string, maxWidth = 920): { lines: string[]; fon
   return { lines, fontSize: fs };
 }
 
+
+/**
+ * Embebe las fuentes institucionales oficiales (Montserrat Bold, Lato Regular, Lato Bold)
+ * directamente en Base64 en el bloque <defs><style> de los SVGs.
+ * Esto erradica de raíz los glifos tofu (□□□□) cuando librsvg/sharp rasteriza portadas
+ * en entornos de servidor sin fuentes de sistema preinstaladas.
+ */
+function buildEmbeddedFontStyle(): string {
+  return `
+    <style>
+      @font-face {
+        font-family: 'Montserrat';
+        font-weight: 700;
+        font-style: normal;
+        src: url('data:font/ttf;charset=utf-8;base64,${montserratBoldB64}') format('truetype');
+      }
+      @font-face {
+        font-family: 'Montserrat';
+        font-weight: 900;
+        font-style: normal;
+        src: url('data:font/ttf;charset=utf-8;base64,${montserratBoldB64}') format('truetype');
+      }
+      @font-face {
+        font-family: 'Lato';
+        font-weight: 400;
+        font-style: normal;
+        src: url('data:font/ttf;charset=utf-8;base64,${latoRegularB64}') format('truetype');
+      }
+      @font-face {
+        font-family: 'Lato';
+        font-weight: 600;
+        font-style: normal;
+        src: url('data:font/ttf;charset=utf-8;base64,${latoBoldB64}') format('truetype');
+      }
+      @font-face {
+        font-family: 'Lato';
+        font-weight: 700;
+        font-style: normal;
+        src: url('data:font/ttf;charset=utf-8;base64,${latoBoldB64}') format('truetype');
+      }
+      text {
+        font-family: 'Lato', 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      }
+    </style>`;
+}
 
 /**
  * Genera el marcado SVG de alta definición (1200 x 1600 px) para la portada institucional Capa 0.
@@ -209,6 +257,7 @@ function buildDeterministicCoverSvg(opts: BookCoverOptions): string {
       <stop offset="50%" stop-color="#F6C90E" />
       <stop offset="100%" stop-color="#E8A020" />
     </linearGradient>
+    ${buildEmbeddedFontStyle()}
   </defs>
 
   <!-- Fondo Temático Vectorial Situado V7 (${area}) -->
@@ -225,13 +274,13 @@ function buildDeterministicCoverSvg(opts: BookCoverOptions): string {
   </g>
 
   <!-- Textos de Cabecera Oficial -->
-  <text x="160" y="62" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="21" font-weight="bold" fill="#FFFFFF" letter-spacing="1.5">
+  <text x="160" y="62" font-family="'Montserrat', sans-serif" font-size="21" font-weight="bold" fill="#FFFFFF" letter-spacing="1.5">
     SECRETARÍA DE EDUCACIÓN PÚBLICA DEL ESTADO DE PUEBLA
   </text>
-  <text x="160" y="94" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="16" font-weight="600" fill="#E8A020" letter-spacing="1.2">
+  <text x="160" y="94" font-family="'Montserrat', sans-serif" font-size="16" font-weight="600" fill="#E8A020" letter-spacing="1.2">
     DIRECCIÓN DE BACHILLERATOS ESTATALES Y PREPARATORIA ABIERTA (DBEPA)
   </text>
-  <text x="160" y="120" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#94A3B8">
+  <text x="160" y="120" font-family="'Lato', sans-serif" font-size="13" font-weight="normal" fill="#94A3B8">
     SUBSECRETARÍA DE EDUCACIÓN MEDIA SUPERIOR · MCCEMS ${SCHOOL_YEAR}
   </text>
 
@@ -241,13 +290,13 @@ function buildDeterministicCoverSvg(opts: BookCoverOptions): string {
     <rect x="0" y="0" width="1040" height="135" rx="14" fill="#0B1B33" fill-opacity="0.8" stroke="#2E74B5" stroke-width="1.5" />
     <rect x="0" y="0" width="10" height="135" rx="4" fill="url(#goldGrad)" />
 
-    <text x="36" y="44" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="26" font-weight="bold" fill="#FFFFFF">
+    <text x="36" y="44" font-family="'Montserrat', sans-serif" font-size="26" font-weight="bold" fill="#FFFFFF">
       ${plantel}
     </text>
-    <text x="36" y="80" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="18" font-weight="600" fill="#E8A020">
+    <text x="36" y="80" font-family="'Montserrat', sans-serif" font-size="18" font-weight="600" fill="#E8A020">
       CLAVE C.C.T.: ${cct}   ·   SUBSISTEMA: ${subsistema}   ·   ${semestre.toUpperCase()}
     </text>
-    <text x="36" y="112" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="15" font-weight="normal" fill="#94A3B8">
+    <text x="36" y="112" font-family="'Lato', sans-serif" font-size="15" font-weight="normal" fill="#94A3B8">
       Ciclo Escolar Oficial ${ciclo}   |   Coordinación de Desarrollo Curricular EMS Puebla
     </text>
   </g>
@@ -259,12 +308,12 @@ function buildDeterministicCoverSvg(opts: BookCoverOptions): string {
 
     <!-- Distintivo Superior del Modelo Educativo -->
     <rect x="40" y="40" width="370" height="38" rx="8" fill="#1F3864" stroke="#2E74B5" stroke-width="1" />
-    <text x="56" y="65" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#F6C90E" letter-spacing="1">
+    <text x="56" y="65" font-family="'Montserrat', sans-serif" font-size="13" font-weight="bold" fill="#F6C90E" letter-spacing="1">
       NUEVA ESCUELA MEXICANA (NEM)
     </text>
 
     <!-- Sub-etiqueta de Tipo de Recurso -->
-    <text x="430" y="65" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#94A3B8" letter-spacing="1.2">
+    <text x="430" y="65" font-family="'Montserrat', sans-serif" font-size="13" font-weight="600" fill="#94A3B8" letter-spacing="1.2">
       RECURSO SOCIOCOGNITIVO / SOCIOEMOCIONAL
     </text>
 
@@ -272,7 +321,7 @@ function buildDeterministicCoverSvg(opts: BookCoverOptions): string {
     ${titleLines
       .map(
         (line, idx) => `
-    <text x="40" y="${titleStartY + idx * lineSpacing}" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="${titleFontSize}" font-weight="900" fill="#FFFFFF" letter-spacing="0.5">
+    <text x="40" y="${titleStartY + idx * lineSpacing}" font-family="'Montserrat', sans-serif" font-size="${titleFontSize}" font-weight="900" fill="#FFFFFF" letter-spacing="0.5">
       ${line}
     </text>`
       )
@@ -284,10 +333,10 @@ function buildDeterministicCoverSvg(opts: BookCoverOptions): string {
     <!-- Título del Bloque Formativo -->
     <g transform="translate(40, ${titleStartY + 65 + totalTitleOffset})">
       <rect x="0" y="0" width="960" height="100" rx="12" fill="#0D1E38" stroke="#2E74B5" stroke-width="1.2" />
-      <text x="24" y="38" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#E8A020" letter-spacing="1.5">
+      <text x="24" y="38" font-family="'Montserrat', sans-serif" font-size="14" font-weight="bold" fill="#E8A020" letter-spacing="1.5">
         ORGANIZACIÓN CURRICULAR POR PROGRESIONES
       </text>
-      <text x="24" y="74" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="22" font-weight="bold" fill="#FFFFFF">
+      <text x="24" y="74" font-family="'Montserrat', sans-serif" font-size="22" font-weight="bold" fill="#FFFFFF">
         ${blockTitle}
       </text>
     </g>
@@ -298,10 +347,10 @@ function buildDeterministicCoverSvg(opts: BookCoverOptions): string {
         ? `
     <g transform="translate(40, ${titleStartY + 185 + totalTitleOffset})">
       <rect x="0" y="0" width="960" height="66" rx="10" fill="#800020" fill-opacity="0.3" stroke="#800020" stroke-width="1.5" />
-      <text x="24" y="26" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" fill="#F87171" letter-spacing="1">
+      <text x="24" y="26" font-family="'Montserrat', sans-serif" font-size="12" font-weight="bold" fill="#F87171" letter-spacing="1">
         PROYECTO ESCOLAR COMUNITARIO (PAEC)
       </text>
-      <text x="24" y="52" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="16" font-weight="600" fill="#FFFFFF">
+      <text x="24" y="52" font-family="'Lato', sans-serif" font-size="16" font-weight="600" fill="#FFFFFF">
         ${paec}
       </text>
     </g>`
@@ -310,28 +359,28 @@ function buildDeterministicCoverSvg(opts: BookCoverOptions): string {
 
     <!-- Pilares Pedagógicos del Libro Activo -->
     <g transform="translate(40, ${titleStartY + (paec ? 275 : 190) + totalTitleOffset})">
-      <text x="0" y="0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#94A3B8" letter-spacing="1.2">
+      <text x="0" y="0" font-family="'Montserrat', sans-serif" font-size="13" font-weight="bold" fill="#94A3B8" letter-spacing="1.2">
         ARQUITECTURA DE APRENDIZAJE ACTIVO:
       </text>
 
       <g transform="translate(0, 18)">
         <rect x="0" y="0" width="220" height="46" rx="8" fill="#1F3864" />
-        <text x="110" y="28" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#FFFFFF">
+        <text x="110" y="28" text-anchor="middle" font-family="'Montserrat', sans-serif" font-size="13" font-weight="bold" fill="#FFFFFF">
           1. Concepto Cero
         </text>
 
         <rect x="240" y="0" width="220" height="46" rx="8" fill="#1F3864" />
-        <text x="350" y="28" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#FFFFFF">
+        <text x="350" y="28" text-anchor="middle" font-family="'Montserrat', sans-serif" font-size="13" font-weight="bold" fill="#FFFFFF">
           2. Práctica Guiada
         </text>
 
         <rect x="480" y="0" width="220" height="46" rx="8" fill="#1F3864" />
-        <text x="590" y="28" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#FFFFFF">
+        <text x="590" y="28" text-anchor="middle" font-family="'Montserrat', sans-serif" font-size="13" font-weight="bold" fill="#FFFFFF">
           3. Reto Autónomo
         </text>
 
         <rect x="720" y="0" width="240" height="46" rx="8" fill="#1F3864" />
-        <text x="840" y="28" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#FFFFFF">
+        <text x="840" y="28" text-anchor="middle" font-family="'Montserrat', sans-serif" font-size="13" font-weight="bold" fill="#FFFFFF">
           4. Rúbrica &amp; Resiliencia
         </text>
       </g>
@@ -342,32 +391,32 @@ function buildDeterministicCoverSvg(opts: BookCoverOptions): string {
   <g transform="translate(80, 1180)">
     <rect x="0" y="0" width="1040" height="280" rx="16" fill="#0B192C" fill-opacity="0.9" stroke="#E8A020" stroke-width="1.8" />
 
-    <text x="50" y="60" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="34" font-weight="900" fill="#E8A020" letter-spacing="3">
+    <text x="50" y="60" font-family="'Montserrat', sans-serif" font-size="34" font-weight="900" fill="#E8A020" letter-spacing="3">
       CUADERNO DE APRENDIZAJE ACTIVO
     </text>
-    <text x="50" y="100" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="20" font-weight="600" fill="#FFFFFF">
+    <text x="50" y="100" font-family="'Montserrat', sans-serif" font-size="20" font-weight="600" fill="#FFFFFF">
       Edición Oficial para el Estudiante · Con Espacios Interactivos y Talleres de Aplicación
     </text>
-    <text x="50" y="135" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="15" font-weight="normal" fill="#94A3B8">
+    <text x="50" y="135" font-family="'Lato', sans-serif" font-size="15" font-weight="normal" fill="#94A3B8">
       Diseñado para el desarrollo de progresiones de aprendizaje, pensamiento crítico y proyectos integradores.
     </text>
 
     <!-- Datos de Alumno y Grupo -->
     <g transform="translate(50, 165)">
       <rect x="0" y="0" width="450" height="75" rx="8" fill="#132743" stroke="#2E74B5" stroke-width="1" />
-      <text x="16" y="26" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" fill="#94A3B8">
+      <text x="16" y="26" font-family="'Montserrat', sans-serif" font-size="12" font-weight="bold" fill="#94A3B8">
         NOMBRE DEL ESTUDIANTE:
       </text>
       <line x1="16" y1="58" x2="430" y2="58" stroke="#475569" stroke-width="1" stroke-dasharray="4 3" />
 
       <rect x="480" y="0" width="200" height="75" rx="8" fill="#132743" stroke="#2E74B5" stroke-width="1" />
-      <text x="496" y="26" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" fill="#94A3B8">
+      <text x="496" y="26" font-family="'Montserrat', sans-serif" font-size="12" font-weight="bold" fill="#94A3B8">
         GRUPO / TURNO:
       </text>
       <line x1="496" y1="58" x2="660" y2="58" stroke="#475569" stroke-width="1" stroke-dasharray="4 3" />
 
       <rect x="710" y="0" width="230" height="75" rx="8" fill="#132743" stroke="#2E74B5" stroke-width="1" />
-      <text x="726" y="26" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" fill="#94A3B8">
+      <text x="726" y="26" font-family="'Montserrat', sans-serif" font-size="12" font-weight="bold" fill="#94A3B8">
         NÚMERO DE LISTA:
       </text>
       <line x1="726" y1="58" x2="920" y2="58" stroke="#475569" stroke-width="1" stroke-dasharray="4 3" />
@@ -376,7 +425,7 @@ function buildDeterministicCoverSvg(opts: BookCoverOptions): string {
 
   <!-- ── 5. PIE DE PORTADA ── -->
   <rect x="0" y="1532" width="1200" height="68" fill="#040810" />
-  <text x="600" y="1572" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#64748B" letter-spacing="2">
+  <text x="600" y="1572" text-anchor="middle" font-family="'Lato', sans-serif" font-size="13" font-weight="bold" fill="#64748B" letter-spacing="2">
     PUEBLA, MÉXICO · SECRETARÍA DE EDUCACIÓN PÚBLICA · SISTEMA SIGPDA-EMS MCCEMS ${SCHOOL_YEAR}
   </text>
 </svg>`;
@@ -412,6 +461,7 @@ function buildGenerativeTypographyOverlaySvg(opts: BookCoverOptions): string {
       <stop offset="50%" stop-color="#F6C90E" />
       <stop offset="100%" stop-color="#E8A020" />
     </linearGradient>
+    ${buildEmbeddedFontStyle()}
   </defs>
 
   <!-- Viñeta oscura periférica para destacar la composición editorial -->
@@ -426,13 +476,13 @@ function buildGenerativeTypographyOverlaySvg(opts: BookCoverOptions): string {
     <polygon points="40,16 47,32 64,32 50,43 56,60 40,49 24,60 30,43 16,32 33,32" fill="#E8A020" />
   </g>
 
-  <text x="160" y="62" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="21" font-weight="bold" fill="#FFFFFF" letter-spacing="1.5">
+  <text x="160" y="62" font-family="'Montserrat', sans-serif" font-size="21" font-weight="bold" fill="#FFFFFF" letter-spacing="1.5">
     SECRETARÍA DE EDUCACIÓN PÚBLICA DEL ESTADO DE PUEBLA
   </text>
-  <text x="160" y="94" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="16" font-weight="600" fill="#E8A020" letter-spacing="1.2">
+  <text x="160" y="94" font-family="'Montserrat', sans-serif" font-size="16" font-weight="600" fill="#E8A020" letter-spacing="1.2">
     DIRECCIÓN DE BACHILLERATOS ESTATALES Y PREPARATORIA ABIERTA (DBEPA)
   </text>
-  <text x="160" y="120" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#CBD5E1">
+  <text x="160" y="120" font-family="'Lato', sans-serif" font-size="13" font-weight="normal" fill="#CBD5E1">
     MCCEMS ${SCHOOL_YEAR} · NUEVA ESCUELA MEXICANA
   </text>
 
@@ -441,13 +491,13 @@ function buildGenerativeTypographyOverlaySvg(opts: BookCoverOptions): string {
     <rect x="0" y="0" width="1040" height="130" rx="14" fill="#07101E" fill-opacity="0.92" stroke="#2E74B5" stroke-width="1.5" />
     <rect x="0" y="0" width="10" height="130" rx="4" fill="url(#goldOverlayGrad)" />
 
-    <text x="36" y="44" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="26" font-weight="bold" fill="#FFFFFF">
+    <text x="36" y="44" font-family="'Montserrat', sans-serif" font-size="26" font-weight="bold" fill="#FFFFFF">
       ${plantel}
     </text>
-    <text x="36" y="80" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="18" font-weight="600" fill="#E8A020">
+    <text x="36" y="80" font-family="'Montserrat', sans-serif" font-size="18" font-weight="600" fill="#E8A020">
       CLAVE C.C.T.: ${cct}   ·   SUBSISTEMA: ${subsistema}   ·   ${semestre.toUpperCase()}
     </text>
-    <text x="36" y="110" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" fill="#94A3B8">
+    <text x="36" y="110" font-family="'Lato', sans-serif" font-size="14" font-weight="normal" fill="#94A3B8">
       Ciclo Escolar ${ciclo}   |   Cuaderno de Trabajo Editorializado
     </text>
   </g>
@@ -457,7 +507,7 @@ function buildGenerativeTypographyOverlaySvg(opts: BookCoverOptions): string {
     <rect x="0" y="0" width="1040" height="740" rx="20" fill="#07101E" fill-opacity="0.92" stroke="#E8A020" stroke-width="1.8" />
 
     <rect x="40" y="38" width="370" height="38" rx="8" fill="#1F3864" stroke="#2E74B5" stroke-width="1" />
-    <text x="56" y="63" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#F6C90E" letter-spacing="1">
+    <text x="56" y="63" font-family="'Montserrat', sans-serif" font-size="13" font-weight="bold" fill="#F6C90E" letter-spacing="1">
       NUEVA ESCUELA MEXICANA (NEM)
     </text>
 
@@ -465,7 +515,7 @@ function buildGenerativeTypographyOverlaySvg(opts: BookCoverOptions): string {
     ${titleLines
       .map(
         (line, idx) => `
-    <text x="40" y="${titleStartY + idx * lineSpacing}" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="${titleFontSize}" font-weight="900" fill="#FFFFFF" letter-spacing="0.5">
+    <text x="40" y="${titleStartY + idx * lineSpacing}" font-family="'Montserrat', sans-serif" font-size="${titleFontSize}" font-weight="900" fill="#FFFFFF" letter-spacing="0.5">
       ${line}
     </text>`
       )
@@ -475,10 +525,10 @@ function buildGenerativeTypographyOverlaySvg(opts: BookCoverOptions): string {
 
     <g transform="translate(40, ${titleStartY + 65 + totalTitleOffset})">
       <rect x="0" y="0" width="960" height="100" rx="12" fill="#0D1E38" fill-opacity="0.9" stroke="#2E74B5" stroke-width="1.2" />
-      <text x="24" y="38" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#E8A020" letter-spacing="1.5">
+      <text x="24" y="38" font-family="'Montserrat', sans-serif" font-size="14" font-weight="bold" fill="#E8A020" letter-spacing="1.5">
         ORGANIZACIÓN CURRICULAR POR PROGRESIONES
       </text>
-      <text x="24" y="74" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="22" font-weight="bold" fill="#FFFFFF">
+      <text x="24" y="74" font-family="'Montserrat', sans-serif" font-size="22" font-weight="bold" fill="#FFFFFF">
         ${blockTitle}
       </text>
     </g>
@@ -488,10 +538,10 @@ function buildGenerativeTypographyOverlaySvg(opts: BookCoverOptions): string {
         ? `
     <g transform="translate(40, ${titleStartY + 185 + totalTitleOffset})">
       <rect x="0" y="0" width="960" height="66" rx="10" fill="#800020" fill-opacity="0.45" stroke="#800020" stroke-width="1.5" />
-      <text x="24" y="26" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" fill="#F87171" letter-spacing="1">
+      <text x="24" y="26" font-family="'Montserrat', sans-serif" font-size="12" font-weight="bold" fill="#F87171" letter-spacing="1">
         PROYECTO ESCOLAR COMUNITARIO (PAEC)
       </text>
-      <text x="24" y="52" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="16" font-weight="600" fill="#FFFFFF">
+      <text x="24" y="52" font-family="'Lato', sans-serif" font-size="16" font-weight="600" fill="#FFFFFF">
         ${paec}
       </text>
     </g>`
@@ -501,22 +551,22 @@ function buildGenerativeTypographyOverlaySvg(opts: BookCoverOptions): string {
     <!-- Pilares -->
     <g transform="translate(40, ${titleStartY + (paec ? 275 : 190) + totalTitleOffset})">
       <rect x="0" y="0" width="220" height="46" rx="8" fill="#1F3864" />
-      <text x="110" y="28" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#FFFFFF">
+      <text x="110" y="28" text-anchor="middle" font-family="'Montserrat', sans-serif" font-size="13" font-weight="bold" fill="#FFFFFF">
         1. Concepto Cero
       </text>
 
       <rect x="240" y="0" width="220" height="46" rx="8" fill="#1F3864" />
-      <text x="350" y="28" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#FFFFFF">
+      <text x="350" y="28" text-anchor="middle" font-family="'Montserrat', sans-serif" font-size="13" font-weight="bold" fill="#FFFFFF">
         2. Práctica Guiada
       </text>
 
       <rect x="480" y="0" width="220" height="46" rx="8" fill="#1F3864" />
-      <text x="590" y="28" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#FFFFFF">
+      <text x="590" y="28" text-anchor="middle" font-family="'Montserrat', sans-serif" font-size="13" font-weight="bold" fill="#FFFFFF">
         3. Reto Autónomo
       </text>
 
       <rect x="720" y="0" width="240" height="46" rx="8" fill="#1F3864" />
-      <text x="840" y="28" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#FFFFFF">
+      <text x="840" y="28" text-anchor="middle" font-family="'Montserrat', sans-serif" font-size="13" font-weight="bold" fill="#FFFFFF">
         4. Rúbrica &amp; Resiliencia
       </text>
     </g>
@@ -526,32 +576,32 @@ function buildGenerativeTypographyOverlaySvg(opts: BookCoverOptions): string {
   <g transform="translate(80, 1160)">
     <rect x="0" y="0" width="1040" height="300" rx="16" fill="#07101E" fill-opacity="0.94" stroke="#E8A020" stroke-width="1.8" />
 
-    <text x="50" y="60" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="34" font-weight="900" fill="#E8A020" letter-spacing="3">
+    <text x="50" y="60" font-family="'Montserrat', sans-serif" font-size="34" font-weight="900" fill="#E8A020" letter-spacing="3">
       CUADERNO DE APRENDIZAJE ACTIVO
     </text>
-    <text x="50" y="100" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="20" font-weight="600" fill="#FFFFFF">
+    <text x="50" y="100" font-family="'Montserrat', sans-serif" font-size="20" font-weight="600" fill="#FFFFFF">
       Edición Oficial para el Estudiante · Con Espacios Interactivos y Talleres de Aplicación
     </text>
-    <text x="50" y="135" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="15" font-weight="normal" fill="#94A3B8">
+    <text x="50" y="135" font-family="'Lato', sans-serif" font-size="15" font-weight="normal" fill="#94A3B8">
       Diseñado para el desarrollo de progresiones de aprendizaje, pensamiento crítico y proyectos integradores.
     </text>
 
     <!-- Campos de Alumno -->
     <g transform="translate(50, 175)">
       <rect x="0" y="0" width="450" height="85" rx="8" fill="#132743" stroke="#2E74B5" stroke-width="1" />
-      <text x="16" y="28" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" fill="#94A3B8">
+      <text x="16" y="28" font-family="'Montserrat', sans-serif" font-size="12" font-weight="bold" fill="#94A3B8">
         NOMBRE DEL ESTUDIANTE:
       </text>
       <line x1="16" y1="65" x2="430" y2="65" stroke="#475569" stroke-width="1" stroke-dasharray="4 3" />
 
       <rect x="480" y="0" width="200" height="85" rx="8" fill="#132743" stroke="#2E74B5" stroke-width="1" />
-      <text x="496" y="28" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" fill="#94A3B8">
+      <text x="496" y="28" font-family="'Montserrat', sans-serif" font-size="12" font-weight="bold" fill="#94A3B8">
         GRUPO / TURNO:
       </text>
       <line x1="496" y1="65" x2="660" y2="65" stroke="#475569" stroke-width="1" stroke-dasharray="4 3" />
 
       <rect x="710" y="0" width="230" height="85" rx="8" fill="#132743" stroke="#2E74B5" stroke-width="1" />
-      <text x="726" y="28" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" fill="#94A3B8">
+      <text x="726" y="28" font-family="'Montserrat', sans-serif" font-size="12" font-weight="bold" fill="#94A3B8">
         NÚMERO DE LISTA:
       </text>
       <line x1="726" y1="65" x2="920" y2="65" stroke="#475569" stroke-width="1" stroke-dasharray="4 3" />
@@ -560,7 +610,7 @@ function buildGenerativeTypographyOverlaySvg(opts: BookCoverOptions): string {
 
   <!-- ── 5. PIE ── -->
   <rect x="0" y="1532" width="1200" height="68" fill="#040810" />
-  <text x="600" y="1572" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#64748B" letter-spacing="2">
+  <text x="600" y="1572" text-anchor="middle" font-family="'Lato', sans-serif" font-size="13" font-weight="bold" fill="#64748B" letter-spacing="2">
     PUEBLA, MÉXICO · SECRETARÍA DE EDUCACIÓN PÚBLICA · SISTEMA SIGPDA-EMS MCCEMS ${SCHOOL_YEAR}
   </text>
 </svg>`;

@@ -42,6 +42,8 @@ const GANTT_COLORS = ['#2563eb', '#0284c7', '#059669', '#d97706', '#7c3aed'];
 export function stripMarkdown(text: string | null | undefined): string {
   if (!text) return '';
   return text
+    // Comentarios HTML o etiquetas de control de workbook (<!--...-->)
+    .replace(/<!--[\s\S]*?-->/g, '')
     // Encabezados Markdown (# Título)
     .replace(/^#{1,6}\s+/gm, '')
     // Negrita y cursiva combinada ***texto*** o ___texto___

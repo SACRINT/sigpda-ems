@@ -255,6 +255,7 @@ export async function renderWorkbookToDocx(
 
   // ── 3. Páginas Interiores de Contenido Didáctico (Fase V5) ─────────────────
   const bodyChildren: (Paragraph | Table)[] = [];
+  const assignedAssetKeys = new Set<string>();
 
   for (let i = 0; i < workbook.missions.length; i++) {
     const mission = workbook.missions[i];
@@ -265,7 +266,8 @@ export async function renderWorkbookToDocx(
       workbook.coverData?.subjectName,
       planning?.id,
       workbook.blockIndex,
-      usedOpenverseAssets
+      usedOpenverseAssets,
+      assignedAssetKeys
     );
     bodyChildren.push(...missionElements);
     bodyChildren.push(new Paragraph({ children: [new PageBreak()] }));
@@ -1856,7 +1858,8 @@ async function buildMissionContent(
   subjectName?: string,
   planningId?: string,
   blockIndex?: number,
-  openverseCollector?: ImageAsset[]
+  openverseCollector?: ImageAsset[],
+  assignedAssetKeys?: Set<string>
 ): Promise<(Paragraph | Table)[]> {
   const elements: (Paragraph | Table)[] = [];
 
@@ -2104,6 +2107,7 @@ async function buildMissionContent(
       missionTitle: mission.title,
       contextText,
       preferOpenverseMedia: true,
+      usedAssetIds: assignedAssetKeys,
     });
     if (resolvedVisual) {
       if (resolvedVisual.type === 'vector_svg' && resolvedVisual.svg) {

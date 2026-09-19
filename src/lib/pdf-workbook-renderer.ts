@@ -191,7 +191,7 @@ const WIN_ANSI_REGEX = /[^\x20-\xFF€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“�
  */
 export function sanitizePdfText(text: string | null | undefined): string {
   if (!text) return '';
-  let str = text;
+  let str = text.replace(/<!--[\s\S]*?-->/g, '');
   for (const [emoji, replacement] of Object.entries(EMOJI_TO_TEXT)) {
     if (str.includes(emoji)) {
       str = str.split(emoji).join(replacement);
@@ -298,6 +298,7 @@ export async function renderWorkbookToPdf(
   // ── 4. Misiones Didácticas ─────────────────────────────────────────────────
   const realTocEntries: RealTocEntry[] = [];
   const usedOpenverseAssets: ImageAsset[] = [];
+  const assignedAssetKeys = new Set<string>();
 
   for (let i = 0; i < workbook.missions.length; i++) {
     const mission = workbook.missions[i];
@@ -339,7 +340,8 @@ export async function renderWorkbookToPdf(
       workbook.blockIndex,
       usedOpenverseAssets,
       pageContextMap,
-      workbook.blockName
+      workbook.blockName,
+      assignedAssetKeys
     );
   }
 
@@ -1633,7 +1635,10 @@ function drawPracticeTasksWithDottedLines(
 ): number {
   if (!rawText) return y;
 
-  const lines = rawText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const lines = rawText
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l && !l.includes('<!--') && !l.includes('-->'));
   const tasks: string[] = [];
 
   for (const line of lines) {
@@ -1652,9 +1657,15 @@ function drawPracticeTasksWithDottedLines(
     }
   }
 
-  const selectedTasks = tasks.slice(0, 4);
+  const validTasks = tasks
+    .map((t) => sanitizePdfText(stripMarkdown(t)).trim())
+    .filter((t) => t.length > 5);
+
+  const selectedTasks = validTasks.slice(0, 4);
   if (selectedTasks.length === 0) {
-    return printParagraph(doc, rawText, y, margin, drawWidth, pageHeight, {
+    const cleanRaw = sanitizePdfText(stripMarkdown(rawText)).trim();
+    if (!cleanRaw) return y;
+    return printParagraph(doc, cleanRaw, y, margin, drawWidth, pageHeight, {
       size: 8,
       fontStyle: 'normal',
       color: DARK_TEXT,
@@ -1665,7 +1676,7 @@ function drawPracticeTasksWithDottedLines(
   const checkSpace = ensureSpaceFn || ((cy: number, nh: number) => ensureVerticalSpace(doc, cy, nh, margin, pageHeight));
 
   for (let idx = 0; idx < selectedTasks.length; idx++) {
-    const cleanTaskText = sanitizePdfText(stripMarkdown(selectedTasks[idx]));
+    const cleanTaskText = selectedTasks[idx];
     // GUARDIÁN: texto de tarea nunca excede drawWidth
     const taskLines = doc.splitTextToSize(`[  ] Tarea ${idx + 1}: ${cleanTaskText}`, clampTextWidth(drawWidth, drawWidth, 4));
     const neededH = taskLines.length * 4 + 18;
@@ -1709,7 +1720,8 @@ async function drawMission(
   blockIndex?: number,
   openverseCollector?: ImageAsset[],
   pageContextMap?: Map<number, PageContext>,
-  blockName?: string
+  blockName?: string,
+  assignedAssetKeys?: Set<string>
 ): Promise<number> {
   let y = startY;
 
@@ -2001,6 +2013,7 @@ async function drawMission(
         missionTitle: mission.title,
         contextText,
         preferOpenverseMedia: true,
+        usedAssetIds: assignedAssetKeys,
       });
       if (resolvedVisual) {
         if (resolvedVisual.type === 'vector_svg' && resolvedVisual.svg) {
