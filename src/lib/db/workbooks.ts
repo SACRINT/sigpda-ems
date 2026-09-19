@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import type {
   ActiveWorkTextbook,
   CanonicalSeed,
@@ -230,7 +229,7 @@ export async function saveBlockWorkbook(
       return { version: 0, success: false, error: 'Planning not found' };
     }
 
-    const currentWorkbooks = (rows[0]?.workbooks_json || {}) as Record<string, any>;
+    const currentWorkbooks = (rows[0]?.workbooks_json || {}) as Record<string, { version?: number; history?: unknown[]; current?: ActiveWorkTextbook }>;
     const existingBlockData = currentWorkbooks[blockKey] || { version: 0, history: [] };
     const expectedVersion = existingBlockData.version || 0;
     const newVersion = expectedVersion + 1;
@@ -311,7 +310,7 @@ export async function getBlockWorkbook(
  */
 export async function getAllBlockWorkbooks(
   planningId: string
-): Promise<Record<string, { version: number; current: ActiveWorkTextbook; history: any[] }>> {
+): Promise<Record<string, { version: number; current: ActiveWorkTextbook; history: unknown[] }>> {
   const client = sql();
   const rows = await client`
     SELECT workbooks_json

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { sql } from './client';
 
 // ─── Notifications Queries (Phase 4) ─────────────────────────────────────────
@@ -12,7 +11,7 @@ export interface NotificationItem {
   link?: string;
   severity?: 'info' | 'warning' | 'error' | 'success';
   channels?: string[];
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   read?: boolean;
   created_at?: string;
 }

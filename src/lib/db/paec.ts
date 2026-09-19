@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { PaecProject } from '@/types/paec';
 import { sql } from './client';
 
@@ -51,33 +50,33 @@ export async function createPaecProject(data: {
   return rows[0];
 }
 
-export function mapRawPaecProject(raw: any) {
+export function mapRawPaecProject(raw: Record<string, unknown> | null | undefined): PaecProject | null {
   if (!raw) return null;
   return {
-    id: raw.id,
-    teacherId: raw.teacher_id,
-    projectName: raw.project_name,
-    problemStatement: raw.problem_statement,
-    cycleType: raw.cycle_type,
-    currentStep: raw.current_step,
-    communityContext: raw.community_context || {},
-    schoolContext: raw.school_context || {},
-    fase1Diagnostico: raw.fase1_diagnostico || null,
-    fase2Justificacion: raw.fase2_justificacion || null,
-    fase2Mapeo: raw.fase2_mapeo || null,
-    fase2Cronograma: raw.fase2_cronograma || null,
-    fase2DetalleCurricular: raw.fase2_detalle_curricular || null,
-    fase2PlanOperativo: raw.fase2_plan_operativo || null,
-    fase2Anexos: raw.fase2_anexos || null,
-    fase3PlanOperativoA: raw.fase3_plan_operativo_a || null,
-    fase3PlanOperativoB: raw.fase3_plan_operativo_b || null,
-    fase3Implementacion: raw.fase3_implementacion || null,
-    fase4Gobernanza: raw.fase4_gobernanza || null,
-    fase4InformeSupervision: raw.fase4_informe_supervision || null,
-    qualityAudit: raw.quality_audit || null,
-    status: raw.status || 'draft',
-    createdAt: raw.created_at,
-    updatedAt: raw.updated_at,
+    id: raw.id as string,
+    teacherId: raw.teacher_id as string,
+    projectName: raw.project_name as string,
+    problemStatement: raw.problem_statement as string,
+    cycleType: raw.cycle_type as PaecProject['cycleType'],
+    currentStep: raw.current_step as number,
+    communityContext: (raw.community_context || {}) as PaecProject['communityContext'],
+    schoolContext: (raw.school_context || {}) as PaecProject['schoolContext'],
+    fase1Diagnostico: (raw.fase1_diagnostico ?? null) as PaecProject['fase1Diagnostico'],
+    fase2Justificacion: (raw.fase2_justificacion ?? null) as PaecProject['fase2Justificacion'],
+    fase2Mapeo: (raw.fase2_mapeo ?? null) as PaecProject['fase2Mapeo'],
+    fase2Cronograma: (raw.fase2_cronograma ?? null) as PaecProject['fase2Cronograma'],
+    fase2DetalleCurricular: (raw.fase2_detalle_curricular ?? null) as PaecProject['fase2DetalleCurricular'],
+    fase2PlanOperativo: (raw.fase2_plan_operativo ?? null) as PaecProject['fase2PlanOperativo'],
+    fase2Anexos: (raw.fase2_anexos ?? null) as PaecProject['fase2Anexos'],
+    fase3PlanOperativoA: (raw.fase3_plan_operativo_a ?? null) as PaecProject['fase3PlanOperativoA'],
+    fase3PlanOperativoB: (raw.fase3_plan_operativo_b ?? null) as PaecProject['fase3PlanOperativoB'],
+    fase3Implementacion: (raw.fase3_implementacion ?? null) as PaecProject['fase3Implementacion'],
+    fase4Gobernanza: (raw.fase4_gobernanza ?? null) as PaecProject['fase4Gobernanza'],
+    fase4InformeSupervision: (raw.fase4_informe_supervision ?? null) as PaecProject['fase4InformeSupervision'],
+    qualityAudit: (raw.quality_audit ?? null) as PaecProject['qualityAudit'],
+    status: ((raw.status as PaecProject['status']) || 'draft'),
+    createdAt: raw.created_at as Date,
+    updatedAt: raw.updated_at as Date,
   };
 }
 
@@ -131,11 +130,12 @@ export async function updatePaecProjectStep(
   const status = step >= 9 ? 'completed' : 'draft';
   const dataStr = JSON.stringify(stepData);
 
-  const anexosPart = targetField === 'fase3_implementacion' ? (stepData as Record<string, any>).anexos : null;
+  const stepObj = (typeof stepData === 'object' && stepData !== null ? stepData : {}) as Record<string, unknown>;
+  const anexosPart = targetField === 'fase3_implementacion' ? stepObj.anexos : null;
   const anexosStr = anexosPart ? JSON.stringify(anexosPart) : null;
 
-  const gobStr = targetField === 'fase4_gobernanza_e_informe' ? JSON.stringify((stepData as Record<string, any>).gobernanza || {}) : null;
-  const infStr = targetField === 'fase4_gobernanza_e_informe' ? JSON.stringify((stepData as Record<string, any>).informeSupervision || {}) : null;
+  const gobStr = targetField === 'fase4_gobernanza_e_informe' ? JSON.stringify(stepObj.gobernanza || {}) : null;
+  const infStr = targetField === 'fase4_gobernanza_e_informe' ? JSON.stringify(stepObj.informeSupervision || {}) : null;
 
   const rows = await sql()`
     UPDATE paec_projects

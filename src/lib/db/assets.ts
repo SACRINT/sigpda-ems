@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { ImageAsset } from '@/types/planning';
 import { sql } from './client';
 
@@ -23,26 +22,26 @@ export interface SaveImageAssetInput {
   height?: number | null;
 }
 
-export function mapRawImageAsset(r: Record<string, any>): ImageAsset {
+export function mapRawImageAsset(r: Record<string, unknown>): ImageAsset {
   return {
-    id: r.id,
-    planningId: r.planning_id,
-    blockIndex: r.block_index,
-    missionIndex: r.mission_index,
-    source: r.source,
-    externalId: r.external_id,
-    title: r.title,
-    creator: r.creator,
-    creatorUrl: r.creator_url,
-    license: r.license,
-    licenseUrl: r.license_url,
-    sourceUrl: r.source_url,
-    imageUrl: r.image_url,
-    thumbnailUrl: r.thumbnail_url,
-    caption: r.caption,
-    width: r.width,
-    height: r.height,
-    createdAt: r.created_at,
+    id: r.id as string,
+    planningId: r.planning_id as string,
+    blockIndex: Number(r.block_index),
+    missionIndex: Number(r.mission_index),
+    source: r.source as ImageAsset['source'],
+    externalId: (r.external_id as string) ?? null,
+    title: String(r.title || ''),
+    creator: (r.creator as string) ?? null,
+    creatorUrl: (r.creator_url as string) ?? null,
+    license: String(r.license || ''),
+    licenseUrl: (r.license_url as string) ?? null,
+    sourceUrl: (r.source_url as string) ?? null,
+    imageUrl: String(r.image_url || ''),
+    thumbnailUrl: (r.thumbnail_url as string) ?? null,
+    caption: String(r.caption || ''),
+    width: r.width != null ? Number(r.width) : null,
+    height: r.height != null ? Number(r.height) : null,
+    createdAt: r.created_at as Date,
   };
 }
 
@@ -76,7 +75,7 @@ export async function saveImageAsset(asset: SaveImageAssetInput): Promise<ImageA
               image_url, thumbnail_url, caption, width, height, created_at
   `;
 
-  return mapRawImageAsset(rows[0] as Record<string, any>);
+  return mapRawImageAsset(rows[0] as Record<string, unknown>);
 }
 
 export async function getImageAssetsByBlock(planningId: string, blockIndex: number): Promise<ImageAsset[]> {
@@ -90,7 +89,7 @@ export async function getImageAssetsByBlock(planningId: string, blockIndex: numb
     ORDER BY mission_index ASC, created_at ASC
   `;
 
-  return rows.map((r: Record<string, any>) => mapRawImageAsset(r));
+  return rows.map((r: Record<string, unknown>) => mapRawImageAsset(r));
 }
 
 export async function getImageAssetByMission(
@@ -112,7 +111,7 @@ export async function getImageAssetByMission(
   `;
 
   if (!rows || rows.length === 0) return null;
-  return mapRawImageAsset(rows[0] as Record<string, any>);
+  return mapRawImageAsset(rows[0] as Record<string, unknown>);
 }
 
 export async function deleteImageAsset(id: string): Promise<boolean> {

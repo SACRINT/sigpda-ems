@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { sql } from './client';
 
 // ─── Programs Catalog queries ────────────────────────────────────────────────
@@ -12,9 +11,9 @@ export interface ProgramCatalogItem {
   year?: number;
   total_hours: number;
   learning_outcome: string;
-  activities: any;
-  evidences: any;
-  contenidos_formativos?: any;
+  activities: unknown;
+  evidences: unknown;
+  contenidos_formativos?: unknown;
   subsystem?: string;
   model_type?: string;
   created_at?: string;

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { SCHOOL_YEAR } from '@/lib/config';
 import { sql } from './client';
 
@@ -13,14 +12,14 @@ export interface ScheduleItem {
   cycle_year?: string;
   period?: string;
   status?: string;
-  config: any;
-  grupos: any[];
-  docentes: any[];
-  aulas: any[];
-  cargas: any[];
-  celdas: any[];
-  metricas?: any;
-  ai_optimization_log?: any[];
+  config: Record<string, unknown>;
+  grupos: unknown[];
+  docentes: unknown[];
+  aulas: unknown[];
+  cargas: unknown[];
+  celdas: unknown[];
+  metricas?: Record<string, unknown> | null;
+  ai_optimization_log?: unknown[];
   created_at?: string;
   updated_at?: string;
 }
