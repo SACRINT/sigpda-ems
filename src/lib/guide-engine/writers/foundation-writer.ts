@@ -12,7 +12,7 @@
 
 import { generateWithRotation } from '@/lib/ai-provider';
 import { robustJsonParse } from '@/lib/ai-response-parser';
-import { extractWorkbookTags } from '../workbook-tags';
+import { extractWorkbookTags, consolidateWorkbookElements, stripWorkbookTags } from '../workbook-tags';
 import type { MissionSection, WorkbookElement } from '@/types/work-textbook';
 import { type WriterInput, type WriterOutput, evaluateQuality } from './writer-contract';
 import { buildPlanningAlignmentPrompt } from './planning-alignment-prompt';
@@ -138,10 +138,18 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
       );
     }
 
+    // Consolidación de tags lines ANTES del .slice() para correcta distribución entre weDo y youDo
+    const consolidatedElements = consolidateWorkbookElements(workbookElements);
+
+    // Limpieza de etiquetas de control <!--workbook:...--> de los textos procedimentales
+    const cleanIDoDemo = stripWorkbookTags(parsed.iDoDemo || 'Ejemplo resuelto paso a paso por el docente.');
+    const cleanWeDoPractice = stripWorkbookTags(parsed.weDoPractice || 'Actividad colaborativa en clase.');
+    const cleanYouDoChallenge = stripWorkbookTags(parsed.youDoChallenge || 'Reto individual en cuaderno.');
+
     const formativeText = parsed.formativeCheckpoint
       ? `${parsed.formativeCheckpoint.question || ''} ${(parsed.formativeCheckpoint.reflectionPrompts || []).join(' ')} ${(parsed.formativeCheckpoint.criteriaChecklist || []).join(' ')}`
       : '';
-    const sectionContent = `${parsed.phenomenonStory || ''} ${parsed.detonatingQuestion || ''} ${parsed.physicalAnalogy || ''} ${parsed.coreExplanation || ''} ${parsed.iDoDemo || ''} ${parsed.weDoPractice || ''} ${parsed.youDoChallenge || ''} ${formativeText}`.trim();
+    const sectionContent = `${parsed.phenomenonStory || ''} ${parsed.detonatingQuestion || ''} ${parsed.physicalAnalogy || ''} ${parsed.coreExplanation || ''} ${cleanIDoDemo} ${cleanWeDoPractice} ${cleanYouDoChallenge} ${formativeText}`.trim();
     const wordCount = sectionContent.split(/\s+/).filter(Boolean).length;
 
     const missionSection: MissionSection = {
@@ -159,15 +167,15 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
         coreExplanation: parsed.coreExplanation || 'Fundamento conceptual inicial.',
       },
       iDoSection: {
-        stepByStepDemo: parsed.iDoDemo || 'Ejemplo resuelto paso a paso por el docente.',
+        stepByStepDemo: cleanIDoDemo,
       },
       weDoSection: {
-        guidedPractice: parsed.weDoPractice || 'Actividad colaborativa en clase.',
-        workbookElements: workbookElements.slice(0, Math.ceil(workbookElements.length / 2)),
+        guidedPractice: cleanWeDoPractice,
+        workbookElements: consolidatedElements.slice(0, Math.ceil(consolidatedElements.length / 2)),
       },
       youDoSection: {
-        autonomousChallenge: parsed.youDoChallenge || 'Reto individual en cuaderno.',
-        workbookElements: workbookElements.slice(Math.ceil(workbookElements.length / 2)),
+        autonomousChallenge: cleanYouDoChallenge,
+        workbookElements: consolidatedElements.slice(Math.ceil(consolidatedElements.length / 2)),
       },
       troubleshooting: [],
       formativeCheckpoint: {
@@ -200,7 +208,7 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
       qualityScore: quality.qualityScore,
       warnings: quality.warnings,
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
     logger.error('[generateFoundationMission] Error:', err);
     // Fallback de resiliencia estructurado
     const fallbackSection: MissionSection = {
@@ -258,7 +266,7 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
       wordCount: 500,
       tokensUsed: 0,
       qualityScore: 70,
-      warnings: ['Generado con fallback estructurado por timeout o error en modelo: ' + String(err?.message || err)],
+      warnings: ['Generado con fallback estructurado por timeout o error en modelo: ' + (err instanceof Error ? err.message : String(err))],
     };
   }
 }

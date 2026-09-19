@@ -16,15 +16,10 @@
 import type jsPDF from 'jspdf';
 import {
   COLOR,
-  RADIUS,
-  STROKE,
   SIDEBAR_GAP,
-  TYPE,
-  LEADING,
   type RGB,
 } from './design-tokens';
 import {
-  setFontHeading,
   setFontBody,
 } from './font-loader';
 import {
@@ -39,7 +34,6 @@ import {
   drawChecklistWidget,
   drawEquipmentCardWidget,
   sanitizePdfText,
-  clampTextWidth,
 } from './pdf-components';
 import { stripMarkdown, type GlossaryItem } from './content-extractor';
 import type { DetectedObject } from './object-extractor';
@@ -437,6 +431,8 @@ export class ColumnFlowManager {
       color?: RGB;
       lineHeight?: number;
       justify?: boolean;
+      parseParagraphs?: boolean;
+      paragraphSpacing?: number;
     } = {}
   ): number {
     const {
@@ -445,6 +441,8 @@ export class ColumnFlowManager {
       color = COLOR.TEXT_PRIMARY,
       lineHeight = 4.8,
       justify = true,
+      parseParagraphs = false,
+      paragraphSpacing = 2.5,
     } = opts;
 
     const clean = sanitizePdfText(stripMarkdown(text || ''));
@@ -453,8 +451,41 @@ export class ColumnFlowManager {
     this.doc.setFontSize(size);
     this.doc.setTextColor(...color);
 
-    const lines = this.doc.splitTextToSize(clean, this.mainW);
     let py = startPY;
+
+    if (parseParagraphs) {
+      const rawParagraphs = clean.split(/\r?\n\r?\n/).map((p) => p.trim()).filter(Boolean);
+      for (let pIdx = 0; pIdx < rawParagraphs.length; pIdx++) {
+        const p = rawParagraphs[pIdx];
+        const isBullet = /^[•\-\*]\s+/.test(p) || /^\d+[\.\)]\s+/.test(p);
+        const leftMargin = isBullet ? this.margin + 3.5 : this.margin;
+        const pWidth = isBullet ? this.mainW - 3.5 : this.mainW;
+        const lines = this.doc.splitTextToSize(p, pWidth);
+
+        for (let li = 0; li < lines.length; li++) {
+          if (py + lineHeight > this.contentBottom) {
+            py = this.advancePage();
+            setFontBody(this.doc, bodyWeight);
+            this.doc.setFontSize(size);
+            this.doc.setTextColor(...color);
+          }
+          const isLastLine = li === lines.length - 1;
+          if (justify && !isLastLine && !isBullet) {
+            this.doc.text(lines[li], leftMargin, py, { maxWidth: pWidth, align: 'justify' });
+          } else {
+            this.doc.text(lines[li], leftMargin, py);
+          }
+          py += lineHeight;
+        }
+        if (pIdx < rawParagraphs.length - 1) {
+          py += paragraphSpacing;
+        }
+      }
+      this.mainY = py;
+      return py;
+    }
+
+    const lines = this.doc.splitTextToSize(clean, this.mainW);
 
     for (let li = 0; li < lines.length; li++) {
       if (py + lineHeight > this.contentBottom) {

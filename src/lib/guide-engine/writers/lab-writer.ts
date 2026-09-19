@@ -12,7 +12,7 @@
 
 import { generateWithRotation } from '@/lib/ai-provider';
 import { robustJsonParse } from '@/lib/ai-response-parser';
-import { extractWorkbookTags } from '../workbook-tags';
+import { extractWorkbookTags, consolidateWorkbookElements, stripWorkbookTags } from '../workbook-tags';
 import type { MissionSection, WorkbookElement, TroubleshootItem } from '@/types/work-textbook';
 import { type WriterInput, type WriterOutput, evaluateQuality } from './writer-contract';
 import { buildPlanningAlignmentPrompt } from './planning-alignment-prompt';
@@ -132,7 +132,7 @@ Redacta la Misión Práctica de Laboratorio/Taller completa:`;
     const materialsText = Array.isArray(parsed.materialsList) ? parsed.materialsList.join(' ') : (parsed.materialsList || '');
     const reflectionsText = Array.isArray(parsed.reflectionQuestions) ? parsed.reflectionQuestions.join(' ') : (parsed.reflectionQuestions || '');
     const troublesText = Array.isArray(parsed.quickTroubleshooting)
-      ? parsed.quickTroubleshooting.map((t: any) => `${t.symptom || ''} ${t.rootCause || ''} ${Array.isArray(t.solutionSteps) ? t.solutionSteps.join(' ') : (t.solutionSteps || '')} ${t.preventionTip || ''}`).join(' ')
+      ? parsed.quickTroubleshooting.map((t: Record<string, unknown>) => `${t.symptom || ''} ${t.rootCause || ''} ${Array.isArray(t.solutionSteps) ? t.solutionSteps.join(' ') : (t.solutionSteps || '')} ${t.preventionTip || ''}`).join(' ')
       : '';
     const autonomousChallenge = typeof parsed.autonomousChallenge === 'string' && parsed.autonomousChallenge.trim().length > 30
       ? parsed.autonomousChallenge.trim()
@@ -149,6 +149,9 @@ Redacta la Misión Práctica de Laboratorio/Taller completa:`;
     ].filter(Boolean).join(' ');
 
     let workbookElements: WorkbookElement[] = extractWorkbookTags(`${parsed.stepByStepProcedure || ''}\n${parsed.executableCodeOrProtocol || ''}`).map((t) => t.element);
+
+    // Consolidación de tags consecutivos para evitar redundancia de renglones
+    workbookElements = consolidateWorkbookElements(workbookElements);
 
     // Si no hay tags en el texto, generar los elementos oficiales de laboratorio
     if (workbookElements.length === 0) {
@@ -202,12 +205,17 @@ Redacta la Misión Práctica de Laboratorio/Taller completa:`;
       });
     }
 
-    const troubles: TroubleshootItem[] = (parsed.quickTroubleshooting || []).map((t: any, i: number) => ({
+    // Limpieza de etiquetas de control <!--workbook:...--> de los textos de protocolo
+    const cleanStepByStep = stripWorkbookTags(parsed.stepByStepProcedure || 'Demostración del docente.');
+    const cleanExecutableCode = stripWorkbookTags(parsed.executableCodeOrProtocol || 'Ejecución experimental coordinada.');
+    const cleanAutonomousChallenge = stripWorkbookTags(autonomousChallenge);
+
+    const troubles: TroubleshootItem[] = (parsed.quickTroubleshooting || []).map((t: Record<string, unknown>, i: number) => ({
       id: `tb-lab-${i + 1}`,
-      symptom: t.symptom || 'Falla en lectura o ejecución',
-      rootCause: t.rootCause || 'Parámetros incorrectos o desconexión',
-      solutionSteps: Array.isArray(t.solutionSteps) ? t.solutionSteps : ['Verificar conexiones y reintentar'],
-      preventionTip: t.preventionTip || 'Revisar manual antes de energizar',
+      symptom: typeof t.symptom === 'string' ? t.symptom : 'Falla en lectura o ejecución',
+      rootCause: typeof t.rootCause === 'string' ? t.rootCause : 'Parámetros incorrectos o desconexión',
+      solutionSteps: Array.isArray(t.solutionSteps) ? (t.solutionSteps as string[]) : ['Verificar conexiones y reintentar'],
+      preventionTip: typeof t.preventionTip === 'string' ? t.preventionTip : 'Revisar manual antes de energizar',
     }));
 
     const wordCount = fullText.split(/\s+/).filter(Boolean).length;
@@ -227,14 +235,14 @@ Redacta la Misión Práctica de Laboratorio/Taller completa:`;
         coreExplanation: parsed.objective || 'Desarrollar habilidades operativas y analíticas con rigor procedimental.',
       },
       iDoSection: {
-        stepByStepDemo: `Protocolo Técnico:\n${parsed.stepByStepProcedure || 'Demostración del docente.'}`,
+        stepByStepDemo: `Protocolo Técnico:\n${cleanStepByStep}`,
       },
       weDoSection: {
-        guidedPractice: `Desarrollo guiado en equipo:\n${parsed.executableCodeOrProtocol || 'Ejecución experimental coordinada.'}`,
+        guidedPractice: `Desarrollo guiado en equipo:\n${cleanExecutableCode}`,
         workbookElements: [workbookElements[0], workbookElements[1]].filter(Boolean),
       },
       youDoSection: {
-        autonomousChallenge,
+        autonomousChallenge: cleanAutonomousChallenge,
         workbookElements: workbookElements.slice(2).length > 0 ? workbookElements.slice(2) : [
           {
             id: 'wb-lab-analysis-fallback',
@@ -276,7 +284,7 @@ Redacta la Misión Práctica de Laboratorio/Taller completa:`;
       qualityScore: quality.qualityScore,
       warnings: quality.warnings,
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
     logger.error('[generateLabMission] Error:', err);
     // Fallback estructurado de laboratorio
     const fallbackSection: MissionSection = {
@@ -341,7 +349,7 @@ Redacta la Misión Práctica de Laboratorio/Taller completa:`;
       wordCount: 600,
       tokensUsed: 0,
       qualityScore: 70,
-      warnings: ['Generado con fallback estructurado de laboratorio: ' + String(err?.message || err)],
+      warnings: ['Generado con fallback estructurado de laboratorio: ' + (err instanceof Error ? err.message : String(err))],
     };
   }
 }

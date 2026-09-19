@@ -150,7 +150,7 @@ export function extractWorkbookTags(markdown: string): ParsedWorkbookTag[] {
  * Reemplaza los tags de workbook en Markdown por texto legible para previsualización simple en pantalla
  */
 export function formatWorkbookTagsForPreview(markdown: string): string {
-  return markdown.replace(WORKBOOK_TAG_REGEX, (raw, type, params) => {
+  return markdown.replace(WORKBOOK_TAG_REGEX, (raw, type) => {
     switch (type) {
       case 'lines':
         return '\n\n*✍️ [Espacio para responder a mano en tu cuaderno - Renglones impresos]*\n\n';
@@ -167,4 +167,46 @@ export function formatWorkbookTagsForPreview(markdown: string): string {
         return raw;
     }
   });
+}
+
+/**
+ * Elimina las etiquetas de control <!--workbook:...--> de cualquier bloque de texto,
+ * asegurando que el contenido narrativo o procedimental quede limpio de marcas de control.
+ */
+export function stripWorkbookTags(text: string | null | undefined): string {
+  if (!text) return '';
+  return text.replace(new RegExp(WORKBOOK_TAG_REGEX.source, 'gi'), '').trim();
+}
+
+/**
+ * Consolida elementos de cuaderno colapsando etiquetas 'lines' consecutivas en una sola
+ * y limitando el número máximo de renglones para evitar páginas enteras de rayas vacías.
+ */
+export function consolidateWorkbookElements(elements: WorkbookElement[]): WorkbookElement[] {
+  const result: WorkbookElement[] = [];
+
+  for (const elem of elements) {
+    const prev = result[result.length - 1];
+    if (prev && prev.type === 'lines' && elem.type === 'lines') {
+      // Colapsar tags lines consecutivos
+      const prevRows = prev.config?.rows || 4;
+      const nextRows = elem.config?.rows || 4;
+      const mergedRows = Math.min(6, Math.max(prevRows, nextRows) + 1);
+      prev.config = { ...prev.config, rows: mergedRows };
+      if (!prev.instruction && elem.instruction) {
+        prev.instruction = elem.instruction;
+      }
+    } else {
+      const cloned: WorkbookElement = {
+        ...elem,
+        config: elem.config ? { ...elem.config } : undefined,
+      };
+      if (cloned.type === 'lines' && cloned.config?.rows && cloned.config.rows > 6) {
+        cloned.config.rows = 6;
+      }
+      result.push(cloned);
+    }
+  }
+
+  return result;
 }

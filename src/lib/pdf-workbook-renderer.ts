@@ -1041,6 +1041,8 @@ export function printParagraph(
     color?: [number, number, number];
     lineHeight?: number;
     justify?: boolean;
+    parseParagraphs?: boolean;
+    paragraphSpacing?: number;
   } = {}
 ): number {
   const {
@@ -1050,6 +1052,8 @@ export function printParagraph(
     color = DARK_TEXT,
     lineHeight = 4.8,
     justify = true,
+    parseParagraphs = false,
+    paragraphSpacing = 2.5,
   } = options;
 
   // Sanitizar texto en una sola pasada al inicio: elimina asteriscos markdown y caracteres no-WinAnsi
@@ -1059,8 +1063,41 @@ export function printParagraph(
   doc.setFontSize(size);
   doc.setTextColor(...color);
 
-  const lines = doc.splitTextToSize(cleanText, contentWidth);
   let y = startY;
+
+  if (parseParagraphs) {
+    const rawParagraphs = cleanText.split(/\r?\n\r?\n/).map((p) => p.trim()).filter(Boolean);
+    for (let pIdx = 0; pIdx < rawParagraphs.length; pIdx++) {
+      const p = rawParagraphs[pIdx];
+      const isBullet = /^[•\-\*]\s+/.test(p) || /^\d+[\.\)]\s+/.test(p);
+      const leftMargin = isBullet ? margin + 3.5 : margin;
+      const pWidth = isBullet ? contentWidth - 3.5 : contentWidth;
+      const lines = doc.splitTextToSize(p, pWidth);
+
+      for (let i = 0; i < lines.length; i++) {
+        if (y + lineHeight > pageHeight - margin - 8) {
+          doc.addPage();
+          y = margin + 8;
+          doc.setFont(fontName, fontStyle);
+          doc.setFontSize(size);
+          doc.setTextColor(...color);
+        }
+        const isLastLine = i === lines.length - 1;
+        if (justify && !isLastLine && !isBullet) {
+          doc.text(lines[i], leftMargin, y, { maxWidth: pWidth, align: 'justify' });
+        } else {
+          doc.text(lines[i], leftMargin, y);
+        }
+        y += lineHeight;
+      }
+      if (pIdx < rawParagraphs.length - 1) {
+        y += paragraphSpacing;
+      }
+    }
+    return y;
+  }
+
+  const lines = doc.splitTextToSize(cleanText, contentWidth);
 
   for (let i = 0; i < lines.length; i++) {
     if (y + lineHeight > pageHeight - margin - 8) {
@@ -1859,7 +1896,7 @@ async function drawMission(
 
   // 1. Enganche y Desafío Situado
   y = drawSectionHeader(doc, '1. Enganche y Desafio Situado en la Comunidad', margin, mainW, y, pageHeight, SECTION_COLORS.enganche, checkSpace);
-  y = flow.printMainParagraph(mission.phenomenonHook.story, y, { size: 8, color: DARK_TEXT, lineHeight: 4.0 });
+  y = flow.printMainParagraph(mission.phenomenonHook.story, y, { size: 8, color: DARK_TEXT, lineHeight: 4.0, parseParagraphs: true });
   y += 3;
 
   // Pregunta Detonadora en caja destacada
@@ -1884,11 +1921,11 @@ async function drawMission(
   y = drawSectionHeader(doc, '2. Concepto Cero: Analogia Intuitiva y Fundamento', margin, mainW, y, pageHeight, SECTION_COLORS.concepto, checkSpace);
   y = flow.printMainParagraph(`Analogia Fisica Cotidiana: ${mission.conceptZero.physicalAnalogy}`, y, { size: 8, fontStyle: 'italic', color: DARK_TEXT, lineHeight: 4.0 });
   y += 2;
-  y = flow.printMainParagraph(mission.conceptZero.coreExplanation, y, { size: 8, color: DARK_TEXT, lineHeight: 4.0 });
+  y = flow.printMainParagraph(mission.conceptZero.coreExplanation, y, { size: 8, color: DARK_TEXT, lineHeight: 4.0, parseParagraphs: true });
   y += 3;
 
   if (mission.conceptZero.narrativeExplanation) {
-    y = flow.printMainParagraph(mission.conceptZero.narrativeExplanation, y, { size: 8, color: DARK_TEXT, lineHeight: 4.0 });
+    y = flow.printMainParagraph(mission.conceptZero.narrativeExplanation, y, { size: 8, color: DARK_TEXT, lineHeight: 4.0, parseParagraphs: true });
     y += 4;
   }
 
@@ -2249,9 +2286,9 @@ function drawPdfWorkbookElement(
 
   switch (element.type) {
     case 'lines': {
-      const count = Math.max(element.config?.rows || 8, 8);
-      const lineSpacing = 6.5;
-      const neededHeight = count * lineSpacing + 8;
+      const count = Math.min(6, Math.max(3, element.config?.rows || 4));
+      const lineSpacing = 5.0;
+      const neededHeight = count * lineSpacing + 6;
       y = checkSpace(y, neededHeight);
 
       doc.setDrawColor(190, 200, 215);
@@ -2260,7 +2297,7 @@ function drawPdfWorkbookElement(
         y += lineSpacing;
         doc.line(margin + 4, y, margin + contentWidth, y);
       }
-      y += 6;
+      y += 4;
       break;
     }
 
