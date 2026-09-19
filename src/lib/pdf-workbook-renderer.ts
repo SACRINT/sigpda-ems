@@ -551,7 +551,7 @@ function drawCoverPage(
 
   setFontBody(doc, 'normal');
   doc.setFontSize(6.2);
-  doc.setTextColor(148, 163, 184);
+  doc.setTextColor(203, 213, 225);
   doc.text(`SUBSECRETARÍA DE EDUCACIÓN MEDIA SUPERIOR · MCCEMS ${SCHOOL_YEAR}`, pageWidth / 2, 19, { align: 'center' });
 
   // 3. Ficha del Plantel y Subsistema (y: 28 - 49mm)
@@ -584,7 +584,7 @@ function drawCoverPage(
 
   setFontBody(doc, 'normal');
   doc.setFontSize(6.2);
-  doc.setTextColor(148, 163, 184);
+  doc.setTextColor(203, 213, 225);
   doc.text(`Ciclo Escolar Oficial ${SCHOOL_YEAR}   |   Coordinación de Desarrollo Curricular EMS Puebla`, margin + 6, 45.5);
 
   // 4. Núcleo Editorial Hero UAC (y: 52 - 190mm)
@@ -677,7 +677,7 @@ function drawCoverPage(
   // 4 Pilares del Aprendizaje Activo
   setFontHeading(doc);
   doc.setFontSize(6.2);
-  doc.setTextColor(148, 163, 184);
+  doc.setTextColor(203, 213, 225);
   doc.text('ARQUITECTURA DE APRENDIZAJE ACTIVO:', margin + 8, yPillars + 3);
 
   const pillSpacing = 2.5;
@@ -712,7 +712,7 @@ function drawCoverPage(
 
   setFontBody(doc, 'normal');
   doc.setFontSize(6.2);
-  doc.setTextColor(148, 163, 184);
+  doc.setTextColor(203, 213, 225);
   doc.text('Diseñado para el desarrollo de progresiones de aprendizaje, pensamiento crítico y proyectos integradores.', margin + 8, 211.5);
 
   const teacherText = `Docente Titular: ${workbook.coverData?.teacherName || 'Docente de Bachillerato'}`;
@@ -762,7 +762,7 @@ function drawCoverPage(
 
   setFontBody(doc, 'normal');
   doc.setFontSize(6.2);
-  doc.setTextColor(148, 163, 184);
+  doc.setTextColor(203, 213, 225);
   doc.text(`Subsistema Oficial: ${(workbook.subsystem || 'BGE').toUpperCase()} · Modalidad Escolarizada · Ciclo Escolar: ${SCHOOL_YEAR}`, margin + 8, 255);
 
   // 6. Cintillo de Pie Oficial (y: 266 - 279.4mm)
@@ -770,7 +770,7 @@ function drawCoverPage(
   doc.rect(0, 266, pageWidth, 13.4, 'F');
   setFontBody(doc, 'bold');
   doc.setFontSize(6.5);
-  doc.setTextColor(100, 116, 139);
+  doc.setTextColor(203, 213, 225);
   doc.text(`PUEBLA, MÉXICO · SECRETARÍA DE EDUCACIÓN PÚBLICA · SISTEMA SIGPDA-EMS MCCEMS ${SCHOOL_YEAR}`, pageWidth / 2, 274, { align: 'center' });
 }
 

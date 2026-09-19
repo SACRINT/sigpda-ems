@@ -280,7 +280,7 @@ function buildDeterministicCoverSvg(opts: BookCoverOptions): string {
   <text x="160" y="94" font-family="'Montserrat', sans-serif" font-size="16" font-weight="600" fill="#E8A020" letter-spacing="1.2">
     DIRECCIÓN DE BACHILLERATOS ESTATALES Y PREPARATORIA ABIERTA (DBEPA)
   </text>
-  <text x="160" y="120" font-family="'Lato', sans-serif" font-size="13" font-weight="normal" fill="#94A3B8">
+  <text x="160" y="120" font-family="'Lato', sans-serif" font-size="13" font-weight="normal" fill="#CBD5E1">
     SUBSECRETARÍA DE EDUCACIÓN MEDIA SUPERIOR · MCCEMS ${SCHOOL_YEAR}
   </text>
 
@@ -296,7 +296,7 @@ function buildDeterministicCoverSvg(opts: BookCoverOptions): string {
     <text x="36" y="80" font-family="'Montserrat', sans-serif" font-size="18" font-weight="600" fill="#E8A020">
       CLAVE C.C.T.: ${cct}   ·   SUBSISTEMA: ${subsistema}   ·   ${semestre.toUpperCase()}
     </text>
-    <text x="36" y="112" font-family="'Lato', sans-serif" font-size="15" font-weight="normal" fill="#94A3B8">
+    <text x="36" y="112" font-family="'Lato', sans-serif" font-size="15" font-weight="normal" fill="#CBD5E1">
       Ciclo Escolar Oficial ${ciclo}   |   Coordinación de Desarrollo Curricular EMS Puebla
     </text>
   </g>
@@ -313,7 +313,7 @@ function buildDeterministicCoverSvg(opts: BookCoverOptions): string {
     </text>
 
     <!-- Sub-etiqueta de Tipo de Recurso -->
-    <text x="430" y="65" font-family="'Montserrat', sans-serif" font-size="13" font-weight="600" fill="#94A3B8" letter-spacing="1.2">
+    <text x="430" y="65" font-family="'Montserrat', sans-serif" font-size="13" font-weight="600" fill="#CBD5E1" letter-spacing="1.2">
       RECURSO SOCIOCOGNITIVO / SOCIOEMOCIONAL
     </text>
 
@@ -359,7 +359,7 @@ function buildDeterministicCoverSvg(opts: BookCoverOptions): string {
 
     <!-- Pilares Pedagógicos del Libro Activo -->
     <g transform="translate(40, ${titleStartY + (paec ? 275 : 190) + totalTitleOffset})">
-      <text x="0" y="0" font-family="'Montserrat', sans-serif" font-size="13" font-weight="bold" fill="#94A3B8" letter-spacing="1.2">
+      <text x="0" y="0" font-family="'Montserrat', sans-serif" font-size="13" font-weight="bold" fill="#CBD5E1" letter-spacing="1.2">
         ARQUITECTURA DE APRENDIZAJE ACTIVO:
       </text>
 
@@ -397,7 +397,7 @@ function buildDeterministicCoverSvg(opts: BookCoverOptions): string {
     <text x="50" y="100" font-family="'Montserrat', sans-serif" font-size="20" font-weight="600" fill="#FFFFFF">
       Edición Oficial para el Estudiante · Con Espacios Interactivos y Talleres de Aplicación
     </text>
-    <text x="50" y="135" font-family="'Lato', sans-serif" font-size="15" font-weight="normal" fill="#94A3B8">
+    <text x="50" y="135" font-family="'Lato', sans-serif" font-size="15" font-weight="normal" fill="#CBD5E1">
       Diseñado para el desarrollo de progresiones de aprendizaje, pensamiento crítico y proyectos integradores.
     </text>
 
@@ -497,7 +497,7 @@ function buildGenerativeTypographyOverlaySvg(opts: BookCoverOptions): string {
     <text x="36" y="80" font-family="'Montserrat', sans-serif" font-size="18" font-weight="600" fill="#E8A020">
       CLAVE C.C.T.: ${cct}   ·   SUBSISTEMA: ${subsistema}   ·   ${semestre.toUpperCase()}
     </text>
-    <text x="36" y="110" font-family="'Lato', sans-serif" font-size="14" font-weight="normal" fill="#94A3B8">
+    <text x="36" y="110" font-family="'Lato', sans-serif" font-size="14" font-weight="normal" fill="#CBD5E1">
       Ciclo Escolar ${ciclo}   |   Cuaderno de Trabajo Editorializado
     </text>
   </g>
@@ -582,7 +582,7 @@ function buildGenerativeTypographyOverlaySvg(opts: BookCoverOptions): string {
     <text x="50" y="100" font-family="'Montserrat', sans-serif" font-size="20" font-weight="600" fill="#FFFFFF">
       Edición Oficial para el Estudiante · Con Espacios Interactivos y Talleres de Aplicación
     </text>
-    <text x="50" y="135" font-family="'Lato', sans-serif" font-size="15" font-weight="normal" fill="#94A3B8">
+    <text x="50" y="135" font-family="'Lato', sans-serif" font-size="15" font-weight="normal" fill="#CBD5E1">
       Diseñado para el desarrollo de progresiones de aprendizaje, pensamiento crítico y proyectos integradores.
     </text>
 
