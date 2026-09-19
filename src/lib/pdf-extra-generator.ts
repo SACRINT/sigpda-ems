@@ -7,6 +7,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { SCHOOL_YEAR } from '@/lib/config';
+import { loadEditorialFonts } from '@/lib/visual-engine/font-loader';
 
 // ── Paleta institucional DBEPA ──────────────────────────────────────────────
 const NAVY: [number, number, number]     = [26, 26, 46];   // #1A1A2E
@@ -48,6 +49,10 @@ export function generateExtraPDF(extra: ExtraInput): jsPDF {
   // Rubrics use landscape orientation for wider tables
   const isRubric = extra.type === 'rubric';
   const doc = new jsPDF({ orientation: isRubric ? 'landscape' : 'portrait', unit: 'mm', format: 'letter' });
+
+  // Inicializar fuentes editoriales oficiales (Lato Regular/Bold + Montserrat Bold)
+  loadEditorialFonts(doc);
+
   const pageWidth  = doc.internal.pageSize.getWidth();   // 279.4 mm (landscape) or 215.9 mm (portrait)
   const pageHeight = doc.internal.pageSize.getHeight();  // 215.9 mm (landscape) or 279.4 mm (portrait)
   const margin = 13;
@@ -130,20 +135,45 @@ export function generateExtraPDF(extra: ExtraInput): jsPDF {
           };
         })
       ),
-      styles: { fontSize: 7, cellPadding: 2, textColor: TEXT, font: 'helvetica' },
+      styles: { fontSize: 7.2, cellPadding: 2.5, textColor: TEXT, font: 'helvetica' },
       columnStyles: colWidths.reduce<Record<number, { cellWidth: number }>>((acc, w, i) => {
         acc[i] = { cellWidth: w };
         return acc;
       }, {}),
-      margin: { left: margin, right: margin },
+      margin: { top: 16, left: margin, right: margin, bottom: 14 },
       theme: 'grid',
       pageBreak: 'auto',
+      didDrawPage: (data) => {
+        if (data.pageNumber > 1) {
+          doc.setFillColor(...typeColor);
+          doc.rect(0, 0, pageWidth, 12, 'F');
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(7.5);
+          doc.setTextColor(...WHITE);
+          doc.text(`DBEPA PUEBLA · ${typeLabel} · ${extra.title.substring(0, 55)}`, margin, 8);
+          doc.setTextColor(...GOLD);
+          doc.text(`${SCHOOL_YEAR}`, pageWidth - margin, 8, { align: 'right' });
+        }
+      },
     });
 
     y = doc.lastAutoTable!.finalY + 4;
     inTable = false;
     tableHeaders = [];
     tableData = [];
+  };
+
+  const addNewPage = () => {
+    doc.addPage();
+    doc.setFillColor(...typeColor);
+    doc.rect(0, 0, pageWidth, 12, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...WHITE);
+    doc.text(`DBEPA PUEBLA · ${typeLabel} · ${extra.title.substring(0, 55)}`, margin, 8);
+    doc.setTextColor(...GOLD);
+    doc.text(`${SCHOOL_YEAR}`, pageWidth - margin, 8, { align: 'right' });
+    y = margin + 6;
   };
 
   for (let i = 0; i < lines.length; i++) {
@@ -170,14 +200,43 @@ export function generateExtraPDF(extra: ExtraInput): jsPDF {
     if (inTable) flushTable();
 
     if (line === '') {
+      y += 2.5;
+      continue;
+    }
+
+    // Horizontal rule
+    if (line === '---' || line === '***' || line === '___') {
       y += 2;
+      doc.setDrawColor(...ACCENT);
+      doc.setLineWidth(0.4);
+      doc.line(margin, y, pageWidth - margin, y);
+      y += 5;
       continue;
     }
 
     // Check page overflow before adding text
     if (y > pageHeight - 20) {
-      doc.addPage();
-      y = margin + 2;
+      addNewPage();
+    }
+
+    // Blockquote / Callout
+    if (line.startsWith('> ')) {
+      const quote = line.replace(/^>\s*/, '').replace(/\*\*(.*?)\*\*/g, '$1');
+      const quoteLines = doc.splitTextToSize(quote, contentW - 10) as string[];
+      const boxH = quoteLines.length * 4.2 + 5;
+      if (y + boxH > pageHeight - 16) addNewPage();
+      doc.setFillColor(...GRAY_BG);
+      doc.roundedRect(margin, y - 2, contentW, boxH, 1.5, 1.5, 'F');
+      doc.setFillColor(...typeColor);
+      doc.rect(margin, y - 2, 3, boxH, 'F');
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(7.5);
+      doc.setTextColor(...MID);
+      quoteLines.forEach((ql: string, qi: number) => {
+        doc.text(ql, margin + 6, y + 2.5 + qi * 4.2);
+      });
+      y += boxH + 4;
+      continue;
     }
 
     // H1
@@ -223,13 +282,14 @@ export function generateExtraPDF(extra: ExtraInput): jsPDF {
       const text = line.substring(2).replace(/\*\*(.*?)\*\*/g, '$1');
       const wrapped = doc.splitTextToSize(`•  ${text}`, contentW - 6) as string[];
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7.5);
+      doc.setFontSize(7.8);
       doc.setTextColor(...TEXT);
       wrapped.forEach((wl: string, wi: number) => {
-        if (y > pageHeight - 16) { doc.addPage(); y = margin + 2; }
+        if (y > pageHeight - 16) { addNewPage(); }
         doc.text(wi === 0 ? wl : `   ${wl}`, margin + 4, y);
-        y += 4.2;
+        y += 4.6;
       });
+      y += 1.5;
       continue;
     }
 
@@ -239,13 +299,14 @@ export function generateExtraPDF(extra: ExtraInput): jsPDF {
       const text = numMatch[2].replace(/\*\*(.*?)\*\*/g, '$1');
       const wrapped = doc.splitTextToSize(`${numMatch[1]}.  ${text}`, contentW - 6) as string[];
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7.5);
+      doc.setFontSize(7.8);
       doc.setTextColor(...TEXT);
       wrapped.forEach((wl: string, wi: number) => {
-        if (y > pageHeight - 16) { doc.addPage(); y = margin + 2; }
+        if (y > pageHeight - 16) { addNewPage(); }
         doc.text(wi === 0 ? wl : `    ${wl}`, margin + 4, y);
-        y += 4.2;
+        y += 4.6;
       });
+      y += 1.5;
       continue;
     }
 
@@ -253,13 +314,14 @@ export function generateExtraPDF(extra: ExtraInput): jsPDF {
     const plain = line.replace(/\*\*(.*?)\*\*/g, '$1');
     const wrapped = doc.splitTextToSize(plain, contentW) as string[];
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.5);
+    doc.setFontSize(8.0);
     doc.setTextColor(...TEXT);
     wrapped.forEach((wl: string) => {
-      if (y > pageHeight - 16) { doc.addPage(); y = margin + 2; }
+      if (y > pageHeight - 16) { addNewPage(); }
       doc.text(wl, margin, y);
-      y += 4.5;
+      y += 4.8;
     });
+    y += 2.5;
   }
 
   // Flush any trailing table
