@@ -606,7 +606,7 @@ function drawCoverPage(
 
   setFontHeading(doc);
   doc.setFontSize(6.2);
-  doc.setTextColor(148, 163, 184);
+  doc.setTextColor(203, 213, 225);
   doc.text('RECURSO SOCIOCOGNITIVO / SOCIOEMOCIONAL', margin + 73, 59.8);
 
   // Título Principal UAC con auto-escalado
@@ -729,27 +729,35 @@ function drawCoverPage(
   doc.roundedRect(margin + 8, 221, box1W, 18, 1.5, 1.5, 'FD');
   setFontHeading(doc);
   doc.setFontSize(5.8);
-  doc.setTextColor(148, 163, 184);
+  doc.setTextColor(226, 232, 240);
   doc.text('NOMBRE DEL ESTUDIANTE:', margin + 11, 226);
   doc.setDrawColor(71, 85, 105);
-  doc.line(margin + 11, 234, margin + 90, 234);
+  doc.line(margin + 11, 234, margin + 83, 234);
 
   const box2X = margin + 98;
   const box2W = 38;
+  doc.setFillColor(19, 39, 67);
+  doc.setDrawColor(46, 116, 181);
+  doc.setLineWidth(0.2);
   doc.roundedRect(box2X, 221, box2W, 18, 1.5, 1.5, 'FD');
   setFontHeading(doc);
   doc.setFontSize(5.8);
-  doc.setTextColor(148, 163, 184);
+  doc.setTextColor(226, 232, 240);
   doc.text('GRUPO / TURNO:', box2X + 3, 226);
+  doc.setDrawColor(71, 85, 105);
   doc.line(box2X + 3, 234, box2X + box2W - 3, 234);
 
   const box3X = margin + 140;
   const box3W = contentWidth - 148;
+  doc.setFillColor(19, 39, 67);
+  doc.setDrawColor(46, 116, 181);
+  doc.setLineWidth(0.2);
   doc.roundedRect(box3X, 221, box3W, 18, 1.5, 1.5, 'FD');
   setFontHeading(doc);
   doc.setFontSize(5.8);
-  doc.setTextColor(148, 163, 184);
+  doc.setTextColor(226, 232, 240);
   doc.text('NÚMERO DE LISTA:', box3X + 3, 226);
+  doc.setDrawColor(71, 85, 105);
   doc.line(box3X + 3, 234, box3X + box3W - 3, 234);
 
   setFontBody(doc, 'normal');

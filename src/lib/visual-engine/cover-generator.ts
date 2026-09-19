@@ -404,19 +404,19 @@ function buildDeterministicCoverSvg(opts: BookCoverOptions): string {
     <!-- Datos de Alumno y Grupo -->
     <g transform="translate(50, 165)">
       <rect x="0" y="0" width="450" height="75" rx="8" fill="#132743" stroke="#2E74B5" stroke-width="1" />
-      <text x="16" y="26" font-family="'Montserrat', sans-serif" font-size="12" font-weight="bold" fill="#94A3B8">
+      <text x="16" y="26" font-family="'Montserrat', sans-serif" font-size="12" font-weight="bold" fill="#E2E8F0">
         NOMBRE DEL ESTUDIANTE:
       </text>
       <line x1="16" y1="58" x2="430" y2="58" stroke="#475569" stroke-width="1" stroke-dasharray="4 3" />
 
       <rect x="480" y="0" width="200" height="75" rx="8" fill="#132743" stroke="#2E74B5" stroke-width="1" />
-      <text x="496" y="26" font-family="'Montserrat', sans-serif" font-size="12" font-weight="bold" fill="#94A3B8">
+      <text x="496" y="26" font-family="'Montserrat', sans-serif" font-size="12" font-weight="bold" fill="#E2E8F0">
         GRUPO / TURNO:
       </text>
       <line x1="496" y1="58" x2="660" y2="58" stroke="#475569" stroke-width="1" stroke-dasharray="4 3" />
 
       <rect x="710" y="0" width="230" height="75" rx="8" fill="#132743" stroke="#2E74B5" stroke-width="1" />
-      <text x="726" y="26" font-family="'Montserrat', sans-serif" font-size="12" font-weight="bold" fill="#94A3B8">
+      <text x="726" y="26" font-family="'Montserrat', sans-serif" font-size="12" font-weight="bold" fill="#E2E8F0">
         NÚMERO DE LISTA:
       </text>
       <line x1="726" y1="58" x2="920" y2="58" stroke="#475569" stroke-width="1" stroke-dasharray="4 3" />
@@ -589,19 +589,19 @@ function buildGenerativeTypographyOverlaySvg(opts: BookCoverOptions): string {
     <!-- Campos de Alumno -->
     <g transform="translate(50, 175)">
       <rect x="0" y="0" width="450" height="85" rx="8" fill="#132743" stroke="#2E74B5" stroke-width="1" />
-      <text x="16" y="28" font-family="'Montserrat', sans-serif" font-size="12" font-weight="bold" fill="#94A3B8">
+      <text x="16" y="28" font-family="'Montserrat', sans-serif" font-size="12" font-weight="bold" fill="#E2E8F0">
         NOMBRE DEL ESTUDIANTE:
       </text>
       <line x1="16" y1="65" x2="430" y2="65" stroke="#475569" stroke-width="1" stroke-dasharray="4 3" />
 
       <rect x="480" y="0" width="200" height="85" rx="8" fill="#132743" stroke="#2E74B5" stroke-width="1" />
-      <text x="496" y="28" font-family="'Montserrat', sans-serif" font-size="12" font-weight="bold" fill="#94A3B8">
+      <text x="496" y="28" font-family="'Montserrat', sans-serif" font-size="12" font-weight="bold" fill="#E2E8F0">
         GRUPO / TURNO:
       </text>
       <line x1="496" y1="65" x2="660" y2="65" stroke="#475569" stroke-width="1" stroke-dasharray="4 3" />
 
       <rect x="710" y="0" width="230" height="85" rx="8" fill="#132743" stroke="#2E74B5" stroke-width="1" />
-      <text x="726" y="28" font-family="'Montserrat', sans-serif" font-size="12" font-weight="bold" fill="#94A3B8">
+      <text x="726" y="28" font-family="'Montserrat', sans-serif" font-size="12" font-weight="bold" fill="#E2E8F0">
         NÚMERO DE LISTA:
       </text>
       <line x1="726" y1="65" x2="920" y2="65" stroke="#475569" stroke-width="1" stroke-dasharray="4 3" />
