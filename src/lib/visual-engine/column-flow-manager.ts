@@ -34,10 +34,12 @@ import {
   drawNotesWidget,
   drawChecklistWidget,
   drawEquipmentCardWidget,
+  drawDigitalToolCardWidget,
   sanitizePdfText,
 } from './pdf-components';
 import { stripMarkdown, type GlossaryItem } from './content-extractor';
 import type { DetectedObject } from './object-extractor';
+import type { DigitalTool } from './digital-tools-registry';
 
 export interface PageContext {
   isSpecialPage?: boolean;
@@ -79,6 +81,10 @@ export interface ColumnFlowManagerOptions {
     detected: DetectedObject;
     imageBuffer: Buffer;
     imageFormat?: 'JPEG' | 'PNG';
+  } | null;
+  digitalTool?: {
+    tool: DigitalTool;
+    qrPngBuffer?: Buffer | Uint8Array;
   } | null;
 }
 
@@ -167,6 +173,27 @@ export class ColumnFlowManager {
             sideW,
             startY,
             sideBottom,
+          });
+        },
+      });
+    }
+
+    // 0.5 Herramienta Digital MCCEMS con QR interactivo (si existe)
+    if (opts.digitalTool) {
+      const dt = opts.digitalTool;
+      const isCompact = !!opts.equipmentCard;
+      queue.push({
+        id: 'digital_tool_card',
+        minHeight: isCompact ? 32 : 42,
+        draw: (doc, sideXAbs, sideW, startY, sideBottom) => {
+          return drawDigitalToolCardWidget(doc, {
+            tool: dt.tool,
+            qrPngBuffer: dt.qrPngBuffer,
+            sideXAbs,
+            sideW,
+            startY,
+            sideBottom,
+            compact: isCompact,
           });
         },
       });

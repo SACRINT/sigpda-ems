@@ -82,6 +82,11 @@ import {
   type PageContext,
 } from '@/lib/visual-engine/column-flow-manager';
 import {
+  resolveDigitalToolsForMission,
+  generateToolQrPng,
+  type DigitalTool,
+} from '@/lib/visual-engine/digital-tools-registry';
+import {
   generateMissionRubric,
   drawMissionRubricTable,
 } from '@/lib/visual-engine/mission-rubric-generator';
@@ -1911,6 +1916,25 @@ async function drawMission(
     openverseCollector.push(equipmentVisual.mediaAsset);
   }
 
+  // ── V8: Herramienta Digital MCCEMS y QR Raster (14x14mm) ───────────────────
+  let digitalToolPayload: { tool: DigitalTool; qrPngBuffer?: Buffer } | null = null;
+  const resolvedDigitalTool = resolveDigitalToolsForMission(
+    subjectName || '',
+    mission.title || '',
+    `${mission.sessionTopic || ''} ${mission.sessionFocus || ''}`
+  );
+  if (resolvedDigitalTool) {
+    try {
+      const toolQrBuf = await generateToolQrPng(resolvedDigitalTool.url);
+      digitalToolPayload = {
+        tool: resolvedDigitalTool,
+        qrPngBuffer: toolQrBuf,
+      };
+    } catch {
+      digitalToolPayload = { tool: resolvedDigitalTool };
+    }
+  }
+
   // ── Capa 5: Motor de Flujo de Columnas y Sidebar Rotativo V7 ───────────────
   const flow = new ColumnFlowManager({
     doc,
@@ -1938,6 +1962,7 @@ async function drawMission(
       imageBuffer: equipmentVisual.buffer,
       imageFormat: equipmentVisual.format,
     } : null,
+    digitalTool: digitalToolPayload,
   });
 
   const checkSpace = (cy: number, nh: number) => flow.ensureVerticalSpace(cy, nh);

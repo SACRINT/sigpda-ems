@@ -33,6 +33,7 @@ import {
 import { stripMarkdown, type GlossaryItem } from './content-extractor';
 import { sanitizePdfText } from './pdf-components-core';
 import type { DetectedObject } from './object-extractor';
+import type { DigitalTool } from './digital-tools-registry';
 
 // ── 1. SECCIÓN DE EVALUACIÓN DIAGNÓSTICA ───────────────────────────────────────
 
@@ -778,4 +779,96 @@ export function drawEquipmentCardWidget(
 
   return sy + cardH + 3;
 }
+
+export interface DigitalToolCardOpts {
+  tool: DigitalTool;
+  qrPngBuffer?: Buffer | Uint8Array;
+  sideXAbs: number;
+  sideW: number;
+  startY: number;
+  sideBottom: number;
+  compact?: boolean;
+}
+
+/**
+ * Renderiza una tarjeta de herramienta digital MCCEMS en el sidebar con QR raster (14x14mm).
+ */
+export function drawDigitalToolCardWidget(
+  doc: jsPDF,
+  opts: DigitalToolCardOpts
+): number {
+  const { tool, qrPngBuffer, sideXAbs, sideW, startY, sideBottom, compact = false } = opts;
+  const availH = sideBottom - startY;
+  const minH = compact ? 32 : 42;
+  if (availH < minH) return startY;
+
+  const cardH = Math.min(availH - 2, compact ? 36 : 46);
+  const sy = startY;
+
+  // Fondo de tarjeta
+  doc.setFillColor(...COLOR.TABLE_ALT_ROW);
+  doc.roundedRect(sideXAbs, sy, sideW, cardH, RADIUS.SM, RADIUS.SM, 'F');
+
+  // Franja lateral distintiva azul digital
+  const ACCENT_DIGITAL: RGB = [37, 99, 235];
+  doc.setFillColor(...ACCENT_DIGITAL);
+  doc.roundedRect(sideXAbs, sy, 2.5, cardH, RADIUS.SM, RADIUS.SM, 'F');
+
+  doc.setDrawColor(...COLOR.BORDER);
+  doc.setLineWidth(STROKE.HAIRLINE);
+  doc.roundedRect(sideXAbs, sy, sideW, cardH, RADIUS.SM, RADIUS.SM, 'S');
+
+  // Encabezado tipo píldora
+  setFontHeading(doc);
+  doc.setFontSize(5.2);
+  doc.setTextColor(...ACCENT_DIGITAL);
+  doc.text('HERRAMIENTA DIGITAL · MCCEMS', sideXAbs + 4.5, sy + 3.8);
+
+  // Nombre de la herramienta
+  setFontBody(doc, 'bold');
+  doc.setFontSize(6.5);
+  doc.setTextColor(...COLOR.NAVY);
+  doc.text(sanitizePdfText(tool.name), sideXAbs + 4.5, sy + 7.5);
+
+  // Plataformas (Web / Android / etc.)
+  setFontBody(doc, 'normal');
+  doc.setFontSize(4.8);
+  doc.setTextColor(...COLOR.TEXT_MUTED);
+  doc.text(tool.platforms.join(' · '), sideXAbs + 4.5, sy + 10.5);
+
+  // QR Code incrustado en el lado derecho a 14x14mm nítido
+  const qrSize = 14;
+  const qrX = sideXAbs + sideW - qrSize - 3;
+  const qrY = sy + 3.5;
+
+  if (qrPngBuffer) {
+    try {
+      doc.addImage(qrPngBuffer, 'PNG', qrX, qrY, qrSize, qrSize);
+    } catch {
+      doc.setFillColor(...COLOR.BORDER);
+      doc.roundedRect(qrX, qrY, qrSize, qrSize, 1, 1, 'F');
+    }
+  }
+
+  // Descripción didáctica a la izquierda del QR
+  const textMaxW = sideW - qrSize - 9;
+  doc.setFontSize(5.0);
+  doc.setTextColor(...COLOR.TEXT_PRIMARY);
+  const descLines = doc.splitTextToSize(sanitizePdfText(tool.description), textMaxW) as string[];
+  const maxLines = compact ? 2 : 3;
+  let lineY = sy + 14.5;
+  descLines.slice(0, maxLines).forEach((line: string) => {
+    doc.text(line, sideXAbs + 4.5, lineY);
+    lineY += 2.8;
+  });
+
+  // Callout inferior de interacción
+  setFontBody(doc, 'bold');
+  doc.setFontSize(4.8);
+  doc.setTextColor(...ACCENT_DIGITAL);
+  doc.text('📱 Escanea el QR para interactuar', sideXAbs + 4.5, sy + cardH - 2.5);
+
+  return sy + cardH + 3.0;
+}
+
 
