@@ -2924,6 +2924,53 @@ export default function PlanningDetailClient({
                         : `${generatedCount} de ${blockSessions.length} planes generados`}
                     </span>
 
+                    {generatedCount > 0 && (
+                      <div style={{ display: 'flex', gap: '6px' }} onClick={(e) => e.stopPropagation()}>
+                        <a
+                          href={`/api/docx/extra/bulk?planningId=${planning.id}&blockIndex=${actIdx}&type=lesson_plan`}
+                          download
+                          title="Descargar todos los planes de clase de este bloque en formato Word (.zip)"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.25) 0%, rgba(30, 64, 175, 0.35) 100%)',
+                            border: '1px solid rgba(59, 130, 246, 0.4)',
+                            color: '#93c5fd',
+                            fontSize: '11.5px',
+                            fontWeight: 600,
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            textDecoration: 'none',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          📦 Word (.zip)
+                        </a>
+                        <a
+                          href={`/api/pdf/extra/bulk?planningId=${planning.id}&blockIndex=${actIdx}&type=lesson_plan`}
+                          download
+                          title="Descargar todos los planes de clase de este bloque en formato PDF (.zip)"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            background: 'linear-gradient(135deg, rgba(220, 38, 38, 0.2) 0%, rgba(185, 28, 28, 0.3) 100%)',
+                            border: '1px solid rgba(239, 68, 68, 0.4)',
+                            color: '#fca5a5',
+                            fontSize: '11.5px',
+                            fontWeight: 600,
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            textDecoration: 'none',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          📄 PDF (.zip)
+                        </a>
+                      </div>
+                    )}
+
                     <button
                       type="button"
                       onClick={(e) => {

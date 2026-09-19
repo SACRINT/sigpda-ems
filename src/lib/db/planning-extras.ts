@@ -91,3 +91,54 @@ export async function deletePlanningExtra(id: string, teacherId: string) {
     )
   `;
 }
+
+export async function getPlanningExtrasByBlock(
+  planningId: string,
+  keyIndex: number,
+  teacherId: string,
+  type?: string
+): Promise<PlanningExtraRecord[]> {
+  const db = sql();
+  let rows;
+  if (type) {
+    rows = await db`
+      SELECT pe.id, pe.planning_id, pe.type, pe.title, pe.key_index, pe.content_text, pe.created_at
+      FROM planning_extras pe
+      JOIN plannings p ON pe.planning_id = p.id
+      WHERE pe.planning_id = ${planningId}::uuid
+        AND pe.key_index = ${keyIndex}
+        AND pe.type = ${type}
+        AND p.teacher_id = ${teacherId}::uuid
+      ORDER BY pe.created_at ASC, pe.id ASC
+    `;
+  } else {
+    rows = await db`
+      SELECT pe.id, pe.planning_id, pe.type, pe.title, pe.key_index, pe.content_text, pe.created_at
+      FROM planning_extras pe
+      JOIN plannings p ON pe.planning_id = p.id
+      WHERE pe.planning_id = ${planningId}::uuid
+        AND pe.key_index = ${keyIndex}
+        AND p.teacher_id = ${teacherId}::uuid
+      ORDER BY pe.created_at ASC, pe.id ASC
+    `;
+  }
+  return rows.map((r: Record<string, unknown>) => mapRawPlanningExtra(r));
+}
+
+export async function getPlanningExtrasByIds(
+  ids: string[],
+  teacherId: string
+): Promise<PlanningExtraRecord[]> {
+  if (!ids || ids.length === 0) return [];
+  const db = sql();
+  const rows = await db`
+    SELECT pe.id, pe.planning_id, pe.type, pe.title, pe.key_index, pe.content_text, pe.created_at
+    FROM planning_extras pe
+    JOIN plannings p ON pe.planning_id = p.id
+    WHERE pe.id = ANY(${ids}::uuid[])
+      AND p.teacher_id = ${teacherId}::uuid
+    ORDER BY pe.created_at ASC, pe.id ASC
+  `;
+  return rows.map((r: Record<string, unknown>) => mapRawPlanningExtra(r));
+}
+

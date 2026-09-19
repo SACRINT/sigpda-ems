@@ -22,6 +22,8 @@ export interface BrandingContext {
   subsistema?: 'bge' | 'bt' | string;
   teacherName?: string;
   zone?: string;
+  semester?: number | string;
+  uacName?: string;
 }
 
 export const INSTITUTIONAL_DEFAULTS = {

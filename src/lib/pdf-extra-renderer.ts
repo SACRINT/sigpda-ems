@@ -547,3 +547,22 @@ export function renderExtraDocument(
 
   return doc;
 }
+
+/**
+ * Inicializa e instancia un documento jsPDF con la orientación adecuada
+ * y renderiza el recurso extra didáctico institucionalmente.
+ */
+export function generateExtraPdfDocument(
+  extra: ExtraInput,
+  context?: BrandingContext
+): jsPDF {
+  const isRubric = extra.type === 'rubric';
+  const orientation = isRubric ? 'landscape' : 'portrait';
+  const doc = new jsPDF({
+    orientation,
+    unit: 'mm',
+    format: 'letter',
+  });
+  return renderExtraDocument(doc, extra, context);
+}
+

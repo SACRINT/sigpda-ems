@@ -11,6 +11,8 @@
  */
 
 import {
+  Document,
+  Packer,
   Table,
   TableRow,
   TableCell,
@@ -20,10 +22,14 @@ import {
   WidthType,
   AlignmentType,
   ShadingType,
+  Header,
+  Footer,
+  PageNumber,
   type ITableCellBorders,
   type ISpacingProperties,
 } from 'docx';
 import { PHASE_COLORS_HEX } from '@/lib/visual-engine/design-tokens';
+import { resolveHeaderBranding, type BrandingContext } from '@/lib/document-branding';
 
 // ── Paleta de Colores Institucionales DOCX (Hexadecimal sin #) ──────────────
 export const DOCX_COLORS = {
@@ -347,4 +353,190 @@ export function createMarkdownTable(
 }
 
 export const createWordTable = createMarkdownTable;
+
+/**
+ * Compila un recurso extra individual o en cascada a un documento Buffer DOCX
+ * con banner institucional, tablas enriquecidas, orientación adaptativa (Landscape para rúbricas)
+ * y encabezado/pie de página normativo de la DBEPA Puebla.
+ */
+export async function buildExtraDocx(
+  extra: { type: string; title: string; content_text: string },
+  context?: BrandingContext
+): Promise<Buffer> {
+  const title = extra.title || 'Recurso Didáctico Oficial';
+  const rawContent = extra.content_text || '';
+  const lines = rawContent.split('\n');
+
+  const branding = resolveHeaderBranding(extra.type, context);
+  const isRubric = extra.type === 'rubric' || extra.title.toLowerCase().includes('rúbrica') || extra.title.toLowerCase().includes('rubrica');
+  const pageW = isRubric ? DOCX_DIMENSIONS.PAGE_HEIGHT_LETTER : DOCX_DIMENSIONS.PAGE_WIDTH_LETTER;
+  const pageH = isRubric ? DOCX_DIMENSIONS.PAGE_WIDTH_LETTER : DOCX_DIMENSIONS.PAGE_HEIGHT_LETTER;
+  const contentW = isRubric ? 14400 : DOCX_DIMENSIONS.CONTENT_WIDTH_EXTRA;
+
+  const docChildren: (Paragraph | Table)[] = [];
+
+  // Banner institucional de portada
+  docChildren.push(
+    new Table({
+      width: { size: contentW, type: WidthType.DXA },
+      columnWidths: [contentW],
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: contentW, type: WidthType.DXA },
+              shading: { fill: C.dark, type: ShadingType.CLEAR },
+              borders: bdr(C.dark, 8),
+              margins: { top: 180, bottom: 180, left: 240, right: 240 },
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  spacing: { before: 0, after: 60 },
+                  children: [
+                    new TextRun({
+                      text: `${branding.topSup} · ${branding.cycle}`,
+                      size: 15,
+                      color: 'B0C4DE',
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  spacing: { before: 0, after: 40 },
+                  children: [
+                    new TextRun({
+                      text: branding.typeLabel,
+                      bold: true,
+                      size: 26,
+                      color: C.gold,
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  spacing: { before: 0, after: 40 },
+                  children: [
+                    new TextRun({
+                      text: title,
+                      bold: true,
+                      size: 20,
+                      color: 'DDEEFC',
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+      ],
+    })
+  );
+
+  docChildren.push(new Paragraph({ spacing: { before: 120, after: 120 } }));
+
+  // Parse Markdown lines y tablas
+  let inTable = false;
+  let tableHeaders: string[] = [];
+  let tableData: string[][] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+
+    if (line.startsWith('|')) {
+      if (line.match(/^\|[\s:-|]*$/)) {
+        continue; // Separador |---|---|
+      }
+
+      const cells = line
+        .split('|')
+        .slice(1, -1)
+        .map((c: string) => c.trim());
+
+      if (!inTable) {
+        inTable = true;
+        tableHeaders = cells;
+        tableData = [];
+      } else {
+        tableData.push(cells);
+      }
+    } else {
+      if (inTable) {
+        docChildren.push(createWordTable(tableHeaders, tableData, contentW));
+        docChildren.push(new Paragraph({ spacing: { before: 80, after: 80 } }));
+        inTable = false;
+      }
+
+      if (line !== '') {
+        docChildren.push(createParagraphFromLine(line, { contentWidth: contentW }));
+      }
+    }
+  }
+
+  if (inTable) {
+    docChildren.push(createWordTable(tableHeaders, tableData, contentW));
+  }
+
+  // Ensamblado final del documento DOCX
+  const doc = new Document({
+    styles: { default: { document: { run: { font: 'Arial', size: 18 } } } },
+    sections: [
+      {
+        properties: {
+          page: {
+            size: { width: pageW, height: pageH },
+            margin: {
+              top: DOCX_DIMENSIONS.MARGIN_EXTRA,
+              right: DOCX_DIMENSIONS.MARGIN_EXTRA,
+              bottom: DOCX_DIMENSIONS.MARGIN_EXTRA,
+              left: DOCX_DIMENSIONS.MARGIN_EXTRA,
+            },
+          },
+        },
+        headers: {
+          default: new Header({
+            children: [
+              new Paragraph({
+                spacing: { before: 0, after: 60 },
+                border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: C.accent, space: 1 } },
+                children: [
+                  new TextRun({
+                    text: `${branding.topSup} | ${branding.shortLabel} | ${title.substring(0, 45)}`,
+                    size: 14,
+                    color: '777777',
+                    font: 'Arial',
+                  }),
+                ],
+              }),
+            ],
+          }),
+        },
+        footers: {
+          default: new Footer({
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                border: { top: { style: BorderStyle.SINGLE, size: 4, color: C.accent, space: 1 } },
+                spacing: { before: 60 },
+                children: [
+                  new TextRun({ text: 'Página ', size: 14, color: '777777', font: 'Arial' }),
+                  new TextRun({ children: [PageNumber.CURRENT], size: 14, color: '777777', font: 'Arial' }),
+                  new TextRun({ text: ' de ', size: 14, color: '777777', font: 'Arial' }),
+                  new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 14, color: '777777', font: 'Arial' }),
+                  new TextRun({ text: ' | SIGPDA-EMS DBEPA Puebla', size: 14, color: '777777', font: 'Arial' }),
+                ],
+              }),
+            ],
+          }),
+        },
+        children: docChildren,
+      },
+    ],
+  });
+
+  return Buffer.from(await Packer.toBuffer(doc));
+}
+
 
