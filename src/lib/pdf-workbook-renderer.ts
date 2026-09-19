@@ -256,19 +256,15 @@ export async function renderWorkbookToPdf(
 
     // H-027: Si existe clave FLUX y no se fuerza fallback, intentar portada generativa Tier 1 situada
     if (hasFluxKey && !options.forceFallbackCover) {
-      try {
-        const coverResult = await generateBookCover(coverOpts).catch((e) => {
-          logger.warn('[pdf-workbook-renderer] Error generando portada generativa con FLUX:', e);
-          return null;
-        });
+      const coverResult = await generateBookCover(coverOpts).catch((e) => {
+        logger.warn('[pdf-workbook-renderer] Error generando portada generativa con FLUX:', e);
+        return null;
+      });
 
-        // Solo usar el buffer generado si es generativo real (Tier 1 FLUX), no fallback SVG con riesgo de tofu
-        if (coverResult?.buffer && !coverResult.isFallback) {
-          doc.addImage(coverResult.buffer, 'JPEG', 0, 0, pageWidth, pageHeight);
-          coverRendered = true;
-        }
-      } catch (e) {
-        logger.warn('[pdf-workbook-renderer] Fallo inesperado en portada generativa FLUX:', e);
+      // Solo usar el buffer generado si es generativo real (Tier 1 FLUX), no fallback SVG con riesgo de tofu
+      if (coverResult?.buffer && !coverResult.isFallback) {
+        doc.addImage(coverResult.buffer, 'JPEG', 0, 0, pageWidth, pageHeight);
+        coverRendered = true;
       }
     }
 
