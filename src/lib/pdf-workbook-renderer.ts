@@ -21,6 +21,7 @@ import type {
   TroubleshootItem,
   EvaluationSection,
   ProjectSection,
+  EvaluationRubricCriterion,
 } from '@/types/work-textbook';
 import type { Planning, ImageAsset } from '@/types/planning';
 import { loadAllLogos } from './pdf-logos';
@@ -1140,7 +1141,7 @@ export function getOfficialNemFallback(level: 'sobresaliente' | 'notable' | 'suf
  * Normaliza nombres en inglés ('needs support', etc.) y provee descripción pedagógica completa.
  */
 export function getRubricLevelDescriptor(
-  levels: any,
+  levels: unknown,
   targetLevel: 'sobresaliente' | 'notable' | 'suficiente' | 'insuficiente'
 ): string {
   if (!levels) {
@@ -1149,8 +1150,10 @@ export function getRubricLevelDescriptor(
 
   // 1. Si levels es un objeto tipo { sobresaliente: "...", notable: "..." }
   if (typeof levels === 'object' && !Array.isArray(levels)) {
-    if (typeof levels[targetLevel] === 'string' && levels[targetLevel].trim().length > 3) {
-      return levels[targetLevel].trim();
+    const lvlObj = levels as Record<string, unknown>;
+    const directVal = lvlObj[targetLevel];
+    if (typeof directVal === 'string' && directVal.trim().length > 3) {
+      return directVal.trim();
     }
     const aliases: Record<string, string[]> = {
       sobresaliente: ['sobresaliente', 'excelente', 'avanzado', '10-9'],
@@ -1159,7 +1162,7 @@ export function getRubricLevelDescriptor(
       insuficiente: ['insuficiente', 'requiere apoyo', 'inicial', '4-1'],
     };
     const targets = aliases[targetLevel] || [];
-    for (const [k, v] of Object.entries(levels)) {
+    for (const [k, v] of Object.entries(lvlObj)) {
       const kLower = k.toLowerCase().trim();
       if (targets.some((t) => kLower.includes(t)) && typeof v === 'string' && v.trim().length > 3) {
         return v.trim();
@@ -1169,6 +1172,7 @@ export function getRubricLevelDescriptor(
 
   // 2. Si levels es un array tipo [ { levelName: '...', descriptor: '...' } ]
   if (Array.isArray(levels) && levels.length > 0) {
+    const lvlArr = levels as Array<{ levelName?: string; descriptor?: string } | null | undefined>;
     const aliases: Record<string, string[]> = {
       sobresaliente: ['sobresaliente', 'excelente', 'avanzado', '10-9', 'expert', 'excellent', 'outstanding'],
       notable: ['notable', 'bueno', 'competente', '8-7', 'proficient', 'good', 'satisfactory'],
@@ -1177,7 +1181,7 @@ export function getRubricLevelDescriptor(
     };
 
     const targets = aliases[targetLevel] || [];
-    for (const l of levels) {
+    for (const l of lvlArr) {
       if (!l) continue;
       const nameLower = (l.levelName || '').toLowerCase().trim();
       if (targets.some((t) => nameLower.includes(t)) && l.descriptor && l.descriptor.trim().length > 3) {
@@ -1187,8 +1191,9 @@ export function getRubricLevelDescriptor(
 
     const indexMap = { sobresaliente: 0, notable: 1, suficiente: 2, insuficiente: 3 };
     const idx = indexMap[targetLevel];
-    if (levels[idx]?.descriptor && levels[idx].descriptor.trim().length > 5) {
-      return levels[idx].descriptor.trim();
+    const candidate = lvlArr[idx];
+    if (candidate && candidate.descriptor && candidate.descriptor.trim().length > 5) {
+      return candidate.descriptor.trim();
     }
   }
 
@@ -1299,7 +1304,8 @@ function drawPlantelComunidadPage(
   const schoolName = sanitizePdfText(stripMarkdown(rawSchoolName));
   const cct = sanitizePdfText(workbook.coverData?.cct || planning?.contentJson?.sectionI?.cct || '21ECT0017T');
   const subsystem = sanitizePdfText((workbook.subsystem || planning?.contentJson?.sectionI?.subsystem || 'BGE').toUpperCase());
-  const municipality = sanitizePdfText((workbook.coverData as any)?.municipality || 'Puebla, Pue.');
+  const coverExtra = workbook.coverData as Record<string, unknown> | undefined;
+  const municipality = sanitizePdfText(typeof coverExtra?.municipality === 'string' ? coverExtra.municipality : 'Puebla, Pue.');
   const teacherName = sanitizePdfText(stripMarkdown(workbook.coverData?.teacherName || planning?.contentJson?.sectionI?.teacherName || 'Academia Docente del Plantel'));
   const subjectName = sanitizePdfText(stripMarkdown(workbook.coverData?.subjectName || workbook.blockName || planning?.uacName || 'Formación Fundamental'));
 
@@ -1310,7 +1316,8 @@ function drawPlantelComunidadPage(
   const semesterStr = sanitizePdfText(/\bsemestre\b/i.test(semClean) ? semClean : `${semClean}° Semestre`);
 
   const paecProjectName = sanitizePdfText(stripMarkdown(workbook.coverData?.paecProjectName || workbook.projectSection?.artifactName || planning?.paecContext || 'Transformación Productiva y Social Comunitaria'));
-  const paecChallenge = sanitizePdfText(stripMarkdown(workbook.projectSection?.communityUtility || (workbook.coverData as any)?.paecProblem || planning?.paecContext || 'Atención prioritaria al desarrollo comunitario y sustentabilidad local.'));
+  const paecProblem = typeof coverExtra?.paecProblem === 'string' ? coverExtra.paecProblem : undefined;
+  const paecChallenge = sanitizePdfText(stripMarkdown(workbook.projectSection?.communityUtility || paecProblem || planning?.paecContext || 'Atención prioritaria al desarrollo comunitario y sustentabilidad local.'));
 
   // Tabla 1: Ficha Institucional
   autoTable(doc, {
@@ -1441,7 +1448,7 @@ function drawPdfGlossaryBox(
   }
   const boxHeight = Math.max(18, 9 + totalDefLines * 3.8);
 
-  let y = ensureVerticalSpace(doc, startY, boxHeight + 4, margin, pageHeight);
+  const y = ensureVerticalSpace(doc, startY, boxHeight + 4, margin, pageHeight);
 
   doc.setFillColor(248, 250, 252);
   doc.roundedRect(margin, y, drawWidth, boxHeight, 1.5, 1.5, 'F');
@@ -1490,7 +1497,7 @@ async function drawMissionQrBox(
   startY: number
 ): Promise<number> {
   const boxHeight = 22;
-  let y = ensureVerticalSpace(doc, startY, boxHeight + 4, margin, pageHeight);
+  const y = ensureVerticalSpace(doc, startY, boxHeight + 4, margin, pageHeight);
 
   doc.setFillColor(248, 250, 252);
   doc.roundedRect(margin, y, drawWidth, boxHeight, 1.5, 1.5, 'F');
@@ -2221,7 +2228,9 @@ async function drawMission(
   }
 
   // ── V7: Rúbrica Analítica Formativa de la Misión (MCCEMS) ───────────────────
-  const missionRubric = (mission as any).missionRubric ||
+  const missionExtra = mission as unknown as Record<string, unknown>;
+  const missionRubric: EvaluationRubricCriterion[] =
+    (Array.isArray(missionExtra.missionRubric) ? (missionExtra.missionRubric as EvaluationRubricCriterion[]) : undefined) ||
     generateMissionRubric(mission, subjectName, blockName);
 
   if (missionRubric && missionRubric.length > 0) {

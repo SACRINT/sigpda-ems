@@ -176,8 +176,6 @@ export function dispatchVisual(uacName: string, topic: string, contextText?: str
   const isHumanities = isHumanitiesSubject(uacName);
   const isLaboral = isLaboralSubject(uacName);
 
-
-
   // Combinar título + contexto para máxima cobertura de keywords
   const searchText = normalizeUnicode(`${topic} ${contextText || ''}`);
 

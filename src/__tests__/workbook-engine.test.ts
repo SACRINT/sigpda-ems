@@ -132,6 +132,25 @@ describe('Workbook Engine Architecture Tests (Fase 10)', () => {
     expect(mixedConsolidated[1].type).toBe('empty_table');
     expect(mixedConsolidated[2].type).toBe('lines');
 
+    // Distribución .slice() entre weDo y youDo (regla de foundation-writer)
+    const weDo = consolidated.slice(0, Math.ceil(consolidated.length / 2));
+    const youDo = consolidated.slice(Math.ceil(consolidated.length / 2));
+    expect(weDo.length).toBe(1);
+    expect(youDo.length).toBe(0);
+
+    // Test con 10 lines intercaladas con tablas (escenario real de IA en foundation-writer)
+    const mixedTen: WorkbookElement[] = [
+      ...Array.from({ length: 5 }, (_, i) => ({ id: `l1-${i}`, type: 'lines' as const, config: { rows: 4 } })),
+      { id: 't1', type: 'empty_table' as const, config: { cols: ['X', 'Y'] } },
+      ...Array.from({ length: 5 }, (_, i) => ({ id: `l2-${i}`, type: 'lines' as const, config: { rows: 4 } })),
+    ];
+    const mixedConsolidatedTen = consolidateWorkbookElements(mixedTen);
+    expect(mixedConsolidatedTen.length).toBe(3); // lines colapsadas, tabla, lines colapsadas
+    const weDoMixed = mixedConsolidatedTen.slice(0, Math.ceil(mixedConsolidatedTen.length / 2));
+    const youDoMixed = mixedConsolidatedTen.slice(Math.ceil(mixedConsolidatedTen.length / 2));
+    expect(weDoMixed.length).toBe(2); // 1er grupo de lines + tabla
+    expect(youDoMixed.length).toBe(1); // 2do grupo de lines
+
     // stripWorkbookTags elimina tags del texto
     const textWithTag = 'Paso 1: Medir la masa.<!--workbook:lines:rows=4--> Paso 2: Calcular densidad.';
     expect(stripWorkbookTags(textWithTag)).toBe('Paso 1: Medir la masa. Paso 2: Calcular densidad.');
