@@ -22,6 +22,7 @@ import {
   drawSectionRibbon,
   drawCalloutBox,
 } from '@/lib/visual-engine/pdf-components-core';
+import { loadEditorialFonts } from '@/lib/visual-engine/font-loader';
 import type { CalloutBoxData } from '@/lib/visual-engine/callout-box';
 import {
   resolveHeaderBranding,
@@ -139,6 +140,11 @@ export function renderExtraDocument(
   extra: ExtraInput,
   context?: BrandingContext
 ): jsPDF {
+  // H-056: Asegurar fuentes editoriales si no fueron inicializadas por el llamador
+  if (!(doc as unknown as { __originalSetFont?: unknown }).__originalSetFont) {
+    loadEditorialFonts(doc);
+  }
+
   const branding = resolveHeaderBranding(extra.type, context);
   const typeColor = branding.color || NAVY;
   const typeLabel = branding.typeLabel;
