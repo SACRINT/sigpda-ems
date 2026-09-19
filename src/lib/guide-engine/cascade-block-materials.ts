@@ -233,7 +233,7 @@ export async function cascadeBlockMaterials(
         preferOpenverseMedia: true,
       });
       if (resolved) {
-        const visualTitle = `Recurso Gráfico Misión ${mIdx + 1}: ${mission.title}`;
+        const visualTitle = `[Visual] Recurso Gráfico Misión ${mIdx + 1}: ${mission.title}`;
         const visualPayload = JSON.stringify({
           type: resolved.type,
           svg: resolved.svg,
@@ -255,7 +255,7 @@ export async function cascadeBlockMaterials(
             created_at
           ) VALUES (
             ${planningId}::uuid,
-            'visual',
+            'material',
             ${visualTitle},
             ${blockIndex},
             ${visualPayload},
