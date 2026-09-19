@@ -13,6 +13,7 @@ import { PDFParse } from 'pdf-parse';
 import { renderWorkbookToPdf } from '@/lib/pdf-workbook-renderer';
 import type { ActiveWorkTextbook, MissionSection, ProjectSection, EvaluationSection } from '@/types/work-textbook';
 import type { Planning } from '@/types/planning';
+import { extractMaterialsFromWorkbook, extractSpecificMaterial } from '@/lib/guide-engine/material-extractor';
 
 async function extractPdfData(buffer: Buffer): Promise<{ text: string; numpages: number }> {
   const parser = new PDFParse({ data: buffer });
@@ -210,6 +211,21 @@ function makeIntegrationWorkbook(): ActiveWorkTextbook {
         question: '¿Qué condición describe mejor el nuevo sistema de costos?',
         options: ['Aumento de déficit', 'Punto de equilibrio nulo', 'Superávit continuo'],
         answerExplanation: 'El aumento de costos fijos sin ingresos desplaza el punto de equilibrio a valores inalcanzables.',
+      },
+    ],
+    tieredExercises: [
+      {
+        levelName: 'Nivel 1 - Comprensión Básica',
+        description: 'Identificación y formulación directa de sistemas 2x2.',
+        exercises: [
+          {
+            number: 1,
+            statement: 'Despejar x en la ecuación 3x - 6 = 12.',
+            contextOrData: 'Ecuación lineal con una variable.',
+            hint: 'Suma 6 a ambos miembros y divide entre 3.',
+            expectedOutputOrCriteria: 'x = 6 con procedimiento algebraico correcto.',
+          },
+        ],
       },
     ],
     metacognitiveReflection: {
@@ -452,4 +468,32 @@ describe('Workbook Engine — Test de Integración End-to-End (renderWorkbookToP
     expect(pdfData.text).not.toContain('⚠️');
     expect(pdfData.text).not.toContain('🎯');
   }, 25000);
+
+  it('Test 5 (Etapa 3): Extrae determinísticamente la Guía del Estudiante y el Solucionario Docente preservando compatibilidad regresiva', () => {
+    const workbook = makeIntegrationWorkbook();
+    const materials = extractMaterialsFromWorkbook(workbook);
+
+    // 1. Compatibilidad regresiva: guiaDelBloque existe y contiene secciones del estudiante
+    expect(materials.guiaDelBloque).toBeDefined();
+    expect(materials.guiaDelBloque).toContain('# GUÍA DE TRABAJO DEL ESTUDIANTE');
+    expect(materials.guiaDelBloque).toContain('INSTRUCCIONES GENERALES');
+    expect(materials.guiaDelBloque).toContain('MISIÓN 1:');
+
+    // 2. Nuevo recurso pedagógico: solucionarioDocente con claves STEM y mediación
+    expect(materials.solucionarioDocente).toBeDefined();
+    expect(materials.solucionarioDocente).toContain('# SOLUCIONARIO Y GUÍA DE MEDIACIÓN PEDAGÓGICA (USO EXCLUSIVO DOCENTE)');
+    expect(materials.solucionarioDocente).toContain('DOCUMENTO CONFIDENCIAL DE USO EXCLUSIVO PARA EL DOCENTE');
+    expect(materials.solucionarioDocente).toContain('A. Mediación de Saberes Previos (Apertura)');
+    expect(materials.solucionarioDocente).toContain('B. Clave de Resolución del Ejemplo Modelo (Yo Hago)');
+    expect(materials.solucionarioDocente).toContain('Pauta de Resolución STEM');
+    expect(materials.solucionarioDocente).toContain('SOLUCIONARIO DE LA EVALUACIÓN ESCALONADA POR NIVELES');
+    expect(materials.solucionarioDocente).toContain('BANCO DE REACTIVOS TIPO EXANI/PLANEA CON JUSTIFICACIÓN DOCENTE');
+
+    // 3. Verificación de extractSpecificMaterial
+    const guiaOnly = extractSpecificMaterial(workbook, 'guia');
+    expect(guiaOnly).toBe(materials.guiaDelBloque);
+
+    const solucionarioOnly = extractSpecificMaterial(workbook, 'solucionario');
+    expect(solucionarioOnly).toBe(materials.solucionarioDocente);
+  });
 });

@@ -76,7 +76,7 @@ async function handleMaterialesBloque(
       cascade: cascadeResult,
       materials,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[API /materiales-bloque] Error:', error);
     return NextResponse.json({ error: 'Error interno al derivar materiales de bloque' }, { status: 500 });
   }

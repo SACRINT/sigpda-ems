@@ -223,6 +223,28 @@ export async function cascadeBlockMaterials(
       insertedCount++;
     }
 
+    // 7.1 Insertar Solucionario y Guía Pedagógica del Docente (Etapa 3)
+    if (extracted.solucionarioDocente) {
+      await db`
+        INSERT INTO planning_extras (
+          planning_id,
+          type,
+          title,
+          key_index,
+          content_text,
+          created_at
+        ) VALUES (
+          ${planningId}::uuid,
+          'practice_guide',
+          ${`Solucionario y Guía Pedagógica del Docente · Bloque ${blockNum}: ${blockTitle}`},
+          ${blockIndex},
+          ${extracted.solucionarioDocente},
+          NOW()
+        )
+      `;
+      insertedCount++;
+    }
+
     // 8. Insertar Recursos Gráficos Determinísticos del Bloque (Visual Engine)
     const subjectName = workbook.coverData?.subjectName || '';
     for (let mIdx = 0; mIdx < (workbook.missions || []).length; mIdx++) {

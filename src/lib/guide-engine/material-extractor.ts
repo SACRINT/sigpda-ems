@@ -1,4 +1,5 @@
 import type { ActiveWorkTextbook, MissionSection } from '@/types/work-textbook';
+import { isStemSubject, isHumanitiesSubject } from '@/lib/visual-engine/visual-dispatcher';
 
 /**
  * Plan de Clase individual por sesión derivado determinísticamente del Libro de Bloque.
@@ -46,6 +47,7 @@ export interface ExtractedBlockMaterials {
   };
   planesDeClase: PlanDeClaseDerivado[];
   guiaDelBloque: string;
+  solucionarioDocente: string;
   instrumentosEvaluacion: string;
   rubricaEvaluacion?: string;
   listaCotejo?: string;
@@ -142,6 +144,9 @@ export function extractMaterialsFromWorkbook(workbook: ActiveWorkTextbook): Extr
   // 2. Extraer Guía de Trabajo del Estudiante (Markdown operativo sin notas pedagógicas del docente)
   const guiaDelBloque = buildGuiaDelBloqueMarkdown(workbook);
 
+  // 2.1 Extraer Solucionario y Guía de Mediación Docente (STEM determinístico, humanidades referencia)
+  const solucionarioDocente = buildSolucionarioDocenteMarkdown(workbook);
+
   // 3. Extraer Instrumentos de Evaluación (Rúbricas analíticas oficiales de 4 niveles y listas de cotejo)
   const rubricaEvaluacion = buildRubricaEvaluacionMarkdown(workbook);
   const listaCotejo = buildListaCotejoMarkdown(workbook);
@@ -174,6 +179,7 @@ export function extractMaterialsFromWorkbook(workbook: ActiveWorkTextbook): Extr
     },
     planesDeClase,
     guiaDelBloque,
+    solucionarioDocente,
     instrumentosEvaluacion,
     rubricaEvaluacion,
     listaCotejo,
@@ -252,12 +258,12 @@ function buildPlanDeClase(
 
 function buildGuiaDelBloqueMarkdown(workbook: ActiveWorkTextbook): string {
   const parts: string[] = [];
-  const cover = (workbook.coverData || {}) as Record<string, any>; // fallback tipado defensivo
+  const cover = (workbook.coverData || {}) as Record<string, unknown>;
 
   parts.push(`# GUÍA DE TRABAJO DEL ESTUDIANTE · BLOQUE ${workbook.blockIndex ?? 1}`);
-  parts.push(`**Asignatura / UAC:** ${cover.subjectName || ''}`);
-  parts.push(`**Plantel:** ${cover.schoolName || ''} | **Semestre:** ${cover.semester || 1}°`);
-  if (cover.paecProjectName) parts.push(`**Proyecto PAEC:** ${cover.paecProjectName}`);
+  parts.push(`**Asignatura / UAC:** ${(cover.subjectName as string) || ''}`);
+  parts.push(`**Plantel:** ${(cover.schoolName as string) || ''} | **Semestre:** ${(cover.semester as number | string) || 1}°`);
+  if (cover.paecProjectName) parts.push(`**Proyecto PAEC:** ${cover.paecProjectName as string}`);
   parts.push('\n---\n');
 
   parts.push('## INSTRUCCIONES GENERALES');
@@ -356,6 +362,168 @@ function buildGuiaDelBloqueMarkdown(workbook: ActiveWorkTextbook): string {
     }
   }
 
+  return parts.join('\n');
+}
+
+function buildSolucionarioDocenteMarkdown(workbook: ActiveWorkTextbook): string {
+  const parts: string[] = [];
+  const cover = (workbook.coverData || {}) as Record<string, unknown>;
+  const subjectName = (cover.subjectName as string) || '';
+  const blockNum = (workbook.blockIndex ?? 0) + 1;
+  const isStem = isStemSubject(subjectName);
+  const isHumanities = isHumanitiesSubject(subjectName);
+
+  parts.push(`# SOLUCIONARIO Y GUÍA DE MEDIACIÓN PEDAGÓGICA (USO EXCLUSIVO DOCENTE) · BLOQUE ${blockNum}`);
+  parts.push(`**Asignatura / UAC:** ${subjectName} (${isStem ? 'Área STEM / Ciencias Exactas' : isHumanities ? 'Área Humanidades / Ciencias Sociales' : 'Formación Fundamental'})`);
+  parts.push(`**Plantel:** ${(cover.schoolName as string) || ''} | **Semestre:** ${(cover.semester as number | string) || 1}°`);
+  if (cover.paecProjectName) parts.push(`**Proyecto Comunitario (PAEC):** ${cover.paecProjectName}`);
+  parts.push('\n> **DOCUMENTO CONFIDENCIAL DE USO EXCLUSIVO PARA EL DOCENTE**');
+  parts.push('> Contiene resoluciones modelo, claves de respuesta esperadas, criterios de mediación dialéctica y pautas de retroalimentación formativa para la conducción de las 24 sesiones de clase.\n');
+  parts.push('---\n');
+
+  parts.push('## 1. RESOLUCIÓN DETALLADA Y GUÍA DE MEDIACIÓN POR MISIÓN\n');
+
+  for (const mission of workbook.missions || []) {
+    const sStart = mission.coveredSessions?.[0] ?? (mission.missionIndex * 3 - 2);
+    const sEnd = mission.coveredSessions?.[mission.coveredSessions.length - 1] ?? (mission.missionIndex * 3);
+    parts.push(`### MISIÓN ${mission.missionIndex}: ${mission.title.toUpperCase()} (Sesiones ${sStart} a ${sEnd})`);
+    parts.push(`*Foco instruccional:* ${mission.sessionTopic || mission.title} — ${mission.sessionFocus || 'Desarrollo de competencias situadas'}\n`);
+
+    // A. Activación y preguntas detonadoras
+    if (mission.phenomenonHook?.detonatingQuestion) {
+      parts.push(`#### A. Mediación de Saberes Previos (Apertura)`);
+      parts.push(`- **Pregunta Detonadora:** "${mission.phenomenonHook.detonatingQuestion}"`);
+      parts.push(`- **Respuesta / Reflexión Esperada:** El estudiantado debe identificar la problemática real vinculada a su contexto. El docente debe validar hipótesis intuitivas y orientar hacia el concepto clave (${mission.conceptZero?.physicalAnalogy || 'conexión intuitiva'}) sin descalificar respuestas iniciales.`);
+      parts.push('');
+    }
+
+    // B. Ejemplos resueltos y modelado
+    if (mission.conceptZero?.solvedExample) {
+      const ex = mission.conceptZero.solvedExample;
+      parts.push(`#### B. Clave de Resolución del Ejemplo Modelo (Yo Hago)`);
+      parts.push(`- **Planteamiento del Problema:** ${ex.problemStatement}`);
+      parts.push(`- **Procedimiento Paso a Paso:**`);
+      for (let sIdx = 0; sIdx < ex.solutionSteps.length; sIdx++) {
+        parts.push(`  ${sIdx + 1}. ${ex.solutionSteps[sIdx]}`);
+      }
+      parts.push(`- **Interpretación / Resultado Oficial:** ${ex.interpretation}`);
+      parts.push('');
+    } else if (mission.iDoSection?.stepByStepDemo) {
+      parts.push(`#### B. Pauta de Demostración Docente (Yo Hago)`);
+      parts.push(`- **Procedimiento Demostrativo Guiado:** ${mission.iDoSection.stepByStepDemo}`);
+      parts.push('');
+    }
+
+    // C. Práctica guiada y reto autónomo (STEM vs Humanidades)
+    parts.push(`#### C. Criterios de Acreditación y Solución del Reto ("Hacemos" y "Tú Haces")`);
+    if (mission.weDoSection?.guidedPractice) {
+      parts.push(`- **Práctica Guiada (En Equipo):** ${mission.weDoSection.guidedPractice}`);
+    }
+    if (mission.youDoSection?.autonomousChallenge) {
+      parts.push(`- **Reto Autónomo (Individual):** ${mission.youDoSection.autonomousChallenge}`);
+      if (isStem) {
+        parts.push(`- **Pauta de Resolución STEM:** Verificar el planteamiento de datos o variables, la aplicación estricta del algoritmo o modelo matemático, el manejo de unidades dimensionales o sintaxis técnica, y la exactitud del resultado final.`);
+      } else {
+        parts.push(`- **Pauta de Evaluación Argumentativa / Humanística:** Evaluar la postura crítica del estudiante, la solidez de sus premisas dialécticas, la contextualización comunitaria y la coherencia discursiva según los descriptores del MCCEMS.`);
+      }
+    }
+    parts.push('');
+
+    // D. Matriz de Prevención de Errores
+    if (mission.conceptZero?.contrastTable && mission.conceptZero.contrastTable.length > 0) {
+      parts.push(`#### D. Tabla de Contraste y Corrección de Errores Comunes`);
+      parts.push('| Concepto Riguroso | Idea Errónea Frecuente | Intervención Docente Sugerida |');
+      parts.push('|---|---|---|');
+      for (const ct of mission.conceptZero.contrastTable) {
+        parts.push(`| ${ct.correctConcept.replace(/\|/g, '/')} | ${ct.commonMisconception.replace(/\|/g, '/')} | ${ct.reasoning.replace(/\|/g, '/')} |`);
+      }
+      parts.push('');
+    } else if (mission.troubleshooting && mission.troubleshooting.length > 0) {
+      parts.push(`#### D. Guía de Intervención ante Errores Operativos (Troubleshooting)`);
+      for (const t of mission.troubleshooting) {
+        parts.push(`- **Síntoma Detectado:** ${t.symptom}`);
+        parts.push(`  - *Causa Raíz:* ${t.rootCause || t.cause || 'Desajuste procedimental'}`);
+        parts.push(`  - *Solución Recomendada:* ${Array.isArray(t.solutionSteps) ? t.solutionSteps.join('; ') : t.solution || 'Revisar modelado paso a paso'}`);
+      }
+      parts.push('');
+    }
+
+    // E. Checkpoint formativo de salida
+    if (mission.formativeCheckpoint) {
+      const fc = mission.formativeCheckpoint;
+      parts.push(`#### E. Checkpoint Formativo y Metacognición (Cierre)`);
+      parts.push(`- **Pregunta de Verificación Rápida:** "${fc.question}"`);
+      if (fc.criteriaChecklist && fc.criteriaChecklist.length > 0) {
+        parts.push(`- **Criterios de Aprobación Inmediata:**`);
+        for (const c of fc.criteriaChecklist) {
+          parts.push(`  - [x] ${c}`);
+        }
+      }
+      if (fc.reflectionPrompts && fc.reflectionPrompts.length > 0) {
+        parts.push(`- **Guía de Reflexión Metacognitiva:** Guiar al estudiante con las siguientes interrogantes: ${fc.reflectionPrompts.join('; ')}.`);
+      }
+      parts.push('');
+    }
+
+    parts.push('---\n');
+  }
+
+  // 2. Evaluación Escalonada por Niveles
+  if (workbook.evaluationSection?.tieredExercises && workbook.evaluationSection.tieredExercises.length > 0) {
+    parts.push('## 2. SOLUCIONARIO DE LA EVALUACIÓN ESCALONADA POR NIVELES\n');
+    for (const tier of workbook.evaluationSection.tieredExercises) {
+      parts.push(`### ${tier.levelName.toUpperCase()}`);
+      if (tier.description) parts.push(`*${tier.description}*\n`);
+      for (const ex of tier.exercises) {
+        parts.push(`**Ejercicio ${ex.number}:** ${ex.statement}`);
+        if (ex.contextOrData) parts.push(`- *Datos/Variables:* ${ex.contextOrData}`);
+        if (ex.hint) parts.push(`- *Pista Didáctica:* ${ex.hint}`);
+        parts.push(`- **Solución y Criterio Esperado:** ${ex.expectedOutputOrCriteria}\n`);
+      }
+    }
+    parts.push('---\n');
+  }
+
+  // 3. Reactivos de Pensamiento Crítico / Quiz
+  const quizItems = workbook.evaluationSection?.criticalThinkingQuiz || [];
+  if (quizItems.length > 0) {
+    parts.push('## 3. BANCO DE REACTIVOS TIPO EXANI/PLANEA CON JUSTIFICACIÓN DOCENTE\n');
+    for (const q of quizItems) {
+      parts.push(`**Reactivo ${q.questionNumber}:** ${q.question}`);
+      if (q.scenario) parts.push(`*Contexto:* ${q.scenario}`);
+      if (q.options && q.options.length > 0) {
+        parts.push('**Opciones:**');
+        for (const opt of q.options) {
+          parts.push(`- ${opt}`);
+        }
+      }
+      parts.push(`**Clave y Justificación Pedagógica:**\n${q.answerExplanation}\n`);
+    }
+    parts.push('---\n');
+  }
+
+  // 4. Proyecto Integrador de Bloque
+  if (workbook.projectSection) {
+    const p = workbook.projectSection;
+    parts.push(`## 4. PAUTA DE EVALUACIÓN DEL PROYECTO INTEGRADOR: ${p.artifactName.toUpperCase()}`);
+    parts.push(`**Finalidad Comunitaria:** ${p.communityUtility}\n`);
+    if (p.deliveryCriteria && p.deliveryCriteria.length > 0) {
+      parts.push('### Criterios de Acreditación y Validación:');
+      for (const crit of p.deliveryCriteria) {
+        parts.push(`- [x] ${crit}`);
+      }
+      parts.push('');
+    }
+    if (p.phases && p.phases.length > 0) {
+      parts.push('### Ponderación por Fases de Ejecución:');
+      for (const ph of p.phases) {
+        parts.push(`- **Fase ${ph.phaseNum}: ${ph.title}** (${ph.allocatedHours} hrs): Supervisar: "${ph.instructions}"`);
+      }
+      parts.push('');
+    }
+  }
+
+  parts.push('*SIGPDA-EMS · Solucionario y Guía Pedagógica Oficial del Docente (MCCEMS 2026-2027)*\n');
   return parts.join('\n');
 }
 
@@ -514,12 +682,14 @@ function buildMaterialDidacticoMarkdown(
  */
 export function extractSpecificMaterial(
   workbook: ActiveWorkTextbook,
-  type: 'guia' | 'instrumentos' | 'materiales'
+  type: 'guia' | 'solucionario' | 'instrumentos' | 'materiales'
 ): string {
   const extracted = extractMaterialsFromWorkbook(workbook);
   switch (type) {
     case 'guia':
       return extracted.guiaDelBloque;
+    case 'solucionario':
+      return extracted.solucionarioDocente;
     case 'instrumentos':
       return extracted.instrumentosEvaluacion;
     case 'materiales':
