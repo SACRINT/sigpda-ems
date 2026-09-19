@@ -452,7 +452,7 @@ export function renderExtraDocument(
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(7.0);
         doc.setTextColor(...WHITE);
-        doc.text('✓', margin + 2.6, y - 0.3);
+        doc.text('•', margin + 2.8, y - 0.4);
       }
 
       y = renderFormattedBlock(doc, checkText, {
