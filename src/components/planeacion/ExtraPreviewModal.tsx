@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 
 // Fase 11 — Mermaid support para guías de práctica
@@ -24,6 +24,8 @@ export function ExtraPreviewModal({
   contentText,
   type,
 }: ExtraPreviewModalProps) {
+  const [copied, setCopied] = useState(false);
+
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -508,6 +510,15 @@ export function ExtraPreviewModal({
       ? 'Recurso Gráfico Vectorial'
       : 'Plan de clase';
 
+  const typeBadgeColor =
+    type === 'teacher_guide'
+      ? '#1B6B8A' // Teal oficial DBEPA Puebla
+      : type === 'practice_guide'
+      ? '#2563eb' // Azul estudiante
+      : type === 'visual'
+      ? '#7c3aed' // Púrpura vectorial
+      : '#E65100'; // Naranja estándar
+
   return (
     <div
       style={{
@@ -558,7 +569,7 @@ export function ExtraPreviewModal({
                 fontSize: '11px',
                 fontWeight: 700,
                 borderRadius: '6px',
-                background: '#E65100',
+                background: typeBadgeColor,
                 color: '#fff',
                 textTransform: 'uppercase',
                 letterSpacing: '0.05em',
@@ -644,7 +655,54 @@ export function ExtraPreviewModal({
               renderVisualResource(contentText || '')
             ) : type === 'practice_guide' || type === 'teacher_guide' ? (
               // Guías de práctica y solucionarios: renderizado con soporte Mermaid (Fase 11)
-              <MarkdownWithMermaid markdown={contentText || ''} />
+              <>
+                {type === 'teacher_guide' && (
+                  <div
+                    style={{
+                      marginBottom: '20px',
+                      padding: '14px 18px',
+                      borderRadius: '10px',
+                      background: 'linear-gradient(135deg, rgba(27, 107, 138, 0.22) 0%, rgba(15, 23, 42, 0.6) 100%)',
+                      border: '1px solid rgba(27, 107, 138, 0.5)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '14px',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '38px',
+                        height: '38px',
+                        borderRadius: '8px',
+                        background: '#1B6B8A',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                        color: '#fff',
+                        fontSize: '18px',
+                      }}
+                      aria-hidden="true"
+                    >
+                      🔒
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#38bdf8', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                          DOCUMENTO CONFIDENCIAL · USO EXCLUSIVO DOCENTE
+                        </span>
+                        <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: 'rgba(56, 189, 248, 0.15)', color: '#7dd3fc', fontWeight: 600 }}>
+                          NO DISTRIBUIR A ESTUDIANTES
+                        </span>
+                      </div>
+                      <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#94a3b8', lineHeight: 1.4 }}>
+                        Contiene el solucionario analítico, claves de respuesta esperadas, matrices de error conceptual y pautas de mediación formativa oficial de la DBEPA Puebla.
+                      </p>
+                    </div>
+                  </div>
+                )}
+                <MarkdownWithMermaid markdown={contentText || ''} />
+              </>
             ) : (
               // Rúbricas, listas de cotejo, planes de clase: parser existente con tablas
               renderMarkdown(contentText || '')
@@ -657,29 +715,71 @@ export function ExtraPreviewModal({
           style={{
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'flex-end',
+            justifyContent: 'space-between',
             gap: '12px',
             padding: '12px 24px',
             borderTop: '1px solid rgba(255, 255, 255, 0.1)',
             background: 'var(--c-bg-surface, #0f172a)',
           }}
         >
-          <button
-            onClick={onClose}
-            className="btn"
-            style={{
-              padding: '8px 18px',
-              fontSize: '13px',
-              fontWeight: 600,
-              color: '#f8fafc',
-              background: 'rgba(255, 255, 255, 0.1)',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              borderRadius: '8px',
-              cursor: 'pointer',
-            }}
-          >
-            Cerrar
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {type === 'teacher_guide' && (
+              <span style={{ fontSize: '11px', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>🔒</span> Pauta de Mediación Oficial DBEPA Puebla
+              </span>
+            )}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {contentText && (
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(contentText);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  } catch {
+                    // Fallback
+                  }
+                }}
+                className="btn"
+                style={{
+                  padding: '8px 14px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: copied ? '#4ade80' : '#cbd5e1',
+                  background: copied ? 'rgba(74, 222, 128, 0.12)' : 'rgba(255, 255, 255, 0.06)',
+                  border: `1px solid ${copied ? 'rgba(74, 222, 128, 0.3)' : 'rgba(255, 255, 255, 0.12)'}`,
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <span>{copied ? '✓' : '📋'}</span>
+                {copied ? 'Copiado al portapapeles' : 'Copiar contenido'}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="btn"
+              style={{
+                padding: '8px 18px',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: '#f8fafc',
+                background: 'rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                borderRadius: '8px',
+                cursor: 'pointer',
+              }}
+            >
+              Cerrar
+            </button>
+          </div>
         </div>
       </div>
     </div>
