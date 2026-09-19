@@ -34,7 +34,6 @@ import {
   Header,
   Footer,
   PageNumber,
-  NumberFormat,
   ImageRun,
   type ISectionOptions,
 } from 'docx';
@@ -183,7 +182,6 @@ export async function renderWorkbookToDocx(
     forceFallbackCover?: boolean;
   } = {}
 ): Promise<Buffer> {
-  const children: (Paragraph | Table)[] = [];
 
   const coverOpts: BookCoverOptions = {
     plantelNombre: workbook.coverData?.schoolName || 'Bachillerato General Oficial',
@@ -235,7 +233,7 @@ export async function renderWorkbookToDocx(
       })
     );
   } else {
-    coverSectionChildren.push(...buildCoverSection(workbook, planning));
+    coverSectionChildren.push(...buildCoverSection(workbook));
   }
 
   // ── 2. Páginas Preliminares (Mi Plantel + TOC) (Fase V4 & V5) ─────────────
@@ -275,13 +273,13 @@ export async function renderWorkbookToDocx(
 
   // Proyecto Formativo Comunitario
   if (workbook.projectSection) {
-    bodyChildren.push(...buildProjectSection(workbook.projectSection, workbook.coverData));
+    bodyChildren.push(...buildProjectSection(workbook.projectSection));
     bodyChildren.push(new Paragraph({ children: [new PageBreak()] }));
   }
 
   // Evaluación Formativa y Sumativa NEM
   if (workbook.evaluationSection) {
-    bodyChildren.push(...buildEvaluationSection(workbook.evaluationSection, workbook.coverData));
+    bodyChildren.push(...buildEvaluationSection(workbook.evaluationSection));
     bodyChildren.push(new Paragraph({ children: [new PageBreak()] }));
   }
 
@@ -457,7 +455,7 @@ export async function renderWorkbookToDocx(
 
 // ── Constructores de Secciones DOCX ──────────────────────────────────────────
 
-function buildCoverSection(workbook: ActiveWorkTextbook, planning: Planning): Paragraph[] {
+function buildCoverSection(workbook: ActiveWorkTextbook): Paragraph[] {
   const cover = workbook.coverData;
   return [
     new Paragraph({
@@ -1149,12 +1147,12 @@ function buildDocxPlantelComunidadSection(
   const schoolName = workbook.coverData?.schoolName || planning?.contentJson?.sectionI?.schoolName || 'Bachillerato General Oficial';
   const cct = workbook.coverData?.cct || planning?.contentJson?.sectionI?.cct || '21ECT0017T';
   const subsystem = (workbook.subsystem || planning?.contentJson?.sectionI?.subsystem || 'BGE').toUpperCase();
-  const municipality = (workbook.coverData as any)?.municipality || 'Puebla, Pue.';
+  const municipality = workbook.coverData?.municipality ?? 'Puebla, Pue.';
   const teacherName = workbook.coverData?.teacherName || planning?.contentJson?.sectionI?.teacherName || 'Academia Docente del Plantel';
   const subjectName = workbook.coverData?.subjectName || workbook.blockName || planning?.uacName || 'Formación Fundamental';
   const semesterStr = workbook.coverData?.semester !== undefined ? `${workbook.coverData.semester}° Semestre` : 'Segundo Semestre';
   const paecProjectName = workbook.coverData?.paecProjectName || workbook.projectSection?.artifactName || planning?.paecContext || 'Transformación Productiva y Social Comunitaria';
-  const paecChallenge = workbook.projectSection?.communityUtility || (workbook.coverData as any)?.paecProblem || planning?.paecContext || 'Atención prioritaria al desarrollo comunitario y sustentabilidad local.';
+  const paecChallenge = workbook.projectSection?.communityUtility || planning?.paecContext || 'Atención prioritaria al desarrollo comunitario y sustentabilidad local.';
 
   // Tabla 1: Ficha Institucional
   elements.push(
@@ -2324,7 +2322,7 @@ async function buildMissionContent(
     );
 
     if (mission.formativeCheckpoint.reflectionPrompts) {
-      mission.formativeCheckpoint.reflectionPrompts.forEach((prompt, idx) => {
+      mission.formativeCheckpoint.reflectionPrompts.forEach((prompt) => {
         elements.push(
           new Paragraph({
             spacing: { after: 80 },
@@ -2589,7 +2587,7 @@ function buildTroubleshootTable(items: TroubleshootItem[]): Table {
   });
 }
 
-function buildProjectSection(project: ProjectSection, cover: ActiveWorkTextbook['coverData']): (Paragraph | Table)[] {
+function buildProjectSection(project: ProjectSection): (Paragraph | Table)[] {
   const elements: (Paragraph | Table)[] = [
     new Paragraph({
       spacing: { before: 200, after: 100 },
@@ -2874,7 +2872,7 @@ function buildProjectSection(project: ProjectSection, cover: ActiveWorkTextbook[
   return elements;
 }
 
-function buildEvaluationSection(evalSection: EvaluationSection, cover: ActiveWorkTextbook['coverData']): (Paragraph | Table)[] {
+function buildEvaluationSection(evalSection: EvaluationSection): (Paragraph | Table)[] {
   const elements: (Paragraph | Table)[] = [
     new Paragraph({
       spacing: { before: 200, after: 100 },

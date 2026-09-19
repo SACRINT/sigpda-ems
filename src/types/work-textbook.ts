@@ -202,6 +202,7 @@ export interface ActiveWorkTextbook {
     schoolName: string;
     cct?: string;
     paecProjectName?: string;
+    municipality?: string;
   };
   tableOfContents: {
     missionIndex: number;

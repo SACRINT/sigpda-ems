@@ -18,7 +18,6 @@ import type {
   ActiveWorkTextbook,
   MissionSection,
   WorkbookElement,
-  TroubleshootItem,
   EvaluationSection,
   ProjectSection,
   EvaluationRubricCriterion,
@@ -28,7 +27,6 @@ import { loadAllLogos } from './pdf-logos';
 import {
   resolveVisualForMission,
   resolveEquipmentVisualForMission,
-  type ResolvedEquipmentVisual,
 } from '@/lib/visual-engine/visual-asset-manager';
 import { svgToPngBuffer } from '@/lib/visual-engine/svg-to-png';
 import { downloadAndProcessImage } from '@/lib/visual-engine/image-downloader';
@@ -64,21 +62,15 @@ import {
 } from '@/lib/visual-engine/cover-generator';
 import {
   loadEditorialFonts,
-  setFontHeading,
   setFontBody,
   setFontCaption,
-  areEditorialFontsLoaded,
 } from '@/lib/visual-engine/font-loader';
 import {
   drawMissionBanner,
   drawSectionRibbon,
   drawCalloutBox,
-  drawComparisonTable as drawEditorialComparisonTable,
   drawDiagnosticSection,
   drawMetacognitiveLight,
-  drawGlossaryWidget,
-  drawRealLifeWidget,
-  drawSafetyWidget,
   drawPageHeader,
   drawPageFooter,
 } from '@/lib/visual-engine/pdf-components';
@@ -92,15 +84,8 @@ import {
 } from '@/lib/visual-engine/mission-rubric-generator';
 import {
   COLOR,
-  PAGE,
-  TYPE,
-  LEADING,
-  SPACING,
-  RADIUS,
-  STROKE,
   type RGB,
   getMissionColor,
-  missionTint,
 } from '@/lib/visual-engine/design-tokens';
 
 // ── Paleta de Colores Institucionales DBEPA (Consumida desde Design Tokens) ──
@@ -112,7 +97,7 @@ const DARK_TEXT: RGB = COLOR.TEXT_PRIMARY;
 const MUTED_TEXT: RGB = COLOR.MUTED_TEXT;
 const LIGHT_BG: RGB = COLOR.LIGHT_BG;
 const CODE_BG: RGB = COLOR.TABLE_ALT_ROW;
-const EMERALD: RGB = COLOR.MISSION[2];
+
 
 // Colores de acento para encabezados de sección
 const SECTION_COLORS: Record<string, RGB> = {
@@ -1483,64 +1468,6 @@ function drawPdfGlossaryBox(
     doc.text(defLines, margin + 7 + prefixWidth, textY);
     textY += Math.max(4.2, defLines.length * 3.6 + 1.5);
   }
-
-  return y + boxHeight + 4;
-}
-
-async function drawMissionQrBox(
-  doc: jsPDF,
-  verificationUrl: string,
-  missionHash: string,
-  margin: number,
-  drawWidth: number,   // CONTRATO: debe ser mainW cuando se llama desde drawMission
-  pageHeight: number,
-  startY: number
-): Promise<number> {
-  const boxHeight = 22;
-  const y = ensureVerticalSpace(doc, startY, boxHeight + 4, margin, pageHeight);
-
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(margin, y, drawWidth, boxHeight, 1.5, 1.5, 'F');
-
-  doc.setFillColor(...NAVY);
-  doc.roundedRect(margin, y, 3.5, boxHeight, 1.2, 1.2, 'F');
-
-  doc.setDrawColor(203, 213, 225);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(margin, y, drawWidth, boxHeight, 1.5, 1.5, 'S');
-
-  try {
-    const qrBuffer = await QRCode.toBuffer(verificationUrl, {
-      type: 'png',
-      margin: 1,
-      width: 140,
-      color: { dark: '#1F3864', light: '#FFFFFF' },
-    });
-    doc.addImage(qrBuffer, 'PNG', margin + 6, y + 3, 16, 16);
-  } catch (err) {
-    logger.warn('[pdf-workbook-renderer] Error generando QR de mision:', err);
-  }
-
-  const textX = margin + 26;
-  // GUARDIÁN: el texto de verificación nunca excede drawWidth
-  const availW = clampTextWidth(drawWidth, drawWidth, 30);
-
-  setFontBody(doc, 'bold');
-  doc.setFontSize(7.8);
-  doc.setTextColor(...NAVY);
-  doc.text('VERIFICACIÓN Y TRAZABILIDAD CURRICULAR (MCCEMS)', textX, y + 5.5);
-
-  setFontBody(doc, 'normal');
-  doc.setFontSize(6.8);
-  doc.setTextColor(...DARK_TEXT);
-  const legend = 'Verifica este material · Escanea el código QR para constatar la autoría docente oficial, progresión de aprendizaje y sello de acreditación institucional.';
-  const legendLines = doc.splitTextToSize(legend, availW);
-  doc.text(legendLines, textX, y + 9.2);
-
-  setFontCaption(doc);
-  doc.setFontSize(6.2);
-  doc.setTextColor(...MUTED_TEXT);
-  doc.text(`Sello Digital: ${missionHash.slice(0, 24)}... · DBEPA Puebla · ${SCHOOL_YEAR}`, textX, y + 18.5);
 
   return y + boxHeight + 4;
 }
