@@ -1,8 +1,6 @@
 // src/lib/pedagogical-analytics.ts
 // Módulo 4: Analytics Pedagógico — funciones de lectura para el dashboard personal
-import { neon } from '@neondatabase/serverless';
-
-const sql = neon(process.env.DATABASE_URL!);
+import { sql } from './db/client';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -35,9 +33,10 @@ export async function getTeacherProgressSummary(
   teacherId: string,
   teacherEmail: string
 ): Promise<TeacherProgressSummary> {
+  const db = sql();
 
   // 1. Feedback promedio por tipo de entidad
-  const feedbackRows = await sql`
+  const feedbackRows = await db`
     SELECT
       entity_type,
       ROUND(AVG(rating)::numeric, 2)::float  AS avg_rating,
@@ -57,7 +56,7 @@ export async function getTeacherProgressSummary(
   `;
 
   // 2. Estadísticas de planeaciones
-  const planningRows = await sql`
+  const planningRows = await db`
     SELECT id, uac_name, semester, component, created_at
     FROM plannings
     WHERE teacher_id = ${teacherId}::uuid
@@ -85,16 +84,16 @@ export async function getTeacherProgressSummary(
   };
 
   // 3. Conteos de otros módulos
-  const [paecRow] = await sql`
+  const [paecRow] = await db`
     SELECT COUNT(*)::int AS cnt FROM paec_projects WHERE teacher_id = ${teacherId}::uuid
   `;
-  const [pmcRow] = await sql`
+  const [pmcRow] = await db`
     SELECT COUNT(*)::int AS cnt FROM pmc_projects WHERE teacher_id = ${teacherId}::uuid
   `;
-  const [pipsRow] = await sql`
+  const [pipsRow] = await db`
     SELECT COUNT(*)::int AS cnt FROM pips_projects WHERE teacher_id = ${teacherId}::uuid
   `;
-  const [libRow] = await sql`
+  const [libRow] = await db`
     SELECT COUNT(*)::int AS cnt FROM user_library_docs WHERE teacher_email = ${teacherEmail}
   `;
 
