@@ -56,6 +56,7 @@ import {
   extractWorkbookTags,
 } from '@/lib/guide-engine/workbook-tags';
 import { resolveVisualForMission } from '@/lib/visual-engine/visual-asset-manager';
+import { parseMarkdownTable } from '@/lib/visual-engine/column-flow-manager';
 import type { WorkbookElement } from '@/types/work-textbook';
 
 describe('Workbook Engine Architecture Tests (Fase 10)', () => {
@@ -230,5 +231,45 @@ describe('Workbook Engine Architecture Tests (Fase 10)', () => {
     expect(visual3?.type).toBe('vector_svg');
     expect(visual3?.svg).toBeDefined();
     expect(typeof visual3?.svg).toBe('string');
+  });
+
+  // ── TEST 6: Extracción y parsing de tablas Markdown inline ─────────────────
+  it('Test 6: parseMarkdownTable extrae tablas simples, maneja celdas vacías y descarta texto plano', () => {
+    // 1. Tabla simple estándar con alineación
+    const validTable = `
+| Fase | Actividad | Tiempo |
+| :--- | :---: | ---: |
+| Inicio | Activación de saberes | 15 min |
+| Desarrollo | Práctica guiada | 25 min |
+| Cierre | Evaluación formativa | 10 min |
+    `.trim();
+
+    const result1 = parseMarkdownTable(validTable);
+    expect(result1).not.toBeNull();
+    expect(result1?.headers).toEqual(['Fase', 'Actividad', 'Tiempo']);
+    expect(result1?.rows.length).toBe(3);
+    expect(result1?.rows[0]).toEqual(['Inicio', 'Activación de saberes', '15 min']);
+
+    // 2. Tabla con celdas vacías y espaciado desbalanceado
+    const emptyCellsTable = `
+| Criterio | Nivel 1 | Nivel 2 | Nivel 3 |
+|---|---|---|---|
+| Análisis | | En proceso | Consolidado |
+| Conclusión | No logrado | | Sobresaliente |
+    `.trim();
+
+    const result2 = parseMarkdownTable(emptyCellsTable);
+    expect(result2).not.toBeNull();
+    expect(result2?.headers.length).toBe(4);
+    expect(result2?.rows[0][1]).toBe('');
+    expect(result2?.rows[1][2]).toBe('');
+
+    // 3. Texto narrativo plano sin tabla (debe retornar null)
+    const plainText = 'En esta sesión aprenderemos a calcular el volumen del cilindro usando la fórmula V = pi * r^2 * h.';
+    expect(parseMarkdownTable(plainText)).toBeNull();
+
+    // 4. Texto con pipe único o tabla incompleta sin separador
+    const brokenTable = '| Solo encabezado | Sin divisor |';
+    expect(parseMarkdownTable(brokenTable)).toBeNull();
   });
 });

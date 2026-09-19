@@ -420,28 +420,10 @@ export class ColumnFlowManager {
   }
 
   /**
-   * Detecta y extrae una tabla Markdown (| Col 1 | Col 2 |) si el bloque de texto la contiene.
+   * Wrapper interno para parseMarkdownTable en la instancia del manager.
    */
   private tryExtractMarkdownTable(text: string): { headers: string[]; rows: string[][] } | null {
-    if (!text || !text.includes('|')) return null;
-    const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-    const tableLines = lines.filter((l) => l.startsWith('|') && l.endsWith('|'));
-    if (tableLines.length >= 2) {
-      const dividerIdx = tableLines.findIndex((l) => /^\|[\s\-:|]+\|$/.test(l));
-      if (dividerIdx > 0) {
-        const headers = tableLines[0]
-          .split('|')
-          .slice(1, -1)
-          .map((c) => sanitizePdfText(c.trim()));
-        const rows = tableLines
-          .slice(dividerIdx + 1)
-          .map((r) => r.split('|').slice(1, -1).map((c) => sanitizePdfText(c.trim())));
-        if (headers.length > 0 && rows.length > 0) {
-          return { headers, rows };
-        }
-      }
-    }
-    return null;
+    return parseMarkdownTable(text);
   }
 
   /**
@@ -614,4 +596,29 @@ export class ColumnFlowManager {
       }
     }
   }
+}
+
+/**
+ * Detecta y extrae una tabla Markdown (| Col 1 | Col 2 |) si el bloque de texto la contiene.
+ */
+export function parseMarkdownTable(text: string): { headers: string[]; rows: string[][] } | null {
+  if (!text || !text.includes('|')) return null;
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const tableLines = lines.filter((l) => l.startsWith('|') && l.endsWith('|'));
+  if (tableLines.length >= 2) {
+    const dividerIdx = tableLines.findIndex((l) => /^\|[\s\-:|]+\|$/.test(l));
+    if (dividerIdx > 0) {
+      const headers = tableLines[0]
+        .split('|')
+        .slice(1, -1)
+        .map((c) => sanitizePdfText(c.trim()));
+      const rows = tableLines
+        .slice(dividerIdx + 1)
+        .map((r) => r.split('|').slice(1, -1).map((c) => sanitizePdfText(c.trim())));
+      if (headers.length > 0 && rows.length > 0) {
+        return { headers, rows };
+      }
+    }
+  }
+  return null;
 }
