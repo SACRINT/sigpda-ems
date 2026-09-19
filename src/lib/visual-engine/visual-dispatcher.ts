@@ -51,13 +51,31 @@ const STEM_KEYWORDS = [
   'ciencias experimentales',
   'la materia y sus interacciones',
   'conservación de la energía',
+  'ecosistemas',
   'reacciones químicas',
+  'organismos',
+  'biología',
+  'biologia',
+  'ecología',
+  'ecologia',
+  'ciencias de la salud',
+  'microbiología',
+  'microbiologia',
+  'anatomía',
+  'anatomia',
+  'botánica',
+  'botanica',
+  'zoología',
+  'zoologia',
+  'geografía física',
+  'geografia fisica',
   'matemáticas',
   'cálculo',
   'álgebra',
   'geometría',
   'trigonometría',
   'estadística',
+  'cultura digital',
 ];
 
 const HUMANITIES_KEYWORDS = [
@@ -158,9 +176,7 @@ export function dispatchVisual(uacName: string, topic: string, contextText?: str
   const isHumanities = isHumanitiesSubject(uacName);
   const isLaboral = isLaboralSubject(uacName);
 
-  if (!isStem && !isHumanities && !isLaboral) {
-    return null;
-  }
+
 
   // Combinar título + contexto para máxima cobertura de keywords
   const searchText = normalizeUnicode(`${topic} ${contextText || ''}`);
@@ -469,5 +485,16 @@ export function dispatchVisual(uacName: string, topic: string, contextText?: str
     return res;
   }
 
-  return null;
+  // ── D. FALLBACK DETERMINÍSTICO UNIVERSAL ──────────────────────────────────
+  const rawContext = `${topic}\n${contextText || ''}`;
+  const { nodes, edges } = extractTermDefs(rawContext, topic);
+  const res = generateConceptMap(nodes, edges, {
+    title: `Estructura Conceptual Formativa: ${topic.slice(0, 42)}`,
+  });
+  res.metadata = {
+    type: 'concept_map',
+    realItemCount: nodes.length > 0 ? nodes.length - 1 : 0,
+    isFallback: true,
+  };
+  return res;
 }
