@@ -31,9 +31,9 @@ function formatPlanDeClaseMarkdown(
   plan: PlanDeClaseDerivado,
   workbook: ActiveWorkTextbook
 ): string {
-  const cover = (workbook.coverData || {}) as Record<string, any>; // fallback tipado defensivo
-  const uacName = cover.subjectName || 'Formación Disciplinar';
-  const semester = cover.semester || 1;
+  const cover = (workbook.coverData || {}) as Record<string, unknown>; // fallback tipado defensivo
+  const uacName = (cover.subjectName as string) || 'Formación Disciplinar';
+  const semester = (cover.semester as number | string) || 1;
 
   return `# PLAN DE CLASE OFICIAL DBEPA · SESIÓN ${plan.numeroSesion}
 **UAC:** ${uacName} | **Semestre:** ${semester}° | **Sesión:** ${plan.numeroSesion} de 24 (${plan.duracionMinutos} min)
@@ -83,6 +83,7 @@ export async function cascadeBlockMaterials(
   teacherId?: string
 ): Promise<CascadeResult> {
   const startTime = performance.now();
+  void teacherId;
 
   try {
     const db = sql();
@@ -280,8 +281,8 @@ export async function cascadeBlockMaterials(
       extrasInserted: insertedCount,
       executionTimeMs,
     };
-  } catch (error: any) {
-    const errorMsg = error?.message || String(error);
+  } catch (error: unknown) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
     logger.error(`[cascadeBlockMaterials] ❌ Error en cascada del bloque ${blockIndex}:`, error);
     return {
       success: false,
