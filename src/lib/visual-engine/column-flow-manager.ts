@@ -454,7 +454,28 @@ export class ColumnFlowManager {
     let py = startPY;
 
     if (parseParagraphs) {
-      const rawParagraphs = clean.split(/\r?\n\r?\n/).map((p) => p.trim()).filter(Boolean);
+      // Normalizar saltos simples \n a espacio (el texto de IA rara vez usa \n\n)
+      // pero preservar los \n\n reales como separadores de párrafo.
+      const normalized = clean
+        .replace(/\r?\n\r?\n/g, '\u0000')  // Proteger dobles saltos
+        .replace(/\r?\n/g, ' ')           // Colapsar saltos simples a espacio
+        .replace(/\u0000/g, '\n\n')        // Restaurar dobles saltos
+        .replace(/  +/g, ' ');            // Normalizar espacios múltiples
+
+      let rawParagraphs = normalized.split(/\n\n/).map((p) => p.trim()).filter(Boolean);
+
+      // Si solo hay 1 párrafo grande (muro de texto), auto-chunking por oraciones (máx 3 por párrafo)
+      if (rawParagraphs.length <= 1 && (rawParagraphs[0] || '').length > 280) {
+        const sentenceRegex = /[^.!?:]+(?:[.!?](?!\s*\d)|[:][^.!?:]{0,30}(?=[A-Z]|$))+/g;
+        const sentences = normalized.match(sentenceRegex) || [normalized];
+        const chunks: string[] = [];
+        for (let si = 0; si < sentences.length; si += 3) {
+          const chunk = sentences.slice(si, si + 3).join(' ').trim();
+          if (chunk) chunks.push(chunk);
+        }
+        rawParagraphs = chunks.length > 1 ? chunks : [normalized];
+      }
+
       for (let pIdx = 0; pIdx < rawParagraphs.length; pIdx++) {
         const p = rawParagraphs[pIdx];
         const isBullet = /^[•\-\*]\s+/.test(p) || /^\d+[\.\)]\s+/.test(p);
@@ -484,6 +505,7 @@ export class ColumnFlowManager {
       this.mainY = py;
       return py;
     }
+
 
     const lines = this.doc.splitTextToSize(clean, this.mainW);
 
