@@ -131,20 +131,30 @@ export async function resolveVisualForMission(
     try {
       const existing = await getImageAssetByMission(planningId, blockIndex, missionIndex);
       if (existing) {
-        const isDuplicate = options.usedAssetIds && (
-          (existing.externalId && options.usedAssetIds.has(existing.externalId)) ||
-          (existing.imageUrl && options.usedAssetIds.has(existing.imageUrl))
-        );
-        if (!isDuplicate) {
-          if (options.usedAssetIds) {
-            if (existing.externalId) options.usedAssetIds.add(existing.externalId);
-            if (existing.imageUrl) options.usedAssetIds.add(existing.imageUrl);
+        // Si se pide explícitamente vector matemático/STEM (preferMedia === false)
+        // y el activo en BD es de Openverse, NO devolverlo para permitir que el Step 3
+        // genere el gráfico vectorial matemático limpio
+        if (preferMedia === false && existing.source === 'openverse') {
+          // Omitir activo Openverse previo y continuar al Step 3
+        } else if (existing.source !== 'openverse') {
+          // Los registros no-openverse en image_assets no contienen la propiedad svg en BD.
+          // Continuar al Step 3 para que dispatchVisual genere el SVG y sus anotaciones completas.
+        } else {
+          const isDuplicate = options.usedAssetIds && (
+            (existing.externalId && options.usedAssetIds.has(existing.externalId)) ||
+            (existing.imageUrl && options.usedAssetIds.has(existing.imageUrl))
+          );
+          if (!isDuplicate) {
+            if (options.usedAssetIds) {
+              if (existing.externalId) options.usedAssetIds.add(existing.externalId);
+              if (existing.imageUrl) options.usedAssetIds.add(existing.imageUrl);
+            }
+            return {
+              type: 'openverse_media',
+              mediaAsset: existing,
+              caption: existing.caption,
+            };
           }
-          return {
-            type: existing.source === 'openverse' ? 'openverse_media' : 'vector_svg',
-            mediaAsset: existing,
-            caption: existing.caption,
-          };
         }
       }
     } catch {
