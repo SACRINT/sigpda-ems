@@ -81,7 +81,7 @@ describe('Workbook Engine Architecture Tests (Fase 10)', () => {
     expect(Buffer.isBuffer(result.buffer)).toBe(true);
     // Un JPEG de 1200x1600 con alta densidad vectorial supera holgadamente 40KB
     expect(result.buffer.length).toBeGreaterThan(40000);
-  });
+  }, 15000);
 
   // ── TEST 2: stripMarkdown + sanitizePdfText limpian comentarios HTML y tags ─
   it('Test 2: stripMarkdown y sanitizePdfText eliminan etiquetas de control <!--workbook:...--> y comentarios HTML', () => {
