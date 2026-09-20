@@ -119,13 +119,26 @@ async function handleBulkDocx(request: NextRequest) {
       const batch = fileEntries.slice(i, i + BATCH_SIZE);
       const generated = await Promise.all(
         batch.map(async ({ item, fileName }) => {
-          const docxBuffer = await buildExtraDocx(item, brandingCtx);
-          return { fileName, docxBuffer };
+          try {
+            const docxBuffer = await buildExtraDocx(item, brandingCtx);
+            return { fileName, docxBuffer };
+          } catch (err) {
+            logger.warn(`Error generating DOCX for extra ${item.id} (${fileName}):`, {
+              error: err instanceof Error ? err.message : String(err),
+            });
+            return null;
+          }
         })
       );
-      for (const { fileName, docxBuffer } of generated) {
-        zip.file(fileName, docxBuffer);
+      for (const res of generated) {
+        if (res) {
+          zip.file(res.fileName, res.docxBuffer);
+        }
       }
+    }
+
+    if (Object.keys(zip.files).length === 0) {
+      return new Response('No se pudo generar ningún documento en el paquete', { status: 500 });
     }
 
     const zipBuffer = await zip.generateAsync({

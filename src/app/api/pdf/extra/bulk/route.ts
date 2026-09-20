@@ -119,14 +119,27 @@ async function handleBulkPdf(request: NextRequest) {
       const batch = fileEntries.slice(i, i + BATCH_SIZE);
       const generated = await Promise.all(
         batch.map(async ({ item, fileName }) => {
-          const pdfDoc = generateExtraPdfDocument(item, brandingCtx);
-          const pdfBytes = Buffer.from(pdfDoc.output('arraybuffer'));
-          return { fileName, pdfBytes };
+          try {
+            const pdfDoc = generateExtraPdfDocument(item, brandingCtx);
+            const pdfBytes = Buffer.from(pdfDoc.output('arraybuffer'));
+            return { fileName, pdfBytes };
+          } catch (err) {
+            logger.warn(`Error generating PDF for extra ${item.id} (${fileName}):`, {
+              error: err instanceof Error ? err.message : String(err),
+            });
+            return null;
+          }
         })
       );
-      for (const { fileName, pdfBytes } of generated) {
-        zip.file(fileName, pdfBytes);
+      for (const res of generated) {
+        if (res) {
+          zip.file(res.fileName, res.pdfBytes);
+        }
       }
+    }
+
+    if (Object.keys(zip.files).length === 0) {
+      return new Response('No se pudo generar ningún documento en el paquete', { status: 500 });
     }
 
     const zipBuffer = await zip.generateAsync({
