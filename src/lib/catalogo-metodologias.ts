@@ -206,6 +206,55 @@ export const CATALOGO_METODOLOGIAS_ACTIVAS: MetodologiaActiva[] = [
     rolEstudiante: "Técnico en formación con disciplina operativa y rigor de análisis.",
     rolDocente: "Instructor técnico y supervisor de calidad y seguridad industrial.",
     ejemploContextualizadoPuebla: "Práctica guiada de detección de fallas en circuitos eléctricos residenciales o programación de un script de análisis de datos para un negocio local."
+  },
+  {
+    id: "abproblemas",
+    nombre: "Aprendizaje Basado en Problemas (ABProblemas)",
+    nombreCorto: "ABProblemas",
+    definicion: "Estrategia didáctica inductiva centrada en el análisis, indagación y resolución colaborativa de situaciones problemáticas complejas y abiertas del entorno, donde el aprendizaje surge del proceso mismo de resolución y no de la transmisión previa de contenidos.",
+    fases: [
+      "1. Delimitación y clarificación de la situación problema (¿qué sabemos? ¿qué necesitamos saber?)",
+      "2. Identificación de necesidades de aprendizaje y activación de saberes previos",
+      "3. Búsqueda autónoma e indagación de información técnica, científica o normativa",
+      "4. Formulación, contraste y deliberación colectiva de propuestas de solución",
+      "5. Presentación argumentada de la resolución y reflexión metacognitiva del proceso"
+    ],
+    asignaturasRecomendadas: [
+      "Pensamiento Matemático",
+      "Cultura Digital",
+      "Ciencias Sociales",
+      "Conservación de la Energía y sus Interacciones",
+      "Humanidades"
+    ],
+    tipoEvidenciaSugerida: "Informe de resolución del problema con modelado cuantitativo o conceptual, árbol de causas-efectos y propuesta comunitaria viable con criterios de factibilidad.",
+    rolEstudiante: "Agente resolutor autónomo, analista crítico y deliberador en equipo ante situaciones abiertas sin solución única.",
+    rolDocente: "Tutor facilitador del proceso, diseñador del problema detonante auténtico y mediador metacognitivo sin revelar la solución.",
+    ejemploContextualizadoPuebla: "Modelación matemática y propuesta técnica para reducir el desabasto hídrico en colonias periurbanas de Tehuacán, o análisis de costos y rutas para mejorar el transporte escolar en municipios de la Sierra Norte de Puebla."
+  },
+  {
+    id: "indagacion",
+    nombre: "Aprendizaje Basado en Indagación (ABI)",
+    nombreCorto: "Indagación (ABI)",
+    definicion: "Metodología fundamentada en la investigación científica escolar donde los estudiantes construyen conocimiento respondiendo preguntas investigables mediante experimentación empírica, recolección sistemática de datos y contrastación de hipótesis con evidencia observable.",
+    fases: [
+      "1. Focalización: formulación de preguntas investigables a partir de un fenómeno observable",
+      "2. Diseño del plan de indagación o protocolo experimental (materiales, variables, controles)",
+      "3. Experimentación, recolección y registro sistemático de datos con instrumentos de medición",
+      "4. Análisis de resultados, contrastación empírica de hipótesis y formalización conceptual",
+      "5. Comunicación de conclusiones científicas, argumentación con evidencia y evaluación del proceso"
+    ],
+    asignaturasRecomendadas: [
+      "La Materia y sus Interacciones",
+      "Conservación de la Energía y sus Interacciones",
+      "Ecosistemas: Interacciones, Energía y Dinámica",
+      "Física",
+      "Química",
+      "Biología"
+    ],
+    tipoEvidenciaSugerida: "Bitácora científica de laboratorio o campo con registro fotográfico o esquemático, gráficas de dispersión o tablas de datos y reporte de contrastación empírica con conclusiones argumentadas.",
+    rolEstudiante: "Científico escolar, observador riguroso y constructor de explicaciones basadas en evidencia empírica recolectada por el propio equipo.",
+    rolDocente: "Guía de la indagación empírica, supervisor de seguridad en laboratorio/campo y promotor del escepticismo metodológico y el pensamiento científico.",
+    ejemploContextualizadoPuebla: "Indagación experimental sobre la degradación de suelos agrícolas en Huejotzingo, monitoreo de calidad hídrica con tiras de pH y turbidímetros artesanales en afluentes del río Atoyac, o estudio de biodiversidad en parcelas de la Sierra Negra de Puebla."
   }
 ];
 

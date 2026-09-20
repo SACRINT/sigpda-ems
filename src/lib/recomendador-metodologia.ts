@@ -50,22 +50,39 @@ const REGLAS: ReglaRecomendacion[] = [
       'taller', 'mantenimiento', 'maquinaria', 'metalmecánica', 'metalmecanic',
     ],
   },
-  // ── Ciencias Naturales → STEAM ───────────────────────────────────────────────
+  // ── Ciencias Experimentales (Naturales) → Indagación ABI [PRIORIDAD 1] ──────
   {
-    metodologiaId: 'steam',
+    metodologiaId: 'indagacion',
     keywordsUac: [
       'química', 'quimica', 'física', 'fisica', 'biología', 'biologia',
       'ecología', 'ecologia', 'ciencias naturales', 'la materia',
-      'conservación de la energía', 'energia', 'cambio climático',
+      'ecosistema', 'biodiversidad',
     ],
   },
-  // ── Matemáticas → Aula Invertida ────────────────────────────────────────────
+  // ── Ingeniería, Prototipado, Energía → STEAM [Fallback para ciencias] ────────
   {
-    metodologiaId: 'aula_invertida',
+    metodologiaId: 'steam',
+    keywordsUac: [
+      'conservación de la energía', 'energia', 'cambio climático',
+      'ingeniería', 'ingenieria', 'prototipo', 'robótica', 'robotica',
+      'electrónica aplicada', 'modelado', 'automatización',
+    ],
+  },
+  // ── Matemáticas / Pensamiento Matemático → ABProblemas [PRIORIDAD 1] ─────────
+  {
+    metodologiaId: 'abproblemas',
     keywordsUac: [
       'matemátic', 'matematik', 'álgebra', 'algebra', 'cálculo', 'calculo',
       'estadística', 'estadistica', 'probabilidad', 'trigonometría',
       'pensamiento matemático', 'pensamiento logico',
+    ],
+  },
+  // ── Otras asignaturas con lógica conceptual → Aula Invertida [Fallback] ──────
+  {
+    metodologiaId: 'aula_invertida',
+    keywordsUac: [
+      'filosofía lógica', 'epistemología', 'epistemologia',
+      'metodología de la investigación', 'metodologia de la investigacion',
     ],
   },
   // ── Inglés / Comunicación / Lengua Extranjera → Gamificación ────────────────
