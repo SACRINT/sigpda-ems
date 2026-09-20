@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { neon } from '@neondatabase/serverless';
 import { generateWithRetry } from '@/lib/ai-retry-manager';
-import { SecuenciaResponseSchema } from '@/lib/ai-schemas';
+import { SecuenciaResponseSchema, SecuenciaGenerateInputSchema } from '@/lib/ai-schemas';
 import { logger } from '@/lib/logger';
 import { obtenerMetodologiaPorId, CATALOGO_METODOLOGIAS_ACTIVAS } from '@/lib/catalogo-metodologias';
 import type { SecuenciaBloque, SecuenciaSesion } from '@/types/planning';
@@ -148,12 +148,22 @@ export async function POST(
     }
 
     const { id } = await params;
-    const body = await request.json();
-    const { blockIndex, totalHours: customHours } = body;
-
-    if (blockIndex === undefined || blockIndex === null) {
-      return NextResponse.json({ error: 'blockIndex es requerido' }, { status: 400 });
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Cuerpo de solicitud JSON inválido' }, { status: 400 });
     }
+
+    const parseResult = SecuenciaGenerateInputSchema.safeParse(body);
+    if (!parseResult.success) {
+      return NextResponse.json(
+        { error: 'blockIndex es requerido y debe ser un número entero >= 0', details: parseResult.error.issues },
+        { status: 400 }
+      );
+    }
+
+    const { blockIndex, totalHours: customHours } = parseResult.data;
 
     const db = neon(process.env.DATABASE_URL!);
 

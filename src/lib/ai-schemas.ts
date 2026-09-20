@@ -59,6 +59,13 @@ export const SecuenciaResponseSchema = z.preprocess((input) => {
 
 export type SecuenciaResponseDTO = z.infer<typeof SecuenciaResponseSchema>;
 
+export const SecuenciaGenerateInputSchema = z.object({
+  blockIndex: z.number().int().min(0, 'blockIndex debe ser un número entero mayor o igual a 0'),
+  totalHours: z.number().int().positive('totalHours debe ser un entero positivo').optional(),
+});
+
+export type SecuenciaGenerateInputDTO = z.infer<typeof SecuenciaGenerateInputSchema>;
+
 
 // ============================================================================
 // 2. PAEC (PROYECTO ACADÉMICO ESCOLAR COMUNITARIO) SCHEMAS
