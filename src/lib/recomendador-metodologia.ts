@@ -37,7 +37,7 @@ const REGLAS: ReglaRecomendacion[] = [
       'programación', 'programacion', 'software', 'código', 'codigo',
       'redes', 'sistemas operativos', 'base de datos', 'web', 'app',
       'algoritmos', 'javascript', 'python', 'java', 'machine learning',
-      'inteligencia artificial', 'ia ', 'ciberseguridad', 'cloud',
+      'inteligencia artificial', ' ia ', 'ciberseguridad', 'cloud',
     ],
   },
   // ── Electrónica, Mecatrónica, Taller, Agropecuaria → Práctica de Taller ─────
@@ -142,6 +142,7 @@ export function recomendarMetodologia(
   _subsystem?: string
 ): string {
   const uacLower = normalizeUnicode(uacName);
+  const uacPadded = ` ${uacLower} `;
   const componentLower = component.toLowerCase();
 
   for (const regla of REGLAS) {
@@ -159,9 +160,12 @@ export function recomendarMetodologia(
 
     // Verificar palabras clave en el nombre de la UAC
     if (regla.keywordsUac) {
-      const match = regla.keywordsUac.some(kw =>
-        uacLower.includes(normalizeUnicode(kw))
-      );
+      const match = regla.keywordsUac.some(kw => {
+        const normKw = normalizeUnicode(kw);
+        return normKw.startsWith(' ') || normKw.endsWith(' ')
+          ? uacPadded.includes(normKw)
+          : uacLower.includes(normKw);
+      });
       if (match) return regla.metodologiaId;
     }
   }
