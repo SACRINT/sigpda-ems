@@ -12,6 +12,7 @@ import {
   HorariosPaso3Matriz,
   HorariosModales,
 } from "./sections";
+import WizardConfiguracionLegacy from "./WizardConfiguracionLegacy";
 
 
 import type {
@@ -52,7 +53,7 @@ import {
   type CarreraTecnica
 } from "@/lib/bt-carreras-catalog";
 
-export default function WizardConfiguracion({
+function WizardConfiguracionModular({
   escuelaId,
   configInicial,
   gruposIniciales,
@@ -1826,4 +1827,11 @@ export default function WizardConfiguracion({
       />
     </div>
   );
+}
+
+export default function WizardConfiguracion(props: Props) {
+  if (process.env.NEXT_PUBLIC_FF_NEW_WIZARD_CONFIG === 'false') {
+    return <WizardConfiguracionLegacy {...props} />;
+  }
+  return <WizardConfiguracionModular {...props} />;
 }
