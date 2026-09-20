@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Pruebas de Invariantes del Catálogo de Estrategias Didácticas — SIGPDA-EMS
  *
  * Valida los 5 invariantes pedagógicos de dominio real consensuados en las

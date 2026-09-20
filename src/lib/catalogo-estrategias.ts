@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Catálogo Oficial de 14 Estrategias Didácticas — SIGPDA-EMS
  *
  * Basado en el Marco Curricular Común de la Educación Media Superior (MCCEMS 2025 / NEM)
