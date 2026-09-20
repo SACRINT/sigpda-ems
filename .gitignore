@@ -45,3 +45,6 @@ next-env.d.ts
 scripts/output/
 scripts/*.ps1
 scripts/test_*.ts
+__pycache__/
+*.pyc
+
