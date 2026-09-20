@@ -40,6 +40,44 @@ interface ContenidoFormativoItem {
   temas?: string[];
 }
 
+/**
+ * Sanitiza y valida en tiempo de ejecución un elemento de actividad curricular,
+ * asegurando tipos coherentes contra entradas malformadas de OCR/PDF o DB.
+ */
+function sanitizeActivityItem(raw: unknown): ActivitySourceItem {
+  if (!raw || typeof raw !== 'object') return {};
+  const r = raw as Record<string, unknown>;
+  const parsedHours = typeof r.hours === 'number' && !isNaN(r.hours) && r.hours > 0
+    ? r.hours
+    : typeof r.hours === 'string' && !isNaN(Number(r.hours)) && Number(r.hours) > 0
+      ? Number(r.hours)
+      : undefined;
+
+  return {
+    name: typeof r.name === 'string' && r.name.trim().length > 0 ? r.name.trim() : undefined,
+    hours: parsedHours,
+  };
+}
+
+/**
+ * Sanitiza y valida en tiempo de ejecución un contenido formativo oficial enriquecido,
+ * garantizando arrays limpios de cadenas y previniendo inyecciones de valores nulos.
+ */
+function sanitizeContenidoFormativoItem(raw: unknown): ContenidoFormativoItem {
+  if (!raw || typeof raw !== 'object') return {};
+  const r = raw as Record<string, unknown>;
+  return {
+    proposito: typeof r.proposito === 'string' && r.proposito.trim().length > 0 ? r.proposito.trim() : undefined,
+    actividad_clave: typeof r.actividad_clave === 'string' && r.actividad_clave.trim().length > 0 ? r.actividad_clave.trim() : undefined,
+    contenidos: Array.isArray(r.contenidos)
+      ? r.contenidos.filter((c): c is string => typeof c === 'string' && c.trim().length > 0)
+      : undefined,
+    temas: Array.isArray(r.temas)
+      ? r.temas.filter((t): t is string => typeof t === 'string' && t.trim().length > 0)
+      : undefined,
+  };
+}
+
 export function buildUserPrompt(
   extractedData: ExtractedPdfData,
   context: TeacherContext,
@@ -69,16 +107,19 @@ export function buildUserPrompt(
     if (isTec) {
       // Carrera Técnica BT: 3 Fases de la Competencia Profesional
       const sourceActivities = (extractedData.activities && extractedData.activities.length > 0)
-        ? (extractedData.activities as ActivitySourceItem[])
+        ? (extractedData.activities as unknown[])
         : (officialProgram?.activities && Array.isArray(officialProgram.activities) && officialProgram.activities.length > 0)
-          ? (officialProgram.activities as ActivitySourceItem[])
+          ? (officialProgram.activities as unknown[])
           : [];
 
       if (sourceActivities.length > 0) {
-        activitiesList = sourceActivities.map((a: ActivitySourceItem, idx: number) => ({
-          name: a.name || `Fase ${idx + 1} de la Competencia Profesional`,
-          hours: a.hours || Math.round(totalHours / Math.max(1, sourceActivities.length)),
-        }));
+        activitiesList = sourceActivities.map((raw, idx: number) => {
+          const a = sanitizeActivityItem(raw);
+          return {
+            name: a.name || `Fase ${idx + 1} de la Competencia Profesional`,
+            hours: a.hours || Math.round(totalHours / Math.max(1, sourceActivities.length)),
+          };
+        });
       } else {
         const h1 = Math.round(totalHours / 3);
         const h3 = totalHours - (h1 * 2);
@@ -91,15 +132,21 @@ export function buildUserPrompt(
     } else {
       // Formación Laboral BGE: Estrictamente 3 Actividades Clave (18h c/u = 54h totales)
       if (officialProgram?.activities && Array.isArray(officialProgram.activities) && officialProgram.activities.length === 3) {
-        activitiesList = (officialProgram.activities as ActivitySourceItem[]).map((a: ActivitySourceItem, idx: number) => ({
-          name: a.name || `Actividad Clave ${idx + 1}`,
-          hours: a.hours || 18,
-        }));
+        activitiesList = officialProgram.activities.map((raw, idx: number) => {
+          const a = sanitizeActivityItem(raw);
+          return {
+            name: a.name || `Actividad Clave ${idx + 1}`,
+            hours: a.hours || 18,
+          };
+        });
       } else if (extractedData.activities && extractedData.activities.length === 3) {
-        activitiesList = extractedData.activities.map((a, idx) => ({
-          name: a.name || `Actividad Clave ${idx + 1}`,
-          hours: a.hours || 18,
-        }));
+        activitiesList = extractedData.activities.map((raw, idx) => {
+          const a = sanitizeActivityItem(raw);
+          return {
+            name: a.name || `Actividad Clave ${idx + 1}`,
+            hours: a.hours || 18,
+          };
+        });
       } else {
         activitiesList = [
           { name: `Actividad Clave 1: Diagnóstico, fundamentación y preparación técnica de ${extractedData.uacName}`, hours: 18 },
@@ -110,19 +157,23 @@ export function buildUserPrompt(
     }
   } else {
     // Componentes Fundamentales, Ampliados o FFE (Propósitos o Progresiones)
-    const sourceActivities: ActivitySourceItem[] = (officialProgram?.activities && Array.isArray(officialProgram.activities) && officialProgram.activities.length > 0)
-      ? (officialProgram.activities as ActivitySourceItem[])
-      : (extractedData.activities as ActivitySourceItem[]);
+    const sourceActivities: unknown[] = (officialProgram?.activities && Array.isArray(officialProgram.activities) && officialProgram.activities.length > 0)
+      ? (officialProgram.activities as unknown[])
+      : (extractedData.activities as unknown[]);
 
-    activitiesList = sourceActivities.map((a: ActivitySourceItem, idx: number) => ({
-      name: a.name || `${isTransitionSemester ? 'Progresión' : 'Propósito Formativo'} ${idx + 1}`,
-      hours: a.hours || Math.round(totalHours / Math.max(1, sourceActivities.length)),
-    }));
+    activitiesList = sourceActivities.map((raw, idx: number) => {
+      const a = sanitizeActivityItem(raw);
+      return {
+        name: a.name || `${isTransitionSemester ? 'Progresión' : 'Propósito Formativo'} ${idx + 1}`,
+        hours: a.hours || Math.round(totalHours / Math.max(1, sourceActivities.length)),
+      };
+    });
   }
 
   // Asociar contenidos formativos oficiales enriquecidos si existen
-  const contenidosSource = (officialProgram?.contenidos_formativos || extractedData.contenidosFormativos) as ContenidoFormativoItem[] | undefined;
-  if (contenidosSource && Array.isArray(contenidosSource)) {
+  const rawContenidos = officialProgram?.contenidos_formativos || extractedData.contenidosFormativos;
+  if (Array.isArray(rawContenidos)) {
+    const contenidosSource = rawContenidos.map(sanitizeContenidoFormativoItem);
     activitiesList.forEach((act, i) => {
       // Intentar coincidir por nombre o índice
       const match = contenidosSource.find((cf: ContenidoFormativoItem) => 
