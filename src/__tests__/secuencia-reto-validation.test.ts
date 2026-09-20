@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { validateRetoSituado, ensureRetoSituadoCalidad, autoRepairRetoSituado } from '@/lib/planning-evaluator';
+import { validateRetoSituado, ensureRetoSituadoCalidad } from '@/lib/planning-evaluator';
 import { SecuenciaUpdateInputSchema } from '@/lib/ai-schemas';
 import type { RetoSituado } from '@/types/planning';
 
