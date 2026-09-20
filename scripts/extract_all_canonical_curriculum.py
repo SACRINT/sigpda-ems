@@ -21,11 +21,64 @@ def strip_accents(text):
     return ''.join(c for c in unicodedata.normalize('NFD', text) if unicodedata.category(c) != 'Mn')
 
 def remove_line_hyphens(text):
-    """Une palabras partidas por salto de línea SIN romper guiones compuestos.
-    Nota: En el contexto SEP MCCEMS no existen palabras compuestas con guión legítimo."""
+    """Une palabras partidas por salto de línea o espacios SIN romper guiones compuestos legítimos."""
     if not text: return ""
     text = text.replace("\u00ad", "")  # Soft hyphen
-    return re.sub(r'([a-zA-ZáéíóúñÁÉÍÓÚÑ]+)-\s*[\r\n]+\s*([a-zA-ZáéíóúñÁÉÍÓÚÑ]+)', r'\1\2', text)
+    # 1. Guión seguido de salto de línea
+    text = re.sub(r'([a-zA-ZáéíóúñÁÉÍÓÚÑ]+)-\s*[\r\n]+\s*([a-zA-ZáéíóúñÁÉÍÓÚÑ]+)', r'\1\2', text)
+    # 2. Guión seguido de espacios (palabra partida artificialmente por salto de línea previo)
+    text = re.sub(r'([a-zA-ZáéíóúñÁÉÍÓÚÑ]{2,})-\s+([a-zA-ZáéíóúñÁÉÍÓÚÑ]{2,})', r'\1\2', text)
+    return text
+
+DANGLING_CONNECTORS = {
+    'de', 'del', 'al', 'a', 'para', 'por', 'con', 'en', 'o', 'y', 'e', 'u',
+    'la', 'el', 'los', 'las', 'un', 'una', 'unos', 'unas', 'su', 'sus'
+}
+
+def merge_fragmented_lines(raw_lines):
+    """Une líneas fragmentadas del PDF: guiones finales, fragmentos cortos y continuaciones gramaticales."""
+    if not raw_lines:
+        return []
+        
+    merged = []
+    for raw in raw_lines:
+        if not raw or not raw.strip():
+            continue
+        line = raw.strip()
+        
+        if not merged:
+            merged.append(line)
+            continue
+            
+        prev = merged[-1]
+        
+        # 1. Si la línea anterior termina con guión (ej: 'mate-', 'ecuacio-'), unir directamente sin guión
+        if prev.endswith('-'):
+            merged[-1] = prev[:-1] + line
+            continue
+            
+        # Determinar si la línea anterior termina en conector colgante (nunca si termina en cierre de paréntesis o puntuación)
+        ends_with_closing = prev.rstrip().endswith((')', ']', '}', '"', '»', '.', ':', ';'))
+        last_word = prev.split()[-1].lower() if prev.split() else ''
+        last_word_clean = re.sub(r'[^\wáéíóúñ]', '', last_word)
+        ends_with_connector = not ends_with_closing and (last_word_clean in DANGLING_CONNECTORS)
+        
+        # Determinar si la línea actual inicia con minúscula
+        starts_with_lower = len(line) > 0 and line[0].islower()
+        
+        # Regla 2 y 3: Continuación por minúscula o conector colgante
+        if (starts_with_lower or ends_with_connector) and not ends_with_closing:
+            merged[-1] = prev + ' ' + line
+        else:
+            merged.append(line)
+            
+    cleaned = []
+    for item in merged:
+        c = clean(item)
+        if len(c) > 3:
+            cleaned.append(c)
+            
+    return cleaned
 
 def clean(t):
     if not t: return ""
@@ -278,12 +331,14 @@ def extract_fundamental_books():
                 same_page_props = [lg for lg in parsed_items if (lg['y'] < 1000) == (ry < 1000)]
                 closest_lg = min(same_page_props, key=lambda lg: abs(lg['y'] - ry)) if same_page_props else (min(parsed_items, key=lambda lg: abs(lg['y'] - ry)) if parsed_items else None)
                 if closest_lg:
-                    lines = [clean(l) for l in rtext.split('\n') if len(clean(l)) > 2]
-                    closest_lg['conts'].extend(lines)
+                    raw_lines = [l.strip() for l in rtext.split('\n') if l.strip()]
+                    closest_lg['conts'].extend(raw_lines)
 
             m_uac = get_master_uac(uac_name, sem)
             final_hrs = m_uac['total_hours'] if m_uac and 'total_hours' in m_uac else default_hrs
             hours_per_act = round(final_hrs / len(parsed_items)) if parsed_items else 0
+
+            parsed_items.sort(key=lambda x: x['order'])
 
             activities = []
             contenidos_formativos = []
@@ -294,8 +349,9 @@ def extract_fundamental_books():
                     "name": p['prop'],
                     "hours": hours_per_act
                 })
+                merged_conts = merge_fragmented_lines(p['conts'])
                 unique_conts = []
-                for c in p['conts']:
+                for c in merged_conts:
                     if c not in unique_conts and len(c) > 3:
                         unique_conts.append(c)
                 contenidos_formativos.append({

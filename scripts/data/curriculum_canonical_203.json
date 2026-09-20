@@ -61,12 +61,9 @@
         "order": 2,
         "proposito": "Comprende el concepto de conteo a partir del análisis de los procesos sociales que llevaron a su desarrollo para aplicarlo en situaciones de interés.",
         "contenidos": [
-          "Sistemas de conteo en Mesopotamia, Egip-",
-          "to, América, India y Arabia; importancia del",
-          "cero en los pueblos olmeca y maya",
+          "Sistemas de conteo en Mesopotamia, Egipto, América, India y Arabia; importancia del cero en los pueblos olmeca y maya",
           "Concepto de número y números naturales",
-          "Leonardo de Pisa y el sistema numeral",
-          "indoarábigo",
+          "Leonardo de Pisa y el sistema numeral indoarábigo",
           "Concepto y uso del ábaco"
         ]
       },
@@ -75,26 +72,18 @@
         "proposito": "Analiza distintas situaciones cotidianas en donde intervenga el proceso de contar, para comprender la clasificación de los números y realizar operaciones básicas entre números naturales y enteros.",
         "contenidos": [
           "Clasificación de los números reales",
-          "Operaciones aritméticas y sus operaciones",
-          "inversas con números enteros",
-          "Propiedades de las operaciones aritméti-",
-          "cas: cerradura, conmutación, asociación y",
-          "distribución; neutros e inversos aditivo",
-          "y multiplicativo",
-          "Factorización de números naturales (teore-",
-          "ma fundamental de la aritmética)",
-          "Máximo común divisor y mínimo común",
-          "múltiplo"
+          "Operaciones aritméticas y sus operaciones inversas con números enteros",
+          "Propiedades de las operaciones aritméticas: cerradura, conmutación, asociación y distribución; neutros e inversos aditivo y multiplicativo",
+          "Factorización de números naturales (teorema fundamental de la aritmética)",
+          "Máximo común divisor y mínimo común múltiplo"
         ]
       },
       {
         "order": 4,
         "proposito": "Comprende el concepto de unidad y la relación entre números fraccionarios y enteros, para realizar operaciones con fracciones y porcentajes.",
         "contenidos": [
-          "Concepto de unidad y de los números",
-          "racionales como fracciones (estructura)",
-          "Equivalencias entre fracciones y entre",
-          "números enteros y fracciones",
+          "Concepto de unidad y de los números racionales como fracciones (estructura)",
+          "Equivalencias entre fracciones y entre números enteros y fracciones",
           "Simplificación de fracciones",
           "Proporción, proporción inversa y porcentaje"
         ]
@@ -105,14 +94,10 @@
         "contenidos": [
           "Componentes de una potencia",
           "Operaciones con potenciación (reglas)",
-          "Explicación de exponentes negativos como",
-          "el inverso multiplicativo de la base",
+          "Explicación de exponentes negativos como el inverso multiplicativo de la base",
           "Operaciones con exponentes (reglas)",
-          "Definición de raíz cuadrada (enunciación de",
-          "sus partes) y radicando diferente de 2",
-          "Raíz cuadrada como inverso de potencias de",
-          "números positivos y cancelación de poten-",
-          "cias y raíces"
+          "Definición de raíz cuadrada (enunciación de sus partes) y radicando diferente de 2",
+          "Raíz cuadrada como inverso de potencias de números positivos y cancelación de potencias y raíces"
         ]
       },
       {
@@ -129,16 +114,10 @@
         "order": 7,
         "proposito": "Aplica los elementos de la aritmética para resolver cálculos combinados con números reales.",
         "contenidos": [
-          "Técnicas para la resolución de operaciones",
-          "combinadas (jerarquía de operaciones)",
-          "Uso de símbolos para resolución de opera-",
-          "ciones combinadas (paréntesis, corchetes,",
-          "llaves y puntos)",
-          "Resolución de restas de números enteros",
-          "como la suma con el opuesto de otro",
-          "Operaciones combinadas con adición, sus-",
-          "tracción, multiplicación, división, potencias y",
-          "raíces"
+          "Técnicas para la resolución de operaciones combinadas (jerarquía de operaciones)",
+          "Uso de símbolos para resolución de operaciones combinadas (paréntesis, corchetes, llaves y puntos)",
+          "Resolución de restas de números enteros como la suma con el opuesto de otro",
+          "Operaciones combinadas con adición, sustracción, multiplicación, división, potencias y raíces"
         ]
       }
     ],
@@ -196,14 +175,11 @@
         "order": 1,
         "proposito": "Representa operaciones aritméticas utilizadas en situaciones de interés, mediante letras y símbolos, para comprender el lenguaje algebraico.",
         "contenidos": [
-          "Definición de: suma, producto, razón, cocien-",
-          "te, diferencia y residuo",
-          "Símbolos y letras utilizados en el lenguaje al-",
-          "gebraico",
+          "Definición de: suma, producto, razón, cociente, diferencia y residuo",
+          "Símbolos y letras utilizados en el lenguaje algebraico",
           "Concepto de incógnita",
           "Términos y expresiones algebraicas",
-          "Representación de expresiones de lenguaje",
-          "común a expresiones algebraicas"
+          "Representación de expresiones de lenguaje común a expresiones algebraicas"
         ]
       },
       {
@@ -212,20 +188,16 @@
         "contenidos": [
           "Clasificación de expresiones algebraicas",
           "(monomio, binomio, trinomio y polinomio)",
-          "Componentes de un monomio: coeficiente,",
-          "variable, exponente positivo y grado",
-          "Representación de situaciones reales con",
-          "monomios y polinomios"
+          "Componentes de un monomio: coeficiente, variable, exponente positivo y grado",
+          "Representación de situaciones reales con monomios y polinomios"
         ]
       },
       {
         "order": 3,
         "proposito": "Aplica la aritmética y el manejo del álgebra para realizar operaciones con monomios y binomios, referentes a situaciones de interés, a partir del análisis de sus componentes.",
         "contenidos": [
-          "Suma, resta, multiplicación y división con",
-          "monomios",
-          "Aplicación de las reglas de los exponentes y",
-          "los signos",
+          "Suma, resta, multiplicación y división con monomios",
+          "Aplicación de las reglas de los exponentes y los signos",
           "Aplicación de operaciones con fracciones",
           "Factorización de monomios",
           "Binomio y trinomio simple"
@@ -235,10 +207,8 @@
         "order": 4,
         "proposito": "Aplica la aritmética y el manejo del álgebra para realizar operaciones con trinomios y polinomios, referentes a situaciones de interés, a partir del análisis de sus componentes.",
         "contenidos": [
-          "Suma, resta, multiplicación y división con po-",
-          "linomios",
-          "Aplicación de las reglas de los exponentes y",
-          "los signos",
+          "Suma, resta, multiplicación y división con polinomios",
+          "Aplicación de las reglas de los exponentes y los signos",
           "Aplicación de operaciones con fracciones",
           "Productos notables",
           "Factorización de polinomios",
@@ -249,12 +219,9 @@
         "order": 5,
         "proposito": "Aplica el álgebra en situaciones de interés para comprender su relevancia en otras áreas del conocimiento, fenómenos naturales o en distintas esferas de la vida humana.",
         "contenidos": [
-          "Cálculo de un presupuesto personal (ingre-",
-          "sos, gastos, ahorros, etc.)",
-          "Ajuste de proporciones en recetas según nú-",
-          "mero de personas",
-          "Hallar precios finales aplicando porcentajes y",
-          "ecuaciones en compras con descuento"
+          "Cálculo de un presupuesto personal (ingresos, gastos, ahorros, etc.)",
+          "Ajuste de proporciones en recetas según número de personas",
+          "Hallar precios finales aplicando porcentajes y ecuaciones en compras con descuento"
         ]
       },
       {
@@ -263,8 +230,7 @@
         "contenidos": [
           "Concepto de igualdad e identidad algebraica",
           "Relaciones de igualdad entre números reales",
-          "Propiedades de igualdad: reflexiva, simétri-",
-          "ca, transitiva, uniformidad"
+          "Propiedades de igualdad: reflexiva, simétrica, transitiva, uniformidad"
         ]
       }
     ],
@@ -291,6 +257,11 @@
         "hours": 12
       },
       {
+        "order": 3,
+        "name": "Aplica la aritmética, el manejo del álgebra y el método gráfico para resolver sistemas de ecuaciones lineales que refieran a situaciones de interés",
+        "hours": 12
+      },
+      {
         "order": 4,
         "name": "Aplica la aritmética y el manejo del álgebra para resolver ecuaciones cuadráticas que refieran a situaciones de interés.",
         "hours": 12
@@ -303,11 +274,6 @@
       {
         "order": 6,
         "name": "Revisa el teorema del triángulo de Napoleón, considerándolo como un problema-meta para aplicar resultados de la geometría euclidiana.",
-        "hours": 12
-      },
-      {
-        "order": 3,
-        "name": "Aplica la aritmética, el manejo del álgebra y el método gráfico para resolver sistemas de ecuaciones lineales que refieran a situaciones de interés",
         "hours": 12
       }
     ],
@@ -324,8 +290,7 @@
         "contenidos": [
           "Concepto de ecuación y sus partes",
           "Ecuaciones lineales de primer grado",
-          "Procedimiento para encontrar el valor de",
-          "una incógnita",
+          "Procedimiento para encontrar el valor de una incógnita",
           "Forma estándar de las ecuaciones lineales"
         ]
       },
@@ -334,52 +299,10 @@
         "proposito": "Aplica la aritmética y el manejo del álgebra para resolver ecuaciones lineales con dos incógnitas que refieran a situaciones de interés.",
         "contenidos": [
           "Ecuaciones lineales con dos incógnitas",
-          "Procedimiento para solucionar ecuaciones",
-          "lineales con dos incógnitas",
+          "Procedimiento para solucionar ecuaciones lineales con dos incógnitas",
           "Ecuación de la recta",
-          "Concepto de plano cartesiano: ejes perpen-",
-          "diculares: horizontal (X) y vertical (Y)",
-          "Representación gráfica de la ecuación de la",
-          "recta"
-        ]
-      },
-      {
-        "order": 4,
-        "proposito": "Aplica la aritmética y el manejo del álgebra para resolver ecuaciones cuadráticas que refieran a situaciones de interés.",
-        "contenidos": [
-          "Ecuaciones cuadráticas",
-          "Forma general de la ecuación cuadrática",
-          "Resolución",
-          "método",
-          "completar",
-          "cuadrados",
-          "Aplicación de fórmula general para ecuacio-",
-          "nes cuadráticas (Bhaskara)",
-          "Representación gráfica"
-        ]
-      },
-      {
-        "order": 5,
-        "proposito": "Expresa y resuelve diversas situaciones de interés a través de distintos tipos de ecuaciones para comprender su relevancia en otras áreas del conocimiento, fenómenos naturales o en distintas esferas de la vida humana.",
-        "contenidos": [
-          "Cálculo de intereses simples y compuestos",
-          "en finanzas personales",
-          "Descripción del crecimiento poblacional o",
-          "propagación de fenómenos (ej. epidemia)",
-          "Determinar medidas o cantidades de mate-",
-          "rial en proyectos de arquitectura"
-        ]
-      },
-      {
-        "order": 6,
-        "proposito": "Revisa el teorema del triángulo de Napoleón, considerándolo como un problema-meta para aplicar resultados de la geometría euclidiana.",
-        "contenidos": [
-          "Introducción a la geometría plana",
-          "Ángulos, definición, tipos y componentes",
-          "Teorema de Pitágoras",
-          "Construcción de triángulos rectángulos",
-          "Criterios de congruencia y semejanza de",
-          "triángulos"
+          "Concepto de plano cartesiano: ejes perpendiculares: horizontal (X) y vertical (Y)",
+          "Representación gráfica de la ecuación de la recta"
         ]
       },
       {
@@ -391,6 +314,37 @@
           "Método de reducción",
           "Método gráfico",
           "Método por determinantes"
+        ]
+      },
+      {
+        "order": 4,
+        "proposito": "Aplica la aritmética y el manejo del álgebra para resolver ecuaciones cuadráticas que refieran a situaciones de interés.",
+        "contenidos": [
+          "Ecuaciones cuadráticas",
+          "Forma general de la ecuación cuadrática",
+          "Resolución por método de completar cuadrados",
+          "Aplicación de fórmula general para ecuaciones cuadráticas (Bhaskara)",
+          "Representación gráfica"
+        ]
+      },
+      {
+        "order": 5,
+        "proposito": "Expresa y resuelve diversas situaciones de interés a través de distintos tipos de ecuaciones para comprender su relevancia en otras áreas del conocimiento, fenómenos naturales o en distintas esferas de la vida humana.",
+        "contenidos": [
+          "Cálculo de intereses simples y compuestos en finanzas personales",
+          "Descripción del crecimiento poblacional o propagación de fenómenos (ej. epidemia)",
+          "Determinar medidas o cantidades de material en proyectos de arquitectura"
+        ]
+      },
+      {
+        "order": 6,
+        "proposito": "Revisa el teorema del triángulo de Napoleón, considerándolo como un problema-meta para aplicar resultados de la geometría euclidiana.",
+        "contenidos": [
+          "Introducción a la geometría plana",
+          "Ángulos, definición, tipos y componentes",
+          "Teorema de Pitágoras",
+          "Construcción de triángulos rectángulos",
+          "Criterios de congruencia y semejanza de triángulos"
         ]
       }
     ],
@@ -465,18 +419,15 @@
         "proposito": "Analiza la relación entre los lados y los ángulos de un triángulo rectángulo para establecer razones trigonométricas.",
         "contenidos": [
           "Razones trigonométricas",
-          "Demostraciones de identidades trigonomé-",
-          "tricas"
+          "Demostraciones de identidades trigonométricas"
         ]
       },
       {
         "order": 3,
         "proposito": "Gráfica en el plano cartesiano polinomios de dos variables con coeficientes reales, con el fin de deducir la simetría y la extensión.",
         "contenidos": [
-          "Polinomios de dos variables con coeficientes",
-          "reales",
-          "Propiedades geométricas (simetría, exten-",
-          "sión, etc.)"
+          "Polinomios de dos variables con coeficientes reales",
+          "Propiedades geométricas (simetría, extensión, etc.)"
         ]
       },
       {
@@ -484,8 +435,7 @@
         "proposito": "Observa el comportamiento de dos variables en relación de proporcionalidad directa para deducir la ecuación de la recta.",
         "contenidos": [
           "Comportamiento de dos variables",
-          "Ecuación de la recta (forma punto-pendiente,",
-          "pendiente-ordenada al origen, simétrica)"
+          "Ecuación de la recta (forma punto-pendiente, pendiente-ordenada al origen, simétrica)"
         ]
       },
       {
@@ -493,8 +443,7 @@
         "proposito": "Analiza situaciones o fenómenos que involucren en su modelado de funciones cuadráticas para deducir propiedades analíticas de la parábola.",
         "contenidos": [
           "Propiedades analíticas de la parábola",
-          "Ecuación ordinaria de parábolas verticales y",
-          "horizontales, con vértice en y fuera del origen.",
+          "Ecuación ordinaria de parábolas verticales y horizontales, con vértice en y fuera del origen.",
           "Modelado"
         ]
       },
@@ -512,8 +461,7 @@
         "proposito": "Aplica conocimientos sobre ecuaciones con dos variables para realizar estimaciones sencillas, para consolidar los aprendizajes.",
         "contenidos": [
           "Modelado y estimación",
-          "Aplicación de las secciones cónicas: elipse,",
-          "parábola, hipérbola y circunferencia"
+          "Aplicación de las secciones cónicas: elipse, parábola, hipérbola y circunferencia"
         ]
       }
     ],
@@ -592,12 +540,8 @@
         "order": 2,
         "proposito": "Investiga el origen y evolución del cálculo diferencial y el procedimiento de resolución de una función de la recta tangente a una curva en un punto dado, para la explicación de fenómenos físicos.",
         "contenidos": [
-          "Antecedentes",
-          "históricos",
-          "origen",
-          "cálculo diferencial",
-          "Función de la regla tangente y explicación de",
-          "fenómenos físicos (movimiento)"
+          "Antecedentes históricos y origen del cálculo diferencial",
+          "Función de la regla tangente y explicación de fenómenos físicos (movimiento)"
         ]
       },
       {
@@ -605,10 +549,8 @@
         "proposito": "Revisa situaciones o fenómenos donde el cambio es la parte central en su estudio y aplica funciones de variable real para modelarlas e identificar simetrías en su representación gráfica.",
         "contenidos": [
           "Funciones de variable real",
-          "Representación gráfica de funciones de varia-",
-          "ble real",
-          "Conceptos de continuidad, crecimiento, de-",
-          "crecimiento, máximos y mínimos",
+          "Representación gráfica de funciones de variable real",
+          "Conceptos de continuidad, crecimiento, decrecimiento, máximos y mínimos",
           "Desigualdades"
         ]
       },
@@ -619,9 +561,7 @@
           "Introducción al concepto de límite",
           "Noción intuitiva del límite",
           "Propiedades del límite",
-          "Aplicación del concepto de límite en la conti-",
-          "nuidad de funciones y el modelado de situa-",
-          "ciones reales"
+          "Aplicación del concepto de límite en la continuidad de funciones y el modelado de situaciones reales"
         ]
       },
       {
@@ -641,21 +581,17 @@
         "contenidos": [
           "Concepto de la derivada (como límite)",
           "Regla de los cuatro pasos",
-          "Derivada de funciones constantes, lineales y",
-          "polinomiales",
+          "Derivada de funciones constantes, lineales y polinomiales",
           "Reglas de derivación",
           "Análisis de la función derivada",
-          "Resolución de problemas del entorno apli-",
-          "cando la derivada"
+          "Resolución de problemas del entorno aplicando la derivada"
         ]
       },
       {
         "order": 7,
         "proposito": "Aplica conocimientos de la derivada para resolver problemas de optimización, o situaciones de su entorno o de otras áreas del conocimiento.",
         "contenidos": [
-          "Aplicación del cálculo de derivada en distintas",
-          "áreas del conocimiento o esferas de la vida",
-          "humana"
+          "Aplicación del cálculo de derivada en distintas áreas del conocimiento o esferas de la vida humana"
         ]
       },
       {
@@ -663,8 +599,7 @@
         "proposito": "Comprende intuitivamente el Teorema Fundamental del Cálculo como conexión entre derivadas e integrales y su utilidad para analizar fenómenos de acumulación de cambios continuos.",
         "contenidos": [
           "Integral como función inversa de la derivada",
-          "Área bajo la curva de una función dentro de",
-          "un intervalo",
+          "Área bajo la curva de una función dentro de un intervalo",
           "Representación gráfica"
         ]
       }
@@ -692,6 +627,11 @@
         "hours": 8
       },
       {
+        "order": 3,
+        "name": "Comprende los conceptos básicos de la teoría de conjuntos para aplicarlos en problemas que le sean presentados.",
+        "hours": 8
+      },
+      {
         "order": 4,
         "name": "Selecciona y aplica una técnica de conteo (permutaciones, combinaciones, reemplazo con y sin orden) para calcular probabilidad en eventos simples y apoyar la toma de decisiones.",
         "hours": 8
@@ -714,11 +654,6 @@
       {
         "order": 8,
         "name": "Explica un evento aleatorio cuyo comportamiento puede describirse a través del estudio de la distribución normal, para calcular la probabilidad.",
-        "hours": 8
-      },
-      {
-        "order": 3,
-        "name": "Comprende los conceptos básicos de la teoría de conjuntos para aplicarlos en problemas que le sean presentados.",
         "hours": 8
       }
     ],
@@ -744,6 +679,17 @@
           "Simulaciones probabilísticas",
           "Equiprobabilidad",
           "Frecuencia de los eventos"
+        ]
+      },
+      {
+        "order": 3,
+        "proposito": "Comprende los conceptos básicos de la teoría de conjuntos para aplicarlos en problemas que le sean presentados.",
+        "contenidos": [
+          "Concepto general de conjunto",
+          "Notación e igualdad de conjuntos",
+          "Subconjunto, conjunto universal y subconjuntos",
+          "Representación de conjuntos con diagramas de Venn",
+          "Leyes de Morgan"
         ]
       },
       {
@@ -777,10 +723,8 @@
         "proposito": "Extrae información a través del empleo de técnicas de muestreo, valora la importancia de la aleatoriedad al tomar la muestra.",
         "contenidos": [
           "Población y muestra",
-          "Fuentes de información (primarias,",
-          "secundarias y terciarias)",
-          "Métodos de muestreo: aleatorio simple y",
-          "sistemático"
+          "Fuentes de información (primarias, secundarias y terciarias)",
+          "Métodos de muestreo: aleatorio simple y sistemático"
         ]
       },
       {
@@ -790,19 +734,6 @@
           "Distribución normal",
           "Medidas de tendencia central",
           "Medidas de dispersión"
-        ]
-      },
-      {
-        "order": 3,
-        "proposito": "Comprende los conceptos básicos de la teoría de conjuntos para aplicarlos en problemas que le sean presentados.",
-        "contenidos": [
-          "Concepto general de conjunto",
-          "Notación e igualdad de conjuntos",
-          "Subconjunto, conjunto universal y subcon-",
-          "juntos",
-          "Representación de conjuntos con diagramas",
-          "de Venn",
-          "Leyes de Morgan"
         ]
       }
     ],
@@ -819,6 +750,11 @@
     "learning_outcome": "Comprenda el carácter creativo, social y colectivo de las ciencias naturales, a través de la apropiación de conceptos que permiten la construcción de explicaciones en torno a la naturaleza intrínseca de la materia. ​",
     "activities": [
       {
+        "order": 1,
+        "name": "Reconoce la ciencia como actividad creativa, social y colectiva que involucra el planteamiento de preguntas y la búsqueda de explicaciones sobre fenómenos naturales de su entorno, a través de la experimentación y el análisis.",
+        "hours": 9
+      },
+      {
         "order": 2,
         "name": "Comprende que los fenómenos de la naturaleza están interrelacionados, y pueden estudiarse en su conjunto o de forma especializada, para la generación de conocimiento o innovación tecnológica.",
         "hours": 9
@@ -829,8 +765,8 @@
         "hours": 9
       },
       {
-        "order": 1,
-        "name": "Reconoce la ciencia como actividad creativa, social y colectiva que involucra el planteamiento de preguntas y la búsqueda de explicaciones sobre fenómenos naturales de su entorno, a través de la experimentación y el análisis.",
+        "order": 4,
+        "name": "Comprende los conceptos de sustancia, sustancia pura, elemento compuesto y mezcla, y los aplica para clasificar de forma práctica o analítica distintos tipos de materia y reconocer sus propiedades físicas y químicas.",
         "hours": 9
       },
       {
@@ -844,18 +780,13 @@
         "hours": 9
       },
       {
-        "order": 8,
-        "name": "Construye explicaciones sobre la naturaleza energética y corpuscular de la materia, y explora aplicaciones tecnológicas relacionadas.",
-        "hours": 9
-      },
-      {
         "order": 7,
         "name": "Explica las propiedades físicas de los estados de agregación de la materia en función del movimiento, separación y fuerzas de atracción o repulsión de las partículas internas, y las vincula con los conceptos de energía cinética, potencial e interna.",
         "hours": 9
       },
       {
-        "order": 4,
-        "name": "Comprende los conceptos de sustancia, sustancia pura, elemento compuesto y mezcla, y los aplica para clasificar de forma práctica o analítica distintos tipos de materia y reconocer sus propiedades físicas y químicas.",
+        "order": 8,
+        "name": "Construye explicaciones sobre la naturaleza energética y corpuscular de la materia, y explora aplicaciones tecnológicas relacionadas.",
         "hours": 9
       }
     ],
@@ -867,17 +798,22 @@
     ],
     "contenidos_formativos": [
       {
+        "order": 1,
+        "proposito": "Reconoce la ciencia como actividad creativa, social y colectiva que involucra el planteamiento de preguntas y la búsqueda de explicaciones sobre fenómenos naturales de su entorno, a través de la experimentación y el análisis.",
+        "contenidos": [
+          "Concepto de ciencia",
+          "Relatos sobre la historia de los descubrimientos científicos y la ciencia en México",
+          "El método científico y el conocimiento empírico y tradicional, como formas de comprensión de la naturaleza",
+          "Medición: concepto de medición, magnitudes y unidad de medida, y su aplicación en las ciencias naturales"
+        ]
+      },
+      {
         "order": 2,
         "proposito": "Comprende que los fenómenos de la naturaleza están interrelacionados, y pueden estudiarse en su conjunto o de forma especializada, para la generación de conocimiento o innovación tecnológica.",
         "contenidos": [
-          "Objetivos de estudio de la física, la química y",
-          "la biología; elementos en común y sus dife-",
-          "rencias",
-          "Ejemplos de ciencias naturales derivadas e",
-          "interdisciplinares: ecología, ciencias de la Tie-",
-          "rra, entre otros",
-          "Concepto de tecnología y su vínculo con las",
-          "ciencias naturales"
+          "Objetivos de estudio de la física, la química y la biología; elementos en común y sus diferencias",
+          "Ejemplos de ciencias naturales derivadas e interdisciplinares: ecología, ciencias de la Tierra, entre otros",
+          "Concepto de tecnología y su vínculo con las ciencias naturales"
         ]
       },
       {
@@ -885,39 +821,32 @@
         "proposito": "Comprende los conceptos de materia, cuerpo, masa y densidad, a partir de los objetos del entorno perceptible, para describirlos y analizarlos.",
         "contenidos": [
           "Concepto de materia y cuerpo",
-          "Concepto de masa como cantidad de mate-",
-          "ria, unidad de medida y su diferencia con el",
-          "concepto de peso",
+          "Concepto de masa como cantidad de materia, unidad de medida y su diferencia con el concepto de peso",
           "Concepto de densidad",
           "Cálculo de volumen y densidad"
         ]
       },
       {
-        "order": 1,
-        "proposito": "Reconoce la ciencia como actividad creativa, social y colectiva que involucra el planteamiento de preguntas y la búsqueda de explicaciones sobre fenómenos naturales de su entorno, a través de la experimentación y el análisis.",
+        "order": 4,
+        "proposito": "Comprende los conceptos de sustancia, sustancia pura, elemento compuesto y mezcla, y los aplica para clasificar de forma práctica o analítica distintos tipos de materia y reconocer sus propiedades físicas y químicas.",
         "contenidos": [
-          "Concepto de ciencia",
-          "Relatos sobre la historia de los descubrimien-",
-          "tos científicos y la ciencia en México",
-          "El método científico y el conocimiento empí-",
-          "rico y tradicional, como formas de compren-",
-          "sión de la naturaleza",
-          "Medición: concepto de medición, magnitu-",
-          "des y unidad de medida, y su aplicación en",
-          "las ciencias naturales"
+          "Clasificación de la materia",
+          "Propiedades físicas y químicas de la materia",
+          "Tipos y características de las mezclas; métodos de separación",
+          "Cálculo de concentración de disoluciones:",
+          "masa-masa, masa-volumen, volumenvolumen y partes por millón",
+          "Clasificación periódica de los elementos"
         ]
       },
       {
         "order": 5,
         "proposito": "Comprende el átomo y su composición eléctrica como la partícula microscópica que estructura la materia.",
         "contenidos": [
-          "Teoría Atómica: Dalton, Thomson, Ruther-",
-          "ford, Bohr y Schrödinger",
+          "Teoría Atómica: Dalton, Thomson, Rutherford, Bohr y Schrödinger",
           "Modelos atómicos y carga eléctrica",
           "Número y masa atómica",
           "Isótopos",
-          "Concepto de configuración electrónica y",
-          "valencia"
+          "Concepto de configuración electrónica y valencia"
         ]
       },
       {
@@ -930,45 +859,22 @@
         ]
       },
       {
-        "order": 8,
-        "proposito": "Construye explicaciones sobre la naturaleza energética y corpuscular de la materia, y explora aplicaciones tecnológicas relacionadas.",
-        "contenidos": [
-          "Fenómenos naturales donde participa la acti-",
-          "vidad eléctrica de la materia",
-          "Aplicaciones tecnológicas vinculadas con la",
-          "materia"
-        ]
-      },
-      {
         "order": 7,
         "proposito": "Explica las propiedades físicas de los estados de agregación de la materia en función del movimiento, separación y fuerzas de atracción o repulsión de las partículas internas, y las vincula con los conceptos de energía cinética, potencial e interna.",
         "contenidos": [
           "Concepto de energía",
-          "Noción intuitiva de movimiento y conceptos",
-          "de energía cinética, potencial e interna",
+          "Noción intuitiva de movimiento y conceptos de energía cinética, potencial e interna",
           "Teoría cinética de la materia",
-          "Estados de agregación de la materia y",
-          "cambios",
-          "(sólidos,",
-          "líquidos,",
-          "gases",
-          "y plasma)"
+          "Estados de agregación de la materia y sus cambios",
+          "(sólidos, líquidos, gases y plasma)"
         ]
       },
       {
-        "order": 4,
-        "proposito": "Comprende los conceptos de sustancia, sustancia pura, elemento compuesto y mezcla, y los aplica para clasificar de forma práctica o analítica distintos tipos de materia y reconocer sus propiedades físicas y químicas.",
+        "order": 8,
+        "proposito": "Construye explicaciones sobre la naturaleza energética y corpuscular de la materia, y explora aplicaciones tecnológicas relacionadas.",
         "contenidos": [
-          "Clasificación de la materia",
-          "Propiedades físicas y químicas de la materia",
-          "Tipos y características de las mezclas; métodos",
-          "de separación",
-          "Cálculo de concentración de disoluciones:",
-          "masa-masa,",
-          "masa-volumen,",
-          "volumen-",
-          "volumen y partes por millón",
-          "Clasificación periódica de los elementos"
+          "Fenómenos naturales donde participa la actividad eléctrica de la materia",
+          "Aplicaciones tecnológicas vinculadas con la materia"
         ]
       }
     ],
@@ -1000,13 +906,13 @@
         "hours": 9
       },
       {
-        "order": 5,
-        "name": "Analiza el vínculo entre trabajo mecánico y calor, para comprender el concepto de termodinámica.",
+        "order": 4,
+        "name": "Analiza la interacción entre la energía y la estructura de la materia para comprender las formas de propagación de calor.",
         "hours": 9
       },
       {
-        "order": 4,
-        "name": "Analiza la interacción entre la energía y la estructura de la materia para comprender las formas de propagación de calor.",
+        "order": 5,
+        "name": "Analiza el vínculo entre trabajo mecánico y calor, para comprender el concepto de termodinámica.",
         "hours": 9
       },
       {
@@ -1037,11 +943,9 @@
         "proposito": "Comprende, a partir del análisis de fenómenos naturales cotidianos, que la energía puede transformarse y transferirse sin destruirse.",
         "contenidos": [
           "Definición de energía",
-          "Manifestaciones, tipos y transformación de",
-          "la energía",
+          "Manifestaciones, tipos y transformación de la energía",
           "Ley de conservación de la energía",
-          "Medición de la energía y unidades de me-",
-          "dida"
+          "Medición de la energía y unidades de medida"
         ]
       },
       {
@@ -1049,13 +953,9 @@
         "proposito": "Analiza el cambio de posición de un cuerpo al interactuar con otro, para comprender los conceptos de fuerza, movimiento y su relación con la energía mecánica.",
         "contenidos": [
           "Concepto de fuerza",
-          "Conceptos",
-          "posición,",
-          "movimiento",
-          "y velocidad",
+          "Conceptos de posición, movimiento y velocidad",
           "Concepto de energía mecánica",
-          "Cálculo de la energía cinética de un cuerpo o",
-          "partícula"
+          "Cálculo de la energía cinética de un cuerpo o partícula"
         ]
       },
       {
@@ -1069,25 +969,23 @@
         ]
       },
       {
-        "order": 5,
-        "proposito": "Analiza el vínculo entre trabajo mecánico y calor, para comprender el concepto de termodinámica.",
-        "contenidos": [
-          "Trabajo mecánico",
-          "Concepto de termodinámica",
-          "Vínculo del trabajo mecánico con la termodi-",
-          "námica",
-          "Equivalencia entre una caloría y un Joule",
-          "Principio cero de la termodinámica"
-        ]
-      },
-      {
         "order": 4,
         "proposito": "Analiza la interacción entre la energía y la estructura de la materia para comprender las formas de propagación de calor.",
         "contenidos": [
           "Propagación de calor: conducción y convección",
           "Transferencia de calor por radiación",
-          "Conductividad calorífica y capacidad térmica",
-          "específica"
+          "Conductividad calorífica y capacidad térmica específica"
+        ]
+      },
+      {
+        "order": 5,
+        "proposito": "Analiza el vínculo entre trabajo mecánico y calor, para comprender el concepto de termodinámica.",
+        "contenidos": [
+          "Trabajo mecánico",
+          "Concepto de termodinámica",
+          "Vínculo del trabajo mecánico con la termodinámica",
+          "Equivalencia entre una caloría y un Joule",
+          "Principio cero de la termodinámica"
         ]
       },
       {
@@ -1095,9 +993,7 @@
         "proposito": "Analiza tanto la producción de calor que se genera por procesos mecánicos como las propiedades de un gas ideal, para comprender la primera ley de la termodinámica.",
         "contenidos": [
           "Dinámica y ecuación de un gas ideal",
-          "Características de un sistema termodinámi-",
-          "co: fronteras, sistemas abiertos o cerrados, y",
-          "variables de estado",
+          "Características de un sistema termodinámico: fronteras, sistemas abiertos o cerrados, y variables de estado",
           "Primera ley de la termodinámica"
         ]
       },
@@ -1114,8 +1010,7 @@
         "order": 8,
         "proposito": "Construye explicaciones sobre fenómenos naturales en donde intervienen distintos tipos de energía, y explora aplicaciones tecnológicas relacionadas.",
         "contenidos": [
-          "Fenómenos naturales donde interviene la",
-          "energía",
+          "Fenómenos naturales donde interviene la energía",
           "Aplicaciones tecnológicas de la energía"
         ]
       }
@@ -1133,13 +1028,13 @@
     "learning_outcome": "Construya explicaciones sobre fenómenos naturales que subyacen a la estructura y función de sistemas o esferas terrestres, y comprenda su importancia para la existencia de la vida en la Tierra, así como la relevancia de las acciones humanas para su cuidado.",
     "activities": [
       {
-        "order": 2,
-        "name": "Aplica el conocimiento sobre los estados de agregación y clasificación de la materia; propiedades de los cuerpos y temperatura para explicar las capas, composición e interacción de la hidrósfera y atmósfera.",
+        "order": 1,
+        "name": "Comprende a la Tierra como un sistema, a partir del análisis de los subsistemas que lo conforman y sus interacciones.",
         "hours": 9
       },
       {
-        "order": 1,
-        "name": "Comprende a la Tierra como un sistema, a partir del análisis de los subsistemas que lo conforman y sus interacciones.",
+        "order": 2,
+        "name": "Aplica el conocimiento sobre los estados de agregación y clasificación de la materia; propiedades de los cuerpos y temperatura para explicar las capas, composición e interacción de la hidrósfera y atmósfera.",
         "hours": 9
       },
       {
@@ -1181,34 +1076,28 @@
     ],
     "contenidos_formativos": [
       {
-        "order": 2,
-        "proposito": "Aplica el conocimiento sobre los estados de agregación y clasificación de la materia; propiedades de los cuerpos y temperatura para explicar las capas, composición e interacción de la hidrósfera y atmósfera.",
-        "contenidos": [
-          "Capas y composición química de la hidrósfe-",
-          "ra y la atmósfera",
-          "Conceptos involucrados: aire, agua, densidad,",
-          "presión, temperatura y compuestos químicos",
-          "Ciclo biogeoquímico del agua",
-          "Concepto de clima y tiempo atmosférico"
-        ]
-      },
-      {
         "order": 1,
         "proposito": "Comprende a la Tierra como un sistema, a partir del análisis de los subsistemas que lo conforman y sus interacciones.",
         "contenidos": [
-          "La Tierra como sistema y características ge-",
-          "nerales de la hidrósfera, atmósfera, litósfera",
-          "y la biósfera"
+          "La Tierra como sistema y características generales de la hidrósfera, atmósfera, litósfera y la biósfera"
+        ]
+      },
+      {
+        "order": 2,
+        "proposito": "Aplica el conocimiento sobre los estados de agregación y clasificación de la materia; propiedades de los cuerpos y temperatura para explicar las capas, composición e interacción de la hidrósfera y atmósfera.",
+        "contenidos": [
+          "Capas y composición química de la hidrósfera y la atmósfera",
+          "Conceptos involucrados: aire, agua, densidad, presión, temperatura y compuestos químicos",
+          "Ciclo biogeoquímico del agua",
+          "Concepto de clima y tiempo atmosférico"
         ]
       },
       {
         "order": 3,
         "proposito": "Analiza los flujos de materia y energía que suceden en los ecosistemas y entre las esferas terrestres, ",
         "contenidos": [
-          "Concepto de ecosistema y biodiversidad; re-",
-          "lación con la biósfera",
-          "Componentes bióticos y abióticos del ecosis-",
-          "tema",
+          "Concepto de ecosistema y biodiversidad; relación con la biósfera",
+          "Componentes bióticos y abióticos del ecosistema",
           "Cadena trófica"
         ]
       },
@@ -1218,15 +1107,11 @@
         "contenidos": [
           "Concepto de reacción química",
           "Estructura de una reacción química",
-          "Ecuación química como forma de represen-",
-          "tar una reacción",
-          "Simbología utilizada en fórmulas y reaccio-",
-          "nes químicas",
+          "Ecuación química como forma de representar una reacción",
+          "Simbología utilizada en fórmulas y reacciones químicas",
           "Biomasa y concepto de productividad primaria",
           "Eficiencia ecológica",
-          "Ciclo biogeoquímico del carbono y aspectos",
-          "generales de los ciclos del nitrógeno y del",
-          "fósforo",
+          "Ciclo biogeoquímico del carbono y aspectos generales de los ciclos del nitrógeno y del fósforo",
           "Concepto de equilibrio ecológico"
         ]
       },
@@ -1234,9 +1119,7 @@
         "order": 5,
         "proposito": "Comprende la importancia del oxígeno para la vida en la Tierra, a partir del análisis del proceso de oxigenación de la atmósfera primitiva y la intervención de los organismos fotosintéticos.",
         "contenidos": [
-          "Composición química de la atmósfera reduc-",
-          "tora según Oparin-Haldane y las diferencias",
-          "con la atmósfera actual",
+          "Composición química de la atmósfera reductora según Oparin-Haldane y las diferencias con la atmósfera actual",
           "Ciclo biogeoquímico del oxígeno",
           "Formación de óxidos básicos y ácidos"
         ]
@@ -1245,11 +1128,8 @@
         "order": 6,
         "proposito": "Comprende el proceso general de la fotosíntesis y su importancia para la transferencia de energía en la cadena trófica, así como para la captura del dióxido de carbono y la liberación de oxígeno.",
         "contenidos": [
-          "Fotosíntesis: aspectos generales de la fase",
-          "luminosa y el ciclo de Calvin; ecuación y pro-",
-          "ductos de la fotosíntesis",
-          "Importancia de los organismos autótrofos",
-          "para la vida en la Tierra"
+          "Fotosíntesis: aspectos generales de la fase luminosa y el ciclo de Calvin; ecuación y productos de la fotosíntesis",
+          "Importancia de los organismos autótrofos para la vida en la Tierra"
         ]
       },
       {
@@ -1257,12 +1137,9 @@
         "proposito": "Analiza la dinámica de los subsistemas terrestres y la actividad humana, para comprender el concepto de deterioro ambiental, sus escalas y manifestaciones. para comprender la importancia de la cadena trófica y el concepto de equilibrio ecológico.",
         "contenidos": [
           "Concepto de deterioro ambiental",
-          "Deterioro a nivel global: el calentamiento",
-          "y su relación con el efecto invernadero y el",
-          "cambio climático; pérdida de la biodiversidad",
+          "Deterioro a nivel global: el calentamiento y su relación con el efecto invernadero y el cambio climático; pérdida de la biodiversidad",
           "Deterioro a nivel local: deforestación",
-          "Contaminación antropogénica,",
-          "atmosférica y del agua"
+          "Contaminación antropogénica, atmosférica y del agua"
         ]
       },
       {
@@ -1270,8 +1147,7 @@
         "proposito": "Construye explicaciones sobre innovaciones tecnológicas que utilizan el conocimiento de los subsistemas terrestres para reducir el deterioro ambiental.",
         "contenidos": [
           "Restauración de ecosistemas",
-          "Aplicaciones tecnológicas para la reducción",
-          "del deterioro ambiental"
+          "Aplicaciones tecnológicas para la reducción del deterioro ambiental"
         ]
       }
     ],
@@ -1318,13 +1194,13 @@
         "hours": 9
       },
       {
-        "order": 8,
-        "name": "Comprende los procesos químicos involucrados en la respiración aerobia y anaerobia, para identificar su importancia para los seres vivos y el bienestar humano y desarrollos tecnológicos vinculados.",
+        "order": 7,
+        "name": "Analiza las características y funciones de las biomoléculas, para comprender la importancia de los compuestos orgánicos en los seres vivos.",
         "hours": 9
       },
       {
-        "order": 7,
-        "name": "Analiza las características y funciones de las biomoléculas, para comprender la importancia de los compuestos orgánicos en los seres vivos.",
+        "order": 8,
+        "name": "Comprende los procesos químicos involucrados en la respiración aerobia y anaerobia, para identificar su importancia para los seres vivos y el bienestar humano y desarrollos tecnológicos vinculados.",
         "hours": 9
       }
     ],
@@ -1340,15 +1216,11 @@
         "proposito": "Comprende las características de las reacciones químicas para clasificarlas e identificarlas en distintos fenómenos naturales de interés.",
         "contenidos": [
           "Características de las reacciones químicas:",
-          "reactivos y productos; reorganización de áto-",
-          "mos; liberación y absorción de energía",
+          "reactivos y productos; reorganización de átomos; liberación y absorción de energía",
           "Energía química",
           "Clasificación de las reacciones químicas",
-          "(exotérmicas, endotérmicas, de síntesis, de",
-          "descomposición, de desplazamiento y neu-",
-          "tralización)",
-          "Identificación de reacciones químicas en la",
-          "naturaleza y el desarrollo tecnológico"
+          "(exotérmicas, endotérmicas, de síntesis, de descomposición, de desplazamiento y neutralización)",
+          "Identificación de reacciones químicas en la naturaleza y el desarrollo tecnológico"
         ]
       },
       {
@@ -1357,10 +1229,8 @@
         "contenidos": [
           "Ley de conservación de la masa",
           "Mol y Masa molar",
-          "Balanceo de ecuaciones por el método de",
-          "tanteo",
-          "Mención de los métodos algebraico y redox",
-          "para balanceo"
+          "Balanceo de ecuaciones por el método de tanteo",
+          "Mención de los métodos algebraico y redox para balanceo"
         ]
       },
       {
@@ -1369,20 +1239,16 @@
         "contenidos": [
           "Reacciones reversibles e irreversibles",
           "Constante y ecuación de equilibrio químico",
-          "Identificación de reacciones reversibles e",
-          "irreversibles en la naturaleza"
+          "Identificación de reacciones reversibles e irreversibles en la naturaleza"
         ]
       },
       {
         "order": 4,
         "proposito": "Analiza las propiedades físicas y químicas de sustancias ácidas y básicas de interés, así como su diferenciación de acuerdo con el potencial de Hidrógeno, para su identificación en la naturaleza o la vida cotidiana.",
         "contenidos": [
-          "Teorías sobre los ácidos y las bases de Arrhe-",
-          "nius, Bronsted-Lowry y Lewis",
+          "Teorías sobre los ácidos y las bases de Arrhenius, Bronsted-Lowry y Lewis",
           "Clasificación de acuerdo con su conductividad",
-          "Potencial de Hidrógeno (pH) y diferenciación",
-          "de las sustancias de interés de acuerdo con",
-          "su valor"
+          "Potencial de Hidrógeno (pH) y diferenciación de las sustancias de interés de acuerdo con su valor"
         ]
       },
       {
@@ -1391,46 +1257,37 @@
         "contenidos": [
           "Reacciones de oxidación-reducción",
           "Reacciones de combustión",
-          "Reacciones redox y de combustión en la natu-",
-          "raleza y la vida cotidiana",
-          "Importancia de las reacciones redox y de",
-          "combustión para los seres vivos y la industria"
+          "Reacciones redox y de combustión en la naturaleza y la vida cotidiana",
+          "Importancia de las reacciones redox y de combustión para los seres vivos y la industria"
         ]
       },
       {
         "order": 6,
         "proposito": "Comprende la importancia de los compuestos orgánicos para el bienestar humano, así como su estructura, propiedades y nomenclatura para clasificarlos de forma analítica.",
         "contenidos": [
-          "Importancia de los compuestos orgánicos",
-          "para el bienestar humano",
+          "Importancia de los compuestos orgánicos para el bienestar humano",
           "Estructura del carbono y sus tipos de enlace",
-          "Clasificación de los compuestos orgánicos,",
-          "grupos funcionales y su nomenclatura",
+          "Clasificación de los compuestos orgánicos, grupos funcionales y su nomenclatura",
           "Definición de monómeros y polímeros"
-        ]
-      },
-      {
-        "order": 8,
-        "proposito": "Comprende los procesos químicos involucrados en la respiración aerobia y anaerobia, para identificar su importancia para los seres vivos y el bienestar humano y desarrollos tecnológicos vinculados.",
-        "contenidos": [
-          "Aspectos químicos de la glucólisis, ciclo de",
-          "Krebs y cadena transportadora de electrones",
-          "Aspectos químicos de la fermentación",
-          "Desarrollos tecnológicos vinculados con la",
-          "respiración aerobia y anaerobia"
         ]
       },
       {
         "order": 7,
         "proposito": "Analiza las características y funciones de las biomoléculas, para comprender la importancia de los compuestos orgánicos en los seres vivos.",
         "contenidos": [
-          "Funciones y características de los carbohi-",
-          "dratos, lípidos, proteínas y ácidos nucleicos",
-          "Clasificación de los carbohidratos: monosa-",
-          "cáridos, disacáridos y polisacáridos",
-          "Clasificación de los lípidos: aceites, grasas,",
-          "fosfolípidos y esteroides",
+          "Funciones y características de los carbohidratos, lípidos, proteínas y ácidos nucleicos",
+          "Clasificación de los carbohidratos: monosacáridos, disacáridos y polisacáridos",
+          "Clasificación de los lípidos: aceites, grasas, fosfolípidos y esteroides",
           "Aminoácidos esenciales y no esenciales"
+        ]
+      },
+      {
+        "order": 8,
+        "proposito": "Comprende los procesos químicos involucrados en la respiración aerobia y anaerobia, para identificar su importancia para los seres vivos y el bienestar humano y desarrollos tecnológicos vinculados.",
+        "contenidos": [
+          "Aspectos químicos de la glucólisis, ciclo de Krebs y cadena transportadora de electrones",
+          "Aspectos químicos de la fermentación",
+          "Desarrollos tecnológicos vinculados con la respiración aerobia y anaerobia"
         ]
       }
     ],
@@ -1457,6 +1314,11 @@
         "hours": 9
       },
       {
+        "order": 3,
+        "name": "Construye explicaciones sobre la caída libre de objetos con diferente masa y las órbitas de los cuerpos celestes, a partir de la comprensión de la ley de la gravitación universal y el movimiento planetario.",
+        "hours": 9
+      },
+      {
         "order": 4,
         "name": "Explica el comportamiento de fenómenos ondulatorios de interés, a partir de la comprensión de las propiedades físicas que los afectan.",
         "hours": 9
@@ -1480,11 +1342,6 @@
         "order": 8,
         "name": "Discute con carácter divulgativo temas de interés de la física moderna y contemporánea.",
         "hours": 9
-      },
-      {
-        "order": 3,
-        "name": "Construye explicaciones sobre la caída libre de objetos con diferente masa y las órbitas de los cuerpos celestes, a partir de la comprensión de la ley de la gravitación universal y el movimiento planetario.",
-        "hours": 9
       }
     ],
     "evidences": [
@@ -1498,17 +1355,11 @@
         "order": 1,
         "proposito": "Analiza la caída libre de los objetos y el movimiento rectilíneo uniforme de los cuerpos, en presencia y ausencia de la intervención de fuerzas, para construir explicaciones sobre la dinámica del movimiento uniforme y uniformemente acelerado, considerando las dos primeras leyes de Newton.",
         "contenidos": [
-          "Concepto de fuerza, sus efectos y manifes-",
-          "taciones en fenómenos naturales cotidianos",
-          "Concepto de peso, unidad escalar de una",
-          "fuerza y su diferencia con el concepto de",
-          "masa",
-          "Movimiento uniforme y uniformemente",
-          "acelerado",
-          "Representación gráfica del movimiento y",
-          "cálculo de velocidad y aceleración",
-          "Carácter vectorial de una fuerza. Vectores y",
-          "parámetros",
+          "Concepto de fuerza, sus efectos y manifestaciones en fenómenos naturales cotidianos",
+          "Concepto de peso, unidad escalar de una fuerza y su diferencia con el concepto de masa",
+          "Movimiento uniforme y uniformemente acelerado",
+          "Representación gráfica del movimiento y cálculo de velocidad y aceleración",
+          "Carácter vectorial de una fuerza. Vectores y parámetros",
           "Conceptos de fuerza neta, fricción e inercia",
           "Primera y segunda leyes de Newton"
         ]
@@ -1517,9 +1368,18 @@
         "order": 2,
         "proposito": "Construye explicaciones sobre los fenómenos de acción y reacción en la interacción de los cuerpos, a partir de la comprensión de la tercera ley de Newton.",
         "contenidos": [
-          "Representación vectorial de las fuerzas ana-",
-          "lizadas",
+          "Representación vectorial de las fuerzas analizadas",
           "Tercera ley de Newton"
+        ]
+      },
+      {
+        "order": 3,
+        "proposito": "Construye explicaciones sobre la caída libre de objetos con diferente masa y las órbitas de los cuerpos celestes, a partir de la comprensión de la ley de la gravitación universal y el movimiento planetario.",
+        "contenidos": [
+          "Fuerza gravitacional: masa, distancia y aceleración",
+          "Ley de la gravitación universal: ecuación matemática",
+          "Constante de Cavendish",
+          "Leyes del movimiento planetario de Kepler"
         ]
       },
       {
@@ -1527,8 +1387,7 @@
         "proposito": "Explica el comportamiento de fenómenos ondulatorios de interés, a partir de la comprensión de las propiedades físicas que los afectan.",
         "contenidos": [
           "Movimiento ondulatorio",
-          "Tipos de ondas: armónicas, mecánicas, elec-",
-          "tromagnéticas, transversales y longitudinales",
+          "Tipos de ondas: armónicas, mecánicas, electromagnéticas, transversales y longitudinales",
           "Características de las ondas",
           "Velocidad de propagación"
         ]
@@ -1557,42 +1416,20 @@
         "order": 7,
         "proposito": "Comprende los fundamentos del magnetismo y la electricidad, así como su relación para construir explicaciones sobre fenómenos electromagnéticos y explorar aplicaciones tecnológicas vinculadas.",
         "contenidos": [
-          "Caracterización de fenómenos eléctricos y",
-          "magnéticos",
+          "Caracterización de fenómenos eléctricos y magnéticos",
           "Campos magnéticos y eléctricos",
           "Ley de Ohm-Coulomb",
           "Ley de Ampere-Maxwell",
           "Ley de Faraday-Henry",
-          "Aplicaciones tecnológicas vinculadas al elec-",
-          "tromagnetismo"
+          "Aplicaciones tecnológicas vinculadas al electromagnetismo"
         ]
       },
       {
         "order": 8,
         "proposito": "Discute con carácter divulgativo temas de interés de la física moderna y contemporánea.",
         "contenidos": [
-          "Divulgación de temas de interés sobre estas",
-          "sugerencias:",
-          "a) Teoría de la relatividad especial y general",
-          "de Einstein",
-          "b) Mecánica cuántica",
-          "c) Física de partículas y nuclear",
-          "d) Condensado de Bose-Einstein",
-          "e) Teleportación y computación cuántica",
-          "f) Cosmología moderna",
-          "g) Superconductores"
-        ]
-      },
-      {
-        "order": 3,
-        "proposito": "Construye explicaciones sobre la caída libre de objetos con diferente masa y las órbitas de los cuerpos celestes, a partir de la comprensión de la ley de la gravitación universal y el movimiento planetario.",
-        "contenidos": [
-          "Fuerza gravitacional: masa, distancia y acele-",
-          "ración",
-          "Ley de la gravitación universal: ecuación ma-",
-          "temática",
-          "Constante de Cavendish",
-          "Leyes del movimiento planetario de Kepler"
+          "Divulgación de temas de interés sobre estas sugerencias:",
+          "a) Teoría de la relatividad especial y general de Einstein b) Mecánica cuántica c) Física de partículas y nuclear d) Condensado de Bose-Einstein e) Teleportación y computación cuántica f) Cosmología moderna g) Superconductores"
         ]
       }
     ],
@@ -1660,11 +1497,9 @@
         "order": 1,
         "proposito": "Analiza las interacciones entre materia y energía de la Tierra primitiva, así como la estructura de las biomoléculas para comprender la teoría quimiosintética del origen de la vida.",
         "contenidos": [
-          "Teorías sobre el origen de la vida: creacionis-",
-          "mo, generación espontánea y panspermia",
+          "Teorías sobre el origen de la vida: creacionismo, generación espontánea y panspermia",
           "Concepto de quimiosíntesis",
-          "Teoría quimiosintética de Oparin-Haldane so-",
-          "bre el origen de la vida",
+          "Teoría quimiosintética de Oparin-Haldane sobre el origen de la vida",
           "Experimento de Miller-Urey"
         ]
       },
@@ -1672,8 +1507,7 @@
         "order": 2,
         "proposito": "Analiza los procesos históricos que llevaron al descubrimiento de la célula y el desarrollo de la teoría celular como unidad fundamental de los organismos vivos.",
         "contenidos": [
-          "Procesos históricos que llevaron al descubri-",
-          "miento de la célula",
+          "Procesos históricos que llevaron al descubrimiento de la célula",
           "Teoría celular"
         ]
       },
@@ -1683,12 +1517,9 @@
         "contenidos": [
           "Moléculas orgánicas de las células y su función",
           "Organelos celulares, su estructura y su función",
-          "Diferencias entre células procariotas y euca-",
-          "riotas",
+          "Diferencias entre células procariotas y eucariotas",
           "Teoría endosimbiótica de Lynn Margulis",
-          "Relevancia de las células procariotas y eu-",
-          "cariotas: salud, fotosíntesis, oxigenación,",
-          "entre otras"
+          "Relevancia de las células procariotas y eucariotas: salud, fotosíntesis, oxigenación, entre otras"
         ]
       },
       {
@@ -1696,11 +1527,9 @@
         "proposito": "Analiza la estructura molecular y las funciones del ADN y el ARN, así como las características de los cromosomas, para comprender las bases moleculares de la herencia biológica y su utilidad como herramienta de análisis genético.",
         "contenidos": [
           "Concepto de herencia biológica y gen",
-          "Estructura del ADN y el ARN; nucleótidos pre-",
-          "sentes",
+          "Estructura del ADN y el ARN; nucleótidos presentes",
           "Características de los cromosomas",
-          "Aplicaciones del ADN como herramienta de",
-          "análisis genético"
+          "Aplicaciones del ADN como herramienta de análisis genético"
         ]
       },
       {
@@ -1709,11 +1538,8 @@
         "contenidos": [
           "Fases e importancia de la mitosis",
           "Fases e importancia de la meiosis",
-          "Importancia de la recombinación genética",
-          "como factor de biodiversidad",
-          "Procesos fundamentales de la división celu-",
-          "lar y situaciones de interés en donde la repro-",
-          "ducción celular está implicada"
+          "Importancia de la recombinación genética como factor de biodiversidad",
+          "Procesos fundamentales de la división celular y situaciones de interés en donde la reproducción celular está implicada"
         ]
       },
       {
@@ -1725,10 +1551,8 @@
           "Codominancia",
           "Teoría cromosómica de la herencia",
           "Características debidas a la herencia biológica",
-          "Concepto de mutación, ejemplos e importan-",
-          "cia evolutiva",
-          "Relevancia de la herencia genética para los se-",
-          "res vivos"
+          "Concepto de mutación, ejemplos e importancia evolutiva",
+          "Relevancia de la herencia genética para los seres vivos"
         ]
       },
       {
@@ -1737,13 +1561,9 @@
         "contenidos": [
           "Concepto de evolución biológica",
           "Teoría evolutiva de Lamarck",
-          "Teoría evolutiva de Darwin-Wallace por selec-",
-          "ción natural",
-          "Aspectos generales de la síntesis evolutiva",
-          "moderna",
-          "Diversidad de especies, su relación con la",
-          "evolución y ejemplos de adaptaciones en las",
-          "especies actuales"
+          "Teoría evolutiva de Darwin-Wallace por selección natural",
+          "Aspectos generales de la síntesis evolutiva moderna",
+          "Diversidad de especies, su relación con la evolución y ejemplos de adaptaciones en las especies actuales"
         ]
       },
       {
@@ -1751,11 +1571,8 @@
         "proposito": "Comprende las características que identifican a los seres vivos, para construir explicaciones sobre fenómenos biológicos vinculados a los contenidos formativos, y analiza aplicaciones tecnológicas relacionadas.",
         "contenidos": [
           "Características que identifican a los seres vivos",
-          "Fenómenos naturales biológicos vinculados a",
-          "los temas revisados",
-          "Desarrollos tecnológicos vinculados a la célula,",
-          "su estructura y función, a la genética o a la bio-",
-          "diversidad"
+          "Fenómenos naturales biológicos vinculados a los temas revisados",
+          "Desarrollos tecnológicos vinculados a la célula, su estructura y función, a la genética o a la biodiversidad"
         ]
       }
     ],
@@ -1804,8 +1621,7 @@
         "proposito": "Comprende la conformación e importancia del concepto de Estado, para repensar la construcción de una ciudadanía crítica y reflexiva.",
         "contenidos": [
           "Concepto de Estado",
-          "El Estado como garante de derechos y la pers-",
-          "pectiva de derechos humanos",
+          "El Estado como garante de derechos y la perspectiva de derechos humanos",
           "Sistema jurídico mexicano"
         ]
       },
@@ -1818,9 +1634,7 @@
           "Civil",
           "Económica",
           "Cultural",
-          "Concepto de ciudadanía, democracia participa-",
-          "tiva y representativa: espacios para el ejercicio",
-          "de la ciudadanía",
+          "Concepto de ciudadanía, democracia participativa y representativa: espacios para el ejercicio de la ciudadanía",
           "Concepto de justicia social",
           "Políticas públicas y derechos ciudadanos"
         ]
@@ -1829,12 +1643,9 @@
         "order": 3,
         "proposito": "Comprende y contrasta las normas sociales para explicar su rol en la vida cotidiana.",
         "contenidos": [
-          "Normas sociales, normatividad consuetudinaria",
-          "como fuente de derechos",
-          "Contrato social con perspectiva de género e inter-",
-          "cultural",
-          "Funciones y obligaciones de las instituciones fe-",
-          "derales, estatales y municipales"
+          "Normas sociales, normatividad consuetudinaria como fuente de derechos",
+          "Contrato social con perspectiva de género e intercultural",
+          "Funciones y obligaciones de las instituciones federales, estatales y municipales"
         ]
       },
       {
@@ -1844,8 +1655,7 @@
           "Inclusión e igualdad, adelantos y pendientes:",
           "Acciones afirmativas",
           "La edad como clave de discriminación (edadismo)",
-          "¿Derechos para todas las personas?: accesos di-",
-          "ferenciados y claves de exclusión social"
+          "¿Derechos para todas las personas?: accesos diferenciados y claves de exclusión social"
         ]
       }
     ],
@@ -1872,13 +1682,13 @@
         "hours": 9
       },
       {
-        "order": 4,
-        "name": "Reconoce y problematiza las relaciones de poder para explicar su función dentro de la diversidad en el funcionamiento de la organización social.",
+        "order": 3,
+        "name": "Relaciona los procesos y factores de producción, para explicar las formas de distribución desigual de los bienes en la sociedad.",
         "hours": 9
       },
       {
-        "order": 3,
-        "name": "Relaciona los procesos y factores de producción, para explicar las formas de distribución desigual de los bienes en la sociedad.",
+        "order": 4,
+        "name": "Reconoce y problematiza las relaciones de poder para explicar su función dentro de la diversidad en el funcionamiento de la organización social.",
         "hours": 9
       }
     ],
@@ -1893,56 +1703,41 @@
         "order": 1,
         "proposito": "Identifica sus necesidades y satisfactores materiales, personales, familiares y los de su comunidad, para debatir sobre las formas en que se organiza la sociedad.",
         "contenidos": [
-          "Bienestar social desde el enfoque de los dere-",
-          "chos: diferentes formas de satisfacer las nece-",
-          "sidades económicas y sociales de las personas",
+          "Bienestar social desde el enfoque de los derechos: diferentes formas de satisfacer las necesidades económicas y sociales de las personas",
           "Dimensiones de los procesos de desigualdad",
-          "Necesidades vitales de las personas, y las dife-",
-          "rentes formas de satisfacerlas"
+          "Necesidades vitales de las personas, y las diferentes formas de satisfacerlas"
         ]
       },
       {
         "order": 2,
         "proposito": "Analiza las características y formas de organización social, para comparar y explicar las relaciones entre personas, grupos, comunidades e instituciones.",
         "contenidos": [
-          "Formas de organización social: comunitaria,",
-          "personal y familiar en el contexto económico",
-          "nacional y local",
-          "Diversidad cultural y exclusión: la discrimina-",
-          "ción y el racismo",
+          "Formas de organización social: comunitaria, personal y familiar en el contexto económico nacional y local",
+          "Diversidad cultural y exclusión: la discriminación y el racismo",
           "Disidencias, luchas y resistencias",
-          "Diferentes manifestaciones de la discrimina-",
-          "ción: subordinación, exclusión y dominación"
-        ]
-      },
-      {
-        "order": 4,
-        "proposito": "Reconoce y problematiza las relaciones de poder para explicar su función dentro de la diversidad en el funcionamiento de la organización social.",
-        "contenidos": [
-          "Instituciones y prácticas sociales (roles so-",
-          "ciales)",
-          "Hegemonía, consensos y negociación",
-          "Interseccionalidad: clase social, género, raza,",
-          "origen étnico, orientación sexual, entre otros",
-          "Desafíos de los procesos demográficos y su",
-          "impacto en el ámbito económico, social y po-",
-          "lítico",
-          "Relación sociedad, naturaleza, y degradación",
-          "ambiental: diferencias regionales y locales"
+          "Diferentes manifestaciones de la discriminación: subordinación, exclusión y dominación"
         ]
       },
       {
         "order": 3,
         "proposito": "Relaciona los procesos y factores de producción, para explicar las formas de distribución desigual de los bienes en la sociedad.",
         "contenidos": [
-          "Contextos locales, nacionales y globales: inter-",
-          "cambios desiguales",
+          "Contextos locales, nacionales y globales: intercambios desiguales",
           "Diferencias regionales, urbano-rural",
-          "Factores de producción y bienes: tierra, traba-",
-          "jo, capital, organización y tiempo",
+          "Factores de producción y bienes: tierra, trabajo, capital, organización y tiempo",
           "Modos de producción y modelos de desarrollo:",
-          "procesos económicos, incluyendo trabajos del",
-          "hogar y cuidados"
+          "procesos económicos, incluyendo trabajos del hogar y cuidados"
+        ]
+      },
+      {
+        "order": 4,
+        "proposito": "Reconoce y problematiza las relaciones de poder para explicar su función dentro de la diversidad en el funcionamiento de la organización social.",
+        "contenidos": [
+          "Instituciones y prácticas sociales (roles sociales)",
+          "Hegemonía, consensos y negociación",
+          "Interseccionalidad: clase social, género, raza, origen étnico, orientación sexual, entre otros",
+          "Desafíos de los procesos demográficos y su impacto en el ámbito económico, social y político",
+          "Relación sociedad, naturaleza, y degradación ambiental: diferencias regionales y locales"
         ]
       }
     ],
@@ -1985,34 +1780,23 @@
         "order": 1,
         "proposito": "Analiza las políticas públicas para explicar las desigualdades, así como las contradicciones y omisiones en la satisfacción de las necesidades materiales y sociales de las personas.",
         "contenidos": [
-          "Desigualdad de oportunidades y desigualdad",
-          "de resultados desde la perspectiva estudiantil",
+          "Desigualdad de oportunidades y desigualdad de resultados desde la perspectiva estudiantil",
           "-joven-adulto",
-          "Calidad de vida, bienestar social y bienestar",
-          "subjetivo",
-          "Distribución inequitativa del bienestar social",
-          "en el marco de la movilidad social",
-          "Causas e impactos multidimensionales de pro-",
-          "blemáticas sociales: medioambientales, con-",
-          "textos de violencia o diversidades culturales",
-          "Responsabilidades desde la óptica de diversos",
-          "actores, con y hacia las juventudes",
-          "Propuestas y alternativas a las problemáticas",
-          "abordadas"
+          "Calidad de vida, bienestar social y bienestar subjetivo",
+          "Distribución inequitativa del bienestar social en el marco de la movilidad social",
+          "Causas e impactos multidimensionales de problemáticas sociales: medioambientales, contextos de violencia o diversidades culturales",
+          "Responsabilidades desde la óptica de diversos actores, con y hacia las juventudes",
+          "Propuestas y alternativas a las problemáticas abordadas"
         ]
       },
       {
         "order": 2,
         "proposito": "Problematiza el papel de los diferentes actores sociales para explicar, contrastar e interpretar dinámicas y sucesos recientes.",
         "contenidos": [
-          "Énfasis en problematizaciones multidimensio-",
-          "nales, colocando al estudiantado en el centro",
-          "del análisis:",
+          "Énfasis en problematizaciones multidimensionales, colocando al estudiantado en el centro del análisis:",
           "Guerras y conflictos contemporáneos",
-          "Actuación de organismos e instituciones in-",
-          "ternacionales",
-          "Papel del gobierno mexicano en el ámbito in-",
-          "ternacional",
+          "Actuación de organismos e instituciones internacionales",
+          "Papel del gobierno mexicano en el ámbito internacional",
           "Narcotráfico y globalización",
           "Migraciones nacionales e internacionales",
           "Movilizaciones y justicia social",
@@ -2031,8 +1815,7 @@
           "Derecho a la salud",
           "Derecho a la educación",
           "Trabajo digno",
-          "Expresiones y alternativas de participación de",
-          "las juventudes",
+          "Expresiones y alternativas de participación de las juventudes",
           "Políticas públicas y estructura gubernamental"
         ]
       }
@@ -2094,8 +1877,7 @@
         "proposito": "Establece conexiones entre fenómenos, acontecimientos y procesos de la realidad, con el fin de fortalecer la comprensión del devenir histórico.",
         "contenidos": [
           "Proceso histórico",
-          "Causalidad (antecedentes, causas, desarrollo",
-          "y consecuencias de los hechos)",
+          "Causalidad (antecedentes, causas, desarrollo y consecuencias de los hechos)",
           "Distinción entre hechos y acontecimientos",
           "Lo trascendental en la historia"
         ]
@@ -2107,8 +1889,7 @@
           "Identificación de los problemas",
           "Delimitación geográfica",
           "Situar el problema en el contexto histórico",
-          "Formulación de preguntas para la indagación",
-          "histórica"
+          "Formulación de preguntas para la indagación histórica"
         ]
       },
       {
@@ -2117,8 +1898,7 @@
         "contenidos": [
           "Descripción de datos históricos",
           "Organización y análisis de la información",
-          "Intenciones discursivas sobre el pasado, pre-",
-          "sente, y futuro"
+          "Intenciones discursivas sobre el pasado, presente, y futuro"
         ]
       }
     ],
@@ -2175,8 +1955,7 @@
         "order": 2,
         "proposito": "Desarrolla explicaciones históricas que guarden relación con sus preguntas para comprender los cambios y continuidades expresadas en los procesos históricos de la humanidad.",
         "contenidos": [
-          "Coherencia entre las preguntas y las explica-",
-          "ciones históricas",
+          "Coherencia entre las preguntas y las explicaciones históricas",
           "Sujetos históricos",
           "Construcción de argumentos históricos",
           "Orígenes del conflicto humano"
@@ -2187,9 +1966,7 @@
         "proposito": "Comprende el sentido histórico de los acontecimientos y los significados en diversos contextos, para analizar críticamente las explicaciones históricas.",
         "contenidos": [
           "Sentido histórico",
-          "Dimensiones",
-          "hechos",
-          "históricos",
+          "Dimensiones de los hechos históricos",
           "(política, económica, social, cultural)"
         ]
       },
@@ -2248,8 +2025,7 @@
         "proposito": "Identifica la diversidad de fuentes históricas para construir explicaciones contextualizadas del pasado, reconociendo el carácter del conocimiento humano.",
         "contenidos": [
           "Distinción entre fuentes por su naturaleza",
-          "(primaria y secundaria), objetivo (directo e",
-          "indirecto) y forma (escrita, oral y material)",
+          "(primaria y secundaria), objetivo (directo e indirecto) y forma (escrita, oral y material)",
           "Contraste de fuentes históricas"
         ]
       },
@@ -2257,13 +2033,9 @@
         "order": 2,
         "proposito": "Examina de manera crítica las evidencias y evalúa su validez, considerando los criterios de procedencia, intencionalidad y contexto, así como el uso ético de la información y los posicionamientos.",
         "contenidos": [
-          "Recolección de fuentes de acuerdo con la pre-",
-          "gunta de investigación",
-          "La lectura de fuentes históricas: ideas princi-",
-          "pales, afirmaciones, lenguaje y perspectiva",
-          "Aplicación de la información de fuentes histó-",
-          "ricas: autoría, perspectiva, intención, contexto",
-          "de producción, credibilidad, neutralidad"
+          "Recolección de fuentes de acuerdo con la pregunta de investigación",
+          "La lectura de fuentes históricas: ideas principales, afirmaciones, lenguaje y perspectiva",
+          "Aplicación de la información de fuentes históricas: autoría, perspectiva, intención, contexto de producción, credibilidad, neutralidad"
         ]
       },
       {
@@ -2271,23 +2043,17 @@
         "proposito": "Argumenta la validez de sus propias interpretaciones sobre acontecimientos, fenómenos y procesos históricos, mediante el diálogo, la contrastación con otras perspectivas y el uso fundamentado de fuentes.",
         "contenidos": [
           "Contextualización de las fuentes históricas:",
-          "contraste del contexto de producción y el con-",
-          "texto de recepción de las fuentes históricas",
-          "Corroboración",
-          "fuentes",
-          "históricas:",
-          "diversidad narrativa, comparación, tipos de",
-          "argumentos y evidencias"
+          "contraste del contexto de producción y el contexto de recepción de las fuentes históricas",
+          "Corroboración de fuentes históricas:",
+          "diversidad narrativa, comparación, tipos de argumentos y evidencias"
         ]
       },
       {
         "order": 4,
         "proposito": "Elabora argumentos e interpretaciones históricas con base en fuentes variadas y pertinentes, integrando el uso de información.",
         "contenidos": [
-          "Proceso narrativo (introducción, desarrollo,",
-          "conclusiones, uso de evidencias)",
-          "Proceso de escritura de argumentos (diferen-",
-          "ciar postura personal respecto de la fuente)"
+          "Proceso narrativo (introducción, desarrollo, conclusiones, uso de evidencias)",
+          "Proceso de escritura de argumentos (diferenciar postura personal respecto de la fuente)"
         ]
       }
     ],
@@ -2309,18 +2075,23 @@
         "hours": 7
       },
       {
-        "order": 3,
-        "name": "Analiza de manera crítica el impacto que tienen el uso de las tecnologías digitales —y las políticas relacionadas con la disponibilidad y gestión de la información— en las personas y en las comunidades.",
-        "hours": 7
-      },
-      {
         "order": 2,
         "name": "Conoce los requerimientos, tipos de licenciamiento del software y hardware para acceder a servicios tecnológicos, al ciberespacio y a los servicios digitales (licencias de uso privativo y licencias libres).",
         "hours": 7
       },
       {
+        "order": 3,
+        "name": "Analiza de manera crítica el impacto que tienen el uso de las tecnologías digitales —y las políticas relacionadas con la disponibilidad y gestión de la información— en las personas y en las comunidades.",
+        "hours": 7
+      },
+      {
         "order": 4,
         "name": "Utiliza herramientas de software libre y experimenta con alternativas a los programas de patente y del software como servicio.",
+        "hours": 7
+      },
+      {
+        "order": 5,
+        "name": "Identifica y aplica la normatividad que regula el uso del ciberespacio y servicios digitales para cuidar su seguridad digital y la de otros.",
         "hours": 7
       },
       {
@@ -2337,11 +2108,6 @@
         "order": 8,
         "name": "Conoce los elementos del lenguaje algorítmico a través de medios digitales, para resolver situaciones, fenómenos o problemáticas presentes en las diferentes asignaturas.",
         "hours": 7
-      },
-      {
-        "order": 5,
-        "name": "Identifica y aplica la normatividad que regula el uso del ciberespacio y servicios digitales para cuidar su seguridad digital y la de otros.",
-        "hours": 7
       }
     ],
     "evidences": [
@@ -2356,26 +2122,8 @@
         "proposito": "Identifica el conjunto de elementos físicos que componen un dispositivo electrónico, así como el conjunto de programas, instrucciones y reglas que permiten que funcione, para analizar críticamente su evolución a lo largo del tiempo.",
         "contenidos": [
           "Introducción al hardware y software",
-          "Historia crítica del desarrollo de tecnolo-",
-          "gía digital",
+          "Historia crítica del desarrollo de tecnología digital",
           "Historia del software libre"
-        ]
-      },
-      {
-        "order": 3,
-        "proposito": "Analiza de manera crítica el impacto que tienen el uso de las tecnologías digitales —y las políticas relacionadas con la disponibilidad y gestión de la información— en las personas y en las comunidades.",
-        "contenidos": [
-          "Corporaciones de innovación tecnológica",
-          "Colonialismo de datos",
-          "Mercantilización de la atención de las",
-          "personas usuarias",
-          "Dependencia tecnológica",
-          "Desigualdad en el acceso a las tecnolo-",
-          "gías",
-          "digitales",
-          "(socioeconómica,",
-          "regional",
-          "o de género)"
         ]
       },
       {
@@ -2388,8 +2136,19 @@
           "Navegadores",
           "Sistemas operativos",
           "Niveles de acceso",
-          "Unidades de medida (velocidad, procesa-",
-          "miento y almacenamiento)"
+          "Unidades de medida (velocidad, procesamiento y almacenamiento)"
+        ]
+      },
+      {
+        "order": 3,
+        "proposito": "Analiza de manera crítica el impacto que tienen el uso de las tecnologías digitales —y las políticas relacionadas con la disponibilidad y gestión de la información— en las personas y en las comunidades.",
+        "contenidos": [
+          "Corporaciones de innovación tecnológica",
+          "Colonialismo de datos",
+          "Mercantilización de la atención de las personas usuarias",
+          "Dependencia tecnológica",
+          "Desigualdad en el acceso a las tecnologías digitales",
+          "(socioeconómica, regional o de género)"
         ]
       },
       {
@@ -2398,11 +2157,22 @@
         "contenidos": [
           "Las 4 libertades del software libre",
           "GNU/ Linux",
-          "Cultura hacker y el “Hazlo tú mismx” en la",
-          "tecnología",
+          "Cultura hacker y el “Hazlo tú mismx” en la tecnología",
           "Software libre vs. open source",
-          "Procesadores de texto, hojas de cálculo y",
-          "presentaciones electrónicas"
+          "Procesadores de texto, hojas de cálculo y presentaciones electrónicas"
+        ]
+      },
+      {
+        "order": 5,
+        "proposito": "Identifica y aplica la normatividad que regula el uso del ciberespacio y servicios digitales para cuidar su seguridad digital y la de otros.",
+        "contenidos": [
+          "Normatividad en el uso del ciberespacio y servicios digitales",
+          "Privacidad de la información",
+          "Seguridad digital",
+          "Protección de datos",
+          "Uso responsable y ético de la Inteligencia",
+          "Artificial (IA)",
+          "Licenciamientos copyleft"
         ]
       },
       {
@@ -2424,8 +2194,7 @@
           "Comprender el problema",
           "Analizar alternativas de solución",
           "Seleccionar la mejor alternativa de solución",
-          "Utilizar métodos, técnicas o diagramas de",
-          "flujo para resolver problemas"
+          "Utilizar métodos, técnicas o diagramas de flujo para resolver problemas"
         ]
       },
       {
@@ -2440,22 +2209,7 @@
           "Operadores lógicos",
           "Operaciones relacionales",
           "Operadores aritméticos",
-          "Estructuras condicionales, selectivas y repe-",
-          "titivas"
-        ]
-      },
-      {
-        "order": 5,
-        "proposito": "Identifica y aplica la normatividad que regula el uso del ciberespacio y servicios digitales para cuidar su seguridad digital y la de otros.",
-        "contenidos": [
-          "Normatividad en el uso del ciberespacio",
-          "y servicios digitales",
-          "Privacidad de la información",
-          "Seguridad digital",
-          "Protección de datos",
-          "Uso responsable y ético de la Inteligencia",
-          "Artificial (IA)",
-          "Licenciamientos copyleft"
+          "Estructuras condicionales, selectivas y repetitivas"
         ]
       }
     ],
@@ -2482,6 +2236,11 @@
         "hours": 7
       },
       {
+        "order": 3,
+        "name": "Aplica técnicas y métodos de investigación digital para buscar, recopilar, extraer, organizar y difundir información de una situación, fenómeno o problemática personal, social o ambiental.",
+        "hours": 7
+      },
+      {
         "order": 4,
         "name": "Procesa datos relacionados con una situación, fenómeno o problemática de índole personal, social o ambiental, utilizando herramientas de software que permitan calcular medidas de tendencia central y dispersión, así como generar representaciones gráficas que contribuyan a su análisis.",
         "hours": 7
@@ -2489,11 +2248,6 @@
       {
         "order": 5,
         "name": "Utiliza las páginas web para ayudar a difundir información sobre una situación, fenómeno o problemática personal, social o ambiental relacionada con otras asignaturas.",
-        "hours": 7
-      },
-      {
-        "order": 3,
-        "name": "Aplica técnicas y métodos de investigación digital para buscar, recopilar, extraer, organizar y difundir información de una situación, fenómeno o problemática personal, social o ambiental.",
         "hours": 7
       }
     ],
@@ -2509,11 +2263,7 @@
         "proposito": "Utiliza herramientas digitales de una manera innovadora y eficiente para acceder al conocimiento y la experiencia de aprendizaje de las diferentes asignaturas.",
         "contenidos": [
           "Trabajo colaborativo digital",
-          "Herramientas",
-          "trabajo",
-          "colaborativo",
-          "digital libre (Cryptpad, Riseup pad, entre",
-          "otras)"
+          "Herramientas de trabajo colaborativo digital libre (Cryptpad, Riseup pad, entre otras)"
         ]
       },
       {
@@ -2521,8 +2271,14 @@
         "proposito": "Utiliza las TICCAD para interactuar y comunicase con equipos colaborativos de trabajo, e investigar, buscar, discriminar y gestionar información de una situación, fenómeno o problemática personal, social o ambiental.",
         "contenidos": [
           "Tecnologías de Información, Comunicación,",
-          "Conocimiento y Aprendizajes Digitales de li-",
-          "bre acceso (Cryptpad, Riseup pad, entre otras)"
+          "Conocimiento y Aprendizajes Digitales de libre acceso (Cryptpad, Riseup pad, entre otras)"
+        ]
+      },
+      {
+        "order": 3,
+        "proposito": "Aplica técnicas y métodos de investigación digital para buscar, recopilar, extraer, organizar y difundir información de una situación, fenómeno o problemática personal, social o ambiental.",
+        "contenidos": [
+          "Técnicas y métodos de investigación digital (Ciberetnografía, análisis en línea de contenido, grupo focal, entrevista, observación, entre otros)"
         ]
       },
       {
@@ -2539,21 +2295,7 @@
         "order": 5,
         "proposito": "Utiliza las páginas web para ayudar a difundir información sobre una situación, fenómeno o problemática personal, social o ambiental relacionada con otras asignaturas.",
         "contenidos": [
-          "Páginas web (que impliquen un diseño",
-          "simple, por ejemplo: Wordpress, Blogspot,",
-          "entre otras)"
-        ]
-      },
-      {
-        "order": 3,
-        "proposito": "Aplica técnicas y métodos de investigación digital para buscar, recopilar, extraer, organizar y difundir información de una situación, fenómeno o problemática personal, social o ambiental.",
-        "contenidos": [
-          "Técnicas",
-          "métodos",
-          "investigación",
-          "digital (Ciberetnografía, análisis en línea de",
-          "contenido, grupo focal, entrevista, observa-",
-          "ción, entre otros)"
+          "Páginas web (que impliquen un diseño simple, por ejemplo: Wordpress, Blogspot, entre otras)"
         ]
       }
     ],
@@ -2575,13 +2317,13 @@
         "hours": 9
       },
       {
-        "order": 3,
-        "name": "Utiliza dispositivos tecnológicos, servicios de difusión y herramientas de software para crear y editar contenido digital, conforme a sus recursos y contextos.",
+        "order": 2,
+        "name": "Utiliza herramientas de comunicación digital para difundir información, conocimientos, experiencias y aprendizajes, de acuerdo con su contexto personal, académico, social y ambiental.",
         "hours": 9
       },
       {
-        "order": 2,
-        "name": "Utiliza herramientas de comunicación digital para difundir información, conocimientos, experiencias y aprendizajes, de acuerdo con su contexto personal, académico, social y ambiental.",
+        "order": 3,
+        "name": "Utiliza dispositivos tecnológicos, servicios de difusión y herramientas de software para crear y editar contenido digital, conforme a sus recursos y contextos.",
         "hours": 9
       },
       {
@@ -2602,8 +2344,22 @@
         "proposito": "Conoce la comunicación digital por su alcance y por sus medios de transmisión, para conectar dispositivos tecnológicos conforme a sus recursos y contexto.",
         "contenidos": [
           "Alcance: inalámbrico y alámbrico",
-          "Medios de transmisión: inalámbricos",
-          "y alámbricos"
+          "Medios de transmisión: inalámbricos y alámbricos"
+        ]
+      },
+      {
+        "order": 2,
+        "proposito": "Utiliza herramientas de comunicación digital para difundir información, conocimientos, experiencias y aprendizajes, de acuerdo con su contexto personal, académico, social y ambiental.",
+        "contenidos": [
+          "Comunicación digital directa",
+          "(Signal,",
+          "Telegram, WhatsApp, Messenger, Jitsi, Zoom,",
+          "Google Meet, entre otras).",
+          "Emisión y descarga continua (PeerTube, YouTube, Twitch, Facebook Gaming, entre otras)",
+          "Transmisión por secuencias (Wirecast, vMix,",
+          "OBS Studio, entre otras)",
+          "Lectura y difusión continuas (Zotero,",
+          "Evernote, Google Keep, entre otras)"
         ]
       },
       {
@@ -2618,30 +2374,10 @@
         ]
       },
       {
-        "order": 2,
-        "proposito": "Utiliza herramientas de comunicación digital para difundir información, conocimientos, experiencias y aprendizajes, de acuerdo con su contexto personal, académico, social y ambiental.",
-        "contenidos": [
-          "Comunicación",
-          "digital",
-          "directa",
-          "(Signal,",
-          "Telegram, WhatsApp, Messenger, Jitsi, Zoom,",
-          "Google Meet, entre otras).",
-          "Emisión y descarga continua (PeerTube, You-",
-          "Tube, Twitch, Facebook Gaming, entre otras)",
-          "Transmisión por secuencias (Wirecast, vMix,",
-          "OBS Studio, entre otras)",
-          "Lectura y difusión continuas (Zotero,",
-          "Evernote, Google Keep, entre otras)"
-        ]
-      },
-      {
         "order": 4,
         "proposito": "Analiza críticamente las desigualdades de género y socioeconómicas que influyen en las vocaciones del estudiantado en campos relacionados con las tecnologías digitales, con el fin de orientar sus decisiones personales, educativas o laborales.",
         "contenidos": [
-          "Vocaciones tecnológico-digitales con pers-",
-          "pectiva de género y de las desigualdades",
-          "socioeconómicas:",
+          "Vocaciones tecnológico-digitales con perspectiva de género y de las desigualdades socioeconómicas:",
           "Inteligencia Artificial",
           "Internet de las cosas",
           "Industria 4.0",
@@ -2680,6 +2416,11 @@
         "hours": 7
       },
       {
+        "order": 4,
+        "name": "Reconoce los tipos de párrafos a partir de la exploración de diversos textos, para contrastar su estructura y diferenciar sus rasgos.",
+        "hours": 7
+      },
+      {
         "order": 5,
         "name": "Identifica información de un texto que lee para resaltar los elementos significativos.",
         "hours": 7
@@ -2690,18 +2431,13 @@
         "hours": 7
       },
       {
-        "order": 8,
-        "name": "Identifica las características de una exposición oral para conocer su desarrollo y ponerlo en práctica.",
-        "hours": 7
-      },
-      {
         "order": 7,
         "name": "Practica la lectura en voz alta de algunos textos para luego emitir opiniones al respecto.",
         "hours": 7
       },
       {
-        "order": 4,
-        "name": "Reconoce los tipos de párrafos a partir de la exploración de diversos textos, para contrastar su estructura y diferenciar sus rasgos.",
+        "order": 8,
+        "name": "Identifica las características de una exposición oral para conocer su desarrollo y ponerlo en práctica.",
         "hours": 7
       }
     ],
@@ -2716,26 +2452,18 @@
         "order": 1,
         "proposito": "Reflexiona sobre los vínculos entre la escritura y la lectura para dar sentido a la necesidad humana por comunicar información, ideas, pensamientos u opiniones.",
         "contenidos": [
-          "La escritura como posibilidad de desarrollo",
-          "del pensamiento humano, la empatía, la crea-",
-          "ción individual y colectiva, la comunicación y",
-          "la estimulación del avance científico",
-          "La lectura como experiencia de diálogo entre",
-          "las personas de diversos contextos sociales,",
-          "históricos y culturales",
-          "La lectura como experiencia de placer indivi-",
-          "dual o compartido"
+          "La escritura como posibilidad de desarrollo del pensamiento humano, la empatía, la creación individual y colectiva, la comunicación y la estimulación del avance científico",
+          "La lectura como experiencia de diálogo entre las personas de diversos contextos sociales, históricos y culturales",
+          "La lectura como experiencia de placer individual o compartido"
         ]
       },
       {
         "order": 2,
         "proposito": "Investiga los gustos y las inclinaciones de las personas de su comunidad escolar respecto de la lectura y la escritura para conocer la diversidad de textos.",
         "contenidos": [
-          "Diversidad de textos escritos, soportes y for-",
-          "matos",
+          "Diversidad de textos escritos, soportes y formatos",
           "Características generales de los textos escritos",
-          "Situaciones de la vida cotidiana donde son ne-",
-          "cesarios los textos escritos"
+          "Situaciones de la vida cotidiana donde son necesarios los textos escritos"
         ]
       },
       {
@@ -2746,8 +2474,19 @@
           "Claridad",
           "Coherencia",
           "Concordancia",
-          "Escritura de ideas relacionadas con un tema",
-          "específico"
+          "Escritura de ideas relacionadas con un tema específico"
+        ]
+      },
+      {
+        "order": 4,
+        "proposito": "Reconoce los tipos de párrafos a partir de la exploración de diversos textos, para contrastar su estructura y diferenciar sus rasgos.",
+        "contenidos": [
+          "Párrafos:",
+          "Descriptivos",
+          "Narrativos",
+          "Argumentativos",
+          "Escritura de comentarios",
+          "Puntuación y sintaxis"
         ]
       },
       {
@@ -2771,39 +2510,23 @@
         ]
       },
       {
-        "order": 8,
-        "proposito": "Identifica las características de una exposición oral para conocer su desarrollo y ponerlo en práctica.",
-        "contenidos": [
-          "Preparación y exposición de un texto de su",
-          "preferencia",
-          "Seleccionar el contenido",
-          "Decidir la forma (individual o grupal)",
-          "Establecer las etapas (planeación, acompa-",
-          "ñamiento y ejecución)",
-          "Asignar los recursos (diapositivas, mapas",
-          "mentales)"
-        ]
-      },
-      {
         "order": 7,
         "proposito": "Practica la lectura en voz alta de algunos textos para luego emitir opiniones al respecto.",
         "contenidos": [
           "Apreciaciones orales y escritas del texto",
           "Elementos paralingüísticos",
-          "Escritura de elementos paralingüísticos que",
-          "se perciben cuando comunican sus ideas"
+          "Escritura de elementos paralingüísticos que se perciben cuando comunican sus ideas"
         ]
       },
       {
-        "order": 4,
-        "proposito": "Reconoce los tipos de párrafos a partir de la exploración de diversos textos, para contrastar su estructura y diferenciar sus rasgos.",
+        "order": 8,
+        "proposito": "Identifica las características de una exposición oral para conocer su desarrollo y ponerlo en práctica.",
         "contenidos": [
-          "Párrafos:",
-          "Descriptivos",
-          "Narrativos",
-          "Argumentativos",
-          "Escritura de comentarios",
-          "Puntuación y sintaxis"
+          "Preparación y exposición de un texto de su preferencia",
+          "Seleccionar el contenido",
+          "Decidir la forma (individual o grupal)",
+          "Establecer las etapas (planeación, acompañamiento y ejecución)",
+          "Asignar los recursos (diapositivas, mapas mentales)"
         ]
       }
     ],
@@ -2835,13 +2558,13 @@
         "hours": 7
       },
       {
-        "order": 5,
-        "name": "Distingue los temas y las ideas centrales y secundarias en las narrativas populares, para reconocer su papel en las distintas expresiones.",
+        "order": 4,
+        "name": "Comprende, a partir de la exploración de diversos textos, la relevancia de personajes y escenarios en la narrativa popular, para desarrollar elementos que pueda integrar en sus propios escritos.",
         "hours": 7
       },
       {
-        "order": 4,
-        "name": "Comprende, a partir de la exploración de diversos textos, la relevancia de personajes y escenarios en la narrativa popular, para desarrollar elementos que pueda integrar en sus propios escritos.",
+        "order": 5,
+        "name": "Distingue los temas y las ideas centrales y secundarias en las narrativas populares, para reconocer su papel en las distintas expresiones.",
         "hours": 7
       },
       {
@@ -2872,17 +2595,15 @@
         "proposito": "Narra situaciones de su historia de vida para compartir cómo han dejado una huella en su persona.",
         "contenidos": [
           "Narración y descripción de situaciones vividas",
-          "Diálogo y reflexión colectiva a partir de ideas",
-          "prioritarias y secundarias de una narración"
+          "Diálogo y reflexión colectiva a partir de ideas prioritarias y secundarias de una narración"
         ]
       },
       {
         "order": 2,
         "proposito": "Escribe un texto descriptivo o narrativo de su autoría.",
         "contenidos": [
-          "Organización de ideas para la escritura de un",
-          "texto",
-          "Delimitación del sentido comunicativo en un",
+          "Organización de ideas para la escritura de un texto",
+          "Delimitación del sentido comunicativo en un texto",
           "Ficción y realidad"
         ]
       },
@@ -2890,11 +2611,9 @@
         "order": 3,
         "proposito": "Identifica características lingüísticas a partir de la lectura de narrativas populares.",
         "contenidos": [
-          "Narrativas populares de acuerdo con el con-",
-          "texto e interés estudiantil",
+          "Narrativas populares de acuerdo con el contexto e interés estudiantil",
           "Narración y oralidad",
-          "Adaptaciones modernas de narrativas tradi-",
-          "cionales:",
+          "Adaptaciones modernas de narrativas tradicionales:",
           "Cómics",
           "Creepypastas",
           "Cuentos",
@@ -2904,26 +2623,22 @@
         ]
       },
       {
+        "order": 4,
+        "proposito": "Comprende, a partir de la exploración de diversos textos, la relevancia de personajes y escenarios en la narrativa popular, para desarrollar elementos que pueda integrar en sus propios escritos.",
+        "contenidos": [
+          "Caracterización de personajes y sus relaciones, de inicio a fin, en la narrativa",
+          "Clasificación de los personajes",
+          "Construcción de personajes de las narrativas"
+        ]
+      },
+      {
         "order": 5,
         "proposito": "Distingue los temas y las ideas centrales y secundarias en las narrativas populares, para reconocer su papel en las distintas expresiones.",
         "contenidos": [
           "Diferencia entre tema e idea principal",
-          "Ideas secundarias y su función en la narra-",
-          "tiva",
-          "Comparación de un mismo tema en diferen-",
-          "tes narrativas populares",
-          "Palabras o frases que marcan jerarquías en",
-          "la narración: conectores textuales"
-        ]
-      },
-      {
-        "order": 4,
-        "proposito": "Comprende, a partir de la exploración de diversos textos, la relevancia de personajes y escenarios en la narrativa popular, para desarrollar elementos que pueda integrar en sus propios escritos.",
-        "contenidos": [
-          "Caracterización de personajes y sus relaciones,",
-          "de inicio a fin, en la narrativa",
-          "Clasificación de los personajes",
-          "Construcción de personajes de las narrativas"
+          "Ideas secundarias y su función en la narrativa",
+          "Comparación de un mismo tema en diferentes narrativas populares",
+          "Palabras o frases que marcan jerarquías en la narración: conectores textuales"
         ]
       },
       {
@@ -2948,8 +2663,7 @@
         "contenidos": [
           "Intercambio de experiencias",
           "Diálogo entre pares",
-          "Construcción de textos narrativos colabora-",
-          "tivos"
+          "Construcción de textos narrativos colaborativos"
         ]
       },
       {
@@ -2957,8 +2671,7 @@
         "proposito": "Integra prácticas de lectura, escritura y oralidad en proyectos creativos para presentar el texto elaborado.",
         "contenidos": [
           "Análisis del pódcast u otro formato digital",
-          "Elementos sobre guion (texto creado), graba-",
-          "ción y edición",
+          "Elementos sobre guion (texto creado), grabación y edición",
           "Elementos extralingüísticos",
           "Producción y ejecución de un guion narrativo"
         ]
@@ -2977,13 +2690,13 @@
     "learning_outcome": "Explore y experimente con los movimientos y géneros literarios como manifestaciones culturales, para apropiarse de los diferentes elementos discursivos.",
     "activities": [
       {
-        "order": 2,
-        "name": "Reconoce, mediante la lectura, los diversos movimientos literarios para comprender sus particularidades.",
+        "order": 1,
+        "name": "Analiza la información extraída de un texto para darle sentido desde sus conocimientos previos y toma postura frente a lo expuesto por quien lo escribió. Es así como Lengua y Comunicación se convierte en el enlace idóneo para generar interés en los distintos tipos de texto, sus posibilidades de interpretación y las muestras orales. Por ello, las capacidades que el estudiantado desarrolle en los semestres cursados serán indispensables para el trabajo cotidiano en las demás asignaturas.",
         "hours": 8
       },
       {
-        "order": 1,
-        "name": "Analiza la información extraída de un texto para darle sentido desde sus conocimientos previos y toma postura frente a lo expuesto por quien lo escribió. Es así como Lengua y Comunicación se convierte en el enlace idóneo para generar interés en los distintos tipos de texto, sus posibilidades de interpretación y las muestras orales. Por ello, las capacidades que el estudiantado desarrolle en los semestres cursados serán indispensables para el trabajo cotidiano en las demás asignaturas.",
+        "order": 2,
+        "name": "Reconoce, mediante la lectura, los diversos movimientos literarios para comprender sus particularidades.",
         "hours": 8
       },
       {
@@ -3020,11 +2733,19 @@
     ],
     "contenidos_formativos": [
       {
+        "order": 1,
+        "proposito": "Analiza la información extraída de un texto para darle sentido desde sus conocimientos previos y toma postura frente a lo expuesto por quien lo escribió. Es así como Lengua y Comunicación se convierte en el enlace idóneo para generar interés en los distintos tipos de texto, sus posibilidades de interpretación y las muestras orales. Por ello, las capacidades que el estudiantado desarrolle en los semestres cursados serán indispensables para el trabajo cotidiano en las demás asignaturas.",
+        "contenidos": [
+          "Sentido global del texto",
+          "Intención del autor",
+          "Pensamiento crítico"
+        ]
+      },
+      {
         "order": 2,
         "proposito": "Reconoce, mediante la lectura, los diversos movimientos literarios para comprender sus particularidades.",
         "contenidos": [
-          "Conceptualización de literatura (movimien-",
-          "tos artísticos):",
+          "Conceptualización de literatura (movimientos artísticos):",
           "Barroco",
           "Neoclasicismo",
           "Romanticismo",
@@ -3034,15 +2755,6 @@
           "Realismo mágico",
           "Literaturas disidentes y digitales",
           "Paráfrasis de una lectura"
-        ]
-      },
-      {
-        "order": 1,
-        "proposito": "Analiza la información extraída de un texto para darle sentido desde sus conocimientos previos y toma postura frente a lo expuesto por quien lo escribió. Es así como Lengua y Comunicación se convierte en el enlace idóneo para generar interés en los distintos tipos de texto, sus posibilidades de interpretación y las muestras orales. Por ello, las capacidades que el estudiantado desarrolle en los semestres cursados serán indispensables para el trabajo cotidiano en las demás asignaturas.",
-        "contenidos": [
-          "Sentido global del texto",
-          "Intención del autor",
-          "Pensamiento crítico"
         ]
       },
       {
@@ -3082,16 +2794,14 @@
           "Ironía",
           "Prosopopeya (personificación)",
           "Rima y métrica",
-          "Análisis de figuras retóricas a partir de la",
-          "lectura"
+          "Análisis de figuras retóricas a partir de la lectura"
         ]
       },
       {
         "order": 6,
         "proposito": "Comprende las características de la reseña crítica para realizar una composición basada en uno de los movimientos literarios.",
         "contenidos": [
-          "Características de la idea principal y secun-",
-          "daria",
+          "Características de la idea principal y secundaria",
           "Interpretación de información",
           "Escritura de una reseña crítica"
         ]
@@ -3173,8 +2883,7 @@
         "contenidos": [
           "Verbo to be (forma afirmativa)",
           "Pronombres personales",
-          "Sustantivos: comunes y propios; singulares y",
-          "plurales",
+          "Sustantivos: comunes y propios; singulares y plurales",
           "Información personal (name, age, nationality)",
           "Números cardinales y ordinales",
           "Países, nacionalidades",
@@ -3190,8 +2899,7 @@
           "Verbos frecuentes para actividades escolares",
           "(open, close, read, listen)",
           "Expresiones útiles para la interacción en clase",
-          "(How do you say… in English?; May I go to the",
-          "bathroom? Can you repeat that, please?)"
+          "(How do you say… in English?; May I go to the bathroom? Can you repeat that, please?)"
         ]
       },
       {
@@ -3214,18 +2922,15 @@
           "Preguntas cerradas (yes/no)",
           "Adjetivos posesivos (my, your, his, etc.)",
           "Números de teléfono y direcciones",
-          "Alfabeto y deletreo básico (para aclarar su nom-",
-          "bre y apellido y dar correo electrónico)",
-          "Profesiones comunes en contexto (teacher, doc-",
-          "tor, cook, driver, etc.) y vocabulario escolar"
+          "Alfabeto y deletreo básico (para aclarar su nombre y apellido y dar correo electrónico)",
+          "Profesiones comunes en contexto (teacher, doctor, cook, driver, etc.) y vocabulario escolar"
         ]
       },
       {
         "order": 5,
         "proposito": "Hace preguntas sencillas para obtener información general (ubicación, horarios).",
         "contenidos": [
-          "Preguntas abiertas con wh- (what, where, when,",
-          "who, how)",
+          "Preguntas abiertas con wh- (what, where, when, who, how)",
           "Verbo to be (revisión de la forma interrogativa)",
           "Orden de las palabras en preguntas",
           "Preposiciones de tiempo (in, on, at)",
@@ -3251,8 +2956,7 @@
         "order": 7,
         "proposito": "Expresa gustos y opiniones simples en situaciones cotidianas (habla sobre preferencias y razones de forma empática).",
         "contenidos": [
-          "Revisión de preguntas abiertas con wh- (what,",
-          "where, when, who, how, why)",
+          "Revisión de preguntas abiertas con wh- (what, where, when, who, how, why)",
           "Uso de favorite en frases simples y uso de prefer",
           "(My favorite color is blue; I prefer coffee.)",
           "Verbo-ing (gerundio)",
@@ -3260,8 +2964,7 @@
           "Adjetivos (big/small, hot/cold)",
           "Actividades y eventos comunes (party, study, etc.)",
           "Pasatiempos",
-          "Conjunciones: because, and, so (para responder",
-          "y dar razones)"
+          "Conjunciones: because, and, so (para responder y dar razones)"
         ]
       },
       {
@@ -3269,8 +2972,7 @@
         "proposito": "Expresa pertenencia de forma clara y respetuosa (pregunta y responde sobre posesión con el genitivo y los pronombres posesivos).",
         "contenidos": [
           "Pronombres posesivos (mine, yours, his, hers)",
-          "Genitivo sajón (‘s) con nombres propios en sin-",
-          "gular (It’s María’s)",
+          "Genitivo sajón (‘s) con nombres propios en singular (It’s María’s)",
           "Preguntas con whose (Whose pencil is this?)",
           "Objetos personales y escolares",
           "Colores y materiales",
@@ -3344,8 +3046,7 @@
         "proposito": "Describe rutinas diarias y actividades cotidianas en casa, la escuela o la comunidad (reconoce acciones frecuentes y las organiza en el tiempo).",
         "contenidos": [
           "Presente simple (forma afirmativa)",
-          "Adverbios de frecuencia (always, usually, some-",
-          "times, never)",
+          "Adverbios de frecuencia (always, usually, sometimes, never)",
           "Verbos comunes en tercera persona (he/she)",
           "Rutinas diarias",
           "Actividades escolares y del hogar",
@@ -3370,8 +3071,7 @@
         "contenidos": [
           "Can / Can’t (habilidad y permiso)",
           "Preguntas y respuestas con can",
-          "Habilidades comunes (play the guitar, swim,",
-          "cook)",
+          "Habilidades comunes (play the guitar, swim, cook)",
           "Normas del aula y del hogar",
           "Actividades escolares y reglas"
         ]
@@ -3405,8 +3105,7 @@
         "contenidos": [
           "Imperativos (go straight, turn left)",
           "There is/are (revisión)",
-          "Preposiciones de movimiento (into, across,",
-          "next to)",
+          "Preposiciones de movimiento (into, across, next to)",
           "Lugares en la ciudad",
           "Medios de transporte",
           "Indicaciones de ubicación"
@@ -3465,6 +3164,11 @@
         "hours": 7
       },
       {
+        "order": 4,
+        "name": "Habla sobre hábitos, frecuencia y preferencias en la vida cotidiana (compara lo que hacen, eligen o prefieren las personas en diferentes momentos o contextos).",
+        "hours": 7
+      },
+      {
         "order": 5,
         "name": "Habla sobre responsabilidades y normas en la casa, la escuela o la comunidad (expresa obligación y prohibición).",
         "hours": 7
@@ -3483,11 +3187,6 @@
         "order": 8,
         "name": "Consolida lo aprendido mediante actividades significativas y producción guiada (aplica estructuras clave en tareas contextualizadas, orales y escritas).",
         "hours": 7
-      },
-      {
-        "order": 4,
-        "name": "Habla sobre hábitos, frecuencia y preferencias en la vida cotidiana (compara lo que hacen, eligen o prefieren las personas en diferentes momentos o contextos).",
-        "hours": 7
       }
     ],
     "evidences": [
@@ -3502,8 +3201,7 @@
         "proposito": "Habla sobre rutinas pasadas y recientes en la vida cotidiana (describe lo que hizo en días recientes o durante la semana).",
         "contenidos": [
           "Pasado simple (verbos regulares)",
-          "Expresiones de tiempo pasado (yesterday, last",
-          "week)",
+          "Expresiones de tiempo pasado (yesterday, last week)",
           "Actividades diarias",
           "Rutinas escolares y del hogar"
         ]
@@ -3523,13 +3221,21 @@
         "proposito": "Describe lugares conocidos y actividades que se pueden realizar ahí (da información y recomendaciones básicas).",
         "contenidos": [
           "There is/are (revisión)",
-          "Can para expresar posibilidad (formas afirma-",
-          "tiva y negativa)",
-          "Preposiciones de lugar (between, next to, in",
-          "front of, behind)",
-          "Lugares públicos y naturales (city hall, forest,",
-          "river, etc.)",
+          "Can para expresar posibilidad (formas afirmativa y negativa)",
+          "Preposiciones de lugar (between, next to, in front of, behind)",
+          "Lugares públicos y naturales (city hall, forest, river, etc.)",
           "Actividades recreativas"
+        ]
+      },
+      {
+        "order": 4,
+        "proposito": "Habla sobre hábitos, frecuencia y preferencias en la vida cotidiana (compara lo que hacen, eligen o prefieren las personas en diferentes momentos o contextos).",
+        "contenidos": [
+          "Adverbios de frecuencia (revisión y expansión:",
+          "often, sometimes, rarely)",
+          "Comparativos y superlativos",
+          "Uso de like + noun / verb-ing (I like music; He likes playing football; They don’t like studying at night.)",
+          "Comida, música, deportes, uso del tiempo libre"
         ]
       },
       {
@@ -3548,15 +3254,10 @@
         "proposito": "Pide, da y entiende instrucciones más completas (orienta a otra persona para hacer algo o llegar a un lugar).",
         "contenidos": [
           "Imperativos para dar indicaciones",
-          "(Walk straight until you see the park; Don’t forget",
-          "to bring your ID; Speak clearly.)",
-          "Conectores secuenciales (first, then, after that,",
-          "finally)",
-          "Indicaciones y procesos simples (recetas, ins-",
-          "trucciones digitales, tareas prácticas)",
-          "Rutinas cotidianas o procedimientos escola-",
-          "res/comunitarios (cómo registrarse, cómo re-",
-          "ciclar, cómo usar una aplicación digital escolar)"
+          "(Walk straight until you see the park; Don’t forget to bring your ID; Speak clearly.)",
+          "Conectores secuenciales (first, then, after that, finally)",
+          "Indicaciones y procesos simples (recetas, instrucciones digitales, tareas prácticas)",
+          "Rutinas cotidianas o procedimientos escolares/comunitarios (cómo registrarse, cómo reciclar, cómo usar una aplicación digital escolar)"
         ]
       },
       {
@@ -3574,24 +3275,9 @@
         "proposito": "Consolida lo aprendido mediante actividades significativas y producción guiada (aplica estructuras clave en tareas contextualizadas, orales y escritas).",
         "contenidos": [
           "Revisión de presente perfecto y pasado simple",
-          "Uso integrado de conectores, verbos modales",
-          "y descripciones",
-          "Textos breves orales y escritos (experiencias,",
-          "descripciones, recomendaciones)",
-          "Tareas integradoras (diálogos, cartas, historias",
-          "cortas)"
-        ]
-      },
-      {
-        "order": 4,
-        "proposito": "Habla sobre hábitos, frecuencia y preferencias en la vida cotidiana (compara lo que hacen, eligen o prefieren las personas en diferentes momentos o contextos).",
-        "contenidos": [
-          "Adverbios de frecuencia (revisión y expansión:",
-          "often, sometimes, rarely)",
-          "Comparativos y superlativos",
-          "Uso de like + noun / verb-ing (I like music; He likes",
-          "playing football; They don’t like studying at night.)",
-          "Comida, música, deportes, uso del tiempo libre"
+          "Uso integrado de conectores, verbos modales y descripciones",
+          "Textos breves orales y escritos (experiencias, descripciones, recomendaciones)",
+          "Tareas integradoras (diálogos, cartas, historias cortas)"
         ]
       }
     ],
@@ -3660,18 +3346,15 @@
         "proposito": "Describe experiencias pasadas con mayor detalle y conexión (narra lo que ocurrió, dónde y cómo).",
         "contenidos": [
           "Pasado simple (verbos regulares e irregulares)",
-          "Conectores de secuencia (first, then, after that,",
-          "in the end)",
-          "Viajes, celebraciones comunitarias, eventos es-",
-          "colares"
+          "Conectores de secuencia (first, then, after that, in the end)",
+          "Viajes, celebraciones comunitarias, eventos escolares"
         ]
       },
       {
         "order": 2,
         "proposito": "Expresa y justifica preferencias de forma respetuosa (compara elecciones personales en contextos cotidianos).",
         "contenidos": [
-          "Comparativos y superlativos (revisión y ex-",
-          "pansión)",
+          "Comparativos y superlativos (revisión y expansión)",
           "Conjunciones coordinantes (and / so / but)",
           "Ropa, comida, transporte, lugares públicos"
         ]
@@ -3681,11 +3364,8 @@
         "proposito": "Describe rutinas y hábitos con conciencia del contexto (explica lo que se hace y por qué, en la escuela, la casa o la comunidad).",
         "contenidos": [
           "Presente simple (revisión completa)",
-          "Conectores lógicos (because) para expre-",
-          "sar causa y justificar ideas (I’m tired because I",
-          "studied all night.)",
-          "Hábitos saludables, organización del tiempo,",
-          "rutinas semanales"
+          "Conectores lógicos (because) para expresar causa y justificar ideas (I’m tired because I studied all night.)",
+          "Hábitos saludables, organización del tiempo, rutinas semanales"
         ]
       },
       {
@@ -3704,8 +3384,7 @@
         "contenidos": [
           "Futuro idiomático (be going to)",
           "Futuro simple (Will - introducción)",
-          "Planes para vacaciones, metas personales y",
-          "proyectos escolares o comunitarios"
+          "Planes para vacaciones, metas personales y proyectos escolares o comunitarios"
         ]
       },
       {
@@ -3715,11 +3394,8 @@
           "Expresiones de cortesía (Would you like to…?;",
           "Can I help you…?; That’s great!; Nice to meet you.)",
           "Revisión de preguntas y respuestas comunes",
-          "(How are you?; What do you do?; Do you live",
-          "around here?; I’m fine, thanks.)",
-          "Conversaciones en eventos o espacios compar-",
-          "tidos (Small talk: The weather is nice today; This",
-          "place is really interesting; I like your shirt.)"
+          "(How are you?; What do you do?; Do you live around here?; I’m fine, thanks.)",
+          "Conversaciones en eventos o espacios compartidos (Small talk: The weather is nice today; This place is really interesting; I like your shirt.)"
         ]
       },
       {
@@ -3728,14 +3404,9 @@
         "contenidos": [
           "Pasado simple y pasado continuo",
           "Uso narrativo de adverbios de tiempo",
-          "(yesterday, last week, then, after that, later, finally,",
-          "in the end) y de lugar (here, there, at school, in",
-          "the kitchen, outside, near: I saw her near the river",
-          "yesterday)",
+          "(yesterday, last week, then, after that, later, finally, in the end) y de lugar (here, there, at school, in the kitchen, outside, near: I saw her near the river yesterday)",
           "Experiencias reales o imaginadas",
-          "Historias personales con emociones (happy,",
-          "excited, nervous, surprised, worried, confused,",
-          "sad, angry, proud)"
+          "Historias personales con emociones (happy, excited, nervous, surprised, worried, confused, sad, angry, proud)"
         ]
       },
       {
@@ -3743,11 +3414,9 @@
         "proposito": "Consolida estrategias para comprender y expresar ideas de forma clara y estructurada (aplica lo aprendido en tareas orales y escritas con sentido y propósito).",
         "contenidos": [
           "Revisión general: presente, pasado, futuro",
-          "Estructura de párrafos y secuencia de ideas (co-",
-          "nectores)",
+          "Estructura de párrafos y secuencia de ideas (conectores)",
           "Textos funcionales: notas, correos, relatos breves",
-          "Interacciones extendidas: conversaciones, pre-",
-          "sentaciones o diálogos guiados"
+          "Interacciones extendidas: conversaciones, presentaciones o diálogos guiados"
         ]
       }
     ],
@@ -3779,13 +3448,13 @@
         "hours": 14
       },
       {
-        "order": 5,
-        "name": "Integra la formulación de preguntas para participar con mayor rigor en comunidades de diálogo centradas en problemas filosóficos contemporáneos.",
+        "order": 4,
+        "name": "Formula preguntas filosóficas en torno al Conocimiento, Ciencia y grados de Verdad para reconocer su relevancia en la vida cotidiana, desarrollando una comprensión crítica sobre cómo se construye el conocimiento.",
         "hours": 14
       },
       {
-        "order": 4,
-        "name": "Formula preguntas filosóficas en torno al Conocimiento, Ciencia y grados de Verdad para reconocer su relevancia en la vida cotidiana, desarrollando una comprensión crítica sobre cómo se construye el conocimiento.",
+        "order": 5,
+        "name": "Integra la formulación de preguntas para participar con mayor rigor en comunidades de diálogo centradas en problemas filosóficos contemporáneos.",
         "hours": 14
       }
     ],
@@ -3801,19 +3470,10 @@
         "proposito": "Reconoce la posibilidad del pensamiento propio a partir de experiencias cotidianas, identificando la práctica filosófica como un modo de problematizar la realidad.",
         "contenidos": [
           "Meta educativa",
-          "Desarrolle la capacidad de formular",
-          "preguntas filosóficas y de participar",
-          "en diálogos argumentativos. Para",
-          "ello, aplica métodos de razonamien-",
-          "to y considera diversos enfoques fi-",
-          "losóficos, lo que le permite analizar",
-          "los desafíos de su entorno desde una",
-          "perspectiva humanista.",
+          "Desarrolle la capacidad de formular preguntas filosóficas y de participar en diálogos argumentativos. Para ello, aplica métodos de razonamiento y considera diversos enfoques filosóficos, lo que le permite analizar los desafíos de su entorno desde una perspectiva humanista.",
           "¿Para qué reflexionar sobre el pensamiento?",
-          "Naturaleza del pensamiento filosófico y pers-",
-          "pectiva humanista",
-          "Introducción a la argumentación filosófica y",
-          "comunidades de diálogo"
+          "Naturaleza del pensamiento filosófico y perspectiva humanista",
+          "Introducción a la argumentación filosófica y comunidades de diálogo"
         ]
       },
       {
@@ -3833,12 +3493,22 @@
         "contenidos": [
           "¿Qué es un problema filosófico?",
           "La experiencia de categorizar y conceptualizar",
-          "Problemas",
-          "filosóficos:",
+          "Problemas filosóficos:",
           "Realidad,",
           "Devenir,",
-          "Tiempo, Muerte, Libertad, Felicidad, Lengua-",
-          "je, Sentido de la vida, entre otros"
+          "Tiempo, Muerte, Libertad, Felicidad, Lenguaje, Sentido de la vida, entre otros"
+        ]
+      },
+      {
+        "order": 4,
+        "proposito": "Formula preguntas filosóficas en torno al Conocimiento, Ciencia y grados de Verdad para reconocer su relevancia en la vida cotidiana, desarrollando una comprensión crítica sobre cómo se construye el conocimiento.",
+        "contenidos": [
+          "Encuentros y desencuentros entre el conocimiento científico y los saberes sociales y humanísticos",
+          "Teorías del Conocimiento",
+          "El Problema de la Verdad",
+          "Percepción y Razón",
+          "Posverdad",
+          "¿Qué implica interpretar?"
         ]
       },
       {
@@ -3846,26 +3516,10 @@
         "proposito": "Integra la formulación de preguntas para participar con mayor rigor en comunidades de diálogo centradas en problemas filosóficos contemporáneos.",
         "contenidos": [
           "¿Para qué dialogamos?",
-          "Características del diálogo filosófico con",
-          "perspectiva humanista",
+          "Características del diálogo filosófico con perspectiva humanista",
           "Actitudes y posturas del diálogo filosófico",
           "Reglas para la discusión filosófica",
-          "La controversia como posibilidad de diálogo",
-          "filosófico"
-        ]
-      },
-      {
-        "order": 4,
-        "proposito": "Formula preguntas filosóficas en torno al Conocimiento, Ciencia y grados de Verdad para reconocer su relevancia en la vida cotidiana, desarrollando una comprensión crítica sobre cómo se construye el conocimiento.",
-        "contenidos": [
-          "Encuentros y desencuentros entre el cono-",
-          "cimiento científico y los saberes sociales y",
-          "humanísticos",
-          "Teorías del Conocimiento",
-          "El Problema de la Verdad",
-          "Percepción y Razón",
-          "Posverdad",
-          "¿Qué implica interpretar?"
+          "La controversia como posibilidad de diálogo filosófico"
         ]
       }
     ],
@@ -3882,18 +3536,8 @@
     "learning_outcome": "Desarrolle la capacidad de problematizar el conocimiento desde una actitud filosófica, asumiendo que conocer implica posicionarse, interpretar y dialogar con distintos marcos de sentido.",
     "activities": [
       {
-        "order": 5,
-        "name": "Integra saberes filosóficos y perspectivas humanistas para elaborar reflexiones argumentadas sobre los problemas contemporáneos de la Ontología, la Ética, la Bioética, la perspectiva de género y la interculturalidad.",
-        "hours": 14
-      },
-      {
-        "order": 4,
-        "name": "Analiza las desigualdades de género desde una mirada filosófica, contrastando diversas perspectivas feministas, para promover la reflexión, el diálogo y la postura política frente a los problemas de género.",
-        "hours": 14
-      },
-      {
-        "order": 3,
-        "name": "Desarrolla una conciencia crítica en torno a los desafíos éticos que plantean los avances de la ciencia y la tecnología en nuestro país.",
+        "order": 1,
+        "name": "Desarrolla la capacidad de cuestionar y reflexionar sobre los fundamentos del Ser, desplegando un pensamiento crítico acerca de las nociones de Existencia, Ser y Conocimiento, a partir del análisis filosófico-ontológico.",
         "hours": 14
       },
       {
@@ -3902,8 +3546,18 @@
         "hours": 14
       },
       {
-        "order": 1,
-        "name": "Desarrolla la capacidad de cuestionar y reflexionar sobre los fundamentos del Ser, desplegando un pensamiento crítico acerca de las nociones de Existencia, Ser y Conocimiento, a partir del análisis filosófico-ontológico.",
+        "order": 3,
+        "name": "Desarrolla una conciencia crítica en torno a los desafíos éticos que plantean los avances de la ciencia y la tecnología en nuestro país.",
+        "hours": 14
+      },
+      {
+        "order": 4,
+        "name": "Analiza las desigualdades de género desde una mirada filosófica, contrastando diversas perspectivas feministas, para promover la reflexión, el diálogo y la postura política frente a los problemas de género.",
+        "hours": 14
+      },
+      {
+        "order": 5,
+        "name": "Integra saberes filosóficos y perspectivas humanistas para elaborar reflexiones argumentadas sobre los problemas contemporáneos de la Ontología, la Ética, la Bioética, la perspectiva de género y la interculturalidad.",
         "hours": 14
       }
     ],
@@ -3915,39 +3569,14 @@
     ],
     "contenidos_formativos": [
       {
-        "order": 5,
-        "proposito": "Integra saberes filosóficos y perspectivas humanistas para elaborar reflexiones argumentadas sobre los problemas contemporáneos de la Ontología, la Ética, la Bioética, la perspectiva de género y la interculturalidad.",
+        "order": 1,
+        "proposito": "Desarrolla la capacidad de cuestionar y reflexionar sobre los fundamentos del Ser, desplegando un pensamiento crítico acerca de las nociones de Existencia, Ser y Conocimiento, a partir del análisis filosófico-ontológico.",
         "contenidos": [
-          "Construyendo el futuro desde la praxis trans-",
-          "formadora",
-          "Hacia un mundo habitable y justo",
-          "Perspectiva del Humanismo Mexicano",
-          "La Ética del pensamiento"
-        ]
-      },
-      {
-        "order": 4,
-        "proposito": "Analiza las desigualdades de género desde una mirada filosófica, contrastando diversas perspectivas feministas, para promover la reflexión, el diálogo y la postura política frente a los problemas de género.",
-        "contenidos": [
-          "Feminismos en México",
-          "Experiencias de desigualdad de género",
-          "Perspectivas filosóficas sobre la desigualdad",
-          "de género",
-          "Subjetividades trans"
-        ]
-      },
-      {
-        "order": 3,
-        "proposito": "Desarrolla una conciencia crítica en torno a los desafíos éticos que plantean los avances de la ciencia y la tecnología en nuestro país.",
-        "contenidos": [
-          "Perspectivas bioéticas",
-          "Posturas bioéticas sobre la tecnología y la",
-          "ciencia",
-          "La inteligencia artificial y los debates sobre",
-          "la naturaleza del Ser",
-          "Problemas medioambientales, una postura",
-          "Ética",
-          "Filosofía de la animalidad"
+          "El asombro como origen de la Filosofía",
+          "Límites del pensamiento filosófico",
+          "Ontología y Metafísica: ¿qué es el Ser?",
+          "Realidad y apariencia",
+          "El ser humano y su existencia"
         ]
       },
       {
@@ -3964,14 +3593,35 @@
         ]
       },
       {
-        "order": 1,
-        "proposito": "Desarrolla la capacidad de cuestionar y reflexionar sobre los fundamentos del Ser, desplegando un pensamiento crítico acerca de las nociones de Existencia, Ser y Conocimiento, a partir del análisis filosófico-ontológico.",
+        "order": 3,
+        "proposito": "Desarrolla una conciencia crítica en torno a los desafíos éticos que plantean los avances de la ciencia y la tecnología en nuestro país.",
         "contenidos": [
-          "El asombro como origen de la Filosofía",
-          "Límites del pensamiento filosófico",
-          "Ontología y Metafísica: ¿qué es el Ser?",
-          "Realidad y apariencia",
-          "El ser humano y su existencia"
+          "Perspectivas bioéticas",
+          "Posturas bioéticas sobre la tecnología y la ciencia",
+          "La inteligencia artificial y los debates sobre la naturaleza del Ser",
+          "Problemas medioambientales, una postura",
+          "Ética",
+          "Filosofía de la animalidad"
+        ]
+      },
+      {
+        "order": 4,
+        "proposito": "Analiza las desigualdades de género desde una mirada filosófica, contrastando diversas perspectivas feministas, para promover la reflexión, el diálogo y la postura política frente a los problemas de género.",
+        "contenidos": [
+          "Feminismos en México",
+          "Experiencias de desigualdad de género",
+          "Perspectivas filosóficas sobre la desigualdad de género",
+          "Subjetividades trans"
+        ]
+      },
+      {
+        "order": 5,
+        "proposito": "Integra saberes filosóficos y perspectivas humanistas para elaborar reflexiones argumentadas sobre los problemas contemporáneos de la Ontología, la Ética, la Bioética, la perspectiva de género y la interculturalidad.",
+        "contenidos": [
+          "Construyendo el futuro desde la praxis transformadora",
+          "Hacia un mundo habitable y justo",
+          "Perspectiva del Humanismo Mexicano",
+          "La Ética del pensamiento"
         ]
       }
     ],
@@ -4020,16 +3670,7 @@
         "proposito": "Fortalece con rigor su capacidad argumentativa al aplicar herramientas filosóficas para la construcción, análisis y evaluación de argumentos. Además, propicia espacios de debate en donde ensaya la persuasión argumentativa.",
         "contenidos": [
           "Meta educativa",
-          "Desarrolle capacidades para analizar,",
-          "debatir e intervenir en su realidad",
-          "desde una praxis que problematice el",
-          "hacer como expresión de autonomía,",
-          "cuidado y creación. Se promueve una",
-          "comprensión crítica que posibilite la",
-          "transformación de la vida en común,",
-          "que cuestione el poder y abra posi-",
-          "bilidades de justicia, de expresión ar-",
-          "tística y de sentido en la existencia.",
+          "Desarrolle capacidades para analizar, debatir e intervenir en su realidad desde una praxis que problematice el hacer como expresión de autonomía, cuidado y creación. Se promueve una comprensión crítica que posibilite la transformación de la vida en común, que cuestione el poder y abra posibilidades de justicia, de expresión artística y de sentido en la existencia.",
           "La lógica del pensamiento",
           "Construcción de argumentos filosóficos",
           "Persuasión argumentativa",
@@ -4042,13 +3683,11 @@
         "order": 2,
         "proposito": "Desarrolla una comprensión crítica sobre los problemas de Filosofía política, a través de un análisis argumentado, para cuestionar las situaciones de la realidad social contemporánea.",
         "contenidos": [
-          "El origen y las formas de la organización del",
-          "poder político",
+          "El origen y las formas de la organización del poder político",
           "El Estado",
           "Las leyes",
           "Análisis biopolítico del Estado",
-          "Sexo, género, raza, clase, entre otras catego-",
-          "rías de sujeción política"
+          "Sexo, género, raza, clase, entre otras categorías de sujeción política"
         ]
       },
       {
@@ -4070,8 +3709,7 @@
         "proposito": "Integra saberes filosóficos y perspectivas humanistas para elaborar reflexiones argumentadas sobre problemas contemporáneos, considerando sus implicaciones éticas, sociales y culturales, reconociéndose como capaz de transformar la realidad a través de los ejercicios de pensamiento.",
         "contenidos": [
           "¿Para qué sirve el pensamiento complejo?",
-          "Filosofías de la corporalidad, prácticas de li-",
-          "bertad",
+          "Filosofías de la corporalidad, prácticas de libertad",
           "Reflexionar, ¿para qué?"
         ]
       }
@@ -10438,7 +10076,7 @@
       },
       {
         "order": 3,
-        "name": "Identifica como parte de la caja de herramientas a los métodos y enfoques teóricos-metodológicos que permiten el estudio de la investigación social mediante el conocimiento de los métodos (deductivo e inductivo, análisis- síntesis, experimental y no experimental), así como de los enfoques (cualitativo, cuantitativo o mixto), lo que le permitirá distinguir las características particulares",
+        "name": "Identifica como parte de la caja de herramientas a los métodos y enfoques teóricos-metodológicos que permiten el estudio de la investigación social mediante el conocimiento de los métodos (deductivo e inductivo, análisissíntesis, experimental y no experimental), así como de los enfoques (cualitativo, cuantitativo o mixto), lo que le permitirá distinguir las características particulares",
         "hours": 4
       },
       {
