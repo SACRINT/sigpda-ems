@@ -32,6 +32,7 @@ describe('Fase 2 — pdf-extra-renderer.ts (Motor Visual Unificado)', () => {
 
     // Debe haber avanzado verticalmente al menos 3 renglones (> 15mm)
     expect(finalY).toBeGreaterThan(startY + 12);
+    expect(pageCount).toBeGreaterThanOrEqual(1);
   });
 
   it('renderExtraDocument orquesta ribbons, callouts y formato institucional', () => {
