@@ -34,6 +34,7 @@ import { loadCarrerasTecnicas, type BTCarrera } from '@/lib/bt-carreras-catalog'
 import type { SchoolZoneContextResponse } from '@/lib/zone-sync-service';
 import PaecStep1Diagnostico from './steps/PaecStep1Diagnostico';
 import PaecStep2Justificacion from './steps/PaecStep2Justificacion';
+import PaecStep3Mapeo from './steps/PaecStep3Mapeo';
 
 const PAEC_DRAFT_KEY = 'didactica_paec_draft';
 
@@ -2015,58 +2016,13 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
             )}
 
             {/* Step 3 Visual Render */}
-            {activeStep === 3 && project.fase2Mapeo && (
-              <div>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                  <thead>
-                    <tr style={{ background: 'var(--c-navy)', color: '#fff' }}>
-                      <th style={{ padding: '8px 12px', textAlign: 'center', width: '10%' }}>Sem</th>
-                      <th style={{ padding: '8px 12px', textAlign: 'left', width: '25%' }}>Asignatura (UAC)</th>
-                      <th style={{ padding: '8px 12px', textAlign: 'left', width: '25%' }}>Actividad / Tema Práctico</th>
-                      <th style={{ padding: '8px 12px', textAlign: 'left' }}>Vinculación y Progresión Curricular</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(isEditingContent && editPayload ? editPayload : project.fase2Mapeo).map((r: any, i: number) => (
-                      <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : 'var(--c-blue-pale)', borderBottom: '1px solid var(--c-border)' }}>
-                        <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600 }}>{r.semester}°</td>
-                        <td style={{ padding: '8px 12px', fontWeight: 600 }}>{r.uacName}</td>
-                        <td style={{ padding: '8px 12px' }}>
-                          {isEditingContent ? (
-                            <input
-                              type="text"
-                              value={r.topic}
-                              onChange={(e) => {
-                                const copy = [...editPayload];
-                                copy[i].topic = e.target.value;
-                                setEditPayload(copy);
-                              }}
-                              style={{ width: '100%', padding: '6px', fontSize: '12.5px', borderRadius: '4px', border: '1px solid #ccc' }}
-                            />
-                          ) : (
-                            r.topic
-                          )}
-                        </td>
-                        <td style={{ padding: '8px 12px', lineHeight: 1.4 }}>
-                          {isEditingContent ? (
-                            <textarea
-                              value={r.linking}
-                              onChange={(e) => {
-                                const copy = [...editPayload];
-                                copy[i].linking = e.target.value;
-                                setEditPayload(copy);
-                              }}
-                              style={{ width: '100%', padding: '6px', fontSize: '12.5px', borderRadius: '4px', border: '1px solid #ccc', minHeight: '60px', fontFamily: 'inherit' }}
-                            />
-                          ) : (
-                            r.linking
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+            {activeStep === 3 && (
+              <PaecStep3Mapeo
+                project={project}
+                isEditingContent={isEditingContent}
+                editPayload={editPayload}
+                setEditPayload={setEditPayload}
+              />
             )}
 
             {/* Step 4 Visual Render */}
