@@ -6,8 +6,9 @@ import { isAdmin } from '@/lib/admin-unified';
 import { logger } from '@/lib/logger';
 /**
  * POST /api/admin/migrate-roles
- * Crea las tablas necesarias para el sistema de roles y personal por plantel.
+ * Consulta y valida el estado del esquema para el sistema de roles y personal por plantel.
  * Solo accesible para el superadministrador.
+ * Nota: Cualquier modificación DDL debe ejecutarse de forma controlada mediante scripts/migrate-roles.sql.
  */
 export async function POST() {
   try {
@@ -21,99 +22,52 @@ export async function POST() {
     }
 
     const db = sql();
-    const results: string[] = [];
 
-    // 1. Asegurar columna `role` en teachers
-    try {
-      await db`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'docente'`;
-      results.push('✅ Columna role asegurada en teachers');
-    } catch (e: any) {
-      results.push(`ℹ️ role en teachers: ${e.message}`);
-    }
+    // Verificación no destructiva (solo lectura) de tablas en information_schema
+    const tablesCheck = await db`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+        AND table_name IN ('escuela_personal', 'supervisor_escuelas')
+    `;
 
-    // 2. Asegurar columna `city` en teachers
-    try {
-      await db`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS city TEXT`;
-      results.push('✅ Columna city asegurada en teachers');
-    } catch (e: any) {
-      results.push(`ℹ️ city en teachers: ${e.message}`);
-    }
+    // Verificación no destructiva de columnas en teachers
+    const columnsCheck = await db`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_schema = 'public' 
+        AND table_name = 'teachers' 
+        AND column_name IN ('role', 'city')
+    `;
 
-    // 3. Crear tabla escuela_personal (personal del plantel del Director)
-    try {
-      await db`
-        CREATE TABLE IF NOT EXISTS escuela_personal (
-          id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          director_id      UUID NOT NULL,
-          nombre           TEXT NOT NULL,
-          apellido_paterno TEXT NOT NULL DEFAULT '',
-          apellido_materno TEXT NOT NULL DEFAULT '',
-          email            TEXT,
-          cargo            TEXT NOT NULL DEFAULT 'DOCENTE',
-          horas_base       INTEGER NOT NULL DEFAULT 20,
-          activo           BOOLEAN NOT NULL DEFAULT TRUE,
-          created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-          updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )
-      `;
-      results.push('✅ Tabla escuela_personal creada');
-    } catch (e: any) {
-      results.push(`ℹ️ escuela_personal: ${e.message}`);
-    }
+    const existingTables = (tablesCheck as Array<{ table_name: string }>).map((r) => r.table_name);
+    const existingColumns = (columnsCheck as Array<{ column_name: string }>).map((r) => r.column_name);
 
-    // 4. Índice único en escuela_personal
-    try {
-      await db`
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_escuela_personal_director_nombre
-          ON escuela_personal(director_id, nombre, apellido_paterno)
-      `;
-      results.push('✅ Índice único escuela_personal creado');
-    } catch (e: any) {
-      results.push(`ℹ️ Índice escuela_personal: ${e.message}`);
-    }
-
-    // 5. Crear tabla supervisor_escuelas (escuelas de la zona del Supervisor)
-    try {
-      await db`
-        CREATE TABLE IF NOT EXISTS supervisor_escuelas (
-          id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          supervisor_id    UUID NOT NULL,
-          nombre           TEXT NOT NULL,
-          cct              TEXT,
-          municipio        TEXT,
-          subsistema       TEXT NOT NULL DEFAULT 'BGE',
-          director_nombre  TEXT,
-          director_email   TEXT,
-          pmc_data         JSONB,
-          paec_data        JSONB,
-          activa           BOOLEAN NOT NULL DEFAULT TRUE,
-          created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-          updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )
-      `;
-      results.push('✅ Tabla supervisor_escuelas creada');
-    } catch (e: any) {
-      results.push(`ℹ️ supervisor_escuelas: ${e.message}`);
-    }
-
-    // 6. Índice único en supervisor_escuelas
-    try {
-      await db`
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_supervisor_escuelas_sup_cct
-          ON supervisor_escuelas(supervisor_id, cct)
-      `;
-      results.push('✅ Índice único supervisor_escuelas creado');
-    } catch (e: any) {
-      results.push(`ℹ️ Índice supervisor_escuelas: ${e.message}`);
-    }
+    const isComplete =
+      existingTables.includes('escuela_personal') &&
+      existingTables.includes('supervisor_escuelas') &&
+      existingColumns.includes('role') &&
+      existingColumns.includes('city');
 
     return NextResponse.json({
       success: true,
-      message: 'Migración completada',
-      results,
+      status: isComplete ? 'applied' : 'pending_manual_migration',
+      message: isComplete
+        ? 'El esquema de roles y personal por plantel está verificado y activo.'
+        : 'Esquema incompleto. Ejecute scripts/migrate-roles.sql desde la consola de base de datos.',
+      verification: {
+        tables: {
+          escuela_personal: existingTables.includes('escuela_personal'),
+          supervisor_escuelas: existingTables.includes('supervisor_escuelas'),
+        },
+        columnsTeachers: {
+          role: existingColumns.includes('role'),
+          city: existingColumns.includes('city'),
+        },
+      },
     });
   } catch (error: any) {
     logger.error('[admin/migrate-roles] Error:', error);
-    return NextResponse.json({ error: error.message || 'Error en migración' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Error en verificación de migración' }, { status: 500 });
   }
 }
