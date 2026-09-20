@@ -6,6 +6,7 @@
 
 import path from 'path';
 import type { DocumentPage, IngestedDocument } from '../types';
+import { removeHyphens } from '@/lib/text-utils';
 
 // ── Polyfills estrictamente aislados para pdfjs-dist bajo Node.js / Vercel ────
 if (typeof (globalThis as any).DOMMatrix === 'undefined') {
@@ -114,7 +115,7 @@ export async function parseDigitalPdf(
       if (Math.abs(item.ty - currentY) > 3) {
         // Nueva línea detectada
         if (currentLineItems.length > 0) {
-          const lineStr = currentLineItems.map(i => i.str).join(' ').trim();
+          const lineStr = removeHyphens(currentLineItems.map(i => i.str).join(' ').trim());
           const maxLineFont = Math.max(...currentLineItems.map(i => i.scaleY));
           const isHeading = maxLineFont >= avgFontSize * 1.25 && lineStr.length < 120;
           if (lineStr.length > 0) {
@@ -130,7 +131,7 @@ export async function parseDigitalPdf(
 
     // Procesar la última línea
     if (currentLineItems.length > 0) {
-      const lineStr = currentLineItems.map(i => i.str).join(' ').trim();
+      const lineStr = removeHyphens(currentLineItems.map(i => i.str).join(' ').trim());
       const maxLineFont = Math.max(...currentLineItems.map(i => i.scaleY));
       const isHeading = maxLineFont >= avgFontSize * 1.25 && lineStr.length < 120;
       if (lineStr.length > 0) {
@@ -150,8 +151,8 @@ export async function parseDigitalPdf(
       }
     }
 
-    const pageMarkdown = pageMarkdownLines.join('\n');
-    const pageRawText = lines.map(l => l.text).join('\n');
+    const pageMarkdown = removeHyphens(pageMarkdownLines.join('\n'));
+    const pageRawText = removeHyphens(lines.map(l => l.text).join('\n'));
 
     pages.push({
       pageNumber: pageNum,

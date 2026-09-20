@@ -8,6 +8,7 @@ import { parseAIResponse } from '@/lib/ai-response-parser';
 import { PaecExtractedDocSchema } from '@/lib/ai-schemas';
 import type { PaecOperationalActivity, PaecParseResult } from '@/types/planning';
 import { normalizeUnicode } from '@/lib/utils/normalize';
+import { removeHyphens } from '@/lib/text-utils';
 
 export async function POST(request: NextRequest) {
   try {
@@ -122,6 +123,31 @@ export async function POST(request: NextRequest) {
       parsedData.isSuggestedProblem = true;
     }
 
+    // Deshiphenization y normalización general de campos
+    const sanitizeText = (val: string | null | undefined): string | null => {
+      if (!val) return null;
+      const cleaned = removeHyphens(val).replace(/\s+/g, ' ').trim();
+      return cleaned.length > 0 ? cleaned : null;
+    };
+
+    parsedData.projectName = sanitizeText(parsedData.projectName);
+    parsedData.objective = sanitizeText(parsedData.objective);
+    parsedData.problem = sanitizeText(parsedData.problem);
+    parsedData.studentContext = sanitizeText(parsedData.studentContext);
+    parsedData.schoolName = sanitizeText(parsedData.schoolName);
+    parsedData.municipality = sanitizeText(parsedData.municipality);
+    parsedData.cct = sanitizeText(parsedData.cct);
+
+    if (Array.isArray(parsedData.planOperativo)) {
+      parsedData.planOperativo = parsedData.planOperativo.map((act) => ({
+        ...act,
+        asignatura: sanitizeText(act.asignatura) || act.asignatura,
+        actividad: sanitizeText(act.actividad) || act.actividad,
+        propositoFormativo: sanitizeText(act.propositoFormativo) || undefined,
+        estrategiaDidactica: sanitizeText(act.estrategiaDidactica) || undefined,
+      }));
+    }
+
     return NextResponse.json({
       success: true,
       data: parsedData,
@@ -161,9 +187,15 @@ async function structurePaecWithAI(smartText: string, teacherId?: string) {
 
 INSTRUCCIONES CRÍTICAS PARA LA EXTRACCIÓN:
 1. "problem": Busca EXPLÍCITAMENTE la sección titulada "Problemáticas o necesidades de la comunidad", "Selección del problema para el PEC", "Problema central", "Problemática detectada" o tablas de diagnóstico por etapas (Etapa uno: Recuperación de información, Etapa dos: Sistematización y análisis FODA, Etapa tres: Selección del problema). Extrae la Etapa 3 (o la síntesis consolidada de las etapas) detallando la problemática comunitaria concreta (por ejemplo: adicciones, alcoholismo, hábitos alimenticios deficientes, falta de espacios deportivos, contaminación/basura, bajo aprovechamiento académico, falta de infraestructura techada, etc.). Debe ser un texto descriptivo, claro y suficiente (2-4 oraciones) para guiar la planeación didáctica.
-2. "projectName": Título del PEC (ej: "Comunidad Resiliente: Vida Saludable...", "EcoBachiller Recicla...", etc.).
+2. "projectName": Título COMPLETO e ÍNTEGRO del PEC o proyecto comunitario, incluyendo subtítulos entre paréntesis o tras dos puntos si los tiene (ej: "Comunidad Resiliente: Vida Saludable (Bienestar Integral y Prevención de Riesgos)"). NUNCA lo trunques ni lo dejes a medias.
 3. "objective": Propósito o meta formativa del proyecto comunitario.
-4. "studentContext": Ubicación del plantel, características de la localidad, entorno socioeconómico y características de los alumnos.
+4. "studentContext": Elabora una CARACTERIZACIÓN INTEGRAL de los estudiantes y el plantel estructurada y enfocada a la planeación didáctica, sintetizando de forma coherente y clara:
+   - Entorno comunitario y socioeconómico (localidad, actividades económicas principales, nivel socioeconómico de las familias).
+   - Características y fortalezas de los estudiantes (habilidades de trabajo colaborativo, deportes, cultura, intereses).
+   - Factores de riesgo o necesidades prioritarias (hábitos alimenticios, conductas de riesgo, estrés, vulnerabilidades).
+   - Características del plantel y recursos (matrícula, infraestructura disponible, áreas deportivas o comunitarias de apoyo).
+   - Indicadores educativos clave (aprovechamiento, deserción, reprobación si se mencionan).
+   Debe ser un resumen articulado, fluido y profesional (2 a 4 párrafos concisos) que sirva como diagnóstico directo para diseñar actividades didácticas contextualizadas.
 5. "schoolName": Nombre oficial del bachillerato o plantel (si aparece en portada o encabezados).
 6. "municipality": Municipio o localidad donde está ubicado el plantel.
 7. "cct": Clave CCT de 10 caracteres alfanuméricos (ej: 21EBH0200X).
@@ -210,15 +242,32 @@ function parsePaecHeuristics(text: string): {
 
   const planOperativo = parsePlanOperativoHeuristics(text);
 
-  // 1. Nombre del proyecto
-  const nameMatch1 = text.match(/(?:PEC titulado|PEC denominado|proyecto denominado|proyecto titulado)\s*[:\-\s]*["'«“](.*?)["'»”]/i) 
-    || text.match(/PEC titulado\s*["'«“]?(.*?)(?:\.|\r?\n|$)/i);
-  if (nameMatch1) {
-    projectName = nameMatch1[1].trim();
-  } else {
-    const nameMatch2 = text.match(/(?:PROYECTO ESCOLAR COMUNITARIO|PEC)\s*[:\-\s]+([^\n\r]{10,120})/i);
-    if (nameMatch2) {
-      projectName = nameMatch2[1].trim();
+  // 1. Nombre del proyecto (Multi-ancla con soporte para subtítulos en paréntesis)
+  // Patrón A: Entrecomillado oficial (ej: titulado: "Comunidad Resiliente: Vida Saludable (Bienestar Integral y Prevención de Riesgos)")
+  const nameMatchQuotes = text.match(/(?:titulado|denominado|nombre del proyecto|proyecto[:\s])\s*[:\-\s]*["'«“]([\s\S]*?)["'»”]/i);
+  if (nameMatchQuotes && nameMatchQuotes[1]?.trim().length > 5) {
+    projectName = nameMatchQuotes[1].trim();
+  }
+
+  if (!projectName) {
+    // Patrón B: Portada estructurada (PROYECTO ESCOLAR COMUNITARIO \n Nombre \n (Subtítulo))
+    const nameMatchCover = text.match(/(?:PROYECTO\s+ESCOLAR\s+COMUNITARIO(?:\s*\(PEC\))?|PEC)\s*[\r\n]+#*\s*([A-ZÁÉÍÓÚ0-9][^\r\n]{4,100})(?:\s*[\r\n]+#*\s*(\([^\r\n\)]+\)))?/i);
+    if (nameMatchCover) {
+      projectName = nameMatchCover[1].trim() + (nameMatchCover[2] ? ' ' + nameMatchCover[2].trim() : '');
+    }
+  }
+
+  if (!projectName) {
+    // Patrón C: PEC titulado / denominado
+    const nameMatch1 = text.match(/(?:PEC titulado|PEC denominado|proyecto denominado|proyecto titulado)\s*[:\-\s]*["'«“](.*?)["'»”]/i) 
+      || text.match(/PEC titulado\s*["'«“]?([^\r\n"»”]+(?:\s*\([^\)]+\))?)(?:\.|\r?\n|$)/i);
+    if (nameMatch1) {
+      projectName = nameMatch1[1].trim();
+    } else {
+      const nameMatch2 = text.match(/(?:PROYECTO ESCOLAR COMUNITARIO|PEC)\s*[:\-\s]+([^\n\r]{10,120})/i);
+      if (nameMatch2) {
+        projectName = nameMatch2[1].trim();
+      }
     }
   }
 
@@ -247,10 +296,52 @@ function parsePaecHeuristics(text: string): {
     objective = objMatch[1].trim();
   }
 
-  // 4. Caracterización / Contexto de estudiantes y plantel
-  const contextMatch = text.match(/(?:Características\s+del\s+estudiantado|Caracterización\s+de\s+los\s+estudiantes|Contexto\s+estudiantil|Caracter[ií]sticas\s+de\s+la\s+comunidad)\s*[:\-\s]*([A-ZÁÉÍÓÚ][\s\S]*?)(?=\b(?:Características\s+del\s+plantel|Diagnóstico|FODA|=== PÁGINA|$))/i);
-  if (contextMatch && contextMatch[1]?.trim().length > 30) {
-    studentContext = contextMatch[1].trim();
+  // 4. Caracterización / Contexto de estudiantes y plantel (Multi-ancla integral)
+  const contextParts: string[] = [];
+
+  const ubMatch = text.match(/(?:Ubicación\s+geográfica|Localidad)[:\s]*([^\n\r]+(?:,\s*[^\n\r]+){1,3})/i);
+  if (ubMatch) {
+    contextParts.push(`Ubicación y Entorno: ${ubMatch[1].trim()}`);
+  }
+
+  const ecoMatch = text.match(/(?:Situación\s+socioeconómica|Economía\s+local|Actividades\s+principales)[:\s]*([^\n\r]+(?:\r?\n[^\n\r]+){0,3})/i);
+  if (ecoMatch) {
+    contextParts.push(`Contexto Socioeconómico: ${ecoMatch[1].trim()}`);
+  }
+
+  const estMatch = text.match(/(?:Características\s+del\s+estudiantado|Perfil\s+del\s+estudiante|Contexto\s+estudiantil)[:\s]*([\s\S]*?)(?=\b(?:Características\s+del\s+plantel|Contexto\s+familiar|Indicadores|Análisis\s+general|FODA|=== PÁGINA|\n#{1,3}\s|$))/i);
+  if (estMatch && estMatch[1]?.trim().length > 20) {
+    contextParts.push(`Perfil del Estudiantado: ${estMatch[1].trim()}`);
+  }
+
+  const famMatch = text.match(/(?:Contexto\s+familiar|Entorno\s+familiar)[:\s]*([\s\S]*?)(?=\b(?:Características\s+del\s+estudiantado|Características\s+del\s+plantel|Indicadores|Análisis\s+general|FODA|=== PÁGINA|\n#{1,3}\s|$))/i);
+  if (famMatch && famMatch[1]?.trim().length > 20) {
+    contextParts.push(`Contexto Familiar: ${famMatch[1].trim()}`);
+  }
+
+  const plantMatch = text.match(/(?:Características\s+del\s+plantel|Infraestructura\s+escolar|Instalaciones\s+y\s+equipamiento)[:\s]*([\s\S]*?)(?=\b(?:Indicadores\s+educativos|Programas|Análisis\s+general|FODA|=== PÁGINA|\n#{1,3}\s|$))/i);
+  if (plantMatch && plantMatch[1]?.trim().length > 20) {
+    contextParts.push(`Infraestructura del Plantel: ${plantMatch[1].trim()}`);
+  }
+
+  const indMatch = text.match(/(?:Indicadores\s+educativos\s+del\s+plantel|Indicadores\s+académicos)[:\s]*([\s\S]*?)(?=\b(?:Programas|Instalaciones|Análisis\s+general|FODA|=== PÁGINA|\n#{1,3}\s|$))/i);
+  if (indMatch && indMatch[1]?.trim().length > 20) {
+    contextParts.push(`Indicadores Educativos: ${indMatch[1].trim()}`);
+  }
+
+  const analMatch = text.match(/(?:Análisis\s+general|Diagnóstico\s+general|Síntesis\s+del\s+diagnóstico)[:\s]*([A-ZÁÉÍÓÚ][^\n\r]*(?:\r?\n[^\n\r]*){0,10})/i);
+  if (analMatch && analMatch[1]?.trim().length > 30) {
+    contextParts.push(`Diagnóstico Síntesis: ${analMatch[1].trim()}`);
+  }
+
+  if (contextParts.length > 0) {
+    studentContext = contextParts.join('\n\n');
+  } else {
+    // Fallback general amplio
+    const fallbackMatch = text.match(/(?:Características\s+del\s+estudiantado|Caracterización\s+de\s+los\s+estudiantes|Contexto\s+estudiantil|Características\s+de\s+la\s+comunidad|Diagnóstico\s+colectivo)\s*[:\-\s]*([A-ZÁÉÍÓÚ][\s\S]*?)(?=\b(?:Fase\s+2|Fase\s+II|1\.\s+Introducción|Propósito|FODA|=== PÁGINA|$))/i);
+    if (fallbackMatch && fallbackMatch[1]?.trim().length > 30) {
+      studentContext = fallbackMatch[1].trim();
+    }
   }
 
   // 5. Clave CCT (10 caracteres, ej: 21EBH0200X, 21ECT0017T)
@@ -271,8 +362,8 @@ function parsePaecHeuristics(text: string): {
     municipality = munMatch[1].trim();
   }
 
-  // Normalización de espacios y remoción de etiquetas de página
-  const clean = (s: string) => s.replace(/=== PÁGINA \d+ ===/g, '').replace(/\s+/g, ' ').trim();
+  // Normalización de espacios, remoción de etiquetas de página y deshiphenization
+  const clean = (s: string) => removeHyphens(s.replace(/=== PÁGINA \d+ ===/g, '').replace(/#+/g, '').replace(/\s+/g, ' ').trim());
 
   return {
     projectName: projectName ? clean(projectName) : null,

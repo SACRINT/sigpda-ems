@@ -89,62 +89,199 @@ def clean(t):
 def normalize_key(t):
     return strip_accents(clean(t)).lower()
 
-EVIDENCE_MAP = {
-    "pensamiento matematico": [
-        "Problemario contextualizado con modelación algebraica y justificación procedimental",
-        "Reporte de investigación aplicada y análisis gráfico de datos reales",
-        "Proyecto de modelación matemática para la resolución de situaciones del entorno",
-        "Portafolio de evidencias de razonamiento lógico y cuantitativo"
-    ],
-    "ciencias naturales": [
-        "Reporte de práctica experimental de laboratorio y campo",
-        "Proyecto de investigación científica escolar sobre problemáticas ambientales",
-        "Infografía explicativa de fenómenos biológicos, químicos y físicos",
-        "Plan de acción comunitaria para la sustentabilidad y cuidado del entorno"
-    ],
-    "ciencias sociales": [
-        "Ensayo argumentativo sobre problemáticas socioeconómicas regionales",
-        "Debate y análisis crítico de fenómenos sociopolíticos y ciudadanía",
-        "Cartografía social comunitaria e informe de investigación de campo",
-        "Propuesta de intervención social con enfoque de derechos humanos y justicia"
-    ],
-    "conciencia historica": [
-        "Línea de tiempo analítica y crítica de procesos de transformación histórica",
-        "Ensayo de interpretación histórica basado en fuentes primarias y secundarias",
-        "Investigación sobre memoria colectiva, patrimonio e identidad local",
-        "Exposición temática sobre coyunturas y procesos históricos de México"
-    ],
-    "cultura digital": [
-        "Solución algorítmica y prototipo computacional funcional",
-        "Proyecto de ciudadanía digital, ciberseguridad y uso ético de la información",
-        "Desarrollo de producto multimedia colaborativo en entornos virtuales",
-        "Portafolio digital de aplicaciones y herramientas ofimáticas avanzadas"
-    ],
-    "lengua y comunicacion": [
-        "Reseña crítica y texto argumentativo de composición propia",
-        "Podcast, debate o exposición oral de divulgación académica",
-        "Antología comentada de textos literarios y composiciones creativas",
-        "Proyecto de comunicación asertiva y redacción formal"
-    ],
-    "ingles": [
-        "Diálogo oral estructurado y dramatización en situaciones cotidianas (Speaking)",
-        "Compilador de textos breves descriptivos y narrativos en inglés (Writing)",
-        "Bitácora de comprensión auditiva de materiales auténticos (Listening)",
-        "Portafolio de lectura comprensiva y análisis de textos en lengua extranjera (Reading)"
-    ],
-    "humanidades": [
-        "Disertación filosófica sobre dilemas éticos y existenciales contemporáneos",
-        "Diálogo socrático y análisis crítico de textos humanísticos y filosóficos",
-        "Bitácora reflexiva sobre el sentido de la experiencia humana y la alteridad",
-        "Manifiesto ético-comunitario fundamentado en la convivencia democrática"
-    ]
+EVIDENCE_MAP_BY_SEMESTER = {
+    # ── Pensamiento Matemático ──────────────────────────────────────────────────
+    "pensamiento matematico": {
+        1: [  # PM I: Aritmética — lógica, conteo, naturales, enteros, fracciones, potencias, raíces, medición
+            "Problemario de operaciones con números reales, jerarquía de operaciones y razonamiento lógico",
+            "Proyecto de aplicación de fracciones, porcentajes y proporciones en situaciones cotidianas",
+            "Portafolio de ejercicios de potenciación, radicación y sistemas numéricos",
+        ],
+        2: [  # PM II: Pre-álgebra — lenguaje algebraico, monomios, polinomios, productos notables, factorización
+            "Problemario de expresiones algebraicas, productos notables y factorización",
+            "Proyecto de traducción de situaciones cotidianas al lenguaje algebraico",
+            "Portafolio de operaciones con monomios, binomios y polinomios",
+        ],
+        3: [  # PM III: Álgebra y geometría plana — ecuaciones lineales, cuadráticas, sistemas, Pitágoras
+            "Problemario de ecuaciones lineales y cuadráticas con aplicación contextualizada",
+            "Reporte de resolución de sistemas de ecuaciones por múltiples métodos (igualación, sustitución, gráfico)",
+            "Proyecto de modelación algebraica y representación gráfica de funciones lineales",
+        ],
+        4: [  # PM IV: Trigonometría y geometría analítica — rectas, funciones trigonométricas, cónicas
+            "Problemario de funciones trigonométricas y resolución de triángulos",
+            "Proyecto de aplicación de geometría analítica (rectas, circunferencia, parábola) en contextos reales",
+            "Portafolio de gráficas de funciones polinomiales y cónicas en el plano cartesiano",
+        ],
+        5: [  # PM V: Cálculo diferencial — límites, derivadas, optimización
+            "Problemario de cálculo de límites, derivadas y aplicaciones de optimización",
+            "Proyecto de modelación de fenómenos de cambio con funciones y derivadas",
+            "Reporte de investigación aplicada sobre razón de cambio en contextos de física o economía",
+        ],
+        6: [  # PM VI: Estadística y probabilidad — datos, probabilidad, distribuciones
+            "Proyecto de recolección, organización y análisis estadístico de datos reales",
+            "Reporte de investigación con aplicación de medidas de tendencia central y dispersión",
+            "Problemario de probabilidad, combinatoria y distribuciones aplicadas a situaciones del entorno",
+        ],
+    },
+    # ── Ciencias Naturales, Experimentales y Tecnología ─────────────────────────
+    "ciencias naturales": {
+        1: [  # CNEyT I: Invitación a la ciencia — método científico, materia, energía
+            "Reporte de práctica experimental sobre propiedades de la materia y transformaciones de energía",
+            "Infografía explicativa del método científico aplicado a fenómenos cotidianos",
+            "Portafolio de observaciones y registro de fenómenos naturales",
+        ],
+        2: [  # CNEyT II: El poder de la energía — termodinámica, ondas, electricidad
+            "Reporte de laboratorio sobre transferencia de calor, ondas y circuitos eléctricos",
+            "Proyecto de investigación sobre fuentes de energía renovable y sustentabilidad",
+            "Maqueta o prototipo funcional que demuestre principios de transformación energética",
+        ],
+        3: [  # CNEyT III: Nuestro hogar — ecosistemas, ciclos biogeoquímicos, sustentabilidad
+            "Proyecto de investigación sobre problemáticas ambientales locales y propuesta de solución",
+            "Infografía de ciclos biogeoquímicos y su impacto en el ecosistema de la comunidad",
+            "Plan de acción comunitaria para la sustentabilidad y cuidado del entorno",
+        ],
+        4: [  # CNEyT IV: El poder de la química — tabla periódica, enlaces, reacciones
+            "Reporte de práctica de laboratorio sobre reacciones químicas y estequiometría",
+            "Proyecto de investigación sobre aplicaciones de la química en la vida cotidiana",
+            "Portafolio de ejercicios de balanceo de ecuaciones y clasificación de compuestos",
+        ],
+        5: [  # CNEyT V: Del átomo al universo — física moderna, estructura atómica
+            "Reporte de investigación sobre modelos atómicos y su evolución histórica",
+            "Proyecto de divulgación científica sobre fenómenos de física moderna (radioactividad, partículas)",
+            "Infografía de la estructura del átomo y su relación con las propiedades de los materiales",
+        ],
+        6: [  # CNEyT VI: ¿Qué es la vida? — biología, evolución, biodiversidad
+            "Proyecto de investigación sobre biodiversidad local y estrategias de conservación",
+            "Reporte sobre mecanismos de evolución y adaptación en especies de la región",
+            "Infografía de procesos celulares (fotosíntesis, respiración) y su importancia ecológica",
+        ],
+    },
+    # ── Ciencias Sociales ───────────────────────────────────────────────────────
+    "ciencias sociales": {
+        1: [  # CS I: Estado, ciudadanía y relaciones de poder
+            "Ensayo argumentativo sobre derechos ciudadanos y participación democrática",
+            "Debate estructurado sobre relaciones de poder y formas de gobierno",
+            "Portafolio de análisis de casos de ciudadanía activa en la comunidad",
+        ],
+        2: [  # CS II: Organización, relaciones sociales y económicas
+            "Reporte de investigación sobre dinámicas socioeconómicas de la localidad",
+            "Cartografía social comunitaria con análisis de desigualdad y organización social",
+            "Proyecto de propuesta de mejora comunitaria con enfoque de justicia social",
+        ],
+        4: [  # CS III: Las dinámicas de la realidad actual — condición estudiantil (sem 4)
+            "Ensayo crítico sobre la condición estudiantil y las problemáticas juveniles contemporáneas",
+            "Investigación de campo sobre dinámicas sociales actuales en el entorno escolar",
+            "Propuesta de intervención social con enfoque de derechos humanos y bienestar comunitario",
+        ],
+    },
+    # ── Conciencia Histórica ────────────────────────────────────────────────────
+    "conciencia historica": {
+        4: [  # CH I: Coordenadas de la Historia (sem 4)
+            "Línea de tiempo analítica de procesos históricos con fuentes primarias",
+            "Ensayo de interpretación histórica sobre el concepto de tiempo y cambio social",
+            "Portafolio de análisis de fuentes históricas (documentales, iconográficas, orales)",
+        ],
+        5: [  # CH II: La experiencia histórica (sem 5)
+            "Ensayo crítico sobre memoria colectiva, identidad y patrimonio cultural local",
+            "Investigación sobre experiencias históricas de transformación social en México",
+            "Exposición temática sobre coyunturas históricas con análisis de multicausalidad",
+        ],
+        6: [  # CH III: Navegar en el tiempo — investigaciones históricas (sem 6)
+            "Proyecto de investigación histórica con metodología y análisis de fuentes",
+            "Ensayo de historia regional que vincule pasado-presente con la comunidad",
+            "Portafolio de investigaciones históricas con reflexión sobre identidad nacional",
+        ],
+    },
+    # ── Cultura Digital ─────────────────────────────────────────────────────────
+    "cultura digital": {
+        1: [  # CD I: Ciudadanía digital (sem 1)
+            "Proyecto de ciudadanía digital, ciberseguridad y uso ético de la información",
+            "Infografía sobre identidad digital, privacidad y huella digital responsable",
+            "Portafolio de prácticas de búsqueda, verificación y curación de información en línea",
+        ],
+        2: [  # CD II: Aprendizaje individual y colaborativo (sem 2)
+            "Desarrollo de producto multimedia colaborativo en entornos virtuales",
+            "Proyecto de aprendizaje colaborativo usando herramientas digitales (documentos, presentaciones)",
+            "Portafolio digital de aplicaciones ofimáticas y herramientas de productividad",
+        ],
+        6: [  # CD III: Uso y difusión del conocimiento (sem 6)
+            "Solución algorítmica o prototipo computacional funcional para un problema del entorno",
+            "Proyecto de difusión del conocimiento mediante plataformas y medios digitales",
+            "Portafolio de creación de contenido digital (video, podcast, sitio web) con propósito educativo",
+        ],
+    },
+    # ── Lengua y Comunicación ───────────────────────────────────────────────────
+    "lengua y comunicacion": {
+        1: [  # LyC I: Leer y escribir para pensarnos juntos
+            "Portafolio de lectura comprensiva con fichas de análisis de textos diversos",
+            "Texto argumentativo breve de composición propia con estructura clara",
+            "Proyecto de comunicación oral: exposición o debate sobre temas de interés estudiantil",
+        ],
+        2: [  # LyC II: Libertad para imaginar, poder para comunicar
+            "Texto narrativo o descriptivo de autoría propia (cuento, crónica, relato personal)",
+            "Antología comentada de narrativas populares y sus adaptaciones modernas",
+            "Proyecto creativo de expresión escrita y oral (podcast, monólogo, recital)",
+        ],
+        3: [  # LyC III: Describir culturas, apropiarse de las palabras
+            "Reseña crítica de una obra literaria con análisis de movimiento y género literario",
+            "Antología comentada de textos literarios de diferentes movimientos culturales",
+            "Ensayo de análisis literario sobre la función social de la literatura en la comunidad",
+        ],
+    },
+    # ── Inglés ──────────────────────────────────────────────────────────────────
+    "ingles": {
+        1: [  # Inglés I: A1 — ser/estar, presentaciones, rutinas
+            "Diálogo oral estructurado sobre presentaciones personales y rutinas cotidianas (Speaking A1)",
+            "Compilador de textos descriptivos breves sobre personas, lugares y objetos (Writing A1)",
+            "Bitácora de comprensión auditiva de instrucciones y conversaciones simples (Listening A1)",
+        ],
+        2: [  # Inglés II: A1-A2 — pasado, narrativas, secuencias
+            "Narrativa breve en pasado simple sobre una experiencia personal (Writing A1-A2)",
+            "Dramatización de una historia o cuento adaptado en lengua inglesa (Speaking A1-A2)",
+            "Portafolio de lectura comprensiva de textos narrativos breves en inglés (Reading A1-A2)",
+        ],
+        3: [  # Inglés III: A2 — descripciones, comparaciones, opiniones
+            "Texto descriptivo y comparativo sobre su comunidad o entorno (Writing A2)",
+            "Exposición oral con apoyo visual sobre un tema de interés (Speaking A2)",
+            "Bitácora de comprensión auditiva de materiales auténticos y medios digitales (Listening A2)",
+        ],
+        4: [  # Inglés IV: A2+ — planes, predicciones, argumentación básica
+            "Ensayo breve argumentativo sobre un tema social o cultural en lengua inglesa (Writing A2+)",
+            "Debate o mesa redonda sobre planes futuros y problemáticas juveniles (Speaking A2+)",
+            "Portafolio de análisis de textos informativos y artículos breves en inglés (Reading A2+)",
+        ],
+    },
+    # ── Humanidades (Pensamiento Filosófico) ────────────────────────────────────
+    "humanidades": {
+        1: [  # Humanidades I: Vivir aquí y ahora
+            "Bitácora reflexiva sobre la experiencia humana y el sentido del presente",
+            "Disertación filosófica sobre dilemas éticos y existenciales del entorno cotidiano",
+            "Diálogo socrático sobre la relación ser humano–naturaleza–comunidad",
+        ],
+        2: [  # Humanidades II: Estar juntos
+            "Ensayo filosófico sobre la convivencia, la alteridad y el reconocimiento del otro",
+            "Debate ético sobre problemáticas de justicia social y derechos humanos",
+            "Manifiesto ético-comunitario fundamentado en la convivencia democrática",
+        ],
+        3: [  # Humanidades III: El sentido de la vida
+            "Disertación filosófica sobre el sentido de la vida y proyectos de trascendencia personal",
+            "Análisis crítico de textos humanísticos sobre la libertad, la finitud y la trascendencia",
+            "Portafolio reflexivo con diálogos filosóficos sobre identidad, vocación y proyecto de vida",
+        ],
+    },
 }
 
-def get_contextual_evidences(uac_name, topic=""):
+def get_contextual_evidences(uac_name, topic="", semester=None):
+    """Retorna evidencias contextualizadas por disciplina Y semestre."""
     combined = strip_accents(f"{uac_name} {topic}").lower()
-    for key, evs in EVIDENCE_MAP.items():
+    for key, sem_map in EVIDENCE_MAP_BY_SEMESTER.items():
         if key in combined:
-            return evs
+            # Primero intentar con semestre específico
+            if semester is not None and semester in sem_map:
+                return sem_map[semester]
+            # Fallback: primera entrada disponible (genérico de la disciplina)
+            first_key = next(iter(sem_map))
+            return sem_map[first_key]
     return [
         f"Proyecto formativo integrador de {uac_name}",
         "Portafolio de evidencias y rúbrica de evaluación formativa"
@@ -360,7 +497,7 @@ def extract_fundamental_books():
                     "contenidos": unique_conts if unique_conts else [p['prop']]
                 })
 
-            evidences = get_contextual_evidences(uac_name, topic)
+            evidences = get_contextual_evidences(uac_name, topic, semester=sem)
 
             results.append({
                 "uac_name": uac_name,
