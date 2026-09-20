@@ -10,6 +10,7 @@
 
 import { CATALOGO_METODOLOGIAS_ACTIVAS, type MetodologiaActiva } from '@/lib/catalogo-metodologias';
 import { normalizeUnicode } from '@/lib/utils/normalize';
+import { isTechnologicalSubsystem } from '@/lib/subsystem-config';
 
 // ─── Reglas de recomendación (orden importa: primera coincidencia gana) ───────
 
@@ -139,13 +140,25 @@ export const REGLAS: ReglaRecomendacion[] = [
 export function recomendarMetodologia(
   uacName: string,
   component: string,
-  _subsystem?: string
+  subsystem?: string
 ): string {
   const uacLower = normalizeUnicode(uacName);
   const uacPadded = ` ${uacLower} `;
   const componentLower = component.toLowerCase();
 
   for (const regla of REGLAS) {
+    // Verificar compatibilidad de subsistema si la regla lo especifica
+    if (regla.subsystems && subsystem) {
+      const isBt = isTechnologicalSubsystem(subsystem);
+      const matchesSub = regla.subsystems.some((s) => {
+        const sNorm = s.toLowerCase().trim();
+        if (sNorm === 'bt') return isBt;
+        if (sNorm === 'bge') return !isBt;
+        return sNorm === subsystem.toLowerCase().trim();
+      });
+      if (!matchesSub) continue;
+    }
+
     // Verificar componente curricular primero (mayor prioridad)
     if (regla.components && !regla.components.includes(componentLower)) {
       // Si la regla tiene restricción de componente y no coincide, saltamos
@@ -170,7 +183,21 @@ export function recomendarMetodologia(
     }
   }
 
-  // Default: ABP (metodología más versátil y general)
+  // Desempate y ponderación por subsistema:
+  // En Bachilleratos Tecnológicos (BT: CBTis, CBTA, CECyTE), desempate hacia
+  // 'practica_laboratorio' para componentes técnicos/laborales, o 'steam' para materias generales
+  if (subsystem && isTechnologicalSubsystem(subsystem)) {
+    if (
+      componentLower.includes('laboral') ||
+      componentLower.includes('tecnic') ||
+      componentLower.includes('profesional')
+    ) {
+      return 'practica_laboratorio';
+    }
+    return 'steam';
+  }
+
+  // Default para BGE u otros subsistemas: ABP (metodología más versátil y general)
   return 'abp';
 }
 

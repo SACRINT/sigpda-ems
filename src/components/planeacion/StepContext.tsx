@@ -177,7 +177,7 @@ export default function StepContext({
   const component = (extractedData as { component?: string })?.component || '';
   useEffect(() => {
     if (uacName && !form.metodologiaActiva) {
-      const sugeridaId = recomendarMetodologia(uacName, component);
+      const sugeridaId = recomendarMetodologia(uacName, component, form.subsystem);
       if (sugeridaId) {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setForm(f => ({ ...f, metodologiaActiva: sugeridaId }));
