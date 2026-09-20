@@ -69,6 +69,7 @@ export type SecuenciaGenerateInputDTO = z.infer<typeof SecuenciaGenerateInputSch
 export const SecuenciaUpdateInputSchema = z.object({
   blockIndex: z.number().int().min(0, 'blockIndex debe ser un número entero mayor o igual a 0'),
   sessions: z.array(SecuenciaSesionSchema).min(1, 'sessions debe contener al menos una sesión didáctica válida'),
+  retoSituado: z.union([z.string(), z.record(z.string(), z.unknown())]).optional(),
 });
 
 export type SecuenciaUpdateInputDTO = z.infer<typeof SecuenciaUpdateInputSchema>;

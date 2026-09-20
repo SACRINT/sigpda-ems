@@ -5,7 +5,8 @@ import { generateWithRetry } from '@/lib/ai-retry-manager';
 import { SecuenciaResponseSchema, SecuenciaGenerateInputSchema, SecuenciaUpdateInputSchema } from '@/lib/ai-schemas';
 import { logger } from '@/lib/logger';
 import { obtenerMetodologiaPorId, CATALOGO_METODOLOGIAS_ACTIVAS } from '@/lib/catalogo-metodologias';
-import type { SecuenciaBloque, SecuenciaSesion } from '@/types/planning';
+import { ensureRetoSituadoCalidad, validateRetoSituado } from '@/lib/planning-evaluator';
+import type { SecuenciaBloque, SecuenciaSesion, RetoSituado } from '@/types/planning';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -355,10 +356,27 @@ Genera la secuencia didáctica completa de exactamente ${sessionsCount} sesiones
 
     currentSequence[blockIndex] = newBlockData;
 
-    // Guardar en la columna sequence_json de Neon DB
+    // Enforce Reto Situado 4/4 auto-repair antes de persistir
+    const retoContext = {
+      municipality: content.sectionI?.schoolMunicipality || content.sectionI?.municipality,
+      schoolName: content.sectionI?.schoolName,
+      uacName: plan.uac_name,
+      paecProblem: plan.paec_context || content.sectionII?.paecConnection,
+    };
+    const ensuredReto = ensureRetoSituadoCalidad(content.sectionII?.retoSituado, retoContext);
+    const updatedContent = {
+      ...content,
+      sectionII: {
+        ...(content.sectionII || {}),
+        retoSituado: ensuredReto,
+      },
+    };
+
+    // Guardar en la columna sequence_json y content_json de Neon DB
     await db`
       UPDATE plannings
       SET sequence_json = ${JSON.stringify(currentSequence)}::jsonb,
+          content_json = ${JSON.stringify(updatedContent)}::jsonb,
           updated_at = NOW()
       WHERE id = ${id}::uuid
     `;
@@ -368,6 +386,7 @@ Genera la secuencia didáctica completa de exactamente ${sessionsCount} sesiones
       blockIndex,
       sequence: newBlockData,
       fullSequence: currentSequence,
+      retoSituado: ensuredReto,
       attempts,
       warnings,
     });
@@ -463,12 +482,12 @@ export async function PUT(
       );
     }
 
-    const { blockIndex, sessions } = parseResult.data;
+    const { blockIndex, sessions, retoSituado } = parseResult.data;
 
     const db = neon(process.env.DATABASE_URL!);
 
     const rows = await db`
-      SELECT p.id, p.content_json, p.sequence_json
+      SELECT p.id, p.uac_name, p.paec_context, p.content_json, p.sequence_json
       FROM plannings p
       WHERE p.id = ${id}::uuid
       LIMIT 1
@@ -479,8 +498,53 @@ export async function PUT(
     }
 
     const plan = rows[0];
-    const activities = plan.content_json?.sectionIV?.activities || [];
+    const content = plan.content_json || {};
+    const activities = content.sectionIV?.activities || [];
     const blockActivity = activities[blockIndex];
+
+    const retoContext = {
+      municipality: content.sectionI?.schoolMunicipality || content.sectionI?.municipality,
+      schoolName: content.sectionI?.schoolName,
+      uacName: plan.uac_name || content.sectionI?.uacName,
+      paecProblem: plan.paec_context || content.sectionII?.paecConnection,
+    };
+
+    // Validación estricta 4/4 del Reto Situado en guardado manual
+    const candidateReto = retoSituado !== undefined ? retoSituado : content.sectionII?.retoSituado;
+    if (candidateReto) {
+      const validation = validateRetoSituado(candidateReto as RetoSituado | string, retoContext);
+      if (!validation.isApproved) {
+        return NextResponse.json(
+          {
+            error: 'El Reto Situado no cumple con los 4 criterios de calidad pedagógica DBEPA',
+            score: validation.score,
+            feedback: validation.feedback,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    let updatedContent = content;
+    if (retoSituado) {
+      const retoObj: RetoSituado = typeof retoSituado === 'string'
+        ? {
+            titulo: 'Reto Situado de Aprendizaje',
+            retoCompleto: retoSituado,
+            verboInfinitivo: '',
+            contextoLocal: '',
+            problematicaReal: '',
+            propositoCurricular: '',
+          }
+        : (retoSituado as unknown as RetoSituado);
+      updatedContent = {
+        ...content,
+        sectionII: {
+          ...(content.sectionII || {}),
+          retoSituado: retoObj,
+        },
+      };
+    }
 
     const sanitizedSessions: SecuenciaSesion[] = sessions.map((s, idx) => ({
       sessionNum: s.sessionNum ?? (idx + 1),
@@ -508,6 +572,7 @@ export async function PUT(
     await db`
       UPDATE plannings
       SET sequence_json = ${JSON.stringify(currentSequence)}::jsonb,
+          content_json = ${JSON.stringify(updatedContent)}::jsonb,
           updated_at = NOW()
       WHERE id = ${id}::uuid
     `;
