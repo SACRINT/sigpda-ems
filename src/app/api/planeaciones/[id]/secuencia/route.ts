@@ -4,6 +4,7 @@ import { neon } from '@neondatabase/serverless';
 import { generateWithRetry } from '@/lib/ai-retry-manager';
 import { SecuenciaResponseSchema } from '@/lib/ai-schemas';
 import { logger } from '@/lib/logger';
+import { obtenerMetodologiaPorId, CATALOGO_METODOLOGIAS_ACTIVAS } from '@/lib/catalogo-metodologias';
 import type { SecuenciaBloque, SecuenciaSesion } from '@/types/planning';
 
 export const runtime = 'nodejs';
@@ -86,7 +87,16 @@ export async function POST(
     const learningOutcome = content.sectionII?.learningOutcomes?.[blockIndex] || '';
     const saberes = blockActivity.saberes || null;
     const paecContext = plan.paec_context || '';
-    const methodology = blockActivity.methodology || plan.metodologia_activa || 'Aprendizaje Basado en Proyectos (ABP)';
+    // Resolución defensiva de metodología activa:
+    // Soporta slugs nuevos (ej: 'abp') y nombres completos legacy almacenados
+    // en registros de planeaciones anteriores (ej: 'Aprendizaje Basado en Proyectos (ABP)').
+    const rawMet = blockActivity.methodology || plan.metodologia_activa || 'abp';
+    const metObj = obtenerMetodologiaPorId(rawMet) ||
+      CATALOGO_METODOLOGIAS_ACTIVAS.find(m => m.nombre === rawMet);
+    const methodology = metObj?.nombre || rawMet || 'Aprendizaje Basado en Proyectos (ABP)';
+    const methodologyFases = metObj?.fases
+      ? metObj.fases.map((f, i) => `  ${i + 1}. ${f}`).join('\n')
+      : '';
 
     // Calcular distribución pedagógica de sesiones por fase
     let aperturaCount = 1;
@@ -147,6 +157,8 @@ DEBES RESPONDER EXCLUSIVAMENTE EN FORMATO JSON VÁLIDO con la siguiente estructu
 - Bloque ${blockIndex + 1}: ${blockActivity.name}
 - Carga horaria del bloque: ${hours} Horas (${sessionsCount} Sesiones de clase de 50 minutos)
 - Metodología Activa: ${methodology}
+${methodologyFases ? `- Fases Estructurales de la Metodología (distribúyelas armónicamente entre las sesiones del bloque, NO en una sola sesión):
+${methodologyFases}` : ''}
 - Propósito Formativo / Resultado de Aprendizaje: ${learningOutcome}
 ${saberes ? `- Taxonomía de Saberes:
   • Saber (Teórico): ${saberes.saber}
