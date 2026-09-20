@@ -35,9 +35,10 @@ export async function GET(
     }
 
     return NextResponse.json({ sequence: rows[0].sequence_json || {} });
-  } catch (error: any) {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Error al obtener secuencia';
     logger.error('GET secuencia error:', error);
-    return NextResponse.json({ error: error.message || 'Error al obtener secuencia' }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -266,9 +267,10 @@ Genera la secuencia didáctica completa de exactamente ${sessionsCount} sesiones
       attempts,
       warnings,
     });
-  } catch (error: any) {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Error al generar secuencia didáctica';
     logger.error('POST /api/planeaciones/[id]/secuencia error:', error);
-    return NextResponse.json({ error: error.message || 'Error al generar secuencia didáctica' }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -330,8 +332,9 @@ export async function PUT(
       sequence: currentSequence[blockIndex],
       fullSequence: currentSequence,
     });
-  } catch (error: any) {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Error al guardar cambios de la secuencia';
     logger.error('PUT /api/planeaciones/[id]/secuencia error:', error);
-    return NextResponse.json({ error: error.message || 'Error al guardar cambios de la secuencia' }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
