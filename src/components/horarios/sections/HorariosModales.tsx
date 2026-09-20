@@ -1,10 +1,37 @@
 "use client";
 
 import React from "react";
-import { Search, UserPlus, Upload, Download, AlertCircle, CheckCircle2, Plus, Trash2, Scissors, Edit2, FileSpreadsheet } from "lucide-react";
-import { descargarPlantillaExcelDocentes } from "@/lib/excel-plantilla";
-import { descargarPlantillaIntegralHorarios } from "@/lib/excel-matriz";
-import type { DocenteHorario, GrupoHorario } from "@/lib/horarios/types";
+import { Search, FileSpreadsheet } from "lucide-react";
+import { descargarPlantillaExcelDocentes, type DocenteImportado } from "@/lib/excel-plantilla";
+import { descargarPlantillaIntegralHorarios, ResultadoParseoMatriz, CargaImportada } from "@/lib/excel-matriz";
+import type { DocenteHorario, GrupoHorario, CustomUacHorario } from "@/lib/horarios/types";
+
+export interface ModalDividirData {
+  grupo: GrupoHorario;
+  uac: CustomUacHorario;
+  horasTotalOriginal: number;
+  horasA: number;
+  horasB: number;
+  nombreA: string;
+  nombreB: string;
+  abrevA: string;
+  abrevB: string;
+}
+
+export interface ModalEditarNombreData {
+  grupo: GrupoHorario;
+  uac: CustomUacHorario;
+  nuevoNombre: string;
+  nuevaAbrev: string;
+}
+
+export interface ModalAgregarUacData {
+  grupo: GrupoHorario;
+  nombre: string;
+  abrev: string;
+  horas: number;
+  tipo: string;
+}
 
 export interface HorariosModalesProps {
   mostrarModalDocente: boolean;
@@ -13,10 +40,10 @@ export interface HorariosModalesProps {
   setTabModalDocente: (v: "PLATAFORMA" | "MANUAL" | "EXCEL") => void;
   busquedaPersonal: string;
   setBusquedaPersonal: (v: string) => void;
-  personalDisponibleModal: any[];
-  personalNoAgregado: any[];
-  personalPlataforma: any[];
-  handleAgregarPersonalExistente: (p: any) => void;
+  personalDisponibleModal: DocenteHorario[];
+  personalNoAgregado: DocenteHorario[];
+  personalPlataforma: DocenteHorario[];
+  handleAgregarPersonalExistente: (p: DocenteHorario) => void;
   nuevoDocenteNombre: string;
   setNuevoDocenteNombre: (v: string) => void;
   nuevoDocentePaterno: string;
@@ -35,8 +62,8 @@ export interface HorariosModalesProps {
   archivoExcelHorarios: File | null;
   setArchivoExcelHorarios: (f: File | null) => void;
   cargandoExcelHorarios: boolean;
-  docentesParseadosHorarios: any[];
-  setDocentesParseadosHorarios: React.Dispatch<React.SetStateAction<any[]>>;
+  docentesParseadosHorarios: DocenteImportado[];
+  setDocentesParseadosHorarios: React.Dispatch<React.SetStateAction<DocenteImportado[]>>;
   handleImportarExcelEnHorarios: () => void;
   mostrarModalMatrizExcel: boolean;
   setMostrarModalMatrizExcel: (v: boolean) => void;
@@ -45,21 +72,21 @@ export interface HorariosModalesProps {
   archivoMatrizExcel: File | null;
   setArchivoMatrizExcel: (f: File | null) => void;
   cargandoMatrizExcel: boolean;
-  resultadoParseoMatriz: any;
-  setResultadoParseoMatriz: (v: any) => void;
+  resultadoParseoMatriz: ResultadoParseoMatriz | null;
+  setResultadoParseoMatriz: (v: ResultadoParseoMatriz | null) => void;
   handleConfirmarImportacionMatriz: () => void;
-  modalDividir: any;
-  setModalDividir: (v: any) => void;
-  handleConfirmarDivisionUAC: (grupo: GrupoHorario, uac: any, hA: number, hB: number, nomA: string, nomB: string, abrA: string, abrB: string) => void;
-  modalEditarNombre: any;
-  setModalEditarNombre: (v: any) => void;
-  handleConfirmarRenombrarUAC: (grupoId: string, uacId: string, nuevoNombre: string, nuevaAbrev: string) => void;
-  modalAgregarUac: any;
-  setModalAgregarUac: (v: any) => void;
+  modalDividir: ModalDividirData | null;
+  setModalDividir: (v: ModalDividirData | null) => void;
+  handleConfirmarDivisionUAC: (grupo: GrupoHorario, uac: CustomUacHorario, hA: number, hB: number, nomA: string, nomB: string, abrA: string, abrB: string) => void;
+  modalEditarNombre: ModalEditarNombreData | null;
+  setModalEditarNombre: (v: ModalEditarNombreData | null) => void;
+  handleConfirmarRenombrarUAC: (grupo: GrupoHorario, uacId: string, nuevoNombre: string, nuevaAbrev: string) => void;
+  modalAgregarUac: ModalAgregarUacData | null;
+  setModalAgregarUac: (v: ModalAgregarUacData | null) => void;
   handleConfirmarAgregarUAC: (grupo: GrupoHorario, nombre: string, abrev: string, horas: number, tipo: string) => void;
   grupos: GrupoHorario[];
   periodoActivo: "A" | "B";
-  getUACsIndividualesGrupo: (g: GrupoHorario) => any[];
+  getUACsIndividualesGrupo: (g: GrupoHorario) => CustomUacHorario[];
   docentes: DocenteHorario[];
   loading: boolean;
 }
@@ -591,7 +618,7 @@ export default function HorariosModales({
                           </tr>
                         </thead>
                         <tbody>
-                          {resultadoParseoMatriz.cargas.map((c: any, i: number) => (
+                          {resultadoParseoMatriz.cargas.map((c: CargaImportada, i: number) => (
                             <tr key={i} style={{ borderBottom: "1px solid #334155", background: c.valido ? "transparent" : "rgba(245,158,11,0.08)" }}>
                               <td style={{ padding: "0.35rem 0.6rem", color: "#38bdf8", fontWeight: 800 }}>{c.grupoNombre}</td>
                               <td style={{ padding: "0.35rem 0.6rem", color: "#ffffff", fontWeight: 600 }}>{c.uacName}</td>
@@ -975,7 +1002,7 @@ export default function HorariosModales({
                 disabled={!modalEditarNombre.nuevoNombre.trim()}
                 onClick={() => handleConfirmarRenombrarUAC(
                   modalEditarNombre.grupo,
-                  modalEditarNombre.uac.id,
+                  modalEditarNombre.uac.id || "",
                   modalEditarNombre.nuevoNombre,
                   modalEditarNombre.nuevaAbrev
                 )}

@@ -3,7 +3,7 @@
 import React from "react";
 import { UserCheck, UserPlus, Download, FileSpreadsheet, AlertCircle, Trash2 } from "lucide-react";
 import { descargarPlantillaIntegralHorarios } from "@/lib/excel-matriz";
-import type { DocenteHorario, GrupoHorario } from "@/lib/horarios/types";
+import type { DocenteHorario, GrupoHorario, CustomUacHorario } from "@/lib/horarios/types";
 
 export interface HorariosPaso2DocentesProps {
   docentes: DocenteHorario[];
@@ -19,9 +19,9 @@ export interface HorariosPaso2DocentesProps {
   handleEliminarDocentePlantilla: (docenteId: string) => void;
   handleAvanzarPaso2: () => void;
   setPaso: (paso: number) => void;
-  grupos: GrupoHorario[];
+  grupos?: GrupoHorario[];
   periodoActivo: "A" | "B";
-  getUACsIndividualesGrupo: (grupo: GrupoHorario) => any[];
+  getUACsIndividualesGrupo: (grupo: GrupoHorario) => CustomUacHorario[];
 }
 
 export default function HorariosPaso2Docentes({
@@ -38,7 +38,6 @@ export default function HorariosPaso2Docentes({
   handleEliminarDocentePlantilla,
   handleAvanzarPaso2,
   setPaso,
-  grupos,
   periodoActivo,
   getUACsIndividualesGrupo,
 }: HorariosPaso2DocentesProps) {
@@ -65,7 +64,6 @@ export default function HorariosPaso2Docentes({
               <button
                 type="button"
                 onClick={() => {
-                  const gruposDelPeriodoActual = grupos.filter(g => (periodoActivo === "A" ? [1, 3, 5] : [2, 4, 6]).includes(g.semestre));
                   descargarPlantillaIntegralHorarios(gruposDelPeriodoActual, periodoActivo, getUACsIndividualesGrupo, docentes);
                 }}
                 title="Descargar libro de Excel unificado (Personal + Horarios)"

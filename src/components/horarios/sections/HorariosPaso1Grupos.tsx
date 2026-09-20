@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Users, Clock, ShieldCheck, Plus, Trash2, Layers } from "lucide-react";
-import type { GrupoHorario } from "@/lib/horarios/types";
+import type { GrupoHorario, CustomUacHorario } from "@/lib/horarios/types";
 import type { CarreraTecnica } from "@/lib/bt-carreras-catalog";
 import {
   FORMACIONES_LABORALES,
@@ -36,16 +36,16 @@ export interface HorariosPaso1GruposProps {
   setNumPeriodos: (v: number) => void;
   grupos: GrupoHorario[];
   carrerasTecnologicas: CarreraTecnica[];
-  handleActualizarConfigGrupo: (index: number, field: string, value: any) => void;
+  handleActualizarConfigGrupo: (index: number, field: string, value: string | number | boolean | null) => void;
   handleActualizarOptativaGrupo: (grupoIdx: number, optativaIdx: number, value: string) => void;
   modoConfiguracion: string;
   grupoActivoManual: string;
   setGrupoActivoManual: (v: string) => void;
-  curriculoManualPorGrupo: Record<string, any[]>;
+  curriculoManualPorGrupo: Record<string, CustomUacHorario[]>;
   handleAgregarMateriaManual: (sem: number, grupoLetra: string) => void;
-  handleActualizarMateriaManual: (sem: number, grupoLetra: string, index: number, field: string, value: any) => void;
+  handleActualizarMateriaManual: (sem: number, grupoLetra: string, index: number, field: string, value: string | number) => void;
   handleEliminarMateriaManual: (sem: number, grupoLetra: string, index: number) => void;
-  normalizarNombreGrupo: (g: any) => string;
+  normalizarNombreGrupo: (nombre: string) => string;
   handleAvanzarPaso1: () => void;
 }
 
@@ -388,7 +388,7 @@ export default function HorariosPaso1Grupos({
                   ]
                 ).map(({ sem, label }) => {
                   const key = `${sem}_${grupoActivoManual}`;
-                  const lista: any[] = curriculoManualPorGrupo[key] || [];
+                  const lista: CustomUacHorario[] = curriculoManualPorGrupo[key] || [];
                   return (
                     <div key={sem} style={{ background: "#0f172a", border: "1px solid #334155", borderRadius: "12px", padding: "1rem", boxShadow: "0 4px 12px rgba(0,0,0,0.2)" }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #334155", paddingBottom: "0.5rem", marginBottom: "0.75rem" }}>
@@ -401,12 +401,12 @@ export default function HorariosPaso1Grupos({
                           )}
                         </span>
                         <span style={{ fontSize: "0.6875rem", fontWeight: 800, background: "#1e293b", color: "#fbbf24", border: "1px solid #f59e0b", padding: "0.25rem 0.5rem", borderRadius: "6px", whiteSpace: "nowrap" }}>
-                          {lista.reduce((sum: number, m: any) => sum + Number(m.horasSemanales || 0), 0)} hrs/sem
+                          {lista.reduce((sum: number, m: CustomUacHorario) => sum + Number(m.horasSemanales || 0), 0)} hrs/sem
                         </span>
                       </div>
 
                       <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
-                        {lista.map((m: any, mIdx: number) => (
+                        {lista.map((m: CustomUacHorario, mIdx: number) => (
                           <div key={m.id || mIdx} style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
                             <input
                               type="text"
@@ -602,7 +602,7 @@ export default function HorariosPaso1Grupos({
                                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.35rem" }}>
                                       {[0, 1, 2, 3].map((optIdx) => {
                                         const valorActual = g.ffeOptativas?.[optIdx] || FFE_OPTATIVAS_CATALOGO[optIdx] || FFE_OPTATIVAS_CATALOGO[0];
-                                        const otrasSeleccionadas = (g.ffeOptativas || []).filter((_: any, i: number) => i !== optIdx);
+                                        const otrasSeleccionadas = (g.ffeOptativas || []).filter((_: string, i: number) => i !== optIdx);
 
                                         return (
                                           <div key={optIdx}>

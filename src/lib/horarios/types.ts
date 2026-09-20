@@ -52,7 +52,10 @@ export interface CustomUacHorario {
   horas?: number;
   tipo: string;
   esDividida?: boolean;
+  esPersonalizada?: boolean;
   capNombre?: string;
+  abrev?: string;
+  [key: string]: unknown;
 }
 
 export interface DocenteHorario {
@@ -68,6 +71,7 @@ export interface DocenteHorario {
   horasMaximasSemana?: number;
   horasContratadas?: number;
   horasAsignadas?: number;
+  horas_base?: number;
   diasNoDisponibles?: number[];
   diasIndisponibles?: number[];
   horasBloqueadas?: { dia: number; periodo: number }[];

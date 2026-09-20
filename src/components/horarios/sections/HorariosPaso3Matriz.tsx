@@ -2,8 +2,8 @@
 
 import React from "react";
 import { BookOpen, AlertTriangle, FileSpreadsheet, Download } from "lucide-react";
-import { descargarPlantillaMatrizDocente, descargarPlantillaIntegralHorarios } from "@/lib/excel-matriz";
-import type { DocenteHorario, GrupoHorario, CargaHoraria } from "@/lib/horarios/types";
+import { descargarPlantillaIntegralHorarios } from "@/lib/excel-matriz";
+import type { DocenteHorario, GrupoHorario, CustomUacHorario } from "@/lib/horarios/types";
 import type { CarreraTecnica } from "@/lib/bt-carreras-catalog";
 
 export interface HorariosPaso3MatrizProps {
@@ -15,16 +15,16 @@ export interface HorariosPaso3MatrizProps {
   esTecnologico: boolean;
   abrirModalAgregarUac: (grupo: GrupoHorario) => void;
   handleRestaurarUACsOficiales: (grupo: GrupoHorario) => void;
-  getUACsIndividualesGrupo: (grupo: GrupoHorario) => any[];
-  getCustomUacsDeGrupo: (grupo: GrupoHorario) => any[] | null;
-  getDocenteAsignado: (grupoId: string, uac: any) => string;
-  handleAsignarDocenteMatriz: (grupoId: string, uac: any, docenteId: string) => void;
+  getUACsIndividualesGrupo: (grupo: GrupoHorario) => CustomUacHorario[];
+  getCustomUacsDeGrupo: (grupo: GrupoHorario) => CustomUacHorario[] | null;
+  getDocenteAsignado: (grupoId: string, uac: CustomUacHorario) => string;
+  handleAsignarDocenteMatriz: (grupoId: string, uac: CustomUacHorario, docenteId: string) => void;
   docentesAptosParaHorario: DocenteHorario[];
   getHorasConsumidasDocente: (docenteId: string, excludeGrupoId?: string, excludeUacId?: string) => number;
   horasDocentes: Record<string, number>;
   handleCambiarHorasUAC: (grupo: GrupoHorario, uacId: string, nuevasHoras: number) => void;
-  abrirModalDividir: (grupo: GrupoHorario, uac: any) => void;
-  abrirModalEditarNombre: (grupo: GrupoHorario, uac: any) => void;
+  abrirModalDividir: (grupo: GrupoHorario, uac: CustomUacHorario) => void;
+  abrirModalEditarNombre: (grupo: GrupoHorario, uac: CustomUacHorario) => void;
   handleEliminarUAC: (grupo: GrupoHorario, uacId: string) => void;
   setPaso: (paso: number) => void;
   loading: boolean;
@@ -78,7 +78,6 @@ export default function HorariosPaso3Matriz({
               <button
                 type="button"
                 onClick={() => {
-                  const gruposDelPeriodoActual = grupos.filter(g => (periodoActivo === "A" ? [1, 3, 5] : [2, 4, 6]).includes(g.semestre));
                   descargarPlantillaIntegralHorarios(gruposDelPeriodoActual, periodoActivo, getUACsIndividualesGrupo, docentes);
                 }}
                 title="Descargar libro de Excel unificado (Personal + Horarios)"
@@ -311,7 +310,7 @@ export default function HorariosPaso3Matriz({
                                         onChange={(e) => {
                                           const val = parseInt(e.target.value, 10);
                                           if (!isNaN(val)) {
-                                            handleCambiarHorasUAC(g, uac.id, val);
+                                            handleCambiarHorasUAC(g, uac.id || '', val);
                                           }
                                         }}
                                         style={{
@@ -385,7 +384,7 @@ export default function HorariosPaso3Matriz({
                                       </button>
                                       <button
                                         type="button"
-                                        onClick={() => handleEliminarUAC(g, uac.id)}
+                                        onClick={() => handleEliminarUAC(g, uac.id || '')}
                                         title="Eliminar asignatura del grupo"
                                         style={{
                                           background: "rgba(239, 68, 68, 0.12)",
