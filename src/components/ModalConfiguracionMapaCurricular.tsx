@@ -19,6 +19,7 @@ import {
   MapaCurricularFooter,
   type GrupoConfigItem,
 } from "./mapa-curricular";
+import ModalConfiguracionMapaCurricularLegacy from "./mapa-curricular/ModalConfiguracionMapaCurricularLegacy";
 
 export type { GrupoConfigItem };
 
@@ -42,7 +43,7 @@ interface Props {
   isAdmin?: boolean;
 }
 
-export default function ModalConfiguracionMapaCurricular({
+function ModalConfiguracionMapaCurricularModular({
   escuela,
   subsystem,
   gruposIniciales = [],
@@ -532,4 +533,11 @@ export default function ModalConfiguracionMapaCurricular({
       </div>
     </div>
   );
+}
+
+export default function ModalConfiguracionMapaCurricular(props: Props) {
+  if (process.env.NEXT_PUBLIC_FF_NEW_MAPA_MODAL === 'false') {
+    return <ModalConfiguracionMapaCurricularLegacy {...props} />;
+  }
+  return <ModalConfiguracionMapaCurricularModular {...props} />;
 }
