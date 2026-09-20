@@ -10,7 +10,40 @@ import type { SecuenciaBloque, SecuenciaSesion } from '@/types/planning';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-// ── GET: Obtener secuencia didáctica de la planeación ────────────────────────
+/**
+ * @openapi
+ * /api/planeaciones/{id}/secuencia:
+ *   get:
+ *     summary: Obtener la secuencia didáctica micro de una planeación
+ *     description: Retorna el mapa completo de secuencias didácticas micro por bloque (sequence_json) asociadas a la planeación.
+ *     tags:
+ *       - Secuencia Didáctica
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         description: UUID único de la planeación docente
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Secuencia didáctica obtenida exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 sequence:
+ *                   type: object
+ *                   description: Diccionario indexado por número de bloque con sus sesiones didácticas
+ *       401:
+ *         description: No autorizado (sesión no válida)
+ *       404:
+ *         description: Planeación no encontrada
+ *       500:
+ *         description: Error interno al obtener secuencia
+ */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -42,7 +75,68 @@ export async function GET(
   }
 }
 
-// ── POST: Generar secuencia didáctica para un bloque con IA ───────────────────
+/**
+ * @openapi
+ * /api/planeaciones/{id}/secuencia:
+ *   post:
+ *     summary: Generar con IA la secuencia didáctica micro para un bloque
+ *     description: Desglosa operativamente un bloque curricular en sesiones de clase de 50 minutos siguiendo la metodología activa seleccionada y los momentos pedagógicos (Apertura, Desarrollo, Cierre).
+ *     tags:
+ *       - Secuencia Didáctica
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         description: UUID único de la planeación docente
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - blockIndex
+ *             properties:
+ *               blockIndex:
+ *                 type: integer
+ *                 description: Índice base 0 del bloque/actividad en la planeación
+ *               totalHours:
+ *                 type: integer
+ *                 description: Número opcional de horas pedagógicas a generar (1 hora = 1 sesión de 50 min)
+ *     responses:
+ *       200:
+ *         description: Secuencia micro generada exitosamente y persistida en BD
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 blockIndex:
+ *                   type: integer
+ *                 sequence:
+ *                   type: object
+ *                 fullSequence:
+ *                   type: object
+ *                 attempts:
+ *                   type: integer
+ *                 warnings:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *       400:
+ *         description: Parámetros inválidos (ej. blockIndex faltante)
+ *       401:
+ *         description: No autorizado
+ *       404:
+ *         description: Planeación o bloque no encontrado
+ *       500:
+ *         description: Error en generación o validación con IA
+ */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -274,7 +368,65 @@ Genera la secuencia didáctica completa de exactamente ${sessionsCount} sesiones
   }
 }
 
-// ── PUT: Guardar edición manual de sesiones de un bloque ──────────────────────
+/**
+ * @openapi
+ * /api/planeaciones/{id}/secuencia:
+ *   put:
+ *     summary: Guardar edición manual de sesiones de un bloque en la secuencia
+ *     description: Permite al docente persistir modificaciones directas a las sesiones didácticas de un bloque curricular previamente generado.
+ *     tags:
+ *       - Secuencia Didáctica
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         description: UUID único de la planeación docente
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - blockIndex
+ *               - sessions
+ *             properties:
+ *               blockIndex:
+ *                 type: integer
+ *                 description: Índice base 0 del bloque editado
+ *               sessions:
+ *                 type: array
+ *                 description: Lista actualizada de sesiones didácticas del bloque
+ *                 items:
+ *                   type: object
+ *     responses:
+ *       200:
+ *         description: Cambios persistidos exitosamente en la columna sequence_json
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 blockIndex:
+ *                   type: integer
+ *                 sequence:
+ *                   type: object
+ *                 fullSequence:
+ *                   type: object
+ *       400:
+ *         description: Parámetros inválidos (blockIndex o sessions faltantes/no array)
+ *       401:
+ *         description: No autorizado
+ *       404:
+ *         description: Planeación no encontrada
+ *       500:
+ *         description: Error al guardar cambios en BD
+ */
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
