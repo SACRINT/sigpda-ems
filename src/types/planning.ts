@@ -192,6 +192,7 @@ export interface GeneratedPlanningContent {
     totalHoursWeekly?: number;
     totalHoursSemester?: number;
     paecOperationalActivity?: PaecOperationalActivity | null;
+    metodologiaActiva?: string;
   };
   // Section II - Curricular Intent
   sectionII: {

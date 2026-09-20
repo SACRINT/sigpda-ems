@@ -28,8 +28,17 @@ export async function GET(
       return NextResponse.json({ error: 'La planeación aún no ha sido generada' }, { status: 400 });
     }
 
-    const content = planning.content_json as GeneratedPlanningContent;
-    const sequenceJson = (planning as any).sequence_json || null;
+    const raw = planning as unknown as {
+      content_json: GeneratedPlanningContent | null;
+      metodologia_activa?: string | null;
+      sequence_json?: Record<number, { blockIndex: number; blockName: string; hours: number; sessions: { sessionNum: number; totalSessions: number; phase: string; title: string; teachingActivity: string; learningActivity: string; evidence: string; evaluation?: string }[] }> | null;
+    };
+
+    const content = raw.content_json as GeneratedPlanningContent;
+    if (raw.metodologia_activa && !content.sectionI.metodologiaActiva) {
+      content.sectionI.metodologiaActiva = raw.metodologia_activa;
+    }
+    const sequenceJson = raw.sequence_json || null;
     const docxBuffer = await generateSecuenciaDocx(content, sequenceJson);
 
     await markPlanningDownloaded(id, teacher.id);

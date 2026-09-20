@@ -7,6 +7,7 @@ import type { GeneratedPlanningContent } from '@/types/planning';
 import { SCHOOL_YEAR } from '@/lib/config';
 import { PHASE_COLORS_HEX } from '@/lib/visual-engine/design-tokens';
 import { bdr } from '@/lib/docx-helpers';
+import { formatearBadgeMetodologia } from '@/lib/catalogo-metodologias';
 
 // ── Color palette (DBEPA institutional) ─────────────────────────────────────────────
 const C = {
@@ -167,6 +168,7 @@ function buildCover(content: GeneratedPlanningContent): (Paragraph | Table)[] {
       new TableRow({ children: [tcL('Carga Horaria:', { w: cL }), tc(`${s1.totalHours} horas`, { w: cR })] }),
       new TableRow({ children: [tcL('Subsistema:', { w: cL }), tc(s1.subsystem, { w: cR, fill: C.alt })] }),
       new TableRow({ children: [tcL('Marco de Referencia:', { w: cL }), tc(`NEM · MCCEMS · Lineamientos DBEPA ${SCHOOL_YEAR}`, { w: cR })] }),
+      new TableRow({ children: [tcL('Metodología Activa:', { w: cL }), tc(formatearBadgeMetodologia(s1.metodologiaActiva || content.sectionIV?.activities?.[0]?.methodology), { w: cR, fill: C.alt })] }),
     ], [cL, cR]),
     pb(),
   ];
@@ -319,7 +321,9 @@ function buildSectionIV(content: GeneratedPlanningContent, sequenceJson?: Record
     sp(),
   ];
   content.sectionIV.activities.forEach((activity, i) => {
-    elements.push(subH(`▶ ${label} ${i + 1}: ${activity.name} (${activity.hours} horas)`));
+    const blockMet = activity.methodology || content.sectionI.metodologiaActiva;
+    const badge = formatearBadgeMetodologia(blockMet);
+    elements.push(subH(`▶ ${label} ${i + 1}: ${activity.name} (${activity.hours} horas) · ${badge}`));
     elements.push(buildActivityTable(activity, isLaboral));
     elements.push(sp());
 
@@ -337,7 +341,7 @@ function buildSectionIV(content: GeneratedPlanningContent, sequenceJson?: Record
         Conclusion: C.conclusion,
       };
       const sessRows: TableRow[] = [
-        new TableRow({ children: [tcH(`Sesiones de 50 minutos — ${blockSeq.sessions.length} sesiones totales`, { w: CONTENT, span: 4, align: AlignmentType.CENTER, size: 17 })] }),
+        new TableRow({ children: [tcH(`Sesiones de 50 minutos — ${blockSeq.sessions.length} sesiones totales · ${badge}`, { w: CONTENT, span: 4, align: AlignmentType.CENTER, size: 17 })] }),
         new TableRow({ children: [tcM('Sesión', { w: sc[0], align: AlignmentType.CENTER }), tcM('Título / Tema', { w: sc[1] }), tcM('Actividad del Docente', { w: sc[2] }), tcM('Actividad del Estudiante / Evidencia', { w: sc[3] })] }),
         ...blockSeq.sessions.map((s, si) => new TableRow({ children: [
           new TableCell({ width: { size: sc[0], type: WidthType.DXA }, shading: { fill: si % 2 === 0 ? C.white : C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, verticalAlign: VerticalAlign.CENTER, children: [
@@ -543,7 +547,7 @@ export async function generateSecuenciaDocx(
       },
       children: [
         secHeading('SECUENCIA DIDÁCTICA OFICIAL (ESLABÓN MICRO)'),
-        noteP('Desglose de sesiones de 50 minutos con momentos pedagógicos (Apertura, Desarrollo y Cierre) conforme al Marco Curricular Común de la EMS (MCCEMS NEM).'),
+        noteP(`Desglose de sesiones de 50 minutos con momentos pedagógicos (Apertura, Desarrollo y Cierre) conforme al Marco Curricular Común de la EMS (MCCEMS NEM). ${formatearBadgeMetodologia(content.sectionI.metodologiaActiva || content.sectionIV?.activities?.[0]?.methodology)}`),
         sp(),
         ...buildSectionI(content),
         sp(),

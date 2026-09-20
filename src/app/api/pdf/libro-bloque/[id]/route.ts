@@ -67,6 +67,7 @@ export async function GET(
       paecContext: rawPlanning.paec_context || '',
       extractedData: rawPlanning.extracted_data,
       contentJson: rawPlanning.content_json,
+      metodologiaActiva: rawPlanning.metodologia_activa || rawPlanning.content_json?.sectionI?.metodologiaActiva,
       status: rawPlanning.status,
       createdAt: rawPlanning.created_at,
       updatedAt: rawPlanning.updated_at,
@@ -84,10 +85,11 @@ export async function GET(
         'Cache-Control': 'no-cache',
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Error al descargar el libro PDF';
     logger.error('[GET /api/pdf/libro-bloque/[id]] Error:', error);
     return NextResponse.json(
-      { error: error.message || 'Error al descargar el libro PDF' },
+      { error: message },
       { status: 500 }
     );
   }

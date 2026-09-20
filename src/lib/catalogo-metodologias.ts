@@ -276,3 +276,37 @@ export function obtenerMetodologiasPorArea(area: string): MetodologiaActiva[] {
     m.asignaturasRecomendadas.some(a => a.toLowerCase().includes(areaNorm) || areaNorm.includes(a.toLowerCase()))
   );
 }
+
+/**
+ * Formatea un badge visual estandarizado de metodología activa para carátulas y tablas oficiales.
+ * Ejemplo: '[Metodología: ABProblemas]' o '[Metodología: Indagación (ABI)]'.
+ */
+export function formatearBadgeMetodologia(met?: string | null): string {
+  if (!met) return '[Metodología: Activa]';
+  const clean = met.trim();
+  const cleanLower = clean.toLowerCase();
+
+  // 1. Coincidencia directa por id (ej: 'abproblemas', 'indagacion', 'abp')
+  const byId = obtenerMetodologiaPorId(cleanLower);
+  if (byId) return `[Metodología: ${byId.nombreCorto}]`;
+
+  // 2. Coincidencia exacta por nombre completo o nombreCorto
+  const byName = CATALOGO_METODOLOGIAS_ACTIVAS.find(
+    (m) =>
+      m.nombre.toLowerCase() === cleanLower ||
+      m.nombreCorto.toLowerCase() === cleanLower
+  );
+  if (byName) return `[Metodología: ${byName.nombreCorto}]`;
+
+  // 3. Coincidencia contextual con delimitadores de palabra o paréntesis (previene falsos positivos como 'abp' en 'abproblemas')
+  const byContext = CATALOGO_METODOLOGIAS_ACTIVAS.find(
+    (m) =>
+      cleanLower.includes(m.nombre.toLowerCase()) ||
+      new RegExp(`\\b${m.id}\\b`, 'i').test(clean) ||
+      new RegExp(`\\(${m.nombreCorto.replace(/[/\\^$*+?.()|[\]{}]/g, '\\$&')}\\)`, 'i').test(clean)
+  );
+
+  const etiqueta = byContext ? byContext.nombreCorto : clean;
+  return `[Metodología: ${etiqueta}]`;
+}
+

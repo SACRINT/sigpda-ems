@@ -45,6 +45,7 @@ import { extractComparisonTable, type ComparisonTableData } from '@/lib/visual-e
 import crypto from 'crypto';
 import QRCode from 'qrcode';
 import { getVerificationUrl } from '@/lib/digital-signature';
+import { formatearBadgeMetodologia } from '@/lib/catalogo-metodologias';
 import {
   extractGlossaryTerms,
   stripMarkdown,
@@ -274,10 +275,17 @@ export async function renderWorkbookToPdf(
       }
     }
 
+    const rawMet =
+      (workbook as unknown as { methodology?: string }).methodology ||
+      planning?.metodologiaActiva ||
+      planning?.contentJson?.sectionI?.metodologiaActiva ||
+      planning?.contentJson?.sectionIV?.activities?.[workbook.blockIndex]?.methodology;
+    const metBadge = formatearBadgeMetodologia(rawMet);
+
     // Si no hay clave FLUX, falló, o es fallback determinista: dibujar portada vectorial nativa en jsPDF
     // garantizando diseño V7 dark-institutional completo y CERO glifos tofu en Linux/Vercel serverless.
     if (!coverRendered) {
-      drawCoverPage(doc, workbook, logos, pageWidth, pageHeight, margin);
+      drawCoverPage(doc, workbook, logos, pageWidth, pageHeight, margin, metBadge);
     }
   }
 
@@ -514,7 +522,8 @@ function drawCoverPage(
   logos: { gobierno?: string; sep?: string; supervision?: string },
   pageWidth: number,
   pageHeight: number,
-  margin: number
+  margin: number,
+  metBadge: string = '[Metodología: Activa]'
 ) {
   const contentWidth = pageWidth - margin * 2;
 
@@ -604,16 +613,26 @@ function drawCoverPage(
   doc.setFillColor(31, 56, 100);
   doc.setDrawColor(46, 116, 181);
   doc.setLineWidth(0.2);
-  doc.roundedRect(margin + 6, 56, 62, 5.5, 1.2, 1.2, 'FD');
+  doc.roundedRect(margin + 6, 56, 52, 5.5, 1.2, 1.2, 'FD');
   setFontHeading(doc);
-  doc.setFontSize(6.2);
+  doc.setFontSize(5.8);
   doc.setTextColor(246, 201, 14);
-  doc.text('NUEVA ESCUELA MEXICANA (NEM)', margin + 37, 59.8, { align: 'center' });
+  doc.text('NUEVA ESCUELA MEXICANA (NEM)', margin + 32, 59.8, { align: 'center' });
+
+  // Badge Metodología Activa Oficial
+  doc.setFillColor(15, 35, 65);
+  doc.setDrawColor(56, 189, 248);
+  doc.setLineWidth(0.2);
+  doc.roundedRect(margin + 61, 56, 68, 5.5, 1.2, 1.2, 'FD');
+  setFontHeading(doc);
+  doc.setFontSize(5.8);
+  doc.setTextColor(56, 189, 248);
+  doc.text(metBadge, margin + 61 + 34, 59.8, { align: 'center' });
 
   setFontHeading(doc);
-  doc.setFontSize(6.2);
+  doc.setFontSize(5.8);
   doc.setTextColor(203, 213, 225);
-  doc.text('RECURSO SOCIOCOGNITIVO / SOCIOEMOCIONAL', margin + 73, 59.8);
+  doc.text('RECURSO SOCIOCOGNITIVO', margin + 132, 59.8);
 
   // Título Principal UAC con auto-escalado
   const rawTitle = (workbook.coverData?.subjectName || workbook.blockName || 'CUADERNO DE APRENDIZAJE ACTIVO').toUpperCase();
@@ -647,7 +666,7 @@ function drawCoverPage(
   setFontHeading(doc);
   doc.setFontSize(6.5);
   doc.setTextColor(232, 160, 32);
-  doc.text('ORGANIZACIÓN CURRICULAR POR PROGRESIONES', margin + 12, yBlock + 5);
+  doc.text(`ORGANIZACIÓN CURRICULAR POR PROGRESIONES   ·   ${metBadge}`, margin + 12, yBlock + 5);
 
   const blockTitle = workbook.blockName
     ? ((workbook.blockIndex !== undefined ? `BLOQUE ${workbook.blockIndex + 1}: ` : '') + workbook.blockName)
@@ -1455,6 +1474,13 @@ function drawPlantelComunidadPage(
   const paecProblem = typeof coverExtra?.paecProblem === 'string' ? coverExtra.paecProblem : undefined;
   const paecChallenge = sanitizePdfText(stripMarkdown(workbook.projectSection?.communityUtility || paecProblem || planning?.paecContext || 'Atención prioritaria al desarrollo comunitario y sustentabilidad local.'));
 
+  const rawMet =
+    (workbook as unknown as { methodology?: string }).methodology ||
+    planning?.metodologiaActiva ||
+    planning?.contentJson?.sectionI?.metodologiaActiva ||
+    planning?.contentJson?.sectionIV?.activities?.[workbook.blockIndex]?.methodology;
+  const metBadge = formatearBadgeMetodologia(rawMet);
+
   // Tabla 1: Ficha Institucional
   autoTable(doc, {
     startY: y,
@@ -1468,6 +1494,7 @@ function drawPlantelComunidadPage(
       ['Unidad de Aprendizaje Curricular (UAC):', subjectName],
       ['Semestre y Ciclo Escolar:', `${semesterStr} · Ciclo Escolar ${SCHOOL_YEAR}`],
       ['Docente Titular / Responsable de Asignatura:', teacherName],
+      ['Metodología Activa:', metBadge],
     ],
     theme: 'grid',
     headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
