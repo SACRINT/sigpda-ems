@@ -1,0 +1,9 @@
+export { default as PaecStep1Diagnostico } from './PaecStep1Diagnostico';
+export { default as PaecStep2Justificacion } from './PaecStep2Justificacion';
+export { default as PaecStep3Mapeo } from './PaecStep3Mapeo';
+export { default as PaecStep4Cronograma } from './PaecStep4Cronograma';
+export { default as PaecStep5DetalleCurricular } from './PaecStep5DetalleCurricular';
+export { default as PaecStep6PlanOpA } from './PaecStep6PlanOpA';
+export { default as PaecStep7PlanOpB } from './PaecStep7PlanOpB';
+export { default as PaecStep8Implementacion } from './PaecStep8Implementacion';
+export { default as PaecStep9GobernanzaSupervision } from './PaecStep9GobernanzaSupervision';
