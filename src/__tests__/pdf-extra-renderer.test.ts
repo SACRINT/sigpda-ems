@@ -3,8 +3,10 @@ import jsPDF from 'jspdf';
 import {
   renderFormattedBlock,
   renderExtraDocument,
+  generateExtraPdfDocument,
   type ExtraInput,
 } from '@/lib/pdf-extra-renderer';
+import { areEditorialFontsLoaded } from '@/lib/visual-engine/font-loader';
 
 describe('Fase 2 — pdf-extra-renderer.ts (Motor Visual Unificado)', () => {
   it('renderFormattedBlock divide por palabras y respeta el ancho máximo sin desbordar', () => {
@@ -61,5 +63,29 @@ Los estudiantes en parejas resuelven el problema de costos en GeoGebra.
     expect(doc.getNumberOfPages()).toBeGreaterThanOrEqual(1);
     const buffer = doc.output('arraybuffer');
     expect(buffer.byteLength).toBeGreaterThan(2000);
+  });
+
+  it('generateExtraPdfDocument inicializa fuentes editoriales automáticamente y compila sin pasar por la fachada', () => {
+    const extra: ExtraInput = {
+      id: 'test-direct-renderer',
+      title: 'Rúbrica de Pensamiento Matemático',
+      type: 'rubric',
+      content_text: `
+| Criterio | Sobresaliente | Suficiente |
+| --- | --- | --- |
+| Planteamiento | Modela variables con precisión | Identifica datos básicos |
+      `.trim(),
+    };
+
+    const doc = generateExtraPdfDocument(extra, {
+      schoolName: 'Bachillerato Digital Núm. 10',
+      cycle: '2026-2027',
+    });
+
+    expect(doc).toBeDefined();
+    expect(areEditorialFontsLoaded(doc)).toBe(true);
+    expect(doc.internal.pageSize.getWidth()).toBeGreaterThan(doc.internal.pageSize.getHeight()); // Landscape para rubric
+    const buffer = doc.output('arraybuffer');
+    expect(buffer.byteLength).toBeGreaterThan(5000);
   });
 });
