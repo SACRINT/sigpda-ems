@@ -20,13 +20,82 @@ def strip_accents(text):
     if not text: return ""
     return ''.join(c for c in unicodedata.normalize('NFD', text) if unicodedata.category(c) != 'Mn')
 
+def remove_line_hyphens(text):
+    """Une palabras partidas por salto de línea SIN romper guiones compuestos.
+    Nota: En el contexto SEP MCCEMS no existen palabras compuestas con guión legítimo."""
+    if not text: return ""
+    text = text.replace("\u00ad", "")  # Soft hyphen
+    return re.sub(r'([a-zA-ZáéíóúñÁÉÍÓÚÑ]+)-\s*[\r\n]+\s*([a-zA-ZáéíóúñÁÉÍÓÚÑ]+)', r'\1\2', text)
+
 def clean(t):
     if not t: return ""
+    t = remove_line_hyphens(t)
     t = t.replace("\xa0", " ").replace("\r\n", " ").replace("\n", " ")
     return re.sub(r"\s+", " ", t).strip()
 
 def normalize_key(t):
     return strip_accents(clean(t)).lower()
+
+EVIDENCE_MAP = {
+    "pensamiento matematico": [
+        "Problemario contextualizado con modelación algebraica y justificación procedimental",
+        "Reporte de investigación aplicada y análisis gráfico de datos reales",
+        "Proyecto de modelación matemática para la resolución de situaciones del entorno",
+        "Portafolio de evidencias de razonamiento lógico y cuantitativo"
+    ],
+    "ciencias naturales": [
+        "Reporte de práctica experimental de laboratorio y campo",
+        "Proyecto de investigación científica escolar sobre problemáticas ambientales",
+        "Infografía explicativa de fenómenos biológicos, químicos y físicos",
+        "Plan de acción comunitaria para la sustentabilidad y cuidado del entorno"
+    ],
+    "ciencias sociales": [
+        "Ensayo argumentativo sobre problemáticas socioeconómicas regionales",
+        "Debate y análisis crítico de fenómenos sociopolíticos y ciudadanía",
+        "Cartografía social comunitaria e informe de investigación de campo",
+        "Propuesta de intervención social con enfoque de derechos humanos y justicia"
+    ],
+    "conciencia historica": [
+        "Línea de tiempo analítica y crítica de procesos de transformación histórica",
+        "Ensayo de interpretación histórica basado en fuentes primarias y secundarias",
+        "Investigación sobre memoria colectiva, patrimonio e identidad local",
+        "Exposición temática sobre coyunturas y procesos históricos de México"
+    ],
+    "cultura digital": [
+        "Solución algorítmica y prototipo computacional funcional",
+        "Proyecto de ciudadanía digital, ciberseguridad y uso ético de la información",
+        "Desarrollo de producto multimedia colaborativo en entornos virtuales",
+        "Portafolio digital de aplicaciones y herramientas ofimáticas avanzadas"
+    ],
+    "lengua y comunicacion": [
+        "Reseña crítica y texto argumentativo de composición propia",
+        "Podcast, debate o exposición oral de divulgación académica",
+        "Antología comentada de textos literarios y composiciones creativas",
+        "Proyecto de comunicación asertiva y redacción formal"
+    ],
+    "ingles": [
+        "Diálogo oral estructurado y dramatización en situaciones cotidianas (Speaking)",
+        "Compilador de textos breves descriptivos y narrativos en inglés (Writing)",
+        "Bitácora de comprensión auditiva de materiales auténticos (Listening)",
+        "Portafolio de lectura comprensiva y análisis de textos en lengua extranjera (Reading)"
+    ],
+    "humanidades": [
+        "Disertación filosófica sobre dilemas éticos y existenciales contemporáneos",
+        "Diálogo socrático y análisis crítico de textos humanísticos y filosóficos",
+        "Bitácora reflexiva sobre el sentido de la experiencia humana y la alteridad",
+        "Manifiesto ético-comunitario fundamentado en la convivencia democrática"
+    ]
+}
+
+def get_contextual_evidences(uac_name, topic=""):
+    combined = strip_accents(f"{uac_name} {topic}").lower()
+    for key, evs in EVIDENCE_MAP.items():
+        if key in combined:
+            return evs
+    return [
+        f"Proyecto formativo integrador de {uac_name}",
+        "Portafolio de evidencias y rúbrica de evaluación formativa"
+    ]
 
 SEMESTER_MAP = {
     "primer": 1, "primero": 1, "1er": 1, "1°": 1, "1º": 1, "1": 1,
@@ -157,9 +226,16 @@ def extract_fundamental_books():
             p1 = doc[target_page]
             p2 = doc[target_page + 1] if target_page + 1 < len(doc) else None
 
-            # Meta educativa auténtica
-            comb_text = (doc[target_page-1].get_text() if target_page > 0 else "") + p1.get_text()
-            meta_m = re.search(r'Meta educativa(?:\s+de la UAC)?\s*[:\s]*([\s\S]+?)(?:Primer|Segundo|Tercer|Cuarto|Quinto|Sexto|Horas/semana|Propósitos formativos|Tabla\s+\d+)', comb_text, re.I)
+            # Meta educativa auténtica: buscar dentro de la tabla del semestre (después de "Tabla \d+")
+            p1_text = p1.get_text()
+            table_split = re.split(r'Tabla\s+\d+', p1_text, flags=re.I)
+            table_text = table_split[-1] if len(table_split) > 1 else p1_text
+            meta_m = re.search(r'Meta educativa(?:\s+de la UAC)?\s*[:\s]*([\s\S]+?)(?:Primer|Segundo|Tercer|Cuarto|Quinto|Sexto|Horas/semana|Propósitos formativos|Tabla\s+\d+)', table_text, re.I)
+            if not meta_m:
+                meta_m = re.search(r'Meta educativa(?:\s+de la UAC)?\s*[:\s]*([\s\S]+?)(?:Primer|Segundo|Tercer|Cuarto|Quinto|Sexto|Horas/semana|Propósitos formativos|Tabla\s+\d+)', p1_text, re.I)
+            if not meta_m and target_page > 0:
+                comb_text = doc[target_page-1].get_text() + p1_text
+                meta_m = re.search(r'Meta educativa(?:\s+de la UAC)?\s*[:\s]*([\s\S]+?)(?:Primer|Segundo|Tercer|Cuarto|Quinto|Sexto|Horas/semana|Propósitos formativos|Tabla\s+\d+)', comb_text, re.I)
             meta_educativa = clean(meta_m.group(1)) if meta_m else None
             if meta_educativa and len(meta_educativa) > 350:
                 meta_educativa = meta_educativa[:350].rsplit('.', 1)[0] + '.'
@@ -197,11 +273,13 @@ def extract_fundamental_books():
                 elif parsed_items:
                     parsed_items[-1]['prop'] += " " + clean(text)
 
-            for lg in parsed_items:
-                for ry, rtext in conts:
-                    if abs(ry - lg['y']) < 140 or (lg['y'] < 1000 and ry < 1000 and abs(ry - lg['y']) < 160) or (lg['y'] >= 1000 and ry >= 1000 and abs(ry - lg['y']) < 160):
-                        lines = [clean(l) for l in rtext.split('\n') if len(clean(l)) > 2]
-                        lg['conts'].extend(lines)
+            # Voronoi 1D / Nearest-Neighbor: asignar cada bloque de contenidos al propósito más cercano en la misma página
+            for ry, rtext in conts:
+                same_page_props = [lg for lg in parsed_items if (lg['y'] < 1000) == (ry < 1000)]
+                closest_lg = min(same_page_props, key=lambda lg: abs(lg['y'] - ry)) if same_page_props else (min(parsed_items, key=lambda lg: abs(lg['y'] - ry)) if parsed_items else None)
+                if closest_lg:
+                    lines = [clean(l) for l in rtext.split('\n') if len(clean(l)) > 2]
+                    closest_lg['conts'].extend(lines)
 
             m_uac = get_master_uac(uac_name, sem)
             final_hrs = m_uac['total_hours'] if m_uac and 'total_hours' in m_uac else default_hrs
@@ -226,10 +304,7 @@ def extract_fundamental_books():
                     "contenidos": unique_conts if unique_conts else [p['prop']]
                 })
 
-            evidences = [
-                f"Proyecto formativo integrador de {uac_name}",
-                "Portafolio de evidencias y rúbrica de evaluación formativa"
-            ]
+            evidences = get_contextual_evidences(uac_name, topic)
 
             results.append({
                 "uac_name": uac_name,
