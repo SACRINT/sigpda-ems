@@ -3,6 +3,7 @@ import type { ProgramCatalogItem } from '@/lib/db';
 import type { RagContext } from '@/lib/rag-curricular';
 import { buildRagContextBlock } from '@/lib/rag-curricular';
 import { CATALOGO_METODOLOGIAS_ACTIVAS } from '@/lib/catalogo-metodologias';
+import { formatearEstrategiasParaPrompt } from '@/lib/catalogo-estrategias';
 import { isTechnologicalSubsystem } from '@/lib/subsystem-config';
 import { SCHOOL_YEAR } from '@/lib/config';
 
@@ -252,6 +253,30 @@ o convertirlas en explicación expositiva pasiva.
     }
   }
 
+  // ── Bloque de Estrategias Didácticas ─────────────────────────────────────
+  // Se inyecta cuando el docente selecciona una metodología activa.
+  // Filtra las estrategias compatibles por momento didáctico y metodología.
+  let estrategiasBlock = '';
+  if (context.metodologiaActiva) {
+    const estApertura = formatearEstrategiasParaPrompt('apertura', context.metodologiaActiva);
+    const estDesarrollo = formatearEstrategiasParaPrompt('desarrollo', context.metodologiaActiva);
+    const estCierre = formatearEstrategiasParaPrompt('cierre', context.metodologiaActiva);
+    estrategiasBlock = `
+═══════════ REPERTORIO DE ESTRATEGIAS DIDÁCTICAS RECOMENDADAS ═══════════
+Selecciona e integra estas estrategias en la Sección IV según el momento didáctico.
+Cada una incluye una Garantía Dual Offline para contextos sin conectividad (DBEPA).
+
+• FASE DE APERTURA:
+${estApertura}
+
+• FASE DE DESARROLLO (EJECUCIÓN):
+${estDesarrollo}
+
+• FASE DE CIERRE (CONCLUSIÓN):
+${estCierre}
+`;
+  }
+
   // ── Prompt Completo ────────────────────────────────────────────────────────
   return `Genera una Planeación Didáctica completa y de nivel EXCELENCIA en formato oficial DBEPA ${SCHOOL_YEAR} para:
 ${ragBlock}
@@ -320,7 +345,7 @@ INSTRUCCIÓN: Genera en la SECCIÓN III y en la SECCIÓN IV propuestas formativa
 Caracterización y Perfil de los Estudiantes:
 ${context.studentContext || 'Estudiantes de bachillerato con interés en proyectos prácticos y resolución de problemas comunitarios.'}
 
-${metodologiaBlock}
+${metodologiaBlock}${estrategiasBlock}
 ═══════════ EJEMPLO DE REFERENCIA — SECCIÓN IV DE NIVEL EXCELENCIA (FEW-SHOT) ═══════════
 El siguiente es UN EJEMPLO de la calidad y estructura requerida para la Sección IV.
 Adapta el contenido a la UAC, semestre y contexto PAEC indicados arriba. NO copies este ejemplo.
