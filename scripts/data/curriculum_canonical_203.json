@@ -10,12 +10,12 @@
       {
         "order": 1,
         "name": "Aplica conceptos básicos de lógica matemática en situaciones de su contexto para desarrollar esquemas de razonamiento estructurado.",
-        "hours": 10
+        "hours": 11
       },
       {
         "order": 2,
         "name": "Comprende el concepto de conteo a partir del análisis de los procesos sociales que llevaron a su desarrollo para aplicarlo en situaciones de interés.",
-        "hours": 10
+        "hours": 11
       },
       {
         "order": 3,
@@ -53,7 +53,10 @@
         "order": 1,
         "proposito": "Aplica conceptos básicos de lógica matemática en situaciones de su contexto para desarrollar esquemas de razonamiento estructurado.",
         "contenidos": [
-          "Aplica conceptos básicos de lógica matemática en situaciones de su contexto para desarrollar esquemas de razonamiento estructurado."
+          "Conceptualización de lógica matemática",
+          "Tablas de verdad",
+          "Proposiciones compuestas y operadores lógicos: conjunción (y) y disyunción (o)",
+          "Proposiciones condicionales y bicondicionales"
         ]
       },
       {
@@ -360,7 +363,7 @@
       {
         "order": 1,
         "name": "Comprende el concepto de recta y de punto para su representación y análisis algebraico.",
-        "hours": 9
+        "hours": 10
       },
       {
         "order": 2,
@@ -1830,12 +1833,12 @@
       {
         "order": 3,
         "name": "Plantea preguntas a partir de problemáticas actuales en diversos contextos, implementando los conceptos y categorías históricas para el análisis.",
-        "hours": 14
+        "hours": 13
       },
       {
         "order": 4,
         "name": "Reconoce el valor de la diversidad de discursos para la construcción de explicaciones históricas.",
-        "hours": 14
+        "hours": 13
       }
     ],
     "evidences": [
@@ -1911,12 +1914,12 @@
       {
         "order": 3,
         "name": "Comprende el sentido histórico de los acontecimientos y los significados en diversos contextos, para analizar críticamente las explicaciones históricas.",
-        "hours": 14
+        "hours": 13
       },
       {
         "order": 4,
         "name": "Construye un vínculo ético con las personas, sujetos históricos, por medio de la reflexión sobre la diversidad de contextos.",
-        "hours": 14
+        "hours": 13
       }
     ],
     "evidences": [
@@ -1988,12 +1991,12 @@
       {
         "order": 3,
         "name": "Argumenta la validez de sus propias interpretaciones sobre acontecimientos, fenómenos y procesos históricos, mediante el diálogo, la contrastación con otras perspectivas y el uso fundamentado de fuentes.",
-        "hours": 14
+        "hours": 13
       },
       {
         "order": 4,
         "name": "Elabora argumentos e interpretaciones históricas con base en fuentes variadas y pertinentes, integrando el uso de información.",
-        "hours": 14
+        "hours": 13
       }
     ],
     "evidences": [
@@ -2084,12 +2087,12 @@
       {
         "order": 7,
         "name": "Reconoce las posibles formas de comprensión y resolución de problemas algorítmicos para desarrollar una estrategia frente a una situación, fenómeno o problemática, utilizando medios tecnológicos y digitales.",
-        "hours": 7
+        "hours": 6
       },
       {
         "order": 8,
         "name": "Conoce los elementos del lenguaje algorítmico a través de medios digitales, para resolver situaciones, fenómenos o problemáticas presentes en las diferentes asignaturas.",
-        "hours": 7
+        "hours": 6
       }
     ],
     "evidences": [
@@ -2209,7 +2212,7 @@
       {
         "order": 1,
         "name": "Utiliza herramientas digitales de una manera innovadora y eficiente para acceder al conocimiento y la experiencia de aprendizaje de las diferentes asignaturas.",
-        "hours": 7
+        "hours": 8
       },
       {
         "order": 2,
@@ -2412,12 +2415,12 @@
       {
         "order": 7,
         "name": "Practica la lectura en voz alta de algunos textos para luego emitir opiniones al respecto.",
-        "hours": 7
+        "hours": 6
       },
       {
         "order": 8,
         "name": "Identifica las características de una exposición oral para conocer su desarrollo y ponerlo en práctica.",
-        "hours": 7
+        "hours": 6
       }
     ],
     "evidences": [
@@ -2553,12 +2556,12 @@
       {
         "order": 7,
         "name": "Colabora en el análisis de textos para conocer, aprovechar o corregir los procedimientos narrativos.",
-        "hours": 7
+        "hours": 6
       },
       {
         "order": 8,
         "name": "Integra prácticas de lectura, escritura y oralidad en proyectos creativos para presentar el texto elaborado.",
-        "hours": 7
+        "hours": 6
       }
     ],
     "evidences": [
@@ -2694,12 +2697,12 @@
       {
         "order": 6,
         "name": "Comprende las características de la reseña crítica para realizar una composición basada en uno de los movimientos literarios.",
-        "hours": 8
+        "hours": 7
       },
       {
         "order": 7,
         "name": "Realiza la exposición oral formal (en un coloquio, un simposio o en foros presenciales o virtuales) de una reseña, para explicar y compartir su análisis crítico.",
-        "hours": 8
+        "hours": 7
       }
     ],
     "evidences": [
@@ -2838,12 +2841,12 @@
       {
         "order": 7,
         "name": "Expresa gustos y opiniones simples en situaciones cotidianas (habla sobre preferencias y razones de forma empática).",
-        "hours": 7
+        "hours": 6
       },
       {
         "order": 8,
         "name": "Expresa pertenencia de forma clara y respetuosa (pregunta y responde sobre posesión con el genitivo y los pronombres posesivos).",
-        "hours": 7
+        "hours": 6
       }
     ],
     "evidences": [
@@ -3001,12 +3004,12 @@
       {
         "order": 7,
         "name": "Participa en intercambios cotidianos sobre necesidades personales o comunitarias (expresa deseos, elige y muestra empatía).",
-        "hours": 7
+        "hours": 6
       },
       {
         "order": 8,
         "name": "Consolida aprendizajes clave en contextos escolares y comunitarios (revisa estructuras y vocabulario mediante actividades guiadas e integradoras).",
-        "hours": 7
+        "hours": 6
       }
     ],
     "evidences": [
@@ -3155,12 +3158,12 @@
       {
         "order": 7,
         "name": "Relata eventos cotidianos y su secuencia (cuenta algo que pasó usando conectores simples).",
-        "hours": 7
+        "hours": 6
       },
       {
         "order": 8,
         "name": "Consolida lo aprendido mediante actividades significativas y producción guiada (aplica estructuras clave en tareas contextualizadas, orales y escritas).",
-        "hours": 7
+        "hours": 6
       }
     ],
     "evidences": [
@@ -3299,12 +3302,12 @@
       {
         "order": 7,
         "name": "Cuenta una anécdota o experiencia significativa (narra de forma clara y organizada lo que se vivió o aprendió).",
-        "hours": 7
+        "hours": 6
       },
       {
         "order": 8,
         "name": "Consolida estrategias para comprender y expresar ideas de forma clara y estructurada (aplica lo aprendido en tareas orales y escritas con sentido y propósito).",
-        "hours": 7
+        "hours": 6
       }
     ],
     "evidences": [
@@ -3407,12 +3410,12 @@
       {
         "order": 1,
         "name": "Reconoce la posibilidad del pensamiento propio a partir de experiencias cotidianas, identificando la práctica filosófica como un modo de problematizar la realidad.",
-        "hours": 14
+        "hours": 15
       },
       {
         "order": 2,
         "name": "Formula preguntas significativas sobre la vida a partir de un ejercicio filosófico que genere pensamiento crítico, creativo y cuidadoso con el fin de cuestionar lo que comúnmente se considera cierto y explorar diversas respuestas que enriquezcan la visión del mundo.",
-        "hours": 14
+        "hours": 15
       },
       {
         "order": 3,
@@ -3440,8 +3443,6 @@
         "order": 1,
         "proposito": "Reconoce la posibilidad del pensamiento propio a partir de experiencias cotidianas, identificando la práctica filosófica como un modo de problematizar la realidad.",
         "contenidos": [
-          "Meta educativa",
-          "Desarrolle la capacidad de formular preguntas filosóficas y de participar en diálogos argumentativos. Para ello, aplica métodos de razonamiento y considera diversos enfoques filosóficos, lo que le permite analizar los desafíos de su entorno desde una perspectiva humanista.",
           "¿Para qué reflexionar sobre el pensamiento?",
           "Naturaleza del pensamiento filosófico y perspectiva humanista",
           "Introducción a la argumentación filosófica y comunidades de diálogo"
@@ -3509,12 +3510,12 @@
       {
         "order": 1,
         "name": "Desarrolla la capacidad de cuestionar y reflexionar sobre los fundamentos del Ser, desplegando un pensamiento crítico acerca de las nociones de Existencia, Ser y Conocimiento, a partir del análisis filosófico-ontológico.",
-        "hours": 14
+        "hours": 15
       },
       {
         "order": 2,
         "name": "Promueve la comprensión de los fundamentos éticos y su aplicación en la vida cotidiana, fomentando la reflexión crítica sobre dilemas morales y el papel de la Filosofía en la toma de decisiones.",
-        "hours": 14
+        "hours": 15
       },
       {
         "order": 3,
@@ -3610,12 +3611,12 @@
       {
         "order": 1,
         "name": "Fortalece con rigor su capacidad argumentativa al aplicar herramientas filosóficas para la construcción, análisis y evaluación de argumentos. Además, propicia espacios de debate en donde ensaya la persuasión argumentativa.",
-        "hours": 22
+        "hours": 23
       },
       {
         "order": 2,
         "name": "Desarrolla una comprensión crítica sobre los problemas de Filosofía política, a través de un análisis argumentado, para cuestionar las situaciones de la realidad social contemporánea.",
-        "hours": 22
+        "hours": 23
       },
       {
         "order": 3,
@@ -3638,8 +3639,6 @@
         "order": 1,
         "proposito": "Fortalece con rigor su capacidad argumentativa al aplicar herramientas filosóficas para la construcción, análisis y evaluación de argumentos. Además, propicia espacios de debate en donde ensaya la persuasión argumentativa.",
         "contenidos": [
-          "Meta educativa",
-          "Desarrolle capacidades para analizar, debatir e intervenir en su realidad desde una praxis que problematice el hacer como expresión de autonomía, cuidado y creación. Se promueve una comprensión crítica que posibilite la transformación de la vida en común, que cuestione el poder y abra posibilidades de justicia, de expresión artística y de sentido en la existencia.",
           "La lógica del pensamiento",
           "Construcción de argumentos filosóficos",
           "Persuasión argumentativa",
