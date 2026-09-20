@@ -68,12 +68,9 @@ describe('Integración en Renderizadores — DOCX y PDF', () => {
       paecConnection: 'Optimización de recursos hídricos en la comunidad escolar.',
       activities: [
         {
-          id: 'act-1',
           name: 'Resolución de Desafíos Hídricos',
           hours: 18,
-          methodology: 'abproblemas',
-          phase: 'Desarrollo',
-          evaluation: 'Rúbrica analítica',
+          order: 1,
         },
       ],
     },
@@ -107,6 +104,14 @@ describe('Integración en Renderizadores — DOCX y PDF', () => {
       ],
       evaluationAgreement: '70% proceso / 30% producto',
     },
+    sectionVI: {
+      studentMaterials: ['Cuaderno'],
+      teacherMaterials: ['Pizarrón'],
+      digital: ['Calculadora'],
+      spaces: ['Aula'],
+      references: ['SEP 2026'],
+    },
+    sectionVII: {},
   };
 
   it('generateSecuenciaDocx debe compilar un buffer DOCX válido con el badge de metodología', async () => {
@@ -237,7 +242,7 @@ describe('Integración en Renderizadores — DOCX y PDF', () => {
       extractedData: null,
       contentJson: mockContent,
       metodologiaActiva: 'abproblemas',
-      status: 'approved',
+      status: 'generated',
       createdAt: new Date(),
       updatedAt: new Date(),
     };
