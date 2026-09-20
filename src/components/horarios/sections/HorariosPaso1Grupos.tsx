@@ -469,7 +469,7 @@ export default function HorariosPaso1Grupos({
                   return (
                     <div key={letra} style={{ background: "#0f172a", border: "1px solid #334155", borderRadius: "12px", padding: "1rem", boxShadow: "0 4px 12px rgba(0,0,0,0.2)" }}>
                       <h4 style={{ fontSize: "0.875rem", fontWeight: 900, color: "#38bdf8", margin: "0 0 0.85rem", borderBottom: "1px solid #334155", paddingBottom: "0.4rem" }}>
-                        📌 Track de Grupos Letra "{letra}" ({gruposTrack.map(g => g.nombre).join(" | ")})
+                        📌 Track de Grupos Letra &quot;{letra}&quot; ({gruposTrack.map(g => g.nombre).join(" | ")})
                       </h4>
 
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "1rem" }}>
