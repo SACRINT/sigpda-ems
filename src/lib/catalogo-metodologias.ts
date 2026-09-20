@@ -276,9 +276,3 @@ export function obtenerMetodologiasPorArea(area: string): MetodologiaActiva[] {
     m.asignaturasRecomendadas.some(a => a.toLowerCase().includes(areaNorm) || areaNorm.includes(a.toLowerCase()))
   );
 }
-
-export function generarDescripcionMetodologiasParaPrompt(): string {
-  return CATALOGO_METODOLOGIAS_ACTIVAS.map(m => (
-    `  • ${m.nombre}: ${m.definicion}\n    Fases: ${m.fases.join(" → ")}\n    Asignaturas clave: ${m.asignaturasRecomendadas.join(", ")}`
-  )).join("\n\n");
-}
