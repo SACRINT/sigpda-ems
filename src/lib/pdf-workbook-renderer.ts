@@ -82,7 +82,6 @@ import {
   type PageContext,
 } from '@/lib/visual-engine/column-flow-manager';
 import {
-  resolveDigitalToolsForMission,
   resolveMultipleDigitalToolsForMission,
   generateToolQrPng,
   type DigitalTool,
