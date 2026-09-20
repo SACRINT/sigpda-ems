@@ -3,6 +3,33 @@
 import { useState, useCallback, useRef } from 'react';
 import type { ExtractedPdfData, KeyActivity } from '@/types/planning';
 import { isTechnologicalSubsystem } from '@/lib/subsystem-config';
+import { removeHyphens } from '@/lib/text-utils';
+
+interface ContenidoFormativoItem {
+  order?: number;
+  proposito?: string;
+  contenidos: string[];
+}
+
+function cleanData(data: ExtractedPdfData): ExtractedPdfData {
+  return {
+    ...data,
+    uacName: removeHyphens(data.uacName || ''),
+    learningOutcome: removeHyphens(data.learningOutcome || ''),
+    activities: (data.activities || []).map(a => ({
+      ...a,
+      name: removeHyphens(a.name || ''),
+    })),
+    evidences: (data.evidences || []).map(e => removeHyphens(e || '')),
+    contenidosFormativos: Array.isArray(data.contenidosFormativos)
+      ? data.contenidosFormativos.map((cf: ContenidoFormativoItem) => ({
+          ...cf,
+          proposito: removeHyphens(cf.proposito || ''),
+          contenidos: (cf.contenidos || []).map((t: string) => removeHyphens(t || '')),
+        }))
+      : data.contenidosFormativos,
+  };
+}
 
 interface Props {
   uacSelection: { uacName: string; semester: number; component: string; subsystem?: string };
@@ -47,7 +74,7 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
   
   const [formData, setFormData] = useState<ExtractedPdfData>(() => {
     if (initialData) {
-      return { ...initialData };
+      return cleanData(initialData);
     }
     return {
       uacName: uacSelection.uacName,
@@ -75,7 +102,7 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
     if (checked) {
       setShowUploadZone(false);
       if (initialData) {
-        setFormData({ ...initialData });
+        setFormData(cleanData(initialData));
       }
       setFile(null);
       setParseResult(null);
@@ -106,7 +133,7 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
       setParseResult({ confidence: result.confidence || 'failed', errors: result.errors || [] });
 
       if (result.data) {
-        setFormData(prev => ({
+        setFormData(prev => cleanData({
           ...prev,
           uacName: result.data.uacName || prev.uacName,
           learningOutcome: result.data.learningOutcome || prev.learningOutcome,
@@ -115,6 +142,7 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
           evidences: result.data.evidences?.length > 0 ? result.data.evidences : prev.evidences,
           rawText: result.data.rawText,
           parseConfidence: result.confidence || 'failed',
+          contenidosFormativos: result.data.contenidosFormativos || prev.contenidosFormativos,
         }));
       }
     } catch {
@@ -323,97 +351,123 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
 
           <div className="form-group">
             <label className="form-label form-label-required">{activityLabel}</label>
-            {formData.activities.map((a, idx) => (
-              <div key={idx} className="activity-card-item" style={{ marginBottom: '12px', background: 'var(--c-bg-elevated)', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--c-border-2)' }}>
-                <div className="activity-row" style={{ marginBottom: '6px' }}>
-                  <input
-                    className="form-input"
-                    placeholder={`${activityPlaceholder} ${idx + 1}`}
-                    value={a.name}
-                    onChange={e => updateActivity(idx, 'name', e.target.value)}
-                    required
-                  />
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <input
-                      type="number"
-                      className="form-input"
-                      placeholder="Horas"
-                      value={a.hours}
-                      min={1}
-                      onChange={e => updateActivity(idx, 'hours', Number(e.target.value))}
-                      style={{ flex: 1, minWidth: '0' }}
-                    />
-                    <span style={{ fontSize: '13px', color: 'var(--c-text-muted)', whiteSpace: 'nowrap' }}>hrs</span>
-                  </div>
-                  <button
-                    type="button"
-                    className="btn btn-danger btn-sm"
-                    onClick={() => removeActivity(idx)}
-                    disabled={formData.activities.length <= 1}
-                  >
-                    ✕
-                  </button>
-                </div>
+            {formData.activities.map((a, idx) => {
+              const currentCf = (formData.contenidosFormativos as ContenidoFormativoItem[] | undefined)?.find(
+                cf => cf.order === a.order
+              ) || (formData.contenidosFormativos as ContenidoFormativoItem[] | undefined)?.[idx];
+              const contenidos = currentCf?.contenidos || [];
 
-                {/* Sub-lista de Contenidos Formativos si el modelo no es de progresiones Y NO es componente laboral/técnico */}
-                {!isProgresiones && !isLaboral && (
-                  <div style={{ paddingLeft: '12px', marginTop: '6px' }}>
-                    <div style={{ fontSize: '12px', color: 'var(--c-text-muted)', fontWeight: 500, marginBottom: '4px' }}>
-                      📋 Contenidos / Temas de estudio asociados:
+              return (
+                <div key={idx} className="activity-card-item" style={{ marginBottom: '12px', background: 'var(--c-bg-elevated)', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--c-border-2)' }}>
+                  <div className="activity-row" style={{ marginBottom: '6px' }}>
+                    <input
+                      className="form-input"
+                      placeholder={`${activityPlaceholder} ${idx + 1}`}
+                      value={removeHyphens(a.name)}
+                      onChange={e => updateActivity(idx, 'name', e.target.value)}
+                      required
+                    />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <input
+                        type="number"
+                        className="form-input"
+                        placeholder="Horas"
+                        value={a.hours}
+                        min={1}
+                        onChange={e => updateActivity(idx, 'hours', Number(e.target.value))}
+                        style={{ flex: 1, minWidth: '0' }}
+                      />
+                      <span style={{ fontSize: '13px', color: 'var(--c-text-muted)', whiteSpace: 'nowrap' }}>hrs</span>
                     </div>
-                    {((formData.contenidosFormativos && formData.contenidosFormativos[idx]?.contenidos) || []).map((tema: string, tIdx: number) => (
-                      <div key={tIdx} style={{ display: 'flex', gap: '6px', marginBottom: '4px' }}>
-                        <input
-                          className="form-input"
-                          style={{ fontSize: '12px', padding: '4px 8px' }}
-                          value={tema}
-                          onChange={e => {
-                            const val = e.target.value;
-                            setFormData(prev => {
-                              const cfs = [...(prev.contenidosFormativos || [])];
-                              if (!cfs[idx]) cfs[idx] = { proposito: a.name, contenidos: [] };
-                              cfs[idx].contenidos[tIdx] = val;
-                              return { ...prev, contenidosFormativos: cfs };
-                            });
-                          }}
-                          placeholder={`Tema ${tIdx + 1}...`}
-                        />
-                        <button
-                          type="button"
-                          className="btn btn-ghost btn-sm"
-                          style={{ padding: '2px 8px' }}
-                          onClick={() => {
-                            setFormData(prev => {
-                              const cfs = [...(prev.contenidosFormativos || [])];
-                              if (!cfs[idx]) return prev;
-                              cfs[idx].contenidos = cfs[idx].contenidos.filter((_: string, i: number) => i !== tIdx);
-                              return { ...prev, contenidosFormativos: cfs };
-                            });
-                          }}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
                     <button
                       type="button"
-                      className="btn btn-ghost btn-sm"
-                      style={{ fontSize: '11px', padding: '2px 8px' }}
-                      onClick={() => {
-                        setFormData(prev => {
-                          const cfs = [...(prev.contenidosFormativos || [])];
-                          if (!cfs[idx]) cfs[idx] = { proposito: a.name, contenidos: [''] };
-                          else cfs[idx].contenidos.push('');
-                          return { ...prev, contenidosFormativos: cfs };
-                        });
-                      }}
+                      className="btn btn-danger btn-sm"
+                      onClick={() => removeActivity(idx)}
+                      disabled={formData.activities.length <= 1}
                     >
-                      ➕ Agregar tema de estudio
+                      ✕
                     </button>
                   </div>
-                )}
-              </div>
-            ))}
+
+                  {/* Sub-lista de Contenidos Formativos si el modelo no es de progresiones Y NO es componente laboral/técnico */}
+                  {!isProgresiones && !isLaboral && (
+                    <div style={{ paddingLeft: '12px', marginTop: '6px' }}>
+                      <div style={{ fontSize: '12px', color: 'var(--c-text-muted)', fontWeight: 500, marginBottom: '4px' }}>
+                        📋 Contenidos / Temas de estudio asociados:
+                      </div>
+                      {contenidos.map((tema: string, tIdx: number) => (
+                        <div key={tIdx} style={{ display: 'flex', gap: '6px', marginBottom: '4px' }}>
+                          <input
+                            className="form-input"
+                            style={{ fontSize: '12px', padding: '4px 8px' }}
+                            value={removeHyphens(tema)}
+                            onChange={e => {
+                              const val = e.target.value;
+                              setFormData(prev => {
+                                const cfs = [...((prev.contenidosFormativos as ContenidoFormativoItem[]) || [])];
+                                let cfIndex = cfs.findIndex(cf => cf?.order === a.order);
+                                if (cfIndex === -1) cfIndex = idx;
+                                if (!cfs[cfIndex]) {
+                                  cfs[cfIndex] = { order: a.order, proposito: a.name, contenidos: [] };
+                                }
+                                const newContenidos = [...(cfs[cfIndex].contenidos || [])];
+                                newContenidos[tIdx] = val;
+                                cfs[cfIndex] = { ...cfs[cfIndex], contenidos: newContenidos };
+                                return { ...prev, contenidosFormativos: cfs };
+                              });
+                            }}
+                            placeholder={`Tema ${tIdx + 1}...`}
+                          />
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            style={{ padding: '2px 8px' }}
+                            onClick={() => {
+                              setFormData(prev => {
+                                const cfs = [...((prev.contenidosFormativos as ContenidoFormativoItem[]) || [])];
+                                let cfIndex = cfs.findIndex(cf => cf?.order === a.order);
+                                if (cfIndex === -1) cfIndex = idx;
+                                if (!cfs[cfIndex]) return prev;
+                                cfs[cfIndex] = {
+                                  ...cfs[cfIndex],
+                                  contenidos: cfs[cfIndex].contenidos.filter((_: string, i: number) => i !== tIdx),
+                                };
+                                return { ...prev, contenidosFormativos: cfs };
+                              });
+                            }}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        style={{ fontSize: '11px', padding: '2px 8px' }}
+                        onClick={() => {
+                          setFormData(prev => {
+                            const cfs = [...((prev.contenidosFormativos as ContenidoFormativoItem[]) || [])];
+                            let cfIndex = cfs.findIndex(cf => cf?.order === a.order);
+                            if (cfIndex === -1) cfIndex = idx;
+                            if (!cfs[cfIndex]) {
+                              cfs[cfIndex] = { order: a.order, proposito: a.name, contenidos: [''] };
+                            } else {
+                              cfs[cfIndex] = {
+                                ...cfs[cfIndex],
+                                contenidos: [...(cfs[cfIndex].contenidos || []), ''],
+                              };
+                            }
+                            return { ...prev, contenidosFormativos: cfs };
+                          });
+                        }}
+                      >
+                        ➕ Agregar tema de estudio
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
             <button
               type="button"
               className="btn btn-secondary btn-sm"
