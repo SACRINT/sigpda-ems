@@ -13,7 +13,7 @@ import { normalizeUnicode } from '@/lib/utils/normalize';
 
 // ─── Reglas de recomendación (orden importa: primera coincidencia gana) ───────
 
-interface ReglaRecomendacion {
+export interface ReglaRecomendacion {
   /** ID de metodología a recomendar */
   metodologiaId: string;
   /** Palabras clave en el nombre de la UAC (case-insensitive) */
@@ -24,7 +24,7 @@ interface ReglaRecomendacion {
   subsystems?: string[];
 }
 
-const REGLAS: ReglaRecomendacion[] = [
+export const REGLAS: ReglaRecomendacion[] = [
   // ── Formación Laboral (módulos/submódulos técnicos) → Práctica de Taller ────
   {
     metodologiaId: 'practica_laboratorio',
@@ -35,7 +35,7 @@ const REGLAS: ReglaRecomendacion[] = [
     metodologiaId: 'abr',
     keywordsUac: [
       'programación', 'programacion', 'software', 'código', 'codigo',
-      'redes', 'sistemas operativos', 'base de datos', 'web', 'app',
+      'redes', 'sistemas operativos', 'base de datos', ' web ', ' app ',
       'algoritmos', 'javascript', 'python', 'java', 'machine learning',
       'inteligencia artificial', ' ia ', 'ciberseguridad', 'cloud',
     ],
