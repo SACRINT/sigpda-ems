@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { neon } from '@neondatabase/serverless';
 import { generateWithRetry } from '@/lib/ai-retry-manager';
-import { SecuenciaResponseSchema, SecuenciaGenerateInputSchema } from '@/lib/ai-schemas';
+import { SecuenciaResponseSchema, SecuenciaGenerateInputSchema, SecuenciaUpdateInputSchema } from '@/lib/ai-schemas';
 import { logger } from '@/lib/logger';
 import { obtenerMetodologiaPorId, CATALOGO_METODOLOGIAS_ACTIVAS } from '@/lib/catalogo-metodologias';
 import type { SecuenciaBloque, SecuenciaSesion } from '@/types/planning';
@@ -448,12 +448,22 @@ export async function PUT(
     }
 
     const { id } = await params;
-    const body = await request.json();
-    const { blockIndex, sessions } = body;
-
-    if (blockIndex === undefined || !Array.isArray(sessions)) {
-      return NextResponse.json({ error: 'Parámetros inválidos (blockIndex y sessions requeridos)' }, { status: 400 });
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Cuerpo de solicitud JSON inválido' }, { status: 400 });
     }
+
+    const parseResult = SecuenciaUpdateInputSchema.safeParse(body);
+    if (!parseResult.success) {
+      return NextResponse.json(
+        { error: 'Parámetros inválidos (blockIndex entero >= 0 y array sessions con al menos 1 sesión requeridos)', details: parseResult.error.issues },
+        { status: 400 }
+      );
+    }
+
+    const { blockIndex, sessions } = parseResult.data;
 
     const db = neon(process.env.DATABASE_URL!);
 
@@ -472,12 +482,26 @@ export async function PUT(
     const activities = plan.content_json?.sectionIV?.activities || [];
     const blockActivity = activities[blockIndex];
 
+    const sanitizedSessions: SecuenciaSesion[] = sessions.map((s, idx) => ({
+      sessionNum: s.sessionNum ?? (idx + 1),
+      totalSessions: s.totalSessions ?? sessions.length,
+      phase: s.phase,
+      title: s.title,
+      teachingActivity: s.teachingActivity,
+      learningActivity: s.learningActivity,
+      evidence: s.evidence,
+      evaluation: s.evaluation,
+      procesoPensamiento: s.procesoPensamiento,
+      utilidadReal: s.utilidadReal,
+      garantiaDualOffline: s.garantiaDualOffline,
+    }));
+
     const currentSequence: Record<number, SecuenciaBloque> = plan.sequence_json || {};
     currentSequence[blockIndex] = {
       blockIndex,
       blockName: blockActivity?.name || `Bloque ${blockIndex + 1}`,
-      hours: sessions.length,
-      sessions,
+      hours: sanitizedSessions.length,
+      sessions: sanitizedSessions,
       updatedAt: new Date().toISOString(),
     };
 
