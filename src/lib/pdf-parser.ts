@@ -21,8 +21,7 @@ export async function parsePdfBuffer(buffer: Buffer, filename?: string, targetSe
     const doc = await ingestDocument(buffer, { filename, enableOcr: true, teacherId });
     rawText = doc.markdown;
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Error';
-    logger.error('[pdf-parser] Document ingestion failed:', err);
+    logger.error('[pdf-parser] Document ingestion failed:', err instanceof Error ? err.message : err);
     errors.push('No se pudo procesar el documento. El archivo puede estar dañado o con contraseña.');
   }
 

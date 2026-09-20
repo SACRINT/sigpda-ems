@@ -157,7 +157,6 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
     setDragging(false);
     const f = e.dataTransfer.files[0];
     if (f) handleFile(f);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const addActivity = () => {
