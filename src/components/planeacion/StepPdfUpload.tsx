@@ -167,12 +167,33 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
   };
 
   const removeActivity = (idx: number) => {
-    setFormData(prev => ({
-      ...prev,
-      activities: prev.activities
+    setFormData(prev => {
+      const removedActivity = prev.activities[idx];
+      const newActivities = prev.activities
         .filter((_, i) => i !== idx)
-        .map((a, i) => ({ ...a, order: i + 1 })),
-    }));
+        .map((a, i) => ({ ...a, order: i + 1 }));
+
+      let newCfs = prev.contenidosFormativos;
+      if (Array.isArray(newCfs)) {
+        newCfs = newCfs
+          .filter((cf: ContenidoFormativoItem, i: number) => {
+            if (removedActivity?.order && cf.order) {
+              return cf.order !== removedActivity.order;
+            }
+            return i !== idx;
+          })
+          .map((cf: ContenidoFormativoItem, i: number) => ({
+            ...cf,
+            order: i + 1,
+          }));
+      }
+
+      return {
+        ...prev,
+        activities: newActivities,
+        contenidosFormativos: newCfs,
+      };
+    });
   };
 
   const updateActivity = (idx: number, field: keyof KeyActivity, value: string | number) => {
@@ -184,7 +205,7 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onNext(formData);
+    onNext(cleanData(formData));
   };
 
   const confidenceLabel: Record<string, string> = {
@@ -362,7 +383,7 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
                     <input
                       className="form-input"
                       placeholder={`${activityPlaceholder} ${idx + 1}`}
-                      value={removeHyphens(a.name)}
+                      value={a.name}
                       onChange={e => updateActivity(idx, 'name', e.target.value)}
                       required
                     />
@@ -399,15 +420,18 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
                           <input
                             className="form-input"
                             style={{ fontSize: '12px', padding: '4px 8px' }}
-                            value={removeHyphens(tema)}
+                            value={tema}
                             onChange={e => {
                               const val = e.target.value;
                               setFormData(prev => {
                                 const cfs = [...((prev.contenidosFormativos as ContenidoFormativoItem[]) || [])];
                                 let cfIndex = cfs.findIndex(cf => cf?.order === a.order);
-                                if (cfIndex === -1) cfIndex = idx;
-                                if (!cfs[cfIndex]) {
-                                  cfs[cfIndex] = { order: a.order, proposito: a.name, contenidos: [] };
+                                if (cfIndex === -1 && idx < cfs.length && !cfs[idx]?.order) {
+                                  cfIndex = idx;
+                                }
+                                if (cfIndex === -1) {
+                                  cfs.push({ order: a.order, proposito: a.name, contenidos: [] });
+                                  cfIndex = cfs.length - 1;
                                 }
                                 const newContenidos = [...(cfs[cfIndex].contenidos || [])];
                                 newContenidos[tIdx] = val;
@@ -425,8 +449,10 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
                               setFormData(prev => {
                                 const cfs = [...((prev.contenidosFormativos as ContenidoFormativoItem[]) || [])];
                                 let cfIndex = cfs.findIndex(cf => cf?.order === a.order);
-                                if (cfIndex === -1) cfIndex = idx;
-                                if (!cfs[cfIndex]) return prev;
+                                if (cfIndex === -1 && idx < cfs.length && !cfs[idx]?.order) {
+                                  cfIndex = idx;
+                                }
+                                if (cfIndex === -1 || !cfs[cfIndex]) return prev;
                                 cfs[cfIndex] = {
                                   ...cfs[cfIndex],
                                   contenidos: cfs[cfIndex].contenidos.filter((_: string, i: number) => i !== tIdx),
@@ -447,9 +473,11 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
                           setFormData(prev => {
                             const cfs = [...((prev.contenidosFormativos as ContenidoFormativoItem[]) || [])];
                             let cfIndex = cfs.findIndex(cf => cf?.order === a.order);
-                            if (cfIndex === -1) cfIndex = idx;
-                            if (!cfs[cfIndex]) {
-                              cfs[cfIndex] = { order: a.order, proposito: a.name, contenidos: [''] };
+                            if (cfIndex === -1 && idx < cfs.length && !cfs[idx]?.order) {
+                              cfIndex = idx;
+                            }
+                            if (cfIndex === -1) {
+                              cfs.push({ order: a.order, proposito: a.name, contenidos: [''] });
                             } else {
                               cfs[cfIndex] = {
                                 ...cfs[cfIndex],
