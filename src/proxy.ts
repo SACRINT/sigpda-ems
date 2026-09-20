@@ -5,6 +5,7 @@ import { routing } from './i18n/routing';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { logger } from '@/lib/logger';
+import { isAdmin } from '@/lib/admin-unified';
 
 const intlMiddleware = createMiddleware(routing);
 
@@ -22,15 +23,6 @@ const protectedPaths = [
   '/mis-documentos',
   '/mis-escuelas',
 ];
-
-function isEnvAdmin(email: string): boolean {
-  const cleanEmail = email.toLowerCase().trim();
-  const envAdmins = (process.env.ADMIN_EMAILS || process.env.ADMIN_EMAIL || '')
-    .split(',')
-    .map((e) => e.toLowerCase().trim())
-    .filter(Boolean);
-  return envAdmins.includes(cleanEmail);
-}
 
 async function getTeacherStatus(email: string) {
   try {
@@ -69,18 +61,13 @@ export async function proxy(request: NextRequest) {
 
     const email = session.user.email;
 
-    // 2. Admin por variable de entorno → acceso total sin restricciones
-    if (isEnvAdmin(email)) {
+    // 2. Admin unificado (env var, tabla admins o rol administrador) → acceso total sin restricciones
+    if (await isAdmin(email)) {
       return intlMiddleware(request);
     }
 
     if (isProtected) {
       const teacher = await getTeacherStatus(email);
-
-      // 2.5 Admin por rol
-      if (teacher?.role === 'administrador') {
-        return intlMiddleware(request);
-      }
 
       // 3. Perfil no completado → configurar perfil
       if (!teacher || !teacher.profile_completed) {

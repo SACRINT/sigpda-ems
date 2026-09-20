@@ -1,14 +1,15 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { sql, getTeacherByEmail } from '@/lib/db';
+import { isAdmin } from '@/lib/admin-unified';
 import { normalizarCargo } from '@/lib/utils/normalize';
-
 import { logger } from '@/lib/logger';
+
 async function getDirectorId(email: string) {
   const teacher = await getTeacherByEmail(email);
   if (!teacher) return null;
-  const isAdmin = teacher.role === 'administrador' || teacher.role === 'admin' || email === process.env.ADMIN_EMAIL;
-  if (teacher.role !== 'director' && teacher.role !== 'supervisor' && !isAdmin) return null;
+  const isUserAdmin = await isAdmin(email, teacher.role);
+  if (teacher.role !== 'director' && teacher.role !== 'supervisor' && !isUserAdmin) return null;
   return teacher.id as string;
 }
 

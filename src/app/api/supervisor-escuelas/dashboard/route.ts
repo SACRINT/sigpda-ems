@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail } from '@/lib/db';
+import { isAdmin } from '@/lib/admin-unified';
 import { getZoneSupervisorDashboard } from '@/lib/zone-sync-service';
 import { logger } from '@/lib/logger';
 
@@ -18,10 +19,8 @@ export async function GET() {
       return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 });
     }
 
-    const isAdmin =
-      teacher.role === 'administrador' ||
-      session.user.email === process.env.ADMIN_EMAIL;
-    const isSupervisor = isAdmin || teacher.role === 'supervisor';
+    const isUserAdmin = await isAdmin(session.user.email, teacher.role);
+    const isSupervisor = isUserAdmin || teacher.role === 'supervisor';
 
     if (!isSupervisor) {
       return NextResponse.json(

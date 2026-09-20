@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, getSchedules, createSchedule, ScheduleItem } from '@/lib/db';
+import { isAdmin } from '@/lib/admin-unified';
 import { logger } from '@/lib/logger';
 import { SCHOOL_YEAR } from '@/lib/config';
 
@@ -19,9 +20,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status') || undefined;
 
-    const isAdmin = teacher.role === 'administrador' || session.user.email === process.env.ADMIN_EMAIL;
+    const isUserAdmin = await isAdmin(session.user.email, teacher.role);
     // Admins can see all schedules or filter by teacher, regular teachers see only theirs
-    const teacherId = isAdmin ? undefined : teacher.id;
+    const teacherId = isUserAdmin ? undefined : teacher.id;
 
     const schedules = await getSchedules(teacherId, status);
     return NextResponse.json({ ok: true, schedules });

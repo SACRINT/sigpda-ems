@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, getScheduleById, updateSchedule, deleteSchedule, ScheduleItem } from '@/lib/db';
+import { isAdmin } from '@/lib/admin-unified';
 import { logger } from '@/lib/logger';
 
 export async function GET(
@@ -19,8 +20,8 @@ export async function GET(
     }
 
     const { id } = await params;
-    const isAdmin = teacher.role === 'administrador' || session.user.email === process.env.ADMIN_EMAIL;
-    const schedule = await getScheduleById(id, isAdmin ? undefined : teacher.id);
+    const isUserAdmin = await isAdmin(session.user.email, teacher.role);
+    const schedule = await getScheduleById(id, isUserAdmin ? undefined : teacher.id);
 
     if (!schedule) {
       return NextResponse.json({ error: 'Horario no encontrado' }, { status: 404 });

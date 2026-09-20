@@ -9,35 +9,13 @@ import HeartbeatSender from './HeartbeatSender';
 import PedagogicalChatWidget from '../PedagogicalChatWidget';
 import NotificationBell from '../notifications/NotificationBell';
 
+import { getUserRole } from '@/lib/admin-unified';
+
 type Props = {
   children: React.ReactNode;
   locale: string;
   activeSection?: string;
 };
-
-async function getUserRole(email: string): Promise<{ isAdmin: boolean; role: string }> {
-  if (process.env.ADMIN_EMAIL === email) return { isAdmin: true, role: 'administrador' };
-  
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    try {
-      const db = sql();
-      const adminRows = await db`SELECT email FROM admins WHERE email = ${email} LIMIT 1`;
-      if (adminRows.length > 0) return { isAdmin: true, role: 'administrador' };
-      
-      const teacherRows = await db`SELECT role FROM teachers WHERE email = ${email} LIMIT 1`;
-      if (teacherRows.length > 0) return { isAdmin: false, role: teacherRows[0].role };
-      return { isAdmin: false, role: 'docente' };
-    } catch (err) {
-      if (attempt === 1) {
-        logger.warn(`[AppLayout] Error fetching user role for ${email}, retrying...`, { attempt, error: err });
-        await new Promise((resolve) => setTimeout(resolve, 200));
-      } else {
-        logger.error(`[AppLayout] Failed to fetch user role after retry for ${email}, defaulting to 'docente'`, { error: err });
-      }
-    }
-  }
-  return { isAdmin: false, role: 'docente' };
-}
 
 async function getMaintenanceStatus(): Promise<{ active: boolean; message: string }> {
   try {

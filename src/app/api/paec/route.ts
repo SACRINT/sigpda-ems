@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, getPaecProjectsByTeacher, createPaecProject } from '@/lib/db';
+import { isAdmin } from '@/lib/admin-unified';
 import type { CreatePaecInput } from '@/types/paec';
-
 import { logger } from '@/lib/logger';
+
 export async function GET() {
   try {
     const session = await auth();
@@ -16,8 +17,8 @@ export async function GET() {
       return NextResponse.json({ error: 'Docente no encontrado' }, { status: 404 });
     }
 
-    const isAdmin = teacher.role === 'administrador' || session.user.email === process.env.ADMIN_EMAIL;
-    const isDirector = isAdmin || teacher.role === 'director';
+    const isUserAdmin = await isAdmin(session.user.email, teacher.role);
+    const isDirector = isUserAdmin || teacher.role === 'director';
     if (!isDirector) {
       return NextResponse.json({ error: 'Solo los directores pueden gestionar proyectos PAEC' }, { status: 403 });
     }
@@ -42,8 +43,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Docente no encontrado' }, { status: 404 });
     }
 
-    const isAdmin = teacher.role === 'administrador' || session.user.email === process.env.ADMIN_EMAIL;
-    const isDirector = isAdmin || teacher.role === 'director';
+    const isUserAdmin = await isAdmin(session.user.email, teacher.role);
+    const isDirector = isUserAdmin || teacher.role === 'director';
     if (!isDirector) {
       return NextResponse.json({ error: 'Solo los directores pueden gestionar proyectos PAEC' }, { status: 403 });
     }
