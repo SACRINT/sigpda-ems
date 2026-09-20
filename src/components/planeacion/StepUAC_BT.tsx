@@ -3,11 +3,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { ExtractedPdfData } from '@/types/planning';
 import {
-  CARRERAS_TECNICAS_BT,
-  getModulosPorSemestreBT,
-  BTCarrera,
-  BTModulo,
-  BTSubmodulo
+  loadCarrerasTecnicas,
+  type BTCarrera,
+  type BTModulo,
+  type BTSubmodulo
 } from '@/lib/bt-carreras-catalog';
 import { SEMESTERS_WITHOUT_COMPONENT } from '@/lib/subsystem-config';
 import { cleanSocioemotionalName } from '@/lib/utils';
@@ -47,6 +46,12 @@ export default function StepUAC_BT({ onNext, selectedSubsystem, onSubsystemChang
   const [loadingPrograms, setLoadingPrograms] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const [carreras, setCarreras] = useState<BTCarrera[]>([]);
+
+  useEffect(() => {
+    loadCarrerasTecnicas().then(setCarreras);
+  }, []);
+
   const isLaboral = form.component === 'laboral';
   // En BT, Carrera Técnica solo se deshabilita en 1er semestre
   const isLaboralDisabled = SEMESTERS_WITHOUT_COMPONENT.bt.includes(form.semester);
@@ -55,22 +60,24 @@ export default function StepUAC_BT({ onNext, selectedSubsystem, onSubsystemChang
 
   // Filtrado de carreras por búsqueda
   const filteredCarreras = useMemo(() => {
-    if (!searchCareerQuery.trim()) return CARRERAS_TECNICAS_BT;
+    if (!carreras.length) return [];
+    if (!searchCareerQuery.trim()) return carreras;
     const q = searchCareerQuery.toLowerCase().trim();
-    return CARRERAS_TECNICAS_BT.filter(c => 
+    return carreras.filter(c => 
       c.nombre.toLowerCase().includes(q) || c.id.toLowerCase().includes(q)
     );
-  }, [searchCareerQuery]);
+  }, [searchCareerQuery, carreras]);
 
   // Carrera activa
   const activeCarrera: BTCarrera | undefined = useMemo(() => {
-    return CARRERAS_TECNICAS_BT.find(c => c.id === selectedCarreraId) || CARRERAS_TECNICAS_BT[0];
-  }, [selectedCarreraId]);
+    if (!carreras.length) return undefined;
+    return carreras.find(c => c.id === selectedCarreraId) || carreras[0];
+  }, [selectedCarreraId, carreras]);
 
   // Módulo activo según el semestre seleccionado (Sem 2 -> Mód I, Sem 3 -> Mód II, etc.)
   const activeModulo: BTModulo | undefined = useMemo(() => {
     if (!activeCarrera || form.semester < 2 || form.semester > 6) return undefined;
-    return getModulosPorSemestreBT(activeCarrera.id, form.semester);
+    return activeCarrera.modulos?.find(m => m.semestre === form.semester);
   }, [activeCarrera, form.semester]);
 
   // Submódulo activo

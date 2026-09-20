@@ -40,8 +40,9 @@ import {
   obtenerAsignaturasParaGrupoTecnologico
 } from "@/lib/escuela-grupos";
 import {
-  CARRERAS_TECNOLOGICAS,
-  CATALOGO_PROPEDUTICAS_5TO
+  loadCarrerasTecnicas,
+  CATALOGO_PROPEDUTICAS_5TO,
+  type CarreraTecnica
 } from "@/lib/bt-carreras-catalog";
 
 export default function WizardConfiguracion({
@@ -78,6 +79,11 @@ export default function WizardConfiguracion({
   // Período Semestral: A = semestres impares (1°,3°,5°), B = semestres pares (2°,4°,6°)
   const [periodoActivo, setPeriodoActivo] = useState<"A" | "B">("A");
   const [loading, setLoading] = useState<boolean>(false);
+  const [carrerasTecnologicas, setCarrerasTecnologicas] = useState<CarreraTecnica[]>([]);
+
+  useEffect(() => {
+    loadCarrerasTecnicas().then(setCarrerasTecnologicas);
+  }, []);
 
   // Jornada Escolar predeterminada (8 horas para Tecnológico por las 39h de 3er semestre, 6 para BGE)
   const [numPeriodos, setNumPeriodos] = useState<number>(() => {
@@ -2093,14 +2099,14 @@ export default function WizardConfiguracion({
                                       onChange={(e) => {
                                         const val = e.target.value;
                                         handleActualizarConfigGrupo(idx, "carreraTecnicaId", val);
-                                        const cObj = CARRERAS_TECNOLOGICAS.find(c => c.id === val);
+                                        const cObj = carrerasTecnologicas.find(c => c.id === val);
                                         if (cObj) {
                                           handleActualizarConfigGrupo(idx, "versionPrograma", cObj.tipoPrograma);
                                         }
                                       }}
                                       style={{ width: "100%", padding: "0.4rem 0.5rem", borderRadius: "6px", border: "1px solid #475569", background: "#0f172a", fontSize: "0.78125rem", fontWeight: 700, color: "#ffffff" }}
                                     >
-                                      {CARRERAS_TECNOLOGICAS.map((c) => (
+                                      {carrerasTecnologicas.map((c) => (
                                         <option key={c.id} value={c.id} style={{ background: "#0f172a", color: "#ffffff" }}>
                                           {c.nombre} ({c.tipoPrograma === "nuevo" ? "Nuevo Prog. 2024" : "Acuerdo 653"})
                                         </option>
@@ -2492,7 +2498,7 @@ export default function WizardConfiguracion({
                           </span>
                           {g.carreraTecnicaId ? (
                             <span style={{ fontSize: "0.6875rem", fontWeight: 700, color: "#f59e0b", background: "rgba(245, 158, 11, 0.15)", padding: "0.2rem 0.6rem", borderRadius: "6px", border: "1px solid rgba(245, 158, 11, 0.3)" }}>
-                              {CARRERAS_TECNOLOGICAS.find(c => c.id === g.carreraTecnicaId)?.nombre || g.carreraTecnicaId}
+                              {carrerasTecnologicas.find(c => c.id === g.carreraTecnicaId)?.nombre || g.carreraTecnicaId}
                             </span>
                           ) : g.capacitacionNombre ? (
                             <span style={{ fontSize: "0.6875rem", fontWeight: 700, color: "#38bdf8", background: "#0f172a", padding: "0.2rem 0.6rem", borderRadius: "6px", border: "1px solid #334155" }}>

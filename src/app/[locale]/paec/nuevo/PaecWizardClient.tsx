@@ -30,7 +30,7 @@ import {
   UACS_LABORALES_MAPA,
   FFE_OPTATIVAS_CATALOGO,
 } from '@/lib/escuela-grupos';
-import { CARRERAS_TECNICAS_BT } from '@/lib/bt-carreras-catalog';
+import { loadCarrerasTecnicas, type BTCarrera } from '@/lib/bt-carreras-catalog';
 import type { SchoolZoneContextResponse } from '@/lib/zone-sync-service';
 
 const PAEC_DRAFT_KEY = 'didactica_paec_draft';
@@ -397,6 +397,13 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
   const [groupAssignments, setGroupAssignments] = useState<GroupTrackConfig[]>(
     savedDraft?.groupAssignments ?? []
   );
+  const [carrerasBT, setCarrerasBT] = useState<BTCarrera[]>([]);
+
+  useEffect(() => {
+    if (schoolType === 'tecnico' || (selectedBtCarreras && selectedBtCarreras.length > 0)) {
+      loadCarrerasTecnicas().then(setCarrerasBT);
+    }
+  }, [schoolType, selectedBtCarreras]);
 
   // Sincronizar grupos por semestre cuando cambia la configuración o el ciclo
   useEffect(() => {
@@ -1326,7 +1333,7 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
                               style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: '#0f172a', color: '#f0f4ff', fontSize: '12.5px' }}
                             >
                               <option value="">Selecciona Carrera Técnica BT...</option>
-                              {CARRERAS_TECNICAS_BT.map((c) => (
+                              {carrerasBT.map((c) => (
                                 <option key={c.id} value={c.id}>{c.nombre}</option>
                               ))}
                             </select>

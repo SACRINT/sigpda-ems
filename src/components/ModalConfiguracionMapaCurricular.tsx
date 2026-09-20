@@ -14,10 +14,10 @@ import {
   GrupoDefinicion
 } from "@/lib/escuela-grupos";
 import {
-  CARRERAS_TECNOLOGICAS,
+  loadCarrerasTecnicas,
   CATALOGO_PROPEDUTICAS_5TO,
   getModulosPorSemestre,
-  CarreraTecnica,
+  type CarreraTecnica,
 } from "@/lib/bt-carreras-catalog";
 
 export interface GrupoConfigItem {
@@ -65,6 +65,13 @@ export default function ModalConfiguracionMapaCurricular({
     initialEsTec ? "tecnologico" : "bge"
   );
   const esTecnologico = subsistemaSeleccionado === "tecnologico";
+  const [carrerasTecnologicas, setCarrerasTecnologicas] = useState<CarreraTecnica[]>([]);
+
+  useEffect(() => {
+    if (isOpen && esTecnologico) {
+      loadCarrerasTecnicas().then(setCarrerasTecnologicas);
+    }
+  }, [isOpen, esTecnologico]);
 
   const [paso, setPaso] = useState<1 | 2>(1);
   const [guardando, setGuardando] = useState(false);
@@ -752,7 +759,7 @@ export default function ModalConfiguracionMapaCurricular({
                                     onChange={(e) => {
                                       const val = e.target.value;
                                       handleUpdateGrupoConfig(g.nombre, "carreraTecnicaId", val);
-                                      const carrera = CARRERAS_TECNOLOGICAS.find(c => c.id === val);
+                                      const carrera = carrerasTecnologicas.find(c => c.id === val);
                                       if (carrera) {
                                         handleUpdateGrupoConfig(g.nombre, "versionPrograma", carrera.tipoPrograma);
                                       }
@@ -768,7 +775,7 @@ export default function ModalConfiguracionMapaCurricular({
                                       width: "100%"
                                     }}
                                   >
-                                    {CARRERAS_TECNOLOGICAS.map(c => (
+                                    {carrerasTecnologicas.map(c => (
                                       <option key={c.id} value={c.id} style={{ background: "#0f172a", color: "#ffffff" }}>
                                         {c.nombre} ({c.tipoPrograma === "nuevo" ? "Nuevo Prog. 2024" : "Acuerdo 653"})
                                       </option>
@@ -930,7 +937,7 @@ export default function ModalConfiguracionMapaCurricular({
                                     onChange={(e) => {
                                       const val = e.target.value;
                                       handleUpdateGrupoConfig(g.nombre, "carreraTecnicaId", val);
-                                      const carrera = CARRERAS_TECNOLOGICAS.find(c => c.id === val);
+                                      const carrera = carrerasTecnologicas.find(c => c.id === val);
                                       if (carrera) {
                                         handleUpdateGrupoConfig(g.nombre, "versionPrograma", carrera.tipoPrograma);
                                       }
@@ -946,7 +953,7 @@ export default function ModalConfiguracionMapaCurricular({
                                       width: "100%"
                                     }}
                                   >
-                                    {CARRERAS_TECNOLOGICAS.map(c => (
+                                    {carrerasTecnologicas.map(c => (
                                       <option key={c.id} value={c.id} style={{ background: "#0f172a", color: "#ffffff" }}>
                                         {c.nombre} ({c.tipoPrograma === "nuevo" ? "Nuevo Prog. 2024" : "Acuerdo 653"})
                                       </option>

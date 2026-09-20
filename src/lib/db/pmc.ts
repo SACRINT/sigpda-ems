@@ -171,8 +171,7 @@ export async function updatePmcProject(
 
 export async function updatePmcProjectStep(
   id: string,
-  stepNumber: number,
-  stepData?: unknown
+  stepNumber: number
 ): Promise<PmcProject | null> {
   const db = sql();
   const nextStep = Math.min(Math.max(stepNumber + 1, 1), 8);
