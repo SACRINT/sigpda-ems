@@ -866,7 +866,7 @@ export function drawDigitalToolCardWidget(
   setFontBody(doc, 'bold');
   doc.setFontSize(4.8);
   doc.setTextColor(...ACCENT_DIGITAL);
-  doc.text('📱 Escanea el QR para interactuar', sideXAbs + 4.5, sy + cardH - 2.5);
+  doc.text(sanitizePdfText('Escanea el QR para interactuar'), sideXAbs + 4.5, sy + cardH - 2.5);
 
   return sy + cardH + 3.0;
 }
