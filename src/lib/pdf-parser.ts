@@ -5,6 +5,7 @@ import { logger } from '@/lib/logger';
 import { ingestDocument } from '@/lib/document-ingestion';
 import { parseAIResponse } from '@/lib/ai-response-parser';
 import { PdfProgramExtractSchema } from '@/lib/ai-schemas';
+import { removeHyphens } from '@/lib/text-utils';
 
 /**
  * Universal document extraction and structuring for Curricular Programs (PDF, Word .docx, etc.):
@@ -180,13 +181,3 @@ function buildEmptyData() {
   };
 }
 
-function removeHyphens(text: string): string {
-  if (!text) return '';
-  return text
-    // Replace soft hyphens
-    .replace(/\u00ad/g, '')
-    // Replace standard hyphen followed by newline and optional spaces
-    .replace(/([a-zA-ZáéíóúñÁÉÍÓÚÑ]+)-\s*[\r\n]\s*([a-zA-ZáéíóúñÁÉÍÓÚÑ]+)/g, '$1$2')
-    // Replace standard hyphen followed by spaces
-    .replace(/([a-zA-ZáéíóúñÁÉÍÓÚÑ]+)-\s+([a-zA-ZáéíóúñÁÉÍÓÚÑ]+)/g, '$1$2');
-}
