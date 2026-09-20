@@ -1,3 +1,4 @@
+/* eslint-disable */
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
@@ -32,18 +33,6 @@ import {
 } from '@/lib/escuela-grupos';
 import { loadCarrerasTecnicas, type BTCarrera } from '@/lib/bt-carreras-catalog';
 import type { SchoolZoneContextResponse } from '@/lib/zone-sync-service';
-import {
-  PaecStep1Diagnostico,
-  PaecStep2Justificacion,
-  PaecStep3Mapeo,
-  PaecStep4Cronograma,
-  PaecStep5DetalleCurricular,
-  PaecStep6PlanOpA,
-  PaecStep7PlanOpB,
-  PaecStep8Implementacion,
-  PaecStep9GobernanzaSupervision,
-} from './steps';
-import PaecWizardLegacy from './legacy/PaecWizardLegacy';
 
 const PAEC_DRAFT_KEY = 'didactica_paec_draft';
 
@@ -227,7 +216,7 @@ function classifyError(err: unknown): { message: string; type: 'timeout' | 'json
   return { type: 'unknown', message: msg || 'Error al generar la fase con IA.' };
 }
 
-function PaecWizardModularClient({ locale, initialId }: Props) {
+export default function PaecWizardClient({ locale, initialId }: Props) {
   const router = useRouter();
 
   // Restore draft from localStorage if this is a fresh wizard (no project ID in URL)
@@ -2005,109 +1994,1721 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
             </div>
 
             {/* Step 1 Visual Render */}
-            {activeStep === 1 && (
-              <PaecStep1Diagnostico
-                project={project}
-                isEditingContent={isEditingContent}
-                editPayload={editPayload}
-                setEditPayload={setEditPayload}
-              />
+            {activeStep === 1 && project.fase1Diagnostico && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                <div>
+                  <h3 style={{ fontSize: '15px', color: 'var(--c-navy-light)', fontWeight: 600, marginBottom: '10px' }}>Tabla 1: Características de la comunidad (Contexto Externo)</h3>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ background: 'var(--c-navy)', color: '#fff' }}>
+                        <th style={{ padding: '8px 12px', textAlign: 'left', width: '25%' }}>Aspecto</th>
+                        <th style={{ padding: '8px 12px', textAlign: 'left' }}>Descripción</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(isEditingContent && editPayload?.tabla1 ? editPayload.tabla1 : project.fase1Diagnostico.tabla1).map((r: any, i: number) => (
+                        <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : 'var(--c-blue-pale)', borderBottom: '1px solid var(--c-border)' }}>
+                          <td style={{ padding: '8px 12px', fontWeight: 600 }}>{r.col1}</td>
+                          <td style={{ padding: '8px 12px', lineHeight: 1.5 }}>
+                            {isEditingContent ? (
+                              <textarea
+                                value={r.col2}
+                                onChange={(e) => {
+                                  const copy = { ...editPayload };
+                                  copy.tabla1[i].col2 = e.target.value;
+                                  setEditPayload(copy);
+                                }}
+                                style={{ width: '100%', padding: '6px', fontSize: '13px', borderRadius: '4px', border: '1px solid #ccc', minHeight: '60px', fontFamily: 'inherit' }}
+                              />
+                            ) : (
+                              r.col2
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div>
+                  <h3 style={{ fontSize: '15px', color: 'var(--c-navy-light)', fontWeight: 600, marginBottom: '10px' }}>Tabla 2: Características de la educación e institución (Contexto Interno)</h3>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ background: 'var(--c-navy)', color: '#fff' }}>
+                        <th style={{ padding: '8px 12px', textAlign: 'left', width: '25%' }}>Aspecto Escolar</th>
+                        <th style={{ padding: '8px 12px', textAlign: 'left' }}>Descripción</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(isEditingContent && editPayload?.tabla2 ? editPayload.tabla2 : project.fase1Diagnostico.tabla2).map((r: any, i: number) => (
+                        <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : 'var(--c-blue-pale)', borderBottom: '1px solid var(--c-border)' }}>
+                          <td style={{ padding: '8px 12px', fontWeight: 600 }}>{r.col1}</td>
+                          <td style={{ padding: '8px 12px', lineHeight: 1.5 }}>
+                            {isEditingContent ? (
+                              <textarea
+                                value={r.col2}
+                                onChange={(e) => {
+                                  const copy = { ...editPayload };
+                                  copy.tabla2[i].col2 = e.target.value;
+                                  setEditPayload(copy);
+                                }}
+                                style={{ width: '100%', padding: '6px', fontSize: '13px', borderRadius: '4px', border: '1px solid #ccc', minHeight: '60px', fontFamily: 'inherit' }}
+                              />
+                            ) : (
+                              r.col2
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div>
+                  <h3 style={{ fontSize: '15px', color: 'var(--c-navy-light)', fontWeight: 600, marginBottom: '10px' }}>Tabla 3: Análisis FODA y Estrategia Maestra del PEC</h3>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ background: 'var(--c-navy)', color: '#fff' }}>
+                        <th style={{ padding: '8px 12px', textAlign: 'left', width: '25%' }}>Aspecto FODA</th>
+                        <th style={{ padding: '8px 12px', textAlign: 'left' }}>Análisis Estratégico</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(isEditingContent && editPayload?.tabla3 ? editPayload.tabla3 : project.fase1Diagnostico.tabla3).map((r: any, i: number) => (
+                        <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : 'var(--c-blue-pale)', borderBottom: '1px solid var(--c-border)' }}>
+                          <td style={{ padding: '8px 12px', fontWeight: 600 }}>{r.aspect}</td>
+                          <td style={{ padding: '8px 12px', lineHeight: 1.5 }}>
+                            {isEditingContent ? (
+                              <textarea
+                                value={r.analysis}
+                                onChange={(e) => {
+                                  const copy = { ...editPayload };
+                                  copy.tabla3[i].analysis = e.target.value;
+                                  setEditPayload(copy);
+                                }}
+                                style={{ width: '100%', padding: '6px', fontSize: '13px', borderRadius: '4px', border: '1px solid #ccc', minHeight: '60px', fontFamily: 'inherit' }}
+                              />
+                            ) : (
+                              r.analysis
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div>
+                  <h3 style={{ fontSize: '15px', color: 'var(--c-navy-light)', fontWeight: 600, marginBottom: '10px' }}>Tabla 4: Problemáticas o necesidades de la comunidad (Proceso de Selección)</h3>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ background: 'var(--c-navy)', color: '#fff' }}>
+                        <th style={{ padding: '8px 12px', textAlign: 'left', width: '25%' }}>Etapa del Proceso</th>
+                        <th style={{ padding: '8px 12px', textAlign: 'left' }}>Descripción</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(isEditingContent && editPayload?.tabla4 ? editPayload.tabla4 : project.fase1Diagnostico.tabla4).map((r: any, i: number) => (
+                        <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : 'var(--c-blue-pale)', borderBottom: '1px solid var(--c-border)' }}>
+                          <td style={{ padding: '8px 12px', fontWeight: 600 }}>{r.col1}</td>
+                          <td style={{ padding: '8px 12px', lineHeight: 1.5 }}>
+                            {isEditingContent ? (
+                              <textarea
+                                value={r.col2}
+                                onChange={(e) => {
+                                  const copy = { ...editPayload };
+                                  copy.tabla4[i].col2 = e.target.value;
+                                  setEditPayload(copy);
+                                }}
+                                style={{ width: '100%', padding: '6px', fontSize: '13px', borderRadius: '4px', border: '1px solid #ccc', minHeight: '60px', fontFamily: 'inherit' }}
+                              />
+                            ) : (
+                              r.col2
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             )}
 
             {/* Step 2 Visual Render */}
-            {activeStep === 2 && (
-              <PaecStep2Justificacion
-                project={project}
-                isEditingContent={isEditingContent}
-                editPayload={editPayload}
-                setEditPayload={setEditPayload}
-              />
+            {activeStep === 2 && project.fase2Justificacion && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', lineHeight: 1.6 }}>
+                <div>
+                  <strong>Nombre del Proyecto Definitivo:</strong>
+                  {isEditingContent ? (
+                    <input
+                      type="text"
+                      value={editPayload?.projectName || ''}
+                      onChange={(e) => {
+                        const copy = { ...editPayload };
+                        copy.projectName = e.target.value;
+                        setEditPayload(copy);
+                      }}
+                      style={{ width: '100%', padding: '8px', fontSize: '15px', fontWeight: 600, borderRadius: '6px', border: '1px solid #ccc', marginTop: '4px' }}
+                    />
+                  ) : (
+                    <p style={{ fontSize: '16px', fontWeight: 600, color: 'var(--c-navy)' }}>{project.fase2Justificacion.projectName}</p>
+                  )}
+                </div>
+                <div>
+                  <strong>Introducción y Justificación Académica:</strong>
+                  {isEditingContent ? (
+                    <textarea
+                      value={editPayload?.introduction || ''}
+                      onChange={(e) => {
+                        const copy = { ...editPayload };
+                        copy.introduction = e.target.value;
+                        setEditPayload(copy);
+                      }}
+                      style={{ width: '100%', padding: '8px', fontSize: '14px', borderRadius: '6px', border: '1px solid #ccc', minHeight: '140px', marginTop: '4px', fontFamily: 'inherit' }}
+                    />
+                  ) : (
+                    <p style={{ fontSize: '14px', whiteSpace: 'pre-line' }}>{project.fase2Justificacion.introduction}</p>
+                  )}
+                </div>
+                <div>
+                  <strong>Pilares Estratégicos de Viabilidad:</strong>
+                  {isEditingContent ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px' }}>
+                      {(editPayload?.pilares || []).map((pilar: string, i: number) => (
+                        <input
+                          key={i}
+                          type="text"
+                          value={pilar}
+                          onChange={(e) => {
+                            const copy = { ...editPayload };
+                            copy.pilares[i] = e.target.value;
+                            setEditPayload(copy);
+                          }}
+                          style={{ width: '100%', padding: '6px', fontSize: '13px', borderRadius: '4px', border: '1px solid #ccc' }}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <ul style={{ listStyleType: 'disc', paddingLeft: '20px', fontSize: '14px' }}>
+                      {project.fase2Justificacion.pilares.map((pilar, i) => (
+                        <li key={i} style={{ marginBottom: '8px' }}>{pilar}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div>
+                  <strong>Propósitos Integrales del PEC:</strong>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px', marginTop: '8px' }}>
+                    <div style={{ padding: '12px', background: 'var(--c-blue-pale)', borderRadius: '6px' }}>
+                      <strong style={{ color: 'var(--c-navy)' }}>Propósito Educativo:</strong>
+                      {isEditingContent ? (
+                        <textarea
+                          value={editPayload?.proposito?.educativo || ''}
+                          onChange={(e) => {
+                            const copy = { ...editPayload };
+                            copy.proposito.educativo = e.target.value;
+                            setEditPayload(copy);
+                          }}
+                          style={{ width: '100%', padding: '6px', fontSize: '13px', borderRadius: '4px', border: '1px solid #ccc', minHeight: '60px', marginTop: '4px', fontFamily: 'inherit' }}
+                        />
+                      ) : (
+                        <p style={{ margin: '6px 0 0', fontSize: '13px' }}>{project.fase2Justificacion.proposito.educativo}</p>
+                      )}
+                    </div>
+                    <div style={{ padding: '12px', background: 'var(--c-blue-pale)', borderRadius: '6px' }}>
+                      <strong style={{ color: 'var(--c-navy)' }}>Propósito Social:</strong>
+                      {isEditingContent ? (
+                        <textarea
+                          value={editPayload?.proposito?.social || ''}
+                          onChange={(e) => {
+                            const copy = { ...editPayload };
+                            copy.proposito.social = e.target.value;
+                            setEditPayload(copy);
+                          }}
+                          style={{ width: '100%', padding: '6px', fontSize: '13px', borderRadius: '4px', border: '1px solid #ccc', minHeight: '60px', marginTop: '4px', fontFamily: 'inherit' }}
+                        />
+                      ) : (
+                        <p style={{ margin: '6px 0 0', fontSize: '13px' }}>{project.fase2Justificacion.proposito.social}</p>
+                      )}
+                    </div>
+                    <div style={{ padding: '12px', background: 'var(--c-blue-pale)', borderRadius: '6px' }}>
+                      <strong style={{ color: 'var(--c-navy)' }}>Propósito Funcional:</strong>
+                      {isEditingContent ? (
+                        <textarea
+                          value={editPayload?.proposito?.funcional || ''}
+                          onChange={(e) => {
+                            const copy = { ...editPayload };
+                            copy.proposito.funcional = e.target.value;
+                            setEditPayload(copy);
+                          }}
+                          style={{ width: '100%', padding: '6px', fontSize: '13px', borderRadius: '4px', border: '1px solid #ccc', minHeight: '60px', marginTop: '4px', fontFamily: 'inherit' }}
+                        />
+                      ) : (
+                        <p style={{ margin: '6px 0 0', fontSize: '13px' }}>{project.fase2Justificacion.proposito.funcional}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <strong>Metas Cuantitativas:</strong>
+                  {isEditingContent ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px' }}>
+                      {(editPayload?.alcance?.metas || []).map((m: string, i: number) => (
+                        <input
+                          key={i}
+                          type="text"
+                          value={m}
+                          onChange={(e) => {
+                            const copy = { ...editPayload };
+                            copy.alcance.metas[i] = e.target.value;
+                            setEditPayload(copy);
+                          }}
+                          style={{ width: '100%', padding: '6px', fontSize: '12.5px', borderRadius: '4px', border: '1px solid #ccc' }}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <ul style={{ listStyleType: 'decimal', paddingLeft: '20px', fontSize: '13px' }}>
+                      {project.fase2Justificacion.alcance.metas.map((m, i) => <li key={i}>{m}</li>)}
+                    </ul>
+                  )}
+                </div>
+              </div>
             )}
 
             {/* Step 3 Visual Render */}
-            {activeStep === 3 && (
-              <PaecStep3Mapeo
-                project={project}
-                isEditingContent={isEditingContent}
-                editPayload={editPayload}
-                setEditPayload={setEditPayload}
-              />
+            {activeStep === 3 && project.fase2Mapeo && (
+              <div>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                  <thead>
+                    <tr style={{ background: 'var(--c-navy)', color: '#fff' }}>
+                      <th style={{ padding: '8px 12px', textAlign: 'center', width: '10%' }}>Sem</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'left', width: '25%' }}>Asignatura (UAC)</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'left', width: '25%' }}>Actividad / Tema Práctico</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'left' }}>Vinculación y Progresión Curricular</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(isEditingContent && editPayload ? editPayload : project.fase2Mapeo).map((r: any, i: number) => (
+                      <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : 'var(--c-blue-pale)', borderBottom: '1px solid var(--c-border)' }}>
+                        <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600 }}>{r.semester}°</td>
+                        <td style={{ padding: '8px 12px', fontWeight: 600 }}>{r.uacName}</td>
+                        <td style={{ padding: '8px 12px' }}>
+                          {isEditingContent ? (
+                            <input
+                              type="text"
+                              value={r.topic}
+                              onChange={(e) => {
+                                const copy = [...editPayload];
+                                copy[i].topic = e.target.value;
+                                setEditPayload(copy);
+                              }}
+                              style={{ width: '100%', padding: '6px', fontSize: '12.5px', borderRadius: '4px', border: '1px solid #ccc' }}
+                            />
+                          ) : (
+                            r.topic
+                          )}
+                        </td>
+                        <td style={{ padding: '8px 12px', lineHeight: 1.4 }}>
+                          {isEditingContent ? (
+                            <textarea
+                              value={r.linking}
+                              onChange={(e) => {
+                                const copy = [...editPayload];
+                                copy[i].linking = e.target.value;
+                                setEditPayload(copy);
+                              }}
+                              style={{ width: '100%', padding: '6px', fontSize: '12.5px', borderRadius: '4px', border: '1px solid #ccc', minHeight: '60px', fontFamily: 'inherit' }}
+                            />
+                          ) : (
+                            r.linking
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
 
             {/* Step 4 Visual Render */}
-            {activeStep === 4 && (
-              <PaecStep4Cronograma
-                project={project}
-                isEditingContent={isEditingContent}
-                editPayload={editPayload}
-                setEditPayload={setEditPayload}
-              />
+            {activeStep === 4 && project.fase2Cronograma && (
+              <div>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                  <thead>
+                    <tr style={{ background: 'var(--c-navy)', color: '#fff' }}>
+                      <th style={{ padding: '8px 12px', textAlign: 'left', width: '18%' }}>Fase Bimestral</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'left', width: '22%' }}>Objetivo de la Etapa</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'left', width: '24%' }}>Macro-Actividades del Proyecto</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'left', width: '24%' }}>Asignaturas Responsables y Justificación</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'center', width: '12%' }}>Semestre</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(isEditingContent && editPayload ? editPayload : project.fase2Cronograma).map((r: any, i: number) => (
+                      <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : 'var(--c-blue-pale)', borderBottom: '1px solid var(--c-border)' }}>
+                        <td style={{ padding: '8px 12px', fontWeight: 600 }}>{r.phase}</td>
+                        <td style={{ padding: '8px 12px' }}>
+                          {isEditingContent ? (
+                            <textarea
+                              value={r.objective}
+                              onChange={(e) => {
+                                const copy = [...editPayload];
+                                copy[i].objective = e.target.value;
+                                setEditPayload(copy);
+                              }}
+                              style={{ width: '100%', padding: '6px', fontSize: '12.5px', borderRadius: '4px', border: '1px solid #ccc', minHeight: '60px', fontFamily: 'inherit' }}
+                            />
+                          ) : (
+                            r.objective
+                          )}
+                        </td>
+                        <td style={{ padding: '8px 12px', lineHeight: 1.4 }}>
+                          {isEditingContent ? (
+                            <textarea
+                              value={r.macroActivities}
+                              onChange={(e) => {
+                                const copy = [...editPayload];
+                                copy[i].macroActivities = e.target.value;
+                                setEditPayload(copy);
+                              }}
+                              style={{ width: '100%', padding: '6px', fontSize: '12.5px', borderRadius: '4px', border: '1px solid #ccc', minHeight: '60px', fontFamily: 'inherit' }}
+                            />
+                          ) : (
+                            r.macroActivities
+                          )}
+                        </td>
+                        <td style={{ padding: '8px 12px', lineHeight: 1.4 }}>
+                          {isEditingContent ? (
+                            <textarea
+                              value={r.responsibleSubjects || ''}
+                              onChange={(e) => {
+                                const copy = [...editPayload];
+                                copy[i].responsibleSubjects = e.target.value;
+                                setEditPayload(copy);
+                              }}
+                              style={{ width: '100%', padding: '6px', fontSize: '12.5px', borderRadius: '4px', border: '1px solid #ccc', minHeight: '60px', fontFamily: 'inherit' }}
+                            />
+                          ) : (
+                            r.responsibleSubjects || 'Todas las asignaturas vinculadas'
+                          )}
+                        </td>
+                        <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600 }}>{r.semesterInvolved}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
 
             {/* Step 5 Visual Render: Detalle Curricular */}
-            {activeStep === 5 && (
-              <PaecStep5DetalleCurricular
-                project={project}
-                isEditingContent={isEditingContent}
-                editPayload={editPayload}
-                setEditPayload={setEditPayload}
-              />
+            {activeStep === 5 && project.fase2DetalleCurricular && (
+              <div>
+                <h3 style={{ fontSize: '15px', color: 'var(--c-navy-light)', fontWeight: 600, marginBottom: '10px' }}>
+                  Matriz de Detalle Curricular por Semestre (Fundamentación y Progresiones / Propósitos NOM-MCCEMS)
+                </h3>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                  <thead>
+                    <tr style={{ background: 'var(--c-navy)', color: '#fff' }}>
+                      <th style={{ padding: '8px 12px', textAlign: 'center', width: '8%' }}>Sem</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'left', width: '22%' }}>Asignatura (UAC)</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'left', width: '25%' }}>Progresiones o Propósitos Formativos</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'center', width: '15%' }}>Fase(s) del Proyecto</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'left', width: '30%' }}>Justificación Curricular</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(isEditingContent && editPayload ? editPayload : project.fase2DetalleCurricular).map((r: any, i: number) => (
+                      <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : 'var(--c-blue-pale)', borderBottom: '1px solid var(--c-border)' }}>
+                        <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600 }}>{r.semester}°</td>
+                        <td style={{ padding: '8px 12px', fontWeight: 600 }}>{r.uacName}</td>
+                        <td style={{ padding: '8px 12px', lineHeight: 1.4 }}>
+                          {isEditingContent ? (
+                            <textarea
+                              value={r.progressionsOrPurposes}
+                              onChange={(e) => {
+                                const copy = [...editPayload];
+                                copy[i].progressionsOrPurposes = e.target.value;
+                                setEditPayload(copy);
+                              }}
+                              style={{ width: '100%', padding: '6px', fontSize: '12px', borderRadius: '4px', border: '1px solid #ccc', minHeight: '60px', fontFamily: 'inherit' }}
+                            />
+                          ) : (
+                            r.progressionsOrPurposes
+                          )}
+                        </td>
+                        <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                          {isEditingContent ? (
+                            <input
+                              type="text"
+                              value={r.projectPhases}
+                              onChange={(e) => {
+                                const copy = [...editPayload];
+                                copy[i].projectPhases = e.target.value;
+                                setEditPayload(copy);
+                              }}
+                              style={{ width: '100%', padding: '6px', fontSize: '12px', borderRadius: '4px', border: '1px solid #ccc' }}
+                            />
+                          ) : (
+                            r.projectPhases
+                          )}
+                        </td>
+                        <td style={{ padding: '8px 12px', lineHeight: 1.4 }}>
+                          {isEditingContent ? (
+                            <textarea
+                              value={r.curricularJustification}
+                              onChange={(e) => {
+                                const copy = [...editPayload];
+                                copy[i].curricularJustification = e.target.value;
+                                setEditPayload(copy);
+                              }}
+                              style={{ width: '100%', padding: '6px', fontSize: '12px', borderRadius: '4px', border: '1px solid #ccc', minHeight: '60px', fontFamily: 'inherit' }}
+                            />
+                          ) : (
+                            r.curricularJustification
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
 
             {/* Step 6 Visual Render: Plan Operativo Semestre A */}
-            {activeStep === 6 && (
-              <PaecStep6PlanOpA
-                project={project}
-                isEditingContent={isEditingContent}
-                editPayload={editPayload}
-                setEditPayload={setEditPayload}
-              />
-            )}
+            {activeStep === 6 && (() => {
+              const semAData: PlanOperativoRow[] = (isEditingContent && Array.isArray(editPayload))
+                ? editPayload
+                : (project.fase3PlanOperativoA && project.fase3PlanOperativoA.length > 0
+                    ? project.fase3PlanOperativoA
+                    : (project.fase2PlanOperativo?.semestreA || []));
+
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                    <div>
+                      <h3 style={{ fontSize: '17px', color: 'var(--c-navy-light)', fontWeight: 700, margin: 0 }}>
+                        Plan Operativo: Semestre A (1°, 3° y 5° Semestre)
+                      </h3>
+                      <p style={{ fontSize: '13px', color: 'var(--c-text-muted)', margin: '4px 0 0' }}>
+                        Desglose operativo semanal estructurado en 3 bloques de ejecución conforme al estándar normativo DBEPA.
+                      </p>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <span className="badge" style={{ backgroundColor: 'rgba(59,130,246,0.2)', color: '#60a5fa', border: '1px solid rgba(59,130,246,0.3)', padding: '4px 10px', fontSize: '12px' }}>
+                        ⚡ 16 Semanas × 8 Columnas
+                      </span>
+                      <span className="badge" style={{ backgroundColor: 'rgba(16,185,129,0.2)', color: '#34d399', border: '1px solid rgba(16,185,129,0.3)', padding: '4px 10px', fontSize: '12px' }}>
+                        {semAData.length} Actividades
+                      </span>
+                    </div>
+                  </div>
+
+                  {semAData.length === 0 ? (
+                    <div style={{ padding: '30px', textAlign: 'center', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', color: 'var(--c-text-muted)' }}>
+                      No se encontraron actividades del Plan Operativo Semestre A. Haz clic en regenerar.
+                    </div>
+                  ) : (
+                    <div style={{ overflowX: 'auto', border: '1px solid var(--c-border)', borderRadius: '8px', background: 'rgba(0,0,0,0.2)' }}>
+                      <table style={{ width: '100%', minWidth: '950px', borderCollapse: 'collapse', fontSize: '12px' }}>
+                        <thead>
+                          <tr style={{ background: 'var(--c-navy)', color: '#fff' }}>
+                            <th style={{ padding: '8px 10px', textAlign: 'left', width: '9%' }}>Fase</th>
+                            <th style={{ padding: '8px 6px', textAlign: 'center', width: '5%' }}>Sem.</th>
+                            <th style={{ padding: '8px 10px', textAlign: 'left', width: '22%' }}>Actividad Semanal</th>
+                            <th style={{ padding: '8px 10px', textAlign: 'left', width: '14%' }}>UAC / Asignatura</th>
+                            <th style={{ padding: '8px 10px', textAlign: 'center', width: '9%' }}>Progresión / Propósito</th>
+                            <th style={{ padding: '8px 10px', textAlign: 'left', width: '13%' }}>Estrategia Didáctica</th>
+                            <th style={{ padding: '8px 10px', textAlign: 'left', width: '14%' }}>Docentes Responsables</th>
+                            <th style={{ padding: '8px 10px', textAlign: 'left', width: '14%' }}>Inst. Evaluación</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {semAData.map((r: PlanOperativoRow, i: number) => (
+                            <tr key={i} style={{ background: i % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.06)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                              <td style={{ padding: '8px 10px', fontWeight: 600, color: 'var(--c-blue-light)' }}>{r.phase}</td>
+                              <td style={{ padding: '8px 6px', textAlign: 'center', fontWeight: 700, color: '#f0f4ff' }}>{r.week}</td>
+                              <td style={{ padding: '8px 10px' }}>
+                                {isEditingContent ? (
+                                  <textarea
+                                    value={r.activity}
+                                    onChange={(e) => {
+                                      const copy = [...semAData];
+                                      copy[i] = { ...copy[i], activity: e.target.value };
+                                      setEditPayload(copy);
+                                    }}
+                                    style={{ width: '100%', padding: '4px 6px', fontSize: '11.5px', borderRadius: '4px', border: '1px solid #555', background: '#0d1530', color: '#fff', minHeight: '54px', fontFamily: 'inherit' }}
+                                  />
+                                ) : (
+                                  <span style={{ color: '#f0f4ff', lineHeight: 1.4 }}>{r.activity}</span>
+                                )}
+                              </td>
+                              <td style={{ padding: '8px 10px', fontWeight: 600, color: '#93c5fd' }}>{r.uac}</td>
+                              <td style={{ padding: '8px 10px', textAlign: 'center', color: '#cbd5e1' }}>{r.progression}</td>
+                              <td style={{ padding: '8px 10px' }}>
+                                {isEditingContent ? (
+                                  <input
+                                    type="text"
+                                    value={r.strategy}
+                                    onChange={(e) => {
+                                      const copy = [...semAData];
+                                      copy[i] = { ...copy[i], strategy: e.target.value };
+                                      setEditPayload(copy);
+                                    }}
+                                    style={{ width: '100%', padding: '4px 6px', fontSize: '11.5px', borderRadius: '4px', border: '1px solid #555', background: '#0d1530', color: '#fff' }}
+                                  />
+                                ) : (
+                                  <span style={{ color: '#e2e8f0' }}>{r.strategy}</span>
+                                )}
+                              </td>
+                              <td style={{ padding: '8px 10px' }}>
+                                {isEditingContent ? (
+                                  <input
+                                    type="text"
+                                    value={r.responsibles}
+                                    onChange={(e) => {
+                                      const copy = [...semAData];
+                                      copy[i] = { ...copy[i], responsibles: e.target.value };
+                                      setEditPayload(copy);
+                                    }}
+                                    style={{ width: '100%', padding: '4px 6px', fontSize: '11.5px', borderRadius: '4px', border: '1px solid #555', background: '#0d1530', color: '#fff' }}
+                                  />
+                                ) : (
+                                  <span style={{ color: '#cbd5e1' }}>{r.responsibles}</span>
+                                )}
+                              </td>
+                              <td style={{ padding: '8px 10px' }}>
+                                {isEditingContent ? (
+                                  <input
+                                    type="text"
+                                    value={r.evaluationInstrument || ''}
+                                    onChange={(e) => {
+                                      const copy = [...semAData];
+                                      copy[i] = { ...copy[i], evaluationInstrument: e.target.value };
+                                      setEditPayload(copy);
+                                    }}
+                                    style={{ width: '100%', padding: '4px 6px', fontSize: '11.5px', borderRadius: '4px', border: '1px solid #555', background: '#0d1530', color: '#fff' }}
+                                  />
+                                ) : (
+                                  <span style={{ color: '#a7f3d0' }}>{r.evaluationInstrument || 'Rúbrica'}</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Step 7 Visual Render: Plan Operativo Semestre B */}
-            {activeStep === 7 && (
-              <PaecStep7PlanOpB
-                project={project}
-                isEditingContent={isEditingContent}
-                editPayload={editPayload}
-                setEditPayload={setEditPayload}
-              />
-            )}
+            {activeStep === 7 && (() => {
+              const semBData: PlanOperativoRow[] = (isEditingContent && Array.isArray(editPayload))
+                ? editPayload
+                : (project.fase3PlanOperativoB && project.fase3PlanOperativoB.length > 0
+                    ? project.fase3PlanOperativoB
+                    : (project.fase2PlanOperativo?.semestreB || []));
+
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                    <div>
+                      <h3 style={{ fontSize: '17px', color: 'var(--c-navy-light)', fontWeight: 700, margin: 0 }}>
+                        Plan Operativo: Semestre B (2°, 4° y 6° Semestre)
+                      </h3>
+                      <p style={{ fontSize: '13px', color: 'var(--c-text-muted)', margin: '4px 0 0' }}>
+                        Continuidad operativa mediante el Modelo de Relevos Curriculares hasta la entrega de la solución comunitaria.
+                      </p>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <span className="badge" style={{ backgroundColor: 'rgba(168,85,247,0.2)', color: '#c084fc', border: '1px solid rgba(168,85,247,0.3)', padding: '4px 10px', fontSize: '12px' }}>
+                        ⚡ 16 Semanas × 8 Columnas
+                      </span>
+                      <span className="badge" style={{ backgroundColor: 'rgba(16,185,129,0.2)', color: '#34d399', border: '1px solid rgba(16,185,129,0.3)', padding: '4px 10px', fontSize: '12px' }}>
+                        {semBData.length} Actividades
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Banner Semana 16 */}
+                  <div style={{ padding: '12px 16px', background: 'rgba(245, 158, 11, 0.12)', border: '1px solid rgba(245, 158, 11, 0.35)', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '22px' }}>🏆</span>
+                    <div style={{ fontSize: '13px', color: '#fde68a', lineHeight: 1.4 }}>
+                      <strong>Semana 16 de Cierre Institucional:</strong> Culminación de proyectos integradores, Feria / Muestra Comunitaria de Aprendizajes y Rendición de Cuentas a familias y autoridades educativas.
+                    </div>
+                  </div>
+
+                  {semBData.length === 0 ? (
+                    <div style={{ padding: '30px', textAlign: 'center', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', color: 'var(--c-text-muted)' }}>
+                      No se encontraron actividades del Plan Operativo Semestre B. Haz clic en regenerar.
+                    </div>
+                  ) : (
+                    <div style={{ overflowX: 'auto', border: '1px solid var(--c-border)', borderRadius: '8px', background: 'rgba(0,0,0,0.2)' }}>
+                      <table style={{ width: '100%', minWidth: '950px', borderCollapse: 'collapse', fontSize: '12px' }}>
+                        <thead>
+                          <tr style={{ background: 'var(--c-navy)', color: '#fff' }}>
+                            <th style={{ padding: '8px 10px', textAlign: 'left', width: '9%' }}>Fase</th>
+                            <th style={{ padding: '8px 6px', textAlign: 'center', width: '5%' }}>Sem.</th>
+                            <th style={{ padding: '8px 10px', textAlign: 'left', width: '22%' }}>Actividad Semanal</th>
+                            <th style={{ padding: '8px 10px', textAlign: 'left', width: '14%' }}>UAC / Asignatura</th>
+                            <th style={{ padding: '8px 10px', textAlign: 'center', width: '9%' }}>Progresión / Propósito</th>
+                            <th style={{ padding: '8px 10px', textAlign: 'left', width: '13%' }}>Estrategia Didáctica</th>
+                            <th style={{ padding: '8px 10px', textAlign: 'left', width: '14%' }}>Docentes Responsables</th>
+                            <th style={{ padding: '8px 10px', textAlign: 'left', width: '14%' }}>Inst. Evaluación</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {semBData.map((r: PlanOperativoRow, i: number) => (
+                            <tr key={i} style={{ background: i % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.06)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                              <td style={{ padding: '8px 10px', fontWeight: 600, color: 'var(--c-blue-light)' }}>{r.phase}</td>
+                              <td style={{ padding: '8px 6px', textAlign: 'center', fontWeight: 700, color: String(r.week) === '16' ? '#fbbf24' : '#f0f4ff' }}>
+                                {String(r.week) === '16' ? '⭐ 16' : r.week}
+                              </td>
+                              <td style={{ padding: '8px 10px' }}>
+                                {isEditingContent ? (
+                                  <textarea
+                                    value={r.activity}
+                                    onChange={(e) => {
+                                      const copy = [...semBData];
+                                      copy[i] = { ...copy[i], activity: e.target.value };
+                                      setEditPayload(copy);
+                                    }}
+                                    style={{ width: '100%', padding: '4px 6px', fontSize: '11.5px', borderRadius: '4px', border: '1px solid #555', background: '#0d1530', color: '#fff', minHeight: '54px', fontFamily: 'inherit' }}
+                                  />
+                                ) : (
+                                  <span style={{ color: '#f0f4ff', lineHeight: 1.4 }}>{r.activity}</span>
+                                )}
+                              </td>
+                              <td style={{ padding: '8px 10px', fontWeight: 600, color: '#93c5fd' }}>{r.uac}</td>
+                              <td style={{ padding: '8px 10px', textAlign: 'center', color: '#cbd5e1' }}>{r.progression}</td>
+                              <td style={{ padding: '8px 10px' }}>
+                                {isEditingContent ? (
+                                  <input
+                                    type="text"
+                                    value={r.strategy}
+                                    onChange={(e) => {
+                                      const copy = [...semBData];
+                                      copy[i] = { ...copy[i], strategy: e.target.value };
+                                      setEditPayload(copy);
+                                    }}
+                                    style={{ width: '100%', padding: '4px 6px', fontSize: '11.5px', borderRadius: '4px', border: '1px solid #555', background: '#0d1530', color: '#fff' }}
+                                  />
+                                ) : (
+                                  <span style={{ color: '#e2e8f0' }}>{r.strategy}</span>
+                                )}
+                              </td>
+                              <td style={{ padding: '8px 10px' }}>
+                                {isEditingContent ? (
+                                  <input
+                                    type="text"
+                                    value={r.responsibles}
+                                    onChange={(e) => {
+                                      const copy = [...semBData];
+                                      copy[i] = { ...copy[i], responsibles: e.target.value };
+                                      setEditPayload(copy);
+                                    }}
+                                    style={{ width: '100%', padding: '4px 6px', fontSize: '11.5px', borderRadius: '4px', border: '1px solid #555', background: '#0d1530', color: '#fff' }}
+                                  />
+                                ) : (
+                                  <span style={{ color: '#cbd5e1' }}>{r.responsibles}</span>
+                                )}
+                              </td>
+                              <td style={{ padding: '8px 10px' }}>
+                                {isEditingContent ? (
+                                  <input
+                                    type="text"
+                                    value={r.evaluationInstrument || ''}
+                                    onChange={(e) => {
+                                      const copy = [...semBData];
+                                      copy[i] = { ...copy[i], evaluationInstrument: e.target.value };
+                                      setEditPayload(copy);
+                                    }}
+                                    style={{ width: '100%', padding: '4px 6px', fontSize: '11.5px', borderRadius: '4px', border: '1px solid #555', background: '#0d1530', color: '#fff' }}
+                                  />
+                                ) : (
+                                  <span style={{ color: '#a7f3d0' }}>{r.evaluationInstrument || 'Rúbrica'}</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Step 8 Visual Render: Implementación y Anexos */}
-            {activeStep === 8 && (
-              <PaecStep8Implementacion
-                project={project}
-                collapsedCarta={collapsedCarta}
-                setCollapsedCarta={setCollapsedCarta}
-                collapsedMinuta={collapsedMinuta}
-                setCollapsedMinuta={setCollapsedMinuta}
-                collapsedOficios={collapsedOficios}
-                setCollapsedOficios={setCollapsedOficios}
-                activeAnexoTab={activeAnexoTab}
-                setActiveAnexoTab={setActiveAnexoTab}
-              />
-            )}
+            {activeStep === 8 && (() => {
+              const imp: PaecImplementacion | undefined = project.fase3Implementacion || undefined;
+              const carta = imp?.cartaInvitacion;
+              const minuta = imp?.minutaArranque;
+              const oficios = imp?.oficiosAliados || [];
+              const anexos: AnexosData | undefined = (project.fase2Anexos as unknown as AnexosData) || undefined;
+
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                  
+                  {/* Secciones Colapsables de Implementación */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    
+                    {/* 1. Carta de Convocatoria */}
+                    <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--c-border)', borderRadius: '10px', overflow: 'hidden' }}>
+                      <div
+                        onClick={() => setCollapsedCarta(!collapsedCarta)}
+                        style={{ padding: '14px 18px', background: 'rgba(30,58,138,0.25)', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span style={{ fontSize: '18px' }}>✉️</span>
+                          <span style={{ fontWeight: 700, fontSize: '15px', color: '#93c5fd' }}>
+                            1. Carta de Convocatoria Comunitaria (Asamblea de Vinculación)
+                          </span>
+                        </div>
+                        <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>
+                          {collapsedCarta ? '▶ Mostrar' : '▼ Ocultar'}
+                        </span>
+                      </div>
+
+                      {!collapsedCarta && (
+                        <div style={{ padding: '18px', fontSize: '13px', lineHeight: 1.6, color: '#f0f4ff' }}>
+                          {carta ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '10px', padding: '10px 14px', background: 'rgba(0,0,0,0.25)', borderRadius: '6px' }}>
+                                <div><strong>Asunto:</strong> {carta.asunto}</div>
+                                <div><strong>Fecha de emisión:</strong> {carta.fecha}</div>
+                                <div><strong>Destinatarios:</strong> {carta.destinatarios}</div>
+                                <div><strong>Cita:</strong> {carta.fechaReunion} a las {carta.hora} hrs en {carta.lugar}</div>
+                              </div>
+                              <div style={{ whiteSpace: 'pre-line', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '6px', borderLeft: '3px solid #3b82f6' }}>
+                                {carta.cuerpo}
+                              </div>
+                              {carta.objetivos && carta.objetivos.length > 0 && (
+                                <div>
+                                  <strong style={{ color: '#93c5fd' }}>Objetivos de la Convocatoria:</strong>
+                                  <ul style={{ margin: '6px 0 0 20px', padding: 0 }}>
+                                    {carta.objetivos.map((obj, oi) => (
+                                      <li key={oi}>{obj}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                              <div style={{ textAlign: 'right', marginTop: '10px', fontStyle: 'italic', color: 'rgba(255,255,255,0.7)' }}>
+                                <div>Atentamente,</div>
+                                <strong>{carta.firmante}</strong>
+                                <div>{carta.cargo}</div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{ color: 'var(--c-text-muted)', fontStyle: 'italic' }}>Carta generada como parte de la fase de implementación.</div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 2. Minuta de Arranque */}
+                    <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--c-border)', borderRadius: '10px', overflow: 'hidden' }}>
+                      <div
+                        onClick={() => setCollapsedMinuta(!collapsedMinuta)}
+                        style={{ padding: '14px 18px', background: 'rgba(16,185,129,0.18)', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span style={{ fontSize: '18px' }}>📝</span>
+                          <span style={{ fontWeight: 700, fontSize: '15px', color: '#6ee7b7' }}>
+                            2. Minuta de Arranque e Instalación del Comité de Proyecto
+                          </span>
+                        </div>
+                        <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>
+                          {collapsedMinuta ? '▶ Mostrar' : '▼ Ocultar'}
+                        </span>
+                      </div>
+
+                      {!collapsedMinuta && (
+                        <div style={{ padding: '18px', fontSize: '13px', color: '#f0f4ff' }}>
+                          {minuta ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                              <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', color: 'rgba(255,255,255,0.8)' }}>
+                                <span><strong>Fecha:</strong> {minuta.fecha}</span>
+                                <span><strong>Tipo:</strong> {minuta.tipoReunion}</span>
+                                {minuta.cct && <span><strong>CCT:</strong> {minuta.cct}</span>}
+                              </div>
+
+                              {minuta.acuerdos && minuta.acuerdos.length > 0 && (
+                                <div>
+                                  <h4 style={{ fontSize: '14px', color: '#a7f3d0', margin: '0 0 8px' }}>Acuerdos y Compromisos Formales:</h4>
+                                  <div style={{ overflowX: 'auto' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                                      <thead>
+                                        <tr style={{ background: 'rgba(16,185,129,0.2)', color: '#fff' }}>
+                                          <th style={{ padding: '6px 8px', textAlign: 'center', width: '5%' }}>No.</th>
+                                          <th style={{ padding: '6px 8px', textAlign: 'left', width: '45%' }}>Acuerdo</th>
+                                          <th style={{ padding: '6px 8px', textAlign: 'left', width: '25%' }}>Responsable</th>
+                                          <th style={{ padding: '6px 8px', textAlign: 'center', width: '15%' }}>Límite</th>
+                                          <th style={{ padding: '6px 8px', textAlign: 'center', width: '10%' }}>Estatus</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {minuta.acuerdos.map((ac, ai) => (
+                                          <tr key={ai} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                                            <td style={{ padding: '6px 8px', textAlign: 'center' }}>{ac.no}</td>
+                                            <td style={{ padding: '6px 8px' }}>{ac.acuerdo}</td>
+                                            <td style={{ padding: '6px 8px', color: '#93c5fd' }}>{ac.responsable}</td>
+                                            <td style={{ padding: '6px 8px', textAlign: 'center' }}>{ac.fechaLimite}</td>
+                                            <td style={{ padding: '6px 8px', textAlign: 'center' }}>
+                                              <span style={{ fontSize: '11px', padding: '2px 6px', borderRadius: '4px', background: 'rgba(16,185,129,0.2)', color: '#6ee7b7' }}>
+                                                {ac.estatus || 'Vigente'}
+                                              </span>
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </div>
+                              )}
+
+                              {minuta.firmas && minuta.firmas.length > 0 && (
+                                <div style={{ marginTop: '10px' }}>
+                                  <h4 style={{ fontSize: '14px', color: '#a7f3d0', margin: '0 0 8px' }}>Firmas de Validación y Compromiso:</h4>
+                                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
+                                    {minuta.firmas.map((f, fi) => (
+                                      <div key={fi} style={{ padding: '10px', background: 'rgba(0,0,0,0.25)', borderRadius: '6px', textAlign: 'center' }}>
+                                        <div style={{ borderBottom: '1px solid rgba(255,255,255,0.3)', paddingBottom: '16px', marginBottom: '6px' }} />
+                                        <div style={{ fontWeight: 600 }}>{f.nombre}</div>
+                                        <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}>{f.cargo}</div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div style={{ color: 'var(--c-text-muted)', fontStyle: 'italic' }}>Minuta generada como parte de la fase de implementación.</div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 3. Oficios a Aliados */}
+                    <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--c-border)', borderRadius: '10px', overflow: 'hidden' }}>
+                      <div
+                        onClick={() => setCollapsedOficios(!collapsedOficios)}
+                        style={{ padding: '14px 18px', background: 'rgba(245,158,11,0.18)', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span style={{ fontSize: '18px' }}>🏛️</span>
+                          <span style={{ fontWeight: 700, fontSize: '15px', color: '#fde68a' }}>
+                            3. Oficios a Aliados Estratégicos ({oficios.length > 0 ? oficios.length : 3} Oficios de Vinculación)
+                          </span>
+                        </div>
+                        <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>
+                          {collapsedOficios ? '▶ Mostrar' : '▼ Ocultar'}
+                        </span>
+                      </div>
+
+                      {!collapsedOficios && (
+                        <div style={{ padding: '18px', fontSize: '13px', color: '#f0f4ff' }}>
+                          {oficios.length > 0 ? (
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
+                              {oficios.map((oficio, oi) => (
+                                <div key={oi} style={{ padding: '14px', background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                  <div style={{ fontSize: '11px', color: '#f59e0b', fontWeight: 700, textTransform: 'uppercase' }}>
+                                    Oficio de Vinculación #{oi + 1}
+                                  </div>
+                                  <div style={{ fontWeight: 700, fontSize: '14px', color: '#fff' }}>
+                                    {oficio.destinatario}
+                                  </div>
+                                  <div style={{ fontSize: '12px', color: '#93c5fd' }}>
+                                    {oficio.cargo} — {oficio.institucion}
+                                  </div>
+                                  <div style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.85)' }}>
+                                    Asunto: {oficio.asunto}
+                                  </div>
+                                  <div style={{ fontSize: '12px', lineHeight: 1.4, color: 'rgba(255,255,255,0.75)', background: 'rgba(255,255,255,0.02)', padding: '8px', borderRadius: '4px' }}>
+                                    {oficio.propuestaColaboracion}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div style={{ color: 'var(--c-text-muted)', fontStyle: 'italic' }}>Oficios a aliados generados formalmente para Salud, Municipio y Sociedad Civil.</div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                  </div>
+
+                  {/* Vista Previa de los 6 Anexos Normativos con Tabs */}
+                  <div style={{ marginTop: '12px', background: 'rgba(13,21,48,0.9)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '10px', padding: '18px' }}>
+                    <div style={{ marginBottom: '14px' }}>
+                      <h4 style={{ fontSize: '16px', fontWeight: 700, color: '#f0f4ff', margin: 0 }}>
+                        📋 Sistema Integral de Anexos Técnicos Oficiales (Anexos 1 al 6)
+                      </h4>
+                      <p style={{ fontSize: '12.5px', color: 'rgba(255,255,255,0.6)', margin: '4px 0 0' }}>
+                        Selecciona un anexo para consultar su formato e instrumentos normativos de evaluación y seguimiento.
+                      </p>
+                    </div>
+
+                    {/* Tabs Navigation */}
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', borderBottom: '1px solid rgba(255,255,255,0.15)', paddingBottom: '10px', marginBottom: '16px' }}>
+                      {[
+                        { tab: 1, title: 'Anexo 1: Minuta Instalación' },
+                        { tab: 2, title: 'Anexo 2: Seguimiento Semanal' },
+                        { tab: 3, title: 'Anexo 3: Reporte Mensual' },
+                        { tab: 4, title: 'Anexo 4: Impacto Comunidad' },
+                        { tab: 5, title: 'Anexo 5: Autoevaluación' },
+                        { tab: 6, title: 'Anexo 6: Evaluación Colegiado' },
+                      ].map(t => (
+                        <button
+                          key={t.tab}
+                          type="button"
+                          onClick={() => setActiveAnexoTab(t.tab)}
+                          className="btn btn-sm"
+                          style={{
+                            background: activeAnexoTab === t.tab ? 'var(--c-blue-mid)' : 'rgba(255,255,255,0.06)',
+                            color: activeAnexoTab === t.tab ? '#fff' : 'rgba(255,255,255,0.7)',
+                            border: activeAnexoTab === t.tab ? '1px solid #3b82f6' : '1px solid rgba(255,255,255,0.1)',
+                            fontSize: '12px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {t.title}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Tab Content Display */}
+                    <div style={{ minHeight: '180px' }}>
+                      {/* Tab 1 */}
+                      {activeAnexoTab === 1 && (
+                        <div>
+                          <h5 style={{ fontSize: '14px', color: '#93c5fd', marginBottom: '8px' }}>Anexo 1: Minuta de Instalación del Comité PAEC</h5>
+                          <pre style={{ fontSize: '12px', whiteSpace: 'pre-wrap', fontFamily: 'monospace', margin: 0, padding: '12px', background: 'rgba(0,0,0,0.3)', borderRadius: '6px' }}>
+                            {anexos?.anexo1Minuta ? JSON.stringify(anexos.anexo1Minuta, null, 2) : (anexos?.anexo1 || 'Sin datos generados aún')}
+                          </pre>
+                        </div>
+                      )}
+
+                      {/* Tab 2 */}
+                      {activeAnexoTab === 2 && (
+                        <div>
+                          <h5 style={{ fontSize: '14px', color: '#93c5fd', marginBottom: '8px' }}>Anexo 2: Cuadro de Seguimiento Semanal con Semáforo</h5>
+                          {Array.isArray(anexos?.anexo2Seguimiento) && anexos.anexo2Seguimiento.length > 0 ? (
+                            <div style={{ overflowX: 'auto' }}>
+                              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                                <thead>
+                                  <tr style={{ background: 'var(--c-navy)', color: '#fff' }}>
+                                    <th style={{ padding: '6px 8px', textAlign: 'center' }}>Semana</th>
+                                    <th style={{ padding: '6px 8px', textAlign: 'left' }}>Fase</th>
+                                    <th style={{ padding: '6px 8px', textAlign: 'left' }}>UAC</th>
+                                    <th style={{ padding: '6px 8px', textAlign: 'left' }}>Meta Operativa</th>
+                                    <th style={{ padding: '6px 8px', textAlign: 'left' }}>Evidencia</th>
+                                    <th style={{ padding: '6px 8px', textAlign: 'center' }}>Avance</th>
+                                    <th style={{ padding: '6px 8px', textAlign: 'center' }}>Semáforo</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {anexos.anexo2Seguimiento.map((s, si) => (
+                                    <tr key={si} style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                                      <td style={{ padding: '6px 8px', textAlign: 'center', fontWeight: 600 }}>{s.semana}</td>
+                                      <td style={{ padding: '6px 8px' }}>{s.fase}</td>
+                                      <td style={{ padding: '6px 8px', color: '#93c5fd' }}>{s.uac}</td>
+                                      <td style={{ padding: '6px 8px' }}>{s.metaOperativa}</td>
+                                      <td style={{ padding: '6px 8px' }}>{s.evidencia}</td>
+                                      <td style={{ padding: '6px 8px', textAlign: 'center' }}>{s.avancePorcentaje}%</td>
+                                      <td style={{ padding: '6px 8px', textAlign: 'center' }}>
+                                        <span style={{
+                                          padding: '2px 8px', borderRadius: '10px', fontSize: '10.5px', fontWeight: 700, textTransform: 'uppercase',
+                                          background: s.semaforo === 'verde' ? 'rgba(16,185,129,0.2)' : s.semaforo === 'amarillo' ? 'rgba(245,158,11,0.2)' : 'rgba(239,68,68,0.2)',
+                                          color: s.semaforo === 'verde' ? '#34d399' : s.semaforo === 'amarillo' ? '#fbbf24' : '#f87171'
+                                        }}>
+                                          {s.semaforo}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : (
+                            <pre style={{ fontSize: '12px', whiteSpace: 'pre-wrap', fontFamily: 'monospace', margin: 0, padding: '12px', background: 'rgba(0,0,0,0.3)', borderRadius: '6px' }}>
+                              {anexos?.anexo2 || 'Sin datos generados aún'}
+                            </pre>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Tab 3 */}
+                      {activeAnexoTab === 3 && (
+                        <div>
+                          <h5 style={{ fontSize: '14px', color: '#93c5fd', marginBottom: '8px' }}>Anexo 3: Reporte Mensual de Avances</h5>
+                          <pre style={{ fontSize: '12px', whiteSpace: 'pre-wrap', fontFamily: 'monospace', margin: 0, padding: '12px', background: 'rgba(0,0,0,0.3)', borderRadius: '6px' }}>
+                            {anexos?.anexo3ReporteMensual ? JSON.stringify(anexos.anexo3ReporteMensual, null, 2) : (anexos?.anexo3 || 'Sin datos generados aún')}
+                          </pre>
+                        </div>
+                      )}
+
+                      {/* Tab 4 */}
+                      {activeAnexoTab === 4 && (
+                        <div>
+                          <h5 style={{ fontSize: '14px', color: '#93c5fd', marginBottom: '8px' }}>Anexo 4: Cuestionario de Impacto Comunitario (Escala Likert 1-5)</h5>
+                          {anexos?.anexo4ImpactoComunidad?.reactivos ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                              <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>
+                                <strong>Título:</strong> {anexos.anexo4ImpactoComunidad.titulo}
+                              </div>
+                              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                                <thead>
+                                  <tr style={{ background: 'var(--c-navy)', color: '#fff' }}>
+                                    <th style={{ padding: '6px 8px', textAlign: 'center', width: '6%' }}>No.</th>
+                                    <th style={{ padding: '6px 8px', textAlign: 'left', width: '64%' }}>Reactivo / Pregunta de Impacto</th>
+                                    <th style={{ padding: '6px 8px', textAlign: 'left', width: '30%' }}>Dimensión</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {anexos.anexo4ImpactoComunidad.reactivos.map((r, ri) => (
+                                    <tr key={ri} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                                      <td style={{ padding: '6px 8px', textAlign: 'center', fontWeight: 600 }}>{ri + 1}</td>
+                                      <td style={{ padding: '6px 8px' }}>{r.reactivo}</td>
+                                      <td style={{ padding: '6px 8px', color: '#93c5fd' }}>{r.dimension}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : (
+                            <pre style={{ fontSize: '12px', whiteSpace: 'pre-wrap', fontFamily: 'monospace', margin: 0, padding: '12px', background: 'rgba(0,0,0,0.3)', borderRadius: '6px' }}>
+                              {anexos?.anexo4 || 'Sin datos generados aún'}
+                            </pre>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Tab 5 */}
+                      {activeAnexoTab === 5 && (
+                        <div>
+                          <h5 style={{ fontSize: '14px', color: '#93c5fd', marginBottom: '8px' }}>Anexo 5: Cuestionario de Autoevaluación de Estudiantes</h5>
+                          {anexos?.anexo5AutoevaluacionEstudiantes?.reactivos ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                              <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>
+                                <strong>Título:</strong> {anexos.anexo5AutoevaluacionEstudiantes.titulo}
+                              </div>
+                              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                                <thead>
+                                  <tr style={{ background: 'var(--c-navy)', color: '#fff' }}>
+                                    <th style={{ padding: '6px 8px', textAlign: 'center', width: '6%' }}>No.</th>
+                                    <th style={{ padding: '6px 8px', textAlign: 'left', width: '64%' }}>Reactivo de Autoevaluación</th>
+                                    <th style={{ padding: '6px 8px', textAlign: 'left', width: '30%' }}>Dimensión</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {anexos.anexo5AutoevaluacionEstudiantes.reactivos.map((r, ri) => (
+                                    <tr key={ri} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                                      <td style={{ padding: '6px 8px', textAlign: 'center', fontWeight: 600 }}>{ri + 1}</td>
+                                      <td style={{ padding: '6px 8px' }}>{r.reactivo}</td>
+                                      <td style={{ padding: '6px 8px', color: '#93c5fd' }}>{r.dimension}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : (
+                            <pre style={{ fontSize: '12px', whiteSpace: 'pre-wrap', fontFamily: 'monospace', margin: 0, padding: '12px', background: 'rgba(0,0,0,0.3)', borderRadius: '6px' }}>
+                              {anexos?.anexo5 || 'Sin datos generados aún'}
+                            </pre>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Tab 6 */}
+                      {activeAnexoTab === 6 && (
+                        <div>
+                          <h5 style={{ fontSize: '14px', color: '#93c5fd', marginBottom: '8px' }}>Anexo 6: Cuestionario de Evaluación para Docentes y Colegiado</h5>
+                          {anexos?.anexo6EvaluacionColegiado?.reactivos ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                              <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>
+                                <strong>Título:</strong> {anexos.anexo6EvaluacionColegiado.titulo}
+                              </div>
+                              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                                <thead>
+                                  <tr style={{ background: 'var(--c-navy)', color: '#fff' }}>
+                                    <th style={{ padding: '6px 8px', textAlign: 'center', width: '6%' }}>No.</th>
+                                    <th style={{ padding: '6px 8px', textAlign: 'left', width: '64%' }}>Reactivo Colegiado Docente</th>
+                                    <th style={{ padding: '6px 8px', textAlign: 'left', width: '30%' }}>Dimensión</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {anexos.anexo6EvaluacionColegiado.reactivos.map((r, ri) => (
+                                    <tr key={ri} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                                      <td style={{ padding: '6px 8px', textAlign: 'center', fontWeight: 600 }}>{ri + 1}</td>
+                                      <td style={{ padding: '6px 8px' }}>{r.reactivo}</td>
+                                      <td style={{ padding: '6px 8px', color: '#93c5fd' }}>{r.dimension}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : (
+                            <pre style={{ fontSize: '12px', whiteSpace: 'pre-wrap', fontFamily: 'monospace', margin: 0, padding: '12px', background: 'rgba(0,0,0,0.3)', borderRadius: '6px' }}>
+                              {anexos?.anexo6 || 'Sin datos generados aún'}
+                            </pre>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                </div>
+              );
+            })()}
 
             {/* Step 9 Visual Render: Gobernanza e Informe Supervisión */}
-            {activeStep === 9 && (
-              <PaecStep9GobernanzaSupervision
-                project={project}
-                projectId={projectId}
-                collapsedGobernanza={collapsedGobernanza}
-                setCollapsedGobernanza={setCollapsedGobernanza}
-                collapsedInforme={collapsedInforme}
-                setCollapsedInforme={setCollapsedInforme}
-                auditResult={auditResult}
-                loadingAudit={loadingAudit}
-                auditError={auditError}
-                fetchAudit={fetchAudit}
-                auditFilter={auditFilter}
-                setAuditFilter={setAuditFilter}
-                showAuditDetails={showAuditDetails}
-                setShowAuditDetails={setShowAuditDetails}
-              />
-            )}
+            {activeStep === 9 && (() => {
+              const gob: PaecGobernanza | undefined = project.fase4Gobernanza || undefined;
+              const inf: PaecInformeSupervision | undefined = project.fase4InformeSupervision || undefined;
+
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                  
+                  {/* Secciones Colapsables de Paso 9 */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    
+                    {/* 1. Gobernanza Escolar en 4 Niveles */}
+                    <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--c-border)', borderRadius: '10px', overflow: 'hidden' }}>
+                      <div
+                        onClick={() => setCollapsedGobernanza(!collapsedGobernanza)}
+                        style={{ padding: '14px 18px', background: 'rgba(99,102,241,0.22)', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span style={{ fontSize: '18px' }}>👥</span>
+                          <span style={{ fontWeight: 700, fontSize: '15px', color: '#c7d2fe' }}>
+                            1. Gobernanza Escolar en 4 Niveles Institucionales
+                          </span>
+                        </div>
+                        <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>
+                          {collapsedGobernanza ? '▶ Mostrar' : '▼ Ocultar'}
+                        </span>
+                      </div>
+
+                      {!collapsedGobernanza && (
+                        <div style={{ padding: '18px', fontSize: '13px', color: '#f0f4ff', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                          {/* Grid 4 Niveles */}
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+                            <div style={{ padding: '12px', background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: '8px' }}>
+                              <div style={{ fontWeight: 700, color: '#93c5fd', fontSize: '13px', marginBottom: '4px' }}>
+                                Nivel 1: Coordinación Directiva
+                              </div>
+                              <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.8)', margin: 0, lineHeight: 1.4 }}>
+                                Liderazgo institucional, asignación de recursos y vinculación oficial con dependencias externas.
+                              </p>
+                            </div>
+
+                            <div style={{ padding: '12px', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '8px' }}>
+                              <div style={{ fontWeight: 700, color: '#6ee7b7', fontSize: '13px', marginBottom: '4px' }}>
+                                Nivel 2: Colegiado Docente
+                              </div>
+                              <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.8)', margin: 0, lineHeight: 1.4 }}>
+                                Academias transversales, articulación de progresiones MCCEMS y evaluación formativa colegiada.
+                              </p>
+                            </div>
+
+                            <div style={{ padding: '12px', background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '8px' }}>
+                              <div style={{ fontWeight: 700, color: '#fde68a', fontSize: '13px', marginBottom: '4px' }}>
+                                Nivel 3: Brigadas Estudiantiles
+                              </div>
+                              <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.8)', margin: 0, lineHeight: 1.4 }}>
+                                Protagonismo juvenil, ejecución de trabajo de campo comunitario y documentación en bitácoras.
+                              </p>
+                            </div>
+
+                            <div style={{ padding: '12px', background: 'rgba(236,72,153,0.12)', border: '1px solid rgba(236,72,153,0.3)', borderRadius: '8px' }}>
+                              <div style={{ fontWeight: 700, color: '#fbcfe8', fontSize: '13px', marginBottom: '4px' }}>
+                                Nivel 4: Red Comunitaria
+                              </div>
+                              <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.8)', margin: 0, lineHeight: 1.4 }}>
+                                Padres de familia, contraloría social y aliados vecinales para la sostenibilidad del cambio.
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Calendario de Gobernanza */}
+                          {gob?.calendario && gob.calendario.length > 0 && (
+                            <div>
+                              <h4 style={{ fontSize: '14px', color: '#c7d2fe', margin: '8px 0' }}>Calendario de Sesiones y Seguimiento:</h4>
+                              <div style={{ overflowX: 'auto' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                                  <thead>
+                                    <tr style={{ background: 'rgba(99,102,241,0.25)', color: '#fff' }}>
+                                      <th style={{ padding: '6px 8px', textAlign: 'left' }}>Tipo de Sesión</th>
+                                      <th style={{ padding: '6px 8px', textAlign: 'center' }}>Frecuencia</th>
+                                      <th style={{ padding: '6px 8px', textAlign: 'left' }}>Participantes</th>
+                                      <th style={{ padding: '6px 8px', textAlign: 'left' }}>Objetivo Estratégico</th>
+                                      <th style={{ padding: '6px 8px', textAlign: 'left' }}>Evidencia</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {gob.calendario.map((c, ci) => (
+                                      <tr key={ci} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                                        <td style={{ padding: '6px 8px', fontWeight: 600 }}>{c.tipo}</td>
+                                        <td style={{ padding: '6px 8px', textAlign: 'center', color: '#93c5fd' }}>{c.frecuencia}</td>
+                                        <td style={{ padding: '6px 8px' }}>{c.participantes}</td>
+                                        <td style={{ padding: '6px 8px' }}>{c.objetivo}</td>
+                                        <td style={{ padding: '6px 8px', color: '#6ee7b7' }}>{c.evidencia}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Preguntas Guía NEM */}
+                          {gob?.metodologiaEvaluacion?.preguntasGuiaNem && (
+                            <div style={{ padding: '12px', background: 'rgba(0,0,0,0.25)', borderRadius: '8px', borderLeft: '3px solid #6366f1' }}>
+                              <h4 style={{ fontSize: '13px', color: '#a5b4fc', margin: '0 0 6px' }}>Preguntas Guía NEM de Evaluación Formativa:</h4>
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '8px', fontSize: '12px' }}>
+                                <div><strong>¿Dónde estamos?:</strong> {gob.metodologiaEvaluacion.preguntasGuiaNem.dondeEstamos}</div>
+                                <div><strong>¿Hacia dónde vamos?:</strong> {gob.metodologiaEvaluacion.preguntasGuiaNem.haciaDondeVamos}</div>
+                                <div><strong>¿Cómo superamos?:</strong> {gob.metodologiaEvaluacion.preguntasGuiaNem.comoSuperamos}</div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 2. Informe Final de Supervisión (Guía 004) */}
+                    <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--c-border)', borderRadius: '10px', overflow: 'hidden' }}>
+                      <div
+                        onClick={() => setCollapsedInforme(!collapsedInforme)}
+                        style={{ padding: '14px 18px', background: 'rgba(14,165,233,0.22)', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span style={{ fontSize: '18px' }}>📊</span>
+                          <span style={{ fontWeight: 700, fontSize: '15px', color: '#7dd3fc' }}>
+                            2. Informe Final de Supervisión Escolar (Guía Oficial 004)
+                          </span>
+                        </div>
+                        <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>
+                          {collapsedInforme ? '▶ Mostrar' : '▼ Ocultar'}
+                        </span>
+                      </div>
+
+                      {!collapsedInforme && (
+                        <div style={{ padding: '18px', fontSize: '13px', color: '#f0f4ff', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                          {inf ? (
+                            <>
+                              {/* Resumen Ejecutivo */}
+                              <div style={{ padding: '12px', background: 'rgba(0,0,0,0.25)', borderRadius: '6px', borderLeft: '3px solid #0ea5e9' }}>
+                                <strong style={{ color: '#7dd3fc' }}>Resumen Ejecutivo de la Supervisión:</strong>
+                                <p style={{ margin: '6px 0 0', lineHeight: 1.5, color: 'rgba(255,255,255,0.9)' }}>
+                                  {inf.resumenEjecutivo}
+                                </p>
+                              </div>
+
+                              {/* Tabla de Metas vs Logros */}
+                              {inf.metasVsLogros && inf.metasVsLogros.length > 0 && (
+                                <div>
+                                  <h4 style={{ fontSize: '14px', color: '#7dd3fc', margin: '0 0 8px' }}>
+                                    Tabla Comparativa: Metas Planteadas vs Logros Obtenidos
+                                  </h4>
+                                  <div style={{ overflowX: 'auto' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                                      <thead>
+                                        <tr style={{ background: 'var(--c-navy)', color: '#fff' }}>
+                                          <th style={{ padding: '6px 8px', textAlign: 'left', width: '30%' }}>Meta Planteada</th>
+                                          <th style={{ padding: '6px 8px', textAlign: 'left', width: '25%' }}>Indicador de Verificación</th>
+                                          <th style={{ padding: '6px 8px', textAlign: 'center', width: '15%' }}>Línea Base (Pre)</th>
+                                          <th style={{ padding: '6px 8px', textAlign: 'center', width: '15%' }}>Resultado Final (Post)</th>
+                                          <th style={{ padding: '6px 8px', textAlign: 'center', width: '15%' }}>% Cumplimiento</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {inf.metasVsLogros.map((m, mi) => (
+                                          <tr key={mi} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                                            <td style={{ padding: '6px 8px', fontWeight: 600 }}>{m.meta}</td>
+                                            <td style={{ padding: '6px 8px', color: 'rgba(255,255,255,0.8)' }}>{m.indicador}</td>
+                                            <td style={{ padding: '6px 8px', textAlign: 'center', color: '#cbd5e1' }}>{m.programado}</td>
+                                            <td style={{ padding: '6px 8px', textAlign: 'center', color: '#6ee7b7', fontWeight: 600 }}>{m.alcanzado}</td>
+                                            <td style={{ padding: '6px 8px', textAlign: 'center' }}>
+                                              <span style={{
+                                                padding: '2px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: 700,
+                                                background: m.porcentaje >= 80 ? 'rgba(16,185,129,0.2)' : m.porcentaje >= 60 ? 'rgba(245,158,11,0.2)' : 'rgba(239,68,68,0.2)',
+                                                color: m.porcentaje >= 80 ? '#34d399' : m.porcentaje >= 60 ? '#fbbf24' : '#f87171'
+                                              }}>
+                                                {m.porcentaje}%
+                                              </span>
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Indicadores Pre / Post Intervención */}
+                              {inf.analisisPrePost && (
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
+                                  <div style={{ padding: '10px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px' }}>
+                                    <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}>Participación Total</div>
+                                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#f0f4ff', marginTop: '2px' }}>{inf.analisisPrePost.participacionTotal}</div>
+                                  </div>
+                                  <div style={{ padding: '10px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px' }}>
+                                    <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}>Alcance Comunitario</div>
+                                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#93c5fd', marginTop: '2px' }}>{inf.analisisPrePost.alcanceComunitario}</div>
+                                  </div>
+                                  <div style={{ padding: '10px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px' }}>
+                                    <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}>Cambio de Conocimientos</div>
+                                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#6ee7b7', marginTop: '2px' }}>{inf.analisisPrePost.cambioConocimientos}</div>
+                                  </div>
+                                  <div style={{ padding: '10px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px' }}>
+                                    <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}>Desarrollo Competencias</div>
+                                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#fde68a', marginTop: '2px' }}>{inf.analisisPrePost.desarrolloCompetencias}</div>
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <div style={{ color: 'var(--c-text-muted)', fontStyle: 'italic' }}>Informe de supervisión disponible al generar la fase 9.</div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                  </div>
+
+                  {/* Tarjeta de Auditoría de Calidad Técnica PAEC (23 Criterios DBEPA/NEM) */}
+                  <div style={{
+                    marginTop: '8px',
+                    padding: '24px',
+                    borderRadius: '12px',
+                    background: 'rgba(13,21,48,0.92)',
+                    border: `1px solid ${
+                      !auditResult ? 'rgba(255,255,255,0.15)' :
+                      ((auditResult as any).percentage ?? (auditResult as any).score ?? 0) >= 80 ? 'rgba(16, 185, 129, 0.45)' :
+                      ((auditResult as any).percentage ?? (auditResult as any).score ?? 0) >= 60 ? 'rgba(245, 158, 11, 0.45)' :
+                      'rgba(239, 68, 68, 0.45)'
+                    }`,
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.35)',
+                  }}>
+                    {/* Header de la Tarjeta */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '20px' }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '22px' }}>📋</span>
+                          <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#f0f4ff', margin: 0 }}>
+                            Auditoría de Calidad Técnica PAEC (23 Criterios DBEPA/NEM)
+                          </h3>
+                        </div>
+                        <p style={{ color: 'rgba(240,244,255,0.65)', fontSize: '13px', margin: '4px 0 0' }}>
+                          Evaluación integral de rigor normativo, FODA, transversalidad UAC, cronograma macro, plan de relevos y anexos.
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => projectId && fetchAudit(projectId)}
+                        disabled={loadingAudit}
+                        className="btn btn-ghost btn-sm"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          border: '1px solid rgba(255,255,255,0.15)',
+                          color: '#f0f4ff',
+                          padding: '6px 12px',
+                          borderRadius: '6px',
+                          cursor: loadingAudit ? 'not-allowed' : 'pointer'
+                        }}
+                        title="Volver a ejecutar auditoría de calidad"
+                      >
+                        {loadingAudit ? (
+                          <>
+                            <span className="spinner" style={{ width: '12px', height: '12px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                            Auditando...
+                          </>
+                        ) : (
+                          <>🔄 Re-auditar</>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Estado Cargando */}
+                    {loadingAudit && !auditResult && (
+                      <div style={{ textAlign: 'center', padding: '32px', color: 'rgba(240,244,255,0.7)' }}>
+                        <span className="spinner" style={{ display: 'inline-block', width: '28px', height: '28px', border: '3px solid rgba(99,102,241,0.2)', borderTopColor: '#818cf8', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                        <p style={{ marginTop: '12px', fontSize: '14px' }}>Ejecutando evaluación de los 23 criterios DBEPA/NEM...</p>
+                      </div>
+                    )}
+
+                    {/* Estado Error */}
+                    {auditError && !auditResult && (
+                      <div style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '16px', borderRadius: '8px', color: '#fca5a5' }}>
+                        <div style={{ fontWeight: 600, marginBottom: '6px' }}>Error al obtener la auditoría:</div>
+                        <div style={{ fontSize: '13px' }}>{auditError}</div>
+                        <button
+                          type="button"
+                          onClick={() => projectId && fetchAudit(projectId)}
+                          className="btn btn-sm"
+                          style={{ marginTop: '10px', background: '#ef4444', color: '#fff', border: 'none' }}
+                        >
+                          Reintentar Auditoría
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Visualización de Resultados */}
+                    {auditResult && (() => {
+                      const rawAudit = auditResult as any;
+                      const scorePct = Math.round(rawAudit.percentage ?? rawAudit.score ?? 0);
+                      const isGreen = scorePct >= 80;
+                      const isYellow = scorePct >= 60 && scorePct < 80;
+                      const isRed = scorePct < 60;
+
+                      const semaforoColor = isGreen ? '#10b981' : isYellow ? '#f59e0b' : '#ef4444';
+                      const semaforoBg = isGreen ? 'rgba(16, 185, 129, 0.12)' : isYellow ? 'rgba(245, 158, 11, 0.12)' : 'rgba(239, 68, 68, 0.12)';
+                      const semaforoBorder = isGreen ? 'rgba(16, 185, 129, 0.4)' : isYellow ? 'rgba(245, 158, 11, 0.4)' : 'rgba(239, 68, 68, 0.4)';
+
+                      const statusTitle = (rawAudit.status || rawAudit.estatus) === 'aprobado_excelente'
+                        ? 'Aprobado con Excelencia'
+                        : (rawAudit.status || rawAudit.estatus) === 'aprobado'
+                        ? 'Aprobado'
+                        : 'Requiere Ajustes';
+
+                      const criteriaList: PaecAuditCriterion[] = rawAudit.criteria || rawAudit.criterios || [];
+                      const summary = rawAudit.summary || {
+                        passedCount: criteriaList.filter((c: PaecAuditCriterion) => c.status === 'pass').length,
+                        warningCount: criteriaList.filter((c: PaecAuditCriterion) => c.status === 'warning').length,
+                        failedCount: criteriaList.filter((c: PaecAuditCriterion) => c.status === 'fail').length,
+                      };
+                      const totalScore = rawAudit.totalScore ?? Math.round((scorePct / 100) * 92);
+
+                      const criteriaToRender: PaecAuditCriterion[] = auditFilter === 'deficient'
+                        ? criteriaList.filter((c: PaecAuditCriterion) => c.status === 'fail' || c.status === 'warning')
+                        : criteriaList;
+
+                      return (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                          {/* Semáforo Visual & Bloque de Puntaje */}
+                          <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                            gap: '16px',
+                            alignItems: 'center',
+                            background: semaforoBg,
+                            border: `1px solid ${semaforoBorder}`,
+                            padding: '20px',
+                            borderRadius: '10px'
+                          }}>
+                            {/* Semáforo Físico & Puntaje Grande */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                              <div style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '8px',
+                                background: '#090d1a',
+                                padding: '8px 10px',
+                                borderRadius: '20px',
+                                border: '1px solid rgba(255,255,255,0.15)',
+                                boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.6)'
+                              }}>
+                                <div
+                                  title="Verde (≥80): Aprobado con Excelencia"
+                                  style={{
+                                    width: '18px',
+                                    height: '18px',
+                                    borderRadius: '50%',
+                                    background: isGreen ? '#10b981' : '#064e3b',
+                                    boxShadow: isGreen ? '0 0 12px #10b981, 0 0 4px #10b981' : 'none',
+                                    border: '1px solid rgba(0,0,0,0.5)',
+                                    transition: 'all 0.3s ease'
+                                  }}
+                                />
+                                <div
+                                  title="Amarillo (60-79): Aprobado con Observaciones"
+                                  style={{
+                                    width: '18px',
+                                    height: '18px',
+                                    borderRadius: '50%',
+                                    background: isYellow ? '#f59e0b' : '#78350f',
+                                    boxShadow: isYellow ? '0 0 12px #f59e0b, 0 0 4px #f59e0b' : 'none',
+                                    border: '1px solid rgba(0,0,0,0.5)',
+                                    transition: 'all 0.3s ease'
+                                  }}
+                                />
+                                <div
+                                  title="Rojo (<60): Requiere Ajustes"
+                                  style={{
+                                    width: '18px',
+                                    height: '18px',
+                                    borderRadius: '50%',
+                                    background: isRed ? '#ef4444' : '#7f1d1d',
+                                    boxShadow: isRed ? '0 0 12px #ef4444, 0 0 4px #ef4444' : 'none',
+                                    border: '1px solid rgba(0,0,0,0.5)',
+                                    transition: 'all 0.3s ease'
+                                  }}
+                                />
+                              </div>
+
+                              <div>
+                                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                                  <span style={{ fontSize: '38px', fontWeight: 800, color: semaforoColor, lineHeight: 1 }}>
+                                    {scorePct}%
+                                  </span>
+                                  <span style={{ fontSize: '14px', color: 'rgba(240,244,255,0.6)', fontWeight: 500 }}>
+                                    ({totalScore} / 92 pts)
+                                  </span>
+                                </div>
+                                <div style={{ marginTop: '6px' }}>
+                                  <span style={{
+                                    display: 'inline-block',
+                                    padding: '4px 10px',
+                                    borderRadius: '12px',
+                                    fontSize: '12px',
+                                    fontWeight: 700,
+                                    background: semaforoColor,
+                                    color: '#fff',
+                                    letterSpacing: '0.3px',
+                                    textTransform: 'uppercase'
+                                  }}>
+                                    {isGreen ? '🟢 ' : isYellow ? '🟡 ' : '🔴 '}
+                                    {statusTitle}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* 3 Contadores de Criterios */}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                              <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.25)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+                                <div style={{ fontSize: '20px', fontWeight: 700, color: '#10b981' }}>{summary.passedCount}</div>
+                                <div style={{ fontSize: '11px', color: 'rgba(240,244,255,0.7)', textTransform: 'uppercase' }}>Cumple</div>
+                              </div>
+                              <div style={{ background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.25)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+                                <div style={{ fontSize: '20px', fontWeight: 700, color: '#f59e0b' }}>{summary.warningCount}</div>
+                                <div style={{ fontSize: '11px', color: 'rgba(240,244,255,0.7)', textTransform: 'uppercase' }}>Advertencias</div>
+                              </div>
+                              <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.25)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+                                <div style={{ fontSize: '20px', fontWeight: 700, color: '#ef4444' }}>{summary.failedCount}</div>
+                                <div style={{ fontSize: '11px', color: 'rgba(240,244,255,0.7)', textTransform: 'uppercase' }}>Deficientes</div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Controles de Filtro */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <button
+                                type="button"
+                                onClick={() => setAuditFilter('all')}
+                                className="btn btn-sm"
+                                style={{
+                                  background: auditFilter === 'all' ? 'var(--c-blue-mid)' : 'rgba(255,255,255,0.06)',
+                                  color: auditFilter === 'all' ? '#fff' : 'rgba(255,255,255,0.7)',
+                                  border: '1px solid rgba(255,255,255,0.15)',
+                                  fontSize: '12px'
+                                }}
+                              >
+                                Todos ({criteriaList.length})
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setAuditFilter('deficient')}
+                                className="btn btn-sm"
+                                style={{
+                                  background: auditFilter === 'deficient' ? 'rgba(239,68,68,0.3)' : 'rgba(255,255,255,0.06)',
+                                  color: auditFilter === 'deficient' ? '#fca5a5' : 'rgba(255,255,255,0.7)',
+                                  border: '1px solid rgba(239,68,68,0.3)',
+                                  fontSize: '12px'
+                                }}
+                              >
+                                Observados ({summary.warningCount + summary.failedCount})
+                              </button>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => setShowAuditDetails(!showAuditDetails)}
+                              className="btn btn-ghost btn-sm"
+                              style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}
+                            >
+                              {showAuditDetails ? '▲ Ocultar Lista' : '▼ Mostrar Lista Detallada'}
+                            </button>
+                          </div>
+
+                          {/* Lista Detallada de Criterios */}
+                          {showAuditDetails && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '420px', overflowY: 'auto', paddingRight: '4px' }}>
+                              {criteriaToRender.length === 0 ? (
+                                <div style={{ padding: '20px', textAlign: 'center', background: 'rgba(16,185,129,0.1)', borderRadius: '8px', color: '#6ee7b7' }}>
+                                  🎉 ¡Excelente! No se encontraron criterios deficientes ni advertencias en este proyecto.
+                                </div>
+                              ) : (
+                                criteriaToRender.map((c) => {
+                                  const isPass = c.status === 'pass';
+                                  const isWarn = c.status === 'warning';
+                                  const cardBorder = isPass ? 'rgba(16,185,129,0.3)' : isWarn ? 'rgba(245,158,11,0.3)' : 'rgba(239,68,68,0.3)';
+                                  const cardBg = isPass ? 'rgba(16,185,129,0.05)' : isWarn ? 'rgba(245,158,11,0.05)' : 'rgba(239,68,68,0.05)';
+                                  const badgeBg = isPass ? '#10b981' : isWarn ? '#f59e0b' : '#ef4444';
+
+                                  return (
+                                    <div
+                                      key={c.id}
+                                      style={{
+                                        padding: '12px 14px',
+                                        borderRadius: '8px',
+                                        background: cardBg,
+                                        border: `1px solid ${cardBorder}`,
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: '6px'
+                                      }}
+                                    >
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                          <span style={{ fontWeight: 700, color: '#f0f4ff', fontSize: '13px' }}>
+                                            Criterio {c.id}: {c.name}
+                                          </span>
+                                          <span style={{ fontSize: '11px', color: 'rgba(240,244,255,0.5)', background: 'rgba(255,255,255,0.08)', padding: '2px 6px', borderRadius: '4px' }}>
+                                            {c.dimension}
+                                          </span>
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                          <span style={{ fontSize: '11.5px', color: 'rgba(240,244,255,0.7)' }}>
+                                            Puntaje: <strong>{c.score}/4</strong> ({c.expectedLevel})
+                                          </span>
+                                          <span style={{ fontSize: '10.5px', padding: '2px 8px', borderRadius: '10px', background: badgeBg, color: '#fff', fontWeight: 700, textTransform: 'uppercase' }}>
+                                            {isPass ? 'Cumple' : isWarn ? 'Advertencia' : 'Deficiente'}
+                                          </span>
+                                        </div>
+                                      </div>
+
+                                      <div style={{ fontSize: '12.5px', color: 'rgba(240,244,255,0.85)', lineHeight: 1.4 }}>
+                                        <strong style={{ color: isPass ? '#6ee7b7' : isWarn ? '#fde68a' : '#fca5a5' }}>Feedback: </strong>
+                                        {c.feedback}
+                                      </div>
+
+                                      <div style={{ fontSize: '11.5px', color: 'rgba(240,244,255,0.5)', fontStyle: 'italic' }}>
+                                        <strong>Evidencia encontrada: </strong>{c.evidenceFound}
+                                      </div>
+                                    </div>
+                                  );
+                                })
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                </div>
+              );
+            })()}
 
             {/* Navigation / Next actions */}
             <div style={{ display: 'flex', justifySelf: 'flex-end', gap: '12px', marginTop: '24px', borderTop: '1px solid var(--c-border)', paddingTop: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -2377,11 +3978,4 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
       </div>
     </div>
   );
-}
-
-export default function PaecWizardClient(props: Props) {
-  if (process.env.NEXT_PUBLIC_FF_NEW_PAEC_WIZARD === 'false') {
-    return <PaecWizardLegacy {...props} />;
-  }
-  return <PaecWizardModularClient {...props} />;
 }
