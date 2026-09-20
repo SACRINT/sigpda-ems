@@ -98,8 +98,8 @@ async function handleBulkDocx(request: NextRequest) {
     const zip = new JSZip();
     const usedNames = new Set<string>();
 
-    for (let i = 0; i < extras.length; i++) {
-      const item = extras[i];
+    // 1. Asignación determinista de nombres de archivo con deduplicación
+    const fileEntries = extras.map((item, i) => {
       let baseName = sanitizeDocFilename(item.title, 55);
       if (!baseName) baseName = `extra_${i + 1}`;
 
@@ -110,9 +110,22 @@ async function handleBulkDocx(request: NextRequest) {
         counter++;
       }
       usedNames.add(fileName.toLowerCase());
+      return { item, fileName };
+    });
 
-      const docxBuffer = await buildExtraDocx(item, brandingCtx);
-      zip.file(fileName, docxBuffer);
+    // 2. Generación paralela en lotes de 8 para alto rendimiento sin saturación de memoria
+    const BATCH_SIZE = 8;
+    for (let i = 0; i < fileEntries.length; i += BATCH_SIZE) {
+      const batch = fileEntries.slice(i, i + BATCH_SIZE);
+      const generated = await Promise.all(
+        batch.map(async ({ item, fileName }) => {
+          const docxBuffer = await buildExtraDocx(item, brandingCtx);
+          return { fileName, docxBuffer };
+        })
+      );
+      for (const { fileName, docxBuffer } of generated) {
+        zip.file(fileName, docxBuffer);
+      }
     }
 
     const zipBuffer = await zip.generateAsync({

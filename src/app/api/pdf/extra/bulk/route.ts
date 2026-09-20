@@ -98,8 +98,8 @@ async function handleBulkPdf(request: NextRequest) {
     const zip = new JSZip();
     const usedNames = new Set<string>();
 
-    for (let i = 0; i < extras.length; i++) {
-      const item = extras[i];
+    // 1. Asignación determinista de nombres de archivo con deduplicación
+    const fileEntries = extras.map((item, i) => {
       let baseName = sanitizeDocFilename(item.title, 55);
       if (!baseName) baseName = `extra_${i + 1}`;
 
@@ -110,10 +110,23 @@ async function handleBulkPdf(request: NextRequest) {
         counter++;
       }
       usedNames.add(fileName.toLowerCase());
+      return { item, fileName };
+    });
 
-      const pdfDoc = generateExtraPdfDocument(item, brandingCtx);
-      const pdfBytes = Buffer.from(pdfDoc.output('arraybuffer'));
-      zip.file(fileName, pdfBytes);
+    // 2. Generación paralela en lotes de 8 para alto rendimiento sin saturación de memoria
+    const BATCH_SIZE = 8;
+    for (let i = 0; i < fileEntries.length; i += BATCH_SIZE) {
+      const batch = fileEntries.slice(i, i + BATCH_SIZE);
+      const generated = await Promise.all(
+        batch.map(async ({ item, fileName }) => {
+          const pdfDoc = generateExtraPdfDocument(item, brandingCtx);
+          const pdfBytes = Buffer.from(pdfDoc.output('arraybuffer'));
+          return { fileName, pdfBytes };
+        })
+      );
+      for (const { fileName, pdfBytes } of generated) {
+        zip.file(fileName, pdfBytes);
+      }
     }
 
     const zipBuffer = await zip.generateAsync({
