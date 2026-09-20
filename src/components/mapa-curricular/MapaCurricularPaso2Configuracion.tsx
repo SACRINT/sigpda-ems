@@ -20,7 +20,7 @@ export interface MapaCurricularPaso2ConfiguracionProps {
   gruposGenerados: GrupoDefinicion[];
   mapaConfig: Record<string, GrupoConfigItem>;
   carrerasTecnologicas: CarreraTecnica[];
-  handleUpdateGrupoConfig: (grupoNombre: string, field: string, value: any) => void;
+  handleUpdateGrupoConfig: (grupoNombre: string, field: string, value: string | string[]) => void;
 }
 
 const normalizarNombreGrupo = (n: string) => (n || "").replace(/º/g, "°");
