@@ -245,7 +245,7 @@ async function main() {
    */
   const purgedSubsystems = await sql`
     DELETE FROM programs_catalog
-    WHERE subsystem != 'bge'
+    WHERE subsystem NOT IN ('bge', 'tecnologico')
     RETURNING id;
   `;
   console.log(`✓ Clones redundantes de subsistemas no-bge eliminados: ${purgedSubsystems.length}`);
