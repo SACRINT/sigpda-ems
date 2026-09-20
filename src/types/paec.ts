@@ -102,6 +102,7 @@ export interface CronogramaRow {
   macroActivities: string;
   responsibleSubjects: string;
   semesterInvolved: string;
+  semester?: number | string;
 }
 
 export interface DetalleCurricularRow {
@@ -204,8 +205,11 @@ export interface PaecAuditCriterion {
 export interface PaecAuditResult {
   totalScore: number; // Max 92 (23 * 4) o normalizado
   percentage: number;
+  score?: number;
   status: 'aprobado_excelente' | 'aprobado' | 'requiere_ajustes';
+  estatus?: 'aprobado_excelente' | 'aprobado' | 'requiere_ajustes';
   criteria: PaecAuditCriterion[];
+  criterios?: PaecAuditCriterion[];
   summary: {
     passedCount: number;
     warningCount: number;

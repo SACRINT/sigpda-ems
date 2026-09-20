@@ -1,12 +1,13 @@
 'use client';
 
-import type { PaecProject } from '@/types/paec';
+import React from 'react';
+import type { PaecProject, Fase1Diagnostico, TableRow2Cols, FODARow } from '@/types/paec';
 
 interface Props {
   project: PaecProject;
   isEditingContent: boolean;
-  editPayload: any;
-  setEditPayload: (v: any) => void;
+  editPayload: Fase1Diagnostico | null;
+  setEditPayload: (v: Fase1Diagnostico | null) => void;
 }
 
 export default function PaecStep1Diagnostico({
@@ -29,7 +30,7 @@ export default function PaecStep1Diagnostico({
             </tr>
           </thead>
           <tbody>
-            {(isEditingContent && editPayload?.tabla1 ? editPayload.tabla1 : project.fase1Diagnostico.tabla1).map((r: any, i: number) => (
+            {(isEditingContent && editPayload?.tabla1 ? editPayload.tabla1 : project.fase1Diagnostico.tabla1).map((r: TableRow2Cols, i: number) => (
               <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : 'var(--c-blue-pale)', borderBottom: '1px solid var(--c-border)' }}>
                 <td style={{ padding: '8px 12px', fontWeight: 600 }}>{r.col1}</td>
                 <td style={{ padding: '8px 12px', lineHeight: 1.5 }}>
@@ -37,8 +38,10 @@ export default function PaecStep1Diagnostico({
                     <textarea
                       value={r.col2}
                       onChange={(e) => {
-                        const copy = { ...editPayload };
-                        copy.tabla1[i].col2 = e.target.value;
+                        const copy = { ...editPayload } as Fase1Diagnostico;
+                        if (copy.tabla1 && copy.tabla1[i]) {
+                          copy.tabla1[i].col2 = e.target.value;
+                        }
                         setEditPayload(copy);
                       }}
                       style={{ width: '100%', padding: '6px', fontSize: '13px', borderRadius: '4px', border: '1px solid #ccc', minHeight: '60px', fontFamily: 'inherit' }}
@@ -63,7 +66,7 @@ export default function PaecStep1Diagnostico({
             </tr>
           </thead>
           <tbody>
-            {(isEditingContent && editPayload?.tabla2 ? editPayload.tabla2 : project.fase1Diagnostico.tabla2).map((r: any, i: number) => (
+            {(isEditingContent && editPayload?.tabla2 ? editPayload.tabla2 : project.fase1Diagnostico.tabla2).map((r: TableRow2Cols, i: number) => (
               <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : 'var(--c-blue-pale)', borderBottom: '1px solid var(--c-border)' }}>
                 <td style={{ padding: '8px 12px', fontWeight: 600 }}>{r.col1}</td>
                 <td style={{ padding: '8px 12px', lineHeight: 1.5 }}>
@@ -71,8 +74,10 @@ export default function PaecStep1Diagnostico({
                     <textarea
                       value={r.col2}
                       onChange={(e) => {
-                        const copy = { ...editPayload };
-                        copy.tabla2[i].col2 = e.target.value;
+                        const copy = { ...editPayload } as Fase1Diagnostico;
+                        if (copy.tabla2 && copy.tabla2[i]) {
+                          copy.tabla2[i].col2 = e.target.value;
+                        }
                         setEditPayload(copy);
                       }}
                       style={{ width: '100%', padding: '6px', fontSize: '13px', borderRadius: '4px', border: '1px solid #ccc', minHeight: '60px', fontFamily: 'inherit' }}
@@ -97,7 +102,7 @@ export default function PaecStep1Diagnostico({
             </tr>
           </thead>
           <tbody>
-            {(isEditingContent && editPayload?.tabla3 ? editPayload.tabla3 : project.fase1Diagnostico.tabla3).map((r: any, i: number) => (
+            {(isEditingContent && editPayload?.tabla3 ? editPayload.tabla3 : project.fase1Diagnostico.tabla3).map((r: FODARow, i: number) => (
               <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : 'var(--c-blue-pale)', borderBottom: '1px solid var(--c-border)' }}>
                 <td style={{ padding: '8px 12px', fontWeight: 600 }}>{r.aspect}</td>
                 <td style={{ padding: '8px 12px', lineHeight: 1.5 }}>
@@ -105,8 +110,10 @@ export default function PaecStep1Diagnostico({
                     <textarea
                       value={r.analysis}
                       onChange={(e) => {
-                        const copy = { ...editPayload };
-                        copy.tabla3[i].analysis = e.target.value;
+                        const copy = { ...editPayload } as Fase1Diagnostico;
+                        if (copy.tabla3 && copy.tabla3[i]) {
+                          copy.tabla3[i].analysis = e.target.value;
+                        }
                         setEditPayload(copy);
                       }}
                       style={{ width: '100%', padding: '6px', fontSize: '13px', borderRadius: '4px', border: '1px solid #ccc', minHeight: '60px', fontFamily: 'inherit' }}
@@ -131,7 +138,7 @@ export default function PaecStep1Diagnostico({
             </tr>
           </thead>
           <tbody>
-            {(isEditingContent && editPayload?.tabla4 ? editPayload.tabla4 : project.fase1Diagnostico.tabla4).map((r: any, i: number) => (
+            {(isEditingContent && editPayload?.tabla4 ? editPayload.tabla4 : project.fase1Diagnostico.tabla4).map((r: TableRow2Cols, i: number) => (
               <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : 'var(--c-blue-pale)', borderBottom: '1px solid var(--c-border)' }}>
                 <td style={{ padding: '8px 12px', fontWeight: 600 }}>{r.col1}</td>
                 <td style={{ padding: '8px 12px', lineHeight: 1.5 }}>
@@ -139,8 +146,10 @@ export default function PaecStep1Diagnostico({
                     <textarea
                       value={r.col2}
                       onChange={(e) => {
-                        const copy = { ...editPayload };
-                        copy.tabla4[i].col2 = e.target.value;
+                        const copy = { ...editPayload } as Fase1Diagnostico;
+                        if (copy.tabla4 && copy.tabla4[i]) {
+                          copy.tabla4[i].col2 = e.target.value;
+                        }
                         setEditPayload(copy);
                       }}
                       style={{ width: '100%', padding: '6px', fontSize: '13px', borderRadius: '4px', border: '1px solid #ccc', minHeight: '60px', fontFamily: 'inherit' }}

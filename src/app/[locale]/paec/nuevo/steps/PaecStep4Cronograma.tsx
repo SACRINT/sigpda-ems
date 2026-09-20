@@ -1,12 +1,13 @@
 'use client';
 
-import type { PaecProject } from '@/types/paec';
+import React from 'react';
+import type { PaecProject, CronogramaRow } from '@/types/paec';
 
 interface Props {
   project: PaecProject;
   isEditingContent: boolean;
-  editPayload: any;
-  setEditPayload: (v: any) => void;
+  editPayload: CronogramaRow[] | null;
+  setEditPayload: (v: CronogramaRow[] | null) => void;
 }
 
 export default function PaecStep4Cronograma({
@@ -30,7 +31,7 @@ export default function PaecStep4Cronograma({
           </tr>
         </thead>
         <tbody>
-          {(isEditingContent && editPayload ? editPayload : project.fase2Cronograma).map((r: any, i: number) => (
+          {(isEditingContent && editPayload ? editPayload : project.fase2Cronograma).map((r: CronogramaRow, i: number) => (
             <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : 'var(--c-blue-pale)', borderBottom: '1px solid var(--c-border)' }}>
               <td style={{ padding: '8px 12px', fontWeight: 600 }}>{r.phase}</td>
               <td style={{ padding: '8px 12px' }}>
@@ -38,8 +39,10 @@ export default function PaecStep4Cronograma({
                   <textarea
                     value={r.objective}
                     onChange={(e) => {
-                      const copy = [...editPayload];
-                      copy[i].objective = e.target.value;
+                      const copy = [...(editPayload || project.fase2Cronograma || [])];
+                      if (copy[i]) {
+                        copy[i] = { ...copy[i], objective: e.target.value };
+                      }
                       setEditPayload(copy);
                     }}
                     style={{ width: '100%', padding: '6px', fontSize: '12.5px', borderRadius: '4px', border: '1px solid #ccc', minHeight: '60px', fontFamily: 'inherit' }}
@@ -53,8 +56,10 @@ export default function PaecStep4Cronograma({
                   <textarea
                     value={r.macroActivities}
                     onChange={(e) => {
-                      const copy = [...editPayload];
-                      copy[i].macroActivities = e.target.value;
+                      const copy = [...(editPayload || project.fase2Cronograma || [])];
+                      if (copy[i]) {
+                        copy[i] = { ...copy[i], macroActivities: e.target.value };
+                      }
                       setEditPayload(copy);
                     }}
                     style={{ width: '100%', padding: '6px', fontSize: '12.5px', borderRadius: '4px', border: '1px solid #ccc', minHeight: '60px', fontFamily: 'inherit' }}
@@ -68,8 +73,10 @@ export default function PaecStep4Cronograma({
                   <textarea
                     value={r.responsibleSubjects || ''}
                     onChange={(e) => {
-                      const copy = [...editPayload];
-                      copy[i].responsibleSubjects = e.target.value;
+                      const copy = [...(editPayload || project.fase2Cronograma || [])];
+                      if (copy[i]) {
+                        copy[i] = { ...copy[i], responsibleSubjects: e.target.value };
+                      }
                       setEditPayload(copy);
                     }}
                     style={{ width: '100%', padding: '6px', fontSize: '12.5px', borderRadius: '4px', border: '1px solid #ccc', minHeight: '60px', fontFamily: 'inherit' }}
@@ -78,7 +85,9 @@ export default function PaecStep4Cronograma({
                   r.responsibleSubjects || 'Todas las asignaturas vinculadas'
                 )}
               </td>
-              <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600 }}>{r.semesterInvolved}</td>
+              <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600 }}>
+                {r.semesterInvolved || r.semester || ''}
+              </td>
             </tr>
           ))}
         </tbody>

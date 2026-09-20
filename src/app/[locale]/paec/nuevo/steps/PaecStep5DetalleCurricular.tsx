@@ -1,12 +1,13 @@
 'use client';
 
-import type { PaecProject } from '@/types/paec';
+import React from 'react';
+import type { PaecProject, DetalleCurricularRow } from '@/types/paec';
 
 interface Props {
   project: PaecProject;
   isEditingContent: boolean;
-  editPayload: any;
-  setEditPayload: (v: any) => void;
+  editPayload: DetalleCurricularRow[] | null;
+  setEditPayload: (v: DetalleCurricularRow[] | null) => void;
 }
 
 export default function PaecStep5DetalleCurricular({
@@ -33,7 +34,7 @@ export default function PaecStep5DetalleCurricular({
           </tr>
         </thead>
         <tbody>
-          {(isEditingContent && editPayload ? editPayload : project.fase2DetalleCurricular).map((r: any, i: number) => (
+          {(isEditingContent && editPayload ? editPayload : project.fase2DetalleCurricular).map((r: DetalleCurricularRow, i: number) => (
             <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : 'var(--c-blue-pale)', borderBottom: '1px solid var(--c-border)' }}>
               <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600 }}>{r.semester}°</td>
               <td style={{ padding: '8px 12px', fontWeight: 600 }}>{r.uacName}</td>
@@ -42,8 +43,10 @@ export default function PaecStep5DetalleCurricular({
                   <textarea
                     value={r.progressionsOrPurposes}
                     onChange={(e) => {
-                      const copy = [...editPayload];
-                      copy[i].progressionsOrPurposes = e.target.value;
+                      const copy = [...(editPayload || project.fase2DetalleCurricular || [])];
+                      if (copy[i]) {
+                        copy[i] = { ...copy[i], progressionsOrPurposes: e.target.value };
+                      }
                       setEditPayload(copy);
                     }}
                     style={{ width: '100%', padding: '6px', fontSize: '12px', borderRadius: '4px', border: '1px solid #ccc', minHeight: '60px', fontFamily: 'inherit' }}
@@ -58,8 +61,10 @@ export default function PaecStep5DetalleCurricular({
                     type="text"
                     value={r.projectPhases}
                     onChange={(e) => {
-                      const copy = [...editPayload];
-                      copy[i].projectPhases = e.target.value;
+                      const copy = [...(editPayload || project.fase2DetalleCurricular || [])];
+                      if (copy[i]) {
+                        copy[i] = { ...copy[i], projectPhases: e.target.value };
+                      }
                       setEditPayload(copy);
                     }}
                     style={{ width: '100%', padding: '6px', fontSize: '12px', borderRadius: '4px', border: '1px solid #ccc' }}
@@ -73,8 +78,10 @@ export default function PaecStep5DetalleCurricular({
                   <textarea
                     value={r.curricularJustification}
                     onChange={(e) => {
-                      const copy = [...editPayload];
-                      copy[i].curricularJustification = e.target.value;
+                      const copy = [...(editPayload || project.fase2DetalleCurricular || [])];
+                      if (copy[i]) {
+                        copy[i] = { ...copy[i], curricularJustification: e.target.value };
+                      }
                       setEditPayload(copy);
                     }}
                     style={{ width: '100%', padding: '6px', fontSize: '12px', borderRadius: '4px', border: '1px solid #ccc', minHeight: '60px', fontFamily: 'inherit' }}

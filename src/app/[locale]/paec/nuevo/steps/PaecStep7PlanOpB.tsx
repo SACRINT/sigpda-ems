@@ -5,8 +5,8 @@ import type { PaecProject, PlanOperativoRow } from '@/types/paec';
 interface Props {
   project: PaecProject;
   isEditingContent: boolean;
-  editPayload: any;
-  setEditPayload: (v: any) => void;
+  editPayload: PlanOperativoRow[] | null;
+  setEditPayload: (v: PlanOperativoRow[] | null) => void;
 }
 
 export default function PaecStep7PlanOpB({

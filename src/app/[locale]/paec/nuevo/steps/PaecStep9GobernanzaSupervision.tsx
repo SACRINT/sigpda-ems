@@ -1,6 +1,6 @@
 'use client';
 
-import type { PaecProject, PaecGobernanza, PaecInformeSupervision, PaecAuditCriterion } from '@/types/paec';
+import type { PaecProject, PaecGobernanza, PaecInformeSupervision, PaecAuditCriterion, PaecQualityAudit, PaecAuditResult } from '@/types/paec';
 
 interface Props {
   project: PaecProject;
@@ -9,7 +9,7 @@ interface Props {
   setCollapsedGobernanza: (v: boolean) => void;
   collapsedInforme: boolean;
   setCollapsedInforme: (v: boolean) => void;
-  auditResult: any;
+  auditResult: PaecQualityAudit | PaecAuditResult | null;
   loadingAudit: boolean;
   auditError: string | null;
   fetchAudit: (projectId: string) => void;
@@ -256,8 +256,8 @@ export default function PaecStep9GobernanzaSupervision({
         background: 'rgba(13,21,48,0.92)',
         border: `1px solid ${
           !auditResult ? 'rgba(255,255,255,0.15)' :
-          ((auditResult as any).percentage ?? (auditResult as any).score ?? 0) >= 80 ? 'rgba(16, 185, 129, 0.45)' :
-          ((auditResult as any).percentage ?? (auditResult as any).score ?? 0) >= 60 ? 'rgba(245, 158, 11, 0.45)' :
+          ((auditResult.percentage ?? auditResult.score ?? 0)) >= 80 ? 'rgba(16, 185, 129, 0.45)' :
+          ((auditResult.percentage ?? auditResult.score ?? 0)) >= 60 ? 'rgba(245, 158, 11, 0.45)' :
           'rgba(239, 68, 68, 0.45)'
         }`,
         boxShadow: '0 8px 32px rgba(0,0,0,0.35)',
@@ -330,7 +330,7 @@ export default function PaecStep9GobernanzaSupervision({
 
         {/* Visualización de Resultados */}
         {auditResult && (() => {
-          const rawAudit = auditResult as any;
+          const rawAudit = auditResult;
           const scorePct = Math.round(rawAudit.percentage ?? rawAudit.score ?? 0);
           const isGreen = scorePct >= 80;
           const isYellow = scorePct >= 60 && scorePct < 80;

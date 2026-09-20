@@ -1,12 +1,13 @@
 'use client';
 
-import type { PaecProject } from '@/types/paec';
+import React from 'react';
+import type { PaecProject, Fase2Justificacion } from '@/types/paec';
 
 interface Props {
   project: PaecProject;
   isEditingContent: boolean;
-  editPayload: any;
-  setEditPayload: (v: any) => void;
+  editPayload: Fase2Justificacion | null;
+  setEditPayload: (v: Fase2Justificacion | null) => void;
 }
 
 export default function PaecStep2Justificacion({
@@ -26,7 +27,7 @@ export default function PaecStep2Justificacion({
             type="text"
             value={editPayload?.projectName || ''}
             onChange={(e) => {
-              const copy = { ...editPayload };
+              const copy = { ...editPayload } as Fase2Justificacion;
               copy.projectName = e.target.value;
               setEditPayload(copy);
             }}
@@ -42,7 +43,7 @@ export default function PaecStep2Justificacion({
           <textarea
             value={editPayload?.introduction || ''}
             onChange={(e) => {
-              const copy = { ...editPayload };
+              const copy = { ...editPayload } as Fase2Justificacion;
               copy.introduction = e.target.value;
               setEditPayload(copy);
             }}
@@ -62,8 +63,10 @@ export default function PaecStep2Justificacion({
                 type="text"
                 value={pilar}
                 onChange={(e) => {
-                  const copy = { ...editPayload };
-                  copy.pilares[i] = e.target.value;
+                  const copy = { ...editPayload } as Fase2Justificacion;
+                  if (copy.pilares) {
+                    copy.pilares[i] = e.target.value;
+                  }
                   setEditPayload(copy);
                 }}
                 style={{ width: '100%', padding: '6px', fontSize: '13px', borderRadius: '4px', border: '1px solid #ccc' }}
@@ -87,8 +90,10 @@ export default function PaecStep2Justificacion({
               <textarea
                 value={editPayload?.proposito?.educativo || ''}
                 onChange={(e) => {
-                  const copy = { ...editPayload };
-                  copy.proposito.educativo = e.target.value;
+                  const copy = { ...editPayload } as Fase2Justificacion;
+                  if (copy.proposito) {
+                    copy.proposito.educativo = e.target.value;
+                  }
                   setEditPayload(copy);
                 }}
                 style={{ width: '100%', padding: '6px', fontSize: '13px', borderRadius: '4px', border: '1px solid #ccc', minHeight: '60px', marginTop: '4px', fontFamily: 'inherit' }}
@@ -103,8 +108,10 @@ export default function PaecStep2Justificacion({
               <textarea
                 value={editPayload?.proposito?.social || ''}
                 onChange={(e) => {
-                  const copy = { ...editPayload };
-                  copy.proposito.social = e.target.value;
+                  const copy = { ...editPayload } as Fase2Justificacion;
+                  if (copy.proposito) {
+                    copy.proposito.social = e.target.value;
+                  }
                   setEditPayload(copy);
                 }}
                 style={{ width: '100%', padding: '6px', fontSize: '13px', borderRadius: '4px', border: '1px solid #ccc', minHeight: '60px', marginTop: '4px', fontFamily: 'inherit' }}
@@ -119,8 +126,10 @@ export default function PaecStep2Justificacion({
               <textarea
                 value={editPayload?.proposito?.funcional || ''}
                 onChange={(e) => {
-                  const copy = { ...editPayload };
-                  copy.proposito.funcional = e.target.value;
+                  const copy = { ...editPayload } as Fase2Justificacion;
+                  if (copy.proposito) {
+                    copy.proposito.funcional = e.target.value;
+                  }
                   setEditPayload(copy);
                 }}
                 style={{ width: '100%', padding: '6px', fontSize: '13px', borderRadius: '4px', border: '1px solid #ccc', minHeight: '60px', marginTop: '4px', fontFamily: 'inherit' }}
@@ -141,8 +150,10 @@ export default function PaecStep2Justificacion({
                 type="text"
                 value={m}
                 onChange={(e) => {
-                  const copy = { ...editPayload };
-                  copy.alcance.metas[i] = e.target.value;
+                  const copy = { ...editPayload } as Fase2Justificacion;
+                  if (copy.alcance && copy.alcance.metas) {
+                    copy.alcance.metas[i] = e.target.value;
+                  }
                   setEditPayload(copy);
                 }}
                 style={{ width: '100%', padding: '6px', fontSize: '12.5px', borderRadius: '4px', border: '1px solid #ccc' }}

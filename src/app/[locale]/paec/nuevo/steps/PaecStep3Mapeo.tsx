@@ -1,12 +1,13 @@
 'use client';
 
-import type { PaecProject } from '@/types/paec';
+import React from 'react';
+import type { PaecProject, MapeoRow } from '@/types/paec';
 
 interface Props {
   project: PaecProject;
   isEditingContent: boolean;
-  editPayload: any;
-  setEditPayload: (v: any) => void;
+  editPayload: MapeoRow[] | null;
+  setEditPayload: (v: MapeoRow[] | null) => void;
 }
 
 export default function PaecStep3Mapeo({
@@ -29,7 +30,7 @@ export default function PaecStep3Mapeo({
           </tr>
         </thead>
         <tbody>
-          {(isEditingContent && editPayload ? editPayload : project.fase2Mapeo).map((r: any, i: number) => (
+          {(isEditingContent && editPayload ? editPayload : project.fase2Mapeo).map((r: MapeoRow, i: number) => (
             <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : 'var(--c-blue-pale)', borderBottom: '1px solid var(--c-border)' }}>
               <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600 }}>{r.semester}°</td>
               <td style={{ padding: '8px 12px', fontWeight: 600 }}>{r.uacName}</td>
@@ -39,8 +40,10 @@ export default function PaecStep3Mapeo({
                     type="text"
                     value={r.topic}
                     onChange={(e) => {
-                      const copy = [...editPayload];
-                      copy[i].topic = e.target.value;
+                      const copy = [...(editPayload || project.fase2Mapeo || [])];
+                      if (copy[i]) {
+                        copy[i] = { ...copy[i], topic: e.target.value };
+                      }
                       setEditPayload(copy);
                     }}
                     style={{ width: '100%', padding: '6px', fontSize: '12.5px', borderRadius: '4px', border: '1px solid #ccc' }}
@@ -54,8 +57,10 @@ export default function PaecStep3Mapeo({
                   <textarea
                     value={r.linking}
                     onChange={(e) => {
-                      const copy = [...editPayload];
-                      copy[i].linking = e.target.value;
+                      const copy = [...(editPayload || project.fase2Mapeo || [])];
+                      if (copy[i]) {
+                        copy[i] = { ...copy[i], linking: e.target.value };
+                      }
                       setEditPayload(copy);
                     }}
                     style={{ width: '100%', padding: '6px', fontSize: '12.5px', borderRadius: '4px', border: '1px solid #ccc', minHeight: '60px', fontFamily: 'inherit' }}
