@@ -60,6 +60,49 @@ export class GeminiProvider implements AIProvider {
     return text;
   }
 
+  async generateMultimodal(
+    systemPrompt: string,
+    userPrompt: string,
+    inlineData: { mimeType: string; data: string }
+  ): Promise<string> {
+    const url = `${API_CONFIG.gemini}/${this.modelId}:generateContent?key=${this.apiKey}`;
+    const payload = {
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { inlineData: { mimeType: inlineData.mimeType, data: inlineData.data } },
+            { text: userPrompt },
+          ],
+        },
+      ],
+      systemInstruction: { parts: [{ text: systemPrompt }] },
+      generationConfig: {
+        temperature: 0.2,
+        topP: 0.95,
+        maxOutputTokens: 8192,
+        responseMimeType: 'text/plain',
+      },
+    };
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(90000), // 90s para PDFs
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`HTTP ${res.status}: ${errText}`);
+    }
+
+    const data = await res.json();
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) throw new Error('Empty multimodal response from Gemini API');
+    return text;
+  }
+
   async *generateStream(systemPrompt: string, userPrompt: string): AsyncGenerator<string> {
     const url = `${API_CONFIG.gemini}/${this.modelId}:streamGenerateContent?key=${this.apiKey}&alt=sse`;
     const payload = {

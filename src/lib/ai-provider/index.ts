@@ -24,8 +24,10 @@ import { ClaudeProvider } from './claude';
 import { OpenAICompatibleProvider } from './openai';
 import type { AIProvider } from './types';
 import { logger } from '@/lib/logger';
+import { resolveUserIsPremium } from './resolve-premium';
 
 export type { AIProvider };
+export { resolveUserIsPremium };
 
 // ── Default model constants ──────────────────────────────────────────────────
 export const DEFAULT_STANDARD_MODEL = 'gemini-3.5-flash-lite';
@@ -111,26 +113,8 @@ async function getAlternativeProviders(primaryProvider: string): Promise<string[
   }
 }
 
-/**
- * Checks whether a teacher has is_premium=true OR an elevated role.
- */
-export async function resolveUserIsPremium(teacherId?: string): Promise<boolean> {
-  if (!teacherId || !process.env.DATABASE_URL) return false;
-  try {
-    const sql = neon(process.env.DATABASE_URL);
-    const rows = await sql`
-      SELECT role, COALESCE(is_premium, false) AS is_premium
-      FROM teachers
-      WHERE id = ${teacherId}::uuid
-      LIMIT 1
-    `;
-    if (!rows[0]) return false;
-    const { role, is_premium } = rows[0];
-    return is_premium === true || role === 'administrador' || role === 'supervisor';
-  } catch {
-    return false;
-  }
-}
+// resolveUserIsPremium is now exported from './resolve-premium' and re-exported above.
+// This avoids creating a circular dependency with src/lib/gemini.ts.
 
 // ── Provider factory ─────────────────────────────────────────────────────────
 
@@ -258,8 +242,14 @@ export async function generateMultimodalWithRotation(
   teacherId?: string,
   isPremium = false
 ): Promise<string> {
-  const { callGeminiMultimodalPool } = await import('@/lib/gemini');
-  return callGeminiMultimodalPool(systemPrompt, userPrompt, inlineData, teacherId);
+  // Uses GeminiProvider.generateMultimodal directly to avoid importing src/lib/gemini.ts
+  // (which would recreate the ai-provider <-> gemini circular dependency).
+  const { provider, model } = await getActiveConfig(isPremium);
+  const { resolveKey } = await import('./key-rotator');
+  const resolved = await resolveKey(provider, teacherId);
+  const finalModel = resolved.modelOverride || model;
+  const geminiProvider = new GeminiProvider(resolved.apiKey, finalModel);
+  return geminiProvider.generateMultimodal(systemPrompt, userPrompt, inlineData);
 }
 
 // ── Activity logging helper ─────────────────────────────────────────────────

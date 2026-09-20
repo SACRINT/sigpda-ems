@@ -13,8 +13,8 @@
 
 import { neon } from '@neondatabase/serverless';
 import { SYSTEM_PROMPT } from './prompts/system-prompt';
-import { generateStreamWithRotation, resolveUserIsPremium } from './ai-provider';
 import { sanitizeGeminiModel } from './ai-provider/gemini';
+import { resolveUserIsPremium } from './ai-provider/resolve-premium';
 import { parseAIResponse } from './ai-response-parser';
 import { PlanningContentSchema } from './ai-schemas';
 import type { z } from 'zod';
@@ -319,6 +319,8 @@ export async function* generatePlanningStream(
   teacherId?: string
 ): AsyncGenerator<string> {
   const isPremium = await resolveUserIsPremium(teacherId);
+  // Dynamic import breaks the potential circular reference at runtime.
+  const { generateStreamWithRotation } = await import('./ai-provider');
   yield* generateStreamWithRotation(SYSTEM_PROMPT, userPrompt, teacherId, isPremium);
 }
 
