@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run",
+    "test": "vitest run && npm run test:keywords",
+    "test:keywords": "npx tsx scripts/audit-recommender-keywords.ts",
     "test:watch": "vitest"
   },
   "dependencies": {
