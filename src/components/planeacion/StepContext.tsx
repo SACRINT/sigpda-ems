@@ -179,6 +179,7 @@ export default function StepContext({
     if (uacName && !form.metodologiaActiva) {
       const sugeridaId = recomendarMetodologia(uacName, component);
       if (sugeridaId) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setForm(f => ({ ...f, metodologiaActiva: sugeridaId }));
       }
     }
@@ -871,6 +872,7 @@ export default function StepContext({
                       key={m.id}
                       type="button"
                       onClick={() => set({ metodologiaActiva: m.id })}
+                      title={m.definicion}
                       style={{
                         textAlign: 'left',
                         padding: '12px 14px',
@@ -892,10 +894,10 @@ export default function StepContext({
                         style={{
                           fontSize: '12px',
                           color: 'var(--c-text-muted)',
-                          lineHeight: '1.3',
+                          lineHeight: '1.4',
                         }}
                       >
-                        {m.definicion.slice(0, 80)}{m.definicion.length > 80 ? '...' : ''}
+                        {m.definicion}
                       </div>
                     </button>
                   );
