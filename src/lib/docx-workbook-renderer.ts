@@ -54,7 +54,7 @@ import type {
   ProjectSection,
 } from '@/types/work-textbook';
 import type { Planning, ImageAsset } from '@/types/planning';
-import { getRubricLevelDescriptor } from '@/lib/pdf-workbook-renderer';
+import { getRubricLevelDescriptor } from '@/lib/rubric-helpers';
 import {
   resolveMaterialString,
   resolveStepDetails,
