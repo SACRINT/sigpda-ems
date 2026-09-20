@@ -1,9 +1,9 @@
+import { sql } from '@/lib/db/client';
 import { auth } from '@/lib/auth';
 import createMiddleware from 'next-intl/middleware';
 import { routing } from './i18n/routing';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { neon } from '@neondatabase/serverless';
 import { logger } from '@/lib/logger';
 
 const intlMiddleware = createMiddleware(routing);
@@ -34,7 +34,7 @@ function isEnvAdmin(email: string): boolean {
 
 async function getTeacherStatus(email: string) {
   try {
-    const db = neon(process.env.DATABASE_URL!);
+    const db = sql();
     const rows = await db`
       SELECT t.id, t.profile_completed, t.school_locked, t.role,
              s.status as sub_status

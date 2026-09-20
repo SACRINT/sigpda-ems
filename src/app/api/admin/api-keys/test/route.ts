@@ -1,10 +1,10 @@
+import { sql } from '@/lib/db/client';
 import { NextRequest, NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
 import { createDecipheriv } from 'crypto';
 import { requireAdmin, adminUnauthorized, adminForbidden } from '@/lib/admin-auth';
 import { API_CONFIG } from '@/lib/config';
 
-function getDb() { return neon(process.env.DATABASE_URL!); }
+function getDb() { return sql(); }
 
 function getEncKey(): Buffer {
   const key = process.env.ADMIN_ENCRYPTION_KEY;

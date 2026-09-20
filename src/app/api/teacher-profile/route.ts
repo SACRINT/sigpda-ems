@@ -1,5 +1,5 @@
+import { sql } from '@/lib/db/client';
 import { auth } from '@/lib/auth';
-import { neon } from '@neondatabase/serverless';
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 
@@ -26,7 +26,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Rol no válido' }, { status: 400 });
     }
 
-    const db = neon(process.env.DATABASE_URL!);
+    const db = sql();
 
     // Verificar si existe el docente
     const existing = await db`
@@ -84,7 +84,7 @@ export async function GET() {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-    const db = neon(process.env.DATABASE_URL!);
+    const db = sql();
     const rows = await db`
       SELECT name, school_name, municipality, city, cct, subsystem,
              profile_completed, school_locked, role

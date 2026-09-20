@@ -1,6 +1,6 @@
+import { sql } from '@/lib/db/client';
 import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
-import { neon } from '@neondatabase/serverless';
 import Link from 'next/link';
 import SuscripcionClient from './SuscripcionClient';
 
@@ -15,7 +15,7 @@ export default async function SuscripcionPage({
     redirect(`/${locale}/login`);
   }
 
-  const db = neon(process.env.DATABASE_URL!);
+  const db = sql();
   const existing = await db`
     SELECT id, role, profile_completed, email, name
     FROM teachers

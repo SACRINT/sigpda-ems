@@ -1,8 +1,8 @@
+import { sql } from '@/lib/db/client';
 import { NextRequest, NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
 import { auth } from '@/lib/auth';
 
-function getDb() { return neon(process.env.DATABASE_URL!); }
+function getDb() { return sql(); }
 
 async function getEmail() {
   const session = await auth();

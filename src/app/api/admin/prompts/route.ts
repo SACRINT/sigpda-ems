@@ -1,8 +1,8 @@
+import { sql } from '@/lib/db/client';
 import { NextRequest, NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
 import { requireAdmin, adminUnauthorized, adminForbidden } from '@/lib/admin-auth';
 
-function getDb() { return neon(process.env.DATABASE_URL!); }
+function getDb() { return sql(); }
 
 // GET /api/admin/prompts — list all prompts
 export async function GET() {

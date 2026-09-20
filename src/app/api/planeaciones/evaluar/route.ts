@@ -1,5 +1,5 @@
+import { sql } from '@/lib/db/client';
 import { auth } from '@/lib/auth';
-import { neon } from '@neondatabase/serverless';
 import { NextResponse } from 'next/server';
 import { evaluarPlaneacion, TipoEvaluacion } from '@/lib/planeaciones-evaluator';
 import { logger } from '@/lib/logger';
@@ -14,7 +14,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { planningId, tipoEvaluacion, textoPlanificacion, textoPaecPec, forceReeval } = body;
 
-    const db = neon(process.env.DATABASE_URL!);
+    const db = sql();
 
     let planData: any = null;
     let docenteNombre = session.user.name || 'Docente';

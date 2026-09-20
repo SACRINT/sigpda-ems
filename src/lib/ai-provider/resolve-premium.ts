@@ -1,3 +1,4 @@
+import { sql } from '@/lib/db/client';
 /**
  * resolve-premium.ts — Helper aislado para resolver el nivel de acceso del docente.
  *
@@ -6,7 +7,6 @@
  * pueden importar desde aquí sin crear ciclos.
  */
 
-import { neon } from '@neondatabase/serverless';
 
 /**
  * Checks whether a teacher has is_premium=true OR an elevated role (admin/supervisor).
@@ -15,8 +15,8 @@ import { neon } from '@neondatabase/serverless';
 export async function resolveUserIsPremium(teacherId?: string): Promise<boolean> {
   if (!teacherId || !process.env.DATABASE_URL) return false;
   try {
-    const sql = neon(process.env.DATABASE_URL);
-    const rows = await sql`
+    const db = sql();
+    const rows = await db`
       SELECT role, COALESCE(is_premium, false) AS is_premium
       FROM teachers
       WHERE id = ${teacherId}::uuid

@@ -1,7 +1,7 @@
+import { sql } from '@/lib/db/client';
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { neon } from '@neondatabase/serverless';
 import { logger } from '@/lib/logger';
 import { signOutAction, signOutPlain } from '@/lib/server-actions';
 import SignOutButton from './SignOutButton';
@@ -20,11 +20,11 @@ async function getUserRole(email: string): Promise<{ isAdmin: boolean; role: str
   
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
-      const sql = neon(process.env.DATABASE_URL!);
-      const adminRows = await sql`SELECT email FROM admins WHERE email = ${email} LIMIT 1`;
+      const db = sql();
+      const adminRows = await db`SELECT email FROM admins WHERE email = ${email} LIMIT 1`;
       if (adminRows.length > 0) return { isAdmin: true, role: 'administrador' };
       
-      const teacherRows = await sql`SELECT role FROM teachers WHERE email = ${email} LIMIT 1`;
+      const teacherRows = await db`SELECT role FROM teachers WHERE email = ${email} LIMIT 1`;
       if (teacherRows.length > 0) return { isAdmin: false, role: teacherRows[0].role };
       return { isAdmin: false, role: 'docente' };
     } catch (err) {
@@ -41,8 +41,8 @@ async function getUserRole(email: string): Promise<{ isAdmin: boolean; role: str
 
 async function getMaintenanceStatus(): Promise<{ active: boolean; message: string }> {
   try {
-    const sql = neon(process.env.DATABASE_URL!);
-    const rows = await sql`
+    const db = sql();
+    const rows = await db`
       SELECT key, value FROM platform_config
       WHERE key IN ('maintenance_mode', 'maintenance_message')
     `;

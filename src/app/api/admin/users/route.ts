@@ -1,9 +1,9 @@
+import { sql } from '@/lib/db/client';
 import { NextRequest, NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
 import { requireAdmin, adminUnauthorized, adminForbidden } from '@/lib/admin-auth';
 import { logger } from '@/lib/logger';
 
-function getDb() { return neon(process.env.DATABASE_URL!); }
+function getDb() { return sql(); }
 
 // GET /api/admin/users — list all teachers with stats
 export async function GET(req: NextRequest) {

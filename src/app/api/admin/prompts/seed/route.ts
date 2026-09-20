@@ -1,5 +1,5 @@
+import { sql } from '@/lib/db/client';
 import { NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
 import { requireAdmin, adminUnauthorized, adminForbidden } from '@/lib/admin-auth';
 import { SYSTEM_PROMPT } from '@/lib/prompts/system-prompt';
 import { SYSTEM_PROMPT_EXTRAS } from '@/lib/prompts/extras-prompts';
@@ -27,7 +27,7 @@ import { logger } from '@/lib/logger';
 export async function POST() {
   try {
     await requireAdmin();
-    const sql = neon(process.env.DATABASE_URL!);
+    const db = sql();
 
     const promptsToSeed = [
       {
@@ -58,7 +58,7 @@ export async function POST() {
     ];
 
     for (const p of promptsToSeed) {
-      await sql`
+      await db`
         INSERT INTO ai_prompts (id, label, content, is_active)
         VALUES (${p.id}, ${p.label}, ${p.content}, true)
         ON CONFLICT (id) DO UPDATE

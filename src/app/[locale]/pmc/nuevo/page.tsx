@@ -1,9 +1,9 @@
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { getTeacherByEmail } from '@/lib/db';
+import { sql } from '@/lib/db/client';
 import PmcWizardClient from './PmcWizardClient';
 import type { Metadata } from 'next';
-import { neon } from '@neondatabase/serverless';
 
 export const metadata: Metadata = {
   title: 'Nuevo PMC — SIGPDA-EMS',
@@ -28,8 +28,8 @@ export default async function PmcNuevoPage({
   let project = null;
   if (id) {
     if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL not set');
-    const sql = neon(process.env.DATABASE_URL);
-    const rows = await sql`
+    const db = sql();
+    const rows = await db`
       SELECT * FROM pmc_projects
       WHERE id = ${id}::uuid AND teacher_id = ${teacher.id}::uuid
       LIMIT 1

@@ -1,3 +1,4 @@
+import { sql } from '@/lib/db/client';
 /**
  * gemini.ts — Pool de API Keys con Rotación Determinista Round-Robin
  *
@@ -11,7 +12,6 @@
  * ⚠️  Modelos eliminados: gemini-1.5-flash, gemini-2.0-flash, gemini-2.5-flash
  */
 
-import { neon } from '@neondatabase/serverless';
 import { SYSTEM_PROMPT } from './prompts/system-prompt';
 import { sanitizeGeminiModel } from './ai-provider/gemini';
 import { resolveUserIsPremium } from './ai-provider/resolve-premium';
@@ -99,7 +99,7 @@ async function callGeminiInternal({
     throw new Error('[sigpda-ems] DATABASE_URL no configurada.');
   }
 
-  const sql = neon(process.env.DATABASE_URL);
+  const db = sql();
 
   // 1. Resolver perfil del usuario (Standard vs Premium)
   const isPremium = await resolveUserIsPremium(teacherId);
@@ -108,7 +108,7 @@ async function callGeminiInternal({
   const configKeys = isPremium
     ? ['admin_provider', 'admin_model']
     : ['active_provider', 'active_model'];
-  const rows = await sql`
+  const rows = await db`
     SELECT key, value FROM platform_config
     WHERE key = ANY(${configKeys})
   `;
@@ -121,7 +121,7 @@ async function callGeminiInternal({
 
   // 3. Auto-reactivar llaves bloqueadas hace más de 60 min
   const cooldownTime = new Date(Date.now() - 60 * 60 * 1000);
-  await sql`
+  await db`
     UPDATE api_keys
     SET is_active = true, error_count = 0
     WHERE is_active = false
@@ -131,7 +131,7 @@ async function callGeminiInternal({
   `.catch(err => logger.error('[sigpda-ems] Error reactivando llaves:', err));
 
   // 4. Cargar llaves activas del pool (Gemini)
-  const keys = await sql`
+  const keys = await db`
     SELECT id, label, key_encrypted
     FROM api_keys
     WHERE provider = 'gemini' AND is_active = true
@@ -193,7 +193,7 @@ async function callGeminiInternal({
       );
 
       // Registrar éxito
-      await sql`
+      await db`
         UPDATE api_keys
         SET error_count = 0,
             usage_count = usage_count + 1,
@@ -214,7 +214,7 @@ async function callGeminiInternal({
 
       if (!is429) {
         // Error grave (credencial inválida): incrementar errorCount
-        await sql`
+        await db`
           UPDATE api_keys
           SET error_count = error_count + 1,
               last_error_at = NOW(),

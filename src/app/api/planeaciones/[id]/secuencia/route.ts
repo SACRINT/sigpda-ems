@@ -1,6 +1,6 @@
+import { sql } from '@/lib/db/client';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { neon } from '@neondatabase/serverless';
 import { generateWithRetry } from '@/lib/ai-retry-manager';
 import { SecuenciaResponseSchema, SecuenciaGenerateInputSchema, SecuenciaUpdateInputSchema } from '@/lib/ai-schemas';
 import { logger } from '@/lib/logger';
@@ -56,7 +56,7 @@ export async function GET(
     }
 
     const { id } = await params;
-    const db = neon(process.env.DATABASE_URL!);
+    const db = sql();
 
     const rows = await db`
       SELECT sequence_json FROM plannings
@@ -166,7 +166,7 @@ export async function POST(
 
     const { blockIndex, totalHours: customHours } = parseResult.data;
 
-    const db = neon(process.env.DATABASE_URL!);
+    const db = sql();
 
     const rows = await db`
       SELECT p.id, p.uac_name, p.semester, p.component, p.content_json, p.paec_context, p.sequence_json, p.metodologia_activa
@@ -484,7 +484,7 @@ export async function PUT(
 
     const { blockIndex, sessions, retoSituado } = parseResult.data;
 
-    const db = neon(process.env.DATABASE_URL!);
+    const db = sql();
 
     const rows = await db`
       SELECT p.id, p.uac_name, p.paec_context, p.content_json, p.sequence_json

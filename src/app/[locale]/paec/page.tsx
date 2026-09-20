@@ -1,10 +1,10 @@
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { getTeacherByEmail } from '@/lib/db';
+import { sql } from '@/lib/db/client';
 import AppLayout from '@/components/layout/AppLayout';
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { neon } from '@neondatabase/serverless';
 import DeletePaecButton from './DeletePaecButton';
 
 export const metadata: Metadata = {
@@ -40,8 +40,8 @@ export default async function PaecDashboardPage({
 
   // Direct fetch from DB for Server Component
   if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL not set');
-  const sql = neon(process.env.DATABASE_URL);
-  const projects = await sql`
+  const db = sql();
+  const projects = await db`
     SELECT id, project_name, problem_statement, cycle_type, current_step, status, created_at
     FROM paec_projects
     WHERE teacher_id = ${teacher.id}::uuid

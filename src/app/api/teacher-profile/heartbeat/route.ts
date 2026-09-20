@@ -1,5 +1,5 @@
+import { sql } from '@/lib/db/client';
 import { auth } from '@/lib/auth';
-import { neon } from '@neondatabase/serverless';
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 
@@ -10,8 +10,8 @@ export async function POST() {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-    const sql = neon(process.env.DATABASE_URL!);
-    await sql`UPDATE teachers SET last_seen_at = NOW() WHERE email = ${session.user.email}`;
+    const db = sql();
+    await db`UPDATE teachers SET last_seen_at = NOW() WHERE email = ${session.user.email}`;
 
     return NextResponse.json({ success: true, timestamp: new Date().toISOString() });
   } catch (e: any) {

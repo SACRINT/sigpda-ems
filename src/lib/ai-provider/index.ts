@@ -1,3 +1,4 @@
+import { sql } from '@/lib/db/client';
 /**
  * AI Provider Factory — main entry point.
  *
@@ -17,7 +18,6 @@
  *   Fallback order: openrouter → mistral → openai → claude → gemini (excluding primary)
  */
 
-import { neon } from '@neondatabase/serverless';
 import { withKeyRotation } from './key-rotator';
 import { GeminiProvider, sanitizeGeminiModel } from './gemini';
 import { ClaudeProvider } from './claude';
@@ -64,8 +64,8 @@ interface ActiveConfig {
 async function getActiveConfig(isPremium = false): Promise<ActiveConfig> {
   try {
     if (!process.env.DATABASE_URL) throw new Error('no db');
-    const sql = neon(process.env.DATABASE_URL);
-    const rows = await sql`
+    const db = sql();
+    const rows = await db`
       SELECT key, value FROM platform_config
       WHERE key IN ('active_provider', 'active_model', 'admin_provider', 'admin_model')
     `;
@@ -100,8 +100,8 @@ async function getActiveConfig(isPremium = false): Promise<ActiveConfig> {
 async function getAlternativeProviders(primaryProvider: string): Promise<string[]> {
   try {
     if (!process.env.DATABASE_URL) return [];
-    const sql = neon(process.env.DATABASE_URL);
-    const rows = await sql`
+    const db = sql();
+    const rows = await db`
       SELECT DISTINCT provider FROM api_keys
       WHERE is_active = true AND provider != ${primaryProvider}
     `;
@@ -267,8 +267,8 @@ export async function logActivity(data: {
 }) {
   try {
     if (!process.env.DATABASE_URL) return;
-    const sql = neon(process.env.DATABASE_URL);
-    await sql`
+    const db = sql();
+    await db`
       INSERT INTO activity_log
         (teacher_email, action, entity_type, entity_id, provider_used, model_used, tokens_approx, success, error_msg)
       VALUES

@@ -1,3 +1,4 @@
+import { sql } from '@/lib/db/client';
 /**
  * audit-engine.ts
  * Motor de Auditoría y Alineación Pedagógica Inteligente (SIGPDA-EMS)
@@ -10,7 +11,6 @@
  *  4. Adecuación de evidencias e instrumentos de evaluación
  */
 
-import { neon } from '@neondatabase/serverless';
 import { generateWithRotation } from '@/lib/ai-provider';
 import { robustJsonParse } from '@/lib/ai-response-parser';
 
@@ -65,10 +65,10 @@ export async function runPedagogicalAudit(planningId: string, options: { teacher
     throw new Error('DATABASE_URL no está configurada.');
   }
 
-  const sql = neon(process.env.DATABASE_URL);
+  const db = sql();
 
   // 1. Obtener la planeación
-  const plannings = await sql`
+  const plannings = await db`
     SELECT id, teacher_id, uac_name, semester, component, curriculum_name, paec_context, extracted_data, content_json, status
     FROM plannings
     WHERE id = ${planningId}::uuid
@@ -83,7 +83,7 @@ export async function runPedagogicalAudit(planningId: string, options: { teacher
   const teacherId = options.teacherId || plan.teacher_id;
 
   // 2. Obtener el programa oficial de referencia desde programs_catalog
-  let officialPrograms = await sql`
+  let officialPrograms = await db`
     SELECT id, uac_name, semester, component, subsystem, model_type, total_hours, learning_outcome, activities, contenidos_formativos, evidences
     FROM programs_catalog
     WHERE uac_name ILIKE ${plan.uac_name} AND semester = ${plan.semester}
@@ -92,7 +92,7 @@ export async function runPedagogicalAudit(planningId: string, options: { teacher
 
   if (!officialPrograms || officialPrograms.length === 0) {
     // Búsqueda flexible por nombre de UAC
-    officialPrograms = await sql`
+    officialPrograms = await db`
       SELECT id, uac_name, semester, component, subsystem, model_type, total_hours, learning_outcome, activities, contenidos_formativos, evidences
       FROM programs_catalog
       WHERE (uac_name ILIKE ${'%' + plan.uac_name + '%'} OR ${plan.uac_name} ILIKE '%' || uac_name || '%') AND semester = ${plan.semester}
@@ -270,9 +270,9 @@ Realiza la auditoría exhaustiva y devuelve el objeto JSON con la evaluación de
 
   // 6. Guardar o actualizar en Neon DB (tabla audit_results)
   // Limpiar auditoría previa si existía para esta planeación
-  await sql`DELETE FROM audit_results WHERE planning_id = ${planningId}::uuid`;
+  await db`DELETE FROM audit_results WHERE planning_id = ${planningId}::uuid`;
 
-  const inserted = await sql`
+  const inserted = await db`
     INSERT INTO audit_results (
       planning_id,
       teacher_id,

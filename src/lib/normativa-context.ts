@@ -1,10 +1,10 @@
+import { sql } from '@/lib/db/client';
 // src/lib/normativa-context.ts
 //
 // Proveedor de contexto normativo para los generadores de IA.
 // Lee artículos curados de la BD y los inyecta como texto plano
 // en los prompts de PMC, PAEC, PIPS y Planeaciones.
 
-import { neon } from '@neondatabase/serverless';
 import { logger } from '@/lib/logger';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
@@ -63,7 +63,7 @@ export async function getNormativaForGenerator(
   generador: GeneratorType
 ): Promise<string> {
   try {
-    const db = neon(process.env.DATABASE_URL!);
+    const db = sql();
 
     // Busca artículos vigentes aplicables a este generador
     const rows = await db`
@@ -141,7 +141,7 @@ export async function getStructuredNormativaForGenerator(
   generador: GeneratorType
 ): Promise<Array<{ orden: number; titulo: string; articulos: string[] }>> {
   try {
-    const db = neon(process.env.DATABASE_URL!);
+    const db = sql();
 
     const rows = await db`
       SELECT

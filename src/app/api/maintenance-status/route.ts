@@ -1,5 +1,5 @@
+import { sql } from '@/lib/db/client';
 import { NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
 
 /**
  * GET /api/maintenance-status
@@ -8,8 +8,8 @@ import { neon } from '@neondatabase/serverless';
  */
 export async function GET() {
   try {
-    const sql = neon(process.env.DATABASE_URL!);
-    const rows = await sql`
+    const db = sql();
+    const rows = await db`
       SELECT key, value FROM platform_config
       WHERE key IN ('maintenance_mode', 'maintenance_message')
     `;

@@ -1,10 +1,10 @@
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { getTeacherByEmail } from '@/lib/db';
+import { sql } from '@/lib/db/client';
 import AppLayout from '@/components/layout/AppLayout';
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { neon } from '@neondatabase/serverless';
 import DeletePmcButton from './DeletePmcButton';
 
 export const metadata: Metadata = {
@@ -38,8 +38,8 @@ export default async function PmcDashboardPage({
   }
 
   if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL not set');
-  const sql = neon(process.env.DATABASE_URL);
-  const projects = await sql`
+  const db = sql();
+  const projects = await db`
     SELECT id, school_name, school_cct, municipality, director_name,
            ciclo_escolar, subsystem, current_step, status, created_at
     FROM pmc_projects

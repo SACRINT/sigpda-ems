@@ -1,3 +1,4 @@
+import { sql } from '@/lib/db/client';
 /**
  * Key rotation utility — v3 (actualizado para gemini-3.x)
  *
@@ -8,7 +9,6 @@
  * - Prioridad de clave de usuario: si se pasa un teacherId, se usa su clave primero
  */
 
-import { neon } from '@neondatabase/serverless';
 import type { ApiKeyRecord } from './types';
 import { logger } from '@/lib/logger';
 
@@ -51,7 +51,7 @@ export function decryptKey(encrypted: string): string {
 
 function getDb() {
   if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is not set');
-  return neon(process.env.DATABASE_URL);
+  return sql();
 }
 
 /**

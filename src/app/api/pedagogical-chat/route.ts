@@ -1,6 +1,6 @@
+import { sql } from '@/lib/db/client';
 import { auth } from '@/lib/auth';
 import { generateWithRotation } from '@/lib/ai-provider';
-import { neon } from '@neondatabase/serverless';
 import { NextResponse } from 'next/server';
 
 import { logger } from '@/lib/logger';
@@ -81,8 +81,8 @@ REGLAS OBLIGATORIAS DE RESPUESTA:
     let teacherId: string | undefined;
     try {
       if (process.env.DATABASE_URL) {
-        const sql = neon(process.env.DATABASE_URL);
-        const teachers = await sql`SELECT id FROM teachers WHERE email = ${session.user.email} LIMIT 1`;
+        const db = sql();
+        const teachers = await db`SELECT id FROM teachers WHERE email = ${session.user.email} LIMIT 1`;
         if (teachers[0]?.id) {
           teacherId = teachers[0].id;
         }

@@ -1,11 +1,9 @@
+import { sql } from '@/lib/db/client';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { neon } from '@neondatabase/serverless';
 import { logger } from '@/lib/logger';
 
-function getDb() {
-  return neon(process.env.DATABASE_URL!);
-}
+function getDb() { return sql(); }
 
 interface EscuelaCatalogo {
   cct: string;

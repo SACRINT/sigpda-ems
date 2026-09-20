@@ -1,5 +1,5 @@
+import { sql } from '@/lib/db/client';
 import { NextRequest, NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
 
 import { logger } from '@/lib/logger';
 export async function GET(
@@ -12,10 +12,10 @@ export async function GET(
       return NextResponse.json({ error: 'DATABASE_URL no configurada' }, { status: 500 });
     }
 
-    const sql = neon(process.env.DATABASE_URL);
+    const db = sql();
 
     // Buscar por ID de auditoría o por ID de planeación
-    const rows = await sql`
+    const rows = await db`
       SELECT 
         a.id,
         a.planning_id,
@@ -71,9 +71,9 @@ export async function DELETE(
       return NextResponse.json({ error: 'DATABASE_URL no configurada' }, { status: 500 });
     }
 
-    const sql = neon(process.env.DATABASE_URL);
+    const db = sql();
 
-    await sql`DELETE FROM audit_results WHERE id = ${id}::uuid OR planning_id = ${id}::uuid`;
+    await db`DELETE FROM audit_results WHERE id = ${id}::uuid OR planning_id = ${id}::uuid`;
 
     return NextResponse.json({
       success: true,

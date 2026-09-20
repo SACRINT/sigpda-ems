@@ -2,10 +2,10 @@
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { getTeacherByEmail } from '@/lib/db';
+import { sql } from '@/lib/db/client';
 import AppLayout from '@/components/layout/AppLayout';
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { neon } from '@neondatabase/serverless';
 import DeletePipsButton from './DeletePipsButton';
 
 export const metadata: Metadata = {
@@ -33,8 +33,8 @@ export default async function PipsDashboardPage({
     redirect(`/${locale}/dashboard`);
   }
 
-  const sql = neon(process.env.DATABASE_URL!);
-  const projects = await sql`
+  const db = sql();
+  const projects = await db`
     SELECT id, zona_nombre, zona_clave, supervisor_name,
            ciclo_escolar, num_planteles, current_step, status, created_at, updated_at
     FROM pips_projects

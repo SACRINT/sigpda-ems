@@ -1,17 +1,15 @@
+import { sql } from '@/lib/db/client';
 // src/app/api/admin/normativa/route.ts
 // Admin CRUD para el catálogo normativo (documentos y artículos)
 // Protegido por requireAdmin (rol 'administrador' o ADMIN_EMAIL)
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin, adminUnauthorized, adminForbidden } from '@/lib/admin-auth';
-import { neon } from '@neondatabase/serverless';
 
 import { logger } from '@/lib/logger';
 export const runtime = 'nodejs';
 
-function getDb() {
-  return neon(process.env.DATABASE_URL!);
-}
+function getDb() { return sql(); }
 
 // ─── GET — Lista todo el catálogo normativo ────────────────────────────────────
 export async function GET(request: NextRequest) {

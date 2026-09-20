@@ -1,10 +1,10 @@
-import { neon } from '@neondatabase/serverless';
+import { sql } from '@/lib/db/client';
 import { logger } from '@/lib/logger';
 
 export async function getUserLibraryContext(email: string): Promise<string> {
   try {
-    const sql = neon(process.env.DATABASE_URL!);
-    const docs = await sql`
+    const db = sql();
+    const docs = await db`
       SELECT file_name, extracted_text
       FROM user_library_docs
       WHERE teacher_email = ${email}

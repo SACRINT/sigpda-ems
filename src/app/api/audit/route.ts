@@ -1,6 +1,6 @@
+import { sql } from '@/lib/db/client';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { neon } from '@neondatabase/serverless';
 import { runPedagogicalAudit } from '@/lib/audit-engine';
 
 import { logger } from '@/lib/logger';
@@ -77,10 +77,10 @@ export async function GET(req: NextRequest) {
     const search = searchParams.get('search') || '';
     const limit = parseInt(searchParams.get('limit') || '100', 10);
 
-    const sql = neon(process.env.DATABASE_URL);
+    const db = sql();
 
     // Consulta de todas las planeaciones combinadas con su estado de auditoría
-    const planningsWithAudit = await sql`
+    const planningsWithAudit = await db`
       SELECT 
         p.id as planning_id,
         p.teacher_id,
@@ -117,7 +117,7 @@ export async function GET(req: NextRequest) {
     `;
 
     // Estadísticas globales de auditoría
-    const statsRows = await sql`
+    const statsRows = await db`
       SELECT 
         (SELECT COUNT(*)::int FROM plannings) as total_plannings,
         COUNT(*)::int as total_audited,

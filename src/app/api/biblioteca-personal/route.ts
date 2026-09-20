@@ -1,6 +1,6 @@
+import { sql } from '@/lib/db/client';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { neon } from '@neondatabase/serverless';
 // @ts-expect-error - pdf-parse has no default export in its types but works at runtime
 import pdfParse from 'pdf-parse';
 
@@ -13,9 +13,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const sql = neon(process.env.DATABASE_URL!);
+    const db = sql();
     
-    const docs = await sql`
+    const docs = await db`
       SELECT id, file_name, file_type, file_size, created_at
       FROM user_library_docs
       WHERE teacher_email = ${session.user.email}
@@ -64,8 +64,8 @@ export async function POST(req: NextRequest) {
     // Limpiar un poco el texto
     extractedText = extractedText.replace(/\s+/g, ' ').trim();
 
-    const sql = neon(process.env.DATABASE_URL!);
-    await sql`
+    const db = sql();
+    await db`
       INSERT INTO user_library_docs (teacher_email, file_name, file_type, file_size, extracted_text)
       VALUES (${session.user.email}, ${file.name}, ${file.type}, ${file.size}, ${extractedText})
     `;
@@ -90,8 +90,8 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'Document ID required' }, { status: 400 });
     }
 
-    const sql = neon(process.env.DATABASE_URL!);
-    await sql`
+    const db = sql();
+    await db`
       DELETE FROM user_library_docs
       WHERE id = ${id} AND teacher_email = ${session.user.email}
     `;
