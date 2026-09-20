@@ -17,7 +17,7 @@
  *   - Lista de cotejo / checklist de criterios de logro
  */
 
-import type jsPDF from 'jspdf';
+import { GState, type jsPDF } from 'jspdf';
 import {
   COLOR,
   RADIUS,
@@ -391,9 +391,9 @@ export function drawSidebarHeaderBadge(
     setFontBody(doc, 'normal');
     doc.setFontSize(5.0);
     doc.setTextColor(255, 255, 255);
-    doc.setGState(new (doc as any).GState({ opacity: 0.85 }));
+    doc.setGState(new GState({ opacity: 0.85 }));
     doc.text(sanitizePdfText(subtitle), sideXAbs + 3, y + 7.5);
-    doc.setGState(new (doc as any).GState({ opacity: 1 }));
+    doc.setGState(new GState({ opacity: 1 }));
   }
 
   return y + h + 3;
@@ -620,8 +620,8 @@ export function drawNotesWidget(
 
   doc.setDrawColor(...COLOR.DIVIDER);
   doc.setLineWidth(0.2);
-  if (typeof (doc as any).setLineDashPattern === 'function') {
-    (doc as any).setLineDashPattern([0.8, 1.5], 0);
+  if (typeof doc.setLineDashPattern === 'function') {
+    doc.setLineDashPattern([0.8, 1.5], 0);
   }
 
   for (let i = 0; i < lineCount; i++) {
@@ -631,8 +631,8 @@ export function drawNotesWidget(
     }
   }
 
-  if (typeof (doc as any).setLineDashPattern === 'function') {
-    (doc as any).setLineDashPattern([], 0);
+  if (typeof doc.setLineDashPattern === 'function') {
+    doc.setLineDashPattern([], 0);
   }
 
   return sy + cardH + 2;
