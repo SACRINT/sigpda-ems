@@ -28,6 +28,18 @@ export interface FfeContinuityContext {
   area?: string;
 }
 
+interface ActivitySourceItem {
+  name?: string;
+  hours?: number;
+}
+
+interface ContenidoFormativoItem {
+  proposito?: string;
+  actividad_clave?: string;
+  contenidos?: string[];
+  temas?: string[];
+}
+
 export function buildUserPrompt(
   extractedData: ExtractedPdfData,
   context: TeacherContext,
@@ -49,8 +61,6 @@ export function buildUserPrompt(
   const weeksPerSemester = isTec ? 16 : 18;
   const totalHours = officialProgram?.total_hours || extractedData.totalHours || (isTec && isLaboral ? 80 : 54);
   const weeklyLoad = Math.max(1, Math.round(totalHours / weeksPerSemester));
-  const hoursPerCorte = Math.round(totalHours / 3);
-  const hpc = hoursPerCorte;
 
   // ── Prepare Activities & Official Content ───────────────────────────────────
   let activitiesList: { name: string; hours: number; topics?: string[]; purpose?: string }[] = [];
@@ -59,13 +69,13 @@ export function buildUserPrompt(
     if (isTec) {
       // Carrera Técnica BT: 3 Fases de la Competencia Profesional
       const sourceActivities = (extractedData.activities && extractedData.activities.length > 0)
-        ? extractedData.activities
+        ? (extractedData.activities as ActivitySourceItem[])
         : (officialProgram?.activities && Array.isArray(officialProgram.activities) && officialProgram.activities.length > 0)
-          ? officialProgram.activities
+          ? (officialProgram.activities as ActivitySourceItem[])
           : [];
 
       if (sourceActivities.length > 0) {
-        activitiesList = sourceActivities.map((a: any, idx: number) => ({
+        activitiesList = sourceActivities.map((a: ActivitySourceItem, idx: number) => ({
           name: a.name || `Fase ${idx + 1} de la Competencia Profesional`,
           hours: a.hours || Math.round(totalHours / Math.max(1, sourceActivities.length)),
         }));
@@ -81,7 +91,7 @@ export function buildUserPrompt(
     } else {
       // Formación Laboral BGE: Estrictamente 3 Actividades Clave (18h c/u = 54h totales)
       if (officialProgram?.activities && Array.isArray(officialProgram.activities) && officialProgram.activities.length === 3) {
-        activitiesList = officialProgram.activities.map((a: any, idx: number) => ({
+        activitiesList = (officialProgram.activities as ActivitySourceItem[]).map((a: ActivitySourceItem, idx: number) => ({
           name: a.name || `Actividad Clave ${idx + 1}`,
           hours: a.hours || 18,
         }));
@@ -100,22 +110,22 @@ export function buildUserPrompt(
     }
   } else {
     // Componentes Fundamentales, Ampliados o FFE (Propósitos o Progresiones)
-    const sourceActivities = (officialProgram?.activities && Array.isArray(officialProgram.activities) && officialProgram.activities.length > 0)
-      ? officialProgram.activities
-      : extractedData.activities;
+    const sourceActivities: ActivitySourceItem[] = (officialProgram?.activities && Array.isArray(officialProgram.activities) && officialProgram.activities.length > 0)
+      ? (officialProgram.activities as ActivitySourceItem[])
+      : (extractedData.activities as ActivitySourceItem[]);
 
-    activitiesList = sourceActivities.map((a: any, idx: number) => ({
+    activitiesList = sourceActivities.map((a: ActivitySourceItem, idx: number) => ({
       name: a.name || `${isTransitionSemester ? 'Progresión' : 'Propósito Formativo'} ${idx + 1}`,
       hours: a.hours || Math.round(totalHours / Math.max(1, sourceActivities.length)),
     }));
   }
 
   // Asociar contenidos formativos oficiales enriquecidos si existen
-  const contenidosSource = officialProgram?.contenidos_formativos || extractedData.contenidosFormativos;
+  const contenidosSource = (officialProgram?.contenidos_formativos || extractedData.contenidosFormativos) as ContenidoFormativoItem[] | undefined;
   if (contenidosSource && Array.isArray(contenidosSource)) {
     activitiesList.forEach((act, i) => {
       // Intentar coincidir por nombre o índice
-      const match = contenidosSource.find((cf: any) => 
+      const match = contenidosSource.find((cf: ContenidoFormativoItem) => 
         cf.proposito === act.name || 
         cf.actividad_clave === act.name ||
         (cf.proposito && cf.proposito.substring(0, 45) === act.name.substring(0, 45))
