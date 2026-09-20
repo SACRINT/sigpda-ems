@@ -86,6 +86,10 @@ export interface ColumnFlowManagerOptions {
     tool: DigitalTool;
     qrPngBuffer?: Buffer | Uint8Array;
   } | null;
+  digitalTools?: Array<{
+    tool: DigitalTool;
+    qrPngBuffer?: Buffer | Uint8Array;
+  }> | null;
 }
 
 export class ColumnFlowManager {
@@ -178,12 +182,15 @@ export class ColumnFlowManager {
       });
     }
 
-    // 0.5 Herramienta Digital MCCEMS con QR interactivo (si existe)
-    if (opts.digitalTool) {
-      const dt = opts.digitalTool;
-      const isCompact = !!opts.equipmentCard;
+    // 0.5 Herramienta(s) Digital(es) MCCEMS con QR interactivo (si existen)
+    const dTools = opts.digitalTools?.length
+      ? opts.digitalTools
+      : (opts.digitalTool ? [opts.digitalTool] : []);
+
+    dTools.forEach((dt, idx) => {
+      const isCompact = !!opts.equipmentCard || idx > 0;
       queue.push({
-        id: 'digital_tool_card',
+        id: `digital_tool_card_${idx + 1}`,
         minHeight: isCompact ? 32 : 42,
         draw: (doc, sideXAbs, sideW, startY, sideBottom) => {
           return drawDigitalToolCardWidget(doc, {
@@ -197,7 +204,7 @@ export class ColumnFlowManager {
           });
         },
       });
-    }
+    });
 
     // 1. Glosario Lote 1 (primeros 2 términos si existen)
     if (glossaryTerms && glossaryTerms.length > 0) {

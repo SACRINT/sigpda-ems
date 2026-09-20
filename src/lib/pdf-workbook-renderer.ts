@@ -83,6 +83,7 @@ import {
 } from '@/lib/visual-engine/column-flow-manager';
 import {
   resolveDigitalToolsForMission,
+  resolveMultipleDigitalToolsForMission,
   generateToolQrPng,
   type DigitalTool,
 } from '@/lib/visual-engine/digital-tools-registry';
@@ -1916,22 +1917,23 @@ async function drawMission(
     openverseCollector.push(equipmentVisual.mediaAsset);
   }
 
-  // ── V8: Herramienta Digital MCCEMS y QR Raster (14x14mm) ───────────────────
-  let digitalToolPayload: { tool: DigitalTool; qrPngBuffer?: Buffer } | null = null;
-  const resolvedDigitalTool = resolveDigitalToolsForMission(
+  // ── V8: Herramienta(s) Digital(es) MCCEMS y QR Raster (14x14mm) ────────────
+  const digitalToolsPayload: Array<{ tool: DigitalTool; qrPngBuffer?: Buffer }> = [];
+  const resolvedDigitalTools = resolveMultipleDigitalToolsForMission(
     subjectName || '',
     mission.title || '',
-    `${mission.sessionTopic || ''} ${mission.sessionFocus || ''}`
+    `${mission.sessionTopic || ''} ${mission.sessionFocus || ''}`,
+    2
   );
-  if (resolvedDigitalTool) {
+  for (const tool of resolvedDigitalTools) {
     try {
-      const toolQrBuf = await generateToolQrPng(resolvedDigitalTool.url);
-      digitalToolPayload = {
-        tool: resolvedDigitalTool,
+      const toolQrBuf = await generateToolQrPng(tool.url);
+      digitalToolsPayload.push({
+        tool,
         qrPngBuffer: toolQrBuf,
-      };
+      });
     } catch {
-      digitalToolPayload = { tool: resolvedDigitalTool };
+      digitalToolsPayload.push({ tool });
     }
   }
 
@@ -1962,7 +1964,8 @@ async function drawMission(
       imageBuffer: equipmentVisual.buffer,
       imageFormat: equipmentVisual.format,
     } : null,
-    digitalTool: digitalToolPayload,
+    digitalTool: digitalToolsPayload[0] || null,
+    digitalTools: digitalToolsPayload,
   });
 
   const checkSpace = (cy: number, nh: number) => flow.ensureVerticalSpace(cy, nh);

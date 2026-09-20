@@ -3,6 +3,7 @@ import jsPDF from 'jspdf';
 import {
   MCCEMS_DIGITAL_TOOLS,
   resolveDigitalToolsForMission,
+  resolveMultipleDigitalToolsForMission,
   generateToolQrPng,
 } from '@/lib/visual-engine/digital-tools-registry';
 import { drawDigitalToolCardWidget } from '@/lib/visual-engine/pdf-components-widgets';
@@ -38,6 +39,18 @@ describe('Fase 6: Catálogo de Herramientas Digitales y Widget QR en Workbooks',
     // Texto no relevante -> null (no fuerza herramientas)
     const noneTool = resolveDigitalToolsForMission('Historia Universal', 'Revolución Francesa');
     expect(noneTool).toBeNull();
+  });
+
+  it('2b. Resuelve múltiples herramientas ordenadas por relevancia', () => {
+    const tools = resolveMultipleDigitalToolsForMission(
+      'Pensamiento Matemático II',
+      'Gráficas y Funciones Cuadráticas',
+      'Simulación con calculadora gráfica',
+      2
+    );
+    expect(tools.length).toBeGreaterThanOrEqual(1);
+    expect(tools.length).toBeLessThanOrEqual(2);
+    expect(['geogebra', 'desmos']).toContain(tools[0].id);
   });
 
   it('3. Genera un buffer QR nítido en formato PNG con firma binaria válida', async () => {

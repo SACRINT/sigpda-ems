@@ -166,13 +166,26 @@ export function resolveDigitalToolsForMission(
   missionTitle: string,
   missionText?: string
 ): DigitalTool | null {
+  const tools = resolveMultipleDigitalToolsForMission(subjectName, missionTitle, missionText, 1);
+  return tools.length > 0 ? tools[0] : null;
+}
+
+/**
+ * Resuelve múltiples herramientas digitales pertinentes para una misión formativa (hasta un límite).
+ * Ordena las herramientas por pertinencia didáctica (score descendente) y filtra aquellas bajo el umbral.
+ */
+export function resolveMultipleDigitalToolsForMission(
+  subjectName: string,
+  missionTitle: string,
+  missionText?: string,
+  limit: number = 2
+): DigitalTool[] {
   const normSubject = (subjectName || '').toLowerCase();
   const normTitle = (missionTitle || '').toLowerCase();
   const normText = (missionText || '').toLowerCase();
   const fullText = `${normSubject} ${normTitle} ${normText}`;
 
-  let bestTool: DigitalTool | null = null;
-  let highestScore = 0;
+  const scoredTools: Array<{ tool: DigitalTool; score: number }> = [];
 
   for (const tool of MCCEMS_DIGITAL_TOOLS) {
     let score = 0;
@@ -195,12 +208,13 @@ export function resolveDigitalToolsForMission(
       }
     }
 
-    if (score > highestScore) {
-      highestScore = score;
-      bestTool = tool;
+    // Requiere un umbral mínimo de 2 puntos para considerarse pedagógicamente relevante
+    if (score >= 2) {
+      scoredTools.push({ tool, score });
     }
   }
 
-  // Requiere un umbral mínimo de 2 puntos para considerarse pedagógicamente relevante
-  return highestScore >= 2 ? bestTool : null;
+  // Ordenar de mayor a menor puntuación y aplicar límite solicitado
+  scoredTools.sort((a, b) => b.score - a.score);
+  return scoredTools.slice(0, Math.max(1, limit)).map((st) => st.tool);
 }
