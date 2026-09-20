@@ -77,11 +77,14 @@ const REGLAS: ReglaRecomendacion[] = [
       'pensamiento matemático', 'pensamiento logico',
     ],
   },
-  // ── Otras asignaturas con lógica conceptual → Aula Invertida [Fallback] ──────
+  // ── Otras asignaturas con lógica conceptual / Fallback Matemáticas → Aula Invertida ──
   {
     metodologiaId: 'aula_invertida',
     keywordsUac: [
-      'filosofía lógica', 'epistemología', 'epistemologia',
+      'matemátic', 'matematik', 'álgebra', 'algebra', 'cálculo', 'calculo',
+      'estadística', 'estadistica', 'probabilidad', 'trigonometría',
+      'pensamiento matemático', 'pensamiento logico',
+      'lógica', 'logica', 'filosofía lógica', 'epistemología', 'epistemologia',
       'metodología de la investigación', 'metodologia de la investigacion',
     ],
   },
