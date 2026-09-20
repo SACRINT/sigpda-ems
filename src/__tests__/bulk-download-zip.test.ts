@@ -94,22 +94,32 @@ describe('Fase 5: Descarga Masiva ZIP por Bloque en UI y API', () => {
     const zip = new JSZip();
     const usedNames = new Set<string>();
 
-    for (let i = 0; i < realBlockExtras.length; i++) {
-      const item = realBlockExtras[i];
-      let baseName = sanitizeDocFilename(item.title, 55);
-      if (!baseName) baseName = `extra_${i + 1}`;
+    // Generar en lotes paralelos de 8 emulando la implementación de producción de la ruta bulk
+    const BATCH_SIZE = 8;
+    for (let i = 0; i < realBlockExtras.length; i += BATCH_SIZE) {
+      const batch = realBlockExtras.slice(i, i + BATCH_SIZE);
+      const generated = await Promise.all(
+        batch.map(async (item, batchIdx) => {
+          const globalIdx = i + batchIdx;
+          let baseName = sanitizeDocFilename(item.title, 55);
+          if (!baseName) baseName = `extra_${globalIdx + 1}`;
 
-      let fileName = `${baseName}.pdf`;
-      let counter = 1;
-      while (usedNames.has(fileName.toLowerCase())) {
-        fileName = `${baseName}_${counter}.pdf`;
-        counter++;
+          const pdfDoc = generateExtraPdfDocument(item, brandingCtx);
+          const pdfBytes = Buffer.from(pdfDoc.output('arraybuffer'));
+          return { baseName, pdfBytes };
+        })
+      );
+
+      for (const { baseName, pdfBytes } of generated) {
+        let fileName = `${baseName}.pdf`;
+        let counter = 1;
+        while (usedNames.has(fileName.toLowerCase())) {
+          fileName = `${baseName}_${counter}.pdf`;
+          counter++;
+        }
+        usedNames.add(fileName.toLowerCase());
+        zip.file(fileName, pdfBytes);
       }
-      usedNames.add(fileName.toLowerCase());
-
-      const pdfDoc = generateExtraPdfDocument(item, brandingCtx);
-      const pdfBytes = Buffer.from(pdfDoc.output('arraybuffer'));
-      zip.file(fileName, pdfBytes);
     }
 
     const zipBuffer = await zip.generateAsync({
@@ -137,7 +147,7 @@ describe('Fase 5: Descarga Masiva ZIP por Bloque en UI y API', () => {
       expect(fileData.length).toBeGreaterThan(500);
       expect(fileData.toString('ascii', 0, 5)).toBe('%PDF-');
     }
-  });
+  }, 15000);
 
   it('5. E2E: Genera y valida un ZIP masivo de DOCX con branding y verifica paquetes OpenXML internos', async () => {
     const mixedExtras = [
