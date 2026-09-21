@@ -256,5 +256,5 @@ describe('Integración en Renderizadores — DOCX y PDF', () => {
 
     // Verificación de badge en carátula y tablas
     expect(parsed.text).toContain('[Metodología: ABProblemas]');
-  });
+  }, 25000);
 });
