@@ -1,12 +1,19 @@
 import { sql } from '@/lib/db/client';
 import { NextRequest, NextResponse } from 'next/server';
-
+import { auth } from '@/lib/auth';
+import { isAdmin } from '@/lib/admin-unified';
 import { logger } from '@/lib/logger';
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await auth();
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
     const { id } = await params;
     if (!process.env.DATABASE_URL) {
       return NextResponse.json({ error: 'DATABASE_URL no configurada' }, { status: 500 });
@@ -33,6 +40,7 @@ export async function GET(
         a.audited_by,
         a.created_at,
         a.updated_at,
+        t.id as owner_teacher_id,
         t.name as teacher_name,
         t.email as teacher_email,
         p.curriculum_name,
@@ -48,14 +56,30 @@ export async function GET(
       return NextResponse.json({ error: 'Auditoría no encontrada.' }, { status: 404 });
     }
 
+    const audit = rows[0];
+    const userEmail = session.user.email;
+    const isUserAdmin = await isAdmin(userEmail);
+
+    if (!isUserAdmin) {
+      const currentTeacherRows = await db`SELECT id, role FROM teachers WHERE email = ${userEmail} LIMIT 1`;
+      const currentTeacher = currentTeacherRows[0];
+      const isSupervisor = currentTeacher?.role === 'supervisor' || currentTeacher?.role === 'administrador';
+      const isOwner = currentTeacher && (currentTeacher.id === audit.teacher_id || currentTeacher.id === audit.owner_teacher_id || userEmail === audit.teacher_email);
+
+      if (!isSupervisor && !isOwner) {
+        return NextResponse.json({ error: 'Acceso denegado a esta auditoría.' }, { status: 403 });
+      }
+    }
+
     return NextResponse.json({
       success: true,
-      audit: rows[0]
+      audit
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[API /api/audit/[id] GET Error]:', error);
+    const message = error instanceof Error ? error.message : 'Error al obtener el reporte de auditoría.';
     return NextResponse.json(
-      { error: error.message || 'Error al obtener el reporte de auditoría.' },
+      { error: message },
       { status: 500 }
     );
   }
@@ -66,6 +90,11 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await auth();
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
     const { id } = await params;
     if (!process.env.DATABASE_URL) {
       return NextResponse.json({ error: 'DATABASE_URL no configurada' }, { status: 500 });
@@ -73,16 +102,42 @@ export async function DELETE(
 
     const db = sql();
 
+    const rows = await db`
+      SELECT a.id, a.teacher_id, t.email as teacher_email
+      FROM audit_results a
+      LEFT JOIN teachers t ON a.teacher_id = t.id
+      WHERE a.id = ${id}::uuid OR a.planning_id = ${id}::uuid
+      LIMIT 1
+    `;
+
+    if (!rows || rows.length === 0) {
+      return NextResponse.json({ error: 'Auditoría no encontrada.' }, { status: 404 });
+    }
+
+    const audit = rows[0];
+    const userEmail = session.user.email;
+    const isUserAdmin = await isAdmin(userEmail);
+
+    if (!isUserAdmin) {
+      const currentTeacherRows = await db`SELECT id FROM teachers WHERE email = ${userEmail} LIMIT 1`;
+      const currentTeacher = currentTeacherRows[0];
+      const isOwner = currentTeacher && (currentTeacher.id === audit.teacher_id || userEmail === audit.teacher_email);
+      if (!isOwner) {
+        return NextResponse.json({ error: 'No tienes permiso para eliminar esta auditoría.' }, { status: 403 });
+      }
+    }
+
     await db`DELETE FROM audit_results WHERE id = ${id}::uuid OR planning_id = ${id}::uuid`;
 
     return NextResponse.json({
       success: true,
       message: 'Auditoría eliminada exitosamente.'
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[API /api/audit/[id] DELETE Error]:', error);
+    const message = error instanceof Error ? error.message : 'Error al eliminar la auditoría.';
     return NextResponse.json(
-      { error: error.message || 'Error al eliminar la auditoría.' },
+      { error: message },
       { status: 500 }
     );
   }
