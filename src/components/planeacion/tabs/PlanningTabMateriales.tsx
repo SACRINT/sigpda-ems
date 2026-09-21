@@ -1,9 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React from 'react';
 import type { GeneratedPlanningContent, Planning, PlanningExtra } from '@/types/planning';
-import type { ActiveWorkTextbook } from '@/types/work-textbook';
+import type { ActiveWorkTextbook, GenerationProgressState } from '@/types/work-textbook';
 import GenerationFeedback from '@/components/feedback/GenerationFeedback';
 import {
   Zap, RefreshCw, CheckCircle
@@ -23,10 +22,19 @@ export interface BlockWorkbookItem {
   hours: number;
   hasExistingWorkbook: boolean;
   existingWorkbook: ActiveWorkTextbook | null;
-  workbook?: any;
+  workbook?: unknown;
   isGenerating: boolean;
   error: string | null;
   downloadUrl: string | null;
+}
+
+export interface MaterialBlockWorkbookItem {
+  loaded: boolean;
+  generating: boolean;
+  workbook: ActiveWorkTextbook | null;
+  version?: number;
+  progress: GenerationProgressState | null;
+  error: string | null;
 }
 
 export interface PlanningTabMaterialesProps {
@@ -35,14 +43,32 @@ export interface PlanningTabMaterialesProps {
   extras: PlanningExtra[];
   generatingKey: string | null;
   syncingSuite: number | null;
-  blockWorkbooks: Record<number, any>;
+  blockWorkbooks: Record<number, MaterialBlockWorkbookItem>;
   bundleResults: Record<string, string | null>;
   bundleLoading: Record<string, boolean>;
   bundleErrors: Record<string, string | null>;
   bundleExpanded: string | null;
-    handleGenerateExtra: (type: any, title: string, keyIndex: number | null, extraData?: any) => Promise<void>;
+  handleGenerateExtra: (
+    type: 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'practice_guide',
+    title: string,
+    keyIndex: number | null,
+    extraData: {
+      activityName?: string;
+      evidence?: string;
+      sessionNum?: number;
+      totalSessions?: number;
+      practiceNumber?: number;
+      practiceTitle?: string;
+      sessionTopic?: string;
+      sessionFocus?: string;
+      teachingActivity?: string;
+      learningActivity?: string;
+      evaluation?: string;
+      phase?: string;
+    }
+  ) => Promise<void>;
   handleDeleteExtra: (extraId: string) => Promise<void>;
-  setActiveTab: (tab: any) => void;
+  setActiveTab: (tab: 'planning' | 'extras' | 'lessonPlans' | 'practiceGuides' | 'a4print' | 'audit' | 'bundle' | 'evaluador' | 'analytics') => void;
   handlePreviewExtra: (extra: PlanningExtra) => void;
   handleSyncSuite: (blockIdx: number) => Promise<void>;
   handleGenerateWorkbook: (blockIndex: number) => Promise<void>;
@@ -474,8 +500,7 @@ export default function PlanningTabMateriales({
             const guideExtra = findExtra('practice_guide', actIdx);
             const visualExtras = extras.filter((ex) => {
               if (ex.type !== 'visual') return false;
-              const exKey = (ex as any).keyIndex !== undefined ? (ex as any).keyIndex : (ex as any).key_index;
-              return exKey === actIdx;
+              return ex.keyIndex === actIdx;
             });
 
             const hasWorkbook = Boolean(blockWorkbooks[actIdx]?.workbook);

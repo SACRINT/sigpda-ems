@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React from 'react';
@@ -18,7 +17,25 @@ export interface PlanningTabSecuenciasProps {
   generatingKey: string | null;
   setPreviewExtra: (extra: PlanningExtra | null) => void;
   handleDeleteExtra: (extraId: string) => Promise<void>;
-  handleGenerateExtra: (type: any, title: string, keyIndex: number | null, extraData?: any) => Promise<void>;
+  handleGenerateExtra: (
+    type: 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'practice_guide',
+    title: string,
+    keyIndex: number | null,
+    extraData: {
+      activityName?: string;
+      evidence?: string;
+      sessionNum?: number;
+      totalSessions?: number;
+      practiceNumber?: number;
+      practiceTitle?: string;
+      sessionTopic?: string;
+      sessionFocus?: string;
+      teachingActivity?: string;
+      learningActivity?: string;
+      evaluation?: string;
+      phase?: string;
+    }
+  ) => Promise<void>;
 }
 
 export default function PlanningTabSecuencias({

@@ -1,12 +1,34 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React from 'react';
 import type { Planning } from '@/types/planning';
 
+export interface EvaluadorCriterio {
+  criterio: string;
+  categoria?: string;
+  puntajeObtenido?: number;
+  puntajeMax?: number;
+  cumple?: 'SI' | 'PARCIAL' | 'NO' | string;
+  observacion?: string;
+}
+
+export interface PlanningEvaluationResult {
+  puntajeTotal: number;
+  puntajeMaximo: number;
+  porcentaje?: number;
+  nivelCumplimiento?: 'COMPLETO' | 'PARCIAL' | 'INSUFICIENTE' | string;
+  rubricaUsada?: string;
+  puntosFuertes?: string[];
+  mejorasUrgentes?: string[];
+  criterios?: EvaluadorCriterio[];
+  retroalimentacionDocente?: string;
+  alineacionPaecPec?: string;
+  [key: string]: unknown;
+}
+
 export interface PlanningTabEvaluadorProps {
   planning: Planning;
-  evalResult: any | null;
+  evalResult: PlanningEvaluationResult | null;
   evalLoading: boolean;
   evalError: string | null;
   handleRunEvaluacion: (forceReeval?: boolean) => Promise<void> | void;
@@ -135,7 +157,7 @@ export default function PlanningTabEvaluador({
                         </tr>
                       </thead>
                       <tbody>
-                        {evalResult.criterios?.map((cr: any, idx: number) => (
+                        {evalResult.criterios?.map((cr: EvaluadorCriterio, idx: number) => (
                           <tr key={idx} style={{ background: idx % 2 === 0 ? 'var(--c-bg-surface)' : 'transparent', borderBottom: '1px solid var(--c-border)' }}>
                             <td style={{ padding: '9px 12px', color: 'var(--c-text)', fontWeight: 500 }}>{cr.criterio}</td>
                             <td style={{ padding: '9px 12px', textAlign: 'center', color: 'var(--c-text-muted)', fontSize: '12px' }}>{cr.categoria}</td>

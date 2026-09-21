@@ -1,12 +1,12 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React from 'react';
 import type { Planning } from '@/types/planning';
+import type { AuditReport, AuditRecommendation, DimensionAudit } from '@/lib/audit-engine';
 
 export interface PlanningTabAuditoriaProps {
   planning: Planning;
-  auditReport: any | null;
+  auditReport: AuditReport | null;
   auditLoading: boolean;
   auditError: string | null;
   auditLoaded: boolean;
@@ -114,7 +114,7 @@ export default function PlanningTabAuditoria({
             const statusIcon: Record<string, string> = { cumple: '✅', parcial: '⚠️', no_cumple: '❌' };
             const dimScores = auditReport.dimension_scores || {};
             const findings = auditReport.findings || {};
-            const recommendations: any[] = auditReport.recommendations || [];
+            const recommendations: AuditRecommendation[] = auditReport.recommendations || [];
             const sevColor: Record<string, string> = { alta: '#f43f5e', media: '#f59e0b', baja: '#10b981' };
 
             return (
@@ -163,7 +163,7 @@ export default function PlanningTabAuditoria({
 
                   {/* Mini dimension bars */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '200px', flex: 1 }}>
-                    {Object.entries(dimScores).map(([key, dim]: [string, any]) => (
+                    {Object.entries(dimScores).map(([key, dim]: [string, DimensionAudit]) => (
                       <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span style={{ fontSize: '11px', color: 'var(--c-text-muted)', width: '14px', textAlign: 'center' }}>
                           {statusIcon[dim.status] || '⚠️'}
@@ -186,7 +186,7 @@ export default function PlanningTabAuditoria({
                 {/* Dimension Cards */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--c-text)', margin: 0 }}>Detalle por Dimensión</h3>
-                  {Object.entries(dimScores).map(([key, dim]: [string, any]) => {
+                  {Object.entries(dimScores).map(([key, dim]: [string, DimensionAudit]) => {
                     const isExpanded = expandedDimension === key;
                     const dimScore: number = dim.score ?? 0;
                     const dimColor = dimScore >= 80 ? '#34d399' : dimScore >= 60 ? '#fbbf24' : '#f87171';
@@ -290,7 +290,7 @@ export default function PlanningTabAuditoria({
                 {recommendations.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--c-text)', margin: 0 }}>🎯 Recomendaciones del Auditor</h3>
-                    {recommendations.map((rec: any, i: number) => {
+                    {recommendations.map((rec: AuditRecommendation, i: number) => {
                       const sev: string = rec.severidad ?? 'media';
                       const bg = sev === 'alta' ? 'rgba(244,63,94,0.12)' : sev === 'media' ? 'rgba(245,158,11,0.12)' : 'rgba(16,185,129,0.12)';
                       const border = sev === 'alta' ? 'rgba(244,63,94,0.3)' : sev === 'media' ? 'rgba(245,158,11,0.3)' : 'rgba(16,185,129,0.3)';

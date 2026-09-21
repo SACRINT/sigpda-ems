@@ -1,8 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React from 'react';
 import type { Planning } from '@/types/planning';
+import type { TeacherProgressSummary, FeedbackSummary } from '@/lib/pedagogical-analytics';
 import {
   TrendingUp, FileText, BookMarked, Grid, Microscope, Library,
   Clock, BarChart3, RefreshCw, AlertTriangle, Star
@@ -15,7 +15,7 @@ import {
 
 export interface PlanningTabAnaliticaProps {
   planning: Planning;
-  analyticsData: any | null;
+  analyticsData: TeacherProgressSummary | null;
   analyticsLoading: boolean;
   analyticsError: string | null;
   analyticsLoaded: boolean;
@@ -121,7 +121,7 @@ export default function PlanningTabAnalitica({
                               <YAxis tick={{ fontSize: 11, fill: 'var(--c-text-muted)' }} tickLine={false} axisLine={false} allowDecimals={false}/>
                               <Tooltip
                                 contentStyle={{ fontSize: '12px', borderRadius: '6px', border: '1px solid var(--c-border)', background: 'var(--c-card-bg)', color: 'var(--c-text)' }}
-                                formatter={(v: any) => [v, 'Planeaciones']}
+                                formatter={(v: unknown) => [String(v), 'Planeaciones']}
                               />
                               <Bar dataKey="value" fill="#6366f1" radius={[4, 4, 0, 0]}>
                                 {semesterBarData.map((_, i) => (
@@ -154,7 +154,7 @@ export default function PlanningTabAnalitica({
                               </Pie>
                               <Tooltip
                                 contentStyle={{ fontSize: '12px', borderRadius: '6px', border: '1px solid var(--c-border)', background: 'var(--c-card-bg)', color: 'var(--c-text)' }}
-                                formatter={(v: any, name: any) => [v, name]}
+                                formatter={(v: unknown, name: unknown) => [String(v), String(name)]}
                               />
                               <Legend iconType="circle" iconSize={10} wrapperStyle={{ fontSize: '12px', color: 'var(--c-text-muted)' }}/>
                             </PieChart>
@@ -182,7 +182,7 @@ export default function PlanningTabAnalitica({
 
                       {/* Feedback ratings */}
                       {analyticsData.feedback && analyticsData.feedback.length > 0 && (() => {
-                        const fbBarData = analyticsData.feedback.map((fb: any) => ({
+                        const fbBarData = analyticsData.feedback.map((fb: FeedbackSummary) => ({
                           name: (fb.entity_type as string).split('_').pop() || fb.entity_type,
                           rating: Number(Number(fb.avg_rating).toFixed(1)),
                           count: fb.total_count,
@@ -198,10 +198,10 @@ export default function PlanningTabAnalitica({
                                 <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: 'var(--c-text-muted)' }} tickLine={false} axisLine={false} width={72}/>
                                 <Tooltip
                                   contentStyle={{ fontSize: '12px', borderRadius: '6px', border: '1px solid var(--c-border)', background: 'var(--c-card-bg)', color: 'var(--c-text)' }}
-                                  formatter={(v: any) => [`${v}/5`, 'Rating']}
+                                  formatter={(v: unknown) => [`${String(v)}/5`, 'Rating']}
                                 />
                                 <Bar dataKey="rating" radius={[0, 4, 4, 0]}>
-                                  {fbBarData.map((fb: any, i: number) => (
+                                  {fbBarData.map((fb, i: number) => (
                                     <Cell key={i} fill={fb.rating >= 4 ? '#10b981' : fb.rating >= 3 ? '#f59e0b' : '#f43f5e'}/>
                                   ))}
                                 </Bar>
@@ -219,7 +219,7 @@ export default function PlanningTabAnalitica({
                           <Clock size={14} color="#38bdf8"/> Últimas planeaciones
                         </p>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                          {analyticsData.plannings.recent.map((p: any, i: number) => (
+                          {analyticsData.plannings.recent.map((p, i: number) => (
                             <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'var(--c-bg-surface)', borderRadius: '6px', border: '1px solid var(--c-border)', fontSize: '13px' }}>
                               <span style={{ fontWeight: 600, color: 'var(--c-text)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                 <FileText size={13} color="#38bdf8"/> {p.uac_name}

@@ -1,13 +1,22 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React from 'react';
 import type { GeneratedPlanningContent, Planning, SecuenciaBloque, SecuenciaSesion } from '@/types/planning';
+import type { ActiveWorkTextbook, GenerationProgressState } from '@/types/work-textbook';
 import DocumentA4Viewer from '@/components/common/DocumentA4Viewer';
 import {
   FileText, Zap, BookOpen, Download, RefreshCw, AlertTriangle,
   CheckCircle, ChevronDown, ChevronUp, Library
 } from 'lucide-react';
+
+export interface BlockWorkbookItem {
+  loaded: boolean;
+  generating: boolean;
+  workbook: ActiveWorkTextbook | null;
+  version?: number;
+  progress: GenerationProgressState | null;
+  error: string | null;
+}
 
 export interface PlanningTabDocumentoProps {
   planning: Planning;
@@ -27,8 +36,8 @@ export interface PlanningTabDocumentoProps {
   generatingSeqBlock?: number | null;
   editingSeqBlock?: number | null;
   expandedSeqBlock?: number | null;
-  blockWorkbooks?: Record<number, any>;
-  editedSessions?: Record<number, any>;
+  blockWorkbooks?: Record<number, BlockWorkbookItem>;
+  editedSessions?: Record<number, SecuenciaSesion[]>;
   handleGenerateSecuencia?: (blockIdx: number) => Promise<void>;
   setExpandedSeqBlock?: React.Dispatch<React.SetStateAction<number | null>>;
   handleSyncSuite?: (blockIdx: number) => Promise<void>;
@@ -38,7 +47,7 @@ export interface PlanningTabDocumentoProps {
   handleSaveSecuencia?: (blockIdx: number) => Promise<void>;
   setEditingSeqBlock?: React.Dispatch<React.SetStateAction<number | null>>;
   handleStartEdit?: (blockIdx: number) => void;
-  handleUpdateEditedSession?: (blockIndex: number, sessionIdx: number, field: any, val: any) => void;
+  handleUpdateEditedSession?: (blockIndex: number, sessionIdx: number, field: keyof SecuenciaSesion, val: unknown) => void;
 }
 
 export default function PlanningTabDocumento({
