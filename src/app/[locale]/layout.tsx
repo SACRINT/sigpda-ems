@@ -4,6 +4,10 @@ import { notFound } from 'next/navigation';
 import { routing } from '@/i18n/routing';
 import type { Metadata } from 'next';
 import ChunkErrorListener from '@/components/common/ChunkErrorListener';
+import {
+  AssistantProvider,
+  UniversalPedagogicalAssistant,
+} from '@/components/assistant';
 import '../globals.css';
 
 export const metadata: Metadata = {
@@ -31,7 +35,10 @@ export default async function LocaleLayout({ children, params }: Props) {
       <body>
         <ChunkErrorListener />
         <NextIntlClientProvider messages={messages}>
-          {children}
+          <AssistantProvider>
+            {children}
+            <UniversalPedagogicalAssistant />
+          </AssistantProvider>
         </NextIntlClientProvider>
       </body>
     </html>
