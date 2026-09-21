@@ -26,7 +26,6 @@ export default function PlanningTabAnalitica({
   analyticsData,
   analyticsLoading,
   analyticsError,
-  analyticsLoaded: _analyticsLoaded,
   handleLoadAnalytics,
 }: PlanningTabAnaliticaProps) {
         // ── Derived chart data ────────────────────────────────────────────────

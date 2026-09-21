@@ -23,7 +23,6 @@ export default function PlanningTabAuditoria({
   auditLoaded,
   expandedDimension,
   setExpandedDimension,
-  handleRunAudit: _handleRunAudit,
   handleReAudit,
 }: PlanningTabAuditoriaProps) {
   return (

@@ -54,8 +54,6 @@ export default function PlanningTabDocumento({
   planning,
   activeSubTab = 'planning',
   sequenceData = {},
-  downloadingPdf = false,
-  handleDownloadPdf,
   handleDownloadSecuenciaPdf = async () => {},
   downloadingSeqPdf = false,
   accumulatedWorkbookWords = 0,
