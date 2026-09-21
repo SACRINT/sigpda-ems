@@ -22,6 +22,8 @@ const protectedPaths = [
   '/pips',
   '/mis-documentos',
   '/mis-escuelas',
+  '/biblioteca-personal',
+  '/admin',
 ];
 
 async function getTeacherStatus(email: string) {
@@ -64,6 +66,11 @@ export async function proxy(request: NextRequest) {
     // 2. Admin unificado (env var, tabla admins o rol administrador) → acceso total sin restricciones
     if (await isAdmin(email)) {
       return intlMiddleware(request);
+    }
+
+    // Si un usuario no admin intenta acceder a cualquier ruta /admin/*, redirigir a dashboard
+    if (pathWithoutLocale.startsWith('/admin')) {
+      return NextResponse.redirect(new URL(`/${locale}/dashboard`, request.url));
     }
 
     if (isProtected) {

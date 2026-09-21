@@ -8,8 +8,8 @@ vi.mock('@/lib/auth', () => ({
   auth: () => mockAuth(),
 }));
 
-let mockDbRows: any[] = [];
-const mockDb = vi.fn((strings: TemplateStringsArray, ...values: any[]) => {
+let mockDbRows: Record<string, unknown>[] = [];
+const mockDb = vi.fn(() => {
   return Promise.resolve(mockDbRows);
 });
 vi.mock('@neondatabase/serverless', () => ({
@@ -17,7 +17,7 @@ vi.mock('@neondatabase/serverless', () => ({
 }));
 
 vi.mock('next-intl/middleware', () => ({
-  default: () => vi.fn((req: any) => new Response('intl-pass', {
+  default: () => vi.fn(() => new Response('intl-pass', {
     status: 200,
     headers: { 'x-middleware-pass': 'true' },
   })),
@@ -133,5 +133,55 @@ describe('Proxy Auth & Security Gate (Next.js 16)', () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get('x-middleware-pass')).toBe('true');
+  });
+
+  it('7. Usuario no autenticado en /admin → redirección a /[locale]/login', async () => {
+    mockAuth.mockResolvedValue(null);
+
+    const request = new NextRequest('http://localhost:3000/es/admin/users');
+    const response = await proxy(request);
+
+    expect(response.status).toBe(307);
+    const location = response.headers.get('location');
+    expect(location).toBe('http://localhost:3000/es/login');
+  });
+
+  it('8. Docente no-admin intenta acceder a /admin → redirección a /[locale]/dashboard', async () => {
+    mockAuth.mockResolvedValue({ user: { email: 'docente_normal@bge.edu.mx' } });
+    mockDbRows = [{
+      id: 'teacher-5',
+      profile_completed: true,
+      role: 'docente',
+      sub_status: 'active',
+    }];
+
+    const request = new NextRequest('http://localhost:3000/es/admin/analytics');
+    const response = await proxy(request);
+
+    expect(response.status).toBe(307);
+    const location = response.headers.get('location');
+    expect(location).toBe('http://localhost:3000/es/dashboard');
+  });
+
+  it('9. Admin autenticado en /admin → acceso permitido', async () => {
+    process.env.ADMIN_EMAILS = 'superadmin@sigpda.mx';
+    mockAuth.mockResolvedValue({ user: { email: 'superadmin@sigpda.mx' } });
+
+    const request = new NextRequest('http://localhost:3000/es/admin/dashboard');
+    const response = await proxy(request);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('x-middleware-pass')).toBe('true');
+  });
+
+  it('10. Usuario no autenticado en /biblioteca-personal → redirección a /[locale]/login', async () => {
+    mockAuth.mockResolvedValue(null);
+
+    const request = new NextRequest('http://localhost:3000/es/biblioteca-personal');
+    const response = await proxy(request);
+
+    expect(response.status).toBe(307);
+    const location = response.headers.get('location');
+    expect(location).toBe('http://localhost:3000/es/login');
   });
 });
