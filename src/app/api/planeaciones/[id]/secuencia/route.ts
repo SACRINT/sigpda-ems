@@ -1,6 +1,7 @@
 import { sql } from '@/lib/db/client';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
+import { isAdmin } from '@/lib/admin-unified';
 import { generateWithRetry } from '@/lib/ai-retry-manager';
 import { SecuenciaResponseSchema, SecuenciaGenerateInputSchema, SecuenciaUpdateInputSchema } from '@/lib/ai-schemas';
 import { logger } from '@/lib/logger';
@@ -57,10 +58,14 @@ export async function GET(
 
     const { id } = await params;
     const db = sql();
+    const userEmail = session.user.email;
+    const isUserAdmin = await isAdmin(userEmail);
 
     const rows = await db`
-      SELECT sequence_json FROM plannings
-      WHERE id = ${id}::uuid
+      SELECT p.sequence_json, p.teacher_id, t.email as teacher_email
+      FROM plannings p
+      LEFT JOIN teachers t ON p.teacher_id = t.id
+      WHERE p.id = ${id}::uuid
       LIMIT 1
     `;
 
@@ -68,7 +73,12 @@ export async function GET(
       return NextResponse.json({ error: 'Planeación no encontrada' }, { status: 404 });
     }
 
-    return NextResponse.json({ sequence: rows[0].sequence_json || {} });
+    const plan = rows[0];
+    if (!isUserAdmin && plan.teacher_email !== userEmail) {
+      return NextResponse.json({ error: 'Acceso denegado a esta planeación' }, { status: 403 });
+    }
+
+    return NextResponse.json({ sequence: plan.sequence_json || {} });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Error al obtener secuencia';
     logger.error('GET secuencia error:', error);
@@ -167,10 +177,14 @@ export async function POST(
     const { blockIndex, totalHours: customHours } = parseResult.data;
 
     const db = sql();
+    const userEmail = session.user.email;
+    const isUserAdmin = await isAdmin(userEmail);
 
     const rows = await db`
-      SELECT p.id, p.uac_name, p.semester, p.component, p.content_json, p.paec_context, p.sequence_json, p.metodologia_activa
+      SELECT p.id, p.teacher_id, p.uac_name, p.semester, p.component, p.content_json, p.paec_context, p.sequence_json, p.metodologia_activa,
+             t.email as teacher_email
       FROM plannings p
+      LEFT JOIN teachers t ON p.teacher_id = t.id
       WHERE p.id = ${id}::uuid
       LIMIT 1
     `;
@@ -180,6 +194,9 @@ export async function POST(
     }
 
     const plan = rows[0];
+    if (!isUserAdmin && plan.teacher_email !== userEmail) {
+      return NextResponse.json({ error: 'Acceso denegado a esta planeación' }, { status: 403 });
+    }
     const content = plan.content_json || {};
     const activities = content.sectionIV?.activities || [];
     const blockActivity = activities[blockIndex];
@@ -485,10 +502,14 @@ export async function PUT(
     const { blockIndex, sessions, retoSituado } = parseResult.data;
 
     const db = sql();
+    const userEmail = session.user.email;
+    const isUserAdmin = await isAdmin(userEmail);
 
     const rows = await db`
-      SELECT p.id, p.uac_name, p.paec_context, p.content_json, p.sequence_json
+      SELECT p.id, p.teacher_id, p.uac_name, p.paec_context, p.content_json, p.sequence_json,
+             t.email as teacher_email
       FROM plannings p
+      LEFT JOIN teachers t ON p.teacher_id = t.id
       WHERE p.id = ${id}::uuid
       LIMIT 1
     `;
@@ -498,6 +519,9 @@ export async function PUT(
     }
 
     const plan = rows[0];
+    if (!isUserAdmin && plan.teacher_email !== userEmail) {
+      return NextResponse.json({ error: 'Acceso denegado a esta planeación' }, { status: 403 });
+    }
     const content = plan.content_json || {};
     const activities = content.sectionIV?.activities || [];
     const blockActivity = activities[blockIndex];
