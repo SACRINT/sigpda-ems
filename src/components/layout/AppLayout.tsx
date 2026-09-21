@@ -199,6 +199,12 @@ export default async function AppLayout({ children, locale, activeSection }: Pro
             >
               <span className="sidebar-link-icon">⚙️</span>Panel de Admin
             </Link>
+            <Link
+              href={`/${locale}/admin/health`}
+              className={`sidebar-link ${activeSection === 'admin-health' ? 'active' : ''}`}
+            >
+              <span className="sidebar-link-icon">🩺</span>Salud del Sistema
+            </Link>
           </>
         )}
       </aside>

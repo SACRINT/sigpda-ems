@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -1151,6 +1152,15 @@ export default function AdminClient({ locale, adminEmail }: { locale: string; ad
             <span>{t.icon}</span> {t.label}
           </button>
         ))}
+        <div style={{ margin: '16px 12px 0', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '12px' }}>
+          <Link
+            href={`/${locale}/admin/health`}
+            className="admin-tab-btn"
+            style={{ textDecoration: 'none', color: '#34d399' }}
+          >
+            <span>🩺</span> Salud del Sistema
+          </Link>
+        </div>
       </div>
 
       {/* Content */}
