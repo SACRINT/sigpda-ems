@@ -112,8 +112,8 @@ function PlanningDetailModular({
       if (!postRes.ok) throw new Error(postData.error || 'Error al ejecutar la auditoría.');
       setAuditReport(postData.report);
       setAuditLoaded(true);
-    } catch (err: any) {
-      setAuditError(err.message || 'Error desconocido.');
+    } catch (err: unknown) {
+      setAuditError(err instanceof Error ? err.message : 'Error desconocido.');
     } finally {
       setAuditLoading(false);
     }
@@ -134,8 +134,8 @@ function PlanningDetailModular({
       if (!postRes.ok) throw new Error(postData.error || 'Error al re-auditar.');
       setAuditReport(postData.report);
       setAuditLoaded(true);
-    } catch (err: any) {
-      setAuditError(err.message || 'Error desconocido.');
+    } catch (err: unknown) {
+      setAuditError(err instanceof Error ? err.message : 'Error desconocido.');
     } finally {
       setAuditLoading(false);
     }
@@ -190,8 +190,8 @@ function PlanningDetailModular({
       // Auto-navegar a la pestaña de Planes para ver las 24 sesiones
       setActiveTab('lessonPlans');
       alert(`¡Suite del Bloque ${blockIdx + 1} sincronizada con éxito!\nSe derivaron los 24 Planes de Clase, Rúbricas y Materiales Didácticos.`);
-    } catch (err: any) {
-      alert(err.message || 'Error al sincronizar la Suite');
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Error al sincronizar la Suite');
     } finally {
       setSyncingSuite(null);
     }
@@ -316,8 +316,8 @@ function PlanningDetailModular({
       setSequenceData(prev => ({ ...prev, [blockIndex]: data.sequence }));
       setExpandedSeqBlock(blockIndex);
       setSeqMessage({ block: blockIndex, text: '¡Secuencia didáctica generada y guardada con éxito!', type: 'success' });
-    } catch (err: any) {
-      setSeqMessage({ block: blockIndex, text: err.message || 'Error al generar secuencia', type: 'error' });
+    } catch (err: unknown) {
+      setSeqMessage({ block: blockIndex, text: err instanceof Error ? err.message : 'Error al generar secuencia', type: 'error' });
     } finally {
       setGeneratingSeqBlock(null);
     }
@@ -337,8 +337,8 @@ function PlanningDetailModular({
       setSequenceData(prev => ({ ...prev, [blockIndex]: data.sequence }));
       setEditingSeqBlock(null);
       setSeqMessage({ block: blockIndex, text: 'Cambios guardados exitosamente.', type: 'success' });
-    } catch (err: any) {
-      alert(err.message || 'Error al guardar cambios');
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Error al guardar cambios');
     }
   };
 
@@ -563,7 +563,7 @@ function PlanningDetailModular({
       }, 2500);
 
       pollIntervalsRef.current[blockIndex] = interval;
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (pollIntervalsRef.current[blockIndex]) {
         clearInterval(pollIntervalsRef.current[blockIndex]);
         delete pollIntervalsRef.current[blockIndex];
@@ -576,7 +576,7 @@ function PlanningDetailModular({
           workbook: prev[blockIndex]?.workbook || null,
           version: prev[blockIndex]?.version || 1,
           progress: null,
-          error: err.message || 'Error al iniciar la generación del libro de trabajo',
+          error: err instanceof Error ? err.message : 'Error al iniciar la generación del libro de trabajo',
         },
       }));
     }
@@ -682,8 +682,8 @@ function PlanningDetailModular({
       if (!res.ok) throw new Error(data.error || 'Error al generar el material');
       setBundleResults(prev => ({ ...prev, [type]: data.result || '' }));
       setBundleExpanded(type);
-    } catch (err: any) {
-      setBundleErrors(prev => ({ ...prev, [type]: err.message || 'Error desconocido' }));
+    } catch (err: unknown) {
+      setBundleErrors(prev => ({ ...prev, [type]: err instanceof Error ? err.message : 'Error desconocido' }));
     } finally {
       setBundleLoading(prev => ({ ...prev, [type]: false }));
     }
@@ -709,9 +709,10 @@ function PlanningDetailModular({
         diapositivas: b.guionDiapositivas     || '',
         quiz:         b.quiz                  || '',
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error';
       BUNDLE_TYPES.forEach(bt =>
-        setBundleErrors(prev => ({ ...prev, [bt.type]: err.message || 'Error' }))
+        setBundleErrors(prev => ({ ...prev, [bt.type]: msg }))
       );
     } finally {
       for (const bt of BUNDLE_TYPES) {
@@ -739,8 +740,8 @@ function PlanningDetailModular({
       if (!res.ok) throw new Error(data.error || 'Error al evaluar la planeación.');
       setEvalResult(data.resultado);
       setEvalLoaded(true);
-    } catch (err: any) {
-      setEvalError(err.message || 'Error desconocido.');
+    } catch (err: unknown) {
+      setEvalError(err instanceof Error ? err.message : 'Error desconocido.');
     } finally {
       setEvalLoading(false);
     }
@@ -761,8 +762,8 @@ function PlanningDetailModular({
       if (!res.ok) throw new Error(data.error || 'Error al cargar analytics.');
       setAnalyticsData(data);
       setAnalyticsLoaded(true);
-    } catch (err: any) {
-      setAnalyticsError(err.message || 'Error desconocido.');
+    } catch (err: unknown) {
+      setAnalyticsError(err instanceof Error ? err.message : 'Error desconocido.');
     } finally {
       setAnalyticsLoading(false);
     }
@@ -807,9 +808,9 @@ function PlanningDetailModular({
       } else {
         alert(data.message || 'No se pudo publicar la planeación en Classroom.');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error publishing to classroom:', err);
-      alert(err.message || 'Ocurrió un error al intentar publicar en Google Classroom.');
+      alert(err instanceof Error ? err.message : 'Ocurrió un error al intentar publicar en Google Classroom.');
     } finally {
       setPublishingClassroom(false);
     }
