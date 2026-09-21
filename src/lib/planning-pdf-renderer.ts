@@ -10,6 +10,7 @@ import { loadAllLogos } from './pdf-logos';
 import { SCHOOL_YEAR } from '@/lib/config';
 import { logger } from './logger';
 import { COLORS } from './visual-engine/design-tokens';
+import { normalizeEvaluationPercentages, sanitizePlanningContent } from '@/lib/planning/quality-pipeline';
 
 const NAVY: [number, number, number] = [31, 56, 100];       // #1F3864 - Azul Institucional
 const BLUE_MID: [number, number, number] = [46, 116, 181];   // #2E74B5 - Azul Secundario
@@ -24,7 +25,8 @@ export async function generatePlanningPDF(
   planning: Planning,
   providedLogos?: { gobierno?: string; sep?: string; supervision?: string }
 ): Promise<jsPDF> {
-  const content = planning.contentJson as GeneratedPlanningContent | null;
+  const rawContent = planning.contentJson as GeneratedPlanningContent | null;
+  const content = rawContent ? sanitizePlanningContent(rawContent) : null;
   const s1 = content?.sectionI;
   const s2 = content?.sectionII;
   const s3 = content?.sectionIII;
@@ -304,13 +306,14 @@ export async function generatePlanningPDF(
     currentY = doc.lastAutoTable!.finalY + 3.5;
   }
 
-  // ─── Sección V: Evaluación y Ponderaciones ────────────────────────────────
-  const evalRows = (s5?.evaluations || []).map((ev) => [
+  // ─── Sección V: Evaluación y Ponderaciones (Normalización Determinista 100%) ───
+  const normalizedEvaluations = normalizeEvaluationPercentages(s5?.evaluations);
+  const evalRows = normalizedEvaluations.map((ev) => [
     { content: ev.moment || 'Formativa' },
     { content: ev.type || 'Heteroevaluación' },
     { content: ev.evidence || 'Producto de aprendizaje' },
     { content: ev.instrument || 'Rúbrica analítica' },
-    { content: `${ev.percentage || 20}%` },
+    { content: `${ev.percentage}%` },
   ]);
 
   if (evalRows.length > 0) {
