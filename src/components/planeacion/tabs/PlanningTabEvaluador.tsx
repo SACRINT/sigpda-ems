@@ -1,7 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import type { Planning } from '@/types/planning';
+import { evaluatePlanningQuality, PlanningQualityReport } from '@/lib/planning/quality-pipeline';
 
 export interface EvaluadorCriterio {
   criterio: string;
@@ -35,18 +36,169 @@ export interface PlanningTabEvaluadorProps {
 }
 
 export default function PlanningTabEvaluador({
+  planning,
   evalResult,
   evalLoading,
   evalError,
   handleRunEvaluacion,
 }: PlanningTabEvaluadorProps) {
+  const qualityReport = useMemo<PlanningQualityReport | null>(() => {
+    if (!planning?.contentJson) return null;
+    try {
+      return evaluatePlanningQuality(planning);
+    } catch {
+      return null;
+    }
+  }, [planning]);
+
   return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div className="section-card">
-            <div className="section-card-header" style={{ background: 'linear-gradient(135deg, #991b1b 0%, #dc2626 100%)', color: '#fff' }}>
-              <span className="section-card-title" style={{ color: '#fff' }}>🏅 Evaluador IA — Rúbrica Oficial Anexo 12 USICAMM</span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {/* ── 1. Quality Pipeline DBEPA 2026-2027 ── */}
+      {qualityReport && (
+        <div className="section-card" style={{ border: '1px solid var(--c-border)' }}>
+          <div
+            className="section-card-header"
+            style={{
+              background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+              color: '#fff',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <span className="section-card-title" style={{ color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              🛡️ Control de Calidad Pedagógica DBEPA / MCCEMS 2026-2027
+            </span>
+            <span
+              style={{
+                fontSize: '12px',
+                fontWeight: 700,
+                padding: '4px 12px',
+                borderRadius: '9999px',
+                background:
+                  qualityReport.status === 'excelente'
+                    ? '#10b981'
+                    : qualityReport.status === 'aprobada'
+                    ? '#3b82f6'
+                    : qualityReport.status === 'requiere_ajustes'
+                    ? '#f59e0b'
+                    : '#ef4444',
+                color: '#fff',
+                textTransform: 'uppercase',
+              }}
+            >
+              {qualityReport.status.replace('_', ' ')} • {qualityReport.score}/100
+            </span>
+          </div>
+
+          <div className="section-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '20px' }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                gap: '14px',
+              }}
+            >
+              {/* Reto Situado 4/4 */}
+              <div style={{ background: 'var(--c-bg-surface)', padding: '14px', borderRadius: '8px', border: '1px solid var(--c-border)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <span style={{ fontWeight: 700, fontSize: '13px' }}>🎯 Reto Situado (4/4)</span>
+                  <span style={{ fontWeight: 800, color: qualityReport.checks.retoSituado.isValid ? '#10b981' : '#f59e0b' }}>
+                    {qualityReport.checks.retoSituado.score}/4
+                  </span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '12px' }}>
+                  <span style={{ color: qualityReport.checks.retoSituado.details.hasInfinitiveVerb ? '#10b981' : '#94a3b8' }}>
+                    {qualityReport.checks.retoSituado.details.hasInfinitiveVerb ? '✓' : '✗'} Verbo en infinitivo
+                  </span>
+                  <span style={{ color: qualityReport.checks.retoSituado.details.hasLocalContext ? '#10b981' : '#94a3b8' }}>
+                    {qualityReport.checks.retoSituado.details.hasLocalContext ? '✓' : '✗'} Contexto local Puebla
+                  </span>
+                  <span style={{ color: qualityReport.checks.retoSituado.details.hasRealProblem ? '#10b981' : '#94a3b8' }}>
+                    {qualityReport.checks.retoSituado.details.hasRealProblem ? '✓' : '✗'} Problemática comunitaria
+                  </span>
+                  <span style={{ color: qualityReport.checks.retoSituado.details.hasCurricularAlignment ? '#10b981' : '#94a3b8' }}>
+                    {qualityReport.checks.retoSituado.details.hasCurricularAlignment ? '✓' : '✗'} Propósito curricular
+                  </span>
+                </div>
+              </div>
+
+              {/* Tres Saberes */}
+              <div style={{ background: 'var(--c-bg-surface)', padding: '14px', borderRadius: '8px', border: '1px solid var(--c-border)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <span style={{ fontWeight: 700, fontSize: '13px' }}>📚 Tres Saberes</span>
+                  <span style={{ fontWeight: 800, color: qualityReport.checks.tresSaberes.isValid ? '#10b981' : '#f59e0b' }}>
+                    {qualityReport.checks.tresSaberes.coverageScore}/3
+                  </span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '12px' }}>
+                  <span style={{ color: qualityReport.checks.tresSaberes.hasSaber ? '#10b981' : '#94a3b8' }}>
+                    {qualityReport.checks.tresSaberes.hasSaber ? '✓' : '✗'} Saber (Teórico / Conceptual)
+                  </span>
+                  <span style={{ color: qualityReport.checks.tresSaberes.hasSaberHacer ? '#10b981' : '#94a3b8' }}>
+                    {qualityReport.checks.tresSaberes.hasSaberHacer ? '✓' : '✗'} Saber Hacer (Práctico / Taller)
+                  </span>
+                  <span style={{ color: qualityReport.checks.tresSaberes.hasSaberSer ? '#10b981' : '#94a3b8' }}>
+                    {qualityReport.checks.tresSaberes.hasSaberSer ? '✓' : '✗'} Saber Ser (Actitudinal / Ética)
+                  </span>
+                </div>
+              </div>
+
+              {/* Coherencia Metodológica */}
+              <div style={{ background: 'var(--c-bg-surface)', padding: '14px', borderRadius: '8px', border: '1px solid var(--c-border)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <span style={{ fontWeight: 700, fontSize: '13px' }}>⚙️ Metodología Activa</span>
+                  <span style={{ fontWeight: 800, color: qualityReport.checks.coherenciaMetodologica.isValid ? '#10b981' : '#f59e0b' }}>
+                    {qualityReport.checks.coherenciaMetodologica.score}%
+                  </span>
+                </div>
+                <p style={{ fontSize: '12px', color: 'var(--c-text-muted)', margin: 0 }}>
+                  <strong>Asignada:</strong> {qualityReport.checks.coherenciaMetodologica.metodologiaNombre}
+                </p>
+                <p style={{ fontSize: '11px', color: qualityReport.checks.coherenciaMetodologica.isValid ? '#10b981' : '#f59e0b', marginTop: '6px' }}>
+                  {qualityReport.checks.coherenciaMetodologica.isValid ? '✓ Secuencia coherente y activa' : '⚠️ Detectada pasividad en fases'}
+                </p>
+              </div>
+
+              {/* Horas por Corte */}
+              <div style={{ background: 'var(--c-bg-surface)', padding: '14px', borderRadius: '8px', border: '1px solid var(--c-border)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <span style={{ fontWeight: 700, fontSize: '13px' }}>⏱️ Horas por Corte</span>
+                  <span style={{ fontWeight: 800, color: qualityReport.checks.horasPorCorte.isValid ? '#10b981' : '#3b82f6' }}>
+                    {qualityReport.checks.horasPorCorte.plannedHours}h
+                  </span>
+                </div>
+                <p style={{ fontSize: '12px', color: 'var(--c-text-muted)', margin: 0 }}>
+                  Dosificación semestral en 3 cortes de evaluación curricular.
+                </p>
+                <p style={{ fontSize: '11px', color: qualityReport.checks.horasPorCorte.isValid ? '#10b981' : '#3b82f6', marginTop: '6px' }}>
+                  {qualityReport.checks.horasPorCorte.isValid ? '✓ Horas balanceadas' : 'ℹ️ Distribución estándar aplicada'}
+                </p>
+              </div>
             </div>
-            <div className="section-card-body">
+
+            {qualityReport.feedback.length > 0 && (
+              <div style={{ background: 'rgba(59, 130, 246, 0.08)', borderRadius: '6px', padding: '12px 14px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                <p style={{ fontSize: '12px', fontWeight: 700, color: '#3b82f6', marginBottom: '6px' }}>
+                  💡 Observaciones del Pipeline de Calidad:
+                </p>
+                <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '12px', color: 'var(--c-text-muted)', lineHeight: 1.5 }}>
+                  {qualityReport.feedback.slice(0, 3).map((fb, idx) => (
+                    <li key={idx}>{fb}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── 2. Evaluador IA — Rúbrica Oficial Anexo 12 USICAMM ── */}
+      <div className="section-card">
+        <div className="section-card-header" style={{ background: 'linear-gradient(135deg, #991b1b 0%, #dc2626 100%)', color: '#fff' }}>
+          <span className="section-card-title" style={{ color: '#fff' }}>🏅 Evaluador IA — Rúbrica Oficial Anexo 12 USICAMM</span>
+        </div>
+        <div className="section-card-body">
               {evalLoading && (
                 <div style={{ textAlign: 'center', padding: '48px 0', color: '#dc2626' }}>
                   <div style={{ fontSize: '32px', marginBottom: '12px' }}>⏳</div>

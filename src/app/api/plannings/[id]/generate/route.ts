@@ -13,11 +13,12 @@ import { SYSTEM_PROMPT } from '@/lib/prompts/system-prompt';
 import { logger } from '@/lib/logger';
 import { buildUserPrompt } from '@/lib/prompts/build-prompt';
 import { parseAIResponse } from '@/lib/ai-response-parser';
-import { PlanningContentSchema } from '@/lib/ai-schemas';
+import { PlanningContentSchema, type PlanningContentDTO } from '@/lib/ai-schemas';
 import { getUserLibraryContext } from '@/lib/context-extractor';
 import { searchCurriculum } from '@/lib/rag-curricular';
 import { extractIdempotencyKey, checkIdempotencyKey, createIdempotencyKey } from '@/lib/idempotency';
-import type { ExtractedPdfData, TeacherContext } from '@/types/planning';
+import { evaluatePlanningQuality } from '@/lib/planning/quality-pipeline';
+import type { ExtractedPdfData, TeacherContext, GeneratedPlanningContent } from '@/types/planning';
 import type { RagContext } from '@/lib/rag-curricular';
 
 export const runtime = 'nodejs';
@@ -75,9 +76,10 @@ export async function POST(
     }
 
     // Hydrate paecOperationalActivity from DB if missing in context payload
-    const existingSectionI = (planning.content_json as any)?.sectionI;
+    const existingContent = planning.content_json as Record<string, unknown> | null;
+    const existingSectionI = existingContent?.sectionI as Record<string, unknown> | undefined;
     if (!context.paecOperationalActivity && existingSectionI?.paecOperationalActivity) {
-      context.paecOperationalActivity = existingSectionI.paecOperationalActivity;
+      context.paecOperationalActivity = existingSectionI.paecOperationalActivity as TeacherContext['paecOperationalActivity'];
       if (context.usePaecActivity === undefined) {
         context.usePaecActivity = true;
       }
@@ -167,7 +169,7 @@ export async function POST(
 
           // Once generation is finished, parse and save to database
           try {
-            const parseResult = parseAIResponse<any>(accumulatedText, PlanningContentSchema, {
+            const parseResult = parseAIResponse<PlanningContentDTO>(accumulatedText, PlanningContentSchema, {
               contextName: 'plannings-generate-stream',
             });
 
@@ -188,6 +190,19 @@ export async function POST(
             }
 
             await updatePlanningContent(id, teacher.id, parsedContent);
+
+            // Evaluación automática mediante el pipeline determinista de calidad DBEPA
+            try {
+              const qualityReport = evaluatePlanningQuality({
+                uacName: planning.uac_name || extractedData.uacName,
+                metodologiaActiva: planning.metodologia_activa || context.metodologiaActiva,
+                contentJson: parsedContent as unknown as GeneratedPlanningContent,
+                sequenceJson: planning.sequence_json,
+              });
+              logger.info(`[Quality Pipeline] Evaluated planning ${id}: score=${qualityReport.score}, status=${qualityReport.status}`);
+            } catch (qErr) {
+              logger.warn('[Quality Pipeline] Could not evaluate planning quality:', qErr);
+            }
 
             // Send Realtime / In-App Notification (Phase 8A.1)
             try {
