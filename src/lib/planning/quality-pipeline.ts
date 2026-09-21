@@ -67,7 +67,24 @@ export function normalizeEvaluationPercentages<T extends { percentage: number; t
     return t.includes('diagnóstic') || t.includes('diagnostic');
   });
 
-  if (initialSum === 100 && (!diagItem || diagItem.percentage <= 10)) {
+  if (initialSum === 100) {
+    if (!diagItem || diagItem.percentage <= 10) {
+      return cloned;
+    }
+    // Reequilibrar si la diagnóstica está desmedida (> 10%)
+    const excessDiag = diagItem.percentage - 5;
+    diagItem.percentage = 5;
+    const nonDiag = cloned.filter(e => e !== diagItem);
+    const nonDiagSum = nonDiag.reduce((acc, curr) => acc + curr.percentage, 0);
+    for (const item of nonDiag) {
+      const factor = nonDiagSum > 0 ? (item.percentage / nonDiagSum) : (1 / nonDiag.length);
+      item.percentage += Math.round(excessDiag * factor);
+    }
+    const newSum = cloned.reduce((acc, curr) => acc + curr.percentage, 0);
+    const delta = 100 - newSum;
+    if (delta !== 0 && nonDiag.length > 0) {
+      nonDiag[0].percentage += delta;
+    }
     return cloned;
   }
 
@@ -158,7 +175,7 @@ export function sanitizePlanningContent<T>(content: T, options?: { fallbackCct?:
     return content.map(item => sanitizePlanningContent(item, options)) as unknown as T;
   }
   if (typeof content === 'object') {
-    const sanitizedObj: Record<string, any> = {};
+    const sanitizedObj: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(content)) {
       sanitizedObj[key] = sanitizePlanningContent(value, options);
     }
