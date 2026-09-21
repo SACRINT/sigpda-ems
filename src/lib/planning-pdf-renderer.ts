@@ -231,6 +231,22 @@ export async function generatePlanningPDF(
       },
     ]);
 
+    // Tres Saberes Curriculares DBEPA
+    if (act.saberes && (act.saberes.saber || act.saberes.saberHacer || act.saberes.saberSer)) {
+      activityRows.push([
+        { content: 'Saber (Teórico):', styles: { fontStyle: 'bold', fillColor: [241, 245, 249], cellWidth: 38 } },
+        { content: act.saberes.saber || 'No especificado', colSpan: 3 },
+      ]);
+      activityRows.push([
+        { content: 'Saber Hacer (Práctico):', styles: { fontStyle: 'bold', fillColor: [241, 245, 249] } },
+        { content: act.saberes.saberHacer || 'No especificado', colSpan: 3 },
+      ]);
+      activityRows.push([
+        { content: 'Saber Ser (Actitudinal):', styles: { fontStyle: 'bold', fillColor: [241, 245, 249] } },
+        { content: act.saberes.saberSer || 'No especificado', colSpan: 3 },
+      ]);
+    }
+
     // Apertura
     activityRows.push([
       { content: 'Apertura (Exploración):', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 38 } },
@@ -492,6 +508,29 @@ export async function generateSecuenciaPDF(
     const sessions = blockSeq?.sessions || [];
 
     const rows: RowInput[] = [];
+
+    // Tres Saberes Curriculares DBEPA
+    if (act.saberes && (act.saberes.saber || act.saberes.saberHacer || act.saberes.saberSer)) {
+      rows.push([
+        {
+          content: 'Taxonomía de Saberes Curriculares DBEPA',
+          colSpan: 4,
+          styles: { fillColor: [241, 245, 249], textColor: [30, 41, 59], fontStyle: 'bold', fontSize: 7 },
+        },
+      ]);
+      rows.push([
+        { content: 'Saber (Teórico):', styles: { fontStyle: 'bold', fontSize: 6.5, fillColor: GRAY_BG, cellWidth: 38 } },
+        { content: act.saberes.saber || 'N/A', colSpan: 3, styles: { fontSize: 6.5 } },
+      ]);
+      rows.push([
+        { content: 'Saber Hacer (Práctico):', styles: { fontStyle: 'bold', fontSize: 6.5, fillColor: GRAY_BG } },
+        { content: act.saberes.saberHacer || 'N/A', colSpan: 3, styles: { fontSize: 6.5 } },
+      ]);
+      rows.push([
+        { content: 'Saber Ser (Actitudinal):', styles: { fontStyle: 'bold', fontSize: 6.5, fillColor: GRAY_BG } },
+        { content: act.saberes.saberSer || 'N/A', colSpan: 3, styles: { fontSize: 6.5 } },
+      ]);
+    }
 
     if (sessions.length > 0) {
       rows.push([

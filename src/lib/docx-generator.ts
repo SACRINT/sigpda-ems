@@ -296,6 +296,35 @@ function buildActivityTable(activity: GeneratedPlanningContent['sectionIV']['act
     }));
   }
 
+  // Tres Saberes Curriculares DBEPA
+  if (activity.saberes && (activity.saberes.saber || activity.saberes.saberHacer || activity.saberes.saberSer)) {
+    rows.push(
+      new TableRow({
+        children: [
+          tcM('Taxonomía de Saberes (DBEPA)', { w: CONTENT, span: 4, align: AlignmentType.LEFT, size: 18 })
+        ]
+      }),
+      new TableRow({
+        children: [
+          new TableCell({ columnSpan: 1, shading: { fill: C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: { top: 40, bottom: 40, left: 60, right: 60 }, children: [new Paragraph({ children: [new TextRun({ text: 'Saber (Teórico):', bold: true, size: 17, font: 'Arial', color: C.dark })] })] }),
+          new TableCell({ columnSpan: 3, shading: { fill: C.white, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [new Paragraph({ children: [new TextRun({ text: activity.saberes.saber || 'N/A', size: 18, font: 'Arial', color: C.text })] })] }),
+        ]
+      }),
+      new TableRow({
+        children: [
+          new TableCell({ columnSpan: 1, shading: { fill: C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: { top: 40, bottom: 40, left: 60, right: 60 }, children: [new Paragraph({ children: [new TextRun({ text: 'Saber Hacer (Práctico):', bold: true, size: 17, font: 'Arial', color: C.dark })] })] }),
+          new TableCell({ columnSpan: 3, shading: { fill: C.white, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [new Paragraph({ children: [new TextRun({ text: activity.saberes.saberHacer || 'N/A', size: 18, font: 'Arial', color: C.text })] })] }),
+        ]
+      }),
+      new TableRow({
+        children: [
+          new TableCell({ columnSpan: 1, shading: { fill: C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: { top: 40, bottom: 40, left: 60, right: 60 }, children: [new Paragraph({ children: [new TextRun({ text: 'Saber Ser (Actitudinal):', bold: true, size: 17, font: 'Arial', color: C.dark })] })] }),
+          new TableCell({ columnSpan: 3, shading: { fill: C.white, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [new Paragraph({ children: [new TextRun({ text: activity.saberes.saberSer || 'N/A', size: 18, font: 'Arial', color: C.text })] })] }),
+        ]
+      })
+    );
+  }
+
   rows.push(
     new TableRow({ children: [new TableCell({ columnSpan: 1, shading: { fill: C.mid, type: ShadingType.CLEAR }, borders: bdr(), margins: { top: 60, bottom: 60, left: 80, right: 80 }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Metodología:', bold: true, size: 17, color: C.white, font: 'Arial' })] })] }), new TableCell({ columnSpan: 3, shading: { fill: C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [new Paragraph({ children: [new TextRun({ text: activity.methodology, bold: true, size: 18, font: 'Arial', color: C.dark })] })] })] }),
     new TableRow({ children: [tcM('Fase /\nMomento', { w: cols[0], align: AlignmentType.CENTER }), tcM('Actividades del Estudiante\n(Metodologías Activas)', { w: cols[1] }), tcM('Procesos de Pensamiento /\nConstrucción o Resignificación', { w: cols[2] }), tcM('Materiales /\nRecursos Didácticos', { w: cols[3] })] }),
