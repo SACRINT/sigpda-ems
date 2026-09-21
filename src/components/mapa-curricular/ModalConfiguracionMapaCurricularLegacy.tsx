@@ -30,6 +30,17 @@ export interface GrupoConfigItem {
   materiaPropedutica5to?: string;
 }
 
+export interface GrupoInicialItem {
+  nombre?: string;
+  semestre?: number;
+  capacitacionNombre?: string;
+  ffeOptativas?: string | string[];
+  ffeoSocioemocional?: string;
+  carreraTecnicaId?: string;
+  versionPrograma?: "nuevo" | "anterior" | string;
+  materiaPropedutica5to?: string;
+}
+
 interface Props {
   escuela: {
     id: string;
@@ -42,7 +53,7 @@ interface Props {
     mapaCurricularCompletado?: boolean;
   };
   subsystem?: "bge" | "tecnologico";
-  gruposIniciales?: any[];
+  gruposIniciales?: GrupoInicialItem[];
   isOpen: boolean;
   onClose?: () => void;
   onSaved?: () => void;
@@ -146,7 +157,7 @@ export default function ModalConfiguracionMapaCurricularLegacy({
 
   const normalizarNombreGrupo = (n: string) => (n || "").replace(/º/g, "°");
 
-  const handleUpdateGrupoConfig = (grupoNombre: string, field: string, value: any) => {
+  const handleUpdateGrupoConfig = (grupoNombre: string, field: string, value: string | string[]) => {
     const nNorm = normalizarNombreGrupo(grupoNombre);
     const nAlt = grupoNombre.includes("°") ? grupoNombre.replace("°", "º") : grupoNombre.replace("º", "°");
 
@@ -283,8 +294,9 @@ export default function ModalConfiguracionMapaCurricularLegacy({
       toast.success("¡Mapa curricular y estructura del plantel guardados exitosamente!");
       if (onSaved) onSaved();
       if (onClose) onClose();
-    } catch (err: any) {
-      toast.error(err.message || "No se pudo guardar la configuración");
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "No se pudo guardar la configuración";
+      toast.error(errorMessage);
     } finally {
       setGuardando(false);
     }
