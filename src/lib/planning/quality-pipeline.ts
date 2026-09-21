@@ -26,6 +26,105 @@ import type {
 } from '@/types/planning';
 
 // ---------------------------------------------------------------------------
+// 0. Normalizador Matemático Determinista de Evaluación (Garantía 100%)
+// ---------------------------------------------------------------------------
+
+/**
+ * Normaliza deterministamente las ponderaciones de las evaluaciones
+ * para asegurar que sumen exactamente 100%.
+ * 
+ * Reglas:
+ * 1. Si está vacío o nulo, devuelve la escala oficial DBEPA (Diagnóstica 5%, Formativa 55%, Sumativa 40%).
+ * 2. Si la suma es 100% y Diagnóstica <= 10%, no altera nada.
+ * 3. Si hay exceso (> 100%), reduce primero Diagnóstica a un máximo de 5% (norma NEM).
+ *    Si persiste el exceso, reduce proporcionalmente de Formativa y Sumativa.
+ * 4. Si hay déficit (< 100%), distribuye proporcionalmente entre Formativa y Sumativa.
+ * 5. Reconcilia cualquier diferencia por redondeo (+/- 1%) sobre el elemento de mayor peso.
+ * 6. Garantiza valores enteros >= 0, suma idéntica a 100%, y previene NaN.
+ */
+export function normalizeEvaluationPercentages<T extends { percentage: number; type?: string }>(
+  evaluations?: T[] | null
+): T[] {
+  if (!evaluations || !Array.isArray(evaluations) || evaluations.length === 0) {
+    return [
+      { type: 'Diagnóstica', percentage: 5, moment: 'Inicio de UAC', instrument: 'Cuestionario diagnóstico' },
+      { type: 'Formativa', percentage: 55, moment: 'Durante el proceso', instrument: 'Rúbrica de proceso / Bitácora' },
+      { type: 'Sumativa', percentage: 40, moment: 'Cierre de corte', instrument: 'Rúbrica de producto integrador' }
+    ] as unknown as T[];
+  }
+
+  // Clonar para no mutar entradas
+  const cloned: T[] = evaluations.map(e => ({
+    ...e,
+    percentage: Math.max(0, Math.round(Number(e.percentage) || 0))
+  }));
+
+  const initialSum = cloned.reduce((acc, curr) => acc + curr.percentage, 0);
+
+  // Si ya suma 100 y no tiene diagnóstica desmedida (>10%), retornar
+  const diagItem = cloned.find(e => {
+    const t = (e.type || '').toLowerCase();
+    return t.includes('diagnóstic') || t.includes('diagnostic');
+  });
+
+  if (initialSum === 100 && (!diagItem || diagItem.percentage <= 10)) {
+    return cloned;
+  }
+
+  if (initialSum > 100) {
+    let excess = initialSum - 100;
+
+    // Regla NEM: Si la diagnóstica está sobreponderada (> 5%), reducirla primero
+    if (diagItem && diagItem.percentage > 5) {
+      const diagReduction = Math.min(diagItem.percentage - 5, excess);
+      diagItem.percentage -= diagReduction;
+      excess -= diagReduction;
+    }
+
+    // Reducir el exceso restante proporcionalmente de las no-diagnósticas
+    if (excess > 0) {
+      const nonDiag = cloned.filter(e => e !== diagItem);
+      const nonDiagSum = nonDiag.reduce((acc, curr) => acc + curr.percentage, 0);
+
+      for (const item of nonDiag) {
+        const factor = nonDiagSum > 0 ? (item.percentage / nonDiagSum) : (1 / nonDiag.length);
+        const reduction = Math.min(item.percentage, Math.round(excess * factor));
+        item.percentage -= reduction;
+      }
+    }
+  } else if (initialSum < 100) {
+    const deficit = 100 - initialSum;
+    const nonDiag = cloned.filter(e => e !== diagItem);
+    const targetPool = nonDiag.length > 0 ? nonDiag : cloned;
+    const poolSum = targetPool.reduce((acc, curr) => acc + curr.percentage, 0);
+
+    for (const item of targetPool) {
+      const factor = poolSum > 0 ? (item.percentage / poolSum) : (1 / targetPool.length);
+      item.percentage += Math.round(deficit * factor);
+    }
+  }
+
+  // Reconciliar cualquier residuo por redondeo (+/- 1% o +/- 2%)
+  const currentSum = cloned.reduce((acc, curr) => acc + curr.percentage, 0);
+  const delta = 100 - currentSum;
+  if (delta !== 0) {
+    const candidates = cloned.filter(e => e !== diagItem);
+    const pool = candidates.length > 0 ? candidates : cloned;
+    let largest = pool[0];
+    for (const item of pool) {
+      if (item.percentage > largest.percentage) {
+        largest = item;
+      }
+    }
+    if (largest) {
+      largest.percentage = Math.max(0, largest.percentage + delta);
+    }
+  }
+
+  return cloned;
+}
+
+// ---------------------------------------------------------------------------
 // 1. Reto Situado 4/4 Validator
 // ---------------------------------------------------------------------------
 
