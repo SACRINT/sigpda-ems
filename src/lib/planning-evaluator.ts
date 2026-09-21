@@ -29,14 +29,105 @@ const VERBOS_PASIVOS_PROHIBIDOS = [
   'escuchar', 'repetir', 'copiar', 'revisar', 'leer'
 ];
 
-// Indicadores de anclaje territorial o comunitario en Puebla
-const TERMINOS_LOCALES_VALIDOS = [
+// Entidad territorial canónica para el Estado de Puebla
+export interface TerritorialEntity {
+  localidad: string;
+  municipio: string;
+  regionCorde: string;
+  cctPrefijo?: string;
+}
+
+export const TERRITORIAL_HIERARCHY: TerritorialEntity[] = [
+  {
+    localidad: 'Coronel Tito Hernández',
+    municipio: 'Venustiano Carranza',
+    regionCorde: 'CORDE 01 Huauchinango',
+    cctPrefijo: '21EBH',
+  },
+  {
+    localidad: 'Huauchinango',
+    municipio: 'Huauchinango',
+    regionCorde: 'CORDE 01 Huauchinango',
+    cctPrefijo: '21EBH',
+  },
+  {
+    localidad: 'Teziutlán',
+    municipio: 'Teziutlán',
+    regionCorde: 'CORDE 03 Teziutlán',
+  },
+  {
+    localidad: 'Zacatlán',
+    municipio: 'Zacatlán',
+    regionCorde: 'CORDE 02 Chignahuapan',
+  },
+  {
+    localidad: 'Chignahuapan',
+    municipio: 'Chignahuapan',
+    regionCorde: 'CORDE 02 Chignahuapan',
+  },
+  {
+    localidad: 'San Pedro Cholula',
+    municipio: 'San Pedro Cholula',
+    regionCorde: 'CORDE 05 Cholula',
+  },
+  {
+    localidad: 'Tehuacán',
+    municipio: 'Tehuacán',
+    regionCorde: 'CORDE 10 Tehuacán',
+  },
+  {
+    localidad: 'Puebla',
+    municipio: 'Puebla',
+    regionCorde: 'CORDE Puebla Norte / Sur',
+  },
+  {
+    localidad: 'Atlixco',
+    municipio: 'Atlixco',
+    regionCorde: 'CORDE 16 Atlixco',
+  },
+  {
+    localidad: 'Izúcar de Matamoros',
+    municipio: 'Izúcar de Matamoros',
+    regionCorde: 'CORDE 07 Izúcar',
+  },
+  {
+    localidad: 'San Martín Texmelucan',
+    municipio: 'San Martín Texmelucan',
+    regionCorde: 'CORDE 18 San Martín Texmelucan',
+  },
+  {
+    localidad: 'Tepeaca',
+    municipio: 'Tepeaca',
+    regionCorde: 'CORDE 09 Tepeaca',
+  },
+  {
+    localidad: 'Acatlán de Osorio',
+    municipio: 'Acatlán',
+    regionCorde: 'CORDE 06 Acatlán',
+  }
+];
+
+/**
+ * Normaliza un texto de entrada al objeto territorial canónico correspondiente.
+ */
+export function normalizeTerritory(input?: string | null): TerritorialEntity | null {
+  if (!input) return null;
+  const clean = input.toLowerCase().trim();
+  return TERRITORIAL_HIERARCHY.find(t => 
+    clean.includes(t.localidad.toLowerCase()) ||
+    clean.includes(t.municipio.toLowerCase())
+  ) || null;
+}
+
+// Indicadores de anclaje territorial o comunitario en Puebla (respaldados por la jerarquía territorial)
+export const TERMINOS_LOCALES_VALIDOS = Array.from(new Set([
   'puebla', 'municipio', 'localidad', 'comunidad', 'barrio', 'colonia',
   'ejido', 'región', 'plantel', 'taller', 'mercado', 'campo', 'cuenca',
-  'sierra', 'valle', 'tehuacán', 'tepeaca', 'atlixco', 'huauchinango',
-  'cholula', 'izúcar', 'zacatlán', 'cuautlancingo', 'texmelucan', 'chignahuapan',
-  'amozoc', 'teziutlán', 'acatlán', 'rural', 'agrícola', 'comunitari'
-];
+  'sierra', 'valle', 'rural', 'agrícola', 'comunitari', 'corde',
+  ...TERRITORIAL_HIERARCHY.map(t => t.municipio.toLowerCase()),
+  ...TERRITORIAL_HIERARCHY.map(t => t.localidad.toLowerCase()),
+  ...TERRITORIAL_HIERARCHY.map(t => t.regionCorde.toLowerCase()),
+]));
 
 // Indicadores de problemas o fenómenos reales
 const INDICADORES_PROBLEMA_REAL = [
@@ -49,6 +140,8 @@ const INDICADORES_PROBLEMA_REAL = [
 
 export interface RetoContextoInput {
   municipality?: string;
+  locality?: string;
+  region?: string;
   schoolName?: string;
   uacName?: string;
   paecProblem?: string;
@@ -85,11 +178,20 @@ export function validateRetoSituado(
   // 2. Contexto local o comunitario específico
   const tieneContextoEspecifico = TERMINOS_LOCALES_VALIDOS.some(t => textoCompleto.includes(t)) ||
     (context?.municipality && textoCompleto.includes(context.municipality.toLowerCase())) ||
+    (context?.locality && textoCompleto.includes(context.locality.toLowerCase())) ||
     Boolean(retoObj.contextoLocal && retoObj.contextoLocal.length >= 4);
 
   const hasLocalContext = Boolean(tieneContextoEspecifico);
   if (!hasLocalContext) {
     feedback.push('El reto debe situarse en un contexto local o comunitario concreto de Puebla (municipio, barrio, ejido o taller escolar) y no en abstracciones genéricas.');
+  }
+
+  // Verificación de fidelidad territorial: Alerta si se confunde CORDE con municipio
+  if (context?.municipality) {
+    const munLower = context.municipality.toLowerCase();
+    if (munLower.includes('venustiano carranza') && textoCompleto.includes('municipio de huauchinango')) {
+      feedback.push('Inconsistencia territorial: El plantel se ubica en el municipio de Venustiano Carranza (CORDE 01 Huauchinango); no debe sustituirse el municipio por la cabecera distrital.');
+    }
   }
 
   // 3. Problemática o fenómeno real (disonancia cognitiva)
