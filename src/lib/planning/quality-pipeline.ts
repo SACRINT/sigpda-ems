@@ -125,6 +125,49 @@ export function normalizeEvaluationPercentages<T extends { percentage: number; t
 }
 
 // ---------------------------------------------------------------------------
+// 0.1 Sanitizador Lingüístico y Normalizador CCT Determinista
+// ---------------------------------------------------------------------------
+
+/**
+ * Sanitizador Lingüístico Determinista:
+ * 1. Erradica anglicismos comunes generados por el LLM ("Habits" -> "Hábitos").
+ * 2. Corrige el título del proyecto PAEC ("Cuantificando Mis Habits" -> "Cuantificando Mis Hábitos").
+ * 3. Normaliza CCTs genéricos/placeholder ("21EBH0000X" -> CCT del plantel o "21EBH0200X").
+ */
+export function sanitizeLinguistic(text: string, options?: { fallbackCct?: string }): string {
+  if (!text || typeof text !== 'string') return text;
+  const targetCct = options?.fallbackCct || '21EBH0200X';
+  return text
+    .replace(/\bCuantificando\s+Mis\s+Habits\b/gi, 'Cuantificando Mis Hábitos')
+    .replace(/\bHabits\b/g, 'Hábitos')
+    .replace(/\bhabits\b/g, 'hábitos')
+    .replace(/\bHabit\b/g, 'Hábito')
+    .replace(/\bhabit\b/g, 'hábito')
+    .replace(/21EBH0000X/gi, targetCct);
+}
+
+/**
+ * Sanitiza recursivamente strings dentro de un objeto de planeación.
+ */
+export function sanitizePlanningContent<T>(content: T, options?: { fallbackCct?: string }): T {
+  if (!content) return content;
+  if (typeof content === 'string') {
+    return sanitizeLinguistic(content, options) as unknown as T;
+  }
+  if (Array.isArray(content)) {
+    return content.map(item => sanitizePlanningContent(item, options)) as unknown as T;
+  }
+  if (typeof content === 'object') {
+    const sanitizedObj: Record<string, any> = {};
+    for (const [key, value] of Object.entries(content)) {
+      sanitizedObj[key] = sanitizePlanningContent(value, options);
+    }
+    return sanitizedObj as T;
+  }
+  return content;
+}
+
+// ---------------------------------------------------------------------------
 // 1. Reto Situado 4/4 Validator
 // ---------------------------------------------------------------------------
 
