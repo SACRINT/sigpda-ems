@@ -21,6 +21,7 @@ export interface ExtractedPdfData {
   rawText?: string;
   parseConfidence: 'high' | 'medium' | 'low' | 'failed';
   year?: number;
+  cct?: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   contenidosFormativos?: any;
 }
@@ -51,9 +52,11 @@ export interface PaecParseResult {
 export interface TeacherContext {
   teacherName: string;
   schoolName: string;
+  cct?: string;                  // Clave de Centro de Trabajo oficial
+  locality?: string;             // Localidad o comunidad específica
   municipality: string;
   state: string;                 // Estado (default "Puebla")
-  region: string;                // Texto libre
+  region: string;                // Región administrativa / CORDE
   subsystem: Subsystem;
   groupInfo: string;
   applicationPeriod?: string;    // Período de aplicación (Ago-Dic 2026)

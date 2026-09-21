@@ -237,6 +237,17 @@ export function buildUserPrompt(
   const location = [context.municipality, context.state].filter(Boolean).join(', ');
   const subsystemLabel = subsystemLabels[subsystemKey] || context.subsystem;
 
+  // ── Identidad Territorial y CCT Fidedigno ──────────────────────────────────
+  const effectiveCct = (context.cct && context.cct !== '21EBH0000X')
+    ? context.cct
+    : (extractedData.cct && extractedData.cct !== '21EBH0000X')
+      ? extractedData.cct
+      : '21EBH0200X';
+
+  const effectiveLocality = context.locality || (context.schoolName?.toLowerCase().includes('tito') ? 'Coronel Tito Hernández' : (context.municipality || 'Comunidad escolar'));
+  const effectiveMunicipality = context.municipality || 'Venustiano Carranza';
+  const effectiveCorde = context.region || 'CORDE 01 Huauchinango';
+
   const learningOutcome = officialProgram?.learning_outcome || extractedData.learningOutcome || 
     `Desarrollar competencias integrales y saberes formativos en ${extractedData.uacName} aplicados al contexto comunitario de los estudiantes.`;
 
@@ -373,15 +384,24 @@ DOSIFICACIÓN OBLIGATORIA:
   - Si es Carrera Técnica (Bachillerato Tecnológico): Asigna la Fase 1 al Corte 1 (${Math.round(totalHours / 3)}h), la Fase 2 al Corte 2 (${Math.round(totalHours / 3)}h) y la Fase 3 al Corte 3 (${totalHours - 2 * Math.round(totalHours / 3)}h).
   - En la Sección IV, la suma de horas de las secuencias de cada Corte debe sumar exactamente la cuota asignada a dicho Corte.
 
-═══════════ DATOS DEL DOCENTE Y PLANTEL ═══════════
-Docente: ${context.teacherName}
-Plantel: ${context.schoolName}
-Municipio / Estado: ${location}
-${context.region ? `Región: ${context.region}` : ''}
+═══════════ DATOS DEL DOCENTE Y PLANTEL (IDENTIDAD OFICIAL) ═══════════
+Docente Titular: ${context.teacherName}
+Plantel Educativo: ${context.schoolName}
+CCT Oficial: ${effectiveCct}
+Localidad Escolar: ${effectiveLocality}
+Municipio: ${effectiveMunicipality}
+Región Administrativa (CORDE): ${effectiveCorde}
+Estado: ${context.state || 'Puebla'}
 Subsistema: ${subsystemLabel}
 Grupos: ${context.groupInfo || 'Grupo A'}
 Período de aplicación: ${context.applicationPeriod || `Ciclo escolar ${SCHOOL_YEAR}`}
 Recursos disponibles: ${context.schoolResources || 'Recursos básicos de aula y tecnología accesible'}
+
+DIRECTRICES DE IDENTIDAD TERRITORIAL Y ADMINISTRATIVA OBLIGATORIAS:
+1. El plantel se ubica geográficamente en la localidad "${effectiveLocality}", municipio de "${effectiveMunicipality}".
+2. La adscripción administrativa de supervisión oficial es la "${effectiveCorde}".
+3. Queda ESTRICTAMENTE PROHIBIDO sustituir el municipio o la localidad de residencia de los estudiantes por la cabecera distrital de la CORDE ("${effectiveCorde}") al formular el Reto Situado o las problemáticas del aula.
+4. Queda ESTRICTAMENTE PROHIBIDO utilizar claves CCT comodines, ficticias o genéricas (como 21EBH0000X). Usa obligatoriamente: ${effectiveCct}.
 
 ═══════════ PROYECTO PAEC/PEC (VINCULACIÓN COMUNITARIA OBLIGATORIA) ═══════════
 Nombre del proyecto PAEC: ${context.paecProjectName || 'Transformación e Innovación Comunitaria'}
