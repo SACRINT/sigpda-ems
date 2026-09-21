@@ -5,7 +5,6 @@
  * Total de Carreras Catalogadas: 66
  */
 
-import btCarrerasJson from '@/data/bt-carreras.json';
 
 export interface BTActividadClave {
   order: number;
@@ -41,17 +40,52 @@ export interface BTCarrera {
   modulos: BTModulo[];
 }
 
-// Catálogo Tipado de Carreras Técnicas Oficiales de Bachillerato Tecnológico
-export const CARRERAS_TECNICAS_BT: BTCarrera[] = btCarrerasJson as unknown as BTCarrera[];
+let _carrerasCache: BTCarrera[] | null = null;
 
 /**
  * Cargador asíncrono para componentes cliente (dynamic code-splitting).
  * Permite a componentes diferir la carga de 927 KB de datos JSON a demanda.
  */
 export async function loadCarrerasTecnicas(): Promise<BTCarrera[]> {
+  if (_carrerasCache) return _carrerasCache;
   const mod = await import('@/data/bt-carreras.json');
-  return (mod.default || mod) as unknown as BTCarrera[];
+  _carrerasCache = (mod.default || mod) as unknown as BTCarrera[];
+  return _carrerasCache;
 }
+
+/**
+ * Getter sincrónico lazy con caché en memoria.
+ * Evita la importación estática de 927 KB de JSON en el arranque del módulo.
+ */
+export function getCarrerasTecnicas(): BTCarrera[] {
+  if (!_carrerasCache) {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const data = require('../data/bt-carreras.json');
+    _carrerasCache = (data.default || data) as unknown as BTCarrera[];
+  }
+  return _carrerasCache;
+}
+
+// Catálogo Tipado con inicialización diferida para máxima compatibilidad síncrona
+export const CARRERAS_TECNICAS_BT: BTCarrera[] = new Proxy([] as BTCarrera[], {
+  get(_target, prop, receiver) {
+    const list = getCarrerasTecnicas();
+    const value = Reflect.get(list, prop, receiver);
+    if (typeof value === 'function') {
+      return value.bind(list);
+    }
+    return value;
+  },
+  has(_target, prop) {
+    return Reflect.has(getCarrerasTecnicas(), prop);
+  },
+  ownKeys() {
+    return Reflect.ownKeys(getCarrerasTecnicas());
+  },
+  getOwnPropertyDescriptor(_target, prop) {
+    return Object.getOwnPropertyDescriptor(getCarrerasTecnicas(), prop);
+  },
+});
 
 // ── Métodos Helper de Consulta ────────────────────────────────────────────────
 
