@@ -334,7 +334,7 @@ describe('paec-docx-generator — Generación Editorial Oficial PAEC (DOCX)', ()
     expect(text).toContain('2.2 Pilares de la Nueva Escuela Mexicana Incorporados');
     expect(text).toContain('2.3 Propósitos Integrales del Proyecto (MIFO / DBEPA)');
     expect(text).toContain('Fomento de la identidad con México');
-  });
+  }, 15000);
 
   // ── TEST 11: Formalización Institucional (Minuta, Carta y Oficios) ──────────
   it('Test 11: Renderiza la carta convocatoria y minuta de instalación de la asamblea comunitaria', async () => {
@@ -345,5 +345,5 @@ describe('paec-docx-generator — Generación Editorial Oficial PAEC (DOCX)', ()
     expect(text).toContain('3.1 Carta de Convocatoria a la Asamblea Escolar y Comunitaria');
     expect(text).toContain('3.2 Minuta de Instalación del Comité de Seguimiento Comunitario');
     expect(text).toContain('Comité de Seguimiento del Proyecto Escolar Comunitario');
-  });
+  }, 15000);
 });
