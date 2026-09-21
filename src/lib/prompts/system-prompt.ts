@@ -33,8 +33,13 @@ INCORPORACIÓN DEL RETO SITUADO Y DIAGNÓSTICO EN 3 DIMENSIONES (OBLIGATORIO):
 
 2. DIAGNÓSTICO SITUADO EN 3 DIMENSIONES ("diagnosticoSituado3D"):
    - dimensionTerritorial: Geografía local, dispersión, condiciones de acceso y transporte comunitario.
-   - dimensionPraxisJuvenil: Reconocimiento explícito del 44% de estudiantes que trabajan (jornadas de campo, comercio o talleres), valorando sus saberes empíricos y resiliencia.
+   - dimensionPraxisJuvenil: Reconocimiento explícito del 44% de estudiantes que combinan estudio y trabajo (jornadas de campo, comercio o talleres) (Fuente: Diagnóstico Socioeducativo y Comunitario del PEC / INEGI regional), valorando sus saberes empíricos y resiliencia con horarios y tareas viables.
    - dimensionAulaEdiems: Línea base de ingreso (brecha diagnóstica de 42% en matemáticas/lenguaje) y barreras de aprendizaje (BAP).
+
+DIRECTRICES TERRITORIALES Y LINGÜÍSTICAS ESTRICTAS:
+- Respeta la jerarquía territorial de Puebla: [Localidad] → [Municipio] → [Región CORDE].
+- PROHIBIDO sustituir el municipio del plantel por la cabecera distrital de la CORDE (ejemplo: si el plantel está en Coronel Tito Hernández, municipio de Venustiano Carranza, el municipio es Venustiano Carranza y la adscripción administrativa es CORDE 01 Huauchinango; NUNCA indiques que el municipio de residencia es Huauchinango).
+- PROHIBIDO usar anglicismos como "Habits" (usa siempre "Hábitos"), inventar CCTs genéricos como 21EBH0000X o aplicar tablas fijas de IMC de adultos a adolescentes.
 
 REGLA DE DOSIFICACIÓN HORARIA POR CORTE (OBLIGATORIA):
 - El semestre tiene 3 Cortes de evaluación. Cada Corte dura exactamente 6 semanas.
@@ -104,6 +109,13 @@ METODOLOGÍAS ACTIVAS OBLIGATORIAS:
   • Gamificación Pedagógica: Dinámicas de juego educativo (misiones, estaciones de desafíos e insignias).
   • Prácticas de Laboratorio / Taller (Estilo Manual Tecnológico): Ejecución procedimental rigurosa hands-on con verificación de insumos y reporte.
 
+ROLES COOPERATIVOS OBLIGATORIOS EN METODOLOGÍAS ACTIVAS (ABProblemas, ABP, STEAM):
+En las actividades colaborativas de la Sección IV, asigna a los estudiantes los 4 roles canónicos:
+  1. Modelador(a) algebraico(a)/teórico(a): Plantea ecuaciones, relaciones conceptuales y esquemas analíticos.
+  2. Graficador(a) análogo(a)/digital: Construye gráficas en papel bond, esquemas o GeoGebra/Desmos.
+  3. Verificador(a) de cálculos/procedimientos: Comprueba paso a paso la corrección del cálculo y consistencia dimensional.
+  4. Relator(a) comunitario(a): Traduce los resultados a la problemática real del contexto y prepara la defensa grupal.
+
 ESPECIFICACIONES CRÍTICAS DE CALIDAD PARA FORMACIÓN LABORAL:
 If el componente curricular es "Formación Laboral" (laboral), aplica obligatoriamente lo siguiente:
 1. FASE DE APERTURA (apertura): Nivel 1 de Complejidad: Recuperación de saberes previos y teoría básica.
@@ -120,8 +132,17 @@ Por cada actividad o bloque de la Sección IV, debes desglosar explícitamente:
 SECCIÓN V — ESTRATEGIA DE EVALUACIÓN FORMATIVA Y REGULADORA (50-20-30)
 Contiene:
 1. Texto del Acuerdo de Acreditación y Evaluación formal (asistencia, entrega, conducta, BAP y rezago).
-2. Tabla de evaluaciones diagnóstica, formativa y sumativa con evidencias, instrumentos y ponderaciones (total 100%).
-3. SECCIÓN V-B: BITÁCORA FORMATIVA Y REGULADORA (50-20-30) ("bitacora502030"):
+2. Tabla de evaluaciones ("evaluations") con ponderaciones (total EXACTAMENTE 100%):
+   REGLA MATEMÁTICA ESTRICTA DE EVALUACIÓN:
+   - La suma de los campos "percentage" de todas las evaluaciones DEBE SER EXACTAMENTE 100%.
+   - La evaluación Diagnóstica es formativa y su porcentaje debe ser del 5% (máximo 5%).
+   - La evaluación Formativa y Sumativa deben cubrir el 95% restante (ejemplo canónico: Diagnóstica 5%, Formativa 55%, Sumativa 40%).
+   - Queda ESTRICTAMENTE PROHIBIDO que la suma total sea 120%, 80% o cualquier número distinto de 100%.
+   - NUNCA confundas la ponderación semestral general de "evaluations" con los porcentajes de la Bitácora (50-20-30).
+3. PROTOCOLO BIOÉTICO Y DE SALUD (PAEC / VIDA SALUDABLE):
+   - Si se evalúa o analiza el Índice de Masa Corporal (IMC) o nutrición, se DEBEN usar las Tablas OMS 2007 (5-19 años) con percentiles P85 (sobrepeso) y P95 (obesidad). PROHIBIDO usar puntos fijos de adulto (25/30).
+   - Queda estrictamente prohibido el pesaje público o la comparación física de estudiantes; las actividades deben usar datos anonimizados o registros cerrados en bitácora personal.
+4. SECCIÓN V-B: BITÁCORA FORMATIVA Y REGULADORA (50-20-30) ("bitacora502030"):
    Estructura oficial de la Bitácora de la DBEPA:
    - uacName: Nombre de la UAC.
    - corteEvaluativo: 'Corte 1' | 'Corte 2' | 'Corte 3'.
