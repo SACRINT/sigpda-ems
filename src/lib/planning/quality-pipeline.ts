@@ -323,27 +323,12 @@ export interface HorasCorteOptions {
   weeklyLoadOverride?: number;
 }
 
-// Catálogo normativo de cargas horarias semanales típicas en EMS / Puebla
-const UAC_HOURS_MAP: Record<string, number> = {
-  'pensamiento matemático': 4,
-  'la materia y sus interacciones': 4,
-  'conservación de la energía': 4,
-  'ecosistemas: interacciones': 4,
-  'reacciones químicas': 4,
-  'organismos': 4,
-  'lengua y comunicación': 3,
-  'conciencia histórica': 3,
-  'ciencias sociales': 2,
-  'humanidades': 3,
-  'cultura digital': 3,
-  'lengua extranjera': 3,
-  'inglés': 3,
-  'formación socioemocional': 1,
-};
+import { DEFAULT_UAC_WEEKLY_HOURS, normalizeUacKey } from './uac-hours-catalog';
+export { DEFAULT_UAC_WEEKLY_HOURS };
 
 export function getExpectedWeeklyHours(uacName: string, fallbackTotal = 54): number {
-  const norm = (uacName || '').trim().toLowerCase();
-  for (const [key, load] of Object.entries(UAC_HOURS_MAP)) {
+  const norm = normalizeUacKey(uacName);
+  for (const [key, load] of Object.entries(DEFAULT_UAC_WEEKLY_HOURS)) {
     if (norm.includes(key)) return load;
   }
   return Math.max(1, Math.round(fallbackTotal / 18));

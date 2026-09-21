@@ -254,6 +254,13 @@ describe('PlanningQualityPipeline', () => {
       expect(result.isBalanced).toBe(false);
       expect(result.feedback.some((f) => f.includes('Desbalance en cortes'))).toBe(true);
     });
+
+    it('reconoce UACs con o sin acentos de forma insensible a diacríticos', () => {
+      const conAcento = validateHorasPorCorte('Pensamiento Matemático I', 72);
+      const sinAcento = validateHorasPorCorte('pensamiento matematico i', 72);
+      expect(conAcento.expectedWeeklyHours).toBe(4);
+      expect(sinAcento.expectedWeeklyHours).toBe(4);
+    });
   });
 
   describe('evaluatePlanningQuality', () => {
