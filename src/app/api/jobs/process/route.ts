@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { claimNextPendingJob, getGenerationJobById } from '@/lib/db';
 import { processGenerationJob } from '@/lib/job-worker';
 import { logger } from '@/lib/logger';
+import { auth } from '@/lib/auth';
+import { isAdmin } from '@/lib/admin-unified';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60; // Máximo permitido en plan gratuito Hobby (y compatible con Pro)
@@ -15,14 +17,25 @@ export const maxDuration = 60; // Máximo permitido en plan gratuito Hobby (y co
  */
 async function handleProcess(request: NextRequest) {
   try {
-    // Verificación de seguridad opcional si CRON_SECRET está configurado
+    // Verificación estricta de seguridad: Bearer CRON_SECRET o sesión de Administrador
     const authHeader = request.headers.get('authorization');
     const cronSecret = process.env.CRON_SECRET;
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-      // Si hay CRON_SECRET pero no coincide y no es ambiente local, proteger
-      if (process.env.NODE_ENV === 'production' && !request.headers.get('x-vercel-cron')) {
-        return NextResponse.json({ error: 'No autorizado para ejecutar el worker' }, { status: 401 });
+
+    let isAuthorized = false;
+
+    if (cronSecret && authHeader === `Bearer ${cronSecret}`) {
+      isAuthorized = true;
+    }
+
+    if (!isAuthorized) {
+      const session = await auth();
+      if (session?.user?.email && (await isAdmin(session.user.email))) {
+        isAuthorized = true;
       }
+    }
+
+    if (!isAuthorized && process.env.NODE_ENV !== 'test') {
+      return NextResponse.json({ error: 'No autorizado para ejecutar el worker' }, { status: 401 });
     }
 
     const url = new URL(request.url);
@@ -64,12 +77,13 @@ async function handleProcess(request: NextRequest) {
       status: completedJob?.status || 'completed',
       wordCount: completedJob?.result?.totalWords || 0,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[api/jobs/process] Error al procesar trabajo:', error);
+    const message = error instanceof Error ? error.message : 'Error procesando trabajo';
     return NextResponse.json(
       {
         success: false,
-        error: error?.message || 'Error procesando trabajo',
+        error: message,
       },
       { status: 500 }
     );
