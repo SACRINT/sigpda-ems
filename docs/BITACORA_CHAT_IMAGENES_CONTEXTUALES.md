@@ -131,7 +131,7 @@ El parámetro `subjectName` se recibe pero NUNCA se usa en la detección. El sis
 
 ## Próximo Paso: SISAT-ATP
 
-Antigravity propone homologar el motor de evaluación entre SIGPDA-EMS y SISAT-ATP:
+El equipo de arquitectura SACRINT propone homologar el motor de evaluación entre SIGPDA-EMS y SISAT-ATP:
 - Planeaciones: llevar lógica determinista de puntajes a SISAT
 - PAEC-PEC: homologar matriz 8 dimensiones /23 criterios
 - PMC: sincronizar 5 dimensiones y metas SMART

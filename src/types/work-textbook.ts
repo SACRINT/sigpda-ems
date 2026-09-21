@@ -35,9 +35,9 @@ export interface TroubleshootItem {
   rootCause: string;         // Causa técnica subyacente
   solutionSteps: string[];   // Pasos de solución metódica
   preventionTip: string;     // Cómo evitar este error en el futuro
-  cause?: string;            // Causa técnica (formato directo OpenCode)
-  solution?: string;         // Solución paso a paso (formato directo OpenCode)
-  prevention?: string;       // Prevención (formato directo OpenCode)
+  cause?: string;            // Causa técnica (formato directo SACRINT)
+  solution?: string;         // Solución paso a paso (formato directo SACRINT)
+  prevention?: string;       // Prevención (formato directo SACRINT)
 }
 
 export interface MissionSection {

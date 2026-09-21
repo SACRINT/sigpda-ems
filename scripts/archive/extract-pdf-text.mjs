@@ -27,7 +27,7 @@ async function run() {
     text += `=== PAGE ${i} ===\n${pageText}\n\n`;
   }
   
-  const outPath = 'C:/Users/samue/.gemini/antigravity/brain/ed37a3e5-9696-4fbc-8cdc-fecebfd91fe5/scratch/cultura-digital-text.txt';
+  const outPath = 'C:/Users/samue/.gemini/sacrint/brain/ed37a3e5-9696-4fbc-8cdc-fecebfd91fe5/scratch/cultura-digital-text.txt';
   fs.writeFileSync(outPath, text, 'utf-8');
   console.log(`Done! Extracted text written to ${outPath}`);
 }

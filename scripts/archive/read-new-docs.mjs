@@ -17,7 +17,7 @@ async function run() {
     'S1 Guía Retro S2_Secuencia Didáctica 26 27.pdf'
   ];
 
-  const outputDir = 'C:/Users/samue/.gemini/antigravity/brain/ed37a3e5-9696-4fbc-8cdc-fecebfd91fe5/scratch';
+  const outputDir = 'C:/Users/samue/.gemini/sacrint/brain/ed37a3e5-9696-4fbc-8cdc-fecebfd91fe5/scratch';
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
   }

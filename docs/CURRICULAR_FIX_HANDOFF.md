@@ -2,7 +2,7 @@
 ## Fix Curricular Canónico MCCEMS (Paso 2 Planeaciones Didácticas)
 
 **Fecha**: Septiembre 2026  
-**Estado Actual**: Consenso unificado 100% alcanzado entre **Antigravity (Agente 1)** y **OpenCode (Agente 2)** tras peer review.  
+**Estado Actual**: Consenso unificado 100% alcanzado por el **Equipo de Ingeniería SACRINT** tras peer review.  
 **Branch**: `main`  
 **Git Status**: Clean. Últimos commits completaron con éxito las 6 fases del sistema unificado de documentos (Commits: `5aee616`, `5959d2f`, `4996fee`, `9c37850`, `b021ce8`, `5c4e4b9`). 34/34 test suites pasando (264 pruebas), 0 errores TypeScript.
 
@@ -18,7 +18,7 @@ Al seleccionar o cargar un programa canónico en el **Paso 2 (`StepPdfUpload.tsx
 
 ---
 
-### 2. Plan de Acción Unificado Aprobado (Antigravity + OpenCode)
+### 2. Plan de Acción Unificado Aprobado (SACRINT)
 
 #### Paso 1: Crear `src/lib/text-utils.ts` (Utilidad cliente/servidor compartida)
 - Exportar función pura `removeHyphens(text: string): string` sin dependencias de Node.js (`fs`, `Buffer`).

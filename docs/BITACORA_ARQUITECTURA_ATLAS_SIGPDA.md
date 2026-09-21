@@ -279,7 +279,7 @@ Con el fin de cumplir estrictamente con los requerimientos de entrega de la Secr
 
 ---
 
-## 10. Matriz de Auditoría y Estado de las 25 Mejoras de Opencode (Propósito Original)
+## 10. Matriz de Auditoría y Estado de las 25 Mejoras de SACRINT (Propósito Original)
 
 A continuación se registra el diagnóstico y estado de atención de las 25 mejoras identificadas para consolidar la plataforma en su misión única de servicio a **Docentes, Directores y Supervisores**:
 
@@ -577,9 +577,9 @@ Se completó en su totalidad la **FASE D: Wizard UI de 9 Pasos (`src/app/[locale
 
 ### 17. FASE E: GENERADORES EDITORIALES DOCX Y PDF (30 A 35 PÁGINAS) — ESTÁNDAR SEP/DBEPA PUEBLA
 
-Se completó en su totalidad la **FASE E: Generadores Editoriales DOCX y PDF** del Motor PAEC-PEC 2.0 (`src/lib/paec-docx-generator.ts` y `src/lib/paec-pdf-generator.ts`), implementando una arquitectura de orientación híbrida institucional y resolviendo el 100% de los señalamientos de la auditoría técnica OpenCode para cumplir con el estándar documental de 30 a 35 páginas del Bachillerato General "Héroes de la Patria":
+Se completó en su totalidad la **FASE E: Generadores Editoriales DOCX y PDF** del Motor PAEC-PEC 2.0 (`src/lib/paec-docx-generator.ts` y `src/lib/paec-pdf-generator.ts`), implementando una arquitectura de orientación híbrida institucional y resolviendo el 100% de los señalamientos de la auditoría técnica SACRINT para cumplir con el estándar documental de 30 a 35 páginas del Bachillerato General "Héroes de la Patria":
 
-#### 1. Resolución Integral de Señalamientos Técnicos (OpenCode Audit):
+#### 1. Resolución Integral de Señalamientos Técnicos (SACRINT Audit):
 - **DOCX (`paec-docx-generator.ts`):**
   1. *Orientación Híbrida Real por Secciones Word:* Se estructuró el documento en 3 secciones nativas de Word (`SectionProperties`):
      - **Sección 1 (Portrait):** Macro-Fases I y II (Portada, Diagnóstico, FODA cruzado, Priorización, Justificación, Mapeo Curricular y Cronograma).

@@ -1,6 +1,6 @@
 const fs = require('fs');
 
-const grouped = JSON.parse(fs.readFileSync('C:\\Users\\samue\\.gemini\\antigravity\\brain\\ed37a3e5-9696-4fbc-8cdc-fecebfd91fe5\\scratch\\laboral_grouped.json', 'utf8'));
+const grouped = JSON.parse(fs.readFileSync('C:\\Users\\samue\\.gemini\\sacrint\\brain\\ed37a3e5-9696-4fbc-8cdc-fecebfd91fe5\\scratch\\laboral_grouped.json', 'utf8'));
 
 console.log('=== VERIFICANDO CAPACITACIONES LABORALES (15) ===');
 let totalLaboral = 0;

@@ -1,6 +1,6 @@
 const fs = require('fs');
 
-const uacsDB = JSON.parse(fs.readFileSync('C:\\Users\\samue\\.gemini\\antigravity\\brain\\ed37a3e5-9696-4fbc-8cdc-fecebfd91fe5\\scratch\\uacs_list.json', 'utf8'));
+const uacsDB = JSON.parse(fs.readFileSync('C:\\Users\\samue\\.gemini\\sacrint\\brain\\ed37a3e5-9696-4fbc-8cdc-fecebfd91fe5\\scratch\\uacs_list.json', 'utf8'));
 
 // Mapa completo de las 30 Asignaturas del Currículum Fundamental MCCEMS (Puebla)
 const fundamentalUACs = [
@@ -107,7 +107,7 @@ allUACsMaster.forEach(u => {
 console.log('Desglose por componente:', summaryComp);
 
 // Guardar archivo JSON maestro completo de las 198 / 203 asignaturas
-fs.writeFileSync('C:\\Users\\samue\\.gemini\\antigravity\\brain\\ed37a3e5-9696-4fbc-8cdc-fecebfd91fe5\\scratch\\uacs_master_203.json', JSON.stringify(allUACsMaster, null, 2));
+fs.writeFileSync('C:\\Users\\samue\\.gemini\\sacrint\\brain\\ed37a3e5-9696-4fbc-8cdc-fecebfd91fe5\\scratch\\uacs_master_203.json', JSON.stringify(allUACsMaster, null, 2));
 
 // Ahora generar el Markdown perfecto organizado por Semestre y Componente
 const bySem = {};
@@ -163,5 +163,5 @@ Object.keys(bySem).sort((a,b) => Number(a) - Number(b)).forEach(sem => {
   });
 });
 
-fs.writeFileSync('C:\\Users\\samue\\.gemini\\antigravity\\brain\\ed37a3e5-9696-4fbc-8cdc-fecebfd91fe5\\catalogo_asignaturas_completo_203.md', markdown);
+fs.writeFileSync('C:\\Users\\samue\\.gemini\\sacrint\\brain\\ed37a3e5-9696-4fbc-8cdc-fecebfd91fe5\\catalogo_asignaturas_completo_203.md', markdown);
 console.log('¡Archivo catalogo_asignaturas_completo_203.md regenerado correctamente!');

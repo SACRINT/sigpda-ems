@@ -2,7 +2,7 @@
  * Pruebas de Invariantes del Catálogo de Estrategias Didácticas — SIGPDA-EMS
  *
  * Valida los 5 invariantes pedagógicos de dominio real consensuados en las
- * 3 fases de revisión por pares (OpenCode + Antigravity Staff Architect).
+ * 3 fases de revisión por pares (SACRINT Staff Architect).
  *
  * Distribución esperada: 4 Apertura · 6 Desarrollo · 4 Cierre (14 total)
  */

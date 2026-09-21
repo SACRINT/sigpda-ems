@@ -1,6 +1,6 @@
 const fs = require('fs');
 
-const jsonPath = 'C:\\Users\\samue\\.gemini\\antigravity\\brain\\ed37a3e5-9696-4fbc-8cdc-fecebfd91fe5\\scratch\\uacs_list.json';
+const jsonPath = 'C:\\Users\\samue\\.gemini\\sacrint\\brain\\ed37a3e5-9696-4fbc-8cdc-fecebfd91fe5\\scratch\\uacs_list.json';
 const uacs = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
 
 console.log('=== RESUMEN DE MATERIAS / UACS ===');
@@ -51,5 +51,5 @@ Object.keys(bySem).sort((a,b) => Number(a) - Number(b)).forEach(sem => {
   });
 });
 
-fs.writeFileSync('C:\\Users\\samue\\.gemini\\antigravity\\brain\\ed37a3e5-9696-4fbc-8cdc-fecebfd91fe5\\catalogo_asignaturas_completo.md', markdown);
+fs.writeFileSync('C:\\Users\\samue\\.gemini\\sacrint\\brain\\ed37a3e5-9696-4fbc-8cdc-fecebfd91fe5\\catalogo_asignaturas_completo.md', markdown);
 console.log('Archivo catalogo_asignaturas_completo.md generado exitosamente!');
