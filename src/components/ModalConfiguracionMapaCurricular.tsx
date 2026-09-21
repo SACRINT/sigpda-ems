@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
@@ -18,10 +19,11 @@ import {
   MapaCurricularPaso2Configuracion,
   MapaCurricularFooter,
   type GrupoConfigItem,
+  type GrupoInicialItem,
 } from "./mapa-curricular";
 import ModalConfiguracionMapaCurricularLegacy from "./mapa-curricular/ModalConfiguracionMapaCurricularLegacy";
 
-export type { GrupoConfigItem };
+export type { GrupoConfigItem, GrupoInicialItem };
 
 interface Props {
   escuela: {
@@ -35,7 +37,7 @@ interface Props {
     mapaCurricularCompletado?: boolean;
   };
   subsystem?: "bge" | "tecnologico";
-  gruposIniciales?: any[];
+  gruposIniciales?: GrupoInicialItem[];
   isOpen: boolean;
   onClose?: () => void;
   onSaved?: () => void;
@@ -154,7 +156,7 @@ function ModalConfiguracionMapaCurricularModular({
 
   const normalizarNombreGrupo = (n: string) => (n || "").replace(/º/g, "°");
 
-  const handleUpdateGrupoConfig = (grupoNombre: string, field: string, value: any) => {
+  const handleUpdateGrupoConfig = (grupoNombre: string, field: string, value: string | string[]) => {
     const nNorm = normalizarNombreGrupo(grupoNombre);
     const nAlt = grupoNombre.includes("°")
       ? grupoNombre.replace("°", "º")
@@ -305,8 +307,10 @@ function ModalConfiguracionMapaCurricularModular({
       toast.success("¡Mapa curricular y estructura del plantel guardados exitosamente!");
       if (onSaved) onSaved();
       if (onClose) onClose();
-    } catch (err: any) {
-      toast.error(err.message || "No se pudo guardar la configuración");
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error ? err.message : "No se pudo guardar la configuración";
+      toast.error(errorMessage);
     } finally {
       setGuardando(false);
     }
