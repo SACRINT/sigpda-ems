@@ -10,7 +10,7 @@
  *  - Formación Laboral (Actividades Clave y Competencias)         → Guía Laboral DBEPA (200 pts)
  */
 
-import { getAIProvider } from '@/lib/ai-provider';
+import { generateWithRotation } from '@/lib/ai-provider';
 import { parseAIResponse } from '@/lib/ai-response-parser';
 import { PlaneacionEvaluacionSchema } from '@/lib/ai-schemas';
 import { logger } from '@/lib/logger';
@@ -51,6 +51,8 @@ export interface InputEvaluacion {
   textoPlanificacion: string;
   textoPaecPec?: string;
   propositosOficiales?: string;
+  teacherId?: string;
+  isPremium?: boolean;
 }
 
 interface CriterioDefinicion {
@@ -116,7 +118,7 @@ const CRITERIOS_DEF_LABORAL: CriterioDefinicion[] = [
 ];
 
 export async function evaluarPlaneacion(input: InputEvaluacion): Promise<ResultadoEvaluacion> {
-  const { tipoEvaluacion, asignatura, semestre, docenteNombre, textoPlanificacion, textoPaecPec } = input;
+  const { tipoEvaluacion, asignatura, semestre, docenteNombre, textoPlanificacion, textoPaecPec, teacherId, isPremium } = input;
 
   let defs: CriterioDefinicion[] = CRITERIOS_DEF_1_4;
   let rubricaNombre = 'Anexo 12 USICAMM (1° a 4° Semestre — Propósitos Formativos)';
@@ -193,9 +195,15 @@ ${textoPaecPec || 'Contextualización y proyecto comunitario escolar presente en
 
 Dictamina cada uno de los ${defs.length} criterios de forma objetiva y responde únicamente en JSON.`;
 
-  const ai = await getAIProvider();
-  // Forzar temperatura 0.0 para máxima reproducibilidad y determinismo
-  const responseText = await ai.generate(systemPrompt, userPrompt, { temperature: 0.0 });
+  // Utilizar generateWithRotation para clave prioritaria de usuario, rotación en pool
+  // ante cuotas/429/503 con backoff exponencial, y fallback multi-proveedor automático
+  const responseText = await generateWithRotation(
+    systemPrompt,
+    userPrompt,
+    teacherId,
+    isPremium,
+    { temperature: 0.0, jsonMode: true }
+  );
 
   const parseResult = parseAIResponse(responseText, PlaneacionEvaluacionSchema, {
     contextName: 'planeaciones-evaluator',
@@ -206,10 +214,27 @@ Dictamina cada uno de los ${defs.length} criterios de forma objetiva y responde 
     throw new Error(`La IA devolvió una respuesta con formato inválido para la evaluación: ${parseResult.error}`);
   }
 
-  const rawJson: any = parseResult.data;
+  interface AICriterioItem {
+    id?: string;
+    cumple?: string;
+    evidencia?: string;
+    observacion?: string;
+    recomendacion?: string;
+  }
+
+  interface AIRawResponse {
+    criterios?: AICriterioItem[];
+    puntosFuertes?: string[];
+    mejorasUrgentes?: string[];
+    observacionesExtendidas?: string;
+    alineacionPaecPec?: string;
+    retroalimentacionDocente?: string;
+  }
+
+  const rawJson = parseResult.data as unknown as AIRawResponse;
 
   // ── Cálculo determinista y cuantitativo en TypeScript ────────────────────
-  const aiCriteriosMap = new Map<string, any>();
+  const aiCriteriosMap = new Map<string, AICriterioItem>();
   if (Array.isArray(rawJson.criterios)) {
     for (const c of rawJson.criterios) {
       if (c && c.id) aiCriteriosMap.set(String(c.id).toLowerCase(), c);

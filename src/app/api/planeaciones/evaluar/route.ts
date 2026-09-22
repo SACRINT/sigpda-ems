@@ -5,6 +5,8 @@ import { NextResponse } from 'next/server';
 import { evaluarPlaneacion, TipoEvaluacion } from '@/lib/planeaciones-evaluator';
 import { logger } from '@/lib/logger';
 
+export const maxDuration = 120;
+
 export async function POST(req: Request) {
   try {
     const session = await auth();
@@ -127,6 +129,8 @@ export async function POST(req: Request) {
       docenteNombre,
       textoPlanificacion: textoEvaluado,
       textoPaecPec: textoPaecPec || planData?.paec_context || '',
+      teacherId: currentTeacher?.id,
+      isPremium: isPrivileged,
     });
 
     // Persistir resultado en la base de datos para que no se pierda al salir

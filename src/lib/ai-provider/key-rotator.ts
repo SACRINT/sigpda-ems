@@ -270,24 +270,31 @@ export async function withKeyRotation<T>(
         await recordUsage(keyId);
       }
       return result;
-    } catch (err: any) {
-      lastError = err;
-      const errStr = String(err?.message || '');
+    } catch (err: unknown) {
+      const errorObj = err as { status?: number; statusCode?: number; message?: string } | null;
+      lastError = err instanceof Error ? err : new Error(String(err));
+      const errStr = String(errorObj?.message || err || '');
 
       // Detect transient rate-limit / demand errors — do NOT penalize the key
       const isRateLimit =
-        err?.status === 429 ||
-        err?.statusCode === 429 ||
+        errorObj?.status === 429 ||
+        errorObj?.statusCode === 429 ||
+        errorObj?.status === 503 ||
+        errorObj?.statusCode === 503 ||
         errStr.includes('429') ||
+        errStr.includes('503') ||
         errStr.toLowerCase().includes('quota') ||
         errStr.toLowerCase().includes('resource_exhausted') ||
         errStr.toLowerCase().includes('rate limit') ||
         errStr.toLowerCase().includes('high demand') ||
-        errStr.toLowerCase().includes('too many requests');
+        errStr.toLowerCase().includes('too many requests') ||
+        errStr.toLowerCase().includes('service unavailable') ||
+        errStr.toLowerCase().includes('overloaded') ||
+        errStr.toLowerCase().includes('timeout');
 
       // Detect permanent credential errors — penalize key
       const isPermanentError =
-        err?.status === 401 || err?.status === 403 ||
+        errorObj?.status === 401 || errorObj?.status === 403 ||
         errStr.includes('401') || errStr.includes('403') ||
         errStr.toLowerCase().includes('invalid') ||
         errStr.toLowerCase().includes('unauthorized') ||
@@ -316,6 +323,9 @@ export async function withKeyRotation<T>(
             isRateLimit ? 'rate-limit' : 'transient'
           }). Rotating to key #${i + 2}/${attempts.length}...`
         );
+        // Exponential backoff to avoid slamming providers on rate limit
+        const backoffMs = Math.min(2000, 300 * Math.pow(2, i));
+        await new Promise((resolve) => setTimeout(resolve, backoffMs));
         continue;
       }
 
