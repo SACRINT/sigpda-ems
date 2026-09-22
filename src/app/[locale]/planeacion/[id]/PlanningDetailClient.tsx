@@ -1099,6 +1099,7 @@ function PlanningDetailModular({
           setPreviewExtra={setPreviewExtra}
           handleDeleteExtra={handleDeleteExtra}
           handleGenerateExtra={handleGenerateExtra}
+          blockWorkbooks={blockWorkbooks}
         />
       )}
 

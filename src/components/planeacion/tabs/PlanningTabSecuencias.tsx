@@ -36,6 +36,7 @@ export interface PlanningTabSecuenciasProps {
       phase?: string;
     }
   ) => Promise<void>;
+  blockWorkbooks?: Record<number, { loaded?: boolean; generating?: boolean; workbook?: unknown; progress?: unknown; error?: string | null }>;
 }
 
 export default function PlanningTabSecuencias({
@@ -50,6 +51,7 @@ export default function PlanningTabSecuencias({
   setPreviewExtra,
   handleDeleteExtra,
   handleGenerateExtra,
+  blockWorkbooks = {},
 }: PlanningTabSecuenciasProps) {
   const content = planning.contentJson as GeneratedPlanningContent | null;
   const s1 = content?.sectionI;
@@ -422,6 +424,9 @@ export default function PlanningTabSecuencias({
                         const generated = findExtra('lesson_plan', session.activityIndex, undefined, session.sessionNum);
                         const loadingKey = `lesson_plan-${session.activityIndex}-${session.sessionNum}-`;
                         const isCurrentGenerating = generatingKey?.startsWith(loadingKey);
+                        const blockWb = blockWorkbooks[session.activityIndex];
+                        const hasBlockWorkbook = Boolean(blockWb?.workbook);
+                        const isWorkbookGenerating = Boolean(blockWb?.generating);
 
                         return (
                           <div
@@ -484,13 +489,27 @@ export default function PlanningTabSecuencias({
 
                                 {/* Status badge */}
                                 {generated ? (
-                                  <span style={{ fontSize: '11px', color: '#34d399', display: 'inline-flex', alignItems: 'center', gap: '3px', fontWeight: 600 }}>
-                                    <CheckCircle size={12} /> Plan Generado
-                                  </span>
+                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                    <span style={{ fontSize: '11px', color: '#34d399', display: 'inline-flex', alignItems: 'center', gap: '3px', fontWeight: 600 }}>
+                                      <CheckCircle size={12} /> Plan Generado
+                                    </span>
+                                    {hasBlockWorkbook && (
+                                      <span style={{ fontSize: '10.5px', color: '#6ee7b7', background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '1px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                                        ✓ En libro de bloque
+                                      </span>
+                                    )}
+                                  </div>
                                 ) : (
-                                  <span style={{ fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>
-                                    Pendiente de generar
-                                  </span>
+                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                    <span style={{ fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>
+                                      Pendiente de generar
+                                    </span>
+                                    {hasBlockWorkbook && (
+                                      <span style={{ fontSize: '10.5px', color: '#6ee7b7', background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '1px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                                        ✓ En libro de bloque
+                                      </span>
+                                    )}
+                                  </div>
                                 )}
                               </div>
 
@@ -555,42 +574,57 @@ export default function PlanningTabSecuencias({
                                     </button>
                                   </div>
                                 ) : (
-                                  <button
-                                    onClick={() =>
-                                      handleGenerateExtra(
-                                        'lesson_plan',
-                                        `Plan de Clase: Sesión ${session.sessionNum} - ${session.title}`,
-                                        session.activityIndex,
-                                        {
-                                          sessionNum: session.sessionNum,
-                                          totalSessions: session.totalSessions,
-                                          activityName: session.activityName,
-                                          sessionTopic: session.title,
-                                          sessionFocus: session.focus,
-                                          teachingActivity: session.teachingActivity,
-                                          learningActivity: session.learningActivity,
-                                          evidence: session.evidence,
-                                          evaluation: session.evaluation,
-                                          phase: session.phase,
-                                        }
-                                      )
-                                    }
-                                    disabled={generatingKey !== null}
-                                    className="btn btn-navy"
-                                    style={{
-                                      padding: '6px 14px',
-                                      fontSize: '11.5px',
-                                      fontWeight: 600,
-                                      borderRadius: '5px',
-                                      border: 'none',
-                                      cursor: generatingKey !== null ? 'not-allowed' : 'pointer',
-                                      background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                                      color: '#fff',
-                                      boxShadow: '0 2px 6px rgba(37, 99, 235, 0.3)',
-                                    }}
-                                  >
-                                    {isCurrentGenerating ? '⏳ Creando plan...' : '⚡ Generar Plan de Clase'}
-                                  </button>
+                                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px' }}>
+                                    <button
+                                      onClick={() =>
+                                        handleGenerateExtra(
+                                          'lesson_plan',
+                                          `Plan de Clase: Sesión ${session.sessionNum} - ${session.title}`,
+                                          session.activityIndex,
+                                          {
+                                            sessionNum: session.sessionNum,
+                                            totalSessions: session.totalSessions,
+                                            activityName: session.activityName,
+                                            sessionTopic: session.title,
+                                            sessionFocus: session.focus,
+                                            teachingActivity: session.teachingActivity,
+                                            learningActivity: session.learningActivity,
+                                            evidence: session.evidence,
+                                            evaluation: session.evaluation,
+                                            phase: session.phase,
+                                          }
+                                        )
+                                      }
+                                      disabled={generatingKey !== null || isWorkbookGenerating}
+                                      className="btn btn-navy"
+                                      title={
+                                        isWorkbookGenerating
+                                          ? 'Generación de libro de bloque en curso...'
+                                          : 'Se genera automáticamente con el Libro de Bloque. Usar solo para regenerar esta sesión.'
+                                      }
+                                      style={{
+                                        padding: '6px 14px',
+                                        fontSize: '11.5px',
+                                        fontWeight: 600,
+                                        borderRadius: '5px',
+                                        border: 'none',
+                                        cursor: generatingKey !== null || isWorkbookGenerating ? 'not-allowed' : 'pointer',
+                                        opacity: isWorkbookGenerating ? 0.6 : 1,
+                                        background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                                        color: '#fff',
+                                        boxShadow: '0 2px 6px rgba(37, 99, 235, 0.3)',
+                                      }}
+                                    >
+                                      {isCurrentGenerating
+                                        ? '⏳ Creando plan...'
+                                        : isWorkbookGenerating
+                                        ? '⏳ Generando en bloque...'
+                                        : '⚡ Generar Plan de Clase'}
+                                    </button>
+                                    <span style={{ fontSize: '10px', color: '#94a3b8', maxWidth: '220px', textAlign: 'right', lineHeight: '1.25' }}>
+                                      Se genera automáticamente con el Libro de Bloque. Usar solo para regenerar esta sesión.
+                                    </span>
+                                  </div>
                                 )}
                               </div>
                             </div>
