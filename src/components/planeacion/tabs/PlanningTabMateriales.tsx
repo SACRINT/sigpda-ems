@@ -110,7 +110,7 @@ export default function PlanningTabMateriales({
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {content?.sectionIV?.activities?.map((act, actIdx) => {
                   const practiceNum = actIdx + 1;
-                  const practiceTitle = `${act.name.substring(0, 60)}`;
+                  const practiceTitle = act.name;
                   const generatedGuide = findExtra('teacher_guide', actIdx);
                   const loadingKey = `teacher_guide-${actIdx}--`;
                   const isCurrentGenerating = generatingKey?.startsWith(loadingKey);
@@ -186,7 +186,7 @@ export default function PlanningTabMateriales({
                               onClick={() =>
                                 handleGenerateExtra(
                                   'teacher_guide',
-                                  `Guía del Docente y Solucionario ${practiceNum}: ${practiceTitle.substring(0, 50)}`,
+                                  `Guía del Docente y Solucionario ${practiceNum}: ${practiceTitle}`,
                                   actIdx,
                                   {
                                     activityName: act.name,
