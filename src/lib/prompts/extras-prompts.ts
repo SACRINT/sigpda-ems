@@ -418,3 +418,60 @@ REGLAS DE REDACCIÓN:
 - Total aproximado: 1,200 a 2,000 palabras.
 `;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Guía Pedagógica y Solucionario Oficial del Docente (DBEPA Puebla)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const TEACHER_GUIDE_PROMPT_TEMPLATE = (
+  uacName: string,
+  activityName: string,
+  practiceNumber: number,
+  practiceTitle: string,
+  paecProblem: string,
+  learningOutcome: string,
+  metodologiaActiva?: string
+) => `
+Genera un **Solucionario y Guía de Mediación Pedagógica del Docente** (de uso exclusivo para el profesorado).
+Este documento complementa el Libro de Trabajo y las Guías Prácticas del estudiantado en el marco del MCCEMS y DBEPA Puebla 2026-2027.
+
+DATOS DE IDENTIFICACIÓN:
+- UAC / Asignatura: ${uacName}
+- Actividad / Práctica: ${practiceNumber}. ${practiceTitle} (${activityName})
+- Propósito / Resultado de Aprendizaje: ${learningOutcome}
+- Problemática Comunitaria (PAEC): ${paecProblem}
+${buildMetodologiaLine(metodologiaActiva)}
+
+ESTRUCTURA OBLIGATORIA DEL DOCUMENTO:
+
+# SOLUCIONARIO Y GUÍA DE MEDIACIÓN PEDAGÓGICA (USO EXCLUSIVO DOCENTE)
+**UAC:** ${uacName} | **Práctica:** ${practiceNumber}. ${practiceTitle}
+
+---
+
+## 1. PAUTAS DE MEDIACIÓN DIDÁCTICA Y ENCUADRE
+- Estrategias de activación de saberes previos ante la pregunta detonadora.
+- Errores conceptuales más frecuentes y cómo intervenir dialécticamente sin descalificar.
+- Formas de relacionar la práctica con la problemática del PAEC (${paecProblem}).
+
+## 2. RESOLUCIONES MODELO Y CLAVE DE RESPUESTAS
+- Procedimiento analítico, matemático, algorítmico o experimental paso a paso.
+- Resultados esperados, tolerancias de medición y magnitudes estándar.
+- Código, diagramas o esquemas técnicos correctos para cotejo inmediato.
+
+## 3. SOLUCIONARIO DE LAS PREGUNTAS DE ANÁLISIS (TAXONOMÍA BLOOM)
+Proporciona la respuesta esperada y los criterios de validez para cada uno de los 6 niveles cognitivos:
+1. (Recordar) Concepto clave y definición técnica precisa.
+2. (Comprender) Explicación del fenómeno o mecanismo subyacente.
+3. (Aplicar) Demostración del uso práctico en situaciones análogas.
+4. (Analizar) Comparación crítica, relaciones causa-efecto o variables involucradas.
+5. (Evaluar) Criterios para juzgar la calidad del procedimiento y detectar desvíos.
+6. (Crear) Pautas para validar la propuesta de solución comunitaria al PAEC.
+
+## 4. RÚBRICA DE VALORACIÓN RÁPIDA (DESEMPEÑO DEL ESTUDIANTE)
+Tabla con 4 niveles de desempeño (Excelente, Aceptable, Requiere Apoyo, Insuficiente) enfocada en:
+- Rigor técnico/metodológico
+- Trabajo colaborativo y respeto al entorno
+- Entrega en tiempo y forma del producto esperado.
+`;
+
+

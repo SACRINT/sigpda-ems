@@ -264,7 +264,6 @@ export default function PlanningDetailLegacy({
     return extras.find((ex) => {
       if (ex.type !== type) return false;
       const exKey = (ex as any).keyIndex !== undefined ? (ex as any).keyIndex : (ex as any).key_index;
-      if (keyIndex !== null && exKey !== keyIndex) return false;
       if (type === 'lesson_plan' && sessionNum !== undefined) {
         return (
           ex.title.includes(`Sesión ${sessionNum} `) ||
@@ -274,6 +273,7 @@ export default function PlanningDetailLegacy({
           Boolean(ex.title.match(new RegExp(`\\bSesión\\s+${sessionNum}\\b`, 'i')))
         );
       }
+      if (keyIndex !== null && exKey !== keyIndex) return false;
       if (type === 'material' && title) {
         return ex.title.toLowerCase().includes(title.toLowerCase());
       }

@@ -49,7 +49,7 @@ export interface PlanningTabMaterialesProps {
   bundleErrors: Record<string, string | null>;
   bundleExpanded: string | null;
   handleGenerateExtra: (
-    type: 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'practice_guide',
+    type: 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'practice_guide' | 'teacher_guide',
     title: string,
     keyIndex: number | null,
     extraData: {
@@ -109,20 +109,19 @@ export default function PlanningTabMateriales({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div className="section-card">
             <div className="section-card-header" style={{ background: 'linear-gradient(135deg, #4c1d95 0%, #7c3aed 100%)', color: '#fff' }}>
-              <span className="section-card-title" style={{ color: '#fff' }}>📚 Guías de Práctica para el Estudiante</span>
+              <span className="section-card-title" style={{ color: '#fff' }}>📘 Guías Pedagógicas y Solucionarios del Docente</span>
             </div>
             <div className="section-card-body">
               <div style={{ padding: '12px', background: 'rgba(124, 58, 237, 0.12)', borderLeft: '3px solid #7c3aed', borderRadius: '6px', marginBottom: '16px', fontSize: '13.5px' }}>
-                <p style={{ color: '#c4b5fd', fontWeight: 600, marginBottom: '4px' }}>💡 ¿Qué es la Guía de Práctica para el Estudiante?</p>
+                <p style={{ color: '#c4b5fd', fontWeight: 600, marginBottom: '4px' }}>💡 ¿Qué es la Guía del Docente y Solucionario?</p>
                 <p style={{ color: 'var(--c-text)', marginBottom: '6px' }}>
-                  Documento que el estudiante recibe directamente (impreso o digital) para guiar su aprendizaje autónomo,
-                  diseñado bajo los lineamientos pedagógicos del Marco Curricular Común (MCCEMS),
-                  incluyendo propósito, competencias, materiales, procedimiento por fases de la metodología activa,
-                  preguntas de análisis (taxonomía Bloom), tabla de datos y autoevaluación formativa.
+                  Documento pedagógico de uso exclusivo para el docente que integra las resoluciones modelo paso a paso,
+                  criterios de mediación didáctica y respuestas oficiales a los problemas planteados en el Libro de Trabajo del estudiante.
+                  Garantiza el acompañamiento formativo, la prevención de errores comunes y la evaluación situada bajo el Marco Curricular Común (MCCEMS).
                 </p>
                 {planning.metodologiaActiva && (
                   <p style={{ color: '#a78bfa', fontWeight: 700, fontSize: '13px' }}>
-                    🎯 Metodología activa seleccionada: <strong>{planning.metodologiaActiva}</strong> — las guías incluirán sus fases específicas.
+                    🎯 Metodología activa seleccionada: <strong>{planning.metodologiaActiva}</strong> — las pautas de mediación reflejan sus fases específicas.
                   </p>
                 )}
               </div>
@@ -132,9 +131,9 @@ export default function PlanningTabMateriales({
                 {content?.sectionIV?.activities?.map((act, actIdx) => {
                   const practiceNum = actIdx + 1;
                   const practiceTitle = `${act.name.substring(0, 60)}`;
-                  const generatedGuide = findExtra('practice_guide', actIdx);
-                  const loadingKey = `practice_guide-${actIdx}--`;
-                  const isCurrentGenerating = generatingKey?.startsWith(loadingKey);
+                  const generatedGuide = findExtra('teacher_guide', actIdx) || findExtra('practice_guide', actIdx);
+                  const loadingKey = `teacher_guide-${actIdx}--`;
+                  const isCurrentGenerating = generatingKey?.startsWith(loadingKey) || generatingKey?.startsWith(`practice_guide-${actIdx}--`);
 
                   return (
                     <div
@@ -159,10 +158,10 @@ export default function PlanningTabMateriales({
                       }}>
                         <div>
                           <span style={{ fontWeight: 700, color: '#e9d5ff', fontSize: '15px' }}>
-                            📋 Práctica {practiceNum}: {practiceTitle}
+                            📘 Solucionario Docente {practiceNum}: {practiceTitle}
                           </span>
                           <div style={{ fontSize: '12px', color: '#c4b5fd', marginTop: '2px' }}>
-                            {act.hours} hrs · {act.methodology || 'Metodología activa'}
+                            {act.hours} hrs · {act.methodology || 'Metodología activa'} · Clave de Respuestas
                           </div>
                         </div>
 
@@ -170,14 +169,14 @@ export default function PlanningTabMateriales({
                           {generatedGuide ? (
                             <>
                               <span style={{ fontSize: '12px', color: '#34d399', fontWeight: 600, background: 'rgba(16,185,129,0.15)', padding: '3px 10px', borderRadius: '12px' }}>
-                                ✓ Guía generada
+                                ✓ Solucionario generado
                               </span>
                               <button
                                 onClick={() => setPreviewExtra(generatedGuide)}
                                 className="btn"
                                 style={{ padding: '6px 14px', fontSize: '12px', background: 'rgba(124,58,237,0.2)', border: '1px solid #7c3aed', color: '#c4b5fd', borderRadius: '6px' }}
                               >
-                                👁️ Ver Guía
+                                👁️ Ver Solucionario
                               </button>
                               <a
                                 href={`/api/docx/extra/${generatedGuide.id}`}
@@ -206,8 +205,8 @@ export default function PlanningTabMateriales({
                             <button
                               onClick={() =>
                                 handleGenerateExtra(
-                                  'practice_guide',
-                                  `Guía de Práctica ${practiceNum}: ${practiceTitle.substring(0, 50)}`,
+                                  'teacher_guide',
+                                  `Guía del Docente y Solucionario ${practiceNum}: ${practiceTitle.substring(0, 50)}`,
                                   actIdx,
                                   {
                                     activityName: act.name,
@@ -229,7 +228,7 @@ export default function PlanningTabMateriales({
                                 cursor: generatingKey !== null ? 'not-allowed' : 'pointer',
                               }}
                             >
-                              {isCurrentGenerating ? '⏳ Generando guía...' : '📚 Generar Guía del Estudiante'}
+                              {isCurrentGenerating ? '⏳ Generando solucionario...' : '📘 Generar Guía del Docente (Solucionario)'}
                             </button>
                           )}
                         </div>
@@ -495,7 +494,7 @@ export default function PlanningTabMateriales({
             const rubricExtra = findExtra('rubric', actIdx);
             const checklistExtra = findExtra('checklist', actIdx);
             const materialExtra = findExtra('material', actIdx);
-            const guideExtra = findExtra('practice_guide', actIdx);
+            const guideExtra = findExtra('teacher_guide', actIdx) || findExtra('practice_guide', actIdx);
             const visualExtras = extras.filter((ex) => {
               if (ex.type !== 'visual') return false;
               return ex.keyIndex === actIdx;

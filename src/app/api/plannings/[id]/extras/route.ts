@@ -15,9 +15,10 @@ import {
   MATERIAL_PROMPT_TEMPLATE,
   LESSON_PLAN_PROMPT_TEMPLATE,
   PRACTICE_GUIDE_PROMPT_TEMPLATE,
+  TEACHER_GUIDE_PROMPT_TEMPLATE,
 } from '@/lib/prompts/extras-prompts';
 import { obtenerMetodologiaPorId } from '@/lib/catalogo-metodologias';
-import type { GeneratedPlanningContent, SecuenciaBloque } from '@/types/planning';
+import type { GeneratedPlanningContent, SecuenciaBloque, SecuenciaSesion } from '@/types/planning';
 import { generateBlockSessions } from '@/lib/session-progression-engine';
 
 export const runtime = 'nodejs';
@@ -89,7 +90,7 @@ export async function POST(
       evaluation = '',
       phase = '',
     } = body as {
-      type: 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'practice_guide';
+      type: 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'practice_guide' | 'teacher_guide';
       title: string;
       keyIndex?: number | null;
       activityName?: string;
@@ -145,9 +146,10 @@ Resultados de Aprendizaje: ${(contentJson?.sectionII?.learningOutcomes || []).jo
           : 'Resultado de aprendizaje general';
 
       // ── Recuperar datos de la secuencia didáctica y planeación con fallback automático ──
-      const seqData = ((planning as any).sequence_json || (planning as any).sequenceJson) as Record<number, SecuenciaBloque> | null;
+      const planningRecord = planning as unknown as Record<string, unknown>;
+      const seqData = (planningRecord.sequence_json || planningRecord.sequenceJson) as Record<number, SecuenciaBloque> | null;
       const currentBlockSeq = keyIndex !== null && seqData ? seqData[keyIndex] : null;
-      let sessionFromSeq = currentBlockSeq?.sessions?.find((s) => s.sessionNum === sessionNum);
+      let sessionFromSeq: SecuenciaSesion | undefined = currentBlockSeq?.sessions?.find((s) => s.sessionNum === sessionNum);
 
       const currentBlockActivity = keyIndex !== null ? contentJson?.sectionIV?.activities?.[keyIndex] : null;
 
@@ -155,7 +157,7 @@ Resultados de Aprendizaje: ${(contentJson?.sectionII?.learningOutcomes || []).jo
       if (!sessionFromSeq && currentBlockActivity) {
         const isLaboral = planning.component === 'laboral';
         const fallbackSessions = generateBlockSessions(currentBlockActivity, keyIndex!, totalSessions, learningOutcome, isLaboral);
-        sessionFromSeq = fallbackSessions.find((s) => s.sessionNum === sessionNum) as any;
+        sessionFromSeq = fallbackSessions.find((s) => s.sessionNum === sessionNum);
       }
 
       const resolvedPhase = phase || sessionFromSeq?.phase || (sessionNum === 1 ? 'Apertura' : 'Desarrollo');
@@ -206,17 +208,18 @@ Resultados de Aprendizaje: ${(contentJson?.sectionII?.learningOutcomes || []).jo
       const currentBlockActivity = keyIndex !== null ? contentJson?.sectionIV?.activities?.[keyIndex] : null;
 
       // ── Recuperar sesiones de desarrollo para alinear el procedimiento de la guía ──
-      const seqData = ((planning as any).sequence_json || (planning as any).sequenceJson) as Record<number, SecuenciaBloque> | null;
+      const planningRecord = planning as unknown as Record<string, unknown>;
+      const seqData = (planningRecord.sequence_json || planningRecord.sequenceJson) as Record<number, SecuenciaBloque> | null;
       let blockSessions = keyIndex !== null && seqData ? seqData[keyIndex]?.sessions : null;
 
       if ((!blockSessions || blockSessions.length === 0) && currentBlockActivity) {
         const isLaboral = planning.component === 'laboral';
-        blockSessions = generateBlockSessions(currentBlockActivity, keyIndex!, currentBlockActivity.hours || 12, learningOutcome, isLaboral) as any;
+        blockSessions = generateBlockSessions(currentBlockActivity, keyIndex!, currentBlockActivity.hours || 12, learningOutcome, isLaboral);
       }
 
       const devSessions = (blockSessions || []).filter((s) => s.phase === 'Desarrollo');
       const devSessionsSummary = devSessions.length > 0
-        ? devSessions.map((s) => `• Sesión ${s.sessionNum}: ${s.title} — [Estudiante]: ${s.learningActivity || (s as any).description || 'Práctica guiada'} (Evidencia: ${s.evidence || 'Reporte'})`).join('\n')
+        ? devSessions.map((s) => `• Sesión ${s.sessionNum}: ${s.title} — [Estudiante]: ${s.learningActivity || 'Práctica guiada'} (Evidencia: ${s.evidence || 'Reporte'})`).join('\n')
         : undefined;
 
       const studentMaterials = contentJson?.sectionVI?.studentMaterials || [];
@@ -241,6 +244,23 @@ Resultados de Aprendizaje: ${(contentJson?.sectionII?.learningOutcomes || []).jo
           plannedMaterials: studentMaterials,
           plannedReferences: references,
         }
+      );
+    } else if (type === 'teacher_guide') {
+      const learningOutcome =
+        keyIndex !== null && contentJson?.sectionII?.learningOutcomes?.[keyIndex]
+          ? contentJson.sectionII.learningOutcomes[keyIndex]
+          : 'Orientación pedagógica y mediación de resolución de problemas situados';
+
+      const resolvedPracticeTitle = practiceTitle || activityName || `Práctica ${practiceNumber}: ${planning.uac_name}`;
+
+      userPrompt = TEACHER_GUIDE_PROMPT_TEMPLATE(
+        planning.uac_name,
+        activityName || `Actividad Clave ${keyIndex !== null ? keyIndex + 1 : practiceNumber}`,
+        practiceNumber,
+        resolvedPracticeTitle,
+        paecProblem,
+        learningOutcome,
+        planning.metodologia_activa || undefined
       );
     } else {
       return NextResponse.json({ error: 'Tipo de recurso no válido' }, { status: 400 });
@@ -282,8 +302,7 @@ Resultados de Aprendizaje: ${(contentJson?.sectionII?.learningOutcomes || []).jo
 
 // ── DELETE: Delete an extra ──────────────────────────────────────────
 export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  request: NextRequest
 ) {
   try {
     const session = await auth();

@@ -225,7 +225,7 @@ function PlanningDetailModular({
 
   // Generate extra handler
   async function handleGenerateExtra(
-    type: 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'practice_guide',
+    type: 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'practice_guide' | 'teacher_guide',
     title: string,
     keyIndex: number | null,
     extraData: {
@@ -301,7 +301,6 @@ function PlanningDetailModular({
     return extras.find((ex) => {
       if (ex.type !== type) return false;
       const exKey = (ex as any).keyIndex !== undefined ? (ex as any).keyIndex : (ex as any).key_index;
-      if (keyIndex !== null && exKey !== keyIndex) return false;
       if (type === 'lesson_plan' && sessionNum !== undefined) {
         return (
           ex.title.includes(`Sesión ${sessionNum} `) ||
@@ -311,6 +310,7 @@ function PlanningDetailModular({
           Boolean(ex.title.match(new RegExp(`\\bSesión\\s+${sessionNum}\\b`, 'i')))
         );
       }
+      if (keyIndex !== null && exKey !== keyIndex) return false;
       if (type === 'material' && title) {
         return ex.title.toLowerCase().includes(title.toLowerCase());
       }
