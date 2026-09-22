@@ -55,7 +55,7 @@ function PlanningDetailModular({
   const prefix = isLaboral ? 'AC' : 'PC';
 
   // Tabs state
-  const [activeTab, setActiveTab] = useState<'planning' | 'extras' | 'lessonPlans' | 'teacherGuides' | 'practiceGuides' | 'a4print' | 'audit' | 'bundle' | 'evaluador' | 'analytics'>('planning');
+  const [activeTab, setActiveTab] = useState<'planning' | 'extras' | 'lessonPlans' | 'teacherGuides' | 'a4print' | 'audit' | 'evaluador' | 'analytics'>('planning');
   const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   // SAPCU Copiloto Pedagógico: Sincronización contextual bidireccional
@@ -1021,7 +1021,6 @@ function PlanningDetailModular({
           { key: 'teacherGuides', label: 'Solucionario Docente',       icon: <GraduationCap size={15}/>, color: '#7c3aed' },
           { key: 'a4print',       label: 'Formato Carta',      icon: <Printer    size={15}/>, color: 'var(--c-blue-mid)' },
           { key: 'audit',         label: 'Auditoría',          icon: <BarChart3  size={15}/>, color: '#059669' },
-          { key: 'bundle',        label: 'Bundle',             icon: <Package    size={15}/>, color: '#b45309' },
           { key: 'evaluador',     label: 'Evaluador IA',       icon: <Award      size={15}/>, color: '#dc2626' },
           { key: 'analytics',     label: 'Analytics',          icon: <TrendingUp size={15}/>, color: '#0891b2' },
         ] as const).map(({ key, label, icon, color }) => (
@@ -1105,7 +1104,7 @@ function PlanningDetailModular({
         />
       )}
 
-      {(activeTab === 'extras' || activeTab === 'teacherGuides' || activeTab === 'practiceGuides' || activeTab === 'bundle') && (
+      {(activeTab === 'extras' || activeTab === 'teacherGuides') && (
         <PlanningTabMateriales
           planning={planning}
           activeSubTab={activeTab}
@@ -1113,18 +1112,11 @@ function PlanningDetailModular({
           generatingKey={generatingKey}
           syncingSuite={syncingSuite}
           blockWorkbooks={blockWorkbooks}
-          bundleResults={bundleResults}
-          bundleLoading={bundleLoading}
-          bundleErrors={bundleErrors}
-          bundleExpanded={bundleExpanded}
           handleGenerateExtra={handleGenerateExtra}
           handlePreviewExtra={(ex) => setPreviewExtra(ex)}
           handleDeleteExtra={handleDeleteExtra}
           handleSyncSuite={handleSyncSuite}
           handleGenerateWorkbook={handleGenerateWorkbook}
-          handleGenerateBundleItem={handleGenerateBundleItem}
-          handleGenerateFullBundle={handleGenerateFullBundle}
-          setBundleExpanded={setBundleExpanded}
           findExtra={findExtra}
           setPreviewExtra={setPreviewExtra}
           setActiveTab={setActiveTab}

@@ -9,12 +9,6 @@ import {
 } from 'lucide-react';
 
 
-const BUNDLE_TYPES: { type: 'guia'|'instrumento'|'diapositivas'|'quiz'; label: string; icon: string; color: string }[] = [
-  { type: 'guia',         label: 'Guía del Alumno',              icon: '📖', color: '#1d4ed8' },
-  { type: 'instrumento',  label: 'Instrumento Coevaluación',     icon: '📋', color: '#059669' },
-  { type: 'diapositivas', label: 'Guión de Diapositivas',        icon: '🎨', color: '#7c3aed' },
-  { type: 'quiz',         label: 'Quiz / Evaluación Diagnóstica',icon: '🧩', color: '#b45309' },
-];
 
 export interface BlockWorkbookItem {
   blockIndex: number;
@@ -39,15 +33,11 @@ export interface MaterialBlockWorkbookItem {
 
 export interface PlanningTabMaterialesProps {
   planning: Planning;
-  activeSubTab?: 'extras' | 'practiceGuides' | 'teacherGuides' | 'bundle';
+  activeSubTab?: 'extras' | 'teacherGuides';
   extras: PlanningExtra[];
   generatingKey: string | null;
   syncingSuite: number | null;
   blockWorkbooks: Record<number, MaterialBlockWorkbookItem>;
-  bundleResults: Record<string, string | null>;
-  bundleLoading: Record<string, boolean>;
-  bundleErrors: Record<string, string | null>;
-  bundleExpanded: string | null;
   handleGenerateExtra: (
     type: 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'teacher_guide',
     title: string,
@@ -68,13 +58,10 @@ export interface PlanningTabMaterialesProps {
     }
   ) => Promise<void>;
   handleDeleteExtra: (extraId: string) => Promise<void>;
-  setActiveTab: (tab: 'planning' | 'extras' | 'lessonPlans' | 'practiceGuides' | 'a4print' | 'audit' | 'bundle' | 'evaluador' | 'analytics') => void;
+  setActiveTab?: (tab: 'planning' | 'extras' | 'lessonPlans' | 'teacherGuides' | 'a4print' | 'audit' | 'evaluador' | 'analytics') => void;
   handlePreviewExtra: (extra: PlanningExtra) => void;
   handleSyncSuite: (blockIdx: number) => Promise<void>;
   handleGenerateWorkbook: (blockIndex: number) => Promise<void>;
-  handleGenerateBundleItem: (type: 'guia' | 'instrumento' | 'diapositivas' | 'quiz') => Promise<void>;
-  handleGenerateFullBundle: () => Promise<void>;
-  setBundleExpanded: React.Dispatch<React.SetStateAction<string | null>>;
   findExtra: (type: string, keyIndex: number | null, title?: string, sessionNum?: number) => PlanningExtra | undefined;
   setPreviewExtra: (extra: PlanningExtra | null) => void;
 }
@@ -86,25 +73,18 @@ export default function PlanningTabMateriales({
   generatingKey,
   syncingSuite,
   blockWorkbooks,
-  bundleResults,
-  bundleLoading,
-  bundleErrors,
-  bundleExpanded,
   handleGenerateExtra,
   handleSyncSuite,
-  handleGenerateBundleItem,
-  handleGenerateFullBundle,
   handleDeleteExtra,
-  setActiveTab,
-  setBundleExpanded,
   findExtra,
   setPreviewExtra,
+  setActiveTab = () => {},
 }: PlanningTabMaterialesProps) {
   const content = planning.contentJson as GeneratedPlanningContent | null;
   const s1 = content?.sectionI;
   const isLaboral = s1?.component?.toLowerCase().includes('laboral') || false;
 
-  if (activeSubTab === 'teacherGuides' || activeSubTab === 'practiceGuides') {
+  if (activeSubTab === 'teacherGuides') {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div className="section-card">
@@ -255,178 +235,6 @@ export default function PlanningTabMateriales({
 
           {/* Feedback */}
           <GenerationFeedback entityType="planning" entityId={planning.id} />
-        </div>
-    );
-  }
-
-  if (activeSubTab === 'bundle') {
-    return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* Header card */}
-          <div className="section-card">
-            <div className="section-card-header" style={{ background: 'linear-gradient(135deg, #78350f 0%, #b45309 100%)', color: '#fff' }}>
-              <span className="section-card-title" style={{ color: '#fff' }}>📦 Bundle Didáctico Complementario</span>
-            </div>
-            <div className="section-card-body">
-              <div style={{ padding: '12px', background: 'rgba(245, 158, 11, 0.12)', borderLeft: '3px solid #b45309', borderRadius: '6px', marginBottom: '20px', fontSize: '13.5px' }}>
-                <p style={{ color: '#fbbf24', fontWeight: 600, marginBottom: '4px' }}>💡 ¿Qué es el Bundle Didáctico?</p>
-                <p style={{ color: 'var(--c-text)', margin: 0 }}>
-                  Conjunto de 4 materiales complementarios generados automáticamente a partir de tu planeación:
-                  Guía del Alumno, Instrumento de Coevaluación, Guión de Diapositivas y Quiz Diagnóstico.
-                  Genera cada uno individualmente o todos a la vez con <strong>Suite Completa</strong>.
-                </p>
-              </div>
-
-              {/* Generate All button */}
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
-                <button
-                  onClick={handleGenerateFullBundle}
-                  disabled={Object.values(bundleLoading).some(Boolean)}
-                  style={{
-                    padding: '12px 32px',
-                    fontSize: '15px',
-                    fontWeight: 700,
-                    background: Object.values(bundleLoading).some(Boolean) ? '#d97706' : '#b45309',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '8px',
-                    cursor: Object.values(bundleLoading).some(Boolean) ? 'not-allowed' : 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    boxShadow: '0 2px 8px rgba(180,83,9,0.3)',
-                    transition: 'all 0.2s',
-                  }}
-                >
-                  {Object.values(bundleLoading).some(Boolean) ? '⏳ Generando Suite…' : '⚡ Generar Suite Completa (4 materiales)'}
-                </button>
-              </div>
-
-              {/* 4 material cards */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
-                {BUNDLE_TYPES.map((bt) => {
-                  const result  = bundleResults[bt.type] ?? null;
-                  const loading = bundleLoading[bt.type] ?? false;
-                  const error   = bundleErrors[bt.type]  ?? null;
-                  const isExpanded = bundleExpanded === bt.type;
-
-                  return (
-                    <div
-                      key={bt.type}
-                      style={{
-                        border: `1px solid ${bt.color}33`,
-                        borderRadius: '10px',
-                        overflow: 'hidden',
-                        background: 'var(--c-bg-surface)',
-                      }}
-                    >
-                      {/* Card header */}
-                      <div style={{
-                        padding: '12px 16px',
-                        background: `${bt.color}15`,
-                        borderBottom: `2px solid ${bt.color}33`,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: '8px',
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '20px' }}>{bt.icon}</span>
-                          <span style={{ fontWeight: 700, fontSize: '14px', color: bt.color }}>{bt.label}</span>
-                        </div>
-                        {result && (
-                          <span style={{ background: '#10b981', color: '#fff', fontSize: '11px', padding: '2px 8px', borderRadius: '10px', fontWeight: 600 }}>✓ Listo</span>
-                        )}
-                      </div>
-
-                      {/* Card body */}
-                      <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        {error && (
-                          <div style={{ background: 'rgba(244,63,94,0.12)', border: '1px solid rgba(244,63,94,0.3)', borderRadius: '6px', padding: '8px 12px', fontSize: '13px', color: '#fb7185' }}>
-                            ⚠️ {error}
-                          </div>
-                        )}
-
-                        {!result ? (
-                          <button
-                            onClick={() => handleGenerateBundleItem(bt.type)}
-                            disabled={loading}
-                            style={{
-                              padding: '8px 16px',
-                              fontSize: '13px',
-                              fontWeight: 600,
-                              background: loading ? `${bt.color}80` : bt.color,
-                              color: '#fff',
-                              border: 'none',
-                              borderRadius: '6px',
-                              cursor: loading ? 'not-allowed' : 'pointer',
-                              width: '100%',
-                            }}
-                          >
-                            {loading ? `⏳ Generando ${bt.label}…` : `⚡ Generar ${bt.label}`}
-                          </button>
-                        ) : (
-                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                            <button
-                              onClick={() => setBundleExpanded(isExpanded ? null : bt.type)}
-                              style={{
-                                flex: 1,
-                                padding: '7px 12px',
-                                fontSize: '12px',
-                                fontWeight: 600,
-                                background: isExpanded ? bt.color : `${bt.color}15`,
-                                color: isExpanded ? '#fff' : bt.color,
-                                border: `1px solid ${bt.color}`,
-                                borderRadius: '6px',
-                                cursor: 'pointer',
-                              }}
-                            >
-                              {isExpanded ? '▲ Ocultar' : '👁️ Ver contenido'}
-                            </button>
-                            <button
-                              onClick={() => handleGenerateBundleItem(bt.type)}
-                              disabled={loading}
-                              style={{
-                                padding: '7px 12px',
-                                fontSize: '12px',
-                                fontWeight: 600,
-                                background: 'var(--c-bg-elevated)',
-                                color: 'var(--c-text-muted)',
-                                border: '1px solid var(--c-border-2)',
-                                borderRadius: '6px',
-                                cursor: loading ? 'not-allowed' : 'pointer',
-                              }}
-                            >
-                              {loading ? '⏳' : '🔄 Regenerar'}
-                            </button>
-                          </div>
-                        )}
-
-                        {/* Expanded preview */}
-                        {isExpanded && result && (
-                          <div style={{
-                            background: 'var(--c-bg-base)',
-                            border: '1px solid var(--c-border-2)',
-                            borderRadius: '6px',
-                            padding: '12px',
-                            maxHeight: '320px',
-                            overflowY: 'auto',
-                            fontSize: '12.5px',
-                            lineHeight: 1.65,
-                            color: 'var(--c-text)',
-                            whiteSpace: 'pre-wrap',
-                            fontFamily: 'monospace',
-                          }}>
-                            {result}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
         </div>
     );
   }
