@@ -159,9 +159,13 @@ export function renderExtraDocument(
   const contentW = pageWidth - margin * 2;
   let y = margin;
 
+  const titleLines = doc.splitTextToSize(extra.title, contentW - 10) as string[];
+  const titleLineHeight = 4.5;
+  const headerHeight = Math.max(36, 23 + titleLines.length * titleLineHeight + 4);
+
   // ── Cabecera institucional (Página 1) ──────────────────────────────────────
   doc.setFillColor(...typeColor);
-  doc.rect(0, 0, pageWidth, 36, 'F');
+  doc.rect(0, 0, pageWidth, headerHeight, 'F');
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
@@ -172,16 +176,15 @@ export function renderExtraDocument(
   doc.setTextColor(...GOLD);
   doc.text(typeLabel, pageWidth / 2, 19, { align: 'center' });
 
-  const titleLines = doc.splitTextToSize(extra.title, contentW - 10) as string[];
   doc.setFontSize(9);
   doc.setTextColor(...WHITE);
-  let titleY = 27;
-  titleLines.slice(0, 2).forEach((line) => {
+  let titleY = 25.5;
+  titleLines.forEach((line) => {
     doc.text(line, pageWidth / 2, titleY, { align: 'center' });
-    titleY += 4.5;
+    titleY += titleLineHeight;
   });
 
-  y = 39;
+  y = headerHeight + 3;
   doc.setDrawColor(...ACCENT);
   doc.setLineWidth(0.8);
   doc.line(margin, y, pageWidth - margin, y);
@@ -194,7 +197,7 @@ export function renderExtraDocument(
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7.5);
     doc.setTextColor(...WHITE);
-    doc.text(`${INSTITUTIONAL_DEFAULTS.ORGANISMO} · ${branding.shortLabel} · ${extra.title.substring(0, 55)}`, margin, 8);
+    doc.text(`${INSTITUTIONAL_DEFAULTS.ORGANISMO} · ${branding.shortLabel} · ${extra.title.substring(0, 85)}`, margin, 8);
     doc.setTextColor(...GOLD);
     doc.text(branding.cycle, pageWidth - margin, 8, { align: 'right' });
     y = margin + 6;
