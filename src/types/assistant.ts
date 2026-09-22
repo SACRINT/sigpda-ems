@@ -124,3 +124,44 @@ export interface RespuestaAsistente {
     mensaje: string;
   }>;
 }
+
+// ---------------------------------------------------------------------------
+// Contratos de Interoperabilidad SAPCU Universal (SACRINT Systems IA)
+// ---------------------------------------------------------------------------
+
+/**
+ * Destino de inserción directa de texto asistido por IA en formulario activo.
+ */
+export interface InsertionTarget {
+  fieldId: string;
+  selector?: string;
+  targetType: "input" | "textarea" | "custom";
+  value?: string;
+}
+
+/**
+ * Sugerencia pedagógica estructurada emitida por el asistente universal.
+ */
+export interface AssistantSuggestion {
+  id: string;
+  fieldId: string;
+  suggestedText: string;
+  explanation?: string;
+  qualityCriteria?: string[];
+}
+
+// Alias canónicos para interoperabilidad con contratos IProgramSystem
+export type QuickAction = AccionSugerida;
+export type AssistantMessage = MensajeAsistente;
+export type IAssistantContext = ContextoAsistente;
+
+/**
+ * Contrato de integración para cada uno de los 5 programas oficiales SACRINT.
+ */
+export interface IProgramSystem {
+  id: ProgramaPlataforma;
+  name: string;
+  description: string;
+  quickActions: QuickAction[];
+  supportedLevels: NivelEducativo[];
+}
