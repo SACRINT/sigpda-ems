@@ -19,7 +19,7 @@ import {
 } from '@/lib/prompts/extras-prompts';
 import { obtenerMetodologiaPorId } from '@/lib/catalogo-metodologias';
 import type { GeneratedPlanningContent, SecuenciaBloque, SecuenciaSesion } from '@/types/planning';
-import { generateBlockSessions } from '@/lib/session-progression-engine';
+import { generateBlockSessions, type DetailedSession } from '@/lib/session-progression-engine';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60; // Claude call could take up to 60s
@@ -149,7 +149,7 @@ Resultados de Aprendizaje: ${(contentJson?.sectionII?.learningOutcomes || []).jo
       const planningRecord = planning as unknown as Record<string, unknown>;
       const seqData = (planningRecord.sequence_json || planningRecord.sequenceJson) as Record<number, SecuenciaBloque> | null;
       const currentBlockSeq = keyIndex !== null && seqData ? seqData[keyIndex] : null;
-      let sessionFromSeq: SecuenciaSesion | undefined = currentBlockSeq?.sessions?.find((s) => s.sessionNum === sessionNum);
+      let sessionFromSeq: SecuenciaSesion | DetailedSession | undefined = currentBlockSeq?.sessions?.find((s) => s.sessionNum === sessionNum);
 
       const currentBlockActivity = keyIndex !== null ? contentJson?.sectionIV?.activities?.[keyIndex] : null;
 
@@ -210,7 +210,7 @@ Resultados de Aprendizaje: ${(contentJson?.sectionII?.learningOutcomes || []).jo
       // ── Recuperar sesiones de desarrollo para alinear el procedimiento de la guía ──
       const planningRecord = planning as unknown as Record<string, unknown>;
       const seqData = (planningRecord.sequence_json || planningRecord.sequenceJson) as Record<number, SecuenciaBloque> | null;
-      let blockSessions = keyIndex !== null && seqData ? seqData[keyIndex]?.sessions : null;
+      let blockSessions: Array<SecuenciaSesion | DetailedSession> | null = keyIndex !== null && seqData ? seqData[keyIndex]?.sessions : null;
 
       if ((!blockSessions || blockSessions.length === 0) && currentBlockActivity) {
         const isLaboral = planning.component === 'laboral';
