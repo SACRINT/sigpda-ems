@@ -14,10 +14,8 @@ import {
   RUBRIC_PROMPT_TEMPLATE,
   MATERIAL_PROMPT_TEMPLATE,
   LESSON_PLAN_PROMPT_TEMPLATE,
-  PRACTICE_GUIDE_PROMPT_TEMPLATE,
   TEACHER_GUIDE_PROMPT_TEMPLATE,
 } from '@/lib/prompts/extras-prompts';
-import { obtenerMetodologiaPorId } from '@/lib/catalogo-metodologias';
 import type { GeneratedPlanningContent, SecuenciaBloque, SecuenciaSesion } from '@/types/planning';
 import { generateBlockSessions, type DetailedSession } from '@/lib/session-progression-engine';
 
@@ -188,61 +186,6 @@ Resultados de Aprendizaje: ${(contentJson?.sectionII?.learningOutcomes || []).jo
           macroApertura: currentBlockActivity?.apertura?.activities,
           macroEjecucion: currentBlockActivity?.ejecucion?.activities,
           macroConclusion: currentBlockActivity?.conclusion?.activities,
-        }
-      );
-    } else if (type === 'practice_guide') {
-      // ── Guía de Práctica para el Estudiante (Fase 3) ──────────────────────
-      const studentContext = planning.extracted_data?.studentContext || 'Estudiantes de bachillerato (15-18 años) en Puebla, México';
-      const learningOutcome =
-        keyIndex !== null && contentJson?.sectionII?.learningOutcomes?.[keyIndex]
-          ? contentJson.sectionII.learningOutcomes[keyIndex]
-          : 'Desarrollar competencias técnicas y socioemocionales aplicadas al contexto local';
-
-      // Fetch methodology phases from the catalog
-      let metodologiaFases: string[] | undefined;
-      if (planning.metodologia_activa) {
-        const metodologiaObj = obtenerMetodologiaPorId(planning.metodologia_activa);
-        metodologiaFases = metodologiaObj?.fases;
-      }
-
-      const currentBlockActivity = keyIndex !== null ? contentJson?.sectionIV?.activities?.[keyIndex] : null;
-
-      // ── Recuperar sesiones de desarrollo para alinear el procedimiento de la guía ──
-      const planningRecord = planning as unknown as Record<string, unknown>;
-      const seqData = (planningRecord.sequence_json || planningRecord.sequenceJson) as Record<number, SecuenciaBloque> | null;
-      let blockSessions: Array<SecuenciaSesion | DetailedSession> | null = keyIndex !== null && seqData ? seqData[keyIndex]?.sessions : null;
-
-      if ((!blockSessions || blockSessions.length === 0) && currentBlockActivity) {
-        const isLaboral = planning.component === 'laboral';
-        blockSessions = generateBlockSessions(currentBlockActivity, keyIndex!, currentBlockActivity.hours || 12, learningOutcome, isLaboral);
-      }
-
-      const devSessions = (blockSessions || []).filter((s) => s.phase === 'Desarrollo');
-      const devSessionsSummary = devSessions.length > 0
-        ? devSessions.map((s) => `• Sesión ${s.sessionNum}: ${s.title} — [Estudiante]: ${s.learningActivity || 'Práctica guiada'} (Evidencia: ${s.evidence || 'Reporte'})`).join('\n')
-        : undefined;
-
-      const studentMaterials = contentJson?.sectionVI?.studentMaterials || [];
-      const references = contentJson?.sectionVI?.references || [];
-
-      const resolvedPracticeTitle = practiceTitle || activityName || `Práctica ${practiceNumber}: ${planning.uac_name}`;
-
-      userPrompt = PRACTICE_GUIDE_PROMPT_TEMPLATE(
-        planning.uac_name,
-        activityName || `Actividad Clave ${keyIndex !== null ? keyIndex + 1 : practiceNumber}`,
-        practiceNumber,
-        resolvedPracticeTitle,
-        paecProblem,
-        learningOutcome,
-        studentContext,
-        planning.metodologia_activa || undefined,
-        metodologiaFases,
-        {
-          saberes: currentBlockActivity?.saberes || null,
-          plannedEjecucion: currentBlockActivity?.ejecucion?.activities,
-          devSessionsSummary,
-          plannedMaterials: studentMaterials,
-          plannedReferences: references,
         }
       );
     } else if (type === 'teacher_guide') {
