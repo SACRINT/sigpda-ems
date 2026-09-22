@@ -216,29 +216,7 @@ export async function cascadeBlockMaterials(
       insertedCount++;
     }
 
-    // 7. Insertar Guía de Aprendizaje Activo del Estudiante del Bloque
-    if (extracted.guiaDelBloque) {
-      await db`
-        INSERT INTO planning_extras (
-          planning_id,
-          type,
-          title,
-          key_index,
-          content_text,
-          created_at
-        ) VALUES (
-          ${planningId}::uuid,
-          'practice_guide',
-          ${`Guía de Trabajo Activo del Estudiante · Bloque ${blockNum}: ${blockTitle}`},
-          ${blockIndex},
-          ${extracted.guiaDelBloque},
-          NOW()
-        )
-      `;
-      insertedCount++;
-    }
-
-    // 7.1 Insertar Solucionario y Guía Pedagógica del Docente (Etapa 3)
+    // 7. Insertar Solucionario y Guía Pedagógica del Docente (Uso exclusivo docente)
     if (extracted.solucionarioDocente) {
       await db`
         INSERT INTO planning_extras (
