@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * paec-pdf-generator.ts — Generador PDF Editorial Oficial del Proyecto Escolar Comunitario (PEC / PAEC)
  * SIGPDA-EMS · Estándar Oficial SEP Puebla (DBEPA / MCCEMS / NEM)
@@ -251,7 +252,7 @@ export async function generatePaecPDF(
     head: [
       [
         {
-          content: 'CÉDULA TÉCNICA INSTITUCIONAL REGISTRADA ANTE DBEPA PUEBLA',
+          content: 'CÉDULA TÉCNICA INSTITUCIONAL REGISTRADA',
           colSpan: 2,
           styles: { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center', fontSize: 8.5 },
         },

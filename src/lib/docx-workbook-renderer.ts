@@ -3406,13 +3406,13 @@ function buildEvaluationSection(evalSection: EvaluationSection): (Paragraph | Ta
     }
   }
 
-  // 6. SECCIÓN V-B: BITÁCORA FORMATIVA Y REGULADORA (50-20-30) · DBEPA PUEBLA
+  // 6. SECCIÓN V-B: BITÁCORA FORMATIVA Y REGULADORA (50-20-30)
   elements.push(
     new Paragraph({
       spacing: { before: 360, after: 120 },
       children: [
         new TextRun({
-          text: 'SECCIÓN V-B: BITÁCORA FORMATIVA Y REGULADORA (50-20-30) · DBEPA PUEBLA',
+          text: 'SECCIÓN V-B: BITÁCORA FORMATIVA Y REGULADORA (50-20-30)',
           bold: true,
           size: 20,
           color: C.navy,

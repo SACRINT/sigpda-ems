@@ -2793,7 +2793,7 @@ function drawEvaluationSection(
   setFontBody(doc, 'bold');
   doc.setFontSize(10);
   doc.setTextColor(255, 255, 255);
-  doc.text('INSTRUMENTOS OFICIALES DE EVALUACIÓN NEM (DBEPA PUEBLA)', margin + 3, y + 6.8);
+  doc.text('INSTRUMENTOS OFICIALES DE EVALUACIÓN NEM', margin + 3, y + 6.8);
 
   y += 14;
   setFontBody(doc, 'bold');
@@ -3069,7 +3069,7 @@ function drawEvaluationSection(
     }
   }
 
-  // 6. SECCIÓN V-B: BITÁCORA FORMATIVA Y REGULADORA (50-20-30) DBEPA PUEBLA
+  // 6. SECCIÓN V-B: BITÁCORA FORMATIVA Y REGULADORA (50-20-30)
   y = drawBitacora502030Section(doc, margin, contentWidth, pageHeight, y);
 
   return y;
@@ -3091,7 +3091,7 @@ function drawBitacora502030Section(
   setFontBody(doc, 'bold');
   doc.setFontSize(9.5);
   doc.setTextColor(255, 255, 255);
-  doc.text('SECCIÓN V-B: BITÁCORA FORMATIVA Y REGULADORA (50-20-30) · DBEPA PUEBLA', margin + 3, y + 6.8);
+  doc.text('SECCIÓN V-B: BITÁCORA FORMATIVA Y REGULADORA (50-20-30)', margin + 3, y + 6.8);
   y += 14;
 
   // Subtítulo explicativo
