@@ -301,6 +301,15 @@ function PlanningDetailModular({
     return extras.find((ex) => {
       if (ex.type !== type) return false;
       const exKey = (ex as any).keyIndex !== undefined ? (ex as any).keyIndex : (ex as any).key_index;
+      
+      // CRÍTICO: Si se especificó el bloque (keyIndex), este DEBE coincidir estrictamente
+      // para evitar que los planes de clase de un bloque aparezcan falsamente en otros bloques.
+      if (keyIndex !== null) {
+        if (exKey === null || exKey === undefined || Number(exKey) !== Number(keyIndex)) {
+          return false;
+        }
+      }
+
       if (type === 'lesson_plan' && sessionNum !== undefined) {
         return (
           ex.title.includes(`Sesión ${sessionNum} `) ||
@@ -310,7 +319,7 @@ function PlanningDetailModular({
           Boolean(ex.title.match(new RegExp(`\\bSesión\\s+${sessionNum}\\b`, 'i')))
         );
       }
-      if (keyIndex !== null && exKey !== keyIndex) return false;
+
       if (type === 'material' && title) {
         return ex.title.toLowerCase().includes(title.toLowerCase());
       }
