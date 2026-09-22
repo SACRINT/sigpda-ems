@@ -133,6 +133,7 @@ export default function SupervisorDashboard({
           <button
             onClick={handleRefresh}
             disabled={loading}
+            aria-label="Actualizar métricas"
             className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
             title="Refrescar métricas"
           >
