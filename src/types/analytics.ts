@@ -95,9 +95,9 @@ export interface PedagogicalAlert {
 
 export interface DomainEvent {
   id?: string;
-  eventType: 'planeacion_generated' | 'planeacion_evaluated' | 'paec_completed' | 'pmc_completed' | 'quality_score_calculated' | 'alert_triggered';
+  eventType: 'planeacion_generated' | 'planeacion_evaluated' | 'paec_completed' | 'pmc_completed' | 'quality_score_calculated' | 'alert_triggered' | 'alert_resolved' | (string & {});
   aggregateId: string;
-  aggregateType: 'planning' | 'school' | 'zone' | 'teacher';
+  aggregateType: 'planning' | 'school' | 'zone' | 'teacher' | 'alert' | (string & {});
   payload: Record<string, unknown>;
   createdAt?: string;
 }

@@ -168,6 +168,14 @@ export async function getActiveSupervisoryAlerts(
 export async function resolveSupervisoryAlert(alertId: string, supervisorId: string): Promise<boolean> {
   try {
     const res = await markNotificationAsRead(alertId, supervisorId);
+    if (res) {
+      await emitDomainEvent({
+        eventType: 'alert_resolved',
+        aggregateId: alertId,
+        aggregateType: 'alert',
+        payload: { resolvedBy: supervisorId },
+      });
+    }
     return Boolean(res);
   } catch (error) {
     logger.warn(`[AlertEngine] Error resolviendo alerta ${alertId}:`, error);
