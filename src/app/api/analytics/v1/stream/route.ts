@@ -49,6 +49,17 @@ export async function GET(request: NextRequest) {
     let heartbeatTimer: NodeJS.Timeout | null = null;
     let metricsTimer: NodeJS.Timeout | null = null;
 
+    const clearTimers = () => {
+      if (heartbeatTimer) {
+        clearInterval(heartbeatTimer);
+        heartbeatTimer = null;
+      }
+      if (metricsTimer) {
+        clearInterval(metricsTimer);
+        metricsTimer = null;
+      }
+    };
+
     const stream = new ReadableStream({
       async start(controller) {
         // 1. Mensaje de conexión inicial
@@ -81,7 +92,7 @@ export async function GET(request: NextRequest) {
           try {
             controller.enqueue(encoder.encode(`: heartbeat ${Date.now()}\n\n`));
           } catch {
-            if (heartbeatTimer) clearInterval(heartbeatTimer);
+            clearTimers();
           }
         }, 15000);
 
@@ -96,19 +107,18 @@ export async function GET(request: NextRequest) {
             controller.enqueue(encoder.encode(`event: alerts_pulse\ndata: ${payload}\n\n`));
           } catch (pulseErr) {
             logger.warn('[SSE-Stream] Advertencia en pulso de alertas:', pulseErr);
+            clearTimers();
           }
         }, 45000);
       },
 
       cancel() {
-        if (heartbeatTimer) clearInterval(heartbeatTimer);
-        if (metricsTimer) clearInterval(metricsTimer);
+        clearTimers();
       },
     });
 
     request.signal.addEventListener('abort', () => {
-      if (heartbeatTimer) clearInterval(heartbeatTimer);
-      if (metricsTimer) clearInterval(metricsTimer);
+      clearTimers();
     });
 
     return new Response(stream, {
