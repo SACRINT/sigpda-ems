@@ -129,6 +129,81 @@ export function extractContextFromPath(
   return baseContext;
 }
 
+/**
+ * Alias canónico para extracción de contexto desde una ruta de navegación.
+ */
+export const extractContextFromRoute = extractContextFromPath;
+
+/**
+ * Extrae contexto didáctico y administrativo a partir de los datos crudos del documento activo.
+ */
+export function extractDocumentContext(
+  docData: Record<string, unknown>,
+  programa: ProgramaPlataforma
+): Partial<ContextoAsistente> {
+  if (!docData) return {};
+
+  switch (programa) {
+    case "planeaciones": {
+      const secI = (docData.sectionI || {}) as Record<string, unknown>;
+      const secII = (docData.sectionII || {}) as Record<string, unknown>;
+      const reto = (secII.retoSituado || {}) as Record<string, unknown>;
+
+      return {
+        detallesMediaSuperior: {
+          uac: (docData.uacName as string) || (secI.uacName as string),
+          semestre: (docData.semester as number) || (secI.semester as number),
+          subsistema: (docData.subsystem as "bge" | "tecnologico" | "general") || (secI.subsystem as "bge" | "tecnologico" | "general"),
+          metodologiaActiva: (docData.metodologiaActiva as string) || (secI.metodologiaActiva as string),
+          retoSituado: {
+            contextoReal: reto.contextoLocal as string | undefined,
+            problemaComunidad: reto.problematicaReal as string | undefined,
+            accionCognitiva: reto.verboInfinitivo as string | undefined,
+            productoEvidencia: reto.retoCompleto as string | undefined,
+          },
+          paecNombre: secII.paecProjectName as string | undefined,
+          paecProblema: secII.paecProblem as string | undefined,
+        },
+      };
+    }
+
+    case "paec": {
+      return {
+        detallesMediaSuperior: {
+          paecNombre: (docData.projectName as string) || (docData.nombre as string),
+          paecProblema: (docData.problem as string) || (docData.problematica as string),
+        },
+      };
+    }
+
+    case "pmc": {
+      return {
+        seccionActiva: (docData.fase as string) || "diagnostico",
+      };
+    }
+
+    case "horarios": {
+      return {
+        plantel: {
+          cct: docData.cct as string | undefined,
+          nombre: docData.schoolName as string | undefined,
+        },
+      };
+    }
+
+    case "cartografia": {
+      return {
+        plantel: {
+          cct: docData.cct as string | undefined,
+        },
+      };
+    }
+
+    default:
+      return {};
+  }
+}
+
 export function buildProgramLabel(programa: ProgramaPlataforma): string {
   const map: Record<ProgramaPlataforma, string> = {
     planeaciones: "Planeación Didáctica",
