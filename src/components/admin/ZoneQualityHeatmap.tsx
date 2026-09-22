@@ -158,7 +158,7 @@ export default function ZoneQualityHeatmap({
 
             return (
               <div
-                key={school.schoolId || school.cct}
+                key={school.cct || school.schoolId}
                 onClick={() => onSelectSchool(school)}
                 className="group relative p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-850 hover:border-indigo-400 dark:hover:border-indigo-500 transition-all duration-150 cursor-pointer shadow-sm hover:shadow-md flex flex-col justify-between"
               >
