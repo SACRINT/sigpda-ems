@@ -19,6 +19,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'El parámetro planningId es obligatorio.' }, { status: 400 });
     }
 
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(planningId);
+    if (!isUuid) {
+      return NextResponse.json({ error: 'planningId inválido' }, { status: 400 });
+    }
+
     if (!process.env.DATABASE_URL) {
       return NextResponse.json({ error: 'DATABASE_URL no configurada' }, { status: 500 });
     }
@@ -118,11 +123,14 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    const filterTeacherId = searchParams.get('teacherId');
-    const compliance = searchParams.get('compliance');
-    const semester = searchParams.get('semester');
-    const search = searchParams.get('search') || '';
-    const limit = parseInt(searchParams.get('limit') || '100', 10);
+    const rawTeacherId = searchParams.get('teacherId');
+    const filterTeacherId = rawTeacherId && rawTeacherId !== 'todos' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawTeacherId.trim()) ? rawTeacherId.trim() : null;
+    const rawCompliance = searchParams.get('compliance');
+    const compliance = rawCompliance && rawCompliance !== 'todos' && rawCompliance.trim().length > 0 ? rawCompliance.trim() : null;
+    const rawSemester = searchParams.get('semester');
+    const semester = rawSemester && rawSemester !== 'todos' && !isNaN(parseInt(rawSemester, 10)) ? parseInt(rawSemester, 10) : null;
+    const search = (searchParams.get('search') || '').trim();
+    const limit = Math.max(1, Math.min(500, parseInt(searchParams.get('limit') || '100', 10) || 100));
 
     const db = sql();
     const userEmail = session.user.email;
@@ -134,7 +142,7 @@ export async function GET(req: NextRequest) {
     const isPrivileged = isUserAdmin || currentTeacher?.role === 'administrador' || currentTeacher?.role === 'supervisor';
 
     // Si no es admin ni supervisor, únicamente puede consultar sus propias planeaciones/auditorías
-    const effectiveTeacherId = isPrivileged ? (filterTeacherId || null) : (currentTeacher?.id || '00000000-0000-0000-0000-000000000000');
+    const effectiveTeacherId = isPrivileged ? filterTeacherId : (currentTeacher?.id || null);
 
     // Consulta de planeaciones combinadas con su estado de auditoría
     const planningsWithAudit = await db`
@@ -162,9 +170,9 @@ export async function GET(req: NextRequest) {
       LEFT JOIN teachers t ON p.teacher_id = t.id
       LEFT JOIN audit_results a ON a.planning_id = p.id
       WHERE 
-        (${effectiveTeacherId}::text IS NULL OR p.teacher_id = ${effectiveTeacherId}::uuid)
-        AND (${compliance}::text IS NULL OR a.compliance_level = ${compliance} OR (${compliance} = 'pendiente' AND a.id IS NULL))
-        AND (${semester}::text IS NULL OR p.semester = ${parseInt(semester || '0', 10)})
+        (${effectiveTeacherId ? effectiveTeacherId : null}::uuid IS NULL OR p.teacher_id = ${effectiveTeacherId ? effectiveTeacherId : null}::uuid)
+        AND (${compliance ? compliance : null}::text IS NULL OR a.compliance_level = ${compliance} OR (${compliance} = 'pendiente' AND a.id IS NULL))
+        AND (${semester !== null ? semester : null}::int IS NULL OR p.semester = ${semester !== null ? semester : null}::int)
         AND (${search} = '' OR p.uac_name ILIKE ${'%' + search + '%'} OR t.name ILIKE ${'%' + search + '%'} OR t.email ILIKE ${'%' + search + '%'})
       ORDER BY 
         CASE WHEN a.id IS NOT NULL THEN 0 ELSE 1 END,
@@ -188,7 +196,7 @@ export async function GET(req: NextRequest) {
         `
       : await db`
           SELECT 
-            (SELECT COUNT(*)::int FROM plannings WHERE teacher_id = ${effectiveTeacherId}::uuid) as total_plannings,
+            (SELECT COUNT(*)::int FROM plannings WHERE (${effectiveTeacherId ? effectiveTeacherId : null}::uuid IS NULL OR teacher_id = ${effectiveTeacherId ? effectiveTeacherId : null}::uuid)) as total_plannings,
             COUNT(*)::int as total_audited,
             ROUND(AVG(overall_score)::numeric, 1) as average_score,
             COUNT(CASE WHEN compliance_level = 'excelente' THEN 1 END)::int as excelente_count,
@@ -196,7 +204,7 @@ export async function GET(req: NextRequest) {
             COUNT(CASE WHEN compliance_level = 'requiere_mejora' THEN 1 END)::int as requiere_mejora_count,
             COUNT(CASE WHEN compliance_level = 'no_alineado' THEN 1 END)::int as no_alineado_count
           FROM audit_results
-          WHERE teacher_id = ${effectiveTeacherId}::uuid
+          WHERE (${effectiveTeacherId ? effectiveTeacherId : null}::uuid IS NULL OR teacher_id = ${effectiveTeacherId ? effectiveTeacherId : null}::uuid)
         `;
 
     return NextResponse.json({

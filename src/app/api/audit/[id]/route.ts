@@ -19,6 +19,11 @@ export async function GET(
       return NextResponse.json({ error: 'DATABASE_URL no configurada' }, { status: 500 });
     }
 
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    if (!isUuid) {
+      return NextResponse.json({ success: true, audit: null }, { status: 200 });
+    }
+
     const db = sql();
 
     // Buscar por ID de auditoría o por ID de planeación
@@ -53,7 +58,7 @@ export async function GET(
     `;
 
     if (!rows || rows.length === 0) {
-      return NextResponse.json({ error: 'Auditoría no encontrada.' }, { status: 404 });
+      return NextResponse.json({ success: true, audit: null }, { status: 200 });
     }
 
     const audit = rows[0];
@@ -98,6 +103,11 @@ export async function DELETE(
     const { id } = await params;
     if (!process.env.DATABASE_URL) {
       return NextResponse.json({ error: 'DATABASE_URL no configurada' }, { status: 500 });
+    }
+
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    if (!isUuid) {
+      return NextResponse.json({ error: 'ID de auditoría inválido' }, { status: 400 });
     }
 
     const db = sql();
