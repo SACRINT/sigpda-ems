@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { clearAllWizardDrafts } from '@/hooks/useWizardPersistence';
 import type { SchoolZoneContextResponse } from '@/lib/zone-sync-service';
+import { useAssistant } from '@/components/assistant';
+
 
 const PMC_DRAFT_KEY = 'didactica_pmc_draft';
 
@@ -252,6 +254,26 @@ export default function PmcWizardClient({ locale, teacherId, teacherName, teache
       et_ant: undefined, et_meta: undefined,
     }
   );
+
+  // SAPCU Copiloto Pedagógico: Sincronización contextual bidireccional
+  const { setDetallesDocumento } = useAssistant();
+  useEffect(() => {
+    setDetallesDocumento({
+      programa: 'pmc',
+      documentoId: projectId || 'nuevo',
+      seccionActiva: `Paso ${activeStep}`,
+      detallesMediaSuperior: {
+        subsistema: (subsystem?.toLowerCase() as 'bge' | 'tecnologico' | 'general') || 'bge',
+        retoSituado: diagnosticoComunidad
+          ? {
+              contextoReal: `${schoolName || ''} - ${locality || ''}, ${municipality || ''}`.trim(),
+              problemaComunidad: diagnosticoComunidad,
+            }
+          : undefined,
+      },
+    });
+  }, [projectId, activeStep, subsystem, schoolName, locality, municipality, diagnosticoComunidad, setDetallesDocumento]);
+
   const [foda, setFoda] = useState<Foda>(
     existingProject?.foda || { fortalezas: '', oportunidades: '', debilidades: '', amenazas: '' }
   );

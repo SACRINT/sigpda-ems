@@ -13,6 +13,8 @@ import {
   HorariosModales,
 } from "./sections";
 import WizardConfiguracionLegacy from "./WizardConfiguracionLegacy";
+import { useAssistant } from "@/components/assistant";
+
 
 
 import type {
@@ -86,6 +88,20 @@ function WizardConfiguracionModular({
 
   // Período Semestral: A = semestres impares (1°,3°,5°), B = semestres pares (2°,4°,6°)
   const [periodoActivo, setPeriodoActivo] = useState<"A" | "B">("A");
+
+  // SAPCU Copiloto Pedagógico: Sincronización contextual bidireccional
+  const { setDetallesDocumento } = useAssistant();
+  useEffect(() => {
+    setDetallesDocumento({
+      programa: "horarios",
+      documentoId: escuelaId || "horarios",
+      seccionActiva: `Paso ${paso}: ${paso === 1 ? "Grupos" : paso === 2 ? "Docentes" : "Matriz"}`,
+      detallesMediaSuperior: {
+        semestre: periodoActivo === "A" ? 1 : 2,
+      },
+    });
+  }, [escuelaId, paso, periodoActivo, setDetallesDocumento]);
+
   const [loading, setLoading] = useState<boolean>(false);
   const [carrerasTecnologicas, setCarrerasTecnologicas] = useState<CarreraTecnica[]>([]);
 

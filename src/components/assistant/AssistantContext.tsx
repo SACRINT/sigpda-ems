@@ -147,7 +147,21 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
 export function useAssistant() {
   const context = useContext(AssistantContext);
   if (!context) {
-    throw new Error("useAssistant debe utilizarse dentro de un AssistantProvider");
+    return {
+      isOpen: false,
+      setIsOpen: () => {},
+      toggleOpen: () => {},
+      contexto: { programa: "general", nivel: "media_superior", ruta: "/" } as ContextoAsistente,
+      setNivelEducativo: () => {},
+      setDetallesDocumento: () => {},
+      setCampoEnFoco: () => {},
+      registerInsertHandler: () => () => {},
+      insertTextIntoField: () => false,
+      mensajes: [],
+      agregarMensaje: () => {},
+      limpiarConversacion: () => {},
+    };
   }
   return context;
 }
+

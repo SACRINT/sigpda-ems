@@ -44,6 +44,8 @@ import {
   PaecStep9GobernanzaSupervision,
 } from './steps';
 import PaecWizardLegacy from './legacy/PaecWizardLegacy';
+import { useAssistant } from '@/components/assistant';
+
 
 const PAEC_DRAFT_KEY = 'didactica_paec_draft';
 
@@ -269,6 +271,27 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
     previousPrograms: '',
     facilities: '',
   });
+
+  // SAPCU Copiloto Pedagógico: Sincronización contextual bidireccional
+  const { setDetallesDocumento } = useAssistant();
+  useEffect(() => {
+    setDetallesDocumento({
+      programa: 'paec',
+      documentoId: projectId || 'nuevo',
+      seccionActiva: `Paso ${activeStep}: ${ALL_STEPS.find((s) => s.num === activeStep)?.label || ''}`,
+      detallesMediaSuperior: {
+        semestre: cycleType === 'A' ? 1 : cycleType === 'B' ? 2 : undefined,
+        paecNombre: projectName || undefined,
+        retoSituado: problemStatement
+          ? {
+              contextoReal: community?.location || community?.demographics || undefined,
+              problemaComunidad: problemStatement,
+            }
+          : undefined,
+      },
+    });
+  }, [projectId, activeStep, projectName, problemStatement, cycleType, community, setDetallesDocumento]);
+
 
   const [cctSearching, setCctSearching] = useState(false);
   const [cctWarning, setCctWarning] = useState<string | null>(null);

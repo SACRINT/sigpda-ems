@@ -22,6 +22,7 @@ import {
   type GrupoInicialItem,
 } from "./mapa-curricular";
 import ModalConfiguracionMapaCurricularLegacy from "./mapa-curricular/ModalConfiguracionMapaCurricularLegacy";
+import { useAssistant } from "@/components/assistant";
 
 export type { GrupoConfigItem, GrupoInicialItem };
 
@@ -72,6 +73,22 @@ function ModalConfiguracionMapaCurricularModular({
 
   const [paso, setPaso] = useState<1 | 2>(1);
   const [guardando, setGuardando] = useState(false);
+
+  // SAPCU Copiloto Pedagógico: Sincronización contextual bidireccional
+  const { setDetallesDocumento } = useAssistant();
+  useEffect(() => {
+    if (isOpen) {
+      setDetallesDocumento({
+        programa: 'cartografia',
+        documentoId: escuela?.id || 'cartografia',
+        seccionActiva: `Paso ${paso}: ${paso === 1 ? 'Estructura de Grupos' : 'Configuración de Asignaturas'}`,
+        detallesMediaSuperior: {
+          subsistema: subsistemaSeleccionado,
+          uac: escuela?.nombre,
+        },
+      });
+    }
+  }, [isOpen, paso, subsistemaSeleccionado, escuela, setDetallesDocumento]);
 
   // Paso 1: Estructura de Grupos
   const [g1, setG1] = useState<number>(escuela.gruposPrimerAno || 1);

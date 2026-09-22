@@ -34,6 +34,7 @@ import {
   PlanningTabAuditoria,
   PlanningTabAnalitica,
 } from '@/components/planeacion/tabs';
+import { useAssistant } from '@/components/assistant';
 
 export default function PlanningDetailClient(props: PlanningDetailClientProps) {
   if (process.env.NEXT_PUBLIC_FF_NEW_PLANNING_DETAIL === 'false') {
@@ -56,6 +57,31 @@ function PlanningDetailModular({
   // Tabs state
   const [activeTab, setActiveTab] = useState<'planning' | 'extras' | 'lessonPlans' | 'practiceGuides' | 'a4print' | 'audit' | 'bundle' | 'evaluador' | 'analytics'>('planning');
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+
+  // SAPCU Copiloto Pedagógico: Sincronización contextual bidireccional
+  const { setDetallesDocumento } = useAssistant();
+  useEffect(() => {
+    if (planning) {
+      setDetallesDocumento({
+        programa: 'planeaciones',
+        documentoId: planning.id,
+        seccionActiva: `Pestaña: ${activeTab}`,
+        detallesMediaSuperior: {
+          uac: planning.uacName,
+          semestre: planning.semester,
+          subsistema: (s1?.subsystem as "bge" | "tecnologico" | "general") || 'bge',
+          metodologiaActiva: planning.metodologiaActiva || s1?.metodologiaActiva,
+          retoSituado: {
+            contextoReal: content?.sectionII?.retoSituado?.contextoLocal,
+            problemaComunidad: content?.sectionII?.retoSituado?.problematicaReal,
+            accionCognitiva: content?.sectionII?.retoSituado?.verboInfinitivo,
+            productoEvidencia: content?.sectionII?.retoSituado?.retoCompleto,
+          },
+          paecNombre: content?.sectionII?.paecConnection,
+        },
+      });
+    }
+  }, [planning, activeTab, setDetallesDocumento, content, s1]);
 
   // Collapsed state for lesson plans blocks
   const [collapsedBlocks, setCollapsedBlocks] = useState<Record<number, boolean>>({});
