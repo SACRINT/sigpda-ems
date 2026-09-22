@@ -61,7 +61,11 @@ export interface ContextoNivelSuperior {
 
 export interface ContextoAsistente {
   nivel: NivelEducativo;
+  educationLevel?: NivelEducativo;
   programa: ProgramaPlataforma;
+  programId?: ProgramaPlataforma;
+  ruta?: string;
+  route?: string;
   pantallaActiva?: string; // e.g. "detalles", "nuevo", "secuencia", "fundamentos"
   seccionActiva?: string; // e.g. "pestaña-evaluador", "pestaña-secuencia"
   campoEnFoco?: string; // e.g. "retoSituado", "materiales", "estrategias"
@@ -84,6 +88,8 @@ export interface ContextoAsistente {
 export interface AccionSugerida {
   id: string;
   titulo: string;
+  etiqueta?: string;
+  label?: string;
   prompt: string;
   categoria: "redaccion" | "evaluacion" | "estrategia" | "normativa";
   campoObjetivo?: string;
@@ -162,6 +168,8 @@ export interface IProgramSystem {
   id: ProgramaPlataforma;
   name: string;
   description: string;
+  routePrefix?: string;
+  supportedRoles?: string[];
   quickActions: QuickAction[];
   supportedLevels: NivelEducativo[];
 }

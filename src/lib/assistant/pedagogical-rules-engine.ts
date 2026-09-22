@@ -1,32 +1,41 @@
 /**
  * src/lib/assistant/pedagogical-rules-engine.ts
  * SACRINT Systems IA · SAPCU
- * Motor de reglas pedagógicas y validación curricular por nivel educativo.
+ * Motor determinista de validación pedagógica contextual por nivel educativo.
  */
 
-import type {
-  ContextoAsistente,
-  NivelEducativo,
-} from "@/types/assistant";
+import type { ContextoAsistente, NivelEducativo } from "@/types/assistant";
 
 export interface ResultadoValidacionRegla {
   criterio: string;
   valido: boolean;
-  puntaje: number; // 0 a 100
+  puntaje: number; // 0 - 100
   observaciones: string[];
   sugerenciasMejora: string[];
+}
+
+export interface ResultadoValidacionRetoSituado extends ResultadoValidacionRegla {
+  completitud: string;
+  estado: "optimo" | "completo" | "parcial" | "incompleto";
+  alertas: string[];
+  sugerencias: string[];
+}
+
+export interface ResultadoValidacionSaberes extends ResultadoValidacionRegla {
+  saberesFaltantes: string[];
 }
 
 export interface EvaluacionPedagogicaCompleta {
   nivel: NivelEducativo;
   esApto: boolean;
-  puntajeGlobal: number; // 0 a 100
+  puntajeGlobal: number;
   reglas: ResultadoValidacionRegla[];
+  evaluaciones: ResultadoValidacionRegla[];
 }
 
-// Verbos de acción cognitiva de orden superior (Bloom / Marzano)
+// Verbos de acción cognitiva de orden superior (Taxonomía Bloom / Marzano)
 const VERBOS_ACCION_COGNITIVA = [
-  "analizar", "diseñar", "elaborar", "construir", "proponer", "desarrollar",
+  "analizar", "diseñar", "proponer", "construir", "evaluar", "sintetizar",
   "investigar", "evaluar", "argumentar", "resolver", "implementar", "modelar",
   "identificar", "examinar", "demostrar", "crear", "estructurar", "planificar"
 ];
@@ -38,114 +47,199 @@ const PALABRAS_PRODUCTO = [
   "diagnóstico", "bitácora", "rúbrica", "guía", "exposición", "proyecto", "estrategia"
 ];
 
+export type RetoSituadoInput =
+  | string
+  | {
+      contextoReal?: string;
+      contextoLocal?: string;
+      problemaComunidad?: string;
+      problematicaReal?: string;
+      accionCognitiva?: string;
+      verboInfinitivo?: string;
+      productoEvidencia?: string;
+      retoCompleto?: string;
+    };
+
 /**
  * Valida el Reto Situado bajo el estándar 4/4 DBEPA Puebla 2026-2027.
+ * Soporta cadena de texto concatenada o estructura desglosada en objeto.
  */
 export function validarRetoSituadoMediaSuperior(
-  texto: string,
+  input: RetoSituadoInput,
   contextoPlantel?: string
-): ResultadoValidacionRegla {
-  const t = (texto || "").toLowerCase();
+): ResultadoValidacionRetoSituado {
   const observaciones: string[] = [];
   const sugerenciasMejora: string[] = [];
+  const alertas: string[] = [];
   let componentesCumplidos = 0;
 
-  // 1. Contexto Real / Territorial
-  const tieneContexto =
-    t.includes("comunidad") ||
-    t.includes("localidad") ||
-    t.includes("municipio") ||
-    t.includes("escuela") ||
-    t.includes("entorno") ||
-    t.includes("puebla") ||
-    (contextoPlantel && t.includes(contextoPlantel.toLowerCase()));
+  if (typeof input === "object" && input !== null) {
+    const ctx = (input.contextoReal || input.contextoLocal || "").trim();
+    const prob = (input.problemaComunidad || input.problematicaReal || "").trim();
+    const acc = (input.accionCognitiva || input.verboInfinitivo || "").trim();
+    const prod = (input.productoEvidencia || input.retoCompleto || "").trim();
 
-  if (tieneContexto) {
-    componentesCumplidos++;
-    observaciones.push("Contexto territorial identificado.");
+    if (ctx.length >= 4) {
+      componentesCumplidos++;
+      observaciones.push("Contexto territorial identificado.");
+    } else {
+      alertas.push("Falta especificar el contexto territorial real.");
+      sugerenciasMejora.push("Especifica el entorno o comunidad real donde se ubica el problema.");
+    }
+
+    if (prob.length >= 4) {
+      componentesCumplidos++;
+      observaciones.push("Problemática o necesidad auténtica descrita.");
+    } else {
+      alertas.push("Falta delimitar la problemática comunitaria auténtica.");
+      sugerenciasMejora.push("Define con mayor claridad la necesidad o conflicto comunitario a resolver.");
+    }
+
+    if (acc.length >= 3) {
+      componentesCumplidos++;
+      observaciones.push("Acción cognitiva de orden superior identificada.");
+    } else {
+      alertas.push("Falta acción cognitiva operativa.");
+      sugerenciasMejora.push("Incorpora un verbo de acción operativa (ej. diseñar, proponer, modelar, analizar).");
+    }
+
+    if (prod.length >= 4) {
+      componentesCumplidos++;
+      observaciones.push("Producto o evidencia tangible explícita.");
+    } else {
+      alertas.push("Falta producto o evidencia tangible.");
+      sugerenciasMejora.push("Señala el producto o entregable final que evidenciará el aprendizaje.");
+    }
   } else {
-    sugerenciasMejora.push("Especifica el entorno o comunidad real donde se ubica el problema.");
-  }
+    const t = (input || "").toLowerCase();
 
-  // 2. Problemática Auténtica
-  const tieneProblema =
-    t.includes("problem") ||
-    t.includes("necesidad") ||
-    t.includes("desafío") ||
-    t.includes("afect") ||
-    t.includes("impacto") ||
-    t.includes("falta de") ||
-    t.includes("deterioro") ||
-    t.includes("riesgo") ||
-    t.includes("contaminaci") ||
-    t.includes("escasez");
+    // 1. Contexto Real / Territorial
+    const tieneContexto =
+      t.includes("comunidad") ||
+      t.includes("localidad") ||
+      t.includes("municipio") ||
+      t.includes("escuela") ||
+      t.includes("entorno") ||
+      t.includes("puebla") ||
+      (contextoPlantel ? t.includes(contextoPlantel.toLowerCase()) : false);
 
-  if (tieneProblema) {
-    componentesCumplidos++;
-    observaciones.push("Problemática o necesidad auténtica descrita.");
-  } else {
-    sugerenciasMejora.push("Define con mayor claridad la necesidad o conflicto comunitario a resolver.");
-  }
+    if (tieneContexto) {
+      componentesCumplidos++;
+      observaciones.push("Contexto territorial identificado.");
+    } else {
+      alertas.push("Falta contexto territorial.");
+      sugerenciasMejora.push("Especifica el entorno o comunidad real donde se ubica el problema.");
+    }
 
-  // 3. Acción Cognitiva Operativa
-  const tieneAccion = VERBOS_ACCION_COGNITIVA.some((v) => t.includes(v));
-  if (tieneAccion) {
-    componentesCumplidos++;
-    observaciones.push("Acción cognitiva de orden superior identificada.");
-  } else {
-    sugerenciasMejora.push("Incorpora un verbo de acción operativa (ej. diseñar, proponer, modelar, analizar).");
-  }
+    // 2. Problemática Auténtica
+    const tieneProblema =
+      t.includes("problem") ||
+      t.includes("necesidad") ||
+      t.includes("desafío") ||
+      t.includes("afect") ||
+      t.includes("impacto") ||
+      t.includes("falta de") ||
+      t.includes("deterioro") ||
+      t.includes("riesgo") ||
+      t.includes("contaminaci") ||
+      t.includes("escasez");
 
-  // 4. Producto / Evidencia Tangible
-  const tieneProducto = PALABRAS_PRODUCTO.some((p) => t.includes(p));
-  if (tieneProducto) {
-    componentesCumplidos++;
-    observaciones.push("Producto o evidencia tangible explícita.");
-  } else {
-    sugerenciasMejora.push("Señala el producto o entregable final que evidenciará el aprendizaje.");
+    if (tieneProblema) {
+      componentesCumplidos++;
+      observaciones.push("Problemática o necesidad auténtica descrita.");
+    } else {
+      alertas.push("Falta problemática auténtica.");
+      sugerenciasMejora.push("Define con mayor claridad la necesidad o conflicto comunitario a resolver.");
+    }
+
+    // 3. Acción Cognitiva Operativa
+    const tieneAccion = VERBOS_ACCION_COGNITIVA.some((v) => t.includes(v));
+    if (tieneAccion) {
+      componentesCumplidos++;
+      observaciones.push("Acción cognitiva de orden superior identificada.");
+    } else {
+      alertas.push("Falta acción cognitiva operativa.");
+      sugerenciasMejora.push("Incorpora un verbo de acción operativa (ej. diseñar, proponer, modelar, analizar).");
+    }
+
+    // 4. Producto / Evidencia Tangible
+    const tieneProducto = PALABRAS_PRODUCTO.some((p) => t.includes(p));
+    if (tieneProducto) {
+      componentesCumplidos++;
+      observaciones.push("Producto o evidencia tangible explícita.");
+    } else {
+      alertas.push("Falta evidencia tangible.");
+      sugerenciasMejora.push("Señala el producto o entregable final que evidenciará el aprendizaje.");
+    }
   }
 
   const puntaje = Math.round((componentesCumplidos / 4) * 100);
+  const estado: "optimo" | "completo" | "parcial" | "incompleto" =
+    componentesCumplidos === 4
+      ? "optimo"
+      : componentesCumplidos === 3
+      ? "parcial"
+      : "incompleto";
 
   return {
     criterio: "Reto Situado (4/4 DBEPA)",
     valido: componentesCumplidos === 4,
+    completitud: `${componentesCumplidos}/4`,
+    estado,
     puntaje,
+    alertas,
     observaciones,
     sugerenciasMejora,
+    sugerencias: sugerenciasMejora,
   };
+}
+
+export interface TresSaberesInput {
+  conceptual?: string;
+  saber?: string;
+  procedimental?: string;
+  saberHacer?: string;
+  actitudinal?: string;
+  saberSer?: string;
+  saberSerYConvivir?: string;
 }
 
 /**
  * Valida la estructuración de los Tres Saberes (Conceptual, Procedimental, Actitudinal).
  */
-export function validarTresSaberesMediaSuperior(saberes: {
-  conceptual?: string;
-  procedimental?: string;
-  actitudinal?: string;
-}): ResultadoValidacionRegla {
+export function validarTresSaberesMediaSuperior(
+  saberes: TresSaberesInput
+): ResultadoValidacionSaberes {
   const observaciones: string[] = [];
   const sugerenciasMejora: string[] = [];
+  const saberesFaltantes: string[] = [];
   let aciertos = 0;
 
-  if (saberes.conceptual && saberes.conceptual.trim().length >= 10) {
+  const conceptual = (saberes.conceptual || saberes.saber || "").trim();
+  const procedimental = (saberes.procedimental || saberes.saberHacer || "").trim();
+  const actitudinal = (saberes.actitudinal || saberes.saberSer || saberes.saberSerYConvivir || "").trim();
+
+  if (conceptual.length >= 10) {
     aciertos++;
     observaciones.push("Saber Conceptual (conocimientos fundamentales) delimitado.");
   } else {
+    saberesFaltantes.push("conceptual");
     sugerenciasMejora.push("Detalla los conceptos, teorías o hechos del Saber Conceptual.");
   }
 
-  if (saberes.procedimental && saberes.procedimental.trim().length >= 10) {
+  if (procedimental.length >= 10) {
     aciertos++;
     observaciones.push("Saber Procedimental (habilidades y métodos) definido.");
   } else {
+    saberesFaltantes.push("procedimental");
     sugerenciasMejora.push("Especifica las habilidades técnicas o procedimientos del Saber Procedimental.");
   }
 
-  if (saberes.actitudinal && saberes.actitudinal.trim().length >= 10) {
+  if (actitudinal.length >= 10) {
     aciertos++;
     observaciones.push("Saber Actitudinal (valores y convivencia) formalizado.");
   } else {
+    saberesFaltantes.push("actitudinal");
     sugerenciasMejora.push("Incluye las actitudes, valores o compromisos éticos del Saber Actitudinal.");
   }
 
@@ -155,6 +249,7 @@ export function validarTresSaberesMediaSuperior(saberes: {
     criterio: "Estructura de Tres Saberes",
     valido: aciertos === 3,
     puntaje,
+    saberesFaltantes,
     observaciones,
     sugerenciasMejora,
   };
@@ -170,16 +265,19 @@ export function evaluarContextoPedagogico(
   const reglas: ResultadoValidacionRegla[] = [];
 
   if (contexto.nivel === "media_superior") {
-    const reto = textoAnalizado || contexto.detallesMediaSuperior?.retoSituado?.problemaComunidad || "";
-    if (reto) {
-      reglas.push(validarRetoSituadoMediaSuperior(reto, contexto.plantel?.nombre));
+    const retoStr = textoAnalizado || "";
+    const retoObj = contexto.detallesMediaSuperior?.retoSituado;
+
+    if (retoStr) {
+      reglas.push(validarRetoSituadoMediaSuperior(retoStr, contexto.plantel?.nombre));
+    } else if (retoObj) {
+      reglas.push(validarRetoSituadoMediaSuperior(retoObj, contexto.plantel?.nombre));
     }
 
     if (contexto.detallesMediaSuperior?.tresSaberes) {
       reglas.push(validarTresSaberesMediaSuperior(contexto.detallesMediaSuperior.tresSaberes));
     }
   } else {
-    // Stubs extensibles para otros niveles
     reglas.push({
       criterio: `Taxonomía ${contexto.nivel}`,
       valido: true,
@@ -199,5 +297,12 @@ export function evaluarContextoPedagogico(
     esApto: puntajeGlobal >= 75,
     puntajeGlobal,
     reglas,
+    evaluaciones: reglas,
   };
 }
+
+export const EVALUADORES_PEDAGOGICOS = {
+  retoSituado: validarRetoSituadoMediaSuperior,
+  tresSaberes: validarTresSaberesMediaSuperior,
+  contextoGlobal: evaluarContextoPedagogico,
+};

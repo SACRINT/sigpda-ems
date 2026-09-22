@@ -111,10 +111,15 @@ export function extractContextFromPath(
   overrides?: Partial<ContextoAsistente>
 ): ContextoAsistente {
   const { programa, pantallaActiva, documentoId } = resolveProgramFromPath(pathname);
+  const normalizedRoute = stripLocaleFromPath(pathname);
 
   const baseContext: ContextoAsistente = {
-    nivel: overrides?.nivel || "media_superior",
-    programa,
+    nivel: overrides?.nivel || overrides?.educationLevel || "media_superior",
+    educationLevel: overrides?.nivel || overrides?.educationLevel || "media_superior",
+    programa: overrides?.programa || overrides?.programId || programa,
+    programId: overrides?.programa || overrides?.programId || programa,
+    ruta: overrides?.ruta || overrides?.route || normalizedRoute,
+    route: overrides?.ruta || overrides?.route || normalizedRoute,
     pantallaActiva: overrides?.pantallaActiva || pantallaActiva,
     documentoId: overrides?.documentoId || documentoId,
     seccionActiva: overrides?.seccionActiva,
@@ -138,30 +143,38 @@ export const extractContextFromRoute = extractContextFromPath;
  * Extrae contexto didáctico y administrativo a partir de los datos crudos del documento activo.
  */
 export function extractDocumentContext(
-  docData: Record<string, unknown>,
-  programa: ProgramaPlataforma
+  docData: Record<string, unknown> | null | undefined,
+  programa: ProgramaPlataforma = "general"
 ): Partial<ContextoAsistente> {
-  if (!docData) return {};
+  if (!docData) return { programa: "general", programId: "general" };
+
+  const baseResult: Partial<ContextoAsistente> = {
+    programa,
+    programId: programa,
+    documentoId: (docData.id as string) || undefined,
+  };
 
   switch (programa) {
     case "planeaciones": {
-      const secI = (docData.sectionI || {}) as Record<string, unknown>;
-      const secII = (docData.sectionII || {}) as Record<string, unknown>;
+      const content = ((docData.content as Record<string, unknown>) || docData) as Record<string, unknown>;
+      const secI = ((content.sectionI as Record<string, unknown>) || (docData.sectionI as Record<string, unknown>) || {}) as Record<string, unknown>;
+      const secII = ((content.sectionII as Record<string, unknown>) || (docData.sectionII as Record<string, unknown>) || {}) as Record<string, unknown>;
       const reto = (secII.retoSituado || {}) as Record<string, unknown>;
 
       return {
+        ...baseResult,
         detallesMediaSuperior: {
           uac: (docData.uacName as string) || (secI.uacName as string),
           semestre: (docData.semester as number) || (secI.semester as number),
           subsistema: (docData.subsystem as "bge" | "tecnologico" | "general") || (secI.subsystem as "bge" | "tecnologico" | "general"),
           metodologiaActiva: (docData.metodologiaActiva as string) || (secI.metodologiaActiva as string),
           retoSituado: {
-            contextoReal: reto.contextoLocal as string | undefined,
-            problemaComunidad: reto.problematicaReal as string | undefined,
-            accionCognitiva: reto.verboInfinitivo as string | undefined,
-            productoEvidencia: reto.retoCompleto as string | undefined,
+            contextoReal: (reto.contextoLocal as string) || (reto.contextoReal as string) || undefined,
+            problemaComunidad: (reto.problematicaReal as string) || (reto.problemaComunidad as string) || undefined,
+            accionCognitiva: (reto.verboInfinitivo as string) || (reto.accionCognitiva as string) || undefined,
+            productoEvidencia: (reto.retoCompleto as string) || (reto.productoEvidencia as string) || undefined,
           },
-          paecNombre: secII.paecProjectName as string | undefined,
+          paecNombre: (secII.paecConnection as string) || (secII.paecProjectName as string) || undefined,
           paecProblema: secII.paecProblem as string | undefined,
         },
       };
@@ -169,6 +182,7 @@ export function extractDocumentContext(
 
     case "paec": {
       return {
+        ...baseResult,
         detallesMediaSuperior: {
           paecNombre: (docData.projectName as string) || (docData.nombre as string),
           paecProblema: (docData.problem as string) || (docData.problematica as string),
@@ -178,12 +192,14 @@ export function extractDocumentContext(
 
     case "pmc": {
       return {
+        ...baseResult,
         seccionActiva: (docData.fase as string) || "diagnostico",
       };
     }
 
     case "horarios": {
       return {
+        ...baseResult,
         plantel: {
           cct: docData.cct as string | undefined,
           nombre: docData.schoolName as string | undefined,
@@ -193,6 +209,7 @@ export function extractDocumentContext(
 
     case "cartografia": {
       return {
+        ...baseResult,
         plantel: {
           cct: docData.cct as string | undefined,
         },
@@ -200,7 +217,7 @@ export function extractDocumentContext(
     }
 
     default:
-      return {};
+      return { ...baseResult };
   }
 }
 

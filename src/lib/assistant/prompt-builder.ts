@@ -14,15 +14,22 @@ import { buildLevelLabel, buildProgramLabel } from "./context-extractor";
  * Genera acciones sugeridas automáticas de un clic dependiendo de la pantalla y foco actual.
  */
 export function generateQuickActions(contexto: ContextoAsistente): AccionSugerida[] {
-  const actions: AccionSugerida[] = [];
+  const rawActions: AccionSugerida[] = [];
 
   switch (contexto.programa) {
     case "planeaciones":
-      actions.push(
+      rawActions.push(
         {
           id: "plan-reto-situado",
           titulo: "Formular Reto Situado 4/4",
           prompt: "Ayúdame a formular un Reto Situado con los 4 componentes oficiales de DBEPA: contexto territorial, problema auténtico, acción cognitiva de orden superior y producto tangible.",
+          categoria: "redaccion",
+          campoObjetivo: "retoSituado",
+        },
+        {
+          id: "generar-reto-situado",
+          titulo: "Generar Reto Situado",
+          prompt: "Genera una propuesta contextualizada de Reto Situado bajo la normativa DBEPA Puebla.",
           categoria: "redaccion",
           campoObjetivo: "retoSituado",
         },
@@ -32,6 +39,19 @@ export function generateQuickActions(contexto: ContextoAsistente): AccionSugerid
           prompt: "Desglosa los Tres Saberes (Conceptual, Procedimental y Actitudinal) para esta Unidad de Aprendizaje Curricular acorde al nuevo marco curricular.",
           categoria: "estrategia",
           campoObjetivo: "tresSaberes",
+        },
+        {
+          id: "validar-tres-saberes",
+          titulo: "Validar Tres Saberes",
+          prompt: "Verifica que los Tres Saberes estén balanceados y cumplan con la taxonomía formativa.",
+          categoria: "evaluacion",
+          campoObjetivo: "tresSaberes",
+        },
+        {
+          id: "coherencia-metodologica",
+          titulo: "Coherencia Metodológica",
+          prompt: "Verifica que la secuencia didáctica sea coherente con la metodología activa seleccionada y los tiempos DBEPA.",
+          categoria: "evaluacion",
         },
         {
           id: "plan-preguntas-detonadoras",
@@ -49,7 +69,7 @@ export function generateQuickActions(contexto: ContextoAsistente): AccionSugerid
       break;
 
     case "paec":
-      actions.push(
+      rawActions.push(
         {
           id: "paec-foda",
           titulo: "Diagnóstico Territorial Comunitario",
@@ -72,7 +92,7 @@ export function generateQuickActions(contexto: ContextoAsistente): AccionSugerid
       break;
 
     case "pmc":
-      actions.push(
+      rawActions.push(
         {
           id: "pmc-metas-smart",
           titulo: "Metas e Indicadores SMART",
@@ -84,12 +104,18 @@ export function generateQuickActions(contexto: ContextoAsistente): AccionSugerid
           titulo: "Articulación por Ámbitos",
           prompt: "¿Cómo articular los objetivos del PMC con los ámbitos de infraestructura y aprovechamiento académico?",
           categoria: "normativa",
+        },
+        {
+          id: "pmc-creaa-fases",
+          titulo: "Fases CREAA de Seguimiento",
+          prompt: "Oriéntame sobre los entregables y rúbricas de evaluación requeridos en cada fase CREAA.",
+          categoria: "normativa",
         }
       );
       break;
 
     case "horarios":
-      actions.push(
+      rawActions.push(
         {
           id: "horarios-pedagogicos",
           titulo: "Optimización Pedagógica",
@@ -101,23 +127,41 @@ export function generateQuickActions(contexto: ContextoAsistente): AccionSugerid
           titulo: "Manejo de Bloques de 2 Horas",
           prompt: "¿Cómo estructurar una sesión de 2 horas consecutivas manteniendo una alta participación activa?",
           categoria: "estrategia",
+        },
+        {
+          id: "horarios-carga-uac",
+          titulo: "Validar Carga Horaria",
+          prompt: "Verifica que el número de horas asignadas a cada docente y grupo cuadre con el mapa curricular.",
+          categoria: "normativa",
         }
       );
       break;
 
     case "cartografia":
-      actions.push(
+      rawActions.push(
         {
           id: "cartografia-interdisciplinar",
           titulo: "Articulación Interdisciplinar",
           prompt: "Identifica posibles nodos de vinculación entre las UACs de este semestre y el proyecto comunitario PAEC.",
           categoria: "estrategia",
+        },
+        {
+          id: "cartografia-mapa-curricular",
+          titulo: "Mapeo Curricular Oficial",
+          prompt: "Verifica la distribución de asignaturas del mapa curricular para planteles BGE y Tecnológicos.",
+          categoria: "normativa",
+        },
+        {
+          id: "cartografia-zona-diagnostico",
+          titulo: "Diagnóstico de Zona Escolar",
+          prompt: "Sintetiza las características sociodemográficas y de oferta educativa de la zona escolar.",
+          categoria: "normativa",
         }
       );
       break;
 
     default:
-      actions.push(
+      rawActions.push(
         {
           id: "gen-normativa",
           titulo: "Normativa DBEPA Puebla 2026-2027",
@@ -129,11 +173,21 @@ export function generateQuickActions(contexto: ContextoAsistente): AccionSugerid
           titulo: "Metodologías Activas Recomendadas",
           prompt: "Explícame la diferencia de aplicación práctica entre Aprendizaje Basado en Proyectos y Aprendizaje Basado en Problemas.",
           categoria: "estrategia",
+        },
+        {
+          id: "gen-evaluacion",
+          titulo: "Principios de Evaluación Formativa",
+          prompt: "¿Cómo ponderar la heteroevaluación, coevaluación y autoevaluación en la NEM?",
+          categoria: "evaluacion",
         }
       );
   }
 
-  return actions;
+  return rawActions.map((act) => ({
+    ...act,
+    etiqueta: act.titulo,
+    label: act.titulo,
+  }));
 }
 
 /**
@@ -147,6 +201,7 @@ export function buildSystemPrompt(contexto: ContextoAsistente): string {
   if (contexto.detallesMediaSuperior) {
     const d = contexto.detallesMediaSuperior;
     detallesEspecificos = `
+DATOS DE LA UAC / MEDIA SUPERIOR:
 - UAC Activa: ${d.uac || "No especificada"}
 - Semestre: ${d.semestre || "No especificado"}
 - Subsistema: ${d.subsistema?.toUpperCase() || "General / BGE"}
@@ -158,6 +213,7 @@ export function buildSystemPrompt(contexto: ContextoAsistente): string {
 
   return `Eres el Asistente Pedagógico Contextual Universal (SAPCU) de SACRINT Systems IA.
 Tu misión es asistir a docentes, directores y supervisores educativos con rigor metodológico, empatía y apego estricto a las normas pedagógicas oficiales.
+Marco normativo de referencia: MCCEMS y DBEPA Puebla 2026-2027.
 
 CONTEXTO EDUCATIVO ACTUAL:
 - Nivel Educativo: ${nivelDesc}
@@ -188,6 +244,21 @@ export function buildUserPromptWithContext(
 
   if (contexto.campoEnFoco) {
     parts.push(`[Campo en foco: ${contexto.campoEnFoco}]`);
+  }
+
+  const contextMeta: string[] = [];
+  if (contexto.detallesMediaSuperior?.uac) {
+    contextMeta.push(`UAC: ${contexto.detallesMediaSuperior.uac}`);
+  }
+  if (contexto.detallesMediaSuperior?.metodologiaActiva) {
+    contextMeta.push(`Metodología: ${contexto.detallesMediaSuperior.metodologiaActiva}`);
+  }
+  if (contexto.detallesMediaSuperior?.paecNombre) {
+    contextMeta.push(`PAEC: ${contexto.detallesMediaSuperior.paecNombre}`);
+  }
+
+  if (contextMeta.length > 0) {
+    parts.push(`[Contexto: ${contextMeta.join(" | ")}]`);
   }
 
   parts.push(mensaje);
