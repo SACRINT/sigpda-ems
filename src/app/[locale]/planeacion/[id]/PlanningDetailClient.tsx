@@ -13,7 +13,7 @@ import { generateBlockSessions, type DetailedSession } from '@/lib/session-progr
 import type { ActiveWorkTextbook, GenerationProgressState } from '@/types/work-textbook';
 // ── Lucide Icons ────────────────────────────────────────────────────────────
 import {
-  FileText, Zap, Clock, GraduationCap, Printer, BarChart3, Package,
+  FileText, Zap, Clock, GraduationCap, Printer, BarChart3,
   Award, TrendingUp, Download, FileDown, Trash2, Search,
   RefreshCw, AlertTriangle, CheckCircle, ChevronDown, ChevronUp,
   Star, BookMarked, Microscope, Grid, Library, Send, Eye,
@@ -691,70 +691,7 @@ function PlanningDetailModular({
   };
 
 
-  // ── Bundle state ────────────────────────────────────────────────────────
-  interface BundleItem { type: string; label: string; icon: string; content: string | null; loading: boolean; }
-  const BUNDLE_TYPES: { type: 'guia'|'instrumento'|'diapositivas'|'quiz'; label: string; icon: string; color: string }[] = [
-    { type: 'guia',         label: 'Guía del Alumno',              icon: '📖', color: '#1d4ed8' },
-    { type: 'instrumento',  label: 'Instrumento Coevaluación',     icon: '📋', color: '#059669' },
-    { type: 'diapositivas', label: 'Guión de Diapositivas',        icon: '🎨', color: '#7c3aed' },
-    { type: 'quiz',         label: 'Quiz / Evaluación Diagnóstica',icon: '🧩', color: '#b45309' },
-  ];
-  const [bundleResults, setBundleResults] = useState<Record<string, string | null>>({});
-  const [bundleLoading, setBundleLoading] = useState<Record<string, boolean>>({});
-  const [bundleErrors,  setBundleErrors]  = useState<Record<string, string | null>>({});
-  const [bundleExpanded, setBundleExpanded] = useState<string | null>(null);
 
-  const handleGenerateBundleItem = async (type: 'guia'|'instrumento'|'diapositivas'|'quiz') => {
-    setBundleLoading(prev => ({ ...prev, [type]: true }));
-    setBundleErrors(prev  => ({ ...prev, [type]: null }));
-    try {
-      const res = await fetch('/api/bundles/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planningId: planning.id, type }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error al generar el material');
-      setBundleResults(prev => ({ ...prev, [type]: data.result || '' }));
-      setBundleExpanded(type);
-    } catch (err: unknown) {
-      setBundleErrors(prev => ({ ...prev, [type]: err instanceof Error ? err.message : 'Error desconocido' }));
-    } finally {
-      setBundleLoading(prev => ({ ...prev, [type]: false }));
-    }
-  };
-
-  const handleGenerateFullBundle = async () => {
-    for (const bt of BUNDLE_TYPES) {
-      setBundleLoading(prev => ({ ...prev, [bt.type]: true }));
-      setBundleErrors(prev  => ({ ...prev, [bt.type]: null }));
-    }
-    try {
-      const res = await fetch('/api/bundles/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planningId: planning.id, type: 'full' }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error al generar bundle completo');
-      const b = data.bundle;
-      setBundleResults({
-        guia:         b.guiaEstudiante        || '',
-        instrumento:  b.instrumentoEvaluacion || '',
-        diapositivas: b.guionDiapositivas     || '',
-        quiz:         b.quiz                  || '',
-      });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Error';
-      BUNDLE_TYPES.forEach(bt =>
-        setBundleErrors(prev => ({ ...prev, [bt.type]: msg }))
-      );
-    } finally {
-      for (const bt of BUNDLE_TYPES) {
-        setBundleLoading(prev => ({ ...prev, [bt.type]: false }));
-      }
-    }
-  };
 
   // ── Evaluador state ─────────────────────────────────────────────────────
   const [evalResult, setEvalResult]   = useState<any | null>(planning.evaluationJson || null);
