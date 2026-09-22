@@ -2858,7 +2858,7 @@ function drawEvaluationSection(
       styles: { fontSize: 6.8, cellPadding: 2, textColor: DARK_TEXT },
       columnStyles: {
         0: { cellWidth: 'auto' },
-        1: { cellWidth: 38 },
+        1: { cellWidth: 48 },
         2: { cellWidth: 28, halign: 'center' },
       },
     });
