@@ -16,6 +16,20 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
+  let heartbeatTimer: NodeJS.Timeout | null = null;
+  let metricsTimer: NodeJS.Timeout | null = null;
+
+  const clearTimers = () => {
+    if (heartbeatTimer) {
+      clearInterval(heartbeatTimer);
+      heartbeatTimer = null;
+    }
+    if (metricsTimer) {
+      clearInterval(metricsTimer);
+      metricsTimer = null;
+    }
+  };
+
   try {
     const session = await auth();
     if (!session?.user?.email) {
@@ -45,20 +59,6 @@ export async function GET(request: NextRequest) {
 
     const supervisorId = teacher.id;
     const encoder = new TextEncoder();
-
-    let heartbeatTimer: NodeJS.Timeout | null = null;
-    let metricsTimer: NodeJS.Timeout | null = null;
-
-    const clearTimers = () => {
-      if (heartbeatTimer) {
-        clearInterval(heartbeatTimer);
-        heartbeatTimer = null;
-      }
-      if (metricsTimer) {
-        clearInterval(metricsTimer);
-        metricsTimer = null;
-      }
-    };
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -129,6 +129,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
+    clearTimers();
     logger.error('[API-Analytics-Stream] Error iniciando stream SSE:', error);
     return new Response(JSON.stringify({ error: 'Error interno en stream analítico' }), {
       status: 500,
