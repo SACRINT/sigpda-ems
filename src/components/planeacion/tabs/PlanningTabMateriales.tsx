@@ -49,7 +49,7 @@ export interface PlanningTabMaterialesProps {
   bundleErrors: Record<string, string | null>;
   bundleExpanded: string | null;
   handleGenerateExtra: (
-    type: 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'practice_guide' | 'teacher_guide',
+    type: 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'teacher_guide',
     title: string,
     keyIndex: number | null,
     extraData: {
@@ -131,9 +131,9 @@ export default function PlanningTabMateriales({
                 {content?.sectionIV?.activities?.map((act, actIdx) => {
                   const practiceNum = actIdx + 1;
                   const practiceTitle = `${act.name.substring(0, 60)}`;
-                  const generatedGuide = findExtra('teacher_guide', actIdx) || findExtra('practice_guide', actIdx);
+                  const generatedGuide = findExtra('teacher_guide', actIdx);
                   const loadingKey = `teacher_guide-${actIdx}--`;
-                  const isCurrentGenerating = generatingKey?.startsWith(loadingKey) || generatingKey?.startsWith(`practice_guide-${actIdx}--`);
+                  const isCurrentGenerating = generatingKey?.startsWith(loadingKey);
 
                   return (
                     <div
@@ -494,7 +494,7 @@ export default function PlanningTabMateriales({
             const rubricExtra = findExtra('rubric', actIdx);
             const checklistExtra = findExtra('checklist', actIdx);
             const materialExtra = findExtra('material', actIdx);
-            const guideExtra = findExtra('teacher_guide', actIdx) || findExtra('practice_guide', actIdx);
+            const guideExtra = findExtra('teacher_guide', actIdx);
             const visualExtras = extras.filter((ex) => {
               if (ex.type !== 'visual') return false;
               return ex.keyIndex === actIdx;
@@ -818,16 +818,16 @@ export default function PlanningTabMateriales({
                         }}>
                           <div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                              <span style={{ fontSize: '11px', fontWeight: 700, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                                Cuaderno de Práctica
+                              <span style={{ fontSize: '11px', fontWeight: 700, color: '#7c3aed', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                Solucionario Pedagógico
                               </span>
-                              <span style={{ fontSize: '11px', color: 'var(--c-text-muted)' }}>Estudiante</span>
+                              <span style={{ fontSize: '11px', color: '#a78bfa', fontWeight: 600 }}>Uso Exclusivo Docente</span>
                             </div>
                             <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: 'var(--c-text)' }}>
-                              📘 Guía de Aprendizaje Activo ({blockNumStr})
+                              📘 Solucionario y Guía Pedagógica ({blockNumStr})
                             </h4>
                             <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: 'var(--c-text-muted)', lineHeight: 1.4 }}>
-                              Secuencia de desafíos autónomos, matrices de resolución técnica y espacios de práctica activa para el alumno.
+                              Claves analíticas de resolución paso a paso, pautas de mediación didáctica y contraste de errores comunes exclusivas para el docente.
                             </p>
                           </div>
 
@@ -860,7 +860,7 @@ export default function PlanningTabMateriales({
                                 <button
                                   onClick={() => handleDeleteExtra(guideExtra.id)}
                                   className="btn"
-                                  title="Eliminar guía"
+                                  title="Eliminar solucionario"
                                   style={{ padding: '5px 8px', fontSize: '11.5px', background: '#FEE2E2', border: '1px solid #EF4444', color: '#EF4444', borderRadius: '4px' }}
                                 >
                                   🗑️
