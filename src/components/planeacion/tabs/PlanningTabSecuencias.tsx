@@ -18,7 +18,7 @@ export interface PlanningTabSecuenciasProps {
   setPreviewExtra: (extra: PlanningExtra | null) => void;
   handleDeleteExtra: (extraId: string) => Promise<void>;
   handleGenerateExtra: (
-    type: 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'practice_guide',
+    type: 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'teacher_guide',
     title: string,
     keyIndex: number | null,
     extraData: {

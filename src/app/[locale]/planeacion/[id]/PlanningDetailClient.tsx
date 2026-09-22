@@ -13,7 +13,7 @@ import { generateBlockSessions, type DetailedSession } from '@/lib/session-progr
 import type { ActiveWorkTextbook, GenerationProgressState } from '@/types/work-textbook';
 // ── Lucide Icons ────────────────────────────────────────────────────────────
 import {
-  FileText, Zap, Clock, BookOpen, Printer, BarChart3, Package,
+  FileText, Zap, Clock, GraduationCap, Printer, BarChart3, Package,
   Award, TrendingUp, Download, FileDown, Trash2, Search,
   RefreshCw, AlertTriangle, CheckCircle, ChevronDown, ChevronUp,
   Star, BookMarked, Microscope, Grid, Library, Send, Eye,
@@ -55,7 +55,7 @@ function PlanningDetailModular({
   const prefix = isLaboral ? 'AC' : 'PC';
 
   // Tabs state
-  const [activeTab, setActiveTab] = useState<'planning' | 'extras' | 'lessonPlans' | 'practiceGuides' | 'a4print' | 'audit' | 'bundle' | 'evaluador' | 'analytics'>('planning');
+  const [activeTab, setActiveTab] = useState<'planning' | 'extras' | 'lessonPlans' | 'teacherGuides' | 'practiceGuides' | 'a4print' | 'audit' | 'bundle' | 'evaluador' | 'analytics'>('planning');
   const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   // SAPCU Copiloto Pedagógico: Sincronización contextual bidireccional
@@ -225,7 +225,7 @@ function PlanningDetailModular({
 
   // Generate extra handler
   async function handleGenerateExtra(
-    type: 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'practice_guide' | 'teacher_guide',
+    type: 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'teacher_guide',
     title: string,
     keyIndex: number | null,
     extraData: {
@@ -1018,7 +1018,7 @@ function PlanningDetailModular({
           { key: 'planning',      label: 'Planeación',         icon: <FileText   size={15}/>, color: 'var(--c-blue-mid)' },
           { key: 'extras',        label: 'Rúbricas y Materiales', icon: <Zap     size={15}/>, color: 'var(--c-blue-mid)' },
           { key: 'lessonPlans',   label: `Planes (${lessonSessions.length})`, icon: <Clock size={15}/>, color: 'var(--c-blue-mid)' },
-          { key: 'practiceGuides',label: 'Guías',              icon: <BookOpen   size={15}/>, color: '#7c3aed' },
+          { key: 'teacherGuides', label: 'Solucionario Docente',       icon: <GraduationCap size={15}/>, color: '#7c3aed' },
           { key: 'a4print',       label: 'Formato Carta',      icon: <Printer    size={15}/>, color: 'var(--c-blue-mid)' },
           { key: 'audit',         label: 'Auditoría',          icon: <BarChart3  size={15}/>, color: '#059669' },
           { key: 'bundle',        label: 'Bundle',             icon: <Package    size={15}/>, color: '#b45309' },
@@ -1102,7 +1102,7 @@ function PlanningDetailModular({
         />
       )}
 
-      {(activeTab === 'extras' || activeTab === 'practiceGuides' || activeTab === 'bundle') && (
+      {(activeTab === 'extras' || activeTab === 'teacherGuides' || activeTab === 'practiceGuides' || activeTab === 'bundle') && (
         <PlanningTabMateriales
           planning={planning}
           activeSubTab={activeTab}

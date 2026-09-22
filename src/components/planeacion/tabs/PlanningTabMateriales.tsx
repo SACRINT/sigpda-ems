@@ -39,7 +39,7 @@ export interface MaterialBlockWorkbookItem {
 
 export interface PlanningTabMaterialesProps {
   planning: Planning;
-  activeSubTab?: 'extras' | 'practiceGuides' | 'bundle';
+  activeSubTab?: 'extras' | 'practiceGuides' | 'teacherGuides' | 'bundle';
   extras: PlanningExtra[];
   generatingKey: string | null;
   syncingSuite: number | null;
@@ -104,12 +104,12 @@ export default function PlanningTabMateriales({
   const s1 = content?.sectionI;
   const isLaboral = s1?.component?.toLowerCase().includes('laboral') || false;
 
-  if (activeSubTab === 'practiceGuides') {
+  if (activeSubTab === 'teacherGuides' || activeSubTab === 'practiceGuides') {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div className="section-card">
             <div className="section-card-header" style={{ background: 'linear-gradient(135deg, #4c1d95 0%, #7c3aed 100%)', color: '#fff' }}>
-              <span className="section-card-title" style={{ color: '#fff' }}>📘 Guías Pedagógicas y Solucionarios del Docente</span>
+              <span className="section-card-title" style={{ color: '#fff' }}>📘 Solucionario Pedagógico y Guías del Docente</span>
             </div>
             <div className="section-card-body">
               <div style={{ padding: '12px', background: 'rgba(124, 58, 237, 0.12)', borderLeft: '3px solid #7c3aed', borderRadius: '6px', marginBottom: '16px', fontSize: '13.5px' }}>
