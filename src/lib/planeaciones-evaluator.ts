@@ -197,13 +197,29 @@ Dictamina cada uno de los ${defs.length} criterios de forma objetiva y responde 
 
   // Utilizar generateWithRotation para clave prioritaria de usuario, rotación en pool
   // ante cuotas/429/503 con backoff exponencial, y fallback multi-proveedor automático
-  const responseText = await generateWithRotation(
-    systemPrompt,
-    userPrompt,
-    teacherId,
-    isPremium,
-    { temperature: 0.0, jsonMode: true }
-  );
+  const EVALUATION_TIMEOUT_MS = 95_000;
+  let timeoutId: NodeJS.Timeout | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`Timeout al evaluar planeación: la solicitud de IA excedió el límite de ${EVALUATION_TIMEOUT_MS / 1000}s.`));
+    }, EVALUATION_TIMEOUT_MS);
+  });
+
+  let responseText = '';
+  try {
+    responseText = await Promise.race([
+      generateWithRotation(
+        systemPrompt,
+        userPrompt,
+        teacherId,
+        isPremium,
+        { temperature: 0.0, jsonMode: true }
+      ),
+      timeoutPromise,
+    ]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
 
   const parseResult = parseAIResponse(responseText, PlaneacionEvaluacionSchema, {
     contextName: 'planeaciones-evaluator',
