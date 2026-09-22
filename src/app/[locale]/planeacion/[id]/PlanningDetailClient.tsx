@@ -1100,6 +1100,8 @@ function PlanningDetailModular({
           handleDeleteExtra={handleDeleteExtra}
           handleGenerateExtra={handleGenerateExtra}
           blockWorkbooks={blockWorkbooks}
+          handleSyncSuite={handleSyncSuite}
+          syncingSuite={syncingSuite}
         />
       )}
 

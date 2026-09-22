@@ -37,6 +37,8 @@ export interface PlanningTabSecuenciasProps {
     }
   ) => Promise<void>;
   blockWorkbooks?: Record<number, { loaded?: boolean; generating?: boolean; workbook?: unknown; progress?: unknown; error?: string | null }>;
+  handleSyncSuite?: (blockIdx: number) => Promise<void>;
+  syncingSuite?: number | null;
 }
 
 export default function PlanningTabSecuencias({
@@ -47,11 +49,11 @@ export default function PlanningTabSecuencias({
   toggleAllBlocks,
   allBlocksCollapsed,
   findExtra,
-  generatingKey,
   setPreviewExtra,
   handleDeleteExtra,
-  handleGenerateExtra,
   blockWorkbooks = {},
+  handleSyncSuite,
+  syncingSuite = null,
 }: PlanningTabSecuenciasProps) {
   const content = planning.contentJson as GeneratedPlanningContent | null;
   const s1 = content?.sectionI;
@@ -86,7 +88,7 @@ export default function PlanningTabSecuencias({
                   Planes de Clase Desglosados por Sesión (50 min c/u)
                 </span>
               </div>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                 <span
                   style={{
                     fontSize: '12px',
@@ -99,6 +101,37 @@ export default function PlanningTabSecuencias({
                 >
                   {allDetailedSessions.length} Sesiones · {content?.sectionIV?.activities?.length || 0} {isLaboral ? 'Actividades Clave' : 'Bloques'}
                 </span>
+                {handleSyncSuite && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const acts = content?.sectionIV?.activities || [];
+                      for (let b = 0; b < (acts.length || 1); b++) {
+                        await handleSyncSuite(b);
+                      }
+                    }}
+                    disabled={syncingSuite !== null}
+                    style={{
+                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                      border: 'none',
+                      color: '#fff',
+                      padding: '5px 14px',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: syncingSuite !== null ? 'not-allowed' : 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      boxShadow: '0 2px 6px rgba(16, 185, 129, 0.35)',
+                    }}
+                    title="Sincroniza atómicamente todos los planes de clase y materiales a partir de los Libros de Bloque"
+                  >
+                    {syncingSuite !== null
+                      ? `⏳ Sincronizando Bloque ${(syncingSuite ?? 0) + 1}...`
+                      : `⚡ Sincronizar ${allDetailedSessions.length || 24} Planes desde el Libro`}
+                  </button>
+                )}
                 {(content?.sectionIV?.activities?.length || 0) > 1 && (
                   <button
                     type="button"
@@ -422,11 +455,7 @@ export default function PlanningTabSecuencias({
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       {blockSessions.map((session, sIdx) => {
                         const generated = findExtra('lesson_plan', session.activityIndex, undefined, session.sessionNum);
-                        const loadingKey = `lesson_plan-${session.activityIndex}-${session.sessionNum}-`;
-                        const isCurrentGenerating = generatingKey?.startsWith(loadingKey);
-                        const blockWb = blockWorkbooks[session.activityIndex];
-                        const hasBlockWorkbook = Boolean(blockWb?.workbook);
-                        const isWorkbookGenerating = Boolean(blockWb?.generating);
+                        const hasBlockWorkbook = Boolean(blockWorkbooks[session.activityIndex]?.workbook);
 
                         return (
                           <div
@@ -574,55 +603,22 @@ export default function PlanningTabSecuencias({
                                     </button>
                                   </div>
                                 ) : (
-                                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px' }}>
-                                    <button
-                                      onClick={() =>
-                                        handleGenerateExtra(
-                                          'lesson_plan',
-                                          `Plan de Clase: Sesión ${session.sessionNum} - ${session.title}`,
-                                          session.activityIndex,
-                                          {
-                                            sessionNum: session.sessionNum,
-                                            totalSessions: session.totalSessions,
-                                            activityName: session.activityName,
-                                            sessionTopic: session.title,
-                                            sessionFocus: session.focus,
-                                            teachingActivity: session.teachingActivity,
-                                            learningActivity: session.learningActivity,
-                                            evidence: session.evidence,
-                                            evaluation: session.evaluation,
-                                            phase: session.phase,
-                                          }
-                                        )
-                                      }
-                                      disabled={generatingKey !== null || isWorkbookGenerating}
-                                      className="btn btn-navy"
-                                      title={
-                                        isWorkbookGenerating
-                                          ? 'Generación de libro de bloque en curso...'
-                                          : 'Se genera automáticamente con el Libro de Bloque. Usar solo para regenerar esta sesión.'
-                                      }
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <span
                                       style={{
-                                        padding: '6px 14px',
-                                        fontSize: '11.5px',
+                                        fontSize: '11px',
                                         fontWeight: 600,
-                                        borderRadius: '5px',
-                                        border: 'none',
-                                        cursor: generatingKey !== null || isWorkbookGenerating ? 'not-allowed' : 'pointer',
-                                        opacity: isWorkbookGenerating ? 0.6 : 1,
-                                        background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                                        color: '#fff',
-                                        boxShadow: '0 2px 6px rgba(37, 99, 235, 0.3)',
+                                        color: '#94a3b8',
+                                        background: 'rgba(148, 163, 184, 0.12)',
+                                        border: '1px solid rgba(148, 163, 184, 0.25)',
+                                        padding: '4px 10px',
+                                        borderRadius: '6px',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '4px',
                                       }}
                                     >
-                                      {isCurrentGenerating
-                                        ? '⏳ Creando plan...'
-                                        : isWorkbookGenerating
-                                        ? '⏳ Generando en bloque...'
-                                        : '⚡ Generar Plan de Clase'}
-                                    </button>
-                                    <span style={{ fontSize: '10px', color: '#94a3b8', maxWidth: '220px', textAlign: 'right', lineHeight: '1.25' }}>
-                                      Se genera automáticamente con el Libro de Bloque. Usar solo para regenerar esta sesión.
+                                      ⏳ Sincronizado vía Libro de Bloque
                                     </span>
                                   </div>
                                 )}
