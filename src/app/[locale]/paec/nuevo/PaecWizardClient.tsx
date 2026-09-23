@@ -9,27 +9,23 @@ import type {
   SchoolContext,
   SchoolType,
   GroupTrackConfig,
-  UniqueUacItem,
   PaecAuditResult,
   PaecAuditCriterion,
   PaecQualityAudit,
+  Fase1Diagnostico,
+  Fase2Justificacion,
+  MapeoRow,
+  CronogramaRow,
+  DetalleCurricularRow,
   PlanOperativoRow,
-  PaecImplementacion,
-  PaecGobernanza,
-  PaecInformeSupervision,
-  AnexosData,
-  MinutaData,
-  SeguimientoRow,
-  ReporteMensualData,
-  LikertSurveyData,
 } from '@/types/paec';
-import { clearAllWizardDrafts } from '@/hooks/useWizardPersistence';
 import {
   consolidarUacsUnicasPlantel,
   FORMACIONES_LABORALES,
-  UACS_LABORALES_MAPA,
-  FFE_OPTATIVAS_CATALOGO,
+  obtenerFundamentalesPorSemestres,
+  obtenerFfeSemestre6,
 } from '@/lib/escuela-grupos';
+import { UACS_LABORALES_OFICIALES_BGE } from '@/lib/capacitaciones-data';
 import { loadCarrerasTecnicas, type BTCarrera } from '@/lib/bt-carreras-catalog';
 import type { SchoolZoneContextResponse } from '@/lib/zone-sync-service';
 import {
@@ -109,6 +105,7 @@ interface PaecFormDraft {
   community: CommunityContext;
   school: SchoolContext;
   schoolType?: SchoolType;
+  selectedFundamental?: string[];
   selectedLaboral: string[];
   selectedFfe: string[];
   selectedBtCarreras?: string[];
@@ -152,20 +149,20 @@ const CYCLE_LABELS: Record<string, string> = {
 };
 
 const CAPACITACION_TITLES: Record<string, string> = {
-  'Administracion': '💼 Administración',
+  'Administración': '💼 Administración',
   'Agricultura Sostenible de Traspatio': '🌱 Agricultura Sostenible de Traspatio',
-  'Area de la Salud': '🩺 Área de la Salud',
-  'Comunicacion Grafica': '🎨 Comunicación Gráfica',
+  'Área de la Salud': '🩺 Área de la Salud',
+  'Comunicación Gráfica': '🎨 Comunicación Gráfica',
   'Contabilidad': '📊 Contabilidad',
-  'Domotica': '🏠 Domótica',
+  'Domótica': '🏠 Domótica',
   'Instalaciones Residenciales': '🛠️ Instalaciones Residenciales',
-  'Mecanica Dental': '🦷 Mecánica Dental',
-  'Preparacion de Alimentos Artesanales': '🍯 Preparación de Alimentos Artesanales',
-  'Procesos Culinarios y Reposteria': '🍰 Procesos Culinarios y Repostería',
+  'Mecánica Dental': '🦷 Mecánica Dental',
+  'Preparación de Alimentos Artesanales': '🍯 Preparación de Alimentos Artesanales',
+  'Procesos Culinarios y Repostería': '🍰 Procesos Culinarios y Repostería',
   'Redes y Mantenimiento': '💻 Redes y Mantenimiento',
-  'Servicios Ecosistemicos': '🌳 Servicios Ecosistémicos',
-  'Sistemas Electricos': '⚡ Sistemas Eléctricos',
-  'Tecnologia Informatica': '💾 Tecnología Informática',
+  'Servicios Ecosistémicos': '🌳 Servicios Ecosistémicos',
+  'Sistemas Eléctricos': '⚡ Sistemas Eléctricos',
+  'Tecnología Informática': '💾 Tecnología Informática',
   'Turismo': '✈️ Turismo',
 };
 
@@ -188,27 +185,30 @@ export const FFE_PACKAGES: Record<string, { label: string; subjects: string[] }>
   }
 };
 
-const FFE_PAIRS = [
-  { name5: 'Análisis de Fenómenos Físicos I (CNET)', name6: 'Análisis de Fenómenos Físicos II (CNET)', label: 'Análisis de Fenómenos Físicos (CNET)' },
-  { name5: 'Análisis de Fenómenos Biológicos (CNET)', name6: 'Temas Selectos de Biología (CNET)', label: 'Ciencias Biológicas (CNET)' },
-  { name5: 'Salud Integral I (CNET)', name6: 'Salud Integral II (CNET)', label: 'Salud Integral (CNET)' },
-  { name5: 'Organización del Flujo de Materia I (CNET)', name6: 'Organización del Flujo de Materia II (CNET)', label: 'Organización del Flujo de Materia (CNET)' },
-  { name5: 'Derecho y Sociedad I (CS)', name6: 'Derecho y Sociedad II (CS)', label: 'Derecho y Sociedad (CS)' },
-  { name5: 'Fundamentos de Administración I (CS)', name6: 'Fundamentos de Administración II (CS)', label: 'Fundamentos de Administración (CS)' },
-  { name5: 'Economía I (CS)', name6: 'Economía II (CS)', label: 'Economía (CS)' },
-  { name5: 'Procesos Contables I (CS)', name6: 'Procesos Contables II (CS)', label: 'Procesos Contables (CS)' },
-  { name5: 'Psicología I (HUM)', name6: 'Psicología II (HUM)', label: 'Psicología (HUM)' },
-  { name5: 'Pensamiento Filosófico I (HUM)', name6: 'Pensamiento Filosófico II (HUM)', label: 'Pensamiento Filosófico (HUM)' },
-  { name5: 'Arte y Cultura I', name6: 'Arte y Cultura II', label: 'Arte y Cultura' },
-  { name5: 'Lógica y Pensamiento Crítico', name6: 'Experiencia Estética', label: 'Lógica y Estética' },
-  { name5: 'Pensamiento Matemático Finanzas I (CS)', name6: 'Pensamiento Matemático Finanzas II (CS)', label: 'Pensamiento Matemático Finanzas (CS)' },
-  { name5: 'Temas Selectos CS I (CS)', name6: 'Temas Selectos CS II (CS)', label: 'Temas Selectos Ciencias Sociales (CS)' },
-  { name5: 'Comunicación y Sociedad I (Lengua)', name6: 'Comunicación y Sociedad II (Lengua)', label: 'Comunicación y Sociedad (Lengua)' },
-  { name5: 'Inglés V (Lengua)', name6: 'Inglés VI (Lengua)', label: 'Inglés Avanzado (Lengua)' },
-  { name5: 'Raíces etimológicas I (Lengua)', name6: 'Raíces etimológicas II (Lengua)', label: 'Raíces Etimológicas (Lengua)' },
-  { name5: 'Taller Pensamiento Variacional I (PM)', name6: 'Taller Pensamiento Variacional II (PM)', label: 'Taller Pensamiento Variacional (PM)' },
-  { name5: 'Dibujo Técnico I (PM)', name6: 'Dibujo Técnico II (PM)', label: 'Dibujo Técnico (PM)' },
-  { name5: 'Probabilidad y Estadística I (PM)', name6: 'Probabilidad y Estadística II (PM)', label: 'Probabilidad y Estadística (PM)' },
+export const FFE_PAIRS = [
+  // ── Recursos Sociocognitivos (7) ──────────────────────────────────────────
+  { name5: 'Comunicación y Sociedad I', name6: 'Comunicación y Sociedad II', label: 'Comunicación y Sociedad', category: 'Recursos Sociocognitivos' },
+  { name5: 'Raíces Etimológicas del Español I', name6: 'Raíces Etimológicas del Español II', label: 'Raíces Etimológicas del Español', category: 'Recursos Sociocognitivos' },
+  { name5: 'Inglés V (Avanzado)', name6: 'Inglés VI (Avanzado)', label: 'Inglés Avanzado', category: 'Recursos Sociocognitivos' },
+  { name5: 'Taller de Pensamiento Variacional I', name6: 'Taller de Pensamiento Variacional II', label: 'Taller de Pensamiento Variacional', category: 'Recursos Sociocognitivos' },
+  { name5: 'Dibujo Técnico I', name6: 'Dibujo Técnico II', label: 'Dibujo Técnico', category: 'Recursos Sociocognitivos' },
+  { name5: 'Pensamiento Matemático Aplicado a las Finanzas I', name6: 'Pensamiento Matemático Aplicado a las Finanzas II', label: 'Pensamiento Matemático Finanzas', category: 'Recursos Sociocognitivos' },
+  { name5: 'Taller de Probabilidad y Estadística I', name6: 'Taller de Probabilidad y Estadística II', label: 'Taller de Probabilidad y Estadística', category: 'Recursos Sociocognitivos' },
+
+  // ── Áreas de Conocimiento (13) ─────────────────────────────────────────────
+  { name5: 'Salud Integral I', name6: 'Salud Integral II', label: 'Salud Integral', category: 'Ciencias Naturales y Salud' },
+  { name5: 'Análisis de Fenómenos y Procesos Biológicos', name6: 'Temas Selectos de Biología', label: 'Ciencias Biológicas', category: 'Ciencias Naturales y Salud' },
+  { name5: 'Análisis de Fenómenos Físicos I', name6: 'Análisis de Fenómenos Físicos II', label: 'Análisis de Fenómenos Físicos', category: 'Ciencias Naturales y Salud' },
+  { name5: 'Organización del Flujo de Materia y Energía en los Organismos I', name6: 'Organización del Flujo de Materia en los Organismos II', label: 'Flujo de Materia y Energía', category: 'Ciencias Naturales y Salud' },
+  { name5: 'Fundamentos de Administración I', name6: 'Fundamentos de Administración II', label: 'Fundamentos de Administración', category: 'Ciencias Sociales' },
+  { name5: 'Procesos Contables I', name6: 'Procesos Contables II', label: 'Procesos Contables', category: 'Ciencias Sociales' },
+  { name5: 'Derecho y Sociedad I', name6: 'Derecho y Sociedad II', label: 'Derecho y Sociedad', category: 'Ciencias Sociales' },
+  { name5: 'Economía I. La Función de los Agentes Económicos en la Sociedad', name6: 'Economía II. Política Económica y Política Pública Mexicana', label: 'Economía y Política Pública', category: 'Ciencias Sociales' },
+  { name5: 'Temas Selectos de Ciencias Sociales I', name6: 'Temas Selectos de Ciencias Sociales II', label: 'Temas Selectos Ciencias Sociales', category: 'Ciencias Sociales' },
+  { name5: 'Psicología I', name6: 'Psicología II', label: 'Psicología', category: 'Humanidades y Ciencias Sociales' },
+  { name5: 'Arte y Cultura I', name6: 'Arte y Cultura II', label: 'Arte y Cultura', category: 'Humanidades' },
+  { name5: 'Lógica y Pensamiento Crítico', name6: 'Experiencia Estética', label: 'Lógica y Experiencia Estética', category: 'Humanidades' },
+  { name5: 'Pensamiento Filosófico I', name6: 'Pensamiento Filosófico II', label: 'Pensamiento Filosófico', category: 'Humanidades' },
 ];
 
 function classifyError(err: unknown): { message: string; type: 'timeout' | 'json' | 'rate_limit' | 'network' | 'unknown' } {
@@ -406,20 +406,25 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
     if (activeStep === 4 && !project.fase2Cronograma) {
       const cached4 = getCachedPaecStep(projectId, 4);
       if (cached4) {
-        setProject(prev => prev ? ({ ...prev, fase2Cronograma: cached4 as any }) : prev);
+        queueMicrotask(() => {
+          setProject(prev => prev ? ({ ...prev, fase2Cronograma: cached4 as unknown as PaecProject['fase2Cronograma'] }) : prev);
+        });
       }
     }
     if (activeStep === 5 && !project.fase2DetalleCurricular) {
       const cached5 = getCachedPaecStep(projectId, 5);
       if (cached5) {
-        setProject(prev => prev ? ({ ...prev, fase2DetalleCurricular: cached5 as any }) : prev);
+        queueMicrotask(() => {
+          setProject(prev => prev ? ({ ...prev, fase2DetalleCurricular: cached5 as unknown as PaecProject['fase2DetalleCurricular'] }) : prev);
+        });
       }
     }
   }, [activeStep, projectId, project]);
 
   // Catalogs and Selections
   const [laboralCatalog, setLaboralCatalog] = useState<{ uac_name: string; semester: number; curriculum_name: string }[]>([]);
-  const [ffeCatalog, setFfeCatalog] = useState<{ uac_name: string; semester: number; component: string }[]>([]);
+  const [, setFfeCatalog] = useState<{ uac_name: string; semester: number; component: string }[]>([]);
+  const [selectedFundamental, setSelectedFundamental] = useState<string[]>(savedDraft?.selectedFundamental ?? []);
   const [selectedLaboral, setSelectedLaboral] = useState<string[]>(savedDraft?.selectedLaboral ?? []);
   const [selectedFfe, setSelectedFfe] = useState<string[]>(savedDraft?.selectedFfe ?? []);
   const [groupsCount, setGroupsCount] = useState(savedDraft?.groupsCount ?? '1');
@@ -432,7 +437,102 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
   const [groupAssignments, setGroupAssignments] = useState<GroupTrackConfig[]>(
     savedDraft?.groupAssignments ?? []
   );
+  const [expandedGroupFfe, setExpandedGroupFfe] = useState<Record<string, boolean>>({});
+  const [showFundamentalCustomizer, setShowFundamentalCustomizer] = useState<boolean>(false);
   const [carrerasBT, setCarrerasBT] = useState<BTCarrera[]>([]);
+
+  const availableFundamentalUacs = useMemo(() => {
+    const sems = cycleType === 'A' ? [1, 3, 5] : cycleType === 'B' ? [2, 4, 6] : [1, 2, 3, 4, 5, 6];
+    return obtenerFundamentalesPorSemestres(sems);
+  }, [cycleType]);
+
+  interface PaecPreviousExtractDTO {
+    projectName?: string;
+    problemStatement?: string;
+    cycleType?: 'A' | 'B' | 'annual';
+    schoolType?: SchoolType;
+    school?: {
+      schoolName?: string;
+      cct?: string;
+      directorName?: string;
+      municipality?: string;
+      [key: string]: unknown;
+    };
+    community?: {
+      context?: string;
+      [key: string]: unknown;
+    };
+    diagnosticoGeneral?: string;
+    resumenFase1?: string;
+    [key: string]: unknown;
+  }
+
+  // Carga inteligente de PAEC anterior (PDF/Word)
+  const fileInputPaecRef = useRef<HTMLInputElement>(null);
+  const [uploadingPaec, setUploadingPaec] = useState(false);
+  const [parsedPaecData, setParsedPaecData] = useState<PaecPreviousExtractDTO | null>(null);
+  const [showPaecReviewModal, setShowPaecReviewModal] = useState(false);
+  const [paecSuccessBanner, setPaecSuccessBanner] = useState<string | null>(null);
+
+  const handleUploadPreviousPaec = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingPaec(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/paec/parse-previous', {
+        method: 'POST',
+        body: formData,
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || 'Error al analizar el PAEC anterior.');
+      }
+      setParsedPaecData(json.data as PaecPreviousExtractDTO);
+      setShowPaecReviewModal(true);
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : 'No se pudo procesar el documento anterior.';
+      setError(errMsg);
+    } finally {
+      setUploadingPaec(false);
+      if (fileInputPaecRef.current) fileInputPaecRef.current.value = '';
+    }
+  };
+
+  const handleApplyParsedPaec = () => {
+    if (!parsedPaecData) return;
+    if (parsedPaecData.projectName) setProjectName(parsedPaecData.projectName);
+    if (parsedPaecData.problemStatement) setProblemStatement(parsedPaecData.problemStatement);
+    if (parsedPaecData.cycleType) setCycleType(parsedPaecData.cycleType);
+    if (parsedPaecData.schoolType) setSchoolType(parsedPaecData.schoolType);
+
+    if (parsedPaecData.school) {
+      setSchool(prev => ({
+        ...prev,
+        ...parsedPaecData.school,
+      }));
+    }
+
+    if (parsedPaecData.community) {
+      setCommunity(prev => ({
+        ...prev,
+        ...parsedPaecData.community,
+      }));
+    }
+
+    if (Array.isArray(parsedPaecData.selectedLaboral) && parsedPaecData.selectedLaboral.length > 0) {
+      setSelectedLaboral(parsedPaecData.selectedLaboral);
+    }
+
+    if (Array.isArray(parsedPaecData.selectedFfe) && parsedPaecData.selectedFfe.length > 0) {
+      setSelectedFfe(parsedPaecData.selectedFfe);
+    }
+
+    setShowPaecReviewModal(false);
+    setPaecSuccessBanner('✓ Datos del PAEC anterior extraídos y aplicados exitosamente.');
+  };
 
   useEffect(() => {
     if (schoolType === 'tecnico' || (selectedBtCarreras && selectedBtCarreras.length > 0)) {
@@ -444,30 +544,32 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
   useEffect(() => {
     const sems = cycleType === 'A' ? [1, 3, 5] : cycleType === 'B' ? [2, 4, 6] : [1, 2, 3, 4, 5, 6];
     const LETRAS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-    setGroupAssignments((prev) => {
-      const updated: GroupTrackConfig[] = [];
-      for (const sem of sems) {
-        const count = Math.max(1, Math.min(8, semestersConfig[sem] || 1));
-        for (let i = 0; i < count; i++) {
-          const letter = LETRAS[i] || `${i + 1}`;
-          const gId = `${sem}-${letter}`;
-          const gName = `${sem}° ${letter}`;
-          const existing = prev.find((g) => g.groupId === gId || (g.semester === sem && g.groupName === gName));
-          if (existing) {
-            updated.push(existing);
-          } else {
-            updated.push({
-              groupId: gId,
-              groupName: gName,
-              semester: sem,
-              trackId: '',
-              trackName: '',
-              ffeSelections: [],
-            });
+    queueMicrotask(() => {
+      setGroupAssignments((prev) => {
+        const updated: GroupTrackConfig[] = [];
+        for (const sem of sems) {
+          const count = Math.max(1, Math.min(8, semestersConfig[sem] || 1));
+          for (let i = 0; i < count; i++) {
+            const letter = LETRAS[i] || `${i + 1}`;
+            const gId = `${sem}-${letter}`;
+            const gName = `${sem}° ${letter}`;
+            const existing = prev.find((g) => g.groupId === gId || (g.semester === sem && g.groupName === gName));
+            if (existing) {
+              updated.push(existing);
+            } else {
+              updated.push({
+                groupId: gId,
+                groupName: gName,
+                semester: sem,
+                trackId: '',
+                trackName: '',
+                ffeSelections: [],
+              });
+            }
           }
         }
-      }
-      return updated;
+        return updated;
+      });
     });
   }, [cycleType, semestersConfig]);
 
@@ -478,15 +580,17 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
       semesters: sems,
       schoolType,
       groupAssignments,
+      activeFundamentalUacs: selectedFundamental.length > 0 ? selectedFundamental : undefined,
       activeLaboralUacs: selectedLaboral,
       activeFfeUacs: selectedFfe,
       activeBtCarreras: selectedBtCarreras,
     });
-  }, [cycleType, schoolType, groupAssignments, selectedLaboral, selectedFfe, selectedBtCarreras]);
+  }, [cycleType, schoolType, groupAssignments, selectedFundamental, selectedLaboral, selectedFfe, selectedBtCarreras]);
 
   // Manual Edit States
   const [isEditingContent, setIsEditingContent] = useState(false);
-  const [editPayload, setEditPayload] = useState<any>(null);
+  type PaecEditPayload = Fase1Diagnostico | Fase2Justificacion | MapeoRow[] | CronogramaRow[] | DetalleCurricularRow[] | PlanOperativoRow[] | Record<string, unknown> | null;
+  const [editPayload, setEditPayload] = useState<PaecEditPayload>(null);
 
   // Quality Audit States (Quality Gate continuo MCCEMS/NEM)
   const [auditResult, setAuditResult] = useState<PaecQualityAudit | PaecAuditResult | null>(null);
@@ -509,9 +613,13 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
     const visible = getVisibleSteps(cycleType);
     if (!visible.some((s) => s.num === activeStep)) {
       const nextValid = visible.find((s) => s.num >= activeStep) || visible[visible.length - 1];
-      if (nextValid) setActiveStep(nextValid.num);
+      if (nextValid) {
+        queueMicrotask(() => {
+          setActiveStep(nextValid.num);
+        });
+      }
     }
-  }, [cycleType]);
+  }, [cycleType, activeStep]);
 
   // Auto-save form draft to localStorage whenever step-1 form fields change (only when no projectId)
   const isFirstRenderDraft = useRef(true);
@@ -525,6 +633,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
       community,
       school,
       schoolType,
+      selectedFundamental,
       selectedLaboral,
       selectedFfe,
       selectedBtCarreras,
@@ -533,7 +642,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
       groupAssignments,
       semestersConfig,
     });
-  }, [projectId, projectName, problemStatement, cycleType, community, school, schoolType, selectedLaboral, selectedFfe, selectedBtCarreras, groupsCount, groupsConfig, groupAssignments, semestersConfig]);
+  }, [projectId, projectName, problemStatement, cycleType, community, school, schoolType, selectedFundamental, selectedLaboral, selectedFfe, selectedBtCarreras, groupsCount, groupsConfig, groupAssignments, semestersConfig]);
 
   // Load UAC lists for select checklists
   useEffect(() => {
@@ -559,14 +668,29 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
     fetchCatalog();
   }, []);
 
-  // Load project details if ID is present
-  useEffect(() => {
-    if (projectId) {
-      loadProject(projectId);
+  // Fetch PAEC Quality Audit (Evaluación continua 23 Criterios MCCEMS/NEM)
+  const fetchAudit = useCallback(async (pId: string) => {
+    setLoadingAudit(true);
+    setAuditError(null);
+    try {
+      const res = await fetch(`/api/paec/${pId}/audit`);
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Error al ejecutar la auditoría de calidad.');
+      }
+      const data = await res.json();
+      if (data.audit) {
+        setAuditResult(data.audit);
+      }
+    } catch (err) {
+      console.error('Error fetching audit:', err);
+      setAuditError(err instanceof Error ? err.message : 'Error al consultar la auditoría.');
+    } finally {
+      setLoadingAudit(false);
     }
-  }, [projectId]);
+  }, []);
 
-  async function loadProject(id: string) {
+  const loadProject = useCallback(async (id: string) => {
     setLoading(true);
     setError(null);
     try {
@@ -580,13 +704,13 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
         setCachedPaecStep(id, 4, p.fase2Cronograma);
       } else {
         const cached4 = getCachedPaecStep(id, 4);
-        if (cached4) (p as any).fase2Cronograma = cached4;
+        if (cached4) p.fase2Cronograma = cached4 as unknown as PaecProject['fase2Cronograma'];
       }
       if (p.fase2DetalleCurricular) {
         setCachedPaecStep(id, 5, p.fase2DetalleCurricular);
       } else {
         const cached5 = getCachedPaecStep(id, 5);
-        if (cached5) (p as any).fase2DetalleCurricular = cached5;
+        if (cached5) p.fase2DetalleCurricular = cached5 as unknown as PaecProject['fase2DetalleCurricular'];
       }
       setProject(p);
       setProjectName(p.projectName);
@@ -595,6 +719,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
       if (p.communityContext) setCommunity(p.communityContext);
       if (p.schoolContext) {
         setSchool(p.schoolContext);
+        setSelectedFundamental(p.schoolContext.activeFundamentalUacs || []);
         setSelectedLaboral(p.schoolContext.activeLaboralUacs || []);
         setSelectedFfe(p.schoolContext.activeFfeUacs || []);
         setSelectedBtCarreras(p.schoolContext.activeBtCarreras || []);
@@ -620,36 +745,35 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [fetchAudit]);
 
-  // Fetch PAEC Quality Audit (Evaluación continua 23 Criterios MCCEMS/NEM)
-  async function fetchAudit(pId: string) {
-    setLoadingAudit(true);
-    setAuditError(null);
-    try {
-      const res = await fetch(`/api/paec/${pId}/audit`);
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || 'Error al ejecutar la auditoría de calidad.');
+  // Load project details if ID is present
+  useEffect(() => {
+    if (!projectId) return;
+    let isCancelled = false;
+    queueMicrotask(() => {
+      if (!isCancelled) {
+        loadProject(projectId);
       }
-      const data = await res.json();
-      if (data.audit) {
-        setAuditResult(data.audit);
-      }
-    } catch (err) {
-      console.error('Error fetching audit:', err);
-      setAuditError(err instanceof Error ? err.message : 'Error al consultar la auditoría.');
-    } finally {
-      setLoadingAudit(false);
-    }
-  }
+    });
+    return () => {
+      isCancelled = true;
+    };
+  }, [projectId, loadProject]);
 
   // Auto-fetch audit on mount / project change
   useEffect(() => {
-    if (projectId) {
-      fetchAudit(projectId);
-    }
-  }, [projectId]);
+    if (!projectId) return;
+    let isCancelled = false;
+    queueMicrotask(() => {
+      if (!isCancelled) {
+        fetchAudit(projectId);
+      }
+    });
+    return () => {
+      isCancelled = true;
+    };
+  }, [projectId, fetchAudit]);
 
   const isStep1Valid = Boolean(
     projectName.trim() &&
@@ -683,6 +807,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
           schoolContext: {
             ...school,
             schoolType,
+            activeFundamentalUacs: selectedFundamental,
             activeLaboralUacs: selectedLaboral,
             activeFfeUacs: selectedFfe,
             activeBtCarreras: selectedBtCarreras,
@@ -841,14 +966,45 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
     }
   }
 
-  // Grouping helper for laboral UACs
-  const groupedLaboral = laboralCatalog.reduce((acc, item) => {
-    const cap = item.curriculum_name || 'General';
-    if (!acc[cap]) acc[cap] = {};
-    if (!acc[cap][item.semester]) acc[cap][item.semester] = [];
-    acc[cap][item.semester].push(item);
-    return acc;
-  }, {} as Record<string, Record<number, typeof laboralCatalog>>);
+  // Grouping helper for laboral UACs with fallback to authentic official catalog
+  const groupedLaboral = useMemo(() => {
+    const normalizeKey = (str: string) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const map: Record<string, Record<number, { uac_name: string; semester: number; curriculum_name: string }[]>> = {};
+
+    // 1. Pre-seed with authentic official catalog (15 capacitaciones × 4 semestres × 2 UACs = 120 UACs)
+    for (const [capName, sems] of Object.entries(UACS_LABORALES_OFICIALES_BGE)) {
+      const normKey = normalizeKey(capName);
+      const semObj: Record<number, { uac_name: string; semester: number; curriculum_name: string }[]> = {};
+      for (const [semStr, uacList] of Object.entries(sems)) {
+        const sem = parseInt(semStr, 10);
+        semObj[sem] = uacList.map(name => ({
+          uac_name: name,
+          semester: sem,
+          curriculum_name: capName,
+        }));
+      }
+      map[capName] = semObj;
+      map[normKey] = semObj;
+    }
+
+    // 2. Overlay dynamic catalog from DB if loaded
+    for (const item of laboralCatalog) {
+      const cap = item.curriculum_name || 'General';
+      const normCap = normalizeKey(cap);
+      if (!map[cap]) {
+        map[cap] = {};
+        map[normCap] = map[cap];
+      }
+      if (!map[cap][item.semester]) {
+        map[cap][item.semester] = [];
+      }
+      if (!map[cap][item.semester].some(u => u.uac_name.toLowerCase() === item.uac_name.toLowerCase())) {
+        map[cap][item.semester].push(item);
+      }
+    }
+
+    return map;
+  }, [laboralCatalog]);
 
   if (loading) {
     return (
@@ -871,6 +1027,50 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
             <h1 style={{ fontSize: '28px', color: '#f0f4ff', margin: 0, fontWeight: 800, fontFamily: "'Plus Jakarta Sans','Inter',sans-serif", letterSpacing: '-0.5px' }}>Nuevo Proyecto PAEC-PEC</h1>
             <p style={{ color: 'rgba(240,244,255,0.6)', margin: '4px 0 0' }}>Completa los datos iniciales de tu plantel y comunidad para comenzar</p>
           </div>
+        </div>
+
+        {paecSuccessBanner && (
+          <div style={{ marginBottom: '18px', padding: '12px 16px', borderRadius: '8px', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.4)', color: '#34d399', fontSize: '13px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>{paecSuccessBanner}</span>
+            <button
+              type="button"
+              onClick={() => setPaecSuccessBanner(null)}
+              style={{ background: 'none', border: 'none', color: '#6ee7b7', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' }}
+            >
+              ×
+            </button>
+          </div>
+        )}
+
+        {/* Barra de Carga Rápida de PAEC Anterior */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginBottom: '20px', padding: '14px 18px', borderRadius: '10px', background: 'linear-gradient(135deg, rgba(30,41,59,0.85) 0%, rgba(15,23,42,0.95) 100%)', border: '1px solid rgba(99,102,241,0.3)', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '20px' }}>📄</span>
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#ffffff' }}>¿Cuentas con un PAEC anterior en PDF o Word?</div>
+              <div style={{ fontSize: '11.5px', color: 'rgba(240,244,255,0.6)' }}>Sube el archivo para extraer automáticamente problemáticas, diagnóstico y datos del plantel</div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => fileInputPaecRef.current?.click()}
+            disabled={uploadingPaec}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              padding: '8px 16px', borderRadius: '8px',
+              background: 'rgba(99,102,241,0.25)', border: '1px solid rgba(99,102,241,0.45)',
+              color: '#c7d2fe', fontSize: '12.5px', fontWeight: 600, cursor: 'pointer',
+            }}
+          >
+            {uploadingPaec ? '⏳ Analizando documento...' : '📄 Cargar PAEC Anterior (PDF/Word)'}
+          </button>
+          <input
+            ref={fileInputPaecRef}
+            type="file"
+            accept=".pdf,.docx,.doc"
+            style={{ display: 'none' }}
+            onChange={handleUploadPreviousPaec}
+          />
         </div>
 
         <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -911,7 +1111,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                 </label>
                 <select
                   value={cycleType}
-                  onChange={(e) => setCycleType(e.target.value as any)}
+                  onChange={(e) => setCycleType(e.target.value as 'A' | 'B' | 'annual')}
                   style={{ width: '100%', padding: '10px 14px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.07)', color: '#f0f4ff' }}
                 >
                   <option value="A">Semestre A (1° y 3° Semestre - Septiembre-Enero)</option>
@@ -1389,37 +1589,285 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                               ))}
                             </select>
                           ) : (
-                            <select
-                              value={grp.trackId || ''}
-                              onChange={(e) => {
-                                const pkgKey = e.target.value;
-                                const pkg = FFE_PACKAGES[pkgKey];
-                                setGroupAssignments((prev) =>
-                                  prev.map((g) =>
-                                    g.groupId === grp.groupId
-                                      ? {
-                                          ...g,
-                                          trackId: pkgKey,
-                                          trackName: pkg ? pkg.label : 'Personalizado',
-                                          ffeSelections: pkg ? pkg.subjects : g.ffeSelections,
-                                        }
-                                      : g
-                                  )
-                                );
-                              }}
-                              style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: '#0f172a', color: '#f0f4ff', fontSize: '12.5px' }}
-                            >
-                              <option value="">Selecciona Paquete FFE Propedéutico...</option>
-                              {Object.entries(FFE_PACKAGES).map(([k, p]) => (
-                                <option key={k} value={k}>{p.label}</option>
-                              ))}
-                            </select>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                              {/* Barra de estado y presets rápidos */}
+                              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '12px', background: (grp.ffeSelections?.length || 0) > 0 ? 'rgba(99,102,241,0.25)' : 'rgba(255,255,255,0.08)', color: (grp.ffeSelections?.length || 0) > 0 ? '#a5b4fc' : '#94a3b8', fontWeight: 600, border: '1px solid rgba(99,102,241,0.3)' }}>
+                                    {grp.ffeSelections?.length || 0} UACs FFE
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setExpandedGroupFfe(prev => ({ ...prev, [grp.groupId]: !prev[grp.groupId] }))}
+                                    style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.15)', background: expandedGroupFfe[grp.groupId] ? 'rgba(99,102,241,0.3)' : 'rgba(255,255,255,0.06)', color: '#ffffff', cursor: 'pointer', fontWeight: 500 }}
+                                  >
+                                    {expandedGroupFfe[grp.groupId] ? '▲ Ocultar 20 FFE' : '▼ Seleccionar asignaturas individuales (20 FFE)'}
+                                  </button>
+                                </div>
+
+                                {/* Selector de Presets opcional */}
+                                <select
+                                  value={grp.trackId || ''}
+                                  onChange={(e) => {
+                                    const pkgKey = e.target.value;
+                                    if (!pkgKey) {
+                                      setGroupAssignments(prev => prev.map(g => g.groupId === grp.groupId ? { ...g, trackId: '', trackName: '', ffeSelections: [] } : g));
+                                      return;
+                                    }
+                                    const pkg = FFE_PACKAGES[pkgKey];
+                                    const subjects = pkg ? pkg.subjects.map(s => grp.semester === 6 ? obtenerFfeSemestre6(s) : s) : [];
+                                    setGroupAssignments(prev =>
+                                      prev.map(g =>
+                                        g.groupId === grp.groupId
+                                          ? {
+                                              ...g,
+                                              trackId: pkgKey,
+                                              trackName: pkg ? pkg.label : 'Personalizado',
+                                              ffeSelections: subjects,
+                                            }
+                                          : g
+                                      )
+                                    );
+                                  }}
+                                  style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.12)', background: '#0f172a', color: '#cbd5e1', fontSize: '11px' }}
+                                >
+                                  <option value="">⚡ Cargar preset propedéutico...</option>
+                                  {Object.entries(FFE_PACKAGES).map(([k, p]) => (
+                                    <option key={k} value={k}>{p.label}</option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              {/* Resumen de materias seleccionadas actualmente */}
+                              {(grp.ffeSelections && grp.ffeSelections.length > 0) && (
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '2px' }}>
+                                  {grp.ffeSelections.map((subj) => (
+                                    <span key={subj} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10.5px', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)', color: '#c7d2fe', padding: '1px 6px', borderRadius: '4px' }}>
+                                      {subj}
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setGroupAssignments(prev => prev.map(g => g.groupId === grp.groupId ? {
+                                            ...g,
+                                            trackId: 'custom',
+                                            trackName: 'Personalizado',
+                                            ffeSelections: (g.ffeSelections || []).filter(s => s !== subj),
+                                          } : g));
+                                        }}
+                                        style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', padding: '0 2px', fontSize: '11px', fontWeight: 'bold' }}
+                                        title="Quitar asignatura"
+                                      >
+                                        ×
+                                      </button>
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+
+                              {/* Panel desplegable con las 20 asignaturas de FFE */}
+                              {expandedGroupFfe[grp.groupId] && (
+                                <div style={{ marginTop: '8px', padding: '10px', borderRadius: '6px', background: 'rgba(15,23,42,0.95)', border: '1px solid rgba(99,102,241,0.3)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '6px' }}>
+                                    <span style={{ fontSize: '11px', color: '#a5b4fc', fontWeight: 600 }}>
+                                      Catálogo Oficial de 20 UACs FFE ({grp.semester}° Semestre)
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setGroupAssignments(prev => prev.map(g => g.groupId === grp.groupId ? { ...g, trackId: '', trackName: '', ffeSelections: [] } : g));
+                                      }}
+                                      style={{ fontSize: '10px', background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', textDecoration: 'underline' }}
+                                    >
+                                      Limpiar asignaturas
+                                    </button>
+                                  </div>
+
+                                  {/* Recursos Sociocognitivos (7) */}
+                                  <div>
+                                    <div style={{ fontSize: '10.5px', fontWeight: 700, color: '#38bdf8', marginBottom: '6px' }}>
+                                      📘 Recursos Sociocognitivos (7 asignaturas)
+                                    </div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '5px' }}>
+                                      {FFE_PAIRS.filter(p => p.category === 'Recursos Sociocognitivos').map((pair) => {
+                                        const subjectName = grp.semester === 6 ? pair.name6 : pair.name5;
+                                        const isChecked = (grp.ffeSelections || []).includes(subjectName);
+                                        return (
+                                          <label key={pair.name5} style={{ display: 'flex', alignItems: 'flex-start', gap: '5px', fontSize: '11px', cursor: 'pointer', color: isChecked ? '#ffffff' : 'rgba(240,244,255,0.7)', lineHeight: 1.25 }}>
+                                            <input
+                                              type="checkbox"
+                                              checked={isChecked}
+                                              onChange={() => {
+                                                setGroupAssignments(prev => prev.map(g => {
+                                                  if (g.groupId !== grp.groupId) return g;
+                                                  const current = g.ffeSelections || [];
+                                                  const next = isChecked ? current.filter(s => s !== subjectName) : [...current, subjectName];
+                                                  return {
+                                                    ...g,
+                                                    trackId: 'custom',
+                                                    trackName: 'Personalizado',
+                                                    ffeSelections: next,
+                                                  };
+                                                }));
+                                              }}
+                                              style={{ marginTop: '1px' }}
+                                            />
+                                            <span>{subjectName}</span>
+                                          </label>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+
+                                  {/* Áreas de Conocimiento (13) */}
+                                  <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '6px' }}>
+                                    <div style={{ fontSize: '10.5px', fontWeight: 700, color: '#34d399', marginBottom: '6px' }}>
+                                      🔬 Áreas de Conocimiento (13 asignaturas)
+                                    </div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '5px' }}>
+                                      {FFE_PAIRS.filter(p => p.category !== 'Recursos Sociocognitivos').map((pair) => {
+                                        const subjectName = grp.semester === 6 ? pair.name6 : pair.name5;
+                                        const isChecked = (grp.ffeSelections || []).includes(subjectName);
+                                        return (
+                                          <label key={pair.name5} style={{ display: 'flex', alignItems: 'flex-start', gap: '5px', fontSize: '11px', cursor: 'pointer', color: isChecked ? '#ffffff' : 'rgba(240,244,255,0.7)', lineHeight: 1.25 }}>
+                                            <input
+                                              type="checkbox"
+                                              checked={isChecked}
+                                              onChange={() => {
+                                                setGroupAssignments(prev => prev.map(g => {
+                                                  if (g.groupId !== grp.groupId) return g;
+                                                  const current = g.ffeSelections || [];
+                                                  const next = isChecked ? current.filter(s => s !== subjectName) : [...current, subjectName];
+                                                  return {
+                                                    ...g,
+                                                    trackId: 'custom',
+                                                    trackName: 'Personalizado',
+                                                    ffeSelections: next,
+                                                  };
+                                                }));
+                                              }}
+                                              style={{ marginTop: '1px' }}
+                                            />
+                                            <span>{subjectName}</span>
+                                          </label>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           )}
                         </div>
                       </div>
                     );
                   })}
                 </div>
+              </div>
+
+              {/* 4.3.5 Selección de Asignaturas del Tronco Fundamental (Soporte Multi-PAEC) */}
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
+                  <div>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, fontSize: '13.5px', color: '#f0f4ff', margin: 0 }}>
+                      <span>📘 Tronco Fundamental</span>
+                      <span style={{ fontSize: '11px', padding: '1px 7px', borderRadius: '10px', background: selectedFundamental.length > 0 ? 'rgba(99,102,241,0.2)' : 'rgba(52,211,153,0.15)', color: selectedFundamental.length > 0 ? '#a5b4fc' : '#34d399', border: `1px solid ${selectedFundamental.length > 0 ? 'rgba(99,102,241,0.4)' : 'rgba(52,211,153,0.3)'}` }}>
+                        {selectedFundamental.length > 0 ? `${selectedFundamental.length} seleccionadas (Multi-PAEC)` : 'Todas incluidas (100%)'}
+                      </span>
+                    </label>
+                    <p style={{ fontSize: '12px', color: 'rgba(240,244,255,0.6)', margin: '4px 0 0' }}>
+                      Por defecto, el PAEC abarca el 100% de las materias fundamentales. Si tu plantel desarrolla múltiples proyectos PAEC paralelos, puedes seleccionar qué materias específicas participan en este proyecto.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowFundamentalCustomizer(prev => !prev)}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '6px',
+                      background: showFundamentalCustomizer ? 'rgba(99,102,241,0.25)' : 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(99,102,241,0.4)',
+                      color: '#a5b4fc',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      fontWeight: 500,
+                    }}
+                  >
+                    {showFundamentalCustomizer ? '▲ Ocultar selector' : '⚙️ Personalizar asignaturas'}
+                  </button>
+                </div>
+
+                {showFundamentalCustomizer && (
+                  <div style={{ marginTop: '12px', padding: '14px', borderRadius: '8px', background: 'rgba(15,23,42,0.8)', border: '1px solid rgba(99,102,241,0.25)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                      <span style={{ fontSize: '12px', color: '#c7d2fe', fontWeight: 600 }}>
+                        Catálogo de Asignaturas Fundamentales ({availableFundamentalUacs.length} disponibles)
+                      </span>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedFundamental([])}
+                          style={{ fontSize: '11px', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', color: '#6ee7b7', padding: '3px 8px', borderRadius: '4px', cursor: 'pointer' }}
+                        >
+                          Incluir todas (Por defecto)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedFundamental(availableFundamentalUacs.map(u => u.nombre))}
+                          style={{ fontSize: '11px', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)', color: '#c7d2fe', padding: '3px 8px', borderRadius: '4px', cursor: 'pointer' }}
+                        >
+                          Marcar todas
+                        </button>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '8px', maxHeight: '280px', overflowY: 'auto', paddingRight: '4px' }}>
+                      {availableFundamentalUacs.map((u) => {
+                        const isChecked = selectedFundamental.length === 0 || selectedFundamental.includes(u.nombre);
+                        return (
+                          <label
+                            key={`${u.semestre}_${u.nombre}`}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'flex-start',
+                              gap: '8px',
+                              padding: '6px 8px',
+                              borderRadius: '4px',
+                              background: isChecked ? 'rgba(99,102,241,0.08)' : 'rgba(255,255,255,0.01)',
+                              border: `1px solid ${isChecked ? 'rgba(99,102,241,0.2)' : 'rgba(255,255,255,0.04)'}`,
+                              cursor: 'pointer',
+                              fontSize: '11.5px',
+                              color: isChecked ? '#ffffff' : 'rgba(240,244,255,0.5)',
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {
+                                let next: string[];
+                                if (selectedFundamental.length === 0) {
+                                  next = availableFundamentalUacs.map(item => item.nombre).filter(n => n !== u.nombre);
+                                } else if (selectedFundamental.includes(u.nombre)) {
+                                  next = selectedFundamental.filter(n => n !== u.nombre);
+                                } else {
+                                  next = [...selectedFundamental, u.nombre];
+                                }
+                                if (next.length === availableFundamentalUacs.length) {
+                                  next = [];
+                                }
+                                setSelectedFundamental(next);
+                              }}
+                              style={{ marginTop: '2px' }}
+                            />
+                            <div>
+                              <span style={{ fontWeight: 600, color: '#818cf8', marginRight: '4px' }}>{u.semestre}°</span>
+                              <span>{u.nombre}</span>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* 4.4 PREVISUALIZACIÓN EN TIEMPO REAL: CERO DUPLICADOS */}
@@ -1569,9 +2017,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                   Selecciona las asignaturas de FFE. Dado que tienen continuidad obligatoria, al seleccionar la materia de 5° Semestre se vinculará automáticamente con su continuación en 6° Semestre.
                 </p>
 
-                {ffeCatalog.length === 0 ? (
-                  <p style={{ fontSize: '13px', color: 'rgba(240,244,255,0.5)', fontStyle: 'italic' }}>Cargando catálogo FFE...</p>
-                ) : (
+
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '360px', overflowY: 'auto', padding: '12px', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', background: 'rgba(8,12,24,0.5)' }}>
                     {FFE_PAIRS.map((pair) => {
                       const isChecked5 = selectedFfe.includes(pair.name5);
@@ -1624,7 +2070,6 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                       );
                     })}
                   </div>
-                )}
               </div>
 
             </div>
@@ -1653,6 +2098,109 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
             )}
           </div>
         </form>
+
+        {/* Modal de Revisión y Confirmación de PAEC Anterior Extraído */}
+        {showPaecReviewModal && parsedPaecData && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.85)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 100,
+            padding: '20px',
+            backdropFilter: 'blur(5px)',
+          }}>
+            <div style={{
+              background: '#0f172a',
+              border: '1px solid rgba(99,102,241,0.4)',
+              borderRadius: '16px',
+              maxWidth: '740px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              padding: '24px',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.7)',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '14px', marginBottom: '18px' }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '18px', color: '#f0f4ff', fontWeight: 700 }}>
+                    📄 Revisión de Datos Extraídos del PAEC Anterior
+                  </h3>
+                  <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#94a3b8' }}>
+                    Revisa los datos extraídos automáticamente del documento antes de aplicarlos al formulario.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPaecReviewModal(false)}
+                  style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '20px', cursor: 'pointer' }}
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* Proyecto y Problemática */}
+              <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '10px', padding: '14px', marginBottom: '14px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <h4 style={{ margin: '0 0 10px', fontSize: '13px', color: '#818cf8', fontWeight: 700 }}>🎯 Identificación del Proyecto</h4>
+                <div style={{ marginBottom: '8px' }}>
+                  <strong style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase' }}>Nombre del Proyecto:</strong>
+                  <div style={{ fontSize: '13.5px', color: '#f0f4ff', fontWeight: 600 }}>{parsedPaecData.projectName || '(Sin detectar)'}</div>
+                </div>
+                <div>
+                  <strong style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase' }}>Problemática Central:</strong>
+                  <div style={{ fontSize: '12.5px', color: '#cbd5e1', lineHeight: 1.4 }}>{parsedPaecData.problemStatement || '(Sin detectar)'}</div>
+                </div>
+                <div style={{ display: 'flex', gap: '12px', marginTop: '8px', fontSize: '11.5px', color: '#a5b4fc' }}>
+                  <span>Ciclo: <strong>{parsedPaecData.cycleType === 'annual' ? 'Anual' : `Semestre ${parsedPaecData.cycleType}`}</strong></span>
+                  <span>Tipo: <strong>{parsedPaecData.schoolType}</strong></span>
+                </div>
+              </div>
+
+              {/* Plantel */}
+              {parsedPaecData.school && (
+                <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '10px', padding: '14px', marginBottom: '14px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <h4 style={{ margin: '0 0 8px', fontSize: '13px', color: '#818cf8', fontWeight: 700 }}>🏫 Datos del Plantel</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '6px', fontSize: '12px' }}>
+                    <div><strong style={{ color: '#94a3b8' }}>Plantel:</strong> <span style={{ color: '#f0f4ff' }}>{parsedPaecData.school.schoolName || '-'}</span></div>
+                    <div><strong style={{ color: '#94a3b8' }}>CCT:</strong> <span style={{ color: '#f0f4ff' }}>{parsedPaecData.school.cct || '-'}</span></div>
+                    <div><strong style={{ color: '#94a3b8' }}>Director:</strong> <span style={{ color: '#f0f4ff' }}>{parsedPaecData.school.directorName || '-'}</span></div>
+                    <div><strong style={{ color: '#94a3b8' }}>Municipio:</strong> <span style={{ color: '#f0f4ff' }}>{parsedPaecData.school.municipality || '-'}</span></div>
+                  </div>
+                </div>
+              )}
+
+              {/* Comunidad */}
+              {parsedPaecData.community && parsedPaecData.community.context && (
+                <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '10px', padding: '14px', marginBottom: '14px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <h4 style={{ margin: '0 0 6px', fontSize: '13px', color: '#818cf8', fontWeight: 700 }}>🌱 Contexto Comunitario y Territorial</h4>
+                  <p style={{ margin: 0, fontSize: '12px', color: '#cbd5e1', maxHeight: '100px', overflowY: 'auto', lineHeight: 1.4 }}>
+                    {parsedPaecData.community.context}
+                  </p>
+                </div>
+              )}
+
+              {/* Botones de acción modal */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '14px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowPaecReviewModal(false)}
+                  style={{ padding: '8px 16px', background: 'transparent', border: '1px solid #475569', borderRadius: '8px', color: '#94a3b8', fontSize: '13px', cursor: 'pointer' }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleApplyParsedPaec}
+                  style={{ padding: '8px 20px', background: 'linear-gradient(135deg, #6366f1, #4f46e5)', border: 'none', borderRadius: '8px', color: '#ffffff', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  ✓ Aplicar al Formulario de PAEC
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -1747,14 +2295,19 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
           position: 'relative'
         }}>
           {auditResult ? (() => {
-            const rawAudit = auditResult as any;
-            const scorePct = Math.round(rawAudit.percentage ?? rawAudit.score ?? 0);
+            const rawAudit = auditResult as unknown as Record<string, unknown>;
+            const percentageVal = typeof rawAudit.percentage === 'number'
+              ? rawAudit.percentage
+              : typeof rawAudit.score === 'number'
+              ? rawAudit.score
+              : 0;
+            const scorePct = Math.round(percentageVal);
             const isGreen = scorePct >= 80;
             const isYellow = scorePct >= 60 && scorePct < 80;
-            const isRed = scorePct < 60;
             const barColor = isGreen ? '#10b981' : isYellow ? '#f59e0b' : '#ef4444';
             const statusLabel = isGreen ? 'Excelente (≥80 pts)' : isYellow ? 'Regular (60-79 pts)' : 'Requiere Ajustes (<60 pts)';
-            const criteriaList: PaecAuditCriterion[] = rawAudit.criteria || rawAudit.criterios || [];
+            const rawCriteria = (rawAudit.criteria || rawAudit.criterios || []) as PaecAuditCriterion[];
+            const criteriaList: PaecAuditCriterion[] = Array.isArray(rawCriteria) ? rawCriteria : [];
             const failedOrWarn = criteriaList.filter((c: PaecAuditCriterion) => c.status === 'fail' || c.status === 'warning');
 
             return (
@@ -2032,8 +2585,8 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
               <PaecStep1Diagnostico
                 project={project}
                 isEditingContent={isEditingContent}
-                editPayload={editPayload}
-                setEditPayload={setEditPayload}
+                editPayload={editPayload as Fase1Diagnostico | null}
+                setEditPayload={setEditPayload as (v: Fase1Diagnostico | null) => void}
               />
             )}
 
@@ -2042,8 +2595,8 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
               <PaecStep2Justificacion
                 project={project}
                 isEditingContent={isEditingContent}
-                editPayload={editPayload}
-                setEditPayload={setEditPayload}
+                editPayload={editPayload as Fase2Justificacion | null}
+                setEditPayload={setEditPayload as (v: Fase2Justificacion | null) => void}
               />
             )}
 
@@ -2052,8 +2605,8 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
               <PaecStep3Mapeo
                 project={project}
                 isEditingContent={isEditingContent}
-                editPayload={editPayload}
-                setEditPayload={setEditPayload}
+                editPayload={editPayload as MapeoRow[] | null}
+                setEditPayload={setEditPayload as (v: MapeoRow[] | null) => void}
               />
             )}
 
@@ -2062,8 +2615,8 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
               <PaecStep4Cronograma
                 project={project}
                 isEditingContent={isEditingContent}
-                editPayload={editPayload}
-                setEditPayload={setEditPayload}
+                editPayload={editPayload as CronogramaRow[] | null}
+                setEditPayload={setEditPayload as (v: CronogramaRow[] | null) => void}
               />
             )}
 
@@ -2072,8 +2625,8 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
               <PaecStep5DetalleCurricular
                 project={project}
                 isEditingContent={isEditingContent}
-                editPayload={editPayload}
-                setEditPayload={setEditPayload}
+                editPayload={editPayload as DetalleCurricularRow[] | null}
+                setEditPayload={setEditPayload as (v: DetalleCurricularRow[] | null) => void}
               />
             )}
 
@@ -2082,8 +2635,8 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
               <PaecStep6PlanOpA
                 project={project}
                 isEditingContent={isEditingContent}
-                editPayload={editPayload}
-                setEditPayload={setEditPayload}
+                editPayload={editPayload as PlanOperativoRow[] | null}
+                setEditPayload={setEditPayload as (v: PlanOperativoRow[] | null) => void}
               />
             )}
 
@@ -2092,8 +2645,8 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
               <PaecStep7PlanOpB
                 project={project}
                 isEditingContent={isEditingContent}
-                editPayload={editPayload}
-                setEditPayload={setEditPayload}
+                editPayload={editPayload as PlanOperativoRow[] | null}
+                setEditPayload={setEditPayload as (v: PlanOperativoRow[] | null) => void}
               />
             )}
 
