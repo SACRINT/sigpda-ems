@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * mission-rubric-generator.ts — Generador de Rúbricas Analíticas Situadas por Misión V7
  * DBEPA Puebla · Marco Curricular Común de la EMS 2026-2027
@@ -13,19 +14,16 @@ import type jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type {
   EvaluationRubricCriterion,
-  EvaluationRubricLevel,
   MissionSection,
 } from '@/types/work-textbook';
 import {
   COLOR,
   RADIUS,
   STROKE,
-  TYPE,
   type RGB,
 } from './design-tokens';
 import {
   setFontHeading,
-  setFontBody,
 } from './font-loader';
 import { sanitizePdfText } from './pdf-components-core';
 import { stripMarkdown } from './content-extractor';
@@ -39,10 +37,10 @@ export function generateMissionRubric(
   paecContext?: string
 ): EvaluationRubricCriterion[] {
   const cleanTitle = sanitizePdfText(stripMarkdown(mission.title || 'Misión'));
-  const topic = sanitizePdfText(stripMarkdown(mission.sessionTopic || cleanTitle));
+  const topic = sanitizePdfText(stripMarkdown(mission.sessionTopic || subjectName || cleanTitle));
   const hookStory = mission.phenomenonHook?.story
     ? sanitizePdfText(stripMarkdown(mission.phenomenonHook.story)).slice(0, 80)
-    : 'la situación del entorno comunitario';
+    : (paecContext ? `el contexto de ${paecContext}` : 'la situación del entorno comunitario');
   const safetyMention = mission.safetyOrWorkshopTip
     ? 'protocolos y normas técnicas de seguridad'
     : 'normas de seguridad y precisión metodológica';
@@ -180,7 +178,7 @@ export function drawMissionRubricTable(
   setFontHeading(doc);
   doc.setFontSize(7.5);
   doc.setTextColor(...missionColor);
-  doc.text('RÚBRICA FORMATIVA ANALÍTICA DE LA MISIÓN (MCCEMS DBEPA)', margin + 6, y + 4.5);
+  doc.text('RÚBRICA FORMATIVA ANALÍTICA DE LA MISIÓN (MCCEMS)', margin + 6, y + 4.5);
 
   y += bannerH + 2.5;
 

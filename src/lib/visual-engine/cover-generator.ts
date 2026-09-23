@@ -278,7 +278,7 @@ function buildDeterministicCoverSvg(opts: BookCoverOptions): string {
     SECRETARÍA DE EDUCACIÓN PÚBLICA DEL ESTADO DE PUEBLA
   </text>
   <text x="160" y="94" font-family="'Montserrat', sans-serif" font-size="16" font-weight="600" fill="#E8A020" letter-spacing="1.2">
-    DIRECCIÓN DE BACHILLERATOS ESTATALES Y PREPARATORIA ABIERTA (DBEPA)
+    DIRECCIÓN DE EDUCACIÓN MEDIA SUPERIOR
   </text>
   <text x="160" y="120" font-family="'Lato', sans-serif" font-size="13" font-weight="normal" fill="#CBD5E1">
     SUBSECRETARÍA DE EDUCACIÓN MEDIA SUPERIOR · MCCEMS ${SCHOOL_YEAR}
@@ -480,7 +480,7 @@ function buildGenerativeTypographyOverlaySvg(opts: BookCoverOptions): string {
     SECRETARÍA DE EDUCACIÓN PÚBLICA DEL ESTADO DE PUEBLA
   </text>
   <text x="160" y="94" font-family="'Montserrat', sans-serif" font-size="16" font-weight="600" fill="#E8A020" letter-spacing="1.2">
-    DIRECCIÓN DE BACHILLERATOS ESTATALES Y PREPARATORIA ABIERTA (DBEPA)
+    DIRECCIÓN DE EDUCACIÓN MEDIA SUPERIOR
   </text>
   <text x="160" y="120" font-family="'Lato', sans-serif" font-size="13" font-weight="normal" fill="#CBD5E1">
     MCCEMS ${SCHOOL_YEAR} · NUEVA ESCUELA MEXICANA

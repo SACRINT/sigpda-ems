@@ -310,10 +310,8 @@ export async function renderWorkbookToDocx(
 
   const rawSchool = workbook.coverData?.schoolName || 'BGE';
   const schoolSigla = rawSchool
-    .replace(/Bachillerato General (Estatal|Oficial)\s*/i, '')
-    .replace(/Preparatoria Abierta\s*/i, '')
-    .slice(0, 26)
-    .trim() || 'DBEPA';
+    .replace(/^BACHILLERATO\s+(GENERAL\s+ESTATAL|DIGITAL|TECNOL[OÓ]GICO)\s+/i, '')
+    .trim() || 'EMS';
   const cctClean = workbook.coverData?.cct || '';
   const footerSchoolText = cctClean ? `${schoolSigla} (${cctClean})` : schoolSigla;
 
@@ -349,7 +347,7 @@ export async function renderWorkbookToDocx(
               alignment: AlignmentType.CENTER,
               children: [
                 new TextRun({
-                  text: `Cuaderno de Aprendizaje Activo · DBEPA Puebla · ${footerSchoolText}`,
+                  text: `Cuaderno de Aprendizaje Activo · MCCEMS Puebla · ${footerSchoolText}`,
                   size: 16,
                   color: C.mutedText,
                   font: 'Calibri',
@@ -377,7 +375,7 @@ export async function renderWorkbookToDocx(
             alignment: AlignmentType.RIGHT,
             children: [
               new TextRun({
-                text: `${shortSubject} · ${workbook.blockName} (DBEPA Puebla)`,
+                text: `${shortSubject} · ${workbook.blockName} (MCCEMS Puebla)`,
                 size: 16,
                 color: C.mutedText,
                 font: 'Calibri',
@@ -476,7 +474,7 @@ function buildCoverSection(workbook: ActiveWorkTextbook): Paragraph[] {
       spacing: { after: 300 },
       children: [
         new TextRun({
-          text: 'DIRECCIÓN DE BACHILLERATOS ESTATALES Y PREPARATORIA ABIERTA (DBEPA)',
+          text: 'DIRECCIÓN DE EDUCACIÓN MEDIA SUPERIOR',
           bold: true,
           size: 20,
           color: C.midBlue,
@@ -752,7 +750,7 @@ function buildDocxCreditsSection(
   const credRows = [
     ['Dirección General:', 'Secretaría de Educación Pública del Estado de Puebla'],
     ['Subsecretaría:', 'Subsecretaría de Educación Media Superior'],
-    ['Dirección de Área:', 'Dirección de Bachilleratos Estatales y Preparatoria Abierta (DBEPA)'],
+    ['Dirección de Área:', 'Dirección de Educación Media Superior'],
     ['Plataforma:', 'Sistema Integral de Gestión Pedagógica y Docente Activa (SIGPDA-EMS)'],
     ['Plantel Educativo:', `${coverOpts.plantelNombre} (CCT: ${coverOpts.cct})`],
     ['Unidad de Aprendizaje:', `${coverOpts.uacName} · Bloque ${coverOpts.blockIndex ?? 1}`],
@@ -1088,7 +1086,7 @@ function buildDocxContraportada(data: ContraportadaData): (Paragraph | Table)[] 
       spacing: { before: 100 },
       children: [
         new TextRun({
-          text: 'Documento generado conforme a los lineamientos del MCCEMS 2026-2027 · DBEPA Puebla.',
+          text: 'Documento generado conforme a los lineamientos del MCCEMS 2026-2027 · MCCEMS Puebla.',
           size: 14,
           color: C.mutedText,
           font: 'Calibri',
@@ -1351,7 +1349,7 @@ async function buildDocxMissionQrBox(verificationUrl: string, hashMission: strin
     new Paragraph({
       children: [
         new TextRun({
-          text: `Sello Digital: ${hashMission.slice(0, 24)}... · DBEPA Puebla · ${SCHOOL_YEAR}`,
+          text: `Sello Digital: ${hashMission.slice(0, 24)}... · MCCEMS Puebla · ${SCHOOL_YEAR}`,
           italics: true,
           size: 13,
           color: C.mutedText,
@@ -2976,7 +2974,7 @@ function buildEvaluationSection(evalSection: EvaluationSection): (Paragraph | Ta
       spacing: { after: 200 },
       children: [
         new TextRun({
-          text: '1. Rúbrica Analítica por Niveles de Desempeño Oficiales (DBEPA Puebla):',
+          text: '1. Rúbrica Analítica por Niveles de Desempeño Oficiales (MCCEMS):',
           bold: true,
           size: 24,
           color: C.midBlue,

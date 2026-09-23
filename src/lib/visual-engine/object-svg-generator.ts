@@ -62,7 +62,7 @@ function wrapBlueprintSvg(content: string, label: string, showGrid = true): stri
     <rect x="25" y="262" width="350" height="22" rx="4" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1"/>
     <rect x="25" y="262" width="5" height="22" rx="1" fill="#2563EB"/>
     <text x="36" y="277" font-family="Montserrat, Arial, sans-serif" font-size="9.5" font-weight="bold" fill="#1E293B" letter-spacing="0.5">${label.toUpperCase()}</text>
-    <text x="365" y="277" font-family="Lato, Arial, sans-serif" font-size="7.5" fill="#64748B" text-anchor="end">ESQUEMA TÉCNICO · DBEPA</text>
+    <text x="365" y="277" font-family="Lato, Arial, sans-serif" font-size="7.5" fill="#64748B" text-anchor="end">ESQUEMA TÉCNICO · MCCEMS</text>
   </svg>`;
 }
 

@@ -562,7 +562,7 @@ function drawCoverPage(
 
   doc.setFontSize(7.2);
   doc.setTextColor(232, 160, 32);
-  doc.text('DIRECCIÓN DE BACHILLERATOS ESTATALES Y PREPARATORIA ABIERTA (DBEPA)', pageWidth / 2, 13.8, { align: 'center' });
+  doc.text('DIRECCIÓN DE EDUCACIÓN MEDIA SUPERIOR', pageWidth / 2, 13.8, { align: 'center' });
 
   setFontBody(doc, 'normal');
   doc.setFontSize(6.2);
@@ -914,7 +914,7 @@ function drawCreditsPage(
   const credRows = [
     ['Dirección General:', 'Secretaría de Educación Pública del Estado de Puebla'],
     ['Subsecretaría:', 'Subsecretaría de Educación Media Superior'],
-    ['Dirección de Área:', 'Dirección de Bachilleratos Estatales y Preparatoria Abierta (DBEPA)'],
+    ['Dirección de Área:', 'Dirección de Educación Media Superior'],
     ['Plataforma:', 'Sistema Integral de Gestión Pedagógica y Docente Activa (SIGPDA-EMS)'],
     ['Plantel Educativo:', `${plantelName} (CCT: ${cct})`],
     ['Unidad de Aprendizaje:', `${uac} · ${workbook.blockName}`],
@@ -1086,8 +1086,8 @@ function drawContraportadaPage(
   doc.setFontSize(6.8);
   doc.setTextColor(...MUTED_TEXT);
   const legalLines = [
-    'Documento oficial generado bajo los lineamientos pedagógicos del MCCEMS 2026-2027 y las directrices de la Dirección de',
-    'Bachilleratos Estatales y Preparatoria Abierta (DBEPA Puebla). El contenido de este cuaderno activo es para uso escolar exclusivo.',
+    'Documento oficial generado bajo los lineamientos pedagógicos del MCCEMS 2026-2027 y las directrices de la',
+    'Subsecretaría de Educación Media Superior. El contenido de este cuaderno activo es para uso escolar exclusivo.',
     'Escanee el código QR institucional para verificar la vigencia de la planeación y la acreditación de la academia docente.',
   ];
   let ly = y + 12;
@@ -1103,7 +1103,7 @@ function drawContraportadaPage(
   doc.setFontSize(7);
   doc.setTextColor(255, 255, 255);
   doc.text(
-    'SECRETARÍA DE EDUCACIÓN DE PUEBLA · DIRECCIÓN DE BACHILLERATOS ESTATALES Y PREPARATORIA ABIERTA (DBEPA)',
+    'SECRETARÍA DE EDUCACIÓN DE PUEBLA · SUBSECRETARÍA DE EDUCACIÓN MEDIA SUPERIOR · MCCEMS',
     pageWidth / 2,
     pageHeight - 5,
     { align: 'center' }
@@ -2407,7 +2407,7 @@ async function drawMission(
 
   // ── Cierre de Misión: Sello Curricular MCCEMS al pie si quedó espacio ────────
   {
-    const sealText = `SELLO CURRICULAR MCCEMS · Hash: ${hashMission.slice(0, 20)}... · DBEPA Puebla · ${SCHOOL_YEAR}`;
+    const sealText = `SELLO CURRICULAR MCCEMS · Hash: ${hashMission.slice(0, 20)}... · MCCEMS Puebla · ${SCHOOL_YEAR}`;
     y = checkSpace(y, 10);
     setFontBody(doc, 'normal');
     doc.setFontSize(6.2);

@@ -58,7 +58,6 @@ const COLOR_MID_BLUE = '#2563eb';
 const COLOR_AMBER = '#d97706';
 const COLOR_EMERALD = '#059669';
 const COLOR_CRIMSON = '#dc2626';
-const COLOR_PURPLE = '#7c3aed';
 const COLOR_SLATE = '#475569';
 const COLOR_BORDER = '#cbd5e1';
 const COLOR_BG = '#ffffff';
@@ -697,7 +696,7 @@ export function generateSocialStatsChart(
 
   // Pie de gráfico
   annotations.push({
-    text: 'Fuente: Indicadores de contexto sociodemográfico y diagnóstico comunitario DBEPA-MCCEMS',
+    text: 'Fuente: Indicadores de contexto sociodemográfico y diagnóstico comunitario MCCEMS',
     svgX: w / 2,
     svgY: 330,
     fontSize: 6.5,
