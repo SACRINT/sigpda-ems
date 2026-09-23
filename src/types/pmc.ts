@@ -1,7 +1,7 @@
 // src/types/pmc.ts
 /**
  * Tipos oficiales para el Programa de Mejora Continua (PMC)
- * SIGPDA-EMS · DBEPA Puebla MCCEMS
+ * SIGPDA-EMS · SEMS Puebla MCCEMS
  */
 
 export interface PmcStaffMember {
@@ -46,7 +46,7 @@ export interface PmcStatisticalPlantel {
   estudiantesAprobados?: number;   // Compatibilidad
   promedioCalificaciones?: number; // Compatibilidad
 
-  // ── EDIEMS/ESA (evaluaciones externas DBEPA, independientes del F11) ───
+  // ── EDIEMS/ESA (evaluaciones externas SEMS, independientes del F11) ───
   ediemsPre?: number;
   ediemsPost?: number;
   esaPre?: number;

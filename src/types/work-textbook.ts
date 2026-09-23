@@ -1,6 +1,6 @@
 /**
  * Work-Textbook Types & Data Contracts
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Define la estructura completa del Libro-Cuaderno de Trabajo Activo del Estudiante
  * por Bloque (35-50 páginas en BGE / 50-80 páginas en BT) bajo el enfoque Finlandia-Puebla.

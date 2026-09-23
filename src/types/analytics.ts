@@ -1,7 +1,7 @@
 /**
  * src/types/analytics.ts
  * Definición de tipos de dominio multi-nivel para Analítica Avanzada y Supervisión Inteligente (Fase 5)
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  */
 
 export type QualityStatus = 'excelente' | 'aprobada' | 'requiere_ajustes' | 'insuficiente';

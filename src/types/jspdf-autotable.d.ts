@@ -1,6 +1,6 @@
 /**
  * Type augmentations for jsPDF and jspdf-autotable
- * SIGPDA-EMS · DBEPA Puebla MCCEMS
+ * SIGPDA-EMS · SEMS Puebla MCCEMS
  */
 import 'jspdf';
 
