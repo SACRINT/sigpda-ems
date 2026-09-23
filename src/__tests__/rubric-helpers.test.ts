@@ -1,7 +1,7 @@
 /**
  * rubric-helpers.test.ts
  *
- * Pruebas unitarias para helpers de rúbricas formativas NEM / DBEPA Puebla:
+ * Pruebas unitarias para helpers de rúbricas formativas NEM / MCCEMS Puebla:
  * - getOfficialNemFallback: Retorna descripciones oficiales por nivel.
  * - getRubricLevelDescriptor: Normaliza arrays y objetos de niveles, resolviendo aliases en inglés y español.
  */

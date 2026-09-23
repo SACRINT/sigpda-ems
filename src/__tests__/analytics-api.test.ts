@@ -1,7 +1,7 @@
 /**
  * analytics-api.test.ts
  * Tests de integración y endpoints REST/SSE para Analytics v1 (Fase 5 - GAP-003)
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  */
 
 import { vi, describe, it, expect, beforeEach } from 'vitest';

@@ -81,7 +81,7 @@ describe("SAPCU — Extractor de Contexto No Invasivo", () => {
   });
 });
 
-describe("SAPCU — Motor de Reglas Pedagógicas DBEPA Puebla 2026-2027", () => {
+describe("SAPCU — Motor de Reglas Pedagógicas MCCEMS Puebla 2026-2027", () => {
   it("valida un Reto Situado 4/4 completo satisfactoriamente", () => {
     const textoReto =
       "En la comunidad de San Pedro Cholula, Puebla, ante la escasez crítica de agua potable, los estudiantes diseñarán una propuesta integral comunitaria y un prototipo de captación pluvial.";

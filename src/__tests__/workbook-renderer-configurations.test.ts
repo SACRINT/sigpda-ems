@@ -1,7 +1,7 @@
 // src/__tests__/workbook-renderer-configurations.test.ts
 /**
  * Tests de Cobertura y Configuraciones para pdf-workbook-renderer.ts
- * Fase 17 · SIGPDA-EMS DBEPA Puebla MCCEMS 2026-2027
+ * Fase 17 · SIGPDA-EMS SEMS Puebla MCCEMS 2026-2027
  *
  * Valida el comportamiento del renderizador de libros de trabajo activo
  * ante múltiples configuraciones curriculares, tecnológicas y de formato:
@@ -268,7 +268,7 @@ function makeWorkbook(options: {
       ? {}
       : {
           title: 'CUADERNO DE TRABAJO ACTIVO',
-          subtitle: 'Enfoque Situado MCCEMS DBEPA Puebla',
+          subtitle: 'Enfoque Situado MCCEMS Puebla',
           subjectName,
           semester: 2,
           blockNumber: 1,
@@ -339,7 +339,7 @@ function makePlanning(subjectName = 'PENSAMIENTO MATEMÁTICO II', subsystem = 'b
         teacherMaterials: ['Guía pedagógica'],
         digital: [],
         spaces: ['Aula'],
-        references: ['Bibliografía DBEPA'],
+        references: ['Bibliografía MCCEMS'],
       },
       sectionVII: {},
     },

@@ -53,7 +53,7 @@ describe('normalizeEvaluationPercentages — Normalizador Determinista 100%', ()
     expect(result[2].percentage).toBe(40);
   });
 
-  it('Caso 4: Maneja arreglos vacíos o nulos retornando la escala canónica oficial DBEPA', () => {
+  it('Caso 4: Maneja arreglos vacíos o nulos retornando la escala canónica oficial MCCEMS', () => {
     const fromNull = normalizeEvaluationPercentages(null);
     expect(fromNull.reduce((acc, curr) => acc + curr.percentage, 0)).toBe(100);
     expect(fromNull).toHaveLength(3);

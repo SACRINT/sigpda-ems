@@ -1,7 +1,7 @@
 // src/__tests__/api-materiales-bloque.test.ts
 /**
  * Test de Integración E2E para la Ruta de Materiales de Bloque (Fase 28)
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Valida la API /api/planeaciones/[id]/materiales-bloque (GET y POST):
  * 1. Control de acceso por rol y propiedad de la planeación (401, 403, 404).

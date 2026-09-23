@@ -1,6 +1,6 @@
 /**
  * Test de Integración End-to-End — Planeación Completa con ABProblemas
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Valida el ciclo integral de planeación para la metodología activa ABProblemas:
  * 1. Recomendador automático de UACs de Matemáticas hacia abproblemas.

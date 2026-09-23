@@ -1,7 +1,7 @@
 // src/__tests__/workbook-snapshot.test.ts
 /**
  * Test de Snapshot Estructural para pdf-workbook-renderer.ts (Fase 25)
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Previene regresiones visuales y de flujo de página al comparar la estructura
  * canónica generada (páginas, encabezados, divisores de sesión y badges)

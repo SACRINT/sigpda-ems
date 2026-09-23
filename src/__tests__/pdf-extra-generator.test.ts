@@ -1,7 +1,7 @@
 // src/__tests__/pdf-extra-generator.test.ts
 /**
  * Tests unitarios para pdf-extra-generator.ts
- * Fase 15A · SIGPDA-EMS DBEPA Puebla MCCEMS
+ * Fase 15A · SIGPDA-EMS SEMS Puebla MCCEMS
  *
  * Transformación pura ExtraInput -> jsPDF (sin mocking de BD o IA).
  */
@@ -196,7 +196,7 @@ Lectura recomendada para el estudio autónomo previo al examen formativo.
   it('Test 8: Pagina automáticamente documentos extensos y preserva consistencia visual', () => {
     // Generamos un contenido que garantice sobrepasar una página completa
     const repeatedParagraphs = Array.from({ length: 45 }, (_, i) =>
-      `Párrafo detallado número ${i + 1}: Este texto describe exhaustivamente el marco teórico y procedimental necesario para completar la secuencia formativa DBEPA MCCEMS 2026-2027 sin ambigüedades técnicas.`
+      `Párrafo detallado número ${i + 1}: Este texto describe exhaustivamente el marco teórico y procedimental necesario para completar la secuencia formativa SEMS MCCEMS 2026-2027 sin ambigüedades técnicas.`
     ).join('\n\n');
 
     const multiPageInput = makeFixture({

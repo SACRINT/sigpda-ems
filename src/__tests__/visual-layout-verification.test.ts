@@ -1,7 +1,7 @@
 // src/__tests__/visual-layout-verification.test.ts
 /**
  * Test de Verificación Visual de Maquetación y Badges de Sesión (Fase 24)
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Valida visual y estructuralmente la maquetación editorial de un Libro de Texto Activo:
  * 1. Generación de divisores de sesión con geometría institucional y colores homologados.

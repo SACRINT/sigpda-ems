@@ -1,7 +1,7 @@
 // src/__tests__/workbook-integration.test.ts
 /**
  * Tests de integración end-to-end para el Libro de Trabajo Activo
- * Fase 16 · SIGPDA-EMS DBEPA Puebla MCCEMS 2026-2027
+ * Fase 16 · SIGPDA-EMS SEMS Puebla MCCEMS 2026-2027
  *
  * Valida el pipeline completo de renderizado:
  * Portada (vectorial jsPDF / JPEG) -> Mi Plantel / Mi Comunidad -> Índice TOC Real ->
@@ -252,7 +252,7 @@ function makeIntegrationWorkbook(): ActiveWorkTextbook {
     qualityWarning: false,
     coverData: {
       title: 'CUADERNO DE TRABAJO ACTIVO',
-      subtitle: 'Enfoque Situado MCCEMS DBEPA Puebla',
+      subtitle: 'Enfoque Situado MCCEMS Puebla',
       subjectName: 'PENSAMIENTO MATEMÁTICO II',
       semester: 2,
       blockNumber: 1,

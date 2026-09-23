@@ -61,7 +61,7 @@ const COMPLETE_PROJECT: PmcProject = {
   ],
   diagnostico_generado: {
     presentacion:
-      'La presente planeacion institucional responde a los lineamientos MCCEMS 2026-2027 de la DBEPA Puebla.',
+      'La presente planeacion institucional responde a los lineamientos MCCEMS 2026-2027 de SEMS Puebla.',
     contexto: 'El plantel atiende una poblacion de 240 estudiantes con diversidad socioeconomica significativa.',
     analisis_indicadores: 'El indice de aprobacion anterior fue de 78%, con meta de 85% para el ciclo actual.',
     sintesis_foda: 'Las fortalezas institucionales superan las debilidades cuando se capitaliza el apoyo empresarial.',

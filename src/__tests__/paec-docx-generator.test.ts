@@ -1,7 +1,7 @@
 // src/__tests__/paec-docx-generator.test.ts
 /**
  * Tests unitarios para paec-docx-generator.ts
- * Fase 15B & 15E · SIGPDA-EMS DBEPA Puebla MCCEMS
+ * Fase 15B & 15E · SIGPDA-EMS SEMS Puebla MCCEMS
  *
  * Validación exhaustiva de:
  * 1. Normalización defensiva de parseFodaData (Fase 15B).
@@ -232,8 +232,8 @@ describe('paec-docx-generator — Normalización de Matriz FODA y Estrategias Cr
     expect(result.estDA).toBe('Octava posición: Estrategia DA de mitigación');
   });
 
-  // ── TEST 5: Fallbacks normativos oficiales DBEPA cuando el input es nulo o vacío
-  it('Test 5: Retorna fallbacks oficiales normativos DBEPA ante input nulo, vacío o corrupto', () => {
+  // ── TEST 5: Fallbacks normativos oficiales MCCEMS cuando el input es nulo o vacío
+  it('Test 5: Retorna fallbacks oficiales normativos MCCEMS ante input nulo, vacío o corrupto', () => {
     // Caso 1: Input null
     const resultNull = parseFodaData(null);
     expect(resultNull.fortalezas.length).toBeGreaterThan(0);

@@ -1,7 +1,7 @@
 // src/__tests__/pdf-logos.test.ts
 /**
  * Tests Unitarios para pdf-logos.ts
- * Fase 19 · SIGPDA-EMS DBEPA Puebla MCCEMS 2026-2027
+ * Fase 19 · SIGPDA-EMS SEMS Puebla MCCEMS 2026-2027
  *
  * Valida el servicio de carga, procesamiento con Sharp, fallback y caché
  * de logotipos oficiales institucionales:

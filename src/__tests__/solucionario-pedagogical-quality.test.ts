@@ -1,7 +1,7 @@
 // src/__tests__/solucionario-pedagogical-quality.test.ts
 /**
  * Evaluación de Calidad e Impacto Pedagógico del Solucionario Docente (Fase 26)
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Evalúa la calidad, profundidad técnica y ausencia de texto genérico vacío
  * en el solucionario docente generado por el motor para diferentes UACs reales:

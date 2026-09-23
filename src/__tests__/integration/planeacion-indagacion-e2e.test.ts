@@ -1,6 +1,6 @@
 /**
  * Test de Integración End-to-End — Planeación Completa con Indagación (ABI)
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Valida el ciclo integral de planeación para la metodología activa Indagación (ABI):
  * 1. Recomendador automático de UACs de Ciencias Naturales y Experimentales hacia indagacion.

@@ -1,7 +1,7 @@
 // src/__tests__/solucionario-subsystems-impact.test.ts
 /**
  * Evaluación de Calidad e Impacto del Solucionario Docente en Múltiples Subsistemas (Fase 29)
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Evalúa la calidad, profundidad técnica y contextualización de los solucionarios
  * docentes generados para diferentes subsistemas educativos:

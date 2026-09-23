@@ -137,7 +137,7 @@ describe('Fase 8: Cartografía de Zona Escolar - Schemas & Quality Gate', () => 
       }
     });
 
-    it('Valida Momento 5 (Decidir - Fórmula CREAA y 3 Líneas DBEPA)', () => {
+    it('Valida Momento 5 (Decidir - Fórmula CREAA y 3 Líneas Estratégicas)', () => {
       const rawPayload = {
         metaGeneralZona:
           'Incrementar en 4% la eficiencia terminal de los 400 estudiantes de la Zona Escolar 004 mediante comunidades docentes de práctica durante el ciclo escolar 2026-2027.',
@@ -147,7 +147,7 @@ describe('Fase 8: Cartografía de Zona Escolar - Schemas & Quality Gate', () => 
             numero: '1',
             titulo: 'Acompañamiento a la autonomía docente y curricular situada',
             accionesEspecificas: ['Talleres de codiseño'],
-            recursos: ['Fichas DBEPA'],
+            recursos: ['Fichas de Zona'],
             responsables: 'Equipo ATP',
             entregables: 'Portafolio de secuencias didácticas',
             estrategiaSeguimiento: 'Consejo Técnico de Zona',

@@ -256,7 +256,7 @@ describe("SAPCU Integration Suite — Prompt Builder & Quick Actions", () => {
     }
   });
 
-  it("Test 14: Quick Actions de Planeaciones incluyen validaciones clave DBEPA", () => {
+  it("Test 14: Quick Actions de Planeaciones incluyen validaciones clave MCCEMS", () => {
     const actions = generateQuickActions({
       programa: "planeaciones",
       nivel: "media_superior",
@@ -278,7 +278,7 @@ describe("SAPCU Integration Suite — Prompt Builder & Quick Actions", () => {
 
     expect(prompt).toContain("SACRINT");
     expect(prompt).toContain("MCCEMS");
-    expect(prompt).toContain("DBEPA Puebla");
+    expect(prompt).toContain("MCCEMS Puebla");
     expect(prompt).toContain("Reto Situado");
   });
 

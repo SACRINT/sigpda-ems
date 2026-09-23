@@ -1,7 +1,7 @@
 /**
  * analytics-pipeline.test.ts
  * Tests unitarios para el Pipeline de Analítica y Agregaciones (Fase 5 - GAP-001, GAP-002, GAP-004)
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  */
 
 import { vi, describe, it, expect, beforeEach, beforeAll } from 'vitest';
@@ -154,7 +154,7 @@ describe('Fase 5 — Analytics Pipeline & Event Bus', () => {
   });
 
   describe('3. Ingesta y Calificación Determinista en Pipeline (GAP-002)', () => {
-    it('evalúa una planeación con DBEPA y actualiza quality_score en la base de datos', async () => {
+    it('evalúa una planeación con MCCEMS y actualiza quality_score en la base de datos', async () => {
       const mockPlanningRow = {
         id: 'plan-test-1',
         teacher_id: 'teacher-uuid-1',

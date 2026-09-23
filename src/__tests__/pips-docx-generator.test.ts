@@ -1,7 +1,7 @@
 // src/__tests__/pips-docx-generator.test.ts
 /**
  * Tests unitarios para pips-docx-generator.ts
- * Fase 15C · SIGPDA-EMS DBEPA Puebla MCCEMS
+ * Fase 15C · SIGPDA-EMS SEMS Puebla MCCEMS
  *
  * Validación de generación de Cartografía de Supervisión PIPS (DOCX).
  * Valida integridad binaria y contenido textual mediante mammoth.
@@ -194,8 +194,8 @@ describe('pips-docx-generator — Generador de Cartografía PIPS de Zona Escolar
     expect(docText).toContain('6. CRONOGRAMA DE IMPLEMENTACIÓN');
   });
 
-  // ── TEST 5: Presencia y orden de las 9 secciones oficiales DBEPA ───────────
-  it('Test 5: Preserva la estructura normativa de las 9 secciones oficiales DBEPA', async () => {
+  // ── TEST 5: Presencia y orden de las 9 secciones oficiales PIPS ───────────
+  it('Test 5: Preserva la estructura normativa de las 9 secciones oficiales PIPS', async () => {
     const fixture = makePipsFixture();
     const buffer = await generatePipsDocx(fixture);
     const { value: docText } = await mammoth.extractRawText({ buffer });

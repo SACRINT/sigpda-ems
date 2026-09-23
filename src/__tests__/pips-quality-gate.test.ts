@@ -94,7 +94,7 @@ const CRONOGRAMA: PipsCronogramaActividad[] = [
     objetivo: 'Objetivo 1',
     responsable: 'Supervisor y directores',
     mes: 'Octubre 2026',
-    recursos: 'Formato de seguimiento DBEPA',
+    recursos: 'Formato de seguimiento de supervisión',
     indicador: 'Reporte estadistico comparativo mensual',
   },
   {
@@ -102,7 +102,7 @@ const CRONOGRAMA: PipsCronogramaActividad[] = [
     objetivo: 'Objetivo 1',
     responsable: 'Supervisor',
     mes: 'Noviembre 2026',
-    recursos: 'Sala de juntas, formatos de analisis DBEPA',
+    recursos: 'Sala de juntas, formatos de analisis institucional',
     indicador: 'Acta de reunion con compromisos firmada por directores',
   },
 ];
@@ -119,7 +119,7 @@ const COMPLETE_PROJECT: PipsProject = makeMinimalProject({
   ciclo_escolar: '2026-2027',
   atps: 'Mtro. Jorge Ruiz, Mtra. Adriana Lopez',
   presentacion_supervisor:
-    'Licenciada en Ciencias de la Educacion con 15 anios de experiencia en supervision escolar de nivel medio superior en la DBEPA Puebla. Ha coordinado programas de mejora continua y acompanamiento pedagogico en 12 planteles de la region Mixteca.',
+    'Licenciada en Ciencias de la Educacion con 15 anios de experiencia en supervision escolar de nivel medio superior en SEMS Puebla. Ha coordinado programas de mejora continua y acompanamiento pedagogico en 12 planteles de la region Mixteca.',
   pips_anterior_realizado: true,
   reflexion_pips_anterior:
     'El PIPS 2025-2026 logro reducir la reprobacion promedio de la zona en 3 puntos porcentuales mediante el programa de tutoria entre pares y los circulos de lectura bimestral.',
@@ -148,7 +148,7 @@ const COMPLETE_PROJECT: PipsProject = makeMinimalProject({
   objetivos_especificos_json: OBJETIVOS,
   cronograma_json: CRONOGRAMA,
   evaluacion_json: [
-    { indicador: 'Tasa de aprobacion promedio zonal', meta: '85%', instrumento: 'Formato estadistico DBEPA' },
+    { indicador: 'Tasa de aprobacion promedio zonal', meta: '85%', instrumento: 'Formato estadistico de zona' },
     { indicador: 'Numero de ATPs realizadas', meta: '6 por semestre', instrumento: 'Lista de asistencia firmada' },
   ],
   current_step: 8,

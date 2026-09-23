@@ -10,7 +10,7 @@ import type { Planning, RetoSituado, KeyActivityPlan, SecuenciaBloque } from '@/
 
 describe('PlanningQualityPipeline', () => {
   describe('validateRetoSituado44', () => {
-    it('valida un Reto Situado que cumple 4/4 criterios de DBEPA', () => {
+    it('valida un Reto Situado que cumple 4/4 criterios de MCCEMS', () => {
       const retoValido: RetoSituado = {
         titulo: 'Reto de Captación de Agua',
         verboInfinitivo: 'Diseñar',

@@ -1,7 +1,7 @@
 /**
  * alert-engine.test.ts
  * Tests unitarios para el Motor de Alertas Pedagógicas de Supervisión (Fase 5 - GAP-007)
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  */
 
 import { vi, describe, it, expect, beforeEach, beforeAll } from 'vitest';

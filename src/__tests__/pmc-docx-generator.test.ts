@@ -1,7 +1,7 @@
 // src/__tests__/pmc-docx-generator.test.ts
 /**
  * Tests unitarios para pmc-docx-generator.ts
- * Fase 15D · SIGPDA-EMS DBEPA Puebla MCCEMS
+ * Fase 15D · SIGPDA-EMS SEMS Puebla MCCEMS
  *
  * Validación de generación de Plan de Mejora Continua (PMC) e Informes (DOCX).
  * Valida integridad binaria y contenido textual mediante mammoth.
