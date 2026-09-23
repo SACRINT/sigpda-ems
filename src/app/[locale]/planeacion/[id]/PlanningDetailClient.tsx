@@ -169,7 +169,7 @@ function PlanningDetailModular({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
-  // Modal Checklist Supervisión DBEPA
+  // Modal Checklist Supervisión
   const [showChecklistModal, setShowChecklistModal] = useState(false);
 
   // Extras state

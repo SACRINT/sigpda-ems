@@ -696,7 +696,7 @@ export function ExtraPreviewModal({
                         </span>
                       </div>
                       <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#94a3b8', lineHeight: 1.4 }}>
-                        Contiene el solucionario analítico, claves de respuesta esperadas, matrices de error conceptual y pautas de mediación formativa oficial de la DBEPA Puebla.
+                        Contiene el solucionario analítico, claves de respuesta esperadas, matrices de error conceptual y pautas de mediación formativa oficial docente.
                       </p>
                     </div>
                   </div>
@@ -725,7 +725,7 @@ export function ExtraPreviewModal({
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {type === 'teacher_guide' && (
               <span style={{ fontSize: '11px', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span>🔒</span> Pauta de Mediación Oficial DBEPA Puebla
+                <span>🔒</span> Pauta de Mediación Oficial Docente
               </span>
             )}
           </div>

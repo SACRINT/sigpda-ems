@@ -414,7 +414,7 @@ export default function DocumentA4Viewer({
           <div className="a4-page">
             {/* Header de continuidad */}
             <div className="header-continuity">
-              <span>SEP PUEBLA · SUPERVISIÓN ESCOLAR 004 · DBEPA</span>
+              <span>SEP PUEBLA · SUPERVISIÓN ESCOLAR 004 · MCCEMS</span>
               <span>{planning.uacName} · {planning.semester}° SEMESTRE</span>
             </div>
 
@@ -554,7 +554,7 @@ export default function DocumentA4Viewer({
           <div className="a4-page">
             {/* Header de continuidad */}
             <div className="header-continuity">
-              <span>SEP PUEBLA · SUPERVISIÓN ESCOLAR 004 · DBEPA</span>
+              <span>SEP PUEBLA · SUPERVISIÓN ESCOLAR 004 · MCCEMS</span>
               <span>{planning.uacName} · {planning.semester}° SEMESTRE</span>
             </div>
 

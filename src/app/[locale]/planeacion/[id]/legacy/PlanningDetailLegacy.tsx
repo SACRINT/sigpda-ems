@@ -137,7 +137,7 @@ export default function PlanningDetailLegacy({
     }
   }, [activeTab]);
 
-  // Modal Checklist Supervisión DBEPA
+  // Modal Checklist Supervisión
   const [showChecklistModal, setShowChecklistModal] = useState(false);
 
   // Extras state

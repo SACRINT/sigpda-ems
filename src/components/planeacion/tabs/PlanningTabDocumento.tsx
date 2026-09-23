@@ -243,7 +243,7 @@ export default function PlanningTabDocumento({
                   </>
                 )}
                 <span className="text-xs" style={{ background: 'var(--c-accent-subtle)', color: 'var(--c-accent-bright)', padding: '4px 10px', borderRadius: '12px', fontWeight: 600, border: '1px solid var(--c-accent-border)' }}>
-                  MCCEMS / DBEPA
+                  MCCEMS
                 </span>
               </div>
             </div>
@@ -325,7 +325,7 @@ export default function PlanningTabDocumento({
                   </h3>
                   <p style={{ margin: 0, fontSize: '13px', color: '#cbd5e1', lineHeight: 1.5, maxWidth: '650px' }}>
                     {semestralReady && semestralThresholdMet
-                      ? '¡Todos los bloques del semestre están generados y cumplen la meta macro oficial! Descarga el libro maestro unificado con numeración continua, índice consolidado y portadas oficiales SEP/DBEPA.'
+                      ? '¡Todos los bloques del semestre están generados y cumplen la meta macro oficial! Descarga el libro maestro unificado con numeración continua, índice consolidado y portadas oficiales institucionales.'
                       : semestralReady
                       ? `Todos los bloques han sido generados con un volumen de ${accumulatedWorkbookWords.toLocaleString()} palabras (meta recomendada: ${macroTargetWords.toLocaleString()}). La descarga del compendio unificado está disponible.`
                       : `Genera los libros individuales de cada bloque a continuación (${generatedWorkbookCount}/${totalWorkbookBlocks} listos). Al completar todos los bloques se desbloqueará la descarga del Libro Maestro Semestral.`}

@@ -257,7 +257,7 @@ export default function PlanningTabMateriales({
                   <Zap size={20} color="#f59e0b" /> Instrumentos de Evaluación y Materiales Didácticos Oficiales
                 </h3>
                 <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: '#94a3b8' }}>
-                  Estructurados en secciones continuas por Bloque curricular (NEM / DBEPA Puebla 2026-2027).
+                  Estructurados en secciones continuas por Bloque curricular (NEM / MCCEMS 2026-2027).
                 </p>
               </div>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -281,7 +281,7 @@ export default function PlanningTabMateriales({
             <div className="section-card">
               <div className="section-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span className="section-card-title">Acuerdo Institucional de Evaluación / Acreditación</span>
-                <span className="text-xs" style={{ color: 'var(--c-navy-light)', fontWeight: 600 }}>Anexo 12 DBEPA</span>
+                <span className="text-xs" style={{ color: 'var(--c-navy-light)', fontWeight: 600 }}>Anexo 12 USICAMM</span>
               </div>
               <div className="section-card-body">
                 <div style={{ padding: '14px 18px', background: 'var(--c-bg-surface)', borderLeft: '4px solid var(--c-amber)', border: '1px solid var(--c-border)', borderRadius: '6px', fontSize: '13.5px' }}>

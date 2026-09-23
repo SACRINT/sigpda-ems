@@ -168,7 +168,7 @@ export default function PlanningTabSecuencias({
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                   <p style={{ color: '#60a5fa', fontWeight: 600, margin: 0 }}>
-                    💡 Secuencia Didáctica Progresiva (DBEPA / USICAMM):
+                    💡 Secuencia Didáctica Progresiva (MCCEMS / USICAMM):
                   </p>
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', fontSize: '11px' }}>
                     <span style={{ padding: '2px 8px', borderRadius: '4px', background: 'rgba(59, 130, 246, 0.18)', color: '#93c5fd', border: '1px solid rgba(59, 130, 246, 0.35)', fontWeight: 600 }}>

@@ -29,8 +29,8 @@ export default function EvaluationModal({ planningId, planningTitle, isOpen, onC
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error al evaluar');
       setResultado(data.resultado);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
@@ -79,7 +79,7 @@ export default function EvaluationModal({ planningId, planningTitle, isOpen, onC
               <div style={{ fontSize: 48, marginBottom: 16 }}>📋</div>
               <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>¿Iniciar Evaluación de Calidad Pedagógica?</h3>
               <p style={{ fontSize: 14, opacity: 0.7, maxWidth: 500, margin: '0 auto 24px' }}>
-                La Inteligencia Artificial auditará tu planeación contra los criterios oficiales de la DBEPA Puebla y el Anexo 12 de USICAMM, generando observaciones y puntajes en segundos.
+                La Inteligencia Artificial auditará tu planeación contra los criterios oficiales del MCCEMS y el Anexo 12 de USICAMM, generando observaciones y puntajes en segundos.
               </p>
               <button
                 onClick={ejecutarEvaluacion}

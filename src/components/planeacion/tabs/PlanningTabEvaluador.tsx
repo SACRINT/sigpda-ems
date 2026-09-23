@@ -53,7 +53,7 @@ export default function PlanningTabEvaluador({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* ── 1. Quality Pipeline DBEPA 2026-2027 ── */}
+      {/* ── 1. Quality Pipeline MCCEMS 2026-2027 ── */}
       {qualityReport && (
         <div className="section-card" style={{ border: '1px solid var(--c-border)' }}>
           <div
@@ -67,7 +67,7 @@ export default function PlanningTabEvaluador({
             }}
           >
             <span className="section-card-title" style={{ color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              🛡️ Control de Calidad Pedagógica DBEPA / MCCEMS 2026-2027
+              🛡️ Control de Calidad Pedagógica MCCEMS 2026-2027
             </span>
             <span
               style={{
@@ -224,7 +224,7 @@ export default function PlanningTabEvaluador({
                 <div style={{ textAlign: 'center', padding: '48px 20px', background: 'var(--c-bg-surface)', borderRadius: '10px', border: '1px solid var(--c-border)' }}>
                   <div style={{ fontSize: '42px', marginBottom: '12px' }}>🏅</div>
                   <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--c-text)', marginBottom: '8px' }}>
-                    Auditoría Oficial con IA (Anexo 12 USICAMM / DBEPA)
+                    Auditoría Oficial con IA (Anexo 12 USICAMM / MCCEMS)
                   </h3>
                   <p style={{ fontSize: '14px', color: 'var(--c-text-muted)', maxWidth: '560px', margin: '0 auto 20px', lineHeight: 1.5 }}>
                     Esta planeación aún no ha sido evaluada. La IA auditará los criterios pedagógicos oficiales, asignará puntuaciones cuantitativas fijas y emitirá dictamen de mejora.

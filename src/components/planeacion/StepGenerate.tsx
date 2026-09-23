@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { ExtractedPdfData, TeacherContext } from '@/types/planning';
 
 interface Props {
@@ -17,7 +17,7 @@ type GenStep = 'preparing' | 'sending' | 'generating' | 'building' | 'done';
 const GEN_STEPS: { key: GenStep; label: string }[] = [
   { key: 'preparing',  label: 'Preparando el contexto' },
   { key: 'sending',    label: 'Enviando información...' },
-  { key: 'generating', label: 'Generando las 7 secciones del formato DBEPA' },
+  { key: 'generating', label: 'Generando las 7 secciones del formato curricular' },
   { key: 'building',   label: 'Construyendo el documento' },
   { key: 'done',       label: '¡Planeación lista!' },
 ];
@@ -32,12 +32,7 @@ export default function StepGenerate({
   const [currentStep, setCurrentStep] = useState<GenStep>('preparing');
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    runGeneration();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const runGeneration = async () => {
+  const runGeneration = useCallback(async () => {
     setError(null);
     try {
       setCurrentStep('preparing');
@@ -99,7 +94,7 @@ export default function StepGenerate({
           .replace(/\n?```$/m, '')
           .trim();
         JSON.parse(cleanJson);
-      } catch (err) {
+      } catch {
         console.error('Incomplete stream content:', accumulatedText);
         throw new Error('La respuesta del servidor no se completó correctamente. Por favor intenta de nuevo.');
       }
@@ -114,7 +109,12 @@ export default function StepGenerate({
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error inesperado al generar la planeación');
     }
-  };
+  }, [context, extractedData, onDone, planningId]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    runGeneration();
+  }, [runGeneration]);
 
   const stepIndex = GEN_STEPS.findIndex(s => s.key === currentStep);
 
@@ -163,7 +163,7 @@ export default function StepGenerate({
         <p className="generation-subtitle">
           {currentStep === 'done'
             ? 'Tu planeación didáctica está lista para descargar en formato DOCX editable.'
-            : 'La plataforma Didáctica-IA está construyendo las 7 secciones del formato oficial DBEPA 2026-2027.'}
+            : 'La plataforma Didáctica-IA está construyendo las 7 secciones del formato oficial MCCEMS 2026-2027.'}
         </p>
 
         <div className="generation-steps">
