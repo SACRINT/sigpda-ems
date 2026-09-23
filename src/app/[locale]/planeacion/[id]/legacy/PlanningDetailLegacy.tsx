@@ -188,7 +188,7 @@ export default function PlanningDetailLegacy({
 
   // Generate extra handler
   async function handleGenerateExtra(
-    type: 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'practice_guide',
+    type: 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'teacher_guide',
     title: string,
     keyIndex: number | null,
     extraData: {
@@ -2165,7 +2165,7 @@ export default function PlanningDetailLegacy({
             const rubricExtra = findExtra('rubric', actIdx);
             const checklistExtra = findExtra('checklist', actIdx);
             const materialExtra = findExtra('material', actIdx);
-            const guideExtra = findExtra('practice_guide', actIdx);
+            const guideExtra = findExtra('teacher_guide', actIdx);
             const visualExtras = extras.filter((ex) => {
               if (ex.type !== 'visual') return false;
               const exKey = (ex as any).keyIndex !== undefined ? (ex as any).keyIndex : (ex as any).key_index;
@@ -2477,7 +2477,7 @@ export default function PlanningDetailLegacy({
                           </div>
                         </div>
 
-                        {/* 4. Guía de Trabajo Activo del Estudiante */}
+                        {/* 4. Solucionario Pedagógico del Docente */}
                         <div style={{
                           padding: '16px',
                           background: 'var(--c-bg-surface)',
@@ -2491,15 +2491,15 @@ export default function PlanningDetailLegacy({
                           <div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                               <span style={{ fontSize: '11px', fontWeight: 700, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                                Cuaderno de Práctica
+                                Solucionario Docente
                               </span>
-                              <span style={{ fontSize: '11px', color: 'var(--c-text-muted)' }}>Estudiante</span>
+                              <span style={{ fontSize: '11px', color: 'var(--c-text-muted)' }}>Uso Exclusivo Docente</span>
                             </div>
                             <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: 'var(--c-text)' }}>
-                              📘 Guía de Aprendizaje Activo ({blockNumStr})
+                              🔒 Solucionario y Pautas Pedagógicas ({blockNumStr})
                             </h4>
                             <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: 'var(--c-text-muted)', lineHeight: 1.4 }}>
-                              Secuencia de desafíos autónomos, matrices de resolución técnica y espacios de práctica activa para el alumno.
+                              Guía pedagógica de mediación, respuestas esperadas, pautas de intervención formativa y retroalimentación docente.
                             </p>
                           </div>
 
@@ -3291,21 +3291,20 @@ export default function PlanningDetailLegacy({
       {activeTab === 'teacherGuides' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div className="section-card">
-            <div className="section-card-header" style={{ background: 'linear-gradient(135deg, #4c1d95 0%, #7c3aed 100%)', color: '#fff' }}>
-              <span className="section-card-title" style={{ color: '#fff' }}>📚 Guías de Práctica para el Estudiante</span>
+            <div className="section-card-header" style={{ background: 'linear-gradient(135deg, #1b6b8a 0%, #2563eb 100%)', color: '#fff' }}>
+              <span className="section-card-title" style={{ color: '#fff' }}>🎓 Solucionario y Guía Pedagógica del Docente</span>
             </div>
             <div className="section-card-body">
-              <div style={{ padding: '12px', background: 'rgba(124, 58, 237, 0.12)', borderLeft: '3px solid #7c3aed', borderRadius: '6px', marginBottom: '16px', fontSize: '13.5px' }}>
-                <p style={{ color: '#c4b5fd', fontWeight: 600, marginBottom: '4px' }}>💡 ¿Qué es la Guía de Práctica para el Estudiante?</p>
+              <div style={{ padding: '12px', background: 'rgba(27, 107, 138, 0.12)', borderLeft: '3px solid #1b6b8a', borderRadius: '6px', marginBottom: '16px', fontSize: '13.5px' }}>
+                <p style={{ color: '#67e8f9', fontWeight: 600, marginBottom: '4px' }}>💡 ¿Qué es el Solucionario Pedagógico del Docente?</p>
                 <p style={{ color: 'var(--c-text)', marginBottom: '6px' }}>
-                  Documento que el estudiante recibe directamente (impreso o digital) para guiar su aprendizaje autónomo,
+                  Documento de uso exclusivo docente que acompaña las progresiones o bloques didácticos,
                   diseñado bajo los lineamientos pedagógicos del Marco Curricular Común (MCCEMS),
-                  incluyendo propósito, competencias, materiales, procedimiento por fases de la metodología activa,
-                  preguntas de análisis (taxonomía Bloom), tabla de datos y autoevaluación formativa.
+                  incluyendo pautas de mediación, respuestas esperadas, pautas de intervención formativa y retroalimentación docente.
                 </p>
                 {planning.metodologiaActiva && (
-                  <p style={{ color: '#a78bfa', fontWeight: 700, fontSize: '13px' }}>
-                    🎯 Metodología activa seleccionada: <strong>{planning.metodologiaActiva}</strong> — las guías incluirán sus fases específicas.
+                  <p style={{ color: '#38bdf8', fontWeight: 700, fontSize: '13px' }}>
+                    🎯 Metodología activa seleccionada: <strong>{planning.metodologiaActiva}</strong> — las pautas incluirán sus fases específicas.
                   </p>
                 )}
               </div>
@@ -3314,16 +3313,16 @@ export default function PlanningDetailLegacy({
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {content?.sectionIV?.activities?.map((act, actIdx) => {
                   const practiceNum = actIdx + 1;
-                  const practiceTitle = `${act.name.substring(0, 60)}`;
-                  const generatedGuide = findExtra('practice_guide', actIdx);
-                  const loadingKey = `practice_guide-${actIdx}--`;
+                  const practiceTitle = act.name;
+                  const generatedGuide = findExtra('teacher_guide', actIdx);
+                  const loadingKey = `teacher_guide-${actIdx}--`;
                   const isCurrentGenerating = generatingKey?.startsWith(loadingKey);
 
                   return (
                     <div
                       key={actIdx}
                       style={{
-                        border: '1px solid rgba(124, 58, 237, 0.25)',
+                        border: '1px solid rgba(27, 107, 138, 0.25)',
                         borderRadius: '10px',
                         overflow: 'hidden',
                         background: 'var(--c-bg-surface)',
@@ -3332,8 +3331,8 @@ export default function PlanningDetailLegacy({
                       {/* Activity header */}
                       <div style={{
                         padding: '12px 16px',
-                        background: 'linear-gradient(90deg, rgba(124, 58, 237, 0.2), rgba(124, 58, 237, 0.08))',
-                        borderBottom: '1px solid rgba(124, 58, 237, 0.2)',
+                        background: 'linear-gradient(90deg, rgba(27, 107, 138, 0.15), rgba(37, 99, 235, 0.08))',
+                        borderBottom: '1px solid rgba(27, 107, 138, 0.2)',
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
@@ -3341,10 +3340,10 @@ export default function PlanningDetailLegacy({
                         gap: '10px',
                       }}>
                         <div>
-                          <span style={{ fontWeight: 700, color: '#e9d5ff', fontSize: '15px' }}>
-                            📋 Práctica {practiceNum}: {practiceTitle}
+                          <span style={{ fontWeight: 700, color: '#e0f2fe', fontSize: '15px' }}>
+                            📋 Solucionario {practiceNum}: {practiceTitle}
                           </span>
-                          <div style={{ fontSize: '12px', color: '#c4b5fd', marginTop: '2px' }}>
+                          <div style={{ fontSize: '12px', color: '#7dd3fc', marginTop: '2px' }}>
                             {act.hours} hrs · {act.methodology || 'Metodología activa'}
                           </div>
                         </div>
@@ -3353,19 +3352,19 @@ export default function PlanningDetailLegacy({
                           {generatedGuide ? (
                             <>
                               <span style={{ fontSize: '12px', color: '#34d399', fontWeight: 600, background: 'rgba(16,185,129,0.15)', padding: '3px 10px', borderRadius: '12px' }}>
-                                ✓ Guía generada
+                                ✓ Solucionario generado
                               </span>
                               <button
                                 onClick={() => setPreviewExtra(generatedGuide)}
                                 className="btn"
-                                style={{ padding: '6px 14px', fontSize: '12px', background: 'rgba(124,58,237,0.2)', border: '1px solid #7c3aed', color: '#c4b5fd', borderRadius: '6px' }}
+                                style={{ padding: '6px 14px', fontSize: '12px', background: 'rgba(27,107,138,0.2)', border: '1px solid #1b6b8a', color: '#7dd3fc', borderRadius: '6px' }}
                               >
-                                👁️ Ver Guía
+                                👁️ Ver Solucionario
                               </button>
                               <a
                                 href={`/api/docx/extra/${generatedGuide.id}`}
                                 className="btn"
-                                style={{ padding: '6px 14px', fontSize: '12px', background: '#7c3aed', color: '#fff', borderRadius: '6px', textDecoration: 'none', fontWeight: 600 }}
+                                style={{ padding: '6px 14px', fontSize: '12px', background: '#1b6b8a', color: '#fff', borderRadius: '6px', textDecoration: 'none', fontWeight: 600 }}
                               >
                                 ↓ Word
                               </a>
@@ -3373,6 +3372,7 @@ export default function PlanningDetailLegacy({
                                 href={`/api/pdf/extra/${generatedGuide.id}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
+                                className="btn"
                                 style={{ padding: '6px 14px', fontSize: '12px', background: '#dc2626', color: '#fff', borderRadius: '6px', textDecoration: 'none', fontWeight: 600 }}
                               >
                                 ↓ PDF
@@ -3380,6 +3380,7 @@ export default function PlanningDetailLegacy({
                               <button
                                 onClick={() => handleDeleteExtra(generatedGuide.id)}
                                 className="btn"
+                                title="Eliminar solucionario"
                                 style={{ padding: '6px 12px', fontSize: '12px', background: 'rgba(244,63,94,0.15)', border: '1px solid rgba(244,63,94,0.3)', color: '#fb7185', borderRadius: '6px' }}
                               >
                                 🗑️
@@ -3389,8 +3390,8 @@ export default function PlanningDetailLegacy({
                             <button
                               onClick={() =>
                                 handleGenerateExtra(
-                                  'practice_guide',
-                                  `Guía de Práctica ${practiceNum}: ${practiceTitle.substring(0, 50)}`,
+                                  'teacher_guide',
+                                  `Solucionario y Guía Pedagógica: ${practiceTitle}`,
                                   actIdx,
                                   {
                                     activityName: act.name,
@@ -3406,13 +3407,13 @@ export default function PlanningDetailLegacy({
                                 fontSize: '13px',
                                 borderRadius: '6px',
                                 border: 'none',
-                                background: generatingKey !== null ? '#c4b5fd' : '#7c3aed',
+                                background: generatingKey !== null ? '#94a3b8' : '#1b6b8a',
                                 color: '#fff',
                                 fontWeight: 600,
                                 cursor: generatingKey !== null ? 'not-allowed' : 'pointer',
                               }}
                             >
-                              {isCurrentGenerating ? '⏳ Generando guía...' : '📚 Generar Guía del Estudiante'}
+                              {isCurrentGenerating ? '⏳ Generando solucionario...' : '🔒 Generar Solucionario Docente'}
                             </button>
                           )}
                         </div>
