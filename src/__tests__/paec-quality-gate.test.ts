@@ -18,6 +18,7 @@ import {
   evaluateCriterio15,
   evaluateCriterio19,
   evaluateCriterio21,
+  validatePaecStepResult,
   calculateGlobalPaecScore,
   formatAuditReport,
   DIMENSIONS,
@@ -426,6 +427,118 @@ describe('paec-quality-gate — calculateGlobalPaecScore', () => {
     expect(typeof report).toBe('string');
     expect(report.length).toBeGreaterThan(100);
     expect(report).toContain('%');
+  });
+
+});
+
+describe('paec-quality-gate — validatePaecStepResult (Pasos 1-9)', () => {
+
+  it('Paso 1: evalua diagnostico correctamente (C1-C4)', () => {
+    const audit = validatePaecStepResult(1, FASE1_COMPLETA);
+    expect(audit.criterios).toHaveLength(4);
+    expect(audit.criterios.map(c => c.id)).toEqual([1, 2, 3, 4]);
+    expect(audit.score).toBeGreaterThanOrEqual(70);
+  });
+
+  it('Paso 2: evalua justificacion correctamente (C5-C7)', () => {
+    const audit = validatePaecStepResult(2, FASE2_COMPLETA);
+    expect(audit.criterios).toHaveLength(3);
+    expect(audit.criterios.map(c => c.id)).toEqual([5, 6, 7]);
+    expect(audit.score).toBeGreaterThan(0);
+  });
+
+  it('Paso 3: evalua mapeo curricular tanto directo como envuelto en objeto (C8-C10)', () => {
+    const auditArray = validatePaecStepResult(3, MAPEO_COMPLETO);
+    const auditObj = validatePaecStepResult(3, { mapeo: MAPEO_COMPLETO });
+    expect(auditArray.criterios).toHaveLength(3);
+    expect(auditObj.criterios).toHaveLength(3);
+    expect(auditArray.criterios.map(c => c.id)).toEqual([8, 9, 10]);
+  });
+
+  it('Paso 4: evalua cronograma bimestral (C11-C12)', () => {
+    const audit = validatePaecStepResult(4, { cronograma: CRONOGRAMA_COMPLETO });
+    expect(audit.criterios).toHaveLength(2);
+    expect(audit.criterios.map(c => c.id)).toEqual([11, 12]);
+  });
+
+  it('Paso 5: evalua detalle curricular (C13-C14)', () => {
+    const audit = validatePaecStepResult(5, { detalleCurricular: DETALLE_CURRICULAR });
+    expect(audit.criterios).toHaveLength(2);
+    expect(audit.criterios.map(c => c.id)).toEqual([13, 14]);
+  });
+
+  it('Paso 6: evalua plan operativo Semestre A (C15, C17, C18)', () => {
+    const audit = validatePaecStepResult(6, { semestreA: [] });
+    expect(audit.criterios).toHaveLength(3);
+    expect(audit.criterios.map(c => c.id)).toEqual([15, 17, 18]);
+  });
+
+  it('Paso 7: evalua plan operativo Semestre B (C16, C17, C18)', () => {
+    const audit = validatePaecStepResult(7, { semestreB: [] });
+    expect(audit.criterios).toHaveLength(3);
+    expect(audit.criterios.map(c => c.id)).toEqual([16, 17, 18]);
+  });
+
+  it('Paso 8: evalua formalizacion e implementacion (C19-C20)', () => {
+    const audit = validatePaecStepResult(8, {
+      cartaInvitacion: {
+        asunto: 'Invitacion',
+        fecha: '2026-09-01',
+        destinatarios: 'Comunidad',
+        cuerpo: 'Texto',
+        fechaReunion: '2026-09-05',
+        hora: '10:00',
+        lugar: 'Plantel',
+        objetivos: ['Objetivo 1'],
+        firmante: 'Director',
+        cargo: 'Director',
+      },
+      minutaArranque: {
+        cct: '21EBH0001X',
+        fecha: '2026-09-05',
+        tipoReunion: 'Inicio',
+        acuerdos: [],
+        firmas: [],
+      },
+      oficiosAliados: [],
+    });
+    expect(audit.criterios).toHaveLength(2);
+    expect(audit.criterios.map(c => c.id)).toEqual([19, 20]);
+  });
+
+  it('Paso 9: evalua gobernanza escolar e informe de supervision (C21-C23)', () => {
+    const audit = validatePaecStepResult(9, {
+      gobernanza: GOBERNANZA_COMPLETA,
+      informeSupervision: {
+        resumenEjecutivo: 'Resumen del proyecto',
+        metasVsLogros: [],
+        analisisPrePost: {
+          participacionTotal: 'Alta',
+          alcanceComunitario: 'Medio',
+          cambioConocimientos: 'Notable',
+          desarrolloCompetencias: 'Optimo',
+        },
+        evidencias: ['Foto 1'],
+        obstaculos: [],
+        sostenibilidad: ['Plan de continuidad'],
+      },
+    });
+    expect(audit.criterios).toHaveLength(3);
+    expect(audit.criterios.map(c => c.id)).toEqual([21, 22, 23]);
+  });
+
+  it('calculateGlobalPaecScore con payload legacy snake_case evalua correctamente sin errores de tipo', () => {
+    const legacyProject = {
+      fase1_diagnostico: FASE1_COMPLETA,
+      fase2_justificacion: FASE2_COMPLETA,
+      fase2_mapeo: MAPEO_COMPLETO,
+      fase2_cronograma: CRONOGRAMA_COMPLETO,
+      fase2_detalle_curricular: DETALLE_CURRICULAR,
+      fase4_gobernanza: GOBERNANZA_COMPLETA,
+    };
+    const audit = calculateGlobalPaecScore(legacyProject);
+    expect(audit.criterios).toHaveLength(23);
+    expect(audit.score).toBeGreaterThan(50);
   });
 
 });
