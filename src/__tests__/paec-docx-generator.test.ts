@@ -332,7 +332,7 @@ describe('paec-docx-generator — Generación Editorial Oficial PAEC (DOCX)', ()
     const { value: text } = await mammoth.extractRawText({ buffer });
 
     expect(text).toContain('2.2 Pilares de la Nueva Escuela Mexicana Incorporados');
-    expect(text).toContain('2.3 Propósitos Integrales del Proyecto (MIFO / DBEPA)');
+    expect(text).toContain('2.3 Propósitos Integrales del Proyecto (MIFO / MCCEMS)');
     expect(text).toContain('Fomento de la identidad con México');
   }, 15000);
 

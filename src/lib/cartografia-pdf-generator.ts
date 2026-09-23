@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * cartografia-pdf-generator.ts
  * Generador PDF Oficial para la Cartografía de Zona Escolar
@@ -12,7 +13,6 @@ import jsPDF from 'jspdf';
 import autoTable, { type RowInput } from 'jspdf-autotable';
 import { loadAllLogos } from './pdf-logos';
 import { SCHOOL_YEAR } from '@/lib/config';
-import { logger } from './logger';
 import type { CartografiaZonaProject } from '@/types/cartografia';
 
 const NAVY: [number, number, number] = [31, 56, 100];       // #1F3864
@@ -22,12 +22,6 @@ const GOLD_LINE: [number, number, number] = [232, 160, 32];  // #E8A020
 const GRAY_BG: [number, number, number] = [245, 247, 250];   // #F5F7FA
 const TEXT_DARK: [number, number, number] = [30, 41, 59];    // #1E293B
 const TEXT_MUTED: [number, number, number] = [100, 116, 139]; // #64748B
-
-function safeStr(val: unknown, fallback = 'N/D'): string {
-  if (val === null || val === undefined) return fallback;
-  const str = String(val).trim();
-  return str.length > 0 ? str : fallback;
-}
 
 export async function generateCartografiaPDF(
   project: CartografiaZonaProject,
@@ -205,7 +199,7 @@ export async function generateCartografiaPDF(
   doc.setFontSize(8);
   doc.setTextColor(...TEXT_DARK);
   const fundText = [
-    'En el marco del Modelo Educativo 2025 y el Marco Curricular Común de la Educación Media Superior (MCCEMS), el Plan de Intervención Pedagógica de Supervisión (PIPS) ha concluido su ciclo tras haber operado como un recopilador estático de datos cuantitativos. La Dirección de Bachilleratos Estatales y Preparatoria Abierta (DBEPA) evoluciona hacia una herramienta viva de navegación pedagógica: la Cartografía de Zona Escolar.',
+    'En el marco del Modelo Educativo 2025 y el Marco Curricular Común de la Educación Media Superior (MCCEMS), el Plan de Intervención Pedagógica de Supervisión (PIPS) ha concluido su ciclo tras haber operado como un recopilador estático de datos cuantitativos. La Subsecretaría de Educación Media Superior evoluciona hacia una herramienta viva de navegación pedagógica: la Cartografía de Zona Escolar.',
     'La Cartografía de Zona no constituye un nuevo trámite burocrático; es una metodología situada que rescata la descripción territorial, permitiendo al supervisor y a los colectivos escolares mirar la zona como un territorio integral y no como una suma de escuelas aisladas. A través de cinco momentos metodológicos (Conocer, Organizar, Ubicar, Analizar y Decidir), cruza la evidencia cuantitativa del Formato 911 y F11C con la realidad cualitativa de los proyectos PAEC y la memoria pedagógica colegiada.',
   ];
   const splitFund = doc.splitTextToSize(fundText.join('\n\n'), contentWidth);
@@ -361,7 +355,7 @@ export async function generateCartografiaPDF(
   // MOMENTO 5: DECIDIR (Metas CREAA y 3 Líneas de Acción)
   // ═════════════════════════════════════════════════════════════════════════════
   y = (doc as any).lastAutoTable.finalY + 8;
-  y = addSectionHeader(y, 'Momento 5: Decidir — Meta General de Zona y Líneas de Acción', 'Acuerdos estratégicos y líneas de acción oficiales DBEPA');
+  y = addSectionHeader(y, 'Momento 5: Decidir — Meta General de Zona y Líneas de Acción', 'Acuerdos estratégicos y líneas de acción oficiales');
 
   // Meta General CREAA
   doc.setFillColor(...GRAY_BG);

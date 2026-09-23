@@ -145,7 +145,7 @@ export async function generatePaecPDF(
   doc.text('SUBSECRETARÍA DE EDUCACIÓN OBLIGATORIA', pageWidth / 2, curY, { align: 'center' });
 
   curY += 4.5;
-  doc.text('DIRECCIÓN DE BACHILLERATOS ESTATALES Y PREPARATORIA ABIERTA (DBEPA)', pageWidth / 2, curY, { align: 'center' });
+  doc.text('DIRECCIÓN DE EDUCACIÓN MEDIA SUPERIOR', pageWidth / 2, curY, { align: 'center' });
 
   curY += 14;
   doc.setFillColor(...NAVY);
@@ -232,7 +232,7 @@ export async function generatePaecPDF(
   doc.setFont('helvetica', 'italic');
   doc.setFontSize(7);
   doc.setTextColor(...TEXT_MUTED);
-  doc.text('Documento oficial aprobado por el Consejo Técnico Escolar y registrado formalmente ante la DBEPA Puebla.', pageWidth / 2, pageHeight - 16, { align: 'center' });
+  doc.text('Documento oficial aprobado por el Consejo Técnico Escolar y registrado formalmente ante la Supervisión Escolar.', pageWidth / 2, pageHeight - 16, { align: 'center' });
   doc.text(`Emisión institucional: ${new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}`, pageWidth / 2, pageHeight - 12, { align: 'center' });
 
   // ═════════════════════════════════════════════════════════════════════════════
@@ -333,7 +333,7 @@ export async function generatePaecPDF(
             '• Constitución Política de los Estados Unidos Mexicanos (Artículo 3°): Educación integral, humanista y vinculada a la comunidad.\n' +
             '• Ley General de Educación (Artículos 11, 12, 13 y 14): La Nueva Escuela Mexicana fomenta el desarrollo socioemocional y la transformación territorial.\n' +
             '• Acuerdo Secretarial 09/08/23 (SEP): Establecimiento del Marco Curricular Común de la Educación Media Superior (MCCEMS).\n' +
-            '• Lineamientos Técnico-Pedagógicos DBEPA Puebla 2024-2025: Implementación obligatoria del Proyecto Escolar Comunitario (PEC).',
+            '• Lineamientos Técnico-Pedagógicos de Educación Media Superior 2024-2025: Implementación obligatoria del Proyecto Escolar Comunitario (PEC).',
           styles: { fontSize: 7, cellPadding: 2.5, textColor: TEXT_DARK },
         },
       ],
@@ -378,7 +378,7 @@ export async function generatePaecPDF(
     head: [
       [
         {
-          content: '1.1 DIAGNÓSTICO COMUNITARIO INTEGRAL (TABLA 1 DBEPA)',
+          content: '1.1 DIAGNÓSTICO COMUNITARIO INTEGRAL (TABLA 1)',
           colSpan: 2,
           styles: { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
         },
@@ -420,7 +420,7 @@ export async function generatePaecPDF(
     head: [
       [
         {
-          content: '1.2 DIAGNÓSTICO DEL CENTRO EDUCATIVO (TABLA 2 DBEPA)',
+          content: '1.2 DIAGNÓSTICO DEL CENTRO EDUCATIVO (TABLA 2)',
           colSpan: 2,
           styles: { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
         },
@@ -560,7 +560,7 @@ export async function generatePaecPDF(
     head: [
       [
         {
-          content: '1.4 PROCESO METODOLÓGICO DE PRIORIZACIÓN DEMOCRÁTICA (TABLA 4 DBEPA)',
+          content: '1.4 PROCESO METODOLÓGICO DE PRIORIZACIÓN DEMOCRÁTICA (TABLA 4)',
           colSpan: 2,
           styles: { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
         },
@@ -702,7 +702,7 @@ export async function generatePaecPDF(
     head: [
       [
         {
-          content: '2.2 PROPÓSITOS INTEGRALES DEL PROYECTO (MIFO / DBEPA)',
+          content: '2.2 PROPÓSITOS INTEGRALES DEL PROYECTO (MIFO / MCCEMS)',
           colSpan: 2,
           styles: { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
         },
@@ -1978,7 +1978,7 @@ export async function generatePaecPDF(
   // ═════════════════════════════════════════════════════════════════════════════
   doc.addPage('letter', 'portrait');
   curY = 24;
-  addSectionBar(doc, '4.3 Informe Oficial para Supervisión Escolar (Guía DBEPA 004)', curY, margin, contentWidth);
+  addSectionBar(doc, '4.3 Informe Oficial para Supervisión Escolar (Guía Oficial 004)', curY, margin, contentWidth);
   curY += 10;
 
   const inf = (p.fase4InformeSupervision || {}) as Partial<NonNullable<PaecProject['fase4InformeSupervision']>> & Record<string, any>; // fallback tipado defensivo
@@ -2155,7 +2155,7 @@ export async function generatePaecPDF(
       [
         {
           content:
-            `El Consejo Técnico Escolar del Bachillerato General ${safeStr(sCtx.schoolName)} (CCT: ${safeStr(sCtx.cct)}), en coordinación con la Supervisión Escolar de la Zona 004 de la Dirección de Bachilleratos Estatales y Preparatoria Abierta (DBEPA) de la SEP Puebla, una vez analizadas las evidencias, bitácoras y memorias técnicas del Proyecto Escolar Comunitario titulado:\n\n` +
+            `El Consejo Técnico Escolar del Bachillerato General ${safeStr(sCtx.schoolName)} (CCT: ${safeStr(sCtx.cct)}), en coordinación con la Supervisión Escolar de la Zona 004 de la Dirección de Educación Media Superior de la SEP Puebla, una vez analizadas las evidencias, bitácoras y memorias técnicas del Proyecto Escolar Comunitario titulado:\n\n` +
             `"${safeStr(p.projectName)}"\n\n` +
             'EMITEN EL PRESENTE DICTAMEN DE APROBACIÓN SATISFACTORIA Y EXCELENCIA TÉCNICO-PEDAGÓGICA, haciendo constar que ha cumplido cabalmente con las directrices del Marco Curricular Común de la Educación Media Superior (MCCEMS) y los principios de la Nueva Escuela Mexicana, transformando significativamente la realidad comunitaria de su entorno territorial.',
           styles: { fontSize: 7.5, cellPadding: 3.5, textColor: TEXT_DARK, overflow: 'linebreak' },
@@ -2208,7 +2208,7 @@ export async function generatePaecPDF(
   doc.text(nombreSupervision, col2X + colW / 2, lineY + 8, { align: 'center' });
   doc.setTextColor(...TEXT_MUTED);
   doc.text('Supervisión Escolar Zona 004', col2X + colW / 2, lineY + 11.5, { align: 'center' });
-  doc.text('DBEPA · SEP Puebla', col2X + colW / 2, lineY + 14.5, { align: 'center' });
+  doc.text('SEMS · SEP Puebla', col2X + colW / 2, lineY + 14.5, { align: 'center' });
 
   // Línea 3: Testigo Comunitario
   doc.line(col3X + 4, lineY, col3X + colW - 4, lineY);
@@ -2240,7 +2240,7 @@ export async function generatePaecPDF(
   doc.setFontSize(6);
   doc.setTextColor(...TEXT_MUTED);
   doc.text(
-    `SHA256: 8F7E4B2A9C1D0E3F5A6B7C8D9E0F1A2B3C4D5E6F7A8B9C0D1E2F3A4B5C6D7E8F · REGISTRO OFICIAL DE ARCHIVO VINCULADO AL EXPEDIENTE DE SUPERVISIÓN DBEPA-PEC-${SCHOOL_YEAR.replace('/', '-')}`,
+    `SHA256: 8F7E4B2A9C1D0E3F5A6B7C8D9E0F1A2B3C4D5E6F7A8B9C0D1E2F3A4B5C6D7E8F · REGISTRO OFICIAL DE ARCHIVO VINCULADO AL EXPEDIENTE DE SUPERVISIÓN SEMS-PEC-${SCHOOL_YEAR.replace('/', '-')}`,
     margin + 4,
     footerSecY + 8
   );
@@ -2278,7 +2278,7 @@ function addOfficialHybridHeadersAndFooters(
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7);
     doc.setTextColor(...NAVY);
-    doc.text('SEP PUEBLA · DIRECCIÓN DE BACHILLERATOS ESTATALES Y PREPARATORIA ABIERTA (DBEPA)', margin, 9);
+    doc.text('SEP PUEBLA · DIRECCIÓN DE EDUCACIÓN MEDIA SUPERIOR', margin, 9);
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(6.5);

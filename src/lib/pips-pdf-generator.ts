@@ -1,5 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
- * pips-pdf-generator.ts — Generador PDF Oficial del PIPS para Supervisores de Zona
+ * pips-pdf-generator.ts — Generador Oficial PDF de Supervisión Escolar PIPS para Supervisores de Zona
  * Plan de Intervención y Acompañamiento Pedagógico de Supervisión (PIPS)
  * SIGPDA-EMS · Estándar Oficial SEP Puebla (DBEPA)
  * Formato Carta (215.9mm x 279.4mm) con membrete oficial, sellos, matrícula concentrada y firmas.
@@ -12,9 +13,8 @@ import { SCHOOL_YEAR } from '@/lib/config';
 import { logger } from './logger';
 import type { PipsPlantele, PipsObjetivo, PipsCronogramaActividad } from '@/types/pips';
 
-const NAVY: [number, number, number] = [31, 56, 100];       // #1F3864 - Azul Institucional DBEPA
+const NAVY: [number, number, number] = [31, 56, 100];       // #1F3864 - Azul Institucional
 const BLUE_MID: [number, number, number] = [46, 116, 181];   // #2E74B5 - Azul Secundario
-const BLUE_LIGHT: [number, number, number] = [220, 228, 245]; // #DCE4F5 - Fondo Encabezados Suaves
 const GOLD_LINE: [number, number, number] = [232, 160, 32];  // #E8A020 - Dorado Oficial SEP
 const GRAY_BG: [number, number, number] = [242, 244, 248];   // #F2F4F8 - Fondo Alternado
 const TEXT_DARK: [number, number, number] = [30, 41, 59];    // #1E293B - Texto Primario
@@ -47,7 +47,6 @@ export async function generatePipsPDF(
   const problematicas = Array.isArray(row.problematicas_json) ? row.problematicas_json as { titulo: string; descripcion: string; prioridad: string }[] : [];
   const objetivos: PipsObjetivo[] = Array.isArray(row.objetivos_especificos_json) ? row.objetivos_especificos_json as PipsObjetivo[] : [];
   const cronograma: PipsCronogramaActividad[] = Array.isArray(row.cronograma_json) ? row.cronograma_json as PipsCronogramaActividad[] : [];
-  const evaluacion = Array.isArray(row.evaluacion_json) ? row.evaluacion_json as { indicador: string; meta: string; instrumento: string }[] : [];
 
   const totalT = planteles.reduce((s, pl) => s + (Number(pl.total) || 0), 0);
   const totalH = planteles.reduce((s, pl) => s + (Number(pl.hombres) || 0), 0);
@@ -115,7 +114,7 @@ export async function generatePipsPDF(
   doc.text('SUBSECRETARÍA DE EDUCACIÓN MEDIA SUPERIOR', pageWidth / 2, curY, { align: 'center' });
 
   curY += 4.5;
-  doc.text('DIRECCIÓN DE BACHILLERATOS ESTATALES Y PREPARATORIA ABIERTA (DBEPA)', pageWidth / 2, curY, { align: 'center' });
+  doc.text('DIRECCIÓN DE EDUCACIÓN MEDIA SUPERIOR', pageWidth / 2, curY, { align: 'center' });
 
   curY += 13;
 
@@ -189,7 +188,7 @@ export async function generatePipsPDF(
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7);
     doc.setTextColor(...NAVY);
-    doc.text(`SECRETARÍA DE EDUCACIÓN PÚBLICA DE PUEBLA · DIRECCIÓN DE BACHILLERATOS ESTATALES (DBEPA)`, margin, 10);
+    doc.text(`SECRETARÍA DE EDUCACIÓN PÚBLICA DE PUEBLA · DIRECCIÓN DE EDUCACIÓN MEDIA SUPERIOR`, margin, 10);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(...TEXT_MUTED);
     doc.text(`PIPS ${cicloTexto} · ${zonaNombre} (${zonaClave})`, pageWidth - margin, 10, { align: 'right' });
@@ -522,7 +521,7 @@ export async function generatePipsPDF(
           styles: { halign: 'center', cellWidth: contentWidth / 3 },
         },
         {
-          content: `\n\n\n\n_____________________________________________\nAUTORIZÓ\n\nDIRECCIÓN DE BACHILLERATOS ESTATALES\nY PREPARATORIA ABIERTA (DBEPA)\nVo. Bo. y Sello Institucional`,
+          content: `\n\n\n\n_____________________________________________\nAUTORIZÓ\n\nDIRECCIÓN DE EDUCACIÓN MEDIA SUPERIOR\nVo. Bo. y Sello Institucional`,
           styles: { halign: 'center', cellWidth: contentWidth / 3 },
         },
       ],

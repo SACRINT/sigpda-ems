@@ -1,12 +1,12 @@
 // src/lib/pips-docx-generator.ts
 // Generates a Word (.docx) file from a PipsProject row
 import {
-  Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType,
+  Document, Packer, Paragraph, TextRun, AlignmentType,
   Table, TableRow, TableCell, WidthType, BorderStyle, PageBreak,
   Header, Footer, PageNumberElement, ShadingType, VerticalAlign,
   convertMillimetersToTwip,
 } from 'docx';
-import type { PipsProject, PipsPlantele, PipsObjetivo, PipsCronogramaActividad } from '@/types/pips';
+import type { PipsPlantele, PipsObjetivo, PipsCronogramaActividad } from '@/types/pips';
 
 const NAVY  = '1F3864';
 const BLUE  = '2E74B5';
@@ -326,7 +326,7 @@ export async function generatePipsDocx(row: Record<string, unknown>): Promise<Bu
                   [2500, 1300, 1400, 1000, 1700, 1600],
                 ),
               ]
-            : [p('El cronograma se elaborará al inicio del ciclo escolar con base en las fechas del Plan Anual de Trabajo DBEPA.')]),
+            : [p('El cronograma se elaborará al inicio del ciclo escolar con base en las fechas del Plan Anual de Trabajo Institucional.')]),
 
           br(),
 

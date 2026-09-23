@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * pmc-pdf-generator.ts — Generador PDF Oficial del Plan de Mejora Continua (PMC)
  * SIGPDA-EMS · Estándar Oficial SEP Puebla (DBEPA)
@@ -109,7 +110,7 @@ export async function generatePmcPDF(
   doc.text('SUBSECRETARÍA DE EDUCACIÓN OBLIGATORIA', pageWidth / 2, curY, { align: 'center' });
 
   curY += 4.5;
-  doc.text('DIRECCIÓN DE BACHILLERATOS ESTATALES Y PREPARATORIA ABIERTA (DBEPA)', pageWidth / 2, curY, { align: 'center' });
+  doc.text('DIRECCIÓN DE EDUCACIÓN MEDIA SUPERIOR', pageWidth / 2, curY, { align: 'center' });
 
   curY += 14;
 
@@ -184,7 +185,7 @@ export async function generatePmcPDF(
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7);
     doc.setTextColor(...NAVY);
-    doc.text(`SECRETARÍA DE EDUCACIÓN PÚBLICA DE PUEBLA · DIRECCIÓN DE BACHILLERATOS ESTATALES (DBEPA)`, margin, 10);
+    doc.text(`SECRETARÍA DE EDUCACIÓN PÚBLICA DE PUEBLA · DIRECCIÓN DE EDUCACIÓN MEDIA SUPERIOR`, margin, 10);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(...TEXT_MUTED);
     doc.text(`PMC ${cicloTexto} · ${safeStr(project.school_name)} (CCT: ${safeStr(project.school_cct)})`, pageWidth - margin, 10, { align: 'right' });

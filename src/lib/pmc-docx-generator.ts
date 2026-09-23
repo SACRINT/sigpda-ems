@@ -10,7 +10,6 @@ import {
   BorderStyle,
   WidthType,
   ShadingType,
-  VerticalAlign,
   PageBreak,
   HeadingLevel,
 } from 'docx';
@@ -269,7 +268,7 @@ function buildCoverPage(p: PmcProject): (Paragraph | Table)[] {
       spacing: { before: 0, after: 160 },
       children: [
         new TextRun({
-          text: 'DIRECCIÓN DE BACHILLERATO Y EDUCACIÓN PARA ADULTOS (DBEPA)',
+          text: 'DIRECCIÓN DE EDUCACIÓN MEDIA SUPERIOR',
           bold: true,
           size: 20,
           color: C.navy,
@@ -761,7 +760,6 @@ export async function generatePmcInformeDocx(
 ): Promise<Buffer> {
   const plan = parseJson<PlanAccion>(project.plan_accion);
   const metas = plan.metas_institucionales ?? [];
-  const personal = plan.metas_personales ?? [];
   const indic = parseJson<IndicadoresAcademicos>(project.indicadores_academicos);
   const staffData = parseJson<{ nombre?: string; cargo?: string }[]>(project.staff_data);
 
@@ -818,7 +816,7 @@ export async function generatePmcInformeDocx(
       spacing: { before: 0, after: 40 },
       children: [
         new TextRun({
-          text: 'DIRECCIÓN DE BACHILLERATO Y EDUCACIÓN PARA ADULTOS (DBEPA)',
+          text: 'DIRECCIÓN DE EDUCACIÓN MEDIA SUPERIOR',
           bold: true,
           size: 18,
           color: C.navy,
@@ -1123,7 +1121,7 @@ export async function generatePmcInformeDocx(
         }),
         new TableRow({ children: [tcSub('Docentes con seguimiento en aula'), tc('0 docentes'), tc(`${staffData.length || 12} docentes (100%)`)] }),
         new TableRow({ children: [tcSub('Observaciones de clase realizadas'), tc('0 observaciones'), tc('24 observaciones formales')] }),
-        new TableRow({ children: [tcSub('Docentes capacitados'), tc('0 docentes'), tc(`${staffData.length || 12} docentes en cursos NEM/DBEPA`)] }),
+        new TableRow({ children: [tcSub('Docentes capacitados'), tc('0 docentes'), tc(`${staffData.length || 12} docentes en cursos NEM/MCCEMS`)] }),
         new TableRow({ children: [tcSub('Convenios de vinculación establecidos'), tc('0 convenios'), tc('2 convenios con instituciones locales')] }),
         new TableRow({ children: [tcSub('Actividades de prevención de violencia'), tc('0 actividades'), tc('6 talleres y pláticas comunitarias')] }),
       ],
@@ -1319,7 +1317,7 @@ export async function generatePmcInformeDocx(
         new TableRow({ children: [tcSub('Fecha de recepción del informe'), tc(today)] }),
         new TableRow({ children: [tcSub('Nombre del responsable de recepción'), tc(supervisorName)] }),
         new TableRow({ children: [tcSub('Número de folio asignado'), tc(`FOLIO-PMC-${Date.now().toString().slice(-6)}`)] }),
-        new TableRow({ children: [tcSub('Observaciones de la supervisión'), tc('Documento completo, articulado y validado en cumplimiento con la normatividad DBEPA.')] }),
+        new TableRow({ children: [tcSub('Observaciones de la supervisión'), tc('Documento completo, articulado y validado en cumplimiento con la normatividad de Educación Media Superior.')] }),
         new TableRow({ children: [tcSub('Estado de acuse'), tc('Recibido y Validado')] }),
       ],
       [Math.floor(CONTENT * 0.38), Math.floor(CONTENT * 0.62)]

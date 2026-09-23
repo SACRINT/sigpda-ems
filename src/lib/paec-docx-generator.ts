@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * paec-docx-generator.ts — Generador Editorial DOCX Oficial del Proyecto Escolar Comunitario (PEC / PAEC)
- * SIGPDA-EMS · Estándar Oficial SEP Puebla (DBEPA / NEM / MCCEMS)
+ * SIGPDA-EMS · Estándar Oficial SEP Puebla (MCCEMS / NEM)
  * 
  * Estructura de 30 a 35 Páginas dividida en 4 Macro-Fases:
  * - MACRO-FASE I: Portada Oficial y Diagnóstico Colectivo (Tablas 1-4 + Matriz FODA Cruzada 4x2) [Portrait]
@@ -25,7 +26,6 @@ import {
   BorderStyle,
   WidthType,
   ShadingType,
-  VerticalAlign,
   PageBreak,
   Header,
   Footer,
@@ -35,7 +35,6 @@ import {
 import type {
   PaecProject,
   TableRow2Cols,
-  FODARow,
   MapeoRow,
   CronogramaRow,
   DetalleCurricularRow,
@@ -302,18 +301,6 @@ function tcH(text: string, opts: { w?: number; span?: number; size?: number; fil
   });
 }
 
-// Creador de celda sub-encabezado
-function tcSubH(text: string, opts: { w?: number; span?: number; size?: number } = {}) {
-  return tc(text, {
-    bold: true,
-    fill: C.light,
-    color: C.dark,
-    size: opts.size || 18,
-    align: AlignmentType.LEFT,
-    ...opts,
-  });
-}
-
 // Tabla para sección Portrait
 function tblP(rows: TableRow[], widths: number[]): Table {
   return new Table({
@@ -424,7 +411,7 @@ export async function generatePaecDocx(
           spacing: { after: 120 },
           children: [
             new TextRun({
-              text: `SEP PUEBLA · DIRECCIÓN DE BACHILLERATOS ESTATALES Y PREPARATORIA ABIERTA (DBEPA) ${subtitle}`,
+              text: `SEP PUEBLA · DIRECCIÓN DE EDUCACIÓN MEDIA SUPERIOR ${subtitle}`,
               size: 15, // 7.5pt
               color: C.dark,
               bold: true,
@@ -507,7 +494,7 @@ export async function generatePaecDocx(
       spacing: { before: 20, after: 260 },
       children: [
         new TextRun({
-          text: 'DIRECCIÓN DE BACHILLERATOS ESTATALES Y PREPARATORIA ABIERTA (DBEPA)',
+          text: 'DIRECCIÓN DE EDUCACIÓN MEDIA SUPERIOR',
           bold: true,
           size: 19,
           color: C.dark,
@@ -640,7 +627,7 @@ export async function generatePaecDocx(
   s1Children.push(...macroH('Macro-Fase I: Diagnóstico Colectivo y Contextualización Comunitaria'));
 
   // 1. Diagnóstico Comunitario (Tabla 1)
-  s1Children.push(secH('1.1 Diagnóstico Comunitario Integral (Tabla 1 DBEPA)'));
+  s1Children.push(secH('1.1 Diagnóstico Comunitario Integral (Tabla 1)'));
   s1Children.push(para('Análisis multidimensional de las condiciones socioeconómicas, culturales, ambientales y demográficas del entorno territorial del plantel:'));
 
   const t1Data: TableRow2Cols[] = p.fase1Diagnostico?.tabla1 || (p.fase1Diagnostico as Record<string, any>)?.tabla1Comunidad || [];
@@ -677,7 +664,7 @@ export async function generatePaecDocx(
   s1Children.push(sp());
 
   // 2. Diagnóstico del Centro Educativo (Tabla 2)
-  s1Children.push(secH('1.2 Diagnóstico del Centro Educativo (Tabla 2 DBEPA)'));
+  s1Children.push(secH('1.2 Diagnóstico del Centro Educativo (Tabla 2)'));
   s1Children.push(para('Evaluación de la infraestructura física, matrícula, cobertura académica, fortalezas docentes y ambiente escolar del plantel:'));
 
   const t2Data: TableRow2Cols[] = p.fase1Diagnostico?.tabla2 || (p.fase1Diagnostico as Record<string, any>)?.tabla2Educacion || [];
@@ -713,7 +700,7 @@ export async function generatePaecDocx(
   s1Children.push(sp());
 
   // 3. Matriz FODA Integral con Estrategia Cruzada 4x2 (Tabla 3)
-  s1Children.push(secH('1.3 Matriz FODA con Estrategia Cruzada 4×2 (Tabla 3 DBEPA / NEM)'));
+  s1Children.push(secH('1.3 Matriz FODA con Estrategia Cruzada 4×2 (Tabla 3 / NEM)'));
   s1Children.push(para('Articulación estratégica de variables internas y externas del centro escolar con formulación de líneas maestras de acción educativa (Estrategias FO, DO, FA, DA):'));
 
   // Procesar datos FODA con normalización y fallbacks pedagógicos oficiales DBEPA
@@ -804,7 +791,7 @@ export async function generatePaecDocx(
   s1Children.push(sp());
 
   // 4. Proceso Técnico de Priorización (Tabla 4)
-  s1Children.push(secH('1.4 Proceso Técnico de Priorización del Problema Comunitario (Tabla 4 DBEPA)'));
+  s1Children.push(secH('1.4 Proceso Técnico de Priorización del Problema Comunitario (Tabla 4)'));
   s1Children.push(para('Documentación de las etapas metodológicas obligatorias para la selección sustentada de la problemática eje comunitaria:'));
 
   const t4Data: TableRow2Cols[] = p.fase1Diagnostico?.tabla4 || (p.fase1Diagnostico as Record<string, any>)?.tabla4Problemas || [];
@@ -876,7 +863,7 @@ export async function generatePaecDocx(
   s1Children.push(sp());
 
   // Propósitos Educativo, Social y Funcional
-  s1Children.push(secH('2.3 Propósitos Integrales del Proyecto (MIFO / DBEPA)'));
+  s1Children.push(secH('2.3 Propósitos Integrales del Proyecto (MIFO / MCCEMS)'));
   const prop = (j.proposito || {}) as Record<string, any>;
   const propRows: TableRow[] = [
     new TableRow({ children: [tcH('Dimensión del Propósito', { w: 3200 }), tcH('Definición y Alcance Institucional', { w: 7600 })] }),
@@ -1614,7 +1601,7 @@ export async function generatePaecDocx(
   s3Children.push(sp());
 
   // 2. Informe Final para Supervisión Escolar Guía 004
-  s3Children.push(secH('4.3 Informe Final para Supervisión Escolar (Guía Oficial DBEPA 004)'));
+  s3Children.push(secH('4.3 Informe Final para Supervisión Escolar (Guía Oficial 004)'));
   s3Children.push(para(safeStr(inf.resumenEjecutivo, 'El presente informe consolida los resultados cualitativos y cuantitativos alcanzados durante el desarrollo del Proyecto Escolar Comunitario, demostrando la transformación social territorial y el fortalecimiento de los aprendizajes significativos en el marco del MCCEMS.')));
   s3Children.push(sp());
 
