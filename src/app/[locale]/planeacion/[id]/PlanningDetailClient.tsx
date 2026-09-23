@@ -894,7 +894,7 @@ function PlanningDetailModular({
       }}>
         <div>
           <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8', fontWeight: 700, marginBottom: '6px' }}>
-            Jerarquía Normativa DBEPA 2026-2027
+            Jerarquía Normativa MCCEMS 2026-2027
           </div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
             <span style={{ background: '#3b82f6', color: '#fff', fontSize: '12px', padding: '3px 10px', borderRadius: '12px', fontWeight: 600 }}>
@@ -936,7 +936,7 @@ function PlanningDetailModular({
             transition: 'all 0.2s'
           }}
         >
-          📋 Checklist de Supervisión DBEPA
+          📋 Checklist de Supervisión MCCEMS
         </button>
       </div>
 
@@ -1111,7 +1111,7 @@ function PlanningDetailModular({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--c-border)', paddingBottom: '12px', marginBottom: '16px' }}>
               <div>
                 <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--c-text)', margin: 0 }}>
-                  📋 Lista de Cotejo de Supervisión DBEPA (2026-2027)
+                  📋 Lista de Cotejo de Supervisión MCCEMS (2026-2027)
                 </h3>
                 <p style={{ fontSize: '12.5px', color: 'var(--c-text-muted)', margin: '4px 0 0 0' }}>
                   Alineado a <em>03 Lista de cotejo Plan de Clase 1-4_SEM.pdf</em> y normativas del Bachillerato General Estatal.

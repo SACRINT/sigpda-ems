@@ -512,7 +512,7 @@ export function ExtraPreviewModal({
 
   const typeBadgeColor =
     type === 'teacher_guide'
-      ? '#1B6B8A' // Teal oficial DBEPA Puebla
+      ? '#1B6B8A' // Teal oficial MCCEMS Puebla
       : type === 'practice_guide'
       ? '#2563eb' // Azul estudiante
       : type === 'visual'

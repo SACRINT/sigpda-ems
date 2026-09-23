@@ -926,7 +926,7 @@ export default function PlanningDetailLegacy({
       }}>
         <div>
           <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8', fontWeight: 700, marginBottom: '6px' }}>
-            Jerarquía Normativa DBEPA 2026-2027
+            Jerarquía Normativa MCCEMS 2026-2027
           </div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
             <span style={{ background: '#3b82f6', color: '#fff', fontSize: '12px', padding: '3px 10px', borderRadius: '12px', fontWeight: 600 }}>
@@ -968,7 +968,7 @@ export default function PlanningDetailLegacy({
             transition: 'all 0.2s'
           }}
         >
-          📋 Checklist de Supervisión DBEPA
+          📋 Checklist de Supervisión MCCEMS
         </button>
       </div>
 
@@ -1159,7 +1159,7 @@ export default function PlanningDetailLegacy({
                   </>
                 )}
                 <span className="text-xs" style={{ background: 'var(--c-accent-subtle)', color: 'var(--c-accent-bright)', padding: '4px 10px', borderRadius: '12px', fontWeight: 600, border: '1px solid var(--c-accent-border)' }}>
-                  MCCEMS / DBEPA
+                  MCCEMS Puebla
                 </span>
               </div>
             </div>
@@ -1241,7 +1241,7 @@ export default function PlanningDetailLegacy({
                   </h3>
                   <p style={{ margin: 0, fontSize: '13px', color: '#cbd5e1', lineHeight: 1.5, maxWidth: '650px' }}>
                     {semestralReady && semestralThresholdMet
-                      ? '¡Todos los bloques del semestre están generados y cumplen la meta macro oficial! Descarga el libro maestro unificado con numeración continua, índice consolidado y portadas oficiales SEP/DBEPA.'
+                      ? '¡Todos los bloques del semestre están generados y cumplen la meta macro oficial! Descarga el libro maestro unificado con numeración continua, índice consolidado y portadas oficiales SEP/MCCEMS.'
                       : semestralReady
                       ? `Todos los bloques han sido generados con un volumen de ${accumulatedWorkbookWords.toLocaleString()} palabras (meta recomendada: ${macroTargetWords.toLocaleString()}). La descarga del compendio unificado está disponible.`
                       : `Genera los libros individuales de cada bloque a continuación (${generatedWorkbookCount}/${totalWorkbookBlocks} listos). Al completar todos los bloques se desbloqueará la descarga del Libro Maestro Semestral.`}
@@ -2118,7 +2118,7 @@ export default function PlanningDetailLegacy({
                   <Zap size={20} color="#f59e0b" /> Instrumentos de Evaluación y Materiales Didácticos Oficiales
                 </h3>
                 <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: '#94a3b8' }}>
-                  Estructurados en secciones continuas por Bloque curricular (NEM / DBEPA Puebla 2026-2027).
+                  Estructurados en secciones continuas por Bloque curricular (NEM / MCCEMS Puebla 2026-2027).
                 </p>
               </div>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -2142,7 +2142,7 @@ export default function PlanningDetailLegacy({
             <div className="section-card">
               <div className="section-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span className="section-card-title">Acuerdo Institucional de Evaluación / Acreditación</span>
-                <span className="text-xs" style={{ color: 'var(--c-navy-light)', fontWeight: 600 }}>Anexo 12 DBEPA</span>
+                <span className="text-xs" style={{ color: 'var(--c-navy-light)', fontWeight: 600 }}>Anexo 12 USICAMM</span>
               </div>
               <div className="section-card-body">
                 <div style={{ padding: '14px 18px', background: 'var(--c-bg-surface)', borderLeft: '4px solid var(--c-amber)', border: '1px solid var(--c-border)', borderRadius: '6px', fontSize: '13.5px' }}>
@@ -2775,7 +2775,7 @@ export default function PlanningDetailLegacy({
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                   <p style={{ color: '#60a5fa', fontWeight: 600, margin: 0 }}>
-                    💡 Secuencia Didáctica Progresiva (DBEPA / USICAMM):
+                    💡 Secuencia Didáctica Progresiva (MCCEMS / USICAMM):
                   </p>
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', fontSize: '11px' }}>
                     <span style={{ padding: '2px 8px', borderRadius: '4px', background: 'rgba(59, 130, 246, 0.18)', color: '#93c5fd', border: '1px solid rgba(59, 130, 246, 0.35)', fontWeight: 600 }}>
@@ -3781,7 +3781,7 @@ export default function PlanningDetailLegacy({
                 <div style={{ textAlign: 'center', padding: '48px 20px', background: 'var(--c-bg-surface)', borderRadius: '10px', border: '1px solid var(--c-border)' }}>
                   <div style={{ fontSize: '42px', marginBottom: '12px' }}>🏅</div>
                   <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--c-text)', marginBottom: '8px' }}>
-                    Auditoría Oficial con IA (Anexo 12 USICAMM / DBEPA)
+                    Auditoría Oficial con IA (Anexo 12 USICAMM / MCCEMS)
                   </h3>
                   <p style={{ fontSize: '14px', color: 'var(--c-text-muted)', maxWidth: '560px', margin: '0 auto 20px', lineHeight: 1.5 }}>
                     Esta planeación aún no ha sido evaluada. La IA auditará los criterios pedagógicos oficiales, asignará puntuaciones cuantitativas fijas y emitirá dictamen de mejora.
@@ -4148,7 +4148,7 @@ export default function PlanningDetailLegacy({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--c-border)', paddingBottom: '12px', marginBottom: '16px' }}>
               <div>
                 <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--c-text)', margin: 0 }}>
-                  📋 Lista de Cotejo de Supervisión DBEPA (2026-2027)
+                  📋 Lista de Cotejo de Supervisión MCCEMS (2026-2027)
                 </h3>
                 <p style={{ fontSize: '12.5px', color: 'var(--c-text-muted)', margin: '4px 0 0 0' }}>
                   Alineado a <em>03 Lista de cotejo Plan de Clase 1-4_SEM.pdf</em> y normativas del Bachillerato General Estatal.
