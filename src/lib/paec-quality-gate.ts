@@ -57,10 +57,6 @@ function hasPercentage(text: string): boolean {
   return /%|\d+\s*por\s*ciento/i.test(text);
 }
 
-function countKeywords(text: string, keywords: RegExp[]): number {
-  return keywords.reduce((count, regex) => (regex.test(text) ? count + 1 : count), 0);
-}
-
 type LooseTableRow = Record<string, string | undefined>;
 
 // ============================================================================
@@ -677,19 +673,10 @@ export function evaluateCriterio13(detalle: DetalleCurricularRow[] | null | unde
   }
 
   let wellFormulated = 0;
-  let sem1to4Progressions = 0;
-  let sem5to6Purposes = 0;
 
   for (const r of rows) {
-    const sem = r.semester;
     const content = r.progressionsOrPurposes || '';
     if (content.length >= 25) wellFormulated++;
-
-    if (sem && sem <= 4 && /progresi[oó]n|meta|p\d+/i.test(content)) {
-      sem1to4Progressions++;
-    } else if (sem && sem >= 5 && /prop[oó]sito|integrador|laboral|optativ/i.test(content)) {
-      sem5to6Purposes++;
-    }
   }
 
   const rate = (wellFormulated / rows.length) * 100;
@@ -791,8 +778,7 @@ export function evaluateCriterio14(detalle: DetalleCurricularRow[] | null | unde
 // --- DIMENSIÓN 6: PLAN OPERATIVO (Criterios 15-18) ---
 
 function inspectPlanOperativoSemestre(
-  rows: PlanOperativoRow[],
-  semestreLabel: 'A' | 'B'
+  rows: PlanOperativoRow[]
 ): { totalRows: number; weeksCount: number; has8Cols: boolean; sampleWeeks: string[] } {
   const weeks = new Set<string>();
   let has8Cols = rows.length > 0;
@@ -828,7 +814,7 @@ export function evaluateCriterio15(
   planOperativoLegacy?: any
 ): PaecAuditCriterion {
   const rows = planA || planOperativoLegacy?.semestreA || [];
-  const info = inspectPlanOperativoSemestre(rows, 'A');
+  const info = inspectPlanOperativoSemestre(rows);
 
   let score = 1;
   let status: 'pass' | 'warning' | 'fail' = 'fail';
@@ -869,7 +855,7 @@ export function evaluateCriterio16(
   planOperativoLegacy?: any
 ): PaecAuditCriterion {
   const rows = planB || planOperativoLegacy?.semestreB || [];
-  const info = inspectPlanOperativoSemestre(rows, 'B');
+  const info = inspectPlanOperativoSemestre(rows);
 
   let score = 1;
   let status: 'pass' | 'warning' | 'fail' = 'fail';
