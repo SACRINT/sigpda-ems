@@ -1,6 +1,6 @@
 /**
  * Foundation Mission Writer (Concepto Cero)
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Redacta la primera misión del bloque introduciendo el tema desde cero:
  * - Gancho fenomenológico situado en Puebla (PAEC).

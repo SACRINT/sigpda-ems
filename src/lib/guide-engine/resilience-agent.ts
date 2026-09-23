@@ -1,6 +1,6 @@
 /**
  * Resilience & Troubleshooting Agent
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Agente de Resiliencia del motor de Libros de Trabajo.
  * Genera la matriz formativa "¿Qué hacer si falla?" (Zona de Depuración) del bloque:
@@ -56,7 +56,7 @@ export async function generateTroubleshootingMatrix(
     ? `\nADVERTENCIAS DETECTADAS POR OTROS REDACTORES A MITIGAR:\n${input.writerWarnings.map((w) => `- ${w}`).join('\n')}`
     : '';
 
-  const systemInstruction = `Eres un docente titular de taller y laboratorio en Educación Media Superior en Puebla (MCCEMS / DBEPA).
+  const systemInstruction = `Eres un docente titular de taller y laboratorio en Educación Media Superior en Puebla (MCCEMS Puebla).
 Tu tarea es generar la "Zona de Depuración: ¿Qué hacer si falla?" para el bloque formativo de la UAC: "${input.uacName}" (${input.subsystem.toUpperCase()}).
 
 ENFOQUE FORMATIVO OBLIGATORIO:

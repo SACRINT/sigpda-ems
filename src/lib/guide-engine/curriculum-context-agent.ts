@@ -1,6 +1,6 @@
 /**
  * Curriculum Context Agent
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Agente 1 del motor de Libros de Trabajo.
  * Extrae y estructura el contexto curricular oficial de la UAC (BGE o BT),
@@ -88,7 +88,7 @@ export function extractCurriculumContext(params: {
     suggestedHooks = bgeNorm.phenomenonSuggestions;
     applicableNorms = [
       'Marco Curricular Común de la Educación Media Superior (MCCEMS 2025-2026)',
-      'Normativa DBEPA Puebla para la Socioformación y Aprendizaje Dialógico'
+      'Normativa SEMS Puebla para la Socioformación y Aprendizaje Dialógico'
     ];
     safetyRules = [
       'Cuidado y respeto mutuo en el trabajo colaborativo en mesas de debate.',

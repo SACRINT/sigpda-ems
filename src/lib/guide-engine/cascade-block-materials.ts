@@ -1,6 +1,6 @@
 /**
  * cascade-block-materials.ts
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Motor de persistencia en cascada para materiales derivados de Bloque:
  * 1. Extrae determinísticamente los 24 Planes de Clase, Rúbricas, Listas de Cotejo,
@@ -26,7 +26,7 @@ export interface CascadeResult {
 }
 
 /**
- * Convierte un PlanDeClaseDerivado al formato Markdown estándar oficial de la DBEPA.
+ * Convierte un PlanDeClaseDerivado al formato Markdown estándar institucional MCCEMS.
  */
 function formatPlanDeClaseMarkdown(
   plan: PlanDeClaseDerivado,
@@ -36,7 +36,7 @@ function formatPlanDeClaseMarkdown(
   const uacName = (cover.subjectName as string) || 'Formación Disciplinar';
   const semester = (cover.semester as number | string) || 1;
 
-  return `# PLAN DE CLASE OFICIAL DBEPA · SESIÓN ${plan.numeroSesion}
+  return `# PLAN DE CLASE OFICIAL MCCEMS · SESIÓN ${plan.numeroSesion}
 **UAC:** ${uacName} | **Semestre:** ${semester}° | **Sesión:** ${plan.numeroSesion} de 24 (${plan.duracionMinutos} min)
 **Título de la Sesión:** ${plan.tituloSesion}
 **Propósito / Meta de Aprendizaje:** ${plan.propósitoOMeta}

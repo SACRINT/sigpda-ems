@@ -1,6 +1,6 @@
 /**
  * Canonical Seed Repository
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Repositorio de Prácticas, Tablas de Laboratorio y Procedimientos Canónicos.
  * Permite reutilizar estructuras técnicas probadas, reduciendo el consumo de tokens

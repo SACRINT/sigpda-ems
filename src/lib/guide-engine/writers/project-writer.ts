@@ -1,6 +1,6 @@
 /**
  * Real Project / Artifact Mission Writer
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Redacta la misión de construcción del Artefacto Real / Proyecto Comunitario:
  * - Nombre motivador y situado del proyecto.

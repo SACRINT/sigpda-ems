@@ -1,6 +1,6 @@
 /**
  * Quality Validator Agent
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Agente de Validación de Calidad del motor editorial.
  * Evalúa los outputs de los 4 redactores concurrentes (foundation, lab, project, evaluation)

@@ -1,6 +1,6 @@
 /**
  * pedagogical-quality-gate.ts — Auditoría Cognitiva de Bloom y Diseño Universal BAP
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Realiza una auditoría pedagógica multidimensional sobre el contenido del libro
  * y la planeación:

@@ -1,6 +1,6 @@
 /**
  * Blueprint Architect Agent
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Agente 2 del motor de Libros de Trabajo.
  * Analiza la dosificación de 12-18 sesiones del bloque desde sequenceJson

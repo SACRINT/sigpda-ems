@@ -1,6 +1,6 @@
 /**
  * Mermaid Diagram Renderer with Structured Table Fallback
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Renderiza diagramas de flujo y arquitectura Mermaid para libros de trabajo:
  * 1. Intento primario: Renderizado a PNG mediante Kroki API (timeout 5s).

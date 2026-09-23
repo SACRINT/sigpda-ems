@@ -1,6 +1,6 @@
 /**
  * Block Guide Orchestrator (Orquestador Editorial de Libros de Trabajo)
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Coordina el pipeline completo de generación del Libro-Cuaderno de Trabajo
  * para un bloque formativo específico:

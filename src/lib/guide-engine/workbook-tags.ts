@@ -1,6 +1,6 @@
 /**
  * Workbook Tags Parser & Serializer
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Parsea y genera las etiquetas custom de comentarios HTML para el Cuaderno de Trabajo Activo.
  * Estas etiquetas permiten que el texto en Markdown se transforme en elementos nativos de

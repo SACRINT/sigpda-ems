@@ -1,6 +1,6 @@
 /**
  * planning-alignment-prompt.ts — Generador unificado de contexto de alineación
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Centraliza las directivas de alineación curricular para los 4 writers modulares,
  * reduciendo tokens duplicados y garantizando coherencia pedagógica.

@@ -4,7 +4,7 @@ import { isStemSubject, isHumanitiesSubject } from '@/lib/visual-engine/visual-d
 
 /**
  * Plan de Clase individual por sesión derivado determinísticamente del Libro de Bloque.
- * Cumple con la interfaz SesionClase de la DBEPA Puebla y MCCEMS 2026.
+ * Cumple con la interfaz SesionClase de SEMS Puebla y MCCEMS 2026.
  */
 export interface PlanDeClaseDerivado {
   numeroSesion: number;

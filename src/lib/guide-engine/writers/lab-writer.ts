@@ -1,6 +1,6 @@
 /**
  * Hands-on Lab & Workshop Mission Writer
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Redacta la misión de práctica y taller del bloque:
  * - Inyección de semillas canónicas si existen para 0 tokens técnicos redundantes.
@@ -37,7 +37,7 @@ BASE DE CONOCIMIENTO (SEMILLA CANÓNICA PRE-VALIDADA):
 
   const planningAlignmentChunk = buildPlanningAlignmentPrompt(input.planningActivities, 'lab');
 
-  const systemInstruction = `Eres un instructor técnico y científico de alto nivel para Bachillerato en Puebla (DBEPA / MCCEMS).
+  const systemInstruction = `Eres un instructor técnico y científico de alto nivel para Bachillerato en Puebla (MCCEMS Puebla).
 Tu tarea es redactar la misión práctica de laboratorio o taller ("${missionTitle}") para la UAC: "${input.uacName}" (${input.subsystem.toUpperCase()}).
 ${planningAlignmentChunk}
 ${seedPromptChunk}

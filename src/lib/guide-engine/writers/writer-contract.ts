@@ -1,6 +1,6 @@
 /**
  * Writer Contract & Shared Quality Scoring
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Define el contrato uniforme de entrada y salida para todos los redactores
  * concurrentes del motor editorial (Foundation, Lab, Project, Evaluation).

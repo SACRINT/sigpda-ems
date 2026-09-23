@@ -1,6 +1,6 @@
 /**
  * Evaluation Instruments Writer
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Genera los instrumentos de evaluación formativa y sumativa del bloque:
  * - Lógica de reutilización (0 tokens): Si existingExtras ya cuenta con rúbrica,
@@ -39,7 +39,7 @@ export async function generateEvaluationSection(input: WriterInput): Promise<Wri
 
   const planningAlignmentChunk = buildPlanningAlignmentPrompt(input.planningActivities, 'evaluation');
 
-  const systemInstruction = `Eres un evaluador educativo de élite especializado en el Marco Curricular Común de la EMS (NEM / DBEPA Puebla).
+  const systemInstruction = `Eres un evaluador educativo de élite especializado en el Marco Curricular Común de la EMS (NEM / MCCEMS Puebla).
 Tu tarea es redactar el paquete integral de 4 instrumentos de evaluación formativa y sumativa para: "${input.uacName}" (${input.subsystem.toUpperCase()}).
 ${planningAlignmentChunk}
 ${extrasContext}
