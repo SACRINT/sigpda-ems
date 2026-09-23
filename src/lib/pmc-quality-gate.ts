@@ -1,11 +1,11 @@
 // src/lib/pmc-quality-gate.ts
 /**
  * Quality Gate Oficial PMC (Programa de Mejora Continua)
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · MCCEMS Puebla 2026-2027
  *
  * Implementación de la Rúbrica y Matriz de Validación Institucional
  * para evaluar la calidad, coherencia y completitud técnica de los
- * proyectos PMC conforme a los lineamientos oficiales de la DBEPA.
+ * proyectos PMC conforme a los lineamientos oficiales de la SEMS / MCCEMS.
  */
 
 import type {

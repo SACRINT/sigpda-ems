@@ -16,7 +16,7 @@ import type {
 
 /**
  * ============================================================================
- * QUALITY GATE OFICIAL PAEC-PEC 2025 (23 CRITERIOS DBEPA / COSFAC / NEM)
+ * QUALITY GATE OFICIAL PAEC-PEC 2025 (23 CRITERIOS MCCEMS / COSFAC / NEM)
  * ============================================================================
  * 
  * Implementación de la Matriz Oficial de Validación y Rúbrica de Evaluación
@@ -358,29 +358,29 @@ export function evaluateCriterio7(fase2: Fase2Justificacion | null | undefined):
 
   let score = 1;
   let status: 'pass' | 'warning' | 'fail' = 'fail';
-  let feedback = 'Justificación ausente o sin evidencia de las 4 vertientes del criterio DBEPA.';
-  let evidenceFound = `0/4 vertientes DBEPA detectadas.`;
+  let feedback = 'Justificación ausente o sin evidencia de las 4 vertientes del criterio normativo.';
+  let evidenceFound = `0/4 vertientes institucionales detectadas.`;
 
   if (vertientesCount === 4) {
     score = 4;
     status = 'pass';
-    feedback = 'Criterio DBEPA completamente sustentado en sus 4 vertientes: Magnitud, Interés, Factibilidad y Oportunidad.';
-    evidenceFound = `4/4 vertientes técnicas DBEPA explícitas y justificadas en propósitos y alcance.`;
+    feedback = 'Criterio normativo completamente sustentado en sus 4 vertientes: Magnitud, Interés, Factibilidad y Oportunidad.';
+    evidenceFound = `4/4 vertientes técnicas MCCEMS explícitas y justificadas en propósitos y alcance.`;
   } else if (vertientesCount === 3) {
     score = 3;
     status = 'pass';
-    feedback = 'Criterio DBEPA justificado adecuadamente. Se recomienda explicitar con mayor fuerza la Oportunidad temporal o Factibilidad.';
-    evidenceFound = `3/4 vertientes DBEPA sustentadas.`;
+    feedback = 'Criterio normativo justificado adecuadamente. Se recomienda explicitar con mayor fuerza la Oportunidad temporal o Factibilidad.';
+    evidenceFound = `3/4 vertientes institucionales sustentadas.`;
   } else if (vertientesCount >= 1) {
     score = 2;
     status = 'warning';
-    feedback = 'Sustentación parcial del criterio DBEPA. Falta argumentar viabilidad técnica (Factibilidad) o impacto poblacional (Magnitud).';
+    feedback = 'Sustentación parcial del criterio normativo. Falta argumentar viabilidad técnica (Factibilidad) o impacto poblacional (Magnitud).';
     evidenceFound = `${vertientesCount}/4 vertientes identificadas.`;
   }
 
   return {
     id: 7,
-    name: 'Criterio DBEPA 4 vertientes: Magnitud, Interés, Factibilidad, Oportunidad',
+    name: 'Criterio normativo 4 vertientes: Magnitud, Interés, Factibilidad, Oportunidad',
     dimension: DIMENSIONS.DIM2,
     expectedLevel: 'Excelente (4)',
     score,
@@ -1607,7 +1607,7 @@ export function formatAuditReport(audit: PaecQualityAudit): string {
       : '🔴 DICTAMEN: REQUIERE AJUSTES PREVIOS A VALIDACIÓN';
 
   let report = `# REPORTE OFICIAL DE AUDITORÍA DE CALIDAD PAEC-PEC 2025\n`;
-  report += `**Subsecretaría de Educación Media Superior | DBEPA - COSFAC**\n`;
+  report += `**Subsecretaría de Educación Media Superior | SEMS - COSFAC**\n`;
   report += `*Fecha de Evaluación:* ${dateStr}\n\n`;
 
   report += `---\n\n`;

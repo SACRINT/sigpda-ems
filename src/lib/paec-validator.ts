@@ -1,7 +1,7 @@
 import type { PaecProject, PaecAuditResult, PaecAuditCriterion } from '@/types/paec';
 
 /**
- * Auditor de Calidad PAEC-PEC (23 Criterios Oficiales DBEPA / NEM)
+ * Auditor de Calidad PAEC-PEC (23 Criterios Oficiales MCCEMS / NEM)
  * Evalúa las 6 dimensiones normativas del Proyecto Escolar Comunitario:
  *  - Dimensión I: Contextualización Diagnóstica y FODA (C1 a C4)
  *  - Dimensión II: Justificación y Propósitos (C5 a C8)
@@ -412,7 +412,7 @@ export function auditPaecProject(project: PaecProject): PaecAuditResult {
     let score = 4;
     let status: 'pass' | 'warning' | 'fail' = 'pass';
     let feedback = 'Uso correcto de la nomenclatura NEM: Propósitos Formativos en 1°-4° y Progresiones en 5°-6°.';
-    let evidence = 'Rigor normativo DBEPA 100% verificado sin infracciones de nomenclatura.';
+    let evidence = 'Rigor normativo MCCEMS 100% verificado sin infracciones de nomenclatura.';
 
     if (violations > 3) {
       score = 2;

@@ -1,11 +1,11 @@
 // src/lib/pips-quality-gate.ts
 /**
  * Quality Gate Oficial PIPS (Programa Institucional de Prácticas y Supervisión)
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · MCCEMS Puebla 2026-2027
  *
  * Sistema de auditoría técnica y pedagógica para proyectos de supervisión escolar zonal,
  * evaluando cobertura, diagnóstico territorial, metas, cronograma de acompañamiento y
- * rendición de cuentas conforme a la Guía Oficial de Supervisión Escolar de la DBEPA.
+ * rendición de cuentas conforme a la Guía Oficial de Supervisión Escolar de la SEMS / MCCEMS.
  */
 
 import type {
