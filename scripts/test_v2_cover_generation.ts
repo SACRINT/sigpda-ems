@@ -1,6 +1,6 @@
 /**
  * test_v2_cover_generation.ts — Script de Verificación de Portada y Contraportada V2
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Prueba obligatoria de Fase V2:
  * 1. Generación de Portada Fallback Determinista (Capa 0 SVG -> JPEG sharp)
@@ -46,7 +46,7 @@ import type { Planning } from '../src/types/planning';
 async function main() {
   console.log('╔══════════════════════════════════════════════════════════════════════════════╗');
   console.log('║  SIGPDA-EMS · VERIFICACIÓN INTEGRAL DE PORTADAS Y CONTRAPORTADA (FASE V2)    ║');
-  console.log('║  DBEPA Puebla · MCCEMS 2026-2027                                            ║');
+  console.log('║  SEMS Puebla · MCCEMS 2026-2027                                             ║');
   console.log('╚══════════════════════════════════════════════════════════════════════════════╝\n');
 
   const outputDir = path.resolve(process.cwd(), 'scratch/output');

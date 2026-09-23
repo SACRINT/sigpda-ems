@@ -171,13 +171,13 @@ async function main() {
       },
     ],
     cronograma_json: [
-      { actividad: 'Reunión de Consejo Técnico Zonal 1', objetivo: 'Encuadre y diagnóstico PIPS', responsable: 'Supervisora', mes: 'Septiembre', recursos: 'Guías DBEPA', indicador: 'Minuta de acuerdos firmada' },
+      { actividad: 'Reunión de Consejo Técnico Zonal 1', objetivo: 'Encuadre y diagnóstico PIPS', responsable: 'Supervisora', mes: 'Septiembre', recursos: 'Guías MCCEMS', indicador: 'Minuta de acuerdos firmada' },
       { actividad: 'Visita de asesoría técnica al Plantel Héroes', objetivo: 'Acompañamiento a planeaciones didácticas', responsable: 'ATP Mtro. Fernando', mes: 'Octubre', recursos: 'Rúbrica de observación', indicador: 'Ficha de visita entregada' },
       { actividad: 'Taller zonal de evaluación auténtica', objetivo: 'Diseño de instrumentos DUA/BAP', responsable: 'Equipo ATP', mes: 'Noviembre', recursos: 'Material digital', indicador: 'Portafolio de rúbricas' },
       { actividad: 'Evaluación de medio término PIPS', objetivo: 'Corte semestral de metas zonales', responsable: 'Supervisora', mes: 'Enero', recursos: 'Tablero de indicadores', indicador: 'Informe semestral 004' },
     ],
     evaluacion_json: [
-      { indicador: 'Porcentaje de visitas diagnósticas realizadas', meta: '100% de planteles visitados', instrumento: 'Ficha de Visita de Supervisión DBEPA' },
+      { indicador: 'Porcentaje de visitas diagnósticas realizadas', meta: '100% de planteles visitados', instrumento: 'Ficha de Visita de Supervisión de Zona' },
       { indicador: 'Cumplimiento de metas de aprobación zonal', meta: 'Alcanzar el 88% de aprobación zonal', instrumento: 'Estadística 911 consolidada' },
     ],
     current_step: 8,

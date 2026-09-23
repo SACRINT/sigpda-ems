@@ -1,6 +1,6 @@
 /**
  * test_v3_infographics_real_data.ts — Verificación Integral de Infografías con Datos Reales (Fase V3)
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Requerimientos de Fase V3:
  * 1. content-extractor.ts: funciones puras (extractYears, extractTermDefs, extractPercentStats, extractEnumSteps, extractSafetyChecks, extractSystemBlocks)
@@ -30,7 +30,7 @@ import type { Planning } from '../src/types/planning';
 async function main() {
   console.log('╔══════════════════════════════════════════════════════════════════════════════╗');
   console.log('║  SIGPDA-EMS · AUDITORÍA DE INFOGRAFÍAS CON DATOS REALES (FASE V3)           ║');
-  console.log('║  DBEPA Puebla · MCCEMS 2026-2027                                            ║');
+  console.log('║  SEMS Puebla · MCCEMS 2026-2027                                             ║');
   console.log('╚══════════════════════════════════════════════════════════════════════════════╝\n');
 
   const outputDir = path.resolve(process.cwd(), 'scratch/output');
@@ -483,7 +483,7 @@ async function main() {
       subjectName: dummyPlanning.subjectName,
       semester: dummyPlanning.semester,
       schoolYear: '2026-2027',
-      teacherName: 'Prof. Samuel Morales - Academia DBEPA',
+      teacherName: 'Prof. Samuel Morales - Academia MCCEMS',
       paecProjectName: 'Preservación de Saberes y Tecnologías Comunitarias',
     },
     projectSection: {

@@ -1,6 +1,6 @@
 /**
  * test_v7_editorial_final.ts — Script de Verificación Integral Fase V7
- * DBEPA Puebla · Marco Curricular Común EMS 2026-2027
+ * SEMS Puebla · Marco Curricular Común EMS 2026-2027
  *
  * Valida:
  * 1. Generación completa de libro de texto en PDF y DOCX con maquetación V7:

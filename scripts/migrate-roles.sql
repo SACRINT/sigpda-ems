@@ -1,5 +1,5 @@
 -- scripts/migrate-roles.sql
--- Migración oficial de Roles y Personal por Plantel / Supervisión de Zona (DBEPA Puebla 2026-2027)
+-- Migración oficial de Roles y Personal por Plantel / Supervisión de Zona (SEMS Puebla 2026-2027)
 -- Ejecutar de forma administrativa y externa contra la base de datos PostgreSQL en Neon.
 
 -- 1. Asegurar columna role y city en teachers

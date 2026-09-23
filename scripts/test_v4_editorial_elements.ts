@@ -1,6 +1,6 @@
 /**
  * test_v4_editorial_elements.ts — Verificación de Elementos Editoriales V4
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Verificación obligatoria de Fase V4 (0 tokens LLM, 100% determinista):
  * 1. extractGlossaryTerms: 3-5 términos reales en negritas o mayúsculas con contexto recortado a 120 chars.
@@ -26,7 +26,7 @@ import type { Planning } from '../src/types/planning';
 async function main() {
   console.log('╔══════════════════════════════════════════════════════════════════════════════╗');
   console.log('║  SIGPDA-EMS · AUDITORÍA DE ELEMENTOS EDITORIALES RESTANTES (FASE V4)        ║');
-  console.log('║  DBEPA Puebla · MCCEMS 2026-2027                                            ║');
+  console.log('║  SEMS Puebla · MCCEMS 2026-2027                                             ║');
   console.log('╚══════════════════════════════════════════════════════════════════════════════╝\n');
 
   const outputDir = path.resolve(process.cwd(), 'scratch/output');
@@ -329,7 +329,7 @@ async function main() {
       subjectName: dummyPlanning.subjectName,
       semester: dummyPlanning.semester,
       schoolYear: '2026-2027',
-      teacherName: 'Prof. Samuel Morales - Academia DBEPA',
+      teacherName: 'Prof. Samuel Morales - Academia MCCEMS',
       paecProjectName: 'Preservación de Recursos Hídricos y Tecnologías Sustentables',
     },
     projectSection: {
@@ -511,7 +511,7 @@ async function main() {
 
   // Portada (pág 1): Sin headers
   const page1Text = pdfParsed.pages[0]?.text || '';
-  const page1HasHeader = page1Text.includes('— DBEPA Puebla') || page1Text.includes('Cuaderno de Aprendizaje Activo · Pág. 1');
+  const page1HasHeader = page1Text.includes('— MCCEMS Puebla') || page1Text.includes('Cuaderno de Aprendizaje Activo · Pág. 1');
   console.log(`   • Pág. 1 (Portada): Header ausente: ${!page1HasHeader ? 'CORRECTO (limpia) ✅' : 'FALLO ❌'}`);
   if (page1HasHeader) {
     throw new Error('FALLO: La portada del PDF no debe contener texto de encabezado ni pie de página.');
@@ -519,7 +519,7 @@ async function main() {
 
   // Plantel (pág 2): Sin headers
   const page2Text = pdfParsed.pages[1]?.text || '';
-  const page2HasHeader = page2Text.includes('— DBEPA Puebla');
+  const page2HasHeader = page2Text.includes('— MCCEMS Puebla');
   console.log(`   • Pág. 2 (Plantel): Header ausente: ${!page2HasHeader ? 'CORRECTO (limpia) ✅' : 'FALLO ❌'}`);
   if (page2HasHeader) {
     throw new Error('FALLO: La página de Mi Plantel no debe contener encabezado.');
@@ -527,7 +527,7 @@ async function main() {
 
   // TOC (pág 3): Sin headers
   const page3Text = pdfParsed.pages[2]?.text || '';
-  const page3HasHeader = page3Text.includes('— DBEPA Puebla');
+  const page3HasHeader = page3Text.includes('— MCCEMS Puebla');
   console.log(`   • Pág. 3 (TOC): Header ausente: ${!page3HasHeader ? 'CORRECTO (limpia) ✅' : 'FALLO ❌'}`);
   if (page3HasHeader) {
     throw new Error('FALLO: La página del TOC no debe contener encabezado.');
@@ -535,7 +535,7 @@ async function main() {
 
   // Contraportada (última página): Sin headers
   const lastPageText = pdfParsed.pages[totalPagesInPdf - 1]?.text || '';
-  const lastPageHasHeader = lastPageText.includes('— DBEPA Puebla');
+  const lastPageHasHeader = lastPageText.includes('— MCCEMS Puebla');
   console.log(`   • Pág. ${totalPagesInPdf} (Contraportada): Header ausente: ${!lastPageHasHeader ? 'CORRECTO (limpia) ✅' : 'FALLO ❌'}`);
   if (lastPageHasHeader) {
     throw new Error('FALLO: La contraportada no debe contener encabezado.');
@@ -543,7 +543,7 @@ async function main() {
 
   // Páginas Interiores (Pág 4 a totalPages - 1): Deben contener header
   const interiorPages = pdfParsed.pages.slice(3, totalPagesInPdf - 1);
-  const interiorWithHeaders = interiorPages.filter((p: any) => p.text.includes('— DBEPA Puebla')).length;
+  const interiorWithHeaders = interiorPages.filter((p: any) => p.text.includes('— MCCEMS Puebla')).length;
   console.log(`   • Páginas interiores con Header formal: ${interiorWithHeaders}/${interiorPages.length} ${interiorWithHeaders === interiorPages.length ? '✅' : '❌'}`);
   if (interiorWithHeaders < interiorPages.length) {
     throw new Error(`FALLO: Solo ${interiorWithHeaders} de ${interiorPages.length} páginas interiores tienen encabezado.`);

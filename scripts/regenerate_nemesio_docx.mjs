@@ -64,7 +64,7 @@ async function getActiveGeminiKey() {
   throw new Error('No se encontró ninguna llave funcional de Gemini en el pool');
 }
 
-// ── Palette DBEPA ─────────────────────────────────────────────────────────────
+// ── Palette MCCEMS ─────────────────────────────────────────────────────────────
 const C = {
   dark:   '1A3A5C',
   mid:    '2E6DA4',
@@ -146,7 +146,7 @@ function buildDocx(content) {
           children: [new Paragraph({
             spacing: { before: 0, after: 60 },
             border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: C.accent, space: 1 } },
-            children: [new TextRun({ text: `DBEPA Puebla 2026-2027 | ${s1.uacName} | ${s1.semester}° Semestre`, size: 14, color: '777777', font: 'Arial' })],
+            children: [new TextRun({ text: `SEMS Puebla 2026-2027 | ${s1.uacName} | ${s1.semester}° Semestre`, size: 14, color: '777777', font: 'Arial' })],
           })],
         }),
       },
@@ -161,7 +161,7 @@ function buildDocx(content) {
               new TextRun({ children: [PageNumber.CURRENT], size: 14, color: '777777', font: 'Arial' }),
               new TextRun({ text: ' de ', size: 14, color: '777777', font: 'Arial' }),
               new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 14, color: '777777', font: 'Arial' }),
-              new TextRun({ text: ' | NEM · MCCEMS · Lineamientos DBEPA 2026-2027', size: 14, color: '777777', font: 'Arial' }),
+              new TextRun({ text: ' | NEM · MCCEMS · Lineamientos Institucionales 2026-2027', size: 14, color: '777777', font: 'Arial' }),
             ],
           })],
         }),
@@ -176,7 +176,7 @@ function buildDocx(content) {
         new Paragraph({
           alignment: AlignmentType.CENTER,
           spacing: { before: 40, after: 120 },
-          children: [new TextRun({ text: 'SUBSECRETARÍA DE EDUCACIÓN MEDIA SUPERIOR · DBEPA', bold: true, size: 18, color: C.mid, font: 'Arial' })],
+          children: [new TextRun({ text: 'SUBSECRETARÍA DE EDUCACIÓN MEDIA SUPERIOR · PUEBLA', bold: true, size: 18, color: C.mid, font: 'Arial' })],
         }),
         new Paragraph({
           alignment: AlignmentType.CENTER,
@@ -340,7 +340,7 @@ async function run() {
   // 3. Preparar prompt para Gemini
   const { key, model } = await getActiveGeminiKey();
 
-  const prompt = `Eres un diseñador curricular experto en la Nueva Escuela Mexicana y MCCEMS de Puebla (DBEPA 2026-2027).
+  const prompt = `Eres un diseñador curricular experto en la Nueva Escuela Mexicana y MCCEMS de Puebla (2026-2027).
 Genera una planeación didáctica completa en formato JSON exacto para la siguiente UAC auténtica oficial:
 
 DATOS CURRICULARES OFICIALES OBLIGATORIOS:
@@ -593,7 +593,7 @@ Responde ÚNICAMENTE con el siguiente objeto JSON válido, sin bloques de códig
     ]
   },
   "sectionVII": {
-    "validation": "Planeación didáctica validada conforme a los lineamientos oficiales vigentes del MCCEMS y la DBEPA Puebla 2026-2027."
+    "validation": "Planeación didáctica validada conforme a los lineamientos oficiales vigentes del MCCEMS y SEMS Puebla 2026-2027."
   }
 }`;
 

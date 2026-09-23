@@ -580,7 +580,7 @@ export async function runPaecE2ETest() {
   );
 
   // --------------------------------------------------------------------------
-  // VERIFICACIÓN 5: Ejecución del Auditor de Calidad (23 Criterios DBEPA/NEM)
+  // VERIFICACIÓN 5: Ejecución del Auditor de Calidad (23 Criterios MCCEMS/NEM)
   // --------------------------------------------------------------------------
   console.log('\n--- Ejecutando Auditoría de Calidad Técnica PAEC (23 Criterios) ---');
   const auditResult = auditPaecProject(project);
