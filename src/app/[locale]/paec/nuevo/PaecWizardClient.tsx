@@ -218,7 +218,7 @@ function classifyError(err: unknown): { message: string; type: 'timeout' | 'json
     return { type: 'timeout', message: 'Timeout de red: El servidor tardó más de 120s en procesar la fase. Por favor reintenta.' };
   }
   if (lower.includes('json') || lower.includes('validar estructura') || lower.includes('schema') || lower.includes('malform')) {
-    return { type: 'json', message: 'JSON malformado: La estructura retornada por el modelo de IA no cumple la validación oficial DBEPA.' };
+    return { type: 'json', message: 'JSON malformado: La estructura retornada por el modelo de IA no cumple la validación oficial MCCEMS.' };
   }
   if (lower.includes('rate limit') || lower.includes('429') || lower.includes('límite') || lower.includes('cuota')) {
     return { type: 'rate_limit', message: 'Límite de API alcanzado: Se superó la cuota de peticiones o el límite por minuto de la IA.' };
@@ -488,7 +488,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
   const [isEditingContent, setIsEditingContent] = useState(false);
   const [editPayload, setEditPayload] = useState<any>(null);
 
-  // Quality Audit States (Quality Gate continuo DBEPA/NEM)
+  // Quality Audit States (Quality Gate continuo MCCEMS/NEM)
   const [auditResult, setAuditResult] = useState<PaecQualityAudit | PaecAuditResult | null>(null);
   const [loadingAudit, setLoadingAudit] = useState(false);
   const [auditError, setAuditError] = useState<string | null>(null);
@@ -622,7 +622,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
     }
   }
 
-  // Fetch PAEC Quality Audit (Evaluación continua 23 Criterios DBEPA/NEM)
+  // Fetch PAEC Quality Audit (Evaluación continua 23 Criterios MCCEMS/NEM)
   async function fetchAudit(pId: string) {
     setLoadingAudit(true);
     setAuditError(null);
@@ -1763,7 +1763,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <span style={{ fontSize: '18px' }}>🛡️</span>
                     <div>
-                      <span style={{ fontWeight: 700, fontSize: '14px', color: '#f0f4ff' }}>Quality Gate DBEPA / NEM: </span>
+                      <span style={{ fontWeight: 700, fontSize: '14px', color: '#f0f4ff' }}>Quality Gate MCCEMS / NEM: </span>
                       <span style={{ fontWeight: 800, fontSize: '15px', color: barColor }}>{scorePct}/100</span>
                       <span style={{ marginLeft: '8px', fontSize: '11.5px', padding: '2px 8px', borderRadius: '10px', background: `${barColor}22`, color: barColor, border: `1px solid ${barColor}55`, fontWeight: 600 }}>
                         {statusLabel}
@@ -1810,7 +1810,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                 {scorePct < 80 && (
                   <div style={{ marginTop: '8px', fontSize: '11.5px', color: isYellow ? '#fde68a' : '#fca5a5', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span>ℹ️</span>
-                    <span>El proyecto tiene áreas de oportunidad según la rúbrica oficial DBEPA ({failedOrWarn.length} observaciones). Puedes continuar avanzando o consultar los criterios señalados.</span>
+                    <span>El proyecto tiene áreas de oportunidad según la rúbrica oficial MCCEMS ({failedOrWarn.length} observaciones). Puedes continuar avanzando o consultar los criterios señalados.</span>
                   </div>
                 )}
 
@@ -1826,12 +1826,12 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                     overflowY: 'auto'
                   }}>
                     <div style={{ fontSize: '12px', fontWeight: 700, color: '#f0f4ff', marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
-                      <span>Desglose de Criterios DBEPA / NEM ({criteriaList.length} evaluados):</span>
+                      <span>Desglose de Criterios MCCEMS / NEM ({criteriaList.length} evaluados):</span>
                       <span style={{ color: 'rgba(255,255,255,0.5)', cursor: 'pointer' }} onClick={() => setShowQGTooltip(false)}>✕ Cerrar</span>
                     </div>
                     {failedOrWarn.length === 0 ? (
                       <div style={{ fontSize: '11.5px', color: '#34d399', padding: '6px 0' }}>
-                        🎉 Todos los 23 criterios evaluados cumplen con la rúbrica DBEPA/NEM.
+                        🎉 Todos los 23 criterios evaluados cumplen con la rúbrica MCCEMS/NEM.
                       </div>
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -1862,7 +1862,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
             );
           })() : (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>
-              <span>🛡️ Quality Gate DBEPA / NEM: Evaluación disponible tras generar fases.</span>
+              <span>🛡️ Quality Gate MCCEMS / NEM: Evaluación disponible tras generar fases.</span>
               <button
                 type="button"
                 onClick={() => projectId && fetchAudit(projectId)}
@@ -2210,7 +2210,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                     🗺️ Cartografía de Zona Escolar Disponible
                   </h3>
                   <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#94a3b8' }}>
-                    Sincronización asistida para el PAEC basada en la DBEPA MCCEMS 2026-2027
+                    Sincronización asistida para el PAEC basada en el MCCEMS Puebla 2026-2027
                   </p>
                 </div>
                 <button

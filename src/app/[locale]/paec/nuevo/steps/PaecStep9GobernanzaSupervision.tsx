@@ -248,7 +248,7 @@ export default function PaecStep9GobernanzaSupervision({
 
       </div>
 
-      {/* Tarjeta de Auditoría de Calidad Técnica PAEC (23 Criterios DBEPA/NEM) */}
+      {/* Tarjeta de Auditoría de Calidad Técnica PAEC (23 Criterios MCCEMS/NEM) */}
       <div style={{
         marginTop: '8px',
         padding: '24px',
@@ -268,7 +268,7 @@ export default function PaecStep9GobernanzaSupervision({
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontSize: '22px' }}>📋</span>
               <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#f0f4ff', margin: 0 }}>
-                Auditoría de Calidad Técnica PAEC (23 Criterios DBEPA/NEM)
+                Auditoría de Calidad Técnica PAEC (23 Criterios MCCEMS/NEM)
               </h3>
             </div>
             <p style={{ color: 'rgba(240,244,255,0.65)', fontSize: '13px', margin: '4px 0 0' }}>
@@ -308,7 +308,7 @@ export default function PaecStep9GobernanzaSupervision({
         {loadingAudit && !auditResult && (
           <div style={{ textAlign: 'center', padding: '32px', color: 'rgba(240,244,255,0.7)' }}>
             <span className="spinner" style={{ display: 'inline-block', width: '28px', height: '28px', border: '3px solid rgba(99,102,241,0.2)', borderTopColor: '#818cf8', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-            <p style={{ marginTop: '12px', fontSize: '14px' }}>Ejecutando evaluación de los 23 criterios DBEPA/NEM...</p>
+            <p style={{ marginTop: '12px', fontSize: '14px' }}>Ejecutando evaluación de los 23 criterios MCCEMS/NEM...</p>
           </div>
         )}
 

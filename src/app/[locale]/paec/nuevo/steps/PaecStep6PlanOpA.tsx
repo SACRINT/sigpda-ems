@@ -29,7 +29,7 @@ export default function PaecStep6PlanOpA({
             Plan Operativo: Semestre A (1°, 3° y 5° Semestre)
           </h3>
           <p style={{ fontSize: '13px', color: 'var(--c-text-muted)', margin: '4px 0 0' }}>
-            Desglose operativo semanal estructurado en 3 bloques de ejecución conforme al estándar normativo DBEPA.
+            Desglose operativo semanal estructurado en 3 bloques de ejecución conforme al estándar normativo MCCEMS.
           </p>
         </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
