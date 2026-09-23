@@ -1,5 +1,5 @@
 /**
- * planning-pdf-renderer.ts — Generador PDF de Planeación Didáctica Oficial (SEP Puebla - DBEPA)
+ * planning-pdf-renderer.ts — Generador PDF de Planeación Didáctica Oficial (SEP Puebla - MCCEMS)
  * SIGPDA-EMS · Formato Oficial Carta (215.9mm x 279.4mm) con Membrete y Logotipos Oficiales
  */
 
@@ -18,7 +18,7 @@ const GOLD_LINE: [number, number, number] = [232, 160, 32];  // #E8A020 - Dorado
 const GRAY_BG: [number, number, number] = [242, 244, 248];   // #F2F4F8 - Fondo Filas
 const TEXT_DARK: [number, number, number] = [30, 41, 59];    // #1E293B - Texto
 
-// Colores institucionales de fases didácticas (homologados DBEPA vía design-tokens)
+// Colores institucionales de fases didácticas (homologados MCCEMS vía design-tokens)
 const { PHASE_APERTURA, PHASE_DESARROLLO, PHASE_CIERRE } = COLORS;
 
 export async function generatePlanningPDF(
@@ -233,7 +233,7 @@ export async function generatePlanningPDF(
       },
     ]);
 
-    // Tres Saberes Curriculares DBEPA
+    // Tres Saberes Curriculares MCCEMS
     if (act.saberes && (act.saberes.saber || act.saberes.saberHacer || act.saberes.saberSer)) {
       activityRows.push([
         { content: 'Saber (Teórico):', styles: { fontStyle: 'bold', fillColor: [241, 245, 249], cellWidth: 38 } },
@@ -512,7 +512,7 @@ export async function generateSecuenciaPDF(
 
     const rows: RowInput[] = [];
 
-    // Tres Saberes Curriculares DBEPA
+    // Tres Saberes Curriculares MCCEMS
     if (act.saberes && (act.saberes.saber || act.saberes.saberHacer || act.saberes.saberSer)) {
       rows.push([
         {

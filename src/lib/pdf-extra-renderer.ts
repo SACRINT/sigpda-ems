@@ -1,6 +1,6 @@
 /**
  * pdf-extra-renderer.ts — Motor de Renderizado Visual Unificado para Extras Didácticos
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · MCCEMS Puebla 2026-2027
  *
  * Orquestador visual de alta fidelidad que:
  * 1. Integra los componentes de diseño editorial (pdf-components-core.ts y design-tokens.ts).
@@ -34,7 +34,7 @@ import {
   type BrandingContext,
 } from '@/lib/document-branding';
 
-// ── Paleta institucional DBEPA ──────────────────────────────────────────────
+// ── Paleta institucional MCCEMS ─────────────────────────────────────────────
 const NAVY: RGB     = [26, 26, 46];
 const MID: RGB      = [15, 52, 96];
 const ACCENT: RGB   = [230, 81, 0];

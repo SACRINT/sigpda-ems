@@ -1,6 +1,6 @@
 /**
  * document-branding.ts — Configuración Centralizada de Marca Institucional y Metadatos Documentales
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · MCCEMS Puebla 2026-2027
  *
  * Single Source of Truth para:
  * 1. Nombres institucionales, siglas y membretes oficiales.

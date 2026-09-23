@@ -1,6 +1,6 @@
 /**
  * pdf-extra-generator.ts — Fachada Pública de Generación PDF para Recursos Didácticos
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · MCCEMS Puebla 2026-2027
  *
  * Mantiene la firma pública canónica `generateExtraPDF(extra: ExtraInput): jsPDF`
  * delegando la composición, tipografía editorial, negritas inline y ribbons
@@ -18,7 +18,7 @@ import type { BrandingContext } from '@/lib/document-branding';
 export type { ExtraInput };
 
 /**
- * Genera un documento PDF oficial formateado según el estándar editorial DBEPA.
+ * Genera un documento PDF oficial formateado según el estándar editorial MCCEMS.
  * Rubricas se renderizan en orientación horizontal (Landscape); los demás tipos en vertical (Portrait).
  */
 export function generateExtraPDF(
