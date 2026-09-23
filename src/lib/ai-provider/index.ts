@@ -47,7 +47,7 @@ const DEFAULT_MODEL_BY_PROVIDER: Record<string, string> = {
   nvidia:     'meta/llama-3.1-70b-instruct',
   qwen:       'qwen-turbo',
   mistral:    'mistral-small-latest',
-  openrouter: 'mistralai/mistral-7b-instruct:free',
+  openrouter: 'meta-llama/llama-3.1-8b-instruct:free',
 };
 
 // ── Read active provider config from DB ──────────────────────────────────────
@@ -105,7 +105,9 @@ async function getAlternativeProviders(primaryProvider: string): Promise<string[
       SELECT DISTINCT provider FROM api_keys
       WHERE is_active = true AND provider != ${primaryProvider}
     `;
-    const availableProviders = new Set(rows.map((r: any) => r.provider as string));
+    const availableProviders = new Set(
+      rows.map((r: { provider?: unknown }) => String(r.provider || ''))
+    );
     // Return in fallback order, only those with active keys
     return FALLBACK_PROVIDER_ORDER.filter(p => p !== primaryProvider && availableProviders.has(p));
   } catch {
@@ -174,7 +176,8 @@ export async function generateWithRotation(
       const ai = buildProvider(provider, model, apiKey);
       return ai.generate(systemPrompt, userPrompt, options);
     }, teacherId);
-  } catch (primaryErr: any) {
+  } catch (primaryErr: unknown) {
+    const primaryMsg = primaryErr instanceof Error ? primaryErr.message : String(primaryErr);
     logger.warn(
       `[ai-provider] Primary provider "${provider}" pool exhausted. ` +
       `Trying alternative providers...`
@@ -191,9 +194,10 @@ export async function generateWithRotation(
         });
         logger.info(`[ai-provider] ✅ Fallback provider "${altProvider}" (${altModel}) succeeded.`);
         return result;
-      } catch (altErr: any) {
+      } catch (altErr: unknown) {
+        const altMsg = altErr instanceof Error ? altErr.message : String(altErr);
         logger.warn(
-          `[ai-provider] Fallback provider "${altProvider}" also failed: ${altErr.message}`
+          `[ai-provider] Fallback provider "${altProvider}" also failed: ${altMsg}`
         );
       }
     }
@@ -202,7 +206,7 @@ export async function generateWithRotation(
     throw new Error(
       `[ai-provider] All AI providers exhausted. Primary: ${provider}. ` +
       `Alternatives tried: ${alternatives.join(', ') || 'none available'}. ` +
-      `Original error: ${primaryErr.message}`
+      `Original error: ${primaryMsg}`
     );
   }
 }
