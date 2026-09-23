@@ -135,7 +135,6 @@ export default function PlanningDetailLegacy({
     if (activeTab === 'audit' && !auditLoaded && !auditLoading) {
       handleRunAudit();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
   // Modal Checklist Supervisión DBEPA
@@ -770,7 +769,6 @@ export default function PlanningDetailLegacy({
     if (activeTab === 'analytics' && !analyticsLoaded && !analyticsLoading) {
       handleLoadAnalytics();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
   // Classroom state
