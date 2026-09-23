@@ -12,6 +12,7 @@ import type {
   AnexosData,
   PaecGobernanza,
   PaecInformeSupervision,
+  PlanOperativoData,
 } from '@/types/paec';
 
 /**
@@ -811,7 +812,7 @@ function inspectPlanOperativoSemestre(
 
 export function evaluateCriterio15(
   planA: PlanOperativoRow[] | null | undefined,
-  planOperativoLegacy?: any
+  planOperativoLegacy?: PlanOperativoData | null
 ): PaecAuditCriterion {
   const rows = planA || planOperativoLegacy?.semestreA || [];
   const info = inspectPlanOperativoSemestre(rows);
@@ -852,7 +853,7 @@ export function evaluateCriterio15(
 
 export function evaluateCriterio16(
   planB: PlanOperativoRow[] | null | undefined,
-  planOperativoLegacy?: any
+  planOperativoLegacy?: PlanOperativoData | null
 ): PaecAuditCriterion {
   const rows = planB || planOperativoLegacy?.semestreB || [];
   const info = inspectPlanOperativoSemestre(rows);
@@ -894,7 +895,7 @@ export function evaluateCriterio16(
 export function evaluateCriterio17(
   planA: PlanOperativoRow[] | null | undefined,
   planB: PlanOperativoRow[] | null | undefined,
-  planOperativoLegacy?: any,
+  planOperativoLegacy?: PlanOperativoData | null,
   stepContext?: number // Permite validar cuando solo se evalúa paso 6 o paso 7
 ): PaecAuditCriterion {
   const rowsA: PlanOperativoRow[] = planA || planOperativoLegacy?.semestreA || [];
@@ -1027,7 +1028,7 @@ export function evaluateCriterio17(
 export function evaluateCriterio18(
   planA: PlanOperativoRow[] | null | undefined,
   planB: PlanOperativoRow[] | null | undefined,
-  planOperativoLegacy?: any
+  planOperativoLegacy?: PlanOperativoData | null
 ): PaecAuditCriterion {
   const allRows: PlanOperativoRow[] = [
     ...(planA || planOperativoLegacy?.semestreA || []),
@@ -1367,8 +1368,9 @@ export function evaluateCriterio23(informe: PaecInformeSupervision | null | unde
  * @param data Contenido estructurado generado en el paso
  * @returns PaecQualityAudit con los criterios evaluados para ese paso
  */
-export function validatePaecStepResult(step: number, data: any): PaecQualityAudit {
+export function validatePaecStepResult(step: number, data: unknown): PaecQualityAudit {
   const criterios: PaecAuditCriterion[] = [];
+  const record = data && typeof data === 'object' ? (data as Record<string, unknown>) : null;
 
   switch (step) {
     case 1: {
@@ -1389,7 +1391,7 @@ export function validatePaecStepResult(step: number, data: any): PaecQualityAudi
     }
 
     case 3: {
-      const mapeo = (Array.isArray(data) ? data : data?.mapeo || []) as MapeoRow[];
+      const mapeo = (Array.isArray(data) ? data : (record?.mapeo as MapeoRow[] | undefined) || []) as MapeoRow[];
       criterios.push(evaluateCriterio8(mapeo));
       criterios.push(evaluateCriterio9(mapeo));
       criterios.push(evaluateCriterio10(mapeo));
@@ -1397,21 +1399,21 @@ export function validatePaecStepResult(step: number, data: any): PaecQualityAudi
     }
 
     case 4: {
-      const cronograma = (Array.isArray(data) ? data : data?.cronograma || []) as CronogramaRow[];
+      const cronograma = (Array.isArray(data) ? data : (record?.cronograma as CronogramaRow[] | undefined) || []) as CronogramaRow[];
       criterios.push(evaluateCriterio11(cronograma));
       criterios.push(evaluateCriterio12(cronograma));
       break;
     }
 
     case 5: {
-      const detalle = (Array.isArray(data) ? data : data?.detalleCurricular || []) as DetalleCurricularRow[];
+      const detalle = (Array.isArray(data) ? data : (record?.detalleCurricular as DetalleCurricularRow[] | undefined) || []) as DetalleCurricularRow[];
       criterios.push(evaluateCriterio13(detalle));
       criterios.push(evaluateCriterio14(detalle));
       break;
     }
 
     case 6: {
-      const rowsA = (Array.isArray(data) ? data : data?.semestreA || []) as PlanOperativoRow[];
+      const rowsA = (Array.isArray(data) ? data : (record?.semestreA as PlanOperativoRow[] | undefined) || []) as PlanOperativoRow[];
       criterios.push(evaluateCriterio15(rowsA));
       criterios.push(evaluateCriterio17(rowsA, null, null, 6));
       criterios.push(evaluateCriterio18(rowsA, null));
@@ -1419,7 +1421,7 @@ export function validatePaecStepResult(step: number, data: any): PaecQualityAudi
     }
 
     case 7: {
-      const rowsB = (Array.isArray(data) ? data : data?.semestreB || []) as PlanOperativoRow[];
+      const rowsB = (Array.isArray(data) ? data : (record?.semestreB as PlanOperativoRow[] | undefined) || []) as PlanOperativoRow[];
       criterios.push(evaluateCriterio16(rowsB));
       criterios.push(evaluateCriterio17(null, rowsB, null, 7));
       criterios.push(evaluateCriterio18(null, rowsB));
@@ -1428,15 +1430,15 @@ export function validatePaecStepResult(step: number, data: any): PaecQualityAudi
 
     case 8: {
       const impl = data as PaecImplementacion;
-      const anexos = (data?.anexos || data) as AnexosData;
+      const anexos = ((record?.anexos as AnexosData | undefined) || (data as AnexosData));
       criterios.push(evaluateCriterio19(impl, anexos));
       criterios.push(evaluateCriterio20(anexos));
       break;
     }
 
     case 9: {
-      const gob = (data?.gobernanza || data) as PaecGobernanza;
-      const inf = (data?.informeSupervision || data) as PaecInformeSupervision;
+      const gob = ((record?.gobernanza as PaecGobernanza | undefined) || (data as PaecGobernanza));
+      const inf = ((record?.informeSupervision as PaecInformeSupervision | undefined) || (data as PaecInformeSupervision));
       criterios.push(evaluateCriterio21(gob));
       criterios.push(evaluateCriterio22(inf));
       criterios.push(evaluateCriterio23(inf));
@@ -1476,13 +1478,28 @@ export function validatePaecStepResult(step: number, data: any): PaecQualityAudi
   };
 }
 
+export type PaecProjectInput = Partial<PaecProject> & {
+  fase1_diagnostico?: Fase1Diagnostico | null;
+  fase2_justificacion?: Fase2Justificacion | null;
+  fase2_mapeo?: MapeoRow[] | null;
+  fase2_cronograma?: CronogramaRow[] | null;
+  fase2_detalle_curricular?: DetalleCurricularRow[] | null;
+  fase3_plan_operativo_a?: PlanOperativoRow[] | null;
+  fase3_plan_operativo_b?: PlanOperativoRow[] | null;
+  fase2_plan_operativo?: PlanOperativoData | null;
+  fase3_implementacion?: PaecImplementacion | null;
+  fase2_anexos?: AnexosData | null;
+  fase4_gobernanza?: PaecGobernanza | null;
+  fase4_informe_supervision?: PaecInformeSupervision | null;
+};
+
 /**
  * Calcula la auditoría global completa (los 23 criterios normativos) sobre un proyecto PAEC.
  * 
  * @param project Proyecto PAEC con los datos consolidados de todas las fases
  * @returns PaecQualityAudit con la evaluación completa de los 23 criterios y dictamen final
  */
-export function calculateGlobalPaecScore(project: PaecProject | any): PaecQualityAudit {
+export function calculateGlobalPaecScore(project: PaecProjectInput): PaecQualityAudit {
   // Normalizar acceso a campos camelCase o snake_case
   const fase1 = project.fase1Diagnostico || project.fase1_diagnostico;
   const fase2 = project.fase2Justificacion || project.fase2_justificacion;
@@ -1493,7 +1510,7 @@ export function calculateGlobalPaecScore(project: PaecProject | any): PaecQualit
   const planB = project.fase3PlanOperativoB || project.fase3_plan_operativo_b;
   const planLegacy = project.fase2PlanOperativo || project.fase2_plan_operativo;
   const impl = project.fase3Implementacion || project.fase3_implementacion;
-  const anexos = project.fase2Anexos || project.fase2_anexos || impl?.anexos;
+  const anexos = project.fase2Anexos || project.fase2_anexos || (impl as { anexos?: AnexosData } | null | undefined)?.anexos;
   const gobernanza = project.fase4Gobernanza || project.fase4_gobernanza;
   const informe = project.fase4InformeSupervision || project.fase4_informe_supervision;
 
