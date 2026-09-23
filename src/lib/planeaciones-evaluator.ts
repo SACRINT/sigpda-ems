@@ -65,7 +65,7 @@ interface CriterioDefinicion {
 
 const CRITERIOS_DEF_1_4: CriterioDefinicion[] = [
   // Rubro I
-  { id: 'c1', categoria: 'Rubro I', puntajeMax: 5, criterio: 'Datos generales: institución, docente, grupo, semestre, periodo de evaluación', descripcion: 'Datos institucionales, administrativos y curriculares completos y alineados a DBEPA.' },
+  { id: 'c1', categoria: 'Rubro I', puntajeMax: 5, criterio: 'Datos generales: institución, docente, grupo, semestre, periodo de evaluación', descripcion: 'Datos institucionales, administrativos y curriculares completos y alineados al formato oficial MCCEMS.' },
   { id: 'c2', categoria: 'Rubro I', puntajeMax: 10, criterio: 'Contextualización: ubicación de la UAC en el Mapa Curricular, correlación de Propósitos Formativos', descripcion: 'Ubicación curricular y correlación de propósitos formativos con UACs del semestre.' },
   { id: 'c3', categoria: 'Rubro I', puntajeMax: 10, criterio: 'Dosificación: horas-clase-semestre en calendario real en los 3 momentos de evaluación semestral', descripcion: 'Distribución temporal de horas y sesiones en los 3 cortes de evaluación.' },
   { id: 'c4', categoria: 'Rubro I', puntajeMax: 20, criterio: 'Armonización: interrelación entre Categoría-Conceptos centrales-Subcategorías-Transversales-Metas-PAEC', descripcion: 'Articulación coherente entre currículum fundamental, currículum ampliado y problemática comunitaria PAEC.' },
@@ -138,7 +138,7 @@ export async function evaluarPlaneacion(input: InputEvaluacion): Promise<Resulta
     .map(d => `- ID "${d.id}" | ${d.categoria} | ${d.criterio} (Ponderación máxima: ${d.puntajeMax} pts): ${d.descripcion}`)
     .join('\n');
 
-  const systemPrompt = `Eres el Auditor y Evaluador Técnico-Pedagógico Oficial de la Dirección Bachilleratos Estatales y Preparatoria Abierta (DBEPA Puebla).
+  const systemPrompt = `Eres el Auditor y Evaluador Técnico-Pedagógico Oficial de Educación Media Superior (MCCEMS Puebla).
 Tu tarea es auditar y evaluar con absoluto rigor y objetividad técnica la Planeación Didáctica entregada, verificando el cumplimiento de la normativa oficial.
 
 REGLAS ESTRICTAS DE EVALUACIÓN CUANTITATIVA:
@@ -174,7 +174,7 @@ DEBES RESPONDER EXCLUSIVAMENTE EN JSON VÁLIDO CON ESTA ESTRUCTURA EXACTA:
   "retroalimentacionDocente": "Carta o dictamen formal de retroalimentación oficial para el docente en tono institucional y constructivo"
 }`;
 
-  const userPrompt = `AUDITORÍA TÉCNICO-PEDAGÓGICA DBEPA / USICAMM
+  const userPrompt = `AUDITORÍA TÉCNICO-PEDAGÓGICA MCCEMS / USICAMM
 Asignatura / UAC: ${asignatura}
 Semestre: ${semestre}° Semestre
 Docente: ${docenteNombre || 'Docente de Bachillerato'}

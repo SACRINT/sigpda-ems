@@ -364,7 +364,7 @@ export function calculateGlobalPipsScore(project: PipsProject): PipsQualityAudit
 
 export function formatPipsAuditReport(audit: PipsQualityAudit): string {
   const lines: string[] = [
-    `=== DICTAMEN TÉCNICO DE CALIDAD PIPS — SUPERVISIÓN ESCOLAR DBEPA ===`,
+    `=== DICTAMEN TÉCNICO DE CALIDAD PIPS — SUPERVISIÓN ESCOLAR MCCEMS ===`,
     `Calificación Global: ${audit.percentage}/100 (${audit.totalScore}/${audit.maxPossibleScore} pts)`,
     `Estatus Oficial: ${audit.overallStatus}`,
     `Criterios: ${audit.passedCriteria} Aprobados | ${audit.warningCriteria} Con Observación | ${audit.failedCriteria} No Acreditados`,

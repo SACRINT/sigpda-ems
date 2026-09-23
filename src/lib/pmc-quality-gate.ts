@@ -501,7 +501,7 @@ export const auditPmcProject = calculateGlobalPmcScore;
 
 export function formatPmcAuditReport(audit: PmcQualityAudit): string {
   const lines: string[] = [
-    `=== DICTAMEN TÉCNICO DE CALIDAD PMC — DBEPA PUEBLA ===`,
+    `=== DICTAMEN TÉCNICO DE CALIDAD PMC — MCCEMS PUEBLA ===`,
     `Calificación Global: ${audit.percentage}/100 (${audit.totalScore}/${audit.maxPossibleScore} pts)`,
     `Estatus Oficial: ${audit.overallStatus}`,
     `Criterios: ${audit.passedCriteria} Aprobados | ${audit.warningCriteria} Con Observación | ${audit.failedCriteria} No Acreditados`,
