@@ -1,12 +1,7 @@
 /**
  * Utilidades para la estructura de grupos por año/grado y asignaturas oficiales del MCCEMS 2025-2026
  */
-import {
-  CARRERAS_TECNOLOGICAS,
-  getModulosPorSemestre,
-  CarreraTecnica,
-  ModuloCarrera
-} from "./bt-carreras-catalog";
+import { getModulosPorSemestre } from "./bt-carreras-catalog";
 import type { UniqueUacItem, SchoolType, GroupTrackConfig } from '@/types/paec';
 
 export interface EscuelaEstructuraGrupos {
@@ -29,20 +24,20 @@ const LETRAS_GRUPO = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];
  * 15 Capacitaciones Laborales Oficiales BGE Puebla (MCCEMS 2025-2026)
  */
 export const FORMACIONES_LABORALES = [
-  "Administracion",
+  "Administración",
   "Agricultura Sostenible de Traspatio",
-  "Area de la Salud",
-  "Comunicacion Grafica",
+  "Área de la Salud",
+  "Comunicación Gráfica",
   "Contabilidad",
-  "Domotica",
+  "Domótica",
   "Instalaciones Residenciales",
-  "Mecanica Dental",
-  "Preparacion de Alimentos Artesanales",
-  "Procesos Culinarios y Reposteria",
+  "Mecánica Dental",
+  "Preparación de Alimentos Artesanales",
+  "Procesos Culinarios y Repostería",
   "Redes y Mantenimiento",
-  "Servicios Ecosistemicos",
-  "Sistemas Electricos",
-  "Tecnologia Informatica",
+  "Servicios Ecosistémicos",
+  "Sistemas Eléctricos",
+  "Tecnología Informática",
   "Turismo"
 ];
 
@@ -419,6 +414,51 @@ export function obtenerFfeSemestre6(nombreSem5: string): string {
 export const FFE_OPTATIVAS_CATALOGO = [
   ...FFE_RECURSOS_SOCIOCOGNITIVOS,
   ...FFE_AREAS_CONOCIMIENTO
+];
+
+export const FFE_PACKAGES: Record<string, { label: string; subjects: string[] }> = {
+  'fisico_matematico': {
+    label: '📐 Físico-Matemático',
+    subjects: ['Análisis de Fenómenos Físicos I', 'Dibujo Técnico I', 'Taller de Pensamiento Variacional I', 'Taller de Probabilidad y Estadística I']
+  },
+  'quimico_biologico': {
+    label: '🧬 Químico-Biológico',
+    subjects: ['Análisis de Fenómenos y Procesos Biológicos', 'Salud Integral I', 'Organización del Flujo de Materia y Energía en los Organismos I', 'Taller de Probabilidad y Estadística I']
+  },
+  'economico_admin': {
+    label: '📊 Económico-Administrativo',
+    subjects: ['Fundamentos de Administración I', 'Procesos Contables I', 'Economía I. La Función de los Agentes Económicos en la Sociedad', 'Pensamiento Matemático Aplicado a las Finanzas I']
+  },
+  'humanidades_sociales': {
+    label: '🏛️ Humanidades y Ciencias Sociales',
+    subjects: ['Derecho y Sociedad I', 'Psicología I', 'Temas Selectos de Ciencias Sociales I', 'Pensamiento Filosófico I']
+  }
+};
+
+export const FFE_PAIRS = [
+  // ── Recursos Sociocognitivos (7) ──────────────────────────────────────────
+  { name5: 'Comunicación y Sociedad I', name6: 'Comunicación y Sociedad II', label: 'Comunicación y Sociedad', category: 'Recursos Sociocognitivos' },
+  { name5: 'Raíces Etimológicas del Español I', name6: 'Raíces Etimológicas del Español II', label: 'Raíces Etimológicas del Español', category: 'Recursos Sociocognitivos' },
+  { name5: 'Inglés V (Avanzado)', name6: 'Inglés VI (Avanzado)', label: 'Inglés Avanzado', category: 'Recursos Sociocognitivos' },
+  { name5: 'Taller de Pensamiento Variacional I', name6: 'Taller de Pensamiento Variacional II', label: 'Taller de Pensamiento Variacional', category: 'Recursos Sociocognitivos' },
+  { name5: 'Dibujo Técnico I', name6: 'Dibujo Técnico II', label: 'Dibujo Técnico', category: 'Recursos Sociocognitivos' },
+  { name5: 'Pensamiento Matemático Aplicado a las Finanzas I', name6: 'Pensamiento Matemático Aplicado a las Finanzas II', label: 'Pensamiento Matemático Finanzas', category: 'Recursos Sociocognitivos' },
+  { name5: 'Taller de Probabilidad y Estadística I', name6: 'Taller de Probabilidad y Estadística II', label: 'Taller de Probabilidad y Estadística', category: 'Recursos Sociocognitivos' },
+
+  // ── Áreas de Conocimiento (13) ─────────────────────────────────────────────
+  { name5: 'Salud Integral I', name6: 'Salud Integral II', label: 'Salud Integral', category: 'Ciencias Naturales y Salud' },
+  { name5: 'Análisis de Fenómenos y Procesos Biológicos', name6: 'Temas Selectos de Biología', label: 'Ciencias Biológicas', category: 'Ciencias Naturales y Salud' },
+  { name5: 'Análisis de Fenómenos Físicos I', name6: 'Análisis de Fenómenos Físicos II', label: 'Análisis de Fenómenos Físicos', category: 'Ciencias Naturales y Salud' },
+  { name5: 'Organización del Flujo de Materia y Energía en los Organismos I', name6: 'Organización del Flujo de Materia en los Organismos II', label: 'Flujo de Materia y Energía', category: 'Ciencias Naturales y Salud' },
+  { name5: 'Fundamentos de Administración I', name6: 'Fundamentos de Administración II', label: 'Fundamentos de Administración', category: 'Ciencias Sociales' },
+  { name5: 'Procesos Contables I', name6: 'Procesos Contables II', label: 'Procesos Contables', category: 'Ciencias Sociales' },
+  { name5: 'Derecho y Sociedad I', name6: 'Derecho y Sociedad II', label: 'Derecho y Sociedad', category: 'Ciencias Sociales' },
+  { name5: 'Economía I. La Función de los Agentes Económicos en la Sociedad', name6: 'Economía II. Política Económica y Política Pública Mexicana', label: 'Economía y Política Pública', category: 'Ciencias Sociales' },
+  { name5: 'Temas Selectos de Ciencias Sociales I', name6: 'Temas Selectos de Ciencias Sociales II', label: 'Temas Selectos Ciencias Sociales', category: 'Ciencias Sociales' },
+  { name5: 'Psicología I', name6: 'Psicología II', label: 'Psicología', category: 'Humanidades y Ciencias Sociales' },
+  { name5: 'Arte y Cultura I', name6: 'Arte y Cultura II', label: 'Arte y Cultura', category: 'Humanidades' },
+  { name5: 'Lógica y Pensamiento Crítico', name6: 'Experiencia Estética', label: 'Lógica y Experiencia Estética', category: 'Humanidades' },
+  { name5: 'Pensamiento Filosófico I', name6: 'Pensamiento Filosófico II', label: 'Pensamiento Filosófico', category: 'Humanidades' },
 ];
 
 /**
@@ -811,6 +851,7 @@ export interface ConsolidacionParams {
   activeLaboralUacs?: string[];
   activeFfeUacs?: string[];
   activeBtCarreras?: string[];
+  activeFundamentalUacs?: string[];
   dbFundamentalUacs?: { uac_name: string; semester: number; component?: string }[];
 }
 
@@ -822,6 +863,7 @@ export interface ConsolidacionParams {
  * - El tronco común se incluye exactamente UNA VEZ por semestre (no se repite por grupo).
  * - Las capacitaciones laborales y FFE se unen matemáticamente sin duplicados.
  * - Los módulos de carreras técnicas de Bachillerato Tecnológico se integran sin duplicados.
+ * - En escuelas con múltiples proyectos PAEC, permite seleccionar qué asignaturas participan en cada uno.
  */
 export function consolidarUacsUnicasPlantel(params: ConsolidacionParams): UniqueUacItem[] {
   const {
@@ -831,6 +873,7 @@ export function consolidarUacsUnicasPlantel(params: ConsolidacionParams): Unique
     activeLaboralUacs = [],
     activeFfeUacs = [],
     activeBtCarreras = [],
+    activeFundamentalUacs = [],
     dbFundamentalUacs = [],
   } = params;
 
@@ -844,10 +887,19 @@ export function consolidarUacsUnicasPlantel(params: ConsolidacionParams): Unique
 
     if (fundFromDb.length > 0) {
       for (const u of fundFromDb) {
-        const key = `${sem}__${u.uac_name.trim().toLowerCase()}`;
+        const uacNameClean = u.uac_name.trim();
+        // Multi-PAEC filtering: if activeFundamentalUacs is explicitly configured, only include if present
+        if (activeFundamentalUacs && activeFundamentalUacs.length > 0) {
+          const isSelected = activeFundamentalUacs.some(
+            name => name.trim().toLowerCase() === uacNameClean.toLowerCase()
+          );
+          if (!isSelected) continue;
+        }
+
+        const key = `${sem}__${uacNameClean.toLowerCase()}`;
         if (!resultMap.has(key)) {
           resultMap.set(key, {
-            uacName: u.uac_name.trim(),
+            uacName: uacNameClean,
             semester: sem,
             component: 'fundamental',
           });
@@ -856,14 +908,22 @@ export function consolidarUacsUnicasPlantel(params: ConsolidacionParams): Unique
     } else {
       const asignaturasSem = schoolType === 'tecnico'
         ? (sem === 1 ? obtenerAsignaturas1erSemestreTecnologico() : obtenerAsignaturasParaGrupoTecnologico(sem, ''))
-        : obtenerAsignaturasParaGrupo(sem, 'Administracion');
+        : obtenerAsignaturasParaGrupo(sem, 'Administración');
 
       for (const asig of asignaturasSem) {
         if (asig.tipo === 'FUNDAMENTAL' || asig.tipo === 'SOCIOEMOCIONAL') {
-          const key = `${sem}__${asig.nombre.trim().toLowerCase()}`;
+          const asigClean = asig.nombre.trim();
+          if (activeFundamentalUacs && activeFundamentalUacs.length > 0) {
+            const isSelected = activeFundamentalUacs.some(
+              name => name.trim().toLowerCase() === asigClean.toLowerCase()
+            );
+            if (!isSelected) continue;
+          }
+
+          const key = `${sem}__${asigClean.toLowerCase()}`;
           if (!resultMap.has(key)) {
             resultMap.set(key, {
-              uacName: asig.nombre.trim(),
+              uacName: asigClean,
               semester: sem,
               component: 'fundamental',
             });
@@ -989,6 +1049,29 @@ export function consolidarUacsUnicasPlantel(params: ConsolidacionParams): Unique
     if (a.semester !== b.semester) return a.semester - b.semester;
     return a.uacName.localeCompare(b.uacName);
   });
+}
+
+/**
+ * Obtiene todas las asignaturas fundamentales y socioemocionales de los semestres indicados.
+ * Útil para la selección interactiva de asignaturas en escuelas con múltiples proyectos PAEC.
+ */
+export function obtenerFundamentalesPorSemestres(semestres: number[]): { nombre: string; semestre: number }[] {
+  const result: { nombre: string; semestre: number }[] = [];
+  const seen = new Set<string>();
+
+  for (const sem of semestres) {
+    const list = obtenerAsignaturasParaGrupo(sem, 'Administración');
+    for (const item of list) {
+      if (item.tipo === 'FUNDAMENTAL' || item.tipo === 'SOCIOEMOCIONAL') {
+        const key = `${sem}__${item.nombre.trim().toLowerCase()}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          result.push({ nombre: item.nombre.trim(), semestre: sem });
+        }
+      }
+    }
+  }
+  return result;
 }
 
 
