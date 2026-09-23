@@ -269,7 +269,7 @@ export default function NotificationBell() {
           {/* Footer del Popover */}
           <div className="p-2.5 bg-slate-950/60 border-t border-slate-800 text-center">
             <span className="text-[11px] text-slate-500">
-              Sistema de Alertas Inteligente · DBEPA Puebla
+              Sistema de Alertas Inteligente · MCCEMS Puebla
             </span>
           </div>
         </div>

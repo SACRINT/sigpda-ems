@@ -558,7 +558,7 @@ export default function AdminHealthClient({ locale }: AdminHealthClientProps) {
             <span className="card-title">
               <Server size={18} style={{ color: '#818cf8' }} /> Criterios del Semáforo
             </span>
-            <span className="badge badge-blue">Norma DBEPA</span>
+            <span className="badge badge-blue">Norma MCCEMS</span>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 12 }}>

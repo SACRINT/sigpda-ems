@@ -156,7 +156,7 @@ export default function MapaCurricularPaso1Estructura({
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.35rem" }}>
               <span style={{ fontWeight: 800, fontSize: "0.9rem", color: esTecnologico ? "#fbbf24" : "#f1f5f9" }}>
-                🏫 Bachillerato Tecnológico (BT / DBEPA)
+                🏫 Bachillerato Tecnológico (BT / MCCEMS)
               </span>
               {esTecnologico && (
                 <span
@@ -174,7 +174,7 @@ export default function MapaCurricularPaso1Estructura({
               )}
             </div>
             <div style={{ fontSize: "0.75rem", color: "#94a3b8", lineHeight: 1.45 }}>
-              <strong>Estructura Tecnológica DBEPA Puebla:</strong> 28h en 1.er sem (10 UACs), 39h en 3.er sem (Módulo II 17h) y 35h en 5.º sem (Módulo IV 12h + Propedéutica 3h). Configura{" "}
+              <strong>Estructura Tecnológica MCCEMS Puebla:</strong> 28h en 1.er sem (10 UACs), 39h en 3.er sem (Módulo II 17h) y 35h en 5.º sem (Módulo IV 12h + Propedéutica 3h). Configura{" "}
               <strong>Carreras Técnicas</strong>.
             </div>
           </button>

@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════════
    DidácticaIA — Global Styles  v3.1  (Dark Premium Edition)
-   DBEPA Puebla 2026-2027
+   MCCEMS Puebla 2026-2027
    Paleta: Azul marino oscuro → Negro · Acento índigo · Inter
 ═══════════════════════════════════════════════════════════════════ */
 
@@ -331,6 +331,7 @@ input::selection, textarea::selection {
   background: linear-gradient(135deg, #e0e7ff 0%, var(--c-accent-bright) 100%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
 }
+.mccems-badge,
 .dbepa-badge {
   display: inline-block; padding: var(--sp-1) var(--sp-4);
   background: var(--c-accent-subtle); border: 1px solid var(--c-accent-border);

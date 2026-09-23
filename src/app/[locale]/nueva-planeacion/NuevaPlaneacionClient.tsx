@@ -133,7 +133,7 @@ export default function NuevaPlaneacionClient({ locale }: Props) {
       {/* Page header */}
       <div className="page-header">
         <h1 className="page-title">Nueva planeación didáctica</h1>
-        <p className="page-subtitle">Ciclo escolar 2026-2027 · Formato oficial DBEPA</p>
+        <p className="page-subtitle">Ciclo escolar 2026-2027 · Formato oficial MCCEMS</p>
       </div>
 
       <div style={{ maxWidth: '820px' }}>

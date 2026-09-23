@@ -1820,10 +1820,10 @@ export default function WizardConfiguracionLegacy({
                 }}
               >
                 <div style={{ fontWeight: 800, fontSize: "0.875rem", color: esTecnologico ? "#fbbf24" : "#f8fafc" }}>
-                  🏫 Bachillerato Tecnológico (DBEPA Puebla)
+                  🏫 Bachillerato Tecnológico (BT Puebla)
                 </div>
                 <div style={{ fontSize: "0.75rem", color: "#94a3b8", marginTop: "0.25rem" }}>
-                  Malla Tecnológica DBEPA (28h/39h/35h). Precarga 10 UACs, Carreras Técnicas oficiales, Módulos Profesionales y Propedéuticas.
+                  Malla Tecnológica MCCEMS (28h/39h/35h). Precarga 10 UACs, Carreras Técnicas oficiales, Módulos Profesionales y Propedéuticas.
                 </div>
               </button>
             </div>

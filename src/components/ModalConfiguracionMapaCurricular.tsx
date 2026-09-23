@@ -411,7 +411,7 @@ function ModalConfiguracionMapaCurricularModular({
                 }}
               >
                 {esTecnologico
-                  ? "🏫 Bachillerato Tecnológico (DBEPA Puebla) ▾"
+                  ? "🏫 Bachillerato Tecnológico (BT Puebla) ▾"
                   : "🏛️ Bachillerato General Estatal (BGE Puebla) ▾"}
               </button>
             </div>

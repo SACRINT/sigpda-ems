@@ -34,7 +34,7 @@ export default async function LoginPage({
             <span className="logo-icon">📚</span>
             <h1 className="logo-text">SIGPDA-EMS</h1>
           </div>
-          <div className="dbepa-badge">Educación Media Superior · MCCEMS</div>
+          <div className="mccems-badge">Educación Media Superior · MCCEMS</div>
         </div>
 
         {/* Card */}

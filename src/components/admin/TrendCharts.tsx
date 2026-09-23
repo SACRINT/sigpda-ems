@@ -57,7 +57,7 @@ export default function TrendCharts({ trends, loading = false }: TrendChartsProp
             </div>
             <div>
               <h3 className="font-semibold text-slate-900 dark:text-white text-base">Evolución de Calidad Zonal</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Puntaje promedio DBEPA (0-100 pts) últimos 30 días</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Puntaje promedio MCCEMS (0-100 pts) últimos 30 días</p>
             </div>
           </div>
           <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300">

@@ -101,7 +101,7 @@ export default function SupervisorDashboard({
             <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300 flex items-center gap-1">
               <ShieldCheck className="w-3.5 h-3.5" /> Supervisión Inteligente Fase 5
             </span>
-            <span className="text-xs text-slate-400 font-mono">DBEPA Puebla MCCEMS · {userRole.toUpperCase()}</span>
+            <span className="text-xs text-slate-400 font-mono">MCCEMS Puebla · {userRole.toUpperCase()}</span>
           </div>
           <h1 className="text-2xl font-black text-slate-900 dark:text-white">
             Centro de Mando y Analítica Pedagógica Zonal
@@ -168,7 +168,7 @@ export default function SupervisorDashboard({
             </span>
             <span className="text-xs text-slate-400">/ 100 pts</span>
           </div>
-          <p className="text-[11px] text-slate-400 mt-1">Normativa DBEPA Puebla MCCEMS</p>
+          <p className="text-[11px] text-slate-400 mt-1">Normativa MCCEMS Puebla</p>
         </div>
 
         {/* KPI 2: Planeaciones Supervisadas */}

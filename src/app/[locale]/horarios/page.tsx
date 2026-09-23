@@ -36,7 +36,7 @@ export default async function HorariosDashboardPage({
         <div>
           <h1 className="page-title">📅 Generador de Horarios Escolar Inteligente</h1>
           <p className="page-subtitle">
-            Gestión y construcción de plantillas sin empalmes para Directores · DBEPA Puebla
+            Gestión y construcción de plantillas sin empalmes para Directores · MCCEMS Puebla
           </p>
         </div>
       </div>

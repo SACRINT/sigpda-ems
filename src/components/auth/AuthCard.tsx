@@ -563,7 +563,7 @@ export default function AuthCard({ locale }: Props) {
                 }}
               >
                 <option value="bge" style={{ background: '#0f172a' }}>Bachillerato General (BGE)</option>
-                <option value="bachillerato_tecnologico" style={{ background: '#0f172a' }}>Bachillerato Tecnológico (DBEPA)</option>
+                <option value="bachillerato_tecnologico" style={{ background: '#0f172a' }}>Bachillerato Tecnológico (BT)</option>
                 <option value="conalep" style={{ background: '#0f172a' }}>CONALEP</option>
                 <option value="cbtis" style={{ background: '#0f172a' }}>DGETI (CBTis / CETis)</option>
                 <option value="cobaep" style={{ background: '#0f172a' }}>COBAEP</option>

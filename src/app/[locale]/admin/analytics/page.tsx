@@ -9,7 +9,7 @@ import SupervisorDashboard from '@/components/admin/SupervisorDashboard';
 
 export const metadata: Metadata = {
   title: 'Analítica Avanzada y Supervisión Zonal — SIGPDA-EMS',
-  description: 'Centro de mando, semaforización de planteles y alertas pedagógicas DBEPA Puebla MCCEMS.',
+  description: 'Centro de mando, semaforización de planteles y alertas pedagógicas MCCEMS Puebla.',
 };
 
 export default async function AdminAnalyticsPage({

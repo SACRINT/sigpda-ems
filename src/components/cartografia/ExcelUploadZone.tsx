@@ -247,7 +247,7 @@ export default function ExcelUploadZone({
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 20 }}>📊</span>
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#f8fafc', letterSpacing: '0.02em' }}>
-              Asistente de Carga de Matriz Estadística (Formato 911.7G / F11C / DBEPA)
+              Asistente de Carga de Matriz Estadística (Formato 911.7G / F11C / Oficial)
             </h3>
           </div>
           <p style={{ margin: '4px 0 0', fontSize: 12, color: '#94a3b8' }}>

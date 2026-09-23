@@ -109,7 +109,7 @@ export default async function SuscripcionExitoPage({
           marginTop: 24, fontSize: 12,
           color: 'rgba(240,244,255,0.2)',
         }}>
-          DidácticaIA · DBEPA Puebla 2026-2027
+          DidácticaIA · MCCEMS Puebla 2026-2027
         </p>
       </div>
     </div>
