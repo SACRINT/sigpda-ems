@@ -1,22 +1,18 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import type { GeneratedPlanningContent, Planning, PlanningExtra, SecuenciaBloque, SecuenciaSesion } from '@/types/planning';
 import { ExtraPreviewModal } from '@/components/planeacion/ExtraPreviewModal';
 import DeletePlanningButton from '@/components/planeacion/DeletePlanningButton';
-import GenerationFeedback from '@/components/feedback/GenerationFeedback';
-import DocumentA4Viewer from '@/components/common/DocumentA4Viewer';
 import { generatePlanningPDF, generateSecuenciaPDF } from '@/lib/planning-pdf-renderer';
 import { generateBlockSessions, type DetailedSession } from '@/lib/session-progression-engine';
 import type { ActiveWorkTextbook, GenerationProgressState } from '@/types/work-textbook';
 // ── Lucide Icons ────────────────────────────────────────────────────────────
 import {
   FileText, Zap, Clock, GraduationCap, Printer, BarChart3,
-  Award, TrendingUp, Download, FileDown, Trash2, Search,
-  RefreshCw, AlertTriangle, CheckCircle, ChevronDown, ChevronUp,
-  Star, BookMarked, Microscope, Grid, Library, Send, Eye,
+  Award, TrendingUp, Download, FileDown, Send, Eye,
 } from 'lucide-react';
 
 interface PlanningDetailClientProps {
@@ -51,8 +47,6 @@ function PlanningDetailModular({
   const content = planning.contentJson as GeneratedPlanningContent | null;
   const s1 = content?.sectionI;
   const isLaboral = s1?.component?.toLowerCase().includes('laboral') || false;
-  const activityLabel = isLaboral ? 'Actividades Clave' : 'Propósitos y Contenidos formativos';
-  const prefix = isLaboral ? 'AC' : 'PC';
 
   // Tabs state
   const [activeTab, setActiveTab] = useState<'planning' | 'extras' | 'lessonPlans' | 'teacherGuides' | 'a4print' | 'audit' | 'evaluador' | 'analytics'>('planning');
@@ -184,7 +178,7 @@ function PlanningDetailModular({
   const [previewExtra, setPreviewExtra] = useState<PlanningExtra | null>(null);
   const [syncingSuite, setSyncingSuite] = useState<number | null>(null);
 
-  const loadExtras = async () => {
+  const loadExtras = useCallback(async () => {
     try {
       const res = await fetch(`/api/plannings/${planning.id}/extras`);
       if (res.ok) {
@@ -194,12 +188,12 @@ function PlanningDetailModular({
     } catch (err) {
       console.error('Failed to load extras:', err);
     }
-  };
+  }, [planning.id]);
 
   // Fetch extras on mount (to ensure sync)
   useEffect(() => {
     loadExtras();
-  }, [planning.id]);
+  }, [loadExtras]);
 
   const handleSyncSuite = async (blockIdx: number) => {
     setSyncingSuite(blockIdx);
@@ -386,10 +380,6 @@ function PlanningDetailModular({
     setEditingSeqBlock(blockIndex);
   };
 
-  const handleCancelEdit = (blockIndex: number) => {
-    setEditingSeqBlock(null);
-  };
-
   const handleUpdateEditedSession = (blockIndex: number, sessionIdx: number, field: keyof SecuenciaSesion, val: any) => {
     setEditedSessions(prev => {
       const currentList = prev[blockIndex] ? [...prev[blockIndex]] : [...(sequenceData[blockIndex]?.sessions || [])];
@@ -429,8 +419,9 @@ function PlanningDetailModular({
 
   // Cleanup active polling intervals when component unmounts
   useEffect(() => {
+    const activeIntervals = pollIntervalsRef.current;
     return () => {
-      Object.values(pollIntervalsRef.current).forEach(interval => {
+      Object.values(activeIntervals).forEach(interval => {
         if (interval) clearInterval(interval);
       });
     };
@@ -460,7 +451,7 @@ function PlanningDetailModular({
         // ignore background fetch errors
       }
     });
-  }, [planning.id]);
+  }, [planning.id, content?.sectionIV?.activities]);
 
   const handleGenerateWorkbook = async (blockIndex: number) => {
     setBlockWorkbooks(prev => ({
@@ -697,7 +688,7 @@ function PlanningDetailModular({
   const [evalResult, setEvalResult]   = useState<any | null>(planning.evaluationJson || null);
   const [evalLoading, setEvalLoading] = useState(false);
   const [evalError,   setEvalError]   = useState<string | null>(null);
-  const [evalLoaded,  setEvalLoaded]  = useState(Boolean(planning.evaluationJson));
+  const [, setEvalLoaded]             = useState(Boolean(planning.evaluationJson));
 
   const handleRunEvaluacion = async (forceReeval = false) => {
     setEvalLoading(true);
