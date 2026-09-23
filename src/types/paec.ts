@@ -40,6 +40,7 @@ export interface SchoolContext {
   previousPrograms?: string;
   facilities?: string;
   schoolType?: SchoolType;
+  activeFundamentalUacs?: string[];
   activeLaboralUacs?: string[];
   activeFfeUacs?: string[];
   activeBtCarreras?: string[];

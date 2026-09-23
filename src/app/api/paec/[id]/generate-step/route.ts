@@ -159,6 +159,7 @@ export async function POST(
           activeLaboralUacs?: string[];
           activeFfeUacs?: string[];
           activeBtCarreras?: string[];
+          activeFundamentalUacs?: string[];
           groupStructure?: {
             semestersConfig: Record<number, number>;
             groupAssignments: GroupTrackConfig[];
@@ -175,6 +176,7 @@ export async function POST(
               activeLaboralUacs: schoolCtx.activeLaboralUacs,
               activeFfeUacs: schoolCtx.activeFfeUacs,
               activeBtCarreras: schoolCtx.activeBtCarreras,
+              activeFundamentalUacs: schoolCtx.activeFundamentalUacs,
               dbFundamentalUacs: allUacs,
             });
 
