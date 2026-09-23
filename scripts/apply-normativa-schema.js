@@ -18,7 +18,7 @@ async function main() {
                       'ley_local', 'lineamiento', 'acuerdo',
                       'reglamento', 'circular', 'decreto', 'tratado', 'otro'
                     )),
-      fuente        TEXT,          -- "DOF 2019-09-30", "DBEPA 2025", etc.
+      fuente        TEXT,          -- "DOF 2019-09-30", "SEMS 2025", etc.
       vigente       BOOLEAN NOT NULL DEFAULT TRUE,
       orden_display INTEGER NOT NULL DEFAULT 0,
       created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
