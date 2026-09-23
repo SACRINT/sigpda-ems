@@ -1,12 +1,13 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 /**
  * pmc-prompts.ts
  * Generador de prompts oficiales para el Programa de Mejora Continua (PMC) CREAA
- * SIGPDA-EMS · DBEPA Puebla MCCEMS Ciclo Escolar 2026-2027
+ * SIGPDA-EMS · MCCEMS Puebla Ciclo Escolar 2026-2027
  * 
  * Integra:
  * - Datos estadísticos oficiales del Formato 911 (Matrícula, Abandono, Eficiencia Terminal)
  * - Datos de acreditación del Formato F11 (Calificaciones, Promedios por Asignatura, Aprobación)
- * - Evaluaciones externas estandarizadas DBEPA (EDIEMS y ESA)
+ * - Evaluaciones externas estandarizadas (EDIEMS y ESA)
  * - 3 Categorías Oficiales CREAA (Apropiación Curricular, Permanencia, Gestión Comunitaria/PAEC)
  * - Fórmula Sintáctica de Meta: [VERBO] + [%] + [POBLACIÓN] + [ESTRATEGIA] + [PERIODO Y TERRITORIO]
  * - 8 Fechas Oficiales del Cronograma de Seguimiento 2026-2027
@@ -83,7 +84,7 @@ ${zona.brechasDiagnostico.observaciones.map((obs) => `    • ${obs}`).join('\n'
 `;
   }
 
-  return `Eres un experto en gestión directiva y planeación institucional de Bachilleratos Generales Estatales (BGE/TBC) de Puebla, alineado al Modelo Educativo 2025 de la NEM y las Pautas para la Planeación de la Mejora Continua 2026-2027 de la DBEPA bajo la política estatal CREAA.
+  return `Eres un experto en gestión directiva y planeación institucional de Bachilleratos Generales Estatales (BGE/TBC) de Puebla, alineado al Modelo Educativo 2025 de la NEM y las Pautas para la Planeación de la Mejora Continua 2026-2027 bajo la política estatal CREAA del MCCEMS.
 
 ${libraryContext || ''}
 
@@ -178,7 +179,7 @@ export function buildPmcPlanAccionPrompt(
     ? staffData.slice(0, 35).map((s) => `- ${s.nombre ?? 'Docente'} — ${s.cargo ?? 'Docente frente a grupo'}`).join('\n')
     : `- ${safeStr(project.director_name, 'Director del Plantel')} — Director(a)\n- Colectivo Docente — Docentes frente a grupo`;
 
-  return `Eres el diseñador técnico líder de Planes de Mejora Continua (PMC) de la DBEPA Puebla para el Ciclo Escolar 2026-2027, experto en la metodología CREAA del Bachillerato General Estatal.
+  return `Eres el diseñador técnico líder de Planes de Mejora Continua (PMC) para el Ciclo Escolar 2026-2027, experto en la metodología CREAA del Bachillerato General Estatal en Puebla.
 
 ${libraryContext || ''}
 
@@ -203,7 +204,7 @@ PLANTILLA DE PERSONAL DISPONIBLE:
 ${staffList}
 
 ═══════════════════════════════════════════════════════════════════════════════
-REGLAS OBLIGATORIAS DE REDACCIÓN DE METAS CREAA (DBEPA PUEBLA 2026-2027):
+REGLAS OBLIGATORIAS DE REDACCIÓN DE METAS CREAA (MCCEMS PUEBLA 2026-2027):
 ═══════════════════════════════════════════════════════════════════════════════
 
 1. FÓRMULA SINTÁCTICA OBLIGATORIA PARA TODA META INSTITUCIONAL:
@@ -215,13 +216,13 @@ REGLAS OBLIGATORIAS DE REDACCIÓN DE METAS CREAA (DBEPA PUEBLA 2026-2027):
 2. ALINEACIÓN A LAS 3 CATEGORÍAS CREAA (SEPARACIÓN ESTRICTA DE FUENTES OFICIALES):
    - Categoría 1 (Apropiación Curricular y Trayectorias Exitosas / Académico):
      * Fuente Primaria: Formato F11C (Control Escolar). Usar obligatoriamente los promedios por asignatura (ej. Pensamiento Matemático, Lenguaje y Comunicación, Ciencias) para identificar materias con rezago y definir la meta de aprovechamiento/aprobación.
-     * Fuente de Verificación Externa: Evaluaciones diagnósticas DBEPA (EDIEMS y ESA) independientes del F11 como cortes de seguimiento (septiembre, diciembre, marzo).
+     * Fuente de Verificación Externa: Evaluaciones diagnósticas estandarizadas (EDIEMS y ESA) independientes del F11 como cortes de seguimiento (septiembre, diciembre, marzo).
    - Categoría 2 (Permanencia y Conclusión Oportuna):
      * Fuente Obligatoria: Formato 911 (911.7G / Bajas definitivas). Usar la Tasa de Abandono Escolar del 911 (${abandonoReal}%) como línea base institucional obligatoria. La meta debe comprometer la reducción del abandono mediante tutorías socioemocionales, alerta temprana en semanas 6 y 12 y vinculación comunitaria.
    - Categoría 3 (Gestión Comunitaria, Clima Escolar y PAEC):
      * Fuente Obligatoria: Formato 911 (911.7G / Egresados). Usar la Eficiencia Terminal del 911 (${eficienciaReal}%) como línea base institucional obligatoria, articulando la gestión directiva con los proyectos comunitarios PAEC y cultura de paz para asegurar la conclusión oportuna.
 
-3. CRONOGRAMA Y FECHAS OFICIALES DBEPA (Usar estas ventanas temporales en estrategias):
+3. CRONOGRAMA Y FECHAS OFICIALES INSTITUCIONALES (Usar estas ventanas temporales en estrategias):
    - 31 ago al 4 sep 2026: Diagnóstico EDIEMS y ESA inicial
    - Del 21 al 25 sep 2026: Exposición del PMC y PAEC a Supervisión Escolar
    - Del 30 nov al 4 dic 2026: Aplicación Post-Test EDIEMS y ESA (Primer corte)
@@ -243,7 +244,7 @@ Estructura de respuesta en JSON:
       "tema": "Nombre del tema",
       "diagnostico_meta": "Hallazgo específico de rezago en F11 / FODA que justifica esta meta",
       "meta": "[VERBO] + [% O CIFRA] + [POBLACIÓN] + [ESTRATEGIA] + [PERIODO Y TERRITORIO]",
-      "estrategia": "1. Acción concreta con hito de alerta temprana. 2. Acción de nivelación pedagógica. 3. Evaluación formativa vinculada al cronograma DBEPA.",
+      "estrategia": "1. Acción concreta con hito de alerta temprana. 2. Acción de nivelación pedagógica. 3. Evaluación formativa vinculada al cronograma institucional.",
       "linea_base": "Valor exacto de partida (ej. Calificación F11: ${promedioF11}, Abandono 911: ${abandonoReal}%, o Eficiencia: ${eficienciaReal}%)",
       "personal_designado": "Nombre y Cargo del responsable",
       "entregable": "Documento técnico cualitativo de evidencia",

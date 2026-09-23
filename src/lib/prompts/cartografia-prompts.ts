@@ -1,9 +1,9 @@
 /**
  * cartografia-prompts.ts
  * Generador de prompts oficiales para la Cartografía de Zona Escolar
- * SIGPDA-EMS · DBEPA Puebla MCCEMS Ciclo Escolar 2026-2027
+ * SIGPDA-EMS · MCCEMS Puebla Ciclo Escolar 2026-2027
  * 
- * Basado en las orientaciones oficiales de la DBEPA:
+ * Basado en las orientaciones oficiales de Educación Media Superior:
  * "Del PIPS a la Cartografía de Zona Escolar: Cambiar la mirada para tomar mejores decisiones de acompañamiento pedagógico"
  * 
  * Estructura oficial:
@@ -11,7 +11,7 @@
  * 2. Momento 2: Organizar (Capa Cuantitativa 911/F11 + Capa Cualitativa PAEC/PMC)
  * 3. Momento 3: Ubicar (Mapeo escuela-territorio, recursos y aliados comunitarios)
  * 4. Momento 4: Analizar (Triangulación de 4 Perspectivas: Directivos, Docentes, Alumnos/Familias, Supervisión/ATP)
- * 5. Momento 5: Decidir (Meta General CREAA + 3 Líneas de Acción Oficiales DBEPA)
+ * 5. Momento 5: Decidir (Meta General CREAA + 3 Líneas de Acción Oficiales)
  * 6. Memoria Pedagógica (¿Qué logramos?, ¿Cómo lo logramos?, ¿Qué aprendimos?)
  */
 
@@ -23,10 +23,10 @@ import type {
   CartografiaMomento5Decidir,
 } from '@/types/cartografia';
 
-export const CARTOGRAFIA_SYSTEM_PROMPT = `Eres el Asesor Técnico Pedagógico y Cartógrafo Líder de la Dirección de Bachilleratos Estatales y Preparatoria Abierta (DBEPA) de Puebla, México.
+export const CARTOGRAFIA_SYSTEM_PROMPT = `Eres el Asesor Técnico Pedagógico y Cartógrafo Líder de Educación Media Superior de Puebla, México.
 Tu misión es estructurar la Cartografía Educativa de Zona Escolar para el Ciclo Escolar 2026–2027 bajo el Modelo Educativo 2025 y el MCCEMS.
 
-PRINCIPIOS INSTITUCIONALES DE LA CARTOGRAFÍA DE ZONA (DBEPA PUEBLA):
+PRINCIPIOS INSTITUCIONALES DE LA CARTOGRAFÍA DE ZONA (MCCEMS PUEBLA):
 1. TRANSICIÓN DEL PIPS A LA CARTOGRAFÍA:
    El Plan de Intervención Pedagógica de Supervisión (PIPS) ha cumplido su ciclo por ser un recopilador estático de cifras. La Cartografía no es un nuevo trámite burocrático; es una herramienta viva de navegación territorial para comprender la realidad, acompañar a los colectivos docentes y tomar decisiones situadas y pertinentes.
 2. LOS 5 MOMENTOS OFICIALES:
@@ -34,7 +34,7 @@ PRINCIPIOS INSTITUCIONALES DE LA CARTOGRAFÍA DE ZONA (DBEPA PUEBLA):
    - Momento 2: ORGANIZAR (Capa Cuantitativa de síntomas [911.7G y F11C] + Capa Cualitativa de contexto [PAEC y PMC]).
    - Momento 3: UBICAR (Mapeo escuela-comunidad, rutas de movilidad, conectividad y aliados comunitarios).
    - Momento 4: ANALIZAR (Metodología de Triangulación: Directivos, Docentes, Alumnos/Familias y Supervisión/ATP).
-   - Momento 5: DECIDIR (Meta General CREAA + 3 Líneas de Acción Oficiales DBEPA).
+   - Momento 5: DECIDIR (Meta General CREAA + 3 Líneas de Acción Oficiales).
 3. MEMORIA PEDAGÓGICA VIVA:
    Sistematizar no el trámite administrativo, sino la transformación real respondiendo a: ¿Qué logramos?, ¿Cómo lo logramos?, y ¿Qué aprendimos?
 4. FÓRMULA SINTÁCTICA CREAA OBLIGATORIA:
@@ -184,7 +184,7 @@ Genera un objeto JSON estrictamente estructurado con las siguientes secciones:
           "Diseño e intercambio de secuencias de nivelación didáctica contextualizada en Matemáticas y Lenguaje",
           "Alineación curricular con base en los reportes post-test de diciembre 2026 y marzo 2027"
         ],
-        "recursos": ["Resultados de pruebas estandarizadas", "Fichas temáticas de formación", "Plataformas DBEPA"],
+        "recursos": ["Resultados de pruebas estandarizadas", "Fichas temáticas de formación", "Plataformas institucionales"],
         "responsables": "Supervisión Escolar, ATPs y Colegiados de Asignatura de los ${numPlanteles} planteles",
         "entregables": "Informe analítico de zona, bancos de reactivos situados y matrices de nivelación",
         "estrategiaSeguimiento": "Evaluación en sesiones de Consejo Académico y seguimiento en semanas clave del calendario oficial",
@@ -212,7 +212,7 @@ Genera un objeto JSON estrictamente estructurado con las siguientes secciones:
           "Conformación de comités de tutoría y círculos de acompañamiento socioemocional",
           "Organización del Encuentro de Ciencia, Arte y Tecnología de la Zona Escolar ${identificacion.zonaNumero}"
         ],
-        "recursos": ["Protocolos de alerta temprana DBEPA", "Convocatorias oficiales", "Directorios comunitarios"],
+        "recursos": ["Protocolos institucionales de alerta temprana", "Convocatorias oficiales", "Directorios comunitarios"],
         "responsables": "Supervisión Escolar, Asesores Técnicos, Directores y Tutores Escolares",
         "entregables": "Padrón de estudiantes en riesgo con plan de rescate individual y reporte de participación",
         "estrategiaSeguimiento": "Cortes bimestrales de retención y análisis de causas de baja",
@@ -312,7 +312,7 @@ export function buildMomento3UbicarPrompt(
 ═══════════════════════════════════════════════════════════════════════════════
 TAREA: GENERAR MOMENTO 3: UBICAR (MAPEO ESCUELA-TERRITORIO Y RECURSOS COMUNITARIOS)
 ═══════════════════════════════════════════════════════════════════════════════
-Bajo el Modelo Educativo 2025 y MCCEMS de la DBEPA Puebla, elabora el mapeo contextual y territorial de la zona.
+Bajo el Modelo Educativo 2025 y el MCCEMS Puebla, elabora el mapeo contextual y territorial de la zona.
 Genera un objeto JSON estrictamente con la siguiente estructura:
 
 {
@@ -362,7 +362,7 @@ ${contextoTerritorial}
 ═══════════════════════════════════════════════════════════════════════════════
 TAREA: GENERAR MOMENTO 4: ANALIZAR (TRIANGULACIÓN DE LAS 4 PERSPECTIVAS Y RETOS CREAA)
 ═══════════════════════════════════════════════════════════════════════════════
-Aplica la metodología de triangulación de la DBEPA Puebla contrastando la voz de los 4 actores fundamentales.
+Aplica la metodología institucional de triangulación contrastando la voz de los 4 actores fundamentales.
 Genera un objeto JSON estrictamente con la siguiente estructura:
 
 {
@@ -406,13 +406,13 @@ export function buildMomento5DecidirPrompt(
   return `${base}
 ${contextoPrevio}
 ═══════════════════════════════════════════════════════════════════════════════
-TAREA: GENERAR MOMENTO 5: DECIDIR (META GENERAL CREAA + 3 LÍNEAS DE ACCIÓN DBEPA)
+TAREA: GENERAR MOMENTO 5: DECIDIR (META GENERAL CREAA + 3 LÍNEAS DE ACCIÓN INSTITUCIONALES)
 ═══════════════════════════════════════════════════════════════════════════════
 REGLA INQUEBRANTABLE PARA LA META GENERAL DE ZONA:
 Debe cumplir estrictamente la fórmula sintáctica CREAA:
 [VERBO EN INFINITIVO] + [INDICADOR/PORCENTAJE] + [POBLACIÓN DE LA ZONA] + [ESTRATEGIA TERRITORIAL] + [PERIODO Y TERRITORIO]
 
-LAS 3 LÍNEAS DE ACCIÓN OFICIALES DE LA DBEPA PUEBLA:
+LAS 3 LÍNEAS DE ACCIÓN OFICIALES:
 - Línea 1: Acompañamiento a la autonomía docente y curricular situada
 - Línea 2: Acompañamiento directivo para la gestión participativa y clima escolar
 - Línea 3: Acompañamiento integral a las trayectorias formativas y proyectos comunitarios
@@ -436,7 +436,7 @@ Genera un objeto JSON estrictamente con la siguiente estructura:
         "Observación de aula formativa sin carácter punitivo con retroalimentación dialógica",
         "Red de intercambio pedagógico inter-bachilleratos en áreas de pensamiento lógico y comunicación"
       ],
-      "recursos": ["Fichas formativas DBEPA 2025", "Materiales digitales compartidos", "Guías de observación dialógica"],
+      "recursos": ["Fichas formativas institucionales 2025", "Materiales digitales compartidos", "Guías de observación dialógica"],
       "responsables": "Equipo de Asesores Técnicos Pedagógicos (ATP) y Academias de Zona",
       "entregables": "Portafolio digital de secuencias didácticas contextualizadas y bitácoras de diálogo pedagógico",
       "estrategiaSeguimiento": "Revisiones trimestrales en sesiones de Consejo Técnico de Zona",
@@ -450,7 +450,7 @@ Genera un objeto JSON estrictamente con la siguiente estructura:
         "Estandarización de protocolos de prevención del abandono temprano",
         "Estrategias de articulación con comités escolares de administración participativa"
       ],
-      "recursos": ["Guías de gestión directiva DBEPA", "Manual de convivencia escolar de Puebla"],
+      "recursos": ["Guías de gestión directiva institucional", "Manual de convivencia escolar de Puebla"],
       "responsables": "Supervisión Escolar y Directores de los ${momento1.planteles.length} planteles",
       "entregables": "Actas de acuerdos de Consejo Directivo y diagnóstico semestral de clima escolar",
       "estrategiaSeguimiento": "Reuniones bimensuales de seguimiento y visitas de supervisión acompañante",
@@ -497,7 +497,7 @@ ${contextoMeta}
 ═══════════════════════════════════════════════════════════════════════════════
 TAREA: GENERAR LA MEMORIA PEDAGÓGICA VIVA (CIERRE Y TRASCENDENCIA DEL CICLO)
 ═══════════════════════════════════════════════════════════════════════════════
-Sistematiza la experiencia pedagógica de la zona escolar respondiendo con rigor y sensibilidad a las tres preguntas eje de la DBEPA Puebla:
+Sistematiza la experiencia pedagógica de la zona escolar respondiendo con rigor y sensibilidad a las tres preguntas eje pedagógicas:
 ¿Qué logramos?, ¿Cómo lo logramos?, y ¿Qué aprendimos?
 
 Genera un objeto JSON estrictamente con la siguiente estructura:

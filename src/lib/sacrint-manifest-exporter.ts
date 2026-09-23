@@ -1,6 +1,6 @@
 /**
  * sacrint-manifest-exporter.ts — Exportador de Manifiesto de Curso Institucional
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · MCCEMS 2026-2027
  *
  * Genera el archivo `sacrint_course_manifest.json` estandarizado para la ingestión
  * automatizada de cursos, misiones, proyectos e instrumentos de evaluación en las
@@ -9,7 +9,7 @@
 
 import type { Planning } from '@/types/planning';
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
-import { runPedagogicalAudit, type PedagogicalAuditResult } from '@/lib/guide-engine/pedagogical-quality-gate';
+import { runPedagogicalAudit } from '@/lib/guide-engine/pedagogical-quality-gate';
 import { SCHOOL_YEAR } from '@/lib/config';
 
 export interface SacrintManifestModule {
@@ -180,7 +180,7 @@ export function exportSacrintCourseManifest(
       paecContext: planning.paecContext,
     },
     institution: {
-      authority: 'Dirección de Bachilleratos Estatales y Preparatoria Abierta (DBEPA Puebla)',
+      authority: 'Dirección de Educación Media Superior (SEMS / MCCEMS)',
       schoolName,
       cct,
       subsystem,

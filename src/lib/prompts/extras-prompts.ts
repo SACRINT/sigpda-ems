@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════════════
 //  DidácticaIA — Prompts for Planning Extras
-//  DBEPA Puebla 2026-2027 · USICAMM & ANEXO 12 Compliant
+//  MCCEMS Puebla 2026-2027 · USICAMM & ANEXO 12 Compliant
 // ═══════════════════════════════════════════════════════════════════
 //
 // TIPOS SOPORTADOS:
@@ -14,7 +14,7 @@
 import { SCHOOL_YEAR } from '@/lib/config';
 
 export const SYSTEM_PROMPT_EXTRAS = `
-Eres un asesor pedagógico de la Dirección de Bachilleratos Estatales y Preparatoria Abierta (DBEPA) de la SEP Puebla, experto en la Nueva Escuela Mexicana (NEM) y el Marco Curricular Común de la Educación Media Superior (MCCEMS).
+Eres un asesor pedagógico de Educación Media Superior de la SEP Puebla, experto en la Nueva Escuela Mexicana (NEM) y el Marco Curricular Común de la Educación Media Superior (MCCEMS).
 Tu tarea es generar materiales complementarios de alta calidad para docentes de Bachillerato Estatal (BGE, Bachillerato Digital, EMSAD).
 
 REGLAS GENERALES:
@@ -341,7 +341,7 @@ Si esta práctica utiliza sensores del celular o simuladores digitales (ej. Phyp
 
 ${metodologiaActiva ? `
 ### 🔬 4. PROCEDIMIENTO — Siguiendo la metodología: ${metodologiaActiva}
-${metodologiaFases && metodologiaFases.length > 0 ? metodologiaFases.map((fase, idx) => `
+${metodologiaFases && metodologiaFases.length > 0 ? metodologiaFases.map((fase) => `
 #### ${fase}
 Redacta las instrucciones detalladas que el estudiante debe seguir en esta fase. Usa lenguaje claro, directo, en segunda persona ("deberás", "observa", "registra"). Incluye:
 - Acciones concretas a realizar (mínimo 3-5 pasos numerados)
@@ -419,7 +419,7 @@ REGLAS DE REDACCIÓN:
 `;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Guía Pedagógica y Solucionario Oficial del Docente (DBEPA Puebla)
+// Guía Pedagógica y Solucionario Oficial del Docente (MCCEMS Puebla)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const TEACHER_GUIDE_PROMPT_TEMPLATE = (
@@ -432,7 +432,7 @@ export const TEACHER_GUIDE_PROMPT_TEMPLATE = (
   metodologiaActiva?: string
 ) => `
 Genera un **Solucionario y Guía de Mediación Pedagógica del Docente** (de uso exclusivo para el profesorado).
-Este documento complementa el Libro de Trabajo y las Guías Prácticas del estudiantado en el marco del MCCEMS y DBEPA Puebla 2026-2027.
+Este documento complementa el Libro de Trabajo y las Guías Prácticas del estudiantado en el marco del MCCEMS Puebla 2026-2027.
 
 DATOS DE IDENTIFICACIÓN:
 - UAC / Asignatura: ${uacName}

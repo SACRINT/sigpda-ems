@@ -1,6 +1,6 @@
 import { SCHOOL_YEAR } from '@/lib/config';
 
-export const PAEC_SYSTEM_PROMPT = `Actúa consistentemente como un consorcio experto en Educación Media Superior de la Nueva Escuela Mexicana (NEM) integrado por: un Formador Pedagógico NEM, un Arquitecto de Estructuras Educativas y un Estratega Curricular Transversal de Proyectos Escolares Comunitarios (PAEC-PEC ${SCHOOL_YEAR}) adscrito a la Dirección de Bachilleratos Estatales y Preparatoria Abierta (DBEPA Puebla). Tu objetivo es diseñar un Proyecto Escolar Comunitario (PEC) de nivel EXCELENCIA alineado al 100% con la Rúbrica Oficial PAEC-PEC 2025-2026.
+export const PAEC_SYSTEM_PROMPT = `Actúa consistentemente como un consorcio experto en Educación Media Superior de la Nueva Escuela Mexicana (NEM) integrado por: un Formador Pedagógico NEM, un Arquitecto de Estructuras Educativas y un Estratega Curricular Transversal de Proyectos Escolares Comunitarios (PAEC-PEC ${SCHOOL_YEAR}) adscrito al Marco Curricular Común de la Educación Media Superior (MCCEMS Puebla). Tu objetivo es diseñar un Proyecto Escolar Comunitario (PEC) de nivel EXCELENCIA alineado al 100% con la Rúbrica Oficial PAEC-PEC 2025-2026.
 
 Reglas Críticas de Operación:
 1. Fidelidad Estructural: Conserva de forma estricta los títulos, estructuras y claves del JSON solicitado.
@@ -38,7 +38,7 @@ ${communityContext}
 Información y Diagnóstico del Plantel Escolar:
 ${schoolContext}
 
-DIRECTRICES OBLIGATORIAS DE EXCELENCIA (RÚBRICA DBEPA):
+DIRECTRICES OBLIGATORIAS DE EXCELENCIA (RÚBRICA MCCEMS):
 1. DATOS DUROS OBLIGATORIOS: Emplea nombres reales de la localidad, cifras demográficas precisas (número de habitantes, porcentajes de población ocupada, niveles de escolaridad), indicadores educativos (matrícula exacta, porcentaje de reprobación, deserción escolar, estilos de aprendizaje predominantes) y servicios disponibles. Prohibido redactar generalidades abstractas.
 2. ESTRATEGIA MAESTRA DE CRUCE ADAPTATIVO EN FODA: En la Tabla 3, el análisis de cada cuadrante debe formular cruces estratégicos directos:
    - Fortalezas (F): Cruce de fortalezas internas de la escuela con oportunidades del entorno para impulsar el PEC.
@@ -101,7 +101,7 @@ Síntesis de la Fase I (Diagnóstico Comunitario y Escolar):
 ${diagnosticoSummary}
 
 DIRECTRICES OBLIGATORIAS:
-1. JUSTIFICACIÓN TÉCNICA CON LOS 4 CRITERIOS OBLIGATORIOS DE LA DBEPA:
+1. JUSTIFICACIÓN TÉCNICA CON LOS 4 CRITERIOS OBLIGATORIOS DEL MCCEMS:
    La propiedad "introduction" debe redactar una justificación rigurosa organizada en 4 apartados claramente identificables:
    a) MAGNITUD: Dimensión física, territorial y humana del problema; porcentaje y número estimado de habitantes/familias afectadas.
    b) INTERÉS: Razones por las cuales el problema moviliza genuinamente la vocación de estudiantes, docentes y padres de familia.
@@ -164,7 +164,7 @@ export function buildPrompt3Mapeo(
     .map((u) => `- Semestre ${u.semester}: ${u.uac_name}`)
     .join('\n');
 
-  return `Realiza la Matriz de Mapeo Curricular y Transversalidad del PEC para TODAS las asignaturas activas en el Ciclo Escolar ${SCHOOL_YEAR} (DBEPA Puebla).
+  return `Realiza la Matriz de Mapeo Curricular y Transversalidad del PEC para TODAS las asignaturas activas en el Ciclo Escolar ${SCHOOL_YEAR} (MCCEMS Puebla).
 
 Contexto y Fundamentación del Proyecto:
 ${justificacionText}
@@ -172,7 +172,7 @@ ${justificacionText}
 Asignaturas a Mapear OBLIGATORIAMENTE (Catálogo del Plantel):
 ${listText}
 
-REGLAS DE ORO CURRICULARES (NOM-MCCEMS / RÚBRICA DBEPA):
+REGLAS DE ORO CURRICULARES (NOM-MCCEMS):
 1. COBERTURA DEL 100% DE ASIGNATURAS: Debes generar exactamente UNA fila para CADA UNA de las ${uacs.length} asignaturas listadas. Está estrictamente prohibido omitir materias o agruparlas en un solo registro.
 2. NOMENCLATURA NORMATIVA OFICIAL:
    - Para Semestres 1, 2, 3 y 4: Cita obligatoriamente "Propósito Formativo [N]: [descripción concreta]" y "Contenidos: [temas]". (PROHIBIDO usar la palabra "Progresión" en semestres 1 al 4).
@@ -206,7 +206,7 @@ export function buildPrompt4Cronograma(
     relevosText = `Ciclo Anual Completo (Fases 1 a 6 de Septiembre a Junio integrando 1.° a 6.° semestre de manera continua).`;
   }
 
-  return `Diseña la tabla oficial de "Diseño General: Fases de Implementación del PEC" en 6 Fases Bimestrales para el Ciclo Escolar ${SCHOOL_YEAR} bajo el estándar estricto de 5 COLUMNAS de la Rúbrica DBEPA / COSFAC.
+  return `Diseña la tabla oficial de "Diseño General: Fases de Implementación del PEC" en 6 Fases Bimestrales para el Ciclo Escolar ${SCHOOL_YEAR} bajo el estándar estricto de 5 COLUMNAS de la Rúbrica Oficial MCCEMS / COSFAC.
 
 Mapeo Curricular de Referencia:
 ${mapeoSummary}
@@ -245,7 +245,7 @@ export function buildPrompt5DetalleCurricular(
   cronogramaSummary: string,
   cycleType: string
 ): string {
-  return `Diseña la "Matriz de Detalle Curricular por Semestre" del PEC para el Ciclo Escolar ${SCHOOL_YEAR} conforme al Manual de Arquitectura de Sistema DBEPA / COSFAC.
+  return `Diseña la "Matriz de Detalle Curricular por Semestre" del PEC para el Ciclo Escolar ${SCHOOL_YEAR} conforme al Manual de Arquitectura de Sistema MCCEMS / COSFAC.
 
 Mapeo Curricular Aprobado:
 ${mapeoSummary}
@@ -312,7 +312,7 @@ ${cronogramaSummary}
 Detalle Curricular de Referencia:
 ${detalleCurricularSummary}
 
-DIRECTRICES OPERATIVAS DE EXCELENCIA (RÚBRICA DBEPA CRITERIO 15):
+DIRECTRICES OPERATIVAS DE EXCELENCIA (RÚBRICA MCCEMS CRITERIO 15):
 1. ESTRUCTURA OFICIAL DE 8 COLUMNAS:
    - phase: Fase 1, Fase 2 o Fase 3.
    - activity: Actividad práctica, situada y formativa con metodologías activas (ABP, ApS, STEAM, Design Thinking).
@@ -380,7 +380,7 @@ ${cronogramaSummary}
 Detalle Curricular de Referencia:
 ${detalleCurricularSummary}
 
-DIRECTRICES OPERATIVAS DE EXCELENCIA (RÚBRICA DBEPA CRITERIO 15):
+DIRECTRICES OPERATIVAS DE EXCELENCIA (RÚBRICA MCCEMS CRITERIO 15):
 1. ESTRUCTURA OFICIAL DE 8 COLUMNAS:
    - phase: Fase 4, Fase 5 o Fase 6.
    - activity: Despliegue territorial, instalación en la comunidad, pruebas de funcionamiento, campañas de concientización y evaluación de impacto.
@@ -417,7 +417,7 @@ export function buildPrompt8ImplementacionYAnexos(
   planASummary: string,
   planBSummary: string
 ): string {
-  return `Genera el SISTEMA INTEGRAL DE IMPLEMENTACIÓN TERRITORIAL, OFICIOS Y PORTAFOLIO DE 6 ANEXOS TÉCNICOS del PEC (Ciclo Escolar ${SCHOOL_YEAR}) conforme a los Criterios 18 a 23 de la Rúbrica Oficial DBEPA / COSFAC.
+  return `Genera el SISTEMA INTEGRAL DE IMPLEMENTACIÓN TERRITORIAL, OFICIOS Y PORTAFOLIO DE 6 ANEXOS TÉCNICOS del PEC (Ciclo Escolar ${SCHOOL_YEAR}) conforme a los Criterios 18 a 23 de la Rúbrica Oficial MCCEMS / COSFAC.
 
 Datos y Fundamentación del Proyecto:
 ${projectSummary}
@@ -625,7 +625,7 @@ export function buildPrompt9GobernanzaEInformeSupervision(
   planBSummary: string,
   implementacionSummary: string
 ): string {
-  return `Genera la FASE IV: GOBERNANZA ESCOLAR E INFORME FINAL DE RENDICIÓN DE CUENTAS del PEC (Ciclo Escolar ${SCHOOL_YEAR}) para la Supervisión Escolar 004 y la Dirección General (DBEPA Puebla).
+  return `Genera la FASE IV: GOBERNANZA ESCOLAR E INFORME FINAL DE RENDICIÓN DE CUENTAS del PEC (Ciclo Escolar ${SCHOOL_YEAR}) para la Supervisión Escolar 004 y la Dirección de Educación Media Superior (SEMS Puebla).
 
 Datos del Proyecto:
 ${projectSummary}

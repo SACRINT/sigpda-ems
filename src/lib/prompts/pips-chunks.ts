@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/lib/prompts/pips-chunks.ts
 
 import { SCHOOL_YEAR } from '@/lib/config';
@@ -66,7 +67,7 @@ Menciona la fundamentación normativa aplicable a la supervisión escolar.
 **IMPORTANTE:** SÓLO enlista los nombres de las Leyes, Reglamentos, Acuerdos, Lineamientos, etc., y los números de los artículos aplicables (ej. Artículo 3°). **NO incluyas el texto completo de los artículos** en el documento. Apóyate en el contexto normativo proveído:
 - Constitución Política de los Estados Unidos Mexicanos.
 - Ley General de Educación (LGE) y Ley de Educación del Estado de Puebla.
-- Lineamientos específicos de la DBEPA para la elaboración del PIPS.
+- Lineamientos específicos institucionales de Educación Media Superior para la elaboración del PIPS.
 
 # 3. REFLEXIÓN SOBRE EL PIPS DEL CICLO ANTERIOR (2024-2025)
 - **Qué contenía el PIPS anterior:** Describe de forma crítica qué estructura y alcances tuvo.
@@ -129,9 +130,9 @@ ${chunk1And2Result.slice(-3000)}
 - **Líneas de Acción y Estrategias:** Describe las estrategias concretas del equipo de supervisión (ej. visitas in situ focalizadas a planteles prioritarios, talleres de alineación de progresiones NEM).
 - **Cronograma de Actividades Anclado al PAT ${SCHOOL_YEAR} (Tentativo):**
   * Presenta la proyección de actividades y entregables oficiales en los meses clave del ciclo escolar:
-    - Octubre 2026: Elaboración final y entrega del PIPS a la DBEPA.
+    - Octubre 2026: Elaboración final y entrega del PIPS a la Dirección de Educación Media Superior.
     - Noviembre 2026: Primera evidencia de Cultura de Paz y primer reporte de visita técnica de ATPs.
-    - Febrero 2027: Reporte intermedio de Avances del PIPS a la DBEPA.
+    - Febrero 2027: Reporte intermedio de Avances del PIPS a la Dirección de Educación Media Superior.
     - Mayo 2027: Segunda evidencia de Cultura de Paz y visitas de seguimiento.
     - Junio/Julio 2027: Entrega de Reporte de Resultados y Reporte Final del PIPS.
   * Nota importante aclaratoria sobre la provisionalidad del PAT ${SCHOOL_YEAR} hasta la publicación oficial.
@@ -139,11 +140,11 @@ ${chunk1And2Result.slice(-3000)}
 # 8. SEGUIMIENTO, ACOMPAÑAMIENTO Y EVALUACIÓN DEL PLAN
 - **Mecanismos de Acompañamiento:** Instrumentos (bitácoras de visita, rúbricas de alineación).
 - **Evaluación del Plan de Intervención:** Indicadores cuantitativos globales de éxito para medir el impacto de la intervención en la zona escolar.
-- **Retroalimentación Externa:** Estrategia formal de solicitud de dictamen a la DBEPA.
+- **Retroalimentación Externa:** Estrategia formal de solicitud de dictamen a las autoridades educativas.
 
 # 9. RECURSOS Y FUENTES DE REFERENCIA
 - Describe los recursos materiales y humanos con los que cuenta la supervisión (ATP, viáticos, tecnologías).
-- Fuentes de consulta formales en formato APA 7ª edición (incluyendo la Constitución Mexicana, la Guía PIPS DBEPA y las planeaciones de la zona escolar).
+- Fuentes de consulta formales en formato APA 7ª edición (incluyendo la Constitución Mexicana, los Lineamientos del PIPS y las planeaciones de la zona escolar).
 
 Redacta de manera institucional y formal. Devuelve únicamente el Markdown de esta sección final.`;
 }

@@ -336,7 +336,7 @@ o convertirlas en explicación expositiva pasiva.
     estrategiasBlock = `
 ═══════════ REPERTORIO DE ESTRATEGIAS DIDÁCTICAS RECOMENDADAS ═══════════
 Selecciona e integra estas estrategias en la Sección IV según el momento didáctico.
-Cada una incluye una Garantía Dual Offline para contextos sin conectividad (DBEPA).
+Cada una incluye una Garantía Dual Offline para contextos sin conectividad (MCCEMS).
 
 • FASE DE APERTURA:
 ${estApertura}
@@ -350,7 +350,7 @@ ${estCierre}
   }
 
   // ── Prompt Completo ────────────────────────────────────────────────────────
-  return `Genera una Planeación Didáctica completa y de nivel EXCELENCIA en formato oficial DBEPA ${SCHOOL_YEAR} para:
+  return `Genera una Planeación Didáctica completa y de nivel EXCELENCIA en formato oficial MCCEMS ${SCHOOL_YEAR} para:
 ${ragBlock}
 ═══════════ DATOS DE LA UAC (PROGRAMA OFICIAL AUTÉNTICO) ═══════════
 UAC: ${extractedData.uacName}
