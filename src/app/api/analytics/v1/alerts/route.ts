@@ -1,7 +1,7 @@
 /**
  * src/app/api/analytics/v1/alerts/route.ts
  * Endpoint REST v1 para gestión y consulta de Alertas Pedagógicas Zonal (Fase 5)
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  */
 
 import { NextRequest, NextResponse } from 'next/server';

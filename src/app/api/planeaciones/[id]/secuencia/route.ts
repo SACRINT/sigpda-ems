@@ -245,7 +245,7 @@ export async function POST(
     const conclusionProcesses = blockActivity.conclusion?.processes || '';
     const conclusionMaterials = blockActivity.conclusion?.materials || '';
 
-    const systemPrompt = `Eres un Diseñador Curricular Senior y Especialista en Didáctica del Bachillerato General Estatal (DBEPA Puebla / MCCEMS).
+    const systemPrompt = `Eres un Diseñador Curricular Senior y Especialista en Didáctica del Bachillerato General Estatal (SEMS Puebla / MCCEMS).
 Tu tarea es generar la SECUENCIA DIDÁCTICA MICRO detallada para cada una de las ${sessionsCount} sesiones de 50 minutos del Bloque/Actividad ${blockIndex + 1}.
 
 DIRECTRIZ DE ALINEACIÓN PEDAGÓGICA FUNDAMENTAL:
@@ -540,7 +540,7 @@ export async function PUT(
       if (!validation.isApproved) {
         return NextResponse.json(
           {
-            error: 'El Reto Situado no cumple con los 4 criterios de calidad pedagógica DBEPA',
+            error: 'El Reto Situado no cumple con los 4 criterios de calidad pedagógica MCCEMS',
             score: validation.score,
             feedback: validation.feedback,
           },

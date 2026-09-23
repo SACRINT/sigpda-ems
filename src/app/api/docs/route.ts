@@ -7,7 +7,7 @@ export const OPENAPI_SPEC = {
   info: {
     title: 'SIGPDA-EMS API Documentation',
     version: '2026-2027',
-    description: 'Especificación Oficial OpenAPI 3.1 para el Sistema de Información y Gestión Pedagógica de Media Superior (DBEPA Puebla). Incluye ciclo de vida micro de secuencias didácticas, calidad pedagógica y catálogos MCCEMS.',
+    description: 'Especificación Oficial OpenAPI 3.1 para el Sistema de Información y Gestión Pedagógica de Media Superior (SEMS Puebla). Incluye ciclo de vida micro de secuencias didácticas, calidad pedagógica y catálogos MCCEMS.',
   },
   servers: [
     {

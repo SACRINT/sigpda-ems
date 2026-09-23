@@ -1,7 +1,7 @@
 /**
  * src/app/api/analytics/v1/school/[schoolId]/route.ts
  * Endpoint REST v1 para detalle y drill-down analítico de un Plantel Escolar (Fase 5)
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  */
 
 import { NextRequest, NextResponse } from 'next/server';

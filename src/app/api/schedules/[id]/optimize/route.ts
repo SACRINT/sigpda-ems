@@ -55,7 +55,7 @@ export async function POST(
     // Análisis Pedagógico con IA mediante ai-provider
     let aiSuggestions: any[] = [];
     if (aiFeedback) {
-      const systemPrompt = `Eres un asesor experto en gestión y organización escolar de Educación Media Superior (DBEPA Puebla). Tu tarea es evaluar una plantilla de horarios y emitir diagnósticos y recomendaciones de optimización pedagógica para directores. Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
+      const systemPrompt = `Eres un asesor experto en gestión y organización escolar de Educación Media Superior (SEMS Puebla / MCCEMS). Tu tarea es evaluar una plantilla de horarios y emitir diagnósticos y recomendaciones de optimización pedagógica para directores. Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
 {
   "diagnostico_general": "string",
   "score_balance": number (0-100),

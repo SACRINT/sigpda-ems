@@ -1,7 +1,7 @@
 /**
  * src/app/api/analytics/v1/stream/route.ts
  * Streaming Server-Sent Events (SSE) nativo para actualización en tiempo real (Fase 5)
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  */
 
 import { NextRequest } from 'next/server';

@@ -144,7 +144,7 @@ export async function POST(
     const libraryContext = await getUserLibraryContext(session.user.email!);
 
     // NOTA: La normativa oficial NO se inyecta en planeaciones didácticas de aula.
-    // Decisión de diseño DBEPA: solo PMC y PIPS llevan fundamentación jurídica.
+    // Decisión de diseño institucional: solo PMC y PIPS llevan fundamentación jurídica.
 
     let fullUserPrompt = userPrompt;
     if (libraryContext) {
@@ -191,7 +191,7 @@ export async function POST(
 
             await updatePlanningContent(id, teacher.id, parsedContent);
 
-            // Evaluación automática mediante el pipeline determinista de calidad DBEPA
+            // Evaluación automática mediante el pipeline determinista de calidad MCCEMS
             try {
               const qualityReport = evaluatePlanningQuality({
                 uacName: planning.uac_name || extractedData.uacName,

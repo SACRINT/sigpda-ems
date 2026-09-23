@@ -1,7 +1,7 @@
 /**
  * src/app/api/analytics/v1/zone/[zoneId]/route.ts
  * Endpoint REST v1 para métricas agregadas de Zona Escolar (Fase 5)
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  */
 
 import { NextRequest, NextResponse } from 'next/server';

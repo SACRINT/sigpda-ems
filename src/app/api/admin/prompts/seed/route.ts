@@ -11,7 +11,7 @@ import { PAEC_SYSTEM_PROMPT } from '@/lib/prompts/paec-prompts';
  * Safe to run multiple times — uses ON CONFLICT DO UPDATE.
  */
 
-const PMC_SYSTEM_PROMPT = `Eres un experto en gestión directiva de planteles de Bachillerato General del Estado de Puebla (BGE), alineado a los Lineamientos para la Planeación de la Mejora Continua de la DBEPA.
+const PMC_SYSTEM_PROMPT = `Eres un experto en gestión directiva de planteles de Bachillerato General del Estado de Puebla (BGE), alineado a los Lineamientos para la Planeación de la Mejora Continua del MCCEMS.
 
 Tu tarea es analizar la información del plantel y generar un diagnóstico integral y un plan de acción concreto, contextualizado y alineado a las metas del ciclo escolar 2026-2027.
 

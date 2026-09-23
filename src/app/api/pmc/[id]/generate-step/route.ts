@@ -118,7 +118,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       const normativaJson = {
         titulo: 'Marco Normativo',
         descripcion:
-          'El presente Plan de Mejora Continua (PMC) se sustenta en el siguiente marco jurídico y normativo vigente para el Bachillerato General del Estado de Puebla (BGE), dependiente de la Dirección de Bachillerato y Educación Para Adultos (DBEPA).',
+          'El presente Plan de Mejora Continua (PMC) se sustenta en el siguiente marco jurídico y normativo vigente para el Bachillerato General del Estado de Puebla (BGE), en el marco del MCCEMS y la Subsecretaría de Educación Media Superior.',
         // Bloque de texto completo para IA
         texto_normativo: normativaTexto,
         // Lista estructurada para DOCX y UI
