@@ -22,7 +22,6 @@ import { logger } from './logger';
 import type {
   PaecProject,
   TableRow2Cols,
-  FODARow,
   MapeoRow,
   CronogramaRow,
   DetalleCurricularRow,
@@ -35,15 +34,12 @@ import { parseFodaData } from './paec-docx-generator';
 // Paleta Institucional DBEPA / SEP Puebla
 const NAVY: [number, number, number]       = [31, 56, 100];   // #1F3864 - Azul Marino Institucional DBEPA
 const BLUE_MID: [number, number, number]   = [46, 116, 181];  // #2E74B5 - Azul Medio Secundario
-const BLUE_LIGHT: [number, number, number] = [220, 228, 245]; // #DCE4F5 - Encabezados Suaves
 const GOLD_LINE: [number, number, number]  = [232, 160, 32];  // #E8A020 - Dorado Oficial SEP
 const GOLD_LIGHT: [number, number, number] = [254, 243, 199]; // #FEF3C7 - Resaltado Semana 16
 const GRAY_BG: [number, number, number]    = [242, 244, 248]; // #F2F4F8 - Fondo Alternado
 const TEXT_DARK: [number, number, number]  = [30, 41, 59];    // #1E293B - Texto Primario
 const TEXT_MUTED: [number, number, number] = [100, 116, 139]; // #64748B - Texto Secundario
 const GREEN_BG: [number, number, number]   = [236, 253, 245]; // Cumple
-const YELLOW_BG: [number, number, number]  = [255, 251, 235]; // Regular
-const RED_BG: [number, number, number]     = [254, 242, 242]; // Deficiente
 
 function safeStr(val: unknown, fallback = 'Sin información registrada'): string {
   if (val === null || val === undefined) return fallback;
