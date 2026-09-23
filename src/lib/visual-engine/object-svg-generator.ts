@@ -1,6 +1,6 @@
 /**
  * object-svg-generator.ts — Generador de Esquemas Vectoriales Técnicos Blueprint V7
- * DBEPA Puebla · Marco Curricular Común EMS 2026-2027
+ * SEMS Puebla · Marco Curricular Común EMS 2026-2027
  *
  * Produce siluetas y esquemas vectoriales precisos de instrumental y equipamiento:
  * - Estilo Blueprint Técnico de manual de ingeniería y laboratorio

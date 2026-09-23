@@ -1,6 +1,6 @@
 /**
  * object-extractor.ts — Extractor Híbrido de Instrumental, Herramientas y Equipo Técnico V7
- * DBEPA Puebla · Marco Curricular Común EMS 2026-2027
+ * SEMS Puebla · Marco Curricular Común EMS 2026-2027
  *
  * Coordina:
  * 1. Catálogo modular distribuido en 9 Familias Tecnológicas oficiales (160+ instrumentos).

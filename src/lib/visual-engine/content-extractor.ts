@@ -1,6 +1,6 @@
 /**
  * content-extractor.ts — Extractor de Contenido Determinista para Infografías y Esquemas SVG
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Módulo de la Fase V3:
  * Procesa el texto didáctico de la misión (coreExplanation + story + demo + guidedPractice + etc.)

@@ -1,6 +1,6 @@
 /**
  * stem-generator.ts — Generador de Recursos Gráficos Vectoriales STEM (Capa 0)
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Generación determinística en SVG puro ($0.00 USD, 0 tokens) para:
  * 1. Plano Cartesiano graduado con cuadrícula milimétrica.

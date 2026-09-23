@@ -1,6 +1,6 @@
 /**
  * types.ts — Tipos del Catálogo Modular de Instrumental Curricular V7
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  */
 
 export type EquipmentCategory =

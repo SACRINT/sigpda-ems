@@ -1,6 +1,6 @@
 /**
  * pdf-components.ts — Barrel de Re-exportación de Componentes Editoriales SIGPDA-EMS V7
- * DBEPA Puebla MCCEMS 2026-2027
+ * SEMS Puebla MCCEMS 2026-2027
  *
  * Mantiene retrocompatibilidad del 100% re-exportando los dos módulos especializados:
  * - pdf-components-core: Elementos estructurales, tablas, banners, ribbons, headers y footers.

@@ -60,7 +60,7 @@ function formatLicenseLabel(license: string, version?: string): string {
 }
 
 /**
- * Genera el pie de figura institucional y legal conforme a la normativa de la DBEPA
+ * Genera el pie de figura institucional y legal conforme a la normativa institucional
  */
 export function buildInstitutionalCaption(
   title: string,

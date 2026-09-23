@@ -1,6 +1,6 @@
 /**
  * index.ts — Catálogo Maestro Unificado de Instrumental Técnico Curricular V7
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Agrupa las 9 Familias Tecnológicas oficiales y provee utilidades de búsqueda y filtro:
  * - electronica_mecatronica

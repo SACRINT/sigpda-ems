@@ -1,6 +1,6 @@
 /**
  * humanities-generator.ts — Generador de Recursos Gráficos Vectoriales para Humanidades y Ciencias Sociales
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Generación determinística en SVG puro ($0.00 USD, 0 tokens) para:
  * 1. Línea de Tiempo Histórica (generateTimeline) con alternancia arriba/abajo.
@@ -52,7 +52,7 @@ export interface HumanitiesVisualOptions {
   unit?: string;
 }
 
-// ── Paleta Institucional DBEPA Humanidades y Ciencias Sociales ────────────────
+// ── Paleta Institucional MCCEMS Humanidades y Ciencias Sociales ────────────────
 const COLOR_NAVY = '#1f3864';
 const COLOR_MID_BLUE = '#2563eb';
 const COLOR_AMBER = '#d97706';

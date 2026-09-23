@@ -1,6 +1,6 @@
 /**
  * visual-dispatcher.ts — Enrutador y Despachador de Recursos Visuales
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Analiza la UAC, el tema/título y el contexto de la misión para suministrar
  * el gráfico determinístico adecuado.

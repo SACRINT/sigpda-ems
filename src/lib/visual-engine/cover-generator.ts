@@ -1,13 +1,13 @@
 /**
  * cover-generator.ts — Generador de Portadas Editoriales y Contraportadas Institucionales
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Módulo de la Fase V2:
  * 1. Portada Editorial Personalizada:
  *    - Capa Generativa: FLUX.1-schnell (Together AI serverless) para generar fondo abstracto editorial.
  *      Superposición tipográfica nítida mediante sharp.composite() (sin quemar texto en el modelo generativo).
  *    - Capa 0 Fallback Determinista: Generación vectorial SVG matemática completa (1200x1600px a 300 DPI)
- *      con paleta institucional DBEPA (#1F3864, #2E74B5, #800020, #E8A020).
+ *      con paleta institucional MCCEMS (#1F3864, #2E74B5, #800020, #E8A020).
  *    - Degradación Silenciosa: Si no existe FLUX_API_KEY o falla la red, conmuta a Capa 0 sin errores.
  * 2. Contraportada Institucional con Trazabilidad:
  *    - Ficha de acreditación del plantel, CCT, subsistema, docente y proyecto PAEC.

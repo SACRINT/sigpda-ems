@@ -1,6 +1,6 @@
 /**
  * svg-to-png.ts — Convertidor de SVG Vectorial a Buffer PNG de Alta Resolución
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Utiliza sharp para rasterizar SVGs vectoriales a 300 DPI asegurando nitidez
  * editorial de imprenta al incrustarse en jsPDF.

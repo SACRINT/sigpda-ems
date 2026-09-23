@@ -1,6 +1,6 @@
 /**
  * font-loader.ts — Cargador y Gestor Tipográfico Editorial SIGPDA-EMS V7
- * DBEPA Puebla MCCEMS 2026-2027
+ * SEMS Puebla MCCEMS 2026-2027
  *
  * Embebe las fuentes tipográficas del sistema editorial en instancias de jsPDF:
  * - Montserrat-Bold: Encabezados mayores (H1, H2, banners de misión, títulos).

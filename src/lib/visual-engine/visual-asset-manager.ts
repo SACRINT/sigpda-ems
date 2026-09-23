@@ -1,6 +1,6 @@
 /**
  * visual-asset-manager.ts — Gestor Unificado de Activos Visuales (Capa 0 y Capa 1)
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Coordina:
  * 1. Capa 0: Generación vectorial sintética determinística (SVG sin texto).

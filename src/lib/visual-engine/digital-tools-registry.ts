@@ -1,6 +1,6 @@
 /**
  * digital-tools-registry.ts — Catálogo Maestro y Motor de Herramientas Digitales MCCEMS
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Capa de integración digital para el Cuaderno de Trabajo Activo:
  * 1. Catálogo homologado de 12 simuladores y herramientas digitales normadas en el MCCEMS.

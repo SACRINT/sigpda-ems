@@ -1,6 +1,6 @@
 /**
  * pdf-components-widgets.ts — Widgets Pedagógicos y de Sidebar V7
- * DBEPA Puebla MCCEMS 2026-2027
+ * SEMS Puebla MCCEMS 2026-2027
  *
  * Capa 4B de la Arquitectura Editorial:
  * - Evaluación diagnóstica de saberes previos situada

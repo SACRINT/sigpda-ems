@@ -1,6 +1,6 @@
 /**
  * diseno-grafico.ts — Familia Tecnológica: Diseño Gráfico, Dibujo Técnico y Construcción
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  */
 
 import type { CatalogItem } from './types';

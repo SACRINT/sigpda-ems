@@ -1,6 +1,6 @@
 /**
  * column-flow-manager.ts — Motor de Flujo de Columnas y Sidebar Rotativo V7
- * DBEPA Puebla MCCEMS 2026-2027
+ * SEMS Puebla MCCEMS 2026-2027
  *
  * Capa 5 de la Arquitectura Editorial:
  * 1. Gestiona el flujo continuo de la columna principal (68%) y el sidebar (28%).

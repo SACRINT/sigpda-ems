@@ -1,6 +1,6 @@
 /**
  * thematic-backgrounds.ts — Fondos Vectoriales Temáticos de Alta Definición V7
- * DBEPA Puebla · Marco Curricular Común EMS 2026-2027
+ * SEMS Puebla · Marco Curricular Común EMS 2026-2027
  *
  * Genera composiciones vectoriales matemáticas ricas y elegantes para cada una
  * de las 6 grandes áreas curriculares del MCCEMS:

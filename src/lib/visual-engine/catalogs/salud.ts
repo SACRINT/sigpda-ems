@@ -1,6 +1,6 @@
 /**
  * salud.ts — Familia Tecnológica: Salud, Clínica y Asistencia Médica
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  */
 
 import type { CatalogItem } from './types';

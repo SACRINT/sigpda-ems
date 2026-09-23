@@ -1,6 +1,6 @@
 /**
  * laboral-generator.ts — Generador de Recursos Gráficos Vectoriales para Formación para el Trabajo y Bachillerato Tecnológico
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Generación determinística en SVG puro ($0.00 USD, 0 tokens) para:
  * 1. Diagrama de Procedimiento y Flujo Técnico Operativo (generateTechnicalFlow).
@@ -50,7 +50,7 @@ export interface LaboralVisualOptions {
   totalWeeks?: number;
 }
 
-// ── Paleta Institucional Técnica DBEPA ───────────────────────────────────────
+// ── Paleta Institucional Técnica MCCEMS ───────────────────────────────────────
 const COLOR_NAVY = '#1f3864';
 const COLOR_BLUE = '#2563eb';
 const COLOR_CYAN = '#0284c7';

@@ -1,6 +1,6 @@
 /**
  * design-tokens.ts -- Single Source of Truth del Sistema Editorial SIGPDA-EMS V7
- * DBEPA Puebla MCCEMS 2026-2027
+ * SEMS Puebla MCCEMS 2026-2027
  *
  * REGLA: Ningun numero magico en el renderer.
  * Todos los valores del sistema visual viven aqui.
@@ -178,7 +178,7 @@ export const COLOR = {
   GOLD:             [245, 158,  11] as RGB,
   GOLD_LIGHT:       [254, 243, 199] as RGB,
 
-  // Colores de Fase de Sesión Institucionales (reutilizados del planificador DBEPA)
+  // Colores de Fase de Sesión Institucionales (reutilizados del planificador MCCEMS)
   PHASE_APERTURA:   [27, 107, 138] as RGB, // #1B6B8A (Apertura / Modelado)
   PHASE_EJECUCION:  [27, 107,  58] as RGB, // #1B6B3A (Desarrollo / Práctica)
   PHASE_DESARROLLO: [27, 107,  58] as RGB, // #1B6B3A (Desarrollo / Ejecución - alias)

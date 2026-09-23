@@ -1,6 +1,6 @@
 /**
  * pdf-components-core.ts — Componentes Estructurales y de Maquetación V7
- * DBEPA Puebla MCCEMS 2026-2027
+ * SEMS Puebla MCCEMS 2026-2027
  *
  * Capa 4A de la Arquitectura Editorial:
  * - Sanitización y guardianes de ancho de texto

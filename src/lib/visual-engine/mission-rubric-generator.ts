@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * mission-rubric-generator.ts — Generador de Rúbricas Analíticas Situadas por Misión V7
- * DBEPA Puebla · Marco Curricular Común de la EMS 2026-2027
+ * SEMS Puebla · Marco Curricular Común de la EMS 2026-2027
  *
  * Genera y dibuja instrumentos de evaluación formativa analítica adaptados a cada misión:
  * - 4 Criterios con ponderación oficial MCCEMS (Concepto 30%, Taller/NOM 30%, PAEC 25%, Metacognición 15%)
