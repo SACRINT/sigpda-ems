@@ -22,14 +22,14 @@ export function generateQuickActions(contexto: ContextoAsistente): AccionSugerid
         {
           id: "plan-reto-situado",
           titulo: "Formular Reto Situado 4/4",
-          prompt: "Ayúdame a formular un Reto Situado con los 4 componentes oficiales de DBEPA: contexto territorial, problema auténtico, acción cognitiva de orden superior y producto tangible.",
+          prompt: "Ayúdame a formular un Reto Situado con los 4 componentes oficiales del MCCEMS: contexto territorial, problema auténtico, acción cognitiva de orden superior y producto tangible.",
           categoria: "redaccion",
           campoObjetivo: "retoSituado",
         },
         {
           id: "generar-reto-situado",
           titulo: "Generar Reto Situado",
-          prompt: "Genera una propuesta contextualizada de Reto Situado bajo la normativa DBEPA Puebla.",
+          prompt: "Genera una propuesta contextualizada de Reto Situado bajo la normativa MCCEMS Puebla.",
           categoria: "redaccion",
           campoObjetivo: "retoSituado",
         },
@@ -50,7 +50,7 @@ export function generateQuickActions(contexto: ContextoAsistente): AccionSugerid
         {
           id: "coherencia-metodologica",
           titulo: "Coherencia Metodológica",
-          prompt: "Verifica que la secuencia didáctica sea coherente con la metodología activa seleccionada y los tiempos DBEPA.",
+          prompt: "Verifica que la secuencia didáctica sea coherente con la metodología activa seleccionada y los tiempos curriculares.",
           categoria: "evaluacion",
         },
         {
@@ -85,7 +85,7 @@ export function generateQuickActions(contexto: ContextoAsistente): AccionSugerid
         {
           id: "paec-mifo",
           titulo: "Formular Propósito MIFO",
-          prompt: "Ayúdame a redactar el Propósito Integral del Proyecto considerando los criterios de pertinencia territorial MIFO / DBEPA.",
+          prompt: "Ayúdame a redactar el Propósito Integral del Proyecto considerando los criterios de pertinencia territorial MIFO / MCCEMS.",
           categoria: "redaccion",
         }
       );
@@ -164,7 +164,7 @@ export function generateQuickActions(contexto: ContextoAsistente): AccionSugerid
       rawActions.push(
         {
           id: "gen-normativa",
-          titulo: "Normativa DBEPA Puebla 2026-2027",
+          titulo: "Normativa MCCEMS Puebla 2026-2027",
           prompt: "¿Cuáles son las directrices pedagógicas fundamentales del ciclo escolar actual?",
           categoria: "normativa",
         },
@@ -213,7 +213,7 @@ DATOS DE LA UAC / MEDIA SUPERIOR:
 
   return `Eres el Asistente Pedagógico Contextual Universal (SAPCU) de SACRINT Systems IA.
 Tu misión es asistir a docentes, directores y supervisores educativos con rigor metodológico, empatía y apego estricto a las normas pedagógicas oficiales.
-Marco normativo de referencia: MCCEMS y DBEPA Puebla 2026-2027.
+Marco normativo de referencia: MCCEMS Puebla 2026-2027.
 
 CONTEXTO EDUCATIVO ACTUAL:
 - Nivel Educativo: ${nivelDesc}
@@ -225,7 +225,7 @@ CONTEXTO EDUCATIVO ACTUAL:
 ${detallesEspecificos}
 
 CRITERIOS NORMATIVOS QUE DEBES APLICAR:
-1. Reto Situado 4/4 (DBEPA Puebla): Debe integrar 1) Contexto territorial real, 2) Problema auténtico del entorno, 3) Acción cognitiva de orden superior (Bloom/Marzano), y 4) Producto o evidencia verificable.
+1. Reto Situado 4/4 (MCCEMS Puebla): Debe integrar 1) Contexto territorial real, 2) Problema auténtico del entorno, 3) Acción cognitiva de orden superior (Bloom/Marzano), y 4) Producto o evidencia verificable.
 2. Tres Saberes: Saber Conceptual (hechos, teorías), Saber Procedimental (habilidades, aplicación) y Saber Actitudinal (valores, ética ciudadana).
 3. Metodologías Activas: Centradas en el estudiante (ABProyecto, ABProblemas, AServicio, STEM, Indagación).
 4. Distribución Temporal recomendada para sesiones: 20% Apertura, 50% Desarrollo, 30% Cierre.

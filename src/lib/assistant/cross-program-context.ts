@@ -25,7 +25,7 @@ export const PROGRAM_SYSTEM_REGISTRY: Record<ProgramaPlataforma, IProgramSystem>
   planeaciones: {
     id: "planeaciones",
     name: "Planeación Didáctica",
-    description: "Diseño curricular oficial DBEPA / MCCEMS con metodologías activas y Reto Situado.",
+    description: "Diseño curricular oficial MCCEMS Puebla con metodologías activas y Reto Situado.",
     routePrefix: "/planeacion",
     supportedRoles: ["docente", "coordinador", "supervisor"],
     supportedLevels: ["media_superior", "secundaria"],

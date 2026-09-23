@@ -239,7 +239,7 @@ export function buildLevelLabel(nivel: NivelEducativo): string {
     preescolar: "Educación Preescolar",
     primaria: "Educación Primaria",
     secundaria: "Educación Secundaria",
-    media_superior: "Educación Media Superior (MCCEMS DBEPA)",
+    media_superior: "Educación Media Superior (MCCEMS Puebla)",
     superior: "Educación Superior",
   };
   return map[nivel] || "Media Superior";

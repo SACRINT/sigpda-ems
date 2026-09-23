@@ -61,7 +61,7 @@ export type RetoSituadoInput =
     };
 
 /**
- * Valida el Reto Situado bajo el estándar 4/4 DBEPA Puebla 2026-2027.
+ * Valida el Reto Situado bajo el estándar 4/4 MCCEMS Puebla 2026-2027.
  * Soporta cadena de texto concatenada o estructura desglosada en objeto.
  */
 export function validarRetoSituadoMediaSuperior(
@@ -182,7 +182,7 @@ export function validarRetoSituadoMediaSuperior(
       : "incompleto";
 
   return {
-    criterio: "Reto Situado (4/4 DBEPA)",
+    criterio: "Reto Situado (4/4 MCCEMS)",
     valido: componentesCumplidos === 4,
     completitud: `${componentesCumplidos}/4`,
     estado,
