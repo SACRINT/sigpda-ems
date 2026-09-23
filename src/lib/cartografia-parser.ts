@@ -1,10 +1,10 @@
 /**
  * cartografia-parser.ts
  * Parser e integrador oficial para la Cartografía de Zona Escolar
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · MCCEMS Puebla 2026-2027
  * 
  * Integra:
- * - Matriz de Zona Escolar 911 / F11 / DBEPA (vía pmc-statistics-parser)
+ * - Matriz de Zona Escolar 911 / F11 / Estadística Oficial (vía pmc-statistics-parser)
  * - Proyectos PAEC de los planteles de la zona (capa cualitativa territorial)
  * - Estructuración de los 5 Momentos Oficiales
  */

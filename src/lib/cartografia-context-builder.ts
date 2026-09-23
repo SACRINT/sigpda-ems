@@ -142,7 +142,7 @@ export interface CartografiaMomentos3a5 {
 
 /**
  * Obtiene los Momentos 3, 4, 5 y Memoria Pedagógica desde el registro de base de datos,
- * o provee estructuras de respaldo (fallbacks) alineadas a lineamientos DBEPA Puebla
+ * o provee estructuras de respaldo (fallbacks) alineadas a lineamientos MCCEMS Puebla
  * si aún no han sido generados mediante IA (H-013).
  */
 export function getCartografiaMomentos(
@@ -185,7 +185,7 @@ export function getCartografiaMomentos(
         numero: 1,
         titulo: 'Acompañamiento a la autonomía docente y curricular situada',
         accionesEspecificas: ['Talleres de codiseño curricular y observación dialógica'],
-        recursos: ['Fichas formativas DBEPA'],
+        recursos: ['Fichas formativas MCCEMS'],
         responsables: 'Supervisión y Asesores Técnicos',
         entregables: 'Portafolio de secuencias didácticas',
         estrategiaSeguimiento: 'Cortes bimestrales en Consejo Técnico',

@@ -1,7 +1,7 @@
 /**
  * cartografia-quality-gate.ts
  * Quality Gate y Evaluador Oficial de Calidad de la Cartografía de Zona Escolar
- * SIGPDA-EMS · DBEPA Puebla MCCEMS Ciclo Escolar 2026-2027
+ * SIGPDA-EMS · MCCEMS Puebla Ciclo Escolar 2026-2027
  * 
  * Evalúa los 5 Momentos Oficiales y la Memoria Pedagógica con base en la rúbrica institucional.
  */
@@ -207,7 +207,7 @@ export function auditCartografiaProject(project: CartografiaZonaProject): Cartog
       weight: 15,
       score: 15,
       status: 'pass',
-      feedback: 'Meta general de zona formulada con estricta observancia de la sintaxis CREAA de la DBEPA.',
+      feedback: 'Meta general de zona formulada con estricta observancia de la sintaxis CREAA de la SEMS / MCCEMS.',
     });
     strengths.push('Meta general de zona alineada a la política estatal CREAA con metas cuantificables.');
   } else if (hasText(metaGen, 20)) {
@@ -233,23 +233,23 @@ export function auditCartografiaProject(project: CartografiaZonaProject): Cartog
     });
   }
 
-  // C6: Momento 5 - 3 Líneas de Acción Oficiales DBEPA (10 pts)
+  // C6: Momento 5 - 3 Líneas de Acción Oficiales MCCEMS (10 pts)
   const lineas = project.momento5Decidir?.lineasAccion || [];
   if (lineas.length >= 3 && lineas.every((l) => l.accionesEspecificas?.length >= 2 && hasText(l.entregables, 5))) {
     criteria.push({
       id: 'CART-C6',
-      name: 'Momento 5: Decidir — 3 Líneas de Acción Oficiales DBEPA',
+      name: 'Momento 5: Decidir — 3 Líneas de Acción Oficiales MCCEMS',
       description: 'Presencia de las 3 líneas oficiales: L1 (Diagnóstico/EDIEMS), L2 (Articulación PAEC), L3 (Encuentros y Retención).',
       weight: 10,
       score: 10,
       status: 'pass',
       feedback: 'Las 3 líneas de acción oficiales están completamente desarrolladas con cronograma y entregables.',
     });
-    strengths.push('Alineación exacta a las 3 líneas de acción prioritarias establecidas por la DBEPA.');
+    strengths.push('Alineación exacta a las 3 líneas de acción prioritarias establecidas por la SEMS / MCCEMS.');
   } else if (lineas.length >= 1) {
     criteria.push({
       id: 'CART-C6',
-      name: 'Momento 5: Decidir — 3 Líneas de Acción Oficiales DBEPA',
+      name: 'Momento 5: Decidir — 3 Líneas de Acción Oficiales MCCEMS',
       description: 'Presencia de las 3 líneas oficiales: L1 (Diagnóstico/EDIEMS), L2 (Articulación PAEC), L3 (Encuentros y Retención).',
       weight: 10,
       score: 6,
@@ -259,7 +259,7 @@ export function auditCartografiaProject(project: CartografiaZonaProject): Cartog
   } else {
     criteria.push({
       id: 'CART-C6',
-      name: 'Momento 5: Decidir — 3 Líneas de Acción Oficiales DBEPA',
+      name: 'Momento 5: Decidir — 3 Líneas de Acción Oficiales MCCEMS',
       description: 'Presencia de las 3 líneas oficiales: L1 (Diagnóstico/EDIEMS), L2 (Articulación PAEC), L3 (Encuentros y Retención).',
       weight: 10,
       score: 0,

@@ -1,6 +1,6 @@
 /**
  * src/types/cartografia.ts
- * Tipos oficiales para la Cartografía de Zona Escolar (DBEPA Puebla MCCEMS 2026-2027)
+ * Tipos oficiales para la Cartografía de Zona Escolar (MCCEMS Puebla 2026-2027)
  * Evolución del PIPS hacia el diagnóstico vivo, territorial y la triangulación pedagógica.
  */
 

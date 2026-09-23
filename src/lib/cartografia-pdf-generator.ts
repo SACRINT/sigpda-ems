@@ -2,11 +2,11 @@
 /**
  * cartografia-pdf-generator.ts
  * Generador PDF Oficial para la Cartografía de Zona Escolar
- * SIGPDA-EMS · DBEPA Puebla MCCEMS Ciclo Escolar 2026-2027
+ * SIGPDA-EMS · MCCEMS Puebla Ciclo Escolar 2026-2027
  * 
  * Genera el documento oficial en formato Carta con membretes, tablas de planteles,
  * indicadores cuantitativos 911/F11, matriz de triangulación de 4 perspectivas,
- * 3 líneas de acción oficiales DBEPA y memoria pedagógica.
+ * 3 líneas de acción oficiales MCCEMS y memoria pedagógica.
  */
 
 import jsPDF from 'jspdf';

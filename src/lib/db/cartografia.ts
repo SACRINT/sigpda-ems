@@ -1,7 +1,7 @@
 /**
  * src/lib/db/cartografia.ts
  * Repositorio de Persistencia Formal para Cartografía de Zona Escolar (PIPS / Supervisión)
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · MCCEMS Puebla 2026-2027
  */
 
 import { sql } from './client';
