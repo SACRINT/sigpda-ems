@@ -26,7 +26,8 @@ export default async function PmcNuevoPage({
   if (!teacher) redirect(`/${locale}/login`);
 
   let project = null;
-  if (id) {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (id && uuidRegex.test(id)) {
     if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL not set');
     const db = sql();
     const rows = await db`
