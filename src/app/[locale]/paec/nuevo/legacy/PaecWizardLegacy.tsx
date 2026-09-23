@@ -31,6 +31,7 @@ import {
   UACS_LABORALES_MAPA,
   FFE_OPTATIVAS_CATALOGO,
 } from '@/lib/escuela-grupos';
+import { UACS_LABORALES_OFICIALES_BGE } from '@/lib/capacitaciones-data';
 import { loadCarrerasTecnicas, type BTCarrera } from '@/lib/bt-carreras-catalog';
 import type { SchoolZoneContextResponse } from '@/lib/zone-sync-service';
 
@@ -96,6 +97,7 @@ interface PaecFormDraft {
   community: CommunityContext;
   school: SchoolContext;
   schoolType?: SchoolType;
+  selectedFundamental?: string[];
   selectedLaboral: string[];
   selectedFfe: string[];
   selectedBtCarreras?: string[];
@@ -139,20 +141,20 @@ const CYCLE_LABELS: Record<string, string> = {
 };
 
 const CAPACITACION_TITLES: Record<string, string> = {
-  'Administracion': '💼 Administración',
+  'Administración': '💼 Administración',
   'Agricultura Sostenible de Traspatio': '🌱 Agricultura Sostenible de Traspatio',
-  'Area de la Salud': '🩺 Área de la Salud',
-  'Comunicacion Grafica': '🎨 Comunicación Gráfica',
+  'Área de la Salud': '🩺 Área de la Salud',
+  'Comunicación Gráfica': '🎨 Comunicación Gráfica',
   'Contabilidad': '📊 Contabilidad',
-  'Domotica': '🏠 Domótica',
+  'Domótica': '🏠 Domótica',
   'Instalaciones Residenciales': '🛠️ Instalaciones Residenciales',
-  'Mecanica Dental': '🦷 Mecánica Dental',
-  'Preparacion de Alimentos Artesanales': '🍯 Preparación de Alimentos Artesanales',
-  'Procesos Culinarios y Reposteria': '🍰 Procesos Culinarios y Repostería',
+  'Mecánica Dental': '🦷 Mecánica Dental',
+  'Preparación de Alimentos Artesanales': '🍯 Preparación de Alimentos Artesanales',
+  'Procesos Culinarios y Repostería': '🍰 Procesos Culinarios y Repostería',
   'Redes y Mantenimiento': '💻 Redes y Mantenimiento',
-  'Servicios Ecosistemicos': '🌳 Servicios Ecosistémicos',
-  'Sistemas Electricos': '⚡ Sistemas Eléctricos',
-  'Tecnologia Informatica': '💾 Tecnología Informática',
+  'Servicios Ecosistémicos': '🌳 Servicios Ecosistémicos',
+  'Sistemas Eléctricos': '⚡ Sistemas Eléctricos',
+  'Tecnología Informática': '💾 Tecnología Informática',
   'Turismo': '✈️ Turismo',
 };
 
@@ -807,14 +809,45 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
     }
   }
 
-  // Grouping helper for laboral UACs
-  const groupedLaboral = laboralCatalog.reduce((acc, item) => {
-    const cap = item.curriculum_name || 'General';
-    if (!acc[cap]) acc[cap] = {};
-    if (!acc[cap][item.semester]) acc[cap][item.semester] = [];
-    acc[cap][item.semester].push(item);
-    return acc;
-  }, {} as Record<string, Record<number, typeof laboralCatalog>>);
+  // Grouping helper for laboral UACs with fallback to authentic official catalog
+  const groupedLaboral = useMemo(() => {
+    const normalizeKey = (str: string) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const map: Record<string, Record<number, { uac_name: string; semester: number; curriculum_name: string }[]>> = {};
+
+    // 1. Pre-seed with authentic official catalog (15 capacitaciones × 4 semestres × 2 UACs = 120 UACs)
+    for (const [capName, sems] of Object.entries(UACS_LABORALES_OFICIALES_BGE)) {
+      const normKey = normalizeKey(capName);
+      const semObj: Record<number, { uac_name: string; semester: number; curriculum_name: string }[]> = {};
+      for (const [semStr, uacList] of Object.entries(sems)) {
+        const sem = parseInt(semStr, 10);
+        semObj[sem] = uacList.map(name => ({
+          uac_name: name,
+          semester: sem,
+          curriculum_name: capName,
+        }));
+      }
+      map[capName] = semObj;
+      map[normKey] = semObj;
+    }
+
+    // 2. Overlay dynamic catalog from DB if loaded
+    for (const item of laboralCatalog) {
+      const cap = item.curriculum_name || 'General';
+      const normCap = normalizeKey(cap);
+      if (!map[cap]) {
+        map[cap] = {};
+        map[normCap] = map[cap];
+      }
+      if (!map[cap][item.semester]) {
+        map[cap][item.semester] = [];
+      }
+      if (!map[cap][item.semester].some(u => u.uac_name.toLowerCase() === item.uac_name.toLowerCase())) {
+        map[cap][item.semester].push(item);
+      }
+    }
+
+    return map;
+  }, [laboralCatalog]);
 
   if (loading) {
     return (
