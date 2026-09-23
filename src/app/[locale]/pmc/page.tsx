@@ -51,7 +51,7 @@ export default async function PmcDashboardPage({
       <div className="page-header">
         <h1 className="page-title">Plan de Mejora Continua (PMC)</h1>
         <p className="page-subtitle">
-          Planeación de la Mejora Continua DBEPA · {projects.length} plan{projects.length !== 1 ? 'es' : ''}
+          Planeación de la Mejora Continua MCCEMS · {projects.length} plan{projects.length !== 1 ? 'es' : ''}
         </p>
         <div className="page-actions">
           <Link href={`/${locale}/pmc/nuevo`} className="btn btn-primary">
@@ -67,7 +67,7 @@ export default async function PmcDashboardPage({
           <p className="empty-state-text">
             Crea tu primer Plan de Mejora Continua (PMC) para el ciclo escolar 2025-2026.
             La plataforma te guiará paso a paso para elaborar un PMC alineado a los
-            lineamientos DBEPA con apoyo de inteligencia artificial.
+            lineamientos oficiales del MCCEMS con apoyo de inteligencia artificial.
           </p>
           <Link href={`/${locale}/pmc/nuevo`} className="btn btn-primary">
             Crear primer PMC

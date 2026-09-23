@@ -553,7 +553,7 @@ export default function PmcWizardClient({ locale, teacherId, teacherName, teache
           <span style={{ fontSize: '20px' }}>📈</span>
           <div>
             <div style={{ fontWeight: 800, fontSize: '15px', letterSpacing: '-0.3px', background: 'linear-gradient(135deg,#e0e7ff,#818cf8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Plan de Mejora Continua</div>
-            <div style={{ fontSize: '12px', color: 'rgba(240,244,255,0.5)' }}>Lineamientos DBEPA {cicloEscolar}</div>
+            <div style={{ fontSize: '12px', color: 'rgba(240,244,255,0.5)' }}>Lineamientos MCCEMS {cicloEscolar}</div>
           </div>
         </div>
         <Link href={`/${locale}/pmc`} style={{ color: 'rgba(240,244,255,0.6)', textDecoration: 'none', fontSize: '13px', fontWeight: 500 }}>
@@ -936,7 +936,7 @@ export default function PmcWizardClient({ locale, teacherId, teacherName, teache
             <div style={sectionCard}>
               <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#818cf8', marginBottom: '4px' }}>🎯 Categorías y Temas a Priorizar *</h3>
               <p style={{ fontSize: '13px', color: 'rgba(240,244,255,0.55)', marginBottom: '8px' }}>
-                Según los <strong>Lineamientos DBEPA 2025-2026</strong>, el PMC se organiza en <strong>3 categorías oficiales</strong>. Selecciona la(s) categoría(s) y marca los <strong>temas específicos</strong> que tu plantel abordará. La IA generará metas SMART (con Diagnóstico → Meta → Estrategia → Producto) para cada tema seleccionado.
+                Según los <strong>Lineamientos MCCEMS 2025-2026</strong>, el PMC se organiza en <strong>3 categorías oficiales</strong>. Selecciona la(s) categoría(s) y marca los <strong>temas específicos</strong> que tu plantel abordará. La IA generará metas SMART (con Diagnóstico → Meta → Estrategia → Producto) para cada tema seleccionado.
               </p>
               <div style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: '8px', padding: '10px 14px', marginBottom: '16px', fontSize: '12px', color: '#a5b4fc' }}>
                 <strong>📐 Metodología SMART:</strong> Cada meta que genere la IA será: <em>Específica · Medible · Alcanzable · Relevante · Temporal</em> — siguiendo la estructura: <strong>Diagnóstico → Meta → Estrategia → Producto</strong>
@@ -1279,7 +1279,7 @@ export default function PmcWizardClient({ locale, teacherId, teacherName, teache
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', flexWrap: 'wrap' }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 700, color: '#ef4444', marginBottom: '4px' }}>📕 PMC Oficial en PDF (Formato SEP Puebla)</div>
-                    <div style={{ fontSize: '13px', color: 'rgba(240,244,255,0.7)' }}>Documento PDF inmutable con membrete oficial del Gobierno de Puebla, escudos SEP/DBEPA, matriz FODA, metas y bloque de 3 firmas listo para impresión o firma electrónica.</div>
+                    <div style={{ fontSize: '13px', color: 'rgba(240,244,255,0.7)' }}>Documento PDF inmutable con membrete oficial del Gobierno de Puebla, escudos oficiales SEP, matriz FODA, metas y bloque de 3 firmas listo para impresión o firma electrónica.</div>
                   </div>
                   <a
                     href={`/api/pdf/pmc/${projectId}`}

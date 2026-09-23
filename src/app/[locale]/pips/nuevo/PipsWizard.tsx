@@ -332,7 +332,7 @@ export default function PipsWizard({ locale }: { locale: string }) {
         });
       }
 
-      setMsg(`✨ Generando Momento ${momentoNum} con IA (DBEPA Puebla)...`);
+      setMsg(`✨ Generando Momento ${momentoNum} con IA (MCCEMS Puebla)...`);
       const res = await fetch(`/api/pips/${currentId}/cartografia/generate-momento?momento=${momentoNum}`, {
         method: 'POST',
       });
@@ -460,7 +460,7 @@ export default function PipsWizard({ locale }: { locale: string }) {
           </div>
         </div>
 
-        {/* Asistente de Carga Excel Interactivo (Formato 911.7G / F11C / DBEPA) */}
+        {/* Asistente de Carga Excel Interactivo (Formato 911.7G / F11C / Estadística Oficial) */}
         {showExcelUpload && (
           <div style={{ margin: '16px 0' }}>
             <ExcelUploadZone
@@ -734,7 +734,7 @@ export default function PipsWizard({ locale }: { locale: string }) {
           </>
         ) : (
           <div style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: 10, padding: 16, fontSize: 13, color: 'var(--c-text-muted)' }}>
-            <strong style={{ color: '#818cf8' }}>Protocolo Anexo 1 (DBEPA):</strong> Si no realizó PIPS en el ciclo anterior,
+            <strong style={{ color: '#818cf8' }}>Protocolo Anexo 1 (MCCEMS):</strong> Si no realizó PIPS en el ciclo anterior,
             el diagnóstico deberá basarse en al menos 3 problemáticas pedagógicas identificadas durante el ciclo,
             los instrumentos utilizados para detectarlas y los objetivos/metas que se abordaron.
             Registra esa información en el paso de Diagnóstico (paso 4).
@@ -820,7 +820,7 @@ export default function PipsWizard({ locale }: { locale: string }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
           <div>
             <span style={{ fontSize: 10, fontWeight: 800, background: '#0284c7', color: '#fff', padding: '3px 8px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-              Momento 3 · DBEPA Puebla
+              Momento 3 · MCCEMS Puebla
             </span>
             <h4 style={{ margin: '6px 0 0', fontSize: 16, color: 'var(--c-text)' }}>
               🗺️ Mapeo Escuela-Territorio y Recursos Comunitarios
@@ -906,7 +906,7 @@ export default function PipsWizard({ locale }: { locale: string }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
           <div>
             <span style={{ fontSize: 10, fontWeight: 800, background: '#7e22ce', color: '#fff', padding: '3px 8px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-              Momento 4 · DBEPA Puebla
+              Momento 4 · MCCEMS Puebla
             </span>
             <h4 style={{ margin: '6px 0 0', fontSize: 16, color: 'var(--c-text)' }}>
               🔍 Triangulación de Perspectivas y Retos Pedagógicos CREAA
@@ -987,12 +987,12 @@ export default function PipsWizard({ locale }: { locale: string }) {
   // ── Step 5 ── Objetivos y metas
   const step5 = (
     <>
-      {/* ─── Momento 5: Decidir (Meta General CREAA + 3 Líneas Oficiales DBEPA) ─── */}
+      {/* ─── Momento 5: Decidir (Meta General CREAA + 3 Líneas Oficiales MCCEMS) ─── */}
       <div style={{ ...cardStyle, border: '1px solid rgba(245, 158, 11, 0.3)', background: 'rgba(245, 158, 11, 0.03)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
           <div>
             <span style={{ fontSize: 10, fontWeight: 800, background: '#d97706', color: '#fff', padding: '3px 8px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-              Momento 5 · DBEPA Puebla
+              Momento 5 · MCCEMS Puebla
             </span>
             <h4 style={{ margin: '6px 0 0', fontSize: 16, color: 'var(--c-text)' }}>
               🎯 Meta General CREAA y 3 Líneas de Acción Oficiales
@@ -1031,7 +1031,7 @@ export default function PipsWizard({ locale }: { locale: string }) {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <strong style={{ color: '#fbbf24', fontSize: 12 }}>📋 Las 3 Líneas de Acción Oficiales de la DBEPA:</strong>
+              <strong style={{ color: '#fbbf24', fontSize: 12 }}>📋 Las 3 Líneas de Acción Oficiales de la SEMS / MCCEMS:</strong>
               {pips.momento5_decidir.lineasAccion?.map((linea, idx) => (
                 <div key={idx} style={{ background: 'rgba(255,255,255,0.03)', padding: 10, borderRadius: 8 }}>
                   <div style={{ fontWeight: 700, color: 'var(--c-text)', fontSize: 12 }}>
@@ -1159,7 +1159,7 @@ export default function PipsWizard({ locale }: { locale: string }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
           <div>
             <span style={{ fontSize: 10, fontWeight: 800, background: '#15803d', color: '#fff', padding: '3px 8px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-              Memoria Pedagógica · DBEPA Puebla
+              Memoria Pedagógica · MCCEMS Puebla
             </span>
             <h4 style={{ margin: '6px 0 0', fontSize: 16, color: 'var(--c-text)' }}>
               🌱 Memoria Pedagógica Viva: ¿Qué logramos?, ¿Cómo?, ¿Qué aprendimos?
@@ -1205,7 +1205,7 @@ export default function PipsWizard({ locale }: { locale: string }) {
           </div>
         ) : (
           <p style={{ fontSize: 12, color: 'var(--c-text-muted)', margin: 0 }}>
-            Sistematiza el impacto territorial y pedagógico respondiendo a las tres preguntas clave de la DBEPA.
+            Sistematiza el impacto territorial y pedagógico respondiendo a las tres preguntas clave de la SEMS / MCCEMS.
           </p>
         )}
       </div>
@@ -1214,7 +1214,7 @@ export default function PipsWizard({ locale }: { locale: string }) {
       <div style={{ ...cardStyle, textAlign: 'center', border: '1px solid rgba(99,102,241,0.3)', background: 'rgba(99,102,241,0.05)' }}>
         {sectionTitle('✅ Generar y Exportar Cartografía de Zona')}
         <p style={{ fontSize: 13, color: 'var(--c-text-muted)', marginBottom: 20 }}>
-          La Cartografía de Zona Escolar integra los 5 Momentos metodológicos, diagnósticos 911/F11, metas CREAA y la Memoria Pedagógica en formato oficial para entrega ante la DBEPA.
+          La Cartografía de Zona Escolar integra los 5 Momentos metodológicos, diagnósticos 911/F11, metas CREAA y la Memoria Pedagógica en formato oficial para entrega ante la supervisión escolar.
         </p>
         {msg && (
           <div style={{ padding: '10px 16px', borderRadius: 8, background: msg.startsWith('✅') ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', color: msg.startsWith('✅') ? '#22c55e' : '#ef4444', marginBottom: 16, fontSize: 13 }}>
@@ -1251,7 +1251,7 @@ export default function PipsWizard({ locale }: { locale: string }) {
                 boxShadow: '0 4px 12px rgba(31, 56, 100, 0.4)',
               }}
             >
-              📄 Descargar Cartografía Oficial DBEPA (PDF)
+              📄 Descargar Cartografía Oficial (PDF)
             </a>
           )}
           {projectId && pips.status === 'completed' && (
