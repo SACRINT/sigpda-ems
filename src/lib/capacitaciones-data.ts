@@ -1,7 +1,7 @@
 /**
  * Catálogo Oficial Auténtico de Capacitaciones Laborales y Carreras Técnicas
  * Estado de Puebla · MCCEMS Ciclo Escolar 2025-2026 y 2026-2027
- * Fuente: Documentos oficiales de referencia DBEPA / SEP Puebla
+ * Fuente: Documentos oficiales de referencia SEMS / SEP Puebla
  */
 
 export const FORMACIONES_LABORALES_BGE = [

@@ -748,7 +748,7 @@ export const ScheduleOptimizationSchema = z.preprocess((input) => {
 export type ScheduleOptimizationDTO = z.infer<typeof ScheduleOptimizationSchema>;
 
 // ============================================================================
-// 11. CARTOGRAFÍA DE ZONA ESCOLAR SCHEMAS (DBEPA PUEBLA MCCEMS 2026-2027)
+// 11. CARTOGRAFÍA DE ZONA ESCOLAR SCHEMAS (SEMS PUEBLA MCCEMS 2026-2027)
 // ============================================================================
 
 export const RecursoComunitarioSchema = z.object({

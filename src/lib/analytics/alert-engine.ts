@@ -1,7 +1,7 @@
 /**
  * src/lib/analytics/alert-engine.ts
  * Motor de Detección de Anomalías y Alertas Pedagógicas de Supervisión (Fase 5)
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  */
 
 import { sql } from '@/lib/db';
@@ -35,7 +35,7 @@ export async function triggerSupervisoryAlert(input: SupervisoryAlertInput): Pro
       case 'QUALITY_SCORE_DROP':
         severity = (input.score !== undefined && input.score < 60) ? 'P0' : 'P1';
         title = `⚠️ Calidad Insuficiente (${input.score ?? 0} pts) · ${input.schoolName || input.schoolCct || 'Plantel'}`;
-        message = `La planeación presenta un puntaje inferior a los estándares oficiales DBEPA. Requiere revisión técnica de acompañamiento.`;
+        message = `La planeación presenta un puntaje inferior a los estándares oficiales MCCEMS. Requiere revisión técnica de acompañamiento.`;
         break;
 
       case 'HORAS_CORTE_DESBALANCEADO':

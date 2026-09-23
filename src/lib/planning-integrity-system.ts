@@ -141,7 +141,7 @@ export function validatePlanningIntegrity(
 /**
  * Enriquece una planeación didáctica deduciendo y formalizando explícitamente
  * los Tres Saberes (Saber Teórico, Saber Hacer Práctico, Saber Ser Actitudinal)
- * conforme a las directrices de la SEP, USICAMM (Anexo 12) y formación técnica DBEPA.
+ * conforme a las directrices de la SEP, USICAMM (Anexo 12) y formación técnica MCCEMS.
  */
 export function enrichWithExplicitSaberes(
   content: GeneratedPlanningContent

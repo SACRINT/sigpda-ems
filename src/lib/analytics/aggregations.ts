@@ -1,7 +1,7 @@
 /**
  * src/lib/analytics/aggregations.ts
  * Motor de Agregaciones Analíticas Multi-nivel (Zona, Plantel, Municipio)
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  */
 
 import { sql } from '@/lib/db';

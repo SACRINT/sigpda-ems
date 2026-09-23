@@ -9,7 +9,7 @@ import { PHASE_COLORS_HEX } from '@/lib/visual-engine/design-tokens';
 import { bdr } from '@/lib/docx-helpers';
 import { formatearBadgeMetodologia } from '@/lib/catalogo-metodologias';
 
-// ── Color palette (DBEPA institutional) ─────────────────────────────────────────────
+// ── Color palette (MCCEMS institutional) ─────────────────────────────────────────────
 const C = {
   dark:   '1A3A5C',
   mid:    '2E6DA4',

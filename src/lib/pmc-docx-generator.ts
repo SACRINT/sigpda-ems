@@ -753,7 +753,7 @@ export async function generatePmcDocx(project: PmcProject): Promise<Buffer> {
   return Buffer.from(await Packer.toBuffer(doc));
 }
 
-// ─── Informe Template Generator (Official 15-Table DBEPA Template) ─────────────
+// ─── Informe Template Generator (Official 15-Table MCCEMS Template) ─────────────
 export async function generatePmcInformeDocx(
   project: PmcProject,
   tipo: 'parcial' | 'final'

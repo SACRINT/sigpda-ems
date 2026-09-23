@@ -1,6 +1,6 @@
 /**
  * docx-workbook-renderer.ts — Generador DOCX del Libro-Cuaderno de Trabajo Activo
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Genera el documento Word (.docx) formal para el estudiante (35-80 páginas por bloque):
  * 1. Portada institucional con membrete, escuela, CCT, UAC, bloque y proyecto PAEC.
@@ -80,7 +80,7 @@ import {
 } from '@/lib/visual-engine/cover-generator';
 import { logger } from '@/lib/logger';
 
-// ── Paleta de Colores Institucionales DBEPA ──────────────────────────────────
+// ── Paleta de Colores Institucionales MCCEMS ──────────────────────────────────
 const C = {
   navy: '1F3864',       // Primario institucional
   midBlue: '2E74B5',    // Secundario

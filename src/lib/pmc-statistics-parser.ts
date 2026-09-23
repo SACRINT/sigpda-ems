@@ -1,6 +1,6 @@
 /**
  * pmc-statistics-parser.ts
- * Parser oficial de datos estadísticos Formato 911.7G / F11C / EDIEMS / ESA — DBEPA Puebla (SIGPDA-EMS)
+ * Parser oficial de datos estadísticos Formato 911.7G / F11C / EDIEMS / ESA — SEMS Puebla (SIGPDA-EMS)
  * 
  * Procesa la matriz oficial de estadísticas escolares (911.7G, F11C, EDIEMS, ESA y metas de zona)
  * extrayendo matrícula, calificaciones, aprobación, abandono y eficiencia terminal.
@@ -119,7 +119,7 @@ export function parsePmcStatistics(
             subjectCols.push({ name: rawHeader || `Asignatura ${colIdx}`, colIdx });
           }
 
-          // ── 3. Evaluaciones Externas DBEPA (independientes del F11) ──────────
+          // ── 3. Evaluaciones Externas SEMS (independientes del F11) ──────────
           else if (h.includes('ediems') && h.includes('pre')) colMap['ediemsPre'] = colIdx;
           else if (h.includes('ediems') && h.includes('post')) colMap['ediemsPost'] = colIdx;
           else if (h.includes('esa') && h.includes('pre')) colMap['esaPre'] = colIdx;
@@ -210,7 +210,7 @@ export function parsePmcStatistics(
         reprobadosPorcentaje: reprobacion,
         estudiantesAprobados,
         promedioCalificaciones,
-        // Evaluaciones externas DBEPA
+        // Evaluaciones externas SEMS
         ediemsPre: colMap['ediemsPre'] !== undefined ? parseFloat(String(row[colMap['ediemsPre']] || '0')) || undefined : undefined,
         ediemsPost: colMap['ediemsPost'] !== undefined ? parseFloat(String(row[colMap['ediemsPost']] || '0')) || undefined : undefined,
         esaPre: colMap['esaPre'] !== undefined ? parseFloat(String(row[colMap['esaPre']] || '0')) || undefined : undefined,

@@ -1,6 +1,6 @@
 /**
  * normalize.ts — Utilidades compartidas de normalización de texto
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  */
 
 export function normalizeUnicode(str: string): string {

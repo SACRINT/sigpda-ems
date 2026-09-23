@@ -1,7 +1,7 @@
 /**
  * src/lib/db/pmc.ts
  * Repositorio de Persistencia Formal para el Plan de Mejora Continua (PMC CREAA)
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  */
 
 import { sql } from './client';

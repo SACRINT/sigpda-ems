@@ -1,7 +1,7 @@
 /**
  * src/lib/analytics/pipeline.ts
  * Pipeline de Ingestión y Normalización de Métricas de Calidad Pedagógica (Fase 5)
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  */
 
 import { sql } from '@/lib/db';
@@ -63,7 +63,7 @@ export async function ingestPlanningQuality(
       } as unknown as Partial<Planning>;
     }
 
-    // 1. Ejecutar el validador oficial determinista DBEPA
+    // 1. Ejecutar el validador oficial determinista MCCEMS
     const report: PlanningQualityReport = evaluatePlanningQuality(planning);
 
     // 2. Persistir en columnas optimizadas para consulta agregada

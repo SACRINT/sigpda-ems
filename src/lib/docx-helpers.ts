@@ -1,6 +1,6 @@
 /**
  * docx-helpers.ts — Helpers Compartidos y Primitivas para Generación DOCX
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Módulo unificado para:
  * 1. Paleta institucional homologada con el motor visual (design-tokens.ts).
@@ -357,7 +357,7 @@ export const createWordTable = createMarkdownTable;
 /**
  * Compila un recurso extra individual o en cascada a un documento Buffer DOCX
  * con banner institucional, tablas enriquecidas, orientación adaptativa (Landscape para rúbricas)
- * y encabezado/pie de página normativo de la DBEPA Puebla.
+ * y encabezado/pie de página normativo de SEMS Puebla.
  */
 export async function buildExtraDocx(
   extra: { type: string; title: string; content_text: string },

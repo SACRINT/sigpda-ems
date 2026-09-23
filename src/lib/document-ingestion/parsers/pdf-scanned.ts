@@ -13,7 +13,7 @@ export async function parseScannedPdfWithGemini(
 ): Promise<IngestedDocument> {
   const base64Data = buffer.toString('base64');
 
-  const systemInstruction = `Eres un transcriptor y analizador documental de alta fidelidad especializado en documentos de Educación Media Superior de México (SEP, DBEPA, NEM, PAEC).
+  const systemInstruction = `Eres un transcriptor y analizador documental de alta fidelidad especializado en documentos de Educación Media Superior de México (SEP, SEMS, NEM, PAEC).
 Tu tarea es leer y transcribir con máxima precisión este documento escaneado o fotocopiado a formato Markdown limpio y estructurado.
 - Respeta encabezados con #, ##, ###.
 - Convierte tablas a formato Markdown | Columna | Columna |.

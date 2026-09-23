@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * paec-pdf-generator.ts — Generador PDF Editorial Oficial del Proyecto Escolar Comunitario (PEC / PAEC)
- * SIGPDA-EMS · Estándar Oficial SEP Puebla (DBEPA / MCCEMS / NEM)
+ * SIGPDA-EMS · Estándar Oficial SEP Puebla (SEMS / MCCEMS / NEM)
  * 
  * Estructura Editorial Rigurosa de 35 Páginas con Orientación Híbrida:
  * - Macro-Fase I: Portada y Diagnóstico Colectivo (pp. 1-5) [Portrait]
@@ -31,8 +31,8 @@ import type {
 } from '@/types/paec';
 import { parseFodaData } from './paec-docx-generator';
 
-// Paleta Institucional DBEPA / SEP Puebla
-const NAVY: [number, number, number]       = [31, 56, 100];   // #1F3864 - Azul Marino Institucional DBEPA
+// Paleta Institucional MCCEMS / SEP Puebla
+const NAVY: [number, number, number]       = [31, 56, 100];   // #1F3864 - Azul Marino Institucional MCCEMS
 const BLUE_MID: [number, number, number]   = [46, 116, 181];  // #2E74B5 - Azul Medio Secundario
 const GOLD_LINE: [number, number, number]  = [232, 160, 32];  // #E8A020 - Dorado Oficial SEP
 const GOLD_LIGHT: [number, number, number] = [254, 243, 199]; // #FEF3C7 - Resaltado Semana 16
@@ -343,7 +343,7 @@ export async function generatePaecPDF(
   });
 
   // ═════════════════════════════════════════════════════════════════════════════
-  // PÁGINA 3: MACRO-FASE I: DIAGNÓSTICO TERRITORIAL INTEGRAL (TABLAS 1 Y 2 DBEPA)
+  // PÁGINA 3: MACRO-FASE I: DIAGNÓSTICO TERRITORIAL INTEGRAL (TABLAS 1 Y 2 MCCEMS)
   // ═════════════════════════════════════════════════════════════════════════════
   doc.addPage('letter', 'portrait');
   curY = 24;
@@ -448,7 +448,7 @@ export async function generatePaecPDF(
   addSectionBar(doc, '1.3 Matriz FODA Integral y Formulación de Estrategias Cruzadas', curY, margin, contentWidth);
   curY += 10;
 
-  // Procesar datos FODA con normalización y fallbacks pedagógicos oficiales DBEPA
+  // Procesar datos FODA con normalización y fallbacks pedagógicos oficiales MCCEMS
   const fodaRaw: unknown = diag?.tabla3 || (diag as Record<string, any>)?.tabla3Foda || [];
   const {
     fortalezas,

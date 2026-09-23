@@ -1,9 +1,9 @@
 /**
  * pdf-workbook-renderer.ts — Generador PDF del Libro-Cuaderno de Trabajo Activo
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Genera el documento PDF formal imprimible para el estudiante (35-80 páginas por bloque):
- * 1. Portada oficial con membrete SEP/DBEPA, datos del plantel, CCT y proyecto PAEC.
+ * 1. Portada oficial con membrete SEP/SEMS, datos del plantel, CCT y proyecto PAEC.
  * 2. Índice de misiones formativas.
  * 3. Misiones didácticas completas (Concepto Cero, Yo Hago, Nosotros Hacemos, Tú Haces).
  * 4. Elementos de cuaderno activo interactivos (líneas de escritura, cajas de código, tablas de registro, casillas).
@@ -97,7 +97,7 @@ import {
   getMissionColor,
 } from '@/lib/visual-engine/design-tokens';
 
-// ── Paleta de Colores Institucionales DBEPA (Consumida desde Design Tokens) ──
+// ── Paleta de Colores Institucionales MCCEMS (Consumida desde Design Tokens) ──
 const NAVY: RGB = COLOR.NAVY;
 const MID_BLUE: RGB = COLOR.MID_BLUE;
 const VINO_PUEBLA: RGB = COLOR.DARK_MAROON;

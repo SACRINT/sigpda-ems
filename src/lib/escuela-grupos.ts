@@ -626,7 +626,7 @@ export function obtenerAsignaturasParaGrupo(
 }
 
 /**
- * Asignaturas oficiales de 1.er Semestre Bachillerato Tecnológico DBEPA Puebla (28 hrs)
+ * Asignaturas oficiales de 1.er Semestre Bachillerato Tecnológico SEMS Puebla (28 hrs)
  * Incluyen Bioética Social y Humanismo Mexicano oficiales de Puebla
  */
 export function obtenerAsignaturas1erSemestreTecnologico(): {

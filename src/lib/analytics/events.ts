@@ -1,7 +1,7 @@
 /**
  * src/lib/analytics/events.ts
  * Event Bus y Registro de Eventos de Dominio para Analítica Pedagógica
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  */
 
 import { sql } from '@/lib/db';

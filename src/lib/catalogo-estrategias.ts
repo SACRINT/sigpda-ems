@@ -2,7 +2,7 @@
  * Catálogo Oficial de 14 Estrategias Didácticas — SIGPDA-EMS
  *
  * Basado en el Marco Curricular Común de la Educación Media Superior (MCCEMS 2025 / NEM)
- * y las especificaciones pedagógicas de la DBEPA Puebla para planteles con conectividad
+ * y las especificaciones pedagógicas de SEMS Puebla para planteles con conectividad
  * limitada (Garantía Dual Offline).
  *
  * Distribución oficial: 4 Apertura · 6 Desarrollo · 4 Cierre

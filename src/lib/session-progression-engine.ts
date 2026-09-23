@@ -1,6 +1,6 @@
 /**
  * Session Progression Engine (Motor de Desglose Pedagógico de Sesiones)
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Transforma un bloque o actividad clave (con N horas/sesiones de 50 min)
  * en una secuencia progresiva coherente con momentos didácticos (Apertura, Desarrollo, Cierre),

@@ -1,6 +1,6 @@
 /**
  * Background Job Worker para Generación de Libros de Bloque
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Desacopla la orquestación editorial pesada de los límites de tiempo HTTP:
  * 1. Reclama el trabajo atómicamente.

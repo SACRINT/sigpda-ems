@@ -2,7 +2,7 @@
 /**
  * pips-pdf-generator.ts — Generador Oficial PDF de Supervisión Escolar PIPS para Supervisores de Zona
  * Plan de Intervención y Acompañamiento Pedagógico de Supervisión (PIPS)
- * SIGPDA-EMS · Estándar Oficial SEP Puebla (DBEPA)
+ * SIGPDA-EMS · Estándar Oficial SEP Puebla (SEMS / MCCEMS)
  * Formato Carta (215.9mm x 279.4mm) con membrete oficial, sellos, matrícula concentrada y firmas.
  */
 

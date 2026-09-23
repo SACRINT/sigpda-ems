@@ -45,9 +45,9 @@ import type {
 import { SCHOOL_YEAR } from '@/lib/config';
 import { bdr } from '@/lib/docx-helpers';
 
-// Paleta Institucional Oficial DBEPA / SEP Puebla
+// Paleta Institucional Oficial MCCEMS / SEP Puebla
 const C = {
-  dark:        '1F3864', // Azul Marino Institucional DBEPA
+  dark:        '1F3864', // Azul Marino Institucional MCCEMS
   mid:         '2E74B5', // Azul Medio Secundario
   light:       'DCE4F5', // Azul Suave para Encabezados Secundarios
   alt:         'F8FAFC', // Fondo gris claro para filas alternadas
@@ -92,7 +92,7 @@ export interface ParsedFoda {
 
 /**
  * Normaliza y extrae datos FODA de cualquier estructura (arrays con/sin etiquetas semánticas, objetos planos o posicionales).
- * Garantiza resiliencia total y fallbacks normativos oficiales DBEPA / SEP Puebla.
+ * Garantiza resiliencia total y fallbacks normativos oficiales MCCEMS / SEP Puebla.
  */
 export function parseFodaData(rawT3: any): ParsedFoda {
   let fortalezas: string[] = [];
@@ -180,7 +180,7 @@ export function parseFodaData(rawT3: any): ParsedFoda {
     estDA = safeStr(cruz.estrategiaDA || cruz.da || cruz.miniMini || rawT3.estDA || rawT3.da || '');
   }
 
-  // Fallbacks pedagógicos oficiales DBEPA si no están definidos
+  // Fallbacks pedagógicos oficiales MCCEMS si no están definidos
   if (fortalezas.length === 0) {
     fortalezas = [
       'Colegiado docente comprometido y con experiencia en proyectos formativos interdisciplinarios.',
@@ -703,7 +703,7 @@ export async function generatePaecDocx(
   s1Children.push(secH('1.3 Matriz FODA con Estrategia Cruzada 4×2 (Tabla 3 / NEM)'));
   s1Children.push(para('Articulación estratégica de variables internas y externas del centro escolar con formulación de líneas maestras de acción educativa (Estrategias FO, DO, FA, DA):'));
 
-  // Procesar datos FODA con normalización y fallbacks pedagógicos oficiales DBEPA
+  // Procesar datos FODA con normalización y fallbacks pedagógicos oficiales MCCEMS
   const rawT3: any = p.fase1Diagnostico?.tabla3;
   const { fortalezas, oportunidades, debilidades, amenazas, estFO, estDO, estFA, estDA } = parseFodaData(rawT3);
 

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * pmc-pdf-generator.ts — Generador PDF Oficial del Plan de Mejora Continua (PMC)
- * SIGPDA-EMS · Estándar Oficial SEP Puebla (DBEPA)
+ * SIGPDA-EMS · Estándar Oficial SEP Puebla (SEMS / MCCEMS)
  * Formato Carta (215.9mm x 279.4mm) con membrete oficial, sellos, FODA, metas y firmas.
  */
 
@@ -12,7 +12,7 @@ import { SCHOOL_YEAR } from '@/lib/config';
 import { logger } from './logger';
 import type { PmcProject, PmcStatisticalContext } from '@/types/pmc';
 
-const NAVY: [number, number, number] = [31, 56, 100];       // #1F3864 - Azul Institucional DBEPA
+const NAVY: [number, number, number] = [31, 56, 100];       // #1F3864 - Azul Institucional MCCEMS
 const BLUE_MID: [number, number, number] = [46, 116, 181];   // #2E74B5 - Azul Secundario
 const BLUE_LIGHT: [number, number, number] = [220, 228, 245]; // #DCE4F5 - Fondo Encabezados Suaves
 const GOLD_LINE: [number, number, number] = [232, 160, 32];  // #E8A020 - Dorado Oficial SEP

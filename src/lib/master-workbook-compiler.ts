@@ -1,6 +1,6 @@
 /**
  * master-workbook-compiler.ts — Compilador del Libro Maestro Semestral
- * SIGPDA-EMS · DBEPA Puebla MCCEMS 2026-2027
+ * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Compila los libros generados de los Bloques 1, 2 y 3 en un solo
  * Libro Maestro Semestral (~150-200 páginas) consumiendo 0 TOKENS de IA.
