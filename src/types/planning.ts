@@ -3,7 +3,7 @@ export type PlanningStatus = 'draft' | 'generated' | 'downloaded';
 // Open string to support all subsystems (BGE, Digital, EMSAD, CECyTE, CBTIS, CBTA, CONALEP, DGB, etc.)
 export type Subsystem = string;
 
-export type CurriculumComponent = 'laboral' | 'fundamental' | 'ampliado' | 'ext_obligatorio' | 'ext_optativo';
+export type CurriculumComponent = 'laboral' | 'fundamental' | 'ampliado' | 'ext_obligatorio' | 'ext_optativo' | 'ffeo' | 'ffe_optativa';
 
 export interface KeyActivity {
   name: string;

@@ -19,10 +19,26 @@ export interface ProgramCatalogItem {
   created_at?: string;
 }
 
+// ─── Component Adapter (Bidirectional mapping ext_optativo <-> ffe_optativa) ─
+export const COMPONENT_MAP: Record<string, string[]> = {
+  'ext_optativo': ['ext_optativo', 'ffe_optativa'],
+  'ext_obligatorio': ['ext_obligatorio', 'ffeo'],
+  'ffe_optativa': ['ext_optativo', 'ffe_optativa'],
+  'ffeo': ['ext_obligatorio', 'ffeo'],
+  'laboral': ['laboral'],
+  'fundamental': ['fundamental'],
+  'ampliado': ['ampliado'],
+};
+
+export function resolveComponentAliases(comp?: string): string[] | null {
+  if (!comp || comp === 'all' || comp === 'todos') return null;
+  return COMPONENT_MAP[comp] || [comp];
+}
+
 export async function getProgramsCatalog(semester?: number, component?: string, subsystem?: string) {
   const client = sql();
   const normalizedSubsystem = (subsystem && subsystem !== 'all' && subsystem !== 'todos') ? subsystem.toLowerCase() : null;
-  const normalizedComponent = (component && component !== 'all' && component !== 'todos') ? component : null;
+  const compAliases = resolveComponentAliases(component);
   const sem = (semester !== undefined && !isNaN(semester)) ? semester : null;
 
   return client`
@@ -30,7 +46,7 @@ export async function getProgramsCatalog(semester?: number, component?: string, 
            learning_outcome, activities, evidences, contenidos_formativos, subsystem, model_type, created_at
     FROM programs_catalog
     WHERE (${sem}::int IS NULL OR semester = ${sem})
-      AND (${normalizedComponent}::text IS NULL OR component = ${normalizedComponent})
+      AND (${compAliases ? compAliases : null}::text[] IS NULL OR component = ANY(${compAliases}))
       AND (${normalizedSubsystem}::text IS NULL OR subsystem = ${normalizedSubsystem} OR subsystem = 'bge' OR subsystem = 'all' OR subsystem IS NULL)
     ORDER BY semester ASC, component ASC, uac_name ASC
   `;

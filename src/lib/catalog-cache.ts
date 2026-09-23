@@ -1,4 +1,4 @@
-import { sql, ProgramCatalogItem } from '@/lib/db';
+import { sql, ProgramCatalogItem, resolveComponentAliases } from '@/lib/db';
 
 interface CacheEntry<T> {
   data: T;
@@ -43,12 +43,12 @@ export async function getFilteredCachedPrograms(
 ): Promise<ProgramCatalogItem[]> {
   const allPrograms = await getAllCachedPrograms();
   const normalizedSubsystem = (subsystem && subsystem !== 'all' && subsystem !== 'todos') ? subsystem.toLowerCase() : null;
-  const normalizedComponent = (component && component !== 'all' && component !== 'todos') ? component : null;
+  const compAliases = resolveComponentAliases(component);
   const sem = (semester !== undefined && !isNaN(semester)) ? semester : null;
 
   return allPrograms.filter(p => {
     if (sem !== null && p.semester !== sem) return false;
-    if (normalizedComponent !== null && p.component !== normalizedComponent) return false;
+    if (compAliases !== null && !compAliases.includes(p.component)) return false;
     if (normalizedSubsystem !== null) {
       const pSub = (p.subsystem || 'all').toLowerCase();
       if (pSub !== 'all' && pSub !== normalizedSubsystem && pSub !== 'bge') return false;
