@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════════════
 --  DidácticaIA — Módulo Horarios: Tablas complementarias
---  Neon PostgreSQL · DBEPA Puebla 2026-2027
+--  Neon PostgreSQL · SEMS Puebla 2026-2027
 --  Ejecutar este script en el panel SQL de Neon (una sola vez).
 -- ═══════════════════════════════════════════════════════════════════
 

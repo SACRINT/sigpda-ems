@@ -2,7 +2,7 @@
   "app": {
     "name": "DidácticaIA",
     "tagline": "Your teaching sequence, perfectly aligned to MCCEMS",
-    "description": "Generate official DBEPA 2026-2027 didactic plannings with AI"
+    "description": "Generate official MCCEMS 2026-2027 didactic plannings with AI"
   },
   "nav": {
     "dashboard": "My plannings",
