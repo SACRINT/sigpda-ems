@@ -62,7 +62,7 @@ export async function parsePdfBuffer(buffer: Buffer, filename?: string, targetSe
 
 async function structureWithAI(rawText: string, targetSemester?: number, teacherId?: string): Promise<PdfParseResult> {
   // Use complete extracted text (no arbitrary truncation - Gemini Flash Lite has 1M context)
-  const systemInstruction = `Eres un experto en programas de estudio del bachillerato de la Nueva Escuela Mexicana en Puebla (MCCEMS/DBEPA). Responde exclusivamente con JSON válido, sin markdown ni explicaciones.`;
+  const systemInstruction = `Eres un experto en programas de estudio del bachillerato de la Nueva Escuela Mexicana en Puebla (MCCEMS). Responde exclusivamente con JSON válido, sin markdown ni explicaciones.`;
 
   const semesterDirective = targetSemester
     ? `ATENCIÓN: Este documento oficial contiene programas de estudio para múltiples semestres. Extrae EXCLUSIVAMENTE el programa correspondiente al Semestre ${targetSemester} (ejemplo: si targetSemester es 3, extrae los datos de 3er semestre / Pensamiento Matemático III / UAC III).`
