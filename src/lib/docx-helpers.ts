@@ -525,7 +525,7 @@ export async function buildExtraDocx(
                   new TextRun({ children: [PageNumber.CURRENT], size: 14, color: '777777', font: 'Arial' }),
                   new TextRun({ text: ' de ', size: 14, color: '777777', font: 'Arial' }),
                   new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 14, color: '777777', font: 'Arial' }),
-                  new TextRun({ text: ' | SIGPDA-EMS DBEPA Puebla', size: 14, color: '777777', font: 'Arial' }),
+                  new TextRun({ text: ' | SIGPDA-EMS MCCEMS', size: 14, color: '777777', font: 'Arial' }),
                 ],
               }),
             ],

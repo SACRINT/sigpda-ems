@@ -516,7 +516,7 @@ export async function generateSecuenciaPDF(
     if (act.saberes && (act.saberes.saber || act.saberes.saberHacer || act.saberes.saberSer)) {
       rows.push([
         {
-          content: 'Taxonomía de Saberes Curriculares DBEPA',
+          content: 'Taxonomía de Saberes Curriculares MCCEMS',
           colSpan: 4,
           styles: { fillColor: [241, 245, 249], textColor: [30, 41, 59], fontStyle: 'bold', fontSize: 7 },
         },

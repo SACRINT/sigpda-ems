@@ -143,7 +143,7 @@ function buildCover(content: GeneratedPlanningContent): (Paragraph | Table)[] {
       margins: { top: 160, bottom: 160, left: 300, right: 300 },
       children: [
         new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'SECRETARÍA DE EDUCACIÓN PÚBLICA DE PUEBLA', bold: true, size: 20, color: C.white, font: 'Arial' })] }),
-        new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Dirección de Bachilleratos Estatales y Preparatoria Abierta (DBEPA)', size: 17, color: 'AACCEE', font: 'Arial' })] }),
+        new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Dirección de Educación Media Superior', size: 17, color: 'AACCEE', font: 'Arial' })] }),
         new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `Ciclo Escolar ${SCHOOL_YEAR}`, size: 17, color: 'AACCEE', font: 'Arial' })] }),
       ],
     })]})], [CONTENT]),
@@ -167,7 +167,7 @@ function buildCover(content: GeneratedPlanningContent): (Paragraph | Table)[] {
       new TableRow({ children: [tcL('Semestre:', { w: cL }), tc(`${s1.semester}er / ${s1.semester}º Semestre`, { w: cR, fill: C.alt })] }),
       new TableRow({ children: [tcL('Carga Horaria:', { w: cL }), tc(`${s1.totalHours} horas`, { w: cR })] }),
       new TableRow({ children: [tcL('Subsistema:', { w: cL }), tc(s1.subsystem, { w: cR, fill: C.alt })] }),
-      new TableRow({ children: [tcL('Marco de Referencia:', { w: cL }), tc(`NEM · MCCEMS · Lineamientos DBEPA ${SCHOOL_YEAR}`, { w: cR })] }),
+      new TableRow({ children: [tcL('Marco de Referencia:', { w: cL }), tc(`NEM · MCCEMS · Lineamientos Oficiales ${SCHOOL_YEAR}`, { w: cR })] }),
       new TableRow({ children: [tcL('Metodología Activa:', { w: cL }), tc(formatearBadgeMetodologia(s1.metodologiaActiva || content.sectionIV?.activities?.[0]?.methodology), { w: cR, fill: C.alt })] }),
     ], [cL, cR]),
     pb(),
@@ -296,12 +296,12 @@ function buildActivityTable(activity: GeneratedPlanningContent['sectionIV']['act
     }));
   }
 
-  // Tres Saberes Curriculares DBEPA
+  // Tres Saberes Curriculares
   if (activity.saberes && (activity.saberes.saber || activity.saberes.saberHacer || activity.saberes.saberSer)) {
     rows.push(
       new TableRow({
         children: [
-          tcM('Taxonomía de Saberes (DBEPA)', { w: CONTENT, span: 4, align: AlignmentType.LEFT, size: 18 })
+          tcM('Taxonomía de Saberes Curriculares', { w: CONTENT, span: 4, align: AlignmentType.LEFT, size: 18 })
         ]
       }),
       new TableRow({
@@ -468,7 +468,7 @@ function buildSectionVII(): (Paragraph | Table)[] {
       new TableRow({ children: [tc('Fecha: ___/___/______', { w: c3 }), tc('Fecha: ___/___/______', { w: c3, fill: C.alt }), tc('Fecha: ___/___/______', { w: c3+rem })] }),
     ], [c3, c3, c3+rem]),
     sp(),
-    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 200 }, children: [new TextRun({ text: `DBEPA Puebla ${SCHOOL_YEAR} | departamento.academico.dbepa@seppue.gob.mx`, size: 16, color: '777777', font: 'Arial' })] }),
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 200 }, children: [new TextRun({ text: `Educación Media Superior ${SCHOOL_YEAR}`, size: 16, color: '777777', font: 'Arial' })] }),
   ];
 }
 
@@ -492,7 +492,7 @@ export async function generateDocx(
           children: [new Paragraph({
             spacing: { before: 0, after: 60 },
             border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: C.accent, space: 1 } },
-            children: [new TextRun({ text: `DBEPA Puebla ${SCHOOL_YEAR} | ${content.sectionI.uacName} | ${content.sectionI.semester}° Semestre`, size: 14, color: '777777', font: 'Arial' })],
+            children: [new TextRun({ text: `MCCEMS ${SCHOOL_YEAR} | ${content.sectionI.uacName} | ${content.sectionI.semester}° Semestre`, size: 14, color: '777777', font: 'Arial' })],
           })],
         }),
       },
@@ -507,7 +507,7 @@ export async function generateDocx(
               new TextRun({ children: [PageNumber.CURRENT], size: 14, color: '777777', font: 'Arial' }),
               new TextRun({ text: ' de ', size: 14, color: '777777', font: 'Arial' }),
               new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 14, color: '777777', font: 'Arial' }),
-              new TextRun({ text: ` | NEM · MCCEMS · Lineamientos DBEPA ${SCHOOL_YEAR}`, size: 14, color: '777777', font: 'Arial' }),
+              new TextRun({ text: ` | NEM · MCCEMS · Lineamientos Oficiales ${SCHOOL_YEAR}`, size: 14, color: '777777', font: 'Arial' }),
             ],
           })],
         }),
@@ -552,7 +552,7 @@ export async function generateSecuenciaDocx(
           children: [new Paragraph({
             alignment: AlignmentType.RIGHT,
             children: [new TextRun({
-              text: `SEP PUEBLA · SUBSECRETARÍA DE EDUCACIÓN MEDIA SUPERIOR · DBEPA ${SCHOOL_YEAR}`,
+              text: `SEP PUEBLA · SUBSECRETARÍA DE EDUCACIÓN MEDIA SUPERIOR · MCCEMS ${SCHOOL_YEAR}`,
               size: 14, color: '666666', font: 'Arial',
             })],
           })],
@@ -569,7 +569,7 @@ export async function generateSecuenciaDocx(
               new TextRun({ children: [PageNumber.CURRENT], size: 14, color: '777777', font: 'Arial' }),
               new TextRun({ text: ' de ', size: 14, color: '777777', font: 'Arial' }),
               new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 14, color: '777777', font: 'Arial' }),
-              new TextRun({ text: ' | Secuencia Didáctica Micro (Sesiones 50 min) · DBEPA', size: 14, color: '777777', font: 'Arial' }),
+              new TextRun({ text: ' | Secuencia Didáctica Micro (Sesiones 50 min)', size: 14, color: '777777', font: 'Arial' }),
             ],
           })],
         }),
