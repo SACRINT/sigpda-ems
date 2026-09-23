@@ -7,7 +7,7 @@
  * Rutas oficiales:
  *  - Semestres 1-4 : MCCEMS (Propósitos Formativos y Contenidos) → Anexo 12 USICAMM 1-4 (300 pts)
  *  - Semestres 5-6 : MCCEMS (Progresiones y Proyectos)            → Anexo 12 USICAMM 5-6 (300 pts)
- *  - Formación Laboral (Actividades Clave y Competencias)         → Guía Laboral DBEPA (200 pts)
+ *  - Formación Laboral (Actividades Clave y Competencias)         → Guía Laboral MCCEMS (200 pts)
  */
 
 import { generateWithRotation } from '@/lib/ai-provider';

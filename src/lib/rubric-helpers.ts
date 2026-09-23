@@ -1,5 +1,5 @@
 /**
- * rubric-helpers.ts — Helpers puros para descriptores de rúbricas formativas NEM / DBEPA.
+ * rubric-helpers.ts — Helpers puros para descriptores de rúbricas formativas NEM / MCCEMS.
  *
  * Módulo compartido entre generadores de documentos (PDF, DOCX) y validadores pedagógicos,
  * eliminando el acoplamiento cruzado DOCX -> PDF.
@@ -8,7 +8,7 @@
 export type RubricLevel = 'sobresaliente' | 'notable' | 'suficiente' | 'insuficiente';
 
 /**
- * Fallback pedagógico oficial de la Nueva Escuela Mexicana (NEM - DBEPA Puebla).
+ * Fallback pedagógico oficial de la Nueva Escuela Mexicana (NEM - MCCEMS Puebla).
  */
 export function getOfficialNemFallback(level: RubricLevel): string {
   switch (level) {

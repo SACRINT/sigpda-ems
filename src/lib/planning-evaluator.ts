@@ -3,7 +3,7 @@
  * Validador de Calidad y Auto-Repair de Reto Situado (SIGPDA-EMS)
  * 
  * Implementa los 4 criterios de calidad de Reto Situado bajo el Modelo Finlandés
- * de Aprendizaje Basado en Fenómenos (Ilmiöoppiminen) y la normativa DBEPA 2026-2027:
+ * de Aprendizaje Basado en Fenómenos (Ilmiöoppiminen) y la normativa MCCEMS 2026-2027:
  * 
  * 1. Contiene verbo en infinitivo de orden superior aplicado (Diseñar, Construir, etc.)
  * 2. Menciona un contexto local o comunitario específico (no es genérico ni abstracto)
@@ -148,7 +148,7 @@ export interface RetoContextoInput {
 }
 
 /**
- * Valida un Reto Situado contra los 4 criterios de calidad pedagógica DBEPA / Finlandia.
+ * Valida un Reto Situado contra los 4 criterios de calidad pedagógica MCCEMS / Finlandia.
  */
 export function validateRetoSituado(
   reto: RetoSituado | string,
@@ -324,7 +324,7 @@ export function autoRepairRetoSituado(
 
 /**
  * Función guardián para asegurar que cualquier Reto Situado antes de persistirse o renderizarse
- * cumpla exactamente con el estándar 4/4 de calidad DBEPA.
+ * cumpla exactamente con el estándar 4/4 de calidad MCCEMS.
  */
 export function ensureRetoSituadoCalidad(
   reto: RetoSituado | undefined | null,

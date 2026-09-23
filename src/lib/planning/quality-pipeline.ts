@@ -2,7 +2,7 @@
  * quality-pipeline.ts
  * Pipeline determinista de evaluación de calidad para Planeaciones Didácticas (SIGPDA-EMS)
  * 
- * Implementa 4 validadores pedagógicos y normativos DBEPA / MCCEMS 2026-2027:
+ * Implementa 4 validadores pedagógicos y normativos MCCEMS 2026-2027:
  * 1. validateRetoSituado44: Valida 4/4 criterios del Reto Situado (verbo infinitivo, contexto local Puebla, problema real, alineación curricular)
  * 2. validateTresSaberes: Valida cobertura de la taxonomía (Saber Teórico, Saber Hacer Práctico, Saber Ser Actitudinal)
  * 3. validateCoherenciaMetodologica: Valida coherencia con la metodología activa (ABP, STEAM, ABR, etc.) y detecta pasividad
@@ -34,7 +34,7 @@ import type {
  * para asegurar que sumen exactamente 100%.
  * 
  * Reglas:
- * 1. Si está vacío o nulo, devuelve la escala oficial DBEPA (Diagnóstica 5%, Formativa 55%, Sumativa 40%).
+ * 1. Si está vacío o nulo, devuelve la escala oficial MCCEMS (Diagnóstica 5%, Formativa 55%, Sumativa 40%).
  * 2. Si la suma es 100% y Diagnóstica <= 10%, no altera nada.
  * 3. Si hay exceso (> 100%), reduce primero Diagnóstica a un máximo de 5% (norma NEM).
  *    Si persiste el exceso, reduce proporcionalmente de Formativa y Sumativa.
