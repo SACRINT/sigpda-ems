@@ -46,6 +46,7 @@ import {
   pmcOrchestrator,
   PmcOrchestrator,
   PmcOrchestratorError,
+  isUpstreamAIError,
   type PmcDocumentType,
 } from '@/lib/pmc/orchestrator';
 import {
@@ -438,5 +439,34 @@ describe('PmcOrchestrator (Piloto Nivel 1 & Strangler Fig)', () => {
 
     expect(res.status).toBe(503);
     expect(json.error).toContain('alta demanda o saturación temporal');
+  });
+
+  describe('12. isUpstreamAIError — Clasificación acotada de fallos de IA (F-003)', () => {
+    it('reconoce códigos de estado HTTP 429, 503, 504 en objetos de error', () => {
+      expect(isUpstreamAIError({ status: 503 })).toBe(true);
+      expect(isUpstreamAIError({ statusCode: 504 })).toBe(true);
+      expect(isUpstreamAIError({ status: 429 })).toBe(true);
+    });
+
+    it('reconoce firmas canónicas de proveedores de IA', () => {
+      expect(isUpstreamAIError(new Error('GoogleGenerativeAIError: [503 Service Unavailable] UNAVAILABLE'))).toBe(true);
+      expect(isUpstreamAIError(new Error('This model is currently experiencing high demand.'))).toBe(true);
+      expect(isUpstreamAIError(new Error('[ai-provider] All AI providers exhausted. Primary: gemini.'))).toBe(true);
+      expect(isUpstreamAIError(new Error('Rate-limit exceeded for tier'))).toBe(true);
+      expect(isUpstreamAIError(new Error('upstream rate limit reached'))).toBe(true);
+      expect(isUpstreamAIError(new Error('RESOURCE_EXHAUSTED'))).toBe(true);
+      expect(isUpstreamAIError(new Error('MODEL_CAPACITY_EXCEEDED'))).toBe(true);
+      expect(isUpstreamAIError(new Error('Request aborted due to timeout'))).toBe(true);
+    });
+
+    it('NO clasifica como IA errores de base de datos o validaciones genéricas (test negativo)', () => {
+      expect(isUpstreamAIError(new Error('Connection timeout to Neon DB'))).toBe(false);
+      expect(isUpstreamAIError(new Error('Database query timed out'))).toBe(false);
+      expect(isUpstreamAIError(new Error('Postgres error 503001 relation not found'))).toBe(false);
+      expect(isUpstreamAIError(new Error('Constraint violation code 42901'))).toBe(false);
+      expect(isUpstreamAIError(new Error('Validation error: text is too short'))).toBe(false);
+      expect(isUpstreamAIError(null)).toBe(false);
+      expect(isUpstreamAIError(undefined)).toBe(false);
+    });
   });
 });

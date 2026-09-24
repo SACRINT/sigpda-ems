@@ -69,16 +69,13 @@ export function isUpstreamAIError(err: unknown): boolean {
     status === 503 ||
     status === 504 ||
     status === 429 ||
-    msg.includes('503') ||
-    msg.includes('429') ||
-    msg.includes('504') ||
     msg.includes('UNAVAILABLE') ||
     msg.includes('high demand') ||
     msg.includes('All AI providers exhausted') ||
-    msg.includes('Rate-limit') ||
-    msg.includes('rate-limit') ||
-    msg.includes('timeout') ||
-    msg.includes('timed out') ||
+    msg.toLowerCase().includes('rate-limit') ||
+    msg.toLowerCase().includes('rate limit') ||
+    msg.includes('RESOURCE_EXHAUSTED') ||
+    msg.includes('MODEL_CAPACITY_EXCEEDED') ||
     msg.includes('aborted due to timeout')
   );
 }
