@@ -10,6 +10,7 @@ import autoTable from 'jspdf-autotable';
 import { loadAllLogos } from './pdf-logos';
 import { SCHOOL_YEAR } from '@/lib/config';
 import { logger } from './logger';
+import { calculatePmcIndicatorRows } from './pmc-indicator-calculator';
 import type { PmcProject, PmcStatisticalContext } from '@/types/pmc';
 
 const NAVY: [number, number, number] = [31, 56, 100];       // #1F3864 - Azul Institucional MCCEMS
@@ -297,37 +298,7 @@ export async function generatePmcPDF(
   curY += 4;
 
   const statsCtx: PmcStatisticalContext | undefined = project.statistical_context || (indAcad as any)?.statistical_context;
-  const pStats = statsCtx?.plantel;
-  const zStats = statsCtx?.zona;
-
-  const matAnt = pStats?.matricula ?? indAcad.matricula;
-  const apAnt = pStats?.aprobadosPorcentaje ?? indAcad.aprobacion_ant;
-  const repAnt = pStats?.reprobacion ?? indAcad.reprobacion_ant;
-  const abAnt = pStats?.abandono ?? indAcad.abandono_ant;
-  const etAnt = pStats?.eficienciaTerminal ?? indAcad.et_ant;
-  const promF11 = pStats?.promedioGeneral ?? pStats?.promedioCalificaciones;
-
-  const apMeta = indAcad.aprobacion_meta ?? (apAnt !== undefined && apAnt !== null && !isNaN(Number(apAnt)) ? (Number(apAnt) + 5) : undefined);
-  const abMeta = indAcad.abandono_meta ?? (abAnt !== undefined && abAnt !== null && !isNaN(Number(abAnt)) ? Math.max(0, Number(abAnt) - 2.5) : undefined);
-  const etMeta = indAcad.et_meta ?? (etAnt !== undefined && etAnt !== null && !isNaN(Number(etAnt)) ? (Number(etAnt) + 6) : undefined);
-
-  const indicRows: any[][] = [
-    ['Tasa de Aprobación Escolar (F11C)', apAnt !== undefined ? `${apAnt}%` : 'N/D', apMeta !== undefined ? `${apMeta}%` : 'N/D', (apMeta !== undefined && apAnt !== undefined) ? `+${(Number(apMeta) - Number(apAnt)).toFixed(1)}% Mejora` : 'N/D'],
-    ['Índice de Reprobación Escolar (F11C)', repAnt !== undefined ? `${repAnt}%` : 'N/D', apMeta !== undefined ? `${Math.max(0, 100 - Number(apMeta)).toFixed(1)}%` : 'N/D', apMeta !== undefined ? 'Reducción Progresiva' : 'N/D'],
-    ['Abandono Escolar / Deserción (911.7)', abAnt !== undefined ? `${abAnt}%` : 'N/D', abMeta !== undefined ? `${abMeta}%` : 'N/D', (abMeta !== undefined && abAnt !== undefined) ? `${(Number(abMeta) - Number(abAnt)).toFixed(1)}% Retención` : 'N/D'],
-    ['Eficiencia Terminal / Egreso (911.7G)', etAnt !== undefined ? `${etAnt}%` : 'N/D', etMeta !== undefined ? `${etMeta}%` : 'N/D', (etMeta !== undefined && etAnt !== undefined) ? `+${(Number(etMeta) - Number(etAnt)).toFixed(1)}% Graduación` : 'N/D'],
-    ['Matrícula Escolar Oficial (911.7G)', matAnt !== undefined ? `${matAnt} estudiantes` : 'N/D', matAnt !== undefined ? `${matAnt} estudiantes` : 'N/D', 'Sostenimiento'],
-  ];
-
-  if (promF11 !== undefined) {
-    indicRows.push(['Promedio General de Calificaciones (F11C)', `${promF11}`, `${(Number(promF11) + 0.5).toFixed(2)}`, '+0.50 Aprovechamiento']);
-  }
-
-  if (zStats) {
-    indicRows.push([
-      { content: `Comparativo de Zona Escolar (${zStats.zonaNumero || 'Regional'}): Media Abandono ${zStats.promedioAbandono}%, Media Eficiencia ${zStats.promedioEficiencia}% (Prioridad: ${zStats.brechasDiagnostico.prioridadIntervencion.toUpperCase()})`, colSpan: 4, styles: { fontStyle: 'italic' as const, fillColor: BLUE_LIGHT, textColor: NAVY } }
-    ]);
-  }
+  const indicRows = calculatePmcIndicatorRows(indAcad, statsCtx, cicloTexto);
 
   autoTable(doc, {
     startY: curY,
@@ -337,13 +308,34 @@ export async function generatePmcPDF(
       { content: `Meta Proyectada (${cicloTexto})`, styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], halign: 'center' } },
       { content: 'Variación Esperada', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], halign: 'center' } },
     ]],
-    body: indicRows,
+    body: indicRows as any[][],
     theme: 'grid',
     styles: { fontSize: 7, cellPadding: 2, textColor: TEXT_DARK, lineColor: [210, 220, 235] },
     margin: { left: margin, right: margin },
   });
 
-  curY = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 8 : curY + 40;
+  curY = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 6 : curY + 40;
+
+  // Análisis e Interpretación de Indicadores (Paridad con DOCX)
+  if (diag.analisis_indicadores) {
+    if (curY > pageHeight - 35) {
+      doc.addPage();
+      curY = 18;
+      drawHeaderOnNewPage();
+    }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(...BLUE_MID);
+    doc.text('Análisis e Interpretación de Indicadores Educativos:', margin, curY);
+    curY += 4;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...TEXT_DARK);
+    const splitAnalisis = doc.splitTextToSize(String(diag.analisis_indicadores).trim(), contentWidth);
+    doc.text(splitAnalisis, margin, curY);
+    curY += splitAnalisis.length * 3.5 + 6;
+  }
 
   // 2.3 Matriz FODA Cuadrante Oficial
   if (curY > pageHeight - 50) {
@@ -388,7 +380,79 @@ export async function generatePmcPDF(
     margin: { left: margin, right: margin },
   });
 
-  curY = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 8 : curY + 40;
+  curY = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 6 : curY + 40;
+
+  // Síntesis FODA (Paridad con DOCX)
+  if (diag.sintesis_foda) {
+    if (curY > pageHeight - 35) {
+      doc.addPage();
+      curY = 18;
+      drawHeaderOnNewPage();
+    }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(...BLUE_MID);
+    doc.text('Síntesis y Conclusiones del Diagnóstico FODA:', margin, curY);
+    curY += 4;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...TEXT_DARK);
+    const splitSintesis = doc.splitTextToSize(String(diag.sintesis_foda).trim(), contentWidth);
+    doc.text(splitSintesis, margin, curY);
+    curY += splitSintesis.length * 3.5 + 6;
+  }
+
+  // 2.4 Priorización de Categorías y Ámbitos de Acción (Paridad con DOCX)
+  const categorias = parseJson(project.categorias_priorizadas);
+  if (diag.priorizacion || (Array.isArray(categorias) && categorias.length > 0)) {
+    if (curY > pageHeight - 45) {
+      doc.addPage();
+      curY = 18;
+      drawHeaderOnNewPage();
+    }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(...BLUE_MID);
+    doc.text('2.4 Priorización de Categorías y Ámbitos de Acción:', margin, curY);
+    curY += 4;
+
+    if (diag.priorizacion) {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(...TEXT_DARK);
+      const splitPrio = doc.splitTextToSize(String(diag.priorizacion).trim(), contentWidth);
+      doc.text(splitPrio, margin, curY);
+      curY += splitPrio.length * 3.5 + 6;
+    }
+
+    if (Array.isArray(categorias) && categorias.length > 0) {
+      const catRows = categorias.map((c: any, i: number) => [
+        { content: `${i + 1}`, styles: { halign: 'center' as const, fontStyle: 'bold' as const, fillColor: GRAY_BG } },
+        safeStr(c.nombre || c.id, `Categoría ${i + 1}`),
+        Array.isArray(c.temas) && c.temas.length > 0 ? c.temas.join('; ') : 'Todos los ámbitos prioritarios aplicables',
+      ]);
+
+      autoTable(doc, {
+        startY: curY,
+        head: [[
+          { content: 'N°', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], halign: 'center' } },
+          { content: 'Categoría Priorizada', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
+          { content: 'Temas / Ámbitos de Intervención', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
+        ]],
+        body: catRows,
+        theme: 'grid',
+        styles: { fontSize: 7, cellPadding: 2, textColor: TEXT_DARK, lineColor: [210, 220, 235] },
+        columnStyles: {
+          0: { cellWidth: 10 },
+          1: { cellWidth: 65 },
+          2: { cellWidth: contentWidth - 75 },
+        },
+        margin: { left: margin, right: margin },
+      });
+      curY = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 8 : curY + 30;
+    }
+  }
 
   // ── SECCIÓN 3: METAS INSTITUCIONALES ────────────────────────────────────────
   addSectionHeader('III. METAS INSTITUCIONALES POR ÁMBITO DE ACCIÓN');
@@ -440,6 +504,59 @@ export async function generatePmcPDF(
     });
 
     curY = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 8 : curY + 40;
+
+    // Fichas Técnicas por Meta Institucional (Paridad Oficial con DOCX)
+    if (metasInst.length > 0) {
+      if (curY > pageHeight - 45) {
+        doc.addPage();
+        curY = 18;
+        drawHeaderOnNewPage();
+      }
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(...BLUE_MID);
+      doc.text('Fichas Técnicas Descriptivas por Meta Institucional:', margin, curY);
+      curY += 4;
+
+      for (let i = 0; i < metasInst.length; i++) {
+        const m = metasInst[i];
+        if (curY > pageHeight - 65) {
+          doc.addPage();
+          curY = 18;
+          drawHeaderOnNewPage();
+        }
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(...NAVY);
+        doc.text(`Ficha Técnica ${i + 1}: ${safeStr(m.nombre_categoria || m.categoria, 'Ámbito Institucional')}`, margin, curY);
+        curY += 3.5;
+
+        autoTable(doc, {
+          startY: curY,
+          body: [
+            [{ content: 'Ámbito / Categoría:', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 38 } }, safeStr(m.nombre_categoria || m.categoria)],
+            [{ content: 'Tema Específico:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.tema)],
+            [{ content: 'Meta SMART:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.meta)],
+            [{ content: 'Línea Base:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.linea_base, 'Situación inicial documentada')],
+            [{ content: 'Estrategia de Operación:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.estrategia)],
+            [{ content: 'Personal Designado:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.personal_designado, 'Colectivo Escolar')],
+            [{ content: 'Evidencia / Entregable:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.entregable)],
+            [{ content: 'Período de Ejecución:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, `${safeStr(m.periodo_inicio, 'Agosto')} — ${safeStr(m.periodo_fin, 'Julio')}`],
+            [{ content: 'Diagnóstico de la Meta:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.diagnostico_meta, 'Justificación diagnóstica de la meta')],
+          ],
+          theme: 'grid',
+          styles: { fontSize: 6.8, cellPadding: 2, textColor: TEXT_DARK, lineColor: [210, 220, 235] },
+          columnStyles: {
+            0: { cellWidth: 38 },
+            1: { cellWidth: contentWidth - 38 },
+          },
+          margin: { left: margin, right: margin },
+        });
+
+        curY = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 6 : curY + 45;
+      }
+    }
   }
 
   // ── SECCIÓN 4: METAS INDIVIDUALES DEL PERSONAL ──────────────────────────────
@@ -498,6 +615,67 @@ export async function generatePmcPDF(
   }
 
   addSectionHeader('V. VALIDACIÓN INSTITUCIONAL Y FIRMAS OFICIALES');
+
+  // Tabla de Personal y Comunidad Escolar Participante (Paridad con DOCX)
+  const participantesRaw = (project as any).participantes;
+  const staffDataRaw = parseJson(project.staff_data);
+  const personalParticipante: Array<{ nombre: string; cargo: string; firma?: string }> =
+    Array.isArray(participantesRaw) && participantesRaw.length > 0
+      ? participantesRaw
+      : Array.isArray(staffDataRaw) && staffDataRaw.length > 0
+        ? staffDataRaw.map((s: any) => ({
+            nombre: s.nombre,
+            cargo: s.cargo || 'Docente',
+            firma: 'Participante',
+          }))
+        : [];
+
+  if (personalParticipante.length > 0) {
+    if (curY > pageHeight - 55) {
+      doc.addPage();
+      curY = 18;
+      drawHeaderOnNewPage();
+    }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(...BLUE_MID);
+    doc.text('Personal y Comunidad Escolar Participante:', margin, curY);
+    curY += 4;
+
+    const partRows = personalParticipante.map((p, idx) => [
+      { content: `${idx + 1}`, styles: { halign: 'center' as const, fontStyle: 'bold' as const, fillColor: GRAY_BG } },
+      safeStr(p.nombre, 'Integrante'),
+      safeStr(p.cargo, 'Docente'),
+      safeStr(p.firma, '_____________________'),
+    ]);
+
+    autoTable(doc, {
+      startY: curY,
+      head: [[
+        { content: 'N°', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], halign: 'center' } },
+        { content: 'Nombre Completo', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
+        { content: 'Cargo / Función en el CTE', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
+        { content: 'Firma / Rúbrica', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], halign: 'center' } },
+      ]],
+      body: partRows,
+      theme: 'grid',
+      styles: { fontSize: 6.5, cellPadding: 2, textColor: TEXT_DARK, lineColor: [210, 220, 235] },
+      columnStyles: {
+        0: { cellWidth: 10 },
+        1: { cellWidth: 70 },
+        2: { cellWidth: 55 },
+        3: { cellWidth: contentWidth - 135, halign: 'center' },
+      },
+      margin: { left: margin, right: margin },
+    });
+    curY = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 8 : curY + 35;
+  }
+
+  if (curY > pageHeight - 55) {
+    doc.addPage();
+    curY = 20;
+    drawHeaderOnNewPage();
+  }
 
   const dirName = safeStr(project.director_name, 'Director(a) del Plantel');
   const supName = safeStr(project.supervisor_name, 'Supervisor(a) de Zona');
