@@ -77,7 +77,7 @@ export function normalizePmcCategoria(rawCategoria: string | undefined | null): 
 
   // Categoría 1: Desarrollo académico y aprendizaje
   if (
-    sinPrefijo.includes('acad[eé]mico') ||
+    /acad[eé]mico/i.test(sinPrefijo) ||
     sinPrefijo.includes('aprendizaje') ||
     sinPrefijo.includes('procesos para el desarrollo') ||
     clean.includes('categoría 1') ||
@@ -89,10 +89,10 @@ export function normalizePmcCategoria(rawCategoria: string | undefined | null): 
 
   // Categoría 2: Gestión y administración escolar
   if (
-    sinPrefijo.includes('gesti[oó]n') ||
-    sinPrefijo.includes('administraci[oó]n') ||
+    /gesti[oó]n/i.test(sinPrefijo) ||
+    /administraci[oó]n/i.test(sinPrefijo) ||
     sinPrefijo.includes('recursos') ||
-    sinPrefijo.includes('vinculaci[oó]n') ||
+    /vinculaci[oó]n/i.test(sinPrefijo) ||
     clean.includes('categoría 2') ||
     clean.includes('categoria 2') ||
     clean.includes('cat 2')
@@ -139,10 +139,10 @@ export function normalizePmcTema(rawTema: string | undefined | null, categoriaNo
   if (exact) return exact;
 
   // Normalizaciones semánticas conocidas
-  if (cleanLower.includes('actualizaci[oó]n') || cleanLower.includes('formaci[oó]n docente') || cleanLower.includes('cosfac')) {
+  if (/actualizaci[oó]n/i.test(cleanLower) || /formaci[oó]n docente/i.test(cleanLower) || cleanLower.includes('cosfac')) {
     return 'Formación y actualización docente';
   }
-  if (cleanLower.includes('pedag[oó]gic')) {
+  if (/pedag[oó]gic/i.test(cleanLower)) {
     return 'Propuestas pedagógicas';
   }
   if (cleanLower.includes('colegiado')) {
@@ -160,10 +160,10 @@ export function normalizePmcTema(rawTema: string | undefined | null, categoriaNo
   if (cleanLower.includes('indicadores') || cleanLower.includes('reprobaci') || cleanLower.includes('eficiencia') || cleanLower.includes('abandono')) {
     return 'Indicadores académicos (reprobación, eficiencia terminal y abandono escolar)';
   }
-  if (cleanLower.includes('tutor') || cleanLower.includes('orientaci[oó]n y tutor')) {
+  if (cleanLower.includes('tutor') || /orientaci[oó]n y tutor/i.test(cleanLower)) {
     return 'Orientación y Tutoría';
   }
-  if (cleanLower.includes('planeaci[oó]n') || cleanLower.includes('did[aá]ctic')) {
+  if (/planeaci[oó]n/i.test(cleanLower) || /did[aá]ctic/i.test(cleanLower)) {
     return 'Planeación didáctica';
   }
   if (cleanLower.includes('otra') || cleanLower.includes('desfile') || cleanLower.includes('bander') || cleanLower.includes('civic') || cleanLower.includes('proyecto')) {
@@ -172,10 +172,10 @@ export function normalizePmcTema(rawTema: string | undefined | null, categoriaNo
   if (cleanLower.includes('paz') || cleanLower.includes('violencia')) {
     return 'Estrategias, programas y/o proyectos sobre violencia';
   }
-  if (cleanLower.includes('socioemocional') || cleanLower.includes('curr[ií]culum ampliado')) {
+  if (cleanLower.includes('socioemocional') || /curr[ií]culum ampliado/i.test(cleanLower)) {
     return 'Ámbitos de formación socioemocional (Currículum Ampliado)';
   }
-  if (cleanLower.includes('orientaci[oó]n educativa')) {
+  if (/orientaci[oó]n educativa/i.test(cleanLower)) {
     return 'Orientación educativa';
   }
   if (cleanLower.includes('desempeño') || cleanLower.includes('aula')) {
