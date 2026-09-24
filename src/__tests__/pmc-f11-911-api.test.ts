@@ -389,8 +389,13 @@ describe('API Route: /api/pmc/estadistica-911', () => {
     const jsonAct = await resAct.json();
 
     expect(resAct.status).toBe(200);
+    expect(jsonAct.success).toBe(true);
+    expect(jsonAct.filename).toBe('911_act.pdf');
     expect(jsonAct.data.momento).toBe('inicio_actual');
     expect(jsonAct.data.matricula).toBe(310);
+    expect(jsonAct.data.totalDocentes).toBe(15);
+    expect(jsonAct.data.schoolName).toBe('BACHILLERATO HEROES DE LA PATRIA');
+    expect(jsonAct.data.schoolCct).toBe('21EBH0282Y');
 
     // Test momento inicio_anterior
     const formDataAnt = new FormData();
@@ -405,6 +410,12 @@ describe('API Route: /api/pmc/estadistica-911', () => {
     const jsonAnt = await resAnt.json();
 
     expect(resAnt.status).toBe(200);
+    expect(jsonAnt.success).toBe(true);
+    expect(jsonAnt.filename).toBe('911_ant.pdf');
     expect(jsonAnt.data.momento).toBe('inicio_anterior');
+    expect(jsonAnt.data.matricula).toBe(310);
+    expect(jsonAnt.data.totalDocentes).toBe(15);
+    expect(jsonAnt.data.schoolName).toBe('BACHILLERATO HEROES DE LA PATRIA');
+    expect(jsonAnt.data.schoolCct).toBe('21EBH0282Y');
   });
 });
