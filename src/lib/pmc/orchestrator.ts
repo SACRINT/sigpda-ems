@@ -133,7 +133,7 @@ export class PmcOrchestrator implements IPmcOrchestrator {
         if (!parsed.success) {
           logger.error('[pmc-orchestrator:f11] AI response parsing failed:', parsed.error);
           throw new PmcOrchestratorError(
-            `No se pudieron estructurar los datos de acreditación F11: ${parsed.error}`,
+            `No se pudieron estructurar los datos del F11: ${parsed.error}`,
             422
           );
         }
@@ -240,44 +240,38 @@ export class PmcOrchestrator implements IPmcOrchestrator {
   /**
    * Generación de fases o pasos del PMC (Contrato N1).
    */
-  public async generate(projectId: string, step = 1): Promise<{ success: boolean; projectId: string }> {
-    logger.info(`[pmc-orchestrator] Generating step ${step} for project ${projectId}`);
-    return {
-      success: true,
-      projectId,
-    };
+  public async generate(): Promise<{ success: boolean; projectId: string }> {
+    throw new PmcOrchestratorError('Método generate() no implementado en la fase actual del orquestador PMC.', 501);
   }
 
   /**
    * Importación de contexto territorial y proyectos PAEC hacia PMC (Contrato N1).
    */
-  public async importPaec(paecId: string): Promise<Record<string, unknown>> {
-    logger.info(`[pmc-orchestrator] Importing PAEC context from project ${paecId}`);
-    return {
-      paecId,
-      importedAt: new Date().toISOString(),
-    };
+  public async importPaec(): Promise<Record<string, unknown>> {
+    throw new PmcOrchestratorError('Método importPaec() no implementado en la fase actual del orquestador PMC.', 501);
   }
 
   /**
    * Genera el archivo DOCX institucional del PMC (Contrato N1).
    */
-  public async renderDOCX(projectId: string): Promise<Buffer> {
-    logger.info(`[pmc-orchestrator] Rendering DOCX for project ${projectId}`);
-    return Buffer.from('');
+  public async renderDOCX(): Promise<Buffer> {
+    throw new PmcOrchestratorError('Método renderDOCX() no implementado en la fase actual del orquestador PMC.', 501);
   }
 
   /**
    * Comprueba la salud del subsistema PMC (Contrato Nivel 2).
    */
   public async healthCheck(): Promise<HealthCheckResult> {
+    const checks: Record<string, boolean> = {
+      orchestratorInitialized: true,
+      featureFlagService: typeof isFeatureEnabled === 'function',
+    };
+
+    const isAllPassing = Object.values(checks).every(Boolean);
+
     return {
-      status: 'healthy',
-      checks: {
-        documentIngestion: true,
-        aiRotation: true,
-        featureFlags: isFeatureEnabled('PMC_ORCHESTRATOR_V2'),
-      },
+      status: isAllPassing ? 'healthy' : 'degraded',
+      checks,
       timestamp: new Date().toISOString(),
     };
   }
