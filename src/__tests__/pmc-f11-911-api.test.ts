@@ -252,6 +252,22 @@ describe('API Route: /api/pmc/estadistica-911', () => {
     expect(json.error).toBe('No autorizado');
   });
 
+  it('retorna 404 si el docente no existe en base de datos', async () => {
+    vi.mocked(auth).mockResolvedValueOnce({ user: { email: 'docente@bachillerato.edu.mx' } } as never);
+    vi.mocked(getTeacherByEmail).mockResolvedValueOnce(null as never);
+
+    const formData = new FormData();
+    const req = new NextRequest('http://localhost:3000/api/pmc/estadistica-911', {
+      method: 'POST',
+      body: formData,
+    });
+    const res = await handle911Post(req);
+    const json = await res.json();
+
+    expect(res.status).toBe(404);
+    expect(json.error).toBe('Docente no encontrado');
+  });
+
   it('retorna 400 si no se sube archivo', async () => {
     vi.mocked(auth).mockResolvedValueOnce({ user: { email: 'docente@bachillerato.edu.mx' } } as never);
     vi.mocked(getTeacherByEmail).mockResolvedValueOnce(mockTeacher as never);
