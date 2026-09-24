@@ -1,0 +1,77 @@
+/**
+ * ai-resilience.test.ts
+ * 
+ * Tests unitarios para el módulo transversal de resiliencia (src/lib/ai-resilience.ts).
+ * Verifica la detección estricta de fallos de IA (isUpstreamAIError), el manejo
+ * del presupuesto de tiempo seguro (withTimeoutBudget) y los mensajes de saturación.
+ */
+
+import { describe, it, expect } from 'vitest';
+import {
+  isUpstreamAIError,
+  withTimeoutBudget,
+  AI_OUTAGE_USER_MESSAGE,
+} from '@/lib/ai-resilience';
+
+describe('ai-resilience.ts — Módulo Transversal de Resiliencia', () => {
+  describe('isUpstreamAIError', () => {
+    it('reconoce códigos de estado HTTP 429, 503, 504 en objetos de error', () => {
+      expect(isUpstreamAIError({ status: 503 })).toBe(true);
+      expect(isUpstreamAIError({ statusCode: 504 })).toBe(true);
+      expect(isUpstreamAIError({ status: 429 })).toBe(true);
+    });
+
+    it('reconoce firmas canónicas de proveedores de IA', () => {
+      expect(isUpstreamAIError(new Error('GoogleGenerativeAIError: [503 Service Unavailable] UNAVAILABLE'))).toBe(true);
+      expect(isUpstreamAIError(new Error('This model is currently experiencing high demand.'))).toBe(true);
+      expect(isUpstreamAIError(new Error('[ai-provider] All AI providers exhausted. Primary: gemini.'))).toBe(true);
+      expect(isUpstreamAIError(new Error('Rate-limit exceeded for tier'))).toBe(true);
+      expect(isUpstreamAIError(new Error('upstream rate limit reached'))).toBe(true);
+      expect(isUpstreamAIError(new Error('RESOURCE_EXHAUSTED'))).toBe(true);
+      expect(isUpstreamAIError(new Error('MODEL_CAPACITY_EXCEEDED'))).toBe(true);
+      expect(isUpstreamAIError(new Error('Request aborted due to timeout'))).toBe(true);
+    });
+
+    it('reconoce errores crudos de proxies HTTP 503 y Service Unavailable (D-004)', () => {
+      expect(isUpstreamAIError(new Error('HTTP 503: upstream backend connection dropped'))).toBe(true);
+      expect(isUpstreamAIError(new Error('503 Service Unavailable from openrouter'))).toBe(true);
+      expect(isUpstreamAIError(new Error('upstream service unavailable during peak load'))).toBe(true);
+    });
+
+    it('NO clasifica como IA errores de base de datos o validaciones genéricas (test negativo)', () => {
+      expect(isUpstreamAIError(new Error('Connection timeout to Neon DB'))).toBe(false);
+      expect(isUpstreamAIError(new Error('Database query timed out'))).toBe(false);
+      expect(isUpstreamAIError(new Error('Postgres error 503001 relation not found'))).toBe(false);
+      expect(isUpstreamAIError(new Error('Constraint violation code 42901'))).toBe(false);
+      expect(isUpstreamAIError(new Error('HTTP 500: Internal Server Error'))).toBe(false);
+      expect(isUpstreamAIError(new Error('Validation error: text is too short'))).toBe(false);
+      expect(isUpstreamAIError(null)).toBe(false);
+      expect(isUpstreamAIError(undefined)).toBe(false);
+    });
+  });
+
+  describe('withTimeoutBudget', () => {
+    it('resuelve normalmente si la promesa concluye antes del timeout', async () => {
+      const result = await withTimeoutBudget(Promise.resolve('éxito seguro'), 500);
+      expect(result).toBe('éxito seguro');
+    });
+
+    it('aborta y rechaza con status 503 cuando se excede el presupuesto de tiempo', async () => {
+      const hungPromise = new Promise<string>(() => {
+        // Promesa intencionalmente colgada
+      });
+
+      const budgetPromise = withTimeoutBudget(hungPromise, 50, 'Timeout simulado excedido');
+
+      await expect(budgetPromise).rejects.toThrow('Timeout simulado excedido');
+      await expect(budgetPromise).rejects.toMatchObject({ status: 503 });
+    });
+  });
+
+  describe('AI_OUTAGE_USER_MESSAGE', () => {
+    it('contiene mensaje empático e institucional para el usuario', () => {
+      expect(AI_OUTAGE_USER_MESSAGE).toContain('alta demanda o saturación temporal');
+      expect(AI_OUTAGE_USER_MESSAGE).toContain('Tu documento es válido');
+    });
+  });
+});

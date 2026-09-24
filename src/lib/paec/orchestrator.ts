@@ -26,7 +26,7 @@ import {
   withTimeoutBudget,
   isUpstreamAIError,
   AI_OUTAGE_USER_MESSAGE,
-} from '@/lib/pmc/orchestrator';
+} from '@/lib/ai-resilience';
 
 export class PaecOrchestratorError extends Error {
   public status: number;

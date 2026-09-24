@@ -19,7 +19,7 @@ import {
   withTimeoutBudget,
   isUpstreamAIError,
   AI_OUTAGE_USER_MESSAGE,
-} from '@/lib/pmc/orchestrator';
+} from '@/lib/ai-resilience';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
