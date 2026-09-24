@@ -144,11 +144,17 @@ export function buildPmcPlanAccionPrompt(
   const stats = statisticalContext?.plantel;
   const zona = statisticalContext?.zona;
 
-  const matriculaReal = stats?.matricula ?? indic.matricula ?? 220;
-  const abandonoReal = stats?.abandono ?? indic.abandono_ant ?? 6.8;
-  const eficienciaReal = stats?.eficienciaTerminal ?? indic.et_ant ?? 85;
-  const aprobacionReal = stats?.aprobadosPorcentaje ?? indic.aprobacion_ant ?? 90;
-  const promedioF11 = stats?.promedioGeneral ?? stats?.promedioCalificaciones ?? 8.0;
+  const matriculaReal = stats?.matricula ?? indic.matricula;
+  const abandonoReal = stats?.abandono ?? indic.abandono_ant;
+  const eficienciaReal = stats?.eficienciaTerminal ?? indic.et_ant;
+  const aprobacionReal = stats?.aprobadosPorcentaje ?? indic.aprobacion_ant;
+  const promedioF11 = stats?.promedioGeneral ?? stats?.promedioCalificaciones;
+
+  const matriculaTexto = matriculaReal !== undefined && matriculaReal !== null && !isNaN(Number(matriculaReal)) ? `${matriculaReal} estudiantes` : 'No especificada (N/D)';
+  const abandonoTexto = abandonoReal !== undefined && abandonoReal !== null && !isNaN(Number(abandonoReal)) ? `${abandonoReal}%` : 'No especificado (N/D)';
+  const eficienciaTexto = eficienciaReal !== undefined && eficienciaReal !== null && !isNaN(Number(eficienciaReal)) ? `${eficienciaReal}%` : 'No especificada (N/D)';
+  const aprobacionTexto = aprobacionReal !== undefined && aprobacionReal !== null && !isNaN(Number(aprobacionReal)) ? `${aprobacionReal}%` : 'No especificada (N/D)';
+  const promedioTexto = promedioF11 !== undefined && promedioF11 !== null && !isNaN(Number(promedioF11)) ? `${promedioF11}` : 'No especificado (N/D)';
 
   // Formatear categorías priorizadas
   interface CategoriaPriorizadaAPI {
@@ -219,11 +225,11 @@ DATOS OFICIALES DEL PLANTEL:
 - Director(a): ${safeStr(project.director_name)} | Zona Escolar: ${safeStr(project.school_zone)}
 
 LÍNEA BASE ESTADÍSTICA OFICIAL (Formato 911 y F11):
-- Matrícula oficial atendida: ${matriculaReal} estudiantes (Fuente: 911.7G)
-- Tasa de Abandono Escolar Línea Base: ${abandonoReal}% (Fuente: 911.7 / Bajas definitivas)
-- Eficiencia Terminal Línea Base: ${eficienciaReal}% (Fuente: 911.7G / Egresados)
-- Tasa de Aprobación Escolar Línea Base: ${aprobacionReal}% (Fuente: F11C)
-- Aprovechamiento General Promedio: ${promedioF11} (Fuente: F11C Control Escolar)
+- Matrícula oficial atendida: ${matriculaTexto} (Fuente: 911.7G)
+- Tasa de Abandono Escolar Línea Base: ${abandonoTexto} (Fuente: 911.7 / Bajas definitivas)
+- Eficiencia Terminal Línea Base: ${eficienciaTexto} (Fuente: 911.7G / Egresados)
+- Tasa de Aprobación Escolar Línea Base: ${aprobacionTexto} (Fuente: F11C)
+- Aprovechamiento General Promedio: ${promedioTexto} (Fuente: F11C Control Escolar)
 ${stats?.promediosPorAsignatura ? `- Desglose de Promedios por Asignatura F11C:\n${Object.entries(stats.promediosPorAsignatura).map(([asig, prom]) => `    • ${asig}: ${prom}`).join('\n')}` : ''}
 ${zona ? `- Promedios de Zona (${zona.zonaNumero || '004'}): Abandono ${zona.promedioAbandono}%, Eficiencia ${zona.promedioEficiencia}%, Reprobación ${zona.promedioReprobacion}%` : ''}
 
@@ -241,16 +247,16 @@ REGLAS OBLIGATORIAS DE REDACCIÓN DE METAS CREAA (MCCEMS PUEBLA 2026-2027):
    Cada meta institucional DEBE cumplir estrictamente con la estructura:
    [VERBO EN INFINITIVO DE ACCIÓN] + [INDICADOR CUANTIFICABLE / PORCENTAJE] + [POBLACIÓN OBJETIVO] + [ESTRATEGIA O ACCIÓN SITUADA] + [PERIODO Y TERRITORIO]
    
-   Ejemplo oficial: "Reducir en un 3% el abandono escolar en los ${matriculaReal} estudiantes del plantel durante el ciclo escolar 2026-2027, implementando círculos de acompañamiento socioemocional y alertas tempranas en semanas 6 y 12 en ${safeStr(project.locality)}, Puebla."
+   Ejemplo oficial: "Reducir en un 3% el abandono escolar en la matrícula estudiantil durante el ciclo escolar 2026-2027, implementando círculos de acompañamiento socioemocional y alertas tempranas en semanas 6 y 12 en ${safeStr(project.locality)}, Puebla."
 
 2. ALINEACIÓN A LAS 3 CATEGORÍAS CREAA (SEPARACIÓN ESTRICTA DE FUENTES OFICIALES):
    - Categoría 1 (Apropiación Curricular y Trayectorias Exitosas / Académico):
-     * Fuente Primaria: Formato F11C (Control Escolar). Usar obligatoriamente los promedios por asignatura (ej. Pensamiento Matemático, Lenguaje y Comunicación, Ciencias) para identificar materias con rezago y definir la meta de aprovechamiento/aprobación.
-     * Fuente de Verificación Externa: Evaluaciones diagnósticas estandarizadas (EDIEMS y ESA) independientes del F11 como cortes de seguimiento (septiembre, diciembre, marzo).
+     * Fuente Primaria: Formato F11C (Control Escolar). Usar los promedios por asignatura para identificar materias prioritarias y definir la meta de aprovechamiento/aprobación.
+     * Fuente de Verificación Externa: Evaluaciones diagnósticas estandarizadas (EDIEMS y ESA) como cortes de seguimiento (septiembre, diciembre, marzo).
    - Categoría 2 (Permanencia y Conclusión Oportuna):
-     * Fuente Obligatoria: Formato 911 (911.7G / Bajas definitivas). Usar la Tasa de Abandono Escolar del 911 (${abandonoReal}%) como línea base institucional obligatoria. La meta debe comprometer la reducción del abandono mediante tutorías socioemocionales, alerta temprana en semanas 6 y 12 y vinculación comunitaria.
+     * Fuente Obligatoria: Formato 911 (911.7G / Bajas definitivas). Usar la Tasa de Abandono Escolar del 911 (${abandonoTexto}) como línea base si está disponible; si es N/D, formular meta preventiva situada en el diagnóstico.
    - Categoría 3 (Gestión Comunitaria, Clima Escolar y PAEC):
-     * Fuente Obligatoria: Formato 911 (911.7G / Egresados). Usar la Eficiencia Terminal del 911 (${eficienciaReal}%) como línea base institucional obligatoria, articulando la gestión directiva con los proyectos comunitarios PAEC y cultura de paz para asegurar la conclusión oportuna.
+     * Fuente Obligatoria: Formato 911 (911.7G / Egresados). Usar la Eficiencia Terminal del 911 (${eficienciaTexto}) como línea base si está disponible; articular con proyectos comunitarios PAEC y cultura de paz.
 
 3. CRONOGRAMA Y FECHAS OFICIALES INSTITUCIONALES (Usar estas ventanas temporales en estrategias):
    - 31 ago al 4 sep 2026: Diagnóstico EDIEMS y ESA inicial

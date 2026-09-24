@@ -216,20 +216,28 @@ export async function generatePmcPDF(
   addSectionHeader('I. FUNDAMENTACIÓN NORMATIVA Y POLÍTICA EDUCATIVA');
 
   const normativa = parseJson(project.normativa);
-  const normDocs: Array<{ titulo?: string; articulos?: string[] }> = Array.isArray(normativa.documentos)
+  const normDocs: Array<{ titulo?: string; articulos?: string[] }> = (Array.isArray(normativa.documentos) && normativa.documentos.length > 0)
     ? normativa.documentos
     : [
         {
-          titulo: 'Artículo 3° Constitucional y Ley General de Educación (Art. 109)',
-          articulos: ['Establece el derecho a una educación integral, de excelencia y la obligatoriedad del Plan de Mejora Continua.'],
+          titulo: 'Constitución Política de los Estados Unidos Mexicanos (Art. 3°)',
+          articulos: ['Garantiza el derecho a la educación integral, inclusiva, universal, pública, gratuita, laica y de excelencia orientada al desarrollo humano.'],
         },
         {
-          titulo: 'Ley de Educación del Estado de Puebla (Art. 83)',
-          articulos: ['Dispone la conformación participativa del PMC en los Consejos Técnicos Escolares.'],
+          titulo: 'Ley General de Educación (Arts. 107, 108 y 109)',
+          articulos: ['Establece la obligatoriedad del Programa de Mejora Continua en Educación Media Superior como instrumento estructurado de planeación participativa.'],
         },
         {
-          titulo: 'Marco Curricular Común de la Educación Media Superior (MCCEMS)',
-          articulos: ['Promueve la formación socioemocional, recursos sociocognitivos y el vínculo aula-escuela-comunidad.'],
+          titulo: 'Ley de Educación del Estado de Puebla (Arts. 80, 81 y 83)',
+          articulos: ['Dispone la conformación participativa del PMC en los Consejos Técnicos Escolares y la vinculación corresponsable con la comunidad.'],
+        },
+        {
+          titulo: 'Marco Curricular Común de la Educación Media Superior (MCCEMS - Acuerdo 09/08/23)',
+          articulos: ['Fundamenta la formación socioemocional, recursos sociocognitivos, áreas del conocimiento y el vínculo pedagógico aula-escuela-comunidad.'],
+        },
+        {
+          titulo: 'Lineamientos Oficiales del PMC para Educación Media Superior (SEMS / SEP Puebla)',
+          articulos: ['Norma la priorización de categorías, diagnóstico escolar, formulación de metas CREAA y corresponsabilidad del colectivo docente.'],
         },
       ];
 
@@ -292,11 +300,11 @@ export async function generatePmcPDF(
   const pStats = statsCtx?.plantel;
   const zStats = statsCtx?.zona;
 
-  const matAnt = pStats?.matricula ?? indAcad.matricula ?? 220;
-  const apAnt = pStats?.aprobadosPorcentaje ?? indAcad.aprobacion_ant ?? 85;
-  const repAnt = pStats?.reprobacion ?? indAcad.reprobacion_ant ?? 15;
-  const abAnt = pStats?.abandono ?? indAcad.abandono_ant ?? 7.5;
-  const etAnt = pStats?.eficienciaTerminal ?? indAcad.et_ant ?? 82;
+  const matAnt = pStats?.matricula ?? indAcad.matricula;
+  const apAnt = pStats?.aprobadosPorcentaje ?? indAcad.aprobacion_ant;
+  const repAnt = pStats?.reprobacion ?? indAcad.reprobacion_ant;
+  const abAnt = pStats?.abandono ?? indAcad.abandono_ant;
+  const etAnt = pStats?.eficienciaTerminal ?? indAcad.et_ant;
   const promF11 = pStats?.promedioGeneral ?? pStats?.promedioCalificaciones;
 
   const apMeta = indAcad.aprobacion_meta ?? (apAnt !== undefined && apAnt !== null && !isNaN(Number(apAnt)) ? (Number(apAnt) + 5) : undefined);
