@@ -343,7 +343,7 @@ export async function withKeyRotation<T>(
           }). Rotating to key #${i + 2}/${attempts.length}...`
         );
         // Exponential backoff to avoid slamming providers on rate limit
-        const backoffMs = Math.min(3000, 300 * Math.pow(2, i));
+        const backoffMs = Math.min(5000, 500 * Math.pow(2, i));
         await new Promise((resolve) => setTimeout(resolve, backoffMs));
         continue;
       }
