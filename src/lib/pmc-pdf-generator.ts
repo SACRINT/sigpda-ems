@@ -6,12 +6,12 @@
  */
 
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import autoTable, { type RowInput } from 'jspdf-autotable';
 import { loadAllLogos } from './pdf-logos';
 import { SCHOOL_YEAR } from '@/lib/config';
 import { logger } from './logger';
 import { calculatePmcIndicatorRows } from './pmc-indicator-calculator';
-import type { PmcProject, PmcStatisticalContext } from '@/types/pmc';
+import type { PmcProject, PmcStatisticalContext, PmcStaffMember } from '@/types/pmc';
 
 const NAVY: [number, number, number] = [31, 56, 100];       // #1F3864 - Azul Institucional MCCEMS
 const BLUE_MID: [number, number, number] = [46, 116, 181];   // #2E74B5 - Azul Secundario
@@ -297,7 +297,7 @@ export async function generatePmcPDF(
   doc.text('2.2 Indicadores Educativos (Línea Base vs Meta Institucional):', margin, curY);
   curY += 4;
 
-  const statsCtx: PmcStatisticalContext | undefined = project.statistical_context || (indAcad as any)?.statistical_context;
+  const statsCtx: PmcStatisticalContext | undefined = project.statistical_context || (indAcad as { statistical_context?: PmcStatisticalContext })?.statistical_context;
   const indicRows = calculatePmcIndicatorRows(indAcad, statsCtx, cicloTexto);
 
   autoTable(doc, {
@@ -308,7 +308,7 @@ export async function generatePmcPDF(
       { content: `Meta Proyectada (${cicloTexto})`, styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], halign: 'center' } },
       { content: 'Variación Esperada', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], halign: 'center' } },
     ]],
-    body: indicRows as any[][],
+    body: indicRows as unknown as RowInput[],
     theme: 'grid',
     styles: { fontSize: 7, cellPadding: 2, textColor: TEXT_DARK, lineColor: [210, 220, 235] },
     margin: { left: margin, right: margin },
@@ -427,7 +427,7 @@ export async function generatePmcPDF(
     }
 
     if (Array.isArray(categorias) && categorias.length > 0) {
-      const catRows = categorias.map((c: any, i: number) => [
+      const catRows = categorias.map((c: { id?: string; nombre?: string; temas?: string[] }, i: number) => [
         { content: `${i + 1}`, styles: { halign: 'center' as const, fontStyle: 'bold' as const, fillColor: GRAY_BG } },
         safeStr(c.nombre || c.id, `Categoría ${i + 1}`),
         Array.isArray(c.temas) && c.temas.length > 0 ? c.temas.join('; ') : 'Todos los ámbitos prioritarios aplicables',
@@ -616,19 +616,14 @@ export async function generatePmcPDF(
 
   addSectionHeader('V. VALIDACIÓN INSTITUCIONAL Y FIRMAS OFICIALES');
 
-  // Tabla de Personal y Comunidad Escolar Participante (Paridad con DOCX)
-  const participantesRaw = (project as any).participantes;
-  const staffDataRaw = parseJson(project.staff_data);
-  const personalParticipante: Array<{ nombre: string; cargo: string; firma?: string }> =
-    Array.isArray(participantesRaw) && participantesRaw.length > 0
-      ? participantesRaw
-      : Array.isArray(staffDataRaw) && staffDataRaw.length > 0
-        ? staffDataRaw.map((s: any) => ({
-            nombre: s.nombre,
-            cargo: s.cargo || 'Docente',
-            firma: 'Participante',
-          }))
-        : [];
+  // Tabla de Personal y Colectivo Escolar Participante (Paridad con DOCX)
+  const staffDataRaw = parseJson<PmcStaffMember[]>(project.staff_data);
+  const personalParticipante = Array.isArray(staffDataRaw) && staffDataRaw.length > 0
+    ? staffDataRaw.map((s) => ({
+        nombre: safeStr(s.nombre, 'Integrante del Colectivo Escolar'),
+        cargo: safeStr(s.cargo, 'Docente'),
+      }))
+    : [];
 
   if (personalParticipante.length > 0) {
     if (curY > pageHeight - 55) {
@@ -639,14 +634,14 @@ export async function generatePmcPDF(
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(...BLUE_MID);
-    doc.text('Personal y Comunidad Escolar Participante:', margin, curY);
+    doc.text('Personal y Colectivo Escolar Participante:', margin, curY);
     curY += 4;
 
     const partRows = personalParticipante.map((p, idx) => [
       { content: `${idx + 1}`, styles: { halign: 'center' as const, fontStyle: 'bold' as const, fillColor: GRAY_BG } },
-      safeStr(p.nombre, 'Integrante'),
-      safeStr(p.cargo, 'Docente'),
-      safeStr(p.firma, '_____________________'),
+      p.nombre,
+      p.cargo,
+      '_____________________',
     ]);
 
     autoTable(doc, {
