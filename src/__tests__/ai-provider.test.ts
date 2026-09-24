@@ -193,11 +193,12 @@ describe('ai-provider/index.ts — Factory and Generation', () => {
 
   // ── Fallback provider models ───────────────────────────────────────────────
 
-  it('DEFAULT_MODEL_BY_PROVIDER — openrouter utiliza el slug vigente openrouter/free', () => {
+  it('DEFAULT_MODEL_BY_PROVIDER — openrouter utiliza el slug vigente openrouter/free o env override', () => {
+    const expectedModel = process.env.OPENROUTER_FALLBACK_MODEL || 'openrouter/free';
     expect(DEFAULT_MODEL_BY_PROVIDER.openrouter).toBeDefined();
     expect(typeof DEFAULT_MODEL_BY_PROVIDER.openrouter).toBe('string');
     expect(DEFAULT_MODEL_BY_PROVIDER.openrouter.length).toBeGreaterThan(0);
-    expect(DEFAULT_MODEL_BY_PROVIDER.openrouter).toBe('openrouter/free');
+    expect(DEFAULT_MODEL_BY_PROVIDER.openrouter).toBe(expectedModel);
     // Prevenir regresión al modelo obsoleto discontinuado
     expect(DEFAULT_MODEL_BY_PROVIDER.openrouter).not.toBe('meta-llama/llama-3.1-8b-instruct:free');
   });
