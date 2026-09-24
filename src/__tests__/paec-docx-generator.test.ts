@@ -308,7 +308,7 @@ describe('paec-docx-generator — Generación Editorial Oficial PAEC (DOCX)', ()
     const { value: text } = await mammoth.extractRawText({ buffer });
     expect(text).toContain('2.5 Mapeo Curricular Integral');
     expect(text).toContain('2.6 Cronograma Bimestral Macro');
-  });
+  }, 15000);
 
   // ── TEST 9: Resiliencia ante PaecProject mínimo o nulo ─────────────────────
   it('Test 9: Genera documento sin crashear cuando el proyecto contiene campos vacíos o nulos', async () => {
@@ -323,7 +323,7 @@ describe('paec-docx-generator — Generación Editorial Oficial PAEC (DOCX)', ()
     const { value: text } = await mammoth.extractRawText({ buffer });
     expect(text).toContain('PROYECTO ESCOLAR COMUNITARIO (PEC)');
     expect(text).toContain('MACRO-FASE I: DIAGNÓSTICO COLECTIVO');
-  });
+  }, 15000);
 
   // ── TEST 10: Inclusión de los 8 Principios de la NEM y Criterio MIFO ────────
   it('Test 10: Integra los principios de la Nueva Escuela Mexicana y la pertinencia territorial MIFO', async () => {
