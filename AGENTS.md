@@ -37,3 +37,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
   3. `inicio_anterior` (911 inicio ciclo previo): Alimenta matrícula inicial de referencia histórica para trazabilidad.
 - **Acceso en UI (Decisión N-001)**: El momento `inicio_anterior` cuenta con botones dedicados de carga en Paso 1 (Datos del Plantel) y Paso 3 (Diagnóstico Institucional) para planteles que disponen de dicho corte histórico, integrándose armónicamente con los flujos de `fin_anterior` e `inicio_actual`.
 - **Badges de Estado (`docsStatus`)**: Los botones de subida (F11, 911 y PMC anterior) proporcionan retroalimentación visual (`✓`) al completarse la ingesta, previniendo cargas redundantes en la sesión del wizard.
+
+## Plataforma Nivel 2 — Feature Flags y Patrón Strangler Fig
+- **Servicio Canónico**: `src/lib/platform/feature-flags.ts` provee `FeatureFlagService` y los helpers `isFeatureEnabled`, `setFeatureFlag`, `resetFeatureFlags`.
+- **Restricción Server-Side Only**: Las feature flags operan exclusivamente en Node.js runtime / server-side (`process.env`). NO utilizan el prefijo `NEXT_PUBLIC_` para evitar exponer banderas de infraestructura o lógica interna al bundle cliente del navegador.
+- **Valores Predeterminados Seguros**: Todas las banderas de subsistemas y orquestadores (`PMC_ORCHESTRATOR_V2`, `PLANEACION_ORCHESTRATOR_V2`, `PAEC_ORCHESTRATOR_V2`, `CARTOGRAFIA_ORCHESTRATOR_V2`, `HORARIOS_ORCHESTRATOR_V2`) tienen valor predeterminado `false`.
+- **Patrón Strangler Fig**: La migración hacia los Orquestadores Centrales Nivel 1 se realiza ruta por ruta. Cuando la bandera está en `false`, la ruta ejecuta el flujo legacy probado e intacto. Cuando la bandera está en `true`, la ruta delega en el orquestador correspondiente sin alterar los contratos JSON ni los códigos de respuesta HTTP (`200`, `400`, `404`, `422`).
