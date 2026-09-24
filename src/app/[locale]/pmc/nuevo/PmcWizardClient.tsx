@@ -39,10 +39,20 @@ function clearPmcDraft() {
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
+interface MetaIndividual {
+  categoria: string;
+  tema: string;
+  meta: string;
+  estrategia: string;
+  entregable: string;
+  periodo: string;
+}
+
 interface StaffMember {
   nombre: string;
   cargo: string;
   meta_individual?: string;
+  metas_individuales?: MetaIndividual[];
 }
 
 interface IndicadoresAcademicos {
@@ -297,6 +307,8 @@ export default function PmcWizardClient({ locale, teacherSchool, teacherMunicipa
 interface PmcPreviousExtractStaff {
   nombre: string;
   cargo: string;
+  meta_individual?: string;
+  metas_individuales?: MetaIndividual[];
   asignaturas?: string;
   grupos?: string;
   horas?: number | string;
@@ -364,6 +376,12 @@ interface PaecProjectForPmc {
   const [parsedPmcData, setParsedPmcData] = useState<PmcPreviousExtractDTO | null>(null);
   const [showPmcReviewModal, setShowPmcReviewModal] = useState(false);
 
+  // F11 y Estadística 911 uploads
+  const fileInputF11Ref = useRef<HTMLInputElement>(null);
+  const fileInput911Ref = useRef<HTMLInputElement>(null);
+  const [uploadingF11, setUploadingF11] = useState(false);
+  const [uploading911, setUploading911] = useState(false);
+
   // Sinergia PAEC -> PMC (Importar diagnósticos)
   const [loadingPaecList, setLoadingPaecList] = useState(false);
   const [paecProjectsList, setPaecProjectsList] = useState<PaecProjectForPmc[]>([]);
@@ -411,8 +429,16 @@ interface PaecProjectForPmc {
     if (parsedPmcData.subsystem) setSubsystem(parsedPmcData.subsystem);
 
     if (parsedPmcData.staffData && Array.isArray(parsedPmcData.staffData) && parsedPmcData.staffData.length > 0) {
-      setStaffData(parsedPmcData.staffData);
-      setTotalStaff(parsedPmcData.staffData.length);
+      const normalizedStaff = parsedPmcData.staffData.map(s => ({
+        ...s,
+        metas_individuales: (s.metas_individuales && s.metas_individuales.length > 0)
+          ? s.metas_individuales
+          : s.meta_individual
+            ? [{ categoria: '', tema: '', meta: s.meta_individual, estrategia: '', entregable: '', periodo: '' }]
+            : [],
+      }));
+      setStaffData(normalizedStaff);
+      setTotalStaff(normalizedStaff.length);
     } else if (parsedPmcData.totalStaff) {
       setTotalStaff(Number(parsedPmcData.totalStaff) || 0);
     }
@@ -443,7 +469,64 @@ interface PaecProjectForPmc {
     setSuccessBanner('✓ Datos del PMC anterior cargados y pre-llenados exitosamente en todos los pasos.');
   };
 
-  const handleOpenImportPaecModal = async () => {
+  // ── F11 Upload Handler ──────────────────────────────────────────────────────
+  const handleUploadF11 = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingF11(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/pmc/f11', { method: 'POST', body: formData });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || 'Error al analizar el F11.');
+      if (json.data?.schoolName && !schoolName) setSchoolName(json.data.schoolName);
+      if (json.data?.schoolCct && !schoolCct) setSchoolCct(json.data.schoolCct);
+      if (json.data?.promedioGeneral) setIndicadores(p => ({ ...p, aprobacion_ant: json.data.aprobadosPorcentaje ?? p.aprobacion_ant }));
+      setSuccessBanner(`✓ F11 cargado: ${json.data?.totalAlumnos || '?'} alumnos, promedio ${json.data?.promedioGeneral || '?'}`);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'No se pudo procesar el F11.');
+    } finally {
+      setUploadingF11(false);
+      if (fileInputF11Ref.current) fileInputF11Ref.current.value = '';
+    }
+  };
+
+  // ── Estadística 911 Upload Handler ──────────────────────────────────────────
+  const handleUpload911 = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading911(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/pmc/estadistica-911', { method: 'POST', body: formData });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || 'Error al analizar la Estadística 911.');
+      if (json.data?.schoolName && !schoolName) setSchoolName(json.data.schoolName);
+      if (json.data?.schoolCct && !schoolCct) setSchoolCct(json.data.schoolCct);
+      setIndicadores(p => ({
+        ...p,
+        matricula: json.data?.matricula ?? p.matricula,
+        abandono_ant: json.data?.abandonoPorcentaje ?? p.abandono_ant,
+        et_ant: json.data?.eficienciaTerminal ?? p.et_ant,
+        reprobacion_ant: json.data?.reprobacionPorcentaje ?? p.reprobacion_ant,
+      }));
+      if (json.data?.totalDocentes) setTotalStaff(json.data.totalDocentes);
+      setSuccessBanner(`✓ Estadística 911 cargada: matrícula ${json.data?.matricula || '?'}, abandono ${json.data?.abandonoPorcentaje || '?'}%`);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'No se pudo procesar la Estadística 911.');
+    } finally {
+      setUploading911(false);
+      if (fileInput911Ref.current) fileInput911Ref.current.value = '';
+    }
+  };
+
+  // PAEC → PMC import handler (kept for future use but not shown in Step 1)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _handleOpenImportPaecModal = async () => {
     setLoadingPaecList(true);
     setShowPaecImportModal(true);
     setSelectedPaecToImport(null);
@@ -822,16 +905,46 @@ interface PaecProjectForPmc {
               </div>
             )}
 
-            {/* Barra de Acciones Inteligentes: Cargar PMC Anterior + Importar desde PAEC */}
+            {/* Barra de Acciones Inteligentes: Cargar PMC Anterior + F11 + Estadística 911 */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginBottom: '20px', padding: '14px 18px', borderRadius: '10px', background: 'linear-gradient(135deg, rgba(30,41,59,0.85) 0%, rgba(15,23,42,0.95) 100%)', border: '1px solid rgba(99,102,241,0.3)', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <span style={{ fontSize: '20px' }}>⚡</span>
                 <div>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#ffffff' }}>Carga Inteligente e Integración Curricular</div>
-                  <div style={{ fontSize: '11.5px', color: 'rgba(240,244,255,0.6)' }}>Pre-llena automáticamente datos institucionales, diagnósticos y metas</div>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#ffffff' }}>Carga Inteligente de Documentos Oficiales</div>
+                  <div style={{ fontSize: '11.5px', color: 'rgba(240,244,255,0.6)' }}>Sube el F11 (calificaciones) y Estadística 911 (matrícula) para pre-llenar tu PMC</div>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => fileInputF11Ref.current?.click()}
+                  disabled={uploadingF11}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                    padding: '8px 14px', borderRadius: '8px',
+                    background: 'rgba(14,165,233,0.25)', border: '1px solid rgba(14,165,233,0.45)',
+                    color: '#7dd3fc', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+                  }}
+                >
+                  {uploadingF11 ? '⏳ Analizando F11...' : '📊 Subir F11 (Calificaciones)'}
+                </button>
+                <input ref={fileInputF11Ref} type="file" accept=".pdf,.docx,.doc" style={{ display: 'none' }} onChange={handleUploadF11} />
+
+                <button
+                  type="button"
+                  onClick={() => fileInput911Ref.current?.click()}
+                  disabled={uploading911}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                    padding: '8px 14px', borderRadius: '8px',
+                    background: 'rgba(245,158,11,0.25)', border: '1px solid rgba(245,158,11,0.45)',
+                    color: '#fcd34d', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+                  }}
+                >
+                  {uploading911 ? '⏳ Analizando 911...' : '📈 Subir Estadística 911 (Matrícula)'}
+                </button>
+                <input ref={fileInput911Ref} type="file" accept=".pdf,.docx,.doc" style={{ display: 'none' }} onChange={handleUpload911} />
+
                 <button
                   type="button"
                   onClick={() => fileInputPmcRef.current?.click()}
@@ -843,27 +956,9 @@ interface PaecProjectForPmc {
                     color: '#c7d2fe', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
                   }}
                 >
-                  {uploadingPmc ? '⏳ Analizando documento...' : '📄 Cargar PMC Anterior (PDF/Word)'}
+                  {uploadingPmc ? '⏳ Analizando...' : '📄 Cargar PMC Anterior'}
                 </button>
-                <input
-                  ref={fileInputPmcRef}
-                  type="file"
-                  accept=".pdf,.docx,.doc"
-                  style={{ display: 'none' }}
-                  onChange={handleUploadPreviousPmc}
-                />
-                <button
-                  type="button"
-                  onClick={handleOpenImportPaecModal}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '6px',
-                    padding: '8px 14px', borderRadius: '8px',
-                    background: 'rgba(16,185,129,0.25)', border: '1px solid rgba(16,185,129,0.45)',
-                    color: '#6ee7b7', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
-                  }}
-                >
-                  📥 Importar desde PAEC del Plantel
-                </button>
+                <input ref={fileInputPmcRef} type="file" accept=".pdf,.docx,.doc" style={{ display: 'none' }} onChange={handleUploadPreviousPmc} />
               </div>
             </div>
 
@@ -1005,17 +1100,129 @@ interface PaecProjectForPmc {
                       </select>
                     </div>
                     <div style={{ gridColumn: '1 / -1' }}>
-                      <label style={labelStyle}>Meta individual para el ciclo {cicloEscolar} (opcional — si no la defines la IA la generará)</label>
-                      <textarea
-                        style={{ ...inputStyle, minHeight: '60px', resize: 'vertical' }}
-                        value={member.meta_individual || ''}
-                        onChange={e => {
+                      <label style={labelStyle}>Metas individuales para el ciclo {cicloEscolar} (opcional — si no defines las metas la IA las generará)</label>
+                      {(member.metas_individuales && member.metas_individuales.length > 0) ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '10px' }}>
+                          {member.metas_individuales.map((meta, mIdx) => (
+                            <div key={mIdx} style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: '8px', padding: '12px', fontSize: '12px' }}>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+                                <div>
+                                  <label style={{ fontSize: '10.5px', color: '#a5b4fc', fontWeight: 600, display: 'block', marginBottom: '2px' }}>Categoría / Ámbito</label>
+                                  <input
+                                    type="text"
+                                    style={{ ...inputStyle, padding: '5px 8px', fontSize: '11.5px' }}
+                                    value={meta.categoria || ''}
+                                    onChange={e => {
+                                      const copy = [...staffData];
+                                      const metas = [...(copy[idx].metas_individuales || [])];
+                                      metas[mIdx] = { ...metas[mIdx], categoria: e.target.value };
+                                      copy[idx] = { ...copy[idx], metas_individuales: metas };
+                                      setStaffData(copy);
+                                    }}
+                                    placeholder="Ej. Categoría 1 o Formación Docente"
+                                  />
+                                </div>
+                                <div>
+                                  <label style={{ fontSize: '10.5px', color: '#a5b4fc', fontWeight: 600, display: 'block', marginBottom: '2px' }}>Tema Específico</label>
+                                  <input
+                                    type="text"
+                                    style={{ ...inputStyle, padding: '5px 8px', fontSize: '11.5px' }}
+                                    value={meta.tema || ''}
+                                    onChange={e => {
+                                      const copy = [...staffData];
+                                      const metas = [...(copy[idx].metas_individuales || [])];
+                                      metas[mIdx] = { ...metas[mIdx], tema: e.target.value };
+                                      copy[idx] = { ...copy[idx], metas_individuales: metas };
+                                      setStaffData(copy);
+                                    }}
+                                    placeholder="Ej. Cursos COSFAC, Tutorías, etc."
+                                  />
+                                </div>
+                                <button
+                                  type="button"
+                                  title="Eliminar esta meta"
+                                  onClick={() => {
+                                    const copy = [...staffData];
+                                    const metas = [...(copy[idx].metas_individuales || [])];
+                                    metas.splice(mIdx, 1);
+                                    copy[idx] = { ...copy[idx], metas_individuales: metas };
+                                    setStaffData(copy);
+                                  }}
+                                  style={{ background: 'rgba(244,63,94,0.2)', border: 'none', color: '#fb7185', cursor: 'pointer', fontSize: '12px', padding: '6px 10px', borderRadius: '4px', alignSelf: 'flex-end', height: '32px' }}
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                              <div style={{ marginBottom: '8px' }}>
+                                <label style={{ fontSize: '10.5px', color: '#cbd5e1', fontWeight: 600, display: 'block', marginBottom: '2px' }}>Redacción de la Meta Individual</label>
+                                <textarea
+                                  style={{ ...inputStyle, minHeight: '50px', resize: 'vertical', fontSize: '12px', padding: '6px 8px' }}
+                                  value={meta.meta || ''}
+                                  onChange={e => {
+                                    const copy = [...staffData];
+                                    const metas = [...(copy[idx].metas_individuales || [])];
+                                    metas[mIdx] = { ...metas[mIdx], meta: e.target.value };
+                                    copy[idx] = { ...copy[idx], metas_individuales: metas };
+                                    setStaffData(copy);
+                                  }}
+                                  placeholder="Ej: Acreditar 2 cursos de formación docente COSFAC con calificación aprobatoria..."
+                                />
+                              </div>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                <div>
+                                  <label style={{ fontSize: '10px', color: 'rgba(240,244,255,0.6)', display: 'block', marginBottom: '2px' }}>Estrategia / Acciones (opcional)</label>
+                                  <input
+                                    type="text"
+                                    style={{ ...inputStyle, padding: '4px 8px', fontSize: '11px' }}
+                                    value={meta.estrategia || ''}
+                                    onChange={e => {
+                                      const copy = [...staffData];
+                                      const metas = [...(copy[idx].metas_individuales || [])];
+                                      metas[mIdx] = { ...metas[mIdx], estrategia: e.target.value };
+                                      copy[idx] = { ...copy[idx], metas_individuales: metas };
+                                      setStaffData(copy);
+                                    }}
+                                    placeholder="Ej. Inscripción y seguimiento en plataforma"
+                                  />
+                                </div>
+                                <div>
+                                  <label style={{ fontSize: '10px', color: 'rgba(240,244,255,0.6)', display: 'block', marginBottom: '2px' }}>Entregable / Evidencia (opcional)</label>
+                                  <input
+                                    type="text"
+                                    style={{ ...inputStyle, padding: '4px 8px', fontSize: '11px' }}
+                                    value={meta.entregable || ''}
+                                    onChange={e => {
+                                      const copy = [...staffData];
+                                      const metas = [...(copy[idx].metas_individuales || [])];
+                                      metas[mIdx] = { ...metas[mIdx], entregable: e.target.value };
+                                      copy[idx] = { ...copy[idx], metas_individuales: metas };
+                                      setStaffData(copy);
+                                    }}
+                                    placeholder="Ej. Constancias COSFAC"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: '12px', color: 'rgba(240,244,255,0.4)', fontStyle: 'italic', marginBottom: '8px' }}>
+                          Sin metas predefinidas — la IA generará metas individuales acordes al cargo y las categorías seleccionadas.
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
                           const copy = [...staffData];
-                          copy[idx] = { ...copy[idx], meta_individual: e.target.value };
+                          const metas = [...(copy[idx].metas_individuales || [])];
+                          metas.push({ categoria: '', tema: '', meta: '', estrategia: '', entregable: '', periodo: `agosto ${cicloEscolar.split('-')[0] || '2026'} - junio ${cicloEscolar.split('-')[1] || '2027'}` });
+                          copy[idx] = { ...copy[idx], metas_individuales: metas };
                           setStaffData(copy);
                         }}
-                        placeholder="Ej: Reducir mi índice de reprobación del 15% al 5% implementando estrategias de recuperación bimestral..."
-                      />
+                        style={{ padding: '6px 12px', borderRadius: '6px', border: '1px dashed rgba(99,102,241,0.4)', background: 'transparent', color: '#818cf8', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+                      >
+                        + Agregar meta individual
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -1035,7 +1242,7 @@ interface PaecProjectForPmc {
               y el análisis FODA. La IA usará esta información para redactar el diagnóstico oficial.
             </p>
 
-            {/* Banner Asistente de Cartografía de Zona */}
+            {/* Banner: Carga de Datos Oficiales + Cartografía de Zona */}
             <div style={{
               background: 'rgba(99, 102, 241, 0.12)',
               border: '1px solid rgba(99, 102, 241, 0.28)',
@@ -1050,29 +1257,66 @@ interface PaecProjectForPmc {
             }}>
               <div>
                 <strong style={{ color: '#c7d2fe', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  🗺️ Sincronización con Cartografía de Zona
+                  📊 Datos Oficiales para el Diagnóstico
                 </strong>
                 <p style={{ margin: '2px 0 0', color: 'rgba(240, 244, 255, 0.6)', fontSize: '12px' }}>
-                  Puedes heredar los indicadores oficiales 911/F11 y el diagnóstico territorial aprobados por tu supervisión escolar.
+                  Sube tu F11 y Estadística 911, o consulta la Cartografía de Zona para benchmarks regionales.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={handleConsultarZona}
-                disabled={loadingZona || !schoolCct.trim()}
-                style={{
-                  padding: '7px 14px',
-                  background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  cursor: schoolCct.trim() ? 'pointer' : 'not-allowed',
-                }}
-              >
-                {loadingZona ? 'Consultando...' : '✨ Consultar Datos de Zona'}
-              </button>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => fileInputF11Ref.current?.click()}
+                  disabled={uploadingF11}
+                  style={{
+                    padding: '7px 14px',
+                    background: uploadingF11 ? 'rgba(255,255,255,0.1)' : 'linear-gradient(135deg, #0ea5e9, #0284c7)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {uploadingF11 ? '⏳...' : '📊 F11'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fileInput911Ref.current?.click()}
+                  disabled={uploading911}
+                  style={{
+                    padding: '7px 14px',
+                    background: uploading911 ? 'rgba(255,255,255,0.1)' : 'linear-gradient(135deg, #f59e0b, #d97706)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {uploading911 ? '⏳...' : '📈 911'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConsultarZona}
+                  disabled={loadingZona || !schoolCct.trim()}
+                  style={{
+                    padding: '7px 14px',
+                    background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: schoolCct.trim() ? 'pointer' : 'not-allowed',
+                    opacity: schoolCct.trim() ? 1 : 0.5,
+                  }}
+                >
+                  {loadingZona ? 'Consultando...' : '🗺️ Zona'}
+                </button>
+              </div>
             </div>
 
             {zonaFeedback && (
