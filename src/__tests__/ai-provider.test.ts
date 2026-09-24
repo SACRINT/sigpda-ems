@@ -85,6 +85,7 @@ import {
   DEFAULT_STANDARD_PROVIDER,
   DEFAULT_PREMIUM_MODEL,
   DEFAULT_PREMIUM_PROVIDER,
+  DEFAULT_MODEL_BY_PROVIDER,
 } from '@/lib/ai-provider';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -188,5 +189,16 @@ describe('ai-provider/index.ts — Factory and Generation', () => {
     mockNeonFn.mockResolvedValueOnce([]);
     const result = await resolveUserIsPremium('uuid-no-existe');
     expect(result).toBe(false);
+  });
+
+  // ── Fallback provider models ───────────────────────────────────────────────
+
+  it('DEFAULT_MODEL_BY_PROVIDER — openrouter utiliza el slug vigente openrouter/free', () => {
+    expect(DEFAULT_MODEL_BY_PROVIDER.openrouter).toBeDefined();
+    expect(typeof DEFAULT_MODEL_BY_PROVIDER.openrouter).toBe('string');
+    expect(DEFAULT_MODEL_BY_PROVIDER.openrouter.length).toBeGreaterThan(0);
+    expect(DEFAULT_MODEL_BY_PROVIDER.openrouter).toBe('openrouter/free');
+    // Prevenir regresión al modelo obsoleto discontinuado
+    expect(DEFAULT_MODEL_BY_PROVIDER.openrouter).not.toBe('meta-llama/llama-3.1-8b-instruct:free');
   });
 });

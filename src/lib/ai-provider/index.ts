@@ -40,14 +40,14 @@ export const DEFAULT_PREMIUM_PROVIDER = 'gemini';
 const FALLBACK_PROVIDER_ORDER = ['openrouter', 'mistral', 'openai', 'claude', 'gemini'];
 
 // ── Default models per provider for fallback calls ───────────────────────────
-const DEFAULT_MODEL_BY_PROVIDER: Record<string, string> = {
+export const DEFAULT_MODEL_BY_PROVIDER: Record<string, string> = {
   gemini:     'gemini-3.5-flash-lite',
   claude:     'claude-haiku-4-5',
   openai:     'gpt-4o-mini',
   nvidia:     'meta/llama-3.1-70b-instruct',
   qwen:       'qwen-turbo',
   mistral:    'mistral-small-latest',
-  openrouter: 'meta-llama/llama-3.1-8b-instruct:free',
+  openrouter: process.env.OPENROUTER_FALLBACK_MODEL || 'openrouter/free',
 };
 
 // ── Read active provider config from DB ──────────────────────────────────────
