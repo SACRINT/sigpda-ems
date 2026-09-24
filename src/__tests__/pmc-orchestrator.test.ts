@@ -41,10 +41,12 @@ import { generateWithRotation, resolveUserIsPremium } from '@/lib/ai-provider';
 import { ingestDocument } from '@/lib/document-ingestion';
 import { POST as handleF11Post } from '@/app/api/pmc/f11/route';
 import { POST as handle911Post } from '@/app/api/pmc/estadistica-911/route';
+import { POST as handleParsePreviousPost } from '@/app/api/pmc/parse-previous/route';
 import {
   pmcOrchestrator,
   PmcOrchestrator,
   PmcOrchestratorError,
+  type PmcDocumentType,
 } from '@/lib/pmc/orchestrator';
 import {
   setFeatureFlag,
@@ -234,7 +236,8 @@ describe('PmcOrchestrator (Piloto Nivel 1 & Strangler Fig)', () => {
 
     const health = await pmcOrchestrator.healthCheck();
     expect(health.status).toBe('healthy');
-    expect(health.checks.documentIngestion).toBe(true);
+    expect(health.checks.orchestratorInitialized).toBe(true);
+    expect(health.checks.featureFlagService).toBe(true);
 
     const metrics = await pmcOrchestrator.getMetrics('escuela-test-456');
     expect(metrics.programId).toBe('pmc');
@@ -243,11 +246,150 @@ describe('PmcOrchestrator (Piloto Nivel 1 & Strangler Fig)', () => {
 
   it('6. Lanza PmcOrchestratorError cuando el tipo de documento es desconocido', async () => {
     await expect(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      pmcOrchestrator.ingestDocument('desconocido' as any, Buffer.from('test'), {
+      pmcOrchestrator.ingestDocument('desconocido' as unknown as PmcDocumentType, Buffer.from('test'), {
         filename: 'test.pdf',
         teacherId: 'teacher-123',
       })
     ).rejects.toThrow(PmcOrchestratorError);
+  });
+
+  it('7. Paridad de contrato 422 en F11: tanto flag OFF como ON retornan HTTP 422 con mensaje idéntico', async () => {
+    const file = new File(['mock content bytes'], 'f11_err.pdf', { type: 'application/pdf' });
+    const formData = new FormData();
+    formData.append('file', file);
+
+    // Mock común de ingestión que retorna texto suficiente pero IA retorna JSON malformado
+    vi.mocked(auth).mockResolvedValue({ user: { email: mockTeacher.email } } as never);
+    vi.mocked(getTeacherByEmail).mockResolvedValue(mockTeacher as never);
+    vi.mocked(resolveUserIsPremium).mockResolvedValue(false);
+    vi.mocked(ingestDocument).mockResolvedValue({
+      fullText: 'Reporte F11 con suficiente texto para pasar la validacion de cuarenta caracteres minimos.',
+      markdown: 'Reporte F11 con suficiente texto para pasar la validacion de cuarenta caracteres minimos.',
+      pageCount: 1,
+    } as never);
+    vi.mocked(generateWithRotation).mockResolvedValue('Respuesta invalida que no parsea contra schema');
+
+    // 1. Ejecución con Flag OFF (Legacy)
+    resetFeatureFlags();
+    const reqOff = new NextRequest('http://localhost:3000/api/pmc/f11', { method: 'POST', body: formData });
+    const resOff = await handleF11Post(reqOff);
+    const jsonOff = await resOff.json();
+
+    // 2. Ejecución con Flag ON (Orchestrator)
+    setFeatureFlag('PMC_ORCHESTRATOR_V2', true);
+    const reqOn = new NextRequest('http://localhost:3000/api/pmc/f11', { method: 'POST', body: formData });
+    const resOn = await handleF11Post(reqOn);
+    const jsonOn = await resOn.json();
+
+    expect(resOff.status).toBe(422);
+    expect(resOn.status).toBe(422);
+    expect(jsonOn.error).toContain('No se pudieron estructurar los datos del F11:');
+    expect(jsonOff.error).toContain('No se pudieron estructurar los datos del F11:');
+  });
+
+  it('8. Strangler parse-previous con flag OFF: ejecuta legacy y normaliza categorias/temas', async () => {
+    resetFeatureFlags();
+
+    vi.mocked(auth).mockResolvedValueOnce({ user: { email: mockTeacher.email } } as never);
+    vi.mocked(getTeacherByEmail).mockResolvedValueOnce(mockTeacher as never);
+    vi.mocked(resolveUserIsPremium).mockResolvedValueOnce(true);
+    vi.mocked(ingestDocument).mockResolvedValueOnce({
+      fullText: 'PMC anterior oficial con texto suficiente para superar la validacion de cuarenta caracteres.',
+      markdown: 'PMC anterior oficial con texto suficiente para superar la validacion de cuarenta caracteres.',
+      pageCount: 2,
+    } as never);
+
+    const validAiResponse = JSON.stringify({
+      schoolName: 'BACHILLERATO HEROES DE LA PATRIA',
+      schoolCct: '21EBH0282Y',
+      cicloEscolar: '2025-2026',
+      staffData: [
+        {
+          nombre: 'Prof. Pedro Infante',
+          cargo: 'Docente',
+          metas_individuales: [
+            {
+              categoria: '1',
+              tema: 'tutorias',
+              meta: 'Disminuir reprobación',
+            },
+          ],
+        },
+      ],
+    });
+    vi.mocked(generateWithRotation).mockResolvedValueOnce(validAiResponse);
+
+    const file = new File(['mock prev bytes'], 'pmc_anterior.pdf', { type: 'application/pdf' });
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const req = new NextRequest('http://localhost:3000/api/pmc/parse-previous', { method: 'POST', body: formData });
+    const res = await handleParsePreviousPost(req);
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.success).toBe(true);
+    expect(json.data.staffData).toBeDefined();
+    expect(json.data.staffData[0].nombre).toBe('Prof. Pedro Infante');
+    expect(json.data.staffData[0].metas_individuales[0].categoria).toBe('Desarrollo académico y aprendizaje');
+  });
+
+  it('9. Strangler parse-previous con flag ON: delega en PmcOrchestrator y normaliza categorias/temas', async () => {
+    setFeatureFlag('PMC_ORCHESTRATOR_V2', true);
+
+    vi.mocked(auth).mockResolvedValueOnce({ user: { email: mockTeacher.email } } as never);
+    vi.mocked(getTeacherByEmail).mockResolvedValueOnce(mockTeacher as never);
+    vi.mocked(resolveUserIsPremium).mockResolvedValueOnce(true);
+    vi.mocked(ingestDocument).mockResolvedValueOnce({
+      fullText: 'PMC anterior procesado via orquestador con texto suficiente para superar la validacion.',
+      markdown: 'PMC anterior procesado via orquestador con texto suficiente para superar la validacion.',
+      pageCount: 2,
+    } as never);
+
+    const validAiResponse = JSON.stringify({
+      schoolName: 'BACHILLERATO GENERAL PUEBLA',
+      schoolCct: '21EBH0100A',
+      cicloEscolar: '2025-2026',
+      staffData: [
+        {
+          nombre: 'Mtra. María Félix',
+          cargo: 'Directora',
+          metas_individuales: [
+            {
+              categoria: 'categoria 2',
+              tema: 'recursos',
+              meta: 'Equipar laboratorio',
+            },
+          ],
+        },
+      ],
+    });
+    vi.mocked(generateWithRotation).mockResolvedValueOnce(validAiResponse);
+
+    const file = new File(['mock prev bytes'], 'pmc_prev_orchestrated.pdf', { type: 'application/pdf' });
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const req = new NextRequest('http://localhost:3000/api/pmc/parse-previous', { method: 'POST', body: formData });
+    const res = await handleParsePreviousPost(req);
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.success).toBe(true);
+    expect(json.data.staffData[0].nombre).toBe('Mtra. María Félix');
+    expect(json.data.staffData[0].metas_individuales[0].categoria).toBe('Gestión y administración escolar');
+  });
+
+  it('10. Métodos no implementados en orquestador PMC lanzan PmcOrchestratorError con HTTP 501', async () => {
+    await expect(pmcOrchestrator.generate()).rejects.toThrow(PmcOrchestratorError);
+    await expect(pmcOrchestrator.importPaec()).rejects.toThrow(PmcOrchestratorError);
+    await expect(pmcOrchestrator.renderDOCX()).rejects.toThrow(PmcOrchestratorError);
+
+    try {
+      await pmcOrchestrator.generate();
+    } catch (err) {
+      expect(err).toBeInstanceOf(PmcOrchestratorError);
+      expect((err as PmcOrchestratorError).status).toBe(501);
+    }
   });
 });
