@@ -271,4 +271,68 @@ describe('pmc-docx-generator — Generador de Plan de Mejora Continua e Informes
     expect(text).toContain('Mtra. Patricia Mendoza Santos');
     expect(text).toContain('Supervisor(a)');
   });
+
+  // ── TEST 9: Sección IV sin cifras inventadas ante campos nulos o ausentes (H-001)
+  it('Test 9: Genera informe parcial sin cifras inventadas (N/D) cuando los indicadores están vacíos o nulos', async () => {
+    const emptyIndicatorsFixture = makePmcFixture({
+      indicadores_academicos: {},
+    });
+    const buffer = await generatePmcInformeDocx(emptyIndicatorsFixture, 'parcial');
+    const { value: text } = await mammoth.extractRawText({ buffer });
+
+    expect(text).toContain('SECCIÓN IV — INDICADORES Y RESULTADOS ACADÉMICOS COMPARATIVOS');
+    expect(text).toContain('N/D');
+
+    // Verificar que no se inyectan los números inventados (?? 80, ?? 20, ?? 75, ?? 10, ?? 88, ?? 82, ?? 5, ?? 280)
+    expect(text).not.toContain('280 alumnos');
+    expect(text).not.toContain('80%');
+    expect(text).not.toContain('88%');
+    expect(text).not.toContain('75%');
+    expect(text).not.toContain('82%');
+  });
+
+  // ── TEST 10: Sección IV preserva el 0 legítimo (H-001) ──────────────────────
+  it('Test 10: Preserva valores 0 legítimos en informe sin degradarlos a N/D ni a defaults', async () => {
+    const zeroIndicatorsFixture = makePmcFixture({
+      indicadores_academicos: {
+        aprobacion_ant: 0,
+        reprobacion_ant: 100,
+        abandono_ant: 0,
+        et_ant: 0,
+        aprobacion_meta: 50,
+        abandono_meta: 0,
+        et_meta: 40,
+        matricula: 150,
+      },
+    });
+    const buffer = await generatePmcInformeDocx(zeroIndicatorsFixture, 'parcial');
+    const { value: text } = await mammoth.extractRawText({ buffer });
+
+    expect(text).toContain('0.0%');
+    expect(text).toContain('100.0%');
+    expect(text).toContain('150 alumnos');
+    expect(text).not.toContain('280 alumnos');
+  });
+
+  // ── TEST 11: Sección IV con datos completos en informe ──────────────────────
+  it('Test 11: Refleja datos numéricos completos en la tabla comparativa de informe', async () => {
+    const fullFixture = makePmcFixture({
+      indicadores_academicos: {
+        aprobacion_ant: 85.5,
+        reprobacion_ant: 14.5,
+        abandono_ant: 3.2,
+        et_ant: 81.0,
+        aprobacion_meta: 92.0,
+        abandono_meta: 1.5,
+        et_meta: 87.0,
+        matricula: 340,
+      },
+    });
+    const buffer = await generatePmcInformeDocx(fullFixture, 'final');
+    const { value: text } = await mammoth.extractRawText({ buffer });
+
+    expect(text).toContain('85.5%');
+    expect(text).toContain('92.0%');
+    expect(text).toContain('340 alumnos');
+  });
 });

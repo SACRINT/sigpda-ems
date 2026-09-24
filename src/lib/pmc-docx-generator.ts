@@ -14,6 +14,7 @@ import {
   HeadingLevel,
 } from 'docx';
 import { SCHOOL_YEAR } from '@/lib/config';
+import { isRealNumeric } from './pmc-indicator-calculator';
 
 // ─── Color Palette ───────────────────────────────────────────────────────────
 const C = {
@@ -208,9 +209,11 @@ interface IndicadoresAcademicos {
   abandono_ant?: number;
   et_ant?: number;
   aprobacion_meta?: number;
+  reprobacion_meta?: number;
   abandono_meta?: number;
   et_meta?: number;
   matricula?: number;
+  matricula_meta?: number;
 }
 
 interface FodaData {
@@ -1017,7 +1020,7 @@ export async function generatePmcInformeDocx(
 
   // ── SECCIÓN III: PARTICIPACIÓN DEL PERSONAL Y DOCENTES ─────────────────────
   children.push(new Paragraph({ children: [new PageBreak()] }));
-  secHeading('SECCIÓN III — REGISTRO DE PARTICIPACIÓN DEL PERSONAL');
+  children.push(secHeading('SECCIÓN III — REGISTRO DE PARTICIPACIÓN DEL PERSONAL'));
 
   if (Array.isArray(staffData) && staffData.length > 0) {
     children.push(
@@ -1084,16 +1087,28 @@ export async function generatePmcInformeDocx(
 
   // ── SECCIÓN IV: INDICADORES ACADÉMICOS Y RESULTADOS ─────────────────────
   children.push(new Paragraph({ children: [new PageBreak()] }));
-  secHeading('SECCIÓN IV — INDICADORES Y RESULTADOS ACADÉMICOS COMPARATIVOS');
+  children.push(secHeading('SECCIÓN IV — INDICADORES Y RESULTADOS ACADÉMICOS COMPARATIVOS'));
 
-  const apAnt = indic.aprobacion_ant ?? 80;
-  const repAnt = indic.reprobacion_ant ?? 20;
-  const etAnt = indic.et_ant ?? 75;
-  const abAnt = indic.abandono_ant ?? 10;
+  const apAnt = isRealNumeric(indic.aprobacion_ant) ? `${Number(indic.aprobacion_ant).toFixed(1)}%` : 'N/D';
+  const repAnt = isRealNumeric(indic.reprobacion_ant) ? `${Number(indic.reprobacion_ant).toFixed(1)}%` : 'N/D';
+  const etAnt = isRealNumeric(indic.et_ant) ? `${Number(indic.et_ant).toFixed(1)}%` : 'N/D';
+  const abAnt = isRealNumeric(indic.abandono_ant) ? `${Number(indic.abandono_ant).toFixed(1)}%` : 'N/D';
 
-  const apMeta = indic.aprobacion_meta ?? 88;
-  const etMeta = indic.et_meta ?? 82;
-  const abMeta = indic.abandono_meta ?? 5;
+  const apMeta = isRealNumeric(indic.aprobacion_meta) ? `${Number(indic.aprobacion_meta).toFixed(1)}%` : 'N/D';
+  const repMeta = isRealNumeric(indic.reprobacion_meta)
+    ? `${Number(indic.reprobacion_meta).toFixed(1)}%`
+    : isRealNumeric(indic.aprobacion_meta)
+      ? `${Math.max(0, 100 - Number(indic.aprobacion_meta)).toFixed(1)}%`
+      : 'N/D';
+  const etMeta = isRealNumeric(indic.et_meta) ? `${Number(indic.et_meta).toFixed(1)}%` : 'N/D';
+  const abMeta = isRealNumeric(indic.abandono_meta) ? `${Number(indic.abandono_meta).toFixed(1)}%` : 'N/D';
+
+  const matAnt = isRealNumeric(indic.matricula) ? `${indic.matricula} alumnos` : 'N/D';
+  const matMeta = isRealNumeric(indic.matricula_meta)
+    ? `${indic.matricula_meta} alumnos`
+    : isRealNumeric(indic.matricula)
+      ? `${indic.matricula} alumnos`
+      : 'N/D';
 
   children.push(
     tbl(
@@ -1105,11 +1120,11 @@ export async function generatePmcInformeDocx(
             tcH(`CICLO 2025-2026 (${isFinal ? 'Resultados Finales' : 'Avance Parcial'})`),
           ],
         }),
-        new TableRow({ children: [tcSub('Matrícula total de estudiantes'), tc(`${indic.matricula ?? 280} alumnos`), tc(`${indic.matricula ?? 280} alumnos`)] }),
-        new TableRow({ children: [tcSub('Índice de aprobación (%)'), tc(`${apAnt}%`), tc(`${apMeta}%`)] }),
-        new TableRow({ children: [tcSub('Índice de reprobación (%)'), tc(`${repAnt}%`), tc(`${100 - apMeta}%`)] }),
-        new TableRow({ children: [tcSub('Eficiencia terminal (%)'), tc(`${etAnt}%`), tc(`${etMeta}%`)] }),
-        new TableRow({ children: [tcSub('Índice de abandono escolar (%)'), tc(`${abAnt}%`), tc(`${abMeta}%`)] }),
+        new TableRow({ children: [tcSub('Matrícula total de estudiantes'), tc(matAnt), tc(matMeta)] }),
+        new TableRow({ children: [tcSub('Índice de aprobación (%)'), tc(apAnt), tc(apMeta)] }),
+        new TableRow({ children: [tcSub('Índice de reprobación (%)'), tc(repAnt), tc(repMeta)] }),
+        new TableRow({ children: [tcSub('Eficiencia terminal (%)'), tc(etAnt), tc(etMeta)] }),
+        new TableRow({ children: [tcSub('Índice de abandono escolar (%)'), tc(abAnt), tc(abMeta)] }),
       ],
       [Math.floor(CONTENT * 0.4), Math.floor(CONTENT * 0.3), Math.floor(CONTENT * 0.3)]
     )
@@ -1140,7 +1155,7 @@ export async function generatePmcInformeDocx(
 
   // ── SECCIÓN V: INVENTARIO DE EVIDENCIAS GENERADAS ───────────────────────
   children.push(new Paragraph({ children: [new PageBreak()] }));
-  secHeading('SECCIÓN V — INVENTARIO Y ANÁLISIS DE EVIDENCIAS GENERADAS');
+  children.push(secHeading('SECCIÓN V — INVENTARIO Y ANÁLISIS DE EVIDENCIAS GENERADAS'));
 
   const evidenciasList = metas.map((m, idx) => ({
     no: idx + 1,
@@ -1196,7 +1211,7 @@ export async function generatePmcInformeDocx(
 
   // ── SECCIÓN VI: AUTOEVALUACIÓN Y BALANCE DEL PROCESO PMC ────────────────
   children.push(...gap(2));
-  secHeading('SECCIÓN VI — AUTOEVALUACIÓN Y BALANCE DEL PROCESO PMC');
+  children.push(secHeading('SECCIÓN VI — AUTOEVALUACIÓN Y BALANCE DEL PROCESO PMC'));
 
   const balances = [
     { no: 1, asp: 'Pertinencia de las metas establecidas en relación al diagnóstico', val: 'Excelente', obs: 'Las metas atendieron directamente las necesidades prioritarias del plantel.' },
@@ -1281,7 +1296,7 @@ export async function generatePmcInformeDocx(
 
   // ── FIRMAS DE VALIDACIÓN Y RECEPCIÓN ───────────────────────────────────────
   children.push(new Paragraph({ children: [new PageBreak()] }));
-  secHeading('FIRMAS DE VALIDACIÓN Y RECEPCIÓN OFICIAL');
+  children.push(secHeading('FIRMAS DE VALIDACIÓN Y RECEPCIÓN OFICIAL'));
 
   children.push(
     tbl(
