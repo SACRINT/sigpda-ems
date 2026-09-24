@@ -9,6 +9,10 @@
  * Previene el acoplamiento directo entre subsistemas de Nivel 1 (PMC, PAEC, Planeaciones).
  */
 
+import { z } from 'zod';
+import { parseAIResponse, type ParseAIResponseResult } from './ai-response-parser';
+import { logger } from './logger';
+
 export const AI_OUTAGE_USER_MESSAGE =
   'El servicio de Inteligencia Artificial está experimentando alta demanda o saturación temporal. Tu documento es válido; por favor espera un par de minutos y reintenta la carga.';
 
@@ -65,5 +69,79 @@ export async function withTimeoutBudget<T>(
     return await Promise.race([promise, timeoutPromise]);
   } finally {
     if (timer) clearTimeout(timer);
+  }
+}
+
+export interface CorrectiveRetryParams<T> {
+  systemPrompt: string;
+  previousRaw: string;
+  zodIssues: string;
+  schema: z.ZodType<T>;
+  callAI: (systemPrompt: string, correctivePrompt: string, remainingBudgetMs: number) => Promise<string>;
+  deadline: number;
+  contextName: string;
+  buildPrompt?: (zodIssues: string, previousRaw: string) => string;
+}
+
+export function defaultBuildCorrectivePrompt(zodIssues: string, previousRaw: string): string {
+  return `La respuesta anterior no cumplió estrictamente con el esquema esperado.
+Errores de validación Zod:
+${zodIssues}
+
+Respuesta anterior recibida:
+"""
+${previousRaw.slice(0, 4000)}
+"""
+
+Corrige los campos señalados y devuelve ÚNICAMENTE un objeto JSON válido conforme al esquema requerido.`;
+}
+
+/**
+ * Reintento correctivo acotado transversal para extracción/generación con IA.
+ * Si restan >= 15s del presupuesto de tiempo: ejecuta 1 reprompt correctivo con Zod issues,
+ * parseando la respuesta con repairNullStrings: true.
+ * Si restan < 15s o el reintento falla, devuelve el error original sin saturar upstream.
+ */
+export async function correctiveRetry<T>({
+  systemPrompt,
+  previousRaw,
+  zodIssues,
+  schema,
+  callAI,
+  deadline,
+  contextName,
+  buildPrompt,
+}: CorrectiveRetryParams<T>): Promise<ParseAIResponseResult<T>> {
+  const remainingBudget = deadline - Date.now();
+  if (remainingBudget < 15000) {
+    return {
+      success: false,
+      warnings: [],
+      error: zodIssues || 'Validación Zod falló y no queda presupuesto temporal suficiente (>=15s) para reintento correctivo',
+    };
+  }
+
+  logger.warn(`[${contextName}] Primer intento de parseo falló. Ejecutando reintento correctivo acotado con Zod feedback...`);
+  try {
+    const promptBuilder = buildPrompt || defaultBuildCorrectivePrompt;
+    const correctivePrompt = promptBuilder(zodIssues, previousRaw);
+
+    const correctiveAiRaw = await callAI(
+      systemPrompt,
+      correctivePrompt,
+      Math.max(1, deadline - Date.now())
+    );
+
+    return parseAIResponse(correctiveAiRaw, schema, {
+      contextName: `${contextName}-retry`,
+      repairNullStrings: true,
+    });
+  } catch (retryErr: unknown) {
+    logger.warn(`[${contextName}] Falló el reintento correctivo acotado:`, retryErr);
+    return {
+      success: false,
+      warnings: [],
+      error: zodIssues || (retryErr instanceof Error ? retryErr.message : String(retryErr)),
+    };
   }
 }

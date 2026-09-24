@@ -11,6 +11,7 @@ import {
   Estadistica911ExtractSchema,
 } from '@/lib/prompts/estadistica-911-extraction';
 import { isFeatureEnabled } from '@/lib/platform/feature-flags';
+import { correctiveRetry } from '@/lib/ai-resilience';
 import {
   pmcOrchestrator,
   PmcOrchestratorError,
@@ -131,38 +132,20 @@ export async function POST(request: NextRequest) {
       repairNullStrings: true,
     });
 
-    if (!parsed.success && (deadline - Date.now()) >= 15000) {
-      logger.warn('[pmc-911] Primer intento de parseo falló. Ejecutando reintento correctivo acotado con Zod feedback...');
-      try {
-        const correctivePrompt = `La respuesta anterior no cumplió estrictamente con el esquema esperado.
-Errores de validación Zod:
-${parsed.error}
-
-Respuesta anterior recibida:
-"""
-${aiRaw.slice(0, 4000)}
-"""
-
-Corrige los campos señalados y devuelve ÚNICAMENTE un objeto JSON válido conforme al esquema requerido.`;
-
-        const correctiveAiRaw = await withTimeoutBudget(
-          generateWithRotation(
-            systemPrompt,
-            correctivePrompt,
-            teacher.id,
-            isPremium,
-            { temperature: 0, jsonMode: true }
+    if (!parsed.success) {
+      parsed = await correctiveRetry({
+        systemPrompt,
+        previousRaw: aiRaw,
+        zodIssues: parsed.error || '',
+        schema: Estadistica911ExtractSchema,
+        callAI: (sys, user, remaining) =>
+          withTimeoutBudget(
+            generateWithRotation(sys, user, teacher.id, isPremium, { temperature: 0, jsonMode: true }),
+            remaining
           ),
-          Math.max(1, deadline - Date.now())
-        );
-
-        parsed = parseAIResponse(correctiveAiRaw, Estadistica911ExtractSchema, {
-          contextName: 'pmc-911-extraction-retry',
-          repairNullStrings: true,
-        });
-      } catch (retryErr: unknown) {
-        logger.warn('[pmc-911] Falló el reintento correctivo acotado:', retryErr);
-      }
+        deadline,
+        contextName: 'pmc-911',
+      });
     }
 
     if (!parsed.success) {
