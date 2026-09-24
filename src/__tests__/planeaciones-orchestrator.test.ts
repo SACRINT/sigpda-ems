@@ -212,8 +212,19 @@ describe('PlaneacionOrchestrator (Piloto Nivel 1 & Strangler Fig)', () => {
     expect(metrics.tenantId).toBe('escuela-zona-004');
   });
 
-  it('6. Invariante Reto Situado / Modelo Finlandés permanece intacto en planning-evaluator.ts', async () => {
-    // Valida que el evaluador independiente de Reto Situado (planning-evaluator.ts) no fue modificado ni acoplado
+  it('6. Invariante Reto Situado / Modelo Finlandés: valida integridad estricta de planning-evaluator.ts', async () => {
+    // Valida criptográficamente que planning-evaluator.ts no ha sufrido ninguna modificación en su código fuente
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const crypto = await import('node:crypto');
+
+    const filePath = path.resolve(process.cwd(), 'src/lib/planning-evaluator.ts');
+    const fileContent = fs.readFileSync(filePath, 'utf8').replace(/\r\n/g, '\n');
+    const fileHash = crypto.createHash('sha256').update(fileContent).digest('hex');
+
+    // Hash canónico del evaluador Reto Situado (Modelo Finlandés 4/4)
+    expect(fileHash).toBe('d030d785788c2b41a13abb83fa0e24b46f1ebd4cc82cfaf6b1cb8c852cf5a653');
+
     const planningEvaluatorModule = await import('@/lib/planning-evaluator');
     expect(planningEvaluatorModule.validateRetoSituado).toBeDefined();
     expect(typeof planningEvaluatorModule.validateRetoSituado).toBe('function');
