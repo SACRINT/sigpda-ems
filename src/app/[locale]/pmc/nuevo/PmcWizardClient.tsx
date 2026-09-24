@@ -304,6 +304,15 @@ export default function PmcWizardClient({ locale, teacherSchool, teacherMunicipa
   const [planAccion, setPlanAccion] = useState<PlanAccion | null>(
     existingProject?.plan_accion || null
   );
+  const [metasPreviasReferencia, setMetasPreviasReferencia] = useState<Array<{
+    categoria?: string;
+    tema?: string;
+    meta?: string;
+    linea_base?: string;
+    estrategia?: string;
+    entregable?: string;
+    periodo?: string;
+  }>>([]);
 
   // Zona Context Bridge (Fase 9)
   const [zonaData, setZonaData] = useState<SchoolZoneContextResponse | null>(null);
@@ -558,29 +567,7 @@ interface PaecProjectForPmc {
     }
 
     if (parsedPmcData.metas_institucionales_previas && parsedPmcData.metas_institucionales_previas.length > 0) {
-      setPlanAccion(prev => {
-        if (prev && prev.metas_institucionales && prev.metas_institucionales.length > 0) return prev;
-        const convertedMetas: MetaInstitucional[] = parsedPmcData.metas_institucionales_previas!.map((m) => {
-          const cat = m.categoria || PMC_CATEGORIAS_OFICIALES[0].nombre;
-          return {
-            categoria: cat,
-            nombre_categoria: cat,
-            tema: m.tema || 'Mejora institucional',
-            meta: m.meta || '',
-            estrategia: m.estrategia || '',
-            linea_base: m.linea_base || '',
-            personal_designado: 'Comité de Mejora Continua',
-            entregable: m.entregable || 'Reporte de seguimiento de meta',
-            periodo_inicio: 'Agosto',
-            periodo_fin: 'Junio',
-            diagnostico_meta: `Meta institucional de referencia (ciclo previo): ${m.meta || ''}`,
-          };
-        });
-        return {
-          metas_institucionales: convertedMetas,
-          metas_personales: prev?.metas_personales || [],
-        };
-      });
+      setMetasPreviasReferencia(parsedPmcData.metas_institucionales_previas);
     }
 
     if (parsedPmcData.diagnosticoComunidad) {
@@ -2083,6 +2070,64 @@ interface PaecProjectForPmc {
                 </button>
               </div>
               {!diagnosticoGenerado && <p style={{ fontSize: '12px', color: '#fcd34d', background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.2)', padding: '8px 12px', borderRadius: '6px', marginBottom: '12px' }}>⚠️ Primero genera el diagnóstico para poder generar el plan de acción.</p>}
+
+              {/* Metas del ciclo previo (Referencia Histórica Aislada - H-006) */}
+              {metasPreviasReferencia.length > 0 && (
+                <div style={{ marginBottom: '16px', padding: '14px', borderRadius: '8px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <h4 style={{ fontSize: '13px', fontWeight: 700, color: '#fcd34d', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>📜</span> Metas del Ciclo Previo (Insumo Histórico de Referencia)
+                    </h4>
+                    <span style={{ fontSize: '11px', color: 'rgba(240,244,255,0.6)', background: 'rgba(255,255,255,0.06)', padding: '2px 8px', borderRadius: '4px' }}>
+                      {metasPreviasReferencia.length} metas extraídas
+                    </span>
+                  </div>
+                  <p style={{ fontSize: '12px', color: 'rgba(240,244,255,0.7)', margin: '0 0 12px', lineHeight: 1.5 }}>
+                    Estas metas provienen del PMC anterior cargado. Por rigor normativo no se incluyen automáticamente en el Plan de Acción 2026-2027 para evitar compromisos extemporáneos. Puedes adaptar aquellas que requieran continuidad formal:
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {metasPreviasReferencia.map((mp, idx) => (
+                      <div key={idx} style={{ background: 'rgba(0,0,0,0.25)', padding: '10px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+                        <div style={{ flex: 1, fontSize: '12px' }}>
+                          <div style={{ fontWeight: 600, color: '#93c5fd', marginBottom: '2px' }}>
+                            {mp.categoria || 'Categoría general'} {mp.tema ? `— ${mp.tema}` : ''}
+                          </div>
+                          <div style={{ color: '#f0f4ff', marginBottom: '4px' }}><strong>Meta:</strong> {mp.meta || 'Sin redacción'}</div>
+                          {mp.estrategia && <div style={{ color: 'rgba(240,244,255,0.65)' }}><strong>Estrategia:</strong> {mp.estrategia}</div>}
+                          {mp.linea_base && <div style={{ color: 'rgba(240,244,255,0.5)' }}><strong>Línea base:</strong> {mp.linea_base}</div>}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const cat = mp.categoria || PMC_CATEGORIAS_OFICIALES[0].nombre;
+                            const adaptedMeta: MetaInstitucional = {
+                              categoria: cat,
+                              nombre_categoria: cat,
+                              tema: mp.tema || 'Mejora continua',
+                              meta: mp.meta ? `[Continuidad 2026-2027] ${mp.meta}` : '',
+                              estrategia: mp.estrategia || '',
+                              linea_base: mp.linea_base || '',
+                              personal_designado: '',
+                              entregable: mp.entregable || 'Reporte de seguimiento',
+                              periodo_inicio: 'Agosto 2026',
+                              periodo_fin: 'Junio 2027',
+                              diagnostico_meta: `Meta adaptada del ciclo previo: ${mp.meta || ''}`,
+                            };
+                            setPlanAccion(prev => ({
+                              metas_institucionales: [...(prev?.metas_institucionales || []), adaptedMeta],
+                              metas_personales: prev?.metas_personales || [],
+                            }));
+                            setEditingMeta(planAccion?.metas_institucionales?.length || 0);
+                          }}
+                          style={{ padding: '6px 10px', fontSize: '11px', fontWeight: 600, borderRadius: '6px', border: '1px solid rgba(99,102,241,0.4)', background: 'rgba(99,102,241,0.2)', color: '#c7d2fe', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                        >
+                          ➕ Adaptar para 2026-2027
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {planAccion && (
                 <div>
