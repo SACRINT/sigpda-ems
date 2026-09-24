@@ -391,5 +391,71 @@ describe('Blindaje Curricular y Extracción: F11 y Estadística 911 (N-002)', ()
         expect(parsed.data.observaciones).toBe('');
       }
     });
+
+    it('PmcPreviousExtractSchema rechaza payloads con >15 metas institucionales previas (cap determinista)', () => {
+      const payloadExcesivo = {
+        schoolName: 'Bachillerato General Test',
+        metas_institucionales_previas: Array.from({ length: 16 }, (_, i) => ({
+          categoria: 'Desarrollo académico y aprendizaje',
+          meta: `Meta institucional ${i + 1}`,
+        })),
+      };
+
+      const result = PmcPreviousExtractSchema.safeParse(payloadExcesivo);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        const errorPath = result.error.issues[0]?.path;
+        expect(errorPath).toContain('metas_institucionales_previas');
+      }
+    });
+
+    it('PmcPreviousExtractSchema rechaza payloads con >40 participantes o staff (cap determinista)', () => {
+      const payloadParticipantesExcesivos = {
+        participantes: Array.from({ length: 41 }, (_, i) => ({
+          nombre: `Participante ${i + 1}`,
+          cargo: 'Docente',
+          firma: 'Firmado',
+        })),
+      };
+      const resultPart = PmcPreviousExtractSchema.safeParse(payloadParticipantesExcesivos);
+      expect(resultPart.success).toBe(false);
+
+      const payloadStaffExcesivo = {
+        staffData: Array.from({ length: 41 }, (_, i) => ({
+          nombre: `Docente ${i + 1}`,
+          cargo: 'Docente',
+        })),
+      };
+      const resultStaff = PmcPreviousExtractSchema.safeParse(payloadStaffExcesivo);
+      expect(resultStaff.success).toBe(false);
+    });
+
+    it('PmcPreviousExtractSchema valida participantes y no inventa totalStaff=1 si falta', () => {
+      const payloadValido = {
+        schoolName: 'Bachillerato General Moises Saenz Garza',
+        participantes: [
+          { nombre: 'Prof. Juan Pérez', cargo: 'Director', firma: 'Firmado' },
+          { nombre: 'Mtra. Ana Gómez', cargo: 'Docente', firma: 'Rúbrica' },
+        ],
+        metas_institucionales_previas: [
+          {
+            categoria: 'Desarrollo académico y aprendizaje',
+            tema: 'Indicadores académicos',
+            meta: 'Incrementar la aprobación al 90%',
+            linea_base: '85%',
+          },
+        ],
+      };
+
+      const result = PmcPreviousExtractSchema.safeParse(payloadValido);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.participantes).toHaveLength(2);
+        expect(result.data.participantes[0].cargo).toBe('Director');
+        expect(result.data.metas_institucionales_previas).toHaveLength(1);
+        expect(result.data.totalStaff).toBeUndefined(); // No inventa 1 por defecto
+      }
+    });
   });
 });
+

@@ -354,7 +354,21 @@ interface PmcPreviousExtractDTO {
   cicloEscolar?: string;
   subsystem?: string;
   totalStaff?: number | string;
+  participantes?: Array<{
+    nombre: string;
+    cargo: string;
+    firma?: string;
+  }>;
   staffData?: PmcPreviousExtractStaff[];
+  metas_institucionales_previas?: Array<{
+    categoria?: string;
+    tema?: string;
+    meta?: string;
+    linea_base?: string;
+    estrategia?: string;
+    entregable?: string;
+    periodo?: string;
+  }>;
   indicadores?: {
     aprobacion_ant?: number | string;
     reprobacion_ant?: number | string;
@@ -475,8 +489,19 @@ interface PaecProjectForPmc {
     if (parsedPmcData.cicloEscolar) setCicloEscolar(parsedPmcData.cicloEscolar);
     if (parsedPmcData.subsystem) setSubsystem(parsedPmcData.subsystem);
 
-    if (parsedPmcData.staffData && Array.isArray(parsedPmcData.staffData) && parsedPmcData.staffData.length > 0) {
-      const normalizedStaff = parsedPmcData.staffData.map(s => ({
+    const incomingStaff = (parsedPmcData.staffData && Array.isArray(parsedPmcData.staffData) && parsedPmcData.staffData.length > 0)
+      ? parsedPmcData.staffData
+      : (parsedPmcData.participantes && Array.isArray(parsedPmcData.participantes) && parsedPmcData.participantes.length > 0)
+        ? parsedPmcData.participantes.map(p => ({
+            nombre: p.nombre,
+            cargo: p.cargo || 'Docente',
+            meta_individual: '',
+            metas_individuales: [],
+          }))
+        : [];
+
+    if (incomingStaff.length > 0) {
+      const normalizedStaff = incomingStaff.map(s => ({
         ...s,
         metas_individuales: (s.metas_individuales && s.metas_individuales.length > 0)
           ? s.metas_individuales.map(m => {
@@ -503,6 +528,32 @@ interface PaecProjectForPmc {
       setTotalStaff(normalizedStaff.length);
     } else if (parsedPmcData.totalStaff) {
       setTotalStaff(Number(parsedPmcData.totalStaff) || 0);
+    }
+
+    if (parsedPmcData.metas_institucionales_previas && parsedPmcData.metas_institucionales_previas.length > 0) {
+      setPlanAccion(prev => {
+        if (prev && prev.metas_institucionales && prev.metas_institucionales.length > 0) return prev;
+        const convertedMetas: MetaInstitucional[] = parsedPmcData.metas_institucionales_previas!.map((m) => {
+          const cat = m.categoria || PMC_CATEGORIAS_OFICIALES[0].nombre;
+          return {
+            categoria: cat,
+            nombre_categoria: cat,
+            tema: m.tema || 'Mejora institucional',
+            meta: m.meta || '',
+            estrategia: m.estrategia || '',
+            linea_base: m.linea_base || '',
+            personal_designado: 'Comité de Mejora Continua',
+            entregable: m.entregable || 'Reporte de seguimiento de meta',
+            periodo_inicio: 'Agosto',
+            periodo_fin: 'Junio',
+            diagnostico_meta: `Meta institucional de referencia (ciclo previo): ${m.meta || ''}`,
+          };
+        });
+        return {
+          metas_institucionales: convertedMetas,
+          metas_personales: prev?.metas_personales || [],
+        };
+      });
     }
 
     if (parsedPmcData.diagnosticoComunidad) {

@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Normalizar categorías y temas canónicos de la PMC (Lineamientos Oficiales Cuadro 2)
-    const normalizedStaff = parsed.data.staffData?.map((staff) => ({
+    let effectiveStaff = parsed.data.staffData?.map((staff) => ({
       ...staff,
       metas_individuales: staff.metas_individuales?.map((meta) => {
         const catNorm = normalizePmcCategoria(meta.categoria);
@@ -152,9 +152,32 @@ export async function POST(request: NextRequest) {
       }) || [],
     })) || [];
 
+    // Si staffData está vacío pero se identificaron participantes, precargar plantilla desde participantes
+    if (effectiveStaff.length === 0 && parsed.data.participantes && parsed.data.participantes.length > 0) {
+      effectiveStaff = parsed.data.participantes.map((p) => ({
+        nombre: p.nombre,
+        cargo: p.cargo || 'Docente',
+        meta_individual: '',
+        metas_individuales: [],
+      }));
+    }
+
+    const normalizedMetasPrevias = parsed.data.metas_institucionales_previas?.map((m) => {
+      const catNorm = normalizePmcCategoria(m.categoria);
+      const temaNorm = normalizePmcTema(m.tema, catNorm);
+      return {
+        ...m,
+        categoria: catNorm,
+        tema: temaNorm,
+      };
+    }) || [];
+
     const finalData = {
       ...parsed.data,
-      staffData: normalizedStaff,
+      totalStaff: parsed.data.totalStaff || (effectiveStaff.length > 0 ? effectiveStaff.length : undefined),
+      staffData: effectiveStaff,
+      participantes: parsed.data.participantes || [],
+      metas_institucionales_previas: normalizedMetasPrevias,
     };
 
     return NextResponse.json({

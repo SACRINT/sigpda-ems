@@ -199,7 +199,7 @@ describe('FASE 4: Regresión y Blindaje Curricular PAEC / PMC', () => {
         expect(result.data.schoolName).toBe('Bachillerato General Emiliano Zapata');
         expect(result.data.schoolCct).toBe('21EBH0099Z');
         expect(result.data.subsystem).toBe('BGE');
-        expect(result.data.totalStaff).toBe(1);
+        expect(result.data.totalStaff).toBeUndefined();
         expect(result.data.staffData).toEqual([]);
         expect(result.data.indicadores).toBeDefined();
         expect(result.data.foda).toBeDefined();
