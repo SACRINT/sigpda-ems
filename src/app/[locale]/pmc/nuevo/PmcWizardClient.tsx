@@ -729,7 +729,10 @@ interface PaecProjectForPmc {
         ? `/api/paec/for-pmc?cct=${encodeURIComponent(schoolCct.trim())}`
         : '/api/paec/for-pmc';
       const res = await fetch(url);
-      const json = await res.json();
+      const json = await parseSafeApiResponse<{ success?: boolean; projects?: PaecProjectForPmc[] }>(
+        res,
+        'Error al consultar proyectos PAEC.'
+      );
       if (res.ok && json.success) {
         setPaecProjectsList(json.projects || []);
         if (json.projects && json.projects.length > 0) {
@@ -786,7 +789,10 @@ interface PaecProjectForPmc {
     setZonaFeedback(null);
     try {
       const res = await fetch(`/api/pmc/zona-context?cct=${encodeURIComponent(targetCct)}`);
-      const data: SchoolZoneContextResponse = await res.json();
+      const data = await parseSafeApiResponse<SchoolZoneContextResponse>(
+        res,
+        'Error al consultar la Cartografía de Zona.'
+      );
       if (!res.ok || !data.found) {
         setZonaFeedback('No se encontró Cartografía de Zona activa para este CCT escolar.');
       } else {
@@ -857,8 +863,11 @@ interface PaecProjectForPmc {
             ...payload,
           }),
         });
-        if (!res.ok) throw new Error(await res.text());
-        const created = await res.json();
+        const created = await parseSafeApiResponse<{ project?: { id?: string }; id?: string; error?: string }>(
+          res,
+          'Error al guardar el proyecto.'
+        );
+        if (!res.ok) throw new Error(created.error || 'Error al guardar');
         clearPmcDraft(); // Draft saved to DB — clear localStorage
         const newId = created.project?.id || created.id;
         if (newId) {
@@ -874,7 +883,10 @@ interface PaecProjectForPmc {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
-        if (!res.ok) throw new Error(await res.text());
+        if (!res.ok) {
+          const errData = await parseSafeApiResponse<{ error?: string }>(res, 'Error al actualizar el proyecto.');
+          throw new Error(errData.error || 'Error al actualizar');
+        }
         return projectId;
       }
     } catch (e: unknown) {
@@ -895,11 +907,14 @@ interface PaecProjectForPmc {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ step }),
       });
+      const data = await parseSafeApiResponse<{
+        diagnostico_generado?: DiagnosticoGenerado;
+        plan_accion?: PlanAccion;
+        error?: string;
+      }>(res, 'Error al generar contenido');
       if (!res.ok) {
-        const errText = await res.text();
-        throw new Error(errText || 'Error al generar');
+        throw new Error(data.error || 'Error al generar');
       }
-      const data = await res.json();
       if (step === 'diagnostico' && data.diagnostico_generado) {
         setDiagnosticoGenerado(data.diagnostico_generado);
       }
