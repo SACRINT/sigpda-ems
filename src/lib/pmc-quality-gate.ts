@@ -404,6 +404,15 @@ function evalC10_MetasPersonal(p: PmcProject): PmcAuditCriterion {
   const metasPers = (Array.isArray(plan.metas_personales) ? plan.metas_personales : []);
   const count = metasPers.length;
 
+  const staff = (Array.isArray(p.staff_data) ? p.staff_data : []) as PmcStaffMember[];
+  const realStaffCount = (typeof p.total_staff === 'number' && p.total_staff > 0)
+    ? p.total_staff
+    : staff.length > 0
+      ? staff.length
+      : 1;
+
+  const coverageRatio = count / realStaffCount;
+
   const withDetails = metasPers.filter(m =>
     hasText(m.nombre, 3) &&
     hasText(m.meta_individual, 10) &&
@@ -414,27 +423,27 @@ function evalC10_MetasPersonal(p: PmcProject): PmcAuditCriterion {
   let status: 'pass' | 'warning' | 'fail' = 'fail';
   let feedback = 'No se han formulado metas individuales de corresponsabilidad docente/directiva.';
 
-  if (count >= 3 && withDetails >= count * 0.8) {
+  if (coverageRatio >= 0.8 && withDetails >= count * 0.8) {
     score = 14;
     status = 'pass';
-    feedback = 'Excelente corresponsabilidad del personal con metas individuales alineadas a los objetivos del PMC.';
+    feedback = `Excelente corresponsabilidad del personal (${count}/${realStaffCount} integrantes con metas individuales, ${(coverageRatio * 100).toFixed(0)}% de cobertura).`;
   } else if (count >= 1) {
-    score = 7;
+    score = Math.max(1, Math.round(14 * Math.min(1, coverageRatio)));
     status = 'warning';
-    feedback = 'Metas personales preliminares. Se recomienda incorporar metas para la totalidad del personal clave.';
+    feedback = `Metas personales preliminares con cobertura del ${(coverageRatio * 100).toFixed(0)}% (${count}/${realStaffCount} integrantes). Se recomienda alcanzar al menos el 80% de la plantilla oficial.`;
   }
 
   return {
     id: 'PMC-C10',
     dimension: PMC_DIMENSIONS.DIM5,
     name: 'Corresponsabilidad y Metas Individuales del Personal',
-    description: 'Evalúa el compromiso individual de docentes y directivos vinculado al proyecto escolar de mejora.',
+    description: 'Evalúa el compromiso individual de docentes y directivos vinculado a la plantilla escolar real (cobertura >= 80%).',
     weight: 14,
     maxScore: 14,
     score,
     status,
     feedback,
-    evidenceFound: `${count} metas personales registradas (${withDetails} completas con entregable).`,
+    evidenceFound: `${count}/${realStaffCount} integrantes con metas (${(coverageRatio * 100).toFixed(1)}% cobertura, ${withDetails} con detalle completo).`,
   };
 }
 

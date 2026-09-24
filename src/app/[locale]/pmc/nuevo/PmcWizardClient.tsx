@@ -311,6 +311,11 @@ export default function PmcWizardClient({ locale, teacherSchool, teacherMunicipa
   const [loadingZona, setLoadingZona] = useState(false);
   const [zonaFeedback, setZonaFeedback] = useState<string | null>(null);
 
+  // Quality Coverage Warning Modal (C10 / D6)
+  const [showCoverageModal, setShowCoverageModal] = useState(false);
+  const [coverageWarningDismissed, setCoverageWarningDismissed] = useState(false);
+  const [pendingDownloadUrl, setPendingDownloadUrl] = useState<string | null>(null);
+
 interface PmcPreviousExtractStaff {
   nombre: string;
   cargo: string;
@@ -1133,6 +1138,38 @@ interface PaecProjectForPmc {
   };
 
   const handleBack = () => setActiveStep(s => Math.max(s - 1, 1));
+
+  // Invariante de Cobertura de Metas de Personal (C10 / D6)
+  const realStaffCount = (typeof totalStaff === 'number' && totalStaff > 0)
+    ? totalStaff
+    : staffData.length > 0
+      ? staffData.length
+      : 1;
+  const personalWithGoals = planAccion?.metas_personales?.length || 0;
+  const coveragePercent = Math.round((personalWithGoals / realStaffCount) * 100);
+  const isLowCoverage = coveragePercent < 80;
+
+  const handleExportWithCoverageCheck = (e: React.MouseEvent<HTMLAnchorElement>, url: string) => {
+    if (isLowCoverage && !coverageWarningDismissed) {
+      e.preventDefault();
+      setPendingDownloadUrl(url);
+      setShowCoverageModal(true);
+    }
+  };
+
+  const handleProceedDownload = () => {
+    setShowCoverageModal(false);
+    setCoverageWarningDismissed(true);
+    if (pendingDownloadUrl) {
+      window.location.href = pendingDownloadUrl;
+      setPendingDownloadUrl(null);
+    }
+  };
+
+  const handleGoToStep4 = () => {
+    setShowCoverageModal(false);
+    setActiveStep(4);
+  };
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -2232,6 +2269,43 @@ interface PaecProjectForPmc {
               </div>
             </div>
 
+            {/* Banner de Advertencia de Calidad Normativa si cobertura < 80% */}
+            {isLowCoverage && (
+              <div style={{
+                background: 'rgba(245,158,11,0.1)',
+                border: '1px solid rgba(245,158,11,0.35)',
+                borderRadius: '10px',
+                padding: '14px 16px',
+                marginBottom: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '14px',
+              }}>
+                <span style={{ fontSize: '24px' }}>⚠️</span>
+                <div style={{ flex: 1, fontSize: '13px', color: '#fef3c7', lineHeight: 1.4 }}>
+                  <strong>Advertencia de Calidad Normativa (C10):</strong> Cobertura de metas del personal al{' '}
+                  <strong style={{ color: '#fbbf24' }}>{coveragePercent}%</strong> ({personalWithGoals} de {realStaffCount} trabajadores). La norma SEP Puebla / SEMS recomienda al menos 80% de corresponsabilidad docente. Puedes descargar de todos modos o volver al Paso 4.
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveStep(4)}
+                  style={{
+                    flexShrink: 0,
+                    padding: '7px 14px',
+                    background: 'rgba(245,158,11,0.25)',
+                    border: '1px solid rgba(245,158,11,0.45)',
+                    borderRadius: '6px',
+                    color: '#fef3c7',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  ← Paso 4: Completar
+                </button>
+              </div>
+            )}
+
             {/* Download buttons */}
             <div style={sectionCard}>
               <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#818cf8', marginBottom: '16px' }}>📥 Documentos para descargar</h3>
@@ -2243,6 +2317,7 @@ interface PaecProjectForPmc {
                   </div>
                   <a
                     href={`/api/pdf/pmc/${projectId}`}
+                    onClick={(e) => handleExportWithCoverageCheck(e, `/api/pdf/pmc/${projectId}`)}
                     className="btn btn-primary"
                     style={{ flexShrink: 0, backgroundColor: '#c0392b', borderColor: '#c0392b', color: '#fff', fontWeight: 600, textDecoration: 'none' }}
                   >
@@ -2257,6 +2332,7 @@ interface PaecProjectForPmc {
                   </div>
                   <a
                     href={`/api/docx/pmc/${projectId}`}
+                    onClick={(e) => handleExportWithCoverageCheck(e, `/api/docx/pmc/${projectId}`)}
                     className="btn btn-primary"
                     style={{ flexShrink: 0, backgroundColor: 'var(--c-navy)', borderColor: 'var(--c-navy)', textDecoration: 'none' }}
                   >
@@ -2727,6 +2803,95 @@ interface PaecProjectForPmc {
                   }}
                 >
                   ✓ Importar al Diagnóstico del PMC
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Informativo de Cobertura de Metas (C10 / D6 - Jamás bloquear export) */}
+        {showCoverageModal && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.85)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1100,
+            padding: '20px',
+            backdropFilter: 'blur(5px)',
+          }}>
+            <div style={{
+              background: '#0f172a',
+              border: '1px solid rgba(245,158,11,0.4)',
+              borderRadius: '16px',
+              maxWidth: '560px',
+              width: '100%',
+              padding: '24px',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.7)',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '24px' }}>⚠️</span>
+                  <h3 style={{ margin: 0, fontSize: '17px', color: '#fef3c7', fontWeight: 700 }}>
+                    Recomendación de Calidad Normativa (C10)
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCoverageModal(false)}
+                  style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '20px', cursor: 'pointer' }}
+                >
+                  ×
+                </button>
+              </div>
+
+              <div style={{ background: 'rgba(245,158,11,0.08)', borderRadius: '10px', padding: '14px', marginBottom: '18px', border: '1px solid rgba(245,158,11,0.2)' }}>
+                <p style={{ margin: '0 0 10px', fontSize: '13px', color: '#fef3c7', lineHeight: 1.5 }}>
+                  La cobertura actual de metas individuales es del <strong>{coveragePercent}%</strong> ({personalWithGoals} de {realStaffCount} trabajadores registrados con meta formulada).
+                </p>
+                <p style={{ margin: 0, fontSize: '12.5px', color: '#cbd5e1', lineHeight: 1.4 }}>
+                  Los lineamientos normativos de la SEP Puebla / SEMS recomiendan una cobertura de al menos el <strong>80%</strong> de la plantilla para asegurar la corresponsabilidad escolar.
+                </p>
+              </div>
+
+              <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '20px', lineHeight: 1.4 }}>
+                Puedes descargar el documento ahora mismo o regresar al Paso 4 para complementar las metas de los trabajadores faltantes.
+              </p>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={handleGoToStep4}
+                  style={{
+                    padding: '9px 16px',
+                    background: 'rgba(99,102,241,0.15)',
+                    border: '1px solid rgba(99,102,241,0.3)',
+                    borderRadius: '8px',
+                    color: '#c7d2fe',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  ← Completar metas (Paso 4)
+                </button>
+                <button
+                  type="button"
+                  onClick={handleProceedDownload}
+                  style={{
+                    padding: '9px 18px',
+                    background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: '#ffffff',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Descargar de todos modos
                 </button>
               </div>
             </div>
