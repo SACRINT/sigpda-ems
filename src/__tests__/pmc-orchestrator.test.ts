@@ -47,6 +47,7 @@ import {
   PmcOrchestrator,
   PmcOrchestratorError,
   isUpstreamAIError,
+  withTimeoutBudget,
   type PmcDocumentType,
 } from '@/lib/pmc/orchestrator';
 import {
@@ -467,6 +468,51 @@ describe('PmcOrchestrator (Piloto Nivel 1 & Strangler Fig)', () => {
       expect(isUpstreamAIError(new Error('Validation error: text is too short'))).toBe(false);
       expect(isUpstreamAIError(null)).toBe(false);
       expect(isUpstreamAIError(undefined)).toBe(false);
+    });
+  });
+
+  it('13. Camino legacy (PMC_ORCHESTRATOR_V2 = false) mapea fallos de upstream de IA a HTTP 503', async () => {
+    resetFeatureFlags(); // Asegurar flag OFF (camino legacy por defecto)
+
+    vi.mocked(auth).mockResolvedValueOnce({ user: { email: 'director@bachillerato.edu.mx' } } as never);
+    vi.mocked(getTeacherByEmail).mockResolvedValueOnce({ id: 'teacher-director-1', email: 'director@bachillerato.edu.mx' } as never);
+    vi.mocked(ingestDocument).mockResolvedValueOnce({
+      markdown: '# Actas F11\nDatos completos con más de cuarenta caracteres...',
+      fullText: 'Actas F11 Datos completos con más de cuarenta caracteres...',
+      totalPages: 1,
+    } as never);
+
+    vi.mocked(generateWithRotation).mockRejectedValueOnce(
+      new Error('[ai-provider] All AI providers exhausted. Primary: gemini. Original error: HTTP 503: Service Unavailable')
+    );
+
+    const file = new File(['mock f11 bytes'], 'f11_documento.pdf', { type: 'application/pdf' });
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const req = new NextRequest('http://localhost:3000/api/pmc/f11', { method: 'POST', body: formData });
+    const res = await handleF11Post(req);
+    const json = await res.json();
+
+    expect(res.status).toBe(503);
+    expect(json.error).toContain('alta demanda o saturación temporal');
+  });
+
+  describe('14. withTimeoutBudget — Presupuesto de tiempo de procesamiento seguro (F-001)', () => {
+    it('resuelve normalmente si la promesa concluye antes del timeout', async () => {
+      const result = await withTimeoutBudget(Promise.resolve('éxito rápido'), 1000);
+      expect(result).toBe('éxito rápido');
+    });
+
+    it('aborta y rechaza con status 503 cuando se excede el presupuesto de tiempo', async () => {
+      const hungPromise = new Promise<string>(() => {
+        // Promesa que nunca resuelve simulando timeout de OCR o IA
+      });
+
+      const budgetPromise = withTimeoutBudget(hungPromise, 50, 'Timeout simulado excedido');
+
+      await expect(budgetPromise).rejects.toThrow('Timeout simulado excedido');
+      await expect(budgetPromise).rejects.toMatchObject({ status: 503 });
     });
   });
 });
