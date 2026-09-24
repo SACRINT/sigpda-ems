@@ -10,6 +10,8 @@ import {
   buildEstadistica911ExtractionPrompt,
   Estadistica911ExtractSchema,
 } from '@/lib/prompts/estadistica-911-extraction';
+import { isFeatureEnabled } from '@/lib/platform/feature-flags';
+import { pmcOrchestrator, PmcOrchestratorError } from '@/lib/pmc/orchestrator';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -41,6 +43,26 @@ export async function POST(request: NextRequest) {
 
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
+
+    // Strangler Fig: Delegación al Orquestador Central si la bandera está activa
+    if (isFeatureEnabled('PMC_ORCHESTRATOR_V2')) {
+      try {
+        const isPremium = await resolveUserIsPremium(teacher.id);
+        const result = await pmcOrchestrator.ingestDocument('911', buffer, {
+          filename: file.name,
+          mimeType: file.type,
+          teacherId: teacher.id,
+          requestedMomento,
+          isPremium,
+        });
+        return NextResponse.json(result);
+      } catch (err: unknown) {
+        if (err instanceof PmcOrchestratorError) {
+          return NextResponse.json({ error: err.message }, { status: err.status });
+        }
+        throw err;
+      }
+    }
 
     let ingested;
     try {
