@@ -405,4 +405,32 @@ describe('PmcOrchestrator (Piloto Nivel 1 & Strangler Fig)', () => {
       expect((err as PmcOrchestratorError).status).toBe(501);
     }
   });
+
+  it('11. Mapea fallos de upstream de IA (503 UNAVAILABLE / All providers exhausted) a HTTP 503 en vez de 400 o 500', async () => {
+    setFeatureFlag('PMC_ORCHESTRATOR_V2', true);
+
+    vi.mocked(auth).mockResolvedValueOnce({ user: { email: 'director@bachillerato.edu.mx' } } as never);
+    vi.mocked(getTeacherByEmail).mockResolvedValueOnce({ id: 'teacher-director-1', email: 'director@bachillerato.edu.mx' } as never);
+    vi.mocked(ingestDocument).mockResolvedValueOnce({
+      markdown: '# Actas F11\nDatos completos con más de cuarenta caracteres...',
+      fullText: 'Actas F11 Datos completos con más de cuarenta caracteres...',
+      totalPages: 1,
+    } as never);
+
+    // Simular caída global de Gemini / proveedores upstream con HTTP 503
+    vi.mocked(generateWithRotation).mockRejectedValueOnce(
+      new Error('[ai-provider] All AI providers exhausted. Primary: gemini. Alternatives tried: openrouter. Original error: HTTP 503: This model is currently experiencing high demand.')
+    );
+
+    const file = new File(['mock f11 bytes'], 'f11_documento.pdf', { type: 'application/pdf' });
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const req = new NextRequest('http://localhost:3000/api/pmc/f11', { method: 'POST', body: formData });
+    const res = await handleF11Post(req);
+    const json = await res.json();
+
+    expect(res.status).toBe(503);
+    expect(json.error).toContain('alta demanda o saturación temporal');
+  });
 });

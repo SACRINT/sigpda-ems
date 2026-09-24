@@ -60,6 +60,53 @@ export class PmcOrchestratorError extends Error {
   }
 }
 
+export function isUpstreamAIError(err: unknown): boolean {
+  if (!err) return false;
+  const msg = err instanceof Error ? err.message : String(err);
+  const status = (err as { status?: number; statusCode?: number }).status ||
+                 (err as { status?: number; statusCode?: number }).statusCode;
+  return (
+    status === 503 ||
+    status === 504 ||
+    status === 429 ||
+    msg.includes('503') ||
+    msg.includes('429') ||
+    msg.includes('504') ||
+    msg.includes('UNAVAILABLE') ||
+    msg.includes('high demand') ||
+    msg.includes('All AI providers exhausted') ||
+    msg.includes('Rate-limit') ||
+    msg.includes('rate-limit') ||
+    msg.includes('timeout') ||
+    msg.includes('timed out') ||
+    msg.includes('aborted due to timeout')
+  );
+}
+
+export const AI_OUTAGE_USER_MESSAGE =
+  'El servicio de Inteligencia Artificial está experimentando alta demanda o saturación temporal. Tu documento es válido; por favor espera un par de minutos y reintenta la carga.';
+
+export async function withTimeoutBudget<T>(
+  promise: Promise<T>,
+  timeoutMs = 90000,
+  timeoutMessage = 'El tiempo de procesamiento excedió el límite seguro (90s). El servicio de IA o extracción está experimentando lentitud. Por favor intenta de nuevo.'
+): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      const err = new Error(timeoutMessage);
+      (err as { status?: number }).status = 503;
+      reject(err);
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 export interface IPmcOrchestrator extends IProgramSystem {
   ingestDocument(
     type: PmcDocumentType,
@@ -84,6 +131,17 @@ export class PmcOrchestrator implements IPmcOrchestrator {
     buffer: Buffer,
     options: PmcIngestOptions
   ): Promise<PmcExtractionSuccess> {
+    return withTimeoutBudget(
+      this.executeIngestDocument(type, buffer, options),
+      90000
+    );
+  }
+
+  private async executeIngestDocument(
+    type: PmcDocumentType,
+    buffer: Buffer,
+    options: PmcIngestOptions
+  ): Promise<PmcExtractionSuccess> {
     const isPremium = options.isPremium !== undefined
       ? options.isPremium
       : await resolveUserIsPremium(options.teacherId);
@@ -99,6 +157,9 @@ export class PmcOrchestrator implements IPmcOrchestrator {
       });
     } catch (ingestErr: unknown) {
       logger.error(`[pmc-orchestrator:${type}] Document ingestion failed:`, ingestErr);
+      if (isUpstreamAIError(ingestErr)) {
+        throw new PmcOrchestratorError(AI_OUTAGE_USER_MESSAGE, 503);
+      }
       const ingestMsg = ingestErr instanceof Error ? ingestErr.message : 'Formato no soportado';
       throw new PmcOrchestratorError(`No se pudo procesar el archivo: ${ingestMsg}`, 400);
     }
@@ -113,7 +174,8 @@ export class PmcOrchestrator implements IPmcOrchestrator {
     }
 
     // 2. Extracción y estructuración asistida por IA según el tipo de documento
-    switch (type) {
+    try {
+      switch (type) {
       case 'f11': {
         const systemPrompt = F11_EXTRACTION_SYSTEM_PROMPT;
         const userPrompt = buildF11ExtractionPrompt(documentText);
@@ -234,6 +296,13 @@ export class PmcOrchestrator implements IPmcOrchestrator {
 
       default:
         throw new PmcOrchestratorError(`Tipo de documento desconocido: ${type}`, 400);
+      }
+    } catch (err: unknown) {
+      if (err instanceof PmcOrchestratorError) throw err;
+      if (isUpstreamAIError(err)) {
+        throw new PmcOrchestratorError(AI_OUTAGE_USER_MESSAGE, 503);
+      }
+      throw err;
     }
   }
 

@@ -11,7 +11,12 @@ import {
   F11ExtractSchema,
 } from '@/lib/prompts/f11-extraction';
 import { isFeatureEnabled } from '@/lib/platform/feature-flags';
-import { pmcOrchestrator, PmcOrchestratorError } from '@/lib/pmc/orchestrator';
+import {
+  pmcOrchestrator,
+  PmcOrchestratorError,
+  isUpstreamAIError,
+  AI_OUTAGE_USER_MESSAGE,
+} from '@/lib/pmc/orchestrator';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -72,6 +77,9 @@ export async function POST(request: NextRequest) {
       });
     } catch (ingestErr: unknown) {
       logger.error('[pmc-f11] Document ingestion failed:', ingestErr);
+      if (isUpstreamAIError(ingestErr)) {
+        return NextResponse.json({ error: AI_OUTAGE_USER_MESSAGE }, { status: 503 });
+      }
       const ingestMsg = ingestErr instanceof Error ? ingestErr.message : 'Formato no soportado';
       return NextResponse.json(
         { error: `No se pudo procesar el archivo: ${ingestMsg}` },
@@ -126,6 +134,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (err: unknown) {
     logger.error('[pmc-f11] Unhandled error:', err);
+    if (isUpstreamAIError(err)) {
+      return NextResponse.json({ error: AI_OUTAGE_USER_MESSAGE }, { status: 503 });
+    }
     const errMsg = err instanceof Error ? err.message : 'Error interno del servidor al procesar el F11.';
     return NextResponse.json(
       { error: errMsg },
