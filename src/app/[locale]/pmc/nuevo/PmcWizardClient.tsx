@@ -376,9 +376,10 @@ interface PaecProjectForPmc {
   const [parsedPmcData, setParsedPmcData] = useState<PmcPreviousExtractDTO | null>(null);
   const [showPmcReviewModal, setShowPmcReviewModal] = useState(false);
 
-  // F11 y Estadística 911 uploads
+  // F11 y Estadística 911 uploads con diferenciación de momentos
   const fileInputF11Ref = useRef<HTMLInputElement>(null);
   const fileInput911Ref = useRef<HTMLInputElement>(null);
+  const targetMomento911Ref = useRef<'inicio_anterior' | 'fin_anterior' | 'inicio_actual'>('fin_anterior');
   const [uploadingF11, setUploadingF11] = useState(false);
   const [uploading911, setUploading911] = useState(false);
 
@@ -388,6 +389,11 @@ interface PaecProjectForPmc {
   const [selectedPaecToImport, setSelectedPaecToImport] = useState<PaecProjectForPmc | null>(null);
   const [showPaecImportModal, setShowPaecImportModal] = useState(false);
   const [successBanner, setSuccessBanner] = useState<string | null>(null);
+
+  const triggerUpload911 = (momento: 'inicio_anterior' | 'fin_anterior' | 'inicio_actual') => {
+    targetMomento911Ref.current = momento;
+    fileInput911Ref.current?.click();
+  };
 
   const handleUploadPreviousPmc = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -469,7 +475,7 @@ interface PaecProjectForPmc {
     setSuccessBanner('✓ Datos del PMC anterior cargados y pre-llenados exitosamente en todos los pasos.');
   };
 
-  // ── F11 Upload Handler ──────────────────────────────────────────────────────
+  // ── F11 Upload Handler (Fin de Ciclo Anterior) ──────────────────────────────
   const handleUploadF11 = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -483,8 +489,35 @@ interface PaecProjectForPmc {
       if (!res.ok || !json.success) throw new Error(json.error || 'Error al analizar el F11.');
       if (json.data?.schoolName && !schoolName) setSchoolName(json.data.schoolName);
       if (json.data?.schoolCct && !schoolCct) setSchoolCct(json.data.schoolCct);
-      if (json.data?.promedioGeneral) setIndicadores(p => ({ ...p, aprobacion_ant: json.data.aprobadosPorcentaje ?? p.aprobacion_ant }));
-      setSuccessBanner(`✓ F11 cargado: ${json.data?.totalAlumnos || '?'} alumnos, promedio ${json.data?.promedioGeneral || '?'}`);
+      if (json.data?.promedioGeneral) {
+        setIndicadores(p => ({
+          ...p,
+          aprobacion_ant: json.data.aprobadosPorcentaje ?? p.aprobacion_ant,
+          reprobacion_ant: json.data.reprobadosPorcentaje ?? p.reprobacion_ant,
+        }));
+      }
+
+      // H-005: Enlazar asignaturas críticas detectadas en F11 al FODA
+      if (json.data?.promediosPorAsignatura && typeof json.data.promediosPorAsignatura === 'object') {
+        const entries = Object.entries(json.data.promediosPorAsignatura as Record<string, number>);
+        if (entries.length > 0) {
+          const critical = entries
+            .filter(([, avg]) => typeof avg === 'number' && avg < 7.5)
+            .map(([subj, avg]) => `${subj} (promedio ${avg})`)
+            .slice(0, 4)
+            .join(', ');
+          if (critical) {
+            setFoda(prev => ({
+              ...prev,
+              debilidades: prev.debilidades
+                ? `${prev.debilidades}\n- Asignaturas de atención prioritaria según F11: ${critical}`
+                : `Asignaturas de atención prioritaria según F11: ${critical}`,
+            }));
+          }
+        }
+      }
+
+      setSuccessBanner(`✓ F11 Fin Ciclo Anterior cargado: ${json.data?.totalAlumnos || '?'} alumnos evaluados, promedio general ${json.data?.promedioGeneral || '?'}`);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'No se pudo procesar el F11.');
     } finally {
@@ -493,29 +526,49 @@ interface PaecProjectForPmc {
     }
   };
 
-  // ── Estadística 911 Upload Handler ──────────────────────────────────────────
+  // ── Estadística 911 Upload Handler (con soporte de 3 momentos) ──────────────
   const handleUpload911 = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const momento = targetMomento911Ref.current;
     setUploading911(true);
     setError(null);
     try {
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('momento', momento);
       const res = await fetch('/api/pmc/estadistica-911', { method: 'POST', body: formData });
       const json = await res.json();
       if (!res.ok || !json.success) throw new Error(json.error || 'Error al analizar la Estadística 911.');
       if (json.data?.schoolName && !schoolName) setSchoolName(json.data.schoolName);
       if (json.data?.schoolCct && !schoolCct) setSchoolCct(json.data.schoolCct);
-      setIndicadores(p => ({
-        ...p,
-        matricula: json.data?.matricula ?? p.matricula,
-        abandono_ant: json.data?.abandonoPorcentaje ?? p.abandono_ant,
-        et_ant: json.data?.eficienciaTerminal ?? p.et_ant,
-        reprobacion_ant: json.data?.reprobacionPorcentaje ?? p.reprobacion_ant,
-      }));
-      if (json.data?.totalDocentes) setTotalStaff(json.data.totalDocentes);
-      setSuccessBanner(`✓ Estadística 911 cargada: matrícula ${json.data?.matricula || '?'}, abandono ${json.data?.abandonoPorcentaje || '?'}%`);
+
+      if (momento === 'fin_anterior') {
+        setIndicadores(p => ({
+          ...p,
+          matricula: json.data?.matricula ?? p.matricula,
+          abandono_ant: json.data?.abandonoPorcentaje ?? p.abandono_ant,
+          et_ant: json.data?.eficienciaTerminal ?? p.et_ant,
+          reprobacion_ant: json.data?.reprobacionPorcentaje ?? p.reprobacion_ant,
+          aprobacion_ant: json.data?.aprobacionPorcentaje ?? p.aprobacion_ant,
+        }));
+        if (json.data?.totalDocentes) setTotalStaff(json.data.totalDocentes);
+        setSuccessBanner(`✓ 911 (Fin Ciclo Anterior) cargada: Abandono ${json.data?.abandonoPorcentaje || '?'}%, Eficiencia Terminal ${json.data?.eficienciaTerminal || '?'}%`);
+      } else if (momento === 'inicio_actual') {
+        setIndicadores(p => ({
+          ...p,
+          matricula: json.data?.matricula ?? p.matricula,
+        }));
+        if (json.data?.totalDocentes) setTotalStaff(json.data.totalDocentes);
+        setSuccessBanner(`✓ 911 (Inicio Ciclo Actual) cargada: Matrícula vigente de ${json.data?.matricula || '?'} alumnos`);
+      } else {
+        // inicio_anterior
+        setIndicadores(p => ({
+          ...p,
+          matricula: p.matricula || json.data?.matricula,
+        }));
+        setSuccessBanner(`✓ 911 (Inicio Ciclo Anterior) cargada: Matrícula inicial de ${json.data?.matricula || '?'} alumnos`);
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'No se pudo procesar la Estadística 911.');
     } finally {
@@ -524,9 +577,8 @@ interface PaecProjectForPmc {
     }
   };
 
-  // PAEC → PMC import handler (kept for future use but not shown in Step 1)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _handleOpenImportPaecModal = async () => {
+  // Sinergia PAEC → PMC (Importar diagnósticos hacia Paso 3)
+  const handleOpenImportPaecModal = async () => {
     setLoadingPaecList(true);
     setShowPaecImportModal(true);
     setSelectedPaecToImport(null);
@@ -926,13 +978,13 @@ interface PaecProjectForPmc {
                     color: '#7dd3fc', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
                   }}
                 >
-                  {uploadingF11 ? '⏳ Analizando F11...' : '📊 Subir F11 (Calificaciones)'}
+                  {uploadingF11 ? '⏳ Analizando F11...' : '📊 F11 (Fin Ciclo Anterior)'}
                 </button>
                 <input ref={fileInputF11Ref} type="file" accept=".pdf,.docx,.doc" style={{ display: 'none' }} onChange={handleUploadF11} />
 
                 <button
                   type="button"
-                  onClick={() => fileInput911Ref.current?.click()}
+                  onClick={() => triggerUpload911('fin_anterior')}
                   disabled={uploading911}
                   style={{
                     display: 'flex', alignItems: 'center', gap: '6px',
@@ -941,7 +993,21 @@ interface PaecProjectForPmc {
                     color: '#fcd34d', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
                   }}
                 >
-                  {uploading911 ? '⏳ Analizando 911...' : '📈 Subir Estadística 911 (Matrícula)'}
+                  {uploading911 ? '⏳ Analizando 911...' : '📈 911 (Fin Ciclo Anterior)'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => triggerUpload911('inicio_actual')}
+                  disabled={uploading911}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                    padding: '8px 14px', borderRadius: '8px',
+                    background: 'rgba(16,185,129,0.25)', border: '1px solid rgba(16,185,129,0.45)',
+                    color: '#6ee7b7', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+                  }}
+                >
+                  {uploading911 ? '⏳...' : '📈 911 (Inicio Ciclo Actual)'}
                 </button>
                 <input ref={fileInput911Ref} type="file" accept=".pdf,.docx,.doc" style={{ display: 'none' }} onChange={handleUpload911} />
 
@@ -1283,7 +1349,7 @@ interface PaecProjectForPmc {
                 </button>
                 <button
                   type="button"
-                  onClick={() => fileInput911Ref.current?.click()}
+                  onClick={() => triggerUpload911('fin_anterior')}
                   disabled={uploading911}
                   style={{
                     padding: '7px 14px',
@@ -1296,7 +1362,24 @@ interface PaecProjectForPmc {
                     cursor: 'pointer',
                   }}
                 >
-                  {uploading911 ? '⏳...' : '📈 911'}
+                  {uploading911 ? '⏳...' : '📈 911 Fin Ant.'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => triggerUpload911('inicio_actual')}
+                  disabled={uploading911}
+                  style={{
+                    padding: '7px 14px',
+                    background: uploading911 ? 'rgba(255,255,255,0.1)' : 'linear-gradient(135deg, #10b981, #059669)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {uploading911 ? '⏳...' : '📈 911 Inicio Act.'}
                 </button>
                 <button
                   type="button"
@@ -1336,7 +1419,26 @@ interface PaecProjectForPmc {
 
             {/* Contexto Comunitario */}
             <div style={sectionCard}>
-              <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#818cf8', marginBottom: '12px' }}>🌍 Contexto de la Comunidad</h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#818cf8', margin: 0 }}>🌍 Contexto de la Comunidad</h3>
+                <button
+                  type="button"
+                  onClick={handleOpenImportPaecModal}
+                  disabled={loadingPaecList}
+                  style={{
+                    padding: '5px 12px',
+                    borderRadius: '6px',
+                    background: 'rgba(16,185,129,0.15)',
+                    border: '1px solid rgba(16,185,129,0.35)',
+                    color: '#6ee7b7',
+                    fontSize: '11.5px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {loadingPaecList ? 'Consultando PAEC...' : '📥 Importar contexto desde PAEC del Plantel'}
+                </button>
+              </div>
               <label style={labelStyle}>Descripción del contexto socioeducativo de la comunidad *</label>
               <textarea
                 style={{ ...inputStyle, minHeight: '140px', resize: 'vertical' }}
