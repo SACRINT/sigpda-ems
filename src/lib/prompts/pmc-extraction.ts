@@ -82,8 +82,8 @@ Estructura la información en el siguiente esquema JSON exacto:
       "meta_individual": "Meta o compromiso general si se especifica (texto libre)",
       "metas_individuales": [
         {
-          "categoria": "Categoría a la que pertenece la meta (ej. Categoría 1, Categoría 2, Categoría 3)",
-          "tema": "Tema específico (ej. Formación y actualización docente, Indicadores académicos)",
+          "categoria": "Categoría Oficial exacta: 'Desarrollo académico y aprendizaje' | 'Gestión y administración escolar' | 'Desarrollo socioemocional y prevención de la violencia en la escuela'",
+          "tema": "Tema o ámbito oficial específico (ej. Formación y actualización docente, Propuestas pedagógicas, Clubes de lectura, Indicadores académicos, Seguimiento al desempeño docente en el aula, etc.)",
           "meta": "Meta individual específica para ese tema",
           "estrategia": "Estrategia o acciones para lograr la meta",
           "entregable": "Producto o evidencia de entrega",
@@ -117,5 +117,9 @@ REGLAS DE EXTRACCIÓN:
 2. Si el documento contiene tablas de indicadores académicos, extrae los porcentajes numéricos limpios (sin el símbolo %).
 3. Si el documento contiene una lista de plantilla docente o personal, extrae cada miembro en el arreglo "staffData".
 4. Si un docente tiene múltiples metas individuales en el PMC anterior (una por categoría o tema), extrae TODAS en el arreglo "metas_individuales", indicando la categoría y tema de cada una.
-5. Si un dato no se encuentra explícitamente en el texto, asigna una cadena vacía "" o null según corresponda, sin inventar información no sustentada.`;
+5. Si un dato no se encuentra explícitamente en el texto, asigna una cadena vacía "" o null según corresponda, sin inventar información no sustentada.
+6. OBLIGATORIO: Asigna en 'categoria' ÚNICAMENTE una de las 3 categorías oficiales de los Lineamientos del PMC (sin prefijos como 'Categoría: Procesos para...'):
+   - 'Desarrollo académico y aprendizaje'
+   - 'Gestión y administración escolar'
+   - 'Desarrollo socioemocional y prevención de la violencia en la escuela'`;
 }

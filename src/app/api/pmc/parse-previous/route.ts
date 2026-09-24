@@ -10,6 +10,10 @@ import {
   buildPmcExtractionPrompt,
   PmcPreviousExtractSchema,
 } from '@/lib/prompts/pmc-extraction';
+import {
+  normalizePmcCategoria,
+  normalizePmcTema,
+} from '@/lib/constants/pmc-categorias';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -94,10 +98,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Normalizar categorías y temas canónicos de la PMC (Lineamientos Oficiales Cuadro 2)
+    const normalizedStaff = parsed.data.staffData?.map((staff) => ({
+      ...staff,
+      metas_individuales: staff.metas_individuales?.map((meta) => {
+        const catNorm = normalizePmcCategoria(meta.categoria);
+        const temaNorm = normalizePmcTema(meta.tema, catNorm);
+        return {
+          ...meta,
+          categoria: catNorm,
+          tema: temaNorm,
+        };
+      }) || [],
+    })) || [];
+
+    const finalData = {
+      ...parsed.data,
+      staffData: normalizedStaff,
+    };
+
     return NextResponse.json({
       success: true,
       filename: file.name,
-      data: parsed.data,
+      data: finalData,
       warnings: parsed.warnings,
     });
   } catch (err: unknown) {
