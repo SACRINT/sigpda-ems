@@ -379,9 +379,17 @@ interface PaecProjectForPmc {
   // F11 y Estadística 911 uploads con diferenciación de momentos
   const fileInputF11Ref = useRef<HTMLInputElement>(null);
   const fileInput911Ref = useRef<HTMLInputElement>(null);
-  const targetMomento911Ref = useRef<'inicio_anterior' | 'fin_anterior' | 'inicio_actual'>('fin_anterior');
+  const uploadMomentoRef = useRef<'inicio_anterior' | 'fin_anterior' | 'inicio_actual'>('fin_anterior');
+  const [activeMomento911, setActiveMomento911] = useState<'inicio_anterior' | 'fin_anterior' | 'inicio_actual' | null>(null);
   const [uploadingF11, setUploadingF11] = useState(false);
   const [uploading911, setUploading911] = useState(false);
+  const [docsStatus, setDocsStatus] = useState<{
+    f11?: boolean;
+    pmcAnt?: boolean;
+    n911FinAnt?: boolean;
+    n911IniAnt?: boolean;
+    n911IniAct?: boolean;
+  }>({});
 
   // Sinergia PAEC -> PMC (Importar diagnósticos)
   const [loadingPaecList, setLoadingPaecList] = useState(false);
@@ -391,7 +399,8 @@ interface PaecProjectForPmc {
   const [successBanner, setSuccessBanner] = useState<string | null>(null);
 
   const triggerUpload911 = (momento: 'inicio_anterior' | 'fin_anterior' | 'inicio_actual') => {
-    targetMomento911Ref.current = momento;
+    uploadMomentoRef.current = momento;
+    setActiveMomento911(momento);
     fileInput911Ref.current?.click();
   };
 
@@ -472,6 +481,7 @@ interface PaecProjectForPmc {
     }
 
     setShowPmcReviewModal(false);
+    setDocsStatus(p => ({ ...p, pmcAnt: true }));
     setSuccessBanner('✓ Datos del PMC anterior cargados y pre-llenados exitosamente en todos los pasos.');
   };
 
@@ -517,6 +527,7 @@ interface PaecProjectForPmc {
         }
       }
 
+      setDocsStatus(p => ({ ...p, f11: true }));
       setSuccessBanner(`✓ F11 Fin Ciclo Anterior cargado: ${json.data?.totalAlumnos || '?'} alumnos evaluados, promedio general ${json.data?.promedioGeneral || '?'}`);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'No se pudo procesar el F11.');
@@ -530,7 +541,7 @@ interface PaecProjectForPmc {
   const handleUpload911 = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const momento = targetMomento911Ref.current;
+    const momento = uploadMomentoRef.current;
     setUploading911(true);
     setError(null);
     try {
@@ -553,6 +564,7 @@ interface PaecProjectForPmc {
           aprobacion_ant: json.data?.aprobacionPorcentaje ?? p.aprobacion_ant,
         }));
         if (json.data?.totalDocentes) setTotalStaff(json.data.totalDocentes);
+        setDocsStatus(p => ({ ...p, n911FinAnt: true }));
         setSuccessBanner(`✓ 911 (Fin Ciclo Anterior) cargada: Abandono ${json.data?.abandonoPorcentaje || '?'}%, Eficiencia Terminal ${json.data?.eficienciaTerminal || '?'}%`);
       } else if (momento === 'inicio_actual') {
         setIndicadores(p => ({
@@ -560,6 +572,7 @@ interface PaecProjectForPmc {
           matricula: json.data?.matricula ?? p.matricula,
         }));
         if (json.data?.totalDocentes) setTotalStaff(json.data.totalDocentes);
+        setDocsStatus(p => ({ ...p, n911IniAct: true }));
         setSuccessBanner(`✓ 911 (Inicio Ciclo Actual) cargada: Matrícula vigente de ${json.data?.matricula || '?'} alumnos`);
       } else {
         // inicio_anterior
@@ -567,12 +580,14 @@ interface PaecProjectForPmc {
           ...p,
           matricula: p.matricula || json.data?.matricula,
         }));
+        setDocsStatus(p => ({ ...p, n911IniAnt: true }));
         setSuccessBanner(`✓ 911 (Inicio Ciclo Anterior) cargada: Matrícula inicial de ${json.data?.matricula || '?'} alumnos`);
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'No se pudo procesar la Estadística 911.');
     } finally {
       setUploading911(false);
+      setActiveMomento911(null);
       if (fileInput911Ref.current) fileInput911Ref.current.value = '';
     }
   };
@@ -974,11 +989,12 @@ interface PaecProjectForPmc {
                   style={{
                     display: 'flex', alignItems: 'center', gap: '6px',
                     padding: '8px 14px', borderRadius: '8px',
-                    background: 'rgba(14,165,233,0.25)', border: '1px solid rgba(14,165,233,0.45)',
+                    background: docsStatus.f11 ? 'rgba(14,165,233,0.35)' : 'rgba(14,165,233,0.2)',
+                    border: '1px solid rgba(14,165,233,0.45)',
                     color: '#7dd3fc', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
                   }}
                 >
-                  {uploadingF11 ? '⏳ Analizando F11...' : '📊 F11 (Fin Ciclo Anterior)'}
+                  {uploadingF11 ? '⏳ Analizando F11...' : `📊 F11 (Fin Ciclo Anterior)${docsStatus.f11 ? ' ✓' : ''}`}
                 </button>
                 <input ref={fileInputF11Ref} type="file" accept=".pdf,.docx,.doc" style={{ display: 'none' }} onChange={handleUploadF11} />
 
@@ -989,11 +1005,27 @@ interface PaecProjectForPmc {
                   style={{
                     display: 'flex', alignItems: 'center', gap: '6px',
                     padding: '8px 14px', borderRadius: '8px',
-                    background: 'rgba(245,158,11,0.25)', border: '1px solid rgba(245,158,11,0.45)',
+                    background: docsStatus.n911FinAnt ? 'rgba(245,158,11,0.35)' : 'rgba(245,158,11,0.2)',
+                    border: '1px solid rgba(245,158,11,0.45)',
                     color: '#fcd34d', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
                   }}
                 >
-                  {uploading911 ? '⏳ Analizando 911...' : '📈 911 (Fin Ciclo Anterior)'}
+                  {uploading911 && activeMomento911 === 'fin_anterior' ? '⏳...' : `📈 911 (Fin Ciclo Ant.)${docsStatus.n911FinAnt ? ' ✓' : ''}`}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => triggerUpload911('inicio_anterior')}
+                  disabled={uploading911}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                    padding: '8px 14px', borderRadius: '8px',
+                    background: docsStatus.n911IniAnt ? 'rgba(56,189,248,0.35)' : 'rgba(56,189,248,0.2)',
+                    border: '1px solid rgba(56,189,248,0.45)',
+                    color: '#38bdf8', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+                  }}
+                >
+                  {uploading911 && activeMomento911 === 'inicio_anterior' ? '⏳...' : `📈 911 (Inicio Ciclo Ant.)${docsStatus.n911IniAnt ? ' ✓' : ''}`}
                 </button>
 
                 <button
@@ -1003,11 +1035,12 @@ interface PaecProjectForPmc {
                   style={{
                     display: 'flex', alignItems: 'center', gap: '6px',
                     padding: '8px 14px', borderRadius: '8px',
-                    background: 'rgba(16,185,129,0.25)', border: '1px solid rgba(16,185,129,0.45)',
+                    background: docsStatus.n911IniAct ? 'rgba(16,185,129,0.35)' : 'rgba(16,185,129,0.2)',
+                    border: '1px solid rgba(16,185,129,0.45)',
                     color: '#6ee7b7', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
                   }}
                 >
-                  {uploading911 ? '⏳...' : '📈 911 (Inicio Ciclo Actual)'}
+                  {uploading911 && activeMomento911 === 'inicio_actual' ? '⏳...' : `📈 911 (Inicio Ciclo Act.)${docsStatus.n911IniAct ? ' ✓' : ''}`}
                 </button>
                 <input ref={fileInput911Ref} type="file" accept=".pdf,.docx,.doc" style={{ display: 'none' }} onChange={handleUpload911} />
 
@@ -1018,11 +1051,12 @@ interface PaecProjectForPmc {
                   style={{
                     display: 'flex', alignItems: 'center', gap: '6px',
                     padding: '8px 14px', borderRadius: '8px',
-                    background: 'rgba(99,102,241,0.25)', border: '1px solid rgba(99,102,241,0.45)',
+                    background: docsStatus.pmcAnt ? 'rgba(99,102,241,0.35)' : 'rgba(99,102,241,0.2)',
+                    border: '1px solid rgba(99,102,241,0.45)',
                     color: '#c7d2fe', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
                   }}
                 >
-                  {uploadingPmc ? '⏳ Analizando...' : '📄 Cargar PMC Anterior'}
+                  {uploadingPmc ? '⏳ Analizando...' : `📄 Cargar PMC Anterior${docsStatus.pmcAnt ? ' ✓' : ''}`}
                 </button>
                 <input ref={fileInputPmcRef} type="file" accept=".pdf,.docx,.doc" style={{ display: 'none' }} onChange={handleUploadPreviousPmc} />
               </div>
@@ -1345,7 +1379,7 @@ interface PaecProjectForPmc {
                     cursor: 'pointer',
                   }}
                 >
-                  {uploadingF11 ? '⏳...' : '📊 F11'}
+                  {uploadingF11 ? '⏳...' : `📊 F11${docsStatus.f11 ? ' ✓' : ''}`}
                 </button>
                 <button
                   type="button"
@@ -1362,7 +1396,24 @@ interface PaecProjectForPmc {
                     cursor: 'pointer',
                   }}
                 >
-                  {uploading911 ? '⏳...' : '📈 911 Fin Ant.'}
+                  {uploading911 && activeMomento911 === 'fin_anterior' ? '⏳...' : `📈 911 Fin Ant.${docsStatus.n911FinAnt ? ' ✓' : ''}`}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => triggerUpload911('inicio_anterior')}
+                  disabled={uploading911}
+                  style={{
+                    padding: '7px 14px',
+                    background: uploading911 ? 'rgba(255,255,255,0.1)' : 'linear-gradient(135deg, #0284c7, #0369a1)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {uploading911 && activeMomento911 === 'inicio_anterior' ? '⏳...' : `📈 911 Ini Ant.${docsStatus.n911IniAnt ? ' ✓' : ''}`}
                 </button>
                 <button
                   type="button"
@@ -1379,7 +1430,7 @@ interface PaecProjectForPmc {
                     cursor: 'pointer',
                   }}
                 >
-                  {uploading911 ? '⏳...' : '📈 911 Inicio Act.'}
+                  {uploading911 && activeMomento911 === 'inicio_actual' ? '⏳...' : `📈 911 Inicio Act.${docsStatus.n911IniAct ? ' ✓' : ''}`}
                 </button>
                 <button
                   type="button"
