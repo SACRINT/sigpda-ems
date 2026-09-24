@@ -125,18 +125,30 @@ function evalC3_Indicadores(p: PmcProject): PmcAuditCriterion {
 
   const hasTargets = hasNumber(ind.aprobacion_meta) && hasNumber(ind.abandono_meta);
 
+  const ap = ind.aprobacion_ant !== undefined && ind.aprobacion_ant !== null && !isNaN(Number(ind.aprobacion_ant)) ? Number(ind.aprobacion_ant) : undefined;
+  const rep = ind.reprobacion_ant !== undefined && ind.reprobacion_ant !== null && !isNaN(Number(ind.reprobacion_ant)) ? Number(ind.reprobacion_ant) : undefined;
+  const sumaInvalida = ap !== undefined && rep !== undefined && (ap + rep > 100.1);
+
   let score = 0;
   let status: 'pass' | 'warning' | 'fail' = 'fail';
   let feedback = 'Sin indicadores cuantitativos de rendimiento escolar.';
 
   if (countMetrics >= 5 && hasTargets) {
-    score = 10;
-    status = 'pass';
-    feedback = 'Indicadores históricos de aprobación, deserción y matrícula completos con metas cuantificables.';
+    if (sumaInvalida) {
+      score = 7;
+      status = 'warning';
+      feedback = `Indicadores registrados pero la suma de aprobación (${ap}%) y reprobación (${rep}%) excede el 100%.`;
+    } else {
+      score = 10;
+      status = 'pass';
+      feedback = 'Indicadores históricos de aprobación, deserción y matrícula completos con metas cuantificables.';
+    }
   } else if (countMetrics >= 3) {
-    score = 6;
+    score = sumaInvalida ? 4 : 6;
     status = 'warning';
-    feedback = 'Indicadores básicos presentes, pero faltan metas proyectadas o métricas de eficiencia terminal.';
+    feedback = sumaInvalida
+      ? `Indicadores básicos registrados pero la suma de aprobación (${ap}%) y reprobación (${rep}%) excede el 100%.`
+      : 'Indicadores básicos presentes, pero faltan metas proyectadas o métricas de eficiencia terminal.';
   }
 
   return {
@@ -149,7 +161,7 @@ function evalC3_Indicadores(p: PmcProject): PmcAuditCriterion {
     score,
     status,
     feedback,
-    evidenceFound: `${countMetrics}/5 indicadores históricos registrados. Metas proyectadas: ${hasTargets ? 'Sí' : 'No'}.`,
+    evidenceFound: `${countMetrics}/5 indicadores históricos registrados. Metas proyectadas: ${hasTargets ? 'Sí' : 'No'}.${sumaInvalida ? ' (Invariante excedida: aprobación + reprobación > 100%)' : ''}`,
   };
 }
 

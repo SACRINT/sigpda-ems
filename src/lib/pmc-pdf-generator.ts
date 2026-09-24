@@ -299,16 +299,16 @@ export async function generatePmcPDF(
   const etAnt = pStats?.eficienciaTerminal ?? indAcad.et_ant ?? 82;
   const promF11 = pStats?.promedioGeneral ?? pStats?.promedioCalificaciones;
 
-  const apMeta = indAcad.aprobacion_meta ?? (Number(apAnt) + 5);
-  const abMeta = indAcad.abandono_meta ?? Math.max(0, Number(abAnt) - 2.5);
-  const etMeta = indAcad.et_meta ?? (Number(etAnt) + 6);
+  const apMeta = indAcad.aprobacion_meta ?? (apAnt !== undefined && apAnt !== null && !isNaN(Number(apAnt)) ? (Number(apAnt) + 5) : undefined);
+  const abMeta = indAcad.abandono_meta ?? (abAnt !== undefined && abAnt !== null && !isNaN(Number(abAnt)) ? Math.max(0, Number(abAnt) - 2.5) : undefined);
+  const etMeta = indAcad.et_meta ?? (etAnt !== undefined && etAnt !== null && !isNaN(Number(etAnt)) ? (Number(etAnt) + 6) : undefined);
 
   const indicRows: any[][] = [
-    ['Tasa de Aprobación Escolar (F11C)', `${apAnt}%`, `${apMeta}%`, `+${(Number(apMeta) - Number(apAnt)).toFixed(1)}% Mejora`],
-    ['Índice de Reprobación Escolar (F11C)', `${repAnt}%`, `${Math.max(0, 100 - Number(apMeta)).toFixed(1)}%`, 'Reducción Progresiva'],
-    ['Abandono Escolar / Deserción (911.7)', `${abAnt}%`, `${abMeta}%`, `${(Number(abMeta) - Number(abAnt)).toFixed(1)}% Retención`],
-    ['Eficiencia Terminal / Egreso (911.7G)', `${etAnt}%`, `${etMeta}%`, `+${(Number(etMeta) - Number(etAnt)).toFixed(1)}% Graduación`],
-    ['Matrícula Escolar Oficial (911.7G)', `${matAnt} estudiantes`, `${matAnt} estudiantes`, 'Sostenimiento'],
+    ['Tasa de Aprobación Escolar (F11C)', apAnt !== undefined ? `${apAnt}%` : 'N/D', apMeta !== undefined ? `${apMeta}%` : 'N/D', (apMeta !== undefined && apAnt !== undefined) ? `+${(Number(apMeta) - Number(apAnt)).toFixed(1)}% Mejora` : 'N/D'],
+    ['Índice de Reprobación Escolar (F11C)', repAnt !== undefined ? `${repAnt}%` : 'N/D', apMeta !== undefined ? `${Math.max(0, 100 - Number(apMeta)).toFixed(1)}%` : 'N/D', apMeta !== undefined ? 'Reducción Progresiva' : 'N/D'],
+    ['Abandono Escolar / Deserción (911.7)', abAnt !== undefined ? `${abAnt}%` : 'N/D', abMeta !== undefined ? `${abMeta}%` : 'N/D', (abMeta !== undefined && abAnt !== undefined) ? `${(Number(abMeta) - Number(abAnt)).toFixed(1)}% Retención` : 'N/D'],
+    ['Eficiencia Terminal / Egreso (911.7G)', etAnt !== undefined ? `${etAnt}%` : 'N/D', etMeta !== undefined ? `${etMeta}%` : 'N/D', (etMeta !== undefined && etAnt !== undefined) ? `+${(Number(etMeta) - Number(etAnt)).toFixed(1)}% Graduación` : 'N/D'],
+    ['Matrícula Escolar Oficial (911.7G)', matAnt !== undefined ? `${matAnt} estudiantes` : 'N/D', matAnt !== undefined ? `${matAnt} estudiantes` : 'N/D', 'Sostenimiento'],
   ];
 
   if (promF11 !== undefined) {

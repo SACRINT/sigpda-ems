@@ -557,10 +557,24 @@ interface PaecProjectForPmc {
 
       if (json.data?.aprobadosPorcentaje !== undefined || json.data?.reprobadosPorcentaje !== undefined || json.data?.promedioGeneral !== undefined) {
         setIndicadores(p => {
-          const aprobAnt = json.data?.aprobadosPorcentaje !== undefined ? Number(json.data.aprobadosPorcentaje) : p.aprobacion_ant;
-          const reprobAnt = json.data?.reprobadosPorcentaje !== undefined ? Number(json.data.reprobadosPorcentaje) : p.reprobacion_ant;
-          const aprobMeta = p.aprobacion_meta || (aprobAnt ? Math.min(100, Math.round((aprobAnt + 2) * 10) / 10) : undefined);
-          const reprobMeta = p.reprobacion_meta || (reprobAnt ? Math.max(0, Math.round((reprobAnt - 2) * 10) / 10) : undefined);
+          const rawAp = json.data?.aprobadosPorcentaje;
+          const rawRep = json.data?.reprobadosPorcentaje;
+          const aprobAnt = (rawAp !== undefined && rawAp !== null && !isNaN(Number(rawAp)))
+            ? Number(rawAp)
+            : p.aprobacion_ant;
+          const reprobAnt = (rawRep !== undefined && rawRep !== null && !isNaN(Number(rawRep)))
+            ? Number(rawRep)
+            : p.reprobacion_ant;
+          const aprobMeta = p.aprobacion_meta !== undefined
+            ? p.aprobacion_meta
+            : (aprobAnt !== undefined && !isNaN(aprobAnt)
+                ? Math.min(100, Math.round((aprobAnt + 2) * 10) / 10)
+                : undefined);
+          const reprobMeta = p.reprobacion_meta !== undefined
+            ? p.reprobacion_meta
+            : (reprobAnt !== undefined && !isNaN(reprobAnt)
+                ? Math.max(0, Math.round((reprobAnt - 2) * 10) / 10)
+                : undefined);
           return {
             ...p,
             aprobacion_ant: aprobAnt,
@@ -624,21 +638,56 @@ interface PaecProjectForPmc {
 
       if (momento === 'fin_anterior') {
         setIndicadores(p => {
-          const abandonoAnt = json.data?.abandonoPorcentaje !== undefined ? Number(json.data.abandonoPorcentaje) : p.abandono_ant;
-          const etAnt = json.data?.eficienciaTerminal !== undefined ? Number(json.data.eficienciaTerminal) : p.et_ant;
-          const reprobAnt = json.data?.reprobacionPorcentaje !== undefined ? Number(json.data.reprobacionPorcentaje) : p.reprobacion_ant;
-          const aprobAnt = json.data?.aprobacionPorcentaje !== undefined ? Number(json.data.aprobacionPorcentaje) : p.aprobacion_ant;
+          const rawAb = json.data?.abandonoPorcentaje;
+          const rawEt = json.data?.eficienciaTerminal;
+          const rawRep = json.data?.reprobacionPorcentaje;
+          const rawAp = json.data?.aprobacionPorcentaje;
+
+          const abandonoAnt = (rawAb !== undefined && rawAb !== null && !isNaN(Number(rawAb)))
+            ? Number(rawAb)
+            : p.abandono_ant;
+          const etAnt = (rawEt !== undefined && rawEt !== null && !isNaN(Number(rawEt)))
+            ? Number(rawEt)
+            : p.et_ant;
+          const reprobAnt = (rawRep !== undefined && rawRep !== null && !isNaN(Number(rawRep)))
+            ? Number(rawRep)
+            : p.reprobacion_ant;
+          const aprobAnt = (rawAp !== undefined && rawAp !== null && !isNaN(Number(rawAp)))
+            ? Number(rawAp)
+            : p.aprobacion_ant;
+
+          const abandonoMeta = p.abandono_meta !== undefined
+            ? p.abandono_meta
+            : (abandonoAnt !== undefined && !isNaN(abandonoAnt)
+                ? Math.max(0, Math.round((abandonoAnt - 1.5) * 10) / 10)
+                : undefined);
+          const etMeta = p.et_meta !== undefined
+            ? p.et_meta
+            : (etAnt !== undefined && !isNaN(etAnt)
+                ? Math.min(100, Math.round((etAnt + 2) * 10) / 10)
+                : undefined);
+          const reprobMeta = p.reprobacion_meta !== undefined
+            ? p.reprobacion_meta
+            : (reprobAnt !== undefined && !isNaN(reprobAnt)
+                ? Math.max(0, Math.round((reprobAnt - 2) * 10) / 10)
+                : undefined);
+          const aprobMeta = p.aprobacion_meta !== undefined
+            ? p.aprobacion_meta
+            : (aprobAnt !== undefined && !isNaN(aprobAnt)
+                ? Math.min(100, Math.round((aprobAnt + 2) * 10) / 10)
+                : undefined);
+
           return {
             ...p,
-            matricula: json.data?.matricula ? Number(json.data.matricula) : p.matricula,
+            matricula: (json.data?.matricula && !isNaN(Number(json.data.matricula))) ? Number(json.data.matricula) : p.matricula,
             abandono_ant: abandonoAnt,
-            abandono_meta: p.abandono_meta || (abandonoAnt ? Math.max(0, Math.round((abandonoAnt - 1.5) * 10) / 10) : undefined),
+            abandono_meta: abandonoMeta,
             et_ant: etAnt,
-            et_meta: p.et_meta || (etAnt ? Math.min(100, Math.round((etAnt + 2) * 10) / 10) : undefined),
+            et_meta: etMeta,
             reprobacion_ant: reprobAnt,
-            reprobacion_meta: p.reprobacion_meta || (reprobAnt ? Math.max(0, Math.round((reprobAnt - 2) * 10) / 10) : undefined),
+            reprobacion_meta: reprobMeta,
             aprobacion_ant: aprobAnt,
-            aprobacion_meta: p.aprobacion_meta || (aprobAnt ? Math.min(100, Math.round((aprobAnt + 2) * 10) / 10) : undefined),
+            aprobacion_meta: aprobMeta,
           };
         });
         if (json.data?.totalDocentes) setTotalStaff(json.data.totalDocentes);
