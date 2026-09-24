@@ -147,26 +147,26 @@ describe('CartografiaContextProvider (Fase E — Piloto Nivel 1 & Strangler Fig)
   });
 
   it('4. Política B-001 (Zero Silent Stubs): Métodos no migrados lanzan 501 NOT_IMPLEMENTED ruidosamente', async () => {
-    await expect(cartografiaContextProvider.generateMomento(3, 'proj-123')).rejects.toBeInstanceOf(CartografiaContextProviderError);
-    await expect(cartografiaContextProvider.generateMomento(3, 'proj-123')).rejects.toMatchObject({
+    await expect(cartografiaContextProvider.generateMomento()).rejects.toBeInstanceOf(CartografiaContextProviderError);
+    await expect(cartografiaContextProvider.generateMomento()).rejects.toMatchObject({
       status: 501,
       message: expect.stringContaining('no implementado'),
     });
 
-    await expect(cartografiaContextProvider.generatePedagogicalMemory('proj-123')).rejects.toBeInstanceOf(CartografiaContextProviderError);
-    await expect(cartografiaContextProvider.generatePedagogicalMemory('proj-123')).rejects.toMatchObject({
+    await expect(cartografiaContextProvider.generatePedagogicalMemory()).rejects.toBeInstanceOf(CartografiaContextProviderError);
+    await expect(cartografiaContextProvider.generatePedagogicalMemory()).rejects.toMatchObject({
       status: 501,
       message: expect.stringContaining('no implementado'),
     });
 
-    await expect(cartografiaContextProvider.renderPDF('proj-123')).rejects.toBeInstanceOf(CartografiaContextProviderError);
-    await expect(cartografiaContextProvider.renderPDF('proj-123')).rejects.toMatchObject({
+    await expect(cartografiaContextProvider.renderPDF()).rejects.toBeInstanceOf(CartografiaContextProviderError);
+    await expect(cartografiaContextProvider.renderPDF()).rejects.toMatchObject({
       status: 501,
       message: expect.stringContaining('no implementado'),
     });
 
-    await expect(cartografiaContextProvider.exportContextForPmc('proj-123')).rejects.toBeInstanceOf(CartografiaContextProviderError);
-    await expect(cartografiaContextProvider.exportContextForPmc('proj-123')).rejects.toMatchObject({
+    await expect(cartografiaContextProvider.exportContextForPmc()).rejects.toBeInstanceOf(CartografiaContextProviderError);
+    await expect(cartografiaContextProvider.exportContextForPmc()).rejects.toMatchObject({
       status: 501,
       message: expect.stringContaining('no implementado'),
     });

@@ -50,10 +50,10 @@ export interface ICartografiaContextProvider extends IProgramSystem {
     buffer: Buffer,
     options: CartografiaIngestOptions
   ): Promise<CartografiaExtractionSuccess>;
-  generateMomento(momento?: number, pipsProjectId?: string): Promise<Record<string, unknown>>;
-  generatePedagogicalMemory(pipsProjectId?: string): Promise<Record<string, unknown>>;
-  renderPDF(pipsProjectId?: string): Promise<Buffer>;
-  exportContextForPmc(pipsProjectId?: string): Promise<Record<string, unknown>>;
+  generateMomento(): Promise<Record<string, unknown>>;
+  generatePedagogicalMemory(): Promise<Record<string, unknown>>;
+  renderPDF(): Promise<Buffer>;
+  exportContextForPmc(): Promise<Record<string, unknown>>;
 }
 
 export class CartografiaContextProvider implements ICartografiaContextProvider {
