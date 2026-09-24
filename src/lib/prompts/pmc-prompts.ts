@@ -174,13 +174,38 @@ export function buildPmcPlanAccionPrompt(
     : 3;
 
   // Plantilla del personal — incluir metas predefinidas si existen
-  const staffData = parseJson<{ nombre?: string; cargo?: string; metas_individuales?: { categoria?: string; tema?: string; meta?: string; estrategia?: string; entregable?: string; periodo?: string }[] }[]>(project.staff_data);
-  const staffList = Array.isArray(staffData) && staffData.length > 0
+  type StaffMember = {
+    nombre?: string;
+    cargo?: string;
+    metas_individuales?: {
+      categoria?: string;
+      tema?: string;
+      meta?: string;
+      estrategia?: string;
+      entregable?: string;
+      periodo?: string;
+    }[];
+  };
+
+  let staffData: StaffMember[] = [];
+  try {
+    const parsed = parseJson<StaffMember[]>(project.staff_data);
+    if (Array.isArray(parsed)) {
+      staffData = parsed.filter(Boolean);
+    }
+  } catch {
+    staffData = [];
+  }
+
+  const staffList = staffData.length > 0
     ? staffData.slice(0, 35).map((s) => {
-        const metasInfo = Array.isArray(s.metas_individuales) && s.metas_individuales.length > 0
-          ? s.metas_individuales.map(m => `      → ${m.categoria || 'S/C'}: ${m.meta || '(sin definir)'}${m.estrategia ? ` [${m.estrategia}]` : ''}`).join('\n')
+        const metasInfo = Array.isArray(s?.metas_individuales) && s.metas_individuales.length > 0
+          ? s.metas_individuales
+              .filter(Boolean)
+              .map(m => `      → ${m?.categoria || 'S/C'}: ${m?.meta || '(sin definir)'}${m?.estrategia ? ` [${m.estrategia}]` : ''}`)
+              .join('\n')
           : '      (sin metas predefinidas — genera según su cargo y las categorías)';
-        return `- ${s.nombre ?? 'Docente'} — ${s.cargo ?? 'Docente frente a grupo'}\n    Metas predefinidas:\n${metasInfo}`;
+        return `- ${s?.nombre ?? 'Docente'} — ${s?.cargo ?? 'Docente frente a grupo'}\n    Metas predefinidas:\n${metasInfo}`;
       }).join('\n')
     : `- ${safeStr(project.director_name, 'Director del Plantel')} — Director(a)\n    Metas predefinidas: (genera según cargo)\n- Colectivo Docente — Docentes frente a grupo\n    Metas predefinidas: (genera según cargo)`;
 
