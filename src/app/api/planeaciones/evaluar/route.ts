@@ -4,6 +4,11 @@ import { isAdmin } from '@/lib/admin-unified';
 import { NextResponse } from 'next/server';
 import { evaluarPlaneacion, TipoEvaluacion } from '@/lib/planeaciones-evaluator';
 import { logger } from '@/lib/logger';
+import { isFeatureEnabled } from '@/lib/platform/feature-flags';
+import {
+  planeacionesOrchestrator,
+  PlaneacionOrchestratorError,
+} from '@/lib/planeaciones/orchestrator';
 
 export const maxDuration = 120;
 
@@ -119,6 +124,42 @@ export async function POST(req: Request) {
         tipo = 'FUNDAMENTAL_5_6';
       } else {
         tipo = 'FUNDAMENTAL_1_4';
+      }
+    }
+
+    // Strangler Fig: Delegación al Orquestador Central de Planeaciones si la bandera está activa
+    if (isFeatureEnabled('PLANEACION_ORCHESTRATOR_V2')) {
+      try {
+        const resultado = await planeacionesOrchestrator.evaluate({
+          tipoEvaluacion: tipo,
+          asignatura,
+          semestre,
+          docenteNombre,
+          textoPlanificacion: textoEvaluado,
+          textoPaecPec: textoPaecPec || planData?.paec_context || '',
+          teacherId: currentTeacher?.id,
+          isPremium: isPrivileged,
+        });
+
+        if (planningId) {
+          try {
+            await db`
+              UPDATE plannings
+              SET evaluation_json = ${JSON.stringify(resultado)}::jsonb,
+                  updated_at = NOW()
+              WHERE id = ${planningId}::uuid
+            `;
+          } catch (dbErr) {
+            logger.error('Error persistiendo evaluation_json en Neon DB:', dbErr);
+          }
+        }
+
+        return NextResponse.json({ success: true, resultado, cached: false });
+      } catch (err: unknown) {
+        if (err instanceof PlaneacionOrchestratorError) {
+          return NextResponse.json({ error: err.message }, { status: err.status });
+        }
+        throw err;
       }
     }
 
