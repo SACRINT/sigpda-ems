@@ -260,6 +260,7 @@ export async function withKeyRotation<T>(
 
   // ── Try each key in order ─────────────────────────────────────────────────
   let lastError: Error | null = null;
+  let consecutiveServiceOutageCount = 0;
 
   for (let i = 0; i < attempts.length; i++) {
     const { apiKey, keyId, source } = attempts[i];
@@ -275,21 +276,31 @@ export async function withKeyRotation<T>(
       lastError = err instanceof Error ? err : new Error(String(err));
       const errStr = String(errorObj?.message || err || '');
 
-      // Detect transient rate-limit / demand errors — do NOT penalize the key
-      const isRateLimit =
-        errorObj?.status === 429 ||
-        errorObj?.statusCode === 429 ||
+      // Detect service unavailable / high demand global outages (503)
+      const isServiceOutage =
         errorObj?.status === 503 ||
         errorObj?.statusCode === 503 ||
-        errStr.includes('429') ||
         errStr.includes('503') ||
+        errStr.toLowerCase().includes('high demand') ||
+        errStr.toLowerCase().includes('service unavailable') ||
+        errStr.toLowerCase().includes('overloaded');
+
+      if (isServiceOutage) {
+        consecutiveServiceOutageCount++;
+      } else {
+        consecutiveServiceOutageCount = 0;
+      }
+
+      // Detect transient rate-limit / demand errors — do NOT penalize the key
+      const isRateLimit =
+        isServiceOutage ||
+        errorObj?.status === 429 ||
+        errorObj?.statusCode === 429 ||
+        errStr.includes('429') ||
         errStr.toLowerCase().includes('quota') ||
         errStr.toLowerCase().includes('resource_exhausted') ||
         errStr.toLowerCase().includes('rate limit') ||
-        errStr.toLowerCase().includes('high demand') ||
         errStr.toLowerCase().includes('too many requests') ||
-        errStr.toLowerCase().includes('service unavailable') ||
-        errStr.toLowerCase().includes('overloaded') ||
         errStr.toLowerCase().includes('timeout');
 
       // Detect permanent credential errors — penalize key
@@ -316,6 +327,14 @@ export async function withKeyRotation<T>(
         // Other errors (network, etc.): no DB update
       }
 
+      // Fast-fail to allow fallback providers if the upstream service is experiencing a global outage (503)
+      if (isServiceOutage && consecutiveServiceOutageCount >= 2 && i < attempts.length - 1) {
+        logger.warn(
+          `[key-rotator] Upstream service for "${provider}" is experiencing global high demand/outage (2 consecutive 503s). Fast-failing to allow alternative fallback providers.`
+        );
+        throw lastError;
+      }
+
       if ((isRateLimit || !isPermanentError) && i < attempts.length - 1) {
         // Rotate to next key transparently for rate-limits and transient errors
         logger.warn(
@@ -324,7 +343,7 @@ export async function withKeyRotation<T>(
           }). Rotating to key #${i + 2}/${attempts.length}...`
         );
         // Exponential backoff to avoid slamming providers on rate limit
-        const backoffMs = Math.min(5000, 500 * Math.pow(2, i));
+        const backoffMs = Math.min(3000, 300 * Math.pow(2, i));
         await new Promise((resolve) => setTimeout(resolve, backoffMs));
         continue;
       }
