@@ -10,7 +10,7 @@ export interface DocumentPage {
   hasTables?: boolean;
 }
 
-export type DocumentFormat = 'pdf-digital' | 'pdf-scanned' | 'docx' | 'plain-text';
+export type DocumentFormat = 'pdf-digital' | 'pdf-scanned' | 'docx' | 'plain-text' | 'image';
 
 export interface IngestedDocument {
   /** Documento consolidado en Markdown limpio con jerarquía estructural y tablas */

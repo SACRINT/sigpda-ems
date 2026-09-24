@@ -8,6 +8,7 @@ import { parseDigitalPdf } from './parsers/pdf-digital';
 import { parseScannedPdfWithGemini } from './parsers/pdf-scanned';
 import { parseDocxDocument } from './parsers/docx-parser';
 import { parsePlainTextDocument } from './parsers/text-parser';
+import { parseImageDocumentWithGemini } from './parsers/image-parser';
 import type { IngestedDocument, IngestOptions } from './types';
 import { logger } from '@/lib/logger';
 
@@ -16,9 +17,10 @@ export { parseDigitalPdf } from './parsers/pdf-digital';
 export { parseScannedPdfWithGemini } from './parsers/pdf-scanned';
 export { parseDocxDocument } from './parsers/docx-parser';
 export { parsePlainTextDocument } from './parsers/text-parser';
+export { parseImageDocumentWithGemini } from './parsers/image-parser';
 
 /**
- * Ingesta y normaliza un documento subido (PDF, Word .docx o Texto plano)
+ * Ingesta y normaliza un documento subido (PDF, Word .docx, Texto plano o Imágenes JPG/PNG/WEBP)
  * convirtiéndolo a Markdown estructurado completo para consumo de los motores de IA.
  */
 export async function ingestDocument(
@@ -48,7 +50,27 @@ export async function ingestDocument(
     return parsePlainTextDocument(buffer);
   }
 
-  // 3. Documentos PDF (Digital o Escaneado con OCR)
+  // 3. Detección de Imágenes Documentales (.jpg, .jpeg, .png, .webp)
+  const isImage =
+    mimeLower.startsWith('image/') ||
+    filenameLower.endsWith('.jpg') ||
+    filenameLower.endsWith('.jpeg') ||
+    filenameLower.endsWith('.png') ||
+    filenameLower.endsWith('.webp');
+
+  if (isImage) {
+    const imgMime = mimeLower.startsWith('image/')
+      ? (mimeLower === 'image/jpg' ? 'image/jpeg' : mimeLower)
+      : (filenameLower.endsWith('.png') ? 'image/png' : filenameLower.endsWith('.webp') ? 'image/webp' : 'image/jpeg');
+
+    logger.info('[DocumentIngestion] Imagen documental detectada. Extrayendo mediante Gemini Multimodal Vision...', {
+      filename: options.filename,
+      mime: imgMime,
+    });
+    return parseImageDocumentWithGemini(buffer, imgMime, options.teacherId);
+  }
+
+  // 4. Documentos PDF (Digital o Escaneado con OCR)
   const enableOcr = options.enableOcr !== false; // Default: true
 
   try {
