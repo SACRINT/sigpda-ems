@@ -297,4 +297,50 @@ describe('PaecOrchestrator (Fase D — Piloto Nivel 1 & Strangler Fig)', () => {
 
     expect(hash).toBe('d030d785788c2b41a13abb83fa0e24b46f1ebd4cc82cfaf6b1cb8c852cf5a653');
   });
+
+  it('10. Con PAEC_ORCHESTRATOR_V2 = true, tolera nulls y ejecuta reintento correctivo ante parseo inicial fallido', async () => {
+    setFeatureFlag('PAEC_ORCHESTRATOR_V2', true);
+
+    vi.mocked(ingestDocument).mockResolvedValueOnce({
+      markdown: '# PAEC Texto con más de cuarenta caracteres institucionales para superar el filtro...',
+      fullText: 'PAEC Texto con más de cuarenta caracteres institucionales para superar el filtro...',
+      totalPages: 1,
+    } as never);
+
+    // Primer intento con JSON roto que falla Zod
+    vi.mocked(generateWithRotation)
+      .mockResolvedValueOnce('JSON malformado que fallará Zod: { projectName: 12345 }')
+      // Segundo intento correctivo con nulls
+      .mockResolvedValueOnce(JSON.stringify({
+        projectName: 'Proyecto Agroecológico Comunitario',
+        problemStatement: null,
+        cycleType: 'annual',
+        schoolType: 'general',
+        school: {
+          schoolName: null,
+          cct: '21EBH0001A',
+        },
+        community: {
+          context: null,
+        },
+      }));
+
+    const file = new File(['mock bytes'], 'paec_retry.pdf', { type: 'application/pdf' });
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const req = new NextRequest('http://localhost:3000/api/paec/parse-previous', {
+      method: 'POST',
+      body: formData,
+    });
+
+    const res = await handlePaecParsePreviousPost(req);
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.success).toBe(true);
+    expect(json.data.projectName).toBe('Proyecto Agroecológico Comunitario');
+    expect(json.data.problemStatement).toBe('');
+    expect(json.data.school.cct).toBe('21EBH0001A');
+  });
 });

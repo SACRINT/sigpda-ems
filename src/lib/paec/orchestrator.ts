@@ -26,6 +26,7 @@ import {
   withTimeoutBudget,
   isUpstreamAIError,
   AI_OUTAGE_USER_MESSAGE,
+  correctiveRetry,
 } from '@/lib/ai-resilience';
 
 export class PaecOrchestratorError extends Error {
@@ -129,9 +130,26 @@ export class PaecOrchestrator implements IPaecOrchestrator {
       throw new PaecOrchestratorError(`Fallo en la extracción de IA: ${msg}`, 500);
     }
 
-    const parsed = parseAIResponse(aiRaw, PaecPreviousExtractSchema, {
+    let parsed = parseAIResponse(aiRaw, PaecPreviousExtractSchema, {
       contextName: 'paec-orchestrator-extraction',
+      repairNullStrings: true,
     });
+
+    if (!parsed.success) {
+      parsed = await correctiveRetry({
+        systemPrompt,
+        previousRaw: aiRaw,
+        zodIssues: parsed.error || '',
+        schema: PaecPreviousExtractSchema,
+        callAI: (sys, user, remaining) =>
+          withTimeoutBudget(
+            generateWithRotation(sys, user, options.teacherId, isPremium, { temperature: 0, jsonMode: true }),
+            remaining
+          ),
+        deadline,
+        contextName: 'paec-orchestrator-extraction',
+      });
+    }
 
     if (!parsed.success) {
       logger.error('[paec-orchestrator] AI response parsing failed:', parsed.error);

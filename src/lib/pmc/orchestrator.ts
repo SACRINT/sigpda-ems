@@ -64,12 +64,14 @@ import {
   withTimeoutBudget,
   isUpstreamAIError,
   AI_OUTAGE_USER_MESSAGE,
+  correctiveRetry,
 } from '@/lib/ai-resilience';
 
 export {
   withTimeoutBudget,
   isUpstreamAIError,
   AI_OUTAGE_USER_MESSAGE,
+  correctiveRetry,
 };
 
 export interface IPmcOrchestrator extends IProgramSystem {
@@ -139,23 +141,44 @@ export class PmcOrchestrator implements IPmcOrchestrator {
     }
 
     // 2. Extracción y estructuración asistida por IA según el tipo de documento
+    const deadline = Date.now() + 90000;
     try {
       switch (type) {
       case 'f11': {
         const systemPrompt = F11_EXTRACTION_SYSTEM_PROMPT;
         const userPrompt = buildF11ExtractionPrompt(documentText);
 
-        const aiRaw = await generateWithRotation(
-          systemPrompt,
-          userPrompt,
-          options.teacherId,
-          isPremium,
-          { temperature: 0.1, jsonMode: true }
+        const aiRaw = await withTimeoutBudget(
+          generateWithRotation(
+            systemPrompt,
+            userPrompt,
+            options.teacherId,
+            isPremium,
+            { temperature: 0.1, jsonMode: true }
+          ),
+          Math.max(1, deadline - Date.now())
         );
 
-        const parsed = parseAIResponse(aiRaw, F11ExtractSchema, {
+        let parsed = parseAIResponse(aiRaw, F11ExtractSchema, {
           contextName: 'pmc-f11-orchestrator',
+          repairNullStrings: true,
         });
+
+        if (!parsed.success) {
+          parsed = await correctiveRetry({
+            systemPrompt,
+            previousRaw: aiRaw,
+            zodIssues: parsed.error || '',
+            schema: F11ExtractSchema,
+            callAI: (sys, user, remaining) =>
+              withTimeoutBudget(
+                generateWithRotation(sys, user, options.teacherId, isPremium, { temperature: 0, jsonMode: true }),
+                remaining
+              ),
+            deadline,
+            contextName: 'pmc-f11-orchestrator',
+          });
+        }
 
         if (!parsed.success) {
           logger.error('[pmc-orchestrator:f11] AI response parsing failed:', parsed.error);
@@ -177,17 +200,37 @@ export class PmcOrchestrator implements IPmcOrchestrator {
         const systemPrompt = ESTADISTICA_911_EXTRACTION_SYSTEM_PROMPT;
         const userPrompt = buildEstadistica911ExtractionPrompt(documentText);
 
-        const aiRaw = await generateWithRotation(
-          systemPrompt,
-          userPrompt,
-          options.teacherId,
-          isPremium,
-          { temperature: 0.1, jsonMode: true }
+        const aiRaw = await withTimeoutBudget(
+          generateWithRotation(
+            systemPrompt,
+            userPrompt,
+            options.teacherId,
+            isPremium,
+            { temperature: 0.1, jsonMode: true }
+          ),
+          Math.max(1, deadline - Date.now())
         );
 
-        const parsed = parseAIResponse(aiRaw, Estadistica911ExtractSchema, {
+        let parsed = parseAIResponse(aiRaw, Estadistica911ExtractSchema, {
           contextName: 'pmc-911-orchestrator',
+          repairNullStrings: true,
         });
+
+        if (!parsed.success) {
+          parsed = await correctiveRetry({
+            systemPrompt,
+            previousRaw: aiRaw,
+            zodIssues: parsed.error || '',
+            schema: Estadistica911ExtractSchema,
+            callAI: (sys, user, remaining) =>
+              withTimeoutBudget(
+                generateWithRotation(sys, user, options.teacherId, isPremium, { temperature: 0, jsonMode: true }),
+                remaining
+              ),
+            deadline,
+            contextName: 'pmc-911-orchestrator',
+          });
+        }
 
         if (!parsed.success) {
           logger.error('[pmc-orchestrator:911] AI response parsing failed:', parsed.error);
@@ -214,17 +257,37 @@ export class PmcOrchestrator implements IPmcOrchestrator {
         const systemPrompt = PMC_EXTRACTION_SYSTEM_PROMPT;
         const userPrompt = buildPmcExtractionPrompt(documentText);
 
-        const aiRaw = await generateWithRotation(
-          systemPrompt,
-          userPrompt,
-          options.teacherId,
-          isPremium,
-          { temperature: 0.1, jsonMode: true }
+        const aiRaw = await withTimeoutBudget(
+          generateWithRotation(
+            systemPrompt,
+            userPrompt,
+            options.teacherId,
+            isPremium,
+            { temperature: 0.1, jsonMode: true }
+          ),
+          Math.max(1, deadline - Date.now())
         );
 
-        const parsed = parseAIResponse(aiRaw, PmcPreviousExtractSchema, {
+        let parsed = parseAIResponse(aiRaw, PmcPreviousExtractSchema, {
           contextName: 'pmc-previous-orchestrator',
+          repairNullStrings: true,
         });
+
+        if (!parsed.success) {
+          parsed = await correctiveRetry({
+            systemPrompt,
+            previousRaw: aiRaw,
+            zodIssues: parsed.error || '',
+            schema: PmcPreviousExtractSchema,
+            callAI: (sys, user, remaining) =>
+              withTimeoutBudget(
+                generateWithRotation(sys, user, options.teacherId, isPremium, { temperature: 0, jsonMode: true }),
+                remaining
+              ),
+            deadline,
+            contextName: 'pmc-previous-orchestrator',
+          });
+        }
 
         if (!parsed.success) {
           logger.error('[pmc-orchestrator:previous] AI response parsing failed:', parsed.error);

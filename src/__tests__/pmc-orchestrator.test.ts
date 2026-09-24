@@ -519,4 +519,46 @@ describe('PmcOrchestrator (Piloto Nivel 1 & Strangler Fig)', () => {
       await expect(budgetPromise).rejects.toMatchObject({ status: 503 });
     });
   });
+
+  it('15. Con PMC_ORCHESTRATOR_V2 = true, tolera nulls y ejecuta reintento correctivo ante parseo inicial fallido', async () => {
+    setFeatureFlag('PMC_ORCHESTRATOR_V2', true);
+
+    vi.mocked(auth).mockResolvedValueOnce({ user: { email: 'director@bachillerato.edu.mx' } } as never);
+    vi.mocked(getTeacherByEmail).mockResolvedValueOnce({ id: 'teacher-director-1', email: 'director@bachillerato.edu.mx' } as never);
+    vi.mocked(ingestDocument).mockResolvedValueOnce({
+      markdown: '# Documento F11 con suficiente texto para superar cuarenta caracteres institucionales...',
+      fullText: 'Documento F11 con suficiente texto para superar cuarenta caracteres institucionales...',
+      totalPages: 1,
+    } as never);
+
+    // Primer intento con estructura rota que falla Zod
+    vi.mocked(generateWithRotation)
+      .mockResolvedValueOnce('JSON malformado que fallará Zod: { totalAlumnos: "no-numero" }')
+      // Segundo intento correctivo con nulls que repairNullStrings normaliza
+      .mockResolvedValueOnce(JSON.stringify({
+        schoolName: 'Bachillerato Moctezuma',
+        schoolCct: null,
+        totalAlumnos: 250,
+        totalDocentes: 15,
+        totalGrupos: 6,
+        promedioGeneral: 8.5,
+        aprobadosPorcentaje: 90,
+        reprobadosPorcentaje: 10,
+        promediosPorAsignatura: {},
+        docentesPorAsignatura: [],
+      }));
+
+    const file = new File(['mock f11 bytes'], 'f11_retry.pdf', { type: 'application/pdf' });
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const req = new NextRequest('http://localhost:3000/api/pmc/f11', { method: 'POST', body: formData });
+    const res = await handleF11Post(req);
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.success).toBe(true);
+    expect(json.data.schoolName).toBe('Bachillerato Moctezuma');
+    expect(json.data.totalAlumnos).toBe(250);
+  });
 });
