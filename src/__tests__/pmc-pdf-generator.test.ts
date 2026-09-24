@@ -20,6 +20,7 @@ describe('C6: Characterization tests para Indicadores PMC (pmc-indicator-calcula
   it('calcula filas con datos completos sin ningún NaN% y con variaciones coherentes', () => {
     const indicadores = {
       matricula: 240,
+      matricula_meta: 240,
       aprobacion_ant: 85.5,
       aprobacion_meta: 90.0,
       reprobacion_ant: 14.5,
@@ -207,11 +208,16 @@ describe('C6: Characterization tests para Indicadores PMC (pmc-indicator-calcula
     const rows = calculatePmcIndicatorRows({}, statsContext);
     expect(rows.length).toBe(7); // 5 base + 1 promedio F11 + 1 zona
 
-    // Fila 5: Promedio
+    // Fila 5: Promedio (sin meta provista -> N/D, no derivar +0.50 inventado)
     expect(rows[5][0]).toBe('Promedio General de Calificaciones (F11C)');
     expect(rows[5][1]).toBe('8.42');
-    expect(rows[5][2]).toBe('8.92');
-    expect(rows[5][3]).toBe('+0.50 Aprovechamiento');
+    expect(rows[5][2]).toBe('N/D');
+    expect(rows[5][3]).toBe('N/D');
+
+    // Con promedio_meta provisto explícitamente -> calcula variación real
+    const rowsWithMeta = calculatePmcIndicatorRows({ promedio_meta: 8.92 }, statsContext);
+    expect(rowsWithMeta[5][2]).toBe('8.92');
+    expect(rowsWithMeta[5][3]).toBe('+0.50 Aprovechamiento');
 
     // Fila 6: Zona comparativa
     const zonaCell = rows[6][0];

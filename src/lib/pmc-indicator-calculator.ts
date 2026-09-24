@@ -98,8 +98,13 @@ export function calculatePmcIndicatorRows(
 
   // 5. Matrícula Escolar Oficial
   const matAntStr = matAnt !== undefined ? `${matAnt} estudiantes` : 'N/D';
-  const matMetaStr = matAnt !== undefined ? `${matAnt} estudiantes` : 'N/D';
-  const matVarStr = matAnt !== undefined ? 'Sostenimiento' : 'N/D';
+  const matMeta = isRealNumeric(ind.matricula_meta) ? ind.matricula_meta : undefined;
+  const matMetaStr = matMeta !== undefined ? `${matMeta} estudiantes` : 'N/D';
+  let matVarStr = 'N/D';
+  if (matAnt !== undefined && matMeta !== undefined) {
+    const diff = Number(matMeta) - Number(matAnt);
+    matVarStr = diff === 0 ? 'Sostenimiento' : diff > 0 ? `+${diff} estudiantes` : `${diff} estudiantes`;
+  }
 
   const rows: PmcIndicatorRow[] = [
     ['Tasa de Aprobación Escolar (F11C)', apAntStr, apMetaStr, apVarStr],
@@ -111,11 +116,18 @@ export function calculatePmcIndicatorRows(
 
   if (promF11 !== undefined) {
     const promNum = Number(promF11);
+    const promMeta = isRealNumeric(ind.promedio_meta) ? ind.promedio_meta : undefined;
+    const promMetaStr = promMeta !== undefined ? `${Number(promMeta).toFixed(2)}` : 'N/D';
+    let promVarStr = 'N/D';
+    if (promMeta !== undefined) {
+      const diff = Number(promMeta) - promNum;
+      promVarStr = diff >= 0 ? `+${diff.toFixed(2)} Aprovechamiento` : `${diff.toFixed(2)} Aprovechamiento`;
+    }
     rows.push([
       'Promedio General de Calificaciones (F11C)',
       `${promNum.toFixed(2)}`,
-      `${(promNum + 0.5).toFixed(2)}`,
-      '+0.50 Aprovechamiento',
+      promMetaStr,
+      promVarStr,
     ]);
   }
 
