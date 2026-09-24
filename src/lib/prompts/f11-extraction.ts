@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { nullableString } from './zod-helpers';
 
 /**
  * Extraction schemas and prompts for F11 (Formato 11 - Control Escolar).
@@ -6,9 +7,9 @@ import { z } from 'zod';
  */
 
 export const F11ExtractSchema = z.object({
-  cicloEscolar: z.string().optional().default(''),
-  schoolName: z.string().optional().default(''),
-  schoolCct: z.string().optional().default(''),
+  cicloEscolar: nullableString(),
+  schoolName: nullableString(),
+  schoolCct: nullableString(),
   totalAlumnos: z.coerce.number().nullable().optional(),
   totalDocentes: z.coerce.number().nullable().optional(),
   totalGrupos: z.coerce.number().nullable().optional(),
@@ -17,12 +18,12 @@ export const F11ExtractSchema = z.object({
   reprobadosPorcentaje: z.coerce.number().nullable().optional(),
   promediosPorAsignatura: z.record(z.string(), z.coerce.number()).optional().default({}),
   docentesPorAsignatura: z.array(z.object({
-    asignatura: z.string().default(''),
-    docente: z.string().default(''),
-    grupos: z.string().default(''),
+    asignatura: nullableString(),
+    docente: nullableString(),
+    grupos: nullableString(),
     promedio: z.coerce.number().nullable().optional(),
   })).optional().default([]),
-  observaciones: z.string().optional().default(''),
+  observaciones: nullableString(),
 });
 
 export type F11ExtractDTO = z.infer<typeof F11ExtractSchema>;
@@ -68,6 +69,6 @@ Estructura la información en el siguiente esquema JSON exacto:
 REGLAS DE EXTRACCIÓN:
 1. Extrae los promedios por asignatura exactamente como aparecen en el documento.
 2. Si el documento contiene tabla de calificaciones por grupo, extrae cada asignatura con su docente y grupos.
-3. Si un dato no se encuentra, asigna null o cadena vacía según corresponda, sin inventar información.
+3. Si un dato no se encuentra, asigna una cadena vacía "" para texto o null para números, sin inventar información.
 4. Los promedios deben ser números decimales (ej. 7.5, no "7.5" como texto).`;
 }

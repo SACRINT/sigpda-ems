@@ -127,6 +127,7 @@ export async function POST(request: NextRequest) {
     // 3. Parseo y validación de respuesta JSON
     const parsed = parseAIResponse(aiRaw, PmcPreviousExtractSchema, {
       contextName: 'pmc-parse-previous',
+      repairNullStrings: true,
     });
 
     if (!parsed.success) {

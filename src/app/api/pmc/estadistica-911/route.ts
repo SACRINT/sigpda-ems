@@ -128,6 +128,7 @@ export async function POST(request: NextRequest) {
 
     const parsed = parseAIResponse(aiRaw, Estadistica911ExtractSchema, {
       contextName: 'pmc-911-extraction',
+      repairNullStrings: true,
     });
 
     if (!parsed.success) {

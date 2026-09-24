@@ -9,6 +9,8 @@ import {
   buildEstadistica911ExtractionPrompt,
   ESTADISTICA_911_EXTRACTION_SYSTEM_PROMPT,
 } from '@/lib/prompts/estadistica-911-extraction';
+import { PmcPreviousExtractSchema } from '@/lib/prompts/pmc-extraction';
+import { parseAIResponse } from '@/lib/ai-response-parser';
 
 describe('Blindaje Curricular y Extracción: F11 y Estadística 911 (N-002)', () => {
 
@@ -279,6 +281,115 @@ describe('Blindaje Curricular y Extracción: F11 y Estadística 911 (N-002)', ()
       expect(fodaResultante.debilidades).toContain('Materia 4');
       expect(fodaResultante.debilidades).not.toContain('Materia 5');
       expect(fodaResultante.debilidades).not.toContain('Materia 6');
+    });
+  });
+
+  // ── 5. Tolerancia a valores null en esquemas y reparación opt-in (G-001 / D1 / D2) ──
+  describe('5. Normalización de Strings Nulos y Reparación Opt-in (G-001)', () => {
+    it('Estadistica911ExtractSchema tolera nulls en campos string y los normaliza a cadena vacía', () => {
+      const payloadConNulls = {
+        cicloEscolar: null,
+        schoolName: null,
+        schoolCct: null,
+        observaciones: null,
+        matricula: 150,
+      };
+
+      const result = Estadistica911ExtractSchema.safeParse(payloadConNulls);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.cicloEscolar).toBe('');
+        expect(result.data.schoolName).toBe('');
+        expect(result.data.schoolCct).toBe('');
+        expect(result.data.observaciones).toBe('');
+        expect(result.data.matricula).toBe(150);
+      }
+    });
+
+    it('F11ExtractSchema tolera nulls en campos string de nivel raíz y en docentesPorAsignatura', () => {
+      const payloadConNulls = {
+        cicloEscolar: null,
+        schoolName: null,
+        schoolCct: null,
+        observaciones: null,
+        docentesPorAsignatura: [
+          {
+            asignatura: null,
+            docente: null,
+            grupos: null,
+            promedio: 8.5,
+          },
+        ],
+      };
+
+      const result = F11ExtractSchema.safeParse(payloadConNulls);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.schoolName).toBe('');
+        expect(result.data.observaciones).toBe('');
+        expect(result.data.docentesPorAsignatura[0].asignatura).toBe('');
+        expect(result.data.docentesPorAsignatura[0].docente).toBe('');
+        expect(result.data.docentesPorAsignatura[0].grupos).toBe('');
+      }
+    });
+
+    it('PmcPreviousExtractSchema tolera nulls en strings y preserva defaults no vacíos', () => {
+      const payloadConNulls = {
+        schoolName: null,
+        municipality: null,
+        locality: null,
+        directorName: null,
+        supervisorName: null,
+        cicloEscolar: null,
+        subsystem: null,
+        diagnosticoComunidad: null,
+        staffData: [
+          {
+            nombre: null,
+            cargo: null,
+            meta_individual: null,
+          },
+        ],
+        foda: {
+          fortalezas: null,
+          oportunidades: null,
+        },
+      };
+
+      const result = PmcPreviousExtractSchema.safeParse(payloadConNulls);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.schoolName).toBe('');
+        expect(result.data.municipality).toBe('');
+        expect(result.data.cicloEscolar).toBe('2025-2026');
+        expect(result.data.subsystem).toBe('BGE');
+        expect(result.data.diagnosticoComunidad).toBe('');
+        expect(result.data.staffData[0].nombre).toBe('');
+        expect(result.data.staffData[0].cargo).toBe('Docente');
+        expect(result.data.foda?.fortalezas).toBe('');
+      }
+    });
+
+    it('parseAIResponse con repairNullStrings: true recupera JSONs con campos de texto nulos', () => {
+      const rawJsonConNulls = JSON.stringify({
+        cicloEscolar: null,
+        schoolName: null,
+        schoolCct: '21EBH0465E',
+        matricula: 220,
+        observaciones: null,
+      });
+
+      const parsed = parseAIResponse(rawJsonConNulls, Estadistica911ExtractSchema, {
+        contextName: 'test-911-null-repair',
+        repairNullStrings: true,
+      });
+
+      expect(parsed.success).toBe(true);
+      if (parsed.success) {
+        expect(parsed.data.schoolCct).toBe('21EBH0465E');
+        expect(parsed.data.schoolName).toBe('');
+        expect(parsed.data.observaciones).toBe('');
+      }
     });
   });
 });

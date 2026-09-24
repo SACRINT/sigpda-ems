@@ -126,6 +126,7 @@ export async function POST(request: NextRequest) {
 
     const parsed = parseAIResponse(aiRaw, F11ExtractSchema, {
       contextName: 'pmc-f11-extraction',
+      repairNullStrings: true,
     });
 
     if (!parsed.success) {

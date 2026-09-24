@@ -3,6 +3,7 @@ import { jsonrepair } from 'jsonrepair';
 
 export interface ParseAIResponseOptions {
   contextName?: string;
+  repairNullStrings?: boolean;
 }
 
 export type ParseAIResponseResult<T> =
@@ -168,7 +169,51 @@ export function parseAIResponse<T>(
   }
 
   // 6. Validación y tipado estricto contra esquema Zod
-  const validationResult = schema.safeParse(parsedObj);
+  let validationResult = schema.safeParse(parsedObj);
+
+  // Reparación opt-in dirigida por issues si hay strings que recibieron null (D2)
+  if (!validationResult.success && options?.repairNullStrings) {
+    const nullStringIssues = validationResult.error.issues.filter(
+      (issue) =>
+        issue.code === 'invalid_type' &&
+        issue.expected === 'string' &&
+        ('received' in issue ? (issue as { received: string }).received === 'null' : issue.message.includes('null'))
+    );
+
+    if (nullStringIssues.length > 0) {
+      for (const issue of nullStringIssues) {
+        const path = issue.path;
+        if (path.length === 0) continue;
+
+        let curr: unknown = parsedObj;
+        let broken = false;
+        for (let i = 0; i < path.length - 1; i++) {
+          const key = path[i];
+          if (typeof key === 'symbol') { broken = true; break; }
+          if (curr && typeof curr === 'object' && key in curr) {
+            curr = (curr as Record<string | number, unknown>)[key];
+          } else {
+            broken = true;
+            break;
+          }
+        }
+        if (!broken && curr && typeof curr === 'object') {
+          const lastKey = path[path.length - 1];
+          if (typeof lastKey !== 'symbol' && (curr as Record<string | number, unknown>)[lastKey] === null) {
+            (curr as Record<string | number, unknown>)[lastKey] = '';
+          }
+        }
+      }
+
+      const retryResult = schema.safeParse(parsedObj);
+      if (retryResult.success) {
+        warnings.push(
+          `Sintaxis/tipado JSON recuperado mediante reparación opt-in de ${nullStringIssues.length} strings nulos`
+        );
+        validationResult = retryResult;
+      }
+    }
+  }
 
   if (!validationResult.success) {
     const formattedErrors = validationResult.error.issues

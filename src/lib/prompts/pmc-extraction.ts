@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { nullableString } from './zod-helpers';
 
 /**
  * Specialized prompts and schemas for extracting structured PMC data from previous documents (PDF / Word DOCX).
@@ -6,30 +7,30 @@ import { z } from 'zod';
  */
 
 export const PmcPreviousExtractSchema = z.object({
-  schoolName: z.string().optional().default(''),
-  schoolCct: z.string().optional().default(''),
-  municipality: z.string().optional().default(''),
-  locality: z.string().optional().default(''),
-  schoolZone: z.string().optional().default(''),
-  directorName: z.string().optional().default(''),
-  supervisorName: z.string().optional().default(''),
-  cicloEscolar: z.string().optional().default('2025-2026'),
-  subsystem: z.string().optional().default('BGE'),
+  schoolName: nullableString(),
+  schoolCct: nullableString(),
+  municipality: nullableString(),
+  locality: nullableString(),
+  schoolZone: nullableString(),
+  directorName: nullableString(),
+  supervisorName: nullableString(),
+  cicloEscolar: nullableString('2025-2026'),
+  subsystem: nullableString('BGE'),
   totalStaff: z.coerce.number().optional().default(1),
   staffData: z.array(z.object({
-    nombre: z.string().optional().default(''),
-    cargo: z.string().optional().default('Docente'),
-    meta_individual: z.string().optional().default(''),
+    nombre: nullableString(),
+    cargo: nullableString('Docente'),
+    meta_individual: nullableString(),
     metas_individuales: z.array(z.object({
-      categoria: z.string().optional().default(''),
-      tema: z.string().optional().default(''),
-      meta: z.string().optional().default(''),
-      estrategia: z.string().optional().default(''),
-      entregable: z.string().optional().default(''),
-      periodo: z.string().optional().default(''),
+      categoria: nullableString(),
+      tema: nullableString(),
+      meta: nullableString(),
+      estrategia: nullableString(),
+      entregable: nullableString(),
+      periodo: nullableString(),
     })).optional().default([]),
   })).optional().default([]),
-  diagnosticoComunidad: z.string().optional().default(''),
+  diagnosticoComunidad: nullableString(),
   indicadores: z.object({
     matricula: z.coerce.number().nullable().optional(),
     aprobacion_ant: z.coerce.number().nullable().optional(),
@@ -42,10 +43,10 @@ export const PmcPreviousExtractSchema = z.object({
     et_meta: z.coerce.number().nullable().optional(),
   }).partial().optional().default({}),
   foda: z.object({
-    fortalezas: z.string().optional().default(''),
-    oportunidades: z.string().optional().default(''),
-    debilidades: z.string().optional().default(''),
-    amenazas: z.string().optional().default(''),
+    fortalezas: nullableString(),
+    oportunidades: nullableString(),
+    debilidades: nullableString(),
+    amenazas: nullableString(),
   }).partial().optional().default({}),
 });
 
@@ -117,7 +118,7 @@ REGLAS DE EXTRACCIÓN:
 2. Si el documento contiene tablas de indicadores académicos, extrae los porcentajes numéricos limpios (sin el símbolo %).
 3. Si el documento contiene una lista de plantilla docente o personal, extrae cada miembro en el arreglo "staffData".
 4. Si un docente tiene múltiples metas individuales en el PMC anterior (una por categoría o tema), extrae TODAS en el arreglo "metas_individuales", indicando la categoría y tema de cada una.
-5. Si un dato no se encuentra explícitamente en el texto, asigna una cadena vacía "" o null según corresponda, sin inventar información no sustentada.
+5. Si un dato no se encuentra explícitamente en el texto, asigna una cadena vacía "" para texto o null para números, sin inventar información no sustentada.
 6. OBLIGATORIO: Asigna en 'categoria' ÚNICAMENTE una de las 3 categorías oficiales de los Lineamientos del PMC (sin prefijos como 'Categoría: Procesos para...'):
    - 'Desarrollo académico y aprendizaje'
    - 'Gestión y administración escolar'

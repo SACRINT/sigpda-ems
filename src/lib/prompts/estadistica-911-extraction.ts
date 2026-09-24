@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { nullableString } from './zod-helpers';
 
 /**
  * Extraction schemas and prompts for Estadística 911 (Formato 911 - School Statistics).
@@ -6,9 +7,9 @@ import { z } from 'zod';
  */
 
 export const Estadistica911ExtractSchema = z.object({
-  cicloEscolar: z.string().optional().default(''),
-  schoolName: z.string().optional().default(''),
-  schoolCct: z.string().optional().default(''),
+  cicloEscolar: nullableString(),
+  schoolName: nullableString(),
+  schoolCct: nullableString(),
   matricula: z.coerce.number().nullable().optional(),
   matriculaAnterior: z.coerce.number().nullable().optional(),
   egresados: z.coerce.number().nullable().optional(),
@@ -27,7 +28,7 @@ export const Estadistica911ExtractSchema = z.object({
   docentesMujeres: z.coerce.number().nullable().optional(),
   totalGrupos: z.coerce.number().nullable().optional(),
   gruposPorGrado: z.record(z.string(), z.coerce.number()).optional().default({}),
-  observaciones: z.string().optional().default(''),
+  observaciones: nullableString(),
 });
 
 export type Estadistica911ExtractDTO = z.infer<typeof Estadistica911ExtractSchema>;
@@ -77,6 +78,6 @@ REGLAS DE EXTRACCIÓN:
 1. Extrae los porcentajes numéricos limpios (sin el símbolo %).
 2. Si el documento contiene datos de ciclos anteriores para comparación, extráelos en los campos "Anterior".
 3. Si el documento contiene desglose por grado o semester, extrae el número de grupos por grado.
-4. Si un dato no se encuentra, asigna null o cadena vacía según corresponda, sin inventar información.
+4. Si un dato no se encuentra, asigna una cadena vacía "" para texto o null para números, sin inventar información.
 5. Los porcentajes deben ser números decimales (ej. 6.8, no "6.8%" como texto).`;
 }
