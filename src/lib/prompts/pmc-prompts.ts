@@ -250,8 +250,8 @@ Estructura de respuesta en JSON:
   "metas_institucionales": [
     {
       "categoria": "1",
-      "nombre_categoria": "Apropiación Curricular y Trayectorias Exitosas (CREAA: Resultados de Aprendizaje)",
-      "tema": "Nombre del tema",
+      "nombre_categoria": "Desarrollo académico y aprendizaje | Gestión y administración escolar | Desarrollo socioemocional y prevención de la violencia en la escuela",
+      "tema": "Tema o ámbito oficial específico (ej. Formación y actualización docente, Propuestas pedagógicas, Seguimiento al desempeño docente en el aula, etc.)",
       "diagnostico_meta": "Hallazgo específico de rezago en F11 / FODA que justifica esta meta",
       "meta": "[VERBO] + [% O CIFRA] + [POBLACIÓN] + [ESTRATEGIA] + [PERIODO Y TERRITORIO]",
       "estrategia": "1. Acción concreta con hito de alerta temprana. 2. Acción de nivelación pedagógica. 3. Evaluación formativa vinculada al cronograma institucional.",
@@ -266,8 +266,8 @@ Estructura de respuesta en JSON:
     {
       "nombre": "Nombre del trabajador",
       "cargo": "Cargo",
-      "categoria": "Categoría asignada (ej. Categoría 1 o Categoría 3)",
-      "tema": "Tema o ámbito de acción",
+      "categoria": "Desarrollo académico y aprendizaje | Gestión y administración escolar | Desarrollo socioemocional y prevención de la violencia en la escuela",
+      "tema": "Tema o ámbito oficial específico según la categoría",
       "meta_individual": "Meta SMART individual para este tema",
       "estrategia": "Acciones concretas",
       "entregable": "Informe o producto entregable",

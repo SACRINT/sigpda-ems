@@ -5,6 +5,11 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { SchoolZoneContextResponse } from '@/lib/zone-sync-service';
 import { useAssistant } from '@/components/assistant';
+import {
+  PMC_CATEGORIAS_OFICIALES,
+  normalizePmcCategoria,
+  normalizePmcTema,
+} from '@/lib/constants/pmc-categorias';
 
 
 const PMC_DRAFT_KEY = 'didactica_pmc_draft';
@@ -156,40 +161,19 @@ const CATEGORIAS_OFICIALES = [
     id: '1',
     nombre: 'Categoría 1: Desarrollo académico y aprendizaje',
     color: '#1a4a7a',
-    temas: [
-      'Formación y actualización docente',
-      'Propuestas pedagógicas',
-      'Trabajo colegiado',
-      'Proyecto Escolar Comunitario (PEC)',
-      'Movimiento Nacional por la Alfabetización y la Educación (MONAE)',
-      'Clubes de lectura',
-      'Indicadores académicos (reprobación, eficiencia terminal y abandono escolar)',
-      'Orientación y Tutoría',
-      'Planeación didáctica',
-      'Otras actividades académicas (proyectos escolares)',
-    ],
+    temas: [...PMC_CATEGORIAS_OFICIALES[0].temas],
   },
   {
     id: '2',
     nombre: 'Categoría 2: Gestión y administración escolar',
     color: '#2d6a2d',
-    temas: [
-      'Vinculación con instituciones educativas',
-      'Vinculación con empresas, fundaciones e instituciones públicas',
-      'Gestión y administración de recursos, equipamiento y servicios',
-      'Seguimiento al desempeño docente en el aula',
-      'Seguimiento de egresados',
-    ],
+    temas: [...PMC_CATEGORIAS_OFICIALES[1].temas],
   },
   {
     id: '3',
-    nombre: 'Categoría 3: Desarrollo socioemocional y prevención de la violencia',
+    nombre: 'Categoría 3: Desarrollo socioemocional y prevención de la violencia en la escuela',
     color: '#7a1a1a',
-    temas: [
-      'Ámbitos de formación socioemocional (Currículum Ampliado)',
-      'Estrategias, programas y/o proyectos sobre violencia',
-      'Orientación educativa',
-    ],
+    temas: [...PMC_CATEGORIAS_OFICIALES[2].temas],
   },
 ];
 
@@ -447,9 +431,24 @@ interface PaecProjectForPmc {
       const normalizedStaff = parsedPmcData.staffData.map(s => ({
         ...s,
         metas_individuales: (s.metas_individuales && s.metas_individuales.length > 0)
-          ? s.metas_individuales
+          ? s.metas_individuales.map(m => {
+              const catNorm = normalizePmcCategoria(m.categoria);
+              const temaNorm = normalizePmcTema(m.tema, catNorm);
+              return {
+                ...m,
+                categoria: catNorm,
+                tema: temaNorm,
+              };
+            })
           : s.meta_individual
-            ? [{ categoria: '', tema: '', meta: s.meta_individual, estrategia: '', entregable: '', periodo: '' }]
+            ? [{
+                categoria: PMC_CATEGORIAS_OFICIALES[0].nombre,
+                tema: PMC_CATEGORIAS_OFICIALES[0].temas[0],
+                meta: s.meta_individual,
+                estrategia: '',
+                entregable: '',
+                periodo: `agosto ${cicloEscolar.split('-')[0] || '2026'} - junio ${cicloEscolar.split('-')[1] || '2027'}`,
+              }]
             : [],
       }));
       setStaffData(normalizedStaff);
@@ -466,10 +465,15 @@ interface PaecProjectForPmc {
       const ind = parsedPmcData.indicadores;
       setIndicadores(prev => ({
         ...prev,
-        aprobacion_ant: ind.aprobacion_ant !== undefined ? Number(ind.aprobacion_ant) : prev.aprobacion_ant,
-        reprobacion_ant: ind.reprobacion_ant !== undefined ? Number(ind.reprobacion_ant) : prev.reprobacion_ant,
-        abandono_ant: ind.abandono_ant !== undefined ? Number(ind.abandono_ant) : prev.abandono_ant,
-        et_ant: ind.et_ant !== undefined ? Number(ind.et_ant) : prev.et_ant,
+        matricula: (ind.matricula !== undefined && ind.matricula !== null) ? Number(ind.matricula) : prev.matricula,
+        aprobacion_ant: (ind.aprobacion_ant !== undefined && ind.aprobacion_ant !== null) ? Number(ind.aprobacion_ant) : prev.aprobacion_ant,
+        aprobacion_meta: (ind.aprobacion_meta !== undefined && ind.aprobacion_meta !== null) ? Number(ind.aprobacion_meta) : prev.aprobacion_meta,
+        reprobacion_ant: (ind.reprobacion_ant !== undefined && ind.reprobacion_ant !== null) ? Number(ind.reprobacion_ant) : prev.reprobacion_ant,
+        reprobacion_meta: (ind.reprobacion_meta !== undefined && ind.reprobacion_meta !== null) ? Number(ind.reprobacion_meta) : prev.reprobacion_meta,
+        abandono_ant: (ind.abandono_ant !== undefined && ind.abandono_ant !== null) ? Number(ind.abandono_ant) : prev.abandono_ant,
+        abandono_meta: (ind.abandono_meta !== undefined && ind.abandono_meta !== null) ? Number(ind.abandono_meta) : prev.abandono_meta,
+        et_ant: (ind.et_ant !== undefined && ind.et_ant !== null) ? Number(ind.et_ant) : prev.et_ant,
+        et_meta: (ind.et_meta !== undefined && ind.et_meta !== null) ? Number(ind.et_meta) : prev.et_meta,
       }));
     }
 
@@ -499,12 +503,22 @@ interface PaecProjectForPmc {
       if (!res.ok || !json.success) throw new Error(json.error || 'Error al analizar el F11.');
       if (json.data?.schoolName && !schoolName) setSchoolName(json.data.schoolName);
       if (json.data?.schoolCct && !schoolCct) setSchoolCct(json.data.schoolCct);
-      if (json.data?.promedioGeneral) {
-        setIndicadores(p => ({
-          ...p,
-          aprobacion_ant: json.data.aprobadosPorcentaje ?? p.aprobacion_ant,
-          reprobacion_ant: json.data.reprobadosPorcentaje ?? p.reprobacion_ant,
-        }));
+
+      if (json.data?.aprobadosPorcentaje !== undefined || json.data?.reprobadosPorcentaje !== undefined || json.data?.promedioGeneral !== undefined) {
+        setIndicadores(p => {
+          const aprobAnt = json.data?.aprobadosPorcentaje !== undefined ? Number(json.data.aprobadosPorcentaje) : p.aprobacion_ant;
+          const reprobAnt = json.data?.reprobadosPorcentaje !== undefined ? Number(json.data.reprobadosPorcentaje) : p.reprobacion_ant;
+          const aprobMeta = p.aprobacion_meta || (aprobAnt ? Math.min(100, Math.round((aprobAnt + 2) * 10) / 10) : undefined);
+          const reprobMeta = p.reprobacion_meta || (reprobAnt ? Math.max(0, Math.round((reprobAnt - 2) * 10) / 10) : undefined);
+          return {
+            ...p,
+            aprobacion_ant: aprobAnt,
+            reprobacion_ant: reprobAnt,
+            aprobacion_meta: aprobMeta,
+            reprobacion_meta: reprobMeta,
+            matricula: p.matricula || (json.data?.totalAlumnos ? Number(json.data.totalAlumnos) : undefined),
+          };
+        });
       }
 
       // H-005: Enlazar asignaturas críticas detectadas en F11 al FODA
@@ -555,21 +569,31 @@ interface PaecProjectForPmc {
       if (json.data?.schoolCct && !schoolCct) setSchoolCct(json.data.schoolCct);
 
       if (momento === 'fin_anterior') {
-        setIndicadores(p => ({
-          ...p,
-          matricula: json.data?.matricula ?? p.matricula,
-          abandono_ant: json.data?.abandonoPorcentaje ?? p.abandono_ant,
-          et_ant: json.data?.eficienciaTerminal ?? p.et_ant,
-          reprobacion_ant: json.data?.reprobacionPorcentaje ?? p.reprobacion_ant,
-          aprobacion_ant: json.data?.aprobacionPorcentaje ?? p.aprobacion_ant,
-        }));
+        setIndicadores(p => {
+          const abandonoAnt = json.data?.abandonoPorcentaje !== undefined ? Number(json.data.abandonoPorcentaje) : p.abandono_ant;
+          const etAnt = json.data?.eficienciaTerminal !== undefined ? Number(json.data.eficienciaTerminal) : p.et_ant;
+          const reprobAnt = json.data?.reprobacionPorcentaje !== undefined ? Number(json.data.reprobacionPorcentaje) : p.reprobacion_ant;
+          const aprobAnt = json.data?.aprobacionPorcentaje !== undefined ? Number(json.data.aprobacionPorcentaje) : p.aprobacion_ant;
+          return {
+            ...p,
+            matricula: json.data?.matricula ? Number(json.data.matricula) : p.matricula,
+            abandono_ant: abandonoAnt,
+            abandono_meta: p.abandono_meta || (abandonoAnt ? Math.max(0, Math.round((abandonoAnt - 1.5) * 10) / 10) : undefined),
+            et_ant: etAnt,
+            et_meta: p.et_meta || (etAnt ? Math.min(100, Math.round((etAnt + 2) * 10) / 10) : undefined),
+            reprobacion_ant: reprobAnt,
+            reprobacion_meta: p.reprobacion_meta || (reprobAnt ? Math.max(0, Math.round((reprobAnt - 2) * 10) / 10) : undefined),
+            aprobacion_ant: aprobAnt,
+            aprobacion_meta: p.aprobacion_meta || (aprobAnt ? Math.min(100, Math.round((aprobAnt + 2) * 10) / 10) : undefined),
+          };
+        });
         if (json.data?.totalDocentes) setTotalStaff(json.data.totalDocentes);
         setDocsStatus(p => ({ ...p, n911FinAnt: true }));
         setSuccessBanner(`✓ 911 (Fin Ciclo Anterior) cargada: Abandono ${json.data?.abandonoPorcentaje || '?'}%, Eficiencia Terminal ${json.data?.eficienciaTerminal || '?'}%`);
       } else if (momento === 'inicio_actual') {
         setIndicadores(p => ({
           ...p,
-          matricula: json.data?.matricula ?? p.matricula,
+          matricula: json.data?.matricula ? Number(json.data.matricula) : p.matricula,
         }));
         if (json.data?.totalDocentes) setTotalStaff(json.data.totalDocentes);
         setDocsStatus(p => ({ ...p, n911IniAct: true }));
@@ -578,7 +602,7 @@ interface PaecProjectForPmc {
         // inicio_anterior
         setIndicadores(p => ({
           ...p,
-          matricula: p.matricula || json.data?.matricula,
+          matricula: p.matricula || (json.data?.matricula ? Number(json.data.matricula) : undefined),
         }));
         setDocsStatus(p => ({ ...p, n911IniAnt: true }));
         setSuccessBanner(`✓ 911 (Inicio Ciclo Anterior) cargada: Matrícula inicial de ${json.data?.matricula || '?'} alumnos`);
@@ -996,7 +1020,7 @@ interface PaecProjectForPmc {
                 >
                   {uploadingF11 ? '⏳ Analizando F11...' : `📊 F11 (Fin Ciclo Anterior)${docsStatus.f11 ? ' ✓' : ''}`}
                 </button>
-                <input ref={fileInputF11Ref} type="file" accept=".pdf,.docx,.doc" style={{ display: 'none' }} onChange={handleUploadF11} />
+                <input ref={fileInputF11Ref} type="file" accept=".pdf,.docx,.doc,.jpg,.jpeg,.png,.webp,image/*" style={{ display: 'none' }} onChange={handleUploadF11} />
 
                 <button
                   type="button"
@@ -1042,7 +1066,7 @@ interface PaecProjectForPmc {
                 >
                   {uploading911 && activeMomento911 === 'inicio_actual' ? '⏳...' : `📈 911 (Inicio Ciclo Act.)${docsStatus.n911IniAct ? ' ✓' : ''}`}
                 </button>
-                <input ref={fileInput911Ref} type="file" accept=".pdf,.docx,.doc" style={{ display: 'none' }} onChange={handleUpload911} />
+                <input ref={fileInput911Ref} type="file" accept=".pdf,.docx,.doc,.jpg,.jpeg,.png,.webp,image/*" style={{ display: 'none' }} onChange={handleUpload911} />
 
                 <button
                   type="button"
@@ -1058,7 +1082,7 @@ interface PaecProjectForPmc {
                 >
                   {uploadingPmc ? '⏳ Analizando...' : `📄 Cargar PMC Anterior${docsStatus.pmcAnt ? ' ✓' : ''}`}
                 </button>
-                <input ref={fileInputPmcRef} type="file" accept=".pdf,.docx,.doc" style={{ display: 'none' }} onChange={handleUploadPreviousPmc} />
+                <input ref={fileInputPmcRef} type="file" accept=".pdf,.docx,.doc,.jpg,.jpeg,.png,.webp,image/*" style={{ display: 'none' }} onChange={handleUploadPreviousPmc} />
               </div>
             </div>
 
@@ -1203,107 +1227,131 @@ interface PaecProjectForPmc {
                       <label style={labelStyle}>Metas individuales para el ciclo {cicloEscolar} (opcional — si no defines las metas la IA las generará)</label>
                       {(member.metas_individuales && member.metas_individuales.length > 0) ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '10px' }}>
-                          {member.metas_individuales.map((meta, mIdx) => (
-                            <div key={mIdx} style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: '8px', padding: '12px', fontSize: '12px' }}>
-                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
-                                <div>
-                                  <label style={{ fontSize: '10.5px', color: '#a5b4fc', fontWeight: 600, display: 'block', marginBottom: '2px' }}>Categoría / Ámbito</label>
-                                  <input
-                                    type="text"
-                                    style={{ ...inputStyle, padding: '5px 8px', fontSize: '11.5px' }}
-                                    value={meta.categoria || ''}
-                                    onChange={e => {
+                          {member.metas_individuales.map((meta, mIdx) => {
+                            const catNorm = normalizePmcCategoria(meta.categoria);
+                            const catObj = PMC_CATEGORIAS_OFICIALES.find(c => c.nombre === catNorm) || PMC_CATEGORIAS_OFICIALES[0];
+                            const isKnownTema = catObj.temas.includes(meta.tema);
+
+                            return (
+                              <div key={mIdx} style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: '8px', padding: '12px', fontSize: '12px' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr auto', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+                                  <div>
+                                    <label style={{ fontSize: '10.5px', color: '#a5b4fc', fontWeight: 600, display: 'block', marginBottom: '2px' }}>Categoría Oficial (Cuadro 2 Lineamientos)</label>
+                                    <select
+                                      style={{ ...inputStyle, padding: '5px 8px', fontSize: '11.5px', cursor: 'pointer' }}
+                                      value={catNorm}
+                                      onChange={e => {
+                                        const newCat = e.target.value;
+                                        const newCatObj = PMC_CATEGORIAS_OFICIALES.find(c => c.nombre === newCat) || PMC_CATEGORIAS_OFICIALES[0];
+                                        const copy = [...staffData];
+                                        const metas = [...(copy[idx].metas_individuales || [])];
+                                        const currentTema = metas[mIdx]?.tema || '';
+                                        const newTema = newCatObj.temas.includes(currentTema) ? currentTema : newCatObj.temas[0];
+                                        metas[mIdx] = { ...metas[mIdx], categoria: newCat, tema: newTema };
+                                        copy[idx] = { ...copy[idx], metas_individuales: metas };
+                                        setStaffData(copy);
+                                      }}
+                                    >
+                                      {PMC_CATEGORIAS_OFICIALES.map(cat => (
+                                        <option key={cat.id} value={cat.nombre} style={{ background: '#1e1b4b', color: '#f0f4ff' }}>
+                                          {cat.numero}. {cat.nombre}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label style={{ fontSize: '10.5px', color: '#a5b4fc', fontWeight: 600, display: 'block', marginBottom: '2px' }}>Ámbito / Tema Específico</label>
+                                    <select
+                                      style={{ ...inputStyle, padding: '5px 8px', fontSize: '11.5px', cursor: 'pointer' }}
+                                      value={isKnownTema ? meta.tema : (meta.tema ? '__custom__' : catObj.temas[0])}
+                                      onChange={e => {
+                                        const val = e.target.value;
+                                        const copy = [...staffData];
+                                        const metas = [...(copy[idx].metas_individuales || [])];
+                                        metas[mIdx] = { ...metas[mIdx], tema: val === '__custom__' ? (meta.tema || '') : val };
+                                        copy[idx] = { ...copy[idx], metas_individuales: metas };
+                                        setStaffData(copy);
+                                      }}
+                                    >
+                                      {catObj.temas.map(t => (
+                                        <option key={t} value={t} style={{ background: '#1e1b4b', color: '#f0f4ff' }}>
+                                          {t}
+                                        </option>
+                                      ))}
+                                      {!isKnownTema && meta.tema && (
+                                        <option value="__custom__" style={{ background: '#1e1b4b', color: '#f0f4ff' }}>
+                                          Otro: {meta.tema}
+                                        </option>
+                                      )}
+                                    </select>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    title="Eliminar esta meta"
+                                    onClick={() => {
                                       const copy = [...staffData];
                                       const metas = [...(copy[idx].metas_individuales || [])];
-                                      metas[mIdx] = { ...metas[mIdx], categoria: e.target.value };
+                                      metas.splice(mIdx, 1);
                                       copy[idx] = { ...copy[idx], metas_individuales: metas };
                                       setStaffData(copy);
                                     }}
-                                    placeholder="Ej. Categoría 1 o Formación Docente"
-                                  />
+                                    style={{ background: 'rgba(244,63,94,0.2)', border: 'none', color: '#fb7185', cursor: 'pointer', fontSize: '12px', padding: '6px 10px', borderRadius: '4px', alignSelf: 'flex-end', height: '32px' }}
+                                  >
+                                    ✕
+                                  </button>
                                 </div>
-                                <div>
-                                  <label style={{ fontSize: '10.5px', color: '#a5b4fc', fontWeight: 600, display: 'block', marginBottom: '2px' }}>Tema Específico</label>
-                                  <input
-                                    type="text"
-                                    style={{ ...inputStyle, padding: '5px 8px', fontSize: '11.5px' }}
-                                    value={meta.tema || ''}
+                                <div style={{ marginBottom: '8px' }}>
+                                  <label style={{ fontSize: '10.5px', color: '#cbd5e1', fontWeight: 600, display: 'block', marginBottom: '2px' }}>Redacción de la Meta Individual</label>
+                                  <textarea
+                                    style={{ ...inputStyle, minHeight: '50px', resize: 'vertical', fontSize: '12px', padding: '6px 8px' }}
+                                    value={meta.meta || ''}
                                     onChange={e => {
                                       const copy = [...staffData];
                                       const metas = [...(copy[idx].metas_individuales || [])];
-                                      metas[mIdx] = { ...metas[mIdx], tema: e.target.value };
+                                      metas[mIdx] = { ...metas[mIdx], meta: e.target.value };
                                       copy[idx] = { ...copy[idx], metas_individuales: metas };
                                       setStaffData(copy);
                                     }}
-                                    placeholder="Ej. Cursos COSFAC, Tutorías, etc."
+                                    placeholder="Ej: Acreditar 2 cursos de formación docente COSFAC con calificación aprobatoria..."
                                   />
                                 </div>
-                                <button
-                                  type="button"
-                                  title="Eliminar esta meta"
-                                  onClick={() => {
-                                    const copy = [...staffData];
-                                    const metas = [...(copy[idx].metas_individuales || [])];
-                                    metas.splice(mIdx, 1);
-                                    copy[idx] = { ...copy[idx], metas_individuales: metas };
-                                    setStaffData(copy);
-                                  }}
-                                  style={{ background: 'rgba(244,63,94,0.2)', border: 'none', color: '#fb7185', cursor: 'pointer', fontSize: '12px', padding: '6px 10px', borderRadius: '4px', alignSelf: 'flex-end', height: '32px' }}
-                                >
-                                  ✕
-                                </button>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                  <div>
+                                    <label style={{ fontSize: '10px', color: 'rgba(240,244,255,0.6)', display: 'block', marginBottom: '2px' }}>Estrategia / Acciones (opcional)</label>
+                                    <input
+                                      type="text"
+                                      style={{ ...inputStyle, padding: '4px 8px', fontSize: '11px' }}
+                                      value={meta.estrategia || ''}
+                                      onChange={e => {
+                                        const copy = [...staffData];
+                                        const metas = [...(copy[idx].metas_individuales || [])];
+                                        metas[mIdx] = { ...metas[mIdx], estrategia: e.target.value };
+                                        copy[idx] = { ...copy[idx], metas_individuales: metas };
+                                        setStaffData(copy);
+                                      }}
+                                      placeholder="Ej. Inscripción y seguimiento en plataforma"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label style={{ fontSize: '10px', color: 'rgba(240,244,255,0.6)', display: 'block', marginBottom: '2px' }}>Entregable / Evidencia (opcional)</label>
+                                    <input
+                                      type="text"
+                                      style={{ ...inputStyle, padding: '4px 8px', fontSize: '11px' }}
+                                      value={meta.entregable || ''}
+                                      onChange={e => {
+                                        const copy = [...staffData];
+                                        const metas = [...(copy[idx].metas_individuales || [])];
+                                        metas[mIdx] = { ...metas[mIdx], entregable: e.target.value };
+                                        copy[idx] = { ...copy[idx], metas_individuales: metas };
+                                        setStaffData(copy);
+                                      }}
+                                      placeholder="Ej. Constancias COSFAC"
+                                    />
+                                  </div>
+                                </div>
                               </div>
-                              <div style={{ marginBottom: '8px' }}>
-                                <label style={{ fontSize: '10.5px', color: '#cbd5e1', fontWeight: 600, display: 'block', marginBottom: '2px' }}>Redacción de la Meta Individual</label>
-                                <textarea
-                                  style={{ ...inputStyle, minHeight: '50px', resize: 'vertical', fontSize: '12px', padding: '6px 8px' }}
-                                  value={meta.meta || ''}
-                                  onChange={e => {
-                                    const copy = [...staffData];
-                                    const metas = [...(copy[idx].metas_individuales || [])];
-                                    metas[mIdx] = { ...metas[mIdx], meta: e.target.value };
-                                    copy[idx] = { ...copy[idx], metas_individuales: metas };
-                                    setStaffData(copy);
-                                  }}
-                                  placeholder="Ej: Acreditar 2 cursos de formación docente COSFAC con calificación aprobatoria..."
-                                />
-                              </div>
-                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                                <div>
-                                  <label style={{ fontSize: '10px', color: 'rgba(240,244,255,0.6)', display: 'block', marginBottom: '2px' }}>Estrategia / Acciones (opcional)</label>
-                                  <input
-                                    type="text"
-                                    style={{ ...inputStyle, padding: '4px 8px', fontSize: '11px' }}
-                                    value={meta.estrategia || ''}
-                                    onChange={e => {
-                                      const copy = [...staffData];
-                                      const metas = [...(copy[idx].metas_individuales || [])];
-                                      metas[mIdx] = { ...metas[mIdx], estrategia: e.target.value };
-                                      copy[idx] = { ...copy[idx], metas_individuales: metas };
-                                      setStaffData(copy);
-                                    }}
-                                    placeholder="Ej. Inscripción y seguimiento en plataforma"
-                                  />
-                                </div>
-                                <div>
-                                  <label style={{ fontSize: '10px', color: 'rgba(240,244,255,0.6)', display: 'block', marginBottom: '2px' }}>Entregable / Evidencia (opcional)</label>
-                                  <input
-                                    type="text"
-                                    style={{ ...inputStyle, padding: '4px 8px', fontSize: '11px' }}
-                                    value={meta.entregable || ''}
-                                    onChange={e => {
-                                      const copy = [...staffData];
-                                      const metas = [...(copy[idx].metas_individuales || [])];
-                                      metas[mIdx] = { ...metas[mIdx], entregable: e.target.value };
-                                      copy[idx] = { ...copy[idx], metas_individuales: metas };
-                                      setStaffData(copy);
-                                    }}
-                                    placeholder="Ej. Constancias COSFAC"
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       ) : (
                         <div style={{ fontSize: '12px', color: 'rgba(240,244,255,0.4)', fontStyle: 'italic', marginBottom: '8px' }}>
@@ -1315,7 +1363,14 @@ interface PaecProjectForPmc {
                         onClick={() => {
                           const copy = [...staffData];
                           const metas = [...(copy[idx].metas_individuales || [])];
-                          metas.push({ categoria: '', tema: '', meta: '', estrategia: '', entregable: '', periodo: `agosto ${cicloEscolar.split('-')[0] || '2026'} - junio ${cicloEscolar.split('-')[1] || '2027'}` });
+                          metas.push({
+                            categoria: PMC_CATEGORIAS_OFICIALES[0].nombre,
+                            tema: PMC_CATEGORIAS_OFICIALES[0].temas[0],
+                            meta: '',
+                            estrategia: '',
+                            entregable: '',
+                            periodo: `agosto ${cicloEscolar.split('-')[0] || '2026'} - junio ${cicloEscolar.split('-')[1] || '2027'}`,
+                          });
                           copy[idx] = { ...copy[idx], metas_individuales: metas };
                           setStaffData(copy);
                         }}
@@ -1504,29 +1559,37 @@ interface PaecProjectForPmc {
 
             {/* Indicadores académicos */}
             <div style={sectionCard}>
-              <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#818cf8', marginBottom: '12px' }}>📊 Indicadores Académicos</h3>
-              <p style={{ fontSize: '13px', color: 'var(--c-text-muted)', marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#818cf8', marginBottom: '8px' }}>📊 Indicadores Académicos</h3>
+              <p style={{ fontSize: '13px', color: 'var(--c-text-muted)', marginBottom: '8px' }}>
                 Ingresa los datos del ciclo anterior y tus metas para el ciclo {cicloEscolar}. Estos datos son obligatorios para el diagnóstico cuantitativo.
               </p>
+              <div style={{ background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.25)', borderRadius: '6px', padding: '8px 12px', fontSize: '11.5px', color: '#7dd3fc', marginBottom: '14px' }}>
+                💡 <strong>Extracción Automática:</strong> Al subir tu <strong>F11</strong> (aprobación/reprobación) y <strong>Estadística 911</strong> (abandono, eficiencia terminal y matrícula), ya sea en <strong>PDF, Word o Fotografía/Imagen</strong>, la plataforma los calcula y pre-llena automáticamente.
+              </div>
 
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                   <thead>
                     <tr style={{ background: 'rgba(99,102,241,0.25)', color: '#f0f4ff' }}>
-                      <th style={{ padding: '10px 12px', textAlign: 'left', width: '30%' }}>Indicador</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'left', width: '38%' }}>Indicador</th>
                       <th style={{ padding: '10px 12px', textAlign: 'center' }}>% Ciclo Anterior</th>
                       <th style={{ padding: '10px 12px', textAlign: 'center' }}>% Meta {cicloEscolar}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {[
-                      { label: 'Aprobación', antKey: 'aprobacion_ant' as const, metaKey: 'aprobacion_meta' as const },
-                      { label: 'Reprobación', antKey: 'reprobacion_ant' as const, metaKey: 'reprobacion_meta' as const },
-                      { label: 'Abandono escolar / Deserción', antKey: 'abandono_ant' as const, metaKey: 'abandono_meta' as const },
-                      { label: 'Eficiencia terminal', antKey: 'et_ant' as const, metaKey: 'et_meta' as const },
+                      { label: 'Aprobación', fuente: 'F11', antKey: 'aprobacion_ant' as const, metaKey: 'aprobacion_meta' as const },
+                      { label: 'Reprobación', fuente: 'F11', antKey: 'reprobacion_ant' as const, metaKey: 'reprobacion_meta' as const },
+                      { label: 'Abandono escolar / Deserción', fuente: '911 Fin', antKey: 'abandono_ant' as const, metaKey: 'abandono_meta' as const },
+                      { label: 'Eficiencia terminal', fuente: '911 Fin', antKey: 'et_ant' as const, metaKey: 'et_meta' as const },
                     ].map((row, i) => (
                       <tr key={row.label} style={{ background: i % 2 === 0 ? 'rgba(255,255,255,0.025)' : 'rgba(99,102,241,0.06)' }}>
-                        <td style={{ padding: '8px 12px', fontWeight: 600 }}>{row.label}</td>
+                        <td style={{ padding: '8px 12px' }}>
+                          <span style={{ fontWeight: 600 }}>{row.label}</span>
+                          <span style={{ marginLeft: '6px', fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: row.fuente === 'F11' ? 'rgba(14,165,233,0.2)' : 'rgba(245,158,11,0.2)', color: row.fuente === 'F11' ? '#7dd3fc' : '#fcd34d', border: `1px solid ${row.fuente === 'F11' ? 'rgba(14,165,233,0.3)' : 'rgba(245,158,11,0.3)'}` }}>
+                            {row.fuente}
+                          </span>
+                        </td>
                         <td style={{ padding: '8px 12px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
                             <input
@@ -1557,7 +1620,12 @@ interface PaecProjectForPmc {
                 </table>
               </div>
               <div style={{ marginTop: '12px' }}>
-                <label style={labelStyle}>Matrícula total del plantel (alumnos)</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <label style={{ ...labelStyle, marginBottom: 0 }}>Matrícula total del plantel (alumnos)</label>
+                  <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'rgba(16,185,129,0.2)', color: '#6ee7b7', border: '1px solid rgba(16,185,129,0.3)' }}>
+                    911 Inicio
+                  </span>
+                </div>
                 <input
                   type="number" min={1}
                   style={{ ...inputStyle, width: '160px' }}
