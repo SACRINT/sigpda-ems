@@ -58,6 +58,8 @@ interface StaffMember {
   cargo: string;
   meta_individual?: string;
   metas_individuales?: MetaIndividual[];
+  asignaturas?: string;
+  grupos?: string;
 }
 
 interface IndicadoresAcademicos {
@@ -323,10 +325,18 @@ interface F11ResponseDTO {
   schoolName?: string;
   schoolCct?: string;
   totalAlumnos?: number;
+  totalDocentes?: number;
+  totalGrupos?: number;
   promedioGeneral?: number;
   aprobadosPorcentaje?: number;
   reprobadosPorcentaje?: number;
   promediosPorAsignatura?: Record<string, number>;
+  docentesPorAsignatura?: Array<{
+    asignatura?: string;
+    docente?: string;
+    grupos?: string;
+    promedio?: number;
+  }>;
   [key: string]: unknown;
 }
 
@@ -524,8 +534,20 @@ interface PaecProjectForPmc {
               }]
             : [],
       }));
-      setStaffData(normalizedStaff);
-      setTotalStaff(normalizedStaff.length);
+
+      const isCurrentStaffEmpty = staffData.length === 0 || (staffData.length === 1 && !staffData[0].nombre.trim());
+      if (isCurrentStaffEmpty) {
+        setStaffData(normalizedStaff);
+        setTotalStaff(normalizedStaff.length);
+      } else {
+        // Complementar la plantilla existente con nuevos participantes que no estén repetidos
+        const existingNames = new Set(staffData.map(s => s.nombre.toLowerCase().trim()));
+        const toAdd = normalizedStaff.filter(s => s.nombre.trim() && !existingNames.has(s.nombre.toLowerCase().trim()));
+        if (toAdd.length > 0) {
+          setStaffData(prev => [...prev, ...toAdd]);
+          setTotalStaff(prev => prev + toAdd.length);
+        }
+      }
     } else if (parsedPmcData.totalStaff) {
       setTotalStaff(Number(parsedPmcData.totalStaff) || 0);
     }
@@ -655,6 +677,44 @@ interface PaecProjectForPmc {
             }));
           }
         }
+      }
+
+      // C9: Poblar plantilla docente desde F11.docentesPorAsignatura (docentes únicos) si staffData está vacío
+      const isStaffEmpty = staffData.length === 0 || (staffData.length === 1 && !staffData[0].nombre.trim());
+      if (isStaffEmpty && Array.isArray(json.data?.docentesPorAsignatura) && json.data.docentesPorAsignatura.length > 0) {
+        const docentesMap = new Map<string, { asignaturas: string[]; grupos: string[] }>();
+        for (const item of json.data.docentesPorAsignatura) {
+          const rawName = item.docente?.trim();
+          if (rawName && !['sin asignar', 'vacante', 'por asignar'].includes(rawName.toLowerCase())) {
+            if (!docentesMap.has(rawName)) {
+              docentesMap.set(rawName, { asignaturas: [], grupos: [] });
+            }
+            const entry = docentesMap.get(rawName)!;
+            if (item.asignatura && !entry.asignaturas.includes(item.asignatura)) {
+              entry.asignaturas.push(item.asignatura);
+            }
+            if (item.grupos && !entry.grupos.includes(item.grupos)) {
+              entry.grupos.push(item.grupos);
+            }
+          }
+        }
+
+        if (docentesMap.size > 0) {
+          const autoStaff: StaffMember[] = Array.from(docentesMap.entries()).map(([nombre, meta]) => ({
+            nombre,
+            cargo: 'Docente',
+            meta_individual: '',
+            metas_individuales: [],
+            asignaturas: meta.asignaturas.join(', '),
+            grupos: meta.grupos.join(', '),
+          }));
+          setStaffData(autoStaff);
+          setTotalStaff(autoStaff.length);
+        } else if (json.data.totalDocentes && Number(json.data.totalDocentes) > 0) {
+          setTotalStaff(Number(json.data.totalDocentes));
+        }
+      } else if (isStaffEmpty && json.data?.totalDocentes && Number(json.data.totalDocentes) > 0) {
+        setTotalStaff(Number(json.data.totalDocentes));
       }
 
       setDocsStatus(p => ({ ...p, f11: true }));
