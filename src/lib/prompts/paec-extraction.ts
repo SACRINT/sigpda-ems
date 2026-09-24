@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { nullableString } from './zod-helpers';
 
 /**
  * Specialized prompts and schemas for extracting structured PAEC data from previous documents (PDF / Word DOCX).
@@ -6,25 +7,25 @@ import { z } from 'zod';
  */
 
 export const PaecPreviousExtractSchema = z.object({
-  projectName: z.string().optional().default(''),
-  problemStatement: z.string().optional().default(''),
+  projectName: nullableString(),
+  problemStatement: nullableString(),
   cycleType: z.enum(['A', 'B', 'annual']).catch('A'),
   schoolType: z.enum(['general', 'tecnico', 'telesecundaria', 'indigena']).catch('general'),
   school: z.object({
-    schoolName: z.string().optional().default(''),
-    cct: z.string().optional().default(''),
-    municipality: z.string().optional().default(''),
-    locality: z.string().optional().default(''),
-    schoolZone: z.string().optional().default(''),
-    directorName: z.string().optional().default(''),
-    supervisorName: z.string().optional().default(''),
+    schoolName: nullableString(),
+    cct: nullableString(),
+    municipality: nullableString(),
+    locality: nullableString(),
+    schoolZone: nullableString(),
+    directorName: nullableString(),
+    supervisorName: nullableString(),
   }).partial().optional().default({}),
   community: z.object({
-    context: z.string().optional().default(''),
-    location: z.string().optional().default(''),
-    problematics: z.string().optional().default(''),
-    economicActivities: z.string().optional().default(''),
-    culturalAspects: z.string().optional().default(''),
+    context: nullableString(),
+    location: nullableString(),
+    problematics: nullableString(),
+    economicActivities: nullableString(),
+    culturalAspects: nullableString(),
   }).partial().optional().default({}),
   selectedLaboral: z.array(z.string()).optional().default([]),
   selectedFfe: z.array(z.string()).optional().default([]),
@@ -78,5 +79,5 @@ REGLAS DE EXTRACCIÓN:
 1. Extrae el nombre del proyecto y la problemática de forma íntegra y fidedigna al texto.
 2. Si se mencionan datos del plantel (CCT, Director, Zona, Municipio), asígnalos en el objeto "school".
 3. Si el texto detalla el diagnóstico comunitario o el contexto territorial, sintetiza con fidelidad en el objeto "community".
-4. Si un dato no se encuentra en el texto, coloca una cadena vacía "" o arreglo vacío [].`;
+4. Si un dato no se encuentra en el texto, coloca una cadena vacía "" o arreglo vacío []. NUNCA uses null ni omitas claves.`;
 }

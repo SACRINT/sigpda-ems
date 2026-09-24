@@ -1,4 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { z } from 'zod';
+import { nullableString } from './prompts/zod-helpers';
 
 // ============================================================================
 // 1. SECUENCIA DIDÁCTICA SCHEMAS
@@ -502,12 +504,12 @@ const PmcMetaInstitucionalSchema = z.object({
 const PmcMetaPersonalSchema = z.object({
   nombre: z.string().min(1, 'Nombre del personal requerido'),
   cargo: z.string().min(1, 'Cargo del personal requerido'),
-  categoria: z.string().optional().default(''),
-  tema: z.string().optional().default(''),
-  meta_individual: z.string().optional().default(''),
-  estrategia: z.string().optional().default(''),
-  entregable: z.string().optional().default(''),
-  periodo: z.string().default(''),
+  categoria: nullableString(),
+  tema: nullableString(),
+  meta_individual: nullableString(),
+  estrategia: nullableString(),
+  entregable: nullableString(),
+  periodo: nullableString(),
 });
 
 export const PmcPlanAccionSchema = z.object({
@@ -551,13 +553,13 @@ export const PaecExtractedDocSchema = z.object({
   municipality: z.string().nullable().optional(),
   cct: z.string().nullable().optional(),
   planOperativo: z.array(z.object({
-    asignatura: z.string().default(''),
-    actividad: z.string().default(''),
-    propositoFormativo: z.string().optional().default(''),
-    estrategiaDidactica: z.string().optional().default(''),
-    semana: z.string().optional().default(''),
-    fase: z.string().optional().default(''),
-    progresion: z.string().optional().default(''),
+    asignatura: nullableString(),
+    actividad: nullableString(),
+    propositoFormativo: nullableString(),
+    estrategiaDidactica: nullableString(),
+    semana: nullableString(),
+    fase: nullableString(),
+    progresion: nullableString(),
   })).default([]),
 });
 
