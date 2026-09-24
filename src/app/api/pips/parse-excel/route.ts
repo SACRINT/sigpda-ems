@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { parseCartografiaMatriz } from '@/lib/cartografia-parser';
+import { isFeatureEnabled } from '@/lib/platform/feature-flags';
+import {
+  cartografiaContextProvider,
+  CartografiaContextProviderError,
+} from '@/lib/cartografia/context-provider';
 import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
@@ -39,6 +44,25 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
+    // ── Strangler Fig: si CARTOGRAFIA_ORCHESTRATOR_V2 está activo, delega al context provider ─
+    if (isFeatureEnabled('CARTOGRAFIA_ORCHESTRATOR_V2')) {
+      try {
+        const result = await cartografiaContextProvider.ingestZoneMatrix(buffer, {
+          filename: file.name,
+          zonaNumero,
+          cicloEscolar,
+          linkDbPaec: true,
+        });
+        return NextResponse.json(result);
+      } catch (err: unknown) {
+        if (err instanceof CartografiaContextProviderError) {
+          return NextResponse.json({ error: err.message }, { status: err.status });
+        }
+        throw err;
+      }
+    }
+
+    // ── Flujo Legacy (cuando CARTOGRAFIA_ORCHESTRATOR_V2 = false) ────────────────────
     const result = await parseCartografiaMatriz(buffer, {
       zonaNumero,
       cicloEscolar,
