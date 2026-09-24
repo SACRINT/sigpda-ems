@@ -310,8 +310,8 @@ describe('pmc-docx-generator — Generador de Plan de Mejora Continua e Informes
 
     expect(text).toContain('0.0%');
     expect(text).toContain('100.0%');
-    expect(text).toContain('150 alumnos');
-    expect(text).not.toContain('280 alumnos');
+    expect(text).toContain('150 estudiantes');
+    expect(text).not.toContain('280');
   });
 
   // ── TEST 11: Sección IV con datos completos en informe ──────────────────────
@@ -333,6 +333,6 @@ describe('pmc-docx-generator — Generador de Plan de Mejora Continua e Informes
 
     expect(text).toContain('85.5%');
     expect(text).toContain('92.0%');
-    expect(text).toContain('340 alumnos');
+    expect(text).toContain('340 estudiantes');
   });
 });

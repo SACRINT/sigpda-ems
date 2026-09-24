@@ -14,7 +14,11 @@ import {
   HeadingLevel,
 } from 'docx';
 import { SCHOOL_YEAR } from '@/lib/config';
-import { isRealNumeric } from './pmc-indicator-calculator';
+import {
+  computePmcIndicatorValues,
+  type PmcIndicatorComputedValues,
+  type PmcStatisticalContext,
+} from './pmc-indicator-calculator';
 
 // ─── Color Palette ───────────────────────────────────────────────────────────
 const C = {
@@ -153,6 +157,7 @@ export interface PmcProject {
   total_staff?: number;
   staff_data?: unknown;
   indicadores_academicos?: unknown;
+  statistical_context?: PmcStatisticalContext;
   foda?: unknown;
   categorias_priorizadas?: unknown;
   diagnostico_comunidad?: string;
@@ -392,7 +397,8 @@ function buildDiagnostico(
   diag: DiagnosticoGenerado,
   indic: IndicadoresAcademicos,
   foda: FodaData,
-  categorias: Array<{ id?: string; nombre?: string }>
+  categorias: Array<{ id?: string; nombre?: string }>,
+  statsCtx?: PmcStatisticalContext | null
 ): (Paragraph | Table)[] {
   const items: (Paragraph | Table)[] = [secHeading('II. DIAGNÓSTICO')];
 
@@ -412,6 +418,7 @@ function buildDiagnostico(
 
   // Indicadores table
   items.push(subHeading('2.3 Indicadores Académicos'));
+  const indVals = computePmcIndicatorValues(indic, statsCtx);
   items.push(
     tbl(
       [
@@ -425,35 +432,35 @@ function buildDiagnostico(
         new TableRow({
           children: [
             tc('Índice de Aprobación'),
-            tc(`${indic.aprobacion_ant ?? '—'}%`, { align: AlignmentType.CENTER }),
-            tc(`${indic.aprobacion_meta ?? '—'}%`, { align: AlignmentType.CENTER }),
+            tc(indVals.aprobacion.ant, { align: AlignmentType.CENTER }),
+            tc(indVals.aprobacion.meta, { align: AlignmentType.CENTER }),
           ],
         }),
         new TableRow({
           children: [
             tc('Índice de Reprobación', { fill: C.alt }),
-            tc(`${indic.reprobacion_ant ?? '—'}%`, { align: AlignmentType.CENTER, fill: C.alt }),
-            tc('—', { align: AlignmentType.CENTER, fill: C.alt }),
+            tc(indVals.reprobacion.ant, { align: AlignmentType.CENTER, fill: C.alt }),
+            tc(indVals.reprobacion.meta, { align: AlignmentType.CENTER, fill: C.alt }),
           ],
         }),
         new TableRow({
           children: [
             tc('Abandono Escolar'),
-            tc(`${indic.abandono_ant ?? '—'}%`, { align: AlignmentType.CENTER }),
-            tc(`${indic.abandono_meta ?? '—'}%`, { align: AlignmentType.CENTER }),
+            tc(indVals.abandono.ant, { align: AlignmentType.CENTER }),
+            tc(indVals.abandono.meta, { align: AlignmentType.CENTER }),
           ],
         }),
         new TableRow({
           children: [
             tc('Eficiencia Terminal', { fill: C.alt }),
-            tc(`${indic.et_ant ?? '—'}%`, { align: AlignmentType.CENTER, fill: C.alt }),
-            tc(`${indic.et_meta ?? '—'}%`, { align: AlignmentType.CENTER, fill: C.alt }),
+            tc(indVals.eficiencia.ant, { align: AlignmentType.CENTER, fill: C.alt }),
+            tc(indVals.eficiencia.meta, { align: AlignmentType.CENTER, fill: C.alt }),
           ],
         }),
         new TableRow({
           children: [
             tc('Matrícula Total'),
-            tc(`${indic.matricula ?? '—'} alumnos`, { align: AlignmentType.CENTER, span: 2 }),
+            tc(indVals.matricula.ant, { align: AlignmentType.CENTER, span: 2 }),
           ],
         }),
       ],
@@ -723,6 +730,7 @@ export async function generatePmcDocx(project: PmcProject): Promise<Buffer> {
   const normativa = parseJson<NormativaDoc>(project.normativa);
   const diag = parseJson<DiagnosticoGenerado>(project.diagnostico_generado);
   const indic = parseJson<IndicadoresAcademicos>(project.indicadores_academicos);
+  const statsCtx = parseJson<PmcStatisticalContext>(project.statistical_context);
   const foda = parseJson<FodaData>(project.foda);
   const plan = parseJson<PlanAccion>(project.plan_accion);
   const categorias = parseJson<Array<{ id?: string; nombre?: string }>>(project.categorias_priorizadas);
@@ -731,7 +739,7 @@ export async function generatePmcDocx(project: PmcProject): Promise<Buffer> {
   const children: (Paragraph | Table)[] = [
     ...buildCoverPage(project),
     ...buildNormativa(normativa),
-    ...buildDiagnostico(diag, indic, foda, categoriasArr),
+    ...buildDiagnostico(diag, indic, foda, categoriasArr, statsCtx),
     ...buildPlanAccion(plan),
     ...buildMetasPersonales(plan),
     ...buildControlRevisiones(project),
@@ -1089,26 +1097,8 @@ export async function generatePmcInformeDocx(
   children.push(new Paragraph({ children: [new PageBreak()] }));
   children.push(secHeading('SECCIÓN IV — INDICADORES Y RESULTADOS ACADÉMICOS COMPARATIVOS'));
 
-  const apAnt = isRealNumeric(indic.aprobacion_ant) ? `${Number(indic.aprobacion_ant).toFixed(1)}%` : 'N/D';
-  const repAnt = isRealNumeric(indic.reprobacion_ant) ? `${Number(indic.reprobacion_ant).toFixed(1)}%` : 'N/D';
-  const etAnt = isRealNumeric(indic.et_ant) ? `${Number(indic.et_ant).toFixed(1)}%` : 'N/D';
-  const abAnt = isRealNumeric(indic.abandono_ant) ? `${Number(indic.abandono_ant).toFixed(1)}%` : 'N/D';
-
-  const apMeta = isRealNumeric(indic.aprobacion_meta) ? `${Number(indic.aprobacion_meta).toFixed(1)}%` : 'N/D';
-  const repMeta = isRealNumeric(indic.reprobacion_meta)
-    ? `${Number(indic.reprobacion_meta).toFixed(1)}%`
-    : isRealNumeric(indic.aprobacion_meta)
-      ? `${Math.max(0, 100 - Number(indic.aprobacion_meta)).toFixed(1)}%`
-      : 'N/D';
-  const etMeta = isRealNumeric(indic.et_meta) ? `${Number(indic.et_meta).toFixed(1)}%` : 'N/D';
-  const abMeta = isRealNumeric(indic.abandono_meta) ? `${Number(indic.abandono_meta).toFixed(1)}%` : 'N/D';
-
-  const matAnt = isRealNumeric(indic.matricula) ? `${indic.matricula} alumnos` : 'N/D';
-  const matMeta = isRealNumeric(indic.matricula_meta)
-    ? `${indic.matricula_meta} alumnos`
-    : isRealNumeric(indic.matricula)
-      ? `${indic.matricula} alumnos`
-      : 'N/D';
+  const statsCtx = parseJson<PmcStatisticalContext>(project.statistical_context);
+  const indVals = computePmcIndicatorValues(indic, statsCtx);
 
   children.push(
     tbl(
@@ -1120,11 +1110,11 @@ export async function generatePmcInformeDocx(
             tcH(`CICLO 2025-2026 (${isFinal ? 'Resultados Finales' : 'Avance Parcial'})`),
           ],
         }),
-        new TableRow({ children: [tcSub('Matrícula total de estudiantes'), tc(matAnt), tc(matMeta)] }),
-        new TableRow({ children: [tcSub('Índice de aprobación (%)'), tc(apAnt), tc(apMeta)] }),
-        new TableRow({ children: [tcSub('Índice de reprobación (%)'), tc(repAnt), tc(repMeta)] }),
-        new TableRow({ children: [tcSub('Eficiencia terminal (%)'), tc(etAnt), tc(etMeta)] }),
-        new TableRow({ children: [tcSub('Índice de abandono escolar (%)'), tc(abAnt), tc(abMeta)] }),
+        new TableRow({ children: [tcSub('Matrícula total de estudiantes'), tc(indVals.matricula.ant), tc(indVals.matricula.meta)] }),
+        new TableRow({ children: [tcSub('Índice de aprobación (%)'), tc(indVals.aprobacion.ant), tc(indVals.aprobacion.meta)] }),
+        new TableRow({ children: [tcSub('Índice de reprobación (%)'), tc(indVals.reprobacion.ant), tc(indVals.reprobacion.meta)] }),
+        new TableRow({ children: [tcSub('Eficiencia terminal (%)'), tc(indVals.eficiencia.ant), tc(indVals.eficiencia.meta)] }),
+        new TableRow({ children: [tcSub('Índice de abandono escolar (%)'), tc(indVals.abandono.ant), tc(indVals.abandono.meta)] }),
       ],
       [Math.floor(CONTENT * 0.4), Math.floor(CONTENT * 0.3), Math.floor(CONTENT * 0.3)]
     )
@@ -1374,4 +1364,13 @@ export async function generatePmcInformeDocx(
   });
 
   return Buffer.from(await Packer.toBuffer(doc));
+}
+
+/**
+ * Helper SSoT para consultar los valores de indicadores calculados para el reporte DOCX.
+ */
+export function getPmcDocxIndicatorValues(project: PmcProject): PmcIndicatorComputedValues {
+  const indic = parseJson<IndicadoresAcademicos>(project.indicadores_academicos);
+  const statsCtx = parseJson<PmcStatisticalContext>(project.statistical_context);
+  return computePmcIndicatorValues(indic, statsCtx);
 }

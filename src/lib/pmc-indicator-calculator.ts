@@ -8,6 +8,7 @@ import type { PmcIndicadoresAcademicos, PmcStatisticalContext } from '@/types/pm
 import { isRealNumeric } from './numeric-guard';
 
 export { isRealNumeric };
+export type { PmcIndicadoresAcademicos, PmcStatisticalContext };
 
 export type PmcIndicatorRowCell = string | {
   content: string;
