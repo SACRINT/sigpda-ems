@@ -89,7 +89,8 @@ export class PlaneacionOrchestrator implements IPlaneacionOrchestrator {
    */
   public async healthCheck(): Promise<HealthCheckResult> {
     const checks: Record<string, boolean> = {
-      orchestratorInitialized: true,
+      databaseConfigured: Boolean(process.env.DATABASE_URL),
+      aiServiceConfigured: Boolean(process.env.GEMINI_API_KEY || process.env.ADMIN_ENCRYPTION_KEY),
       featureFlagService: typeof isFeatureEnabled === 'function',
     };
 

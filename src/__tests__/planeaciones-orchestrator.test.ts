@@ -189,10 +189,23 @@ describe('PlaneacionOrchestrator (Piloto Nivel 1 & Strangler Fig)', () => {
     expect(planeacionesOrchestrator).toBeInstanceOf(PlaneacionOrchestrator);
     expect(planeacionesOrchestrator.programId).toBe('planeaciones');
 
+    // Estado con dependencias configuradas
+    vi.stubEnv('DATABASE_URL', 'postgresql://test:test@localhost:5432/sigpda_test');
+    vi.stubEnv('GEMINI_API_KEY', 'test-key-mock');
+
     const health = await planeacionesOrchestrator.healthCheck();
     expect(health.status).toBe('healthy');
-    expect(health.checks.orchestratorInitialized).toBe(true);
+    expect(health.checks.databaseConfigured).toBe(true);
+    expect(health.checks.aiServiceConfigured).toBe(true);
     expect(health.checks.featureFlagService).toBe(true);
+
+    // Estado degradado cuando falta configuración crítica
+    vi.stubEnv('DATABASE_URL', '');
+    const degradedHealth = await planeacionesOrchestrator.healthCheck();
+    expect(degradedHealth.status).toBe('degraded');
+    expect(degradedHealth.checks.databaseConfigured).toBe(false);
+
+    vi.unstubAllEnvs();
 
     const metrics = await planeacionesOrchestrator.getMetrics('escuela-zona-004');
     expect(metrics.programId).toBe('planeaciones');
