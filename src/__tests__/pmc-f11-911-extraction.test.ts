@@ -184,4 +184,101 @@ describe('Blindaje Curricular y Extracción: F11 y Estadística 911 (N-002)', ()
       expect(ESTADISTICA_911_EXTRACTION_SYSTEM_PROMPT).toContain('Formato 911');
     });
   });
+
+  // ── 3. Enlace Automático F11 → FODA Debilidades (H-005) ────────────────────
+  describe('3. Enlace Automático F11 → FODA Debilidades (H-005)', () => {
+    // Simula la función pura de transformación empleada en handleUploadF11
+    function injectCriticalSubjectsToFoda(
+      foda: { debilidades?: string },
+      promediosPorAsignatura?: Record<string, number>
+    ): { debilidades?: string } {
+      if (!promediosPorAsignatura || typeof promediosPorAsignatura !== 'object') {
+        return foda;
+      }
+      const entries = Object.entries(promediosPorAsignatura);
+      if (entries.length === 0) return foda;
+
+      const critical = entries
+        .filter(([, avg]) => typeof avg === 'number' && avg < 7.5)
+        .map(([subj, avg]) => `${subj} (promedio ${avg})`)
+        .slice(0, 4)
+        .join(', ');
+
+      if (!critical) return foda;
+
+      return {
+        ...foda,
+        debilidades: foda.debilidades
+          ? `${foda.debilidades}\n- Asignaturas de atención prioritaria según F11: ${critical}`
+          : `Asignaturas de atención prioritaria según F11: ${critical}`,
+      };
+    }
+
+    it('identifica materias con promedio < 7.5 y las inyecta en debilidades vacías', () => {
+      const fodaInicial = {};
+      const promedios = {
+        'Pensamiento Matemático II': 6.4,
+        'Lengua y Comunicación II': 8.5,
+        'Cultura Digital II': 7.1,
+      };
+
+      const fodaResultante = injectCriticalSubjectsToFoda(fodaInicial, promedios);
+
+      expect(fodaResultante.debilidades).toContain('Asignaturas de atención prioritaria según F11:');
+      expect(fodaResultante.debilidades).toContain('Pensamiento Matemático II (promedio 6.4)');
+      expect(fodaResultante.debilidades).toContain('Cultura Digital II (promedio 7.1)');
+      expect(fodaResultante.debilidades).not.toContain('Lengua y Comunicación II');
+    });
+
+    it('concatena materias críticas preservando debilidades preexistentes', () => {
+      const fodaInicial = {
+        debilidades: 'Falta de equipamiento en laboratorios de cómputo.',
+      };
+      const promedios = {
+        'Física I': 6.9,
+      };
+
+      const fodaResultante = injectCriticalSubjectsToFoda(fodaInicial, promedios);
+
+      expect(fodaResultante.debilidades).toBe(
+        'Falta de equipamiento en laboratorios de cómputo.\n- Asignaturas de atención prioritaria según F11: Física I (promedio 6.9)'
+      );
+    });
+
+    it('no modifica el FODA si todas las asignaturas tienen promedio >= 7.5', () => {
+      const fodaInicial = {
+        debilidades: 'Debilidad previa sin cambios.',
+      };
+      const promediosAltos = {
+        'Pensamiento Matemático II': 8.0,
+        'Química II': 7.8,
+        'Historia I': 9.2,
+      };
+
+      const fodaResultante = injectCriticalSubjectsToFoda(fodaInicial, promediosAltos);
+
+      expect(fodaResultante.debilidades).toBe('Debilidad previa sin cambios.');
+    });
+
+    it('limita a máximo 4 asignaturas críticas cuando existen más de 4 reprobadas', () => {
+      const fodaInicial = {};
+      const promediosCriticos = {
+        'Materia 1': 6.0,
+        'Materia 2': 6.2,
+        'Materia 3': 6.4,
+        'Materia 4': 6.6,
+        'Materia 5': 6.8,
+        'Materia 6': 7.0,
+      };
+
+      const fodaResultante = injectCriticalSubjectsToFoda(fodaInicial, promediosCriticos);
+
+      expect(fodaResultante.debilidades).toContain('Materia 1');
+      expect(fodaResultante.debilidades).toContain('Materia 2');
+      expect(fodaResultante.debilidades).toContain('Materia 3');
+      expect(fodaResultante.debilidades).toContain('Materia 4');
+      expect(fodaResultante.debilidades).not.toContain('Materia 5');
+      expect(fodaResultante.debilidades).not.toContain('Materia 6');
+    });
+  });
 });
