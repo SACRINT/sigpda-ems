@@ -5,6 +5,11 @@ import { resolverHorario, SolverParams } from '@/lib/horarios/solver';
 import { generateWithRotation } from '@/lib/ai-provider';
 import { parseAIResponse } from '@/lib/ai-response-parser';
 import { ScheduleOptimizationSchema } from '@/lib/ai-schemas';
+import { isFeatureEnabled } from '@/lib/platform/feature-flags';
+import {
+  horariosOrchestrator,
+  HorariosOrchestratorError,
+} from '@/lib/horarios/orchestrator';
 import { logger } from '@/lib/logger';
 
 export async function POST(
@@ -31,6 +36,23 @@ export async function POST(
     const body = await request.json().catch(() => ({}));
     const { reSolve = false, aiFeedback = true } = body;
 
+    // ── Strangler Fig: si HORARIOS_ORCHESTRATOR_V2 está activo, delega al orquestador ─
+    if (isFeatureEnabled('HORARIOS_ORCHESTRATOR_V2')) {
+      try {
+        const result = await horariosOrchestrator.optimizeSchedule(id, teacher.id, {
+          reSolve,
+          aiFeedback,
+        });
+        return NextResponse.json(result);
+      } catch (err: unknown) {
+        if (err instanceof HorariosOrchestratorError) {
+          return NextResponse.json({ error: err.message }, { status: err.status });
+        }
+        throw err;
+      }
+    }
+
+    // ── Flujo Legacy (cuando HORARIOS_ORCHESTRATOR_V2 = false) ────────────────────
     let optimizedCeldas = schedule.celdas;
     let solverMetricas = schedule.metricas;
     let solverResult = null;
@@ -53,7 +75,7 @@ export async function POST(
     }
 
     // Análisis Pedagógico con IA mediante ai-provider
-    let aiSuggestions: any[] = [];
+    let aiSuggestions: unknown[] = [];
     if (aiFeedback) {
       const systemPrompt = `Eres un asesor experto en gestión y organización escolar de Educación Media Superior (SEMS Puebla / MCCEMS). Tu tarea es evaluar una plantilla de horarios y emitir diagnósticos y recomendaciones de optimización pedagógica para directores. Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
 {
@@ -119,8 +141,9 @@ Genera el diagnóstico de balance y recomendaciones de optimización.`;
       optimizations: aiSuggestions,
       solverResult,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('POST /api/schedules/[id]/optimize error:', error);
-    return NextResponse.json({ error: error.message || 'Error al optimizar el horario' }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Error al optimizar el horario';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
