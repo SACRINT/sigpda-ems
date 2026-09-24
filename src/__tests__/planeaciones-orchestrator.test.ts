@@ -199,11 +199,17 @@ describe('PlaneacionOrchestrator (Piloto Nivel 1 & Strangler Fig)', () => {
     expect(health.checks.aiServiceConfigured).toBe(true);
     expect(health.checks.featureFlagService).toBe(true);
 
-    // Estado degradado cuando falta configuración crítica
+    // Estado degradado cuando falta configuración crítica (BD o IA)
     vi.stubEnv('DATABASE_URL', '');
     const degradedHealth = await planeacionesOrchestrator.healthCheck();
     expect(degradedHealth.status).toBe('degraded');
     expect(degradedHealth.checks.databaseConfigured).toBe(false);
+
+    vi.stubEnv('DATABASE_URL', 'postgresql://test:test@localhost:5432/sigpda_test');
+    vi.stubEnv('GEMINI_API_KEY', '');
+    const degradedAiHealth = await planeacionesOrchestrator.healthCheck();
+    expect(degradedAiHealth.status).toBe('degraded');
+    expect(degradedAiHealth.checks.aiServiceConfigured).toBe(false);
 
     vi.unstubAllEnvs();
 
