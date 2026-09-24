@@ -126,10 +126,44 @@ export async function POST(request: NextRequest) {
       Math.max(1, deadline - Date.now())
     );
 
-    const parsed = parseAIResponse(aiRaw, Estadistica911ExtractSchema, {
+    let parsed = parseAIResponse(aiRaw, Estadistica911ExtractSchema, {
       contextName: 'pmc-911-extraction',
       repairNullStrings: true,
     });
+
+    if (!parsed.success && (deadline - Date.now()) >= 15000) {
+      logger.warn('[pmc-911] Primer intento de parseo falló. Ejecutando reintento correctivo acotado con Zod feedback...');
+      try {
+        const correctivePrompt = `La respuesta anterior no cumplió estrictamente con el esquema esperado.
+Errores de validación Zod:
+${parsed.error}
+
+Respuesta anterior recibida:
+"""
+${aiRaw.slice(0, 4000)}
+"""
+
+Corrige los campos señalados y devuelve ÚNICAMENTE un objeto JSON válido conforme al esquema requerido.`;
+
+        const correctiveAiRaw = await withTimeoutBudget(
+          generateWithRotation(
+            systemPrompt,
+            correctivePrompt,
+            teacher.id,
+            isPremium,
+            { temperature: 0, jsonMode: true }
+          ),
+          Math.max(1, deadline - Date.now())
+        );
+
+        parsed = parseAIResponse(correctiveAiRaw, Estadistica911ExtractSchema, {
+          contextName: 'pmc-911-extraction-retry',
+          repairNullStrings: true,
+        });
+      } catch (retryErr: unknown) {
+        logger.warn('[pmc-911] Falló el reintento correctivo acotado:', retryErr);
+      }
+    }
 
     if (!parsed.success) {
       logger.error('[pmc-911] AI response parsing failed:', parsed.error);

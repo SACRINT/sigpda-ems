@@ -125,10 +125,44 @@ export async function POST(request: NextRequest) {
     );
 
     // 3. Parseo y validación de respuesta JSON
-    const parsed = parseAIResponse(aiRaw, PmcPreviousExtractSchema, {
+    let parsed = parseAIResponse(aiRaw, PmcPreviousExtractSchema, {
       contextName: 'pmc-parse-previous',
       repairNullStrings: true,
     });
+
+    if (!parsed.success && (deadline - Date.now()) >= 15000) {
+      logger.warn('[pmc-parse-previous] Primer intento de parseo falló. Ejecutando reintento correctivo acotado con Zod feedback...');
+      try {
+        const correctivePrompt = `La respuesta anterior no cumplió estrictamente con el esquema esperado.
+Errores de validación Zod:
+${parsed.error}
+
+Respuesta anterior recibida:
+"""
+${aiRaw.slice(0, 4000)}
+"""
+
+Corrige los campos señalados y devuelve ÚNICAMENTE un objeto JSON válido conforme al esquema requerido.`;
+
+        const correctiveAiRaw = await withTimeoutBudget(
+          generateWithRotation(
+            systemPrompt,
+            correctivePrompt,
+            teacher.id,
+            isPremium,
+            { temperature: 0, jsonMode: true }
+          ),
+          Math.max(1, deadline - Date.now())
+        );
+
+        parsed = parseAIResponse(correctiveAiRaw, PmcPreviousExtractSchema, {
+          contextName: 'pmc-parse-previous-retry',
+          repairNullStrings: true,
+        });
+      } catch (retryErr: unknown) {
+        logger.warn('[pmc-parse-previous] Falló el reintento correctivo acotado:', retryErr);
+      }
+    }
 
     if (!parsed.success) {
       logger.error('[pmc-parse-previous] AI response parsing failed:', parsed.error);
