@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { calculatePmcIndicatorRows, isRealNumeric } from '@/lib/pmc-indicator-calculator';
+import {
+  calculatePmcIndicatorRows,
+  computePmcIndicatorValues,
+  isRealNumeric,
+} from '@/lib/pmc-indicator-calculator';
 import type { PmcStatisticalContext } from '@/types/pmc';
 
 describe('C6: Characterization tests para Indicadores PMC (pmc-indicator-calculator)', () => {
@@ -227,5 +231,72 @@ describe('C6: Characterization tests para Indicadores PMC (pmc-indicator-calcula
       expect(zonaCell.content).toContain('Media Abandono 6.8%');
       expect(zonaCell.content).toContain('(Prioridad: ALTA)');
     }
+  });
+
+  describe('B-01: computePmcIndicatorValues (SSoT)', () => {
+    it('calcula métricas completas con valores y variaciones coherentes', () => {
+      const indicadores = {
+        matricula: 240,
+        matricula_meta: 250,
+        aprobacion_ant: 85.5,
+        aprobacion_meta: 90.0,
+        reprobacion_ant: 14.5,
+        reprobacion_meta: 10.0,
+        abandono_ant: 6.2,
+        abandono_meta: 4.0,
+        et_ant: 82.0,
+        et_meta: 88.0,
+      };
+
+      const vals = computePmcIndicatorValues(indicadores, null);
+      expect(vals.aprobacion.ant).toBe('85.5%');
+      expect(vals.aprobacion.meta).toBe('90.0%');
+      expect(vals.aprobacion.var).toBe('+4.5% Mejora');
+
+      expect(vals.reprobacion.ant).toBe('14.5%');
+      expect(vals.reprobacion.meta).toBe('10.0%');
+      expect(vals.reprobacion.var).toBe('-4.5% Reducción');
+
+      expect(vals.abandono.ant).toBe('6.2%');
+      expect(vals.abandono.meta).toBe('4.0%');
+      expect(vals.abandono.var).toBe('-2.2% Retención');
+
+      expect(vals.eficiencia.ant).toBe('82.0%');
+      expect(vals.eficiencia.meta).toBe('88.0%');
+      expect(vals.eficiencia.var).toBe('+6.0% Graduación');
+
+      expect(vals.matricula.ant).toBe('240 estudiantes');
+      expect(vals.matricula.meta).toBe('250 estudiantes');
+      expect(vals.matricula.var).toBe('+10 estudiantes');
+    });
+
+    it('retorna N/D limpio en todos los campos cuando los indicadores son nulos o vacíos', () => {
+      const vals = computePmcIndicatorValues({}, null);
+      expect(vals.aprobacion).toEqual({ ant: 'N/D', meta: 'N/D', var: 'N/D' });
+      expect(vals.reprobacion).toEqual({ ant: 'N/D', meta: 'N/D', var: 'N/D' });
+      expect(vals.abandono).toEqual({ ant: 'N/D', meta: 'N/D', var: 'N/D' });
+      expect(vals.eficiencia).toEqual({ ant: 'N/D', meta: 'N/D', var: 'N/D' });
+      expect(vals.matricula).toEqual({ ant: 'N/D', meta: 'N/D', var: 'N/D' });
+      expect(vals.promedio).toBeUndefined();
+      expect(vals.zona).toBeUndefined();
+    });
+
+    it('conserva el 0 legítimo en reprobación o abandono sin degradar a N/D', () => {
+      const indicadores = {
+        reprobacion_ant: 0,
+        reprobacion_meta: 0,
+        abandono_ant: 0,
+        abandono_meta: 0,
+      };
+
+      const vals = computePmcIndicatorValues(indicadores, null);
+      expect(vals.reprobacion.ant).toBe('0.0%');
+      expect(vals.reprobacion.meta).toBe('0.0%');
+      expect(vals.reprobacion.var).toBe('0.0% Reducción');
+
+      expect(vals.abandono.ant).toBe('0.0%');
+      expect(vals.abandono.meta).toBe('0.0%');
+      expect(vals.abandono.var).toBe('0.0% Retención');
+    });
   });
 });

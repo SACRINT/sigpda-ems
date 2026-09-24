@@ -17,15 +17,39 @@ export type PmcIndicatorRowCell = string | {
 
 export type PmcIndicatorRow = PmcIndicatorRowCell[];
 
+export interface PmcIndicatorMetricValues {
+  ant: string;
+  meta: string;
+  var: string;
+}
+
+export interface PmcIndicatorZonaValues {
+  zonaNum: string;
+  abZona: string;
+  etZona: string;
+  prioridad: string;
+  bannerText: string;
+}
+
+export interface PmcIndicatorComputedValues {
+  aprobacion: PmcIndicatorMetricValues;
+  reprobacion: PmcIndicatorMetricValues;
+  abandono: PmcIndicatorMetricValues;
+  eficiencia: PmcIndicatorMetricValues;
+  matricula: PmcIndicatorMetricValues;
+  promedio?: PmcIndicatorMetricValues;
+  zona?: PmcIndicatorZonaValues;
+}
+
 /**
- * Calcula las filas de la tabla de Indicadores Educativos (Línea Base vs Meta Institucional)
- * para su representación en PDF / visualizadores.
+ * Single Source of Truth (SSoT) para el cálculo y formateo de indicadores educativos del PMC.
+ * Consolida la extracción jerárquica (plantel context > indicadores directos),
+ * 0 legítimo, N/D defensivo y reglas de variación.
  */
-export function calculatePmcIndicatorRows(
+export function computePmcIndicatorValues(
   indicadores?: PmcIndicadoresAcademicos | Record<string, unknown> | null,
-  statisticalContext?: PmcStatisticalContext | null,
-  cicloTexto?: string
-): PmcIndicatorRow[] {
+  statisticalContext?: PmcStatisticalContext | null
+): PmcIndicatorComputedValues {
   const ind = (indicadores || {}) as Record<string, unknown>;
   const statsCtx: PmcStatisticalContext | undefined = statisticalContext || (ind.statistical_context as PmcStatisticalContext | undefined);
   const pStats = statsCtx?.plantel;
@@ -102,14 +126,7 @@ export function calculatePmcIndicatorRows(
     matVarStr = diff === 0 ? 'Sostenimiento' : diff > 0 ? `+${diff} estudiantes` : `${diff} estudiantes`;
   }
 
-  const rows: PmcIndicatorRow[] = [
-    ['Tasa de Aprobación Escolar (F11C)', apAntStr, apMetaStr, apVarStr],
-    ['Índice de Reprobación Escolar (F11C)', repAntStr, repMetaStr, repVarStr],
-    ['Abandono Escolar / Deserción (911.7)', abAntStr, abMetaStr, abVarStr],
-    ['Eficiencia Terminal / Egreso (911.7G)', etAntStr, etMetaStr, etVarStr],
-    ['Matrícula Escolar Oficial (911.7G)', matAntStr, matMetaStr, matVarStr],
-  ];
-
+  let promedio: PmcIndicatorMetricValues | undefined = undefined;
   if (promF11 !== undefined) {
     const promNum = Number(promF11);
     const promMeta = isRealNumeric(ind.promedio_meta) ? ind.promedio_meta : undefined;
@@ -119,14 +136,14 @@ export function calculatePmcIndicatorRows(
       const diff = Number(promMeta) - promNum;
       promVarStr = diff >= 0 ? `+${diff.toFixed(2)} Aprovechamiento` : `${diff.toFixed(2)} Aprovechamiento`;
     }
-    rows.push([
-      'Promedio General de Calificaciones (F11C)',
-      `${promNum.toFixed(2)}`,
-      promMetaStr,
-      promVarStr,
-    ]);
+    promedio = {
+      ant: `${promNum.toFixed(2)}`,
+      meta: promMetaStr,
+      var: promVarStr,
+    };
   }
 
+  let zona: PmcIndicatorZonaValues | undefined = undefined;
   if (zStats) {
     const zonaNum = zStats.zonaNumero || 'Regional';
     const abZona = isRealNumeric(zStats.promedioAbandono) ? `${zStats.promedioAbandono}%` : 'N/D';
@@ -135,12 +152,60 @@ export function calculatePmcIndicatorRows(
       ? String(zStats.brechasDiagnostico.prioridadIntervencion).toUpperCase()
       : 'MEDIA';
 
+    zona = {
+      zonaNum,
+      abZona,
+      etZona,
+      prioridad,
+      bannerText: `Comparativo de Zona Escolar (${zonaNum}): Media Abandono ${abZona}, Media Eficiencia ${etZona} (Prioridad: ${prioridad})`,
+    };
+  }
+
+  return {
+    aprobacion: { ant: apAntStr, meta: apMetaStr, var: apVarStr },
+    reprobacion: { ant: repAntStr, meta: repMetaStr, var: repVarStr },
+    abandono: { ant: abAntStr, meta: abMetaStr, var: abVarStr },
+    eficiencia: { ant: etAntStr, meta: etMetaStr, var: etVarStr },
+    matricula: { ant: matAntStr, meta: matMetaStr, var: matVarStr },
+    promedio,
+    zona,
+  };
+}
+
+/**
+ * Calcula las filas de la tabla de Indicadores Educativos (Línea Base vs Meta Institucional)
+ * para su representación en PDF / visualizadores consumiendo computePmcIndicatorValues.
+ */
+export function calculatePmcIndicatorRows(
+  indicadores?: PmcIndicadoresAcademicos | Record<string, unknown> | null,
+  statisticalContext?: PmcStatisticalContext | null,
+  cicloTexto?: string
+): PmcIndicatorRow[] {
+  const vals = computePmcIndicatorValues(indicadores, statisticalContext);
+
+  const rows: PmcIndicatorRow[] = [
+    ['Tasa de Aprobación Escolar (F11C)', vals.aprobacion.ant, vals.aprobacion.meta, vals.aprobacion.var],
+    ['Índice de Reprobación Escolar (F11C)', vals.reprobacion.ant, vals.reprobacion.meta, vals.reprobacion.var],
+    ['Abandono Escolar / Deserción (911.7)', vals.abandono.ant, vals.abandono.meta, vals.abandono.var],
+    ['Eficiencia Terminal / Egreso (911.7G)', vals.eficiencia.ant, vals.eficiencia.meta, vals.eficiencia.var],
+    ['Matrícula Escolar Oficial (911.7G)', vals.matricula.ant, vals.matricula.meta, vals.matricula.var],
+  ];
+
+  if (vals.promedio) {
+    rows.push([
+      'Promedio General de Calificaciones (F11C)',
+      vals.promedio.ant,
+      vals.promedio.meta,
+      vals.promedio.var,
+    ]);
+  }
+
+  if (vals.zona) {
     const BLUE_LIGHT = [220, 228, 245];
     const NAVY = [31, 56, 100];
-
     rows.push([
       {
-        content: `Comparativo de Zona Escolar (${zonaNum}): Media Abandono ${abZona}, Media Eficiencia ${etZona} (Prioridad: ${prioridad})`,
+        content: vals.zona.bannerText,
         colSpan: 4,
         styles: { fontStyle: 'italic', fillColor: BLUE_LIGHT, textColor: NAVY },
       },
@@ -154,3 +219,4 @@ export function calculatePmcIndicatorRows(
 
   return rows;
 }
+
