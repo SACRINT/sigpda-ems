@@ -16,6 +16,7 @@ import {
   PmcOrchestratorError,
   isUpstreamAIError,
   AI_OUTAGE_USER_MESSAGE,
+  withTimeoutBudget,
 } from '@/lib/pmc/orchestrator';
 
 export const runtime = 'nodejs';
@@ -69,12 +70,15 @@ export async function POST(request: NextRequest) {
 
     let ingested;
     try {
-      ingested = await ingestDocument(buffer, {
-        filename: file.name,
-        mimeType: file.type,
-        enableOcr: true,
-        teacherId: teacher.id,
-      });
+      ingested = await withTimeoutBudget(
+        ingestDocument(buffer, {
+          filename: file.name,
+          mimeType: file.type,
+          enableOcr: true,
+          teacherId: teacher.id,
+        }),
+        90000
+      );
     } catch (ingestErr: unknown) {
       logger.error('[pmc-f11] Document ingestion failed:', ingestErr);
       if (isUpstreamAIError(ingestErr)) {
@@ -106,12 +110,15 @@ export async function POST(request: NextRequest) {
     const systemPrompt = F11_EXTRACTION_SYSTEM_PROMPT;
     const userPrompt = buildF11ExtractionPrompt(documentText);
 
-    const aiRaw = await generateWithRotation(
-      systemPrompt,
-      userPrompt,
-      teacher.id,
-      isPremium,
-      { temperature: 0.1, jsonMode: true }
+    const aiRaw = await withTimeoutBudget(
+      generateWithRotation(
+        systemPrompt,
+        userPrompt,
+        teacher.id,
+        isPremium,
+        { temperature: 0.1, jsonMode: true }
+      ),
+      90000
     );
 
     const parsed = parseAIResponse(aiRaw, F11ExtractSchema, {
