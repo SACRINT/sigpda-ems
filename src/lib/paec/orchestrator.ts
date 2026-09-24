@@ -76,6 +76,9 @@ export class PaecOrchestrator implements IPaecOrchestrator {
   ): Promise<PaecExtractionSuccess<PaecPreviousExtractDTO>> {
     logger.info(`[paec-orchestrator] Ingesting previous PAEC document: ${options.filename}`);
 
+    // Deadline global de 90s por request para prevenir saturación y errores 504 de Vercel (D-001)
+    const deadline = Date.now() + 90000;
+
     let ingested;
     try {
       ingested = await withTimeoutBudget(
@@ -85,7 +88,7 @@ export class PaecOrchestrator implements IPaecOrchestrator {
           enableOcr: true,
           teacherId: options.teacherId,
         }),
-        90000
+        Math.max(1, deadline - Date.now())
       );
     } catch (ingestErr: unknown) {
       logger.error('[paec-orchestrator] Document ingestion failed:', ingestErr);
@@ -115,7 +118,7 @@ export class PaecOrchestrator implements IPaecOrchestrator {
           isPremium,
           { temperature: 0.1, jsonMode: true }
         ),
-        90000
+        Math.max(1, deadline - Date.now())
       );
     } catch (aiErr: unknown) {
       logger.error('[paec-orchestrator] AI generation failed:', aiErr);

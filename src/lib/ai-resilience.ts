@@ -51,13 +51,14 @@ export async function withTimeoutBudget<T>(
   timeoutMs = 90000,
   timeoutMessage = 'El tiempo de procesamiento excedió el límite seguro (90s). El servicio de IA o extracción está experimentando lentitud. Por favor intenta de nuevo.'
 ): Promise<T> {
+  const effectiveTimeout = Math.max(1, timeoutMs);
   let timer: NodeJS.Timeout | undefined;
   const timeoutPromise = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
       const err = new Error(timeoutMessage);
       (err as { status?: number }).status = 503;
       reject(err);
-    }, timeoutMs);
+    }, effectiveTimeout);
   });
 
   try {

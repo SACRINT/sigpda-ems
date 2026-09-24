@@ -66,6 +66,40 @@ describe('ai-resilience.ts — Módulo Transversal de Resiliencia', () => {
       await expect(budgetPromise).rejects.toThrow('Timeout simulado excedido');
       await expect(budgetPromise).rejects.toMatchObject({ status: 503 });
     });
+
+    it('rechaza con status 503 inmediatamente si el presupuesto restante es <= 0 (D-001)', async () => {
+      const hungPromise = new Promise<string>(() => {});
+      const budgetPromise = withTimeoutBudget(hungPromise, 0);
+
+      await expect(budgetPromise).rejects.toThrow(/límite seguro/);
+      await expect(budgetPromise).rejects.toMatchObject({ status: 503 });
+    });
+
+    it('respeta un deadline global encadenado entre dos etapas (D-001)', async () => {
+      const startTime = Date.now();
+      const deadline = startTime + 100;
+
+      // Etapa 1: rápida (5ms)
+      const stage1Budget = Math.max(1, deadline - Date.now());
+      const stage1Result = await withTimeoutBudget(
+        new Promise((resolve) => setTimeout(() => resolve('etapa1_ok'), 5)),
+        stage1Budget
+      );
+      expect(stage1Result).toBe('etapa1_ok');
+
+      // Etapa 2: colgada, su presupuesto restante es lo que queda del deadline global
+      const remainingBudget = Math.max(1, deadline - Date.now());
+      expect(remainingBudget).toBeLessThanOrEqual(100);
+
+      const hungStage2 = new Promise<string>(() => {});
+      await expect(
+        withTimeoutBudget(hungStage2, remainingBudget, 'Etapa 2 excedió deadline')
+      ).rejects.toMatchObject({ status: 503 });
+
+      const totalElapsed = Date.now() - startTime;
+      // El tiempo transcurrido total no debe superar sustancialmente el deadline original (+ márgenes de timer)
+      expect(totalElapsed).toBeLessThan(250);
+    });
   });
 
   describe('AI_OUTAGE_USER_MESSAGE', () => {

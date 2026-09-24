@@ -70,6 +70,9 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Flujo Legacy (cuando PAEC_ORCHESTRATOR_V2 = false) ────────────────────
+    // Deadline global de 90s por request para prevenir saturación y errores 504 de Vercel (D-001)
+    const deadline = Date.now() + 90000;
+
     // 1. Ingesta documental (PDF con OCR o DOCX con Mammoth)
     let ingested;
     try {
@@ -80,7 +83,7 @@ export async function POST(request: NextRequest) {
           enableOcr: true,
           teacherId: teacher.id,
         }),
-        90000
+        Math.max(1, deadline - Date.now())
       );
     } catch (ingestErr: unknown) {
       logger.error('[paec-parse-previous] Document ingestion failed:', ingestErr);
@@ -115,7 +118,7 @@ export async function POST(request: NextRequest) {
         isPremium,
         { temperature: 0.1, jsonMode: true }
       ),
-      90000
+      Math.max(1, deadline - Date.now())
     );
 
     // 3. Parseo y validación de respuesta JSON
