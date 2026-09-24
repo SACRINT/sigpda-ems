@@ -148,6 +148,27 @@ interface Props {
   existingProject: PmcProject | null;
 }
 
+async function parseSafeApiResponse<T = { success?: boolean; error?: string; data?: unknown }>(
+  res: Response,
+  defaultErrorMsg: string
+): Promise<T> {
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    if (res.status === 504) {
+      throw new Error('El servidor tardó más de 120 segundos en procesar el documento (tiempo límite excedido). Por favor, intenta de nuevo o sube un documento con menos páginas.');
+    }
+    if (res.status === 503) {
+      throw new Error('El servicio de IA está temporalmente saturado en upstream. Por favor espera un momento y vuelve a intentar.');
+    }
+    const rawText = await res.text().catch(() => '');
+    const cleanText = rawText.replace(/<[^>]*>?/gm, '').trim();
+    throw new Error(cleanText.slice(0, 160) || defaultErrorMsg);
+  }
+
+  const json = await res.json();
+  return json as T;
+}
+
 // ── Constants ────────────────────────────────────────────────────────────────
 
 interface CategoriaPriorizada {
@@ -298,6 +319,30 @@ interface PmcPreviousExtractStaff {
   horas?: number | string;
 }
 
+interface F11ResponseDTO {
+  schoolName?: string;
+  schoolCct?: string;
+  totalAlumnos?: number;
+  promedioGeneral?: number;
+  aprobadosPorcentaje?: number;
+  reprobadosPorcentaje?: number;
+  promediosPorAsignatura?: Record<string, number>;
+  [key: string]: unknown;
+}
+
+interface Estadistica911ResponseDTO {
+  schoolName?: string;
+  schoolCct?: string;
+  matricula?: number;
+  abandonoPorcentaje?: number;
+  eficienciaTerminal?: number;
+  reprobacionPorcentaje?: number;
+  aprobacionPorcentaje?: number;
+  totalDocentes?: number;
+  momento?: string;
+  [key: string]: unknown;
+}
+
 interface PmcPreviousExtractDTO {
   schoolName?: string;
   schoolCct?: string;
@@ -400,7 +445,10 @@ interface PaecProjectForPmc {
         method: 'POST',
         body: formData,
       });
-      const json = await res.json();
+      const json = await parseSafeApiResponse<{ success?: boolean; error?: string; data?: PmcPreviousExtractDTO }>(
+        res,
+        'Error al analizar el documento anterior.'
+      );
       if (!res.ok || !json.success) {
         throw new Error(json.error || 'Error al analizar el documento.');
       }
@@ -499,7 +547,10 @@ interface PaecProjectForPmc {
       const formData = new FormData();
       formData.append('file', file);
       const res = await fetch('/api/pmc/f11', { method: 'POST', body: formData });
-      const json = await res.json();
+      const json = await parseSafeApiResponse<{ success?: boolean; error?: string; data?: F11ResponseDTO }>(
+        res,
+        'Error al analizar el F11.'
+      );
       if (!res.ok || !json.success) throw new Error(json.error || 'Error al analizar el F11.');
       if (json.data?.schoolName && !schoolName) setSchoolName(json.data.schoolName);
       if (json.data?.schoolCct && !schoolCct) setSchoolCct(json.data.schoolCct);
@@ -563,7 +614,10 @@ interface PaecProjectForPmc {
       formData.append('file', file);
       formData.append('momento', momento);
       const res = await fetch('/api/pmc/estadistica-911', { method: 'POST', body: formData });
-      const json = await res.json();
+      const json = await parseSafeApiResponse<{ success?: boolean; error?: string; data?: Estadistica911ResponseDTO }>(
+        res,
+        'Error al analizar la Estadística 911.'
+      );
       if (!res.ok || !json.success) throw new Error(json.error || 'Error al analizar la Estadística 911.');
       if (json.data?.schoolName && !schoolName) setSchoolName(json.data.schoolName);
       if (json.data?.schoolCct && !schoolCct) setSchoolCct(json.data.schoolCct);
