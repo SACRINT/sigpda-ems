@@ -15,6 +15,7 @@
  */
 
 import type { PmcProject, PmcStatisticalContext, PmcIndicadoresAcademicos, PmcFodaData } from '@/types/pmc';
+import { toRealNumber } from '../numeric-guard';
 
 function safeStr(val: unknown, fallback = 'N/D'): string {
   if (val === null || val === undefined) return fallback;
@@ -150,11 +151,17 @@ export function buildPmcPlanAccionPrompt(
   const aprobacionReal = stats?.aprobadosPorcentaje ?? indic.aprobacion_ant;
   const promedioF11 = stats?.promedioGeneral ?? stats?.promedioCalificaciones;
 
-  const matriculaTexto = matriculaReal !== undefined && matriculaReal !== null && !isNaN(Number(matriculaReal)) ? `${matriculaReal} estudiantes` : 'No especificada (N/D)';
-  const abandonoTexto = abandonoReal !== undefined && abandonoReal !== null && !isNaN(Number(abandonoReal)) ? `${abandonoReal}%` : 'No especificado (N/D)';
-  const eficienciaTexto = eficienciaReal !== undefined && eficienciaReal !== null && !isNaN(Number(eficienciaReal)) ? `${eficienciaReal}%` : 'No especificada (N/D)';
-  const aprobacionTexto = aprobacionReal !== undefined && aprobacionReal !== null && !isNaN(Number(aprobacionReal)) ? `${aprobacionReal}%` : 'No especificada (N/D)';
-  const promedioTexto = promedioF11 !== undefined && promedioF11 !== null && !isNaN(Number(promedioF11)) ? `${promedioF11}` : 'No especificado (N/D)';
+  const matriculaNum = toRealNumber(matriculaReal);
+  const abandonoNum = toRealNumber(abandonoReal);
+  const eficienciaNum = toRealNumber(eficienciaReal);
+  const aprobacionNum = toRealNumber(aprobacionReal);
+  const promedioNum = toRealNumber(promedioF11);
+
+  const matriculaTexto = matriculaNum !== undefined ? `${matriculaNum} estudiantes` : 'No especificada (N/D)';
+  const abandonoTexto = abandonoNum !== undefined ? `${abandonoNum}%` : 'No especificado (N/D)';
+  const eficienciaTexto = eficienciaNum !== undefined ? `${eficienciaNum}%` : 'No especificada (N/D)';
+  const aprobacionTexto = aprobacionNum !== undefined ? `${aprobacionNum}%` : 'No especificada (N/D)';
+  const promedioTexto = promedioNum !== undefined ? `${promedioNum}` : 'No especificado (N/D)';
 
   // Formatear categorías priorizadas
   interface CategoriaPriorizadaAPI {

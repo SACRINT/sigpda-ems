@@ -19,6 +19,7 @@ import type {
   PmcStaffMember,
   PmcDiagnosticoGenerado,
 } from '@/types/pmc';
+import { toRealNumber, isRealNumeric } from './numeric-guard';
 
 export const PMC_DIMENSIONS = {
   DIM1: 'Dimensión 1: Identificación y Organización Escolar',
@@ -33,7 +34,7 @@ function hasText(val: unknown, minLength = 3): boolean {
 }
 
 function hasNumber(val: unknown): boolean {
-  return typeof val === 'number' && !isNaN(val);
+  return isRealNumeric(val);
 }
 
 // ── Criterios Individuales ──────────────────────────────────────────────────
@@ -125,8 +126,8 @@ function evalC3_Indicadores(p: PmcProject): PmcAuditCriterion {
 
   const hasTargets = hasNumber(ind.aprobacion_meta) && hasNumber(ind.abandono_meta);
 
-  const ap = ind.aprobacion_ant !== undefined && ind.aprobacion_ant !== null && !isNaN(Number(ind.aprobacion_ant)) ? Number(ind.aprobacion_ant) : undefined;
-  const rep = ind.reprobacion_ant !== undefined && ind.reprobacion_ant !== null && !isNaN(Number(ind.reprobacion_ant)) ? Number(ind.reprobacion_ant) : undefined;
+  const ap = toRealNumber(ind.aprobacion_ant);
+  const rep = toRealNumber(ind.reprobacion_ant);
   const sumaInvalida = ap !== undefined && rep !== undefined && (ap + rep > 100.1);
 
   let score = 0;

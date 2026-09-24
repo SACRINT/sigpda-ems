@@ -5,13 +5,9 @@
  */
 
 import type { PmcIndicadoresAcademicos, PmcStatisticalContext } from '@/types/pmc';
+import { isRealNumeric } from './numeric-guard';
 
-export function isRealNumeric(val: unknown): val is number | string {
-  if (val === undefined || val === null) return false;
-  if (typeof val === 'string' && val.trim() === '') return false;
-  const n = Number(val);
-  return !isNaN(n);
-}
+export { isRealNumeric };
 
 export type PmcIndicatorRowCell = string | {
   content: string;
@@ -36,11 +32,11 @@ export function calculatePmcIndicatorRows(
   const zStats = statsCtx?.zona;
 
   // Extracción jerárquica: plantel context > indicadores directos
-  const matAnt = isRealNumeric(pStats?.matricula) ? pStats.matricula : isRealNumeric(ind.matricula) ? ind.matricula : undefined;
-  const apAnt = isRealNumeric(pStats?.aprobadosPorcentaje) ? pStats.aprobadosPorcentaje : isRealNumeric(ind.aprobacion_ant) ? ind.aprobacion_ant : undefined;
-  const repAnt = isRealNumeric(pStats?.reprobacion) ? pStats.reprobacion : isRealNumeric(ind.reprobacion_ant) ? ind.reprobacion_ant : undefined;
-  const abAnt = isRealNumeric(pStats?.abandono) ? pStats.abandono : isRealNumeric(ind.abandono_ant) ? ind.abandono_ant : undefined;
-  const etAnt = isRealNumeric(pStats?.eficienciaTerminal) ? pStats.eficienciaTerminal : isRealNumeric(ind.et_ant) ? ind.et_ant : undefined;
+  const matAnt = (pStats && isRealNumeric(pStats.matricula)) ? pStats.matricula : isRealNumeric(ind.matricula) ? ind.matricula : undefined;
+  const apAnt = (pStats && isRealNumeric(pStats.aprobadosPorcentaje)) ? pStats.aprobadosPorcentaje : isRealNumeric(ind.aprobacion_ant) ? ind.aprobacion_ant : undefined;
+  const repAnt = (pStats && isRealNumeric(pStats.reprobacion)) ? pStats.reprobacion : isRealNumeric(ind.reprobacion_ant) ? ind.reprobacion_ant : undefined;
+  const abAnt = (pStats && isRealNumeric(pStats.abandono)) ? pStats.abandono : isRealNumeric(ind.abandono_ant) ? ind.abandono_ant : undefined;
+  const etAnt = (pStats && isRealNumeric(pStats.eficienciaTerminal)) ? pStats.eficienciaTerminal : isRealNumeric(ind.et_ant) ? ind.et_ant : undefined;
   
   const promVal = pStats?.promedioGeneral ?? pStats?.promedioCalificaciones;
   const promF11 = isRealNumeric(promVal) ? promVal : undefined;

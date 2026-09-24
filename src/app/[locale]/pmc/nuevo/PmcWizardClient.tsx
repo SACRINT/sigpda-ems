@@ -10,6 +10,7 @@ import {
   normalizePmcCategoria,
   normalizePmcTema,
 } from '@/lib/constants/pmc-categorias';
+import { toRealNumber } from '@/lib/numeric-guard';
 
 
 const PMC_DRAFT_KEY = 'didactica_pmc_draft';
@@ -624,12 +625,8 @@ interface PaecProjectForPmc {
         setIndicadores(p => {
           const rawAp = json.data?.aprobadosPorcentaje;
           const rawRep = json.data?.reprobadosPorcentaje;
-          const aprobAnt = (rawAp !== undefined && rawAp !== null && !isNaN(Number(rawAp)))
-            ? Number(rawAp)
-            : p.aprobacion_ant;
-          const reprobAnt = (rawRep !== undefined && rawRep !== null && !isNaN(Number(rawRep)))
-            ? Number(rawRep)
-            : p.reprobacion_ant;
+          const aprobAnt = toRealNumber(rawAp) ?? p.aprobacion_ant;
+          const reprobAnt = toRealNumber(rawRep) ?? p.reprobacion_ant;
           const aprobMeta = p.aprobacion_meta !== undefined
             ? p.aprobacion_meta
             : (aprobAnt !== undefined && !isNaN(aprobAnt)
@@ -746,18 +743,10 @@ interface PaecProjectForPmc {
           const rawRep = json.data?.reprobacionPorcentaje;
           const rawAp = json.data?.aprobacionPorcentaje;
 
-          const abandonoAnt = (rawAb !== undefined && rawAb !== null && !isNaN(Number(rawAb)))
-            ? Number(rawAb)
-            : p.abandono_ant;
-          const etAnt = (rawEt !== undefined && rawEt !== null && !isNaN(Number(rawEt)))
-            ? Number(rawEt)
-            : p.et_ant;
-          const reprobAnt = (rawRep !== undefined && rawRep !== null && !isNaN(Number(rawRep)))
-            ? Number(rawRep)
-            : p.reprobacion_ant;
-          const aprobAnt = (rawAp !== undefined && rawAp !== null && !isNaN(Number(rawAp)))
-            ? Number(rawAp)
-            : p.aprobacion_ant;
+          const abandonoAnt = toRealNumber(rawAb) ?? p.abandono_ant;
+          const etAnt = toRealNumber(rawEt) ?? p.et_ant;
+          const reprobAnt = toRealNumber(rawRep) ?? p.reprobacion_ant;
+          const aprobAnt = toRealNumber(rawAp) ?? p.aprobacion_ant;
 
           const abandonoMeta = p.abandono_meta !== undefined
             ? p.abandono_meta
@@ -782,7 +771,7 @@ interface PaecProjectForPmc {
 
           return {
             ...p,
-            matricula: (json.data?.matricula && !isNaN(Number(json.data.matricula))) ? Number(json.data.matricula) : p.matricula,
+            matricula: toRealNumber(json.data?.matricula) ?? p.matricula,
             abandono_ant: abandonoAnt,
             abandono_meta: abandonoMeta,
             et_ant: etAnt,
