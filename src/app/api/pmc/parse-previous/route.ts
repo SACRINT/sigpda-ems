@@ -85,8 +85,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const documentText = ingested.markdown || ingested.fullText;
-    if (!documentText || documentText.trim().length < 40) {
+    if (!ingested || (!ingested.fullText && !ingested.markdown)) {
+      return NextResponse.json(
+        { error: 'El documento no contiene texto legible ni datos extraíbles.' },
+        { status: 400 }
+      );
+    }
+
+    const documentText = (ingested.markdown || ingested.fullText || '').trim();
+    if (documentText.length < 40) {
       return NextResponse.json(
         { error: 'El documento no contiene texto legible ni datos extraíbles.' },
         { status: 400 }
