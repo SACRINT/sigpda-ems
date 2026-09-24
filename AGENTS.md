@@ -29,3 +29,11 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **Fachada Pública**: `src/lib/pdf-extra-generator.ts` exporta `generateExtraPDF(extra, context)` para mantener total compatibilidad con las llamadas de consumo único individual (`/api/pdf/extra/[extraId]`).
 - **Descargas Masivas (Bulk)**: Las rutas masivas (`/api/pdf/extra/bulk`) y pipelines de exportación empaquetada utilizan `generateExtraPdfDocument` para generar buffers optimizados empaquetados en archivos ZIP sin redundancias.
 - **DOCX SSoT**: Los generadores Word de extras, secuencias y planeaciones delegan en `src/lib/docx-helpers.ts` (`buildExtraDocx`, `tbl`, `tc`, `tcH`, `bdr`, `parseTextRuns`, `createParagraphFromLine`) para consistencia normativa de estilos institucionales DBEPA Puebla.
+
+## PMC Wizard — Ingesta Documental y Momentos Estadística 911 (Decisión N-001)
+- **Momentos de Estadística Escolar 911**: El wizard PMC soporta formalmente los 3 cortes oficiales en `/api/pmc/estadistica-911`:
+  1. `fin_anterior` (911 fin de ciclo previo): Alimenta indicadores de cierre (abandono escolar, eficiencia terminal, reprobación y aprobación).
+  2. `inicio_actual` (911 inicio ciclo vigente): Alimenta matrícula vigente activa y total de docentes.
+  3. `inicio_anterior` (911 inicio ciclo previo): Alimenta matrícula inicial de referencia histórica para trazabilidad.
+- **Acceso en UI (Decisión N-001)**: El momento `inicio_anterior` cuenta con botones dedicados de carga en Paso 1 (Datos del Plantel) y Paso 3 (Diagnóstico Institucional) para planteles que disponen de dicho corte histórico, integrándose armónicamente con los flujos de `fin_anterior` e `inicio_actual`.
+- **Badges de Estado (`docsStatus`)**: Los botones de subida (F11, 911 y PMC anterior) proporcionan retroalimentación visual (`✓`) al completarse la ingesta, previniendo cargas redundantes en la sesión del wizard.
