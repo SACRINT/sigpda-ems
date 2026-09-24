@@ -160,6 +160,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         abandono_meta?: number;
         et_meta?: number;
         matricula?: number;
+        statistical_context?: PmcStatisticalContext;
       }>(project.indicadores_academicos);
 
       const foda = parseJson<{
@@ -172,7 +173,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       const rawStats = project.statistical_context ? parseJson<PmcStatisticalContext>(project.statistical_context) : undefined;
       const statisticalContext: PmcStatisticalContext | undefined = (rawStats && 'plantel' in rawStats)
         ? (rawStats as PmcStatisticalContext)
-        : ((indic as any)?.statistical_context?.plantel ? ((indic as any).statistical_context as PmcStatisticalContext) : undefined);
+        : (indic?.statistical_context?.plantel ? indic.statistical_context : undefined);
 
       const prompt = buildPmcDiagnosticoPrompt(project as unknown as PmcProject, statisticalContext, libraryContext);
 
@@ -271,6 +272,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         aprobacion_meta?: number;
         abandono_meta?: number;
         et_meta?: number;
+        statistical_context?: PmcStatisticalContext;
       }>(project.indicadores_academicos);
 
       const diagnosticoGenerado = parseJson<Record<string, string>>(project.diagnostico_generado);
@@ -318,15 +320,11 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
           teacherEmail: teacher.email,
         });
       }
-      const staffList = cappedStaff.length > 0
-        ? cappedStaff.map((s) => `- ${s.nombre ?? 'N/D'} — ${s.cargo ?? 'N/D'}`).join('\n')
-        : 'No especificado';
-      const effectiveStaffCount = cappedStaff.length > 0 ? cappedStaff.length : (project.total_staff ?? 0);
 
       const rawStats = project.statistical_context ? parseJson<PmcStatisticalContext>(project.statistical_context) : undefined;
       const statisticalContext: PmcStatisticalContext | undefined = (rawStats && 'plantel' in rawStats)
         ? (rawStats as PmcStatisticalContext)
-        : ((indic as any)?.statistical_context?.plantel ? ((indic as any).statistical_context as PmcStatisticalContext) : undefined);
+        : (indic?.statistical_context?.plantel ? indic.statistical_context : undefined);
 
       const prompt = buildPmcPlanAccionPrompt(project as unknown as PmcProject, statisticalContext, libraryContext);
 

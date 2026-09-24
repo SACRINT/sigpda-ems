@@ -50,7 +50,7 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
         'Content-Length': String(uint8.byteLength),
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('Error generating PMC PDF:', error);
     const message = error instanceof Error ? error.message : 'Error desconocido';
     return new NextResponse(`Error al generar el documento PDF: ${message}`, { status: 500 });

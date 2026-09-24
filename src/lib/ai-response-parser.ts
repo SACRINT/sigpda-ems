@@ -81,7 +81,7 @@ export function parseAIResponse<T>(
   }
 
   // 4. Reparación sintáctica determinista
-  let parsedObj: any = null;
+  let parsedObj: unknown = null;
 
   // Intento A: jsonrepair library
   try {
@@ -122,7 +122,7 @@ export function parseAIResponse<T>(
   // Intento D: Rescate defensivo de campos en respuestas truncadas o con comillas rotas
   if (!parsedObj || typeof parsedObj !== 'object') {
     try {
-      const rescued: Record<string, any> = {};
+      const rescued: Record<string, unknown> = {};
       // Regex que busca pares clave-valor de tipo string: "clave": "valor..."
       const fieldRegex = /"([a-zA-Z0-9_-]+)"\s*:\s*"((?:[^"\\]|\\.)*)"/g;
       let match;
@@ -243,6 +243,7 @@ export function parseAIResponse<T>(
  * Parseo y reparación robusta de JSON sin requerir esquema Zod previo.
  * Utiliza jsonrepair y las estrategias de limpieza del pipeline central.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function robustJsonParse<T = any>(raw: string): T {
   const parsed = parseAIResponse(raw, z.any());
   if (!parsed.success || parsed.data === undefined) {
