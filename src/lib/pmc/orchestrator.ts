@@ -65,15 +65,18 @@ export function isUpstreamAIError(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err);
   const status = (err as { status?: number; statusCode?: number }).status ||
                  (err as { status?: number; statusCode?: number }).statusCode;
+  const lowerMsg = msg.toLowerCase();
   return (
     status === 503 ||
     status === 504 ||
     status === 429 ||
+    lowerMsg.includes('http 503') ||
+    lowerMsg.includes('service unavailable') ||
     msg.includes('UNAVAILABLE') ||
     msg.includes('high demand') ||
     msg.includes('All AI providers exhausted') ||
-    msg.toLowerCase().includes('rate-limit') ||
-    msg.toLowerCase().includes('rate limit') ||
+    lowerMsg.includes('rate-limit') ||
+    lowerMsg.includes('rate limit') ||
     msg.includes('RESOURCE_EXHAUSTED') ||
     msg.includes('MODEL_CAPACITY_EXCEEDED') ||
     msg.includes('aborted due to timeout')

@@ -458,6 +458,9 @@ describe('PmcOrchestrator (Piloto Nivel 1 & Strangler Fig)', () => {
       expect(isUpstreamAIError(new Error('RESOURCE_EXHAUSTED'))).toBe(true);
       expect(isUpstreamAIError(new Error('MODEL_CAPACITY_EXCEEDED'))).toBe(true);
       expect(isUpstreamAIError(new Error('Request aborted due to timeout'))).toBe(true);
+      // D-004: Casos crudos de proveedores alternativos o proxies
+      expect(isUpstreamAIError(new Error('HTTP 503: upstream backend connection dropped'))).toBe(true);
+      expect(isUpstreamAIError(new Error('upstream service unavailable during peak load'))).toBe(true);
     });
 
     it('NO clasifica como IA errores de base de datos o validaciones genéricas (test negativo)', () => {
@@ -465,6 +468,7 @@ describe('PmcOrchestrator (Piloto Nivel 1 & Strangler Fig)', () => {
       expect(isUpstreamAIError(new Error('Database query timed out'))).toBe(false);
       expect(isUpstreamAIError(new Error('Postgres error 503001 relation not found'))).toBe(false);
       expect(isUpstreamAIError(new Error('Constraint violation code 42901'))).toBe(false);
+      expect(isUpstreamAIError(new Error('HTTP 500: Internal Server Error'))).toBe(false);
       expect(isUpstreamAIError(new Error('Validation error: text is too short'))).toBe(false);
       expect(isUpstreamAIError(null)).toBe(false);
       expect(isUpstreamAIError(undefined)).toBe(false);
