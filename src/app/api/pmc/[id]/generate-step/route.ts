@@ -163,13 +163,6 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         statistical_context?: PmcStatisticalContext;
       }>(project.indicadores_academicos);
 
-      const foda = parseJson<{
-        fortalezas?: string;
-        oportunidades?: string;
-        debilidades?: string;
-        amenazas?: string;
-      }>(project.foda);
-
       const rawStats = project.statistical_context ? parseJson<PmcStatisticalContext>(project.statistical_context) : undefined;
       const statisticalContext: PmcStatisticalContext | undefined = (rawStats && 'plantel' in rawStats)
         ? (rawStats as PmcStatisticalContext)
@@ -275,44 +268,9 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         statistical_context?: PmcStatisticalContext;
       }>(project.indicadores_academicos);
 
-      const diagnosticoGenerado = parseJson<Record<string, string>>(project.diagnostico_generado);
-      const diagnosticoResumen = [
-        diagnosticoGenerado.presentacion ?? '',
-        diagnosticoGenerado.contexto ?? '',
-        diagnosticoGenerado.analisis_indicadores ?? '',
-      ]
-        .filter(Boolean)
-        .join('\n\n')
-        .substring(0, 2000);
-
-      // Parse the new CategoriaPriorizada[] format (with temas)
-      interface CategoriaPriorizadaAPI {
-        id?: string;
-        nombre?: string;
-        temas?: string[];
-      }
-      const rawCategorias = parseJson<CategoriaPriorizadaAPI[]>(project.categorias_priorizadas);
-      const categoriasList = Array.isArray(rawCategorias)
-        ? rawCategorias
-            .map((c) => {
-              const nombre = c.nombre ?? `Categoría ${c.id}`;
-              const temas = Array.isArray(c.temas) && c.temas.length > 0
-                ? c.temas.map((t) => `    • ${t}`).join('\n')
-                : '    • (sin temas específicos)';
-              return `- ${nombre}:\n${temas}`;
-            })
-            .join('\n')
-        : 'No especificadas';
-
-      // Count total temas for proper instruction
-      const totalTemas = Array.isArray(rawCategorias)
-        ? rawCategorias.reduce((sum, c) => sum + (Array.isArray(c.temas) ? c.temas.length : 0), 0)
-        : 0;
-
       const staffData = parseJson<{ nombre?: string; cargo?: string }[]>(project.staff_data);
       const MAX_STAFF = subStatus.isAdmin ? 100 : 35;
       const isStaffTruncated = Array.isArray(staffData) && staffData.length > MAX_STAFF;
-      const cappedStaff = Array.isArray(staffData) ? staffData.slice(0, MAX_STAFF) : [];
       if (isStaffTruncated) {
         logger.warn('Truncated staff list for PMC generation to prevent token overflow', {
           total: staffData.length,

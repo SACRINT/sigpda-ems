@@ -90,7 +90,7 @@ export function parseAIResponse<T>(
     if (repaired !== jsonCandidate) {
       warnings.push('Sintaxis JSON reparada mediante jsonrepair (comas o comillas normalizadas)');
     }
-  } catch (repairErr) {
+  } catch {
     // Intento B: Reparación defensiva manual
     try {
       const cleaned = jsonCandidate
@@ -104,7 +104,7 @@ export function parseAIResponse<T>(
 
       parsedObj = JSON.parse(cleaned);
       warnings.push('Sintaxis JSON recuperada mediante normalización regex fallback');
-    } catch (manualErr) {
+    } catch {
       // Intento C: Recuperación de arreglos truncados por longitud de tokens
       if (firstBracket !== -1 && lastBrace > firstBracket) {
         try {
