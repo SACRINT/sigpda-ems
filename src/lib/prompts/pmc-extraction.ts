@@ -20,6 +20,14 @@ export const PmcPreviousExtractSchema = z.object({
     nombre: z.string().optional().default(''),
     cargo: z.string().optional().default('Docente'),
     meta_individual: z.string().optional().default(''),
+    metas_individuales: z.array(z.object({
+      categoria: z.string().optional().default(''),
+      tema: z.string().optional().default(''),
+      meta: z.string().optional().default(''),
+      estrategia: z.string().optional().default(''),
+      entregable: z.string().optional().default(''),
+      periodo: z.string().optional().default(''),
+    })).optional().default([]),
   })).optional().default([]),
   diagnosticoComunidad: z.string().optional().default(''),
   indicadores: z.object({
@@ -71,7 +79,17 @@ Estructura la información en el siguiente esquema JSON exacto:
     {
       "nombre": "Nombre del docente o directivo",
       "cargo": "Director(a) | Subdirector(a) | Docente de tiempo completo | Docente por horas | Administrativo | etc.",
-      "meta_individual": "Meta o compromiso individual asignado si se especifica"
+      "meta_individual": "Meta o compromiso general si se especifica (texto libre)",
+      "metas_individuales": [
+        {
+          "categoria": "Categoría a la que pertenece la meta (ej. Categoría 1, Categoría 2, Categoría 3)",
+          "tema": "Tema específico (ej. Formación y actualización docente, Indicadores académicos)",
+          "meta": "Meta individual específica para ese tema",
+          "estrategia": "Estrategia o acciones para lograr la meta",
+          "entregable": "Producto o evidencia de entrega",
+          "periodo": "Periodo de ejecución"
+        }
+      ]
     }
   ],
   "diagnosticoComunidad": "Diagnóstico de la comunidad y del entorno escolar (descripción textual amplia, contexto social, económico y cultural)",
@@ -98,5 +116,6 @@ REGLAS DE EXTRACCIÓN:
 1. Conserva la redacción textual del diagnóstico de la comunidad y del FODA tanto como sea posible.
 2. Si el documento contiene tablas de indicadores académicos, extrae los porcentajes numéricos limpios (sin el símbolo %).
 3. Si el documento contiene una lista de plantilla docente o personal, extrae cada miembro en el arreglo "staffData".
-4. Si un dato no se encuentra explícitamente en el texto, asigna una cadena vacía "" o null según corresponda, sin inventar información no sustentada.`;
+4. Si un docente tiene múltiples metas individuales en el PMC anterior (una por categoría o tema), extrae TODAS en el arreglo "metas_individuales", indicando la categoría y tema de cada una.
+5. Si un dato no se encuentra explícitamente en el texto, asigna una cadena vacía "" o null según corresponda, sin inventar información no sustentada.`;
 }

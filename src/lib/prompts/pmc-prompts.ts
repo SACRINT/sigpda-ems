@@ -173,11 +173,16 @@ export function buildPmcPlanAccionPrompt(
     ? rawCategorias.reduce((sum, c) => sum + (Array.isArray(c.temas) ? c.temas.length : 1), 0)
     : 3;
 
-  // Plantilla del personal
-  const staffData = parseJson<{ nombre?: string; cargo?: string }[]>(project.staff_data);
+  // Plantilla del personal — incluir metas predefinidas si existen
+  const staffData = parseJson<{ nombre?: string; cargo?: string; metas_individuales?: { categoria?: string; tema?: string; meta?: string; estrategia?: string; entregable?: string; periodo?: string }[] }[]>(project.staff_data);
   const staffList = Array.isArray(staffData) && staffData.length > 0
-    ? staffData.slice(0, 35).map((s) => `- ${s.nombre ?? 'Docente'} — ${s.cargo ?? 'Docente frente a grupo'}`).join('\n')
-    : `- ${safeStr(project.director_name, 'Director del Plantel')} — Director(a)\n- Colectivo Docente — Docentes frente a grupo`;
+    ? staffData.slice(0, 35).map((s) => {
+        const metasInfo = Array.isArray(s.metas_individuales) && s.metas_individuales.length > 0
+          ? s.metas_individuales.map(m => `      → ${m.categoria || 'S/C'}: ${m.meta || '(sin definir)'}${m.estrategia ? ` [${m.estrategia}]` : ''}`).join('\n')
+          : '      (sin metas predefinidas — genera según su cargo y las categorías)';
+        return `- ${s.nombre ?? 'Docente'} — ${s.cargo ?? 'Docente frente a grupo'}\n    Metas predefinidas:\n${metasInfo}`;
+      }).join('\n')
+    : `- ${safeStr(project.director_name, 'Director del Plantel')} — Director(a)\n    Metas predefinidas: (genera según cargo)\n- Colectivo Docente — Docentes frente a grupo\n    Metas predefinidas: (genera según cargo)`;
 
   return `Eres el diseñador técnico líder de Planes de Mejora Continua (PMC) para el Ciclo Escolar 2026-2027, experto en la metodología CREAA del Bachillerato General Estatal en Puebla.
 
@@ -233,7 +238,12 @@ REGLAS OBLIGATORIAS DE REDACCIÓN DE METAS CREAA (MCCEMS PUEBLA 2026-2027):
    Los entregables deben ser productos analíticos: "Informe de análisis de causas raíz", "Bitácora de tutorías con matriz de riesgo", "Memoria de proyectos PAEC con rúbricas de evaluación".
 
 5. METAS PERSONALES POR TRABAJADOR:
-   Generar una meta individual con su respectiva estrategia y entregable para los trabajadores listados.
+   Generar MÚLTIPLES metas individuales para cada trabajador listado, una por cada categoría/tema que le aplique según su cargo.
+   - Un director(a) puede tener metas en todas las categorías (gestión, académico, socioemocional).
+   - Un docente puede tener metas en categoría 1 (académico) y categoría 3 (PAEC/comunitario).
+   - Un orientador puede tener metas en categoría 3 (socioemocional) y categoría 1 (tutorías).
+   - Si el trabajador tiene metas predefinidas en la plantilla, úsalas como base y complementa con metas adicionales según las categorías seleccionadas.
+   - Cada meta individual DEBE especificar a qué categoría y tema pertenece.
 
 Estructura de respuesta en JSON:
 {
@@ -256,7 +266,9 @@ Estructura de respuesta en JSON:
     {
       "nombre": "Nombre del trabajador",
       "cargo": "Cargo",
-      "meta_individual": "Meta SMART individual",
+      "categoria": "Categoría asignada (ej. Categoría 1 o Categoría 3)",
+      "tema": "Tema o ámbito de acción",
+      "meta_individual": "Meta SMART individual para este tema",
       "estrategia": "Acciones concretas",
       "entregable": "Informe o producto entregable",
       "periodo": "agosto 2026 - junio 2027"

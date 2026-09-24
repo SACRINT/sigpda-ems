@@ -181,6 +181,8 @@ interface MetaInstitucional {
 interface MetaPersonal {
   nombre?: string;
   cargo?: string;
+  categoria?: string;
+  tema?: string;
   meta_individual?: string;
   estrategia?: string;
   entregable?: string;
@@ -623,7 +625,14 @@ function buildMetasPersonales(plan: PlanAccion): (Paragraph | Table)[] {
               children: [
                 tc(safeStr(mp.nombre), { fill: i % 2 ? C.alt : C.white }),
                 tc(safeStr(mp.cargo), { fill: i % 2 ? C.alt : C.white }),
-                tc(safeStr(mp.meta_individual), { fill: i % 2 ? C.alt : C.white }),
+                tc(
+                  safeStr(
+                    mp.categoria
+                      ? `[${mp.categoria}${mp.tema ? ` - ${mp.tema}` : ''}] ${mp.meta_individual || ''}`
+                      : mp.meta_individual
+                  ),
+                  { fill: i % 2 ? C.alt : C.white }
+                ),
                 tc(safeStr(mp.entregable), { fill: i % 2 ? C.alt : C.white }),
                 tc(safeStr(mp.periodo), { fill: i % 2 ? C.alt : C.white }),
               ],

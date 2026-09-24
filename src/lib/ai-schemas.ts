@@ -502,9 +502,11 @@ const PmcMetaInstitucionalSchema = z.object({
 const PmcMetaPersonalSchema = z.object({
   nombre: z.string().min(1, 'Nombre del personal requerido'),
   cargo: z.string().min(1, 'Cargo del personal requerido'),
-  meta_individual: z.string().min(5, 'Meta individual requerida'),
-  estrategia: z.string().min(1, 'Estrategia requerida'),
-  entregable: z.string().min(1, 'Entregable requerido'),
+  categoria: z.string().optional().default(''),
+  tema: z.string().optional().default(''),
+  meta_individual: z.string().optional().default(''),
+  estrategia: z.string().optional().default(''),
+  entregable: z.string().optional().default(''),
   periodo: z.string().default(''),
 });
 
