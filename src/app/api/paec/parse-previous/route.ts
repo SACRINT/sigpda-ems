@@ -10,6 +10,16 @@ import {
   buildPaecExtractionPrompt,
   PaecPreviousExtractSchema,
 } from '@/lib/prompts/paec-extraction';
+import { isFeatureEnabled } from '@/lib/platform/feature-flags';
+import {
+  paecOrchestrator,
+  PaecOrchestratorError,
+} from '@/lib/paec/orchestrator';
+import {
+  withTimeoutBudget,
+  isUpstreamAIError,
+  AI_OUTAGE_USER_MESSAGE,
+} from '@/lib/pmc/orchestrator';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -42,17 +52,41 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
+    // ── Strangler Fig: Delegación al Orquestador PAEC V2 (Nivel 1) ───────────
+    if (isFeatureEnabled('PAEC_ORCHESTRATOR_V2')) {
+      try {
+        const result = await paecOrchestrator.ingestPrevious(buffer, {
+          filename: file.name,
+          mimeType: file.type,
+          teacherId: teacher.id,
+        });
+        return NextResponse.json(result);
+      } catch (err: unknown) {
+        if (err instanceof PaecOrchestratorError) {
+          return NextResponse.json({ error: err.message }, { status: err.status });
+        }
+        throw err;
+      }
+    }
+
+    // ── Flujo Legacy (cuando PAEC_ORCHESTRATOR_V2 = false) ────────────────────
     // 1. Ingesta documental (PDF con OCR o DOCX con Mammoth)
     let ingested;
     try {
-      ingested = await ingestDocument(buffer, {
-        filename: file.name,
-        mimeType: file.type,
-        enableOcr: true,
-        teacherId: teacher.id,
-      });
+      ingested = await withTimeoutBudget(
+        ingestDocument(buffer, {
+          filename: file.name,
+          mimeType: file.type,
+          enableOcr: true,
+          teacherId: teacher.id,
+        }),
+        90000
+      );
     } catch (ingestErr: unknown) {
       logger.error('[paec-parse-previous] Document ingestion failed:', ingestErr);
+      if (isUpstreamAIError(ingestErr)) {
+        return NextResponse.json({ error: AI_OUTAGE_USER_MESSAGE }, { status: 503 });
+      }
       const ingestMsg = ingestErr instanceof Error ? ingestErr.message : 'Formato no soportado';
       return NextResponse.json(
         { error: `No se pudo procesar el archivo: ${ingestMsg}` },
@@ -60,7 +94,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const documentText = ingested.markdown || ingested.fullText;
+    const documentText = ingested?.markdown || ingested?.fullText;
     if (!documentText || documentText.trim().length < 40) {
       return NextResponse.json(
         { error: 'El documento no contiene texto legible ni datos extraíbles.' },
@@ -73,12 +107,15 @@ export async function POST(request: NextRequest) {
     const systemPrompt = PAEC_EXTRACTION_SYSTEM_PROMPT;
     const userPrompt = buildPaecExtractionPrompt(documentText);
 
-    const aiRaw = await generateWithRotation(
-      systemPrompt,
-      userPrompt,
-      teacher.id,
-      isPremium,
-      { temperature: 0.1, jsonMode: true }
+    const aiRaw = await withTimeoutBudget(
+      generateWithRotation(
+        systemPrompt,
+        userPrompt,
+        teacher.id,
+        isPremium,
+        { temperature: 0.1, jsonMode: true }
+      ),
+      90000
     );
 
     // 3. Parseo y validación de respuesta JSON
@@ -102,6 +139,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (err: unknown) {
     logger.error('[paec-parse-previous] Unhandled error:', err);
+    if (isUpstreamAIError(err)) {
+      return NextResponse.json({ error: AI_OUTAGE_USER_MESSAGE }, { status: 503 });
+    }
     const errMsg = err instanceof Error ? err.message : 'Error interno del servidor al procesar el PAEC anterior.';
     return NextResponse.json(
       { error: errMsg },
