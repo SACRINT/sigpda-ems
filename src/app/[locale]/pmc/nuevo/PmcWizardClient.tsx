@@ -98,6 +98,28 @@ interface MetaInstitucional {
   periodo_inicio: string;
   periodo_fin: string;
   diagnostico_meta: string;
+  continuidad_de?: string; // H-052: Enlace estructural para rastrear meta previa adaptada
+}
+
+export function isPreviousMetaAdapted(
+  mp: { meta?: string },
+  metasInstitucionales?: Array<{ meta: string; continuidad_de?: string }>,
+  index?: number
+): boolean {
+  if (!metasInstitucionales || metasInstitucionales.length === 0) return false;
+  const mpKey = mp.meta ? mp.meta.trim().toLowerCase() : (index !== undefined ? `meta_previa_${index}` : '');
+  return metasInstitucionales.some((m) => {
+    if (mpKey && m.continuidad_de && m.continuidad_de.trim().toLowerCase() === mpKey) {
+      return true;
+    }
+    if (mp.meta && m.meta === `[Continuidad 2026-2027] ${mp.meta}`) {
+      return true;
+    }
+    if (mpKey && m.meta.trim().toLowerCase() === mpKey) {
+      return true;
+    }
+    return false;
+  });
 }
 
 interface MetaPersonal {
@@ -2334,11 +2356,7 @@ interface PaecProjectForPmc {
                   </p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {metasPreviasReferencia.map((mp, idx) => {
-                      const isAlreadyAdded = planAccion?.metas_institucionales?.some(
-                        (m) =>
-                          m.meta === `[Continuidad 2026-2027] ${mp.meta}` ||
-                          (Boolean(mp.meta) && m.meta.trim().toLowerCase() === mp.meta!.trim().toLowerCase())
-                      );
+                      const isAlreadyAdded = isPreviousMetaAdapted(mp, planAccion?.metas_institucionales, idx);
 
                       return (
                         <div key={idx} style={{ background: 'rgba(0,0,0,0.25)', padding: '10px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
@@ -2368,6 +2386,7 @@ interface PaecProjectForPmc {
                                 periodo_inicio: 'Agosto 2026',
                                 periodo_fin: 'Junio 2027',
                                 diagnostico_meta: `Meta adaptada del ciclo previo: ${mp.meta || ''}`,
+                                continuidad_de: mp.meta ? mp.meta.trim() : `meta_previa_${idx}`,
                               };
                               const currentPersonal = (planAccion?.metas_personales && planAccion.metas_personales.length > 0)
                                 ? planAccion.metas_personales
