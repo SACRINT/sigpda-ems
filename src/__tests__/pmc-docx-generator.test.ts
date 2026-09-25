@@ -348,5 +348,14 @@ describe('pmc-docx-generator — Generador de Plan de Mejora Continua e Informes
     expect(text).toContain('Agosto 2026 – Julio 2027 (Ciclo Completo)');
     expect(text).toContain('CICLO 2025-2026 (Referencia)');
     expect(text).toContain('CICLO 2026-2027 (Resultados Finales)');
+    expect(text).toContain('Ciclo Escolar 2027-2028');
+
+    // Validación de modo parcial dinámico (H-025)
+    const partialBuffer = await generatePmcInformeDocx(nextCycleFixture, 'parcial');
+    const { value: partialText } = await mammoth.extractRawText({ buffer: partialBuffer });
+
+    expect(partialText).toContain('INFORME PARCIAL DE AVANCE PMC 2026-2027');
+    expect(partialText).toContain('Agosto 2026 – Enero 2027 (1er Semestre)');
+    expect(partialText).toContain('Término del Ciclo 2026-2027 (Semestre B)');
   });
 });
