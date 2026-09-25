@@ -259,7 +259,10 @@ export function parsePmcStatistics(
 
     // Calcular brechas para el plantel seleccionado
     const brechaAbandono = parseFloat(((targetPlantel?.abandono || 0) - promedioAbandono).toFixed(2));
-    const brechaEficiencia = parseFloat(((targetPlantel?.eficienciaTerminal || 0) - promedioEficiencia).toFixed(2));
+    const targetET = targetPlantel?.eficienciaTerminal;
+    const brechaEficiencia = typeof targetET === 'number' && promedioEficiencia > 0
+      ? parseFloat((targetET - promedioEficiencia).toFixed(2))
+      : undefined;
     const brechaReprobacion = parseFloat(((targetPlantel?.reprobacion || 0) - promedioReprobacion).toFixed(2));
 
     const observaciones: string[] = [];
@@ -272,7 +275,7 @@ export function parsePmcStatistics(
       observaciones.push(`Favorable retención estudiantil: abandono está ${Math.abs(brechaAbandono)}% por debajo de la media regional.`);
     }
 
-    if (brechaEficiencia < -5) {
+    if (brechaEficiencia !== undefined && brechaEficiencia < -5) {
       observaciones.push(`Eficiencia terminal (${targetPlantel?.eficienciaTerminal}%) sensiblemente inferior al promedio de zona (${promedioEficiencia}%).`);
       prioridad = 'alta';
     }

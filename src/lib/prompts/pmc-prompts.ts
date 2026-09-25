@@ -77,7 +77,7 @@ ${stats.ediemsPre ? `- Resultado Diagnóstico EDIEMS Inicial: ${stats.ediemsPre}
     contextoZonaExtra = `
 BENCHMARKS REGIONALES DE ZONA ESCOLAR (${zona.zonaNumero || project.school_zone || 'Supervisión'}):
 - Promedio de Abandono en la Zona: ${zona.promedioAbandono}% (Brecha del plantel: ${zona.brechasDiagnostico.brechaAbandonoVsZona > 0 ? '+' : ''}${zona.brechasDiagnostico.brechaAbandonoVsZona}%)
-- Promedio de Eficiencia Terminal en la Zona: ${zona.promedioEficiencia}% (Brecha del plantel: ${zona.brechasDiagnostico.brechaEficienciaVsZona > 0 ? '+' : ''}${zona.brechasDiagnostico.brechaEficienciaVsZona}%)
+- Promedio de Eficiencia Terminal en la Zona: ${zona.promedioEficiencia > 0 ? `${zona.promedioEficiencia}%` : 'N/D'}${zona.brechasDiagnostico.brechaEficienciaVsZona !== undefined ? ` (Brecha del plantel: ${zona.brechasDiagnostico.brechaEficienciaVsZona > 0 ? '+' : ''}${zona.brechasDiagnostico.brechaEficienciaVsZona}%)` : ' (Eficiencia del plantel: No reportada)'}
 - Promedio de Reprobación en la Zona: ${zona.promedioReprobacion}% (Brecha del plantel: ${zona.brechasDiagnostico.brechaReprobacionVsZona > 0 ? '+' : ''}${zona.brechasDiagnostico.brechaReprobacionVsZona}%)
 - Nivel de prioridad de intervención: ${zona.brechasDiagnostico.prioridadIntervencion.toUpperCase()}
 - Observaciones de Supervisión:
