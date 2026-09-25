@@ -1090,25 +1090,37 @@ interface PaecProjectForPmc {
   };
 
   const removeStaffMember = (indexToRemove: number) => {
-    setStaffData(prev => {
-      if (prev.length <= 1) {
-        return [{ nombre: '', cargo: 'Docente', meta_individual: '', metas_individuales: [] }];
-      }
-      const updated = prev.filter((_, idx) => idx !== indexToRemove);
-      setTotalStaff(updated.length);
-      return updated;
-    });
+    const memberToRemove = staffData[indexToRemove];
+    const updated = staffData.length <= 1
+      ? [{ nombre: '', cargo: 'Docente', meta_individual: '', metas_individuales: [] }]
+      : staffData.filter((_, idx) => idx !== indexToRemove);
+
+    setStaffData(updated);
+    setTotalStaff(updated.length);
+
+    // H-040: Podar inmediatamente de metas_personales al responsable eliminado
+    if (memberToRemove?.nombre?.trim()) {
+      const removedName = memberToRemove.nombre.trim().toLowerCase();
+      setPlanAccion(prev => {
+        if (!prev) return prev;
+        const remainingMetas = (prev.metas_personales || []).filter(
+          mp => (mp.nombre || '').trim().toLowerCase() !== removedName
+        );
+        return {
+          ...prev,
+          metas_personales: remainingMetas,
+        };
+      });
+    }
   };
 
   const addStaffMember = () => {
-    setStaffData(prev => {
-      const updated = [
-        ...prev,
-        { nombre: '', cargo: 'Docente', meta_individual: '', metas_individuales: [] },
-      ];
-      setTotalStaff(updated.length);
-      return updated;
-    });
+    const updated = [
+      ...staffData,
+      { nombre: '', cargo: 'Docente', meta_individual: '', metas_individuales: [] },
+    ];
+    setStaffData(updated);
+    setTotalStaff(updated.length);
   };
 
   // Toggle categoria (activa/desactiva la categoría completa)
@@ -1147,9 +1159,10 @@ interface PaecProjectForPmc {
     return derived;
   }, [staffData, cicloEscolar, planAccion]);
 
-  // Sincronización automática de metas personales al ingresar al Paso 4
-  useEffect(() => {
-    if (activeStep === 4 && staffData.length > 0) {
+  // ── Step navigation ────────────────────────────────────────────────────────
+
+  const goToStep = (targetStep: number) => {
+    if (targetStep === 4 && staffData.length > 0) {
       setPlanAccion(prev => {
         const existing = prev?.metas_personales || [];
         if (existing.length === 0 || existing.length < staffData.length) {
@@ -1162,9 +1175,8 @@ interface PaecProjectForPmc {
         return prev;
       });
     }
-  }, [activeStep, staffData, cicloEscolar]);
-
-  // ── Step navigation ────────────────────────────────────────────────────────
+    setActiveStep(targetStep);
+  };
 
   const handleNext = async () => {
     setError(null);
@@ -1270,11 +1282,11 @@ interface PaecProjectForPmc {
     }
 
     if (idToUse) {
-      setActiveStep(s => Math.min(s + 1, 5));
+      goToStep(Math.min(activeStep + 1, 5));
     }
   };
 
-  const handleBack = () => setActiveStep(s => Math.max(s - 1, 1));
+  const handleBack = () => goToStep(Math.max(activeStep - 1, 1));
 
   // Invariante de Cobertura de Metas de Personal (C10 / D6)
   const coverage = computeCoverage(planAccion?.metas_personales, totalStaff, staffData);
@@ -1302,7 +1314,7 @@ interface PaecProjectForPmc {
 
   const handleGoToStep4 = () => {
     setShowCoverageModal(false);
-    setActiveStep(4);
+    goToStep(4);
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -1353,7 +1365,7 @@ interface PaecProjectForPmc {
               color: activeStep === step.n ? '#818cf8' : activeStep > step.n ? '#34d399' : 'rgba(240,244,255,0.4)',
               cursor: activeStep > step.n ? 'pointer' : 'default',
               transition: 'all 0.2s',
-            }} onClick={() => activeStep > step.n && setActiveStep(step.n)}>
+            }} onClick={() => activeStep > step.n && goToStep(step.n)}>
               <div style={{ fontSize: '18px', marginBottom: '2px' }}>
                 {activeStep > step.n ? '✓' : step.n}
               </div>
@@ -2792,7 +2804,7 @@ interface PaecProjectForPmc {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setActiveStep(4)}
+                  onClick={() => goToStep(4)}
                   style={{
                     flexShrink: 0,
                     padding: '7px 14px',
