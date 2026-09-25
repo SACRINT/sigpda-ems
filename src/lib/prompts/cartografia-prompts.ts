@@ -80,7 +80,7 @@ export function buildCartografiaFullPrompt(
     .slice(0, 20)
     .map(
       (p) =>
-        `- ${p.nombre} (CCT: ${p.cct}): Matrícula ${p.matricula}, Abandono ${p.abandono}%, Eficiencia ${p.eficienciaTerminal}%, Promedio ${p.promedioGeneral}. Proyecto PAEC: "${p.paecProyecto}"`
+        `- ${p.nombre} (CCT: ${p.cct}): Matrícula ${p.matricula}, Abandono ${p.abandono}%, Eficiencia ${p.eficienciaTerminal !== undefined && p.eficienciaTerminal > 0 ? `${p.eficienciaTerminal}%` : 'N/D'}, Promedio ${p.promedioGeneral}. Proyecto PAEC: "${p.paecProyecto}"`
     )
     .join('\n');
 
@@ -98,7 +98,7 @@ ${libraryContext || ''}
 
 CAPA CUANTITATIVA CONSOLIDADA (Línea Base 911.7G y F11C):
 - Promedio de Abandono Escolar en la Zona: ${promAbandono}%
-- Promedio de Eficiencia Terminal en la Zona: ${promEficiencia}%
+- Promedio de Eficiencia Terminal en la Zona: ${promEficiencia !== undefined && promEficiencia > 0 ? `${promEficiencia}%` : 'No reportada / No disponible'}
 - Promedio General de Aprovechamiento (F11C): ${promCalificaciones}
 - Promedio de Reprobación en la Zona: ${promReprobacion}%
 - Planteles con prioridad de acompañamiento intensivo:
@@ -274,7 +274,7 @@ function renderBaseStats(
     .slice(0, 15)
     .map(
       (p) =>
-        `- ${p.nombre} (${p.cct}): Matrícula ${p.matricula}, Abandono ${p.abandono}%, Eficiencia ${p.eficienciaTerminal}%, Promedio ${p.promedioGeneral}. Proyecto PAEC: "${p.paecProyecto}"`
+        `- ${p.nombre} (${p.cct}): Matrícula ${p.matricula}, Abandono ${p.abandono}%, Eficiencia ${p.eficienciaTerminal !== undefined && p.eficienciaTerminal > 0 ? `${p.eficienciaTerminal}%` : 'N/D'}, Promedio ${p.promedioGeneral}. Proyecto PAEC: "${p.paecProyecto}"`
     )
     .join('\n');
 
@@ -287,7 +287,7 @@ function renderBaseStats(
 
 ${libraryContext ? `CONTEXTO DE BIBLIOTECA DOCENTE:\n${libraryContext}\n` : ''}
 LÍNEA BASE ESTADÍSTICA 911.7G / F11C:
-- Promedio Abandono: ${promAbandono}% | Eficiencia Terminal: ${promEficiencia}%
+- Promedio Abandono: ${promAbandono}% | Eficiencia Terminal: ${promEficiencia !== undefined && promEficiencia > 0 ? `${promEficiencia}%` : 'N/D'}
 - Promedio Calificaciones: ${promCalificaciones} | Reprobación: ${promReprobacion}%
 - Planteles Atención Prioritaria: ${momento2.capaCuantitativa.plantelesAtencionPrioritaria.slice(0, 5).join(', ') || 'En rangos promedio'}
 

@@ -14,7 +14,7 @@ export interface CartografiaPlantelItem {
   matricula: number;
   egresados?: number;
   bajasDefinitivas?: number;
-  eficienciaTerminal: number;
+  eficienciaTerminal?: number;
   abandono: number;
   reprobacion: number;
   promedioGeneral: number;
@@ -45,7 +45,7 @@ export interface CartografiaMomento1Conocer {
 export interface CartografiaMomento2Organizar {
   capaCuantitativa: {
     promedioAbandonoZona: number;
-    promedioEficienciaZona: number;
+    promedioEficienciaZona?: number;
     promedioAprovechamientoZona: number;
     promedioReprobacionZona: number;
     matriculaTotal: number;

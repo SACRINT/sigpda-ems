@@ -99,6 +99,31 @@ describe('Cartografia Context Builder (H-011)', () => {
     expect(ctx.promAbandono).toBe(0);
     expect(ctx.momento2.capaCualitativa.problematicasComunes.length).toBeGreaterThan(0);
   });
+
+  it('no sintetiza 85% ni 0% cuando eficienciaTerminal no viene reportada en planteles (H-050)', () => {
+    const rowSinET: Record<string, unknown> = {
+      zona_nombre: 'Zona 004',
+      planteles_json: [
+        {
+          cct: '21EBH0015A',
+          nombre: 'Plantel Sin ET',
+          matricula: 100,
+          abandono: 4.0,
+          reprobacion: 5.0,
+          promedioGeneral: 8.5,
+          // Sin eficienciaTerminal
+        },
+      ],
+    };
+
+    const ctx = buildCartografiaBaseContext(rowSinET);
+    expect(ctx.planteles[0].eficienciaTerminal).toBeUndefined();
+    expect(ctx.promEficiencia).toBeUndefined();
+    expect(ctx.momento2.capaCuantitativa.promedioEficienciaZona).toBeUndefined();
+    expect(ctx.momento2.capaCuantitativa.resumenEstadistico911F11).toContain('Eficiencia Terminal N/D');
+    expect(ctx.momento2.capaCuantitativa.resumenEstadistico911F11).not.toContain('85%');
+    expect(ctx.momento2.capaCuantitativa.resumenEstadistico911F11).not.toContain('0%');
+  });
 });
 
 describe('Cartografia Fallback Defaults (H-013)', () => {

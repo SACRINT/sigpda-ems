@@ -219,7 +219,7 @@ export async function generateCartografiaPDF(
     p.municipio,
     p.turno,
     p.matricula,
-    `${p.eficienciaTerminal}%`,
+    p.eficienciaTerminal !== undefined && p.eficienciaTerminal > 0 ? `${p.eficienciaTerminal}%` : 'N/D',
     `${p.abandono}%`,
     p.promedioGeneral.toFixed(2),
   ]);
@@ -255,7 +255,7 @@ export async function generateCartografiaPDF(
   const cCual = project.momento2Organizar?.capaCualitativa;
 
   const benchRows: RowInput[] = [
-    ['Matrícula Total Zona', `${cCuant?.matriculaTotal || 0} alumnos`, 'Promedio Eficiencia Terminal (911.7G)', `${cCuant?.promedioEficienciaZona || 0}%`],
+    ['Matrícula Total Zona', `${cCuant?.matriculaTotal || 0} alumnos`, 'Promedio Eficiencia Terminal (911.7G)', cCuant?.promedioEficienciaZona !== undefined && cCuant.promedioEficienciaZona > 0 ? `${cCuant.promedioEficienciaZona}%` : 'N/D'],
     ['Promedio Abandono Escolar (911)', `${cCuant?.promedioAbandonoZona || 0}%`, 'Promedio Calificaciones (F11C)', `${cCuant?.promedioAprovechamientoZona || 0}`],
     ['Tasa de Reprobación Media', `${cCuant?.promedioReprobacionZona || 0}%`, 'Planteles en Prioridad Alta', `${cCuant?.plantelesAtencionPrioritaria?.length || 0} planteles`],
   ];

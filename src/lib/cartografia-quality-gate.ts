@@ -77,8 +77,8 @@ export function auditCartografiaProject(project: CartografiaZonaProject): Cartog
   // C2: Momento 2 - Organizar (20 pts: Capa Cuantitativa + Capa Cualitativa)
   const cCuant = project.momento2Organizar?.capaCuantitativa;
   const cCual = project.momento2Organizar?.capaCualitativa;
-  const hasCuant = cCuant && cCuant.promedioAbandonoZona > 0 && cCuant.promedioEficienciaZona > 0;
-  const hasCual = cCual && cCual.problematicasComunes?.length > 0;
+  const hasCuant = Boolean(cCuant && cCuant.promedioAbandonoZona > 0 && (cCuant.promedioEficienciaZona ?? 0) > 0);
+  const hasCual = Boolean(cCual && cCual.problematicasComunes?.length > 0);
 
   if (hasCuant && hasCual) {
     criteria.push({
@@ -88,7 +88,7 @@ export function auditCartografiaProject(project: CartografiaZonaProject): Cartog
       weight: 20,
       score: 20,
       status: 'pass',
-      feedback: `Articulación sólida: Capa cuantitativa (Abandono ${cCuant.promedioAbandonoZona}%, Eficiencia ${cCuant.promedioEficienciaZona}%) y problemáticas cualitativas PAEC vinculadas.`,
+      feedback: `Articulación sólida: Capa cuantitativa (Abandono ${cCuant?.promedioAbandonoZona}%, Eficiencia ${cCuant?.promedioEficienciaZona !== undefined && cCuant.promedioEficienciaZona > 0 ? `${cCuant.promedioEficienciaZona}%` : 'N/D'}) y problemáticas cualitativas PAEC vinculadas.`,
     });
     strengths.push('Integración rigurosa de datos cuantitativos (911/F11) con el contexto comunitario PAEC.');
   } else if (hasCuant || hasCual) {

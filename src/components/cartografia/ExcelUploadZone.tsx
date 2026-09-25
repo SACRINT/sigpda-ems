@@ -21,7 +21,7 @@ interface ParsedZoneData {
   filename: string;
   planteles: CartografiaPlantelItem[];
   matriculaTotal: number;
-  promedioEficiencia: number;
+  promedioEficiencia?: number;
   promedioAbandono: number;
   promedioAprovechamiento: number;
   promedioReprobacion: number;
@@ -116,7 +116,7 @@ export default function ExcelUploadZone({
           matricula: p.matricula,
           egresados: p.egresados,
           bajasDefinitivas: p.bajasDefinitivas,
-          eficienciaTerminal: p.eficienciaTerminal ?? 0,
+          eficienciaTerminal: p.eficienciaTerminal,
           abandono: p.abandono,
           reprobacion: p.reprobacion,
           promedioGeneral: p.promedioGeneral ?? p.promedioCalificaciones ?? 8.0,
@@ -126,14 +126,15 @@ export default function ExcelUploadZone({
         const conMat = planteles.filter(p => p.matricula > 0);
         const div = conMat.length > 0 ? conMat.length : planteles.length;
 
-        const promEficiencia = clientResult.zona?.promedioEficiencia ?? parseFloat((conMat.reduce((a, b) => a + b.eficienciaTerminal, 0) / div).toFixed(2));
+        const conET = planteles.filter(p => p.eficienciaTerminal !== undefined && p.eficienciaTerminal > 0);
+        const promEficiencia = clientResult.zona?.promedioEficiencia ?? (conET.length > 0 ? parseFloat((conET.reduce((a, b) => a + (b.eficienciaTerminal ?? 0), 0) / conET.length).toFixed(2)) : undefined);
         const promAbandono = clientResult.zona?.promedioAbandono ?? parseFloat((conMat.reduce((a, b) => a + b.abandono, 0) / div).toFixed(2));
         const promAprov = clientResult.zona?.promedioCalificaciones ?? parseFloat((conMat.reduce((a, b) => a + b.promedioGeneral, 0) / div).toFixed(2));
         const promReprob = clientResult.zona?.promedioReprobacion ?? parseFloat((conMat.reduce((a, b) => a + b.reprobacion, 0) / div).toFixed(2));
 
         const prioritarios = planteles
-          .filter(p => p.abandono > promAbandono + 3 || p.eficienciaTerminal < promEficiencia - 5)
-          .map(p => `${p.nombre} (Abandono: ${p.abandono}%, ET: ${p.eficienciaTerminal}%)`);
+          .filter(p => p.abandono > promAbandono + 3 || (p.eficienciaTerminal !== undefined && promEficiencia !== undefined && p.eficienciaTerminal < promEficiencia - 5))
+          .map(p => `${p.nombre} (Abandono: ${p.abandono}%, ET: ${p.eficienciaTerminal !== undefined ? `${p.eficienciaTerminal}%` : 'N/D'})`);
 
         setParsedData({
           filename: file.name,
@@ -347,7 +348,9 @@ export default function ExcelUploadZone({
             </div>
             <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
               <div style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>Eficiencia Term.</div>
-              <div style={{ fontSize: 18, fontWeight: 900, color: '#4ade80', marginTop: 2 }}>{parsedData.promedioEficiencia}%</div>
+              <div style={{ fontSize: 18, fontWeight: 900, color: '#4ade80', marginTop: 2 }}>
+                {parsedData.promedioEficiencia !== undefined && parsedData.promedioEficiencia > 0 ? `${parsedData.promedioEficiencia}%` : 'N/D'}
+              </div>
             </div>
             <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
               <div style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>Abandono Esc.</div>
@@ -422,7 +425,9 @@ export default function ExcelUploadZone({
                       <td style={{ padding: '6px 8px', color: '#f8fafc', fontWeight: 600 }}>{p.nombre}</td>
                       <td style={{ padding: '6px 8px', textAlign: 'center', color: '#94a3b8', fontFamily: 'monospace' }}>{p.cct}</td>
                       <td style={{ padding: '6px 8px', textAlign: 'right', color: '#38bdf8', fontWeight: 700 }}>{p.matricula}</td>
-                      <td style={{ padding: '6px 8px', textAlign: 'right', color: '#4ade80' }}>{p.eficienciaTerminal}%</td>
+                      <td style={{ padding: '6px 8px', textAlign: 'right', color: '#4ade80' }}>
+                        {p.eficienciaTerminal !== undefined && p.eficienciaTerminal > 0 ? `${p.eficienciaTerminal}%` : 'N/D'}
+                      </td>
                       <td style={{ padding: '6px 8px', textAlign: 'right', color: '#f87171' }}>{p.abandono}%</td>
                       <td style={{ padding: '6px 8px', textAlign: 'right', color: '#fbbf24', fontWeight: 600 }}>{p.promedioGeneral}</td>
                     </tr>

@@ -99,7 +99,7 @@ export async function parseCartografiaMatriz(
         matricula: p.matricula,
         egresados: p.egresados,
         bajasDefinitivas: p.bajasDefinitivas,
-        eficienciaTerminal: p.eficienciaTerminal ?? 0,
+        eficienciaTerminal: p.eficienciaTerminal,
         abandono: p.abandono,
         reprobacion: p.reprobacion,
         promedioGeneral: p.promedioGeneral ?? p.promedioCalificaciones ?? 8.0,
@@ -127,14 +127,18 @@ export async function parseCartografiaMatriz(
     const plantelesConMatricula = planteles.filter((p) => p.matricula > 0);
     const divisor = plantelesConMatricula.length > 0 ? plantelesConMatricula.length : planteles.length;
 
+    const plantelesConEficiencia = planteles.filter((p) => p.eficienciaTerminal !== undefined && p.eficienciaTerminal > 0);
+    const promEficiencia = zonaData?.promedioEficiencia ?? (plantelesConEficiencia.length > 0
+      ? parseFloat((plantelesConEficiencia.reduce((a, b) => a + (b.eficienciaTerminal ?? 0), 0) / plantelesConEficiencia.length).toFixed(2))
+      : undefined);
+
     const promAbandono = zonaData?.promedioAbandono ?? parseFloat((plantelesConMatricula.reduce((a, b) => a + b.abandono, 0) / divisor).toFixed(2));
-    const promEficiencia = zonaData?.promedioEficiencia ?? parseFloat((plantelesConMatricula.reduce((a, b) => a + b.eficienciaTerminal, 0) / divisor).toFixed(2));
     const promAprovechamiento = zonaData?.promedioCalificaciones ?? parseFloat((plantelesConMatricula.reduce((a, b) => a + b.promedioGeneral, 0) / divisor).toFixed(2));
     const promReprobacion = zonaData?.promedioReprobacion ?? parseFloat((plantelesConMatricula.reduce((a, b) => a + b.reprobacion, 0) / divisor).toFixed(2));
 
     const plantelesAtencionPrioritaria = planteles
-      .filter((p) => p.abandono > promAbandono + 3 || p.eficienciaTerminal < promEficiencia - 5)
-      .map((p) => `${p.nombre} (Abandono: ${p.abandono}%, ET: ${p.eficienciaTerminal}%)`);
+      .filter((p) => p.abandono > promAbandono + 3 || (p.eficienciaTerminal !== undefined && promEficiencia !== undefined && p.eficienciaTerminal < promEficiencia - 5))
+      .map((p) => `${p.nombre} (Abandono: ${p.abandono}%, ET: ${p.eficienciaTerminal !== undefined ? `${p.eficienciaTerminal}%` : 'N/D'})`);
 
     const momento2: CartografiaMomento2Organizar = {
       capaCuantitativa: {
