@@ -78,10 +78,10 @@ export async function POST(request: NextRequest) {
       parsedData.isSuggestedProblem = false;
       if (Array.isArray(geminiResult.planOperativo) && geminiResult.planOperativo.length > 0) {
         parsedData.planOperativo = geminiResult.planOperativo
-          .filter((item) => item && item.asignatura && item.actividad)
+          .filter((item) => item && (item.asignatura || item.uac) && item.actividad)
           .map((item) => ({
-            asignatura: String(item.asignatura).trim(),
-            actividad: String(item.actividad).trim(),
+            asignatura: String(item.asignatura || item.uac || '').trim(),
+            actividad: String(item.actividad || '').trim(),
             propositoFormativo: item.propositoFormativo ? String(item.propositoFormativo).trim() : undefined,
             estrategiaDidactica: item.estrategiaDidactica ? String(item.estrategiaDidactica).trim() : undefined,
             semana: item.semana ? String(item.semana).trim() : undefined,

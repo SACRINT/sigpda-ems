@@ -568,6 +568,7 @@ export const PaecExtractedDocSchema = z.object({
   cct: z.string().nullable().optional(),
   planOperativo: z.array(z.object({
     asignatura: nullableString(),
+    uac: nullableString(),
     actividad: nullableString(),
     propositoFormativo: nullableString(),
     estrategiaDidactica: nullableString(),
