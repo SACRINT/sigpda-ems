@@ -419,3 +419,164 @@ export function reconcilePmcStaff(options: ReconcileStaffOptions): ReconciledSta
     totalStaff: finalTotalStaff,
   };
 }
+
+export interface DerivedPersonalMeta {
+  nombre: string;
+  cargo: string;
+  categoria: string;
+  tema: string;
+  meta_individual: string;
+  estrategia: string;
+  entregable: string;
+  periodo: string;
+}
+
+/**
+ * Genera o sincroniza metas individuales SMART para cada integrante de la plantilla escolar.
+ * Si el trabajador ya tiene metas definidas en el formulario (Paso 2) o existentes, las preserva.
+ * Si no tiene metas capturadas, genera una sugerencia oficial SMART adaptada a su cargo institucional
+ * para asegurar el cumplimiento del estándar de corresponsabilidad docente (C10 / Cobertura >= 80%).
+ */
+export function derivePersonalMetasFromStaff(
+  staff: StaffMember[] | RawStaffCandidate[],
+  cicloEscolar = '2026-2027',
+  existingMetas?: Array<{ nombre?: string; meta_individual?: string; cargo?: string; categoria?: string; tema?: string; estrategia?: string; entregable?: string; periodo?: string }> | null
+): DerivedPersonalMeta[] {
+  const safeCiclo = cicloEscolar || '2026-2027';
+  const startYear = safeCiclo.split('-')[0] || '2026';
+  const endYear = safeCiclo.split('-')[1] || '2027';
+  const defaultPeriodo = `agosto ${startYear} - junio ${endYear}`;
+
+  type ExistingMetaItem = NonNullable<typeof existingMetas>[number];
+  const existingMap = new Map<string, ExistingMetaItem>();
+  for (const em of existingMetas || []) {
+    if (em?.nombre && isValidStaffName(em.nombre)) {
+      existingMap.set(normalizeStaffName(em.nombre), em);
+    }
+  }
+
+  const result: DerivedPersonalMeta[] = [];
+
+  for (const member of staff || []) {
+    const rawName = member.nombre?.trim();
+    if (!rawName || !isValidStaffName(rawName) || isNonStaffRole(member.cargo)) {
+      continue;
+    }
+
+    const normKey = normalizeStaffName(rawName);
+    const displayName = cleanStaffDisplayName(rawName);
+    const cargo = member.cargo?.trim() || 'Docente';
+    const lowerCargo = cargo.toLowerCase();
+
+    // 1. Si ya existe una meta personal previa capturada con texto sustantivo, respetarla
+    const existing = existingMap.get(normKey);
+    if (existing && existing.meta_individual && existing.meta_individual.trim().length >= 5) {
+      result.push({
+        nombre: displayName,
+        cargo,
+        categoria: existing.categoria || PMC_CATEGORIAS_OFICIALES[0].nombre,
+        tema: existing.tema || PMC_CATEGORIAS_OFICIALES[0].temas[0],
+        meta_individual: existing.meta_individual.trim(),
+        estrategia: existing.estrategia?.trim() || 'Acciones colegiadas de seguimiento y evaluación formativa.',
+        entregable: existing.entregable?.trim() || 'Informe de seguimiento y evidencias.',
+        periodo: existing.periodo?.trim() || defaultPeriodo,
+      });
+      continue;
+    }
+
+    // 2. Si el miembro tiene metas individuales predefinidas en staffData (Paso 2)
+    const staffMeta = member.metas_individuales?.find((m) => m && m.meta && m.meta.trim().length >= 5);
+    if (staffMeta && staffMeta.meta) {
+      result.push({
+        nombre: displayName,
+        cargo,
+        categoria: normalizePmcCategoria(staffMeta.categoria || null),
+        tema: staffMeta.tema || 'Formación y actualización docente',
+        meta_individual: staffMeta.meta.trim(),
+        estrategia: staffMeta.estrategia?.trim() || 'Acciones de implementación en aula y colegiado.',
+        entregable: staffMeta.entregable?.trim() || 'Evidencias y constancias oficiales.',
+        periodo: staffMeta.periodo?.trim() || defaultPeriodo,
+      });
+      continue;
+    }
+
+    // 3. Si tiene meta_individual en campo directo
+    if (member.meta_individual && member.meta_individual.trim().length >= 5) {
+      result.push({
+        nombre: displayName,
+        cargo,
+        categoria: PMC_CATEGORIAS_OFICIALES[0].nombre,
+        tema: PMC_CATEGORIAS_OFICIALES[0].temas[0],
+        meta_individual: member.meta_individual.trim(),
+        estrategia: 'Acciones de implementación en aula y colegiado.',
+        entregable: 'Informe y evidencias de cumplimiento.',
+        periodo: defaultPeriodo,
+      });
+      continue;
+    }
+
+    // 4. Generar sugerencia SMART contextualizada por función institucional
+    let suggestedCategoria = PMC_CATEGORIAS_OFICIALES[0].nombre;
+    let suggestedTema = 'Planeación didáctica';
+    let suggestedMeta = 'Diseñar e implementar el 100% de las secuencias didácticas situadas integrando evaluación formativa continua y estrategias de regularización.';
+    let suggestedEstrategia = 'Planeaciones por progresiones de aprendizaje del MCCEMS, rúbricas analíticas y círculos de nivelación académica.';
+    let suggestedEntregable = 'Portafolio docente con secuencias validadas y reporte bimestral de aprovechamiento.';
+
+    if (lowerCargo.includes('director') && !lowerCargo.includes('subdirector')) {
+      suggestedCategoria = PMC_CATEGORIAS_OFICIALES[1].nombre;
+      suggestedTema = 'Infraestructura y equipamiento del plantel';
+      suggestedMeta = 'Liderar la gestión de recursos de infraestructura y coordinar el cumplimiento colegiado del 100% de los compromisos institucionales del PMC.';
+      suggestedEstrategia = 'Reuniones mensuales de seguimiento colegiado en CTE, gestión ante autoridades municipales/SEMS y vinculación con comités escolares.';
+      suggestedEntregable = 'Actas y minutas de seguimiento colegiado y memoria anual de gestión escolar.';
+    } else if (lowerCargo.includes('subdirector')) {
+      suggestedCategoria = PMC_CATEGORIAS_OFICIALES[1].nombre;
+      suggestedTema = 'Administración escolar';
+      suggestedMeta = 'Supervisar el seguimiento académico y el cumplimiento del cronograma institucional del PMC en un 100%.';
+      suggestedEstrategia = 'Revisión periódica de avances programáticos y calendarización de evaluaciones diagnósticas y formativas.';
+      suggestedEntregable = 'Bitácora de seguimiento académico y control de avance de metas.';
+    } else if (lowerCargo.includes('tutor') && (lowerCargo.includes('plantel') || lowerCargo.includes('escolar'))) {
+      suggestedCategoria = PMC_CATEGORIAS_OFICIALES[0].nombre;
+      suggestedTema = 'Tutorías';
+      suggestedMeta = 'Coordinar el plan integral de tutorías del plantel atendiendo al 100% de los aprendientes detectados con riesgo de abandono escolar.';
+      suggestedEstrategia = 'Detección temprana en evaluaciones diagnósticas y parciales, canalización pedagógica y coordinación colegiada de tutores de grupo.';
+      suggestedEntregable = 'Padrón escolar de aprendientes en tutoría y reporte estadístico de retención.';
+    } else if (lowerCargo.includes('tutor') && (lowerCargo.includes('grupo') || lowerCargo.includes('grupal'))) {
+      suggestedCategoria = PMC_CATEGORIAS_OFICIALES[2].nombre;
+      suggestedTema = 'Desarrollo de habilidades socioemocionales';
+      suggestedMeta = 'Brindar acompañamiento tutorial continuo al grupo a cargo y mantener comunicación con el 100% de madres/padres de aprendientes en rezago.';
+      suggestedEstrategia = 'Entrevistas individuales y colegiadas, seguimiento de inasistencias y talleres vivenciales de habilidades socioemocionales.';
+      suggestedEntregable = 'Expediente de tutoría grupal y minutas de acuerdos con padres de familia.';
+    } else if (lowerCargo.includes('orientador')) {
+      suggestedCategoria = PMC_CATEGORIAS_OFICIALES[2].nombre;
+      suggestedTema = 'Orientación vocacional y socioemocional';
+      suggestedMeta = 'Implementar el programa institucional de orientación vocacional y atención psicoemocional preventiva para el alumnado del plantel.';
+      suggestedEstrategia = 'Talleres de proyecto de vida, ferias profesiográficas y canalización a instancias de apoyo ante factores de riesgo.';
+      suggestedEntregable = 'Registro de atenciones vocacionales y reporte semestral de seguimiento.';
+    } else if (lowerCargo.includes('administrativ') || lowerCargo.includes('secretari')) {
+      suggestedCategoria = PMC_CATEGORIAS_OFICIALES[1].nombre;
+      suggestedTema = 'Administración escolar';
+      suggestedMeta = 'Mantener al 100% actualizados los expedientes escolares, estadísticas 911 y registros de control académico.';
+      suggestedEstrategia = 'Auditoría interna continua de expedientes de aprendientes y validación oportuna de calificaciones en plataformas oficiales.';
+      suggestedEntregable = 'Expedientes escolares completos y constancia de entrega de estadística 911 validada.';
+    } else if (lowerCargo.includes('intendenc') || lowerCargo.includes('mantenimient') || lowerCargo.includes('apoyo')) {
+      suggestedCategoria = PMC_CATEGORIAS_OFICIALES[1].nombre;
+      suggestedTema = 'Mantenimiento de instalaciones';
+      suggestedMeta = 'Garantizar que las aulas, sanitarios y áreas comunes permanezcan limpias, funcionales y seguras durante todo el ciclo escolar.';
+      suggestedEstrategia = 'Programa semanal de mantenimiento preventivo y reporte inmediato de fallas en servicios de agua, luz o sanitarios.';
+      suggestedEntregable = 'Bitácora semanal de mantenimiento e inventario de insumos escolares.';
+    }
+
+    result.push({
+      nombre: displayName,
+      cargo,
+      categoria: suggestedCategoria,
+      tema: suggestedTema,
+      meta_individual: suggestedMeta,
+      estrategia: suggestedEstrategia,
+      entregable: suggestedEntregable,
+      periodo: defaultPeriodo,
+    });
+  }
+
+  return result;
+}

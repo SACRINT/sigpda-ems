@@ -10,6 +10,7 @@ import { PmcDiagnosticoSchema, PmcPlanAccionSchema } from '@/lib/ai-schemas';
 import { getSubscriptionStatus } from '@/lib/subscription-gate';
 import { extractIdempotencyKey, checkIdempotencyKey, createIdempotencyKey } from '@/lib/idempotency';
 import { buildPmcDiagnosticoPrompt, buildPmcPlanAccionPrompt } from '@/lib/prompts/pmc-prompts';
+import { derivePersonalMetasFromStaff, StaffMember } from '@/lib/pmc/staff-reconciler';
 import type { PmcProject, PmcStatisticalContext } from '@/types/pmc';
 import { z } from 'zod';
 
@@ -307,6 +308,12 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         );
       }
       const parsedPlan = parseResult.data;
+      const staffList = (Array.isArray(staffData) ? staffData : []) as StaffMember[];
+      parsedPlan.metas_personales = derivePersonalMetasFromStaff(
+        staffList,
+        project.ciclo_escolar || '2026-2027',
+        parsedPlan.metas_personales
+      );
 
       const [updated] = await db`
         UPDATE pmc_projects

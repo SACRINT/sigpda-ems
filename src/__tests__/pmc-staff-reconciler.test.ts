@@ -10,6 +10,7 @@ import {
   reconcilePmcStaff,
   isValidStaffName,
   normalizeStaffName,
+  derivePersonalMetasFromStaff,
 } from '@/lib/pmc/staff-reconciler';
 
 describe('PMC Staff Reconciler Engine', () => {
@@ -183,5 +184,66 @@ describe('PMC Staff Reconciler Engine', () => {
     expect(result.staff.length).toBe(2);
     expect(result.staff[0].nombre).toBe('Juan Rogelio García Escudero');
     expect(result.staff[1].nombre).toBe('Enia Hernandez Garcia');
+  });
+
+  it('12. derivePersonalMetasFromStaff deriva metas SMART oficiales por función para 100% de la plantilla', () => {
+    const staff = [
+      { nombre: 'Juan Rogelio García Escudero', cargo: 'Director(a)' },
+      { nombre: 'Gustavo Aaron de la Fuente Portilla', cargo: 'Docente y tutor del plantel' },
+      { nombre: 'Enia Hernández García', cargo: 'Docente y tutor de grupo' },
+      { nombre: 'Pedro Páramo', cargo: 'Docente' },
+    ];
+
+    const metas = derivePersonalMetasFromStaff(staff, '2026-2027');
+
+    expect(metas.length).toBe(4);
+    // Director: Gestión de infraestructura y compromisos del PMC
+    expect(metas[0].nombre).toBe('Juan Rogelio García Escudero');
+    expect(metas[0].meta_individual).toContain('infraestructura');
+    expect(metas[0].entregable).toContain('colegiado');
+
+    // Tutor del plantel: Alertas tempranas y plan de tutorías
+    expect(metas[1].nombre).toBe('Gustavo Aaron de la Fuente Portilla');
+    expect(metas[1].meta_individual).toContain('tutorías');
+    expect(metas[1].entregable).toContain('tutoría');
+
+    // Tutor de grupo: Acompañamiento tutorial continuo
+    expect(metas[2].nombre).toBe('Enia Hernández García');
+    expect(metas[2].meta_individual).toContain('tutorial');
+
+    // Docente: Secuencias didácticas situadas y evaluación formativa
+    expect(metas[3].nombre).toBe('Pedro Páramo');
+    expect(metas[3].meta_individual).toContain('secuencias didácticas');
+  });
+
+  it('13. derivePersonalMetasFromStaff respeta y preserva metas capturadas manualmente en el Paso 2', () => {
+    const staff = [
+      {
+        nombre: 'Gustavo Aaron de la Fuente Portilla',
+        cargo: 'Docente y tutor del plantel',
+        metas_individuales: [
+          {
+            categoria: '1',
+            tema: 'Formación docente',
+            meta: 'Capacitación constante y seguimiento tutorial',
+            estrategia: 'Inscripción y seguimiento en plataforma',
+            entregable: 'Constancias COSFAC',
+            periodo: '2026-2027',
+          },
+        ],
+      },
+      {
+        nombre: 'Enia Hernández García',
+        cargo: 'Docente y tutor de grupo',
+        meta_individual: 'Acompañamiento focalizado a alumnos con reprobación en matemáticas',
+      },
+    ];
+
+    const metas = derivePersonalMetasFromStaff(staff, '2026-2027');
+
+    expect(metas.length).toBe(2);
+    expect(metas[0].meta_individual).toBe('Capacitación constante y seguimiento tutorial');
+    expect(metas[0].entregable).toBe('Constancias COSFAC');
+    expect(metas[1].meta_individual).toBe('Acompañamiento focalizado a alumnos con reprobación en matemáticas');
   });
 });

@@ -11,7 +11,7 @@ import {
 } from '@/lib/constants/pmc-categorias';
 import { toRealNumber } from '@/lib/numeric-guard';
 import { computeCoverage } from '@/lib/coverage-core';
-import { reconcilePmcStaff } from '@/lib/pmc/staff-reconciler';
+import { reconcilePmcStaff, derivePersonalMetasFromStaff } from '@/lib/pmc/staff-reconciler';
 
 
 const PMC_DRAFT_KEY = 'didactica_pmc_draft';
@@ -103,6 +103,8 @@ interface MetaInstitucional {
 interface MetaPersonal {
   nombre: string;
   cargo: string;
+  categoria?: string;
+  tema?: string;
   meta_individual: string;
   estrategia: string;
   entregable: string;
@@ -560,6 +562,16 @@ interface PaecProjectForPmc {
     });
     setStaffData(reconciled.staff);
     setTotalStaff(reconciled.totalStaff);
+
+    // Derivar y precargar metas individuales SMART para la plantilla consolidada
+    const derivedFromExtract = derivePersonalMetasFromStaff(
+      reconciled.staff,
+      parsedPmcData.cicloEscolar || cicloEscolar
+    );
+    setPlanAccion(prev => ({
+      metas_institucionales: prev?.metas_institucionales || [],
+      metas_personales: derivedFromExtract,
+    }));
 
     if (parsedPmcData.metas_institucionales_previas && parsedPmcData.metas_institucionales_previas.length > 0) {
       setMetasPreviasReferencia(parsedPmcData.metas_institucionales_previas);
@@ -1124,6 +1136,34 @@ interface PaecProjectForPmc {
     categoriasPriorizadas.find(c => c.id === catId)?.temas.includes(tema) ?? false;
   const totalTemasSeleccionados = categoriasPriorizadas.reduce((sum, c) => sum + c.temas.length, 0);
 
+  // Sincronización de metas individuales de plantilla (C10 - Corresponsabilidad)
+  const syncPersonalMetas = useCallback((overrideBase?: MetaPersonal[], forceReset = false) => {
+    const base = forceReset ? [] : (overrideBase || planAccion?.metas_personales || []);
+    const derived = derivePersonalMetasFromStaff(staffData, cicloEscolar, base);
+    setPlanAccion(prev => ({
+      metas_institucionales: prev?.metas_institucionales || [],
+      metas_personales: derived,
+    }));
+    return derived;
+  }, [staffData, cicloEscolar, planAccion]);
+
+  // Sincronización automática de metas personales al ingresar al Paso 4
+  useEffect(() => {
+    if (activeStep === 4 && staffData.length > 0) {
+      setPlanAccion(prev => {
+        const existing = prev?.metas_personales || [];
+        if (existing.length === 0 || existing.length < staffData.length) {
+          const derived = derivePersonalMetasFromStaff(staffData, cicloEscolar, existing);
+          return {
+            metas_institucionales: prev?.metas_institucionales || [],
+            metas_personales: derived,
+          };
+        }
+        return prev;
+      });
+    }
+  }, [activeStep, staffData, cicloEscolar]);
+
   // ── Step navigation ────────────────────────────────────────────────────────
 
   const handleNext = async () => {
@@ -1170,6 +1210,12 @@ interface PaecProjectForPmc {
         setError('Por favor completa el nombre y cargo de todos los miembros del personal.');
         return;
       }
+      // Derivar y propagar metas individuales de la plantilla hacia el plan de acción
+      const derived = derivePersonalMetasFromStaff(staffData, cicloEscolar, planAccion?.metas_personales);
+      setPlanAccion(prev => ({
+        metas_institucionales: prev?.metas_institucionales || [],
+        metas_personales: derived,
+      }));
       idToUse = await saveProject({ total_staff: totalStaff, staff_data: staffData, current_step: 3 });
     } else if (activeStep === 3) {
       if (!diagnosticoComunidad.trim()) {
@@ -1180,6 +1226,12 @@ interface PaecProjectForPmc {
         setError('Selecciona al menos una categoría y al menos un tema a priorizar.');
         return;
       }
+      // Asegurar que las metas personales estén preparadas para el Paso 4
+      const derived = derivePersonalMetasFromStaff(staffData, cicloEscolar, planAccion?.metas_personales);
+      setPlanAccion(prev => ({
+        metas_institucionales: prev?.metas_institucionales || [],
+        metas_personales: derived,
+      }));
       idToUse = await saveProject({
         diagnostico_comunidad: diagnosticoComunidad,
         indicadores_academicos: indicadores,
@@ -1187,13 +1239,31 @@ interface PaecProjectForPmc {
         current_step: 4,
       });
     } else if (activeStep === 4) {
-      if (!diagnosticoGenerado || !planAccion) {
-        setError('Debes generar tanto el diagnóstico como el plan de acción con IA antes de continuar.');
+      if (!diagnosticoGenerado) {
+        setError('Debes generar el diagnóstico oficial antes de continuar.');
         return;
       }
+      const numMetasInst = planAccion?.metas_institucionales?.length || 0;
+      if (numMetasInst === 0) {
+        setError('Debes generar o adaptar al menos una meta institucional en el plan de acción antes de continuar.');
+        return;
+      }
+
+      // Finalizar metas personales garantizando 100% de cobertura de la plantilla antes de guardar y avanzar al paso 5
+      const finalizedPersonalMetas = derivePersonalMetasFromStaff(
+        staffData,
+        cicloEscolar,
+        planAccion?.metas_personales
+      );
+      const finalizedPlanAccion: PlanAccion = {
+        metas_institucionales: planAccion!.metas_institucionales,
+        metas_personales: finalizedPersonalMetas,
+      };
+      setPlanAccion(finalizedPlanAccion);
+
       idToUse = await saveProject({
         diagnostico_generado: diagnosticoGenerado,
-        plan_accion: planAccion,
+        plan_accion: finalizedPlanAccion,
         status: 'completed',
         current_step: 5,
       });
@@ -2205,7 +2275,7 @@ interface PaecProjectForPmc {
                 <div>
                   <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#818cf8', margin: 0 }}>
                     🎯 Plan de Acción con Metas SMART
-                    {planAccion && <span style={{ marginLeft: '8px', color: '#34d399', fontSize: '13px' }}>✓ Generado</span>}
+                    {(planAccion?.metas_institucionales?.length || 0) > 0 && <span style={{ marginLeft: '8px', color: '#34d399', fontSize: '13px' }}>✓ {planAccion?.metas_institucionales?.length} Metas Institucionales</span>}
                   </h3>
                   <p style={{ fontSize: '12px', color: 'rgba(240,244,255,0.5)', margin: '4px 0 0' }}>
                     Metas institucionales por categoría + metas individuales para los {totalStaff} trabajadores
@@ -2216,7 +2286,7 @@ interface PaecProjectForPmc {
                   disabled={generating !== null || !diagnosticoGenerado}
                   style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', background: generating === 'plan_accion' ? 'rgba(255,255,255,0.1)' : !diagnosticoGenerado ? 'rgba(255,255,255,0.07)' : 'linear-gradient(135deg,#6366f1,#4f46e5)', color: '#fff', fontWeight: 600, cursor: (generating !== null || !diagnosticoGenerado) ? 'not-allowed' : 'pointer', fontSize: '13px', opacity: !diagnosticoGenerado ? 0.5 : 1 }}
                 >
-                  {generating === 'plan_accion' ? '⏳ Generando...' : planAccion ? '🔄 Regenerar' : '✨ Generar Plan de Acción'}
+                  {generating === 'plan_accion' ? '⏳ Generando...' : (planAccion?.metas_institucionales?.length || 0) > 0 ? '🔄 Regenerar Metas Institucionales con IA' : '✨ Generar Plan de Acción con IA'}
                 </button>
               </div>
               {!diagnosticoGenerado && <p style={{ fontSize: '12px', color: '#fcd34d', background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.2)', padding: '8px 12px', borderRadius: '6px', marginBottom: '12px' }}>⚠️ Primero genera el diagnóstico para poder generar el plan de acción.</p>}
@@ -2273,9 +2343,12 @@ interface PaecProjectForPmc {
                                 periodo_fin: 'Junio 2027',
                                 diagnostico_meta: `Meta adaptada del ciclo previo: ${mp.meta || ''}`,
                               };
+                              const currentPersonal = (planAccion?.metas_personales && planAccion.metas_personales.length > 0)
+                                ? planAccion.metas_personales
+                                : derivePersonalMetasFromStaff(staffData, cicloEscolar);
                               setPlanAccion(prev => ({
                                 metas_institucionales: [...(prev?.metas_institucionales || []), adaptedMeta],
-                                metas_personales: prev?.metas_personales || [],
+                                metas_personales: currentPersonal,
                               }));
                               setEditingMeta(planAccion?.metas_institucionales?.length || 0);
                             }}
@@ -2307,6 +2380,11 @@ interface PaecProjectForPmc {
                   <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#818cf8', marginBottom: '12px' }}>
                     Metas Institucionales ({planAccion.metas_institucionales.length})
                   </h4>
+                  {planAccion.metas_institucionales.length === 0 && (
+                    <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px dashed rgba(255,255,255,0.15)', color: 'rgba(240,244,255,0.6)', fontSize: '13px', textAlign: 'center', marginBottom: '16px' }}>
+                      Aún no hay metas institucionales formuladas. Haz clic en <strong>✨ Generar Plan de Acción con IA</strong> o adapta las metas del ciclo previo de arriba.
+                    </div>
+                  )}
                   {planAccion.metas_institucionales.map((meta, i) => (
                     <div key={i} style={{ marginBottom: '12px', borderRadius: '8px', border: '1px solid rgba(99,102,241,0.25)', overflow: 'hidden' }}>
                       <div style={{ background: 'rgba(99,102,241,0.25)', color: '#f0f4ff', padding: '8px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -2372,17 +2450,113 @@ interface PaecProjectForPmc {
                                     style={{ ...inputStyle, minHeight: '70px', fontSize: '13px' }}
                                   />
                                 ) : (
-                                  <input
-                                    value={((meta as unknown) as Record<string, string>)[f.key] || ''}
-                                    onChange={e => {
-                                      const copy = { ...planAccion };
-                                      const arr = [...copy.metas_institucionales];
-                                      arr[i] = { ...arr[i], [f.key]: e.target.value };
-                                      copy.metas_institucionales = arr;
-                                      setPlanAccion(copy);
-                                    }}
-                                    style={{ ...inputStyle, fontSize: '13px' }}
-                                  />
+                                  <>
+                                    <input
+                                      value={((meta as unknown) as Record<string, string>)[f.key] || ''}
+                                      onChange={e => {
+                                        const copy = { ...planAccion! };
+                                        const arr = [...copy.metas_institucionales];
+                                        arr[i] = { ...arr[i], [f.key]: e.target.value };
+                                        copy.metas_institucionales = arr;
+                                        setPlanAccion(copy);
+                                      }}
+                                      placeholder={f.key === 'personal_designado' ? 'Ej. Director y Colegiado Docente, o selecciona de la plantilla abajo' : ''}
+                                      style={{ ...inputStyle, fontSize: '13px' }}
+                                    />
+                                    {f.key === 'personal_designado' && (
+                                      <div style={{ marginTop: '8px', padding: '10px', background: 'rgba(99,102,241,0.08)', borderRadius: '6px', border: '1px solid rgba(99,102,241,0.2)' }}>
+                                        <div style={{ fontSize: '11px', fontWeight: 700, color: '#a5b4fc', marginBottom: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                          <span>👥 Asignar responsable(s) de tu plantilla escolar:</span>
+                                          {meta.personal_designado && (
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                const copy = { ...planAccion! };
+                                                const arr = [...copy.metas_institucionales];
+                                                arr[i] = { ...arr[i], personal_designado: '' };
+                                                copy.metas_institucionales = arr;
+                                                setPlanAccion(copy);
+                                              }}
+                                              style={{ background: 'none', border: 'none', color: '#fca5a5', fontSize: '10px', cursor: 'pointer', textDecoration: 'underline' }}
+                                            >
+                                              Limpiar responsable
+                                            </button>
+                                          )}
+                                        </div>
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                          {[
+                                            'Director y Colegiado Docente',
+                                            'Todo el Personal Docente',
+                                            'Comité de Tutorías',
+                                            'Director(a) del Plantel',
+                                          ].map(preset => (
+                                            <button
+                                              key={preset}
+                                              type="button"
+                                              onClick={() => {
+                                                const copy = { ...planAccion! };
+                                                const arr = [...copy.metas_institucionales];
+                                                arr[i] = { ...arr[i], personal_designado: preset };
+                                                copy.metas_institucionales = arr;
+                                                setPlanAccion(copy);
+                                              }}
+                                              style={{
+                                                fontSize: '11px',
+                                                padding: '3px 8px',
+                                                borderRadius: '4px',
+                                                border: '1px solid rgba(99,102,241,0.35)',
+                                                background: 'rgba(99,102,241,0.2)',
+                                                color: '#c7d2fe',
+                                                cursor: 'pointer',
+                                              }}
+                                            >
+                                              + {preset}
+                                            </button>
+                                          ))}
+                                          {staffData
+                                            .filter(s => s.nombre && s.nombre.trim())
+                                            .map((staffMember, sIdx) => {
+                                              const sName = staffMember.nombre.trim();
+                                              const isAssigned = meta.personal_designado?.includes(sName);
+                                              return (
+                                                <button
+                                                  key={sIdx}
+                                                  type="button"
+                                                  onClick={() => {
+                                                    const copy = { ...planAccion! };
+                                                    const arr = [...copy.metas_institucionales];
+                                                    const current = arr[i].personal_designado || '';
+                                                    const nextVal = current.trim()
+                                                      ? (current.includes(sName) ? current : `${current}, ${sName}`)
+                                                      : `${sName} (${staffMember.cargo})`;
+                                                    arr[i] = { ...arr[i], personal_designado: nextVal };
+                                                    copy.metas_institucionales = arr;
+                                                    setPlanAccion(copy);
+                                                  }}
+                                                  style={{
+                                                    fontSize: '11px',
+                                                    padding: '3px 8px',
+                                                    borderRadius: '4px',
+                                                    border: isAssigned ? '1px solid rgba(16,185,129,0.5)' : '1px solid rgba(255,255,255,0.15)',
+                                                    background: isAssigned ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.06)',
+                                                    color: isAssigned ? '#6ee7b7' : '#e0e7ff',
+                                                    cursor: 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '4px',
+                                                  }}
+                                                  title={`Asignar a ${sName} (${staffMember.cargo})`}
+                                                >
+                                                  <span>{isAssigned ? '✓' : '+'}</span>
+                                                  <span>{sName}</span>
+                                                  <span style={{ opacity: 0.6, fontSize: '10px' }}>({staffMember.cargo})</span>
+                                                </button>
+                                              );
+                                            })}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </>
                                 )}
                               </div>
                             ))}
@@ -2401,74 +2575,161 @@ interface PaecProjectForPmc {
                   ))}
 
                   {/* Metas personales */}
-                  <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#818cf8', margin: '20px 0 12px' }}>
-                    Metas Individuales del Personal ({planAccion.metas_personales.length} personas)
-                  </h4>
-                  <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                    {planAccion.metas_personales.map((mp, i) => (
-                      <div key={i} style={{ display: 'flex', gap: '12px', marginBottom: '10px', padding: '10px', background: i % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'rgba(99,102,241,0.07)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.08)', flexWrap: 'wrap' }}>
-                        <div style={{ minWidth: '200px' }}>
-                          <div style={{ fontWeight: 700, fontSize: '13px', color: '#818cf8' }}>{mp.nombre}</div>
-                          <div style={{ fontSize: '12px', color: 'rgba(240,244,255,0.5)' }}>{mp.cargo}</div>
-                        </div>
-                        <div style={{ flex: 1, fontSize: '12px' }}>
-                          {editingPersonal === i ? (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                              {[
-                                { key: 'meta_individual', label: 'Meta individual' },
-                                { key: 'entregable', label: 'Entregable' },
-                                { key: 'periodo', label: 'Período' },
-                              ].map(f => (
-                                <div key={f.key}>
-                                  <label style={{ ...labelStyle, fontSize: '11px' }}>{f.label}</label>
-                                  <textarea
-                                    value={((mp as unknown) as Record<string, string>)[f.key] || ''}
-                                    onChange={e => {
-                                      const copy = { ...planAccion };
-                                      const arr = [...copy.metas_personales];
-                                      arr[i] = { ...arr[i], [f.key]: e.target.value };
-                                      copy.metas_personales = arr;
-                                      setPlanAccion(copy);
-                                    }}
-                                    style={{ ...inputStyle, minHeight: '50px', fontSize: '12px' }}
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div>
-                              <div><strong>Meta:</strong> {mp.meta_individual}</div>
-                              <div style={{ marginTop: '4px' }}><strong>Entregable:</strong> {mp.entregable}</div>
-                              <div style={{ marginTop: '4px', color: 'var(--c-text-muted)' }}>Período: {mp.periodo}</div>
-                            </div>
-                          )}
-                        </div>
+                  <div style={{ marginTop: '24px', padding: '16px', background: 'rgba(99,102,241,0.06)', borderRadius: '10px', border: '1px solid rgba(99,102,241,0.25)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '12px' }}>
+                      <div>
+                        <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#818cf8', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span>🎯</span> Metas Individuales del Personal (Corresponsabilidad Docente — Criterio C10)
+                        </h4>
+                        <p style={{ fontSize: '12px', color: 'rgba(240,244,255,0.7)', margin: '4px 0 0', lineHeight: 1.5 }}>
+                          La plataforma sugiere metas SMART por cargo para todo tu personal (o las que hayas definido en el Paso 2). Si el director está de acuerdo las deja tal como están; si no, puede editarlas directamente.
+                        </p>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                         <button
-                          onClick={() => setEditingPersonal(editingPersonal === i ? null : i)}
-                          style={{ background: 'rgba(99,102,241,0.3)', border: 'none', color: '#fff', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', alignSelf: 'flex-start', flexShrink: 0 }}
+                          type="button"
+                          onClick={() => syncPersonalMetas(undefined, false)}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '6px',
+                            border: '1px solid rgba(99,102,241,0.4)',
+                            background: 'rgba(99,102,241,0.2)',
+                            color: '#c7d2fe',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                          }}
+                          title="Sincroniza y arrastra nombres y metas capturadas en el Paso 2"
                         >
-                          {editingPersonal === i ? '✓ OK' : '✏️'}
+                          🔄 Sincronizar con Plantilla (Paso 2)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => syncPersonalMetas(undefined, true)}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '6px',
+                            border: '1px solid rgba(245,158,11,0.4)',
+                            background: 'rgba(245,158,11,0.15)',
+                            color: '#fcd34d',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                          }}
+                          title="Regenera sugerencias SMART oficiales por cada cargo de la plantilla"
+                        >
+                          ✨ Regenerar sugerencias SMART por rol
                         </button>
                       </div>
-                    ))}
-                  </div>
+                    </div>
 
-                  <button
-                    onClick={async () => {
-                      if (!projectId) return;
-                      setSaving(true);
-                      await fetch(`/api/pmc/${projectId}`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ plan_accion: planAccion }),
-                      });
-                      setSaving(false);
-                    }}
-                    style={{ marginTop: '12px', padding: '8px 16px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg,#10b981,#059669)', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}
-                    disabled={saving}
-                  >
-                    {saving ? 'Guardando...' : '💾 Guardar cambios del plan'}
-                  </button>
+                    {/* Status banner de Cobertura C10 */}
+                    <div style={{
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      background: coveragePercent >= 80 ? 'rgba(16,185,129,0.12)' : 'rgba(245,158,11,0.12)',
+                      border: `1px solid ${coveragePercent >= 80 ? 'rgba(16,185,129,0.3)' : 'rgba(245,158,11,0.3)'}`,
+                      color: coveragePercent >= 80 ? '#6ee7b7' : '#fcd34d',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      marginBottom: '14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                    }}>
+                      <span>{coveragePercent >= 80 ? '✅' : '⚠️'}</span>
+                      <span>
+                        Cobertura de metas: <strong>{personalWithGoals} de {realStaffCount} trabajadores ({coveragePercent}%)</strong>
+                        {coveragePercent >= 80 ? ' — Cumple con la recomendación de corresponsabilidad docente de la norma SEP Puebla / SEMS.' : ' — Se recomienda al menos 80%.'}
+                      </span>
+                    </div>
+
+                    <div style={{ maxHeight: '480px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {(planAccion?.metas_personales || []).map((mp, i) => {
+                        const isFromStep2 = staffData.some(
+                          s => s.nombre?.trim().toLowerCase() === mp.nombre?.trim().toLowerCase() &&
+                               ((s.metas_individuales && s.metas_individuales.length > 0 && s.metas_individuales[0]?.meta?.trim().length >= 5) ||
+                                (s.meta_individual && s.meta_individual.trim().length >= 5))
+                        );
+
+                        return (
+                          <div key={i} style={{ padding: '12px', background: i % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'rgba(99,102,241,0.06)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div style={{ fontWeight: 700, fontSize: '13px', color: '#c7d2fe' }}>{mp.nombre}</div>
+                                <span style={{ fontSize: '11px', background: 'rgba(255,255,255,0.08)', padding: '2px 6px', borderRadius: '4px', color: 'rgba(240,244,255,0.7)' }}>{mp.cargo}</span>
+                                <span style={{ fontSize: '10.5px', background: isFromStep2 ? 'rgba(16,185,129,0.15)' : 'rgba(99,102,241,0.18)', color: isFromStep2 ? '#6ee7b7' : '#a5b4fc', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                                  {isFromStep2 ? '🏷️ Definida en Paso 2' : '✨ Sugerencia SMART por Cargo (Aceptada)'}
+                                </span>
+                              </div>
+                              <div style={{ display: 'flex', gap: '6px' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingPersonal(editingPersonal === i ? null : i)}
+                                  style={{ background: 'rgba(99,102,241,0.3)', border: 'none', color: '#fff', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}
+                                >
+                                  {editingPersonal === i ? '✓ Listo' : '✏️ Editar'}
+                                </button>
+                              </div>
+                            </div>
+
+                            {editingPersonal === i ? (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                {[
+                                  { key: 'meta_individual', label: 'Redacción de Meta Individual SMART' },
+                                  { key: 'estrategia', label: 'Estrategia / Acciones de implementación' },
+                                  { key: 'entregable', label: 'Entregable / Evidencia verificable' },
+                                  { key: 'periodo', label: 'Período de ejecución' },
+                                ].map(f => (
+                                  <div key={f.key}>
+                                    <label style={{ ...labelStyle, fontSize: '11px' }}>{f.label}</label>
+                                    <textarea
+                                      value={((mp as unknown) as Record<string, string>)[f.key] || ''}
+                                      onChange={e => {
+                                        const copy = { ...planAccion! };
+                                        const arr = [...copy.metas_personales];
+                                        arr[i] = { ...arr[i], [f.key]: e.target.value };
+                                        copy.metas_personales = arr;
+                                        setPlanAccion(copy);
+                                      }}
+                                      style={{ ...inputStyle, minHeight: f.key === 'meta_individual' || f.key === 'estrategia' ? '54px' : '36px', fontSize: '12px' }}
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div style={{ fontSize: '12px', lineHeight: 1.6 }}>
+                                <div><strong>Meta:</strong> {mp.meta_individual}</div>
+                                {mp.estrategia && <div style={{ marginTop: '3px', color: 'rgba(240,244,255,0.75)' }}><strong>Estrategia:</strong> {mp.estrategia}</div>}
+                                <div style={{ marginTop: '3px', color: 'rgba(240,244,255,0.85)' }}><strong>Entregable:</strong> {mp.entregable}</div>
+                                <div style={{ marginTop: '3px', color: 'rgba(240,244,255,0.5)', fontSize: '11px' }}><strong>Período:</strong> {mp.periodo}</div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!projectId || !planAccion) return;
+                        setSaving(true);
+                        await fetch(`/api/pmc/${projectId}`, {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ plan_accion: planAccion }),
+                        });
+                        setSaving(false);
+                        setSuccessBanner('✓ Cambios en el plan de acción guardados correctamente.');
+                        setTimeout(() => setSuccessBanner(null), 3500);
+                      }}
+                      style={{ marginTop: '14px', padding: '8px 16px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg,#10b981,#059669)', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}
+                      disabled={saving}
+                    >
+                      {saving ? 'Guardando...' : '💾 Guardar cambios del plan'}
+                    </button>
+                  </div>
                 </div>
               )}
               {generating === 'plan_accion' && (
