@@ -116,7 +116,7 @@ export default function ExcelUploadZone({
           matricula: p.matricula,
           egresados: p.egresados,
           bajasDefinitivas: p.bajasDefinitivas,
-          eficienciaTerminal: p.eficienciaTerminal,
+          eficienciaTerminal: p.eficienciaTerminal ?? 0,
           abandono: p.abandono,
           reprobacion: p.reprobacion,
           promedioGeneral: p.promedioGeneral ?? p.promedioCalificaciones ?? 8.0,

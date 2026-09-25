@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { parsePmcStatistics } from '@/lib/pmc-statistics-parser';
 import { parseCartografiaMatriz } from '@/lib/cartografia-parser';
 
@@ -92,5 +92,29 @@ describe('Excel Import Engine — Formato 911.7G / F11C / Cartografía de Zona',
     // Momento 2: Capa Cualitativa
     expect(result.momento2.capaCualitativa.problematicasComunes.length).toBeGreaterThan(0);
     expect(result.momento2.capaCualitativa.factoresContextuales.length).toBeGreaterThan(0);
+  });
+
+  it('4. Preserva eficienciaTerminal como undefined cuando la columna está ausente o vacía sin sintetizar egresados/matrícula (H-046)', () => {
+    const mockRowsSinET = [
+      ['SUBSECRETARÍA DE EDUCACIÓN MEDIA SUPERIOR - ESTADÍSTICA 911.7G'],
+      ['No.', 'C.C.T.', 'Nombre del Plantel', 'Turno', 'Matrícula Total', 'Egresados', 'Bajas Definitivas'],
+      [1, '21EBH0015A', 'BGE Venustiano Carranza', 'MATUTINO', '300', '85', '10'],
+    ];
+
+    const result = parsePmcStatistics(mockRowsSinET, {
+      zonaNumero: '004',
+      cicloEscolar: '2026-2027',
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.allPlanteles.length).toBe(1);
+
+    const p1 = result.allPlanteles[0];
+    expect(p1.matricula).toBe(300);
+    expect(p1.egresados).toBe(85);
+    // H-046: No debe recalcular (85/300)*100 = 28.33%, debe permanecer undefined
+    expect(p1.eficienciaTerminal).toBeUndefined();
+    // Abandono calculado basado en bajas: (10/300)*100 = 3.33%
+    expect(p1.abandono).toBe(3.33);
   });
 });

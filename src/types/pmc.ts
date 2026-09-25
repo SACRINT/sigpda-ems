@@ -38,7 +38,7 @@ export interface PmcStatisticalPlantel {
   aprobados?: number;          // Del 911.7G
   reprobados?: number;         // Del 911.7G
   bajasDefinitivas?: number;   // Del 911.7G → para calcular Abandono
-  eficienciaTerminal: number;  // Calculada: (egresados / matrículaInicial) × 100
+  eficienciaTerminal?: number; // Porcentaje oficial generacional impreso (opcional si la columna no viene en la matriz)
   abandono: number;            // Calculada: (bajasDefinitivas / matrículaInicial) × 100
   reprobacion: number;         // % Reprobación oficial (compatibilidad con cálculos de zona)
 

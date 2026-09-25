@@ -45,14 +45,14 @@ function normalizeHeader(str: string): string {
  * Parsea un buffer de Excel o una matriz de filas JSON.
  */
 export function parsePmcStatistics(
-  input: Buffer | Uint8Array | ArrayBuffer | any[],
+  input: Buffer | Uint8Array | ArrayBuffer | unknown[],
   options?: ParsePmcOptions
 ): ParsePmcResult {
   try {
-    let rows: any[][] = [];
+    let rows: unknown[][] = [];
 
     if (Array.isArray(input)) {
-      rows = input;
+      rows = input as unknown[][];
     } else {
       const isBuffer = typeof Buffer !== 'undefined' && typeof Buffer.isBuffer === 'function' && Buffer.isBuffer(input);
       const workbook = XLSX.read(input, { type: isBuffer ? 'buffer' : 'array' });
@@ -67,7 +67,7 @@ export function parsePmcStatistics(
       }
 
       const sheet = workbook.Sheets[sheetName];
-      rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+      rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as unknown[][];
     }
 
     if (!rows || rows.length === 0) {
@@ -76,7 +76,7 @@ export function parsePmcStatistics(
 
     // Mapeo de columnas oficiales y asignaturas F11
     let headerRowIndex = -1;
-    let colMap: Record<string, number> = {};
+    const colMap: Record<string, number> = {};
     const subjectCols: { name: string; colIdx: number }[] = [];
 
     for (let i = 0; i < Math.min(rows.length, 15); i++) {
@@ -158,10 +158,12 @@ export function parsePmcStatistics(
       const estudiantesReprobados = colMap['reprobados'] !== undefined ? parseInt(String(row[colMap['reprobados']] || '0').replace(/[^0-9]/g, ''), 10) || undefined : undefined;
 
       // Fórmulas oficiales de Eficiencia Terminal y Abandono
-      let eficienciaTerminal = parseFloat(String(row[colMap['eficiencia'] ?? 7] || '0').replace(/[^0-9.]/g, '')) || 0;
-      if (eficienciaTerminal === 0 && egresados && matricula > 0) {
-        eficienciaTerminal = parseFloat(((egresados / matricula) * 100).toFixed(2));
-      }
+      // Nota H-046: La Eficiencia Terminal es un indicador GENERACIONAL oficial (% egresados sobre matrícula inicial de cohorte).
+      // NUNCA debe recalcularse dividiendo egresados entre matrícula del ciclo escolar vigente (en multigrado subvalúa a ~30%).
+      // Si la columna oficial no viene en la matriz o viene vacía, no se sintetiza con fórmula defectuosa.
+      const rawEficiencia = colMap['eficiencia'] !== undefined ? String(row[colMap['eficiencia'] ?? 7] || '').replace(/[^0-9.]/g, '') : '';
+      const parsedEficiencia = parseFloat(rawEficiencia);
+      const eficienciaTerminal = !isNaN(parsedEficiencia) && parsedEficiencia > 0 ? parsedEficiencia : undefined;
 
       let abandono = parseFloat(String(row[colMap['abandono'] ?? 8] || '0').replace(/[^0-9.]/g, '')) || 0;
       if (abandono === 0 && bajasDefinitivas && matricula > 0) {
@@ -228,14 +230,15 @@ export function parsePmcStatistics(
     const totalPlanteles = allPlanteles.length;
     const matriculaTotal = allPlanteles.reduce((acc, p) => acc + p.matricula, 0);
     const sumaAbandono = plantelesZonaValidos.reduce((acc, p) => acc + p.abandono, 0);
-    const sumaEficiencia = plantelesZonaValidos.reduce((acc, p) => acc + p.eficienciaTerminal, 0);
+    const plantelesConEficiencia = plantelesZonaValidos.filter((p) => p.eficienciaTerminal !== undefined && p.eficienciaTerminal > 0);
+    const sumaEficiencia = plantelesConEficiencia.reduce((acc, p) => acc + (p.eficienciaTerminal || 0), 0);
     const sumaReprobacion = plantelesZonaValidos.reduce((acc, p) => acc + p.reprobacion, 0);
 
     const plantelesConProm = plantelesZonaValidos.filter((p) => p.promedioCalificaciones !== undefined);
     const sumaProm = plantelesConProm.reduce((acc, p) => acc + (p.promedioCalificaciones || 0), 0);
 
     const promedioAbandono = parseFloat((sumaAbandono / divisorZona).toFixed(2));
-    const promedioEficiencia = parseFloat((sumaEficiencia / divisorZona).toFixed(2));
+    const promedioEficiencia = plantelesConEficiencia.length > 0 ? parseFloat((sumaEficiencia / plantelesConEficiencia.length).toFixed(2)) : 0;
     const promedioReprobacion = parseFloat((sumaReprobacion / divisorZona).toFixed(2));
     const promedioCalificaciones = plantelesConProm.length > 0 ? parseFloat((sumaProm / plantelesConProm.length).toFixed(2)) : undefined;
 
@@ -315,8 +318,9 @@ export function parsePmcStatistics(
       allPlanteles,
       zona: zonaSummary,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : 'Error al procesar el archivo estadístico.';
     logger.error('Error al parsear estadísticas escolares PMC/911/F11:', error);
-    return { success: false, allPlanteles: [], error: error?.message || 'Error al procesar el archivo estadístico.' };
+    return { success: false, allPlanteles: [], error: errMsg };
   }
 }
