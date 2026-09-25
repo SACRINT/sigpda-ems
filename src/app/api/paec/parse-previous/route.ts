@@ -17,6 +17,7 @@ import {
 } from '@/lib/paec/orchestrator';
 import {
   withTimeoutBudget,
+  correctiveRetry,
   isUpstreamAIError,
   AI_OUTAGE_USER_MESSAGE,
 } from '@/lib/ai-resilience';
@@ -121,11 +122,27 @@ export async function POST(request: NextRequest) {
       Math.max(1, deadline - Date.now())
     );
 
-    // 3. Parseo y validación de respuesta JSON
-    const parsed = parseAIResponse(aiRaw, PaecPreviousExtractSchema, {
+    // 3. Parseo y validación de respuesta JSON con reintento correctivo resiliente
+    let parsed = parseAIResponse(aiRaw, PaecPreviousExtractSchema, {
       contextName: 'paec-parse-previous',
       repairNullStrings: true,
     });
+
+    if (!parsed.success) {
+      parsed = await correctiveRetry({
+        systemPrompt,
+        previousRaw: aiRaw,
+        zodIssues: parsed.error || '',
+        schema: PaecPreviousExtractSchema,
+        callAI: (sys, user, remaining) =>
+          withTimeoutBudget(
+            generateWithRotation(sys, user, teacher.id, isPremium, { temperature: 0, jsonMode: true }),
+            remaining
+          ),
+        deadline,
+        contextName: 'paec-parse-previous',
+      });
+    }
 
     if (!parsed.success) {
       logger.error('[paec-parse-previous] AI response parsing failed:', parsed.error);
