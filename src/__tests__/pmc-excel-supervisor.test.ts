@@ -118,7 +118,9 @@ describe('Excel Oficial de Supervisión Escolar (FASE 1)', () => {
       'META: % ABANDONO ESCOLAR',
     ];
 
-    if (availableFixtures.length > 0) {
+    // Verificación obligatoria contra plantillas reales del lote oficial
+    if (fs.existsSync(referenceDir)) {
+      expect(availableFixtures.length).toBeGreaterThan(0);
       for (const fixFile of availableFixtures) {
         const refWb = new ExcelJS.Workbook();
         await refWb.xlsx.readFile(path.join(referenceDir, fixFile));
@@ -137,6 +139,10 @@ describe('Excel Oficial de Supervisión Escolar (FASE 1)', () => {
           expect(refHeaders3.slice(0, 9)).toEqual(expectedHeadersWs3);
         }
       }
+    } else {
+      // En entornos CI sin volumen de referencia local
+      expect(expectedHeadersWs2.length).toBe(9);
+      expect(expectedHeadersWs3.length).toBe(9);
     }
 
     // Generar libro con nuestro generador y validar byte a byte
