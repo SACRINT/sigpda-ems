@@ -64,7 +64,7 @@ export function computePmcIndicatorValues(
   const etAnt = (pStats && isRealNumeric(pStats.eficienciaTerminal)) ? pStats.eficienciaTerminal : isRealNumeric(ind.et_ant) ? ind.et_ant : undefined;
   
   const promVal = pStats?.promedioGeneral ?? pStats?.promedioCalificaciones;
-  const promF11 = isRealNumeric(promVal) ? promVal : undefined;
+  const promF11 = (isRealNumeric(promVal) ? promVal : undefined) ?? (isRealNumeric(ind.promedio_f11) ? ind.promedio_f11 : undefined);
 
   // Metas institucionales: NO inventar valores si no fueron provistos explícitamente
   const apMeta = isRealNumeric(ind.aprobacion_meta) ? ind.aprobacion_meta : undefined;
@@ -128,17 +128,20 @@ export function computePmcIndicatorValues(
   }
 
   let promedio: PmcIndicatorMetricValues | undefined = undefined;
-  if (promF11 !== undefined) {
-    const promNum = Number(promF11);
-    const promMeta = isRealNumeric(ind.promedio_meta) ? ind.promedio_meta : undefined;
+  const promMeta = isRealNumeric(ind.promedio_meta) ? ind.promedio_meta : undefined;
+  if (promF11 !== undefined || promMeta !== undefined) {
+    const promNum = promF11 !== undefined ? Number(promF11) : undefined;
+    const promAntStr = promNum !== undefined ? `${promNum.toFixed(2)}` : 'N/D';
     const promMetaStr = promMeta !== undefined ? `${Number(promMeta).toFixed(2)}` : 'N/D';
     let promVarStr = 'N/D';
-    if (promMeta !== undefined) {
+    if (promNum !== undefined && promMeta !== undefined) {
       const diff = Number(promMeta) - promNum;
       promVarStr = diff >= 0 ? `+${diff.toFixed(2)} Aprovechamiento` : `${diff.toFixed(2)} Aprovechamiento`;
+    } else if (promMeta !== undefined) {
+      promVarStr = 'Aprovechamiento Proyectado';
     }
     promedio = {
-      ant: `${promNum.toFixed(2)}`,
+      ant: promAntStr,
       meta: promMetaStr,
       var: promVarStr,
     };

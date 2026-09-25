@@ -209,4 +209,56 @@ describe('B-03 Guarda de regresión de doble verdad: Paridad PDF vs DOCX', () =>
     expect(pdfRows[4][1]).toBe(docxVals.matricula.ant);
     expect(pdfRows[4][2]).toBe(docxVals.matricula.meta);
   });
+
+  // ── ESCENARIO 5: FALLBACK PROMEDIO_F11 Y PROMEDIO_META (H-026) ─────────────
+  it('Escenario 5 (H-026): Fallback promedio_f11 y promedio_meta sin statistical_context se renderiza y mantiene paridad', () => {
+    // Caso 5A: Con promedio_f11 y promedio_meta explícitos en indicadores_academicos
+    const rawConF11 = {
+      aprobacion_ant: 80.0,
+      aprobacion_meta: 85.0,
+      matricula: 200,
+      matricula_meta: 210,
+      promedio_f11: 8.1,
+      promedio_meta: 8.5,
+    };
+    const projectA = createPmcProjectFixture(rawConF11, null);
+    const pdfRowsA = calculatePmcIndicatorRows(rawConF11, null);
+    const docxValsA = getPmcDocxIndicatorValues(projectA);
+
+    expect(docxValsA.promedio).toBeDefined();
+    expect(docxValsA.promedio?.ant).toBe('8.10');
+    expect(docxValsA.promedio?.meta).toBe('8.50');
+    expect(docxValsA.promedio?.var).toBe('+0.40 Aprovechamiento');
+
+    const promedioRowA = pdfRowsA.find((r) => Array.isArray(r) && r[0] === 'Promedio General de Calificaciones (F11C)');
+    expect(promedioRowA).toBeDefined();
+    if (Array.isArray(promedioRowA)) {
+      expect(promedioRowA[1]).toBe('8.10');
+      expect(promedioRowA[2]).toBe('8.50');
+      expect(promedioRowA[3]).toBe('+0.40 Aprovechamiento');
+    }
+
+    // Caso 5B: Con solo promedio_meta (sin F11 ni statistical context)
+    const rawSoloMeta = {
+      aprobacion_ant: 80.0,
+      aprobacion_meta: 85.0,
+      promedio_meta: 8.7,
+    };
+    const projectB = createPmcProjectFixture(rawSoloMeta, null);
+    const pdfRowsB = calculatePmcIndicatorRows(rawSoloMeta, null);
+    const docxValsB = getPmcDocxIndicatorValues(projectB);
+
+    expect(docxValsB.promedio).toBeDefined();
+    expect(docxValsB.promedio?.ant).toBe('N/D');
+    expect(docxValsB.promedio?.meta).toBe('8.70');
+    expect(docxValsB.promedio?.var).toBe('Aprovechamiento Proyectado');
+
+    const promedioRowB = pdfRowsB.find((r) => Array.isArray(r) && r[0] === 'Promedio General de Calificaciones (F11C)');
+    expect(promedioRowB).toBeDefined();
+    if (Array.isArray(promedioRowB)) {
+      expect(promedioRowB[1]).toBe('N/D');
+      expect(promedioRowB[2]).toBe('8.70');
+      expect(promedioRowB[3]).toBe('Aprovechamiento Proyectado');
+    }
+  });
 });
