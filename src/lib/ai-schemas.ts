@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { z } from 'zod';
 import { nullableString } from './prompts/zod-helpers';
 
@@ -44,7 +43,7 @@ export const SecuenciaResponseSchema = z.preprocess((input) => {
     return { sessions: input };
   }
   if (input && typeof input === 'object') {
-    const obj = input as Record<string, any>;
+    const obj = input as Record<string, unknown>;
     const list = obj.sessions || obj.sesiones || obj.secuencia || obj.activities || obj.rows;
     if (Array.isArray(list)) {
       return { sessions: list };
@@ -82,11 +81,12 @@ export type SecuenciaUpdateInputDTO = z.infer<typeof SecuenciaUpdateInputSchema>
 // ============================================================================
 
 // PASO 1: Diagnóstico Comunitario y Escolar
-const TableRow2ColsSchema = z.preprocess((val: any) => {
+const TableRow2ColsSchema = z.preprocess((val: unknown) => {
   if (val && typeof val === 'object') {
+    const v = val as Record<string, unknown>;
     return {
-      col1: String(val.col1 || val.aspecto || val.etapa || val.area || val.campo || ''),
-      col2: String(val.col2 || val.descripcion || val.detalle || val.analisis || ''),
+      col1: String(v.col1 || v.aspecto || v.etapa || v.area || v.campo || ''),
+      col2: String(v.col2 || v.descripcion || v.detalle || v.analisis || ''),
     };
   }
   return val;
@@ -95,11 +95,12 @@ const TableRow2ColsSchema = z.preprocess((val: any) => {
   col2: z.string().min(1, 'Columna 2 requerida'),
 }));
 
-const FODARowSchema = z.preprocess((val: any) => {
+const FODARowSchema = z.preprocess((val: unknown) => {
   if (val && typeof val === 'object') {
+    const v = val as Record<string, unknown>;
     return {
-      aspect: String(val.aspect || val.aspecto || val.col1 || ''),
-      analysis: String(val.analysis || val.analisis || val.col2 || ''),
+      aspect: String(v.aspect || v.aspecto || v.col1 || ''),
+      analysis: String(v.analysis || v.analisis || v.col2 || ''),
     };
   }
   return val;
@@ -108,13 +109,14 @@ const FODARowSchema = z.preprocess((val: any) => {
   analysis: z.string().min(1, 'Análisis FODA requerido'),
 }));
 
-export const PaecPaso1Schema = z.preprocess((input: any) => {
+export const PaecPaso1Schema = z.preprocess((input: unknown) => {
   if (input && typeof input === 'object') {
+    const inp = input as Record<string, unknown>;
     return {
-      tabla1: input.tabla1 || input.tabla1_caracteristicas || input.diagnosticoComunidad || [],
-      tabla2: input.tabla2 || input.tabla2_educativo || input.diagnosticoEscolar || [],
-      tabla3: input.tabla3 || input.tabla3_foda || input.foda || [],
-      tabla4: input.tabla4 || input.tabla4_seleccion || input.procesoSeleccion || [],
+      tabla1: inp.tabla1 || inp.tabla1_caracteristicas || inp.diagnosticoComunidad || [],
+      tabla2: inp.tabla2 || inp.tabla2_educativo || inp.diagnosticoEscolar || [],
+      tabla3: inp.tabla3 || inp.tabla3_foda || inp.foda || [],
+      tabla4: inp.tabla4 || inp.tabla4_seleccion || inp.procesoSeleccion || [],
     };
   }
   return input;
@@ -150,12 +152,13 @@ const MapeoRowSchema = z.object({
   linking: z.string().min(5, 'La vinculación comunitaria de la UAC es requerida'),
 });
 
-export const PaecPaso3Schema = z.preprocess((input: any) => {
+export const PaecPaso3Schema = z.preprocess((input: unknown) => {
   if (Array.isArray(input)) return input;
   if (input && typeof input === 'object') {
-    const list = input.mapeo || input.uacs || input.rows || input.fase2Mapeo;
+    const inp = input as Record<string, unknown>;
+    const list = inp.mapeo || inp.uacs || inp.rows || inp.fase2Mapeo;
     if (Array.isArray(list)) return list;
-    const anyArr = Object.values(input).find((v) => Array.isArray(v));
+    const anyArr = Object.values(inp).find((v) => Array.isArray(v));
     if (anyArr) return anyArr;
   }
   return input;
@@ -171,26 +174,28 @@ const CronogramaRowSchema = z.object({
   semesterInvolved: z.string().min(1, 'Semestres involucrados requeridos'),
 });
 
-export const PaecPaso4Schema = z.preprocess((input: any) => {
+export const PaecPaso4Schema = z.preprocess((input: unknown) => {
   if (Array.isArray(input)) return input;
   if (input && typeof input === 'object') {
-    const list = input.cronograma || input.fases || input.rows || input.fase2Cronograma;
+    const inp = input as Record<string, unknown>;
+    const list = inp.cronograma || inp.fases || inp.rows || inp.fase2Cronograma;
     if (Array.isArray(list)) return list;
-    const anyArr = Object.values(input).find((v) => Array.isArray(v));
+    const anyArr = Object.values(inp).find((v) => Array.isArray(v));
     if (anyArr) return anyArr;
   }
   return input;
 }, z.array(CronogramaRowSchema).min(4, 'El cronograma debe contener al menos 4 fases'));
 
 // PASO 5: Detalle Curricular y Articulación por Semestre
-const DetalleCurricularRowSchema = z.preprocess((val: any) => {
+const DetalleCurricularRowSchema = z.preprocess((val: unknown) => {
   if (val && typeof val === 'object') {
+    const v = val as Record<string, unknown>;
     return {
-      semester: Number(val.semester || 1),
-      uacName: String(val.uacName || val.uac || ''),
-      progressionsOrPurposes: String(val.progressionsOrPurposes || val.progressions || val.proposito || val.progresion || ''),
-      projectPhases: String(val.projectPhases || val.projectPhase || val.fases || ''),
-      curricularJustification: String(val.curricularJustification || val.justification || val.justificacion || ''),
+      semester: Number(v.semester || 1),
+      uacName: String(v.uacName || v.uac || ''),
+      progressionsOrPurposes: String(v.progressionsOrPurposes || v.progressions || v.proposito || v.progresion || ''),
+      projectPhases: String(v.projectPhases || v.projectPhase || v.fases || ''),
+      curricularJustification: String(v.curricularJustification || v.justification || v.justificacion || ''),
     };
   }
   return val;
@@ -202,29 +207,31 @@ const DetalleCurricularRowSchema = z.preprocess((val: any) => {
   curricularJustification: z.string().min(5, 'Justificación curricular requerida'),
 }));
 
-export const PaecPaso5Schema = z.preprocess((input: any) => {
+export const PaecPaso5Schema = z.preprocess((input: unknown) => {
   if (Array.isArray(input)) return input;
   if (input && typeof input === 'object') {
-    const list = input.detalleCurricular || input.detalle || input.rows || input.fase2DetalleCurricular;
+    const inp = input as Record<string, unknown>;
+    const list = inp.detalleCurricular || inp.detalle || inp.rows || inp.fase2DetalleCurricular;
     if (Array.isArray(list)) return list;
-    const anyArr = Object.values(input).find((v) => Array.isArray(v));
+    const anyArr = Object.values(inp).find((v) => Array.isArray(v));
     if (anyArr) return anyArr;
   }
   return input;
 }, z.array(DetalleCurricularRowSchema).min(1, 'Debe incluir al menos un registro de articulación curricular'));
 
 // PASO 6: Plan Operativo Detallado (8 Columnas)
-export const PlanOperativoRowSchema = z.preprocess((val: any) => {
+export const PlanOperativoRowSchema = z.preprocess((val: unknown) => {
   if (val && typeof val === 'object') {
+    const v = val as Record<string, unknown>;
     return {
-      phase: String(val.phase || val.fase || ''),
-      activity: String(val.activity || val.actividad || ''),
-      uac: String(val.uac || val.uacName || ''),
-      progression: String(val.progression || val.progresion || val.proposito || ''),
-      strategy: String(val.strategy || val.estrategia || ''),
-      week: String(val.week || val.semana || ''),
-      responsibles: String(val.responsibles || val.responsible || val.responsable || ''),
-      evaluationInstrument: String(val.evaluationInstrument || val.instrumento || val.evaluacion || ''),
+      phase: String(v.phase || v.fase || ''),
+      activity: String(v.activity || v.actividad || ''),
+      uac: String(v.uac || v.uacName || ''),
+      progression: String(v.progression || v.progresion || v.proposito || ''),
+      strategy: String(v.strategy || v.estrategia || ''),
+      week: String(v.week || v.semana || ''),
+      responsibles: String(v.responsibles || v.responsible || v.responsable || ''),
+      evaluationInstrument: String(v.evaluationInstrument || v.instrumento || v.evaluacion || ''),
     };
   }
   return val;
@@ -239,34 +246,37 @@ export const PlanOperativoRowSchema = z.preprocess((val: any) => {
   evaluationInstrument: z.string().min(1, 'Instrumento de evaluación requerido'),
 }));
 
-export const PaecPaso6BlockSchema = z.preprocess((input: any) => {
+export const PaecPaso6BlockSchema = z.preprocess((input: unknown) => {
   if (Array.isArray(input)) return input;
   if (input && typeof input === 'object') {
-    const list = input.activities || input.actividades || input.rows || input.planOperativo;
+    const inp = input as Record<string, unknown>;
+    const list = inp.activities || inp.actividades || inp.rows || inp.planOperativo;
     if (Array.isArray(list)) return list;
-    const anyArr = Object.values(input).find((v) => Array.isArray(v));
+    const anyArr = Object.values(inp).find((v) => Array.isArray(v));
     if (anyArr) return anyArr;
   }
   return input;
 }, z.array(PlanOperativoRowSchema).min(1, 'El bloque debe contener al menos 1 actividad operativa'));
 
-export const PaecPaso6PlanSchema = z.preprocess((input: any) => {
+export const PaecPaso6PlanSchema = z.preprocess((input: unknown) => {
   if (Array.isArray(input)) return input;
   if (input && typeof input === 'object') {
-    const list = input.semestreA || input.planSemestreA || input.activities || input.actividades || input.rows || input.planOperativo;
+    const inp = input as Record<string, unknown>;
+    const list = inp.semestreA || inp.planSemestreA || inp.activities || inp.actividades || inp.rows || inp.planOperativo;
     if (Array.isArray(list)) return list;
-    const anyArr = Object.values(input).find((v) => Array.isArray(v));
+    const anyArr = Object.values(inp).find((v) => Array.isArray(v));
     if (anyArr) return anyArr;
   }
   return input;
 }, z.array(PlanOperativoRowSchema).min(1, 'Debe incluir al menos una actividad para el Semestre A'));
 
-export const PaecPaso7PlanSchema = z.preprocess((input: any) => {
+export const PaecPaso7PlanSchema = z.preprocess((input: unknown) => {
   if (Array.isArray(input)) return input;
   if (input && typeof input === 'object') {
-    const list = input.semestreB || input.planSemestreB || input.activities || input.actividades || input.rows || input.planOperativo;
+    const inp = input as Record<string, unknown>;
+    const list = inp.semestreB || inp.planSemestreB || inp.activities || inp.actividades || inp.rows || inp.planOperativo;
     if (Array.isArray(list)) return list;
-    const anyArr = Object.values(input).find((v) => Array.isArray(v));
+    const anyArr = Object.values(inp).find((v) => Array.isArray(v));
     if (anyArr) return anyArr;
   }
   return input;
@@ -332,15 +342,16 @@ export const InstrumentoEvaluacionGenericoSchema = z.object({
   escala: z.record(z.string(), z.string()).optional(),
 });
 
-export const PaecPaso7Schema = z.preprocess((input: any) => {
+export const PaecPaso7Schema = z.preprocess((input: unknown) => {
   if (input && typeof input === 'object') {
+    const inp = input as Record<string, unknown>;
     return {
-      anexo1Minuta: input.anexo1Minuta || input.anexo1 || input.minuta || {},
-      anexo2Seguimiento: input.anexo2Seguimiento || input.anexo2 || input.seguimiento || [],
-      anexo3ReporteMensual: input.anexo3ReporteMensual || input.anexo3 || input.reporteMensual || {},
-      anexo4ImpactoComunidad: input.anexo4ImpactoComunidad || input.anexo4 || input.impactoComunidad || {},
-      anexo5AutoevaluacionEstudiantes: input.anexo5AutoevaluacionEstudiantes || input.anexo5 || input.autoevaluacion || {},
-      anexo6EvaluacionColegiado: input.anexo6EvaluacionColegiado || input.anexo6 || input.evaluacionColegiado || {},
+      anexo1Minuta: inp.anexo1Minuta || inp.anexo1 || inp.minuta || {},
+      anexo2Seguimiento: inp.anexo2Seguimiento || inp.anexo2 || inp.seguimiento || [],
+      anexo3ReporteMensual: inp.anexo3ReporteMensual || inp.anexo3 || inp.reporteMensual || {},
+      anexo4ImpactoComunidad: inp.anexo4ImpactoComunidad || inp.anexo4 || inp.impactoComunidad || {},
+      anexo5AutoevaluacionEstudiantes: inp.anexo5AutoevaluacionEstudiantes || inp.anexo5 || inp.autoevaluacion || {},
+      anexo6EvaluacionColegiado: inp.anexo6EvaluacionColegiado || inp.anexo6 || inp.evaluacionColegiado || {},
     };
   }
   return input;
@@ -382,20 +393,21 @@ export const SesionLanzamientoSchema = z.object({
   acuerdosEstudiantiles: z.array(z.string()).default([]),
 }).optional();
 
-export const PaecPaso8ImplementacionSchema = z.preprocess((input: any) => {
+export const PaecPaso8ImplementacionSchema = z.preprocess((input: unknown) => {
   if (input && typeof input === 'object') {
+    const inp = input as Record<string, unknown>;
     return {
-      cartaInvitacion: input.cartaInvitacion || input.carta || {},
-      minutaArranque: input.minutaArranque || input.minuta || input.anexo1Minuta || {},
-      oficiosAliados: input.oficiosAliados || input.oficios || [],
-      sesionLanzamiento: input.sesionLanzamiento || undefined,
-      anexos: input.anexos || {
-        anexo1Minuta: input.anexo1Minuta || input.minutaArranque || {},
-        anexo2Seguimiento: input.anexo2Seguimiento || [],
-        anexo3ReporteMensual: input.anexo3ReporteMensual || {},
-        anexo4ImpactoComunidad: input.anexo4ImpactoComunidad || {},
-        anexo5AutoevaluacionEstudiantes: input.anexo5AutoevaluacionEstudiantes || {},
-        anexo6EvaluacionColegiado: input.anexo6EvaluacionColegiado || {},
+      cartaInvitacion: inp.cartaInvitacion || inp.carta || {},
+      minutaArranque: inp.minutaArranque || inp.minuta || inp.anexo1Minuta || {},
+      oficiosAliados: inp.oficiosAliados || inp.oficios || [],
+      sesionLanzamiento: inp.sesionLanzamiento || undefined,
+      anexos: inp.anexos || {
+        anexo1Minuta: inp.anexo1Minuta || inp.minutaArranque || {},
+        anexo2Seguimiento: inp.anexo2Seguimiento || [],
+        anexo3ReporteMensual: inp.anexo3ReporteMensual || {},
+        anexo4ImpactoComunidad: inp.anexo4ImpactoComunidad || {},
+        anexo5AutoevaluacionEstudiantes: inp.anexo5AutoevaluacionEstudiantes || {},
+        anexo6EvaluacionColegiado: inp.anexo6EvaluacionColegiado || {},
       },
     };
   }
@@ -456,14 +468,16 @@ export const InformeSupervisionSchema = z.object({
   }).optional(),
 });
 
-export const PaecPaso9GobernanzaSchema = z.preprocess((input: any) => {
+export const PaecPaso9GobernanzaSchema = z.preprocess((input: unknown) => {
   if (input && typeof input === 'object') {
+    const inp = input as Record<string, unknown>;
+    const gob = (inp.gobernanza as Record<string, unknown>) || {};
     return {
-      gobernanza: input.gobernanza || {
-        calendario: input.calendario || [],
-        metodologiaEvaluacion: input.metodologiaEvaluacion || input.evaluacion || {},
+      gobernanza: inp.gobernanza || {
+        calendario: gob.calendario || inp.calendario || [],
+        metodologiaEvaluacion: gob.metodologiaEvaluacion || inp.metodologiaEvaluacion || inp.evaluacion || {},
       },
-      informeSupervision: input.informeSupervision || input.informe || input.supervision || {},
+      informeSupervision: inp.informeSupervision || inp.informe || inp.supervision || {},
     };
   }
   return input;

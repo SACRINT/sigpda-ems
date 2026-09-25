@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail } from '@/lib/db';
@@ -41,9 +40,10 @@ export async function POST(request: NextRequest) {
         enableOcr: true,
         teacherId: teacher.id,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Formato no válido';
       logger.error('[paec-parser] Document ingestion failed:', err);
-      return NextResponse.json({ error: `No se pudo leer el archivo: ${err.message || 'Formato no válido'}` }, { status: 400 });
+      return NextResponse.json({ error: `No se pudo leer el archivo: ${msg}` }, { status: 400 });
     }
 
     const documentText = ingested.markdown || ingested.fullText;
@@ -78,10 +78,10 @@ export async function POST(request: NextRequest) {
       parsedData.isSuggestedProblem = false;
       if (Array.isArray(geminiResult.planOperativo) && geminiResult.planOperativo.length > 0) {
         parsedData.planOperativo = geminiResult.planOperativo
-          .filter((item: any) => item && (item.asignatura || item.uac) && item.actividad)
-          .map((item: any) => ({
-            asignatura: String(item.asignatura || item.uac || '').trim(),
-            actividad: String(item.actividad || '').trim(),
+          .filter((item) => item && item.asignatura && item.actividad)
+          .map((item) => ({
+            asignatura: String(item.asignatura).trim(),
+            actividad: String(item.actividad).trim(),
             propositoFormativo: item.propositoFormativo ? String(item.propositoFormativo).trim() : undefined,
             estrategiaDidactica: item.estrategiaDidactica ? String(item.estrategiaDidactica).trim() : undefined,
             semana: item.semana ? String(item.semana).trim() : undefined,
@@ -90,8 +90,9 @@ export async function POST(request: NextRequest) {
             isPrescheduled: true,
           }));
       }
-    } catch (err: any) {
-      logger.warn('[paec-parser] Gemini call failed, falling back to heuristics:', err.message || err);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.warn('[paec-parser] Gemini call failed, falling back to heuristics:', msg);
     }
 
     // Nivel 2: Heurísticas multi-ancla sobre el texto extraído
@@ -118,8 +119,7 @@ export async function POST(request: NextRequest) {
     if (!parsedData.problem || parsedData.problem.trim().length === 0) {
       parsedData.problem = synthesizeProblemFallback(
         parsedData.projectName || '',
-        parsedData.objective || '',
-        parsedData.studentContext || ''
+        parsedData.objective || ''
       );
       parsedData.isSuggestedProblem = true;
     }
@@ -455,8 +455,7 @@ function parsePlanOperativoHeuristics(text: string): PaecOperationalActivity[] {
 }
 
 // ─── Síntesis Contextual de Respaldo (Último Recurso) ──────────────────────────
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function synthesizeProblemFallback(projectName: string, objective: string, studentContext: string): string {
+function synthesizeProblemFallback(projectName: string, objective: string): string {
   const title = (projectName + ' ' + objective).toLowerCase();
   
   if (title.includes('salud') || title.includes('vida saludable') || title.includes('adiccion') || title.includes('riesgo') || title.includes('resilien')) {
