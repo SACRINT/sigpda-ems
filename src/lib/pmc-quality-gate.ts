@@ -20,6 +20,7 @@ import type {
   PmcDiagnosticoGenerado,
 } from '@/types/pmc';
 import { toRealNumber, isRealNumeric } from './numeric-guard';
+import { computeCoverage } from './coverage-core';
 
 export const PMC_DIMENSIONS = {
   DIM1: 'Dimensión 1: Identificación y Organización Escolar',
@@ -403,16 +404,12 @@ function evalC9_ResponsablesYFechas(p: PmcProject): PmcAuditCriterion {
 function evalC10_MetasPersonal(p: PmcProject): PmcAuditCriterion {
   const plan = (p.plan_accion || {}) as PmcPlanAccion;
   const metasPers = (Array.isArray(plan.metas_personales) ? plan.metas_personales : []);
-  const count = metasPers.length;
-
   const staff = (Array.isArray(p.staff_data) ? p.staff_data : []) as PmcStaffMember[];
-  const realStaffCount = (typeof p.total_staff === 'number' && p.total_staff > 0)
-    ? p.total_staff
-    : staff.length > 0
-      ? staff.length
-      : 1;
 
-  const coverageRatio = count / realStaffCount;
+  const coverage = computeCoverage(metasPers, p.total_staff, staff);
+  const count = coverage.metasCount;
+  const realStaffCount = coverage.realStaffCount;
+  const coverageRatio = coverage.coverageRatio;
 
   const withDetails = metasPers.filter(m =>
     hasText(m.nombre, 3) &&

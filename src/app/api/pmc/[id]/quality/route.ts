@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, sql } from '@/lib/db';
 import { calculateGlobalPmcScore, formatPmcAuditReport } from '@/lib/pmc-quality-gate';
+import { computeCoverage } from '@/lib/coverage-core';
 import type { PmcProject, PmcPlanAccion, PmcStaffMember } from '@/types/pmc';
 import { logger } from '@/lib/logger';
 
@@ -40,18 +41,11 @@ export async function GET(
     const audit = calculateGlobalPmcScore(project as unknown as PmcProject);
     const reportText = formatPmcAuditReport(audit);
 
-    // Calcular cobertura de metas individuales
+    // Calcular cobertura canónica de metas individuales
     const staff = (Array.isArray(project.staff_data) ? project.staff_data : []) as PmcStaffMember[];
-    const realStaff = (typeof project.total_staff === 'number' && project.total_staff > 0)
-      ? project.total_staff
-      : staff.length > 0
-        ? staff.length
-        : 1;
-
     const plan = (project.plan_accion || {}) as PmcPlanAccion;
     const metasPers = Array.isArray(plan.metas_personales) ? plan.metas_personales : [];
-    const coverageRatio = metasPers.length / realStaff;
-    const coveragePercent = Math.round(coverageRatio * 100);
+    const coverage = computeCoverage(metasPers, project.total_staff, staff);
 
     return NextResponse.json({
       success: true,
@@ -62,10 +56,10 @@ export async function GET(
       audit,
       reportText,
       cobertura: {
-        totalStaff: realStaff,
-        metasPersonalesCount: metasPers.length,
-        coveragePercent,
-        isLowCoverage: coveragePercent < 80,
+        totalStaff: coverage.realStaffCount,
+        metasPersonalesCount: coverage.metasCount,
+        coveragePercent: coverage.coveragePercent,
+        isLowCoverage: coverage.isLowCoverage,
       },
     });
   } catch (error) {

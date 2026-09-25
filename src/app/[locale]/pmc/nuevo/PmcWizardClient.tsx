@@ -11,6 +11,7 @@ import {
   normalizePmcTema,
 } from '@/lib/constants/pmc-categorias';
 import { toRealNumber } from '@/lib/numeric-guard';
+import { computeCoverage } from '@/lib/coverage-core';
 
 
 const PMC_DRAFT_KEY = 'didactica_pmc_draft';
@@ -1116,14 +1117,11 @@ interface PaecProjectForPmc {
   const handleBack = () => setActiveStep(s => Math.max(s - 1, 1));
 
   // Invariante de Cobertura de Metas de Personal (C10 / D6)
-  const realStaffCount = (typeof totalStaff === 'number' && totalStaff > 0)
-    ? totalStaff
-    : staffData.length > 0
-      ? staffData.length
-      : 1;
-  const personalWithGoals = planAccion?.metas_personales?.length || 0;
-  const coveragePercent = Math.round((personalWithGoals / realStaffCount) * 100);
-  const isLowCoverage = coveragePercent < 80;
+  const coverage = computeCoverage(planAccion?.metas_personales, totalStaff, staffData);
+  const realStaffCount = coverage.realStaffCount;
+  const personalWithGoals = coverage.metasCount;
+  const coveragePercent = coverage.coveragePercent;
+  const isLowCoverage = coverage.isLowCoverage;
 
   const handleExportWithCoverageCheck = (e: React.MouseEvent<HTMLAnchorElement>, url: string) => {
     if (isLowCoverage && !coverageWarningDismissed) {
