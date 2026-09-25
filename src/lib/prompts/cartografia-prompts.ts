@@ -172,7 +172,7 @@ Genera un objeto JSON estrictamente estructurado con las siguientes secciones:
     "metaGeneralZona": "[VERBO EN INFINITIVO] + [% O CIFRA] + [POBLACIÓN DE LA ZONA] + [ESTRATEGIA TERRITORIAL] + [PERIODO Y TERRITORIO]",
     "indicadoresCreaaAsociados": [
       "Abandono Escolar (Línea base ${promAbandono}%)",
-      "Eficiencia Terminal (Línea base ${promEficiencia}%)",
+      "Eficiencia Terminal (Línea base ${promEficiencia !== undefined && promEficiencia > 0 ? `${promEficiencia}%` : 'N/D'})",
       "Resultados de Aprendizaje / EDIEMS-ESA (Línea base ${promCalificaciones})"
     ],
     "lineasAccion": [

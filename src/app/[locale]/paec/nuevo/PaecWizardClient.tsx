@@ -2840,7 +2840,11 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                     </div>
                     <div style={{ background: '#1e293b', padding: '8px', borderRadius: '6px', textAlign: 'center' }}>
                       <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block' }}>Efic. Terminal</span>
-                      <strong style={{ fontSize: '14px', color: '#34d399' }}>{zonaData.plantel.eficienciaTerminal}%</strong>
+                      <strong style={{ fontSize: '14px', color: '#34d399' }}>
+                        {zonaData.plantel.eficienciaTerminal !== undefined && zonaData.plantel.eficienciaTerminal > 0
+                          ? `${zonaData.plantel.eficienciaTerminal}%`
+                          : 'N/D'}
+                      </strong>
                     </div>
                     <div style={{ background: '#1e293b', padding: '8px', borderRadius: '6px', textAlign: 'center' }}>
                       <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block' }}>Reprobación</span>
