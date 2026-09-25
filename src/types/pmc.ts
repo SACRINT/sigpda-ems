@@ -34,7 +34,7 @@ export interface PmcStatisticalPlantel {
   turno: string;
   // ── Del 911.7G (Fin de Cursos / Inicio) ──────────────────────────
   matricula: number;           // Del 911.7G
-  egresados?: number;          // Del 911.7G → para calcular Eficiencia Terminal
+  egresados?: number;          // Del 911.7G (conteo de egresados; la Eficiencia Terminal oficial es generacional y no se calcula dividiendo entre matrícula)
   aprobados?: number;          // Del 911.7G
   reprobados?: number;         // Del 911.7G
   bajasDefinitivas?: number;   // Del 911.7G → para calcular Abandono
