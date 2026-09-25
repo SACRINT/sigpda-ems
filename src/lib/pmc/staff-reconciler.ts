@@ -81,18 +81,75 @@ const INVALID_NAME_PATTERNS = [
   'ninguna',
 ];
 
+export const TITLE_PREFIX_REGEX = /^(?:profr\.|profr|profra\.|profra|prof\.|prof|ing\.|ing|lic\.|lic|dr\.|dr|dra\.|dra|mtro\.|mtro|mtra\.|mtra|c\.|c)\s+/i;
+
+const NON_STAFF_CARGO_KEYWORDS = [
+  'alumno',
+  'alumna',
+  'estudiante',
+  'padre',
+  'madre',
+  'tutor legal',
+  'comite de padres',
+  'comite escolar',
+  'asociacion de padres',
+  'supervisor',
+  'supervisora',
+];
+
 /**
- * Normaliza un nombre para comparación (sin acentos, minúsculas, espacios colapsados).
+ * Normaliza un nombre para comparación (sin acentos, minúsculas, sin títulos profesionales ni prefijos).
  */
 export function normalizeStaffName(name: string | null | undefined): string {
   if (!name) return '';
-  return name
+  const withoutTitle = name
+    .trim()
+    .replace(TITLE_PREFIX_REGEX, '')
+    .trim();
+
+  return withoutTitle
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+/**
+ * Limpia un nombre de persona para presentación:
+ * - Si viene todo en MAYÚSCULAS sostenidas (ej. tablas oficiales 'PROFR. JUAN...'),
+ *   elimina el prefijo y lo convierte a formato Capitalizado (Title Case).
+ * - Si ya viene en formato mixto, preserva la cadena original.
+ */
+export function cleanStaffDisplayName(name: string | null | undefined): string {
+  if (!name) return '';
+  const trimmed = name.trim();
+  if (trimmed === trimmed.toUpperCase() && trimmed.length > 3) {
+    const withoutTitle = trimmed.replace(TITLE_PREFIX_REGEX, '').trim();
+    return withoutTitle
+      .toLowerCase()
+      .split(' ')
+      .filter(Boolean)
+      .map((word, idx) => {
+        if (idx > 0 && ['de', 'del', 'la', 'las', 'los', 'y', 'e'].includes(word)) {
+          return word;
+        }
+        return word.charAt(0).toUpperCase() + word.slice(1);
+      })
+      .join(' ');
+  }
+  return trimmed;
+}
+
+/**
+ * Determina si un cargo corresponde a personal no docente/no interno del plantel
+ * (alumnos, padres de familia o supervisores externos).
+ */
+export function isNonStaffRole(cargo: string | null | undefined): boolean {
+  if (!cargo) return false;
+  const lower = cargo.toLowerCase();
+  return NON_STAFF_CARGO_KEYWORDS.some((kw) => lower.includes(kw));
 }
 
 /**
@@ -156,6 +213,7 @@ export function reconcilePmcStaff(options: ReconcileStaffOptions): ReconciledSta
 
     const normKey = normalizeStaffName(rawName);
     const cargoNorm = normalizeCargo(candidate.cargo, isDirectorCandidate);
+    const cleanDisplay = cleanStaffDisplayName(rawName);
 
     // Normalizar metas individuales asociadas
     const rawMetas = candidate.metas_individuales || [];
@@ -188,7 +246,7 @@ export function reconcilePmcStaff(options: ReconcileStaffOptions): ReconciledSta
 
     if (!staffByNormName.has(normKey)) {
       staffByNormName.set(normKey, {
-        nombre: rawName,
+        nombre: cleanDisplay,
         cargo: cargoNorm,
         meta_individual: candidate.meta_individual?.trim() || '',
         metas_individuales: normalizedMetas,
@@ -199,6 +257,9 @@ export function reconcilePmcStaff(options: ReconcileStaffOptions): ReconciledSta
     } else {
       // Enriquecer datos existentes si la nueva fuente aporta más detalles
       const existing = staffByNormName.get(normKey)!;
+      if (cleanDisplay && existing.nombre === existing.nombre.toUpperCase() && cleanDisplay !== cleanDisplay.toUpperCase()) {
+        existing.nombre = cleanDisplay;
+      }
       if (isDirectorCandidate && existing.cargo !== 'Director(a)') {
         existing.cargo = 'Director(a)';
       }
@@ -246,7 +307,7 @@ export function reconcilePmcStaff(options: ReconcileStaffOptions): ReconciledSta
 
   // 4. Participantes extraídos de PMC Anterior (portadas, comités, firmas)
   for (const p of participantes || []) {
-    if (p && isValidStaffName(p.nombre)) {
+    if (p && isValidStaffName(p.nombre) && !isNonStaffRole(p.cargo)) {
       addOrUpdateStaff(
         {
           nombre: p.nombre!,
@@ -304,11 +365,19 @@ export function reconcilePmcStaff(options: ReconcileStaffOptions): ReconciledSta
     reconciledList.unshift(dir);
   } else if (directorIdx === -1 && hasValidDirector) {
     reconciledList.unshift({
-      nombre: cleanDirectorName!,
+      nombre: cleanStaffDisplayName(cleanDirectorName!),
       cargo: 'Director(a)',
       meta_individual: '',
       metas_individuales: [],
     });
+  }
+
+  // Si el director quedó en posición 0, asegurar nombre limpio
+  if (reconciledList.length > 0 && reconciledList[0].cargo === 'Director(a)') {
+    const preferredName = cleanStaffDisplayName(cleanDirectorName || reconciledList[0].nombre);
+    if (preferredName) {
+      reconciledList[0].nombre = preferredName;
+    }
   }
 
   // 8. Determinar conteo objetivo de trabajadores

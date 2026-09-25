@@ -400,8 +400,13 @@ interface PmcPreviousExtractDTO {
     meta?: string;
     linea_base?: string;
     estrategia?: string;
+    responsable?: string;
     entregable?: string;
     periodo?: string;
+  }>;
+  categorias_priorizadas?: Array<{
+    categoria?: string;
+    temas?: string[];
   }>;
   indicadores?: {
     aprobacion_ant?: number | string;
@@ -553,6 +558,50 @@ interface PaecProjectForPmc {
 
     if (parsedPmcData.metas_institucionales_previas && parsedPmcData.metas_institucionales_previas.length > 0) {
       setMetasPreviasReferencia(parsedPmcData.metas_institucionales_previas);
+    }
+
+    // Auto-activar las categorías y temas priorizados a partir del PMC anterior
+    const detectedCategoriesMap = new Map<string, Set<string>>();
+    for (const cp of (parsedPmcData.categorias_priorizadas || [])) {
+      if (cp?.categoria) {
+        const catNorm = normalizePmcCategoria(cp.categoria);
+        if (!detectedCategoriesMap.has(catNorm)) detectedCategoriesMap.set(catNorm, new Set());
+        for (const t of (cp.temas || [])) {
+          detectedCategoriesMap.get(catNorm)!.add(t);
+        }
+      }
+    }
+    for (const m of (parsedPmcData.metas_institucionales_previas || [])) {
+      if (m?.categoria) {
+        const catNorm = normalizePmcCategoria(m.categoria);
+        if (!detectedCategoriesMap.has(catNorm)) detectedCategoriesMap.set(catNorm, new Set());
+        if (m.tema) detectedCategoriesMap.get(catNorm)!.add(m.tema);
+      }
+    }
+
+    if (detectedCategoriesMap.size > 0) {
+      const newCategorias: CategoriaPriorizada[] = [];
+      for (const catDef of CATEGORIAS_OFICIALES) {
+        const catNorm = normalizePmcCategoria(catDef.nombre);
+        if (detectedCategoriesMap.has(catNorm)) {
+          const matchedTemas = Array.from(detectedCategoriesMap.get(catNorm)!);
+          const validTemas = catDef.temas.filter((officialTema) =>
+            matchedTemas.some(
+              (mt) =>
+                mt.toLowerCase().includes(officialTema.toLowerCase()) ||
+                officialTema.toLowerCase().includes(mt.toLowerCase())
+            )
+          );
+          newCategorias.push({
+            id: catDef.id,
+            nombre: catDef.nombre,
+            temas: validTemas.length > 0 ? validTemas : [catDef.temas[0]],
+          });
+        }
+      }
+      if (newCategorias.length > 0) {
+        setCategoriasPriorizadas(newCategorias);
+      }
     }
 
     if (parsedPmcData.diagnosticoComunidad) {
@@ -2730,6 +2779,23 @@ interface PaecProjectForPmc {
                       <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block' }}>Efic. Terminal</span>
                       <strong style={{ fontSize: '13px', color: '#38bdf8' }}>{parsedPmcData.indicadores.et_ant ?? '-'}%</strong>
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Metas del Plan de Acción Previo */}
+              {parsedPmcData.metas_institucionales_previas && parsedPmcData.metas_institucionales_previas.length > 0 && (
+                <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '10px', padding: '14px', marginBottom: '14px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <h4 style={{ margin: '0 0 8px', fontSize: '13px', color: '#818cf8', fontWeight: 700 }}>
+                    🎯 Metas del Plan de Acción Previo ({parsedPmcData.metas_institucionales_previas.length} detectadas)
+                  </h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '120px', overflowY: 'auto' }}>
+                    {parsedPmcData.metas_institucionales_previas.map((m, idx: number) => (
+                      <div key={idx} style={{ fontSize: '11px', padding: '6px 10px', borderRadius: '4px', background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.18)' }}>
+                        <span style={{ color: '#a5b4fc', fontWeight: 600 }}>{m.categoria} · {m.tema}:</span>{' '}
+                        <span style={{ color: '#f0f4ff' }}>{m.meta}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}

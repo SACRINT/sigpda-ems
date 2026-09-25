@@ -29,6 +29,10 @@ import {
   buildPmcExtractionPrompt,
   PmcPreviousExtractSchema,
 } from '@/lib/prompts/pmc-extraction';
+import {
+  normalizePmcCategoria,
+  normalizePmcTema,
+} from '@/lib/constants/pmc-categorias';
 import { reconcilePmcStaff } from '@/lib/pmc/staff-reconciler';
 
 export type PmcDocumentType = 'f11' | '911' | 'previous';
@@ -303,6 +307,47 @@ export class PmcOrchestrator implements IPmcOrchestrator {
           cicloEscolar: parsed.data.cicloEscolar,
         });
 
+        const normalizedMetasPrevias = parsed.data.metas_institucionales_previas?.map((m) => {
+          const catNorm = normalizePmcCategoria(m.categoria);
+          const temaNorm = normalizePmcTema(m.tema, catNorm);
+          return {
+            ...m,
+            categoria: catNorm,
+            tema: temaNorm,
+          };
+        }) || [];
+
+        const categoriasMap = new Map<string, Set<string>>();
+        for (const cp of parsed.data.categorias_priorizadas || []) {
+          if (cp && cp.categoria) {
+            const catNorm = normalizePmcCategoria(cp.categoria);
+            if (!categoriasMap.has(catNorm)) {
+              categoriasMap.set(catNorm, new Set());
+            }
+            for (const t of cp.temas || []) {
+              const tNorm = normalizePmcTema(t, catNorm);
+              if (tNorm) categoriasMap.get(catNorm)!.add(tNorm);
+            }
+          }
+        }
+        for (const m of normalizedMetasPrevias) {
+          if (m.categoria) {
+            if (!categoriasMap.has(m.categoria)) {
+              categoriasMap.set(m.categoria, new Set());
+            }
+            if (m.tema) {
+              categoriasMap.get(m.categoria)!.add(m.tema);
+            }
+          }
+        }
+
+        const reconciledCategoriasPriorizadas = Array.from(categoriasMap.entries()).map(
+          ([categoria, temasSet]) => ({
+            categoria,
+            temas: Array.from(temasSet),
+          })
+        );
+
         return {
           success: true,
           filename: options.filename,
@@ -310,6 +355,9 @@ export class PmcOrchestrator implements IPmcOrchestrator {
             ...parsed.data,
             totalStaff: reconciled.totalStaff,
             staffData: reconciled.staff,
+            participantes: parsed.data.participantes || [],
+            metas_institucionales_previas: normalizedMetasPrevias,
+            categorias_priorizadas: reconciledCategoriasPriorizadas,
           },
           warnings: parsed.warnings,
         };

@@ -41,9 +41,14 @@ export const PmcPreviousExtractSchema = z.object({
     meta: nullableString(),
     linea_base: nullableString(),
     estrategia: nullableString(),
+    responsable: nullableString(),
     entregable: nullableString(),
     periodo: nullableString(),
   })).max(15).optional().default([]),
+  categorias_priorizadas: z.array(z.object({
+    categoria: nullableString(),
+    temas: z.array(z.string()).optional().default([]),
+  })).optional().default([]),
   diagnosticoComunidad: nullableString(),
   indicadores: z.object({
     matricula: z.coerce.number().nullable().optional(),
@@ -78,54 +83,61 @@ export function buildPmcExtractionPrompt(documentText: string): string {
 
 TEXTO DEL DOCUMENTO:
 """
-${documentText.slice(0, 75000)}
+${documentText.slice(0, 250000)}
 """
 
 Estructura la información en el siguiente esquema JSON exacto:
 {
-  "schoolName": "Nombre oficial del plantel o escuela (o cadena vacía si no se localiza)",
-  "schoolCct": "Clave de Centro de Trabajo (10 caracteres alfanuméricos, ej. 21EBH0001A, o vacía)",
-  "municipality": "Municipio donde se ubica el plantel (o vacía)",
-  "locality": "Localidad o comunidad del plantel (o vacía)",
-  "schoolZone": "Zona escolar a la que pertenece (ej. 013, o vacía)",
-  "directorName": "Nombre completo del Director(a) (o vacía)",
-  "supervisorName": "Nombre completo del Supervisor(a) escolar (o vacía)",
-  "cicloEscolar": "Ciclo escolar del documento (ej. 2024-2025, 2025-2026, o vacía)",
-  "subsystem": "Subsistema (ej. BGE, Bachillerato Tecnológico, TBC, etc., o 'BGE' por defecto)",
+  "schoolName": "Nombre oficial del plantel o escuela (ej. Bachillerato General Oficial 'Moisés Sáenz Garza')",
+  "schoolCct": "Clave de Centro de Trabajo (10 caracteres alfanuméricos, ej. 21EBH0465E)",
+  "municipality": "Municipio donde se ubica el plantel (ej. Fco. Z. Mena)",
+  "locality": "Localidad o comunidad del plantel (ej. El Tecomate)",
+  "schoolZone": "Zona escolar a la que pertenece (ej. 004, 013, etc.)",
+  "directorName": "Nombre completo del Director(a) o Responsable del plantel (limpio de prefijos como Profr., ej. Juan Rogelio García Escudero)",
+  "supervisorName": "Nombre completo del Supervisor(a) escolar (limpio de prefijos, ej. Alejandro Escamilla Martínez)",
+  "cicloEscolar": "Ciclo escolar del documento (ej. 2025-2026, 2026-2027)",
+  "subsystem": "Subsistema (ej. BGE, Bachillerato Tecnológico, TBC, etc.)",
   "totalStaff": número entero con el total de personal reportado (o null si no se especifica),
   "participantes": [
     {
-      "nombre": "Nombre completo del participante o firmante",
-      "cargo": "Director(a) | CTE | Tutor(a) | Docente | Alumno(a) | Supervisor(a) | etc.",
-      "firma": "Anotación de firma (ej. 'Firmado', 'Rúbrica', o vacía)"
+      "nombre": "Nombre completo del participante o firmante (director, docentes, tutores, alumnos, supervisores)",
+      "cargo": "Director(a) | Docente | Tutor(a) | Alumno(a) | Supervisor(a) | etc.",
+      "firma": "Anotación de firma (o vacía)"
     }
   ],
   "staffData": [
     {
-      "nombre": "Nombre del docente o directivo",
-      "cargo": "Director(a) | Subdirector(a) | Docente de tiempo completo | Docente por horas | Administrativo | etc.",
-      "meta_individual": "Meta o compromiso general si se especifica (texto libre)",
+      "nombre": "Nombre completo del docente o directivo (limpio de prefijos Profr., Profra., Ing., Lic.)",
+      "cargo": "Director(a) | Docente y tutor del plantel | Docente y tutor de grupo | Docente de grupo | Docente de tiempo completo | Administrativo | etc.",
+      "meta_individual": "Meta o compromiso si se especifica",
       "metas_individuales": [
         {
           "categoria": "Categoría Oficial exacta: 'Desarrollo académico y aprendizaje' | 'Gestión y administración escolar' | 'Desarrollo socioemocional y prevención de la violencia en la escuela'",
-          "tema": "Tema o ámbito oficial específico (ej. Formación y actualización docente, Propuestas pedagógicas, Clubes de lectura, Indicadores académicos, Seguimiento al desempeño docente en el aula, etc.)",
-          "meta": "Meta individual específica para ese tema",
-          "estrategia": "Estrategia o acciones para lograr la meta",
+          "tema": "Tema o ámbito oficial específico (ej. Trabajo Colegiado, Proyecto Escolar Comunitario PEC, Indicadores académicos, Planeación Didáctica, Seguimiento al desempeño docente en el aula, Seguimiento a egresados, Ámbitos de Formación Socioemocional, etc.)",
+          "meta": "Meta individual o institucional asignada",
+          "estrategia": "Estrategia o acciones a realizar",
           "entregable": "Producto o evidencia de entrega",
           "periodo": "Periodo de ejecución"
         }
       ]
     }
   ],
+  "categorias_priorizadas": [
+    {
+      "categoria": "Categoría Oficial exacta",
+      "temas": ["Tema 1", "Tema 2"]
+    }
+  ],
   "metas_institucionales_previas": [
     {
       "categoria": "Categoría Oficial exacta",
       "tema": "Tema o ámbito oficial",
-      "meta": "Redacción completa de la meta institucional",
-      "linea_base": "Valor o situación inicial / línea base",
-      "estrategia": "Estrategia general para la meta",
-      "entregable": "Evidencia o entregable",
-      "periodo": "Periodo de cumplimiento"
+      "meta": "Redacción completa de la meta del Plan de Acción",
+      "linea_base": "Diagnóstico o situación inicial detectada",
+      "estrategia": "Estrategias y/o acciones colegiadas acordadas",
+      "responsable": "Responsables asignados (ej. Director y docentes, Asesor de grupo, etc.)",
+      "entregable": "Evidencia o producto esperado (ej. Fotografías, minutas, reportes, etc.)",
+      "periodo": "Cronograma o periodo de ejecución"
     }
   ],
   "diagnosticoComunidad": "Diagnóstico de la comunidad y del entorno escolar (descripción textual amplia, contexto social, económico y cultural)",
@@ -144,7 +156,7 @@ Estructura la información en el siguiente esquema JSON exacto:
     "promedio_meta": promedio general de calificaciones proyectado como meta (número 0-10 o null)
   },
   "foda": {
-    "fortalezas": "Fortalezas institucionales identificadas en el diagnóstico",
+    "fortalezas": "Fortalezas institucionales identificadas en el diagnóstico o cuadro FODA",
     "oportunidades": "Oportunidades del entorno exterior detectadas",
     "debilidades": "Debilidades internas de la escuela o comunidad escolar",
     "amenazas": "Amenazas o riesgos externos que impactan a la escuela"
@@ -152,14 +164,18 @@ Estructura la información en el siguiente esquema JSON exacto:
 }
 
 REGLAS DE EXTRACCIÓN:
-1. Conserva la redacción textual del diagnóstico de la comunidad y del FODA tanto como sea posible.
-2. Si el documento contiene tablas de indicadores académicos, extrae los porcentajes numéricos limpios (sin el símbolo %).
-3. OBLIGATORIO - EXTRAE A TODO EL PERSONAL DEL PLANTEL: Busca minuciosamente en todo el documento (portada, actas de acuerdos, cuadros de colectivo docente, firmas de aprobación, listas de comités de planeación y evaluación) a cada persona y regístrala con su nombre completo y cargo en "staffData" (máximo 40). Si la persona tiene metas individuales descritas en el texto, extráelas en "metas_individuales"; si no tiene metas individuales descritas en el documento, deja "metas_individuales": [] pero OBLIGATORIAMENTE regístrala con su nombre completo y cargo. NUNCA generes objetos con nombre vacío o null.
-4. OBLIGATORIO - PARTICIPANTES Y FIRMAS: Extrae en "participantes" (máximo 40) a todos los firmantes, autoridades y miembros de comités escolares (director, supervisor, docentes, tutores, representantes comunitarios) capturando su nombre completo y cargo (Director, CTE, Tutor, Docente, Alumno, Supervisor). Nunca dejes nombres en blanco.
-5. Extrae los objetivos y metas institucionales globales del ciclo previo en "metas_institucionales_previas" (máximo 15).
-6. Si un docente tiene múltiples metas individuales en el PMC anterior (una por categoría o tema), extrae TODAS en el arreglo "metas_individuales", indicando la categoría y tema de cada una.
-7. Si un dato no se encuentra explícitamente en el texto, asigna una cadena vacía "" para texto o null para números, sin inventar información no sustentada.
-8. OBLIGATORIO: Asigna en 'categoria' ÚNICAMENTE una de las 3 categorías oficiales de los Lineamientos del PMC (sin prefijos como 'Categoría: Procesos para...'):
+1. Conserva la redacción textual del diagnóstico de la comunidad y de los cuatro cuadrantes del FODA a partir de los cuadros de diagnóstico y tablas FODA del documento.
+2. Si el documento contiene porcentajes de indicadores académicos (reprobación, abandono, aprobación), extráelos como números limpios.
+3. OBLIGATORIO - AUTORIDADES Y ZONA: Extrae el directorName del responsable del bachillerato o director firmante. Extrae el supervisorName del supervisor escolar y la schoolZone del bloque de control de revisiones o firmas (ej. 'SUPERVISOR ESCOLAR ZONA 004' -> supervisor: 'Alejandro Escamilla Martínez', zona: '004').
+4. OBLIGATORIO - EXTRAE A TODO EL PERSONAL DEL PLANTEL EN staffData:
+   - Extrae a cada docente, tutor del plantel, tutor de grupo, subdirector o administrativo que figure en las tablas de participantes, comités o acuerdos del colectivo escolar.
+   - Preserva su cargo específico (ej. 'Docente y tutor del plantel', 'Docente y tutor de grupo', 'Docente de grupo').
+   - EXCLUYE estudiantes o alumnos de staffData (los alumnos solo van en 'participantes').
+   - Limpia los nombres de prefijos como 'PROFR.', 'PROFRA.', 'ING.', 'LIC.'.
+5. OBLIGATORIO - PLAN DE ACCIÓN Y METAS:
+   - Extrae exhaustivamente TODAS las metas de las tablas del Plan de Acción (incluyendo diagnóstico, acciones acordadas, responsables, cronograma y evidencias).
+   - Extrae todas las tablas de metas encontradas (pueden ser 10 o más), no te limites a un resumen general.
+6. OBLIGATORIO: Asigna en 'categoria' ÚNICAMENTE una de las 3 categorías oficiales de los Lineamientos del PMC:
    - 'Desarrollo académico y aprendizaje'
    - 'Gestión y administración escolar'
    - 'Desarrollo socioemocional y prevención de la violencia en la escuela'`;

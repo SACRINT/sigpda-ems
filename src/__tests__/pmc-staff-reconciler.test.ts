@@ -150,4 +150,38 @@ describe('PMC Staff Reconciler Engine', () => {
     expect(result.staff[0].cargo).toBe('Director(a)');
     expect(result.staff[0].nombre).toBe('');
   });
+
+  it('10. Desduplica prefijos de títulos (PROFR., ING., LIC.) y unifica mayúsculas con nombre limpio', () => {
+    const result = reconcilePmcStaff({
+      directorName: 'Juan Rogelio García Escudero',
+      extractedStaff: [
+        { nombre: 'PROFR. JUAN ROGELIO GARCIA ESCUDERO', cargo: 'RESPONSABLE DEL BACHILLERATO' },
+        { nombre: 'PROFR. GUSTAVO AARON DE LA FUENTE PORTILLA', cargo: 'DOCENTE Y TUTOR DEL PLANTEL' },
+      ],
+    });
+
+    expect(result.staff.length).toBe(2);
+    expect(result.totalStaff).toBe(2);
+    expect(result.staff[0].nombre).toBe('Juan Rogelio García Escudero');
+    expect(result.staff[0].cargo).toBe('Director(a)');
+    expect(result.staff[1].nombre).toBe('Gustavo Aaron de la Fuente Portilla');
+    expect(result.staff[1].cargo).toBe('Docente');
+  });
+
+  it('11. Filtra estudiantes (ALUMNO) y supervisores de la plantilla del personal del plantel', () => {
+    const result = reconcilePmcStaff({
+      directorName: 'Juan Rogelio García Escudero',
+      participantes: [
+        { nombre: 'PROFRA. ENIA HERNANDEZ GARCIA', cargo: 'DOCENTE Y TUTOR DE GRUPO' },
+        { nombre: 'ISABELLA HERNANDEZ VAZQUEZ', cargo: 'ALUMNO' },
+        { nombre: 'JULLIETTE HERNANDEZ HERNANDEZ', cargo: 'ALUMNO' },
+        { nombre: 'ING. ALEJANDRO ESCAMILLA MARTINEZ', cargo: 'SUPERVISOR ESCOLAR ZONA 004' },
+      ],
+    });
+
+    // Solo debe incluir a la docente Enia y al Director Juan Rogelio, excluyendo a las 2 alumnas y al supervisor
+    expect(result.staff.length).toBe(2);
+    expect(result.staff[0].nombre).toBe('Juan Rogelio García Escudero');
+    expect(result.staff[1].nombre).toBe('Enia Hernandez Garcia');
+  });
 });

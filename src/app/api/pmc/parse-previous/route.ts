@@ -176,12 +176,45 @@ export async function POST(request: NextRequest) {
       };
     }) || [];
 
+    // Consolidar categorías priorizadas (desde la extracción explícita o desde las metas encontradas)
+    const categoriasMap = new Map<string, Set<string>>();
+    for (const cp of parsed.data.categorias_priorizadas || []) {
+      if (cp && cp.categoria) {
+        const catNorm = normalizePmcCategoria(cp.categoria);
+        if (!categoriasMap.has(catNorm)) {
+          categoriasMap.set(catNorm, new Set());
+        }
+        for (const t of cp.temas || []) {
+          const tNorm = normalizePmcTema(t, catNorm);
+          if (tNorm) categoriasMap.get(catNorm)!.add(tNorm);
+        }
+      }
+    }
+    for (const m of normalizedMetasPrevias) {
+      if (m.categoria) {
+        if (!categoriasMap.has(m.categoria)) {
+          categoriasMap.set(m.categoria, new Set());
+        }
+        if (m.tema) {
+          categoriasMap.get(m.categoria)!.add(m.tema);
+        }
+      }
+    }
+
+    const reconciledCategoriasPriorizadas = Array.from(categoriasMap.entries()).map(
+      ([categoria, temasSet]) => ({
+        categoria,
+        temas: Array.from(temasSet),
+      })
+    );
+
     const finalData = {
       ...parsed.data,
       totalStaff: reconciledStaff.totalStaff,
       staffData: reconciledStaff.staff,
       participantes: parsed.data.participantes || [],
       metas_institucionales_previas: normalizedMetasPrevias,
+      categorias_priorizadas: reconciledCategoriasPriorizadas,
     };
 
     return NextResponse.json({

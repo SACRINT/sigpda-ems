@@ -120,6 +120,8 @@ Genera un objeto JSON con exactamente las siguientes 5 secciones redactadas con 
 4. "sintesis_foda": (Síntesis cruzada de los cuadrantes FODA en 2 párrafos, identificando cómo las fortalezas mitigarán las debilidades y amenazas del entorno).
 5. "priorizacion": (Narrativa de priorización estratégica para el ciclo escolar 2026-2027, justificando la intervención en las 3 categorías CREAA: Apropiación Curricular, Permanencia y Gestión Comunitaria).
 
+PROHIBICIÓN ESTRICTA: NUNCA utilices expresiones genéricas o de plantilla como "Asignatura 1", "Asignatura 4", "Docente X" o "Profesor Y". Si no se indican asignaturas específicas en el diagnóstico, refiérete con rigor a los Recursos Sociocognitivos del MCCEMS (Pensamiento Matemático, Lengua y Comunicación, Conciencia Histórica, Cultura Digital).
+
 Responde ÚNICAMENTE con el objeto JSON con estas 5 claves. NO inventes cifras estadísticas: usa exactamente los datos proporcionados.`;
 }
 
@@ -275,13 +277,18 @@ REGLAS OBLIGATORIAS DE REDACCIÓN DE METAS CREAA (MCCEMS PUEBLA 2026-2027):
 4. ENTREGABLES TÉCNICOS CUALITATIVOS (PROHIBIDO SÓLO FOTOGRAFÍAS O LISTAS):
    Los entregables deben ser productos analíticos: "Informe de análisis de causas raíz", "Bitácora de tutorías con matriz de riesgo", "Memoria de proyectos PAEC con rúbricas de evaluación".
 
-5. METAS PERSONALES POR TRABAJADOR:
-   Generar MÚLTIPLES metas individuales para cada trabajador listado, una por cada categoría/tema que le aplique según su cargo.
-   - Un director(a) puede tener metas en todas las categorías (gestión, académico, socioemocional).
-   - Un docente puede tener metas en categoría 1 (académico) y categoría 3 (PAEC/comunitario).
-   - Un orientador puede tener metas en categoría 3 (socioemocional) y categoría 1 (tutorías).
-   - Si el trabajador tiene metas predefinidas en la plantilla, úsalas como base y complementa con metas adicionales según las categorías seleccionadas.
+5. METAS PERSONALES POR TRABAJADOR (OBLIGATORIO PARA CADA MIEMBRO):
+   Generar metas individuales para CADA UNO de los trabajadores listados en la plantilla, adaptadas a su cargo específico:
+   - Director(a): Liderazgo pedagógico colegiado, gestión y mejora de infraestructura escolar (aulas, domo, cisterna, cómputo) y cumplimiento normativo SEMS.
+   - Tutor(a) del Plantel: Coordinación institucional de tutorías, monitoreo de alertas tempranas de deserción y vinculación con comités escolares.
+   - Tutor(a) de Grupo: Seguimiento socioemocional y académico de aprendientes con rezago, comunicación proactiva con padres de familia y bitácoras de tutoría.
+   - Docente de Grupo / Frente a grupo: Planeación didáctica situada por competencias NEM, regularización en áreas sociocognitivas clave (Pensamiento Matemático, Lengua y Comunicación, Ciencias) e implementación de evaluación formativa continua.
+   - Si el trabajador tiene metas predefinidas en la plantilla, úsalas como base y elabóralas con rigor SMART.
    - Cada meta individual DEBE especificar a qué categoría y tema pertenece.
+
+6. PROHIBICIÓN DE PLACEHOLDERS GENÉRICOS:
+   - NUNCA uses etiquetas genéricas como "Asignatura 1", "Asignatura 4", "Docente X" o "Profesor Y".
+   - Si no se detallan asignaturas reprobadas específicas en el diagnóstico, refiérete formalmente a los Recursos Sociocognitivos del MCCEMS (Pensamiento Matemático, Lengua y Comunicación, Conciencia Histórica, Cultura Digital).
 
 Estructura de respuesta en JSON:
 {

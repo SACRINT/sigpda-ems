@@ -8,9 +8,20 @@ import mammoth from 'mammoth';
 import type { IngestedDocument } from '../types';
 
 export async function parseDocxDocument(buffer: Buffer): Promise<IngestedDocument> {
-  // 1. Extraer a Markdown estructurado con estilos de encabezados y listas nativas
-  const mdResult = await mammoth.convertToMarkdown({ buffer });
-  const markdown = mdResult.value.trim();
+  // 1. Extraer a Markdown estructurado con estilos de encabezados y listas nativas,
+  // suprimiendo imágenes incrustadas para evitar saturación de tokens con base64
+  const mdResult = await (mammoth as any).convertToMarkdown(
+    { buffer },
+    {
+      convertImage: (mammoth as any).images?.inline
+        ? (mammoth as any).images.inline(() => Promise.resolve({ src: '' }))
+        : undefined,
+    }
+  );
+  const markdown = mdResult.value
+    .replace(/!\[.*?\]\([^\)]*\)/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 
   // 2. Extraer texto plano continuo
   const textResult = await mammoth.extractRawText({ buffer });
