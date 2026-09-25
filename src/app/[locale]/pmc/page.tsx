@@ -120,6 +120,9 @@ export default async function PmcDashboardPage({
                         <a href={`/api/docx/pmc/${p.id as string}`} className="btn btn-primary btn-sm" style={{ backgroundColor: 'var(--c-navy)', borderColor: 'var(--c-navy)', color: '#fff' }}>
                           ↓ PMC Word
                         </a>
+                        <a href={`/api/excel/metas/${p.id as string}`} className="btn btn-sm" style={{ backgroundColor: '#059669', borderColor: '#059669', color: '#fff' }}>
+                          ↓ Metas Excel
+                        </a>
                         <a href={`/api/docx/pmc/${p.id as string}/informe-parcial`} className="btn btn-sm" style={{ backgroundColor: '#17a2b8', borderColor: '#17a2b8', color: '#fff' }}>
                           ↓ Informe Parcial
                         </a>

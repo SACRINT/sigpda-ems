@@ -2889,6 +2889,22 @@ interface PaecProjectForPmc {
                   </a>
                 </div>
 
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.28)', borderRadius: '8px', flexWrap: 'wrap' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, color: '#34d399', marginBottom: '4px' }}>📊 Excel Oficial de Supervisión (Metas 2026-2027)</div>
+                    <div style={{ fontSize: '13px', color: 'rgba(240,244,255,0.6)' }}>
+                      Formato oficial de 3 hojas (Indicadores, Punto de partida, METAS) y Anexo de Plan de Acción alineado byte a byte a los requerimientos de la Supervisión Escolar SEMS Puebla.
+                    </div>
+                  </div>
+                  <a
+                    href={`/api/excel/metas/${projectId}`}
+                    className="btn btn-primary"
+                    style={{ flexShrink: 0, backgroundColor: '#059669', borderColor: '#059669', textDecoration: 'none' }}
+                  >
+                    ↓ Descargar Excel Oficial (.xlsx)
+                  </a>
+                </div>
+
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', background: 'rgba(14,165,233,0.1)', border: '1px solid rgba(14,165,233,0.25)', borderRadius: '8px', flexWrap: 'wrap' }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 700, color: '#38bdf8', marginBottom: '4px' }}>📋 Plantilla: Informe Parcial de Avance</div>
