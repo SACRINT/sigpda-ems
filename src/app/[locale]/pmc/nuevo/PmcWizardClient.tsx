@@ -1231,8 +1231,10 @@ interface PaecProjectForPmc {
         return;
       }
       if (validStaff.length !== staffData.length) {
+        const prunedSlots = staffData.length - validStaff.length;
         setStaffData(validStaff);
         setTotalStaff(validStaff.length);
+        setSuccessBanner(`✓ Se podaron automáticamente ${prunedSlots} slot(s) sin nombre de la plantilla.`);
       }
       // Derivar y propagar metas individuales de la plantilla hacia el plan de acción
       const derived = derivePersonalMetasFromStaff(validStaff, cicloEscolar, planAccion?.metas_personales);
@@ -1397,6 +1399,20 @@ interface PaecProjectForPmc {
           </div>
         )}
 
+        {/* Success / Notification banner */}
+        {successBanner && (
+          <div style={{ marginBottom: '18px', padding: '12px 16px', borderRadius: '8px', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.4)', color: '#34d399', fontSize: '13px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>{successBanner}</span>
+            <button
+              type="button"
+              onClick={() => setSuccessBanner(null)}
+              style={{ background: 'none', border: 'none', color: '#6ee7b7', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' }}
+            >
+              ×
+            </button>
+          </div>
+        )}
+
         {/* ── STEP 1: Datos Institucionales ─────────────────────────── */}
         {activeStep === 1 && (
           <div>
@@ -1406,19 +1422,6 @@ interface PaecProjectForPmc {
             <p style={{ fontSize: '14px', color: 'rgba(240,244,255,0.6)', marginBottom: '20px' }}>
               Ingresa los datos generales del plantel educativo. Esta información aparecerá en la portada del PMC.
             </p>
-
-            {successBanner && (
-              <div style={{ marginBottom: '18px', padding: '12px 16px', borderRadius: '8px', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.4)', color: '#34d399', fontSize: '13px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>{successBanner}</span>
-                <button
-                  type="button"
-                  onClick={() => setSuccessBanner(null)}
-                  style={{ background: 'none', border: 'none', color: '#6ee7b7', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' }}
-                >
-                  ×
-                </button>
-              </div>
-            )}
 
             {/* Barra de Acciones Inteligentes: Cargar PMC Anterior + F11 + Estadística 911 */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginBottom: '20px', padding: '14px 18px', borderRadius: '10px', background: 'linear-gradient(135deg, rgba(30,41,59,0.85) 0%, rgba(15,23,42,0.95) 100%)', border: '1px solid rgba(99,102,241,0.3)', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>
