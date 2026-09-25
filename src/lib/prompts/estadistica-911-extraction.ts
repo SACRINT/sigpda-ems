@@ -85,7 +85,7 @@ REGLAS DE EXTRACCIÓN:
 4. Extrae el nombre del Director(a) y Supervisor(a) en "directorName" y "supervisorName" si aparecen en los bloques de firmas oficiales al calce del formato 911.
 5. Si un dato no se encuentra, asigna una cadena vacía "" para texto o null para números, sin inventar información.
 6. Los porcentajes deben ser números decimales (ej. 6.8, no "6.8%" como texto).
-7. CÁLCULO DE INDICADORES:
-   - Tasa de Abandono Escolar (%): Si se reportan bajas definitivas o diferencia entre matrícula de inicio y fin: calcula ((bajasDefinitivas / matricula) * 100). Por ejemplo, si iniciaron 85 y concluyeron 81 (4 bajas), el abandono es 4.7% (NUNCA debe ser 0% si hay bajas registradas).
-   - Eficiencia Terminal (%): Es el porcentaje de egresados respecto a la matrícula de inicio: ((egresados / matricula) * 100). Por ejemplo, si egresaron 81 de 85, es 95.3% (NUNCA debe ser 100% si hubo reprobados o desertores).`;
+7. INDICADORES ESCOLARES OFICIALES:
+   - Eficiencia Terminal (%): Es un indicador GENERACIONAL oficial (ej. "% EFICIENCIA TERMINAL GENERACIÓN 2023-2026"). Extrae prioritariamente el porcentaje impreso exacto en el formato 911 o anexo de indicadores. NUNCA dividas el número de egresados entre la matrícula total del plantel si este abarca múltiples grados/semestres (subvaluaría el indicador a ~30%). Solo calcula si el documento especifica la cohorte exacta de nuevo ingreso de dicha generación: ((egresados / cohorteIngreso) * 100).
+   - Tasa de Abandono Escolar (%): Extrae el porcentaje impreso oficial. Si no está impreso pero se reportan bajas definitivas del ciclo y la matrícula del ciclo: calcula ((bajasDefinitivas / matricula) * 100). Por ejemplo, si iniciaron 85 y hubo 4 bajas, el abandono es 4.7%.`;
 }

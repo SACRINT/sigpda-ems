@@ -161,13 +161,14 @@ export async function POST(request: NextRequest) {
       ...(requestedMomento ? { momento: requestedMomento } : {}),
     };
 
-    // Coherencia matemática en indicadores escolares (abandono y eficiencia terminal)
+    // Coherencia matemática en indicadores escolares (abandono escolar)
+    // Nota H-039: La Eficiencia Terminal es un indicador GENERACIONAL oficial (% egresados sobre alumnos de
+    // nuevo ingreso de la cohorte que inició 3 años antes, ej. Generación 2023-2026). NUNCA debe recalcularse
+    // dividiendo egresados entre la matrícula total vigente del plantel (en escuelas multigrado subvalúa a ~30%).
+    // Se preserva con máxima fidelidad el porcentaje oficial impreso en el documento 911.
     if (finalData.matricula && finalData.matricula > 0) {
       if (finalData.bajasDefinitivas && finalData.bajasDefinitivas > 0 && (!finalData.abandonoPorcentaje || finalData.abandonoPorcentaje === 0)) {
         finalData.abandonoPorcentaje = Number(((finalData.bajasDefinitivas / finalData.matricula) * 100).toFixed(1));
-      }
-      if (finalData.egresados && finalData.egresados > 0 && (!finalData.eficienciaTerminal || (finalData.eficienciaTerminal === 100 && finalData.bajasDefinitivas && finalData.bajasDefinitivas > 0))) {
-        finalData.eficienciaTerminal = Number(((finalData.egresados / finalData.matricula) * 100).toFixed(1));
       }
     }
 

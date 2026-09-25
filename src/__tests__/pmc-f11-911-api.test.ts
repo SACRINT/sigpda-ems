@@ -418,4 +418,41 @@ describe('API Route: /api/pmc/estadistica-911', () => {
     expect(jsonAnt.data.schoolName).toBe('BACHILLERATO HEROES DE LA PATRIA');
     expect(jsonAnt.data.schoolCct).toBe('21EBH0282Y');
   });
+
+  it('preserva la eficiencia terminal generacional oficial del 911 sin subvaluar con matrícula multigrado (H-039)', async () => {
+    vi.mocked(auth).mockResolvedValueOnce({ user: { email: 'docente@bachillerato.edu.mx' } } as never);
+    vi.mocked(getTeacherByEmail).mockResolvedValueOnce(mockTeacher as never);
+    vi.mocked(resolveUserIsPremium).mockResolvedValueOnce(true);
+    vi.mocked(ingestDocument).mockResolvedValueOnce({
+      fullText: 'ESTADISTICA 911 MATRICULA TOTAL 300 EGRESADOS 85 % EFICIENCIA TERMINAL GENERACION 2023-2026: 94.4%',
+      markdown: 'ESTADISTICA 911 MATRICULA TOTAL 300 EGRESADOS 85 % EFICIENCIA TERMINAL GENERACION 2023-2026: 94.4%',
+      pageCount: 3,
+    } as never);
+
+    const validAiResponse = JSON.stringify({
+      schoolName: 'BACHILLERATO EJEMPLO',
+      matricula: 300,
+      egresados: 85,
+      eficienciaTerminal: 94.4,
+      bajasDefinitivas: 6,
+    });
+
+    vi.mocked(generateWithRotation).mockResolvedValueOnce(validAiResponse);
+
+    const formData = new FormData();
+    formData.append('file', new File(['dummy 911'], '911_fin.pdf', { type: 'application/pdf' }));
+    formData.append('momento', 'fin_anterior');
+
+    const req = new NextRequest('http://localhost:3000/api/pmc/estadistica-911', {
+      method: 'POST',
+      body: formData,
+    });
+    const res = await handle911Post(req);
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.success).toBe(true);
+    expect(json.data.eficienciaTerminal).toBe(94.4);
+    expect(json.data.abandonoPorcentaje).toBe(2);
+  });
 });
