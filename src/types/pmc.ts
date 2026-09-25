@@ -115,6 +115,7 @@ export interface PmcMetaInstitucional {
   periodo_inicio?: string;
   periodo_fin?: string;
   diagnostico_meta?: string;
+  continuidad_de?: string;
 }
 
 export interface PmcMetaPersonal {
