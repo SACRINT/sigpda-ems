@@ -14,7 +14,7 @@
  */
 
 import ExcelJS from 'exceljs';
-import { computePmcIndicatorValues } from '@/lib/pmc-indicator-calculator';
+import { computePmcIndicatorValues, computeAprobadosCount } from '@/lib/pmc-indicator-calculator';
 import type { PmcIndicadoresAcademicos, PmcStatisticalContext, PmcStatisticalPlantel } from '@/types/pmc';
 
 export interface PmcMetaInstitucionalInput {
@@ -296,14 +296,14 @@ export async function generatePmcSupervisorExcel(project: PmcSupervisorExcelInpu
       const apPctAnt = parseMetricNumber(comp.aprobacion.ant);
       const etAnt = parseMetricNumber(comp.eficiencia.ant);
       const abAnt = parseMetricNumber(comp.abandono.ant);
-      const apNumAnt = p.estudiantesAprobados ?? p.aprobados ?? (matAnt && apPctAnt ? Math.round((matAnt * apPctAnt) / 100) : undefined);
+      const apNumAnt = computeAprobadosCount(matAnt, apPctAnt, p.estudiantesAprobados ?? p.aprobados);
 
       const matMeta = parseMetricNumber(comp.matricula.meta) ?? matAnt;
       const promMeta = parseMetricNumber(comp.promedio?.meta) ?? promAnt;
       const apPctMeta = parseMetricNumber(comp.aprobacion.meta) ?? apPctAnt;
       const etMeta = parseMetricNumber(comp.eficiencia.meta) ?? etAnt;
       const abMeta = parseMetricNumber(comp.abandono.meta) ?? abAnt;
-      const apNumMeta = matMeta && apPctMeta ? Math.round((matMeta * apPctMeta) / 100) : apNumAnt;
+      const apNumMeta = computeAprobadosCount(matMeta, apPctMeta) ?? apNumAnt;
 
       plantelesData.push({
         nombre: p.nombre,
@@ -333,18 +333,22 @@ export async function generatePmcSupervisorExcel(project: PmcSupervisorExcelInpu
     const apPctAnt = parseMetricNumber(comp.aprobacion.ant);
     const etAnt = parseMetricNumber(comp.eficiencia.ant);
     const abAnt = parseMetricNumber(comp.abandono.ant);
-    const apNumAnt = typeof ind.estudiantes_aprobados === 'number'
-      ? ind.estudiantes_aprobados
-      : (matAnt && apPctAnt ? Math.round((matAnt * apPctAnt) / 100) : undefined);
+    const apNumAnt = computeAprobadosCount(
+      matAnt,
+      apPctAnt,
+      typeof ind.estudiantes_aprobados === 'number' ? ind.estudiantes_aprobados : undefined
+    );
 
     const matMeta = parseMetricNumber(comp.matricula.meta) ?? matAnt;
     const promMeta = parseMetricNumber(comp.promedio?.meta) ?? promAnt;
     const apPctMeta = parseMetricNumber(comp.aprobacion.meta) ?? apPctAnt;
     const etMeta = parseMetricNumber(comp.eficiencia.meta) ?? etAnt;
     const abMeta = parseMetricNumber(comp.abandono.meta) ?? abAnt;
-    const apNumMeta = typeof ind.estudiantes_aprobados_meta === 'number'
-      ? ind.estudiantes_aprobados_meta
-      : (matMeta && apPctMeta ? Math.round((matMeta * apPctMeta) / 100) : apNumAnt);
+    const apNumMeta = computeAprobadosCount(
+      matMeta,
+      apPctMeta,
+      typeof ind.estudiantes_aprobados_meta === 'number' ? ind.estudiantes_aprobados_meta : undefined
+    ) ?? apNumAnt;
 
     plantelesData.push({
       nombre: project.school_name || 'Plantel Educativo',

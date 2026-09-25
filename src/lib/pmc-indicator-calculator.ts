@@ -43,6 +43,24 @@ export interface PmcIndicatorComputedValues {
 }
 
 /**
+ * Calcula o extrae el número de estudiantes aprobados a partir de los datos crudos del 911 o cálculo explícito.
+ * SSoT: Centraliza la estimación para evitar divergencias de redondeo en renderers.
+ */
+export function computeAprobadosCount(
+  matricula?: number,
+  pctAprobacion?: number,
+  conteoCrudo?: number
+): number | undefined {
+  if (typeof conteoCrudo === 'number' && conteoCrudo >= 0) {
+    return conteoCrudo;
+  }
+  if (typeof matricula === 'number' && typeof pctAprobacion === 'number' && matricula > 0 && pctAprobacion >= 0) {
+    return Math.round((matricula * pctAprobacion) / 100);
+  }
+  return undefined;
+}
+
+/**
  * Single Source of Truth (SSoT) para el cálculo y formateo de indicadores educativos del PMC.
  * Consolida la extracción jerárquica (plantel context > indicadores directos),
  * 0 legítimo, N/D defensivo y reglas de variación.
