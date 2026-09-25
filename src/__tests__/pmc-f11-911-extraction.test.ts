@@ -177,12 +177,16 @@ describe('Blindaje Curricular y Extracción: F11 y Estadística 911 (N-002)', ()
       }
     });
 
-    it('buildEstadistica911ExtractionPrompt contiene reglas y estructura oficial', () => {
+    it('buildEstadistica911ExtractionPrompt contiene reglas y estructura oficial fijando indicador generacional (H-047)', () => {
       const prompt = buildEstadistica911ExtractionPrompt('Texto breve de ejemplo');
       expect(prompt).toContain('Estadística Escolar (Formato 911)');
       expect(prompt).toContain('abandonoPorcentaje');
       expect(prompt).toContain('eficienciaTerminal');
       expect(prompt).toContain('tipoReporte');
+      // Invariantes normativos H-039 / H-047:
+      expect(prompt).toContain('GENERACIONAL');
+      expect(prompt).toContain('NUNCA dividas');
+      expect(prompt).toContain('cohorte');
       expect(ESTADISTICA_911_EXTRACTION_SYSTEM_PROMPT).toContain('Formato 911');
     });
   });
