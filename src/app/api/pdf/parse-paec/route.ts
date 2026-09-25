@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail } from '@/lib/db';
@@ -213,7 +214,10 @@ ${smartText}`;
     isPremium,
     { jsonMode: true }
   );
-  const parseResult = parseAIResponse(rawJsonText, PaecExtractedDocSchema, { contextName: 'paec_pdf_parse' });
+  const parseResult = parseAIResponse(rawJsonText, PaecExtractedDocSchema, {
+    contextName: 'paec_pdf_parse',
+    repairNullStrings: true,
+  });
   if (!parseResult.success) {
     throw new Error(`Error estructurando PAEC con IA: ${parseResult.error}`);
   }
@@ -451,6 +455,7 @@ function parsePlanOperativoHeuristics(text: string): PaecOperationalActivity[] {
 }
 
 // ─── Síntesis Contextual de Respaldo (Último Recurso) ──────────────────────────
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function synthesizeProblemFallback(projectName: string, objective: string, studentContext: string): string {
   const title = (projectName + ' ' + objective).toLowerCase();
   
