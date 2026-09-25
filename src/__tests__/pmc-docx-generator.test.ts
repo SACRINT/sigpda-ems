@@ -181,7 +181,7 @@ describe('pmc-docx-generator — Generador de Plan de Mejora Continua e Informes
 
     const { value: text } = await mammoth.extractRawText({ buffer });
     expect(text).toContain('INFORME PARCIAL DE AVANCE PMC');
-    expect(text).toContain('Agosto 2025 – Enero 2026 (1er Semestre)');
+    expect(text).toContain('Agosto 2026 – Enero 2027 (1er Semestre)');
     expect(text).toContain('ACUSE DE RECEPCIÓN — SUPERVISIÓN ESCOLAR');
     expect(text).toContain('Bachillerato General Oficial Lic. Benito Juárez');
   });
@@ -196,7 +196,7 @@ describe('pmc-docx-generator — Generador de Plan de Mejora Continua e Informes
 
     const { value: text } = await mammoth.extractRawText({ buffer });
     expect(text).toContain('INFORME FINAL DEL PLAN DE MEJORA CONTINUA');
-    expect(text).toContain('Agosto 2025 – Julio 2026 (Ciclo Completo)');
+    expect(text).toContain('Agosto 2026 – Julio 2027 (Ciclo Completo)');
     expect(text).toContain('FIRMAS DE VALIDACIÓN Y RESPONSABILIDAD INSTITUCIONAL');
     expect(text).toContain('Mtro. Roberto Morales Sánchez');
   });
@@ -334,5 +334,19 @@ describe('pmc-docx-generator — Generador de Plan de Mejora Continua e Informes
     expect(text).toContain('85.5%');
     expect(text).toContain('92.0%');
     expect(text).toContain('340 estudiantes');
+  });
+
+  // ── TEST 12: Encabezados de ciclos dinámicos en informe (H-010) ────────────
+  it('Test 12: Genera encabezados de ciclo y periodos dinámicos en informe DOCX para 2026-2027', async () => {
+    const nextCycleFixture = makePmcFixture({
+      ciclo_escolar: '2026-2027',
+    });
+    const buffer = await generatePmcInformeDocx(nextCycleFixture, 'final');
+    const { value: text } = await mammoth.extractRawText({ buffer });
+
+    expect(text).toContain('INFORME FINAL DEL PLAN DE MEJORA CONTINUA (PMC) 2026-2027');
+    expect(text).toContain('Agosto 2026 – Julio 2027 (Ciclo Completo)');
+    expect(text).toContain('CICLO 2025-2026 (Referencia)');
+    expect(text).toContain('CICLO 2026-2027 (Resultados Finales)');
   });
 });

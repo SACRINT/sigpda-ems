@@ -783,14 +783,25 @@ export async function generatePmcInformeDocx(
   const indic = parseJson<IndicadoresAcademicos>(project.indicadores_academicos);
   const staffData = parseJson<{ nombre?: string; cargo?: string }[]>(project.staff_data);
 
+  const ciclo = safeStr(project.ciclo_escolar) || '2025-2026';
   const isFinal = tipo === 'final';
   const titulo = isFinal
-    ? 'INFORME FINAL DEL PLAN DE MEJORA CONTINUA (PMC) 2025-2026'
-    : 'INFORME PARCIAL DE AVANCE PMC 2025-2026';
+    ? `INFORME FINAL DEL PLAN DE MEJORA CONTINUA (PMC) ${ciclo}`
+    : `INFORME PARCIAL DE AVANCE PMC ${ciclo}`;
 
+  const cicloParts = ciclo.split('-');
+  const yStart = cicloParts[0] || '2025';
+  const yEnd = cicloParts[1] || '2026';
   const periodo = isFinal
-    ? 'Agosto 2025 – Julio 2026 (Ciclo Completo)'
-    : 'Agosto 2025 – Enero 2026 (1er Semestre)';
+    ? `Agosto ${yStart} – Julio ${yEnd} (Ciclo Completo)`
+    : `Agosto ${yStart} – Enero ${yEnd} (1er Semestre)`;
+
+  let cicloAnt = 'CICLO ANTERIOR';
+  const yStartNum = parseInt(yStart, 10);
+  const yEndNum = parseInt(yEnd, 10);
+  if (!isNaN(yStartNum) && !isNaN(yEndNum)) {
+    cicloAnt = `CICLO ${yStartNum - 1}-${yEndNum - 1}`;
+  }
 
   const today = new Date().toLocaleDateString('es-MX', {
     year: 'numeric',
@@ -803,7 +814,6 @@ export async function generatePmcInformeDocx(
   const location = `${safeStr(project.locality)}, ${safeStr(project.municipality)}, Puebla`;
   const directorName = safeStr(project.director_name) || 'Director(a) del Plantel';
   const supervisorName = safeStr(project.supervisor_name) || 'Supervisor(a) de Zona Escolar';
-  const ciclo = safeStr(project.ciclo_escolar) || '2025-2026';
 
   // Format staff string
   const staffStr = Array.isArray(staffData) && staffData.length > 0
@@ -1106,8 +1116,8 @@ export async function generatePmcInformeDocx(
         new TableRow({
           children: [
             tcH('INDICADOR ACADÉMICO'),
-            tcH('CICLO 2024-2025 (Referencia)'),
-            tcH(`CICLO 2025-2026 (${isFinal ? 'Resultados Finales' : 'Avance Parcial'})`),
+            tcH(`${cicloAnt} (Referencia)`),
+            tcH(`CICLO ${ciclo} (${isFinal ? 'Resultados Finales' : 'Avance Parcial'})`),
           ],
         }),
         new TableRow({ children: [tcSub('Matrícula total de estudiantes'), tc(indVals.matricula.ant), tc(indVals.matricula.meta)] }),
