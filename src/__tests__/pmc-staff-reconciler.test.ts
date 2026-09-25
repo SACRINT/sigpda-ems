@@ -246,4 +246,19 @@ describe('PMC Staff Reconciler Engine', () => {
     expect(metas[0].entregable).toBe('Constancias COSFAC');
     expect(metas[1].meta_individual).toBe('Acompañamiento focalizado a alumnos con reprobación en matemáticas');
   });
+
+  it('14. Permite emparejar y podar metas usando normalizeStaffName ante variaciones de títulos y mayúsculas (H-045)', () => {
+    const rawStaffMember = { nombre: 'MTRA. JUANA GARCÍA', cargo: 'Docente' };
+    const derivedMetas = derivePersonalMetasFromStaff([rawStaffMember], '2026-2027');
+
+    expect(derivedMetas.length).toBe(1);
+    expect(derivedMetas[0].nombre).toBe('Juana García');
+
+    const removedNorm = normalizeStaffName(rawStaffMember.nombre);
+    const metaNorm = normalizeStaffName(derivedMetas[0].nombre);
+    expect(removedNorm).toBe(metaNorm);
+
+    const remaining = derivedMetas.filter(m => normalizeStaffName(m.nombre) !== removedNorm);
+    expect(remaining.length).toBe(0);
+  });
 });

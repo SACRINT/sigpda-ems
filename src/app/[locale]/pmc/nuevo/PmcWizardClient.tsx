@@ -11,7 +11,7 @@ import {
 } from '@/lib/constants/pmc-categorias';
 import { toRealNumber } from '@/lib/numeric-guard';
 import { computeCoverage } from '@/lib/coverage-core';
-import { reconcilePmcStaff, derivePersonalMetasFromStaff } from '@/lib/pmc/staff-reconciler';
+import { reconcilePmcStaff, derivePersonalMetasFromStaff, normalizeStaffName } from '@/lib/pmc/staff-reconciler';
 
 
 const PMC_DRAFT_KEY = 'didactica_pmc_draft';
@@ -1098,13 +1098,13 @@ interface PaecProjectForPmc {
     setStaffData(updated);
     setTotalStaff(updated.length);
 
-    // H-040: Podar inmediatamente de metas_personales al responsable eliminado
+    // H-045: Podar inmediatamente de metas_personales al responsable eliminado usando normalizeStaffName
     if (memberToRemove?.nombre?.trim()) {
-      const removedName = memberToRemove.nombre.trim().toLowerCase();
+      const removedNorm = normalizeStaffName(memberToRemove.nombre);
       setPlanAccion(prev => {
         if (!prev) return prev;
         const remainingMetas = (prev.metas_personales || []).filter(
-          mp => (mp.nombre || '').trim().toLowerCase() !== removedName
+          mp => normalizeStaffName(mp.nombre || '') !== removedNorm
         );
         return {
           ...prev,
@@ -1181,6 +1181,7 @@ interface PaecProjectForPmc {
   const handleNext = async () => {
     setError(null);
     let idToUse = projectId;
+    const targetNextStep = Math.min(activeStep + 1, 5);
 
     if (activeStep === 1) {
       if (!schoolName.trim() || !schoolCct.trim() || !directorName.trim()) {
@@ -1217,18 +1218,29 @@ interface PaecProjectForPmc {
         current_step: 2,
       });
     } else if (activeStep === 2) {
-      const incomplete = staffData.some(s => !s.nombre.trim() || !s.cargo.trim());
-      if (incomplete) {
-        setError('Por favor completa el nombre y cargo de todos los miembros del personal.');
+      // H-042: Si hay slots sin nombre (ej. derivados del conteo numérico de la 911),
+      // se podan automáticamente los slots vacíos en vez de bloquear el avance del wizard
+      const validStaff = staffData.filter(s => s.nombre.trim().length > 0);
+      if (validStaff.length === 0) {
+        setError('Por favor registra al menos a un integrante de la plantilla (Director o Docente).');
         return;
       }
+      const incompleteRole = validStaff.some(s => !s.cargo.trim());
+      if (incompleteRole) {
+        setError('Por favor completa el cargo de todos los miembros registrados.');
+        return;
+      }
+      if (validStaff.length !== staffData.length) {
+        setStaffData(validStaff);
+        setTotalStaff(validStaff.length);
+      }
       // Derivar y propagar metas individuales de la plantilla hacia el plan de acción
-      const derived = derivePersonalMetasFromStaff(staffData, cicloEscolar, planAccion?.metas_personales);
+      const derived = derivePersonalMetasFromStaff(validStaff, cicloEscolar, planAccion?.metas_personales);
       setPlanAccion(prev => ({
         metas_institucionales: prev?.metas_institucionales || [],
         metas_personales: derived,
       }));
-      idToUse = await saveProject({ total_staff: totalStaff, staff_data: staffData, current_step: 3 });
+      idToUse = await saveProject({ total_staff: validStaff.length, staff_data: validStaff, current_step: 3 });
     } else if (activeStep === 3) {
       if (!diagnosticoComunidad.trim()) {
         setError('Por favor describe el contexto de la comunidad.');
@@ -1282,7 +1294,7 @@ interface PaecProjectForPmc {
     }
 
     if (idToUse) {
-      goToStep(Math.min(activeStep + 1, 5));
+      goToStep(targetNextStep);
     }
   };
 
@@ -2322,8 +2334,7 @@ interface PaecProjectForPmc {
                       const isAlreadyAdded = planAccion?.metas_institucionales?.some(
                         (m) =>
                           m.meta === `[Continuidad 2026-2027] ${mp.meta}` ||
-                          (mp.meta && m.meta.trim().toLowerCase() === mp.meta.trim().toLowerCase()) ||
-                          (mp.meta && m.meta.includes(mp.meta))
+                          (Boolean(mp.meta) && m.meta.trim().toLowerCase() === mp.meta!.trim().toLowerCase())
                       );
 
                       return (
