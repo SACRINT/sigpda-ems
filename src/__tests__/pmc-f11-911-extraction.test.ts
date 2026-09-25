@@ -456,6 +456,36 @@ describe('Blindaje Curricular y Extracción: F11 y Estadística 911 (N-002)', ()
         expect(result.data.totalStaff).toBeUndefined(); // No inventa 1 por defecto
       }
     });
+
+    it('PmcPreviousExtractSchema extrae matricula_meta, promedio_f11 y promedio_meta correctamente (H-011)', () => {
+      const payloadConMetas = {
+        schoolName: 'Bachillerato Digital Núm. 45',
+        indicadores: {
+          matricula: 250,
+          matricula_meta: 260,
+          aprobacion_ant: 82.5,
+          aprobacion_meta: 88.0,
+          reprobacion_ant: 17.5,
+          reprobacion_meta: 12.0,
+          abandono_ant: 5.1,
+          abandono_meta: 3.5,
+          et_ant: 79.0,
+          et_meta: 85.0,
+          promedio_f11: 8.1,
+          promedio_meta: 8.5,
+        },
+      };
+
+      const result = PmcPreviousExtractSchema.safeParse(payloadConMetas);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.indicadores.matricula).toBe(250);
+        expect(result.data.indicadores.matricula_meta).toBe(260);
+        expect(result.data.indicadores.promedio_f11).toBe(8.1);
+        expect(result.data.indicadores.promedio_meta).toBe(8.5);
+        expect(result.data.indicadores.reprobacion_meta).toBe(12.0);
+      }
+    });
   });
 });
 

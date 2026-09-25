@@ -66,6 +66,9 @@ interface StaffMember {
 
 interface IndicadoresAcademicos {
   matricula?: number;
+  matricula_meta?: number;
+  promedio_f11?: number;
+  promedio_meta?: number;
   aprobacion_ant?: number;
   aprobacion_meta?: number;
   reprobacion_ant?: number;
@@ -265,7 +268,8 @@ export default function PmcWizardClient({ locale, teacherSchool, teacherMunicipa
   const [diagnosticoComunidad, setDiagnosticoComunidad] = useState(existingProject?.diagnostico_comunidad || '');
   const [indicadores, setIndicadores] = useState<IndicadoresAcademicos>(
     existingProject?.indicadores_academicos || {
-      matricula: undefined,
+      matricula: undefined, matricula_meta: undefined,
+      promedio_f11: undefined, promedio_meta: undefined,
       aprobacion_ant: undefined, aprobacion_meta: undefined,
       reprobacion_ant: undefined, reprobacion_meta: undefined,
       abandono_ant: undefined, abandono_meta: undefined,
@@ -580,15 +584,18 @@ interface PaecProjectForPmc {
       const ind = parsedPmcData.indicadores;
       setIndicadores(prev => ({
         ...prev,
-        matricula: (ind.matricula !== undefined && ind.matricula !== null) ? Number(ind.matricula) : prev.matricula,
-        aprobacion_ant: (ind.aprobacion_ant !== undefined && ind.aprobacion_ant !== null) ? Number(ind.aprobacion_ant) : prev.aprobacion_ant,
-        aprobacion_meta: (ind.aprobacion_meta !== undefined && ind.aprobacion_meta !== null) ? Number(ind.aprobacion_meta) : prev.aprobacion_meta,
-        reprobacion_ant: (ind.reprobacion_ant !== undefined && ind.reprobacion_ant !== null) ? Number(ind.reprobacion_ant) : prev.reprobacion_ant,
-        reprobacion_meta: (ind.reprobacion_meta !== undefined && ind.reprobacion_meta !== null) ? Number(ind.reprobacion_meta) : prev.reprobacion_meta,
-        abandono_ant: (ind.abandono_ant !== undefined && ind.abandono_ant !== null) ? Number(ind.abandono_ant) : prev.abandono_ant,
-        abandono_meta: (ind.abandono_meta !== undefined && ind.abandono_meta !== null) ? Number(ind.abandono_meta) : prev.abandono_meta,
-        et_ant: (ind.et_ant !== undefined && ind.et_ant !== null) ? Number(ind.et_ant) : prev.et_ant,
-        et_meta: (ind.et_meta !== undefined && ind.et_meta !== null) ? Number(ind.et_meta) : prev.et_meta,
+        matricula: toRealNumber(ind.matricula) ?? prev.matricula,
+        matricula_meta: toRealNumber(ind.matricula_meta) ?? prev.matricula_meta,
+        aprobacion_ant: toRealNumber(ind.aprobacion_ant) ?? prev.aprobacion_ant,
+        aprobacion_meta: toRealNumber(ind.aprobacion_meta) ?? prev.aprobacion_meta,
+        reprobacion_ant: toRealNumber(ind.reprobacion_ant) ?? prev.reprobacion_ant,
+        reprobacion_meta: toRealNumber(ind.reprobacion_meta) ?? prev.reprobacion_meta,
+        abandono_ant: toRealNumber(ind.abandono_ant) ?? prev.abandono_ant,
+        abandono_meta: toRealNumber(ind.abandono_meta) ?? prev.abandono_meta,
+        et_ant: toRealNumber(ind.et_ant) ?? prev.et_ant,
+        et_meta: toRealNumber(ind.et_meta) ?? prev.et_meta,
+        promedio_f11: toRealNumber(ind.promedio_f11) ?? prev.promedio_f11,
+        promedio_meta: toRealNumber(ind.promedio_meta) ?? prev.promedio_meta,
       }));
     }
 
@@ -1859,20 +1866,37 @@ interface PaecProjectForPmc {
                   </tbody>
                 </table>
               </div>
-              <div style={{ marginTop: '12px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                  <label style={{ ...labelStyle, marginBottom: 0 }}>Matrícula total del plantel (alumnos)</label>
-                  <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'rgba(16,185,129,0.2)', color: '#6ee7b7', border: '1px solid rgba(16,185,129,0.3)' }}>
-                    911 Inicio
-                  </span>
+              <div style={{ marginTop: '12px', display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                    <label style={{ ...labelStyle, marginBottom: 0 }}>Matrícula total del plantel (alumnos)</label>
+                    <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'rgba(16,185,129,0.2)', color: '#6ee7b7', border: '1px solid rgba(16,185,129,0.3)' }}>
+                      911 Inicio
+                    </span>
+                  </div>
+                  <input
+                    type="number" min={1}
+                    style={{ ...inputStyle, width: '160px' }}
+                    value={indicadores.matricula ?? ''}
+                    onChange={e => setIndicadores(p => ({ ...p, matricula: parseInt(e.target.value) || undefined }))}
+                    placeholder="Número de alumnos"
+                  />
                 </div>
-                <input
-                  type="number" min={1}
-                  style={{ ...inputStyle, width: '160px' }}
-                  value={indicadores.matricula ?? ''}
-                  onChange={e => setIndicadores(p => ({ ...p, matricula: parseInt(e.target.value) || undefined }))}
-                  placeholder="Número de alumnos"
-                />
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                    <label style={{ ...labelStyle, marginBottom: 0 }}>Matrícula meta proyectada (opcional)</label>
+                    <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'rgba(99,102,241,0.2)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.3)' }}>
+                      Meta
+                    </span>
+                  </div>
+                  <input
+                    type="number" min={1}
+                    style={{ ...inputStyle, width: '160px' }}
+                    value={indicadores.matricula_meta ?? ''}
+                    onChange={e => setIndicadores(p => ({ ...p, matricula_meta: parseInt(e.target.value) || undefined }))}
+                    placeholder="Meta alumnos"
+                  />
+                </div>
               </div>
             </div>
 

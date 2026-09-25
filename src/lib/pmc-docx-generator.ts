@@ -219,6 +219,8 @@ interface IndicadoresAcademicos {
   et_meta?: number;
   matricula?: number;
   matricula_meta?: number;
+  promedio_f11?: number;
+  promedio_meta?: number;
 }
 
 interface FodaData {

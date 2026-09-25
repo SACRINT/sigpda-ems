@@ -19,9 +19,13 @@ export interface PmcIndicadoresAcademicos {
   abandono_ant?: number;
   et_ant?: number; // Eficiencia Terminal
   aprobacion_meta?: number;
+  reprobacion_meta?: number;
   abandono_meta?: number;
   et_meta?: number;
   matricula?: number;
+  matricula_meta?: number;
+  promedio_f11?: number;
+  promedio_meta?: number;
 }
 
 export interface PmcStatisticalPlantel {

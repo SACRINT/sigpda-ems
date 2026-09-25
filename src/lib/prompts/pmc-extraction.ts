@@ -47,6 +47,7 @@ export const PmcPreviousExtractSchema = z.object({
   diagnosticoComunidad: nullableString(),
   indicadores: z.object({
     matricula: z.coerce.number().nullable().optional(),
+    matricula_meta: z.coerce.number().nullable().optional(),
     aprobacion_ant: z.coerce.number().nullable().optional(),
     aprobacion_meta: z.coerce.number().nullable().optional(),
     reprobacion_ant: z.coerce.number().nullable().optional(),
@@ -55,6 +56,8 @@ export const PmcPreviousExtractSchema = z.object({
     abandono_meta: z.coerce.number().nullable().optional(),
     et_ant: z.coerce.number().nullable().optional(),
     et_meta: z.coerce.number().nullable().optional(),
+    promedio_f11: z.coerce.number().nullable().optional(),
+    promedio_meta: z.coerce.number().nullable().optional(),
   }).partial().optional().default({}),
   foda: z.object({
     fortalezas: nullableString(),
@@ -128,6 +131,7 @@ Estructura la información en el siguiente esquema JSON exacto:
   "diagnosticoComunidad": "Diagnóstico de la comunidad y del entorno escolar (descripción textual amplia, contexto social, económico y cultural)",
   "indicadores": {
     "matricula": número de alumnos inscritos (o null si no se especifica),
+    "matricula_meta": número de alumnos proyectados como meta (o null si no se especifica),
     "aprobacion_ant": porcentaje de aprobación previo (número 0-100 o null),
     "aprobacion_meta": porcentaje de aprobación proyectado como meta (número 0-100 o null),
     "reprobacion_ant": porcentaje de reprobación previo (número 0-100 o null),
@@ -135,7 +139,9 @@ Estructura la información en el siguiente esquema JSON exacto:
     "abandono_ant": porcentaje de abandono o deserción previo (número 0-100 o null),
     "abandono_meta": porcentaje de abandono meta (número 0-100 o null),
     "et_ant": porcentaje de eficiencia terminal previo (número 0-100 o null),
-    "et_meta": porcentaje de eficiencia terminal meta (número 0-100 o null)
+    "et_meta": porcentaje de eficiencia terminal meta (número 0-100 o null),
+    "promedio_f11": promedio general de calificaciones previo (número 0-10 o null),
+    "promedio_meta": promedio general de calificaciones proyectado como meta (número 0-10 o null)
   },
   "foda": {
     "fortalezas": "Fortalezas institucionales identificadas en el diagnóstico",
