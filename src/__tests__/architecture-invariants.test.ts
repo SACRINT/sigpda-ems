@@ -50,29 +50,32 @@ describe('C-02 Suite Transversal de Invariantes de Plataforma (SIGPDA-EMS)', () 
       path.join(rootDir, 'lib', 'paec', 'orchestrator.ts'),
     ];
 
-    const violations: { file: string; reason: string }[] = [];
+    const violations: { file: string; calls: number; repairs: number; reason: string }[] = [];
 
     for (const filePath of extractionFiles) {
       const relPath = path.relative(rootDir, filePath);
       if (!fs.existsSync(filePath)) {
-        violations.push({ file: relPath, reason: 'El archivo de extracción esperado no existe.' });
+        violations.push({ file: relPath, calls: 0, repairs: 0, reason: 'El archivo de extracción esperado no existe.' });
         continue;
       }
 
       const content = fs.readFileSync(filePath, 'utf-8');
-      if (content.includes('parseAIResponse(')) {
-        if (!content.includes('repairNullStrings: true')) {
-          violations.push({
-            file: relPath,
-            reason: 'Invoca parseAIResponse sin configurar repairNullStrings: true explícito.',
-          });
-        }
+      const parseMatches = content.match(/parseAIResponse\s*\(/g) || [];
+      const repairMatches = content.match(/repairNullStrings\s*:\s*true/g) || [];
+
+      if (parseMatches.length > 0 && repairMatches.length < parseMatches.length) {
+        violations.push({
+          file: relPath,
+          calls: parseMatches.length,
+          repairs: repairMatches.length,
+          reason: `Se detectaron ${parseMatches.length} llamadas a parseAIResponse pero solo ${repairMatches.length} con repairNullStrings: true.`,
+        });
       }
     }
 
     expect(
       violations,
-      `Se detectaron archivos de extracción sin repairNullStrings: true:\n${JSON.stringify(violations, null, 2)}`
+      `Se detectaron llamadas de extracción sin repairNullStrings: true:\n${JSON.stringify(violations, null, 2)}`
     ).toEqual([]);
   });
 
@@ -112,8 +115,8 @@ describe('C-02 Suite Transversal de Invariantes de Plataforma (SIGPDA-EMS)', () 
         const trimmed = lineText.trim();
         if (trimmed.startsWith('import ') || trimmed.startsWith('import type ')) {
           for (const forbidden of forbiddenList) {
-            // Verifica si importa de '@/lib/<forbidden>' o '@/lib/orchestrator/<forbidden>'
-            const regex = new RegExp(`from\\s+['"]@/lib/(?:${forbidden}|${forbidden}/|prompts/${forbidden})['"]`);
+            // Detecta imports exactos o subdirectorios de dominio: '@/lib/<dom>', '@/lib/<dom>/...', '@/lib/prompts/<dom>...'
+            const regex = new RegExp(`from\\s+['"]@/lib/(?:${forbidden}(?:[/\\w-]*)|prompts/${forbidden}(?:[/\\w-]*))['"]`);
             if (regex.test(trimmed)) {
               violations.push({
                 file,
