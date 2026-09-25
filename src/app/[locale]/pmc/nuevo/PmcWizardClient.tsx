@@ -208,15 +208,18 @@ const CATEGORIAS_OFICIALES = [
 const CARGOS_COMUNES = [
   'Director(a)',
   'Subdirector(a)',
-  'Secretario(a) académico(a)',
-  'Orientador(a) educativo(a)',
+  'Docente',
+  'Docente y tutor de grupo',
+  'Docente y tutor del plantel',
   'Docente de tiempo completo',
   'Docente por horas',
+  'Orientador(a) educativo(a)',
+  'Secretario(a) académico(a)',
   'Auxiliar administrativo(a)',
   'Prefecto(a)',
   'Trabajador(a) social',
   'Personal de intendencia',
-  'Personal de mantenimiento',
+  'Personal de apoyo / mantenimiento',
   'Otro',
 ];
 
@@ -316,6 +319,7 @@ export default function PmcWizardClient({ locale, teacherSchool, teacherMunicipa
     meta?: string;
     linea_base?: string;
     estrategia?: string;
+    responsable?: string;
     entregable?: string;
     periodo?: string;
   }>>([]);
@@ -545,12 +549,13 @@ interface PaecProjectForPmc {
     if (parsedPmcData.subsystem) setSubsystem(parsedPmcData.subsystem);
 
     const effDirector = parsedPmcData.directorName || directorName;
+    const hasExtractedStaff = Array.isArray(parsedPmcData.staffData) && parsedPmcData.staffData.length > 0;
     const reconciled = reconcilePmcStaff({
-      existingStaff: staffData,
+      existingStaff: hasExtractedStaff ? [] : staffData,
       extractedStaff: parsedPmcData.staffData,
       participantes: parsedPmcData.participantes,
       directorName: effDirector,
-      targetTotalStaff: parsedPmcData.totalStaff ? Number(parsedPmcData.totalStaff) : totalStaff,
+      targetTotalStaff: parsedPmcData.totalStaff ? Number(parsedPmcData.totalStaff) : undefined,
       cicloEscolar: parsedPmcData.cicloEscolar || cicloEscolar,
     });
     setStaffData(reconciled.staff);
@@ -1065,10 +1070,32 @@ interface PaecProjectForPmc {
     setTotalStaff(n);
     setStaffData(prev => {
       if (n > prev.length) {
-        const toAdd = Array.from({ length: n - prev.length }, () => ({ nombre: '', cargo: 'Docente de tiempo completo', meta_individual: '' }));
+        const toAdd = Array.from({ length: n - prev.length }, () => ({ nombre: '', cargo: 'Docente', meta_individual: '' }));
         return [...prev, ...toAdd];
       }
       return prev.slice(0, n);
+    });
+  };
+
+  const removeStaffMember = (indexToRemove: number) => {
+    setStaffData(prev => {
+      if (prev.length <= 1) {
+        return [{ nombre: '', cargo: 'Docente', meta_individual: '', metas_individuales: [] }];
+      }
+      const updated = prev.filter((_, idx) => idx !== indexToRemove);
+      setTotalStaff(updated.length);
+      return updated;
+    });
+  };
+
+  const addStaffMember = () => {
+    setStaffData(prev => {
+      const updated = [
+        ...prev,
+        { nombre: '', cargo: 'Docente', meta_individual: '', metas_individuales: [] },
+      ];
+      setTotalStaff(updated.length);
+      return updated;
     });
   };
 
@@ -1490,13 +1517,37 @@ interface PaecProjectForPmc {
 
               {staffData.map((member, idx) => (
                 <div key={idx} style={{ borderTop: idx === 0 ? 'none' : '1px solid var(--c-border)', paddingTop: idx === 0 ? 0 : '16px', marginBottom: '16px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'linear-gradient(135deg,#6366f1,#4f46e5)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, flexShrink: 0 }}>
-                      {idx + 1}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'linear-gradient(135deg,#6366f1,#4f46e5)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, flexShrink: 0 }}>
+                        {idx + 1}
+                      </div>
+                      <strong style={{ fontSize: '14px', color: '#818cf8' }}>
+                        {member.nombre || `Trabajador ${idx + 1}`}
+                      </strong>
                     </div>
-                    <strong style={{ fontSize: '14px', color: '#818cf8' }}>
-                      {member.nombre || `Trabajador ${idx + 1}`}
-                    </strong>
+                    {staffData.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeStaffMember(idx)}
+                        style={{
+                          background: 'rgba(239, 68, 68, 0.1)',
+                          border: '1px solid rgba(239, 68, 68, 0.3)',
+                          color: '#f87171',
+                          borderRadius: '6px',
+                          padding: '4px 10px',
+                          fontSize: '12px',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          transition: 'all 0.15s ease',
+                        }}
+                        title="Eliminar este trabajador de la plantilla"
+                      >
+                        ✕ Eliminar trabajador
+                      </button>
+                    )}
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                     <div>
@@ -1520,13 +1571,19 @@ interface PaecProjectForPmc {
                       <label style={labelStyle}>Cargo / Función *</label>
                       <select
                         style={inputStyle}
-                        value={member.cargo}
+                        value={member.cargo || 'Docente'}
                         onChange={e => {
                           const copy = [...staffData];
                           copy[idx] = { ...copy[idx], cargo: e.target.value };
                           setStaffData(copy);
+                          if (e.target.value === 'Director(a)') {
+                            setDirectorName(copy[idx].nombre);
+                          }
                         }}
                       >
+                        {member.cargo && !CARGOS_COMUNES.includes(member.cargo) && (
+                          <option value={member.cargo}>{member.cargo}</option>
+                        )}
                         {CARGOS_COMUNES.map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </div>
@@ -1689,6 +1746,28 @@ interface PaecProjectForPmc {
                   </div>
                 </div>
               ))}
+
+              <div style={{ marginTop: '16px', display: 'flex', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={addStaffMember}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    border: '1px dashed rgba(99,102,241,0.5)',
+                    background: 'rgba(99,102,241,0.08)',
+                    color: '#a5b4fc',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  ➕ Agregar trabajador
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -2157,45 +2236,67 @@ interface PaecProjectForPmc {
                     Estas metas provienen del PMC anterior cargado. Por rigor normativo no se incluyen automáticamente en el Plan de Acción 2026-2027 para evitar compromisos extemporáneos. Puedes adaptar aquellas que requieran continuidad formal:
                   </p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {metasPreviasReferencia.map((mp, idx) => (
-                      <div key={idx} style={{ background: 'rgba(0,0,0,0.25)', padding: '10px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
-                        <div style={{ flex: 1, fontSize: '12px' }}>
-                          <div style={{ fontWeight: 600, color: '#93c5fd', marginBottom: '2px' }}>
-                            {mp.categoria || 'Categoría general'} {mp.tema ? `— ${mp.tema}` : ''}
+                    {metasPreviasReferencia.map((mp, idx) => {
+                      const isAlreadyAdded = planAccion?.metas_institucionales?.some(
+                        (m) =>
+                          m.meta === `[Continuidad 2026-2027] ${mp.meta}` ||
+                          (mp.meta && m.meta.trim().toLowerCase() === mp.meta.trim().toLowerCase()) ||
+                          (mp.meta && m.meta.includes(mp.meta))
+                      );
+
+                      return (
+                        <div key={idx} style={{ background: 'rgba(0,0,0,0.25)', padding: '10px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+                          <div style={{ flex: 1, fontSize: '12px' }}>
+                            <div style={{ fontWeight: 600, color: '#93c5fd', marginBottom: '2px' }}>
+                              {mp.categoria || 'Categoría general'} {mp.tema ? `— ${mp.tema}` : ''}
+                            </div>
+                            <div style={{ color: '#f0f4ff', marginBottom: '4px' }}><strong>Meta:</strong> {mp.meta || 'Sin redacción'}</div>
+                            {mp.estrategia && <div style={{ color: 'rgba(240,244,255,0.65)' }}><strong>Estrategia:</strong> {mp.estrategia}</div>}
+                            {mp.linea_base && <div style={{ color: 'rgba(240,244,255,0.5)' }}><strong>Línea base:</strong> {mp.linea_base}</div>}
                           </div>
-                          <div style={{ color: '#f0f4ff', marginBottom: '4px' }}><strong>Meta:</strong> {mp.meta || 'Sin redacción'}</div>
-                          {mp.estrategia && <div style={{ color: 'rgba(240,244,255,0.65)' }}><strong>Estrategia:</strong> {mp.estrategia}</div>}
-                          {mp.linea_base && <div style={{ color: 'rgba(240,244,255,0.5)' }}><strong>Línea base:</strong> {mp.linea_base}</div>}
+                          <button
+                            type="button"
+                            disabled={Boolean(isAlreadyAdded)}
+                            onClick={() => {
+                              if (isAlreadyAdded) return;
+                              const cat = mp.categoria || PMC_CATEGORIAS_OFICIALES[0].nombre;
+                              const adaptedMeta: MetaInstitucional = {
+                                categoria: cat,
+                                nombre_categoria: cat,
+                                tema: mp.tema || 'Mejora continua',
+                                meta: mp.meta ? `[Continuidad 2026-2027] ${mp.meta}` : '',
+                                estrategia: mp.estrategia || '',
+                                linea_base: mp.linea_base || '',
+                                personal_designado: mp.responsable || '',
+                                entregable: mp.entregable || 'Reporte de seguimiento',
+                                periodo_inicio: 'Agosto 2026',
+                                periodo_fin: 'Junio 2027',
+                                diagnostico_meta: `Meta adaptada del ciclo previo: ${mp.meta || ''}`,
+                              };
+                              setPlanAccion(prev => ({
+                                metas_institucionales: [...(prev?.metas_institucionales || []), adaptedMeta],
+                                metas_personales: prev?.metas_personales || [],
+                              }));
+                              setEditingMeta(planAccion?.metas_institucionales?.length || 0);
+                            }}
+                            style={{
+                              padding: '6px 10px',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              borderRadius: '6px',
+                              border: isAlreadyAdded ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(99,102,241,0.4)',
+                              background: isAlreadyAdded ? 'rgba(16,185,129,0.1)' : 'rgba(99,102,241,0.2)',
+                              color: isAlreadyAdded ? '#6ee7b7' : '#c7d2fe',
+                              cursor: isAlreadyAdded ? 'default' : 'pointer',
+                              whiteSpace: 'nowrap',
+                              opacity: isAlreadyAdded ? 0.75 : 1,
+                            }}
+                          >
+                            {isAlreadyAdded ? '✓ Agregada al Plan' : '➕ Adaptar para 2026-2027'}
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const cat = mp.categoria || PMC_CATEGORIAS_OFICIALES[0].nombre;
-                            const adaptedMeta: MetaInstitucional = {
-                              categoria: cat,
-                              nombre_categoria: cat,
-                              tema: mp.tema || 'Mejora continua',
-                              meta: mp.meta ? `[Continuidad 2026-2027] ${mp.meta}` : '',
-                              estrategia: mp.estrategia || '',
-                              linea_base: mp.linea_base || '',
-                              personal_designado: '',
-                              entregable: mp.entregable || 'Reporte de seguimiento',
-                              periodo_inicio: 'Agosto 2026',
-                              periodo_fin: 'Junio 2027',
-                              diagnostico_meta: `Meta adaptada del ciclo previo: ${mp.meta || ''}`,
-                            };
-                            setPlanAccion(prev => ({
-                              metas_institucionales: [...(prev?.metas_institucionales || []), adaptedMeta],
-                              metas_personales: prev?.metas_personales || [],
-                            }));
-                            setEditingMeta(planAccion?.metas_institucionales?.length || 0);
-                          }}
-                          style={{ padding: '6px 10px', fontSize: '11px', fontWeight: 600, borderRadius: '6px', border: '1px solid rgba(99,102,241,0.4)', background: 'rgba(99,102,241,0.2)', color: '#c7d2fe', cursor: 'pointer', whiteSpace: 'nowrap' }}
-                        >
-                          ➕ Adaptar para 2026-2027
-                        </button>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -2212,12 +2313,38 @@ interface PaecProjectForPmc {
                         <span style={{ fontWeight: 700, fontSize: '13px' }}>
                           {meta.nombre_categoria} — {meta.tema}
                         </span>
-                        <button
-                          onClick={() => setEditingMeta(editingMeta === i ? null : i)}
-                          style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
-                        >
-                          {editingMeta === i ? 'Cerrar' : '✏️ Editar'}
-                        </button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <button
+                            type="button"
+                            onClick={() => setEditingMeta(editingMeta === i ? null : i)}
+                            style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
+                          >
+                            {editingMeta === i ? 'Cerrar' : '✏️ Editar'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPlanAccion(prev => {
+                                if (!prev) return null;
+                                const updated = prev.metas_institucionales.filter((_, mIdx) => mIdx !== i);
+                                return { ...prev, metas_institucionales: updated };
+                              });
+                              if (editingMeta === i) setEditingMeta(null);
+                            }}
+                            style={{
+                              background: 'rgba(239,68,68,0.2)',
+                              border: '1px solid rgba(239,68,68,0.4)',
+                              color: '#fca5a5',
+                              padding: '4px 10px',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '12px',
+                            }}
+                            title="Eliminar esta meta del plan"
+                          >
+                            🗑️ Eliminar
+                          </button>
+                        </div>
                       </div>
                       <div style={{ padding: '12px 14px', background: 'rgba(8,12,24,0.5)', fontSize: '13px', color: '#f0f4ff', lineHeight: 1.6 }}>
                         {editingMeta === i ? (

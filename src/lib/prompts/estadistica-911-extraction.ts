@@ -84,5 +84,8 @@ REGLAS DE EXTRACCIÓN:
 3. Si el documento contiene desglose por grado o semester, extrae el número de grupos por grado.
 4. Extrae el nombre del Director(a) y Supervisor(a) en "directorName" y "supervisorName" si aparecen en los bloques de firmas oficiales al calce del formato 911.
 5. Si un dato no se encuentra, asigna una cadena vacía "" para texto o null para números, sin inventar información.
-6. Los porcentajes deben ser números decimales (ej. 6.8, no "6.8%" como texto).`;
+6. Los porcentajes deben ser números decimales (ej. 6.8, no "6.8%" como texto).
+7. CÁLCULO DE INDICADORES:
+   - Tasa de Abandono Escolar (%): Si se reportan bajas definitivas o diferencia entre matrícula de inicio y fin: calcula ((bajasDefinitivas / matricula) * 100). Por ejemplo, si iniciaron 85 y concluyeron 81 (4 bajas), el abandono es 4.7% (NUNCA debe ser 0% si hay bajas registradas).
+   - Eficiencia Terminal (%): Es el porcentaje de egresados respecto a la matrícula de inicio: ((egresados / matricula) * 100). Por ejemplo, si egresaron 81 de 85, es 95.3% (NUNCA debe ser 100% si hubo reprobados o desertores).`;
 }

@@ -87,12 +87,14 @@ const NON_STAFF_CARGO_KEYWORDS = [
   'alumno',
   'alumna',
   'estudiante',
+  'aprendiente',
   'padre',
   'madre',
   'tutor legal',
   'comite de padres',
   'comite escolar',
   'asociacion de padres',
+  'apf',
   'supervisor',
   'supervisora',
 ];
@@ -175,16 +177,18 @@ function normalizeCargo(cargo: string | null | undefined, isDirector = false): s
   const lower = c.toLowerCase();
   if (lower.includes('director') && !lower.includes('subdirector')) return 'Director(a)';
   if (lower.includes('subdirector')) return 'Subdirector(a)';
+  if (lower.includes('tutor') && (lower.includes('plantel') || lower.includes('escolar'))) return 'Docente y tutor del plantel';
+  if (lower.includes('tutor') && (lower.includes('grupo') || lower.includes('grupal'))) return 'Docente y tutor de grupo';
   if (lower.includes('orientador')) return 'Orientador(a) educativo(a)';
   if (lower.includes('secretario')) return 'Secretario(a) académico(a)';
   if (lower.includes('administrativ')) return 'Auxiliar administrativo(a)';
   if (lower.includes('prefect')) return 'Prefecto(a)';
   if (lower.includes('social')) return 'Trabajador(a) social';
   if (lower.includes('intendenc')) return 'Personal de intendencia';
-  if (lower.includes('mantenimient')) return 'Personal de mantenimiento';
+  if (lower.includes('mantenimient') || lower.includes('apoyo')) return 'Personal de apoyo / mantenimiento';
   if (lower.includes('tiempo completo')) return 'Docente de tiempo completo';
   if (lower.includes('horas')) return 'Docente por horas';
-  if (lower.includes('docente')) return 'Docente';
+  if (lower.includes('docente') || lower.includes('profesor') || lower.includes('maestro')) return 'Docente';
   return c;
 }
 
@@ -210,6 +214,7 @@ export function reconcilePmcStaff(options: ReconcileStaffOptions): ReconciledSta
   const addOrUpdateStaff = (candidate: RawStaffCandidate, isDirectorCandidate = false) => {
     const rawName = candidate.nombre?.trim();
     if (!rawName || !isValidStaffName(rawName)) return;
+    if (isNonStaffRole(candidate.cargo)) return;
 
     const normKey = normalizeStaffName(rawName);
     const cargoNorm = normalizeCargo(candidate.cargo, isDirectorCandidate);

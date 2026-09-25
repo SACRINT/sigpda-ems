@@ -161,6 +161,16 @@ export async function POST(request: NextRequest) {
       ...(requestedMomento ? { momento: requestedMomento } : {}),
     };
 
+    // Coherencia matemática en indicadores escolares (abandono y eficiencia terminal)
+    if (finalData.matricula && finalData.matricula > 0) {
+      if (finalData.bajasDefinitivas && finalData.bajasDefinitivas > 0 && (!finalData.abandonoPorcentaje || finalData.abandonoPorcentaje === 0)) {
+        finalData.abandonoPorcentaje = Number(((finalData.bajasDefinitivas / finalData.matricula) * 100).toFixed(1));
+      }
+      if (finalData.egresados && finalData.egresados > 0 && (!finalData.eficienciaTerminal || (finalData.eficienciaTerminal === 100 && finalData.bajasDefinitivas && finalData.bajasDefinitivas > 0))) {
+        finalData.eficienciaTerminal = Number(((finalData.egresados / finalData.matricula) * 100).toFixed(1));
+      }
+    }
+
     return NextResponse.json({
       success: true,
       filename: file.name,

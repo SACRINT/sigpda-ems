@@ -165,7 +165,7 @@ describe('PMC Staff Reconciler Engine', () => {
     expect(result.staff[0].nombre).toBe('Juan Rogelio García Escudero');
     expect(result.staff[0].cargo).toBe('Director(a)');
     expect(result.staff[1].nombre).toBe('Gustavo Aaron de la Fuente Portilla');
-    expect(result.staff[1].cargo).toBe('Docente');
+    expect(result.staff[1].cargo).toBe('Docente y tutor del plantel');
   });
 
   it('11. Filtra estudiantes (ALUMNO) y supervisores de la plantilla del personal del plantel', () => {
