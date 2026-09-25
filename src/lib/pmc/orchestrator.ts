@@ -29,10 +29,7 @@ import {
   buildPmcExtractionPrompt,
   PmcPreviousExtractSchema,
 } from '@/lib/prompts/pmc-extraction';
-import {
-  normalizePmcCategoria,
-  normalizePmcTema,
-} from '@/lib/constants/pmc-categorias';
+import { reconcilePmcStaff } from '@/lib/pmc/staff-reconciler';
 
 export type PmcDocumentType = 'f11' | '911' | 'previous';
 
@@ -297,26 +294,22 @@ export class PmcOrchestrator implements IPmcOrchestrator {
           );
         }
 
-        // Normalizar categorías y temas canónicos de la PMC (Lineamientos Oficiales Cuadro 2)
-        const normalizedStaff = parsed.data.staffData?.map((staff) => ({
-          ...staff,
-          metas_individuales: staff.metas_individuales?.map((meta) => {
-            const catNorm = normalizePmcCategoria(meta.categoria);
-            const temaNorm = normalizePmcTema(meta.tema, catNorm);
-            return {
-              ...meta,
-              categoria: catNorm,
-              tema: temaNorm,
-            };
-          }) || [],
-        })) || [];
+        // Reconciliación arquitectónica de plantilla: consolida staffData, participantes y directorName
+        const reconciled = reconcilePmcStaff({
+          extractedStaff: parsed.data.staffData,
+          participantes: parsed.data.participantes,
+          directorName: parsed.data.directorName,
+          targetTotalStaff: parsed.data.totalStaff,
+          cicloEscolar: parsed.data.cicloEscolar,
+        });
 
         return {
           success: true,
           filename: options.filename,
           data: {
             ...parsed.data,
-            staffData: normalizedStaff,
+            totalStaff: reconciled.totalStaff,
+            staffData: reconciled.staff,
           },
           warnings: parsed.warnings,
         };

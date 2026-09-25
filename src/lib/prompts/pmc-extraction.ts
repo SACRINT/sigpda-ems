@@ -154,8 +154,8 @@ Estructura la información en el siguiente esquema JSON exacto:
 REGLAS DE EXTRACCIÓN:
 1. Conserva la redacción textual del diagnóstico de la comunidad y del FODA tanto como sea posible.
 2. Si el documento contiene tablas de indicadores académicos, extrae los porcentajes numéricos limpios (sin el símbolo %).
-3. Si el documento contiene una lista de plantilla docente o personal, extrae cada miembro en el arreglo "staffData" (máximo 40).
-4. OBLIGATORIO: Targetea e identifica con prioridad tablas o secciones de "PARTICIPANTES", "PERSONAL QUE PARTICIPÓ", "CONTROL DE REVISIONES", "FIRMAS", o sinónimos de validación comunitaria/institucional, capturando cargos (Director, CTE, Tutor, Docente, Alumno, Supervisor) en "participantes" (máximo 40).
+3. OBLIGATORIO - EXTRAE A TODO EL PERSONAL DEL PLANTEL: Busca minuciosamente en todo el documento (portada, actas de acuerdos, cuadros de colectivo docente, firmas de aprobación, listas de comités de planeación y evaluación) a cada persona y regístrala con su nombre completo y cargo en "staffData" (máximo 40). Si la persona tiene metas individuales descritas en el texto, extráelas en "metas_individuales"; si no tiene metas individuales descritas en el documento, deja "metas_individuales": [] pero OBLIGATORIAMENTE regístrala con su nombre completo y cargo. NUNCA generes objetos con nombre vacío o null.
+4. OBLIGATORIO - PARTICIPANTES Y FIRMAS: Extrae en "participantes" (máximo 40) a todos los firmantes, autoridades y miembros de comités escolares (director, supervisor, docentes, tutores, representantes comunitarios) capturando su nombre completo y cargo (Director, CTE, Tutor, Docente, Alumno, Supervisor). Nunca dejes nombres en blanco.
 5. Extrae los objetivos y metas institucionales globales del ciclo previo en "metas_institucionales_previas" (máximo 15).
 6. Si un docente tiene múltiples metas individuales en el PMC anterior (una por categoría o tema), extrae TODAS en el arreglo "metas_individuales", indicando la categoría y tema de cada una.
 7. Si un dato no se encuentra explícitamente en el texto, asigna una cadena vacía "" para texto o null para números, sin inventar información no sustentada.

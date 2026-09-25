@@ -24,6 +24,8 @@ import {
   withTimeoutBudget,
 } from '@/lib/pmc/orchestrator';
 
+import { reconcilePmcStaff } from '@/lib/pmc/staff-reconciler';
+
 export const runtime = 'nodejs';
 export const maxDuration = 120;
 
@@ -155,29 +157,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Normalizar categorías y temas canónicos de la PMC (Lineamientos Oficiales Cuadro 2)
-    let effectiveStaff = parsed.data.staffData?.map((staff) => ({
-      ...staff,
-      metas_individuales: staff.metas_individuales?.map((meta) => {
-        const catNorm = normalizePmcCategoria(meta.categoria);
-        const temaNorm = normalizePmcTema(meta.tema, catNorm);
-        return {
-          ...meta,
-          categoria: catNorm,
-          tema: temaNorm,
-        };
-      }) || [],
-    })) || [];
-
-    // Si staffData está vacío pero se identificaron participantes, precargar plantilla desde participantes
-    if (effectiveStaff.length === 0 && parsed.data.participantes && parsed.data.participantes.length > 0) {
-      effectiveStaff = parsed.data.participantes.map((p) => ({
-        nombre: p.nombre,
-        cargo: p.cargo || 'Docente',
-        meta_individual: '',
-        metas_individuales: [],
-      }));
-    }
+    // Reconciliación arquitectónica de plantilla: consolida staffData, participantes y directorName
+    const reconciledStaff = reconcilePmcStaff({
+      extractedStaff: parsed.data.staffData,
+      participantes: parsed.data.participantes,
+      directorName: parsed.data.directorName,
+      targetTotalStaff: parsed.data.totalStaff,
+      cicloEscolar: parsed.data.cicloEscolar,
+    });
 
     const normalizedMetasPrevias = parsed.data.metas_institucionales_previas?.map((m) => {
       const catNorm = normalizePmcCategoria(m.categoria);
@@ -191,8 +178,8 @@ export async function POST(request: NextRequest) {
 
     const finalData = {
       ...parsed.data,
-      totalStaff: parsed.data.totalStaff || (effectiveStaff.length > 0 ? effectiveStaff.length : undefined),
-      staffData: effectiveStaff,
+      totalStaff: reconciledStaff.totalStaff,
+      staffData: reconciledStaff.staff,
       participantes: parsed.data.participantes || [],
       metas_institucionales_previas: normalizedMetasPrevias,
     };

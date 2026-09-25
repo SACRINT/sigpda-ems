@@ -57,17 +57,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Docente no encontrado' }, { status: 404 });
     }
 
-    const body = (await request.json()) as {
-      school_name?: string;
-      school_cct?: string;
-      municipality?: string;
-      locality?: string;
-      school_zone?: string;
-      director_name?: string;
-      supervisor_name?: string;
-      ciclo_escolar?: string;
-      subsystem?: string;
-    };
+    const body = (await request.json()) as Record<string, unknown>;
 
     if (!body.school_name || !body.school_cct) {
       return NextResponse.json(
@@ -77,6 +67,8 @@ export async function POST(request: NextRequest) {
     }
 
     const db = sql();
+    const toJson = (v: unknown) => (v !== undefined && v !== null ? JSON.stringify(v) : null);
+
     const [project] = await db`
       INSERT INTO pmc_projects (
         teacher_id,
@@ -88,18 +80,40 @@ export async function POST(request: NextRequest) {
         director_name,
         supervisor_name,
         ciclo_escolar,
-        subsystem
+        subsystem,
+        total_staff,
+        current_step,
+        status,
+        diagnostico_comunidad,
+        staff_data,
+        indicadores_academicos,
+        foda,
+        categorias_priorizadas,
+        normativa,
+        diagnostico_generado,
+        plan_accion
       ) VALUES (
         ${teacher.id}::uuid,
-        ${body.school_name},
-        ${body.school_cct},
-        ${body.municipality ?? null},
-        ${body.locality ?? null},
-        ${body.school_zone ?? null},
-        ${body.director_name ?? null},
-        ${body.supervisor_name ?? null},
-        ${body.ciclo_escolar ?? '2025-2026'},
-        ${body.subsystem ?? 'BGE'}
+        ${body.school_name as string},
+        ${body.school_cct as string},
+        ${(body.municipality as string) ?? null},
+        ${(body.locality as string) ?? null},
+        ${(body.school_zone as string) ?? null},
+        ${(body.director_name as string) ?? null},
+        ${(body.supervisor_name as string) ?? null},
+        ${(body.ciclo_escolar as string) ?? '2025-2026'},
+        ${(body.subsystem as string) ?? 'BGE'},
+        ${typeof body.total_staff === 'number' ? body.total_staff : 1},
+        ${typeof body.current_step === 'number' ? body.current_step : 1},
+        ${(body.status as string) ?? 'draft'},
+        ${(body.diagnostico_comunidad as string) ?? null},
+        ${toJson(body.staff_data)}::jsonb,
+        ${toJson(body.indicadores_academicos)}::jsonb,
+        ${toJson(body.foda)}::jsonb,
+        ${toJson(body.categorias_priorizadas)}::jsonb,
+        ${toJson(body.normativa)}::jsonb,
+        ${toJson(body.diagnostico_generado)}::jsonb,
+        ${toJson(body.plan_accion)}::jsonb
       )
       RETURNING *
     `;

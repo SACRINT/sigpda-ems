@@ -8,10 +8,10 @@ import { useAssistant } from '@/components/assistant';
 import {
   PMC_CATEGORIAS_OFICIALES,
   normalizePmcCategoria,
-  normalizePmcTema,
 } from '@/lib/constants/pmc-categorias';
 import { toRealNumber } from '@/lib/numeric-guard';
 import { computeCoverage } from '@/lib/coverage-core';
+import { reconcilePmcStaff } from '@/lib/pmc/staff-reconciler';
 
 
 const PMC_DRAFT_KEY = 'didactica_pmc_draft';
@@ -344,6 +344,7 @@ interface PmcPreviousExtractStaff {
 interface F11ResponseDTO {
   schoolName?: string;
   schoolCct?: string;
+  directorName?: string;
   totalAlumnos?: number;
   totalDocentes?: number;
   totalGrupos?: number;
@@ -351,6 +352,7 @@ interface F11ResponseDTO {
   aprobadosPorcentaje?: number;
   reprobadosPorcentaje?: number;
   promediosPorAsignatura?: Record<string, number>;
+  docentes?: string[];
   docentesPorAsignatura?: Array<{
     asignatura?: string;
     docente?: string;
@@ -363,6 +365,8 @@ interface F11ResponseDTO {
 interface Estadistica911ResponseDTO {
   schoolName?: string;
   schoolCct?: string;
+  directorName?: string;
+  supervisorName?: string;
   matricula?: number;
   abandonoPorcentaje?: number;
   eficienciaTerminal?: number;
@@ -507,6 +511,22 @@ interface PaecProjectForPmc {
     }
   };
 
+  const handleDirectorNameChange = (val: string) => {
+    setDirectorName(val);
+    setStaffData(prev => {
+      if (prev.length === 0) {
+        return [{ nombre: val, cargo: 'Director(a)', meta_individual: '', metas_individuales: [] }];
+      }
+      const dirIdx = prev.findIndex(s => s.cargo === 'Director(a)');
+      if (dirIdx >= 0) {
+        const copy = [...prev];
+        copy[dirIdx] = { ...copy[dirIdx], nombre: val };
+        return copy;
+      }
+      return [{ nombre: val, cargo: 'Director(a)', meta_individual: '', metas_individuales: [] }, ...prev];
+    });
+  };
+
   const handleApplyParsedPmc = () => {
     if (!parsedPmcData) return;
     if (parsedPmcData.schoolName) setSchoolName(parsedPmcData.schoolName);
@@ -519,58 +539,17 @@ interface PaecProjectForPmc {
     if (parsedPmcData.cicloEscolar) setCicloEscolar(parsedPmcData.cicloEscolar);
     if (parsedPmcData.subsystem) setSubsystem(parsedPmcData.subsystem);
 
-    const incomingStaff = (parsedPmcData.staffData && Array.isArray(parsedPmcData.staffData) && parsedPmcData.staffData.length > 0)
-      ? parsedPmcData.staffData
-      : (parsedPmcData.participantes && Array.isArray(parsedPmcData.participantes) && parsedPmcData.participantes.length > 0)
-        ? parsedPmcData.participantes.map(p => ({
-            nombre: p.nombre,
-            cargo: p.cargo || 'Docente',
-            meta_individual: '',
-            metas_individuales: [],
-          }))
-        : [];
-
-    if (incomingStaff.length > 0) {
-      const normalizedStaff = incomingStaff.map(s => ({
-        ...s,
-        metas_individuales: (s.metas_individuales && s.metas_individuales.length > 0)
-          ? s.metas_individuales.map(m => {
-              const catNorm = normalizePmcCategoria(m.categoria);
-              const temaNorm = normalizePmcTema(m.tema, catNorm);
-              return {
-                ...m,
-                categoria: catNorm,
-                tema: temaNorm,
-              };
-            })
-          : s.meta_individual
-            ? [{
-                categoria: PMC_CATEGORIAS_OFICIALES[0].nombre,
-                tema: PMC_CATEGORIAS_OFICIALES[0].temas[0],
-                meta: s.meta_individual,
-                estrategia: '',
-                entregable: '',
-                periodo: `agosto ${cicloEscolar.split('-')[0] || '2026'} - junio ${cicloEscolar.split('-')[1] || '2027'}`,
-              }]
-            : [],
-      }));
-
-      const isCurrentStaffEmpty = staffData.length === 0 || (staffData.length === 1 && !staffData[0].nombre.trim());
-      if (isCurrentStaffEmpty) {
-        setStaffData(normalizedStaff);
-        setTotalStaff(normalizedStaff.length);
-      } else {
-        // Complementar la plantilla existente con nuevos participantes que no estén repetidos
-        const existingNames = new Set(staffData.map(s => s.nombre.toLowerCase().trim()));
-        const toAdd = normalizedStaff.filter(s => s.nombre.trim() && !existingNames.has(s.nombre.toLowerCase().trim()));
-        if (toAdd.length > 0) {
-          setStaffData(prev => [...prev, ...toAdd]);
-          setTotalStaff(prev => prev + toAdd.length);
-        }
-      }
-    } else if (parsedPmcData.totalStaff) {
-      setTotalStaff(Number(parsedPmcData.totalStaff) || 0);
-    }
+    const effDirector = parsedPmcData.directorName || directorName;
+    const reconciled = reconcilePmcStaff({
+      existingStaff: staffData,
+      extractedStaff: parsedPmcData.staffData,
+      participantes: parsedPmcData.participantes,
+      directorName: effDirector,
+      targetTotalStaff: parsedPmcData.totalStaff ? Number(parsedPmcData.totalStaff) : totalStaff,
+      cicloEscolar: parsedPmcData.cicloEscolar || cicloEscolar,
+    });
+    setStaffData(reconciled.staff);
+    setTotalStaff(reconciled.totalStaff);
 
     if (parsedPmcData.metas_institucionales_previas && parsedPmcData.metas_institucionales_previas.length > 0) {
       setMetasPreviasReferencia(parsedPmcData.metas_institucionales_previas);
@@ -628,6 +607,7 @@ interface PaecProjectForPmc {
       if (!res.ok || !json.success) throw new Error(json.error || 'Error al analizar el F11.');
       if (json.data?.schoolName && !schoolName) setSchoolName(json.data.schoolName);
       if (json.data?.schoolCct && !schoolCct) setSchoolCct(json.data.schoolCct);
+      if (json.data?.directorName && !directorName) setDirectorName(json.data.directorName);
 
       if (json.data?.aprobadosPorcentaje !== undefined || json.data?.reprobadosPorcentaje !== undefined || json.data?.promedioGeneral !== undefined) {
         setIndicadores(p => {
@@ -676,43 +656,19 @@ interface PaecProjectForPmc {
         }
       }
 
-      // C9: Poblar plantilla docente desde F11.docentesPorAsignatura (docentes únicos) si staffData está vacío
-      const isStaffEmpty = staffData.length === 0 || (staffData.length === 1 && !staffData[0].nombre.trim());
-      if (isStaffEmpty && Array.isArray(json.data?.docentesPorAsignatura) && json.data.docentesPorAsignatura.length > 0) {
-        const docentesMap = new Map<string, { asignaturas: string[]; grupos: string[] }>();
-        for (const item of json.data.docentesPorAsignatura) {
-          const rawName = item.docente?.trim();
-          if (rawName && !['sin asignar', 'vacante', 'por asignar'].includes(rawName.toLowerCase())) {
-            if (!docentesMap.has(rawName)) {
-              docentesMap.set(rawName, { asignaturas: [], grupos: [] });
-            }
-            const entry = docentesMap.get(rawName)!;
-            if (item.asignatura && !entry.asignaturas.includes(item.asignatura)) {
-              entry.asignaturas.push(item.asignatura);
-            }
-            if (item.grupos && !entry.grupos.includes(item.grupos)) {
-              entry.grupos.push(item.grupos);
-            }
-          }
-        }
-
-        if (docentesMap.size > 0) {
-          const autoStaff: StaffMember[] = Array.from(docentesMap.entries()).map(([nombre, meta]) => ({
-            nombre,
-            cargo: 'Docente',
-            meta_individual: '',
-            metas_individuales: [],
-            asignaturas: meta.asignaturas.join(', '),
-            grupos: meta.grupos.join(', '),
-          }));
-          setStaffData(autoStaff);
-          setTotalStaff(autoStaff.length);
-        } else if (json.data.totalDocentes && Number(json.data.totalDocentes) > 0) {
-          setTotalStaff(Number(json.data.totalDocentes));
-        }
-      } else if (isStaffEmpty && json.data?.totalDocentes && Number(json.data.totalDocentes) > 0) {
-        setTotalStaff(Number(json.data.totalDocentes));
-      }
+      // Reconciliación arquitectónica de plantilla docente desde F11
+      const effDirector = json.data?.directorName || directorName;
+      const targetCount = json.data?.totalDocentes ? Number(json.data.totalDocentes) : totalStaff;
+      const reconciled = reconcilePmcStaff({
+        existingStaff: staffData,
+        f11Docentes: json.data?.docentesPorAsignatura,
+        docentesList: json.data?.docentes,
+        directorName: effDirector,
+        targetTotalStaff: targetCount,
+        cicloEscolar,
+      });
+      setStaffData(reconciled.staff);
+      setTotalStaff(reconciled.totalStaff);
 
       setDocsStatus(p => ({ ...p, f11: true }));
       setSuccessBanner(`✓ F11 Fin Ciclo Anterior cargado: ${json.data?.totalAlumnos || '?'} alumnos evaluados, promedio general ${json.data?.promedioGeneral || '?'}`);
@@ -743,6 +699,21 @@ interface PaecProjectForPmc {
       if (!res.ok || !json.success) throw new Error(json.error || 'Error al analizar la Estadística 911.');
       if (json.data?.schoolName && !schoolName) setSchoolName(json.data.schoolName);
       if (json.data?.schoolCct && !schoolCct) setSchoolCct(json.data.schoolCct);
+      if (json.data?.directorName && !directorName) setDirectorName(json.data.directorName);
+      if (json.data?.supervisorName && !supervisorName) setSupervisorName(json.data.supervisorName);
+
+      const syncStaffFrom911 = (totalDocs?: number) => {
+        if (!totalDocs || isNaN(Number(totalDocs))) return;
+        const effDirector = json.data?.directorName || directorName;
+        const reconciled = reconcilePmcStaff({
+          existingStaff: staffData,
+          directorName: effDirector,
+          targetTotalStaff: Number(totalDocs),
+          cicloEscolar,
+        });
+        setStaffData(reconciled.staff);
+        setTotalStaff(reconciled.totalStaff);
+      };
 
       if (momento === 'fin_anterior') {
         setIndicadores(p => {
@@ -790,7 +761,7 @@ interface PaecProjectForPmc {
             aprobacion_meta: aprobMeta,
           };
         });
-        if (json.data?.totalDocentes) setTotalStaff(json.data.totalDocentes);
+        if (json.data?.totalDocentes) syncStaffFrom911(json.data.totalDocentes);
         setDocsStatus(p => ({ ...p, n911FinAnt: true }));
         setSuccessBanner(`✓ 911 (Fin Ciclo Anterior) cargada: Abandono ${json.data?.abandonoPorcentaje || '?'}%, Eficiencia Terminal ${json.data?.eficienciaTerminal || '?'}%`);
       } else if (momento === 'inicio_actual') {
@@ -798,7 +769,7 @@ interface PaecProjectForPmc {
           ...p,
           matricula: json.data?.matricula ? Number(json.data.matricula) : p.matricula,
         }));
-        if (json.data?.totalDocentes) setTotalStaff(json.data.totalDocentes);
+        if (json.data?.totalDocentes) syncStaffFrom911(json.data.totalDocentes);
         setDocsStatus(p => ({ ...p, n911IniAct: true }));
         setSuccessBanner(`✓ 911 (Inicio Ciclo Actual) cargada: Matrícula vigente de ${json.data?.matricula || '?'} alumnos`);
       } else {
@@ -957,9 +928,21 @@ interface PaecProjectForPmc {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            school_name: schoolName, school_cct: schoolCct, municipality,
-            locality, school_zone: schoolZone, director_name: directorName,
-            supervisor_name: supervisorName, ciclo_escolar: cicloEscolar, subsystem,
+            school_name: schoolName,
+            school_cct: schoolCct,
+            municipality,
+            locality,
+            school_zone: schoolZone,
+            director_name: directorName,
+            supervisor_name: supervisorName,
+            ciclo_escolar: cicloEscolar,
+            subsystem,
+            total_staff: totalStaff,
+            staff_data: staffData,
+            indicadores_academicos: indicadores,
+            diagnostico_comunidad: diagnosticoComunidad,
+            foda,
+            categorias_priorizadas: categoriasPriorizadas,
             ...payload,
           }),
         });
@@ -995,7 +978,7 @@ interface PaecProjectForPmc {
     } finally {
       setSaving(false);
     }
-  }, [projectId, schoolName, schoolCct, municipality, locality, schoolZone, directorName, supervisorName, cicloEscolar, subsystem, locale, router]);
+  }, [projectId, schoolName, schoolCct, municipality, locality, schoolZone, directorName, supervisorName, cicloEscolar, subsystem, totalStaff, staffData, indicadores, diagnosticoComunidad, foda, categoriasPriorizadas, locale, router]);
 
   const generateStep = useCallback(async (step: string): Promise<void> => {
     if (!projectId) return;
@@ -1076,10 +1059,34 @@ interface PaecProjectForPmc {
         setError('Por favor completa: nombre del plantel, CCT y nombre del director.');
         return;
       }
+
+      // Reconciliación arquitectónica asegurando sincronización de Director en plantilla
+      const effStaff = reconcilePmcStaff({
+        existingStaff: staffData,
+        directorName,
+        targetTotalStaff: totalStaff,
+        cicloEscolar,
+      });
+      setStaffData(effStaff.staff);
+      setTotalStaff(effStaff.totalStaff);
+
       idToUse = await saveProject({
-        school_name: schoolName, school_cct: schoolCct, municipality, locality,
-        school_zone: schoolZone, director_name: directorName, supervisor_name: supervisorName,
-        ciclo_escolar: cicloEscolar, subsystem, current_step: 2,
+        school_name: schoolName,
+        school_cct: schoolCct,
+        municipality,
+        locality,
+        school_zone: schoolZone,
+        director_name: directorName,
+        supervisor_name: supervisorName,
+        ciclo_escolar: cicloEscolar,
+        subsystem,
+        total_staff: effStaff.totalStaff,
+        staff_data: effStaff.staff,
+        indicadores_academicos: indicadores,
+        diagnostico_comunidad: diagnosticoComunidad,
+        foda,
+        categorias_priorizadas: categoriasPriorizadas,
+        current_step: 2,
       });
     } else if (activeStep === 2) {
       const incomplete = staffData.some(s => !s.nombre.trim() || !s.cargo.trim());
@@ -1394,7 +1401,7 @@ interface PaecProjectForPmc {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div>
                   <label style={labelStyle}>Nombre del Director(a) *</label>
-                  <input style={inputStyle} value={directorName} onChange={e => setDirectorName(e.target.value)} placeholder="Nombre completo del director(a)" />
+                  <input style={inputStyle} value={directorName} onChange={e => handleDirectorNameChange(e.target.value)} placeholder="Nombre completo del director(a)" />
                 </div>
                 <div>
                   <label style={labelStyle}>Nombre del Supervisor(a) de Zona</label>
@@ -1449,9 +1456,13 @@ interface PaecProjectForPmc {
                         style={inputStyle}
                         value={member.nombre}
                         onChange={e => {
+                          const val = e.target.value;
                           const copy = [...staffData];
-                          copy[idx] = { ...copy[idx], nombre: e.target.value };
+                          copy[idx] = { ...copy[idx], nombre: val };
                           setStaffData(copy);
+                          if (copy[idx].cargo === 'Director(a)') {
+                            setDirectorName(val);
+                          }
                         }}
                         placeholder="Nombre del trabajador"
                       />

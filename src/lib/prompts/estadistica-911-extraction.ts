@@ -10,6 +10,8 @@ export const Estadistica911ExtractSchema = z.object({
   cicloEscolar: nullableString(),
   schoolName: nullableString(),
   schoolCct: nullableString(),
+  directorName: nullableString(),
+  supervisorName: nullableString(),
   matricula: z.coerce.number().nullable().optional(),
   matriculaAnterior: z.coerce.number().nullable().optional(),
   egresados: z.coerce.number().nullable().optional(),
@@ -50,6 +52,8 @@ Estructura la información en el siguiente esquema JSON exacto:
   "cicloEscolar": "Ciclo escolar del documento (ej. 2025-2026)",
   "schoolName": "Nombre del plantel",
   "schoolCct": "Clave de Centro de Trabajo (CCT)",
+  "directorName": "Nombre completo del Director(a) si aparece en firmas, sellos o datos del responsable (o vacía)",
+  "supervisorName": "Nombre completo del Supervisor(a) escolar si aparece en firmas o sellos (o vacía)",
   "matricula": número total de alumnos inscritos en el ciclo actual (o null),
   "matriculaAnterior": número total de alumnos inscritos en el ciclo anterior (o null),
   "egresados": número de egresados del ciclo actual (o null),
@@ -78,6 +82,7 @@ REGLAS DE EXTRACCIÓN:
 1. Extrae los porcentajes numéricos limpios (sin el símbolo %).
 2. Si el documento contiene datos de ciclos anteriores para comparación, extráelos en los campos "Anterior".
 3. Si el documento contiene desglose por grado o semester, extrae el número de grupos por grado.
-4. Si un dato no se encuentra, asigna una cadena vacía "" para texto o null para números, sin inventar información.
-5. Los porcentajes deben ser números decimales (ej. 6.8, no "6.8%" como texto).`;
+4. Extrae el nombre del Director(a) y Supervisor(a) en "directorName" y "supervisorName" si aparecen en los bloques de firmas oficiales al calce del formato 911.
+5. Si un dato no se encuentra, asigna una cadena vacía "" para texto o null para números, sin inventar información.
+6. Los porcentajes deben ser números decimales (ej. 6.8, no "6.8%" como texto).`;
 }
