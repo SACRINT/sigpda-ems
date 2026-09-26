@@ -14,6 +14,7 @@ import autoTable, { type RowInput } from 'jspdf-autotable';
 import { loadAllLogos } from './pdf-logos';
 import { SCHOOL_YEAR } from '@/lib/config';
 import type { CartografiaZonaProject } from '@/types/cartografia';
+import { formatZoneMetric } from '@/lib/zone-metric-format';
 
 const NAVY: [number, number, number] = [31, 56, 100];       // #1F3864
 const BLUE_MID: [number, number, number] = [46, 116, 181];   // #2E74B5
@@ -219,8 +220,8 @@ export async function generateCartografiaPDF(
     p.municipio,
     p.turno,
     p.matricula,
-    p.eficienciaTerminal !== undefined && p.eficienciaTerminal > 0 ? `${p.eficienciaTerminal}%` : 'N/D',
-    `${p.abandono}%`,
+    formatZoneMetric(p.eficienciaTerminal, { pct: true }),
+    formatZoneMetric(p.abandono, { pct: true }),
     p.promedioGeneral.toFixed(2),
   ]);
 
@@ -254,10 +255,14 @@ export async function generateCartografiaPDF(
   const cCuant = project.momento2Organizar?.capaCuantitativa;
   const cCual = project.momento2Organizar?.capaCualitativa;
 
+  const matriculaTotalDisplay = cCuant?.matriculaTotal !== undefined && cCuant.matriculaTotal > 0
+    ? `${cCuant.matriculaTotal} alumnos`
+    : 'N/D';
+
   const benchRows: RowInput[] = [
-    ['Matrícula Total Zona', `${cCuant?.matriculaTotal || 0} alumnos`, 'Promedio Eficiencia Terminal (911.7G)', cCuant?.promedioEficienciaZona !== undefined && cCuant.promedioEficienciaZona > 0 ? `${cCuant.promedioEficienciaZona}%` : 'N/D'],
-    ['Promedio Abandono Escolar (911)', `${cCuant?.promedioAbandonoZona || 0}%`, 'Promedio Calificaciones (F11C)', `${cCuant?.promedioAprovechamientoZona || 0}`],
-    ['Tasa de Reprobación Media', `${cCuant?.promedioReprobacionZona || 0}%`, 'Planteles en Prioridad Alta', `${cCuant?.plantelesAtencionPrioritaria?.length || 0} planteles`],
+    ['Matrícula Total Zona', matriculaTotalDisplay, 'Promedio Eficiencia Terminal (911.7G)', formatZoneMetric(cCuant?.promedioEficienciaZona, { pct: true })],
+    ['Promedio Abandono Escolar (911)', formatZoneMetric(cCuant?.promedioAbandonoZona, { pct: true }), 'Promedio Calificaciones (F11C)', formatZoneMetric(cCuant?.promedioAprovechamientoZona)],
+    ['Tasa de Reprobación Media', formatZoneMetric(cCuant?.promedioReprobacionZona, { pct: true }), 'Planteles en Prioridad Alta', `${cCuant?.plantelesAtencionPrioritaria?.length || 0} planteles`],
   ];
 
   autoTable(doc, {

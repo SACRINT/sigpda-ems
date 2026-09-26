@@ -4,6 +4,7 @@ import React, { useState, useRef, useCallback } from 'react';
 import type { CartografiaPlantelItem, CartografiaMomento1Conocer, CartografiaMomento2Organizar } from '@/types/cartografia';
 import type { PipsPlantele } from '@/types/pips';
 import { parsePmcStatistics } from '@/lib/pmc-statistics-parser';
+import { formatZoneMetric } from '@/lib/zone-metric-format';
 
 interface ExcelUploadZoneProps {
   zonaNumero?: string;
@@ -351,12 +352,12 @@ export default function ExcelUploadZone({
             <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
               <div style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>Eficiencia Term.</div>
               <div style={{ fontSize: 18, fontWeight: 900, color: '#4ade80', marginTop: 2 }}>
-                {parsedData.promedioEficiencia !== undefined && parsedData.promedioEficiencia > 0 ? `${parsedData.promedioEficiencia}%` : 'N/D'}
+                {formatZoneMetric(parsedData.promedioEficiencia, { pct: true })}
               </div>
             </div>
             <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
               <div style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>Abandono Esc.</div>
-              <div style={{ fontSize: 18, fontWeight: 900, color: '#f87171', marginTop: 2 }}>{parsedData.promedioAbandono}%</div>
+              <div style={{ fontSize: 18, fontWeight: 900, color: '#f87171', marginTop: 2 }}>{formatZoneMetric(parsedData.promedioAbandono, { pct: true })}</div>
             </div>
             <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
               <div style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>Aprov. F11C</div>
@@ -428,9 +429,9 @@ export default function ExcelUploadZone({
                       <td style={{ padding: '6px 8px', textAlign: 'center', color: '#94a3b8', fontFamily: 'monospace' }}>{p.cct}</td>
                       <td style={{ padding: '6px 8px', textAlign: 'right', color: '#38bdf8', fontWeight: 700 }}>{p.matricula}</td>
                       <td style={{ padding: '6px 8px', textAlign: 'right', color: '#4ade80' }}>
-                        {p.eficienciaTerminal !== undefined && p.eficienciaTerminal > 0 ? `${p.eficienciaTerminal}%` : 'N/D'}
+                        {formatZoneMetric(p.eficienciaTerminal, { pct: true })}
                       </td>
-                      <td style={{ padding: '6px 8px', textAlign: 'right', color: '#f87171' }}>{p.abandono}%</td>
+                      <td style={{ padding: '6px 8px', textAlign: 'right', color: '#f87171' }}>{formatZoneMetric(p.abandono, { pct: true })}</td>
                       <td style={{ padding: '6px 8px', textAlign: 'right', color: '#fbbf24', fontWeight: 600 }}>{p.promedioGeneral}</td>
                     </tr>
                   );

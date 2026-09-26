@@ -22,6 +22,7 @@ import type {
   CartografiaMomento4Analizar,
   CartografiaMomento5Decidir,
 } from '@/types/cartografia';
+import { formatZoneMetric } from '@/lib/zone-metric-format';
 
 export const CARTOGRAFIA_SYSTEM_PROMPT = `Eres el Asesor Técnico Pedagógico y Cartógrafo Líder de Educación Media Superior de Puebla, México.
 Tu misión es estructurar la Cartografía Educativa de Zona Escolar para el Ciclo Escolar 2026–2027 bajo el Modelo Educativo 2025 y el MCCEMS.
@@ -80,7 +81,7 @@ export function buildCartografiaFullPrompt(
     .slice(0, 20)
     .map(
       (p) =>
-        `- ${p.nombre} (CCT: ${p.cct}): Matrícula ${p.matricula}, Abandono ${p.abandono !== undefined ? `${p.abandono}%` : 'N/D'}, Eficiencia ${p.eficienciaTerminal !== undefined && p.eficienciaTerminal > 0 ? `${p.eficienciaTerminal}%` : 'N/D'}, Promedio ${p.promedioGeneral}. Proyecto PAEC: "${p.paecProyecto}"`
+        `- ${p.nombre} (CCT: ${p.cct}): Matrícula ${p.matricula}, Abandono ${formatZoneMetric(p.abandono, { pct: true })}, Eficiencia ${formatZoneMetric(p.eficienciaTerminal, { pct: true })}, Promedio ${p.promedioGeneral}. Proyecto PAEC: "${p.paecProyecto}"`
     )
     .join('\n');
 
@@ -97,10 +98,10 @@ export function buildCartografiaFullPrompt(
 ${libraryContext || ''}
 
 CAPA CUANTITATIVA CONSOLIDADA (Línea Base 911.7G y F11C):
-- Promedio de Abandono Escolar en la Zona: ${promAbandono}%
-- Promedio de Eficiencia Terminal en la Zona: ${promEficiencia !== undefined && promEficiencia > 0 ? `${promEficiencia}%` : 'No reportada / No disponible'}
-- Promedio General de Aprovechamiento (F11C): ${promCalificaciones}
-- Promedio de Reprobación en la Zona: ${promReprobacion}%
+- Promedio de Abandono Escolar en la Zona: ${formatZoneMetric(promAbandono, { pct: true })}
+- Promedio de Eficiencia Terminal en la Zona: ${formatZoneMetric(promEficiencia, { pct: true })}
+- Promedio General de Aprovechamiento (F11C): ${formatZoneMetric(promCalificaciones)}
+- Promedio de Reprobación en la Zona: ${formatZoneMetric(promReprobacion, { pct: true })}
 - Planteles con prioridad de acompañamiento intensivo:
 ${momento2.capaCuantitativa.plantelesAtencionPrioritaria.map((pl) => `  * ${pl}`).join('\n') || '  * Todos en rangos de estabilidad promedio'}
 
@@ -171,8 +172,8 @@ Genera un objeto JSON estrictamente estructurado con las siguientes secciones:
   "momento5Decidir": {
     "metaGeneralZona": "[VERBO EN INFINITIVO] + [% O CIFRA] + [POBLACIÓN DE LA ZONA] + [ESTRATEGIA TERRITORIAL] + [PERIODO Y TERRITORIO]",
     "indicadoresCreaaAsociados": [
-      "Abandono Escolar (Línea base ${promAbandono}%)",
-      "Eficiencia Terminal (Línea base ${promEficiencia !== undefined && promEficiencia > 0 ? `${promEficiencia}%` : 'N/D'})",
+      "Abandono Escolar (Línea base ${formatZoneMetric(promAbandono, { pct: true })})",
+      "Eficiencia Terminal (Línea base ${formatZoneMetric(promEficiencia, { pct: true })})",
       "Resultados de Aprendizaje / EDIEMS-ESA (Línea base ${promCalificaciones})"
     ],
     "lineasAccion": [
@@ -274,7 +275,7 @@ function renderBaseStats(
     .slice(0, 15)
     .map(
       (p) =>
-        `- ${p.nombre} (${p.cct}): Matrícula ${p.matricula}, Abandono ${p.abandono !== undefined ? `${p.abandono}%` : 'N/D'}, Eficiencia ${p.eficienciaTerminal !== undefined && p.eficienciaTerminal > 0 ? `${p.eficienciaTerminal}%` : 'N/D'}, Promedio ${p.promedioGeneral}. Proyecto PAEC: "${p.paecProyecto}"`
+        `- ${p.nombre} (${p.cct}): Matrícula ${p.matricula}, Abandono ${formatZoneMetric(p.abandono, { pct: true })}, Eficiencia ${formatZoneMetric(p.eficienciaTerminal, { pct: true })}, Promedio ${p.promedioGeneral}. Proyecto PAEC: "${p.paecProyecto}"`
     )
     .join('\n');
 
@@ -287,8 +288,8 @@ function renderBaseStats(
 
 ${libraryContext ? `CONTEXTO DE BIBLIOTECA DOCENTE:\n${libraryContext}\n` : ''}
 LÍNEA BASE ESTADÍSTICA 911.7G / F11C:
-- Promedio Abandono: ${promAbandono}% | Eficiencia Terminal: ${promEficiencia !== undefined && promEficiencia > 0 ? `${promEficiencia}%` : 'N/D'}
-- Promedio Calificaciones: ${promCalificaciones} | Reprobación: ${promReprobacion}%
+- Promedio Abandono: ${formatZoneMetric(promAbandono, { pct: true })} | Eficiencia Terminal: ${formatZoneMetric(promEficiencia, { pct: true })}
+- Promedio Calificaciones: ${promCalificaciones} | Reprobación: ${formatZoneMetric(promReprobacion, { pct: true })}
 - Planteles Atención Prioritaria: ${momento2.capaCuantitativa.plantelesAtencionPrioritaria.slice(0, 5).join(', ') || 'En rangos promedio'}
 
 CAPA CUALITATIVA SITUADA (PAEC Y RETOS TERRITORIALES):

@@ -7,6 +7,7 @@
  */
 
 import type { CartografiaZonaProject } from '@/types/cartografia';
+import { formatZoneMetric } from '@/lib/zone-metric-format';
 
 export interface CartografiaAuditCriterion {
   id: string;
@@ -88,7 +89,7 @@ export function auditCartografiaProject(project: CartografiaZonaProject): Cartog
       weight: 20,
       score: 20,
       status: 'pass',
-      feedback: `Articulación sólida: Capa cuantitativa (Abandono ${cCuant?.promedioAbandonoZona}%, Eficiencia ${cCuant?.promedioEficienciaZona !== undefined && cCuant.promedioEficienciaZona > 0 ? `${cCuant.promedioEficienciaZona}%` : 'N/D'}) y problemáticas cualitativas PAEC vinculadas.`,
+      feedback: `Articulación sólida: Capa cuantitativa (Abandono ${formatZoneMetric(cCuant?.promedioAbandonoZona, { pct: true })}, Eficiencia ${formatZoneMetric(cCuant?.promedioEficienciaZona, { pct: true })}) y problemáticas cualitativas PAEC vinculadas.`,
     });
     strengths.push('Integración rigurosa de datos cuantitativos (911/F11) con el contexto comunitario PAEC.');
   } else if (hasCuant || hasCual) {
