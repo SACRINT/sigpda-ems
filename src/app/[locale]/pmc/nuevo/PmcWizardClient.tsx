@@ -2973,7 +2973,7 @@ interface PaecProjectForPmc {
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                       <span style={{ fontWeight: 700, color: '#c084fc' }}>📘 PMC Formato 5.2 — Documento Maestro Oficial DBEPA (8 Capítulos)</span>
-                      <span style={{ background: '#7e22ce', color: '#fff', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px' }}>OFICIAL DBEPA · 35+ PP</span>
+                      <span style={{ background: '#7e22ce', color: '#fff', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px' }}>OFICIAL DBEPA · MAESTRO</span>
                     </div>
                     <div style={{ fontSize: '13px', color: 'rgba(240,244,255,0.7)' }}>
                       Documento maestro exhaustivo de 8 capítulos con normatividad desglosada, catálogo integral de metas institucionales, caracterización territorial, cédula de personal y formatos oficiales de seguimiento para auditoría de supervisión.
