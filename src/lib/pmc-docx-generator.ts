@@ -407,7 +407,7 @@ function buildIndice(): (Paragraph | Table)[] {
 // ─── 1. Presentación ─────────────────────────────────────────────────────────
 function buildPresentacion(diag: DiagnosticoGenerado, project: PmcProject): (Paragraph | Table)[] {
   const textoPresentacion = safeStr(diag.presentacion) ||
-    `El ${safeStr(project.school_name, 'plantel escolar')}, con CCT ${safeStr(project.school_cct, 'N/D')} y ubicado en la localidad de ${safeStr(project.locality, 'N/D')}, municipio de ${safeStr(project.municipality, 'N/D')}, Puebla, presenta su Programa de Mejora Continua (PMC) para el ciclo escolar ${safeStr(project.ciclo_escolar, '2026-2027')}. Este instrumento de planeación directiva se fundamenta en el artículo 3° de la Constitución Política de los Estados Unidos Mexicanos, garantizando el derecho humano a la educación con un enfoque de equidad, excelencia y mejora continua, alineado con el Modelo Educativo de la Nueva Escuela Mexicana (NEM), el Marco Curricular Común de la Educación Media Superior (MCCEMS) y los ejes rectores de la política educativa estatal CREAA.`;
+    `El ${safeStr(project.school_name, 'plantel escolar')}, con CCT ${safeStr(project.school_cct, 'N/D')} y ubicado en la localidad de ${safeStr(project.locality, 'N/D')}, municipio de ${safeStr(project.municipality, 'N/D')}, Puebla, presenta su Programa de Mejora Continua (PMC) para el ciclo escolar ${safeStr(project.ciclo_escolar, SCHOOL_YEAR)}. Este instrumento de planeación directiva se fundamenta en el artículo 3° de la Constitución Política de los Estados Unidos Mexicanos, garantizando el derecho humano a la educación con un enfoque de equidad, excelencia y mejora continua, alineado con el Modelo Educativo de la Nueva Escuela Mexicana (NEM), el Marco Curricular Común de la Educación Media Superior (MCCEMS) y los ejes rectores de la política educativa estatal CREAA.`;
 
   return [
     secHeading(PMC_TITULOS_SECCIONES.PRESENTACION),
@@ -785,7 +785,11 @@ function buildPlanAccion(plan: PlanAccion): (Paragraph | Table)[] {
           new TableRow({
             children: [
               tcSub('Período de Ejecución'),
-              tc(`${safeStr(m.periodo_inicio, 'Agosto')} — ${safeStr(m.periodo_fin, 'Julio')}`),
+              tc(
+                (m.periodo_inicio || m.periodo_fin)
+                  ? `${safeStr(m.periodo_inicio, 'N/D')} — ${safeStr(m.periodo_fin, 'N/D')}`
+                  : 'N/D'
+              ),
             ],
           }),
           new TableRow({

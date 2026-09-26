@@ -5,6 +5,8 @@
  * Conforme a los lineamientos oficiales SEMS / DBEPA Puebla (2026-2027).
  */
 
+import { SCHOOL_YEAR } from '@/lib/config';
+
 export interface PmcSubseccionDef {
   id: string;
   numero: string;
@@ -170,7 +172,7 @@ export function clasificarNormativaJerarquica(
  */
 export function getObjetivoPmcText(schoolName?: string, cicloEscolar?: string): string {
   const nombrePlantel = schoolName ? `el plantel "${schoolName}"` : 'el plantel escolar';
-  const ciclo = cicloEscolar || '2026-2027';
+  const ciclo = cicloEscolar || SCHOOL_YEAR;
 
   return `El presente Programa de Mejora Continua (PMC) tiene como objetivo general establecer las prioridades, metas y acciones estratégicas para elevar la calidad, permanencia, equidad e inclusión del servicio educativo en ${nombrePlantel} durante el ciclo escolar ${ciclo}. A través de la planeación participativa, el liderazgo directivo colegiado y la corresponsabilidad de la comunidad escolar, se busca consolidar los aprendizajes fundamentales del Marco Curricular Común de la Educación Media Superior (MCCEMS) y asegurar el desarrollo integral de las y los aprendientes conforme a los ejes de la política educativa estatal CREAA.`;
 }
