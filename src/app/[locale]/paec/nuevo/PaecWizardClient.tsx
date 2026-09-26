@@ -67,8 +67,16 @@ function clearPaecDraft() {
   try { window.localStorage.removeItem(PAEC_DRAFT_KEY); } catch { /* ignore */ }
 }
 
-/** Reads cached step data (Step 4 or 5) from localStorage */
-function getCachedPaecStep(pId: string, stepNum: 4 | 5): unknown | null {
+export interface PaecCacheInvalidationOptions {
+  startingFromStep?: number;
+  targetStep?: number;
+  targetBlock?: string | number;
+}
+
+export type InvalidateCacheTarget = number | PaecCacheInvalidationOptions;
+
+/** Reads cached step data from localStorage */
+export function getCachedPaecStep(pId: string, stepNum: number): unknown | null {
   if (typeof window === 'undefined' || !pId) return null;
   try {
     const raw = window.localStorage.getItem(`paec_cache_${pId}_step${stepNum}`);
@@ -78,23 +86,97 @@ function getCachedPaecStep(pId: string, stepNum: 4 | 5): unknown | null {
   }
 }
 
-/** Saves step data (Step 4 or 5) to localStorage */
-function setCachedPaecStep(pId: string, stepNum: 4 | 5, data: unknown) {
+/** Saves step data to localStorage */
+export function setCachedPaecStep(pId: string, stepNum: number, data: unknown) {
   if (typeof window === 'undefined' || !pId || !data) return;
   try {
     window.localStorage.setItem(`paec_cache_${pId}_step${stepNum}`, JSON.stringify(data));
   } catch { /* storage full or unavailable */ }
 }
 
-/** Invalidates cached steps when an earlier step is regenerated */
-function invalidatePaecStepCache(pId: string, startingFromStep: number) {
+/** Reads cached block data from localStorage */
+export function getCachedPaecBlock(pId: string, stepNum: number, blockId: string | number): unknown | null {
+  if (typeof window === 'undefined' || !pId) return null;
+  try {
+    const raw = window.localStorage.getItem(`paec_cache_${pId}_step${stepNum}_block${blockId}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Saves block data to localStorage */
+export function setCachedPaecBlock(pId: string, stepNum: number, blockId: string | number, data: unknown) {
+  if (typeof window === 'undefined' || !pId || !data) return;
+  try {
+    window.localStorage.setItem(`paec_cache_${pId}_step${stepNum}_block${blockId}`, JSON.stringify(data));
+  } catch { /* storage full or unavailable */ }
+}
+
+/** Invalidates cached steps or granular blocks when regenerated */
+export function invalidatePaecStepCache(pId: string, target: InvalidateCacheTarget) {
   if (typeof window === 'undefined' || !pId) return;
   try {
-    if (startingFromStep <= 4) {
-      window.localStorage.removeItem(`paec_cache_${pId}_step4`);
+    if (typeof target === 'number') {
+      const startingFromStep = target;
+      if (startingFromStep <= 4) {
+        window.localStorage.removeItem(`paec_cache_${pId}_step4`);
+      }
+      if (startingFromStep <= 5) {
+        window.localStorage.removeItem(`paec_cache_${pId}_step5`);
+      }
+      for (let s = startingFromStep; s <= 9; s++) {
+        window.localStorage.removeItem(`paec_cache_${pId}_step${s}`);
+        const prefix = `paec_cache_${pId}_step${s}_block`;
+        const toRemove: string[] = [];
+        for (let i = 0; i < window.localStorage.length; i++) {
+          const key = window.localStorage.key(i);
+          if (key && key.startsWith(prefix)) {
+            toRemove.push(key);
+          }
+        }
+        toRemove.forEach((k) => window.localStorage.removeItem(k));
+      }
+      return;
     }
-    if (startingFromStep <= 5) {
-      window.localStorage.removeItem(`paec_cache_${pId}_step5`);
+
+    const { startingFromStep, targetStep, targetBlock } = target;
+
+    // Granular block invalidation (preserves neighbor blocks)
+    if (targetStep !== undefined && targetBlock !== undefined) {
+      window.localStorage.removeItem(`paec_cache_${pId}_step${targetStep}_block${targetBlock}`);
+      return;
+    }
+
+    // Step-level invalidation (clears step and all its sub-blocks)
+    if (targetStep !== undefined) {
+      window.localStorage.removeItem(`paec_cache_${pId}_step${targetStep}`);
+      const prefix = `paec_cache_${pId}_step${targetStep}_block`;
+      const toRemove: string[] = [];
+      for (let i = 0; i < window.localStorage.length; i++) {
+        const key = window.localStorage.key(i);
+        if (key && key.startsWith(prefix)) {
+          toRemove.push(key);
+        }
+      }
+      toRemove.forEach((k) => window.localStorage.removeItem(k));
+      return;
+    }
+
+    // Cascading invalidation starting from step
+    if (startingFromStep !== undefined) {
+      for (let s = startingFromStep; s <= 9; s++) {
+        window.localStorage.removeItem(`paec_cache_${pId}_step${s}`);
+        const prefix = `paec_cache_${pId}_step${s}_block`;
+        const toRemove: string[] = [];
+        for (let i = 0; i < window.localStorage.length; i++) {
+          const key = window.localStorage.key(i);
+          if (key && key.startsWith(prefix)) {
+            toRemove.push(key);
+          }
+        }
+        toRemove.forEach((k) => window.localStorage.removeItem(k));
+      }
     }
   } catch { /* ignore */ }
 }
