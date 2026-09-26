@@ -1,6 +1,6 @@
 // scripts/seed-catalogo-metas.ts
 import { applyCatalogoMetasSchemaAndSeed } from './apply-catalogo-metas-schema.mjs';
-import { CATALOGO_METAS_CANONICO } from '../src/lib/catalogo-metas-pmc';
+import { CATALOGO_METAS_CANONICO } from '../src/lib/catalogo-metas-pmc.ts';
 
 async function main() {
   console.log('🚀 Iniciando sincronización del catálogo canónico de metas...');

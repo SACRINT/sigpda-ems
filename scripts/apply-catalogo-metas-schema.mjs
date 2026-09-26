@@ -42,43 +42,43 @@ export async function applyCatalogoMetasSchemaAndSeed(seedItems = null) {
 
   // 2. Sembrado de datos iniciales si se proveen
   if (Array.isArray(seedItems) && seedItems.length > 0) {
-    console.log(`🌱 Sembrando ${seedItems.length} metas canónicas de forma idempotente...`);
-    for (const item of seedItems) {
-      await sql`
-        INSERT INTO pmc_catalogo_metas (
-          id, nombre, categoria, subcategoria, articulos, vigencia,
-          aplicabilidad_nivel, aplicabilidad_justificacion, fase, estado, evidencia, orden_display, updated_at
-        ) VALUES (
-          ${item.id},
-          ${item.nombre},
-          ${item.categoria},
-          ${item.subcategoria},
-          ${item.articulos || []},
-          ${item.vigencia !== false},
-          ${item.aplicabilidad_pmc?.nivel || 'recomendada'},
-          ${item.aplicabilidad_pmc?.justificacion || ''},
-          ${item.fase || 'FASE 1'},
-          ${item.estado || 'pendiente'},
-          ${item.evidencia || ''},
-          ${item.orden_display || 0},
-          NOW()
-        )
-        ON CONFLICT (id) DO UPDATE SET
-          nombre = EXCLUDED.nombre,
-          categoria = EXCLUDED.categoria,
-          subcategoria = EXCLUDED.subcategoria,
-          articulos = EXCLUDED.articulos,
-          vigencia = EXCLUDED.vigencia,
-          aplicabilidad_nivel = EXCLUDED.aplicabilidad_nivel,
-          aplicabilidad_justificacion = EXCLUDED.aplicabilidad_justificacion,
-          fase = EXCLUDED.fase,
-          estado = EXCLUDED.estado,
-          evidencia = EXCLUDED.evidencia,
-          orden_display = EXCLUDED.orden_display,
-          updated_at = NOW()
-      `;
-    }
-    console.log('  ✅ Sembrado completado exitosamente sin duplicados.');
+    console.log(`🌱 Sembrando ${seedItems.length} metas canónicas de forma transaccional e idempotente...`);
+    const insertQueries = seedItems.map((item) => sql`
+      INSERT INTO pmc_catalogo_metas (
+        id, nombre, categoria, subcategoria, articulos, vigencia,
+        aplicabilidad_nivel, aplicabilidad_justificacion, fase, estado, evidencia, orden_display, updated_at
+      ) VALUES (
+        ${item.id},
+        ${item.nombre},
+        ${item.categoria},
+        ${item.subcategoria},
+        ${item.articulos || []},
+        ${item.vigencia !== false},
+        ${item.aplicabilidad_pmc?.nivel || 'recomendada'},
+        ${item.aplicabilidad_pmc?.justificacion || ''},
+        ${item.fase || 'FASE 1'},
+        ${item.estado || 'pendiente'},
+        ${item.evidencia || ''},
+        ${item.orden_display || 0},
+        NOW()
+      )
+      ON CONFLICT (id) DO UPDATE SET
+        nombre = EXCLUDED.nombre,
+        categoria = EXCLUDED.categoria,
+        subcategoria = EXCLUDED.subcategoria,
+        articulos = EXCLUDED.articulos,
+        vigencia = EXCLUDED.vigencia,
+        aplicabilidad_nivel = EXCLUDED.aplicabilidad_nivel,
+        aplicabilidad_justificacion = EXCLUDED.aplicabilidad_justificacion,
+        fase = EXCLUDED.fase,
+        estado = EXCLUDED.estado,
+        evidencia = EXCLUDED.evidencia,
+        orden_display = EXCLUDED.orden_display,
+        updated_at = NOW()
+    `);
+
+    await sql.transaction(insertQueries);
+    console.log('  ✅ Sembrado transaccional completado exitosamente sin duplicados.');
   }
 
   const [countRow] = await sql`SELECT COUNT(*)::int as count FROM pmc_catalogo_metas`;
@@ -88,16 +88,21 @@ export async function applyCatalogoMetasSchemaAndSeed(seedItems = null) {
 
 // Ejecución directa si se invoca desde CLI
 if (process.argv[1]?.endsWith('apply-catalogo-metas-schema.mjs')) {
-  // Cargar datos canónicos si se corre directamente
-  import('../src/lib/catalogo-metas-pmc.ts')
-    .then(async (mod) => {
-      await applyCatalogoMetasSchemaAndSeed(mod.CATALOGO_METAS_CANONICO);
-      console.log('🏁 Proceso finalizado.');
-      process.exit(0);
-    })
-    .catch(async () => {
-      // Fallback sin tsx
-      await applyCatalogoMetasSchemaAndSeed();
-      process.exit(0);
-    });
+  let seedItems = null;
+
+  try {
+    const mod = await import('../src/lib/catalogo-metas-pmc.ts');
+    seedItems = mod.CATALOGO_METAS_CANONICO;
+  } catch (importErr) {
+    console.warn('⚠️ No se pudo importar catálogo canónico con TS loader, continuando solo con migración DDL:', importErr?.message || importErr);
+  }
+
+  try {
+    await applyCatalogoMetasSchemaAndSeed(seedItems);
+    console.log('🏁 Proceso finalizado con éxito.');
+    process.exit(0);
+  } catch (dbErr) {
+    console.error('❌ Error fatal en base de datos al aplicar esquema o sembrado:', dbErr);
+    process.exit(1);
+  }
 }

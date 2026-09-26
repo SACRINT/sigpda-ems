@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "vitest run && npm run test:keywords",
     "test:keywords": "npx tsx scripts/audit-recommender-keywords.ts",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "seed:catalogo": "node --env-file=.env.local scripts/seed-catalogo-metas.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.106.0",
