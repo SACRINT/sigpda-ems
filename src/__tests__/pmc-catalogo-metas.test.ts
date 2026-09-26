@@ -13,6 +13,7 @@ import {
   formatMetasContextForPrompt,
   resolveNormativaCitation,
   CANONICAL_NORMATIVA_REFS,
+  matchArticuloExacto,
 } from '../lib/catalogo-metas-pmc';
 
 describe('FASE 2: Catálogo Normativo y de Metas Institucionales (5.2 Formato Oficial)', () => {
@@ -152,6 +153,8 @@ describe('FASE 2: Catálogo Normativo y de Metas Institucionales (5.2 Formato Of
   );
 
   // 9. [Integración DB] Gate por DATABASE_URL: validación de sincronización del diccionario canónico contra Neon DB
+  // Requisito de entorno: Este test de integración requiere DATABASE_URL configurada en el entorno o en el archivo .env.local
+  // para verificar la sincronización viva con Neon DB. En CI o entornos sin credenciales, se omite de forma segura vía it.skipIf(!dbUrl).
   const dbUrl =
     process.env.DATABASE_URL ||
     (() => {
@@ -170,8 +173,28 @@ describe('FASE 2: Catálogo Normativo y de Metas Institucionales (5.2 Formato Of
       return undefined;
     })();
 
+  it('9.a [Unitario] Verificación estricta de matchArticuloExacto: prevención de falsos positivos por subcadenas (H-070)', () => {
+    // Tests negativos obligatorios: Art.1 NO debe validar con Articulo 10 ni Articulo 100
+    expect(matchArticuloExacto('Art.1', 'Artículo 10')).toBe(false);
+    expect(matchArticuloExacto('Art.1', 'ARTÍCULO 10')).toBe(false);
+    expect(matchArticuloExacto('Art.1', 'Artículo 100')).toBe(false);
+    expect(matchArticuloExacto('Art.2', 'Artículo 21')).toBe(false);
+    expect(matchArticuloExacto('Obj.1', 'Objetivo 10')).toBe(false);
+    expect(matchArticuloExacto('Lineamiento1', 'Lineamiento 10')).toBe(false);
+
+    // Tests positivos legítimos:
+    expect(matchArticuloExacto('Art.1', 'Artículo 1')).toBe(true);
+    expect(matchArticuloExacto('Art.1', 'Artículo 1°')).toBe(true);
+    expect(matchArticuloExacto('Art.1', 'ARTÍCULO 1')).toBe(true);
+    expect(matchArticuloExacto('Art.14', 'Artículo 14')).toBe(true);
+    expect(matchArticuloExacto('Obj.1', 'Objetivo 1')).toBe(true);
+    expect(matchArticuloExacto('Lineamiento1', 'Lineamiento 1')).toBe(true);
+    expect(matchArticuloExacto('LineamientoGeneral', 'Lineamiento General')).toBe(true);
+    expect(matchArticuloExacto('ComponenteCurricular', 'Componente Curricular')).toBe(true);
+  });
+
   it.skipIf(!dbUrl)(
-    '9. [Integración DB] El diccionario canónico CANONICAL_NORMATIVA_REFS se mantiene sincronizado con normativa_documentos (vigente=true) y normativa_articulos de Neon DB',
+    '9.b [Integración DB] El diccionario canónico CANONICAL_NORMATIVA_REFS se mantiene sincronizado con normativa_documentos (vigente=true) y normativa_articulos de Neon DB',
     async () => {
       const sql = neon(dbUrl!);
 
@@ -202,7 +225,7 @@ describe('FASE 2: Catálogo Normativo y de Metas Institucionales (5.2 Formato Of
 
       // 3. Validar cada entrada en CANONICAL_NORMATIVA_REFS contra la BD viva
       const refKeys = Object.keys(CANONICAL_NORMATIVA_REFS);
-      expect(refKeys.length).toBe(15);
+      expect(refKeys.length).toBeGreaterThanOrEqual(15);
 
       for (const key of refKeys) {
         const ref = CANONICAL_NORMATIVA_REFS[key];
@@ -221,38 +244,13 @@ describe('FASE 2: Catálogo Normativo y de Metas Institucionales (5.2 Formato Of
           `El documento con ID ${ref.docId} ("${key}") debe tener artículos registrados en la BD`
         ).toBeGreaterThan(0);
 
-        // Cada artículo válido listado en el diccionario debe resolver contra al menos un artículo registrado en BD
+        // Cada artículo válido listado en el diccionario debe resolver de forma exacta contra al menos un artículo registrado en BD
         for (const artValido of ref.articulosValidos) {
-          const artClean = artValido
-            .toLowerCase()
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .replace(/[\s\-_]/g, '');
-
-          const coincide = articulosEnDb.some((dbNum) => {
-            const numClean = dbNum
-              .toLowerCase()
-              .normalize('NFD')
-              .replace(/[\u0300-\u036f]/g, '')
-              .replace(/[\s\-_]/g, '');
-            if (artClean.startsWith('art.')) {
-              const num = artClean.replace('art.', '');
-              return numClean.includes(num);
-            }
-            if (artClean.startsWith('obj.')) {
-              const num = artClean.replace('obj.', '');
-              return numClean.includes(`objetivo${num}`);
-            }
-            if (artClean.startsWith('lineamiento')) {
-              const num = artClean.replace('lineamiento', '');
-              return numClean.includes(num);
-            }
-            return numClean.includes(artClean) || artClean.includes(numClean);
-          });
+          const coincide = articulosEnDb.some((dbNum) => matchArticuloExacto(artValido, dbNum));
 
           expect(
             coincide,
-            `El artículo/sección "${artValido}" de "${key}" (Doc ID ${ref.docId}) debe existir en la base de datos. Encontrados en BD: [${articulosEnDb.join(', ')}]`
+            `El artículo/sección "${artValido}" de "${key}" (Doc ID ${ref.docId}) debe existir exactamente en la base de datos. Encontrados en BD: [${articulosEnDb.join(', ')}]`
           ).toBe(true);
         }
       }

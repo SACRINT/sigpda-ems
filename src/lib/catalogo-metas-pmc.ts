@@ -464,6 +464,45 @@ export function resolveNormativaCitation(citation: string): NormativaCitationRes
 }
 
 /**
+ * Compara de forma exacta una referencia normativa canónica (p. ej. "Art.1", "Obj.1", "Lineamiento1")
+ * contra el número o descripción del artículo registrado en la base de datos (p. ej. "Artículo 1°", "Objetivo 1"),
+ * previniendo falsos positivos por coincidencia de subcadenas (p. ej. que "Art.1" valide erróneamente con "Artículo 10").
+ */
+export function matchArticuloExacto(artValido: string, dbNumero: string): boolean {
+  const normDb = dbNumero.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  const normVal = artValido.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+
+  // Caso 1: Artículos numéricos (p. ej. "Art.1", "Art.14", "Art.3")
+  const artMatch = normVal.match(/^art\.(\d+)$/);
+  if (artMatch) {
+    const num = artMatch[1];
+    const regex = new RegExp(`(?:articulo|art\\.?)\\s*0*${num}(?:[°ºª]|\\b)(?!\\d)`, 'i');
+    return regex.test(normDb);
+  }
+
+  // Caso 2: Objetivos (p. ej. "Obj.1", "Obj.3")
+  const objMatch = normVal.match(/^obj\.(\d+)$/);
+  if (objMatch) {
+    const num = objMatch[1];
+    const regex = new RegExp(`(?:objetivo|obj\\.?)\\s*0*${num}\\b(?!\\d)`, 'i');
+    return regex.test(normDb);
+  }
+
+  // Caso 3: Lineamientos numerados (p. ej. "Lineamiento1", "Lineamiento4")
+  const linMatch = normVal.match(/^lineamiento(\d+)$/);
+  if (linMatch) {
+    const num = linMatch[1];
+    const regex = new RegExp(`lineamiento\\s*0*${num}\\b(?!\\d)`, 'i');
+    return regex.test(normDb);
+  }
+
+  // Caso 4: Secciones textuales (p. ej. "LineamientoGeneral", "ComponenteCurricular")
+  const cleanDb = normDb.replace(/[\s\-_]/g, '');
+  const cleanVal = normVal.replace(/[\s\-_]/g, '');
+  return cleanDb === cleanVal || cleanDb.includes(cleanVal);
+}
+
+/**
  * Obtiene todas las metas vigentes del catálogo canónico
  */
 export function getCatalogoMetasPmc(): MetaCatalogEntry[] {
