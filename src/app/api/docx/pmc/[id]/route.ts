@@ -4,6 +4,7 @@ import { getTeacherByEmail, sql } from '@/lib/db';
 import { generatePmcDocx, type PmcProject } from '@/lib/pmc-docx-generator';
 import {
   generatePmcDocxMaestro,
+  resolveMaestroRejection,
   type PmcProjectMasterData,
   type PmcCatalogoMetaItem,
   type PmcPersonalItem,
@@ -43,23 +44,13 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
     const isMaestro = _request.nextUrl.searchParams.get('maestro') === 'true';
 
     if (isMaestro) {
-      // Contrato C2: si !diagnostico_generado || !plan_accion -> 422 PROYECTO_INCOMPLETO_BORRADOR
-      const hasDiagnostico = Boolean(project.diagnostico_generado);
-      const hasPlanAccion = Boolean(project.plan_accion);
+      logger.info(`[PMC DOCX Maestro] Iniciando generación de documento maestro para proyecto ${id}`);
 
-      if (!hasDiagnostico || !hasPlanAccion) {
-        return NextResponse.json(
-          {
-            error: 'PROYECTO_INCOMPLETO_BORRADOR',
-            mensaje:
-              'El proyecto PMC se encuentra en estado de borrador incompleto. Debe generar y guardar el Diagnóstico Integral (Paso 1) y el Plan de Acción (Paso 2) antes de exportar el Documento Maestro.',
-            faltantes: {
-              diagnostico: !hasDiagnostico,
-              plan_accion: !hasPlanAccion,
-            },
-          },
-          { status: 422 }
-        );
+      // Contrato C2: si !diagnostico_generado || !plan_accion -> 422 PROYECTO_INCOMPLETO_BORRADOR
+      const rejection = resolveMaestroRejection(project);
+      if (rejection.rejected) {
+        logger.warn(`[PMC DOCX Maestro] Export rejected: proyecto incompleto borrador para ${id}`);
+        return NextResponse.json(rejection.body, { status: rejection.status });
       }
 
       // C3: Consultar metas de la base de datos para Capítulo 2
@@ -72,28 +63,56 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
           ORDER BY orden_display ASC
         `;
         catalogoMetasRows = rows as unknown as PmcCatalogoMetaItem[];
-      } catch {
+      } catch (error) {
+        logger.warn('[PMC DOCX Maestro] Error consultando catalogo de metas:', error);
         catalogoMetasRows = [];
+      }
+
+      // H-072: Resolver director_id para escuela_personal
+      let effectiveDirectorId: string | null = teacher.role === 'director' ? teacher.id : null;
+      if (!effectiveDirectorId && (project.school_cct || project.director_name)) {
+        try {
+          const resolvedDir = await db`
+            SELECT id FROM teachers
+            WHERE role = 'director' AND (
+              (${project.school_cct ?? null}::text IS NOT NULL AND UPPER(cct) = UPPER(${project.school_cct}))
+              OR (${project.director_name ?? null}::text IS NOT NULL AND LOWER(TRIM(name)) = LOWER(TRIM(${project.director_name})))
+            )
+            LIMIT 1
+          `;
+          if (resolvedDir.length > 0 && resolvedDir[0].id) {
+            effectiveDirectorId = resolvedDir[0].id;
+          }
+        } catch (error) {
+          logger.warn('[PMC DOCX Maestro] Error resolviendo director del plantel:', error);
+        }
       }
 
       // Consultar personal de escuela_personal para Capítulo 7
       let personalRows: PmcPersonalItem[] = [];
-      try {
-        const pRows = await db`
-          SELECT id, director_id, nombre, apellido_paterno, apellido_materno, email, cargo, horas_base, activo
-          FROM escuela_personal
-          WHERE director_id = ${teacher.id}::uuid AND activo = TRUE
-          ORDER BY apellido_paterno, nombre
-        `;
-        personalRows = pRows as unknown as PmcPersonalItem[];
-      } catch {
-        personalRows = [];
+      if (effectiveDirectorId) {
+        try {
+          const pRows = await db`
+            SELECT id, director_id, nombre, apellido_paterno, apellido_materno, email, cargo, horas_base, activo
+            FROM escuela_personal
+            WHERE director_id = ${effectiveDirectorId}::uuid AND activo = TRUE
+            ORDER BY apellido_paterno, nombre
+          `;
+          personalRows = pRows as unknown as PmcPersonalItem[];
+        } catch (error) {
+          logger.warn('[PMC DOCX Maestro] Error consultando escuela_personal:', error);
+          personalRows = [];
+        }
       }
 
       const buffer = await generatePmcDocxMaestro(project as unknown as PmcProjectMasterData, {
         catalogoMetas: catalogoMetasRows,
         personal: personalRows,
       });
+
+      logger.info(
+        `[PMC DOCX Maestro] Documento maestro generado exitosamente para ${id} (${buffer.byteLength} bytes)`
+      );
 
       const schoolName = (project.school_name as string | undefined) ?? 'PMC';
       const ciclo = (project.ciclo_escolar as string | undefined) ?? '2025-2026';

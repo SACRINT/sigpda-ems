@@ -3,9 +3,11 @@ import { describe, it, expect } from 'vitest';
 import mammoth from 'mammoth';
 import {
   generatePmcDocxMaestro,
+  resolveMaestroRejection,
   type PmcProjectMasterData,
   type PmcPersonalItem,
 } from '../lib/pmc-docx-maestro-builder';
+import { PmcPlanAccionSchema } from '../lib/ai-schemas';
 
 describe('FASE 3: Generador de Documento Maestro Oficial del PMC (8 Capítulos Formato 5.2 DBEPA)', () => {
   const mockCompleteProject: PmcProjectMasterData = {
@@ -59,9 +61,14 @@ describe('FASE 3: Generador de Documento Maestro Oficial del PMC (8 Capítulos F
       ],
       metas_personales: [
         {
-          responsable: 'Prof. Carlos Mendoza',
-          meta: 'Diseñar 4 secuencias didácticas basadas en el MCCEMS.',
-          compromiso: 'Participar activamente en las sesiones de colegiado.',
+          nombre: 'Prof. Carlos Mendoza',
+          cargo: 'Docente de Matemáticas',
+          categoria: 'Aprovechamiento Académico',
+          tema: 'Pensamiento Matemático',
+          meta_individual: 'Diseñar 4 secuencias didácticas basadas en el MCCEMS.',
+          estrategia: 'Participar activamente en las sesiones de colegiado.',
+          entregable: '4 secuencias didácticas autorizadas',
+          periodo: 'Ciclo Escolar 2025-2026',
         },
       ],
     },
@@ -116,6 +123,15 @@ describe('FASE 3: Generador de Documento Maestro Oficial del PMC (8 Capítulos F
     expect(rawText).toContain('Bachillerato General Oficial Licenciado Moisés Sáenz Garza');
     expect(rawText).toContain('21EBH0004Z');
     expect(rawText).toContain('San Jerónimo Caleras, Puebla, Puebla');
+
+    // 3. Verificación de parseo estricto del schema y contenido de sección 5.2 (H-071)
+    expect(() => PmcPlanAccionSchema.parse(mockCompleteProject.plan_accion)).not.toThrow();
+    expect(rawText).toContain('5.2 Metas y Compromisos Personales Docentes');
+    expect(rawText).toContain('Prof. Carlos Mendoza');
+    expect(rawText).toContain('Docente de Matemáticas');
+    expect(rawText).toContain('Diseñar 4 secuencias didácticas basadas en el MCCEMS.');
+    expect(rawText).toContain('4 secuencias didácticas autorizadas');
+    expect(rawText).toContain('Ciclo Escolar 2025-2026');
   });
 
   it('2. Fallback de Sección 2: Si pmc_catalogo_metas está vacía, recurre a getCatalogoMetasPmc() y marca la fuente', async () => {
@@ -156,24 +172,43 @@ describe('FASE 3: Generador de Documento Maestro Oficial del PMC (8 Capítulos F
     expect(rawText).toContain('Supervisión Escolar');
   });
 
-  it('4. Contrato C2 (Anti-Stub B-001): Validación de detección de borrador incompleto para rechazo con 422', () => {
-    // Si diagnostico_generado es undefined
-    const draftWithoutDiag: PmcProjectMasterData = {
-      ...mockCompleteProject,
+  it('4. Contrato C2 (Anti-Stub B-001 / H-074): Validación de resolveMaestroRejection para 422 ante borrador incompleto', () => {
+    // Caso 1: Falta diagnostico_generado
+    const draftWithoutDiag = {
       diagnostico_generado: undefined,
+      plan_accion: mockCompleteProject.plan_accion,
     };
-    const hasDiag = Boolean(draftWithoutDiag.diagnostico_generado);
-    const hasPlan = Boolean(draftWithoutDiag.plan_accion);
-    expect(hasDiag).toBe(false);
-    expect(hasPlan).toBe(true);
+    const rejDiag = resolveMaestroRejection(draftWithoutDiag);
+    expect(rejDiag.rejected).toBe(true);
+    expect(rejDiag.status).toBe(422);
+    expect(rejDiag.body?.error).toBe('PROYECTO_INCOMPLETO_BORRADOR');
+    expect(rejDiag.body?.faltantes).toEqual({
+      diagnostico: true,
+      plan_accion: false,
+    });
 
-    // Si plan_accion es undefined
-    const draftWithoutPlan: PmcProjectMasterData = {
-      ...mockCompleteProject,
+    // Caso 2: Falta plan_accion
+    const draftWithoutPlan = {
+      diagnostico_generado: mockCompleteProject.diagnostico_generado,
       plan_accion: undefined,
     };
-    expect(Boolean(draftWithoutPlan.diagnostico_generado)).toBe(true);
-    expect(Boolean(draftWithoutPlan.plan_accion)).toBe(false);
+    const rejPlan = resolveMaestroRejection(draftWithoutPlan);
+    expect(rejPlan.rejected).toBe(true);
+    expect(rejPlan.status).toBe(422);
+    expect(rejPlan.body?.faltantes).toEqual({
+      diagnostico: false,
+      plan_accion: true,
+    });
+
+    // Caso 3: Proyecto completo con diagnóstico y plan
+    const completeProject = {
+      diagnostico_generado: mockCompleteProject.diagnostico_generado,
+      plan_accion: mockCompleteProject.plan_accion,
+    };
+    const rejComplete = resolveMaestroRejection(completeProject);
+    expect(rejComplete.rejected).toBe(false);
+    expect(rejComplete.status).toBeUndefined();
+    expect(rejComplete.body).toBeUndefined();
   });
 
   it('5. Mapeo estricto de plantilla en Capítulo 7 desde escuela_personal', async () => {
@@ -190,7 +225,7 @@ describe('FASE 3: Generador de Documento Maestro Oficial del PMC (8 Capítulos F
   });
 
   it('6. Presupuesto de rendimiento: El ensamble determinista se completa en ≤ 7.0 s (CI) / ≤ 3.5 s (local)', async () => {
-    // Generar proyecto masivo con 17 metas y 25 docentes
+    // Generar proyecto masivo con 2 metas y 25 docentes
     const largePersonal: PmcPersonalItem[] = Array.from({ length: 25 }, (_, i) => ({
       id: `p-${i}`,
       nombre: `Docente${i}`,

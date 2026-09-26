@@ -50,10 +50,57 @@ export interface PmcMetasInstitucionalesItem {
 }
 
 export interface PmcMetasPersonalesItem {
-  meta?: string;
-  compromiso?: string;
-  responsable?: string;
-  periodo?: string;
+  nombre?: string;
+  cargo?: string;
+  categoria?: string | null;
+  tema?: string | null;
+  meta_individual?: string | null;
+  estrategia?: string | null;
+  entregable?: string | null;
+  periodo?: string | null;
+}
+
+export interface MaestroRejectionResult {
+  rejected: boolean;
+  status?: number;
+  body?: {
+    error: string;
+    mensaje: string;
+    faltantes: {
+      diagnostico: boolean;
+      plan_accion: boolean;
+    };
+  };
+}
+
+/**
+ * Valida si un proyecto PMC cuenta con los pasos obligatorios (Paso 1 y 2)
+ * para emitir el Documento Maestro Oficial. De no tenerlos, genera la respuesta 422 formal.
+ */
+export function resolveMaestroRejection(project: {
+  diagnostico_generado?: unknown;
+  plan_accion?: unknown;
+}): MaestroRejectionResult {
+  const hasDiagnostico = Boolean(project.diagnostico_generado);
+  const hasPlanAccion = Boolean(project.plan_accion);
+
+  if (!hasDiagnostico || !hasPlanAccion) {
+    return {
+      rejected: true,
+      status: 422,
+      body: {
+        error: 'PROYECTO_INCOMPLETO_BORRADOR',
+        mensaje:
+          'El proyecto PMC se encuentra en estado de borrador incompleto. Debe generar y guardar el Diagnóstico Integral (Paso 1) y el Plan de Acción (Paso 2) antes de exportar el Documento Maestro.',
+        faltantes: {
+          diagnostico: !hasDiagnostico,
+          plan_accion: !hasPlanAccion,
+        },
+      },
+    };
+  }
+
+  return { rejected: false };
 }
 
 export interface PmcDiagnosticoGenerado {
@@ -270,13 +317,13 @@ export async function generatePmcDocxMaestro(
   // Mapeo seguro de columnas reales (information_schema.columns)
   const schoolName = project.school_name || 'Plantel Educativo';
   const cct = project.school_cct || 'CCT Pendiente';
-  const municipio = project.municipality || 'Puebla';
-  const localidad = project.locality || 'Puebla';
-  const zona = project.school_zone || 'Zona Escolar EMS';
+  const municipio = project.municipality || 'No capturado';
+  const localidad = project.locality || 'No capturado';
+  const zona = project.school_zone || 'No capturado';
   const ciclo = project.ciclo_escolar || '2025-2026';
-  const subsistema = project.subsystem || 'Bachillerato General Estatal';
-  const director = project.director_name || 'Personal Directivo';
-  const supervisor = project.supervisor_name || 'Supervisión de Zona Escolar';
+  const subsistema = project.subsystem || 'No capturado';
+  const director = project.director_name || 'No capturado';
+  const supervisor = project.supervisor_name || 'No capturado';
 
   // 1. Portada e Identificación Institucional
   const portadaItems: Paragraph[] = [
@@ -393,7 +440,14 @@ export async function generatePmcDocxMaestro(
       new TableRow({
         children: [
           cell('Municipio y Localidad:', { w: 3200, bold: true, fill: BRAND.doradoClaro }),
-          cell(`${localidad}, ${municipio}, Puebla`, { w: CONTENT_W - 3200 }),
+          cell(
+            localidad !== 'No capturado' && municipio !== 'No capturado'
+              ? `${localidad}, ${municipio}, Puebla`
+              : municipio !== 'No capturado'
+              ? `${municipio}, Puebla`
+              : 'No capturado',
+            { w: CONTENT_W - 3200 }
+          ),
         ],
       }),
       new TableRow({
@@ -412,10 +466,20 @@ export async function generatePmcDocxMaestro(
   });
 
   // Capítulo 1 Título formal
+  const ubicacionTexto =
+    localidad !== 'No capturado' && municipio !== 'No capturado'
+      ? `ubicada en ${localidad}, Municipio de ${municipio}, Puebla`
+      : municipio !== 'No capturado'
+      ? `ubicada en el Municipio de ${municipio}, Puebla`
+      : 'con ubicación territorial en proceso de registro';
+
+  const zonaTexto = zona !== 'No capturado' ? `perteneciente a la ${zona}` : 'con zona escolar en asignación';
+  const subsistemaTexto = subsistema !== 'No capturado' ? `del subsistema ${subsistema}` : 'del subsistema de Educación Media Superior';
+
   const cap1 = [
     h1('Capítulo I. Identificación Institucional'),
     p(
-      `El presente Programa de Mejora Continua (PMC) ha sido formulado por la comunidad académica y directiva de ${schoolName} (CCT: ${cct}), ubicada en ${localidad}, Municipio de ${municipio}, Puebla, perteneciente a la ${zona} del subsistema ${subsistema}, como instrumento rector de planeación participativa para el ciclo escolar ${ciclo}.`
+      `El presente Programa de Mejora Continua (PMC) ha sido formulado por la comunidad académica y directiva de ${schoolName} (CCT: ${cct}), ${ubicacionTexto}, ${zonaTexto} ${subsistemaTexto}, como instrumento rector de planeación participativa para el ciclo escolar ${ciclo}.`
     ),
     p(
       'Este documento orienta los esfuerzos colectivos hacia la excelencia formativa, el abatimiento del rezago y abandono escolar, el fortalecimiento de la práctica pedagógica docente y la vinculación proactiva con la comunidad circundante.'
@@ -506,7 +570,7 @@ export async function generatePmcDocxMaestro(
   const cap4Items: Paragraph[] = [
     h1('Capítulo IV. Objetivos Generales y Estrategias del PMC'),
     p(
-      'Con base en el diagnóstico situacional y las 17 metas institucionales prioritarias, se articulan las siguientes líneas de acción estratégica y objetivos institucionales:'
+      `Con base en el diagnóstico situacional y las ${metasInst.length} metas institucionales registradas, se articulan las siguientes líneas de acción estratégica y objetivos institucionales:`
     ),
   ];
 
@@ -588,9 +652,50 @@ export async function generatePmcDocxMaestro(
 
   if (metasPers.length > 0) {
     cap5.push(h2('5.2 Metas y Compromisos Personales Docentes'));
-    metasPers.forEach((mp) => {
-      cap5.push(p(`• [${mp.responsable || 'Docente'}]: ${mp.meta || mp.compromiso || 'Compromiso formativo'}`));
+    cap5.push(
+      p(
+        'Compromisos individuales asumidos por el personal docente y directivo para coadyuvar al logro de las metas institucionales del PMC:'
+      )
+    );
+
+    const tablaMetasPersonalesRows = [
+      new TableRow({
+        children: [
+          cell('Nombre', { w: 2000, bold: true, fill: BRAND.guinda, color: BRAND.blanco }),
+          cell('Cargo', { w: 1800, bold: true, fill: BRAND.guinda, color: BRAND.blanco }),
+          cell('Meta Individual', { w: 3280, bold: true, fill: BRAND.guinda, color: BRAND.blanco }),
+          cell('Entregable', { w: 1800, bold: true, fill: BRAND.guinda, color: BRAND.blanco }),
+          cell('Período', { w: 1200, bold: true, fill: BRAND.guinda, color: BRAND.blanco, align: AlignmentType.CENTER }),
+        ],
+      }),
+    ];
+
+    metasPers.forEach((mp, idx) => {
+      const bg = idx % 2 === 0 ? BRAND.blanco : BRAND.grisFondo;
+      const metaText = mp.categoria
+        ? `[${mp.categoria}${mp.tema ? ` - ${mp.tema}` : ''}] ${mp.meta_individual || ''}`
+        : mp.meta_individual || 'Meta individual formativa';
+
+      tablaMetasPersonalesRows.push(
+        new TableRow({
+          children: [
+            cell(mp.nombre || 'Personal Docente', { w: 2000, fill: bg, bold: true, size: 18 }),
+            cell(mp.cargo || 'Docente frente a grupo', { w: 1800, fill: bg, size: 18 }),
+            cell(metaText, { w: 3280, fill: bg, size: 18 }),
+            cell(mp.entregable || 'Evidencia pedagógica', { w: 1800, fill: bg, size: 18 }),
+            cell(mp.periodo || 'Ciclo Escolar', { w: 1200, fill: bg, align: AlignmentType.CENTER, size: 18 }),
+          ],
+        })
+      );
     });
+
+    cap5.push(
+      new Table({
+        width: { size: CONTENT_W, type: WidthType.DXA },
+        borders: bdr(),
+        rows: tablaMetasPersonalesRows,
+      })
+    );
   }
   cap5.push(new Paragraph({ children: [new PageBreak()] }));
 
@@ -827,7 +932,7 @@ export async function generatePmcDocxMaestro(
       size: 24,
     }),
     p(
-      `En cumplimiento a los Lineamientos Oficiales DBEPA 2025-2026, se firma el presente Programa de Mejora Continua en ${localidad}, Puebla, a los acuerdos formalizados por las partes suscritas:`,
+      `En cumplimiento a los Lineamientos Oficiales DBEPA 2025-2026, se firma el presente Programa de Mejora Continua ${localidad !== 'No capturado' ? `en ${localidad}, Puebla, ` : ''}a los acuerdos formalizados por las partes suscritas:`,
       { align: AlignmentType.CENTER, italics: true, size: 18, color: BRAND.textoMuted }
     ),
     new Paragraph({ spacing: { before: 600, after: 300 } }),
