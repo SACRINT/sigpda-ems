@@ -22,11 +22,59 @@ Debes responder ÚNICAMENTE con un objeto JSON válido que contenga la informaci
 // ============================================================================
 // PROMPT 1: Diagnóstico Colectivo y Metodología de Análisis
 // ============================================================================
+
+export interface PaecAcademicBaseline {
+  abandono?: number;
+  eficienciaTerminal?: number;
+  aprobacion?: number;
+  reprobacion?: number;
+  rezago?: number;
+  promAbandonoZona?: number;
+  promEficienciaZona?: number;
+  problematicasComunesZona?: string[];
+}
+
+export function buildStatisticalBaselinePromptBlock(baseline?: PaecAcademicBaseline | null): string {
+  if (!baseline) return '';
+
+  const lines: string[] = [];
+  if (baseline.abandono !== undefined && baseline.abandono !== null) {
+    lines.push(`- Tasa de abandono escolar del plantel: ${baseline.abandono}%`);
+  }
+  if (baseline.eficienciaTerminal !== undefined && baseline.eficienciaTerminal !== null) {
+    lines.push(`- Eficiencia terminal del plantel: ${baseline.eficienciaTerminal}%`);
+  }
+  if (baseline.aprobacion !== undefined && baseline.aprobacion !== null) {
+    lines.push(`- Tasa de aprobación del plantel: ${baseline.aprobacion}%`);
+  }
+  if (baseline.reprobacion !== undefined && baseline.reprobacion !== null) {
+    lines.push(`- Tasa de reprobación del plantel: ${baseline.reprobacion}%`);
+  }
+  if (baseline.rezago !== undefined && baseline.rezago !== null) {
+    lines.push(`- Índice de rezago escolar del plantel: ${baseline.rezago}%`);
+  }
+  if (baseline.promAbandonoZona !== undefined && baseline.promAbandonoZona !== null) {
+    lines.push(`- Promedio de abandono escolar de la zona: ${baseline.promAbandonoZona}%`);
+  }
+  if (baseline.promEficienciaZona !== undefined && baseline.promEficienciaZona !== null) {
+    lines.push(`- Promedio de eficiencia terminal de la zona: ${baseline.promEficienciaZona}%`);
+  }
+  if (baseline.problematicasComunesZona && baseline.problematicasComunesZona.length > 0) {
+    lines.push(`- Problemáticas comunes reportadas en la zona: ${baseline.problematicasComunesZona.join(', ')}`);
+  }
+
+  if (lines.length === 0) return '';
+
+  return `\nLÍNEA BASE ESTADÍSTICA OFICIAL (911/F11 y Cartografía de Zona):\n${lines.join('\n')}\n`;
+}
+
 export function buildPrompt1Diagnostico(
   communityContext: string,
   schoolContext: string,
-  problem: string
+  problem: string,
+  baseline?: PaecAcademicBaseline | null
 ): string {
+  const baselineBlock = buildStatisticalBaselinePromptBlock(baseline);
   return `Genera la FASE I: Diagnóstico Colectivo y Metodología de Análisis del PAEC-PEC (Ciclo Escolar ${SCHOOL_YEAR}) para Bachilleratos Generales Estatales de Puebla.
 
 Problemática seleccionada por la comunidad y el plantel:
@@ -37,7 +85,7 @@ ${communityContext}
 
 Información y Diagnóstico del Plantel Escolar:
 ${schoolContext}
-
+${baselineBlock}
 DIRECTRICES OBLIGATORIAS DE EXCELENCIA (RÚBRICA MCCEMS):
 1. DATOS DUROS OBLIGATORIOS: Emplea nombres reales de la localidad, cifras demográficas precisas (número de habitantes, porcentajes de población ocupada, niveles de escolaridad), indicadores educativos (matrícula exacta, porcentaje de reprobación, deserción escolar, estilos de aprendizaje predominantes) y servicios disponibles. Prohibido redactar generalidades abstractas.
 2. ESTRATEGIA MAESTRA DE CRUCE ADAPTATIVO EN FODA: En la Tabla 3, el análisis de cada cuadrante debe formular cruces estratégicos directos:

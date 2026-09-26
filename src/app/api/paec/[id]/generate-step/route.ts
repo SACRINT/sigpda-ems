@@ -22,7 +22,9 @@ import {
   buildPrompt7PlanOperativoSemestreB,
   buildPrompt8ImplementacionYAnexos,
   buildPrompt9GobernanzaEInformeSupervision,
+  type PaecAcademicBaseline,
 } from '@/lib/prompts/paec-prompts';
+import { getZoneContextForSchool } from '@/lib/zone-sync-service';
 import { logActivity, generateWithRotation } from '@/lib/ai-provider';
 import { logger } from '@/lib/logger';
 import { getUserLibraryContext } from '@/lib/context-extractor';
@@ -37,9 +39,12 @@ import {
   PaecPaso8ImplementacionSchema,
   PaecPaso9GobernanzaSchema,
 } from '@/lib/ai-schemas';
-import { MapeoRow, PlanOperativoRow, PaecProject, DetalleCurricularRow, UniqueUacItem, SchoolType, GroupTrackConfig } from '@/types/paec';
+import { z } from 'zod';
+import { MapeoRow, PlanOperativoRow, DetalleCurricularRow, UniqueUacItem, SchoolType, GroupTrackConfig } from '@/types/paec';
 import { consolidarUacsUnicasPlantel } from '@/lib/escuela-grupos';
 import { extractIdempotencyKey, checkIdempotencyKey, createIdempotencyKey } from '@/lib/idempotency';
+
+type LegacyPlanOperativo = { semestreA?: PlanOperativoRow[]; semestreB?: PlanOperativoRow[] };
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -95,7 +100,7 @@ export async function POST(
 
     let userPrompt = '';
     let fieldName = '';
-    let stepResultData: any = null;
+    let stepResultData: object | null = null;
 
     switch (step) {
       // ----------------------------------------------------------------------
@@ -105,7 +110,33 @@ export async function POST(
         fieldName = 'fase1_diagnostico';
         const comm = JSON.stringify(project.community_context);
         const school = JSON.stringify(project.school_context);
-        userPrompt = buildPrompt1Diagnostico(comm, school, project.problem_statement);
+
+        // Línea base estadística oficial (911/F11 y Cartografía de Zona)
+        const schoolCtx = project.school_context as Record<string, unknown> | undefined;
+        let baseline: PaecAcademicBaseline | null = (schoolCtx?.academicBaseline as PaecAcademicBaseline | undefined) ?? null;
+
+        if (!baseline) {
+          const cct = (schoolCtx?.cct as string | undefined) || (schoolCtx?.schoolCct as string | undefined);
+          if (cct) {
+            try {
+              const zoneRes = await getZoneContextForSchool(cct);
+              if (zoneRes.found) {
+                baseline = {
+                  abandono: zoneRes.plantel?.abandono,
+                  eficienciaTerminal: zoneRes.plantel?.eficienciaTerminal,
+                  reprobacion: zoneRes.plantel?.reprobacion,
+                  promAbandonoZona: zoneRes.zona?.averages?.promAbandono,
+                  promEficienciaZona: zoneRes.zona?.averages?.promEficiencia,
+                  problematicasComunesZona: zoneRes.zona?.problematicasComunes,
+                };
+              }
+            } catch (err) {
+              logger.warn(`[PAEC Paso 1] Error obteniendo contexto estadístico de zona para ${cct}:`, err);
+            }
+          }
+        }
+
+        userPrompt = buildPrompt1Diagnostico(comm, school, project.problem_statement, baseline);
         break;
       }
 
@@ -388,16 +419,17 @@ export async function POST(
               // Checkpoint parcial en BD
               await updatePaecProjectStep(id, teacher.id, 6, 'fase3_plan_operativo_a', allRowsSemA);
               logger.info(`[PAEC-Step6] Checkpoint guardado tras bloque ${blockNum}/${chunks.length} (${allRowsSemA.length} filas acumuladas).`);
-            } catch (err: any) {
+            } catch (err: unknown) {
               attempt++;
-              logger.warn(`[PAEC-Step6] Falla en bloque ${blockNum} (intento ${attempt}/${maxRetries + 1}): ${err?.message || err}`);
+              const errMsg = err instanceof Error ? err.message : String(err);
+              logger.warn(`[PAEC-Step6] Falla en bloque ${blockNum} (intento ${attempt}/${maxRetries + 1}): ${errMsg}`);
               if (attempt <= maxRetries) {
                 await sleep(delay);
                 delay *= 2;
               } else {
                 failedChunks.push({
                   block: blockNum,
-                  error: err?.message || 'Error desconocido',
+                  error: errMsg,
                 });
               }
             }
@@ -409,7 +441,7 @@ export async function POST(
         }
 
         // Sincronizar también con la estructura legacy fase2_plan_operativo
-        const existingSemB = project.fase3_plan_operativo_b || (project.fase2_plan_operativo as any)?.semestreB || [];
+        const existingSemB = project.fase3_plan_operativo_b || (project.fase2_plan_operativo as LegacyPlanOperativo | undefined)?.semestreB || [];
         await updatePaecProjectStep(id, teacher.id, 6, 'fase2_plan_operativo', {
           semestreA: allRowsSemA,
           semestreB: existingSemB,
@@ -505,16 +537,17 @@ export async function POST(
               // Checkpoint parcial en BD
               await updatePaecProjectStep(id, teacher.id, 7, 'fase3_plan_operativo_b', allRowsSemB);
               logger.info(`[PAEC-Step7] Checkpoint guardado tras bloque ${blockNum}/${chunks.length} (${allRowsSemB.length} filas acumuladas).`);
-            } catch (err: any) {
+            } catch (err: unknown) {
               attempt++;
-              logger.warn(`[PAEC-Step7] Falla en bloque ${blockNum} (intento ${attempt}/${maxRetries + 1}): ${err?.message || err}`);
+              const errMsg = err instanceof Error ? err.message : String(err);
+              logger.warn(`[PAEC-Step7] Falla en bloque ${blockNum} (intento ${attempt}/${maxRetries + 1}): ${errMsg}`);
               if (attempt <= maxRetries) {
                 await sleep(delay);
                 delay *= 2;
               } else {
                 failedChunks.push({
                   block: blockNum,
-                  error: err?.message || 'Error desconocido',
+                  error: errMsg,
                 });
               }
             }
@@ -526,7 +559,7 @@ export async function POST(
         }
 
         // Sincronizar también con la estructura legacy fase2_plan_operativo
-        const existingSemA = project.fase3_plan_operativo_a || (project.fase2_plan_operativo as any)?.semestreA || [];
+        const existingSemA = project.fase3_plan_operativo_a || (project.fase2_plan_operativo as LegacyPlanOperativo | undefined)?.semestreA || [];
         await updatePaecProjectStep(id, teacher.id, 7, 'fase2_plan_operativo', {
           semestreA: existingSemA,
           semestreB: allRowsSemB,
@@ -556,8 +589,8 @@ export async function POST(
           cronograma: project.fase2_cronograma,
           justificacion: project.fase2_justificacion,
         });
-        const planASummary = JSON.stringify(project.fase3_plan_operativo_a || (project.fase2_plan_operativo as any)?.semestreA || []);
-        const planBSummary = JSON.stringify(project.fase3_plan_operativo_b || (project.fase2_plan_operativo as any)?.semestreB || []);
+        const planASummary = JSON.stringify(project.fase3_plan_operativo_a || (project.fase2_plan_operativo as LegacyPlanOperativo | undefined)?.semestreA || []);
+        const planBSummary = JSON.stringify(project.fase3_plan_operativo_b || (project.fase2_plan_operativo as LegacyPlanOperativo | undefined)?.semestreB || []);
 
         userPrompt = buildPrompt8ImplementacionYAnexos(projectSummary, planASummary, planBSummary);
         break;
@@ -583,8 +616,8 @@ export async function POST(
           cronograma: project.fase2_cronograma,
           justificacion: project.fase2_justificacion,
         });
-        const planASummary = JSON.stringify(project.fase3_plan_operativo_a || (project.fase2_plan_operativo as any)?.semestreA || []);
-        const planBSummary = JSON.stringify(project.fase3_plan_operativo_b || (project.fase2_plan_operativo as any)?.semestreB || []);
+        const planASummary = JSON.stringify(project.fase3_plan_operativo_a || (project.fase2_plan_operativo as LegacyPlanOperativo | undefined)?.semestreA || []);
+        const planBSummary = JSON.stringify(project.fase3_plan_operativo_b || (project.fase2_plan_operativo as LegacyPlanOperativo | undefined)?.semestreB || []);
         const implSummary = JSON.stringify(project.fase3_implementacion || project.fase2_anexos || {});
 
         userPrompt = buildPrompt9GobernanzaEInformeSupervision(
@@ -615,7 +648,7 @@ export async function POST(
         throw new Error('Respuesta vacía del proveedor de IA');
       }
 
-      let stepSchema: any;
+      let stepSchema: z.ZodTypeAny;
       switch (step) {
         case 1: stepSchema = PaecPaso1Schema; break;
         case 2: stepSchema = PaecPaso2Schema; break;

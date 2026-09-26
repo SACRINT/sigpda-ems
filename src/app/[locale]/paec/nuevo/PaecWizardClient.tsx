@@ -229,6 +229,17 @@ function classifyError(err: unknown): { message: string; type: 'timeout' | 'json
   return { type: 'unknown', message: msg || 'Error al generar la fase con IA.' };
 }
 
+export interface AcademicBaseline {
+  abandono?: number;
+  eficienciaTerminal?: number;
+  aprobacion?: number;
+  reprobacion?: number;
+  rezago?: number;
+  promAbandonoZona?: number;
+  promEficienciaZona?: number;
+  problematicasComunesZona?: string[];
+}
+
 function PaecWizardModularClient({ locale, initialId }: Props) {
   const router = useRouter();
 
@@ -271,6 +282,8 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
     previousPrograms: '',
     facilities: '',
   });
+
+  const [academicBaseline, setAcademicBaseline] = useState<AcademicBaseline | null>(null);
 
   // SAPCU Copiloto Pedagógico: Sincronización contextual bidireccional
   const { setDetallesDocumento } = useAssistant();
@@ -356,6 +369,19 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
         environment: prev.environment || (zona.momento3Territorio?.conectividadInfraestructura ? `Condiciones territoriales: ${zona.momento3Territorio.conectividadInfraestructura}` : prev.environment),
       }));
     }
+
+    // Extender el estado con academicBaseline opcional (sin ?? 0, conserva undefined)
+    const baseline: AcademicBaseline = {
+      abandono: plantel?.abandono !== undefined ? plantel.abandono : undefined,
+      eficienciaTerminal: plantel?.eficienciaTerminal !== undefined ? plantel.eficienciaTerminal : undefined,
+      aprobacion: (plantel as unknown as Record<string, unknown>)?.aprobacion !== undefined ? Number((plantel as unknown as Record<string, unknown>).aprobacion) : undefined,
+      reprobacion: plantel?.reprobacion !== undefined ? plantel.reprobacion : undefined,
+      rezago: (plantel as unknown as Record<string, unknown>)?.rezago !== undefined ? Number((plantel as unknown as Record<string, unknown>).rezago) : undefined,
+      promAbandonoZona: zona.averages?.promAbandono !== undefined ? zona.averages.promAbandono : undefined,
+      promEficienciaZona: zona.averages?.promEficiencia !== undefined ? zona.averages.promEficiencia : undefined,
+      problematicasComunesZona: zona.problematicasComunes && zona.problematicasComunes.length > 0 ? zona.problematicasComunes : undefined,
+    };
+    setAcademicBaseline(baseline);
 
     setShowZonaModal(false);
     setZonaFeedback('✅ Datos y contexto territorial de la Cartografía de Zona aplicados exitosamente a tu PAEC.');
@@ -719,6 +745,9 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
       if (p.communityContext) setCommunity(p.communityContext);
       if (p.schoolContext) {
         setSchool(p.schoolContext);
+        if ((p.schoolContext as unknown as Record<string, unknown>).academicBaseline) {
+          setAcademicBaseline((p.schoolContext as unknown as Record<string, unknown>).academicBaseline as AcademicBaseline);
+        }
         setSelectedFundamental(p.schoolContext.activeFundamentalUacs || []);
         setSelectedLaboral(p.schoolContext.activeLaboralUacs || []);
         setSelectedFfe(p.schoolContext.activeFfeUacs || []);
@@ -806,6 +835,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
           communityContext: community,
           schoolContext: {
             ...school,
+            academicBaseline,
             schoolType,
             activeFundamentalUacs: selectedFundamental,
             activeLaboralUacs: selectedLaboral,
