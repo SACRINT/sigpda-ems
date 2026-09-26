@@ -3,6 +3,11 @@ import {
   buildCartografiaBaseContext,
   getCartografiaMomentos,
 } from '@/lib/cartografia-context-builder';
+import {
+  buildCartografiaFullPrompt,
+  buildMomento3UbicarPrompt,
+} from '@/lib/prompts/cartografia-prompts';
+import { formatZoneMetric } from '@/lib/zone-metric-format';
 
 describe('Cartografia Context Builder (H-011)', () => {
   it('builds base context correctly from DB row with realistic planteles data', () => {
@@ -96,7 +101,7 @@ describe('Cartografia Context Builder (H-011)', () => {
     expect(ctx.identificacion.supervisorName).toBe('Supervisora Default');
     expect(ctx.planteles).toEqual([]);
     expect(ctx.matriculaTotalZona).toBe(0);
-    expect(ctx.promAbandono).toBe(0);
+    expect(ctx.promAbandono).toBeUndefined();
     expect(ctx.momento2.capaCualitativa.problematicasComunes.length).toBeGreaterThan(0);
   });
 
@@ -170,6 +175,130 @@ describe('Cartografia Context Builder (H-011)', () => {
     expect(ctxCero.promAbandono).toBe(0);
     expect(ctxCero.promReprobacion).toBe(0);
     expect(ctxCero.momento2.capaCuantitativa.resumenEstadistico911F11).toContain('Abandono 0%');
+  });
+
+  // (d) planteles sin columnas de abandono/reprobación → promedioAbandonoZona === undefined;
+  // buildCartografiaFullPrompt contiene Abandono N/D y no contiene 0% en las líneas de promedio zonal; resumen Abandono N/D
+  it('(d) planteles sin columnas de abandono/reprobación producen promedioAbandonoZona undefined y prompt sin 0% fabricado (H-086, H-087)', () => {
+    const rowSinColumnas: Record<string, unknown> = {
+      zona_nombre: 'Zona 004',
+      planteles_json: [
+        { cct: '21EBH0001A', nombre: 'Plantel A', matricula: 150, promedioGeneral: 8.5 },
+        { cct: '21EBH0002B', nombre: 'Plantel B', matricula: 200, promedioGeneral: 8.2 },
+      ],
+    };
+
+    const ctx = buildCartografiaBaseContext(rowSinColumnas);
+    expect(ctx.promAbandono).toBeUndefined();
+    expect(ctx.promReprobacion).toBeUndefined();
+    expect(ctx.momento2.capaCuantitativa.promedioAbandonoZona).toBeUndefined();
+    expect(ctx.momento2.capaCuantitativa.promedioReprobacionZona).toBeUndefined();
+    expect(ctx.momento2.capaCuantitativa.resumenEstadistico911F11).toContain('Abandono N/D');
+    expect(ctx.momento2.capaCuantitativa.resumenEstadistico911F11).toContain('Reprobación N/D');
+    expect(ctx.momento2.capaCuantitativa.resumenEstadistico911F11).not.toContain('0%');
+
+    const prompt = buildCartografiaFullPrompt(ctx.identificacion, ctx.momento1, ctx.momento2);
+    expect(prompt).toContain('Promedio de Abandono Escolar en la Zona: N/D');
+    expect(prompt).toContain('Promedio de Reprobación en la Zona: N/D');
+    expect(prompt).toContain('Abandono Escolar (Línea base N/D)');
+    expect(prompt).not.toContain('Promedio de Abandono Escolar en la Zona: 0%');
+    expect(prompt).not.toContain('Promedio de Reprobación en la Zona: 0%');
+
+    const promptM3 = buildMomento3UbicarPrompt(ctx.identificacion, ctx.momento1, ctx.momento2);
+    expect(promptM3).toContain('Promedio Abandono: N/D');
+    expect(promptM3).not.toContain('Promedio Abandono: 0%');
+  });
+
+  // (e) matrícula y promedio ausentes en un plantel → prompt contiene Matrícula N/D y Promedio N/D;
+  // promAprovechamiento de los planteles con dato intacto; resumen Aprovechamiento N/D
+  it('(e) matrícula y promedio ausentes en un plantel muestran N/D en prompt y preservan aprovechamiento de planteles con dato (H-086)', () => {
+    const rowConAusentes: Record<string, unknown> = {
+      zona_nombre: 'Zona 004',
+      planteles_json: [
+        { cct: '21EBH0001A', nombre: 'Plantel Sin Datos' },
+        { cct: '21EBH0002B', nombre: 'Plantel Con Datos', matricula: 120, promedioGeneral: 8.4 },
+      ],
+    };
+
+    const ctx = buildCartografiaBaseContext(rowConAusentes);
+    expect(ctx.planteles[0].matricula).toBeUndefined();
+    expect(ctx.planteles[0].promedioGeneral).toBeUndefined();
+    expect(ctx.planteles[1].matricula).toBe(120);
+    expect(ctx.planteles[1].promedioGeneral).toBe(8.4);
+    // El promedio general zonal no es arrastrado a la baja por el plantel sin dato
+    expect(ctx.promAprovechamiento).toBe(8.4);
+    expect(ctx.momento2.capaCuantitativa.promedioAprovechamientoZona).toBe(8.4);
+    expect(ctx.momento2.capaCuantitativa.resumenEstadistico911F11).toContain('Aprovechamiento 8.4');
+
+    const prompt = buildCartografiaFullPrompt(ctx.identificacion, ctx.momento1, ctx.momento2);
+    expect(prompt).toContain('Matrícula N/D');
+    expect(prompt).toContain('Promedio N/D');
+
+    // Caso donde ningún plantel tiene promedio: resumen muestra Aprovechamiento N/D
+    const rowSinNingunPromedio: Record<string, unknown> = {
+      zona_nombre: 'Zona 004',
+      planteles_json: [
+        { cct: '21EBH0001A', nombre: 'Plantel X' },
+      ],
+    };
+    const ctxSinProm = buildCartografiaBaseContext(rowSinNingunPromedio);
+    expect(ctxSinProm.promAprovechamiento).toBeUndefined();
+    expect(ctxSinProm.momento2.capaCuantitativa.resumenEstadistico911F11).toContain('Aprovechamiento N/D');
+  });
+
+  // (f) abandono 0 legítimo en todos los planteles → promedioAbandonoZona === 0, resumen Abandono 0%,
+  // y el plantel sí entra en plantelesAtencionPrioritaria si supera 0 + 3
+  it('(f) abandono 0 legítimo preserva 0% en resumen y detecta planteles prioritarios que superen el umbral (H-088)', () => {
+    const rowTodosCero: Record<string, unknown> = {
+      zona_nombre: 'Zona 004',
+      planteles_json: [
+        { cct: '21EBH0001A', nombre: 'Plantel Cero A', matricula: 100, abandono: 0, promedioGeneral: 8.5 },
+        { cct: '21EBH0002B', nombre: 'Plantel Cero B', matricula: 100, abandono: 0, promedioGeneral: 8.0 },
+      ],
+    };
+
+    const ctxTodosCero = buildCartografiaBaseContext(rowTodosCero);
+    expect(ctxTodosCero.promAbandono).toBe(0);
+    expect(ctxTodosCero.momento2.capaCuantitativa.promedioAbandonoZona).toBe(0);
+    expect(ctxTodosCero.momento2.capaCuantitativa.resumenEstadistico911F11).toContain('Abandono 0%');
+
+    // Planteles donde varios tienen 0% y uno tiene deserción alta que supera promAbandono + 3
+    const rowConPrioritario: Record<string, unknown> = {
+      zona_nombre: 'Zona 004',
+      planteles_json: [
+        { cct: '21EBH0001A', nombre: 'Plantel Cero 1', matricula: 100, abandono: 0, promedioGeneral: 8.0 },
+        { cct: '21EBH0002B', nombre: 'Plantel Cero 2', matricula: 100, abandono: 0, promedioGeneral: 8.0 },
+        { cct: '21EBH0003C', nombre: 'Plantel Cero 3', matricula: 100, abandono: 0, promedioGeneral: 8.0 },
+        { cct: '21EBH0004D', nombre: 'Plantel Cero 4', matricula: 100, abandono: 0, promedioGeneral: 8.0 },
+        { cct: '21EBH0005E', nombre: 'Plantel Prioritario', matricula: 100, abandono: 5.0, promedioGeneral: 8.0 },
+      ],
+    };
+
+    const ctxPrioritario = buildCartografiaBaseContext(rowConPrioritario);
+    // promAbandono = 5.0 / 5 = 1.0; 5.0 > 1.0 + 3 = 4.0 -> entra en atención prioritaria
+    expect(ctxPrioritario.promAbandono).toBe(1.0);
+    expect(ctxPrioritario.plantelesAtencionPrioritaria).toHaveLength(1);
+    expect(ctxPrioritario.plantelesAtencionPrioritaria[0]).toContain('Plantel Prioritario');
+    expect(ctxPrioritario.plantelesAtencionPrioritaria[0]).toContain('Abandono: 5%');
+  });
+
+  // (g) ExcelUploadZone: línea base construida con formatZoneMetric → cadena sin del 0% cuando no hay datos
+  it('(g) línea base construida con formatZoneMetric produce cadena sin "del 0%" ante ausencia de datos (H-087)', () => {
+    const mockParsedData = {
+      matriculaTotal: 0,
+      promedioEficiencia: undefined,
+      promedioAbandono: undefined,
+      promedioAprovechamiento: undefined,
+      promedioReprobacion: undefined,
+    };
+
+    const diagText = `• Línea Base Cuantitativa: Eficiencia Terminal Zonal del ${formatZoneMetric(mockParsedData.promedioEficiencia, { pct: true })}, Abandono Escolar Zonal del ${formatZoneMetric(mockParsedData.promedioAbandono, { pct: true })}, Promedio General de Aprovechamiento en ${formatZoneMetric(mockParsedData.promedioAprovechamiento)} y Reprobación del ${formatZoneMetric(mockParsedData.promedioReprobacion, { pct: true })}.\n`;
+
+    expect(diagText).toContain('Abandono Escolar Zonal del N/D');
+    expect(diagText).toContain('Eficiencia Terminal Zonal del N/D');
+    expect(diagText).toContain('Promedio General de Aprovechamiento en N/D');
+    expect(diagText).toContain('Reprobación del N/D');
+    expect(diagText).not.toContain('del 0%');
   });
 });
 

@@ -17,6 +17,7 @@ import type {
 } from '@/types/cartografia';
 import { sql } from './db';
 import { logger } from './logger';
+import { formatZoneMetric } from './zone-metric-format';
 
 export interface ParseCartografiaOptions {
   zonaNumero?: string;
@@ -53,7 +54,7 @@ export async function parseCartografiaMatriz(
         success: false,
         momento1: { planteles: [], matriculaTotalZona: 0, municipiosCobertura: [], sedesPlanteles: [], caracterizacionInicial: '' },
         momento2: {
-          capaCuantitativa: { promedioAbandonoZona: 0, promedioEficienciaZona: 0, promedioAprovechamientoZona: 0, promedioReprobacionZona: 0, matriculaTotal: 0, plantelesAtencionPrioritaria: [], resumenEstadistico911F11: '' },
+          capaCuantitativa: { promedioAbandonoZona: undefined, promedioEficienciaZona: undefined, promedioAprovechamientoZona: undefined, promedioReprobacionZona: undefined, matriculaTotal: 0, plantelesAtencionPrioritaria: [], resumenEstadistico911F11: '' },
           capaCualitativa: { problematicasComunes: [], factoresContextuales: [], vinculacionPaecZona: [], desafiosSocioeconomicos: '' },
         },
         error: statsResult.error || 'No se pudieron extraer planteles del archivo de zona.',
@@ -102,14 +103,14 @@ export async function parseCartografiaMatriz(
         eficienciaTerminal: p.eficienciaTerminal,
         abandono: p.abandono,
         reprobacion: p.reprobacion,
-        promedioGeneral: p.promedioGeneral ?? p.promedioCalificaciones ?? 8.0,
+        promedioGeneral: p.promedioGeneral ?? p.promedioCalificaciones,
         paecProyecto: paecInfo?.projectName || 'Proyecto Comunitario PAEC en proceso',
         paecProblematica: paecInfo?.problem || 'Retos socioformativos del entorno local',
         ubicacion: `${p.nombre} (${p.cct})`,
       };
     });
 
-    const matriculaTotalZona = planteles.reduce((sum, p) => sum + p.matricula, 0);
+    const matriculaTotalZona = planteles.reduce((sum, p) => sum + (p.matricula ?? 0), 0);
     const sedesPlanteles = planteles.map((p) => `${p.nombre} [${p.cct}]`);
     const municipiosCobertura = Array.from(new Set(planteles.map((p) => p.municipio).filter(Boolean)));
 
@@ -124,8 +125,6 @@ export async function parseCartografiaMatriz(
 
     // Momento 2: Organizar (Capa Cuantitativa + Capa Cualitativa)
     const zonaData = statsResult.zona;
-    const plantelesConMatricula = planteles.filter((p) => p.matricula > 0);
-    const divisor = plantelesConMatricula.length > 0 ? plantelesConMatricula.length : planteles.length;
 
     const plantelesConEficiencia = planteles.filter((p) => p.eficienciaTerminal !== undefined && p.eficienciaTerminal > 0);
     const promEficiencia = zonaData?.promedioEficiencia ?? (plantelesConEficiencia.length > 0
@@ -135,16 +134,19 @@ export async function parseCartografiaMatriz(
     const plantelesConAbandono = planteles.filter((p) => p.abandono !== undefined);
     const promAbandono = zonaData?.promedioAbandono ?? (plantelesConAbandono.length > 0
       ? parseFloat((plantelesConAbandono.reduce((a, b) => a + (b.abandono ?? 0), 0) / plantelesConAbandono.length).toFixed(2))
-      : 0);
+      : undefined);
     const plantelesConReprobacion = planteles.filter((p) => p.reprobacion !== undefined);
     const promReprobacion = zonaData?.promedioReprobacion ?? (plantelesConReprobacion.length > 0
       ? parseFloat((plantelesConReprobacion.reduce((a, b) => a + (b.reprobacion ?? 0), 0) / plantelesConReprobacion.length).toFixed(2))
-      : 0);
-    const promAprovechamiento = zonaData?.promedioCalificaciones ?? parseFloat((plantelesConMatricula.reduce((a, b) => a + b.promedioGeneral, 0) / divisor).toFixed(2));
+      : undefined);
+    const plantelesConPromedio = planteles.filter((p) => p.promedioGeneral !== undefined);
+    const promAprovechamiento = zonaData?.promedioCalificaciones ?? (plantelesConPromedio.length > 0
+      ? parseFloat((plantelesConPromedio.reduce((a, b) => a + (b.promedioGeneral ?? 0), 0) / plantelesConPromedio.length).toFixed(2))
+      : undefined);
 
     const plantelesAtencionPrioritaria = planteles
-      .filter((p) => (p.abandono !== undefined && promAbandono > 0 && p.abandono > promAbandono + 3) || (p.eficienciaTerminal !== undefined && promEficiencia !== undefined && p.eficienciaTerminal < promEficiencia - 5))
-      .map((p) => `${p.nombre} (Abandono: ${p.abandono !== undefined ? `${p.abandono}%` : 'N/D'}, ET: ${p.eficienciaTerminal !== undefined ? `${p.eficienciaTerminal}%` : 'N/D'})`);
+      .filter((p) => (p.abandono !== undefined && promAbandono !== undefined && p.abandono > promAbandono + 3) || (p.eficienciaTerminal !== undefined && promEficiencia !== undefined && p.eficienciaTerminal < promEficiencia - 5))
+      .map((p) => `${p.nombre} (Abandono: ${formatZoneMetric(p.abandono, { pct: true })}, ET: ${formatZoneMetric(p.eficienciaTerminal, { pct: true })})`);
 
     const momento2: CartografiaMomento2Organizar = {
       capaCuantitativa: {
@@ -154,7 +156,7 @@ export async function parseCartografiaMatriz(
         promedioReprobacionZona: promReprobacion,
         matriculaTotal: matriculaTotalZona,
         plantelesAtencionPrioritaria,
-        resumenEstadistico911F11: `Análisis consolidado de la Zona Escolar: Promedio de Abandono Escolar en ${promAbandono}%, Eficiencia Terminal en ${promEficiencia}%, Aprovechamiento Escolar General en ${promAprovechamiento} y Reprobación en ${promReprobacion}%.`,
+        resumenEstadistico911F11: `Análisis consolidado de la Zona Escolar: Promedio de Abandono Escolar en ${plantelesConAbandono.length > 0 ? `${promAbandono}%` : 'N/D'}, Eficiencia Terminal en ${promEficiencia !== undefined ? `${promEficiencia}%` : 'N/D'}, Aprovechamiento Escolar General en ${plantelesConPromedio.length > 0 ? `${promAprovechamiento}` : 'N/D'} y Reprobación en ${plantelesConReprobacion.length > 0 ? `${promReprobacion}%` : 'N/D'}.`,
       },
       capaCualitativa: {
         problematicasComunes: [
@@ -184,7 +186,7 @@ export async function parseCartografiaMatriz(
       success: false,
       momento1: { planteles: [], matriculaTotalZona: 0, municipiosCobertura: [], sedesPlanteles: [], caracterizacionInicial: '' },
       momento2: {
-        capaCuantitativa: { promedioAbandonoZona: 0, promedioEficienciaZona: 0, promedioAprovechamientoZona: 0, promedioReprobacionZona: 0, matriculaTotal: 0, plantelesAtencionPrioritaria: [], resumenEstadistico911F11: '' },
+        capaCuantitativa: { promedioAbandonoZona: undefined, promedioEficienciaZona: undefined, promedioAprovechamientoZona: undefined, promedioReprobacionZona: undefined, matriculaTotal: 0, plantelesAtencionPrioritaria: [], resumenEstadistico911F11: '' },
         capaCualitativa: { problematicasComunes: [], factoresContextuales: [], vinculacionPaecZona: [], desafiosSocioeconomicos: '' },
       },
       error: error instanceof Error ? error.message : 'Error desconocido al parsear la matriz de zona.',

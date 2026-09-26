@@ -81,7 +81,7 @@ export function buildCartografiaFullPrompt(
     .slice(0, 20)
     .map(
       (p) =>
-        `- ${p.nombre} (CCT: ${p.cct}): Matrícula ${p.matricula}, Abandono ${formatZoneMetric(p.abandono, { pct: true })}, Eficiencia ${formatZoneMetric(p.eficienciaTerminal, { pct: true })}, Promedio ${p.promedioGeneral}. Proyecto PAEC: "${p.paecProyecto}"`
+        `- ${p.nombre} (CCT: ${p.cct}): Matrícula ${formatZoneMetric(p.matricula)}, Abandono ${formatZoneMetric(p.abandono, { pct: true })}, Eficiencia ${formatZoneMetric(p.eficienciaTerminal, { pct: true })}, Promedio ${formatZoneMetric(p.promedioGeneral)}. Proyecto PAEC: "${p.paecProyecto}"`
     )
     .join('\n');
 
@@ -161,7 +161,7 @@ Genera un objeto JSON estrictamente estructurado con las siguientes secciones:
     ],
     "retosPedagogicosCreaa": [
       "Reto 1: Disminución de la reprobación mediante codiseño de evaluación formativa",
-      "Reto 2: Alerta temprana en semanas 6 y 12 para reducir el abandono del ${promAbandono}%",
+      "Reto 2: Alerta temprana en semanas 6 y 12 para reducir el abandono escolar${promAbandono !== undefined ? ` del ${promAbandono}%` : ''}",
       "Reto 3: Impulso a la eficiencia terminal articulando proyectos comunitarios PAEC"
     ],
     "acuerdosAutonomiaConsejo": [
@@ -174,7 +174,7 @@ Genera un objeto JSON estrictamente estructurado con las siguientes secciones:
     "indicadoresCreaaAsociados": [
       "Abandono Escolar (Línea base ${formatZoneMetric(promAbandono, { pct: true })})",
       "Eficiencia Terminal (Línea base ${formatZoneMetric(promEficiencia, { pct: true })})",
-      "Resultados de Aprendizaje / EDIEMS-ESA (Línea base ${promCalificaciones})"
+      "Resultados de Aprendizaje / EDIEMS-ESA (Línea base ${formatZoneMetric(promCalificaciones)})"
     ],
     "lineasAccion": [
       {
@@ -275,7 +275,7 @@ function renderBaseStats(
     .slice(0, 15)
     .map(
       (p) =>
-        `- ${p.nombre} (${p.cct}): Matrícula ${p.matricula}, Abandono ${formatZoneMetric(p.abandono, { pct: true })}, Eficiencia ${formatZoneMetric(p.eficienciaTerminal, { pct: true })}, Promedio ${p.promedioGeneral}. Proyecto PAEC: "${p.paecProyecto}"`
+        `- ${p.nombre} (${p.cct}): Matrícula ${formatZoneMetric(p.matricula)}, Abandono ${formatZoneMetric(p.abandono, { pct: true })}, Eficiencia ${formatZoneMetric(p.eficienciaTerminal, { pct: true })}, Promedio ${formatZoneMetric(p.promedioGeneral)}. Proyecto PAEC: "${p.paecProyecto}"`
     )
     .join('\n');
 
@@ -289,7 +289,7 @@ function renderBaseStats(
 ${libraryContext ? `CONTEXTO DE BIBLIOTECA DOCENTE:\n${libraryContext}\n` : ''}
 LÍNEA BASE ESTADÍSTICA 911.7G / F11C:
 - Promedio Abandono: ${formatZoneMetric(promAbandono, { pct: true })} | Eficiencia Terminal: ${formatZoneMetric(promEficiencia, { pct: true })}
-- Promedio Calificaciones: ${promCalificaciones} | Reprobación: ${formatZoneMetric(promReprobacion, { pct: true })}
+- Promedio Calificaciones: ${formatZoneMetric(promCalificaciones)} | Reprobación: ${formatZoneMetric(promReprobacion, { pct: true })}
 - Planteles Atención Prioritaria: ${momento2.capaCuantitativa.plantelesAtencionPrioritaria.slice(0, 5).join(', ') || 'En rangos promedio'}
 
 CAPA CUALITATIVA SITUADA (PAEC Y RETOS TERRITORIALES):

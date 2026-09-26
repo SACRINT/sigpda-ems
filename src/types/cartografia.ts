@@ -11,13 +11,13 @@ export interface CartografiaPlantelItem {
   localidad: string;
   municipio: string;
   turno: string;
-  matricula: number;
+  matricula?: number;
   egresados?: number;
   bajasDefinitivas?: number;
   eficienciaTerminal?: number;
   abandono?: number;
   reprobacion?: number;
-  promedioGeneral: number;
+  promedioGeneral?: number;
   paecProyecto?: string;
   paecProblematica?: string;
   director?: string;
@@ -44,10 +44,10 @@ export interface CartografiaMomento1Conocer {
 // ── MOMENTO 2: ORGANIZAR (Evidencias Multidimensionales) ────────────────────────
 export interface CartografiaMomento2Organizar {
   capaCuantitativa: {
-    promedioAbandonoZona: number;
+    promedioAbandonoZona?: number;
     promedioEficienciaZona?: number;
-    promedioAprovechamientoZona: number;
-    promedioReprobacionZona: number;
+    promedioAprovechamientoZona?: number;
+    promedioReprobacionZona?: number;
     matriculaTotal: number;
     plantelesAtencionPrioritaria: string[];
     resumenEstadistico911F11: string;

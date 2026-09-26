@@ -78,7 +78,7 @@ export function auditCartografiaProject(project: CartografiaZonaProject): Cartog
   // C2: Momento 2 - Organizar (20 pts: Capa Cuantitativa + Capa Cualitativa)
   const cCuant = project.momento2Organizar?.capaCuantitativa;
   const cCual = project.momento2Organizar?.capaCualitativa;
-  const hasCuant = Boolean(cCuant && cCuant.promedioAbandonoZona > 0 && (cCuant.promedioEficienciaZona ?? 0) > 0);
+  const hasCuant = Boolean(cCuant && cCuant.promedioAbandonoZona !== undefined && cCuant.promedioEficienciaZona !== undefined);
   const hasCual = Boolean(cCual && cCual.problematicasComunes?.length > 0);
 
   if (hasCuant && hasCual) {

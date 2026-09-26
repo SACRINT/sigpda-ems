@@ -23,9 +23,9 @@ interface ParsedZoneData {
   planteles: CartografiaPlantelItem[];
   matriculaTotal: number;
   promedioEficiencia?: number;
-  promedioAbandono: number;
-  promedioAprovechamiento: number;
-  promedioReprobacion: number;
+  promedioAbandono?: number;
+  promedioAprovechamiento?: number;
+  promedioReprobacion?: number;
   plantelesPrioritarios: string[];
   momento1?: CartografiaMomento1Conocer;
   momento2?: CartografiaMomento2Organizar;
@@ -120,24 +120,23 @@ export default function ExcelUploadZone({
           eficienciaTerminal: p.eficienciaTerminal,
           abandono: p.abandono,
           reprobacion: p.reprobacion,
-          promedioGeneral: p.promedioGeneral ?? p.promedioCalificaciones ?? 8.0,
+          promedioGeneral: p.promedioGeneral ?? p.promedioCalificaciones,
         }));
 
-        const matriculaTotal = planteles.reduce((sum, p) => sum + p.matricula, 0);
-        const conMat = planteles.filter(p => p.matricula > 0);
-        const div = conMat.length > 0 ? conMat.length : planteles.length;
+        const matriculaTotal = planteles.reduce((sum, p) => sum + (p.matricula ?? 0), 0);
 
         const conET = planteles.filter(p => p.eficienciaTerminal !== undefined && p.eficienciaTerminal > 0);
         const promEficiencia = clientResult.zona?.promedioEficiencia ?? (conET.length > 0 ? parseFloat((conET.reduce((a, b) => a + (b.eficienciaTerminal ?? 0), 0) / conET.length).toFixed(2)) : undefined);
         const conAbandono = planteles.filter(p => p.abandono !== undefined);
-        const promAbandono = clientResult.zona?.promedioAbandono ?? (conAbandono.length > 0 ? parseFloat((conAbandono.reduce((a, b) => a + (b.abandono ?? 0), 0) / conAbandono.length).toFixed(2)) : 0);
-        const promAprov = clientResult.zona?.promedioCalificaciones ?? parseFloat((conMat.reduce((a, b) => a + b.promedioGeneral, 0) / div).toFixed(2));
+        const promAbandono = clientResult.zona?.promedioAbandono ?? (conAbandono.length > 0 ? parseFloat((conAbandono.reduce((a, b) => a + (b.abandono ?? 0), 0) / conAbandono.length).toFixed(2)) : undefined);
+        const conProm = planteles.filter(p => p.promedioGeneral !== undefined);
+        const promAprov = clientResult.zona?.promedioCalificaciones ?? (conProm.length > 0 ? parseFloat((conProm.reduce((a, b) => a + (b.promedioGeneral ?? 0), 0) / conProm.length).toFixed(2)) : undefined);
         const conReprob = planteles.filter(p => p.reprobacion !== undefined);
-        const promReprob = clientResult.zona?.promedioReprobacion ?? (conReprob.length > 0 ? parseFloat((conReprob.reduce((a, b) => a + (b.reprobacion ?? 0), 0) / conReprob.length).toFixed(2)) : 0);
+        const promReprob = clientResult.zona?.promedioReprobacion ?? (conReprob.length > 0 ? parseFloat((conReprob.reduce((a, b) => a + (b.reprobacion ?? 0), 0) / conReprob.length).toFixed(2)) : undefined);
 
         const prioritarios = planteles
-          .filter(p => (p.abandono !== undefined && promAbandono > 0 && p.abandono > promAbandono + 3) || (p.eficienciaTerminal !== undefined && promEficiencia !== undefined && p.eficienciaTerminal < promEficiencia - 5))
-          .map(p => `${p.nombre} (Abandono: ${p.abandono !== undefined ? `${p.abandono}%` : 'N/D'}, ET: ${p.eficienciaTerminal !== undefined ? `${p.eficienciaTerminal}%` : 'N/D'})`);
+          .filter(p => (p.abandono !== undefined && promAbandono !== undefined && p.abandono > promAbandono + 3) || (p.eficienciaTerminal !== undefined && promEficiencia !== undefined && p.eficienciaTerminal < promEficiencia - 5))
+          .map(p => `${p.nombre} (Abandono: ${formatZoneMetric(p.abandono, { pct: true })}, ET: ${formatZoneMetric(p.eficienciaTerminal, { pct: true })})`);
 
         setParsedData({
           filename: file.name,
@@ -205,8 +204,9 @@ export default function ExcelUploadZone({
     // Mapear a formato PipsPlantele compatible con el wizard
     const pipsPlanteles: PipsPlantele[] = activePlanteles.map((p, idx) => {
       // Estimación 50/50 de género si no viene desglosado en el archivo
-      const hombres = Math.round(p.matricula * 0.49);
-      const mujeres = p.matricula - hombres;
+      const mat = p.matricula ?? 0;
+      const hombres = Math.round(mat * 0.49);
+      const mujeres = mat - hombres;
       return {
         no: idx + 1,
         cct: p.cct,
@@ -215,14 +215,14 @@ export default function ExcelUploadZone({
         municipio: p.municipio || 'Zona Escolar',
         hombres,
         mujeres,
-        total: p.matricula,
+        total: mat,
       };
     });
 
     // Construir texto de diagnóstico automático enriquecido
     const diagText = `Diagnóstico territorial consolidado a partir de la estadística oficial 911.7G y F11C (Zona ${zonaNumero}, Ciclo ${cicloEscolar}):\n` +
       `• Cobertura Zonal: ${pipsPlanteles.length} planteles analizados con una matrícula total de ${parsedData.matriculaTotal} estudiantes.\n` +
-      `• Línea Base Cuantitativa: Eficiencia Terminal Zonal del ${parsedData.promedioEficiencia}%, Abandono Escolar Zonal del ${parsedData.promedioAbandono}%, Promedio General de Aprovechamiento en ${parsedData.promedioAprovechamiento} y Reprobación del ${parsedData.promedioReprobacion}%.\n` +
+      `• Línea Base Cuantitativa: Eficiencia Terminal Zonal del ${formatZoneMetric(parsedData.promedioEficiencia, { pct: true })}, Abandono Escolar Zonal del ${formatZoneMetric(parsedData.promedioAbandono, { pct: true })}, Promedio General de Aprovechamiento en ${formatZoneMetric(parsedData.promedioAprovechamiento)} y Reprobación del ${formatZoneMetric(parsedData.promedioReprobacion, { pct: true })}.\n` +
       (parsedData.plantelesPrioritarios.length > 0 
         ? `• Planteles con Atención Prioritaria: ${parsedData.plantelesPrioritarios.join('; ')}.\n` 
         : '') +
@@ -427,12 +427,12 @@ export default function ExcelUploadZone({
                       <td style={{ padding: '6px 8px', textAlign: 'center', color: '#64748b' }}>{i + 1}</td>
                       <td style={{ padding: '6px 8px', color: '#f8fafc', fontWeight: 600 }}>{p.nombre}</td>
                       <td style={{ padding: '6px 8px', textAlign: 'center', color: '#94a3b8', fontFamily: 'monospace' }}>{p.cct}</td>
-                      <td style={{ padding: '6px 8px', textAlign: 'right', color: '#38bdf8', fontWeight: 700 }}>{p.matricula}</td>
+                      <td style={{ padding: '6px 8px', textAlign: 'right', color: '#38bdf8', fontWeight: 700 }}>{formatZoneMetric(p.matricula)}</td>
                       <td style={{ padding: '6px 8px', textAlign: 'right', color: '#4ade80' }}>
                         {formatZoneMetric(p.eficienciaTerminal, { pct: true })}
                       </td>
                       <td style={{ padding: '6px 8px', textAlign: 'right', color: '#f87171' }}>{formatZoneMetric(p.abandono, { pct: true })}</td>
-                      <td style={{ padding: '6px 8px', textAlign: 'right', color: '#fbbf24', fontWeight: 600 }}>{p.promedioGeneral}</td>
+                      <td style={{ padding: '6px 8px', textAlign: 'right', color: '#fbbf24', fontWeight: 600 }}>{formatZoneMetric(p.promedioGeneral)}</td>
                     </tr>
                   );
                 })}

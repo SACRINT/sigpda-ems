@@ -219,10 +219,10 @@ export async function generateCartografiaPDF(
     p.nombre,
     p.municipio,
     p.turno,
-    p.matricula,
+    formatZoneMetric(p.matricula),
     formatZoneMetric(p.eficienciaTerminal, { pct: true }),
     formatZoneMetric(p.abandono, { pct: true }),
-    p.promedioGeneral.toFixed(2),
+    p.promedioGeneral !== undefined ? p.promedioGeneral.toFixed(2) : 'N/D',
   ]);
 
   autoTable(doc, {

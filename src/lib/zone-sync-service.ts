@@ -160,9 +160,9 @@ export async function getZoneContextForSchool(cct: string): Promise<SchoolZoneCo
       };
     }
 
-    // Nota (H-082): safeAverage mantiene > 0 porque un promedio calculado de zona sin datos no debe ser 0 (no distinguible de fabricación).
+    // Nota (H-087/H-088): safeAverage valida >= 0 respetando ceros legítimos, devolviendo undefined ante ausencia
     const safeAverage = (val: unknown): number | undefined => {
-      if (typeof val === 'number' && Number.isFinite(val) && val > 0) {
+      if (typeof val === 'number' && Number.isFinite(val) && val >= 0) {
         return val;
       }
       return undefined;
@@ -322,11 +322,11 @@ export async function getZoneSupervisorDashboard(supervisorId: string): Promise<
     const cartografiaPlantel = pipsBaseCtx?.planteles.find((p) => p.cct.toUpperCase() === cct);
     const isPrioritario = cartografiaPlantel
       ? (cartografiaPlantel.abandono !== undefined &&
-          (pipsBaseCtx?.promAbandono || 0) > 0 &&
-          cartografiaPlantel.abandono > (pipsBaseCtx?.promAbandono || 0) + 3) ||
+          pipsBaseCtx?.promAbandono !== undefined &&
+          cartografiaPlantel.abandono > pipsBaseCtx.promAbandono + 3) ||
         (cartografiaPlantel.eficienciaTerminal !== undefined &&
-          (pipsBaseCtx?.promEficiencia || 0) > 0 &&
-          cartografiaPlantel.eficienciaTerminal < (pipsBaseCtx?.promEficiencia || 0) - 5)
+          pipsBaseCtx?.promEficiencia !== undefined &&
+          cartografiaPlantel.eficienciaTerminal < pipsBaseCtx.promEficiencia - 5)
       : false;
 
     if (isPrioritario) plantelesAtencionPrioritariaCount++;
