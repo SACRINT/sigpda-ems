@@ -176,3 +176,44 @@ export function getObjetivoPmcText(schoolName?: string, cicloEscolar?: string): 
 
   return `El presente Programa de Mejora Continua (PMC) tiene como objetivo general establecer las prioridades, metas y acciones estratégicas para elevar la calidad, permanencia, equidad e inclusión del servicio educativo en ${nombrePlantel} durante el ciclo escolar ${ciclo}. A través de la planeación participativa, el liderazgo directivo colegiado y la corresponsabilidad de la comunidad escolar, se busca consolidar los aprendizajes fundamentales del Marco Curricular Común de la Educación Media Superior (MCCEMS) y asegurar el desarrollo integral de las y los aprendientes conforme a los ejes de la política educativa estatal CREAA.`;
 }
+
+export interface PmcDatosContextuales {
+  school_name?: string;
+  school_cct?: string;
+  municipality?: string;
+  locality?: string;
+  diagnostico_comunidad?: string;
+}
+
+/**
+ * Retorna el texto situado para la subsección 4.3 Infraestructura y Equipamiento Escolar.
+ * Si el proyecto contiene datos territoriales o de comunidad, los incorpora evitando boilerplate genérico.
+ * Respeto estricto a B-001 (sin fabricar cifras).
+ */
+export function getTextoInfraestructura(project?: PmcDatosContextuales): string {
+  const nombre = project?.school_name ? `el plantel "${project.school_name}"` : 'el plantel escolar';
+  const ubicacion = (project?.locality && project?.municipality)
+    ? ` en la localidad de ${project.locality}, municipio de ${project.municipality}`
+    : project?.municipality ? ` en el municipio de ${project.municipality}` : '';
+
+  if (project?.diagnostico_comunidad && project.diagnostico_comunidad.trim().length > 20) {
+    return `En ${nombre}${ubicacion}, las instalaciones físicas, espacios educativos y equipamiento se gestionan para atender las necesidades formativas del entorno territorial. El colectivo escolar prioriza el mantenimiento preventivo y la optimización de aulas y talleres, asegurando condiciones dignas, seguras e inclusivas que salvaguarden el patrimonio escolar y favorezcan el logro de los aprendizajes fundamentales conforme al MCCEMS.`;
+  }
+
+  return `En ${nombre}${ubicacion}, las instalaciones físicas, aulas y recursos didácticos se gestionan de forma continua para asegurar condiciones dignas y seguras que favorezcan los procesos de enseñanza y aprendizaje, promoviendo la inclusión, la equidad formativa y la preservación del patrimonio escolar conforme al MCCEMS.`;
+}
+
+/**
+ * Retorna el texto situado para la subsección 4.4 Beneficios y Vinculación Comunitaria.
+ * Si existe diagnostico_comunidad o contexto territorial, lo articula con el PEC sin inventar números.
+ */
+export function getTextoBeneficiosComunitarios(project?: PmcDatosContextuales): string {
+  const nombre = project?.school_name ? `del plantel "${project.school_name}"` : 'del plantel';
+  const localidad = project?.locality ? `de ${project.locality}` : 'de la comunidad';
+
+  if (project?.diagnostico_comunidad && project.diagnostico_comunidad.trim().length > 20) {
+    return `La articulación comunitaria ${nombre} con las familias y actores sociales ${localidad} se orienta a atender la problemática socioeducativa territorial: ${project.diagnostico_comunidad.trim()}. A través de comités participativos, proyectos escolares comunitarios y alianzas locales, se generan redes de corresponsabilidad que fortalecen la permanencia escolar, la retención de aprendientes y el bienestar colectivo.`;
+  }
+
+  return `La relación corresponsable ${nombre} con las familias, autoridades locales y comunidades aledañas ${localidad} permite consolidar redes de apoyo que impulsan la retención escolar, la captación de matrícula y la solución colectiva de problemáticas territoriales en el marco del Proyecto Escolar Comunitario.`;
+}

@@ -18,6 +18,8 @@ import {
   PMC_SECCIONES_CANONICAS,
   clasificarNormativaJerarquica,
   getObjetivoPmcText,
+  getTextoInfraestructura,
+  getTextoBeneficiosComunitarios,
 } from './pmc-document-structure';
 
 const NAVY: [number, number, number] = [31, 56, 100];       // #1F3864 - Azul Institucional MCCEMS
@@ -479,7 +481,7 @@ export async function generatePmcPDF(
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(...TEXT_DARK);
-  const infraText = 'Las instalaciones físicas, aulas y recursos didácticos del plantel se gestionan de forma continua para asegurar condiciones dignas y seguras que favorezcan los procesos de enseñanza y aprendizaje, promoviendo la inclusión y la equidad formativa.';
+  const infraText = getTextoInfraestructura(project);
   const splitInfra = doc.splitTextToSize(infraText, contentWidth);
   doc.text(splitInfra, margin, curY);
   curY += splitInfra.length * 3.5 + 6;
@@ -499,7 +501,7 @@ export async function generatePmcPDF(
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(...TEXT_DARK);
-  const benefText = 'La relación corresponsable con las familias, autoridades locales y comunidades aledañas permite consolidar redes de apoyo que impulsan la retención escolar, la captación de matrícula y la solución colectiva de problemáticas territoriales.';
+  const benefText = getTextoBeneficiosComunitarios(project);
   const splitBenef = doc.splitTextToSize(benefText, contentWidth);
   doc.text(splitBenef, margin, curY);
   curY += splitBenef.length * 3.5 + 6;

@@ -25,6 +25,8 @@ import {
   PMC_SECCIONES_CANONICAS,
   clasificarNormativaJerarquica,
   getObjetivoPmcText,
+  getTextoInfraestructura,
+  getTextoBeneficiosComunitarios,
 } from './pmc-document-structure';
 
 // ─── Color Palette ───────────────────────────────────────────────────────────
@@ -634,16 +636,12 @@ function buildDiagnostico(
 
   // 4.3 Infraestructura y Equipamiento Escolar
   items.push(subHeading(PMC_SUBSECCIONES_DIAGNOSTICO.INFRAESTRUCTURA));
-  items.push(bodyPara(
-    'Las instalaciones físicas, aulas y recursos didácticos del plantel se gestionan de forma continua para asegurar condiciones dignas y seguras que favorezcan los procesos de enseñanza y aprendizaje, promoviendo la inclusión y la equidad formativa.'
-  ));
+  items.push(bodyPara(getTextoInfraestructura(project)));
   items.push(...gap());
 
   // 4.4 Beneficios y Vinculación Comunitaria
   items.push(subHeading(PMC_SUBSECCIONES_DIAGNOSTICO.BENEFICIOS));
-  items.push(bodyPara(
-    'La relación corresponsable con las familias, autoridades locales y comunidades aledañas permite consolidar redes de apoyo que impulsan la retención escolar, la captación de matrícula y la solución colectiva de problemáticas territoriales.'
-  ));
+  items.push(bodyPara(getTextoBeneficiosComunitarios(project)));
   items.push(...gap());
 
   // 4.5 Matriz FODA Situacional
