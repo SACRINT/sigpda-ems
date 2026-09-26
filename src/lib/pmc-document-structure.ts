@@ -29,6 +29,14 @@ export const PMC_TITULOS_SECCIONES = {
   PARTICIPANTES_CONTROL: '8. PARTICIPANTES, CONTROL DE REVISIONES Y APROBACIÓN',
 } as const;
 
+export const PMC_SUBSECCIONES_DIAGNOSTICO = {
+  CONTEXTO: '4.1 Contexto Socioeducativo y Territorial',
+  INDICADORES: '4.2 Análisis de Indicadores Académicos (Línea Base vs Metas)',
+  INFRAESTRUCTURA: '4.3 Infraestructura y Equipamiento Escolar',
+  BENEFICIOS: '4.4 Beneficios y Vinculación Comunitaria',
+  FODA: '4.5 Matriz FODA Situacional',
+} as const;
+
 export const PMC_SECCIONES_CANONICAS: readonly PmcSeccionDef[] = [
   {
     id: 'presentacion',

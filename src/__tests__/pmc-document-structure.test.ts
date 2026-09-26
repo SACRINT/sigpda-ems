@@ -4,6 +4,7 @@ import mammoth from 'mammoth';
 import { PDFParse } from 'pdf-parse';
 import {
   PMC_TITULOS_SECCIONES,
+  PMC_SUBSECCIONES_DIAGNOSTICO,
   PMC_SECCIONES_CANONICAS,
   clasificarNormativaJerarquica,
   getObjetivoPmcText,
@@ -199,6 +200,34 @@ describe('H-100 / H-101: SSoT Estructura Documental y Paridad PDF vs DOCX', () =
       expect(pdfPos, `En PDF, "${titulo}" debe estar después de la sección anterior`).toBeGreaterThan(lastPdfPos);
       lastPdfPos = pdfPos;
     }
+
+    // (c) H-103: Verificar que DOCX y PDF contienen las 5 subsecciones canónicas de Diagnóstico en orden y sin ":"
+    const subseccionesDiagnostico = [
+      PMC_SUBSECCIONES_DIAGNOSTICO.CONTEXTO,
+      PMC_SUBSECCIONES_DIAGNOSTICO.INDICADORES,
+      PMC_SUBSECCIONES_DIAGNOSTICO.INFRAESTRUCTURA,
+      PMC_SUBSECCIONES_DIAGNOSTICO.BENEFICIOS,
+      PMC_SUBSECCIONES_DIAGNOSTICO.FODA,
+    ];
+
+    let lastDocxSubPos = docxText.indexOf(PMC_TITULOS_SECCIONES.DIAGNOSTICO);
+    let lastPdfSubPos = pdfText.indexOf(PMC_TITULOS_SECCIONES.DIAGNOSTICO);
+
+    for (const subTitulo of subseccionesDiagnostico) {
+      const docxSubPos = docxText.indexOf(subTitulo);
+      expect(docxSubPos, `DOCX debe contener la subsección canónica "${subTitulo}"`).toBeGreaterThan(-1);
+      expect(docxSubPos, `En DOCX, "${subTitulo}" debe ubicarse después de la anterior`).toBeGreaterThan(lastDocxSubPos);
+      lastDocxSubPos = docxSubPos;
+
+      const pdfSubPos = pdfText.indexOf(subTitulo);
+      expect(pdfSubPos, `PDF debe contener la subsección canónica "${subTitulo}"`).toBeGreaterThan(-1);
+      expect(pdfSubPos, `En PDF, "${subTitulo}" debe ubicarse después de la anterior`).toBeGreaterThan(lastPdfSubPos);
+      lastPdfSubPos = pdfSubPos;
+    }
+
+    // Verificación anti-divergencia H-103 (FODA sin título alternativo y sin dos puntos en PDF)
+    expect(pdfText).not.toContain('4.5 Matriz de Análisis Estratégico FODA');
+    expect(pdfText).toContain('4.5 Matriz FODA Situacional');
   });
 
   it('4. Con 2 documentos mock, ambos generadores renderizan la jerarquía jurídica A y B', async () => {

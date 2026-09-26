@@ -14,6 +14,7 @@ import { calculatePmcIndicatorRows } from './pmc-indicator-calculator';
 import type { PmcProject, PmcStatisticalContext, PmcStaffMember } from '@/types/pmc';
 import {
   PMC_TITULOS_SECCIONES,
+  PMC_SUBSECCIONES_DIAGNOSTICO,
   PMC_SECCIONES_CANONICAS,
   clasificarNormativaJerarquica,
   getObjetivoPmcText,
@@ -401,7 +402,7 @@ export async function generatePmcPDF(
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(...BLUE_MID);
-  doc.text('4.1 Contexto Socioeducativo y Territorial:', margin, curY);
+  doc.text(PMC_SUBSECCIONES_DIAGNOSTICO.CONTEXTO, margin, curY);
   curY += 4;
 
   doc.setFont('helvetica', 'normal');
@@ -421,7 +422,7 @@ export async function generatePmcPDF(
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(...BLUE_MID);
-  doc.text('4.2 Análisis de Indicadores Académicos (Línea Base vs Metas):', margin, curY);
+  doc.text(PMC_SUBSECCIONES_DIAGNOSTICO.INDICADORES, margin, curY);
   curY += 4;
 
   const statsCtx: PmcStatisticalContext | undefined = project.statistical_context || (indAcad as { statistical_context?: PmcStatisticalContext })?.statistical_context;
@@ -472,7 +473,7 @@ export async function generatePmcPDF(
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(...BLUE_MID);
-  doc.text('4.3 Infraestructura y Equipamiento Escolar:', margin, curY);
+  doc.text(PMC_SUBSECCIONES_DIAGNOSTICO.INFRAESTRUCTURA, margin, curY);
   curY += 4;
 
   doc.setFont('helvetica', 'normal');
@@ -492,7 +493,7 @@ export async function generatePmcPDF(
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(...BLUE_MID);
-  doc.text('4.4 Beneficios y Vinculación Comunitaria:', margin, curY);
+  doc.text(PMC_SUBSECCIONES_DIAGNOSTICO.BENEFICIOS, margin, curY);
   curY += 4;
 
   doc.setFont('helvetica', 'normal');
@@ -513,7 +514,7 @@ export async function generatePmcPDF(
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(...BLUE_MID);
-  doc.text('4.5 Matriz de Análisis Estratégico FODA:', margin, curY);
+  doc.text(PMC_SUBSECCIONES_DIAGNOSTICO.FODA, margin, curY);
   curY += 4;
 
   const foda = parseJson(project.foda);

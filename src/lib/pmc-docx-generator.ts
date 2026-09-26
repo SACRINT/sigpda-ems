@@ -21,6 +21,7 @@ import {
 } from './pmc-indicator-calculator';
 import {
   PMC_TITULOS_SECCIONES,
+  PMC_SUBSECCIONES_DIAGNOSTICO,
   PMC_SECCIONES_CANONICAS,
   clasificarNormativaJerarquica,
   getObjetivoPmcText,
@@ -567,14 +568,14 @@ function buildDiagnostico(
   const items: (Paragraph | Table)[] = [secHeading(PMC_TITULOS_SECCIONES.DIAGNOSTICO)];
 
   // 4.1 Contexto Socioeducativo y Territorial
-  items.push(subHeading('4.1 Contexto Socioeducativo y Territorial'));
+  items.push(subHeading(PMC_SUBSECCIONES_DIAGNOSTICO.CONTEXTO));
   const contextoText = safeStr(diag.contexto || project?.diagnostico_comunidad) ||
     'El plantel se ubica en un entorno que exige una intervención directiva basada en la gestión comunitaria, atendiendo las características socioculturales y desafíos de movilidad de la población escolar.';
   items.push(bodyPara(contextoText));
   items.push(...gap());
 
   // 4.2 Indicadores Académicos (Línea Base vs Meta)
-  items.push(subHeading('4.2 Análisis de Indicadores Académicos (Línea Base vs Metas)'));
+  items.push(subHeading(PMC_SUBSECCIONES_DIAGNOSTICO.INDICADORES));
   const indVals = computePmcIndicatorValues(indic, statsCtx);
   items.push(
     tbl(
@@ -632,21 +633,21 @@ function buildDiagnostico(
   items.push(...gap());
 
   // 4.3 Infraestructura y Equipamiento Escolar
-  items.push(subHeading('4.3 Infraestructura y Equipamiento Escolar'));
+  items.push(subHeading(PMC_SUBSECCIONES_DIAGNOSTICO.INFRAESTRUCTURA));
   items.push(bodyPara(
     'Las instalaciones físicas, aulas y recursos didácticos del plantel se gestionan de forma continua para asegurar condiciones dignas y seguras que favorezcan los procesos de enseñanza y aprendizaje, promoviendo la inclusión y la equidad formativa.'
   ));
   items.push(...gap());
 
   // 4.4 Beneficios y Vinculación Comunitaria
-  items.push(subHeading('4.4 Beneficios y Vinculación Comunitaria'));
+  items.push(subHeading(PMC_SUBSECCIONES_DIAGNOSTICO.BENEFICIOS));
   items.push(bodyPara(
     'La relación corresponsable con las familias, autoridades locales y comunidades aledañas permite consolidar redes de apoyo que impulsan la retención escolar, la captación de matrícula y la solución colectiva de problemáticas territoriales.'
   ));
   items.push(...gap());
 
   // 4.5 Matriz FODA Situacional
-  items.push(subHeading('4.5 Matriz FODA Situacional'));
+  items.push(subHeading(PMC_SUBSECCIONES_DIAGNOSTICO.FODA));
   items.push(
     tbl(
       [
