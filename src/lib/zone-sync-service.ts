@@ -135,9 +135,10 @@ export async function getZoneContextForSchool(cct: string): Promise<SchoolZoneCo
     );
 
     const safeMetric = (val: unknown): number | undefined => {
-      if (val === undefined || val === null || val === '') return undefined;
-      const num = Number(val);
-      return Number.isFinite(num) && num > 0 ? num : undefined;
+      if (val === undefined || val === null) return undefined;
+      if (typeof val === 'string' && val.trim() === '') return undefined;
+      const num = typeof val === 'number' ? val : Number(val);
+      return Number.isFinite(num) && num >= 0 ? num : undefined;
     };
 
     type PlantelWithOptionalMetrics = Omit<CartografiaPlantelItem, 'abandono' | 'reprobacion' | 'promedioGeneral' | 'matricula'> & {
@@ -159,6 +160,7 @@ export async function getZoneContextForSchool(cct: string): Promise<SchoolZoneCo
       };
     }
 
+    // Nota (H-082): safeAverage mantiene > 0 porque un promedio calculado de zona sin datos no debe ser 0 (no distinguible de fabricación).
     const safeAverage = (val: unknown): number | undefined => {
       if (typeof val === 'number' && Number.isFinite(val) && val > 0) {
         return val;

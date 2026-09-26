@@ -127,4 +127,33 @@ describe('B5: Defensive Guards N/D para Métricas de Zona F11/911 en PAEC', () =
     expect(result.zona?.averages.promAprovechamiento).toBeUndefined();
     expect(result.zona?.averages.promReprobacion).toBeUndefined();
   });
+
+  it('5. Plantel con 0% legítimo: safeMetric preserva 0 y formatZoneMetric formatea como "0%" (H-082)', async () => {
+    const mockDbRow = {
+      id: 'pips-zero',
+      zona_nombre: 'Zona 004',
+      zona_clave: '21FMS0004Z',
+      supervisor_name: 'Supervisora Escolar',
+      planteles_json: [
+        {
+          cct: '21EBH0005Z',
+          nombre: 'Bachillerato Eficiente',
+          matricula: 150,
+          abandono: 0, // 0% real oficial
+          eficienciaTerminal: 100,
+          reprobacion: 0, // 0% real oficial
+        },
+      ],
+    };
+
+    const mockSql = vi.fn().mockResolvedValue([mockDbRow]);
+    vi.mocked(sql).mockReturnValue(mockSql as never);
+
+    const result = await getZoneContextForSchool('21EBH0005Z');
+    expect(result.found).toBe(true);
+    expect(result.plantel?.abandono).toBe(0);
+    expect(result.plantel?.reprobacion).toBe(0);
+    expect(formatZoneMetric(result.plantel?.abandono, { pct: true })).toBe('0%');
+    expect(formatZoneMetric(result.plantel?.reprobacion, { pct: true })).toBe('0%');
+  });
 });

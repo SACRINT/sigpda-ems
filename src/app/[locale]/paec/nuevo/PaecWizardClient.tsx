@@ -454,12 +454,12 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
       }));
     }
 
-    // Extender el estado con academicBaseline opcional (sin ?? 0, conserva undefined)
+    // Extender el estado con academicBaseline opcional (sin ?? 0, conserva undefined, acepta >= 0 como dato legítimo)
     const safeNum = (v: unknown): number | undefined => {
-      if (typeof v === 'number' && Number.isFinite(v) && v > 0) return v;
+      if (typeof v === 'number' && Number.isFinite(v) && v >= 0) return v;
       if (typeof v === 'string' && v.trim() !== '') {
         const parsed = Number(v);
-        return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+        return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
       }
       return undefined;
     };
