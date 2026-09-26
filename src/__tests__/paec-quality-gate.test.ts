@@ -14,6 +14,7 @@ import {
   evaluateCriterio5,
   evaluateCriterio8,
   evaluateCriterio11,
+  evaluateCriterio12,
   evaluateCriterio13,
   evaluateCriterio15,
   evaluateCriterio19,
@@ -357,6 +358,34 @@ describe('paec-quality-gate — criterios individuales', () => {
     const result = evaluateCriterio11(CRONOGRAMA_COMPLETO);
     expect(result.status).toBe('pass');
     expect(result.score).toBeGreaterThanOrEqual(3);
+  });
+
+  it('C11 & C12: desempaquetan correctamente cronograma envuelto en { cronograma: [...] } y { semanas: [...] } (H-081)', () => {
+    // Caso 1: Envuelto en objeto { cronograma: [...] }
+    const wrappedCronograma = { cronograma: CRONOGRAMA_COMPLETO } as unknown as CronogramaRow[];
+    const c11Wrapped = evaluateCriterio11(wrappedCronograma);
+    expect(c11Wrapped.score).toBeGreaterThanOrEqual(3);
+    expect(c11Wrapped.status).toBe('pass');
+
+    const c12Wrapped = evaluateCriterio12(wrappedCronograma);
+    expect(c12Wrapped.score).toBeGreaterThan(1);
+    expect(c12Wrapped.status).toBe('pass');
+
+    // Caso 2: Envuelto en objeto { semanas: [...] }
+    const wrappedSemanas = { semanas: CRONOGRAMA_COMPLETO } as unknown as CronogramaRow[];
+    const c11Semanas = evaluateCriterio11(wrappedSemanas);
+    expect(c11Semanas.score).toBeGreaterThanOrEqual(3);
+    expect(c11Semanas.status).toBe('pass');
+
+    const c12Semanas = evaluateCriterio12(wrappedSemanas);
+    expect(c12Semanas.score).toBeGreaterThan(1);
+    expect(c12Semanas.status).toBe('pass');
+
+    // Caso 3: Array plano directo
+    const c11Flat = evaluateCriterio11(CRONOGRAMA_COMPLETO);
+    const c12Flat = evaluateCriterio12(CRONOGRAMA_COMPLETO);
+    expect(c11Flat.score).toBe(c11Wrapped.score);
+    expect(c12Flat.score).toBe(c12Wrapped.score);
   });
 
   // ── Dimension 5: Detalle Curricular (C13-C14) ───────────────────────────
