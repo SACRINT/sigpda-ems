@@ -28,6 +28,7 @@ import {
 import { UACS_LABORALES_OFICIALES_BGE } from '@/lib/capacitaciones-data';
 import { loadCarrerasTecnicas, type BTCarrera } from '@/lib/bt-carreras-catalog';
 import type { SchoolZoneContextResponse } from '@/lib/zone-sync-service';
+import { formatZoneMetric } from '@/lib/zone-metric-format';
 import {
   PaecStep1Diagnostico,
   PaecStep2Justificacion,
@@ -2969,33 +2970,25 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                     <div style={{ background: '#1e293b', padding: '8px', borderRadius: '6px', textAlign: 'center' }}>
                       <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block' }}>Matrícula</span>
                       <strong style={{ fontSize: '14px', color: '#f8fafc' }}>
-                        {typeof zonaData.plantel.matricula === 'number' && Number.isFinite(zonaData.plantel.matricula) && zonaData.plantel.matricula > 0
-                          ? zonaData.plantel.matricula
-                          : 'N/D'}
+                        {formatZoneMetric(zonaData.plantel.matricula)}
                       </strong>
                     </div>
                     <div style={{ background: '#1e293b', padding: '8px', borderRadius: '6px', textAlign: 'center' }}>
                       <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block' }}>Abandono</span>
                       <strong style={{ fontSize: '14px', color: '#fbbf24' }}>
-                        {typeof zonaData.plantel.abandono === 'number' && Number.isFinite(zonaData.plantel.abandono) && zonaData.plantel.abandono > 0
-                          ? `${zonaData.plantel.abandono}%`
-                          : 'N/D'}
+                        {formatZoneMetric(zonaData.plantel.abandono, { pct: true })}
                       </strong>
                     </div>
                     <div style={{ background: '#1e293b', padding: '8px', borderRadius: '6px', textAlign: 'center' }}>
                       <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block' }}>Efic. Terminal</span>
                       <strong style={{ fontSize: '14px', color: '#34d399' }}>
-                        {typeof zonaData.plantel.eficienciaTerminal === 'number' && Number.isFinite(zonaData.plantel.eficienciaTerminal) && zonaData.plantel.eficienciaTerminal > 0
-                          ? `${zonaData.plantel.eficienciaTerminal}%`
-                          : 'N/D'}
+                        {formatZoneMetric(zonaData.plantel.eficienciaTerminal, { pct: true })}
                       </strong>
                     </div>
                     <div style={{ background: '#1e293b', padding: '8px', borderRadius: '6px', textAlign: 'center' }}>
                       <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block' }}>Reprobación</span>
                       <strong style={{ fontSize: '14px', color: '#f87171' }}>
-                        {typeof zonaData.plantel.reprobacion === 'number' && Number.isFinite(zonaData.plantel.reprobacion) && zonaData.plantel.reprobacion > 0
-                          ? `${zonaData.plantel.reprobacion}%`
-                          : 'N/D'}
+                        {formatZoneMetric(zonaData.plantel.reprobacion, { pct: true })}
                       </strong>
                     </div>
                   </div>

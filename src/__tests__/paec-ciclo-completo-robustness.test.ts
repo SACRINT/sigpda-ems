@@ -50,6 +50,7 @@ import {
   invalidatePaecStepCache,
 } from '@/app/[locale]/paec/nuevo/PaecWizardClient';
 import { getZoneContextForSchool } from '@/lib/zone-sync-service';
+import { formatZoneMetric } from '@/lib/zone-metric-format';
 import { validatePaecStepResult, calculateGlobalPaecScore } from '@/lib/paec-quality-gate';
 
 describe('B6: Suite de Integración y Robustez para Ciclo Completo PAEC (B1-B5)', () => {
@@ -316,11 +317,11 @@ describe('B6: Suite de Integración y Robustez para Ciclo Completo PAEC (B1-B5)'
     expect(zoneCtx.plantel?.eficienciaTerminal).toBeUndefined();
     expect(zoneCtx.plantel?.reprobacion).toBeUndefined();
 
-    // Comportamiento del renderizado seguro:
-    const safeDisplay = (val: unknown) =>
-      typeof val === 'number' && Number.isFinite(val) && val > 0 ? `${val}%` : 'N/D';
-
-    expect(safeDisplay(zoneCtx.plantel?.abandono)).toBe('N/D');
-    expect(safeDisplay(zoneCtx.plantel?.eficienciaTerminal)).toBe('N/D');
+    // Comportamiento del renderizado seguro con helper compartido real:
+    expect(formatZoneMetric(zoneCtx.plantel?.abandono, { pct: true })).toBe('N/D');
+    expect(formatZoneMetric(zoneCtx.plantel?.eficienciaTerminal, { pct: true })).toBe('N/D');
+    expect(formatZoneMetric(0, { pct: true })).toBe('0%');
+    expect(formatZoneMetric(0)).toBe('0');
+    expect(formatZoneMetric(4.5, { pct: true })).toBe('4.5%');
   });
 });

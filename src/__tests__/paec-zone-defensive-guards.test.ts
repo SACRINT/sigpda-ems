@@ -12,6 +12,7 @@ vi.mock('@/lib/db', () => ({
 
 import { sql } from '@/lib/db';
 import { getZoneContextForSchool } from '@/lib/zone-sync-service';
+import { formatZoneMetric } from '@/lib/zone-metric-format';
 
 describe('B5: Defensive Guards N/D para Métricas de Zona F11/911 en PAEC', () => {
   beforeEach(() => {
@@ -55,20 +56,23 @@ describe('B5: Defensive Guards N/D para Métricas de Zona F11/911 en PAEC', () =
     expect(result.plantel?.matricula).toBe(45);
   });
 
-  it('2. Formateador UI defensivo: Renderiza "N/D" ante valores undefined, null, NaN o 0', () => {
-    const formatMetric = (val: unknown): string => {
-      return typeof val === 'number' && Number.isFinite(val) && val > 0 ? `${val}%` : 'N/D';
-    };
+  it('2. Formateador UI defensivo: Renderiza "N/D" ante ausencia/inválidos y formatea métricas válidas', () => {
+    expect(formatZoneMetric(undefined)).toBe('N/D');
+    expect(formatZoneMetric(null)).toBe('N/D');
+    expect(formatZoneMetric(NaN)).toBe('N/D');
+    expect(formatZoneMetric('')).toBe('N/D');
+    expect(formatZoneMetric('   ')).toBe('N/D');
+    expect(formatZoneMetric('abc')).toBe('N/D');
+    expect(formatZoneMetric(-1)).toBe('N/D');
 
-    expect(formatMetric(undefined)).toBe('N/D');
-    expect(formatMetric(null)).toBe('N/D');
-    expect(formatMetric(NaN)).toBe('N/D');
-    expect(formatMetric(0)).toBe('N/D');
-    expect(formatMetric('')).toBe('N/D');
+    // 0 legítimo se conserva
+    expect(formatZoneMetric(0)).toBe('0');
+    expect(formatZoneMetric(0, { pct: true })).toBe('0%');
 
     // Valores válidos positivos se formatean con %
-    expect(formatMetric(4.5)).toBe('4.5%');
-    expect(formatMetric(89.2)).toBe('89.2%');
+    expect(formatZoneMetric(4.5, { pct: true })).toBe('4.5%');
+    expect(formatZoneMetric(89.2, { pct: true })).toBe('89.2%');
+    expect(formatZoneMetric(120)).toBe('120');
   });
 
   it('3. Plantel con métricas válidas: Preserva valores exactos de 911/F11', async () => {
