@@ -2289,7 +2289,7 @@ interface PaecProjectForPmc {
                     ⚖️ Marco Normativo y Fundamentación Jurídica
                     {normativaData ? (
                       <span style={{ marginLeft: '8px', color: '#34d399', fontSize: '13px' }}>
-                        ✓ Vinculado ({Array.isArray((normativaData as { documentos?: unknown[] })?.documentos) ? (normativaData as { documentos?: unknown[] }).documentos!.length : 95} documentos vigentes)
+                        ✓ Vinculado{Array.isArray((normativaData as { documentos?: unknown[] })?.documentos) ? ` (${(normativaData as { documentos?: unknown[] }).documentos!.length} documentos)` : ''}
                       </span>
                     ) : (
                       <span style={{ marginLeft: '8px', color: '#f59e0b', fontSize: '13px' }}>
@@ -2331,11 +2331,11 @@ interface PaecProjectForPmc {
                 </div>
               ) : generating === 'normativa' ? (
                 <div style={{ padding: '20px', textAlign: 'center', background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '8px' }}>
-                  <p style={{ fontWeight: 600, color: '#818cf8', margin: 0 }}>Sincronizando normateca jurídica (95 documentos vigentes)...</p>
+                  <p style={{ fontWeight: 600, color: '#818cf8', margin: 0 }}>Sincronizando normateca jurídica oficial...</p>
                 </div>
               ) : (
                 <div style={{ padding: '16px', textAlign: 'center', color: 'rgba(240,244,255,0.45)', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', fontSize: '13px' }}>
-                  Haz clic en &quot;Generar Normativa&quot; para vincular los 95 documentos oficiales vigentes a tu PMC.
+                  Haz clic en &quot;Generar Normativa&quot; para vincular los documentos oficiales vigentes a tu PMC.
                 </div>
               )}
             </div>
