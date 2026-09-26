@@ -205,12 +205,18 @@ export async function generatePmcPDF(
     doc.line(margin, 12, pageWidth - margin, 12);
   };
 
+  const sectionPageMap = new Map<string, number>();
+  const tocEntries: Array<{ key: string; isSection: boolean }> = [];
+  const pageCellCoords: Array<{ x: number; y: number; width: number; height: number; key: string; isSection: boolean }> = [];
+
   const addSectionHeader = (titulo: string) => {
     if (curY > pageHeight - 35) {
       doc.addPage();
       curY = 18;
     }
     drawHeaderOnNewPage();
+
+    sectionPageMap.set(titulo, doc.getNumberOfPages());
 
     doc.setFillColor(...NAVY);
     doc.rect(margin, curY, contentWidth, 6.5, 'F');
@@ -225,17 +231,22 @@ export async function generatePmcPDF(
   // ── ÍNDICE GENERAL ──────────────────────────────────────────────────────────
   addSectionHeader('ÍNDICE GENERAL');
 
-  const tocRows = [];
+  const tocRows: Array<Array<{ content: string; styles?: Record<string, unknown> }>> = [];
   for (const sec of PMC_SECCIONES_CANONICAS) {
+    tocEntries.push({ key: sec.titulo, isSection: true });
     tocRows.push([
       { content: String(sec.numero), styles: { fontStyle: 'bold' as const, halign: 'center' as const, fillColor: GRAY_BG } },
       { content: sec.titulo, styles: { fontStyle: 'bold' as const, fillColor: GRAY_BG } },
+      { content: '', styles: { fontStyle: 'bold' as const, halign: 'center' as const, fillColor: GRAY_BG } },
     ]);
     if (sec.subsecciones) {
       for (const sub of sec.subsecciones) {
+        const subRotulo = `${sub.numero} ${sub.titulo}`;
+        tocEntries.push({ key: subRotulo, isSection: false });
         tocRows.push([
           { content: sub.numero, styles: { halign: 'center' as const, textColor: TEXT_MUTED } },
           { content: `   ${sub.titulo}`, styles: { fontStyle: 'italic' as const, textColor: TEXT_MUTED } },
+          { content: '', styles: { halign: 'center' as const, textColor: TEXT_MUTED } },
         ]);
       }
     }
@@ -244,13 +255,27 @@ export async function generatePmcPDF(
   autoTable(doc, {
     startY: curY,
     head: [[
-      { content: 'N°', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], halign: 'center', cellWidth: 15 } },
+      { content: 'N°', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], halign: 'center', cellWidth: 12 } },
       { content: 'Contenido Temático / Capítulo Oficial', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
+      { content: 'Pág.', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], halign: 'center', cellWidth: 14 } },
     ]],
-    body: tocRows,
+    body: tocRows as unknown as RowInput[],
     theme: 'grid',
     styles: { fontSize: 7, cellPadding: 2, textColor: TEXT_DARK, lineColor: [210, 220, 235] },
     margin: { left: margin, right: margin },
+    didDrawCell: (data) => {
+      if (data.section === 'body' && data.column.index === 2 && data.row.index < tocEntries.length) {
+        const entry = tocEntries[data.row.index];
+        pageCellCoords.push({
+          x: data.cell.x,
+          y: data.cell.y,
+          width: data.cell.width,
+          height: data.cell.height,
+          key: entry.key,
+          isSection: entry.isSection,
+        });
+      }
+    },
   });
   curY = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 8 : curY + 40;
 
@@ -404,6 +429,7 @@ export async function generatePmcPDF(
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(...BLUE_MID);
+  sectionPageMap.set(PMC_SUBSECCIONES_DIAGNOSTICO.CONTEXTO, doc.getNumberOfPages());
   doc.text(PMC_SUBSECCIONES_DIAGNOSTICO.CONTEXTO, margin, curY);
   curY += 4;
 
@@ -424,6 +450,7 @@ export async function generatePmcPDF(
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(...BLUE_MID);
+  sectionPageMap.set(PMC_SUBSECCIONES_DIAGNOSTICO.INDICADORES, doc.getNumberOfPages());
   doc.text(PMC_SUBSECCIONES_DIAGNOSTICO.INDICADORES, margin, curY);
   curY += 4;
 
@@ -475,6 +502,7 @@ export async function generatePmcPDF(
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(...BLUE_MID);
+  sectionPageMap.set(PMC_SUBSECCIONES_DIAGNOSTICO.INFRAESTRUCTURA, doc.getNumberOfPages());
   doc.text(PMC_SUBSECCIONES_DIAGNOSTICO.INFRAESTRUCTURA, margin, curY);
   curY += 4;
 
@@ -495,6 +523,7 @@ export async function generatePmcPDF(
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(...BLUE_MID);
+  sectionPageMap.set(PMC_SUBSECCIONES_DIAGNOSTICO.BENEFICIOS, doc.getNumberOfPages());
   doc.text(PMC_SUBSECCIONES_DIAGNOSTICO.BENEFICIOS, margin, curY);
   curY += 4;
 
@@ -516,6 +545,7 @@ export async function generatePmcPDF(
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(...BLUE_MID);
+  sectionPageMap.set(PMC_SUBSECCIONES_DIAGNOSTICO.FODA, doc.getNumberOfPages());
   doc.text(PMC_SUBSECCIONES_DIAGNOSTICO.FODA, margin, curY);
   curY += 4;
 
@@ -867,6 +897,20 @@ export async function generatePmcPDF(
     margin: { left: margin, right: margin },
     pageBreak: 'avoid',
   });
+
+  // ── SEGUNDA PASADA: RELLENAR FOLIOS EN LA TABLA DEL ÍNDICE (PÁGINA 2) ───────
+  doc.setPage(2);
+  for (const cell of pageCellCoords) {
+    const pageNum = sectionPageMap.get(cell.key) ?? 3;
+    doc.setFont('helvetica', cell.isSection ? 'bold' : 'normal');
+    doc.setFontSize(7);
+    if (cell.isSection) {
+      doc.setTextColor(...NAVY);
+    } else {
+      doc.setTextColor(...TEXT_MUTED);
+    }
+    doc.text(String(pageNum), cell.x + cell.width / 2, cell.y + cell.height / 2 + 1, { align: 'center' });
+  }
 
   // ── PIE DE PÁGINA FORMAL CON FOLIADO ────────────────────────────────────────
   const totalPages = doc.getNumberOfPages();

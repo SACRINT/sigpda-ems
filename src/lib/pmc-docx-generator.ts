@@ -369,11 +369,16 @@ function buildIndice(): (Paragraph | Table)[] {
     ...gap(),
   ];
 
+  const colNumW = 1000;
+  const colPagW = 1200;
+  const colTitW = CONTENT - colNumW - colPagW;
+
   const tocRows: TableRow[] = [
     new TableRow({
       children: [
-        tcH('N°', { w: 1000 }),
-        tcH('Contenido Temático / Capítulo'),
+        tcH('N°', { w: colNumW, align: AlignmentType.CENTER }),
+        tcH('Contenido Temático / Capítulo Oficial', { w: colTitW }),
+        tcH('Sección', { w: colPagW, align: AlignmentType.CENTER }),
       ],
     }),
   ];
@@ -382,8 +387,9 @@ function buildIndice(): (Paragraph | Table)[] {
     tocRows.push(
       new TableRow({
         children: [
-          tc(String(sec.numero), { w: 1000, bold: true, align: AlignmentType.CENTER, fill: C.alt }),
-          tc(sec.titulo, { bold: true, fill: C.alt }),
+          tc(String(sec.numero), { w: colNumW, bold: true, align: AlignmentType.CENTER, fill: C.alt }),
+          tc(sec.titulo, { w: colTitW, bold: true, fill: C.alt }),
+          tc(`Cap. ${sec.numero}`, { w: colPagW, bold: true, align: AlignmentType.CENTER, fill: C.alt }),
         ],
       })
     );
@@ -392,8 +398,9 @@ function buildIndice(): (Paragraph | Table)[] {
         tocRows.push(
           new TableRow({
             children: [
-              tc(sub.numero, { w: 1000, align: AlignmentType.CENTER }),
-              tc(`    ${sub.titulo}`, { italics: true, color: C.muted }),
+              tc(sub.numero, { w: colNumW, align: AlignmentType.CENTER }),
+              tc(`    ${sub.titulo}`, { w: colTitW, italics: true, color: C.muted }),
+              tc(sub.numero, { w: colPagW, align: AlignmentType.CENTER, italics: true, color: C.muted }),
             ],
           })
         );
@@ -401,7 +408,7 @@ function buildIndice(): (Paragraph | Table)[] {
     }
   }
 
-  items.push(tbl(tocRows, [1000, CONTENT - 1000]));
+  items.push(tbl(tocRows, [colNumW, colTitW, colPagW]));
   items.push(new Paragraph({ children: [new PageBreak()] }));
   return items;
 }

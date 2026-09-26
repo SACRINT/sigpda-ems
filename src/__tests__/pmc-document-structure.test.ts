@@ -171,6 +171,7 @@ describe('H-100 / H-101: SSoT Estructura Documental y Paridad PDF vs DOCX', () =
     // Verificar Índice General en ambos
     expect(docxText).toContain('ÍNDICE GENERAL');
     expect(pdfText).toContain('ÍNDICE GENERAL');
+    expect(pdfText).toContain('Pág.');
 
     // Lista de las 8 secciones canónicas desde el SSoT
     const secciones = [
