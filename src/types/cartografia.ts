@@ -15,8 +15,8 @@ export interface CartografiaPlantelItem {
   egresados?: number;
   bajasDefinitivas?: number;
   eficienciaTerminal?: number;
-  abandono: number;
-  reprobacion: number;
+  abandono?: number;
+  reprobacion?: number;
   promedioGeneral: number;
   paecProyecto?: string;
   paecProblematica?: string;

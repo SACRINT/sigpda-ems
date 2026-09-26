@@ -321,7 +321,9 @@ export async function getZoneSupervisorDashboard(supervisorId: string): Promise<
 
     const cartografiaPlantel = pipsBaseCtx?.planteles.find((p) => p.cct.toUpperCase() === cct);
     const isPrioritario = cartografiaPlantel
-      ? cartografiaPlantel.abandono > (pipsBaseCtx?.promAbandono || 0) + 3 ||
+      ? (cartografiaPlantel.abandono !== undefined &&
+          (pipsBaseCtx?.promAbandono || 0) > 0 &&
+          cartografiaPlantel.abandono > (pipsBaseCtx?.promAbandono || 0) + 3) ||
         (cartografiaPlantel.eficienciaTerminal !== undefined &&
           (pipsBaseCtx?.promEficiencia || 0) > 0 &&
           cartografiaPlantel.eficienciaTerminal < (pipsBaseCtx?.promEficiencia || 0) - 5)

@@ -128,13 +128,15 @@ export default function ExcelUploadZone({
 
         const conET = planteles.filter(p => p.eficienciaTerminal !== undefined && p.eficienciaTerminal > 0);
         const promEficiencia = clientResult.zona?.promedioEficiencia ?? (conET.length > 0 ? parseFloat((conET.reduce((a, b) => a + (b.eficienciaTerminal ?? 0), 0) / conET.length).toFixed(2)) : undefined);
-        const promAbandono = clientResult.zona?.promedioAbandono ?? parseFloat((conMat.reduce((a, b) => a + b.abandono, 0) / div).toFixed(2));
+        const conAbandono = planteles.filter(p => p.abandono !== undefined);
+        const promAbandono = clientResult.zona?.promedioAbandono ?? (conAbandono.length > 0 ? parseFloat((conAbandono.reduce((a, b) => a + (b.abandono ?? 0), 0) / conAbandono.length).toFixed(2)) : 0);
         const promAprov = clientResult.zona?.promedioCalificaciones ?? parseFloat((conMat.reduce((a, b) => a + b.promedioGeneral, 0) / div).toFixed(2));
-        const promReprob = clientResult.zona?.promedioReprobacion ?? parseFloat((conMat.reduce((a, b) => a + b.reprobacion, 0) / div).toFixed(2));
+        const conReprob = planteles.filter(p => p.reprobacion !== undefined);
+        const promReprob = clientResult.zona?.promedioReprobacion ?? (conReprob.length > 0 ? parseFloat((conReprob.reduce((a, b) => a + (b.reprobacion ?? 0), 0) / conReprob.length).toFixed(2)) : 0);
 
         const prioritarios = planteles
-          .filter(p => p.abandono > promAbandono + 3 || (p.eficienciaTerminal !== undefined && promEficiencia !== undefined && p.eficienciaTerminal < promEficiencia - 5))
-          .map(p => `${p.nombre} (Abandono: ${p.abandono}%, ET: ${p.eficienciaTerminal !== undefined ? `${p.eficienciaTerminal}%` : 'N/D'})`);
+          .filter(p => (p.abandono !== undefined && promAbandono > 0 && p.abandono > promAbandono + 3) || (p.eficienciaTerminal !== undefined && promEficiencia !== undefined && p.eficienciaTerminal < promEficiencia - 5))
+          .map(p => `${p.nombre} (Abandono: ${p.abandono !== undefined ? `${p.abandono}%` : 'N/D'}, ET: ${p.eficienciaTerminal !== undefined ? `${p.eficienciaTerminal}%` : 'N/D'})`);
 
         setParsedData({
           filename: file.name,

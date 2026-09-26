@@ -132,13 +132,19 @@ export async function parseCartografiaMatriz(
       ? parseFloat((plantelesConEficiencia.reduce((a, b) => a + (b.eficienciaTerminal ?? 0), 0) / plantelesConEficiencia.length).toFixed(2))
       : undefined);
 
-    const promAbandono = zonaData?.promedioAbandono ?? parseFloat((plantelesConMatricula.reduce((a, b) => a + b.abandono, 0) / divisor).toFixed(2));
+    const plantelesConAbandono = planteles.filter((p) => p.abandono !== undefined);
+    const promAbandono = zonaData?.promedioAbandono ?? (plantelesConAbandono.length > 0
+      ? parseFloat((plantelesConAbandono.reduce((a, b) => a + (b.abandono ?? 0), 0) / plantelesConAbandono.length).toFixed(2))
+      : 0);
+    const plantelesConReprobacion = planteles.filter((p) => p.reprobacion !== undefined);
+    const promReprobacion = zonaData?.promedioReprobacion ?? (plantelesConReprobacion.length > 0
+      ? parseFloat((plantelesConReprobacion.reduce((a, b) => a + (b.reprobacion ?? 0), 0) / plantelesConReprobacion.length).toFixed(2))
+      : 0);
     const promAprovechamiento = zonaData?.promedioCalificaciones ?? parseFloat((plantelesConMatricula.reduce((a, b) => a + b.promedioGeneral, 0) / divisor).toFixed(2));
-    const promReprobacion = zonaData?.promedioReprobacion ?? parseFloat((plantelesConMatricula.reduce((a, b) => a + b.reprobacion, 0) / divisor).toFixed(2));
 
     const plantelesAtencionPrioritaria = planteles
-      .filter((p) => p.abandono > promAbandono + 3 || (p.eficienciaTerminal !== undefined && promEficiencia !== undefined && p.eficienciaTerminal < promEficiencia - 5))
-      .map((p) => `${p.nombre} (Abandono: ${p.abandono}%, ET: ${p.eficienciaTerminal !== undefined ? `${p.eficienciaTerminal}%` : 'N/D'})`);
+      .filter((p) => (p.abandono !== undefined && promAbandono > 0 && p.abandono > promAbandono + 3) || (p.eficienciaTerminal !== undefined && promEficiencia !== undefined && p.eficienciaTerminal < promEficiencia - 5))
+      .map((p) => `${p.nombre} (Abandono: ${p.abandono !== undefined ? `${p.abandono}%` : 'N/D'}, ET: ${p.eficienciaTerminal !== undefined ? `${p.eficienciaTerminal}%` : 'N/D'})`);
 
     const momento2: CartografiaMomento2Organizar = {
       capaCuantitativa: {

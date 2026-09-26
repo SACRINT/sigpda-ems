@@ -124,6 +124,53 @@ describe('Cartografia Context Builder (H-011)', () => {
     expect(ctx.momento2.capaCuantitativa.resumenEstadistico911F11).not.toContain('85%');
     expect(ctx.momento2.capaCuantitativa.resumenEstadistico911F11).not.toContain('0%');
   });
+
+  it('elimina defaults fabricados 5/8 y respeta ceros legítimos y datos ausentes (H-084)', () => {
+    // Caso (a) y (c): plantel sin abandono/reprobación
+    const rowSinMetricas: Record<string, unknown> = {
+      zona_nombre: 'Zona 004',
+      planteles_json: [
+        {
+          cct: '21EBH0015A',
+          nombre: 'Plantel Sin Abandono',
+          matricula: 100,
+          promedioGeneral: 8.5,
+          // abandono y reprobacion ausentes
+        },
+      ],
+    };
+
+    const ctxSin = buildCartografiaBaseContext(rowSinMetricas);
+    expect(ctxSin.planteles[0].abandono).toBeUndefined();
+    expect(ctxSin.planteles[0].reprobacion).toBeUndefined();
+    expect(ctxSin.promAbandono).not.toBe(5);
+    expect(ctxSin.promReprobacion).not.toBe(8);
+    expect(ctxSin.momento2.capaCuantitativa.resumenEstadistico911F11).toContain('Abandono N/D');
+    expect(ctxSin.momento2.capaCuantitativa.resumenEstadistico911F11).not.toContain('Abandono: 5%');
+    expect(ctxSin.momento2.capaCuantitativa.resumenEstadistico911F11).not.toContain('5%');
+
+    // Caso (b): plantel con abandono 0 real (0% oficial)
+    const rowConCero: Record<string, unknown> = {
+      zona_nombre: 'Zona 004',
+      planteles_json: [
+        {
+          cct: '21EBH0020B',
+          nombre: 'Plantel Con 0% Deserción',
+          matricula: 100,
+          abandono: 0,
+          reprobacion: 0,
+          promedioGeneral: 9.0,
+        },
+      ],
+    };
+
+    const ctxCero = buildCartografiaBaseContext(rowConCero);
+    expect(ctxCero.planteles[0].abandono).toBe(0);
+    expect(ctxCero.planteles[0].reprobacion).toBe(0);
+    expect(ctxCero.promAbandono).toBe(0);
+    expect(ctxCero.promReprobacion).toBe(0);
+    expect(ctxCero.momento2.capaCuantitativa.resumenEstadistico911F11).toContain('Abandono 0%');
+  });
 });
 
 describe('Cartografia Fallback Defaults (H-013)', () => {

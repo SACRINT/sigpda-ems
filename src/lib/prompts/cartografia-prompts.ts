@@ -80,7 +80,7 @@ export function buildCartografiaFullPrompt(
     .slice(0, 20)
     .map(
       (p) =>
-        `- ${p.nombre} (CCT: ${p.cct}): Matrícula ${p.matricula}, Abandono ${p.abandono}%, Eficiencia ${p.eficienciaTerminal !== undefined && p.eficienciaTerminal > 0 ? `${p.eficienciaTerminal}%` : 'N/D'}, Promedio ${p.promedioGeneral}. Proyecto PAEC: "${p.paecProyecto}"`
+        `- ${p.nombre} (CCT: ${p.cct}): Matrícula ${p.matricula}, Abandono ${p.abandono !== undefined ? `${p.abandono}%` : 'N/D'}, Eficiencia ${p.eficienciaTerminal !== undefined && p.eficienciaTerminal > 0 ? `${p.eficienciaTerminal}%` : 'N/D'}, Promedio ${p.promedioGeneral}. Proyecto PAEC: "${p.paecProyecto}"`
     )
     .join('\n');
 
@@ -274,7 +274,7 @@ function renderBaseStats(
     .slice(0, 15)
     .map(
       (p) =>
-        `- ${p.nombre} (${p.cct}): Matrícula ${p.matricula}, Abandono ${p.abandono}%, Eficiencia ${p.eficienciaTerminal !== undefined && p.eficienciaTerminal > 0 ? `${p.eficienciaTerminal}%` : 'N/D'}, Promedio ${p.promedioGeneral}. Proyecto PAEC: "${p.paecProyecto}"`
+        `- ${p.nombre} (${p.cct}): Matrícula ${p.matricula}, Abandono ${p.abandono !== undefined ? `${p.abandono}%` : 'N/D'}, Eficiencia ${p.eficienciaTerminal !== undefined && p.eficienciaTerminal > 0 ? `${p.eficienciaTerminal}%` : 'N/D'}, Promedio ${p.promedioGeneral}. Proyecto PAEC: "${p.paecProyecto}"`
     )
     .join('\n');
 

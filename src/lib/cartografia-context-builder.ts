@@ -54,6 +54,13 @@ export function buildCartografiaBaseContext(
     atps: atpsList,
   };
 
+  const parseNum = (val: unknown): number | undefined => {
+    if (val === undefined || val === null) return undefined;
+    if (typeof val === 'string' && val.trim() === '') return undefined;
+    const n = typeof val === 'number' ? val : Number(val);
+    return Number.isFinite(n) && n >= 0 ? n : undefined;
+  };
+
   const rawPlanteles = Array.isArray(row.planteles_json) ? (row.planteles_json as Record<string, unknown>[]) : [];
   const planteles: CartografiaPlantelItem[] = rawPlanteles.map((p, idx) => {
     const rawEficiencia = p.eficienciaTerminal;
@@ -67,13 +74,13 @@ export function buildCartografiaBaseContext(
       localidad: String(p.localidad || 'Comunidad escolar'),
       municipio: String(p.municipio || row.municipio_sede || identificacion.municipioSede),
       turno: String(p.turno || 'MATUTINO'),
-      matricula: Number(p.matricula) || Number(p.total) || 0,
+      matricula: parseNum(p.matricula) ?? parseNum(p.total) ?? 0,
       egresados: Number(p.egresados) || 0,
       bajasDefinitivas: Number(p.bajasDefinitivas) || 0,
       eficienciaTerminal,
-      abandono: Number(p.abandono) || 5,
-      reprobacion: Number(p.reprobacion) || 8,
-      promedioGeneral: Number(p.promedioGeneral) || Number(p.promedioCalificaciones) || 8.0,
+      abandono: parseNum(p.abandono),
+      reprobacion: parseNum(p.reprobacion),
+      promedioGeneral: parseNum(p.promedioGeneral) ?? parseNum(p.promedioCalificaciones) ?? 0,
       paecProyecto: String(p.paecProyecto || 'Proyecto Comunitario Integrador en proceso'),
       paecProblematica: String(p.paecProblematica || 'Reto socioformativo del entorno local'),
     };
@@ -88,13 +95,22 @@ export function buildCartografiaBaseContext(
     ? parseFloat((plantelesConEficiencia.reduce((a, b) => a + (b.eficienciaTerminal ?? 0), 0) / plantelesConEficiencia.length).toFixed(2))
     : undefined;
 
-  const promAbandono = parseFloat((plantelesConMatricula.reduce((a, b) => a + b.abandono, 0) / divisor).toFixed(2));
+  // Promediar solo planteles con valor numérico definido (respetando 0 legítimo, evitando números sintéticos)
+  const plantelesConAbandono = planteles.filter((p) => p.abandono !== undefined);
+  const promAbandono = plantelesConAbandono.length > 0
+    ? parseFloat((plantelesConAbandono.reduce((a, b) => a + (b.abandono ?? 0), 0) / plantelesConAbandono.length).toFixed(2))
+    : 0;
+
+  const plantelesConReprobacion = planteles.filter((p) => p.reprobacion !== undefined);
+  const promReprobacion = plantelesConReprobacion.length > 0
+    ? parseFloat((plantelesConReprobacion.reduce((a, b) => a + (b.reprobacion ?? 0), 0) / plantelesConReprobacion.length).toFixed(2))
+    : 0;
+
   const promAprovechamiento = parseFloat((plantelesConMatricula.reduce((a, b) => a + b.promedioGeneral, 0) / divisor).toFixed(2));
-  const promReprobacion = parseFloat((plantelesConMatricula.reduce((a, b) => a + b.reprobacion, 0) / divisor).toFixed(2));
 
   const plantelesAtencionPrioritaria = planteles
-    .filter((p) => p.abandono > promAbandono + 3 || (p.eficienciaTerminal !== undefined && promEficiencia !== undefined && p.eficienciaTerminal < promEficiencia - 5))
-    .map((p) => `${p.nombre} (Abandono: ${p.abandono}%, ET: ${p.eficienciaTerminal !== undefined ? `${p.eficienciaTerminal}%` : 'N/D'})`);
+    .filter((p) => (p.abandono !== undefined && promAbandono > 0 && p.abandono > promAbandono + 3) || (p.eficienciaTerminal !== undefined && promEficiencia !== undefined && p.eficienciaTerminal < promEficiencia - 5))
+    .map((p) => `${p.nombre} (Abandono: ${p.abandono !== undefined ? `${p.abandono}%` : 'N/D'}, ET: ${p.eficienciaTerminal !== undefined ? `${p.eficienciaTerminal}%` : 'N/D'})`);
 
   const rawProblems = Array.isArray(row.problematicas_json) ? (row.problematicas_json as Record<string, unknown>[]) : [];
   const problematicasComunes = rawProblems.map((pr) => String(pr.titulo || pr.descripcion || '')).filter(Boolean);
@@ -115,7 +131,7 @@ export function buildCartografiaBaseContext(
       promedioReprobacionZona: promReprobacion,
       matriculaTotal: matriculaTotalZona,
       plantelesAtencionPrioritaria,
-      resumenEstadistico911F11: `Análisis consolidado 911/F11: Abandono ${promAbandono}%, Eficiencia Terminal ${promEficiencia !== undefined ? `${promEficiencia}%` : 'N/D'}, Aprovechamiento ${promAprovechamiento}, Reprobación ${promReprobacion}%.`,
+      resumenEstadistico911F11: `Análisis consolidado 911/F11: Abandono ${plantelesConAbandono.length > 0 ? `${promAbandono}%` : 'N/D'}, Eficiencia Terminal ${promEficiencia !== undefined ? `${promEficiencia}%` : 'N/D'}, Aprovechamiento ${promAprovechamiento}, Reprobación ${plantelesConReprobacion.length > 0 ? `${promReprobacion}%` : 'N/D'}.`,
     },
     capaCualitativa: {
       problematicasComunes: problematicasComunes.length > 0 ? problematicasComunes : [
