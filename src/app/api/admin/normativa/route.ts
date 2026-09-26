@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { sql } from '@/lib/db/client';
 // src/app/api/admin/normativa/route.ts
 // Admin CRUD para el catálogo normativo (documentos y artículos)
@@ -15,14 +14,30 @@ function getDb() { return sql(); }
 import { getCatalogoMetasPmc } from '@/lib/catalogo-metas-pmc';
 import type { MetaCatalogEntry } from '@/types/pmc';
 
+interface FilaCatalogoMeta {
+  id: string;
+  nombre: string;
+  categoria: string;
+  subcategoria: string;
+  articulos: string[] | null;
+  vigencia: boolean;
+  aplicabilidad_nivel: 'obligatoria' | 'recomendada' | 'contextual';
+  aplicabilidad_justificacion: string;
+  fase: string | null;
+  estado: 'pendiente' | 'en_desarrollo' | 'cumplida' | null;
+  evidencia: string | null;
+  orden_display: number;
+}
+
 // ─── GET — Lista todo el catálogo normativo ────────────────────────────────────
 export async function GET(request: NextRequest) {
   try {
     await requireAdmin();
-  } catch (e: any) {
-    if (e.message === 'UNAUTHORIZED') return adminUnauthorized();
-    if (e.message === 'FORBIDDEN') return adminForbidden();
-    return NextResponse.json({ error: e.message }, { status: 500 });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg === 'UNAUTHORIZED') return adminUnauthorized();
+    if (msg === 'FORBIDDEN') return adminForbidden();
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 
   const db = getDb();
@@ -42,7 +57,7 @@ export async function GET(request: NextRequest) {
           ORDER BY orden_display ASC, id ASC
         `;
         if (rows.length > 0) {
-          const metas: MetaCatalogEntry[] = rows.map((r: any) => ({
+          const metas: MetaCatalogEntry[] = (rows as unknown as FilaCatalogoMeta[]).map((r) => ({
             id: r.id,
             nombre: r.nombre,
             categoria: r.categoria,
@@ -53,9 +68,9 @@ export async function GET(request: NextRequest) {
               nivel: r.aplicabilidad_nivel,
               justificacion: r.aplicabilidad_justificacion,
             },
-            fase: r.fase,
-            estado: r.estado,
-            evidencia: r.evidencia,
+            fase: r.fase || undefined,
+            estado: r.estado || undefined,
+            evidencia: r.evidencia || undefined,
             orden_display: r.orden_display,
           }));
           return NextResponse.json({ success: true, metas });
@@ -118,9 +133,10 @@ export async function GET(request: NextRequest) {
     `;
 
     return NextResponse.json({ documentos, stats: stats[0] || {} });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[admin/normativa] Error en GET:', error);
-    return NextResponse.json({ error: error.message || 'Error al obtener normativa' }, { status: 500 });
+    const msg = error instanceof Error ? error.message : 'Error al obtener normativa';
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
@@ -128,10 +144,11 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     await requireAdmin();
-  } catch (e: any) {
-    if (e.message === 'UNAUTHORIZED') return adminUnauthorized();
-    if (e.message === 'FORBIDDEN') return adminForbidden();
-    return NextResponse.json({ error: e.message }, { status: 500 });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg === 'UNAUTHORIZED') return adminUnauthorized();
+    if (msg === 'FORBIDDEN') return adminForbidden();
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 
   const db = getDb();
@@ -223,12 +240,13 @@ export async function POST(request: NextRequest) {
 
     // ── Guardar configuración predeterminada (snapshot del estado actual de vigencia)
     if (body.action === 'save_default') {
-      const allDocs = await db`SELECT id, vigente FROM normativa_documentos`;
+      interface DocRow { id: number; vigente: boolean }
+      const allDocs = (await db`SELECT id, vigente FROM normativa_documentos`) as unknown as DocRow[];
       const snapshot = {
         saved_at: new Date().toISOString(),
         total: allDocs.length,
-        vigentes: allDocs.filter((d: any) => d.vigente).map((d: any) => d.id),
-        no_vigentes: allDocs.filter((d: any) => !d.vigente).map((d: any) => d.id),
+        vigentes: allDocs.filter((d) => d.vigente).map((d) => d.id),
+        no_vigentes: allDocs.filter((d) => !d.vigente).map((d) => d.id),
       };
       const snapshotJson = JSON.stringify(snapshot);
       await db`
@@ -250,20 +268,20 @@ export async function POST(request: NextRequest) {
           { status: 404 }
         );
       }
-      let snapshot: { vigentes: any[]; no_vigentes: any[]; saved_at?: string; updated_at?: string; total?: number };
+      let snapshot: { vigentes: Array<number | string>; no_vigentes: Array<number | string>; saved_at?: string; updated_at?: string; total?: number };
       try {
         snapshot = typeof rows[0].value === 'string' ? JSON.parse(rows[0].value) : rows[0].value;
       } catch {
         return NextResponse.json({ error: 'El snapshot guardado está corrupto.' }, { status: 500 });
       }
 
-      const vigentesIds = (snapshot.vigentes || []).map((id: any) => parseInt(id, 10)).filter((id: number) => !isNaN(id));
+      const vigentesIds = (snapshot.vigentes || []).map((id) => parseInt(String(id), 10)).filter((id: number) => !isNaN(id));
 
       if (vigentesIds.length > 0) {
         await db`UPDATE normativa_documentos SET vigente = TRUE WHERE id = ANY(${vigentesIds}::int[])`;
         await db`UPDATE normativa_documentos SET vigente = FALSE WHERE NOT (id = ANY(${vigentesIds}::int[]))`;
-      } else if (snapshot.no_vigentes?.length > 0) {
-        const noVigentesIds = snapshot.no_vigentes.map((id: any) => parseInt(id, 10)).filter((id: number) => !isNaN(id));
+      } else if (snapshot.no_vigentes && snapshot.no_vigentes.length > 0) {
+        const noVigentesIds = snapshot.no_vigentes.map((id) => parseInt(String(id), 10)).filter((id: number) => !isNaN(id));
         await db`UPDATE normativa_documentos SET vigente = FALSE WHERE id = ANY(${noVigentesIds}::int[])`;
       }
 
@@ -278,9 +296,10 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ error: 'Acción no reconocida' }, { status: 400 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[admin/normativa] Error en POST:', error);
-    return NextResponse.json({ error: error.message || 'Error procesando solicitud' }, { status: 500 });
+    const msg = error instanceof Error ? error.message : 'Error procesando solicitud';
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
@@ -288,10 +307,11 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     await requireAdmin();
-  } catch (e: any) {
-    if (e.message === 'UNAUTHORIZED') return adminUnauthorized();
-    if (e.message === 'FORBIDDEN') return adminForbidden();
-    return NextResponse.json({ error: e.message }, { status: 500 });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg === 'UNAUTHORIZED') return adminUnauthorized();
+    if (msg === 'FORBIDDEN') return adminForbidden();
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 
   const db = getDb();
@@ -347,9 +367,10 @@ export async function PATCH(request: NextRequest) {
     }
 
     return NextResponse.json({ error: 'Acción no reconocida' }, { status: 400 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[admin/normativa] Error en PATCH:', error);
-    return NextResponse.json({ error: error.message || 'Error al actualizar' }, { status: 500 });
+    const msg = error instanceof Error ? error.message : 'Error al actualizar';
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
@@ -357,10 +378,11 @@ export async function PATCH(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     await requireAdmin();
-  } catch (e: any) {
-    if (e.message === 'UNAUTHORIZED') return adminUnauthorized();
-    if (e.message === 'FORBIDDEN') return adminForbidden();
-    return NextResponse.json({ error: e.message }, { status: 500 });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg === 'UNAUTHORIZED') return adminUnauthorized();
+    if (msg === 'FORBIDDEN') return adminForbidden();
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 
   const db = getDb();
@@ -380,8 +402,9 @@ export async function DELETE(request: NextRequest) {
     }
 
     return NextResponse.json({ error: 'Debes proporcionar articulo_id o documento_id' }, { status: 400 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[admin/normativa] Error en DELETE:', error);
-    return NextResponse.json({ error: error.message || 'Error al eliminar' }, { status: 500 });
+    const msg = error instanceof Error ? error.message : 'Error al eliminar';
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
