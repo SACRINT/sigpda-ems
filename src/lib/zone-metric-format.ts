@@ -17,3 +17,36 @@ export function formatZoneMetric(val: unknown, opts?: { pct?: boolean }): string
   }
   return opts?.pct ? `${num}%` : `${num}`;
 }
+
+export interface ZoneDiagnosticParams {
+  zonaNumero?: string;
+  cicloEscolar?: string;
+  totalPlanteles: number;
+  matriculaTotal: number;
+  promedioEficiencia?: number;
+  promedioAbandono?: number;
+  promedioAprovechamiento?: number;
+  promedioReprobacion?: number;
+  plantelesPrioritarios?: string[];
+}
+
+/**
+ * Genera la síntesis diagnóstica consolidada 911.7G / F11C para la zona escolar.
+ * Garantiza que la ausencia de métricas se represente con 'N/D' y no con '0%' fabricado.
+ */
+export function buildZoneDiagnosticText(params: ZoneDiagnosticParams): string {
+  const zona = params.zonaNumero || '004';
+  const ciclo = params.cicloEscolar || '2026-2027';
+  const prioritarios = params.plantelesPrioritarios || [];
+
+  return (
+    `Diagnóstico territorial consolidado a partir de la estadística oficial 911.7G y F11C (Zona ${zona}, Ciclo ${ciclo}):\n` +
+    `• Cobertura Zonal: ${params.totalPlanteles} planteles analizados con una matrícula total de ${params.matriculaTotal} estudiantes.\n` +
+    `• Línea Base Cuantitativa: Eficiencia Terminal Zonal del ${formatZoneMetric(params.promedioEficiencia, { pct: true })}, Abandono Escolar Zonal del ${formatZoneMetric(params.promedioAbandono, { pct: true })}, Promedio General de Aprovechamiento en ${formatZoneMetric(params.promedioAprovechamiento)} y Reprobación del ${formatZoneMetric(params.promedioReprobacion, { pct: true })}.\n` +
+    (prioritarios.length > 0
+      ? `• Planteles con Atención Prioritaria: ${prioritarios.join('; ')}.\n`
+      : '') +
+    `• Retos Identificados: Dispersión geográfica, trabajo juvenil estacional y necesidades de nivelación académica en pensamiento matemático y comunicación integral.`
+  );
+}
+

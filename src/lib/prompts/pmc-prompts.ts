@@ -17,6 +17,7 @@
 import type { PmcProject, PmcStatisticalContext, PmcIndicadoresAcademicos, PmcFodaData } from '@/types/pmc';
 import { toRealNumber } from '../numeric-guard';
 import { formatMetasContextForPrompt } from '../catalogo-metas-pmc';
+import { formatZoneMetric } from '../zone-metric-format';
 
 function safeStr(val: unknown, fallback = 'N/D'): string {
   if (val === null || val === undefined) return fallback;
@@ -77,9 +78,9 @@ ${stats.ediemsPre ? `- Resultado Diagnóstico EDIEMS Inicial: ${stats.ediemsPre}
   if (zona) {
     contextoZonaExtra = `
 BENCHMARKS REGIONALES DE ZONA ESCOLAR (${zona.zonaNumero || project.school_zone || 'Supervisión'}):
-- Promedio de Abandono en la Zona: ${zona.promedioAbandono > 0 ? `${zona.promedioAbandono}%` : 'N/D'}${zona.brechasDiagnostico.brechaAbandonoVsZona !== undefined ? ` (Brecha del plantel: ${zona.brechasDiagnostico.brechaAbandonoVsZona > 0 ? '+' : ''}${zona.brechasDiagnostico.brechaAbandonoVsZona}%)` : ' (Abandono del plantel: No reportado)'}
-- Promedio de Eficiencia Terminal en la Zona: ${zona.promedioEficiencia > 0 ? `${zona.promedioEficiencia}%` : 'N/D'}${zona.brechasDiagnostico.brechaEficienciaVsZona !== undefined ? ` (Brecha del plantel: ${zona.brechasDiagnostico.brechaEficienciaVsZona > 0 ? '+' : ''}${zona.brechasDiagnostico.brechaEficienciaVsZona}%)` : ' (Eficiencia del plantel: No reportada)'}
-- Promedio de Reprobación en la Zona: ${zona.promedioReprobacion > 0 ? `${zona.promedioReprobacion}%` : 'N/D'}${zona.brechasDiagnostico.brechaReprobacionVsZona !== undefined ? ` (Brecha del plantel: ${zona.brechasDiagnostico.brechaReprobacionVsZona > 0 ? '+' : ''}${zona.brechasDiagnostico.brechaReprobacionVsZona}%)` : ' (Reprobación del plantel: No reportada)'}
+- Promedio de Abandono en la Zona: ${formatZoneMetric(zona.promedioAbandono, { pct: true })}${zona.brechasDiagnostico.brechaAbandonoVsZona !== undefined ? ` (Brecha del plantel: ${zona.brechasDiagnostico.brechaAbandonoVsZona > 0 ? '+' : ''}${zona.brechasDiagnostico.brechaAbandonoVsZona}%)` : ' (Abandono del plantel: No reportado)'}
+- Promedio de Eficiencia Terminal en la Zona: ${formatZoneMetric(zona.promedioEficiencia, { pct: true })}${zona.brechasDiagnostico.brechaEficienciaVsZona !== undefined ? ` (Brecha del plantel: ${zona.brechasDiagnostico.brechaEficienciaVsZona > 0 ? '+' : ''}${zona.brechasDiagnostico.brechaEficienciaVsZona}%)` : ' (Eficiencia del plantel: No reportada)'}
+- Promedio de Reprobación en la Zona: ${formatZoneMetric(zona.promedioReprobacion, { pct: true })}${zona.brechasDiagnostico.brechaReprobacionVsZona !== undefined ? ` (Brecha del plantel: ${zona.brechasDiagnostico.brechaReprobacionVsZona > 0 ? '+' : ''}${zona.brechasDiagnostico.brechaReprobacionVsZona}%)` : ' (Reprobación del plantel: No reportada)'}
 - Nivel de prioridad de intervención: ${zona.brechasDiagnostico.prioridadIntervencion.toUpperCase()}
 - Observaciones de Supervisión:
 ${zona.brechasDiagnostico.observaciones.map((obs) => `    • ${obs}`).join('\n')}
@@ -241,7 +242,7 @@ LÍNEA BASE ESTADÍSTICA OFICIAL (Formato 911 y F11):
 - Tasa de Aprobación Escolar Línea Base: ${aprobacionTexto} (Fuente: F11C)
 - Aprovechamiento General Promedio: ${promedioTexto} (Fuente: F11C Control Escolar)
 ${stats?.promediosPorAsignatura ? `- Desglose de Promedios por Asignatura F11C:\n${Object.entries(stats.promediosPorAsignatura).map(([asig, prom]) => `    • ${asig}: ${prom}`).join('\n')}` : ''}
-${zona ? `- Promedios de Zona (${zona.zonaNumero || '004'}): Abandono ${zona.promedioAbandono}%, Eficiencia ${zona.promedioEficiencia}%, Reprobación ${zona.promedioReprobacion}%` : ''}
+${zona ? `- Promedios de Zona (${zona.zonaNumero || '004'}): Abandono ${formatZoneMetric(zona.promedioAbandono, { pct: true })}, Eficiencia ${formatZoneMetric(zona.promedioEficiencia, { pct: true })}, Reprobación ${formatZoneMetric(zona.promedioReprobacion, { pct: true })}` : ''}
 
 CATEGORÍAS Y TEMAS SELECCIONADOS POR EL PLANTEL:
 ${categoriasList}

@@ -7,7 +7,7 @@ import {
   buildCartografiaFullPrompt,
   buildMomento3UbicarPrompt,
 } from '@/lib/prompts/cartografia-prompts';
-import { formatZoneMetric } from '@/lib/zone-metric-format';
+import { buildZoneDiagnosticText } from '@/lib/zone-metric-format';
 
 describe('Cartografia Context Builder (H-011)', () => {
   it('builds base context correctly from DB row with realistic planteles data', () => {
@@ -282,17 +282,18 @@ describe('Cartografia Context Builder (H-011)', () => {
     expect(ctxPrioritario.plantelesAtencionPrioritaria[0]).toContain('Abandono: 5%');
   });
 
-  // (g) ExcelUploadZone: línea base construida con formatZoneMetric → cadena sin del 0% cuando no hay datos
-  it('(g) línea base construida con formatZoneMetric produce cadena sin "del 0%" ante ausencia de datos (H-087)', () => {
-    const mockParsedData = {
+  // (g) Función pura de diagnóstico de zona: produce cadena sin "del 0%" ante ausencia de métricas (H-087, H-090)
+  it('(g) buildZoneDiagnosticText produce cadena sin "del 0%" ante ausencia de métricas (H-087, H-090)', () => {
+    const diagText = buildZoneDiagnosticText({
+      zonaNumero: '004',
+      cicloEscolar: '2026-2027',
+      totalPlanteles: 3,
       matriculaTotal: 0,
       promedioEficiencia: undefined,
       promedioAbandono: undefined,
       promedioAprovechamiento: undefined,
       promedioReprobacion: undefined,
-    };
-
-    const diagText = `• Línea Base Cuantitativa: Eficiencia Terminal Zonal del ${formatZoneMetric(mockParsedData.promedioEficiencia, { pct: true })}, Abandono Escolar Zonal del ${formatZoneMetric(mockParsedData.promedioAbandono, { pct: true })}, Promedio General de Aprovechamiento en ${formatZoneMetric(mockParsedData.promedioAprovechamiento)} y Reprobación del ${formatZoneMetric(mockParsedData.promedioReprobacion, { pct: true })}.\n`;
+    });
 
     expect(diagText).toContain('Abandono Escolar Zonal del N/D');
     expect(diagText).toContain('Eficiencia Terminal Zonal del N/D');

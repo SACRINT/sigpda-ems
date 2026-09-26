@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parsePmcStatistics } from '@/lib/pmc-statistics-parser';
 import { parseCartografiaMatriz } from '@/lib/cartografia-parser';
+import { buildZoneDiagnosticText } from '@/lib/zone-metric-format';
 
 describe('Excel Import Engine — Formato 911.7G / F11C / Cartografía de Zona', () => {
   it('1. Parsea correctamente una matriz oficial con columnas de Formato 911.7G (Fin de Cursos)', () => {
@@ -116,5 +117,60 @@ describe('Excel Import Engine — Formato 911.7G / F11C / Cartografía de Zona',
     expect(p1.eficienciaTerminal).toBeUndefined();
     // Abandono calculado basado en bajas: (10/300)*100 = 3.33%
     expect(p1.abandono).toBe(3.33);
+  });
+
+  it('5. Parsea matriz sin columna de abandono ni bajas retornando promedioAbandono undefined y diagnóstico sin "del 0%" (H-089, H-090)', () => {
+    // Matriz sin columna de abandono ni bajas definitivas
+    const mockRowsSinAbandono = [
+      ['SUBSECRETARÍA DE EDUCACIÓN MEDIA SUPERIOR - ESTADÍSTICA 911.7G'],
+      ['ZONA ESCOLAR 004 - BACHILLERATOS GENERALES ESTATALES'],
+      ['No.', 'C.C.T.', 'Nombre del Plantel', 'Turno', 'Matrícula Total', 'Egresados', 'Eficiencia Terminal (%)'],
+      [1, '21EBH0015A', 'BGE Venustiano Carranza', 'MATUTINO', '240', '72', '90.0'],
+      [2, '21EBH0020B', 'BGE Francisco Z. Mena', 'MATUTINO', '180', '45', '75.0'],
+    ];
+
+    const result = parsePmcStatistics(mockRowsSinAbandono, {
+      zonaNumero: '004',
+      cicloEscolar: '2026-2027',
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.allPlanteles[0].abandono).toBeUndefined();
+    expect(result.allPlanteles[1].abandono).toBeUndefined();
+    expect(result.zona?.promedioAbandono).toBeUndefined();
+
+    // Línea base construida con la función real no contiene "del 0%"
+    const diagText = buildZoneDiagnosticText({
+      zonaNumero: '004',
+      cicloEscolar: '2026-2027',
+      totalPlanteles: result.allPlanteles.length,
+      matriculaTotal: result.zona?.matriculaTotal ?? 0,
+      promedioEficiencia: result.zona?.promedioEficiencia,
+      promedioAbandono: result.zona?.promedioAbandono,
+      promedioAprovechamiento: result.zona?.promedioCalificaciones,
+      promedioReprobacion: result.zona?.promedioReprobacion,
+    });
+
+    expect(diagText).toContain('Abandono Escolar Zonal del N/D');
+    expect(diagText).not.toContain('del 0%');
+
+    // Caso con columna de abandono con valor 0 explícito
+    const mockRowsAbandonoCero = [
+      ['SUBSECRETARÍA DE EDUCACIÓN MEDIA SUPERIOR - ESTADÍSTICA 911.7G'],
+      ['ZONA ESCOLAR 004 - BACHILLERATOS GENERALES ESTATALES'],
+      ['No.', 'C.C.T.', 'Nombre del Plantel', 'Turno', 'Matrícula Total', 'Abandono Escolar (%)'],
+      [1, '21EBH0015A', 'BGE Venustiano Carranza', 'MATUTINO', '240', '0.0'],
+      [2, '21EBH0020B', 'BGE Francisco Z. Mena', 'MATUTINO', '180', '0'],
+    ];
+
+    const resultCero = parsePmcStatistics(mockRowsAbandonoCero, {
+      zonaNumero: '004',
+      cicloEscolar: '2026-2027',
+    });
+
+    expect(resultCero.success).toBe(true);
+    expect(resultCero.allPlanteles[0].abandono).toBe(0);
+    expect(resultCero.allPlanteles[1].abandono).toBe(0);
+    expect(resultCero.zona?.promedioAbandono).toBe(0);
   });
 });

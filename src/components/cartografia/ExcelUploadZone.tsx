@@ -4,7 +4,7 @@ import React, { useState, useRef, useCallback } from 'react';
 import type { CartografiaPlantelItem, CartografiaMomento1Conocer, CartografiaMomento2Organizar } from '@/types/cartografia';
 import type { PipsPlantele } from '@/types/pips';
 import { parsePmcStatistics } from '@/lib/pmc-statistics-parser';
-import { formatZoneMetric } from '@/lib/zone-metric-format';
+import { formatZoneMetric, buildZoneDiagnosticText } from '@/lib/zone-metric-format';
 
 interface ExcelUploadZoneProps {
   zonaNumero?: string;
@@ -220,13 +220,17 @@ export default function ExcelUploadZone({
     });
 
     // Construir texto de diagnóstico automático enriquecido
-    const diagText = `Diagnóstico territorial consolidado a partir de la estadística oficial 911.7G y F11C (Zona ${zonaNumero}, Ciclo ${cicloEscolar}):\n` +
-      `• Cobertura Zonal: ${pipsPlanteles.length} planteles analizados con una matrícula total de ${parsedData.matriculaTotal} estudiantes.\n` +
-      `• Línea Base Cuantitativa: Eficiencia Terminal Zonal del ${formatZoneMetric(parsedData.promedioEficiencia, { pct: true })}, Abandono Escolar Zonal del ${formatZoneMetric(parsedData.promedioAbandono, { pct: true })}, Promedio General de Aprovechamiento en ${formatZoneMetric(parsedData.promedioAprovechamiento)} y Reprobación del ${formatZoneMetric(parsedData.promedioReprobacion, { pct: true })}.\n` +
-      (parsedData.plantelesPrioritarios.length > 0 
-        ? `• Planteles con Atención Prioritaria: ${parsedData.plantelesPrioritarios.join('; ')}.\n` 
-        : '') +
-      `• Retos Identificados: Dispersión geográfica, trabajo juvenil estacional y necesidades de nivelación académica en pensamiento matemático y comunicación integral.`;
+    const diagText = buildZoneDiagnosticText({
+      zonaNumero,
+      cicloEscolar,
+      totalPlanteles: pipsPlanteles.length,
+      matriculaTotal: parsedData.matriculaTotal,
+      promedioEficiencia: parsedData.promedioEficiencia,
+      promedioAbandono: parsedData.promedioAbandono,
+      promedioAprovechamiento: parsedData.promedioAprovechamiento,
+      promedioReprobacion: parsedData.promedioReprobacion,
+      plantelesPrioritarios: parsedData.plantelesPrioritarios,
+    });
 
     onDataInjected({
       planteles: pipsPlanteles,

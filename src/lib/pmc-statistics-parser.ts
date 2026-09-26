@@ -161,21 +161,55 @@ export function parsePmcStatistics(
       // Nota H-046: La Eficiencia Terminal es un indicador GENERACIONAL oficial (% egresados sobre matrícula inicial de cohorte).
       // NUNCA debe recalcularse dividiendo egresados entre matrícula del ciclo escolar vigente (en multigrado subvalúa a ~30%).
       // Si la columna oficial no viene en la matriz o viene vacía, no se sintetiza con fórmula defectuosa.
-      const rawEficiencia = colMap['eficiencia'] !== undefined ? String(row[colMap['eficiencia'] ?? 7] || '').replace(/[^0-9.]/g, '') : '';
+      const rawEficiencia = colMap['eficiencia'] !== undefined ? String(row[colMap['eficiencia']] || '').replace(/[^0-9.]/g, '') : '';
       const parsedEficiencia = parseFloat(rawEficiencia);
-      const eficienciaTerminal = !isNaN(parsedEficiencia) && parsedEficiencia > 0 ? parsedEficiencia : undefined;
+      const eficienciaTerminal = !isNaN(parsedEficiencia) && parsedEficiencia >= 0 ? parsedEficiencia : undefined;
 
-      let abandono = parseFloat(String(row[colMap['abandono'] ?? 8] || '0').replace(/[^0-9.]/g, '')) || 0;
-      if (abandono === 0 && bajasDefinitivas && matricula > 0) {
+      let abandono: number | undefined = undefined;
+      if (colMap['abandono'] !== undefined) {
+        const rawAb = String(row[colMap['abandono']] || '').replace(/[^0-9.]/g, '');
+        const parsedAb = parseFloat(rawAb);
+        if (!isNaN(parsedAb) && parsedAb >= 0) {
+          abandono = parsedAb;
+        }
+      }
+      if (abandono === undefined && bajasDefinitivas !== undefined && matricula > 0) {
         abandono = parseFloat(((bajasDefinitivas / matricula) * 100).toFixed(2));
       }
 
       // ── Datos F11C (Control Escolar) ──
-      let promedioCalificaciones = parseFloat(String(row[colMap['calificaciones'] ?? 4] || '0').replace(/[^0-9.]/g, '')) || undefined;
-      const aprobadosPorcentaje = parseFloat(String(row[colMap['aprobacion'] ?? 6] || '0').replace(/[^0-9.]/g, '')) || (estudiantesAprobados && matricula > 0 ? parseFloat(((estudiantesAprobados / matricula) * 100).toFixed(2)) : 0);
-      const reprobacion = aprobadosPorcentaje > 0 
-        ? Math.max(0, parseFloat((100 - aprobadosPorcentaje).toFixed(2))) 
-        : (colMap['reprobacion'] !== undefined ? parseFloat(String(row[colMap['reprobacion']] || '0').replace(/[^0-9.]/g, '')) || 0 : (estudiantesReprobados && matricula > 0 ? parseFloat(((estudiantesReprobados / matricula) * 100).toFixed(2)) : 0));
+      let promedioCalificaciones: number | undefined = undefined;
+      if (colMap['calificaciones'] !== undefined) {
+        const rawCal = String(row[colMap['calificaciones']] || '').replace(/[^0-9.]/g, '');
+        const parsedCal = parseFloat(rawCal);
+        if (!isNaN(parsedCal) && parsedCal >= 0) {
+          promedioCalificaciones = parsedCal;
+        }
+      }
+
+      let aprobadosPorcentaje: number | undefined = undefined;
+      if (colMap['aprobacion'] !== undefined) {
+        const rawAp = String(row[colMap['aprobacion']] || '').replace(/[^0-9.]/g, '');
+        const parsedAp = parseFloat(rawAp);
+        if (!isNaN(parsedAp) && parsedAp >= 0) {
+          aprobadosPorcentaje = parsedAp;
+        }
+      } else if (estudiantesAprobados !== undefined && matricula > 0) {
+        aprobadosPorcentaje = parseFloat(((estudiantesAprobados / matricula) * 100).toFixed(2));
+      }
+
+      let reprobacion: number | undefined = undefined;
+      if (aprobadosPorcentaje !== undefined) {
+        reprobacion = Math.max(0, parseFloat((100 - aprobadosPorcentaje).toFixed(2)));
+      } else if (colMap['reprobacion'] !== undefined) {
+        const rawRep = String(row[colMap['reprobacion']] || '').replace(/[^0-9.]/g, '');
+        const parsedRep = parseFloat(rawRep);
+        if (!isNaN(parsedRep) && parsedRep >= 0) {
+          reprobacion = parsedRep;
+        }
+      } else if (estudiantesReprobados !== undefined && matricula > 0) {
+        reprobacion = parseFloat(((estudiantesReprobados / matricula) * 100).toFixed(2));
+      }
 
       // Extraer promedios por asignatura si existen columnas específicas
       const promediosPorAsignatura: Record<string, number> = {};
@@ -206,7 +240,7 @@ export function parsePmcStatistics(
         abandono,
         reprobacion,
         // F11C
-        promedioGeneral: promedioCalificaciones ?? 0,
+        promedioGeneral: promedioCalificaciones,
         promediosPorAsignatura,
         aprobadosPorcentaje,
         reprobadosPorcentaje: reprobacion,
@@ -226,20 +260,23 @@ export function parsePmcStatistics(
 
     // Calcular estadísticas globales de zona (excluyendo planteles con matrícula <= 0 para no distorsionar benchmarks)
     const plantelesZonaValidos = allPlanteles.filter((p) => p.matricula > 0);
-    const divisorZona = plantelesZonaValidos.length > 0 ? plantelesZonaValidos.length : allPlanteles.length;
     const totalPlanteles = allPlanteles.length;
     const matriculaTotal = allPlanteles.reduce((acc, p) => acc + p.matricula, 0);
-    const sumaAbandono = plantelesZonaValidos.reduce((acc, p) => acc + p.abandono, 0);
-    const plantelesConEficiencia = plantelesZonaValidos.filter((p) => p.eficienciaTerminal !== undefined && p.eficienciaTerminal > 0);
-    const sumaEficiencia = plantelesConEficiencia.reduce((acc, p) => acc + (p.eficienciaTerminal || 0), 0);
-    const sumaReprobacion = plantelesZonaValidos.reduce((acc, p) => acc + p.reprobacion, 0);
+
+    const plantelesConAbandono = plantelesZonaValidos.filter((p) => p.abandono !== undefined);
+    const sumaAbandono = plantelesConAbandono.reduce((acc, p) => acc + (p.abandono ?? 0), 0);
+    const promedioAbandono = plantelesConAbandono.length > 0 ? parseFloat((sumaAbandono / plantelesConAbandono.length).toFixed(2)) : undefined;
+
+    const plantelesConEficiencia = plantelesZonaValidos.filter((p) => p.eficienciaTerminal !== undefined && p.eficienciaTerminal >= 0);
+    const sumaEficiencia = plantelesConEficiencia.reduce((acc, p) => acc + (p.eficienciaTerminal ?? 0), 0);
+    const promedioEficiencia = plantelesConEficiencia.length > 0 ? parseFloat((sumaEficiencia / plantelesConEficiencia.length).toFixed(2)) : undefined;
+
+    const plantelesConReprobacion = plantelesZonaValidos.filter((p) => p.reprobacion !== undefined);
+    const sumaReprobacion = plantelesConReprobacion.reduce((acc, p) => acc + (p.reprobacion ?? 0), 0);
+    const promedioReprobacion = plantelesConReprobacion.length > 0 ? parseFloat((sumaReprobacion / plantelesConReprobacion.length).toFixed(2)) : undefined;
 
     const plantelesConProm = plantelesZonaValidos.filter((p) => p.promedioCalificaciones !== undefined);
-    const sumaProm = plantelesConProm.reduce((acc, p) => acc + (p.promedioCalificaciones || 0), 0);
-
-    const promedioAbandono = parseFloat((sumaAbandono / divisorZona).toFixed(2));
-    const promedioEficiencia = plantelesConEficiencia.length > 0 ? parseFloat((sumaEficiencia / plantelesConEficiencia.length).toFixed(2)) : 0;
-    const promedioReprobacion = parseFloat((sumaReprobacion / divisorZona).toFixed(2));
+    const sumaProm = plantelesConProm.reduce((acc, p) => acc + (p.promedioCalificaciones ?? 0), 0);
     const promedioCalificaciones = plantelesConProm.length > 0 ? parseFloat((sumaProm / plantelesConProm.length).toFixed(2)) : undefined;
 
     // Buscar el plantel objetivo si se especificó CCT o nombre
@@ -259,17 +296,17 @@ export function parsePmcStatistics(
 
     // Calcular brechas para el plantel seleccionado
     const targetAb = targetPlantel?.abandono;
-    const brechaAbandono = typeof targetAb === 'number' && promedioAbandono > 0
+    const brechaAbandono = typeof targetAb === 'number' && promedioAbandono !== undefined
       ? parseFloat((targetAb - promedioAbandono).toFixed(2))
       : undefined;
 
     const targetET = targetPlantel?.eficienciaTerminal;
-    const brechaEficiencia = typeof targetET === 'number' && promedioEficiencia > 0
+    const brechaEficiencia = typeof targetET === 'number' && promedioEficiencia !== undefined
       ? parseFloat((targetET - promedioEficiencia).toFixed(2))
       : undefined;
 
     const targetRep = targetPlantel?.reprobacion;
-    const brechaReprobacion = typeof targetRep === 'number' && promedioReprobacion > 0
+    const brechaReprobacion = typeof targetRep === 'number' && promedioReprobacion !== undefined
       ? parseFloat((targetRep - promedioReprobacion).toFixed(2))
       : undefined;
 

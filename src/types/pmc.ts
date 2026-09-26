@@ -39,14 +39,14 @@ export interface PmcStatisticalPlantel {
   reprobados?: number;         // Del 911.7G
   bajasDefinitivas?: number;   // Del 911.7G → para calcular Abandono
   eficienciaTerminal?: number; // Porcentaje oficial generacional impreso (opcional si la columna no viene en la matriz)
-  abandono: number;            // Calculada: (bajasDefinitivas / matrículaInicial) × 100
-  reprobacion: number;         // % Reprobación oficial (compatibilidad con cálculos de zona)
+  abandono?: number;           // Calculada: (bajasDefinitivas / matrículaInicial) × 100
+  reprobacion?: number;        // % Reprobación oficial (compatibilidad con cálculos de zona)
 
   // ── Del F11C (Control Escolar) ───────────────────────────────────
-  promedioGeneral: number;     // Promedio general del grupo/alumno
+  promedioGeneral?: number;    // Promedio general del grupo/alumno
   promediosPorAsignatura: Record<string, number>; // ej: { "Pensamiento Matemático": 7.5, "Lenguaje y Comunicación": 8.2 }
-  aprobadosPorcentaje: number;
-  reprobadosPorcentaje: number;
+  aprobadosPorcentaje?: number;
+  reprobadosPorcentaje?: number;
   estudiantesAprobados?: number;   // Compatibilidad
   promedioCalificaciones?: number; // Compatibilidad
 
@@ -61,9 +61,9 @@ export interface PmcStatisticalZona {
   zonaNumero?: string;
   totalPlanteles: number;
   matriculaTotal: number;
-  promedioAbandono: number;
-  promedioEficiencia: number;
-  promedioReprobacion: number;
+  promedioAbandono?: number;
+  promedioEficiencia?: number;
+  promedioReprobacion?: number;
   promedioCalificaciones?: number;
   brechasDiagnostico: {
     brechaAbandonoVsZona?: number;
