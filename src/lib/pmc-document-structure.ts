@@ -31,12 +31,20 @@ export const PMC_TITULOS_SECCIONES = {
   PARTICIPANTES_CONTROL: '8. PARTICIPANTES, CONTROL DE REVISIONES Y APROBACIÓN',
 } as const;
 
+const SUBSECCIONES_DIAGNOSTICO_CANONICAS: readonly PmcSubseccionDef[] = [
+  { id: 'contexto', numero: '4.1', titulo: 'Contexto Socioeducativo y Territorial' },
+  { id: 'indicadores', numero: '4.2', titulo: 'Análisis de Indicadores Académicos (Línea Base vs Metas)' },
+  { id: 'infraestructura', numero: '4.3', titulo: 'Infraestructura y Equipamiento Escolar' },
+  { id: 'beneficios', numero: '4.4', titulo: 'Beneficios y Vinculación Comunitaria' },
+  { id: 'foda', numero: '4.5', titulo: 'Matriz FODA Situacional' },
+] as const;
+
 export const PMC_SUBSECCIONES_DIAGNOSTICO = {
-  CONTEXTO: '4.1 Contexto Socioeducativo y Territorial',
-  INDICADORES: '4.2 Análisis de Indicadores Académicos (Línea Base vs Metas)',
-  INFRAESTRUCTURA: '4.3 Infraestructura y Equipamiento Escolar',
-  BENEFICIOS: '4.4 Beneficios y Vinculación Comunitaria',
-  FODA: '4.5 Matriz FODA Situacional',
+  CONTEXTO: `${SUBSECCIONES_DIAGNOSTICO_CANONICAS[0].numero} ${SUBSECCIONES_DIAGNOSTICO_CANONICAS[0].titulo}`,
+  INDICADORES: `${SUBSECCIONES_DIAGNOSTICO_CANONICAS[1].numero} ${SUBSECCIONES_DIAGNOSTICO_CANONICAS[1].titulo}`,
+  INFRAESTRUCTURA: `${SUBSECCIONES_DIAGNOSTICO_CANONICAS[2].numero} ${SUBSECCIONES_DIAGNOSTICO_CANONICAS[2].titulo}`,
+  BENEFICIOS: `${SUBSECCIONES_DIAGNOSTICO_CANONICAS[3].numero} ${SUBSECCIONES_DIAGNOSTICO_CANONICAS[3].titulo}`,
+  FODA: `${SUBSECCIONES_DIAGNOSTICO_CANONICAS[4].numero} ${SUBSECCIONES_DIAGNOSTICO_CANONICAS[4].titulo}`,
 } as const;
 
 export const PMC_SECCIONES_CANONICAS: readonly PmcSeccionDef[] = [
@@ -59,13 +67,7 @@ export const PMC_SECCIONES_CANONICAS: readonly PmcSeccionDef[] = [
     id: 'diagnostico',
     numero: 4,
     titulo: PMC_TITULOS_SECCIONES.DIAGNOSTICO,
-    subsecciones: [
-      { id: 'contexto', numero: '4.1', titulo: 'Contexto Socioeducativo y Territorial' },
-      { id: 'indicadores', numero: '4.2', titulo: 'Análisis de Indicadores Académicos (Línea Base vs Metas)' },
-      { id: 'infraestructura', numero: '4.3', titulo: 'Infraestructura y Equipamiento Escolar' },
-      { id: 'beneficios', numero: '4.4', titulo: 'Beneficios y Vinculación Comunitaria' },
-      { id: 'foda', numero: '4.5', titulo: 'Matriz FODA Situacional' },
-    ],
+    subsecciones: [...SUBSECCIONES_DIAGNOSTICO_CANONICAS],
   },
   {
     id: 'priorizacion',

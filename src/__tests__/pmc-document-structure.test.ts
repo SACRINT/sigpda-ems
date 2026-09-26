@@ -133,6 +133,19 @@ describe('H-100 / H-101: SSoT Estructura Documental y Paridad PDF vs DOCX', () =
     });
   });
 
+  it('1b. SSoT: subsecciones de Diagnóstico en PMC_SECCIONES_CANONICAS coinciden 100% con PMC_SUBSECCIONES_DIAGNOSTICO (H-109)', () => {
+    const diag = PMC_SECCIONES_CANONICAS.find((s) => s.id === 'diagnostico')!;
+    expect(diag).toBeDefined();
+    expect(diag.subsecciones).toBeDefined();
+    expect(diag.subsecciones!.map((x) => `${x.numero} ${x.titulo}`)).toEqual([
+      PMC_SUBSECCIONES_DIAGNOSTICO.CONTEXTO,
+      PMC_SUBSECCIONES_DIAGNOSTICO.INDICADORES,
+      PMC_SUBSECCIONES_DIAGNOSTICO.INFRAESTRUCTURA,
+      PMC_SUBSECCIONES_DIAGNOSTICO.BENEFICIOS,
+      PMC_SUBSECCIONES_DIAGNOSTICO.FODA,
+    ]);
+  });
+
   it('2. clasificarNormativaJerarquica agrupa correctamente en Leyes y Reglamentos/Acuerdos', () => {
     const mockDocs = [
       { orden: 1, titulo: 'Ley General de Educación', articulos: ['Art. 107'] },
