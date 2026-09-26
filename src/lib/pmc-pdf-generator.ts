@@ -666,7 +666,9 @@ export async function generatePmcPDF(
       safeStr(m.estrategia, 'Estrategia pedagógica'),
       safeStr(m.personal_designado, 'Colectivo Escolar'),
       safeStr(m.entregable, 'Evidencias y Actas CTE'),
-      `${safeStr(m.periodo_inicio, 'Ago')} - ${safeStr(m.periodo_fin, 'Jul')}`,
+      (m.periodo_inicio || m.periodo_fin)
+        ? `${safeStr(m.periodo_inicio, 'N/D')} - ${safeStr(m.periodo_fin, 'N/D')}`
+        : 'N/D',
     ]);
 
     autoTable(doc, {
@@ -734,7 +736,12 @@ export async function generatePmcPDF(
             [{ content: 'Estrategia de Operación:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.estrategia)],
             [{ content: 'Personal Designado:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.personal_designado, 'Colectivo Escolar')],
             [{ content: 'Evidencia / Entregable:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.entregable)],
-            [{ content: 'Período de Ejecución:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, `${safeStr(m.periodo_inicio, 'Agosto')} — ${safeStr(m.periodo_fin, 'Julio')}`],
+            [
+              { content: 'Período de Ejecución:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
+              (m.periodo_inicio || m.periodo_fin)
+                ? `${safeStr(m.periodo_inicio, 'N/D')} — ${safeStr(m.periodo_fin, 'N/D')}`
+                : 'N/D'
+            ],
             [{ content: 'Diagnóstico de la Meta:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.diagnostico_meta, 'Justificación diagnóstica de la meta')],
           ],
           theme: 'grid',
@@ -901,7 +908,7 @@ export async function generatePmcPDF(
   // ── SEGUNDA PASADA: RELLENAR FOLIOS EN LA TABLA DEL ÍNDICE (PÁGINA 2) ───────
   doc.setPage(2);
   for (const cell of pageCellCoords) {
-    const pageNum = sectionPageMap.get(cell.key) ?? 3;
+    const pageNum = sectionPageMap.get(cell.key) ?? '—';
     doc.setFont('helvetica', cell.isSection ? 'bold' : 'normal');
     doc.setFontSize(7);
     if (cell.isSection) {
