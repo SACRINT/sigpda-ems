@@ -24,16 +24,20 @@ export interface SchoolZoneContextResponse {
     identificacion: CartografiaIdentificacion;
     pipsProjectId: string;
     averages: {
-      promAbandono: number;
+      promAbandono?: number;
       promEficiencia?: number;
-      promAprovechamiento: number;
-      promReprobacion: number;
+      promAprovechamiento?: number;
+      promReprobacion?: number;
     };
     problematicasComunes: string[];
     momento3Territorio?: CartografiaMomento3Ubicar;
     momento5Metas?: CartografiaMomento5Decidir;
   };
-  plantel?: CartografiaPlantelItem;
+  plantel?: Omit<CartografiaPlantelItem, 'abandono' | 'reprobacion' | 'promedioGeneral'> & {
+    abandono?: number;
+    reprobacion?: number;
+    promedioGeneral?: number;
+  };
 }
 
 export interface PlantelSemaforoItem {
@@ -124,22 +128,58 @@ export async function getZoneContextForSchool(cct: string): Promise<SchoolZoneCo
       (p) => p.cct.trim().toUpperCase() === cleanCct
     );
 
+    const rawPlanteles = Array.isArray(row.planteles_json) ? (row.planteles_json as Record<string, unknown>[]) : [];
+    const rawPlantel = rawPlanteles.find(
+      (p) => String(p.cct || '').trim().toUpperCase() === cleanCct
+    );
+
+    const safeMetric = (val: unknown): number | undefined => {
+      if (val === undefined || val === null || val === '') return undefined;
+      const num = Number(val);
+      return Number.isFinite(num) && num > 0 ? num : undefined;
+    };
+
+    type PlantelWithOptionalMetrics = Omit<CartografiaPlantelItem, 'abandono' | 'reprobacion' | 'promedioGeneral'> & {
+      abandono?: number;
+      reprobacion?: number;
+      promedioGeneral?: number;
+    };
+
+    let sanitizedPlantel: PlantelWithOptionalMetrics | undefined = plantel;
+    if (plantel && rawPlantel) {
+      sanitizedPlantel = {
+        ...plantel,
+        matricula: safeMetric(rawPlantel.matricula ?? rawPlantel.total) ?? 0,
+        abandono: safeMetric(rawPlantel.abandono),
+        eficienciaTerminal: safeMetric(rawPlantel.eficienciaTerminal),
+        reprobacion: safeMetric(rawPlantel.reprobacion),
+        promedioGeneral: safeMetric(rawPlantel.promedioGeneral ?? rawPlantel.promedioCalificaciones),
+      };
+    }
+
+    const safeAverage = (val: unknown): number | undefined => {
+      if (typeof val === 'number' && Number.isFinite(val) && val > 0) {
+        return val;
+      }
+      return undefined;
+    };
+
     return {
       found: true,
       zona: {
         identificacion: baseCtx.identificacion,
         pipsProjectId: row.id,
         averages: {
-          promAbandono: baseCtx.promAbandono,
-          promEficiencia: baseCtx.promEficiencia,
-          promAprovechamiento: baseCtx.promAprovechamiento,
-          promReprobacion: baseCtx.promReprobacion,
+          promAbandono: safeAverage(baseCtx.promAbandono),
+          promEficiencia: safeAverage(baseCtx.promEficiencia),
+          promAprovechamiento: safeAverage(baseCtx.promAprovechamiento),
+          promReprobacion: safeAverage(baseCtx.promReprobacion),
         },
         problematicasComunes: baseCtx.momento2.capaCualitativa.problematicasComunes,
         momento3Territorio: momentos.momento3Ubicar,
         momento5Metas: momentos.momento5Decidir,
       },
-      plantel,
+      plantel: sanitizedPlantel,
     };
   } catch (error) {
     logger.error(`[ZoneSyncService] Error obteniendo contexto de zona para CCT ${cleanCct}:`, error);

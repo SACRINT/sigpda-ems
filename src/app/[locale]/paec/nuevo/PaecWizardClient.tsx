@@ -454,14 +454,23 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
     }
 
     // Extender el estado con academicBaseline opcional (sin ?? 0, conserva undefined)
+    const safeNum = (v: unknown): number | undefined => {
+      if (typeof v === 'number' && Number.isFinite(v) && v > 0) return v;
+      if (typeof v === 'string' && v.trim() !== '') {
+        const parsed = Number(v);
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+      }
+      return undefined;
+    };
+
     const baseline: AcademicBaseline = {
-      abandono: plantel?.abandono !== undefined ? plantel.abandono : undefined,
-      eficienciaTerminal: plantel?.eficienciaTerminal !== undefined ? plantel.eficienciaTerminal : undefined,
-      aprobacion: (plantel as unknown as Record<string, unknown>)?.aprobacion !== undefined ? Number((plantel as unknown as Record<string, unknown>).aprobacion) : undefined,
-      reprobacion: plantel?.reprobacion !== undefined ? plantel.reprobacion : undefined,
-      rezago: (plantel as unknown as Record<string, unknown>)?.rezago !== undefined ? Number((plantel as unknown as Record<string, unknown>).rezago) : undefined,
-      promAbandonoZona: zona.averages?.promAbandono !== undefined ? zona.averages.promAbandono : undefined,
-      promEficienciaZona: zona.averages?.promEficiencia !== undefined ? zona.averages.promEficiencia : undefined,
+      abandono: safeNum(plantel?.abandono),
+      eficienciaTerminal: safeNum(plantel?.eficienciaTerminal),
+      aprobacion: safeNum((plantel as unknown as Record<string, unknown>)?.aprobacion),
+      reprobacion: safeNum(plantel?.reprobacion),
+      rezago: safeNum((plantel as unknown as Record<string, unknown>)?.rezago),
+      promAbandonoZona: safeNum(zona.averages?.promAbandono),
+      promEficienciaZona: safeNum(zona.averages?.promEficiencia),
       problematicasComunesZona: zona.problematicasComunes && zona.problematicasComunes.length > 0 ? zona.problematicasComunes : undefined,
     };
     setAcademicBaseline(baseline);
@@ -2959,23 +2968,35 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginTop: '8px' }}>
                     <div style={{ background: '#1e293b', padding: '8px', borderRadius: '6px', textAlign: 'center' }}>
                       <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block' }}>Matrícula</span>
-                      <strong style={{ fontSize: '14px', color: '#f8fafc' }}>{zonaData.plantel.matricula}</strong>
+                      <strong style={{ fontSize: '14px', color: '#f8fafc' }}>
+                        {typeof zonaData.plantel.matricula === 'number' && Number.isFinite(zonaData.plantel.matricula) && zonaData.plantel.matricula > 0
+                          ? zonaData.plantel.matricula
+                          : 'N/D'}
+                      </strong>
                     </div>
                     <div style={{ background: '#1e293b', padding: '8px', borderRadius: '6px', textAlign: 'center' }}>
                       <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block' }}>Abandono</span>
-                      <strong style={{ fontSize: '14px', color: '#fbbf24' }}>{zonaData.plantel.abandono}%</strong>
+                      <strong style={{ fontSize: '14px', color: '#fbbf24' }}>
+                        {typeof zonaData.plantel.abandono === 'number' && Number.isFinite(zonaData.plantel.abandono) && zonaData.plantel.abandono > 0
+                          ? `${zonaData.plantel.abandono}%`
+                          : 'N/D'}
+                      </strong>
                     </div>
                     <div style={{ background: '#1e293b', padding: '8px', borderRadius: '6px', textAlign: 'center' }}>
                       <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block' }}>Efic. Terminal</span>
                       <strong style={{ fontSize: '14px', color: '#34d399' }}>
-                        {zonaData.plantel.eficienciaTerminal !== undefined && zonaData.plantel.eficienciaTerminal > 0
+                        {typeof zonaData.plantel.eficienciaTerminal === 'number' && Number.isFinite(zonaData.plantel.eficienciaTerminal) && zonaData.plantel.eficienciaTerminal > 0
                           ? `${zonaData.plantel.eficienciaTerminal}%`
                           : 'N/D'}
                       </strong>
                     </div>
                     <div style={{ background: '#1e293b', padding: '8px', borderRadius: '6px', textAlign: 'center' }}>
                       <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block' }}>Reprobación</span>
-                      <strong style={{ fontSize: '14px', color: '#f87171' }}>{zonaData.plantel.reprobacion}%</strong>
+                      <strong style={{ fontSize: '14px', color: '#f87171' }}>
+                        {typeof zonaData.plantel.reprobacion === 'number' && Number.isFinite(zonaData.plantel.reprobacion) && zonaData.plantel.reprobacion > 0
+                          ? `${zonaData.plantel.reprobacion}%`
+                          : 'N/D'}
+                      </strong>
                     </div>
                   </div>
                 </div>
