@@ -329,10 +329,13 @@ export interface NormativaCitationResolution {
   error?: string;
 }
 
-export const CANONICAL_NORMATIVA_REFS: Record<
-  string,
-  { docId: number; titulo: string; articulosValidos: string[] }
-> = {
+export interface CanonicalNormativaDocRef {
+  docId: number;
+  titulo: string;
+  articulosValidos: string[];
+}
+
+export const CANONICAL_NORMATIVA_REFS: Record<string, CanonicalNormativaDocRef> = {
   CPEUM: {
     docId: 1,
     titulo: 'Constitución Política de los Estados Unidos Mexicanos',

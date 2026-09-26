@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import mammoth from 'mammoth';
+import { neon } from '@neondatabase/serverless';
 import {
   CATALOGO_METAS_CANONICO,
   SUBCATEGORIAS_OFICIALES_52,
@@ -147,6 +148,114 @@ describe('FASE 2: Catálogo Normativo y de Metas Institucionales (5.2 Formato Of
 
       const hasAcuerdo449 = allFiles.some((f) => f.includes('449') && f.includes('acuerdo'));
       expect(hasAcuerdo449, 'El derogado Acuerdo 449 no debe existir en la Normateca oficial vigente').toBe(false);
+    }
+  );
+
+  // 9. [Integración DB] Gate por DATABASE_URL: validación de sincronización del diccionario canónico contra Neon DB
+  const dbUrl =
+    process.env.DATABASE_URL ||
+    (() => {
+      try {
+        const envPath = path.resolve(__dirname, '../../.env.local');
+        if (fs.existsSync(envPath)) {
+          const lines = fs.readFileSync(envPath, 'utf8').split('\n');
+          const line = lines.find((l) => l.trim().startsWith('DATABASE_URL='));
+          if (line) {
+            return line.replace(/^DATABASE_URL=/, '').trim().replace(/^["']|["']$/g, '');
+          }
+        }
+      } catch {
+        return undefined;
+      }
+      return undefined;
+    })();
+
+  it.skipIf(!dbUrl)(
+    '9. [Integración DB] El diccionario canónico CANONICAL_NORMATIVA_REFS se mantiene sincronizado con normativa_documentos (vigente=true) y normativa_articulos de Neon DB',
+    async () => {
+      const sql = neon(dbUrl!);
+
+      // 1. Obtener documentos vigentes de la BD
+      const docsVigentes = await sql`
+        SELECT id, titulo, vigente
+        FROM normativa_documentos
+        WHERE vigente = TRUE
+      `;
+      const docsVigentesMap = new Map<number, { id: number; titulo: string }>();
+      for (const d of docsVigentes) {
+        docsVigentesMap.set(Number(d.id), { id: Number(d.id), titulo: String(d.titulo) });
+      }
+
+      // 2. Obtener artículos registrados de la BD
+      const articulosDb = await sql`
+        SELECT id, documento_id, numero
+        FROM normativa_articulos
+      `;
+
+      const articulosPorDoc = new Map<number, string[]>();
+      for (const a of articulosDb) {
+        const docId = Number(a.documento_id);
+        const list = articulosPorDoc.get(docId) || [];
+        list.push(String(a.numero));
+        articulosPorDoc.set(docId, list);
+      }
+
+      // 3. Validar cada entrada en CANONICAL_NORMATIVA_REFS contra la BD viva
+      const refKeys = Object.keys(CANONICAL_NORMATIVA_REFS);
+      expect(refKeys.length).toBe(15);
+
+      for (const key of refKeys) {
+        const ref = CANONICAL_NORMATIVA_REFS[key];
+
+        // El documento DEBE existir en la base de datos y tener vigente = true
+        const docEnDb = docsVigentesMap.get(ref.docId);
+        expect(
+          docEnDb,
+          `El documento normativo con ID ${ref.docId} ("${key}": "${ref.titulo}") referenciado en el diccionario canónico debe existir en la BD y tener vigente = true`
+        ).toBeDefined();
+
+        // Obtener los artículos en BD para este documento
+        const articulosEnDb = articulosPorDoc.get(ref.docId) || [];
+        expect(
+          articulosEnDb.length,
+          `El documento con ID ${ref.docId} ("${key}") debe tener artículos registrados en la BD`
+        ).toBeGreaterThan(0);
+
+        // Cada artículo válido listado en el diccionario debe resolver contra al menos un artículo registrado en BD
+        for (const artValido of ref.articulosValidos) {
+          const artClean = artValido
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[\s\-_]/g, '');
+
+          const coincide = articulosEnDb.some((dbNum) => {
+            const numClean = dbNum
+              .toLowerCase()
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .replace(/[\s\-_]/g, '');
+            if (artClean.startsWith('art.')) {
+              const num = artClean.replace('art.', '');
+              return numClean.includes(num);
+            }
+            if (artClean.startsWith('obj.')) {
+              const num = artClean.replace('obj.', '');
+              return numClean.includes(`objetivo${num}`);
+            }
+            if (artClean.startsWith('lineamiento')) {
+              const num = artClean.replace('lineamiento', '');
+              return numClean.includes(num);
+            }
+            return numClean.includes(artClean) || artClean.includes(numClean);
+          });
+
+          expect(
+            coincide,
+            `El artículo/sección "${artValido}" de "${key}" (Doc ID ${ref.docId}) debe existir en la base de datos. Encontrados en BD: [${articulosEnDb.join(', ')}]`
+          ).toBe(true);
+        }
+      }
     }
   );
 });
