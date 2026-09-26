@@ -12,6 +12,12 @@ import { SCHOOL_YEAR } from '@/lib/config';
 import { logger } from './logger';
 import { calculatePmcIndicatorRows } from './pmc-indicator-calculator';
 import type { PmcProject, PmcStatisticalContext, PmcStaffMember } from '@/types/pmc';
+import {
+  PMC_TITULOS_SECCIONES,
+  PMC_SECCIONES_CANONICAS,
+  clasificarNormativaJerarquica,
+  getObjetivoPmcText,
+} from './pmc-document-structure';
 
 const NAVY: [number, number, number] = [31, 56, 100];       // #1F3864 - Azul Institucional MCCEMS
 const BLUE_MID: [number, number, number] = [46, 116, 181];   // #2E74B5 - Azul Secundario
@@ -213,68 +219,189 @@ export async function generatePmcPDF(
     curY += 9;
   };
 
-  // ── SECCIÓN 1: MARCO NORMATIVO ──────────────────────────────────────────────
-  addSectionHeader('I. FUNDAMENTACIÓN NORMATIVA Y POLÍTICA EDUCATIVA');
+  // ── ÍNDICE GENERAL ──────────────────────────────────────────────────────────
+  addSectionHeader('ÍNDICE GENERAL');
+
+  const tocRows = [];
+  for (const sec of PMC_SECCIONES_CANONICAS) {
+    tocRows.push([
+      { content: String(sec.numero), styles: { fontStyle: 'bold' as const, halign: 'center' as const, fillColor: GRAY_BG } },
+      { content: sec.titulo, styles: { fontStyle: 'bold' as const, fillColor: GRAY_BG } },
+    ]);
+    if (sec.subsecciones) {
+      for (const sub of sec.subsecciones) {
+        tocRows.push([
+          { content: sub.numero, styles: { halign: 'center' as const, textColor: TEXT_MUTED } },
+          { content: `   ${sub.titulo}`, styles: { fontStyle: 'italic' as const, textColor: TEXT_MUTED } },
+        ]);
+      }
+    }
+  }
+
+  autoTable(doc, {
+    startY: curY,
+    head: [[
+      { content: 'N°', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], halign: 'center', cellWidth: 15 } },
+      { content: 'Contenido Temático / Capítulo Oficial', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
+    ]],
+    body: tocRows,
+    theme: 'grid',
+    styles: { fontSize: 7, cellPadding: 2, textColor: TEXT_DARK, lineColor: [210, 220, 235] },
+    margin: { left: margin, right: margin },
+  });
+  curY = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 8 : curY + 40;
+
+  // ── SECCIÓN 1: PRESENTACIÓN ─────────────────────────────────────────────────
+  doc.addPage();
+  curY = 18;
+  drawHeaderOnNewPage();
+  addSectionHeader(PMC_TITULOS_SECCIONES.PRESENTACION);
+
+  const diag = parseJson(project.diagnostico_generado);
+  const indAcad = parseJson(project.indicadores_academicos);
+
+  const textoPresentacion = safeStr(diag.presentacion) ||
+    `El ${safeStr(project.school_name, 'plantel escolar')}, con CCT ${safeStr(project.school_cct, 'N/D')} y ubicado en la localidad de ${safeStr(project.locality, 'N/D')}, municipio de ${safeStr(project.municipality, 'N/D')}, Puebla, presenta su Programa de Mejora Continua (PMC) para el ciclo escolar ${safeStr(project.ciclo_escolar, '2026-2027')}. Este instrumento de planeación directiva se fundamenta en el artículo 3° de la Constitución Política de los Estados Unidos Mexicanos, garantizando el derecho humano a la educación con un enfoque de equidad, excelencia y mejora continua, alineado con el Modelo Educativo de la Nueva Escuela Mexicana (NEM), el Marco Curricular Común de la Educación Media Superior (MCCEMS) y los ejes rectores de la política educativa estatal CREAA.`;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(...TEXT_DARK);
+  const splitPres = doc.splitTextToSize(textoPresentacion, contentWidth);
+  doc.text(splitPres, margin, curY);
+  curY += splitPres.length * 4 + 8;
+
+  // ── SECCIÓN 2: OBJETIVO DEL PMC ─────────────────────────────────────────────
+  if (curY > pageHeight - 55) {
+    doc.addPage();
+    curY = 18;
+    drawHeaderOnNewPage();
+  }
+  addSectionHeader(PMC_TITULOS_SECCIONES.OBJETIVO);
+
+  const textoObjGeneral = getObjetivoPmcText(project.school_name, project.ciclo_escolar);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(...BLUE_MID);
+  doc.text('Objetivo General:', margin, curY);
+  curY += 4.5;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(...TEXT_DARK);
+  const splitObj = doc.splitTextToSize(textoObjGeneral, contentWidth);
+  doc.text(splitObj, margin, curY);
+  curY += splitObj.length * 3.8 + 6;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(...BLUE_MID);
+  doc.text('Objetivos Específicos y Metas Estratégicas:', margin, curY);
+  curY += 4.5;
+
+  const objEspecificos = [
+    '• Consolidar los aprendizajes fundamentales en Recursos Sociocognitivos (Pensamiento Matemático, Lengua y Comunicación, Conciencia Histórica y Cultura Digital).',
+    '• Mitigar el abandono y reprobación escolar implementando sistemas de alerta temprana y acompañamiento tutorial permanente.',
+    '• Fortalecer la gobernanza escolar mediante la vinculación efectiva con la comunidad mediante el Proyecto Escolar Comunitario (PAEC-PEC).',
+  ];
+  for (const oe of objEspecificos) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...TEXT_DARK);
+    const splitOe = doc.splitTextToSize(oe, contentWidth);
+    doc.text(splitOe, margin, curY);
+    curY += splitOe.length * 3.6 + 2;
+  }
+  curY += 6;
+
+  // ── SECCIÓN 3: NORMATIVIDAD APLICABLE ───────────────────────────────────────
+  if (curY > pageHeight - 55) {
+    doc.addPage();
+    curY = 18;
+    drawHeaderOnNewPage();
+  }
+  addSectionHeader(PMC_TITULOS_SECCIONES.NORMATIVIDAD);
 
   const normativa = parseJson(project.normativa);
-  const normDocs: Array<{ titulo?: string; articulos?: string[] }> = (Array.isArray(normativa.documentos) && normativa.documentos.length > 0)
+  const normDocs: Array<{ orden?: number; titulo?: string; articulos?: string[] }> = (Array.isArray(normativa.documentos) && normativa.documentos.length > 0)
     ? normativa.documentos
     : [
         {
+          orden: 1,
           titulo: 'Constitución Política de los Estados Unidos Mexicanos (Art. 3°)',
           articulos: ['Garantiza el derecho a la educación integral, inclusiva, universal, pública, gratuita, laica y de excelencia orientada al desarrollo humano.'],
         },
         {
+          orden: 2,
           titulo: 'Ley General de Educación (Arts. 107, 108 y 109)',
           articulos: ['Establece la obligatoriedad del Programa de Mejora Continua en Educación Media Superior como instrumento estructurado de planeación participativa.'],
         },
         {
+          orden: 3,
           titulo: 'Ley de Educación del Estado de Puebla (Arts. 80, 81 y 83)',
           articulos: ['Dispone la conformación participativa del PMC en los Consejos Técnicos Escolares y la vinculación corresponsable con la comunidad.'],
         },
         {
+          orden: 4,
           titulo: 'Marco Curricular Común de la Educación Media Superior (MCCEMS - Acuerdo 09/08/23)',
           articulos: ['Fundamenta la formación socioemocional, recursos sociocognitivos, áreas del conocimiento y el vínculo pedagógico aula-escuela-comunidad.'],
         },
         {
+          orden: 5,
           titulo: 'Lineamientos Oficiales del PMC para Educación Media Superior (SEMS / SEP Puebla)',
           articulos: ['Norma la priorización de categorías, diagnóstico escolar, formulación de metas CREAA y corresponsabilidad del colectivo docente.'],
         },
       ];
 
-  const normRows = normDocs.map((nd, i) => [
-    { content: `${i + 1}`, styles: { fontStyle: 'bold' as const, halign: 'center' as const, cellWidth: 8, fillColor: GRAY_BG } },
-    { content: safeStr(nd.titulo), styles: { fontStyle: 'bold' as const, cellWidth: 60 } },
-    { content: Array.isArray(nd.articulos) ? nd.articulos.join('\n• ') : safeStr(nd.articulos) },
-  ]);
+  const gruposNorm = clasificarNormativaJerarquica(normDocs);
 
-  autoTable(doc, {
-    startY: curY,
-    head: [[
-      { content: '#', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], halign: 'center' } },
-      { content: 'Disposición Legal / Normativa', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
-      { content: 'Artículos y Vinculación con el PMC', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
-    ]],
-    body: normRows,
-    theme: 'grid',
-    styles: { fontSize: 7, cellPadding: 2, textColor: TEXT_DARK, lineColor: [210, 220, 235] },
-    margin: { left: margin, right: margin },
-  });
+  for (const grp of gruposNorm) {
+    if (curY > pageHeight - 40) {
+      doc.addPage();
+      curY = 18;
+      drawHeaderOnNewPage();
+    }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(...BLUE_MID);
+    doc.text(grp.categoria, margin, curY);
+    curY += 4;
 
-  curY = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 8 : curY + 40;
+    const normRows = grp.documentos.map((nd, i) => [
+      { content: `${nd.orden ?? i + 1}`, styles: { fontStyle: 'bold' as const, halign: 'center' as const, cellWidth: 8, fillColor: GRAY_BG } },
+      { content: safeStr(nd.titulo), styles: { fontStyle: 'bold' as const, cellWidth: 60 } },
+      { content: Array.isArray(nd.articulos) ? nd.articulos.join('\n• ') : safeStr(nd.articulos) },
+    ]);
 
-  // ── SECCIÓN 2: DIAGNÓSTICO INTEGRAL ─────────────────────────────────────────
-  addSectionHeader('II. DIAGNÓSTICO INTEGRAL Y CONTEXTO DEL PLANTEL');
+    autoTable(doc, {
+      startY: curY,
+      head: [[
+        { content: '#', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], halign: 'center' } },
+        { content: 'Disposición Legal / Normativa', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
+        { content: 'Artículos y Vinculación con el PMC', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
+      ]],
+      body: normRows,
+      theme: 'grid',
+      styles: { fontSize: 7, cellPadding: 2, textColor: TEXT_DARK, lineColor: [210, 220, 235] },
+      margin: { left: margin, right: margin },
+    });
 
-  const diag = parseJson(project.diagnostico_generado);
-  const indAcad = parseJson(project.indicadores_academicos);
+    curY = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 6 : curY + 30;
+  }
 
-  // 2.1 Texto de Presentación / Contexto Comunitario
-  const diagTexto = safeStr(diag.presentacion || diag.contexto || project.diagnostico_comunidad, 'Diagnóstico contextual en proceso.');
+  // ── SECCIÓN 4: DIAGNÓSTICO ───────────────────────────────────────────────────
+  if (curY > pageHeight - 45) {
+    doc.addPage();
+    curY = 18;
+    drawHeaderOnNewPage();
+  }
+  addSectionHeader(PMC_TITULOS_SECCIONES.DIAGNOSTICO);
+
+  // 4.1 Texto de Contexto Socioeducativo y Territorial
+  const diagTexto = safeStr(diag.contexto || project.diagnostico_comunidad, 'El plantel se sitúa en un entorno con retos situados específicos de movilidad, acceso y desarrollo social, requiriendo un acompañamiento pedagógico permanente.');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(...BLUE_MID);
-  doc.text('2.1 Contexto Institucional, Social y Comunitario:', margin, curY);
+  doc.text('4.1 Contexto Socioeducativo y Territorial:', margin, curY);
   curY += 4;
 
   doc.setFont('helvetica', 'normal');
@@ -284,7 +411,7 @@ export async function generatePmcPDF(
   doc.text(splitDiag, margin, curY);
   curY += splitDiag.length * 3.5 + 6;
 
-  // 2.2 Tabla de Indicadores Académicos (Línea Base vs Metas)
+  // 4.2 Tabla de Indicadores Académicos (Línea Base vs Metas)
   if (curY > pageHeight - 45) {
     doc.addPage();
     curY = 18;
@@ -294,7 +421,7 @@ export async function generatePmcPDF(
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(...BLUE_MID);
-  doc.text('2.2 Indicadores Educativos (Línea Base vs Meta Institucional):', margin, curY);
+  doc.text('4.2 Análisis de Indicadores Académicos (Línea Base vs Metas):', margin, curY);
   curY += 4;
 
   const statsCtx: PmcStatisticalContext | undefined = project.statistical_context || (indAcad as { statistical_context?: PmcStatisticalContext })?.statistical_context;
@@ -316,7 +443,6 @@ export async function generatePmcPDF(
 
   curY = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 6 : curY + 40;
 
-  // Análisis e Interpretación de Indicadores (Paridad con DOCX)
   if (diag.analisis_indicadores) {
     if (curY > pageHeight - 35) {
       doc.addPage();
@@ -337,7 +463,47 @@ export async function generatePmcPDF(
     curY += splitAnalisis.length * 3.5 + 6;
   }
 
-  // 2.3 Matriz FODA Cuadrante Oficial
+  // 4.3 Infraestructura y Equipamiento Escolar
+  if (curY > pageHeight - 35) {
+    doc.addPage();
+    curY = 18;
+    drawHeaderOnNewPage();
+  }
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(...BLUE_MID);
+  doc.text('4.3 Infraestructura y Equipamiento Escolar:', margin, curY);
+  curY += 4;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(...TEXT_DARK);
+  const infraText = 'Las instalaciones físicas, aulas y recursos didácticos del plantel se gestionan de forma continua para asegurar condiciones dignas y seguras que favorezcan los procesos de enseñanza y aprendizaje, promoviendo la inclusión y la equidad formativa.';
+  const splitInfra = doc.splitTextToSize(infraText, contentWidth);
+  doc.text(splitInfra, margin, curY);
+  curY += splitInfra.length * 3.5 + 6;
+
+  // 4.4 Beneficios y Vinculación Comunitaria
+  if (curY > pageHeight - 35) {
+    doc.addPage();
+    curY = 18;
+    drawHeaderOnNewPage();
+  }
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(...BLUE_MID);
+  doc.text('4.4 Beneficios y Vinculación Comunitaria:', margin, curY);
+  curY += 4;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(...TEXT_DARK);
+  const benefText = 'La relación corresponsable con las familias, autoridades locales y comunidades aledañas permite consolidar redes de apoyo que impulsan la retención escolar, la captación de matrícula y la solución colectiva de problemáticas territoriales.';
+  const splitBenef = doc.splitTextToSize(benefText, contentWidth);
+  doc.text(splitBenef, margin, curY);
+  curY += splitBenef.length * 3.5 + 6;
+
+  // 4.5 Matriz FODA Cuadrante Oficial
   if (curY > pageHeight - 50) {
     doc.addPage();
     curY = 18;
@@ -347,7 +513,7 @@ export async function generatePmcPDF(
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(...BLUE_MID);
-  doc.text('2.3 Matriz de Análisis Estratégico FODA:', margin, curY);
+  doc.text('4.5 Matriz de Análisis Estratégico FODA:', margin, curY);
   curY += 4;
 
   const foda = parseJson(project.foda);
@@ -355,24 +521,24 @@ export async function generatePmcPDF(
   autoTable(doc, {
     startY: curY,
     head: [[
-      { content: 'FACTORES INTERNOS', colSpan: 2, styles: { fillColor: NAVY, textColor: [255, 255, 255], halign: 'center', fontStyle: 'bold' } },
+      { content: 'FACTORES INTERNOS Y EXTERNOS', colSpan: 2, styles: { fillColor: NAVY, textColor: [255, 255, 255], halign: 'center', fontStyle: 'bold' } },
     ]],
     body: [
       [
         { content: 'FORTALEZAS (F):', styles: { fontStyle: 'bold', fillColor: BLUE_LIGHT, cellWidth: 32 } },
-        safeStr(foda.fortalezas, 'Compromiso docente, clima institucional participativo.'),
+        safeStr(foda.fortalezas, 'Compromiso docente, trabajo colegiado y procesos estandarizados.'),
       ],
       [
         { content: 'DEBILIDADES (D):', styles: { fontStyle: 'bold', fillColor: [254, 226, 226], cellWidth: 32 } },
-        safeStr(foda.debilidades, 'Rezago en áreas sociocognitivas, recursos tecnológicos limitados.'),
+        safeStr(foda.debilidades, 'Rezago académico de ingreso y recursos tecnológicos limitados.'),
       ],
       [
         { content: 'OPORTUNIDADES (O):', styles: { fontStyle: 'bold', fillColor: [220, 252, 231], cellWidth: 32 } },
-        safeStr(foda.oportunidades, 'Vinculación con el sector productivo y proyectos comunitarios PAEC.'),
+        safeStr(foda.oportunidades, 'Vinculación con Telesecundarias y proyectos comunitarios PAEC.'),
       ],
       [
         { content: 'AMENAZAS (A):', styles: { fontStyle: 'bold', fillColor: [254, 243, 199], cellWidth: 32 } },
-        safeStr(foda.amenazas, 'Condiciones socioeconómicas vulnerables y migración juvenil.'),
+        safeStr(foda.amenazas, 'Condiciones geográficas complejas y limitaciones de transporte público.'),
       ],
     ],
     theme: 'grid',
@@ -382,7 +548,6 @@ export async function generatePmcPDF(
 
   curY = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 6 : curY + 40;
 
-  // Síntesis FODA (Paridad con DOCX)
   if (diag.sintesis_foda) {
     if (curY > pageHeight - 35) {
       doc.addPage();
@@ -403,59 +568,53 @@ export async function generatePmcPDF(
     curY += splitSintesis.length * 3.5 + 6;
   }
 
-  // 2.4 Priorización de Categorías y Ámbitos de Acción (Paridad con DOCX)
+  // ── SECCIÓN 5: PRIORIZACIÓN DE CATEGORÍAS ───────────────────────────────────
   const categorias = parseJson(project.categorias_priorizadas);
-  if (diag.priorizacion || (Array.isArray(categorias) && categorias.length > 0)) {
-    if (curY > pageHeight - 45) {
-      doc.addPage();
-      curY = 18;
-      drawHeaderOnNewPage();
-    }
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.setTextColor(...BLUE_MID);
-    doc.text('2.4 Priorización de Categorías y Ámbitos de Acción:', margin, curY);
-    curY += 4;
+  if (curY > pageHeight - 45) {
+    doc.addPage();
+    curY = 18;
+    drawHeaderOnNewPage();
+  }
+  addSectionHeader(PMC_TITULOS_SECCIONES.PRIORIZACION);
 
-    if (diag.priorizacion) {
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7.5);
-      doc.setTextColor(...TEXT_DARK);
-      const splitPrio = doc.splitTextToSize(String(diag.priorizacion).trim(), contentWidth);
-      doc.text(splitPrio, margin, curY);
-      curY += splitPrio.length * 3.5 + 6;
-    }
-
-    if (Array.isArray(categorias) && categorias.length > 0) {
-      const catRows = categorias.map((c: { id?: string; nombre?: string; temas?: string[] }, i: number) => [
-        { content: `${i + 1}`, styles: { halign: 'center' as const, fontStyle: 'bold' as const, fillColor: GRAY_BG } },
-        safeStr(c.nombre || c.id, `Categoría ${i + 1}`),
-        Array.isArray(c.temas) && c.temas.length > 0 ? c.temas.join('; ') : 'Todos los ámbitos prioritarios aplicables',
-      ]);
-
-      autoTable(doc, {
-        startY: curY,
-        head: [[
-          { content: 'N°', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], halign: 'center' } },
-          { content: 'Categoría Priorizada', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
-          { content: 'Temas / Ámbitos de Intervención', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
-        ]],
-        body: catRows,
-        theme: 'grid',
-        styles: { fontSize: 7, cellPadding: 2, textColor: TEXT_DARK, lineColor: [210, 220, 235] },
-        columnStyles: {
-          0: { cellWidth: 10 },
-          1: { cellWidth: 65 },
-          2: { cellWidth: contentWidth - 75 },
-        },
-        margin: { left: margin, right: margin },
-      });
-      curY = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 8 : curY + 30;
-    }
+  if (diag.priorizacion) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...TEXT_DARK);
+    const splitPrio = doc.splitTextToSize(String(diag.priorizacion).trim(), contentWidth);
+    doc.text(splitPrio, margin, curY);
+    curY += splitPrio.length * 3.5 + 6;
   }
 
-  // ── SECCIÓN 3: METAS INSTITUCIONALES ────────────────────────────────────────
-  addSectionHeader('III. METAS INSTITUCIONALES POR ÁMBITO DE ACCIÓN');
+  if (Array.isArray(categorias) && categorias.length > 0) {
+    const catRows = categorias.map((c: { id?: string; nombre?: string; temas?: string[] }, i: number) => [
+      { content: `${i + 1}`, styles: { halign: 'center' as const, fontStyle: 'bold' as const, fillColor: GRAY_BG } },
+      safeStr(c.nombre || c.id, `Categoría ${i + 1}`),
+      Array.isArray(c.temas) && c.temas.length > 0 ? c.temas.join('; ') : 'Todos los ámbitos prioritarios aplicables',
+    ]);
+
+    autoTable(doc, {
+      startY: curY,
+      head: [[
+        { content: 'N°', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], halign: 'center' } },
+        { content: 'Categoría Priorizada (Política CREAA)', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
+        { content: 'Temas / Ámbitos de Intervención', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
+      ]],
+      body: catRows,
+      theme: 'grid',
+      styles: { fontSize: 7, cellPadding: 2, textColor: TEXT_DARK, lineColor: [210, 220, 235] },
+      columnStyles: {
+        0: { cellWidth: 10 },
+        1: { cellWidth: 65 },
+        2: { cellWidth: contentWidth - 75 },
+      },
+      margin: { left: margin, right: margin },
+    });
+    curY = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 8 : curY + 30;
+  }
+
+  // ── SECCIÓN 6: PLAN DE ACCIÓN ───────────────────────────────────────────────
+  addSectionHeader(PMC_TITULOS_SECCIONES.PLAN_ACCION);
 
   const planAccion = parseJson(project.plan_accion);
   const metasInst: any[] = Array.isArray(planAccion.metas_institucionales) ? planAccion.metas_institucionales : [];
@@ -559,8 +718,8 @@ export async function generatePmcPDF(
     }
   }
 
-  // ── SECCIÓN 4: METAS INDIVIDUALES DEL PERSONAL ──────────────────────────────
-  addSectionHeader('IV. METAS INDIVIDUALES Y COMPROMISOS DEL PERSONAL');
+  // ── SECCIÓN 7: METAS INDIVIDUALES DEL PERSONAL ──────────────────────────────
+  addSectionHeader(PMC_TITULOS_SECCIONES.METAS_INDIVIDUALES);
 
   const metasPers: any[] = Array.isArray(planAccion.metas_personales) ? planAccion.metas_personales : [];
 
@@ -607,14 +766,14 @@ export async function generatePmcPDF(
     curY = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 8 : curY + 40;
   }
 
-  // ── SECCIÓN 5: VALIDACIÓN INSTITUCIONAL Y FIRMAS REGLAMENTARIAS ─────────────
+  // ── SECCIÓN 8: PARTICIPANTES, CONTROL DE REVISIONES Y APROBACIÓN ────────────
   if (curY > pageHeight - 55) {
     doc.addPage();
     curY = 20;
     drawHeaderOnNewPage();
   }
 
-  addSectionHeader('V. VALIDACIÓN INSTITUCIONAL Y FIRMAS OFICIALES');
+  addSectionHeader(PMC_TITULOS_SECCIONES.PARTICIPANTES_CONTROL);
 
   // Tabla de Personal y Colectivo Escolar Participante (Paridad con DOCX)
   const staffDataRaw = parseJson<PmcStaffMember[]>(project.staff_data);

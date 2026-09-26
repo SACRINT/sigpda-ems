@@ -149,11 +149,14 @@ describe('pmc-docx-generator — Generador de Plan de Mejora Continua e Informes
     expect(text).toContain('PLAN DE MEJORA CONTINUA');
     expect(text).toContain('Bachillerato General Oficial Lic. Benito Juárez');
     expect(text).toContain('21EBH0012A');
-    expect(text).toContain('I. MARCO NORMATIVO');
-    expect(text).toContain('II. DIAGNÓSTICO');
-    expect(text).toContain('III. PLAN DE ACCIÓN');
-    expect(text).toContain('IV. METAS INDIVIDUALES DEL PERSONAL');
-    expect(text).toContain('V. CONTROL DE REVISIONES');
+    expect(text).toContain('1. PRESENTACIÓN');
+    expect(text).toContain('2. OBJETIVO DEL PMC');
+    expect(text).toContain('3. NORMATIVIDAD APLICABLE');
+    expect(text).toContain('4. DIAGNÓSTICO');
+    expect(text).toContain('5. PRIORIZACIÓN DE CATEGORÍAS');
+    expect(text).toContain('6. PLAN DE ACCIÓN');
+    expect(text).toContain('7. METAS INDIVIDUALES DEL PERSONAL');
+    expect(text).toContain('8. PARTICIPANTES, CONTROL DE REVISIONES Y APROBACIÓN');
   });
 
   // ── TEST 2: Resiliencia ante PmcProject vacío o mínimo ──────────────────────
@@ -168,7 +171,7 @@ describe('pmc-docx-generator — Generador de Plan de Mejora Continua e Informes
 
     const { value: text } = await mammoth.extractRawText({ buffer });
     expect(text).toContain('PLAN DE MEJORA CONTINUA');
-    expect(text).toContain('I. MARCO NORMATIVO');
+    expect(text).toContain('3. NORMATIVIDAD APLICABLE');
     // H-099: Con normativa null o no provista, nunca emite sección en blanco (fallback de disposiciones activo)
     expect(text).toContain('Constitución Política de los Estados Unidos Mexicanos (Art. 3°)');
     expect(text).toContain('Ley General de Educación');
@@ -270,7 +273,7 @@ describe('pmc-docx-generator — Generador de Plan de Mejora Continua e Informes
     const buffer = await generatePmcDocx(fixture);
     const { value: text } = await mammoth.extractRawText({ buffer });
 
-    expect(text).toContain('V. CONTROL DE REVISIONES Y APROBACIÓN');
+    expect(text).toContain('8. PARTICIPANTES, CONTROL DE REVISIONES Y APROBACIÓN');
     expect(text).toContain('Director(a)');
     expect(text).toContain('Mtra. Patricia Mendoza Santos');
     expect(text).toContain('Supervisor(a)');

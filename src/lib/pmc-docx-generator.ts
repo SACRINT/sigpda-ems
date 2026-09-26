@@ -19,6 +19,12 @@ import {
   type PmcIndicatorComputedValues,
   type PmcStatisticalContext,
 } from './pmc-indicator-calculator';
+import {
+  PMC_TITULOS_SECCIONES,
+  PMC_SECCIONES_CANONICAS,
+  clasificarNormativaJerarquica,
+  getObjetivoPmcText,
+} from './pmc-document-structure';
 
 // ─── Color Palette ───────────────────────────────────────────────────────────
 const C = {
@@ -131,8 +137,8 @@ function gap(n = 1): Paragraph[] {
   return Array.from({ length: n }, () => new Paragraph({ children: [] }));
 }
 
-function safeStr(val: unknown): string {
-  if (val === null || val === undefined) return '';
+function safeStr(val: unknown, fallback = ''): string {
+  if (val === null || val === undefined || val === '') return fallback;
   return String(val);
 }
 
@@ -352,7 +358,113 @@ function buildCoverPage(p: PmcProject): (Paragraph | Table)[] {
   return rows;
 }
 
-// ─── Marco Normativo ─────────────────────────────────────────────────────────
+// ─── Índice General ──────────────────────────────────────────────────────────
+function buildIndice(): (Paragraph | Table)[] {
+  const items: (Paragraph | Table)[] = [
+    secHeading('ÍNDICE GENERAL'),
+    bodyPara('Estructura general del Programa de Mejora Continua (PMC) conforme a los lineamientos oficiales de la Dirección de Bachilleratos Estatales y Preparatoria Abierta (DBEPA Puebla):'),
+    ...gap(),
+  ];
+
+  const tocRows: TableRow[] = [
+    new TableRow({
+      children: [
+        tcH('N°', { w: 1000 }),
+        tcH('Contenido Temático / Capítulo'),
+      ],
+    }),
+  ];
+
+  for (const sec of PMC_SECCIONES_CANONICAS) {
+    tocRows.push(
+      new TableRow({
+        children: [
+          tc(String(sec.numero), { w: 1000, bold: true, align: AlignmentType.CENTER, fill: C.alt }),
+          tc(sec.titulo, { bold: true, fill: C.alt }),
+        ],
+      })
+    );
+    if (sec.subsecciones) {
+      for (const sub of sec.subsecciones) {
+        tocRows.push(
+          new TableRow({
+            children: [
+              tc(sub.numero, { w: 1000, align: AlignmentType.CENTER }),
+              tc(`    ${sub.titulo}`, { italics: true, color: C.muted }),
+            ],
+          })
+        );
+      }
+    }
+  }
+
+  items.push(tbl(tocRows, [1000, CONTENT - 1000]));
+  items.push(new Paragraph({ children: [new PageBreak()] }));
+  return items;
+}
+
+// ─── 1. Presentación ─────────────────────────────────────────────────────────
+function buildPresentacion(diag: DiagnosticoGenerado, project: PmcProject): (Paragraph | Table)[] {
+  const textoPresentacion = safeStr(diag.presentacion) ||
+    `El ${safeStr(project.school_name, 'plantel escolar')}, con CCT ${safeStr(project.school_cct, 'N/D')} y ubicado en la localidad de ${safeStr(project.locality, 'N/D')}, municipio de ${safeStr(project.municipality, 'N/D')}, Puebla, presenta su Programa de Mejora Continua (PMC) para el ciclo escolar ${safeStr(project.ciclo_escolar, '2026-2027')}. Este instrumento de planeación directiva se fundamenta en el artículo 3° de la Constitución Política de los Estados Unidos Mexicanos, garantizando el derecho humano a la educación con un enfoque de equidad, excelencia y mejora continua, alineado con el Modelo Educativo de la Nueva Escuela Mexicana (NEM), el Marco Curricular Común de la Educación Media Superior (MCCEMS) y los ejes rectores de la política educativa estatal CREAA.`;
+
+  return [
+    secHeading(PMC_TITULOS_SECCIONES.PRESENTACION),
+    bodyPara(textoPresentacion),
+    ...gap(),
+    new Paragraph({ children: [new PageBreak()] }),
+  ];
+}
+
+// ─── 2. Objetivo del PMC ─────────────────────────────────────────────────────
+function buildObjetivo(project: PmcProject): (Paragraph | Table)[] {
+  const objGeneral = getObjetivoPmcText(project.school_name, project.ciclo_escolar);
+
+  return [
+    secHeading(PMC_TITULOS_SECCIONES.OBJETIVO),
+    subHeading('Objetivo General:'),
+    bodyPara(objGeneral),
+    ...gap(),
+    subHeading('Objetivos Específicos y Estratégicos:'),
+    new Paragraph({
+      bullet: { level: 0 },
+      spacing: { before: 40, after: 40 },
+      children: [
+        new TextRun({
+          text: 'Fortalecer los aprendizajes de trayectoria de las y los aprendientes en los Recursos Sociocognitivos fundamentales (Pensamiento Matemático, Lengua y Comunicación, Conciencia Histórica y Cultura Digital).',
+          size: 19,
+          font: 'Arial',
+        }),
+      ],
+    }),
+    new Paragraph({
+      bullet: { level: 0 },
+      spacing: { before: 40, after: 40 },
+      children: [
+        new TextRun({
+          text: 'Disminuir las tasas de deserción y reprobación escolar mediante estrategias integrales de tutoría, alertas tempranas y acompañamiento docente situado.',
+          size: 19,
+          font: 'Arial',
+        }),
+      ],
+    }),
+    new Paragraph({
+      bullet: { level: 0 },
+      spacing: { before: 40, after: 40 },
+      children: [
+        new TextRun({
+          text: 'Promover la vinculación activa y corresponsable con la comunidad escolar y el entorno territorial a través del Proyecto Escolar Comunitario (PAEC-PEC).',
+          size: 19,
+          font: 'Arial',
+        }),
+      ],
+    }),
+    ...gap(),
+    new Paragraph({ children: [new PageBreak()] }),
+  ];
+}
+
+// ─── 3. Marco Normativo Jerarquizado ─────────────────────────────────────────
 function buildNormativa(normativa?: NormativaDoc | null): (Paragraph | Table)[] {
   const normDocs = (Array.isArray(normativa?.documentos) && normativa.documentos.length > 0)
     ? normativa.documentos
@@ -384,39 +496,58 @@ function buildNormativa(normativa?: NormativaDoc | null): (Paragraph | Table)[] 
         },
       ];
 
+  const grupos = clasificarNormativaJerarquica(normDocs);
+
   const descripcion = safeStr(normativa?.descripcion) ||
-    'El presente Plan de Mejora Continua (PMC) se sustenta en el siguiente marco jurídico y normativo vigente para el Bachillerato General del Estado de Puebla (BGE), en el marco del MCCEMS y la Subsecretaría de Educación Media Superior.';
+    'El presente Plan de Mejora Continua (PMC) se sustenta en el marco jurídico y normativo vigente para el Bachillerato General del Estado de Puebla (BGE), en el marco del MCCEMS y la Subsecretaría de Educación Media Superior.';
 
   const items: (Paragraph | Table)[] = [
-    secHeading('I. MARCO NORMATIVO'),
+    secHeading(PMC_TITULOS_SECCIONES.NORMATIVIDAD),
     bodyPara(descripcion),
     ...gap(),
   ];
 
-  for (const doc of normDocs) {
+  for (const grp of grupos) {
     items.push(
       new Paragraph({
-        spacing: { before: 120, after: 60 },
+        spacing: { before: 180, after: 80 },
         children: [
           new TextRun({
-            text: `${doc.orden != null ? `${doc.orden}. ` : ''}${safeStr(doc.titulo)}`,
+            text: grp.categoria,
             bold: true,
-            size: 20,
+            size: 21,
             color: C.navy,
             font: 'Arial',
           }),
         ],
       })
     );
-    if (Array.isArray(doc.articulos)) {
-      for (const art of doc.articulos) {
-        items.push(
-          new Paragraph({
-            bullet: { level: 0 },
-            spacing: { before: 40, after: 40 },
-            children: [new TextRun({ text: safeStr(art), size: 18, font: 'Arial', color: C.text })],
-          })
-        );
+
+    for (const doc of grp.documentos) {
+      items.push(
+        new Paragraph({
+          spacing: { before: 100, after: 40 },
+          children: [
+            new TextRun({
+              text: `${doc.orden != null ? `${doc.orden}. ` : ''}${safeStr(doc.titulo)}`,
+              bold: true,
+              size: 19,
+              color: C.accent,
+              font: 'Arial',
+            }),
+          ],
+        })
+      );
+      if (Array.isArray(doc.articulos)) {
+        for (const art of doc.articulos) {
+          items.push(
+            new Paragraph({
+              bullet: { level: 0 },
+              spacing: { before: 30, after: 30 },
+              children: [new TextRun({ text: safeStr(art), size: 18, font: 'Arial', color: C.text })],
+            })
+          );
+        }
       }
     }
   }
@@ -425,60 +556,53 @@ function buildNormativa(normativa?: NormativaDoc | null): (Paragraph | Table)[] 
   return items;
 }
 
-// ─── Diagnóstico ─────────────────────────────────────────────────────────────
+// ─── 4. Diagnóstico ──────────────────────────────────────────────────────────
 function buildDiagnostico(
   diag: DiagnosticoGenerado,
   indic: IndicadoresAcademicos,
   foda: FodaData,
-  categorias: Array<{ id?: string; nombre?: string }>,
-  statsCtx?: PmcStatisticalContext | null
+  statsCtx?: PmcStatisticalContext | null,
+  project?: PmcProject
 ): (Paragraph | Table)[] {
-  const items: (Paragraph | Table)[] = [secHeading('II. DIAGNÓSTICO')];
+  const items: (Paragraph | Table)[] = [secHeading(PMC_TITULOS_SECCIONES.DIAGNOSTICO)];
 
-  // Presentación
-  if (diag.presentacion) {
-    items.push(subHeading('2.1 Presentación'));
-    items.push(bodyPara(diag.presentacion));
-    items.push(...gap());
-  }
+  // 4.1 Contexto Socioeducativo y Territorial
+  items.push(subHeading('4.1 Contexto Socioeducativo y Territorial'));
+  const contextoText = safeStr(diag.contexto || project?.diagnostico_comunidad) ||
+    'El plantel se ubica en un entorno que exige una intervención directiva basada en la gestión comunitaria, atendiendo las características socioculturales y desafíos de movilidad de la población escolar.';
+  items.push(bodyPara(contextoText));
+  items.push(...gap());
 
-  // Contexto
-  if (diag.contexto) {
-    items.push(subHeading('2.2 Contexto Socioeducativo'));
-    items.push(bodyPara(diag.contexto));
-    items.push(...gap());
-  }
-
-  // Indicadores table
-  items.push(subHeading('2.3 Indicadores Académicos'));
+  // 4.2 Indicadores Académicos (Línea Base vs Meta)
+  items.push(subHeading('4.2 Análisis de Indicadores Académicos (Línea Base vs Metas)'));
   const indVals = computePmcIndicatorValues(indic, statsCtx);
   items.push(
     tbl(
       [
         new TableRow({
           children: [
-            tcH('Indicador'),
-            tcH('Ciclo Anterior', { align: AlignmentType.CENTER }),
+            tcH('Indicador Oficial'),
+            tcH('Ciclo Anterior (Línea Base)', { align: AlignmentType.CENTER }),
             tcH('Meta Ciclo Actual', { align: AlignmentType.CENTER }),
           ],
         }),
         new TableRow({
           children: [
-            tc('Índice de Aprobación'),
+            tc('Índice de Aprobación Escolar'),
             tc(indVals.aprobacion.ant, { align: AlignmentType.CENTER }),
             tc(indVals.aprobacion.meta, { align: AlignmentType.CENTER }),
           ],
         }),
         new TableRow({
           children: [
-            tc('Índice de Reprobación', { fill: C.alt }),
+            tc('Índice de Reprobación Escolar', { fill: C.alt }),
             tc(indVals.reprobacion.ant, { align: AlignmentType.CENTER, fill: C.alt }),
             tc(indVals.reprobacion.meta, { align: AlignmentType.CENTER, fill: C.alt }),
           ],
         }),
         new TableRow({
           children: [
-            tc('Abandono Escolar'),
+            tc('Tasa de Abandono Escolar'),
             tc(indVals.abandono.ant, { align: AlignmentType.CENTER }),
             tc(indVals.abandono.meta, { align: AlignmentType.CENTER }),
           ],
@@ -492,7 +616,7 @@ function buildDiagnostico(
         }),
         new TableRow({
           children: [
-            tc('Matrícula Total'),
+            tc('Matrícula Total del Plantel'),
             tc(indVals.matricula.ant, { align: AlignmentType.CENTER, span: 2 }),
           ],
         }),
@@ -505,35 +629,59 @@ function buildDiagnostico(
     items.push(...gap());
     items.push(bodyPara(diag.analisis_indicadores));
   }
-
-  // FODA table
   items.push(...gap());
-  items.push(subHeading('2.4 Síntesis FODA'));
+
+  // 4.3 Infraestructura y Equipamiento Escolar
+  items.push(subHeading('4.3 Infraestructura y Equipamiento Escolar'));
+  items.push(bodyPara(
+    'Las instalaciones físicas, aulas y recursos didácticos del plantel se gestionan de forma continua para asegurar condiciones dignas y seguras que favorezcan los procesos de enseñanza y aprendizaje, promoviendo la inclusión y la equidad formativa.'
+  ));
+  items.push(...gap());
+
+  // 4.4 Beneficios y Vinculación Comunitaria
+  items.push(subHeading('4.4 Beneficios y Vinculación Comunitaria'));
+  items.push(bodyPara(
+    'La relación corresponsable con las familias, autoridades locales y comunidades aledañas permite consolidar redes de apoyo que impulsan la retención escolar, la captación de matrícula y la solución colectiva de problemáticas territoriales.'
+  ));
+  items.push(...gap());
+
+  // 4.5 Matriz FODA Situacional
+  items.push(subHeading('4.5 Matriz FODA Situacional'));
   items.push(
     tbl(
       [
         new TableRow({
           children: [
-            tcH('FORTALEZAS', { align: AlignmentType.CENTER }),
-            tcH('OPORTUNIDADES', { align: AlignmentType.CENTER }),
+            tcH('FACTORES INTERNOS', { align: AlignmentType.CENTER, span: 2 }),
           ],
         }),
         new TableRow({
           children: [
-            tc(safeStr(foda.fortalezas), { fill: '#E8F5E9' }),
-            tc(safeStr(foda.oportunidades), { fill: '#E3F2FD' }),
+            tcH('FORTALEZAS (F)', { align: AlignmentType.CENTER }),
+            tcH('DEBILIDADES (D)', { align: AlignmentType.CENTER, fill: '#B71C1C' }),
           ],
         }),
         new TableRow({
           children: [
-            tcH('DEBILIDADES', { align: AlignmentType.CENTER, fill: '#B71C1C' }),
-            tcH('AMENAZAS', { align: AlignmentType.CENTER, fill: '#E65100' }),
+            tc(safeStr(foda.fortalezas, 'Compromiso docente, trabajo colegiado y procesos estandarizados.'), { fill: '#E8F5E9' }),
+            tc(safeStr(foda.debilidades, 'Rezago académico de ingreso y recursos tecnológicos limitados.'), { fill: '#FFEBEE' }),
           ],
         }),
         new TableRow({
           children: [
-            tc(safeStr(foda.debilidades), { fill: '#FFEBEE' }),
-            tc(safeStr(foda.amenazas), { fill: '#FFF3E0' }),
+            tcH('FACTORES EXTERNOS', { align: AlignmentType.CENTER, span: 2 }),
+          ],
+        }),
+        new TableRow({
+          children: [
+            tcH('OPORTUNIDADES (O)', { align: AlignmentType.CENTER }),
+            tcH('AMENAZAS (A)', { align: AlignmentType.CENTER, fill: '#E65100' }),
+          ],
+        }),
+        new TableRow({
+          children: [
+            tc(safeStr(foda.oportunidades, 'Vinculación con Telesecundarias y gestión de infraestructura comunitaria.'), { fill: '#E3F2FD' }),
+            tc(safeStr(foda.amenazas, 'Condiciones geográficas complejas y limitaciones de transporte público.'), { fill: '#FFF3E0' }),
           ],
         }),
       ],
@@ -546,30 +694,45 @@ function buildDiagnostico(
     items.push(bodyPara(diag.sintesis_foda));
   }
 
-  // Priorización
+  items.push(new Paragraph({ children: [new PageBreak()] }));
+  return items;
+}
+
+// ─── 5. Priorización de Categorías ───────────────────────────────────────────
+function buildPriorizacion(
+  diag: DiagnosticoGenerado,
+  categorias: Array<{ id?: string; nombre?: string; temas?: string[] }>
+): (Paragraph | Table)[] {
+  const items: (Paragraph | Table)[] = [secHeading(PMC_TITULOS_SECCIONES.PRIORIZACION)];
+
+  const textoPrio = safeStr(diag.priorizacion) ||
+    'Para el ciclo escolar se establecen las categorías y ámbitos de acción estratégicos orientados a atender las problemáticas prioritarias detectadas en el diagnóstico socioeducativo, bajo la política CREAA.';
+  items.push(bodyPara(textoPrio));
   items.push(...gap());
-  items.push(subHeading('2.5 Priorización de Categorías'));
-  if (diag.priorizacion) {
-    items.push(bodyPara(diag.priorizacion));
-  }
 
   if (Array.isArray(categorias) && categorias.length > 0) {
-    items.push(...gap());
     items.push(
       tbl(
         [
-          new TableRow({ children: [tcH('N°', { w: 800 }), tcH('Categoría Priorizada')] }),
+          new TableRow({
+            children: [
+              tcH('N°', { w: 800 }),
+              tcH('Categoría Priorizada (Política CREAA)', { w: Math.floor(CONTENT * 0.45) }),
+              tcH('Temas y Ámbitos de Intervención', { w: CONTENT - 800 - Math.floor(CONTENT * 0.45) }),
+            ],
+          }),
           ...categorias.map(
             (cat, i) =>
               new TableRow({
                 children: [
                   tc(String(i + 1), { w: 800, align: AlignmentType.CENTER, fill: i % 2 ? C.alt : C.white }),
-                  tc(`Categoría ${cat.id ?? i + 1}: ${safeStr(cat.nombre)}`, { fill: i % 2 ? C.alt : C.white }),
+                  tc(safeStr(cat.nombre || `Categoría ${cat.id ?? i + 1}`), { fill: i % 2 ? C.alt : C.white }),
+                  tc(Array.isArray(cat.temas) && cat.temas.length > 0 ? cat.temas.join('; ') : 'Todos los ámbitos prioritarios aplicables', { fill: i % 2 ? C.alt : C.white }),
                 ],
               })
           ),
         ],
-        [800, CONTENT - 800]
+        [800, Math.floor(CONTENT * 0.45), CONTENT - 800 - Math.floor(CONTENT * 0.45)]
       )
     );
   }
@@ -578,54 +741,54 @@ function buildDiagnostico(
   return items;
 }
 
-// ─── Plan de Acción ──────────────────────────────────────────────────────────
+// ─── 6. Plan de Acción ───────────────────────────────────────────────────────
 function buildPlanAccion(plan: PlanAccion): (Paragraph | Table)[] {
-  const items: (Paragraph | Table)[] = [secHeading('III. PLAN DE ACCIÓN')];
+  const items: (Paragraph | Table)[] = [secHeading(PMC_TITULOS_SECCIONES.PLAN_ACCION)];
 
   const metas = plan.metas_institucionales ?? [];
 
   if (metas.length === 0) {
-    items.push(bodyPara('No se han generado metas institucionales.'));
+    items.push(bodyPara('No se han registrado metas institucionales específicas en el plan de acción.'));
   }
 
   for (let i = 0; i < metas.length; i++) {
     const m = metas[i];
-    items.push(subHeading(`Meta Institucional ${i + 1} — Categoría ${m.categoria ?? '?'}: ${m.nombre_categoria ?? ''}`));
+    items.push(subHeading(`Ficha Técnica ${i + 1}: ${m.nombre_categoria || m.categoria || 'Ámbito Institucional'}`));
     items.push(
       tbl(
         [
           new TableRow({
             children: [
-              tcH('Campo', { w: CONTENT / 3 }),
-              tcH('Contenido', { w: (CONTENT * 2) / 3 }),
+              tcH('Campo Descriptivo', { w: CONTENT / 3 }),
+              tcH('Especificación de la Meta Institucional', { w: (CONTENT * 2) / 3 }),
             ],
           }),
           new TableRow({
-            children: [tcSub('Tema'), tc(safeStr(m.tema))],
+            children: [tcSub('Tema Específico'), tc(safeStr(m.tema))],
           }),
           new TableRow({
             children: [tcSub('Meta SMART', { fill: C.alt }), tc(safeStr(m.meta), { fill: C.alt })],
           }),
           new TableRow({
-            children: [tcSub('Estrategia'), tc(safeStr(m.estrategia))],
+            children: [tcSub('Estrategia de Operación'), tc(safeStr(m.estrategia))],
           }),
           new TableRow({
-            children: [tcSub('Línea Base', { fill: C.alt }), tc(safeStr(m.linea_base), { fill: C.alt })],
+            children: [tcSub('Línea Base Documentada', { fill: C.alt }), tc(safeStr(m.linea_base), { fill: C.alt })],
           }),
           new TableRow({
-            children: [tcSub('Personal Designado'), tc(safeStr(m.personal_designado))],
+            children: [tcSub('Personal Designado / Responsable'), tc(safeStr(m.personal_designado))],
           }),
           new TableRow({
-            children: [tcSub('Entregable', { fill: C.alt }), tc(safeStr(m.entregable), { fill: C.alt })],
+            children: [tcSub('Entregable Comprobable', { fill: C.alt }), tc(safeStr(m.entregable), { fill: C.alt })],
           }),
           new TableRow({
             children: [
-              tcSub('Período'),
-              tc(`${safeStr(m.periodo_inicio)} — ${safeStr(m.periodo_fin)}`),
+              tcSub('Período de Ejecución'),
+              tc(`${safeStr(m.periodo_inicio, 'Agosto')} — ${safeStr(m.periodo_fin, 'Julio')}`),
             ],
           }),
           new TableRow({
-            children: [tcSub('Diagnóstico-Meta', { fill: C.alt }), tc(safeStr(m.diagnostico_meta), { fill: C.alt })],
+            children: [tcSub('Diagnóstico de la Meta', { fill: C.alt }), tc(safeStr(m.diagnostico_meta), { fill: C.alt })],
           }),
         ],
         [CONTENT / 3, (CONTENT * 2) / 3]
@@ -638,14 +801,14 @@ function buildPlanAccion(plan: PlanAccion): (Paragraph | Table)[] {
   return items;
 }
 
-// ─── Metas Personales ────────────────────────────────────────────────────────
+// ─── 7. Metas Individuales del Personal ──────────────────────────────────────
 function buildMetasPersonales(plan: PlanAccion): (Paragraph | Table)[] {
-  const items: (Paragraph | Table)[] = [secHeading('IV. METAS INDIVIDUALES DEL PERSONAL')];
+  const items: (Paragraph | Table)[] = [secHeading(PMC_TITULOS_SECCIONES.METAS_INDIVIDUALES)];
 
   const personal = plan.metas_personales ?? [];
 
   if (personal.length === 0) {
-    items.push(bodyPara('No se han generado metas individuales.'));
+    items.push(bodyPara('No se han registrado metas individuales de la plantilla docente en el sistema.'));
     items.push(new Paragraph({ children: [new PageBreak()] }));
     return items;
   }
@@ -655,10 +818,10 @@ function buildMetasPersonales(plan: PlanAccion): (Paragraph | Table)[] {
       [
         new TableRow({
           children: [
-            tcH('Nombre'),
-            tcH('Cargo'),
-            tcH('Meta Individual'),
-            tcH('Entregable'),
+            tcH('Nombre del Integrante'),
+            tcH('Cargo / Función'),
+            tcH('Meta y Compromiso Individual'),
+            tcH('Entregable Comprobable'),
             tcH('Período'),
           ],
         }),
@@ -696,19 +859,51 @@ function buildMetasPersonales(plan: PlanAccion): (Paragraph | Table)[] {
   return items;
 }
 
-// ─── Control de Revisiones ───────────────────────────────────────────────────
+// ─── 8. Participantes, Control de Revisiones y Aprobación ─────────────────────
 function buildControlRevisiones(p: PmcProject): (Paragraph | Table)[] {
+  const staffData = parseJson<Array<{ nombre?: string; cargo?: string }>>(p.staff_data);
+  const participantes = Array.isArray(staffData) && staffData.length > 0
+    ? staffData
+    : [{ nombre: p.director_name, cargo: 'Director(a)' }];
+
   return [
-    secHeading('V. CONTROL DE REVISIONES Y APROBACIÓN'),
+    secHeading(PMC_TITULOS_SECCIONES.PARTICIPANTES_CONTROL),
     bodyPara(
-      'El presente Plan de Mejora Continua fue elaborado con la participación del personal directivo, docente y administrativo del plantel, y queda sujeto a revisión periódica conforme al calendario establecido.'
+      'El presente Plan de Mejora Continua fue elaborado participativamente por el colectivo escolar del plantel, formalizando los acuerdos y compromisos institucionales para el ciclo escolar correspondiente:'
     ),
     ...gap(),
+    subHeading('Personal y Colectivo Escolar Participante:'),
     tbl(
       [
         new TableRow({
           children: [
-            tcH('Rol'),
+            tcH('N°', { w: 800 }),
+            tcH('Nombre'),
+            tcH('Cargo / Función'),
+            tcH('Firma de Conformidad'),
+          ],
+        }),
+        ...participantes.map(
+          (part, idx) =>
+            new TableRow({
+              children: [
+                tc(String(idx + 1), { w: 800, align: AlignmentType.CENTER, fill: idx % 2 ? C.alt : C.white }),
+                tc(safeStr(part.nombre, 'Personal Escolar'), { fill: idx % 2 ? C.alt : C.white }),
+                tc(safeStr(part.cargo, 'Docente'), { fill: idx % 2 ? C.alt : C.white }),
+                tc('________________________', { align: AlignmentType.CENTER, fill: idx % 2 ? C.alt : C.white }),
+              ],
+            })
+        ),
+      ],
+      [800, Math.floor(CONTENT * 0.35), Math.floor(CONTENT * 0.25), CONTENT - 800 - Math.floor(CONTENT * 0.6)]
+    ),
+    ...gap(2),
+    subHeading('Control de Revisiones Institucionales:'),
+    tbl(
+      [
+        new TableRow({
+          children: [
+            tcH('Rol / Autoridad'),
             tcH('Nombre'),
             tcH('Firma'),
             tcH('Fecha'),
@@ -716,7 +911,7 @@ function buildControlRevisiones(p: PmcProject): (Paragraph | Table)[] {
         }),
         new TableRow({
           children: [
-            tcSub('Director(a)'),
+            tcSub('Director(a) del Plantel'),
             tc(safeStr(p.director_name)),
             tc(''),
             tc(''),
@@ -724,7 +919,7 @@ function buildControlRevisiones(p: PmcProject): (Paragraph | Table)[] {
         }),
         new TableRow({
           children: [
-            tcSub('Supervisor(a)', { fill: C.alt }),
+            tcSub('Supervisor(a) Escolar', { fill: C.alt }),
             tc(safeStr(p.supervisor_name), { fill: C.alt }),
             tc('', { fill: C.alt }),
             tc('', { fill: C.alt }),
@@ -732,26 +927,18 @@ function buildControlRevisiones(p: PmcProject): (Paragraph | Table)[] {
         }),
         new TableRow({
           children: [
-            tcSub('Representante Sindical'),
+            tcSub('Presidente del CEPS / Comunidad'),
             tc(''),
             tc(''),
             tc(''),
-          ],
-        }),
-        new TableRow({
-          children: [
-            tcSub('Representante de Padres', { fill: C.alt }),
-            tc('', { fill: C.alt }),
-            tc('', { fill: C.alt }),
-            tc('', { fill: C.alt }),
           ],
         }),
       ],
       [
-        Math.floor(CONTENT * 0.25),
-        Math.floor(CONTENT * 0.35),
-        Math.floor(CONTENT * 0.2),
-        Math.floor(CONTENT * 0.2),
+        Math.floor(CONTENT * 0.28),
+        Math.floor(CONTENT * 0.36),
+        Math.floor(CONTENT * 0.18),
+        Math.floor(CONTENT * 0.18),
       ]
     ),
     ...gap(2),
@@ -766,13 +953,17 @@ export async function generatePmcDocx(project: PmcProject): Promise<Buffer> {
   const statsCtx = parseJson<PmcStatisticalContext>(project.statistical_context);
   const foda = parseJson<FodaData>(project.foda);
   const plan = parseJson<PlanAccion>(project.plan_accion);
-  const categorias = parseJson<Array<{ id?: string; nombre?: string }>>(project.categorias_priorizadas);
+  const categorias = parseJson<Array<{ id?: string; nombre?: string; temas?: string[] }>>(project.categorias_priorizadas);
   const categoriasArr = Array.isArray(categorias) ? categorias : [];
 
   const children: (Paragraph | Table)[] = [
     ...buildCoverPage(project),
+    ...buildIndice(),
+    ...buildPresentacion(diag, project),
+    ...buildObjetivo(project),
     ...buildNormativa(normativa),
-    ...buildDiagnostico(diag, indic, foda, categoriasArr, statsCtx),
+    ...buildDiagnostico(diag, indic, foda, statsCtx, project),
+    ...buildPriorizacion(diag, categoriasArr),
     ...buildPlanAccion(plan),
     ...buildMetasPersonales(plan),
     ...buildControlRevisiones(project),
