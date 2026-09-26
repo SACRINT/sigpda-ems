@@ -5,14 +5,17 @@
  */
 
 export function formatZoneMetric(val: unknown, opts?: { pct?: boolean }): string {
-  if (val === undefined || val === null) {
+  if (val == null) {
     return 'N/D';
   }
   if (typeof val === 'string' && val.trim() === '') {
     return 'N/D';
   }
   const num = typeof val === 'number' ? val : Number(val);
-  if (!Number.isFinite(num) || num < 0) {
+  if (!Number.isFinite(num)) {
+    return 'N/D';
+  }
+  if (num < 0) {
     return 'N/D';
   }
   return opts?.pct ? `${num}%` : `${num}`;
@@ -35,9 +38,9 @@ export interface ZoneDiagnosticParams {
  * Garantiza que la ausencia de métricas se represente con 'N/D' y no con '0%' fabricado.
  */
 export function buildZoneDiagnosticText(params: ZoneDiagnosticParams): string {
-  const zona = params.zonaNumero || '004';
-  const ciclo = params.cicloEscolar || '2026-2027';
-  const prioritarios = params.plantelesPrioritarios || [];
+  const zona = params.zonaNumero?.trim() ? params.zonaNumero.trim() : 'N/D';
+  const ciclo = params.cicloEscolar?.trim() ? params.cicloEscolar.trim() : 'N/D';
+  const prioritarios = params.plantelesPrioritarios ?? [];
 
   return (
     `Diagnóstico territorial consolidado a partir de la estadística oficial 911.7G y F11C (Zona ${zona}, Ciclo ${ciclo}):\n` +

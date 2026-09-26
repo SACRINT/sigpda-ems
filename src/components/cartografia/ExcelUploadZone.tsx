@@ -365,11 +365,11 @@ export default function ExcelUploadZone({
             </div>
             <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
               <div style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>Aprov. F11C</div>
-              <div style={{ fontSize: 18, fontWeight: 900, color: '#fbbf24', marginTop: 2 }}>{parsedData.promedioAprovechamiento}</div>
+              <div style={{ fontSize: 18, fontWeight: 900, color: '#fbbf24', marginTop: 2 }}>{formatZoneMetric(parsedData.promedioAprovechamiento)}</div>
             </div>
             <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
               <div style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>Reprobación</div>
-              <div style={{ fontSize: 18, fontWeight: 900, color: '#a78bfa', marginTop: 2 }}>{parsedData.promedioReprobacion}%</div>
+              <div style={{ fontSize: 18, fontWeight: 900, color: '#a78bfa', marginTop: 2 }}>{formatZoneMetric(parsedData.promedioReprobacion, { pct: true })}</div>
             </div>
           </div>
 
