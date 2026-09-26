@@ -169,6 +169,10 @@ describe('pmc-docx-generator — Generador de Plan de Mejora Continua e Informes
     const { value: text } = await mammoth.extractRawText({ buffer });
     expect(text).toContain('PLAN DE MEJORA CONTINUA');
     expect(text).toContain('I. MARCO NORMATIVO');
+    // H-099: Con normativa null o no provista, nunca emite sección en blanco (fallback de disposiciones activo)
+    expect(text).toContain('Constitución Política de los Estados Unidos Mexicanos (Art. 3°)');
+    expect(text).toContain('Ley General de Educación');
+    expect(text).toContain('Marco Curricular Común de la Educación Media Superior');
   });
 
   // ── TEST 3: Informe Parcial de Avance (generatePmcInformeDocx 'parcial') ────

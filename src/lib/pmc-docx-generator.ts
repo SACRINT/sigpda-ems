@@ -353,39 +353,70 @@ function buildCoverPage(p: PmcProject): (Paragraph | Table)[] {
 }
 
 // ─── Marco Normativo ─────────────────────────────────────────────────────────
-function buildNormativa(normativa: NormativaDoc): (Paragraph | Table)[] {
+function buildNormativa(normativa?: NormativaDoc | null): (Paragraph | Table)[] {
+  const normDocs = (Array.isArray(normativa?.documentos) && normativa.documentos.length > 0)
+    ? normativa.documentos
+    : [
+        {
+          orden: 1,
+          titulo: 'Constitución Política de los Estados Unidos Mexicanos (Art. 3°)',
+          articulos: ['Garantiza el derecho a la educación integral, inclusiva, universal, pública, gratuita, laica y de excelencia orientada al desarrollo humano.'],
+        },
+        {
+          orden: 2,
+          titulo: 'Ley General de Educación (Arts. 107, 108 y 109)',
+          articulos: ['Establece la obligatoriedad del Programa de Mejora Continua en Educación Media Superior como instrumento estructurado de planeación participativa.'],
+        },
+        {
+          orden: 3,
+          titulo: 'Ley de Educación del Estado de Puebla (Arts. 80, 81 y 83)',
+          articulos: ['Dispone la conformación participativa del PMC en los Consejos Técnicos Escolares y la vinculación corresponsable con la comunidad.'],
+        },
+        {
+          orden: 4,
+          titulo: 'Marco Curricular Común de la Educación Media Superior (MCCEMS - Acuerdo 09/08/23)',
+          articulos: ['Fundamenta la formación socioemocional, recursos sociocognitivos, áreas del conocimiento y el vínculo pedagógico aula-escuela-comunidad.'],
+        },
+        {
+          orden: 5,
+          titulo: 'Lineamientos Oficiales del PMC para Educación Media Superior (SEMS / SEP Puebla)',
+          articulos: ['Norma la priorización de categorías, diagnóstico escolar, formulación de metas CREAA y corresponsabilidad del colectivo docente.'],
+        },
+      ];
+
+  const descripcion = safeStr(normativa?.descripcion) ||
+    'El presente Plan de Mejora Continua (PMC) se sustenta en el siguiente marco jurídico y normativo vigente para el Bachillerato General del Estado de Puebla (BGE), en el marco del MCCEMS y la Subsecretaría de Educación Media Superior.';
+
   const items: (Paragraph | Table)[] = [
     secHeading('I. MARCO NORMATIVO'),
-    bodyPara(safeStr(normativa.descripcion)),
+    bodyPara(descripcion),
     ...gap(),
   ];
 
-  if (Array.isArray(normativa.documentos)) {
-    for (const doc of normativa.documentos) {
-      items.push(
-        new Paragraph({
-          spacing: { before: 120, after: 60 },
-          children: [
-            new TextRun({
-              text: `${doc.orden ?? ''}. ${safeStr(doc.titulo)}`,
-              bold: true,
-              size: 20,
-              color: C.navy,
-              font: 'Arial',
-            }),
-          ],
-        })
-      );
-      if (Array.isArray(doc.articulos)) {
-        for (const art of doc.articulos) {
-          items.push(
-            new Paragraph({
-              bullet: { level: 0 },
-              spacing: { before: 40, after: 40 },
-              children: [new TextRun({ text: safeStr(art), size: 18, font: 'Arial', color: C.text })],
-            })
-          );
-        }
+  for (const doc of normDocs) {
+    items.push(
+      new Paragraph({
+        spacing: { before: 120, after: 60 },
+        children: [
+          new TextRun({
+            text: `${doc.orden != null ? `${doc.orden}. ` : ''}${safeStr(doc.titulo)}`,
+            bold: true,
+            size: 20,
+            color: C.navy,
+            font: 'Arial',
+          }),
+        ],
+      })
+    );
+    if (Array.isArray(doc.articulos)) {
+      for (const art of doc.articulos) {
+        items.push(
+          new Paragraph({
+            bullet: { level: 0 },
+            spacing: { before: 40, after: 40 },
+            children: [new TextRun({ text: safeStr(art), size: 18, font: 'Arial', color: C.text })],
+          })
+        );
       }
     }
   }

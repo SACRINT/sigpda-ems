@@ -332,6 +332,9 @@ export default function PmcWizardClient({ locale, teacherSchool, teacherMunicipa
   );
 
   // Step 4: Generated content
+  const [normativaData, setNormativaData] = useState<unknown>(
+    existingProject?.normativa || null
+  );
   const [diagnosticoGenerado, setDiagnosticoGenerado] = useState<DiagnosticoGenerado | null>(
     existingProject?.diagnostico_generado || null
   );
@@ -1082,6 +1085,8 @@ interface PaecProjectForPmc {
       const data = await parseSafeApiResponse<{
         diagnostico_generado?: DiagnosticoGenerado;
         plan_accion?: PlanAccion;
+        normativa?: unknown;
+        data?: unknown;
         error?: string;
       }>(res, 'Error al generar contenido');
       if (!res.ok) {
@@ -1093,12 +1098,27 @@ interface PaecProjectForPmc {
       if (step === 'plan_accion' && data.plan_accion) {
         setPlanAccion(data.plan_accion);
       }
+      if (step === 'normativa') {
+        const norm = data.normativa || data.data;
+        if (norm) {
+          setNormativaData(norm);
+        }
+      }
     } catch (e: unknown) {
       setError((e as Error).message || 'Error al generar contenido');
     } finally {
       setGenerating(null);
     }
   }, [projectId]);
+
+  // H-099: Auto-ejecución de normativa al ingresar a Paso 4 si aún no existe en BD
+  const hasTriggeredNormativaRef = useRef(false);
+  useEffect(() => {
+    if (activeStep === 4 && projectId && !normativaData && !hasTriggeredNormativaRef.current) {
+      hasTriggeredNormativaRef.current = true;
+      generateStep('normativa');
+    }
+  }, [activeStep, projectId, normativaData, generateStep]);
 
   const adjustStaffCount = (newCount: number) => {
     const n = Math.max(1, Math.min(100, newCount));
@@ -2260,6 +2280,65 @@ interface PaecProjectForPmc {
               La IA redactará el diagnóstico oficial y el plan de acción con metas SMART para tu plantel.
               Puedes editar cualquier sección después de generarla.
             </p>
+
+            {/* H-099: Marco Normativo Oficial */}
+            <div style={sectionCard}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', flexWrap: 'wrap', gap: '12px' }}>
+                <div>
+                  <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#818cf8', margin: 0 }}>
+                    ⚖️ Marco Normativo y Fundamentación Jurídica
+                    {normativaData ? (
+                      <span style={{ marginLeft: '8px', color: '#34d399', fontSize: '13px' }}>
+                        ✓ Vinculado ({Array.isArray((normativaData as { documentos?: unknown[] })?.documentos) ? (normativaData as { documentos?: unknown[] }).documentos!.length : 95} documentos vigentes)
+                      </span>
+                    ) : (
+                      <span style={{ marginLeft: '8px', color: '#f59e0b', fontSize: '13px' }}>
+                        ⚠️ Pendiente de sincronización
+                      </span>
+                    )}
+                  </h3>
+                  <p style={{ fontSize: '12px', color: 'rgba(240,244,255,0.5)', margin: '4px 0 0' }}>
+                    Sustento legal oficial: Art. 3° Constitucional, Ley General de Educación, Ley de Educación del Estado de Puebla y MCCEMS
+                  </p>
+                </div>
+                <button
+                  onClick={() => generateStep('normativa')}
+                  disabled={generating !== null}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: generating === 'normativa' ? 'rgba(255,255,255,0.1)' : 'linear-gradient(135deg,#6366f1,#4f46e5)',
+                    color: '#fff',
+                    fontWeight: 600,
+                    cursor: generating !== null ? 'not-allowed' : 'pointer',
+                    fontSize: '13px',
+                    boxShadow: '0 2px 8px rgba(99,102,241,0.4)',
+                  }}
+                >
+                  {generating === 'normativa' ? '⏳ Sincronizando...' : normativaData ? '🔄 Sincronizar Normativa' : '✨ Generar Normativa'}
+                </button>
+              </div>
+              {normativaData ? (
+                <div style={{ background: 'rgba(8,12,24,0.5)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '14px 16px', fontSize: '13px', color: '#f0f4ff', lineHeight: 1.6 }}>
+                  <div style={{ color: '#818cf8', fontWeight: 600, marginBottom: '4px' }}>
+                    {(normativaData as { titulo?: string })?.titulo || 'Marco Normativo Institucional'}
+                  </div>
+                  <div style={{ color: 'rgba(240,244,255,0.75)', fontSize: '12px' }}>
+                    {(normativaData as { descripcion?: string })?.descripcion ||
+                      'El presente Plan de Mejora Continua se sustenta en el marco jurídico y normativo vigente para la Educación Media Superior en el Estado de Puebla.'}
+                  </div>
+                </div>
+              ) : generating === 'normativa' ? (
+                <div style={{ padding: '20px', textAlign: 'center', background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '8px' }}>
+                  <p style={{ fontWeight: 600, color: '#818cf8', margin: 0 }}>Sincronizando normateca jurídica (95 documentos vigentes)...</p>
+                </div>
+              ) : (
+                <div style={{ padding: '16px', textAlign: 'center', color: 'rgba(240,244,255,0.45)', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', fontSize: '13px' }}>
+                  Haz clic en &quot;Generar Normativa&quot; para vincular los 95 documentos oficiales vigentes a tu PMC.
+                </div>
+              )}
+            </div>
 
             {/* Generate Diagnóstico */}
             <div style={sectionCard}>
