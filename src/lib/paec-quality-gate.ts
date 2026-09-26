@@ -555,7 +555,11 @@ export function evaluateCriterio10(mapeo: MapeoRow[] | null | undefined): PaecAu
 // --- DIMENSIÓN 4: CRONOGRAMA (Criterios 11-12) ---
 
 export function evaluateCriterio11(cronograma: CronogramaRow[] | null | undefined): PaecAuditCriterion {
-  const rows = cronograma || [];
+  const rows = Array.isArray(cronograma)
+    ? cronograma
+    : (((cronograma as unknown as Record<string, unknown>)?.cronograma ||
+        (cronograma as unknown as Record<string, unknown>)?.semanas ||
+        []) as CronogramaRow[]);
   const phaseCount = rows.length;
 
   let fullColumnRows = 0;
@@ -600,7 +604,11 @@ export function evaluateCriterio11(cronograma: CronogramaRow[] | null | undefine
 }
 
 export function evaluateCriterio12(cronograma: CronogramaRow[] | null | undefined): PaecAuditCriterion {
-  const rows = cronograma || [];
+  const rows = Array.isArray(cronograma)
+    ? cronograma
+    : (((cronograma as unknown as Record<string, unknown>)?.cronograma ||
+        (cronograma as unknown as Record<string, unknown>)?.semanas ||
+        []) as CronogramaRow[]);
   if (rows.length === 0) {
     return {
       id: 12,
