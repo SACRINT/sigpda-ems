@@ -2956,8 +2956,8 @@ interface PaecProjectForPmc {
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: '8px', flexWrap: 'wrap' }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, color: '#818cf8', marginBottom: '4px' }}>📄 PMC Completo (Word Editable)</div>
-                    <div style={{ fontSize: '13px', color: 'rgba(240,244,255,0.6)' }}>Documento Word (.docx) editable con todas las secciones para realizar ajustes manuales si se requieren.</div>
+                    <div style={{ fontWeight: 700, color: '#818cf8', marginBottom: '4px' }}>📄 PMC Estándar (Word Editable)</div>
+                    <div style={{ fontSize: '13px', color: 'rgba(240,244,255,0.6)' }}>Documento Word (.docx) editable con todas las secciones canónicas para realizar ajustes manuales si se requieren.</div>
                   </div>
                   <a
                     href={`/api/docx/pmc/${projectId}`}
@@ -2966,6 +2966,26 @@ interface PaecProjectForPmc {
                     style={{ flexShrink: 0, backgroundColor: 'var(--c-navy)', borderColor: 'var(--c-navy)', textDecoration: 'none' }}
                   >
                     ↓ Descargar Word
+                  </a>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', background: 'linear-gradient(135deg, rgba(126,34,206,0.15) 0%, rgba(99,102,241,0.15) 100%)', border: '1px solid rgba(168,85,247,0.35)', borderRadius: '8px', flexWrap: 'wrap' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                      <span style={{ fontWeight: 700, color: '#c084fc' }}>📘 PMC Formato 5.2 — Documento Maestro Oficial DBEPA (8 Capítulos)</span>
+                      <span style={{ background: '#7e22ce', color: '#fff', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px' }}>OFICIAL DBEPA · 35+ PP</span>
+                    </div>
+                    <div style={{ fontSize: '13px', color: 'rgba(240,244,255,0.7)' }}>
+                      Documento maestro exhaustivo de 8 capítulos con normatividad desglosada, catálogo integral de metas institucionales, caracterización territorial, cédula de personal y formatos oficiales de seguimiento para auditoría de supervisión.
+                    </div>
+                  </div>
+                  <a
+                    href={`/api/docx/pmc/${projectId}?maestro=true`}
+                    onClick={(e) => handleExportWithCoverageCheck(e, `/api/docx/pmc/${projectId}?maestro=true`)}
+                    className="btn btn-primary"
+                    style={{ flexShrink: 0, backgroundColor: '#7e22ce', borderColor: '#6b21a8', color: '#ffffff', fontWeight: 600, textDecoration: 'none' }}
+                  >
+                    ↓ Descargar Maestro Formato 5.2
                   </a>
                 </div>
 
