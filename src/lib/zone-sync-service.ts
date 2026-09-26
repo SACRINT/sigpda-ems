@@ -33,7 +33,8 @@ export interface SchoolZoneContextResponse {
     momento3Territorio?: CartografiaMomento3Ubicar;
     momento5Metas?: CartografiaMomento5Decidir;
   };
-  plantel?: Omit<CartografiaPlantelItem, 'abandono' | 'reprobacion' | 'promedioGeneral'> & {
+  plantel?: Omit<CartografiaPlantelItem, 'abandono' | 'reprobacion' | 'promedioGeneral' | 'matricula'> & {
+    matricula?: number;
     abandono?: number;
     reprobacion?: number;
     promedioGeneral?: number;
@@ -139,7 +140,8 @@ export async function getZoneContextForSchool(cct: string): Promise<SchoolZoneCo
       return Number.isFinite(num) && num > 0 ? num : undefined;
     };
 
-    type PlantelWithOptionalMetrics = Omit<CartografiaPlantelItem, 'abandono' | 'reprobacion' | 'promedioGeneral'> & {
+    type PlantelWithOptionalMetrics = Omit<CartografiaPlantelItem, 'abandono' | 'reprobacion' | 'promedioGeneral' | 'matricula'> & {
+      matricula?: number;
       abandono?: number;
       reprobacion?: number;
       promedioGeneral?: number;
@@ -149,7 +151,7 @@ export async function getZoneContextForSchool(cct: string): Promise<SchoolZoneCo
     if (plantel && rawPlantel) {
       sanitizedPlantel = {
         ...plantel,
-        matricula: safeMetric(rawPlantel.matricula ?? rawPlantel.total) ?? 0,
+        matricula: safeMetric(rawPlantel.matricula ?? rawPlantel.total),
         abandono: safeMetric(rawPlantel.abandono),
         eficienciaTerminal: safeMetric(rawPlantel.eficienciaTerminal),
         reprobacion: safeMetric(rawPlantel.reprobacion),

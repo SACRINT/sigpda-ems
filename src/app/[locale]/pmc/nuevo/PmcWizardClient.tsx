@@ -3049,7 +3049,11 @@ interface PaecProjectForPmc {
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginTop: '8px' }}>
                     <div style={{ background: '#1e293b', padding: '8px', borderRadius: '6px', textAlign: 'center' }}>
                       <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block' }}>Matrícula</span>
-                      <strong style={{ fontSize: '14px', color: '#f8fafc' }}>{zonaData.plantel.matricula}</strong>
+                      <strong style={{ fontSize: '14px', color: '#f8fafc' }}>
+                        {typeof zonaData.plantel.matricula === 'number' && Number.isFinite(zonaData.plantel.matricula) && zonaData.plantel.matricula > 0
+                          ? zonaData.plantel.matricula
+                          : 'N/D'}
+                      </strong>
                     </div>
                     <div style={{ background: '#1e293b', padding: '8px', borderRadius: '6px', textAlign: 'center' }}>
                       <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block' }}>Abandono</span>

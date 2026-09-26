@@ -433,7 +433,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
         municipality: prev.municipality || plantel.municipio,
         locality: prev.locality || plantel.localidad,
         schoolZone: prev.schoolZone || (zona.identificacion.zonaNumero ? `Zona ${zona.identificacion.zonaNumero}` : prev.schoolZone),
-        enrollment: prev.enrollment || `${plantel.matricula} estudiantes (Registrado en 911/F11)`,
+        enrollment: prev.enrollment || (typeof plantel.matricula === 'number' && Number.isFinite(plantel.matricula) && plantel.matricula >= 0 ? `${plantel.matricula} estudiantes (Registrado en 911/F11)` : prev.enrollment),
         teacherCount: prev.teacherCount || (plantel.docentesCount ? `${plantel.docentesCount} docentes` : prev.teacherCount),
       }));
 
