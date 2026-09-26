@@ -3057,19 +3057,27 @@ interface PaecProjectForPmc {
                     </div>
                     <div style={{ background: '#1e293b', padding: '8px', borderRadius: '6px', textAlign: 'center' }}>
                       <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block' }}>Abandono</span>
-                      <strong style={{ fontSize: '14px', color: '#fbbf24' }}>{zonaData.plantel.abandono}%</strong>
+                      <strong style={{ fontSize: '14px', color: '#fbbf24' }}>
+                        {typeof zonaData.plantel.abandono === 'number' && Number.isFinite(zonaData.plantel.abandono) && zonaData.plantel.abandono > 0
+                          ? `${zonaData.plantel.abandono}%`
+                          : 'N/D'}
+                      </strong>
                     </div>
                     <div style={{ background: '#1e293b', padding: '8px', borderRadius: '6px', textAlign: 'center' }}>
                       <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block' }}>Efic. Terminal</span>
                       <strong style={{ fontSize: '14px', color: '#34d399' }}>
-                        {zonaData.plantel.eficienciaTerminal !== undefined && zonaData.plantel.eficienciaTerminal > 0
+                        {typeof zonaData.plantel.eficienciaTerminal === 'number' && Number.isFinite(zonaData.plantel.eficienciaTerminal) && zonaData.plantel.eficienciaTerminal > 0
                           ? `${zonaData.plantel.eficienciaTerminal}%`
                           : 'N/D'}
                       </strong>
                     </div>
                     <div style={{ background: '#1e293b', padding: '8px', borderRadius: '6px', textAlign: 'center' }}>
                       <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block' }}>Reprobación</span>
-                      <strong style={{ fontSize: '14px', color: '#f87171' }}>{zonaData.plantel.reprobacion}%</strong>
+                      <strong style={{ fontSize: '14px', color: '#f87171' }}>
+                        {typeof zonaData.plantel.reprobacion === 'number' && Number.isFinite(zonaData.plantel.reprobacion) && zonaData.plantel.reprobacion > 0
+                          ? `${zonaData.plantel.reprobacion}%`
+                          : 'N/D'}
+                      </strong>
                     </div>
                   </div>
                 </div>
