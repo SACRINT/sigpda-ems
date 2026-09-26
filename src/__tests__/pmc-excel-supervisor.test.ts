@@ -89,10 +89,7 @@ describe('Excel Oficial de Supervisión Escolar (FASE 1)', () => {
     ]);
   });
 
-  it('2. Encabezados de Hoja 1, 2 y 3 coinciden byte a byte con las plantillas oficiales de supervisión', async () => {
-    // Si los fixtures físicos están disponibles en el entorno de desarrollo, comparamos directamente contra ellos
-    const availableFixtures = fixtureFiles.filter((f) => fs.existsSync(path.join(referenceDir, f)));
-
+  it('2. Encabezados de Hoja 1, 2 y 3 en el libro generado coinciden con el estándar oficial de supervisión', async () => {
     // Encabezados canónicos de referencia oficial verificados
     const expectedHeadersWs2 = [
       'NOMBRE DE LA ESCUELA',
@@ -118,33 +115,6 @@ describe('Excel Oficial de Supervisión Escolar (FASE 1)', () => {
       'META: % ABANDONO ESCOLAR',
     ];
 
-    // Verificación obligatoria contra plantillas reales del lote oficial
-    if (fs.existsSync(referenceDir)) {
-      expect(availableFixtures.length).toBeGreaterThan(0);
-      for (const fixFile of availableFixtures) {
-        const refWb = new ExcelJS.Workbook();
-        await refWb.xlsx.readFile(path.join(referenceDir, fixFile));
-
-        const refWs2 = refWb.getWorksheet('Punto de partida');
-        if (refWs2) {
-          const refHeaders2: string[] = [];
-          refWs2.getRow(2).eachCell((c) => refHeaders2.push(String(c.value || '').trim()));
-          expect(refHeaders2.slice(0, 9)).toEqual(expectedHeadersWs2);
-        }
-
-        const refWs3 = refWb.getWorksheet('METAS');
-        if (refWs3) {
-          const refHeaders3: string[] = [];
-          refWs3.getRow(2).eachCell((c) => refHeaders3.push(String(c.value || '').trim()));
-          expect(refHeaders3.slice(0, 9)).toEqual(expectedHeadersWs3);
-        }
-      }
-    } else {
-      // En entornos CI sin volumen de referencia local
-      expect(expectedHeadersWs2.length).toBe(9);
-      expect(expectedHeadersWs3.length).toBe(9);
-    }
-
     // Generar libro con nuestro generador y validar byte a byte
     const mockProject: PmcSupervisorExcelInput = {
       school_name: 'Bachillerato Test',
@@ -163,6 +133,54 @@ describe('Excel Oficial de Supervisión Escolar (FASE 1)', () => {
     const genHeaders3: string[] = [];
     genWs3.getRow(2).eachCell((c) => genHeaders3.push(String(c.value || '').trim()));
     expect(genHeaders3).toEqual(expectedHeadersWs3);
+  });
+
+  it.skipIf(!fs.existsSync(referenceDir))('2b. [Golden Test] Validación byte a byte contra plantillas físicas reales del lote 22', async () => {
+    const availableFixtures = fixtureFiles.filter((f) => fs.existsSync(path.join(referenceDir, f)));
+    expect(availableFixtures.length).toBeGreaterThan(0);
+
+    const expectedHeadersWs2 = [
+      'NOMBRE DE LA ESCUELA',
+      'CCT',
+      'TURNO',
+      'MATRÍCULA TOTAL AL CIERRE 2025-2026',
+      '% RESULTADO DE EVALUACIONES (PROMEDIO DE CALIFICACIONES SEM A Y SEM B)',
+      'NÚMERO DE ESTUDIANTES APROBADOS (AL CIERRE DEL CICLO ESCOLAR)',
+      '% ESTUDIANTES APROBADOS (SEM A Y B)',
+      '% EFICIENCIA TERMINAL GENERACIÓN 2023-2026',
+      '% ABANDONO ESCOLAR',
+    ];
+
+    const expectedHeadersWs3 = [
+      'NOMBRE DE LA ESCUELA',
+      'CCT',
+      'TURNO',
+      'MATRÍCULA TOTAL AGOSTO 2026',
+      'META: % RESULTADO DE EVALUACIONES (PROMEDIO DE CALIFICACIONES SEM A Y SEM B)',
+      'META: NÚMERO DE ESTUDIANTES APROBADOS (AL CIERRE DEL CICLO ESCOLAR)',
+      'META: % ESTUDIANTES APROBADOS (SEM A Y B)',
+      'META: % EFICIENCIA TERMINAL GENERACIÓN 2024-2027',
+      'META: % ABANDONO ESCOLAR',
+    ];
+
+    for (const fixFile of availableFixtures) {
+      const refWb = new ExcelJS.Workbook();
+      await refWb.xlsx.readFile(path.join(referenceDir, fixFile));
+
+      const refWs2 = refWb.getWorksheet('Punto de partida');
+      if (refWs2) {
+        const refHeaders2: string[] = [];
+        refWs2.getRow(2).eachCell((c) => refHeaders2.push(String(c.value || '').trim()));
+        expect(refHeaders2.slice(0, 9)).toEqual(expectedHeadersWs2);
+      }
+
+      const refWs3 = refWb.getWorksheet('METAS');
+      if (refWs3) {
+        const refHeaders3: string[] = [];
+        refWs3.getRow(2).eachCell((c) => refHeaders3.push(String(c.value || '').trim()));
+        expect(refHeaders3.slice(0, 9)).toEqual(expectedHeadersWs3);
+      }
+    }
   });
 
   it('3. Las cifras de Punto de partida y METAS provienen estrictamente del SSoT pmc-indicator-calculator', async () => {

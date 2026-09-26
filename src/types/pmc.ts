@@ -66,9 +66,9 @@ export interface PmcStatisticalZona {
   promedioReprobacion: number;
   promedioCalificaciones?: number;
   brechasDiagnostico: {
-    brechaAbandonoVsZona: number;
+    brechaAbandonoVsZona?: number;
     brechaEficienciaVsZona?: number;
-    brechaReprobacionVsZona: number;
+    brechaReprobacionVsZona?: number;
     prioridadIntervencion: 'alta' | 'media' | 'baja';
     observaciones: string[];
   };

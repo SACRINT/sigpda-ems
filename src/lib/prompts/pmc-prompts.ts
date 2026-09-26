@@ -76,9 +76,9 @@ ${stats.ediemsPre ? `- Resultado Diagnóstico EDIEMS Inicial: ${stats.ediemsPre}
   if (zona) {
     contextoZonaExtra = `
 BENCHMARKS REGIONALES DE ZONA ESCOLAR (${zona.zonaNumero || project.school_zone || 'Supervisión'}):
-- Promedio de Abandono en la Zona: ${zona.promedioAbandono}% (Brecha del plantel: ${zona.brechasDiagnostico.brechaAbandonoVsZona > 0 ? '+' : ''}${zona.brechasDiagnostico.brechaAbandonoVsZona}%)
+- Promedio de Abandono en la Zona: ${zona.promedioAbandono > 0 ? `${zona.promedioAbandono}%` : 'N/D'}${zona.brechasDiagnostico.brechaAbandonoVsZona !== undefined ? ` (Brecha del plantel: ${zona.brechasDiagnostico.brechaAbandonoVsZona > 0 ? '+' : ''}${zona.brechasDiagnostico.brechaAbandonoVsZona}%)` : ' (Abandono del plantel: No reportado)'}
 - Promedio de Eficiencia Terminal en la Zona: ${zona.promedioEficiencia > 0 ? `${zona.promedioEficiencia}%` : 'N/D'}${zona.brechasDiagnostico.brechaEficienciaVsZona !== undefined ? ` (Brecha del plantel: ${zona.brechasDiagnostico.brechaEficienciaVsZona > 0 ? '+' : ''}${zona.brechasDiagnostico.brechaEficienciaVsZona}%)` : ' (Eficiencia del plantel: No reportada)'}
-- Promedio de Reprobación en la Zona: ${zona.promedioReprobacion}% (Brecha del plantel: ${zona.brechasDiagnostico.brechaReprobacionVsZona > 0 ? '+' : ''}${zona.brechasDiagnostico.brechaReprobacionVsZona}%)
+- Promedio de Reprobación en la Zona: ${zona.promedioReprobacion > 0 ? `${zona.promedioReprobacion}%` : 'N/D'}${zona.brechasDiagnostico.brechaReprobacionVsZona !== undefined ? ` (Brecha del plantel: ${zona.brechasDiagnostico.brechaReprobacionVsZona > 0 ? '+' : ''}${zona.brechasDiagnostico.brechaReprobacionVsZona}%)` : ' (Reprobación del plantel: No reportada)'}
 - Nivel de prioridad de intervención: ${zona.brechasDiagnostico.prioridadIntervencion.toUpperCase()}
 - Observaciones de Supervisión:
 ${zona.brechasDiagnostico.observaciones.map((obs) => `    • ${obs}`).join('\n')}

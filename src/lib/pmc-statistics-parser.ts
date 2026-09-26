@@ -258,20 +258,28 @@ export function parsePmcStatistics(
     }
 
     // Calcular brechas para el plantel seleccionado
-    const brechaAbandono = parseFloat(((targetPlantel?.abandono || 0) - promedioAbandono).toFixed(2));
+    const targetAb = targetPlantel?.abandono;
+    const brechaAbandono = typeof targetAb === 'number' && promedioAbandono > 0
+      ? parseFloat((targetAb - promedioAbandono).toFixed(2))
+      : undefined;
+
     const targetET = targetPlantel?.eficienciaTerminal;
     const brechaEficiencia = typeof targetET === 'number' && promedioEficiencia > 0
       ? parseFloat((targetET - promedioEficiencia).toFixed(2))
       : undefined;
-    const brechaReprobacion = parseFloat(((targetPlantel?.reprobacion || 0) - promedioReprobacion).toFixed(2));
+
+    const targetRep = targetPlantel?.reprobacion;
+    const brechaReprobacion = typeof targetRep === 'number' && promedioReprobacion > 0
+      ? parseFloat((targetRep - promedioReprobacion).toFixed(2))
+      : undefined;
 
     const observaciones: string[] = [];
     let prioridad: 'alta' | 'media' | 'baja' = 'media';
 
-    if (brechaAbandono > 3) {
+    if (brechaAbandono !== undefined && brechaAbandono > 3) {
       observaciones.push(`Abandono escolar (${targetPlantel?.abandono}%) está ${brechaAbandono}% por encima de la media de zona (${promedioAbandono}%). Requiere alerta temprana.`);
       prioridad = 'alta';
-    } else if (brechaAbandono < -2) {
+    } else if (brechaAbandono !== undefined && brechaAbandono < -2) {
       observaciones.push(`Favorable retención estudiantil: abandono está ${Math.abs(brechaAbandono)}% por debajo de la media regional.`);
     }
 
@@ -280,7 +288,7 @@ export function parsePmcStatistics(
       prioridad = 'alta';
     }
 
-    if (brechaReprobacion > 5) {
+    if (brechaReprobacion !== undefined && brechaReprobacion > 5) {
       observaciones.push(`Índice de reprobación (${targetPlantel?.reprobacion}%) exige estrategias urgentes de nivelación didáctica y evaluación formativa.`);
       prioridad = 'alta';
     }
