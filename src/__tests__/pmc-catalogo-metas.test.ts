@@ -10,6 +10,8 @@ import {
   getMetasByCategoria,
   getMetasBySubcategoria,
   formatMetasContextForPrompt,
+  resolveNormativaCitation,
+  CANONICAL_NORMATIVA_REFS,
 } from '../lib/catalogo-metas-pmc';
 
 describe('FASE 2: Catálogo Normativo y de Metas Institucionales (5.2 Formato Oficial)', () => {
@@ -81,6 +83,70 @@ describe('FASE 2: Catálogo Normativo y de Metas Institucionales (5.2 Formato Of
       for (const subcat of SUBCATEGORIAS_OFICIALES_52) {
         expect(docxText).toContain(subcat);
       }
+    }
+  );
+
+  it('7. Integridad de citas jurídicas: 100% de los artículos resuelven contra la Normateca Oficial y rechazan refs inventadas', () => {
+    expect(Object.keys(CANONICAL_NORMATIVA_REFS).length).toBeGreaterThanOrEqual(15);
+
+    // 1. Validar que cada una de las 17 metas contiene citas válidas y resolubles
+    let totalCitas = 0;
+    for (const meta of CATALOGO_METAS_CANONICO) {
+      expect(meta.articulos.length).toBeGreaterThan(0);
+      for (const artRef of meta.articulos) {
+        totalCitas++;
+        const resolved = resolveNormativaCitation(artRef);
+        expect(resolved.ok, `Fallo en cita: "${artRef}" de meta "${meta.id}": ${resolved.error}`).toBe(true);
+        expect(resolved.documentoId).toBeDefined();
+        expect(resolved.documentoTitulo).toBeDefined();
+        expect(resolved.articulo).toBeDefined();
+      }
+    }
+    expect(totalCitas).toBeGreaterThanOrEqual(17);
+
+    // 2. Comprobar que rechaza refs inventadas / derogadas (regla de oro de auditoría)
+    const refInexistente1 = resolveNormativaCitation('Acuerdo-449-PerfilDirector');
+    expect(refInexistente1.ok).toBe(false);
+    expect(refInexistente1.error).toContain('no reconocido o no vigente');
+
+    const refInexistente2 = resolveNormativaCitation('LGE-Art.9999');
+    expect(refInexistente2.ok).toBe(false);
+    expect(refInexistente2.error).toContain('no existe en');
+
+    const refInexistente3 = resolveNormativaCitation('LGSCMM-Art.999');
+    expect(refInexistente3.ok).toBe(false);
+  });
+
+  // Golden Test contra la carpeta física de documentos_referencia/[08] Normateca
+  const normatecaDir = path.resolve(__dirname, '../../../documentos_referencia/[08] Normateca');
+
+  it.skipIf(!fs.existsSync(normatecaDir))(
+    '8. [Golden Test] Cotejo físico de las referencias normativas contra el acervo documental de [08] Normateca',
+    () => {
+      expect(fs.existsSync(normatecaDir)).toBe(true);
+
+      const requiredCategories = [
+        'Constituciones Políticas',
+        'Ley Local - Ley Federal  - Ley General',
+        'Acuerdos',
+        'Lineamientos',
+      ];
+
+      for (const cat of requiredCategories) {
+        const catPath = path.join(normatecaDir, cat);
+        expect(fs.existsSync(catPath), `Categoría jurídica "${cat}" debe existir físicamente`).toBe(true);
+      }
+
+      // Acuerdo 06/06/15 de formación dual existe en Acuerdos
+      const acuerdoDualPath = path.join(normatecaDir, 'Acuerdos', 'a06_06_15.pdf');
+      expect(fs.existsSync(acuerdoDualPath)).toBe(true);
+
+      // Comprobar ausencia de Acuerdo 449 (derogado / no vigente)
+      const allFiles = fs.readdirSync(normatecaDir, { recursive: true })
+        .map((f) => (typeof f === 'string' ? f : String(f)).toLowerCase());
+
+      const hasAcuerdo449 = allFiles.some((f) => f.includes('449') && f.includes('acuerdo'));
+      expect(hasAcuerdo449, 'El derogado Acuerdo 449 no debe existir en la Normateca oficial vigente').toBe(false);
     }
   );
 });

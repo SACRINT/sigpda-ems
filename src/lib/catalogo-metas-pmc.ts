@@ -48,7 +48,7 @@ export const CATALOGO_METAS_CANONICO: MetaCatalogEntry[] = [
     nombre: 'Capacitación docente continua en el MCCEMS',
     categoria: 'Desarrollo académico y aprendizaje',
     subcategoria: 'FORMACIÓN Y ACTUALIZACIÓN DOCENTE',
-    articulos: ['LGSCMM-Art.13', 'LGE-Art.84', 'Acuerdo-14/08/22-Art.12'],
+    articulos: ['LGSCMM-Art.4', 'Mejora-Continua-Art.16', 'Acuerdo-14/08/22-LineamientoGeneral'],
     vigencia: true,
     aplicabilidad_pmc: {
       nivel: 'obligatoria',
@@ -64,7 +64,7 @@ export const CATALOGO_METAS_CANONICO: MetaCatalogEntry[] = [
     nombre: 'Innovación didáctica y proyectos transversales situados',
     categoria: 'Desarrollo académico y aprendizaje',
     subcategoria: 'PROPUESTAS PEDAGÓGICAS',
-    articulos: ['Acuerdo-14/08/22-Art.8', 'Lineamientos-PMC-2025-Art.14'],
+    articulos: ['Acuerdo-14/08/22-ComponenteCurricular', 'Lineamientos-PMC-2025-Lineamiento3'],
     vigencia: true,
     aplicabilidad_pmc: {
       nivel: 'recomendada',
@@ -80,7 +80,7 @@ export const CATALOGO_METAS_CANONICO: MetaCatalogEntry[] = [
     nombre: 'Fortalecimiento de Academias y Trabajo Colegiado',
     categoria: 'Desarrollo académico y aprendizaje',
     subcategoria: 'TRABAJO COLEGIADO',
-    articulos: ['LGE-Art.23', 'Lineamientos-PMC-2025-Art.16', 'LGSCMM-Art.14'],
+    articulos: ['LGSCMM-Art.69', 'Lineamientos-PMC-2025-Lineamiento2', 'LGE-Art.14'],
     vigencia: true,
     aplicabilidad_pmc: {
       nivel: 'obligatoria',
@@ -96,7 +96,7 @@ export const CATALOGO_METAS_CANONICO: MetaCatalogEntry[] = [
     nombre: 'Implementación del Proyecto Escolar Comunitario (PEC/PAEC)',
     categoria: 'Desarrollo académico y aprendizaje',
     subcategoria: 'PROYECTO ESCOLAR COMUNITARIO (PEC)',
-    articulos: ['LGE-Art.15', 'Lineamientos-PAEC-2026-Art.4', 'CPEUM-Art.3'],
+    articulos: ['CPEUM-Art.3', 'Lineamientos-PAEC-2026-Lineamiento1', 'LGE-Art.14'],
     vigencia: true,
     aplicabilidad_pmc: {
       nivel: 'obligatoria',
@@ -112,7 +112,7 @@ export const CATALOGO_METAS_CANONICO: MetaCatalogEntry[] = [
     nombre: 'Fomento a la lectura y expresión comunicativa',
     categoria: 'Desarrollo académico y aprendizaje',
     subcategoria: 'CLUBES DE LECTURA',
-    articulos: ['LGE-Art.11', 'Acuerdo-14/08/22-Art.6'],
+    articulos: ['Ley-Fomento-Lectura-Art.10', 'Acuerdo-14/08/22-LineamientoGeneral', 'LGE-Art.18'],
     vigencia: true,
     aplicabilidad_pmc: {
       nivel: 'recomendada',
@@ -128,7 +128,7 @@ export const CATALOGO_METAS_CANONICO: MetaCatalogEntry[] = [
     nombre: 'Reducción de índices de reprobación en asignaturas críticas',
     categoria: 'Desarrollo académico y aprendizaje',
     subcategoria: 'INDICADORES ACADÉMICOS',
-    articulos: ['CPEUM-Art.3', 'Lineamientos-PMC-2025-Art.10', 'LGE-Art.72'],
+    articulos: ['CPEUM-Art.3', 'Lineamientos-PMC-2025-Lineamiento4', 'LGE-Art.16'],
     vigencia: true,
     aplicabilidad_pmc: {
       nivel: 'obligatoria',
@@ -144,7 +144,7 @@ export const CATALOGO_METAS_CANONICO: MetaCatalogEntry[] = [
     nombre: 'Sistema integral de tutoría y acompañamiento pedagógico',
     categoria: 'Desarrollo académico y aprendizaje',
     subcategoria: 'ORIENTACIÓN Y TUTORÍA',
-    articulos: ['LGE-Art.72', 'Acuerdo-14/08/22-Art.14'],
+    articulos: ['LGE-Art.18', 'Lineamientos-PMC-2025-Lineamiento2', 'Acuerdo-14/08/22-LineamientoGeneral'],
     vigencia: true,
     aplicabilidad_pmc: {
       nivel: 'obligatoria',
@@ -160,7 +160,7 @@ export const CATALOGO_METAS_CANONICO: MetaCatalogEntry[] = [
     nombre: 'Codiseño de planeaciones didácticas bajo progresiones MCCEMS',
     categoria: 'Desarrollo académico y aprendizaje',
     subcategoria: 'PLANEACIÓN DIDÁCTICA',
-    articulos: ['Acuerdo-14/08/22-Art.9', 'Lineamientos-PMC-2025-Art.18'],
+    articulos: ['Acuerdo-14/08/22-ComponenteCurricular', 'Lineamientos-PMC-2025-Lineamiento3', 'LGE-Art.16'],
     vigencia: true,
     aplicabilidad_pmc: {
       nivel: 'obligatoria',
@@ -176,7 +176,7 @@ export const CATALOGO_METAS_CANONICO: MetaCatalogEntry[] = [
     nombre: 'Feria de ciencias, humanidades y competencias tecnológicas',
     categoria: 'Desarrollo académico y aprendizaje',
     subcategoria: 'OTRAS ACTIVIDADES ACADÉMICAS',
-    articulos: ['LGE-Art.15', 'Plan-Sectorial-2025-2030-Obj.2'],
+    articulos: ['Ley-Ciencia-Tecnologia-Art.1', 'Plan-Sectorial-2025-2030-Obj.1'],
     vigencia: true,
     aplicabilidad_pmc: {
       nivel: 'contextual',
@@ -194,7 +194,7 @@ export const CATALOGO_METAS_CANONICO: MetaCatalogEntry[] = [
     nombre: 'Articulación con secundarias y educación superior',
     categoria: 'Gestión y administración escolar',
     subcategoria: 'VINCULACIÓN CON INSTITUCIONES EDUCATIVAS',
-    articulos: ['LGE-Art.5', 'Lineamientos-PMC-2025-Art.20'],
+    articulos: ['Educacion-Media-Puebla-Art.3', 'Lineamientos-PMC-2025-Lineamiento2'],
     vigencia: true,
     aplicabilidad_pmc: {
       nivel: 'recomendada',
@@ -210,7 +210,7 @@ export const CATALOGO_METAS_CANONICO: MetaCatalogEntry[] = [
     nombre: 'Vinculación con el sector productivo y fundaciones locales',
     categoria: 'Gestión y administración escolar',
     subcategoria: 'VINCULACIÓN CON EMPRESAS, FUNDACIONES E INSTITUCIONES PÚBLICAS',
-    articulos: ['LGE-Art.23', 'Acuerdo-14/08/22-Art.15'],
+    articulos: ['Formacion-Dual-Art.16', 'Lineamientos-PMC-2025-Lineamiento2'],
     vigencia: true,
     aplicabilidad_pmc: {
       nivel: 'contextual',
@@ -226,7 +226,7 @@ export const CATALOGO_METAS_CANONICO: MetaCatalogEntry[] = [
     nombre: 'Mantenimiento y equipamiento de aulas, talleres y conectividad',
     categoria: 'Gestión y administración escolar',
     subcategoria: 'GESTIÓN Y ADMINISTRACIÓN DE RECURSOS, EQUIPAMIENTOS Y SERVICIOS',
-    articulos: ['LGE-Art.72', 'Lineamientos-PMC-2025-Art.22'],
+    articulos: ['LGE-Art.14', 'Lineamientos-PMC-2025-Lineamiento2', 'Ley-Educacion-Puebla-Art.14'],
     vigencia: true,
     aplicabilidad_pmc: {
       nivel: 'obligatoria',
@@ -242,7 +242,7 @@ export const CATALOGO_METAS_CANONICO: MetaCatalogEntry[] = [
     nombre: 'Acompañamiento directivo y retroalimentación pedagógica en aula',
     categoria: 'Gestión y administración escolar',
     subcategoria: 'SEGUIMIENTO AL DESEMPEÑO DOCENTE EN EL AULA',
-    articulos: ['LGSCMM-Art.14', 'Acuerdo-449-PerfilDirector'],
+    articulos: ['LGSCMM-Art.4', 'LGSCMM-Art.69', 'Lineamientos-PMC-2025-Lineamiento4'],
     vigencia: true,
     aplicabilidad_pmc: {
       nivel: 'obligatoria',
@@ -258,7 +258,7 @@ export const CATALOGO_METAS_CANONICO: MetaCatalogEntry[] = [
     nombre: 'Estudio de trayectoria y seguimiento de egresados',
     categoria: 'Gestión y administración escolar',
     subcategoria: 'SEGUIMIENTO DE EGRESADOS',
-    articulos: ['Lineamientos-PMC-2025-Art.24', 'Plan-Sectorial-2025-2030-Obj.3'],
+    articulos: ['Lineamientos-PMC-2025-Lineamiento4', 'Plan-Sectorial-2025-2030-Obj.3'],
     vigencia: true,
     aplicabilidad_pmc: {
       nivel: 'recomendada',
@@ -276,7 +276,7 @@ export const CATALOGO_METAS_CANONICO: MetaCatalogEntry[] = [
     nombre: 'Implementación de los Ámbitos de Formación Socioemocional',
     categoria: 'Desarrollo socioemocional y prevención de la violencia en la escuela',
     subcategoria: 'ÁMBITOS DE FORMACIÓN SOCIOEMOCIONAL (CURRÍCULUM AMPLIADO)',
-    articulos: ['Acuerdo-14/08/22-Art.7', 'CPEUM-Art.3', 'LGE-Art.15'],
+    articulos: ['Acuerdo-14/08/22-ComponenteCurricular', 'CPEUM-Art.3', 'LGE-Art.18'],
     vigencia: true,
     aplicabilidad_pmc: {
       nivel: 'obligatoria',
@@ -292,7 +292,7 @@ export const CATALOGO_METAS_CANONICO: MetaCatalogEntry[] = [
     nombre: 'Estrategias de cultura de paz, inclusión y erradicación de violencia',
     categoria: 'Desarrollo socioemocional y prevención de la violencia en la escuela',
     subcategoria: 'PREVENCIÓN DE LA VIOLENCIA EN LA ESCUELA',
-    articulos: ['LGE-Art.72', 'Ley-Educacion-Puebla-Art.18', 'Lineamientos-PMC-2025-Art.28'],
+    articulos: ['Seguridad-Escolar-Puebla-Art.2', 'Seguridad-Escolar-Puebla-Art.11', 'Lineamientos-PMC-2025-Lineamiento2'],
     vigencia: true,
     aplicabilidad_pmc: {
       nivel: 'obligatoria',
@@ -308,7 +308,7 @@ export const CATALOGO_METAS_CANONICO: MetaCatalogEntry[] = [
     nombre: 'Orientación educativa y proyecto de vida estudiantil',
     categoria: 'Desarrollo socioemocional y prevención de la violencia en la escuela',
     subcategoria: 'ORIENTACIÓN EDUCATIVA',
-    articulos: ['LGE-Art.11', 'Acuerdo-14/08/22-Art.11'],
+    articulos: ['Derechos-NNA-Puebla-Art.47', 'LGE-Art.18', 'Ley-Educacion-Puebla-Art.7'],
     vigencia: true,
     aplicabilidad_pmc: {
       nivel: 'obligatoria',
@@ -320,6 +320,145 @@ export const CATALOGO_METAS_CANONICO: MetaCatalogEntry[] = [
     orden_display: 17,
   },
 ];
+
+export interface NormativaCitationResolution {
+  ok: boolean;
+  documentoId?: number;
+  documentoTitulo?: string;
+  articulo?: string;
+  error?: string;
+}
+
+export const CANONICAL_NORMATIVA_REFS: Record<
+  string,
+  { docId: number; titulo: string; articulosValidos: string[] }
+> = {
+  CPEUM: {
+    docId: 1,
+    titulo: 'Constitución Política de los Estados Unidos Mexicanos',
+    articulosValidos: ['Art.3'],
+  },
+  LGE: {
+    docId: 2,
+    titulo: 'Ley General de Educación (2019)',
+    articulosValidos: ['Art.14', 'Art.16', 'Art.18', 'Art.44', 'Art.46'],
+  },
+  LGSCMM: {
+    docId: 3,
+    titulo: 'Ley General del Sistema para la Carrera de las Maestras y los Maestros (LGSCMM, 2019)',
+    articulosValidos: ['Art.4', 'Art.69'],
+  },
+  'Acuerdo-14/08/22': {
+    docId: 4,
+    titulo: 'Acuerdo Secretarial 14/08/22 — Marco Curricular Común de la Educación Media Superior (MCCEMS)',
+    articulosValidos: ['LineamientoGeneral', 'ComponenteCurricular'],
+  },
+  'Lineamientos-PMC-2025': {
+    docId: 5,
+    titulo: 'Lineamientos para la Planeación de la Mejora Continua 2025-2026 — DBEPA Puebla',
+    articulosValidos: ['Lineamiento1', 'Lineamiento2', 'Lineamiento3', 'Lineamiento4'],
+  },
+  'Lineamientos-PAEC-2026': {
+    docId: 6,
+    titulo: 'Lineamientos PAEC-PEC 2026-2027 — DBEPA Puebla',
+    articulosValidos: ['Lineamiento1', 'Lineamiento2', 'Lineamiento3'],
+  },
+  'Ley-Educacion-Puebla': {
+    docId: 8,
+    titulo: 'Ley de Educación del Estado de Puebla',
+    articulosValidos: ['Art.3', 'Art.6', 'Art.7', 'Art.9', 'Art.10', 'Art.13', 'Art.14'],
+  },
+  'Plan-Sectorial-2025-2030': {
+    docId: 9,
+    titulo: 'Plan Sectorial de Educación 2020-2024 / 2025-2030 — SEP',
+    articulosValidos: ['Obj.1', 'Obj.3'],
+  },
+  'Ley-Fomento-Lectura': {
+    docId: 41,
+    titulo: 'Ley de Fomento para la Lectura y el Libro',
+    articulosValidos: ['Art.10', 'Art.12', 'Art.22', 'Art.25'],
+  },
+  'Mejora-Continua': {
+    docId: 44,
+    titulo:
+      'Ley Reglamentaria del Artículo 3o. de la Constitución Política de los Estados Unidos Mexicanos, en Materia de Mejora Continua de la Educación',
+    articulosValidos: [
+      'Art.1',
+      'Art.3',
+      'Art.4',
+      'Art.6',
+      'Art.12',
+      'Art.14',
+      'Art.16',
+      'Art.18',
+      'Art.21',
+      'Art.24',
+      'Art.28',
+      'Art.31',
+    ],
+  },
+  'Ley-Ciencia-Tecnologia': {
+    docId: 61,
+    titulo: 'Ley General en Materia de Humanidades, Ciencias, Tecnologías e Innovación',
+    articulosValidos: ['Art.1', 'Art.2', 'Art.3', 'Art.5', 'Art.7', 'Art.9', 'Art.10', 'Art.11'],
+  },
+  'Formacion-Dual': {
+    docId: 68,
+    titulo:
+      'ACUERDO número 06/06/15 por el que se establece la formación dual como una opción educativa del tipo medio superior',
+    articulosValidos: ['Art.5', 'Art.6', 'Art.13', 'Art.16'],
+  },
+  'Derechos-NNA-Puebla': {
+    docId: 88,
+    titulo: 'Ley de los Derechos de las Niñas, Niños y Adolescentes del Estado de Puebla',
+    articulosValidos: ['Art.47', 'Art.48'],
+  },
+  'Educacion-Media-Puebla': {
+    docId: 90,
+    titulo: 'Ley de Educación Media y Superior del Estado Libre y Soberano de Puebla',
+    articulosValidos: ['Art.3', 'Art.12', 'Art.13'],
+  },
+  'Seguridad-Escolar-Puebla': {
+    docId: 93,
+    titulo: 'Ley de Seguridad Integral Escolar para el Estado Libre y Soberano de Puebla',
+    articulosValidos: ['Art.1', 'Art.2', 'Art.11', 'Art.12', 'Art.13'],
+  },
+};
+
+/**
+ * Resuelve y valida formalmente una cita jurídica contra los 28 documentos vigentes
+ * y artículos catalogados en la Normateca oficial de SIGPDA-EMS.
+ */
+export function resolveNormativaCitation(citation: string): NormativaCitationResolution {
+  const sortedPrefixes = Object.keys(CANONICAL_NORMATIVA_REFS).sort((a, b) => b.length - a.length);
+  const matchedPrefix = sortedPrefixes.find((p) => citation.startsWith(`${p}-`));
+
+  if (!matchedPrefix) {
+    return {
+      ok: false,
+      error: `Documento normativo no reconocido o no vigente en la Normateca: "${citation}"`,
+    };
+  }
+
+  const doc = CANONICAL_NORMATIVA_REFS[matchedPrefix];
+  const artSuffix = citation.substring(matchedPrefix.length + 1);
+
+  if (!doc.articulosValidos.includes(artSuffix)) {
+    return {
+      ok: false,
+      documentoId: doc.docId,
+      documentoTitulo: doc.titulo,
+      error: `Artículo/sección "${artSuffix}" no existe en ${doc.titulo}. Válidos: ${doc.articulosValidos.join(', ')}`,
+    };
+  }
+
+  return {
+    ok: true,
+    documentoId: doc.docId,
+    documentoTitulo: doc.titulo,
+    articulo: artSuffix,
+  };
+}
 
 /**
  * Obtiene todas las metas vigentes del catálogo canónico
