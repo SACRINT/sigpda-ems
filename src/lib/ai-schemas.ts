@@ -489,6 +489,91 @@ export const PaecPaso9GobernanzaSchema = z.preprocess((input: unknown) => {
   informeSupervision: InformeSupervisionSchema,
 }));
 
+// Schemas atómicos de chunking para Paso 8 (Implementación y Anexos)
+export const PaecPaso8Block1Schema = z.preprocess((input: unknown) => {
+  if (input && typeof input === 'object') {
+    const inp = input as Record<string, unknown>;
+    return {
+      cartaInvitacion: inp.cartaInvitacion || inp.carta || {},
+      minutaArranque: inp.minutaArranque || inp.minuta || inp.anexo1Minuta || {},
+      oficiosAliados: inp.oficiosAliados || inp.oficios || [],
+      sesionLanzamiento: inp.sesionLanzamiento || undefined,
+    };
+  }
+  return input;
+}, z.object({
+  cartaInvitacion: CartaInvitacionSchema,
+  minutaArranque: Anexo1MinutaSchema,
+  oficiosAliados: z.array(OficioAliadoSchema).min(1, 'Debe incluir al menos un oficio para aliados'),
+  sesionLanzamiento: SesionLanzamientoSchema,
+}));
+
+export const PaecPaso8Block2Schema = z.preprocess((input: unknown) => {
+  if (input && typeof input === 'object') {
+    const inp = input as Record<string, unknown>;
+    const anexos = (inp.anexos as Record<string, unknown>) || inp;
+    return {
+      anexo1Minuta: anexos.anexo1Minuta || anexos.minuta || undefined,
+      anexo2Seguimiento: anexos.anexo2Seguimiento || anexos.seguimiento || [],
+      anexo3ReporteMensual: anexos.anexo3ReporteMensual || anexos.reporteMensual || {},
+    };
+  }
+  return input;
+}, z.object({
+  anexo1Minuta: Anexo1MinutaSchema.optional(),
+  anexo2Seguimiento: z.array(Anexo2SeguimientoRowSchema).min(1, 'Debe incluir seguimiento semanal'),
+  anexo3ReporteMensual: Anexo3ReporteMensualSchema,
+}));
+
+export const PaecPaso8Block3Schema = z.preprocess((input: unknown) => {
+  if (input && typeof input === 'object') {
+    const inp = input as Record<string, unknown>;
+    const anexos = (inp.anexos as Record<string, unknown>) || inp;
+    return {
+      anexo4ImpactoComunidad: anexos.anexo4ImpactoComunidad || anexos.impactoComunidad || {},
+      anexo5AutoevaluacionEstudiantes: anexos.anexo5AutoevaluacionEstudiantes || anexos.autoevaluacion || {},
+      anexo6EvaluacionColegiado: anexos.anexo6EvaluacionColegiado || anexos.evaluacionColegiado || {},
+    };
+  }
+  return input;
+}, z.object({
+  anexo4ImpactoComunidad: InstrumentoEvaluacionGenericoSchema,
+  anexo5AutoevaluacionEstudiantes: InstrumentoEvaluacionGenericoSchema,
+  anexo6EvaluacionColegiado: InstrumentoEvaluacionGenericoSchema,
+}));
+
+// Schemas atómicos de chunking para Paso 9 (Gobernanza e Informe)
+export const PaecPaso9Block1Schema = z.preprocess((input: unknown) => {
+  if (input && typeof input === 'object') {
+    const inp = input as Record<string, unknown>;
+    const gob = (inp.gobernanza as Record<string, unknown>) || inp;
+    return {
+      gobernanza: {
+        calendario: gob.calendario || [],
+        metodologiaEvaluacion: gob.metodologiaEvaluacion || gob.evaluacion || {},
+      },
+    };
+  }
+  return input;
+}, z.object({
+  gobernanza: z.object({
+    calendario: z.array(CalendarioItemSchema).min(2, 'Debe incluir al menos 2 niveles en el calendario de gobernanza'),
+    metodologiaEvaluacion: MetodologiaEvaluacionSchema,
+  }),
+}));
+
+export const PaecPaso9Block2Schema = z.preprocess((input: unknown) => {
+  if (input && typeof input === 'object') {
+    const inp = input as Record<string, unknown>;
+    return {
+      informeSupervision: inp.informeSupervision || inp.informe || inp.supervision || inp,
+    };
+  }
+  return input;
+}, z.object({
+  informeSupervision: InformeSupervisionSchema,
+}));
+
 // ============================================================================
 // 3. PMC (PROGRAMA DE MEJORA CONTINUA) SCHEMAS
 // ============================================================================

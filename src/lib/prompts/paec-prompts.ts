@@ -836,3 +836,112 @@ Debes responder ÚNICAMENTE con un objeto JSON con la siguiente estructura exact
   }
 }`;
 }
+
+// ============================================================================
+// PROMPTS DE CHUNKING Y CHECKPOINTS PARA PASOS 8 Y 9
+// ============================================================================
+
+export function buildPrompt8Bloque1(
+  projectSummary: string,
+  planASummary: string,
+  planBSummary: string
+): string {
+  return `Genera el BLOQUE 1/3 del Paso 8 (Implementación Territorial y Convocatoria) del PEC (Ciclo ${SCHOOL_YEAR}):
+Datos del Proyecto: ${projectSummary}
+Operación Semestre A: ${planASummary}
+Operación Semestre B: ${planBSummary}
+
+Debes responder ÚNICAMENTE con un objeto JSON válido con los siguientes campos:
+{
+  "cartaInvitacion": { "asunto": string, "fecha": string, "destinatarios": string, "cuerpo": string, "fechaReunion": string, "hora": string, "lugar": string, "objetivos": string[], "firmante": string, "cargo": string },
+  "minutaArranque": { "cct": string, "fecha": string, "tipoReunion": string, "acuerdos": Array<{ "no": number, "acuerdo": string, "responsable": string, "fechaLimite": string, "estatus": string }>, "firmas": Array<{ "cargo": string, "nombre": string }> },
+  "oficiosAliados": Array<{ "destinatario": string, "cargo": string, "institucion": string, "asunto": string, "propuestaColaboracion": string }>,
+  "sesionLanzamiento": { "fecha": string, "dinamica": string, "participantes": string, "acuerdosEstudiantiles": string[] }
+}`;
+}
+
+export function buildPrompt8Bloque2(
+  projectSummary: string,
+  planASummary: string,
+  planBSummary: string
+): string {
+  return `Genera el BLOQUE 2/3 del Paso 8 (Anexos Técnicos de Seguimiento 1 a 3) del PEC (Ciclo ${SCHOOL_YEAR}):
+Datos del Proyecto: ${projectSummary}
+Operación Semestre A: ${planASummary}
+Operación Semestre B: ${planBSummary}
+
+Debes responder ÚNICAMENTE con un objeto JSON válido con los siguientes campos:
+{
+  "anexo1Minuta": { "cct": string, "fecha": string, "tipoReunion": string, "acuerdos": Array<{ "no": number, "acuerdo": string, "responsable": string, "fechaLimite": string, "estatus": string }>, "firmas": Array<{ "cargo": string, "nombre": string }> },
+  "anexo2Seguimiento": Array<{ "semana": string, "fase": string, "uac": string, "metaOperativa": string, "evidencia": string, "avancePorcentaje": number, "semaforo": "verde" | "amarillo" | "rojo" }>,
+  "anexo3ReporteMensual": { "periodo": string, "resumenEjecutivo": string, "logros": string[], "dificultades": string[], "accionesAjuste": string[] }
+}`;
+}
+
+export function buildPrompt8Bloque3(
+  projectSummary: string,
+  planASummary: string,
+  planBSummary: string
+): string {
+  return `Genera el BLOQUE 3/3 del Paso 8 (Anexos Técnicos de Evaluación 4 a 6) del PEC (Ciclo ${SCHOOL_YEAR}):
+Datos del Proyecto: ${projectSummary}
+Operación Semestre A: ${planASummary}
+Operación Semestre B: ${planBSummary}
+
+Debes responder ÚNICAMENTE con un objeto JSON válido con los siguientes campos:
+{
+  "anexo4ImpactoComunidad": { "titulo": string, "tipoAplicacion": "PRE/POST", "reactivos": Array<{ "reactivo": string, "dimension": string }>, "escala": Record<string, string> },
+  "anexo5AutoevaluacionEstudiantes": { "titulo": string, "tipoAplicacion": "FINAL", "reactivos": Array<{ "reactivo": string, "dimension": string }>, "escala": Record<string, string> },
+  "anexo6EvaluacionColegiado": { "titulo": string, "tipoAplicacion": "FINAL", "reactivos": Array<{ "reactivo": string, "dimension": string }>, "escala": Record<string, string> }
+}`;
+}
+
+export function buildPrompt9Bloque1(
+  projectSummary: string,
+  planASummary: string,
+  planBSummary: string,
+  implementacionSummary: string
+): string {
+  return `Genera el BLOQUE 1/2 del Paso 9 (Gobernanza Colegiada y Metodología NEM) del PEC (Ciclo ${SCHOOL_YEAR}):
+Datos del Proyecto: ${projectSummary}
+Operación Semestre A: ${planASummary}
+Operación Semestre B: ${planBSummary}
+Implementación: ${implementacionSummary}
+
+Debes responder ÚNICAMENTE con un objeto JSON válido con los siguientes campos:
+{
+  "gobernanza": {
+    "calendario": Array<{ "tipo": string, "frecuencia": string, "participantes": string, "objetivo": string, "evidencia": string }>,
+    "metodologiaEvaluacion": {
+      "ambitos": string[],
+      "preguntasGuiaNem": { "dondeEstamos": string, "haciaDondeVamos": string, "comoSuperamos": string }
+    }
+  }
+}`;
+}
+
+export function buildPrompt9Bloque2(
+  projectSummary: string,
+  planASummary: string,
+  planBSummary: string,
+  implementacionSummary: string
+): string {
+  return `Genera el BLOQUE 2/2 del Paso 9 (Informe de Rendición de Cuentas para Supervisión 004) del PEC (Ciclo ${SCHOOL_YEAR}):
+Datos del Proyecto: ${projectSummary}
+Operación Semestre A: ${planASummary}
+Operación Semestre B: ${planBSummary}
+Implementación: ${implementacionSummary}
+
+Debes responder ÚNICAMENTE con un objeto JSON válido con los siguientes campos:
+{
+  "informeSupervision": {
+    "resumenEjecutivo": string,
+    "metasVsLogros": Array<{ "meta": string, "indicador": string, "programado": string, "alcanzado": string, "porcentaje": number, "estatus": string }>,
+    "analisisPrePost": { "participacionTotal": string, "alcanceComunitario": string, "cambioConocimientos": string, "desarrolloCompetencias": string },
+    "evidencias": string[],
+    "obstaculos": Array<{ "dificultad": string, "solucion": string }>,
+    "sostenibilidad": string[],
+    "firmas": { "responsableInforme": string, "autoridadEscolar": string }
+  }
+}`;
+}
