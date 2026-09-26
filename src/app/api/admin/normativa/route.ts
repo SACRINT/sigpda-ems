@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { sql } from '@/lib/db/client';
 // src/app/api/admin/normativa/route.ts
 // Admin CRUD para el catálogo normativo (documentos y artículos)
@@ -10,6 +11,9 @@ import { logger } from '@/lib/logger';
 export const runtime = 'nodejs';
 
 function getDb() { return sql(); }
+
+import { getCatalogoMetasPmc } from '@/lib/catalogo-metas-pmc';
+import type { MetaCatalogEntry } from '@/types/pmc';
 
 // ─── GET — Lista todo el catálogo normativo ────────────────────────────────────
 export async function GET(request: NextRequest) {
@@ -27,6 +31,41 @@ export async function GET(request: NextRequest) {
   const actionParam = searchParams.get('action');
 
   try {
+    // ── Modo especial: consultar catálogo canónico de metas institucionales PMC
+    if (searchParams.get('catalogo') === 'metas') {
+      try {
+        const rows = await db`
+          SELECT
+            id, nombre, categoria, subcategoria, articulos, vigencia,
+            aplicabilidad_nivel, aplicabilidad_justificacion, fase, estado, evidencia, orden_display
+          FROM pmc_catalogo_metas
+          ORDER BY orden_display ASC, id ASC
+        `;
+        if (rows.length > 0) {
+          const metas: MetaCatalogEntry[] = rows.map((r: any) => ({
+            id: r.id,
+            nombre: r.nombre,
+            categoria: r.categoria,
+            subcategoria: r.subcategoria,
+            articulos: r.articulos || [],
+            vigencia: r.vigencia,
+            aplicabilidad_pmc: {
+              nivel: r.aplicabilidad_nivel,
+              justificacion: r.aplicabilidad_justificacion,
+            },
+            fase: r.fase,
+            estado: r.estado,
+            evidencia: r.evidencia,
+            orden_display: r.orden_display,
+          }));
+          return NextResponse.json({ success: true, metas });
+        }
+      } catch {
+        // Fallback al catálogo canónico si la tabla aún no existe o hay timeout
+      }
+      return NextResponse.json({ success: true, metas: getCatalogoMetasPmc() });
+    }
+
     // ── Modo especial: leer snapshot predeterminado
     if (actionParam === 'get_default') {
       const rows = await db`SELECT value FROM platform_config WHERE key = 'normativa_default_snapshot'`;
@@ -99,6 +138,49 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
 
   try {
+    // ── Upsert meta del catálogo PMC
+    if (body.action === 'upsert_meta') {
+      const { id, nombre, categoria, subcategoria, articulos, vigencia, aplicabilidad_pmc, fase, estado, evidencia, orden_display } = body;
+      if (!id || !nombre || !categoria || !subcategoria) {
+        return NextResponse.json({ error: 'id, nombre, categoria y subcategoria son requeridos' }, { status: 400 });
+      }
+      const [meta] = await db`
+        INSERT INTO pmc_catalogo_metas (
+          id, nombre, categoria, subcategoria, articulos, vigencia,
+          aplicabilidad_nivel, aplicabilidad_justificacion, fase, estado, evidencia, orden_display, updated_at
+        ) VALUES (
+          ${id},
+          ${nombre},
+          ${categoria},
+          ${subcategoria},
+          ${articulos || []},
+          ${vigencia !== false},
+          ${aplicabilidad_pmc?.nivel || 'recomendada'},
+          ${aplicabilidad_pmc?.justificacion || ''},
+          ${fase || 'FASE 1'},
+          ${estado || 'pendiente'},
+          ${evidencia || ''},
+          ${orden_display || 0},
+          NOW()
+        )
+        ON CONFLICT (id) DO UPDATE SET
+          nombre = EXCLUDED.nombre,
+          categoria = EXCLUDED.categoria,
+          subcategoria = EXCLUDED.subcategoria,
+          articulos = EXCLUDED.articulos,
+          vigencia = EXCLUDED.vigencia,
+          aplicabilidad_nivel = EXCLUDED.aplicabilidad_nivel,
+          aplicabilidad_justificacion = EXCLUDED.aplicabilidad_justificacion,
+          fase = EXCLUDED.fase,
+          estado = EXCLUDED.estado,
+          evidencia = EXCLUDED.evidencia,
+          orden_display = EXCLUDED.orden_display,
+          updated_at = NOW()
+        RETURNING *
+      `;
+      return NextResponse.json({ success: true, meta });
+    }
+
     // ── Crear documento
     if (body.action === 'create_documento') {
       const { titulo, tipo, fuente, orden_display, vigente = true } = body;

@@ -187,3 +187,20 @@ export interface PmcQualityAudit {
   criticalRecommendations: string[];
   auditedAt: string;
 }
+
+export interface MetaCatalogEntry {
+  id: string;
+  nombre: string;
+  categoria: string;
+  subcategoria: string;
+  articulos: string[];
+  vigencia: boolean;
+  aplicabilidad_pmc: {
+    nivel: 'obligatoria' | 'recomendada' | 'contextual';
+    justificacion: string;
+  };
+  fase?: string;
+  estado?: 'pendiente' | 'en_desarrollo' | 'cumplida';
+  evidencia?: string;
+  orden_display?: number;
+}

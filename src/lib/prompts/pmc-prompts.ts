@@ -16,6 +16,7 @@
 
 import type { PmcProject, PmcStatisticalContext, PmcIndicadoresAcademicos, PmcFodaData } from '@/types/pmc';
 import { toRealNumber } from '../numeric-guard';
+import { formatMetasContextForPrompt } from '../catalogo-metas-pmc';
 
 function safeStr(val: unknown, fallback = 'N/D'): string {
   if (val === null || val === undefined) return fallback;
@@ -244,6 +245,8 @@ ${zona ? `- Promedios de Zona (${zona.zonaNumero || '004'}): Abandono ${zona.pro
 
 CATEGORÍAS Y TEMAS SELECCIONADOS POR EL PLANTEL:
 ${categoriasList}
+
+${formatMetasContextForPrompt()}
 
 PLANTILLA DE PERSONAL DISPONIBLE:
 ${staffList}
