@@ -39,6 +39,7 @@ import {
   PaecStep8Implementacion,
   PaecStep9GobernanzaSupervision,
 } from './steps';
+import { PaecStepQualityAuditBadge } from '@/components/paec/PaecStepQualityAuditBadge';
 import PaecWizardLegacy from './legacy/PaecWizardLegacy';
 import { useAssistant } from '@/components/assistant';
 
@@ -620,6 +621,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
 
   // Quality Audit States (Quality Gate continuo MCCEMS/NEM)
   const [auditResult, setAuditResult] = useState<PaecQualityAudit | PaecAuditResult | null>(null);
+  const [stepAudits, setStepAudits] = useState<Record<number, PaecQualityAudit>>({});
   const [loadingAudit, setLoadingAudit] = useState(false);
   const [auditError, setAuditError] = useState<string | null>(null);
   const [showAuditDetails, setShowAuditDetails] = useState(false);
@@ -903,6 +905,10 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
 
       const data = await res.json();
       setProject(data.project);
+
+      if (data.stepAudit) {
+        setStepAudits((prev) => ({ ...prev, [activeStep]: data.stepAudit }));
+      }
 
       // Guardar en caché si se generó Step 4 o Step 5
       if (activeStep === 4 && data.project?.fase2Cronograma) {
@@ -2609,6 +2615,15 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                 )}
               </div>
             </div>
+
+            {/* Step Quality Audit Badge (MCCEMS/NEM 23 Criterios) */}
+            <PaecStepQualityAuditBadge
+              step={activeStep}
+              stepAudit={stepAudits[activeStep] || null}
+              globalAudit={auditResult}
+              onReaudit={() => projectId && fetchAudit(projectId)}
+              isLoading={loadingAudit}
+            />
 
             {/* Step 1 Visual Render */}
             {activeStep === 1 && (
