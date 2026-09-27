@@ -143,8 +143,8 @@ describe('FASE 3: Generador de Documento Maestro Oficial del PMC (8 Capítulos F
 
     const { value: rawText } = await mammoth.extractRawText({ buffer });
 
-    // Debe contener la leyenda de respaldo canónico local
-    expect(rawText).toContain('Fuente: Catálogo Canónico Institucional SIGPDA-EMS (Respaldo Local).');
+    // Debe contener la leyenda de fuente oficial (H-117: texto neutral sin marca interna)
+    expect(rawText).toContain('Fuente: Catálogo Oficial de Metas Institucionales — Dirección de Bachilleratos Estatales y Preparatoria Abierta (DBEPA) Puebla.');
 
     // Debe contener metas canónicas del Formato 5.2
     expect(rawText).toContain('TRABAJO COLEGIADO');

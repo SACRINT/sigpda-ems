@@ -27,14 +27,14 @@ const FALLBACK_NORMATIVA: Record<GeneratorType, string> = {
 • Artículo 3° Constitucional — derecho a la educación de calidad, inclusiva y en condiciones de equidad.
 • Ley General de Educación (2019), Art. 14 — obligatoriedad EMS; Art. 16 — criterios orientadores; Art. 18 — inclusión y excelencia.
 • Ley General SCMM (2019), Art. 4° — función directiva; Art. 69 — atribuciones en EMS.
-• Acuerdo Secretarial 14/08/22 (MCCEMS) — 8 categorías de gestión educativa para la mejora continua.
+• Acuerdo Secretarial 09/08/23 (MCCEMS) — 8 categorías de gestión educativa para la mejora continua.
 • Lineamientos PMC MCCEMS 2025-2026 — metodología PMC para planteles BGE del Estado de Puebla.
 --- FIN MARCO NORMATIVO ---`,
 
   paec: `--- MARCO NORMATIVO OFICIAL (PAEC-PEC) ---
 • Artículo 3° Constitucional — educación integral con participación comunitaria activa.
 • Ley General de Educación (2019), Art. 18 — inclusión, equidad y excelencia educativa.
-• MCCEMS (Acuerdo 14/08/22) — aprendizajes situados, comunitarios y críticos.
+• MCCEMS (Acuerdo 09/08/23) — aprendizajes situados, comunitarios y críticos.
 • Lineamientos PAEC-PEC MCCEMS 2026-2027 — estructura y criterios del Proyecto Escolar Comunitario.
 --- FIN MARCO NORMATIVO ---`,
 
@@ -47,7 +47,7 @@ const FALLBACK_NORMATIVA: Record<GeneratorType, string> = {
 
   planeacion: `--- MARCO NORMATIVO OFICIAL (Planeación Didáctica) ---
 • Artículo 3° Constitucional — educación de calidad, laica y gratuita.
-• MCCEMS (Acuerdo 14/08/22) — Marcos Curriculares por componente.
+• MCCEMS (Acuerdo 09/08/23) — Marcos Curriculares por componente.
 • Lineamientos de planeación MCCEMS — estructura de la planeación didáctica BGE.
 --- FIN MARCO NORMATIVO ---`,
 };
@@ -193,13 +193,13 @@ function getStructuredFallback(generador: GeneratorType): Array<{ orden: number;
       { orden: 1, titulo: "Constitución Política de los Estados Unidos Mexicanos", articulos: ["Artículo 3°"] },
       { orden: 2, titulo: "Ley General de Educación (2019)", articulos: ["Artículo 14", "Artículo 16", "Artículo 18"] },
       { orden: 3, titulo: "Ley General del Sistema para la Carrera de las Maestras y los Maestros (2019)", articulos: ["Artículo 4°", "Artículo 69"] },
-      { orden: 4, titulo: "Acuerdo Secretarial 14/08/22 (MCCEMS)", articulos: ["8 categorías de gestión educativa para la mejora continua"] },
+      { orden: 4, titulo: "Acuerdo Secretarial 09/08/23 (MCCEMS)", articulos: ["8 categorías de gestión educativa para la mejora continua"] },
       { orden: 5, titulo: "Lineamientos para la Planeación de la Mejora Continua 2025-2026 de la SEMS / MCCEMS", articulos: ["Metodología PMC para planteles BGE"] }
     ],
     paec: [
       { orden: 1, titulo: "Constitución Política de los Estados Unidos Mexicanos", articulos: ["Artículo 3°"] },
       { orden: 2, titulo: "Ley General de Educación (2019)", articulos: ["Artículo 18"] },
-      { orden: 3, titulo: "Acuerdo Secretarial 14/08/22 (MCCEMS)", articulos: ["Aprendizajes situados, comunitarios y críticos"] },
+      { orden: 3, titulo: "Acuerdo Secretarial 09/08/23 (MCCEMS)", articulos: ["Aprendizajes situados, comunitarios y críticos"] },
       { orden: 4, titulo: "Lineamientos PAEC-PEC MCCEMS 2026-2027", articulos: ["Estructura y criterios del Proyecto Escolar Comunitario"] }
     ],
     pips: [
@@ -210,7 +210,7 @@ function getStructuredFallback(generador: GeneratorType): Array<{ orden: number;
     ],
     planeacion: [
       { orden: 1, titulo: "Constitución Política de los Estados Unidos Mexicanos", articulos: ["Artículo 3°"] },
-      { orden: 2, titulo: "Acuerdo Secretarial 14/08/22 (MCCEMS)", articulos: ["Marcos Curriculares por componente"] },
+      { orden: 2, titulo: "Acuerdo Secretarial 09/08/23 (MCCEMS)", articulos: ["Marcos Curriculares por componente"] },
       { orden: 3, titulo: "Lineamientos de planeación MCCEMS", articulos: ["Estructura de la planeación didáctica BGE"] }
     ]
   };

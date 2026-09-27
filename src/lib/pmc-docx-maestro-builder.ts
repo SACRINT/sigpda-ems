@@ -532,7 +532,7 @@ export async function generatePmcDocxMaestro(
   const cap2 = [
     h1('Capítulo II. Marco Normativo y Catálogo de Metas Institucionales'),
     p(
-      'El sustento jurídico del PMC emana del Artículo 3° de la Constitución Política de los Estados Unidos Mexicanos, la Ley General de Educación (2019), la Ley General del Sistema para la Carrera de las Maestras y los Maestros (LGSCMM), el Marco Curricular Común de la Educación Media Superior (Acuerdo 14/08/22) y los Lineamientos para la Planeación de la Mejora Continua 2025-2026 de la Dirección de Bachilleratos Estatales y Preparatoria Abierta (DBEPA) de Puebla.'
+      'El sustento jurídico del PMC emana del Artículo 3° de la Constitución Política de los Estados Unidos Mexicanos, la Ley General de Educación (2019), la Ley General del Sistema para la Carrera de las Maestras y los Maestros (LGSCMM), el Marco Curricular Común de la Educación Media Superior (Acuerdo 09/08/23) y los Lineamientos para la Planeación de la Mejora Continua 2025-2026 de la Dirección de Bachilleratos Estatales y Preparatoria Abierta (DBEPA) de Puebla.'
     ),
     new Table({
       width: { size: CONTENT_W, type: WidthType.DXA },

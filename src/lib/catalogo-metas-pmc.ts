@@ -48,7 +48,7 @@ export const CATALOGO_METAS_CANONICO: MetaCatalogEntry[] = [
     nombre: 'Capacitación docente continua en el MCCEMS',
     categoria: 'Desarrollo académico y aprendizaje',
     subcategoria: 'FORMACIÓN Y ACTUALIZACIÓN DOCENTE',
-    articulos: ['LGSCMM-Art.4', 'Mejora-Continua-Art.16', 'Acuerdo-14/08/22-LineamientoGeneral'],
+    articulos: ['LGSCMM-Art.4', 'Mejora-Continua-Art.16', 'Acuerdo-09/08/23-LineamientoGeneral'],
     vigencia: true,
     aplicabilidad_pmc: {
       nivel: 'obligatoria',
@@ -64,7 +64,7 @@ export const CATALOGO_METAS_CANONICO: MetaCatalogEntry[] = [
     nombre: 'Innovación didáctica y proyectos transversales situados',
     categoria: 'Desarrollo académico y aprendizaje',
     subcategoria: 'PROPUESTAS PEDAGÓGICAS',
-    articulos: ['Acuerdo-14/08/22-ComponenteCurricular', 'Lineamientos-PMC-2025-Lineamiento3'],
+    articulos: ['Acuerdo-09/08/23-ComponenteCurricular', 'Lineamientos-PMC-2025-Lineamiento3'],
     vigencia: true,
     aplicabilidad_pmc: {
       nivel: 'recomendada',
@@ -112,7 +112,7 @@ export const CATALOGO_METAS_CANONICO: MetaCatalogEntry[] = [
     nombre: 'Fomento a la lectura y expresión comunicativa',
     categoria: 'Desarrollo académico y aprendizaje',
     subcategoria: 'CLUBES DE LECTURA',
-    articulos: ['Ley-Fomento-Lectura-Art.10', 'Acuerdo-14/08/22-LineamientoGeneral', 'LGE-Art.18'],
+    articulos: ['Ley-Fomento-Lectura-Art.10', 'Acuerdo-09/08/23-LineamientoGeneral', 'LGE-Art.18'],
     vigencia: true,
     aplicabilidad_pmc: {
       nivel: 'recomendada',
@@ -144,7 +144,7 @@ export const CATALOGO_METAS_CANONICO: MetaCatalogEntry[] = [
     nombre: 'Sistema integral de tutoría y acompañamiento pedagógico',
     categoria: 'Desarrollo académico y aprendizaje',
     subcategoria: 'ORIENTACIÓN Y TUTORÍA',
-    articulos: ['LGE-Art.18', 'Lineamientos-PMC-2025-Lineamiento2', 'Acuerdo-14/08/22-LineamientoGeneral'],
+    articulos: ['LGE-Art.18', 'Lineamientos-PMC-2025-Lineamiento2', 'Acuerdo-09/08/23-LineamientoGeneral'],
     vigencia: true,
     aplicabilidad_pmc: {
       nivel: 'obligatoria',
@@ -160,7 +160,7 @@ export const CATALOGO_METAS_CANONICO: MetaCatalogEntry[] = [
     nombre: 'Codiseño de planeaciones didácticas bajo progresiones MCCEMS',
     categoria: 'Desarrollo académico y aprendizaje',
     subcategoria: 'PLANEACIÓN DIDÁCTICA',
-    articulos: ['Acuerdo-14/08/22-ComponenteCurricular', 'Lineamientos-PMC-2025-Lineamiento3', 'LGE-Art.16'],
+    articulos: ['Acuerdo-09/08/23-ComponenteCurricular', 'Lineamientos-PMC-2025-Lineamiento3', 'LGE-Art.16'],
     vigencia: true,
     aplicabilidad_pmc: {
       nivel: 'obligatoria',
@@ -276,7 +276,7 @@ export const CATALOGO_METAS_CANONICO: MetaCatalogEntry[] = [
     nombre: 'Implementación de los Ámbitos de Formación Socioemocional',
     categoria: 'Desarrollo socioemocional y prevención de la violencia en la escuela',
     subcategoria: 'ÁMBITOS DE FORMACIÓN SOCIOEMOCIONAL (CURRÍCULUM AMPLIADO)',
-    articulos: ['Acuerdo-14/08/22-ComponenteCurricular', 'CPEUM-Art.3', 'LGE-Art.18'],
+    articulos: ['Acuerdo-09/08/23-ComponenteCurricular', 'CPEUM-Art.3', 'LGE-Art.18'],
     vigencia: true,
     aplicabilidad_pmc: {
       nivel: 'obligatoria',
@@ -351,9 +351,9 @@ export const CANONICAL_NORMATIVA_REFS: Record<string, CanonicalNormativaDocRef> 
     titulo: 'Ley General del Sistema para la Carrera de las Maestras y los Maestros (LGSCMM, 2019)',
     articulosValidos: ['Art.4', 'Art.69'],
   },
-  'Acuerdo-14/08/22': {
+  'Acuerdo-09/08/23': {
     docId: 4,
-    titulo: 'Acuerdo Secretarial 14/08/22 — Marco Curricular Común de la Educación Media Superior (MCCEMS)',
+    titulo: 'Acuerdo Secretarial 09/08/23 — Marco Curricular Común de la Educación Media Superior (MCCEMS)',
     articulosValidos: ['LineamientoGeneral', 'ComponenteCurricular'],
   },
   'Lineamientos-PMC-2025': {
