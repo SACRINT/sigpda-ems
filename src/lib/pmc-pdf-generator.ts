@@ -876,8 +876,15 @@ export async function generatePmcPDF(
     ? staffDataRaw.map((s) => ({
         nombre: safeStr(s.nombre, 'Integrante del Colectivo Escolar'),
         cargo: safeStr(s.cargo, 'Docente'),
+        horas_base: s.horas_base != null && String(s.horas_base).trim() !== ''
+          ? `${s.horas_base} hrs`
+          : (s.cargo?.toLowerCase().includes('director') ? '40 hrs' : '—'),
       }))
-    : [];
+    : (project.director_name ? [{
+        nombre: project.director_name,
+        cargo: 'Director(a)',
+        horas_base: '40 hrs',
+      }] : []);
 
   if (personalParticipante.length > 0) {
     if (curY > pageHeight - 55) {
@@ -895,6 +902,7 @@ export async function generatePmcPDF(
       { content: `${idx + 1}`, styles: { halign: 'center' as const, fontStyle: 'bold' as const, fillColor: GRAY_BG } },
       p.nombre,
       p.cargo,
+      { content: p.horas_base, styles: { halign: 'center' as const } },
       '_____________________',
     ]);
 
@@ -904,16 +912,18 @@ export async function generatePmcPDF(
         { content: 'N°', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], halign: 'center' } },
         { content: 'Nombre Completo', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
         { content: 'Cargo / Función en el CTE', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
+        { content: 'Horas Base', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], halign: 'center' } },
         { content: 'Firma / Rúbrica', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], halign: 'center' } },
       ]],
       body: partRows,
       theme: 'grid',
       styles: { fontSize: 6.5, cellPadding: 2, textColor: TEXT_DARK, lineColor: [210, 220, 235] },
       columnStyles: {
-        0: { cellWidth: 10 },
-        1: { cellWidth: 70 },
-        2: { cellWidth: 55 },
-        3: { cellWidth: contentWidth - 135, halign: 'center' },
+        0: { cellWidth: 8 },
+        1: { cellWidth: 62 },
+        2: { cellWidth: 45 },
+        3: { cellWidth: 20, halign: 'center' },
+        4: { cellWidth: contentWidth - 135, halign: 'center' },
       },
       margin: { left: margin, right: margin },
     });

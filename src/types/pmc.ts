@@ -11,6 +11,7 @@ export interface PmcStaffMember {
   funcion?: string;
   antiguedad?: string | number;
   formacion?: string;
+  horas_base?: number | string | null;
 }
 
 export interface PmcIndicadoresAcademicos {

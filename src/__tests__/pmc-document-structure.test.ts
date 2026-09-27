@@ -91,8 +91,8 @@ function makeMockPmcProject(): PmcProject {
       ],
     },
     staff_data: [
-      { nombre: 'Prof. Juan Rogelio García Escudero', cargo: 'Director(a)' },
-      { nombre: 'Prof. Pedro López Juárez', cargo: 'Docente de Matemáticas' },
+      { nombre: 'Prof. Juan Rogelio García Escudero', cargo: 'Director(a)', horas_base: 40 },
+      { nombre: 'Prof. Pedro López Juárez', cargo: 'Docente de Matemáticas', horas_base: 30 },
     ],
     normativa: {
       titulo: 'Marco Normativo Institucional',
@@ -326,6 +326,27 @@ describe('H-100 / H-101: SSoT Estructura Documental y Paridad PDF vs DOCX', () =
     expect(docxText).toContain('Agosto 2026 — Julio 2027');
     expect(pdfText).toContain('Agosto 2026 — Julio 2027');
     expect(pdfText).not.toContain('Agosto 2026 - Julio 2027');
+  });
+
+  it('7. Sección 8 en DOCX y PDF incorpora columna "Horas Base" y refleja los datos de plantilla', async () => {
+    const project = makeMockPmcProject();
+
+    const docxBuffer = await generatePmcDocx(project as unknown as Parameters<typeof generatePmcDocx>[0]);
+    const { value: docxText } = await mammoth.extractRawText({ buffer: docxBuffer });
+
+    const pdfBuffer = await generatePmcPDF(project as unknown as Parameters<typeof generatePmcPDF>[0]);
+    const parser = new PDFParse({ data: new Uint8Array(pdfBuffer) });
+    const parsedPdf = await parser.getText();
+    await parser.destroy();
+    const pdfText = parsedPdf.text;
+
+    // Ambos deben contener la columna "Horas Base"
+    expect(docxText).toContain('Horas Base');
+    expect(pdfText).toContain('Horas Base');
+
+    // Ambos deben reflejar las horas base de la plantilla
+    expect(docxText).toContain('30 hrs');
+    expect(pdfText).toContain('30 hrs');
   });
 });
 

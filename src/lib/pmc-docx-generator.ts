@@ -922,10 +922,10 @@ function buildMetasPersonales(plan: PlanAccion): (Paragraph | Table)[] {
 
 // ─── 8. Participantes, Control de Revisiones y Aprobación ─────────────────────
 function buildControlRevisiones(p: PmcProject, plan?: PlanAccion): (Paragraph | Table)[] {
-  const staffData = parseJson<Array<{ nombre?: string; cargo?: string }>>(p.staff_data);
+  const staffData = parseJson<Array<{ nombre?: string; cargo?: string; horas_base?: number | string | null }>>(p.staff_data);
   const participantes = Array.isArray(staffData) && staffData.length > 0
     ? staffData
-    : [{ nombre: p.director_name, cargo: 'Director(a)' }];
+    : [{ nombre: p.director_name, cargo: 'Director(a)', horas_base: 40 }];
 
   const metasInst = plan?.metas_institucionales ?? [];
   const seguimientoItems: (Paragraph | Table)[] = [];
@@ -977,25 +977,32 @@ function buildControlRevisiones(p: PmcProject, plan?: PlanAccion): (Paragraph | 
       [
         new TableRow({
           children: [
-            tcH('N°', { w: 800 }),
-            tcH('Nombre'),
-            tcH('Cargo / Función'),
-            tcH('Firma de Conformidad'),
+            tcH('N°', { w: 600 }),
+            tcH('Nombre del Personal', { w: 3800 }),
+            tcH('Cargo / Función', { w: 2600 }),
+            tcH('Horas Base', { w: 1400 }),
+            tcH('Firma de Conformidad', { w: 2400 }),
           ],
         }),
         ...participantes.map(
-          (part, idx) =>
-            new TableRow({
+          (part, idx) => {
+            const bg = idx % 2 ? C.alt : C.white;
+            const horasBase = part.horas_base != null && String(part.horas_base).trim() !== ''
+              ? `${part.horas_base} hrs`
+              : (part.cargo?.toLowerCase().includes('director') ? '40 hrs' : '—');
+            return new TableRow({
               children: [
-                tc(String(idx + 1), { w: 800, align: AlignmentType.CENTER, fill: idx % 2 ? C.alt : C.white }),
-                tc(safeStr(part.nombre, 'Personal Escolar'), { fill: idx % 2 ? C.alt : C.white }),
-                tc(safeStr(part.cargo, 'Docente'), { fill: idx % 2 ? C.alt : C.white }),
-                tc('________________________', { align: AlignmentType.CENTER, fill: idx % 2 ? C.alt : C.white }),
+                tc(String(idx + 1), { w: 600, align: AlignmentType.CENTER, fill: bg }),
+                tc(safeStr(part.nombre, 'Personal Escolar'), { w: 3800, fill: bg }),
+                tc(safeStr(part.cargo, 'Docente'), { w: 2600, fill: bg }),
+                tc(horasBase, { w: 1400, align: AlignmentType.CENTER, fill: bg }),
+                tc('________________________', { w: 2400, align: AlignmentType.CENTER, fill: bg }),
               ],
-            })
+            });
+          }
         ),
       ],
-      [800, Math.floor(CONTENT * 0.35), Math.floor(CONTENT * 0.25), CONTENT - 800 - Math.floor(CONTENT * 0.6)]
+      [600, 3800, 2600, 1400, 2400]
     ),
     ...gap(2),
     subHeading('Control de Revisiones Institucionales:'),

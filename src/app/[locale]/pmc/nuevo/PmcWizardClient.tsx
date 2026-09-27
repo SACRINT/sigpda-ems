@@ -59,6 +59,7 @@ interface MetaIndividual {
 interface StaffMember {
   nombre: string;
   cargo: string;
+  horas_base?: number | string | null;
   meta_individual?: string;
   metas_individuales?: MetaIndividual[];
   asignaturas?: string;
@@ -1689,7 +1690,7 @@ interface PaecProjectForPmc {
                       </button>
                     )}
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 110px', gap: '12px' }}>
                     <div>
                       <label style={labelStyle}>Nombre completo *</label>
                       <input
@@ -1726,6 +1727,23 @@ interface PaecProjectForPmc {
                         )}
                         {CARGOS_COMUNES.map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Horas Base</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="50"
+                        style={inputStyle}
+                        value={member.horas_base ?? ''}
+                        onChange={e => {
+                          const val = e.target.value ? parseInt(e.target.value, 10) : undefined;
+                          const copy = [...staffData];
+                          copy[idx] = { ...copy[idx], horas_base: val };
+                          setStaffData(copy);
+                        }}
+                        placeholder={member.cargo === 'Director(a)' ? '40' : '20'}
+                      />
                     </div>
                     <div style={{ gridColumn: '1 / -1' }}>
                       <label style={labelStyle}>Metas individuales para el ciclo {cicloEscolar} (opcional — si no defines las metas la IA las generará)</label>
@@ -2990,30 +3008,10 @@ interface PaecProjectForPmc {
                   </a>
                 </div>
 
-                {/* 3. DOCUMENTOS COMPLEMENTARIOS Y ARCHIVO ESCOLAR */}
+                {/* 3. PLANTILLAS DE SEGUIMIENTO Y EVALUACIÓN */}
                 <div style={{ marginTop: '8px' }}>
-                  <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'rgba(240,244,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>📁 Documentos Complementarios y Archivo Escolar</h4>
+                  <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'rgba(240,244,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>📁 Plantillas Oficiales de Seguimiento y Monitoreo</h4>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {/* Maestro */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '14px 16px', background: 'rgba(126,34,206,0.08)', border: '1px solid rgba(168,85,247,0.25)', borderRadius: '8px', flexWrap: 'wrap' }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-                          <span style={{ fontWeight: 600, color: '#c084fc' }}>📘 PMC Formato Extendido / Maestro (8 Capítulos DBEPA — Archivo Escolar)</span>
-                        </div>
-                        <div style={{ fontSize: '12px', color: 'rgba(240,244,255,0.6)' }}>
-                          Documento exhaustivo de archivo escolar con catálogo normativo integral DBEPA, caracterización territorial y cédula de plantilla activa.
-                        </div>
-                      </div>
-                      <a
-                        href={`/api/docx/pmc/${projectId}?maestro=true`}
-                        onClick={(e) => handleExportWithCoverageCheck(e, `/api/docx/pmc/${projectId}?maestro=true`)}
-                        className="btn btn-sm"
-                        style={{ flexShrink: 0, backgroundColor: 'rgba(126,34,206,0.3)', borderColor: '#7e22ce', color: '#e9d5ff', textDecoration: 'none' }}
-                      >
-                        ↓ Formato Maestro (.docx)
-                      </a>
-                    </div>
-
                     {/* Informe Parcial */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '14px 16px', background: 'rgba(14,165,233,0.08)', border: '1px solid rgba(14,165,233,0.2)', borderRadius: '8px', flexWrap: 'wrap' }}>
                       <div style={{ flex: 1 }}>
