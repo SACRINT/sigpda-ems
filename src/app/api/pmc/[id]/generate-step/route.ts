@@ -11,6 +11,7 @@ import { getSubscriptionStatus } from '@/lib/subscription-gate';
 import { extractIdempotencyKey, checkIdempotencyKey, createIdempotencyKey } from '@/lib/idempotency';
 import { buildPmcDiagnosticoPrompt, buildPmcPlanAccionPrompt } from '@/lib/prompts/pmc-prompts';
 import { derivePersonalMetasFromStaff, StaffMember } from '@/lib/pmc/staff-reconciler';
+import { findForbiddenPlatformTerms } from '@/lib/pmc-quality-gate';
 import type { PmcProject, PmcStatisticalContext } from '@/types/pmc';
 import { z } from 'zod';
 
@@ -307,13 +308,79 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
           { status: 500 }
         );
       }
-      const parsedPlan = parseResult.data;
+      let parsedPlan = parseResult.data;
+
+      // H-143: Guard determinista contra términos prohibidos de plataforma interna (SIGPDA/SIGPDA-EMS)
+      let forbiddenMatches = findForbiddenPlatformTerms(parsedPlan);
+      if (forbiddenMatches.length > 0) {
+        const uniqueTerms = Array.from(new Set(forbiddenMatches.map(t => t.toUpperCase())));
+        logger.warn(
+          `[PMC PlanAccion Guard] Términos prohibidos detectados en generación inicial (${uniqueTerms.join(', ')}). Iniciando reintento correctivo...`
+        );
+        const correctivePrompt = `${prompt}\n\n[CORRECCIÓN OBLIGATORIA DEL SISTEMA]:\nTu respuesta anterior incluyó términos prohibidos de plataforma privada (${uniqueTerms.join(', ')}).\nEstá terminantemente PROHIBIDO mencionar "SIGPDA", "SIGPDA-EMS", "SIGPDA EMS" o nombres de software privado en metas o entregables.\nReemplázalos por terminología oficial como "plataforma institucional de planeación docente", "consejo académico", "academia docente" o "portafolio institucional de evidencias".\nGenera de nuevo el plan de acción en JSON válido respetando estrictamente esta restricción oficial.`;
+
+        const retryText = await generateWithRotation(
+          'Eres un asistente experto en planeación educativa para el BGE de Puebla. Responde siempre con JSON válido y bien formado. Está estrictamente prohibido incluir las siglas SIGPDA o SIGPDA-EMS en ningún campo.',
+          correctivePrompt,
+          teacher.id,
+          isPremium,
+          { jsonMode: true }
+        );
+
+        if (retryText) {
+          const retryParse = parseAIResponse(retryText, PmcPlanAccionSchema, { contextName: 'pmc_plan_accion_retry' });
+          if (retryParse.success) {
+            const retryForbidden = findForbiddenPlatformTerms(retryParse.data);
+            if (retryForbidden.length === 0) {
+              logger.info('[PMC PlanAccion Guard] Reintento correctivo exitoso: 0 términos prohibidos.');
+              parsedPlan = retryParse.data;
+              forbiddenMatches = [];
+            } else {
+              forbiddenMatches = retryForbidden;
+            }
+          }
+        }
+      }
+
+      // Si aún persisten términos prohibidos tras el reintento, abortar la persistencia con HTTP 422
+      if (forbiddenMatches.length > 0) {
+        const uniqueTerms = Array.from(new Set(forbiddenMatches.map(t => t.toUpperCase())));
+        logger.error(
+          `[PMC PlanAccion Guard] Bloqueada persistencia de plan_accion contaminado con: ${uniqueTerms.join(', ')}`
+        );
+        return NextResponse.json(
+          {
+            error:
+              'El plan de acción generado contiene términos prohibidos de plataforma privada (SIGPDA/SIGPDA-EMS). Se bloqueó la persistencia para proteger la validez normativa oficial del PMC ante SEMS Puebla. Por favor, regenera el plan de acción.',
+            forbiddenTerms: uniqueTerms,
+          },
+          { status: 422 }
+        );
+      }
+
       const staffList = (Array.isArray(staffData) ? staffData : []) as StaffMember[];
       parsedPlan.metas_personales = derivePersonalMetasFromStaff(
         staffList,
         project.ciclo_escolar || '2026-2027',
         parsedPlan.metas_personales
       );
+
+      // Verificación final previa a DB por si metas_personales tuviera alguna contaminación
+      const finalForbidden = findForbiddenPlatformTerms(parsedPlan);
+      if (finalForbidden.length > 0) {
+        const uniqueTerms = Array.from(new Set(finalForbidden.map(t => t.toUpperCase())));
+        logger.error(
+          `[PMC PlanAccion Guard] Bloqueada persistencia final por términos prohibidos: ${uniqueTerms.join(', ')}`
+        );
+        return NextResponse.json(
+          {
+            error:
+              'El plan de acción generado contiene términos prohibidos de plataforma privada (SIGPDA/SIGPDA-EMS). Se bloqueó la persistencia en base de datos.',
+            forbiddenTerms: uniqueTerms,
+          },
+          { status: 422 }
+        );
+      }
 
       const [updated] = await db`
         UPDATE pmc_projects
