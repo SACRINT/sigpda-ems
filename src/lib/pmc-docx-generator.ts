@@ -1009,48 +1009,62 @@ function buildControlRevisiones(p: PmcProject, plan?: PlanAccion): (Paragraph | 
       [600, 3800, 2600, 1400, 2400]
     ),
     ...gap(2),
-    subHeading('Control de Revisiones Institucionales:'),
     tbl(
       [
         new TableRow({
           children: [
-            tcH('Rol / Autoridad'),
-            tcH('Nombre'),
-            tcH('Firma'),
-            tcH('Fecha'),
+            tcH('CONSTANCIA DE APROBACIÓN Y VALIDACIÓN DEL PLAN DE MEJORA CONTINUA', {
+              span: 3,
+              align: AlignmentType.CENTER,
+              w: CONTENT,
+            }),
           ],
         }),
         new TableRow({
           children: [
-            tcSub('Director(a) del Plantel'),
-            tc(safeStr(p.director_name)),
-            tc(''),
-            tc(''),
-          ],
-        }),
-        new TableRow({
-          children: [
-            tcSub('Supervisor(a) Escolar', { fill: C.alt }),
-            tc(safeStr(p.supervisor_name), { fill: C.alt }),
-            tc('', { fill: C.alt }),
-            tc('', { fill: C.alt }),
-          ],
-        }),
-        new TableRow({
-          children: [
-            tcSub('Presidente del CEPS / Comunidad'),
-            tc(''),
-            tc(''),
-            tc(''),
+            new TableCell({
+              width: { size: 3600, type: WidthType.DXA },
+              borders: bdr('CCCCCC'),
+              margins: { top: 200, bottom: 200, left: 140, right: 140 },
+              verticalAlign: 'center',
+              children: [
+                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 400, after: 80 }, children: [new TextRun({ text: '___________________________________', size: 16, color: C.muted })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 40, after: 60 }, children: [new TextRun({ text: 'ELABORÓ', bold: true, size: 18, color: C.navy, font: 'Arial' })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 40, after: 40 }, children: [new TextRun({ text: safeStr(p.director_name, 'Director(a) del Plantel'), bold: true, size: 18, color: C.text, font: 'Arial' })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 20, after: 20 }, children: [new TextRun({ text: 'DIRECTOR(A) DEL PLANTEL', size: 16, color: C.muted, font: 'Arial' })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 20, after: 80 }, children: [new TextRun({ text: 'Firma y Sello del Plantel', italics: true, size: 14, color: C.muted, font: 'Arial' })] }),
+              ],
+            }),
+            new TableCell({
+              width: { size: 3600, type: WidthType.DXA },
+              borders: bdr('CCCCCC'),
+              margins: { top: 200, bottom: 200, left: 140, right: 140 },
+              verticalAlign: 'center',
+              children: [
+                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 400, after: 80 }, children: [new TextRun({ text: '___________________________________', size: 16, color: C.muted })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 40, after: 60 }, children: [new TextRun({ text: 'REVISÓ', bold: true, size: 18, color: C.navy, font: 'Arial' })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 40, after: 40 }, children: [new TextRun({ text: 'REPRESENTANTE DEL CTE', bold: true, size: 18, color: C.text, font: 'Arial' })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 20, after: 20 }, children: [new TextRun({ text: 'COLECTIVO DOCENTE DEL PLANTEL', size: 16, color: C.muted, font: 'Arial' })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 20, after: 80 }, children: [new TextRun({ text: 'Firma y Rúbrica', italics: true, size: 14, color: C.muted, font: 'Arial' })] }),
+              ],
+            }),
+            new TableCell({
+              width: { size: 3600, type: WidthType.DXA },
+              borders: bdr('CCCCCC'),
+              margins: { top: 200, bottom: 200, left: 140, right: 140 },
+              verticalAlign: 'center',
+              children: [
+                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 400, after: 80 }, children: [new TextRun({ text: '___________________________________', size: 16, color: C.muted })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 40, after: 60 }, children: [new TextRun({ text: 'VALIDÓ', bold: true, size: 18, color: C.navy, font: 'Arial' })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 40, after: 40 }, children: [new TextRun({ text: safeStr(p.supervisor_name, 'Supervisor(a) de Zona'), bold: true, size: 18, color: C.text, font: 'Arial' })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 20, after: 20 }, children: [new TextRun({ text: 'SUPERVISOR(A) DE ZONA ESCOLAR', size: 16, color: C.muted, font: 'Arial' })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 20, after: 80 }, children: [new TextRun({ text: 'Vo. Bo. y Sello de Zona', italics: true, size: 14, color: C.muted, font: 'Arial' })] }),
+              ],
+            }),
           ],
         }),
       ],
-      [
-        Math.floor(CONTENT * 0.28),
-        Math.floor(CONTENT * 0.36),
-        Math.floor(CONTENT * 0.18),
-        Math.floor(CONTENT * 0.18),
-      ]
+      [3600, 3600, 3600]
     ),
     ...gap(2),
   ];

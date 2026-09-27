@@ -412,5 +412,44 @@ describe('H-100 / H-101: SSoT Estructura Documental y Paridad PDF vs DOCX', () =
     expect(docxText).not.toContain('agosto 2026 - junio 2027');
     expect(pdfText).not.toContain('agosto 2026 - junio 2027');
   });
+
+  it('9. Sección 8 en DOCX y PDF cuenta con paridad espejo 100%: Constancia de Aprobación y Validación oficial con firmas ELABORÓ, REVISÓ y VALIDÓ (H-138)', async () => {
+    const project = makeMockPmcProject();
+
+    const docxBuffer = await generatePmcDocx(project as unknown as Parameters<typeof generatePmcDocx>[0]);
+    const { value: docxText } = await mammoth.extractRawText({ buffer: docxBuffer });
+
+    const pdfBuffer = await generatePmcPDF(project as unknown as Parameters<typeof generatePmcPDF>[0]);
+    const parser = new PDFParse({ data: new Uint8Array(pdfBuffer) });
+    const parsedPdf = await parser.getText();
+    await parser.destroy();
+    const pdfText = parsedPdf.text;
+
+    // Constancia de Aprobación y Validación presente en ambos
+    expect(docxText).toContain('CONSTANCIA DE APROBACIÓN Y VALIDACIÓN DEL PLAN DE MEJORA CONTINUA');
+    expect(pdfText).toContain('CONSTANCIA DE APROBACIÓN Y VALIDACIÓN DEL PLAN DE MEJORA CONTINUA');
+
+    // Tres roles oficiales de firma presentes en ambos
+    expect(docxText).toContain('ELABORÓ');
+    expect(pdfText).toContain('ELABORÓ');
+    expect(docxText).toContain('REVISÓ');
+    expect(pdfText).toContain('REVISÓ');
+    expect(docxText).toContain('VALIDÓ');
+    expect(pdfText).toContain('VALIDÓ');
+
+    // Nombres y autoridades presentes en ambos
+    expect(docxText).toContain('DIRECTOR(A) DEL PLANTEL');
+    expect(pdfText).toContain('DIRECTOR(A) DEL PLANTEL');
+    expect(docxText).toContain('REPRESENTANTE DEL CTE');
+    expect(pdfText).toContain('REPRESENTANTE DEL CTE');
+    expect(docxText).toContain('SUPERVISOR(A) DE ZONA ESCOLAR');
+    expect(pdfText).toContain('SUPERVISOR(A) DE ZONA ESCOLAR');
+
+    // Ausencia de tabla divergente o desactualizada
+    expect(docxText).not.toContain('Control de Revisiones Institucionales');
+    expect(pdfText).not.toContain('Control de Revisiones Institucionales');
+    expect(docxText).not.toContain('Presidente del CEPS');
+    expect(pdfText).not.toContain('Presidente del CEPS');
+  });
 });
 
