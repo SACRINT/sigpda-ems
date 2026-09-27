@@ -626,7 +626,14 @@ interface PmcPreviousExtractDTO {
     }
 
     if (parsedPmcData.diagnosticoComunidad) {
-      setDiagnosticoComunidad(parsedPmcData.diagnosticoComunidad);
+      setDiagnosticoComunidad(prev => {
+        const pmcDiag = parsedPmcData.diagnosticoComunidad!.trim();
+        if (prev.includes('--- Integrado desde PAEC ---')) {
+          const paecPart = prev.slice(prev.indexOf('--- Integrado desde PAEC ---')).trim();
+          return `${pmcDiag}\n\n${paecPart}`;
+        }
+        return pmcDiag;
+      });
     }
 
     if (parsedPmcData.indicadores) {
@@ -926,11 +933,19 @@ interface PmcPreviousExtractDTO {
 
       if (paecDiagParts.length > 0) {
         const combined = paecDiagParts.join('\n\n');
-        setDiagnosticoComunidad(prev => prev.trim() ? `${prev}\n\n--- Integrado desde PAEC ---\n${combined}` : combined);
+        setDiagnosticoComunidad(prev => {
+          if (prev.includes('--- Integrado desde PAEC ---')) {
+            const parts = prev.split('--- Integrado desde PAEC ---');
+            return `${parts[0].trim()}\n\n--- Integrado desde PAEC ---\n${combined}`;
+          }
+          return prev.trim() ? `${prev}\n\n--- Integrado desde PAEC ---\n${combined}` : `--- Integrado desde PAEC ---\n${combined}`;
+        });
+        setDocsStatus(prev => ({ ...prev, paecAnt: true }));
+        setSuccessBanner(`✓ Documento PAEC procesado exitosamente: ${paecDiagParts.length} campos extraídos e integrados al diagnóstico y datos de plantel.`);
+      } else {
+        setDocsStatus(prev => ({ ...prev, paecAnt: false }));
+        setError('El documento PAEC fue analizado, pero no se extrajeron campos comunitarios ni de problemática (0 campos extraídos). Revisa el contenido del archivo.');
       }
-
-      setDocsStatus(prev => ({ ...prev, paecAnt: true }));
-      setSuccessBanner('✓ Documento PAEC procesado e integrado exitosamente al diagnóstico y datos de plantel.');
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : 'No se pudo procesar el PAEC anterior.';
       setError(errMsg);
