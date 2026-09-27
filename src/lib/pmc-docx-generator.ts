@@ -648,8 +648,9 @@ function buildDiagnostico(
         }),
         new TableRow({
           children: [
-            tc('Matrícula Total del Plantel'),
-            tc(indVals.matricula.ant, { align: AlignmentType.CENTER, span: 2 }),
+            tc('Matrícula Escolar Oficial (911.7G)'),
+            tc(indVals.matricula.ant, { align: AlignmentType.CENTER }),
+            tc(indVals.matricula.meta, { align: AlignmentType.CENTER }),
           ],
         }),
       ],
