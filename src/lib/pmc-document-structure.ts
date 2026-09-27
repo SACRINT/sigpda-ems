@@ -6,7 +6,7 @@
  */
 
 import { SCHOOL_YEAR } from '@/lib/config';
-import { getJustificacionNormativa } from './normativa-context';
+import { getJustificacionNormativa, isPlaceholderArticulo } from './normativa-context';
 
 export interface PmcSubseccionDef {
   id: string;
@@ -121,14 +121,33 @@ export function clasificarNormativaJerarquica(
 
   for (const doc of documentos) {
     if (!doc?.titulo) continue;
-    const t = doc.titulo.toLowerCase();
+
+    // H-125: Saneamiento defensivo de títulos - si viene de snapshot previo con fecha abrogada 14/08/22, mapear a 09/08/23
+    let tituloNormalizado = doc.titulo.trim();
+    if (tituloNormalizado.includes('14/08/22')) {
+      tituloNormalizado = tituloNormalizado.replace(/14\/08\/22/g, '09/08/23');
+    }
+
+    // H-125: Saneamiento defensivo de artículos - filtrar placeholders 'Artículo Relevante...', números huérfanos '15 21 42'
+    const articulosLimpios = Array.isArray(doc.articulos)
+      ? doc.articulos.filter((art) => typeof art === 'string' && !isPlaceholderArticulo(art))
+      : [];
+
+    let articulosFinales = articulosLimpios;
+    if (articulosFinales.length === 0) {
+      if (tituloNormalizado.includes('09/08/23') || tituloNormalizado.toLowerCase().includes('mccems')) {
+        articulosFinales = ['Lineamientos Generales del MCCEMS (Arts. 1 a 8)'];
+      }
+    }
+
     const docWithJust = {
       orden: doc.orden,
-      titulo: doc.titulo,
-      articulos: doc.articulos,
-      justificacion: doc.justificacion || getJustificacionNormativa(doc.titulo),
+      titulo: tituloNormalizado,
+      articulos: articulosFinales,
+      justificacion: doc.justificacion || getJustificacionNormativa(tituloNormalizado),
     };
 
+    const t = tituloNormalizado.toLowerCase();
     if (t.includes('constitución') || t.includes('constitucion') || t.includes('ley')) {
       leyes.push(docWithJust);
     } else if (

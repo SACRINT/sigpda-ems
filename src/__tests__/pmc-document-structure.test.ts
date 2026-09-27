@@ -273,4 +273,37 @@ describe('H-100 / H-101: SSoT Estructura Documental y Paridad PDF vs DOCX', () =
     expect(docxText).toContain('B. REGLAMENTOS, ACUERDOS SECRETARIALES Y MARCO CURRICULAR');
     expect(pdfText).toContain('B. REGLAMENTOS, ACUERDOS SECRETARIALES Y MARCO CURRICULAR');
   });
+
+  it('5. clasificarNormativaJerarquica sanea snapshots antiguos: 14/08/22 -> 09/08/23 y filtra placeholders (H-125)', () => {
+    const dirtyDocs = [
+      {
+        orden: 1,
+        titulo: 'Acuerdo Secretarial 14/08/22 — MCCEMS',
+        articulos: ['Artículo Relevante — Supervisión EMS', '15 21 42'],
+      },
+      {
+        orden: 2,
+        titulo: 'Ley General de Educación',
+        articulos: ['Art. 107', 'Artículo Relevante', 'Art. 108'],
+      },
+    ];
+
+    const grupos = clasificarNormativaJerarquica(dirtyDocs);
+    expect(grupos).toHaveLength(2);
+
+    // Grupo B: Acuerdos - MCCEMS saneado a 09/08/23 sin placeholders
+    const grupoB = grupos.find((g) => g.clave === 'B')!;
+    expect(grupoB).toBeDefined();
+    expect(grupoB.documentos[0].titulo).toContain('09/08/23');
+    expect(grupoB.documentos[0].titulo).not.toContain('14/08/22');
+    expect(grupoB.documentos[0].articulos).not.toContain('Artículo Relevante — Supervisión EMS');
+    expect(grupoB.documentos[0].articulos).not.toContain('15 21 42');
+    expect(grupoB.documentos[0].articulos).toContain('Lineamientos Generales del MCCEMS (Arts. 1 a 8)');
+
+    // Grupo A: Leyes - Artículos limpios de placeholders
+    const grupoA = grupos.find((g) => g.clave === 'A')!;
+    expect(grupoA).toBeDefined();
+    expect(grupoA.documentos[0].articulos).toEqual(['Art. 107', 'Art. 108']);
+    expect(grupoA.documentos[0].articulos).not.toContain('Artículo Relevante');
+  });
 });

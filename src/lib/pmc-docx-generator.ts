@@ -508,7 +508,8 @@ function buildNormativa(normativa?: NormativaDoc | null): (Paragraph | Table)[] 
 
   const grupos = clasificarNormativaJerarquica(normDocs);
 
-  const descripcion = safeStr(normativa?.descripcion) ||
+  const rawDesc = safeStr(normativa?.descripcion);
+  const descripcion = (rawDesc ? rawDesc.replace(/14\/08\/22/g, '09/08/23') : '') ||
     'El presente Plan de Mejora Continua (PMC) se sustenta en el marco jurídico y normativo vigente para el Bachillerato General del Estado de Puebla (BGE), en el marco del MCCEMS y la Subsecretaría de Educación Media Superior.';
 
   const items: (Paragraph | Table)[] = [
