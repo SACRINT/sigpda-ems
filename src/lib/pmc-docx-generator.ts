@@ -765,6 +765,44 @@ function buildPlanAccion(plan: PlanAccion): (Paragraph | Table)[] {
 
   if (metas.length === 0) {
     items.push(bodyPara('No se han registrado metas institucionales específicas en el plan de acción.'));
+  } else {
+    // Matriz General del Plan de Acción (Paridad con PDF y Rescate Cap. V)
+    items.push(subHeading('Matriz General de Metas Institucionales y Plan de Acción:'));
+    items.push(
+      tbl(
+        [
+          new TableRow({
+            children: [
+              tcH('N°', { w: 600 }),
+              tcH('Ámbito / Categoría', { w: 2200 }),
+              tcH('Meta SMART', { w: 3200 }),
+              tcH('Estrategia de Operación', { w: 2200 }),
+              tcH('Responsable', { w: 1800 }),
+              tcH('Período', { w: 800 }),
+            ],
+          }),
+          ...metas.map((m, idx) => {
+            const bg = idx % 2 === 0 ? C.white : C.alt;
+            const periodo = (m.periodo_inicio || m.periodo_fin)
+              ? `${safeStr(m.periodo_inicio, 'N/D')} — ${safeStr(m.periodo_fin, 'N/D')}`
+              : 'N/D';
+            return new TableRow({
+              children: [
+                tc(String(idx + 1), { w: 600, align: AlignmentType.CENTER, fill: bg }),
+                tc(safeStr(m.nombre_categoria || m.categoria, 'Ámbito General'), { w: 2200, bold: true, fill: bg }),
+                tc(safeStr(m.meta, 'Meta en proceso'), { w: 3200, fill: bg }),
+                tc(safeStr(m.estrategia, 'Estrategia pedagógica'), { w: 2200, fill: bg }),
+                tc(safeStr(m.personal_designado, 'Colectivo Escolar'), { w: 1800, fill: bg }),
+                tc(periodo, { w: 800, align: AlignmentType.CENTER, fill: bg }),
+              ],
+            });
+          }),
+        ],
+        [600, 2200, 3200, 2200, 1800, 800]
+      )
+    );
+    items.push(...gap(2));
+    items.push(subHeading('Fichas Técnicas Descriptivas por Meta Institucional:'));
   }
 
   for (let i = 0; i < metas.length; i++) {
@@ -880,14 +918,53 @@ function buildMetasPersonales(plan: PlanAccion): (Paragraph | Table)[] {
 }
 
 // ─── 8. Participantes, Control de Revisiones y Aprobación ─────────────────────
-function buildControlRevisiones(p: PmcProject): (Paragraph | Table)[] {
+function buildControlRevisiones(p: PmcProject, plan?: PlanAccion): (Paragraph | Table)[] {
   const staffData = parseJson<Array<{ nombre?: string; cargo?: string }>>(p.staff_data);
   const participantes = Array.isArray(staffData) && staffData.length > 0
     ? staffData
     : [{ nombre: p.director_name, cargo: 'Director(a)' }];
 
+  const metasInst = plan?.metas_institucionales ?? [];
+  const seguimientoItems: (Paragraph | Table)[] = [];
+
+  if (metasInst.length > 0) {
+    seguimientoItems.push(
+      subHeading('Mecanismos de Seguimiento y Monitoreo Trimestral:'),
+      bodyPara(
+        'El seguimiento sistemático garantiza la pertinencia de las actividades y permite realizar ajustes oportunos en los colegiados de docentes y directivos. A continuación se presentan los cortes temporales y responsables designados derivados de las metas institucionales capturadas:'
+      ),
+      tbl(
+        [
+          new TableRow({
+            children: [
+              tcH('Periodo / Corte de Seguimiento', { w: 2600 }),
+              tcH('Meta Institucional Asociada', { w: 5000 }),
+              tcH('Responsable del Seguimiento', { w: 3200 }),
+            ],
+          }),
+          ...metasInst.map((m, idx) => {
+            const bg = idx % 2 === 0 ? C.white : C.alt;
+            const periodo = (m.periodo_inicio || m.periodo_fin)
+              ? `${safeStr(m.periodo_inicio, 'Corte 1')} a ${safeStr(m.periodo_fin, 'Corte 2')}`
+              : 'Periodo ordinario';
+            return new TableRow({
+              children: [
+                tc(periodo, { w: 2600, fill: bg }),
+                tc(safeStr(m.meta, 'Meta institucional programada'), { w: 5000, fill: bg }),
+                tc(safeStr(m.personal_designado, 'Dirección / Colectivo Escolar'), { w: 3200, fill: bg }),
+              ],
+            });
+          }),
+        ],
+        [2600, 5000, 3200]
+      ),
+      ...gap(2)
+    );
+  }
+
   return [
     secHeading(PMC_TITULOS_SECCIONES.PARTICIPANTES_CONTROL),
+    ...seguimientoItems,
     bodyPara(
       'El presente Plan de Mejora Continua fue elaborado participativamente por el colectivo escolar del plantel, formalizando los acuerdos y compromisos institucionales para el ciclo escolar correspondiente:'
     ),
@@ -986,7 +1063,7 @@ export async function generatePmcDocx(project: PmcProject): Promise<Buffer> {
     ...buildPriorizacion(diag, categoriasArr),
     ...buildPlanAccion(plan),
     ...buildMetasPersonales(plan),
-    ...buildControlRevisiones(project),
+    ...buildControlRevisiones(project, plan),
   ];
 
   const doc = new Document({

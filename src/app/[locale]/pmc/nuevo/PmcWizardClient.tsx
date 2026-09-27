@@ -2936,111 +2936,119 @@ interface PaecProjectForPmc {
             )}
 
             {/* Download buttons */}
+            {/* Download buttons */}
             <div style={sectionCard}>
-              <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#818cf8', marginBottom: '16px' }}>📥 Documentos para descargar</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', flexWrap: 'wrap' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, color: '#ef4444', marginBottom: '4px' }}>📕 PMC Oficial en PDF (Formato SEP Puebla)</div>
-                    <div style={{ fontSize: '13px', color: 'rgba(240,244,255,0.7)' }}>Documento PDF inmutable con membrete oficial del Gobierno de Puebla, escudos oficiales SEP, matriz FODA, metas y bloque de 3 firmas listo para impresión o firma electrónica.</div>
+              <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#818cf8', marginBottom: '18px' }}>📥 Documentos Oficiales y Entregables</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {/* 1. ENTREGA PRINCIPAL OFICIAL PARA SUPERVISIÓN */}
+                <div style={{ padding: '20px', background: 'linear-gradient(135deg, rgba(30, 58, 138, 0.25) 0%, rgba(15, 23, 42, 0.45) 100%)', border: '1.5px solid rgba(99, 102, 241, 0.5)', borderRadius: '10px' }}>
+                  <div style={{ marginBottom: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '16px', fontWeight: 800, color: '#e0e7ff' }}>🏛️ Programa de Mejora Continua (PMC) — Documento Oficial</span>
+                      <span style={{ background: '#3b82f6', color: '#fff', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px' }}>ENTREGA OFICIAL SUPERVISIÓN</span>
+                    </div>
+                    <div style={{ fontSize: '13px', color: 'rgba(240, 244, 255, 0.8)', marginTop: '6px', lineHeight: '1.5' }}>
+                      Documento oficial institucional de 8 secciones canónicas conforme a los lineamientos vigentes de Supervisión Escolar SEMS Puebla. Versiones en Word (.docx) y PDF con contenido, estructura, tablas normativas de 4 columnas con justificación y matriz de seguimiento 100% espejo.
+                    </div>
                   </div>
-                  <a
-                    href={`/api/pdf/pmc/${projectId}`}
-                    onClick={(e) => handleExportWithCoverageCheck(e, `/api/pdf/pmc/${projectId}`)}
-                    className="btn btn-primary"
-                    style={{ flexShrink: 0, backgroundColor: '#c0392b', borderColor: '#c0392b', color: '#fff', fontWeight: 600, textDecoration: 'none' }}
-                  >
-                    ↓ Descargar PDF Oficial
-                  </a>
+                  <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                    <a
+                      href={`/api/pdf/pmc/${projectId}`}
+                      onClick={(e) => handleExportWithCoverageCheck(e, `/api/pdf/pmc/${projectId}`)}
+                      className="btn btn-primary"
+                      style={{ backgroundColor: '#c0392b', borderColor: '#c0392b', color: '#fff', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      📕 Descargar PMC Oficial (.pdf)
+                    </a>
+                    <a
+                      href={`/api/docx/pmc/${projectId}`}
+                      onClick={(e) => handleExportWithCoverageCheck(e, `/api/docx/pmc/${projectId}`)}
+                      className="btn btn-primary"
+                      style={{ backgroundColor: 'var(--c-navy)', borderColor: 'var(--c-navy)', color: '#fff', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      📄 Descargar PMC Oficial (.docx)
+                    </a>
+                  </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: '8px', flexWrap: 'wrap' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, color: '#818cf8', marginBottom: '4px' }}>📄 PMC Estándar (Word Editable)</div>
-                    <div style={{ fontSize: '13px', color: 'rgba(240,244,255,0.6)' }}>Documento Word (.docx) editable con todas las secciones canónicas para realizar ajustes manuales si se requieren.</div>
-                  </div>
-                  <a
-                    href={`/api/docx/pmc/${projectId}`}
-                    onClick={(e) => handleExportWithCoverageCheck(e, `/api/docx/pmc/${projectId}`)}
-                    className="btn btn-primary"
-                    style={{ flexShrink: 0, backgroundColor: 'var(--c-navy)', borderColor: 'var(--c-navy)', textDecoration: 'none' }}
-                  >
-                    ↓ Descargar Word
-                  </a>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', background: 'linear-gradient(135deg, rgba(126,34,206,0.15) 0%, rgba(99,102,241,0.15) 100%)', border: '1px solid rgba(168,85,247,0.35)', borderRadius: '8px', flexWrap: 'wrap' }}>
+                {/* 2. ANEXO TÉCNICO OFICIAL DE SUPERVISIÓN */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '8px', flexWrap: 'wrap' }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                      <span style={{ fontWeight: 700, color: '#c084fc' }}>📘 PMC Formato 5.2 — Documento Maestro Oficial DBEPA (8 Capítulos)</span>
-                      <span style={{ background: '#7e22ce', color: '#fff', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px' }}>OFICIAL DBEPA · MAESTRO</span>
+                      <span style={{ fontWeight: 700, color: '#34d399' }}>📊 Anexo Técnico: Matriz de Supervisión y Metas (.xlsx)</span>
+                      <span style={{ background: '#059669', color: '#fff', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px' }}>ANEXO OFICIAL</span>
                     </div>
                     <div style={{ fontSize: '13px', color: 'rgba(240,244,255,0.7)' }}>
-                      Documento maestro exhaustivo de 8 capítulos con normatividad desglosada, catálogo integral de metas institucionales, caracterización territorial, cédula de personal y formatos oficiales de seguimiento para auditoría de supervisión.
-                    </div>
-                  </div>
-                  <a
-                    href={`/api/docx/pmc/${projectId}?maestro=true`}
-                    onClick={(e) => handleExportWithCoverageCheck(e, `/api/docx/pmc/${projectId}?maestro=true`)}
-                    className="btn btn-primary"
-                    style={{ flexShrink: 0, backgroundColor: '#7e22ce', borderColor: '#6b21a8', color: '#ffffff', fontWeight: 600, textDecoration: 'none' }}
-                  >
-                    ↓ Descargar Maestro Formato 5.2
-                  </a>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.28)', borderRadius: '8px', flexWrap: 'wrap' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, color: '#34d399', marginBottom: '4px' }}>📊 Excel Oficial de Supervisión (Metas 2026-2027)</div>
-                    <div style={{ fontSize: '13px', color: 'rgba(240,244,255,0.6)' }}>
                       Formato oficial de 3 hojas (Indicadores, Punto de partida, METAS) y Anexo de Plan de Acción alineado byte a byte a los requerimientos de la Supervisión Escolar SEMS Puebla.
                     </div>
                   </div>
                   <a
                     href={`/api/excel/metas/${projectId}`}
                     className="btn btn-primary"
-                    style={{ flexShrink: 0, backgroundColor: '#059669', borderColor: '#059669', textDecoration: 'none' }}
+                    style={{ flexShrink: 0, backgroundColor: '#059669', borderColor: '#059669', textDecoration: 'none', fontWeight: 600 }}
                   >
-                    ↓ Descargar Excel Oficial (.xlsx)
+                    ↓ Descargar Excel Anexo (.xlsx)
                   </a>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', background: 'rgba(14,165,233,0.1)', border: '1px solid rgba(14,165,233,0.25)', borderRadius: '8px', flexWrap: 'wrap' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, color: '#38bdf8', marginBottom: '4px' }}>📋 Plantilla: Informe Parcial de Avance</div>
-                    <div style={{ fontSize: '13px', color: 'rgba(240,244,255,0.6)' }}>
-                      Formato personalizado para el seguimiento a mitad de ciclo. Incluye las metas de tu PMC con espacios para registrar los avances y evidencias reales.
+                {/* 3. DOCUMENTOS COMPLEMENTARIOS Y ARCHIVO ESCOLAR */}
+                <div style={{ marginTop: '8px' }}>
+                  <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'rgba(240,244,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>📁 Documentos Complementarios y Archivo Escolar</h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {/* Maestro */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '14px 16px', background: 'rgba(126,34,206,0.08)', border: '1px solid rgba(168,85,247,0.25)', borderRadius: '8px', flexWrap: 'wrap' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+                          <span style={{ fontWeight: 600, color: '#c084fc' }}>📘 PMC Formato Extendido / Maestro (8 Capítulos DBEPA — Archivo Escolar)</span>
+                        </div>
+                        <div style={{ fontSize: '12px', color: 'rgba(240,244,255,0.6)' }}>
+                          Documento exhaustivo de archivo escolar con catálogo normativo integral DBEPA, caracterización territorial y cédula de plantilla activa.
+                        </div>
+                      </div>
+                      <a
+                        href={`/api/docx/pmc/${projectId}?maestro=true`}
+                        onClick={(e) => handleExportWithCoverageCheck(e, `/api/docx/pmc/${projectId}?maestro=true`)}
+                        className="btn btn-sm"
+                        style={{ flexShrink: 0, backgroundColor: 'rgba(126,34,206,0.3)', borderColor: '#7e22ce', color: '#e9d5ff', textDecoration: 'none' }}
+                      >
+                        ↓ Formato Maestro (.docx)
+                      </a>
                     </div>
-                    <div style={{ fontSize: '12px', color: '#fcd34d', background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.2)', padding: '4px 8px', borderRadius: '4px', marginTop: '6px', display: 'inline-block' }}>
-                      ⚠️ Este documento lo debe completar el personal con evidencias reales — NO es generado por IA
-                    </div>
-                  </div>
-                  <a
-                    href={`/api/docx/pmc/${projectId}/informe-parcial`}
-                    className="btn btn-sm"
-                    style={{ flexShrink: 0, background: 'rgba(14,165,233,0.25)', border: '1px solid rgba(14,165,233,0.4)', color: '#38bdf8', textDecoration: 'none' }}
-                  >
-                    ↓ Informe Parcial
-                  </a>
-                </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)', borderRadius: '8px', flexWrap: 'wrap' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, color: '#34d399', marginBottom: '4px' }}>📋 Plantilla: Informe Final</div>
-                    <div style={{ fontSize: '13px', color: 'rgba(240,244,255,0.6)' }}>
-                      Formato para el informe anual al cierre del ciclo escolar. Incluye todas las metas institucionales e individuales con espacios para evidencias y conclusiones.
+                    {/* Informe Parcial */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '14px 16px', background: 'rgba(14,165,233,0.08)', border: '1px solid rgba(14,165,233,0.2)', borderRadius: '8px', flexWrap: 'wrap' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 600, color: '#38bdf8', marginBottom: '2px' }}>📋 Plantilla: Informe Parcial de Avance</div>
+                        <div style={{ fontSize: '12px', color: 'rgba(240,244,255,0.6)' }}>
+                          Formato para el seguimiento a mitad de ciclo. Incluye las metas de tu PMC con espacios para registrar los avances y evidencias reales.
+                        </div>
+                      </div>
+                      <a
+                        href={`/api/docx/pmc/${projectId}/informe-parcial`}
+                        className="btn btn-sm"
+                        style={{ flexShrink: 0, background: 'rgba(14,165,233,0.2)', border: '1px solid rgba(14,165,233,0.4)', color: '#38bdf8', textDecoration: 'none' }}
+                      >
+                        ↓ Informe Parcial (.docx)
+                      </a>
                     </div>
-                    <div style={{ fontSize: '12px', color: '#fcd34d', background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.2)', padding: '4px 8px', borderRadius: '4px', marginTop: '6px', display: 'inline-block' }}>
-                      ⚠️ Este documento lo debe completar el personal con evidencias reales — NO es generado por IA
+
+                    {/* Informe Final */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '14px 16px', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '8px', flexWrap: 'wrap' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 600, color: '#34d399', marginBottom: '2px' }}>📋 Plantilla: Informe Final</div>
+                        <div style={{ fontSize: '12px', color: 'rgba(240,244,255,0.6)' }}>
+                          Formato para el informe anual al cierre del ciclo escolar con espacios para evidencias y conclusiones.
+                        </div>
+                      </div>
+                      <a
+                        href={`/api/docx/pmc/${projectId}/informe-final`}
+                        className="btn btn-sm"
+                        style={{ flexShrink: 0, background: 'rgba(16,185,129,0.18)', border: '1px solid rgba(16,185,129,0.3)', color: '#34d399', textDecoration: 'none' }}
+                      >
+                        ↓ Informe Final (.docx)
+                      </a>
                     </div>
                   </div>
-                  <a
-                    href={`/api/docx/pmc/${projectId}/informe-final`}
-                    className="btn btn-sm"
-                    style={{ flexShrink: 0, background: 'rgba(16,185,129,0.2)', border: '1px solid rgba(16,185,129,0.35)', color: '#34d399', textDecoration: 'none' }}
-                  >
-                    ↓ Informe Final
-                  </a>
                 </div>
               </div>
             </div>

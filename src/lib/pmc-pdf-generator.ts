@@ -823,6 +823,47 @@ export async function generatePmcPDF(
 
   addSectionHeader(PMC_TITULOS_SECCIONES.PARTICIPANTES_CONTROL);
 
+  // Mecanismos de Seguimiento y Monitoreo Trimestral (Paridad con DOCX y Rescate Cap. VI)
+  if (metasInst.length > 0) {
+    if (curY > pageHeight - 55) {
+      doc.addPage();
+      curY = 18;
+      drawHeaderOnNewPage();
+    }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(...BLUE_MID);
+    doc.text('Mecanismos de Seguimiento y Monitoreo Trimestral:', margin, curY);
+    curY += 4;
+
+    const segRows = metasInst.map((m) => [
+      (m.periodo_inicio || m.periodo_fin)
+        ? `${safeStr(m.periodo_inicio, 'Corte 1')} a ${safeStr(m.periodo_fin, 'Corte 2')}`
+        : 'Periodo ordinario',
+      safeStr(m.meta, 'Meta institucional programada'),
+      safeStr(m.personal_designado, 'Dirección / Colectivo Escolar'),
+    ]);
+
+    autoTable(doc, {
+      startY: curY,
+      head: [[
+        { content: 'Periodo / Corte de Seguimiento', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
+        { content: 'Meta Institucional Asociada', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
+        { content: 'Responsable del Seguimiento', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
+      ]],
+      body: segRows,
+      theme: 'grid',
+      styles: { fontSize: 6.5, cellPadding: 2, textColor: TEXT_DARK, lineColor: [210, 220, 235] },
+      columnStyles: {
+        0: { cellWidth: 40 },
+        1: { cellWidth: contentWidth - 90 },
+        2: { cellWidth: 50 },
+      },
+      margin: { left: margin, right: margin },
+    });
+    curY = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 8 : curY + 30;
+  }
+
   // Tabla de Personal y Colectivo Escolar Participante (Paridad con DOCX)
   const staffDataRaw = parseJson<PmcStaffMember[]>(project.staff_data);
   const personalParticipante = Array.isArray(staffDataRaw) && staffDataRaw.length > 0
