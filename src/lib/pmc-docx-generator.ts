@@ -1028,7 +1028,7 @@ function buildControlRevisiones(p: PmcProject, plan?: PlanAccion): (Paragraph | 
               margins: { top: 200, bottom: 200, left: 140, right: 140 },
               verticalAlign: 'center',
               children: [
-                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 400, after: 80 }, children: [new TextRun({ text: '___________________________________', size: 16, color: C.muted })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 400, after: 80 }, children: [new TextRun({ text: '___________________________________________', size: 16, color: C.muted })] }),
                 new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 40, after: 60 }, children: [new TextRun({ text: 'ELABORÓ', bold: true, size: 18, color: C.navy, font: 'Arial' })] }),
                 new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 40, after: 40 }, children: [new TextRun({ text: safeStr(p.director_name, 'Director(a) del Plantel').toUpperCase(), bold: true, size: 18, color: C.text, font: 'Arial' })] }),
                 new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 20, after: 20 }, children: [new TextRun({ text: 'DIRECTOR(A) DEL PLANTEL', size: 16, color: C.muted, font: 'Arial' })] }),
@@ -1041,7 +1041,7 @@ function buildControlRevisiones(p: PmcProject, plan?: PlanAccion): (Paragraph | 
               margins: { top: 200, bottom: 200, left: 140, right: 140 },
               verticalAlign: 'center',
               children: [
-                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 400, after: 80 }, children: [new TextRun({ text: '___________________________________', size: 16, color: C.muted })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 400, after: 80 }, children: [new TextRun({ text: '___________________________________________', size: 16, color: C.muted })] }),
                 new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 40, after: 60 }, children: [new TextRun({ text: 'REVISÓ', bold: true, size: 18, color: C.navy, font: 'Arial' })] }),
                 new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 40, after: 40 }, children: [new TextRun({ text: 'REPRESENTANTE DEL CTE', bold: true, size: 18, color: C.text, font: 'Arial' })] }),
                 new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 20, after: 20 }, children: [new TextRun({ text: 'COLECTIVO DOCENTE DEL PLANTEL', size: 16, color: C.muted, font: 'Arial' })] }),
@@ -1054,7 +1054,7 @@ function buildControlRevisiones(p: PmcProject, plan?: PlanAccion): (Paragraph | 
               margins: { top: 200, bottom: 200, left: 140, right: 140 },
               verticalAlign: 'center',
               children: [
-                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 400, after: 80 }, children: [new TextRun({ text: '___________________________________', size: 16, color: C.muted })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 400, after: 80 }, children: [new TextRun({ text: '___________________________________________', size: 16, color: C.muted })] }),
                 new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 40, after: 60 }, children: [new TextRun({ text: 'VALIDÓ', bold: true, size: 18, color: C.navy, font: 'Arial' })] }),
                 new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 40, after: 40 }, children: [new TextRun({ text: safeStr(p.supervisor_name, 'Supervisor(a) de Zona').toUpperCase(), bold: true, size: 18, color: C.text, font: 'Arial' })] }),
                 new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 20, after: 20 }, children: [new TextRun({ text: 'SUPERVISOR(A) DE ZONA ESCOLAR', size: 16, color: C.muted, font: 'Arial' })] }),
