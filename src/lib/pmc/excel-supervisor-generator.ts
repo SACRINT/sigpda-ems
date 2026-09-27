@@ -56,8 +56,8 @@ function parseMetricNumber(val: string | undefined): number | undefined {
  */
 export async function generatePmcSupervisorExcel(project: PmcSupervisorExcelInput): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = 'SIGPDA-EMS · Supervisión Escolar Media Superior Puebla';
-  workbook.lastModifiedBy = 'SIGPDA-EMS';
+  workbook.creator = 'Dirección de Bachilleratos Estatales y Preparatoria Abierta (DBEPA) — SEP Puebla';
+  workbook.lastModifiedBy = 'Plantel BGE';
   workbook.created = new Date();
   workbook.modified = new Date();
 
