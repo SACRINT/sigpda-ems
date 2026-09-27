@@ -3,11 +3,15 @@
  * Single Source of Truth (SSoT) para la deduplicación y consolidación silenciosa
  * de metas institucionales del Programa de Mejora Continua (PMC).
  * 
- * Resuelve H-150:
+ * Resuelve H-150 / H-153 / H-154:
  * 1. Normalización estricta (minúsculas, sin acentos ni puntuación, sin prefijos redundantes).
- * 2. Similitud semántica por solapamiento de tokens y concordancia de indicadores clave.
- * 3. Precedencia obligatoria de metas capturadas en indicadores_academicos.*_meta sobre texto generado por IA.
- * 4. Fusión y descarte silencioso sin interrupciones ni prompts en UI.
+ * 2. Similitud semántica por solapamiento de tokens Jaccard (umbral canónico = 0.70).
+ * 3. Precedencia obligatoria de metas capturadas en indicadores_academicos.*_meta sobre texto generado por IA:
+ *    - Preservación estricta de líneas base y rangos cuantitativos "del X% al Y%" (el target a alinear es Y%, nunca X%).
+ *    - Protección contra alteración de metas no asociadas (ej. metas de seguimiento de egresados al 80% quedan intactas).
+ * 4. Deduplicación no destructiva:
+ *    - Fusión exclusiva de metas duplicadas comprobadas (abandono escolar institucional, textos equivalentes o continuidad explícita).
+ *    - Prohibida la fusión indiscriminada por mera concordancia de ámbito general.
  */
 
 import type { PmcMetaInstitucional, PmcIndicadoresAcademicos } from '@/types/pmc';
@@ -62,8 +66,10 @@ export function computeMetaSimilarity(textA?: string | null, textB?: string | nu
 
 export type MetaTopicKey =
   | 'abandono'
-  | 'aprobacion_reprobacion'
-  | 'eficiencia_egreso'
+  | 'reprobacion'
+  | 'aprobacion'
+  | 'eficiencia_terminal'
+  | 'seguimiento_egresados'
   | 'formacion_docente'
   | 'socioemocional'
   | 'convivencia_violencia'
@@ -72,69 +78,94 @@ export type MetaTopicKey =
   | 'general';
 
 /**
- * Determina el ámbito semántico real de una meta evaluando categoría, tema, redacción y estrategia.
- * Corrige discrepancias de miscategorización (ej. metas de abandono bajo 'Trabajo colegiado').
+ * Determina si una meta trata inequívocamente sobre la tasa de abandono / deserción escolar.
+ */
+export function isAbandonoGoal(meta: PmcMetaInstitucional): boolean {
+  const norm = normalizeMetaText(`${meta.meta || ''} ${meta.tema || ''}`);
+  return norm.includes('abandono') || norm.includes('desercion');
+}
+
+/**
+ * Determina si una meta trata inequívocamente sobre la tasa de reprobación escolar.
+ */
+export function isReprobacionGoal(meta: PmcMetaInstitucional): boolean {
+  const norm = normalizeMetaText(`${meta.meta || ''} ${meta.tema || ''}`);
+  return norm.includes('reprobacion') || norm.includes('indice de reprobacion') || norm.includes('tasa de reprobacion');
+}
+
+/**
+ * Determina si una meta trata inequívocamente sobre la tasa de aprobación / rendimiento académico.
+ */
+export function isAprobacionGoal(meta: PmcMetaInstitucional): boolean {
+  const norm = normalizeMetaText(`${meta.meta || ''} ${meta.tema || ''}`);
+  return (norm.includes('aprobacion') || norm.includes('tasa de aprobacion') || norm.includes('rendimiento academico')) && !norm.includes('reprobacion');
+}
+
+/**
+ * Determina si una meta trata inequívocamente sobre la eficiencia terminal.
+ */
+export function isEficienciaTerminalGoal(meta: PmcMetaInstitucional): boolean {
+  const norm = normalizeMetaText(`${meta.meta || ''} ${meta.tema || ''}`);
+  return norm.includes('eficiencia terminal');
+}
+
+/**
+ * Determina el ámbito semántico específico de una meta evaluando categoría, tema y redacción.
  */
 export function detectMetaTopic(meta: PmcMetaInstitucional): MetaTopicKey {
   const fullText = normalizeMetaText(
-    `${meta.categoria || ''} ${meta.nombre_categoria || ''} ${meta.tema || ''} ${meta.meta || ''} ${meta.estrategia || ''}`
+    `${meta.categoria || ''} ${meta.nombre_categoria || ''} ${meta.tema || ''} ${meta.meta || ''}`
   );
 
-  if (fullText.includes('abandono') || fullText.includes('desercion') || fullText.includes('permanencia')) {
+  if (fullText.includes('abandono') || fullText.includes('desercion')) {
     return 'abandono';
   }
-  if (
-    fullText.includes('reprobacion') ||
-    fullText.includes('aprobacion') ||
-    fullText.includes('aprovechamiento') ||
-    fullText.includes('rezago academico') ||
-    fullText.includes('evaluacion diagnostica')
-  ) {
-    return 'aprobacion_reprobacion';
+  if (fullText.includes('reprobacion')) {
+    return 'reprobacion';
   }
-  if (
-    fullText.includes('eficiencia terminal') ||
-    fullText.includes('egresado') ||
-    fullText.includes('titulacion') ||
-    fullText.includes('egreso') ||
-    fullText.includes('graduacion')
-  ) {
-    return 'eficiencia_egreso';
+  if (fullText.includes('aprobacion') || fullText.includes('rendimiento academico')) {
+    return 'aprobacion';
+  }
+  if (fullText.includes('eficiencia terminal')) {
+    return 'eficiencia_terminal';
+  }
+  if (fullText.includes('egresad') || fullText.includes('egreso') || fullText.includes('titulacion')) {
+    return 'seguimiento_egresados';
   }
   if (
     fullText.includes('formacion docente') ||
     fullText.includes('actualizacion docente') ||
     fullText.includes('capacitacion docente') ||
     fullText.includes('desempeno docente') ||
-    fullText.includes('competencias docentes') ||
-    fullText.includes('trabajo colegiado')
+    fullText.includes('cosfac') ||
+    fullText.includes('academia')
   ) {
     return 'formacion_docente';
   }
   if (
-    fullText.includes('socioemocional') ||
-    fullText.includes('habilidades socioemocionales') ||
-    fullText.includes('bienestar') ||
-    fullText.includes('tutoria') ||
-    fullText.includes('salud mental')
-  ) {
-    return 'socioemocional';
-  }
-  if (
     fullText.includes('violencia') ||
-    fullText.includes('convivencia') ||
-    fullText.includes('paz') ||
+    fullText.includes('cultura de paz') ||
     fullText.includes('acoso') ||
-    fullText.includes('clima escolar')
+    fullText.includes('mediacion')
   ) {
     return 'convivencia_violencia';
   }
   if (
+    fullText.includes('socioemocional') ||
+    fullText.includes('bienestar') ||
+    fullText.includes('salud mental') ||
+    fullText.includes('vida saludable') ||
+    fullText.includes('alcohol') ||
+    fullText.includes('sustancias')
+  ) {
+    return 'socioemocional';
+  }
+  if (
     fullText.includes('infraestructura') ||
+    fullText.includes('mantenimiento') ||
     fullText.includes('equipamiento') ||
     fullText.includes('aulas') ||
     fullText.includes('computo') ||
-    fullText.includes('talleres') ||
     fullText.includes('sanitarios')
   ) {
     return 'infraestructura';
@@ -142,8 +173,7 @@ export function detectMetaTopic(meta: PmcMetaInstitucional): MetaTopicKey {
   if (
     fullText.includes('paec') ||
     fullText.includes('comunitari') ||
-    fullText.includes('vinculacion') ||
-    fullText.includes('telesecundaria')
+    fullText.includes('vinculacion')
   ) {
     return 'vinculacion_comunitaria';
   }
@@ -151,68 +181,128 @@ export function detectMetaTopic(meta: PmcMetaInstitucional): MetaTopicKey {
 }
 
 /**
- * Aplica la regla de precedencia obligatoria:
- * Si los indicadores académicos capturados tienen metas cuantitativas fijadas (ej. abandono_meta = 3),
- * cualquier texto alucinado o inconsistente generado por la IA (ej. "al 0%") se alinea a la meta oficial.
+ * Valida si una categoría institucional está correctamente alineada con el topic evaluado.
+ */
+export function isCategoryAlignedWithTopic(categoria: string | undefined, topic: MetaTopicKey): boolean {
+  if (!categoria) return false;
+  const norm = normalizeMetaText(categoria);
+  if (topic === 'abandono') {
+    return norm.includes('permanencia') || norm.includes('abandono') || norm.includes('desercion') || norm.includes('aprendizaje');
+  }
+  if (topic === 'aprobacion' || topic === 'reprobacion') {
+    return norm.includes('academico') || norm.includes('aprendizaje') || norm.includes('aprobacion') || norm.includes('reprobacion');
+  }
+  if (topic === 'eficiencia_terminal' || topic === 'seguimiento_egresados') {
+    return norm.includes('egreso') || norm.includes('eficiencia') || norm.includes('terminal') || norm.includes('administracion') || norm.includes('gestion');
+  }
+  if (topic === 'formacion_docente') {
+    return norm.includes('docente') || norm.includes('formacion') || norm.includes('actualizacion') || norm.includes('gestion') || norm.includes('aprendizaje');
+  }
+  if (topic === 'socioemocional' || topic === 'convivencia_violencia') {
+    return norm.includes('socioemocional') || norm.includes('convivencia') || norm.includes('violencia') || norm.includes('paz');
+  }
+  return true;
+}
+
+/**
+ * Aplica la regla de precedencia obligatoria con salvaguardas estrictas:
+ * 1. Prohibido modificar cifras salvo cuando la meta sea inequívocamente del indicador correspondiente.
+ * 2. Solo modifica si la meta contradice *_meta (no si es un rango válido o seguimiento de egresados).
+ * 3. Preserva la línea base en rangos "de X% a Y%" / "del X% al Y%" (el target a alinear es Y%, nunca X%).
+ * 4. Jamás modifica metas de egresados (ej. "80% de egresados" debe quedar intacto).
  */
 export function applyIndicatorPrecedence<T extends PmcMetaInstitucional>(
   meta: T,
   indicadores?: PmcIndicadoresAcademicos | null
 ): T {
   if (!indicadores) return { ...meta };
-  const topic = detectMetaTopic(meta);
   const updated = { ...meta };
+  const text = updated.meta || '';
 
-  if (topic === 'abandono' && indicadores.abandono_meta !== undefined && indicadores.abandono_meta !== null) {
+  // 1. Abandono escolar
+  if (isAbandonoGoal(updated) && indicadores.abandono_meta !== undefined && indicadores.abandono_meta !== null) {
     const target = Number(indicadores.abandono_meta);
     if (!Number.isNaN(target)) {
-      if (updated.meta) {
-        // Reemplazar contradicciones como "al 0%", "a 0%", o discrepancias numéricas
-        if (updated.meta.includes('0%') || updated.meta.includes('al 0') || !updated.meta.includes(`${target}%`)) {
-          if (/al\s+0%|a\s+0%|en\s+un\s+0%/i.test(updated.meta)) {
-            updated.meta = updated.meta.replace(/al\s+0%|a\s+0%|en\s+un\s+0%/gi, `al ${target}%`);
-          } else {
-            updated.meta = updated.meta.replace(/(\d+(\.\d+)?%)/, `${target}%`);
-          }
+      const rangeMatch = text.match(/(del?\s+\d+(?:\.\d+)?%\s+al?\s+)(\d+(?:\.\d+)?%)/i);
+      if (rangeMatch) {
+        const currentTargetVal = parseFloat(rangeMatch[2]);
+        if (currentTargetVal !== target) {
+          updated.meta = text.replace(rangeMatch[0], `${rangeMatch[1]}${target}%`);
         }
+      } else if (/al\s+0%|a\s+0%|en\s+un\s+0%/i.test(text)) {
+        updated.meta = text.replace(/al\s+0%|a\s+0%|en\s+un\s+0%/gi, `al ${target}%`);
+      } else if (!text.includes(`${target}%`) && /\bal\s+\d+(?:\.\d+)?%/i.test(text)) {
+        updated.meta = text.replace(/\bal\s+\d+(?:\.\d+)?%/i, `al ${target}%`);
       }
-      if (indicadores.abandono_ant !== undefined && indicadores.abandono_ant !== null) {
+
+      if (indicadores.abandono_ant !== undefined && indicadores.abandono_ant !== null && (!updated.linea_base || updated.linea_base.includes('N/D'))) {
         updated.linea_base = `Abandono línea base: ${indicadores.abandono_ant}%, meta proyectada: ${target}%`;
       }
     }
-  } else if (topic === 'aprobacion_reprobacion') {
-    if (indicadores.aprobacion_meta !== undefined && indicadores.aprobacion_meta !== null) {
-      const target = Number(indicadores.aprobacion_meta);
-      if (!Number.isNaN(target) && updated.meta && updated.meta.toLowerCase().includes('aprobaci')) {
-        updated.meta = updated.meta.replace(/(\d+(\.\d+)?%)/, `${target}%`);
+  }
+
+  // 2. Reprobación escolar
+  if (isReprobacionGoal(updated) && indicadores.reprobacion_meta !== undefined && indicadores.reprobacion_meta !== null) {
+    const target = Number(indicadores.reprobacion_meta);
+    if (!Number.isNaN(target)) {
+      const rangeMatch = text.match(/(del?\s+\d+(?:\.\d+)?%\s+al?\s+)(\d+(?:\.\d+)?%)/i);
+      if (rangeMatch) {
+        const currentTargetVal = parseFloat(rangeMatch[2]);
+        if (currentTargetVal !== target) {
+          updated.meta = text.replace(rangeMatch[0], `${rangeMatch[1]}${target}%`);
+        }
+      } else if (/al\s+0%|a\s+0%/i.test(text)) {
+        updated.meta = text.replace(/al\s+0%|a\s+0%/gi, `al ${target}%`);
       }
-    } else if (indicadores.reprobacion_meta !== undefined && indicadores.reprobacion_meta !== null) {
-      const target = Number(indicadores.reprobacion_meta);
-      if (!Number.isNaN(target) && updated.meta && updated.meta.toLowerCase().includes('reprobaci')) {
-        updated.meta = updated.meta.replace(/(\d+(\.\d+)?%)/, `${target}%`);
-      }
-    }
-  } else if (topic === 'eficiencia_egreso' && indicadores.et_meta !== undefined && indicadores.et_meta !== null) {
-    const target = Number(indicadores.et_meta);
-    if (!Number.isNaN(target) && updated.meta) {
-      updated.meta = updated.meta.replace(/(\d+(\.\d+)?%)/, `${target}%`);
     }
   }
 
-  return updated as T;
+  // 3. Aprobación escolar
+  if (isAprobacionGoal(updated) && indicadores.aprobacion_meta !== undefined && indicadores.aprobacion_meta !== null) {
+    const target = Number(indicadores.aprobacion_meta);
+    if (!Number.isNaN(target)) {
+      const rangeMatch = text.match(/(del?\s+\d+(?:\.\d+)?%\s+al?\s+)(\d+(?:\.\d+)?%)/i);
+      if (rangeMatch) {
+        const currentTargetVal = parseFloat(rangeMatch[2]);
+        if (currentTargetVal !== target) {
+          updated.meta = text.replace(rangeMatch[0], `${rangeMatch[1]}${target}%`);
+        }
+      } else if (!text.includes(`${target}%`) && /\bal\s+\d+(?:\.\d+)?%/i.test(text)) {
+        updated.meta = text.replace(/\bal\s+\d+(?:\.\d+)?%/i, `al ${target}%`);
+      }
+    }
+  }
+
+  // 4. Eficiencia Terminal (SÓLO si la meta habla explícitamente de "eficiencia terminal")
+  if (isEficienciaTerminalGoal(updated) && indicadores.et_meta !== undefined && indicadores.et_meta !== null) {
+    const target = Number(indicadores.et_meta);
+    if (!Number.isNaN(target)) {
+      const rangeMatch = text.match(/(del?\s+\d+(?:\.\d+)?%\s+al?\s+)(\d+(?:\.\d+)?%)/i);
+      if (rangeMatch) {
+        const currentTargetVal = parseFloat(rangeMatch[2]);
+        if (currentTargetVal !== target) {
+          updated.meta = text.replace(rangeMatch[0], `${rangeMatch[1]}${target}%`);
+        }
+      } else if (!text.includes(`${target}%`) && /\bal\s+\d+(?:\.\d+)?%/i.test(text)) {
+        updated.meta = text.replace(/\bal\s+\d+(?:\.\d+)?%/i, `al ${target}%`);
+      }
+    }
+  }
+
+  return updated;
 }
 
 /**
  * Deduplica silenciosamente un arreglo de metas institucionales, resolviendo:
  * - Duplicados exactos.
- * - Duplicados semánticos (mismo tema o alta similitud Jaccard >= threshold).
- * - Conflictos con indicadores oficiales (precedencia de indicadores_academicos.*_meta).
- * - Fusión de campos complementarios entre meta de continuidad y meta IA.
+ * - Duplicados semánticos genuinos (metas equivalentes con similitud Jaccard >= threshold).
+ * - Fusión conservadora de metas de abandono escolar institucional.
+ * - Precedencia de indicadores_academicos.*_meta sin corromper metas independientes.
  */
 export function deduplicateMetasInstitucionales<T extends PmcMetaInstitucional>(
   metas: T[],
   indicadores?: PmcIndicadoresAcademicos | null,
-  similarityThreshold = 0.55
+  similarityThreshold = 0.70
 ): T[] {
   if (!Array.isArray(metas) || metas.length === 0) return [];
 
@@ -227,7 +317,6 @@ export function deduplicateMetasInstitucionales<T extends PmcMetaInstitucional>(
 
     for (let i = 0; i < result.length; i++) {
       const existing = result[i];
-      const existingTopic = detectMetaTopic(existing);
 
       // 1. Coincidencia exacta de texto normalizado
       if (normalizeMetaText(existing.meta) === normalizeMetaText(meta.meta)) {
@@ -235,9 +324,9 @@ export function deduplicateMetasInstitucionales<T extends PmcMetaInstitucional>(
         break;
       }
 
-      // 2. Coincidencia por continuidad_de estructural
+      // 2. Coincidencia por continuidad_de explícita
       if (
-        (meta.continuidad_de && existing.continuidad_de && meta.continuidad_de === existing.continuidad_de) ||
+        (meta.continuidad_de && existing.continuidad_de && normalizeMetaText(meta.continuidad_de) === normalizeMetaText(existing.continuidad_de)) ||
         (meta.continuidad_de && normalizeMetaText(existing.meta) === normalizeMetaText(meta.continuidad_de)) ||
         (existing.continuidad_de && normalizeMetaText(meta.meta) === normalizeMetaText(existing.continuidad_de))
       ) {
@@ -245,30 +334,23 @@ export function deduplicateMetasInstitucionales<T extends PmcMetaInstitucional>(
         break;
       }
 
-      // 3. Coincidencia en tópico clave de indicador oficial
-      const isHardIndicator = [
-        'abandono',
-        'eficiencia_egreso',
-        'formacion_docente',
-        'socioemocional',
-        'convivencia_violencia',
-      ].includes(metaTopic);
-
-      if (isHardIndicator && existingTopic === metaTopic) {
+      // 3. Fusión de meta duplicada de Abandono Escolar:
+      // En un PMC sólo existe una meta cuantitativa institucional para abatimiento del abandono.
+      if (isAbandonoGoal(existing) && isAbandonoGoal(meta)) {
         matchIdx = i;
         break;
       }
 
-      // 4. Coincidencia por similitud textual alta
+      // 4. Coincidencia por similitud textual alta (Jaccard >= similarityThreshold) CON tema alineado
       const sim = computeMetaSimilarity(existing.meta, meta.meta);
-      if (sim >= similarityThreshold) {
+      if (sim >= similarityThreshold && existing.tema && meta.tema && normalizeMetaText(existing.tema) === normalizeMetaText(meta.tema)) {
         matchIdx = i;
         break;
       }
 
-      // 5. Coincidencia de tema y estrategia clonada
+      // 5. Coincidencia de tema idéntico y estrategia clonada alta
       if (existing.tema && meta.tema && normalizeMetaText(existing.tema) === normalizeMetaText(meta.tema)) {
-        if (computeMetaSimilarity(existing.estrategia, meta.estrategia) >= 0.7) {
+        if (computeMetaSimilarity(existing.estrategia, meta.estrategia) >= 0.70) {
           matchIdx = i;
           break;
         }
@@ -276,42 +358,24 @@ export function deduplicateMetasInstitucionales<T extends PmcMetaInstitucional>(
     }
 
     if (matchIdx >= 0) {
-      // Fusión silenciosa: mantener la versión más completa y enriquecer campos vacíos
       const existing = result[matchIdx];
       const isMetaContinuity = Boolean(meta.continuidad_de || meta.meta?.includes('[Continuidad'));
       const isExistingContinuity = Boolean(existing.continuidad_de || existing.meta?.includes('[Continuidad'));
 
-function isCategoryAlignedWithTopic(categoria: string | undefined, topic: MetaTopicKey): boolean {
-  if (!categoria) return false;
-  const norm = normalizeMetaText(categoria);
-  if (topic === 'abandono') {
-    return norm.includes('permanencia') || norm.includes('abandono') || norm.includes('desercion');
-  }
-  if (topic === 'aprobacion_reprobacion') {
-    return norm.includes('academico') || norm.includes('aprendizaje') || norm.includes('aprobacion') || norm.includes('reprobacion');
-  }
-  if (topic === 'eficiencia_egreso') {
-    return norm.includes('egreso') || norm.includes('eficiencia') || norm.includes('terminal');
-  }
-  if (topic === 'formacion_docente') {
-    return norm.includes('docente') || norm.includes('formacion') || norm.includes('actualizacion');
-  }
-  if (topic === 'socioemocional' || topic === 'convivencia_violencia') {
-    return norm.includes('socioemocional') || norm.includes('convivencia') || norm.includes('violencia') || norm.includes('paz');
-  }
-  return true;
-}
+      const chosenMetaText = isExistingContinuity
+        ? existing.meta
+        : (isMetaContinuity ? meta.meta : existing.meta);
 
       const merged: T = {
         ...existing,
         continuidad_de: existing.continuidad_de || meta.continuidad_de,
-        meta: isMetaContinuity && !isExistingContinuity ? meta.meta : existing.meta,
+        meta: chosenMetaText,
         estrategia:
           (meta.estrategia?.length ?? 0) > (existing.estrategia?.length ?? 0)
             ? meta.estrategia
             : existing.estrategia,
         linea_base:
-          existing.linea_base && existing.linea_base !== 'N/D'
+          existing.linea_base && !existing.linea_base.includes('N/D')
             ? existing.linea_base
             : meta.linea_base || existing.linea_base,
         entregable:
@@ -331,7 +395,7 @@ function isCategoryAlignedWithTopic(categoria: string | undefined, topic: MetaTo
             : (isCategoryAlignedWithTopic(existing.nombre_categoria, metaTopic)
                 ? existing.nombre_categoria
                 : meta.nombre_categoria || existing.nombre_categoria),
-        tema: existing.tema || meta.tema,
+        tema: isCategoryAlignedWithTopic(meta.categoria, metaTopic) ? (meta.tema || existing.tema) : (existing.tema || meta.tema),
         diagnostico_meta: existing.diagnostico_meta || meta.diagnostico_meta,
         periodo_inicio: existing.periodo_inicio || meta.periodo_inicio,
         periodo_fin: existing.periodo_fin || meta.periodo_fin,
