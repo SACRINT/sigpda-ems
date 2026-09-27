@@ -97,18 +97,18 @@ export async function getNormativaForGenerator(
 /**
  * Detecta si un valor de artículo de BD es un placeholder inútil que no debe
  * aparecer en documentos oficiales.
- * Casos detectados (H-112):
- *  - 'Artículo Relevante' / 'Art. Relevante'
- *  - Números solos como '1.', '2', '3.'
+ * Casos detectados (H-112, H-119):
+ *  - 'Artículo Relevante' / 'Art. Relevante' (con o sin em-dash o sufijo como ' — Supervisión EMS')
+ *  - Números solos o cadenas multi-número huérfanas como '1.', '2', '15 21 42'
  *  - Cadenas vacías o solo espacios
  */
-function isPlaceholderArticulo(val: string): boolean {
+export function isPlaceholderArticulo(val: string): boolean {
   const trimmed = val.trim();
   if (!trimmed) return true;
-  const lower = trimmed.toLowerCase();
-  if (lower === 'artículo relevante' || lower === 'art. relevante' || lower === 'articulo relevante') return true;
-  // Número solo: '1', '1.', '01', etc.
-  if (/^\d{1,3}\.?$/.test(trimmed)) return true;
+  // Placeholder tipo "Artículo Relevante", "Art. Relevante", "Artículo Relevante — Supervisión EMS", etc.
+  if (/^art(\.|[íi]culo)\s+relevante/i.test(trimmed)) return true;
+  // Cadenas que solo contienen dígitos, espacios y puntuación separadora (números sueltos/huérfanos como '1', '1.', '15 21 42')
+  if (/^[\d\s.,;]+$/.test(trimmed)) return true;
   return false;
 }
 

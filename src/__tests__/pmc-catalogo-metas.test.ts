@@ -15,6 +15,7 @@ import {
   CANONICAL_NORMATIVA_REFS,
   matchArticuloExacto,
 } from '../lib/catalogo-metas-pmc';
+import { isPlaceholderArticulo } from '../lib/normativa-context';
 
 describe('FASE 2: Catálogo Normativo y de Metas Institucionales (5.2 Formato Oficial)', () => {
   it('1. Todas las subcategorías del catálogo canónico pertenecen estrictamente al listado oficial del formato 5.2', () => {
@@ -256,4 +257,24 @@ describe('FASE 2: Catálogo Normativo y de Metas Institucionales (5.2 Formato Of
       }
     }
   );
+
+  it('10. isPlaceholderArticulo detecta y filtra placeholders reales con sufijo y números huérfanos (H-119)', () => {
+    // Casos que DEBEN ser filtrados (true)
+    expect(isPlaceholderArticulo('Artículo Relevante — Supervisión EMS')).toBe(true);
+    expect(isPlaceholderArticulo('Artículo Relevante - Supervisión EMS')).toBe(true);
+    expect(isPlaceholderArticulo('Artículo Relevante')).toBe(true);
+    expect(isPlaceholderArticulo('Art. Relevante')).toBe(true);
+    expect(isPlaceholderArticulo('articulo relevante')).toBe(true);
+    expect(isPlaceholderArticulo('15 21 42')).toBe(true);
+    expect(isPlaceholderArticulo('1.')).toBe(true);
+    expect(isPlaceholderArticulo('2')).toBe(true);
+    expect(isPlaceholderArticulo('  ')).toBe(true);
+    expect(isPlaceholderArticulo('')).toBe(true);
+
+    // Casos legítimos que NO deben ser filtrados (false)
+    expect(isPlaceholderArticulo('Artículo 34')).toBe(false);
+    expect(isPlaceholderArticulo('Art. 3°')).toBe(false);
+    expect(isPlaceholderArticulo('Artículo 3')).toBe(false);
+    expect(isPlaceholderArticulo('Lineamiento 1')).toBe(false);
+  });
 });
