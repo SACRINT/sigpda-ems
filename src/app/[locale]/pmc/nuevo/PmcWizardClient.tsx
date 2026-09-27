@@ -69,6 +69,7 @@ interface StaffMember {
 
 interface IndicadoresAcademicos {
   matricula?: number;
+  matriculaAnterior?: number;
   matricula_meta?: number;
   promedio_f11?: number;
   promedio_meta?: number;
@@ -402,6 +403,7 @@ interface Estadistica911ResponseDTO {
   directorName?: string;
   supervisorName?: string;
   matricula?: number;
+  matriculaAnterior?: number;
   abandonoPorcentaje?: number;
   eficienciaTerminal?: number;
   reprobacionPorcentaje?: number;
@@ -828,6 +830,7 @@ interface PmcPreviousExtractDTO {
           return {
             ...p,
             matricula: toRealNumber(json.data?.matricula) ?? p.matricula,
+            matriculaAnterior: toRealNumber(json.data?.matriculaAnterior) ?? p.matriculaAnterior,
             abandono_ant: abandonoAnt,
             abandono_meta: abandonoMeta,
             et_ant: etAnt,

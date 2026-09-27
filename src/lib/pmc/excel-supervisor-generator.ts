@@ -256,6 +256,7 @@ export async function generatePmcSupervisorExcel(project: PmcSupervisorExcelInpu
 
   // Poblado de filas para Hojas 2 y 3 mediante SSoT
   const allPlanteles: PmcStatisticalPlantel[] = project.statistical_context?.allPlanteles || [];
+  const ind = (project.indicadores_academicos || {}) as PmcIndicadoresAcademicos & Record<string, unknown>;
 
   interface PlantelExportRowData {
     nombre: string;
@@ -295,9 +296,8 @@ export async function generatePmcSupervisorExcel(project: PmcSupervisorExcelInpu
         }
       );
 
-      const pStats = p as unknown as Record<string, unknown>;
-      const matCierreAnt = typeof pStats.matriculaAnterior === 'number'
-        ? pStats.matriculaAnterior
+      const matCierreAnt = (isMainProjectPlantel && typeof ind.matriculaAnterior === 'number')
+        ? ind.matriculaAnterior
         : parseMetricNumber(comp.matricula.ant);
 
       const matAnt = parseMetricNumber(comp.matricula.ant);
@@ -338,15 +338,8 @@ export async function generatePmcSupervisorExcel(project: PmcSupervisorExcelInpu
   } else {
     // Caso de escuela individual sin matriz de zona
     const comp = computePmcIndicatorValues(project.indicadores_academicos, project.statistical_context);
-    const ind = (project.indicadores_academicos || {}) as Record<string, unknown>;
-
-    const pStatsSingle = project.statistical_context?.plantel as unknown as Record<string, unknown> | undefined;
-    const matCierreAnt = typeof ind.matricula_anterior === 'number'
-      ? ind.matricula_anterior
-      : typeof ind.matricula_cierre_ant === 'number'
-      ? ind.matricula_cierre_ant
-      : typeof pStatsSingle?.matriculaAnterior === 'number'
-      ? Number(pStatsSingle.matriculaAnterior)
+    const matCierreAnt = typeof ind.matriculaAnterior === 'number'
+      ? ind.matriculaAnterior
       : parseMetricNumber(comp.matricula.ant);
 
     const matAnt = parseMetricNumber(comp.matricula.ant);

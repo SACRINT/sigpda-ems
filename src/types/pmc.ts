@@ -24,6 +24,7 @@ export interface PmcIndicadoresAcademicos {
   abandono_meta?: number;
   et_meta?: number;
   matricula?: number;
+  matriculaAnterior?: number;  // Matrícula de cierre del ciclo anterior (del 911 fin de cursos)
   matricula_meta?: number;
   promedio_f11?: number;
   promedio_meta?: number;
