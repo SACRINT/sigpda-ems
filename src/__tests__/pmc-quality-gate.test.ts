@@ -12,6 +12,8 @@ import {
   auditPmcProject,
   formatPmcAuditReport,
   PMC_DIMENSIONS,
+  findForbiddenPlatformTerms,
+  containsForbiddenPlatformTerms,
 } from '@/lib/pmc-quality-gate';
 import type { PmcProject } from '@/types/pmc';
 
@@ -119,7 +121,7 @@ describe('pmc-quality-gate — calculateGlobalPmcScore', () => {
       expect(c.status).toBe('fail');
     }
     expect(audit.passedCriteria).toBe(0);
-    expect(audit.failedCriteria).toBe(10);
+    expect(audit.failedCriteria).toBe(11);
   });
 
   it('proyecto completo -> overallStatus SATISFACTORIO o superior (score >= 70%)', () => {
@@ -128,7 +130,7 @@ describe('pmc-quality-gate — calculateGlobalPmcScore', () => {
     expect(audit.percentage).toBeGreaterThanOrEqual(70);
     expect(['EXCELENTE', 'SATISFACTORIO']).toContain(audit.overallStatus);
     expect(audit.passedCriteria).toBeGreaterThan(0);
-    expect(audit.criteria).toHaveLength(10);
+    expect(audit.criteria).toHaveLength(11);
     expect(typeof audit.auditedAt).toBe('string');
   });
 
@@ -180,16 +182,57 @@ describe('pmc-quality-gate — calculateGlobalPmcScore', () => {
     expect(c5!.status).toBe('pass');
   });
 
-  it('plan_accion null -> criterios PMC-C8, C9, C10 en fail', () => {
+  it('plan_accion null -> criterios PMC-C8, C9, C10, C11 en fail', () => {
     const project: PmcProject = { id: 'pmc-no-plan', plan_accion: null };
     const audit = calculateGlobalPmcScore(project);
     const c8 = audit.criteria.find(c => c.id === 'PMC-C8');
     const c9 = audit.criteria.find(c => c.id === 'PMC-C9');
     const c10 = audit.criteria.find(c => c.id === 'PMC-C10');
+    const c11 = audit.criteria.find(c => c.id === 'PMC-C11');
     expect(c8!.status).toBe('fail');
     expect(c9!.status).toBe('fail');
     expect(c10!.status).toBe('fail');
-    expect(audit.failedCriteria).toBeGreaterThanOrEqual(3);
+    expect(c11!.status).toBe('fail');
+    expect(audit.failedCriteria).toBeGreaterThanOrEqual(4);
+  });
+
+  it('plan_accion con termino prohibido "SIGPDA-EMS" -> criterio PMC-C11 y PMC-C8 en fail', () => {
+    const contaminatedProject: PmcProject = {
+      ...COMPLETE_PROJECT,
+      id: 'pmc-test-contaminated',
+      plan_accion: {
+        metas_institucionales: [
+          {
+            categoria: '1',
+            nombre_categoria: 'Desarrollo académico y aprendizaje',
+            tema: 'Seguimiento al desempeño docente en el aula',
+            diagnostico_meta: 'Rezago en planeación colegiada',
+            meta: 'Lograr que el 100% de la plantilla docente consolide y valide sus planeaciones didácticas en el SIGPDA-EMS durante el ciclo escolar 2026-2027 en Puebla',
+            estrategia: 'Reuniones quincenales de academia docente para armonizar secuencias didácticas',
+            linea_base: 'Eficiencia terminal: 74%',
+            personal_designado: 'Director y Consejo Académico',
+            entregable: 'Concentrado de planeaciones didácticas registradas y evaluadas en SIGPDA-EMS',
+            periodo_inicio: '08/2026',
+            periodo_fin: '06/2027',
+          },
+        ],
+        metas_personales: [],
+      },
+    };
+    const audit = calculateGlobalPmcScore(contaminatedProject);
+
+    const c11 = audit.criteria.find(c => c.id === 'PMC-C11');
+    expect(c11).toBeDefined();
+    expect(c11!.status).toBe('fail');
+    expect(c11!.score).toBe(0);
+    expect(c11!.feedback).toContain('términos prohibidos de plataforma interna');
+    expect(c11!.evidenceFound).toContain('SIGPDA-EMS');
+
+    const c8 = audit.criteria.find(c => c.id === 'PMC-C8');
+    expect(c8).toBeDefined();
+    expect(c8!.status).toBe('fail');
+    expect(c8!.score).toBe(0);
+    expect(c8!.feedback).toContain('plataformas privadas');
   });
 
   it('auditPmcProject es alias exacto de calculateGlobalPmcScore', () => {
@@ -208,6 +251,28 @@ describe('pmc-quality-gate — calculateGlobalPmcScore', () => {
     expect(report).toContain('DICTAMEN');
     expect(report).toContain('%');
     expect(report).toContain(PMC_DIMENSIONS.DIM1);
+  });
+
+  it('containsForbiddenPlatformTerms detecta variantes de SIGPDA-EMS, SIGPDA y es insensible a mayusculas/minusculas', () => {
+    expect(containsForbiddenPlatformTerms('Consolidar en el SIGPDA-EMS durante el ciclo')).toBe(true);
+    expect(containsForbiddenPlatformTerms('Registradas en SIGPDA EMS')).toBe(true);
+    expect(containsForbiddenPlatformTerms('Uso de la plataforma SIGPDA')).toBe(true);
+    expect(containsForbiddenPlatformTerms('subir a sigpda-ems')).toBe(true);
+    expect(containsForbiddenPlatformTerms('registro en sigpda')).toBe(true);
+    expect(containsForbiddenPlatformTerms({ nested: { deep: 'Metas en SIGPDA-EMS' } })).toBe(true);
+
+    // Terminos permitidos / oficiales
+    expect(containsForbiddenPlatformTerms('Plataforma institucional de planeacion docente')).toBe(false);
+    expect(containsForbiddenPlatformTerms('Concentrado de planeaciones didacticas registradas')).toBe(false);
+    expect(containsForbiddenPlatformTerms('Formatos oficiales SEMS Puebla')).toBe(false);
+
+    const matches = findForbiddenPlatformTerms({
+      meta: 'Metas en SIGPDA-EMS',
+      entregable: 'Reporte en SIGPDA',
+    });
+    expect(matches).toHaveLength(2);
+    expect(matches).toContain('SIGPDA-EMS');
+    expect(matches).toContain('SIGPDA');
   });
 
 });

@@ -38,6 +38,38 @@ function hasNumber(val: unknown): boolean {
   return isRealNumeric(val);
 }
 
+// ── Guard Determinista de Términos Prohibidos ──────────────────────────────
+export const FORBIDDEN_PLATFORM_TERMS_REGEX = /SIGPDA[\s-]?EMS|\bSIGPDA\b/i;
+
+export function findForbiddenPlatformTerms(data: unknown): string[] {
+  const matches: string[] = [];
+  const regex = /SIGPDA[\s-]?EMS|\bSIGPDA\b/gi;
+
+  function traverse(value: unknown) {
+    if (typeof value === 'string') {
+      const found = value.match(regex);
+      if (found) {
+        matches.push(...found);
+      }
+    } else if (Array.isArray(value)) {
+      for (const item of value) {
+        traverse(item);
+      }
+    } else if (value && typeof value === 'object') {
+      for (const val of Object.values(value as Record<string, unknown>)) {
+        traverse(val);
+      }
+    }
+  }
+
+  traverse(data);
+  return matches;
+}
+
+export function containsForbiddenPlatformTerms(data: unknown): boolean {
+  return findForbiddenPlatformTerms(data).length > 0;
+}
+
 // ── Criterios Individuales ──────────────────────────────────────────────────
 
 function evalC1_Identificacion(p: PmcProject): PmcAuditCriterion {
@@ -333,11 +365,17 @@ function evalC8_MetasInstitucionales(p: PmcProject): PmcAuditCriterion {
     hasText(m.entregable, 5)
   ).length;
 
+  const forbiddenInMetas = findForbiddenPlatformTerms(metas);
+
   let score = 0;
   let status: 'pass' | 'warning' | 'fail' = 'fail';
   let feedback = 'No hay metas institucionales estructuradas en el plan de acción.';
 
-  if (count >= 2 && validMetas >= 2 && creaaCompliant >= 1) {
+  if (forbiddenInMetas.length > 0) {
+    score = 0;
+    status = 'fail';
+    feedback = 'Metas institucionales contienen menciones prohibidas a plataformas privadas (SIGPDA/SIGPDA-EMS). Deben reformularse con instancias educativas oficiales.';
+  } else if (count >= 2 && validMetas >= 2 && creaaCompliant >= 1) {
     score = 14;
     status = 'pass';
     feedback = `Metas institucionales formuladas con fórmula oficial CREAA ([VERBO] + [%] + [POBLACIÓN] + [ESTRATEGIA] + [PERIODO Y TERRITORIO]) y entregables verificables.`;
@@ -445,6 +483,47 @@ function evalC10_MetasPersonal(p: PmcProject): PmcAuditCriterion {
   };
 }
 
+function evalC11_AusenciaTerminosProhibidos(p: PmcProject): PmcAuditCriterion {
+  const plan = p.plan_accion as PmcPlanAccion | null | undefined;
+  const metasInst = Array.isArray(plan?.metas_institucionales) ? plan!.metas_institucionales : [];
+  const metasPers = Array.isArray(plan?.metas_personales) ? plan!.metas_personales : [];
+  const totalMetas = metasInst.length + metasPers.length;
+
+  let score = 0;
+  let status: 'pass' | 'warning' | 'fail' = 'fail';
+  let feedback = 'Sin plan de acción registrado para evaluar términos normativos.';
+  let evidenceFound = '0 metas registradas en el plan de acción.';
+
+  if (totalMetas > 0) {
+    const forbiddenMatches = findForbiddenPlatformTerms(plan);
+    if (forbiddenMatches.length > 0) {
+      score = 0;
+      status = 'fail';
+      const uniqueTerms = Array.from(new Set(forbiddenMatches.map(t => t.toUpperCase())));
+      feedback = `El plan de acción contiene términos prohibidos de plataforma interna (${uniqueTerms.join(', ')}). Las metas oficiales no deben mencionar marcas de software privado conforme a los lineamientos oficiales SEMS Puebla.`;
+      evidenceFound = `Se detectaron ${forbiddenMatches.length} mención(es) prohibida(s) de plataforma privada: [${uniqueTerms.join(', ')}].`;
+    } else {
+      score = 10;
+      status = 'pass';
+      feedback = 'Plan de acción cumple con la normativa oficial SEP/SEMS: libre de menciones a plataformas o marcas de software privado.';
+      evidenceFound = `${totalMetas} metas analizadas sin menciones a marcas de software privado.`;
+    }
+  }
+
+  return {
+    id: 'PMC-C11',
+    dimension: PMC_DIMENSIONS.DIM4,
+    name: 'Ausencia de Términos Prohibidos y Marcas de Plataforma',
+    description: 'Verifica que el plan de acción no mencione marcas ni sistemas privados (SIGPDA/SIGPDA-EMS), garantizando la estricta naturaleza oficial del documento PMC.',
+    weight: 10,
+    maxScore: 10,
+    score,
+    status,
+    feedback,
+    evidenceFound,
+  };
+}
+
 // ── Auditoría Global ────────────────────────────────────────────────────────
 
 export function calculateGlobalPmcScore(project: PmcProject): PmcQualityAudit {
@@ -459,6 +538,7 @@ export function calculateGlobalPmcScore(project: PmcProject): PmcQualityAudit {
     evalC8_MetasInstitucionales(project),
     evalC9_ResponsablesYFechas(project),
     evalC10_MetasPersonal(project),
+    evalC11_AusenciaTerminosProhibidos(project),
   ];
 
   const totalScore = criteria.reduce((sum, c) => sum + c.score, 0);
