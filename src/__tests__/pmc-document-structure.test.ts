@@ -91,7 +91,7 @@ function makeMockPmcProject(): PmcProject {
       ],
     },
     staff_data: [
-      { nombre: 'Prof. Juan Rogelio García Escudero', cargo: 'Director(a)', horas_base: 40 },
+      { nombre: 'Prof. Juan Rogelio García Escudero', cargo: 'Director(a)' },
       { nombre: 'Prof. Pedro López Juárez', cargo: 'Docente de Matemáticas', horas_base: 30 },
     ],
     normativa: {
@@ -344,9 +344,13 @@ describe('H-100 / H-101: SSoT Estructura Documental y Paridad PDF vs DOCX', () =
     expect(docxText).toContain('Horas Base');
     expect(pdfText).toContain('Horas Base');
 
-    // Ambos deben reflejar las horas base de la plantilla
+    // Ambos deben reflejar las horas base de la plantilla cuando existen
     expect(docxText).toContain('30 hrs');
     expect(pdfText).toContain('30 hrs');
+
+    // Anti-fabricación B-001 (H-134): Cuando horas_base es ausente/null, NO inventar "40 hrs"
+    expect(docxText).not.toContain('40 hrs');
+    expect(pdfText).not.toContain('40 hrs');
   });
 });
 

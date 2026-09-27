@@ -925,7 +925,7 @@ function buildControlRevisiones(p: PmcProject, plan?: PlanAccion): (Paragraph | 
   const staffData = parseJson<Array<{ nombre?: string; cargo?: string; horas_base?: number | string | null }>>(p.staff_data);
   const participantes = Array.isArray(staffData) && staffData.length > 0
     ? staffData
-    : [{ nombre: p.director_name, cargo: 'Director(a)', horas_base: 40 }];
+    : [{ nombre: p.director_name, cargo: 'Director(a)' }];
 
   const metasInst = plan?.metas_institucionales ?? [];
   const seguimientoItems: (Paragraph | Table)[] = [];
@@ -989,7 +989,7 @@ function buildControlRevisiones(p: PmcProject, plan?: PlanAccion): (Paragraph | 
             const bg = idx % 2 ? C.alt : C.white;
             const horasBase = part.horas_base != null && String(part.horas_base).trim() !== ''
               ? `${part.horas_base} hrs`
-              : (part.cargo?.toLowerCase().includes('director') ? '40 hrs' : '—');
+              : '—';
             return new TableRow({
               children: [
                 tc(String(idx + 1), { w: 600, align: AlignmentType.CENTER, fill: bg }),

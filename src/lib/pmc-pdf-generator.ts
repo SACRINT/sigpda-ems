@@ -878,12 +878,12 @@ export async function generatePmcPDF(
         cargo: safeStr(s.cargo, 'Docente'),
         horas_base: s.horas_base != null && String(s.horas_base).trim() !== ''
           ? `${s.horas_base} hrs`
-          : (s.cargo?.toLowerCase().includes('director') ? '40 hrs' : '—'),
+          : '—',
       }))
     : (project.director_name ? [{
         nombre: project.director_name,
         cargo: 'Director(a)',
-        horas_base: '40 hrs',
+        horas_base: '—',
       }] : []);
 
   if (personalParticipante.length > 0) {
