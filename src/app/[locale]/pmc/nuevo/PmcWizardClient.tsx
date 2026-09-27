@@ -3435,7 +3435,32 @@ interface PaecProjectForPmc {
                 </div>
               ) : paecProjectsList.length === 0 ? (
                 <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', fontSize: '13px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
-                  No se encontraron proyectos PAEC registrados para este CCT o usuario.
+                  <p style={{ margin: '0 0 8px 0', color: '#cbd5e1', fontWeight: 600 }}>
+                    No se encontraron proyectos PAEC registrados para este CCT o usuario.
+                  </p>
+                  <p style={{ margin: '0 0 16px 0', fontSize: '12px', color: '#94a3b8', lineHeight: 1.5 }}>
+                    Para articular el diagnóstico comunitario y las problemáticas del entorno escolar al PMC, puedes crear o subir tu PAEC en formato PDF/Word.
+                  </p>
+                  <Link
+                    href={`/${locale}/paec/nuevo`}
+                    target="_blank"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '8px 16px',
+                      background: 'rgba(99, 102, 241, 0.2)',
+                      border: '1px solid rgba(99, 102, 241, 0.5)',
+                      borderRadius: '6px',
+                      color: '#c7d2fe',
+                      textDecoration: 'none',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <span>➕</span> Ir a Crear o Importar PAEC (Abre en nueva pestaña)
+                  </Link>
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
