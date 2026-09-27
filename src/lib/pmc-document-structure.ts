@@ -136,7 +136,7 @@ export function clasificarNormativaJerarquica(
     let articulosFinales = articulosLimpios;
     if (articulosFinales.length === 0) {
       if (tituloNormalizado.includes('09/08/23') || tituloNormalizado.toLowerCase().includes('mccems')) {
-        articulosFinales = ['Lineamientos Generales del MCCEMS (Arts. 1 a 8)'];
+        articulosFinales = ['Lineamiento General', 'Componente Curricular'];
       }
     }
 

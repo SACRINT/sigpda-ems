@@ -297,8 +297,7 @@ describe('H-100 / H-101: SSoT Estructura Documental y Paridad PDF vs DOCX', () =
     expect(grupoB.documentos[0].titulo).toContain('09/08/23');
     expect(grupoB.documentos[0].titulo).not.toContain('14/08/22');
     expect(grupoB.documentos[0].articulos).not.toContain('Artículo Relevante — Supervisión EMS');
-    expect(grupoB.documentos[0].articulos).not.toContain('15 21 42');
-    expect(grupoB.documentos[0].articulos).toContain('Lineamientos Generales del MCCEMS (Arts. 1 a 8)');
+    expect(grupoB.documentos[0].articulos).toEqual(['Lineamiento General', 'Componente Curricular']);
 
     // Grupo A: Leyes - Artículos limpios de placeholders
     const grupoA = grupos.find((g) => g.clave === 'A')!;
