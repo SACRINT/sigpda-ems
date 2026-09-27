@@ -38,6 +38,16 @@ function hasNumber(val: unknown): boolean {
   return isRealNumeric(val);
 }
 
+// ── Descriptor Canónico de Campos Oficiales del Documento PMC ──────────────
+export const PMC_DOC_FACING_FIELDS = [
+  'diagnostico_comunidad',
+  'foda',
+  'diagnostico_generado',
+  'plan_accion',
+] as const;
+
+export type PmcDocFacingField = (typeof PMC_DOC_FACING_FIELDS)[number];
+
 // ── Guard Determinista de Términos Prohibidos ──────────────────────────────
 export const FORBIDDEN_PLATFORM_TERMS_REGEX = /SIGPDA[\s-]?EMS|\bSIGPDA\b/i;
 
@@ -68,6 +78,40 @@ export function findForbiddenPlatformTerms(data: unknown): string[] {
 
 export function containsForbiddenPlatformTerms(data: unknown): boolean {
   return findForbiddenPlatformTerms(data).length > 0;
+}
+
+export interface ForbiddenTermsViolation {
+  status: 422;
+  body: {
+    error: string;
+    forbiddenTerms: string[];
+  };
+}
+
+export function assertNoForbiddenTerms(
+  payload: unknown,
+  contextName = 'PMC'
+): ForbiddenTermsViolation | null {
+  const matches = findForbiddenPlatformTerms(payload);
+  if (matches.length === 0) {
+    return null;
+  }
+  const uniqueTerms = Array.from(new Set(matches.map(t => t.toUpperCase())));
+  return {
+    status: 422,
+    body: {
+      error: `El contenido de ${contextName} contiene términos prohibidos de plataforma privada (${uniqueTerms.join(', ')}). Se bloqueó la persistencia para proteger la validez normativa oficial del PMC ante SEMS Puebla.`,
+      forbiddenTerms: uniqueTerms,
+    },
+  };
+}
+
+export function buildForbiddenTermsCorrectiveDirective(
+  forbiddenTerms: string[],
+  contextName = 'contenido oficial'
+): string {
+  const uniqueTerms = Array.from(new Set(forbiddenTerms.map(t => t.toUpperCase())));
+  return `\n\n[CORRECCIÓN OBLIGATORIA DEL SISTEMA]:\nTu respuesta anterior incluyó términos prohibidos de plataforma privada (${uniqueTerms.join(', ')}).\nEstá terminantemente PROHIBIDO mencionar "SIGPDA", "SIGPDA-EMS", "SIGPDA EMS" o nombres de software privado en el ${contextName}.\nReemplázalos por terminología oficial como "plataforma institucional de planeación docente", "consejo académico", "academia docente" o "portafolio institucional de evidencias".\nGenera de nuevo el contenido en JSON válido respetando estrictamente esta restricción oficial.`;
 }
 
 // ── Criterios Individuales ──────────────────────────────────────────────────
@@ -488,22 +532,20 @@ function evalC11_AusenciaTerminosProhibidos(p: PmcProject): PmcAuditCriterion {
   const metasInst = Array.isArray(plan?.metas_institucionales) ? plan!.metas_institucionales : [];
   const metasPers = Array.isArray(plan?.metas_personales) ? plan!.metas_personales : [];
   const totalMetas = metasInst.length + metasPers.length;
-  const diag = p.diagnostico_generado as PmcDiagnosticoGenerado | null | undefined;
-  const foda = p.foda as PmcFodaData | null | undefined;
 
-  const hasContentToAudit = totalMetas > 0 || !!diag || !!foda;
+  const docFacingPayloads = PMC_DOC_FACING_FIELDS
+    .map(field => p[field as keyof PmcProject])
+    .filter(val => val !== undefined && val !== null);
+
+  const hasContentToAudit = docFacingPayloads.length > 0;
 
   let score = 0;
   let status: 'pass' | 'warning' | 'fail' = 'fail';
-  let feedback = 'Sin plan de acción ni diagnóstico registrados para evaluar términos normativos.';
+  let feedback = 'Sin contenido oficial registrado en el documento para evaluar términos normativos.';
   let evidenceFound = 'Sin contenido registrado para auditar términos normativos.';
 
   if (hasContentToAudit) {
-    const forbiddenMatches = [
-      ...findForbiddenPlatformTerms(plan),
-      ...findForbiddenPlatformTerms(diag),
-      ...findForbiddenPlatformTerms(foda),
-    ];
+    const forbiddenMatches = findForbiddenPlatformTerms(docFacingPayloads);
 
     if (forbiddenMatches.length > 0) {
       score = 0;
@@ -514,8 +556,8 @@ function evalC11_AusenciaTerminosProhibidos(p: PmcProject): PmcAuditCriterion {
     } else {
       score = 10;
       status = 'pass';
-      feedback = 'Documento cumple con la normativa oficial SEP/SEMS: plan de acción, diagnóstico y FODA libres de menciones a plataformas o marcas de software privado.';
-      evidenceFound = `Contenido analizado (${totalMetas} metas, diagnóstico y FODA) sin menciones a marcas de software privado.`;
+      feedback = 'Documento cumple con la normativa oficial SEP/SEMS: plan de acción, diagnósticos y FODA libres de menciones a plataformas o marcas de software privado.';
+      evidenceFound = `Contenido oficial analizado (${totalMetas} metas, diagnósticos y FODA) sin menciones a marcas de software privado.`;
     }
   }
 
@@ -523,7 +565,7 @@ function evalC11_AusenciaTerminosProhibidos(p: PmcProject): PmcAuditCriterion {
     id: 'PMC-C11',
     dimension: PMC_DIMENSIONS.DIM4,
     name: 'Ausencia de Términos Prohibidos y Marcas de Plataforma',
-    description: 'Verifica que el plan de acción, diagnóstico y FODA no mencionen marcas ni sistemas privados (SIGPDA/SIGPDA-EMS), garantizando la estricta naturaleza oficial del documento PMC.',
+    description: 'Verifica que las secciones oficiales del PMC (plan de acción, diagnóstico, comunidad y FODA) no mencionen marcas ni sistemas privados (SIGPDA/SIGPDA-EMS).',
     weight: 10,
     maxScore: 10,
     score,

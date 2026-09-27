@@ -15,6 +15,9 @@ import {
   findForbiddenPlatformTerms,
   containsForbiddenPlatformTerms,
   FORBIDDEN_PLATFORM_TERMS_REGEX,
+  PMC_DOC_FACING_FIELDS,
+  assertNoForbiddenTerms,
+  buildForbiddenTermsCorrectiveDirective,
 } from '@/lib/pmc-quality-gate';
 import type { PmcProject } from '@/types/pmc';
 
@@ -272,6 +275,50 @@ describe('pmc-quality-gate — calculateGlobalPmcScore', () => {
     expect(c11!.status).toBe('fail');
     expect(c11!.score).toBe(0);
     expect(c11!.evidenceFound).toContain('SIGPDA-EMS');
+  });
+
+  it('diagnostico_comunidad con termino prohibido "SIGPDA" -> criterio PMC-C11 en fail', () => {
+    const contaminatedComunidadProject: PmcProject = {
+      ...COMPLETE_PROJECT,
+      id: 'pmc-test-contaminated-comunidad',
+      diagnostico_comunidad: 'Diagnóstico comunitario registrado en plataforma SIGPDA para análisis de la zona.',
+    };
+    const audit = calculateGlobalPmcScore(contaminatedComunidadProject);
+    const c11 = audit.criteria.find(c => c.id === 'PMC-C11');
+    expect(c11).toBeDefined();
+    expect(c11!.status).toBe('fail');
+    expect(c11!.score).toBe(0);
+    expect(c11!.feedback).toContain('términos prohibidos de plataforma interna');
+    expect(c11!.evidenceFound).toContain('SIGPDA');
+  });
+
+  it('PMC_DOC_FACING_FIELDS contiene los 4 campos oficiales orientados al documento', () => {
+    expect(PMC_DOC_FACING_FIELDS).toEqual([
+      'diagnostico_comunidad',
+      'foda',
+      'diagnostico_generado',
+      'plan_accion',
+    ]);
+  });
+
+  it('assertNoForbiddenTerms retorna null para contenido limpio y status 422 para contenido contaminado', () => {
+    const cleanResult = assertNoForbiddenTerms({ meta: 'Meta en plataforma institucional oficial' });
+    expect(cleanResult).toBeNull();
+
+    const contaminatedResult = assertNoForbiddenTerms(
+      { diagnostico: 'Seguimiento en SIGPDA-EMS' },
+      'diagnóstico escolar'
+    );
+    expect(contaminatedResult).not.toBeNull();
+    expect(contaminatedResult!.status).toBe(422);
+    expect(contaminatedResult!.body.error).toContain('diagnóstico escolar');
+    expect(contaminatedResult!.body.error).toContain('SIGPDA-EMS');
+    expect(contaminatedResult!.body.forbiddenTerms).toContain('SIGPDA-EMS');
+
+    const directive = buildForbiddenTermsCorrectiveDirective(['SIGPDA-EMS'], 'diagnóstico');
+    expect(directive).toContain('[CORRECCIÓN OBLIGATORIA DEL SISTEMA]');
+    expect(directive).toContain('SIGPDA-EMS');
+    expect(directive).toContain('diagnóstico');
   });
 
   it('auditPmcProject es alias exacto de calculateGlobalPmcScore', () => {
