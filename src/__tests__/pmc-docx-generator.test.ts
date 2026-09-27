@@ -365,4 +365,30 @@ describe('pmc-docx-generator — Generador de Plan de Mejora Continua e Informes
     expect(partialText).toContain('Agosto 2026 – Enero 2027 (1er Semestre)');
     expect(partialText).toContain('Término del Ciclo 2026-2027 (Semestre B)');
   });
+
+  // ── TEST 13 (H-166 / H-163): Tabla de indicadores en PMC DOCX usa rótulo oficial de matrícula ──
+  it('Test 13: La tabla de indicadores del PMC contiene "Matrícula Escolar Oficial (911.7G)" con columnas ant y meta separadas', async () => {
+    const fixture = makePmcFixture({
+      indicadores_academicos: {
+        aprobacion_ant: 84,
+        reprobacion_ant: 16,
+        abandono_ant: 4,
+        et_ant: 80,
+        aprobacion_meta: 90,
+        abandono_meta: 2,
+        et_meta: 86,
+        matricula: 280,
+        matricula_meta: 295,
+      },
+    });
+    const buffer = await generatePmcDocx(fixture);
+    const { value: text } = await mammoth.extractRawText({ buffer });
+
+    // H-163: El rótulo oficial debe coincidir byte a byte con el del PDF (SSoT pmc-indicator-calculator.ts)
+    expect(text).toContain('Matrícula Escolar Oficial (911.7G)');
+
+    // La fila de matrícula debe tener ambas columnas (ant y meta) como celdas independientes, no fusionadas con span:2
+    expect(text).toContain('280 estudiantes');
+    expect(text).toContain('295 estudiantes');
+  });
 });

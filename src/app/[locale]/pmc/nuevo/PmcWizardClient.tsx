@@ -14,6 +14,7 @@ import { toRealNumber } from '@/lib/numeric-guard';
 import { computeCoverage } from '@/lib/coverage-core';
 import { reconcilePmcStaff, derivePersonalMetasFromStaff, normalizeStaffName } from '@/lib/pmc/staff-reconciler';
 import { deduplicateMetasInstitucionales } from '@/lib/pmc-meta-deduplicator';
+import { mergePaecIntoDiagnostic, preservePaecOnPmcLoad, buildPaecDiagnosticParts } from '@/lib/pmc/paec-diagnostic-fusion';
 
 
 const PMC_DRAFT_KEY = 'didactica_pmc_draft';
@@ -628,14 +629,7 @@ interface PmcPreviousExtractDTO {
     }
 
     if (parsedPmcData.diagnosticoComunidad) {
-      setDiagnosticoComunidad(prev => {
-        const pmcDiag = parsedPmcData.diagnosticoComunidad!.trim();
-        if (prev.includes('--- Integrado desde PAEC ---')) {
-          const paecPart = prev.slice(prev.indexOf('--- Integrado desde PAEC ---')).trim();
-          return `${pmcDiag}\n\n${paecPart}`;
-        }
-        return pmcDiag;
-      });
+      setDiagnosticoComunidad(prev => preservePaecOnPmcLoad(parsedPmcData.diagnosticoComunidad!, prev));
     }
 
     if (parsedPmcData.indicadores) {
@@ -926,23 +920,22 @@ interface PmcPreviousExtractDTO {
       if (typeof sCtx.municipality === 'string' && sCtx.municipality && !municipality) setMunicipality(sCtx.municipality);
       if (typeof sCtx.locality === 'string' && sCtx.locality && !locality) setLocality(sCtx.locality);
 
-      const paecDiagParts = [
-        cCtx.context ? `[Contexto Comunitario PAEC]: ${cCtx.context}` : '',
-        cCtx.location ? `[Entorno Geográfico]: ${cCtx.location}` : '',
-        pData.problemStatement ? `[Problemática Comunitaria Central - ${pData.projectName || 'PAEC'}]: ${pData.problemStatement}` : '',
-        cCtx.problematics ? `[Problemáticas Detectadas]: ${cCtx.problematics}` : '',
-        cCtx.economicActivities ? `[Actividades Económicas]: ${cCtx.economicActivities}` : '',
-      ].filter(Boolean);
+      const paecDiagParts = buildPaecDiagnosticParts(
+        {
+          context: cCtx.context,
+          location: cCtx.location,
+          problematics: cCtx.problematics,
+          economicActivities: cCtx.economicActivities,
+        },
+        {
+          projectName: pData.projectName,
+          problemStatement: pData.problemStatement,
+        }
+      );
 
       if (paecDiagParts.length > 0) {
         const combined = paecDiagParts.join('\n\n');
-        setDiagnosticoComunidad(prev => {
-          if (prev.includes('--- Integrado desde PAEC ---')) {
-            const parts = prev.split('--- Integrado desde PAEC ---');
-            return `${parts[0].trim()}\n\n--- Integrado desde PAEC ---\n${combined}`;
-          }
-          return prev.trim() ? `${prev}\n\n--- Integrado desde PAEC ---\n${combined}` : `--- Integrado desde PAEC ---\n${combined}`;
-        });
+        setDiagnosticoComunidad(prev => mergePaecIntoDiagnostic(prev, combined));
         setDocsStatus(prev => ({ ...prev, paecAnt: true }));
         setSuccessBanner(`✓ Documento PAEC procesado exitosamente: ${paecDiagParts.length} campos extraídos e integrados al diagnóstico y datos de plantel.`);
       } else {
