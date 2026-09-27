@@ -384,10 +384,16 @@ describe('pmc-docx-generator — Generador de Plan de Mejora Continua e Informes
     const buffer = await generatePmcDocx(fixture);
     const { value: text } = await mammoth.extractRawText({ buffer });
 
-    // H-163: El rótulo oficial debe coincidir byte a byte con el del PDF (SSoT pmc-indicator-calculator.ts)
+    // H-163 / H-170: El rótulo oficial debe coincidir byte a byte con el del PDF (SSoT pmc-indicator-calculator.ts)
     expect(text).toContain('Matrícula Escolar Oficial (911.7G)');
+    // Debe descartar el rótulo obsoleto anterior
+    expect(text).not.toContain('Matrícula Total del Plantel');
 
-    // La fila de matrícula debe tener ambas columnas (ant y meta) como celdas independientes, no fusionadas con span:2
+    // Conteo discriminatorio: debe aparecer exactamente 1 vez como encabezado de la fila de indicadores
+    const labelOccurrences = (text.match(/Matrícula Escolar Oficial \(911\.7G\)/g) || []).length;
+    expect(labelOccurrences).toBe(1);
+
+    // La fila de matrícula debe tener ambas columnas (ant y meta) como celdas independientes
     expect(text).toContain('280 estudiantes');
     expect(text).toContain('295 estudiantes');
   });
