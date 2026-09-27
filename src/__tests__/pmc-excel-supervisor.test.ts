@@ -288,4 +288,62 @@ describe('Excel Oficial de Supervisión Escolar (FASE 1)', () => {
     expect(ws4.getCell('B3').value).toBe('Infraestructura');
     expect(ws4.getCell('D3').value).toBe('Instalar 10 terminales con internet satelital');
   });
+
+  it('5. Hoja 2 col4 usa prioritariamente matriculaAnterior (81) y ante su ausencia usa fallback de agosto (75) (H-165, H-168)', async () => {
+    // Caso A: Con matriculaAnterior persistida (cierre de ciclo = 81) y matricula actual = 75
+    const projectConCierre: PmcSupervisorExcelInput = {
+      school_name: 'Bachillerato General Emiliano Zapata',
+      school_cct: '21EBH0088X',
+      turno: 'M',
+      indicadores_academicos: {
+        matricula: 75,
+        matriculaAnterior: 81,
+        matricula_meta: 85,
+        aprobacion_ant: 90,
+        reprobacion_ant: 10,
+        et_ant: 85,
+        abandono_ant: 5,
+      },
+    };
+
+    const bufferA = await generatePmcSupervisorExcel(projectConCierre);
+    const wbA = new ExcelJS.Workbook();
+    await wbA.xlsx.load(bufferA as unknown as Parameters<ExcelJS.Workbook['xlsx']['load']>[0]);
+
+    const ws2A = wbA.getWorksheet('Punto de partida')!;
+    const row2A = ws2A.getRow(3);
+    // Columna 4 de Hoja 2 debe ser 81 (cierre real del ciclo anterior)
+    expect(row2A.getCell(4).value).toBe(81);
+
+    const ws3A = wbA.getWorksheet('METAS')!;
+    const row3A = ws3A.getRow(3);
+    // En Hoja 3, Columna 4 es la matrícula factual de agosto (75) y Columna 10 es la meta (85)
+    expect(row3A.getCell(4).value).toBe(75);
+    expect(row3A.getCell(10).value).toBe(85);
+
+    // Caso B: Sin matriculaAnterior persistida -> fallback a matrícula de agosto (75)
+    const projectSinCierre: PmcSupervisorExcelInput = {
+      school_name: 'Bachillerato General Emiliano Zapata',
+      school_cct: '21EBH0088X',
+      turno: 'M',
+      indicadores_academicos: {
+        matricula: 75,
+        // matriculaAnterior no disponible
+        matricula_meta: 85,
+        aprobacion_ant: 90,
+        reprobacion_ant: 10,
+        et_ant: 85,
+        abandono_ant: 5,
+      },
+    };
+
+    const bufferB = await generatePmcSupervisorExcel(projectSinCierre);
+    const wbB = new ExcelJS.Workbook();
+    await wbB.xlsx.load(bufferB as unknown as Parameters<ExcelJS.Workbook['xlsx']['load']>[0]);
+
+    const ws2B = wbB.getWorksheet('Punto de partida')!;
+    const row2B = ws2B.getRow(3);
+    // Fallback: al no haber matriculaAnterior, muestra 75
+    expect(row2B.getCell(4).value).toBe(75);
+  });
 });
