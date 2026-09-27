@@ -774,11 +774,12 @@ function buildPlanAccion(plan: PlanAccion): (Paragraph | Table)[] {
         [
           new TableRow({
             children: [
-              tcH('N°', { w: 600 }),
-              tcH('Ámbito / Categoría', { w: 2200 }),
-              tcH('Meta SMART', { w: 3200 }),
-              tcH('Estrategia de Operación', { w: 2200 }),
-              tcH('Responsable', { w: 1800 }),
+              tcH('N°', { w: 500 }),
+              tcH('Ámbito / Categoría', { w: 1800 }),
+              tcH('Meta SMART', { w: 2600 }),
+              tcH('Estrategia de Operación', { w: 2000 }),
+              tcH('Responsable', { w: 1500 }),
+              tcH('Evidencia / Entregable', { w: 1600 }),
               tcH('Período', { w: 800 }),
             ],
           }),
@@ -789,17 +790,18 @@ function buildPlanAccion(plan: PlanAccion): (Paragraph | Table)[] {
               : 'N/D';
             return new TableRow({
               children: [
-                tc(String(idx + 1), { w: 600, align: AlignmentType.CENTER, fill: bg }),
-                tc(safeStr(m.nombre_categoria || m.categoria, 'Ámbito General'), { w: 2200, bold: true, fill: bg }),
-                tc(safeStr(m.meta, 'Meta en proceso'), { w: 3200, fill: bg }),
-                tc(safeStr(m.estrategia, 'Estrategia pedagógica'), { w: 2200, fill: bg }),
-                tc(safeStr(m.personal_designado, 'Colectivo Escolar'), { w: 1800, fill: bg }),
+                tc(String(idx + 1), { w: 500, align: AlignmentType.CENTER, fill: bg }),
+                tc(safeStr(m.nombre_categoria || m.categoria, 'Ámbito General'), { w: 1800, bold: true, fill: bg }),
+                tc(safeStr(m.meta, 'Meta en proceso'), { w: 2600, fill: bg }),
+                tc(safeStr(m.estrategia, 'Estrategia pedagógica'), { w: 2000, fill: bg }),
+                tc(safeStr(m.personal_designado, 'Colectivo Escolar'), { w: 1500, fill: bg }),
+                tc(safeStr(m.entregable, 'Evidencia documental'), { w: 1600, fill: bg }),
                 tc(periodo, { w: 800, align: AlignmentType.CENTER, fill: bg }),
               ],
             });
           }),
         ],
-        [600, 2200, 3200, 2200, 1800, 800]
+        [500, 1800, 2600, 2000, 1500, 1600, 800]
       )
     );
     items.push(...gap(2));

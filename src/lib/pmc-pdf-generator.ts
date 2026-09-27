@@ -679,6 +679,12 @@ export async function generatePmcPDF(
         : 'N/D',
     ]);
 
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(...BLUE_MID);
+    doc.text('Matriz General de Metas Institucionales y Plan de Acción:', margin, curY);
+    curY += 4;
+
     autoTable(doc, {
       startY: curY,
       head: [[
