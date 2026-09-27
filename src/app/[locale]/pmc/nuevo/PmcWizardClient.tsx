@@ -21,6 +21,11 @@ import {
   countPlantelFields,
   getPaecIngestionSummary,
 } from '@/lib/pmc/paec-diagnostic-fusion';
+import {
+  mapFinAnteriorToIndicadores,
+  mapInicioActualToIndicadores,
+  mapInicioAnteriorToIndicadores,
+} from '@/lib/pmc/indicadores-mapping';
 
 
 const PMC_DRAFT_KEY = 'didactica_pmc_draft';
@@ -795,69 +800,18 @@ interface PmcPreviousExtractDTO {
       };
 
       if (momento === 'fin_anterior') {
-        setIndicadores(p => {
-          const rawAb = json.data?.abandonoPorcentaje;
-          const rawEt = json.data?.eficienciaTerminal;
-          const rawRep = json.data?.reprobacionPorcentaje;
-          const rawAp = json.data?.aprobacionPorcentaje;
-
-          const abandonoAnt = toRealNumber(rawAb) ?? p.abandono_ant;
-          const etAnt = toRealNumber(rawEt) ?? p.et_ant;
-          const reprobAnt = toRealNumber(rawRep) ?? p.reprobacion_ant;
-          const aprobAnt = toRealNumber(rawAp) ?? p.aprobacion_ant;
-
-          const abandonoMeta = p.abandono_meta !== undefined
-            ? p.abandono_meta
-            : (abandonoAnt !== undefined && !isNaN(abandonoAnt)
-                ? Math.max(0, Math.round((abandonoAnt - 1.5) * 10) / 10)
-                : undefined);
-          const etMeta = p.et_meta !== undefined
-            ? p.et_meta
-            : (etAnt !== undefined && !isNaN(etAnt)
-                ? Math.min(100, Math.round((etAnt + 2) * 10) / 10)
-                : undefined);
-          const reprobMeta = p.reprobacion_meta !== undefined
-            ? p.reprobacion_meta
-            : (reprobAnt !== undefined && !isNaN(reprobAnt)
-                ? Math.max(0, Math.round((reprobAnt - 2) * 10) / 10)
-                : undefined);
-          const aprobMeta = p.aprobacion_meta !== undefined
-            ? p.aprobacion_meta
-            : (aprobAnt !== undefined && !isNaN(aprobAnt)
-                ? Math.min(100, Math.round((aprobAnt + 2) * 10) / 10)
-                : undefined);
-
-          return {
-            ...p,
-            matricula: toRealNumber(json.data?.matricula) ?? p.matricula,
-            matriculaAnterior: toRealNumber(json.data?.matriculaAnterior) ?? p.matriculaAnterior,
-            abandono_ant: abandonoAnt,
-            abandono_meta: abandonoMeta,
-            et_ant: etAnt,
-            et_meta: etMeta,
-            reprobacion_ant: reprobAnt,
-            reprobacion_meta: reprobMeta,
-            aprobacion_ant: aprobAnt,
-            aprobacion_meta: aprobMeta,
-          };
-        });
+        setIndicadores(p => mapFinAnteriorToIndicadores(json.data, p));
         if (json.data?.totalDocentes) syncStaffFrom911(json.data.totalDocentes);
         setDocsStatus(p => ({ ...p, n911FinAnt: true }));
         setSuccessBanner(`✓ 911 (Fin Ciclo Anterior) cargada: Abandono ${json.data?.abandonoPorcentaje || '?'}%, Eficiencia Terminal ${json.data?.eficienciaTerminal || '?'}%`);
       } else if (momento === 'inicio_actual') {
-        setIndicadores(p => ({
-          ...p,
-          matricula: json.data?.matricula ? Number(json.data.matricula) : p.matricula,
-        }));
+        setIndicadores(p => mapInicioActualToIndicadores(json.data, p));
         if (json.data?.totalDocentes) syncStaffFrom911(json.data.totalDocentes);
         setDocsStatus(p => ({ ...p, n911IniAct: true }));
         setSuccessBanner(`✓ 911 (Inicio Ciclo Actual) cargada: Matrícula vigente de ${json.data?.matricula || '?'} alumnos`);
       } else {
         // inicio_anterior
-        setIndicadores(p => ({
-          ...p,
-          matricula: p.matricula || (json.data?.matricula ? Number(json.data.matricula) : undefined),
-        }));
+        setIndicadores(p => mapInicioAnteriorToIndicadores(json.data, p));
         setDocsStatus(p => ({ ...p, n911IniAnt: true }));
         setSuccessBanner(`✓ 911 (Inicio Ciclo Anterior) cargada: Matrícula inicial de ${json.data?.matricula || '?'} alumnos`);
       }
