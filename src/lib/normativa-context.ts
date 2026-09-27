@@ -153,13 +153,70 @@ function buildNormativaBlock(rows: NormativaArticulo[], generador: GeneratorType
   return block;
 }
 
+export interface StructuredNormativaDoc {
+  orden: number;
+  titulo: string;
+  articulos: string[];
+  justificacion?: string;
+}
+
+/**
+ * Retorna la justificación jurídica e institucional de inclusión en el PMC
+ * con base en el título y jerarquía normativa (H-121a).
+ */
+export function getJustificacionNormativa(titulo: string): string {
+  const t = titulo.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  if (t.includes('constitucion')) {
+    return 'Garantiza el derecho humano a la educación obligatoria, universal, inclusiva y laica; establece el mandato constitucional de mejora continua de la educación.';
+  }
+  if (t.includes('ley general de educacion')) {
+    return 'Establece los fines de la educación nacional, la rectoría estatal en la mejora continua y el enfoque pedagógico comunitario y humanista.';
+  }
+  if (t.includes('carrera de las maestras') || t.includes('lgscmm')) {
+    return 'Fundamenta los derechos y obligaciones de actualización docente continua, trabajo colegiado y profesionalización situada del personal.';
+  }
+  if (t.includes('acuerdo') && (t.includes('09/08/23') || t.includes('mccems') || t.includes('marco curricular'))) {
+    return 'Norma las 8 categorías de gestión educativa del MCCEMS, recursos sociocognitivos, áreas del conocimiento y progresiones formativas en el BGE.';
+  }
+  if (t.includes('lineamiento') && t.includes('pmc')) {
+    return 'Establece las directrices técnicas oficiales, diagnóstico integral, formulación de metas CREAA y corresponsabilidad del colectivo escolar.';
+  }
+  if (t.includes('lineamiento') && (t.includes('paec') || t.includes('pec'))) {
+    return 'Regula el diseño e instrumentación de proyectos comunitarios integradores y su articulación transversal con el PMC escolar.';
+  }
+  if (t.includes('mejora continua')) {
+    return 'Orienta los procesos institucionales de diagnóstico, autoevaluación continua, intervención escolar y seguimiento pedagógico participativo.';
+  }
+  if (t.includes('derechos de las ninas') || t.includes('derechos de las ninos') || t.includes('nna')) {
+    return 'Salvaguarda el interés superior de la niñez y juventud, garantizando espacios escolares seguros, inclusivos y de bienestar integral.';
+  }
+  if (t.includes('seguridad') && t.includes('escolar')) {
+    return 'Norma los protocolos de convivencia pacífica, prevención de violencia escolar y entornos escolares protegidos.';
+  }
+  if (t.includes('puebla')) {
+    return 'Regula la planeación institucional, pertinencia contextual y coordinación sectorial en los planteles de Educación Media Superior de Puebla.';
+  }
+  if (t.includes('sectorial')) {
+    return 'Alinea los objetivos del plantel con las metas sectoriales de cobertura, permanencia, equidad y excelencia educativa.';
+  }
+  if (t.includes('ley')) {
+    return 'Marco legal rector que sustenta los derechos formativos de las y los aprendientes y la organización institucional del plantel.';
+  }
+  if (t.includes('acuerdo') || t.includes('reglamento')) {
+    return 'Disposición jurídica obligatoria que regula la operación académica y curricular en el nivel medio superior.';
+  }
+  return 'Sustenta la planeación estratégica participativa, los compromisos colegiados y las metas formativas anuales del plantel.';
+}
+
 /**
  * Obtiene la normativa estructurada para los generadores de DOCX y UI,
- * omitiendo el texto largo de los artículos y listando solo los números.
+ * omitiendo el texto largo de los artículos y listando solo los números,
+ * incorporando la justificación de inclusión en el PMC.
  */
 export async function getStructuredNormativaForGenerator(
   generador: GeneratorType
-): Promise<Array<{ orden: number; titulo: string; articulos: string[] }>> {
+): Promise<StructuredNormativaDoc[]> {
   try {
     const db = sql();
 
@@ -185,21 +242,22 @@ export async function getStructuredNormativaForGenerator(
       if (!byDoc.has(key)) {
         byDoc.set(key, { orden: row.orden_display, articulos: [] });
       }
-      // H-112: filtrar placeholders antes de insertar en la lista
+      // H-112/H-119: filtrar placeholders antes de insertar en la lista
       if (!isPlaceholderArticulo(row.numero)) {
         byDoc.get(key)!.articulos.push(row.numero);
       }
     }
 
-    const result = Array.from(byDoc.entries()).map(([titulo, data]) => ({
+    const result: StructuredNormativaDoc[] = Array.from(byDoc.entries()).map(([titulo, data]) => ({
       orden: data.orden,
       titulo,
       articulos: data.articulos,
+      justificacion: getJustificacionNormativa(titulo),
     }));
 
     result.sort((a, b) => a.orden - b.orden);
 
-    // Reasignar orden secuencial para la presentación
+    // Reasignar orden secuencial para la presentación global
     return result.map((doc, idx) => ({ ...doc, orden: idx + 1 }));
   } catch (error) {
     logger.error('[normativa-context] Error obteniendo normativa estructurada de BD:', error);
@@ -210,32 +268,112 @@ export async function getStructuredNormativaForGenerator(
 /**
  * Fallback estructurado para cuando la BD falla o está vacía.
  */
-function getStructuredFallback(generador: GeneratorType): Array<{ orden: number; titulo: string; articulos: string[] }> {
-  const fallbacks: Record<GeneratorType, Array<{ orden: number; titulo: string; articulos: string[] }>> = {
+function getStructuredFallback(generador: GeneratorType): StructuredNormativaDoc[] {
+  const fallbacks: Record<GeneratorType, StructuredNormativaDoc[]> = {
     pmc: [
-      { orden: 1, titulo: "Constitución Política de los Estados Unidos Mexicanos", articulos: ["Artículo 3°"] },
-      { orden: 2, titulo: "Ley General de Educación (2019)", articulos: ["Artículo 14", "Artículo 16", "Artículo 18"] },
-      { orden: 3, titulo: "Ley General del Sistema para la Carrera de las Maestras y los Maestros (2019)", articulos: ["Artículo 4°", "Artículo 69"] },
-      { orden: 4, titulo: "Acuerdo Secretarial 09/08/23 (MCCEMS)", articulos: ["8 categorías de gestión educativa para la mejora continua"] },
-      { orden: 5, titulo: "Lineamientos para la Planeación de la Mejora Continua 2025-2026 de la SEMS / MCCEMS", articulos: ["Metodología PMC para planteles BGE"] }
+      {
+        orden: 1,
+        titulo: "Constitución Política de los Estados Unidos Mexicanos",
+        articulos: ["Artículo 3°"],
+        justificacion: getJustificacionNormativa("Constitución Política de los Estados Unidos Mexicanos"),
+      },
+      {
+        orden: 2,
+        titulo: "Ley General de Educación (2019)",
+        articulos: ["Artículo 14", "Artículo 16", "Artículo 18"],
+        justificacion: getJustificacionNormativa("Ley General de Educación (2019)"),
+      },
+      {
+        orden: 3,
+        titulo: "Ley General del Sistema para la Carrera de las Maestras y los Maestros (2019)",
+        articulos: ["Artículo 4°", "Artículo 69"],
+        justificacion: getJustificacionNormativa("Ley General del Sistema para la Carrera de las Maestras y los Maestros (2019)"),
+      },
+      {
+        orden: 4,
+        titulo: "Acuerdo Secretarial 09/08/23 (MCCEMS)",
+        articulos: ["8 categorías de gestión educativa para la mejora continua"],
+        justificacion: getJustificacionNormativa("Acuerdo Secretarial 09/08/23 (MCCEMS)"),
+      },
+      {
+        orden: 5,
+        titulo: "Lineamientos para la Planeación de la Mejora Continua 2025-2026 de la SEMS / MCCEMS",
+        articulos: ["Metodología PMC para planteles BGE"],
+        justificacion: getJustificacionNormativa("Lineamientos para la Planeación de la Mejora Continua 2025-2026 de la SEMS / MCCEMS"),
+      },
     ],
     paec: [
-      { orden: 1, titulo: "Constitución Política de los Estados Unidos Mexicanos", articulos: ["Artículo 3°"] },
-      { orden: 2, titulo: "Ley General de Educación (2019)", articulos: ["Artículo 18"] },
-      { orden: 3, titulo: "Acuerdo Secretarial 09/08/23 (MCCEMS)", articulos: ["Aprendizajes situados, comunitarios y críticos"] },
-      { orden: 4, titulo: "Lineamientos PAEC-PEC MCCEMS 2026-2027", articulos: ["Estructura y criterios del Proyecto Escolar Comunitario"] }
+      {
+        orden: 1,
+        titulo: "Constitución Política de los Estados Unidos Mexicanos",
+        articulos: ["Artículo 3°"],
+        justificacion: getJustificacionNormativa("Constitución Política de los Estados Unidos Mexicanos"),
+      },
+      {
+        orden: 2,
+        titulo: "Ley General de Educación (2019)",
+        articulos: ["Artículo 18"],
+        justificacion: getJustificacionNormativa("Ley General de Educación (2019)"),
+      },
+      {
+        orden: 3,
+        titulo: "Acuerdo Secretarial 09/08/23 (MCCEMS)",
+        articulos: ["Aprendizajes situados, comunitarios y críticos"],
+        justificacion: getJustificacionNormativa("Acuerdo Secretarial 09/08/23 (MCCEMS)"),
+      },
+      {
+        orden: 4,
+        titulo: "Lineamientos PAEC-PEC MCCEMS 2026-2027",
+        articulos: ["Estructura y criterios del Proyecto Escolar Comunitario"],
+        justificacion: getJustificacionNormativa("Lineamientos PAEC-PEC MCCEMS 2026-2027"),
+      },
     ],
     pips: [
-      { orden: 1, titulo: "Constitución Política de los Estados Unidos Mexicanos", articulos: ["Artículo 3°"] },
-      { orden: 2, titulo: "Ley General de Educación (2019)", articulos: ["Artículo 14", "Artículo 16", "Artículo 44", "Artículo 46"] },
-      { orden: 3, titulo: "Ley de Educación del Estado de Puebla", articulos: ["Atribuciones de la supervisión en EMS"] },
-      { orden: 4, titulo: "Lineamientos PIPS SEMS / MCCEMS", articulos: ["Elaboración, seguimiento y evaluación del Plan de Supervisión"] }
+      {
+        orden: 1,
+        titulo: "Constitución Política de los Estados Unidos Mexicanos",
+        articulos: ["Artículo 3°"],
+        justificacion: getJustificacionNormativa("Constitución Política de los Estados Unidos Mexicanos"),
+      },
+      {
+        orden: 2,
+        titulo: "Ley General de Educación (2019)",
+        articulos: ["Artículo 14", "Artículo 16", "Artículo 44", "Artículo 46"],
+        justificacion: getJustificacionNormativa("Ley General de Educación (2019)"),
+      },
+      {
+        orden: 3,
+        titulo: "Ley de Educación del Estado de Puebla",
+        articulos: ["Atribuciones de la supervisión en EMS"],
+        justificacion: getJustificacionNormativa("Ley de Educación del Estado de Puebla"),
+      },
+      {
+        orden: 4,
+        titulo: "Lineamientos PIPS SEMS / MCCEMS",
+        articulos: ["Elaboración, seguimiento y evaluación del Plan de Supervisión"],
+        justificacion: getJustificacionNormativa("Lineamientos PIPS SEMS / MCCEMS"),
+      },
     ],
     planeacion: [
-      { orden: 1, titulo: "Constitución Política de los Estados Unidos Mexicanos", articulos: ["Artículo 3°"] },
-      { orden: 2, titulo: "Acuerdo Secretarial 09/08/23 (MCCEMS)", articulos: ["Marcos Curriculares por componente"] },
-      { orden: 3, titulo: "Lineamientos de planeación MCCEMS", articulos: ["Estructura de la planeación didáctica BGE"] }
-    ]
+      {
+        orden: 1,
+        titulo: "Constitución Política de los Estados Unidos Mexicanos",
+        articulos: ["Artículo 3°"],
+        justificacion: getJustificacionNormativa("Constitución Política de los Estados Unidos Mexicanos"),
+      },
+      {
+        orden: 2,
+        titulo: "Acuerdo Secretarial 09/08/23 (MCCEMS)",
+        articulos: ["Marcos Curriculares por componente"],
+        justificacion: getJustificacionNormativa("Acuerdo Secretarial 09/08/23 (MCCEMS)"),
+      },
+      {
+        orden: 3,
+        titulo: "Lineamientos de planeación MCCEMS",
+        articulos: ["Estructura de la planeación didáctica BGE"],
+        justificacion: getJustificacionNormativa("Lineamientos de planeación MCCEMS"),
+      },
+    ],
   };
   return fallbacks[generador] || fallbacks.pmc;
 }

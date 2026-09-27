@@ -6,6 +6,7 @@
  */
 
 import { SCHOOL_YEAR } from '@/lib/config';
+import { getJustificacionNormativa } from './normativa-context';
 
 export interface PmcSubseccionDef {
   id: string;
@@ -98,6 +99,7 @@ export interface JerarquiaNormativaGrupo {
     orden?: number;
     titulo: string;
     articulos?: string[];
+    justificacion?: string;
   }>;
 }
 
@@ -106,51 +108,62 @@ export interface JerarquiaNormativaGrupo {
  * A. Leyes y Disposiciones Constitucionales
  * B. Reglamentos, Acuerdos Secretariales y Marco Curricular
  * C. Lineamientos, Planes y Manuales Oficiales
+ *
+ * H-121c: Renumera los documentos secuencialmente (1..n) dentro de cada grupo para
+ * eliminar huecos en la presentación oficial.
  */
 export function clasificarNormativaJerarquica(
-  documentos: Array<{ orden?: number; titulo?: string; articulos?: string[] }>
+  documentos: Array<{ orden?: number; titulo?: string; articulos?: string[]; justificacion?: string }>
 ): JerarquiaNormativaGrupo[] {
-  const leyes: Array<{ orden?: number; titulo: string; articulos?: string[] }> = [];
-  const acuerdos: Array<{ orden?: number; titulo: string; articulos?: string[] }> = [];
-  const lineamientos: Array<{ orden?: number; titulo: string; articulos?: string[] }> = [];
+  const leyes: Array<{ orden?: number; titulo: string; articulos?: string[]; justificacion?: string }> = [];
+  const acuerdos: Array<{ orden?: number; titulo: string; articulos?: string[]; justificacion?: string }> = [];
+  const lineamientos: Array<{ orden?: number; titulo: string; articulos?: string[]; justificacion?: string }> = [];
 
   for (const doc of documentos) {
     if (!doc?.titulo) continue;
     const t = doc.titulo.toLowerCase();
+    const docWithJust = {
+      orden: doc.orden,
+      titulo: doc.titulo,
+      articulos: doc.articulos,
+      justificacion: doc.justificacion || getJustificacionNormativa(doc.titulo),
+    };
+
     if (t.includes('constitución') || t.includes('constitucion') || t.includes('ley')) {
-      leyes.push({ orden: doc.orden, titulo: doc.titulo, articulos: doc.articulos });
+      leyes.push(docWithJust);
     } else if (
       t.includes('acuerdo') ||
       t.includes('reglamento') ||
       t.includes('mccems') ||
       t.includes('marco curricular')
     ) {
-      acuerdos.push({ orden: doc.orden, titulo: doc.titulo, articulos: doc.articulos });
+      acuerdos.push(docWithJust);
     } else {
-      lineamientos.push({ orden: doc.orden, titulo: doc.titulo, articulos: doc.articulos });
+      lineamientos.push(docWithJust);
     }
   }
 
   const grupos: JerarquiaNormativaGrupo[] = [];
+  // H-121c: Renumerar documentos 1..n dentro de cada grupo para evitar huecos en la presentación
   if (leyes.length > 0) {
     grupos.push({
       clave: 'A',
       categoria: 'A. LEYES Y DISPOSICIONES CONSTITUCIONALES',
-      documentos: leyes,
+      documentos: leyes.map((d, idx) => ({ ...d, orden: idx + 1 })),
     });
   }
   if (acuerdos.length > 0) {
     grupos.push({
       clave: 'B',
       categoria: 'B. REGLAMENTOS, ACUERDOS SECRETARIALES Y MARCO CURRICULAR',
-      documentos: acuerdos,
+      documentos: acuerdos.map((d, idx) => ({ ...d, orden: idx + 1 })),
     });
   }
   if (lineamientos.length > 0) {
     grupos.push({
       clave: 'C',
       categoria: 'C. LINEAMIENTOS, PLANES Y MANUALES OFICIALES (SEMS / SEP PUEBLA)',
-      documentos: lineamientos,
+      documentos: lineamientos.map((d, idx) => ({ ...d, orden: idx + 1 })),
     });
   }
 
@@ -158,10 +171,11 @@ export function clasificarNormativaJerarquica(
     grupos.push({
       clave: 'A',
       categoria: 'A. MARCO NORMATIVO GENERAL',
-      documentos: documentos.map((d) => ({
-        orden: d.orden,
+      documentos: documentos.map((d, idx) => ({
+        orden: idx + 1,
         titulo: d.titulo || 'Disposición Normativa Oficial',
         articulos: d.articulos,
+        justificacion: d.justificacion || getJustificacionNormativa(d.titulo || ''),
       })),
     });
   }

@@ -157,10 +157,19 @@ describe('H-100 / H-101: SSoT Estructura Documental y Paridad PDF vs DOCX', () =
     expect(grupos).toHaveLength(3);
     expect(grupos[0].clave).toBe('A');
     expect(grupos[0].categoria).toContain('LEYES');
+    expect(grupos[0].documentos[0].orden).toBe(1);
+    expect(grupos[0].documentos[0].justificacion).toBeDefined();
+    expect(grupos[0].documentos[0].justificacion!.length).toBeGreaterThan(20);
+
     expect(grupos[1].clave).toBe('B');
     expect(grupos[1].categoria).toContain('REGLAMENTOS');
+    expect(grupos[1].documentos[0].orden).toBe(1); // Renumerado a 1 sin hueco (H-121c)
+    expect(grupos[1].documentos[0].justificacion).toContain('MCCEMS');
+
     expect(grupos[2].clave).toBe('C');
     expect(grupos[2].categoria).toContain('LINEAMIENTOS');
+    expect(grupos[2].documentos[0].orden).toBe(1); // Renumerado a 1 sin hueco (H-121c)
+    expect(grupos[2].documentos[0].justificacion).toBeDefined();
 
     const objText = getObjetivoPmcText('Plantel Test', '2026-2027');
     expect(objText).toContain('2026-2027');
