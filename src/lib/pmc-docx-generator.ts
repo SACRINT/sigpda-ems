@@ -520,7 +520,7 @@ function buildNormativa(normativa?: NormativaDoc | null): (Paragraph | Table)[] 
   for (const grp of grupos) {
     items.push(
       new Paragraph({
-        spacing: { before: 180, after: 80 },
+        spacing: { before: 200, after: 100 },
         children: [
           new TextRun({
             text: grp.categoria,
@@ -533,33 +533,43 @@ function buildNormativa(normativa?: NormativaDoc | null): (Paragraph | Table)[] 
       })
     );
 
-    for (const doc of grp.documentos) {
-      items.push(
-        new Paragraph({
-          spacing: { before: 100, after: 40 },
+    const headerRow = new TableRow({
+      tableHeader: true,
+      children: [
+        tcH('#', { w: 600, align: AlignmentType.CENTER }),
+        tcH('Disposición Legal / Normativa', { w: 3100 }),
+        tcH('Artículos Aplicables', { w: 2800 }),
+        tcH('Justificación de Inclusión en el PMC', { w: 4300 }),
+      ],
+    });
+
+    const rows: TableRow[] = [headerRow];
+    grp.documentos.forEach((doc, idx) => {
+      const fill = idx % 2 === 0 ? C.white : C.alt;
+      const articulosTexto = Array.isArray(doc.articulos) && doc.articulos.length > 0
+        ? doc.articulos.join(', ')
+        : 'Disposición general';
+      const justificacionTexto = safeStr(
+        doc.justificacion,
+        'Sustenta la planeación estratégica y metas formativas del plantel.'
+      );
+
+      rows.push(
+        new TableRow({
           children: [
-            new TextRun({
-              text: `${doc.orden != null ? `${doc.orden}. ` : ''}${safeStr(doc.titulo)}`,
-              bold: true,
-              size: 19,
-              color: C.accent,
-              font: 'Arial',
-            }),
+            tc(String(doc.orden ?? idx + 1), { w: 600, fill, bold: true, align: AlignmentType.CENTER }),
+            tc(safeStr(doc.titulo), { w: 3100, fill, bold: true }),
+            tc(articulosTexto, { w: 2800, fill }),
+            tc(justificacionTexto, { w: 4300, fill }),
           ],
         })
       );
-      if (Array.isArray(doc.articulos)) {
-        for (const art of doc.articulos) {
-          items.push(
-            new Paragraph({
-              bullet: { level: 0 },
-              spacing: { before: 30, after: 30 },
-              children: [new TextRun({ text: safeStr(art), size: 18, font: 'Arial', color: C.text })],
-            })
-          );
-        }
-      }
-    }
+    });
+
+    items.push(
+      tbl(rows, [600, 3100, 2800, 4300]),
+      ...gap(1)
+    );
   }
 
   items.push(new Paragraph({ children: [new PageBreak()] }));

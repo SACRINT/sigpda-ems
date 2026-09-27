@@ -395,9 +395,10 @@ export async function generatePmcPDF(
     curY += 4;
 
     const normRows = grp.documentos.map((nd, i) => [
-      { content: `${nd.orden ?? i + 1}`, styles: { fontStyle: 'bold' as const, halign: 'center' as const, cellWidth: 8, fillColor: GRAY_BG } },
-      { content: safeStr(nd.titulo), styles: { fontStyle: 'bold' as const, cellWidth: 60 } },
-      { content: Array.isArray(nd.articulos) ? nd.articulos.join('\n• ') : safeStr(nd.articulos) },
+      { content: `${nd.orden ?? i + 1}` },
+      { content: safeStr(nd.titulo) },
+      { content: Array.isArray(nd.articulos) && nd.articulos.length > 0 ? nd.articulos.join('\n• ') : 'Disposición general' },
+      { content: safeStr(nd.justificacion, 'Sustenta la planeación estratégica y metas formativas del plantel.') },
     ]);
 
     autoTable(doc, {
@@ -405,11 +406,18 @@ export async function generatePmcPDF(
       head: [[
         { content: '#', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], halign: 'center' } },
         { content: 'Disposición Legal / Normativa', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
-        { content: 'Artículos y Vinculación con el PMC', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
+        { content: 'Artículos Aplicables', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
+        { content: 'Justificación de Inclusión en el PMC', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
       ]],
       body: normRows,
       theme: 'grid',
-      styles: { fontSize: 7, cellPadding: 2, textColor: TEXT_DARK, lineColor: [210, 220, 235] },
+      columnStyles: {
+        0: { cellWidth: 8, halign: 'center' as const, fontStyle: 'bold' as const, fillColor: GRAY_BG },
+        1: { cellWidth: 52, fontStyle: 'bold' as const },
+        2: { cellWidth: 42 },
+        3: { cellWidth: 84 },
+      },
+      styles: { fontSize: 6.8, cellPadding: 2, textColor: TEXT_DARK, lineColor: [210, 220, 235] },
       margin: { left: margin, right: margin },
     });
 
