@@ -488,25 +488,34 @@ function evalC11_AusenciaTerminosProhibidos(p: PmcProject): PmcAuditCriterion {
   const metasInst = Array.isArray(plan?.metas_institucionales) ? plan!.metas_institucionales : [];
   const metasPers = Array.isArray(plan?.metas_personales) ? plan!.metas_personales : [];
   const totalMetas = metasInst.length + metasPers.length;
+  const diag = p.diagnostico_generado as PmcDiagnosticoGenerado | null | undefined;
+  const foda = p.foda as PmcFodaData | null | undefined;
+
+  const hasContentToAudit = totalMetas > 0 || !!diag || !!foda;
 
   let score = 0;
   let status: 'pass' | 'warning' | 'fail' = 'fail';
-  let feedback = 'Sin plan de acción registrado para evaluar términos normativos.';
-  let evidenceFound = '0 metas registradas en el plan de acción.';
+  let feedback = 'Sin plan de acción ni diagnóstico registrados para evaluar términos normativos.';
+  let evidenceFound = 'Sin contenido registrado para auditar términos normativos.';
 
-  if (totalMetas > 0) {
-    const forbiddenMatches = findForbiddenPlatformTerms(plan);
+  if (hasContentToAudit) {
+    const forbiddenMatches = [
+      ...findForbiddenPlatformTerms(plan),
+      ...findForbiddenPlatformTerms(diag),
+      ...findForbiddenPlatformTerms(foda),
+    ];
+
     if (forbiddenMatches.length > 0) {
       score = 0;
       status = 'fail';
       const uniqueTerms = Array.from(new Set(forbiddenMatches.map(t => t.toUpperCase())));
-      feedback = `El plan de acción contiene términos prohibidos de plataforma interna (${uniqueTerms.join(', ')}). Las metas oficiales no deben mencionar marcas de software privado conforme a los lineamientos oficiales SEMS Puebla.`;
-      evidenceFound = `Se detectaron ${forbiddenMatches.length} mención(es) prohibida(s) de plataforma privada: [${uniqueTerms.join(', ')}].`;
+      feedback = `El proyecto contiene términos prohibidos de plataforma interna (${uniqueTerms.join(', ')}). El PMC oficial no debe mencionar marcas de software privado conforme a los lineamientos oficiales SEMS Puebla.`;
+      evidenceFound = `Se detectaron ${forbiddenMatches.length} mención(es) prohibida(s) de plataforma privada en contenido oficial: [${uniqueTerms.join(', ')}].`;
     } else {
       score = 10;
       status = 'pass';
-      feedback = 'Plan de acción cumple con la normativa oficial SEP/SEMS: libre de menciones a plataformas o marcas de software privado.';
-      evidenceFound = `${totalMetas} metas analizadas sin menciones a marcas de software privado.`;
+      feedback = 'Documento cumple con la normativa oficial SEP/SEMS: plan de acción, diagnóstico y FODA libres de menciones a plataformas o marcas de software privado.';
+      evidenceFound = `Contenido analizado (${totalMetas} metas, diagnóstico y FODA) sin menciones a marcas de software privado.`;
     }
   }
 
@@ -514,7 +523,7 @@ function evalC11_AusenciaTerminosProhibidos(p: PmcProject): PmcAuditCriterion {
     id: 'PMC-C11',
     dimension: PMC_DIMENSIONS.DIM4,
     name: 'Ausencia de Términos Prohibidos y Marcas de Plataforma',
-    description: 'Verifica que el plan de acción no mencione marcas ni sistemas privados (SIGPDA/SIGPDA-EMS), garantizando la estricta naturaleza oficial del documento PMC.',
+    description: 'Verifica que el plan de acción, diagnóstico y FODA no mencionen marcas ni sistemas privados (SIGPDA/SIGPDA-EMS), garantizando la estricta naturaleza oficial del documento PMC.',
     weight: 10,
     maxScore: 10,
     score,

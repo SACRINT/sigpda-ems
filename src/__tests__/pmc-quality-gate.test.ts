@@ -236,6 +236,44 @@ describe('pmc-quality-gate — calculateGlobalPmcScore', () => {
     expect(c8!.feedback).toContain('plataformas privadas');
   });
 
+  it('diagnostico_generado con termino prohibido "SIGPDA" -> criterio PMC-C11 en fail', () => {
+    const contaminatedDiagProject: PmcProject = {
+      ...COMPLETE_PROJECT,
+      id: 'pmc-test-contaminated-diag',
+      diagnostico_generado: {
+        presentacion: 'Presentación oficial con registro en SIGPDA para seguimiento colegiado.',
+        contexto: 'Contexto escolar regular.',
+        analisis_indicadores: 'Indicadores académicos dentro de la norma.',
+        sintesis_foda: 'Síntesis FODA equilibrada.',
+        priorizacion: 'Priorización de metas de mejora continua.',
+      },
+    };
+    const audit = calculateGlobalPmcScore(contaminatedDiagProject);
+    const c11 = audit.criteria.find(c => c.id === 'PMC-C11');
+    expect(c11).toBeDefined();
+    expect(c11!.status).toBe('fail');
+    expect(c11!.score).toBe(0);
+    expect(c11!.feedback).toContain('términos prohibidos de plataforma interna');
+    expect(c11!.evidenceFound).toContain('SIGPDA');
+  });
+
+  it('foda con termino prohibido "SIGPDA-EMS" -> criterio PMC-C11 en fail', () => {
+    const contaminatedFodaProject: PmcProject = {
+      ...COMPLETE_PROJECT,
+      id: 'pmc-test-contaminated-foda',
+      foda: {
+        ...COMPLETE_PROJECT.foda!,
+        fortalezas: 'Uso intensivo del sistema SIGPDA-EMS para análisis situacional.',
+      },
+    };
+    const audit = calculateGlobalPmcScore(contaminatedFodaProject);
+    const c11 = audit.criteria.find(c => c.id === 'PMC-C11');
+    expect(c11).toBeDefined();
+    expect(c11!.status).toBe('fail');
+    expect(c11!.score).toBe(0);
+    expect(c11!.evidenceFound).toContain('SIGPDA-EMS');
+  });
+
   it('auditPmcProject es alias exacto de calculateGlobalPmcScore', () => {
     const r1 = calculateGlobalPmcScore(COMPLETE_PROJECT);
     const r2 = auditPmcProject(COMPLETE_PROJECT);
