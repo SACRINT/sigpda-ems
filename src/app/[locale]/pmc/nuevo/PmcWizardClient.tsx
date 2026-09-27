@@ -2936,7 +2936,6 @@ interface PaecProjectForPmc {
             )}
 
             {/* Download buttons */}
-            {/* Download buttons */}
             <div style={sectionCard}>
               <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#818cf8', marginBottom: '18px' }}>📥 Documentos Oficiales y Entregables</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>

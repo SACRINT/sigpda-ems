@@ -896,7 +896,7 @@ export async function generatePmcDocxMaestro(
   const cap7 = [
     h1('Capítulo VII. Recursos, Vinculación y Plantilla del Plantel'),
     p(
-      `El capital humano de ${schoolName} constituye el eje rector para el logro de las metas del PMC. Con base en los registros oficiales según la plantilla registrada en el wizard o el módulo de personal, la plantilla activa se estructura de la siguiente manera:`
+      `El capital humano de ${schoolName} constituye el eje rector para el logro de las metas del PMC. Con base en la plantilla registrada en el wizard o el módulo de personal, la plantilla activa se estructura de la siguiente manera:`
     ),
     new Table({
       width: { size: CONTENT_W, type: WidthType.DXA },
