@@ -14,7 +14,13 @@ import { toRealNumber } from '@/lib/numeric-guard';
 import { computeCoverage } from '@/lib/coverage-core';
 import { reconcilePmcStaff, derivePersonalMetasFromStaff, normalizeStaffName } from '@/lib/pmc/staff-reconciler';
 import { deduplicateMetasInstitucionales } from '@/lib/pmc-meta-deduplicator';
-import { mergePaecIntoDiagnostic, preservePaecOnPmcLoad, buildPaecDiagnosticParts } from '@/lib/pmc/paec-diagnostic-fusion';
+import {
+  mergePaecIntoDiagnostic,
+  preservePaecOnPmcLoad,
+  buildPaecDiagnosticParts,
+  countPlantelFields,
+  getPaecIngestionSummary,
+} from '@/lib/pmc/paec-diagnostic-fusion';
 
 
 const PMC_DRAFT_KEY = 'didactica_pmc_draft';
@@ -920,6 +926,8 @@ interface PmcPreviousExtractDTO {
       if (typeof sCtx.municipality === 'string' && sCtx.municipality && !municipality) setMunicipality(sCtx.municipality);
       if (typeof sCtx.locality === 'string' && sCtx.locality && !locality) setLocality(sCtx.locality);
 
+      const plantelFieldsExtracted = countPlantelFields(sCtx);
+
       const paecDiagParts = buildPaecDiagnosticParts(
         {
           context: cCtx.context,
@@ -933,14 +941,18 @@ interface PmcPreviousExtractDTO {
         }
       );
 
-      if (paecDiagParts.length > 0) {
-        const combined = paecDiagParts.join('\n\n');
-        setDiagnosticoComunidad(prev => mergePaecIntoDiagnostic(prev, combined));
+      const summary = getPaecIngestionSummary(paecDiagParts.length, plantelFieldsExtracted);
+
+      if (summary.isSuccess) {
+        if (paecDiagParts.length > 0) {
+          const combined = paecDiagParts.join('\n\n');
+          setDiagnosticoComunidad(prev => mergePaecIntoDiagnostic(prev, combined));
+        }
         setDocsStatus(prev => ({ ...prev, paecAnt: true }));
-        setSuccessBanner(`✓ Documento PAEC procesado exitosamente: ${paecDiagParts.length} campos extraídos e integrados al diagnóstico y datos de plantel.`);
+        setSuccessBanner(summary.message);
       } else {
         setDocsStatus(prev => ({ ...prev, paecAnt: false }));
-        setError('El documento PAEC fue analizado, pero no se extrajeron campos comunitarios ni de problemática (0 campos extraídos). Revisa el contenido del archivo.');
+        setError(summary.message);
       }
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : 'No se pudo procesar el PAEC anterior.';

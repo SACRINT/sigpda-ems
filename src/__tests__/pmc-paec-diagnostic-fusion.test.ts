@@ -13,6 +13,8 @@ import {
   mergePaecIntoDiagnostic,
   preservePaecOnPmcLoad,
   buildPaecDiagnosticParts,
+  countPlantelFields,
+  getPaecIngestionSummary,
 } from '@/lib/pmc/paec-diagnostic-fusion';
 
 describe('PAEC Diagnostic Fusion (H-160 regression)', () => {
@@ -123,4 +125,67 @@ describe('PAEC Diagnostic Fusion (H-160 regression)', () => {
     // All 5 fields are non-empty → 5 parts
     expect(parts).toHaveLength(5);
   });
+
+  // ── countPlantelFields & getPaecIngestionSummary (H-167) ───────────────────
+
+  it('10. countPlantelFields counts non-empty strings and filters null/undefined/empty', () => {
+    const school = {
+      schoolName: 'Telebachillerato 12',
+      cct: '30ETH0012A',
+      directorName: 'Prof. Juan Pérez',
+      supervisorName: 'Mtro. Luis Gómez',
+      schoolZone: '04',
+      municipality: '',
+      locality: '   ',
+    };
+    // 5 non-empty fields (municipality is empty, locality is whitespace)
+    expect(countPlantelFields(school)).toBe(5);
+    expect(countPlantelFields(null)).toBe(0);
+    expect(countPlantelFields(undefined)).toBe(0);
+  });
+
+  it('11. getPaecIngestionSummary formats banner with both community + plantel counts', () => {
+    const summary = getPaecIngestionSummary(4, 5);
+    expect(summary.isSuccess).toBe(true);
+    expect(summary.status).toBe('both');
+    expect(summary.totalCount).toBe(9);
+    expect(summary.communityCount).toBe(4);
+    expect(summary.plantelCount).toBe(5);
+    expect(summary.message).toContain('9 campos extraídos');
+    expect(summary.message).toContain('4 comunitarios + 5 de plantel');
+  });
+
+  it('12. getPaecIngestionSummary treats plantel-only extraction as success (H-167 core fix)', () => {
+    // When 0 community fields but 3 plantel fields (CCT, director, zona)
+    const summary = getPaecIngestionSummary(0, 3);
+    expect(summary.isSuccess).toBe(true);
+    expect(summary.status).toBe('plantel_only');
+    expect(summary.totalCount).toBe(3);
+    expect(summary.plantelCount).toBe(3);
+    // Must NOT say "0 campos extraídos" or treat as failure
+    expect(summary.message).toContain('3 campos de plantel extraídos');
+    expect(summary.message).not.toContain('0 campos');
+  });
+
+  it('13. getPaecIngestionSummary reports failure only when 0 community AND 0 plantel', () => {
+    const summary = getPaecIngestionSummary(0, 0);
+    expect(summary.isSuccess).toBe(false);
+    expect(summary.status).toBe('none');
+    expect(summary.totalCount).toBe(0);
+    expect(summary.message).toContain('no se extrajeron campos de plantel ni comunitarios');
+  });
+
+  it('14. Full 7 plantel fields are counted when all are provided', () => {
+    const allFields = {
+      schoolName: 'CBTIS 123',
+      cct: '21DCT0001Z',
+      directorName: 'Ing. Carlos Robles',
+      supervisorName: 'Dra. María Elena Ramos',
+      schoolZone: '02',
+      municipality: 'Puebla',
+      locality: 'San Jerónimo',
+    };
+    expect(countPlantelFields(allFields)).toBe(7);
+  });
 });
+
