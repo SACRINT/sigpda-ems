@@ -113,6 +113,7 @@ describe('Excel Oficial de Supervisión Escolar (FASE 1)', () => {
       'META: % ESTUDIANTES APROBADOS (SEM A Y B)',
       'META: % EFICIENCIA TERMINAL GENERACIÓN 2024-2027',
       'META: % ABANDONO ESCOLAR',
+      'META DE MATRÍCULA',
     ];
 
     // Generar libro con nuestro generador y validar byte a byte
@@ -231,11 +232,12 @@ describe('Excel Oficial de Supervisión Escolar (FASE 1)', () => {
     const r3 = ws3.getRow(3);
     expect(r3.getCell(1).value).toBe('Bachillerato Venustiano Carranza');
     expect(r3.getCell(2).value).toBe('21EBH0015A');
-    expect(r3.getCell(4).value).toBe(160); // Meta matrícula
+    expect(r3.getCell(4).value).toBe(150); // Matrícula factual agosto 2026
     expect(r3.getCell(5).value).toBe(8.8); // Meta promedio
     expect(r3.getCell(7).value).toBe(95.0); // Meta aprobados %
     expect(r3.getCell(8).value).toBe(91.0); // Meta ET %
     expect(r3.getCell(9).value).toBe(3.0); // Meta abandono %
+    expect(r3.getCell(10).value).toBe(160); // Meta de matrícula
 
     // Validación cruzada con strings producidos por SSoT
     expect(expectedSSoT.matricula.ant).toContain('150');

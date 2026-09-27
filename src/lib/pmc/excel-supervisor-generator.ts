@@ -224,6 +224,7 @@ export async function generatePmcSupervisorExcel(project: PmcSupervisorExcelInpu
     { key: 'aprobados_pct', width: 22 },
     { key: 'eficiencia', width: 24 },
     { key: 'abandono', width: 18 },
+    { key: 'matricula_meta', width: 22 },
   ];
 
   const ws3TitleRow = ws3.addRow(['METAS: Para el ciclo escolar 2026-2027']);
@@ -241,6 +242,7 @@ export async function generatePmcSupervisorExcel(project: PmcSupervisorExcelInpu
     'META: % ESTUDIANTES APROBADOS (SEM A Y B)',
     'META: % EFICIENCIA TERMINAL GENERACIÓN 2024-2027',
     'META: % ABANDONO ESCOLAR',
+    'META DE MATRÍCULA',
   ];
 
   const ws3HeaderRow = ws3.addRow(ws3Headers);
@@ -260,6 +262,7 @@ export async function generatePmcSupervisorExcel(project: PmcSupervisorExcelInpu
     cct: string;
     turno: string;
     // Hoja 2 (Punto de partida)
+    matCierreAnt?: number;
     matAnt?: number;
     promAnt?: number;
     apNumAnt?: number;
@@ -267,6 +270,7 @@ export async function generatePmcSupervisorExcel(project: PmcSupervisorExcelInpu
     etAnt?: number;
     abAnt?: number;
     // Hoja 3 (METAS)
+    matAgosto?: number;
     matMeta?: number;
     promMeta?: number;
     apNumMeta?: number;
@@ -291,30 +295,38 @@ export async function generatePmcSupervisorExcel(project: PmcSupervisorExcelInpu
         }
       );
 
+      const pStats = p as unknown as Record<string, unknown>;
+      const matCierreAnt = typeof pStats.matriculaAnterior === 'number'
+        ? pStats.matriculaAnterior
+        : parseMetricNumber(comp.matricula.ant);
+
       const matAnt = parseMetricNumber(comp.matricula.ant);
+      const matAgosto = matAnt;
       const promAnt = parseMetricNumber(comp.promedio?.ant);
       const apPctAnt = parseMetricNumber(comp.aprobacion.ant);
       const etAnt = parseMetricNumber(comp.eficiencia.ant);
       const abAnt = parseMetricNumber(comp.abandono.ant);
       const apNumAnt = computeAprobadosCount(matAnt, apPctAnt, p.estudiantesAprobados ?? p.aprobados);
 
-      const matMeta = parseMetricNumber(comp.matricula.meta) ?? matAnt;
+      const matMeta = parseMetricNumber(comp.matricula.meta);
       const promMeta = parseMetricNumber(comp.promedio?.meta) ?? promAnt;
       const apPctMeta = parseMetricNumber(comp.aprobacion.meta) ?? apPctAnt;
       const etMeta = parseMetricNumber(comp.eficiencia.meta) ?? etAnt;
       const abMeta = parseMetricNumber(comp.abandono.meta) ?? abAnt;
-      const apNumMeta = computeAprobadosCount(matMeta, apPctMeta) ?? apNumAnt;
+      const apNumMeta = computeAprobadosCount(matMeta ?? matAnt, apPctMeta) ?? apNumAnt;
 
       plantelesData.push({
         nombre: p.nombre,
         cct: p.cct,
         turno: p.turno || project.turno || 'M',
+        matCierreAnt,
         matAnt,
         promAnt,
         apNumAnt,
         apPctAnt,
         etAnt,
         abAnt,
+        matAgosto,
         matMeta,
         promMeta,
         apNumMeta,
@@ -328,7 +340,17 @@ export async function generatePmcSupervisorExcel(project: PmcSupervisorExcelInpu
     const comp = computePmcIndicatorValues(project.indicadores_academicos, project.statistical_context);
     const ind = (project.indicadores_academicos || {}) as Record<string, unknown>;
 
+    const pStatsSingle = project.statistical_context?.plantel as unknown as Record<string, unknown> | undefined;
+    const matCierreAnt = typeof ind.matricula_anterior === 'number'
+      ? ind.matricula_anterior
+      : typeof ind.matricula_cierre_ant === 'number'
+      ? ind.matricula_cierre_ant
+      : typeof pStatsSingle?.matriculaAnterior === 'number'
+      ? Number(pStatsSingle.matriculaAnterior)
+      : parseMetricNumber(comp.matricula.ant);
+
     const matAnt = parseMetricNumber(comp.matricula.ant);
+    const matAgosto = matAnt;
     const promAnt = parseMetricNumber(comp.promedio?.ant);
     const apPctAnt = parseMetricNumber(comp.aprobacion.ant);
     const etAnt = parseMetricNumber(comp.eficiencia.ant);
@@ -339,13 +361,13 @@ export async function generatePmcSupervisorExcel(project: PmcSupervisorExcelInpu
       typeof ind.estudiantes_aprobados === 'number' ? ind.estudiantes_aprobados : undefined
     );
 
-    const matMeta = parseMetricNumber(comp.matricula.meta) ?? matAnt;
+    const matMeta = parseMetricNumber(comp.matricula.meta);
     const promMeta = parseMetricNumber(comp.promedio?.meta) ?? promAnt;
     const apPctMeta = parseMetricNumber(comp.aprobacion.meta) ?? apPctAnt;
     const etMeta = parseMetricNumber(comp.eficiencia.meta) ?? etAnt;
     const abMeta = parseMetricNumber(comp.abandono.meta) ?? abAnt;
     const apNumMeta = computeAprobadosCount(
-      matMeta,
+      matMeta ?? matAnt,
       apPctMeta,
       typeof ind.estudiantes_aprobados_meta === 'number' ? ind.estudiantes_aprobados_meta : undefined
     ) ?? apNumAnt;
@@ -354,12 +376,14 @@ export async function generatePmcSupervisorExcel(project: PmcSupervisorExcelInpu
       nombre: project.school_name || 'Plantel Educativo',
       cct: project.school_cct || '21EBH0000X',
       turno: project.turno || 'M',
+      matCierreAnt,
       matAnt,
       promAnt,
       apNumAnt,
       apPctAnt,
       etAnt,
       abAnt,
+      matAgosto,
       matMeta,
       promMeta,
       apNumMeta,
@@ -376,7 +400,7 @@ export async function generatePmcSupervisorExcel(project: PmcSupervisorExcelInpu
       pd.nombre,
       pd.cct,
       pd.turno,
-      pd.matAnt ?? null,
+      pd.matCierreAnt ?? pd.matAnt ?? null,
       pd.promAnt ?? null,
       pd.apNumAnt ?? null,
       pd.apPctAnt ?? null,
@@ -400,12 +424,13 @@ export async function generatePmcSupervisorExcel(project: PmcSupervisorExcelInpu
       pd.nombre,
       pd.cct,
       pd.turno,
-      pd.matMeta ?? null,
+      pd.matAgosto ?? pd.matAnt ?? null,
       pd.promMeta ?? null,
       pd.apNumMeta ?? null,
       pd.apPctMeta ?? null,
       pd.etMeta ?? null,
       pd.abMeta ?? null,
+      pd.matMeta ?? null,
     ]);
     r3.height = 20;
     r3.getCell(1).font = { ...dataFont, bold: true };
