@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, sql } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { assertNoForbiddenTerms } from '@/lib/pmc-quality-gate';
 
 export async function GET() {
   try {
@@ -64,6 +65,15 @@ export async function POST(request: NextRequest) {
         { error: 'Faltan datos requeridos (school_name, school_cct)' },
         { status: 400 }
       );
+    }
+
+    // H-147b: Guard contra términos prohibidos de plataforma privada (SIGPDA/SIGPDA-EMS) en creación de PMC
+    const violation = assertNoForbiddenTerms(body, 'creación de PMC');
+    if (violation) {
+      logger.error(
+        `[PMC POST Guard] Intento de creación con términos prohibidos (${violation.body.forbiddenTerms.join(', ')}). Abortando persistencia.`
+      );
+      return NextResponse.json(violation.body, { status: violation.status });
     }
 
     const db = sql();

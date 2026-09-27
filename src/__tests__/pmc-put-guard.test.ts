@@ -19,6 +19,7 @@ vi.mock('@/lib/db', () => ({
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, sql } from '@/lib/db';
 import { PUT } from '@/app/api/pmc/[id]/route';
+import { POST } from '@/app/api/pmc/route';
 
 describe('H-144 — Guard contra términos prohibidos en actualización PUT de PMC', () => {
   const mockTeacher = {
@@ -135,5 +136,95 @@ describe('H-144 — Guard contra términos prohibidos en actualización PUT de P
     expect(data.error).toContain('términos prohibidos de plataforma privada');
     expect(data.forbiddenTerms).toContain('SIGPDA EMS');
     expect(mockDb).toHaveBeenCalledTimes(1); // Solo SELECT, NUNCA UPDATE
+  });
+
+  it('5. H-147b: PUT con diagnostico_comunidad contaminado con "SIGPDA": rechaza con HTTP 422 y NO persiste en BD', async () => {
+    const mockDb = vi.fn()
+      .mockResolvedValueOnce([{ id: projectId }]); // SELECT existing
+
+    vi.mocked(sql).mockReturnValue(mockDb as never);
+
+    const req = new NextRequest(`http://localhost:3000/api/pmc/${projectId}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        diagnostico_comunidad: 'Diagnóstico contextualizado elaborado con apoyo de la herramienta SIGPDA.',
+      }),
+    });
+
+    const res = await PUT(req, { params: Promise.resolve({ id: projectId }) });
+    const data = await res.json();
+
+    expect(res.status).toBe(422);
+    expect(data.error).toContain('términos prohibidos de plataforma privada');
+    expect(data.forbiddenTerms).toContain('SIGPDA');
+    expect(mockDb).toHaveBeenCalledTimes(1); // Solo SELECT, NUNCA UPDATE
+  });
+
+  it('6. H-147b: POST con plan_accion contaminado con "SIGPDA-EMS": rechaza con HTTP 422 y NO ejecuta INSERT', async () => {
+    const mockDb = vi.fn();
+    vi.mocked(sql).mockReturnValue(mockDb as never);
+
+    const req = new NextRequest('http://localhost:3000/api/pmc', {
+      method: 'POST',
+      body: JSON.stringify({
+        school_name: 'Bachillerato General Oficial Cuauhtémoc',
+        school_cct: '21EBH0465E',
+        plan_accion: {
+          lineas: [{ accion: 'Registrar avances periódicos en SIGPDA-EMS' }],
+        },
+      }),
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(422);
+    expect(data.error).toContain('términos prohibidos de plataforma privada');
+    expect(data.forbiddenTerms).toContain('SIGPDA-EMS');
+    // CRÍTICO: el INSERT nunca debe ejecutarse
+    expect(mockDb).toHaveBeenCalledTimes(0);
+  });
+
+  it('7. H-147b: POST con diagnostico_comunidad contaminado con "SIGPDA": rechaza con HTTP 422 y NO ejecuta INSERT', async () => {
+    const mockDb = vi.fn();
+    vi.mocked(sql).mockReturnValue(mockDb as never);
+
+    const req = new NextRequest('http://localhost:3000/api/pmc', {
+      method: 'POST',
+      body: JSON.stringify({
+        school_name: 'Bachillerato General Oficial Cuauhtémoc',
+        school_cct: '21EBH0465E',
+        diagnostico_comunidad: 'Evaluación de la comunidad escolar realizada en el entorno SIGPDA.',
+      }),
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(422);
+    expect(data.error).toContain('términos prohibidos de plataforma privada');
+    expect(data.forbiddenTerms).toContain('SIGPDA');
+    expect(mockDb).toHaveBeenCalledTimes(0);
+  });
+
+  it('8. H-147b: POST con datos limpios: retorna status 201 y ejecuta INSERT en BD', async () => {
+    const mockDb = vi.fn().mockResolvedValueOnce([{ id: projectId, school_name: 'Bachillerato General Oficial Cuauhtémoc' }]);
+    vi.mocked(sql).mockReturnValue(mockDb as never);
+
+    const req = new NextRequest('http://localhost:3000/api/pmc', {
+      method: 'POST',
+      body: JSON.stringify({
+        school_name: 'Bachillerato General Oficial Cuauhtémoc',
+        school_cct: '21EBH0465E',
+        diagnostico_comunidad: 'Evaluación oficial con participación de la comunidad docente y directiva.',
+      }),
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(201);
+    expect(data.success).toBe(true);
+    expect(mockDb).toHaveBeenCalledTimes(1); // 1 INSERT
   });
 });

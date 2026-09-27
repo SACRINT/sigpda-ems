@@ -2,45 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, sql } from '@/lib/db';
 import { logger } from '@/lib/logger';
-import { findForbiddenPlatformTerms } from '@/lib/pmc-quality-gate';
+import { assertNoForbiddenTerms } from '@/lib/pmc-quality-gate';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-const ALLOWED_FIELDS = [
-  'school_name',
-  'school_cct',
-  'municipality',
-  'locality',
-  'school_zone',
-  'director_name',
-  'supervisor_name',
-  'ciclo_escolar',
-  'subsystem',
-  'total_staff',
-  'staff_data',
-  'indicadores_academicos',
-  'foda',
-  'categorias_priorizadas',
-  'diagnostico_comunidad',
-  'normativa',
-  'diagnostico_generado',
-  'plan_accion',
-  'current_step',
-  'status',
-] as const;
-
-type AllowedField = (typeof ALLOWED_FIELDS)[number];
-
-// JSONB fields that need explicit casting
-const JSONB_FIELDS = new Set([
-  'staff_data',
-  'indicadores_academicos',
-  'foda',
-  'categorias_priorizadas',
-  'normativa',
-  'diagnostico_generado',
-  'plan_accion',
-]);
 
 export async function GET(_request: NextRequest, { params }: RouteContext) {
   try {
@@ -102,23 +67,13 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
 
     const body = (await request.json()) as Record<string, unknown>;
 
-    // H-144: Validar ausencia de términos prohibidos de plataforma privada (SIGPDA/SIGPDA-EMS)
-    const fieldsToInspect = [body.plan_accion, body.diagnostico_generado, body.foda].filter(f => f !== undefined);
-    const forbiddenMatches = fieldsToInspect.flatMap(f => findForbiddenPlatformTerms(f));
-
-    if (forbiddenMatches.length > 0) {
-      const uniqueTerms = Array.from(new Set(forbiddenMatches.map(t => t.toUpperCase())));
+    // H-147b: Validar ausencia de términos prohibidos de plataforma privada en el cuerpo completo
+    const violation = assertNoForbiddenTerms(body, 'actualización de PMC');
+    if (violation) {
       logger.error(
-        `[PMC PUT Guard] Intento de actualización manual con términos prohibidos (${uniqueTerms.join(', ')}). Abortando persistencia.`
+        `[PMC PUT Guard] Intento de actualización manual con términos prohibidos (${violation.body.forbiddenTerms.join(', ')}). Abortando persistencia.`
       );
-      return NextResponse.json(
-        {
-          error:
-            'La actualización contiene términos prohibidos de plataforma privada (SIGPDA/SIGPDA-EMS). Se bloqueó la persistencia para proteger la validez normativa oficial del PMC ante SEMS Puebla.',
-          forbiddenTerms: uniqueTerms,
-        },
-        { status: 422 }
-      );
+      return NextResponse.json(violation.body, { status: violation.status });
     }
 
     // Use COALESCE pattern — update each field if provided in body
