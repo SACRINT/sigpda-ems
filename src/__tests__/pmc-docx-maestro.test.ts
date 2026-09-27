@@ -4,8 +4,10 @@ import mammoth from 'mammoth';
 import {
   generatePmcDocxMaestro,
   resolveMaestroRejection,
+  resolvePersonalForMaestro,
   type PmcProjectMasterData,
   type PmcPersonalItem,
+  type SqlQueryable,
 } from '../lib/pmc-docx-maestro-builder';
 import { PmcPlanAccionSchema } from '../lib/ai-schemas';
 
@@ -245,5 +247,83 @@ describe('FASE 3: Generador de Documento Maestro Oficial del PMC (8 Capítulos F
 
     expect(buffer).toBeDefined();
     expect(durationMs).toBeLessThan(7000); // Umbral de tolerancia para CI (≤ 7.0 s)
+  });
+
+  it('7. Aislamiento CCT (H-116): Sesión con CCT distinto al del proyecto no fuga personal y usa fallback de staff_data', async () => {
+    // Escenario auditado:
+    // Sesión de director de "Héroes de la Patria" (CCT 21EBH0200X)
+    // Proyecto del plantel "Moisés Sáenz Garza" (CCT 21EBH0465E)
+    const sessionTeacherOtherSchool = {
+      id: 'teacher-heroes-director-uuid',
+      role: 'director',
+      cct: '21EBH0200X', // Héroes de la Patria
+    };
+
+    const projectMoisesSaenz = {
+      ...mockCompleteProject,
+      school_name: 'Bachillerato General Licenciado Moisés Sáenz Garza',
+      school_cct: '21EBH0465E', // Moisés Sáenz
+      staff_data: [
+        { nombre: 'Profesor Auténtico Moisés Sáenz', cargo: 'Docente de Matemáticas' },
+        { nombre: 'Mtra. Química Moisés Sáenz', cargo: 'Docente de Ciencias' },
+      ],
+    };
+
+    // Mock de base de datos simulando las consultas SQL tagged template
+    const mockDb = async (strings: TemplateStringsArray) => {
+      const query = strings.join('?');
+      // 1. Paso 1: búsqueda de director por CCT del proyecto ('21EBH0465E') -> no existe director registrado para Moisés en teachers
+      if (query.includes('FROM teachers') && query.includes('UPPER(TRIM(cct))')) {
+        return [];
+      }
+      // 2. Si se intentara consultar escuela_personal para el director de Héroes:
+      if (query.includes('FROM escuela_personal')) {
+        return [
+          {
+            id: 'pers-heroes-1',
+            director_id: 'teacher-heroes-director-uuid',
+            nombre: 'Docente Infiltrado de Heroes',
+            apellido_paterno: 'Perez',
+            cargo: 'Docente Infiltrado',
+            activo: true,
+          },
+        ];
+      }
+      // 3. Verificación de director
+      if (query.includes('SELECT id, cct FROM teachers WHERE id =')) {
+        return [{ id: 'teacher-heroes-director-uuid', cct: '21EBH0200X' }];
+      }
+      return [];
+    };
+
+    // Ejecutar resolución
+    const personalResuelto = await resolvePersonalForMaestro(
+      mockDb as unknown as SqlQueryable,
+      projectMoisesSaenz,
+      sessionTeacherOtherSchool
+    );
+
+    // Verificaciones:
+    // A. NO debe incluir personal de la escuela ajena de la sesión (Héroes)
+    const tienePersonalAjeno = personalResuelto.some((p) =>
+      p.nombre.includes('Infiltrado') || (p.apellido_paterno && p.apellido_paterno.includes('Perez'))
+    );
+    expect(tienePersonalAjeno).toBe(false);
+
+    // B. Debe usar el fallback de staff_data del proyecto de Moisés Sáenz
+    expect(personalResuelto.length).toBe(2);
+    expect(personalResuelto[0].nombre).toBe('Profesor Auténtico Moisés Sáenz');
+    expect(personalResuelto[1].nombre).toBe('Mtra. Química Moisés Sáenz');
+
+    // C. Verificación en el documento generado (Capítulo VII)
+    const buffer = await generatePmcDocxMaestro(projectMoisesSaenz, {
+      personal: personalResuelto,
+    });
+    const { value: rawText } = await mammoth.extractRawText({ buffer });
+
+    expect(rawText).toContain('Profesor Auténtico Moisés Sáenz');
+    expect(rawText).toContain('Mtra. Química Moisés Sáenz');
+    expect(rawText).not.toContain('Docente Infiltrado');
+    expect(rawText).not.toContain('Héroes');
   });
 });

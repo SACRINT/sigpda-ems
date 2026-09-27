@@ -18,6 +18,7 @@ import {
 } from 'docx';
 import { getCatalogoMetasPmc } from './catalogo-metas-pmc';
 import type { MetaCatalogEntry } from '@/types/pmc';
+import { logger } from './logger';
 
 // ─── PALETA CROMÁTICA INSTITUCIONAL OFICIAL ─────────────────────────────────
 const BRAND = {
@@ -101,6 +102,108 @@ export function resolveMaestroRejection(project: {
   }
 
   return { rejected: false };
+}
+
+export type SqlQueryable = (
+  strings: TemplateStringsArray,
+  ...values: unknown[]
+) => PromiseLike<Record<string, unknown>[]>;
+
+/**
+ * H-116: Resuelve la plantilla de personal para el PMC Maestro con aislamiento estricto por CCT.
+ * Previene la fuga de personal entre planteles:
+ *  1. Busca un director en 'teachers' cuyo CCT coincida con project.school_cct (no el de sesión).
+ *  2. Si no lo encuentra, solo usa el id del usuario de sesión si su propio CCT coincide con el del proyecto.
+ *  3. Re-verifica que el director resuelto pertenezca al CCT del proyecto antes de consultar escuela_personal.
+ *  4. Si no hay director de ese CCT o escuela_personal está vacío, recurre al fallback seguro de project.staff_data.
+ */
+export async function resolvePersonalForMaestro(
+  db: SqlQueryable,
+  project: { school_cct?: string | null; staff_data?: unknown },
+  teacher: { id?: string | null; role?: string | null; cct?: string | null } | Record<string, unknown>
+): Promise<PmcPersonalItem[]> {
+  let effectiveDirectorId: string | null = null;
+  const projectCct = (project.school_cct as string | undefined)?.trim().toUpperCase() ?? '';
+  const sessionCct = (teacher.cct as string | undefined)?.trim().toUpperCase() ?? '';
+
+  // Paso 1: buscar director cuyo CCT coincida con el del PROYECTO (no con el de la sesión)
+  if (projectCct) {
+    try {
+      const resolvedDir = await db`
+        SELECT id FROM teachers
+        WHERE role = 'director'
+          AND UPPER(TRIM(cct)) = ${projectCct}
+        LIMIT 1
+      `;
+      if (resolvedDir.length > 0 && resolvedDir[0]?.id) {
+        effectiveDirectorId = String(resolvedDir[0].id);
+      }
+    } catch (error) {
+      logger.warn('[PMC DOCX Maestro] Error resolviendo director por CCT del proyecto:', error);
+    }
+  }
+
+  // Paso 2: si no encontró por CCT y el usuario de sesión es director del MISMO plantel, usar su id
+  if (!effectiveDirectorId && teacher.role === 'director' && projectCct && sessionCct === projectCct && teacher.id) {
+    effectiveDirectorId = String(teacher.id);
+  }
+
+  // Consultar personal de escuela_personal SOLO si el director encontrado pertenece al CCT del proyecto
+  let personalRows: PmcPersonalItem[] = [];
+  if (effectiveDirectorId) {
+    try {
+      // Verificación de seguridad: el director resuelto debe pertenecer al CCT del proyecto
+      const [dirVerify] = await db`
+        SELECT id, cct FROM teachers WHERE id = ${effectiveDirectorId}::uuid LIMIT 1
+      `;
+      const dirCct = (dirVerify?.cct as string | undefined)?.trim().toUpperCase() ?? '';
+      const cctMatch = !projectCct || !dirCct || dirCct === projectCct;
+
+      if (cctMatch) {
+        const pRows = await db`
+          SELECT id, director_id, nombre, apellido_paterno, apellido_materno, email, cargo, horas_base, activo
+          FROM escuela_personal
+          WHERE director_id = ${effectiveDirectorId}::uuid AND activo = TRUE
+          ORDER BY apellido_paterno, nombre
+        `;
+        personalRows = pRows as unknown as PmcPersonalItem[];
+      } else {
+        logger.warn(
+          `[PMC DOCX Maestro] H-116: CCT de director (${dirCct}) ≠ CCT del proyecto (${projectCct}); omitiendo escuela_personal para evitar fuga de datos.`
+        );
+      }
+    } catch (error) {
+      logger.warn('[PMC DOCX Maestro] Error consultando escuela_personal:', error);
+      personalRows = [];
+    }
+  }
+
+  // Fallback: si escuela_personal está vacío, construir desde project.staff_data (los nombres del wizard)
+  if (personalRows.length === 0 && project.staff_data) {
+    try {
+      const staffRaw = typeof project.staff_data === 'string'
+        ? (JSON.parse(project.staff_data) as unknown[])
+        : (project.staff_data as unknown[]);
+      if (Array.isArray(staffRaw)) {
+        personalRows = staffRaw
+          .filter((s): s is Record<string, unknown> => typeof s === 'object' && s !== null)
+          .map((s, idx) => ({
+            id: String(idx),
+            nombre: String(s.nombre ?? 'Docente'),
+            apellido_paterno: '',
+            apellido_materno: null,
+            email: null,
+            cargo: String(s.cargo ?? 'Docente frente a grupo'),
+            horas_base: null,
+            activo: true,
+          }));
+      }
+    } catch {
+      personalRows = [];
+    }
+  }
+
+  return personalRows;
 }
 
 export interface PmcDiagnosticoGenerado {

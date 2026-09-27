@@ -5,9 +5,9 @@ import { generatePmcDocx, type PmcProject } from '@/lib/pmc-docx-generator';
 import {
   generatePmcDocxMaestro,
   resolveMaestroRejection,
+  resolvePersonalForMaestro,
   type PmcProjectMasterData,
   type PmcCatalogoMetaItem,
-  type PmcPersonalItem,
 } from '@/lib/pmc-docx-maestro-builder';
 import { calculateGlobalPmcScore } from '@/lib/pmc-quality-gate';
 import { logger } from '@/lib/logger';
@@ -68,88 +68,8 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
         catalogoMetasRows = [];
       }
 
-      // H-116: Resolver el director por project.school_cct para evitar fuga de datos entre escuelas.
-      // NUNCA se usa el director de sesión directamente — el CCT del proyecto puede diferir del CCT del usuario.
-      let effectiveDirectorId: string | null = null;
-      const projectCct = (project.school_cct as string | undefined)?.trim().toUpperCase() ?? '';
-      const sessionCct = (teacher.cct as string | undefined)?.trim().toUpperCase() ?? '';
-
-      // Paso 1: buscar director cuyo CCT coincida con el del PROYECTO (no con el de la sesión)
-      if (projectCct) {
-        try {
-          const resolvedDir = await db`
-            SELECT id FROM teachers
-            WHERE role = 'director'
-              AND UPPER(TRIM(cct)) = ${projectCct}
-            LIMIT 1
-          `;
-          if (resolvedDir.length > 0 && resolvedDir[0].id) {
-            effectiveDirectorId = resolvedDir[0].id as string;
-          }
-        } catch (error) {
-          logger.warn('[PMC DOCX Maestro] Error resolviendo director por CCT del proyecto:', error);
-        }
-      }
-
-      // Paso 2: si no encontró por CCT y el usuario de sesión es director del MISMO plantel, usar su id
-      if (!effectiveDirectorId && teacher.role === 'director' && projectCct && sessionCct === projectCct) {
-        effectiveDirectorId = teacher.id;
-      }
-
-      // Consultar personal de escuela_personal SOLO si el director encontrado pertenece al CCT del proyecto
-      let personalRows: PmcPersonalItem[] = [];
-      if (effectiveDirectorId) {
-        try {
-          // Verificación de seguridad: el director resuelto debe pertenecer al CCT del proyecto
-          const [dirVerify] = await db`
-            SELECT id, cct FROM teachers WHERE id = ${effectiveDirectorId}::uuid LIMIT 1
-          `;
-          const dirCct = (dirVerify?.cct as string | undefined)?.trim().toUpperCase() ?? '';
-          const cctMatch = !projectCct || !dirCct || dirCct === projectCct;
-
-          if (cctMatch) {
-            const pRows = await db`
-              SELECT id, director_id, nombre, apellido_paterno, apellido_materno, email, cargo, horas_base, activo
-              FROM escuela_personal
-              WHERE director_id = ${effectiveDirectorId}::uuid AND activo = TRUE
-              ORDER BY apellido_paterno, nombre
-            `;
-            personalRows = pRows as unknown as PmcPersonalItem[];
-          } else {
-            logger.warn(
-              `[PMC DOCX Maestro] H-116: CCT de director (${dirCct}) ≠ CCT del proyecto (${projectCct}); omitiendo escuela_personal para evitar fuga de datos.`
-            );
-          }
-        } catch (error) {
-          logger.warn('[PMC DOCX Maestro] Error consultando escuela_personal:', error);
-          personalRows = [];
-        }
-      }
-
-      // Fallback: si escuela_personal está vacío, construir desde project.staff_data (los nombres del wizard)
-      if (personalRows.length === 0 && project.staff_data) {
-        try {
-          const staffRaw = typeof project.staff_data === 'string'
-            ? (JSON.parse(project.staff_data) as unknown[])
-            : (project.staff_data as unknown[]);
-          if (Array.isArray(staffRaw)) {
-            personalRows = staffRaw
-              .filter((s): s is Record<string, unknown> => typeof s === 'object' && s !== null)
-              .map((s, idx) => ({
-                id: String(idx),
-                nombre: String(s.nombre ?? 'Docente'),
-                apellido_paterno: '',
-                apellido_materno: null,
-                email: null,
-                cargo: String(s.cargo ?? 'Docente frente a grupo'),
-                horas_base: null,
-                activo: true,
-              }));
-          }
-        } catch {
-          personalRows = [];
-        }
-      }
+      // H-116: Resolver el personal para el documento maestro garantizando aislamiento de CCT
+      const personalRows = await resolvePersonalForMaestro(db, project, teacher);
 
       const buffer = await generatePmcDocxMaestro(project as unknown as PmcProjectMasterData, {
         catalogoMetas: catalogoMetasRows,
@@ -204,3 +124,5 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
     return new NextResponse(`Error al generar el documento: ${message}`, { status: 500 });
   }
 }
+
+
