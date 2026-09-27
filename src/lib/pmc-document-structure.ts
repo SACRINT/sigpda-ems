@@ -18,6 +18,7 @@ export interface PmcSeccionDef {
   id: string;
   numero: number;
   titulo: string;
+  pageBreakBefore?: boolean;
   subsecciones?: PmcSubseccionDef[];
 }
 
@@ -31,6 +32,9 @@ export const PMC_TITULOS_SECCIONES = {
   METAS_INDIVIDUALES: '7. METAS INDIVIDUALES DEL PERSONAL',
   PARTICIPANTES_CONTROL: '8. PARTICIPANTES, CONTROL DE REVISIONES Y APROBACIÓN',
 } as const;
+
+export const PMC_FICHAS_TECNICAS_HEADING = 'Fichas Técnicas Descriptivas por Meta Institucional:' as const;
+export const PMC_FICHAS_TECNICAS_PAGE_BREAK_BEFORE = true as const;
 
 const SUBSECCIONES_DIAGNOSTICO_CANONICAS: readonly PmcSubseccionDef[] = [
   { id: 'contexto', numero: '4.1', titulo: 'Contexto Socioeducativo y Territorial' },
@@ -53,44 +57,61 @@ export const PMC_SECCIONES_CANONICAS: readonly PmcSeccionDef[] = [
     id: 'presentacion',
     numero: 1,
     titulo: PMC_TITULOS_SECCIONES.PRESENTACION,
+    pageBreakBefore: true,
   },
   {
     id: 'objetivo',
     numero: 2,
     titulo: PMC_TITULOS_SECCIONES.OBJETIVO,
+    pageBreakBefore: true,
   },
   {
     id: 'normatividad',
     numero: 3,
     titulo: PMC_TITULOS_SECCIONES.NORMATIVIDAD,
+    pageBreakBefore: true,
   },
   {
     id: 'diagnostico',
     numero: 4,
     titulo: PMC_TITULOS_SECCIONES.DIAGNOSTICO,
+    pageBreakBefore: true,
     subsecciones: [...SUBSECCIONES_DIAGNOSTICO_CANONICAS],
   },
   {
     id: 'priorizacion',
     numero: 5,
     titulo: PMC_TITULOS_SECCIONES.PRIORIZACION,
+    pageBreakBefore: true,
   },
   {
     id: 'plan_accion',
     numero: 6,
     titulo: PMC_TITULOS_SECCIONES.PLAN_ACCION,
+    pageBreakBefore: true,
   },
   {
     id: 'metas_individuales',
     numero: 7,
     titulo: PMC_TITULOS_SECCIONES.METAS_INDIVIDUALES,
+    pageBreakBefore: true,
   },
   {
     id: 'participantes_control',
     numero: 8,
     titulo: PMC_TITULOS_SECCIONES.PARTICIPANTES_CONTROL,
+    pageBreakBefore: true,
   },
 ] as const;
+
+/**
+ * Consulta si una sección o encabezado especial debe iniciar en nueva página según el SSoT documental.
+ */
+export function shouldSectionPageBreak(tituloOrId: string): boolean {
+  if (tituloOrId === PMC_FICHAS_TECNICAS_HEADING) return PMC_FICHAS_TECNICAS_PAGE_BREAK_BEFORE;
+  const sec = PMC_SECCIONES_CANONICAS.find(s => s.id === tituloOrId || s.titulo === tituloOrId);
+  return sec?.pageBreakBefore ?? false;
+}
 
 export interface JerarquiaNormativaGrupo {
   clave: string;

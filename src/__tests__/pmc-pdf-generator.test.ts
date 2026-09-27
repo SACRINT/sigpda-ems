@@ -5,6 +5,12 @@ import {
   isRealNumeric,
 } from '@/lib/pmc-indicator-calculator';
 import type { PmcStatisticalContext } from '@/types/pmc';
+import {
+  PMC_SECCIONES_CANONICAS,
+  PMC_FICHAS_TECNICAS_HEADING,
+  PMC_FICHAS_TECNICAS_PAGE_BREAK_BEFORE,
+  shouldSectionPageBreak,
+} from '@/lib/pmc-document-structure';
 
 describe('C6: Characterization tests para Indicadores PMC (pmc-indicator-calculator)', () => {
   it('isRealNumeric valida correctamente 0 real, enteros, floats y rechaza null/undefined/vacíos', () => {
@@ -297,6 +303,22 @@ describe('C6: Characterization tests para Indicadores PMC (pmc-indicator-calcula
       expect(vals.abandono.ant).toBe('0.0%');
       expect(vals.abandono.meta).toBe('0.0%');
       expect(vals.abandono.var).toBe('0.0% Retención');
+    });
+  });
+
+  describe('H-149: Paginación canónica DOCX↔PDF vía descriptor SSoT', () => {
+    it('todas las secciones canónicas tienen pageBreakBefore: true', () => {
+      expect(PMC_SECCIONES_CANONICAS.length).toBe(8);
+      for (const sec of PMC_SECCIONES_CANONICAS) {
+        expect(sec.pageBreakBefore).toBe(true);
+        expect(shouldSectionPageBreak(sec.id)).toBe(true);
+        expect(shouldSectionPageBreak(sec.titulo)).toBe(true);
+      }
+    });
+
+    it('el encabezado de Fichas Técnicas tiene pageBreakBefore activo', () => {
+      expect(PMC_FICHAS_TECNICAS_PAGE_BREAK_BEFORE).toBe(true);
+      expect(shouldSectionPageBreak(PMC_FICHAS_TECNICAS_HEADING)).toBe(true);
     });
   });
 });

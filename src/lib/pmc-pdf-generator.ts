@@ -16,6 +16,9 @@ import {
   PMC_TITULOS_SECCIONES,
   PMC_SUBSECCIONES_DIAGNOSTICO,
   PMC_SECCIONES_CANONICAS,
+  PMC_FICHAS_TECNICAS_HEADING,
+  PMC_FICHAS_TECNICAS_PAGE_BREAK_BEFORE,
+  shouldSectionPageBreak,
   clasificarNormativaJerarquica,
   getObjetivoPmcText,
   getTextoInfraestructura,
@@ -211,7 +214,8 @@ export async function generatePmcPDF(
   const pageCellCoords: Array<{ x: number; y: number; width: number; height: number; key: string; isSection: boolean }> = [];
 
   const addSectionHeader = (titulo: string) => {
-    if (curY > pageHeight - 35) {
+    const shouldBreak = shouldSectionPageBreak(titulo) || (curY > pageHeight - 35);
+    if (shouldBreak && curY > 20) {
       doc.addPage();
       curY = 18;
     }
@@ -300,11 +304,6 @@ export async function generatePmcPDF(
   curY += splitPres.length * 4 + 8;
 
   // ── SECCIÓN 2: OBJETIVO DEL PMC ─────────────────────────────────────────────
-  if (curY > pageHeight - 55) {
-    doc.addPage();
-    curY = 18;
-    drawHeaderOnNewPage();
-  }
   addSectionHeader(PMC_TITULOS_SECCIONES.OBJETIVO);
 
   const textoObjGeneral = getObjetivoPmcText(project.school_name, project.ciclo_escolar);
@@ -343,11 +342,6 @@ export async function generatePmcPDF(
   curY += 6;
 
   // ── SECCIÓN 3: NORMATIVIDAD APLICABLE ───────────────────────────────────────
-  if (curY > pageHeight - 55) {
-    doc.addPage();
-    curY = 18;
-    drawHeaderOnNewPage();
-  }
   addSectionHeader(PMC_TITULOS_SECCIONES.NORMATIVIDAD);
 
   const normativa = parseJson(project.normativa);
@@ -426,11 +420,6 @@ export async function generatePmcPDF(
   }
 
   // ── SECCIÓN 4: DIAGNÓSTICO ───────────────────────────────────────────────────
-  if (curY > pageHeight - 45) {
-    doc.addPage();
-    curY = 18;
-    drawHeaderOnNewPage();
-  }
   addSectionHeader(PMC_TITULOS_SECCIONES.DIAGNOSTICO);
 
   // 4.1 Texto de Contexto Socioeducativo y Territorial
@@ -612,11 +601,6 @@ export async function generatePmcPDF(
 
   // ── SECCIÓN 5: PRIORIZACIÓN DE CATEGORÍAS ───────────────────────────────────
   const categorias = parseJson(project.categorias_priorizadas);
-  if (curY > pageHeight - 45) {
-    doc.addPage();
-    curY = 18;
-    drawHeaderOnNewPage();
-  }
   addSectionHeader(PMC_TITULOS_SECCIONES.PRIORIZACION);
 
   if (diag.priorizacion) {
@@ -716,7 +700,7 @@ export async function generatePmcPDF(
 
     // Fichas Técnicas por Meta Institucional (Paridad Oficial con DOCX)
     if (metasInst.length > 0) {
-      if (curY > pageHeight - 45) {
+      if ((PMC_FICHAS_TECNICAS_PAGE_BREAK_BEFORE || curY > pageHeight - 45) && curY > 20) {
         doc.addPage();
         curY = 18;
         drawHeaderOnNewPage();
@@ -724,7 +708,7 @@ export async function generatePmcPDF(
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(8);
       doc.setTextColor(...BLUE_MID);
-      doc.text('Fichas Técnicas Descriptivas por Meta Institucional:', margin, curY);
+      doc.text(PMC_FICHAS_TECNICAS_HEADING, margin, curY);
       curY += 4;
 
       for (let i = 0; i < metasInst.length; i++) {
@@ -834,12 +818,6 @@ export async function generatePmcPDF(
   }
 
   // ── SECCIÓN 8: PARTICIPANTES, CONTROL DE REVISIONES Y APROBACIÓN ────────────
-  if (curY > pageHeight - 55) {
-    doc.addPage();
-    curY = 20;
-    drawHeaderOnNewPage();
-  }
-
   addSectionHeader(PMC_TITULOS_SECCIONES.PARTICIPANTES_CONTROL);
 
   // Mecanismos de Seguimiento y Monitoreo Trimestral (Paridad con DOCX y Rescate Cap. VI)

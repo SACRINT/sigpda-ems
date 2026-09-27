@@ -23,6 +23,8 @@ import {
   PMC_TITULOS_SECCIONES,
   PMC_SUBSECCIONES_DIAGNOSTICO,
   PMC_SECCIONES_CANONICAS,
+  PMC_FICHAS_TECNICAS_HEADING,
+  PMC_FICHAS_TECNICAS_PAGE_BREAK_BEFORE,
   clasificarNormativaJerarquica,
   getObjetivoPmcText,
   getTextoInfraestructura,
@@ -806,7 +808,10 @@ function buildPlanAccion(plan: PlanAccion): (Paragraph | Table)[] {
       )
     );
     items.push(...gap(2));
-    items.push(subHeading('Fichas Técnicas Descriptivas por Meta Institucional:'));
+    if (PMC_FICHAS_TECNICAS_PAGE_BREAK_BEFORE) {
+      items.push(new Paragraph({ children: [new PageBreak()] }));
+    }
+    items.push(subHeading(PMC_FICHAS_TECNICAS_HEADING));
   }
 
   for (let i = 0; i < metas.length; i++) {
