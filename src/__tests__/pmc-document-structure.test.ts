@@ -344,6 +344,14 @@ describe('H-100 / H-101: SSoT Estructura Documental y Paridad PDF vs DOCX', () =
     expect(docxText).toContain('Horas Base');
     expect(pdfText).toContain('Horas Base');
 
+    // H-136: Encabezados homologados al 100% en Sección 8
+    expect(docxText).toContain('Nombre Completo del Personal');
+    expect(pdfText).toContain('Nombre Completo del Personal');
+    expect(docxText).toContain('Cargo / Función en el CTE');
+    expect(pdfText).toContain('Cargo / Función en el CTE');
+    expect(docxText).toContain('Firma de Conformidad');
+    expect(pdfText).toContain('Firma de Conformidad');
+
     // Ambos deben reflejar las horas base de la plantilla cuando existen
     expect(docxText).toContain('30 hrs');
     expect(pdfText).toContain('30 hrs');

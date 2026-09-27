@@ -910,10 +910,10 @@ export async function generatePmcPDF(
       startY: curY,
       head: [[
         { content: 'N°', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], halign: 'center' } },
-        { content: 'Nombre Completo', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
+        { content: 'Nombre Completo del Personal', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
         { content: 'Cargo / Función en el CTE', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
         { content: 'Horas Base', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], halign: 'center' } },
-        { content: 'Firma / Rúbrica', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], halign: 'center' } },
+        { content: 'Firma de Conformidad', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], halign: 'center' } },
       ]],
       body: partRows,
       theme: 'grid',

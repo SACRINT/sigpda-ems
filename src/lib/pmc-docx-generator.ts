@@ -978,8 +978,8 @@ function buildControlRevisiones(p: PmcProject, plan?: PlanAccion): (Paragraph | 
         new TableRow({
           children: [
             tcH('N°', { w: 600 }),
-            tcH('Nombre del Personal', { w: 3800 }),
-            tcH('Cargo / Función', { w: 2600 }),
+            tcH('Nombre Completo del Personal', { w: 3800 }),
+            tcH('Cargo / Función en el CTE', { w: 2600 }),
             tcH('Horas Base', { w: 1400 }),
             tcH('Firma de Conformidad', { w: 2400 }),
           ],
