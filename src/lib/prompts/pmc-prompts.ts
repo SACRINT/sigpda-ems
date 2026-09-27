@@ -294,6 +294,12 @@ REGLAS OBLIGATORIAS DE REDACCIÓN DE METAS CREAA (MCCEMS PUEBLA 2026-2027):
    - NUNCA uses etiquetas genéricas como "Asignatura 1", "Asignatura 4", "Docente X" o "Profesor Y".
    - Si no se detallan asignaturas reprobadas específicas en el diagnóstico, refiérete formalmente a los Recursos Sociocognitivos del MCCEMS (Pensamiento Matemático, Lengua y Comunicación, Conciencia Histórica, Cultura Digital).
 
+7. PROHIBICIÓN ABSOLUTA DE PLATAFORMAS Y PROYECTOS INTERNOS (CRÍTICO):
+   - NUNCA menciones "SIGPDA", "SIGPDA-EMS", "SIGPDA EMS", ni ninguna plataforma, sistema o proyecto interno.
+   - Los docentes NO están obligados a usar ninguna plataforma privada; el PMC es un documento oficial de la SEP Puebla.
+   - Evidencias válidas: Bitácoras físicas, listas de cotejo, portafolios, minutas de academia, constancias de curso, informes de tutoría, concentrados de calificaciones (F11/911). NO softwares privados.
+   - En metas personales de docentes: la validación de planeaciones es responsabilidad del Consejo Académico y la Supervisión Escolar, NO de ninguna plataforma digital privada.
+
 Estructura de respuesta en JSON:
 {
   "metas_institucionales": [

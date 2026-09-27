@@ -168,7 +168,7 @@ export const CATALOGO_METAS_CANONICO: MetaCatalogEntry[] = [
     },
     fase: 'FASE 1',
     estado: 'pendiente',
-    evidencia: 'Concentrado de planeaciones didácticas registradas y evaluadas en SIGPDA-EMS',
+    evidencia: 'Concentrado de planeaciones didácticas validadas institucionalmente por el Consejo Académico',
     orden_display: 8,
   },
   {
@@ -430,7 +430,7 @@ export const CANONICAL_NORMATIVA_REFS: Record<string, CanonicalNormativaDocRef> 
 
 /**
  * Resuelve y valida formalmente una cita jurídica contra los 28 documentos vigentes
- * y artículos catalogados en la Normateca oficial de SIGPDA-EMS.
+ * y artículos catalogados en la Normateca Oficial DBEPA Puebla.
  */
 export function resolveNormativaCitation(citation: string): NormativaCitationResolution {
   const sortedPrefixes = Object.keys(CANONICAL_NORMATIVA_REFS).sort((a, b) => b.length - a.length);

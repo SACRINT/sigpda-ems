@@ -431,7 +431,7 @@ export async function generatePaecDocx(
           spacing: { before: 120 },
           children: [
             new TextRun({
-              text: `SIGPDA-EMS · PEC/PAEC 2.0 · CCT: ${safeStr(sCtx.cct, 'N/D')} · Página `,
+              text: `PAEC-PEC · CCT: ${safeStr(sCtx.cct, 'N/D')} · Página `,
               size: 15,
               color: C.textMuted,
               font: 'Arial',

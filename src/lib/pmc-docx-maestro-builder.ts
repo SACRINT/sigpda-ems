@@ -488,10 +488,8 @@ export async function generatePmcDocxMaestro(
   ];
 
   // Capítulo 2 — Marco Normativo y Catálogo de Metas
-  let isFallbackCatalogo = false;
   let metasRows = options.catalogoMetas || [];
   if (metasRows.length === 0) {
-    isFallbackCatalogo = true;
     const canonic = getCatalogoMetasPmc();
     metasRows = canonic.map((m: MetaCatalogEntry) => ({
       id: m.id,
@@ -542,9 +540,7 @@ export async function generatePmcDocxMaestro(
       rows: tablaMetasRows,
     }),
     p(
-      isFallbackCatalogo
-        ? 'Fuente: Catálogo Canónico Institucional SIGPDA-EMS (Respaldo Local).'
-        : 'Fuente: Catálogo de Metas Institucionales persistido en Base de Datos Normativa Neon DB.',
+      'Fuente: Catálogo Oficial de Metas Institucionales — Dirección de Bachilleratos Estatales y Preparatoria Abierta (DBEPA) Puebla.',
       { italics: true, size: 18, color: BRAND.textoMuted }
     ),
     new Paragraph({ children: [new PageBreak()] }),
@@ -955,7 +951,7 @@ export async function generatePmcDocxMaestro(
                 alignment: AlignmentType.RIGHT,
                 children: [
                   new TextRun({
-                    text: `SIGPDA-EMS | ${schoolName} — PMC ${ciclo}`,
+                    text: `${schoolName} — Programa de Mejora Continua ${ciclo}`,
                     size: 16,
                     color: BRAND.textoMuted,
                     font: 'Arial',

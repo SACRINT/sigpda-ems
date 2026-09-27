@@ -928,7 +928,7 @@ export async function generatePmcPDF(
       doc.setFontSize(7);
       doc.setTextColor(...TEXT_MUTED);
       doc.text(
-        `SIGPDA-EMS · Plan de Mejora Continua (PMC) — Página ${p} de ${totalPages}`,
+        `Plan de Mejora Continua (PMC) — Página ${p} de ${totalPages}`,
         pageWidth / 2,
         pageHeight - 7,
         { align: 'center' }

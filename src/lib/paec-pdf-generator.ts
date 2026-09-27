@@ -2244,7 +2244,7 @@ export async function generatePaecPDF(
     margin + 4,
     footerSecY + 8
   );
-  doc.text('La autenticidad de este documento y sus firmas puede ser consultada en el Sistema Integral de Gestión Técnico-Pedagógica (SIGPDA-EMS).', margin + 4, footerSecY + 11.5);
+  doc.text('La autenticidad de este documento puede verificarse ante la Supervisión Escolar de la zona correspondiente o ante la DBEPA Puebla.', margin + 4, footerSecY + 11.5);
 
   // ═════════════════════════════════════════════════════════════════════════════
   // ENCABEZADOS Y PIES DE PÁGINA GLOBALES HÍBRIDOS (PÁGINA 2 A TOTAL_PAGES)
