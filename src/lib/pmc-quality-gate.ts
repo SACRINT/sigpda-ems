@@ -44,6 +44,10 @@ export const PMC_DOC_FACING_FIELDS = [
   'foda',
   'diagnostico_generado',
   'plan_accion',
+  'normativa',
+  'staff_data',
+  'categorias_priorizadas',
+  'indicadores_academicos',
 ] as const;
 
 export type PmcDocFacingField = (typeof PMC_DOC_FACING_FIELDS)[number];

@@ -292,13 +292,39 @@ describe('pmc-quality-gate — calculateGlobalPmcScore', () => {
     expect(c11!.evidenceFound).toContain('SIGPDA');
   });
 
-  it('PMC_DOC_FACING_FIELDS contiene los 4 campos oficiales orientados al documento', () => {
+  it('PMC_DOC_FACING_FIELDS contiene los 8 campos oficiales orientados al documento', () => {
     expect(PMC_DOC_FACING_FIELDS).toEqual([
       'diagnostico_comunidad',
       'foda',
       'diagnostico_generado',
       'plan_accion',
+      'normativa',
+      'staff_data',
+      'categorias_priorizadas',
+      'indicadores_academicos',
     ]);
+  });
+
+  it('normativa con termino prohibido "SIGPDA" -> criterio PMC-C11 en fail', () => {
+    const contaminatedNormativaProject: PmcProject = {
+      ...COMPLETE_PROJECT,
+      id: 'pmc-test-contaminated-normativa',
+      normativa: {
+        documentos: [
+          {
+            titulo: 'Reglamento Interior verificado mediante SIGPDA escolar',
+            articulos: ['Artículo 1'],
+          },
+        ],
+      },
+    };
+    const audit = calculateGlobalPmcScore(contaminatedNormativaProject);
+    const c11 = audit.criteria.find(c => c.id === 'PMC-C11');
+    expect(c11).toBeDefined();
+    expect(c11!.status).toBe('fail');
+    expect(c11!.score).toBe(0);
+    expect(c11!.feedback).toContain('términos prohibidos de plataforma interna');
+    expect(c11!.evidenceFound).toContain('SIGPDA');
   });
 
   it('assertNoForbiddenTerms retorna null para contenido limpio y status 422 para contenido contaminado', () => {
