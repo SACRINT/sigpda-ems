@@ -462,35 +462,15 @@ interface PmcPreviousExtractDTO {
   observacionesGenerales?: string;
 }
 
-interface PaecProjectForPmc {
-  id: string;
-  projectName: string;
-  problemStatement?: string;
-  cycleType?: string;
-  communityContext?: {
-    context?: string;
-    barreras?: string[];
-    recursos?: string[];
-    necesidades?: string[];
-    [key: string]: unknown;
-  };
-  schoolContext?: {
-    cct?: string;
-    nombre?: string;
-    [key: string]: unknown;
-  };
-  fase1Diagnostico?: {
-    resumen?: string;
-    [key: string]: unknown;
-  };
-  createdAt?: string;
-}
-
   // Carga Inteligente de PMC Anterior (PDF/Word)
   const fileInputPmcRef = useRef<HTMLInputElement>(null);
   const [uploadingPmc, setUploadingPmc] = useState(false);
   const [parsedPmcData, setParsedPmcData] = useState<PmcPreviousExtractDTO | null>(null);
   const [showPmcReviewModal, setShowPmcReviewModal] = useState(false);
+
+  // Carga Inteligente de PAEC Anterior (PDF/Word) en Paso 1 (H-155)
+  const fileInputPaecRef = useRef<HTMLInputElement>(null);
+  const [uploadingPaec, setUploadingPaec] = useState(false);
 
   // F11 y Estadística 911 uploads con diferenciación de momentos
   const fileInputF11Ref = useRef<HTMLInputElement>(null);
@@ -502,16 +482,12 @@ interface PaecProjectForPmc {
   const [docsStatus, setDocsStatus] = useState<{
     f11?: boolean;
     pmcAnt?: boolean;
+    paecAnt?: boolean;
     n911FinAnt?: boolean;
     n911IniAnt?: boolean;
     n911IniAct?: boolean;
   }>({});
 
-  // Sinergia PAEC -> PMC (Importar diagnósticos)
-  const [loadingPaecList, setLoadingPaecList] = useState(false);
-  const [paecProjectsList, setPaecProjectsList] = useState<PaecProjectForPmc[]>([]);
-  const [selectedPaecToImport, setSelectedPaecToImport] = useState<PaecProjectForPmc | null>(null);
-  const [showPaecImportModal, setShowPaecImportModal] = useState(false);
   const [successBanner, setSuccessBanner] = useState<string | null>(null);
 
   const triggerUpload911 = (momento: 'inicio_anterior' | 'fin_anterior' | 'inicio_actual') => {
@@ -884,64 +860,84 @@ interface PaecProjectForPmc {
     }
   };
 
-  // Sinergia PAEC → PMC (Importar diagnósticos hacia Paso 3)
-  const handleOpenImportPaecModal = async () => {
-    setLoadingPaecList(true);
-    setShowPaecImportModal(true);
-    setSelectedPaecToImport(null);
+  // Carga Inteligente de PAEC Anterior (PDF/Word) en Paso 1 (H-155)
+  const handleUploadPreviousPaec = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingPaec(true);
+    setError(null);
     try {
-      const url = schoolCct.trim()
-        ? `/api/paec/for-pmc?cct=${encodeURIComponent(schoolCct.trim())}`
-        : '/api/paec/for-pmc';
-      const res = await fetch(url);
-      const json = await parseSafeApiResponse<{ success?: boolean; projects?: PaecProjectForPmc[] }>(
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/paec/parse-previous', {
+        method: 'POST',
+        body: formData,
+      });
+      const json = await parseSafeApiResponse<{
+        success?: boolean;
+        error?: string;
+        data?: {
+          projectName?: string | null;
+          problemStatement?: string | null;
+          school?: {
+            schoolName?: string | null;
+            cct?: string | null;
+            municipality?: string | null;
+            locality?: string | null;
+            schoolZone?: string | null;
+            directorName?: string | null;
+            supervisorName?: string | null;
+          };
+          community?: {
+            context?: string | null;
+            location?: string | null;
+            problematics?: string | null;
+            economicActivities?: string | null;
+            culturalAspects?: string | null;
+          };
+        };
+      }>(
         res,
-        'Error al consultar proyectos PAEC.'
+        'Error al analizar el documento PAEC anterior.'
       );
-      if (res.ok && json.success) {
-        setPaecProjectsList(json.projects || []);
-        if (json.projects && json.projects.length > 0) {
-          setSelectedPaecToImport(json.projects[0]);
-        }
-      } else {
-        setPaecProjectsList([]);
+      if (!res.ok || !json.success || !json.data) {
+        throw new Error(json.error || 'Error al procesar el archivo PAEC.');
       }
-    } catch {
-      setPaecProjectsList([]);
+
+      const pData = json.data;
+      const sCtx = pData.school || {};
+      const cCtx = pData.community || {};
+
+      if (typeof sCtx.schoolName === 'string' && sCtx.schoolName && !schoolName) setSchoolName(sCtx.schoolName);
+      if (typeof sCtx.cct === 'string' && sCtx.cct && !schoolCct) setSchoolCct(sCtx.cct);
+      if (typeof sCtx.directorName === 'string' && sCtx.directorName && !directorName) setDirectorName(sCtx.directorName);
+      if (typeof sCtx.supervisorName === 'string' && sCtx.supervisorName && !supervisorName) setSupervisorName(sCtx.supervisorName);
+      if (typeof sCtx.schoolZone === 'string' && sCtx.schoolZone && !schoolZone) setSchoolZone(sCtx.schoolZone);
+      if (typeof sCtx.municipality === 'string' && sCtx.municipality && !municipality) setMunicipality(sCtx.municipality);
+      if (typeof sCtx.locality === 'string' && sCtx.locality && !locality) setLocality(sCtx.locality);
+
+      const paecDiagParts = [
+        cCtx.context ? `[Contexto Comunitario PAEC]: ${cCtx.context}` : '',
+        cCtx.location ? `[Entorno Geográfico]: ${cCtx.location}` : '',
+        pData.problemStatement ? `[Problemática Comunitaria Central - ${pData.projectName || 'PAEC'}]: ${pData.problemStatement}` : '',
+        cCtx.problematics ? `[Problemáticas Detectadas]: ${cCtx.problematics}` : '',
+        cCtx.economicActivities ? `[Actividades Económicas]: ${cCtx.economicActivities}` : '',
+      ].filter(Boolean);
+
+      if (paecDiagParts.length > 0) {
+        const combined = paecDiagParts.join('\n\n');
+        setDiagnosticoComunidad(prev => prev.trim() ? `${prev}\n\n--- Integrado desde PAEC ---\n${combined}` : combined);
+      }
+
+      setDocsStatus(prev => ({ ...prev, paecAnt: true }));
+      setSuccessBanner('✓ Documento PAEC procesado e integrado exitosamente al diagnóstico y datos de plantel.');
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : 'No se pudo procesar el PAEC anterior.';
+      setError(errMsg);
     } finally {
-      setLoadingPaecList(false);
+      setUploadingPaec(false);
+      if (fileInputPaecRef.current) fileInputPaecRef.current.value = '';
     }
-  };
-
-  const handleApplyPaecToPmc = () => {
-    if (!selectedPaecToImport) return;
-    const p = selectedPaecToImport;
-    const sCtx = p.schoolContext || {};
-    const cCtx = p.communityContext || {};
-
-    if (typeof sCtx.schoolName === 'string' && !schoolName) setSchoolName(sCtx.schoolName);
-    if (typeof sCtx.cct === 'string' && !schoolCct) setSchoolCct(sCtx.cct);
-    if (typeof sCtx.directorName === 'string' && !directorName) setDirectorName(sCtx.directorName);
-    if (typeof sCtx.supervisorName === 'string' && !supervisorName) setSupervisorName(sCtx.supervisorName);
-    if (typeof sCtx.schoolZone === 'string' && !schoolZone) setSchoolZone(sCtx.schoolZone);
-    if (typeof sCtx.municipality === 'string' && !municipality) setMunicipality(sCtx.municipality);
-    if (typeof sCtx.locality === 'string' && !locality) setLocality(sCtx.locality);
-
-    const paecDiagParts = [
-      cCtx.context ? `[Contexto Comunitario PAEC]: ${cCtx.context}` : '',
-      cCtx.location ? `[Entorno Geográfico]: ${cCtx.location}` : '',
-      p.problemStatement ? `[Problemática Comunitaria Central - ${p.projectName || 'PAEC'}]: ${p.problemStatement}` : '',
-      cCtx.problematics ? `[Problemáticas Detectadas]: ${cCtx.problematics}` : '',
-      cCtx.economicActivities ? `[Actividades Económicas]: ${cCtx.economicActivities}` : '',
-    ].filter(Boolean);
-
-    if (paecDiagParts.length > 0) {
-      const combined = paecDiagParts.join('\n\n');
-      setDiagnosticoComunidad(prev => prev.trim() ? `${prev}\n\n--- Integrado desde PAEC ---\n${combined}` : combined);
-    }
-
-    setShowPaecImportModal(false);
-    setSuccessBanner(`✓ Diagnóstico y contexto importados exitosamente desde el PAEC "${p.projectName}".`);
   };
 
   const handleConsultarZona = useCallback(async () => {
@@ -1474,7 +1470,7 @@ interface PaecProjectForPmc {
                 <span style={{ fontSize: '20px' }}>⚡</span>
                 <div>
                   <div style={{ fontSize: '13px', fontWeight: 700, color: '#ffffff' }}>Carga Inteligente de Documentos Oficiales</div>
-                  <div style={{ fontSize: '11.5px', color: 'rgba(240,244,255,0.6)' }}>Sube el F11 (calificaciones) y Estadística 911 (matrícula) para pre-llenar tu PMC</div>
+                  <div style={{ fontSize: '11.5px', color: 'rgba(240,244,255,0.6)' }}>Sube F11 (calificaciones), Estadística 911 (matrícula), PMC o PAEC anterior para pre-llenar tu PMC</div>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -1555,6 +1551,22 @@ interface PaecProjectForPmc {
                   {uploadingPmc ? '⏳ Analizando...' : `📄 Cargar PMC Anterior${docsStatus.pmcAnt ? ' ✓' : ''}`}
                 </button>
                 <input ref={fileInputPmcRef} type="file" accept=".pdf,.docx,.doc,.jpg,.jpeg,.png,.webp,image/*" style={{ display: 'none' }} onChange={handleUploadPreviousPmc} />
+
+                <button
+                  type="button"
+                  onClick={() => fileInputPaecRef.current?.click()}
+                  disabled={uploadingPaec}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                    padding: '8px 14px', borderRadius: '8px',
+                    background: docsStatus.paecAnt ? 'rgba(168,85,247,0.35)' : 'rgba(168,85,247,0.2)',
+                    border: '1px solid rgba(168,85,247,0.45)',
+                    color: '#e9d5ff', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+                  }}
+                >
+                  {uploadingPaec ? '⏳ Analizando PAEC...' : `📄 Cargar PAEC anterior (PDF/Word)${docsStatus.paecAnt ? ' ✓' : ''}`}
+                </button>
+                <input ref={fileInputPaecRef} type="file" accept=".pdf,.docx,.doc" style={{ display: 'none' }} onChange={handleUploadPreviousPaec} />
               </div>
             </div>
 
@@ -2070,26 +2082,7 @@ interface PaecProjectForPmc {
 
             {/* Contexto Comunitario */}
             <div style={sectionCard}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
-                <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#818cf8', margin: 0 }}>🌍 Contexto de la Comunidad</h3>
-                <button
-                  type="button"
-                  onClick={handleOpenImportPaecModal}
-                  disabled={loadingPaecList}
-                  style={{
-                    padding: '5px 12px',
-                    borderRadius: '6px',
-                    background: 'rgba(16,185,129,0.15)',
-                    border: '1px solid rgba(16,185,129,0.35)',
-                    color: '#6ee7b7',
-                    fontSize: '11.5px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {loadingPaecList ? 'Consultando PAEC...' : '📥 Importar contexto desde PAEC del Plantel'}
-                </button>
-              </div>
+              <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#818cf8', marginBottom: '12px' }}>🌍 Contexto de la Comunidad</h3>
               <label style={labelStyle}>Descripción del contexto socioeducativo de la comunidad *</label>
               <textarea
                 style={{ ...inputStyle, minHeight: '140px', resize: 'vertical' }}
@@ -3387,151 +3380,7 @@ interface PaecProjectForPmc {
           </div>
         )}
 
-        {/* Modal de Importación desde PAEC */}
-        {showPaecImportModal && (
-          <div style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.85)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 100,
-            padding: '20px',
-            backdropFilter: 'blur(5px)',
-          }}>
-            <div style={{
-              background: '#0f172a',
-              border: '1px solid rgba(16,185,129,0.4)',
-              borderRadius: '16px',
-              maxWidth: '700px',
-              width: '100%',
-              maxHeight: '90vh',
-              overflowY: 'auto',
-              padding: '24px',
-              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.7)',
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '14px', marginBottom: '18px' }}>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '18px', color: '#f0f4ff', fontWeight: 700 }}>
-                    📥 Importar Diagnóstico desde PAEC del Plantel
-                  </h3>
-                  <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#94a3b8' }}>
-                    Reutiliza el diagnóstico territorial, la problemática comunitaria y datos del plantel validados.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowPaecImportModal(false)}
-                  style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '20px', cursor: 'pointer' }}
-                >
-                  ×
-                </button>
-              </div>
 
-              {loadingPaecList ? (
-                <div style={{ padding: '30px', textAlign: 'center', color: '#a5b4fc', fontSize: '13px' }}>
-                  🔍 Consultando proyectos PAEC del plantel...
-                </div>
-              ) : paecProjectsList.length === 0 ? (
-                <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', fontSize: '13px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
-                  <p style={{ margin: '0 0 8px 0', color: '#cbd5e1', fontWeight: 600 }}>
-                    No se encontraron proyectos PAEC registrados para este CCT o usuario.
-                  </p>
-                  <p style={{ margin: '0 0 16px 0', fontSize: '12px', color: '#94a3b8', lineHeight: 1.5 }}>
-                    Para articular el diagnóstico comunitario y las problemáticas del entorno escolar al PMC, puedes crear o subir tu PAEC en formato PDF/Word.
-                  </p>
-                  <Link
-                    href={`/${locale}/paec/nuevo`}
-                    target="_blank"
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      padding: '8px 16px',
-                      background: 'rgba(99, 102, 241, 0.2)',
-                      border: '1px solid rgba(99, 102, 241, 0.5)',
-                      borderRadius: '6px',
-                      color: '#c7d2fe',
-                      textDecoration: 'none',
-                      fontSize: '12px',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <span>➕</span> Ir a Crear o Importar PAEC (Abre en nueva pestaña)
-                  </Link>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: '#c7d2fe' }}>
-                    Selecciona el proyecto PAEC fuente:
-                  </label>
-                  <select
-                    value={selectedPaecToImport?.id || ''}
-                    onChange={(e) => {
-                      const found = paecProjectsList.find(p => p.id === e.target.value);
-                      setSelectedPaecToImport(found || null);
-                    }}
-                    style={{ ...inputStyle, background: '#1e293b' }}
-                  >
-                    {paecProjectsList.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.projectName} ({p.cycleType === 'annual' ? 'Anual' : `Semestre ${p.cycleType}`})
-                      </option>
-                    ))}
-                  </select>
-
-                  {selectedPaecToImport && (
-                    <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '10px', padding: '14px', border: '1px solid rgba(255,255,255,0.08)', marginTop: '8px' }}>
-                      <div style={{ marginBottom: '10px' }}>
-                        <strong style={{ fontSize: '12px', color: '#34d399', display: 'block' }}>Problemática Comunitaria Central:</strong>
-                        <p style={{ margin: '4px 0 0', fontSize: '12.5px', color: '#f0f4ff', lineHeight: 1.4 }}>
-                          {selectedPaecToImport.problemStatement || 'Sin descripción'}
-                        </p>
-                      </div>
-                      {selectedPaecToImport.communityContext?.context && (
-                        <div>
-                          <strong style={{ fontSize: '12px', color: '#38bdf8', display: 'block' }}>Contexto Territorial de la Comunidad:</strong>
-                          <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#cbd5e1', maxHeight: '100px', overflowY: 'auto', lineHeight: 1.4 }}>
-                            {selectedPaecToImport.communityContext.context}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '14px' }}>
-                <button
-                  type="button"
-                  onClick={() => setShowPaecImportModal(false)}
-                  style={{ padding: '8px 16px', background: 'transparent', border: '1px solid #475569', borderRadius: '8px', color: '#94a3b8', fontSize: '13px', cursor: 'pointer' }}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  disabled={!selectedPaecToImport}
-                  onClick={handleApplyPaecToPmc}
-                  style={{
-                    padding: '8px 20px',
-                    background: selectedPaecToImport ? 'linear-gradient(135deg, #10b981, #059669)' : 'rgba(255,255,255,0.1)',
-                    border: 'none',
-                    borderRadius: '8px',
-                    color: '#ffffff',
-                    fontSize: '13px',
-                    fontWeight: 700,
-                    cursor: selectedPaecToImport ? 'pointer' : 'not-allowed',
-                  }}
-                >
-                  ✓ Importar al Diagnóstico del PMC
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Modal Informativo de Cobertura de Metas (C10 / D6 - Jamás bloquear export) */}
         {showCoverageModal && (
