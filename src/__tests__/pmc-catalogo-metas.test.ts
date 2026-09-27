@@ -238,6 +238,34 @@ describe('FASE 2: Catálogo Normativo y de Metas Institucionales (5.2 Formato Of
           `El documento normativo con ID ${ref.docId} ("${key}": "${ref.titulo}") referenciado en el diccionario canónico debe existir en la BD y tener vigente = true`
         ).toBeDefined();
 
+        // H-120: Validar concordancia de títulos entre diccionario canónico y BD (vigilando el acuerdo MCCEMS)
+        const dbTitulo = docEnDb!.titulo;
+        const refTitulo = ref.titulo;
+        const fechaRef = refTitulo.match(/\d{2}\/\d{2}\/\d{2}/)?.[0];
+        const fechaDb = dbTitulo.match(/\d{2}\/\d{2}\/\d{2}/)?.[0];
+        if (fechaRef || fechaDb) {
+          expect(
+            fechaDb,
+            `El acuerdo en BD ("${dbTitulo}") debe tener la misma fecha/código que el diccionario ("${refTitulo}") para ${key}`
+          ).toBe(fechaRef);
+        }
+
+        const coincideTitulo =
+          refTitulo === dbTitulo ||
+          refTitulo.includes(dbTitulo) ||
+          dbTitulo.includes(refTitulo) ||
+          (refTitulo.includes('09/08/23') && dbTitulo.includes('09/08/23'));
+
+        expect(
+          coincideTitulo,
+          `El título del documento en BD ("${dbTitulo}") y en CANONICAL_NORMATIVA_REFS ("${refTitulo}") deben coincidir para docId ${ref.docId}`
+        ).toBe(true);
+
+        if (ref.docId === 4) {
+          expect(dbTitulo).not.toContain('14/08/22');
+          expect(dbTitulo).toContain('09/08/23');
+        }
+
         // Obtener los artículos en BD para este documento
         const articulosEnDb = articulosPorDoc.get(ref.docId) || [];
         expect(
