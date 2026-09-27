@@ -673,9 +673,9 @@ export async function generatePmcPDF(
       safeStr(m.meta, 'Meta en proceso'),
       safeStr(m.estrategia, 'Estrategia pedagógica'),
       safeStr(m.personal_designado, 'Colectivo Escolar'),
-      safeStr(m.entregable, 'Evidencias y Actas CTE'),
+      safeStr(m.entregable, 'Evidencia documental'),
       (m.periodo_inicio || m.periodo_fin)
-        ? `${safeStr(m.periodo_inicio, 'N/D')} - ${safeStr(m.periodo_fin, 'N/D')}`
+        ? `${safeStr(m.periodo_inicio, 'N/D')} — ${safeStr(m.periodo_fin, 'N/D')}`
         : 'N/D',
     ]);
 
@@ -694,7 +694,7 @@ export async function generatePmcPDF(
         { content: 'Estrategia de Operación', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
         { content: 'Responsable', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
         { content: 'Evidencia / Entregable', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
-        { content: 'Periodo', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
+        { content: 'Período', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
       ]],
       body: metaRows,
       theme: 'grid',

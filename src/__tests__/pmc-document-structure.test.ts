@@ -305,4 +305,27 @@ describe('H-100 / H-101: SSoT Estructura Documental y Paridad PDF vs DOCX', () =
     expect(grupoA.documentos[0].articulos).toEqual(['Art. 107', 'Art. 108']);
     expect(grupoA.documentos[0].articulos).not.toContain('Artículo Relevante');
   });
+
+  it('6. Matriz de metas en DOCX y PDF cuenta con encabezados idénticos ("Período") y separador em-dash (" — ") (H-132, H-133)', async () => {
+    const project = makeMockPmcProject();
+
+    const docxBuffer = await generatePmcDocx(project as unknown as Parameters<typeof generatePmcDocx>[0]);
+    const { value: docxText } = await mammoth.extractRawText({ buffer: docxBuffer });
+
+    const pdfBuffer = await generatePmcPDF(project as unknown as Parameters<typeof generatePmcPDF>[0]);
+    const parser = new PDFParse({ data: new Uint8Array(pdfBuffer) });
+    const parsedPdf = await parser.getText();
+    await parser.destroy();
+    const pdfText = parsedPdf.text;
+
+    // Ambos deben contener "Período" con tilde
+    expect(docxText).toContain('Período');
+    expect(pdfText).toContain('Período');
+
+    // Ambos deben usar em-dash (" — ") en el período de la meta y no " - "
+    expect(docxText).toContain('Agosto 2026 — Julio 2027');
+    expect(pdfText).toContain('Agosto 2026 — Julio 2027');
+    expect(pdfText).not.toContain('Agosto 2026 - Julio 2027');
+  });
 });
+
