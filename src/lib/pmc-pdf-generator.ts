@@ -784,35 +784,53 @@ export async function generatePmcPDF(
     doc.text('No se han registrado metas individuales de la plantilla en este reporte.', margin, curY);
     curY += 8;
   } else {
-    const personalRows = metasPers.map((p, i) => [
-      { content: `${i + 1}`, styles: { halign: 'center' as const, fontStyle: 'bold' as const, fillColor: GRAY_BG } },
-      safeStr(p.nombre, 'Personal'),
-      safeStr(p.cargo, 'Docente'),
-      safeStr(p.meta_individual, 'Compromiso de mejora'),
-      safeStr(p.estrategia, 'Seguimiento en aula'),
-      safeStr(p.entregable, 'Planeación y Portafolio'),
-    ]);
+    const personalRows = metasPers.map((p, i) => {
+      const periodoStr = p.periodo
+        ? p.periodo
+            .replace(/\s*-\s*/g, ' — ')
+            .replace(/\bagosto\b/gi, 'Agosto')
+            .replace(/\bjunio\b/gi, 'Junio')
+            .replace(/\bjulio\b/gi, 'Julio')
+        : 'Ciclo Escolar';
+      const metaStr = safeStr(
+        p.categoria
+          ? `[${p.categoria}${p.tema ? ` — ${p.tema}` : ''}] ${p.meta_individual || ''}`
+          : p.meta_individual,
+        'Compromiso de mejora'
+      );
+      return [
+        { content: `${i + 1}`, styles: { halign: 'center' as const, fontStyle: 'bold' as const, fillColor: GRAY_BG } },
+        safeStr(p.nombre, 'Personal'),
+        safeStr(p.cargo, 'Docente'),
+        metaStr,
+        safeStr(p.estrategia, 'Seguimiento en aula'),
+        safeStr(p.entregable, 'Planeación y Portafolio'),
+        { content: periodoStr, styles: { halign: 'center' as const } },
+      ];
+    });
 
     autoTable(doc, {
       startY: curY,
       head: [[
-        { content: '#', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], halign: 'center' } },
+        { content: 'N°', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], halign: 'center' } },
         { content: 'Nombre del Integrante', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
         { content: 'Cargo / Función', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
         { content: 'Meta y Compromiso Individual', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
         { content: 'Estrategia Individual', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
         { content: 'Entregable Comprobable', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
+        { content: 'Período', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], halign: 'center' } },
       ]],
       body: personalRows,
       theme: 'grid',
       styles: { fontSize: 6.5, cellPadding: 1.8, textColor: TEXT_DARK, lineColor: [210, 220, 235] },
       columnStyles: {
         0: { cellWidth: 7 },
-        1: { cellWidth: 35 },
-        2: { cellWidth: 26 },
-        3: { cellWidth: 48 },
-        4: { cellWidth: 40 },
-        5: { cellWidth: 28 },
+        1: { cellWidth: 32 },
+        2: { cellWidth: 24 },
+        3: { cellWidth: 42 },
+        4: { cellWidth: 32 },
+        5: { cellWidth: 25 },
+        6: { cellWidth: 20 },
       },
       margin: { left: margin, right: margin },
     });

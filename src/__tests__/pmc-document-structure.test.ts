@@ -88,6 +88,16 @@ function makeMockPmcProject(): PmcProject {
           entregable: 'Actas de CTE firmadas.',
           periodo: 'Ciclo Escolar 2026-2027',
         },
+        {
+          nombre: 'Prof. Pedro López Juárez',
+          cargo: 'Docente de Matemáticas',
+          categoria: 'Desarrollo Académico',
+          tema: 'Recursos sociocognitivos',
+          meta_individual: 'Implementar 3 proyectos formativos situados en aula.',
+          estrategia: 'Planeación didáctica transversal.',
+          entregable: 'Rúbricas de evaluación formativa.',
+          periodo: 'agosto 2026 - junio 2027',
+        },
       ],
     },
     staff_data: [
@@ -359,6 +369,48 @@ describe('H-100 / H-101: SSoT Estructura Documental y Paridad PDF vs DOCX', () =
     // Anti-fabricación B-001 (H-134): Cuando horas_base es ausente/null, NO inventar "40 hrs"
     expect(docxText).not.toContain('40 hrs');
     expect(pdfText).not.toContain('40 hrs');
+  });
+
+  it('8. Sección 7 en DOCX y PDF cuenta con paridad espejo 100%: 7 columnas idénticas, estrategia y período normalizado con em-dash (H-135)', async () => {
+    const project = makeMockPmcProject();
+
+    const docxBuffer = await generatePmcDocx(project as unknown as Parameters<typeof generatePmcDocx>[0]);
+    const { value: docxText } = await mammoth.extractRawText({ buffer: docxBuffer });
+
+    const pdfBuffer = await generatePmcPDF(project as unknown as Parameters<typeof generatePmcPDF>[0]);
+    const parser = new PDFParse({ data: new Uint8Array(pdfBuffer) });
+    const parsedPdf = await parser.getText();
+    await parser.destroy();
+    const pdfText = parsedPdf.text;
+
+    // Encabezados de Sección 7 presentes en ambos
+    expect(docxText).toContain('Nombre del Integrante');
+    expect(docxText).toContain('Cargo / Función');
+    expect(docxText).toContain('Meta y Compromiso Individual');
+    expect(docxText).toContain('Estrategia Individual');
+    expect(docxText).toContain('Entregable Comprobable');
+    expect(docxText).toContain('Período');
+
+    expect(pdfText).toMatch(/Nombre del Integrante/);
+    expect(pdfText).toMatch(/Cargo\s*\/\s*Función/);
+    expect(pdfText).toMatch(/Meta y Compromiso Individual/);
+    expect(pdfText).toMatch(/Estrategia Individual/);
+    expect(pdfText).toMatch(/Entregable\s+Comprobable/);
+    expect(pdfText).toMatch(/Período/);
+
+    // Estrategia individual presente en ambos
+    expect(docxText).toContain('Calendario de seguimiento directivo.');
+    expect(pdfText).toMatch(/Calendario de seguimiento\s+directivo\./);
+
+    // Prefijo de categoría [ámbito — tema] presente e idéntico con em-dash en ambos
+    expect(docxText).toContain('[Desarrollo Académico — Recursos sociocognitivos]');
+    expect(pdfText).toMatch(/\[Desarrollo Académico\s+—\s+Recursos\s+sociocognitivos\]/);
+
+    // Período normalizado a mayúscula inicial y em-dash (" — ") en ambos
+    expect(docxText).toContain('Agosto 2026 — Junio 2027');
+    expect(pdfText).toMatch(/Agosto 2026\s+—\s+Junio 2027/);
+    expect(docxText).not.toContain('agosto 2026 - junio 2027');
+    expect(pdfText).not.toContain('agosto 2026 - junio 2027');
   });
 });
 

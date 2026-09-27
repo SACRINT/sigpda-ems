@@ -879,40 +879,44 @@ function buildMetasPersonales(plan: PlanAccion): (Paragraph | Table)[] {
       [
         new TableRow({
           children: [
-            tcH('Nombre del Integrante'),
-            tcH('Cargo / Función'),
-            tcH('Meta y Compromiso Individual'),
-            tcH('Entregable Comprobable'),
-            tcH('Período'),
+            tcH('N°', { w: 500 }),
+            tcH('Nombre del Integrante', { w: 1800 }),
+            tcH('Cargo / Función', { w: 1400 }),
+            tcH('Meta y Compromiso Individual', { w: 2600 }),
+            tcH('Estrategia Individual', { w: 1800 }),
+            tcH('Entregable Comprobable', { w: 1600 }),
+            tcH('Período', { w: 1100 }),
           ],
         }),
-        ...personal.map(
-          (mp, i) =>
-            new TableRow({
-              children: [
-                tc(safeStr(mp.nombre), { fill: i % 2 ? C.alt : C.white }),
-                tc(safeStr(mp.cargo), { fill: i % 2 ? C.alt : C.white }),
-                tc(
-                  safeStr(
-                    mp.categoria
-                      ? `[${mp.categoria}${mp.tema ? ` - ${mp.tema}` : ''}] ${mp.meta_individual || ''}`
-                      : mp.meta_individual
-                  ),
-                  { fill: i % 2 ? C.alt : C.white }
-                ),
-                tc(safeStr(mp.entregable), { fill: i % 2 ? C.alt : C.white }),
-                tc(safeStr(mp.periodo), { fill: i % 2 ? C.alt : C.white }),
-              ],
-            })
-        ),
+        ...personal.map((mp, i) => {
+          const bg = i % 2 ? C.alt : C.white;
+          const periodoStr = mp.periodo
+            ? mp.periodo
+                .replace(/\s*-\s*/g, ' — ')
+                .replace(/\bagosto\b/gi, 'Agosto')
+                .replace(/\bjunio\b/gi, 'Junio')
+                .replace(/\bjulio\b/gi, 'Julio')
+            : 'Ciclo Escolar';
+          const metaStr = safeStr(
+            mp.categoria
+              ? `[${mp.categoria}${mp.tema ? ` — ${mp.tema}` : ''}] ${mp.meta_individual || ''}`
+              : mp.meta_individual,
+            'Compromiso de mejora'
+          );
+          return new TableRow({
+            children: [
+              tc(String(i + 1), { w: 500, align: AlignmentType.CENTER, fill: bg }),
+              tc(safeStr(mp.nombre, 'Personal'), { w: 1800, fill: bg }),
+              tc(safeStr(mp.cargo, 'Docente'), { w: 1400, fill: bg }),
+              tc(metaStr, { w: 2600, fill: bg }),
+              tc(safeStr(mp.estrategia, 'Seguimiento en aula'), { w: 1800, fill: bg }),
+              tc(safeStr(mp.entregable, 'Planeación y Portafolio'), { w: 1600, fill: bg }),
+              tc(periodoStr, { w: 1100, align: AlignmentType.CENTER, fill: bg }),
+            ],
+          });
+        }),
       ],
-      [
-        Math.floor(CONTENT * 0.18),
-        Math.floor(CONTENT * 0.15),
-        Math.floor(CONTENT * 0.29),
-        Math.floor(CONTENT * 0.25),
-        Math.floor(CONTENT * 0.13),
-      ]
+      [500, 1800, 1400, 2600, 1800, 1600, 1100]
     )
   );
 

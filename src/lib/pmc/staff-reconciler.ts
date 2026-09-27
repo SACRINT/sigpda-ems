@@ -245,7 +245,7 @@ export function reconcilePmcStaff(options: ReconcileStaffOptions): ReconciledSta
         meta: candidate.meta_individual.trim(),
         estrategia: '',
         entregable: '',
-        periodo: `agosto ${safeCiclo.split('-')[0] || '2026'} - junio ${safeCiclo.split('-')[1] || '2027'}`,
+        periodo: `Agosto ${safeCiclo.split('-')[0] || '2026'} — Junio ${safeCiclo.split('-')[1] || '2027'}`,
       });
     }
 
@@ -445,7 +445,7 @@ export function derivePersonalMetasFromStaff(
   const safeCiclo = cicloEscolar || '2026-2027';
   const startYear = safeCiclo.split('-')[0] || '2026';
   const endYear = safeCiclo.split('-')[1] || '2027';
-  const defaultPeriodo = `agosto ${startYear} - junio ${endYear}`;
+  const defaultPeriodo = `Agosto ${startYear} — Junio ${endYear}`;
 
   type ExistingMetaItem = NonNullable<typeof existingMetas>[number];
   const existingMap = new Map<string, ExistingMetaItem>();
