@@ -229,6 +229,55 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         }
       }
 
+      // H-145: Guard determinista contra términos prohibidos en diagnóstico generado
+      let forbiddenMatches = findForbiddenPlatformTerms(parsedDiag);
+      if (forbiddenMatches.length > 0) {
+        const uniqueTerms = Array.from(new Set(forbiddenMatches.map(t => t.toUpperCase())));
+        logger.warn(
+          `[PMC Diagnostico Guard] Términos prohibidos detectados en generación inicial (${uniqueTerms.join(', ')}). Iniciando reintento correctivo...`
+        );
+        const correctivePrompt = `${prompt}\n\n[CORRECCIÓN OBLIGATORIA DEL SISTEMA]:\nTu respuesta anterior incluyó términos prohibidos de plataforma privada (${uniqueTerms.join(', ')}).\nEstá terminantemente PROHIBIDO mencionar "SIGPDA", "SIGPDA-EMS", "SIGPDA EMS" o nombres de software privado en el diagnóstico o FODA.\nReemplázalos por terminología oficial como "plataforma institucional de planeación docente", "consejo académico", "academia docente" o "portafolio institucional de evidencias".\nGenera de nuevo el diagnóstico en JSON válido respetando estrictamente esta restricción oficial.`;
+
+        const retryText = await generateWithRotation(
+          'Eres un asistente experto en planeación educativa para el BGE de Puebla. Responde siempre con JSON válido y bien formado. Está estrictamente prohibido incluir las siglas SIGPDA o SIGPDA-EMS en ningún campo.',
+          correctivePrompt,
+          teacher.id,
+          isPremium,
+          { jsonMode: true }
+        );
+
+        if (retryText) {
+          const retryParse = parseAIResponse(retryText, PmcDiagnosticoSchema, { contextName: 'pmc_diagnostico_retry' });
+          if (retryParse.success) {
+            const retryForbidden = findForbiddenPlatformTerms(retryParse.data);
+            if (retryForbidden.length === 0) {
+              logger.info('[PMC Diagnostico Guard] Reintento correctivo exitoso: 0 términos prohibidos.');
+              parsedDiag = retryParse.data;
+              fodaWarning = undefined;
+              forbiddenMatches = [];
+            } else {
+              forbiddenMatches = retryForbidden;
+            }
+          }
+        }
+      }
+
+      // Si aún persisten términos prohibidos tras el reintento, abortar la persistencia con HTTP 422
+      if (forbiddenMatches.length > 0) {
+        const uniqueTerms = Array.from(new Set(forbiddenMatches.map(t => t.toUpperCase())));
+        logger.error(
+          `[PMC Diagnostico Guard] Bloqueada persistencia de diagnostico_generado contaminado con: ${uniqueTerms.join(', ')}`
+        );
+        return NextResponse.json(
+          {
+            error:
+              'El diagnóstico generado contiene términos prohibidos de plataforma privada (SIGPDA/SIGPDA-EMS). Se bloqueó la persistencia para proteger la validez normativa oficial del PMC ante SEMS Puebla. Por favor, regenera el diagnóstico.',
+            forbiddenTerms: uniqueTerms,
+          },
+          { status: 422 }
+        );
+      }
+
       const [updated] = await db`
         UPDATE pmc_projects
         SET diagnostico_generado = ${JSON.stringify(parsedDiag)},

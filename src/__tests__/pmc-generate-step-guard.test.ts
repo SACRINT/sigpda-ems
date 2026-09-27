@@ -204,4 +204,69 @@ describe('H-143 — Guard determinista contra términos prohibidos en generate-s
     // CRÍTICO: el UPDATE a la base de datos NUNCA debe ejecutarse
     expect(mockDb).toHaveBeenCalledTimes(1); // Solo SELECT, NUNCA UPDATE
   });
+
+  const contaminatedDiagPayload = JSON.stringify({
+    presentacion: 'Presentación formal en el sistema SIGPDA-EMS para el plantel.',
+    contexto: 'Contexto educativo regional.',
+    analisis_indicadores: 'Aprobación del 85% y retención en seguimiento.',
+    sintesis_foda: 'Fortalezas consolidadas mediante uso de SIGPDA.',
+    priorizacion: 'Priorización colegiada de indicadores.',
+  });
+
+  const cleanDiagPayload = JSON.stringify({
+    presentacion: 'Presentación formal en la plataforma institucional de planeación para el plantel.',
+    contexto: 'Contexto educativo regional.',
+    analisis_indicadores: 'Aprobación del 85% y retención en seguimiento.',
+    sintesis_foda: 'Fortalezas consolidadas mediante uso de herramientas académicas oficiales.',
+    priorizacion: 'Priorización colegiada de indicadores.',
+  });
+
+  it('4. Detección de SIGPDA en step diagnostico -> reintento correctivo exitoso -> status 200 y persiste en BD', async () => {
+    const mockDb = vi.fn()
+      .mockResolvedValueOnce([mockProject]) // SELECT
+      .mockResolvedValueOnce([{ ...mockProject, current_step: 3 }]); // UPDATE
+
+    vi.mocked(sql).mockReturnValue(mockDb as never);
+    vi.mocked(generateWithRotation)
+      .mockResolvedValueOnce(contaminatedDiagPayload)
+      .mockResolvedValueOnce(cleanDiagPayload);
+
+    const req = new NextRequest(`http://localhost:3000/api/pmc/${mockProject.id}/generate-step`, {
+      method: 'POST',
+      body: JSON.stringify({ step: 'diagnostico' }),
+    });
+
+    const res = await POST(req, { params: Promise.resolve({ id: mockProject.id }) });
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.success).toBe(true);
+    expect(generateWithRotation).toHaveBeenCalledTimes(2);
+    expect(mockDb).toHaveBeenCalledTimes(2);
+    expect(data.diagnostico_generado.presentacion).not.toContain('SIGPDA');
+  });
+
+  it('5. Detección persistente de SIGPDA en step diagnostico tras reintento -> rechaza con HTTP 422 y NO persiste en BD', async () => {
+    const mockDb = vi.fn()
+      .mockResolvedValueOnce([mockProject]); // Solo SELECT
+
+    vi.mocked(sql).mockReturnValue(mockDb as never);
+    vi.mocked(generateWithRotation)
+      .mockResolvedValueOnce(contaminatedDiagPayload)
+      .mockResolvedValueOnce(contaminatedDiagPayload);
+
+    const req = new NextRequest(`http://localhost:3000/api/pmc/${mockProject.id}/generate-step`, {
+      method: 'POST',
+      body: JSON.stringify({ step: 'diagnostico' }),
+    });
+
+    const res = await POST(req, { params: Promise.resolve({ id: mockProject.id }) });
+    const data = await res.json();
+
+    expect(res.status).toBe(422);
+    expect(data.error).toContain('términos prohibidos de plataforma privada');
+    expect(data.forbiddenTerms.length).toBeGreaterThan(0);
+    expect(generateWithRotation).toHaveBeenCalledTimes(2);
+    expect(mockDb).toHaveBeenCalledTimes(1); // Solo SELECT, NUNCA UPDATE
+  });
 });
