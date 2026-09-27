@@ -845,7 +845,7 @@ export async function generatePmcPDF(
     const segRows = metasInst.map((m) => [
       (m.periodo_inicio || m.periodo_fin)
         ? `${safeStr(m.periodo_inicio, 'Corte 1')} a ${safeStr(m.periodo_fin, 'Corte 2')}`
-        : 'Periodo ordinario',
+        : 'Período ordinario',
       safeStr(m.meta, 'Meta institucional programada'),
       safeStr(m.personal_designado, 'Dirección / Colectivo Escolar'),
     ]);
@@ -853,7 +853,7 @@ export async function generatePmcPDF(
     autoTable(doc, {
       startY: curY,
       head: [[
-        { content: 'Periodo / Corte de Seguimiento', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
+        { content: 'Período / Corte de Seguimiento', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
         { content: 'Meta Institucional Asociada', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
         { content: 'Responsable del Seguimiento', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
       ]],

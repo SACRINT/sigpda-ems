@@ -940,7 +940,7 @@ function buildControlRevisiones(p: PmcProject, plan?: PlanAccion): (Paragraph | 
         [
           new TableRow({
             children: [
-              tcH('Periodo / Corte de Seguimiento', { w: 2600 }),
+              tcH('Período / Corte de Seguimiento', { w: 2600 }),
               tcH('Meta Institucional Asociada', { w: 5000 }),
               tcH('Responsable del Seguimiento', { w: 3200 }),
             ],
@@ -949,7 +949,7 @@ function buildControlRevisiones(p: PmcProject, plan?: PlanAccion): (Paragraph | 
             const bg = idx % 2 === 0 ? C.white : C.alt;
             const periodo = (m.periodo_inicio || m.periodo_fin)
               ? `${safeStr(m.periodo_inicio, 'Corte 1')} a ${safeStr(m.periodo_fin, 'Corte 2')}`
-              : 'Periodo ordinario';
+              : 'Período ordinario';
             return new TableRow({
               children: [
                 tc(periodo, { w: 2600, fill: bg }),
