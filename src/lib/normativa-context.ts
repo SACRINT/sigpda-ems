@@ -95,6 +95,24 @@ export async function getNormativaForGenerator(
 }
 
 /**
+ * Detecta si un valor de artículo de BD es un placeholder inútil que no debe
+ * aparecer en documentos oficiales.
+ * Casos detectados (H-112):
+ *  - 'Artículo Relevante' / 'Art. Relevante'
+ *  - Números solos como '1.', '2', '3.'
+ *  - Cadenas vacías o solo espacios
+ */
+function isPlaceholderArticulo(val: string): boolean {
+  const trimmed = val.trim();
+  if (!trimmed) return true;
+  const lower = trimmed.toLowerCase();
+  if (lower === 'artículo relevante' || lower === 'art. relevante' || lower === 'articulo relevante') return true;
+  // Número solo: '1', '1.', '01', etc.
+  if (/^\d{1,3}\.?$/.test(trimmed)) return true;
+  return false;
+}
+
+/**
  * Construye el bloque de texto de normativa para inyectar en el prompt.
  */
 function buildNormativaBlock(rows: NormativaArticulo[], generador: GeneratorType): string {
@@ -120,6 +138,8 @@ function buildNormativaBlock(rows: NormativaArticulo[], generador: GeneratorType
     const fuente = articulos[0].fuente ? ` (${articulos[0].fuente})` : '';
     block += `📌 ${titulo}${fuente}\n`;
     for (const art of articulos) {
+      // H-112: omitir placeholders
+      if (isPlaceholderArticulo(art.numero) || isPlaceholderArticulo(art.texto)) continue;
       // Limita cada artículo a 400 caracteres para no saturar el prompt
       const texto = art.texto.length > 400
         ? art.texto.substring(0, 397) + '...'
@@ -165,7 +185,10 @@ export async function getStructuredNormativaForGenerator(
       if (!byDoc.has(key)) {
         byDoc.set(key, { orden: row.orden_display, articulos: [] });
       }
-      byDoc.get(key)!.articulos.push(row.numero);
+      // H-112: filtrar placeholders antes de insertar en la lista
+      if (!isPlaceholderArticulo(row.numero)) {
+        byDoc.get(key)!.articulos.push(row.numero);
+      }
     }
 
     const result = Array.from(byDoc.entries()).map(([titulo, data]) => ({
