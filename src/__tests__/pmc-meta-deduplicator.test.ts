@@ -352,12 +352,17 @@ describe('H-150 / H-153: Deduplicación silenciosa de metas institucionales', ()
       matricula_meta: 85,
     };
 
-    it('procesa las 23 metas reales sin destruir metas distintas (esperado >= 22 metas)', () => {
+    it('procesa las 23 metas reales sin destruir metas distintas (esperado exactamente 22 metas)', () => {
       const output = deduplicateMetasInstitucionales(real23Metas, indicadoresReales);
       
-      // Debe mantener >= 22 metas (solo fusionando el par duplicado #3 y #14 de abandono)
-      expect(output.length).toBeGreaterThanOrEqual(22);
-      expect(output.length).toBeLessThanOrEqual(23);
+      // Debe mantener exactamente 22 metas (solo fusionando el par duplicado #3 y #14 de abandono)
+      expect(output).toHaveLength(22);
+
+      // Meta de rendimiento académico del 65% al 78% NUNCA debe ser alterada a 100% por aprobacion_meta
+      const rendimiento = output.find(m => normalizeMetaText(m.meta).includes('rendimiento academico'));
+      expect(rendimiento).toBeDefined();
+      expect(rendimiento?.meta).toContain('del 65% al 78%');
+      expect(rendimiento?.meta).not.toContain('100%');
 
       // Meta de egresados al 80% NUNCA debe ser alterada a 100%
       const egresados = output.find(m => normalizeMetaText(m.meta).includes('egresada') && normalizeMetaText(m.meta).includes('80'));

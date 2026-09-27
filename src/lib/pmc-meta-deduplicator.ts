@@ -94,11 +94,16 @@ export function isReprobacionGoal(meta: PmcMetaInstitucional): boolean {
 }
 
 /**
- * Determina si una meta trata inequívocamente sobre la tasa de aprobación / rendimiento académico.
+ * Determina si una meta trata inequívocamente sobre la tasa de aprobación escolar institucional.
+ * Excluye metas de rendimiento académico general o de semestres específicos para evitar sobreescrituras indebidas.
  */
 export function isAprobacionGoal(meta: PmcMetaInstitucional): boolean {
   const norm = normalizeMetaText(`${meta.meta || ''} ${meta.tema || ''}`);
-  return (norm.includes('aprobacion') || norm.includes('tasa de aprobacion') || norm.includes('rendimiento academico')) && !norm.includes('reprobacion');
+  return (
+    (norm.includes('aprobacion') || norm.includes('tasa de aprobacion') || norm.includes('indice de aprobacion')) &&
+    !norm.includes('reprobacion') &&
+    !norm.includes('rendimiento academico')
+  );
 }
 
 /**
@@ -123,7 +128,7 @@ export function detectMetaTopic(meta: PmcMetaInstitucional): MetaTopicKey {
   if (fullText.includes('reprobacion')) {
     return 'reprobacion';
   }
-  if (fullText.includes('aprobacion') || fullText.includes('rendimiento academico')) {
+  if (fullText.includes('aprobacion') && !fullText.includes('reprobacion')) {
     return 'aprobacion';
   }
   if (fullText.includes('eficiencia terminal')) {
