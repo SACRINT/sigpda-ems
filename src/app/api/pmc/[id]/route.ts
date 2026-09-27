@@ -3,6 +3,8 @@ import { auth } from '@/lib/auth';
 import { getTeacherByEmail, sql } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { assertNoForbiddenTerms } from '@/lib/pmc-quality-gate';
+import { deduplicateMetasInstitucionales } from '@/lib/pmc-meta-deduplicator';
+import type { PmcIndicadoresAcademicos, PmcMetaInstitucional } from '@/types/pmc';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -57,7 +59,7 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
 
     // Verify ownership first
     const [existing] = await db`
-      SELECT id FROM pmc_projects
+      SELECT id, indicadores_academicos FROM pmc_projects
       WHERE id = ${id}::uuid
         AND teacher_id = ${teacher.id}::uuid
     `;
@@ -74,6 +76,23 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
         `[PMC PUT Guard] Intento de actualización manual con términos prohibidos (${violation.body.forbiddenTerms.join(', ')}). Abortando persistencia.`
       );
       return NextResponse.json(violation.body, { status: violation.status });
+    }
+
+    // H-150: Deduplicación silenciosa de metas en plan_accion con precedencia de indicadores oficiales
+    if (body.plan_accion && typeof body.plan_accion === 'object') {
+      const plan = body.plan_accion as Record<string, unknown>;
+      if (Array.isArray(plan.metas_institucionales)) {
+        const indic = (body.indicadores_academicos as PmcIndicadoresAcademicos) ||
+          (existing?.indicadores_academicos
+            ? (typeof existing.indicadores_academicos === 'string'
+                ? JSON.parse(existing.indicadores_academicos)
+                : existing.indicadores_academicos)
+            : undefined);
+        plan.metas_institucionales = deduplicateMetasInstitucionales(
+          plan.metas_institucionales as PmcMetaInstitucional[],
+          indic
+        );
+      }
     }
 
     // Use COALESCE pattern — update each field if provided in body

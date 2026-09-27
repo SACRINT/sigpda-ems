@@ -15,7 +15,8 @@ import {
   assertNoForbiddenTerms,
   buildForbiddenTermsCorrectiveDirective,
 } from '@/lib/pmc-quality-gate';
-import type { PmcProject, PmcStatisticalContext } from '@/types/pmc';
+import { deduplicateMetasInstitucionales } from '@/lib/pmc-meta-deduplicator';
+import type { PmcProject, PmcStatisticalContext, PmcIndicadoresAcademicos } from '@/types/pmc';
 import { z } from 'zod';
 
 export const runtime = 'nodejs';
@@ -391,6 +392,15 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         );
         return NextResponse.json(planViolation.body, { status: planViolation.status });
       }
+
+      // H-150: Deduplicación silenciosa de metas institucionales con precedencia de indicadores oficiales
+      const indicAcademicos = project.indicadores_academicos
+        ? parseJson<PmcIndicadoresAcademicos>(project.indicadores_academicos)
+        : indic;
+      parsedPlan.metas_institucionales = deduplicateMetasInstitucionales(
+        parsedPlan.metas_institucionales,
+        indicAcademicos
+      );
 
       const staffList = (Array.isArray(staffData) ? staffData : []) as StaffMember[];
       parsedPlan.metas_personales = derivePersonalMetasFromStaff(

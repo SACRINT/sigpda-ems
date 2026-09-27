@@ -13,6 +13,7 @@ import {
 import { toRealNumber } from '@/lib/numeric-guard';
 import { computeCoverage } from '@/lib/coverage-core';
 import { reconcilePmcStaff, derivePersonalMetasFromStaff, normalizeStaffName } from '@/lib/pmc/staff-reconciler';
+import { deduplicateMetasInstitucionales } from '@/lib/pmc-meta-deduplicator';
 
 
 const PMC_DRAFT_KEY = 'didactica_pmc_draft';
@@ -2490,7 +2491,10 @@ interface PaecProjectForPmc {
                                 ? planAccion.metas_personales
                                 : derivePersonalMetasFromStaff(staffData, cicloEscolar);
                               setPlanAccion(prev => ({
-                                metas_institucionales: [...(prev?.metas_institucionales || []), adaptedMeta],
+                                metas_institucionales: deduplicateMetasInstitucionales(
+                                  [...(prev?.metas_institucionales || []), adaptedMeta],
+                                  indicadores
+                                ),
                                 metas_personales: currentPersonal,
                               }));
                               setEditingMeta(planAccion?.metas_institucionales?.length || 0);
