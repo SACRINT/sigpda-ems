@@ -437,7 +437,11 @@ describe('H-100 / H-101: SSoT Estructura Documental y Paridad PDF vs DOCX', () =
     expect(docxText).toContain('VALIDÓ');
     expect(pdfText).toContain('VALIDÓ');
 
-    // Nombres y autoridades presentes en ambos
+    // Nombres y autoridades presentes en ambos en MAYÚSCULAS oficiales (H-139 / N-01)
+    expect(docxText).toContain('PROF. JUAN ROGELIO GARCÍA ESCUDERO');
+    expect(pdfText).toContain('PROF. JUAN ROGELIO GARCÍA ESCUDERO');
+    expect(docxText).toContain('MTRA. MARÍA ELENA MORALES');
+    expect(pdfText).toContain('MTRA. MARÍA ELENA MORALES');
     expect(docxText).toContain('DIRECTOR(A) DEL PLANTEL');
     expect(pdfText).toContain('DIRECTOR(A) DEL PLANTEL');
     expect(docxText).toContain('REPRESENTANTE DEL CTE');

@@ -1030,7 +1030,7 @@ function buildControlRevisiones(p: PmcProject, plan?: PlanAccion): (Paragraph | 
               children: [
                 new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 400, after: 80 }, children: [new TextRun({ text: '___________________________________', size: 16, color: C.muted })] }),
                 new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 40, after: 60 }, children: [new TextRun({ text: 'ELABORÓ', bold: true, size: 18, color: C.navy, font: 'Arial' })] }),
-                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 40, after: 40 }, children: [new TextRun({ text: safeStr(p.director_name, 'Director(a) del Plantel'), bold: true, size: 18, color: C.text, font: 'Arial' })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 40, after: 40 }, children: [new TextRun({ text: safeStr(p.director_name, 'Director(a) del Plantel').toUpperCase(), bold: true, size: 18, color: C.text, font: 'Arial' })] }),
                 new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 20, after: 20 }, children: [new TextRun({ text: 'DIRECTOR(A) DEL PLANTEL', size: 16, color: C.muted, font: 'Arial' })] }),
                 new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 20, after: 80 }, children: [new TextRun({ text: 'Firma y Sello del Plantel', italics: true, size: 14, color: C.muted, font: 'Arial' })] }),
               ],
@@ -1056,7 +1056,7 @@ function buildControlRevisiones(p: PmcProject, plan?: PlanAccion): (Paragraph | 
               children: [
                 new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 400, after: 80 }, children: [new TextRun({ text: '___________________________________', size: 16, color: C.muted })] }),
                 new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 40, after: 60 }, children: [new TextRun({ text: 'VALIDÓ', bold: true, size: 18, color: C.navy, font: 'Arial' })] }),
-                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 40, after: 40 }, children: [new TextRun({ text: safeStr(p.supervisor_name, 'Supervisor(a) de Zona'), bold: true, size: 18, color: C.text, font: 'Arial' })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 40, after: 40 }, children: [new TextRun({ text: safeStr(p.supervisor_name, 'Supervisor(a) de Zona').toUpperCase(), bold: true, size: 18, color: C.text, font: 'Arial' })] }),
                 new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 20, after: 20 }, children: [new TextRun({ text: 'SUPERVISOR(A) DE ZONA ESCOLAR', size: 16, color: C.muted, font: 'Arial' })] }),
                 new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 20, after: 80 }, children: [new TextRun({ text: 'Vo. Bo. y Sello de Zona', italics: true, size: 14, color: C.muted, font: 'Arial' })] }),
               ],
