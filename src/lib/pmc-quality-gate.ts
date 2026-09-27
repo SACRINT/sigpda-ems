@@ -43,7 +43,7 @@ export const FORBIDDEN_PLATFORM_TERMS_REGEX = /SIGPDA[\s-]?EMS|\bSIGPDA\b/i;
 
 export function findForbiddenPlatformTerms(data: unknown): string[] {
   const matches: string[] = [];
-  const regex = /SIGPDA[\s-]?EMS|\bSIGPDA\b/gi;
+  const regex = new RegExp(FORBIDDEN_PLATFORM_TERMS_REGEX.source, 'gi');
 
   function traverse(value: unknown) {
     if (typeof value === 'string') {

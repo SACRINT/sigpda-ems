@@ -14,6 +14,7 @@ import {
   PMC_DIMENSIONS,
   findForbiddenPlatformTerms,
   containsForbiddenPlatformTerms,
+  FORBIDDEN_PLATFORM_TERMS_REGEX,
 } from '@/lib/pmc-quality-gate';
 import type { PmcProject } from '@/types/pmc';
 
@@ -273,6 +274,10 @@ describe('pmc-quality-gate — calculateGlobalPmcScore', () => {
     expect(matches).toHaveLength(2);
     expect(matches).toContain('SIGPDA-EMS');
     expect(matches).toContain('SIGPDA');
+
+    expect(FORBIDDEN_PLATFORM_TERMS_REGEX.test('SIGPDA')).toBe(true);
+    expect(FORBIDDEN_PLATFORM_TERMS_REGEX.test('SIGPDA-EMS')).toBe(true);
+    expect(FORBIDDEN_PLATFORM_TERMS_REGEX.test('Plataforma Institucional')).toBe(false);
   });
 
 });
