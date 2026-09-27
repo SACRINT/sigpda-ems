@@ -24,7 +24,7 @@ import {
   PMC_SUBSECCIONES_DIAGNOSTICO,
   PMC_SECCIONES_CANONICAS,
   PMC_FICHAS_TECNICAS_HEADING,
-  PMC_FICHAS_TECNICAS_PAGE_BREAK_BEFORE,
+  shouldSectionPageBreak,
   clasificarNormativaJerarquica,
   getObjetivoPmcText,
   getTextoInfraestructura,
@@ -412,7 +412,9 @@ function buildIndice(): (Paragraph | Table)[] {
   }
 
   items.push(tbl(tocRows, [colNumW, colTitW, colPagW]));
-  items.push(new Paragraph({ children: [new PageBreak()] }));
+  if (shouldSectionPageBreak(PMC_TITULOS_SECCIONES.PRESENTACION)) {
+    items.push(new Paragraph({ children: [new PageBreak()] }));
+  }
   return items;
 }
 
@@ -425,7 +427,9 @@ function buildPresentacion(diag: DiagnosticoGenerado, project: PmcProject): (Par
     secHeading(PMC_TITULOS_SECCIONES.PRESENTACION),
     bodyPara(textoPresentacion),
     ...gap(),
-    new Paragraph({ children: [new PageBreak()] }),
+    ...(shouldSectionPageBreak(PMC_TITULOS_SECCIONES.OBJETIVO)
+      ? [new Paragraph({ children: [new PageBreak()] })]
+      : []),
   ];
 }
 
@@ -473,7 +477,9 @@ function buildObjetivo(project: PmcProject): (Paragraph | Table)[] {
       ],
     }),
     ...gap(),
-    new Paragraph({ children: [new PageBreak()] }),
+    ...(shouldSectionPageBreak(PMC_TITULOS_SECCIONES.NORMATIVIDAD)
+      ? [new Paragraph({ children: [new PageBreak()] })]
+      : []),
   ];
 }
 
@@ -576,7 +582,9 @@ function buildNormativa(normativa?: NormativaDoc | null): (Paragraph | Table)[] 
     );
   }
 
-  items.push(new Paragraph({ children: [new PageBreak()] }));
+  if (shouldSectionPageBreak(PMC_TITULOS_SECCIONES.DIAGNOSTICO)) {
+    items.push(new Paragraph({ children: [new PageBreak()] }));
+  }
   return items;
 }
 
@@ -714,7 +722,9 @@ function buildDiagnostico(
     items.push(bodyPara(diag.sintesis_foda));
   }
 
-  items.push(new Paragraph({ children: [new PageBreak()] }));
+  if (shouldSectionPageBreak(PMC_TITULOS_SECCIONES.PRIORIZACION)) {
+    items.push(new Paragraph({ children: [new PageBreak()] }));
+  }
   return items;
 }
 
@@ -757,7 +767,9 @@ function buildPriorizacion(
     );
   }
 
-  items.push(new Paragraph({ children: [new PageBreak()] }));
+  if (shouldSectionPageBreak(PMC_TITULOS_SECCIONES.PLAN_ACCION)) {
+    items.push(new Paragraph({ children: [new PageBreak()] }));
+  }
   return items;
 }
 
@@ -808,7 +820,7 @@ function buildPlanAccion(plan: PlanAccion): (Paragraph | Table)[] {
       )
     );
     items.push(...gap(2));
-    if (PMC_FICHAS_TECNICAS_PAGE_BREAK_BEFORE) {
+    if (shouldSectionPageBreak(PMC_FICHAS_TECNICAS_HEADING)) {
       items.push(new Paragraph({ children: [new PageBreak()] }));
     }
     items.push(subHeading(PMC_FICHAS_TECNICAS_HEADING));
@@ -864,7 +876,9 @@ function buildPlanAccion(plan: PlanAccion): (Paragraph | Table)[] {
     items.push(...gap());
   }
 
-  items.push(new Paragraph({ children: [new PageBreak()] }));
+  if (shouldSectionPageBreak(PMC_TITULOS_SECCIONES.METAS_INDIVIDUALES)) {
+    items.push(new Paragraph({ children: [new PageBreak()] }));
+  }
   return items;
 }
 
@@ -876,7 +890,9 @@ function buildMetasPersonales(plan: PlanAccion): (Paragraph | Table)[] {
 
   if (personal.length === 0) {
     items.push(bodyPara('No se han registrado metas individuales de la plantilla docente en el sistema.'));
-    items.push(new Paragraph({ children: [new PageBreak()] }));
+    if (shouldSectionPageBreak(PMC_TITULOS_SECCIONES.PARTICIPANTES_CONTROL)) {
+      items.push(new Paragraph({ children: [new PageBreak()] }));
+    }
     return items;
   }
 
@@ -920,7 +936,9 @@ function buildMetasPersonales(plan: PlanAccion): (Paragraph | Table)[] {
     )
   );
 
-  items.push(new Paragraph({ children: [new PageBreak()] }));
+  if (shouldSectionPageBreak(PMC_TITULOS_SECCIONES.PARTICIPANTES_CONTROL)) {
+    items.push(new Paragraph({ children: [new PageBreak()] }));
+  }
   return items;
 }
 
