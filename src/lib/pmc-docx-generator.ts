@@ -27,6 +27,7 @@ import {
   getObjetivoPmcText,
   getTextoInfraestructura,
   getTextoBeneficiosComunitarios,
+  normalizePmcPeriodo,
 } from './pmc-document-structure';
 
 // ─── Color Palette ───────────────────────────────────────────────────────────
@@ -890,13 +891,7 @@ function buildMetasPersonales(plan: PlanAccion): (Paragraph | Table)[] {
         }),
         ...personal.map((mp, i) => {
           const bg = i % 2 ? C.alt : C.white;
-          const periodoStr = mp.periodo
-            ? mp.periodo
-                .replace(/\s*-\s*/g, ' — ')
-                .replace(/\bagosto\b/gi, 'Agosto')
-                .replace(/\bjunio\b/gi, 'Junio')
-                .replace(/\bjulio\b/gi, 'Julio')
-            : 'Ciclo Escolar';
+          const periodoStr = normalizePmcPeriodo(mp.periodo);
           const metaStr = safeStr(
             mp.categoria
               ? `[${mp.categoria}${mp.tema ? ` — ${mp.tema}` : ''}] ${mp.meta_individual || ''}`

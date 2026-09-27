@@ -20,6 +20,7 @@ import {
   getObjetivoPmcText,
   getTextoInfraestructura,
   getTextoBeneficiosComunitarios,
+  normalizePmcPeriodo,
 } from './pmc-document-structure';
 
 const NAVY: [number, number, number] = [31, 56, 100];       // #1F3864 - Azul Institucional MCCEMS
@@ -785,13 +786,7 @@ export async function generatePmcPDF(
     curY += 8;
   } else {
     const personalRows = metasPers.map((p, i) => {
-      const periodoStr = p.periodo
-        ? p.periodo
-            .replace(/\s*-\s*/g, ' — ')
-            .replace(/\bagosto\b/gi, 'Agosto')
-            .replace(/\bjunio\b/gi, 'Junio')
-            .replace(/\bjulio\b/gi, 'Julio')
-        : 'Ciclo Escolar';
+      const periodoStr = normalizePmcPeriodo(p.periodo);
       const metaStr = safeStr(
         p.categoria
           ? `[${p.categoria}${p.tema ? ` — ${p.tema}` : ''}] ${p.meta_individual || ''}`

@@ -252,3 +252,38 @@ export function getTextoBeneficiosComunitarios(project?: PmcDatosContextuales): 
 
   return `La relación corresponsable ${nombre} con las familias, autoridades locales y comunidades aledañas ${localidad} permite consolidar redes de apoyo que impulsan la retención escolar, la captación de matrícula y la solución colectiva de problemáticas territoriales en el marco del Proyecto Escolar Comunitario.`;
 }
+
+const MESES_ES = [
+  'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+] as const;
+
+/**
+ * Normaliza de forma robusta la cadena de período para metas y tablas del PMC (SSoT):
+ * - Capitaliza los 12 meses del año en español.
+ * - Protege los guiones de rango de años compactos (e.g. "Ciclo Escolar 2026-2027").
+ * - Convierte guiones separadores entre fechas a em-dash (" — ").
+ * - Provee fallback defensivo 'Ciclo Escolar' ante nulos o cadenas vacías.
+ */
+export function normalizePmcPeriodo(periodo?: string | null): string {
+  if (!periodo || !periodo.trim()) return 'Ciclo Escolar';
+  let s = periodo.trim();
+
+  // 1. Capitalizar los 12 meses del año en español
+  for (const mes of MESES_ES) {
+    const capitalized = mes.charAt(0).toUpperCase() + mes.slice(1);
+    s = s.replace(new RegExp(`\\b${mes}\\b`, 'gi'), capitalized);
+  }
+
+  // 2. Proteger guiones de años (e.g. 2026-2027) con placeholder
+  const placeholder = '___YEAR_RANGE_HYPHEN___';
+  s = s.replace(/(\b\d{4})\s*-\s*(\d{4}\b)/g, `$1${placeholder}$2`);
+
+  // 3. Reemplazar separadores de rango por em-dash (" — ")
+  s = s.replace(/\s*[-–—]\s*/g, ' — ');
+
+  // 4. Restaurar el guion estándar compacto en el rango de años
+  s = s.replace(new RegExp(placeholder, 'g'), '-');
+
+  return s;
+}

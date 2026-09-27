@@ -8,6 +8,7 @@ import {
   PMC_SECCIONES_CANONICAS,
   clasificarNormativaJerarquica,
   getObjetivoPmcText,
+  normalizePmcPeriodo,
 } from '@/lib/pmc-document-structure';
 import { generatePmcDocx } from '@/lib/pmc-docx-generator';
 import { generatePmcPDF } from '@/lib/pmc-pdf-generator';
@@ -411,6 +412,12 @@ describe('H-100 / H-101: SSoT Estructura Documental y Paridad PDF vs DOCX', () =
     expect(pdfText).toMatch(/Agosto 2026\s+—\s+Junio 2027/);
     expect(docxText).not.toContain('agosto 2026 - junio 2027');
     expect(pdfText).not.toContain('agosto 2026 - junio 2027');
+
+    // Período "Ciclo Escolar 2026-2027" conservado intacto sin mutar el guion de años (H-141 / N-02)
+    expect(docxText).toContain('Ciclo Escolar 2026-2027');
+    expect(pdfText).toMatch(/Ciclo Escolar\s+2026-2027/);
+    expect(docxText).not.toContain('2026 — 2027');
+    expect(pdfText).not.toContain('2026 — 2027');
   });
 
   it('9. Sección 8 en DOCX y PDF cuenta con paridad espejo 100%: Constancia de Aprobación y Validación oficial con firmas ELABORÓ, REVISÓ y VALIDÓ (H-138)', async () => {
@@ -454,6 +461,25 @@ describe('H-100 / H-101: SSoT Estructura Documental y Paridad PDF vs DOCX', () =
     expect(pdfText).not.toContain('Control de Revisiones Institucionales');
     expect(docxText).not.toContain('Presidente del CEPS');
     expect(pdfText).not.toContain('Presidente del CEPS');
+  });
+
+  it('10. normalizePmcPeriodo protege guiones de años (2026-2027) y capitaliza los 12 meses en español con em-dash (H-141 / N-02)', () => {
+    // 1. Conserva intactos los rangos de año (sin mutar a "2026 — 2027")
+    expect(normalizePmcPeriodo('Ciclo Escolar 2026-2027')).toBe('Ciclo Escolar 2026-2027');
+    expect(normalizePmcPeriodo('2025-2026')).toBe('2025-2026');
+
+    // 2. Normaliza rangos de fechas con em-dash y capitalización de 12 meses
+    expect(normalizePmcPeriodo('agosto 2026 - junio 2027')).toBe('Agosto 2026 — Junio 2027');
+    expect(normalizePmcPeriodo('mayo 2027 - julio 2027')).toBe('Mayo 2027 — Julio 2027');
+    expect(normalizePmcPeriodo('enero 2027 - diciembre 2027')).toBe('Enero 2027 — Diciembre 2027');
+    expect(normalizePmcPeriodo('febrero 2027-noviembre 2027')).toBe('Febrero 2027 — Noviembre 2027');
+    expect(normalizePmcPeriodo('marzo 2027 – octubre 2027')).toBe('Marzo 2027 — Octubre 2027');
+    expect(normalizePmcPeriodo('abril 2027 — septiembre 2027')).toBe('Abril 2027 — Septiembre 2027');
+
+    // 3. Fallback seguro ante vacíos o nulos
+    expect(normalizePmcPeriodo('')).toBe('Ciclo Escolar');
+    expect(normalizePmcPeriodo(null)).toBe('Ciclo Escolar');
+    expect(normalizePmcPeriodo(undefined)).toBe('Ciclo Escolar');
   });
 });
 
