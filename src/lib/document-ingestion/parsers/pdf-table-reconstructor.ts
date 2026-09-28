@@ -190,11 +190,13 @@ export function reconstructPageLayout(
   }
 
   // 3. Mapear cada línea a sus columnas ocupadas
-  const isLineHeading = physicalLines.map(
-    l => l.scaleY >= avgFontSize * 1.25 && l.text.length < 120
-  );
+  const fontSizes = physicalLines.map(l => l.scaleY).sort((a, b) => a - b);
+  const medianFontSize = fontSizes.length > 0
+    ? fontSizes[Math.floor(fontSizes.length / 2)]
+    : avgFontSize;
+  const headingThreshold = Math.max(medianFontSize * 1.3, avgFontSize * 1.25, 13);
 
-  const lineColData = physicalLines.map((line, idx) => {
+  const lineColData = physicalLines.map((line) => {
     const cols: string[] = Array(columns.length).fill('');
     for (const item of line.items) {
       const s = item.str.trim();
@@ -203,43 +205,90 @@ export function reconstructPageLayout(
       cols[colIdx] = cols[colIdx] ? `${cols[colIdx]} ${s}` : s;
     }
     const populatedColsCount = cols.filter(c => c.length > 0).length;
+
+    // H-188: Una línea con >= 2 columnas NUNCA es un encabezado de sección.
+    // Solo líneas mono-columna con tipografía destacada y longitud corta califican como heading.
+    const isHeading =
+      populatedColsCount < 2 &&
+      line.scaleY >= headingThreshold &&
+      line.text.length < 90 &&
+      !line.text.includes('|');
+
+    // H-189: Identificar pie de página (coordenadas ty bajas en el margen inferior)
+    const isFooter = line.ty < 60 && (
+      /^(?:p[áa]g(?:ina)?\.?\s*\d+|\d+|tel[eé]fono|cct|bachillerato)/i.test(line.text.trim()) ||
+      /\d{7,}/.test(line.text)
+    );
+
+    // H-189: Prosa narrativa de ancho completo (párrafos normales fuera de tabla)
+    const isFullWidthProse =
+      populatedColsCount === 1 &&
+      line.text.length > 70 &&
+      (line.items[0]?.tx ?? 0) < 100;
+
     return {
       line,
-      isHeading: isLineHeading[idx],
+      isHeading,
+      isFooter,
+      isFullWidthProse,
       cols,
       populatedColsCount,
     };
   });
 
-  // 4. Identificar bloques de tablas continuos (H-184)
-  // Dentro de una región de tabla abierta, se admiten carreras de 1 columna (celdas multirrenglón).
-  // La región de tabla se cierra ante encabezados explícitos, líneas vacías o interrupciones mayores.
+  // 4. Identificar bloques de tablas continuos (H-184, H-188, H-189, H-190)
+  // Requisitos arquitectónicos:
+  // - H-188: Multicolumna tiene precedencia; headings jamás rompen filas tabulares.
+  // - H-189: Apertura requiere estructura multicolumna sostenida (al menos 2 líneas pop >= 2 en ventana de 3 líneas),
+  //          impidiendo que fragmentos huérfanos absorban prosa narrativa o pies de página.
+  // - H-190: Dentro de una tabla legítima, se eliminan cortes artificiales (singleColRun > 8); las corridas
+  //          largas de texto de celda se mantienen unificadas hasta el cierre real de la tabla.
   const isTableLine: boolean[] = Array(lineColData.length).fill(false);
   let inTableRegion = false;
-  let singleColRun = 0;
+  let consecutiveNonTableLines = 0;
 
   for (let i = 0; i < lineColData.length; i++) {
     const d = lineColData[i];
-    if (d.isHeading || d.line.text.length === 0) {
+
+    // Encabezado explícito, pie de página o línea vacía cierran inmediatamente la región de tabla
+    if (d.isHeading || d.isFooter || d.line.text.length === 0) {
       inTableRegion = false;
-      singleColRun = 0;
+      consecutiveNonTableLines = 0;
       continue;
     }
 
-    if (d.populatedColsCount >= 2) {
-      inTableRegion = true;
-      singleColRun = 0;
-      isTableLine[i] = true;
-    } else if (inTableRegion && d.populatedColsCount === 1) {
-      singleColRun++;
-      if (singleColRun > 8) {
-        inTableRegion = false;
-      } else {
-        isTableLine[i] = true;
+    if (!inTableRegion) {
+      // H-189: Para abrir una región de tabla se exige presencia multicolumna sostenida
+      if (d.populatedColsCount >= 2) {
+        const prevHasMulti = i > 0 && lineColData[i - 1].populatedColsCount >= 2;
+        const next1HasMulti = i + 1 < lineColData.length && lineColData[i + 1].populatedColsCount >= 2;
+        const next2HasMulti = i + 2 < lineColData.length && lineColData[i + 2].populatedColsCount >= 2;
+
+        if (prevHasMulti || next1HasMulti || next2HasMulti) {
+          inTableRegion = true;
+          consecutiveNonTableLines = 0;
+          isTableLine[i] = true;
+        }
       }
     } else {
-      inTableRegion = false;
-      singleColRun = 0;
+      // Región de tabla ya abierta
+      if (d.populatedColsCount >= 2) {
+        consecutiveNonTableLines = 0;
+        isTableLine[i] = true;
+      } else if (d.populatedColsCount === 1) {
+        // H-189: Si la línea es prosa narrativa de párrafo completo (no celda tabular)
+        if (d.isFullWidthProse && consecutiveNonTableLines >= 1) {
+          inTableRegion = false;
+          consecutiveNonTableLines = 0;
+        } else {
+          // H-190: Celda multirrenglón legítima dentro de la tabla (sin corte artificial en 8)
+          consecutiveNonTableLines++;
+          isTableLine[i] = true;
+        }
+      } else {
+        inTableRegion = false;
+        consecutiveNonTableLines = 0;
+      }
     }
   }
 

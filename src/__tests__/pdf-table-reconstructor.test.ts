@@ -163,4 +163,99 @@ describe('pdf-table-reconstructor (H-183)', () => {
     // rawText DEBE incluir la cabecera de la tabla (H-186)
     expect(pageRawText).toContain('Ámbito | Objetivo');
   });
+
+  it('7. H-188: lineas de tabla multicolumna con fuentes grandes jamas se convierten en encabezados ###', () => {
+    // Fixture Emiliano Zapata P31-33: filas de tabla donde la fuente del docente es 13pt con promedio bajo
+    const items: TextItemWithLayout[] = [
+      // Encabezados
+      { str: 'Meta', tx: 50, ty: 700, scaleY: 10, hasEOL: false },
+      { str: 'Responsable', tx: 250, ty: 700, scaleY: 10, hasEOL: false },
+      { str: 'Evidencia', tx: 450, ty: 700, scaleY: 10, hasEOL: true },
+
+      // Fila 1: Multicolumna con fuente destacada (13pt) en nombres de docentes
+      { str: 'Aprobar matemáticas', tx: 50, ty: 670, scaleY: 13, hasEOL: false },
+      { str: 'Profa. Olga Lucía', tx: 250, ty: 670, scaleY: 13, hasEOL: false },
+      { str: 'Listas de calificaciones', tx: 450, ty: 670, scaleY: 13, hasEOL: true },
+
+      // Fila 2: Multicolumna
+      { str: 'Taller de regularización', tx: 50, ty: 640, scaleY: 13, hasEOL: false },
+      { str: 'Profr. Manuel Pérez', tx: 250, ty: 640, scaleY: 13, hasEOL: false },
+      { str: 'Bitácoras de asesoría', tx: 450, ty: 640, scaleY: 13, hasEOL: true },
+    ];
+
+    const { pageMarkdown } = reconstructPageLayout(items, 9, 1);
+
+    // Debe ser una tabla Markdown intacta
+    expect(pageMarkdown).toContain('| Meta | Responsable | Evidencia |');
+    expect(pageMarkdown).toContain('Profa. Olga Lucía');
+    expect(pageMarkdown).toContain('Profr. Manuel Pérez');
+
+    // NUNCA debe emitir las filas como encabezados ###
+    expect(pageMarkdown).not.toContain('### Profa. Olga');
+    expect(pageMarkdown).not.toContain('### Profr. Manuel');
+    expect(pageMarkdown).not.toContain('### Aprobar matemáticas');
+  });
+
+  it('8. H-189: prosa narrativa con fragmento aislado o folio en margen no se absorbe en tablas (Vicente P3 / Diego Rivera P7)', () => {
+    // Fixture Vicente P3 / Diego Rivera P7: texto narrativo amplio con un folio aislado a la derecha
+    const items: TextItemWithLayout[] = [
+      // Párrafo 1 normal
+      { str: 'El diagnóstico situacional de la escuela muestra retos significativos en la permanencia escolar de los estudiantes.', tx: 50, ty: 700, scaleY: 10, hasEOL: true },
+      // Línea con texto normal y un número de folio o encabezado aislado al margen derecho (tx 500)
+      { str: 'Las condiciones socioeconómicas de la comunidad influyen de manera directa en el aprendizaje.', tx: 50, ty: 680, scaleY: 10, hasEOL: false },
+      { str: '05', tx: 500, ty: 680, scaleY: 10, hasEOL: true },
+      // Párrafos subsiguientes que NO deben entrar a ninguna tabla
+      { str: 'Se requiere fortalecer la vinculación con los comités de padres de familia para dar seguimiento continuo.', tx: 50, ty: 660, scaleY: 10, hasEOL: true },
+      { str: 'Los docentes han manifestado la necesidad de contar con materiales didácticos actualizados.', tx: 50, ty: 640, scaleY: 10, hasEOL: true },
+      { str: 'Finalmente se acuerda realizar reuniones colegiadas de evaluación bimestral.', tx: 50, ty: 620, scaleY: 10, hasEOL: true },
+    ];
+
+    const { pageMarkdown } = reconstructPageLayout(items, 10, 1);
+
+    // No debe generarse tabla Markdown
+    expect(pageMarkdown).not.toContain('| --- |');
+    expect(pageMarkdown).toContain('El diagnóstico situacional de la escuela muestra retos significativos');
+    expect(pageMarkdown).toContain('Se requiere fortalecer la vinculación con los comités');
+    expect(pageMarkdown).toContain('Finalmente se acuerda realizar reuniones colegiadas');
+  });
+
+  it('9. H-190: corridas mono-columna largas (>= 12 lineas) se mantienen unificadas en la celda sin corte en 8 (Heroes P14 / Moisés P15)', () => {
+    // Fixture Héroes P14 / Moisés P15: tabla con una celda que envuelve a lo largo de 12 renglones consecutivos
+    const items: TextItemWithLayout[] = [
+      // Encabezados
+      { str: 'Meta Institucional', tx: 50, ty: 700, scaleY: 10, hasEOL: false },
+      { str: 'Acciones de Seguimiento', tx: 250, ty: 700, scaleY: 10, hasEOL: true },
+
+      // Fila 1 - Inicio
+      { str: 'Elevar la eficiencia terminal al 85%', tx: 50, ty: 670, scaleY: 9, hasEOL: false },
+      { str: 'Acción 1: Asesorías académicas continuas', tx: 250, ty: 670, scaleY: 9, hasEOL: true },
+    ];
+
+    // Agregar 12 renglones consecutivos mono-columna en columna 1 (tx: 250)
+    for (let r = 2; r <= 13; r++) {
+      items.push({
+        str: `Acción ${r}: Seguimiento puntual a estudiantes en riesgo grupo ${r}`,
+        tx: 250,
+        ty: 670 - (r - 1) * 15,
+        scaleY: 9,
+        hasEOL: true,
+      });
+    }
+
+    // Fila 2
+    items.push({ str: '2. Capacitación docente', tx: 50, ty: 450, scaleY: 9, hasEOL: false });
+    items.push({ str: 'Cursos formativos', tx: 250, ty: 450, scaleY: 9, hasEOL: true });
+
+    const { pageMarkdown } = reconstructPageLayout(items, 9.5, 1);
+
+    // Debe contener las 13 acciones unificadas dentro de la tabla
+    expect(pageMarkdown).toContain('Acción 1: Asesorías académicas continuas');
+    expect(pageMarkdown).toContain('Acción 8: Seguimiento puntual');
+    expect(pageMarkdown).toContain('Acción 9: Seguimiento puntual');
+    expect(pageMarkdown).toContain('Acción 12: Seguimiento puntual');
+    expect(pageMarkdown).toContain('Acción 13: Seguimiento puntual');
+
+    // La segunda meta debe estar en su propia fila de tabla
+    expect(pageMarkdown).toContain('2. Capacitación docente');
+  });
 });
