@@ -358,6 +358,63 @@ describe('FASE B — Extractor semántico por contenido e invariantes de datos',
       expect(derived[1].entregable).toBe('Actas de mediación');
     });
 
+    it('H-206: listas de igual longitud con textos disjuntos no transfieren erróneamente la línea base por posición', () => {
+      const elementos: PmcPlanElement[] = [
+        {
+          tipo: 'meta',
+          texto_original: 'Fomentar torneos deportivos y recreación estudiantil',
+          texto_normalizado: 'Fomentar torneos deportivos y actividades de recreación estudiantil',
+          categoria: 'Permanencia escolar',
+          tema: 'Deporte',
+          responsable: 'Educación Física',
+          periodo: '2026-2027',
+          requiere_revision: false,
+        },
+        {
+          tipo: 'meta',
+          texto_original: 'Capacitar a docentes en uso pedagógico de simuladores',
+          texto_normalizado: 'Capacitar a docentes en uso pedagógico de herramientas y simuladores',
+          categoria: 'Formación docente',
+          tema: 'Tecnología',
+          responsable: 'Academia',
+          periodo: '2026-2027',
+          requiere_revision: false,
+        },
+      ];
+
+      const existingMetas = [
+        {
+          categoria: 'Infraestructura escolar',
+          tema: 'Mantenimiento',
+          meta: 'Rehabilitar sanitarios y red hidráulica del edificio escolar',
+          linea_base: 'Diagnóstico Infraestructura: Red hidráulica con fugas y sanitarios deteriorados',
+          estrategia: 'Mantenimiento preventivo',
+          responsable: 'Comité de Padres',
+          entregable: 'Facturas de obra',
+          periodo: '2026-2027',
+        },
+        {
+          categoria: 'Salud integral',
+          tema: 'Alimentación',
+          meta: 'Monitorear expendio de alimentos saludables en cafetería',
+          linea_base: 'Diagnóstico Cafetería: 80% productos procesados',
+          estrategia: 'Inspecciones periódicas',
+          responsable: 'Comité de Salud',
+          entregable: 'Listas de cotejo',
+          periodo: '2026-2027',
+        },
+      ];
+
+      const derived = deriveMetasPreviasFromElementos(elementos, existingMetas);
+
+      expect(derived).toHaveLength(2);
+      // Longitudes iguales (2 === 2), pero textos y temas disjuntos: no debe haber cruce posicional
+      expect(derived[0].linea_base).toBe('');
+      expect(derived[0].entregable).toBe('');
+      expect(derived[1].linea_base).toBe('');
+      expect(derived[1].entregable).toBe('');
+    });
+
     it('deriveElementosFromMetasPrevias genera elementos_plan sintéticos a partir de metas legacy', () => {
       const existing = [
         {

@@ -219,9 +219,15 @@ export function deriveMetasPreviasFromElementos(
       });
     }
 
-    // Paso 3: Fallback posicional estricto solo si longitudes coinciden y la posición no ha sido usada
+    // Paso 3: Fallback posicional condicionado (H-206): exige overlap léxico significativo (>= 0.5)
+    // para evitar cruce de líneas base entre metas disjuntas cuando ambas listas tienen igual longitud
     if (!matchedItem && availableExisting.length === metaElements.length && !usedExistingIndices.has(idx)) {
-      matchedItem = availableExisting[idx];
+      const candidate = availableExisting[idx];
+      const textM = (m.texto_normalizado || m.texto_original || '').trim();
+      const textItem = (candidate.em.meta || candidate.em.texto_original || '').trim();
+      if (calculateWordOverlap(textM, textItem) >= 0.5) {
+        matchedItem = candidate;
+      }
     }
 
     if (matchedItem) {
