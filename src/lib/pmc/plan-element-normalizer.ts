@@ -96,17 +96,38 @@ export function validateNormalizedText(original: string, normalizado: string): N
   };
 }
 
+export interface PmcMetaPreviaInput {
+  categoria?: string | null;
+  tema?: string | null;
+  meta?: string | null;
+  linea_base?: string | null;
+  estrategia?: string | null;
+  responsable?: string | null;
+  entregable?: string | null;
+  periodo?: string | null;
+  texto_original?: string | null;
+}
+
 /**
  * Deriva metas_institucionales_previas a partir de elementos_plan para preservar retrocompatibilidad.
  * Si elementos_plan no contiene metas, preserva las metas_institucionales_previas existentes.
  */
 export function deriveMetasPreviasFromElementos(
   elementos: PmcPlanElement[] = [],
-  existingMetas: PmcPreviousExtractDTO['metas_institucionales_previas'] = []
+  existingMetas?: PmcMetaPreviaInput[]
 ): NonNullable<PmcPreviousExtractDTO['metas_institucionales_previas']> {
   const metaElements = (elementos || []).filter((e) => e.tipo === 'meta');
   if (metaElements.length === 0) {
-    return existingMetas || [];
+    return (existingMetas || []).map((m) => ({
+      categoria: m.categoria || '',
+      tema: m.tema || '',
+      meta: m.meta || '',
+      linea_base: m.linea_base || '',
+      estrategia: m.estrategia || '',
+      responsable: m.responsable || '',
+      entregable: m.entregable || '',
+      periodo: m.periodo || '',
+    }));
   }
 
   // Agrupar actividades y estrategias por categoría y tema para asociarlas a la meta correspondiente
@@ -148,12 +169,12 @@ export function deriveMetasPreviasFromElementos(
  * para payloads legacy donde elementos_plan esté vacío.
  */
 export function deriveElementosFromMetasPrevias(
-  metas: PmcPreviousExtractDTO['metas_institucionales_previas'] = []
+  metas?: PmcMetaPreviaInput[]
 ): PmcPlanElement[] {
   if (!metas || metas.length === 0) return [];
   return metas.map((m) => ({
     tipo: 'meta' as const,
-    texto_original: m.meta || '',
+    texto_original: m.texto_original || m.meta || '',
     texto_normalizado: m.meta || '',
     categoria: m.categoria || '',
     tema: m.tema || '',

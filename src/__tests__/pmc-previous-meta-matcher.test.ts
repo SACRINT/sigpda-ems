@@ -61,4 +61,22 @@ describe('isPreviousMetaAdapted (H-052)', () => {
     expect(isPreviousMetaAdapted(previousMeta, [], 0)).toBe(false);
     expect(isPreviousMetaAdapted(previousMeta, undefined, 0)).toBe(false);
   });
+
+  it('vincula por texto_original cuando la meta institucional adaptada usa texto_normalizado (C3 / H-052)', () => {
+    const previousMetaWithOriginal = {
+      meta: 'Aprobar al 85% de los alumnos de primer semestre en Puebla mediante tutorías',
+      texto_original: 'Lograr que el 85% de los alumnos de primer semestre aprueben Matemáticas',
+      categoria: 'Aprovechamiento académico',
+      tema: 'Aprobación escolar',
+    };
+
+    const metasInstitucionales = [
+      {
+        meta: '[Continuidad 2026-2027] Aprobar al 85% de los alumnos de primer semestre en Puebla mediante tutorías',
+        continuidad_de: 'Lograr que el 85% de los alumnos de primer semestre aprueben Matemáticas',
+      },
+    ];
+
+    expect(isPreviousMetaAdapted(previousMetaWithOriginal, metasInstitucionales, 0)).toBe(true);
+  });
 });

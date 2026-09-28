@@ -26,6 +26,10 @@ import {
   mapInicioActualToIndicadores,
   mapInicioAnteriorToIndicadores,
 } from '@/lib/pmc/indicadores-mapping';
+import {
+  deriveMetasPreviasFromElementos,
+  deriveElementosFromMetasPrevias,
+} from '@/lib/pmc/plan-element-normalizer';
 
 
 const PMC_DRAFT_KEY = 'didactica_pmc_draft';
@@ -118,20 +122,26 @@ interface MetaInstitucional {
 }
 
 export function isPreviousMetaAdapted(
-  mp: { meta?: string },
+  mp: { meta?: string; texto_original?: string },
   metasInstitucionales?: Array<{ meta: string; continuidad_de?: string }>,
   index?: number
 ): boolean {
   if (!metasInstitucionales || metasInstitucionales.length === 0) return false;
   const mpKey = mp.meta ? mp.meta.trim().toLowerCase() : (index !== undefined ? `meta_previa_${index}` : '');
+  const origKey = mp.texto_original ? mp.texto_original.trim().toLowerCase() : '';
   return metasInstitucionales.some((m) => {
-    if (mpKey && m.continuidad_de && m.continuidad_de.trim().toLowerCase() === mpKey) {
-      return true;
+    const contDe = m.continuidad_de ? m.continuidad_de.trim().toLowerCase() : '';
+    if (contDe) {
+      if (origKey && contDe === origKey) return true;
+      if (mpKey && contDe === mpKey) return true;
     }
     if (mp.meta && m.meta === `[Continuidad 2026-2027] ${mp.meta}`) {
       return true;
     }
     if (mpKey && m.meta.trim().toLowerCase() === mpKey) {
+      return true;
+    }
+    if (origKey && m.meta.trim().toLowerCase() === origKey) {
       return true;
     }
     return false;
@@ -360,6 +370,7 @@ export default function PmcWizardClient({ locale, teacherSchool, teacherMunicipa
     categoria?: string;
     tema?: string;
     meta?: string;
+    texto_original?: string;
     linea_base?: string;
     estrategia?: string;
     responsable?: string;
@@ -442,10 +453,26 @@ interface PmcPreviousExtractDTO {
     firma?: string;
   }>;
   staffData?: PmcPreviousExtractStaff[];
+  elementos_plan?: Array<{
+    tipo: 'meta' | 'actividad' | 'estrategia' | 'indicador' | 'responsable' | 'evidencia' | 'cronograma' | 'otro';
+    texto_original: string;
+    texto_normalizado: string;
+    categoria?: string;
+    tema?: string;
+    responsable?: string;
+    periodo?: string;
+    ubicacion?: {
+      pagina?: number;
+      seccion?: string;
+      tabla?: string;
+    };
+    requiere_revision?: boolean;
+  }>;
   metas_institucionales_previas?: Array<{
     categoria?: string;
     tema?: string;
     meta?: string;
+    texto_original?: string;
     linea_base?: string;
     estrategia?: string;
     responsable?: string;
@@ -476,12 +503,32 @@ interface PmcPreviousExtractDTO {
   observacionesGenerales?: string;
 }
 
+interface EditablePlanElement {
+  tipo: 'meta' | 'actividad' | 'estrategia' | 'indicador' | 'responsable' | 'evidencia' | 'cronograma' | 'otro';
+  texto_original: string;
+  texto_normalizado: string;
+  categoria?: string;
+  tema?: string;
+  responsable?: string;
+  periodo?: string;
+  requiere_revision?: boolean;
+}
+
   // Carga Inteligente de PMC Anterior (PDF/Word)
   const fileInputPmcRef = useRef<HTMLInputElement>(null);
   const [uploadingPmc, setUploadingPmc] = useState(false);
   const [parsedPmcData, setParsedPmcData] = useState<PmcPreviousExtractDTO | null>(null);
+  const [editableElementosPlan, setEditableElementosPlan] = useState<EditablePlanElement[]>([]);
   const [ingestWarnings, setIngestWarnings] = useState<string[]>([]);
-  const [ingestCoverage, setIngestCoverage] = useState<{ detectados: number | null; extraidos: number; parcial: boolean } | null>(null);
+  const [ingestCoverage, setIngestCoverage] = useState<{
+    detectados: number | null;
+    extraidos: number;
+    parcial: boolean;
+    detalles?: {
+      metas: { detectados: number | null; extraidos: number; parcial: boolean };
+      actividades: { detectados: number | null; extraidos: number; parcial: boolean };
+    };
+  } | null>(null);
   const [showPmcReviewModal, setShowPmcReviewModal] = useState(false);
 
   // Carga Inteligente de PAEC Anterior (PDF/Word) en Paso 1 (H-155)
@@ -537,7 +584,23 @@ interface PmcPreviousExtractDTO {
       if (!res.ok || !json.success) {
         throw new Error(json.error || 'Error al analizar el documento.');
       }
+      const rawElementos = (json.data?.elementos_plan && json.data.elementos_plan.length > 0)
+        ? json.data.elementos_plan
+        : deriveElementosFromMetasPrevias(json.data?.metas_institucionales_previas || []);
+
+      const elementsToEdit: EditablePlanElement[] = rawElementos.map(e => ({
+        tipo: (e.tipo as EditablePlanElement['tipo']) || 'otro',
+        texto_original: e.texto_original || '',
+        texto_normalizado: e.texto_normalizado || e.texto_original || '',
+        categoria: e.categoria || '',
+        tema: e.tema || '',
+        responsable: e.responsable || '',
+        periodo: e.periodo || '',
+        requiere_revision: Boolean(e.requiere_revision),
+      }));
+
       setParsedPmcData(json.data as PmcPreviousExtractDTO);
+      setEditableElementosPlan(elementsToEdit);
       setIngestWarnings(Array.isArray(json.warnings) ? json.warnings : []);
       setIngestCoverage(json.coverage || null);
       setShowPmcReviewModal(true);
@@ -563,6 +626,16 @@ interface PmcPreviousExtractDTO {
         return copy;
       }
       return [{ nombre: val, cargo: 'Director(a)', meta_individual: '', metas_individuales: [] }, ...prev];
+    });
+  };
+
+  const updateEditableElemento = (index: number, patch: Partial<EditablePlanElement>) => {
+    setEditableElementosPlan(prev => {
+      const next = [...prev];
+      if (next[index]) {
+        next[index] = { ...next[index], ...patch };
+      }
+      return next;
     });
   };
 
@@ -601,8 +674,37 @@ interface PmcPreviousExtractDTO {
       metas_personales: derivedFromExtract,
     }));
 
-    if (parsedPmcData.metas_institucionales_previas && parsedPmcData.metas_institucionales_previas.length > 0) {
-      setMetasPreviasReferencia(parsedPmcData.metas_institucionales_previas);
+    // C1: Derivar metas e insumos a partir de los elementos editados por el usuario
+    const finalElementsForDerivation = editableElementosPlan.map(e => ({
+      tipo: e.tipo,
+      texto_original: e.texto_original,
+      texto_normalizado: e.texto_normalizado,
+      categoria: e.categoria || '',
+      tema: e.tema || '',
+      responsable: e.responsable || '',
+      periodo: e.periodo || '',
+      ubicacion: {},
+      requiere_revision: e.requiere_revision || false,
+    }));
+
+    const derivedFromEdited = deriveMetasPreviasFromElementos(
+      finalElementsForDerivation,
+      parsedPmcData.metas_institucionales_previas
+    );
+
+    // Adjuntar texto_original a cada meta para trazabilidad H-052 en panel de continuidad
+    const metasWithOriginal = derivedFromEdited.map(dm => {
+      const matchingElem = finalElementsForDerivation.find(
+        fe => fe.tipo === 'meta' && (fe.texto_normalizado === dm.meta || fe.texto_original === dm.meta)
+      );
+      return {
+        ...dm,
+        texto_original: matchingElem?.texto_original || dm.meta,
+      };
+    });
+
+    if (metasWithOriginal.length > 0) {
+      setMetasPreviasReferencia(metasWithOriginal);
     }
 
     // Auto-activar las categorías y temas priorizados a partir del PMC anterior
@@ -2444,6 +2546,11 @@ interface PmcPreviousExtractDTO {
                               {mp.categoria || 'Categoría general'} {mp.tema ? `— ${mp.tema}` : ''}
                             </div>
                             <div style={{ color: '#f0f4ff', marginBottom: '4px' }}><strong>Meta:</strong> {mp.meta || 'Sin redacción'}</div>
+                            {mp.texto_original && mp.texto_original !== mp.meta && (
+                              <div style={{ fontSize: '11px', color: 'rgba(240,244,255,0.6)', marginBottom: '4px' }}>
+                                <em>Original:</em> {mp.texto_original}
+                              </div>
+                            )}
                             {mp.estrategia && <div style={{ color: 'rgba(240,244,255,0.65)' }}><strong>Estrategia:</strong> {mp.estrategia}</div>}
                             {mp.linea_base && <div style={{ color: 'rgba(240,244,255,0.5)' }}><strong>Línea base:</strong> {mp.linea_base}</div>}
                           </div>
@@ -2465,7 +2572,7 @@ interface PmcPreviousExtractDTO {
                                 periodo_inicio: 'Agosto 2026',
                                 periodo_fin: 'Junio 2027',
                                 diagnostico_meta: `Meta adaptada del ciclo previo: ${mp.meta || ''}`,
-                                continuidad_de: mp.meta ? mp.meta.trim() : `meta_previa_${idx}`,
+                                continuidad_de: mp.texto_original ? mp.texto_original.trim() : (mp.meta ? mp.meta.trim() : `meta_previa_${idx}`),
                               };
                               const currentPersonal = (planAccion?.metas_personales && planAccion.metas_personales.length > 0)
                                 ? planAccion.metas_personales
@@ -3238,7 +3345,7 @@ interface PmcPreviousExtractDTO {
               background: '#0f172a',
               border: '1px solid rgba(99,102,241,0.4)',
               borderRadius: '16px',
-              maxWidth: '740px',
+              maxWidth: '880px',
               width: '100%',
               maxHeight: '90vh',
               overflowY: 'auto',
@@ -3370,13 +3477,160 @@ interface PmcPreviousExtractDTO {
                 </div>
               )}
 
-              {/* Metas del Plan de Acción Previo */}
-              {parsedPmcData.metas_institucionales_previas && parsedPmcData.metas_institucionales_previas.length > 0 && (
+              {/* Elementos del Plan de Acción Previo (Revisión editable C1) */}
+              {editableElementosPlan.length > 0 ? (() => {
+                const metasGroup = editableElementosPlan.map((e, idx) => ({ e, idx })).filter(item => item.e.tipo === 'meta');
+                const actividadesGroup = editableElementosPlan.map((e, idx) => ({ e, idx })).filter(item => item.e.tipo === 'actividad');
+                const otrosGroup = editableElementosPlan.map((e, idx) => ({ e, idx })).filter(item => item.e.tipo !== 'meta' && item.e.tipo !== 'actividad');
+
+                const renderElementCard = ({ e, idx }: { e: EditablePlanElement; idx: number }) => (
+                  <div key={idx} style={{
+                    background: 'rgba(15, 23, 42, 0.7)',
+                    border: e.requiere_revision ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '8px',
+                    padding: '12px',
+                    marginBottom: '10px',
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>Tipo:</label>
+                        <select
+                          value={e.tipo}
+                          onChange={(ev) => updateEditableElemento(idx, { tipo: ev.target.value as EditablePlanElement['tipo'] })}
+                          style={{
+                            background: '#1e293b',
+                            color: '#f0f4ff',
+                            border: '1px solid rgba(99, 102, 241, 0.4)',
+                            borderRadius: '6px',
+                            padding: '3px 8px',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <option value="meta">🎯 Meta (Resultado con indicador)</option>
+                          <option value="actividad">⚡ Actividad (Acción de ejecución)</option>
+                          <option value="estrategia">🛠️ Estrategia (Medio/Agrupación)</option>
+                          <option value="indicador">📊 Indicador</option>
+                          <option value="responsable">👤 Responsable</option>
+                          <option value="evidencia">📁 Evidencia</option>
+                          <option value="cronograma">📅 Cronograma</option>
+                          <option value="otro">📌 Otro elemento</option>
+                        </select>
+                        {e.categoria && (
+                          <span style={{ fontSize: '10px', color: '#93c5fd', background: 'rgba(59, 130, 246, 0.15)', padding: '2px 6px', borderRadius: '4px' }}>
+                            {e.categoria}
+                          </span>
+                        )}
+                        {e.tema && (
+                          <span style={{ fontSize: '10px', color: '#c7d2fe', background: 'rgba(99, 102, 241, 0.15)', padding: '2px 6px', borderRadius: '4px' }}>
+                            {e.tema}
+                          </span>
+                        )}
+                        {e.responsable && (
+                          <span style={{ fontSize: '10px', color: '#a7f3d0', background: 'rgba(16, 185, 129, 0.12)', padding: '2px 6px', borderRadius: '4px' }}>
+                            👤 {e.responsable}
+                          </span>
+                        )}
+                      </div>
+                      {e.requiere_revision && (
+                        <span style={{ fontSize: '11px', background: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', border: '1px solid rgba(245, 158, 11, 0.35)', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>
+                          ⚠️ Requiere revisión
+                        </span>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '10px' }}>
+                      <div style={{ background: 'rgba(0, 0, 0, 0.35)', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                        <div style={{ fontSize: '10px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px', fontWeight: 700 }}>
+                          📖 Texto Original del Documento (Solo lectura)
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#cbd5e1', lineHeight: 1.4, wordBreak: 'break-word' }}>
+                          {e.texto_original || '(Vacío)'}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div style={{ fontSize: '10px', color: '#818cf8', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px', fontWeight: 700 }}>
+                          ✍️ Texto Normalizado / Corregido (Editable)
+                        </div>
+                        <textarea
+                          value={e.texto_normalizado}
+                          onChange={(ev) => updateEditableElemento(idx, { texto_normalizado: ev.target.value })}
+                          rows={3}
+                          style={{
+                            width: '100%',
+                            background: 'rgba(30, 41, 59, 0.85)',
+                            border: '1px solid rgba(99, 102, 241, 0.35)',
+                            borderRadius: '6px',
+                            padding: '8px 10px',
+                            fontSize: '12px',
+                            color: '#f0f4ff',
+                            lineHeight: 1.4,
+                            resize: 'vertical',
+                            boxSizing: 'border-box',
+                          }}
+                          placeholder="Redacción de la meta o elemento..."
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+
+                return (
+                  <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '10px', padding: '14px', marginBottom: '14px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                      <h4 style={{ margin: 0, fontSize: '13px', color: '#818cf8', fontWeight: 700 }}>
+                        📋 Elementos del Plan de Acción Previo ({editableElementosPlan.length} detectados)
+                      </h4>
+                      <span style={{ fontSize: '11px', color: 'rgba(240,244,255,0.6)' }}>
+                        {metasGroup.length} Metas · {actividadesGroup.length} Actividades · {otrosGroup.length} Otros
+                      </span>
+                    </div>
+
+                    {/* Bloque 1: Metas Institucionales */}
+                    {metasGroup.length > 0 && (
+                      <div style={{ marginBottom: '14px' }}>
+                        <div style={{ fontSize: '12px', fontWeight: 700, color: '#93c5fd', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span>🎯</span> Metas Institucionales ({metasGroup.length})
+                        </div>
+                        <div style={{ maxHeight: '240px', overflowY: 'auto', paddingRight: '4px' }}>
+                          {metasGroup.map(renderElementCard)}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Bloque 2: Actividades */}
+                    {actividadesGroup.length > 0 && (
+                      <div style={{ marginBottom: '14px' }}>
+                        <div style={{ fontSize: '12px', fontWeight: 700, color: '#fbbf24', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span>⚡</span> Actividades del Plan ({actividadesGroup.length})
+                        </div>
+                        <div style={{ maxHeight: '240px', overflowY: 'auto', paddingRight: '4px' }}>
+                          {actividadesGroup.map(renderElementCard)}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Bloque 3: Otros elementos */}
+                    {otrosGroup.length > 0 && (
+                      <div>
+                        <div style={{ fontSize: '12px', fontWeight: 700, color: '#cbd5e1', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span>📌</span> Otros Elementos ({otrosGroup.length})
+                        </div>
+                        <div style={{ maxHeight: '180px', overflowY: 'auto', paddingRight: '4px' }}>
+                          {otrosGroup.map(renderElementCard)}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })() : parsedPmcData.metas_institucionales_previas && parsedPmcData.metas_institucionales_previas.length > 0 ? (
                 <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '10px', padding: '14px', marginBottom: '14px', border: '1px solid rgba(255,255,255,0.06)' }}>
                   <h4 style={{ margin: '0 0 8px', fontSize: '13px', color: '#818cf8', fontWeight: 700 }}>
                     🎯 Metas del Plan de Acción Previo ({parsedPmcData.metas_institucionales_previas.length} detectadas)
                   </h4>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '120px', overflowY: 'auto' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '140px', overflowY: 'auto' }}>
                     {parsedPmcData.metas_institucionales_previas.map((m, idx: number) => (
                       <div key={idx} style={{ fontSize: '11px', padding: '6px 10px', borderRadius: '4px', background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.18)' }}>
                         <span style={{ color: '#a5b4fc', fontWeight: 600 }}>{m.categoria} · {m.tema}:</span>{' '}
@@ -3385,7 +3639,7 @@ interface PmcPreviousExtractDTO {
                     ))}
                   </div>
                 </div>
-              )}
+              ) : null}
 
               {/* Botones de acción modal */}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '14px' }}>
