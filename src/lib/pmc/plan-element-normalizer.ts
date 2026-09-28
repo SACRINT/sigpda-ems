@@ -55,6 +55,31 @@ export function extractNumericTokens(text: string): string[] {
 }
 
 /**
+ * Calcula la proporción de solapamiento de palabras significativas entre dos textos (H-196).
+ */
+export function calculateWordOverlap(textA: string, textB: string): number {
+  const getWords = (t: string) =>
+    new Set(
+      t
+        .toLowerCase()
+        .replace(/[^\w\sáéíóúüñ]/gi, ' ')
+        .split(/\s+/)
+        .filter((w) => w.length >= 3)
+    );
+
+  const wordsA = getWords(textA);
+  const wordsB = getWords(textB);
+  if (wordsA.size === 0 || wordsB.size === 0) return 0;
+
+  let common = 0;
+  for (const w of wordsA) {
+    if (wordsB.has(w)) common++;
+  }
+  const minSize = Math.min(wordsA.size, wordsB.size);
+  return common / minSize;
+}
+
+/**
  * Invariante numérico: valida que todos los números y porcentajes del texto original
  * estén presentes en el texto normalizado.
  *
@@ -186,7 +211,11 @@ export function deriveMetasPreviasFromElementos(
         if (mNums.length > 0 && itemNums.length > 0) {
           return mNums.every((n) => itemNums.includes(n));
         }
-        return true;
+        // H-196: Si uno o ambos lados carecen de cifras, no degradar ciegamente a categoría+tema;
+        // exigir solapamiento significativo de vocabulario (overlap >= 0.5) entre las descripciones
+        const textM = (m.texto_normalizado || m.texto_original || '').trim();
+        const textItem = (item.em.meta || item.em.texto_original || '').trim();
+        return calculateWordOverlap(textM, textItem) >= 0.5;
       });
     }
 

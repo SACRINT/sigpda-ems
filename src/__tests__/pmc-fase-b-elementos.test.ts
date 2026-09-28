@@ -311,6 +311,53 @@ describe('FASE B — Extractor semántico por contenido e invariantes de datos',
       expect(derived[1].entregable).toBe('Prácticas de laboratorio');
     });
 
+    it('H-196: dos metas en la misma categoría y tema sin cifras numéricas y textos distintos no cruzan sus líneas base', () => {
+      const elementos: PmcPlanElement[] = [
+        {
+          tipo: 'meta',
+          texto_original: 'Mejorar el ambiente de convivencia pacífica en los recesos',
+          texto_normalizado: 'Mejorar el ambiente de convivencia pacífica en los recesos escolares',
+          categoria: 'Desarrollo socioemocional y prevención de la violencia en la escuela',
+          tema: 'Convivencia',
+          responsable: 'Orientación',
+          periodo: '2026-2027',
+          requiere_revision: false,
+        },
+        {
+          tipo: 'meta',
+          texto_original: 'Fomentar la mediación escolar como mecanismo de resolución de conflictos',
+          texto_normalizado: 'Fomentar la mediación escolar como mecanismo de resolución de conflictos entre pares',
+          categoria: 'Desarrollo socioemocional y prevención de la violencia en la escuela',
+          tema: 'Convivencia',
+          responsable: 'Prefectura',
+          periodo: '2026-2027',
+          requiere_revision: false,
+        },
+      ];
+
+      const existingMetas = [
+        {
+          categoria: 'Desarrollo socioemocional y prevención de la violencia en la escuela',
+          tema: 'Convivencia',
+          meta: 'Fomentar la mediación escolar como mecanismo de resolución pacífica',
+          linea_base: 'Diagnóstico de Mediación: 15 casos registrados',
+          estrategia: 'Capacitación en mediación',
+          responsable: 'Prefectura',
+          entregable: 'Actas de mediación',
+          periodo: '2026-2027',
+        },
+      ];
+
+      const derived = deriveMetasPreviasFromElementos(elementos, existingMetas);
+
+      expect(derived).toHaveLength(2);
+      // La meta de convivencia pacífica NO debe absorber la línea base de mediación
+      expect(derived[0].linea_base).toBe('');
+      // La meta de mediación escolar SÍ debe emparejarse y absorber su línea base
+      expect(derived[1].linea_base).toBe('Diagnóstico de Mediación: 15 casos registrados');
+      expect(derived[1].entregable).toBe('Actas de mediación');
+    });
+
     it('deriveElementosFromMetasPrevias genera elementos_plan sintéticos a partir de metas legacy', () => {
       const existing = [
         {
