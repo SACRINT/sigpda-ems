@@ -30,9 +30,7 @@ export interface PmcMetaInstitucionalInput {
   periodo_fin?: string;
   accion_especifica?: string;
   finalidad?: string;
-  necesidad?: string;
   proceso_evaluacion?: string;
-  subcategorias_vinculadas?: string[];
   estrategias_seguimiento?: string;
   observaciones?: string;
 }
@@ -465,6 +463,8 @@ export async function generatePmcSupervisorExcel(project: PmcSupervisorExcelInpu
     { key: 'accion_especifica', width: 32 },
     { key: 'seguimiento', width: 32 },
     { key: 'observaciones', width: 28 },
+    { key: 'finalidad', width: 32 },
+    { key: 'proceso_evaluacion', width: 32 },
   ];
 
   const ws4NoticeRow = ws4.addRow([
@@ -486,6 +486,8 @@ export async function generatePmcSupervisorExcel(project: PmcSupervisorExcelInpu
     'Acción Específica (Formato 3.1)',
     'Estrategias de Seguimiento (Formato 4.1)',
     'Observaciones (Formato 4.1)',
+    'Finalidad (Formato 3.1)',
+    'Proceso de Evaluación (Formato 3.1)',
   ]);
   ws4HeaderRow.height = 30;
   ws4HeaderRow.eachCell((cell) => {
@@ -512,6 +514,8 @@ export async function generatePmcSupervisorExcel(project: PmcSupervisorExcelInpu
         m.accion_especifica || 'N/D',
         m.estrategias_seguimiento || 'N/D',
         m.observaciones || 'Sin observaciones',
+        m.finalidad || 'N/D',
+        m.proceso_evaluacion || 'N/D',
       ]);
       r.height = 24;
       r.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
@@ -535,6 +539,8 @@ export async function generatePmcSupervisorExcel(project: PmcSupervisorExcelInpu
       'N/D',
       'N/D',
       'Sin observaciones',
+      'N/D',
+      'N/D',
     ]);
     emptyRow.height = 24;
     emptyRow.eachCell((cell) => {

@@ -362,6 +362,8 @@ describe('Excel Oficial de Supervisión Escolar (FASE 1)', () => {
             personal_designado: 'Colegiado de Matemáticas',
             entregable: 'Bitácora trimestral',
             accion_especifica: 'Sesiones semanales de cálculo aplicado',
+            finalidad: 'Mejorar el razonamiento lógico-matemático',
+            proceso_evaluacion: 'Evaluaciones formativas quincenales',
             estrategias_seguimiento: 'Reunión quincenal de academia',
             observaciones: 'Requiere calculadora científica',
           },
@@ -380,10 +382,14 @@ describe('Excel Oficial de Supervisión Escolar (FASE 1)', () => {
     expect(String(ws4.getCell('J2').value)).toBe('Acción Específica (Formato 3.1)');
     expect(String(ws4.getCell('K2').value)).toBe('Estrategias de Seguimiento (Formato 4.1)');
     expect(String(ws4.getCell('L2').value)).toBe('Observaciones (Formato 4.1)');
+    expect(String(ws4.getCell('M2').value)).toBe('Finalidad (Formato 3.1)');
+    expect(String(ws4.getCell('N2').value)).toBe('Proceso de Evaluación (Formato 3.1)');
 
     // Datos en Fila 3
     expect(ws4.getCell('J3').value).toBe('Sesiones semanales de cálculo aplicado');
     expect(ws4.getCell('K3').value).toBe('Reunión quincenal de academia');
     expect(ws4.getCell('L3').value).toBe('Requiere calculadora científica');
+    expect(ws4.getCell('M3').value).toBe('Mejorar el razonamiento lógico-matemático');
+    expect(ws4.getCell('N3').value).toBe('Evaluaciones formativas quincenales');
   });
 });
