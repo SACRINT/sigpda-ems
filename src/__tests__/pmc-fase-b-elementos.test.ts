@@ -255,6 +255,62 @@ describe('FASE B — Extractor semántico por contenido e invariantes de datos',
       expect(derived[0].estrategia).toBe('Estrategia institucional acordada en CTE');
     });
 
+    it('H-192: previene colisión de subcadenas en metas con prefijo idéntico (emparejamiento 1-a-1)', () => {
+      const elementos: PmcPlanElement[] = [
+        {
+          tipo: 'meta',
+          texto_original: 'Lograr que el 80% de los alumnos aprueben Matemáticas I',
+          texto_normalizado: 'Aprobar al 80% de los alumnos en la UAC Matemáticas I',
+          categoria: 'Desarrollo académico y aprendizaje',
+          tema: 'Aprobación',
+          responsable: 'Docente Mat',
+          periodo: '2026-2027',
+          requiere_revision: false,
+        },
+        {
+          tipo: 'meta',
+          texto_original: 'Lograr que el 80% de los alumnos aprueben Química I',
+          texto_normalizado: 'Aprobar al 80% de los alumnos en la UAC Química I',
+          categoria: 'Desarrollo académico y aprendizaje',
+          tema: 'Aprobación',
+          responsable: 'Docente Qca',
+          periodo: '2026-2027',
+          requiere_revision: false,
+        },
+      ];
+
+      const existingMetas = [
+        {
+          categoria: 'Desarrollo académico y aprendizaje',
+          tema: 'Aprobación',
+          meta: 'Lograr que el 80% de los alumnos aprueben Matemáticas I',
+          linea_base: 'Diagnóstico Matemáticas: 35% de reprobación',
+          estrategia: 'Tutorías de álgebra',
+          responsable: 'Docente Mat',
+          entregable: 'Exámenes de nivelación',
+          periodo: '2026-2027',
+        },
+        {
+          categoria: 'Desarrollo académico y aprendizaje',
+          tema: 'Aprobación',
+          meta: 'Lograr que el 80% de los alumnos aprueben Química I',
+          linea_base: 'Diagnóstico Química: 28% de reprobación',
+          estrategia: 'Laboratorios prácticos',
+          responsable: 'Docente Qca',
+          entregable: 'Prácticas de laboratorio',
+          periodo: '2026-2027',
+        },
+      ];
+
+      const derived = deriveMetasPreviasFromElementos(elementos, existingMetas);
+
+      expect(derived).toHaveLength(2);
+      expect(derived[0].linea_base).toBe('Diagnóstico Matemáticas: 35% de reprobación');
+      expect(derived[0].entregable).toBe('Exámenes de nivelación');
+      expect(derived[1].linea_base).toBe('Diagnóstico Química: 28% de reprobación');
+      expect(derived[1].entregable).toBe('Prácticas de laboratorio');
+    });
+
     it('deriveElementosFromMetasPrevias genera elementos_plan sintéticos a partir de metas legacy', () => {
       const existing = [
         {

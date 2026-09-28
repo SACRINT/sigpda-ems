@@ -17,11 +17,13 @@ export interface PmcCoverageDetails {
     detectados: number | null;
     extraidos: number;
     parcial: boolean;
+    indeterminada?: boolean;
   };
   actividades: {
     detectados: number | null;
     extraidos: number;
     parcial: boolean;
+    indeterminada?: boolean;
   };
 }
 
@@ -146,25 +148,58 @@ export function deriveMetasPreviasFromElementos(
     }
   }
 
+  // H-192: Emparejamiento 1-a-1 sin colisión de subcadenas ni duplicación
+  const availableExisting = (existingMetas || []).map((em, index) => ({
+    em,
+    index,
+    metaNorm: em.meta?.trim().toLowerCase() || '',
+    origNorm: em.texto_original?.trim().toLowerCase() || '',
+    catNorm: em.categoria?.trim().toLowerCase() || '',
+    temaNorm: em.tema?.trim().toLowerCase() || '',
+  }));
+  const usedExistingIndices = new Set<number>();
+
   return metaElements.map((m, idx) => {
     const catKey = m.categoria?.trim().toLowerCase() || '';
     const temaKey = m.tema?.trim().toLowerCase() || '';
     const key = `${catKey}::${temaKey}`;
     const relatedActs = actMap.get(key) || [];
 
-    // H-185: Buscar coincidencia en existingMetas para preservar linea_base, entregable y estrategia
     const mNorm = m.texto_normalizado?.trim().toLowerCase() || '';
     const mOrig = m.texto_original?.trim().toLowerCase() || '';
 
-    const matchedExisting = (existingMetas || []).find((em) => {
-      const emMeta = em.meta?.trim().toLowerCase() || '';
-      const emOrig = em.texto_original?.trim().toLowerCase() || '';
-      if (emMeta && (emMeta === mNorm || emMeta === mOrig)) return true;
-      if (emOrig && (emOrig === mOrig || emOrig === mNorm)) return true;
-      if (emMeta && mNorm && (emMeta.includes(mNorm) || mNorm.includes(emMeta))) return true;
-      return false;
-    }) || (existingMetas && existingMetas.length === metaElements.length ? existingMetas[idx] : undefined);
+    // Paso 1: Coincidencia exacta de texto (por texto_normalizado o texto_original)
+    let matchedItem = availableExisting.find(
+      (item) =>
+        !usedExistingIndices.has(item.index) &&
+        ((item.metaNorm.length > 0 && (item.metaNorm === mNorm || item.metaNorm === mOrig)) ||
+         (item.origNorm.length > 0 && (item.origNorm === mOrig || item.origNorm === mNorm)))
+    );
 
+    // Paso 2: Coincidencia por categoría + tema + identidad de cifras numéricas clave
+    if (!matchedItem && catKey && temaKey) {
+      const mNums = extractNumericTokens(m.texto_original || m.texto_normalizado || '');
+      matchedItem = availableExisting.find((item) => {
+        if (usedExistingIndices.has(item.index)) return false;
+        if (item.catNorm !== catKey || item.temaNorm !== temaKey) return false;
+        const itemNums = extractNumericTokens(item.em.meta || item.em.texto_original || '');
+        if (mNums.length > 0 && itemNums.length > 0) {
+          return mNums.every((n) => itemNums.includes(n));
+        }
+        return true;
+      });
+    }
+
+    // Paso 3: Fallback posicional estricto solo si longitudes coinciden y la posición no ha sido usada
+    if (!matchedItem && availableExisting.length === metaElements.length && !usedExistingIndices.has(idx)) {
+      matchedItem = availableExisting[idx];
+    }
+
+    if (matchedItem) {
+      usedExistingIndices.add(matchedItem.index);
+    }
+
+    const matchedExisting = matchedItem?.em;
     const mergedLineaBase = matchedExisting?.linea_base?.trim() || '';
     const mergedEntregable = matchedExisting?.entregable?.trim() || '';
     const mergedEstrategia =
@@ -206,7 +241,7 @@ export function deriveElementosFromMetasPrevias(
 }
 
 /**
- * Calcula la cobertura de extracción de metas y actividades (H-178, H-182).
+ * Calcula la cobertura de extracción de metas y actividades (H-178, H-182, H-187, H-191).
  */
 export function calculatePmcCoverage(
   totalesDetectados: { metas?: number | null; actividades?: number | null } | null | undefined,
@@ -224,7 +259,10 @@ export function calculatePmcCoverage(
   const parcialActividades = detectadosActividades !== null && detectadosActividades > actividadesExtraidasCount;
 
   const parcial = parcialMetas || parcialActividades;
-  const indeterminada = detectadosMetas === null;
+  const indeterminadaMetas = detectadosMetas === null;
+  const indeterminadaActividades = detectadosActividades === null;
+  // H-191: Se considera indeterminada si no se puede verificar cobertura ni de metas ni de actividades
+  const indeterminada = indeterminadaMetas || indeterminadaActividades;
 
   return {
     detectados: detectadosMetas,
@@ -236,11 +274,13 @@ export function calculatePmcCoverage(
         detectados: detectadosMetas,
         extraidos: metasExtraidasCount,
         parcial: parcialMetas,
+        indeterminada: indeterminadaMetas,
       },
       actividades: {
         detectados: detectadosActividades,
         extraidos: actividadesExtraidasCount,
         parcial: parcialActividades,
+        indeterminada: indeterminadaActividades,
       },
     },
   };

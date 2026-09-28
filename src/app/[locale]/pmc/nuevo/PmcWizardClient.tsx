@@ -577,7 +577,16 @@ interface EditablePlanElement {
         error?: string;
         data?: PmcPreviousExtractDTO;
         warnings?: string[];
-        coverage?: { detectados: number | null; extraidos: number; parcial: boolean };
+        coverage?: {
+          detectados: number | null;
+          extraidos: number;
+          parcial: boolean;
+          indeterminada?: boolean;
+          detalles?: {
+            metas: { detectados: number | null; extraidos: number; parcial: boolean; indeterminada?: boolean };
+            actividades: { detectados: number | null; extraidos: number; parcial: boolean; indeterminada?: boolean };
+          };
+        };
       }>(
         res,
         'Error al analizar el documento anterior.'
