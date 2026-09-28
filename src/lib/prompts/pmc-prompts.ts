@@ -114,13 +114,32 @@ MATRIZ FODA SITUACIONAL:
 - Debilidades (D): ${safeStr(foda.debilidades)}
 - Amenazas (A): ${safeStr(foda.amenazas)}
 
-INSTRUCCIONES PARA GENERAR EL DIAGNÓSTICO INTEGRAL:
-Genera un objeto JSON con exactamente las siguientes 5 secciones redactadas con estilo técnico, formal y rigurosidad metodológica:
-1. "presentacion": (Texto de presentación institucional del PMC, 2-3 párrafos. Debe fundamentar el artículo 3° constitucional, la política CREAA de Puebla y el MCCEMS 2025).
-2. "contexto": (Narrativa profunda del contexto territorial, sociocultural y geográfico del plantel, articulando con el entorno donde viven los ${matriculaReal} estudiantes).
-3. "analisis_indicadores": (Análisis cuantitativo e interpretativo de los datos reales del Formato 911 y F11: abandono del ${abandonoReal}%, eficiencia terminal del ${eficienciaReal}%, aprovechamiento promedio de ${promedioF11}, y comparación con la media de la zona escolar).
-4. "sintesis_foda": (Síntesis cruzada de los cuadrantes FODA en 2 párrafos, identificando cómo las fortalezas mitigarán las debilidades y amenazas del entorno).
-5. "priorizacion": (Narrativa de priorización estratégica para el ciclo escolar 2026-2027, justificando la intervención en las 3 categorías CREAA: Apropiación Curricular, Permanencia y Gestión Comunitaria).
+INFORMACIÓN DE INSUMOS DOCUMENTALES (Formato Oficial 2.1 Diagnóstico PMC 2025-2026):
+Para la elaboración del diagnóstico integral, articula los siguientes insumos institucionales:
+1. Indicadores educativos del ciclo escolar anterior: Tasa de aprobación, Tasa de abandono escolar y Eficiencia terminal (Formatos 911.7G y F11C).
+2. Documentos institucionales del plantel:
+   - Plan de Mejora Continua (PMC) del ciclo escolar anterior.
+   - Planeaciones didácticas de las y los docentes.
+   - Informes de academia colegiada.
+   - Informes de tutoría y orientación educativa.
+   - Reportes sobre el desempeño docente en el aula y gestión académica-administrativa.
+   - Reportes de proyectos escolares y programas del currículum ampliado.
+   - Protocolo contra el abandono escolar.
+
+INSTRUCCIONES PARA GENERAR EL DIAGNÓSTICO INTEGRAL (Formato 2.1 Diagnóstico PMC):
+Conforme a la estructura del formato oficial "2.1 Diagnóstico PMC 2025-2026", el diagnóstico debe responder a las 5 preguntas oficiales:
+• ¿Qué se ha logrado? (Logros del ciclo escolar anterior y metas consolidadas)
+• ¿En qué situación se encuentra el plantel? (Situación académica, indicadores cuantitativos y de servicios)
+• ¿Qué se quiere lograr? (Propósitos de mejora, metas formativas e institucionales para el ciclo)
+• ¿Qué requiere el plantel para lograrlo? (Condiciones pedagógicas, recursos didácticos, infraestructura y vinculación)
+• ¿Cuáles son las fortalezas y áreas de oportunidad identificadas? (Análisis FODA situado)
+
+Genera un objeto JSON con exactamente las siguientes 5 secciones que integran armónicamente las 5 preguntas oficiales con estilo técnico, formal y rigurosidad metodológica:
+1. "presentacion": (Texto de presentación institucional del PMC, 2-3 párrafos. Responde a qué se ha logrado y qué se quiere lograr con el PMC, fundamentando el artículo 3° constitucional, la política CREAA de Puebla y el MCCEMS 2025).
+2. "contexto": (Narrativa profunda del contexto territorial, sociocultural y geográfico del plantel, respondiendo a la situación del plantel en servicios y entorno donde viven los ${matriculaReal} estudiantes).
+3. "analisis_indicadores": (Análisis cuantitativo e interpretativo de los datos reales del Formato 911 y F11: abandono del ${abandonoReal}%, eficiencia terminal del ${eficienciaReal}%, aprovechamiento promedio de ${promedioF11}, detallando la situación académica del plantel y comparación con la media de la zona escolar).
+4. "sintesis_foda": (Síntesis cruzada de los cuadrantes FODA en 2 párrafos que responde a: ¿Cuáles son las fortalezas y áreas de oportunidad identificadas?, integrando cómo las fortalezas mitigarán las debilidades y amenazas del entorno).
+5. "priorizacion": (Narrativa de priorización estratégica para el ciclo escolar 2026-2027 que responde a: ¿Qué requiere el plantel para lograrlo?, justificando la intervención en las 3 categorías CREAA y las 4 áreas de atención obligatorias del PMC).
 
 PROHIBICIÓN ESTRICTA: NUNCA utilices expresiones genéricas o de plantilla como "Asignatura 1", "Asignatura 4", "Docente X" o "Profesor Y". Si no se indican asignaturas específicas en el diagnóstico, refiérete con rigor a los Recursos Sociocognitivos del MCCEMS (Pensamiento Matemático, Lengua y Comunicación, Conciencia Histórica, Cultura Digital).
 
@@ -300,6 +319,16 @@ REGLAS OBLIGATORIAS DE REDACCIÓN DE METAS CREAA (MCCEMS PUEBLA 2026-2027):
    - Evidencias válidas: Bitácoras físicas, listas de cotejo, portafolios, minutas de academia, constancias de curso, informes de tutoría, concentrados de calificaciones (F11/911). NO softwares privados.
    - En metas personales de docentes: la validación de planeaciones es responsabilidad del Consejo Académico y la Supervisión Escolar, NO de ninguna plataforma digital privada.
 
+8. CRITERIOS TÉCNICOS OFICIALES (ORIENTACIONES PMC 2025-2026 - FORMATOS 3.1 Y 4.1):
+   Cada meta institucional DEBE incluir adicionalmente los criterios oficiales de las tablas 3.1 y 4.1:
+   - "accion_especifica": Acción específica y concreta a implementar.
+   - "finalidad": Finalidad institucional y pedagógica de la meta.
+   - "necesidad": Necesidad o justificación de implementar la meta ante la problemática identificada.
+   - "proceso_evaluacion": Proceso e instrumentos para la evaluación y seguimiento de la meta.
+   - "subcategorias_vinculadas": Array de subcategorías oficiales integradas para cumplir la meta.
+   - "estrategias_seguimiento": Mecanismos de seguimiento y cortes periódicos de avance.
+   - "observaciones": Consideraciones operativas y de viabilidad.
+
 Estructura de respuesta en JSON:
 {
   "metas_institucionales": [
@@ -314,7 +343,14 @@ Estructura de respuesta en JSON:
       "personal_designado": "Nombre y Cargo del responsable",
       "entregable": "Documento técnico cualitativo de evidencia",
       "periodo_inicio": "08/2026",
-      "periodo_fin": "06/2027"
+      "periodo_fin": "06/2027",
+      "accion_especifica": "Acción específica a realizar para alcanzar la meta",
+      "finalidad": "Propósito formativo o institucional de la meta",
+      "necesidad": "Justificación de la necesidad en el plantel",
+      "proceso_evaluacion": "Rúbrica o instrumento de evaluación formativa",
+      "subcategorias_vinculadas": ["INDICADORES ACADÉMICOS", "TRABAJO COLEGIADO"],
+      "estrategias_seguimiento": "Cortes bimestrales en Consejo Técnico Escolar",
+      "observaciones": "Coordinación con academia docente"
     }
   ],
   "metas_personales": [

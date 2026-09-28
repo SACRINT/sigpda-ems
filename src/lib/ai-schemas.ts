@@ -584,6 +584,12 @@ export const PmcDiagnosticoSchema = z.object({
   analisis_indicadores: z.string().min(10, 'El análisis de indicadores es requerido'),
   sintesis_foda: z.string().min(10, 'La síntesis FODA es requerida'),
   priorizacion: z.string().min(10, 'La priorización de problemas es requerida'),
+  // H-197: 5 preguntas oficiales del formato 2.1 Diagnóstico PMC 2025-2026
+  que_se_ha_logrado: z.string().optional(),
+  situacion_plantel: z.string().optional(),
+  que_se_quiere_lograr: z.string().optional(),
+  que_requiere_para_lograrlo: z.string().optional(),
+  fortalezas_areas_oportunidad: z.string().optional(),
 });
 
 const PmcMetaInstitucionalSchema = z.object({
@@ -598,6 +604,15 @@ const PmcMetaInstitucionalSchema = z.object({
   entregable: z.string().min(1, 'Entregable requerido'),
   periodo_inicio: z.string().default(''),
   periodo_fin: z.string().default(''),
+  // H-199: Criterios oficiales 3.1 Metas PMC 2025-2026
+  accion_especifica: z.string().optional().default(''),
+  finalidad: z.string().optional().default(''),
+  necesidad: z.string().optional().default(''),
+  proceso_evaluacion: z.string().optional().default(''),
+  subcategorias_vinculadas: z.array(z.string()).optional().default([]),
+  // H-200: Criterios oficiales 4.1 Estrategia de implementación PMC 2025-2026
+  estrategias_seguimiento: z.string().optional().default(''),
+  observaciones: z.string().optional().default(''),
 });
 
 const PmcMetaPersonalSchema = z.object({

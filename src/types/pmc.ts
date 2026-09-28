@@ -103,6 +103,12 @@ export interface PmcDiagnosticoGenerado {
   analisis_indicadores?: string;
   sintesis_foda?: string;
   priorizacion?: string;
+  // H-197: 5 preguntas oficiales del formato 2.1 Diagnóstico PMC 2025-2026
+  que_se_ha_logrado?: string;
+  situacion_plantel?: string;
+  que_se_quiere_lograr?: string;
+  que_requiere_para_lograrlo?: string;
+  fortalezas_areas_oportunidad?: string;
 }
 
 export interface PmcMetaInstitucional {
@@ -118,6 +124,15 @@ export interface PmcMetaInstitucional {
   periodo_fin?: string;
   diagnostico_meta?: string;
   continuidad_de?: string;
+  // H-199: Criterios oficiales 3.1 Metas PMC 2025-2026
+  accion_especifica?: string;
+  finalidad?: string;
+  necesidad?: string;
+  proceso_evaluacion?: string;
+  subcategorias_vinculadas?: string[];
+  // H-200: Criterios oficiales 4.1 Estrategia de implementación PMC 2025-2026
+  estrategias_seguimiento?: string;
+  observaciones?: string;
 }
 
 export interface PmcMetaPersonal {
