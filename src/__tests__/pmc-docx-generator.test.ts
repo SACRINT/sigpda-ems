@@ -420,6 +420,39 @@ describe('pmc-docx-generator — Generador de Plan de Mejora Continua e Informes
     expect(text).toContain('Producto que comprobará el cumplimiento de la meta');
     expect(text).toContain('Subcategorías que vincularán  para cumplir la meta establecida');
     expect(text).toContain('Situación actual en el plantel que justifica el establecimiento de la meta');
+
+    // H-201: Cero fabricación de textos en áreas sin meta coincidente (Áreas 2 y 3)
+    expect(text).toContain('Pendiente de definición por el colectivo docente');
+    expect(text).not.toContain('Garantizar el 100% de planeaciones didácticas alineadas al MCCEMS');
+    expect(text).not.toContain('Establecer vínculos y convenios de colaboración con al menos 2 instituciones');
+  });
+
+  // ── TEST 15 (H-207): Preservación de necesidad y diagnóstico_meta en Ficha Técnica ──
+  it('Test 15: H-207 — Concatena necesidad y diagnostico_meta en la fila de Situación actual de la Ficha Técnica', async () => {
+    const fixture = makePmcFixture({
+      plan_accion: {
+        metas_institucionales: [
+          {
+            categoria: 'cat-1',
+            nombre_categoria: 'Logro Académico',
+            tema: 'Pensamiento Matemático',
+            meta: 'Elevar al 90% la aprobación en asignaturas STEM mediante tutoría entre pares.',
+            estrategia: 'Implementar laboratorios de resolución colaborativa de problemas situados.',
+            linea_base: '84% de aprobación al cierre del ciclo 2025-2026',
+            necesidad: 'Rezago severo en pensamiento algebraico',
+            diagnostico_meta: 'Evaluación diagnóstica con 65% de insuficiencia',
+            personal_designado: 'Colegiado de Matemáticas',
+            entregable: 'Bitácora trimestral de tutorías y portafolios de evidencias',
+          },
+        ],
+      },
+    });
+
+    const buffer = await generatePmcDocx(fixture);
+    const { value: text } = await mammoth.extractRawText({ buffer });
+
+    // Ambos contenidos deben ser visibles y concatenados
+    expect(text).toContain('Rezago severo en pensamiento algebraico — Evaluación diagnóstica con 65% de insuficiencia');
   });
 });
 

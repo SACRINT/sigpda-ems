@@ -785,12 +785,6 @@ interface AreaObligatoriaConfig {
   id: string;
   titulo: string;
   keywords: RegExp;
-  defaultMeta: string;
-  defaultEstrategia: string;
-  defaultResponsable: string;
-  defaultProducto: string;
-  defaultSubcat: string;
-  defaultSituacion: string;
 }
 
 const AREAS_OBLIGATORIAS_51: AreaObligatoriaConfig[] = [
@@ -798,45 +792,21 @@ const AREAS_OBLIGATORIAS_51: AreaObligatoriaConfig[] = [
     id: 'area-1-indicadores',
     titulo: 'Indicadores académicos (reprobación, eficiencia terminal y abandono escolar)',
     keywords: /(indicador|aprobaci|reprobaci|abandono|eficiencia|académic|matemátic)/i,
-    defaultMeta: 'Elevar la tasa de aprobación escolar al 90% y reducir el abandono escolar mediante tutorías oportunas y seguimiento a estudiantes en riesgo.',
-    defaultEstrategia: 'Monitoreo bimestral de calificaciones, círculos de estudio guiados y alertas tempranas en semanas 6 y 12.',
-    defaultResponsable: 'Academia General y Tutores de Grupo',
-    defaultProducto: 'Reportes bimestrales de calificaciones y bitácora de tutorías académicas analíticas.',
-    defaultSubcat: 'INDICADORES ACADÉMICOS, ORIENTACIÓN Y TUTORÍA',
-    defaultSituacion: 'Rezago académico e irregularidad en asignaturas sociocognitivas clave detectados en la evaluación diagnóstica.',
   },
   {
     id: 'area-2-desempeno-docente',
     titulo: 'Seguimiento al desempeño docente en el aula',
     keywords: /(desempeño docente|docente|aula|enseñanza|formación|colegiado|planeación)/i,
-    defaultMeta: 'Garantizar el 100% de planeaciones didácticas alineadas al MCCEMS con acompañamiento y retroalimentación formativa colegiada.',
-    defaultEstrategia: 'Observación y acompañamiento pedagógico entre pares, rúbricas formativas y reuniones de academia mensuales.',
-    defaultResponsable: 'Dirección del Plantel y Colegiado de Academia Docente',
-    defaultProducto: 'Instrumentos de acompañamiento docente y minutas de sesiones de academia colegiada.',
-    defaultSubcat: 'SEGUIMIENTO AL DESEMPEÑO DOCENTE EN EL AULA, TRABAJO COLEGIADO',
-    defaultSituacion: 'Necesidad de consolidar progresiones de aprendizaje y evaluación formativa continua en el aula.',
   },
   {
     id: 'area-3-vinculacion',
     titulo: 'Vinculación con centros educativos, empresas, fundaciones o instituciones públicas',
     keywords: /(vinculaci[oó]n|empresa|centros educativos|institucion|comunitari|egresado|fundaci)/i,
-    defaultMeta: 'Establecer vínculos y convenios de colaboración con al menos 2 instituciones públicas o productivas de la comunidad.',
-    defaultEstrategia: 'Gestión interinstitucional para visitas pedagógicas, orientación vocacional y articulación con secundarias de la zona.',
-    defaultResponsable: 'Comité de Vinculación y Dirección Escolar',
-    defaultProducto: 'Acuerdos o convenios de colaboración formalizados y reportes de actividades conjuntas.',
-    defaultSubcat: 'VINCULACIÓN CON EMPRESAS, FUNDACIONES E INSTITUCIONES PÚBLICAS',
-    defaultSituacion: 'Oportunidad de fortalecer la vinculación comunitaria, el servicio social y la orientación vocacional.',
   },
   {
     id: 'area-4-violencia',
     titulo: 'Estrategias, programas y/o proyectos sobre violencia',
     keywords: /(violencia|paz|convivencia|socioemocional|seguridad|clima)/i,
-    defaultMeta: 'Implementar el protocolo integral de prevención de la violencia escolar y fomento a la cultura de paz con 3 jornadas institucionales anuales.',
-    defaultEstrategia: 'Talleres formativos socioemocionales, círculos restaurativos de diálogo y mediación comunitaria entre pares.',
-    defaultResponsable: 'Comité de Convivencia Escolar y Orientación Educativa',
-    defaultProducto: 'Memoria técnica de jornadas de cultura de paz y actas del comité de convivencia escolar.',
-    defaultSubcat: 'PREVENCIÓN DE LA VIOLENCIA EN LA ESCUELA, ÁMBITOS DE FORMACIÓN SOCIOEMOCIONAL',
-    defaultSituacion: 'Requerimiento prioritario de consolidar un clima escolar armónico, seguro e incluyente.',
   },
 ];
 
@@ -892,6 +862,8 @@ function buildPlanAccion(plan: PlanAccion): (Paragraph | Table)[] {
     items.push(subHeading('Tablas Obligatorias del Plan de Acción (Formato 5.1 PMC 2025-2026):'));
     items.push(bodyPara('Desarrollo estructurado de las cuatro áreas de observancia obligatoria conforme al formato oficial 5.1 emitido por la SEP/SEMS:'));
 
+    const PENDIENTE_DEFINICION = 'Pendiente de definición por el colectivo docente';
+
     for (let aIdx = 0; aIdx < AREAS_OBLIGATORIAS_51.length; aIdx++) {
       const area = AREAS_OBLIGATORIAS_51[aIdx];
       const matchingMeta = metas.find(m => {
@@ -899,17 +871,17 @@ function buildPlanAccion(plan: PlanAccion): (Paragraph | Table)[] {
         return area.keywords.test(textToTest);
       });
 
-      const metaEstablecida = safeStr(matchingMeta?.meta, area.defaultMeta);
-      const estrategiaImp = safeStr(matchingMeta?.estrategia, area.defaultEstrategia);
-      const personalDes = safeStr(matchingMeta?.personal_designado, area.defaultResponsable);
-      const productoComp = safeStr(matchingMeta?.entregable, area.defaultProducto);
+      const metaEstablecida = matchingMeta?.meta ? safeStr(matchingMeta.meta) : PENDIENTE_DEFINICION;
+      const estrategiaImp = matchingMeta?.estrategia ? safeStr(matchingMeta.estrategia) : PENDIENTE_DEFINICION;
+      const personalDes = matchingMeta?.personal_designado ? safeStr(matchingMeta.personal_designado) : PENDIENTE_DEFINICION;
+      const productoComp = matchingMeta?.entregable ? safeStr(matchingMeta.entregable) : PENDIENTE_DEFINICION;
       const subcatVinc = (Array.isArray(matchingMeta?.subcategorias_vinculadas) && matchingMeta.subcategorias_vinculadas.length > 0)
         ? matchingMeta.subcategorias_vinculadas.join(', ')
-        : (matchingMeta?.tema || matchingMeta?.nombre_categoria || area.defaultSubcat);
-      const situacionActual = safeStr(
-        matchingMeta?.necesidad || matchingMeta?.diagnostico_meta || matchingMeta?.linea_base,
-        area.defaultSituacion
-      );
+        : (matchingMeta?.tema || matchingMeta?.nombre_categoria || PENDIENTE_DEFINICION);
+      const situacionPartsArea = [matchingMeta?.necesidad, matchingMeta?.diagnostico_meta].filter(Boolean);
+      const situacionActual = situacionPartsArea.length > 0
+        ? situacionPartsArea.join(' — ')
+        : (matchingMeta?.linea_base ? safeStr(matchingMeta.linea_base) : PENDIENTE_DEFINICION);
 
       items.push(
         new Paragraph({
@@ -1009,7 +981,13 @@ function buildPlanAccion(plan: PlanAccion): (Paragraph | Table)[] {
           new TableRow({
             children: [
               tcSub('Situación actual en el plantel que justifica el establecimiento de la meta'),
-              tc(safeStr(m.necesidad || m.diagnostico_meta || m.linea_base, 'Situación académica diagnosticada en el plantel.'), { fill: C.alt }),
+              tc(
+                safeStr(
+                  [m.necesidad, m.diagnostico_meta].filter(Boolean).join(' — ') || m.linea_base,
+                  'Situación académica diagnosticada en el plantel.'
+                ),
+                { fill: C.alt }
+              ),
             ],
           }),
           new TableRow({
