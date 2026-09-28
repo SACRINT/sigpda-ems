@@ -190,7 +190,11 @@ export function reconstructPageLayout(
   }
 
   // 3. Mapear cada línea a sus columnas ocupadas
-  const lineColData = physicalLines.map(line => {
+  const isLineHeading = physicalLines.map(
+    l => l.scaleY >= avgFontSize * 1.25 && l.text.length < 120
+  );
+
+  const lineColData = physicalLines.map((line, idx) => {
     const cols: string[] = Array(columns.length).fill('');
     for (const item of line.items) {
       const s = item.str.trim();
@@ -201,24 +205,76 @@ export function reconstructPageLayout(
     const populatedColsCount = cols.filter(c => c.length > 0).length;
     return {
       line,
+      isHeading: isLineHeading[idx],
       cols,
       populatedColsCount,
     };
   });
 
-  // 4. Identificar bloques de tablas continuos (>= 3 líneas consecutivas donde al menos haya distribución multicolumna)
-  const isTableLine = lineColData.map((d, idx) => {
-    if (d.populatedColsCount >= 2) return true;
-    // Si tiene 1 sola columna pero la línea anterior y posterior son parte de tabla y no es col 0 (continuación de celda)
-    if (d.populatedColsCount === 1) {
-      const prevIsTable = idx > 0 && lineColData[idx - 1].populatedColsCount >= 2;
-      const nextIsTable = idx < lineColData.length - 1 && lineColData[idx + 1].populatedColsCount >= 2;
-      if (prevIsTable || nextIsTable) {
-        return true;
-      }
+  // 4. Identificar bloques de tablas continuos (H-184)
+  // Dentro de una región de tabla abierta, se admiten carreras de 1 columna (celdas multirrenglón).
+  // La región de tabla se cierra ante encabezados explícitos, líneas vacías o interrupciones mayores.
+  const isTableLine: boolean[] = Array(lineColData.length).fill(false);
+  let inTableRegion = false;
+  let singleColRun = 0;
+
+  for (let i = 0; i < lineColData.length; i++) {
+    const d = lineColData[i];
+    if (d.isHeading || d.line.text.length === 0) {
+      inTableRegion = false;
+      singleColRun = 0;
+      continue;
     }
+
+    if (d.populatedColsCount >= 2) {
+      inTableRegion = true;
+      singleColRun = 0;
+      isTableLine[i] = true;
+    } else if (inTableRegion && d.populatedColsCount === 1) {
+      singleColRun++;
+      if (singleColRun > 8) {
+        inTableRegion = false;
+      } else {
+        isTableLine[i] = true;
+      }
+    } else {
+      inTableRegion = false;
+      singleColRun = 0;
+    }
+  }
+
+  // Helper para determinar si una línea física dentro de la tabla continúa la fila lógica actual (H-184)
+  function isRowContinuation(
+    currentRow: string[],
+    lineCols: string[],
+    populatedColsCount: number
+  ): boolean {
+    if (populatedColsCount === 0) return true;
+    // Si solo hay una columna poblada en la línea física, es continuación de celda mono-columna
+    if (populatedColsCount === 1) return true;
+
+    // Si hay 2 o más columnas pobladas:
+    const col0Text = lineCols[0]?.trim() || '';
+    const col1Text = lineCols[1]?.trim() || '';
+
+    // Condición 1: Comienza en minúscula en col 0 (ej. "tercer semestre del ciclo escolar...")
+    if (/^[a-záéíóúüñ]/.test(col0Text)) return true;
+
+    // Condición 2: Comienza en minúscula en col 1 (ej. "primer y tercer semestre...")
+    if (/^[a-záéíóúüñ]/.test(col1Text)) return true;
+
+    // Condición 3: Columna 0 o 1 de la fila previa termina con conector evidente o guión
+    const currentCol0 = currentRow[0]?.trim() || '';
+    const endsWithDanglingConnector = /(?:[-–—(]|(?:\b(?:y|e|o|u|de|del|en|para|con|por|el|la|los|las|un|una)\s*))$/i.test(currentCol0);
+    const currentCol1 = currentRow[1]?.trim() || '';
+    const col1EndsWithDanglingConnector = /(?:[-–—(]|(?:\b(?:y|e|o|u|de|del|en|para|con|por|el|la|los|las|un|una)\s*))$/i.test(currentCol1);
+
+    if (endsWithDanglingConnector || (col1EndsWithDanglingConnector && /^\d+/.test(col1Text))) {
+      return true;
+    }
+
     return false;
-  });
+  }
 
   // 5. Agrupar en regiones
   const markdownOutput: string[] = [`\n## [Página ${pageNum}]`];
@@ -228,14 +284,13 @@ export function reconstructPageLayout(
   while (idx < lineColData.length) {
     if (!isTableLine[idx]) {
       // Línea de texto normal fuera de tabla
-      const l = lineColData[idx].line;
-      const isHeading = l.scaleY >= avgFontSize * 1.25 && l.text.length < 120;
-      if (isHeading) {
-        markdownOutput.push(`\n### ${l.text}\n`);
+      const d = lineColData[idx];
+      if (d.isHeading) {
+        markdownOutput.push(`\n### ${d.line.text}\n`);
       } else {
-        markdownOutput.push(l.text);
+        markdownOutput.push(d.line.text);
       }
-      rawTextOutput.push(l.text);
+      rawTextOutput.push(d.line.text);
       idx++;
       continue;
     }
@@ -247,12 +302,18 @@ export function reconstructPageLayout(
     }
 
     const tableLineCount = tableEnd - idx;
-    if (tableLineCount < 3) {
-      // Bloque muy corto: tratar como texto normal
+    const hasMultiCol = lineColData.slice(idx, tableEnd).some(d => d.populatedColsCount >= 2);
+
+    if (tableLineCount < 3 || !hasMultiCol) {
+      // Bloque muy corto o sin multicolumna: tratar como texto normal
       for (let j = idx; j < tableEnd; j++) {
-        const l = lineColData[j].line;
-        markdownOutput.push(l.text);
-        rawTextOutput.push(l.text);
+        const d = lineColData[j];
+        if (d.isHeading) {
+          markdownOutput.push(`\n### ${d.line.text}\n`);
+        } else {
+          markdownOutput.push(d.line.text);
+        }
+        rawTextOutput.push(d.line.text);
       }
       idx = tableEnd;
       continue;
@@ -261,20 +322,28 @@ export function reconstructPageLayout(
     // Ensamblar tabla con concatenación de celdas multi-fila
     const logicalRows: string[][] = [];
     let currentRow: string[] | null = null;
+    let isHeaderRow = true;
 
     for (let j = idx; j < tableEnd; j++) {
       const cols = lineColData[j].cols;
-      const col0HasContent = cols[0].length > 0;
-      const multipleCols = lineColData[j].populatedColsCount >= 2;
+      const popCount = lineColData[j].populatedColsCount;
 
       if (!currentRow) {
-        // Primera fila de la tabla
+        // Primera fila de la tabla (encabezado)
         currentRow = [...cols];
-      } else if (col0HasContent || (multipleCols && !currentRow.every(c => c.length > 0))) {
-        // Nueva fila lógica
+        continue;
+      }
+
+      if (isHeaderRow) {
+        // La primera fila fue el encabezado; la siguiente inicia la primera fila de datos
         logicalRows.push(currentRow);
         currentRow = [...cols];
-      } else {
+        isHeaderRow = false;
+        continue;
+      }
+
+      // Evaluar si esta línea física continúa currentRow o inicia nueva fila lógica
+      if (isRowContinuation(currentRow, cols, popCount)) {
         // Continuación de celdas multi-fila en la fila actual
         cols.forEach((content, cIdx) => {
           if (content.length > 0 && currentRow) {
@@ -283,8 +352,13 @@ export function reconstructPageLayout(
               : content;
           }
         });
+      } else {
+        // Nueva fila lógica
+        logicalRows.push(currentRow);
+        currentRow = [...cols];
       }
     }
+
     if (currentRow) {
       logicalRows.push(currentRow);
     }
@@ -296,6 +370,8 @@ export function reconstructPageLayout(
       const headerRow = logicalRows[0].map(c => c.replace(/\|/g, '\\|') || '—');
       markdownOutput.push(`| ${headerRow.join(' | ')} |`);
       markdownOutput.push(`| ${headerRow.map(() => '---').join(' | ')} |`);
+      // H-186: Incluir fila de cabecera en rawTextOutput
+      rawTextOutput.push(headerRow.filter(c => c.trim().length > 0 && c !== '—').join(' | '));
 
       // Filas de datos
       for (let r = 1; r < logicalRows.length; r++) {
