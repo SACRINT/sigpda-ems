@@ -344,13 +344,23 @@ function evalC6_Categorias(p: PmcProject): PmcAuditCriterion {
   let feedback = 'No se han seleccionado categorías prioritarias de intervención escolar.';
 
   if (count >= 2 && totalTemas >= 2) {
-    score = 8;
-    status = 'pass';
-    feedback = `Categorías prioritarias y temas delimitados conforme a los ámbitos de mejora continua (${coveredAreas}/4 áreas obligatorias de las Orientaciones PMC 2025-2026 articuladas).`;
+    if (coveredAreas >= 4) {
+      score = 8;
+      status = 'pass';
+      feedback = `Categorías prioritarias y temas delimitados conforme a los ámbitos de mejora continua (cobertura total: 4/4 áreas obligatorias de las Orientaciones PMC 2025-2026 articuladas).`;
+    } else if (coveredAreas >= 2) {
+      score = 6;
+      status = 'warning';
+      feedback = `Categorías prioritarias delimitadas pero con cobertura normativa parcial (${coveredAreas}/4 áreas obligatorias). Se requiere incorporar metas para las áreas obligatorias faltantes según el Formato Oficial 5.1.`;
+    } else {
+      score = 4;
+      status = 'warning';
+      feedback = `Cobertura insuficiente de áreas obligatorias (${coveredAreas}/4 áreas identificadas). Es indispensable articular metas que atiendan las 4 áreas normativas de SEMS Puebla.`;
+    }
   } else if (count >= 1) {
     score = 4;
     status = 'warning';
-    feedback = 'Se cuenta con 1 categoría priorizada. Se recomienda seleccionar al menos 2 categorías estratégicas y cubrir las áreas obligatorias.';
+    feedback = `Se cuenta con 1 categoría priorizada y ${coveredAreas}/4 áreas obligatorias identificadas. Se recomienda seleccionar al menos 2 categorías estratégicas y cubrir las 4 áreas normativas.`;
   }
 
   return {

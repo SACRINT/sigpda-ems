@@ -186,6 +186,46 @@ describe('pmc-quality-gate — calculateGlobalPmcScore', () => {
     expect(c5!.status).toBe('pass');
   });
 
+  it('criterio PMC-C6: 4/4 areas obligatorias cubiertas -> pass con score 8', () => {
+    const audit = calculateGlobalPmcScore(COMPLETE_PROJECT);
+    const c6 = audit.criteria.find(c => c.id === 'PMC-C6');
+    expect(c6).toBeDefined();
+    expect(c6!.status).toBe('pass');
+    expect(c6!.score).toBe(8);
+    expect(c6!.feedback).toContain('cobertura total: 4/4');
+  });
+
+  it('H-202: criterio PMC-C6 con cobertura parcial (<4 areas) emite warning y score < 8', () => {
+    const partialCoverageProject: PmcProject = {
+      ...COMPLETE_PROJECT,
+      categorias_priorizadas: [
+        { id: 'cat-1', nombre: 'Infraestructura', temas: ['Mantenimiento de sanitarios', 'Pintura'] },
+        { id: 'cat-2', nombre: 'Mobiliario', temas: ['Bancas y pizarrones'] },
+      ],
+      plan_accion: {
+        metas_institucionales: [
+          {
+            categoria: 'Infraestructura',
+            nombre_categoria: 'Sanitarios',
+            tema: 'Red hidraulica',
+            meta: 'Reparar red hidraulica y luminarias en sanitarios escolares',
+            estrategia: 'Jornadas de mantenimiento',
+            linea_base: 'Fugas activas',
+            personal_designado: 'Comite de Mantenimiento',
+            entregable: 'Reporte fotografico',
+          },
+        ],
+      },
+    };
+    const audit = calculateGlobalPmcScore(partialCoverageProject);
+    const c6 = audit.criteria.find(c => c.id === 'PMC-C6');
+    expect(c6).toBeDefined();
+    // Ninguna de las 4 áreas oficiales (indicadores, desempeño docente, vinculación, violencia) cubierta
+    expect(c6!.status).toBe('warning');
+    expect(c6!.score).toBeLessThan(8);
+    expect(c6!.feedback).toContain('áreas obligatorias');
+  });
+
   it('plan_accion null -> criterios PMC-C8, C9, C10, C11 en fail', () => {
     const project: PmcProject = { id: 'pmc-no-plan', plan_accion: null };
     const audit = calculateGlobalPmcScore(project);
