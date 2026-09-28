@@ -80,9 +80,9 @@ function detectColumnClusters(
   }
   clusters.push(currentCluster);
 
-  // Filtrar clusters significativos que aparecen en al menos 3 líneas distintas
+  // Filtrar clusters significativos que aparecen en al menos 2 líneas distintas (H-195: tablas de 2 filas)
   const validClusters = clusters
-    .filter(c => c.lineIndices.size >= 3)
+    .filter(c => c.lineIndices.size >= 2)
     .map(c => ({
       startX: c.minX,
       lineCount: c.lineIndices.size,
@@ -173,11 +173,22 @@ export function reconstructPageLayout(
   // 2. Detectar clusters de columnas en la página
   const columns = detectColumnClusters(physicalLines);
 
+  const fontSizes = physicalLines.map(l => l.scaleY).sort((a, b) => a - b);
+  const medianFontSize = fontSizes.length > 0
+    ? fontSizes[Math.floor(fontSizes.length / 2)]
+    : avgFontSize;
+  // H-193/H-194: Umbral proporcional sin piso rígido de 13pt
+  const headingThreshold = Math.max(medianFontSize * 1.15, avgFontSize * 1.15);
+
   // Si hay menos de 2 columnas válidas, emitir texto lineal tradicional
   if (columns.length < 2) {
     const pageMdLines: string[] = [`\n## [Página ${pageNum}]`];
     for (const line of physicalLines) {
-      const isHeading = line.scaleY >= avgFontSize * 1.25 && line.text.length < 120;
+      // H-194: Unificar regla de heading con la misma lógica en ambas ramas
+      const isHeading =
+        line.scaleY >= headingThreshold &&
+        line.text.length < 90 &&
+        !line.text.includes('|');
       if (isHeading) {
         pageMdLines.push(`\n### ${line.text}\n`);
       } else {
@@ -190,12 +201,6 @@ export function reconstructPageLayout(
   }
 
   // 3. Mapear cada línea a sus columnas ocupadas
-  const fontSizes = physicalLines.map(l => l.scaleY).sort((a, b) => a - b);
-  const medianFontSize = fontSizes.length > 0
-    ? fontSizes[Math.floor(fontSizes.length / 2)]
-    : avgFontSize;
-  const headingThreshold = Math.max(medianFontSize * 1.3, avgFontSize * 1.25, 13);
-
   const lineColData = physicalLines.map((line) => {
     const cols: string[] = Array(columns.length).fill('');
     for (const item of line.items) {
@@ -214,9 +219,12 @@ export function reconstructPageLayout(
       line.text.length < 90 &&
       !line.text.includes('|');
 
-    // H-189: Identificar pie de página (coordenadas ty bajas en el margen inferior)
-    const isFooter = line.ty < 60 && (
-      /^(?:p[áa]g(?:ina)?\.?\s*\d+|\d+|tel[eé]fono|cct|bachillerato)/i.test(line.text.trim()) ||
+    // H-193: Divisores de sección / banners de categorías que deben separar tablas contiguas
+    const isSectionDivider = /^(?:Categor[íi]a\s*:|CICLO\s+ESCOLAR|Tema\s*:|Ámbito\s*:|Subcategor[íi]a\s*:|PLAN\s+DE\s+ACCI[ÓO]N)/i.test(line.text.trim());
+
+    // H-189/H-193: Identificar pie de página (coordenadas ty bajas en el margen inferior)
+    const isFooter = line.ty < 80 && (
+      /^(?:p[áa]g(?:ina)?\.?\s*\d+|\d{1,3}|tel[eé]fono|cct|bachillerato)/i.test(line.text.trim()) ||
       /\d{7,}/.test(line.text)
     );
 
@@ -229,6 +237,7 @@ export function reconstructPageLayout(
     return {
       line,
       isHeading,
+      isSectionDivider,
       isFooter,
       isFullWidthProse,
       cols,
@@ -236,58 +245,49 @@ export function reconstructPageLayout(
     };
   });
 
-  // 4. Identificar bloques de tablas continuos (H-184, H-188, H-189, H-190)
-  // Requisitos arquitectónicos:
-  // - H-188: Multicolumna tiene precedencia; headings jamás rompen filas tabulares.
-  // - H-189: Apertura requiere estructura multicolumna sostenida (al menos 2 líneas pop >= 2 en ventana de 3 líneas),
-  //          impidiendo que fragmentos huérfanos absorban prosa narrativa o pies de página.
-  // - H-190: Dentro de una tabla legítima, se eliminan cortes artificiales (singleColRun > 8); las corridas
-  //          largas de texto de celda se mantienen unificadas hasta el cierre real de la tabla.
+  // 4. Identificar bloques de tablas continuos (H-184, H-188, H-189, H-190, H-193, H-195)
   const isTableLine: boolean[] = Array(lineColData.length).fill(false);
   let inTableRegion = false;
-  let consecutiveNonTableLines = 0;
 
   for (let i = 0; i < lineColData.length; i++) {
     const d = lineColData[i];
 
-    // Encabezado explícito, pie de página o línea vacía cierran inmediatamente la región de tabla
-    if (d.isHeading || d.isFooter || d.line.text.length === 0) {
+    // H-193: Divisor de sección, encabezado explícito, pie de página o línea vacía cierran inmediatamente la región de tabla
+    if (d.isSectionDivider || d.isHeading || d.isFooter || d.line.text.length === 0) {
       inTableRegion = false;
-      consecutiveNonTableLines = 0;
       continue;
     }
 
     if (!inTableRegion) {
-      // H-189: Para abrir una región de tabla se exige presencia multicolumna sostenida
+      // H-189 / H-195: Apertura con multicolumna sostenida o cabecera tabular reconocida
       if (d.populatedColsCount >= 2) {
         const prevHasMulti = i > 0 && lineColData[i - 1].populatedColsCount >= 2;
         const next1HasMulti = i + 1 < lineColData.length && lineColData[i + 1].populatedColsCount >= 2;
         const next2HasMulti = i + 2 < lineColData.length && lineColData[i + 2].populatedColsCount >= 2;
 
-        if (prevHasMulti || next1HasMulti || next2HasMulti) {
+        // H-195: Reconocer cabecera tabular típica para no bloquear checklists o tablas de 2 filas
+        const isTabularHeader = /\b(?:docente|meta|responsable|evidencia|concluido|estatus|situaci[oó]n|no\.|actividad|estrategia|per[ií]odo|cronograma)\b/i.test(d.line.text);
+        const next1HasContent = i + 1 < lineColData.length && lineColData[i + 1].populatedColsCount >= 1;
+
+        if (prevHasMulti || next1HasMulti || next2HasMulti || (isTabularHeader && next1HasContent)) {
           inTableRegion = true;
-          consecutiveNonTableLines = 0;
           isTableLine[i] = true;
         }
       }
     } else {
       // Región de tabla ya abierta
       if (d.populatedColsCount >= 2) {
-        consecutiveNonTableLines = 0;
         isTableLine[i] = true;
       } else if (d.populatedColsCount === 1) {
-        // H-189: Si la línea es prosa narrativa de párrafo completo (no celda tabular)
-        if (d.isFullWidthProse && consecutiveNonTableLines >= 1) {
+        // H-189: Si la línea es prosa narrativa de párrafo completo, cerrar inmediatamente la región
+        if (d.isFullWidthProse) {
           inTableRegion = false;
-          consecutiveNonTableLines = 0;
         } else {
           // H-190: Celda multirrenglón legítima dentro de la tabla (sin corte artificial en 8)
-          consecutiveNonTableLines++;
           isTableLine[i] = true;
         }
       } else {
         inTableRegion = false;
-        consecutiveNonTableLines = 0;
       }
     }
   }
@@ -353,7 +353,8 @@ export function reconstructPageLayout(
     const tableLineCount = tableEnd - idx;
     const hasMultiCol = lineColData.slice(idx, tableEnd).some(d => d.populatedColsCount >= 2);
 
-    if (tableLineCount < 3 || !hasMultiCol) {
+    // H-195: Admitir tablas de 2 filas (ej. checklist de Benito P12)
+    if (tableLineCount < 2 || !hasMultiCol) {
       // Bloque muy corto o sin multicolumna: tratar como texto normal
       for (let j = idx; j < tableEnd; j++) {
         const d = lineColData[j];

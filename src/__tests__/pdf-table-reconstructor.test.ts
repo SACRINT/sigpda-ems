@@ -258,4 +258,70 @@ describe('pdf-table-reconstructor (H-183)', () => {
     // La segunda meta debe estar en su propia fila de tabla
     expect(pageMarkdown).toContain('2. Capacitación docente');
   });
+
+  it('10. H-193: divisores de sección (Categoría, CICLO ESCOLAR) separan tablas contiguas y no se absorben en celdas (Zapata P31)', () => {
+    const items: TextItemWithLayout[] = [
+      // Tabla 1
+      { str: 'No.', tx: 50, ty: 750, scaleY: 10, hasEOL: false },
+      { str: 'Actividad', tx: 150, ty: 750, scaleY: 10, hasEOL: false },
+      { str: 'Meta', tx: 350, ty: 750, scaleY: 10, hasEOL: true },
+      { str: '1', tx: 50, ty: 730, scaleY: 9, hasEOL: false },
+      { str: 'Taller de lectura', tx: 150, ty: 730, scaleY: 9, hasEOL: false },
+      { str: '80% de alumnos', tx: 350, ty: 730, scaleY: 9, hasEOL: true },
+
+      // Divisor de sección entre tablas (Zapata P31)
+      { str: 'Categoría: 2 Gestión y administración escolar', tx: 50, ty: 700, scaleY: 11, hasEOL: true },
+      { str: 'CICLO ESCOLAR 2025-2026', tx: 50, ty: 685, scaleY: 11, hasEOL: true },
+
+      // Tabla 2
+      { str: 'No.', tx: 50, ty: 650, scaleY: 10, hasEOL: false },
+      { str: 'Acción', tx: 150, ty: 650, scaleY: 10, hasEOL: false },
+      { str: 'Responsable', tx: 350, ty: 650, scaleY: 10, hasEOL: true },
+      { str: '2', tx: 50, ty: 630, scaleY: 9, hasEOL: false },
+      { str: 'Mantenimiento de aulas', tx: 150, ty: 630, scaleY: 9, hasEOL: false },
+      { str: 'Comité escolar', tx: 350, ty: 630, scaleY: 9, hasEOL: true },
+    ];
+
+    const { pageMarkdown } = reconstructPageLayout(items, 9.5, 31);
+
+    // Los divisores deben estar como texto fuera de las celdas
+    expect(pageMarkdown).toContain('Categoría: 2 Gestión y administración escolar');
+    expect(pageMarkdown).toContain('CICLO ESCOLAR 2025-2026');
+    expect(pageMarkdown).not.toContain('| Categoría: 2 Gestión y administración escolar |');
+    expect(pageMarkdown).not.toContain('| CICLO ESCOLAR 2025-2026 |');
+
+    // Deben existir ambas tablas
+    expect(pageMarkdown).toContain('Taller de lectura');
+    expect(pageMarkdown).toContain('Mantenimiento de aulas');
+  });
+
+  it('11. H-195: checklists de 2 filas con encabezado reconocido abren y emiten tabla (Benito P12)', () => {
+    const items: TextItemWithLayout[] = [
+      { str: 'Docente', tx: 50, ty: 700, scaleY: 10, hasEOL: false },
+      { str: 'Concluido satisfactoriamente', tx: 300, ty: 700, scaleY: 10, hasEOL: true },
+      { str: 'Prof. Juan Pérez', tx: 50, ty: 670, scaleY: 9.5, hasEOL: false },
+      { str: 'Sí', tx: 300, ty: 670, scaleY: 9.5, hasEOL: true },
+    ];
+
+    const { pageMarkdown } = reconstructPageLayout(items, 9.5, 12);
+
+    // Debe emitir tabla Markdown con 2 filas
+    expect(pageMarkdown).toContain('| Docente | Concluido satisfactoriamente |');
+    expect(pageMarkdown).toContain('| --- | --- |');
+    expect(pageMarkdown).toContain('| Prof. Juan Pérez | Sí |');
+  });
+
+  it('12. H-194: títulos de 11-12pt en página mono-columna emiten encabezado ### (Alfonso P9, Vasconcelos P18)', () => {
+    const items: TextItemWithLayout[] = [
+      { str: 'PRIORIZACIÓN DE CATEGORÍAS', tx: 50, ty: 750, scaleY: 11.5, hasEOL: true },
+      { str: 'En el plantel se realizó el análisis de las categorías principales para determinar el plan de mejora.', tx: 50, ty: 720, scaleY: 9, hasEOL: true },
+      { str: 'Se determinó dar prioridad a la infraestructura básica y a los materiales de laboratorio.', tx: 50, ty: 700, scaleY: 9, hasEOL: true },
+    ];
+
+    const { pageMarkdown } = reconstructPageLayout(items, 9, 9);
+
+    // Debe emitir el título con ###
+    expect(pageMarkdown).toContain('### PRIORIZACIÓN DE CATEGORÍAS');
+    expect(pageMarkdown).toContain('En el plantel se realizó el análisis de las categorías');
+  });
 });
