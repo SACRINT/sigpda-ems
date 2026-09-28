@@ -29,6 +29,7 @@ export interface PmcExtractionCoverage {
   detectados: number | null;
   extraidos: number;
   parcial: boolean;
+  indeterminada?: boolean;
   detalles?: PmcCoverageDetails;
 }
 
@@ -208,7 +209,7 @@ export function deriveElementosFromMetasPrevias(
  * Calcula la cobertura de extracción de metas y actividades (H-178, H-182).
  */
 export function calculatePmcCoverage(
-  totalesDetectados: PmcPreviousExtractDTO['totales_detectados'],
+  totalesDetectados: { metas?: number | null; actividades?: number | null } | null | undefined,
   metasExtraidasCount: number,
   actividadesExtraidasCount: number
 ): PmcExtractionCoverage {
@@ -223,11 +224,13 @@ export function calculatePmcCoverage(
   const parcialActividades = detectadosActividades !== null && detectadosActividades > actividadesExtraidasCount;
 
   const parcial = parcialMetas || parcialActividades;
+  const indeterminada = detectadosMetas === null;
 
   return {
     detectados: detectadosMetas,
     extraidos: metasExtraidasCount,
     parcial,
+    indeterminada,
     detalles: {
       metas: {
         detectados: detectadosMetas,

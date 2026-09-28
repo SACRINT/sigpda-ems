@@ -309,10 +309,11 @@ describe('FASE B — Extractor semántico por contenido e invariantes de datos',
       expect(coverage.detalles?.actividades.parcial).toBe(false);
     });
 
-    it('maneja totales nulos o indefinidos sin marcar parcial falso', () => {
+    it('H-187: maneja totales nulos marcando indeterminada: true sin falso parcial', () => {
       const coverage = calculatePmcCoverage(undefined, 8, 4);
 
       expect(coverage.parcial).toBe(false);
+      expect(coverage.indeterminada).toBe(true);
       expect(coverage.detectados).toBeNull();
       expect(coverage.extraidos).toBe(8);
     });

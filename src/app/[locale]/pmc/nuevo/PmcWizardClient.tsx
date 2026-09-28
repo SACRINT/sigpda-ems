@@ -524,6 +524,7 @@ interface EditablePlanElement {
     detectados: number | null;
     extraidos: number;
     parcial: boolean;
+    indeterminada?: boolean;
     detalles?: {
       metas: { detectados: number | null; extraidos: number; parcial: boolean };
       actividades: { detectados: number | null; extraidos: number; parcial: boolean };
@@ -3387,6 +3388,27 @@ interface EditablePlanElement {
                   <span style={{ fontSize: '16px' }}>⚠️</span>
                   <span>
                     <strong>Extracción parcial:</strong> se detectaron {ingestCoverage.detectados} metas y se extrajeron {ingestCoverage.extraidos}. Revisa el documento.
+                  </span>
+                </div>
+              )}
+
+              {/* Banner Ámbar de Cobertura Indeterminada (H-187) */}
+              {ingestCoverage && !ingestCoverage.parcial && ingestCoverage.indeterminada && (
+                <div style={{
+                  background: 'rgba(245, 158, 11, 0.08)',
+                  border: '1px dashed rgba(245, 158, 11, 0.35)',
+                  borderRadius: '8px',
+                  padding: '10px 14px',
+                  marginBottom: '14px',
+                  color: '#fbbf24',
+                  fontSize: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}>
+                  <span style={{ fontSize: '16px' }}>ℹ️</span>
+                  <span>
+                    <strong>Cobertura no totalizada:</strong> se extrajeron {ingestCoverage.extraidos} meta(s), pero el modelo no reportó el total detectado para contrastar. Revisa los elementos en el modal.
                   </span>
                 </div>
               )}

@@ -63,7 +63,7 @@ export const PmcPreviousExtractSchema = z.object({
   totales_detectados: z.object({
     metas: z.coerce.number().nullable().optional(),
     actividades: z.coerce.number().nullable().optional(),
-  }).partial().optional(),
+  }).partial().optional().default({ metas: null, actividades: null }),
   categorias_priorizadas: z.array(z.object({
     categoria: nullableString(),
     temas: z.array(z.string()).optional().default([]),
@@ -149,8 +149,8 @@ Estructura la información en el siguiente esquema JSON exacto:
     }
   ],
   "totales_detectados": {
-    "metas": número entero con el total de metas detectadas en el documento (o null),
-    "actividades": número entero con el total de actividades detectadas en el documento (o null)
+    "metas": número entero con el total exacto de metas contabilizadas en todo el documento (OBLIGATORIO, ej. 32, o null si fue imposible determinar),
+    "actividades": número entero con el total exacto de actividades contabilizadas en el documento (OBLIGATORIO, ej. 15, o null si fue imposible determinar)
   },
   "elementos_plan": [
     {
@@ -222,7 +222,7 @@ REGLAS DE EXTRACCIÓN:
      * RESPONSABLE / EVIDENCIA / CRONOGRAMA = datos complementarios.
    - Los elementos pueden aparecer en cualquier columna, orden, fusión de celdas o formato (tablas canónicas, tablas no canónicas con columna Meta, bloques de texto etiquetado o párrafos sueltos).
    - Extrae exhaustivamente TODOS los elementos del Plan de Acción en 'elementos_plan' y todas las metas en 'metas_institucionales_previas'.
-   - Reporta en 'totales_detectados' el conteo exacto de metas y actividades identificadas en todo el documento.
+   - OBLIGATORIO - TOTALES: Reporta SIEMPRE en 'totales_detectados' el conteo exacto de metas y actividades identificadas en todo el documento. Si el documento contiene 35 metas, reporta exactamente 35. No omitas este campo.
    - Separa rigurosamente nombres de personas del texto de la meta o actividad y colócalos en el campo 'responsable'.
    - Regla de normalización: 'texto_normalizado' corrige ortografía/gramática/orden y adapta a la fórmula obligatoria ([VERBO EN INFINITIVO] + [INDICADOR CUANTIFICABLE / PORCENTAJE] + [POBLACIÓN OBJETIVO] + [ESTRATEGIA O ACCIÓN SITUADA] + [PERIODO Y TERRITORIO]), PRESERVANDO EL 100% DE NÚMEROS, PORCENTAJES, FECHAS, NOMBRES Y OBJETOS.
    - Si no puedes normalizar con seguridad sin alterar los datos originales, copia idéntico el 'texto_original' en 'texto_normalizado' y marca 'requiere_revision': true.
