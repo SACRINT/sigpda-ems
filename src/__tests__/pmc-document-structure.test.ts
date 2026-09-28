@@ -337,6 +337,14 @@ describe('H-100 / H-101: SSoT Estructura Documental y Paridad PDF vs DOCX', () =
     expect(docxText).toContain('Agosto 2026 — Julio 2027');
     expect(pdfText).toContain('Agosto 2026 — Julio 2027');
     expect(pdfText).not.toContain('Agosto 2026 - Julio 2027');
+
+    // H-209: Paridad en encabezados de la Matriz General con Formato 5.1 (cero 'Meta SMART')
+    expect(docxText).toContain('Meta establecida');
+    expect(pdfText).toContain('Meta establecida');
+    expect(docxText).toContain('Estrategia de implementación para cumplir la meta');
+    expect(docxText).not.toContain('Meta SMART');
+    expect(pdfText).not.toContain('Meta SMART');
+    expect(docxText).not.toContain('Estrategia de Operación');
   });
 
   it('7. Sección 8 en DOCX y PDF incorpora columna "Horas Base" y refleja los datos de plantilla', async () => {

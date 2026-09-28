@@ -828,8 +828,8 @@ function buildPlanAccion(plan: PlanAccion): (Paragraph | Table)[] {
             children: [
               tcH('N°', { w: 500 }),
               tcH('Ámbito / Categoría', { w: 1800 }),
-              tcH('Meta SMART', { w: 2600 }),
-              tcH('Estrategia de Operación', { w: 2000 }),
+              tcH('Meta establecida', { w: 2600 }),
+              tcH('Estrategia de implementación para cumplir la meta', { w: 2000 }),
               tcH('Responsable', { w: 1500 }),
               tcH('Evidencia / Entregable', { w: 1600 }),
               tcH('Período', { w: 800 }),
