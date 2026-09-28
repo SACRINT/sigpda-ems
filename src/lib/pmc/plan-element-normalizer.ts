@@ -145,21 +145,40 @@ export function deriveMetasPreviasFromElementos(
     }
   }
 
-  return metaElements.map((m) => {
+  return metaElements.map((m, idx) => {
     const catKey = m.categoria?.trim().toLowerCase() || '';
     const temaKey = m.tema?.trim().toLowerCase() || '';
     const key = `${catKey}::${temaKey}`;
     const relatedActs = actMap.get(key) || [];
 
+    // H-185: Buscar coincidencia en existingMetas para preservar linea_base, entregable y estrategia
+    const mNorm = m.texto_normalizado?.trim().toLowerCase() || '';
+    const mOrig = m.texto_original?.trim().toLowerCase() || '';
+
+    const matchedExisting = (existingMetas || []).find((em) => {
+      const emMeta = em.meta?.trim().toLowerCase() || '';
+      const emOrig = em.texto_original?.trim().toLowerCase() || '';
+      if (emMeta && (emMeta === mNorm || emMeta === mOrig)) return true;
+      if (emOrig && (emOrig === mOrig || emOrig === mNorm)) return true;
+      if (emMeta && mNorm && (emMeta.includes(mNorm) || mNorm.includes(emMeta))) return true;
+      return false;
+    }) || (existingMetas && existingMetas.length === metaElements.length ? existingMetas[idx] : undefined);
+
+    const mergedLineaBase = matchedExisting?.linea_base?.trim() || '';
+    const mergedEntregable = matchedExisting?.entregable?.trim() || '';
+    const mergedEstrategia =
+      matchedExisting?.estrategia?.trim() ||
+      (relatedActs.length > 0 ? relatedActs.join('; ') : '');
+
     return {
-      categoria: m.categoria || '',
-      tema: m.tema || '',
+      categoria: m.categoria || matchedExisting?.categoria || '',
+      tema: m.tema || matchedExisting?.tema || '',
       meta: m.texto_normalizado || m.texto_original,
-      linea_base: '',
-      estrategia: relatedActs.length > 0 ? relatedActs.join('; ') : '',
-      responsable: m.responsable || '',
-      entregable: '',
-      periodo: m.periodo || '',
+      linea_base: mergedLineaBase,
+      estrategia: mergedEstrategia,
+      responsable: m.responsable || matchedExisting?.responsable || '',
+      entregable: mergedEntregable,
+      periodo: m.periodo || matchedExisting?.periodo || '',
     };
   });
 }

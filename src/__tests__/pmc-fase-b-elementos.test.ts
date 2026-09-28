@@ -219,6 +219,42 @@ describe('FASE B — Extractor semántico por contenido e invariantes de datos',
       expect(derived).toEqual(existing);
     });
 
+    it('H-185: preserva linea_base, entregable y estrategia de existingMetas al derivar', () => {
+      const elementos: PmcPlanElement[] = [
+        {
+          tipo: 'meta',
+          texto_original: 'Lograr que el 85% apruebe el ciclo escolar',
+          texto_normalizado: 'Aprobar al 85% de los alumnos de bachillerato general',
+          categoria: 'Desarrollo académico y aprendizaje',
+          tema: 'Aprobación',
+          responsable: 'Academia de Matemáticas',
+          periodo: '2026-2027',
+          requiere_revision: false,
+        },
+      ];
+
+      const existingMetas = [
+        {
+          categoria: 'Desarrollo académico y aprendizaje',
+          tema: 'Aprobación',
+          meta: 'Lograr que el 85% apruebe el ciclo escolar',
+          linea_base: 'Diagnóstico 2024: Aprobación previa del 78%',
+          estrategia: 'Estrategia institucional acordada en CTE',
+          responsable: 'Academia General',
+          entregable: 'Listas de calificaciones y reportes bimestrales',
+          periodo: '2026-2027',
+        },
+      ];
+
+      const derived = deriveMetasPreviasFromElementos(elementos, existingMetas);
+
+      expect(derived).toHaveLength(1);
+      expect(derived[0].meta).toBe('Aprobar al 85% de los alumnos de bachillerato general');
+      expect(derived[0].linea_base).toBe('Diagnóstico 2024: Aprobación previa del 78%');
+      expect(derived[0].entregable).toBe('Listas de calificaciones y reportes bimestrales');
+      expect(derived[0].estrategia).toBe('Estrategia institucional acordada en CTE');
+    });
+
     it('deriveElementosFromMetasPrevias genera elementos_plan sintéticos a partir de metas legacy', () => {
       const existing = [
         {
