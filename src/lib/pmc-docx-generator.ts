@@ -194,6 +194,13 @@ interface MetaInstitucional {
   periodo_inicio?: string;
   periodo_fin?: string;
   diagnostico_meta?: string;
+  accion_especifica?: string;
+  finalidad?: string;
+  necesidad?: string;
+  proceso_evaluacion?: string;
+  subcategorias_vinculadas?: string[];
+  estrategias_seguimiento?: string;
+  observaciones?: string;
 }
 
 interface MetaPersonal {
@@ -774,6 +781,65 @@ function buildPriorizacion(
   return items;
 }
 
+interface AreaObligatoriaConfig {
+  id: string;
+  titulo: string;
+  keywords: RegExp;
+  defaultMeta: string;
+  defaultEstrategia: string;
+  defaultResponsable: string;
+  defaultProducto: string;
+  defaultSubcat: string;
+  defaultSituacion: string;
+}
+
+const AREAS_OBLIGATORIAS_51: AreaObligatoriaConfig[] = [
+  {
+    id: 'area-1-indicadores',
+    titulo: 'Indicadores académicos (reprobación, eficiencia terminal y abandono escolar)',
+    keywords: /(indicador|aprobaci|reprobaci|abandono|eficiencia|académic|matemátic)/i,
+    defaultMeta: 'Elevar la tasa de aprobación escolar al 90% y reducir el abandono escolar mediante tutorías oportunas y seguimiento a estudiantes en riesgo.',
+    defaultEstrategia: 'Monitoreo bimestral de calificaciones, círculos de estudio guiados y alertas tempranas en semanas 6 y 12.',
+    defaultResponsable: 'Academia General y Tutores de Grupo',
+    defaultProducto: 'Reportes bimestrales de calificaciones y bitácora de tutorías académicas analíticas.',
+    defaultSubcat: 'INDICADORES ACADÉMICOS, ORIENTACIÓN Y TUTORÍA',
+    defaultSituacion: 'Rezago académico e irregularidad en asignaturas sociocognitivas clave detectados en la evaluación diagnóstica.',
+  },
+  {
+    id: 'area-2-desempeno-docente',
+    titulo: 'Seguimiento al desempeño docente en el aula',
+    keywords: /(desempeño docente|docente|aula|enseñanza|formación|colegiado|planeación)/i,
+    defaultMeta: 'Garantizar el 100% de planeaciones didácticas alineadas al MCCEMS con acompañamiento y retroalimentación formativa colegiada.',
+    defaultEstrategia: 'Observación y acompañamiento pedagógico entre pares, rúbricas formativas y reuniones de academia mensuales.',
+    defaultResponsable: 'Dirección del Plantel y Colegiado de Academia Docente',
+    defaultProducto: 'Instrumentos de acompañamiento docente y minutas de sesiones de academia colegiada.',
+    defaultSubcat: 'SEGUIMIENTO AL DESEMPEÑO DOCENTE EN EL AULA, TRABAJO COLEGIADO',
+    defaultSituacion: 'Necesidad de consolidar progresiones de aprendizaje y evaluación formativa continua en el aula.',
+  },
+  {
+    id: 'area-3-vinculacion',
+    titulo: 'Vinculación con centros educativos, empresas, fundaciones o instituciones públicas',
+    keywords: /(vinculaci[oó]n|empresa|centros educativos|institucion|comunitari|egresado|fundaci)/i,
+    defaultMeta: 'Establecer vínculos y convenios de colaboración con al menos 2 instituciones públicas o productivas de la comunidad.',
+    defaultEstrategia: 'Gestión interinstitucional para visitas pedagógicas, orientación vocacional y articulación con secundarias de la zona.',
+    defaultResponsable: 'Comité de Vinculación y Dirección Escolar',
+    defaultProducto: 'Acuerdos o convenios de colaboración formalizados y reportes de actividades conjuntas.',
+    defaultSubcat: 'VINCULACIÓN CON EMPRESAS, FUNDACIONES E INSTITUCIONES PÚBLICAS',
+    defaultSituacion: 'Oportunidad de fortalecer la vinculación comunitaria, el servicio social y la orientación vocacional.',
+  },
+  {
+    id: 'area-4-violencia',
+    titulo: 'Estrategias, programas y/o proyectos sobre violencia',
+    keywords: /(violencia|paz|convivencia|socioemocional|seguridad|clima)/i,
+    defaultMeta: 'Implementar el protocolo integral de prevención de la violencia escolar y fomento a la cultura de paz con 3 jornadas institucionales anuales.',
+    defaultEstrategia: 'Talleres formativos socioemocionales, círculos restaurativos de diálogo y mediación comunitaria entre pares.',
+    defaultResponsable: 'Comité de Convivencia Escolar y Orientación Educativa',
+    defaultProducto: 'Memoria técnica de jornadas de cultura de paz y actas del comité de convivencia escolar.',
+    defaultSubcat: 'PREVENCIÓN DE LA VIOLENCIA EN LA ESCUELA, ÁMBITOS DE FORMACIÓN SOCIOEMOCIONAL',
+    defaultSituacion: 'Requerimiento prioritario de consolidar un clima escolar armónico, seguro e incluyente.',
+  },
+];
+
 // ─── 6. Plan de Acción ───────────────────────────────────────────────────────
 function buildPlanAccion(plan: PlanAccion): (Paragraph | Table)[] {
   const items: (Paragraph | Table)[] = [secHeading(PMC_TITULOS_SECCIONES.PLAN_ACCION)];
@@ -821,6 +887,79 @@ function buildPlanAccion(plan: PlanAccion): (Paragraph | Table)[] {
       )
     );
     items.push(...gap(2));
+
+    // H-198: Tablas Oficiales Obligatorias (Formato 5.1 PMC 2025-2026 con las 6 filas literales)
+    items.push(subHeading('Tablas Obligatorias del Plan de Acción (Formato 5.1 PMC 2025-2026):'));
+    items.push(bodyPara('Desarrollo estructurado de las cuatro áreas de observancia obligatoria conforme al formato oficial 5.1 emitido por la SEP/SEMS:'));
+
+    for (let aIdx = 0; aIdx < AREAS_OBLIGATORIAS_51.length; aIdx++) {
+      const area = AREAS_OBLIGATORIAS_51[aIdx];
+      const matchingMeta = metas.find(m => {
+        const textToTest = `${m.tema || ''} ${m.nombre_categoria || ''} ${m.meta || ''} ${(m.subcategorias_vinculadas || []).join(' ')}`;
+        return area.keywords.test(textToTest);
+      });
+
+      const metaEstablecida = safeStr(matchingMeta?.meta, area.defaultMeta);
+      const estrategiaImp = safeStr(matchingMeta?.estrategia, area.defaultEstrategia);
+      const personalDes = safeStr(matchingMeta?.personal_designado, area.defaultResponsable);
+      const productoComp = safeStr(matchingMeta?.entregable, area.defaultProducto);
+      const subcatVinc = (Array.isArray(matchingMeta?.subcategorias_vinculadas) && matchingMeta.subcategorias_vinculadas.length > 0)
+        ? matchingMeta.subcategorias_vinculadas.join(', ')
+        : (matchingMeta?.tema || matchingMeta?.nombre_categoria || area.defaultSubcat);
+      const situacionActual = safeStr(
+        matchingMeta?.necesidad || matchingMeta?.diagnostico_meta || matchingMeta?.linea_base,
+        area.defaultSituacion
+      );
+
+      items.push(
+        new Paragraph({
+          spacing: { before: 180, after: 80 },
+          children: [
+            new TextRun({
+              text: `${area.titulo}`,
+              bold: true,
+              size: 21,
+              color: C.navy,
+              font: 'Arial',
+            }),
+          ],
+        })
+      );
+
+      items.push(
+        tbl(
+          [
+            new TableRow({
+              children: [
+                tcH('Apartado Formato 5.1', { w: CONTENT / 3 }),
+                tcH('Contenido Oficial Institucional', { w: (CONTENT * 2) / 3 }),
+              ],
+            }),
+            new TableRow({
+              children: [tcSub('Meta establecida'), tc(metaEstablecida, { fill: C.alt })],
+            }),
+            new TableRow({
+              children: [tcSub('Estrategia de implementación para cumplir la meta'), tc(estrategiaImp)],
+            }),
+            new TableRow({
+              children: [tcSub('Personal designado para la instrumentación y el seguimiento de la meta'), tc(personalDes, { fill: C.alt })],
+            }),
+            new TableRow({
+              children: [tcSub('Producto que comprobará el cumplimiento de la meta'), tc(productoComp)],
+            }),
+            new TableRow({
+              children: [tcSub('Subcategorías que vincularán  para cumplir la meta establecida'), tc(subcatVinc, { fill: C.alt })],
+            }),
+            new TableRow({
+              children: [tcSub('Situación actual en el plantel que justifica el establecimiento de la meta'), tc(situacionActual)],
+            }),
+          ],
+          [CONTENT / 3, (CONTENT * 2) / 3]
+        )
+      );
+      items.push(...gap(1));
+    }
+
     if (shouldSectionPageBreak(PMC_FICHAS_TECNICAS_HEADING)) {
       items.push(new Paragraph({ children: [new PageBreak()] }));
     }
@@ -843,19 +982,35 @@ function buildPlanAccion(plan: PlanAccion): (Paragraph | Table)[] {
             children: [tcSub('Tema Específico'), tc(safeStr(m.tema))],
           }),
           new TableRow({
-            children: [tcSub('Meta SMART', { fill: C.alt }), tc(safeStr(m.meta), { fill: C.alt })],
+            children: [tcSub('Meta establecida'), tc(safeStr(m.meta), { fill: C.alt })],
           }),
           new TableRow({
-            children: [tcSub('Estrategia de Operación'), tc(safeStr(m.estrategia))],
+            children: [tcSub('Estrategia de implementación para cumplir la meta'), tc(safeStr(m.estrategia))],
           }),
           new TableRow({
             children: [tcSub('Línea Base Documentada', { fill: C.alt }), tc(safeStr(m.linea_base), { fill: C.alt })],
           }),
           new TableRow({
-            children: [tcSub('Personal Designado / Responsable'), tc(safeStr(m.personal_designado))],
+            children: [tcSub('Personal designado para la instrumentación y el seguimiento de la meta'), tc(safeStr(m.personal_designado))],
           }),
           new TableRow({
-            children: [tcSub('Entregable Comprobable', { fill: C.alt }), tc(safeStr(m.entregable), { fill: C.alt })],
+            children: [tcSub('Producto que comprobará el cumplimiento de la meta'), tc(safeStr(m.entregable), { fill: C.alt })],
+          }),
+          new TableRow({
+            children: [
+              tcSub('Subcategorías que vincularán  para cumplir la meta establecida'),
+              tc(
+                (Array.isArray(m.subcategorias_vinculadas) && m.subcategorias_vinculadas.length > 0)
+                  ? m.subcategorias_vinculadas.join(', ')
+                  : safeStr(m.tema || m.nombre_categoria, 'Ámbito General')
+              ),
+            ],
+          }),
+          new TableRow({
+            children: [
+              tcSub('Situación actual en el plantel que justifica el establecimiento de la meta'),
+              tc(safeStr(m.necesidad || m.diagnostico_meta || m.linea_base, 'Situación académica diagnosticada en el plantel.'), { fill: C.alt }),
+            ],
           }),
           new TableRow({
             children: [
@@ -866,9 +1021,6 @@ function buildPlanAccion(plan: PlanAccion): (Paragraph | Table)[] {
                   : 'N/D'
               ),
             ],
-          }),
-          new TableRow({
-            children: [tcSub('Diagnóstico de la Meta', { fill: C.alt }), tc(safeStr(m.diagnostico_meta), { fill: C.alt })],
           }),
         ],
         [CONTENT / 3, (CONTENT * 2) / 3]

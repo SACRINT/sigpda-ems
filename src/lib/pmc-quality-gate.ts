@@ -320,6 +320,25 @@ function evalC6_Categorias(p: PmcProject): PmcAuditCriterion {
   const count = cats.length;
   const totalTemas = cats.reduce((acc, c) => acc + (Array.isArray(c.temas) ? c.temas.length : 0), 0);
 
+  // H-198: Cobertura de las 4 áreas obligatorias del PMC (Orientaciones 2025-2026 / Formatos 3.1 y 5.1):
+  // 1. Indicadores académicos (reprobación, abandono, eficiencia)
+  // 2. Seguimiento al desempeño docente en el aula
+  // 3. Vinculación con centros/empresas
+  // 4. Estrategias sobre violencia escolar / cultura de paz
+  const plan = (p.plan_accion || {}) as PmcPlanAccion;
+  const metas = (Array.isArray(plan.metas_institucionales) ? plan.metas_institucionales : []);
+  const allTexts = [
+    ...cats.map(c => `${c.nombre || ''} ${(c.temas || []).join(' ')}`),
+    ...metas.map(m => `${m.categoria || ''} ${m.nombre_categoria || ''} ${m.tema || ''} ${m.meta || ''} ${(m.subcategorias_vinculadas || []).join(' ')}`),
+  ].join(' ').toLowerCase();
+
+  const hasArea1 = /(indicador|aprobaci|reprobaci|abandono|eficiencia|académic)/i.test(allTexts);
+  const hasArea2 = /(desempeño docente|docente|aula|enseñanza|formación|planeación)/i.test(allTexts);
+  const hasArea3 = /(vinculaci[oó]n|empresa|centros educativos|institucion|comunitari)/i.test(allTexts);
+  const hasArea4 = /(violencia|paz|convivencia|socioemocional|seguridad)/i.test(allTexts);
+
+  const coveredAreas = [hasArea1, hasArea2, hasArea3, hasArea4].filter(Boolean).length;
+
   let score = 0;
   let status: 'pass' | 'warning' | 'fail' = 'fail';
   let feedback = 'No se han seleccionado categorías prioritarias de intervención escolar.';
@@ -327,24 +346,24 @@ function evalC6_Categorias(p: PmcProject): PmcAuditCriterion {
   if (count >= 2 && totalTemas >= 2) {
     score = 8;
     status = 'pass';
-    feedback = 'Categorías y temas prioritarios delimitados conforme a los ámbitos de mejora continua.';
+    feedback = `Categorías prioritarias y temas delimitados conforme a los ámbitos de mejora continua (${coveredAreas}/4 áreas obligatorias de las Orientaciones PMC 2025-2026 articuladas).`;
   } else if (count >= 1) {
     score = 4;
     status = 'warning';
-    feedback = 'Se cuenta con 1 categoría priorizada. Se recomienda seleccionar al menos 2 categorías estratégicas.';
+    feedback = 'Se cuenta con 1 categoría priorizada. Se recomienda seleccionar al menos 2 categorías estratégicas y cubrir las áreas obligatorias.';
   }
 
   return {
     id: 'PMC-C6',
     dimension: PMC_DIMENSIONS.DIM3,
     name: 'Priorización de Categorías y Ámbitos de Intervención',
-    description: 'Constata la selección focalizada de categorías y temas prioritarios para la mejora escolar.',
+    description: 'Constata la selección focalizada de categorías y cobertura de las áreas obligatorias de las Orientaciones PMC 2025-2026.',
     weight: 8,
     maxScore: 8,
     score,
     status,
     feedback,
-    evidenceFound: `${count} categorías priorizadas con ${totalTemas} temas de intervención.`,
+    evidenceFound: `${count} categorías priorizadas con ${totalTemas} temas de intervención (${coveredAreas}/4 áreas obligatorias identificadas).`,
   };
 }
 

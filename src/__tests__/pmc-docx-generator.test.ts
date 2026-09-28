@@ -397,4 +397,29 @@ describe('pmc-docx-generator — Generador de Plan de Mejora Continua e Informes
     expect(text).toContain('280 estudiantes');
     expect(text).toContain('295 estudiantes');
   });
+
+  // ── TEST 14 (H-198): Tablas obligatorias y 6 filas del Formato 5.1 PMC 2025-2026 ──
+  it('Test 14: H-198 — Genera las 4 tablas obligatorias con las 6 filas literales del Formato Oficial 5.1', async () => {
+    const fixture = makePmcFixture();
+    const buffer = await generatePmcDocx(fixture);
+    const { value: text } = await mammoth.extractRawText({ buffer });
+
+    // Encabezado de sección oficial Formato 5.1
+    expect(text).toContain('Tablas Obligatorias del Plan de Acción (Formato 5.1 PMC 2025-2026):');
+
+    // Las 4 áreas obligatorias del Formato 5.1
+    expect(text).toContain('Indicadores académicos (reprobación, eficiencia terminal y abandono escolar)');
+    expect(text).toContain('Seguimiento al desempeño docente en el aula');
+    expect(text).toContain('Vinculación con centros educativos, empresas, fundaciones o instituciones públicas');
+    expect(text).toContain('Estrategias, programas y/o proyectos sobre violencia');
+
+    // Las 6 filas literales del Formato 5.1
+    expect(text).toContain('Meta establecida');
+    expect(text).toContain('Estrategia de implementación para cumplir la meta');
+    expect(text).toContain('Personal designado para la instrumentación y el seguimiento de la meta');
+    expect(text).toContain('Producto que comprobará el cumplimiento de la meta');
+    expect(text).toContain('Subcategorías que vincularán  para cumplir la meta establecida');
+    expect(text).toContain('Situación actual en el plantel que justifica el establecimiento de la meta');
+  });
 });
+
