@@ -103,12 +103,6 @@ export interface PmcDiagnosticoGenerado {
   analisis_indicadores?: string;
   sintesis_foda?: string;
   priorizacion?: string;
-  // H-197: 5 preguntas oficiales del formato 2.1 Diagnóstico PMC 2025-2026
-  que_se_ha_logrado?: string;
-  situacion_plantel?: string;
-  que_se_quiere_lograr?: string;
-  que_requiere_para_lograrlo?: string;
-  fortalezas_areas_oportunidad?: string;
 }
 
 export interface PmcMetaInstitucional {

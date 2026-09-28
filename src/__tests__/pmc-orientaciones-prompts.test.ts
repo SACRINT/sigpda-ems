@@ -56,25 +56,23 @@ describe('ORIENTACIONES PMC 2025-2026 — Prompts y Schemas (H-197, H-199, H-200
     expect(prompt).toContain('Protocolo contra el abandono escolar');
   });
 
-  it('H-197: PmcDiagnosticoSchema valida exitosamente las 5 secciones requeridas y admite preguntas oficiales opcionales', () => {
+  it('H-197 / H-205: PmcDiagnosticoSchema valida estrictamente las 5 secciones canónicas articuladas', () => {
     const validDiag = {
       presentacion: 'Presentación formal del PMC institucional conforme al artículo 3° constitucional y política CREAA.',
       contexto: 'Contexto territorial del plantel en la comunidad semiurbana de San Pedro.',
       analisis_indicadores: 'Análisis cuantitativo de aprobación del 85% y abandono del 4.5%.',
       sintesis_foda: 'Síntesis de fortalezas docentes frente a limitaciones tecnológicas.',
       priorizacion: 'Priorización de metas en las tres categorías oficiales CREAA.',
-      que_se_ha_logrado: 'Se logró elevar la permanencia escolar y consolidar clubes de lectura.',
-      situacion_plantel: 'El plantel cuenta con matrícula de 180 estudiantes y requiere equipamiento.',
-      que_se_quiere_lograr: 'Alcanzar el 90% de aprobación y reducir reprobación en matemáticas.',
-      que_requiere_para_lograrlo: 'Capacitación docente continua y materiales didácticos actualizados.',
-      fortalezas_areas_oportunidad: 'Docentes comprometidos pero rezago en pensamiento matemático.',
     };
 
     const parsed = PmcDiagnosticoSchema.safeParse(validDiag);
     expect(parsed.success).toBe(true);
     if (parsed.success) {
-      expect(parsed.data.que_se_ha_logrado).toBeDefined();
-      expect(parsed.data.situacion_plantel).toBeDefined();
+      expect(parsed.data.presentacion).toBeDefined();
+      expect(parsed.data.contexto).toBeDefined();
+      expect(parsed.data.analisis_indicadores).toBeDefined();
+      expect(parsed.data.sintesis_foda).toBeDefined();
+      expect(parsed.data.priorizacion).toBeDefined();
     }
   });
 

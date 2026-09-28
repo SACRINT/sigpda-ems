@@ -584,12 +584,6 @@ export const PmcDiagnosticoSchema = z.object({
   analisis_indicadores: z.string().min(10, 'El análisis de indicadores es requerido'),
   sintesis_foda: z.string().min(10, 'La síntesis FODA es requerida'),
   priorizacion: z.string().min(10, 'La priorización de problemas es requerida'),
-  // H-197: 5 preguntas oficiales del formato 2.1 Diagnóstico PMC 2025-2026
-  que_se_ha_logrado: z.string().optional(),
-  situacion_plantel: z.string().optional(),
-  que_se_quiere_lograr: z.string().optional(),
-  que_requiere_para_lograrlo: z.string().optional(),
-  fortalezas_areas_oportunidad: z.string().optional(),
 });
 
 const PmcMetaInstitucionalSchema = z.object({
