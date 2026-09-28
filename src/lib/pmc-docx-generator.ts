@@ -781,13 +781,13 @@ function buildPriorizacion(
   return items;
 }
 
-interface AreaObligatoriaConfig {
+export interface AreaObligatoriaConfig {
   id: string;
   titulo: string;
   keywords: RegExp;
 }
 
-const AREAS_OBLIGATORIAS_51: AreaObligatoriaConfig[] = [
+export const AREAS_OBLIGATORIAS_51: AreaObligatoriaConfig[] = [
   {
     id: 'area-1-indicadores',
     titulo: 'Indicadores académicos (reprobación, eficiencia terminal y abandono escolar)',
@@ -1000,6 +1000,31 @@ function buildPlanAccion(plan: PlanAccion): (Paragraph | Table)[] {
               ),
             ],
           }),
+          ...(m.accion_especifica ? [
+            new TableRow({
+              children: [tcSub('Acción Específica (Formato 3.1)'), tc(safeStr(m.accion_especifica))],
+            }),
+          ] : []),
+          ...(m.finalidad ? [
+            new TableRow({
+              children: [tcSub('Finalidad de la Meta (Formato 3.1)'), tc(safeStr(m.finalidad), { fill: C.alt })],
+            }),
+          ] : []),
+          ...(m.proceso_evaluacion ? [
+            new TableRow({
+              children: [tcSub('Proceso de Evaluación (Formato 3.1)'), tc(safeStr(m.proceso_evaluacion))],
+            }),
+          ] : []),
+          ...(m.estrategias_seguimiento ? [
+            new TableRow({
+              children: [tcSub('Estrategias de Seguimiento (Formato 4.1)'), tc(safeStr(m.estrategias_seguimiento), { fill: C.alt })],
+            }),
+          ] : []),
+          ...(m.observaciones ? [
+            new TableRow({
+              children: [tcSub('Observaciones Generales (Formato 4.1)'), tc(safeStr(m.observaciones))],
+            }),
+          ] : []),
         ],
         [CONTENT / 3, (CONTENT * 2) / 3]
       )

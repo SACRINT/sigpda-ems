@@ -11,6 +11,7 @@ import { loadAllLogos } from './pdf-logos';
 import { SCHOOL_YEAR } from '@/lib/config';
 import { logger } from './logger';
 import { calculatePmcIndicatorRows } from './pmc-indicator-calculator';
+import { AREAS_OBLIGATORIAS_51 } from './pmc-docx-generator';
 import type { PmcProject, PmcStatisticalContext, PmcStaffMember } from '@/types/pmc';
 import {
   PMC_TITULOS_SECCIONES,
@@ -675,8 +676,8 @@ export async function generatePmcPDF(
       head: [[
         { content: '#', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], halign: 'center' } },
         { content: 'Ámbito / Categoría', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
-        { content: 'Meta SMART', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
-        { content: 'Estrategia de Operación', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
+        { content: 'Meta establecida', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
+        { content: 'Estrategia de implementación para cumplir la meta', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
         { content: 'Responsable', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
         { content: 'Evidencia / Entregable', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
         { content: 'Período', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
@@ -697,6 +698,76 @@ export async function generatePmcPDF(
     });
 
     curY = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 8 : curY + 40;
+
+    // H-198 / H-204: Tablas Obligatorias del Plan de Acción (Formato 5.1 PMC 2025-2026)
+    if (curY > pageHeight - 50) {
+      doc.addPage();
+      curY = 18;
+      drawHeaderOnNewPage();
+    }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(...BLUE_MID);
+    doc.text('Tablas Obligatorias del Plan de Acción (Formato 5.1 PMC 2025-2026):', margin, curY);
+    curY += 4;
+
+    const PENDIENTE_DEFINICION = 'Pendiente de definición por el colectivo docente';
+
+    for (let aIdx = 0; aIdx < AREAS_OBLIGATORIAS_51.length; aIdx++) {
+      const area = AREAS_OBLIGATORIAS_51[aIdx];
+      const matchingMeta = metasInst.find(m => {
+        const textToTest = `${m.tema || ''} ${m.nombre_categoria || ''} ${m.meta || ''} ${(m.subcategorias_vinculadas || []).join(' ')}`;
+        return area.keywords.test(textToTest);
+      });
+
+      const metaEstablecida = matchingMeta?.meta ? safeStr(matchingMeta.meta) : PENDIENTE_DEFINICION;
+      const estrategiaImp = matchingMeta?.estrategia ? safeStr(matchingMeta.estrategia) : PENDIENTE_DEFINICION;
+      const personalDes = matchingMeta?.personal_designado ? safeStr(matchingMeta.personal_designado) : PENDIENTE_DEFINICION;
+      const productoComp = matchingMeta?.entregable ? safeStr(matchingMeta.entregable) : PENDIENTE_DEFINICION;
+      const subcatVinc = (Array.isArray(matchingMeta?.subcategorias_vinculadas) && matchingMeta.subcategorias_vinculadas.length > 0)
+        ? matchingMeta.subcategorias_vinculadas.join(', ')
+        : (matchingMeta?.tema || matchingMeta?.nombre_categoria || PENDIENTE_DEFINICION);
+      const situacionPartsArea = [matchingMeta?.necesidad, matchingMeta?.diagnostico_meta].filter(Boolean);
+      const situacionActual = situacionPartsArea.length > 0
+        ? situacionPartsArea.join(' — ')
+        : (matchingMeta?.linea_base ? safeStr(matchingMeta.linea_base) : PENDIENTE_DEFINICION);
+
+      if (curY > pageHeight - 55) {
+        doc.addPage();
+        curY = 18;
+        drawHeaderOnNewPage();
+      }
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7.5);
+      doc.setTextColor(...NAVY);
+      doc.text(area.titulo, margin, curY);
+      curY += 3.5;
+
+      autoTable(doc, {
+        startY: curY,
+        head: [[
+          { content: 'Apartado Formato 5.1', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
+          { content: 'Contenido Oficial Institucional', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
+        ]],
+        body: [
+          [{ content: 'Meta establecida', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, metaEstablecida],
+          [{ content: 'Estrategia de implementación para cumplir la meta', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, estrategiaImp],
+          [{ content: 'Personal designado para la instrumentación y el seguimiento de la meta', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, personalDes],
+          [{ content: 'Producto que comprobará el cumplimiento de la meta', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, productoComp],
+          [{ content: 'Subcategorías que vincularán  para cumplir la meta establecida', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, subcatVinc],
+          [{ content: 'Situación actual en el plantel que justifica el establecimiento de la meta', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, situacionActual],
+        ],
+        theme: 'grid',
+        styles: { fontSize: 6.8, cellPadding: 2, textColor: TEXT_DARK, lineColor: [210, 220, 235] },
+        columnStyles: {
+          0: { cellWidth: 50 },
+        },
+        margin: { left: margin, right: margin },
+      });
+
+      curY = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 6 : curY + 45;
+    }
 
     // Fichas Técnicas por Meta Institucional (Paridad Oficial con DOCX)
     if (metasInst.length > 0) {
@@ -725,29 +796,56 @@ export async function generatePmcPDF(
         doc.text(`Ficha Técnica ${i + 1}: ${safeStr(m.nombre_categoria || m.categoria, 'Ámbito Institucional')}`, margin, curY);
         curY += 3.5;
 
+        const situacionPartsFicha = [m.necesidad, m.diagnostico_meta].filter(Boolean);
+        const situacionFicha = situacionPartsFicha.length > 0
+          ? situacionPartsFicha.join(' — ')
+          : safeStr(m.linea_base, 'Situación académica diagnosticada en el plantel.');
+
+        const subcatVal = (Array.isArray(m.subcategorias_vinculadas) && m.subcategorias_vinculadas.length > 0)
+          ? m.subcategorias_vinculadas.join(', ')
+          : safeStr(m.tema || m.nombre_categoria, 'Ámbito General');
+
+        const fichaBody: RowInput[] = [
+          [{ content: 'Campo Descriptivo', styles: { fontStyle: 'bold', fillColor: BLUE_MID, textColor: [255, 255, 255] } }, { content: 'Especificación de la Meta Institucional', styles: { fontStyle: 'bold', fillColor: BLUE_MID, textColor: [255, 255, 255] } }],
+          [{ content: 'Tema Específico:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.tema)],
+          [{ content: 'Meta establecida:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.meta)],
+          [{ content: 'Estrategia de implementación para cumplir la meta:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.estrategia)],
+          [{ content: 'Línea Base Documentada:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.linea_base, 'Situación inicial documentada')],
+          [{ content: 'Personal designado para la instrumentación y el seguimiento de la meta:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.personal_designado, 'Colectivo Escolar')],
+          [{ content: 'Producto que comprobará el cumplimiento de la meta:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.entregable)],
+          [{ content: 'Subcategorías que vincularán  para cumplir la meta establecida:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, subcatVal],
+          [{ content: 'Situación actual en el plantel que justifica el establecimiento de la meta:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, situacionFicha],
+          [
+            { content: 'Período de Ejecución:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
+            (m.periodo_inicio || m.periodo_fin)
+              ? `${safeStr(m.periodo_inicio, 'N/D')} — ${safeStr(m.periodo_fin, 'N/D')}`
+              : 'N/D'
+          ],
+        ];
+
+        if (m.accion_especifica) {
+          fichaBody.push([{ content: 'Acción Específica (Formato 3.1):', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.accion_especifica)]);
+        }
+        if (m.finalidad) {
+          fichaBody.push([{ content: 'Finalidad de la Meta (Formato 3.1):', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.finalidad)]);
+        }
+        if (m.proceso_evaluacion) {
+          fichaBody.push([{ content: 'Proceso de Evaluación (Formato 3.1):', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.proceso_evaluacion)]);
+        }
+        if (m.estrategias_seguimiento) {
+          fichaBody.push([{ content: 'Estrategias de Seguimiento (Formato 4.1):', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.estrategias_seguimiento)]);
+        }
+        if (m.observaciones) {
+          fichaBody.push([{ content: 'Observaciones Generales (Formato 4.1):', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.observaciones)]);
+        }
+
         autoTable(doc, {
           startY: curY,
-          body: [
-            [{ content: 'Ámbito / Categoría:', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 38 } }, safeStr(m.nombre_categoria || m.categoria)],
-            [{ content: 'Tema Específico:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.tema)],
-            [{ content: 'Meta SMART:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.meta)],
-            [{ content: 'Línea Base:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.linea_base, 'Situación inicial documentada')],
-            [{ content: 'Estrategia de Operación:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.estrategia)],
-            [{ content: 'Personal Designado:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.personal_designado, 'Colectivo Escolar')],
-            [{ content: 'Evidencia / Entregable:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.entregable)],
-            [
-              { content: 'Período de Ejecución:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-              (m.periodo_inicio || m.periodo_fin)
-                ? `${safeStr(m.periodo_inicio, 'N/D')} — ${safeStr(m.periodo_fin, 'N/D')}`
-                : 'N/D'
-            ],
-            [{ content: 'Diagnóstico de la Meta:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.diagnostico_meta, 'Justificación diagnóstica de la meta')],
-          ],
+          body: fichaBody,
           theme: 'grid',
           styles: { fontSize: 6.8, cellPadding: 2, textColor: TEXT_DARK, lineColor: [210, 220, 235] },
           columnStyles: {
-            0: { cellWidth: 38 },
-            1: { cellWidth: contentWidth - 38 },
+            0: { cellWidth: 42 },
           },
           margin: { left: margin, right: margin },
         });

@@ -12,7 +12,7 @@ import {
 } from '@/lib/pmc-document-structure';
 import { generatePmcDocx } from '@/lib/pmc-docx-generator';
 import { generatePmcPDF } from '@/lib/pmc-pdf-generator';
-import type { PmcProject } from '@/types/pmc';
+import type { PmcProject, PmcPlanAccion } from '@/types/pmc';
 
 // Mock de logos para jsPDF
 vi.mock('@/lib/pdf-logos', () => ({
@@ -480,6 +480,53 @@ describe('H-100 / H-101: SSoT Estructura Documental y Paridad PDF vs DOCX', () =
     expect(normalizePmcPeriodo('')).toBe('Ciclo Escolar');
     expect(normalizePmcPeriodo(null)).toBe('Ciclo Escolar');
     expect(normalizePmcPeriodo(undefined)).toBe('Ciclo Escolar');
+  });
+
+  it('11. H-203 / H-204: PDF y DOCX guardan paridad en Formato 5.1 (4 tablas obligatorias) y renderizan campos 3.1 y 4.1', async () => {
+    const project = makeMockPmcProject();
+    const planAccion = project.plan_accion as PmcPlanAccion;
+    planAccion.metas_institucionales![0].accion_especifica = 'Talleres intensivos de geometría analítica';
+    planAccion.metas_institucionales![0].finalidad = 'Reducir la reprobación del primer parcial';
+    planAccion.metas_institucionales![0].proceso_evaluacion = 'Rúbricas bimestrales y portafolios';
+    planAccion.metas_institucionales![0].estrategias_seguimiento = 'Observación mensual de clase colegiada';
+    planAccion.metas_institucionales![0].observaciones = 'Se requiere material impreso adicional';
+
+    const docxBuffer = await generatePmcDocx(project as unknown as Parameters<typeof generatePmcDocx>[0]);
+    const { value: docxText } = await mammoth.extractRawText({ buffer: docxBuffer });
+
+    const pdfBuffer = await generatePmcPDF(project as unknown as Parameters<typeof generatePmcPDF>[0]);
+    const parser = new PDFParse({ data: new Uint8Array(pdfBuffer) });
+    const parsedPdf = await parser.getText();
+    await parser.destroy();
+    const pdfText = parsedPdf.text;
+    const normalizedPdfText = pdfText.replace(/\s+/g, ' ');
+
+    // Ambos deben contener el encabezado del Formato 5.1
+    expect(docxText).toContain('Tablas Obligatorias del Plan de Acción (Formato 5.1 PMC 2025-2026):');
+    expect(normalizedPdfText).toContain('Tablas Obligatorias del Plan de Acción (Formato 5.1 PMC 2025-2026):');
+
+    // Etiquetas Formato 5.1 en PDF
+    expect(normalizedPdfText).toContain('Meta establecida');
+    expect(normalizedPdfText).toContain('Estrategia de implementación para cumplir la meta');
+    expect(normalizedPdfText).toContain('Producto que comprobará el cumplimiento de la meta');
+    expect(normalizedPdfText).toContain('Personal designado para la instrumentación y el seguimiento de la meta');
+    expect(normalizedPdfText).toContain('Situación actual en el plantel que justifica el establecimiento de la meta');
+
+    // Campos 3.1 y 4.1 renderizados en DOCX
+    expect(docxText).toContain('Acción Específica (Formato 3.1)');
+    expect(docxText).toContain('Talleres intensivos de geometría analítica');
+    expect(docxText).toContain('Finalidad de la Meta (Formato 3.1)');
+    expect(docxText).toContain('Proceso de Evaluación (Formato 3.1)');
+    expect(docxText).toContain('Estrategias de Seguimiento (Formato 4.1)');
+    expect(docxText).toContain('Observaciones Generales (Formato 4.1)');
+
+    // Campos 3.1 y 4.1 renderizados en PDF
+    expect(normalizedPdfText).toContain('Acción Específica (Formato 3.1):');
+    expect(normalizedPdfText).toContain('Talleres intensivos de geometría analítica');
+    expect(normalizedPdfText).toContain('Finalidad de la Meta (Formato 3.1):');
+    expect(normalizedPdfText).toContain('Proceso de Evaluación (Formato 3.1):');
+    expect(normalizedPdfText).toContain('Estrategias de Seguimiento (Formato 4.1):');
+    expect(normalizedPdfText).toContain('Observaciones Generales (Formato 4.1):');
   });
 });
 

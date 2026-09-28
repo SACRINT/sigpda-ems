@@ -28,6 +28,13 @@ export interface PmcMetaInstitucionalInput {
   entregable?: string;
   periodo_inicio?: string;
   periodo_fin?: string;
+  accion_especifica?: string;
+  finalidad?: string;
+  necesidad?: string;
+  proceso_evaluacion?: string;
+  subcategorias_vinculadas?: string[];
+  estrategias_seguimiento?: string;
+  observaciones?: string;
 }
 
 export interface PmcSupervisorExcelInput {
@@ -455,6 +462,9 @@ export async function generatePmcSupervisorExcel(project: PmcSupervisorExcelInpu
     { key: 'responsable', width: 28 },
     { key: 'entregable', width: 26 },
     { key: 'periodo', width: 20 },
+    { key: 'accion_especifica', width: 32 },
+    { key: 'seguimiento', width: 32 },
+    { key: 'observaciones', width: 28 },
   ];
 
   const ws4NoticeRow = ws4.addRow([
@@ -473,6 +483,9 @@ export async function generatePmcSupervisorExcel(project: PmcSupervisorExcelInpu
     'Personal Designado / Responsable',
     'Entregable / Evidencia',
     'Periodo de Ejecución',
+    'Acción Específica (Formato 3.1)',
+    'Estrategias de Seguimiento (Formato 4.1)',
+    'Observaciones (Formato 4.1)',
   ]);
   ws4HeaderRow.height = 30;
   ws4HeaderRow.eachCell((cell) => {
@@ -496,6 +509,9 @@ export async function generatePmcSupervisorExcel(project: PmcSupervisorExcelInpu
         m.personal_designado || 'Colectivo Escolar',
         m.entregable || 'Reporte de seguimiento',
         periodo,
+        m.accion_especifica || 'N/D',
+        m.estrategias_seguimiento || 'N/D',
+        m.observaciones || 'Sin observaciones',
       ]);
       r.height = 24;
       r.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
@@ -516,6 +532,9 @@ export async function generatePmcSupervisorExcel(project: PmcSupervisorExcelInpu
       'Colegiado Docente',
       'Portafolio de evidencias',
       'Ciclo 2026-2027',
+      'N/D',
+      'N/D',
+      'Sin observaciones',
     ]);
     emptyRow.height = 24;
     emptyRow.eachCell((cell) => {

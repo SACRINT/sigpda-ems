@@ -346,4 +346,44 @@ describe('Excel Oficial de Supervisión Escolar (FASE 1)', () => {
     // Fallback: al no haber matriculaAnterior, muestra 75
     expect(row2B.getCell(4).value).toBe(75);
   });
+
+  it('6. H-203: Hoja 4 Matriz de Implementación mapea y renderiza campos de formatos 3.1 y 4.1', async () => {
+    const mockProject: PmcSupervisorExcelInput = {
+      school_name: 'Bachillerato Moctezuma',
+      school_cct: '21EBH0099Z',
+      plan_accion: {
+        metas_institucionales: [
+          {
+            categoria: 'Logro Académico',
+            tema: 'Pensamiento Matemático',
+            meta: 'Elevar al 90% la aprobación en asignaturas STEM',
+            estrategia: 'Laboratorios situados',
+            linea_base: '84% de aprobación',
+            personal_designado: 'Colegiado de Matemáticas',
+            entregable: 'Bitácora trimestral',
+            accion_especifica: 'Sesiones semanales de cálculo aplicado',
+            estrategias_seguimiento: 'Reunión quincenal de academia',
+            observaciones: 'Requiere calculadora científica',
+          },
+        ],
+      },
+    };
+
+    const buffer = await generatePmcSupervisorExcel(mockProject);
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(buffer as unknown as Parameters<ExcelJS.Workbook['xlsx']['load']>[0]);
+
+    const ws4 = wb.getWorksheet('Matriz de Implementación')!;
+    expect(ws4).toBeDefined();
+
+    // Encabezados en Fila 2
+    expect(String(ws4.getCell('J2').value)).toBe('Acción Específica (Formato 3.1)');
+    expect(String(ws4.getCell('K2').value)).toBe('Estrategias de Seguimiento (Formato 4.1)');
+    expect(String(ws4.getCell('L2').value)).toBe('Observaciones (Formato 4.1)');
+
+    // Datos en Fila 3
+    expect(ws4.getCell('J3').value).toBe('Sesiones semanales de cálculo aplicado');
+    expect(ws4.getCell('K3').value).toBe('Reunión quincenal de academia');
+    expect(ws4.getCell('L3').value).toBe('Requiere calculadora científica');
+  });
 });
