@@ -14,6 +14,7 @@ import {
   HeadingLevel,
 } from 'docx';
 import { SCHOOL_YEAR } from '@/lib/config';
+import type { PmcMetaInstitucional } from '@/types/pmc';
 import {
   computePmcIndicatorValues,
   type PmcIndicatorComputedValues,
@@ -810,6 +811,50 @@ export const AREAS_OBLIGATORIAS_51: AreaObligatoriaConfig[] = [
   },
 ];
 
+export const PENDIENTE_DEFINICION_51 = 'Pendiente de definición por el colectivo docente';
+
+export interface ResolvedArea51 {
+  metaEstablecida: string;
+  estrategiaImp: string;
+  personalDes: string;
+  productoComp: string;
+  subcatVinc: string;
+  situacionActual: string;
+  matchingMeta?: MetaInstitucional | PmcMetaInstitucional;
+}
+
+export function resolveAreaObligatoria51(
+  area: AreaObligatoriaConfig,
+  metas: (MetaInstitucional | PmcMetaInstitucional)[]
+): ResolvedArea51 {
+  const matchingMeta = metas.find(m => {
+    const textToTest = `${m.tema || ''} ${m.nombre_categoria || ''} ${m.meta || ''} ${(m.subcategorias_vinculadas || []).join(' ')}`;
+    return area.keywords.test(textToTest);
+  });
+
+  const metaEstablecida = matchingMeta?.meta ? safeStr(matchingMeta.meta) : PENDIENTE_DEFINICION_51;
+  const estrategiaImp = matchingMeta?.estrategia ? safeStr(matchingMeta.estrategia) : PENDIENTE_DEFINICION_51;
+  const personalDes = matchingMeta?.personal_designado ? safeStr(matchingMeta.personal_designado) : PENDIENTE_DEFINICION_51;
+  const productoComp = matchingMeta?.entregable ? safeStr(matchingMeta.entregable) : PENDIENTE_DEFINICION_51;
+  const subcatVinc = (Array.isArray(matchingMeta?.subcategorias_vinculadas) && matchingMeta.subcategorias_vinculadas.length > 0)
+    ? matchingMeta.subcategorias_vinculadas.join(', ')
+    : (matchingMeta?.tema || matchingMeta?.nombre_categoria || PENDIENTE_DEFINICION_51);
+  const situacionPartsArea = [matchingMeta?.necesidad, matchingMeta?.diagnostico_meta].filter(Boolean);
+  const situacionActual = situacionPartsArea.length > 0
+    ? situacionPartsArea.join(' — ')
+    : (matchingMeta?.linea_base ? safeStr(matchingMeta.linea_base) : PENDIENTE_DEFINICION_51);
+
+  return {
+    metaEstablecida,
+    estrategiaImp,
+    personalDes,
+    productoComp,
+    subcatVinc,
+    situacionActual,
+    matchingMeta,
+  };
+}
+
 // ─── 6. Plan de Acción ───────────────────────────────────────────────────────
 function buildPlanAccion(plan: PlanAccion): (Paragraph | Table)[] {
   const items: (Paragraph | Table)[] = [secHeading(PMC_TITULOS_SECCIONES.PLAN_ACCION)];
@@ -862,26 +907,16 @@ function buildPlanAccion(plan: PlanAccion): (Paragraph | Table)[] {
     items.push(subHeading('Tablas Obligatorias del Plan de Acción (Formato 5.1 PMC 2025-2026):'));
     items.push(bodyPara('Desarrollo estructurado de las cuatro áreas de observancia obligatoria conforme al formato oficial 5.1 emitido por la SEP/SEMS:'));
 
-    const PENDIENTE_DEFINICION = 'Pendiente de definición por el colectivo docente';
-
     for (let aIdx = 0; aIdx < AREAS_OBLIGATORIAS_51.length; aIdx++) {
       const area = AREAS_OBLIGATORIAS_51[aIdx];
-      const matchingMeta = metas.find(m => {
-        const textToTest = `${m.tema || ''} ${m.nombre_categoria || ''} ${m.meta || ''} ${(m.subcategorias_vinculadas || []).join(' ')}`;
-        return area.keywords.test(textToTest);
-      });
-
-      const metaEstablecida = matchingMeta?.meta ? safeStr(matchingMeta.meta) : PENDIENTE_DEFINICION;
-      const estrategiaImp = matchingMeta?.estrategia ? safeStr(matchingMeta.estrategia) : PENDIENTE_DEFINICION;
-      const personalDes = matchingMeta?.personal_designado ? safeStr(matchingMeta.personal_designado) : PENDIENTE_DEFINICION;
-      const productoComp = matchingMeta?.entregable ? safeStr(matchingMeta.entregable) : PENDIENTE_DEFINICION;
-      const subcatVinc = (Array.isArray(matchingMeta?.subcategorias_vinculadas) && matchingMeta.subcategorias_vinculadas.length > 0)
-        ? matchingMeta.subcategorias_vinculadas.join(', ')
-        : (matchingMeta?.tema || matchingMeta?.nombre_categoria || PENDIENTE_DEFINICION);
-      const situacionPartsArea = [matchingMeta?.necesidad, matchingMeta?.diagnostico_meta].filter(Boolean);
-      const situacionActual = situacionPartsArea.length > 0
-        ? situacionPartsArea.join(' — ')
-        : (matchingMeta?.linea_base ? safeStr(matchingMeta.linea_base) : PENDIENTE_DEFINICION);
+      const {
+        metaEstablecida,
+        estrategiaImp,
+        personalDes,
+        productoComp,
+        subcatVinc,
+        situacionActual,
+      } = resolveAreaObligatoria51(area, metas);
 
       items.push(
         new Paragraph({
