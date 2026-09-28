@@ -34,6 +34,13 @@ import {
   normalizePmcTema,
 } from '@/lib/constants/pmc-categorias';
 import { reconcilePmcStaff } from '@/lib/pmc/staff-reconciler';
+import {
+  validateNormalizedText,
+  deriveMetasPreviasFromElementos,
+  deriveElementosFromMetasPrevias,
+  calculatePmcCoverage,
+  type PmcExtractionCoverage,
+} from '@/lib/pmc/plan-element-normalizer';
 
 export type PmcDocumentType = 'f11' | '911' | 'previous';
 
@@ -45,11 +52,7 @@ export interface PmcIngestOptions {
   isPremium?: boolean;
 }
 
-export interface PmcExtractionCoverage {
-  detectados: number | null;
-  extraidos: number;
-  parcial: boolean;
-}
+export type { PmcExtractionCoverage };
 
 export interface PmcExtractionSuccess<T = unknown> {
   success: true;
@@ -314,7 +317,37 @@ export class PmcOrchestrator implements IPmcOrchestrator {
           cicloEscolar: parsed.data.cicloEscolar,
         });
 
-        const normalizedMetasPrevias = parsed.data.metas_institucionales_previas?.map((m) => {
+        if (!parsed.warnings) {
+          parsed.warnings = [];
+        }
+
+        // B3 - Invariante numérico del lado servidor (Cero fabricación B-001)
+        const validatedElementos = (parsed.data.elementos_plan || []).map((elem) => {
+          const val = validateNormalizedText(elem.texto_original, elem.texto_normalizado);
+          if (!val.ok) {
+            parsed.warnings.push(
+              `Normalización rechazada por invariantes de datos: faltan cifras [${val.faltantes.join(', ')}] en ${elem.tipo}. Se conserva texto original.`
+            );
+            return {
+              ...elem,
+              texto_normalizado: elem.texto_original,
+              requiere_revision: true,
+            };
+          }
+          return elem;
+        });
+
+        const finalElementos = validatedElementos.length > 0
+          ? validatedElementos
+          : deriveElementosFromMetasPrevias(parsed.data.metas_institucionales_previas);
+
+        // B1 - Derivar metas_institucionales_previas a partir de elementos_plan
+        const derivedMetas = deriveMetasPreviasFromElementos(
+          finalElementos,
+          parsed.data.metas_institucionales_previas
+        );
+
+        const normalizedMetasPrevias = derivedMetas.map((m) => {
           const catNorm = normalizePmcCategoria(m.categoria);
           const temaNorm = normalizePmcTema(m.tema, catNorm);
           return {
@@ -322,7 +355,17 @@ export class PmcOrchestrator implements IPmcOrchestrator {
             categoria: catNorm,
             tema: temaNorm,
           };
-        }) || [];
+        });
+
+        const normalizedElementosPlan = finalElementos.map((elem) => {
+          const catNorm = normalizePmcCategoria(elem.categoria);
+          const temaNorm = normalizePmcTema(elem.tema, catNorm);
+          return {
+            ...elem,
+            categoria: catNorm,
+            tema: temaNorm,
+          };
+        });
 
         const categoriasMap = new Map<string, Set<string>>();
         for (const cp of parsed.data.categorias_priorizadas || []) {
@@ -355,17 +398,12 @@ export class PmcOrchestrator implements IPmcOrchestrator {
           })
         );
 
-        const detectadosMetas = typeof parsed.data.totales_detectados?.metas === 'number'
-          ? parsed.data.totales_detectados.metas
-          : null;
-        const extraidosMetas = normalizedMetasPrevias.length;
-        const parcial = detectadosMetas !== null && detectadosMetas > extraidosMetas;
-
-        const coverage = {
-          detectados: detectadosMetas,
-          extraidos: extraidosMetas,
-          parcial,
-        };
+        const actividadesExtraidas = normalizedElementosPlan.filter((e) => e.tipo === 'actividad').length;
+        const coverage = calculatePmcCoverage(
+          parsed.data.totales_detectados,
+          normalizedMetasPrevias.length,
+          actividadesExtraidas
+        );
 
         return {
           success: true,
@@ -375,6 +413,7 @@ export class PmcOrchestrator implements IPmcOrchestrator {
             totalStaff: reconciled.totalStaff,
             staffData: reconciled.staff,
             participantes: parsed.data.participantes || [],
+            elementos_plan: normalizedElementosPlan,
             metas_institucionales_previas: normalizedMetasPrevias,
             categorias_priorizadas: reconciledCategoriasPriorizadas,
           },

@@ -45,6 +45,21 @@ export const PmcPreviousExtractSchema = z.object({
     entregable: nullableString(),
     periodo: nullableString(),
   })).max(100).optional().default([]),
+  elementos_plan: z.array(z.object({
+    tipo: z.enum(['meta', 'actividad', 'estrategia', 'indicador', 'responsable', 'evidencia', 'cronograma', 'otro']),
+    texto_original: z.string(),
+    texto_normalizado: z.string(),
+    categoria: nullableString(),
+    tema: nullableString(),
+    responsable: nullableString(),
+    periodo: nullableString(),
+    ubicacion: z.object({
+      pagina: z.coerce.number().nullable().optional(),
+      seccion: nullableString(),
+      tabla: nullableString(),
+    }).partial().optional(),
+    requiere_revision: z.boolean().default(false),
+  })).max(200).optional().default([]),
   totales_detectados: z.object({
     metas: z.coerce.number().nullable().optional(),
     actividades: z.coerce.number().nullable().optional(),
@@ -77,6 +92,7 @@ export const PmcPreviousExtractSchema = z.object({
 });
 
 export type PmcPreviousExtractDTO = z.infer<typeof PmcPreviousExtractSchema>;
+export type PmcPlanElement = NonNullable<PmcPreviousExtractDTO['elementos_plan']>[number];
 
 export const PMC_EXTRACTION_SYSTEM_PROMPT = `Eres un auditor y especialista educativo experto en el Programa de Mejora Continua (PMC) de la Educación Media Superior en México (MCCEMS / NEM).
 Tu objetivo es analizar textos extraídos de documentos previos del PMC (PDFs o archivos Word) y estructurar con precisión todos los datos encontrados.
@@ -132,6 +148,27 @@ Estructura la información en el siguiente esquema JSON exacto:
       "temas": ["Tema 1", "Tema 2"]
     }
   ],
+  "totales_detectados": {
+    "metas": número entero con el total de metas detectadas en el documento (o null),
+    "actividades": número entero con el total de actividades detectadas en el documento (o null)
+  },
+  "elementos_plan": [
+    {
+      "tipo": "meta | actividad | estrategia | indicador | responsable | evidencia | cronograma | otro",
+      "texto_original": "Texto literal exacto tal como aparece en el documento",
+      "texto_normalizado": "Versión corregida ortográficamente y adaptada a fórmula CREAA preservando 100% de cifras y fechas",
+      "categoria": "Categoría Oficial exacta",
+      "tema": "Tema o ámbito oficial",
+      "responsable": "Nombre o cargo del responsable (separado de la meta/actividad)",
+      "periodo": "Periodo o fecha de ejecución",
+      "ubicacion": {
+        "pagina": número de página o null,
+        "seccion": "Sección del documento",
+        "tabla": "Nombre o número de tabla"
+      },
+      "requiere_revision": false
+    }
+  ],
   "metas_institucionales_previas": [
     {
       "categoria": "Categoría Oficial exacta",
@@ -176,9 +213,20 @@ REGLAS DE EXTRACCIÓN:
    - Preserva su cargo específico (ej. 'Docente y tutor del plantel', 'Docente y tutor de grupo', 'Docente de grupo').
    - EXCLUYE estudiantes o alumnos de staffData (los alumnos solo van en 'participantes').
    - Limpia los nombres de prefijos como 'PROFR.', 'PROFRA.', 'ING.', 'LIC.'.
-5. OBLIGATORIO - PLAN DE ACCIÓN Y METAS:
-   - Extrae exhaustivamente TODAS las metas de las tablas del Plan de Acción (incluyendo diagnóstico, acciones acordadas, responsables, cronograma y evidencias).
-   - Extrae todas las tablas de metas encontradas (pueden ser 10 o más), no te limites a un resumen general.
+5. OBLIGATORIO - PLAN DE ACCIÓN Y ELEMENTOS (CLASIFICACIÓN SEMÁNTICA POR CONTENIDO):
+   - CLASIFICA POR CONTENIDO, NUNCA POR POSICIÓN EN LA TABLA.
+   - Definiciones semánticas:
+     * META = resultado esperado con indicador u objetivo cuantificable (verbo en infinitivo + qué lograr con indicador/porcentaje + cuándo).
+     * ACTIVIDAD = acción concreta a ejecutar sin indicador de resultado (verbo de ejecución: organizar, impartir, participar, preparar, coordinar, etc.).
+     * ESTRATEGIA = agrupación o medio metodológico para alcanzar las metas.
+     * RESPONSABLE / EVIDENCIA / CRONOGRAMA = datos complementarios.
+   - Los elementos pueden aparecer en cualquier columna, orden, fusión de celdas o formato (tablas canónicas, tablas no canónicas con columna Meta, bloques de texto etiquetado o párrafos sueltos).
+   - Extrae exhaustivamente TODOS los elementos del Plan de Acción en 'elementos_plan' y todas las metas en 'metas_institucionales_previas'.
+   - Reporta en 'totales_detectados' el conteo exacto de metas y actividades identificadas en todo el documento.
+   - Separa rigurosamente nombres de personas del texto de la meta o actividad y colócalos en el campo 'responsable'.
+   - Regla de normalización: 'texto_normalizado' corrige ortografía/gramática/orden y adapta a la fórmula obligatoria ([VERBO EN INFINITIVO] + [INDICADOR CUANTIFICABLE / PORCENTAJE] + [POBLACIÓN OBJETIVO] + [ESTRATEGIA O ACCIÓN SITUADA] + [PERIODO Y TERRITORIO]), PRESERVANDO EL 100% DE NÚMEROS, PORCENTAJES, FECHAS, NOMBRES Y OBJETOS.
+   - Si no puedes normalizar con seguridad sin alterar los datos originales, copia idéntico el 'texto_original' en 'texto_normalizado' y marca 'requiere_revision': true.
+   - Prohibición estricta B-001 (Cero fabricación): nunca inventar cifras, fechas ni datos. PROHIBIDO cambiar números o porcentajes. PROHIBIDO mencionar 'SIGPDA' o 'SIGPDA-EMS' en cualquier campo.
 6. OBLIGATORIO: Asigna en 'categoria' ÚNICAMENTE una de las 3 categorías oficiales de los Lineamientos del PMC:
    - 'Desarrollo académico y aprendizaje'
    - 'Gestión y administración escolar'
