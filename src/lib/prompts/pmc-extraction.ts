@@ -44,7 +44,11 @@ export const PmcPreviousExtractSchema = z.object({
     responsable: nullableString(),
     entregable: nullableString(),
     periodo: nullableString(),
-  })).max(15).optional().default([]),
+  })).max(100).optional().default([]),
+  totales_detectados: z.object({
+    metas: z.coerce.number().nullable().optional(),
+    actividades: z.coerce.number().nullable().optional(),
+  }).partial().optional(),
   categorias_priorizadas: z.array(z.object({
     categoria: nullableString(),
     temas: z.array(z.string()).optional().default([]),

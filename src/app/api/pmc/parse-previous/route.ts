@@ -217,11 +217,24 @@ export async function POST(request: NextRequest) {
       categorias_priorizadas: reconciledCategoriasPriorizadas,
     };
 
+    const detectadosMetas = typeof parsed.data.totales_detectados?.metas === 'number'
+      ? parsed.data.totales_detectados.metas
+      : null;
+    const extraidosMetas = normalizedMetasPrevias.length;
+    const parcial = detectadosMetas !== null && detectadosMetas > extraidosMetas;
+
+    const coverage = {
+      detectados: detectadosMetas,
+      extraidos: extraidosMetas,
+      parcial,
+    };
+
     return NextResponse.json({
       success: true,
       filename: file.name,
       data: finalData,
-      warnings: parsed.warnings,
+      warnings: parsed.warnings || [],
+      coverage,
     });
   } catch (err: unknown) {
     logger.error('[pmc-parse-previous] Unhandled error:', err);

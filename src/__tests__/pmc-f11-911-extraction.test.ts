@@ -396,19 +396,31 @@ describe('Blindaje Curricular y Extracción: F11 y Estadística 911 (N-002)', ()
       }
     });
 
-    it('PmcPreviousExtractSchema rechaza payloads con >15 metas institucionales previas (cap determinista)', () => {
+    it('PmcPreviousExtractSchema acepta hasta 100 metas y rechaza >100 (cap determinista H-181)', () => {
+      // Acepta payload con más de 15 metas (ej. 45 metas como en Héroes de la Patria)
+      const payloadValido45 = {
+        schoolName: 'Bachillerato General Héroes de la Patria',
+        metas_institucionales_previas: Array.from({ length: 45 }, (_, i) => ({
+          categoria: 'Desarrollo académico y aprendizaje',
+          meta: `Meta institucional ${i + 1}`,
+        })),
+      };
+      const resultValido = PmcPreviousExtractSchema.safeParse(payloadValido45);
+      expect(resultValido.success).toBe(true);
+
+      // Rechaza payload excesivo > 100 metas
       const payloadExcesivo = {
         schoolName: 'Bachillerato General Test',
-        metas_institucionales_previas: Array.from({ length: 16 }, (_, i) => ({
+        metas_institucionales_previas: Array.from({ length: 101 }, (_, i) => ({
           categoria: 'Desarrollo académico y aprendizaje',
           meta: `Meta institucional ${i + 1}`,
         })),
       };
 
-      const result = PmcPreviousExtractSchema.safeParse(payloadExcesivo);
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        const errorPath = result.error.issues[0]?.path;
+      const resultExcesivo = PmcPreviousExtractSchema.safeParse(payloadExcesivo);
+      expect(resultExcesivo.success).toBe(false);
+      if (!resultExcesivo.success) {
+        const errorPath = resultExcesivo.error.issues[0]?.path;
         expect(errorPath).toContain('metas_institucionales_previas');
       }
     });

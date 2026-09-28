@@ -45,11 +45,18 @@ export interface PmcIngestOptions {
   isPremium?: boolean;
 }
 
+export interface PmcExtractionCoverage {
+  detectados: number | null;
+  extraidos: number;
+  parcial: boolean;
+}
+
 export interface PmcExtractionSuccess<T = unknown> {
   success: true;
   filename: string;
   data: T;
   warnings?: string[];
+  coverage?: PmcExtractionCoverage;
 }
 
 export class PmcOrchestratorError extends Error {
@@ -348,6 +355,18 @@ export class PmcOrchestrator implements IPmcOrchestrator {
           })
         );
 
+        const detectadosMetas = typeof parsed.data.totales_detectados?.metas === 'number'
+          ? parsed.data.totales_detectados.metas
+          : null;
+        const extraidosMetas = normalizedMetasPrevias.length;
+        const parcial = detectadosMetas !== null && detectadosMetas > extraidosMetas;
+
+        const coverage = {
+          detectados: detectadosMetas,
+          extraidos: extraidosMetas,
+          parcial,
+        };
+
         return {
           success: true,
           filename: options.filename,
@@ -360,6 +379,7 @@ export class PmcOrchestrator implements IPmcOrchestrator {
             categorias_priorizadas: reconciledCategoriasPriorizadas,
           },
           warnings: parsed.warnings,
+          coverage,
         };
       }
 

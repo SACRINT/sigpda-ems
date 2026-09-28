@@ -480,6 +480,8 @@ interface PmcPreviousExtractDTO {
   const fileInputPmcRef = useRef<HTMLInputElement>(null);
   const [uploadingPmc, setUploadingPmc] = useState(false);
   const [parsedPmcData, setParsedPmcData] = useState<PmcPreviousExtractDTO | null>(null);
+  const [ingestWarnings, setIngestWarnings] = useState<string[]>([]);
+  const [ingestCoverage, setIngestCoverage] = useState<{ detectados: number | null; extraidos: number; parcial: boolean } | null>(null);
   const [showPmcReviewModal, setShowPmcReviewModal] = useState(false);
 
   // Carga Inteligente de PAEC Anterior (PDF/Word) en Paso 1 (H-155)
@@ -522,7 +524,13 @@ interface PmcPreviousExtractDTO {
         method: 'POST',
         body: formData,
       });
-      const json = await parseSafeApiResponse<{ success?: boolean; error?: string; data?: PmcPreviousExtractDTO }>(
+      const json = await parseSafeApiResponse<{
+        success?: boolean;
+        error?: string;
+        data?: PmcPreviousExtractDTO;
+        warnings?: string[];
+        coverage?: { detectados: number | null; extraidos: number; parcial: boolean };
+      }>(
         res,
         'Error al analizar el documento anterior.'
       );
@@ -530,6 +538,8 @@ interface PmcPreviousExtractDTO {
         throw new Error(json.error || 'Error al analizar el documento.');
       }
       setParsedPmcData(json.data as PmcPreviousExtractDTO);
+      setIngestWarnings(Array.isArray(json.warnings) ? json.warnings : []);
+      setIngestCoverage(json.coverage || null);
       setShowPmcReviewModal(true);
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : 'No se pudo procesar el documento anterior.';
@@ -3252,6 +3262,47 @@ interface PmcPreviousExtractDTO {
                   ×
                 </button>
               </div>
+
+              {/* Banner Ámbar de Cobertura Parcial (H-178 / H-182) */}
+              {ingestCoverage && ingestCoverage.parcial && (
+                <div style={{
+                  background: 'rgba(245, 158, 11, 0.12)',
+                  border: '1px solid rgba(245, 158, 11, 0.35)',
+                  borderRadius: '8px',
+                  padding: '10px 14px',
+                  marginBottom: '14px',
+                  color: '#fbbf24',
+                  fontSize: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}>
+                  <span style={{ fontSize: '16px' }}>⚠️</span>
+                  <span>
+                    <strong>Extracción parcial:</strong> se detectaron {ingestCoverage.detectados} metas y se extrajeron {ingestCoverage.extraidos}. Revisa el documento.
+                  </span>
+                </div>
+              )}
+
+              {/* Banner Ámbar de Advertencias Literales del Parser (H-182) */}
+              {ingestWarnings.length > 0 && (
+                <div style={{
+                  background: 'rgba(245, 158, 11, 0.08)',
+                  border: '1px solid rgba(245, 158, 11, 0.25)',
+                  borderRadius: '8px',
+                  padding: '10px 14px',
+                  marginBottom: '14px',
+                }}>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#f59e0b', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    ⚠️ Advertencias de Ingesta ({ingestWarnings.length})
+                  </div>
+                  <ul style={{ margin: 0, paddingLeft: '18px', color: '#fde68a', fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                    {ingestWarnings.map((w, idx) => (
+                      <li key={idx}>{w}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {/* Plantel */}
               <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '10px', padding: '14px', marginBottom: '14px', border: '1px solid rgba(255,255,255,0.06)' }}>

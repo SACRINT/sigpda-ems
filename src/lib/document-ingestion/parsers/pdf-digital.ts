@@ -6,22 +6,19 @@
 
 import path from 'path';
 import type { DocumentPage, IngestedDocument } from '../types';
-import { removeHyphens } from '@/lib/text-utils';
+import { reconstructPageLayout, type TextItemWithLayout } from './pdf-table-reconstructor';
 
 // ── Polyfills estrictamente aislados para pdfjs-dist bajo Node.js / Vercel ────
-if (typeof (globalThis as any).DOMMatrix === 'undefined') {
-  (globalThis as any).DOMMatrix = class DOMMatrix {} as any;
+interface GlobalWithPolyfills {
+  DOMMatrix?: unknown;
+  Path2D?: unknown;
 }
-if (typeof (globalThis as any).Path2D === 'undefined') {
-  (globalThis as any).Path2D = class Path2D {} as any;
+const g = globalThis as unknown as GlobalWithPolyfills;
+if (typeof g.DOMMatrix === 'undefined') {
+  g.DOMMatrix = class DOMMatrix {};
 }
-
-interface TextItemWithLayout {
-  str: string;
-  tx: number;
-  ty: number;
-  scaleY: number;
-  hasEOL: boolean;
+if (typeof g.Path2D === 'undefined') {
+  g.Path2D = class Path2D {};
 }
 
 export interface PdfDigitalParseResult {
@@ -54,7 +51,7 @@ export async function parseDigitalPdf(
     useSystemFonts: false,
     disableFontFace: true,
     verbosity: 0,
-  } as any).promise;
+  } as unknown as Parameters<typeof pdfjsLib.getDocument>[0]).promise;
 
   const totalPagesInDoc = doc.numPages;
   const pagesToProcess = Math.min(totalPagesInDoc, maxPages);
@@ -72,15 +69,15 @@ export async function parseDigitalPdf(
     let pageRawChars = 0;
     let sumFontHeights = 0;
 
-    for (const rawItem of textContent.items as any[]) {
+    for (const rawItem of textContent.items as Array<Record<string, unknown>>) {
       if (!rawItem || typeof rawItem.str !== 'string') continue;
       const str = rawItem.str.trim();
       if (!str) continue;
 
-      const transform = rawItem.transform || [1, 0, 0, 1, 0, 0];
-      const scaleY = Math.abs(transform[3]) || 12;
-      const tx = transform[4] || 0;
-      const ty = transform[5] || 0;
+      const transform = Array.isArray(rawItem.transform) ? (rawItem.transform as number[]) : [1, 0, 0, 1, 0, 0];
+      const scaleY = typeof transform[3] === 'number' ? Math.abs(transform[3]) : 12;
+      const tx = typeof transform[4] === 'number' ? transform[4] : 0;
+      const ty = typeof transform[5] === 'number' ? transform[5] : 0;
 
       items.push({
         str: rawItem.str,
@@ -97,62 +94,8 @@ export async function parseDigitalPdf(
     totalCharsExtracted += pageRawChars;
     const avgFontSize = items.length > 0 ? sumFontHeights / items.length : 12;
 
-    // Agrupación espacial por coordenadas Y (líneas de texto)
-    // En PDF, ty decrece conforme se baja en la página
-    items.sort((a, b) => {
-      const yDiff = b.ty - a.ty;
-      if (Math.abs(yDiff) > 3) {
-        return yDiff; // Línea diferente
-      }
-      return a.tx - b.tx; // Misma línea, de izquierda a derecha
-    });
-
-    const lines: { text: string; isHeading: boolean }[] = [];
-    let currentLineItems: TextItemWithLayout[] = [];
-    let currentY = items.length > 0 ? items[0].ty : 0;
-
-    for (const item of items) {
-      if (Math.abs(item.ty - currentY) > 3) {
-        // Nueva línea detectada
-        if (currentLineItems.length > 0) {
-          const lineStr = removeHyphens(currentLineItems.map(i => i.str).join(' ').trim());
-          const maxLineFont = Math.max(...currentLineItems.map(i => i.scaleY));
-          const isHeading = maxLineFont >= avgFontSize * 1.25 && lineStr.length < 120;
-          if (lineStr.length > 0) {
-            lines.push({ text: lineStr, isHeading });
-          }
-        }
-        currentLineItems = [item];
-        currentY = item.ty;
-      } else {
-        currentLineItems.push(item);
-      }
-    }
-
-    // Procesar la última línea
-    if (currentLineItems.length > 0) {
-      const lineStr = removeHyphens(currentLineItems.map(i => i.str).join(' ').trim());
-      const maxLineFont = Math.max(...currentLineItems.map(i => i.scaleY));
-      const isHeading = maxLineFont >= avgFontSize * 1.25 && lineStr.length < 120;
-      if (lineStr.length > 0) {
-        lines.push({ text: lineStr, isHeading });
-      }
-    }
-
-    // Ensamblar Markdown de la página
-    const pageMarkdownLines: string[] = [];
-    pageMarkdownLines.push(`\n## [Página ${pageNum}]`);
-
-    for (const l of lines) {
-      if (l.isHeading) {
-        pageMarkdownLines.push(`\n### ${l.text}\n`);
-      } else {
-        pageMarkdownLines.push(l.text);
-      }
-    }
-
-    const pageMarkdown = removeHyphens(pageMarkdownLines.join('\n'));
-    const pageRawText = removeHyphens(lines.map(l => l.text).join('\n'));
+    // Reconstrucción espacial con clustering de coordenadas X para preservar tablas y celdas multi-fila (H-183)
+    const { pageMarkdown, pageRawText } = reconstructPageLayout(items, avgFontSize, pageNum);
 
     pages.push({
       pageNumber: pageNum,
