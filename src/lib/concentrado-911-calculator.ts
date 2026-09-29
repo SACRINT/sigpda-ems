@@ -203,14 +203,29 @@ export async function parseConcentrado911Layout(
   const cicloMatch = fullText.match(/\b(\d{4}\s*-\s*\d{4})\b/);
   if (cicloMatch) cicloEscolar = cicloMatch[1].replace(/\s+/g, '');
 
-  // 3. Escuela
-  const escuelaItem = items.find(
-    it => (it.str.includes('HEROES DE LA PATRIA') || it.str.includes('HÉROES DE LA PATRIA') || it.str.includes('MOISES') || it.str.includes('MOISÉS'))
+  // 3. Escuela (extracción determinista a partir de etiqueta oficial, sin nombres hardcodeados)
+  const labelEscuela = items.find(it =>
+    /NOMBRE\s+OFICIAL\s+DE\s+LA\s+ESCUELA/i.test(it.str)
   );
-  if (escuelaItem) {
-    schoolName = escuelaItem.str.trim();
-  } else {
-    const afterLabel = fullText.match(/NOMBRE OFICIAL DE LA ESCUELA[A-Z\s]*?([A-ZÁÉÍÓÚÑ\s]{4,40}?)(?:DOMICILIO|MUNICIPIO|LOCALIDAD)/i);
+  if (labelEscuela) {
+    const candidates = items.filter(
+      it => it !== labelEscuela &&
+            it.str.trim().length >= 4 &&
+            !/CLAVE|CATALOGO|MUNICIPIO|LOCALIDAD|DOMICILIO|CONCEPTO|TURNO|CICLO|SEMESTRE/i.test(it.str) &&
+            Math.hypot(it.transform[4] - labelEscuela.transform[4], it.transform[5] - labelEscuela.transform[5]) < 120
+    );
+    if (candidates.length > 0) {
+      candidates.sort((a, b) => {
+        const distA = Math.hypot(a.transform[4] - labelEscuela.transform[4], a.transform[5] - labelEscuela.transform[5]);
+        const distB = Math.hypot(b.transform[4] - labelEscuela.transform[4], b.transform[5] - labelEscuela.transform[5]);
+        return distA - distB;
+      });
+      schoolName = candidates[0].str.trim();
+    }
+  }
+
+  if (!schoolName) {
+    const afterLabel = fullText.match(/NOMBRE OFICIAL DE LA ESCUELA[A-Z\s]*?([A-ZÁÉÍÓÚÑ\s]{4,40}?)(?:DOMICILIO|MUNICIPIO|LOCALIDAD|CLAVE)/i);
     if (afterLabel && afterLabel[1].trim()) {
       schoolName = afterLabel[1].trim();
     }
@@ -267,18 +282,74 @@ export async function parseConcentrado911Layout(
       }
     }
   } else {
-    // Reporte de INICIO: buscar el total general de matrícula
-    // En concentrado horizontal o landscape: buscar 'GENERAL' o item con x/y específicos
-    const numItems = items.filter(it => /^\d{2,3}$/.test(it.str.trim()));
-    // Buscar totales comunes (170, 192, etc.)
-    const totalMatch = items.find(it => it.str.trim() === '170' || it.str.trim() === '192');
-    if (totalMatch) {
-      matriculaInicio = Number(totalMatch.str.trim());
-    } else if (numItems.length > 0) {
-      // Tomar el número mayor en la fila de totales
-      const sortedByVal = [...numItems].map(it => Number(it.str.trim())).sort((a, b) => b - a);
-      if (sortedByVal.length > 0 && sortedByVal[0] > 50) {
-        matriculaInicio = sortedByVal[0];
+    // Reporte de INICIO: extracción determinista por coordenadas estructurales oficiales (H-223)
+    // 1. Localizar concepto "AL INICIO DEL PERIODO"
+    const inicioSectionItem = items.find(it => /AL\s+INICIO\s+DEL\s+PERIODO/i.test(it.str));
+    // 2. Localizar columna "GENERAL" en la cabecera
+    const generalColItem = items.find(it => it.str.trim() === 'GENERAL' && it.transform[5] < 300);
+
+    if (inicioSectionItem) {
+      const secY = inicioSectionItem.transform[5];
+      const secX = inicioSectionItem.transform[4];
+      const totalRowCandidates = items.filter(
+        it => it.str.trim() === 'TOTAL' &&
+              Math.abs(it.transform[4] - secX) <= 40 &&
+              Math.abs(it.transform[5] - secY) <= 150 &&
+              Math.abs(it.transform[5] - secY) > 2
+      );
+
+      if (totalRowCandidates.length > 0) {
+        // En concentrado 911: "AL INICIO DEL PERIODO" tiene NUEVO INGRESO, REPETIDORES y finalmente TOTAL
+        totalRowCandidates.sort(
+          (a, b) => Math.abs(b.transform[5] - secY) - Math.abs(a.transform[5] - secY)
+        );
+        const totalRowItem = totalRowCandidates[0];
+        const rowY = totalRowItem.transform[5];
+
+        const rowItems = items
+          .filter(it => Math.abs(it.transform[5] - rowY) <= 6 && /^\d+$/.test(it.str.trim()))
+          .sort((a, b) => a.transform[4] - b.transform[4]);
+
+        if (rowItems.length > 0) {
+          if (generalColItem) {
+            const sortedByDist = [...rowItems].sort(
+              (a, b) => Math.abs(a.transform[4] - generalColItem.transform[4]) - Math.abs(b.transform[4] - generalColItem.transform[4])
+            );
+            if (Math.abs(sortedByDist[0].transform[4] - generalColItem.transform[4]) <= 8) {
+              matriculaInicio = Number(sortedByDist[0].str.trim());
+            }
+          }
+
+          if (matriculaInicio === null) {
+            const lastNum = Number(rowItems[rowItems.length - 1].str.trim());
+            if (rowItems.length >= 3) {
+              const prev1 = Number(rowItems[rowItems.length - 2].str.trim());
+              const prev2 = Number(rowItems[rowItems.length - 3].str.trim());
+              if (prev1 + prev2 === lastNum && lastNum > 0) {
+                matriculaInicio = lastNum;
+              } else if (lastNum > 0) {
+                matriculaInicio = lastNum;
+              }
+            } else if (lastNum > 0) {
+              matriculaInicio = lastNum;
+            }
+          }
+        }
+      }
+    }
+
+    // Fallback estructural 2: fila horizontal tradicional si el documento tuviera layout tipo FIN
+    if (matriculaInicio === null) {
+      const generalItem = items.find(it => it.str.trim() === 'GENERAL');
+      if (generalItem) {
+        const rowY = generalItem.transform[5];
+        const rowItems = items
+          .filter(it => Math.abs(it.transform[5] - rowY) <= 6 && /^\d+$/.test(it.str.trim()))
+          .sort((a, b) => a.transform[4] - b.transform[4]);
+        if (rowItems.length >= 3) {
+          const last = Number(rowItems[rowItems.length - 1].str.trim());
+          if (last > 0) matriculaInicio = last;
+        }
       }
     }
   }

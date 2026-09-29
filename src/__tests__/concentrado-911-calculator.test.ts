@@ -92,4 +92,29 @@ describe('concentrado-911-calculator (H-220)', () => {
     expect(parsed.isScanned).toBe(true);
     expect(parsed.warnings[0]).toContain('escaneado');
   });
+
+  it('extrae matricula de inicio de un plantel sintetico con matricula 105 sin numeros magicos', async () => {
+    const { jsPDF } = await import('jspdf');
+    const doc = new jsPDF();
+    doc.text('SECRETARÍA DE EDUCACIÓN DEL ESTADO DE PUEBLA', 20, 20);
+    doc.text('NOMBRE OFICIAL DE LA ESCUELA SEGUN CATALOGO DE CENTROS DE TRABAJO', 20, 30);
+    doc.text('BACHILLERATO GENERAL MOISES SAENZ', 20, 35);
+    doc.text('21EBH9999Z', 100, 30);
+    doc.text('2026-2027', 150, 30);
+    doc.text('AL INICIO DEL PERIODO ESCOLAR', 50, 60);
+    doc.text('GENERAL', 180, 50);
+    doc.text('TOTAL', 50, 80);
+    // Fila total: Hombres 45, Mujeres 60, Total 105
+    doc.text('45', 160, 80);
+    doc.text('60', 170, 80);
+    doc.text('105', 180, 80);
+
+    const buf = Buffer.from(doc.output('arraybuffer'));
+    const parsed = await parseConcentrado911Layout(buf, { momento: 'inicio' });
+
+    expect(parsed.schoolName).toContain('MOISES SAENZ');
+    expect(parsed.schoolCct).toBe('21EBH9999Z');
+    expect(parsed.matriculaInicio).toBe(105);
+  });
 });
+
