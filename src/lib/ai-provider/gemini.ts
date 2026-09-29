@@ -1,4 +1,4 @@
-import type { AIProvider } from './types';
+import type { AIProvider, MultimodalResult } from './types';
 import { API_CONFIG } from '@/lib/config';
 
 /**
@@ -65,6 +65,15 @@ export class GeminiProvider implements AIProvider {
     userPrompt: string,
     inlineData: { mimeType: string; data: string }
   ): Promise<string> {
+    const result = await this.generateMultimodalWithUsage(systemPrompt, userPrompt, inlineData);
+    return result.text;
+  }
+
+  async generateMultimodalWithUsage(
+    systemPrompt: string,
+    userPrompt: string,
+    inlineData: { mimeType: string; data: string }
+  ): Promise<MultimodalResult> {
     const url = `${API_CONFIG.gemini}/${this.modelId}:generateContent?key=${this.apiKey}`;
     const payload = {
       contents: [
@@ -100,7 +109,14 @@ export class GeminiProvider implements AIProvider {
     const data = await res.json();
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!text) throw new Error('Empty multimodal response from Gemini API');
-    return text;
+    const usageMetadata = data?.usageMetadata;
+    const usage = {
+      promptTokenCount: typeof usageMetadata?.promptTokenCount === 'number' ? usageMetadata.promptTokenCount : undefined,
+      candidatesTokenCount: typeof usageMetadata?.candidatesTokenCount === 'number' ? usageMetadata.candidatesTokenCount : undefined,
+      totalTokenCount: typeof usageMetadata?.totalTokenCount === 'number' ? usageMetadata.totalTokenCount : undefined,
+    };
+    const hasUsage = Object.values(usage).some(v => v !== undefined);
+    return { text, usage: hasUsage ? usage : undefined };
   }
 
   async *generateStream(systemPrompt: string, userPrompt: string): AsyncGenerator<string> {

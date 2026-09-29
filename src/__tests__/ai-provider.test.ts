@@ -12,9 +12,10 @@ import { vi, describe, it, expect, beforeAll, beforeEach } from 'vitest';
 
 // ── 1. Hoist shared mock references (must be before vi.mock calls) ─────────────
 
-const { mockGenerate, mockNeonFn } = vi.hoisted(() => ({
+const { mockGenerate, mockNeonFn, mockGenerateMultimodalWithUsage } = vi.hoisted(() => ({
   mockGenerate: vi.fn().mockResolvedValue('respuesta-mock-ia'),
   mockNeonFn:   vi.fn().mockResolvedValue([]),
+  mockGenerateMultimodalWithUsage: vi.fn(),
 }));
 
 // ── 2. Mocks ──────────────────────────────────────────────────────────────────
@@ -47,6 +48,7 @@ vi.mock('@/lib/ai-provider/gemini', () => ({
     this.modelId    = model;
     this.generate   = mockGenerate;
     this.generateStream = vi.fn();
+    this.generateMultimodalWithUsage = mockGenerateMultimodalWithUsage;
   }),
   sanitizeGeminiModel: vi.fn((m: string) => m),
 }));
@@ -80,6 +82,8 @@ vi.mock('@/lib/logger', () => ({
 import {
   getAIProvider,
   generateWithRotation,
+  generateMultimodalWithMetadata,
+  generateMultimodalWithRotation,
   resolveUserIsPremium,
   DEFAULT_STANDARD_MODEL,
   DEFAULT_STANDARD_PROVIDER,
@@ -201,5 +205,68 @@ describe('ai-provider/index.ts — Factory and Generation', () => {
     expect(DEFAULT_MODEL_BY_PROVIDER.openrouter).toBe(expectedModel);
     // Prevenir regresión al modelo obsoleto discontinuado
     expect(DEFAULT_MODEL_BY_PROVIDER.openrouter).not.toBe('meta-llama/llama-3.1-8b-instruct:free');
+  });
+});
+
+describe('ai-provider/index.ts — generateMultimodalWithMetadata (H-256 / H-257)', () => {
+  beforeAll(() => {
+    vi.stubEnv('DATABASE_URL', 'postgresql://test:test@localhost/sigpda_test');
+  });
+
+  beforeEach(() => {
+    mockNeonFn.mockReset();
+    mockNeonFn.mockResolvedValue([]);
+    mockGenerateMultimodalWithUsage.mockReset();
+  });
+
+  it('devuelve el proveedor y el modelo REALMENTE resueltos (no los hardcodeados)', async () => {
+    mockNeonFn.mockResolvedValueOnce([
+      { key: 'active_provider', value: 'gemini' },
+      { key: 'active_model', value: 'gemini-3.1-flash-lite' },
+    ]);
+    mockGenerateMultimodalWithUsage.mockResolvedValue({
+      text: '# escaneo',
+      usage: { promptTokenCount: 1200, candidatesTokenCount: 400 },
+    });
+
+    const result = await generateMultimodalWithMetadata('sys', 'user', {
+      mimeType: 'application/pdf',
+      data: 'AA==',
+    });
+
+    expect(result.provider).toBe('gemini');
+    expect(result.model).toBe('gemini-3.1-flash-lite');
+    expect(result.text).toBe('# escaneo');
+    expect(result.usage).toEqual({ promptTokenCount: 1200, candidatesTokenCount: 400 });
+  });
+
+  it('generateMultimodalWithRotation conserva el contrato de retorno string', async () => {
+    mockGenerateMultimodalWithUsage.mockResolvedValue({ text: 'solo texto' });
+
+    const text = await generateMultimodalWithRotation('sys', 'user', {
+      mimeType: 'application/pdf',
+      data: 'AA==',
+    });
+
+    expect(text).toBe('solo texto');
+  });
+
+  it('propaga provider y modelo en el fallo para telemetría de errores', async () => {
+    mockGenerateMultimodalWithUsage.mockRejectedValue(new Error('HTTP 503: unavailable'));
+
+    let failure: (Error & { provider?: string; model?: string }) | undefined;
+    try {
+      await generateMultimodalWithMetadata('sys', 'user', {
+        mimeType: 'application/pdf',
+        data: 'AA==',
+      });
+    } catch (err) {
+      failure = err as Error & { provider?: string; model?: string };
+    }
+
+    expect(failure).toBeInstanceOf(Error);
+    expect(failure?.message).toBe('HTTP 503: unavailable');
+    expect(failure?.provider).toBe('gemini');
+    expect(failure?.model).toBe('gemini-3.5-flash-lite');
   });
 });

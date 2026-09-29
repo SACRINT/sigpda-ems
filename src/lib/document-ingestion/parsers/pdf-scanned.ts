@@ -4,8 +4,22 @@
  * Utiliza estrictamente gemini-3.5-flash-lite / gemini-3.1-flash-lite con el pool de llaves en rotación.
  */
 
-import { generateMultimodalWithRotation, resolveUserIsPremium, logActivity } from '@/lib/ai-provider';
+import {
+  generateMultimodalWithMetadata,
+  resolveUserIsPremium,
+  logActivity,
+  type AiTokenUsage,
+  type MultimodalCallResult,
+} from '@/lib/ai-provider';
 import type { IngestedDocument } from '../types';
+
+function resolveTokenApprox(usage: AiTokenUsage | undefined, fallbackText: string): number {
+  const promptTokens = usage?.promptTokenCount ?? 0;
+  const candidateTokens = usage?.candidatesTokenCount ?? 0;
+  if (promptTokens + candidateTokens > 0) return promptTokens + candidateTokens;
+  if (typeof usage?.totalTokenCount === 'number' && usage.totalTokenCount > 0) return usage.totalTokenCount;
+  return Math.ceil(fallbackText.length / 4);
+}
 
 export async function parseScannedPdfWithGemini(
   buffer: Buffer,
@@ -25,9 +39,9 @@ Tu tarea es leer y transcribir con máxima precisión este documento escaneado o
   const userPrompt = `Transcribe íntegramente todo el contenido de este documento PDF escaneado a Markdown estructurado oficial.`;
 
   const isPremium = await resolveUserIsPremium(teacherId);
-  let markdownResult: string;
+  let completion: MultimodalCallResult;
   try {
-    markdownResult = await generateMultimodalWithRotation(
+    completion = await generateMultimodalWithMetadata(
       systemInstruction,
       userPrompt,
       {
@@ -38,6 +52,7 @@ Tu tarea es leer y transcribir con máxima precisión este documento escaneado o
       isPremium
     );
   } catch (err: unknown) {
+    const failure = err as Error & { provider?: string; model?: string };
     if (teacherEmail) {
       try {
         await logActivity({
@@ -45,17 +60,17 @@ Tu tarea es leer y transcribir con máxima precisión este documento escaneado o
           action: 'ingest_document',
           entityType: 'pdf_scanned',
           entityId: filename,
-          providerUsed: 'gemini',
-          modelUsed: 'gemini-3.5-flash-lite',
+          providerUsed: failure.provider,
+          modelUsed: failure.model,
           success: false,
-          errorMsg: err instanceof Error ? err.message : String(err),
+          errorMsg: failure instanceof Error ? failure.message : String(err),
         });
       } catch { /* Logging never interrupts ingestion */ }
     }
     throw err;
   }
 
-  const cleanMarkdown = markdownResult.trim();
+  const cleanMarkdown = completion.text.trim();
 
   if (teacherEmail) {
     try {
@@ -64,9 +79,9 @@ Tu tarea es leer y transcribir con máxima precisión este documento escaneado o
         action: 'ingest_document',
         entityType: 'pdf_scanned',
         entityId: filename,
-        providerUsed: 'gemini',
-        modelUsed: 'gemini-3.5-flash-lite',
-        tokensApprox: Math.ceil(cleanMarkdown.length / 4),
+        providerUsed: completion.provider,
+        modelUsed: completion.model,
+        tokensApprox: resolveTokenApprox(completion.usage, cleanMarkdown),
         success: true,
       });
     } catch { /* Logging never interrupts ingestion */ }
@@ -88,7 +103,7 @@ Tu tarea es leer y transcribir con máxima precisión este documento escaneado o
       wordCount: cleanMarkdown.split(/\s+/).filter(Boolean).length,
       charCount: cleanMarkdown.length,
       ocrApplied: true,
-      modelUsed: 'gemini-3.5-flash-lite',
+      modelUsed: completion.model,
     },
   };
 }

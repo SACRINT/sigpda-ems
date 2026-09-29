@@ -24,6 +24,17 @@ export interface AIProvider {
   generateStream(systemPrompt: string, userPrompt: string): AsyncGenerator<string>;
 }
 
+export interface AiTokenUsage {
+  promptTokenCount?: number;
+  candidatesTokenCount?: number;
+  totalTokenCount?: number;
+}
+
+export interface MultimodalResult {
+  text: string;
+  usage?: AiTokenUsage;
+}
+
 export interface ApiKeyRecord {
   id: string;
   label: string;

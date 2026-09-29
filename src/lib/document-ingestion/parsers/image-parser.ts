@@ -4,7 +4,7 @@
  * mediante OCR Multimodal de alta fidelidad con Gemini Flash Lite.
  */
 
-import { generateMultimodalWithRotation, resolveUserIsPremium } from '@/lib/ai-provider';
+import { generateMultimodalWithMetadata, resolveUserIsPremium } from '@/lib/ai-provider';
 import type { IngestedDocument } from '../types';
 
 export async function parseImageDocumentWithGemini(
@@ -28,7 +28,7 @@ Tu tarea es leer y transcribir con máxima precisión esta imagen fotográfica o
   const normalizedMime = mimeType === 'image/jpg' ? 'image/jpeg' : mimeType || 'image/jpeg';
 
   const isPremium = await resolveUserIsPremium(teacherId);
-  const markdownResult = await generateMultimodalWithRotation(
+  const completion = await generateMultimodalWithMetadata(
     systemInstruction,
     userPrompt,
     {
@@ -39,7 +39,7 @@ Tu tarea es leer y transcribir con máxima precisión esta imagen fotográfica o
     isPremium
   );
 
-  const cleanMarkdown = markdownResult.trim();
+  const cleanMarkdown = completion.text.trim();
 
   return {
     markdown: cleanMarkdown,
@@ -57,7 +57,7 @@ Tu tarea es leer y transcribir con máxima precisión esta imagen fotográfica o
       wordCount: cleanMarkdown.split(/\s+/).filter(Boolean).length,
       charCount: cleanMarkdown.length,
       ocrApplied: true,
-      modelUsed: 'gemini-3.5-flash-lite',
+      modelUsed: completion.model,
     },
   };
 }

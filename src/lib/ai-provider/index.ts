@@ -22,11 +22,11 @@ import { withKeyRotation } from './key-rotator';
 import { GeminiProvider, sanitizeGeminiModel } from './gemini';
 import { ClaudeProvider } from './claude';
 import { OpenAICompatibleProvider } from './openai';
-import type { AIProvider } from './types';
+import type { AIProvider, AiTokenUsage, MultimodalResult } from './types';
 import { logger } from '@/lib/logger';
 import { resolveUserIsPremium } from './resolve-premium';
 
-export type { AIProvider };
+export type { AIProvider, AiTokenUsage, MultimodalResult };
 export { resolveUserIsPremium };
 
 // ── Default model constants ──────────────────────────────────────────────────
@@ -239,13 +239,18 @@ export async function* generateStreamWithRotation(
  * Genera texto a partir de datos multimodales (ej: PDF escaneado en base64) utilizando
  * el pool de llaves con rotación y modelos optimizados para visión/OCR documental.
  */
-export async function generateMultimodalWithRotation(
+export interface MultimodalCallResult extends MultimodalResult {
+  provider: string;
+  model: string;
+}
+
+export async function generateMultimodalWithMetadata(
   systemPrompt: string,
   userPrompt: string,
   inlineData: { mimeType: string; data: string },
   teacherId?: string,
   isPremium = false
-): Promise<string> {
+): Promise<MultimodalCallResult> {
   // Uses GeminiProvider.generateMultimodal directly to avoid importing src/lib/gemini.ts
   // (which would recreate the ai-provider <-> gemini circular dependency).
   const { provider, model } = await getActiveConfig(isPremium);
@@ -253,7 +258,38 @@ export async function generateMultimodalWithRotation(
   const resolved = await resolveKey(provider, teacherId);
   const finalModel = resolved.modelOverride || model;
   const geminiProvider = new GeminiProvider(resolved.apiKey, finalModel);
-  return geminiProvider.generateMultimodal(systemPrompt, userPrompt, inlineData);
+  try {
+    const result = await geminiProvider.generateMultimodalWithUsage(systemPrompt, userPrompt, inlineData);
+    return {
+      text: result.text,
+      usage: result.usage,
+      provider: geminiProvider.providerId,
+      model: geminiProvider.modelId,
+    };
+  } catch (err) {
+    const failure = err instanceof Error ? err : new Error(String(err));
+    throw Object.assign(failure, {
+      provider: geminiProvider.providerId,
+      model: geminiProvider.modelId,
+    });
+  }
+}
+
+export async function generateMultimodalWithRotation(
+  systemPrompt: string,
+  userPrompt: string,
+  inlineData: { mimeType: string; data: string },
+  teacherId?: string,
+  isPremium = false
+): Promise<string> {
+  const result = await generateMultimodalWithMetadata(
+    systemPrompt,
+    userPrompt,
+    inlineData,
+    teacherId,
+    isPremium
+  );
+  return result.text;
 }
 
 // ── Activity logging helper ─────────────────────────────────────────────────
