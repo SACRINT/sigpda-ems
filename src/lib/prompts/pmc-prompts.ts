@@ -61,7 +61,7 @@ export function buildPmcDiagnosticoPrompt(
   if (stats) {
     contextoEstadisticoExtra = `
 DATOS ESTADÍSTICOS OFICIALES VINCULADOS (Formato 911 y F11):
-- Matrícula oficial (911.7G): ${matriculaReal} alumnos
+- Matrícula oficial (911): ${matriculaReal} alumnos
 - Tasa de Abandono Escolar (911): ${abandonoReal}%
 - Eficiencia Terminal (911): ${eficienciaReal}%
 - Aprobación Escolar (F11C): ${aprobacionReal}%
@@ -116,7 +116,7 @@ MATRIZ FODA SITUACIONAL:
 
 INFORMACIÓN DE INSUMOS DOCUMENTALES (Formato Oficial 2.1 Diagnóstico PMC 2025-2026):
 Para la elaboración del diagnóstico integral, articula los siguientes insumos institucionales:
-1. Indicadores educativos del ciclo escolar anterior: Tasa de aprobación, Tasa de abandono escolar y Eficiencia terminal (Formatos 911.7G y F11C).
+1. Indicadores educativos del ciclo escolar anterior: Tasa de aprobación, Tasa de abandono escolar y Eficiencia terminal (Formatos 911 y F11C).
 2. Documentos institucionales del plantel:
    - Plan de Mejora Continua (PMC) del ciclo escolar anterior.
    - Planeaciones didácticas de las y los docentes.
@@ -255,9 +255,9 @@ DATOS OFICIALES DEL PLANTEL:
 - Director(a): ${safeStr(project.director_name)} | Zona Escolar: ${safeStr(project.school_zone)}
 
 LÍNEA BASE ESTADÍSTICA OFICIAL (Formato 911 y F11):
-- Matrícula oficial atendida: ${matriculaTexto} (Fuente: 911.7G)
-- Tasa de Abandono Escolar Línea Base: ${abandonoTexto} (Fuente: 911.7 / Bajas definitivas)
-- Eficiencia Terminal Línea Base: ${eficienciaTexto} (Fuente: 911.7G / Egresados)
+- Matrícula oficial atendida: ${matriculaTexto} (Fuente: 911)
+- Tasa de Abandono Escolar Línea Base: ${abandonoTexto} (Fuente: 911 / Bajas definitivas)
+- Eficiencia Terminal Línea Base: ${eficienciaTexto} (Fuente: 911 / Egresados)
 - Tasa de Aprobación Escolar Línea Base: ${aprobacionTexto} (Fuente: F11C)
 - Aprovechamiento General Promedio: ${promedioTexto} (Fuente: F11C Control Escolar)
 ${stats?.promediosPorAsignatura ? `- Desglose de Promedios por Asignatura F11C:\n${Object.entries(stats.promediosPorAsignatura).map(([asig, prom]) => `    • ${asig}: ${prom}`).join('\n')}` : ''}
@@ -286,9 +286,9 @@ REGLAS OBLIGATORIAS DE REDACCIÓN DE METAS CREAA (MCCEMS PUEBLA 2026-2027):
      * Fuente Primaria: Formato F11C (Control Escolar). Usar los promedios por asignatura para identificar materias prioritarias y definir la meta de aprovechamiento/aprobación.
      * Fuente de Verificación Externa: Evaluaciones diagnósticas estandarizadas (EDIEMS y ESA) como cortes de seguimiento (septiembre, diciembre, marzo).
    - Categoría 2 (Permanencia y Conclusión Oportuna):
-     * Fuente Obligatoria: Formato 911 (911.7G / Bajas definitivas). Usar la Tasa de Abandono Escolar del 911 (${abandonoTexto}) como línea base si está disponible; si es N/D, formular meta preventiva situada en el diagnóstico.
+     * Fuente Obligatoria: Formato 911 (Bajas definitivas). Usar la Tasa de Abandono Escolar del 911 (${abandonoTexto}) como línea base si está disponible; si es N/D, formular meta preventiva situada en el diagnóstico.
    - Categoría 3 (Gestión Comunitaria, Clima Escolar y PAEC):
-     * Fuente Obligatoria: Formato 911 (911.7G / Egresados). Usar la Eficiencia Terminal del 911 (${eficienciaTexto}) como línea base si está disponible; articular con proyectos comunitarios PAEC y cultura de paz.
+     * Fuente Obligatoria: Formato 911 (Egresados). Usar la Eficiencia Terminal del 911 (${eficienciaTexto}) como línea base si está disponible; articular con proyectos comunitarios PAEC y cultura de paz.
 
 3. CRONOGRAMA Y FECHAS OFICIALES INSTITUCIONALES (Usar estas ventanas temporales en estrategias):
    - 31 ago al 4 sep 2026: Diagnóstico EDIEMS y ESA inicial

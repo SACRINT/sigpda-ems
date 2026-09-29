@@ -656,7 +656,7 @@ function buildDiagnostico(
         }),
         new TableRow({
           children: [
-            tc('Matrícula Escolar Oficial (911.7G)'),
+            tc('Matrícula Escolar Oficial (911)'),
             tc(indVals.matricula.ant, { align: AlignmentType.CENTER }),
             tc(indVals.matricula.meta, { align: AlignmentType.CENTER }),
           ],

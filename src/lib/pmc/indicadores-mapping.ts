@@ -1,33 +1,37 @@
 /**
  * src/lib/pmc/indicadores-mapping.ts
  *
- * Mapeo canónico de datos de Estadística 911 a indicadores académicos del PMC (H-165, H-168).
- * Extraído para pruebas unitarias deterministas y evitar desajustes de ciclos escolares.
+ * Mapeo canónico de datos de Estadística 911 a indicadores académicos del PMC (H-165, H-168, H-220).
+ *
+ * Reglas Maestras (H-220 / B-001):
+ * - Los % de ET y Abandono se CALCULAN determinísticamente; NO se leen del documento.
+ * - Línea base = Concentrado de INICIO del MISMO ciclo (guardado en matriculaInicioCicloAnterior).
+ * - Fallback = Columna "AL INICIO DEL PERIODO" del concentrado de fin (con advertencia).
+ * - Subir inicio o fin en cualquier orden recalcula de inmediato y coherentemente.
  */
 
 import { toRealNumber } from '@/lib/numeric-guard';
 import type { PmcIndicadoresAcademicos } from '@/types/pmc';
+import { calcularIndicadores911 } from '@/lib/concentrado-911-calculator';
 
 export interface Estadistica911Data {
   matricula?: number | string | null;
+  matriculaInicio?: number | string | null;
+  matriculaInicioFinDoc?: number | string | null;
   matriculaAnterior?: number | string | null;
-  abandonoPorcentaje?: number | string | null;
-  eficienciaTerminal?: number | string | null;
-  reprobacionPorcentaje?: number | string | null;
-  aprobacionPorcentaje?: number | string | null;
+  altas?: number | string | null;
+  bajas?: number | string | null;
+  bajasDefinitivas?: number | string | null;
+  existencia?: number | string | null;
+  regulares?: number | string | null;
+  irregulares?: number | string | null;
   totalDocentes?: number | string | null;
   [key: string]: unknown;
 }
 
 /**
  * Mapea la Estadística 911 de Fin de Ciclo Anterior (momento='fin_anterior').
- *
- * REGLA CRÍTICA (H-168):
- * En un 911 fin de cursos (ej. fin 2025-2026), la matrícula inscrita en ese documento
- * (`data.matricula`) representa el CIERRE del ciclo anterior (línea base del nuevo PMC).
- * Por ende, `matriculaAnterior` se puebla con `data.matricula`.
- * NO debe usarse `data.matriculaAnterior`, ya que ese campo en el 911 corresponde al
- * ciclo previo al documento (dos ciclos atrás).
+ * Calcula ET y Abandono Escolar a partir de existencia y bajas.
  */
 export function mapFinAnteriorToIndicadores<T extends PmcIndicadoresAcademicos>(
   data: Estadistica911Data | undefined | null,
@@ -35,56 +39,66 @@ export function mapFinAnteriorToIndicadores<T extends PmcIndicadoresAcademicos>(
 ): T {
   if (!data) return prev;
 
-  const rawAb = data.abandonoPorcentaje;
-  const rawEt = data.eficienciaTerminal;
-  const rawRep = data.reprobacionPorcentaje;
-  const rawAp = data.aprobacionPorcentaje;
+  const existencia = toRealNumber(data.existencia ?? data.matricula);
+  const altas = toRealNumber(data.altas);
+  const bajas = toRealNumber(data.bajas ?? data.bajasDefinitivas);
+  const matriculaInicioFinDoc = toRealNumber(data.matriculaInicioFinDoc ?? data.matriculaInicio);
 
-  const abandonoAnt = toRealNumber(rawAb) ?? prev.abandono_ant;
-  const etAnt = toRealNumber(rawEt) ?? prev.et_ant;
-  const reprobAnt = toRealNumber(rawRep) ?? prev.reprobacion_ant;
-  const aprobAnt = toRealNumber(rawAp) ?? prev.aprobacion_ant;
+  const calc = calcularIndicadores911({
+    existenciaFin: existencia,
+    bajas,
+    matriculaInicio: prev.matriculaInicioCicloAnterior,
+    matriculaInicioFinDoc,
+  });
 
-  const abandonoMeta = prev.abandono_meta !== undefined
-    ? prev.abandono_meta
-    : (abandonoAnt !== undefined && !isNaN(abandonoAnt)
-        ? Math.max(0, Math.round((abandonoAnt - 1.5) * 10) / 10)
-        : undefined);
+  const etAnt = calc.eficienciaTerminal ?? undefined;
+  const abAnt = calc.abandono ?? undefined;
 
+  // Metas sugeridas (reglas oficiales):
+  // et_meta = min(100, et_ant + 5)
+  // abandono_meta = max(0, abandono_ant - 1.5)
   const etMeta = prev.et_meta !== undefined
     ? prev.et_meta
-    : (etAnt !== undefined && !isNaN(etAnt)
-        ? Math.min(100, Math.round((etAnt + 2) * 10) / 10)
-        : undefined);
+    : (etAnt !== undefined ? Math.min(100, Number((etAnt + 5).toFixed(1))) : undefined);
 
-  const reprobMeta = prev.reprobacion_meta !== undefined
-    ? prev.reprobacion_meta
-    : (reprobAnt !== undefined && !isNaN(reprobAnt)
-        ? Math.max(0, Math.round((reprobAnt - 2) * 10) / 10)
-        : undefined);
+  const abMeta = prev.abandono_meta !== undefined
+    ? prev.abandono_meta
+    : (abAnt !== undefined ? Math.max(0, Number((abAnt - 1.5).toFixed(1))) : undefined);
 
-  const aprobMeta = prev.aprobacion_meta !== undefined
-    ? prev.aprobacion_meta
-    : (aprobAnt !== undefined && !isNaN(aprobAnt)
-        ? Math.min(100, Math.round((aprobAnt + 2) * 10) / 10)
-        : undefined);
-
-  // H-168: Cierre del ciclo anterior viene en data.matricula del documento fin_anterior
-  const matriculaCierre = toRealNumber(data.matricula);
-
-  return {
+  const next: T = {
     ...prev,
-    matricula: matriculaCierre ?? prev.matricula,
-    matriculaAnterior: matriculaCierre ?? prev.matriculaAnterior,
-    abandono_ant: abandonoAnt,
-    abandono_meta: abandonoMeta,
+    matriculaAnterior: existencia ?? prev.matriculaAnterior,
+    existenciaFin: existencia ?? prev.existenciaFin,
+    altas: altas ?? prev.altas,
+    bajasDefinitivas: bajas ?? prev.bajasDefinitivas,
+    bajas: bajas ?? prev.bajas,
     et_ant: etAnt,
     et_meta: etMeta,
-    reprobacion_ant: reprobAnt,
-    reprobacion_meta: reprobMeta,
-    aprobacion_ant: aprobAnt,
-    aprobacion_meta: aprobMeta,
+    abandono_ant: abAnt,
+    abandono_meta: abMeta,
   };
+
+  if (calc.eficienciaTerminal !== null || calc.abandono !== null) {
+    const fecha = new Date().toISOString();
+    const fuentes = calc.fuenteBaseline === '911_inicio' ? ['911_inicio', '911_fin'] : ['911_fin'];
+    next._calc = {
+      ...(next._calc || {}),
+      et: {
+        valor: calc.eficienciaTerminal,
+        formula: calc.formulaEt || '',
+        fuentes,
+        fecha,
+      },
+      abandono: {
+        valor: calc.abandono,
+        formula: calc.formulaAbandono || '',
+        fuentes,
+        fecha,
+      },
+    };
+  }
+
+  return next;
 }
 
 /**
@@ -96,7 +110,7 @@ export function mapInicioActualToIndicadores<T extends PmcIndicadoresAcademicos>
   prev: T
 ): T {
   if (!data) return prev;
-  const mat = toRealNumber(data.matricula);
+  const mat = toRealNumber(data.matriculaInicio ?? data.matricula);
   return {
     ...prev,
     matricula: mat ?? prev.matricula,
@@ -105,15 +119,54 @@ export function mapInicioActualToIndicadores<T extends PmcIndicadoresAcademicos>
 
 /**
  * Mapea la Estadística 911 de Inicio de Ciclo Anterior (momento='inicio_anterior').
+ * Guarda la matrícula de inicio en `matriculaInicioCicloAnterior` y recalcula ET y Abandono.
  */
 export function mapInicioAnteriorToIndicadores<T extends PmcIndicadoresAcademicos>(
   data: Estadistica911Data | undefined | null,
   prev: T
 ): T {
   if (!data) return prev;
-  const mat = toRealNumber(data.matricula);
-  return {
+  const matInicio = toRealNumber(data.matriculaInicio ?? data.matricula);
+
+  const next: T = {
     ...prev,
-    matricula: prev.matricula ?? mat,
+    matriculaInicioCicloAnterior: matInicio ?? prev.matriculaInicioCicloAnterior,
   };
+
+  // Recalcular ET y abandono si ya se tiene existenciaFin del fin de cursos
+  const existencia = next.existenciaFin ?? next.matriculaAnterior;
+  const baseline = next.matriculaInicioCicloAnterior;
+  if (existencia && baseline) {
+    const calc = calcularIndicadores911({
+      existenciaFin: existencia,
+      bajas: next.bajasDefinitivas ?? next.bajas,
+      matriculaInicio: baseline,
+    });
+    if (calc.eficienciaTerminal !== null) {
+      next.et_ant = calc.eficienciaTerminal;
+      next.et_meta = prev.et_meta !== undefined ? prev.et_meta : Math.min(100, Number((calc.eficienciaTerminal + 5).toFixed(1)));
+    }
+    if (calc.abandono !== null) {
+      next.abandono_ant = calc.abandono;
+      next.abandono_meta = prev.abandono_meta !== undefined ? prev.abandono_meta : Math.max(0, Number((calc.abandono - 1.5).toFixed(1)));
+    }
+    const fecha = new Date().toISOString();
+    next._calc = {
+      ...(next._calc || {}),
+      et: {
+        valor: calc.eficienciaTerminal,
+        formula: calc.formulaEt || '',
+        fuentes: ['911_inicio', '911_fin'],
+        fecha,
+      },
+      abandono: {
+        valor: calc.abandono,
+        formula: calc.formulaAbandono || '',
+        fuentes: ['911_inicio', '911_fin'],
+        fecha,
+      },
+    };
+  }
+
+  return next;
 }

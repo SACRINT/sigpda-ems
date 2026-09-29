@@ -180,8 +180,10 @@ describe('PmcOrchestrator (Piloto Nivel 1 & Strangler Fig)', () => {
       cicloEscolar: '2025-2026',
       momento: 'fin_anterior',
       matricula: 290,
-      abandonoPorcentaje: 5.4,
-      eficienciaTerminal: 89.2,
+      matriculaInicio: 290,
+      altas: 5,
+      bajas: 15,
+      existencia: 280,
       totalDocentes: 16,
     });
     vi.mocked(generateWithRotation).mockResolvedValueOnce(validAiResponse);
@@ -203,8 +205,7 @@ describe('PmcOrchestrator (Piloto Nivel 1 & Strangler Fig)', () => {
     expect(json.filename).toBe('911_orchestrated.pdf');
     expect(json.data.momento).toBe('fin_anterior');
     expect(json.data.matricula).toBe(290);
-    expect(json.data.abandonoPorcentaje).toBe(5.4);
-    expect(json.data.eficienciaTerminal).toBe(89.2);
+    expect(json.data.totalDocentes).toBe(16);
   });
 
   it('4. Con flag ON: maneja error 400 cuando el documento carece de texto suficiente', async () => {

@@ -14,20 +14,57 @@ export interface PmcStaffMember {
   horas_base?: number | string | null;
 }
 
+export interface PmcAuditCalculationEntry {
+  valor: number | string | null;
+  formula: string;
+  fuentes: string[];
+  fecha: string;
+}
+
+export interface PmcMetaAsignaturaDTO {
+  materia: string;
+  n: number;
+  reprobados: number;
+  porcentaje: number;
+  detallePorGrupo?: Record<string, { n: number; reprobados: number; porcentajeReprobacion: number }>;
+  metaSugerida?: number;
+  metaConfirmada?: boolean;
+}
+
 export interface PmcIndicadoresAcademicos {
-  aprobacion_ant?: number;
-  reprobacion_ant?: number;
-  abandono_ant?: number;
-  et_ant?: number; // Eficiencia Terminal
-  aprobacion_meta?: number;
-  reprobacion_meta?: number;
-  abandono_meta?: number;
-  et_meta?: number;
   matricula?: number;
   matriculaAnterior?: number;  // Matrícula de cierre del ciclo anterior (del 911 fin de cursos)
+  matriculaInicioCicloAnterior?: number; // Denominador oficial para ET y abandono (del 911 inicio)
   matricula_meta?: number;
+  altas?: number;
+  bajasDefinitivas?: number;
+  existenciaFin?: number;
+  totalAlumnosF11?: number;
+  aprobados?: number;
+  regulares?: number;
+  irregulares?: number;
+  reprobados?: number;
+  bajas?: number;
+  porcentajes?: {
+    aprobados?: number;
+    regulares?: number;
+    irregulares?: number;
+    reprobados?: number;
+    bajas?: number;
+  };
+  aprobacion_ant?: number;
+  aprobacion_meta?: number;
+  reprobacion_ant?: number;
+  reprobacion_meta?: number;
+  abandono_ant?: number;
+  abandono_meta?: number;
+  et_ant?: number; // Eficiencia Terminal
+  et_meta?: number;
   promedio_f11?: number;
   promedio_meta?: number;
+  reprobacionPorMateria?: PmcMetaAsignaturaDTO[];
+  _calc?: Record<string, PmcAuditCalculationEntry>;
+  metas_confirmadas?: boolean;
 }
 
 export interface PmcStatisticalPlantel {

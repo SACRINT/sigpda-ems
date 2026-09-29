@@ -106,17 +106,12 @@ describe('Blindaje Curricular y Extracción: F11 y Estadística 911 (N-002)', ()
         cicloEscolar: '2025-2026',
         schoolName: 'Centro de Estudios de Bachillerato Héroes de la Patria',
         schoolCct: '21EBH0200X',
-        matricula: 260,
-        matriculaAnterior: 275,
-        egresados: 78,
-        egresadosAnterior: 72,
-        bajasDefinitivas: 14,
-        abandonoPorcentaje: 5.38,
-        abandonoAnterior: 6.2,
-        eficienciaTerminal: 89.2,
-        eficienciaTerminalAnterior: 86.5,
-        aprobacionPorcentaje: 92.1,
-        reprobacionPorcentaje: 7.9,
+        matriculaInicio: 185,
+        altas: 4,
+        bajas: 10,
+        existencia: 179,
+        regulares: 134,
+        irregulares: 23,
         tipoReporte: 'fin',
         momento: 'fin_anterior',
         totalDocentes: 15,
@@ -133,8 +128,9 @@ describe('Blindaje Curricular y Extracción: F11 y Estadística 911 (N-002)', ()
       if (result.success) {
         expect(result.data.momento).toBe('fin_anterior');
         expect(result.data.tipoReporte).toBe('fin');
-        expect(result.data.abandonoPorcentaje).toBe(5.38);
-        expect(result.data.eficienciaTerminal).toBe(89.2);
+        expect(result.data.matriculaInicio).toBe(185);
+        expect(result.data.existencia).toBe(179);
+        expect(result.data.bajas).toBe(10);
         expect(result.data.gruposPorGrado['1er Semestre']).toBe(2);
       }
     });
@@ -144,12 +140,12 @@ describe('Blindaje Curricular y Extracción: F11 y Estadística 911 (N-002)', ()
         cicloEscolar: '2026-2027',
         schoolName: 'Centro de Estudios de Bachillerato Héroes de la Patria',
         schoolCct: '21EBH0200X',
-        matricula: 290,
+        matriculaInicio: 170,
         tipoReporte: 'inicio',
         momento: 'inicio_actual',
         totalDocentes: 16,
         totalGrupos: 6,
-        observaciones: 'Matrícula de nuevo ingreso registrada en 911.7G inicio',
+        observaciones: 'Matrícula de nuevo ingreso registrada en 911 inicio',
       };
 
       const result = Estadistica911ExtractSchema.safeParse(payloadInicio);
@@ -157,14 +153,14 @@ describe('Blindaje Curricular y Extracción: F11 y Estadística 911 (N-002)', ()
       if (result.success) {
         expect(result.data.momento).toBe('inicio_actual');
         expect(result.data.tipoReporte).toBe('inicio');
-        expect(result.data.matricula).toBe(290);
+        expect(result.data.matriculaInicio).toBe(170);
       }
     });
 
     it('Estadistica911ExtractSchema soporta momento inicio_anterior', () => {
       const payloadInicioAnt = {
         cicloEscolar: '2025-2026',
-        matricula: 275,
+        matriculaInicio: 192,
         momento: 'inicio_anterior',
         tipoReporte: 'inicio',
       };
@@ -173,20 +169,16 @@ describe('Blindaje Curricular y Extracción: F11 y Estadística 911 (N-002)', ()
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.momento).toBe('inicio_anterior');
-        expect(result.data.matricula).toBe(275);
+        expect(result.data.matriculaInicio).toBe(192);
       }
     });
 
-    it('buildEstadistica911ExtractionPrompt contiene reglas y estructura oficial fijando indicador generacional (H-047)', () => {
+    it('buildEstadistica911ExtractionPrompt contiene reglas sin porcentajes fabricados (H-220 / B-001)', () => {
       const prompt = buildEstadistica911ExtractionPrompt('Texto breve de ejemplo');
-      expect(prompt).toContain('Estadística Escolar (Formato 911)');
-      expect(prompt).toContain('abandonoPorcentaje');
-      expect(prompt).toContain('eficienciaTerminal');
+      expect(prompt).toContain('Concentrado Estadístico (Formato 911)');
+      expect(prompt).toContain('matriculaInicio');
       expect(prompt).toContain('tipoReporte');
-      // Invariantes normativos H-039 / H-047:
-      expect(prompt).toContain('GENERACIONAL');
-      expect(prompt).toContain('NUNCA dividas');
-      expect(prompt).toContain('cohorte');
+      expect(prompt).toContain('NO calcules porcentajes');
       expect(ESTADISTICA_911_EXTRACTION_SYSTEM_PROMPT).toContain('Formato 911');
     });
   });

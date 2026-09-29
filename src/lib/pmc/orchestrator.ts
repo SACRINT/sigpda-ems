@@ -25,7 +25,9 @@ import {
   ESTADISTICA_911_EXTRACTION_SYSTEM_PROMPT,
   buildEstadistica911ExtractionPrompt,
   Estadistica911ExtractSchema,
+  Estadistica911ExtractDTO,
 } from '@/lib/prompts/estadistica-911-extraction';
+import { parseConcentrado911Layout } from '@/lib/concentrado-911-calculator';
 import {
   PMC_EXTRACTION_SYSTEM_PROMPT,
   buildPmcExtractionPrompt,
@@ -188,6 +190,57 @@ export class PmcOrchestrator implements IPmcOrchestrator {
         }
       } catch (err) {
         logger.warn('[pmc-orchestrator:f11] Falló parser determinista de coordenadas, procediendo a OCR/IA:', err);
+      }
+    }
+
+    // 0.1 Si es 911, el parser determinista por coordenadas corre ANTES que cualquier IA (H-220 / B-001)
+    if (type === '911') {
+      try {
+        const layoutResult = await parseConcentrado911Layout(buffer, {
+          filename: options.filename,
+          momento: options.requestedMomento,
+        });
+
+        if (!layoutResult.isScanned && (layoutResult.existencia || layoutResult.matriculaInicio || layoutResult.matriculaInicioFinDoc)) {
+          const warnings = [...layoutResult.warnings];
+          if (layoutResult.tipoReporte === 'fin') {
+            if (!layoutResult.existencia) warnings.push('Falta existencia en la fila GENERAL del concentrado de fin.');
+            if (layoutResult.bajas === null) warnings.push('Falta total de bajas en el concentrado de fin.');
+          } else if (layoutResult.tipoReporte === 'inicio') {
+            if (!layoutResult.matriculaInicio) warnings.push('Falta matrícula de inicio en el concentrado.');
+          }
+
+          const data: Estadistica911ExtractDTO = {
+            cicloEscolar: layoutResult.cicloEscolar || '',
+            schoolName: layoutResult.schoolName || '',
+            schoolCct: layoutResult.schoolCct || '',
+            directorName: '',
+            supervisorName: '',
+            tipoReporte: layoutResult.tipoReporte,
+            momento: (options.requestedMomento || (layoutResult.tipoReporte === 'fin' ? 'fin_anterior' : 'inicio_actual')) as Estadistica911ExtractDTO['momento'],
+            matriculaInicio: layoutResult.matriculaInicio ?? layoutResult.matriculaInicioFinDoc,
+            altas: layoutResult.altas,
+            bajas: layoutResult.bajas,
+            existencia: layoutResult.existencia,
+            regulares: layoutResult.regulares,
+            irregulares: layoutResult.irregulares,
+            totalDocentes: layoutResult.totalDocentes,
+            docentesHombres: null,
+            docentesMujeres: null,
+            totalGrupos: layoutResult.totalGrupos,
+            gruposPorGrado: {},
+            observaciones: '',
+          };
+
+          return {
+            success: true,
+            filename: options.filename,
+            data,
+            warnings,
+          };
+        }
+      } catch (err) {
+        logger.warn('[pmc-orchestrator:911] Falló parser determinista de coordenadas, procediendo a OCR/IA:', err);
       }
     }
 

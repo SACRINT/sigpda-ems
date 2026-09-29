@@ -208,9 +208,9 @@ export function calculatePmcIndicatorRows(
   const rows: PmcIndicatorRow[] = [
     ['Tasa de Aprobación Escolar (F11C)', vals.aprobacion.ant, vals.aprobacion.meta, vals.aprobacion.var],
     ['Índice de Reprobación Escolar (F11C)', vals.reprobacion.ant, vals.reprobacion.meta, vals.reprobacion.var],
-    ['Abandono Escolar / Deserción (911.7)', vals.abandono.ant, vals.abandono.meta, vals.abandono.var],
-    ['Eficiencia Terminal / Egreso (911.7G)', vals.eficiencia.ant, vals.eficiencia.meta, vals.eficiencia.var],
-    ['Matrícula Escolar Oficial (911.7G)', vals.matricula.ant, vals.matricula.meta, vals.matricula.var],
+    ['Abandono Escolar / Deserción (911)', vals.abandono.ant, vals.abandono.meta, vals.abandono.var],
+    ['Eficiencia Terminal / Egreso (911)', vals.eficiencia.ant, vals.eficiencia.meta, vals.eficiencia.var],
+    ['Matrícula Escolar Oficial (911)', vals.matricula.ant, vals.matricula.meta, vals.matricula.var],
   ];
 
   if (vals.promedio) {

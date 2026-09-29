@@ -2,8 +2,11 @@ import { z } from 'zod';
 import { nullableString } from './zod-helpers';
 
 /**
- * Extraction schemas and prompts for Estadística 911 (Formato 911 - School Statistics).
- * The 911 contains demographic/enrollment data: matrícula, abandono, eficiencia terminal, etc.
+ * Extraction schemas and prompts for Formato 911 / Concentrado Estadístico.
+ * (H-220 / Regla Anti-Fabricación B-001):
+ * Se eliminaron todos los porcentajes pre-extraídos (eficienciaTerminal, abandono,
+ * aprobacion, reprobacion, egresados). El concentrado 911 NO trae porcentajes;
+ * la plataforma los CALCULA matemáticamente a partir de las cifras de inicio y fin.
  */
 
 export const Estadistica911ExtractSchema = z.object({
@@ -12,19 +15,15 @@ export const Estadistica911ExtractSchema = z.object({
   schoolCct: nullableString(),
   directorName: nullableString(),
   supervisorName: nullableString(),
-  matricula: z.coerce.number().nullable().optional(),
-  matriculaAnterior: z.coerce.number().nullable().optional(),
-  egresados: z.coerce.number().nullable().optional(),
-  egresadosAnterior: z.coerce.number().nullable().optional(),
-  bajasDefinitivas: z.coerce.number().nullable().optional(),
-  abandonoPorcentaje: z.coerce.number().nullable().optional(),
-  abandonoAnterior: z.coerce.number().nullable().optional(),
-  eficienciaTerminal: z.coerce.number().nullable().optional(),
-  eficienciaTerminalAnterior: z.coerce.number().nullable().optional(),
-  aprobacionPorcentaje: z.coerce.number().nullable().optional(),
-  reprobacionPorcentaje: z.coerce.number().nullable().optional(),
-  tipoReporte: z.enum(['inicio', 'fin', 'desconocido']).optional().default('desconocido'),
   momento: z.enum(['inicio_anterior', 'fin_anterior', 'inicio_actual', 'desconocido']).optional().default('desconocido'),
+  tipoReporte: z.enum(['inicio', 'fin', 'desconocido']).optional().default('desconocido'),
+  matricula: z.coerce.number().nullable().optional(),
+  matriculaInicio: z.coerce.number().nullable().optional(),
+  altas: z.coerce.number().nullable().optional(),
+  bajas: z.coerce.number().nullable().optional(),
+  existencia: z.coerce.number().nullable().optional(),
+  regulares: z.coerce.number().nullable().optional(),
+  irregulares: z.coerce.number().nullable().optional(),
   totalDocentes: z.coerce.number().nullable().optional(),
   docentesHombres: z.coerce.number().nullable().optional(),
   docentesMujeres: z.coerce.number().nullable().optional(),
@@ -35,12 +34,13 @@ export const Estadistica911ExtractSchema = z.object({
 
 export type Estadistica911ExtractDTO = z.infer<typeof Estadistica911ExtractSchema>;
 
-export const ESTADISTICA_911_EXTRACTION_SYSTEM_PROMPT = `Eres un experto en análisis de documentos estadísticos escolares de la Educación Media Superior en México.
-Tu objetivo es analizar textos extraídos del Formato 911 (Estadística Escolar) y extraer datos demográficos y de matrícula estructurados.
+export const ESTADISTICA_911_EXTRACTION_SYSTEM_PROMPT = `Eres un experto en análisis de concentrados estadísticos escolares (Formato 911) de la Educación Media Superior en México.
+Tu objetivo es analizar textos de concentrados estadísticos de inicio o fin de ciclo y extraer las cifras oficiales exactas de la fila GENERAL y cabecera.
+NUNCA calcules ni inventes porcentajes; solo extrae los números enteros presentes en el documento.
 Debes responder EXCLUSIVAMENTE con un objeto JSON válido, sin bloques de código markdown, explicaciones ni comentarios.`;
 
 export function buildEstadistica911ExtractionPrompt(documentText: string): string {
-  return `Analiza con minuciosidad el siguiente documento correspondiente a la Estadística Escolar (Formato 911) de un plantel de Educación Media Superior y extrae los datos demográficos y de matrícula.
+  return `Analiza con minuciosidad el siguiente documento correspondiente al Concentrado Estadístico (Formato 911) de un plantel de Educación Media Superior y extrae las cifras de matrícula y cabecera institucional.
 
 TEXTO DEL DOCUMENTO:
 """
@@ -50,22 +50,18 @@ ${documentText.slice(0, 75000)}
 Estructura la información en el siguiente esquema JSON exacto:
 {
   "cicloEscolar": "Ciclo escolar del documento (ej. 2025-2026)",
-  "schoolName": "Nombre del plantel",
+  "schoolName": "Nombre oficial del plantel",
   "schoolCct": "Clave de Centro de Trabajo (CCT)",
-  "directorName": "Nombre completo del Director(a) si aparece en firmas, sellos o datos del responsable (o vacía)",
-  "supervisorName": "Nombre completo del Supervisor(a) escolar si aparece en firmas o sellos (o vacía)",
-  "matricula": número total de alumnos inscritos en el ciclo actual (o null),
-  "matriculaAnterior": número total de alumnos inscritos en el ciclo anterior (o null),
-  "egresados": número de egresados del ciclo actual (o null),
-  "egresadosAnterior": número de egresados del ciclo anterior (o null),
-  "bajasDefinitivas": número de bajas definitivas (o null),
-  "abandonoPorcentaje": tasa de abandono escolar en porcentaje (número 0-100 o null),
-  "abandonoAnterior": tasa de abandono escolar del ciclo anterior (o null),
-  "eficienciaTerminal": porcentaje de eficiencia terminal (número 0-100 o null),
-  "eficienciaTerminalAnterior": eficiencia terminal del ciclo anterior (o null),
-  "aprobacionPorcentaje": porcentaje de aprobación general (o null),
-  "reprobacionPorcentaje": porcentaje de reprobación general (o null),
-  "tipoReporte": "inicio | fin (si es formato 911 de inicio de cursos o fin de cursos)",
+  "directorName": "Nombre completo del Director(a) si aparece en firmas o sello (o vacía)",
+  "supervisorName": "Nombre completo del Supervisor(a) si aparece en firmas o sello (o vacía)",
+  "tipoReporte": "inicio | fin (según sea concentrado de inicio o fin de cursos)",
+  "momento": "inicio_anterior | fin_anterior | inicio_actual | desconocido",
+  "matriculaInicio": número de alumnos al inicio del periodo (fila GENERAL columna AL INICIO DEL PERIODO TOTAL o matrícula de inicio),
+  "altas": número de altas del ciclo (fila GENERAL columna ALTAS TOTAL o null si es inicio),
+  "bajas": número de bajas definitivas del ciclo (fila GENERAL columna BAJAS TOTAL o null si es inicio),
+  "existencia": número de alumnos en existencia al término del semestre (fila GENERAL columna EXISTENCIA o null si es inicio),
+  "regulares": número de alumnos regulares (o null),
+  "irregulares": número de alumnos irregulares (o null),
   "totalDocentes": número total de docentes (o null),
   "docentesHombres": número de docentes hombres (o null),
   "docentesMujeres": número de docentes mujeres (o null),
@@ -79,13 +75,9 @@ Estructura la información en el siguiente esquema JSON exacto:
 }
 
 REGLAS DE EXTRACCIÓN:
-1. Extrae los porcentajes numéricos limpios (sin el símbolo %).
-2. Si el documento contiene datos de ciclos anteriores para comparación, extráelos en los campos "Anterior".
-3. Si el documento contiene desglose por grado o semester, extrae el número de grupos por grado.
-4. Extrae el nombre del Director(a) y Supervisor(a) en "directorName" y "supervisorName" si aparecen en los bloques de firmas oficiales al calce del formato 911.
-5. Si un dato no se encuentra, asigna una cadena vacía "" para texto o null para números, sin inventar información.
-6. Los porcentajes deben ser números decimales (ej. 6.8, no "6.8%" como texto).
-7. INDICADORES ESCOLARES OFICIALES:
-   - Eficiencia Terminal (%): Es un indicador GENERACIONAL oficial (ej. "% EFICIENCIA TERMINAL GENERACIÓN 2023-2026"). Extrae prioritariamente el porcentaje impreso exacto en el formato 911 o anexo de indicadores. NUNCA dividas el número de egresados entre la matrícula total del plantel si este abarca múltiples grados/semestres (subvaluaría el indicador a ~30%). Solo calcula si el documento especifica la cohorte exacta de nuevo ingreso de dicha generación: ((egresados / cohorteIngreso) * 100).
-   - Tasa de Abandono Escolar (%): Extrae el porcentaje impreso oficial. Si no está impreso pero se reportan bajas definitivas del ciclo y la matrícula del ciclo: calcula ((bajasDefinitivas / matricula) * 100). Por ejemplo, si iniciaron 85 y hubo 4 bajas, el abandono es 4.7%.`;
+1. Extrae únicamente números enteros presentes en el documento.
+2. NO calcules porcentajes de eficiencia terminal, abandono, aprobación ni reprobación.
+3. En concentrados de FIN: extrae obligatoriamente la fila GENERAL con las columnas AL INICIO DEL PERIODO (matriculaInicio), ALTAS TOTAL, BAJAS TOTAL y EXISTENCIA.
+4. En concentrados de INICIO: extrae la matrícula total al inicio del periodo escolar en matriculaInicio.
+5. Si un dato no se encuentra en el documento, asigna null para campos numéricos y cadena vacía "" para texto.`;
 }

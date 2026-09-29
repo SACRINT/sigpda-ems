@@ -1,9 +1,11 @@
 /**
  * src/__tests__/pmc-indicadores-mapping.test.ts
  *
- * Pruebas unitarias de mapeo de Estadística 911 a indicadores de PMC (H-165, H-168).
- * Valida que la matrícula de cierre de ciclo anterior se extraiga de data.matricula en fin_anterior,
- * y que inicio_actual no pise dicho cierre histórico.
+ * Pruebas unitarias de mapeo de Estadística 911 a indicadores de PMC (H-165, H-168, H-220).
+ * Valida el cálculo oficial determinista de ET y abandono escolar:
+ * - Baseline = Concentrado de INICIO (ej. 192 alumnos) -> ET 93.2%, abandono 5.2%.
+ * - Fallback = Columna AL INICIO DEL PERIODO de FIN (185) -> ET 96.8%, abandono 5.4%.
+ * - El orden de subida no altera el resultado final (idempotente y convergente).
  */
 
 import { describe, it, expect } from 'vitest';
@@ -14,10 +16,11 @@ import {
 } from '@/lib/pmc/indicadores-mapping';
 import type { PmcIndicadoresAcademicos } from '@/types/pmc';
 
-describe('Mapeo de Indicadores 911 (H-168)', () => {
+describe('Mapeo y Cálculo de Indicadores 911 (H-168, H-220)', () => {
   const baseIndicadores: PmcIndicadoresAcademicos = {
     matricula: undefined,
     matriculaAnterior: undefined,
+    matriculaInicioCicloAnterior: undefined,
     matricula_meta: undefined,
     aprobacion_ant: undefined,
     aprobacion_meta: undefined,
@@ -29,68 +32,94 @@ describe('Mapeo de Indicadores 911 (H-168)', () => {
     et_meta: undefined,
   };
 
-  it('1. fin_anterior mapea data.matricula a matriculaAnterior (cierre de ciclo real 81)', () => {
+  it('1. fin_anterior calcula ET y abandono con fallback 185 cuando aun no se sube inicio', () => {
     const finAnterior911 = {
-      matricula: 81, // Cierre del ciclo escolar 2025-2026
-      matriculaAnterior: 70, // Ciclo 2024-2025 (columna comparativa histórica en el 911)
-      abandonoPorcentaje: 5.5,
-      eficienciaTerminal: 85.0,
-      reprobacionPorcentaje: 10.0,
-      aprobacionPorcentaje: 90.0,
+      existencia: 179,
+      bajas: 10,
+      altas: 4,
+      matriculaInicioFinDoc: 185,
     };
 
     const resultado = mapFinAnteriorToIndicadores(finAnterior911, baseIndicadores);
 
-    // H-168: Debe ser 81 (el cierre del ciclo del documento), NUNCA 70
-    expect(resultado.matriculaAnterior).toBe(81);
-    expect(resultado.matriculaAnterior).not.toBe(70);
+    // Cierre
+    expect(resultado.matriculaAnterior).toBe(179);
+    expect(resultado.existenciaFin).toBe(179);
+    expect(resultado.bajasDefinitivas).toBe(10);
 
-    // Indicadores académicos y metas derivadas
-    expect(resultado.abandono_ant).toBe(5.5);
-    expect(resultado.abandono_meta).toBe(4.0); // 5.5 - 1.5
-    expect(resultado.et_ant).toBe(85.0);
-    expect(resultado.et_meta).toBe(87.0); // 85.0 + 2.0
-    expect(resultado.reprobacion_ant).toBe(10.0);
-    expect(resultado.reprobacion_meta).toBe(8.0); // 10.0 - 2.0
-    expect(resultado.aprobacion_ant).toBe(90.0);
-    expect(resultado.aprobacion_meta).toBe(92.0); // 90.0 + 2.0
+    // ET = 179/185 * 100 = 96.8%
+    expect(resultado.et_ant).toBe(96.8);
+    // Abandono = 10/185 * 100 = 5.4%
+    expect(resultado.abandono_ant).toBe(5.4);
+
+    // Metas sugeridas oficiales
+    // et_meta = min(100, 96.8 + 5) = 100
+    expect(resultado.et_meta).toBe(100);
+    // abandono_meta = max(0, 5.4 - 1.5) = 3.9
+    expect(resultado.abandono_meta).toBe(3.9);
+
+    // Registro de auditoría
+    expect(resultado._calc?.et?.fuentes).toContain('911_fin');
+    expect(resultado._calc?.abandono?.fuentes).toContain('911_fin');
   });
 
-  it('2. Carga subsecuente de inicio_actual (75 alumnos) NO pisa matriculaAnterior (81)', () => {
-    // Paso 1: Se carga fin de ciclo anterior (81 alumnos)
-    const despuesFinAnt = mapFinAnteriorToIndicadores(
-      { matricula: 81 },
+  it('2. Subida posterior de inicio_anterior (192) recalcula ET (93.2%) y abandono (5.2%)', () => {
+    // Paso 1: Primero se subió fin de cursos
+    const despuesFin = mapFinAnteriorToIndicadores(
+      { existencia: 179, bajas: 10, matriculaInicioFinDoc: 185 },
       baseIndicadores
     );
-    expect(despuesFinAnt.matriculaAnterior).toBe(81);
-    expect(despuesFinAnt.matricula).toBe(81);
+    expect(despuesFin.et_ant).toBe(96.8);
 
-    // Paso 2: Se carga inicio de ciclo actual (75 alumnos inscritos a agosto)
-    const despuesIniAct = mapInicioActualToIndicadores(
-      { matricula: 75 },
-      despuesFinAnt
+    // Paso 2: Luego se sube el concentrado de inicio del ciclo anterior (192)
+    const despuesInicio = mapInicioAnteriorToIndicadores(
+      { matriculaInicio: 192 },
+      despuesFin
     );
 
-    // La matrícula vigente ahora es 75
-    expect(despuesIniAct.matricula).toBe(75);
-    // Pero la línea base histórica del cierre anterior SIGUE SIENDO 81
-    expect(despuesIniAct.matriculaAnterior).toBe(81);
+    expect(despuesInicio.matriculaInicioCicloAnterior).toBe(192);
+    // ET recalcula con línea base oficial: 179/192 * 100 = 93.2%
+    expect(despuesInicio.et_ant).toBe(93.2);
+    // Abandono recalcula con línea base oficial: 10/192 * 100 = 5.2%
+    expect(despuesInicio.abandono_ant).toBe(5.2);
+
+    expect(despuesInicio._calc?.et?.fuentes).toEqual(['911_inicio', '911_fin']);
+    expect(despuesInicio._calc?.abandono?.fuentes).toEqual(['911_inicio', '911_fin']);
   });
 
-  it('3. fin_anterior sin data.matriculaAnterior sigue asignando correctamente el cierre', () => {
-    const finAnteriorSinComparativa = {
-      matricula: 95,
-      // matriculaAnterior no viene en el 911
-    };
+  it('3. Subida en orden inverso (primero inicio 192, luego fin 179/10) da el MISMO resultado exacto', () => {
+    // Paso 1: Primero inicio
+    const despuesInicio = mapInicioAnteriorToIndicadores(
+      { matriculaInicio: 192 },
+      baseIndicadores
+    );
+    expect(despuesInicio.matriculaInicioCicloAnterior).toBe(192);
 
-    const resultado = mapFinAnteriorToIndicadores(finAnteriorSinComparativa, baseIndicadores);
-    expect(resultado.matriculaAnterior).toBe(95);
+    // Paso 2: Luego fin
+    const resultado = mapFinAnteriorToIndicadores(
+      { existencia: 179, bajas: 10, matriculaInicioFinDoc: 185 },
+      despuesInicio
+    );
+
+    expect(resultado.matriculaInicioCicloAnterior).toBe(192);
+    expect(resultado.matriculaAnterior).toBe(179);
+    expect(resultado.et_ant).toBe(93.2);
+    expect(resultado.abandono_ant).toBe(5.2);
   });
 
-  it('4. inicio_anterior asigna matrícula inicial sin alterar metas ni matrícula anterior', () => {
-    const res = mapInicioAnteriorToIndicadores({ matricula: 78 }, baseIndicadores);
-    expect(res.matricula).toBe(78);
-    expect(res.matriculaAnterior).toBeUndefined();
+  it('4. Carga subsecuente de inicio_actual (170) preserva matriculaAnterior (179) y fija matricula vigente (170)', () => {
+    const despuesFin = mapFinAnteriorToIndicadores(
+      { existencia: 179, bajas: 10, matriculaInicioFinDoc: 185 },
+      baseIndicadores
+    );
+
+    const despuesIniAct = mapInicioActualToIndicadores(
+      { matriculaInicio: 170 },
+      despuesFin
+    );
+
+    expect(despuesIniAct.matricula).toBe(170);
+    expect(despuesIniAct.matriculaAnterior).toBe(179);
   });
 
   it('5. Manejo defensivo de null o undefined', () => {
