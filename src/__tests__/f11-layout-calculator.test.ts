@@ -206,5 +206,21 @@ describe('f11-layout-calculator (H-219)', () => {
     expect(rep2B).toBe(0);
     expect(rep2C).toBe(40);
     expect(rep2D).toBe(8);
+
+    // CP-1 / M2: Verificación de trazabilidad y confidence score por campo en F11
+    expect(result.fieldConfidence).toBeDefined();
+    expect(result.fieldConfidence.schoolCct.method).toBe('regex_fulltext');
+    expect(result.fieldConfidence.schoolCct.fuente).toBe('regex_texto');
+    expect(result.fieldConfidence.schoolCct.confidence).toBe(0.95);
+    expect(result.fieldConfidence.directorName.method).toBe('structural_anchor');
+    expect(result.fieldConfidence.directorName.fuente).toBe('ancla_estructural');
+    expect(result.fieldConfidence.directorName.confidence).toBe(0.92);
+    expect(result.fieldConfidence.directorName.requiresManualValidation).toBe(false);
+    expect(result.fieldConfidence.totalAlumnos.method).toBe('cross_validated');
+    expect(result.fieldConfidence.totalAlumnos.fuente).toBe('validacion_cruzada');
+    expect(result.fieldConfidence.totalAlumnos.confidence).toBe(0.99);
+    expect(result.fieldConfidence.promedioGeneral.method).toBe('cross_validated');
+    expect(result.fieldConfidence.bandaEncabezadoGrupo.method).toBe('structural_anchor');
+    expect(result.fieldConfidence.bandaEncabezadoGrupo.confidence).toBe(0.98);
   });
 });

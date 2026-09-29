@@ -70,6 +70,22 @@ export interface MetricaAsignaturaF11 {
   detallePorGrupo: Record<string, DetalleGrupoMateria>;
 }
 
+import type { ExtractedField } from './document-ingestion/types';
+import { createExtractedField } from './document-ingestion/types';
+
+export interface F11FieldConfidence {
+  schoolName: ExtractedField<string>;
+  schoolCct: ExtractedField<string>;
+  cicloEscolar: ExtractedField<string>;
+  directorName: ExtractedField<string>;
+  supervisorName: ExtractedField<string>;
+  controlEscolarName: ExtractedField<string>;
+  totalAlumnos: ExtractedField<number>;
+  promedioGeneral: ExtractedField<number>;
+  grupos: ExtractedField<number>;
+  bandaEncabezadoGrupo: ExtractedField<number>;
+}
+
 export interface F11LayoutResult {
   schoolName: string | null;
   schoolCct: string | null;
@@ -102,6 +118,7 @@ export interface F11LayoutResult {
     bajas: number;
     totalAlumnos: number;
   };
+  fieldConfidence: F11FieldConfidence;
 }
 
 interface RawPdfItem {
@@ -196,6 +213,8 @@ export async function parseF11Layout(buffer: Buffer): Promise<F11LayoutResult> {
   let controlEscolarName: string | null = null;
 
   let currentGroup = '';
+  let dynamicBandDetected = false;
+  let lastDetectedBandY: number | null = null;
 
   for (let pageNum = 1; pageNum <= doc.numPages; pageNum++) {
     const page = await doc.getPage(pageNum);
@@ -263,7 +282,12 @@ export async function parseF11Layout(buffer: Buffer): Promise<F11LayoutResult> {
     }
 
     // 1. Detectar encabezado de grupo con banda Y dinámica anclada en la clave del plantel
-    const headerBandY = detectarBandaEncabezadoGrupo(items) ?? BANDA_ENCABEZADO_GRUPO_DEFAULT;
+    const dynamicBand = detectarBandaEncabezadoGrupo(items);
+    if (dynamicBand !== null) {
+      dynamicBandDetected = true;
+      lastDetectedBandY = dynamicBand;
+    }
+    const headerBandY = dynamicBand ?? BANDA_ENCABEZADO_GRUPO_DEFAULT;
     const headerRowItems = items
       .filter(it => Math.abs(it.transform[5] - headerBandY) <= TOLERANCIA_BANDA_GRUPO)
       .sort((a, b) => a.transform[4] - b.transform[4]);
@@ -551,6 +575,39 @@ export async function parseF11Layout(buffer: Buffer): Promise<F11LayoutResult> {
     ? Number((alumnosConPromedio.reduce((sum, a) => sum + Number(a.promedioGeneral), 0) / alumnosConPromedio.length).toFixed(1))
     : null;
 
+  const fieldConfidence: F11FieldConfidence = {
+    schoolName: schoolName
+      ? createExtractedField<string>(schoolName, 'coordinate_band', 0.85, 10)
+      : createExtractedField<string>(null, 'inferred', 0.0),
+    schoolCct: schoolCct
+      ? createExtractedField<string>(schoolCct, 'regex_fulltext', 0.95)
+      : createExtractedField<string>(null, 'inferred', 0.0),
+    cicloEscolar: cicloEscolar
+      ? createExtractedField<string>(cicloEscolar, 'coordinate_band', 0.85, 15)
+      : createExtractedField<string>(null, 'inferred', 0.0),
+    directorName: directorName
+      ? createExtractedField<string>(directorName, 'structural_anchor', 0.92, 50)
+      : createExtractedField<string>(null, 'inferred', 0.0),
+    supervisorName: supervisorName
+      ? createExtractedField<string>(supervisorName, 'structural_anchor', 0.92, 50)
+      : createExtractedField<string>(null, 'inferred', 0.0),
+    controlEscolarName: controlEscolarName
+      ? createExtractedField<string>(controlEscolarName, 'structural_anchor', 0.92, 50)
+      : createExtractedField<string>(null, 'inferred', 0.0),
+    totalAlumnos: alumnos.length > 0
+      ? createExtractedField<number>(totalAlumnos, 'cross_validated', 0.99)
+      : createExtractedField<number>(0, 'inferred', 0.0),
+    promedioGeneral: promedioGeneral !== null
+      ? createExtractedField<number>(promedioGeneral, 'cross_validated', 0.95)
+      : createExtractedField<number>(null, 'inferred', 0.0),
+    grupos: Object.keys(gruposCount).length > 0
+      ? createExtractedField<number>(Object.keys(gruposCount).length, 'cross_validated', 0.95)
+      : createExtractedField<number>(0, 'inferred', 0.0),
+    bandaEncabezadoGrupo: dynamicBandDetected
+      ? createExtractedField<number>(lastDetectedBandY ?? BANDA_ENCABEZADO_GRUPO_DEFAULT, 'structural_anchor', 0.98, TOLERANCIA_BANDA_GRUPO)
+      : createExtractedField<number>(BANDA_ENCABEZADO_GRUPO_DEFAULT, 'coordinate_band', 0.65, TOLERANCIA_BANDA_GRUPO),
+  };
+
   return {
     schoolName,
     schoolCct,
@@ -583,5 +640,6 @@ export async function parseF11Layout(buffer: Buffer): Promise<F11LayoutResult> {
       bajas,
       totalAlumnos,
     },
+    fieldConfidence,
   };
 }

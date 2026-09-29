@@ -26,6 +26,21 @@ if (typeof g.Path2D === 'undefined') {
   g.Path2D = class Path2D {};
 }
 
+import type { ExtractedField } from './document-ingestion/types';
+import { createExtractedField } from './document-ingestion/types';
+
+export interface Concentrado911FieldConfidence {
+  schoolName: ExtractedField<string>;
+  schoolCct: ExtractedField<string>;
+  cicloEscolar: ExtractedField<string>;
+  tipoReporte: ExtractedField<string>;
+  matriculaInicio: ExtractedField<number>;
+  matriculaInicioFinDoc: ExtractedField<number>;
+  altas: ExtractedField<number>;
+  bajas: ExtractedField<number>;
+  existencia: ExtractedField<number>;
+}
+
 export interface RawConcentrado911Layout {
   schoolName: string | null;
   schoolCct: string | null;
@@ -42,6 +57,7 @@ export interface RawConcentrado911Layout {
   totalGrupos: number | null;
   isScanned: boolean;
   warnings: string[];
+  fieldConfidence: Concentrado911FieldConfidence;
 }
 
 export interface CalculoIndicadores911Params {
@@ -149,6 +165,18 @@ export async function parseConcentrado911Layout(
   const totalDocentes: number | null = null;
   const totalGrupos: number | null = null;
 
+  const emptyConfidence = (): Concentrado911FieldConfidence => ({
+    schoolName: createExtractedField<string>(null, 'inferred', 0.0),
+    schoolCct: createExtractedField<string>(null, 'inferred', 0.0),
+    cicloEscolar: createExtractedField<string>(null, 'inferred', 0.0),
+    tipoReporte: createExtractedField<string>(null, 'inferred', 0.0),
+    matriculaInicio: createExtractedField<number>(null, 'inferred', 0.0),
+    matriculaInicioFinDoc: createExtractedField<number>(null, 'inferred', 0.0),
+    altas: createExtractedField<number>(null, 'inferred', 0.0),
+    bajas: createExtractedField<number>(null, 'inferred', 0.0),
+    existencia: createExtractedField<number>(null, 'inferred', 0.0),
+  });
+
   if (doc.numPages < 1) {
     return {
       schoolName,
@@ -166,6 +194,7 @@ export async function parseConcentrado911Layout(
       totalGrupos,
       isScanned: true,
       warnings: ['Documento vacío o sin páginas.'],
+      fieldConfidence: emptyConfidence(),
     };
   }
 
@@ -190,20 +219,30 @@ export async function parseConcentrado911Layout(
       totalGrupos,
       isScanned: true,
       warnings: ['El archivo no contiene texto digital extraíble (documento escaneado).'],
+      fieldConfidence: emptyConfidence(),
     };
   }
 
   const fullText = items.map(it => it.str).join(' ');
 
   // 1. CCT
+  let schoolCctConfidence = createExtractedField<string>(null, 'inferred', 0.0);
   const cctMatch = fullText.match(/\b\d{2}[A-Z]{3}\d{4}[A-Z]\b/);
-  if (cctMatch) schoolCct = cctMatch[0];
+  if (cctMatch) {
+    schoolCct = cctMatch[0];
+    schoolCctConfidence = createExtractedField(schoolCct, 'regex_fulltext', 0.95);
+  }
 
   // 2. Ciclo escolar
+  let cicloEscolarConfidence = createExtractedField<string>(null, 'inferred', 0.0);
   const cicloMatch = fullText.match(/\b(\d{4}\s*-\s*\d{4})\b/);
-  if (cicloMatch) cicloEscolar = cicloMatch[1].replace(/\s+/g, '');
+  if (cicloMatch) {
+    cicloEscolar = cicloMatch[1].replace(/\s+/g, '');
+    cicloEscolarConfidence = createExtractedField(cicloEscolar, 'regex_fulltext', 0.90);
+  }
 
   // 3. Escuela (extracción determinista a partir de etiqueta oficial, sin nombres hardcodeados)
+  let schoolNameConfidence = createExtractedField<string>(null, 'inferred', 0.0);
   const labelEscuela = items.find(it =>
     /NOMBRE\s+OFICIAL\s+DE\s+LA\s+ESCUELA/i.test(it.str)
   );
@@ -221,6 +260,8 @@ export async function parseConcentrado911Layout(
         return distA - distB;
       });
       schoolName = candidates[0].str.trim();
+      const bestDist = Math.hypot(candidates[0].transform[4] - labelEscuela.transform[4], candidates[0].transform[5] - labelEscuela.transform[5]);
+      schoolNameConfidence = createExtractedField(schoolName, 'structural_anchor', 0.98, Math.round(bestDist));
     }
   }
 
@@ -228,17 +269,21 @@ export async function parseConcentrado911Layout(
     const afterLabel = fullText.match(/NOMBRE OFICIAL DE LA ESCUELA[A-Z\s]*?([A-ZÁÉÍÓÚÑ\s]{4,40}?)(?:DOMICILIO|MUNICIPIO|LOCALIDAD|CLAVE)/i);
     if (afterLabel && afterLabel[1].trim()) {
       schoolName = afterLabel[1].trim();
+      schoolNameConfidence = createExtractedField(schoolName, 'regex_fulltext', 0.75);
     }
   }
 
   // 4. Tipo de reporte (prioridad: options.momento > options.filename > detección estructural)
   const optFilename = (options?.filename || '').toLowerCase();
   const optMomento = (options?.momento || '').toLowerCase();
+  let tipoReporteConfidence = createExtractedField<string>('desconocido', 'inferred', 0.0);
 
   if (optMomento === 'fin_anterior' || optFilename.includes('final') || optFilename.includes('fin')) {
     tipoReporte = 'fin';
+    tipoReporteConfidence = createExtractedField('fin', 'inferred', 0.85);
   } else if (optMomento.startsWith('inicio') || optFilename.includes('inicio')) {
     tipoReporte = 'inicio';
+    tipoReporteConfidence = createExtractedField('inicio', 'inferred', 0.85);
   } else {
     // Si la fila GENERAL tiene >= 3 columnas numéricas (inicio, altas, bajas, existencia) es FIN
     const generalItem = items.find(it => it.str.trim() === 'GENERAL');
@@ -248,10 +293,18 @@ export async function parseConcentrado911Layout(
         it => Math.abs(it.transform[5] - rowY) <= 6 && /^\d+$/.test(it.str.trim())
       );
       tipoReporte = rowNums.length >= 3 ? 'fin' : 'inicio';
+      tipoReporteConfidence = createExtractedField(tipoReporte, 'structural_anchor', 0.95, 6);
     } else {
       tipoReporte = 'inicio';
+      tipoReporteConfidence = createExtractedField('inicio', 'inferred', 0.60);
     }
   }
+
+  let matriculaInicioFinDocConfidence = createExtractedField<number>(null, 'inferred', 0.0);
+  let altasConfidence = createExtractedField<number>(null, 'inferred', 0.0);
+  let bajasConfidence = createExtractedField<number>(null, 'inferred', 0.0);
+  let existenciaConfidence = createExtractedField<number>(null, 'inferred', 0.0);
+  let matriculaInicioConfidence = createExtractedField<number>(null, 'inferred', 0.0);
 
   // 5. Extracción de fila GENERAL
   if (tipoReporte === 'fin') {
@@ -274,11 +327,18 @@ export async function parseConcentrado911Layout(
         altas = nums[1];
         bajas = nums[2];
         existencia = nums[3];
+        matriculaInicioFinDocConfidence = createExtractedField(nums[0], 'structural_anchor', 0.95, 6);
+        altasConfidence = createExtractedField(nums[1], 'structural_anchor', 0.95, 6);
+        bajasConfidence = createExtractedField(nums[2], 'structural_anchor', 0.95, 6);
+        existenciaConfidence = createExtractedField(nums[3], 'structural_anchor', 0.95, 6);
       } else if (nums.length === 3) {
         // [alInicio, bajas, existencia]
         matriculaInicioFinDoc = nums[0];
         bajas = nums[1];
         existencia = nums[2];
+        matriculaInicioFinDocConfidence = createExtractedField(nums[0], 'structural_anchor', 0.90, 6);
+        bajasConfidence = createExtractedField(nums[1], 'structural_anchor', 0.90, 6);
+        existenciaConfidence = createExtractedField(nums[2], 'structural_anchor', 0.90, 6);
       }
     }
   } else {
@@ -317,6 +377,7 @@ export async function parseConcentrado911Layout(
             );
             if (Math.abs(sortedByDist[0].transform[4] - generalColItem.transform[4]) <= 8) {
               matriculaInicio = Number(sortedByDist[0].str.trim());
+              matriculaInicioConfidence = createExtractedField(matriculaInicio, 'cross_validated', 0.98, 8);
             }
           }
 
@@ -327,11 +388,14 @@ export async function parseConcentrado911Layout(
               const prev2 = Number(rowItems[rowItems.length - 3].str.trim());
               if (prev1 + prev2 === lastNum && lastNum > 0) {
                 matriculaInicio = lastNum;
+                matriculaInicioConfidence = createExtractedField(matriculaInicio, 'cross_validated', 0.95);
               } else if (lastNum > 0) {
                 matriculaInicio = lastNum;
+                matriculaInicioConfidence = createExtractedField(matriculaInicio, 'inferred', 0.70);
               }
             } else if (lastNum > 0) {
               matriculaInicio = lastNum;
+              matriculaInicioConfidence = createExtractedField(matriculaInicio, 'inferred', 0.70);
             }
           }
         }
@@ -348,7 +412,10 @@ export async function parseConcentrado911Layout(
           .sort((a, b) => a.transform[4] - b.transform[4]);
         if (rowItems.length >= 3) {
           const last = Number(rowItems[rowItems.length - 1].str.trim());
-          if (last > 0) matriculaInicio = last;
+          if (last > 0) {
+            matriculaInicio = last;
+            matriculaInicioConfidence = createExtractedField(matriculaInicio, 'coordinate_band', 0.65, 6);
+          }
         }
       }
     }
@@ -370,5 +437,16 @@ export async function parseConcentrado911Layout(
     totalGrupos,
     isScanned: false,
     warnings,
+    fieldConfidence: {
+      schoolName: schoolNameConfidence,
+      schoolCct: schoolCctConfidence,
+      cicloEscolar: cicloEscolarConfidence,
+      tipoReporte: tipoReporteConfidence,
+      matriculaInicio: matriculaInicioConfidence,
+      matriculaInicioFinDoc: matriculaInicioFinDocConfidence,
+      altas: altasConfidence,
+      bajas: bajasConfidence,
+      existencia: existenciaConfidence,
+    },
   };
 }

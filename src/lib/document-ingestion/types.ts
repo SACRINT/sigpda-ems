@@ -47,3 +47,68 @@ export interface IngestOptions {
   /** Si true, ignora la caché existente y fuerza la re-ingesta y actualización de la caché */
   bypassCache?: boolean;
 }
+
+/**
+ * Método de extracción determinista empleado para derivar un campo del documento.
+ */
+export type ExtractionMethod =
+  | 'structural_anchor' // Etiqueta oficial / texto invariante + distancia geométrica < umbral
+  | 'coordinate_band'   // Búsqueda en banda Y fija o heurística de coordenadas espaciales
+  | 'regex_fulltext'    // Expresión regular sobre texto plano continuo concatenado
+  | 'cross_validated'   // Valor validado/confirmado en 2+ fuentes o sumas de control
+  | 'inferred';         // Inferencia por descarte o valor predeterminado sin comprobación
+
+/**
+ * Normalización en español para compatibilidad directa con interfaces de usuario.
+ */
+export type FuenteExtraccion =
+  | 'ancla_estructural'
+  | 'banda_coordenadas'
+  | 'inferencia'
+  | 'validacion_cruzada'
+  | 'regex_texto';
+
+/**
+ * Representa un campo extraído con trazabilidad de su método y nivel de confianza.
+ */
+export interface ExtractedField<T> {
+  value: T | null;
+  method: ExtractionMethod;
+  fuente: FuenteExtraccion;
+  confidence: number; // 0.0 a 1.0
+  tolerance_px?: number;
+  requiresManualValidation: boolean;
+}
+
+export function methodToFuente(method: ExtractionMethod): FuenteExtraccion {
+  switch (method) {
+    case 'structural_anchor':
+      return 'ancla_estructural';
+    case 'coordinate_band':
+      return 'banda_coordenadas';
+    case 'regex_fulltext':
+      return 'regex_texto';
+    case 'cross_validated':
+      return 'validacion_cruzada';
+    case 'inferred':
+    default:
+      return 'inferencia';
+  }
+}
+
+export function createExtractedField<T>(
+  value: T | null,
+  method: ExtractionMethod,
+  confidence: number,
+  tolerance_px?: number
+): ExtractedField<T> {
+  const normConf = Number(Math.max(0, Math.min(1, confidence)).toFixed(2));
+  return {
+    value,
+    method,
+    fuente: methodToFuente(method),
+    confidence: normConf,
+    tolerance_px,
+    requiresManualValidation: method === 'inferred' || normConf < 0.75,
+  };
+}
