@@ -15,7 +15,6 @@ import {
   checkRawIsTruncated,
   partitionMarkdownDocument,
   deduplicatePlanElements,
-  deduplicateMetasPrevias,
   extractPmcPreviousWithPartitioning,
 } from '@/lib/pmc/pmc-partitioner';
 import { calculatePmcCoverage } from '@/lib/pmc/plan-element-normalizer';
