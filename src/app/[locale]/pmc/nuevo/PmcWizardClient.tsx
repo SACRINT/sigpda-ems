@@ -600,6 +600,8 @@ interface EditablePlanElement {
   const [parsedPmcData, setParsedPmcData] = useState<PmcPreviousExtractDTO | null>(null);
   const [editableElementosPlan, setEditableElementosPlan] = useState<EditablePlanElement[]>([]);
   const [ingestWarnings, setIngestWarnings] = useState<string[]>([]);
+  // H-240: F11-specific warnings (column mismatch, zip truncation, etc.)
+  const [f11Warnings, setF11Warnings] = useState<string[]>([]);
   const [ingestCoverage, setIngestCoverage] = useState<{
     detectados: number | null;
     extraidos: number;
@@ -914,6 +916,12 @@ interface EditablePlanElement {
         'Error al analizar el F11.'
       );
       if (!res.ok || !json.success) throw new Error(json.error || 'Error al analizar el F11.');
+      // H-240: capture F11 layout warnings (column mismatch, zip truncation) and surface to user
+      if (Array.isArray((json as { warnings?: string[] }).warnings) && (json as { warnings?: string[] }).warnings!.length > 0) {
+        setF11Warnings((json as { warnings?: string[] }).warnings!);
+      } else {
+        setF11Warnings([]);
+      }
       if (json.data?.schoolName && !schoolName) setSchoolName(json.data.schoolName);
       if (json.data?.schoolCct && !schoolCct) setSchoolCct(json.data.schoolCct);
 
@@ -2632,6 +2640,24 @@ interface EditablePlanElement {
                     {indicadores.bajas !== undefined && ` (Bajas F11: ${indicadores.bajas})`}
                     {indicadores.bajasDefinitivas !== undefined && ` vs (Bajas 911: ${indicadores.bajasDefinitivas})`}
                   </div>
+                </div>
+              )}
+
+              {/* H-240: F11 column mismatch / zip truncation warnings */}
+              {f11Warnings.length > 0 && (
+                <div style={{
+                  background: 'rgba(245, 158, 11, 0.10)',
+                  border: '1px solid rgba(245, 158, 11, 0.4)',
+                  borderRadius: '6px',
+                  padding: '8px 12px',
+                  fontSize: '12px',
+                  color: '#fde68a',
+                  marginBottom: '16px',
+                }}>
+                  <div style={{ fontWeight: 700, marginBottom: '4px' }}>⚠️ Advertencias del F11 (requiere revisión):</div>
+                  <ul style={{ margin: 0, paddingLeft: '16px', lineHeight: 1.6 }}>
+                    {f11Warnings.map((w, i) => <li key={i}>{w}</li>)}
+                  </ul>
                 </div>
               )}
 
