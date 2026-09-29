@@ -130,6 +130,8 @@ export interface IndicadoresAcademicos {
     bajas911?: number;
     mensaje?: string;
   };
+  f11_warnings?: string[];
+  ingest_coverage?: IngestCoverageData;
 }
 
 interface Foda {
@@ -202,12 +204,59 @@ export function buildIndicadoresPayload(
   ingest_coverage?: IngestCoverageData;
   f11_warnings?: string[];
 } {
+  // H-252: Excluir f11_warnings e ingest_coverage del clon de indicadores para evitar
+  // que arrastren valores hidratados cuando se limpia el estado en el cliente.
+  const baseIndicadores: IndicadoresAcademicos = { ...indicadores };
+  delete baseIndicadores.f11_warnings;
+  delete baseIndicadores.ingest_coverage;
+
   return {
-    ...indicadores,
+    ...baseIndicadores,
     metas_confirmadas: metasConfirmadas,
     ...(ingestCoverage ? { ingest_coverage: ingestCoverage } : {}),
     ...(f11Warnings && f11Warnings.length > 0 ? { f11_warnings: f11Warnings } : {}),
   };
+}
+
+export function buildPmcSaveBody(
+  method: 'POST' | 'PUT',
+  baseFields: Record<string, unknown>,
+  payload: Partial<PmcProject>,
+  indicadoresBody: ReturnType<typeof buildIndicadoresPayload>
+): Record<string, unknown> {
+  if (method === 'POST') {
+    return {
+      ...baseFields,
+      ...payload,
+      indicadores_academicos: indicadoresBody,
+    };
+  }
+  return {
+    ...payload,
+    indicadores_academicos: indicadoresBody,
+  };
+}
+
+export function format911FinAnteriorBanner(
+  data: Parameters<typeof mapFinAnteriorToIndicadores>[0],
+  currentIndicadores: IndicadoresAcademicos
+): { banner: string; mapped: IndicadoresAcademicos } {
+  const mappedSnapshot = mapFinAnteriorToIndicadores(data, currentIndicadores);
+  const calculatedEt = mappedSnapshot.et_ant;
+  const calculatedAb = mappedSnapshot.abandono_ant;
+  const etStr = calculatedEt !== undefined ? `${calculatedEt}%` : 'N/D';
+  const abStr = calculatedAb !== undefined ? `${calculatedAb}%` : 'N/D';
+  return {
+    banner: `✓ 911 (Fin Ciclo Anterior) cargada: Abandono ${abStr}, Eficiencia Terminal ${etStr}`,
+    mapped: mappedSnapshot,
+  };
+}
+
+export function extractF11Warnings(jsonResponse?: { warnings?: string[]; [key: string]: unknown } | null): string[] {
+  if (jsonResponse && Array.isArray(jsonResponse.warnings) && jsonResponse.warnings.length > 0) {
+    return jsonResponse.warnings;
+  }
+  return [];
 }
 
 export function validateCanGenerateStep(
@@ -947,12 +996,9 @@ interface EditablePlanElement {
         'Error al analizar el F11.'
       );
       if (!res.ok || !json.success) throw new Error(json.error || 'Error al analizar el F11.');
-      // H-240: capture F11 layout warnings (column mismatch, zip truncation) and surface to user
-      if (Array.isArray((json as { warnings?: string[] }).warnings) && (json as { warnings?: string[] }).warnings!.length > 0) {
-        setF11Warnings((json as { warnings?: string[] }).warnings!);
-      } else {
-        setF11Warnings([]);
-      }
+      // H-240 / H-255: capture F11 layout warnings (column mismatch, zip truncation) and surface to user
+      const extractedWarnings = extractF11Warnings(json as { warnings?: string[] });
+      setF11Warnings(extractedWarnings);
       if (json.data?.schoolName && !schoolName) setSchoolName(json.data.schoolName);
       if (json.data?.schoolCct && !schoolCct) setSchoolCct(json.data.schoolCct);
 
@@ -1182,18 +1228,14 @@ interface EditablePlanElement {
       };
 
       if (momento === 'fin_anterior') {
-        // H-239: Compute ET/Ab OUTSIDE the updater using the captured `indicadores` value from the
+        // H-239 / H-253: Compute ET/Ab OUTSIDE the updater using the captured `indicadores` value from the
         // handler closure. React 19 may defer updater evaluation when prior setState calls are
         // scheduled in the same event, causing calculatedEt to be undefined at banner time.
-        const mappedSnapshot = mapFinAnteriorToIndicadores(json.data, indicadores);
-        const calculatedEt = mappedSnapshot.et_ant;
-        const calculatedAb = mappedSnapshot.abandono_ant;
-        setIndicadores(() => mappedSnapshot);
+        const { banner, mapped } = format911FinAnteriorBanner(json.data, indicadores);
+        setIndicadores(() => mapped);
         if (json.data?.totalDocentes) syncStaffFrom911(json.data.totalDocentes);
         setDocsStatus(p => ({ ...p, n911FinAnt: true }));
-        const etStr = calculatedEt !== undefined ? `${calculatedEt}%` : 'N/D';
-        const abStr = calculatedAb !== undefined ? `${calculatedAb}%` : 'N/D';
-        setSuccessBanner(`✓ 911 (Fin Ciclo Anterior) cargada: Abandono ${abStr}, Eficiencia Terminal ${etStr}`);
+        setSuccessBanner(banner);
 
       } else if (momento === 'inicio_actual') {
         setIndicadores(p => mapInicioActualToIndicadores(json.data, p));
@@ -1506,27 +1548,27 @@ interface EditablePlanElement {
 
       if (!projectId) {
         // Create new
+        const baseFields = {
+          school_name: schoolName,
+          school_cct: schoolCct,
+          municipality,
+          locality,
+          school_zone: schoolZone,
+          director_name: directorName,
+          supervisor_name: supervisorName,
+          ciclo_escolar: cicloEscolar,
+          subsystem,
+          total_staff: totalStaff,
+          staff_data: staffData,
+          diagnostico_comunidad: diagnosticoComunidad,
+          foda,
+          categorias_priorizadas: categoriasPriorizadas,
+        };
+        const bodyObj = buildPmcSaveBody('POST', baseFields, payload, indicadoresBody);
         const res = await fetch('/api/pmc', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            school_name: schoolName,
-            school_cct: schoolCct,
-            municipality,
-            locality,
-            school_zone: schoolZone,
-            director_name: directorName,
-            supervisor_name: supervisorName,
-            ciclo_escolar: cicloEscolar,
-            subsystem,
-            total_staff: totalStaff,
-            staff_data: staffData,
-            diagnostico_comunidad: diagnosticoComunidad,
-            foda,
-            categorias_priorizadas: categoriasPriorizadas,
-            ...payload,
-            indicadores_academicos: indicadoresBody,
-          }),
+          body: JSON.stringify(bodyObj),
         });
         const created = await parseSafeApiResponse<{ project?: { id?: string }; id?: string; error?: string }>(
           res,
@@ -1543,13 +1585,11 @@ interface EditablePlanElement {
         return null;
       } else {
         // Update existing
+        const bodyObj = buildPmcSaveBody('PUT', {}, payload, indicadoresBody);
         const res = await fetch(`/api/pmc/${projectId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ...payload,
-            indicadores_academicos: indicadoresBody,
-          }),
+          body: JSON.stringify(bodyObj),
         });
         if (!res.ok) {
           const errData = await parseSafeApiResponse<{ error?: string }>(res, 'Error al actualizar el proyecto.');

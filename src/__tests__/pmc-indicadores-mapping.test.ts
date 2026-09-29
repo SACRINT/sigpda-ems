@@ -14,6 +14,7 @@ import {
   mapInicioActualToIndicadores,
   mapInicioAnteriorToIndicadores,
 } from '@/lib/pmc/indicadores-mapping';
+import { format911FinAnteriorBanner } from '@/app/[locale]/pmc/nuevo/PmcWizardClient';
 import type { PmcIndicadoresAcademicos } from '@/types/pmc';
 
 describe('Mapeo y Cálculo de Indicadores 911 (H-168, H-220)', () => {
@@ -170,43 +171,25 @@ describe('Mapeo y Cálculo de Indicadores 911 (H-168, H-220)', () => {
     expect(mapped.abandono_ant).toBe(5.4);
   });
 
-  it('7. H-239: discrimina el bug de updater diferido en React 19 vs pre-cálculo fuera del updater', () => {
+  it('7. H-239 / H-253: format911FinAnteriorBanner calcula de forma determinista el banner sin N/D con datos reales de 911 fin anterior', () => {
     const dataFin911 = {
       existencia: 179,
       bajas: 10,
       altas: 4,
       matriculaInicioFinDoc: 185,
     };
-    const capturedIndicadores: PmcIndicadoresAcademicos = { ...baseIndicadores };
+    const capturedIndicadores = { ...baseIndicadores };
 
-    // Simulación del patrón con BUG (antiguo): mutar variables dentro del updater
-    // mientras React 19 difiere la ejecución del callback
-    let oldCalculatedEt: number | undefined;
-    let oldCalculatedAb: number | undefined;
+    // Función pura utilizada en PmcWizardClient tras H-239/H-253
+    const { banner, mapped } = format911FinAnteriorBanner(dataFin911, capturedIndicadores);
 
-    // React 19 encola el updater y NO lo ejecuta sincrónicamente en el frame del evento
-    const queuedUpdater = (p: PmcIndicadoresAcademicos) => {
-      const mapped = mapFinAnteriorToIndicadores(dataFin911, p);
-      oldCalculatedEt = mapped.et_ant;
-      oldCalculatedAb = mapped.abandono_ant;
-      return mapped;
-    };
-    void queuedUpdater; // Simula encolamiento diferido
+    // Debe contener los porcentajes calculados exactos
+    expect(banner).toContain('Abandono 5.4%');
+    expect(banner).toContain('Eficiencia Terminal 96.8%');
+    expect(banner).not.toContain('N/D');
 
-    // En el frame sincrónico donde se construye el banner, las variables eran undefined:
-    const oldEtStr = oldCalculatedEt !== undefined ? `${oldCalculatedEt}%` : 'N/D';
-    const oldAbStr = oldCalculatedAb !== undefined ? `${oldCalculatedAb}%` : 'N/D';
-    expect(oldEtStr).toBe('N/D'); // Demuestra exactamente el fallo de la versión previa
-    expect(oldAbStr).toBe('N/D');
-
-    // En cambio, con el patrón corregido (H-239): cálculo sincrónico antes del updater
-    const mappedSnapshot = mapFinAnteriorToIndicadores(dataFin911, capturedIndicadores);
-    const calculatedEt = mappedSnapshot.et_ant;
-    const calculatedAb = mappedSnapshot.abandono_ant;
-
-    const fixedEtStr = calculatedEt !== undefined ? `${calculatedEt}%` : 'N/D';
-    const fixedAbStr = calculatedAb !== undefined ? `${calculatedAb}%` : 'N/D';
-    expect(fixedEtStr).toBe('96.8%');
-    expect(fixedAbStr).toBe('5.4%');
+    // Valida que el objeto mapped contiene los valores asignados
+    expect(mapped.et_ant).toBe(96.8);
+    expect(mapped.abandono_ant).toBe(5.4);
   });
 });

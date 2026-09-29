@@ -17,7 +17,7 @@ vi.mock('@/components/assistant', () => ({
   useAssistant: () => ({ openAssistant: vi.fn() }),
 }));
 
-import PmcWizardClient from '@/app/[locale]/pmc/nuevo/PmcWizardClient';
+import PmcWizardClient, { extractF11Warnings } from '@/app/[locale]/pmc/nuevo/PmcWizardClient';
 
 describe('H-222: Paso 3 del Wizard sin datos de F11 muestra N/D sin valores hardcodeados de Héroes', () => {
   it('renderiza el Paso 3 con indicadores vacíos y NO contiene cifras de Héroes de la Patria', () => {
@@ -126,5 +126,33 @@ describe('H-222: Paso 3 del Wizard sin datos de F11 muestra N/D sin valores hard
     expect(html).toContain('El archivo F11 presenta discrepancia en las columnas de reprobacion.');
     expect(html).toContain('Se detecto posible truncamiento en datos de alumnos.');
   });
+
+  it('H-255: extractF11Warnings procesa adecuadamente json.warnings del endpoint /api/pmc/f11 y limpia advertencias si está vacío', () => {
+    // 1. Con advertencias presentes
+    const jsonWithWarnings = {
+      success: true,
+      warnings: ['Discrepancia en columnas A y B', 'Posible pérdida de alumnos'],
+    };
+    const extracted = extractF11Warnings(jsonWithWarnings);
+    expect(extracted).toEqual(['Discrepancia en columnas A y B', 'Posible pérdida de alumnos']);
+
+    // 2. Archivo limpio con warnings vacío
+    const jsonClean = {
+      success: true,
+      warnings: [],
+    };
+    expect(extractF11Warnings(jsonClean)).toEqual([]);
+
+    // 3. Respuesta sin clave warnings (archivo limpio o sin alertas)
+    const jsonNoWarnings = {
+      success: true,
+    };
+    expect(extractF11Warnings(jsonNoWarnings)).toEqual([]);
+
+    // 4. Parámetro nulo o indefinido
+    expect(extractF11Warnings(null)).toEqual([]);
+    expect(extractF11Warnings(undefined)).toEqual([]);
+  });
 });
+
 
