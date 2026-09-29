@@ -127,10 +127,13 @@ export function deduplicatePlanElements(elements: PmcPlanElement[]): PmcPlanElem
     if (!textA) continue;
 
     const exists = result.some((existing) => {
+      // No fusionar elementos si explícitamente tienen tipos distintos (meta vs actividad)
+      if (elem.tipo && existing.tipo && elem.tipo !== existing.tipo) return false;
       const textB = (existing.texto_normalizado || existing.texto_original || '').trim();
       if (textA.toLowerCase() === textB.toLowerCase()) return true;
       const lenRatio = Math.min(textA.length, textB.length) / Math.max(textA.length, textB.length);
-      if (lenRatio >= 0.85 && calculateWordOverlap(textA, textB) >= 0.95) return true;
+      // H-231: Umbral estricto para evitar colisión de metas diferentes con formato similar
+      if (lenRatio >= 0.92 && calculateWordOverlap(textA, textB) >= 0.95) return true;
       return false;
     });
 
@@ -145,7 +148,7 @@ export function deduplicatePlanElements(elements: PmcPlanElement[]): PmcPlanElem
 /**
  * Deduplica metas previas basándose en redacción idéntica o solapamiento estricto bidireccional.
  */
-export function deduplicateMetasPrevias<T extends { meta?: string | null; texto_original?: string | null }>(
+export function deduplicateMetasPrevias<T extends { meta?: string | null; texto_original?: string | null; categoria?: string | null }>(
   metas: T[]
 ): T[] {
   const result: T[] = [];
@@ -155,10 +158,15 @@ export function deduplicateMetasPrevias<T extends { meta?: string | null; texto_
     if (!textA) continue;
 
     const exists = result.some((existing) => {
+      // No fusionar metas si tienen categorías explícitamente distintas
+      if (m.categoria && existing.categoria && m.categoria.trim().toLowerCase() !== existing.categoria.trim().toLowerCase()) {
+        return false;
+      }
       const textB = (existing.meta || existing.texto_original || '').trim();
       if (textA.toLowerCase() === textB.toLowerCase()) return true;
       const lenRatio = Math.min(textA.length, textB.length) / Math.max(textA.length, textB.length);
-      if (lenRatio >= 0.85 && calculateWordOverlap(textA, textB) >= 0.95) return true;
+      // H-231: Umbral estricto para evitar colisión de metas
+      if (lenRatio >= 0.92 && calculateWordOverlap(textA, textB) >= 0.95) return true;
       return false;
     });
 
