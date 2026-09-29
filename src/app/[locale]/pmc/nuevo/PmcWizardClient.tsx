@@ -1151,19 +1151,19 @@ interface EditablePlanElement {
       };
 
       if (momento === 'fin_anterior') {
-        let calculatedEt: number | undefined;
-        let calculatedAb: number | undefined;
-        setIndicadores(p => {
-          const mapped = mapFinAnteriorToIndicadores(json.data, p);
-          calculatedEt = mapped.et_ant;
-          calculatedAb = mapped.abandono_ant;
-          return mapped;
-        });
+        // H-239: Compute ET/Ab OUTSIDE the updater using the captured `indicadores` value from the
+        // handler closure. React 19 may defer updater evaluation when prior setState calls are
+        // scheduled in the same event, causing calculatedEt to be undefined at banner time.
+        const mappedSnapshot = mapFinAnteriorToIndicadores(json.data, indicadores);
+        const calculatedEt = mappedSnapshot.et_ant;
+        const calculatedAb = mappedSnapshot.abandono_ant;
+        setIndicadores(_p => mappedSnapshot);
         if (json.data?.totalDocentes) syncStaffFrom911(json.data.totalDocentes);
         setDocsStatus(p => ({ ...p, n911FinAnt: true }));
         const etStr = calculatedEt !== undefined ? `${calculatedEt}%` : 'N/D';
         const abStr = calculatedAb !== undefined ? `${calculatedAb}%` : 'N/D';
         setSuccessBanner(`✓ 911 (Fin Ciclo Anterior) cargada: Abandono ${abStr}, Eficiencia Terminal ${etStr}`);
+
       } else if (momento === 'inicio_actual') {
         setIndicadores(p => mapInicioActualToIndicadores(json.data, p));
         if (json.data?.totalDocentes) syncStaffFrom911(json.data.totalDocentes);

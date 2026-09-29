@@ -135,4 +135,38 @@ describe('Mapeo y Cálculo de Indicadores 911 (H-168, H-220)', () => {
     const res2 = mapInicioActualToIndicadores(undefined, baseIndicadores);
     expect(res2).toEqual(baseIndicadores);
   });
+
+  it('6. H-239: con datos completos, et_ant y abandono_ant nunca son undefined (regression: banner no muestra N/D)', () => {
+    // Simula el patrón corregido en H-239: llamar mapFinAnteriorToIndicadores FUERA del updater,
+    // pasando el valor actual de indicadores capturado en el closure del handler de async.
+    // Con los datos de Héroes (existencia=179, bajas=10, matriculaInicioFinDoc=185):
+    const dataFin911 = {
+      existencia: 179,
+      bajas: 10,
+      altas: 4,
+      matriculaInicioFinDoc: 185,
+    };
+    const capturedIndicadores: PmcIndicadoresAcademicos = {
+      ...baseIndicadores,
+      // Sin matriculaInicioCicloAnterior → usa fallback matriculaInicioFinDoc=185
+    };
+
+    // Llamada fuera del updater (patrón corregido H-239)
+    const mapped = mapFinAnteriorToIndicadores(dataFin911, capturedIndicadores);
+
+    // ET y abandono deben ser siempre defined con datos reales
+    expect(mapped.et_ant).toBeDefined();
+    expect(mapped.abandono_ant).toBeDefined();
+    expect(typeof mapped.et_ant).toBe('number');
+    expect(typeof mapped.abandono_ant).toBe('number');
+
+    // Verificar que el banner podría usar estos valores directamente sin N/D
+    const etStr = mapped.et_ant !== undefined ? `${mapped.et_ant}%` : 'N/D';
+    const abStr = mapped.abandono_ant !== undefined ? `${mapped.abandono_ant}%` : 'N/D';
+    expect(etStr).not.toBe('N/D');
+    expect(abStr).not.toBe('N/D');
+    // Valores calculados: ET = 179/185 = 96.8%, Abandono = 10/185 = 5.4%
+    expect(mapped.et_ant).toBe(96.8);
+    expect(mapped.abandono_ant).toBe(5.4);
+  });
 });
