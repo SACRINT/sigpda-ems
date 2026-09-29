@@ -257,11 +257,22 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         ragQuery = `Orientaciones curriculares para ${safeStr(project.linea_accion)}`;
       }
 
-      const ragBlock = await retrieveCurriculumRagBlock(
-        ragQuery,
-        'el diagnóstico del Plan de Mejora Continua (PMC)',
-        'diagnostico'
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('RAG timeout')), 3000)
       );
+      let ragBlock = '';
+      try {
+        ragBlock = await Promise.race([
+          retrieveCurriculumRagBlock(
+            ragQuery,
+            'el diagnóstico del Plan de Mejora Continua (PMC)',
+            'diagnostico'
+          ),
+          timeoutPromise,
+        ]);
+      } catch (err) {
+        logger.warn('[pmc-generate] RAG omitido por timeout/fallo (fail-open):', { message: (err as Error).message });
+      }
 
       const normativaDocs = await getOrLoadProjectNormativa(project.normativa);
       const basePrompt = buildPmcDiagnosticoPrompt(
@@ -452,11 +463,22 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         ragQuery = `Plan de acción para ${safeStr(project.linea_accion)}`;
       }
 
-      const ragBlock = await retrieveCurriculumRagBlock(
-        ragQuery,
-        'el Plan de Acción del Plan de Mejora Continua (PMC)',
-        'plan_accion'
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('RAG timeout')), 3000)
       );
+      let ragBlock = '';
+      try {
+        ragBlock = await Promise.race([
+          retrieveCurriculumRagBlock(
+            ragQuery,
+            'el Plan de Acción del Plan de Mejora Continua (PMC)',
+            'plan_accion'
+          ),
+          timeoutPromise,
+        ]);
+      } catch (err) {
+        logger.warn('[pmc-generate] RAG omitido por timeout/fallo (fail-open):', { message: (err as Error).message });
+      }
 
       const normativaDocs = await getOrLoadProjectNormativa(project.normativa);
       const basePrompt = buildPmcPlanAccionPrompt(
