@@ -69,6 +69,7 @@ export async function POST(request: NextRequest) {
               mimeType: file.type,
               enableOcr: false,
               teacherId: teacher.id,
+              teacherEmail: session.user.email,
             });
             const text = (lightIngest?.markdown || lightIngest?.fullText || '');
             if (!enrichedCct) {
@@ -186,6 +187,7 @@ export async function POST(request: NextRequest) {
           mimeType: file.type,
           enableOcr: true,
           teacherId: teacher.id,
+          teacherEmail: session.user.email,
         }),
         Math.max(1, deadline - Date.now())
       );

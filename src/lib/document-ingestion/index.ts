@@ -84,18 +84,20 @@ export async function ingestDocument(
     // Si es un documento escaneado (imagen sin texto digital) y OCR está activo
     if (enableOcr) {
       logger.info('[DocumentIngestion] PDF digital sin texto seleccionable detectado. Activando OCR Multimodal con Gemini Flash Lite...');
-      return await parseScannedPdfWithGemini(buffer, options.teacherId);
+      return await parseScannedPdfWithGemini(buffer, options.teacherId, options.teacherEmail, options.filename);
     }
 
     throw new Error('El PDF no contiene texto seleccionable y el OCR no está habilitado.');
-  } catch (err: any) {
+  } catch (err: unknown) {
     // Si la extracción digital arrojó un error irrecuperable y OCR está habilitado, intentar OCR como salvaguarda
     if (enableOcr) {
-      logger.warn('[DocumentIngestion] Falló extracción digital con pdfjs, intentando OCR como salvaguarda:', { message: err.message });
+      const errMsg = err instanceof Error ? err.message : String(err);
+      logger.warn('[DocumentIngestion] Falló extracción digital con pdfjs, intentando OCR como salvaguarda:', { message: errMsg });
       try {
-        return await parseScannedPdfWithGemini(buffer, options.teacherId);
-      } catch (ocrErr: any) {
-        throw new Error(`No se pudo procesar el PDF ni con extracción digital ni con OCR: ${ocrErr.message}`);
+        return await parseScannedPdfWithGemini(buffer, options.teacherId, options.teacherEmail, options.filename);
+      } catch (ocrErr: unknown) {
+        const ocrMsg = ocrErr instanceof Error ? ocrErr.message : String(ocrErr);
+        throw new Error(`No se pudo procesar el PDF ni con extracción digital ni con OCR: ${ocrMsg}`);
       }
     }
     throw err;

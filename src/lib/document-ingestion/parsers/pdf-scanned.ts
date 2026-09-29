@@ -4,12 +4,14 @@
  * Utiliza estrictamente gemini-3.5-flash-lite / gemini-3.1-flash-lite con el pool de llaves en rotación.
  */
 
-import { generateMultimodalWithRotation, resolveUserIsPremium } from '@/lib/ai-provider';
+import { generateMultimodalWithRotation, resolveUserIsPremium, logActivity } from '@/lib/ai-provider';
 import type { IngestedDocument } from '../types';
 
 export async function parseScannedPdfWithGemini(
   buffer: Buffer,
-  teacherId?: string
+  teacherId?: string,
+  teacherEmail?: string,
+  filename?: string
 ): Promise<IngestedDocument> {
   const base64Data = buffer.toString('base64');
 
@@ -23,18 +25,52 @@ Tu tarea es leer y transcribir con máxima precisión este documento escaneado o
   const userPrompt = `Transcribe íntegramente todo el contenido de este documento PDF escaneado a Markdown estructurado oficial.`;
 
   const isPremium = await resolveUserIsPremium(teacherId);
-  const markdownResult = await generateMultimodalWithRotation(
-    systemInstruction,
-    userPrompt,
-    {
-      mimeType: 'application/pdf',
-      data: base64Data,
-    },
-    teacherId,
-    isPremium
-  );
+  let markdownResult: string;
+  try {
+    markdownResult = await generateMultimodalWithRotation(
+      systemInstruction,
+      userPrompt,
+      {
+        mimeType: 'application/pdf',
+        data: base64Data,
+      },
+      teacherId,
+      isPremium
+    );
+  } catch (err: unknown) {
+    if (teacherEmail) {
+      try {
+        await logActivity({
+          teacherEmail,
+          action: 'ingest_document',
+          entityType: 'pdf_scanned',
+          entityId: filename,
+          providerUsed: 'gemini',
+          modelUsed: 'gemini-3.5-flash-lite',
+          success: false,
+          errorMsg: err instanceof Error ? err.message : String(err),
+        });
+      } catch { /* Logging never interrupts ingestion */ }
+    }
+    throw err;
+  }
 
   const cleanMarkdown = markdownResult.trim();
+
+  if (teacherEmail) {
+    try {
+      await logActivity({
+        teacherEmail,
+        action: 'ingest_document',
+        entityType: 'pdf_scanned',
+        entityId: filename,
+        providerUsed: 'gemini',
+        modelUsed: 'gemini-3.5-flash-lite',
+        tokensApprox: Math.ceil(cleanMarkdown.length / 4),
+        success: true,
+      });
+    } catch { /* Logging never interrupts ingestion */ }
+  }
 
   return {
     markdown: cleanMarkdown,

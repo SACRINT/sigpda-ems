@@ -42,4 +42,6 @@ export interface IngestOptions {
   maxPages?: number;
   /** ID del docente para resolución de perfil en el pool de IA */
   teacherId?: string;
+  /** Correo del docente autenticado para logging de actividad (activity_log.teacher_email) */
+  teacherEmail?: string;
 }

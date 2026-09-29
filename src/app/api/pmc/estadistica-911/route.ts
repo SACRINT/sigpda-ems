@@ -149,6 +149,7 @@ export async function POST(request: NextRequest) {
           mimeType: file.type,
           enableOcr: true,
           teacherId: teacher.id,
+          teacherEmail: session.user.email,
         }),
         Math.max(1, deadline - Date.now())
       );
