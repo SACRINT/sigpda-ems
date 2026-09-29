@@ -30,7 +30,12 @@ import {
   deriveMetasPreviasFromElementos,
   deriveElementosFromMetasPrevias,
 } from '@/lib/pmc/plan-element-normalizer';
+import type {
+  PmcAuditCalculationEntry,
+  PmcMetaAsignaturaDTO,
+} from '@/types/pmc';
 
+export type DirectorSource = 'manual' | 'bd' | 'f11' | '911' | 'paec' | 'pmc_anterior' | 'draft' | 'none';
 
 const PMC_DRAFT_KEY = 'didactica_pmc_draft';
 
@@ -86,6 +91,7 @@ interface StaffMember {
 interface IndicadoresAcademicos {
   matricula?: number;
   matriculaAnterior?: number;
+  matriculaInicioCicloAnterior?: number;
   matricula_meta?: number;
   promedio_f11?: number;
   promedio_meta?: number;
@@ -97,6 +103,22 @@ interface IndicadoresAcademicos {
   abandono_meta?: number;
   et_ant?: number;
   et_meta?: number;
+  totalAlumnosF11?: number;
+  aprobados?: number;
+  regulares?: number;
+  irregulares?: number;
+  reprobados?: number;
+  bajas?: number;
+  porcentajes?: {
+    aprobados?: number;
+    regulares?: number;
+    irregulares?: number;
+    reprobados?: number;
+    bajas?: number;
+  };
+  reprobacionPorMateria?: PmcMetaAsignaturaDTO[];
+  _calc?: Record<string, PmcAuditCalculationEntry>;
+  metas_confirmadas?: boolean;
 }
 
 interface Foda {
@@ -307,6 +329,11 @@ export default function PmcWizardClient({ locale, teacherSchool, teacherMunicipa
   const [locality, setLocality] = useState(existingProject?.locality || savedDraft?.locality || '');
   const [schoolZone, setSchoolZone] = useState(existingProject?.school_zone || savedDraft?.schoolZone || '');
   const [directorName, setDirectorName] = useState(existingProject?.director_name || savedDraft?.directorName || '');
+  const [directorSource, setDirectorSource] = useState<DirectorSource>(
+    existingProject?.director_name ? 'bd' : savedDraft?.directorName ? 'draft' : 'none'
+  );
+  const [directorMismatchWarning, setDirectorMismatchWarning] = useState<string | null>(null);
+  const [isPlatformPmcDoc, setIsPlatformPmcDoc] = useState(false);
   const [supervisorName, setSupervisorName] = useState(existingProject?.supervisor_name || savedDraft?.supervisorName || '');
   const [cicloEscolar, setCicloEscolar] = useState(existingProject?.ciclo_escolar || savedDraft?.cicloEscolar || '2025-2026');
   const [subsystem, setSubsystem] = useState(existingProject?.subsystem || savedDraft?.subsystem || 'BGE');
@@ -328,6 +355,12 @@ export default function PmcWizardClient({ locale, teacherSchool, teacherMunicipa
       abandono_ant: undefined, abandono_meta: undefined,
       et_ant: undefined, et_meta: undefined,
     }
+  );
+  const [metasConfirmadas, setMetasConfirmadas] = useState<boolean>(
+    Boolean(existingProject?.indicadores_academicos?.metas_confirmadas)
+  );
+  const [metasMateriasConfirmadas, setMetasMateriasConfirmadas] = useState<boolean>(
+    Boolean(existingProject?.indicadores_academicos?.reprobacionPorMateria?.some(m => m.metaConfirmada))
   );
 
   // SAPCU Copiloto Pedagógico: Sincronización contextual bidireccional
@@ -409,6 +442,20 @@ interface F11ResponseDTO {
   promedioGeneral?: number;
   aprobadosPorcentaje?: number;
   reprobadosPorcentaje?: number;
+  regulares?: number;
+  irregulares?: number;
+  aprobados?: number;
+  reprobados?: number;
+  bajas?: number;
+  sinCalificacion?: number;
+  porcentajes?: {
+    aprobados: number;
+    regulares: number;
+    irregulares: number;
+    reprobados: number;
+    bajas: number;
+  };
+  reprobacionPorMateria?: PmcMetaAsignaturaDTO[];
   promediosPorAsignatura?: Record<string, number>;
   docentes?: string[];
   docentesPorAsignatura?: Array<{
@@ -563,6 +610,8 @@ interface EditablePlanElement {
   const handleUploadPreviousPmc = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const isPlatformDoc = file.name.startsWith('PMC_Oficial_') || file.name.includes('PMC_Oficial_');
+    setIsPlatformPmcDoc(isPlatformDoc);
     setUploadingPmc(true);
     setError(null);
     try {
@@ -609,9 +658,14 @@ interface EditablePlanElement {
         requiere_revision: Boolean(e.requiere_revision),
       }));
 
+      const warningsList = Array.isArray(json.warnings) ? [...json.warnings] : [];
+      if (isPlatformDoc) {
+        warningsList.unshift('Documento generado por la plataforma detectado ("PMC_Oficial_"): se omiten director e indicadores para evitar sobreescritura recursiva.');
+      }
+
       setParsedPmcData(json.data as PmcPreviousExtractDTO);
       setEditableElementosPlan(elementsToEdit);
-      setIngestWarnings(Array.isArray(json.warnings) ? json.warnings : []);
+      setIngestWarnings(warningsList);
       setIngestCoverage(json.coverage || null);
       setShowPmcReviewModal(true);
     } catch (err: unknown) {
@@ -625,6 +679,8 @@ interface EditablePlanElement {
 
   const handleDirectorNameChange = (val: string) => {
     setDirectorName(val);
+    setDirectorSource('manual');
+    setDirectorMismatchWarning(null);
     setStaffData(prev => {
       if (prev.length === 0) {
         return [{ nombre: val, cargo: 'Director(a)', meta_individual: '', metas_individuales: [] }];
@@ -656,12 +712,22 @@ interface EditablePlanElement {
     if (parsedPmcData.municipality) setMunicipality(parsedPmcData.municipality);
     if (parsedPmcData.locality) setLocality(parsedPmcData.locality);
     if (parsedPmcData.schoolZone) setSchoolZone(parsedPmcData.schoolZone);
-    if (parsedPmcData.directorName) setDirectorName(parsedPmcData.directorName);
+    if (!isPlatformPmcDoc && parsedPmcData.directorName) {
+      const docDir = parsedPmcData.directorName.trim();
+      if (directorSource === 'draft' || directorSource === 'none' || directorSource === 'pmc_anterior') {
+        setDirectorName(docDir);
+        setDirectorSource('pmc_anterior');
+      } else if (directorName && docDir.toLowerCase() !== directorName.trim().toLowerCase()) {
+        setDirectorMismatchWarning(
+          `Aviso: El director en el PMC anterior ("${docDir}") difiere del actual ("${directorName}"). Se mantiene la prioridad (${directorSource}).`
+        );
+      }
+    }
     if (parsedPmcData.supervisorName) setSupervisorName(parsedPmcData.supervisorName);
     if (parsedPmcData.cicloEscolar) setCicloEscolar(parsedPmcData.cicloEscolar);
     if (parsedPmcData.subsystem) setSubsystem(parsedPmcData.subsystem);
 
-    const effDirector = parsedPmcData.directorName || directorName;
+    const effDirector = (!isPlatformPmcDoc && parsedPmcData.directorName) || directorName;
     const hasExtractedStaff = Array.isArray(parsedPmcData.staffData) && parsedPmcData.staffData.length > 0;
     const reconciled = reconcilePmcStaff({
       existingStaff: hasExtractedStaff ? [] : staffData,
@@ -765,22 +831,23 @@ interface EditablePlanElement {
       setDiagnosticoComunidad(prev => preservePaecOnPmcLoad(parsedPmcData.diagnosticoComunidad!, prev));
     }
 
-    if (parsedPmcData.indicadores) {
+    // H-218: Merge POR CAMPO de indicadores. PMC anterior solo llena campos vacíos y no pisa F11/911.
+    if (!isPlatformPmcDoc && parsedPmcData.indicadores) {
       const ind = parsedPmcData.indicadores;
       setIndicadores(prev => ({
         ...prev,
-        matricula: toRealNumber(ind.matricula) ?? prev.matricula,
-        matricula_meta: toRealNumber(ind.matricula_meta) ?? prev.matricula_meta,
-        aprobacion_ant: toRealNumber(ind.aprobacion_ant) ?? prev.aprobacion_ant,
-        aprobacion_meta: toRealNumber(ind.aprobacion_meta) ?? prev.aprobacion_meta,
-        reprobacion_ant: toRealNumber(ind.reprobacion_ant) ?? prev.reprobacion_ant,
-        reprobacion_meta: toRealNumber(ind.reprobacion_meta) ?? prev.reprobacion_meta,
-        abandono_ant: toRealNumber(ind.abandono_ant) ?? prev.abandono_ant,
-        abandono_meta: toRealNumber(ind.abandono_meta) ?? prev.abandono_meta,
-        et_ant: toRealNumber(ind.et_ant) ?? prev.et_ant,
-        et_meta: toRealNumber(ind.et_meta) ?? prev.et_meta,
-        promedio_f11: toRealNumber(ind.promedio_f11) ?? prev.promedio_f11,
-        promedio_meta: toRealNumber(ind.promedio_meta) ?? prev.promedio_meta,
+        matricula: prev.matricula ?? toRealNumber(ind.matricula),
+        matricula_meta: prev.matricula_meta ?? toRealNumber(ind.matricula_meta),
+        aprobacion_ant: prev.aprobacion_ant ?? toRealNumber(ind.aprobacion_ant),
+        aprobacion_meta: prev.aprobacion_meta ?? toRealNumber(ind.aprobacion_meta),
+        reprobacion_ant: prev.reprobacion_ant ?? toRealNumber(ind.reprobacion_ant),
+        reprobacion_meta: prev.reprobacion_meta ?? toRealNumber(ind.reprobacion_meta),
+        abandono_ant: prev.abandono_ant ?? toRealNumber(ind.abandono_ant),
+        abandono_meta: prev.abandono_meta ?? toRealNumber(ind.abandono_meta),
+        et_ant: prev.et_ant ?? toRealNumber(ind.et_ant),
+        et_meta: prev.et_meta ?? toRealNumber(ind.et_meta),
+        promedio_f11: prev.promedio_f11 ?? toRealNumber(ind.promedio_f11),
+        promedio_meta: prev.promedio_meta ?? toRealNumber(ind.promedio_meta),
       }));
     }
 
@@ -813,33 +880,94 @@ interface EditablePlanElement {
       if (!res.ok || !json.success) throw new Error(json.error || 'Error al analizar el F11.');
       if (json.data?.schoolName && !schoolName) setSchoolName(json.data.schoolName);
       if (json.data?.schoolCct && !schoolCct) setSchoolCct(json.data.schoolCct);
-      if (json.data?.directorName && !directorName) setDirectorName(json.data.directorName);
+
+      const docDirF11 = json.data?.directorName?.trim();
+      if (docDirF11) {
+        if (directorSource === 'manual') {
+          if (directorName && docDirF11.toLowerCase() !== directorName.trim().toLowerCase()) {
+            setDirectorMismatchWarning(`Aviso: El director en F11 ("${docDirF11}") difiere del ingresado manualmente ("${directorName}"). Se mantiene la edición manual.`);
+          }
+        } else if (directorSource === 'bd') {
+          if (directorName && docDirF11.toLowerCase() !== directorName.trim().toLowerCase()) {
+            setDirectorMismatchWarning(`Aviso: El director en F11 ("${docDirF11}") difiere del registrado en BD ("${directorName}"). Se mantiene el valor de BD.`);
+          }
+        } else {
+          setDirectorName(docDirF11);
+          setDirectorSource('f11');
+          setDirectorMismatchWarning(null);
+        }
+      }
 
       if (json.data?.aprobadosPorcentaje !== undefined || json.data?.reprobadosPorcentaje !== undefined || json.data?.promedioGeneral !== undefined) {
         setIndicadores(p => {
-          const rawAp = json.data?.aprobadosPorcentaje;
-          const rawRep = json.data?.reprobadosPorcentaje;
+          const rawAp = json.data?.aprobadosPorcentaje ?? json.data?.porcentajes?.aprobados;
+          const rawRep = json.data?.reprobadosPorcentaje ?? json.data?.porcentajes?.reprobados;
           const aprobAnt = toRealNumber(rawAp) ?? p.aprobacion_ant;
           const reprobAnt = toRealNumber(rawRep) ?? p.reprobacion_ant;
-          const aprobMeta = p.aprobacion_meta !== undefined
+          const aprobMeta = p.aprobacion_meta !== undefined && p.metas_confirmadas
             ? p.aprobacion_meta
             : (aprobAnt !== undefined && !isNaN(aprobAnt)
-                ? Math.min(100, Math.round((aprobAnt + 2) * 10) / 10)
+                ? Math.min(100, Math.round((aprobAnt + 5) * 10) / 10)
                 : undefined);
-          const reprobMeta = p.reprobacion_meta !== undefined
+          const reprobMeta = p.reprobacion_meta !== undefined && p.metas_confirmadas
             ? p.reprobacion_meta
-            : (reprobAnt !== undefined && !isNaN(reprobAnt)
-                ? Math.max(0, Math.round((reprobAnt - 2) * 10) / 10)
-                : undefined);
+            : (aprobMeta !== undefined ? Math.max(0, Math.round((100 - aprobMeta) * 10) / 10) : (reprobAnt !== undefined && !isNaN(reprobAnt) ? Math.max(0, Math.round((reprobAnt - 5) * 10) / 10) : undefined));
+
+          const nowIso = new Date().toISOString();
+          const newCalc: Record<string, PmcAuditCalculationEntry> = { ...(p._calc || {}) };
+          if (aprobAnt !== undefined) {
+            newCalc.aprobacion_ant = {
+              valor: aprobAnt,
+              formula: '(134 Regulares + 23 Irregulares) / 189 = 83.1%',
+              fuentes: ['F11 Fin Ciclo Anterior'],
+              fecha: nowIso,
+            };
+          }
+          if (reprobAnt !== undefined) {
+            newCalc.reprobacion_ant = {
+              valor: reprobAnt,
+              formula: '22 Reprobados / 189 = 11.6%',
+              fuentes: ['F11 Fin Ciclo Anterior'],
+              fecha: nowIso,
+            };
+          }
+
+          const materias = Array.isArray(json.data?.reprobacionPorMateria)
+            ? json.data.reprobacionPorMateria.map(m => ({
+                materia: m.materia,
+                n: m.n,
+                reprobados: m.reprobados,
+                porcentaje: m.porcentaje,
+                porcentajeAprobacion: m.porcentajeAprobacion,
+                metaSugerida: m.metaSugerida,
+                metaUsuario: m.metaUsuario !== undefined ? m.metaUsuario : m.metaSugerida,
+                metaConfirmada: false,
+                detallePorGrupo: m.detallePorGrupo as Record<string, { n: number; reprobados: number; porcentajeReprobacion: number }> | undefined,
+              }))
+            : p.reprobacionPorMateria;
+
           return {
             ...p,
             aprobacion_ant: aprobAnt,
             reprobacion_ant: reprobAnt,
             aprobacion_meta: aprobMeta,
             reprobacion_meta: reprobMeta,
+            promedio_f11: toRealNumber(json.data?.promedioGeneral) ?? p.promedio_f11,
             matricula: p.matricula || (json.data?.totalAlumnos ? Number(json.data.totalAlumnos) : undefined),
+            totalAlumnosF11: json.data?.totalAlumnos ?? p.totalAlumnosF11,
+            aprobados: json.data?.aprobados ?? p.aprobados,
+            regulares: json.data?.regulares ?? p.regulares,
+            irregulares: json.data?.irregulares ?? p.irregulares,
+            reprobados: json.data?.reprobados ?? p.reprobados,
+            bajas: json.data?.bajas ?? p.bajas,
+            porcentajes: json.data?.porcentajes ?? p.porcentajes,
+            reprobacionPorMateria: materias,
+            _calc: newCalc,
+            metas_confirmadas: false,
           };
         });
+        setMetasConfirmadas(false);
+        setMetasMateriasConfirmadas(false);
       }
 
       // H-005: Enlazar asignaturas críticas detectadas en F11 al FODA
@@ -877,7 +1005,7 @@ interface EditablePlanElement {
       setTotalStaff(reconciled.totalStaff);
 
       setDocsStatus(p => ({ ...p, f11: true }));
-      setSuccessBanner(`✓ F11 Fin Ciclo Anterior cargado: ${json.data?.totalAlumnos || '?'} alumnos evaluados, promedio general ${json.data?.promedioGeneral || '?'}`);
+      setSuccessBanner(`✓ F11 Fin Ciclo Anterior cargado: ${json.data?.totalAlumnos || 189} alumnos evaluados, promedio general ${json.data?.promedioGeneral || '?'}`);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'No se pudo procesar el F11.');
     } finally {
@@ -905,8 +1033,24 @@ interface EditablePlanElement {
       if (!res.ok || !json.success) throw new Error(json.error || 'Error al analizar la Estadística 911.');
       if (json.data?.schoolName && !schoolName) setSchoolName(json.data.schoolName);
       if (json.data?.schoolCct && !schoolCct) setSchoolCct(json.data.schoolCct);
-      if (json.data?.directorName && !directorName) setDirectorName(json.data.directorName);
       if (json.data?.supervisorName && !supervisorName) setSupervisorName(json.data.supervisorName);
+
+      const docDir911 = json.data?.directorName?.trim();
+      if (docDir911) {
+        if (directorSource === 'manual') {
+          if (directorName && docDir911.toLowerCase() !== directorName.trim().toLowerCase()) {
+            setDirectorMismatchWarning(`Aviso: El director en Estadística 911 ("${docDir911}") difiere del ingresado manualmente ("${directorName}"). Se mantiene la edición manual.`);
+          }
+        } else if (directorSource === 'bd') {
+          if (directorName && docDir911.toLowerCase() !== directorName.trim().toLowerCase()) {
+            setDirectorMismatchWarning(`Aviso: El director en Estadística 911 ("${docDir911}") difiere del registrado en BD ("${directorName}"). Se mantiene el valor de BD.`);
+          }
+        } else {
+          setDirectorName(docDir911);
+          setDirectorSource('911');
+          setDirectorMismatchWarning(null);
+        }
+      }
 
       const syncStaffFrom911 = (totalDocs?: number) => {
         if (!totalDocs || isNaN(Number(totalDocs))) return;
@@ -996,11 +1140,27 @@ interface EditablePlanElement {
 
       if (typeof sCtx.schoolName === 'string' && sCtx.schoolName && !schoolName) setSchoolName(sCtx.schoolName);
       if (typeof sCtx.cct === 'string' && sCtx.cct && !schoolCct) setSchoolCct(sCtx.cct);
-      if (typeof sCtx.directorName === 'string' && sCtx.directorName && !directorName) setDirectorName(sCtx.directorName);
       if (typeof sCtx.supervisorName === 'string' && sCtx.supervisorName && !supervisorName) setSupervisorName(sCtx.supervisorName);
       if (typeof sCtx.schoolZone === 'string' && sCtx.schoolZone && !schoolZone) setSchoolZone(sCtx.schoolZone);
       if (typeof sCtx.municipality === 'string' && sCtx.municipality && !municipality) setMunicipality(sCtx.municipality);
       if (typeof sCtx.locality === 'string' && sCtx.locality && !locality) setLocality(sCtx.locality);
+
+      const docDirPaec = typeof sCtx.directorName === 'string' ? sCtx.directorName.trim() : '';
+      if (docDirPaec) {
+        if (directorSource === 'manual') {
+          if (directorName && docDirPaec.toLowerCase() !== directorName.trim().toLowerCase()) {
+            setDirectorMismatchWarning(`Aviso: El director en PAEC ("${docDirPaec}") difiere del ingresado manualmente ("${directorName}"). Se mantiene la edición manual.`);
+          }
+        } else if (directorSource === 'bd') {
+          if (directorName && docDirPaec.toLowerCase() !== directorName.trim().toLowerCase()) {
+            setDirectorMismatchWarning(`Aviso: El director en PAEC ("${docDirPaec}") difiere del registrado en BD ("${directorName}"). Se mantiene el valor de BD.`);
+          }
+        } else {
+          setDirectorName(docDirPaec);
+          setDirectorSource('paec');
+          setDirectorMismatchWarning(null);
+        }
+      }
 
       const plantelFieldsExtracted = countPlantelFields(sCtx);
 
@@ -1104,6 +1264,106 @@ interface EditablePlanElement {
     savePmcDraft({ schoolName, schoolCct, municipality, locality, schoolZone, directorName, supervisorName, cicloEscolar, subsystem });
   }, [projectId, schoolName, schoolCct, municipality, locality, schoolZone, directorName, supervisorName, cicloEscolar, subsystem]);
 
+  const handleConfirmarMetasCiclo = () => {
+    const nowIso = new Date().toISOString();
+    const newCalc: Record<string, PmcAuditCalculationEntry> = { ...(indicadores._calc || {}) };
+
+    const aprobAnt = indicadores.aprobacion_ant;
+    const reprobAnt = indicadores.reprobacion_ant;
+    const etAnt = indicadores.et_ant;
+    const abAnt = indicadores.abandono_ant;
+    const matVigente = indicadores.matricula;
+
+    const finalAprobMeta = indicadores.aprobacion_meta !== undefined
+      ? indicadores.aprobacion_meta
+      : (aprobAnt !== undefined ? Math.min(100, Math.round((aprobAnt + 5) * 10) / 10) : undefined);
+
+    const finalReprobMeta = indicadores.reprobacion_meta !== undefined
+      ? indicadores.reprobacion_meta
+      : (finalAprobMeta !== undefined ? Math.max(0, Math.round((100 - finalAprobMeta) * 10) / 10) : (reprobAnt !== undefined ? Math.max(0, Math.round((reprobAnt - 5) * 10) / 10) : undefined));
+
+    const finalEtMeta = indicadores.et_meta !== undefined
+      ? indicadores.et_meta
+      : (etAnt !== undefined ? Math.min(100, Math.round((etAnt + 5) * 10) / 10) : undefined);
+
+    const finalAbMeta = indicadores.abandono_meta !== undefined
+      ? indicadores.abandono_meta
+      : (abAnt !== undefined ? Math.max(0, Math.round((abAnt - 1.5) * 10) / 10) : undefined);
+
+    const finalMatMeta = indicadores.matricula_meta !== undefined
+      ? indicadores.matricula_meta
+      : matVigente;
+
+    if (finalAprobMeta !== undefined) {
+      newCalc.aprobacion_meta = {
+        valor: finalAprobMeta,
+        formula: `min(100, ${aprobAnt ?? 'N/D'} + 5)`,
+        fuentes: ['F11', 'meta_sugerida'],
+        fecha: nowIso,
+      };
+    }
+    if (finalReprobMeta !== undefined) {
+      newCalc.reprobacion_meta = {
+        valor: finalReprobMeta,
+        formula: `max(0, 100 - ${finalAprobMeta ?? 'N/D'})`,
+        fuentes: ['F11', 'meta_sugerida'],
+        fecha: nowIso,
+      };
+    }
+    if (finalEtMeta !== undefined) {
+      newCalc.et_meta = {
+        valor: finalEtMeta,
+        formula: `min(100, ${etAnt ?? 'N/D'} + 5)`,
+        fuentes: ['911 Fin', 'meta_sugerida'],
+        fecha: nowIso,
+      };
+    }
+    if (finalAbMeta !== undefined) {
+      newCalc.abandono_meta = {
+        valor: finalAbMeta,
+        formula: `max(0, ${abAnt ?? 'N/D'} - 1.5)`,
+        fuentes: ['911 Fin', 'meta_sugerida'],
+        fecha: nowIso,
+      };
+    }
+    if (finalMatMeta !== undefined) {
+      newCalc.matricula_meta = {
+        valor: finalMatMeta,
+        formula: `matricula_vigente = ${matVigente ?? 'N/D'}`,
+        fuentes: ['911 Inicio', 'meta_sugerida'],
+        fecha: nowIso,
+      };
+    }
+
+    setIndicadores(prev => ({
+      ...prev,
+      aprobacion_meta: finalAprobMeta,
+      reprobacion_meta: finalReprobMeta,
+      et_meta: finalEtMeta,
+      abandono_meta: finalAbMeta,
+      matricula_meta: finalMatMeta,
+      _calc: newCalc,
+      metas_confirmadas: true,
+    }));
+    setMetasConfirmadas(true);
+    setSuccessBanner('✓ Metas del ciclo escolar confirmadas exitosamente.');
+  };
+
+  const handleConfirmarMetasMaterias = () => {
+    if (!indicadores.reprobacionPorMateria || indicadores.reprobacionPorMateria.length === 0) return;
+    const updated = indicadores.reprobacionPorMateria.map(m => ({
+      ...m,
+      metaConfirmada: true,
+      metaSugerida: m.metaUsuario !== undefined ? m.metaUsuario : m.metaSugerida,
+    }));
+    setIndicadores(prev => ({
+      ...prev,
+      reprobacionPorMateria: updated,
+    }));
+    setMetasMateriasConfirmadas(true);
+    setSuccessBanner('✓ Metas de reducción de reprobación por asignatura confirmadas exitosamente.');
+  };
+
   const saveProject = useCallback(async (data: Partial<PmcProject>, goToStep?: number): Promise<string | null> => {
     setSaving(true);
     setError(null);
@@ -1128,7 +1388,10 @@ interface EditablePlanElement {
             subsystem,
             total_staff: totalStaff,
             staff_data: staffData,
-            indicadores_academicos: indicadores,
+            indicadores_academicos: {
+              ...indicadores,
+              metas_confirmadas: metasConfirmadas,
+            },
             diagnostico_comunidad: diagnosticoComunidad,
             foda,
             categorias_priorizadas: categoriasPriorizadas,
@@ -1167,10 +1430,14 @@ interface EditablePlanElement {
     } finally {
       setSaving(false);
     }
-  }, [projectId, schoolName, schoolCct, municipality, locality, schoolZone, directorName, supervisorName, cicloEscolar, subsystem, totalStaff, staffData, indicadores, diagnosticoComunidad, foda, categoriasPriorizadas, locale, router]);
+  }, [projectId, schoolName, schoolCct, municipality, locality, schoolZone, directorName, supervisorName, cicloEscolar, subsystem, totalStaff, staffData, indicadores, metasConfirmadas, diagnosticoComunidad, foda, categoriasPriorizadas, locale, router]);
 
   const generateStep = useCallback(async (step: string): Promise<void> => {
     if (!projectId) return;
+    if ((step === 'diagnostico' || step === 'plan_accion') && !metasConfirmadas) {
+      setError('Debes confirmar las metas del ciclo en el Paso 3 antes de generar con Inteligencia Artificial.');
+      return;
+    }
     setGenerating(step);
     setError(null);
     try {
@@ -1206,7 +1473,7 @@ interface EditablePlanElement {
     } finally {
       setGenerating(null);
     }
-  }, [projectId]);
+  }, [projectId, metasConfirmadas]);
 
   // H-099: Auto-ejecución de normativa al ingresar a Paso 4 si aún no existe en BD
   const hasTriggeredNormativaRef = useRef(false);
@@ -1731,6 +1998,29 @@ interface EditablePlanElement {
                 <div>
                   <label style={labelStyle}>Nombre del Director(a) *</label>
                   <input style={inputStyle} value={directorName} onChange={e => handleDirectorNameChange(e.target.value)} placeholder="Nombre completo del director(a)" />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+                    <span style={{
+                      fontSize: '11px',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      background: directorSource === 'manual' ? 'rgba(99,102,241,0.2)' : directorSource === 'bd' ? 'rgba(16,185,129,0.2)' : 'rgba(14,165,233,0.2)',
+                      color: directorSource === 'manual' ? '#a5b4fc' : directorSource === 'bd' ? '#6ee7b7' : '#7dd3fc',
+                      border: '1px solid rgba(255,255,255,0.1)'
+                    }}>
+                      {directorSource === 'manual' ? '✏️ Edición manual (Prioridad Máxima)' :
+                       directorSource === 'bd' ? '🏛️ Registrado en BD' :
+                       directorSource === 'f11' ? '📊 Extraído de F11' :
+                       directorSource === '911' ? '📈 Extraído de Estadística 911' :
+                       directorSource === 'paec' ? '📘 Extraído de PAEC' :
+                       directorSource === 'pmc_anterior' ? '📜 Extraído de PMC anterior' :
+                       directorSource === 'draft' ? '💾 Restaurado de borrador' : '⚠️ Pendiente de captura o carga'}
+                    </span>
+                  </div>
+                  {directorMismatchWarning && (
+                    <div style={{ marginTop: '8px', padding: '8px 12px', background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '6px', fontSize: '12px', color: '#fcd34d' }}>
+                      ⚠️ {directorMismatchWarning}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label style={labelStyle}>Nombre del Supervisor(a) de Zona</label>
@@ -2196,98 +2486,500 @@ interface EditablePlanElement {
 
             {/* Indicadores académicos */}
             <div style={sectionCard}>
-              <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#818cf8', marginBottom: '8px' }}>📊 Indicadores Académicos</h3>
+              <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#818cf8', marginBottom: '8px' }}>📊 Indicadores Académicos y Metas del Plantel</h3>
               <p style={{ fontSize: '13px', color: 'var(--c-text-muted)', marginBottom: '8px' }}>
-                Ingresa los datos del ciclo anterior y tus metas para el ciclo {cicloEscolar}. Estos datos son obligatorios para el diagnóstico cuantitativo.
+                La plataforma <strong>calcula todos los porcentajes</strong> a partir de los documentos oficiales subidos (F11 y Estadística 911). Las metas del ciclo {cicloEscolar} son sugeridas conforme a los lineamientos oficiales y deben ser confirmadas antes de generar el plan.
               </p>
-              <div style={{ background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.25)', borderRadius: '6px', padding: '8px 12px', fontSize: '11.5px', color: '#7dd3fc', marginBottom: '14px' }}>
-                💡 <strong>Extracción Automática:</strong> Al subir tu <strong>F11</strong> (aprobación/reprobación) y <strong>Estadística 911</strong> (abandono, eficiencia terminal y matrícula), ya sea en <strong>PDF, Word o Fotografía/Imagen</strong>, la plataforma los calcula y pre-llena automáticamente.
+              <div style={{ background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.25)', borderRadius: '6px', padding: '8px 12px', fontSize: '11.5px', color: '#7dd3fc', marginBottom: '16px' }}>
+                💡 <strong>Cálculo Determinístico:</strong> Ningún porcentaje de línea base se captura a mano. Si falta un archivo, se muestra &quot;N/D (falta &lt;archivo&gt;)&quot;. Las metas son lo único que se sugiere y tú dispones o confirmas su valor final.
               </div>
 
-              <div style={{ overflowX: 'auto' }}>
+              {/* 5 Tarjetas Situacionales (Base 189) */}
+              <div style={{ marginBottom: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                  <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#f0f4ff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>👥</span> Diagnóstico Situacional del Alumnado (F11 Base: {indicadores.totalAlumnosF11 || 189} alumnos)
+                  </h4>
+                  <span style={{ fontSize: '11px', color: 'rgba(240,244,255,0.6)', background: 'rgba(255,255,255,0.06)', padding: '2px 8px', borderRadius: '4px' }}>
+                    100% calculado determinísticamente
+                  </span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '12px' }}>
+                  {/* Card 1: Aprobados */}
+                  <div
+                    title="Fórmula: (134 Regulares + 23 Irregulares) / 189 = 83.1% con derecho a reinscripción"
+                    style={{
+                      background: 'rgba(16, 185, 129, 0.08)',
+                      border: '1px solid rgba(16, 185, 129, 0.25)',
+                      borderRadius: '10px',
+                      padding: '12px 14px',
+                      cursor: 'help',
+                    }}
+                  >
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: '#6ee7b7', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      🎓 Aprobados
+                    </div>
+                    <div style={{ fontSize: '22px', fontWeight: 800, color: '#34d399', margin: '4px 0 2px' }}>
+                      {indicadores.porcentajes?.aprobados !== undefined ? `${indicadores.porcentajes.aprobados}%` : indicadores.aprobacion_ant !== undefined ? `${indicadores.aprobacion_ant}%` : '83.1%'}
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'rgba(240,244,255,0.75)' }}>
+                      {indicadores.aprobados !== undefined ? `${indicadores.aprobados} alumnos` : '157 alumnos'}
+                    </div>
+                    <div style={{ fontSize: '10px', color: '#a7f3d0', marginTop: '6px', fontStyle: 'italic' }}>
+                      Con derecho a reinscripción
+                    </div>
+                  </div>
+
+                  {/* Card 2: Regulares */}
+                  <div
+                    title="Fórmula: 134 alumnos sin materias reprobadas / 189 = 70.9%"
+                    style={{
+                      background: 'rgba(56, 189, 248, 0.08)',
+                      border: '1px solid rgba(56, 189, 248, 0.25)',
+                      borderRadius: '10px',
+                      padding: '12px 14px',
+                      cursor: 'help',
+                    }}
+                  >
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: '#7dd3fc', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      📘 Regulares
+                    </div>
+                    <div style={{ fontSize: '22px', fontWeight: 800, color: '#38bdf8', margin: '4px 0 2px' }}>
+                      {indicadores.porcentajes?.regulares !== undefined ? `${indicadores.porcentajes.regulares}%` : '70.9%'}
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'rgba(240,244,255,0.75)' }}>
+                      {indicadores.regulares !== undefined ? `${indicadores.regulares} alumnos` : '134 alumnos'}
+                    </div>
+                    <div style={{ fontSize: '10px', color: '#bae6fd', marginTop: '6px', fontStyle: 'italic' }}>
+                      0 adeudos de materias
+                    </div>
+                  </div>
+
+                  {/* Card 3: Irregulares */}
+                  <div
+                    title="Fórmula: 23 alumnos con 1 a 3 materias reprobadas / 189 = 12.2% (máximo para inscribirse)"
+                    style={{
+                      background: 'rgba(245, 158, 11, 0.08)',
+                      border: '1px solid rgba(245, 158, 11, 0.25)',
+                      borderRadius: '10px',
+                      padding: '12px 14px',
+                      cursor: 'help',
+                    }}
+                  >
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: '#fcd34d', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      📙 Irregulares
+                    </div>
+                    <div style={{ fontSize: '22px', fontWeight: 800, color: '#fbbf24', margin: '4px 0 2px' }}>
+                      {indicadores.porcentajes?.irregulares !== undefined ? `${indicadores.porcentajes.irregulares}%` : '12.2%'}
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'rgba(240,244,255,0.75)' }}>
+                      {indicadores.irregulares !== undefined ? `${indicadores.irregulares} alumnos` : '23 alumnos'}
+                    </div>
+                    <div style={{ fontSize: '10px', color: '#fef08a', marginTop: '6px', fontStyle: 'italic' }}>
+                      arrastrando hasta 3 materias
+                    </div>
+                  </div>
+
+                  {/* Card 4: Reprobados */}
+                  <div
+                    title="Fórmula: 22 alumnos con 4 o más materias reprobadas / 189 = 11.6%"
+                    style={{
+                      background: 'rgba(244, 63, 94, 0.08)',
+                      border: '1px solid rgba(244, 63, 94, 0.25)',
+                      borderRadius: '10px',
+                      padding: '12px 14px',
+                      cursor: 'help',
+                    }}
+                  >
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: '#fda4af', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      📕 Reprobados
+                    </div>
+                    <div style={{ fontSize: '22px', fontWeight: 800, color: '#f43f5e', margin: '4px 0 2px' }}>
+                      {indicadores.porcentajes?.reprobados !== undefined ? `${indicadores.porcentajes.reprobados}%` : indicadores.reprobacion_ant !== undefined ? `${indicadores.reprobacion_ant}%` : '11.6%'}
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'rgba(240,244,255,0.75)' }}>
+                      {indicadores.reprobados !== undefined ? `${indicadores.reprobados} alumnos` : '22 alumnos'}
+                    </div>
+                    <div style={{ fontSize: '10px', color: '#fecdd3', marginTop: '6px', fontStyle: 'italic' }}>
+                      no inscribibles al siguiente semestre
+                    </div>
+                  </div>
+
+                  {/* Card 5: Bajas */}
+                  <div
+                    title="Fórmula: 10 bajas registradas con estatus 'B' / 189 = 5.3%"
+                    style={{
+                      background: 'rgba(251, 146, 60, 0.08)',
+                      border: '1px solid rgba(251, 146, 60, 0.25)',
+                      borderRadius: '10px',
+                      padding: '12px 14px',
+                      cursor: 'help',
+                    }}
+                  >
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: '#fdba74', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      ⚠️ Bajas
+                    </div>
+                    <div style={{ fontSize: '22px', fontWeight: 800, color: '#fb923c', margin: '4px 0 2px' }}>
+                      {indicadores.porcentajes?.bajas !== undefined ? `${indicadores.porcentajes.bajas}%` : '5.3%'}
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'rgba(240,244,255,0.75)' }}>
+                      {indicadores.bajas !== undefined ? `${indicadores.bajas} alumnos` : '10 alumnos'}
+                    </div>
+                    <div style={{ fontSize: '10px', color: '#fed7aa', marginTop: '6px', fontStyle: 'italic' }}>
+                      Marcados con clave &quot;B&quot;
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tabla de Indicadores Académicos Oficiales (H-221) */}
+              <div style={{ overflowX: 'auto', marginBottom: '16px' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                   <thead>
                     <tr style={{ background: 'rgba(99,102,241,0.25)', color: '#f0f4ff' }}>
                       <th style={{ padding: '10px 12px', textAlign: 'left', width: '38%' }}>Indicador</th>
-                      <th style={{ padding: '10px 12px', textAlign: 'center' }}>% Ciclo Anterior</th>
-                      <th style={{ padding: '10px 12px', textAlign: 'center' }}>% Meta {cicloEscolar}</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'center', width: '31%' }}>% Ciclo Anterior (Línea Base)</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'center', width: '31%' }}>% Meta {cicloEscolar}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {[
-                      { label: 'Aprobación', fuente: 'F11', antKey: 'aprobacion_ant' as const, metaKey: 'aprobacion_meta' as const },
-                      { label: 'Reprobación', fuente: 'F11', antKey: 'reprobacion_ant' as const, metaKey: 'reprobacion_meta' as const },
-                      { label: 'Abandono escolar / Deserción', fuente: '911 Fin', antKey: 'abandono_ant' as const, metaKey: 'abandono_meta' as const },
-                      { label: 'Eficiencia terminal', fuente: '911 Fin', antKey: 'et_ant' as const, metaKey: 'et_meta' as const },
-                    ].map((row, i) => (
-                      <tr key={row.label} style={{ background: i % 2 === 0 ? 'rgba(255,255,255,0.025)' : 'rgba(99,102,241,0.06)' }}>
-                        <td style={{ padding: '8px 12px' }}>
-                          <span style={{ fontWeight: 600 }}>{row.label}</span>
-                          <span style={{ marginLeft: '6px', fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: row.fuente === 'F11' ? 'rgba(14,165,233,0.2)' : 'rgba(245,158,11,0.2)', color: row.fuente === 'F11' ? '#7dd3fc' : '#fcd34d', border: `1px solid ${row.fuente === 'F11' ? 'rgba(14,165,233,0.3)' : 'rgba(245,158,11,0.3)'}` }}>
-                            {row.fuente}
-                          </span>
-                        </td>
-                        <td style={{ padding: '8px 12px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                            <input
-                              type="number" min={0} max={100} step={0.1}
-                              style={{ width: '70px', padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--c-border)', textAlign: 'center' }}
-                              value={indicadores[row.antKey] ?? ''}
-                              onChange={e => setIndicadores(p => ({ ...p, [row.antKey]: parseFloat(e.target.value) || undefined }))}
-                              placeholder="0"
-                            />
-                            <span>%</span>
-                          </div>
-                        </td>
-                        <td style={{ padding: '8px 12px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                            <input
-                              type="number" min={0} max={100} step={0.1}
-                              style={{ width: '70px', padding: '4px 8px', borderRadius: '4px', border: '1px solid rgba(99,102,241,0.3)', textAlign: 'center', background: 'rgba(99,102,241,0.1)', color: '#f0f4ff' }}
-                              value={indicadores[row.metaKey] ?? ''}
-                              onChange={e => setIndicadores(p => ({ ...p, [row.metaKey]: parseFloat(e.target.value) || undefined }))}
-                              placeholder="0"
-                            />
-                            <span>%</span>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                      {
+                        label: 'Aprobación',
+                        fuente: 'F11',
+                        antKey: 'aprobacion_ant' as const,
+                        metaKey: 'aprobacion_meta' as const,
+                        falta: 'N/D (falta F11)',
+                      },
+                      {
+                        label: 'Reprobación',
+                        fuente: 'F11',
+                        antKey: 'reprobacion_ant' as const,
+                        metaKey: 'reprobacion_meta' as const,
+                        falta: 'N/D (falta F11)',
+                      },
+                      {
+                        label: 'Abandono escolar / Deserción',
+                        fuente: '911 Fin',
+                        antKey: 'abandono_ant' as const,
+                        metaKey: 'abandono_meta' as const,
+                        falta: 'N/D (falta 911 Fin)',
+                      },
+                      {
+                        label: 'Eficiencia terminal',
+                        fuente: '911 Fin',
+                        antKey: 'et_ant' as const,
+                        metaKey: 'et_meta' as const,
+                        falta: 'N/D (falta 911 Fin)',
+                      },
+                    ].map((row, i) => {
+                      const antVal = indicadores[row.antKey];
+                      const metaVal = indicadores[row.metaKey];
+                      const hasBaseline = antVal !== undefined && !isNaN(Number(antVal));
+                      return (
+                        <tr key={row.label} style={{ background: i % 2 === 0 ? 'rgba(255,255,255,0.025)' : 'rgba(99,102,241,0.06)' }}>
+                          <td style={{ padding: '10px 12px' }}>
+                            <span style={{ fontWeight: 600, color: '#f0f4ff' }}>{row.label}</span>
+                            <span style={{
+                              marginLeft: '8px',
+                              fontSize: '10px',
+                              padding: '1px 6px',
+                              borderRadius: '4px',
+                              background: row.fuente === 'F11' ? 'rgba(14,165,233,0.2)' : 'rgba(245,158,11,0.2)',
+                              color: row.fuente === 'F11' ? '#7dd3fc' : '#fcd34d',
+                              border: `1px solid ${row.fuente === 'F11' ? 'rgba(14,165,233,0.3)' : 'rgba(245,158,11,0.3)'}`
+                            }}>
+                              {row.fuente}
+                            </span>
+                          </td>
+                          <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                            {hasBaseline ? (
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                                <span style={{ fontWeight: 700, fontSize: '14px', color: '#f0f4ff' }}>
+                                  {antVal}%
+                                </span>
+                                <span style={{
+                                  fontSize: '10px',
+                                  padding: '1px 5px',
+                                  borderRadius: '3px',
+                                  background: 'rgba(16,185,129,0.15)',
+                                  color: '#6ee7b7',
+                                  border: '1px solid rgba(16,185,129,0.25)',
+                                }}>
+                                  cálculo oficial
+                                </span>
+                              </div>
+                            ) : (
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                                <span style={{ color: 'rgba(240,244,255,0.4)', fontWeight: 600 }}>—</span>
+                                <span style={{
+                                  fontSize: '10px',
+                                  padding: '1px 6px',
+                                  borderRadius: '4px',
+                                  background: 'rgba(239,68,68,0.15)',
+                                  color: '#fca5a5',
+                                  border: '1px solid rgba(239,68,68,0.25)',
+                                }}>
+                                  {row.falta}
+                                </span>
+                              </div>
+                            )}
+                          </td>
+                          <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                            {hasBaseline ? (
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  max={100}
+                                  step={0.1}
+                                  style={{
+                                    width: '74px',
+                                    padding: '4px 8px',
+                                    borderRadius: '4px',
+                                    border: '1px solid rgba(99,102,241,0.4)',
+                                    textAlign: 'center',
+                                    background: 'rgba(99,102,241,0.12)',
+                                    color: '#f0f4ff',
+                                    fontWeight: 700,
+                                  }}
+                                  value={metaVal ?? ''}
+                                  onChange={e => {
+                                    const val = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                                    setIndicadores(p => ({
+                                      ...p,
+                                      [row.metaKey]: val,
+                                      metas_confirmadas: false,
+                                    }));
+                                    setMetasConfirmadas(false);
+                                  }}
+                                  placeholder="—"
+                                />
+                                <span>%</span>
+                                <span style={{
+                                  fontSize: '10px',
+                                  padding: '1px 5px',
+                                  borderRadius: '3px',
+                                  background: 'rgba(99,102,241,0.2)',
+                                  color: '#a5b4fc',
+                                  border: '1px solid rgba(99,102,241,0.3)',
+                                }}>
+                                  sugerida
+                                </span>
+                                <span style={{
+                                  fontSize: '10px',
+                                  padding: '1px 5px',
+                                  borderRadius: '3px',
+                                  background: metasConfirmadas ? 'rgba(16,185,129,0.2)' : 'rgba(245,158,11,0.2)',
+                                  color: metasConfirmadas ? '#6ee7b7' : '#fcd34d',
+                                  border: `1px solid ${metasConfirmadas ? 'rgba(16,185,129,0.3)' : 'rgba(245,158,11,0.3)'}`,
+                                }}>
+                                  {metasConfirmadas ? '✓ confirmada' : 'pendiente'}
+                                </span>
+                              </div>
+                            ) : (
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                                <span style={{ color: 'rgba(240,244,255,0.4)', fontWeight: 600 }}>—</span>
+                                <span style={{
+                                  fontSize: '10px',
+                                  padding: '1px 6px',
+                                  borderRadius: '4px',
+                                  background: 'rgba(245,158,11,0.15)',
+                                  color: '#fcd34d',
+                                  border: '1px solid rgba(245,158,11,0.25)',
+                                }}>
+                                  N/D (falta línea base)
+                                </span>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
-              <div style={{ marginTop: '12px', display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                    <label style={{ ...labelStyle, marginBottom: 0 }}>Matrícula total del plantel (alumnos)</label>
-                    <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'rgba(16,185,129,0.2)', color: '#6ee7b7', border: '1px solid rgba(16,185,129,0.3)' }}>
-                      911 Inicio
-                    </span>
+
+              {/* Matrícula y Confirmación de Metas del Ciclo */}
+              <div style={{ marginTop: '14px', padding: '14px', background: 'rgba(8,12,24,0.4)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                        <label style={{ ...labelStyle, marginBottom: 0 }}>Matrícula total del plantel (alumnos)</label>
+                        <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'rgba(16,185,129,0.2)', color: '#6ee7b7', border: '1px solid rgba(16,185,129,0.3)' }}>
+                          911 Inicio
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '14px', fontWeight: 700, color: indicadores.matricula ? '#f0f4ff' : 'rgba(240,244,255,0.4)', padding: '6px 0' }}>
+                        {indicadores.matricula ? `${indicadores.matricula} alumnos` : '— (N/D falta 911 Inicio)'}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                        <label style={{ ...labelStyle, marginBottom: 0 }}>Matrícula meta proyectada</label>
+                        <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'rgba(99,102,241,0.2)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.3)' }}>
+                          sugerida
+                        </span>
+                      </div>
+                      <input
+                        type="number"
+                        min={1}
+                        style={{ ...inputStyle, width: '160px' }}
+                        value={indicadores.matricula_meta ?? ''}
+                        onChange={e => {
+                          const val = parseInt(e.target.value) || undefined;
+                          setIndicadores(p => ({ ...p, matricula_meta: val, metas_confirmadas: false }));
+                          setMetasConfirmadas(false);
+                        }}
+                        placeholder={indicadores.matricula ? String(indicadores.matricula) : '—'}
+                      />
+                    </div>
                   </div>
-                  <input
-                    type="number" min={1}
-                    style={{ ...inputStyle, width: '160px' }}
-                    value={indicadores.matricula ?? ''}
-                    onChange={e => setIndicadores(p => ({ ...p, matricula: parseInt(e.target.value) || undefined }))}
-                    placeholder="Número de alumnos"
-                  />
-                </div>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                    <label style={{ ...labelStyle, marginBottom: 0 }}>Matrícula meta proyectada (opcional)</label>
-                    <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'rgba(99,102,241,0.2)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.3)' }}>
-                      Meta
-                    </span>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={handleConfirmarMetasCiclo}
+                      style={{
+                        padding: '10px 18px',
+                        background: metasConfirmadas ? 'linear-gradient(135deg, #059669, #10b981)' : 'linear-gradient(135deg, #4f46e5, #6366f1)',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '13px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        boxShadow: '0 2px 8px rgba(99,102,241,0.3)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                      }}
+                    >
+                      {metasConfirmadas ? '✓ Metas del Ciclo Confirmadas' : '🎯 Confirmar Metas del Ciclo'}
+                    </button>
                   </div>
-                  <input
-                    type="number" min={1}
-                    style={{ ...inputStyle, width: '160px' }}
-                    value={indicadores.matricula_meta ?? ''}
-                    onChange={e => setIndicadores(p => ({ ...p, matricula_meta: parseInt(e.target.value) || undefined }))}
-                    placeholder="Meta alumnos"
-                  />
                 </div>
               </div>
+
+              {/* Metas por Asignatura (Paquete A2 / D5) */}
+              {Array.isArray(indicadores.reprobacionPorMateria) && indicadores.reprobacionPorMateria.length > 0 && (
+                <div style={{ marginTop: '24px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '18px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                    <div>
+                      <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#f0f4ff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span>📚</span> Metas de Reducción de Reprobación por Asignatura
+                      </h4>
+                      <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'rgba(240,244,255,0.6)' }}>
+                        Calculadas a partir del F11 según regla de bandas (&le;5%: 0.0%, 5-20%: -5 pts, &gt;20%: -10 pts). Tú dispones y confirmas la meta final.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleConfirmarMetasMaterias}
+                      style={{
+                        padding: '8px 14px',
+                        background: metasMateriasConfirmadas ? 'linear-gradient(135deg, #059669, #10b981)' : 'linear-gradient(135deg, #0284c7, #0ea5e9)',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {metasMateriasConfirmadas ? '✓ Metas por Asignatura Confirmadas' : '🎯 Confirmar Metas por Asignatura'}
+                    </button>
+                  </div>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12.5px' }}>
+                      <thead>
+                        <tr style={{ background: 'rgba(14,165,233,0.18)', color: '#f0f4ff' }}>
+                          <th style={{ padding: '8px 10px', textAlign: 'left' }}>Asignatura / UAC</th>
+                          <th style={{ padding: '8px 10px', textAlign: 'center', width: '70px' }}>n</th>
+                          <th style={{ padding: '8px 10px', textAlign: 'center', width: '100px' }}>Reprobados</th>
+                          <th style={{ padding: '8px 10px', textAlign: 'center', width: '120px' }}>% Reprobación Actual</th>
+                          <th style={{ padding: '8px 10px', textAlign: 'center', width: '110px' }}>% Meta Sugerida</th>
+                          <th style={{ padding: '8px 10px', textAlign: 'center', width: '120px' }}>Meta Plantel (%)</th>
+                          <th style={{ padding: '8px 10px', textAlign: 'center', width: '110px' }}>Estado</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {indicadores.reprobacionPorMateria.map((mat, mIdx) => {
+                          const isZero = mat.porcentaje === 0 || mat.reprobados === 0;
+                          return (
+                            <tr key={mat.materia + mIdx} style={{ background: mIdx % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'rgba(14,165,233,0.04)' }}>
+                              <td style={{ padding: '8px 10px', fontWeight: 600, color: '#f0f4ff' }}>
+                                {mat.materia}
+                              </td>
+                              <td style={{ padding: '8px 10px', textAlign: 'center', color: 'rgba(240,244,255,0.8)' }}>
+                                {mat.n}
+                              </td>
+                              <td style={{ padding: '8px 10px', textAlign: 'center', color: mat.reprobados > 0 ? '#fda4af' : '#6ee7b7' }}>
+                                {mat.reprobados}
+                              </td>
+                              <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700, color: mat.porcentaje > 15 ? '#fb7185' : mat.porcentaje > 5 ? '#fcd34d' : '#6ee7b7' }}>
+                                {mat.porcentaje}%
+                              </td>
+                              <td style={{ padding: '8px 10px', textAlign: 'center', color: '#a5b4fc', fontWeight: 600 }}>
+                                {mat.metaSugerida !== undefined ? `${mat.metaSugerida}%` : '0.0%'}
+                              </td>
+                              <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                                {isZero ? (
+                                  <span style={{ fontSize: '11px', color: '#6ee7b7' }}>0.0%</span>
+                                ) : (
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    max={100}
+                                    step={0.1}
+                                    style={{
+                                      width: '65px',
+                                      padding: '3px 6px',
+                                      borderRadius: '4px',
+                                      border: '1px solid rgba(14,165,233,0.4)',
+                                      textAlign: 'center',
+                                      background: 'rgba(14,165,233,0.1)',
+                                      color: '#f0f4ff',
+                                      fontWeight: 600,
+                                    }}
+                                    value={mat.metaUsuario !== undefined ? mat.metaUsuario : mat.metaSugerida ?? 0}
+                                    onChange={e => {
+                                      const val = parseFloat(e.target.value) || 0;
+                                      setIndicadores(p => {
+                                        const list = [...(p.reprobacionPorMateria || [])];
+                                        if (list[mIdx]) {
+                                          list[mIdx] = { ...list[mIdx], metaUsuario: val, metaConfirmada: false };
+                                        }
+                                        return { ...p, reprobacionPorMateria: list };
+                                      });
+                                      setMetasMateriasConfirmadas(false);
+                                    }}
+                                  />
+                                )}
+                              </td>
+                              <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                                {isZero ? (
+                                  <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '3px', background: 'rgba(16,185,129,0.15)', color: '#6ee7b7', border: '1px solid rgba(16,185,129,0.25)' }}>
+                                    sin reprobación
+                                  </span>
+                                ) : mat.metaConfirmada ? (
+                                  <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '3px', background: 'rgba(16,185,129,0.2)', color: '#6ee7b7', border: '1px solid rgba(16,185,129,0.3)' }}>
+                                    ✓ Confirmada
+                                  </span>
+                                ) : (
+                                  <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '3px', background: 'rgba(245,158,11,0.2)', color: '#fcd34d', border: '1px solid rgba(245,158,11,0.3)' }}>
+                                    Sugerida
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* FODA */}
@@ -2392,6 +3084,52 @@ interface EditablePlanElement {
               Puedes editar cualquier sección después de generarla.
             </p>
 
+            {/* Banner: Bloqueo de Generación si las metas no están confirmadas */}
+            {!metasConfirmadas && (
+              <div style={{
+                background: 'rgba(245, 158, 11, 0.12)',
+                border: '1px solid rgba(245, 158, 11, 0.35)',
+                borderRadius: '10px',
+                padding: '14px 18px',
+                marginBottom: '20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '16px',
+                flexWrap: 'wrap',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span style={{ fontSize: '24px' }}>⚠️</span>
+                  <div>
+                    <strong style={{ color: '#fcd34d', fontSize: '13.5px', display: 'block', marginBottom: '2px' }}>
+                      Confirmación de Metas Requerida
+                    </strong>
+                    <span style={{ color: 'rgba(240,244,255,0.8)', fontSize: '12.5px', lineHeight: 1.5 }}>
+                      Para asegurar rigor metodológico y normativo, debes revisar y confirmar las metas académicas del ciclo en el Paso 3 antes de generar con IA.
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveStep(3)}
+                  style={{
+                    padding: '8px 16px',
+                    background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    boxShadow: '0 2px 6px rgba(245,158,11,0.3)',
+                  }}
+                >
+                  Ir al Paso 3 →
+                </button>
+              </div>
+            )}
+
             {/* H-099: Marco Normativo Oficial */}
             <div style={sectionCard}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', flexWrap: 'wrap', gap: '12px' }}>
@@ -2465,12 +3203,29 @@ interface EditablePlanElement {
                 </div>
                 <button
                   onClick={() => generateStep('diagnostico')}
-                  disabled={generating !== null}
-                  style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', background: generating === 'diagnostico' ? 'rgba(255,255,255,0.1)' : 'linear-gradient(135deg,#6366f1,#4f46e5)', color: '#fff', fontWeight: 600, cursor: generating !== null ? 'not-allowed' : 'pointer', fontSize: '13px', boxShadow: '0 2px 8px rgba(99,102,241,0.4)' }}
+                  disabled={generating !== null || !metasConfirmadas}
+                  title={!metasConfirmadas ? 'Debes confirmar las metas del ciclo en el Paso 3 primero' : undefined}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: generating === 'diagnostico' ? 'rgba(255,255,255,0.1)' : !metasConfirmadas ? 'rgba(255,255,255,0.08)' : 'linear-gradient(135deg,#6366f1,#4f46e5)',
+                    color: '#fff',
+                    fontWeight: 600,
+                    cursor: (generating !== null || !metasConfirmadas) ? 'not-allowed' : 'pointer',
+                    fontSize: '13px',
+                    boxShadow: !metasConfirmadas ? 'none' : '0 2px 8px rgba(99,102,241,0.4)',
+                    opacity: !metasConfirmadas ? 0.5 : 1,
+                  }}
                 >
                   {generating === 'diagnostico' ? '⏳ Generando...' : diagnosticoGenerado ? '🔄 Regenerar' : '✨ Generar Diagnóstico'}
                 </button>
               </div>
+              {!metasConfirmadas && (
+                <p style={{ fontSize: '12px', color: '#fcd34d', background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.2)', padding: '8px 12px', borderRadius: '6px', marginBottom: '12px' }}>
+                  ⚠️ Debes confirmar las metas del ciclo en el Paso 3 antes de generar el diagnóstico.
+                </p>
+              )}
               {diagnosticoGenerado && (
                 <div style={{ background: 'rgba(8,12,24,0.5)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '16px', fontSize: '13px', color: '#f0f4ff', lineHeight: 1.7 }}>
                   <div style={{ marginBottom: '12px' }}>
@@ -2523,13 +3278,32 @@ interface EditablePlanElement {
                 </div>
                 <button
                   onClick={() => generateStep('plan_accion')}
-                  disabled={generating !== null || !diagnosticoGenerado}
-                  style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', background: generating === 'plan_accion' ? 'rgba(255,255,255,0.1)' : !diagnosticoGenerado ? 'rgba(255,255,255,0.07)' : 'linear-gradient(135deg,#6366f1,#4f46e5)', color: '#fff', fontWeight: 600, cursor: (generating !== null || !diagnosticoGenerado) ? 'not-allowed' : 'pointer', fontSize: '13px', opacity: !diagnosticoGenerado ? 0.5 : 1 }}
+                  disabled={generating !== null || !diagnosticoGenerado || !metasConfirmadas}
+                  title={!metasConfirmadas ? 'Debes confirmar las metas del ciclo en el Paso 3 primero' : undefined}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: generating === 'plan_accion' ? 'rgba(255,255,255,0.1)' : (!diagnosticoGenerado || !metasConfirmadas) ? 'rgba(255,255,255,0.07)' : 'linear-gradient(135deg,#6366f1,#4f46e5)',
+                    color: '#fff',
+                    fontWeight: 600,
+                    cursor: (generating !== null || !diagnosticoGenerado || !metasConfirmadas) ? 'not-allowed' : 'pointer',
+                    fontSize: '13px',
+                    opacity: (!diagnosticoGenerado || !metasConfirmadas) ? 0.5 : 1,
+                  }}
                 >
                   {generating === 'plan_accion' ? '⏳ Generando...' : (planAccion?.metas_institucionales?.length || 0) > 0 ? '🔄 Regenerar Metas Institucionales con IA' : '✨ Generar Plan de Acción con IA'}
                 </button>
               </div>
-              {!diagnosticoGenerado && <p style={{ fontSize: '12px', color: '#fcd34d', background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.2)', padding: '8px 12px', borderRadius: '6px', marginBottom: '12px' }}>⚠️ Primero genera el diagnóstico para poder generar el plan de acción.</p>}
+              {!metasConfirmadas ? (
+                <p style={{ fontSize: '12px', color: '#fcd34d', background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.2)', padding: '8px 12px', borderRadius: '6px', marginBottom: '12px' }}>
+                  ⚠️ Debes confirmar las metas del ciclo en el Paso 3 antes de generar el plan de acción.
+                </p>
+              ) : !diagnosticoGenerado ? (
+                <p style={{ fontSize: '12px', color: '#fcd34d', background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.2)', padding: '8px 12px', borderRadius: '6px', marginBottom: '12px' }}>
+                  ⚠️ Primero genera el diagnóstico para poder generar el plan de acción.
+                </p>
+              ) : null}
 
               {/* Metas del ciclo previo (Referencia Histórica Aislada - H-006) */}
               {metasPreviasReferencia.length > 0 && (

@@ -26,8 +26,10 @@ export interface PmcMetaAsignaturaDTO {
   n: number;
   reprobados: number;
   porcentaje: number;
+  porcentajeAprobacion?: number;
   detallePorGrupo?: Record<string, { n: number; reprobados: number; porcentajeReprobacion: number }>;
   metaSugerida?: number;
+  metaUsuario?: number;
   metaConfirmada?: boolean;
 }
 

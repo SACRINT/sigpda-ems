@@ -32,6 +32,7 @@ vi.mock('@/lib/admin-unified', () => ({
 vi.mock('@/lib/ai-provider', () => ({
   generateWithRotation: vi.fn(),
   resolveUserIsPremium: vi.fn().mockResolvedValue(true),
+  logActivity: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@/lib/document-ingestion', () => ({
