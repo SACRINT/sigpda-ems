@@ -53,7 +53,45 @@ describe('H-222: Paso 3 del Wizard sin datos de F11 muestra N/D sin valores hard
     expect(html).not.toContain('10 alumnos');
     expect(html).not.toContain('Base: 189');
 
+    // Debe contener el título del bloque y el encabezado de tarjeta
+    expect(html).toContain('Diagnóstico Situacional del Alumnado');
+    expect(html).toContain('Aprobados');
+
     // Debe contener el placeholder oficial N/D (falta F11)
     expect(html).toContain('N/D (falta F11)');
+  });
+
+  it('con aprobacion_ant definido pero totalAlumnosF11 ausente, las tarjetas muestran — y no porcentaje en situacional', () => {
+    const projectWithAprobAnt = {
+      id: 'project-test-aprob-ant-only',
+      current_step: 3,
+      school_name: 'Bachillerato General de Prueba',
+      school_cct: '21EBH9999Z',
+      indicadores_academicos: {
+        aprobacion_ant: 85.5,
+        reprobacion_ant: 14.5,
+        // totalAlumnosF11 ausente (no se ha subido F11)
+      },
+    };
+
+    const html = renderToString(
+      <PmcWizardClient
+        locale="es"
+        teacherId="teacher-123"
+        teacherName="Profesor de Prueba"
+        teacherSchool="Bachillerato de Prueba"
+        teacherMunicipality="Puebla"
+        existingProject={projectWithAprobAnt as Parameters<typeof PmcWizardClient>[0]['existingProject']}
+      />
+    );
+
+    // Debe renderizar la sección
+    expect(html).toContain('Diagnóstico Situacional del Alumnado');
+    expect(html).toContain('Aprobados');
+
+    // El tooltip debe indicar falta de F11 y el valor en la tarjeta no debe pintar porcentajes inventados
+    expect(html).toContain('N/D (falta F11)');
+    // No debe pintar '85.5%' dentro del bloque de tarjetas situacionales como si viniera de F11
+    expect(html).not.toContain('85.5% alumnos');
   });
 });

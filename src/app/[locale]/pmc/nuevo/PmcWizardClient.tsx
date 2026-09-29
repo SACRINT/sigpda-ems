@@ -943,6 +943,36 @@ interface EditablePlanElement {
             };
           }
 
+          const baj = json.data?.bajas ?? p.bajas;
+          const pctReg = json.data?.porcentajes?.regulares;
+          const pctIrreg = json.data?.porcentajes?.irregulares;
+          const pctBaj = json.data?.porcentajes?.bajas;
+
+          if (reg !== undefined && tot) {
+            newCalc.regulares = {
+              valor: reg,
+              formula: `${reg} alumnos regulares / ${tot} = ${pctReg ?? Number(((reg / tot) * 100).toFixed(1))}%`,
+              fuentes: ['F11 Fin Ciclo Anterior'],
+              fecha: nowIso,
+            };
+          }
+          if (irreg !== undefined && tot) {
+            newCalc.irregulares = {
+              valor: irreg,
+              formula: `${irreg} alumnos irregulares / ${tot} = ${pctIrreg ?? Number(((irreg / tot) * 100).toFixed(1))}%`,
+              fuentes: ['F11 Fin Ciclo Anterior'],
+              fecha: nowIso,
+            };
+          }
+          if (baj !== undefined && tot) {
+            newCalc.bajas = {
+              valor: baj,
+              formula: `${baj} bajas registradas ("B") / ${tot} = ${pctBaj ?? Number(((baj / tot) * 100).toFixed(1))}%`,
+              fuentes: ['F11 Fin Ciclo Anterior'],
+              fecha: nowIso,
+            };
+          }
+
           const materias = Array.isArray(json.data?.reprobacionPorMateria)
             ? json.data.reprobacionPorMateria.map(m => ({
                 materia: m.materia,
@@ -2518,7 +2548,14 @@ interface EditablePlanElement {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '12px' }}>
                   {/* Card 1: Aprobados */}
                   <div
-                    title={indicadores._calc?.aprobacion?.formula || (indicadores.totalAlumnosF11 ? `(${indicadores.regulares ?? 0} Regulares + ${indicadores.irregulares ?? 0} Irregulares) / ${indicadores.totalAlumnosF11} = ${indicadores.porcentajes?.aprobados ?? indicadores.aprobacion_ant ?? 0}%` : 'Fórmula: (Regulares + Irregulares) / Total alumnos F11 (falta cargar F11)')}
+                    title={
+                      !indicadores.totalAlumnosF11
+                        ? 'Fórmula: (Regulares + Irregulares) / Total alumnos F11 (falta cargar F11)'
+                        : (indicadores._calc?.aprobacion_ant?.formula ||
+                           (indicadores.regulares !== undefined && indicadores.irregulares !== undefined && indicadores.porcentajes?.aprobados !== undefined
+                             ? `(${indicadores.regulares} Regulares + ${indicadores.irregulares} Irregulares) / ${indicadores.totalAlumnosF11} = ${indicadores.porcentajes.aprobados}%`
+                             : 'Fórmula: (Regulares + Irregulares) / Total alumnos F11'))
+                    }
                     style={{
                       background: 'rgba(16, 185, 129, 0.08)',
                       border: '1px solid rgba(16, 185, 129, 0.25)',
@@ -2531,10 +2568,10 @@ interface EditablePlanElement {
                       🎓 Aprobados
                     </div>
                     <div style={{ fontSize: '22px', fontWeight: 800, color: '#34d399', margin: '4px 0 2px' }}>
-                      {indicadores.porcentajes?.aprobados !== undefined ? `${indicadores.porcentajes.aprobados}%` : indicadores.aprobacion_ant !== undefined ? `${indicadores.aprobacion_ant}%` : '—'}
+                      {indicadores.totalAlumnosF11 && indicadores.porcentajes?.aprobados !== undefined ? `${indicadores.porcentajes.aprobados}%` : '—'}
                     </div>
                     <div style={{ fontSize: '12px', color: 'rgba(240,244,255,0.75)' }}>
-                      {indicadores.aprobados !== undefined ? `${indicadores.aprobados} alumnos` : 'N/D (falta F11)'}
+                      {indicadores.totalAlumnosF11 && indicadores.aprobados !== undefined ? `${indicadores.aprobados} alumnos` : 'N/D (falta F11)'}
                     </div>
                     <div style={{ fontSize: '10px', color: '#a7f3d0', marginTop: '6px', fontStyle: 'italic' }}>
                       Con derecho a reinscripción
@@ -2543,7 +2580,14 @@ interface EditablePlanElement {
 
                   {/* Card 2: Regulares */}
                   <div
-                    title={indicadores._calc?.regulares?.formula || (indicadores.totalAlumnosF11 ? `${indicadores.regulares ?? 0} alumnos sin adeudo / ${indicadores.totalAlumnosF11} = ${indicadores.porcentajes?.regulares ?? 0}%` : 'Fórmula: Alumnos regulares (0 adeudos) / Total alumnos F11 (falta cargar F11)')}
+                    title={
+                      !indicadores.totalAlumnosF11
+                        ? 'Fórmula: Alumnos regulares (0 adeudos) / Total alumnos F11 (falta cargar F11)'
+                        : (indicadores._calc?.regulares?.formula ||
+                           (indicadores.regulares !== undefined && indicadores.porcentajes?.regulares !== undefined
+                             ? `${indicadores.regulares} alumnos regulares / ${indicadores.totalAlumnosF11} = ${indicadores.porcentajes.regulares}%`
+                             : 'Fórmula: Alumnos regulares / Total alumnos F11'))
+                    }
                     style={{
                       background: 'rgba(56, 189, 248, 0.08)',
                       border: '1px solid rgba(56, 189, 248, 0.25)',
@@ -2556,10 +2600,10 @@ interface EditablePlanElement {
                       📘 Regulares
                     </div>
                     <div style={{ fontSize: '22px', fontWeight: 800, color: '#38bdf8', margin: '4px 0 2px' }}>
-                      {indicadores.porcentajes?.regulares !== undefined ? `${indicadores.porcentajes.regulares}%` : '—'}
+                      {indicadores.totalAlumnosF11 && indicadores.porcentajes?.regulares !== undefined ? `${indicadores.porcentajes.regulares}%` : '—'}
                     </div>
                     <div style={{ fontSize: '12px', color: 'rgba(240,244,255,0.75)' }}>
-                      {indicadores.regulares !== undefined ? `${indicadores.regulares} alumnos` : 'N/D (falta F11)'}
+                      {indicadores.totalAlumnosF11 && indicadores.regulares !== undefined ? `${indicadores.regulares} alumnos` : 'N/D (falta F11)'}
                     </div>
                     <div style={{ fontSize: '10px', color: '#bae6fd', marginTop: '6px', fontStyle: 'italic' }}>
                       0 adeudos de materias
@@ -2568,7 +2612,14 @@ interface EditablePlanElement {
 
                   {/* Card 3: Irregulares */}
                   <div
-                    title={indicadores._calc?.irregulares?.formula || (indicadores.totalAlumnosF11 ? `${indicadores.irregulares ?? 0} alumnos con 1 a 3 materias reprobadas / ${indicadores.totalAlumnosF11} = ${indicadores.porcentajes?.irregulares ?? 0}%` : 'Fórmula: Alumnos irregulares (1-3 adeudos) / Total alumnos F11 (falta cargar F11)')}
+                    title={
+                      !indicadores.totalAlumnosF11
+                        ? 'Fórmula: Alumnos irregulares (1-3 adeudos) / Total alumnos F11 (falta cargar F11)'
+                        : (indicadores._calc?.irregulares?.formula ||
+                           (indicadores.irregulares !== undefined && indicadores.porcentajes?.irregulares !== undefined
+                             ? `${indicadores.irregulares} alumnos irregulares / ${indicadores.totalAlumnosF11} = ${indicadores.porcentajes.irregulares}%`
+                             : 'Fórmula: Alumnos irregulares / Total alumnos F11'))
+                    }
                     style={{
                       background: 'rgba(245, 158, 11, 0.08)',
                       border: '1px solid rgba(245, 158, 11, 0.25)',
@@ -2581,10 +2632,10 @@ interface EditablePlanElement {
                       📙 Irregulares
                     </div>
                     <div style={{ fontSize: '22px', fontWeight: 800, color: '#fbbf24', margin: '4px 0 2px' }}>
-                      {indicadores.porcentajes?.irregulares !== undefined ? `${indicadores.porcentajes.irregulares}%` : '—'}
+                      {indicadores.totalAlumnosF11 && indicadores.porcentajes?.irregulares !== undefined ? `${indicadores.porcentajes.irregulares}%` : '—'}
                     </div>
                     <div style={{ fontSize: '12px', color: 'rgba(240,244,255,0.75)' }}>
-                      {indicadores.irregulares !== undefined ? `${indicadores.irregulares} alumnos` : 'N/D (falta F11)'}
+                      {indicadores.totalAlumnosF11 && indicadores.irregulares !== undefined ? `${indicadores.irregulares} alumnos` : 'N/D (falta F11)'}
                     </div>
                     <div style={{ fontSize: '10px', color: '#fef08a', marginTop: '6px', fontStyle: 'italic' }}>
                       arrastrando hasta 3 materias
@@ -2593,7 +2644,14 @@ interface EditablePlanElement {
 
                   {/* Card 4: Reprobados */}
                   <div
-                    title={indicadores._calc?.reprobacion?.formula || (indicadores.totalAlumnosF11 ? `${indicadores.reprobados ?? 0} alumnos con 4 o más reprobadas / ${indicadores.totalAlumnosF11} = ${indicadores.porcentajes?.reprobados ?? indicadores.reprobacion_ant ?? 0}%` : 'Fórmula: Alumnos reprobados (4+ adeudos) / Total alumnos F11 (falta cargar F11)')}
+                    title={
+                      !indicadores.totalAlumnosF11
+                        ? 'Fórmula: Alumnos reprobados (4+ adeudos) / Total alumnos F11 (falta cargar F11)'
+                        : (indicadores._calc?.reprobacion_ant?.formula ||
+                           (indicadores.reprobados !== undefined && indicadores.porcentajes?.reprobados !== undefined
+                             ? `${indicadores.reprobados} alumnos reprobados / ${indicadores.totalAlumnosF11} = ${indicadores.porcentajes.reprobados}%`
+                             : 'Fórmula: Alumnos reprobados / Total alumnos F11'))
+                    }
                     style={{
                       background: 'rgba(244, 63, 94, 0.08)',
                       border: '1px solid rgba(244, 63, 94, 0.25)',
@@ -2606,10 +2664,10 @@ interface EditablePlanElement {
                       📕 Reprobados
                     </div>
                     <div style={{ fontSize: '22px', fontWeight: 800, color: '#f43f5e', margin: '4px 0 2px' }}>
-                      {indicadores.porcentajes?.reprobados !== undefined ? `${indicadores.porcentajes.reprobados}%` : indicadores.reprobacion_ant !== undefined ? `${indicadores.reprobacion_ant}%` : '—'}
+                      {indicadores.totalAlumnosF11 && indicadores.porcentajes?.reprobados !== undefined ? `${indicadores.porcentajes.reprobados}%` : '—'}
                     </div>
                     <div style={{ fontSize: '12px', color: 'rgba(240,244,255,0.75)' }}>
-                      {indicadores.reprobados !== undefined ? `${indicadores.reprobados} alumnos` : 'N/D (falta F11)'}
+                      {indicadores.totalAlumnosF11 && indicadores.reprobados !== undefined ? `${indicadores.reprobados} alumnos` : 'N/D (falta F11)'}
                     </div>
                     <div style={{ fontSize: '10px', color: '#fecdd3', marginTop: '6px', fontStyle: 'italic' }}>
                       no inscribibles al siguiente semestre
@@ -2618,7 +2676,14 @@ interface EditablePlanElement {
 
                   {/* Card 5: Bajas */}
                   <div
-                    title={indicadores._calc?.bajas?.formula || (indicadores.totalAlumnosF11 ? `${indicadores.bajas ?? 0} bajas registradas ("B") / ${indicadores.totalAlumnosF11} = ${indicadores.porcentajes?.bajas ?? 0}%` : 'Fórmula: Bajas registradas ("B") / Total alumnos F11 (falta cargar F11)')}
+                    title={
+                      !indicadores.totalAlumnosF11
+                        ? 'Fórmula: Bajas registradas ("B") / Total alumnos F11 (falta cargar F11)'
+                        : (indicadores._calc?.bajas?.formula ||
+                           (indicadores.bajas !== undefined && indicadores.porcentajes?.bajas !== undefined
+                             ? `${indicadores.bajas} bajas registradas ("B") / ${indicadores.totalAlumnosF11} = ${indicadores.porcentajes.bajas}%`
+                             : 'Fórmula: Bajas registradas / Total alumnos F11'))
+                    }
                     style={{
                       background: 'rgba(251, 146, 60, 0.08)',
                       border: '1px solid rgba(251, 146, 60, 0.25)',
@@ -2631,10 +2696,10 @@ interface EditablePlanElement {
                       ⚠️ Bajas
                     </div>
                     <div style={{ fontSize: '22px', fontWeight: 800, color: '#fb923c', margin: '4px 0 2px' }}>
-                      {indicadores.porcentajes?.bajas !== undefined ? `${indicadores.porcentajes.bajas}%` : '—'}
+                      {indicadores.totalAlumnosF11 && indicadores.porcentajes?.bajas !== undefined ? `${indicadores.porcentajes.bajas}%` : '—'}
                     </div>
                     <div style={{ fontSize: '12px', color: 'rgba(240,244,255,0.75)' }}>
-                      {indicadores.bajas !== undefined ? `${indicadores.bajas} alumnos` : 'N/D (falta F11)'}
+                      {indicadores.totalAlumnosF11 && indicadores.bajas !== undefined ? `${indicadores.bajas} alumnos` : 'N/D (falta F11)'}
                     </div>
                     <div style={{ fontSize: '10px', color: '#fed7aa', marginTop: '6px', fontStyle: 'italic' }}>
                       Marcados con clave &quot;B&quot;
