@@ -23,10 +23,14 @@ export { parsePlainTextDocument } from './parsers/text-parser';
 export { parseImageDocumentWithGemini } from './parsers/image-parser';
 
 /**
- * Calcula el hash SHA-256 de los bytes del documento para indexación en caché.
+ * Calcula el hash SHA-256 de los bytes del documento más el límite de páginas de la petición
+ * para indexación en caché (evita servir un PDF truncado como si fuera completo).
  */
-export function computeDocumentHash(buffer: Buffer): string {
-  return createHash('sha256').update(buffer).digest('hex');
+export function computeDocumentHash(buffer: Buffer, options?: { maxPages?: number }): string {
+  return createHash('sha256')
+    .update(buffer)
+    .update(' maxPages=' + (options?.maxPages ?? 'auto'))
+    .digest('hex');
 }
 
 /**
@@ -89,6 +93,27 @@ export async function setCachedIngest(hash: string, doc: IngestedDocument): Prom
   }
 }
 
+export async function pruneExpiredIngestCache(): Promise<number> {
+  if (!process.env.DATABASE_URL) return 0;
+  try {
+    const db = sql();
+    const rows = await db`
+      DELETE FROM document_ingest_cache
+      WHERE created_at < NOW() - INTERVAL '7 days'
+      RETURNING hash
+    `;
+    const deleted = rows.length;
+    if (deleted > 0) {
+      logger.info('[DocumentIngestion] Entradas de caché vencidas eliminadas:', { deleted });
+    }
+    return deleted;
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.warn('[DocumentIngestion] Error al podar la caché de ingesta:', { error: msg });
+    return 0;
+  }
+}
+
 /**
  * Ingesta y normaliza un documento subido (PDF, Word .docx, Texto plano o Imágenes JPG/PNG/WEBP)
  * convirtiéndolo a Markdown estructurado completo para consumo de los motores de IA.
@@ -98,7 +123,7 @@ export async function ingestDocument(
   buffer: Buffer,
   options: IngestOptions = {}
 ): Promise<IngestedDocument> {
-  const docHash = computeDocumentHash(buffer);
+  const docHash = computeDocumentHash(buffer, { maxPages: options.maxPages });
 
   if (!options.bypassCache) {
     const cached = await getCachedIngest(docHash);

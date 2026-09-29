@@ -57,9 +57,15 @@ import {
   computeDocumentHash,
   getCachedIngest,
   setCachedIngest,
+  pruneExpiredIngestCache,
   ingestDocument,
 } from '@/lib/document-ingestion';
 import { parsePlainTextDocument } from '@/lib/document-ingestion/parsers/text-parser';
+
+function sqlOf(call: unknown[]): string {
+  const strings = call[0];
+  return Array.isArray(strings) ? (strings as string[]).join('') : String(strings);
+}
 
 describe('Document Ingestion Cache (M5-CP3-B)', () => {
   const originalEnv = process.env.DATABASE_URL;
@@ -87,6 +93,19 @@ describe('Document Ingestion Cache (M5-CP3-B)', () => {
       expect(hash1).toMatch(/^[0-9a-f]{64}$/);
       expect(hash1).toBe(hash2);
       expect(hash1).not.toBe(hash3);
+    });
+
+    it('H-258: el límite de páginas participa en la clave para no servir un PDF truncado', () => {
+      const buffer = Buffer.from('mismo bytes con distinto maxPages');
+
+      const auto = computeDocumentHash(buffer);
+      const truncado = computeDocumentHash(buffer, { maxPages: 5 });
+      const otroTruncado = computeDocumentHash(buffer, { maxPages: 60 });
+
+      expect(auto).not.toBe(truncado);
+      expect(truncado).not.toBe(otroTruncado);
+      expect(computeDocumentHash(buffer, { maxPages: 5 })).toBe(truncado);
+      expect(truncado).toMatch(/^[0-9a-f]{64}$/);
     });
   });
 
@@ -116,6 +135,11 @@ describe('Document Ingestion Cache (M5-CP3-B)', () => {
 
       const res = await getCachedIngest('a'.repeat(64));
       expect(res).toEqual(sampleDoc);
+
+      const selectSql = sqlOf(mockDb.mock.calls[0]);
+      expect(selectSql).toContain('SELECT result FROM document_ingest_cache');
+      expect(selectSql).toContain("AND created_at >= NOW() - INTERVAL '7 days'");
+      expect(selectSql).toContain('LIMIT 1');
     });
 
     it('retorna el documento si el resultado viene serializado como string JSON', async () => {
@@ -197,6 +221,12 @@ describe('Document Ingestion Cache (M5-CP3-B)', () => {
 
       await setCachedIngest('h'.repeat(64), validDoc);
       expect(mockDb).toHaveBeenCalledTimes(1);
+
+      const insertSql = sqlOf(mockDb.mock.calls[0]);
+      expect(insertSql).toContain('INSERT INTO document_ingest_cache');
+      expect(insertSql).toContain('ON CONFLICT (hash) DO UPDATE');
+      expect(insertSql).toContain('result = EXCLUDED.result');
+      expect(insertSql).toContain('created_at = NOW()');
     });
 
     it('no arroja error si la base de datos falla al guardar (non-blocking)', async () => {
@@ -210,6 +240,35 @@ describe('Document Ingestion Cache (M5-CP3-B)', () => {
       };
 
       await expect(setCachedIngest('i'.repeat(64), validDoc)).resolves.not.toThrow();
+    });
+  });
+
+  describe('pruneExpiredIngestCache (H-259)', () => {
+    it('elimina las entradas vencidas con DELETE condicionado al TTL de 7 días', async () => {
+      mockDb.mockResolvedValueOnce([{ hash: 'a'.repeat(64) }, { hash: 'b'.repeat(64) }]);
+
+      const deleted = await pruneExpiredIngestCache();
+
+      expect(deleted).toBe(2);
+      const deleteSql = sqlOf(mockDb.mock.calls[0]);
+      expect(deleteSql).toContain('DELETE FROM document_ingest_cache');
+      expect(deleteSql).toContain("WHERE created_at < NOW() - INTERVAL '7 days'");
+      expect(deleteSql).toContain('RETURNING hash');
+    });
+
+    it('retorna 0 sin consultar la base de datos si DATABASE_URL no está configurada', async () => {
+      delete process.env.DATABASE_URL;
+
+      const deleted = await pruneExpiredIngestCache();
+
+      expect(deleted).toBe(0);
+      expect(mockDb).not.toHaveBeenCalled();
+    });
+
+    it('no arroja error si la poda falla (non-blocking)', async () => {
+      mockDb.mockRejectedValueOnce(new Error('Neon down'));
+
+      await expect(pruneExpiredIngestCache()).resolves.toBe(0);
     });
   });
 
