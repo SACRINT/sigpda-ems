@@ -45,6 +45,7 @@ import {
   calculatePmcCoverage,
   type PmcExtractionCoverage,
 } from '@/lib/pmc/plan-element-normalizer';
+import { extractPmcPreviousWithPartitioning } from './pmc-partitioner';
 
 export type PmcDocumentType = 'f11' | '911' | 'previous';
 
@@ -385,48 +386,19 @@ export class PmcOrchestrator implements IPmcOrchestrator {
       }
 
       case 'previous': {
-        const systemPrompt = PMC_EXTRACTION_SYSTEM_PROMPT;
-        const userPrompt = buildPmcExtractionPrompt(documentText);
-
-        const aiRaw = await withTimeoutBudget(
-          generateWithRotation(
-            systemPrompt,
-            userPrompt,
-            options.teacherId,
-            isPremium,
-            { temperature: 0.1, jsonMode: true }
-          ),
-          Math.max(1, deadline - Date.now())
-        );
-
-        let parsed = parseAIResponse(aiRaw, PmcPreviousExtractSchema, {
+        const isPremium = options.isPremium ?? false;
+        const extractionResult = await extractPmcPreviousWithPartitioning({
+          documentText,
+          teacherId: options.teacherId,
+          isPremium,
+          deadline,
           contextName: 'pmc-previous-orchestrator',
-          repairNullStrings: true,
         });
 
-        if (!parsed.success) {
-          parsed = await correctiveRetry({
-            systemPrompt,
-            previousRaw: aiRaw,
-            zodIssues: parsed.error || '',
-            schema: PmcPreviousExtractSchema,
-            callAI: (sys, user, remaining) =>
-              withTimeoutBudget(
-                generateWithRotation(sys, user, options.teacherId, isPremium, { temperature: 0, jsonMode: true }),
-                remaining
-              ),
-            deadline,
-            contextName: 'pmc-previous-orchestrator',
-          });
-        }
-
-        if (!parsed.success) {
-          logger.error('[pmc-orchestrator:previous] AI response parsing failed:', parsed.error);
-          throw new PmcOrchestratorError(
-            `No se pudieron estructurar los datos del PMC anterior: ${parsed.error}`,
-            422
-          );
-        }
+        const parsed = {
+          data: extractionResult.data,
+          warnings: extractionResult.warnings,
+        };
 
         // Reconciliación arquitectónica de plantilla: consolida staffData, participantes y directorName
         const reconciled = reconcilePmcStaff({
@@ -519,11 +491,19 @@ export class PmcOrchestrator implements IPmcOrchestrator {
         );
 
         const actividadesExtraidas = normalizedElementosPlan.filter((e) => e.tipo === 'actividad').length;
+        const totalExtraidos = normalizedElementosPlan.length;
         const coverage = calculatePmcCoverage(
           parsed.data.totales_detectados,
           normalizedMetasPrevias.length,
-          actividadesExtraidas
+          actividadesExtraidas,
+          extractionResult.expectedActivities
         );
+
+        if (coverage.parcial) {
+          parsed.warnings.push(
+            `Cobertura ${totalExtraidos}/${extractionResult.expectedActivities} (${Math.round((coverage.ratio || 0) * 100)}%): faltan metas por estructurar. Revise antes de generar.`
+          );
+        }
 
         return {
           success: true,
@@ -536,9 +516,13 @@ export class PmcOrchestrator implements IPmcOrchestrator {
             elementos_plan: normalizedElementosPlan,
             metas_institucionales_previas: normalizedMetasPrevias,
             categorias_priorizadas: reconciledCategoriasPriorizadas,
+            cobertura_incompleta: coverage.parcial,
           },
           warnings: parsed.warnings,
-          coverage,
+          coverage: {
+            ...coverage,
+            truncado: extractionResult.truncado,
+          },
         };
       }
 

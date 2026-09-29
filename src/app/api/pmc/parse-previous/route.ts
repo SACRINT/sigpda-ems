@@ -31,6 +31,7 @@ import {
   deriveElementosFromMetasPrevias,
   calculatePmcCoverage,
 } from '@/lib/pmc/plan-element-normalizer';
+import { extractPmcPreviousWithPartitioning } from '@/lib/pmc/pmc-partitioner';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -117,51 +118,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. Extracción asistida por IA con clave rotativa
+    // 2. Extracción asistida por IA con clave rotativa, particionado estructural y cobertura determinista (H-216)
     const isPremium = await resolveUserIsPremium(teacher.id);
-    const systemPrompt = PMC_EXTRACTION_SYSTEM_PROMPT;
-    const userPrompt = buildPmcExtractionPrompt(documentText);
-
-    const aiRaw = await withTimeoutBudget(
-      generateWithRotation(
-        systemPrompt,
-        userPrompt,
-        teacher.id,
-        isPremium,
-        { temperature: 0.1, jsonMode: true }
-      ),
-      Math.max(1, deadline - Date.now())
-    );
-
-    // 3. Parseo y validación de respuesta JSON
-    let parsed = parseAIResponse(aiRaw, PmcPreviousExtractSchema, {
+    const extractionResult = await extractPmcPreviousWithPartitioning({
+      documentText,
+      teacherId: teacher.id,
+      isPremium,
+      deadline,
       contextName: 'pmc-parse-previous',
-      repairNullStrings: true,
     });
 
-    if (!parsed.success) {
-      parsed = await correctiveRetry({
-        systemPrompt,
-        previousRaw: aiRaw,
-        zodIssues: parsed.error || '',
-        schema: PmcPreviousExtractSchema,
-        callAI: (sys, user, remaining) =>
-          withTimeoutBudget(
-            generateWithRotation(sys, user, teacher.id, isPremium, { temperature: 0, jsonMode: true }),
-            remaining
-          ),
-        deadline,
-        contextName: 'pmc-parse-previous',
-      });
-    }
-
-    if (!parsed.success) {
-      logger.error('[pmc-parse-previous] AI response parsing failed:', parsed.error);
-      return NextResponse.json(
-        { error: `No se pudieron estructurar los datos del PMC anterior: ${parsed.error}` },
-        { status: 422 }
-      );
-    }
+    const parsed = {
+      data: extractionResult.data,
+      warnings: extractionResult.warnings,
+    };
 
     // Reconciliación arquitectónica de plantilla: consolida staffData, participantes y directorName
     const reconciledStaff = reconcilePmcStaff({
@@ -265,18 +235,32 @@ export async function POST(request: NextRequest) {
     };
 
     const actividadesExtraidas = normalizedElementosPlan.filter((e) => e.tipo === 'actividad').length;
+    const totalExtraidos = normalizedElementosPlan.length;
     const coverage = calculatePmcCoverage(
       parsed.data.totales_detectados,
       normalizedMetasPrevias.length,
-      actividadesExtraidas
+      actividadesExtraidas,
+      extractionResult.expectedActivities
     );
+
+    if (coverage.parcial) {
+      parsed.warnings.push(
+        `Cobertura ${totalExtraidos}/${extractionResult.expectedActivities} (${Math.round((coverage.ratio || 0) * 100)}%): faltan metas por estructurar. Revise antes de generar.`
+      );
+    }
 
     return NextResponse.json({
       success: true,
       filename: file.name,
-      data: finalData,
+      data: {
+        ...finalData,
+        cobertura_incompleta: coverage.parcial,
+      },
       warnings: parsed.warnings,
-      coverage,
+      coverage: {
+        ...coverage,
+        truncado: extractionResult.truncado,
+      },
     });
   } catch (err: unknown) {
     logger.error('[pmc-parse-previous] Unhandled error:', err);

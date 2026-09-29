@@ -57,19 +57,19 @@ describe('C6: Characterization tests para Indicadores PMC (pmc-indicator-calcula
     expect(rows[1][3]).toBe('-4.5% Reducción');
 
     // Fila 2: Abandono
-    expect(rows[2][0]).toBe('Abandono Escolar / Deserción (911.7)');
+    expect(rows[2][0]).toBe('Abandono Escolar / Deserción (911)');
     expect(rows[2][1]).toBe('6.2%');
     expect(rows[2][2]).toBe('4.0%');
     expect(rows[2][3]).toBe('-2.2% Retención');
 
     // Fila 3: Eficiencia Terminal
-    expect(rows[3][0]).toBe('Eficiencia Terminal / Egreso (911.7G)');
+    expect(rows[3][0]).toBe('Eficiencia Terminal / Egreso (911)');
     expect(rows[3][1]).toBe('82.0%');
     expect(rows[3][2]).toBe('88.0%');
     expect(rows[3][3]).toBe('+6.0% Graduación');
 
     // Fila 4: Matrícula
-    expect(rows[4][0]).toBe('Matrícula Escolar Oficial (911.7G)');
+    expect(rows[4][0]).toBe('Matrícula Escolar Oficial (911)');
     expect(rows[4][1]).toBe('240 estudiantes');
     expect(rows[4][2]).toBe('240 estudiantes');
     expect(rows[4][3]).toBe('Sostenimiento');

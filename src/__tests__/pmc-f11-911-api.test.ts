@@ -19,6 +19,7 @@ vi.mock('@/lib/db', () => ({
 vi.mock('@/lib/ai-provider', () => ({
   generateWithRotation: vi.fn(),
   resolveUserIsPremium: vi.fn(),
+  logActivity: vi.fn(),
 }));
 
 vi.mock('@/lib/document-ingestion', () => ({
@@ -325,11 +326,10 @@ describe('API Route: /api/pmc/estadistica-911', () => {
       schoolCct: '21EBH0282Y',
       cicloEscolar: '2025-2026',
       momento: 'fin_anterior',
-      matricula: 280,
-      abandonoPorcentaje: 6.2,
-      eficienciaTerminal: 87.5,
-      reprobacionPorcentaje: 8.1,
-      aprobacionPorcentaje: 91.9,
+      matriculaInicio: 185,
+      altas: 4,
+      bajas: 10,
+      existencia: 179,
       totalDocentes: 14,
     });
 
@@ -350,8 +350,8 @@ describe('API Route: /api/pmc/estadistica-911', () => {
     expect(res.status).toBe(200);
     expect(json.success).toBe(true);
     expect(json.data.momento).toBe('fin_anterior');
-    expect(json.data.abandonoPorcentaje).toBe(6.2);
-    expect(json.data.eficienciaTerminal).toBe(87.5);
+    expect(json.data.bajas).toBe(10);
+    expect(json.data.existencia).toBe(179);
     expect(json.data.totalDocentes).toBe(14);
   });
 
@@ -431,10 +431,10 @@ describe('API Route: /api/pmc/estadistica-911', () => {
 
     const validAiResponse = JSON.stringify({
       schoolName: 'BACHILLERATO EJEMPLO',
-      matricula: 300,
-      egresados: 85,
-      eficienciaTerminal: 94.4,
-      bajasDefinitivas: 6,
+      matriculaInicio: 185,
+      altas: 4,
+      bajas: 10,
+      existencia: 179,
     });
 
     vi.mocked(generateWithRotation).mockResolvedValueOnce(validAiResponse);
@@ -452,7 +452,7 @@ describe('API Route: /api/pmc/estadistica-911', () => {
 
     expect(res.status).toBe(200);
     expect(json.success).toBe(true);
-    expect(json.data.eficienciaTerminal).toBe(94.4);
-    expect(json.data.abandonoPorcentaje).toBe(2);
+    expect(json.data.existencia).toBe(179);
+    expect(json.data.bajas).toBe(10);
   });
 });

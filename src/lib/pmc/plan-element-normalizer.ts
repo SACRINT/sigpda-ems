@@ -32,6 +32,9 @@ export interface PmcExtractionCoverage {
   extraidos: number;
   parcial: boolean;
   indeterminada?: boolean;
+  ratio?: number;
+  esperado?: number;
+  truncado?: boolean;
   detalles?: PmcCoverageDetails;
 }
 
@@ -281,7 +284,8 @@ export function deriveElementosFromMetasPrevias(
 export function calculatePmcCoverage(
   totalesDetectados: { metas?: number | null; actividades?: number | null } | null | undefined,
   metasExtraidasCount: number,
-  actividadesExtraidasCount: number
+  actividadesExtraidasCount: number,
+  deterministicExpected?: number | null
 ): PmcExtractionCoverage {
   const detectadosMetas = typeof totalesDetectados?.metas === 'number'
     ? totalesDetectados.metas
@@ -293,17 +297,29 @@ export function calculatePmcCoverage(
     : null;
   const parcialActividades = detectadosActividades !== null && detectadosActividades > actividadesExtraidasCount;
 
-  const parcial = parcialMetas || parcialActividades;
+  let parcial = parcialMetas || parcialActividades;
+  let ratio: number | undefined;
+
+  if (typeof deterministicExpected === 'number' && deterministicExpected > 0) {
+    const totalExtraidos = Math.max(metasExtraidasCount, actividadesExtraidasCount);
+    ratio = Math.round((totalExtraidos / deterministicExpected) * 100) / 100;
+    if (ratio < 0.9) {
+      parcial = true;
+    }
+  }
+
   const indeterminadaMetas = detectadosMetas === null;
   const indeterminadaActividades = detectadosActividades === null;
   // H-191: Se considera indeterminada si no se puede verificar cobertura ni de metas ni de actividades
-  const indeterminada = indeterminadaMetas || indeterminadaActividades;
+  const indeterminada = (indeterminadaMetas || indeterminadaActividades) && !deterministicExpected;
 
   return {
-    detectados: detectadosMetas,
+    detectados: detectadosMetas ?? (deterministicExpected ?? null),
     extraidos: metasExtraidasCount,
     parcial,
     indeterminada,
+    ratio,
+    esperado: deterministicExpected ?? undefined,
     detalles: {
       metas: {
         detectados: detectadosMetas,
@@ -312,10 +328,10 @@ export function calculatePmcCoverage(
         indeterminada: indeterminadaMetas,
       },
       actividades: {
-        detectados: detectadosActividades,
+        detectados: detectadosActividades ?? (deterministicExpected ?? null),
         extraidos: actividadesExtraidasCount,
         parcial: parcialActividades,
-        indeterminada: indeterminadaActividades,
+        indeterminada: indeterminadaActividades && !deterministicExpected,
       },
     },
   };
