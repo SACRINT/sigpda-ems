@@ -239,8 +239,6 @@ export async function POST(request: NextRequest) {
           action: 'ingest_document',
           entityType: '911',
           entityId: file.name,
-          providerUsed: 'gemini',
-          modelUsed: 'gemini-flash-rotation',
           tokensApprox: approxTokens,
           success: true,
           errorMsg: undefined, // H-268: No registrar warnings en errorMsg cuando success es true
