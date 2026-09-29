@@ -29,11 +29,6 @@ import {
 } from '@/lib/prompts/estadistica-911-extraction';
 import { parseConcentrado911Layout } from '@/lib/concentrado-911-calculator';
 import {
-  PMC_EXTRACTION_SYSTEM_PROMPT,
-  buildPmcExtractionPrompt,
-  PmcPreviousExtractSchema,
-} from '@/lib/prompts/pmc-extraction';
-import {
   normalizePmcCategoria,
   normalizePmcTema,
 } from '@/lib/constants/pmc-categorias';

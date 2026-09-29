@@ -326,7 +326,13 @@ export async function parseF11Layout(buffer: Buffer): Promise<F11LayoutResult> {
     const dataCols = xClusters.filter(c => c.count >= 2).sort((a, b) => a.avgX - b.avgX);
     const subjDataCols = dataCols.filter(c => c.avgX < 735);
 
-    // Mapeo zip 1:1 entre columnas numéricas de datos y encabezados de materias
+    // Mapeo zip 1:1 entre columnas numéricas de datos y encabezados de materias (H-230)
+    if (subjDataCols.length !== headerClusters.length) {
+      warnings.push(
+        `Discrepancia en columnas F11 (pág. ${pageNum}): ${subjDataCols.length} columnas de calificaciones vs ${headerClusters.length} encabezados de materias. Requiere revisión.`
+      );
+    }
+
     const colToSubjectMap: { avgX: number; subjectName: string }[] = [];
     for (let i = 0; i < Math.min(subjDataCols.length, headerClusters.length); i++) {
       colToSubjectMap.push({

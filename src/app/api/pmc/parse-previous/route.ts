@@ -1,21 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail } from '@/lib/db';
-import { generateWithRotation, resolveUserIsPremium } from '@/lib/ai-provider';
+import { resolveUserIsPremium } from '@/lib/ai-provider';
 import { logger } from '@/lib/logger';
 import { ingestDocument } from '@/lib/document-ingestion';
-import { parseAIResponse } from '@/lib/ai-response-parser';
-import {
-  PMC_EXTRACTION_SYSTEM_PROMPT,
-  buildPmcExtractionPrompt,
-  PmcPreviousExtractSchema,
-} from '@/lib/prompts/pmc-extraction';
 import {
   normalizePmcCategoria,
   normalizePmcTema,
 } from '@/lib/constants/pmc-categorias';
 import { isFeatureEnabled } from '@/lib/platform/feature-flags';
-import { correctiveRetry } from '@/lib/ai-resilience';
 import {
   pmcOrchestrator,
   PmcOrchestratorError,

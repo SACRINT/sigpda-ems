@@ -11,7 +11,6 @@ import {
   buildPmcExtractionPrompt,
   PmcPreviousExtractSchema,
 } from '@/lib/prompts/pmc-extraction';
-import type { PmcMetaPreviaInput } from './plan-element-normalizer';
 import { calculateWordOverlap } from './plan-element-normalizer';
 import { generateWithRotation } from '@/lib/ai-provider';
 import { parseAIResponse } from '@/lib/ai-response-parser';
@@ -118,7 +117,7 @@ export function partitionMarkdownDocument(
 }
 
 /**
- * Deduplica elementos del plan de acción basándose en texto normalizado o solapamiento léxico >= 85%.
+ * Deduplica elementos del plan de acción basándose en texto normalizado idéntico o solapamiento estricto bidireccional.
  */
 export function deduplicatePlanElements(elements: PmcPlanElement[]): PmcPlanElement[] {
   const result: PmcPlanElement[] = [];
@@ -130,7 +129,8 @@ export function deduplicatePlanElements(elements: PmcPlanElement[]): PmcPlanElem
     const exists = result.some((existing) => {
       const textB = (existing.texto_normalizado || existing.texto_original || '').trim();
       if (textA.toLowerCase() === textB.toLowerCase()) return true;
-      if (calculateWordOverlap(textA, textB) >= 0.85) return true;
+      const lenRatio = Math.min(textA.length, textB.length) / Math.max(textA.length, textB.length);
+      if (lenRatio >= 0.85 && calculateWordOverlap(textA, textB) >= 0.95) return true;
       return false;
     });
 
@@ -143,7 +143,7 @@ export function deduplicatePlanElements(elements: PmcPlanElement[]): PmcPlanElem
 }
 
 /**
- * Deduplica metas previas basándose en redacción o solapamiento léxico >= 85%.
+ * Deduplica metas previas basándose en redacción idéntica o solapamiento estricto bidireccional.
  */
 export function deduplicateMetasPrevias<T extends { meta?: string | null; texto_original?: string | null }>(
   metas: T[]
@@ -157,7 +157,8 @@ export function deduplicateMetasPrevias<T extends { meta?: string | null; texto_
     const exists = result.some((existing) => {
       const textB = (existing.meta || existing.texto_original || '').trim();
       if (textA.toLowerCase() === textB.toLowerCase()) return true;
-      if (calculateWordOverlap(textA, textB) >= 0.85) return true;
+      const lenRatio = Math.min(textA.length, textB.length) / Math.max(textA.length, textB.length);
+      if (lenRatio >= 0.85 && calculateWordOverlap(textA, textB) >= 0.95) return true;
       return false;
     });
 
