@@ -610,7 +610,8 @@ interface EditablePlanElement {
       actividades: { detectados: number | null; extraidos: number; parcial: boolean };
     };
   } | null>(
-    ((existingProject as unknown as { ingest_coverage?: { detectados: number | null; extraidos: number; parcial: boolean } })?.ingest_coverage) || null
+    // H-238: ingest_coverage persists inside indicadores_academicos (no DB migration needed)
+    ((existingProject?.indicadores_academicos as unknown as { ingest_coverage?: { detectados: number | null; extraidos: number; parcial: boolean } } | undefined)?.ingest_coverage) || null
   );
   const [showPmcReviewModal, setShowPmcReviewModal] = useState(false);
 
@@ -1478,11 +1479,12 @@ interface EditablePlanElement {
             indicadores_academicos: {
               ...indicadores,
               metas_confirmadas: metasConfirmadas,
+              // H-238: embed ingest_coverage inside indicadores_academicos for persistence without new column
+              ...(ingestCoverage ? { ingest_coverage: ingestCoverage } : {}),
             },
             diagnostico_comunidad: diagnosticoComunidad,
             foda,
             categorias_priorizadas: categoriasPriorizadas,
-            ingest_coverage: ingestCoverage,
             ...payload,
           }),
         });
@@ -1506,7 +1508,13 @@ interface EditablePlanElement {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             ...payload,
-            ...(ingestCoverage ? { ingest_coverage: ingestCoverage } : {}),
+            // H-238: embed ingest_coverage inside indicadores_academicos for persistence
+            ...(ingestCoverage ? {
+              indicadores_academicos: {
+                ...(typeof payload.indicadores_academicos === 'object' ? payload.indicadores_academicos : {}),
+                ingest_coverage: ingestCoverage,
+              },
+            } : {}),
           }),
         });
         if (!res.ok) {

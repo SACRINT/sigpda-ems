@@ -57,6 +57,8 @@ describe('H-227: Bloqueo de generación de pasos por metas no confirmadas o cobe
   });
 
   it('renderiza banner de advertencia en Paso 4 cuando el proyecto tiene cobertura parcial', () => {
+    // H-238: ingest_coverage is embedded inside indicadores_academicos (the existing JSONB column)
+    // so it survives GET (SELECT *) → F5 without requiring a new DB column.
     const projectWithPartialCoverage = {
       id: 'project-partial-coverage',
       current_step: 4,
@@ -64,11 +66,12 @@ describe('H-227: Bloqueo de generación de pasos por metas no confirmadas o cobe
       school_cct: '21EBH9999Z',
       indicadores_academicos: {
         metas_confirmadas: true,
-      },
-      ingest_coverage: {
-        detectados: 50,
-        extraidos: 20,
-        parcial: true,
+        // H-238: stored here, not at top level — this is what the server actually returns
+        ingest_coverage: {
+          detectados: 50,
+          extraidos: 20,
+          parcial: true,
+        },
       },
     };
 
