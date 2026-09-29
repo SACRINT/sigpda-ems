@@ -915,18 +915,29 @@ interface EditablePlanElement {
 
           const nowIso = new Date().toISOString();
           const newCalc: Record<string, PmcAuditCalculationEntry> = { ...(p._calc || {}) };
+          const reg = json.data?.regulares ?? p.regulares;
+          const irreg = json.data?.irregulares ?? p.irregulares;
+          const tot = json.data?.totalAlumnos ?? p.totalAlumnosF11 ?? p.matricula;
+          const rep = json.data?.reprobados ?? p.reprobados;
+
           if (aprobAnt !== undefined) {
+            const formulaAprob = (reg !== undefined && irreg !== undefined && tot)
+              ? `(${reg} Regulares + ${irreg} Irregulares) / ${tot} = ${aprobAnt}%`
+              : `Aprobación reportada en F11 = ${aprobAnt}%`;
             newCalc.aprobacion_ant = {
               valor: aprobAnt,
-              formula: '(134 Regulares + 23 Irregulares) / 189 = 83.1%',
+              formula: formulaAprob,
               fuentes: ['F11 Fin Ciclo Anterior'],
               fecha: nowIso,
             };
           }
           if (reprobAnt !== undefined) {
+            const formulaReprob = (rep !== undefined && tot)
+              ? `${rep} Reprobados / ${tot} = ${reprobAnt}%`
+              : `Reprobación reportada en F11 = ${reprobAnt}%`;
             newCalc.reprobacion_ant = {
               valor: reprobAnt,
-              formula: '22 Reprobados / 189 = 11.6%',
+              formula: formulaReprob,
               fuentes: ['F11 Fin Ciclo Anterior'],
               fecha: nowIso,
             };
