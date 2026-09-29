@@ -1081,7 +1081,7 @@ interface EditablePlanElement {
       setTotalStaff(reconciled.totalStaff);
 
       setDocsStatus(p => ({ ...p, f11: true }));
-      setSuccessBanner(`✓ F11 Fin Ciclo Anterior cargado: ${json.data?.totalAlumnos || 189} alumnos evaluados, promedio general ${json.data?.promedioGeneral || '?'}`);
+      setSuccessBanner(`✓ F11 Fin Ciclo Anterior cargado: ${json.data?.totalAlumnos ?? 'N/D'} alumnos evaluados, promedio general ${json.data?.promedioGeneral ?? 'N/D'}`);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'No se pudo procesar el F11.');
     } finally {
@@ -1142,20 +1142,31 @@ interface EditablePlanElement {
       };
 
       if (momento === 'fin_anterior') {
-        setIndicadores(p => mapFinAnteriorToIndicadores(json.data, p));
+        let calculatedEt: number | undefined;
+        let calculatedAb: number | undefined;
+        setIndicadores(p => {
+          const mapped = mapFinAnteriorToIndicadores(json.data, p);
+          calculatedEt = mapped.et_ant;
+          calculatedAb = mapped.abandono_ant;
+          return mapped;
+        });
         if (json.data?.totalDocentes) syncStaffFrom911(json.data.totalDocentes);
         setDocsStatus(p => ({ ...p, n911FinAnt: true }));
-        setSuccessBanner(`✓ 911 (Fin Ciclo Anterior) cargada: Abandono ${json.data?.abandonoPorcentaje || '?'}%, Eficiencia Terminal ${json.data?.eficienciaTerminal || '?'}%`);
+        const etStr = calculatedEt !== undefined ? `${calculatedEt}%` : 'N/D';
+        const abStr = calculatedAb !== undefined ? `${calculatedAb}%` : 'N/D';
+        setSuccessBanner(`✓ 911 (Fin Ciclo Anterior) cargada: Abandono ${abStr}, Eficiencia Terminal ${etStr}`);
       } else if (momento === 'inicio_actual') {
         setIndicadores(p => mapInicioActualToIndicadores(json.data, p));
         if (json.data?.totalDocentes) syncStaffFrom911(json.data.totalDocentes);
         setDocsStatus(p => ({ ...p, n911IniAct: true }));
-        setSuccessBanner(`✓ 911 (Inicio Ciclo Actual) cargada: Matrícula vigente de ${json.data?.matricula || '?'} alumnos`);
+        const mat = json.data?.matriculaInicio ?? json.data?.matricula ?? 'N/D';
+        setSuccessBanner(`✓ 911 (Inicio Ciclo Actual) cargada: Matrícula vigente de ${mat} alumnos`);
       } else {
         // inicio_anterior
         setIndicadores(p => mapInicioAnteriorToIndicadores(json.data, p));
         setDocsStatus(p => ({ ...p, n911IniAnt: true }));
-        setSuccessBanner(`✓ 911 (Inicio Ciclo Anterior) cargada: Matrícula inicial de ${json.data?.matricula || '?'} alumnos`);
+        const mat = json.data?.matriculaInicio ?? json.data?.matricula ?? 'N/D';
+        setSuccessBanner(`✓ 911 (Inicio Ciclo Anterior) cargada: Matrícula inicial de ${mat} alumnos`);
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'No se pudo procesar la Estadística 911.');

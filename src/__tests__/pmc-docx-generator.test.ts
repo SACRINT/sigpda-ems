@@ -367,8 +367,8 @@ describe('pmc-docx-generator — Generador de Plan de Mejora Continua e Informes
     expect(partialText).toContain('Término del Ciclo 2026-2027 (Semestre B)');
   });
 
-  // ── TEST 13 (H-166 / H-163): Tabla de indicadores en PMC DOCX usa rótulo oficial de matrícula ──
-  it('Test 13: La tabla de indicadores del PMC contiene "Matrícula Escolar Oficial (911.7G)" con columnas ant y meta separadas', async () => {
+  // ── TEST 13 (H-166 / H-163 / H-220): Tabla de indicadores en PMC DOCX usa rótulo oficial de matrícula ──
+  it('Test 13: La tabla de indicadores del PMC contiene "Matrícula Escolar Oficial (911)" con columnas ant y meta separadas', async () => {
     const fixture = makePmcFixture({
       indicadores_academicos: {
         aprobacion_ant: 84,
