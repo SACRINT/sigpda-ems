@@ -88,7 +88,7 @@ interface StaffMember {
   grupos?: string;
 }
 
-interface IndicadoresAcademicos {
+export interface IndicadoresAcademicos {
   matricula?: number;
   matriculaAnterior?: number;
   matriculaInicioCicloAnterior?: number;
@@ -181,6 +181,35 @@ export function isPreviousMetaAdapted(
   });
 }
 
+export interface IngestCoverageData {
+  detectados: number | null;
+  extraidos: number;
+  parcial: boolean;
+  indeterminada?: boolean;
+  detalles?: {
+    metas: { detectados: number | null; extraidos: number; parcial: boolean };
+    actividades: { detectados: number | null; extraidos: number; parcial: boolean };
+  };
+}
+
+export function buildIndicadoresPayload(
+  indicadores: IndicadoresAcademicos,
+  metasConfirmadas: boolean,
+  ingestCoverage?: IngestCoverageData | null,
+  f11Warnings?: string[]
+): IndicadoresAcademicos & {
+  metas_confirmadas: boolean;
+  ingest_coverage?: IngestCoverageData;
+  f11_warnings?: string[];
+} {
+  return {
+    ...indicadores,
+    metas_confirmadas: metasConfirmadas,
+    ...(ingestCoverage ? { ingest_coverage: ingestCoverage } : {}),
+    ...(f11Warnings && f11Warnings.length > 0 ? { f11_warnings: f11Warnings } : {}),
+  };
+}
+
 export function validateCanGenerateStep(
   step: string,
   metasConfirmadas: boolean,
@@ -227,7 +256,7 @@ interface DiagnosticoGenerado {
   priorizacion: string;
 }
 
-interface PmcProject {
+export interface PmcProject {
   id?: string;
   school_name?: string;
   school_cct?: string;
@@ -1467,6 +1496,12 @@ interface EditablePlanElement {
       const payload = { ...data };
       if (goToStep !== undefined) payload.current_step = goToStep;
 
+      // H-246 / H-247: Construir indicadores_academicos enriquecidos con el estado completo del wizard.
+      // Debe posicionarse siempre después de ...payload tanto en POST como en PUT para garantizar
+      // que no sea pisado y que los PUT sin indicadores (ej. paso 2→3 y 4→5) no reemplacen la columna
+      // JSONB entera con solo { ingest_coverage }.
+      const indicadoresBody = buildIndicadoresPayload(indicadores, metasConfirmadas, ingestCoverage, f11Warnings);
+
       if (!projectId) {
         // Create new
         const res = await fetch('/api/pmc', {
@@ -1484,16 +1519,11 @@ interface EditablePlanElement {
             subsystem,
             total_staff: totalStaff,
             staff_data: staffData,
-            indicadores_academicos: {
-              ...indicadores,
-              metas_confirmadas: metasConfirmadas,
-              // H-238: embed ingest_coverage inside indicadores_academicos for persistence without new column
-              ...(ingestCoverage ? { ingest_coverage: ingestCoverage } : {}),
-            },
             diagnostico_comunidad: diagnosticoComunidad,
             foda,
             categorias_priorizadas: categoriasPriorizadas,
             ...payload,
+            indicadores_academicos: indicadoresBody,
           }),
         });
         const created = await parseSafeApiResponse<{ project?: { id?: string }; id?: string; error?: string }>(
@@ -1516,13 +1546,7 @@ interface EditablePlanElement {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             ...payload,
-            // H-238: embed ingest_coverage inside indicadores_academicos for persistence
-            ...(ingestCoverage ? {
-              indicadores_academicos: {
-                ...(typeof payload.indicadores_academicos === 'object' ? payload.indicadores_academicos : {}),
-                ingest_coverage: ingestCoverage,
-              },
-            } : {}),
+            indicadores_academicos: indicadoresBody,
           }),
         });
         if (!res.ok) {
@@ -1537,7 +1561,7 @@ interface EditablePlanElement {
     } finally {
       setSaving(false);
     }
-  }, [projectId, schoolName, schoolCct, municipality, locality, schoolZone, directorName, supervisorName, cicloEscolar, subsystem, totalStaff, staffData, indicadores, metasConfirmadas, diagnosticoComunidad, foda, categoriasPriorizadas, ingestCoverage, locale, router]);
+  }, [projectId, schoolName, schoolCct, municipality, locality, schoolZone, directorName, supervisorName, cicloEscolar, subsystem, totalStaff, staffData, indicadores, metasConfirmadas, diagnosticoComunidad, foda, categoriasPriorizadas, ingestCoverage, f11Warnings, locale, router]);
 
   const generateStep = useCallback(async (step: string): Promise<void> => {
     if (!projectId) return;
@@ -1726,7 +1750,6 @@ interface EditablePlanElement {
         subsystem,
         total_staff: effStaff.totalStaff,
         staff_data: effStaff.staff,
-        indicadores_academicos: indicadores,
         diagnostico_comunidad: diagnosticoComunidad,
         foda,
         categorias_priorizadas: categoriasPriorizadas,
@@ -1775,7 +1798,6 @@ interface EditablePlanElement {
       }));
       idToUse = await saveProject({
         diagnostico_comunidad: diagnosticoComunidad,
-        indicadores_academicos: indicadores,
         foda, categorias_priorizadas: categoriasPriorizadas,
         current_step: 4,
       });
