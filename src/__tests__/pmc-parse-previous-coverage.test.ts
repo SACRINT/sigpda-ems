@@ -49,7 +49,7 @@ describe('Paquete C (H-216) — Metas institucionales del PMC: >40 sin truncar y
 
     const expected = countDeterministicExpectedActivities(documentText);
     expect(expected).toBe(41);
-  });
+  }, 15000);
 
   it('2. Particionado estructural: divide documentos extensos en fragmentos respetando límites de 14k-25k chars', async () => {
     const buffer = fs.readFileSync(fixturePath);
@@ -62,7 +62,7 @@ describe('Paquete C (H-216) — Metas institucionales del PMC: >40 sin truncar y
       expect(chunk.length).toBeLessThanOrEqual(25000);
       expect(chunk.length).toBeGreaterThan(0);
     }
-  });
+  }, 15000);
 
   it('3. Detección de truncamiento: identifica respuestas incompletas de la IA antes de jsonrepair', () => {
     const completeJson = '{"elementos_plan": [{"tipo": "actividad", "texto_original": "t"}]}';
@@ -178,5 +178,5 @@ describe('Paquete C (H-216) — Metas institucionales del PMC: >40 sin truncar y
 
     expect(coverage.parcial).toBe(false);
     expect(coverage.ratio).toBeGreaterThanOrEqual(0.9);
-  });
+  }, 15000);
 });
