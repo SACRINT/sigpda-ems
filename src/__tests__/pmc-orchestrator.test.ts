@@ -21,6 +21,7 @@ vi.mock('@/lib/db', () => ({
 vi.mock('@/lib/ai-provider', () => ({
   generateWithRotation: vi.fn(),
   resolveUserIsPremium: vi.fn(),
+  logActivity: vi.fn(),
 }));
 
 vi.mock('@/lib/document-ingestion', () => ({

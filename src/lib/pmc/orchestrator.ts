@@ -18,7 +18,9 @@ import {
   F11_EXTRACTION_SYSTEM_PROMPT,
   buildF11ExtractionPrompt,
   F11ExtractSchema,
+  F11ExtractDTO,
 } from '@/lib/prompts/f11-extraction';
+import { parseF11Layout } from '@/lib/f11-layout-calculator';
 import {
   ESTADISTICA_911_EXTRACTION_SYSTEM_PROMPT,
   buildEstadistica911ExtractionPrompt,
@@ -123,6 +125,71 @@ export class PmcOrchestrator implements IPmcOrchestrator {
     const isPremium = options.isPremium !== undefined
       ? options.isPremium
       : await resolveUserIsPremium(options.teacherId);
+
+    // 0. Si es F11, el parser determinista por coordenadas corre ANTES que cualquier IA (H-219 / B-001)
+    if (type === 'f11') {
+      try {
+        const layoutResult = await parseF11Layout(buffer);
+        if (layoutResult && layoutResult.totalAlumnos >= 1) {
+          const data: F11ExtractDTO = {
+            cicloEscolar: layoutResult.cicloEscolar || '',
+            schoolName: layoutResult.schoolName || '',
+            schoolCct: layoutResult.schoolCct || '',
+            directorName: layoutResult.directorName || '',
+            totalAlumnos: layoutResult.totalAlumnos,
+            totalDocentes: null,
+            totalGrupos: Object.keys(layoutResult.grupos).length,
+            promedioGeneral: layoutResult.promedioGeneral,
+            aprobadosPorcentaje: layoutResult.porcentajes.aprobados,
+            reprobadosPorcentaje: layoutResult.porcentajes.reprobados,
+            regulares: layoutResult.regulares,
+            irregulares: layoutResult.irregulares,
+            aprobados: layoutResult.aprobados,
+            reprobados: layoutResult.reprobados,
+            bajas: layoutResult.bajas,
+            sinCalificacion: layoutResult.bajas,
+            porcentajes: layoutResult.porcentajes,
+            listaAlumnos: layoutResult.alumnos.map(a => ({
+              curp: a.curp,
+              nombre: a.nombre,
+              nia: a.nia,
+              grupo: a.grupo,
+              promedio: a.promedioGeneral,
+              situacion: a.situacion,
+              clase: a.clase,
+              materiasCinco: a.materiasCinco,
+            })),
+            reprobacionPorMateria: layoutResult.materias.map(m => ({
+              materia: m.materia,
+              n: m.n,
+              reprobados: m.reprobados,
+              porcentaje: m.reprobacion_actual,
+              porcentajeAprobacion: m.aprobacion_actual,
+              metaSugerida: m.reprobacion_meta_sugerida,
+              metaConfirmada: false,
+              detallePorGrupo: m.detallePorGrupo,
+            })),
+            promediosPorAsignatura: layoutResult.promediosPorAsignatura,
+            cobertura: {
+              alumnosDetectados: layoutResult.totalAlumnos,
+              alumnosConCalificacion: layoutResult.totalConCalificacion,
+              gruposDetectados: Object.keys(layoutResult.grupos).length,
+            },
+            docentes: [],
+            docentesPorAsignatura: [],
+            observaciones: '',
+          };
+          return {
+            success: true,
+            filename: options.filename,
+            data,
+            warnings: layoutResult.warnings,
+          };
+        }
+      } catch (err) {
+        logger.warn('[pmc-orchestrator:f11] Falló parser determinista de coordenadas, procediendo a OCR/IA:', err);
+      }
+    }
 
     // 1. Ingesta y normalización del documento a texto plano / markdown
     let ingested;

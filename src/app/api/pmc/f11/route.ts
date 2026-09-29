@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail } from '@/lib/db';
-import { generateWithRotation, resolveUserIsPremium } from '@/lib/ai-provider';
+import { generateWithRotation, resolveUserIsPremium, logActivity } from '@/lib/ai-provider';
 import { logger } from '@/lib/logger';
 import { ingestDocument } from '@/lib/document-ingestion';
 import { parseAIResponse } from '@/lib/ai-response-parser';
@@ -9,7 +9,9 @@ import {
   F11_EXTRACTION_SYSTEM_PROMPT,
   buildF11ExtractionPrompt,
   F11ExtractSchema,
+  F11ExtractDTO,
 } from '@/lib/prompts/f11-extraction';
+import { parseF11Layout } from '@/lib/f11-layout-calculator';
 import { isFeatureEnabled } from '@/lib/platform/feature-flags';
 import { correctiveRetry } from '@/lib/ai-resilience';
 import {
@@ -49,6 +51,110 @@ export async function POST(request: NextRequest) {
 
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
+
+    // 1. El parser determinista por coordenadas corre ANTES que la IA (Regla Anti-Fabricación B-001 / H-219)
+    try {
+      const layoutResult = await parseF11Layout(buffer);
+      if (layoutResult && layoutResult.totalAlumnos >= 1) {
+        const enrichedSchool = layoutResult.schoolName;
+        let enrichedCct = layoutResult.schoolCct;
+        const enrichedDirector = layoutResult.directorName;
+        const enrichedCiclo = layoutResult.cicloEscolar;
+
+        // Si falta CCT o nombre de escuela, intento rápido no bloqueante de enriquecimiento textual
+        if (!enrichedSchool || !enrichedCct) {
+          try {
+            const lightIngest = await ingestDocument(buffer, {
+              filename: file.name,
+              mimeType: file.type,
+              enableOcr: false,
+              teacherId: teacher.id,
+            });
+            const text = (lightIngest?.markdown || lightIngest?.fullText || '');
+            if (!enrichedCct) {
+              const cctM = text.match(/\b\d{2}[A-Z]{3}\d{4}[A-Z]\b/);
+              if (cctM) enrichedCct = cctM[0];
+            }
+          } catch {
+            // continuar con metadatos del parser
+          }
+        }
+
+        const data: F11ExtractDTO = {
+          cicloEscolar: enrichedCiclo || '',
+          schoolName: enrichedSchool || '',
+          schoolCct: enrichedCct || '',
+          directorName: enrichedDirector || '',
+          totalAlumnos: layoutResult.totalAlumnos,
+          totalDocentes: null,
+          totalGrupos: Object.keys(layoutResult.grupos).length,
+          promedioGeneral: layoutResult.promedioGeneral,
+          aprobadosPorcentaje: layoutResult.porcentajes.aprobados,
+          reprobadosPorcentaje: layoutResult.porcentajes.reprobados,
+          regulares: layoutResult.regulares,
+          irregulares: layoutResult.irregulares,
+          aprobados: layoutResult.aprobados,
+          reprobados: layoutResult.reprobados,
+          bajas: layoutResult.bajas,
+          sinCalificacion: layoutResult.bajas,
+          porcentajes: layoutResult.porcentajes,
+          listaAlumnos: layoutResult.alumnos.map(a => ({
+            curp: a.curp,
+            nombre: a.nombre,
+            nia: a.nia,
+            grupo: a.grupo,
+            promedio: a.promedioGeneral,
+            situacion: a.situacion,
+            clase: a.clase,
+            materiasCinco: a.materiasCinco,
+          })),
+          reprobacionPorMateria: layoutResult.materias.map(m => ({
+            materia: m.materia,
+            n: m.n,
+            reprobados: m.reprobados,
+            porcentaje: m.reprobacion_actual,
+            porcentajeAprobacion: m.aprobacion_actual,
+            metaSugerida: m.reprobacion_meta_sugerida,
+            metaConfirmada: false,
+            detallePorGrupo: m.detallePorGrupo,
+          })),
+          promediosPorAsignatura: layoutResult.promediosPorAsignatura,
+          cobertura: {
+            alumnosDetectados: layoutResult.totalAlumnos,
+            alumnosConCalificacion: layoutResult.totalConCalificacion,
+            gruposDetectados: Object.keys(layoutResult.grupos).length,
+          },
+          docentes: [],
+          docentesPorAsignatura: [],
+          observaciones: '',
+        };
+
+        if (typeof logActivity === 'function') {
+          try {
+            await logActivity({
+              teacherEmail: session.user.email,
+              action: 'ingest_document',
+              entityType: 'f11',
+              entityId: file.name,
+              providerUsed: 'f11-layout-calculator',
+              success: true,
+              errorMsg: layoutResult.warnings.length > 0 ? layoutResult.warnings.join('; ') : undefined,
+            });
+          } catch {
+            // logging no bloqueante
+          }
+        }
+
+        return NextResponse.json({
+          success: true,
+          filename: file.name,
+          data,
+          warnings: layoutResult.warnings,
+        });
+      }
+    } catch (layoutErr) {
+      logger.warn('[pmc-f11] Falló parser determinista de coordenadas, procediendo a fallback OCR/IA:', layoutErr);
+    }
 
     // Strangler Fig: Delegación al Orquestador Central si la bandera está activa
     if (isFeatureEnabled('PMC_ORCHESTRATOR_V2')) {
@@ -154,11 +260,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const warnings = [...(parsed.warnings || []), 'requiere_revision: true (extraído vía OCR/IA de respaldo)'];
+
+    if (typeof logActivity === 'function') {
+      try {
+        await logActivity({
+          teacherEmail: session.user.email,
+          action: 'ingest_document',
+          entityType: 'f11',
+          entityId: file.name,
+          providerUsed: 'ocr-fallback-ai',
+          success: true,
+          errorMsg: warnings.join('; '),
+        });
+      } catch {
+        // logging no bloqueante
+      }
+    }
+
     return NextResponse.json({
       success: true,
       filename: file.name,
       data: parsed.data,
-      warnings: parsed.warnings,
+      warnings,
     });
   } catch (err: unknown) {
     logger.error('[pmc-f11] Unhandled error:', err);
