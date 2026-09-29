@@ -132,10 +132,15 @@ async function fallbackTextSearch(
 /**
  * Build RAG context block for prompt injection
  */
-export function buildRagContextBlock(context: RagContext): string {
+export function buildRagContextBlock(
+  context: RagContext,
+  options?: { targetDoc?: string }
+): string {
   if (!context.chunks || context.chunks.length === 0) {
     return '';
   }
+
+  const target = options?.targetDoc || 'la planeación';
 
   const blocks = context.chunks.map(chunk =>
     `[FUENTE OFICIAL: ${chunk.uac_name} | Sem ${chunk.semester} | ${chunk.component} | Similitud: ${(chunk.similarity * 100).toFixed(0)}%]\n${chunk.chunk_text}`
@@ -143,7 +148,7 @@ export function buildRagContextBlock(context: RagContext): string {
 
   return `\n══════════ CONTEXTO CURRICULAR RECUPERADO POR RAG (Fuente Oficial SEP) ═══════════
 El siguiente contenido ha sido recuperado semánticamente del catálogo oficial de 449 programas SEP.
-ÚSALO como fuente de verdad para generar el contenido de la planeación:
+ÚSALO como fuente de verdad para generar el contenido de ${target}:
 
 ${blocks.join('\n\n---\n\n')}
 

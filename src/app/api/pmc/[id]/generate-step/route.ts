@@ -10,6 +10,7 @@ import { PmcDiagnosticoSchema, PmcPlanAccionSchema } from '@/lib/ai-schemas';
 import { getSubscriptionStatus } from '@/lib/subscription-gate';
 import { extractIdempotencyKey, checkIdempotencyKey, createIdempotencyKey } from '@/lib/idempotency';
 import { buildPmcDiagnosticoPrompt, buildPmcPlanAccionPrompt } from '@/lib/prompts/pmc-prompts';
+import { searchCurriculum, isRagPopulated, buildRagContextBlock } from '@/lib/rag-curricular';
 import { derivePersonalMetasFromStaff, StaffMember } from '@/lib/pmc/staff-reconciler';
 import {
   assertNoForbiddenTerms,
@@ -47,6 +48,43 @@ function parseJson<T = unknown>(val: unknown): T | Record<string, never> {
 }
 
 
+
+/**
+ * M4: Recupera contexto curricular oficial vía RAG semántico (pgvector)
+ * con fallback tolerante a fallos (fail-open) para las fases de PMC.
+ */
+async function retrieveCurriculumRagBlock(
+  query: string,
+  targetDoc: string,
+  phase: string
+): Promise<string> {
+  if (!query || query.trim().length === 0) return '';
+  try {
+    const isPopulated = await isRagPopulated();
+    if (!isPopulated) return '';
+
+    const ragResult = await searchCurriculum(query, { matchCount: 5 });
+    if (!ragResult.chunks || ragResult.chunks.length === 0) return '';
+
+    // Filtrar similarity >= 0.6 solo cuando provenga de búsqueda vectorial (similarity != 0.5)
+    // El fallback ILIKE devuelve similarity = 0.5 fijo y lo descartaría todo
+    const isVector = ragResult.chunks.some(c => c.similarity !== 0.5);
+    const validChunks = isVector
+      ? ragResult.chunks.filter(c => c.similarity >= 0.6)
+      : ragResult.chunks;
+
+    if (validChunks.length === 0) return '';
+
+    logger.info(`[pmc-generate] Inyectados ${validChunks.length} chunks de RAG curricular en fase ${phase}`);
+    return buildRagContextBlock(
+      { ...ragResult, chunks: validChunks },
+      { targetDoc }
+    );
+  } catch (err) {
+    logger.warn(`[pmc-generate] Error en búsqueda RAG curricular para ${phase} (fail-open):`, err);
+    return '';
+  }
+}
 
 // ─── Route ───────────────────────────────────────────────────────────────────
 export async function POST(request: NextRequest, { params }: RouteContext) {
@@ -174,7 +212,42 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         ? (rawStats as PmcStatisticalContext)
         : (indic?.statistical_context?.plantel ? indic.statistical_context : undefined);
 
-      const prompt = buildPmcDiagnosticoPrompt(project as unknown as PmcProject, statisticalContext, libraryContext);
+      // M4: Consulta RAG curricular derivada de los datos del proyecto (asignaturas críticas < 7.5, debilidades FODA)
+      let ragQuery = '';
+      const promediosAsig = statisticalContext?.plantel?.promediosPorAsignatura;
+      if (promediosAsig && typeof promediosAsig === 'object') {
+        const criticas = Object.entries(promediosAsig)
+          .filter(([, prom]) => typeof prom === 'number' && prom > 0 && prom < 7.5)
+          .map(([asig]) => asig);
+        if (criticas.length > 0) {
+          ragQuery = `Fortalecimiento y recuperación académica en ${criticas.slice(0, 3).join(', ')}`;
+        }
+      }
+
+      if (!ragQuery) {
+        const fodaData = parseJson<{ debilidades?: string | string[] }>(project.foda);
+        if (fodaData.debilidades) {
+          const debilidadesStr = Array.isArray(fodaData.debilidades)
+            ? fodaData.debilidades.join(' ')
+            : String(fodaData.debilidades);
+          if (debilidadesStr.trim().length > 10) {
+            ragQuery = `Estrategias pedagógicas para atender debilidades: ${debilidadesStr.trim().substring(0, 150)}`;
+          }
+        }
+      }
+
+      if (!ragQuery && project.linea_accion) {
+        ragQuery = `Orientaciones curriculares para ${safeStr(project.linea_accion)}`;
+      }
+
+      const ragBlock = await retrieveCurriculumRagBlock(
+        ragQuery,
+        'el diagnóstico del Plan de Mejora Continua (PMC)',
+        'diagnostico'
+      );
+
+      const basePrompt = buildPmcDiagnosticoPrompt(project as unknown as PmcProject, statisticalContext, libraryContext);
+      const prompt = ragBlock ? `${basePrompt}\n\n${ragBlock}` : basePrompt;
 
       const isPremium = await resolveUserIsPremium(teacher.id);
       const rawText = await generateWithRotation(
@@ -330,7 +403,40 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         ? (rawStats as PmcStatisticalContext)
         : (indic?.statistical_context?.plantel ? indic.statistical_context : undefined);
 
-      const prompt = buildPmcPlanAccionPrompt(project as unknown as PmcProject, statisticalContext, libraryContext);
+      // M4: Consulta RAG curricular derivada de temas seleccionados / asignaturas críticas / línea de acción
+      let ragQuery = '';
+      const rawCategorias = parseJson<Array<{ nombre?: string; temas?: string[] }>>(project.categorias_seleccionadas);
+      if (Array.isArray(rawCategorias) && rawCategorias.length > 0) {
+        const allTemas = rawCategorias.flatMap(c => Array.isArray(c.temas) ? c.temas : []);
+        if (allTemas.length > 0) {
+          ragQuery = `Metas y progresiones curriculares para ${allTemas.slice(0, 3).join(', ')}`;
+        }
+      }
+
+      if (!ragQuery) {
+        const promediosAsig = statisticalContext?.plantel?.promediosPorAsignatura;
+        if (promediosAsig && typeof promediosAsig === 'object') {
+          const criticas = Object.entries(promediosAsig)
+            .filter(([, prom]) => typeof prom === 'number' && prom > 0 && prom < 7.5)
+            .map(([asig]) => asig);
+          if (criticas.length > 0) {
+            ragQuery = `Estrategias de intervención en ${criticas.slice(0, 3).join(', ')}`;
+          }
+        }
+      }
+
+      if (!ragQuery && project.linea_accion) {
+        ragQuery = `Plan de acción para ${safeStr(project.linea_accion)}`;
+      }
+
+      const ragBlock = await retrieveCurriculumRagBlock(
+        ragQuery,
+        'el Plan de Acción del Plan de Mejora Continua (PMC)',
+        'plan_accion'
+      );
+
+      const basePrompt = buildPmcPlanAccionPrompt(project as unknown as PmcProject, statisticalContext, libraryContext);
+      const prompt = ragBlock ? `${basePrompt}\n\n${ragBlock}` : basePrompt;
 
       const isPremium = await resolveUserIsPremium(teacher.id);
       const rawText = await generateWithRotation(
