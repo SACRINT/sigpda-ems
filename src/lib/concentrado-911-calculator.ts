@@ -26,8 +26,9 @@ if (typeof g.Path2D === 'undefined') {
   g.Path2D = class Path2D {};
 }
 
-import type { ExtractedField } from './document-ingestion/types';
+import type { ExtractedField, ExtractionMethod } from './document-ingestion/types';
 import { createExtractedField } from './document-ingestion/types';
+export type { ExtractionMethod };
 
 export interface Concentrado911FieldConfidence {
   schoolName: ExtractedField<string>;
@@ -261,7 +262,9 @@ export async function parseConcentrado911Layout(
       });
       schoolName = candidates[0].str.trim();
       const bestDist = Math.hypot(candidates[0].transform[4] - labelEscuela.transform[4], candidates[0].transform[5] - labelEscuela.transform[5]);
-      schoolNameConfidence = createExtractedField(schoolName, 'structural_anchor', 0.98, Math.round(bestDist));
+      // H-266: Derivar confianza de la distancia a la etiqueta oficial (máx 120px)
+      const schoolNameConf = Math.max(0.65, Number((0.98 - (bestDist / 120) * 0.22).toFixed(2)));
+      schoolNameConfidence = createExtractedField(schoolName, 'structural_anchor', schoolNameConf, Math.round(bestDist));
     }
   }
 
@@ -375,9 +378,12 @@ export async function parseConcentrado911Layout(
             const sortedByDist = [...rowItems].sort(
               (a, b) => Math.abs(a.transform[4] - generalColItem.transform[4]) - Math.abs(b.transform[4] - generalColItem.transform[4])
             );
-            if (Math.abs(sortedByDist[0].transform[4] - generalColItem.transform[4]) <= 8) {
+            const distToCol = Math.abs(sortedByDist[0].transform[4] - generalColItem.transform[4]);
+            if (distToCol <= 8) {
               matriculaInicio = Number(sortedByDist[0].str.trim());
-              matriculaInicioConfidence = createExtractedField(matriculaInicio, 'cross_validated', 0.98, 8);
+              // H-266: Derivar confianza de la proximidad al centro de la columna GENERAL (máx 8px)
+              const matriculaConf = Math.max(0.70, Number((0.98 - (distToCol / 8) * 0.15).toFixed(2)));
+              matriculaInicioConfidence = createExtractedField(matriculaInicio, 'cross_validated', matriculaConf, Math.round(distToCol));
             }
           }
 

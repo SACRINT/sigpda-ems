@@ -233,14 +233,17 @@ export async function POST(request: NextRequest) {
 
     if (typeof logActivity === 'function') {
       try {
+        const approxTokens = Math.round((systemPrompt.length + userPrompt.length + aiRaw.length) / 4);
         await logActivity({
           teacherEmail: session.user.email,
           action: 'ingest_document',
           entityType: '911',
           entityId: file.name,
-          providerUsed: 'ocr-fallback-ai',
+          providerUsed: 'gemini',
+          modelUsed: 'gemini-flash-rotation',
+          tokensApprox: approxTokens,
           success: true,
-          errorMsg: warnings.join('; '),
+          errorMsg: undefined, // H-268: No registrar warnings en errorMsg cuando success es true
         });
       } catch {
         // logging no bloqueante

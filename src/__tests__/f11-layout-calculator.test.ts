@@ -216,10 +216,11 @@ describe('f11-layout-calculator (H-219)', () => {
     expect(result.fieldConfidence.directorName.fuente).toBe('ancla_estructural');
     expect(result.fieldConfidence.directorName.confidence).toBe(0.92);
     expect(result.fieldConfidence.directorName.requiresManualValidation).toBe(false);
-    expect(result.fieldConfidence.totalAlumnos.method).toBe('cross_validated');
-    expect(result.fieldConfidence.totalAlumnos.fuente).toBe('validacion_cruzada');
-    expect(result.fieldConfidence.totalAlumnos.confidence).toBe(0.99);
-    expect(result.fieldConfidence.promedioGeneral.method).toBe('cross_validated');
+    expect(result.fieldConfidence.totalAlumnos.method).toBe('coordinate_band');
+    expect(result.fieldConfidence.totalAlumnos.fuente).toBe('banda_coordenadas');
+    expect(result.fieldConfidence.totalAlumnos.confidence).toBeGreaterThanOrEqual(0.80);
+    expect(result.fieldConfidence.promedioGeneral.method).toBe('coordinate_band');
+    expect(result.fieldConfidence.promedioGeneral.fuente).toBe('banda_coordenadas');
     expect(result.fieldConfidence.bandaEncabezadoGrupo.method).toBe('structural_anchor');
     expect(result.fieldConfidence.bandaEncabezadoGrupo.confidence).toBe(0.98);
   });

@@ -11,7 +11,7 @@ import {
   F11ExtractSchema,
   F11ExtractDTO,
 } from '@/lib/prompts/f11-extraction';
-import { parseF11Layout } from '@/lib/f11-layout-calculator';
+import { parseF11Layout, calcularPromedioGeneralF11 } from '@/lib/f11-layout-calculator';
 import { isFeatureEnabled } from '@/lib/platform/feature-flags';
 import { correctiveRetry } from '@/lib/ai-resilience';
 import {
@@ -262,18 +262,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // H-269: Única fuente de verdad para promedioGeneral (SSOT)
+    // Si listaAlumnos está poblada, derivar determinísticamente con la misma semántica del parser oficial
+    if (parsed.data.listaAlumnos && parsed.data.listaAlumnos.length > 0) {
+      const derivedPromedio = calcularPromedioGeneralF11(parsed.data.listaAlumnos);
+      if (derivedPromedio !== null) {
+        parsed.data.promedioGeneral = derivedPromedio;
+      }
+    }
+
     const warnings = [...(parsed.warnings || []), 'requiere_revision: true (extraído vía OCR/IA de respaldo)'];
 
     if (typeof logActivity === 'function') {
       try {
+        const approxTokens = Math.round((systemPrompt.length + userPrompt.length + aiRaw.length) / 4);
         await logActivity({
           teacherEmail: session.user.email,
           action: 'ingest_document',
           entityType: 'f11',
           entityId: file.name,
-          providerUsed: 'ocr-fallback-ai',
+          providerUsed: 'gemini',
+          modelUsed: 'gemini-flash-rotation',
+          tokensApprox: approxTokens,
           success: true,
-          errorMsg: warnings.join('; '),
+          errorMsg: undefined, // H-268: No registrar warnings en errorMsg cuando success es true
         });
       } catch {
         // logging no bloqueante

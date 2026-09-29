@@ -72,6 +72,8 @@ export interface MetricaAsignaturaF11 {
 
 import type { ExtractedField } from './document-ingestion/types';
 import { createExtractedField } from './document-ingestion/types';
+import { calcularPromedioGeneralF11 } from './f11-derived-metrics';
+export { calcularPromedioGeneralF11 } from './f11-derived-metrics';
 
 export interface F11FieldConfidence {
   schoolName: ExtractedField<string>;
@@ -569,11 +571,12 @@ export async function parseF11Layout(buffer: Buffer): Promise<F11LayoutResult> {
     });
   }
 
-  // Promedio general de los alumnos con promedio numérico
-  const alumnosConPromedio = alumnos.filter(a => a.clase === 'REGULAR' && !isNaN(Number(a.promedioGeneral)));
-  const promedioGeneral = alumnosConPromedio.length > 0
-    ? Number((alumnosConPromedio.reduce((sum, a) => sum + Number(a.promedioGeneral), 0) / alumnosConPromedio.length).toFixed(1))
-    : null;
+  // Promedio general de los alumnos con promedio numérico (SSOT vía calcularPromedioGeneralF11)
+  const promedioGeneral = calcularPromedioGeneralF11(alumnos);
+
+  const regularCoverage = alumnos.length > 0 && regulares > 0
+    ? (alumnos.filter(a => (!a.clase || a.clase === 'REGULAR') && !isNaN(Number(a.promedioGeneral))).length / regulares)
+    : 0;
 
   const fieldConfidence: F11FieldConfidence = {
     schoolName: schoolName
@@ -595,13 +598,17 @@ export async function parseF11Layout(buffer: Buffer): Promise<F11LayoutResult> {
       ? createExtractedField<string>(controlEscolarName, 'structural_anchor', 0.92, 50)
       : createExtractedField<string>(null, 'inferred', 0.0),
     totalAlumnos: alumnos.length > 0
-      ? createExtractedField<number>(totalAlumnos, 'cross_validated', 0.99)
+      ? createExtractedField<number>(totalAlumnos, 'coordinate_band', dynamicBandDetected ? 0.95 : 0.80, TOLERANCIA_BANDA_GRUPO)
       : createExtractedField<number>(0, 'inferred', 0.0),
     promedioGeneral: promedioGeneral !== null
-      ? createExtractedField<number>(promedioGeneral, 'cross_validated', 0.95)
+      ? createExtractedField<number>(
+          promedioGeneral,
+          'coordinate_band',
+          Math.max(0.60, Number((0.70 + 0.25 * regularCoverage).toFixed(2)))
+        )
       : createExtractedField<number>(null, 'inferred', 0.0),
     grupos: Object.keys(gruposCount).length > 0
-      ? createExtractedField<number>(Object.keys(gruposCount).length, 'cross_validated', 0.95)
+      ? createExtractedField<number>(Object.keys(gruposCount).length, 'coordinate_band', dynamicBandDetected ? 0.95 : 0.75)
       : createExtractedField<number>(0, 'inferred', 0.0),
     bandaEncabezadoGrupo: dynamicBandDetected
       ? createExtractedField<number>(lastDetectedBandY ?? BANDA_ENCABEZADO_GRUPO_DEFAULT, 'structural_anchor', 0.98, TOLERANCIA_BANDA_GRUPO)
