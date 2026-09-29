@@ -1,7 +1,60 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'fs';
 import path from 'path';
-import { parseF11Layout, calcularMetaSugeridaBandas } from '../lib/f11-layout-calculator';
+import {
+  parseF11Layout,
+  calcularMetaSugeridaBandas,
+  detectarBandaEncabezadoGrupo,
+  BANDA_ENCABEZADO_GRUPO_DEFAULT,
+} from '../lib/f11-layout-calculator';
+
+describe('CP-2 / H-241: banda Y dinámica del encabezado de grupo', () => {
+  const rowAt = (y: number) => [
+    { str: 'BACHILLERATO GRAL. ESTATAL 0324', transform: [1, 0, 0, 1, 63, y] },
+    { str: '2', transform: [1, 0, 0, 1, 400, y] },
+    { str: 'A', transform: [1, 0, 0, 1, 415, y] },
+    { str: 'MATUTINO', transform: [1, 0, 0, 1, 430, y] },
+  ];
+
+  it('lee la fila de grupo en la posición clásica y ≈ 503', () => {
+    expect(detectarBandaEncabezadoGrupo(rowAt(503))).toBe(503);
+    expect(BANDA_ENCABEZADO_GRUPO_DEFAULT).toBe(503);
+  });
+
+  it('detecta la fila cuando el export la desplaza fuera de la banda 493..513', () => {
+    expect(detectarBandaEncabezadoGrupo(rowAt(480))).toBe(480);
+    expect(detectarBandaEncabezadoGrupo(rowAt(470))).toBe(470);
+    expect(detectarBandaEncabezadoGrupo(rowAt(520))).toBe(520);
+    expect(detectarBandaEncabezadoGrupo(rowAt(545))).toBe(545);
+  });
+
+  it('prefiere la fila que valida el patrón de grupo aunque haya otra clave del plantel en la página', () => {
+    const items = [
+      { str: 'BACHILLERATO GRAL. ESTATAL 0324', transform: [1, 0, 0, 1, 63, 60] },
+      { str: 'PIE DE PAGINA', transform: [1, 0, 0, 1, 63, 60] },
+      ...rowAt(498),
+    ];
+
+    expect(detectarBandaEncabezadoGrupo(items)).toBe(498);
+  });
+
+  it('retorna null cuando no hay clave del plantel ni fila de grupo', () => {
+    const items = [{ str: 'ALUMNO SIN GRUPO', transform: [1, 0, 0, 1, 200, 393] }];
+
+    expect(detectarBandaEncabezadoGrupo(items)).toBeNull();
+  });
+
+  it('límite conocido: una fila de plantel sin horario MATUTINO no valida como encabezado de grupo', () => {
+    const items = [
+      { str: 'BACHILLERATO GRAL. ESTATAL 0324', transform: [1, 0, 0, 1, 63, 503] },
+      { str: '2', transform: [1, 0, 0, 1, 400, 503] },
+      { str: 'A', transform: [1, 0, 0, 1, 415, 503] },
+      { str: 'VESPERTINO', transform: [1, 0, 0, 1, 430, 503] },
+    ];
+
+    expect(detectarBandaEncabezadoGrupo(items)).toBeNull();
+  });
+});
 
 describe('f11-layout-calculator (H-219)', () => {
   const fixturePath = path.resolve(
@@ -30,12 +83,9 @@ describe('f11-layout-calculator (H-219)', () => {
     expect(calcularMetaSugeridaBandas(41.2)).toBe(31.2);
   });
 
-  it('procesa el archivo real de Heroes de la Patria con precision exacta (n=189)', async () => {
-    if (!fs.existsSync(fixturePath)) {
-      console.warn('Fixture no encontrada en', fixturePath);
-      return;
-    }
+  const fixtureDisponible = fs.existsSync(fixturePath);
 
+  it.skipIf(!fixtureDisponible)('procesa el archivo real de Heroes de la Patria con precision exacta (n=189)', async () => {
     const buffer = fs.readFileSync(fixturePath);
     const result = await parseF11Layout(buffer);
 

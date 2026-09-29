@@ -6,7 +6,7 @@
  * oficiales de Educación Media Superior (SEP / DBEPA Puebla).
  *
  * Cero IA para cifras numéricas (Regla Anti-Fabricación B-001):
- * - Detección de grupos por regex sobre banda de encabezado (y ≈ 503).
+ * - Detección de grupos por regex sobre banda de encabezado de Y dinámica (ancla /ESTATAL/i).
  * - Detección de encabezados de materias rotadas (transform[1] > 0.01) ordenadas por X.
  * - Columnas de calificación derivadas de los datos numéricos de los alumnos.
  * - Clasificación de alumnos:
@@ -131,6 +131,35 @@ export function calcularMetaSugeridaBandas(reprobacionActual: number): number {
   return Number(Math.max(0, reprobacionActual - BANDAS_META_ASIGNATURA.REDUCCION_ALTA).toFixed(1));
 }
 
+export const BANDA_ENCABEZADO_GRUPO_DEFAULT = 503;
+export const TOLERANCIA_BANDA_GRUPO = 12;
+
+const GROUP_ROW_REGEX = /ESTATAL\s+\d+\s+(\d+)\s+([A-Z])\s+MATUTINO/i;
+
+export function detectarBandaEncabezadoGrupo(
+  items: { str: string; transform: number[] }[]
+): number | null {
+  const anchorYs: number[] = [];
+  for (const it of items) {
+    if (!/ESTATAL/i.test(it.str)) continue;
+    const y = it.transform[5];
+    if (!anchorYs.some(candidate => Math.abs(candidate - y) <= TOLERANCIA_BANDA_GRUPO)) {
+      anchorYs.push(y);
+    }
+  }
+
+  for (const y of anchorYs) {
+    const rowText = items
+      .filter(it => Math.abs(it.transform[5] - y) <= TOLERANCIA_BANDA_GRUPO)
+      .sort((a, b) => a.transform[4] - b.transform[4])
+      .map(it => it.str)
+      .join(' ');
+    if (GROUP_ROW_REGEX.test(rowText)) return y;
+  }
+
+  return null;
+}
+
 /**
  * Parsea y calcula métricas del formato F11 desde su Buffer digital nativo.
  */
@@ -150,7 +179,6 @@ export async function parseF11Layout(buffer: Buffer): Promise<F11LayoutResult> {
   } as unknown as Parameters<typeof pdfjsLib.getDocument>[0]).promise;
 
   const curpRegex = /^[A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]\d$/;
-  const groupRegex = /ESTATAL\s+\d+\s+(\d+)\s+([A-Z])\s+MATUTINO/i;
 
   const warnings: string[] = [];
   const alumnos: AlumnoF11[] = [];
@@ -234,12 +262,13 @@ export async function parseF11Layout(buffer: Buffer): Promise<F11LayoutResult> {
       if (nameCandidate) controlEscolarName = nameCandidate.str.trim();
     }
 
-    // 1. Detectar encabezado de grupo (fila y ≈ 503)
+    // 1. Detectar encabezado de grupo con banda Y dinámica anclada en la clave del plantel
+    const headerBandY = detectarBandaEncabezadoGrupo(items) ?? BANDA_ENCABEZADO_GRUPO_DEFAULT;
     const headerRowItems = items
-      .filter(it => Math.abs(it.transform[5] - 503) < 10)
+      .filter(it => Math.abs(it.transform[5] - headerBandY) <= TOLERANCIA_BANDA_GRUPO)
       .sort((a, b) => a.transform[4] - b.transform[4]);
     const headerRowStr = headerRowItems.map(it => it.str).join(' ');
-    const groupMatch = headerRowStr.match(groupRegex);
+    const groupMatch = headerRowStr.match(GROUP_ROW_REGEX);
     if (groupMatch) {
       currentGroup = `${groupMatch[1]}${groupMatch[2]}`;
     }
