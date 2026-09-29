@@ -94,4 +94,37 @@ describe('H-222: Paso 3 del Wizard sin datos de F11 muestra N/D sin valores hard
     // No debe pintar '85.5%' dentro del bloque de tarjetas situacionales como si viniera de F11
     expect(html).not.toContain('85.5% alumnos');
   });
+
+  it('H-240 / H-250: renderiza el banner ambar de Advertencias del F11 en Paso 3 cuando existen advertencias', () => {
+    const projectWithF11Warnings = {
+      id: 'project-test-f11-warnings',
+      current_step: 3,
+      school_name: 'Bachillerato General de Prueba',
+      school_cct: '21EBH9999Z',
+      indicadores_academicos: {
+        f11_warnings: [
+          'El archivo F11 presenta discrepancia en las columnas de reprobacion.',
+          'Se detecto posible truncamiento en datos de alumnos.',
+        ],
+      },
+    };
+
+    const html = renderToString(
+      <PmcWizardClient
+        locale="es"
+        teacherId="teacher-123"
+        teacherName="Profesor de Prueba"
+        teacherSchool="Bachillerato de Prueba"
+        teacherMunicipality="Puebla"
+        existingProject={projectWithF11Warnings as Parameters<typeof PmcWizardClient>[0]['existingProject']}
+      />
+    );
+
+    // Debe contener el título del banner de advertencias
+    expect(html).toContain('Advertencias del F11 (requiere revisi');
+    // Debe listar cada una de las advertencias
+    expect(html).toContain('El archivo F11 presenta discrepancia en las columnas de reprobacion.');
+    expect(html).toContain('Se detecto posible truncamiento en datos de alumnos.');
+  });
 });
+

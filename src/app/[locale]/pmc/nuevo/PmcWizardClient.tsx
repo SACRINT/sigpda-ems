@@ -629,8 +629,10 @@ interface EditablePlanElement {
   const [parsedPmcData, setParsedPmcData] = useState<PmcPreviousExtractDTO | null>(null);
   const [editableElementosPlan, setEditableElementosPlan] = useState<EditablePlanElement[]>([]);
   const [ingestWarnings, setIngestWarnings] = useState<string[]>([]);
-  // H-240: F11-specific warnings (column mismatch, zip truncation, etc.)
-  const [f11Warnings, setF11Warnings] = useState<string[]>([]);
+  // H-240 / H-250: F11-specific warnings persist inside indicadores_academicos to survive F5
+  const [f11Warnings, setF11Warnings] = useState<string[]>(
+    ((existingProject?.indicadores_academicos as unknown as { f11_warnings?: string[] } | undefined)?.f11_warnings) || []
+  );
   const [ingestCoverage, setIngestCoverage] = useState<{
     detectados: number | null;
     extraidos: number;
