@@ -111,3 +111,14 @@ CREATE TABLE IF NOT EXISTS activity_log (
 CREATE INDEX IF NOT EXISTS idx_activity_email ON activity_log(teacher_email);
 CREATE INDEX IF NOT EXISTS idx_activity_date  ON activity_log(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_activity_type  ON activity_log(action);
+
+-- ============================================================================
+-- DOCUMENT INGESTION CACHE (M5-CP3-B)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS document_ingest_cache (
+  hash TEXT PRIMARY KEY,
+  result JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ingest_cache_created ON document_ingest_cache(created_at);

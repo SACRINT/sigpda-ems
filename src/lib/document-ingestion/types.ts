@@ -44,4 +44,6 @@ export interface IngestOptions {
   teacherId?: string;
   /** Correo del docente autenticado para logging de actividad (activity_log.teacher_email) */
   teacherEmail?: string;
+  /** Si true, ignora la caché existente y fuerza la re-ingesta y actualización de la caché */
+  bypassCache?: boolean;
 }
