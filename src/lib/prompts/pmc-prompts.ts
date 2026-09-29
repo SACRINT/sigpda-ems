@@ -35,13 +35,66 @@ function parseJson<T = any>(val: unknown): T {
   }
 }
 
+export interface NormativaArticuloPromptItem {
+  orden?: number;
+  titulo: string;
+  articulos?: string[];
+  justificacion?: string;
+}
+
+/**
+ * M4b: Formatea el catálogo normativo oficial curado para inyección en prompts de PMC.
+ * Limita el contexto a un tope seguro de ~1500 tokens (~6000 caracteres) para no desplazar
+ * las instrucciones de generación ni la biblioteca del docente.
+ */
+export function formatNormativaContextForPrompt(
+  docs?: NormativaArticuloPromptItem[] | string | null,
+  maxTokensApprox: number = 1500
+): string {
+  if (!docs) return '';
+
+  if (typeof docs === 'string') {
+    return docs.trim().length > 0 ? docs.trim() : '';
+  }
+
+  if (!Array.isArray(docs) || docs.length === 0) return '';
+
+  const maxChars = maxTokensApprox * 4;
+  const header = `═══════════════════════════════════════════════════════════════════════════════
+MARCO NORMATIVO OFICIAL CURADO VINCULADO AL PMC (SEMS / BGE PUEBLA):
+═══════════════════════════════════════════════════════════════════════════════
+El PMC debe fundamentarse y alinearse con las siguientes disposiciones normativas vigentes:
+`;
+
+  let currentLength = header.length;
+  const entries: string[] = [];
+
+  for (const doc of docs) {
+    const arts = (doc.articulos || []).filter(a => a && a.trim().length > 0).join(', ');
+    const artsSnippet = arts ? ` (${arts})` : '';
+    const justSnippet = doc.justificacion ? ` — ${doc.justificacion}` : '';
+    const line = `• ${doc.titulo}${artsSnippet}${justSnippet}`;
+
+    if (currentLength + line.length + 1 > maxChars) {
+      break;
+    }
+    entries.push(line);
+    currentLength += line.length + 1;
+  }
+
+  if (entries.length === 0) return '';
+
+  return `${header}${entries.join('\n')}\n═══════════════════════════════════════════════════════════════════════════════\n`;
+}
+
 /**
  * Construye el prompt para el apartado de DIAGNÓSTICO INTEGRAL del PMC CREAA.
  */
 export function buildPmcDiagnosticoPrompt(
   project: PmcProject,
   statisticalContext?: PmcStatisticalContext,
-  libraryContext?: string
+  libraryContext?: string,
+  normativaContext?: NormativaArticuloPromptItem[] | string | null
 ): string {
   const indic = parseJson<PmcIndicadoresAcademicos>(project.indicadores_academicos);
   const foda = parseJson<PmcFodaData>(project.foda);
@@ -87,9 +140,12 @@ ${zona.brechasDiagnostico.observaciones.map((obs) => `    • ${obs}`).join('\n'
 `;
   }
 
+  const normativaBlock = formatNormativaContextForPrompt(normativaContext);
+
   return `Eres un experto en gestión directiva y planeación institucional de Bachilleratos Generales Estatales (BGE/TBC) de Puebla, alineado al Modelo Educativo 2025 de la NEM y las Pautas para la Planeación de la Mejora Continua 2026-2027 bajo la política estatal CREAA del MCCEMS.
 
 ${libraryContext || ''}
+${normativaBlock ? `\n${normativaBlock}` : ''}
 
 INFORMACIÓN GENERAL DEL PLANTEL:
 - Nombre: ${safeStr(project.school_name)} (CCT: ${safeStr(project.school_cct)})
@@ -152,7 +208,8 @@ Responde ÚNICAMENTE con el objeto JSON con estas 5 claves. NO inventes cifras e
 export function buildPmcPlanAccionPrompt(
   project: PmcProject,
   statisticalContext?: PmcStatisticalContext,
-  libraryContext?: string
+  libraryContext?: string,
+  normativaContext?: NormativaArticuloPromptItem[] | string | null
 ): string {
   const indic = parseJson<PmcIndicadoresAcademicos>(project.indicadores_academicos);
   const diagnosticoGenerado = parseJson<Record<string, string>>(project.diagnostico_generado);
@@ -245,9 +302,12 @@ export function buildPmcPlanAccionPrompt(
       }).join('\n')
     : `- ${safeStr(project.director_name, 'Director del Plantel')} — Director(a)\n    Metas predefinidas: (genera según cargo)\n- Colectivo Docente — Docentes frente a grupo\n    Metas predefinidas: (genera según cargo)`;
 
+  const normativaBlock = formatNormativaContextForPrompt(normativaContext);
+
   return `Eres el diseñador técnico líder de Planes de Mejora Continua (PMC) para el Ciclo Escolar 2026-2027, experto en la metodología CREAA del Bachillerato General Estatal en Puebla.
 
 ${libraryContext || ''}
+${normativaBlock ? `\n${normativaBlock}` : ''}
 
 DATOS OFICIALES DEL PLANTEL:
 - Escuela: ${safeStr(project.school_name)} | CCT: ${safeStr(project.school_cct)}

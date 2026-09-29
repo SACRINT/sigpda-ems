@@ -86,6 +86,23 @@ async function retrieveCurriculumRagBlock(
   }
 }
 
+/**
+ * M4b: Obtiene el catálogo normativo oficial estructurado para inyección en prompts de PMC.
+ * Reutiliza la normativa persistida del proyecto si existe, o consulta la BD con fallback seguro.
+ */
+async function getOrLoadProjectNormativa(projectNormativaRaw: unknown) {
+  const parsed = parseJson<{ documentos?: Array<{ orden?: number; titulo: string; articulos?: string[]; justificacion?: string }> }>(projectNormativaRaw);
+  if (Array.isArray(parsed?.documentos) && parsed.documentos.length > 0) {
+    return parsed.documentos;
+  }
+  try {
+    return await getStructuredNormativaForGenerator('pmc');
+  } catch (err) {
+    logger.warn('[pmc-generate] Error obteniendo normativa estructurada para prompt (fail-open):', err);
+    return [];
+  }
+}
+
 // ─── Route ───────────────────────────────────────────────────────────────────
 export async function POST(request: NextRequest, { params }: RouteContext) {
   try {
@@ -246,7 +263,13 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         'diagnostico'
       );
 
-      const basePrompt = buildPmcDiagnosticoPrompt(project as unknown as PmcProject, statisticalContext, libraryContext);
+      const normativaDocs = await getOrLoadProjectNormativa(project.normativa);
+      const basePrompt = buildPmcDiagnosticoPrompt(
+        project as unknown as PmcProject,
+        statisticalContext,
+        libraryContext,
+        normativaDocs
+      );
       const prompt = ragBlock ? `${basePrompt}\n\n${ragBlock}` : basePrompt;
 
       const isPremium = await resolveUserIsPremium(teacher.id);
@@ -405,7 +428,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
 
       // M4: Consulta RAG curricular derivada de temas seleccionados / asignaturas críticas / línea de acción
       let ragQuery = '';
-      const rawCategorias = parseJson<Array<{ nombre?: string; temas?: string[] }>>(project.categorias_seleccionadas);
+      const rawCategorias = parseJson<Array<{ nombre?: string; temas?: string[] }>>(project.categorias_priorizadas ?? project.categorias_seleccionadas);
       if (Array.isArray(rawCategorias) && rawCategorias.length > 0) {
         const allTemas = rawCategorias.flatMap(c => Array.isArray(c.temas) ? c.temas : []);
         if (allTemas.length > 0) {
@@ -435,7 +458,13 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         'plan_accion'
       );
 
-      const basePrompt = buildPmcPlanAccionPrompt(project as unknown as PmcProject, statisticalContext, libraryContext);
+      const normativaDocs = await getOrLoadProjectNormativa(project.normativa);
+      const basePrompt = buildPmcPlanAccionPrompt(
+        project as unknown as PmcProject,
+        statisticalContext,
+        libraryContext,
+        normativaDocs
+      );
       const prompt = ragBlock ? `${basePrompt}\n\n${ragBlock}` : basePrompt;
 
       const isPremium = await resolveUserIsPremium(teacher.id);
