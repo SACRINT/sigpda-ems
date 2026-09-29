@@ -76,6 +76,7 @@ export function mapFinAnteriorToIndicadores<T extends PmcIndicadoresAcademicos>(
     et_meta: etMeta,
     abandono_ant: abAnt,
     abandono_meta: abMeta,
+    baselineWarning: calc.warning,
   };
 
   if (calc.eficienciaTerminal !== null || calc.abandono !== null) {
@@ -142,6 +143,7 @@ export function mapInicioAnteriorToIndicadores<T extends PmcIndicadoresAcademico
       bajas: next.bajasDefinitivas ?? next.bajas,
       matriculaInicio: baseline,
     });
+    next.baselineWarning = calc.warning;
     if (calc.eficienciaTerminal !== null) {
       next.et_ant = calc.eficienciaTerminal;
       next.et_meta = prev.et_meta !== undefined ? prev.et_meta : Math.min(100, Number((calc.eficienciaTerminal + 5).toFixed(1)));

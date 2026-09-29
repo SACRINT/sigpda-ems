@@ -67,6 +67,14 @@ export interface PmcIndicadoresAcademicos {
   reprobacionPorMateria?: PmcMetaAsignaturaDTO[];
   _calc?: Record<string, PmcAuditCalculationEntry>;
   metas_confirmadas?: boolean;
+  baselineWarning?: string;
+  crossChecks?: {
+    alumnosF11?: number;
+    existencia911?: number;
+    bajasF11?: number;
+    bajas911?: number;
+    mensaje?: string;
+  };
 }
 
 export interface PmcStatisticalPlantel {

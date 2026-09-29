@@ -61,6 +61,7 @@ describe('Mapeo y Cálculo de Indicadores 911 (H-168, H-220)', () => {
     // Registro de auditoría
     expect(resultado._calc?.et?.fuentes).toContain('911_fin');
     expect(resultado._calc?.abandono?.fuentes).toContain('911_fin');
+    expect(resultado.baselineWarning).toContain('calculado con la línea base del propio concentrado de fin');
   });
 
   it('2. Subida posterior de inicio_anterior (192) recalcula ET (93.2%) y abandono (5.2%)', () => {
@@ -70,12 +71,17 @@ describe('Mapeo y Cálculo de Indicadores 911 (H-168, H-220)', () => {
       baseIndicadores
     );
     expect(despuesFin.et_ant).toBe(96.8);
+    expect(despuesFin.baselineWarning).toBeDefined();
 
     // Paso 2: Luego se sube el concentrado de inicio del ciclo anterior (192)
     const despuesInicio = mapInicioAnteriorToIndicadores(
       { matriculaInicio: 192 },
       despuesFin
     );
+
+    expect(despuesInicio.et_ant).toBe(93.2);
+    expect(despuesInicio.abandono_ant).toBe(5.2);
+    expect(despuesInicio.baselineWarning).toBeUndefined();
 
     expect(despuesInicio.matriculaInicioCicloAnterior).toBe(192);
     // ET recalcula con línea base oficial: 179/192 * 100 = 93.2%

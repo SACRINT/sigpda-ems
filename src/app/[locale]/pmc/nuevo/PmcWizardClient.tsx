@@ -119,6 +119,17 @@ interface IndicadoresAcademicos {
   reprobacionPorMateria?: PmcMetaAsignaturaDTO[];
   _calc?: Record<string, PmcAuditCalculationEntry>;
   metas_confirmadas?: boolean;
+  existenciaFin?: number;
+  bajasDefinitivas?: number;
+  altas?: number;
+  baselineWarning?: string;
+  crossChecks?: {
+    alumnosF11?: number;
+    existencia911?: number;
+    bajasF11?: number;
+    bajas911?: number;
+    mensaje?: string;
+  };
 }
 
 interface Foda {
@@ -168,6 +179,28 @@ export function isPreviousMetaAdapted(
     }
     return false;
   });
+}
+
+export function validateCanGenerateStep(
+  step: string,
+  metasConfirmadas: boolean,
+  ingestCoverage?: { parcial?: boolean } | null
+): { allowed: boolean; error?: string } {
+  if (step === 'diagnostico' || step === 'plan_accion') {
+    if (!metasConfirmadas) {
+      return {
+        allowed: false,
+        error: 'Debes confirmar las metas del ciclo en el Paso 3 antes de generar con Inteligencia Artificial.',
+      };
+    }
+    if (ingestCoverage?.parcial) {
+      return {
+        allowed: false,
+        error: 'El PMC previo tiene una cobertura de extracción parcial (<90%). No se puede generar contenido oficial hasta completar la extracción o revisar el documento.',
+      };
+    }
+  }
+  return { allowed: true };
 }
 
 interface MetaPersonal {
@@ -576,7 +609,9 @@ interface EditablePlanElement {
       metas: { detectados: number | null; extraidos: number; parcial: boolean };
       actividades: { detectados: number | null; extraidos: number; parcial: boolean };
     };
-  } | null>(null);
+  } | null>(
+    ((existingProject as unknown as { ingest_coverage?: { detectados: number | null; extraidos: number; parcial: boolean } })?.ingest_coverage) || null
+  );
   const [showPmcReviewModal, setShowPmcReviewModal] = useState(false);
 
   // Carga Inteligente de PAEC Anterior (PDF/Word) en Paso 1 (H-155)
@@ -1436,6 +1471,7 @@ interface EditablePlanElement {
             diagnostico_comunidad: diagnosticoComunidad,
             foda,
             categorias_priorizadas: categoriasPriorizadas,
+            ingest_coverage: ingestCoverage,
             ...payload,
           }),
         });
@@ -1457,7 +1493,10 @@ interface EditablePlanElement {
         const res = await fetch(`/api/pmc/${projectId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
+          body: JSON.stringify({
+            ...payload,
+            ...(ingestCoverage ? { ingest_coverage: ingestCoverage } : {}),
+          }),
         });
         if (!res.ok) {
           const errData = await parseSafeApiResponse<{ error?: string }>(res, 'Error al actualizar el proyecto.');
@@ -1471,12 +1510,13 @@ interface EditablePlanElement {
     } finally {
       setSaving(false);
     }
-  }, [projectId, schoolName, schoolCct, municipality, locality, schoolZone, directorName, supervisorName, cicloEscolar, subsystem, totalStaff, staffData, indicadores, metasConfirmadas, diagnosticoComunidad, foda, categoriasPriorizadas, locale, router]);
+  }, [projectId, schoolName, schoolCct, municipality, locality, schoolZone, directorName, supervisorName, cicloEscolar, subsystem, totalStaff, staffData, indicadores, metasConfirmadas, diagnosticoComunidad, foda, categoriasPriorizadas, ingestCoverage, locale, router]);
 
   const generateStep = useCallback(async (step: string): Promise<void> => {
     if (!projectId) return;
-    if ((step === 'diagnostico' || step === 'plan_accion') && !metasConfirmadas) {
-      setError('Debes confirmar las metas del ciclo en el Paso 3 antes de generar con Inteligencia Artificial.');
+    const validation = validateCanGenerateStep(step, metasConfirmadas, ingestCoverage);
+    if (!validation.allowed) {
+      setError(validation.error || 'No se puede generar este paso.');
       return;
     }
     setGenerating(step);
@@ -1514,7 +1554,7 @@ interface EditablePlanElement {
     } finally {
       setGenerating(null);
     }
-  }, [projectId, metasConfirmadas]);
+  }, [projectId, metasConfirmadas, ingestCoverage]);
 
   // H-099: Auto-ejecución de normativa al ingresar a Paso 4 si aún no existe en BD
   const hasTriggeredNormativaRef = useRef(false);
@@ -2535,6 +2575,47 @@ interface EditablePlanElement {
                 💡 <strong>Cálculo Determinístico:</strong> Ningún porcentaje de línea base se captura a mano. Si falta un archivo, se muestra &quot;N/D (falta &lt;archivo&gt;)&quot;. Las metas son lo único que se sugiere y tú dispones o confirmas su valor final.
               </div>
 
+              {/* H-225: Advertencia de Línea Base si usa fallback de fin o falta concentrado de inicio */}
+              {indicadores.baselineWarning && (
+                <div style={{
+                  background: 'rgba(239, 68, 68, 0.12)',
+                  border: '1px solid rgba(239, 68, 68, 0.4)',
+                  borderRadius: '6px',
+                  padding: '8px 12px',
+                  fontSize: '12px',
+                  color: '#fca5a5',
+                  marginBottom: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}>
+                  <span>⚠️</span>
+                  <span><strong>Advertencia de Línea Base:</strong> {indicadores.baselineWarning}</span>
+                </div>
+              )}
+
+              {/* H-226: Consumo visible de Cross-Checks F11 ↔ 911 */}
+              {Boolean(indicadores.totalAlumnosF11 && (indicadores.existenciaFin || indicadores.matriculaAnterior)) && (
+                <div style={{
+                  background: 'rgba(99, 102, 241, 0.08)',
+                  border: '1px solid rgba(99, 102, 241, 0.25)',
+                  borderRadius: '6px',
+                  padding: '8px 12px',
+                  fontSize: '11.5px',
+                  color: '#c7d2fe',
+                  marginBottom: '16px',
+                }}>
+                  <div style={{ fontWeight: 600, marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>🔍</span> Cross-Checks F11 ↔ 911 (Consistencia de Control Escolar y Estadística):
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#e0e7ff', lineHeight: 1.5 }}>
+                    • Total Alumnos F11: <strong>{indicadores.totalAlumnosF11}</strong> vs Existencia 911: <strong>{indicadores.existenciaFin ?? indicadores.matriculaAnterior}</strong>
+                    {indicadores.bajas !== undefined && ` (Bajas F11: ${indicadores.bajas})`}
+                    {indicadores.bajasDefinitivas !== undefined && ` vs (Bajas 911: ${indicadores.bajasDefinitivas})`}
+                  </div>
+                </div>
+              )}
+
               {/* 5 Tarjetas Situacionales */}
               <div style={{ marginBottom: '24px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
@@ -3279,19 +3360,19 @@ interface EditablePlanElement {
                 </div>
                 <button
                   onClick={() => generateStep('diagnostico')}
-                  disabled={generating !== null || !metasConfirmadas}
-                  title={!metasConfirmadas ? 'Debes confirmar las metas del ciclo en el Paso 3 primero' : undefined}
+                  disabled={generating !== null || !metasConfirmadas || Boolean(ingestCoverage?.parcial)}
+                  title={!metasConfirmadas ? 'Debes confirmar las metas del ciclo en el Paso 3 primero' : ingestCoverage?.parcial ? 'El PMC previo tiene cobertura de extracción parcial (<90%)' : undefined}
                   style={{
                     padding: '8px 16px',
                     borderRadius: '8px',
                     border: 'none',
-                    background: generating === 'diagnostico' ? 'rgba(255,255,255,0.1)' : !metasConfirmadas ? 'rgba(255,255,255,0.08)' : 'linear-gradient(135deg,#6366f1,#4f46e5)',
+                    background: generating === 'diagnostico' ? 'rgba(255,255,255,0.1)' : (!metasConfirmadas || ingestCoverage?.parcial) ? 'rgba(255,255,255,0.08)' : 'linear-gradient(135deg,#6366f1,#4f46e5)',
                     color: '#fff',
                     fontWeight: 600,
-                    cursor: (generating !== null || !metasConfirmadas) ? 'not-allowed' : 'pointer',
+                    cursor: (generating !== null || !metasConfirmadas || Boolean(ingestCoverage?.parcial)) ? 'not-allowed' : 'pointer',
                     fontSize: '13px',
-                    boxShadow: !metasConfirmadas ? 'none' : '0 2px 8px rgba(99,102,241,0.4)',
-                    opacity: !metasConfirmadas ? 0.5 : 1,
+                    boxShadow: (!metasConfirmadas || ingestCoverage?.parcial) ? 'none' : '0 2px 8px rgba(99,102,241,0.4)',
+                    opacity: (!metasConfirmadas || ingestCoverage?.parcial) ? 0.5 : 1,
                   }}
                 >
                   {generating === 'diagnostico' ? '⏳ Generando...' : diagnosticoGenerado ? '🔄 Regenerar' : '✨ Generar Diagnóstico'}
@@ -3300,6 +3381,11 @@ interface EditablePlanElement {
               {!metasConfirmadas && (
                 <p style={{ fontSize: '12px', color: '#fcd34d', background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.2)', padding: '8px 12px', borderRadius: '6px', marginBottom: '12px' }}>
                   ⚠️ Debes confirmar las metas del ciclo en el Paso 3 antes de generar el diagnóstico.
+                </p>
+              )}
+              {ingestCoverage?.parcial && (
+                <p style={{ fontSize: '12px', color: '#f87171', background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.2)', padding: '8px 12px', borderRadius: '6px', marginBottom: '12px' }}>
+                  ⚠️ El PMC anterior cargado tiene cobertura de extracción parcial (&lt;90%). Revisa o completa la extracción antes de generar.
                 </p>
               )}
               {diagnosticoGenerado && (
@@ -3354,18 +3440,18 @@ interface EditablePlanElement {
                 </div>
                 <button
                   onClick={() => generateStep('plan_accion')}
-                  disabled={generating !== null || !diagnosticoGenerado || !metasConfirmadas}
-                  title={!metasConfirmadas ? 'Debes confirmar las metas del ciclo en el Paso 3 primero' : undefined}
+                  disabled={generating !== null || !diagnosticoGenerado || !metasConfirmadas || Boolean(ingestCoverage?.parcial)}
+                  title={!metasConfirmadas ? 'Debes confirmar las metas del ciclo en el Paso 3 primero' : ingestCoverage?.parcial ? 'El PMC previo tiene cobertura de extracción parcial (<90%)' : undefined}
                   style={{
                     padding: '8px 16px',
                     borderRadius: '8px',
                     border: 'none',
-                    background: generating === 'plan_accion' ? 'rgba(255,255,255,0.1)' : (!diagnosticoGenerado || !metasConfirmadas) ? 'rgba(255,255,255,0.07)' : 'linear-gradient(135deg,#6366f1,#4f46e5)',
+                    background: generating === 'plan_accion' ? 'rgba(255,255,255,0.1)' : (!diagnosticoGenerado || !metasConfirmadas || ingestCoverage?.parcial) ? 'rgba(255,255,255,0.07)' : 'linear-gradient(135deg,#6366f1,#4f46e5)',
                     color: '#fff',
                     fontWeight: 600,
-                    cursor: (generating !== null || !diagnosticoGenerado || !metasConfirmadas) ? 'not-allowed' : 'pointer',
+                    cursor: (generating !== null || !diagnosticoGenerado || !metasConfirmadas || Boolean(ingestCoverage?.parcial)) ? 'not-allowed' : 'pointer',
                     fontSize: '13px',
-                    opacity: (!diagnosticoGenerado || !metasConfirmadas) ? 0.5 : 1,
+                    opacity: (!diagnosticoGenerado || !metasConfirmadas || ingestCoverage?.parcial) ? 0.5 : 1,
                   }}
                 >
                   {generating === 'plan_accion' ? '⏳ Generando...' : (planAccion?.metas_institucionales?.length || 0) > 0 ? '🔄 Regenerar Metas Institucionales con IA' : '✨ Generar Plan de Acción con IA'}
@@ -3380,6 +3466,11 @@ interface EditablePlanElement {
                   ⚠️ Primero genera el diagnóstico para poder generar el plan de acción.
                 </p>
               ) : null}
+              {ingestCoverage?.parcial && (
+                <p style={{ fontSize: '12px', color: '#f87171', background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.2)', padding: '8px 12px', borderRadius: '6px', marginBottom: '12px' }}>
+                  ⚠️ El PMC anterior cargado tiene cobertura de extracción parcial (&lt;90%). Revisa o completa la extracción antes de generar.
+                </p>
+              )}
 
               {/* Metas del ciclo previo (Referencia Histórica Aislada - H-006) */}
               {metasPreviasReferencia.length > 0 && (
