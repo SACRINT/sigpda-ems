@@ -1186,7 +1186,7 @@ interface EditablePlanElement {
         const mappedSnapshot = mapFinAnteriorToIndicadores(json.data, indicadores);
         const calculatedEt = mappedSnapshot.et_ant;
         const calculatedAb = mappedSnapshot.abandono_ant;
-        setIndicadores(_p => mappedSnapshot);
+        setIndicadores(() => mappedSnapshot);
         if (json.data?.totalDocentes) syncStaffFrom911(json.data.totalDocentes);
         setDocsStatus(p => ({ ...p, n911FinAnt: true }));
         const etStr = calculatedEt !== undefined ? `${calculatedEt}%` : 'N/D';
