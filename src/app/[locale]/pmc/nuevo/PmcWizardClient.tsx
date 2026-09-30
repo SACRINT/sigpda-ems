@@ -511,7 +511,7 @@ export default function PmcWizardClient({ locale, teacherSchool, teacherMunicipa
   const [planAccion, setPlanAccion] = useState<PlanAccion | null>(
     existingProject?.plan_accion || null
   );
-  const [allowPartialGeneration, setAllowPartialGeneration] = useState(false);
+  const [allowPartialGeneration, setAllowPartialGeneration] = useState(true);
   const [metasPreviasReferencia, setMetasPreviasReferencia] = useState<Array<{
     categoria?: string;
     tema?: string;
