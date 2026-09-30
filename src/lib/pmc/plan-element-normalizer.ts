@@ -38,13 +38,18 @@ export interface PmcExtractionCoverage {
   detalles?: PmcCoverageDetails;
 }
 
-const NUMERIC_TOKEN_REGEX = /\d+(?:[.,]\d+)?\s?%?/g;
+const NUMERIC_TOKEN_REGEX = /(?:\b\d+(?:[.,]\d+)?|[.,]\d+)\s?%?/g;
 
 /**
- * Normaliza un token numérico eliminando espacios interiores y unificando comas decimales a puntos.
+ * Normaliza un token numérico eliminando espacios interiores, unificando comas decimales a puntos
+ * y agregando cero inicial si comienza con punto decimal (ej. ".5" -> "0.5").
  */
 function cleanNumericToken(tok: string): string {
-  return tok.replace(/\s+/g, '').replace(',', '.');
+  let cleaned = tok.replace(/\s+/g, '').replace(',', '.');
+  if (cleaned.startsWith('.')) {
+    cleaned = '0' + cleaned;
+  }
+  return cleaned.replace(/\.$/, '');
 }
 
 /**

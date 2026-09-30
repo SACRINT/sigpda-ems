@@ -76,8 +76,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Deadline global de 90s por request para prevenir saturación y errores 504 de Vercel (D-001)
-    const deadline = Date.now() + 90000;
+    // Deadline global de 110s por request para prevenir saturación y errores 504 de Vercel (maxDuration 120)
+    const deadline = Date.now() + 110000;
 
     // 1. Ingesta documental (PDF con OCR o DOCX con Mammoth)
     let ingested;

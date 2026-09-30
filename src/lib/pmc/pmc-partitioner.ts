@@ -334,11 +334,27 @@ export async function extractPmcPreviousWithPartitioning(options: {
   const warnings: string[] = [];
   const expectedActivities = countDeterministicExpectedActivities(documentText);
 
-  // Decisión de particionado temprano: si supera 20,000 chars o tiene >= 15 actividades esperadas (H-298)
-  const shouldPartitionEarly = documentText.length > 20000 || expectedActivities >= 15;
-  const chunks = shouldPartitionEarly
-    ? partitionMarkdownDocument(documentText, 8000, 16000)
-    : [documentText];
+  // 1. Detección de particionado estructural respetando el Plan de Acción
+  const { planText, startIndex } = findPlanActionSection(documentText);
+  const hasDistinctPlan = startIndex > 500 && planText.length > 500 && startIndex < documentText.length - 500;
+
+  let chunks: string[] = [];
+  if (hasDistinctPlan && (documentText.length > 20000 || expectedActivities >= 15)) {
+    // Particionado estructural de alta fidelidad:
+    // Trozo 1: Portada, Metadatos Institucionales, Diagnóstico Comunitario, FODA y Metas Generales de Plantel (PLANEA)
+    const contextChunk = documentText.slice(0, startIndex).trim();
+    // Trozo 2: Sección especializada del Plan de Acción
+    if (planText.length > 22000) {
+      const planChunks = partitionMarkdownDocument(planText, 10000, 20000);
+      chunks = [contextChunk, ...planChunks];
+    } else {
+      chunks = [contextChunk, planText.trim()];
+    }
+  } else if (documentText.length > 20000 || expectedActivities >= 15) {
+    chunks = partitionMarkdownDocument(documentText, 8000, 16000);
+  } else {
+    chunks = [documentText];
+  }
 
   let combinedData: PmcPreviousExtractDTO | null = null;
   let isTruncated = false;
@@ -525,12 +541,24 @@ export async function extractPmcPreviousWithPartitioning(options: {
       }
     }
   } else {
-    // Particionado inicial (texto > 40k chars)
-    // H-294: Ejecución concurrente con Promise.allSettled
-    const chunkPromises = chunks.map((chunk, i) =>
-      extractChunkPass(chunk, i, chunks.length, i === 0)
-    );
-    const settled = await Promise.allSettled(chunkPromises);
+    // Particionado inicial (texto extenso o estructurado en Plan de Acción)
+    // Ejecución secuencial controlada para garantizar presupuesto completo y evitar colisiones de red
+    const settled: PromiseSettledResult<any>[] = [];
+    for (let i = 0; i < chunks.length; i++) {
+      if (Date.now() >= deadline - 4000) {
+        warnings.push(`Fragmento inicial ${i + 1} no completó a tiempo.`);
+        settled.push({ status: 'rejected', reason: new Error('Deadline reached') });
+        break;
+      }
+      try {
+        const res = await extractChunkPass(chunks[i], i, chunks.length, i === 0);
+        settled.push({ status: 'fulfilled', value: res });
+      } catch (err) {
+        logger.warn(`[${contextName}] Falló trozo inicial ${i + 1}:`, err);
+        warnings.push(`Fragmento inicial ${i + 1} no completó a tiempo.`);
+        settled.push({ status: 'rejected', reason: err });
+      }
+    }
 
     const accumulatedElementos: PmcPlanElement[] = [];
     const accumulatedMetas: NonNullable<PmcPreviousExtractDTO['metas_institucionales_previas']> = [];

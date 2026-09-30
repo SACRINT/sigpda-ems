@@ -12,18 +12,22 @@
 
 import type { PreScanScopeResult } from './pre-scanner';
 
-// Captura: ciclos escolares (2026-2027), porcentajes (70%), decimales (8.5) y enteros
-export const NUMERIC_TOKEN_REGEX = /(?:\b\d{4}\s*-\s*\d{4}\b|\b\d+(?:[.,]\d+)?\s*%|\b\d+(?:[.,]\d+)?\b)/g;
+// Captura: ciclos escolares (2026-2027), porcentajes (70%), decimales (8.5, .5) y enteros
+export const NUMERIC_TOKEN_REGEX = /(?:\b\d{4}\s*-\s*\d{4}\b|(?:\b\d+(?:[.,]\d+)?|[.,]\d+)\s*%?)/g;
 
 /**
  * Normaliza un token numérico eliminando espacios, unificando guiones y decimales.
  */
 export function cleanNum(t: string): string {
-  return t
+  let cleaned = t
     .replace(/\s+/g, '')
     .replace(/\s*-\s*/g, '-') // Normaliza "2026 - 2027" a "2026-2027"
     .replace(',', '.') // Normaliza decimales con coma a punto
     .replace(/\.$/, ''); // Quita punto final sintáctico ("100." -> "100")
+  if (cleaned.startsWith('.')) {
+    cleaned = '0' + cleaned;
+  }
+  return cleaned;
 }
 
 /**
