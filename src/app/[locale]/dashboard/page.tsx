@@ -4,7 +4,7 @@ import { getTeacherByEmail, getPlanningsByTeacher } from '@/lib/db';
 import { getSubscriptionStatus } from '@/lib/subscription-gate';
 import AppLayout from '@/components/layout/AppLayout';
 import Link from 'next/link';
-import DeletePlanningButton from '@/components/planeacion/DeletePlanningButton';
+import PlanningDeleteButton from '@/app/[locale]/planning-delete-button';
 import CustomKeyCard from '@/components/dashboard/CustomKeyCard';
 import SubscriptionBanner from '@/components/dashboard/SubscriptionBanner';
 import type { Metadata } from 'next';
@@ -110,7 +110,7 @@ export default async function DashboardPage({
                      ↓ DOCX
                   </a>
                 )}
-                <DeletePlanningButton id={p.id as string} locale={locale} size="sm" />
+                <PlanningDeleteButton id={p.id as string} />
               </div>
             </div>
           ))}

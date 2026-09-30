@@ -44,8 +44,7 @@ export default function DeletePlanningButton({
         alert(data.error || 'Error al eliminar la planeación');
         setIsDeleting(false);
       }
-    } catch (err) {
-      console.error('Failed to delete planning:', err);
+    } catch {
       alert('Ocurrió un error al intentar eliminar la planeación.');
       setIsDeleting(false);
     }
