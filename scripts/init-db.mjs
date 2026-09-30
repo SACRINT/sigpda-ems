@@ -1,6 +1,10 @@
 import { neon } from '@neondatabase/serverless';
 
-const DB_URL = 'postgresql://neondb_owner:npg_Tec5LgY7KIfC@ep-divine-grass-atatmg66-pooler.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require';
+const DB_URL = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+if (!DB_URL) {
+  console.error('❌ Error: DATABASE_URL o POSTGRES_URL no está definida en el entorno.');
+  process.exit(1);
+}
 
 const sql = neon(DB_URL);
 
