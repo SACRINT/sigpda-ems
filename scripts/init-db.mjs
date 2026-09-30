@@ -56,7 +56,7 @@ async function run() {
       CREATE TABLE IF NOT EXISTS uploaded_pdfs (
         id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         teacher_id    UUID NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
-        planning_id   UUID REFERENCES plannings(id) ON DELETE SET NULL,
+        planning_id   UUID REFERENCES plannings(id) ON DELETE CASCADE,
         filename      TEXT NOT NULL,
         blob_url      TEXT NOT NULL,
         parsed_ok     BOOLEAN NOT NULL DEFAULT FALSE,
