@@ -18,6 +18,7 @@ import {
   deduplicatePlanElements,
   deduplicateMetasPrevias,
   extractPmcPreviousWithPartitioning,
+  extractDeterministicSupervisorAndZone,
 } from '@/lib/pmc/pmc-partitioner';
 import { calculatePmcCoverage } from '@/lib/pmc/plan-element-normalizer';
 import { type PmcPlanElement, PmcPreviousExtractSchema } from '@/lib/prompts/pmc-extraction';
@@ -369,5 +370,16 @@ ${Array.from({ length: 20 }, (_, i) => `| ${i + 1} | Desarrollo académico | Act
       expect(parsed.data.staffData?.length).toBe(45);
       expect(parsed.data.participantes?.length).toBe(45);
     }
+  });
+
+  it('8. Extracción determinista de Supervisor y Zona Escolar (fixture real Héroes de la Patria, Zona 086)', async () => {
+    expect(fs.existsSync(fixturePath)).toBe(true);
+    const buffer = fs.readFileSync(fixturePath);
+    const ingested = await ingestDocument(buffer, { filename: 'PMC 2026-Heroes de la Patria.docx' });
+    const documentText = ingested.markdown || ingested.fullText || '';
+
+    const res = extractDeterministicSupervisorAndZone(documentText, 'Adrián Hernández Cruz');
+    expect(res.schoolZone).toBe('086');
+    expect(res.supervisorName).toContain('MOISES FLORES');
   });
 });

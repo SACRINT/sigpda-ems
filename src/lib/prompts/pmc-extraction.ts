@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { nullableString } from './zod-helpers';
+import { nullableString, nullableStringOrArray } from './zod-helpers';
 
 /**
  * Specialized prompts and schemas for extracting structured PMC data from previous documents (PDF / Word DOCX).
@@ -88,10 +88,10 @@ export const PmcPreviousExtractSchema = z.object({
     promedio_meta: z.coerce.number().nullable().optional(),
   }).partial().optional().default({}),
   foda: z.object({
-    fortalezas: nullableString(),
-    oportunidades: nullableString(),
-    debilidades: nullableString(),
-    amenazas: nullableString(),
+    fortalezas: nullableStringOrArray(),
+    oportunidades: nullableStringOrArray(),
+    debilidades: nullableStringOrArray(),
+    amenazas: nullableStringOrArray(),
   }).partial().optional().default({}),
 });
 
@@ -252,8 +252,11 @@ Estructura la información en el siguiente esquema JSON exacto:
 {
   "schoolName": null,
   "schoolCct": null,
+  "municipality": null,
+  "locality": null,
+  "schoolZone": "Zona escolar si se menciona en este fragmento (ej. 086), o null",
   "directorName": null,
-  "supervisorName": null,
+  "supervisorName": "Nombre del supervisor(a) escolar si se menciona en este fragmento, o null",
   "staffData": [
     {
       "nombre": "Nombre del docente o directivo (limpio de prefijos)",

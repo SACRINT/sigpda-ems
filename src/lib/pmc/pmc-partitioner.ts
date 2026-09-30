@@ -311,6 +311,71 @@ export function deduplicateMetasPrevias<
   return result;
 }
 
+/**
+ * Deduplica personal escolar por nombre normalizado (H-294).
+ */
+export function deduplicateStaffData<T extends { nombre?: string | null }>(staff: T[]): T[] {
+  const result: T[] = [];
+  const seen = new Set<string>();
+  for (const s of staff) {
+    const norm = normalizeStaffName(s.nombre);
+    if (!norm || seen.has(norm)) continue;
+    seen.add(norm);
+    result.push(s);
+  }
+  return result;
+}
+
+/**
+ * Respaldo determinista de alta precisión para Zona Escolar y Supervisor(a) Escolar.
+ * Busca patrones oficiales de supervisión y firmas al pie del documento si el LLM omitió la extracción.
+ */
+export function extractDeterministicSupervisorAndZone(
+  documentText: string,
+  directorName?: string | null
+): { supervisorName?: string; schoolZone?: string } {
+  const result: { supervisorName?: string; schoolZone?: string } = {};
+  if (!documentText) return result;
+
+  // 1. Zona Escolar: buscar menciones explícitas de supervisión escolar o zona escolar
+  const zoneRegex = /(?:SUPERVISOR(?:A)?\s+ESCOLAR(?:\s+DE\s+LA)?\s+ZONA\s*[:\s]*|SUPERVISI[ÓO]N\s+ESCOLAR\s+(?:DE\s+LA\s+ZONA\s+)?|ZONA\s+ESCOLAR\s*[:\s]*)(\d{2,4}[A-Za-z]?)/i;
+  const zoneMatch = documentText.match(zoneRegex);
+  if (zoneMatch && zoneMatch[1]) {
+    result.schoolZone = zoneMatch[1].trim();
+  }
+
+  // 2. Supervisor(a) Escolar: buscar en proximidad a "SUPERVISOR(A) ESCOLAR"
+  const stripAccents = (str: string) =>
+    str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z]/g, '');
+
+  const lines = documentText.split(/\r?\n/).map((l) => l.replace(/\\/g, '').trim()).filter(Boolean);
+  for (let i = 0; i < lines.length; i++) {
+    if (/SUPERVISOR(?:A)?\s+ESCOLAR/i.test(lines[i])) {
+      const candidates: string[] = [];
+      for (let j = Math.max(0, i - 4); j <= Math.min(lines.length - 1, i + 4); j++) {
+        if (j === i) continue;
+        const candidate = lines[j];
+        if (/(?:Director|Plantel|Zona|BGE|CCT|Bachillerato|Autoriz|Vo\.?\s*Bo)/i.test(candidate)) continue;
+        if (/^(?:LIC\.|ING\.|MTRO\.|MTRA\.|PROFR\.|PROFRA\.|C\.)\s+[A-ZÁÉÍÓÚÑ\s]{4,45}$/i.test(candidate)) {
+          candidates.push(candidate);
+        }
+      }
+      const filtered = candidates.filter((c) => {
+        if (!directorName) return true;
+        const normC = stripAccents(c);
+        const normD = stripAccents(directorName);
+        return !normC.includes(normD) && !normD.includes(normC);
+      });
+      if (filtered.length > 0) {
+        result.supervisorName = filtered[0].replace(/^(?:LIC\.|ING\.|MTRO\.|MTRA\.|PROFR\.|PROFRA\.|C\.)\s*/i, '').trim();
+        break;
+      }
+    }
+  }
+
+  return result;
+}
+
 export interface PartitionedExtractionResult {
   success: boolean;
   data: PmcPreviousExtractDTO;
@@ -335,17 +400,18 @@ export async function extractPmcPreviousWithPartitioning(options: {
   const expectedActivities = countDeterministicExpectedActivities(documentText);
 
   // 1. Detección de particionado estructural respetando el Plan de Acción
-  const { planText, startIndex } = findPlanActionSection(documentText);
+  const { planText, startIndex, endIndex } = findPlanActionSection(documentText);
   const hasDistinctPlan = startIndex > 500 && planText.length > 500 && startIndex < documentText.length - 500;
 
   let chunks: string[] = [];
   if (hasDistinctPlan && (documentText.length > 20000 || expectedActivities >= 15)) {
     // Particionado estructural de alta fidelidad:
-    // Trozo 1: Portada, Metadatos Institucionales, Diagnóstico Comunitario, FODA y Metas Generales de Plantel (PLANEA)
-    const contextChunk = documentText.slice(0, startIndex).trim();
-    // Trozo 2: Sección especializada del Plan de Acción
-    if (planText.length > 22000) {
-      const planChunks = partitionMarkdownDocument(planText, 10000, 20000);
+    // Trozo 1: Portada, Metadatos Institucionales, Diagnóstico Comunitario, FODA, Metas Generales (PLANEA) y Firmas / Aprobación final
+    const tailText = endIndex !== -1 && endIndex < documentText.length ? documentText.slice(endIndex).trim() : '';
+    const contextChunk = (documentText.slice(0, startIndex) + (tailText ? `\n\n# APROBACIÓN Y FIRMAS DEL PLANTEL\n${tailText}` : '')).trim();
+    // Trozo 2..N: Sección especializada del Plan de Acción
+    if (planText.length > 8000 || expectedActivities >= 15) {
+      const planChunks = partitionMarkdownDocument(planText, 6000, 10000);
       chunks = [contextChunk, ...planChunks];
     } else {
       chunks = [contextChunk, planText.trim()];
@@ -463,6 +529,17 @@ export async function extractPmcPreviousWithPartitioning(options: {
     if (res.parsed.success) {
       combinedData = res.parsed.data;
       if (res.parsed.warnings) warnings.push(...res.parsed.warnings);
+
+      // Enriquecer deterministamente zona y supervisor si no fueron detectados por la IA
+      const isMeaningful = (val?: string | null) =>
+        Boolean(val && val.trim() && !/^(?:\(Sin detectar\)|Sin detectar|null|undefined|n\/a)$/i.test(val.trim()));
+      const detZoneSup = extractDeterministicSupervisorAndZone(documentText, combinedData.directorName);
+      if (!isMeaningful(combinedData.schoolZone) && detZoneSup.schoolZone) {
+        combinedData.schoolZone = detZoneSup.schoolZone;
+      }
+      if (!isMeaningful(combinedData.supervisorName) && detZoneSup.supervisorName) {
+        combinedData.supervisorName = detZoneSup.supervisorName;
+      }
     } else {
       throw new Error(`No se pudieron estructurar los datos del PMC anterior: ${res.parsed.error}`);
     }
@@ -536,8 +613,18 @@ export async function extractPmcPreviousWithPartitioning(options: {
 
         combinedData.elementos_plan = deduplicatePlanElements(accumulatedElementos);
         combinedData.metas_institucionales_previas = deduplicateMetasPrevias(accumulatedMetas);
-        combinedData.staffData = accumulatedStaff;
-        combinedData.participantes = accumulatedParticipantes;
+        combinedData.staffData = deduplicateStaffData(accumulatedStaff);
+        combinedData.participantes = [...accumulatedParticipantes];
+
+        const isMeaningful = (val?: string | null) =>
+          Boolean(val && val.trim() && !/^(?:\(Sin detectar\)|Sin detectar|null|undefined|n\/a)$/i.test(val.trim()));
+        const detZoneSup = extractDeterministicSupervisorAndZone(documentText, combinedData.directorName);
+        if (!isMeaningful(combinedData.schoolZone) && detZoneSup.schoolZone) {
+          combinedData.schoolZone = detZoneSup.schoolZone;
+        }
+        if (!isMeaningful(combinedData.supervisorName) && detZoneSup.supervisorName) {
+          combinedData.supervisorName = detZoneSup.supervisorName;
+        }
       }
     }
   } else {
@@ -571,14 +658,43 @@ export async function extractPmcPreviousWithPartitioning(options: {
         const chunkRes = s.value;
         if (chunkRes.truncated) isTruncated = true;
         if (chunkRes.parsed.success) {
+          const isMeaningful = (val?: string | null) =>
+            Boolean(val && val.trim() && !/^(?:\(Sin detectar\)|Sin detectar|null|undefined|n\/a)$/i.test(val.trim()));
+
           if (!combinedData) {
             combinedData = chunkRes.parsed.data;
-          } else if (i === 0) {
-            combinedData = {
-              ...chunkRes.parsed.data,
-              elementos_plan: combinedData.elementos_plan,
-              metas_institucionales_previas: combinedData.metas_institucionales_previas,
-            };
+          } else {
+            // Fusión bidireccional de metadatos institucionales entre fragmentos
+            if (!isMeaningful(combinedData.schoolName) && isMeaningful(chunkRes.parsed.data.schoolName)) {
+              combinedData.schoolName = chunkRes.parsed.data.schoolName;
+            }
+            if (!isMeaningful(combinedData.schoolCct) && isMeaningful(chunkRes.parsed.data.schoolCct)) {
+              combinedData.schoolCct = chunkRes.parsed.data.schoolCct;
+            }
+            if (!isMeaningful(combinedData.schoolZone) && isMeaningful(chunkRes.parsed.data.schoolZone)) {
+              combinedData.schoolZone = chunkRes.parsed.data.schoolZone;
+            }
+            if (!isMeaningful(combinedData.supervisorName) && isMeaningful(chunkRes.parsed.data.supervisorName)) {
+              combinedData.supervisorName = chunkRes.parsed.data.supervisorName;
+            }
+            if (!isMeaningful(combinedData.directorName) && isMeaningful(chunkRes.parsed.data.directorName)) {
+              combinedData.directorName = chunkRes.parsed.data.directorName;
+            }
+            if (!isMeaningful(combinedData.municipality) && isMeaningful(chunkRes.parsed.data.municipality)) {
+              combinedData.municipality = chunkRes.parsed.data.municipality;
+            }
+            if (!isMeaningful(combinedData.locality) && isMeaningful(chunkRes.parsed.data.locality)) {
+              combinedData.locality = chunkRes.parsed.data.locality;
+            }
+            if (i === 0 && combinedData) {
+              const prev: PmcPreviousExtractDTO = combinedData;
+              combinedData = {
+                ...chunkRes.parsed.data,
+                ...prev,
+                elementos_plan: prev.elementos_plan,
+                metas_institucionales_previas: prev.metas_institucionales_previas,
+              };
+            }
           }
           if (chunkRes.parsed.data.elementos_plan) {
             accumulatedElementos.push(...chunkRes.parsed.data.elementos_plan);
@@ -605,8 +721,19 @@ export async function extractPmcPreviousWithPartitioning(options: {
 
     combinedData.elementos_plan = deduplicatePlanElements(accumulatedElementos);
     combinedData.metas_institucionales_previas = deduplicateMetasPrevias(accumulatedMetas);
-    combinedData.staffData = [...(combinedData.staffData || []), ...accumulatedStaff];
+    combinedData.staffData = deduplicateStaffData([...(combinedData.staffData || []), ...accumulatedStaff]);
     combinedData.participantes = [...(combinedData.participantes || []), ...accumulatedParticipantes];
+
+    // Respaldo determinista final para schoolZone y supervisorName
+    const isMeaningful = (val?: string | null) =>
+      Boolean(val && val.trim() && !/^(?:\(Sin detectar\)|Sin detectar|null|undefined|n\/a)$/i.test(val.trim()));
+    const detZoneSup = extractDeterministicSupervisorAndZone(documentText, combinedData.directorName);
+    if (!isMeaningful(combinedData.schoolZone) && detZoneSup.schoolZone) {
+      combinedData.schoolZone = detZoneSup.schoolZone;
+    }
+    if (!isMeaningful(combinedData.supervisorName) && detZoneSup.supervisorName) {
+      combinedData.supervisorName = detZoneSup.supervisorName;
+    }
   }
 
   // H-295: Bucle de completitud (gap-fill) si la extracción quedó por debajo del 90%
