@@ -56,6 +56,14 @@ describe('H-227: Bloqueo de generación de pasos por metas no confirmadas o cobe
     expect(resNorm.allowed).toBe(true);
   });
 
+  it('H-281: permite diagnóstico y plan de acción cuando ingestCoverage.parcial=true pero allowPartialGeneration=true', () => {
+    const resDiag = validateCanGenerateStep('diagnostico', true, { parcial: true }, true);
+    expect(resDiag.allowed).toBe(true);
+
+    const resPlan = validateCanGenerateStep('plan_accion', true, { parcial: true }, true);
+    expect(resPlan.allowed).toBe(true);
+  });
+
   it('renderiza banner de advertencia en Paso 4 cuando el proyecto tiene cobertura parcial', () => {
     // H-238: ingest_coverage is embedded inside indicadores_academicos (the existing JSONB column)
     // so it survives GET (SELECT *) → F5 without requiring a new DB column.

@@ -262,7 +262,8 @@ export function extractF11Warnings(jsonResponse?: { warnings?: string[]; [key: s
 export function validateCanGenerateStep(
   step: string,
   metasConfirmadas: boolean,
-  ingestCoverage?: { parcial?: boolean } | null
+  ingestCoverage?: { parcial?: boolean } | null,
+  allowPartialGeneration?: boolean
 ): { allowed: boolean; error?: string } {
   if (step === 'diagnostico' || step === 'plan_accion') {
     if (!metasConfirmadas) {
@@ -271,10 +272,10 @@ export function validateCanGenerateStep(
         error: 'Debes confirmar las metas del ciclo en el Paso 3 antes de generar con Inteligencia Artificial.',
       };
     }
-    if (ingestCoverage?.parcial) {
+    if (ingestCoverage?.parcial && !allowPartialGeneration) {
       return {
         allowed: false,
-        error: 'El PMC previo tiene una cobertura de extracción parcial (<90%). No se puede generar contenido oficial hasta completar la extracción o revisar el documento.',
+        error: 'El PMC previo tiene una cobertura de extracción parcial (<90%). Puedes marcar la casilla de autorización en el panel para continuar con los datos actuales.',
       };
     }
   }
@@ -510,6 +511,7 @@ export default function PmcWizardClient({ locale, teacherSchool, teacherMunicipa
   const [planAccion, setPlanAccion] = useState<PlanAccion | null>(
     existingProject?.plan_accion || null
   );
+  const [allowPartialGeneration, setAllowPartialGeneration] = useState(false);
   const [metasPreviasReferencia, setMetasPreviasReferencia] = useState<Array<{
     categoria?: string;
     tema?: string;
@@ -1607,7 +1609,7 @@ interface EditablePlanElement {
 
   const generateStep = useCallback(async (step: string): Promise<void> => {
     if (!projectId) return;
-    const validation = validateCanGenerateStep(step, metasConfirmadas, ingestCoverage);
+    const validation = validateCanGenerateStep(step, metasConfirmadas, ingestCoverage, allowPartialGeneration);
     if (!validation.allowed) {
       setError(validation.error || 'No se puede generar este paso.');
       return;
@@ -1647,7 +1649,7 @@ interface EditablePlanElement {
     } finally {
       setGenerating(null);
     }
-  }, [projectId, metasConfirmadas, ingestCoverage]);
+  }, [projectId, metasConfirmadas, ingestCoverage, allowPartialGeneration]);
 
   // H-099: Auto-ejecución de normativa al ingresar a Paso 4 si aún no existe en BD
   const hasTriggeredNormativaRef = useRef(false);
@@ -3469,19 +3471,19 @@ interface EditablePlanElement {
                 </div>
                 <button
                   onClick={() => generateStep('diagnostico')}
-                  disabled={generating !== null || !metasConfirmadas || Boolean(ingestCoverage?.parcial)}
-                  title={!metasConfirmadas ? 'Debes confirmar las metas del ciclo en el Paso 3 primero' : ingestCoverage?.parcial ? 'El PMC previo tiene cobertura de extracción parcial (<90%)' : undefined}
+                  disabled={generating !== null || !metasConfirmadas || (Boolean(ingestCoverage?.parcial) && !allowPartialGeneration)}
+                  title={!metasConfirmadas ? 'Debes confirmar las metas del ciclo en el Paso 3 primero' : (ingestCoverage?.parcial && !allowPartialGeneration) ? 'El PMC previo tiene cobertura de extracción parcial (<90%). Autoriza abajo para continuar.' : undefined}
                   style={{
                     padding: '8px 16px',
                     borderRadius: '8px',
                     border: 'none',
-                    background: generating === 'diagnostico' ? 'rgba(255,255,255,0.1)' : (!metasConfirmadas || ingestCoverage?.parcial) ? 'rgba(255,255,255,0.08)' : 'linear-gradient(135deg,#6366f1,#4f46e5)',
+                    background: generating === 'diagnostico' ? 'rgba(255,255,255,0.1)' : (!metasConfirmadas || (ingestCoverage?.parcial && !allowPartialGeneration)) ? 'rgba(255,255,255,0.08)' : 'linear-gradient(135deg,#6366f1,#4f46e5)',
                     color: '#fff',
                     fontWeight: 600,
-                    cursor: (generating !== null || !metasConfirmadas || Boolean(ingestCoverage?.parcial)) ? 'not-allowed' : 'pointer',
+                    cursor: (generating !== null || !metasConfirmadas || (Boolean(ingestCoverage?.parcial) && !allowPartialGeneration)) ? 'not-allowed' : 'pointer',
                     fontSize: '13px',
-                    boxShadow: (!metasConfirmadas || ingestCoverage?.parcial) ? 'none' : '0 2px 8px rgba(99,102,241,0.4)',
-                    opacity: (!metasConfirmadas || ingestCoverage?.parcial) ? 0.5 : 1,
+                    boxShadow: (!metasConfirmadas || (ingestCoverage?.parcial && !allowPartialGeneration)) ? 'none' : '0 2px 8px rgba(99,102,241,0.4)',
+                    opacity: (!metasConfirmadas || (ingestCoverage?.parcial && !allowPartialGeneration)) ? 0.5 : 1,
                   }}
                 >
                   {generating === 'diagnostico' ? '⏳ Generando...' : diagnosticoGenerado ? '🔄 Regenerar' : '✨ Generar Diagnóstico'}
@@ -3493,9 +3495,24 @@ interface EditablePlanElement {
                 </p>
               )}
               {ingestCoverage?.parcial && (
-                <p style={{ fontSize: '12px', color: '#f87171', background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.2)', padding: '8px 12px', borderRadius: '6px', marginBottom: '12px' }}>
-                  ⚠️ El PMC anterior cargado tiene cobertura de extracción parcial (&lt;90%). Revisa o completa la extracción antes de generar.
-                </p>
+                <div style={{ fontSize: '12px', color: '#f87171', background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)', padding: '10px 14px', borderRadius: '8px', marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                    <span>⚠️</span>
+                    <strong>Extracción parcial del PMC anterior ({ingestCoverage.extraidos}/{ingestCoverage.detectados || '?'})</strong>
+                  </div>
+                  <p style={{ margin: '0 0 8px', color: 'rgba(240,244,255,0.85)', lineHeight: 1.5 }}>
+                    El PMC anterior cargado tiene cobertura de extracción parcial (&lt;90%). Puedes continuar usando las metas extraídas actualmente autorizando la generación.
+                  </p>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#fcd34d', fontWeight: 600, fontSize: '12px' }}>
+                    <input
+                      type="checkbox"
+                      checked={allowPartialGeneration}
+                      onChange={(e) => setAllowPartialGeneration(e.target.checked)}
+                      style={{ cursor: 'pointer', accentColor: '#f59e0b' }}
+                    />
+                    <span>Autorizar generación con cobertura parcial reconocida ({ingestCoverage.extraidos}/{ingestCoverage.detectados || '?'} metas)</span>
+                  </label>
+                </div>
               )}
               {diagnosticoGenerado && (
                 <div style={{ background: 'rgba(8,12,24,0.5)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '16px', fontSize: '13px', color: '#f0f4ff', lineHeight: 1.7 }}>
@@ -3549,18 +3566,18 @@ interface EditablePlanElement {
                 </div>
                 <button
                   onClick={() => generateStep('plan_accion')}
-                  disabled={generating !== null || !diagnosticoGenerado || !metasConfirmadas || Boolean(ingestCoverage?.parcial)}
-                  title={!metasConfirmadas ? 'Debes confirmar las metas del ciclo en el Paso 3 primero' : ingestCoverage?.parcial ? 'El PMC previo tiene cobertura de extracción parcial (<90%)' : undefined}
+                  disabled={generating !== null || !diagnosticoGenerado || !metasConfirmadas || (Boolean(ingestCoverage?.parcial) && !allowPartialGeneration)}
+                  title={!metasConfirmadas ? 'Debes confirmar las metas del ciclo en el Paso 3 primero' : !diagnosticoGenerado ? 'Primero debes generar el diagnóstico oficial' : (ingestCoverage?.parcial && !allowPartialGeneration) ? 'El PMC previo tiene cobertura de extracción parcial (<90%). Autoriza arriba para continuar.' : undefined}
                   style={{
                     padding: '8px 16px',
                     borderRadius: '8px',
                     border: 'none',
-                    background: generating === 'plan_accion' ? 'rgba(255,255,255,0.1)' : (!diagnosticoGenerado || !metasConfirmadas || ingestCoverage?.parcial) ? 'rgba(255,255,255,0.07)' : 'linear-gradient(135deg,#6366f1,#4f46e5)',
+                    background: generating === 'plan_accion' ? 'rgba(255,255,255,0.1)' : (!diagnosticoGenerado || !metasConfirmadas || (ingestCoverage?.parcial && !allowPartialGeneration)) ? 'rgba(255,255,255,0.07)' : 'linear-gradient(135deg,#6366f1,#4f46e5)',
                     color: '#fff',
                     fontWeight: 600,
-                    cursor: (generating !== null || !diagnosticoGenerado || !metasConfirmadas || Boolean(ingestCoverage?.parcial)) ? 'not-allowed' : 'pointer',
+                    cursor: (generating !== null || !diagnosticoGenerado || !metasConfirmadas || (Boolean(ingestCoverage?.parcial) && !allowPartialGeneration)) ? 'not-allowed' : 'pointer',
                     fontSize: '13px',
-                    opacity: (!diagnosticoGenerado || !metasConfirmadas || ingestCoverage?.parcial) ? 0.5 : 1,
+                    opacity: (!diagnosticoGenerado || !metasConfirmadas || (ingestCoverage?.parcial && !allowPartialGeneration)) ? 0.5 : 1,
                   }}
                 >
                   {generating === 'plan_accion' ? '⏳ Generando...' : (planAccion?.metas_institucionales?.length || 0) > 0 ? '🔄 Regenerar Metas Institucionales con IA' : '✨ Generar Plan de Acción con IA'}
@@ -3575,9 +3592,9 @@ interface EditablePlanElement {
                   ⚠️ Primero genera el diagnóstico para poder generar el plan de acción.
                 </p>
               ) : null}
-              {ingestCoverage?.parcial && (
+              {ingestCoverage?.parcial && !allowPartialGeneration && (
                 <p style={{ fontSize: '12px', color: '#f87171', background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.2)', padding: '8px 12px', borderRadius: '6px', marginBottom: '12px' }}>
-                  ⚠️ El PMC anterior cargado tiene cobertura de extracción parcial (&lt;90%). Revisa o completa la extracción antes de generar.
+                  ⚠️ El PMC anterior cargado tiene cobertura de extracción parcial (&lt;90%). Marca la casilla de autorización arriba para desbloquear la generación.
                 </p>
               )}
 
