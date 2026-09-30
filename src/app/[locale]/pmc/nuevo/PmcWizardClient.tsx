@@ -299,6 +299,7 @@ export function buildPmcSaveBody(
     };
   }
   return {
+    ...baseFields,
     ...payload,
     indicadores_academicos: indicadoresBody,
   };
@@ -1657,8 +1658,11 @@ interface EditablePlanElement {
         }
         return null;
       } else {
-        // Update existing
-        const bodyObj = buildPmcSaveBody('PUT', {}, payload, indicadoresBody);
+        // Update existing — H-286: incluir plan_accion para persistir metas adaptadas contra F5
+        const basePutFields: Record<string, unknown> = {
+          ...(planAccion ? { plan_accion: planAccion } : {}),
+        };
+        const bodyObj = buildPmcSaveBody('PUT', basePutFields, payload, indicadoresBody);
         const res = await fetch(`/api/pmc/${projectId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -1676,7 +1680,7 @@ interface EditablePlanElement {
     } finally {
       setSaving(false);
     }
-  }, [projectId, schoolName, schoolCct, municipality, locality, schoolZone, directorName, supervisorName, cicloEscolar, subsystem, totalStaff, staffData, indicadores, metasConfirmadas, diagnosticoComunidad, foda, categoriasPriorizadas, ingestCoverage, f11Warnings, locale, router]);
+  }, [projectId, schoolName, schoolCct, municipality, locality, schoolZone, directorName, supervisorName, cicloEscolar, subsystem, totalStaff, staffData, indicadores, metasConfirmadas, diagnosticoComunidad, foda, categoriasPriorizadas, ingestCoverage, f11Warnings, planAccion, locale, router]);
 
   const generateStep = useCallback(async (step: string): Promise<void> => {
     if (!projectId) return;
