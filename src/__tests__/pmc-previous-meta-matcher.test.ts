@@ -79,4 +79,21 @@ describe('isPreviousMetaAdapted (H-052)', () => {
 
     expect(isPreviousMetaAdapted(previousMetaWithOriginal, metasInstitucionales, 0)).toBe(true);
   });
+
+  it('H-289: detecta duplicados semánticos de metas previas para evitar botones Adaptar inactivos', () => {
+    const previousMetaVariant = {
+      meta: 'Acreditar satisfactoriamente dichos cursos en actualizaciones y formación docente en un 100%, durante la calendarización establecida Y obtener la constancia',
+      categoria: 'Desarrollo académico y aprendizaje',
+      tema: 'Formación y actualización docente',
+    };
+
+    const metasInstitucionales = [
+      {
+        meta: '[Continuidad 2026-2027] Acreditar satisfactoriamente los 3 cursos del COSFAC en actualizaciones y formación docente en un 100%, durante la calendarización',
+        continuidad_de: 'Acreditar satisfactoriamente los 3 cursos del COSFAC en actualizaciones y formación docente en un 100%, durante la calendarización',
+      },
+    ];
+
+    expect(isPreviousMetaAdapted(previousMetaVariant, metasInstitucionales, 1)).toBe(true);
+  });
 });
