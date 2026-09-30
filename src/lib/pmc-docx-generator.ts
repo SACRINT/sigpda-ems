@@ -864,41 +864,53 @@ function buildPlanAccion(plan: PlanAccion): (Paragraph | Table)[] {
   if (metas.length === 0) {
     items.push(bodyPara('No se han registrado metas institucionales específicas en el plan de acción.'));
   } else {
-    // Matriz General del Plan de Acción (Paridad con PDF y Rescate Cap. V)
-    items.push(subHeading('Matriz General de Metas Institucionales y Plan de Acción:'));
+    // Matriz General del Plan de Acción (Formato 4.1 Estrategia de Implementación)
+    items.push(subHeading('Matriz General de Metas Institucionales y Plan de Acción (Formato 4.1 Estrategia de Implementación):'));
     items.push(
       tbl(
         [
           new TableRow({
             children: [
-              tcH('N°', { w: 500 }),
-              tcH('Ámbito / Categoría', { w: 1800 }),
-              tcH('Meta establecida', { w: 2600 }),
-              tcH('Estrategia de implementación para cumplir la meta', { w: 2000 }),
-              tcH('Responsable', { w: 1500 }),
-              tcH('Evidencia / Entregable', { w: 1600 }),
-              tcH('Período', { w: 800 }),
+              tcH('Categoría', { w: 1200 }),
+              tcH('Subcategoría', { w: 1000 }),
+              tcH('Metas', { w: 1600 }),
+              tcH('Acciones Específicas a Realizar', { w: 1400 }),
+              tcH('Responsables', { w: 1000 }),
+              tcH('Productos', { w: 900 }),
+              tcH('Estrategias de Seguimiento', { w: 900 }),
+              tcH('Fecha de Inicio', { w: 600 }),
+              tcH('Fecha de Término', { w: 600 }),
+              tcH('Observaciones', { w: 700 }),
             ],
           }),
           ...metas.map((m, idx) => {
             const bg = idx % 2 === 0 ? C.white : C.alt;
-            const periodo = (m.periodo_inicio || m.periodo_fin)
-              ? `${safeStr(m.periodo_inicio, 'N/D')} — ${safeStr(m.periodo_fin, 'N/D')}`
-              : 'N/D';
+            const subcat = m.tema || (Array.isArray(m.subcategorias_vinculadas) && m.subcategorias_vinculadas.length > 0
+              ? m.subcategorias_vinculadas.join(', ')
+              : 'General');
+            const accion = m.accion_especifica || m.estrategia || 'Acción institucional';
+            const estrategiaSeg = m.estrategias_seguimiento || 'Cortes en Consejo Técnico Escolar';
+            const fInicio = m.periodo_inicio || 'Agosto 2026';
+            const fTermino = m.periodo_fin || 'Junio 2027';
+            const obs = m.observaciones || 'Sin observaciones adicionales';
+
             return new TableRow({
               children: [
-                tc(String(idx + 1), { w: 500, align: AlignmentType.CENTER, fill: bg }),
-                tc(safeStr(m.nombre_categoria || m.categoria, 'Ámbito General'), { w: 1800, bold: true, fill: bg }),
-                tc(safeStr(m.meta, 'Meta en proceso'), { w: 2600, fill: bg }),
-                tc(safeStr(m.estrategia, 'Estrategia pedagógica'), { w: 2000, fill: bg }),
-                tc(safeStr(m.personal_designado, 'Colectivo Escolar'), { w: 1500, fill: bg }),
-                tc(safeStr(m.entregable, 'Evidencia documental'), { w: 1600, fill: bg }),
-                tc(periodo, { w: 800, align: AlignmentType.CENTER, fill: bg }),
+                tc(safeStr(m.nombre_categoria || m.categoria, 'Ámbito General'), { w: 1200, bold: true, fill: bg }),
+                tc(safeStr(subcat), { w: 1000, fill: bg }),
+                tc(safeStr(m.meta, 'Meta en proceso'), { w: 1600, fill: bg }),
+                tc(safeStr(accion), { w: 1400, fill: bg }),
+                tc(safeStr(m.personal_designado, 'Colectivo Escolar'), { w: 1000, fill: bg }),
+                tc(safeStr(m.entregable, 'Reporte de seguimiento'), { w: 900, fill: bg }),
+                tc(safeStr(estrategiaSeg), { w: 900, fill: bg }),
+                tc(safeStr(fInicio), { w: 600, align: AlignmentType.CENTER, fill: bg }),
+                tc(safeStr(fTermino), { w: 600, align: AlignmentType.CENTER, fill: bg }),
+                tc(safeStr(obs), { w: 700, fill: bg }),
               ],
             });
           }),
         ],
-        [500, 1800, 2600, 2000, 1500, 1600, 800]
+        [1200, 1000, 1600, 1400, 1000, 900, 900, 600, 600, 700]
       )
     );
     items.push(...gap(2));
@@ -906,6 +918,8 @@ function buildPlanAccion(plan: PlanAccion): (Paragraph | Table)[] {
     // H-198: Tablas Oficiales Obligatorias (Formato 5.1 PMC 2025-2026 con las 6 filas literales)
     items.push(subHeading('Tablas Obligatorias del Plan de Acción (Formato 5.1 PMC 2025-2026):'));
     items.push(bodyPara('Desarrollo estructurado de las cuatro áreas de observancia obligatoria conforme al formato oficial 5.1 emitido por la SEP/SEMS:'));
+
+    const coveredMetaIndices = new Set<number>();
 
     for (let aIdx = 0; aIdx < AREAS_OBLIGATORIAS_51.length; aIdx++) {
       const area = AREAS_OBLIGATORIAS_51[aIdx];
@@ -916,7 +930,13 @@ function buildPlanAccion(plan: PlanAccion): (Paragraph | Table)[] {
         productoComp,
         subcatVinc,
         situacionActual,
+        matchingMeta,
       } = resolveAreaObligatoria51(area, metas);
+
+      if (matchingMeta) {
+        const foundIdx = metas.indexOf(matchingMeta as MetaInstitucional);
+        if (foundIdx !== -1) coveredMetaIndices.add(foundIdx);
+      }
 
       items.push(
         new Paragraph({
@@ -965,6 +985,77 @@ function buildPlanAccion(plan: PlanAccion): (Paragraph | Table)[] {
         )
       );
       items.push(...gap(1));
+    }
+
+    // Tablas para categorías y temas adicionales seleccionados por el plantel
+    const additionalMetas = metas.filter((_, idx) => !coveredMetaIndices.has(idx));
+    if (additionalMetas.length > 0) {
+      items.push(subHeading('Tablas de Categorías y Temas Adicionales Seleccionados por el Plantel:'));
+      items.push(bodyPara('Desarrollo estructurado de metas correspondientes a temas y categorías adicionales seleccionados por la institución:'));
+
+      for (let mIdx = 0; mIdx < additionalMetas.length; mIdx++) {
+        const extraMeta = additionalMetas[mIdx];
+        const tituloExtra = extraMeta.nombre_categoria
+          ? `${extraMeta.nombre_categoria}${extraMeta.tema ? ` — ${extraMeta.tema}` : ''}`
+          : (extraMeta.tema || `Categoría Adicional ${mIdx + 1}`);
+
+        const situacionPartsExtra = [extraMeta.necesidad, extraMeta.diagnostico_meta].filter(Boolean);
+        const situacionActualExtra = situacionPartsExtra.length > 0
+          ? situacionPartsExtra.join(' — ')
+          : (extraMeta.linea_base ? safeStr(extraMeta.linea_base) : PENDIENTE_DEFINICION_51);
+
+        const subcatExtra = (Array.isArray(extraMeta.subcategorias_vinculadas) && extraMeta.subcategorias_vinculadas.length > 0)
+          ? extraMeta.subcategorias_vinculadas.join(', ')
+          : (extraMeta.tema || extraMeta.nombre_categoria || PENDIENTE_DEFINICION_51);
+
+        items.push(
+          new Paragraph({
+            spacing: { before: 180, after: 80 },
+            children: [
+              new TextRun({
+                text: tituloExtra,
+                bold: true,
+                size: 21,
+                color: C.navy,
+                font: 'Arial',
+              }),
+            ],
+          })
+        );
+
+        items.push(
+          tbl(
+            [
+              new TableRow({
+                children: [
+                  tcH('Apartado Formato 5.1', { w: CONTENT / 3 }),
+                  tcH('Contenido Oficial Institucional', { w: (CONTENT * 2) / 3 }),
+                ],
+              }),
+              new TableRow({
+                children: [tcSub('Meta establecida'), tc(safeStr(extraMeta.meta, PENDIENTE_DEFINICION_51), { fill: C.alt })],
+              }),
+              new TableRow({
+                children: [tcSub('Estrategia de implementación para cumplir la meta'), tc(safeStr(extraMeta.estrategia, PENDIENTE_DEFINICION_51))],
+              }),
+              new TableRow({
+                children: [tcSub('Personal designado para la instrumentación y el seguimiento de la meta'), tc(safeStr(extraMeta.personal_designado, PENDIENTE_DEFINICION_51), { fill: C.alt })],
+              }),
+              new TableRow({
+                children: [tcSub('Producto que comprobará el cumplimiento de la meta'), tc(safeStr(extraMeta.entregable, PENDIENTE_DEFINICION_51))],
+              }),
+              new TableRow({
+                children: [tcSub('Subcategorías que vincularán  para cumplir la meta establecida'), tc(subcatExtra, { fill: C.alt })],
+              }),
+              new TableRow({
+                children: [tcSub('Situación actual en el plantel que justifica el establecimiento de la meta'), tc(situacionActualExtra)],
+              }),
+            ],
+            [CONTENT / 3, (CONTENT * 2) / 3]
+          )
+        );
+        items.push(...gap(1));
+      }
     }
 
     if (shouldSectionPageBreak(PMC_FICHAS_TECNICAS_HEADING)) {

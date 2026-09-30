@@ -11,7 +11,7 @@ import { loadAllLogos } from './pdf-logos';
 import { SCHOOL_YEAR } from '@/lib/config';
 import { logger } from './logger';
 import { calculatePmcIndicatorRows } from './pmc-indicator-calculator';
-import { AREAS_OBLIGATORIAS_51, resolveAreaObligatoria51 } from './pmc-docx-generator';
+import { AREAS_OBLIGATORIAS_51, resolveAreaObligatoria51, PENDIENTE_DEFINICION_51 } from './pmc-docx-generator';
 import type { PmcProject, PmcStatisticalContext, PmcStaffMember } from '@/types/pmc';
 import {
   PMC_TITULOS_SECCIONES,
@@ -653,46 +653,64 @@ export async function generatePmcPDF(
     doc.text('No se han registrado metas institucionales específicas en el proyecto.', margin, curY);
     curY += 8;
   } else {
-    const metaRows = metasInst.map((m, i) => [
-      { content: `${i + 1}`, styles: { halign: 'center' as const, fontStyle: 'bold' as const, fillColor: GRAY_BG } },
-      safeStr(m.nombre_categoria || m.categoria, 'Ámbito General'),
-      safeStr(m.meta, 'Meta en proceso'),
-      safeStr(m.estrategia, 'Estrategia pedagógica'),
-      safeStr(m.personal_designado, 'Colectivo Escolar'),
-      safeStr(m.entregable, 'Evidencia documental'),
-      (m.periodo_inicio || m.periodo_fin)
-        ? `${safeStr(m.periodo_inicio, 'N/D')} — ${safeStr(m.periodo_fin, 'N/D')}`
-        : 'N/D',
-    ]);
+    const metaRows = metasInst.map((m) => {
+      const subcat = m.tema || (Array.isArray(m.subcategorias_vinculadas) && m.subcategorias_vinculadas.length > 0
+        ? m.subcategorias_vinculadas.join(', ')
+        : 'General');
+      const accion = m.accion_especifica || m.estrategia || 'Acción institucional';
+      const estrategiaSeg = m.estrategias_seguimiento || 'Cortes en CTE';
+      const fInicio = m.periodo_inicio || '08/2026';
+      const fTermino = m.periodo_fin || '06/2027';
+      const obs = m.observaciones || 'Sin observaciones adicionales';
+
+      return [
+        safeStr(m.nombre_categoria || m.categoria, 'Ámbito General'),
+        safeStr(subcat),
+        safeStr(m.meta, 'Meta institucional'),
+        safeStr(accion),
+        safeStr(m.personal_designado, 'Colectivo Escolar'),
+        safeStr(m.entregable, 'Reporte'),
+        safeStr(estrategiaSeg),
+        safeStr(fInicio),
+        safeStr(fTermino),
+        safeStr(obs),
+      ];
+    });
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(...BLUE_MID);
-    doc.text('Matriz General de Metas Institucionales y Plan de Acción:', margin, curY);
+    doc.text('Matriz General de Metas Institucionales y Plan de Acción (Formato 4.1):', margin, curY);
     curY += 4;
 
     autoTable(doc, {
       startY: curY,
       head: [[
-        { content: '#', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], halign: 'center' } },
-        { content: 'Ámbito / Categoría', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
-        { content: 'Meta establecida', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
-        { content: 'Estrategia de implementación para cumplir la meta', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
-        { content: 'Responsable', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
-        { content: 'Evidencia / Entregable', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
-        { content: 'Período', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
+        { content: 'Categoría', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
+        { content: 'Subcategoría', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
+        { content: 'Metas', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
+        { content: 'Acciones Específicas a Realizar', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
+        { content: 'Responsables', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
+        { content: 'Productos', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
+        { content: 'Estrategias de Seguimiento', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
+        { content: 'Fecha Inicio', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
+        { content: 'Fecha Término', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
+        { content: 'Observaciones', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
       ]],
       body: metaRows,
       theme: 'grid',
-      styles: { fontSize: 6.5, cellPadding: 1.8, textColor: TEXT_DARK, lineColor: [210, 220, 235] },
+      styles: { fontSize: 5.5, cellPadding: 1.2, textColor: TEXT_DARK, lineColor: [210, 220, 235] },
       columnStyles: {
-        0: { cellWidth: 7 },
-        1: { cellWidth: 26 },
-        2: { cellWidth: 42 },
-        3: { cellWidth: 38 },
-        4: { cellWidth: 25 },
-        5: { cellWidth: 28 },
+        0: { cellWidth: 18 },
+        1: { cellWidth: 16 },
+        2: { cellWidth: 28 },
+        3: { cellWidth: 26 },
+        4: { cellWidth: 20 },
+        5: { cellWidth: 18 },
         6: { cellWidth: 18 },
+        7: { cellWidth: 12 },
+        8: { cellWidth: 12 },
+        9: { cellWidth: 18 },
       },
       margin: { left: margin, right: margin },
     });
@@ -711,6 +729,8 @@ export async function generatePmcPDF(
     doc.text('Tablas Obligatorias del Plan de Acción (Formato 5.1 PMC 2025-2026):', margin, curY);
     curY += 4;
 
+    const coveredMetaIndicesPdf = new Set<number>();
+
     for (let aIdx = 0; aIdx < AREAS_OBLIGATORIAS_51.length; aIdx++) {
       const area = AREAS_OBLIGATORIAS_51[aIdx];
       const {
@@ -720,7 +740,13 @@ export async function generatePmcPDF(
         productoComp,
         subcatVinc,
         situacionActual,
+        matchingMeta,
       } = resolveAreaObligatoria51(area, metasInst);
+
+      if (matchingMeta) {
+        const foundIdx = metasInst.indexOf(matchingMeta as (typeof metasInst)[number]);
+        if (foundIdx !== -1) coveredMetaIndicesPdf.add(foundIdx);
+      }
 
       if (curY > pageHeight - 55) {
         doc.addPage();
@@ -757,6 +783,73 @@ export async function generatePmcPDF(
       });
 
       curY = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 6 : curY + 45;
+    }
+
+    // Tablas para categorías y temas adicionales seleccionados por el plantel en PDF
+    const additionalMetasPdf = metasInst.filter((_, idx) => !coveredMetaIndicesPdf.has(idx));
+    if (additionalMetasPdf.length > 0) {
+      if (curY > pageHeight - 50) {
+        doc.addPage();
+        curY = 18;
+        drawHeaderOnNewPage();
+      }
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(...BLUE_MID);
+      doc.text('Tablas de Categorías y Temas Adicionales Seleccionados por el Plantel:', margin, curY);
+      curY += 4;
+
+      for (let mIdx = 0; mIdx < additionalMetasPdf.length; mIdx++) {
+        const extraMeta = additionalMetasPdf[mIdx];
+        const tituloExtra = extraMeta.nombre_categoria
+          ? `${extraMeta.nombre_categoria}${extraMeta.tema ? ` — ${extraMeta.tema}` : ''}`
+          : (extraMeta.tema || `Categoría Adicional ${mIdx + 1}`);
+
+        const situacionPartsExtra = [extraMeta.necesidad, extraMeta.diagnostico_meta].filter(Boolean);
+        const situacionActualExtra = situacionPartsExtra.length > 0
+          ? situacionPartsExtra.join(' — ')
+          : (extraMeta.linea_base ? safeStr(extraMeta.linea_base) : PENDIENTE_DEFINICION_51);
+
+        const subcatExtra = (Array.isArray(extraMeta.subcategorias_vinculadas) && extraMeta.subcategorias_vinculadas.length > 0)
+          ? extraMeta.subcategorias_vinculadas.join(', ')
+          : (extraMeta.tema || extraMeta.nombre_categoria || PENDIENTE_DEFINICION_51);
+
+        if (curY > pageHeight - 55) {
+          doc.addPage();
+          curY = 18;
+          drawHeaderOnNewPage();
+        }
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(...NAVY);
+        doc.text(tituloExtra, margin, curY);
+        curY += 3.5;
+
+        autoTable(doc, {
+          startY: curY,
+          head: [[
+            { content: 'Apartado Formato 5.1', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
+            { content: 'Contenido Oficial Institucional', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
+          ]],
+          body: [
+            [{ content: 'Meta establecida', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(extraMeta.meta, PENDIENTE_DEFINICION_51)],
+            [{ content: 'Estrategia de implementación para cumplir la meta', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(extraMeta.estrategia, PENDIENTE_DEFINICION_51)],
+            [{ content: 'Personal designado para la instrumentación y el seguimiento de la meta', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(extraMeta.personal_designado, PENDIENTE_DEFINICION_51)],
+            [{ content: 'Producto que comprobará el cumplimiento de la meta', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(extraMeta.entregable, PENDIENTE_DEFINICION_51)],
+            [{ content: 'Subcategorías que vincularán  para cumplir la meta establecida', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, subcatExtra],
+            [{ content: 'Situación actual en el plantel que justifica el establecimiento de la meta', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, situacionActualExtra],
+          ],
+          theme: 'grid',
+          styles: { fontSize: 6.8, cellPadding: 2, textColor: TEXT_DARK, lineColor: [210, 220, 235] },
+          columnStyles: {
+            0: { cellWidth: 50 },
+          },
+          margin: { left: margin, right: margin },
+        });
+
+        curY = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 6 : curY + 45;
+      }
     }
 
     // Fichas Técnicas por Meta Institucional (Paridad Oficial con DOCX)

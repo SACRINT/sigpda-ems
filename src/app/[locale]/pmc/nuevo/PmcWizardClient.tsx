@@ -159,6 +159,13 @@ interface MetaInstitucional {
   periodo_fin: string;
   diagnostico_meta: string;
   continuidad_de?: string; // H-052: Enlace estructural para rastrear meta previa adaptada
+  accion_especifica?: string;
+  finalidad?: string;
+  necesidad?: string;
+  proceso_evaluacion?: string;
+  subcategorias_vinculadas?: string[];
+  estrategias_seguimiento?: string;
+  observaciones?: string;
 }
 
 /**
@@ -3791,6 +3798,13 @@ interface EditablePlanElement {
                                 periodo_fin: 'Junio 2027',
                                 diagnostico_meta: `Meta adaptada del ciclo previo: ${mp.meta || ''}`,
                                 continuidad_de: mp.texto_original ? mp.texto_original.trim() : (mp.meta ? mp.meta.trim() : `meta_previa_${idx}`),
+                                accion_especifica: estrategiaSintetizada,
+                                finalidad: `Fortalecer la continuidad institucional de las acciones en ${cat} durante el ciclo 2026-2027.`,
+                                necesidad: `Consolidar las metas institucionales de continuidad identificadas en el ciclo escolar previo.`,
+                                proceso_evaluacion: 'Evaluación formativa y seguimiento bimestral en Consejo Técnico Escolar.',
+                                subcategorias_vinculadas: [mp.tema || 'Mejora continua'],
+                                estrategias_seguimiento: 'Cortes bimestrales en CTE y listas de cotejo de evidencias.',
+                                observaciones: 'Meta de continuidad institucional adaptada del ciclo previo.',
                               };
                               const currentPersonal = (planAccion?.metas_personales && planAccion.metas_personales.length > 0)
                                 ? planAccion.metas_personales
@@ -3892,10 +3906,13 @@ interface EditablePlanElement {
                             {[
                               { key: 'meta', label: 'Meta SMART', multi: true },
                               { key: 'estrategia', label: 'Estrategia de implementación', multi: true },
+                              { key: 'accion_especifica', label: 'Acciones Específicas a Realizar (Formato 4.1)', multi: true },
                               { key: 'personal_designado', label: 'Personal designado', multi: false },
                               { key: 'entregable', label: 'Entregable / Evidencia', multi: true },
+                              { key: 'estrategias_seguimiento', label: 'Estrategias de Seguimiento (Formato 4.1)', multi: true },
                               { key: 'periodo_inicio', label: 'Período inicio (MM/YYYY)', multi: false },
                               { key: 'periodo_fin', label: 'Período fin (MM/YYYY)', multi: false },
+                              { key: 'observaciones', label: 'Observaciones (Formato 4.1)', multi: true },
                             ].map(f => (
                               <div key={f.key}>
                                 <label style={{ ...labelStyle, fontSize: '12px' }}>{f.label}</label>
