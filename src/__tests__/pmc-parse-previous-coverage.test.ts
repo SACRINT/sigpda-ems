@@ -274,4 +274,70 @@ Texto de cierre sin tablas.
     expect(coverage.parcial).toBe(false);
     expect(coverage.ratio).toBeGreaterThanOrEqual(0.9);
   }, 15000);
+
+  it('6. Bucle de completitud (gap-fill, H-295): si extraidos < 90% expected, recupera elementos faltantes', async () => {
+    // Documento sintético con 20 actividades esperadas
+    const sampleDoc = `
+# 6. PLAN DE ACCIÓN
+| N° | Categoría | Meta | Responsable |
+|---|---|---|---|
+${Array.from({ length: 20 }, (_, i) => `| ${i + 1} | Desarrollo académico | Actividad ${i + 1} del plan | Profr. ${i + 1} |`).join('\n')}
+`;
+
+    // 1ª llamada: sólo devuelve 10 elementos
+    const firstPassElements: PmcPlanElement[] = Array.from({ length: 10 }, (_, i) => ({
+      tipo: 'actividad' as const,
+      texto_original: `Actividad ${i + 1} del plan`,
+      texto_normalizado: `Actividad ${i + 1} del plan`,
+      categoria: 'Desarrollo académico y aprendizaje',
+      tema: 'Indicadores académicos',
+      responsable: `Profr. ${i + 1}`,
+      periodo: '2026-2027',
+      ubicacion: {},
+      requiere_revision: false,
+    }));
+
+    // 2ª llamada (gap-fill): devuelve los 10 restantes
+    const gapElements: PmcPlanElement[] = Array.from({ length: 10 }, (_, i) => ({
+      tipo: 'actividad' as const,
+      texto_original: `Actividad ${i + 11} del plan`,
+      texto_normalizado: `Actividad ${i + 11} del plan`,
+      categoria: 'Desarrollo académico y aprendizaje',
+      tema: 'Indicadores académicos',
+      responsable: `Profr. ${i + 11}`,
+      periodo: '2026-2027',
+      ubicacion: {},
+      requiere_revision: false,
+    }));
+
+    vi.mocked(generateWithRotation)
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          schoolName: 'PLANTEL TEST',
+          schoolCct: '21EBH0001X',
+          totales_detectados: { metas: 0, actividades: 20 },
+          elementos_plan: firstPassElements,
+          metas_institucionales_previas: [],
+        })
+      )
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          totales_detectados: { metas: 0, actividades: 20 },
+          elementos_plan: gapElements,
+          metas_institucionales_previas: [],
+        })
+      );
+
+    const result = await extractPmcPreviousWithPartitioning({
+      documentText: sampleDoc,
+      teacherId: 'teacher-gap-123',
+      isPremium: true,
+      deadline: Date.now() + 60000,
+      contextName: 'test-gap-fill',
+    });
+
+    expect(result.success).toBe(true);
+    // H-295: Con gap-fill deben sumarse los 10 iniciales + 10 del gap = 20
+    expect(result.data.elementos_plan?.length).toBe(20);
+  });
 });

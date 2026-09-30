@@ -514,6 +514,101 @@ export async function extractPmcPreviousWithPartitioning(options: {
     combinedData.participantes = [...(combinedData.participantes || []), ...accumulatedParticipantes];
   }
 
+  // H-295: Bucle de completitud (gap-fill) si la extracción quedó por debajo del 90%
+  let currentExtraidos = (combinedData.elementos_plan || []).length;
+  const effectiveExpected = Math.max(
+    expectedActivities,
+    combinedData.totales_detectados?.actividades || 0,
+    combinedData.totales_detectados?.metas || 0
+  );
+
+  let gapRound = 0;
+  const MAX_GAP_ROUNDS = 2;
+
+  while (
+    currentExtraidos < 0.9 * effectiveExpected &&
+    effectiveExpected >= 10 &&
+    Date.now() < deadline - 10000 &&
+    gapRound < MAX_GAP_ROUNDS
+  ) {
+    gapRound++;
+    const missingCount = Math.max(1, effectiveExpected - currentExtraidos);
+    logger.info(
+      `[${contextName}] 🔄 Iniciando ronda ${gapRound} de gap-fill. Extraídos: ${currentExtraidos}/${effectiveExpected} (faltan ~${missingCount}). Tiempo restante: ${deadline - Date.now()}ms`
+    );
+
+    const alreadyExtractedList = (combinedData.elementos_plan || [])
+      .map(
+        (e, idx) =>
+          `${idx + 1}. [${e.tipo || 'elemento'}] ${e.responsable ? `(${e.responsable}) ` : ''}${(
+            e.texto_original ||
+            e.texto_normalizado ||
+            ''
+          ).slice(0, 100)}`
+      )
+      .slice(0, 60)
+      .join('\n');
+
+    const gapFillUserPrompt = `Ya se han extraído exitosamente los siguientes ${currentExtraidos} elementos del plan:
+"""
+${alreadyExtractedList}
+"""
+Sin embargo, el documento indica un total de aproximadamente ${effectiveExpected} metas/actividades (faltan alrededor de ${missingCount} por estructurar).
+
+TEXTO DEL DOCUMENTO:
+"""
+${documentText.slice(0, 180000)}
+"""
+
+Tu tarea es extraer ÚNICAMENTE los elementos, metas o actividades FALTANTES que NO aparezcan en la lista anterior.
+Devuelve el JSON con la misma estructura (elementos_plan y metas_institucionales_previas). No repitas los que ya están en la lista previa.`;
+
+    try {
+      const remainingBudget = Math.max(1, deadline - Date.now() - 3000);
+      const gapRaw = await withTimeoutBudget(
+        generateWithRotation(PMC_EXTRACTION_SYSTEM_PROMPT, gapFillUserPrompt, teacherId, isPremium, {
+          temperature: 0.1,
+          jsonMode: true,
+          maxTokens: 16384,
+        }),
+        remainingBudget
+      );
+
+      const parsedGap = parseAIResponse(gapRaw, PmcPreviousExtractSchema, {
+        contextName: `${contextName}-gapfill-${gapRound}`,
+        repairNullStrings: true,
+      });
+
+      if (parsedGap.success && parsedGap.data.elementos_plan && parsedGap.data.elementos_plan.length > 0) {
+        const newElements = parsedGap.data.elementos_plan;
+        const newMetas = parsedGap.data.metas_institucionales_previas || [];
+
+        const mergedElements = [...(combinedData.elementos_plan || []), ...newElements];
+        const mergedMetas = [...(combinedData.metas_institucionales_previas || []), ...newMetas];
+
+        combinedData.elementos_plan = deduplicatePlanElements(mergedElements);
+        combinedData.metas_institucionales_previas = deduplicateMetasPrevias(mergedMetas);
+
+        const newCount = combinedData.elementos_plan.length;
+        logger.info(
+          `[${contextName}] ✅ Ronda ${gapRound} de gap-fill completada: +${newCount - currentExtraidos} nuevos elementos (total ahora: ${newCount}/${effectiveExpected}).`
+        );
+
+        if (newCount <= currentExtraidos) {
+          // No se descubrieron elementos nuevos
+          break;
+        }
+        currentExtraidos = newCount;
+      } else {
+        logger.info(`[${contextName}] Ronda ${gapRound} de gap-fill no arrojó nuevos elementos.`);
+        break;
+      }
+    } catch (gapErr) {
+      logger.warn(`[${contextName}] Error en ronda ${gapRound} de gap-fill:`, gapErr);
+      break;
+    }
+  }
+
   return {
     success: true,
     data: combinedData,
