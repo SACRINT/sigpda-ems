@@ -117,15 +117,15 @@ export function countPlanTableRows(documentText: string): number {
 export function countDeterministicExpectedActivities(documentText: string): number {
   if (!documentText) return 0;
 
+  // Acotar la sección del Plan de Acción excluyendo TOC y firmas finales (H-298)
+  const { planText } = findPlanActionSection(documentText);
+  const textToScan = planText && planText.length > 200 ? planText : documentText;
+
   // H-293: Conteo de filas reales de tablas markdown en el Plan de Acción
   const planTableRows = countPlanTableRows(documentText);
   if (planTableRows > 0) {
     return planTableRows;
   }
-
-  // Acotar la sección del Plan de Acción excluyendo TOC y firmas finales (H-298)
-  const { planText } = findPlanActionSection(documentText);
-  const textToScan = planText && planText.length > 200 ? planText : documentText;
 
   // 1. Conteo determinista por bloques temáticos y ámbitos del plan
   const matchAmbitos = (
@@ -134,17 +134,14 @@ export function countDeterministicExpectedActivities(documentText: string): numb
     ) || []
   ).length;
 
-  // 2. Metas explícitas con etiqueta o numeradas
   const matchMetaKeywords = (
     textToScan.match(/(?:^|\n)[*_#\s]*(?:Meta\(s\)|Meta:?)/gi) || []
   ).length;
 
-  // 3. Actividades con etiqueta o dos puntos
   const matchColon = (
     textToScan.match(/(?:^|\n)[*_#\s]*(?:\d+[\.\-]\s*)?Actividad(?:es)?\s*[:\(\-]/gi) || []
   ).length;
 
-  // 4. Conteo de docentes/responsables asignados a metas en el plan (sin firmas finales)
   const matchResponsables = (
     textToScan.match(/(?:ING\.|LIC\.|MTRO\.|MTRA\.|PROFR\.|PROFRA\.)\s+[A-ZÁÉÍÓÚÑ]/gi) || []
   ).length;

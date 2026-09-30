@@ -3,7 +3,7 @@ import { nullableString } from './zod-helpers';
 
 /**
  * Specialized prompts and schemas for extracting structured PMC data from previous documents (PDF / Word DOCX).
- * Aligned with MCCEMS and New School Model (NEM) guidelines.
+ * Aligned with MCCEMS and New School Model (NEM) guidelines (PMC-EXTRACT v6.4).
  */
 
 export const PmcPreviousExtractSchema = z.object({
@@ -36,6 +36,7 @@ export const PmcPreviousExtractSchema = z.object({
     })).optional().default([]),
   })).max(60).optional().default([]),
   metas_institucionales_previas: z.array(z.object({
+    numero_origen: z.coerce.number().nullable().optional(),
     categoria: nullableString(),
     tema: nullableString(),
     meta: nullableString(),
@@ -47,6 +48,8 @@ export const PmcPreviousExtractSchema = z.object({
   })).max(100).optional().default([]),
   elementos_plan: z.array(z.object({
     tipo: z.enum(['meta', 'actividad', 'estrategia', 'indicador', 'responsable', 'evidencia', 'cronograma', 'otro']),
+    numero_origen: z.coerce.number().nullable().optional(),
+    celda_ref: z.string().nullable().optional(),
     texto_original: z.string(),
     texto_normalizado: z.string(),
     categoria: nullableString(),
@@ -59,6 +62,7 @@ export const PmcPreviousExtractSchema = z.object({
       tabla: nullableString(),
     }).partial().optional(),
     requiere_revision: z.boolean().default(false),
+    motivos_revision: z.array(z.string()).optional(),
   })).max(200).optional().default([]),
   totales_detectados: z.object({
     metas: z.coerce.number().nullable().optional(),
@@ -94,157 +98,155 @@ export const PmcPreviousExtractSchema = z.object({
 export type PmcPreviousExtractDTO = z.infer<typeof PmcPreviousExtractSchema>;
 export type PmcPlanElement = NonNullable<PmcPreviousExtractDTO['elementos_plan']>[number];
 
-export const PMC_EXTRACTION_SYSTEM_PROMPT = `Eres un auditor y especialista educativo experto en el Programa de Mejora Continua (PMC) de la Educación Media Superior en México (MCCEMS / NEM).
-Tu objetivo es analizar textos extraídos de documentos previos del PMC (PDFs o archivos Word) y estructurar con precisión todos los datos encontrados.
-Debes responder EXCLUSIVAMENTE con un objeto JSON válido, sin bloques de código markdown, explicaciones ni comentarios.`;
+export const PMC_EXTRACTION_SYSTEM_PROMPT = `Eres el AUDITOR EDUCATIVO Y ESTRUCTURADOR FORENSE DE DATOS de la plataforma SIGPDA-EMS (MCCEMS / NEM / DGB).
+Tu objetivo es realizar la minería semántica y relacional completa de documentos del Programa de Mejora Continua (PMC) de planteles de bachillerato general.
 
-export function buildPmcExtractionPrompt(documentText: string): string {
-  return `Analiza con minuciosidad el siguiente documento correspondiente a un Programa de Mejora Continua (PMC) previo y extrae la información institucional, de personal, diagnóstica y académica.
+PRINCIPIOS NO NEGOCIABLES:
+1. FIDELIDAD DOCUMENTAL TOTAL: Jamás inventar, proyectar metas no escritas ni alucinar datos cuantitativos.
+2. REGLA ANTI-COLAPSO B-001: Si una celda contiene N metas independientes, DEBES emitir N objetos independientes. Jamás agrupar varias metas en un solo registro.
+3. INVARIANZA NUMÉRICA PURA: Cada cifra, porcentaje, fracción, fecha o ciclo escolar debe copiarse con precisión exacta entre la fuente y el esquema final.
+4. SALIDA EXCLUSIVAMENTE EN JSON VÁLIDO: Responde únicamente con un objeto JSON sin markdown exterior ni comentarios.`;
 
-TEXTO DEL DOCUMENTO:
-"""
+export interface StructuralPromptMetadata {
+  formato?: string;
+  ambito_numeracion?: string;
+  k_metas_estimadas?: number | null;
+  secuencia_indices?: number[];
+  nonce?: string;
+}
+
+export function buildPmcExtractionPrompt(documentText: string, metaContext?: StructuralPromptMetadata): string {
+  const nonce = metaContext?.nonce || Math.random().toString(36).substring(2, 10);
+  const metadataHeader = metaContext
+    ? `<<<METADATOS_ESTRUCTURALES>>>
+- formato: "${metaContext.formato || 'CANONICO_MATRIZ'}"
+- ambito_numeracion: "${metaContext.ambito_numeracion || 'GLOBAL_VERIFIABLE'}"
+- k_metas_estimadas: ${metaContext.k_metas_estimadas ?? 'null'}
+- secuencia_indices_detectada: ${JSON.stringify(metaContext.secuencia_indices || [])}
+<<<FIN_METADATOS_ESTRUCTURALES>>>
+
+AVISO DE CONTROL: "k_metas_estimadas" es una PISTA de referencia del pre-escáner. No fabriques metas que no existan para alcanzar ese número. Tu prioridad es extraer fielmente cada meta real del documento.\n\n`
+    : '';
+
+  return `${metadataHeader}Analiza con minuciosidad el siguiente documento correspondiente a un Programa de Mejora Continua (PMC) previo y extrae la información institucional, de personal, diagnóstica y académica.
+
+<<<DOC_${nonce}>>>
 ${documentText.slice(0, 250000)}
-"""
+<<<FIN_DOC_${nonce}>>>
 
 Estructura la información en el siguiente esquema JSON exacto:
 {
-  "schoolName": "Nombre oficial del plantel o escuela (ej. Bachillerato General Oficial 'Moisés Sáenz Garza')",
-  "schoolCct": "Clave de Centro de Trabajo (10 caracteres alfanuméricos, ej. 21EBH0465E)",
-  "municipality": "Municipio donde se ubica el plantel (ej. Fco. Z. Mena)",
-  "locality": "Localidad o comunidad del plantel (ej. El Tecomate)",
-  "schoolZone": "Zona escolar a la que pertenece (ej. 004, 013, etc.)",
-  "directorName": "Nombre completo del Director(a) o Responsable del plantel (limpio de prefijos como Profr., ej. Juan Rogelio García Escudero)",
-  "supervisorName": "Nombre completo del Supervisor(a) escolar (limpio de prefijos, ej. Alejandro Escamilla Martínez)",
-  "cicloEscolar": "Ciclo escolar del documento (ej. 2025-2026, 2026-2027)",
-  "subsystem": "Subsistema (ej. BGE, Bachillerato Tecnológico, TBC, etc.)",
-  "totalStaff": número entero con el total de personal reportado (o null si no se especifica),
+  "schoolName": "Nombre oficial del plantel o escuela (ej. Bachillerato General Oficial 'Héroes de la Patria')",
+  "schoolCct": "Clave de Centro de Trabajo (10 caracteres, ej. 21EBH0200X)",
+  "municipality": "Municipio donde se ubica el plantel",
+  "locality": "Localidad o comunidad del plantel",
+  "schoolZone": "Zona escolar (ej. 086, 004, etc.)",
+  "directorName": "Nombre completo del Director(a) (limpio de prefijos como Profr., Ing., Lic.)",
+  "supervisorName": "Nombre completo del Supervisor(a) escolar",
+  "cicloEscolar": "Ciclo escolar del documento (ej. 2026-2027)",
+  "subsystem": "Subsistema (ej. BGE)",
+  "totalStaff": número entero con el total de personal reportado (o null),
   "participantes": [
     {
-      "nombre": "Nombre completo del participante o firmante (director, docentes, tutores, alumnos, supervisores)",
+      "nombre": "Nombre completo del participante o firmante",
       "cargo": "Director(a) | Docente | Tutor(a) | Alumno(a) | Supervisor(a) | etc.",
-      "firma": "Anotación de firma (o vacía)"
+      "firma": "Anotación de firma (o null)"
     }
   ],
   "staffData": [
     {
-      "nombre": "Nombre completo del docente o directivo (limpio de prefijos Profr., Profra., Ing., Lic.)",
-      "cargo": "Director(a) | Docente y tutor del plantel | Docente y tutor de grupo | Docente de grupo | Docente de tiempo completo | Administrativo | etc.",
-      "meta_individual": "Meta o compromiso si se especifica",
+      "nombre": "Nombre completo del docente o directivo (limpio de prefijos)",
+      "cargo": "Director(a) | Docente | Tutor(a) | etc.",
+      "meta_individual": "Meta individual asignada o null",
       "metas_individuales": [
         {
-          "categoria": "Categoría Oficial exacta: 'Desarrollo académico y aprendizaje' | 'Gestión y administración escolar' | 'Desarrollo socioemocional y prevención de la violencia en la escuela'",
-          "tema": "Tema o ámbito oficial específico (ej. Trabajo Colegiado, Proyecto Escolar Comunitario PEC, Indicadores académicos, Planeación Didáctica, Seguimiento al desempeño docente en el aula, Seguimiento a egresados, Ámbitos de Formación Socioemocional, etc.)",
-          "meta": "Meta individual o institucional asignada",
-          "estrategia": "Estrategia o acciones a realizar",
-          "entregable": "Producto o evidencia de entrega",
-          "periodo": "Periodo de ejecución"
+          "categoria": "Desarrollo académico y aprendizaje | Gestión y administración escolar | Desarrollo socioemocional y prevención de la violencia en la escuela",
+          "tema": "Tema o ámbito específico",
+          "meta": "Redacción de la meta individual",
+          "estrategia": "Estrategia asociada o null",
+          "entregable": "Evidencia o producto esperado o null",
+          "periodo": "Periodo de ejecución o null"
         }
       ]
     }
   ],
-  "categorias_priorizadas": [
-    {
-      "categoria": "Categoría Oficial exacta",
-      "temas": ["Tema 1", "Tema 2"]
-    }
-  ],
   "totales_detectados": {
-    "metas": número entero con el total exacto de metas contabilizadas en todo el documento (OBLIGATORIO, ej. 32, o null si fue imposible determinar),
-    "actividades": número entero con el total exacto de actividades contabilizadas en el documento (OBLIGATORIO, ej. 15, o null si fue imposible determinar)
+    "metas": número entero con el total exacto de metas contabilizadas en todo el documento (OBLIGATORIO),
+    "actividades": número entero con el total de actividades
   },
   "elementos_plan": [
     {
       "tipo": "meta | actividad | estrategia | indicador | responsable | evidencia | cronograma | otro",
-      "texto_original": "Texto literal exacto tal como aparece en el documento",
+      "numero_origen": número entero de la meta si está numerada (ej. 1, 2, ..., 45) o null,
+      "celda_ref": "Ancla de celda si está presente (ej. ⟦T05·R02·C03⟧) o null",
+      "texto_original": "Texto literal exacto tal como aparece en el documento con su numeración",
       "texto_normalizado": "Versión corregida ortográficamente y adaptada a fórmula CREAA preservando 100% de cifras y fechas",
-      "categoria": "Categoría Oficial exacta",
+      "categoria": "Desarrollo académico y aprendizaje | Gestión y administración escolar | Desarrollo socioemocional y prevención de la violencia en la escuela",
       "tema": "Tema o ámbito oficial",
       "responsable": "Nombre o cargo del responsable (separado de la meta/actividad)",
       "periodo": "Periodo o fecha de ejecución",
-      "ubicacion": {
-        "pagina": número de página o null,
-        "seccion": "Sección del documento",
-        "tabla": "Nombre o número de tabla"
-      },
-      "requiere_revision": false
+      "requiere_revision": false,
+      "motivos_revision": []
     }
   ],
   "metas_institucionales_previas": [
     {
-      "categoria": "Categoría Oficial exacta",
+      "numero_origen": número de la meta o null,
+      "categoria": "Desarrollo académico y aprendizaje | Gestión y administración escolar | Desarrollo socioemocional y prevención de la violencia en la escuela",
       "tema": "Tema o ámbito oficial",
-      "meta": "Redacción completa de la meta del Plan de Acción",
-      "linea_base": "Diagnóstico o situación inicial detectada",
-      "estrategia": "Estrategias y/o acciones colegiadas acordadas",
-      "responsable": "Responsables asignados (ej. Director y docentes, Asesor de grupo, etc.)",
-      "entregable": "Evidencia o producto esperado (ej. Fotografías, minutas, reportes, etc.)",
-      "periodo": "Cronograma o periodo de ejecución"
+      "meta": "Redacción completa de la meta",
+      "linea_base": "Línea base o null",
+      "estrategia": "Estrategias o acciones acordadas o null",
+      "responsable": "Responsable asignado",
+      "entregable": "Evidencia o producto esperado o null",
+      "periodo": "Cronograma o periodo de ejecución o null"
     }
   ],
-  "diagnosticoComunidad": "Diagnóstico de la comunidad y del entorno escolar (descripción textual amplia, contexto social, económico y cultural)",
-  "indicadores": {
-    "matricula": número de alumnos inscritos (o null si no se especifica),
-    "matricula_meta": número de alumnos proyectados como meta (o null si no se especifica),
-    "aprobacion_ant": porcentaje de aprobación previo (número 0-100 o null),
-    "aprobacion_meta": porcentaje de aprobación proyectado como meta (número 0-100 o null),
-    "reprobacion_ant": porcentaje de reprobación previo (número 0-100 o null),
-    "reprobacion_meta": porcentaje de reprobación meta (número 0-100 o null),
-    "abandono_ant": porcentaje de abandono o deserción previo (número 0-100 o null),
-    "abandono_meta": porcentaje de abandono meta (número 0-100 o null),
-    "et_ant": porcentaje de eficiencia terminal previo (número 0-100 o null),
-    "et_meta": porcentaje de eficiencia terminal meta (número 0-100 o null),
-    "promedio_f11": promedio general de calificaciones previo (número 0-10 o null),
-    "promedio_meta": promedio general de calificaciones proyectado como meta (número 0-10 o null)
-  },
-  "foda": {
-    "fortalezas": "Fortalezas institucionales identificadas en el diagnóstico o cuadro FODA",
-    "oportunidades": "Oportunidades del entorno exterior detectadas",
-    "debilidades": "Debilidades internas de la escuela o comunidad escolar",
-    "amenazas": "Amenazas o riesgos externos que impactan a la escuela"
-  }
+  "diagnosticoComunidad": "Diagnóstico textual de la comunidad o null",
+  "indicadores": {},
+  "foda": {}
 }
 
-REGLAS DE EXTRACCIÓN:
-1. Conserva la redacción textual del diagnóstico de la comunidad y de los cuatro cuadrantes del FODA a partir de los cuadros de diagnóstico y tablas FODA del documento.
-2. Si el documento contiene porcentajes de indicadores académicos (reprobación, abandono, aprobación), extráelos como números limpios.
-3. OBLIGATORIO - AUTORIDADES Y ZONA: Extrae el directorName del responsable del bachillerato o director firmante. Extrae el supervisorName del supervisor escolar y la schoolZone del bloque de control de revisiones o firmas (ej. 'SUPERVISOR ESCOLAR ZONA 004' -> supervisor: 'Alejandro Escamilla Martínez', zona: '004').
-4. OBLIGATORIO - EXTRAE A TODO EL PERSONAL DEL PLANTEL EN staffData:
-   - Extrae a cada docente, tutor del plantel, tutor de grupo, subdirector o administrativo que figure en las tablas de participantes, comités o acuerdos del colectivo escolar.
-   - Preserva su cargo específico (ej. 'Docente y tutor del plantel', 'Docente y tutor de grupo', 'Docente de grupo').
-   - EXCLUYE estudiantes o alumnos de staffData (los alumnos solo van en 'participantes').
-   - Limpia los nombres de prefijos como 'PROFR.', 'PROFRA.', 'ING.', 'LIC.'.
-5. OBLIGATORIO - PLAN DE ACCIÓN Y ELEMENTOS (CLASIFICACIÓN SEMÁNTICA POR CONTENIDO):
-   - CLASIFICA POR CONTENIDO, NUNCA POR POSICIÓN EN LA TABLA.
-   - Definiciones semánticas:
-     * META = resultado esperado con indicador u objetivo cuantificable (verbo en infinitivo + qué lograr con indicador/porcentaje + cuándo).
-     * ACTIVIDAD = acción concreta a ejecutar sin indicador de resultado (verbo de ejecución: organizar, impartir, participar, preparar, coordinar, etc.).
-     * ESTRATEGIA = agrupación o medio metodológico para alcanzar las metas.
-     * RESPONSABLE / EVIDENCIA / CRONOGRAMA = datos complementarios.
-   - Los elementos pueden aparecer en cualquier columna, orden, fusión de celdas o formato (tablas canónicas, tablas no canónicas con columna Meta, bloques de texto etiquetado o párrafos sueltos).
-   - Extrae exhaustivamente TODOS los elementos del Plan de Acción en 'elementos_plan' y todas las metas en 'metas_institucionales_previas'.
-   - OBLIGATORIO - TOTALES: Reporta SIEMPRE en 'totales_detectados' el conteo exacto de metas y actividades identificadas en todo el documento. Si el documento contiene 35 metas, reporta exactamente 35. No omitas este campo.
-   - Separa rigurosamente nombres de personas del texto de la meta o actividad y colócalos en el campo 'responsable'.
-   - Regla de normalización: 'texto_normalizado' corrige ortografía/gramática/orden y adapta a la fórmula obligatoria ([VERBO EN INFINITIVO] + [INDICADOR CUANTIFICABLE / PORCENTAJE] + [POBLACIÓN OBJETIVO] + [ESTRATEGIA O ACCIÓN SITUADA] + [PERIODO Y TERRITORIO]), PRESERVANDO EL 100% DE NÚMEROS, PORCENTAJES, FECHAS, NOMBRES Y OBJETOS.
-   - Si no puedes normalizar con seguridad sin alterar los datos originales, copia idéntico el 'texto_original' en 'texto_normalizado' y marca 'requiere_revision': true.
-   - Prohibición estricta B-001 (Cero fabricación): nunca inventar cifras, fechas ni datos. PROHIBIDO cambiar números o porcentajes. PROHIBIDO mencionar 'SIGPDA' o 'SIGPDA-EMS' en cualquier campo.
-6. OBLIGATORIO: Asigna en 'categoria' ÚNICAMENTE una de las 3 categorías oficiales de los Lineamientos del PMC:
+REGLAS DE ORO OBLIGATORIAS:
+1. REGLA CRÍTICA ANTI-COLAPSO (B-001): Si una celda o fila contiene varias metas numeradas o con viñetas (ej. 1., 2., 3., 4., 5., 6.), DEBES generar un objeto independiente por cada meta en 'elementos_plan' y en 'metas_institucionales_previas'. PROHIBIDO colapsar múltiples metas en una sola fila.
+2. PROPAGACIÓN DE RESPONSABILIDAD: Cada meta desglosada hereda el 'responsable' de su fila original (ej. 'Mtra. Claudia González Widobro').
+3. RESPONSABLES COLECTIVOS: Si el responsable es 'Director y docentes', 'Comité de Salud' o 'Colectivo Docente', CONSÉRVALO TEXTUALMENTE. No inventes nombres individuales.
+4. METAS MAL REDACTADAS O TIPO TAREA: Si un ítem está en la columna/sección de metas pero parece una actividad (ej. 'Campaña de reciclaje'), EXTRÁELO COMO META, normalízalo con marcadores [POR DEFINIR: ...] y marca 'requiere_revision': true. Jamás lo descartes.
+5. CORRELACIÓN HORIZONTAL ANTI-DESFASE: Empareja Estrategia k ↔ Meta k ↔ Evidencia k por número si existe numeración. Si hay 1 sola estrategia para varias metas, cópiala a todas. Si no hay afinidad demostrable, usa null; NUNCA desplaces en cascada las evidencias.
+6. INVARIANZA NUMÉRICA ABSOLUTA: Todo porcentaje (70%), número, fecha o ciclo escolar del original DEBE conservarse idéntico en 'texto_normalizado'. Si falta un dato para la fórmula CREAA, usa estrictamente los marcadores:
+   - [POR DEFINIR: indicador cuantificable]
+   - [POR DEFINIR: población objetivo]
+   - [POR DEFINIR: estrategia situada]
+   - [POR DEFINIR: periodo]
+   y marca 'requiere_revision': true.
+7. TAXONOMÍA ESTRICTA: 'categoria' DEBE ser exactamente una de las 3 oficiales:
    - 'Desarrollo académico y aprendizaje'
    - 'Gestión y administración escolar'
-   - 'Desarrollo socioemocional y prevención de la violencia en la escuela'`;
+   - 'Desarrollo socioemocional y prevención de la violencia en la escuela'
+   Desempate: clasifica por el RESULTADO FINAL que se mide, no por el medio.
+8. Salida: Responde EXCLUSIVAMENTE con el JSON válido.`;
 }
 
-/**
- * Prompt acotado para extracción de fragmentos individuales en paralelo (H-294).
- * Enfocado en elementos_plan, metas_institucionales_previas y staffData del trozo.
- */
-export function buildPmcChunkExtractionPrompt(chunkText: string, chunkIndex: number, totalChunks: number): string {
-  return `Analiza el siguiente fragmento (${chunkIndex + 1} de ${totalChunks}) correspondiente a un Programa de Mejora Continua (PMC) previo.
+export function buildPmcChunkExtractionPrompt(
+  chunkText: string,
+  chunkIndex: number,
+  totalChunks: number,
+  metaContext?: StructuralPromptMetadata
+): string {
+  const nonce = metaContext?.nonce || Math.random().toString(36).substring(2, 10);
+  const metadataHeader = metaContext
+    ? `<<<METADATOS_ESTRUCTURALES>>>
+- lote: ${chunkIndex + 1} de ${totalChunks}
+- formato: "${metaContext.formato || 'CANONICO_MATRIZ'}"
+<<<FIN_METADATOS_ESTRUCTURALES>>>\n\n`
+    : '';
+
+  return `${metadataHeader}Analiza el siguiente fragmento (${chunkIndex + 1} de ${totalChunks}) correspondiente a un Programa de Mejora Continua (PMC) previo.
 Tu objetivo en este fragmento es extraer de forma exhaustiva y fiel TODOS los elementos del plan de acción (elementos_plan), metas institucionales (metas_institucionales_previas) y personal escolar (staffData/participantes) que figuren en este fragmento.
 
-FRAGMENTO DEL DOCUMENTO:
-"""
+<<<DOC_${nonce}>>>
 ${chunkText.slice(0, 100000)}
-"""
+<<<FIN_DOC_${nonce}>>>
 
 Estructura la información en el siguiente esquema JSON exacto:
 {
@@ -268,22 +270,21 @@ Estructura la información en el siguiente esquema JSON exacto:
   "elementos_plan": [
     {
       "tipo": "meta | actividad | estrategia | indicador | responsable | evidencia | cronograma | otro",
+      "numero_origen": número entero o null,
+      "celda_ref": "Ancla de celda (ej. ⟦T05·R02·C03⟧) o null",
       "texto_original": "Texto literal exacto tal como aparece en el documento",
       "texto_normalizado": "Versión corregida ortográficamente preservando 100% de cifras y fechas",
       "categoria": "Desarrollo académico y aprendizaje | Gestión y administración escolar | Desarrollo socioemocional y prevención de la violencia en la escuela",
       "tema": "Tema o ámbito oficial",
       "responsable": "Nombre o cargo del responsable (separado de la meta/actividad)",
       "periodo": "Periodo o fecha de ejecución",
-      "ubicacion": {
-        "pagina": null,
-        "seccion": "Plan de Acción",
-        "tabla": null
-      },
-      "requiere_revision": false
+      "requiere_revision": false,
+      "motivos_revision": []
     }
   ],
   "metas_institucionales_previas": [
     {
+      "numero_origen": número entero o null,
       "categoria": "Desarrollo académico y aprendizaje | Gestión y administración escolar | Desarrollo socioemocional y prevención de la violencia en la escuela",
       "tema": "Tema o ámbito oficial",
       "meta": "Redacción de la meta",
@@ -297,8 +298,9 @@ Estructura la información en el siguiente esquema JSON exacto:
 }
 
 REGLAS ESTRICTAS DEL FRAGMENTO:
-1. Extrae CADA fila de tabla o ítem del fragmento sin omitir ninguno.
-2. Si una meta o actividad tiene responsable, sepáralo y ponlo en 'responsable'.
-3. NO inventes datos. Si no hay datos de un campo en este fragmento, usa null o [].
-4. Responde EXCLUSIVAMENTE con el objeto JSON válido.`;
+1. REGLA ANTI-COLAPSO: Si una celda contiene N metas numeradas o con viñetas, emite N objetos independientes.
+2. Cada meta hereda el responsable de la fila. Si es colectivo ('Director y docentes'), consérvalo literal.
+3. Preserva 100% de porcentajes y fechas. Si falta un dato en CREAA, usa [POR DEFINIR: ...] y 'requiere_revision': true.
+4. Asigna únicamente una de las 3 categorías canónicas oficiales del MCCEMS.
+5. Responde EXCLUSIVAMENTE con el objeto JSON válido.`;
 }
