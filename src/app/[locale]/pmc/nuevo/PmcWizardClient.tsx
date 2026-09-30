@@ -497,10 +497,7 @@ const STEPS = [
 export default function PmcWizardClient({ locale, teacherSchool, teacherMunicipality, existingProject }: Props) {
   const router = useRouter();
 
-  // Restore draft from localStorage if this is a fresh PMC wizard (no existing project)
-  const savedDraft = !existingProject ? readPmcDraft() : null;
-
-  // Initialize state from existing project or from saved localStorage draft or defaults
+  // Initialize state from existing project or defaults (safe for SSR hydration, prevents error #418)
   const [projectId, setProjectId] = useState<string | null>(existingProject?.id || null);
   const [activeStep, setActiveStep] = useState<number>(existingProject?.current_step || 1);
   const [saving, setSaving] = useState(false);
@@ -509,22 +506,43 @@ export default function PmcWizardClient({ locale, teacherSchool, teacherMunicipa
   const [editingMeta, setEditingMeta] = useState<number | null>(null);
   const [editingPersonal, setEditingPersonal] = useState<number | null>(null);
 
-  // Step 1: Institutional data — restored from draft if no existing project in DB
-  const [schoolName, setSchoolName] = useState(existingProject?.school_name || savedDraft?.schoolName || teacherSchool || '');
-  const [schoolCct, setSchoolCct] = useState(existingProject?.school_cct || savedDraft?.schoolCct || '');
-  const [municipality, setMunicipality] = useState(existingProject?.municipality || savedDraft?.municipality || teacherMunicipality || '');
-  const [locality, setLocality] = useState(existingProject?.locality || savedDraft?.locality || '');
-  const [schoolZone, setSchoolZone] = useState(existingProject?.school_zone || savedDraft?.schoolZone || '');
-  const [directorName, setDirectorName] = useState(existingProject?.director_name || savedDraft?.directorName || '');
+  // Step 1: Institutional data
+  const [schoolName, setSchoolName] = useState(existingProject?.school_name || teacherSchool || '');
+  const [schoolCct, setSchoolCct] = useState(existingProject?.school_cct || '');
+  const [municipality, setMunicipality] = useState(existingProject?.municipality || teacherMunicipality || '');
+  const [locality, setLocality] = useState(existingProject?.locality || '');
+  const [schoolZone, setSchoolZone] = useState(existingProject?.school_zone || '');
+  const [directorName, setDirectorName] = useState(existingProject?.director_name || '');
   const [directorSource, setDirectorSource] = useState<DirectorSource>(
-    existingProject?.director_name ? 'bd' : savedDraft?.directorName ? 'draft' : 'none'
+    existingProject?.director_name ? 'bd' : 'none'
   );
   const [directorMismatchWarning, setDirectorMismatchWarning] = useState<string | null>(null);
   const [alternativeDirector, setAlternativeDirector] = useState<{ name: string; source: DirectorSource } | null>(null);
   const [isPlatformPmcDoc, setIsPlatformPmcDoc] = useState(false);
-  const [supervisorName, setSupervisorName] = useState(existingProject?.supervisor_name || savedDraft?.supervisorName || '');
-  const [cicloEscolar, setCicloEscolar] = useState(existingProject?.ciclo_escolar || savedDraft?.cicloEscolar || '2025-2026');
-  const [subsystem, setSubsystem] = useState(existingProject?.subsystem || savedDraft?.subsystem || 'BGE');
+  const [supervisorName, setSupervisorName] = useState(existingProject?.supervisor_name || '');
+  const [cicloEscolar, setCicloEscolar] = useState(existingProject?.ciclo_escolar || '2025-2026');
+  const [subsystem, setSubsystem] = useState(existingProject?.subsystem || 'BGE');
+
+  // Hydrate draft from localStorage on mount (client-only, prevents SSR hydration mismatch #418)
+  useEffect(() => {
+    if (!existingProject) {
+      const draft = readPmcDraft();
+      if (draft) {
+        if (draft.schoolName) setSchoolName(draft.schoolName);
+        if (draft.schoolCct) setSchoolCct(draft.schoolCct);
+        if (draft.municipality) setMunicipality(draft.municipality);
+        if (draft.locality) setLocality(draft.locality);
+        if (draft.schoolZone) setSchoolZone(draft.schoolZone);
+        if (draft.directorName) {
+          setDirectorName(draft.directorName);
+          setDirectorSource('draft');
+        }
+        if (draft.supervisorName) setSupervisorName(draft.supervisorName);
+        if (draft.cicloEscolar) setCicloEscolar(draft.cicloEscolar);
+        if (draft.subsystem) setSubsystem(draft.subsystem);
+      }
+    }
+  }, [existingProject]);
 
   // Step 2: Staff
   const [totalStaff, setTotalStaff] = useState(existingProject?.total_staff || 1);

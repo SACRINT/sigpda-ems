@@ -202,6 +202,7 @@ export function partitionMarkdownDocument(
       /\n(?=(?:__)?(?:\d+[\.\-]\s*)?Actividad(?:es)?:?)/gi,
       /\n(?=(?:ING\.|LIC\.|MTRO\.|MTRA\.|PROFR\.|PROFRA\.|DOCENTE|DIRECTOR)\s+[A-ZÁÉÍÓÚÑ])/g,
       /\n(?=\|[^\n]+\|\n\|[\s\-:|]+\|)/g,
+      /\n(?=\|)/g,
       /\n\n/g,
       /\n/g,
     ];
@@ -416,7 +417,9 @@ export function salvagePlanElementsFromRaw(rawText: string): {
   if (!rawText || typeof rawText !== 'string' || !rawText.trim()) return result;
 
   try {
-    const cleaned = rawText.replace(/```(?:json)?\s*([\s\S]*?)\s*```/i, '$1').trim();
+    let cleaned = rawText.trim();
+    cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+
     let parsed: any = null;
     try {
       parsed = JSON.parse(cleaned);
@@ -424,7 +427,19 @@ export function salvagePlanElementsFromRaw(rawText: string): {
       try {
         parsed = JSON.parse(jsonrepair(cleaned));
       } catch {
-        // Fallback defensivo
+        // Fallback defensivo: recuperación de objetos/arreglos truncados
+        const lastBrace = cleaned.lastIndexOf('}');
+        if (lastBrace > 0) {
+          try {
+            parsed = JSON.parse(jsonrepair(cleaned.slice(0, lastBrace + 1) + ']}'));
+          } catch {
+            try {
+              parsed = JSON.parse(jsonrepair(cleaned.slice(0, lastBrace + 1)));
+            } catch {
+              // Fallback adicional
+            }
+          }
+        }
       }
     }
 
@@ -443,7 +458,25 @@ export function salvagePlanElementsFromRaw(rawText: string): {
         : [];
 
       for (const e of rawElems) {
-        if (!e || typeof e !== 'object') continue;
+        if (!e) continue;
+        if (typeof e === 'string' && e.trim()) {
+          result.elementos.push({
+            tipo: 'meta',
+            numero_origen: null,
+            celda_ref: null,
+            texto_original: e.trim(),
+            texto_normalizado: e.trim(),
+            categoria: '',
+            tema: '',
+            responsable: '',
+            periodo: '',
+            ubicacion: {},
+            requiere_revision: false,
+            motivos_revision: [],
+          });
+          continue;
+        }
+        if (typeof e !== 'object') continue;
         const textoOrig = String(e.texto_original || e.meta || e.actividad || e.descripcion || '').trim();
         if (!textoOrig) continue;
         const textoNorm = String(e.texto_normalizado || textoOrig).trim();
@@ -458,10 +491,10 @@ export function salvagePlanElementsFromRaw(rawText: string): {
           celda_ref: e.celda_ref || null,
           texto_original: textoOrig,
           texto_normalizado: textoNorm,
-          categoria: e.categoria || null,
-          tema: e.tema || null,
-          responsable: e.responsable || null,
-          periodo: e.periodo || null,
+          categoria: e.categoria || '',
+          tema: e.tema || '',
+          responsable: e.responsable || '',
+          periodo: e.periodo || '',
           ubicacion: typeof e.ubicacion === 'object' && e.ubicacion ? e.ubicacion : {},
           requiere_revision: Boolean(e.requiere_revision),
           motivos_revision: Array.isArray(e.motivos_revision) ? e.motivos_revision : [],
@@ -470,7 +503,22 @@ export function salvagePlanElementsFromRaw(rawText: string): {
 
       if (Array.isArray(parsed.metas_institucionales_previas)) {
         for (const m of parsed.metas_institucionales_previas) {
-          if (!m || typeof m !== 'object') continue;
+          if (!m) continue;
+          if (typeof m === 'string' && m.trim()) {
+            result.metas.push({
+              numero_origen: null,
+              categoria: '',
+              tema: '',
+              meta: m.trim(),
+              linea_base: '',
+              estrategia: '',
+              responsable: '',
+              entregable: '',
+              periodo: '',
+            });
+            continue;
+          }
+          if (typeof m !== 'object') continue;
           const metaText = String(m.meta || m.texto_original || '').trim();
           if (!metaText) continue;
           result.metas.push({
@@ -489,7 +537,17 @@ export function salvagePlanElementsFromRaw(rawText: string): {
 
       if (Array.isArray(parsed.staffData)) {
         for (const s of parsed.staffData) {
-          if (!s || typeof s !== 'object' || !s.nombre) continue;
+          if (!s) continue;
+          if (typeof s === 'string' && s.trim()) {
+            result.staff.push({
+              nombre: s.trim(),
+              cargo: 'Docente',
+              meta_individual: '',
+              metas_individuales: [],
+            });
+            continue;
+          }
+          if (typeof s !== 'object' || !s.nombre) continue;
           result.staff.push({
             nombre: String(s.nombre).trim(),
             cargo: s.cargo ? String(s.cargo).trim() : 'Docente',
@@ -534,21 +592,21 @@ export async function extractPmcPreviousWithPartitioning(options: {
   const hasDistinctPlan = startIndex > 500 && planText.length > 500 && startIndex < documentText.length - 500;
 
   let chunks: string[] = [];
-  if (hasDistinctPlan && (documentText.length > 20000 || expectedActivities >= 15)) {
+  if (hasDistinctPlan && (documentText.length > 15000 || expectedActivities >= 12)) {
     // Particionado estructural de alta fidelidad:
     // Trozo 1: Portada, Metadatos Institucionales, Diagnóstico Comunitario, FODA, Metas Generales (PLANEA) y Firmas / Aprobación final
     const tailText = endIndex !== -1 && endIndex < documentText.length ? documentText.slice(endIndex).trim() : '';
     const contextChunk = (documentText.slice(0, startIndex) + (tailText ? `\n\n# APROBACIÓN Y FIRMAS DEL PLANTEL\n${tailText}` : '')).trim();
     // Trozo 2..N: Sección especializada del Plan de Acción
-    // Preservar la tabla completa del Plan de Acción en 1 solo trozo si cabe (<= 25000 chars) para evitar desfragmentación de cabeceras de tabla
-    if (planText.length > 25000) {
-      const planChunks = partitionMarkdownDocument(planText, 12000, 22000);
+    // Fragmentos balanceados (< 10,000 caracteres) respetando filas de tabla para evitar timeouts y saturación de tokens (document-extraction-engine)
+    if (planText.length > 9000) {
+      const planChunks = partitionMarkdownDocument(planText, 5000, 9500);
       chunks = [contextChunk, ...planChunks];
     } else {
       chunks = [contextChunk, planText.trim()];
     }
-  } else if (documentText.length > 20000 || expectedActivities >= 15) {
-    chunks = partitionMarkdownDocument(documentText, 10000, 22000);
+  } else if (documentText.length > 10000 || expectedActivities >= 12) {
+    chunks = partitionMarkdownDocument(documentText, 5000, 9500);
   } else {
     chunks = [documentText];
   }
@@ -629,27 +687,34 @@ export async function extractPmcPreviousWithPartitioning(options: {
       repairNullStrings: true,
     });
 
+    let finalRaw = raw;
     if (!parsed.success && Date.now() < deadline - 5000) {
+      let retryRaw = '';
       parsed = await correctiveRetry({
         systemPrompt,
         previousRaw: raw,
         zodIssues: parsed.error || '',
         schema: PmcPreviousExtractSchema,
-        callAI: (sys, user, remaining) =>
-          withTimeoutBudget(
+        callAI: async (sys, user, remaining) => {
+          retryRaw = await withTimeoutBudget(
             generateWithRotation(sys, user, teacherId, isPremium, {
               temperature: 0,
               jsonMode: true,
               maxTokens,
             }),
             remaining
-          ),
+          );
+          return retryRaw;
+        },
         deadline,
         contextName: `${contextName}-chunk-${chunkIndex + 1}-retry`,
       });
+      if (retryRaw) {
+        finalRaw = retryRaw;
+      }
     }
 
-    return { parsed, raw, truncated };
+    return { parsed, raw: finalRaw, truncated };
   };
 
   // 1ª Pasada (Directa o por trozos)
@@ -721,7 +786,16 @@ export async function extractPmcPreviousWithPartitioning(options: {
             const subRes = s.value;
             if (subRes.truncated) isTruncated = true;
             if (subRes.parsed.success) {
-              if (subRes.parsed.data.elementos_plan) {
+              const subCount = (subRes.parsed.data.elementos_plan || []).length;
+              if (subCount === 0 && subRes.raw && subRes.raw.includes('elementos_plan')) {
+                const salvaged = salvagePlanElementsFromRaw(subRes.raw);
+                if (salvaged.elementos.length > 0) {
+                  accumulatedElementos.push(...salvaged.elementos);
+                }
+                if (salvaged.metas.length > 0) {
+                  accumulatedMetas.push(...salvaged.metas);
+                }
+              } else if (subRes.parsed.data.elementos_plan) {
                 accumulatedElementos.push(...subRes.parsed.data.elementos_plan);
               }
               if (subRes.parsed.data.metas_institucionales_previas) {
@@ -843,7 +917,16 @@ export async function extractPmcPreviousWithPartitioning(options: {
               };
             }
           }
-          if (chunkRes.parsed.data.elementos_plan) {
+          const elemCount = (chunkRes.parsed.data.elementos_plan || []).length;
+          if (elemCount === 0 && chunkRes.raw && chunkRes.raw.includes('elementos_plan')) {
+            const salvaged = salvagePlanElementsFromRaw(chunkRes.raw);
+            if (salvaged.elementos.length > 0) {
+              accumulatedElementos.push(...salvaged.elementos);
+            }
+            if (salvaged.metas.length > 0) {
+              accumulatedMetas.push(...salvaged.metas);
+            }
+          } else if (chunkRes.parsed.data.elementos_plan) {
             accumulatedElementos.push(...chunkRes.parsed.data.elementos_plan);
           }
           if (chunkRes.parsed.data.metas_institucionales_previas) {
@@ -976,10 +1059,18 @@ Devuelve el JSON con la misma estructura (elementos_plan y metas_institucionales
         repairNullStrings: true,
       });
 
-      if (parsedGap.success && parsedGap.data.elementos_plan && parsedGap.data.elementos_plan.length > 0) {
-        const newElements = parsedGap.data.elementos_plan;
-        const newMetas = parsedGap.data.metas_institucionales_previas || [];
+      let newElements = (parsedGap.success && parsedGap.data.elementos_plan) ? parsedGap.data.elementos_plan : [];
+      let newMetas = (parsedGap.success && parsedGap.data.metas_institucionales_previas) ? parsedGap.data.metas_institucionales_previas : [];
 
+      if (newElements.length === 0 && gapRaw) {
+        const salvagedGap = salvagePlanElementsFromRaw(gapRaw);
+        if (salvagedGap.elementos.length > 0) {
+          newElements = salvagedGap.elementos;
+          newMetas = salvagedGap.metas;
+        }
+      }
+
+      if (newElements.length > 0) {
         const mergedElements = [...(combinedData.elementos_plan || []), ...newElements];
         const mergedMetas = [...(combinedData.metas_institucionales_previas || []), ...newMetas];
 

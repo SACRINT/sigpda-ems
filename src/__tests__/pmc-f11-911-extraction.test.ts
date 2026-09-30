@@ -417,9 +417,9 @@ describe('Blindaje Curricular y Extracción: F11 y Estadística 911 (N-002)', ()
       }
     });
 
-    it('PmcPreviousExtractSchema rechaza payloads con >60 participantes o staff (cap determinista H-297)', () => {
+    it('PmcPreviousExtractSchema rechaza payloads con >100 participantes o staff (cap determinista H-301)', () => {
       const payloadParticipantesExcesivos = {
-        participantes: Array.from({ length: 61 }, (_, i) => ({
+        participantes: Array.from({ length: 101 }, (_, i) => ({
           nombre: `Participante ${i + 1}`,
           cargo: 'Docente',
           firma: 'Firmado',
@@ -429,7 +429,7 @@ describe('Blindaje Curricular y Extracción: F11 y Estadística 911 (N-002)', ()
       expect(resultPart.success).toBe(false);
 
       const payloadStaffExcesivo = {
-        staffData: Array.from({ length: 61 }, (_, i) => ({
+        staffData: Array.from({ length: 101 }, (_, i) => ({
           nombre: `Docente ${i + 1}`,
           cargo: 'Docente',
         })),

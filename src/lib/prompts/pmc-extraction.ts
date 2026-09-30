@@ -18,21 +18,56 @@ export const PmcPreviousExtractSchema = z.object({
   subsystem: nullableString('BGE'),
   totalStaff: z.coerce.number().optional(),
   participantes: z.preprocess(
-    (val) => (Array.isArray(val) ? val : []),
+    (val) => {
+      if (!Array.isArray(val)) return [];
+      return val.map((item) => {
+        if (typeof item === 'string') return { nombre: item, cargo: null, firma: null };
+        if (item && typeof item === 'object') return item;
+        return null;
+      }).filter(Boolean);
+    },
     z.array(z.object({
       nombre: nullableString(),
       cargo: nullableString(),
       firma: nullableString(),
-    })).max(300).optional().default([])
+    })).max(100).optional().default([])
   ),
   staffData: z.preprocess(
-    (val) => (Array.isArray(val) ? val : []),
+    (val) => {
+      if (!Array.isArray(val)) return [];
+      return val.map((item) => {
+        if (typeof item === 'string') {
+          return {
+            nombre: item,
+            cargo: 'Docente',
+            meta_individual: null,
+            metas_individuales: [],
+          };
+        }
+        return item;
+      }).filter(Boolean);
+    },
     z.array(z.object({
       nombre: nullableString(),
       cargo: nullableString('Docente'),
       meta_individual: nullableString(),
       metas_individuales: z.preprocess(
-        (val) => (Array.isArray(val) ? val : []),
+        (val) => {
+          if (!Array.isArray(val)) return [];
+          return val.map((item) => {
+            if (typeof item === 'string') {
+              return {
+                categoria: null,
+                tema: null,
+                meta: item,
+                estrategia: null,
+                entregable: null,
+                periodo: null,
+              };
+            }
+            return item;
+          }).filter(Boolean);
+        },
         z.array(z.object({
           categoria: nullableString(),
           tema: nullableString(),
@@ -42,10 +77,28 @@ export const PmcPreviousExtractSchema = z.object({
           periodo: nullableString(),
         })).optional().default([])
       ),
-    })).max(300).optional().default([])
+    })).max(100).optional().default([])
   ),
   metas_institucionales_previas: z.preprocess(
-    (val) => (Array.isArray(val) ? val : []),
+    (val) => {
+      if (!Array.isArray(val)) return [];
+      return val.map((item) => {
+        if (typeof item === 'string') {
+          return {
+            numero_origen: null,
+            categoria: null,
+            tema: null,
+            meta: item,
+            linea_base: null,
+            estrategia: null,
+            responsable: null,
+            entregable: null,
+            periodo: null,
+          };
+        }
+        return item;
+      }).filter(Boolean);
+    },
     z.array(z.object({
       numero_origen: z.coerce.number().nullable().optional(),
       categoria: nullableString(),
@@ -56,7 +109,7 @@ export const PmcPreviousExtractSchema = z.object({
       responsable: nullableString(),
       entregable: nullableString(),
       periodo: nullableString(),
-    })).max(300).optional().default([])
+    })).max(100).optional().default([])
   ),
   elementos_plan: z.preprocess(
     (val) => (Array.isArray(val) ? val : []),
@@ -79,7 +132,7 @@ export const PmcPreviousExtractSchema = z.object({
         z.enum(['meta', 'actividad', 'estrategia', 'indicador', 'responsable', 'evidencia', 'cronograma', 'otro'])
       ).default('meta'),
       numero_origen: z.coerce.number().nullable().optional(),
-      celda_ref: z.string().nullable().optional(),
+      celda_ref: z.preprocess((val) => (val == null ? undefined : String(val)), z.string().nullable().optional()),
       texto_original: z.preprocess((val) => (val != null ? String(val) : ''), z.string()),
       texto_normalizado: z.preprocess((val) => (val != null ? String(val) : ''), z.string()),
       categoria: nullableString(),
@@ -96,10 +149,14 @@ export const PmcPreviousExtractSchema = z.object({
       ),
       requiere_revision: z.preprocess((val) => Boolean(val), z.boolean()).default(false),
       motivos_revision: z.preprocess(
-        (val) => (Array.isArray(val) ? val.filter((item): item is string => typeof item === 'string') : undefined),
+        (val) => {
+          if (Array.isArray(val)) return val.map((s) => String(s)).filter(Boolean);
+          if (typeof val === 'string' && val.trim()) return [val.trim()];
+          return undefined;
+        },
         z.array(z.string()).optional()
       ),
-    })).max(600).optional().default([])
+    })).max(200).optional().default([])
   ),
   totales_detectados: z.object({
     metas: z.coerce.number().nullable().optional(),

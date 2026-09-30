@@ -84,13 +84,14 @@ export interface CorrectiveRetryParams<T> {
 }
 
 export function defaultBuildCorrectivePrompt(zodIssues: string, previousRaw: string): string {
+  const safeRaw = previousRaw.length > 30000 ? previousRaw.slice(0, 30000) : previousRaw;
   return `La respuesta anterior no cumplió estrictamente con el esquema esperado.
 Errores de validación Zod:
 ${zodIssues}
 
 Respuesta anterior recibida:
 """
-${previousRaw.slice(0, 4000)}
+${safeRaw}
 """
 
 Corrige los campos señalados y devuelve ÚNICAMENTE un objeto JSON válido conforme al esquema requerido.`;
