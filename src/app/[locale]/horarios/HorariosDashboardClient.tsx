@@ -244,6 +244,46 @@ export default function HorariosDashboardClient({
     }
   };
 
+  const handleReiniciarProgramaHorario = async () => {
+    const primerAviso = confirm(
+      '⚠️ ¿Estás SEGURO de reiniciar completamente el programa de horario?\n\nEsta acción borrará el horario generado, todas las cargas docentes y todos los grupos asignados.'
+    );
+    if (!primerAviso) return;
+
+    const segundoAviso = confirm(
+      '🚨 CONFIRMACIÓN DEFINITIVA:\n\nSe eliminarán de forma irreversible el horario, las cargas horarias y los grupos del plantel.\n\n¿Deseas continuar?'
+    );
+    if (!segundoAviso) return;
+
+    setLoading(true);
+    try {
+      // 1. Borrar configuración (cargas y grupos)
+      const resConfig = await fetch('/api/horarios/configuracion', { method: 'DELETE' });
+      // 2. Borrar horario generado
+      const resGenerar = await fetch(`/api/horarios/generar?escuelaId=${teacherId}`, { method: 'DELETE' });
+
+      if (resConfig.ok && resGenerar.ok) {
+        toast.success('Programa de horario reiniciado completamente.');
+        try {
+          localStorage.removeItem(`horarios_paso_${teacherId}`);
+          localStorage.removeItem(`horarios_wizard_v4_${teacherId}`);
+        } catch {}
+        setHorario(null);
+        setGrupos([]);
+        setCargas([]);
+        setModo('WIZARD');
+        setPasoActual(1);
+        await cargarDatos();
+      } else {
+        toast.error('Ocurrió un error al reiniciar el programa de horario.');
+      }
+    } catch {
+      toast.error('Error de conexión al reiniciar el programa de horario.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // ── Pantalla de acceso restringido ─────────────────────────────────
   if (!isDirector) {
     return (
@@ -316,6 +356,18 @@ export default function HorariosDashboardClient({
             }}
           >
             🔄 Reiniciar Configuración
+          </button>
+
+          <button
+            onClick={handleReiniciarProgramaHorario}
+            style={{
+              background: 'rgba(239, 68, 68, 0.22)', color: '#fca5a5', border: '1px solid rgba(239, 68, 68, 0.45)',
+              padding: '0.45rem 0.85rem', borderRadius: '8px', fontWeight: 800, fontSize: '0.78125rem',
+              cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+            }}
+            title="Borra horario generado, cargas docentes y grupos (mantiene mapa curricular)"
+          >
+            ⚠️ Reiniciar programa de horario
           </button>
 
           {horario && (
