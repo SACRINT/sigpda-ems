@@ -1848,11 +1848,17 @@ interface EditablePlanElement {
     } else if (activeStep === 4) {
       if (!diagnosticoGenerado) {
         setError('Debes generar el diagnóstico oficial antes de continuar.');
+        if (typeof window !== 'undefined') {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
         return;
       }
       const numMetasInst = planAccion?.metas_institucionales?.length || 0;
       if (numMetasInst === 0) {
         setError('Debes generar o adaptar al menos una meta institucional en el plan de acción antes de continuar.');
+        if (typeof window !== 'undefined') {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
         return;
       }
 
