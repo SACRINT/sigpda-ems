@@ -20,7 +20,7 @@ import {
   extractPmcPreviousWithPartitioning,
 } from '@/lib/pmc/pmc-partitioner';
 import { calculatePmcCoverage } from '@/lib/pmc/plan-element-normalizer';
-import type { PmcPlanElement } from '@/lib/prompts/pmc-extraction';
+import { type PmcPlanElement, PmcPreviousExtractSchema } from '@/lib/prompts/pmc-extraction';
 
 // Mock de ai-provider para pruebas controladas de rotación y llamadas a la IA
 vi.mock('@/lib/ai-provider', () => ({
@@ -339,5 +339,35 @@ ${Array.from({ length: 20 }, (_, i) => `| ${i + 1} | Desarrollo académico | Act
     expect(result.success).toBe(true);
     // H-295: Con gap-fill deben sumarse los 10 iniciales + 10 del gap = 20
     expect(result.data.elementos_plan?.length).toBe(20);
+  });
+
+  it('7. Escala 15-15-15 (H-297): soporta plantilla de 45 docentes en staffData y participantes sin error de cap (hasta 60)', () => {
+    const fortyFiveTeachers = Array.from({ length: 45 }, (_, i) => ({
+      nombre: `Docente Número ${i + 1}`,
+      cargo: 'Docente de grupo',
+      meta_individual: `Meta individual ${i + 1}`,
+      metas_individuales: [],
+    }));
+
+    const fortyFiveParticipantes = Array.from({ length: 45 }, (_, i) => ({
+      nombre: `Docente Número ${i + 1}`,
+      cargo: 'Docente de grupo',
+      firma: '',
+    }));
+
+    const validData = {
+      schoolName: 'PLANTEL GRANDE 15-15-15',
+      staffData: fortyFiveTeachers,
+      participantes: fortyFiveParticipantes,
+      elementos_plan: [],
+      metas_institucionales_previas: [],
+    };
+
+    const parsed = PmcPreviousExtractSchema.safeParse(validData);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.staffData?.length).toBe(45);
+      expect(parsed.data.participantes?.length).toBe(45);
+    }
   });
 });

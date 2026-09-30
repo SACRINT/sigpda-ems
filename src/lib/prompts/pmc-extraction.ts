@@ -21,7 +21,7 @@ export const PmcPreviousExtractSchema = z.object({
     nombre: nullableString(),
     cargo: nullableString(),
     firma: nullableString(),
-  })).max(40).optional().default([]),
+  })).max(60).optional().default([]),
   staffData: z.array(z.object({
     nombre: nullableString(),
     cargo: nullableString('Docente'),
@@ -34,7 +34,7 @@ export const PmcPreviousExtractSchema = z.object({
       entregable: nullableString(),
       periodo: nullableString(),
     })).optional().default([]),
-  })).max(40).optional().default([]),
+  })).max(60).optional().default([]),
   metas_institucionales_previas: z.array(z.object({
     categoria: nullableString(),
     tema: nullableString(),
