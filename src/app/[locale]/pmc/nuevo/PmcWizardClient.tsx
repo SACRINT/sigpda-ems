@@ -13,7 +13,11 @@ import {
 import { toRealNumber } from '@/lib/numeric-guard';
 import { computeCoverage } from '@/lib/coverage-core';
 import { reconcilePmcStaff, derivePersonalMetasFromStaff, normalizeStaffName } from '@/lib/pmc/staff-reconciler';
-import { deduplicateMetasInstitucionales } from '@/lib/pmc-meta-deduplicator';
+import {
+  deduplicateMetasInstitucionales,
+  computeMetaSimilarity,
+  normalizeMetaText,
+} from '@/lib/pmc-meta-deduplicator';
 import {
   mergePaecIntoDiagnostic,
   preservePaecOnPmcLoad,
@@ -156,6 +160,57 @@ interface MetaInstitucional {
   continuidad_de?: string; // H-052: Enlace estructural para rastrear meta previa adaptada
 }
 
+/**
+ * Sintetiza una estrategia situada en 3 etapas conforme a lineamientos oficiales DBEPA / MCCEMS
+ * cuando una meta previa carece de estrategia explícita en el documento de origen.
+ */
+export function generarEstrategiaSituada(categoria?: string, meta?: string): string {
+  const normCat = normalizeMetaText(categoria || '');
+  const normMeta = normalizeMetaText(meta || '');
+
+  if (
+    normCat.includes('socioemocional') ||
+    normMeta.includes('socioemocional') ||
+    normMeta.includes('ballet') ||
+    normMeta.includes('verde') ||
+    normMeta.includes('bienestar') ||
+    normMeta.includes('violencia') ||
+    normMeta.includes('salud')
+  ) {
+    return '1. Diagnóstico participativo y calendarización de actividades formativas y socioemocionales. 2. Operación continua de talleres, dinámicas de convivencia y círculos de apoyo. 3. Evaluación de impacto y recopilación de memorias gráficas y listas de asistencia.';
+  }
+  if (
+    normCat.includes('gestion') ||
+    normMeta.includes('convenio') ||
+    normMeta.includes('patrulla') ||
+    normMeta.includes('egresad') ||
+    normMeta.includes('desempeno') ||
+    normMeta.includes('observar')
+  ) {
+    return '1. Formalización de acuerdos, convenios e instrumentos de gestión institucional. 2. Acompañamiento, visitas programadas y seguimiento periódico de compromisos. 3. Sistematización de evidencias, oficios firmados y reporte al Consejo Técnico.';
+  }
+  if (
+    normMeta.includes('electrica') ||
+    normMeta.includes('bano') ||
+    normMeta.includes('alumbrado') ||
+    normCat.includes('infraestructura')
+  ) {
+    return '1. Cuantificación técnica de requerimientos y presupuesto participativo. 2. Adquisición supervisada de materiales y ejecución colaborativa de trabajos técnicos. 3. Verificación de funcionalidad operativa y acta de entrega-recepción.';
+  }
+  if (
+    normCat.includes('academico') ||
+    normMeta.includes('reprobacion') ||
+    normMeta.includes('aprobacion') ||
+    normMeta.includes('curso') ||
+    normMeta.includes('cosfac') ||
+    normMeta.includes('lecto') ||
+    normMeta.includes('planea')
+  ) {
+    return '1. Aplicación de diagnóstico inicial e identificación de necesidades académicas formativas. 2. Sesiones programadas de asesoría, regularización y módulos de estudio continuo. 3. Evaluación periódica de avances y concentrado estadístico de resultados.';
+  }
+  return '1. Planeación situada y acuerdos formales con la comunidad escolar. 2. Implementación continua de acciones formativas con acompañamiento pedagógico. 3. Evaluación de entregables y recopilación de evidencias comprobables.';
+}
+
 export function isPreviousMetaAdapted(
   mp: { meta?: string; texto_original?: string },
   metasInstitucionales?: Array<{ meta: string; continuidad_de?: string }>,
@@ -164,6 +219,8 @@ export function isPreviousMetaAdapted(
   if (!metasInstitucionales || metasInstitucionales.length === 0) return false;
   const mpKey = mp.meta ? mp.meta.trim().toLowerCase() : (index !== undefined ? `meta_previa_${index}` : '');
   const origKey = mp.texto_original ? mp.texto_original.trim().toLowerCase() : '';
+  const normMp = normalizeMetaText(mp.meta || mp.texto_original || '');
+
   return metasInstitucionales.some((m) => {
     const contDe = m.continuidad_de ? m.continuidad_de.trim().toLowerCase() : '';
     if (contDe) {
@@ -179,6 +236,13 @@ export function isPreviousMetaAdapted(
     if (origKey && m.meta.trim().toLowerCase() === origKey) {
       return true;
     }
+    // H-283 / H-289: Coincidencia semántica con deduplicateMetasInstitucionales para evitar botones inactivos
+    if (normMp) {
+      const normM = normalizeMetaText(m.meta);
+      if (normM === normMp || computeMetaSimilarity(m.meta, mp.meta || mp.texto_original) >= 0.60) {
+        return true;
+      }
+    }
     return false;
   });
 }
@@ -188,6 +252,8 @@ export interface IngestCoverageData {
   extraidos: number;
   parcial: boolean;
   indeterminada?: boolean;
+  ratio?: number;
+  esperado?: number;
   detalles?: {
     metas: { detectados: number | null; extraidos: number; parcial: boolean };
     actividades: { detectados: number | null; extraidos: number; parcial: boolean };
@@ -684,18 +750,9 @@ interface EditablePlanElement {
   const [f11Warnings, setF11Warnings] = useState<string[]>(
     ((existingProject?.indicadores_academicos as unknown as { f11_warnings?: string[] } | undefined)?.f11_warnings) || []
   );
-  const [ingestCoverage, setIngestCoverage] = useState<{
-    detectados: number | null;
-    extraidos: number;
-    parcial: boolean;
-    indeterminada?: boolean;
-    detalles?: {
-      metas: { detectados: number | null; extraidos: number; parcial: boolean };
-      actividades: { detectados: number | null; extraidos: number; parcial: boolean };
-    };
-  } | null>(
+  const [ingestCoverage, setIngestCoverage] = useState<IngestCoverageData | null>(
     // H-238: ingest_coverage persists inside indicadores_academicos (no DB migration needed)
-    ((existingProject?.indicadores_academicos as unknown as { ingest_coverage?: { detectados: number | null; extraidos: number; parcial: boolean } } | undefined)?.ingest_coverage) || null
+    ((existingProject?.indicadores_academicos as unknown as { ingest_coverage?: IngestCoverageData } | undefined)?.ingest_coverage) || null
   );
   const [showPmcReviewModal, setShowPmcReviewModal] = useState(false);
 
@@ -3501,13 +3558,27 @@ interface EditablePlanElement {
                 </p>
               )}
               {ingestCoverage?.parcial && (
-                <div style={{ fontSize: '12px', color: '#f87171', background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)', padding: '10px 14px', borderRadius: '8px', marginBottom: '12px' }}>
+                <div style={{
+                  fontSize: '12px',
+                  color: ingestCoverage.extraidos >= (ingestCoverage.detectados || 0) ? '#6ee7b7' : '#f87171',
+                  background: ingestCoverage.extraidos >= (ingestCoverage.detectados || 0) ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.12)',
+                  border: ingestCoverage.extraidos >= (ingestCoverage.detectados || 0) ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(239,68,68,0.25)',
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  marginBottom: '12px',
+                }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                    <span>⚠️</span>
-                    <strong>Extracción parcial del PMC anterior ({ingestCoverage.extraidos}/{ingestCoverage.detectados || '?'})</strong>
+                    <span>{ingestCoverage.extraidos >= (ingestCoverage.detectados || 0) ? '✅' : '⚠️'}</span>
+                    <strong>
+                      {ingestCoverage.extraidos >= (ingestCoverage.detectados || 0)
+                        ? `Metas extraídas del PMC anterior (${ingestCoverage.extraidos} metas estructuradas)`
+                        : `Extracción parcial del PMC anterior (${ingestCoverage.extraidos}/${ingestCoverage.detectados || '?'})`}
+                    </strong>
                   </div>
                   <p style={{ margin: '0 0 8px', color: 'rgba(240,244,255,0.85)', lineHeight: 1.5 }}>
-                    El PMC anterior cargado tiene cobertura de extracción parcial (&lt;90%). Puedes continuar usando las metas extraídas actualmente autorizando la generación.
+                    {ingestCoverage.extraidos >= (ingestCoverage.detectados || 0)
+                      ? `Se consolidaron exitosamente ${ingestCoverage.extraidos} metas (incluyendo las metas individuales de la plantilla docente). Cobertura total de actividades: ${Math.round((ingestCoverage.ratio || 0) * 100)}% (${ingestCoverage.extraidos}/${ingestCoverage.esperado || ingestCoverage.detectados}).`
+                      : 'El PMC anterior cargado tiene cobertura de extracción parcial (<90%). Puedes continuar usando las metas extraídas actualmente autorizando la generación.'}
                   </p>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#fcd34d', fontWeight: 600, fontSize: '12px' }}>
                     <input
@@ -3516,7 +3587,7 @@ interface EditablePlanElement {
                       onChange={(e) => setAllowPartialGeneration(e.target.checked)}
                       style={{ cursor: 'pointer', accentColor: '#f59e0b' }}
                     />
-                    <span>Autorizar generación con cobertura parcial reconocida ({ingestCoverage.extraidos}/{ingestCoverage.detectados || '?'} metas)</span>
+                    <span>Autorizar generación con las metas extraídas ({ingestCoverage.extraidos} metas listas)</span>
                   </label>
                 </div>
               )}
@@ -3643,12 +3714,13 @@ interface EditablePlanElement {
                             onClick={() => {
                               if (isAlreadyAdded) return;
                               const cat = mp.categoria || PMC_CATEGORIAS_OFICIALES[0].nombre;
+                              const estrategiaSintetizada = mp.estrategia?.trim() || generarEstrategiaSituada(cat, mp.meta);
                               const adaptedMeta: MetaInstitucional = {
                                 categoria: cat,
                                 nombre_categoria: cat,
                                 tema: mp.tema || 'Mejora continua',
                                 meta: mp.meta ? `[Continuidad 2026-2027] ${mp.meta}` : '',
-                                estrategia: mp.estrategia || '',
+                                estrategia: estrategiaSintetizada,
                                 linea_base: mp.linea_base || '',
                                 personal_designado: mp.responsable || '',
                                 entregable: mp.entregable || 'Reporte de seguimiento',
@@ -3660,14 +3732,24 @@ interface EditablePlanElement {
                               const currentPersonal = (planAccion?.metas_personales && planAccion.metas_personales.length > 0)
                                 ? planAccion.metas_personales
                                 : derivePersonalMetasFromStaff(staffData, cicloEscolar);
-                              setPlanAccion(prev => ({
-                                metas_institucionales: deduplicateMetasInstitucionales(
-                                  [...(prev?.metas_institucionales || []), adaptedMeta],
-                                  indicadores
-                                ),
+                              const nextInstitucionales = deduplicateMetasInstitucionales(
+                                [...(planAccion?.metas_institucionales || []), adaptedMeta],
+                                indicadores
+                              );
+                              const nextPlan: PlanAccion = {
+                                metas_institucionales: nextInstitucionales,
                                 metas_personales: currentPersonal,
-                              }));
-                              setEditingMeta(planAccion?.metas_institucionales?.length || 0);
+                              };
+                              setPlanAccion(nextPlan);
+                              setEditingMeta(Math.max(0, nextInstitucionales.length - 1));
+                              // H-286: Auto-persistir en Neon DB para que un F5 no pierda la meta adaptada
+                              if (projectId) {
+                                fetch(`/api/pmc/${projectId}`, {
+                                  method: 'PUT',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ plan_accion: nextPlan }),
+                                }).catch(() => {});
+                              }
                             }}
                             style={{
                               padding: '6px 10px',
@@ -4456,20 +4538,32 @@ interface EditablePlanElement {
               {/* Banner Ámbar de Cobertura Parcial (H-178 / H-182) */}
               {ingestCoverage && ingestCoverage.parcial && (
                 <div style={{
-                  background: 'rgba(245, 158, 11, 0.12)',
-                  border: '1px solid rgba(245, 158, 11, 0.35)',
+                  background: ingestCoverage.extraidos >= (ingestCoverage.detectados || 0)
+                    ? 'rgba(16, 185, 129, 0.08)'
+                    : 'rgba(245, 158, 11, 0.12)',
+                  border: ingestCoverage.extraidos >= (ingestCoverage.detectados || 0)
+                    ? '1px solid rgba(16, 185, 129, 0.35)'
+                    : '1px solid rgba(245, 158, 11, 0.35)',
                   borderRadius: '8px',
                   padding: '10px 14px',
                   marginBottom: '14px',
-                  color: '#fbbf24',
+                  color: ingestCoverage.extraidos >= (ingestCoverage.detectados || 0) ? '#6ee7b7' : '#fbbf24',
                   fontSize: '12px',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
                 }}>
-                  <span style={{ fontSize: '16px' }}>⚠️</span>
+                  <span style={{ fontSize: '16px' }}>{ingestCoverage.extraidos >= (ingestCoverage.detectados || 0) ? '✅' : '⚠️'}</span>
                   <span>
-                    <strong>Extracción parcial:</strong> se detectaron {ingestCoverage.detectados} metas y se extrajeron {ingestCoverage.extraidos}. Revisa el documento.
+                    {ingestCoverage.extraidos >= (ingestCoverage.detectados || 0) ? (
+                      <>
+                        <strong>Extracción completa de metas:</strong> se extrajeron {ingestCoverage.extraidos} metas estructuradas (superando las {ingestCoverage.detectados} estimadas en el texto).
+                      </>
+                    ) : (
+                      <>
+                        <strong>Extracción parcial:</strong> se detectaron {ingestCoverage.detectados} metas y se extrajeron {ingestCoverage.extraidos}. Revisa el documento.
+                      </>
+                    )}
                   </span>
                 </div>
               )}
