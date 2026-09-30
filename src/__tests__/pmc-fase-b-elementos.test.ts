@@ -139,6 +139,30 @@ describe('FASE B — Extractor semántico por contenido e invariantes de datos',
       expect(validation.ok).toBe(true);
       expect(validation.faltantes).toHaveLength(0);
     });
+
+    it('tolera índices de lista numéricos (1., 1.-, 1)) sin generar falsos positivos de invariantes', () => {
+      const original = '1. *Fotografías del concentrado de Calificaciones.';
+      const normalizado = '*Fotografías del concentrado de Calificaciones.';
+
+      const validation = validateNormalizedText(original, normalizado);
+      expect(validation.ok).toBe(true);
+      expect(validation.faltantes).toHaveLength(0);
+    });
+
+    it('tolera prefijos de etiqueta ("Meta 1:", "Actividad 2.") preservando métricas cuantitativas reales', () => {
+      const original = 'Meta 1: Aumentar 5 puntos en la prueba PLANEA';
+      const normalizado = 'Aumentar 5 puntos en el nivel bueno en la prueba PLANEA';
+
+      const validation = validateNormalizedText(original, normalizado);
+      expect(validation.ok).toBe(true);
+      expect(validation.faltantes).toHaveLength(0);
+
+      // Si la métrica real (5) se omite, sí debe rechazarlo
+      const badNorm = 'Aumentar en el nivel bueno en la prueba PLANEA';
+      const badValidation = validateNormalizedText(original, badNorm);
+      expect(badValidation.ok).toBe(false);
+      expect(badValidation.faltantes).toContain('5');
+    });
   });
 
   // ── TEST (iii): Derivación de elementos_plan a metas_institucionales_previas
@@ -476,6 +500,18 @@ describe('FASE B — Extractor semántico por contenido e invariantes de datos',
       expect(coverage.indeterminada).toBe(true);
       expect(coverage.detectados).toBeNull();
       expect(coverage.extraidos).toBe(8);
+    });
+
+    it('calcula cobertura consistente cuando deterministicExpected está presente (28 extraídos de 22 previstos)', () => {
+      // 11 metas, 28 elementos totales (11 metas + 14 actividades + 3 evidencias), 22 esperados
+      const coverage = calculatePmcCoverage(undefined, 11, 28, 22);
+
+      expect(coverage.parcial).toBe(false);
+      expect(coverage.esperado).toBe(22);
+      expect(coverage.extraidos).toBe(28);
+      expect(coverage.ratio).toBe(1.27);
+      expect(coverage.detalles?.metas.extraidos).toBe(11);
+      expect(coverage.detalles?.actividades.extraidos).toBe(28);
     });
   });
 });

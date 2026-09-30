@@ -490,7 +490,7 @@ export class PmcOrchestrator implements IPmcOrchestrator {
         const coverage = calculatePmcCoverage(
           parsed.data.totales_detectados,
           normalizedMetasPrevias.length,
-          actividadesExtraidas,
+          totalExtraidos,
           extractionResult.expectedActivities
         );
 

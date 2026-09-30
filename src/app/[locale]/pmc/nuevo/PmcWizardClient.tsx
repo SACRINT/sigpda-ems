@@ -2228,7 +2228,7 @@ interface EditablePlanElement {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span>📜</span>
                   <span>
-                    <strong>PMC anterior cargado:</strong> {ingestCoverage?.extraidos ?? parsedPmcData?.metas_institucionales_previas?.length ?? 0} metas listas
+                    <strong>PMC anterior cargado:</strong> {parsedPmcData?.metas_institucionales_previas?.length ?? ingestCoverage?.detalles?.metas?.extraidos ?? 0} metas institucionales ({parsedPmcData?.elementos_plan?.length ?? ingestCoverage?.extraidos ?? 0} elementos listos)
                     {ingestCoverage?.parcial && ingestCoverage.extraidos < (ingestCoverage.detectados || 0) && (
                       <span style={{ color: '#fbbf24', marginLeft: '6px' }}>— Cobertura parcial ({ingestCoverage.extraidos}/{ingestCoverage.detectados})</span>
                     )}
@@ -3717,7 +3717,7 @@ interface EditablePlanElement {
                       onChange={(e) => setAllowPartialGeneration(e.target.checked)}
                       style={{ cursor: 'pointer', accentColor: '#f59e0b' }}
                     />
-                    <span>Autorizar generación con las metas extraídas ({ingestCoverage.extraidos} metas listas)</span>
+                    <span>Autorizar generación con las metas extraídas ({parsedPmcData?.metas_institucionales_previas?.length ?? ingestCoverage?.detalles?.metas?.extraidos ?? ingestCoverage.extraidos} metas listas)</span>
                   </label>
                 </div>
               )}
@@ -4683,8 +4683,15 @@ interface EditablePlanElement {
                 const isParcialMetas = Boolean(ingestCoverage.detalles?.metas?.parcial);
                 const isComplete = !ingestCoverage.parcial && ratio >= 0.9 && !isParcialMetas;
                 const totalEsperado = ingestCoverage.esperado ?? ingestCoverage.detectados ?? ingestCoverage.extraidos;
-                const totalExtraidos = ingestCoverage.extraidos;
+                const totalExtraidos = editableElementosPlan.length > 0 ? editableElementosPlan.length : ingestCoverage.extraidos;
                 const faltantes = Math.max(0, totalEsperado - totalExtraidos);
+
+                const metasCount = editableElementosPlan.filter(e => e.tipo === 'meta').length;
+                const actCount = editableElementosPlan.filter(e => e.tipo === 'actividad').length;
+                const otrosCount = editableElementosPlan.length - metasCount - actCount;
+                const desgloseText = editableElementosPlan.length > 0
+                  ? ` (${metasCount} metas, ${actCount} actividades${otrosCount > 0 ? `, ${otrosCount} complementarios` : ''})`
+                  : '';
 
                 if (isComplete) {
                   return (
@@ -4702,7 +4709,7 @@ interface EditablePlanElement {
                     }}>
                       <span style={{ fontSize: '16px' }}>✅</span>
                       <span>
-                        <strong>Extracción completa:</strong> se estructuraron satisfactoriamente {totalExtraidos}/{totalEsperado} elementos ({Math.round(ratio * 100)}%).
+                        <strong>Extracción completa:</strong> se estructuraron satisfactoriamente {totalExtraidos} elementos{desgloseText} de {totalEsperado} previstos en el documento ({Math.round(ratio * 100)}%).
                       </span>
                     </div>
                   );
@@ -4724,7 +4731,7 @@ interface EditablePlanElement {
                     }}>
                       <span style={{ fontSize: '16px' }}>⚠️</span>
                       <span>
-                        <strong>Extracción parcial ({Math.round(ratio * 100)}%):</strong> se extrajeron {totalExtraidos} de {totalEsperado} elementos detectados (faltan {faltantes} por estructurar). Puedes revisar y editar los elementos en la tabla inferior antes de continuar.
+                        <strong>Extracción parcial ({Math.round(ratio * 100)}%):</strong> se extrajeron {totalExtraidos} elementos{desgloseText} de {totalEsperado} previstos (faltan {faltantes} por estructurar). Puedes revisar y editar los elementos en la tabla inferior antes de continuar.
                       </span>
                     </div>
                   );

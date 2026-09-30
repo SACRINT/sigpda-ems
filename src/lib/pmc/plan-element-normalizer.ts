@@ -88,6 +88,26 @@ export function calculateWordOverlap(textA: string, textB: string): number {
 }
 
 /**
+ * Elimina etiquetas estructurales o de índice de lista (ej. "Meta 1:", "Actividad 2.",
+ * "1.", "1.-", "1)", "(1)", "No. 1") al inicio del texto o de líneas para que los números
+ * de índice de filas o viñetas no se confundan con cifras o métricas cuantitativas institucionales (B-001).
+ */
+export function stripStructuralIndexPrefixes(text: string): string {
+  if (!text) return '';
+  // 1. Prefijos de tipo y número al inicio de línea: "Meta 1:", "Actividad 2 -", "Evidencia 1.", etc.
+  const withoutLabeledPrefix = text.replace(
+    /(?:^|[\r\n]+)\s*(?:[*•\-–—]\s*)?(?:meta|actividad|estrategia|acción|accion|objetivo|indicador|evidencia|recurso|tarea|compromiso|no\.?|n°|núm\.?|num\.?|número|numero)\s*#?\s*\d+(?:\.\d+)*\s*[\.:\-\)–—]?\s*/gi,
+    (m) => (m.includes('\n') ? '\n' : ' ')
+  );
+
+  // 2. Prefijos de enumeración de listas numéricas al inicio de línea: "1. ", "1.- ", "1) ", "(1) ", "1.1. "
+  return withoutLabeledPrefix.replace(
+    /(?:^|[\r\n]+)\s*(?:[*•\-–—]\s*)?(?:\(?\d+(?:\.\d+)*[\.\)]|\d+(?:\.\d+)*\.-|\d+[\-–—])\s+/g,
+    (m) => (m.includes('\n') ? '\n' : ' ')
+  );
+}
+
+/**
  * Invariante numérico: valida que todos los números y porcentajes del texto original
  * estén presentes en el texto normalizado.
  *
@@ -100,7 +120,10 @@ export function validateNormalizedText(original: string, normalizado: string): N
     return { ok: true, faltantes: [] };
   }
 
-  const originalTokens = extractNumericTokens(original);
+  const cleanOriginal = stripStructuralIndexPrefixes(original);
+  const cleanNormalizado = stripStructuralIndexPrefixes(normalizado);
+
+  const originalTokens = extractNumericTokens(cleanOriginal);
   if (originalTokens.length === 0) {
     return { ok: true, faltantes: [] };
   }
@@ -109,7 +132,7 @@ export function validateNormalizedText(original: string, normalizado: string): N
     return { ok: false, faltantes: originalTokens };
   }
 
-  const normalizedTokens = extractNumericTokens(normalizado);
+  const normalizedTokens = extractNumericTokens(cleanNormalizado);
   const normCounts = new Map<string, number>();
 
   for (const tok of normalizedTokens) {
@@ -211,11 +234,11 @@ export function deriveMetasPreviasFromElementos(
 
     // Paso 2: Coincidencia por categoría + tema + identidad de cifras numéricas clave
     if (!matchedItem && catKey && temaKey) {
-      const mNums = extractNumericTokens(m.texto_original || m.texto_normalizado || '');
+      const mNums = extractNumericTokens(stripStructuralIndexPrefixes(m.texto_original || m.texto_normalizado || ''));
       matchedItem = availableExisting.find((item) => {
         if (usedExistingIndices.has(item.index)) return false;
         if (item.catNorm !== catKey || item.temaNorm !== temaKey) return false;
-        const itemNums = extractNumericTokens(item.em.meta || item.em.texto_original || '');
+        const itemNums = extractNumericTokens(stripStructuralIndexPrefixes(item.em.meta || item.em.texto_original || ''));
         if (mNums.length > 0 && itemNums.length > 0) {
           return mNums.every((n) => itemNums.includes(n));
         }
@@ -305,8 +328,9 @@ export function calculatePmcCoverage(
   let parcial = parcialMetas || parcialActividades;
   let ratio: number | undefined;
 
+  const totalExtraidos = Math.max(metasExtraidasCount, actividadesExtraidasCount);
+
   if (typeof deterministicExpected === 'number' && deterministicExpected > 0) {
-    const totalExtraidos = Math.max(metasExtraidasCount, actividadesExtraidasCount);
     ratio = Math.round((totalExtraidos / deterministicExpected) * 100) / 100;
     if (ratio < 0.9) {
       parcial = true;
@@ -320,7 +344,7 @@ export function calculatePmcCoverage(
 
   return {
     detectados: detectadosMetas ?? (deterministicExpected ?? null),
-    extraidos: metasExtraidasCount,
+    extraidos: deterministicExpected ? totalExtraidos : metasExtraidasCount,
     parcial,
     indeterminada,
     ratio,
