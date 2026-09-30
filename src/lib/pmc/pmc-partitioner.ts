@@ -201,7 +201,7 @@ export async function extractPmcPreviousWithPartitioning(options: {
   const warnings: string[] = [];
   const expectedActivities = countDeterministicExpectedActivities(documentText);
 
-  // Decisión de particionado: si supera 40,000 chars o si tiene más de 35 actividades esperadas
+  // Decisión de particionado temprano: si supera 40,000 chars
   const shouldPartitionEarly = documentText.length > 40000;
   const chunks = shouldPartitionEarly
     ? partitionMarkdownDocument(documentText, 15000, 25000)
@@ -291,12 +291,14 @@ export async function extractPmcPreviousWithPartitioning(options: {
       );
 
       if (subChunks.length > 1) {
-        const accumulatedElementos: PmcPlanElement[] = [...(combinedData.elementos_plan || [])];
+        const accumulatedElementos: PmcPlanElement[] = [];
         const accumulatedMetas = [
           ...(combinedData.metas_institucionales_previas || []),
         ];
+        const accumulatedStaff = [...(combinedData.staffData || [])];
+        const accumulatedParticipantes = [...(combinedData.participantes || [])];
 
-        for (let i = 1; i < subChunks.length; i++) {
+        for (let i = 0; i < subChunks.length; i++) {
           if (Date.now() >= deadline - 5000) {
             warnings.push('Tiempo límite aproximándose: se detuvo el particionado secuencial.');
             break;
@@ -311,11 +313,11 @@ export async function extractPmcPreviousWithPartitioning(options: {
               if (subRes.parsed.data.metas_institucionales_previas) {
                 accumulatedMetas.push(...subRes.parsed.data.metas_institucionales_previas);
               }
-              if (subRes.parsed.data.staffData && combinedData.staffData) {
-                combinedData.staffData.push(...subRes.parsed.data.staffData);
+              if (subRes.parsed.data.staffData) {
+                accumulatedStaff.push(...subRes.parsed.data.staffData);
               }
-              if (subRes.parsed.data.participantes && combinedData.participantes) {
-                combinedData.participantes.push(...subRes.parsed.data.participantes);
+              if (subRes.parsed.data.participantes) {
+                accumulatedParticipantes.push(...subRes.parsed.data.participantes);
               }
             }
           } catch (chunkErr: unknown) {
@@ -325,6 +327,8 @@ export async function extractPmcPreviousWithPartitioning(options: {
 
         combinedData.elementos_plan = deduplicatePlanElements(accumulatedElementos);
         combinedData.metas_institucionales_previas = deduplicateMetasPrevias(accumulatedMetas);
+        combinedData.staffData = accumulatedStaff;
+        combinedData.participantes = accumulatedParticipantes;
       }
     }
   } else {
