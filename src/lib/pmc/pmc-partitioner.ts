@@ -272,14 +272,24 @@ export async function extractPmcPreviousWithPartitioning(options: {
 
     // Si la 1ª pasada truncó o la cobertura es < 0.9 y hay más de 15 actividades esperadas, reintentar particionando
     if ((isTruncated || ratio < 0.9) && expectedActivities >= 15 && documentText.length > 20000) {
+      // H-284: Evitar zona muerta entre 20k y 24k chars usando ventanas menores (8k-16k)
+      const targetMaxChunk = Math.min(16000, Math.max(10000, Math.floor(documentText.length / 2) + 500));
+      const targetMinChunk = Math.min(8000, Math.floor(targetMaxChunk * 0.7));
+      let subChunks = partitionMarkdownDocument(documentText, targetMinChunk, targetMaxChunk);
+      if (subChunks.length <= 1 && documentText.length > 10000) {
+        const midPoint = Math.floor(documentText.length / 2);
+        const splitIdx = documentText.indexOf('\n\n', midPoint);
+        const cut = splitIdx !== -1 && splitIdx < midPoint + 2000 ? splitIdx : midPoint;
+        subChunks = [documentText.slice(0, cut), documentText.slice(cut)];
+      }
+
       logger.info(
-        `[${contextName}] ⚠️ Cobertura insuficiente (${extraidos}/${expectedActivities}, ratio=${ratio.toFixed(2)}) o truncado=${isTruncated}. Activando particionado estructural en trozos de 15-25k chars.`
+        `[${contextName}] ⚠️ Cobertura insuficiente (${extraidos}/${expectedActivities}, ratio=${ratio.toFixed(2)}) o truncado=${isTruncated}. Activando particionado estructural en ${subChunks.length} trozos.`
       );
       warnings.push(
         `Activado particionado estructural por truncamiento o cobertura preliminar ${extraidos}/${expectedActivities}.`
       );
 
-      const subChunks = partitionMarkdownDocument(documentText, 14000, 24000);
       if (subChunks.length > 1) {
         const accumulatedElementos: PmcPlanElement[] = [...(combinedData.elementos_plan || [])];
         const accumulatedMetas = [
