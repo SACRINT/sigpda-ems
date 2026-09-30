@@ -20,17 +20,72 @@ import { withTimeoutBudget, correctiveRetry } from '@/lib/ai-resilience';
 import { logger } from '@/lib/logger';
 
 /**
- * Cuenta filas de datos reales de tablas markdown desde el último bloque de 'PLAN DE ACCIÓN' (H-293).
+ * Localiza la sección acotada del Plan de Acción en el documento,
+ * excluyendo el índice inicial (TOC) y la sección final de firmas / aprobación (H-298).
+ */
+export function findPlanActionSection(documentText: string): { planText: string; startIndex: number; endIndex: number } {
+  if (!documentText) return { planText: '', startIndex: -1, endIndex: -1 };
+
+  // 1. Encontrar todos los candidatos que contengan PLAN DE ACCIÓN
+  const regex = /(?:^|\n)[*_#\s]*(?:\d+[\.\)\-]\s*)?PLAN\s+DE\s+ACCI[ÓO]N\b/gi;
+  const matches = [...documentText.matchAll(regex)];
+
+  let startIdx = -1;
+
+  for (const m of matches) {
+    const idx = m.index ?? -1;
+    if (idx === -1) continue;
+
+    // Obtener la línea completa
+    const lineEnd = documentText.indexOf('\n', idx + 1);
+    const line = documentText.slice(idx, lineEnd !== -1 ? lineEnd : idx + 300);
+
+    // Descartar si es del índice (TOC) con puntos suspensivos o comas de relleno
+    if (/[\.·…]{3,}|,{3,}/.test(line)) continue;
+
+    // Descartar si es "PLAN DE ACCIÓN TUTORIAL"
+    if (/PLAN\s+DE\s+ACCI[ÓO]N\s+TUTORIAL/i.test(line)) continue;
+
+    startIdx = idx;
+    break;
+  }
+
+  if (startIdx === -1) {
+    startIdx = documentText.lastIndexOf('PLAN DE ACCIÓN');
+    if (startIdx === -1) {
+      startIdx = documentText.search(/PLAN\s+DE\s+ACCI[ÓO]N/i);
+    }
+  }
+
+  if (startIdx === -1) {
+    return { planText: documentText, startIndex: 0, endIndex: documentText.length };
+  }
+
+  const textFromPlan = documentText.slice(startIdx);
+
+  // 2. Encontrar fin del plan: tabla de firmas / aprobación / personal participante / anexos
+  const endRegex = /(?:^|\n)[*_#\s]*(?:\d+[\.\)\-]\s*)?(?:APROBACI[ÓO]N\s+DEL\s+PMC|PERSONAL\s+PARTICIPANTE|FIRMAS\s+DE\s+AUTORIZACI[ÓO]N|FIRMAS\s+DE\s+CONFORMIDAD|DIRECTORIO\s+DEL\s+PLANTEL)/i;
+  const endMatch = textFromPlan.search(endRegex);
+
+  const endIndex = endMatch !== -1 ? startIdx + endMatch : documentText.length;
+  return {
+    planText: documentText.slice(startIdx, endIndex),
+    startIndex: startIdx,
+    endIndex,
+  };
+}
+
+/**
+ * Cuenta filas de datos reales de tablas markdown dentro de la sección acotada del 'PLAN DE ACCIÓN' (H-293, H-298).
  * Identifica líneas iniciadas y terminadas por '|', excluyendo separadores (|---|) y filas de encabezado.
  */
 export function countPlanTableRows(documentText: string): number {
   if (!documentText) return 0;
 
-  // Localizar la última aparición de PLAN DE ACCIÓN
-  const lastPlanIdx = documentText.search(/(?:6\.\s*)?PLAN\s+DE\s+ACCI[ÓO]N(?![\s\S]*(?:6\.\s*)?PLAN\s+DE\s+ACCI[ÓO]N)/i);
-  const planText = lastPlanIdx !== -1 ? documentText.slice(lastPlanIdx) : documentText;
+  const { planText } = findPlanActionSection(documentText);
+  const textToScan = planText && planText.length > 100 ? planText : documentText;
 
-  const lines = planText.split(/\r?\n/);
+  const lines = textToScan.split(/\r?\n/);
   let dataRowCount = 0;
 
   for (let i = 0; i < lines.length; i++) {
@@ -57,32 +112,45 @@ export function countPlanTableRows(documentText: string): number {
 /**
  * Conteo determinista de actividades/metas esperadas a partir del texto del documento.
  * No depende de totales_detectados de la IA.
- * En documentos con tablas markdown del plan de acción cuenta filas reales; si no, aplica heurístico (H-293).
+ * En documentos con tablas markdown del plan de acción cuenta filas reales; si no, aplica heurístico acotado (H-293, H-298).
  */
 export function countDeterministicExpectedActivities(documentText: string): number {
   if (!documentText) return 0;
 
   // H-293: Conteo de filas reales de tablas markdown en el Plan de Acción
   const planTableRows = countPlanTableRows(documentText);
+  if (planTableRows > 0) {
+    return planTableRows;
+  }
 
-  // 1. Ocurrencias del término 'actividad' en el texto
-  const matchActividad = (documentText.match(/\bactividad(?:es)?\b/gi) || []).length;
+  // Acotar la sección del Plan de Acción excluyendo TOC y firmas finales (H-298)
+  const { planText } = findPlanActionSection(documentText);
+  const textToScan = planText && planText.length > 200 ? planText : documentText;
 
-  // 2. Ocurrencias con dos puntos / formato etiqueta
-  const matchColon = (documentText.match(/actividad(?:es)?\s*[:\(\-]/gi) || []).length;
-
-  // 3. Fila de responsables en la sección del Plan de Acción
-  const planIdx = documentText.lastIndexOf('PLAN DE ACCIÓN');
-  const planText = planIdx !== -1 ? documentText.slice(planIdx) : documentText;
-  const matchResponsables = (
-    planText.match(/(?:ING\.|LIC\.|MTRO\.|MTRA\.|PROFR\.|PROFRA\.|DOCENTE|DIRECTOR)/gi) || []
+  // 1. Conteo determinista por bloques temáticos y ámbitos del plan
+  const matchAmbitos = (
+    textToScan.match(
+      /(?:Ámbito\s*\/\s*Categoría|Tema:|__\*Reprobación|\*Reprobación|REPROBACIÓN|FORMACIÓN Y ACTUALIZACIÓN|Otras [Aa]ctividades)/gi
+    ) || []
   ).length;
 
-  // 4. Conteo heurístico
-  const heuristico = Math.max(matchActividad, matchResponsables, matchColon);
+  // 2. Metas explícitas con etiqueta o numeradas
+  const matchMetaKeywords = (
+    textToScan.match(/(?:^|\n)[*_#\s]*(?:Meta\(s\)|Meta:?)/gi) || []
+  ).length;
 
-  // H-293: Retorna max(filas, heurístico)
-  return Math.max(planTableRows, heuristico);
+  // 3. Actividades con etiqueta o dos puntos
+  const matchColon = (
+    textToScan.match(/(?:^|\n)[*_#\s]*(?:\d+[\.\-]\s*)?Actividad(?:es)?\s*[:\(\-]/gi) || []
+  ).length;
+
+  // 4. Conteo de docentes/responsables asignados a metas en el plan (sin firmas finales)
+  const matchResponsables = (
+    textToScan.match(/(?:ING\.|LIC\.|MTRO\.|MTRA\.|PROFR\.|PROFRA\.)\s+[A-ZÁÉÍÓÚÑ]/gi) || []
+  ).length;
+
+  const heuristico = Math.max(matchAmbitos, matchMetaKeywords + matchColon, matchResponsables);
+  return heuristico > 0 ? heuristico : 1;
 }
 
 /**
@@ -98,13 +166,13 @@ export function checkRawIsTruncated(rawText: string): boolean {
 }
 
 /**
- * Particiona el documento Markdown en trozos de 15,000 a 25,000 caracteres respetando
- * fronteras estructurales (encabezados de sección, nombres de docentes, etiquetas de actividad).
+ * Particiona el documento Markdown respetando fronteras estructurales
+ * (sección de plan de acción, categorías, firmas, encabezados, docentes, actividades).
  */
 export function partitionMarkdownDocument(
   markdown: string,
-  minChunkSize = 14000,
-  maxChunkSize = 24000
+  minChunkSize = 8000,
+  maxChunkSize = 16000
 ): string[] {
   if (!markdown || markdown.length <= maxChunkSize) {
     return [markdown];
@@ -123,8 +191,10 @@ export function partitionMarkdownDocument(
     const windowEnd = Math.min(maxChunkSize, remaining.length);
     const searchWindow = remaining.slice(windowStart, windowEnd);
 
-    // Patrones de corte en orden jerárquico de prioridad estructural
+    // Patrones de corte en orden jerárquico de prioridad estructural (H-298)
     const structuralPatterns = [
+      /\n(?=[*_#\s]*(?:(?:6\.\s*)?PLAN\s+DE\s+ACCI[ÓO]N\b|Categor[íi]a\s*\d+:))/gi,
+      /\n(?=[*_#\s]*(?:APROBACI[ÓO]N\s+DEL\s+PMC|PERSONAL\s+PARTICIPANTE|FIRMAS\s+DE\s+AUTORIZACI[ÓO]N))/gi,
       /\n(?=#+\s)/g,
       /\n(?=__\*(?:Reprobaci[oó]n|Actividades|ACCIÓN))/gi,
       /\n(?=(?:__)?(?:\d+[\.\-]\s*)?Actividad(?:es)?:?)/gi,
@@ -267,10 +337,10 @@ export async function extractPmcPreviousWithPartitioning(options: {
   const warnings: string[] = [];
   const expectedActivities = countDeterministicExpectedActivities(documentText);
 
-  // Decisión de particionado temprano: si supera 40,000 chars
-  const shouldPartitionEarly = documentText.length > 40000;
+  // Decisión de particionado temprano: si supera 20,000 chars o tiene >= 15 actividades esperadas (H-298)
+  const shouldPartitionEarly = documentText.length > 20000 || expectedActivities >= 15;
   const chunks = shouldPartitionEarly
-    ? partitionMarkdownDocument(documentText, 15000, 25000)
+    ? partitionMarkdownDocument(documentText, 8000, 16000)
     : [documentText];
 
   let combinedData: PmcPreviousExtractDTO | null = null;

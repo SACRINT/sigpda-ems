@@ -42,15 +42,15 @@ describe('Paquete C (H-216) — Metas institucionales del PMC: >40 sin truncar y
     'PMC 2026-Heroes de la Patria.docx'
   );
 
-  it('1. Conteo determinista: detecta exactamente 41 actividades/metas en el fixture real de Héroes de la Patria', async () => {
+  it('1. Conteo determinista: detecta honestamente ~22 actividades/metas en el fixture real de Héroes de la Patria (excluyendo firmas finales, H-298)', async () => {
     expect(fs.existsSync(fixturePath)).toBe(true);
     const buffer = fs.readFileSync(fixturePath);
     const ingested = await ingestDocument(buffer, { filename: 'PMC 2026-Heroes de la Patria.docx' });
     const documentText = ingested.markdown || ingested.fullText || '';
 
     const expected = countDeterministicExpectedActivities(documentText);
-    expect(expected).toBeGreaterThanOrEqual(40);
-    expect(expected).toBeLessThanOrEqual(45);
+    expect(expected).toBeGreaterThanOrEqual(20);
+    expect(expected).toBeLessThanOrEqual(25);
   }, 15000);
 
   it('1b. Conteo de filas reales de tabla markdown en Plan de Acción (H-293)', () => {
@@ -260,9 +260,9 @@ Texto de cierre sin tablas.
     });
 
     expect(result.success).toBe(true);
-    expect(result.data.elementos_plan?.length).toBeGreaterThanOrEqual(40);
-    expect(result.expectedActivities).toBeGreaterThanOrEqual(40);
-    expect(result.expectedActivities).toBeLessThanOrEqual(45);
+    expect(result.data.elementos_plan?.length).toBeGreaterThanOrEqual(20);
+    expect(result.expectedActivities).toBeGreaterThanOrEqual(20);
+    expect(result.expectedActivities).toBeLessThanOrEqual(25);
 
     const coverage = calculatePmcCoverage(
       result.data.totales_detectados,
