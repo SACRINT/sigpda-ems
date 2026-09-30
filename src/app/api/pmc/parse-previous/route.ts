@@ -262,13 +262,14 @@ export async function POST(request: NextRequest) {
     const coverage = calculatePmcCoverage(
       parsed.data.totales_detectados,
       normalizedMetasPrevias.length,
-      actividadesExtraidas,
+      totalExtraidos,
       extractionResult.expectedActivities
     );
 
     if (coverage.parcial) {
+      const faltantes = Math.max(0, extractionResult.expectedActivities - totalExtraidos);
       parsed.warnings.push(
-        `Cobertura ${totalExtraidos}/${extractionResult.expectedActivities} (${Math.round((coverage.ratio || 0) * 100)}%): faltan metas por estructurar. Revise antes de generar.`
+        `Cobertura ${totalExtraidos}/${extractionResult.expectedActivities} (${Math.round((coverage.ratio || 0) * 100)}%): faltan ${faltantes > 0 ? faltantes : 'algunas'} metas/actividades por estructurar. Revise antes de generar.`
       );
     }
 

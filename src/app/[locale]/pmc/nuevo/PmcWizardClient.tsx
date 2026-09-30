@@ -812,6 +812,8 @@ interface EditablePlanElement {
           extraidos: number;
           parcial: boolean;
           indeterminada?: boolean;
+          ratio?: number;
+          esperado?: number;
           detalles?: {
             metas: { detectados: number | null; extraidos: number; parcial: boolean; indeterminada?: boolean };
             actividades: { detectados: number | null; extraidos: number; parcial: boolean; indeterminada?: boolean };
@@ -4596,59 +4598,85 @@ interface EditablePlanElement {
                 </button>
               </div>
 
-              {/* Banner Ámbar de Cobertura Parcial (H-178 / H-182) */}
-              {ingestCoverage && ingestCoverage.parcial && (
-                <div style={{
-                  background: ingestCoverage.extraidos >= (ingestCoverage.detectados || 0)
-                    ? 'rgba(16, 185, 129, 0.08)'
-                    : 'rgba(245, 158, 11, 0.12)',
-                  border: ingestCoverage.extraidos >= (ingestCoverage.detectados || 0)
-                    ? '1px solid rgba(16, 185, 129, 0.35)'
-                    : '1px solid rgba(245, 158, 11, 0.35)',
-                  borderRadius: '8px',
-                  padding: '10px 14px',
-                  marginBottom: '14px',
-                  color: ingestCoverage.extraidos >= (ingestCoverage.detectados || 0) ? '#6ee7b7' : '#fbbf24',
-                  fontSize: '12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                }}>
-                  <span style={{ fontSize: '16px' }}>{ingestCoverage.extraidos >= (ingestCoverage.detectados || 0) ? '✅' : '⚠️'}</span>
-                  <span>
-                    {ingestCoverage.extraidos >= (ingestCoverage.detectados || 0) ? (
-                      <>
-                        <strong>Extracción completa de metas:</strong> se extrajeron {ingestCoverage.extraidos} metas estructuradas (superando las {ingestCoverage.detectados} estimadas en el texto).
-                      </>
-                    ) : (
-                      <>
-                        <strong>Extracción parcial:</strong> se detectaron {ingestCoverage.detectados} metas y se extrajeron {ingestCoverage.extraidos}. Revisa el documento.
-                      </>
-                    )}
-                  </span>
-                </div>
-              )}
+              {/* Banner de Cobertura Honesta (H-296): verde sólo si ratio >= 0.9 y sin parcialMetas; si no, conteo exacto */}
+              {ingestCoverage && (() => {
+                const ratio = typeof ingestCoverage.ratio === 'number'
+                  ? ingestCoverage.ratio
+                  : (ingestCoverage.detectados ? ingestCoverage.extraidos / ingestCoverage.detectados : 1);
+                const isParcialMetas = Boolean(ingestCoverage.detalles?.metas?.parcial);
+                const isComplete = !ingestCoverage.parcial && ratio >= 0.9 && !isParcialMetas;
+                const totalEsperado = ingestCoverage.esperado ?? ingestCoverage.detectados ?? ingestCoverage.extraidos;
+                const totalExtraidos = ingestCoverage.extraidos;
+                const faltantes = Math.max(0, totalEsperado - totalExtraidos);
 
-              {/* Banner Ámbar de Cobertura Indeterminada (H-187) */}
-              {ingestCoverage && !ingestCoverage.parcial && ingestCoverage.indeterminada && (
-                <div style={{
-                  background: 'rgba(245, 158, 11, 0.08)',
-                  border: '1px dashed rgba(245, 158, 11, 0.35)',
-                  borderRadius: '8px',
-                  padding: '10px 14px',
-                  marginBottom: '14px',
-                  color: '#fbbf24',
-                  fontSize: '12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                }}>
-                  <span style={{ fontSize: '16px' }}>ℹ️</span>
-                  <span>
-                    <strong>Cobertura no totalizada:</strong> se extrajeron {ingestCoverage.extraidos} meta(s), pero el modelo no reportó el total detectado para contrastar. Revisa los elementos en el modal.
-                  </span>
-                </div>
-              )}
+                if (isComplete) {
+                  return (
+                    <div style={{
+                      background: 'rgba(16, 185, 129, 0.08)',
+                      border: '1px solid rgba(16, 185, 129, 0.35)',
+                      borderRadius: '8px',
+                      padding: '10px 14px',
+                      marginBottom: '14px',
+                      color: '#6ee7b7',
+                      fontSize: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                    }}>
+                      <span style={{ fontSize: '16px' }}>✅</span>
+                      <span>
+                        <strong>Extracción completa:</strong> se estructuraron satisfactoriamente {totalExtraidos}/{totalEsperado} elementos ({Math.round(ratio * 100)}%).
+                      </span>
+                    </div>
+                  );
+                }
+
+                if (ingestCoverage.parcial) {
+                  return (
+                    <div style={{
+                      background: 'rgba(245, 158, 11, 0.12)',
+                      border: '1px solid rgba(245, 158, 11, 0.35)',
+                      borderRadius: '8px',
+                      padding: '10px 14px',
+                      marginBottom: '14px',
+                      color: '#fbbf24',
+                      fontSize: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                    }}>
+                      <span style={{ fontSize: '16px' }}>⚠️</span>
+                      <span>
+                        <strong>Extracción parcial ({Math.round(ratio * 100)}%):</strong> se extrajeron {totalExtraidos} de {totalEsperado} elementos detectados (faltan {faltantes} por estructurar). Puedes revisar y editar los elementos en la tabla inferior antes de continuar.
+                      </span>
+                    </div>
+                  );
+                }
+
+                if (ingestCoverage.indeterminada) {
+                  return (
+                    <div style={{
+                      background: 'rgba(245, 158, 11, 0.08)',
+                      border: '1px dashed rgba(245, 158, 11, 0.35)',
+                      borderRadius: '8px',
+                      padding: '10px 14px',
+                      marginBottom: '14px',
+                      color: '#fbbf24',
+                      fontSize: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                    }}>
+                      <span style={{ fontSize: '16px' }}>ℹ️</span>
+                      <span>
+                        <strong>Cobertura no totalizada:</strong> se extrajeron {ingestCoverage.extraidos} elementos, pero el modelo no reportó el total detectado para contrastar. Revisa los elementos en el modal.
+                      </span>
+                    </div>
+                  );
+                }
+
+                return null;
+              })()}
 
               {/* Banner Ámbar de Advertencias Literales del Parser (H-182) */}
               {ingestWarnings.length > 0 && (
