@@ -520,6 +520,7 @@ export default function PmcWizardClient({ locale, teacherSchool, teacherMunicipa
     existingProject?.director_name ? 'bd' : savedDraft?.directorName ? 'draft' : 'none'
   );
   const [directorMismatchWarning, setDirectorMismatchWarning] = useState<string | null>(null);
+  const [alternativeDirector, setAlternativeDirector] = useState<{ name: string; source: DirectorSource } | null>(null);
   const [isPlatformPmcDoc, setIsPlatformPmcDoc] = useState(false);
   const [supervisorName, setSupervisorName] = useState(existingProject?.supervisor_name || savedDraft?.supervisorName || '');
   const [cicloEscolar, setCicloEscolar] = useState(existingProject?.ciclo_escolar || savedDraft?.cicloEscolar || '2025-2026');
@@ -904,14 +905,12 @@ interface EditablePlanElement {
     if (parsedPmcData.schoolZone) setSchoolZone(parsedPmcData.schoolZone);
     if (!isPlatformPmcDoc && parsedPmcData.directorName) {
       const docDir = parsedPmcData.directorName.trim();
-      if (directorSource === 'draft' || directorSource === 'none' || directorSource === 'pmc_anterior') {
-        setDirectorName(docDir);
-        setDirectorSource('pmc_anterior');
-      } else if (directorName && docDir.toLowerCase() !== directorName.trim().toLowerCase()) {
-        setDirectorMismatchWarning(
-          `Aviso: El director en el PMC anterior ("${docDir}") difiere del actual ("${directorName}"). Se mantiene la prioridad (${directorSource}).`
-        );
+      if (directorName && docDir.toLowerCase() !== directorName.trim().toLowerCase()) {
+        setAlternativeDirector({ name: directorName, source: directorSource });
       }
+      setDirectorName(docDir);
+      setDirectorSource('pmc_anterior');
+      setDirectorMismatchWarning(null);
     }
     if (parsedPmcData.supervisorName) setSupervisorName(parsedPmcData.supervisorName);
     if (parsedPmcData.cicloEscolar) setCicloEscolar(parsedPmcData.cicloEscolar);
@@ -2323,6 +2322,49 @@ interface EditablePlanElement {
                        directorSource === 'draft' ? '💾 Restaurado de borrador' : '⚠️ Pendiente de captura o carga'}
                     </span>
                   </div>
+                  {alternativeDirector && (
+                    <div style={{
+                      marginTop: '8px',
+                      padding: '8px 12px',
+                      background: 'rgba(59, 130, 246, 0.12)',
+                      border: '1px solid rgba(59, 130, 246, 0.3)',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      color: '#93c5fd',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '8px',
+                      flexWrap: 'wrap',
+                    }}>
+                      <span>
+                        ℹ️ Director actualizado con PMC anterior (&ldquo;{directorName}&rdquo;). En {alternativeDirector.source === '911' ? 'Estadística 911' : alternativeDirector.source === 'f11' ? 'F11' : 'otro origen'} figuraba &ldquo;{alternativeDirector.name}&rdquo;.
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const prevName = alternativeDirector.name;
+                          const prevSource = alternativeDirector.source;
+                          setAlternativeDirector({ name: directorName, source: directorSource });
+                          handleDirectorNameChange(prevName);
+                          setDirectorSource(prevSource);
+                        }}
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.12)',
+                          border: '1px solid rgba(255, 255, 255, 0.25)',
+                          color: '#ffffff',
+                          borderRadius: '4px',
+                          padding: '3px 8px',
+                          cursor: 'pointer',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        Usar &ldquo;{alternativeDirector.name}&rdquo; ({alternativeDirector.source === '911' ? '911' : 'previo'})
+                      </button>
+                    </div>
+                  )}
                   {directorMismatchWarning && (
                     <div style={{ marginTop: '8px', padding: '8px 12px', background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '6px', fontSize: '12px', color: '#fcd34d' }}>
                       ⚠️ {directorMismatchWarning}

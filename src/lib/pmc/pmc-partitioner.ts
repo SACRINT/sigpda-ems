@@ -12,12 +12,17 @@ import {
   buildPmcChunkExtractionPrompt,
   PmcPreviousExtractSchema,
 } from '@/lib/prompts/pmc-extraction';
-import { calculateWordOverlap } from './plan-element-normalizer';
+import {
+  calculateWordOverlap,
+  deriveMetasPreviasFromElementos,
+  deriveElementosFromMetasPrevias,
+} from './plan-element-normalizer';
 import { normalizeStaffName } from './staff-reconciler';
 import { generateWithRotation } from '@/lib/ai-provider';
 import { parseAIResponse } from '@/lib/ai-response-parser';
 import { withTimeoutBudget, correctiveRetry } from '@/lib/ai-resilience';
 import { logger } from '@/lib/logger';
+import { jsonrepair } from 'jsonrepair';
 
 /**
  * Localiza la sección acotada del Plan de Acción en el documento,
@@ -222,6 +227,19 @@ export function partitionMarkdownDocument(
     remaining = remaining.slice(bestSplitIndex).trim();
   }
 
+  // H-301: Propagación de cabeceras de tabla markdown a todos los subfragmentos derivados
+  // Garantiza que escuelas masivas (15-15-15 o 20-20-20) mantengan columnas legibles en cada lote
+  const tableHeaderMatch = markdown.match(/^([^\n]*\|[^\n]*\r?\n\|[\s\-:|]+\|\r?\n)/m);
+  const tableHeader = tableHeaderMatch ? tableHeaderMatch[1] : '';
+
+  if (tableHeader && chunks.length > 1) {
+    for (let i = 1; i < chunks.length; i++) {
+      if (!chunks[i].includes('---')) {
+        chunks[i] = `${tableHeader}${chunks[i]}`;
+      }
+    }
+  }
+
   return chunks.length > 0 ? chunks : [markdown];
 }
 
@@ -376,6 +394,118 @@ export function extractDeterministicSupervisorAndZone(
   return result;
 }
 
+/**
+ * Salvamento defensivo de elementos del plan, metas y personal a partir de texto crudo de IA
+ * cuando el bloque completo no supera la validación Zod estricta (H-300).
+ */
+export function salvagePlanElementsFromRaw(rawText: string): {
+  elementos: PmcPlanElement[];
+  metas: NonNullable<PmcPreviousExtractDTO['metas_institucionales_previas']>;
+  staff: NonNullable<PmcPreviousExtractDTO['staffData']>;
+  schoolName?: string;
+  directorName?: string;
+} {
+  const result: {
+    elementos: PmcPlanElement[];
+    metas: NonNullable<PmcPreviousExtractDTO['metas_institucionales_previas']>;
+    staff: NonNullable<PmcPreviousExtractDTO['staffData']>;
+    schoolName?: string;
+    directorName?: string;
+  } = { elementos: [], metas: [], staff: [] };
+
+  if (!rawText || typeof rawText !== 'string' || !rawText.trim()) return result;
+
+  try {
+    const cleaned = rawText.replace(/```(?:json)?\s*([\s\S]*?)\s*```/i, '$1').trim();
+    let parsed: any = null;
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch {
+      try {
+        parsed = JSON.parse(jsonrepair(cleaned));
+      } catch {
+        // Fallback defensivo
+      }
+    }
+
+    if (parsed && typeof parsed === 'object') {
+      if (typeof parsed.schoolName === 'string' && parsed.schoolName.trim()) {
+        result.schoolName = parsed.schoolName.trim();
+      }
+      if (typeof parsed.directorName === 'string' && parsed.directorName.trim()) {
+        result.directorName = parsed.directorName.trim();
+      }
+
+      const rawElems = Array.isArray(parsed.elementos_plan)
+        ? parsed.elementos_plan
+        : Array.isArray(parsed)
+        ? parsed
+        : [];
+
+      for (const e of rawElems) {
+        if (!e || typeof e !== 'object') continue;
+        const textoOrig = String(e.texto_original || e.meta || e.actividad || e.descripcion || '').trim();
+        if (!textoOrig) continue;
+        const textoNorm = String(e.texto_normalizado || textoOrig).trim();
+        const tipoLower = String(e.tipo || 'meta').toLowerCase().trim();
+        const validTipo = ['meta', 'actividad', 'estrategia', 'indicador', 'responsable', 'evidencia', 'cronograma', 'otro'].includes(tipoLower)
+          ? tipoLower
+          : tipoLower.includes('actividad') ? 'actividad' : 'meta';
+
+        result.elementos.push({
+          tipo: validTipo as any,
+          numero_origen: Number(e.numero_origen) || null,
+          celda_ref: e.celda_ref || null,
+          texto_original: textoOrig,
+          texto_normalizado: textoNorm,
+          categoria: e.categoria || null,
+          tema: e.tema || null,
+          responsable: e.responsable || null,
+          periodo: e.periodo || null,
+          ubicacion: typeof e.ubicacion === 'object' && e.ubicacion ? e.ubicacion : {},
+          requiere_revision: Boolean(e.requiere_revision),
+          motivos_revision: Array.isArray(e.motivos_revision) ? e.motivos_revision : [],
+        });
+      }
+
+      if (Array.isArray(parsed.metas_institucionales_previas)) {
+        for (const m of parsed.metas_institucionales_previas) {
+          if (!m || typeof m !== 'object') continue;
+          const metaText = String(m.meta || m.texto_original || '').trim();
+          if (!metaText) continue;
+          result.metas.push({
+            numero_origen: Number(m.numero_origen) || null,
+            categoria: m.categoria || null,
+            tema: m.tema || null,
+            meta: metaText,
+            linea_base: m.linea_base || null,
+            estrategia: m.estrategia || null,
+            responsable: m.responsable || null,
+            entregable: m.entregable || null,
+            periodo: m.periodo || null,
+          });
+        }
+      }
+
+      if (Array.isArray(parsed.staffData)) {
+        for (const s of parsed.staffData) {
+          if (!s || typeof s !== 'object' || !s.nombre) continue;
+          result.staff.push({
+            nombre: String(s.nombre).trim(),
+            cargo: s.cargo ? String(s.cargo).trim() : 'Docente',
+            meta_individual: s.meta_individual ? String(s.meta_individual).trim() : '',
+            metas_individuales: Array.isArray(s.metas_individuales) ? s.metas_individuales : [],
+          });
+        }
+      }
+    }
+  } catch (err) {
+    logger.warn('[salvagePlanElementsFromRaw] Error en salvamento defensivo:', err);
+  }
+
+  return result;
+}
+
 export interface PartitionedExtractionResult {
   success: boolean;
   data: PmcPreviousExtractDTO;
@@ -410,14 +540,15 @@ export async function extractPmcPreviousWithPartitioning(options: {
     const tailText = endIndex !== -1 && endIndex < documentText.length ? documentText.slice(endIndex).trim() : '';
     const contextChunk = (documentText.slice(0, startIndex) + (tailText ? `\n\n# APROBACIÓN Y FIRMAS DEL PLANTEL\n${tailText}` : '')).trim();
     // Trozo 2..N: Sección especializada del Plan de Acción
-    if (planText.length > 8000 || expectedActivities >= 15) {
-      const planChunks = partitionMarkdownDocument(planText, 6000, 10000);
+    // Preservar la tabla completa del Plan de Acción en 1 solo trozo si cabe (<= 25000 chars) para evitar desfragmentación de cabeceras de tabla
+    if (planText.length > 25000) {
+      const planChunks = partitionMarkdownDocument(planText, 12000, 22000);
       chunks = [contextChunk, ...planChunks];
     } else {
       chunks = [contextChunk, planText.trim()];
     }
   } else if (documentText.length > 20000 || expectedActivities >= 15) {
-    chunks = partitionMarkdownDocument(documentText, 8000, 16000);
+    chunks = partitionMarkdownDocument(documentText, 10000, 22000);
   } else {
     chunks = [documentText];
   }
@@ -603,12 +734,28 @@ export async function extractPmcPreviousWithPartitioning(options: {
                 accumulatedParticipantes.push(...subRes.parsed.data.participantes);
               }
             } else {
-              logger.warn(`[${contextName}] Error parseando subtrozo ${i + 1}: ${subRes.parsed.error}`);
+              logger.warn(`[${contextName}] Error parseando subtrozo ${i + 1}: ${subRes.parsed.error}. Aplicando salvamento defensivo.`);
+              const salvaged = salvagePlanElementsFromRaw(subRes.raw);
+              if (salvaged.elementos.length > 0) {
+                accumulatedElementos.push(...salvaged.elementos);
+              }
+              if (salvaged.metas.length > 0) {
+                accumulatedMetas.push(...salvaged.metas);
+              }
+              if (salvaged.staff.length > 0) {
+                accumulatedStaff.push(...salvaged.staff);
+              }
             }
           } else {
             logger.warn(`[${contextName}] Falló promesa de subtrozo ${i + 1}:`, s.reason);
             warnings.push(`Fragmento ${i + 1} no completó su extracción a tiempo.`);
           }
+        }
+
+        if (accumulatedElementos.length === 0 && accumulatedMetas.length > 0) {
+          accumulatedElementos.push(...deriveElementosFromMetasPrevias(accumulatedMetas));
+        } else if (accumulatedMetas.length === 0 && accumulatedElementos.length > 0) {
+          accumulatedMetas.push(...deriveMetasPreviasFromElementos(accumulatedElementos));
         }
 
         combinedData.elementos_plan = deduplicatePlanElements(accumulatedElementos);
@@ -708,6 +855,27 @@ export async function extractPmcPreviousWithPartitioning(options: {
           if (chunkRes.parsed.data.participantes) {
             accumulatedParticipantes.push(...chunkRes.parsed.data.participantes);
           }
+        } else {
+          logger.warn(`[${contextName}] Fragmento inicial ${i + 1} no superó Zod estricto: ${chunkRes.parsed.error}. Aplicando salvamento defensivo.`);
+          const salvaged = salvagePlanElementsFromRaw(chunkRes.raw);
+          if (salvaged.elementos.length > 0) {
+            accumulatedElementos.push(...salvaged.elementos);
+          }
+          if (salvaged.metas.length > 0) {
+            accumulatedMetas.push(...salvaged.metas);
+          }
+          if (salvaged.staff.length > 0) {
+            accumulatedStaff.push(...salvaged.staff);
+          }
+          if (salvaged.schoolName && combinedData && !combinedData.schoolName) {
+            combinedData.schoolName = salvaged.schoolName;
+          }
+          if (salvaged.directorName && combinedData && !combinedData.directorName) {
+            combinedData.directorName = salvaged.directorName;
+          }
+          if (salvaged.elementos.length === 0 && salvaged.metas.length === 0) {
+            warnings.push(`Fragmento ${i + 1} presentó anomalías de formato y no pudo estructurar sus metas.`);
+          }
         }
       } else {
         logger.warn(`[${contextName}] Falló trozo inicial ${i + 1}:`, s.reason);
@@ -717,6 +885,13 @@ export async function extractPmcPreviousWithPartitioning(options: {
 
     if (!combinedData) {
       throw new Error('No se pudo extraer ningún fragmento estructurado del PMC anterior.');
+    }
+
+    // Sincronización bidireccional determinista entre elementos_plan y metas_institucionales_previas
+    if (accumulatedElementos.length === 0 && accumulatedMetas.length > 0) {
+      accumulatedElementos.push(...deriveElementosFromMetasPrevias(accumulatedMetas));
+    } else if (accumulatedMetas.length === 0 && accumulatedElementos.length > 0) {
+      accumulatedMetas.push(...deriveMetasPreviasFromElementos(accumulatedElementos));
     }
 
     combinedData.elementos_plan = deduplicatePlanElements(accumulatedElementos);

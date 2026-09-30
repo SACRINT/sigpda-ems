@@ -19,9 +19,11 @@ import {
   deduplicateMetasPrevias,
   extractPmcPreviousWithPartitioning,
   extractDeterministicSupervisorAndZone,
+  findPlanActionSection,
 } from '@/lib/pmc/pmc-partitioner';
 import { calculatePmcCoverage } from '@/lib/pmc/plan-element-normalizer';
 import { type PmcPlanElement, PmcPreviousExtractSchema } from '@/lib/prompts/pmc-extraction';
+import { parseAIResponse } from '@/lib/ai-response-parser';
 
 // Mock de ai-provider para pruebas controladas de rotación y llamadas a la IA
 vi.mock('@/lib/ai-provider', () => ({
@@ -104,6 +106,23 @@ Texto de cierre sin tablas.
     expect(checkRawIsTruncated(truncatedJson)).toBe(true);
     expect(checkRawIsTruncated(completeWithMarkdown)).toBe(false);
     expect(checkRawIsTruncated(truncatedWithMarkdown)).toBe(true);
+  });
+
+  it('3b. Resiliencia de esquema ante variaciones de IA en elementos_plan', () => {
+    const raw = JSON.stringify({
+      elementos_plan: [
+        {
+          tipo: 'Meta',
+          texto_original: 'Meta 1',
+          texto_normalizado: 'Meta 1',
+          motivos_revision: null,
+          ubicacion: null,
+        }
+      ]
+    });
+    const parsed = parseAIResponse(raw, PmcPreviousExtractSchema, { repairNullStrings: true });
+    console.log('--- TEST 3B RESULT ---', 'Success:', parsed.success, 'Error:', parsed.error);
+    expect(parsed.success).toBe(true);
   });
 
   it('4. Deduplicación de elementos del plan: elimina redundancias en los límites de corte con solapamiento léxico', () => {
@@ -369,6 +388,49 @@ ${Array.from({ length: 20 }, (_, i) => `| ${i + 1} | Desarrollo académico | Act
     if (parsed.success) {
       expect(parsed.data.staffData?.length).toBe(45);
       expect(parsed.data.participantes?.length).toBe(45);
+    }
+  });
+
+  it('7b. Escala 20-20-20 (H-301): soporta plantilla de 80 docentes y propaga cabeceras de tabla a todos los fragmentos', () => {
+    const eightyTeachers = Array.from({ length: 80 }, (_, i) => ({
+      nombre: `Docente Número ${i + 1}`,
+      cargo: 'Docente',
+      meta_individual: `Meta individual del docente ${i + 1}`,
+      metas_individuales: [],
+    }));
+
+    const eightyParticipantes = Array.from({ length: 80 }, (_, i) => ({
+      nombre: `Docente Número ${i + 1}`,
+      cargo: 'Docente de grupo',
+      firma: '',
+    }));
+
+    const validData = {
+      schoolName: 'PLANTEL MEGA 20-20-20',
+      staffData: eightyTeachers,
+      participantes: eightyParticipantes,
+      elementos_plan: [],
+      metas_institucionales_previas: [],
+    };
+
+    const parsed = PmcPreviousExtractSchema.safeParse(validData);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.staffData?.length).toBe(80);
+      expect(parsed.data.participantes?.length).toBe(80);
+    }
+
+    // Probar propagación de cabeceras en tabla masiva
+    const header = '| Categoria | Meta | Responsable |\n|---|---|---|\n';
+    let massiveTable = header;
+    for (let i = 0; i < 60; i++) {
+      massiveTable += `| Cat ${i} | Meta extensa con detalles para el docente ${i} | Docente ${i} |\n`;
+    }
+    const chunks = partitionMarkdownDocument(massiveTable, 500, 1000);
+    expect(chunks.length).toBeGreaterThan(1);
+    for (const chunk of chunks) {
+      expect(chunk).toContain('| Categoria | Meta | Responsable |');
+      expect(chunk).toContain('|---|---|---|');
     }
   });
 

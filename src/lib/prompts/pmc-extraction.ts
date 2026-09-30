@@ -17,53 +17,90 @@ export const PmcPreviousExtractSchema = z.object({
   cicloEscolar: nullableString('2025-2026'),
   subsystem: nullableString('BGE'),
   totalStaff: z.coerce.number().optional(),
-  participantes: z.array(z.object({
-    nombre: nullableString(),
-    cargo: nullableString(),
-    firma: nullableString(),
-  })).max(60).optional().default([]),
-  staffData: z.array(z.object({
-    nombre: nullableString(),
-    cargo: nullableString('Docente'),
-    meta_individual: nullableString(),
-    metas_individuales: z.array(z.object({
+  participantes: z.preprocess(
+    (val) => (Array.isArray(val) ? val : []),
+    z.array(z.object({
+      nombre: nullableString(),
+      cargo: nullableString(),
+      firma: nullableString(),
+    })).max(300).optional().default([])
+  ),
+  staffData: z.preprocess(
+    (val) => (Array.isArray(val) ? val : []),
+    z.array(z.object({
+      nombre: nullableString(),
+      cargo: nullableString('Docente'),
+      meta_individual: nullableString(),
+      metas_individuales: z.preprocess(
+        (val) => (Array.isArray(val) ? val : []),
+        z.array(z.object({
+          categoria: nullableString(),
+          tema: nullableString(),
+          meta: nullableString(),
+          estrategia: nullableString(),
+          entregable: nullableString(),
+          periodo: nullableString(),
+        })).optional().default([])
+      ),
+    })).max(300).optional().default([])
+  ),
+  metas_institucionales_previas: z.preprocess(
+    (val) => (Array.isArray(val) ? val : []),
+    z.array(z.object({
+      numero_origen: z.coerce.number().nullable().optional(),
       categoria: nullableString(),
       tema: nullableString(),
       meta: nullableString(),
+      linea_base: nullableString(),
       estrategia: nullableString(),
+      responsable: nullableString(),
       entregable: nullableString(),
       periodo: nullableString(),
-    })).optional().default([]),
-  })).max(60).optional().default([]),
-  metas_institucionales_previas: z.array(z.object({
-    numero_origen: z.coerce.number().nullable().optional(),
-    categoria: nullableString(),
-    tema: nullableString(),
-    meta: nullableString(),
-    linea_base: nullableString(),
-    estrategia: nullableString(),
-    responsable: nullableString(),
-    entregable: nullableString(),
-    periodo: nullableString(),
-  })).max(100).optional().default([]),
-  elementos_plan: z.array(z.object({
-    tipo: z.enum(['meta', 'actividad', 'estrategia', 'indicador', 'responsable', 'evidencia', 'cronograma', 'otro']),
-    numero_origen: z.coerce.number().nullable().optional(),
-    celda_ref: z.string().nullable().optional(),
-    texto_original: z.string(),
-    texto_normalizado: z.string(),
-    categoria: nullableString(),
-    tema: nullableString(),
-    responsable: nullableString(),
-    periodo: nullableString(),
-    ubicacion: z.object({
-      pagina: z.coerce.number().nullable().optional(),
-      seccion: nullableString(),
-      tabla: nullableString(),
-    }).partial().optional(),
-    requiere_revision: z.boolean().default(false),
-    motivos_revision: z.array(z.string()).optional(),
-  })).max(200).optional().default([]),
+    })).max(300).optional().default([])
+  ),
+  elementos_plan: z.preprocess(
+    (val) => (Array.isArray(val) ? val : []),
+    z.array(z.object({
+      tipo: z.preprocess(
+        (val) => {
+          if (typeof val !== 'string') return 'meta';
+          const lower = val.toLowerCase().trim();
+          if (['meta', 'actividad', 'estrategia', 'indicador', 'responsable', 'evidencia', 'cronograma', 'otro'].includes(lower)) {
+            return lower;
+          }
+          if (lower.includes('actividad') || lower.includes('tarea') || lower.includes('accion') || lower.includes('acción')) return 'actividad';
+          if (lower.includes('estrategia') || lower.includes('linea') || lower.includes('línea')) return 'estrategia';
+          if (lower.includes('indicador') || lower.includes('metrica') || lower.includes('métrica')) return 'indicador';
+          if (lower.includes('responsable') || lower.includes('docente')) return 'responsable';
+          if (lower.includes('evidencia') || lower.includes('entregable') || lower.includes('producto')) return 'evidencia';
+          if (lower.includes('cronograma') || lower.includes('periodo') || lower.includes('fecha')) return 'cronograma';
+          return 'meta';
+        },
+        z.enum(['meta', 'actividad', 'estrategia', 'indicador', 'responsable', 'evidencia', 'cronograma', 'otro'])
+      ).default('meta'),
+      numero_origen: z.coerce.number().nullable().optional(),
+      celda_ref: z.string().nullable().optional(),
+      texto_original: z.preprocess((val) => (val != null ? String(val) : ''), z.string()),
+      texto_normalizado: z.preprocess((val) => (val != null ? String(val) : ''), z.string()),
+      categoria: nullableString(),
+      tema: nullableString(),
+      responsable: nullableString(),
+      periodo: nullableString(),
+      ubicacion: z.preprocess(
+        (val) => (val && typeof val === 'object' ? val : undefined),
+        z.object({
+          pagina: z.coerce.number().nullable().optional(),
+          seccion: nullableString(),
+          tabla: nullableString(),
+        }).partial().optional()
+      ),
+      requiere_revision: z.preprocess((val) => Boolean(val), z.boolean()).default(false),
+      motivos_revision: z.preprocess(
+        (val) => (Array.isArray(val) ? val.filter((item): item is string => typeof item === 'string') : undefined),
+        z.array(z.string()).optional()
+      ),
+    })).max(600).optional().default([])
+  ),
   totales_detectados: z.object({
     metas: z.coerce.number().nullable().optional(),
     actividades: z.coerce.number().nullable().optional(),
