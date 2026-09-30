@@ -446,9 +446,9 @@ describe('H-150 / H-153: Deduplicación silenciosa de metas institucionales', ()
 
       // Todas las 5 metas deben sobrevivir independientemente sin ser devoradas
       expect(deduplicated.length).toBe(5);
-      expect(deduplicated.some(m => m.meta.includes('inglés'))).toBe(true);
-      expect(deduplicated.some(m => m.meta.includes('pensamiento aritmético'))).toBe(true);
-      expect(deduplicated.some(m => m.meta.includes('reprobación'))).toBe(true);
+      expect(deduplicated.some(m => m.meta?.includes('inglés'))).toBe(true);
+      expect(deduplicated.some(m => m.meta?.includes('pensamiento aritmético'))).toBe(true);
+      expect(deduplicated.some(m => m.meta?.includes('reprobación'))).toBe(true);
     });
   });
 });
