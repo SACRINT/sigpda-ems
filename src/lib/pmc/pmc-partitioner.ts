@@ -9,9 +9,11 @@ import type { PmcPlanElement, PmcPreviousExtractDTO } from '@/lib/prompts/pmc-ex
 import {
   PMC_EXTRACTION_SYSTEM_PROMPT,
   buildPmcExtractionPrompt,
+  buildPmcChunkExtractionPrompt,
   PmcPreviousExtractSchema,
 } from '@/lib/prompts/pmc-extraction';
 import { calculateWordOverlap } from './plan-element-normalizer';
+import { normalizeStaffName } from './staff-reconciler';
 import { generateWithRotation } from '@/lib/ai-provider';
 import { parseAIResponse } from '@/lib/ai-response-parser';
 import { withTimeoutBudget, correctiveRetry } from '@/lib/ai-resilience';
@@ -158,6 +160,7 @@ export function partitionMarkdownDocument(
 
 /**
  * Deduplica elementos del plan de acción basándose en texto normalizado idéntico o solapamiento estricto bidireccional.
+ * H-294: No fusiona elementos si sus responsables son distintos (evita colapso de actividades idénticas entre docentes).
  */
 export function deduplicatePlanElements(elements: PmcPlanElement[]): PmcPlanElement[] {
   const result: PmcPlanElement[] = [];
@@ -169,6 +172,12 @@ export function deduplicatePlanElements(elements: PmcPlanElement[]): PmcPlanElem
     const exists = result.some((existing) => {
       // No fusionar elementos si explícitamente tienen tipos distintos (meta vs actividad)
       if (elem.tipo && existing.tipo && elem.tipo !== existing.tipo) return false;
+
+      // H-294: Clave incluye responsable. Si ambos tienen responsable y difieren, NO son el mismo elemento
+      const respA = normalizeStaffName(elem.responsable);
+      const respB = normalizeStaffName(existing.responsable);
+      if (respA && respB && respA !== respB) return false;
+
       const textB = (existing.texto_normalizado || existing.texto_original || '').trim();
       if (textA.toLowerCase() === textB.toLowerCase()) return true;
       const lenRatio = Math.min(textA.length, textB.length) / Math.max(textA.length, textB.length);
@@ -187,10 +196,17 @@ export function deduplicatePlanElements(elements: PmcPlanElement[]): PmcPlanElem
 
 /**
  * Deduplica metas previas basándose en redacción idéntica o solapamiento estricto bidireccional.
+ * H-294: No fusiona metas si sus responsables son distintos.
  */
-export function deduplicateMetasPrevias<T extends { meta?: string | null; texto_original?: string | null; categoria?: string | null }>(
-  metas: T[]
-): T[] {
+export function deduplicateMetasPrevias<
+  T extends {
+    meta?: string | null;
+    texto_original?: string | null;
+    categoria?: string | null;
+    responsable?: string | null;
+    personal_designado?: string | null;
+  }
+>(metas: T[]): T[] {
   const result: T[] = [];
 
   for (const m of metas) {
@@ -199,9 +215,19 @@ export function deduplicateMetasPrevias<T extends { meta?: string | null; texto_
 
     const exists = result.some((existing) => {
       // No fusionar metas si tienen categorías explícitamente distintas
-      if (m.categoria && existing.categoria && m.categoria.trim().toLowerCase() !== existing.categoria.trim().toLowerCase()) {
+      if (
+        m.categoria &&
+        existing.categoria &&
+        m.categoria.trim().toLowerCase() !== existing.categoria.trim().toLowerCase()
+      ) {
         return false;
       }
+
+      // H-294: Clave incluye responsable normalizado
+      const respA = normalizeStaffName(m.responsable || m.personal_designado);
+      const respB = normalizeStaffName(existing.responsable || existing.personal_designado);
+      if (respA && respB && respA !== respB) return false;
+
       const textB = (existing.meta || existing.texto_original || '').trim();
       if (textA.toLowerCase() === textB.toLowerCase()) return true;
       const lenRatio = Math.min(textA.length, textB.length) / Math.max(textA.length, textB.length);
@@ -294,6 +320,58 @@ export async function extractPmcPreviousWithPartitioning(options: {
     return { parsed, raw, truncated };
   };
 
+  const extractChunkPass = async (
+    textChunk: string,
+    chunkIndex: number,
+    totalChunks: number,
+    isInitialChunkWithContext = false,
+    maxTokens = 32768
+  ) => {
+    const systemPrompt = PMC_EXTRACTION_SYSTEM_PROMPT;
+    const userPrompt = isInitialChunkWithContext
+      ? buildPmcExtractionPrompt(textChunk)
+      : buildPmcChunkExtractionPrompt(textChunk, chunkIndex, totalChunks);
+
+    const remainingBudget = Math.max(1, deadline - Date.now());
+    const raw = await withTimeoutBudget(
+      generateWithRotation(systemPrompt, userPrompt, teacherId, isPremium, {
+        temperature: 0.1,
+        jsonMode: true,
+        maxTokens,
+      }),
+      remainingBudget
+    );
+
+    const truncated = checkRawIsTruncated(raw);
+
+    let parsed = parseAIResponse(raw, PmcPreviousExtractSchema, {
+      contextName: `${contextName}-chunk-${chunkIndex + 1}`,
+      repairNullStrings: true,
+    });
+
+    if (!parsed.success && Date.now() < deadline - 5000) {
+      parsed = await correctiveRetry({
+        systemPrompt,
+        previousRaw: raw,
+        zodIssues: parsed.error || '',
+        schema: PmcPreviousExtractSchema,
+        callAI: (sys, user, remaining) =>
+          withTimeoutBudget(
+            generateWithRotation(sys, user, teacherId, isPremium, {
+              temperature: 0,
+              jsonMode: true,
+              maxTokens,
+            }),
+            remaining
+          ),
+        deadline,
+        contextName: `${contextName}-chunk-${chunkIndex + 1}-retry`,
+      });
+    }
+
+    return { parsed, raw, truncated };
+  };
+
   // 1ª Pasada (Directa o por trozos)
   if (chunks.length === 1) {
     const res = await extractSinglePass(chunks[0], 32768);
@@ -331,21 +409,26 @@ export async function extractPmcPreviousWithPartitioning(options: {
       );
 
       if (subChunks.length > 1) {
-        const accumulatedElementos: PmcPlanElement[] = [];
+        const accumulatedElementos: PmcPlanElement[] = [
+          ...(combinedData.elementos_plan || []),
+        ];
         const accumulatedMetas = [
           ...(combinedData.metas_institucionales_previas || []),
         ];
         const accumulatedStaff = [...(combinedData.staffData || [])];
         const accumulatedParticipantes = [...(combinedData.participantes || [])];
 
-        for (let i = 0; i < subChunks.length; i++) {
-          if (Date.now() >= deadline - 5000) {
-            warnings.push('Tiempo límite aproximándose: se detuvo el particionado secuencial.');
-            break;
-          }
+        // H-294: Ejecución concurrente con Promise.allSettled respetando presupuesto
+        const chunkPromises = subChunks.map((chunk, i) =>
+          extractChunkPass(chunk, i, subChunks.length, false)
+        );
+        const settled = await Promise.allSettled(chunkPromises);
 
-          try {
-            const subRes = await extractSinglePass(subChunks[i], 32768);
+        for (let i = 0; i < settled.length; i++) {
+          const s = settled[i];
+          if (s.status === 'fulfilled') {
+            const subRes = s.value;
+            if (subRes.truncated) isTruncated = true;
             if (subRes.parsed.success) {
               if (subRes.parsed.data.elementos_plan) {
                 accumulatedElementos.push(...subRes.parsed.data.elementos_plan);
@@ -359,9 +442,12 @@ export async function extractPmcPreviousWithPartitioning(options: {
               if (subRes.parsed.data.participantes) {
                 accumulatedParticipantes.push(...subRes.parsed.data.participantes);
               }
+            } else {
+              logger.warn(`[${contextName}] Error parseando subtrozo ${i + 1}: ${subRes.parsed.error}`);
             }
-          } catch (chunkErr: unknown) {
-            logger.warn(`[${contextName}] Error en extracción de fragmento ${i + 1}:`, chunkErr);
+          } else {
+            logger.warn(`[${contextName}] Falló promesa de subtrozo ${i + 1}:`, s.reason);
+            warnings.push(`Fragmento ${i + 1} no completó su extracción a tiempo.`);
           }
         }
 
@@ -373,44 +459,48 @@ export async function extractPmcPreviousWithPartitioning(options: {
     }
   } else {
     // Particionado inicial (texto > 40k chars)
-    for (let i = 0; i < chunks.length; i++) {
-      if (Date.now() >= deadline - 5000) {
-        warnings.push('Tiempo límite aproximándose: finalizando con los fragmentos completados.');
-        break;
-      }
+    // H-294: Ejecución concurrente con Promise.allSettled
+    const chunkPromises = chunks.map((chunk, i) =>
+      extractChunkPass(chunk, i, chunks.length, i === 0)
+    );
+    const settled = await Promise.allSettled(chunkPromises);
 
-      const res = await extractSinglePass(chunks[i], 32768);
-      if (res.truncated) isTruncated = true;
+    const accumulatedElementos: PmcPlanElement[] = [];
+    const accumulatedMetas: NonNullable<PmcPreviousExtractDTO['metas_institucionales_previas']> = [];
+    const accumulatedStaff: NonNullable<PmcPreviousExtractDTO['staffData']> = [];
+    const accumulatedParticipantes: NonNullable<PmcPreviousExtractDTO['participantes']> = [];
 
-      if (res.parsed.success) {
-        if (!combinedData) {
-          combinedData = res.parsed.data;
-        } else {
-          if (res.parsed.data.elementos_plan) {
-            combinedData.elementos_plan = [
-              ...(combinedData.elementos_plan || []),
-              ...res.parsed.data.elementos_plan,
-            ];
+    for (let i = 0; i < settled.length; i++) {
+      const s = settled[i];
+      if (s.status === 'fulfilled') {
+        const chunkRes = s.value;
+        if (chunkRes.truncated) isTruncated = true;
+        if (chunkRes.parsed.success) {
+          if (!combinedData) {
+            combinedData = chunkRes.parsed.data;
+          } else if (i === 0) {
+            combinedData = {
+              ...chunkRes.parsed.data,
+              elementos_plan: combinedData.elementos_plan,
+              metas_institucionales_previas: combinedData.metas_institucionales_previas,
+            };
           }
-          if (res.parsed.data.metas_institucionales_previas) {
-            combinedData.metas_institucionales_previas = [
-              ...(combinedData.metas_institucionales_previas || []),
-              ...res.parsed.data.metas_institucionales_previas,
-            ];
+          if (chunkRes.parsed.data.elementos_plan) {
+            accumulatedElementos.push(...chunkRes.parsed.data.elementos_plan);
           }
-          if (res.parsed.data.staffData) {
-            combinedData.staffData = [
-              ...(combinedData.staffData || []),
-              ...res.parsed.data.staffData,
-            ];
+          if (chunkRes.parsed.data.metas_institucionales_previas) {
+            accumulatedMetas.push(...chunkRes.parsed.data.metas_institucionales_previas);
           }
-          if (res.parsed.data.participantes) {
-            combinedData.participantes = [
-              ...(combinedData.participantes || []),
-              ...res.parsed.data.participantes,
-            ];
+          if (chunkRes.parsed.data.staffData) {
+            accumulatedStaff.push(...chunkRes.parsed.data.staffData);
+          }
+          if (chunkRes.parsed.data.participantes) {
+            accumulatedParticipantes.push(...chunkRes.parsed.data.participantes);
           }
         }
+      } else {
+        logger.warn(`[${contextName}] Falló trozo inicial ${i + 1}:`, s.reason);
+        warnings.push(`Fragmento inicial ${i + 1} no completó a tiempo.`);
       }
     }
 
@@ -418,14 +508,10 @@ export async function extractPmcPreviousWithPartitioning(options: {
       throw new Error('No se pudo extraer ningún fragmento estructurado del PMC anterior.');
     }
 
-    if (combinedData.elementos_plan) {
-      combinedData.elementos_plan = deduplicatePlanElements(combinedData.elementos_plan);
-    }
-    if (combinedData.metas_institucionales_previas) {
-      combinedData.metas_institucionales_previas = deduplicateMetasPrevias(
-        combinedData.metas_institucionales_previas
-      );
-    }
+    combinedData.elementos_plan = deduplicatePlanElements(accumulatedElementos);
+    combinedData.metas_institucionales_previas = deduplicateMetasPrevias(accumulatedMetas);
+    combinedData.staffData = [...(combinedData.staffData || []), ...accumulatedStaff];
+    combinedData.participantes = [...(combinedData.participantes || []), ...accumulatedParticipantes];
   }
 
   return {

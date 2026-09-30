@@ -16,6 +16,7 @@ import {
   checkRawIsTruncated,
   partitionMarkdownDocument,
   deduplicatePlanElements,
+  deduplicateMetasPrevias,
   extractPmcPreviousWithPartitioning,
 } from '@/lib/pmc/pmc-partitioner';
 import { calculatePmcCoverage } from '@/lib/pmc/plan-element-normalizer';
@@ -145,6 +146,71 @@ Texto de cierre sin tablas.
 
     const deduplicated = deduplicatePlanElements(rawElements);
     expect(deduplicated.length).toBe(2);
+  });
+
+  it('4b. Deduplicación con responsable (H-294 / caso 15-15-15): preserva actividades o metas idénticas si pertenecen a docentes distintos', () => {
+    const multiTeacherElements: PmcPlanElement[] = [
+      {
+        tipo: 'actividad',
+        texto_original: 'Tomar 2 cursos de formación docente COSFAC en línea',
+        texto_normalizado: 'Tomar 2 cursos de formación docente COSFAC en línea',
+        categoria: 'Desarrollo académico y aprendizaje',
+        tema: 'Formación docente',
+        responsable: 'ING. ALEJANDRA MARTÍNEZ LUNA',
+        periodo: 'Ciclo 2026-2027',
+        ubicacion: {},
+        requiere_revision: false,
+      },
+      {
+        tipo: 'actividad',
+        texto_original: 'Tomar 2 cursos de formación docente COSFAC en línea',
+        texto_normalizado: 'Tomar 2 cursos de formación docente COSFAC en línea',
+        categoria: 'Desarrollo académico y aprendizaje',
+        tema: 'Formación docente',
+        responsable: 'MTRA. ANA LILIA PÉREZ HERNÁNDEZ',
+        periodo: 'Ciclo 2026-2027',
+        ubicacion: {},
+        requiere_revision: false,
+      },
+      {
+        tipo: 'actividad',
+        texto_original: 'Tomar 2 cursos de formación docente COSFAC en línea',
+        texto_normalizado: 'Tomar 2 cursos de formación docente COSFAC en línea',
+        categoria: 'Desarrollo académico y aprendizaje',
+        tema: 'Formación docente',
+        responsable: 'PROFR. JOSÉ ALAIN ROSALES GARCÍA',
+        periodo: 'Ciclo 2026-2027',
+        ubicacion: {},
+        requiere_revision: false,
+      },
+    ];
+
+    const deduplicated = deduplicatePlanElements(multiTeacherElements);
+    // H-294: Los 3 docentes deben preservarse sin colapsar en 1
+    expect(deduplicated.length).toBe(3);
+
+    const multiTeacherMetas = [
+      {
+        meta: 'Aprobar al 85% de los alumnos',
+        categoria: 'Desarrollo académico y aprendizaje',
+        responsable: 'Ing. Alejandra Martínez Luna',
+      },
+      {
+        meta: 'Aprobar al 85% de los alumnos',
+        categoria: 'Desarrollo académico y aprendizaje',
+        responsable: 'Mtra. Ana Lilia Pérez Hernández',
+      },
+      // Duplicado exacto del mismo docente
+      {
+        meta: 'Aprobar al 85% de los alumnos',
+        categoria: 'Desarrollo académico y aprendizaje',
+        responsable: 'Alejandra Martínez Luna',
+      },
+    ];
+
+    const deduplicatedMetas = deduplicateMetasPrevias(multiTeacherMetas);
+    // Deben quedar 2: una para Alejandra y una para Ana Lilia
+    expect(deduplicatedMetas.length).toBe(2);
   });
 
   it('5. Extracción completa con fixture real: genera >= 40 elementos y coverage >= 0.9 (H-216)', async () => {

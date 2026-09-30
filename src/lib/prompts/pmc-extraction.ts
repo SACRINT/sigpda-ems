@@ -232,3 +232,73 @@ REGLAS DE EXTRACCIÓN:
    - 'Gestión y administración escolar'
    - 'Desarrollo socioemocional y prevención de la violencia en la escuela'`;
 }
+
+/**
+ * Prompt acotado para extracción de fragmentos individuales en paralelo (H-294).
+ * Enfocado en elementos_plan, metas_institucionales_previas y staffData del trozo.
+ */
+export function buildPmcChunkExtractionPrompt(chunkText: string, chunkIndex: number, totalChunks: number): string {
+  return `Analiza el siguiente fragmento (${chunkIndex + 1} de ${totalChunks}) correspondiente a un Programa de Mejora Continua (PMC) previo.
+Tu objetivo en este fragmento es extraer de forma exhaustiva y fiel TODOS los elementos del plan de acción (elementos_plan), metas institucionales (metas_institucionales_previas) y personal escolar (staffData/participantes) que figuren en este fragmento.
+
+FRAGMENTO DEL DOCUMENTO:
+"""
+${chunkText.slice(0, 100000)}
+"""
+
+Estructura la información en el siguiente esquema JSON exacto:
+{
+  "schoolName": null,
+  "schoolCct": null,
+  "directorName": null,
+  "supervisorName": null,
+  "staffData": [
+    {
+      "nombre": "Nombre del docente o directivo (limpio de prefijos)",
+      "cargo": "Docente | Director(a) | Tutor(a) | etc.",
+      "meta_individual": null,
+      "metas_individuales": []
+    }
+  ],
+  "participantes": [],
+  "totales_detectados": {
+    "metas": null,
+    "actividades": null
+  },
+  "elementos_plan": [
+    {
+      "tipo": "meta | actividad | estrategia | indicador | responsable | evidencia | cronograma | otro",
+      "texto_original": "Texto literal exacto tal como aparece en el documento",
+      "texto_normalizado": "Versión corregida ortográficamente preservando 100% de cifras y fechas",
+      "categoria": "Desarrollo académico y aprendizaje | Gestión y administración escolar | Desarrollo socioemocional y prevención de la violencia en la escuela",
+      "tema": "Tema o ámbito oficial",
+      "responsable": "Nombre o cargo del responsable (separado de la meta/actividad)",
+      "periodo": "Periodo o fecha de ejecución",
+      "ubicacion": {
+        "pagina": null,
+        "seccion": "Plan de Acción",
+        "tabla": null
+      },
+      "requiere_revision": false
+    }
+  ],
+  "metas_institucionales_previas": [
+    {
+      "categoria": "Desarrollo académico y aprendizaje | Gestión y administración escolar | Desarrollo socioemocional y prevención de la violencia en la escuela",
+      "tema": "Tema o ámbito oficial",
+      "meta": "Redacción de la meta",
+      "linea_base": null,
+      "estrategia": null,
+      "responsable": "Nombre o cargo del responsable",
+      "entregable": null,
+      "periodo": null
+    }
+  ]
+}
+
+REGLAS ESTRICTAS DEL FRAGMENTO:
+1. Extrae CADA fila de tabla o ítem del fragmento sin omitir ninguno.
+2. Si una meta o actividad tiene responsable, sepáralo y ponlo en 'responsable'.
+3. NO inventes datos. Si no hay datos de un campo en este fragmento, usa null o [].
+4. Responde EXCLUSIVAMENTE con el objeto JSON válido.`;
+}
