@@ -160,6 +160,35 @@ export async function POST(request: NextRequest) {
       ? validatedElementos
       : deriveElementosFromMetasPrevias(parsed.data.metas_institucionales_previas);
 
+    // Consolidar metas individuales de la plantilla hacia finalElementos si no están presentes
+    const existingElementTexts = new Set(
+      finalElementos.map((e) => (e.texto_normalizado || e.texto_original || '').trim().toLowerCase())
+    );
+
+    for (const staffMember of reconciledStaff.staff) {
+      const metas = staffMember.metas_individuales && staffMember.metas_individuales.length > 0
+        ? staffMember.metas_individuales
+        : (staffMember.meta_individual ? [{ meta: staffMember.meta_individual, categoria: '', tema: '', estrategia: '', entregable: '', periodo: '' }] : []);
+
+      for (const m of metas) {
+        const metaText = (m.meta || '').trim();
+        if (metaText && !existingElementTexts.has(metaText.toLowerCase())) {
+          existingElementTexts.add(metaText.toLowerCase());
+          finalElementos.push({
+            tipo: 'meta',
+            texto_original: metaText,
+            texto_normalizado: metaText,
+            categoria: m.categoria || 'Desarrollo académico y aprendizaje',
+            tema: m.tema || 'Mejora continua',
+            responsable: staffMember.nombre,
+            periodo: m.periodo || 'Ciclo escolar 2026-2027',
+            ubicacion: {},
+            requiere_revision: false,
+          });
+        }
+      }
+    }
+
     // B1 - Derivar metas_institucionales_previas a partir de elementos_plan
     const derivedMetas = deriveMetasPreviasFromElementos(
       finalElementos,
