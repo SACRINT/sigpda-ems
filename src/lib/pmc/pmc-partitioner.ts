@@ -18,12 +18,50 @@ import { withTimeoutBudget, correctiveRetry } from '@/lib/ai-resilience';
 import { logger } from '@/lib/logger';
 
 /**
+ * Cuenta filas de datos reales de tablas markdown desde el último bloque de 'PLAN DE ACCIÓN' (H-293).
+ * Identifica líneas iniciadas y terminadas por '|', excluyendo separadores (|---|) y filas de encabezado.
+ */
+export function countPlanTableRows(documentText: string): number {
+  if (!documentText) return 0;
+
+  // Localizar la última aparición de PLAN DE ACCIÓN
+  const lastPlanIdx = documentText.search(/(?:6\.\s*)?PLAN\s+DE\s+ACCI[ÓO]N(?![\s\S]*(?:6\.\s*)?PLAN\s+DE\s+ACCI[ÓO]N)/i);
+  const planText = lastPlanIdx !== -1 ? documentText.slice(lastPlanIdx) : documentText;
+
+  const lines = planText.split(/\r?\n/);
+  let dataRowCount = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line.startsWith('|') || !line.endsWith('|')) continue;
+
+    // Separadores markdown tipo |---|---|---|
+    if (/^\|[\s\-:|]+\|$/.test(line)) continue;
+
+    // Fila de encabezado: si la línea siguiente es un separador de tabla, es encabezado
+    const nextLine = (lines[i + 1] || '').trim();
+    if (/^\|[\s\-:|]+\|$/.test(nextLine)) continue;
+
+    // Descartar filas vacías de tabla | | | |
+    const cells = line.split('|').slice(1, -1).map((c) => c.trim()).filter(Boolean);
+    if (cells.length === 0) continue;
+
+    dataRowCount++;
+  }
+
+  return dataRowCount;
+}
+
+/**
  * Conteo determinista de actividades/metas esperadas a partir del texto del documento.
  * No depende de totales_detectados de la IA.
- * En el fixture real PMC 2026-Heroes de la Patria.docx devuelve exactamente 41.
+ * En documentos con tablas markdown del plan de acción cuenta filas reales; si no, aplica heurístico (H-293).
  */
 export function countDeterministicExpectedActivities(documentText: string): number {
   if (!documentText) return 0;
+
+  // H-293: Conteo de filas reales de tablas markdown en el Plan de Acción
+  const planTableRows = countPlanTableRows(documentText);
 
   // 1. Ocurrencias del término 'actividad' en el texto
   const matchActividad = (documentText.match(/\bactividad(?:es)?\b/gi) || []).length;
@@ -38,9 +76,11 @@ export function countDeterministicExpectedActivities(documentText: string): numb
     planText.match(/(?:ING\.|LIC\.|MTRO\.|MTRA\.|PROFR\.|PROFRA\.|DOCENTE|DIRECTOR)/gi) || []
   ).length;
 
-  // 4. Si se detectan responsables estructurados en la tabla del plan, ese es el conteo canónico
-  const expected = Math.max(matchActividad, matchResponsables, matchColon);
-  return expected;
+  // 4. Conteo heurístico
+  const heuristico = Math.max(matchActividad, matchResponsables, matchColon);
+
+  // H-293: Retorna max(filas, heurístico)
+  return Math.max(planTableRows, heuristico);
 }
 
 /**

@@ -12,6 +12,7 @@ import path from 'path';
 import { ingestDocument } from '@/lib/document-ingestion';
 import {
   countDeterministicExpectedActivities,
+  countPlanTableRows,
   checkRawIsTruncated,
   partitionMarkdownDocument,
   deduplicatePlanElements,
@@ -50,6 +51,33 @@ describe('Paquete C (H-216) — Metas institucionales del PMC: >40 sin truncar y
     expect(expected).toBeGreaterThanOrEqual(40);
     expect(expected).toBeLessThanOrEqual(45);
   }, 15000);
+
+  it('1b. Conteo de filas reales de tabla markdown en Plan de Acción (H-293)', () => {
+    const markdownFixture = `
+# 1. DATOS DEL PLANTEL
+CCT: 21EBH0200X
+Bachillerato Héroes de la Patria
+
+# 6. PLAN DE ACCIÓN
+## Matriz General de Metas
+
+| N° | Categoría | Meta establecida | Responsable | Período |
+|---|---|---|---|---|
+| 1 | Desarrollo académico | Meta 1 sobre aprobación del 85% | Profr. Gómez | 2026-2027 |
+| 2 | Desarrollo académico | Meta 2 sobre tutorías entre pares | Mtra. López | 2026-2027 |
+| 3 | Gestión escolar | Meta 3 sobre observación de aula | Director | 2026-2027 |
+| 4 | Desarrollo socioemocional | Meta 4 sobre cultura de paz | Lic. Sánchez | 2026-2027 |
+| 5 | Vinculación | Meta 5 sobre convenios comunitarios | Profr. Díaz | 2026-2027 |
+
+Texto de cierre sin tablas.
+`;
+
+    const rowCount = countPlanTableRows(markdownFixture);
+    expect(rowCount).toBe(5);
+
+    const totalExpected = countDeterministicExpectedActivities(markdownFixture);
+    expect(totalExpected).toBeGreaterThanOrEqual(5);
+  });
 
   it('2. Particionado estructural: divide documentos extensos en fragmentos respetando límites de 14k-25k chars', async () => {
     const buffer = fs.readFileSync(fixturePath);
