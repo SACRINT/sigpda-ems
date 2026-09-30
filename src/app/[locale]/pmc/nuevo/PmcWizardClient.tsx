@@ -33,6 +33,7 @@ import {
 import {
   deriveMetasPreviasFromElementos,
   deriveElementosFromMetasPrevias,
+  calculatePmcCoverage,
 } from '@/lib/pmc/plan-element-normalizer';
 import type {
   PmcAuditCalculationEntry,
@@ -727,6 +728,8 @@ interface PmcPreviousExtractDTO {
   objetivosPrioritarios?: string[];
   metasPrincipales?: string[];
   observacionesGenerales?: string;
+  totales_detectados?: { metas?: number | null; actividades?: number | null } | null;
+  expectedActivities?: number;
 }
 
 interface EditablePlanElement {
@@ -1034,6 +1037,17 @@ interface EditablePlanElement {
         ...parsedPmcData.foda,
       }));
     }
+
+    // H-282: Recalcular cobertura viva desde los elementos editados en el modal
+    const metasEditadasCount = editableElementosPlan.filter(e => e.tipo === 'meta').length;
+    const totalElementosEditados = editableElementosPlan.length;
+    const updatedCoverage = calculatePmcCoverage(
+      parsedPmcData.totales_detectados,
+      metasEditadasCount,
+      totalElementosEditados,
+      ingestCoverage?.esperado ?? parsedPmcData.expectedActivities
+    );
+    setIngestCoverage(updatedCoverage);
 
     setShowPmcReviewModal(false);
     setDocsStatus(p => ({ ...p, pmcAnt: true }));
@@ -2172,6 +2186,49 @@ interface EditablePlanElement {
                 <input ref={fileInputPaecRef} type="file" accept=".pdf,.docx,.doc" style={{ display: 'none' }} onChange={handleUploadPreviousPaec} />
               </div>
             </div>
+
+            {/* Banner de estado PMC anterior y reintento de extracción (H-282) */}
+            {docsStatus.pmcAnt && (
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '10px 14px', borderRadius: '8px', marginBottom: '20px',
+                background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.25)',
+                color: '#c7d2fe', fontSize: '12px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>📜</span>
+                  <span>
+                    <strong>PMC anterior cargado:</strong> {ingestCoverage?.extraidos ?? parsedPmcData?.metas_institucionales_previas?.length ?? 0} metas listas
+                    {ingestCoverage?.parcial && ingestCoverage.extraidos < (ingestCoverage.detectados || 0) && (
+                      <span style={{ color: '#fbbf24', marginLeft: '6px' }}>— Cobertura parcial ({ingestCoverage.extraidos}/{ingestCoverage.detectados})</span>
+                    )}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowPmcReviewModal(true)}
+                    style={{
+                      background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.4)',
+                      color: '#e0e7ff', padding: '4px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 600
+                    }}
+                  >
+                    👁️ Revisar datos
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => fileInputPmcRef.current?.click()}
+                    disabled={uploadingPmc}
+                    style={{
+                      background: 'rgba(245,158,11,0.2)', border: '1px solid rgba(245,158,11,0.4)',
+                      color: '#fcd34d', padding: '4px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 600
+                    }}
+                  >
+                    {uploadingPmc ? '⏳ Procesando...' : '🔄 Reintentar extracción'}
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div style={sectionCard}>
               <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#818cf8', marginBottom: '16px' }}>🏫 Datos del Plantel</h3>
