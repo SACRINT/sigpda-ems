@@ -81,16 +81,30 @@ export type MetaTopicKey =
  * Determina si una meta trata inequívocamente sobre la tasa de abandono / deserción escolar.
  */
 export function isAbandonoGoal(meta: PmcMetaInstitucional): boolean {
-  const norm = normalizeMetaText(`${meta.meta || ''} ${meta.tema || ''}`);
-  return norm.includes('abandono') || norm.includes('desercion');
+  const normMeta = normalizeMetaText(meta.meta || '');
+  if (normMeta.includes('abandono') || normMeta.includes('desercion')) {
+    return true;
+  }
+  const normTema = normalizeMetaText(meta.tema || '');
+  if (normTema && !normTema.includes('reprobacion') && (normTema.includes('abandono') || normTema.includes('desercion'))) {
+    return true;
+  }
+  return false;
 }
 
 /**
  * Determina si una meta trata inequívocamente sobre la tasa de reprobación escolar.
  */
 export function isReprobacionGoal(meta: PmcMetaInstitucional): boolean {
-  const norm = normalizeMetaText(`${meta.meta || ''} ${meta.tema || ''}`);
-  return norm.includes('reprobacion') || norm.includes('indice de reprobacion') || norm.includes('tasa de reprobacion');
+  const normMeta = normalizeMetaText(meta.meta || '');
+  if (normMeta.includes('reprobacion') || normMeta.includes('indice de reprobacion') || normMeta.includes('tasa de reprobacion')) {
+    return true;
+  }
+  const normTema = normalizeMetaText(meta.tema || '');
+  if (normTema && !normTema.includes('abandono') && (normTema.includes('reprobacion') || normTema.includes('indice de reprobacion'))) {
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -98,87 +112,171 @@ export function isReprobacionGoal(meta: PmcMetaInstitucional): boolean {
  * Excluye metas de rendimiento académico general o de semestres específicos para evitar sobreescrituras indebidas.
  */
 export function isAprobacionGoal(meta: PmcMetaInstitucional): boolean {
-  const norm = normalizeMetaText(`${meta.meta || ''} ${meta.tema || ''}`);
-  return (
-    (norm.includes('aprobacion') || norm.includes('tasa de aprobacion') || norm.includes('indice de aprobacion')) &&
-    !norm.includes('reprobacion') &&
-    !norm.includes('rendimiento academico')
-  );
+  const normMeta = normalizeMetaText(meta.meta || '');
+  if (
+    (normMeta.includes('aprobacion') || normMeta.includes('tasa de aprobacion') || normMeta.includes('indice de aprobacion')) &&
+    !normMeta.includes('reprobacion') &&
+    !normMeta.includes('rendimiento academico')
+  ) {
+    return true;
+  }
+  const normTema = normalizeMetaText(meta.tema || '');
+  if (normTema && !normTema.includes('reprobacion') && (normTema.includes('aprobacion') || normTema.includes('tasa de aprobacion'))) {
+    return true;
+  }
+  return false;
 }
 
 /**
  * Determina si una meta trata inequívocamente sobre la eficiencia terminal.
  */
 export function isEficienciaTerminalGoal(meta: PmcMetaInstitucional): boolean {
-  const norm = normalizeMetaText(`${meta.meta || ''} ${meta.tema || ''}`);
-  return norm.includes('eficiencia terminal');
+  const normMeta = normalizeMetaText(meta.meta || '');
+  if (normMeta.includes('eficiencia terminal')) {
+    return true;
+  }
+  const normTema = normalizeMetaText(meta.tema || '');
+  if (normTema && !normTema.includes('abandono') && !normTema.includes('reprobacion') && normTema.includes('eficiencia terminal')) {
+    return true;
+  }
+  return false;
 }
 
 /**
  * Determina el ámbito semántico específico de una meta evaluando categoría, tema y redacción.
  */
 export function detectMetaTopic(meta: PmcMetaInstitucional): MetaTopicKey {
-  const fullText = normalizeMetaText(
-    `${meta.categoria || ''} ${meta.nombre_categoria || ''} ${meta.tema || ''} ${meta.meta || ''}`
-  );
-
-  if (fullText.includes('abandono') || fullText.includes('desercion')) {
+  // Primero clasificar por la redacción de la meta (más específico)
+  const metaText = normalizeMetaText(meta.meta || '');
+  if (metaText.includes('abandono') || metaText.includes('desercion')) {
     return 'abandono';
   }
-  if (fullText.includes('reprobacion')) {
+  if (metaText.includes('reprobacion')) {
     return 'reprobacion';
   }
-  if (fullText.includes('aprobacion') && !fullText.includes('reprobacion')) {
+  if (metaText.includes('aprobacion') && !metaText.includes('reprobacion')) {
     return 'aprobacion';
   }
-  if (fullText.includes('eficiencia terminal')) {
+  if (metaText.includes('eficiencia terminal')) {
     return 'eficiencia_terminal';
   }
-  if (fullText.includes('egresad') || fullText.includes('egreso') || fullText.includes('titulacion')) {
+  if (metaText.includes('egresad') || metaText.includes('egreso') || metaText.includes('titulacion')) {
     return 'seguimiento_egresados';
   }
   if (
-    fullText.includes('formacion docente') ||
-    fullText.includes('actualizacion docente') ||
-    fullText.includes('capacitacion docente') ||
-    fullText.includes('desempeno docente') ||
-    fullText.includes('cosfac') ||
-    fullText.includes('academia')
+    metaText.includes('formacion docente') ||
+    metaText.includes('actualizacion docente') ||
+    metaText.includes('capacitacion docente') ||
+    metaText.includes('desempeno docente') ||
+    metaText.includes('cosfac') ||
+    metaText.includes('academia')
   ) {
     return 'formacion_docente';
   }
   if (
-    fullText.includes('violencia') ||
-    fullText.includes('cultura de paz') ||
-    fullText.includes('acoso') ||
-    fullText.includes('mediacion')
+    metaText.includes('violencia') ||
+    metaText.includes('cultura de paz') ||
+    metaText.includes('acoso') ||
+    metaText.includes('mediacion')
   ) {
     return 'convivencia_violencia';
   }
   if (
-    fullText.includes('socioemocional') ||
-    fullText.includes('bienestar') ||
-    fullText.includes('salud mental') ||
-    fullText.includes('vida saludable') ||
-    fullText.includes('alcohol') ||
-    fullText.includes('sustancias')
+    metaText.includes('socioemocional') ||
+    metaText.includes('bienestar') ||
+    metaText.includes('salud mental') ||
+    metaText.includes('salud emocional') ||
+    metaText.includes('vida saludable') ||
+    metaText.includes('alcohol') ||
+    metaText.includes('sustancias')
   ) {
     return 'socioemocional';
   }
   if (
-    fullText.includes('infraestructura') ||
-    fullText.includes('mantenimiento') ||
-    fullText.includes('equipamiento') ||
-    fullText.includes('aulas') ||
-    fullText.includes('computo') ||
-    fullText.includes('sanitarios')
+    metaText.includes('infraestructura') ||
+    metaText.includes('mantenimiento') ||
+    metaText.includes('equipamiento') ||
+    metaText.includes('aulas') ||
+    metaText.includes('computo') ||
+    metaText.includes('sanitarios')
   ) {
     return 'infraestructura';
   }
   if (
-    fullText.includes('paec') ||
-    fullText.includes('comunitari') ||
-    fullText.includes('vinculacion')
+    metaText.includes('paec') ||
+    metaText.includes('comunitari') ||
+    metaText.includes('vinculacion')
+  ) {
+    return 'vinculacion_comunitaria';
+  }
+
+  // Si no se clasificó por la meta, evaluar tema y categoría excluyendo el tema compuesto genérico
+  const contextText = normalizeMetaText(
+    `${meta.categoria || ''} ${meta.nombre_categoria || ''} ${meta.tema || ''}`
+  );
+  const isCompositeTema = contextText.includes('reprobacion') && contextText.includes('abandono');
+
+  if (!isCompositeTema) {
+    if (contextText.includes('abandono') || contextText.includes('desercion')) {
+      return 'abandono';
+    }
+    if (contextText.includes('reprobacion')) {
+      return 'reprobacion';
+    }
+    if (contextText.includes('aprobacion')) {
+      return 'aprobacion';
+    }
+    if (contextText.includes('eficiencia terminal')) {
+      return 'eficiencia_terminal';
+    }
+  }
+
+  if (contextText.includes('egresad') || contextText.includes('egreso') || contextText.includes('titulacion')) {
+    return 'seguimiento_egresados';
+  }
+  if (
+    contextText.includes('formacion docente') ||
+    contextText.includes('actualizacion docente') ||
+    contextText.includes('capacitacion docente') ||
+    contextText.includes('desempeno docente') ||
+    contextText.includes('cosfac') ||
+    contextText.includes('academia')
+  ) {
+    return 'formacion_docente';
+  }
+  if (
+    contextText.includes('violencia') ||
+    contextText.includes('cultura de paz') ||
+    contextText.includes('acoso') ||
+    contextText.includes('mediacion')
+  ) {
+    return 'convivencia_violencia';
+  }
+  if (
+    contextText.includes('socioemocional') ||
+    contextText.includes('bienestar') ||
+    contextText.includes('salud mental') ||
+    contextText.includes('salud emocional') ||
+    contextText.includes('vida saludable') ||
+    contextText.includes('alcohol') ||
+    contextText.includes('sustancias')
+  ) {
+    return 'socioemocional';
+  }
+  if (
+    contextText.includes('infraestructura') ||
+    contextText.includes('mantenimiento') ||
+    contextText.includes('equipamiento') ||
+    contextText.includes('aulas') ||
+    contextText.includes('computo') ||
+    contextText.includes('sanitarios')
+  ) {
+    return 'infraestructura';
+  }
+  if (
+    contextText.includes('paec') ||
+    contextText.includes('comunitari') ||
+    contextText.includes('vinculacion')
   ) {
     return 'vinculacion_comunitaria';
   }

@@ -393,5 +393,62 @@ describe('H-150 / H-153: Deduplicación silenciosa de metas institucionales', ()
       const vidaSaludable = output.find(m => normalizeMetaText(m.meta).includes('habitos de vida saludable'));
       expect(vidaSaludable).toBeDefined();
     });
+
+    it('H-283: NUNCA fusiona metas de asignaturas o reprobacion como abandono bajo el tema oficial compuesto', () => {
+      const temaOficial = 'Indicadores académicos (reprobación, eficiencia terminal y abandono escolar)';
+      
+      const meta1Reprobacion: PmcMetaInstitucional = {
+        categoria: 'Desarrollo académico y aprendizaje',
+        tema: temaOficial,
+        meta: 'Disminuir la reprobación de los alumnos del semestre que se encuentren cursando y al mismo observar su desempeño académico.',
+        estrategia: 'Realizar un concentrado de calificaciones grupal en el salón de 2 A en cada semestre',
+      };
+
+      const meta2Salud: PmcMetaInstitucional = {
+        categoria: 'Desarrollo socioemocional y prevención de la violencia en la escuela',
+        tema: 'Salud integral y bienestar',
+        meta: 'Promover durante el ciclo escolar 2026-2027 la participación y asistencia de alumnas, alumnos, madres, padres y/o tutores a las conferencias de salud emocional y física.',
+      };
+
+      const meta3Docente: PmcMetaInstitucional = {
+        categoria: 'Desarrollo académico y aprendizaje',
+        tema: 'Formación y actualización docente',
+        meta: 'Acreditar satisfactoriamente dichos cursos en actualizaciones y formación docente en un 100%, durante la calendarización establecida y obtener la constancia.',
+      };
+
+      const meta4Ingles: PmcMetaInstitucional = {
+        categoria: 'Desarrollo académico y aprendizaje',
+        tema: temaOficial,
+        meta: 'Lograr que mínimo el 70% de los estudiantes de primer y tercer semestre aprueben con un buen promedio las asignaturas de inglés 1 e inglés III, para mejorar la eficiencia terminal.',
+        estrategia: 'Ofrecer asesorías de inglés y participar en cursos COSFAC',
+      };
+
+      const meta5Aritmetica: PmcMetaInstitucional = {
+        categoria: 'Desarrollo académico y aprendizaje',
+        tema: temaOficial,
+        meta: 'Lograr que mínimo el 70% de los estudiantes de primer semestre aprueben con un buen promedio en pensamiento aritmético, para mejorar la eficiencia terminal.',
+        estrategia: 'Ofrecer asesorías, realizar cursos COSFAC, adquirir bombo y participar en feria de ciencias',
+      };
+
+      // Verificar que ninguna sea falsamente clasificada como meta de abandono
+      expect(isAbandonoGoal(meta1Reprobacion)).toBe(false);
+      expect(isAbandonoGoal(meta4Ingles)).toBe(false);
+      expect(isAbandonoGoal(meta5Aritmetica)).toBe(false);
+
+      // Verificar deduplicación con las 5 metas juntas
+      const deduplicated = deduplicateMetasInstitucionales([
+        meta1Reprobacion,
+        meta2Salud,
+        meta3Docente,
+        meta4Ingles,
+        meta5Aritmetica,
+      ]);
+
+      // Todas las 5 metas deben sobrevivir independientemente sin ser devoradas
+      expect(deduplicated.length).toBe(5);
+      expect(deduplicated.some(m => m.meta.includes('inglés'))).toBe(true);
+      expect(deduplicated.some(m => m.meta.includes('pensamiento aritmético'))).toBe(true);
+      expect(deduplicated.some(m => m.meta.includes('reprobación'))).toBe(true);
+    });
   });
 });
