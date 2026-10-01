@@ -34,6 +34,7 @@ import {
 } from './pmc-document-structure';
 import { cleanPmcPlaceholders } from './pmc/plan-element-normalizer';
 import { isValidStaffName, isCollectiveOrNonHumanEntity } from './pmc/staff-reconciler';
+import { enrichMetaWithCatalogBase } from '@/lib/constants/pmc-catalogo-criterios';
 
 // ─── Color Palette ───────────────────────────────────────────────────────────
 const C = {
@@ -906,10 +907,13 @@ export function resolveAreaObligatoria51(
 }
 
 // ─── 6. Plan de Acción ───────────────────────────────────────────────────────
-function buildPlanAccion(plan: PlanAccion): (Paragraph | Table)[] {
+function buildPlanAccion(plan: PlanAccion, project?: PmcProject): (Paragraph | Table)[] {
   const items: (Paragraph | Table)[] = [secHeading(PMC_TITULOS_SECCIONES.PLAN_ACCION)];
 
-  const metas = plan.metas_institucionales ?? [];
+  // Enriquecer cada meta con el catálogo canónico antes de renderizar
+  const metas = (plan.metas_institucionales ?? []).map(m =>
+    enrichMetaWithCatalogBase(m as PmcMetaInstitucional, project) as MetaInstitucional
+  );
 
   if (metas.length === 0) {
     items.push(bodyPara('No se han registrado metas institucionales específicas en el plan de acción.'));
@@ -1044,7 +1048,7 @@ function buildPlanAccion(plan: PlanAccion): (Paragraph | Table)[] {
       items.push(bodyPara('Desarrollo estructurado de metas correspondientes a temas y categorías adicionales seleccionados por la institución:'));
 
       for (let mIdx = 0; mIdx < additionalMetas.length; mIdx++) {
-        const extraMeta = additionalMetas[mIdx];
+        const extraMeta = enrichMetaWithCatalogBase(additionalMetas[mIdx] as PmcMetaInstitucional, project) as MetaInstitucional;
         const tituloExtra = extraMeta.nombre_categoria
           ? `${extraMeta.nombre_categoria}${extraMeta.tema ? ` — ${extraMeta.tema}` : ''}`
           : (extraMeta.tema || `Categoría Adicional ${mIdx + 1}`);
@@ -1444,7 +1448,7 @@ export async function generatePmcDocx(project: PmcProject): Promise<Buffer> {
     ...buildNormativa(normativa),
     ...buildDiagnostico(diag, indic, foda, statsCtx, project),
     ...buildPriorizacion(diag, categoriasArr),
-    ...buildPlanAccion(plan),
+    ...buildPlanAccion(plan, project),
     ...buildMetasPersonales(plan),
     ...buildControlRevisiones(project, plan),
   ];

@@ -28,6 +28,7 @@ import {
 } from './pmc-document-structure';
 import { cleanPmcPlaceholders } from './pmc/plan-element-normalizer';
 import { isValidStaffName, isCollectiveOrNonHumanEntity } from './pmc/staff-reconciler';
+import { enrichMetaWithCatalogBase } from '@/lib/constants/pmc-catalogo-criterios';
 
 const NAVY: [number, number, number] = [31, 56, 100];       // #1F3864 - Azul Institucional MCCEMS
 const BLUE_MID: [number, number, number] = [46, 116, 181];   // #2E74B5 - Azul Secundario
@@ -646,7 +647,9 @@ export async function generatePmcPDF(
   addSectionHeader(PMC_TITULOS_SECCIONES.PLAN_ACCION);
 
   const planAccion = parseJson(project.plan_accion);
-  const metasInst: any[] = Array.isArray(planAccion.metas_institucionales) ? planAccion.metas_institucionales : [];
+  const metasRaw: any[] = Array.isArray(planAccion.metas_institucionales) ? planAccion.metas_institucionales : [];
+  // Enriquecer con catálogo canónico para eliminar fallbacks genéricos
+  const metasInst: any[] = metasRaw.map((m: any) => enrichMetaWithCatalogBase(m, project));
 
   if (metasInst.length === 0) {
     doc.setFont('helvetica', 'italic');
@@ -802,7 +805,8 @@ export async function generatePmcPDF(
       curY += 4;
 
       for (let mIdx = 0; mIdx < additionalMetasPdf.length; mIdx++) {
-        const extraMeta = additionalMetasPdf[mIdx];
+        const extraMetaRaw = additionalMetasPdf[mIdx];
+        const extraMeta: any = enrichMetaWithCatalogBase(extraMetaRaw, project);
         const tituloExtra = extraMeta.nombre_categoria
           ? `${extraMeta.nombre_categoria}${extraMeta.tema ? ` — ${extraMeta.tema}` : ''}`
           : (extraMeta.tema || `Categoría Adicional ${mIdx + 1}`);

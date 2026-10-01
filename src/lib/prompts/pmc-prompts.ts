@@ -18,6 +18,7 @@ import type { PmcProject, PmcStatisticalContext, PmcIndicadoresAcademicos, PmcFo
 import { toRealNumber } from '../numeric-guard';
 import { formatMetasContextForPrompt } from '../catalogo-metas-pmc';
 import { formatZoneMetric } from '../zone-metric-format';
+import { findCriterioCatalogItem } from '../constants/pmc-catalogo-criterios';
 
 function safeStr(val: unknown, fallback = 'N/D'): string {
   if (val === null || val === undefined) return fallback;
@@ -255,7 +256,11 @@ export function buildPmcPlanAccionPrompt(
         .map((c) => {
           const nombre = c.nombre ?? `Categoría ${c.id}`;
           const temas = Array.isArray(c.temas) && c.temas.length > 0
-            ? c.temas.map((t) => `    • ${t}`).join('\n')
+            ? c.temas.map((t) => {
+                const catItem = findCriterioCatalogItem(t);
+                const guidance = catItem ? ` [Enfoque canónico: ${catItem.descripcion} | Entregable técnico: ${catItem.entregable_oficial}]` : '';
+                return `    • ${t}${guidance}`;
+              }).join('\n')
             : '    • (sin temas específicos)';
           return `- ${nombre}:\n${temas}`;
         })

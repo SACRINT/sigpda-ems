@@ -95,6 +95,30 @@ function ensureMandatory51Metas<T extends PmcMetaInstitucional>(
     result.push(synthesizeContextualizedMeta('area-4-violencia', project) as unknown as T);
   }
 
+  // 5. Garantizar también que cualquier tema priorizado seleccionado por el plantel cuente con su meta institucional
+  try {
+    const rawCats = parseJson<Array<{ id?: string; nombre?: string; temas?: string[] }>>(project.categorias_priorizadas);
+    if (Array.isArray(rawCats)) {
+      for (const cat of rawCats) {
+        if (Array.isArray(cat.temas)) {
+          for (const tema of cat.temas) {
+            if (!tema || !tema.trim()) continue;
+            const cleanTema = tema.trim().toLowerCase();
+            const exists = result.some(m => {
+              const fullText = `${m.tema || ''} ${m.nombre_categoria || ''} ${(m.subcategorias_vinculadas || []).join(' ')}`.toLowerCase();
+              return fullText.includes(cleanTema) || cleanTema.includes((m.tema || '').toLowerCase());
+            });
+            if (!exists) {
+              result.push(synthesizeContextualizedMeta(tema, project) as unknown as T);
+            }
+          }
+        }
+      }
+    }
+  } catch (err) {
+    logger.warn('[pmc-generate] Error procesando categorías priorizadas para metas:', { err });
+  }
+
   return result;
 }
 

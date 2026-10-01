@@ -269,6 +269,35 @@ export async function POST(request: NextRequest) {
       if (derivedPromedio !== null) {
         parsed.data.promedioGeneral = derivedPromedio;
       }
+
+      // H-F11-OCR-001: Recalcular conteos de clasificación determinísticamente desde listaAlumnos
+      // La IA puede devolver la lista pero no calcular los totales — los derivamos aquí para garantizar consistencia
+      const total = parsed.data.listaAlumnos.length;
+      const regulares = parsed.data.listaAlumnos.filter(a => a.clase === 'REGULAR').length;
+      const irregulares = parsed.data.listaAlumnos.filter(a => a.clase === 'IRREGULAR').length;
+      const reprobados = parsed.data.listaAlumnos.filter(a => a.clase === 'REPROBADO').length;
+      const bajas = parsed.data.listaAlumnos.filter(a => a.clase === 'BAJA').length;
+      const aprobados = regulares + irregulares;
+
+      if (total > 0) {
+        parsed.data.regulares = regulares;
+        parsed.data.irregulares = irregulares;
+        parsed.data.reprobados = reprobados;
+        parsed.data.bajas = bajas;
+        parsed.data.aprobados = aprobados;
+        parsed.data.totalAlumnos = parsed.data.totalAlumnos ?? total;
+
+        const t = parsed.data.totalAlumnos ?? total;
+        parsed.data.aprobadosPorcentaje = Number(((aprobados / t) * 100).toFixed(1));
+        parsed.data.reprobadosPorcentaje = Number(((reprobados / t) * 100).toFixed(1));
+        parsed.data.porcentajes = {
+          aprobados: Number(((aprobados / t) * 100).toFixed(1)),
+          regulares: Number(((regulares / t) * 100).toFixed(1)),
+          irregulares: Number(((irregulares / t) * 100).toFixed(1)),
+          reprobados: Number(((reprobados / t) * 100).toFixed(1)),
+          bajas: Number(((bajas / t) * 100).toFixed(1)),
+        };
+      }
     }
 
     const warnings = [...(parsed.warnings || []), 'requiere_revision: true (extraído vía OCR/IA de respaldo)'];

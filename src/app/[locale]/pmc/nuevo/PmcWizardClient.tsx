@@ -1140,7 +1140,9 @@ interface EditablePlanElement {
         }
       }
 
-      if (json.data?.aprobadosPorcentaje !== undefined || json.data?.reprobadosPorcentaje !== undefined || json.data?.promedioGeneral !== undefined) {
+      // H-F11-UI-001: Activar actualización de indicadores cuando cualquier dato cuantitativo del F11 esté disponible
+      // (no solo porcentajes — en fallback OCR el totalAlumnos llega aunque los porcentajes sean null)
+      if (json.data?.totalAlumnos != null || json.data?.aprobadosPorcentaje !== undefined || json.data?.reprobadosPorcentaje !== undefined || json.data?.promedioGeneral !== undefined) {
         setIndicadores(p => {
           const rawAp = json.data?.aprobadosPorcentaje ?? json.data?.porcentajes?.aprobados;
           const rawRep = json.data?.reprobadosPorcentaje ?? json.data?.porcentajes?.reprobados;
