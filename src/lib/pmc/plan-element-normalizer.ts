@@ -177,16 +177,20 @@ export function deriveMetasPreviasFromElementos(
 ): NonNullable<PmcPreviousExtractDTO['metas_institucionales_previas']> {
   const metaElements = (elementos || []).filter((e) => e.tipo === 'meta');
   if (metaElements.length === 0) {
-    return (existingMetas || []).map((m) => ({
-      categoria: m.categoria || '',
-      tema: m.tema || '',
-      meta: m.meta || '',
-      linea_base: m.linea_base || '',
-      estrategia: m.estrategia || '',
-      responsable: m.responsable || '',
-      entregable: m.entregable || '',
-      periodo: m.periodo || '',
-    }));
+    return (existingMetas || []).map((m) => {
+      const rawMeta = cleanPmcPlaceholders(m.meta || '');
+      const metricFix = correctInvertedMetricGoals(rawMeta);
+      return {
+        categoria: m.categoria || '',
+        tema: m.tema || '',
+        meta: metricFix.text,
+        linea_base: (metricFix.wasCorrected && metricFix.detectedBaseline) ? metricFix.detectedBaseline : (m.linea_base || ''),
+        estrategia: cleanPmcPlaceholders(m.estrategia || ''),
+        responsable: m.responsable || '',
+        entregable: m.entregable || '',
+        periodo: m.periodo || '',
+      };
+    });
   }
 
   // Agrupar actividades y estrategias por categoría y tema para asociarlas a la meta correspondiente
@@ -266,16 +270,24 @@ export function deriveMetasPreviasFromElementos(
     }
 
     const matchedExisting = matchedItem?.em;
-    const mergedLineaBase = matchedExisting?.linea_base?.trim() || '';
     const mergedEntregable = matchedExisting?.entregable?.trim() || '';
     const mergedEstrategia =
       matchedExisting?.estrategia?.trim() ||
       (relatedActs.length > 0 ? relatedActs.join('; ') : '');
 
+    const rawMetaText = cleanPmcPlaceholders(m.texto_normalizado || m.texto_original);
+    const metricFix = correctInvertedMetricGoals(rawMetaText);
+    const finalMetaText = metricFix.text;
+
+    let mergedLineaBase = matchedExisting?.linea_base?.trim() || '';
+    if (metricFix.wasCorrected && metricFix.detectedBaseline) {
+      mergedLineaBase = metricFix.detectedBaseline;
+    }
+
     return {
       categoria: m.categoria || matchedExisting?.categoria || '',
       tema: m.tema || matchedExisting?.tema || '',
-      meta: cleanPmcPlaceholders(m.texto_normalizado || m.texto_original),
+      meta: finalMetaText,
       linea_base: mergedLineaBase,
       estrategia: cleanPmcPlaceholders(mergedEstrategia),
       responsable: m.responsable || matchedExisting?.responsable || '',
@@ -293,17 +305,21 @@ export function deriveElementosFromMetasPrevias(
   metas?: PmcMetaPreviaInput[]
 ): PmcPlanElement[] {
   if (!metas || metas.length === 0) return [];
-  return metas.map((m) => ({
-    tipo: 'meta' as const,
-    texto_original: m.texto_original || m.meta || '',
-    texto_normalizado: cleanPmcPlaceholders(m.meta || ''),
-    categoria: m.categoria || '',
-    tema: m.tema || '',
-    responsable: m.responsable || '',
-    periodo: m.periodo || '',
-    ubicacion: {},
-    requiere_revision: false,
-  }));
+  return metas.map((m) => {
+    const rawMeta = cleanPmcPlaceholders(m.meta || '');
+    const metricFix = correctInvertedMetricGoals(rawMeta);
+    return {
+      tipo: 'meta' as const,
+      texto_original: m.texto_original || m.meta || '',
+      texto_normalizado: metricFix.text,
+      categoria: m.categoria || '',
+      tema: m.tema || '',
+      responsable: m.responsable || '',
+      periodo: m.periodo || '',
+      ubicacion: {},
+      requiere_revision: false,
+    };
+  });
 }
 
 /**
@@ -384,4 +400,60 @@ export function cleanPmcPlaceholders(text: string | null | undefined): string {
     .replace(/\s+([.,;:])/g, '$1')
     .replace(/,\s*\./g, '.')
     .trim();
+}
+
+/**
+ * Detecta y corrige errores humanos de inversión métrica en la redacción de metas institucionales (ej. Meta 19:
+ * "Disminuir el índice de reprobación del 3% al 7.5%").
+ *
+ * Reglas deterministas:
+ * 1. Verbos de disminución / reducción (disminuir, reducir, bajar, decrementar, abatir, mitigar, etc.):
+ *    Si el rango numérico es "del A% al B%" con A < B (ej. 3% < 7.5%), se invierten los valores: "del 7.5% al 3%".
+ * 2. Verbos de aumento / incremento (aumentar, incrementar, elevar, subir, mejorar, superar, etc.):
+ *    Si el rango numérico es "del A% al B%" con A > B (ej. 85% > 70%), se invierten los valores: "del 70% al 85%".
+ */
+export function correctInvertedMetricGoals(text: string | null | undefined): {
+  text: string;
+  wasCorrected: boolean;
+  reason?: string;
+  detectedBaseline?: string;
+  detectedTarget?: string;
+} {
+  if (!text) return { text: '', wasCorrected: false };
+  let wasCorrected = false;
+  let reason: string | undefined;
+  let detectedBaseline: string | undefined;
+  let detectedTarget: string | undefined;
+
+  // 1. Caso disminución / reducción donde valor inicial < valor meta (ej. disminuir reprobación del 3% al 7.5%)
+  const decreaseRegex = /\b(disminuir|reducir|bajar|decrementar|abatir|mitigar)\b([^.,;:\n]*?)\b(del?|de\s+un|de)\s+(\d+(?:\.\d+)?)\s*%\s*(al?|a\s+un|a)\s+(\d+(?:\.\d+)?)\s*%/gi;
+  let corrected = text.replace(decreaseRegex, (match, verb, concept, prep1, n1, prep2, n2) => {
+    const val1 = parseFloat(n1);
+    const val2 = parseFloat(n2);
+    if (val1 < val2) {
+      wasCorrected = true;
+      reason = `Inversión de métrica corregida: ${val1}% < ${val2}% con verbo '${verb}'. Se ajustó a '${verb}${concept}${prep1} ${n2}% ${prep2} ${n1}%'`;
+      detectedBaseline = `${n2}%`;
+      detectedTarget = `${n1}%`;
+      return `${verb}${concept}${prep1} ${n2}% ${prep2} ${n1}%`;
+    }
+    return match;
+  });
+
+  // 2. Caso aumento / incremento donde valor inicial > valor meta (ej. elevar aprovechamiento del 85% al 70%)
+  const increaseRegex = /\b(aumentar|incrementar|elevar|subir|mejorar|alcanzar|superar)\b([^.,;:\n]*?)\b(del?|de\s+un|de)\s+(\d+(?:\.\d+)?)\s*%\s*(al?|a\s+un|a)\s+(\d+(?:\.\d+)?)\s*%/gi;
+  corrected = corrected.replace(increaseRegex, (match, verb, concept, prep1, n1, prep2, n2) => {
+    const val1 = parseFloat(n1);
+    const val2 = parseFloat(n2);
+    if (val1 > val2) {
+      wasCorrected = true;
+      reason = `Inversión de métrica corregida: ${val1}% > ${val2}% con verbo '${verb}'. Se ajustó a '${verb}${concept}${prep1} ${n2}% ${prep2} ${n1}%'`;
+      detectedBaseline = `${n2}%`;
+      detectedTarget = `${n1}%`;
+      return `${verb}${concept}${prep1} ${n2}% ${prep2} ${n1}%`;
+    }
+    return match;
+  });
+
+  return { text: corrected, wasCorrected, reason, detectedBaseline, detectedTarget };
 }

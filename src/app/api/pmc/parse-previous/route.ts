@@ -24,8 +24,11 @@ import {
   deriveElementosFromMetasPrevias,
   calculatePmcCoverage,
   cleanPmcPlaceholders,
+  correctInvertedMetricGoals,
 } from '@/lib/pmc/plan-element-normalizer';
+import { synthesizeSituatedFoda } from '@/lib/pmc/pmc-foda-synthesizer';
 import { extractPmcPreviousWithPartitioning } from '@/lib/pmc/pmc-partitioner';
+import type { PmcIndicadoresAcademicos } from '@/types/pmc';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -132,10 +135,12 @@ export async function POST(request: NextRequest) {
       parsed.warnings = [];
     }
 
-    // B3 - Invariante numérico del lado servidor (Cero fabricación B-001) y limpieza de placeholders
+    // B3 - Invariante numérico del lado servidor (Cero fabricación B-001), auto-corrección de métricas invertidas y limpieza de placeholders
     const validatedElementos = (parsed.data.elementos_plan || []).map((elem) => {
       const cleanedNorm = cleanPmcPlaceholders(elem.texto_normalizado);
-      const val = validateNormalizedText(elem.texto_original, cleanedNorm || elem.texto_normalizado);
+      const metricFix = correctInvertedMetricGoals(cleanedNorm || elem.texto_normalizado);
+      const targetNorm = metricFix.text;
+      const val = validateNormalizedText(elem.texto_original, targetNorm);
       if (!val.ok) {
         parsed.warnings.push(
           `Normalización rechazada por invariantes de datos: faltan cifras [${val.faltantes.join(', ')}] en ${elem.tipo}. Se conserva texto original.`
@@ -146,9 +151,12 @@ export async function POST(request: NextRequest) {
           requiere_revision: true,
         };
       }
+      if (metricFix.wasCorrected && metricFix.reason) {
+        parsed.warnings.push(`[Auto-corrección pedagógica]: ${metricFix.reason}`);
+      }
       return {
         ...elem,
-        texto_normalizado: cleanedNorm || cleanPmcPlaceholders(elem.texto_original),
+        texto_normalizado: targetNorm,
       };
     });
 
@@ -217,9 +225,14 @@ export async function POST(request: NextRequest) {
     const normalizedElementosPlan = finalElementos.map((elem) => {
       const catNorm = normalizePmcCategoria(elem.categoria);
       const temaNorm = normalizePmcTema(elem.tema, catNorm);
+      let textNorm = cleanPmcPlaceholders(elem.texto_normalizado);
+      if (elem.tipo === 'meta') {
+        const metricFix = correctInvertedMetricGoals(textNorm);
+        textNorm = metricFix.text;
+      }
       return {
         ...elem,
-        texto_normalizado: cleanPmcPlaceholders(elem.texto_normalizado),
+        texto_normalizado: textNorm,
         categoria: catNorm,
         tema: temaNorm,
       };
@@ -257,6 +270,17 @@ export async function POST(request: NextRequest) {
       })
     );
 
+    const synthesizedFoda = synthesizeSituatedFoda({
+      schoolName: parsed.data.schoolName,
+      schoolCct: parsed.data.schoolCct,
+      municipality: parsed.data.municipality,
+      locality: parsed.data.locality,
+      totalStaff: reconciledStaff.totalStaff,
+      rawFoda: parsed.data.foda,
+      indicadores: (parsed.data.indicadores as unknown as PmcIndicadoresAcademicos) ?? undefined,
+      diagnosticoComunidad: parsed.data.diagnosticoComunidad,
+    });
+
     const finalData = {
       ...parsed.data,
       totalStaff: reconciledStaff.totalStaff,
@@ -265,6 +289,7 @@ export async function POST(request: NextRequest) {
       elementos_plan: normalizedElementosPlan,
       metas_institucionales_previas: normalizedMetasPrevias,
       categorias_priorizadas: reconciledCategoriasPriorizadas,
+      foda: synthesizedFoda,
     };
 
     const actividadesExtraidas = normalizedElementosPlan.filter((e) => e.tipo === 'actividad').length;

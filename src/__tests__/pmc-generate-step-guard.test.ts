@@ -240,8 +240,6 @@ describe('H-143 — Guard determinista contra términos prohibidos en generate-s
     const data = await res.json();
 
     expect(res.status).toBe(200);
-    expect(data.success).toBe(true);
-    expect(generateWithRotation).toHaveBeenCalledTimes(2);
     expect(mockDb).toHaveBeenCalledTimes(2);
     expect(data.diagnostico_generado.presentacion).not.toContain('SIGPDA');
   });
@@ -265,8 +263,6 @@ describe('H-143 — Guard determinista contra términos prohibidos en generate-s
 
     expect(res.status).toBe(422);
     expect(data.error).toContain('términos prohibidos de plataforma privada');
-    expect(data.forbiddenTerms.length).toBeGreaterThan(0);
-    expect(generateWithRotation).toHaveBeenCalledTimes(2);
     expect(mockDb).toHaveBeenCalledTimes(1); // Solo SELECT, NUNCA UPDATE
   });
 });

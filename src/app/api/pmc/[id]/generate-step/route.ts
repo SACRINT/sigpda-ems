@@ -18,7 +18,9 @@ import {
 } from '@/lib/pmc-quality-gate';
 import { deduplicateMetasInstitucionales } from '@/lib/pmc-meta-deduplicator';
 import { synthesizeContextualizedMeta } from '@/lib/constants/pmc-catalogo-criterios';
-import type { PmcProject, PmcStatisticalContext, PmcIndicadoresAcademicos, PmcMetaInstitucional } from '@/types/pmc';
+import { synthesizeSituatedFoda } from '@/lib/pmc/pmc-foda-synthesizer';
+import { correctInvertedMetricGoals } from '@/lib/pmc/plan-element-normalizer';
+import type { PmcProject, PmcStatisticalContext, PmcIndicadoresAcademicos, PmcMetaInstitucional, PmcFodaData } from '@/types/pmc';
 import { z } from 'zod';
 
 export const runtime = 'nodejs';
@@ -349,9 +351,26 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         logger.warn('[pmc-generate] RAG omitido por timeout/fallo (fail-open):', { message: (err as Error).message });
       }
 
+      // Auto-síntesis y enriquecimiento de FODA si está vacío o incompleto (H-FODA-AUTO)
+      const currentFoda = parseJson<PmcFodaData>(project.foda);
+      const fodaNeedsSynthesis = !currentFoda.fortalezas || currentFoda.fortalezas.trim().length < 15;
+      const effectiveFoda = fodaNeedsSynthesis
+        ? synthesizeSituatedFoda({
+            schoolName: project.school_name,
+            schoolCct: project.school_cct,
+            municipality: project.municipality,
+            locality: project.locality,
+            totalStaff: project.total_staff,
+            rawFoda: currentFoda,
+            indicadores: indic,
+            diagnosticoComunidad: project.diagnostico_comunidad,
+            promediosPorAsignatura: promediosAsig,
+          })
+        : currentFoda;
+
       const normativaDocs = await getOrLoadProjectNormativa(project.normativa);
       const basePrompt = buildPmcDiagnosticoPrompt(
-        project as unknown as PmcProject,
+        { ...project, foda: effectiveFoda } as unknown as PmcProject,
         statisticalContext,
         libraryContext,
         normativaDocs
@@ -458,6 +477,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       const [updated] = await db`
         UPDATE pmc_projects
         SET diagnostico_generado = ${JSON.stringify(parsedDiag)},
+            foda = CASE WHEN ${fodaNeedsSynthesis} THEN ${JSON.stringify(currentFoda)}::jsonb ELSE foda END,
             current_step = GREATEST(current_step, 3),
             updated_at = ${now}
         WHERE id = ${id}
@@ -639,6 +659,16 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         parsedPlan.metas_institucionales,
         project as unknown as PmcProject
       );
+
+      // Corrección determinista de errores de inversión métrica (ej. Meta 19: del 3% al 7.5% -> del 7.5% al 3%)
+      parsedPlan.metas_institucionales = parsedPlan.metas_institucionales.map((m) => {
+        const metricFix = correctInvertedMetricGoals(m.meta);
+        return {
+          ...m,
+          meta: metricFix.text,
+          linea_base: (metricFix.wasCorrected && metricFix.detectedBaseline) ? metricFix.detectedBaseline : m.linea_base,
+        };
+      });
 
       const staffList = (Array.isArray(staffData) ? staffData : []) as StaffMember[];
       parsedPlan.metas_personales = derivePersonalMetasFromStaff(

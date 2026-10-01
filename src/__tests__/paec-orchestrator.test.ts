@@ -222,6 +222,7 @@ describe('PaecOrchestrator (Fase D — Piloto Nivel 1 & Strangler Fig)', () => {
         community: {},
         selectedLaboral: [],
         selectedFfe: [],
+        foda: { fortalezas: '', oportunidades: '', debilidades: '', amenazas: '' },
       },
     });
 

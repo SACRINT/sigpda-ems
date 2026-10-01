@@ -29,6 +29,12 @@ export const PaecPreviousExtractSchema = z.object({
   }).partial().optional().default({}),
   selectedLaboral: z.array(z.string()).optional().default([]),
   selectedFfe: z.array(z.string()).optional().default([]),
+  foda: z.object({
+    fortalezas: nullableString(),
+    oportunidades: nullableString(),
+    debilidades: nullableString(),
+    amenazas: nullableString(),
+  }).partial().optional().default({}),
 });
 
 export type PaecPreviousExtractDTO = z.infer<typeof PaecPreviousExtractSchema>;
@@ -72,7 +78,13 @@ Estructura la información en el siguiente esquema JSON exacto:
   ],
   "selectedFfe": [
     "Nombres de las asignaturas de Formación Fundamental Extendida detectadas si las hay"
-  ]
+  ],
+  "foda": {
+    "fortalezas": "Fortalezas institucionales o docentes identificadas en el análisis FODA del PAEC (o \"\")",
+    "oportunidades": "Oportunidades del entorno o vinculación identificadas en el FODA (o \"\")",
+    "debilidades": "Debilidades, carencias o rezagos internos identificados en el FODA (o \"\")",
+    "amenazas": "Amenazas, riesgos contextuales o comunitarios identificados en el FODA (o \"\")"
+  }
 }
 
 REGLAS DE EXTRACCIÓN:

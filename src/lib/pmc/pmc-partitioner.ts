@@ -31,8 +31,8 @@ import { jsonrepair } from 'jsonrepair';
 export function findPlanActionSection(documentText: string): { planText: string; startIndex: number; endIndex: number } {
   if (!documentText) return { planText: '', startIndex: -1, endIndex: -1 };
 
-  // 1. Encontrar todos los candidatos que contengan PLAN DE ACCIÓN
-  const regex = /(?:^|\n)[*_#\s]*(?:\d+[\.\)\-]\s*)?PLAN\s+DE\s+ACCI[ÓO]N\b/gi;
+  // 1. Encontrar todos los candidatos que contengan PLAN DE ACCIÓN / PLAN DE ACCION
+  const regex = /PLAN\s+DE\s+ACC[IÍ][ÓO]N/gi;
   const matches = [...documentText.matchAll(regex)];
 
   let startIdx = -1;
@@ -41,24 +41,40 @@ export function findPlanActionSection(documentText: string): { planText: string;
     const idx = m.index ?? -1;
     if (idx === -1) continue;
 
-    // Obtener la línea completa
-    const lineEnd = documentText.indexOf('\n', idx + 1);
-    const line = documentText.slice(idx, lineEnd !== -1 ? lineEnd : idx + 300);
+    // Verificar contexto previo (descartar si es "TUTORIAL" o si es una frase en minúsculas en medio de un párrafo)
+    const prevText = documentText.slice(Math.max(0, idx - 60), idx);
+    if (/TUTORIAL/i.test(prevText)) continue;
+    if (/\b(?:elaborar|diseñar|aplicar|ejecutar|un|el|este)\s+$/i.test(prevText)) {
+      // Es una mención en una frase como "elaborar un plan de acción", no un encabezado
+      continue;
+    }
 
-    // Descartar si es del índice (TOC) con puntos suspensivos o comas de relleno
+    // Descartar si la línea tiene puntos suspensivos o comas de relleno de índice
+    const lineEnd = documentText.indexOf('\n', idx + 1);
+    const line = documentText.slice(Math.max(0, idx - 20), lineEnd !== -1 ? lineEnd : idx + 300);
     if (/[\.·…]{3,}|,{3,}/.test(line)) continue;
 
-    // Descartar si es "PLAN DE ACCIÓN TUTORIAL"
-    if (/PLAN\s+DE\s+ACCI[ÓO]N\s+TUTORIAL/i.test(line)) continue;
+    // Descartar si es parte de un índice TOC seguido inmediatamente por otras secciones de índice
+    const next500 = documentText.slice(idx, idx + 500);
+    if (/(?:\d+[\.\)\-\s]+(?:Participantes|Aprobaci[óo]n|PRESENTACI[ÓO]N|DIAGN[ÓO]STICO))/i.test(next500)) {
+      continue;
+    }
+
+    // Verificar que contenga contenido real de plan (categoría, tema, meta, tabla) en los siguientes 2500 caracteres
+    const next2500 = documentText.slice(idx, idx + 2500);
+    if (!/(?:CATEGOR[IÍ]A|META|TEMA|OBJETIVO|\|)/i.test(next2500)) {
+      continue;
+    }
 
     startIdx = idx;
     break;
   }
 
   if (startIdx === -1) {
-    startIdx = documentText.lastIndexOf('PLAN DE ACCIÓN');
-    if (startIdx === -1) {
-      startIdx = documentText.search(/PLAN\s+DE\s+ACCI[ÓO]N/i);
+    // Si ningún candidato cumplió los filtros estrictos, buscar la última ocurrencia como fallback
+    const lastIdx = documentText.lastIndexOf('PLAN DE ACCI');
+    if (lastIdx !== -1 && lastIdx > 500) {
+      startIdx = lastIdx;
     }
   }
 

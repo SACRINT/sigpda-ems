@@ -38,6 +38,7 @@ import {
   calculatePmcCoverage,
   cleanPmcPlaceholders,
 } from '@/lib/pmc/plan-element-normalizer';
+import { synthesizeSituatedFoda } from '@/lib/pmc/pmc-foda-synthesizer';
 import type {
   PmcAuditCalculationEntry,
   PmcMetaAsignaturaDTO,
@@ -602,6 +603,34 @@ export default function PmcWizardClient({ locale, teacherSchool, teacherMunicipa
   const [foda, setFoda] = useState<Foda>(
     existingProject?.foda || { fortalezas: '', oportunidades: '', debilidades: '', amenazas: '' }
   );
+
+  // Auto-síntesis y enriquecimiento del FODA al entrar al Paso 3 si está vacío o incompleto (H-FODA-AUTO)
+  useEffect(() => {
+    if (activeStep === 3) {
+      setFoda(prev => {
+        const hasSubstance = Boolean(prev.fortalezas && prev.fortalezas.trim().length >= 15);
+        if (hasSubstance) return prev;
+        const res = synthesizeSituatedFoda({
+          schoolName,
+          schoolCct,
+          municipality,
+          locality,
+          totalStaff,
+          rawFoda: prev,
+          indicadores,
+          diagnosticoComunidad,
+          promediosPorAsignatura: (indicadores as any)?.promediosPorAsignatura,
+        });
+        return {
+          fortalezas: res.fortalezas || prev.fortalezas || '',
+          oportunidades: res.oportunidades || prev.oportunidades || '',
+          debilidades: res.debilidades || prev.debilidades || '',
+          amenazas: res.amenazas || prev.amenazas || '',
+        };
+      });
+    }
+  }, [activeStep, schoolName, schoolCct, municipality, locality, totalStaff, indicadores, diagnosticoComunidad]);
+
   const [categoriasPriorizadas, setCategoriasPriorizadas] = useState<CategoriaPriorizada[]>(
     existingProject?.categorias_priorizadas || []
   );
@@ -1475,6 +1504,33 @@ interface EditablePlanElement {
         if (paecDiagParts.length > 0) {
           const combined = paecDiagParts.join('\n\n');
           setDiagnosticoComunidad(prev => mergePaecIntoDiagnostic(prev, combined));
+        }
+        const paecFodaData = (json.data as any)?.foda;
+        if (paecFodaData) {
+          setFoda(prev => {
+            const res = synthesizeSituatedFoda({
+              schoolName,
+              schoolCct,
+              municipality,
+              locality,
+              totalStaff,
+              rawFoda: prev,
+              paecFoda: {
+                fortalezas: paecFodaData.fortalezas || '',
+                oportunidades: paecFodaData.oportunidades || '',
+                debilidades: paecFodaData.debilidades || '',
+                amenazas: paecFodaData.amenazas || '',
+              },
+              indicadores,
+              diagnosticoComunidad,
+            });
+            return {
+              fortalezas: res.fortalezas || prev.fortalezas || '',
+              oportunidades: res.oportunidades || prev.oportunidades || '',
+              debilidades: res.debilidades || prev.debilidades || '',
+              amenazas: res.amenazas || prev.amenazas || '',
+            };
+          });
         }
         setDocsStatus(prev => ({ ...prev, paecAnt: true }));
         setSuccessBanner(summary.message);
@@ -3469,8 +3525,8 @@ interface EditablePlanElement {
             {/* FODA */}
             <div style={sectionCard}>
               <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#818cf8', marginBottom: '12px' }}>📋 Análisis FODA del Plantel</h3>
-              <p style={{ fontSize: '13px', color: 'rgba(240,244,255,0.55)', marginBottom: '16px' }}>
-                Realizado de manera colegiada con todo el personal del plantel.
+              <p style={{ fontSize: '13px', color: 'rgba(240,244,255,0.7)', marginBottom: '16px', lineHeight: '1.5' }}>
+                ✨ <strong>Generado y enriquecido automáticamente:</strong> La plataforma integra los antecedentes del PMC previo, las problemáticas del PAEC, las estadísticas de F11 y 911, y el contexto territorial. El colectivo docente puede revisar, validar o enriquecer cada cuadrante según sus acuerdos colegiados.
               </p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 {[
