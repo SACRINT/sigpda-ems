@@ -305,14 +305,9 @@ REGLAS DE ORO OBLIGATORIAS:
 1. REGLA CRÍTICA ANTI-COLAPSO (B-001): Si una celda o fila contiene varias metas numeradas o con viñetas (ej. 1., 2., 3., 4., 5., 6.), DEBES generar un objeto independiente por cada meta en 'elementos_plan' y en 'metas_institucionales_previas'. PROHIBIDO colapsar múltiples metas en una sola fila.
 2. PROPAGACIÓN DE RESPONSABILIDAD: Cada meta desglosada hereda el 'responsable' de su fila original (ej. 'Mtra. Claudia González Widobro').
 3. RESPONSABLES COLECTIVOS: Si el responsable es 'Director y docentes', 'Comité de Salud' o 'Colectivo Docente', CONSÉRVALO TEXTUALMENTE. No inventes nombres individuales.
-4. METAS MAL REDACTADAS O TIPO TAREA: Si un ítem está en la columna/sección de metas pero parece una actividad (ej. 'Campaña de reciclaje'), EXTRÁELO COMO META, normalízalo con marcadores [POR DEFINIR: ...] y marca 'requiere_revision': true. Jamás lo descartes.
+4. METAS O ACTIVIDADES: Redáctalas en prosa institucional formal y limpia iniciando con un verbo en infinitivo (ej. 'Implementar una campaña de reciclaje...'). PROHIBIDO usar marcadores entre corchetes como [POR DEFINIR: ...] o etiquetas de borrador.
 5. CORRELACIÓN HORIZONTAL ANTI-DESFASE: Empareja Estrategia k ↔ Meta k ↔ Evidencia k por número si existe numeración. Si hay 1 sola estrategia para varias metas, cópiala a todas. Si no hay afinidad demostrable, usa null; NUNCA desplaces en cascada las evidencias.
-6. INVARIANZA NUMÉRICA ABSOLUTA: Todo porcentaje (70%), número, fecha o ciclo escolar del original DEBE conservarse idéntico en 'texto_normalizado'. Si falta un dato para la fórmula CREAA, usa estrictamente los marcadores:
-   - [POR DEFINIR: indicador cuantificable]
-   - [POR DEFINIR: población objetivo]
-   - [POR DEFINIR: estrategia situada]
-   - [POR DEFINIR: periodo]
-   y marca 'requiere_revision': true.
+6. INVARIANZA NUMÉRICA Y REDACCIÓN LIMPIA: Todo porcentaje (70%), número, fecha o ciclo escolar del original DEBE conservarse idéntico en 'texto_normalizado'. Redacta de forma institucional completa y limpia, sin introducir jamás marcadores artificiales entre corchetes como [POR DEFINIR: ...]. Si una meta requiere revisión por redacción incompleta, marca 'requiere_revision': true pero mantén la redacción limpia.
 7. TAXONOMÍA ESTRICTA: 'categoria' DEBE ser exactamente una de las 3 oficiales:
    - 'Desarrollo académico y aprendizaje'
    - 'Gestión y administración escolar'
@@ -397,7 +392,7 @@ Estructura la información en el siguiente esquema JSON exacto:
 REGLAS ESTRICTAS DEL FRAGMENTO:
 1. REGLA ANTI-COLAPSO: Si una celda contiene N metas numeradas o con viñetas, emite N objetos independientes.
 2. Cada meta hereda el responsable de la fila. Si es colectivo ('Director y docentes'), consérvalo literal.
-3. Preserva 100% de porcentajes y fechas. Si falta un dato en CREAA, usa [POR DEFINIR: ...] y 'requiere_revision': true.
+3. Preserva 100% de porcentajes y fechas. Redacta de forma institucional y limpia. PROHIBIDO usar marcadores artificiales entre corchetes como [POR DEFINIR: ...].
 4. Asigna únicamente una de las 3 categorías canónicas oficiales del MCCEMS.
 5. Responde EXCLUSIVAMENTE con el objeto JSON válido.`;
 }

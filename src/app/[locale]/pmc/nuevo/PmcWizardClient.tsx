@@ -34,6 +34,7 @@ import {
   deriveMetasPreviasFromElementos,
   deriveElementosFromMetasPrevias,
   calculatePmcCoverage,
+  cleanPmcPlaceholders,
 } from '@/lib/pmc/plan-element-normalizer';
 import type {
   PmcAuditCalculationEntry,
@@ -934,6 +935,19 @@ interface EditablePlanElement {
     if (parsedPmcData.cicloEscolar) setCicloEscolar(parsedPmcData.cicloEscolar);
     if (parsedPmcData.subsystem) setSubsystem(parsedPmcData.subsystem);
 
+    // C1: Derivar metas e insumos a partir de los elementos editados por el usuario
+    const finalElementsForDerivation = editableElementosPlan.map(e => ({
+      tipo: e.tipo,
+      texto_original: e.texto_original,
+      texto_normalizado: cleanPmcPlaceholders(e.texto_normalizado),
+      categoria: e.categoria || '',
+      tema: e.tema || '',
+      responsable: e.responsable || '',
+      periodo: e.periodo || '',
+      ubicacion: {},
+      requiere_revision: e.requiere_revision || false,
+    }));
+
     const effDirector = (!isPlatformPmcDoc && parsedPmcData.directorName) || directorName;
     const hasExtractedStaff = Array.isArray(parsedPmcData.staffData) && parsedPmcData.staffData.length > 0;
     const reconciled = reconcilePmcStaff({
@@ -943,6 +957,7 @@ interface EditablePlanElement {
       directorName: effDirector,
       targetTotalStaff: parsedPmcData.totalStaff ? Number(parsedPmcData.totalStaff) : undefined,
       cicloEscolar: parsedPmcData.cicloEscolar || cicloEscolar,
+      elementosPlan: finalElementsForDerivation,
     });
     setStaffData(reconciled.staff);
     setTotalStaff(reconciled.totalStaff);
@@ -955,19 +970,6 @@ interface EditablePlanElement {
     setPlanAccion(prev => ({
       metas_institucionales: prev?.metas_institucionales || [],
       metas_personales: derivedFromExtract,
-    }));
-
-    // C1: Derivar metas e insumos a partir de los elementos editados por el usuario
-    const finalElementsForDerivation = editableElementosPlan.map(e => ({
-      tipo: e.tipo,
-      texto_original: e.texto_original,
-      texto_normalizado: e.texto_normalizado,
-      categoria: e.categoria || '',
-      tema: e.tema || '',
-      responsable: e.responsable || '',
-      periodo: e.periodo || '',
-      ubicacion: {},
-      requiere_revision: e.requiere_revision || false,
     }));
 
     const derivedFromEdited = deriveMetasPreviasFromElementos(
@@ -3844,20 +3846,21 @@ interface EditablePlanElement {
                             onClick={() => {
                               if (isAlreadyAdded) return;
                               const cat = mp.categoria || PMC_CATEGORIAS_OFICIALES[0].nombre;
-                              const estrategiaSintetizada = mp.estrategia?.trim() || generarEstrategiaSituada(cat, mp.meta);
+                              const cleanMetaText = cleanPmcPlaceholders(mp.meta);
+                              const estrategiaSintetizada = cleanPmcPlaceholders(mp.estrategia?.trim()) || generarEstrategiaSituada(cat, cleanMetaText);
                               const adaptedMeta: MetaInstitucional = {
                                 categoria: cat,
                                 nombre_categoria: cat,
                                 tema: mp.tema || 'Mejora continua',
-                                meta: mp.meta ? `[Continuidad 2026-2027] ${mp.meta}` : '',
+                                meta: cleanMetaText ? `Continuidad (${cicloEscolar}): ${cleanMetaText}` : '',
                                 estrategia: estrategiaSintetizada,
                                 linea_base: mp.linea_base || '',
                                 personal_designado: mp.responsable || '',
                                 entregable: mp.entregable || 'Reporte de seguimiento',
                                 periodo_inicio: 'Agosto 2026',
                                 periodo_fin: 'Junio 2027',
-                                diagnostico_meta: `Meta adaptada del ciclo previo: ${mp.meta || ''}`,
-                                continuidad_de: mp.texto_original ? mp.texto_original.trim() : (mp.meta ? mp.meta.trim() : `meta_previa_${idx}`),
+                                diagnostico_meta: `Meta adaptada del ciclo previo: ${cleanMetaText}`,
+                                continuidad_de: mp.texto_original ? mp.texto_original.trim() : (cleanMetaText || `meta_previa_${idx}`),
                                 accion_especifica: estrategiaSintetizada,
                                 finalidad: `Fortalecer la continuidad institucional de las acciones en ${cat} durante el ciclo 2026-2027.`,
                                 necesidad: `Consolidar las metas institucionales de continuidad identificadas en el ciclo escolar previo.`,

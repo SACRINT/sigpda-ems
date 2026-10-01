@@ -275,9 +275,9 @@ export function deriveMetasPreviasFromElementos(
     return {
       categoria: m.categoria || matchedExisting?.categoria || '',
       tema: m.tema || matchedExisting?.tema || '',
-      meta: m.texto_normalizado || m.texto_original,
+      meta: cleanPmcPlaceholders(m.texto_normalizado || m.texto_original),
       linea_base: mergedLineaBase,
-      estrategia: mergedEstrategia,
+      estrategia: cleanPmcPlaceholders(mergedEstrategia),
       responsable: m.responsable || matchedExisting?.responsable || '',
       entregable: mergedEntregable,
       periodo: m.periodo || matchedExisting?.periodo || '',
@@ -296,7 +296,7 @@ export function deriveElementosFromMetasPrevias(
   return metas.map((m) => ({
     tipo: 'meta' as const,
     texto_original: m.texto_original || m.meta || '',
-    texto_normalizado: m.meta || '',
+    texto_normalizado: cleanPmcPlaceholders(m.meta || ''),
     categoria: m.categoria || '',
     tema: m.tema || '',
     responsable: m.responsable || '',
@@ -364,4 +364,24 @@ export function calculatePmcCoverage(
       },
     },
   };
+}
+
+/**
+ * Elimina marcadores artificiales de borrador [POR DEFINIR: ...] o equivalentes
+ * dejando una redacción institucional limpia, fluida y sin corchetes.
+ */
+export function cleanPmcPlaceholders(text: string | null | undefined): string {
+  if (!text) return '';
+  return text
+    // Eliminar conectores seguidos de marcadores [POR DEFINIR: ...] o equivalentes
+    .replace(/\s+(?:para|dirigido\s+a)\s+\[(?:POR DEFINIR|PENDIENTE|A DEFINIR|POR DETERMINAR)[^\]]*\]/gi, '')
+    .replace(/\s+(?:mediante|a\s+través\s+de|con)\s+\[(?:POR DEFINIR|PENDIENTE|A DEFINIR|POR DETERMINAR)[^\]]*\]/gi, '')
+    .replace(/\s+(?:durante|en\s+el\s+periodo|en)\s+\[(?:POR DEFINIR|PENDIENTE|A DEFINIR|POR DETERMINAR)[^\]]*\]/gi, '')
+    // Eliminar cualquier marcador [POR DEFINIR...] restante
+    .replace(/\[(?:POR DEFINIR|PENDIENTE|A DEFINIR|POR DETERMINAR)[^\]]*\]/gi, '')
+    // Limpiar dobles espacios y puntuación rota
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+([.,;:])/g, '$1')
+    .replace(/,\s*\./g, '.')
+    .trim();
 }

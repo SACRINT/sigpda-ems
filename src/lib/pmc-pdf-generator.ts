@@ -26,6 +26,8 @@ import {
   getTextoBeneficiosComunitarios,
   normalizePmcPeriodo,
 } from './pmc-document-structure';
+import { cleanPmcPlaceholders } from './pmc/plan-element-normalizer';
+import { isValidStaffName, isCollectiveOrNonHumanEntity } from './pmc/staff-reconciler';
 
 const NAVY: [number, number, number] = [31, 56, 100];       // #1F3864 - Azul Institucional MCCEMS
 const BLUE_MID: [number, number, number] = [46, 116, 181];   // #2E74B5 - Azul Secundario
@@ -833,10 +835,10 @@ export async function generatePmcPDF(
             { content: 'Contenido Oficial Institucional', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255] } },
           ]],
           body: [
-            [{ content: 'Meta establecida', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(extraMeta.meta, PENDIENTE_DEFINICION_51)],
-            [{ content: 'Estrategia de implementación para cumplir la meta', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(extraMeta.estrategia, PENDIENTE_DEFINICION_51)],
+            [{ content: 'Meta establecida', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(cleanPmcPlaceholders(extraMeta.meta), PENDIENTE_DEFINICION_51)],
+            [{ content: 'Estrategia de implementación para cumplir la meta', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(cleanPmcPlaceholders(extraMeta.estrategia), PENDIENTE_DEFINICION_51)],
             [{ content: 'Personal designado para la instrumentación y el seguimiento de la meta', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(extraMeta.personal_designado, PENDIENTE_DEFINICION_51)],
-            [{ content: 'Producto que comprobará el cumplimiento de la meta', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(extraMeta.entregable, PENDIENTE_DEFINICION_51)],
+            [{ content: 'Producto que comprobará el cumplimiento de la meta', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(cleanPmcPlaceholders(extraMeta.entregable), PENDIENTE_DEFINICION_51)],
             [{ content: 'Subcategorías que vincularán  para cumplir la meta establecida', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, subcatExtra],
             [{ content: 'Situación actual en el plantel que justifica el establecimiento de la meta', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, situacionActualExtra],
           ],
@@ -891,11 +893,11 @@ export async function generatePmcPDF(
         const fichaBody: RowInput[] = [
           [{ content: 'Campo Descriptivo', styles: { fontStyle: 'bold', fillColor: BLUE_MID, textColor: [255, 255, 255] } }, { content: 'Especificación de la Meta Institucional', styles: { fontStyle: 'bold', fillColor: BLUE_MID, textColor: [255, 255, 255] } }],
           [{ content: 'Tema Específico:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.tema)],
-          [{ content: 'Meta establecida:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.meta)],
-          [{ content: 'Estrategia de implementación para cumplir la meta:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.estrategia)],
-          [{ content: 'Línea Base Documentada:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.linea_base, 'Situación inicial documentada')],
+          [{ content: 'Meta establecida:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(cleanPmcPlaceholders(m.meta))],
+          [{ content: 'Estrategia de implementación para cumplir la meta:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(cleanPmcPlaceholders(m.estrategia))],
+          [{ content: 'Línea Base Documentada:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(cleanPmcPlaceholders(m.linea_base), 'Situación inicial documentada')],
           [{ content: 'Personal designado para la instrumentación y el seguimiento de la meta:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.personal_designado, 'Colectivo Escolar')],
-          [{ content: 'Producto que comprobará el cumplimiento de la meta:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.entregable)],
+          [{ content: 'Producto que comprobará el cumplimiento de la meta:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(cleanPmcPlaceholders(m.entregable))],
           [{ content: 'Subcategorías que vincularán  para cumplir la meta establecida:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, subcatVal],
           [{ content: 'Situación actual en el plantel que justifica el establecimiento de la meta:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, situacionFicha],
           [
@@ -907,19 +909,19 @@ export async function generatePmcPDF(
         ];
 
         if (m.accion_especifica) {
-          fichaBody.push([{ content: 'Acción Específica (Formato 3.1):', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.accion_especifica)]);
+          fichaBody.push([{ content: 'Acción Específica (Formato 3.1):', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(cleanPmcPlaceholders(m.accion_especifica))]);
         }
         if (m.finalidad) {
-          fichaBody.push([{ content: 'Finalidad de la Meta (Formato 3.1):', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.finalidad)]);
+          fichaBody.push([{ content: 'Finalidad de la Meta (Formato 3.1):', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(cleanPmcPlaceholders(m.finalidad))]);
         }
         if (m.proceso_evaluacion) {
-          fichaBody.push([{ content: 'Proceso de Evaluación (Formato 3.1):', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.proceso_evaluacion)]);
+          fichaBody.push([{ content: 'Proceso de Evaluación (Formato 3.1):', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(cleanPmcPlaceholders(m.proceso_evaluacion))]);
         }
         if (m.estrategias_seguimiento) {
-          fichaBody.push([{ content: 'Estrategias de Seguimiento (Formato 4.1):', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.estrategias_seguimiento)]);
+          fichaBody.push([{ content: 'Estrategias de Seguimiento (Formato 4.1):', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(cleanPmcPlaceholders(m.estrategias_seguimiento))]);
         }
         if (m.observaciones) {
-          fichaBody.push([{ content: 'Observaciones Generales (Formato 4.1):', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(m.observaciones)]);
+          fichaBody.push([{ content: 'Observaciones Generales (Formato 4.1):', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, safeStr(cleanPmcPlaceholders(m.observaciones))]);
         }
 
         autoTable(doc, {
@@ -952,10 +954,11 @@ export async function generatePmcPDF(
   } else {
     const personalRows = metasPers.map((p, i) => {
       const periodoStr = normalizePmcPeriodo(p.periodo);
+      const cleanMetaInd = cleanPmcPlaceholders(p.meta_individual);
       const metaStr = safeStr(
         p.categoria
-          ? `[${p.categoria}${p.tema ? ` — ${p.tema}` : ''}] ${p.meta_individual || ''}`
-          : p.meta_individual,
+          ? `[${p.categoria}${p.tema ? ` — ${p.tema}` : ''}] ${cleanMetaInd || ''}`
+          : cleanMetaInd,
         'Compromiso de mejora'
       );
       return [
@@ -963,8 +966,8 @@ export async function generatePmcPDF(
         safeStr(p.nombre, 'Personal'),
         safeStr(p.cargo, 'Docente'),
         metaStr,
-        safeStr(p.estrategia, 'Seguimiento en aula'),
-        safeStr(p.entregable, 'Planeación y Portafolio'),
+        safeStr(cleanPmcPlaceholders(p.estrategia), 'Seguimiento en aula'),
+        safeStr(cleanPmcPlaceholders(p.entregable), 'Planeación y Portafolio'),
         { content: periodoStr, styles: { halign: 'center' as const } },
       ];
     });
@@ -1018,7 +1021,7 @@ export async function generatePmcPDF(
       (m.periodo_inicio || m.periodo_fin)
         ? `${safeStr(m.periodo_inicio, 'Corte 1')} a ${safeStr(m.periodo_fin, 'Corte 2')}`
         : 'Período ordinario',
-      safeStr(m.meta, 'Meta institucional programada'),
+      safeStr(cleanPmcPlaceholders(m.meta), 'Meta institucional programada'),
       safeStr(m.personal_designado, 'Dirección / Colectivo Escolar'),
     ]);
 
@@ -1045,13 +1048,15 @@ export async function generatePmcPDF(
   // Tabla de Personal y Colectivo Escolar Participante (Paridad con DOCX)
   const staffDataRaw = parseJson<PmcStaffMember[]>(project.staff_data);
   const personalParticipante = Array.isArray(staffDataRaw) && staffDataRaw.length > 0
-    ? staffDataRaw.map((s) => ({
-        nombre: safeStr(s.nombre, 'Integrante del Colectivo Escolar'),
-        cargo: safeStr(s.cargo, 'Docente'),
-        horas_base: s.horas_base != null && String(s.horas_base).trim() !== ''
-          ? `${s.horas_base} hrs`
-          : '—',
-      }))
+    ? staffDataRaw
+        .filter((s) => isValidStaffName(s?.nombre) && !isCollectiveOrNonHumanEntity(s?.nombre))
+        .map((s) => ({
+          nombre: safeStr(s.nombre, 'Integrante del Colectivo Escolar'),
+          cargo: safeStr(s.cargo, 'Docente'),
+          horas_base: s.horas_base != null && String(s.horas_base).trim() !== ''
+            ? `${s.horas_base} hrs`
+            : '—',
+        }))
     : (project.director_name ? [{
         nombre: project.director_name,
         cargo: 'Director(a)',

@@ -11,7 +11,9 @@ import {
   isValidStaffName,
   normalizeStaffName,
   derivePersonalMetasFromStaff,
+  isCollectiveOrNonHumanEntity,
 } from '@/lib/pmc/staff-reconciler';
+import { cleanPmcPlaceholders } from '@/lib/pmc/plan-element-normalizer';
 
 describe('PMC Staff Reconciler Engine', () => {
   it('1. isValidStaffName identifica correctamente nombres válidos y rechaza genéricos o nulos', () => {
@@ -260,5 +262,98 @@ describe('PMC Staff Reconciler Engine', () => {
 
     const remaining = derivedMetas.filter(m => normalizeStaffName(m.nombre) !== removedNorm);
     expect(remaining.length).toBe(0);
+  });
+
+  it('15. isCollectiveOrNonHumanEntity filtra entidades colectivas complejas de la plantilla', () => {
+    expect(isCollectiveOrNonHumanEntity('Director, Docentes y Administrativos')).toBe(true);
+    expect(isCollectiveOrNonHumanEntity('Director y docentes')).toBe(true);
+    expect(isCollectiveOrNonHumanEntity('Director y docentes que imparten asignaturas socioemocionales y tutorías')).toBe(true);
+    expect(isCollectiveOrNonHumanEntity('Director, Docentes, Administrativos, Comité de Salud y Padres de Familia')).toBe(true);
+    expect(isCollectiveOrNonHumanEntity('Comité de Salud')).toBe(true);
+    expect(isCollectiveOrNonHumanEntity('Padres de familia')).toBe(true);
+    expect(isCollectiveOrNonHumanEntity('Adrián Hernández Cruz')).toBe(false);
+    expect(isCollectiveOrNonHumanEntity('María Soledad Hernández Hernández')).toBe(false);
+
+    const result = reconcilePmcStaff({
+      directorName: 'Adrián Hernández Cruz',
+      extractedStaff: [
+        { nombre: 'Adrián Hernández Cruz', cargo: 'Director' },
+        { nombre: 'Humberta Flores Martínez', cargo: 'Docente' },
+        { nombre: 'Director, Docentes y Administrativos', cargo: 'Docente' },
+        { nombre: 'Director y docentes', cargo: 'Docente' },
+        { nombre: 'Director, Docentes, Administrativos, Comité de Salud y Padres de Familia', cargo: 'Docente' },
+      ],
+    });
+
+    expect(result.staff.length).toBe(2);
+    expect(result.staff.map((s) => s.nombre)).toEqual([
+      'Adrián Hernández Cruz',
+      'Humberta Flores Martínez',
+    ]);
+  });
+
+  it('16. Desduplica apellidos abreviados (Hdez. -> Hernández) y promueve el nombre completo', () => {
+    const result = reconcilePmcStaff({
+      directorName: 'Adrián Hernández Cruz',
+      extractedStaff: [
+        { nombre: 'María Soledad Hdez. Hdez.', cargo: 'Docente' },
+      ],
+      participantes: [
+        { nombre: 'María Soledad Hernández Hernández', cargo: 'Docente' },
+      ],
+    });
+
+    expect(result.staff.length).toBe(2);
+    const docente = result.staff.find((s) => s.cargo === 'Docente');
+    expect(docente).toBeDefined();
+    expect(docente?.nombre).toBe('María Soledad Hernández Hernández');
+  });
+
+  it('17. Pre-llena metas individuales de cada docente desde elementosPlan extraídos', () => {
+    const result = reconcilePmcStaff({
+      directorName: 'Adrián Hernández Cruz',
+      extractedStaff: [
+        { nombre: 'Humberta Flores Martínez', cargo: 'Docente' },
+        { nombre: 'Ana Lilia Pérez Hernández', cargo: 'Docente' },
+      ],
+      elementosPlan: [
+        {
+          tipo: 'actividad',
+          responsable: 'Mtra. Humberta Flores Martínez',
+          texto_normalizado: 'Implementar asesorías sabatinas de fortalecimiento en lengua extranjera (Inglés)',
+          categoria: 'Desarrollo académico y aprendizaje',
+          tema: 'Acompañamiento pedagógico',
+        },
+        {
+          tipo: 'actividad',
+          responsable: 'Ana Lilia Pérez Hernández',
+          texto_normalizado: 'Coordinar conferencias semestrales de salud integral y prevención',
+          categoria: 'Desarrollo socioemocional y prevención de la violencia en la escuela',
+          tema: 'Salud y bienestar socioemocional',
+        },
+      ],
+    });
+
+    expect(result.staff.length).toBe(3);
+    const humberta = result.staff.find((s) => s.nombre === 'Humberta Flores Martínez');
+    expect(humberta).toBeDefined();
+    expect(humberta?.metas_individuales?.length).toBe(1);
+    expect(humberta?.metas_individuales?.[0].meta).toContain('asesorías sabatinas');
+
+    const derived = derivePersonalMetasFromStaff(result.staff, '2026-2027');
+    const humbertaPersonal = derived.find((d) => d.nombre === 'Humberta Flores Martínez');
+    expect(humbertaPersonal?.meta_individual).toContain('asesorías sabatinas');
+  });
+
+  it('18. cleanPmcPlaceholders erradica marcadores de borrador entre corchetes y restaura prosa limpia', () => {
+    const dirty1 = 'Incrementar el porcentaje de aprobación al 85% para [POR DEFINIR: población objetivo] mediante [POR DEFINIR: estrategia situada] durante el ciclo escolar 2026-2027.';
+    const cleaned1 = cleanPmcPlaceholders(dirty1);
+    expect(cleaned1).not.toContain('[POR DEFINIR');
+    expect(cleaned1).toContain('85%');
+    expect(cleaned1).toContain('2026-2027');
+
+    const dirty2 = 'Reducir el índice de abandono escolar en un 2% [POR DEFINIR: indicador cuantificable]';
+    const cleaned2 = cleanPmcPlaceholders(dirty2);
+    expect(cleaned2).toBe('Reducir el índice de abandono escolar en un 2%');
   });
 });

@@ -23,6 +23,7 @@ import {
   deriveMetasPreviasFromElementos,
   deriveElementosFromMetasPrevias,
   calculatePmcCoverage,
+  cleanPmcPlaceholders,
 } from '@/lib/pmc/plan-element-normalizer';
 import { extractPmcPreviousWithPartitioning } from '@/lib/pmc/pmc-partitioner';
 
@@ -127,38 +128,43 @@ export async function POST(request: NextRequest) {
       warnings: extractionResult.warnings,
     };
 
-    // Reconciliación arquitectónica de plantilla: consolida staffData, participantes y directorName
-    const reconciledStaff = reconcilePmcStaff({
-      extractedStaff: parsed.data.staffData,
-      participantes: parsed.data.participantes,
-      directorName: parsed.data.directorName,
-      targetTotalStaff: parsed.data.totalStaff,
-      cicloEscolar: parsed.data.cicloEscolar,
-    });
-
     if (!parsed.warnings) {
       parsed.warnings = [];
     }
 
-    // B3 - Invariante numérico del lado servidor (Cero fabricación B-001)
+    // B3 - Invariante numérico del lado servidor (Cero fabricación B-001) y limpieza de placeholders
     const validatedElementos = (parsed.data.elementos_plan || []).map((elem) => {
-      const val = validateNormalizedText(elem.texto_original, elem.texto_normalizado);
+      const cleanedNorm = cleanPmcPlaceholders(elem.texto_normalizado);
+      const val = validateNormalizedText(elem.texto_original, cleanedNorm || elem.texto_normalizado);
       if (!val.ok) {
         parsed.warnings.push(
           `Normalización rechazada por invariantes de datos: faltan cifras [${val.faltantes.join(', ')}] en ${elem.tipo}. Se conserva texto original.`
         );
         return {
           ...elem,
-          texto_normalizado: elem.texto_original,
+          texto_normalizado: cleanPmcPlaceholders(elem.texto_original),
           requiere_revision: true,
         };
       }
-      return elem;
+      return {
+        ...elem,
+        texto_normalizado: cleanedNorm || cleanPmcPlaceholders(elem.texto_original),
+      };
     });
 
     const finalElementos = validatedElementos.length > 0
       ? validatedElementos
       : deriveElementosFromMetasPrevias(parsed.data.metas_institucionales_previas);
+
+    // Reconciliación arquitectónica de plantilla: consolida staffData, participantes, directorName y elementosPlan
+    const reconciledStaff = reconcilePmcStaff({
+      extractedStaff: parsed.data.staffData,
+      participantes: parsed.data.participantes,
+      directorName: parsed.data.directorName,
+      targetTotalStaff: parsed.data.totalStaff,
+      cicloEscolar: parsed.data.cicloEscolar,
+      elementosPlan: finalElementos,
+    });
 
     // Consolidar metas individuales de la plantilla hacia finalElementos si no están presentes
     const existingElementTexts = new Set(
@@ -171,7 +177,7 @@ export async function POST(request: NextRequest) {
         : (staffMember.meta_individual ? [{ meta: staffMember.meta_individual, categoria: '', tema: '', estrategia: '', entregable: '', periodo: '' }] : []);
 
       for (const m of metas) {
-        const metaText = (m.meta || '').trim();
+        const metaText = cleanPmcPlaceholders(m.meta);
         if (metaText && !existingElementTexts.has(metaText.toLowerCase())) {
           existingElementTexts.add(metaText.toLowerCase());
           finalElementos.push({
@@ -200,6 +206,8 @@ export async function POST(request: NextRequest) {
       const temaNorm = normalizePmcTema(m.tema, catNorm);
       return {
         ...m,
+        meta: cleanPmcPlaceholders(m.meta),
+        estrategia: cleanPmcPlaceholders(m.estrategia),
         categoria: catNorm,
         tema: temaNorm,
       };
@@ -210,6 +218,7 @@ export async function POST(request: NextRequest) {
       const temaNorm = normalizePmcTema(elem.tema, catNorm);
       return {
         ...elem,
+        texto_normalizado: cleanPmcPlaceholders(elem.texto_normalizado),
         categoria: catNorm,
         tema: temaNorm,
       };

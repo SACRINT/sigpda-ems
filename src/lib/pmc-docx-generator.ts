@@ -32,6 +32,8 @@ import {
   getTextoBeneficiosComunitarios,
   normalizePmcPeriodo,
 } from './pmc-document-structure';
+import { cleanPmcPlaceholders } from './pmc/plan-element-normalizer';
+import { isValidStaffName, isCollectiveOrNonHumanEntity } from './pmc/staff-reconciler';
 
 // ─── Color Palette ───────────────────────────────────────────────────────────
 const C = {
@@ -1080,10 +1082,10 @@ function buildPlanAccion(plan: PlanAccion): (Paragraph | Table)[] {
             children: [tcSub('Tema Específico'), tc(safeStr(m.tema))],
           }),
           new TableRow({
-            children: [tcSub('Meta establecida'), tc(safeStr(m.meta), { fill: C.alt })],
+            children: [tcSub('Meta establecida'), tc(safeStr(cleanPmcPlaceholders(m.meta)), { fill: C.alt })],
           }),
           new TableRow({
-            children: [tcSub('Estrategia de implementación para cumplir la meta'), tc(safeStr(m.estrategia))],
+            children: [tcSub('Estrategia de implementación para cumplir la meta'), tc(safeStr(cleanPmcPlaceholders(m.estrategia)))],
           }),
           new TableRow({
             children: [tcSub('Línea Base Documentada', { fill: C.alt }), tc(safeStr(m.linea_base), { fill: C.alt })],
@@ -1128,27 +1130,27 @@ function buildPlanAccion(plan: PlanAccion): (Paragraph | Table)[] {
           }),
           ...(m.accion_especifica ? [
             new TableRow({
-              children: [tcSub('Acción Específica (Formato 3.1)'), tc(safeStr(m.accion_especifica))],
+              children: [tcSub('Acción Específica (Formato 3.1)'), tc(safeStr(cleanPmcPlaceholders(m.accion_especifica)))],
             }),
           ] : []),
           ...(m.finalidad ? [
             new TableRow({
-              children: [tcSub('Finalidad de la Meta (Formato 3.1)'), tc(safeStr(m.finalidad), { fill: C.alt })],
+              children: [tcSub('Finalidad de la Meta (Formato 3.1)'), tc(safeStr(cleanPmcPlaceholders(m.finalidad)), { fill: C.alt })],
             }),
           ] : []),
           ...(m.proceso_evaluacion ? [
             new TableRow({
-              children: [tcSub('Proceso de Evaluación (Formato 3.1)'), tc(safeStr(m.proceso_evaluacion))],
+              children: [tcSub('Proceso de Evaluación (Formato 3.1)'), tc(safeStr(cleanPmcPlaceholders(m.proceso_evaluacion)))],
             }),
           ] : []),
           ...(m.estrategias_seguimiento ? [
             new TableRow({
-              children: [tcSub('Estrategias de Seguimiento (Formato 4.1)'), tc(safeStr(m.estrategias_seguimiento), { fill: C.alt })],
+              children: [tcSub('Estrategias de Seguimiento (Formato 4.1)'), tc(safeStr(cleanPmcPlaceholders(m.estrategias_seguimiento)), { fill: C.alt })],
             }),
           ] : []),
           ...(m.observaciones ? [
             new TableRow({
-              children: [tcSub('Observaciones Generales (Formato 4.1)'), tc(safeStr(m.observaciones))],
+              children: [tcSub('Observaciones Generales (Formato 4.1)'), tc(safeStr(cleanPmcPlaceholders(m.observaciones)))],
             }),
           ] : []),
         ],
@@ -1195,10 +1197,11 @@ function buildMetasPersonales(plan: PlanAccion): (Paragraph | Table)[] {
         ...personal.map((mp, i) => {
           const bg = i % 2 ? C.alt : C.white;
           const periodoStr = normalizePmcPeriodo(mp.periodo);
+          const cleanMetaInd = cleanPmcPlaceholders(mp.meta_individual);
           const metaStr = safeStr(
             mp.categoria
-              ? `[${mp.categoria}${mp.tema ? ` — ${mp.tema}` : ''}] ${mp.meta_individual || ''}`
-              : mp.meta_individual,
+              ? `[${mp.categoria}${mp.tema ? ` — ${mp.tema}` : ''}] ${cleanMetaInd || ''}`
+              : cleanMetaInd,
             'Compromiso de mejora'
           );
           return new TableRow({
@@ -1207,8 +1210,8 @@ function buildMetasPersonales(plan: PlanAccion): (Paragraph | Table)[] {
               tc(safeStr(mp.nombre, 'Personal'), { w: 1800, fill: bg }),
               tc(safeStr(mp.cargo, 'Docente'), { w: 1400, fill: bg }),
               tc(metaStr, { w: 2600, fill: bg }),
-              tc(safeStr(mp.estrategia, 'Seguimiento en aula'), { w: 1800, fill: bg }),
-              tc(safeStr(mp.entregable, 'Planeación y Portafolio'), { w: 1600, fill: bg }),
+              tc(safeStr(cleanPmcPlaceholders(mp.estrategia), 'Seguimiento en aula'), { w: 1800, fill: bg }),
+              tc(safeStr(cleanPmcPlaceholders(mp.entregable), 'Planeación y Portafolio'), { w: 1600, fill: bg }),
               tc(periodoStr, { w: 1100, align: AlignmentType.CENTER, fill: bg }),
             ],
           });
@@ -1227,9 +1230,13 @@ function buildMetasPersonales(plan: PlanAccion): (Paragraph | Table)[] {
 // ─── 8. Participantes, Control de Revisiones y Aprobación ─────────────────────
 function buildControlRevisiones(p: PmcProject, plan?: PlanAccion): (Paragraph | Table)[] {
   const staffData = parseJson<Array<{ nombre?: string; cargo?: string; horas_base?: number | string | null }>>(p.staff_data);
-  const participantes = Array.isArray(staffData) && staffData.length > 0
+  const participantesRaw = Array.isArray(staffData) && staffData.length > 0
     ? staffData
     : [{ nombre: p.director_name, cargo: 'Director(a)' }];
+  const participantes = participantesRaw.filter((part) => {
+    const n = part?.nombre?.trim();
+    return isValidStaffName(n) && !isCollectiveOrNonHumanEntity(n);
+  });
 
   const metasInst = plan?.metas_institucionales ?? [];
   const seguimientoItems: (Paragraph | Table)[] = [];
@@ -1257,7 +1264,7 @@ function buildControlRevisiones(p: PmcProject, plan?: PlanAccion): (Paragraph | 
             return new TableRow({
               children: [
                 tc(periodo, { w: 2600, fill: bg }),
-                tc(safeStr(m.meta, 'Meta institucional programada'), { w: 5000, fill: bg }),
+                tc(safeStr(cleanPmcPlaceholders(m.meta), 'Meta institucional programada'), { w: 5000, fill: bg }),
                 tc(safeStr(m.personal_designado, 'Dirección / Colectivo Escolar'), { w: 3200, fill: bg }),
               ],
             });

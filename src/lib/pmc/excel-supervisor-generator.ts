@@ -16,6 +16,7 @@
 import ExcelJS from 'exceljs';
 import { computePmcIndicatorValues, computeAprobadosCount } from '@/lib/pmc-indicator-calculator';
 import type { PmcIndicadoresAcademicos, PmcStatisticalContext, PmcStatisticalPlantel } from '@/types/pmc';
+import { cleanPmcPlaceholders } from './plan-element-normalizer';
 
 export interface PmcMetaInstitucionalInput {
   categoria: string;
@@ -505,17 +506,17 @@ export async function generatePmcSupervisorExcel(project: PmcSupervisorExcelInpu
         idx + 1,
         m.nombre_categoria || m.categoria || 'Mejora Continua',
         m.tema || 'Área prioritaria',
-        m.meta || 'Sin meta especificada',
-        m.estrategia || 'Acciones situadas de colegiado',
+        cleanPmcPlaceholders(m.meta) || 'Sin meta especificada',
+        cleanPmcPlaceholders(m.estrategia) || 'Acciones situadas de colegiado',
         m.linea_base || 'Sin línea base reportada',
         m.personal_designado || 'Colectivo Escolar',
         m.entregable || 'Reporte de seguimiento',
         periodo,
-        m.accion_especifica || 'N/D',
-        m.estrategias_seguimiento || 'N/D',
-        m.observaciones || 'Sin observaciones',
-        m.finalidad || 'N/D',
-        m.proceso_evaluacion || 'N/D',
+        cleanPmcPlaceholders(m.accion_especifica) || 'N/D',
+        cleanPmcPlaceholders(m.estrategias_seguimiento) || 'N/D',
+        cleanPmcPlaceholders(m.observaciones) || 'Sin observaciones',
+        cleanPmcPlaceholders(m.finalidad) || 'N/D',
+        cleanPmcPlaceholders(m.proceso_evaluacion) || 'N/D',
       ]);
       r.height = 24;
       r.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };

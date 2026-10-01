@@ -14,6 +14,7 @@ import {
   normalizePmcCategoria,
   normalizePmcTema,
 } from '@/lib/constants/pmc-categorias';
+import { cleanPmcPlaceholders } from './plan-element-normalizer';
 
 export interface MetaIndividual {
   categoria: string;
@@ -58,6 +59,15 @@ export interface ReconcileStaffOptions {
   directorName?: string | null;
   targetTotalStaff?: number | null;
   cicloEscolar?: string | null;
+  elementosPlan?: Array<{
+    tipo?: string;
+    responsable?: string;
+    texto_normalizado?: string;
+    texto_original?: string;
+    categoria?: string;
+    tema?: string;
+    periodo?: string;
+  }> | null;
 }
 
 export interface ReconciledStaffResult {
@@ -100,7 +110,53 @@ const NON_STAFF_CARGO_KEYWORDS = [
 ];
 
 /**
+ * Detecta si una cadena corresponde a un comité, colectivo u órgano colegiado
+ * y NO a una persona física individual.
+ */
+export function isCollectiveOrNonHumanEntity(name: string | null | undefined): boolean {
+  if (!name) return false;
+  const clean = name.trim().toLowerCase();
+
+  // 1. Detección por combinaciones de cargos/colectivos unidos por 'y', comas o 'e'
+  if (/\b(?:director|directora|docente|docentes|administrativo|administrativos|padres|madres|tutores|comite|comité|alumnos|estudiantes)\b.*\b(?:y|e|,)\b.*\b(?:director|directora|docente|docentes|administrativo|administrativos|padres|madres|tutores|comite|comité|alumnos|estudiantes|salud|familia|grupo)\b/i.test(clean)) {
+    return true;
+  }
+
+  // 2. Frases colectivas explícitas
+  const collectivePhrases = [
+    'colectivo docente',
+    'comunidad escolar',
+    'padres de familia',
+    'comite de salud',
+    'comité de salud',
+    'comite escolar',
+    'comité escolar',
+    'frente a grupo',
+    'socioemocionales',
+    'todo el personal',
+    'todos los docentes',
+    'toda la comunidad',
+    'consejo tecnico',
+    'consejo técnico',
+    'academia de',
+    'asociacion de',
+    'asociación de',
+  ];
+  if (collectivePhrases.some((phrase) => clean.includes(phrase))) {
+    return true;
+  }
+
+  // 3. Inicio con conectores o cargos colectivos
+  if (/^(?:director[a]?\s*(?:,|y)\s*|docentes\s*(?:,|y)\s*|personal\s+(?:docente|administrativo|de\s+apoyo)|colectivo\s+)/i.test(clean)) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Normaliza un nombre para comparación (sin acentos, minúsculas, sin títulos profesionales ni prefijos).
+ * Expande abreviaturas comunes de apellidos mexicanos para garantizar deduplicación exacta.
  */
 export function normalizeStaffName(name: string | null | undefined): string {
   if (!name) return '';
@@ -109,13 +165,28 @@ export function normalizeStaffName(name: string | null | undefined): string {
     .replace(TITLE_PREFIX_REGEX, '')
     .trim();
 
-  return withoutTitle
+  let normalized = withoutTitle
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+
+  // Expansión de abreviaturas de apellidos mexicanos frecuentes en documentos oficiales
+  normalized = normalized
+    .replace(/\bhdez\b/g, 'hernandez')
+    .replace(/\bglez\b/g, 'gonzalez')
+    .replace(/\bmtz\b/g, 'martinez')
+    .replace(/\brdz\b/g, 'rodriguez')
+    .replace(/\bpz\b/g, 'perez')
+    .replace(/\bfdez\b/g, 'fernandez')
+    .replace(/\blpr\b/g, 'lopez')
+    .replace(/\bvqz\b/g, 'vazquez')
+    .replace(/\bsnchz\b/g, 'sanchez')
+    .replace(/\bgtz\b/g, 'gutierrez');
+
+  return normalized;
 }
 
 /**
@@ -155,12 +226,13 @@ export function isNonStaffRole(cargo: string | null | undefined): boolean {
 }
 
 /**
- * Determina si una cadena es un nombre de persona válido (no genérico ni vacío).
+ * Determina si una cadena es un nombre de persona válido (no genérico, no colectivo ni vacío).
  */
 export function isValidStaffName(name: string | null | undefined): boolean {
   if (!name) return false;
   const clean = name.trim();
   if (clean.length < 3) return false;
+  if (isCollectiveOrNonHumanEntity(clean)) return false;
   const normalized = normalizeStaffName(clean);
   if (!normalized || normalized.length < 3) return false;
   if (INVALID_NAME_PATTERNS.includes(normalized)) return false;
@@ -262,7 +334,12 @@ export function reconcilePmcStaff(options: ReconcileStaffOptions): ReconciledSta
     } else {
       // Enriquecer datos existentes si la nueva fuente aporta más detalles
       const existing = staffByNormName.get(normKey)!;
-      if (cleanDisplay && existing.nombre === existing.nombre.toUpperCase() && cleanDisplay !== cleanDisplay.toUpperCase()) {
+      const hasAbbr = /\b(?:hdez|glez|mtz|rdz|pz|fdez|lpr|vqz|snchz|gtz)\b/i;
+      if (cleanDisplay && (
+        (existing.nombre === existing.nombre.toUpperCase() && cleanDisplay !== cleanDisplay.toUpperCase()) ||
+        (hasAbbr.test(existing.nombre) && !hasAbbr.test(cleanDisplay)) ||
+        (cleanDisplay.length > existing.nombre.length && !hasAbbr.test(cleanDisplay))
+      )) {
         existing.nombre = cleanDisplay;
       }
       if (isDirectorCandidate && existing.cargo !== 'Director(a)') {
@@ -358,6 +435,52 @@ export function reconcilePmcStaff(options: ReconcileStaffOptions): ReconciledSta
         nombre: d!.trim(),
         cargo: 'Docente',
       });
+    }
+  }
+
+  // 6b. Asociar metas/actividades extraídas del plan de acción a cada docente/responsable individual
+  if (Array.isArray(options.elementosPlan) && options.elementosPlan.length > 0) {
+    for (const elem of options.elementosPlan) {
+      const resp = elem.responsable?.trim();
+      if (!resp || !isValidStaffName(resp) || isCollectiveOrNonHumanEntity(resp)) {
+        continue;
+      }
+      const normRespKey = normalizeStaffName(resp);
+      let targetStaff = staffByNormName.get(normRespKey);
+      if (!targetStaff) {
+        addOrUpdateStaff({
+          nombre: resp,
+          cargo: 'Docente',
+        });
+        targetStaff = staffByNormName.get(normRespKey);
+      }
+      if (targetStaff) {
+        const rawTexto = (elem.texto_normalizado || elem.texto_original || '').trim();
+        const texto = cleanPmcPlaceholders(rawTexto);
+        if (texto) {
+          const catNorm = normalizePmcCategoria(elem.categoria || null);
+          const temaNorm = normalizePmcTema(elem.tema || null, catNorm);
+          if (!targetStaff.metas_individuales) {
+            targetStaff.metas_individuales = [];
+          }
+          const exists = targetStaff.metas_individuales.some(
+            (m) => m.meta.toLowerCase() === texto.toLowerCase()
+          );
+          if (!exists) {
+            targetStaff.metas_individuales.push({
+              categoria: catNorm,
+              tema: temaNorm,
+              meta: texto,
+              estrategia: elem.tipo === 'actividad' ? 'Implementación de actividades focalizadas en el aula y plantel.' : 'Estrategia institucional del plan de mejora continua.',
+              entregable: elem.tipo === 'actividad' ? 'Reporte de evidencias, listas de asistencia y productos.' : 'Informe de cumplimiento y evaluación de metas.',
+              periodo: elem.periodo?.trim() || `Agosto ${safeCiclo.split('-')[0] || '2026'} — Junio ${safeCiclo.split('-')[1] || '2027'}`,
+            });
+          }
+          if (!targetStaff.meta_individual) {
+            targetStaff.meta_individual = texto;
+          }
+        }
+      }
     }
   }
 

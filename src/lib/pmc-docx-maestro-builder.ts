@@ -19,6 +19,8 @@ import {
 import { getCatalogoMetasPmc } from './catalogo-metas-pmc';
 import type { MetaCatalogEntry } from '@/types/pmc';
 import { logger } from './logger';
+import { cleanPmcPlaceholders } from './pmc/plan-element-normalizer';
+import { isValidStaffName, isCollectiveOrNonHumanEntity } from './pmc/staff-reconciler';
 
 // ─── PALETA CROMÁTICA INSTITUCIONAL OFICIAL ─────────────────────────────────
 const BRAND = {
@@ -186,7 +188,11 @@ export async function resolvePersonalForMaestro(
         : (project.staff_data as unknown[]);
       if (Array.isArray(staffRaw)) {
         personalRows = staffRaw
-          .filter((s): s is Record<string, unknown> => typeof s === 'object' && s !== null)
+          .filter((s): s is Record<string, unknown> => {
+            if (typeof s !== 'object' || s === null) return false;
+            const n = String((s as Record<string, unknown>).nombre ?? '').trim();
+            return isValidStaffName(n) && !isCollectiveOrNonHumanEntity(n);
+          })
           .map((s, idx) => ({
             id: String(idx),
             nombre: String(s.nombre ?? 'Docente'),
@@ -679,14 +685,14 @@ export async function generatePmcDocxMaestro(
     metasInst.forEach((m, i) => {
       cap4Items.push(h2(`4.${i + 1} ${m.tema || 'Ámbito de Mejora Institucional'}`));
       if (m.diagnostico_meta) {
-        cap4Items.push(p(`Diagnóstico situacional: ${m.diagnostico_meta}`, { italics: true }));
+        cap4Items.push(p(`Diagnóstico situacional: ${cleanPmcPlaceholders(m.diagnostico_meta)}`, { italics: true }));
       }
-      cap4Items.push(p(`Objetivo / Meta: ${m.meta || 'Meta no especificada.'}`, { bold: true }));
+      cap4Items.push(p(`Objetivo / Meta: ${cleanPmcPlaceholders(m.meta) || 'Meta no especificada.'}`, { bold: true }));
       if (m.estrategia) {
-        cap4Items.push(p(`Estrategia pedagógica/operativa: ${m.estrategia}`));
+        cap4Items.push(p(`Estrategia pedagógica/operativa: ${cleanPmcPlaceholders(m.estrategia)}`));
       }
       if (m.linea_base) {
-        cap4Items.push(p(`Línea base de partida: ${m.linea_base}`, { color: BRAND.textoMuted, size: 20 }));
+        cap4Items.push(p(`Línea base de partida: ${cleanPmcPlaceholders(m.linea_base)}`, { color: BRAND.textoMuted, size: 20 }));
       }
     });
   }
@@ -715,11 +721,13 @@ export async function generatePmcDocxMaestro(
   } else {
     metasInst.forEach((m, idx) => {
       const bg = idx % 2 === 0 ? BRAND.blanco : BRAND.grisFondo;
+      const cleanMeta = cleanPmcPlaceholders(m.meta) || 'Meta no especificada.';
+      const cleanEntregable = cleanPmcPlaceholders(m.entregable) || 'Evidencia documental';
       tablaPlanAccionRows.push(
         new TableRow({
           children: [
             cell(m.tema || 'Ámbito General', { w: 2200, fill: bg, bold: true, size: 18 }),
-            cell(`${m.meta || 'Meta no especificada.'}\n\nEntregable: ${m.entregable || 'Evidencia documental'}`, {
+            cell(`${cleanMeta}\n\nEntregable: ${cleanEntregable}`, {
               w: 4280,
               fill: bg,
               size: 18,
@@ -771,9 +779,10 @@ export async function generatePmcDocxMaestro(
 
     metasPers.forEach((mp, idx) => {
       const bg = idx % 2 === 0 ? BRAND.blanco : BRAND.grisFondo;
+      const cleanMetaInd = cleanPmcPlaceholders(mp.meta_individual);
       const metaText = mp.categoria
-        ? `[${mp.categoria}${mp.tema ? ` - ${mp.tema}` : ''}] ${mp.meta_individual || ''}`
-        : mp.meta_individual || 'Meta individual formativa';
+        ? `[${mp.categoria}${mp.tema ? ` - ${mp.tema}` : ''}] ${cleanMetaInd || ''}`
+        : cleanMetaInd || 'Meta individual formativa';
 
       tablaMetasPersonalesRows.push(
         new TableRow({
@@ -781,7 +790,7 @@ export async function generatePmcDocxMaestro(
             cell(mp.nombre || 'Personal Docente', { w: 2000, fill: bg, bold: true, size: 18 }),
             cell(mp.cargo || 'Docente frente a grupo', { w: 1800, fill: bg, size: 18 }),
             cell(metaText, { w: 3280, fill: bg, size: 18 }),
-            cell(mp.entregable || 'Evidencia pedagógica', { w: 1800, fill: bg, size: 18 }),
+            cell(cleanPmcPlaceholders(mp.entregable) || 'Evidencia pedagógica', { w: 1800, fill: bg, size: 18 }),
             cell(mp.periodo || 'Ciclo Escolar', { w: 1200, fill: bg, align: AlignmentType.CENTER, size: 18 }),
           ],
         })
@@ -824,7 +833,7 @@ export async function generatePmcDocxMaestro(
         new TableRow({
           children: [
             cell(`${m.periodo_inicio || 'Corte 1'} a ${m.periodo_fin || 'Corte 2'}`, { w: 2400, fill: bg, size: 18 }),
-            cell(m.meta || 'Meta institucional', { w: 4480, fill: bg, size: 18 }),
+            cell(cleanPmcPlaceholders(m.meta) || 'Meta institucional', { w: 4480, fill: bg, size: 18 }),
             cell(m.personal_designado || 'Dirección / Colegiado', { w: 3200, fill: bg, size: 18 }),
           ],
         })
@@ -929,13 +938,14 @@ export async function generatePmcDocxMaestro(
   } else {
     metasInst.forEach((m, idx) => {
       const bg = idx % 2 === 0 ? BRAND.blanco : BRAND.grisFondo;
+      const cleanMeta = cleanPmcPlaceholders(m.meta) || 'Meta institucional';
       tablaEvaluacionRows.push(
         new TableRow({
           children: [
-            cell(m.meta || 'Meta institucional', { w: 3880, fill: bg, size: 18 }),
-            cell(m.linea_base || 'Sin línea base capturada', { w: 2000, fill: bg, size: 18 }),
-            cell(m.meta || '100% de cumplimiento', { w: 2200, fill: bg, size: 18 }),
-            cell(m.entregable || 'Evidencia documental', { w: 2000, fill: bg, size: 18 }),
+            cell(cleanMeta, { w: 3880, fill: bg, size: 18 }),
+            cell(cleanPmcPlaceholders(m.linea_base) || 'Sin línea base capturada', { w: 2000, fill: bg, size: 18 }),
+            cell(cleanMeta || '100% de cumplimiento', { w: 2200, fill: bg, size: 18 }),
+            cell(cleanPmcPlaceholders(m.entregable) || 'Evidencia documental', { w: 2000, fill: bg, size: 18 }),
           ],
         })
       );
