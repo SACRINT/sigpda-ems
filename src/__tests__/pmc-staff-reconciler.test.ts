@@ -356,4 +356,58 @@ describe('PMC Staff Reconciler Engine', () => {
     const cleaned2 = cleanPmcPlaceholders(dirty2);
     expect(cleaned2).toBe('Reducir el índice de abandono escolar en un 2%');
   });
+
+  it('19. Tecomate: Distribuye actividades con responsables genéricos (Docentes, Tutor, Asesor) sin crear trabajadores fantasma (Alumnos, APF)', () => {
+    const tecomateStaff = [
+      { nombre: 'PROFR. JUAN ROGELIO GARCIA ESCUDERO', cargo: 'Responsable del Bachillerato' },
+      { nombre: 'PROFR. GUSTAVO AARON DE LA FUENTE PORTILLA', cargo: 'Docente y tutor del plantel' },
+      { nombre: 'PROFRA. ENIA HERNANDEZ GARCIA', cargo: 'Docente y tutor de grupo' },
+      { nombre: 'PROFRA. MAYRA HERNANDEZ TOLENTINO', cargo: 'Docente y tutor de grupo' },
+      { nombre: 'PROFR. ISRAEL BADILLO CRUZ', cargo: 'Docente de grupo' },
+      { nombre: 'PROFR. ARTURO MONTAÑO JUAREZ', cargo: 'Docente de grupo' },
+    ];
+
+    const tecomateElementosPlan = [
+      { tipo: 'actividad', responsable: 'Director', texto_normalizado: 'Toda la información deberá ser entregada a la dirección del plantel' },
+      { tipo: 'actividad', responsable: 'Dirección del Plantel', texto_normalizado: 'Monitoreo de los resultados con frecuencia' },
+      { tipo: 'actividad', responsable: 'Tutor del Plantel', texto_normalizado: 'Atención socioemocional a alumnos en riesgo' },
+      { tipo: 'actividad', responsable: 'Asesor de grupo', texto_normalizado: 'Papiroflexia y medición de figuras geométricas' },
+      { tipo: 'actividad', responsable: 'Docentes', texto_normalizado: 'Realizar rúbrica de control de aprendientes' },
+      { tipo: 'actividad', responsable: 'Docentes', texto_normalizado: 'Monitorear inasistencias por WhatsApp' },
+      { tipo: 'actividad', responsable: 'Docentes', texto_normalizado: 'Ejercicios matemáticos de operaciones básicas' },
+      { tipo: 'actividad', responsable: 'Docentes', texto_normalizado: 'Aplicación de evaluaciones diagnósticas' },
+      { tipo: 'actividad', responsable: 'Directivo y docentes', texto_normalizado: 'Realizar simulacros ante fenómenos naturales' },
+      { tipo: 'actividad', responsable: 'Alumnos', texto_normalizado: 'Faena mensual de limpieza en el terreno escolar' },
+      { tipo: 'actividad', responsable: 'Comité de APF', texto_normalizado: 'Gestionar materiales con el ejido El Tecomate' },
+      { tipo: 'actividad', responsable: 'Autoridades', texto_normalizado: 'Reunión de coordinación comunitaria' },
+    ];
+
+    const result = reconcilePmcStaff({
+      directorName: 'Juan Rogelio García Escudero',
+      participantes: tecomateStaff,
+      elementosPlan: tecomateElementosPlan,
+    });
+
+    // 1. Debe haber exactamente 6 trabajadores (ningún fantasma como Alumnos, APF o Docentes)
+    expect(result.staff.length).toBe(6);
+    expect(result.totalStaff).toBe(6);
+
+    const nombres = result.staff.map((s) => s.nombre);
+    expect(nombres).toContain('Juan Rogelio García Escudero');
+    expect(nombres).toContain('Gustavo Aaron de la Fuente Portilla');
+    expect(nombres).toContain('Enia Hernandez Garcia');
+    expect(nombres).toContain('Mayra Hernandez Tolentino');
+    expect(nombres).toContain('Israel Badillo Cruz');
+    expect(nombres).toContain('Arturo Montaño Juarez');
+
+    expect(nombres).not.toContain('Alumnos');
+    expect(nombres).not.toContain('Comité de APF');
+    expect(nombres).not.toContain('Docentes');
+    expect(nombres).not.toContain('Dirección del Plantel');
+
+    // 2. Todos los 6 docentes reales deben tener metas individuales pre-asignadas
+    for (const member of result.staff) {
+      expect((member.metas_individuales?.length || 0) + (member.meta_individual ? 1 : 0)).toBeGreaterThan(0);
+    }
+  });
 });

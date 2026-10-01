@@ -82,10 +82,51 @@ const INVALID_NAME_PATTERNS = [
   'pendiente',
   'no asignado',
   'docente',
+  'docentes',
   'profesor',
+  'profesores',
+  'profesora',
+  'profesoras',
   'maestro',
+  'maestros',
+  'maestra',
+  'maestras',
   'director',
+  'directora',
+  'directivo',
+  'directivos',
   'subdirector',
+  'subdirectora',
+  'tutor',
+  'tutora',
+  'tutores',
+  'asesor',
+  'asesora',
+  'asesores',
+  'orientador',
+  'orientadora',
+  'orientadores',
+  'alumno',
+  'alumna',
+  'alumnos',
+  'alumnas',
+  'estudiante',
+  'estudiantes',
+  'aprendiente',
+  'aprendientes',
+  'padre',
+  'padres',
+  'madre',
+  'madres',
+  'autoridad',
+  'autoridades',
+  'comite',
+  'comité',
+  'direccion',
+  'dirección',
+  'plantel',
+  'apf',
+  'comunidad',
   'n/a',
   'ninguno',
   'ninguna',
@@ -117,20 +158,33 @@ export function isCollectiveOrNonHumanEntity(name: string | null | undefined): b
   if (!name) return false;
   const clean = name.trim().toLowerCase();
 
-  // 1. Detección por combinaciones de cargos/colectivos unidos por 'y', comas o 'e'
-  if (/\b(?:director|directora|docente|docentes|administrativo|administrativos|padres|madres|tutores|comite|comité|alumnos|estudiantes)\b.*\b(?:y|e|,)\b.*\b(?:director|directora|docente|docentes|administrativo|administrativos|padres|madres|tutores|comite|comité|alumnos|estudiantes|salud|familia|grupo)\b/i.test(clean)) {
+  // 1. Detección por combinaciones de cargos/colectivos unidos por 'y', comas, 'e', '/' u 'o'
+  if (/\b(?:director|directora|directivo|directivos|docente|docentes|administrativo|administrativos|padres|madres|tutores|tutor|asesor|asesores|comite|comité|alumnos|estudiantes|aprendientes|autoridad|autoridades|comunidad)\b.*\b(?:y|e|o|,|\/)\b.*\b(?:director|directora|directivo|directivos|docente|docentes|administrativo|administrativos|padres|madres|tutores|tutor|asesor|asesores|comite|comité|alumnos|estudiantes|aprendientes|autoridad|autoridades|comunidad|salud|familia|grupo|plantel|escolar)\b/i.test(clean)) {
     return true;
   }
 
-  // 2. Frases colectivas explícitas
+  // 2. Frases colectivas o institucionales explícitas
   const collectivePhrases = [
     'colectivo docente',
     'comunidad escolar',
+    'comunidad educativa',
     'padres de familia',
     'comite de salud',
     'comité de salud',
     'comite escolar',
     'comité escolar',
+    'comite de apf',
+    'comité de apf',
+    'comite',
+    'comité',
+    'apf',
+    'asociacion de padres',
+    'asociación de padres',
+    'direccion del plantel',
+    'dirección del plantel',
+    'direccion escolar',
+    'dirección escolar',
+    'plantel',
     'frente a grupo',
     'socioemocionales',
     'todo el personal',
@@ -138,16 +192,28 @@ export function isCollectiveOrNonHumanEntity(name: string | null | undefined): b
     'toda la comunidad',
     'consejo tecnico',
     'consejo técnico',
+    'cte',
     'academia de',
     'asociacion de',
     'asociación de',
+    'asesor de grupo',
+    'asesor del grupo',
+    'asesores de grupo',
+    'tutor del plantel',
+    'tutor escolar',
+    'tutor de grupo',
+    'alumnos',
+    'estudiantes',
+    'aprendientes',
+    'autoridades',
+    'autoridad local',
   ];
   if (collectivePhrases.some((phrase) => clean.includes(phrase))) {
     return true;
   }
 
-  // 3. Inicio con conectores o cargos colectivos
-  if (/^(?:director[a]?\s*(?:,|y)\s*|docentes\s*(?:,|y)\s*|personal\s+(?:docente|administrativo|de\s+apoyo)|colectivo\s+)/i.test(clean)) {
+  // 3. Inicio con conectores o cargos colectivos o palabras individuales colectivas
+  if (/^(?:director[a]?\s*(?:,|y)\s*|docentes\b|directivos\b|alumnos\b|estudiantes\b|aprendientes\b|autoridades\b|tutores\b|asesores\b|personal\s+(?:docente|administrativo|de\s+apoyo)|colectivo\s+)/i.test(clean)) {
     return true;
   }
 
@@ -236,6 +302,40 @@ export function isValidStaffName(name: string | null | undefined): boolean {
   const normalized = normalizeStaffName(clean);
   if (!normalized || normalized.length < 3) return false;
   if (INVALID_NAME_PATTERNS.includes(normalized)) return false;
+
+  // Un nombre de persona física en México tiene al menos 2 palabras (Nombre + Apellido)
+  const words = normalized.split(' ').filter((w) => w.length > 1);
+  if (words.length < 2) {
+    return false;
+  }
+
+  // Descartar si alguna palabra clave es institucional o un rol aislado
+  const nonPersonTokens = new Set([
+    'comite',
+    'direccion',
+    'plantel',
+    'alumnos',
+    'estudiantes',
+    'aprendientes',
+    'docentes',
+    'autoridades',
+    'apf',
+    'escuela',
+    'colectivo',
+    'directivo',
+    'directivos',
+    'asesor',
+    'asesores',
+    'tutor',
+    'tutores',
+    'comunidad',
+    'familia',
+    'familias',
+  ]);
+  if (words.some((w) => nonPersonTokens.has(w))) {
+    return false;
+  }
+
   return true;
 }
 
@@ -440,45 +540,114 @@ export function reconcilePmcStaff(options: ReconcileStaffOptions): ReconciledSta
 
   // 6b. Asociar metas/actividades extraídas del plan de acción a cada docente/responsable individual
   if (Array.isArray(options.elementosPlan) && options.elementosPlan.length > 0) {
+    const rawTeachers = Array.from(staffByNormName.values()).filter(
+      (s) => !s.cargo.toLowerCase().includes('director')
+    );
+    const directorMember = Array.from(staffByNormName.values()).find(
+      (s) => s.cargo.toLowerCase().includes('director')
+    );
+    let roundRobinDocenteIdx = 0;
+
     for (const elem of options.elementosPlan) {
       const resp = elem.responsable?.trim();
-      if (!resp || !isValidStaffName(resp) || isCollectiveOrNonHumanEntity(resp)) {
-        continue;
-      }
-      const normRespKey = normalizeStaffName(resp);
-      let targetStaff = staffByNormName.get(normRespKey);
-      if (!targetStaff) {
-        addOrUpdateStaff({
-          nombre: resp,
-          cargo: 'Docente',
-        });
+      if (!resp) continue;
+
+      const rawTexto = (elem.texto_normalizado || elem.texto_original || '').trim();
+      const texto = cleanPmcPlaceholders(rawTexto);
+      if (!texto) continue;
+
+      let targetStaff: StaffMember | undefined;
+
+      // Caso A: El responsable es una persona física real ya registrada o un nombre humano nuevo válido
+      if (isValidStaffName(resp)) {
+        const normRespKey = normalizeStaffName(resp);
         targetStaff = staffByNormName.get(normRespKey);
-      }
-      if (targetStaff) {
-        const rawTexto = (elem.texto_normalizado || elem.texto_original || '').trim();
-        const texto = cleanPmcPlaceholders(rawTexto);
-        if (texto) {
-          const catNorm = normalizePmcCategoria(elem.categoria || null);
-          const temaNorm = normalizePmcTema(elem.tema || null, catNorm);
-          if (!targetStaff.metas_individuales) {
-            targetStaff.metas_individuales = [];
-          }
-          const exists = targetStaff.metas_individuales.some(
-            (m) => m.meta.toLowerCase() === texto.toLowerCase()
+        if (!targetStaff) {
+          addOrUpdateStaff({
+            nombre: resp,
+            cargo: 'Docente',
+          });
+          targetStaff = staffByNormName.get(normRespKey);
+        }
+      } else {
+        // Caso B: El responsable es un rol o colectivo (ej. "Docentes", "Tutor del Plantel", "Dirección")
+        const lowerResp = resp.toLowerCase();
+
+        // Omitir actores puramente externos o comunitarios (alumnos, APF, padres, autoridades)
+        if (
+          lowerResp.includes('alumno') ||
+          lowerResp.includes('estudiante') ||
+          lowerResp.includes('comite') ||
+          lowerResp.includes('comité') ||
+          lowerResp.includes('apf') ||
+          lowerResp.includes('padre') ||
+          lowerResp.includes('madre') ||
+          lowerResp.includes('autoridad') ||
+          lowerResp.includes('comunidad')
+        ) {
+          continue; // Permanece en el plan general institucional, pero no crea ni asigna a empleados individuales
+        }
+
+        // B1: Si refiere a Dirección / Director
+        if (lowerResp.includes('director') || lowerResp.includes('direccion') || lowerResp.includes('dirección')) {
+          targetStaff = directorMember;
+        }
+        // B2: Si refiere al Tutor del Plantel / Tutor
+        else if (lowerResp.includes('tutor')) {
+          const tutorMember = rawTeachers.find((s) => s.cargo.toLowerCase().includes('tutor'));
+          targetStaff = tutorMember || (rawTeachers.length > 0 ? rawTeachers[roundRobinDocenteIdx++ % rawTeachers.length] : directorMember);
+        }
+        // B3: Si refiere a Asesor de grupo
+        else if (lowerResp.includes('asesor')) {
+          const asesorMember = rawTeachers.find(
+            (s) => s.cargo.toLowerCase().includes('asesor') || s.cargo.toLowerCase().includes('grupo')
           );
-          if (!exists) {
-            targetStaff.metas_individuales.push({
-              categoria: catNorm,
-              tema: temaNorm,
-              meta: texto,
-              estrategia: elem.tipo === 'actividad' ? 'Implementación de actividades focalizadas en el aula y plantel.' : 'Estrategia institucional del plan de mejora continua.',
-              entregable: elem.tipo === 'actividad' ? 'Reporte de evidencias, listas de asistencia y productos.' : 'Informe de cumplimiento y evaluación de metas.',
-              periodo: elem.periodo?.trim() || `Agosto ${safeCiclo.split('-')[0] || '2026'} — Junio ${safeCiclo.split('-')[1] || '2027'}`,
-            });
+          targetStaff = asesorMember || (rawTeachers.length > 0 ? rawTeachers[roundRobinDocenteIdx++ % rawTeachers.length] : directorMember);
+        }
+        // B4: Si refiere a Docentes / Colectivo
+        else if (
+          lowerResp.includes('docente') ||
+          lowerResp.includes('profesor') ||
+          lowerResp.includes('directivo') ||
+          lowerResp.includes('colectivo')
+        ) {
+          if (rawTeachers.length > 0) {
+            targetStaff = rawTeachers[roundRobinDocenteIdx++ % rawTeachers.length];
+          } else {
+            targetStaff = directorMember;
           }
-          if (!targetStaff.meta_individual) {
-            targetStaff.meta_individual = texto;
-          }
+        }
+      }
+
+      if (targetStaff) {
+        const catNorm = normalizePmcCategoria(elem.categoria || null);
+        const temaNorm = normalizePmcTema(elem.tema || null, catNorm);
+        if (!targetStaff.metas_individuales) {
+          targetStaff.metas_individuales = [];
+        }
+        const exists = targetStaff.metas_individuales.some(
+          (m) => m.meta.toLowerCase() === texto.toLowerCase()
+        );
+        if (!exists) {
+          targetStaff.metas_individuales.push({
+            categoria: catNorm,
+            tema: temaNorm,
+            meta: texto,
+            estrategia:
+              elem.tipo === 'actividad'
+                ? 'Implementación de actividades focalizadas en el aula y plantel.'
+                : 'Estrategia institucional del plan de mejora continua.',
+            entregable:
+              elem.tipo === 'actividad'
+                ? 'Reporte de evidencias, listas de asistencia y productos.'
+                : 'Informe de cumplimiento y evaluación de metas.',
+            periodo:
+              elem.periodo?.trim() ||
+              `Agosto ${safeCiclo.split('-')[0] || '2026'} — Junio ${safeCiclo.split('-')[1] || '2027'}`,
+          });
+        }
+        if (!targetStaff.meta_individual) {
+          targetStaff.meta_individual = texto;
         }
       }
     }
