@@ -18,6 +18,7 @@ import {
   applyIndicatorPrecedence,
   deduplicateMetasInstitucionales,
   isAbandonoGoal,
+  hasDistinctEvaluationLevels,
 } from '@/lib/pmc-meta-deduplicator';
 import type { PmcMetaInstitucional, PmcIndicadoresAcademicos } from '@/types/pmc';
 
@@ -449,6 +450,41 @@ describe('H-150 / H-153: Deduplicación silenciosa de metas institucionales', ()
       expect(deduplicated.some(m => m.meta?.includes('inglés'))).toBe(true);
       expect(deduplicated.some(m => m.meta?.includes('pensamiento aritmético'))).toBe(true);
       expect(deduplicated.some(m => m.meta?.includes('reprobación'))).toBe(true);
+    });
+
+    it('H-290: Preserva metas con distintos niveles de desempeño de evaluación (ej. nivel bueno vs nivel excelente)', () => {
+      const metaBueno: PmcMetaInstitucional = {
+        categoria: 'Desarrollo académico y aprendizaje',
+        tema: 'Prueba PLANEA - Habilidad lectora',
+        meta: 'Continuidad (2026-2027): Aumentar 0.5 puntos en el nivel bueno de habilidad lectora en la prueba PLANEA.',
+        estrategia: '1. Diagnóstico inicial. 2. Asesorías. 3. Evaluación periódica.',
+      };
+
+      const metaExcelente: PmcMetaInstitucional = {
+        categoria: 'Desarrollo académico y aprendizaje',
+        tema: 'Prueba PLANEA - Habilidad lectora',
+        meta: 'Continuidad (2026-2027): Aumentar 0.5 puntos en el nivel excelente de habilidad lectora en la prueba PLANEA.',
+        estrategia: '1. Diagnóstico inicial. 2. Asesorías. 3. Evaluación periódica.',
+      };
+
+      const metaInsuficiente: PmcMetaInstitucional = {
+        categoria: 'Desarrollo académico y aprendizaje',
+        tema: 'Prueba PLANEA - Habilidad lectora',
+        meta: 'Continuidad (2026-2027): Disminuir 0.5 puntos en el nivel insuficiente de habilidad lectora en la prueba PLANEA.',
+        estrategia: '1. Diagnóstico inicial. 2. Asesorías. 3. Evaluación periódica.',
+      };
+
+      // hasDistinctEvaluationLevels debe detectar la diferencia entre niveles
+      expect(hasDistinctEvaluationLevels(metaBueno.meta, metaExcelente.meta)).toBe(true);
+      expect(hasDistinctEvaluationLevels(metaBueno.meta, metaInsuficiente.meta)).toBe(true);
+      expect(hasDistinctEvaluationLevels(metaBueno.meta, metaBueno.meta)).toBe(false);
+
+      // deduplicateMetasInstitucionales NO debe colapsarlas
+      const result = deduplicateMetasInstitucionales([metaBueno, metaExcelente, metaInsuficiente]);
+      expect(result.length).toBe(3);
+      expect(result.some(m => m.meta?.includes('nivel bueno'))).toBe(true);
+      expect(result.some(m => m.meta?.includes('nivel excelente'))).toBe(true);
+      expect(result.some(m => m.meta?.includes('nivel insuficiente'))).toBe(true);
     });
   });
 });

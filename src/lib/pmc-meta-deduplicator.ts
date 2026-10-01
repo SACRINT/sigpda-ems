@@ -64,6 +64,29 @@ export function computeMetaSimilarity(textA?: string | null, textB?: string | nu
   return union === 0 ? 0 : intersection / union;
 }
 
+/**
+ * Determina si dos textos de metas refieren a niveles de desempeño de evaluación distintos
+ * (ej. "nivel bueno" vs "nivel excelente", "insuficiente" vs "elemental").
+ * En tales casos, NO deben fusionarse como duplicados aunque compartan el resto del texto.
+ */
+export function hasDistinctEvaluationLevels(textA?: string | null, textB?: string | null): boolean {
+  if (!textA || !textB) return false;
+  const normA = textA.toLowerCase();
+  const normB = textB.toLowerCase();
+  const levels = ['insuficiente', 'elemental', 'bueno', 'excelente'];
+  const levelsA = levels.filter(l => normA.includes(l));
+  const levelsB = levels.filter(l => normB.includes(l));
+
+  if (levelsA.length > 0 && levelsB.length > 0) {
+    const setA = new Set(levelsA);
+    const setB = new Set(levelsB);
+    if (setA.size !== setB.size || [...setA].some(l => !setB.has(l))) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export type MetaTopicKey =
   | 'abandono'
   | 'reprobacion'
@@ -446,13 +469,24 @@ export function deduplicateMetasInstitucionales<T extends PmcMetaInstitucional>(
 
       // 4. Coincidencia por similitud textual alta (Jaccard >= similarityThreshold) CON tema alineado
       const sim = computeMetaSimilarity(existing.meta, meta.meta);
-      if (sim >= similarityThreshold && existing.tema && meta.tema && normalizeMetaText(existing.tema) === normalizeMetaText(meta.tema)) {
+      if (
+        sim >= similarityThreshold &&
+        existing.tema &&
+        meta.tema &&
+        normalizeMetaText(existing.tema) === normalizeMetaText(meta.tema) &&
+        !hasDistinctEvaluationLevels(existing.meta, meta.meta)
+      ) {
         matchIdx = i;
         break;
       }
 
-      // 5. Coincidencia de tema idéntico y estrategia clonada alta
-      if (existing.tema && meta.tema && normalizeMetaText(existing.tema) === normalizeMetaText(meta.tema)) {
+      // 5. Coincidencia de tema idéntico y estrategia clonada alta (salvo que tengan niveles de desempeño distintos)
+      if (
+        existing.tema &&
+        meta.tema &&
+        normalizeMetaText(existing.tema) === normalizeMetaText(meta.tema) &&
+        !hasDistinctEvaluationLevels(existing.meta, meta.meta)
+      ) {
         if (computeMetaSimilarity(existing.estrategia, meta.estrategia) >= 0.70) {
           matchIdx = i;
           break;

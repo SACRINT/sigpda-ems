@@ -17,6 +17,7 @@ import {
   deduplicateMetasInstitucionales,
   computeMetaSimilarity,
   normalizeMetaText,
+  hasDistinctEvaluationLevels,
 } from '@/lib/pmc-meta-deduplicator';
 import {
   mergePaecIntoDiagnostic,
@@ -248,7 +249,11 @@ export function isPreviousMetaAdapted(
     // H-283 / H-289: Coincidencia semántica con deduplicateMetasInstitucionales para evitar botones inactivos
     if (normMp) {
       const normM = normalizeMetaText(m.meta);
-      if (normM === normMp || computeMetaSimilarity(m.meta, mp.meta || mp.texto_original) >= 0.60) {
+      if (
+        normM === normMp ||
+        (!hasDistinctEvaluationLevels(m.meta, mp.meta || mp.texto_original) &&
+          computeMetaSimilarity(m.meta, mp.meta || mp.texto_original) >= 0.60)
+      ) {
         return true;
       }
     }
