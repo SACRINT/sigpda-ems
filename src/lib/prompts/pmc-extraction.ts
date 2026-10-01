@@ -298,7 +298,12 @@ Estructura la información en el siguiente esquema JSON exacto:
   ],
   "diagnosticoComunidad": "Diagnóstico textual de la comunidad o null",
   "indicadores": {},
-  "foda": {}
+  "foda": {
+    "fortalezas": "Texto o lista de fortalezas detectadas en el documento (especialmente en tablas FODA o diagnóstico institucional) o null",
+    "oportunidades": "Texto o lista de oportunidades del entorno detectadas o null",
+    "debilidades": "Texto o lista de debilidades internas detectadas o null",
+    "amenazas": "Texto o lista de amenazas externas detectadas o null"
+  }
 }
 
 REGLAS DE ORO OBLIGATORIAS:
@@ -313,7 +318,8 @@ REGLAS DE ORO OBLIGATORIAS:
    - 'Gestión y administración escolar'
    - 'Desarrollo socioemocional y prevención de la violencia en la escuela'
    Desempate: clasifica por el RESULTADO FINAL que se mide, no por el medio.
-8. Salida: Responde EXCLUSIVAMENTE con el JSON válido.`;
+8. ANÁLISIS FODA: Si el documento contiene una tabla o sección de FODA (Fortalezas, Oportunidades, Debilidades, Amenazas), extrae textualmente la información de cada cuadrante en el objeto 'foda'. Si no existe sección explícita de FODA, deja sus campos como null.
+9. Salida: Responde EXCLUSIVAMENTE con el JSON válido.`;
 }
 
 export function buildPmcChunkExtractionPrompt(

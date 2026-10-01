@@ -98,6 +98,13 @@ export function consolidateBatchResults(
     if (!consolidated.diagnosticoComunidad && res.diagnosticoComunidad) {
       consolidated.diagnosticoComunidad = res.diagnosticoComunidad;
     }
+    if (res.foda) {
+      if (!consolidated.foda) consolidated.foda = {};
+      if (res.foda.fortalezas && !consolidated.foda.fortalezas) consolidated.foda.fortalezas = res.foda.fortalezas;
+      if (res.foda.oportunidades && !consolidated.foda.oportunidades) consolidated.foda.oportunidades = res.foda.oportunidades;
+      if (res.foda.debilidades && !consolidated.foda.debilidades) consolidated.foda.debilidades = res.foda.debilidades;
+      if (res.foda.amenazas && !consolidated.foda.amenazas) consolidated.foda.amenazas = res.foda.amenazas;
+    }
 
     // Acumular elementos del plan y metas institucionales
     if (res.elementos_plan) {

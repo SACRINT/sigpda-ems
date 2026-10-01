@@ -907,6 +907,14 @@ export async function extractPmcPreviousWithPartitioning(options: {
             if (!isMeaningful(combinedData.locality) && isMeaningful(chunkRes.parsed.data.locality)) {
               combinedData.locality = chunkRes.parsed.data.locality;
             }
+            if (chunkRes.parsed.data.foda) {
+              if (!combinedData.foda) combinedData.foda = {};
+              const cf = chunkRes.parsed.data.foda;
+              if (cf.fortalezas && !combinedData.foda.fortalezas) combinedData.foda.fortalezas = cf.fortalezas;
+              if (cf.oportunidades && !combinedData.foda.oportunidades) combinedData.foda.oportunidades = cf.oportunidades;
+              if (cf.debilidades && !combinedData.foda.debilidades) combinedData.foda.debilidades = cf.debilidades;
+              if (cf.amenazas && !combinedData.foda.amenazas) combinedData.foda.amenazas = cf.amenazas;
+            }
             if (i === 0 && combinedData) {
               const prev: PmcPreviousExtractDTO = combinedData;
               combinedData = {

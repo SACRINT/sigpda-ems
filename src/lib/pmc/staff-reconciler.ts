@@ -68,6 +68,7 @@ export interface ReconcileStaffOptions {
     tema?: string;
     periodo?: string;
   }> | null;
+  allowEmptyPadding?: boolean;
 }
 
 export interface ReconciledStaffResult {
@@ -377,6 +378,7 @@ export function reconcilePmcStaff(options: ReconcileStaffOptions): ReconciledSta
     directorName,
     targetTotalStaff,
     cicloEscolar = '2026-2027',
+    allowEmptyPadding = true,
   } = options;
 
   const safeCiclo = cicloEscolar || '2026-2027';
@@ -678,7 +680,7 @@ export function reconcilePmcStaff(options: ReconcileStaffOptions): ReconciledSta
   }
 
   // 8. Determinar conteo objetivo de trabajadores
-  const explicitTarget = targetTotalStaff ? Number(targetTotalStaff) : 0;
+  const explicitTarget = (allowEmptyPadding && targetTotalStaff) ? Number(targetTotalStaff) : 0;
   const countWithNames = reconciledList.length;
   const finalTotalStaff = Math.max(1, explicitTarget > countWithNames ? explicitTarget : countWithNames);
 
@@ -692,9 +694,9 @@ export function reconcilePmcStaff(options: ReconcileStaffOptions): ReconciledSta
     });
   }
 
-  // 10. Si el conteo total objetivo (ej. 911 totalDocentes) supera los nombres identificados,
+  // 10. Si el conteo total objetivo (ej. 911 totalDocentes) supera los nombres identificados y se permite relleno,
   // completar con slots listos para rellenar
-  if (reconciledList.length < finalTotalStaff) {
+  if (allowEmptyPadding && reconciledList.length < finalTotalStaff) {
     const needed = finalTotalStaff - reconciledList.length;
     for (let i = 0; i < needed; i++) {
       reconciledList.push({
@@ -708,7 +710,7 @@ export function reconcilePmcStaff(options: ReconcileStaffOptions): ReconciledSta
 
   return {
     staff: reconciledList,
-    totalStaff: finalTotalStaff,
+    totalStaff: allowEmptyPadding ? finalTotalStaff : reconciledList.length,
   };
 }
 

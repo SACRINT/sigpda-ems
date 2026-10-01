@@ -164,6 +164,7 @@ export async function POST(request: NextRequest) {
       targetTotalStaff: parsed.data.totalStaff,
       cicloEscolar: parsed.data.cicloEscolar,
       elementosPlan: finalElementos,
+      allowEmptyPadding: false, // Al extraer de PMC previo, solo conservar trabajadores humanos reales identificados
     });
 
     // Consolidar metas individuales de la plantilla hacia finalElementos si no están presentes

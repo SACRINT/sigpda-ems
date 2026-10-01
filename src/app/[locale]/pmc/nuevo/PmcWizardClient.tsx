@@ -18,6 +18,7 @@ import {
   computeMetaSimilarity,
   normalizeMetaText,
   hasDistinctEvaluationLevels,
+  isAbandonoGoal,
 } from '@/lib/pmc-meta-deduplicator';
 import {
   mergePaecIntoDiagnostic,
@@ -256,6 +257,10 @@ export function isPreviousMetaAdapted(
       ) {
         return true;
       }
+    }
+    // Regla de unicidad institucional para abandono escolar: si ya existe una meta oficial de abandono, está cubierta
+    if (isAbandonoGoal(mp as any) && isAbandonoGoal(m as any)) {
+      return true;
     }
     return false;
   });
@@ -1066,9 +1071,18 @@ interface EditablePlanElement {
     }
 
     if (parsedPmcData.foda) {
+      const normalizeFodaField = (val: unknown): string => {
+        if (!val) return '';
+        if (Array.isArray(val)) {
+          return val.map(item => String(item).trim()).filter(Boolean).join('\n• ');
+        }
+        return String(val).trim();
+      };
       setFoda(prev => ({
-        ...prev,
-        ...parsedPmcData.foda,
+        fortalezas: normalizeFodaField(parsedPmcData.foda?.fortalezas) || prev.fortalezas,
+        oportunidades: normalizeFodaField(parsedPmcData.foda?.oportunidades) || prev.oportunidades,
+        debilidades: normalizeFodaField(parsedPmcData.foda?.debilidades) || prev.debilidades,
+        amenazas: normalizeFodaField(parsedPmcData.foda?.amenazas) || prev.amenazas,
       }));
     }
 

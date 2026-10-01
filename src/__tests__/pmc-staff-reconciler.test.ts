@@ -410,4 +410,20 @@ describe('PMC Staff Reconciler Engine', () => {
       expect((member.metas_individuales?.length || 0) + (member.meta_individual ? 1 : 0)).toBeGreaterThan(0);
     }
   });
+
+  it('20. Con allowEmptyPadding: false, jamás rellena con slots vacíos aunque targetTotalStaff sea mayor', () => {
+    const result = reconcilePmcStaff({
+      targetTotalStaff: 8,
+      allowEmptyPadding: false,
+      directorName: 'Juan Rogelio García Escudero',
+      extractedStaff: [
+        { nombre: 'Gustavo Aaron de la Fuente Portilla', cargo: 'Docente y tutor del plantel' },
+        { nombre: 'Enia Hernandez Garcia', cargo: 'Docente y tutor de grupo' },
+      ],
+    });
+
+    expect(result.staff.length).toBe(3);
+    expect(result.totalStaff).toBe(3);
+    expect(result.staff.some((s) => !s.nombre)).toBe(false);
+  });
 });
