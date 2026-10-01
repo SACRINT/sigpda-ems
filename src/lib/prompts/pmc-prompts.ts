@@ -389,6 +389,15 @@ REGLAS OBLIGATORIAS DE REDACCIÓN DE METAS CREAA (MCCEMS PUEBLA 2026-2027):
    - "estrategias_seguimiento": Mecanismos de seguimiento y cortes periódicos de avance.
    - "observaciones": Consideraciones operativas y de viabilidad.
 
+9. OBLIGACIÓN NORMATIVA DE LAS 4 ÁREAS OFICIALES DEL FORMATO 5.1 (SEMS PUEBLA):
+   El Plan de Acción del PMC DEBE generar OBLIGATORIAMENTE y de manera INDEPENDIENTE una meta institucional dedicada y no solapada para CADA UNA de las 4 áreas canónicas del Formato 5.1:
+   - ÁREA 1: "Indicadores académicos (reprobación, eficiencia terminal y abandono escolar)" — Categoría: "Desarrollo académico y aprendizaje". (Foco: Aprobación escolar, disminución de reprobación en recursos sociocognitivos F11C y retención 911).
+   - ÁREA 2: "Seguimiento al desempeño docente en el aula" — Categoría: "Gestión y administración escolar". (Foco estricto: Acompañamiento directivo y técnico-pedagógico áulico no punitivo, observación reflexiva de clases por progresiones MCCEMS, retroalimentación colegiada y rúbricas de práctica docente. PROHIBIDO sustituirla por tutorías a estudiantes o aprobación de materias).
+   - ÁREA 3: "Vinculación con centros educativos, empresas, fundaciones o instituciones públicas" — Categoría: "Gestión y administración escolar". (Foco estricto: Acuerdos y convenios con secundarias/telesecundarias de la zona para captación de nuevo ingreso, articulación con instituciones de educación superior regional para orientación vocacional, y alianzas con sector productivo, empresas o DIF municipal para proyectos comunitarios PEC/PAEC y servicio social. PROHIBIDO confundir con faenas o mantenimiento escolar).
+   - ÁREA 4: "Estrategias, programas y/o proyectos sobre violencia" — Categoría: "Desarrollo socioemocional y prevención de la violencia en la escuela". (Foco: Protocolos institucionales de seguridad escolar, prevención de la violencia, cultura de paz, resolución pacífica de conflictos y mediación).
+
+   ADICIONALMENTE a estas 4 áreas obligatorias, genera metas institucionales para los demás temas específicos seleccionados por el plantel si los hubiere.
+
 Estructura de respuesta en JSON:
 {
   "metas_institucionales": [

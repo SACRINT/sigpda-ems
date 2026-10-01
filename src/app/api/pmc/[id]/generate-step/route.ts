@@ -17,7 +17,8 @@ import {
   buildForbiddenTermsCorrectiveDirective,
 } from '@/lib/pmc-quality-gate';
 import { deduplicateMetasInstitucionales } from '@/lib/pmc-meta-deduplicator';
-import type { PmcProject, PmcStatisticalContext, PmcIndicadoresAcademicos } from '@/types/pmc';
+import { synthesizeContextualizedMeta } from '@/lib/constants/pmc-catalogo-criterios';
+import type { PmcProject, PmcStatisticalContext, PmcIndicadoresAcademicos, PmcMetaInstitucional } from '@/types/pmc';
 import { z } from 'zod';
 
 export const runtime = 'nodejs';
@@ -45,6 +46,56 @@ function parseJson<T = unknown>(val: unknown): T | Record<string, never> {
   } catch {
     return {} as Record<string, never>;
   }
+}
+
+/**
+ * Garantiza la presencia de las 4 áreas obligatorias del Formato 5.1 (MCCEMS Puebla),
+ * sintetizando institucionalmente con datos reales del plantel cualquier área omitida por la IA.
+ */
+function ensureMandatory51Metas<T extends PmcMetaInstitucional>(
+  metas: T[],
+  project: PmcProject
+): T[] {
+  const result = [...metas];
+
+  const hasArea1 = result.some(m =>
+    /(indicadores acad[eé]micos|tasa de (?:aprobaci[oó]n|reprobaci[oó]n|abandono)|eficiencia terminal|rezago)/i.test(
+      `${m.tema || ''} ${m.nombre_categoria || ''} ${(m.subcategorias_vinculadas || []).join(' ')}`
+    )
+  );
+
+  const hasArea2 = result.some(m =>
+    /(desempeño docente|acompañamiento pedag[oó]gico|observaci[oó]n (?:de |en el )?aula|pr[aá]ctica docente|visitas? [aá]ulicas?)/i.test(
+      `${m.tema || ''} ${m.nombre_categoria || ''} ${(m.subcategorias_vinculadas || []).join(' ')} ${m.meta || ''}`
+    )
+  );
+
+  const hasArea3 = result.some(m =>
+    /(vinculaci[oó]n|convenios? de colaboraci[oó]n|sector productivo|centros educativos|instituciones p[uú]blicas|empresas)/i.test(
+      `${m.tema || ''} ${m.nombre_categoria || ''} ${(m.subcategorias_vinculadas || []).join(' ')} ${m.meta || ''}`
+    )
+  );
+
+  const hasArea4 = result.some(m =>
+    /(violencia|cultura de paz|convivencia (?:pac[ií]fica|escolar)|acoso escolar|seguridad escolar)/i.test(
+      `${m.tema || ''} ${m.nombre_categoria || ''} ${(m.subcategorias_vinculadas || []).join(' ')} ${m.meta || ''}`
+    )
+  );
+
+  if (!hasArea1) {
+    result.push(synthesizeContextualizedMeta('area-1-indicadores', project) as unknown as T);
+  }
+  if (!hasArea2) {
+    result.push(synthesizeContextualizedMeta('area-2-desempeno-docente', project) as unknown as T);
+  }
+  if (!hasArea3) {
+    result.push(synthesizeContextualizedMeta('area-3-vinculacion', project) as unknown as T);
+  }
+  if (!hasArea4) {
+    result.push(synthesizeContextualizedMeta('area-4-violencia', project) as unknown as T);
+  }
+
+  return result;
 }
 
 
@@ -557,6 +608,12 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       parsedPlan.metas_institucionales = deduplicateMetasInstitucionales(
         parsedPlan.metas_institucionales,
         indicAcademicos
+      );
+
+      // Asegurar cobertura obligatoria de las 4 áreas canónicas del Formato 5.1
+      parsedPlan.metas_institucionales = ensureMandatory51Metas(
+        parsedPlan.metas_institucionales,
+        project as unknown as PmcProject
       );
 
       const staffList = (Array.isArray(staffData) ? staffData : []) as StaffMember[];

@@ -788,28 +788,33 @@ export interface AreaObligatoriaConfig {
   id: string;
   titulo: string;
   keywords: RegExp;
+  strictKeywords?: RegExp;
 }
 
 export const AREAS_OBLIGATORIAS_51: AreaObligatoriaConfig[] = [
   {
     id: 'area-1-indicadores',
     titulo: 'Indicadores académicos (reprobación, eficiencia terminal y abandono escolar)',
-    keywords: /(indicador|aprobaci|reprobaci|abandono|eficiencia|académic|matemátic)/i,
+    keywords: /(indicador|aprobaci[oó]n|reprobaci[oó]n|abandono|eficiencia terminal|académic|rezago|matemátic)/i,
+    strictKeywords: /(indicadores acad[eé]micos|aprobaci[oó]n escolar|reprobaci[oó]n escolar|abandono escolar|eficiencia terminal)/i,
   },
   {
     id: 'area-2-desempeno-docente',
     titulo: 'Seguimiento al desempeño docente en el aula',
-    keywords: /(desempeño docente|docente|aula|enseñanza|formación|colegiado|planeación)/i,
+    keywords: /(desempeño docente|acompañamiento pedag[oó]gico|observaci[oó]n (?:de |en el )?aula|pr[aá]ctica docente|visitas? [aá]ulicas?|retroalimentaci[oó]n docente|desempeño en el aula)/i,
+    strictKeywords: /(seguimiento al desempeño docente|desempeño docente en el aula|acompañamiento pedag[oó]gico|visitas? [aá]ulicas?)/i,
   },
   {
     id: 'area-3-vinculacion',
     titulo: 'Vinculación con centros educativos, empresas, fundaciones o instituciones públicas',
-    keywords: /(vinculaci[oó]n|empresa|centros educativos|institucion|comunitari|egresado|fundaci)/i,
+    keywords: /(vinculaci[oó]n|convenios? (?:de colaboraci[oó]n|con)|sector productivo|centros educativos|instituciones p[uú]blicas|empresas|fundaci[oó]n|educaci[oó]n superior)/i,
+    strictKeywords: /(vinculaci[oó]n con instituciones|vinculaci[oó]n con centros|vinculaci[oó]n con empresas|convenios? de colaboraci[oó]n)/i,
   },
   {
     id: 'area-4-violencia',
     titulo: 'Estrategias, programas y/o proyectos sobre violencia',
-    keywords: /(violencia|paz|convivencia|socioemocional|seguridad|clima)/i,
+    keywords: /(violencia|cultura de paz|convivencia (?:escolar|pac[ií]fica)|acoso escolar|resoluci[oó]n pac[ií]fica|seguridad escolar|prevenci[oó]n de la violencia)/i,
+    strictKeywords: /(proyectos? sobre violencia|prevenci[oó]n de la violencia|cultura de paz|convivencia pac[ií]fica)/i,
   },
 ];
 
@@ -827,12 +832,55 @@ export interface ResolvedArea51 {
 
 export function resolveAreaObligatoria51(
   area: AreaObligatoriaConfig,
-  metas: (MetaInstitucional | PmcMetaInstitucional)[]
+  metas: (MetaInstitucional | PmcMetaInstitucional)[],
+  usedIndices?: Set<number>
 ): ResolvedArea51 {
-  const matchingMeta = metas.find(m => {
-    const textToTest = `${m.tema || ''} ${m.nombre_categoria || ''} ${m.meta || ''} ${(m.subcategorias_vinculadas || []).join(' ')}`;
-    return area.keywords.test(textToTest);
-  });
+  let matchingMeta: MetaInstitucional | PmcMetaInstitucional | undefined;
+  let matchingIdx = -1;
+
+  // 1. Coincidencia estricta en tema o subcategorías vinculadas (sin reutilizar índices previos)
+  for (let i = 0; i < metas.length; i++) {
+    if (usedIndices && usedIndices.has(i)) continue;
+    const m = metas[i];
+    const temaSubcats = `${m.tema || ''} ${(m.subcategorias_vinculadas || []).join(' ')}`;
+    if (area.strictKeywords && area.strictKeywords.test(temaSubcats)) {
+      matchingMeta = m;
+      matchingIdx = i;
+      break;
+    }
+  }
+
+  // 2. Coincidencia general en tema o subcategorías
+  if (!matchingMeta) {
+    for (let i = 0; i < metas.length; i++) {
+      if (usedIndices && usedIndices.has(i)) continue;
+      const m = metas[i];
+      const temaSubcats = `${m.tema || ''} ${(m.subcategorias_vinculadas || []).join(' ')}`;
+      if (area.keywords.test(temaSubcats)) {
+        matchingMeta = m;
+        matchingIdx = i;
+        break;
+      }
+    }
+  }
+
+  // 3. Coincidencia en cuerpo de la meta evitando captura de falsos positivos
+  if (!matchingMeta) {
+    for (let i = 0; i < metas.length; i++) {
+      if (usedIndices && usedIndices.has(i)) continue;
+      const m = metas[i];
+      const fullText = `${m.tema || ''} ${m.nombre_categoria || ''} ${m.meta || ''} ${(m.subcategorias_vinculadas || []).join(' ')}`;
+      if (area.keywords.test(fullText)) {
+        matchingMeta = m;
+        matchingIdx = i;
+        break;
+      }
+    }
+  }
+
+  if (matchingMeta && matchingIdx !== -1 && usedIndices) {
+    usedIndices.add(matchingIdx);
+  }
 
   const metaEstablecida = matchingMeta?.meta ? safeStr(matchingMeta.meta) : PENDIENTE_DEFINICION_51;
   const estrategiaImp = matchingMeta?.estrategia ? safeStr(matchingMeta.estrategia) : PENDIENTE_DEFINICION_51;
@@ -933,7 +981,7 @@ function buildPlanAccion(plan: PlanAccion): (Paragraph | Table)[] {
         subcatVinc,
         situacionActual,
         matchingMeta,
-      } = resolveAreaObligatoria51(area, metas);
+      } = resolveAreaObligatoria51(area, metas, coveredMetaIndices);
 
       if (matchingMeta) {
         const foundIdx = metas.indexOf(matchingMeta as MetaInstitucional);

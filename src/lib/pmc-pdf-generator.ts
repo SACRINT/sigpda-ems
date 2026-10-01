@@ -743,7 +743,7 @@ export async function generatePmcPDF(
         subcatVinc,
         situacionActual,
         matchingMeta,
-      } = resolveAreaObligatoria51(area, metasInst);
+      } = resolveAreaObligatoria51(area, metasInst, coveredMetaIndicesPdf);
 
       if (matchingMeta) {
         const foundIdx = metasInst.indexOf(matchingMeta as (typeof metasInst)[number]);
