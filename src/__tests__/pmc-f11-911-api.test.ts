@@ -455,4 +455,49 @@ describe('API Route: /api/pmc/estadistica-911', () => {
     expect(json.data.existencia).toBe(179);
     expect(json.data.bajas).toBe(10);
   });
+
+  it('H-911-OCR-001: deriva determinísticamente existencia y bajas si la IA retorna existencia null en fin_anterior', async () => {
+    vi.mocked(auth).mockResolvedValueOnce({ user: { email: 'docente@bachillerato.edu.mx' } } as never);
+    vi.mocked(getTeacherByEmail).mockResolvedValueOnce(mockTeacher as never);
+    vi.mocked(resolveUserIsPremium).mockResolvedValueOnce(true);
+    vi.mocked(ingestDocument).mockResolvedValueOnce({
+      fullText: 'CONCENTRADO ESTADISTICO AL TERMINO DEL SEMESTRE TECOMATE',
+      markdown: 'CONCENTRADO ESTADISTICO AL TERMINO DEL SEMESTRE TECOMATE',
+      pageCount: 1,
+    } as never);
+
+    // Simula que la IA extrajo matriculaInicio y bajas pero dejó existencia en null
+    const partialAiResponse = JSON.stringify({
+      schoolName: 'BACHILLERATO MOISES SAENZ GARZA',
+      schoolCct: '21EBH0465E',
+      cicloEscolar: '2025-2026',
+      matriculaInicio: 85,
+      altas: 1,
+      bajas: 5,
+      existencia: null,
+      tipoReporte: 'inicio', // La IA se confundió con el inicio
+    });
+
+    vi.mocked(generateWithRotation).mockResolvedValueOnce(partialAiResponse);
+
+    const formData = new FormData();
+    formData.append('file', new File(['dummy bytes'], 'Estadistica de fin 25-26.pdf', { type: 'application/pdf' }));
+    formData.append('momento', 'fin_anterior');
+
+    const req = new NextRequest('http://localhost:3000/api/pmc/estadistica-911', {
+      method: 'POST',
+      body: formData,
+    });
+    const res = await handle911Post(req);
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.success).toBe(true);
+    expect(json.data.tipoReporte).toBe('fin');
+    expect(json.data.momento).toBe('fin_anterior');
+    // Derivado: 85 + 1 - 5 = 81
+    expect(json.data.existencia).toBe(81);
+    expect(json.data.bajas).toBe(5);
+    expect(json.data.matriculaInicio).toBe(85);
+  });
 });

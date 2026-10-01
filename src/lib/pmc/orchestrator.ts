@@ -190,54 +190,57 @@ export class PmcOrchestrator implements IPmcOrchestrator {
       }
     }
 
-    // 0.1 Si es 911, el parser determinista por coordenadas corre ANTES que cualquier IA (H-220 / B-001)
+    // 0.1 Si es 911, el parser determinista por coordenadas corre ANTES que cualquier IA (H-220 / B-001) solo si es PDF
     if (type === '911') {
-      try {
-        const layoutResult = await parseConcentrado911Layout(buffer, {
-          filename: options.filename,
-          momento: options.requestedMomento,
-        });
-
-        if (!layoutResult.isScanned && (layoutResult.existencia || layoutResult.matriculaInicio || layoutResult.matriculaInicioFinDoc)) {
-          const warnings = [...layoutResult.warnings];
-          if (layoutResult.tipoReporte === 'fin') {
-            if (!layoutResult.existencia) warnings.push('Falta existencia en la fila GENERAL del concentrado de fin.');
-            if (layoutResult.bajas === null) warnings.push('Falta total de bajas en el concentrado de fin.');
-          } else if (layoutResult.tipoReporte === 'inicio') {
-            if (!layoutResult.matriculaInicio) warnings.push('Falta matrícula de inicio en el concentrado.');
-          }
-
-          const data: Estadistica911ExtractDTO = {
-            cicloEscolar: layoutResult.cicloEscolar || '',
-            schoolName: layoutResult.schoolName || '',
-            schoolCct: layoutResult.schoolCct || '',
-            directorName: '',
-            supervisorName: '',
-            tipoReporte: layoutResult.tipoReporte,
-            momento: (options.requestedMomento || (layoutResult.tipoReporte === 'fin' ? 'fin_anterior' : 'inicio_actual')) as Estadistica911ExtractDTO['momento'],
-            matriculaInicio: layoutResult.matriculaInicio ?? layoutResult.matriculaInicioFinDoc,
-            altas: layoutResult.altas,
-            bajas: layoutResult.bajas,
-            existencia: layoutResult.existencia,
-            regulares: layoutResult.regulares,
-            irregulares: layoutResult.irregulares,
-            totalDocentes: layoutResult.totalDocentes,
-            docentesHombres: null,
-            docentesMujeres: null,
-            totalGrupos: layoutResult.totalGrupos,
-            gruposPorGrado: {},
-            observaciones: '',
-          };
-
-          return {
-            success: true,
+      const isPdf = options.filename.toLowerCase().endsWith('.pdf') || (options.mimeType || '').includes('pdf');
+      if (isPdf) {
+        try {
+          const layoutResult = await parseConcentrado911Layout(buffer, {
             filename: options.filename,
-            data,
-            warnings,
-          };
+            momento: options.requestedMomento,
+          });
+
+          if (!layoutResult.isScanned && (layoutResult.existencia || layoutResult.matriculaInicio || layoutResult.matriculaInicioFinDoc)) {
+            const warnings = [...layoutResult.warnings];
+            if (layoutResult.tipoReporte === 'fin') {
+              if (!layoutResult.existencia) warnings.push('Falta existencia en la fila GENERAL del concentrado de fin.');
+              if (layoutResult.bajas === null) warnings.push('Falta total de bajas en el concentrado de fin.');
+            } else if (layoutResult.tipoReporte === 'inicio') {
+              if (!layoutResult.matriculaInicio) warnings.push('Falta matrícula de inicio en el concentrado.');
+            }
+
+            const data: Estadistica911ExtractDTO = {
+              cicloEscolar: layoutResult.cicloEscolar || '',
+              schoolName: layoutResult.schoolName || '',
+              schoolCct: layoutResult.schoolCct || '',
+              directorName: '',
+              supervisorName: '',
+              tipoReporte: layoutResult.tipoReporte,
+              momento: (options.requestedMomento || (layoutResult.tipoReporte === 'fin' ? 'fin_anterior' : 'inicio_actual')) as Estadistica911ExtractDTO['momento'],
+              matriculaInicio: layoutResult.matriculaInicio ?? layoutResult.matriculaInicioFinDoc,
+              altas: layoutResult.altas,
+              bajas: layoutResult.bajas,
+              existencia: layoutResult.existencia,
+              regulares: layoutResult.regulares,
+              irregulares: layoutResult.irregulares,
+              totalDocentes: layoutResult.totalDocentes,
+              docentesHombres: null,
+              docentesMujeres: null,
+              totalGrupos: layoutResult.totalGrupos,
+              gruposPorGrado: {},
+              observaciones: '',
+            };
+
+            return {
+              success: true,
+              filename: options.filename,
+              data,
+              warnings,
+            };
+          }
+        } catch (err) {
+          logger.warn('[pmc-orchestrator:911] Falló parser determinista de coordenadas, procediendo a OCR/IA:', err);
         }
-      } catch (err) {
-        logger.warn('[pmc-orchestrator:911] Falló parser determinista de coordenadas, procediendo a OCR/IA:', err);
       }
     }
 
@@ -326,7 +329,7 @@ export class PmcOrchestrator implements IPmcOrchestrator {
 
       case '911': {
         const systemPrompt = ESTADISTICA_911_EXTRACTION_SYSTEM_PROMPT;
-        const userPrompt = buildEstadistica911ExtractionPrompt(documentText);
+        const userPrompt = buildEstadistica911ExtractionPrompt(documentText, options.requestedMomento);
 
         const aiRaw = await withTimeoutBudget(
           generateWithRotation(
@@ -366,6 +369,80 @@ export class PmcOrchestrator implements IPmcOrchestrator {
             `No se pudieron estructurar los datos de Estadística 911: ${parsed.error}`,
             422
           );
+        }
+
+        // H-911-OCR-001: Recalculo y derivación determinista de campos de Estadística 911 (SSOT)
+        const momento = options.requestedMomento || parsed.data.momento || 'desconocido';
+        const isFin = momento === 'fin_anterior' || parsed.data.tipoReporte === 'fin';
+
+        if (isFin) {
+          parsed.data.tipoReporte = 'fin';
+          if (options.requestedMomento) {
+            parsed.data.momento = options.requestedMomento as Estadistica911ExtractDTO['momento'];
+          }
+
+          // 1. Derivación multi-nivel de existencia
+          if (parsed.data.existencia == null || parsed.data.existencia === 0) {
+            if (parsed.data.existenciaFin != null && parsed.data.existenciaFin > 0) {
+              parsed.data.existencia = parsed.data.existenciaFin;
+            } else if (parsed.data.matriculaFinal != null && parsed.data.matriculaFinal > 0) {
+              parsed.data.existencia = parsed.data.matriculaFinal;
+            } else if (parsed.data.matricula != null && parsed.data.matricula > 0) {
+              parsed.data.existencia = parsed.data.matricula;
+            } else if (
+              parsed.data.regulares != null &&
+              parsed.data.irregulares != null &&
+              parsed.data.regulares + parsed.data.irregulares > 0
+            ) {
+              parsed.data.existencia = parsed.data.regulares + parsed.data.irregulares;
+            } else if (
+              parsed.data.matriculaInicio != null &&
+              parsed.data.bajas != null &&
+              parsed.data.matriculaInicio > 0
+            ) {
+              parsed.data.existencia = parsed.data.matriculaInicio + (parsed.data.altas ?? 0) - parsed.data.bajas;
+            } else if (parsed.data.matriculaInicio != null && parsed.data.matriculaInicio > 0) {
+              parsed.data.existencia = parsed.data.matriculaInicio;
+            }
+          }
+
+          // 2. Derivación de bajas
+          if (parsed.data.bajas == null) {
+            if (parsed.data.bajasDefinitivas != null) {
+              parsed.data.bajas = parsed.data.bajasDefinitivas;
+            } else if (
+              parsed.data.matriculaInicio != null &&
+              parsed.data.existencia != null &&
+              parsed.data.matriculaInicio > parsed.data.existencia
+            ) {
+              parsed.data.bajas = parsed.data.matriculaInicio + (parsed.data.altas ?? 0) - parsed.data.existencia;
+            } else {
+              parsed.data.bajas = 0;
+            }
+          }
+
+          // 3. Derivación de matriculaInicio en fin
+          if (parsed.data.matriculaInicio == null || parsed.data.matriculaInicio === 0) {
+            if (parsed.data.matriculaInicioFinDoc != null && parsed.data.matriculaInicioFinDoc > 0) {
+              parsed.data.matriculaInicio = parsed.data.matriculaInicioFinDoc;
+            } else if (parsed.data.existencia != null && parsed.data.existencia > 0) {
+              parsed.data.matriculaInicio = parsed.data.existencia + (parsed.data.bajas ?? 0) - (parsed.data.altas ?? 0);
+            }
+          }
+          parsed.data.matriculaInicioFinDoc = parsed.data.matriculaInicioFinDoc ?? parsed.data.matriculaInicio;
+        } else {
+          // Reporte de inicio
+          if (parsed.data.matriculaInicio == null || parsed.data.matriculaInicio === 0) {
+            if (parsed.data.matricula != null && parsed.data.matricula > 0) {
+              parsed.data.matriculaInicio = parsed.data.matricula;
+            } else if (parsed.data.existencia != null && parsed.data.existencia > 0) {
+              parsed.data.matriculaInicio = parsed.data.existencia;
+            }
+          }
+        }
+
+        if (parsed.data.matricula == null) {
+          parsed.data.matricula = parsed.data.matriculaInicio ?? parsed.data.existencia ?? null;
         }
 
         const finalData = {

@@ -100,6 +100,10 @@ export function calcularIndicadores911(params: CalculoIndicadores911Params): Cal
     baseline = matriculaInicioFinDoc;
     fuenteBaseline = '911_fin_fallback';
     warning = 'calculado con la línea base del propio concentrado de fin (falta el concentrado de inicio)';
+  } else if (existenciaFin > 0) {
+    baseline = existenciaFin + (bajas ?? 0);
+    fuenteBaseline = '911_fin_fallback';
+    warning = 'calculado con la matrícula inicial estimada (existencia + bajas) del concentrado de fin';
   }
 
   if (!baseline) {

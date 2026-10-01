@@ -39,10 +39,36 @@ export function mapFinAnteriorToIndicadores<T extends PmcIndicadoresAcademicos>(
 ): T {
   if (!data) return prev;
 
-  const existencia = toRealNumber(data.existencia ?? data.matricula);
-  const altas = toRealNumber(data.altas);
-  const bajas = toRealNumber(data.bajas ?? data.bajasDefinitivas);
-  const matriculaInicioFinDoc = toRealNumber(data.matriculaInicioFinDoc ?? data.matriculaInicio);
+  const rawExistencia = toRealNumber(
+    data.existencia ??
+    data.existenciaFin ??
+    data.matriculaFinal ??
+    data.totalAlumnos ??
+    data.matricula ??
+    (data.regulares != null && data.irregulares != null && (Number(data.regulares) + Number(data.irregulares) > 0)
+      ? Number(data.regulares) + Number(data.irregulares)
+      : undefined) ??
+    (data.matriculaInicio != null && data.bajas != null && Number(data.matriculaInicio) > 0
+      ? Number(data.matriculaInicio) - Number(data.bajas)
+      : undefined) ??
+    data.matriculaInicioFinDoc ??
+    data.matriculaInicio
+  );
+
+  const existencia = rawExistencia ?? prev.existenciaFin ?? prev.matriculaAnterior;
+  const bajas = toRealNumber(
+    data.bajas ??
+    data.bajasDefinitivas ??
+    (data.matriculaInicio != null && existencia != null && Number(data.matriculaInicio) > existencia
+      ? Number(data.matriculaInicio) - existencia
+      : 0)
+  );
+  const altas = toRealNumber(data.altas ?? 0);
+  const matriculaInicioFinDoc = toRealNumber(
+    data.matriculaInicioFinDoc ??
+    data.matriculaInicio ??
+    (existencia != null ? existencia + (bajas ?? 0) : undefined)
+  );
 
   const calc = calcularIndicadores911({
     existenciaFin: existencia,

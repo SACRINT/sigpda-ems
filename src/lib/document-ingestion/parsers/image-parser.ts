@@ -20,9 +20,10 @@ Tu tarea es leer y transcribir con máxima precisión esta imagen fotográfica o
 - Convierte tablas a formato Markdown | Columna | Columna |.
 - Preserva con exactitud todos los números, porcentajes, ciclos escolares, nombres de asignaturas, CCT y nombres de planteles.
 - Si es un formato oficial 911 o F11, transcribe los datos de matrícula, altas, bajas, aprobados, reprobados y promedios.
+- IMPORTANTE: Si la imagen está rotada o tomada de lado (horizontal en marco vertical o rotación de 90°, 180° o 270°), lee y transcribe el contenido siguiendo el flujo natural del texto como si estuviera orientado correctamente.
 - NO resumas ni inventes datos; transcribe todo lo visible.`;
 
-  const userPrompt = `Transcribe íntegramente todos los datos y tablas de esta imagen documental a Markdown estructurado oficial.`;
+  const userPrompt = `Transcribe íntegramente todos los datos y tablas de esta imagen documental a Markdown estructurado oficial. Si la imagen está orientada horizontalmente o rotada, transcríbela en su orientación correcta de lectura.`;
 
   // Normalizar mimeType común
   const normalizedMime = mimeType === 'image/jpg' ? 'image/jpeg' : mimeType || 'image/jpeg';

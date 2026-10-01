@@ -192,4 +192,45 @@ describe('Mapeo y Cálculo de Indicadores 911 (H-168, H-220)', () => {
     expect(mapped.et_ant).toBe(96.8);
     expect(mapped.abandono_ant).toBe(5.4);
   });
+
+  it('8. Maneja caso Tecomate real (inicio=85, altas=1, bajas=5, existencia=81)', () => {
+    const dataTecomate = {
+      matriculaInicio: 85,
+      altas: 1,
+      bajas: 5,
+      existencia: 81,
+    };
+    const { banner, mapped } = format911FinAnteriorBanner(dataTecomate, baseIndicadores);
+    expect(mapped.et_ant).toBe(95.3); // 81/85 = 95.29 -> 95.3%
+    expect(mapped.abandono_ant).toBe(5.9); // 5/85 = 5.88 -> 5.9%
+    expect(banner).toContain('Abandono 5.9%');
+    expect(banner).toContain('Eficiencia Terminal 95.3%');
+    expect(banner).not.toContain('N/D');
+  });
+
+  it('9. Fallback resiliente: calcula ET y abandono si existencia llega como matriculaFinal o totalAlumnos', () => {
+    const dataFallback = {
+      totalAlumnos: 81,
+      bajasDefinitivas: 5,
+      matriculaInicio: 85,
+    };
+    const mapped = mapFinAnteriorToIndicadores(dataFallback, baseIndicadores);
+    expect(mapped.existenciaFin).toBe(81);
+    expect(mapped.bajasDefinitivas).toBe(5);
+    expect(mapped.et_ant).toBe(95.3);
+    expect(mapped.abandono_ant).toBe(5.9);
+  });
+
+  it('10. Fallback resiliente: estima baseline como existencia + bajas cuando falta matriculaInicio', () => {
+    const dataSoloFin = {
+      existencia: 81,
+      bajas: 5,
+    };
+    const mapped = mapFinAnteriorToIndicadores(dataSoloFin, baseIndicadores);
+    // baseline = 81 + 5 = 86
+    expect(mapped.et_ant).toBe(94.2); // 81/86 * 100 = 94.18 -> 94.2%
+    expect(mapped.abandono_ant).toBe(5.8); // 5/86 * 100 = 5.81 -> 5.8%
+    expect(mapped.baselineWarning).toBeDefined();
+  });
 });
+

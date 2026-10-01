@@ -29,14 +29,16 @@ export async function parseScannedPdfWithGemini(
 ): Promise<IngestedDocument> {
   const base64Data = buffer.toString('base64');
 
-  const systemInstruction = `Eres un transcriptor y analizador documental de alta fidelidad especializado en documentos de Educación Media Superior de México (SEP, SEMS, NEM, PAEC).
+  const systemInstruction = `Eres un transcriptor y analizador documental de alta fidelidad especializado en documentos de Educación Media Superior de México (SEP, SEMS, NEM, PAEC, formatos F11 y Estadística 911).
 Tu tarea es leer y transcribir con máxima precisión este documento escaneado o fotocopiado a formato Markdown limpio y estructurado.
 - Respeta encabezados con #, ##, ###.
 - Convierte tablas a formato Markdown | Columna | Columna |.
 - Preserva listas y datos institucionales (CCT, nombres de planteles, asignaturas, problemáticas comunitarias).
+- Preserva con exactitud todas las tablas numéricas de matrícula, altas, bajas, existencia y clasificaciones de alumnos.
+- IMPORTANTE: Si alguna página está rotada u horizontal dentro del PDF, ajusta tu lectura para transcribir el contenido correctamente según su orientación natural.
 - NO inventes ni resumas contenido; transcribe todo el texto visible.`;
 
-  const userPrompt = `Transcribe íntegramente todo el contenido de este documento PDF escaneado a Markdown estructurado oficial.`;
+  const userPrompt = `Transcribe íntegramente todo el contenido de este documento PDF escaneado a Markdown estructurado oficial. Si hay tablas o páginas con orientación apaisada/rotada, transcríbelas en su orientación de lectura correcta.`;
 
   const isPremium = await resolveUserIsPremium(teacherId);
   let completion: MultimodalCallResult;
