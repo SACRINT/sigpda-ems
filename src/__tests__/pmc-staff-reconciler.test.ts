@@ -426,4 +426,42 @@ describe('PMC Staff Reconciler Engine', () => {
     expect(result.totalStaff).toBe(3);
     expect(result.staff.some((s) => !s.nombre)).toBe(false);
   });
+
+  it('21. Deduplica limpiamente al Director sin duplicar por prefijo "Lic." o sufijo "(director)"', () => {
+    const result = reconcilePmcStaff({
+      directorName: 'Lic. Adrián Hernández Cruz',
+      existingStaff: [
+        { nombre: 'Lic. Adrián Hernández Cruz', cargo: 'Director(a)' },
+        { nombre: 'Alejandra Martínez Luna', cargo: 'Docente' },
+      ],
+      elementosPlan: [
+        {
+          tipo: 'meta',
+          responsable: 'Adrian Hernández Cruz (director)',
+          texto_normalizado: 'Observar el desempeño de 3 docentes en el aula',
+          categoria: 'Gestión y administración escolar',
+          tema: 'Seguimiento al desempeño docente en el aula',
+        },
+        {
+          tipo: 'meta',
+          responsable: 'ADRIAN HERNÁNDEZ CRUZ (DIRECTOR)',
+          texto_normalizado: 'Establecer un convenio de colaboración académica con la ITSVC',
+          categoria: 'Gestión y administración escolar',
+          tema: 'Vinculación con instituciones educativas',
+        },
+      ],
+      allowEmptyPadding: false,
+    });
+
+    // No debe haber un trabajador 3 fantasma como "Adrian Hernández Cruz (director)"
+    expect(result.staff.length).toBe(2);
+    expect(result.staff[0].cargo).toBe('Director(a)');
+    expect(result.staff[0].nombre).toBe('Lic. Adrián Hernández Cruz');
+    // Las dos metas deben haberse asignado al Director
+    const directorMetas = result.staff[0].metas_individuales?.map((m) => m.meta) || [];
+    expect(directorMetas).toContain('Observar el desempeño de 3 docentes en el aula');
+    expect(directorMetas).toContain('Establecer un convenio de colaboración académica con la ITSVC');
+    // Alejandra debe estar intacta
+    expect(result.staff[1].nombre).toBe('Alejandra Martínez Luna');
+  });
 });

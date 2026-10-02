@@ -135,6 +135,8 @@ const INVALID_NAME_PATTERNS = [
 
 export const TITLE_PREFIX_REGEX = /^(?:profr\.|profr|profra\.|profra|prof\.|prof|ing\.|ing|lic\.|lic|dr\.|dr|dra\.|dra|mtro\.|mtro|mtra\.|mtra|c\.|c)\s+/i;
 
+export const ROLE_SUFFIX_REGEX = /\s*\((?:director[a]?|docente|tutor[a]?|administrativ[oa]|apoyo|intendente|secretari[oa]|profesor[a]?|maestr[oa]|subdirector[a]?|encargad[oa]|asesor[a]?)[^)]*\)\s*$/i;
+
 const NON_STAFF_CARGO_KEYWORDS = [
   'alumno',
   'alumna',
@@ -222,13 +224,14 @@ export function isCollectiveOrNonHumanEntity(name: string | null | undefined): b
 }
 
 /**
- * Normaliza un nombre para comparación (sin acentos, minúsculas, sin títulos profesionales ni prefijos).
+ * Normaliza un nombre para comparación (sin acentos, minúsculas, sin títulos profesionales ni prefijos ni roles entre paréntesis).
  * Expande abreviaturas comunes de apellidos mexicanos para garantizar deduplicación exacta.
  */
 export function normalizeStaffName(name: string | null | undefined): string {
   if (!name) return '';
-  const withoutTitle = name
-    .trim()
+  // Eliminar aclaraciones o roles entre paréntesis (ej. "(director)", "(docente)")
+  const withoutParens = name.trim().replace(/\s*\([^)]*\)/g, ' ').trim();
+  const withoutTitle = withoutParens
     .replace(TITLE_PREFIX_REGEX, '')
     .trim();
 
@@ -258,15 +261,16 @@ export function normalizeStaffName(name: string | null | undefined): string {
 
 /**
  * Limpia un nombre de persona para presentación:
+ * - Elimina roles entre paréntesis como "(director)" o "(docente)".
  * - Si viene todo en MAYÚSCULAS sostenidas (ej. tablas oficiales 'PROFR. JUAN...'),
  *   elimina el prefijo y lo convierte a formato Capitalizado (Title Case).
- * - Si ya viene en formato mixto, preserva la cadena original.
+ * - Si ya viene en formato mixto, preserva la cadena original limpia de paréntesis.
  */
 export function cleanStaffDisplayName(name: string | null | undefined): string {
   if (!name) return '';
-  const trimmed = name.trim();
-  if (trimmed === trimmed.toUpperCase() && trimmed.length > 3) {
-    const withoutTitle = trimmed.replace(TITLE_PREFIX_REGEX, '').trim();
+  const withoutParens = name.trim().replace(/\s*\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim();
+  if (withoutParens === withoutParens.toUpperCase() && withoutParens.length > 3) {
+    const withoutTitle = withoutParens.replace(TITLE_PREFIX_REGEX, '').trim();
     return withoutTitle
       .toLowerCase()
       .split(' ')
@@ -279,7 +283,7 @@ export function cleanStaffDisplayName(name: string | null | undefined): string {
       })
       .join(' ');
   }
-  return trimmed;
+  return withoutParens;
 }
 
 /**
@@ -393,8 +397,12 @@ export function reconcilePmcStaff(options: ReconcileStaffOptions): ReconciledSta
     if (!rawName || !isValidStaffName(rawName)) return;
     if (isNonStaffRole(candidate.cargo)) return;
 
+    const isDir = isDirectorCandidate ||
+      /\bdirector[a]?\b/i.test(candidate.cargo || '') ||
+      /\bdirector[a]?\b/i.test(rawName);
+
     const normKey = normalizeStaffName(rawName);
-    const cargoNorm = normalizeCargo(candidate.cargo, isDirectorCandidate);
+    const cargoNorm = normalizeCargo(candidate.cargo, isDir);
     const cleanDisplay = cleanStaffDisplayName(rawName);
 
     // Normalizar metas individuales asociadas
@@ -447,7 +455,7 @@ export function reconcilePmcStaff(options: ReconcileStaffOptions): ReconciledSta
       )) {
         existing.nombre = cleanDisplay;
       }
-      if (isDirectorCandidate && existing.cargo !== 'Director(a)') {
+      if (isDir && existing.cargo !== 'Director(a)') {
         existing.cargo = 'Director(a)';
       }
       if (candidate.asignaturas && !existing.asignaturas) {
@@ -565,13 +573,17 @@ export function reconcilePmcStaff(options: ReconcileStaffOptions): ReconciledSta
 
       // Caso A: El responsable es una persona física real ya registrada o un nombre humano nuevo válido
       if (isValidStaffName(resp)) {
+        const isRespDirector = /\bdirector[a]?\b/i.test(resp);
         const normRespKey = normalizeStaffName(resp);
         targetStaff = staffByNormName.get(normRespKey);
         if (!targetStaff) {
-          addOrUpdateStaff({
-            nombre: resp,
-            cargo: 'Docente',
-          });
+          addOrUpdateStaff(
+            {
+              nombre: resp,
+              cargo: isRespDirector ? 'Director(a)' : 'Docente',
+            },
+            isRespDirector
+          );
           targetStaff = staffByNormName.get(normRespKey);
         }
       } else {

@@ -199,7 +199,12 @@ PRINCIPIOS NO NEGOCIABLES:
 1. FIDELIDAD DOCUMENTAL TOTAL: Jamás inventar, proyectar metas no escritas ni alucinar datos cuantitativos.
 2. REGLA ANTI-COLAPSO B-001: Si una celda contiene N metas independientes, DEBES emitir N objetos independientes. Jamás agrupar varias metas en un solo registro.
 3. INVARIANZA NUMÉRICA PURA: Cada cifra, porcentaje, fracción, fecha o ciclo escolar debe copiarse con precisión exacta entre la fuente y el esquema final.
-4. SALIDA EXCLUSIVAMENTE EN JSON VÁLIDO: Responde únicamente con un objeto JSON sin markdown exterior ni comentarios.`;
+4. ASOCIACIÓN HORIZONTAL ESTRICTA EN TABLAS (ANTI-DESPLAZAMIENTO):
+En tablas donde la columna 'Responsable' está ubicada a la derecha de 'Meta(s)' y 'Estrategia y/o Acciones':
+El docente o directivo nombrado en esa celda es el responsable ÚNICAMENTE de las metas y acciones de ESA MISMA FILA / RENGLÓN HORIZONTAL (a su izquierda en la misma línea de la tabla).
+PROHIBIDO asociar al docente con las metas de la fila o bloque siguiente.
+Ejemplo: Si en una fila la meta es "Realizar una instalación eléctrica..." y en la columna responsable de esa misma fila dice "Nemesio Loyda López", la meta le pertenece 100% a Nemesio Loyda López.
+5. SALIDA EXCLUSIVAMENTE EN JSON VÁLIDO: Responde únicamente con un objeto JSON sin markdown exterior ni comentarios.`;
 
 export interface StructuralPromptMetadata {
   formato?: string;
@@ -311,7 +316,13 @@ REGLAS DE ORO OBLIGATORIAS:
 2. PROPAGACIÓN DE RESPONSABILIDAD: Cada meta desglosada hereda el 'responsable' de su fila original (ej. 'Mtra. Claudia González Widobro').
 3. RESPONSABLES COLECTIVOS: Si el responsable es 'Director y docentes', 'Comité de Salud' o 'Colectivo Docente', CONSÉRVALO TEXTUALMENTE. No inventes nombres individuales.
 4. METAS O ACTIVIDADES: Redáctalas en prosa institucional formal y limpia iniciando con un verbo en infinitivo (ej. 'Implementar una campaña de reciclaje...'). PROHIBIDO usar marcadores entre corchetes como [POR DEFINIR: ...] o etiquetas de borrador.
-5. CORRELACIÓN HORIZONTAL ANTI-DESFASE: Empareja Estrategia k ↔ Meta k ↔ Evidencia k por número si existe numeración. Si hay 1 sola estrategia para varias metas, cópiala a todas. Si no hay afinidad demostrable, usa null; NUNCA desplaces en cascada las evidencias.
+5. CORRELACIÓN HORIZONTAL ANTI-DESFASE Y ASOCIACIÓN DE RESPONSABLE EN TABLAS:
+   - En tablas markdown (| Col1 | Col2 | Col3 | Col4 |): el responsable nombrado en una celda pertenece EXCLUSIVAMENTE a las metas y acciones de ESA MISMA LÍNEA / FILA HORIZONTAL (a su izquierda).
+   - JAMÁS desplaces o asocies el nombre del docente a las metas de la fila siguiente.
+   - Si una fila tiene las acciones/metas de "Instalación eléctrica..." y en esa misma fila el responsable es "Nemesio Loyda López", esa meta corresponde a Nemesio Loyda López.
+   - Si la fila tiene "Cursos COSFAC / Lectura de textos narrativos" y el responsable es "Nicolás Cruz Vázquez", pertenece a Nicolás Cruz Vázquez.
+   - Si la fila tiene "Observación de docentes / Convenio ITSVC / CAPA / patrulla" y el responsable es el Director, pertenece al Director.
+   - Empareja Estrategia k ↔ Meta k ↔ Evidencia k por número si existe numeración. Si hay 1 sola estrategia para varias metas, cópiala a todas. Si no hay afinidad demostrable, usa null; NUNCA desplaces en cascada las evidencias.
 6. INVARIANZA NUMÉRICA Y REDACCIÓN LIMPIA: Todo porcentaje (70%), número, fecha o ciclo escolar del original DEBE conservarse idéntico en 'texto_normalizado'. Redacta de forma institucional completa y limpia, sin introducir jamás marcadores artificiales entre corchetes como [POR DEFINIR: ...]. Si una meta requiere revisión por redacción incompleta, marca 'requiere_revision': true pero mantén la redacción limpia.
 7. TAXONOMÍA ESTRICTA: 'categoria' DEBE ser exactamente una de las 3 oficiales:
    - 'Desarrollo académico y aprendizaje'
@@ -397,7 +408,7 @@ Estructura la información en el siguiente esquema JSON exacto:
 
 REGLAS ESTRICTAS DEL FRAGMENTO:
 1. REGLA ANTI-COLAPSO: Si una celda contiene N metas numeradas o con viñetas, emite N objetos independientes.
-2. Cada meta hereda el responsable de la fila. Si es colectivo ('Director y docentes'), consérvalo literal.
+2. ASOCIACIÓN HORIZONTAL ESTRICTA EN TABLAS: Cada meta hereda el 'responsable' de SU MISMA FILA HORIZONTAL (en la misma línea de la tabla markdown). Jamás desplaces el responsable hacia la fila siguiente. Si en la misma línea de la tabla dice 'Nemesio Loyda López', esa meta es de Nemesio Loyda López. Si es colectivo ('Director y docentes'), consérvalo literal.
 3. Preserva 100% de porcentajes y fechas. Redacta de forma institucional y limpia. PROHIBIDO usar marcadores artificiales entre corchetes como [POR DEFINIR: ...].
 4. Asigna únicamente una de las 3 categorías canónicas oficiales del MCCEMS.
 5. Responde EXCLUSIVAMENTE con el objeto JSON válido.`;

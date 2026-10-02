@@ -380,26 +380,32 @@ export function extractDeterministicSupervisorAndZone(
   if (!documentText) return result;
 
   // 1. Zona Escolar: buscar menciones explícitas de supervisión escolar o zona escolar
-  const zoneRegex = /(?:SUPERVISOR(?:A)?\s+ESCOLAR(?:\s+DE\s+LA)?\s+ZONA\s*[:\s]*|SUPERVISI[ÓO]N\s+ESCOLAR\s+(?:DE\s+LA\s+ZONA\s+)?|ZONA\s+ESCOLAR\s*[:\s]*)(\d{2,4}[A-Za-z]?)/i;
+  const zoneRegex = /(?:SUPERVISOR(?:A)?\s+ESCOLAR(?:\s+DE\s+LA)?\s+ZONA\s*[:\s]*|SUPERVISI[ÓO]N\s+ESCOLAR\s+(?:DE\s+LA\s+ZONA\s+)?|ZONA\s+ESCOLAR\s*[:\s]*|ZONA\s*[:\s]*)(\d{2,4}[A-Za-z]?)/i;
   const zoneMatch = documentText.match(zoneRegex);
   if (zoneMatch && zoneMatch[1]) {
     result.schoolZone = zoneMatch[1].trim();
   }
 
-  // 2. Supervisor(a) Escolar: buscar en proximidad a "SUPERVISOR(A) ESCOLAR"
+  // 2. Supervisor(a) Escolar: buscar en proximidad a "SUPERVISOR(A) ESCOLAR" o "SUPERVISIÓN ESCOLAR"
   const stripAccents = (str: string) =>
     str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z]/g, '');
 
   const lines = documentText.split(/\r?\n/).map((l) => l.replace(/\\/g, '').trim()).filter(Boolean);
   for (let i = 0; i < lines.length; i++) {
-    if (/SUPERVISOR(?:A)?\s+ESCOLAR/i.test(lines[i])) {
+    if (/(?:SUPERVISOR(?:A)?|SUPERVISI[ÓO]N)\s+ESCOLAR/i.test(lines[i])) {
       const candidates: string[] = [];
       for (let j = Math.max(0, i - 4); j <= Math.min(lines.length - 1, i + 4); j++) {
         if (j === i) continue;
-        const candidate = lines[j];
-        if (/(?:Director|Plantel|Zona|BGE|CCT|Bachillerato|Autoriz|Vo\.?\s*Bo)/i.test(candidate)) continue;
-        if (/^(?:LIC\.|ING\.|MTRO\.|MTRA\.|PROFR\.|PROFRA\.|C\.)\s+[A-ZÁÉÍÓÚÑ\s]{4,45}$/i.test(candidate)) {
-          candidates.push(candidate);
+        const lineText = lines[j];
+        const cells = lineText.includes('|')
+          ? lineText.split('|').map((c) => c.replace(/⟦T\d+·R\d+·C\d+⟧/g, '').trim()).filter(Boolean)
+          : [lineText];
+
+        for (const candidate of cells) {
+          if (/(?:Director|Plantel|Zona|BGE|CCT|Bachillerato|Autoriz|Vo\.?\s*Bo)/i.test(candidate)) continue;
+          if (/^(?:LIC\.|ING\.|MTRO\.|MTRA\.|PROFR\.|PROFRA\.|C\.)\s+[A-ZÁÉÍÓÚÑ\s]{4,45}$/i.test(candidate)) {
+            candidates.push(candidate);
+          }
         }
       }
       const filtered = candidates.filter((c) => {

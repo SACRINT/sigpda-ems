@@ -26,9 +26,13 @@ export interface GridCell {
 }
 
 /**
- * Parsea el HTML generado por Mammoth a una cuadrícula normalizada de celdas.
+ * Parsea el HTML generado por Mammoth a Markdown estructurado con tablas normalizadas.
  */
-export function parseHtmlToNormalizedGrid(rawHtml: string): { grid: GridCell[]; structuredMarkdown: string } {
+export function convertDocxHtmlToMarkdown(rawHtml: string): {
+  fullMarkdown: string;
+  grid: GridCell[];
+  structuredMarkdown: string;
+} {
   const $ = cheerio.load(rawHtml);
   const grid: GridCell[] = [];
   const markdownBlocks: string[] = [];
@@ -162,12 +166,32 @@ export function parseHtmlToNormalizedGrid(rawHtml: string): { grid: GridCell[]; 
       dataRows.push(`| ${rowCols.join(' | ')} |`);
     }
 
-    if (dataRows.length > 0) {
-      markdownBlocks.push(`\n### Tabla ${tableNum}\n${headerRow}\n${separatorRow}\n${dataRows.join('\n')}\n`);
-    }
+    const mdTable = `\n\n### Tabla ${tableNum}\n${headerRow}\n${separatorRow}\n${dataRows.join('\n')}\n\n`;
+    markdownBlocks.push(mdTable);
+    $(table).replaceWith(`<div class="__markdown_table__">${mdTable}</div>`);
   });
 
-  return { grid, structuredMarkdown: markdownBlocks.join('\n\n') };
+  // Convertir encabezados y textos fuera de tablas
+  $('h1').each((_, el) => $(el).replaceWith(`\n\n# ${$(el).text().trim()}\n\n`));
+  $('h2').each((_, el) => $(el).replaceWith(`\n\n## ${$(el).text().trim()}\n\n`));
+  $('h3').each((_, el) => $(el).replaceWith(`\n\n### ${$(el).text().trim()}\n\n`));
+  $('h4').each((_, el) => $(el).replaceWith(`\n\n#### ${$(el).text().trim()}\n\n`));
+  $('li').each((_, el) => $(el).replaceWith(`\n- ${$(el).text().trim()}`));
+  $('p').each((_, el) => $(el).replaceWith(`\n\n${$(el).text().trim()}\n\n`));
+
+  let fullMarkdown = $('body').text() || $('html').text() || $.text();
+  fullMarkdown = fullMarkdown.replace(/\n{3,}/g, '\n\n').trim();
+
+  return {
+    fullMarkdown,
+    grid,
+    structuredMarkdown: markdownBlocks.join('\n\n'),
+  };
+}
+
+export function parseHtmlToNormalizedGrid(rawHtml: string): { grid: GridCell[]; structuredMarkdown: string } {
+  const result = convertDocxHtmlToMarkdown(rawHtml);
+  return { grid: result.grid, structuredMarkdown: result.structuredMarkdown };
 }
 
 export async function parseDocxDocument(buffer: Buffer): Promise<IngestedDocument> {
@@ -190,18 +214,12 @@ export async function parseDocxDocument(buffer: Buffer): Promise<IngestedDocumen
     throw new Error('El archivo Word (.docx) no contiene texto legible o está vacío.');
   }
 
-  // 3. Procesar cuadrícula bidimensional de tablas
-  const { structuredMarkdown } = parseHtmlToNormalizedGrid(rawHtml);
-
-  // 4. Extraer Markdown complementario de texto narrativo fuera de tablas
-  const mdResult = await mammoth.convertToMarkdown({ buffer });
-  const narrativeMarkdown = mdResult.value
-    .replace(/!\[.*?\]\([^\)]*\)/g, '')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+  // 3. Procesar cuadrícula bidimensional de tablas e inyectar tablas markdown en-línea preservando filas horizontales exactas
+  const { fullMarkdown } = convertDocxHtmlToMarkdown(rawHtml);
+  const finalMarkdown = fullMarkdown.length > 50 ? fullMarkdown : fullText;
 
   // Desglosar por secciones a partir del markdown canónico
-  const sectionChunks = narrativeMarkdown.split(/\n(?=#+\s)/g);
+  const sectionChunks = finalMarkdown.split(/\n(?=#+\s)/g);
   const pages = sectionChunks.map((chunk: string, idx: number) => ({
     pageNumber: idx + 1,
     rawText: chunk.replace(/[#*`|_\-]/g, ' ').replace(/\s+/g, ' ').trim(),
@@ -210,7 +228,7 @@ export async function parseDocxDocument(buffer: Buffer): Promise<IngestedDocumen
   }));
 
   return {
-    markdown: narrativeMarkdown,
+    markdown: finalMarkdown,
     fullText,
     totalPages: Math.max(1, pages.length),
     pages,
