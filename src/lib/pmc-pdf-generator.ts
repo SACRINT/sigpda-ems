@@ -54,6 +54,22 @@ function parseJson<T = any>(val: unknown): T {
   }
 }
 
+function drawJustifiedParagraph(
+  doc: jsPDF,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  lineHeight: number,
+  gapAfter = 0
+): number {
+  const clean = String(text ?? '').trim();
+  if (!clean) return y;
+  const lines = doc.splitTextToSize(clean, maxWidth);
+  doc.text(lines, x, y, { align: 'justify', maxWidth });
+  return y + lines.length * lineHeight + gapAfter;
+}
+
 export async function generatePmcPDF(
   project: PmcProject,
   providedLogos?: { gobierno?: string; sep?: string; supervision?: string }
@@ -303,9 +319,7 @@ export async function generatePmcPDF(
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(...TEXT_DARK);
-  const splitPres = doc.splitTextToSize(textoPresentacion, contentWidth);
-  doc.text(splitPres, margin, curY);
-  curY += splitPres.length * 4 + 8;
+  curY = drawJustifiedParagraph(doc, textoPresentacion, margin, curY, contentWidth, 4, 8);
 
   // ── SECCIÓN 2: OBJETIVO DEL PMC ─────────────────────────────────────────────
   addSectionHeader(PMC_TITULOS_SECCIONES.OBJETIVO);
@@ -320,9 +334,7 @@ export async function generatePmcPDF(
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(...TEXT_DARK);
-  const splitObj = doc.splitTextToSize(textoObjGeneral, contentWidth);
-  doc.text(splitObj, margin, curY);
-  curY += splitObj.length * 3.8 + 6;
+  curY = drawJustifiedParagraph(doc, textoObjGeneral, margin, curY, contentWidth, 3.8, 6);
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
@@ -339,9 +351,7 @@ export async function generatePmcPDF(
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(...TEXT_DARK);
-    const splitOe = doc.splitTextToSize(oe, contentWidth);
-    doc.text(splitOe, margin, curY);
-    curY += splitOe.length * 3.6 + 2;
+    curY = drawJustifiedParagraph(doc, oe, margin, curY, contentWidth, 3.6, 2);
   }
   curY += 6;
 
@@ -438,9 +448,7 @@ export async function generatePmcPDF(
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(...TEXT_DARK);
-  const splitDiag = doc.splitTextToSize(diagTexto, contentWidth);
-  doc.text(splitDiag, margin, curY);
-  curY += splitDiag.length * 3.5 + 6;
+  curY = drawJustifiedParagraph(doc, diagTexto, margin, curY, contentWidth, 3.5, 6);
 
   // 4.2 Tabla de Indicadores Académicos (Línea Base vs Metas)
   if (curY > pageHeight - 45) {
@@ -490,9 +498,7 @@ export async function generatePmcPDF(
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(...TEXT_DARK);
-    const splitAnalisis = doc.splitTextToSize(String(diag.analisis_indicadores).trim(), contentWidth);
-    doc.text(splitAnalisis, margin, curY);
-    curY += splitAnalisis.length * 3.5 + 6;
+    curY = drawJustifiedParagraph(doc, String(diag.analisis_indicadores), margin, curY, contentWidth, 3.5, 6);
   }
 
   // 4.3 Infraestructura y Equipamiento Escolar
@@ -512,9 +518,7 @@ export async function generatePmcPDF(
   doc.setFontSize(7.5);
   doc.setTextColor(...TEXT_DARK);
   const infraText = getTextoInfraestructura(project);
-  const splitInfra = doc.splitTextToSize(infraText, contentWidth);
-  doc.text(splitInfra, margin, curY);
-  curY += splitInfra.length * 3.5 + 6;
+  curY = drawJustifiedParagraph(doc, infraText, margin, curY, contentWidth, 3.5, 6);
 
   // 4.4 Beneficios y Vinculación Comunitaria
   if (curY > pageHeight - 35) {
@@ -533,9 +537,7 @@ export async function generatePmcPDF(
   doc.setFontSize(7.5);
   doc.setTextColor(...TEXT_DARK);
   const benefText = getTextoBeneficiosComunitarios(project);
-  const splitBenef = doc.splitTextToSize(benefText, contentWidth);
-  doc.text(splitBenef, margin, curY);
-  curY += splitBenef.length * 3.5 + 6;
+  curY = drawJustifiedParagraph(doc, benefText, margin, curY, contentWidth, 3.5, 6);
 
   // 4.5 Matriz FODA Cuadrante Oficial
   if (curY > pageHeight - 50) {
@@ -598,9 +600,7 @@ export async function generatePmcPDF(
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(...TEXT_DARK);
-    const splitSintesis = doc.splitTextToSize(String(diag.sintesis_foda).trim(), contentWidth);
-    doc.text(splitSintesis, margin, curY);
-    curY += splitSintesis.length * 3.5 + 6;
+    curY = drawJustifiedParagraph(doc, String(diag.sintesis_foda), margin, curY, contentWidth, 3.5, 6);
   }
 
   // ── SECCIÓN 5: PRIORIZACIÓN DE CATEGORÍAS ───────────────────────────────────
@@ -611,9 +611,7 @@ export async function generatePmcPDF(
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(...TEXT_DARK);
-    const splitPrio = doc.splitTextToSize(String(diag.priorizacion).trim(), contentWidth);
-    doc.text(splitPrio, margin, curY);
-    curY += splitPrio.length * 3.5 + 6;
+    curY = drawJustifiedParagraph(doc, String(diag.priorizacion), margin, curY, contentWidth, 3.5, 6);
   }
 
   if (Array.isArray(categorias) && categorias.length > 0) {

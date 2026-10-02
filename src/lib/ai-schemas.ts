@@ -625,6 +625,41 @@ export const PmcPlanAccionSchema = z.object({
   metas_personales: z.array(PmcMetaPersonalSchema).default([]),
 });
 
+export const PmcNormalizedGoalResponseSchema = z.object({
+  meta_individual: z.object({
+    nombre: z.string().default(''),
+    cargo: z.string().default('Docente'),
+    categoria: nullableString(),
+    tema: nullableString(),
+    meta_individual: z.string().min(5, 'Meta individual SMART requerida'),
+    estrategia: z.string().min(5, 'Estrategia individual requerida'),
+    entregable: z.string().min(3, 'Entregable individual requerido'),
+    periodo: z.string().default('Ciclo Escolar'),
+  }).optional(),
+  meta_institucional: z.object({
+    categoria: z.string().default('aprovechamiento'),
+    nombre_categoria: z.string().default('Aprovechamiento académico y asistencia educativa'),
+    tema: z.string().min(2, 'Tema institucional requerido'),
+    meta: z.string().min(5, 'Meta institucional SMART requerida'),
+    estrategia: z.string().min(5, 'Estrategia requerida'),
+    linea_base: z.string().default(''),
+    personal_designado: z.string().default(''),
+    entregable: z.string().min(3, 'Entregable requerido'),
+    periodo_inicio: z.string().default('Septiembre'),
+    periodo_fin: z.string().default('Julio'),
+    diagnostico_meta: z.string().default(''),
+    accion_especifica: z.string().default(''),
+    finalidad: z.string().default(''),
+    necesidad: z.string().default(''),
+    proceso_evaluacion: z.string().default(''),
+    subcategorias_vinculadas: z.array(z.string()).default([]),
+    estrategias_seguimiento: z.string().default('Cortes trimestrales/bimestrales en CTE'),
+    observaciones: z.string().default(''),
+  }).optional(),
+});
+
+export type PmcNormalizedGoalResponse = z.infer<typeof PmcNormalizedGoalResponseSchema>;
+
 // ============================================================================
 // 4. PROGRAMAS CURRICULARES (PDF EXTRACTION)
 // ============================================================================

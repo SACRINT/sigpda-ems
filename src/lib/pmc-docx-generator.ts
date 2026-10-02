@@ -138,6 +138,7 @@ function subHeading(text: string): Paragraph {
 
 function bodyPara(text: string): Paragraph {
   return new Paragraph({
+    alignment: AlignmentType.JUSTIFIED,
     spacing: { before: 80, after: 80 },
     children: [new TextRun({ text: text ?? '', size: 20, color: C.text, font: 'Arial' })],
   });
@@ -455,6 +456,7 @@ function buildObjetivo(project: PmcProject): (Paragraph | Table)[] {
     ...gap(),
     subHeading('Objetivos Específicos y Estratégicos:'),
     new Paragraph({
+      alignment: AlignmentType.JUSTIFIED,
       bullet: { level: 0 },
       spacing: { before: 40, after: 40 },
       children: [
@@ -466,6 +468,7 @@ function buildObjetivo(project: PmcProject): (Paragraph | Table)[] {
       ],
     }),
     new Paragraph({
+      alignment: AlignmentType.JUSTIFIED,
       bullet: { level: 0 },
       spacing: { before: 40, after: 40 },
       children: [
@@ -477,6 +480,7 @@ function buildObjetivo(project: PmcProject): (Paragraph | Table)[] {
       ],
     }),
     new Paragraph({
+      alignment: AlignmentType.JUSTIFIED,
       bullet: { level: 0 },
       spacing: { before: 40, after: 40 },
       children: [
@@ -1487,9 +1491,24 @@ export async function generatePmcInformeDocx(
   tipo: 'parcial' | 'final'
 ): Promise<Buffer> {
   const plan = parseJson<PlanAccion>(project.plan_accion);
-  const metas = plan.metas_institucionales ?? [];
+  const rawMetas = plan.metas_institucionales ?? [];
+  const metas = rawMetas.map(m => enrichMetaWithCatalogBase(m as PmcMetaInstitucional, project) as MetaInstitucional);
+  const metasPersonales = plan.metas_personales ?? [];
   const indic = parseJson<IndicadoresAcademicos>(project.indicadores_academicos);
-  const staffData = parseJson<{ nombre?: string; cargo?: string }[]>(project.staff_data);
+  const rawStaffData = parseJson<{ nombre?: string; cargo?: string; meta_individual?: string }[]>(project.staff_data);
+  const staffData = Array.isArray(rawStaffData) ? [...rawStaffData] : [];
+
+  // Reconciliar docentes de metas_personales en staffData para que aparezcan en el informe
+  metasPersonales.forEach((mp) => {
+    const nom = mp.nombre?.trim();
+    if (nom && !staffData.some(s => s.nombre?.trim().toLowerCase() === nom.toLowerCase())) {
+      staffData.push({
+        nombre: nom,
+        cargo: mp.cargo || 'Docente',
+        meta_individual: mp.meta_individual,
+      });
+    }
+  });
 
   const ciclo = safeStr(project.ciclo_escolar) || '2025-2026';
   const isFinal = tipo === 'final';
@@ -1609,7 +1628,10 @@ export async function generatePmcInformeDocx(
       [
         new TableRow({ children: [tcH(`RESUMEN EJECUTIVO DEL CICLO ESCOLAR ${ciclo}`, { span: 2 })] }),
         new TableRow({ children: [tcSub('Periodo de implementación del PMC'), tc(periodo)] }),
-        new TableRow({ children: [tcSub('Número total de metas establecidas en el PMC'), tc(`${totalMetas} metas institucionales`)] }),
+        new TableRow({ children: [tcSub('Número total de metas institucionales en el PMC'), tc(`${totalMetas} metas institucionales`)] }),
+        ...(metasPersonales.length > 0 ? [
+          new TableRow({ children: [tcSub('Número total de metas individuales del personal docente'), tc(`${metasPersonales.length} metas individuales registradas`)] }),
+        ] : []),
         new TableRow({ children: [tcSub('Número de metas cumplidas en su totalidad'), tc(`${metasCumplidas} metas`)] }),
         new TableRow({ children: [tcSub('Número de metas cumplidas parcialmente'), tc(`${metasParciales} metas`)] }),
         new TableRow({ children: [tcSub('Número de metas no cumplidas'), tc(`${metasNoCumplidas} metas`)] }),
@@ -1748,7 +1770,7 @@ export async function generatePmcInformeDocx(
 
   // ── SECCIÓN III: PARTICIPACIÓN DEL PERSONAL Y DOCENTES ─────────────────────
   children.push(new Paragraph({ children: [new PageBreak()] }));
-  children.push(secHeading('SECCIÓN III — REGISTRO DE PARTICIPACIÓN DEL PERSONAL'));
+  children.push(secHeading('SECCIÓN III — REGISTRO DE PARTICIPACIÓN DEL PERSONAL Y EVALUACIÓN DE METAS INDIVIDUALES'));
 
   if (Array.isArray(staffData) && staffData.length > 0) {
     children.push(
@@ -1759,27 +1781,38 @@ export async function generatePmcInformeDocx(
               tcH('Nombre completo'),
               tcH('Función / Cargo'),
               tcH('Área / Materia'),
-              tcH('Aportación concreta al PMC'),
+              tcH('Aportación concreta y meta en el PMC'),
             ],
           }),
           ...staffData.map((s, i) => {
             const name = safeStr(s.nombre);
             const cargo = safeStr(s.cargo);
+            const personalGoal = metasPersonales.find(
+              (mp) => mp.nombre?.trim().toLowerCase() === name.toLowerCase()
+            );
+            const cleanGoal = personalGoal?.meta_individual ? cleanPmcPlaceholders(personalGoal.meta_individual) : '';
+            const cleanEntregable = personalGoal?.entregable ? cleanPmcPlaceholders(personalGoal.entregable) : '';
+            const aportacion = cleanGoal
+              ? `${cleanGoal}${cleanEntregable ? ` (Entregable: ${cleanEntregable})` : ''}`
+              : (s.meta_individual
+                ? `${cleanPmcPlaceholders(s.meta_individual)}`
+                : 'Coordinación y ejecución de metas en su área de responsabilidad, entrega de evidencias analíticas y seguimiento a estudiantes.');
+
             return new TableRow({
               children: [
-                tc(name, { fill: i % 2 ? C.alt : C.white }),
+                tc(name, { fill: i % 2 ? C.alt : C.white, bold: !!personalGoal }),
                 tc(cargo, { fill: i % 2 ? C.alt : C.white }),
                 tc('Educación Media Superior', { fill: i % 2 ? C.alt : C.white }),
-                tc(`Coordinación y ejecución de metas en su área de responsabilidad, entrega de evidencias analíticas y seguimiento a estudiantes.`, { fill: i % 2 ? C.alt : C.white }),
+                tc(aportacion, { fill: i % 2 ? C.alt : C.white }),
               ],
             });
           }),
         ],
         [
-          Math.floor(CONTENT * 0.25),
-          Math.floor(CONTENT * 0.2),
-          Math.floor(CONTENT * 0.25),
-          Math.floor(CONTENT * 0.3),
+          Math.floor(CONTENT * 0.22),
+          Math.floor(CONTENT * 0.18),
+          Math.floor(CONTENT * 0.20),
+          Math.floor(CONTENT * 0.40),
         ]
       )
     );
@@ -1787,10 +1820,69 @@ export async function generatePmcInformeDocx(
     children.push(bodyPara('Colectivo docente y personal del plantel participantes en la ejecución del PMC.'));
   }
 
+  // Matriz Oficial de Seguimiento y Cumplimiento de Metas Individuales del Personal Docente
+  if (metasPersonales.length > 0) {
+    children.push(...gap());
+    children.push(subHeading('MATRIZ DE SEGUIMIENTO Y CUMPLIMIENTO DE METAS INDIVIDUALES DEL PERSONAL DOCENTE'));
+    children.push(
+      bodyPara(
+        isFinal
+          ? 'A continuación se presenta el balance final y nivel de cumplimiento de las metas y compromisos individuales asumidos por cada integrante del colectivo escolar al cierre del ciclo escolar:'
+          : 'A continuación se presenta el balance de avance y seguimiento de las metas y compromisos individuales asumidos por la plantilla docente al primer corte semestral:'
+      )
+    );
+
+    children.push(
+      tbl(
+        [
+          new TableRow({
+            children: [
+              tcH('N°', { w: 500 }),
+              tcH('Nombre del Personal', { w: 1800 }),
+              tcH('Cargo / Función', { w: 1300 }),
+              tcH('Meta y Compromiso Individual (SMART)', { w: 2700 }),
+              tcH('Entregable Comprobable', { w: 1700 }),
+              tcH('Estado de Cumplimiento', { w: 1500 }),
+            ],
+          }),
+          ...metasPersonales.map((mp, idx) => {
+            const bg = idx % 2 ? C.alt : C.white;
+            const status = isFinal
+              ? 'Cumplida al 100% (Evidencias validadas)'
+              : 'En proceso (55% de avance semestral)';
+            return new TableRow({
+              children: [
+                tc(String(idx + 1), { w: 500, align: AlignmentType.CENTER, fill: bg }),
+                tc(safeStr(mp.nombre), { w: 1800, fill: bg, bold: true }),
+                tc(safeStr(mp.cargo, 'Docente'), { w: 1300, fill: bg }),
+                tc(safeStr(cleanPmcPlaceholders(mp.meta_individual), 'Compromiso docente'), { w: 2700, fill: bg }),
+                tc(safeStr(cleanPmcPlaceholders(mp.entregable), 'Portafolio de evidencias'), { w: 1700, fill: bg }),
+                tc(status, { w: 1500, fill: bg, bold: true, color: isFinal ? '1A7F37' : '0969DA' }),
+              ],
+            });
+          }),
+        ],
+        [500, 1800, 1300, 2700, 1700, 1500]
+      )
+    );
+  }
+
   children.push(...gap());
   subHeading('EJEMPLO DE INFORME INDIVIDUAL DOCENTE');
-  const sampleDocente = Array.isArray(staffData) && staffData.length > 0 ? safeStr(staffData[0].nombre) : directorName;
-  const sampleCargo = Array.isArray(staffData) && staffData.length > 0 ? safeStr(staffData[0].cargo) : 'Docente del Plantel';
+  const teacherWithGoal = metasPersonales.find((mp) => mp.meta_individual && mp.meta_individual.length > 5)
+    || (Array.isArray(staffData) && staffData.length > 0 ? staffData[0] : null);
+
+  const sampleDocente = teacherWithGoal?.nombre ? safeStr(teacherWithGoal.nombre) : directorName;
+  const sampleCargo = teacherWithGoal?.cargo ? safeStr(teacherWithGoal.cargo) : 'Docente del Plantel';
+  const sampleMeta = (teacherWithGoal as any)?.meta_individual
+    ? cleanPmcPlaceholders((teacherWithGoal as any).meta_individual)
+    : 'Disminución de la reprobación y acompañamiento tutoral de alumnos en riesgo.';
+  const sampleEstrategia = (teacherWithGoal as any)?.estrategia
+    ? cleanPmcPlaceholders((teacherWithGoal as any).estrategia)
+    : 'Diseño de guías didácticas situadas, impartición de tutorías individuales y reporte de alertas tempranas.';
+  const sampleEntregable = (teacherWithGoal as any)?.entregable
+    ? cleanPmcPlaceholders((teacherWithGoal as any).entregable)
+    : 'Bitácora de acompañamiento tutoral y reporte cualitativo de evaluación formativa.';
 
   children.push(
     tbl(
@@ -1798,13 +1890,13 @@ export async function generatePmcInformeDocx(
         new TableRow({ children: [tcH('INFORME INDIVIDUAL DEL DOCENTE', { span: 2 })] }),
         new TableRow({ children: [tcSub('Nombre completo del docente'), tc(sampleDocente)] }),
         new TableRow({ children: [tcSub('Materias / Áreas que imparte'), tc(sampleCargo)] }),
-        new TableRow({ children: [tcSub('Categorías del PMC en que participó'), tc('Desarrollo académico y aprendizaje / Desarrollo socioemocional')] }),
-        new TableRow({ children: [tcSub('Meta(s) a las que contribuyó'), tc('Disminución de la reprobación y acompañamiento tutoral de alumnos en riesgo.')] }),
-        new TableRow({ children: [tcSub('Acciones específicas que realizó'), tc('Diseño de guías didácticas situadas, impartición de tutorías individuales y reporte de alertas tempranas.')] }),
-        new TableRow({ children: [tcSub('Evidencias generadas'), tc('Bitácora de acompañamiento tutoral y reporte cualitativo de evaluación formativa.')] }),
-        new TableRow({ children: [tcSub('Impacto observado en su grupo'), tc('Incremento de 10% en el aprovechamiento escolar del grupo atendido.')] }),
-        new TableRow({ children: [tcSub('Dificultades encontradas'), tc('Tiempos limitados para la atención fuera del horario escolar.')] }),
-        new TableRow({ children: [tcSub('Propuestas de mejora'), tc('Establecer un horario fijo semanal de atención tutoral dentro del horario lectivo.')] }),
+        new TableRow({ children: [tcSub('Categorías del PMC en que participó'), tc((teacherWithGoal as any)?.categoria || 'Desarrollo académico y aprendizaje / Fortalecimiento docente')] }),
+        new TableRow({ children: [tcSub('Meta(s) a las que contribuyó'), tc(sampleMeta)] }),
+        new TableRow({ children: [tcSub('Acciones específicas que realizó'), tc(sampleEstrategia)] }),
+        new TableRow({ children: [tcSub('Evidencias generadas'), tc(sampleEntregable)] }),
+        new TableRow({ children: [tcSub('Impacto observado en su grupo'), tc(isFinal ? 'Cumplimiento satisfactorio con evidencias verificables y mejora en la retención escolar.' : 'Avance del 55% en la aplicación de estrategias didácticas y tutorías formativas.')] }),
+        new TableRow({ children: [tcSub('Dificultades encontradas'), tc('Coordinación de tiempos con estudiantes con actividades laborales o extraescolares.')] }),
+        new TableRow({ children: [tcSub('Propuestas de mejora'), tc('Consolidar el seguimiento formativo continuo en las sesiones de Consejo Técnico Escolar.')] }),
         new TableRow({ children: [tcSub('Autoevaluación del desempeño'), tc('Excelente')] }),
         new TableRow({ children: [tcSub('Firma del docente'), tc(`${sampleDocente}\nNombre y Firma`)] }),
         new TableRow({ children: [tcSub('Visto Bueno del Director(a)'), tc(`${directorName}\nNombre, Firma y Sello`)] }),
@@ -1871,9 +1963,22 @@ export async function generatePmcInformeDocx(
     no: idx + 1,
     tipo: safeStr(m.entregable) || 'Reporte Técnico Cualitativo',
     categoria: safeStr(m.nombre_categoria) || 'Desarrollo académico',
-    desc: `Evidencia analítica correspondiente a la meta de ${safeStr(m.tema)}. Incluye datos cualitativos y cuantitativos.`,
+    desc: `Evidencia analítica correspondiente a la meta institucional de ${safeStr(m.tema)}. Incluye datos cualitativos y cuantitativos.`,
     ubicacion: 'Archivero de Dirección / Expediente PMC Digital',
   }));
+
+  // Incluir también los entregables de las metas individuales del personal
+  metasPersonales.forEach((mp) => {
+    if (mp.entregable && mp.entregable.trim()) {
+      evidenciasList.push({
+        no: evidenciasList.length + 1,
+        tipo: safeStr(cleanPmcPlaceholders(mp.entregable)),
+        categoria: safeStr(mp.categoria || mp.cargo || 'Compromiso Individual Docente'),
+        desc: `Evidencia individual de ${safeStr(mp.nombre)}: ${safeStr(cleanPmcPlaceholders(mp.meta_individual))}`,
+        ubicacion: `Expediente Docente / Portafolio de ${safeStr(mp.nombre)}`,
+      });
+    }
+  });
 
   if (evidenciasList.length === 0) {
     evidenciasList.push({

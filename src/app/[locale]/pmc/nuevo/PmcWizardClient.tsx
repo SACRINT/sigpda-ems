@@ -43,6 +43,7 @@ import type {
   PmcAuditCalculationEntry,
   PmcMetaAsignaturaDTO,
 } from '@/types/pmc';
+import { PmcMetasComplementarias } from './PmcMetasComplementarias';
 
 export type DirectorSource = 'manual' | 'bd' | 'f11' | '911' | 'paec' | 'pmc_anterior' | 'draft' | 'none';
 
@@ -517,6 +518,8 @@ export default function PmcWizardClient({ locale, teacherSchool, teacherMunicipa
   const [error, setError] = useState<string | null>(null);
   const [editingMeta, setEditingMeta] = useState<number | null>(null);
   const [editingPersonal, setEditingPersonal] = useState<number | null>(null);
+  const [step5Tab, setStep5Tab] = useState<'descargas' | 'metas_complementarias'>('descargas');
+  const [showPaso4Complementarias, setShowPaso4Complementarias] = useState(false);
 
   // Step 1: Institutional data
   const [schoolName, setSchoolName] = useState(existingProject?.school_name || teacherSchool || '');
@@ -4001,9 +4004,45 @@ interface EditablePlanElement {
               {planAccion && (
                 <div>
                   {/* Metas institucionales */}
-                  <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#818cf8', marginBottom: '12px' }}>
-                    Metas Institucionales ({planAccion.metas_institucionales.length})
-                  </h4>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                    <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#818cf8', margin: 0 }}>
+                      Metas Institucionales ({planAccion.metas_institucionales.length})
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={() => setShowPaso4Complementarias((prev) => !prev)}
+                      style={{
+                        padding: '6px 14px',
+                        borderRadius: '6px',
+                        border: '1px solid rgba(16,185,129,0.4)',
+                        background: showPaso4Complementarias ? 'rgba(16,185,129,0.25)' : 'rgba(16,185,129,0.15)',
+                        color: '#6ee7b7',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                      }}
+                    >
+                      <span>{showPaso4Complementarias ? '▲ Ocultar Panel de Metas' : '➕ Agregar Metas Manuales (Docentes / Institucionales)'}</span>
+                    </button>
+                  </div>
+
+                  {showPaso4Complementarias && (
+                    <div style={{ marginBottom: '16px' }}>
+                      <PmcMetasComplementarias
+                        projectId={projectId}
+                        planAccion={planAccion as any}
+                        setPlanAccion={setPlanAccion as any}
+                        staffData={staffData as any}
+                        setStaffData={setStaffData as any}
+                        cicloEscolar={cicloEscolar}
+                        subsystem={subsystem}
+                        indicadores={indicadores}
+                      />
+                    </div>
+                  )}
                   {planAccion.metas_institucionales.length === 0 && (
                     <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px dashed rgba(255,255,255,0.15)', color: 'rgba(240,244,255,0.6)', fontSize: '13px', textAlign: 'center', marginBottom: '16px' }}>
                       Aún no hay metas institucionales formuladas. Haz clic en <strong>✨ Generar Plan de Acción con IA</strong> o adapta las metas del ciclo previo de arriba.
@@ -4437,8 +4476,111 @@ interface EditablePlanElement {
               </div>
             )}
 
-            {/* Download buttons */}
-            <div style={sectionCard}>
+            {/* ── Selector de Pestañas del Paso 5 ───────────────────────────── */}
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '22px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => setStep5Tab('descargas')}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '8px',
+                  fontSize: '13.5px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  border: step5Tab === 'descargas' ? '1px solid rgba(99,102,241,0.6)' : '1px solid rgba(255,255,255,0.12)',
+                  background: step5Tab === 'descargas' ? 'linear-gradient(135deg, rgba(99,102,241,0.3) 0%, rgba(79,70,229,0.2) 100%)' : 'rgba(255,255,255,0.04)',
+                  color: step5Tab === 'descargas' ? '#e0e7ff' : '#94a3b8',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: step5Tab === 'descargas' ? '0 4px 12px rgba(99,102,241,0.2)' : 'none',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <span>📥</span> Descarga de Documentos Oficiales
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setStep5Tab('metas_complementarias')}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '8px',
+                  fontSize: '13.5px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  border: step5Tab === 'metas_complementarias' ? '1px solid rgba(16,185,129,0.6)' : '1px solid rgba(255,255,255,0.12)',
+                  background: step5Tab === 'metas_complementarias' ? 'linear-gradient(135deg, rgba(16,185,129,0.25) 0%, rgba(5,150,105,0.15) 100%)' : 'rgba(255,255,255,0.04)',
+                  color: step5Tab === 'metas_complementarias' ? '#a7f3d0' : '#94a3b8',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: step5Tab === 'metas_complementarias' ? '0 4px 12px rgba(16,185,129,0.2)' : 'none',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <span>🎯</span> Metas Adicionales y Ajustes (Sin Regenerar)
+                <span style={{ fontSize: '11px', background: 'rgba(16,185,129,0.25)', color: '#6ee7b7', padding: '2px 8px', borderRadius: '10px', fontWeight: 700 }}>
+                  Nuevo
+                </span>
+              </button>
+            </div>
+
+            {step5Tab === 'metas_complementarias' ? (
+              <PmcMetasComplementarias
+                projectId={projectId}
+                planAccion={planAccion as any}
+                setPlanAccion={setPlanAccion as any}
+                staffData={staffData as any}
+                setStaffData={setStaffData as any}
+                cicloEscolar={cicloEscolar}
+                subsystem={subsystem}
+                indicadores={indicadores}
+              />
+            ) : (
+              <>
+                {/* Banner de tranquilidad y adición rápida */}
+                <div
+                  style={{
+                    padding: '12px 16px',
+                    borderRadius: '8px',
+                    background: 'rgba(99,102,241,0.1)',
+                    border: '1px solid rgba(99,102,241,0.25)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '18px',
+                    flexWrap: 'wrap',
+                    gap: '10px',
+                  }}
+                >
+                  <div style={{ fontSize: '13px', color: '#c7d2fe', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>💡</span>
+                    <span>
+                      ¿Omitiste la meta de algún docente o necesitas registrar metas adicionales de último momento?{' '}
+                      <strong>No requieres volver a generar todo el PMC.</strong>
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setStep5Tab('metas_complementarias')}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: '6px',
+                      border: '1px solid rgba(16,185,129,0.4)',
+                      background: 'rgba(16,185,129,0.2)',
+                      color: '#6ee7b7',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    ➕ Agregar Metas Faltantes
+                  </button>
+                </div>
+
+                {/* Download buttons */}
+                <div style={sectionCard}>
               <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#818cf8', marginBottom: '18px' }}>📥 Documentos Oficiales y Entregables</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 {/* 1. ENTREGA PRINCIPAL OFICIAL PARA SUPERVISIÓN */}
@@ -4534,16 +4676,18 @@ interface EditablePlanElement {
               </div>
             </div>
 
-            <div style={{ ...sectionCard, background: 'rgba(245,158,11,0.1)', borderColor: 'rgba(245,158,11,0.3)' }}>
-              <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#fcd34d', marginBottom: '8px' }}>📌 Instrucciones para los Informes</h3>
-              <ul style={{ fontSize: '13px', color: 'rgba(240,244,255,0.75)', paddingLeft: '18px', margin: 0, lineHeight: '1.8' }}>
-                <li>El <strong>Informe Parcial</strong> se entrega aproximadamente a mitad del ciclo escolar (enero-febrero 2026)</li>
-                <li>El <strong>Informe Final</strong> se entrega al cierre del ciclo escolar (junio-julio 2026)</li>
-                <li>Cada trabajador debe registrar sus avances con <strong>evidencias documentales reales</strong> (no fotografías solas)</li>
-                <li>El director(a) consolida los informes individuales y elabora el informe institucional final</li>
-                <li>Los informes deben ser firmados por el director y validados por el supervisor de zona</li>
-              </ul>
-            </div>
+                <div style={{ ...sectionCard, background: 'rgba(245,158,11,0.1)', borderColor: 'rgba(245,158,11,0.3)' }}>
+                  <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#fcd34d', marginBottom: '8px' }}>📌 Instrucciones para los Informes</h3>
+                  <ul style={{ fontSize: '13px', color: 'rgba(240,244,255,0.75)', paddingLeft: '18px', margin: 0, lineHeight: '1.8' }}>
+                    <li>El <strong>Informe Parcial</strong> se entrega aproximadamente a mitad del ciclo escolar (enero-febrero 2026)</li>
+                    <li>El <strong>Informe Final</strong> se entrega al cierre del ciclo escolar (junio-julio 2026)</li>
+                    <li>Cada trabajador debe registrar sus avances con <strong>evidencias documentales reales</strong> (no fotografías solas)</li>
+                    <li>El director(a) consolida los informes individuales y elabora el informe institucional final</li>
+                    <li>Los informes deben ser firmados por el director y validados por el supervisor de zona</li>
+                  </ul>
+                </div>
+              </>
+            )}
           </div>
         )}
 
