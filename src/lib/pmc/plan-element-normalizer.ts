@@ -101,10 +101,16 @@ export function stripStructuralIndexPrefixes(text: string): string {
   );
 
   // 2. Prefijos de enumeración de listas numéricas al inicio de línea: "1. ", "1.- ", "1) ", "(1) ", "1.1. "
-  return withoutLabeledPrefix.replace(
+  const withoutLineNumbers = withoutLabeledPrefix.replace(
     /(?:^|[\r\n]+)\s*(?:[*•\-–—]\s*)?(?:\(?\d+(?:\.\d+)*[\.\)]|\d+(?:\.\d+)*\.-|\d+[\-–—])\s+/g,
     (m) => (m.includes('\n') ? '\n' : ' ')
   );
+
+  // 3. Enumeración numérica inline (ej. " ... 2. Fotos ... 3. Constancias", " 2) ", " 3.- ")
+  return withoutLineNumbers.replace(
+    /(?:\s+[*•\-–—]?\s*|;\s*)(?:\(?\d+[\.\)]|\d+\.-|\d+[\-–—])\s+/g,
+    ' '
+  ).trim();
 }
 
 /**

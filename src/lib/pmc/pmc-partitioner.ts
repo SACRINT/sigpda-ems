@@ -17,7 +17,7 @@ import {
   deriveMetasPreviasFromElementos,
   deriveElementosFromMetasPrevias,
 } from './plan-element-normalizer';
-import { normalizeStaffName } from './staff-reconciler';
+import { normalizeStaffName, isValidStaffName } from './staff-reconciler';
 import { generateWithRotation } from '@/lib/ai-provider';
 import { parseAIResponse } from '@/lib/ai-response-parser';
 import { withTimeoutBudget, correctiveRetry } from '@/lib/ai-resilience';
@@ -31,8 +31,8 @@ import { jsonrepair } from 'jsonrepair';
 export function findPlanActionSection(documentText: string): { planText: string; startIndex: number; endIndex: number } {
   if (!documentText) return { planText: '', startIndex: -1, endIndex: -1 };
 
-  // 1. Encontrar todos los candidatos que contengan PLAN DE ACCIÓN / PLAN DE ACCION
-  const regex = /PLAN\s+DE\s+ACC[IÍ][ÓO]N/gi;
+  // 1. Encontrar todos los candidatos que contengan PLAN DE ACCIÓN / PLAN DE ACCION (con o sin acentos/encoding)
+  const regex = /PLAN\s+DE\s+ACCI[ÓO\ufffd\.\s]?N/gi;
   const matches = [...documentText.matchAll(regex)];
 
   let startIdx = -1;
@@ -49,20 +49,26 @@ export function findPlanActionSection(documentText: string): { planText: string;
       continue;
     }
 
+    // Descartar si el candidato viene precedido por numeración de índice TOC (ej. "5) PLAN DE ACCIÓN")
+    const preMatch = documentText.slice(Math.max(0, idx - 15), idx);
+    if (/\b\d+[\.\)\-]/.test(preMatch)) {
+      continue;
+    }
+
     // Descartar si la línea tiene puntos suspensivos o comas de relleno de índice
     const lineEnd = documentText.indexOf('\n', idx + 1);
     const line = documentText.slice(Math.max(0, idx - 20), lineEnd !== -1 ? lineEnd : idx + 300);
-    if (/[\.·…]{3,}|,{3,}/.test(line)) continue;
+    if (/[\.·…]{2,}|,{2,}/.test(line)) continue;
 
     // Descartar si es parte de un índice TOC seguido inmediatamente por otras secciones de índice
     const next500 = documentText.slice(idx, idx + 500);
-    if (/(?:\d+[\.\)\-\s]+(?:Participantes|Aprobaci[óo]n|PRESENTACI[ÓO]N|DIAGN[ÓO]STICO))/i.test(next500)) {
+    if (/(?:\d+[\.\)\-\s]+(?:Participantes|Aprobaci[óo\ufffd]n|PRESENTACI[ÓO\ufffd]N|DIAGN[ÓO\ufffd]STICO))/i.test(next500)) {
       continue;
     }
 
     // Verificar que contenga contenido real de plan (categoría, tema, meta, tabla) en los siguientes 2500 caracteres
     const next2500 = documentText.slice(idx, idx + 2500);
-    if (!/(?:CATEGOR[IÍ]A|META|TEMA|OBJETIVO|\|)/i.test(next2500)) {
+    if (!/(?:CATEGOR[IÍ\ufffd]A|META|TEMA|OBJETIVO|\|)/i.test(next2500)) {
       continue;
     }
 
@@ -85,7 +91,7 @@ export function findPlanActionSection(documentText: string): { planText: string;
   const textFromPlan = documentText.slice(startIdx);
 
   // 2. Encontrar fin del plan: tabla de firmas / aprobación / personal participante / anexos
-  const endRegex = /(?:^|\n)[*_#\s]*(?:\d+[\.\)\-]\s*)?(?:APROBACI[ÓO]N\s+DEL\s+PMC|PERSONAL\s+PARTICIPANTE|FIRMAS\s+DE\s+AUTORIZACI[ÓO]N|FIRMAS\s+DE\s+CONFORMIDAD|DIRECTORIO\s+DEL\s+PLANTEL)/i;
+  const endRegex = /(?:^|\n)[*_#\s]*(?:\d+[\.\)\-]\s*)?(?:APROBACI[ÓO\ufffd\.\s]?N\s+DEL\s+PMC|PERSONAL\s+PARTICIPANTE|FIRMAS\s+DE\s+AUTORIZACI[ÓO\ufffd\.\s]?N|FIRMAS\s+DE\s+CONFORMIDAD|DIRECTORIO\s+DEL\s+PLANTEL)/i;
   const endMatch = textFromPlan.search(endRegex);
 
   const endIndex = endMatch !== -1 ? startIdx + endMatch : documentText.length;
@@ -164,7 +170,7 @@ export function countDeterministicExpectedActivities(documentText: string): numb
   ).length;
 
   const matchResponsables = (
-    textToScan.match(/(?:ING\.|LIC\.|MTRO\.|MTRA\.|PROFR\.|PROFRA\.)\s+[A-ZÁÉÍÓÚÑ]/gi) || []
+    textToScan.match(/(?:ING\\?\.?|LIC\\?\.?|MTRO\\?\.?|MTRA\\?\.?|PROFR\\?\.?|PROFRA\\?\.?)\s+[A-ZÁÉÍÓÚÑ]/gi) || []
   ).length;
 
   const heuristico = Math.max(matchAmbitos, matchMetaKeywords + matchColon, matchResponsables);
@@ -211,12 +217,12 @@ export function partitionMarkdownDocument(
 
     // Patrones de corte en orden jerárquico de prioridad estructural (H-298)
     const structuralPatterns = [
-      /\n(?=[*_#\s]*(?:(?:6\.\s*)?PLAN\s+DE\s+ACCI[ÓO]N\b|Categor[íi]a\s*\d+:))/gi,
-      /\n(?=[*_#\s]*(?:APROBACI[ÓO]N\s+DEL\s+PMC|PERSONAL\s+PARTICIPANTE|FIRMAS\s+DE\s+AUTORIZACI[ÓO]N))/gi,
+      /\n(?=[*_#\s]*(?:(?:6\.\s*)?PLAN\s+DE\s+ACCI[ÓO\ufffd\.\s]?N\b|Categor[íi\ufffd]a\s*\d+:))/gi,
+      /\n(?=[*_#\s]*(?:APROBACI[ÓO\ufffd\.\s]?N\s+DEL\s+PMC|PERSONAL\s+PARTICIPANTE|FIRMAS\s+DE\s+AUTORIZACI[ÓO\ufffd\.\s]?N))/gi,
       /\n(?=#+\s)/g,
-      /\n(?=__\*(?:Reprobaci[oó]n|Actividades|ACCIÓN))/gi,
+      /\n(?=__\*(?:Reprobaci[oó\ufffd]n|Actividades|ACCIÓN))/gi,
       /\n(?=(?:__)?(?:\d+[\.\-]\s*)?Actividad(?:es)?:?)/gi,
-      /\n(?=(?:ING\.|LIC\.|MTRO\.|MTRA\.|PROFR\.|PROFRA\.|DOCENTE|DIRECTOR)\s+[A-ZÁÉÍÓÚÑ])/g,
+      /\n(?=(?:ING\\?\.?|LIC\\?\.?|MTRO\\?\.?|MTRA\\?\.?|PROFR\\?\.?|PROFRA\\?\.?|DOCENTE|DIRECTOR)\s+[A-ZÁÉÍÓÚÑ])/gi,
       /\n(?=\|[^\n]+\|\n\|[\s\-:|]+\|)/g,
       /\n(?=\|)/g,
       /\n\n/g,
@@ -353,6 +359,7 @@ export function deduplicateStaffData<T extends { nombre?: string | null }>(staff
   const result: T[] = [];
   const seen = new Set<string>();
   for (const s of staff) {
+    if (!s.nombre || !isValidStaffName(s.nombre)) continue;
     const norm = normalizeStaffName(s.nombre);
     if (!norm || seen.has(norm)) continue;
     seen.add(norm);
@@ -615,14 +622,14 @@ export async function extractPmcPreviousWithPartitioning(options: {
     const contextChunk = (documentText.slice(0, startIndex) + (tailText ? `\n\n# APROBACIÓN Y FIRMAS DEL PLANTEL\n${tailText}` : '')).trim();
     // Trozo 2..N: Sección especializada del Plan de Acción
     // Fragmentos balanceados (< 10,000 caracteres) respetando filas de tabla para evitar timeouts y saturación de tokens (document-extraction-engine)
-    if (planText.length > 9000) {
-      const planChunks = partitionMarkdownDocument(planText, 5000, 9500);
+    if (planText.length > 10000) {
+      const planChunks = partitionMarkdownDocument(planText, 7000, 11000);
       chunks = [contextChunk, ...planChunks];
     } else {
       chunks = [contextChunk, planText.trim()];
     }
   } else if (documentText.length > 10000 || expectedActivities >= 12) {
-    chunks = partitionMarkdownDocument(documentText, 5000, 9500);
+    chunks = partitionMarkdownDocument(documentText, 7000, 11000);
   } else {
     chunks = [documentText];
   }

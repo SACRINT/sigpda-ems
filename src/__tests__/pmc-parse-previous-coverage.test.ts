@@ -21,7 +21,8 @@ import {
   extractDeterministicSupervisorAndZone,
   findPlanActionSection,
 } from '@/lib/pmc/pmc-partitioner';
-import { calculatePmcCoverage } from '@/lib/pmc/plan-element-normalizer';
+import { calculatePmcCoverage, validateNormalizedText } from '@/lib/pmc/plan-element-normalizer';
+import { isValidStaffName } from '@/lib/pmc/staff-reconciler';
 import { type PmcPlanElement, PmcPreviousExtractSchema } from '@/lib/prompts/pmc-extraction';
 import { parseAIResponse } from '@/lib/ai-response-parser';
 
@@ -443,5 +444,38 @@ ${Array.from({ length: 20 }, (_, i) => `| ${i + 1} | Desarrollo académico | Act
     const res = extractDeterministicSupervisorAndZone(documentText, 'Adrián Hernández Cruz');
     expect(res.schoolZone).toBe('086');
     expect(res.supervisorName).toContain('MOISES FLORES');
+  });
+
+  it('9. Detección robusta de Plan de Acción y particionado de todos los docentes (Héroes de la Patria)', async () => {
+    expect(fs.existsSync(fixturePath)).toBe(true);
+    const buffer = fs.readFileSync(fixturePath);
+    const ingested = await ingestDocument(buffer, { filename: 'PMC 2026-Heroes de la Patria.docx' });
+    const documentText = ingested.markdown || ingested.fullText || '';
+
+    const { planText, startIndex } = findPlanActionSection(documentText);
+    expect(startIndex).toBeGreaterThan(10000);
+    expect(planText.length).toBeGreaterThan(12000);
+
+    // Todos los docentes deben estar en la sección del plan
+    const teachers = ['Roselia', 'Tulia', 'Soledad', 'Nemesio', 'Nicolás', 'Alain', 'Claudia', 'Humberta', 'Alejandra', 'Ana Lilia'];
+    for (const t of teachers) {
+      expect(planText.toLowerCase()).toContain(t.toLowerCase());
+    }
+
+    // Particionado del plan en fragmentos manejables
+    const planChunks = partitionMarkdownDocument(planText, 7000, 11000);
+    expect(planChunks.length).toBeLessThanOrEqual(3);
+  });
+
+  it('10. Prevención de docentes fantasma e invariantes de numeración inline', () => {
+    // Descartar fantasma
+    expect(isValidStaffName('Docente sin nombre explícito en bloque final')).toBe(false);
+
+    // Invariante numérico con listas de evidencias inline
+    const originalEvidencia = '1. Constancias de los cursos 2. Fotografías 3. Fotografía y Video 4. Fotografías y Videos 5. Fotografías 6. Fotografías';
+    const normalizedEvidencia = 'Constancias de los cursos, fotografías y videos';
+    const val = validateNormalizedText(originalEvidencia, normalizedEvidencia);
+    expect(val.ok).toBe(true);
+    expect(val.faltantes).toEqual([]);
   });
 });

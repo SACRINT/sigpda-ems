@@ -299,6 +299,9 @@ export function isValidStaffName(name: string | null | undefined): boolean {
   if (!name) return false;
   const clean = name.trim();
   if (clean.length < 3) return false;
+  if (/sin nombre expl[íi\ufffd]cito/i.test(clean) || /bloque final/i.test(clean) || /\bdocente sin\b/i.test(clean)) {
+    return false;
+  }
   if (isCollectiveOrNonHumanEntity(clean)) return false;
   const normalized = normalizeStaffName(clean);
   if (!normalized || normalized.length < 3) return false;
