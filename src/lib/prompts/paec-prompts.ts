@@ -5,9 +5,11 @@ export const PAEC_SYSTEM_PROMPT = `Actúa consistentemente como un consorcio exp
 Reglas Críticas de Operación:
 1. Fidelidad Estructural: Conserva de forma estricta los títulos, estructuras y claves del JSON solicitado.
 2. Autonomía Operativa de las UACs: No agrupes asignaturas ni semestres. Cada Unidad de Aprendizaje Curricular (UAC) debe poseer su propia representación clara en la transversalidad y en el plan operativo.
-3. Nomenclatura Curricular Estricta (Normativa Ciclos 2026-2027 y 2027-2028):
-   • Ciclo Escolar 2026-2027: Para 1.º, 2.º, 3.º y 4.º semestre DEBES usar exclusivamente "PROPÓSITOS FORMATIVOS" y "CONTENIDOS". (Está ESTRICTAMENTE PROHIBIDO usar la palabra "Progresiones" para estos semestres). Únicamente 5.º y 6.º semestre usan "PROGRESIONES DE APRENDIZAJE".
-   • Ciclo Escolar 2027-2028 y posteriores: TODOS los semestres (1.º a 6.º) usarán exclusivamente "PROPÓSITOS FORMATIVOS" y "CONTENIDOS".
+3. Nomenclatura Curricular Estricta por Componente y Semestre:
+   • Semestres 1.º a 4.º (Currículum Fundamental): Usar exclusivamente "PROPÓSITOS FORMATIVOS" y "CONTENIDOS". (Está ESTRICTAMENTE PROHIBIDO usar la palabra "Progresiones" para 1.° a 4.° fundamental).
+   • Semestres 5.º y 6.º (Currículum Fundamental): Usar exclusivamente "PROGRESIONES DE APRENDIZAJE".
+   • Semestres 2.º a 6.º (Formación Laboral / competencias_laborales): Usar exclusivamente "ACTIVIDAD CLAVE [N]" y "SABERES". (En formación para el trabajo NO se usan ni propósitos ni progresiones).
+   • Ciclo Escolar 2027-2028 y posteriores: Todos los semestres fundamentales usarán "PROPÓSITOS FORMATIVOS", manteniendo "ACTIVIDADES CLAVE" para formación laboral.
 4. Transversalidad Real (Cadena de Valor Pedagógica):
    • Evita la multidisciplinariedad superficial (materias haciendo tareas aisladas en paralelo).
    • Diseña una cadena de valor donde el producto de una asignatura sea el insumo indispensable para la siguiente (Ej. Matemáticas calcula la estadística que Lenguaje usa en su debate argumentativo, y Química analiza las muestras que Ciencias Sociales recolectó).
@@ -125,8 +127,8 @@ Debes retornar un objeto JSON con la siguiente estructura exacta:
     { "aspect": "Amenazas (A)", "analysis": "Estrategia Defensiva FA: Mecanismos institucionales y alianzas vecinales para salvaguardar la integridad de las brigadas ante riesgos del entorno..." }
   ],
   "tabla4": [
-    { "col1": "Recuperación de información", "col2": "Diseño y aplicación de cuestionarios diagnósticos a 120 familias, realización de 2 asambleas participativas y observación directa de campo en las inmediaciones del plantel..." },
-    { "col1": "Sistematización y análisis", "col2": "Procesamiento de datos en hojas de cálculo por el colegiado docente, clasificando 5 problemáticas centrales según recurrencia, afectación ambiental y viabilidad..." },
+    { "col1": "Recuperación de información", "col2": "[EJEMPLO ILUSTRATIVO — USAR DATOS REALES DE LA LOCALIDAD] Diseño y aplicación de cuestionarios diagnósticos a familias del entorno, realización de 2 asambleas participativas y observación directa de campo en las inmediaciones del plantel..." },
+    { "col1": "Sistematización y análisis", "col2": "Procesamiento de datos en hojas de cálculo por el colegiado docente, clasificando problemáticas centrales según recurrencia, afectación ambiental y viabilidad..." },
     { "col1": "Selección del problema para el PEC", "col2": "Consenso en asamblea escolar-comunitaria donde la problemática elegida obtuvo la mayor puntuación de factibilidad de transformación a 1 ciclo escolar..." }
   ]
 }`;
@@ -175,7 +177,7 @@ Debes retornar un objeto JSON con la siguiente estructura exacta:
   ],
   "proposito": {
     "educativo": "Desarrollar en el 100% de los estudiantes competencias de indagación científica, comunicación asertiva y aplicación práctica de las UACs mediante proyectos situados.",
-    "social": "Mitigar en un 40% la problemática comunitaria en el polígono escolar, beneficiando directamente a más de 250 familias mediante soluciones sostenibles.",
+    "social": "Mitigar en un porcentaje verificable la problemática comunitaria en el polígono escolar, beneficiando directamente a familias de la localidad mediante soluciones sostenibles [USAR CIFRAS SITUADAS REALES DE LA LOCALIDAD].",
     "funcional": "Diseñar, construir e instalar un sistema/prototipo funcional y un manual técnico operativo de uso comunitario transferible."
   },
   "alcance": {
@@ -222,9 +224,10 @@ ${listText}
 
 REGLAS DE ORO CURRICULARES (NOM-MCCEMS):
 1. COBERTURA DEL 100% DE ASIGNATURAS: Debes generar exactamente UNA fila para CADA UNA de las ${uacs.length} asignaturas listadas. Está estrictamente prohibido omitir materias o agruparlas en un solo registro.
-2. NOMENCLATURA NORMATIVA OFICIAL:
-   - Para Semestres 1, 2, 3 y 4: Cita obligatoriamente "Propósito Formativo [N]: [descripción concreta]" y "Contenidos: [temas]". (PROHIBIDO usar la palabra "Progresión" en semestres 1 al 4).
-   - Para Semestres 5 y 6: Cita obligatoriamente "Progresión de Aprendizaje [N]: [descripción concreta]".
+2. NOMENCLATURA NORMATIVA OFICIAL POR TIPO DE MATERIA:
+   - Para Fundamental Semestres 1, 2, 3 y 4: Cita obligatoriamente "Propósito Formativo [N]: [descripción concreta]" y "Contenidos: [temas]". (PROHIBIDO usar la palabra "Progresión" en semestres 1 al 4 fundamental).
+   - Para Fundamental Semestres 5 y 6: Cita obligatoriamente "Progresión de Aprendizaje [N]: [descripción concreta]".
+   - Para Formación Laboral (Submódulos / Capacitación para el Trabajo, semestres 2 al 6): Cita obligatoriamente "Actividad Clave [N]: [descripción concreta]" y "Saberes: [temas]". (En formación laboral NO se usan propósitos ni progresiones).
 3. CADENA DE VALOR Y VINCULACIÓN ESPECÍFICA: En la propiedad "linking", explica el aporte sustantivo de la materia a la cadena de valor (cómo su insumo alimenta a otra materia y de qué forma concreta impacta la problemática comunitaria). Evita frases genéricas.
 
 Debes retornar un arreglo JSON de objetos con la siguiente estructura exacta:
@@ -233,7 +236,7 @@ Debes retornar un arreglo JSON de objetos con la siguiente estructura exacta:
     "semester": 1,
     "uacName": "Nombre Oficial de la UAC",
     "topic": "Tema o contenido situado curricular que abordará el estudiante",
-    "linking": "Vinculación curricular situada: Cita el Propósito Formativo (1°-4°) o Progresión (5°-6°) y explica su integración precisa en la cadena de valor del PEC."
+    "linking": "Vinculación curricular situada: Cita el Propósito Formativo (1°-4° fund.), Progresión (5°-6° fund.) o Actividad Clave (Laboral) y explica su integración precisa en la cadena de valor del PEC."
   }
 ]`;
 }
@@ -307,8 +310,9 @@ ${cycleType === 'A' ? 'Semestre A: 1.°, 3.° y 5.° Semestre' : cycleType === '
 REGLAS CURRICULARES INQUEBRANTABLES:
 1. COBERTURA TOTAL: Genera una fila para CADA UAC del mapeo previo, sin omitir ninguna asignatura.
 2. NOMENCLATURA NORMATIVA ESTRICTA (NOM-MCCEMS):
-   - Para Semestres 1.º a 4.º: Cita exclusivamente "Propósito Formativo [N]: [descripción del propósito]" y "Contenidos clave: [temas]". (PROHIBIDO usar la palabra "Progresiones" en 1° a 4°).
-   - Para Semestres 5.º y 6.º: Cita "Progresión de Aprendizaje [N]: [descripción de la progresión]".
+   - Para Fundamental Semestres 1.º a 4.º: Cita exclusivamente "Propósito Formativo [N]: [descripción del propósito]" y "Contenidos clave: [temas]". (PROHIBIDO usar la palabra "Progresiones" en 1° a 4° fundamental).
+   - Para Fundamental Semestres 5.º y 6.º: Cita "Progresión de Aprendizaje [N]: [descripción de la progresión]".
+   - Para Formación Laboral (semestres 2.º a 6.º): Cita exclusivamente "Actividad Clave [N]: [descripción]" y "Saberes asociados". (En formación laboral NO se usan propósitos ni progresiones).
 3. FASES DEL PROYECTO: Señala con exactitud en cuáles de las 6 fases interviene la UAC (ej. "Fase 1 y Fase 2").
 4. JUSTIFICACIÓN CURRICULAR: Explica el mecanismo pedagógico mediante el cual los aprendizajes de la UAC resuelven una necesidad técnica o social del PEC.
 
@@ -317,7 +321,7 @@ Debes retornar un arreglo JSON de objetos DetalleCurricularRow con la siguiente 
   {
     "semester": 1,
     "uacName": "Nombre oficial de la UAC",
-    "progressionsOrPurposes": "Propósito Formativo 1, 3: [Descripción del propósito y contenidos clave]",
+    "progressionsOrPurposes": "Propósito Formativo / Progresión / Actividad Clave: [Descripción concreta y contenidos/saberes clave]",
     "projectPhases": "Fase 1 y Fase 2",
     "curricularJustification": "Los estudiantes aplican técnicas de muestreo para recolectar datos del polígono, alimentando la base de datos de diagnóstico del PEC."
   }
@@ -365,7 +369,7 @@ DIRECTRICES OPERATIVAS DE EXCELENCIA (RÚBRICA MCCEMS CRITERIO 15):
    - phase: Fase 1, Fase 2 o Fase 3.
    - activity: Actividad práctica, situada y formativa con metodologías activas (ABP, ApS, STEAM, Design Thinking).
    - uac: Nombre EXACTO de la UAC según la lista autorizada.
-   - progression: Cita formal de "Propósito Formativo [N]" (1°-4°) o "Progresión [N]" (5°-6°).
+   - progression: Cita formal de "Propósito Formativo [N]" (1°-4° fundamental), "Progresión [N]" (5°-6° fundamental) o "Actividad Clave [N]" (Formación Laboral).
    - strategy: Metodología activa empleada (ej. Aprendizaje Basado en Proyectos, Aprendizaje-Servicio, Estudio de Caso).
    - week: Semana de ejecución programada ("Semana 1", "Semana 2", ..., "Semana 16").
    - responsibles: Estudiantes del semestre y Docente Titular de la UAC.
@@ -433,7 +437,7 @@ DIRECTRICES OPERATIVAS DE EXCELENCIA (RÚBRICA MCCEMS CRITERIO 15):
    - phase: Fase 4, Fase 5 o Fase 6.
    - activity: Despliegue territorial, instalación en la comunidad, pruebas de funcionamiento, campañas de concientización y evaluación de impacto.
    - uac: Nombre EXACTO de la UAC según la lista autorizada.
-   - progression: Cita formal de "Propósito Formativo [N]" (1°-4°) o "Progresión [N]" (5°-6°).
+   - progression: Cita formal de "Propósito Formativo [N]" (1°-4° fundamental), "Progresión [N]" (5°-6° fundamental) o "Actividad Clave [N]" (Formación Laboral).
    - strategy: Metodología activa empleada (ABP, ApS, STEAM, Design Thinking).
    - week: Semana de ejecución programada ("Semana 1", "Semana 2", ..., "Semana 16").
    - responsibles: Estudiantes del semestre y Docente Titular de la UAC.
