@@ -154,7 +154,11 @@ export function convertDocxHtmlToMarkdown(rawHtml: string): {
           rowCols.push('');
           continue;
         }
-        const cellEl = $(cell);
+        const cellEl = $(cell).clone();
+        cellEl.find('br').replaceWith(' ');
+        cellEl.find('p, li, div, h1, h2, h3, h4, h5, h6').each((_, el) => {
+          $(el).append(' ');
+        });
         const cellText = cellEl
           .text()
           .replace(/\s+/g, ' ')

@@ -23,12 +23,21 @@ export { parsePlainTextDocument } from './parsers/text-parser';
 export { parseImageDocumentWithGemini } from './parsers/image-parser';
 
 /**
+ * Versión del motor de parsing e ingesta documental.
+ * Al incrementar esta versión, se invalidan deterministamente todas las entradas de caché obsoletas
+ * garantizando que mejoras en reconstructores de tablas (GridCell/Markdown) o parsers se apliquen
+ * de inmediato sin servir análisis viejos.
+ */
+export const DOCUMENT_INGESTION_PARSER_VERSION = 'v8.2-docx-grid-dedup';
+
+/**
  * Calcula el hash SHA-256 de los bytes del documento más el límite de páginas de la petición
- * para indexación en caché (evita servir un PDF truncado como si fuera completo).
+ * y la versión del parser para indexación en caché (evita servir un PDF truncado o parseos desactualizados).
  */
 export function computeDocumentHash(buffer: Buffer, options?: { maxPages?: number }): string {
   return createHash('sha256')
     .update(buffer)
+    .update(` parserVersion=${DOCUMENT_INGESTION_PARSER_VERSION}`)
     .update(' maxPages=' + (options?.maxPages ?? 'auto'))
     .digest('hex');
 }

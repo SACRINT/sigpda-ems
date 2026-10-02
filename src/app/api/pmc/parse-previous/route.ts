@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData();
     const file = (formData.get('file') as File) || (formData.get('pdf') as File);
+    const bypassCache = formData.get('bypassCache') === 'true' || formData.get('refresh') === 'true';
 
     if (!file) {
       return NextResponse.json({ error: 'No se ha subido ningún archivo' }, { status: 400 });
@@ -93,6 +94,7 @@ export async function POST(request: NextRequest) {
           enableOcr: true,
           teacherId: teacher.id,
           teacherEmail: session.user.email,
+          bypassCache,
         }),
         Math.max(1, deadline - Date.now())
       );
