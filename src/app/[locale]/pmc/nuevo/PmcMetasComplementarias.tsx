@@ -245,9 +245,10 @@ export function PmcMetasComplementarias({
       }
 
       setNormalizedPreview(json.normalized);
+      const metasCount = json.normalized?.metas?.length || (json.normalized?.meta_individual || json.normalized?.meta_institucional ? 1 : 0);
       setFeedback({
         type: 'success',
-        message: '✨ Meta normalizada con éxito según lineamientos MCCEMS/NEM. Revisa la proyección a continuación y confirma la inserción quirúrgica.',
+        message: `✨ ${metasCount > 1 ? `${metasCount} metas normalizadas` : 'Meta normalizada'} con éxito según lineamientos MCCEMS/NEM. Revisa la proyección a continuación y confirma la inserción quirúrgica.`,
       });
     } catch (err: unknown) {
       setFeedback({
@@ -259,56 +260,115 @@ export function PmcMetasComplementarias({
     }
   };
 
-  // ── CONFIRMAR E INSERTAR QUIRÚRGICAMENTE LA META NORMALIZADA ───────────────
-  const handleConfirmSurgicalInsertion = async () => {
-    if (!normalizedPreview) return;
+  // ── PREVIEW ITEMS ADAPTATIVO (SOPORTA 1 O MÚLTIPLES METAS) ─────────────────
+  const previewItems = useMemo(() => {
+    if (!normalizedPreview) return [];
+    if (Array.isArray(normalizedPreview.metas) && normalizedPreview.metas.length > 0) {
+      return normalizedPreview.metas;
+    }
+    if (normalizedPreview.meta_individual || normalizedPreview.meta_institucional) {
+      return [{ meta_individual: normalizedPreview.meta_individual, meta_institucional: normalizedPreview.meta_institucional }];
+    }
+    return [];
+  }, [normalizedPreview]);
 
-    const cleanNombre = (normalizedPreview.meta_individual?.nombre || aiDocenteNombre).trim();
-    const cleanCargo = (normalizedPreview.meta_individual?.cargo || aiDocenteCargo).trim() || 'Docente';
+  const handleUpdatePreviewIndividual = (itemIndex: number, field: string, val: string) => {
+    if (!normalizedPreview) return;
+    const nextMetas = previewItems.map((item, idx) => {
+      if (idx !== itemIndex || !item.meta_individual) return item;
+      return {
+        ...item,
+        meta_individual: {
+          ...item.meta_individual,
+          [field]: val,
+        },
+      };
+    });
+    setNormalizedPreview({
+      ...normalizedPreview,
+      metas: nextMetas,
+      meta_individual: nextMetas[0]?.meta_individual,
+      meta_institucional: nextMetas[0]?.meta_institucional,
+    });
+  };
+
+  const handleUpdatePreviewInstitucional = (itemIndex: number, field: string, val: string) => {
+    if (!normalizedPreview) return;
+    const nextMetas = previewItems.map((item, idx) => {
+      if (idx !== itemIndex || !item.meta_institucional) return item;
+      return {
+        ...item,
+        meta_institucional: {
+          ...item.meta_institucional,
+          [field]: val,
+        },
+      };
+    });
+    setNormalizedPreview({
+      ...normalizedPreview,
+      metas: nextMetas,
+      meta_individual: nextMetas[0]?.meta_individual,
+      meta_institucional: nextMetas[0]?.meta_institucional,
+    });
+  };
+
+  // ── CONFIRMAR E INSERTAR QUIRÚRGICAMENTE LAS METAS NORMALIZADAS ─────────────
+  const handleConfirmSurgicalInsertion = async () => {
+    if (!normalizedPreview || previewItems.length === 0) return;
 
     let nextMetasPersonales = planAccion?.metas_personales ? [...planAccion.metas_personales] : [];
     let nextMetasInst = planAccion?.metas_institucionales ? [...planAccion.metas_institucionales] : [];
 
-    // 1. Inyectar en Metas Personales (Sección 7) si aplica
-    if (aiTipoMeta !== 'institucional' && normalizedPreview.meta_individual) {
-      const mi = normalizedPreview.meta_individual;
-      const newPersonal: MetaPersonalItem = {
-        nombre: cleanNombre,
-        cargo: cleanCargo,
-        categoria: mi.categoria || undefined,
-        tema: mi.tema || undefined,
-        meta_individual: mi.meta_individual,
-        estrategia: mi.estrategia,
-        entregable: mi.entregable,
-        periodo: mi.periodo || `Ciclo Escolar ${cicloEscolar || '2025-2026'}`,
-      };
-      nextMetasPersonales.push(newPersonal);
-    }
+    const insertedTeacherNames: string[] = [];
 
-    // 2. Inyectar en Metas Institucionales (Plan de Acción Secciones 6 y 8, Formato 5.1 / Adicional, Fichas Técnicas) si aplica
-    if (aiTipoMeta !== 'individual' && normalizedPreview.meta_institucional) {
-      const min = normalizedPreview.meta_institucional;
-      const newInst: MetaInstitucionalItem = {
-        categoria: min.categoria || 'aprovechamiento',
-        nombre_categoria: min.nombre_categoria || '1. Aprovechamiento académico y asistencia educativa',
-        tema: min.tema || 'Mejora de los Aprendizajes',
-        meta: min.meta,
-        estrategia: min.estrategia,
-        linea_base: min.linea_base || 'Diagnóstico integral escolar del ciclo lectivo.',
-        personal_designado: min.personal_designado || `${cleanNombre} y Academia Docente`,
-        entregable: min.entregable,
-        periodo_inicio: min.periodo_inicio || 'Septiembre',
-        periodo_fin: min.periodo_fin || 'Julio',
-        diagnostico_meta: min.diagnostico_meta || 'Necesidad pedagógica detectada por el colectivo escolar.',
-        accion_especifica: min.accion_especifica || min.estrategia,
-        finalidad: min.finalidad || `Consolidar los aprendizajes en ${min.tema || 'el área formativa'}.`,
-        necesidad: min.necesidad || min.diagnostico_meta || 'Atención prioritaria detectada en el aula.',
-        proceso_evaluacion: min.proceso_evaluacion || 'Seguimiento sistemático en sesiones de Consejo Técnico Escolar.',
-        subcategorias_vinculadas: min.subcategorias_vinculadas || [min.tema || 'Formación Académica'],
-        estrategias_seguimiento: min.estrategias_seguimiento || 'Cortes bimestrales en CTE e indicadores de logro.',
-        observaciones: min.observaciones || 'Compromiso pedagógico colegiado formalizado.',
-      };
-      nextMetasInst = deduplicateMetasInstitucionales([...nextMetasInst, newInst], indicadores) as MetaInstitucionalItem[];
+    for (const item of previewItems) {
+      const cleanNombre = (item.meta_individual?.nombre || aiDocenteNombre).trim();
+      const cleanCargo = (item.meta_individual?.cargo || aiDocenteCargo).trim() || 'Docente';
+      if (!insertedTeacherNames.includes(cleanNombre)) {
+        insertedTeacherNames.push(cleanNombre);
+      }
+
+      // 1. Inyectar en Metas Personales (Sección 7) si aplica
+      if (aiTipoMeta !== 'institucional' && item.meta_individual) {
+        const mi = item.meta_individual;
+        const newPersonal: MetaPersonalItem = {
+          nombre: cleanNombre,
+          cargo: cleanCargo,
+          categoria: mi.categoria || undefined,
+          tema: mi.tema || undefined,
+          meta_individual: mi.meta_individual,
+          estrategia: mi.estrategia,
+          entregable: mi.entregable,
+          periodo: mi.periodo || `Ciclo Escolar ${cicloEscolar || '2025-2026'}`,
+        };
+        nextMetasPersonales.push(newPersonal);
+      }
+
+      // 2. Inyectar en Metas Institucionales (Plan de Acción Secciones 6 y 8, Formato 5.1 / Adicional, Fichas Técnicas) si aplica
+      if (aiTipoMeta !== 'individual' && item.meta_institucional) {
+        const min = item.meta_institucional;
+        const newInst: MetaInstitucionalItem = {
+          categoria: min.categoria || 'aprovechamiento',
+          nombre_categoria: min.nombre_categoria || '1. Aprovechamiento académico y asistencia educativa',
+          tema: min.tema || 'Mejora de los Aprendizajes',
+          meta: min.meta,
+          estrategia: min.estrategia,
+          linea_base: min.linea_base || 'Diagnóstico integral escolar del ciclo lectivo.',
+          personal_designado: min.personal_designado || `${cleanNombre} y Academia Docente`,
+          entregable: min.entregable,
+          periodo_inicio: min.periodo_inicio || 'Septiembre',
+          periodo_fin: min.periodo_fin || 'Julio',
+          diagnostico_meta: min.diagnostico_meta || 'Necesidad pedagógica detectada por el colectivo escolar.',
+          accion_especifica: min.accion_especifica || min.estrategia,
+          finalidad: min.finalidad || `Consolidar los aprendizajes en ${min.tema || 'el área formativa'}.`,
+          necesidad: min.necesidad || min.diagnostico_meta || 'Atención prioritaria detectada en el aula.',
+          proceso_evaluacion: min.proceso_evaluacion || 'Seguimiento sistemático en sesiones de Consejo Técnico Escolar.',
+          subcategorias_vinculadas: min.subcategorias_vinculadas || [min.tema || 'Formación Académica'],
+          estrategias_seguimiento: min.estrategias_seguimiento || 'Cortes bimestrales en CTE e indicadores de logro.',
+          observaciones: min.observaciones || 'Compromiso pedagógico colegiado formalizado.',
+        };
+        nextMetasInst = deduplicateMetasInstitucionales([...nextMetasInst, newInst], indicadores) as MetaInstitucionalItem[];
+      }
     }
 
     const nextPlan: PlanAccionData = {
@@ -317,30 +377,33 @@ export function PmcMetasComplementarias({
     };
 
     // 3. Sincronizar Staff si el docente no existía en staff_data para que aparezca en el Colectivo Participante (Sección 8)
-    let nextStaff: StaffMemberData[] | undefined;
-    const existingStaffIdx = staffData.findIndex(
-      (s) => s.nombre?.trim().toLowerCase() === cleanNombre.toLowerCase()
+    let nextStaff: StaffMemberData[] = [...staffData];
+    const targetName = (insertedTeacherNames[0] || aiDocenteNombre).trim();
+    const targetCargo = (previewItems[0]?.meta_individual?.cargo || aiDocenteCargo).trim() || 'Docente';
+    const allPersonalGoals = previewItems
+      .map((it) => it.meta_individual?.meta_individual)
+      .filter(Boolean)
+      .join(' | ');
+
+    const existingStaffIdx = nextStaff.findIndex(
+      (s) => s.nombre?.trim().toLowerCase() === targetName.toLowerCase()
     );
 
     if (existingStaffIdx === -1) {
-      nextStaff = [
-        ...staffData,
-        {
-          nombre: cleanNombre,
-          cargo: cleanCargo,
-          horas_base: aiHorasBase ? (isNaN(Number(aiHorasBase)) ? aiHorasBase : Number(aiHorasBase)) : undefined,
-          meta_individual: normalizedPreview.meta_individual?.meta_individual || undefined,
-        },
-      ];
+      nextStaff.push({
+        nombre: targetName,
+        cargo: targetCargo,
+        horas_base: aiHorasBase ? (isNaN(Number(aiHorasBase)) ? aiHorasBase : Number(aiHorasBase)) : undefined,
+        meta_individual: allPersonalGoals || undefined,
+      });
       if (setStaffData) setStaffData(nextStaff);
-    } else if (normalizedPreview.meta_individual?.meta_individual) {
-      // Actualizar meta individual en el staff existente si no la tenía
-      const updatedMember = {
-        ...staffData[existingStaffIdx],
-        meta_individual: normalizedPreview.meta_individual.meta_individual,
+    } else if (allPersonalGoals) {
+      const currentMeta = nextStaff[existingStaffIdx].meta_individual;
+      const combined = currentMeta ? `${currentMeta} | ${allPersonalGoals}` : allPersonalGoals;
+      nextStaff[existingStaffIdx] = {
+        ...nextStaff[existingStaffIdx],
+        meta_individual: combined,
       };
-      nextStaff = [...staffData];
-      nextStaff[existingStaffIdx] = updatedMember;
       if (setStaffData) setStaffData(nextStaff);
     }
 
@@ -353,9 +416,10 @@ export function PmcMetasComplementarias({
 
     await persistToDatabase(nextPlan, nextStaff);
 
+    const count = previewItems.length;
     setFeedback({
       type: 'success',
-      message: `✅ ¡Meta de ${cleanNombre} integrada quirúrgicamente! Se incluyó en el Plan de Acción, Tablas 5.1/Adicionales, Fichas Técnicas, Metas Individuales y Monitoreo Trimestral sin alterar a los demás docentes.`,
+      message: `✅ ¡${count > 1 ? `${count} metas integradas` : 'Meta integrada'} quirúrgicamente! Se incluyeron en el Plan de Acción, Tablas 5.1/Adicionales, Fichas Técnicas, Metas Individuales y Monitoreo Trimestral sin alterar a los demás docentes.`,
     });
   };
 
@@ -551,7 +615,7 @@ export function PmcMetasComplementarias({
               <span>🎯</span> Adición Quirúrgica de Metas (Sin Afectar a Otros Docentes)
             </h3>
             <p style={{ fontSize: '13px', color: '#94a3b8', margin: '6px 0 0', lineHeight: 1.5 }}>
-              Agrega una o varias metas adicionales que hayan faltado o solicitado los docentes (ej. Mtra. Tulia).
+              Agrega una o varias metas adicionales que hayan faltado o solicitado los docentes (ej. Docente 1).
               La plataforma <strong>las normaliza y las inserta quirúrgicamente</strong> en el Plan de Acción, Tablas 5.1/Adicionales, Fichas Técnicas, Metas Individuales y Monitoreo Trimestral{' '}
               <strong style={{ color: '#a7f3d0' }}>sin alterar nada de lo que ya aprobaron los demás docentes</strong>.
             </p>
@@ -679,8 +743,8 @@ export function PmcMetasComplementarias({
                   Normalización Inteligente de Metas en Bruto (MCCEMS / NEM / DGB)
                 </h4>
                 <p style={{ fontSize: '12.5px', color: '#94a3b8', margin: '4px 0 0' }}>
-                  Solo escribe o pega la meta tal como te la dijo el docente. La IA la convertirá en meta SMART oficial,
-                  formulará su estrategia, entregables y fichas técnicas, y la insertará en todas las secciones pertinentes.
+                  Solo escribe o pega una o varias metas tal como las propuso el personal docente. La IA las convertirá en metas SMART oficiales,
+                  formulará sus estrategias, entregables y fichas técnicas, y las insertará en todas las secciones pertinentes.
                 </p>
               </div>
             </div>
@@ -725,7 +789,7 @@ export function PmcMetasComplementarias({
                     type="text"
                     value={aiDocenteNombre}
                     onChange={(e) => setAiDocenteNombre(e.target.value)}
-                    placeholder="Ej. Mtra. Tulia Morales Pérez"
+                    placeholder="Ej. Docente 1"
                     style={inputStyle}
                     required
                   />
@@ -760,12 +824,12 @@ export function PmcMetasComplementarias({
               <div>
                 <label style={{ ...labelStyle, display: 'flex', justifyContent: 'space-between' }}>
                   <span>2. Meta en bruto proporcionada por el docente (texto sin normalizar) *</span>
-                  <span style={{ fontSize: '11px', color: '#6ee7b7' }}>Texto libre, ideas o dictado del profesor</span>
+                  <span style={{ fontSize: '11px', color: '#6ee7b7' }}>Permite 1 sola meta o varias numeradas</span>
                 </label>
                 <textarea
                   value={aiRawGoalText}
                   onChange={(e) => setAiRawGoalText(e.target.value)}
-                  placeholder="Ejemplo: La maestra Tulia quiere realizar círculos de lectura y talleres de comprensión lectora los días viernes con los alumnos de primer semestre para reducir el índice de reprobación en Lengua y Comunicación y va a entregar un portafolio de evidencias cada corte bimestral."
+                  placeholder="Puedes escribir una meta individual o varias al mismo tiempo numeradas (1. ..., 2. ...). Ejemplo:&#10;1. Realizar los 2 cursos en tiempo y forma de acuerdo a la calendarización del COSFAC y acreditar dichos cursos en un 100% obteniendo la constancia.&#10;2. Participar en las actividades de 'Vive Saludable y Vive Feliz' promoviendo hábitos de vida saludable, bienestar físico y emocional en los estudiantes."
                   rows={4}
                   style={{ ...inputStyle, minHeight: '85px', lineHeight: 1.5, fontSize: '13.5px' }}
                   required
@@ -880,9 +944,14 @@ export function PmcMetasComplementarias({
                 <div>
                   <h4 style={{ fontSize: '17px', fontWeight: 800, color: '#6ee7b7', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span>✨</span> Proyección de Inserción Quirúrgica en el Documento Oficial
+                    {previewItems.length > 1 && (
+                      <span style={{ fontSize: '12px', background: 'rgba(16, 185, 129, 0.25)', color: '#a7f3d0', padding: '3px 9px', borderRadius: '12px', fontWeight: 700 }}>
+                        {previewItems.length} Metas Detectadas
+                      </span>
+                    )}
                   </h4>
                   <p style={{ fontSize: '13px', color: '#94a3b8', margin: '4px 0 0' }}>
-                    Revisa cómo se integrará esta meta en cada sección oficial del PMC. Puedes ajustar cualquier campo antes de confirmar.
+                    Revisa cómo se {previewItems.length > 1 ? 'integrarán estas metas' : 'integrará esta meta'} en cada sección oficial del PMC. Puedes ajustar cualquier campo antes de confirmar.
                   </p>
                 </div>
 
@@ -921,273 +990,217 @@ export function PmcMetasComplementarias({
                       boxShadow: '0 4px 12px rgba(16, 185, 129, 0.35)',
                     }}
                   >
-                    <span>✅</span> Confirmar e Insertar Quirúrgicamente en el PMC
+                    <span>✅</span> Confirmar e Insertar Quirúrgicamente {previewItems.length > 1 ? `las ${previewItems.length} Metas` : 'la Meta'} en el PMC
                   </button>
                 </div>
               </div>
 
-              {/* Tarjeta Sección 7: Meta Individual */}
-              {normalizedPreview.meta_individual && (
+              {previewItems.map((item, itemIdx) => (
                 <div
+                  key={`preview-item-${itemIdx}`}
                   style={{
-                    background: 'rgba(15, 23, 42, 0.6)',
-                    border: '1px solid rgba(99, 102, 241, 0.3)',
-                    borderRadius: '10px',
-                    padding: '16px',
-                    marginBottom: '16px',
+                    marginBottom: itemIdx < previewItems.length - 1 ? '24px' : '0',
+                    paddingBottom: itemIdx < previewItems.length - 1 ? '20px' : '0',
+                    borderBottom: itemIdx < previewItems.length - 1 ? '1px dashed rgba(255, 255, 255, 0.15)' : 'none',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                    <span style={{ fontSize: '12px', background: 'rgba(99, 102, 241, 0.3)', color: '#c7d2fe', padding: '3px 8px', borderRadius: '4px', fontWeight: 700 }}>
-                      SECCIÓN 7 DEL DOCUMENTO
-                    </span>
-                    <strong style={{ fontSize: '14px', color: '#e0e7ff' }}>
-                      Metas Individuales del Personal: {normalizedPreview.meta_individual.nombre} ({normalizedPreview.meta_individual.cargo})
-                    </strong>
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <div>
-                      <label style={labelStyle}>Meta y Compromiso Individual SMART:</label>
-                      <textarea
-                        value={normalizedPreview.meta_individual.meta_individual}
-                        onChange={(e) =>
-                          setNormalizedPreview({
-                            ...normalizedPreview,
-                            meta_individual: {
-                              ...normalizedPreview.meta_individual!,
-                              meta_individual: e.target.value,
-                            },
-                          })
-                        }
-                        rows={2}
-                        style={{ ...inputStyle, minHeight: '56px' }}
-                      />
+                  {previewItems.length > 1 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                      <span style={{ fontSize: '12.5px', background: 'rgba(16, 185, 129, 0.3)', color: '#a7f3d0', padding: '4px 10px', borderRadius: '6px', fontWeight: 800 }}>
+                        🎯 META #{itemIdx + 1}
+                      </span>
+                      <strong style={{ fontSize: '14px', color: '#f8fafc' }}>
+                        {item.meta_institucional?.tema || (item.meta_individual?.meta_individual ? item.meta_individual.meta_individual.slice(0, 60) + '...' : `Meta ${itemIdx + 1}`)}
+                      </strong>
                     </div>
+                  )}
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '10px' }}>
-                      <div>
-                        <label style={labelStyle}>Estrategia Individual en Aula:</label>
-                        <input
-                          type="text"
-                          value={normalizedPreview.meta_individual.estrategia}
-                          onChange={(e) =>
-                            setNormalizedPreview({
-                              ...normalizedPreview,
-                              meta_individual: {
-                                ...normalizedPreview.meta_individual!,
-                                estrategia: e.target.value,
-                              },
-                            })
-                          }
-                          style={inputStyle}
-                        />
+                  {/* Tarjeta Sección 7: Meta Individual */}
+                  {item.meta_individual && (
+                    <div
+                      style={{
+                        background: 'rgba(15, 23, 42, 0.6)',
+                        border: '1px solid rgba(99, 102, 241, 0.3)',
+                        borderRadius: '10px',
+                        padding: '16px',
+                        marginBottom: '16px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                        <span style={{ fontSize: '12px', background: 'rgba(99, 102, 241, 0.3)', color: '#c7d2fe', padding: '3px 8px', borderRadius: '4px', fontWeight: 700 }}>
+                          SECCIÓN 7 DEL DOCUMENTO
+                        </span>
+                        <strong style={{ fontSize: '14px', color: '#e0e7ff' }}>
+                          Metas Individuales del Personal: {item.meta_individual.nombre} ({item.meta_individual.cargo})
+                        </strong>
                       </div>
 
-                      <div>
-                        <label style={labelStyle}>Entregable Comprobable:</label>
-                        <input
-                          type="text"
-                          value={normalizedPreview.meta_individual.entregable}
-                          onChange={(e) =>
-                            setNormalizedPreview({
-                              ...normalizedPreview,
-                              meta_individual: {
-                                ...normalizedPreview.meta_individual!,
-                                entregable: e.target.value,
-                              },
-                            })
-                          }
-                          style={inputStyle}
-                        />
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <div>
+                          <label style={labelStyle}>Meta y Compromiso Individual SMART:</label>
+                          <textarea
+                            value={item.meta_individual.meta_individual}
+                            onChange={(e) => handleUpdatePreviewIndividual(itemIdx, 'meta_individual', e.target.value)}
+                            rows={2}
+                            style={{ ...inputStyle, minHeight: '56px' }}
+                          />
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '10px' }}>
+                          <div>
+                            <label style={labelStyle}>Estrategia Individual en Aula:</label>
+                            <input
+                              type="text"
+                              value={item.meta_individual.estrategia}
+                              onChange={(e) => handleUpdatePreviewIndividual(itemIdx, 'estrategia', e.target.value)}
+                              style={inputStyle}
+                            />
+                          </div>
+
+                          <div>
+                            <label style={labelStyle}>Entregable Comprobable:</label>
+                            <input
+                              type="text"
+                              value={item.meta_individual.entregable}
+                              onChange={(e) => handleUpdatePreviewIndividual(itemIdx, 'entregable', e.target.value)}
+                              style={inputStyle}
+                            />
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
+
+                  {/* Tarjeta Secciones 6 y 8: Plan de Acción, 5.1 / Adicional, Fichas Técnicas y Monitoreo */}
+                  {item.meta_institucional && (
+                    <div
+                      style={{
+                        background: 'rgba(15, 23, 42, 0.6)',
+                        border: '1px solid rgba(16, 185, 129, 0.3)',
+                        borderRadius: '10px',
+                        padding: '16px',
+                        marginBottom: '16px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '12px', background: 'rgba(16, 185, 129, 0.3)', color: '#a7f3d0', padding: '3px 8px', borderRadius: '4px', fontWeight: 700 }}>
+                          SECCIONES 6 Y 8 DEL DOCUMENTO
+                        </span>
+                        <strong style={{ fontSize: '14px', color: '#e0e7ff' }}>
+                          Plan de Acción, Tablas Oficiales Formato 5.1 / Adicionales, Fichas Técnicas y Monitoreo Trimestral
+                        </strong>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '10px', marginBottom: '10px' }}>
+                        <div>
+                          <label style={labelStyle}>Ámbito / Clasificación Formato 5.1:</label>
+                          <input
+                            type="text"
+                            value={item.meta_institucional.nombre_categoria}
+                            onChange={(e) => handleUpdatePreviewInstitucional(itemIdx, 'nombre_categoria', e.target.value)}
+                            style={inputStyle}
+                          />
+                        </div>
+
+                        <div>
+                          <label style={labelStyle}>Tema Específico / Subcategoría:</label>
+                          <input
+                            type="text"
+                            value={item.meta_institucional.tema}
+                            onChange={(e) => handleUpdatePreviewInstitucional(itemIdx, 'tema', e.target.value)}
+                            style={inputStyle}
+                          />
+                        </div>
+
+                        <div>
+                          <label style={labelStyle}>Responsable / Personal Designado:</label>
+                          <input
+                            type="text"
+                            value={item.meta_institucional.personal_designado}
+                            onChange={(e) => handleUpdatePreviewInstitucional(itemIdx, 'personal_designado', e.target.value)}
+                            style={inputStyle}
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '10px' }}>
+                        <div>
+                          <label style={labelStyle}>Meta Institucional Oficial:</label>
+                          <textarea
+                            value={item.meta_institucional.meta}
+                            onChange={(e) => handleUpdatePreviewInstitucional(itemIdx, 'meta', e.target.value)}
+                            rows={2}
+                            style={{ ...inputStyle, minHeight: '52px' }}
+                          />
+                        </div>
+
+                        <div>
+                          <label style={labelStyle}>Estrategia de Implementación (Formato 4.1):</label>
+                          <textarea
+                            value={item.meta_institucional.estrategia}
+                            onChange={(e) => handleUpdatePreviewInstitucional(itemIdx, 'estrategia', e.target.value)}
+                            rows={2}
+                            style={{ ...inputStyle, minHeight: '52px' }}
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '10px', marginBottom: '10px' }}>
+                        <div>
+                          <label style={labelStyle}>Producto que Comprobará la Meta (Formato 5.1):</label>
+                          <input
+                            type="text"
+                            value={item.meta_institucional.entregable}
+                            onChange={(e) => handleUpdatePreviewInstitucional(itemIdx, 'entregable', e.target.value)}
+                            style={inputStyle}
+                          />
+                        </div>
+
+                        <div>
+                          <label style={labelStyle}>Situación Actual que Justifica la Meta:</label>
+                          <input
+                            type="text"
+                            value={item.meta_institucional.diagnostico_meta || item.meta_institucional.necesidad || ''}
+                            onChange={(e) => {
+                              handleUpdatePreviewInstitucional(itemIdx, 'diagnostico_meta', e.target.value);
+                              handleUpdatePreviewInstitucional(itemIdx, 'necesidad', e.target.value);
+                            }}
+                            style={inputStyle}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Detalle Ficha Técnica y Monitoreo */}
+                      <div
+                        style={{
+                          background: 'rgba(0, 0, 0, 0.25)',
+                          padding: '12px',
+                          borderRadius: '8px',
+                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                          fontSize: '12px',
+                          color: '#94a3b8',
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                          gap: '8px',
+                        }}
+                      >
+                        <div>
+                          <strong style={{ color: '#cbd5e1' }}>Acción Específica (Formato 3.1):</strong>{' '}
+                          {item.meta_institucional.accion_especifica || item.meta_institucional.estrategia}
+                        </div>
+                        <div>
+                          <strong style={{ color: '#cbd5e1' }}>Finalidad (Formato 3.1):</strong>{' '}
+                          {item.meta_institucional.finalidad || 'Consolidar los aprendizajes'}
+                        </div>
+                        <div>
+                          <strong style={{ color: '#cbd5e1' }}>Mecanismo de Monitoreo (Secc. 8):</strong>{' '}
+                          Cortes de {item.meta_institucional.periodo_inicio || 'Septiembre'} a {item.meta_institucional.periodo_fin || 'Julio'}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-
-              {/* Tarjeta Secciones 6 y 8: Plan de Acción, 5.1 / Adicional, Fichas Técnicas y Monitoreo */}
-              {normalizedPreview.meta_institucional && (
-                <div
-                  style={{
-                    background: 'rgba(15, 23, 42, 0.6)',
-                    border: '1px solid rgba(16, 185, 129, 0.3)',
-                    borderRadius: '10px',
-                    padding: '16px',
-                    marginBottom: '16px',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '12px', background: 'rgba(16, 185, 129, 0.3)', color: '#a7f3d0', padding: '3px 8px', borderRadius: '4px', fontWeight: 700 }}>
-                      SECCIONES 6 Y 8 DEL DOCUMENTO
-                    </span>
-                    <strong style={{ fontSize: '14px', color: '#e0e7ff' }}>
-                      Plan de Acción, Tablas Oficiales Formato 5.1 / Adicionales, Fichas Técnicas y Monitoreo Trimestral
-                    </strong>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '10px', marginBottom: '10px' }}>
-                    <div>
-                      <label style={labelStyle}>Ámbito / Clasificación Formato 5.1:</label>
-                      <input
-                        type="text"
-                        value={normalizedPreview.meta_institucional.nombre_categoria}
-                        onChange={(e) =>
-                          setNormalizedPreview({
-                            ...normalizedPreview,
-                            meta_institucional: {
-                              ...normalizedPreview.meta_institucional!,
-                              nombre_categoria: e.target.value,
-                            },
-                          })
-                        }
-                        style={inputStyle}
-                      />
-                    </div>
-
-                    <div>
-                      <label style={labelStyle}>Tema Específico / Subcategoría:</label>
-                      <input
-                        type="text"
-                        value={normalizedPreview.meta_institucional.tema}
-                        onChange={(e) =>
-                          setNormalizedPreview({
-                            ...normalizedPreview,
-                            meta_institucional: {
-                              ...normalizedPreview.meta_institucional!,
-                              tema: e.target.value,
-                            },
-                          })
-                        }
-                        style={inputStyle}
-                      />
-                    </div>
-
-                    <div>
-                      <label style={labelStyle}>Responsable / Personal Designado:</label>
-                      <input
-                        type="text"
-                        value={normalizedPreview.meta_institucional.personal_designado}
-                        onChange={(e) =>
-                          setNormalizedPreview({
-                            ...normalizedPreview,
-                            meta_institucional: {
-                              ...normalizedPreview.meta_institucional!,
-                              personal_designado: e.target.value,
-                            },
-                          })
-                        }
-                        style={inputStyle}
-                      />
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '10px' }}>
-                    <div>
-                      <label style={labelStyle}>Meta Institucional Oficial:</label>
-                      <textarea
-                        value={normalizedPreview.meta_institucional.meta}
-                        onChange={(e) =>
-                          setNormalizedPreview({
-                            ...normalizedPreview,
-                            meta_institucional: {
-                              ...normalizedPreview.meta_institucional!,
-                              meta: e.target.value,
-                            },
-                          })
-                        }
-                        rows={2}
-                        style={{ ...inputStyle, minHeight: '52px' }}
-                      />
-                    </div>
-
-                    <div>
-                      <label style={labelStyle}>Estrategia de Implementación (Formato 4.1):</label>
-                      <textarea
-                        value={normalizedPreview.meta_institucional.estrategia}
-                        onChange={(e) =>
-                          setNormalizedPreview({
-                            ...normalizedPreview,
-                            meta_institucional: {
-                              ...normalizedPreview.meta_institucional!,
-                              estrategia: e.target.value,
-                            },
-                          })
-                        }
-                        rows={2}
-                        style={{ ...inputStyle, minHeight: '52px' }}
-                      />
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '10px', marginBottom: '10px' }}>
-                    <div>
-                      <label style={labelStyle}>Producto que Comprobará la Meta (Formato 5.1):</label>
-                      <input
-                        type="text"
-                        value={normalizedPreview.meta_institucional.entregable}
-                        onChange={(e) =>
-                          setNormalizedPreview({
-                            ...normalizedPreview,
-                            meta_institucional: {
-                              ...normalizedPreview.meta_institucional!,
-                              entregable: e.target.value,
-                            },
-                          })
-                        }
-                        style={inputStyle}
-                      />
-                    </div>
-
-                    <div>
-                      <label style={labelStyle}>Situación Actual que Justifica la Meta:</label>
-                      <input
-                        type="text"
-                        value={normalizedPreview.meta_institucional.diagnostico_meta || normalizedPreview.meta_institucional.necesidad || ''}
-                        onChange={(e) =>
-                          setNormalizedPreview({
-                            ...normalizedPreview,
-                            meta_institucional: {
-                              ...normalizedPreview.meta_institucional!,
-                              diagnostico_meta: e.target.value,
-                              necesidad: e.target.value,
-                            },
-                          })
-                        }
-                        style={inputStyle}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Detalle Ficha Técnica y Monitoreo */}
-                  <div
-                    style={{
-                      background: 'rgba(0, 0, 0, 0.25)',
-                      padding: '12px',
-                      borderRadius: '8px',
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
-                      fontSize: '12px',
-                      color: '#94a3b8',
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                      gap: '8px',
-                    }}
-                  >
-                    <div>
-                      <strong style={{ color: '#cbd5e1' }}>Acción Específica (Formato 3.1):</strong>{' '}
-                      {normalizedPreview.meta_institucional.accion_especifica || normalizedPreview.meta_institucional.estrategia}
-                    </div>
-                    <div>
-                      <strong style={{ color: '#cbd5e1' }}>Finalidad (Formato 3.1):</strong>{' '}
-                      {normalizedPreview.meta_institucional.finalidad || 'Consolidar los aprendizajes'}
-                    </div>
-                    <div>
-                      <strong style={{ color: '#cbd5e1' }}>Mecanismo de Monitoreo (Secc. 8):</strong>{' '}
-                      Cortes de {normalizedPreview.meta_institucional.periodo_inicio || 'Septiembre'} a {normalizedPreview.meta_institucional.periodo_fin || 'Julio'}
-                    </div>
-                  </div>
-                </div>
-              )}
+              ))}
 
               {/* Botón inferior de confirmación */}
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
@@ -1210,7 +1223,7 @@ export function PmcMetasComplementarias({
                     boxShadow: '0 4px 16px rgba(16, 185, 129, 0.4)',
                   }}
                 >
-                  <span>✅</span> Confirmar e Insertar Quirúrgicamente en el PMC
+                  <span>✅</span> Confirmar e Insertar Quirúrgicamente {previewItems.length > 1 ? `las ${previewItems.length} Metas` : 'la Meta'} en el PMC
                 </button>
               </div>
             </div>

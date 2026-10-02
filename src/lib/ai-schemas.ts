@@ -625,7 +625,7 @@ export const PmcPlanAccionSchema = z.object({
   metas_personales: z.array(PmcMetaPersonalSchema).default([]),
 });
 
-export const PmcNormalizedGoalResponseSchema = z.object({
+export const PmcNormalizedGoalItemSchema = z.object({
   meta_individual: z.object({
     nombre: z.string().default(''),
     cargo: z.string().default('Docente'),
@@ -658,6 +658,33 @@ export const PmcNormalizedGoalResponseSchema = z.object({
   }).optional(),
 });
 
+export const PmcNormalizedGoalResponseSchema = z.preprocess((val: unknown) => {
+  if (val && typeof val === 'object') {
+    const v = val as Record<string, unknown>;
+    // Si viene con un array 'metas' ya poblado
+    if (Array.isArray(v.metas) && v.metas.length > 0) {
+      return {
+        ...v,
+        meta_individual: v.metas[0]?.meta_individual || v.meta_individual,
+        meta_institucional: v.metas[0]?.meta_institucional || v.meta_institucional,
+      };
+    }
+    // Si viene en formato plano (meta_individual / meta_institucional a nivel raíz)
+    if (v.meta_individual || v.meta_institucional) {
+      return {
+        ...v,
+        metas: [{ meta_individual: v.meta_individual, meta_institucional: v.meta_institucional }],
+      };
+    }
+  }
+  return val;
+}, z.object({
+  metas: z.array(PmcNormalizedGoalItemSchema).default([]),
+  meta_individual: PmcNormalizedGoalItemSchema.shape.meta_individual,
+  meta_institucional: PmcNormalizedGoalItemSchema.shape.meta_institucional,
+}));
+
+export type PmcNormalizedGoalItem = z.infer<typeof PmcNormalizedGoalItemSchema>;
 export type PmcNormalizedGoalResponse = z.infer<typeof PmcNormalizedGoalResponseSchema>;
 
 // ============================================================================
