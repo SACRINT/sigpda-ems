@@ -386,13 +386,13 @@ export function extractDeterministicSupervisorAndZone(
     result.schoolZone = zoneMatch[1].trim();
   }
 
-  // 2. Supervisor(a) Escolar: buscar en proximidad a "SUPERVISOR(A) ESCOLAR" o "SUPERVISIÓN ESCOLAR"
+  // 2. Supervisor(a) Escolar: buscar en proximidad a "SUPERVISOR(A) ESCOLAR"
   const stripAccents = (str: string) =>
     str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z]/g, '');
 
   const lines = documentText.split(/\r?\n/).map((l) => l.replace(/\\/g, '').trim()).filter(Boolean);
   for (let i = 0; i < lines.length; i++) {
-    if (/(?:SUPERVISOR(?:A)?|SUPERVISI[ÓO]N)\s+ESCOLAR/i.test(lines[i])) {
+    if (/SUPERVISOR(?:A)?\s+ESCOLAR/i.test(lines[i])) {
       const candidates: string[] = [];
       for (let j = Math.max(0, i - 4); j <= Math.min(lines.length - 1, i + 4); j++) {
         if (j === i) continue;

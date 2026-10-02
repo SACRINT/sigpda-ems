@@ -172,12 +172,24 @@ export function convertDocxHtmlToMarkdown(rawHtml: string): {
   });
 
   // Convertir encabezados y textos fuera de tablas
-  $('h1').each((_, el) => $(el).replaceWith(`\n\n# ${$(el).text().trim()}\n\n`));
-  $('h2').each((_, el) => $(el).replaceWith(`\n\n## ${$(el).text().trim()}\n\n`));
-  $('h3').each((_, el) => $(el).replaceWith(`\n\n### ${$(el).text().trim()}\n\n`));
-  $('h4').each((_, el) => $(el).replaceWith(`\n\n#### ${$(el).text().trim()}\n\n`));
-  $('li').each((_, el) => $(el).replaceWith(`\n- ${$(el).text().trim()}`));
-  $('p').each((_, el) => $(el).replaceWith(`\n\n${$(el).text().trim()}\n\n`));
+  $('h1').each((_, el) => {
+    $(el).replaceWith(`\n\n# ${$(el).text().trim()}\n\n`);
+  });
+  $('h2').each((_, el) => {
+    $(el).replaceWith(`\n\n## ${$(el).text().trim()}\n\n`);
+  });
+  $('h3').each((_, el) => {
+    $(el).replaceWith(`\n\n### ${$(el).text().trim()}\n\n`);
+  });
+  $('h4').each((_, el) => {
+    $(el).replaceWith(`\n\n#### ${$(el).text().trim()}\n\n`);
+  });
+  $('li').each((_, el) => {
+    $(el).replaceWith(`\n- ${$(el).text().trim()}`);
+  });
+  $('p').each((_, el) => {
+    $(el).replaceWith(`\n\n${$(el).text().trim()}\n\n`);
+  });
 
   let fullMarkdown = $('body').text() || $('html').text() || $.text();
   fullMarkdown = fullMarkdown.replace(/\n{3,}/g, '\n\n').trim();
