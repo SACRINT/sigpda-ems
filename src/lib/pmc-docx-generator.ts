@@ -31,6 +31,9 @@ import {
   getTextoInfraestructura,
   getTextoBeneficiosComunitarios,
   normalizePmcPeriodo,
+  getPmcCategoryTheme,
+  PMC_CUADRO_2_CATEGORIAS,
+  consolidateMetasPersonalesByTeacher,
 } from './pmc-document-structure';
 import { cleanPmcPlaceholders } from './pmc/plan-element-normalizer';
 import { isValidStaffName, isCollectiveOrNonHumanEntity } from './pmc/staff-reconciler';
@@ -86,6 +89,23 @@ function tc(
     italics = false,
   } = opts;
 
+  const rawLines = (text || '').split('\n').filter((l) => l.trim().length > 0);
+  const children = rawLines.length > 0
+    ? rawLines.map((line) =>
+        new Paragraph({
+          alignment: align,
+          spacing: { before: 25, after: 25 },
+          children: [new TextRun({ text: line, bold, italics, size, color, font: 'Arial' })],
+        })
+      )
+    : [
+        new Paragraph({
+          alignment: align,
+          spacing: { before: 40, after: 40 },
+          children: [new TextRun({ text: '', bold, italics, size, color, font: 'Arial' })],
+        }),
+      ];
+
   return new TableCell({
     columnSpan: span,
     width: w ? { size: w, type: WidthType.DXA } : undefined,
@@ -93,13 +113,7 @@ function tc(
     borders: bdr(),
     margins: CELLMRG,
     verticalAlign: valign,
-    children: [
-      new Paragraph({
-        alignment: align,
-        spacing: { before: 40, after: 40 },
-        children: [new TextRun({ text, bold, italics, size, color, font: 'Arial' })],
-      }),
-    ],
+    children,
   });
 }
 
@@ -756,32 +770,53 @@ function buildPriorizacion(
   items.push(bodyPara(textoPrio));
   items.push(...gap());
 
-  if (Array.isArray(categorias) && categorias.length > 0) {
-    items.push(
-      tbl(
-        [
-          new TableRow({
+  const catList = Array.isArray(categorias) && categorias.length > 0
+    ? categorias
+    : [
+        { id: 'categoria_1', nombre: PMC_CUADRO_2_CATEGORIAS.categoria_1.nombreOficial, temas: ['Indicadores académicos (reprobación, eficiencia terminal y abandono escolar)', 'Formación y actualización docente'] },
+        { id: 'categoria_2', nombre: PMC_CUADRO_2_CATEGORIAS.categoria_2.nombreOficial, temas: ['Seguimiento al desempeño docente en el aula', 'Vinculación con instituciones educativas, empresas o fundaciones'] },
+        { id: 'categoria_3', nombre: PMC_CUADRO_2_CATEGORIAS.categoria_3.nombreOficial, temas: ['Estrategias y proyectos para la erradicación de la violencia y cultura de paz', 'Promoción de hábitos de vida saludable'] },
+      ];
+
+  items.push(
+    tbl(
+      [
+        new TableRow({
+          children: [
+            tcH('N°', { w: 800 }),
+            tcH('Categoría Priorizada (Política CREAA - Cuadro 2)', { w: Math.floor(CONTENT * 0.42) }),
+            tcH('Temas y Ámbitos de Intervención Seleccionados', { w: CONTENT - 800 - Math.floor(CONTENT * 0.42) }),
+          ],
+        }),
+        ...catList.map((cat, i) => {
+          const theme = getPmcCategoryTheme(cat.nombre || cat.id, (cat.temas || []).join(' '));
+          const temasText = Array.isArray(cat.temas) && cat.temas.length > 0
+            ? cat.temas.map((t) => `• ${t}`).join('\n')
+            : 'Todos los ámbitos prioritarios aplicables';
+          return new TableRow({
             children: [
-              tcH('N°', { w: 800 }),
-              tcH('Categoría Priorizada (Política CREAA)', { w: Math.floor(CONTENT * 0.45) }),
-              tcH('Temas y Ámbitos de Intervención', { w: CONTENT - 800 - Math.floor(CONTENT * 0.45) }),
+              tc(String(i + 1), {
+                w: 800,
+                align: AlignmentType.CENTER,
+                bold: true,
+                fill: theme.colorBgEcoHex,
+                color: theme.colorTextAccentHex,
+              }),
+              tc(safeStr(cat.nombre || `${theme.categoriaTitulo}: ${theme.nombreOficial}`), {
+                bold: true,
+                fill: theme.colorBgEcoHex,
+                color: theme.colorTextAccentHex,
+              }),
+              tc(temasText, {
+                fill: C.white,
+              }),
             ],
-          }),
-          ...categorias.map(
-            (cat, i) =>
-              new TableRow({
-                children: [
-                  tc(String(i + 1), { w: 800, align: AlignmentType.CENTER, fill: i % 2 ? C.alt : C.white }),
-                  tc(safeStr(cat.nombre || `Categoría ${cat.id ?? i + 1}`), { fill: i % 2 ? C.alt : C.white }),
-                  tc(Array.isArray(cat.temas) && cat.temas.length > 0 ? cat.temas.join('; ') : 'Todos los ámbitos prioritarios aplicables', { fill: i % 2 ? C.alt : C.white }),
-                ],
-              })
-          ),
-        ],
-        [800, Math.floor(CONTENT * 0.45), CONTENT - 800 - Math.floor(CONTENT * 0.45)]
-      )
-    );
-  }
+          });
+        }),
+      ],
+      [800, Math.floor(CONTENT * 0.42), CONTENT - 800 - Math.floor(CONTENT * 0.42)]
+    )
+  );
 
   if (shouldSectionPageBreak(PMC_TITULOS_SECCIONES.PLAN_ACCION)) {
     items.push(new Paragraph({ children: [new PageBreak()] }));
@@ -996,15 +1031,17 @@ function buildPlanAccion(plan: PlanAccion, project?: PmcProject): (Paragraph | T
         if (foundIdx !== -1) coveredMetaIndices.add(foundIdx);
       }
 
+      const areaTheme = getPmcCategoryTheme(area.id, area.titulo);
+
       items.push(
         new Paragraph({
           spacing: { before: 180, after: 80 },
           children: [
             new TextRun({
-              text: `${area.titulo}`,
+              text: `${area.titulo} (${areaTheme.categoriaTitulo})`,
               bold: true,
               size: 21,
-              color: C.navy,
+              color: areaTheme.colorHeaderHex,
               font: 'Arial',
             }),
           ],
@@ -1016,27 +1053,27 @@ function buildPlanAccion(plan: PlanAccion, project?: PmcProject): (Paragraph | T
           [
             new TableRow({
               children: [
-                tcH('Apartado Formato 5.1', { w: CONTENT / 3 }),
-                tcH('Contenido Oficial Institucional', { w: (CONTENT * 2) / 3 }),
+                tcH('Apartado Formato 5.1', { w: CONTENT / 3, fill: areaTheme.colorHeaderHex, color: C.white }),
+                tcH(`Contenido Oficial Institucional — ${areaTheme.nombreOficial}`, { w: (CONTENT * 2) / 3, fill: areaTheme.colorHeaderHex, color: C.white }),
               ],
             }),
             new TableRow({
-              children: [tcSub('Meta establecida'), tc(metaEstablecida, { fill: C.alt })],
+              children: [tcSub('Meta establecida', { fill: areaTheme.colorBgEcoHex, color: areaTheme.colorTextAccentHex }), tc(metaEstablecida, { fill: C.alt })],
             }),
             new TableRow({
-              children: [tcSub('Estrategia de implementación para cumplir la meta'), tc(estrategiaImp)],
+              children: [tcSub('Estrategia de implementación para cumplir la meta', { fill: areaTheme.colorBgEcoHex, color: areaTheme.colorTextAccentHex }), tc(estrategiaImp)],
             }),
             new TableRow({
-              children: [tcSub('Personal designado para la instrumentación y el seguimiento de la meta'), tc(personalDes, { fill: C.alt })],
+              children: [tcSub('Personal designado para la instrumentación y el seguimiento de la meta', { fill: areaTheme.colorBgEcoHex, color: areaTheme.colorTextAccentHex }), tc(personalDes, { fill: C.alt })],
             }),
             new TableRow({
-              children: [tcSub('Producto que comprobará el cumplimiento de la meta'), tc(productoComp)],
+              children: [tcSub('Producto que comprobará el cumplimiento de la meta', { fill: areaTheme.colorBgEcoHex, color: areaTheme.colorTextAccentHex }), tc(productoComp)],
             }),
             new TableRow({
-              children: [tcSub('Subcategorías que vincularán  para cumplir la meta establecida'), tc(subcatVinc, { fill: C.alt })],
+              children: [tcSub('Subcategorías que vincularán  para cumplir la meta establecida', { fill: areaTheme.colorBgEcoHex, color: areaTheme.colorTextAccentHex }), tc(subcatVinc, { fill: C.alt })],
             }),
             new TableRow({
-              children: [tcSub('Situación actual en el plantel que justifica el establecimiento de la meta'), tc(situacionActual)],
+              children: [tcSub('Situación actual en el plantel que justifica el establecimiento de la meta', { fill: areaTheme.colorBgEcoHex, color: areaTheme.colorTextAccentHex }), tc(situacionActual)],
             }),
           ],
           [CONTENT / 3, (CONTENT * 2) / 3]
@@ -1053,6 +1090,7 @@ function buildPlanAccion(plan: PlanAccion, project?: PmcProject): (Paragraph | T
 
       for (let mIdx = 0; mIdx < additionalMetas.length; mIdx++) {
         const extraMeta = enrichMetaWithCatalogBase(additionalMetas[mIdx] as PmcMetaInstitucional, project) as MetaInstitucional;
+        const extraTheme = getPmcCategoryTheme(extraMeta.nombre_categoria || extraMeta.categoria, extraMeta.tema);
         const tituloExtra = extraMeta.nombre_categoria
           ? `${extraMeta.nombre_categoria}${extraMeta.tema ? ` — ${extraMeta.tema}` : ''}`
           : (extraMeta.tema || `Categoría Adicional ${mIdx + 1}`);
@@ -1071,10 +1109,10 @@ function buildPlanAccion(plan: PlanAccion, project?: PmcProject): (Paragraph | T
             spacing: { before: 180, after: 80 },
             children: [
               new TextRun({
-                text: tituloExtra,
+                text: `${tituloExtra} (${extraTheme.categoriaTitulo})`,
                 bold: true,
                 size: 21,
-                color: C.navy,
+                color: extraTheme.colorHeaderHex,
                 font: 'Arial',
               }),
             ],
@@ -1086,27 +1124,27 @@ function buildPlanAccion(plan: PlanAccion, project?: PmcProject): (Paragraph | T
             [
               new TableRow({
                 children: [
-                  tcH('Apartado Formato 5.1', { w: CONTENT / 3 }),
-                  tcH('Contenido Oficial Institucional', { w: (CONTENT * 2) / 3 }),
+                  tcH('Apartado Formato 5.1', { w: CONTENT / 3, fill: extraTheme.colorHeaderHex, color: C.white }),
+                  tcH(`Contenido Oficial Institucional — ${extraTheme.nombreOficial}`, { w: (CONTENT * 2) / 3, fill: extraTheme.colorHeaderHex, color: C.white }),
                 ],
               }),
               new TableRow({
-                children: [tcSub('Meta establecida'), tc(safeStr(extraMeta.meta, PENDIENTE_DEFINICION_51), { fill: C.alt })],
+                children: [tcSub('Meta establecida', { fill: extraTheme.colorBgEcoHex, color: extraTheme.colorTextAccentHex }), tc(safeStr(extraMeta.meta, PENDIENTE_DEFINICION_51), { fill: C.alt })],
               }),
               new TableRow({
-                children: [tcSub('Estrategia de implementación para cumplir la meta'), tc(safeStr(extraMeta.estrategia, PENDIENTE_DEFINICION_51))],
+                children: [tcSub('Estrategia de implementación para cumplir la meta', { fill: extraTheme.colorBgEcoHex, color: extraTheme.colorTextAccentHex }), tc(safeStr(extraMeta.estrategia, PENDIENTE_DEFINICION_51))],
               }),
               new TableRow({
-                children: [tcSub('Personal designado para la instrumentación y el seguimiento de la meta'), tc(safeStr(extraMeta.personal_designado, PENDIENTE_DEFINICION_51), { fill: C.alt })],
+                children: [tcSub('Personal designado para la instrumentación y el seguimiento de la meta', { fill: extraTheme.colorBgEcoHex, color: extraTheme.colorTextAccentHex }), tc(safeStr(extraMeta.personal_designado, PENDIENTE_DEFINICION_51), { fill: C.alt })],
               }),
               new TableRow({
-                children: [tcSub('Producto que comprobará el cumplimiento de la meta'), tc(safeStr(extraMeta.entregable, PENDIENTE_DEFINICION_51))],
+                children: [tcSub('Producto que comprobará el cumplimiento de la meta', { fill: extraTheme.colorBgEcoHex, color: extraTheme.colorTextAccentHex }), tc(safeStr(extraMeta.entregable, PENDIENTE_DEFINICION_51))],
               }),
               new TableRow({
-                children: [tcSub('Subcategorías que vincularán  para cumplir la meta establecida'), tc(subcatExtra, { fill: C.alt })],
+                children: [tcSub('Subcategorías que vincularán  para cumplir la meta establecida', { fill: extraTheme.colorBgEcoHex, color: extraTheme.colorTextAccentHex }), tc(subcatExtra, { fill: C.alt })],
               }),
               new TableRow({
-                children: [tcSub('Situación actual en el plantel que justifica el establecimiento de la meta'), tc(situacionActualExtra)],
+                children: [tcSub('Situación actual en el plantel que justifica el establecimiento de la meta', { fill: extraTheme.colorBgEcoHex, color: extraTheme.colorTextAccentHex }), tc(situacionActualExtra)],
               }),
             ],
             [CONTENT / 3, (CONTENT * 2) / 3]
@@ -1124,37 +1162,51 @@ function buildPlanAccion(plan: PlanAccion, project?: PmcProject): (Paragraph | T
 
   for (let i = 0; i < metas.length; i++) {
     const m = metas[i];
-    items.push(subHeading(`Ficha Técnica ${i + 1}: ${m.nombre_categoria || m.categoria || 'Ámbito Institucional'}`));
+    const fichaTheme = getPmcCategoryTheme(m.nombre_categoria || m.categoria, m.tema);
+    items.push(
+      new Paragraph({
+        spacing: { before: 240, after: 100 },
+        children: [
+          new TextRun({
+            text: `Ficha Técnica ${i + 1}: ${m.nombre_categoria || m.categoria || 'Ámbito Institucional'} (${fichaTheme.categoriaTitulo})`,
+            bold: true,
+            size: 22,
+            color: fichaTheme.colorHeaderHex,
+            font: 'Arial',
+          }),
+        ],
+      })
+    );
     items.push(
       tbl(
         [
           new TableRow({
             children: [
-              tcH('Campo Descriptivo', { w: CONTENT / 3 }),
-              tcH('Especificación de la Meta Institucional', { w: (CONTENT * 2) / 3 }),
+              tcH('Campo Descriptivo', { w: CONTENT / 3, fill: fichaTheme.colorHeaderHex, color: C.white }),
+              tcH('Especificación de la Meta Institucional', { w: (CONTENT * 2) / 3, fill: fichaTheme.colorHeaderHex, color: C.white }),
             ],
           }),
           new TableRow({
-            children: [tcSub('Tema Específico'), tc(safeStr(m.tema))],
+            children: [tcSub('Tema Específico', { fill: fichaTheme.colorBgEcoHex, color: fichaTheme.colorTextAccentHex }), tc(safeStr(m.tema))],
           }),
           new TableRow({
-            children: [tcSub('Meta establecida'), tc(safeStr(cleanPmcPlaceholders(m.meta)), { fill: C.alt })],
+            children: [tcSub('Meta establecida', { fill: fichaTheme.colorBgEcoHex, color: fichaTheme.colorTextAccentHex }), tc(safeStr(cleanPmcPlaceholders(m.meta)), { fill: C.alt })],
           }),
           new TableRow({
-            children: [tcSub('Estrategia de implementación para cumplir la meta'), tc(safeStr(cleanPmcPlaceholders(m.estrategia)))],
+            children: [tcSub('Estrategia de implementación para cumplir la meta', { fill: fichaTheme.colorBgEcoHex, color: fichaTheme.colorTextAccentHex }), tc(safeStr(cleanPmcPlaceholders(m.estrategia)))],
           }),
           new TableRow({
-            children: [tcSub('Línea Base Documentada', { fill: C.alt }), tc(safeStr(m.linea_base), { fill: C.alt })],
+            children: [tcSub('Línea Base Documentada', { fill: fichaTheme.colorBgEcoHex, color: fichaTheme.colorTextAccentHex }), tc(safeStr(m.linea_base), { fill: C.alt })],
           }),
           new TableRow({
-            children: [tcSub('Personal designado para la instrumentación y el seguimiento de la meta'), tc(safeStr(m.personal_designado))],
+            children: [tcSub('Personal designado para la instrumentación y el seguimiento de la meta', { fill: fichaTheme.colorBgEcoHex, color: fichaTheme.colorTextAccentHex }), tc(safeStr(m.personal_designado))],
           }),
           new TableRow({
-            children: [tcSub('Producto que comprobará el cumplimiento de la meta'), tc(safeStr(m.entregable), { fill: C.alt })],
+            children: [tcSub('Producto que comprobará el cumplimiento de la meta', { fill: fichaTheme.colorBgEcoHex, color: fichaTheme.colorTextAccentHex }), tc(safeStr(m.entregable), { fill: C.alt })],
           }),
           new TableRow({
             children: [
-              tcSub('Subcategorías que vincularán  para cumplir la meta establecida'),
+              tcSub('Subcategorías que vincularán  para cumplir la meta establecida', { fill: fichaTheme.colorBgEcoHex, color: fichaTheme.colorTextAccentHex }),
               tc(
                 (Array.isArray(m.subcategorias_vinculadas) && m.subcategorias_vinculadas.length > 0)
                   ? m.subcategorias_vinculadas.join(', ')
@@ -1164,7 +1216,7 @@ function buildPlanAccion(plan: PlanAccion, project?: PmcProject): (Paragraph | T
           }),
           new TableRow({
             children: [
-              tcSub('Situación actual en el plantel que justifica el establecimiento de la meta'),
+              tcSub('Situación actual en el plantel que justifica el establecimiento de la meta', { fill: fichaTheme.colorBgEcoHex, color: fichaTheme.colorTextAccentHex }),
               tc(
                 safeStr(
                   [m.necesidad, m.diagnostico_meta].filter(Boolean).join(' — ') || m.linea_base,
@@ -1176,7 +1228,7 @@ function buildPlanAccion(plan: PlanAccion, project?: PmcProject): (Paragraph | T
           }),
           new TableRow({
             children: [
-              tcSub('Período de Ejecución'),
+              tcSub('Período de Ejecución', { fill: fichaTheme.colorBgEcoHex, color: fichaTheme.colorTextAccentHex }),
               tc(
                 (m.periodo_inicio || m.periodo_fin)
                   ? `${safeStr(m.periodo_inicio, 'N/D')} — ${safeStr(m.periodo_fin, 'N/D')}`
@@ -1186,27 +1238,27 @@ function buildPlanAccion(plan: PlanAccion, project?: PmcProject): (Paragraph | T
           }),
           ...(m.accion_especifica ? [
             new TableRow({
-              children: [tcSub('Acción Específica (Formato 3.1)'), tc(safeStr(cleanPmcPlaceholders(m.accion_especifica)))],
+              children: [tcSub('Acción Específica (Formato 3.1)', { fill: fichaTheme.colorBgEcoHex, color: fichaTheme.colorTextAccentHex }), tc(safeStr(cleanPmcPlaceholders(m.accion_especifica)))],
             }),
           ] : []),
           ...(m.finalidad ? [
             new TableRow({
-              children: [tcSub('Finalidad de la Meta (Formato 3.1)'), tc(safeStr(cleanPmcPlaceholders(m.finalidad)), { fill: C.alt })],
+              children: [tcSub('Finalidad de la Meta (Formato 3.1)', { fill: fichaTheme.colorBgEcoHex, color: fichaTheme.colorTextAccentHex }), tc(safeStr(cleanPmcPlaceholders(m.finalidad)), { fill: C.alt })],
             }),
           ] : []),
           ...(m.proceso_evaluacion ? [
             new TableRow({
-              children: [tcSub('Proceso de Evaluación (Formato 3.1)'), tc(safeStr(cleanPmcPlaceholders(m.proceso_evaluacion)))],
+              children: [tcSub('Proceso de Evaluación (Formato 3.1)', { fill: fichaTheme.colorBgEcoHex, color: fichaTheme.colorTextAccentHex }), tc(safeStr(cleanPmcPlaceholders(m.proceso_evaluacion)))],
             }),
           ] : []),
           ...(m.estrategias_seguimiento ? [
             new TableRow({
-              children: [tcSub('Estrategias de Seguimiento (Formato 4.1)'), tc(safeStr(cleanPmcPlaceholders(m.estrategias_seguimiento)), { fill: C.alt })],
+              children: [tcSub('Estrategias de Seguimiento (Formato 4.1)', { fill: fichaTheme.colorBgEcoHex, color: fichaTheme.colorTextAccentHex }), tc(safeStr(cleanPmcPlaceholders(m.estrategias_seguimiento)), { fill: C.alt })],
             }),
           ] : []),
           ...(m.observaciones ? [
             new TableRow({
-              children: [tcSub('Observaciones Generales (Formato 4.1)'), tc(safeStr(cleanPmcPlaceholders(m.observaciones)))],
+              children: [tcSub('Observaciones Generales (Formato 4.1)', { fill: fichaTheme.colorBgEcoHex, color: fichaTheme.colorTextAccentHex }), tc(safeStr(cleanPmcPlaceholders(m.observaciones)))],
             }),
           ] : []),
         ],
@@ -1226,7 +1278,7 @@ function buildPlanAccion(plan: PlanAccion, project?: PmcProject): (Paragraph | T
 function buildMetasPersonales(plan: PlanAccion): (Paragraph | Table)[] {
   const items: (Paragraph | Table)[] = [secHeading(PMC_TITULOS_SECCIONES.METAS_INDIVIDUALES)];
 
-  const personal = plan.metas_personales ?? [];
+  const personal = consolidateMetasPersonalesByTeacher(plan.metas_personales ?? []);
 
   if (personal.length === 0) {
     items.push(bodyPara('No se han registrado metas individuales de la plantilla docente en el sistema.'));
@@ -1255,9 +1307,9 @@ function buildMetasPersonales(plan: PlanAccion): (Paragraph | Table)[] {
           const periodoStr = normalizePmcPeriodo(mp.periodo);
           const cleanMetaInd = cleanPmcPlaceholders(mp.meta_individual);
           const metaStr = safeStr(
-            mp.categoria
-              ? `[${mp.categoria}${mp.tema ? ` — ${mp.tema}` : ''}] ${cleanMetaInd || ''}`
-              : cleanMetaInd,
+            (cleanMetaInd && (cleanMetaInd.startsWith('[') || cleanMetaInd.startsWith('•')))
+              ? cleanMetaInd
+              : (mp.categoria ? `[${mp.categoria}${mp.tema ? ` — ${mp.tema}` : ''}] ${cleanMetaInd || ''}` : cleanMetaInd),
             'Compromiso de mejora'
           );
           return new TableRow({

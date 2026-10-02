@@ -308,3 +308,231 @@ export function normalizePmcPeriodo(periodo?: string | null): string {
 
   return s;
 }
+
+// ─── IDENTIDAD CROMÁTICA CUADRO 2 Y PALETA ECO-FORMAL ───────────────────────
+
+export interface PmcCategoryTheme {
+  categoriaId: 'categoria_1' | 'categoria_2' | 'categoria_3' | 'neutro';
+  categoriaNum: number;
+  categoriaTitulo: string;
+  nombreOficial: string;
+  colorHeaderHex: string;
+  colorBgEcoHex: string;
+  colorBorderHex: string;
+  colorTextAccentHex: string;
+  rgbHeader: [number, number, number];
+  rgbBgEco: [number, number, number];
+  rgbBorder: [number, number, number];
+  temasOficiales: string[];
+}
+
+export const PMC_CUADRO_2_CATEGORIAS: Record<string, PmcCategoryTheme> = {
+  categoria_1: {
+    categoriaId: 'categoria_1',
+    categoriaNum: 1,
+    categoriaTitulo: 'CATEGORÍA 1',
+    nombreOficial: 'Desarrollo académico y aprendizaje',
+    colorHeaderHex: '1E5638', // Verde Bosque Institucional DGB
+    colorBgEcoHex: 'F0F7F2',  // Menta suave ahorro de tinta
+    colorBorderHex: '7BB896',
+    colorTextAccentHex: '16422B',
+    rgbHeader: [30, 86, 56],
+    rgbBgEco: [240, 247, 242],
+    rgbBorder: [123, 184, 150],
+    temasOficiales: [
+      'Formación y actualización docente',
+      'Propuestas pedagógicas',
+      'Trabajo colegiado',
+      'Proyecto Escolar Comunitario (PEC / PAEC)',
+      'Movimiento Nacional por la Alfabetización y la Educación (MONAE)',
+      'Clubes de lectura',
+      'Indicadores académicos (reprobación, eficiencia terminal y abandono escolar)',
+      'Orientación y Tutoría',
+      'Planeación didáctica',
+      'Otras actividades académicas (proyectos escolares, p. ej.)',
+    ],
+  },
+  categoria_2: {
+    categoriaId: 'categoria_2',
+    categoriaNum: 2,
+    categoriaTitulo: 'CATEGORÍA 2',
+    nombreOficial: 'Gestión y administración escolar',
+    colorHeaderHex: '996515', // Dorado Ocre Clásico DGB
+    colorBgEcoHex: 'FCF8EE',  // Marfil dorado suave ahorro de tinta
+    colorBorderHex: 'D4B26F',
+    colorTextAccentHex: '6E480C',
+    rgbHeader: [153, 101, 21],
+    rgbBgEco: [252, 248, 238],
+    rgbBorder: [212, 178, 111],
+    temasOficiales: [
+      'Vinculación con instituciones educativas',
+      'Vinculación con empresas, fundaciones e instituciones públicas',
+      'Gestión y administración de recursos, equipamiento y servicios',
+      'Seguimiento al desempeño docente en el aula',
+      'Seguimiento de egresados',
+    ],
+  },
+  categoria_3: {
+    categoriaId: 'categoria_3',
+    categoriaNum: 3,
+    categoriaTitulo: 'CATEGORÍA 3',
+    nombreOficial: 'Desarrollo socioemocional y prevención de la violencia en la escuela',
+    colorHeaderHex: '821A36', // Vino Tinto Institucional DGB
+    colorBgEcoHex: 'FDF1F3',  // Rosa pálido suave ahorro de tinta
+    colorBorderHex: 'C5768B',
+    colorTextAccentHex: '540F22',
+    rgbHeader: [130, 26, 54],
+    rgbBgEco: [253, 241, 243],
+    rgbBorder: [197, 118, 139],
+    temasOficiales: [
+      'Ámbitos de formación socioemocional (Currículum Ampliado)',
+      'Estrategias, programas y/o proyectos sobre violencia',
+      'Orientación educativa',
+      'Promoción de hábitos de vida saludable y bienestar emocional (Vive Saludable y Vive Feliz)',
+    ],
+  },
+};
+
+/**
+ * Resuelve deterministamente el tema cromático oficial según la categoría o tema.
+ */
+export function getPmcCategoryTheme(categoria?: string | null, tema?: string | null): PmcCategoryTheme {
+  const combined = `${categoria || ''} ${tema || ''}`.toLowerCase();
+
+  // Categoría 3: Socioemocional, violencia, paz, vida saludable, bienestar, convivencia
+  if (
+    /socioemocional|violencia|convivencia|paz|saludable|feliz|autocuidado|emocional|adiccion|bienestar|seguridad escolar/i.test(combined) ||
+    /convivencia_paec/i.test(categoria || '') ||
+    /categor[ií]a\s*3/i.test(combined) ||
+    /área 4|area 4|area-4/i.test(combined)
+  ) {
+    return PMC_CUADRO_2_CATEGORIAS.categoria_3;
+  }
+
+  // Categoría 2: Gestión, vinculación, infraestructura, equipamiento, desempeño docente, visitas áulicas
+  if (
+    /gesti[oó]n|administraci[oó]n|vinculaci[oó]n|infraestructura|equipamiento|desempeño docente|acompañamiento|visitas? [aá]ulicas?|egresados|empresas|convenios/i.test(combined) ||
+    /infraestructura/i.test(categoria || '') ||
+    /categor[ií]a\s*2/i.test(combined) ||
+    /área 2|area 2|area-2|área 3|area 3|area-3/i.test(combined)
+  ) {
+    return PMC_CUADRO_2_CATEGORIAS.categoria_2;
+  }
+
+  // Categoría 1: Por defecto para desarrollo académico, indicadores, reprobación, aprovechamiento, COSFAC
+  return PMC_CUADRO_2_CATEGORIAS.categoria_1;
+}
+
+// ─── RECONCILIADOR Y FUSIÓN DE METAS INDIVIDUALES POR DOCENTE ────────────────
+
+export interface MetaPersonalItemBase {
+  nombre?: string;
+  cargo?: string;
+  categoria?: string;
+  tema?: string;
+  meta_individual?: string;
+  estrategia?: string;
+  entregable?: string;
+  periodo?: string;
+}
+
+/**
+ * Normaliza y consolida de forma determinista el arreglo de metas individuales del personal.
+ * Si un docente tiene 2 o más metas registradas en el sistema (por ejemplo registros adicionales),
+ * las fusiona en UNA SOLA FILA con viñetas estructuradas (•), consolidando sus metas,
+ * estrategias y entregables sin duplicar al docente en la tabla.
+ */
+export function consolidateMetasPersonalesByTeacher<T extends MetaPersonalItemBase>(metas: T[]): T[] {
+  if (!Array.isArray(metas) || metas.length === 0) return [];
+
+  const map = new Map<string, T[]>();
+
+  for (const item of metas) {
+    const rawName = (item.nombre || '').trim();
+    if (!rawName) continue;
+    // Clave de normalización de nombre: minúsculas, sin títulos de cortesía y espacios unificados
+    const cleanKey = rawName
+      .toLowerCase()
+      .replace(/^(mtro|mtra|prof|profr|profra|lic|ing|dr|dra)\.?\s+/i, '')
+      .replace(/\s+/g, ' ');
+
+    const existing = map.get(cleanKey);
+    if (existing) {
+      existing.push(item);
+    } else {
+      map.set(cleanKey, [item]);
+    }
+  }
+
+  const result: T[] = [];
+
+  for (const [, items] of map.entries()) {
+    if (items.length === 1) {
+      result.push(items[0]);
+      continue;
+    }
+
+    // Fusión de múltiples metas de un mismo docente en una sola fila
+    const base = { ...items[0] };
+
+    // Selección del cargo más completo
+    const bestCargo = items
+      .map((it) => it.cargo?.trim())
+      .filter(Boolean)
+      .sort((a, b) => (b ? b.length : 0) - (a ? a.length : 0))[0] || base.cargo;
+    base.cargo = bestCargo;
+
+    // Fusión de metas individuales
+    const uniqueMetas: string[] = [];
+    items.forEach((it) => {
+      const cleanMeta = (it.meta_individual || '').trim();
+      if (!cleanMeta) return;
+      const prefix = it.categoria ? `[${it.categoria}${it.tema ? ` — ${it.tema}` : ''}] ` : '';
+      const fullMeta = cleanMeta.startsWith('[') ? cleanMeta : `${prefix}${cleanMeta}`;
+      if (!uniqueMetas.some((m) => m.toLowerCase() === fullMeta.toLowerCase())) {
+        uniqueMetas.push(fullMeta);
+      }
+    });
+
+    base.meta_individual = uniqueMetas.length > 1
+      ? uniqueMetas.map((m) => m.startsWith('•') ? m : `• ${m}`).join('\n\n')
+      : uniqueMetas[0] || base.meta_individual;
+
+    // Fusión de estrategias
+    const uniqueEstrategias: string[] = [];
+    items.forEach((it) => {
+      const cleanEst = (it.estrategia || '').trim();
+      if (!cleanEst) return;
+      if (!uniqueEstrategias.some((e) => e.toLowerCase() === cleanEst.toLowerCase())) {
+        uniqueEstrategias.push(cleanEst);
+      }
+    });
+
+    base.estrategia = uniqueEstrategias.length > 1
+      ? uniqueEstrategias.map((e) => e.startsWith('•') ? e : `• ${e}`).join('\n\n')
+      : uniqueEstrategias[0] || base.estrategia;
+
+    // Fusión de entregables
+    const uniqueEntregables: string[] = [];
+    items.forEach((it) => {
+      const cleanEnt = (it.entregable || '').trim();
+      if (!cleanEnt) return;
+      if (!uniqueEntregables.some((e) => e.toLowerCase() === cleanEnt.toLowerCase())) {
+        uniqueEntregables.push(cleanEnt);
+      }
+    });
+
+    base.entregable = uniqueEntregables.length > 1
+      ? uniqueEntregables.map((e) => e.startsWith('•') ? e : `• ${e}`).join('\n\n')
+      : uniqueEntregables[0] || base.entregable;
+
+    // Período unificado
+    const bestPeriodo = items.find((it) => it.periodo && it.periodo.trim())?.periodo || base.periodo;
+    base.periodo = bestPeriodo;
+
+    result.push(base);
+  }
+
+  return result;
+}
+

@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import type { IndicadoresAcademicos } from './PmcWizardClient';
 import { deduplicateMetasInstitucionales } from '@/lib/pmc-meta-deduplicator';
+import { consolidateMetasPersonalesByTeacher } from '@/lib/pmc-document-structure';
 import type { PmcNormalizedGoalResponse } from '@/lib/ai-schemas';
 
 export interface MetaPersonalItem {
@@ -117,6 +118,14 @@ export function PmcMetasComplementarias({
   const [instSituacion, setInstSituacion] = useState('');
   const [instPeriodoInicio, setInstPeriodoInicio] = useState('Septiembre');
   const [instPeriodoFin, setInstPeriodoFin] = useState('Julio');
+
+  // ── ESTADO EDICIÓN IN-SITU METAS PERSONALES ────────────────────────────────
+  const [editingPersonalIndex, setEditingPersonalIndex] = useState<number | null>(null);
+  const [editingPersonalData, setEditingPersonalData] = useState<MetaPersonalItem | null>(null);
+
+  // ── ESTADO EDICIÓN IN-SITU METAS INSTITUCIONALES ───────────────────────────
+  const [editingInstIndex, setEditingInstIndex] = useState<number | null>(null);
+  const [editingInstData, setEditingInstData] = useState<MetaInstitucionalItem | null>(null);
 
   // Docentes de staff que aún no tienen meta individual registrada
   const staffWithoutGoal = useMemo(() => {
@@ -371,6 +380,9 @@ export function PmcMetasComplementarias({
       }
     }
 
+    // Consolidación inteligente por docente: si el docente ya tiene metas, se fusionan sin duplicar la fila
+    nextMetasPersonales = consolidateMetasPersonalesByTeacher(nextMetasPersonales);
+
     const nextPlan: PlanAccionData = {
       metas_institucionales: nextMetasInst,
       metas_personales: nextMetasPersonales,
@@ -448,7 +460,7 @@ export function PmcMetasComplementarias({
     };
 
     const currentMetas = planAccion?.metas_personales ? [...planAccion.metas_personales] : [];
-    const nextMetas = [...currentMetas, newPersonalItem];
+    const nextMetas = consolidateMetasPersonalesByTeacher([...currentMetas, newPersonalItem]);
 
     const nextPlan: PlanAccionData = {
       metas_institucionales: planAccion?.metas_institucionales ? [...planAccion.metas_institucionales] : [],
@@ -573,6 +585,107 @@ export function PmcMetasComplementarias({
     setPlanAccion(nextPlan);
     if (onPlanUpdated) onPlanUpdated(nextPlan);
     await persistToDatabase(nextPlan);
+  };
+
+  // ── MANEJADORES DE EDICIÓN IN-SITU METAS PERSONALES ─────────────────────────
+  const handleStartEditPersonalMeta = (index: number) => {
+    if (!planAccion?.metas_personales?.[index]) return;
+    setEditingPersonalIndex(index);
+    setEditingPersonalData({ ...planAccion.metas_personales[index] });
+  };
+
+  const handleCancelEditPersonalMeta = () => {
+    setEditingPersonalIndex(null);
+    setEditingPersonalData(null);
+  };
+
+  const handleSaveEditPersonalMeta = async () => {
+    if (editingPersonalIndex === null || !editingPersonalData || !planAccion?.metas_personales) return;
+    const cleanMeta = editingPersonalData.meta_individual.trim();
+    if (cleanMeta.length < 5) {
+      setFeedback({ type: 'error', message: 'La meta individual debe tener al menos 5 caracteres.' });
+      return;
+    }
+
+    const nextMetas = [...planAccion.metas_personales];
+    nextMetas[editingPersonalIndex] = {
+      ...editingPersonalData,
+      nombre: editingPersonalData.nombre.trim(),
+      cargo: editingPersonalData.cargo.trim() || 'Docente',
+      meta_individual: cleanMeta,
+      estrategia: editingPersonalData.estrategia.trim(),
+      entregable: editingPersonalData.entregable.trim(),
+      periodo: editingPersonalData.periodo.trim() || `Ciclo Escolar ${cicloEscolar || '2025-2026'}`,
+    };
+
+    const nextPlan: PlanAccionData = {
+      ...planAccion,
+      metas_personales: nextMetas,
+    };
+
+    setPlanAccion(nextPlan);
+    if (onPlanUpdated) onPlanUpdated(nextPlan);
+    const updatedTeacher = nextMetas[editingPersonalIndex].nombre;
+    setEditingPersonalIndex(null);
+    setEditingPersonalData(null);
+
+    await persistToDatabase(nextPlan);
+    setFeedback({
+      type: 'success',
+      message: `✅ Meta de "${updatedTeacher}" modificada y sincronizada correctamente en el PMC sin alterar a los demás docentes.`,
+    });
+  };
+
+  // ── MANEJADORES DE EDICIÓN IN-SITU METAS INSTITUCIONALES ────────────────────
+  const handleStartEditInstMeta = (index: number) => {
+    if (!planAccion?.metas_institucionales?.[index]) return;
+    setEditingInstIndex(index);
+    setEditingInstData({ ...planAccion.metas_institucionales[index] });
+  };
+
+  const handleCancelEditInstMeta = () => {
+    setEditingInstIndex(null);
+    setEditingInstData(null);
+  };
+
+  const handleSaveEditInstMeta = async () => {
+    if (editingInstIndex === null || !editingInstData || !planAccion?.metas_institucionales) return;
+    const cleanMeta = editingInstData.meta.trim();
+    if (cleanMeta.length < 5) {
+      setFeedback({ type: 'error', message: 'La meta institucional debe tener al menos 5 caracteres.' });
+      return;
+    }
+
+    const nextInst = [...planAccion.metas_institucionales];
+    nextInst[editingInstIndex] = {
+      ...editingInstData,
+      meta: cleanMeta,
+      tema: editingInstData.tema.trim(),
+      estrategia: editingInstData.estrategia.trim(),
+      personal_designado: editingInstData.personal_designado.trim(),
+      entregable: editingInstData.entregable.trim(),
+      linea_base: editingInstData.linea_base?.trim() || '',
+      diagnostico_meta: editingInstData.diagnostico_meta?.trim() || '',
+      periodo_inicio: editingInstData.periodo_inicio?.trim() || 'Septiembre',
+      periodo_fin: editingInstData.periodo_fin?.trim() || 'Julio',
+    };
+
+    const nextPlan: PlanAccionData = {
+      ...planAccion,
+      metas_institucionales: nextInst,
+    };
+
+    setPlanAccion(nextPlan);
+    if (onPlanUpdated) onPlanUpdated(nextPlan);
+    const updatedMetaTitle = nextInst[editingInstIndex].tema || nextInst[editingInstIndex].nombre_categoria;
+    setEditingInstIndex(null);
+    setEditingInstData(null);
+
+    await persistToDatabase(nextPlan);
+    setFeedback({
+      type: 'success',
+      message: `✅ Meta institucional "${updatedMetaTitle}" modificada y sincronizada correctamente en el PMC.`,
+    });
   };
 
   // Estilos UI modernos
@@ -1246,10 +1359,32 @@ export function PmcMetasComplementarias({
                   {(planAccion?.metas_personales || []).length === 0 ? (
                     <span>No hay metas individuales capturadas.</span>
                   ) : (
-                    <ul style={{ margin: 0, paddingLeft: '16px' }}>
+                    <ul style={{ margin: 0, paddingLeft: '0', listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                       {(planAccion?.metas_personales || []).map((m, idx) => (
-                        <li key={`sum-p-${idx}`} style={{ marginBottom: '4px' }}>
-                          <strong style={{ color: '#f1f5f9' }}>{m.nombre}:</strong> {m.meta_individual.slice(0, 90)}...
+                        <li key={`sum-p-${idx}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', padding: '4px 6px', background: 'rgba(255,255,255,0.02)', borderRadius: '4px' }}>
+                          <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            <strong style={{ color: '#f1f5f9' }}>{m.nombre}:</strong> {m.meta_individual}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSubTab('personales');
+                              handleStartEditPersonalMeta(idx);
+                            }}
+                            title="Editar esta meta"
+                            style={{
+                              background: 'rgba(99, 102, 241, 0.2)',
+                              border: '1px solid rgba(99, 102, 241, 0.4)',
+                              color: '#c7d2fe',
+                              borderRadius: '4px',
+                              padding: '2px 8px',
+                              fontSize: '11px',
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            ✏️ Editar
+                          </button>
                         </li>
                       ))}
                     </ul>
@@ -1268,10 +1403,32 @@ export function PmcMetasComplementarias({
                   {(planAccion?.metas_institucionales || []).length === 0 ? (
                     <span>No hay metas institucionales capturadas.</span>
                   ) : (
-                    <ul style={{ margin: 0, paddingLeft: '16px' }}>
+                    <ul style={{ margin: 0, paddingLeft: '0', listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                       {(planAccion?.metas_institucionales || []).map((m, idx) => (
-                        <li key={`sum-i-${idx}`} style={{ marginBottom: '4px' }}>
-                          <strong style={{ color: '#f1f5f9' }}>{m.tema || m.nombre_categoria}:</strong> {m.meta.slice(0, 90)}...
+                        <li key={`sum-i-${idx}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', padding: '4px 6px', background: 'rgba(255,255,255,0.02)', borderRadius: '4px' }}>
+                          <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            <strong style={{ color: '#f1f5f9' }}>{m.tema || m.nombre_categoria}:</strong> {m.meta}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSubTab('institucionales');
+                              handleStartEditInstMeta(idx);
+                            }}
+                            title="Editar esta meta"
+                            style={{
+                              background: 'rgba(16, 185, 129, 0.2)',
+                              border: '1px solid rgba(16, 185, 129, 0.4)',
+                              color: '#a7f3d0',
+                              borderRadius: '4px',
+                              padding: '2px 8px',
+                              fontSize: '11px',
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            ✏️ Editar
+                          </button>
                         </li>
                       ))}
                     </ul>
@@ -1440,57 +1597,207 @@ export function PmcMetasComplementarias({
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {planAccion.metas_personales.map((item, idx) => (
-                  <div
-                    key={`personal-${idx}`}
-                    style={{
-                      background: 'rgba(30, 41, 59, 0.5)',
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
-                      borderRadius: '8px',
-                      padding: '14px 16px',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'flex-start',
-                      gap: '12px',
-                    }}
-                  >
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                        <span style={{ fontSize: '11px', background: 'rgba(99, 102, 241, 0.25)', color: '#c7d2fe', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
-                          #{idx + 1}
-                        </span>
-                        <strong style={{ fontSize: '14px', color: '#f8fafc' }}>{item.nombre}</strong>
-                        <span style={{ fontSize: '12px', color: '#94a3b8' }}>• {item.cargo}</span>
-                        <span style={{ fontSize: '11px', color: '#64748b' }}>({item.periodo})</span>
-                      </div>
-                      <p style={{ fontSize: '13px', color: '#e2e8f0', margin: '4px 0', lineHeight: 1.45 }}>
-                        <strong>Meta:</strong> {item.meta_individual}
-                      </p>
-                      <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px', display: 'flex', flexWrap: 'wrap', gap: '14px' }}>
-                        <span><strong>Estrategia:</strong> {item.estrategia}</span>
-                        <span><strong>Entregable:</strong> {item.entregable}</span>
-                      </div>
-                    </div>
+                {planAccion.metas_personales.map((item, idx) => {
+                  const isEditing = editingPersonalIndex === idx && editingPersonalData;
+                  if (isEditing) {
+                    return (
+                      <div
+                        key={`personal-edit-${idx}`}
+                        style={{
+                          background: 'rgba(30, 41, 59, 0.85)',
+                          border: '1.5px solid rgba(99, 102, 241, 0.5)',
+                          borderRadius: '10px',
+                          padding: '16px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '12px',
+                          boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '13px', fontWeight: 700, color: '#a5b4fc', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span>✏️</span> Editando Meta Individual de {editingPersonalData.nombre}
+                          </span>
+                          <span style={{ fontSize: '11px', background: 'rgba(99,102,241,0.2)', color: '#c7d2fe', padding: '2px 8px', borderRadius: '4px' }}>
+                            #{idx + 1}
+                          </span>
+                        </div>
 
-                    <button
-                      type="button"
-                      onClick={() => handleDeletePersonalMeta(idx)}
-                      disabled={saving}
-                      title="Eliminar meta individual"
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
+                          <div>
+                            <label style={labelStyle}>Nombre del Docente:</label>
+                            <input
+                              type="text"
+                              value={editingPersonalData.nombre}
+                              onChange={(e) => setEditingPersonalData({ ...editingPersonalData, nombre: e.target.value })}
+                              style={inputStyle}
+                            />
+                          </div>
+                          <div>
+                            <label style={labelStyle}>Cargo o Función:</label>
+                            <input
+                              type="text"
+                              value={editingPersonalData.cargo}
+                              onChange={(e) => setEditingPersonalData({ ...editingPersonalData, cargo: e.target.value })}
+                              style={inputStyle}
+                            />
+                          </div>
+                          <div>
+                            <label style={labelStyle}>Período:</label>
+                            <input
+                              type="text"
+                              value={editingPersonalData.periodo}
+                              onChange={(e) => setEditingPersonalData({ ...editingPersonalData, periodo: e.target.value })}
+                              style={inputStyle}
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label style={labelStyle}>Redacción de la Meta Individual:</label>
+                          <textarea
+                            value={editingPersonalData.meta_individual}
+                            onChange={(e) => setEditingPersonalData({ ...editingPersonalData, meta_individual: e.target.value })}
+                            rows={3}
+                            style={{ ...inputStyle, minHeight: '70px', lineHeight: 1.45 }}
+                          />
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '10px' }}>
+                          <div>
+                            <label style={labelStyle}>Estrategia Individual:</label>
+                            <textarea
+                              value={editingPersonalData.estrategia}
+                              onChange={(e) => setEditingPersonalData({ ...editingPersonalData, estrategia: e.target.value })}
+                              rows={2}
+                              style={{ ...inputStyle, minHeight: '52px' }}
+                            />
+                          </div>
+                          <div>
+                            <label style={labelStyle}>Entregable Comprobable:</label>
+                            <textarea
+                              value={editingPersonalData.entregable}
+                              onChange={(e) => setEditingPersonalData({ ...editingPersonalData, entregable: e.target.value })}
+                              rows={2}
+                              style={{ ...inputStyle, minHeight: '52px' }}
+                            />
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '6px' }}>
+                          <button
+                            type="button"
+                            onClick={handleCancelEditPersonalMeta}
+                            style={{
+                              padding: '7px 14px',
+                              borderRadius: '6px',
+                              border: '1px solid rgba(255,255,255,0.15)',
+                              background: 'rgba(255,255,255,0.06)',
+                              color: '#94a3b8',
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleSaveEditPersonalMeta}
+                            disabled={saving}
+                            style={{
+                              padding: '7px 16px',
+                              borderRadius: '6px',
+                              border: 'none',
+                              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                              color: '#ffffff',
+                              fontSize: '12px',
+                              fontWeight: 700,
+                              cursor: saving ? 'not-allowed' : 'pointer',
+                              boxShadow: '0 2px 8px rgba(16,185,129,0.3)',
+                            }}
+                          >
+                            💾 Guardar Cambios
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div
+                      key={`personal-${idx}`}
                       style={{
-                        background: 'rgba(239, 68, 68, 0.12)',
-                        border: '1px solid rgba(239, 68, 68, 0.3)',
-                        color: '#f87171',
-                        borderRadius: '6px',
-                        padding: '6px 10px',
-                        fontSize: '12px',
-                        cursor: 'pointer',
+                        background: 'rgba(30, 41, 59, 0.5)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        borderRadius: '8px',
+                        padding: '14px 16px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        gap: '12px',
                       }}
                     >
-                      🗑️ Eliminar
-                    </button>
-                  </div>
-                ))}
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                          <span style={{ fontSize: '11px', background: 'rgba(99, 102, 241, 0.25)', color: '#c7d2fe', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                            #{idx + 1}
+                          </span>
+                          <strong style={{ fontSize: '14px', color: '#f8fafc' }}>{item.nombre}</strong>
+                          <span style={{ fontSize: '12px', color: '#94a3b8' }}>• {item.cargo}</span>
+                          <span style={{ fontSize: '11px', color: '#64748b' }}>({item.periodo})</span>
+                        </div>
+                        <p style={{ fontSize: '13px', color: '#e2e8f0', margin: '4px 0', lineHeight: 1.45, whiteSpace: 'pre-line' }}>
+                          <strong>Meta:</strong> {item.meta_individual}
+                        </p>
+                        <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px', display: 'flex', flexWrap: 'wrap', gap: '14px' }}>
+                          <span><strong>Estrategia:</strong> {item.estrategia}</span>
+                          <span><strong>Entregable:</strong> {item.entregable}</span>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          type="button"
+                          onClick={() => handleStartEditPersonalMeta(idx)}
+                          disabled={saving}
+                          title="Editar meta individual"
+                          style={{
+                            background: 'rgba(99, 102, 241, 0.15)',
+                            border: '1px solid rgba(99, 102, 241, 0.4)',
+                            color: '#a5b4fc',
+                            borderRadius: '6px',
+                            padding: '6px 12px',
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                          }}
+                        >
+                          ✏️ Editar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeletePersonalMeta(idx)}
+                          disabled={saving}
+                          title="Eliminar meta individual"
+                          style={{
+                            background: 'rgba(239, 68, 68, 0.12)',
+                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                            color: '#f87171',
+                            borderRadius: '6px',
+                            padding: '6px 10px',
+                            fontSize: '12px',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          🗑️ Eliminar
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -1662,60 +1969,230 @@ export function PmcMetasComplementarias({
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {planAccion.metas_institucionales.map((item, idx) => (
-                  <div
-                    key={`inst-${idx}`}
-                    style={{
-                      background: 'rgba(30, 41, 59, 0.5)',
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
-                      borderRadius: '8px',
-                      padding: '14px 16px',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'flex-start',
-                      gap: '12px',
-                    }}
-                  >
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                        <span style={{ fontSize: '11px', background: 'rgba(16, 185, 129, 0.25)', color: '#6ee7b7', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
-                          #{idx + 1}
-                        </span>
-                        <strong style={{ fontSize: '14px', color: '#f8fafc' }}>
-                          {item.nombre_categoria || item.categoria}
-                        </strong>
-                        <span style={{ fontSize: '12px', color: '#94a3b8' }}>• {item.tema}</span>
-                        <span style={{ fontSize: '11px', color: '#64748b' }}>({item.periodo_inicio} - {item.periodo_fin})</span>
-                      </div>
-                      <p style={{ fontSize: '13px', color: '#e2e8f0', margin: '4px 0', lineHeight: 1.45 }}>
-                        <strong>Meta:</strong> {item.meta}
-                      </p>
-                      <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px', display: 'flex', flexWrap: 'wrap', gap: '14px' }}>
-                        <span><strong>Responsable:</strong> {item.personal_designado}</span>
-                        <span><strong>Estrategia:</strong> {item.estrategia}</span>
-                        <span><strong>Entregable:</strong> {item.entregable}</span>
-                      </div>
-                    </div>
+                {planAccion.metas_institucionales.map((item, idx) => {
+                  const isEditing = editingInstIndex === idx && editingInstData;
+                  if (isEditing) {
+                    return (
+                      <div
+                        key={`inst-edit-${idx}`}
+                        style={{
+                          background: 'rgba(30, 41, 59, 0.85)',
+                          border: '1.5px solid rgba(16, 185, 129, 0.5)',
+                          borderRadius: '10px',
+                          padding: '16px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '12px',
+                          boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '13px', fontWeight: 700, color: '#6ee7b7', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span>✏️</span> Editando Meta Institucional: {editingInstData.tema || editingInstData.nombre_categoria}
+                          </span>
+                          <span style={{ fontSize: '11px', background: 'rgba(16,185,129,0.2)', color: '#a7f3d0', padding: '2px 8px', borderRadius: '4px' }}>
+                            #{idx + 1}
+                          </span>
+                        </div>
 
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteInstMeta(idx)}
-                      disabled={saving}
-                      title="Eliminar meta institucional"
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
+                          <div>
+                            <label style={labelStyle}>Tema Específico:</label>
+                            <input
+                              type="text"
+                              value={editingInstData.tema}
+                              onChange={(e) => setEditingInstData({ ...editingInstData, tema: e.target.value })}
+                              style={inputStyle}
+                            />
+                          </div>
+                          <div>
+                            <label style={labelStyle}>Responsable / Personal Designado:</label>
+                            <input
+                              type="text"
+                              value={editingInstData.personal_designado}
+                              onChange={(e) => setEditingInstData({ ...editingInstData, personal_designado: e.target.value })}
+                              style={inputStyle}
+                            />
+                          </div>
+                          <div>
+                            <label style={labelStyle}>Período (Mes Inicio - Mes Fin):</label>
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                              <input
+                                type="text"
+                                value={editingInstData.periodo_inicio}
+                                onChange={(e) => setEditingInstData({ ...editingInstData, periodo_inicio: e.target.value })}
+                                placeholder="Inicio"
+                                style={inputStyle}
+                              />
+                              <input
+                                type="text"
+                                value={editingInstData.periodo_fin}
+                                onChange={(e) => setEditingInstData({ ...editingInstData, periodo_fin: e.target.value })}
+                                placeholder="Fin"
+                                style={inputStyle}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label style={labelStyle}>Redacción de la Meta Institucional:</label>
+                          <textarea
+                            value={editingInstData.meta}
+                            onChange={(e) => setEditingInstData({ ...editingInstData, meta: e.target.value })}
+                            rows={3}
+                            style={{ ...inputStyle, minHeight: '70px', lineHeight: 1.45 }}
+                          />
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '10px' }}>
+                          <div>
+                            <label style={labelStyle}>Estrategia de Implementación:</label>
+                            <textarea
+                              value={editingInstData.estrategia}
+                              onChange={(e) => setEditingInstData({ ...editingInstData, estrategia: e.target.value })}
+                              rows={2}
+                              style={{ ...inputStyle, minHeight: '52px' }}
+                            />
+                          </div>
+                          <div>
+                            <label style={labelStyle}>Producto Comprobable (Entregable):</label>
+                            <textarea
+                              value={editingInstData.entregable}
+                              onChange={(e) => setEditingInstData({ ...editingInstData, entregable: e.target.value })}
+                              rows={2}
+                              style={{ ...inputStyle, minHeight: '52px' }}
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label style={labelStyle}>Situación Actual que Justifica la Meta:</label>
+                          <input
+                            type="text"
+                            value={editingInstData.diagnostico_meta || editingInstData.linea_base || ''}
+                            onChange={(e) => setEditingInstData({ ...editingInstData, diagnostico_meta: e.target.value, linea_base: e.target.value })}
+                            style={inputStyle}
+                          />
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '6px' }}>
+                          <button
+                            type="button"
+                            onClick={handleCancelEditInstMeta}
+                            style={{
+                              padding: '7px 14px',
+                              borderRadius: '6px',
+                              border: '1px solid rgba(255,255,255,0.15)',
+                              background: 'rgba(255,255,255,0.06)',
+                              color: '#94a3b8',
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleSaveEditInstMeta}
+                            disabled={saving}
+                            style={{
+                              padding: '7px 16px',
+                              borderRadius: '6px',
+                              border: 'none',
+                              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                              color: '#ffffff',
+                              fontSize: '12px',
+                              fontWeight: 700,
+                              cursor: saving ? 'not-allowed' : 'pointer',
+                              boxShadow: '0 2px 8px rgba(16,185,129,0.3)',
+                            }}
+                          >
+                            💾 Guardar Cambios
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div
+                      key={`inst-${idx}`}
                       style={{
-                        background: 'rgba(239, 68, 68, 0.12)',
-                        border: '1px solid rgba(239, 68, 68, 0.3)',
-                        color: '#f87171',
-                        borderRadius: '6px',
-                        padding: '6px 10px',
-                        fontSize: '12px',
-                        cursor: 'pointer',
+                        background: 'rgba(30, 41, 59, 0.5)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        borderRadius: '8px',
+                        padding: '14px 16px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        gap: '12px',
                       }}
                     >
-                      🗑️ Eliminar
-                    </button>
-                  </div>
-                ))}
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                          <span style={{ fontSize: '11px', background: 'rgba(16, 185, 129, 0.25)', color: '#6ee7b7', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                            #{idx + 1}
+                          </span>
+                          <strong style={{ fontSize: '14px', color: '#f8fafc' }}>
+                            {item.nombre_categoria || item.categoria}
+                          </strong>
+                          <span style={{ fontSize: '12px', color: '#94a3b8' }}>• {item.tema}</span>
+                          <span style={{ fontSize: '11px', color: '#64748b' }}>({item.periodo_inicio} - {item.periodo_fin})</span>
+                        </div>
+                        <p style={{ fontSize: '13px', color: '#e2e8f0', margin: '4px 0', lineHeight: 1.45 }}>
+                          <strong>Meta:</strong> {item.meta}
+                        </p>
+                        <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px', display: 'flex', flexWrap: 'wrap', gap: '14px' }}>
+                          <span><strong>Responsable:</strong> {item.personal_designado}</span>
+                          <span><strong>Estrategia:</strong> {item.estrategia}</span>
+                          <span><strong>Entregable:</strong> {item.entregable}</span>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          type="button"
+                          onClick={() => handleStartEditInstMeta(idx)}
+                          disabled={saving}
+                          title="Editar meta institucional"
+                          style={{
+                            background: 'rgba(16, 185, 129, 0.15)',
+                            border: '1px solid rgba(16, 185, 129, 0.4)',
+                            color: '#6ee7b7',
+                            borderRadius: '6px',
+                            padding: '6px 12px',
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                          }}
+                        >
+                          ✏️ Editar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteInstMeta(idx)}
+                          disabled={saving}
+                          title="Eliminar meta institucional"
+                          style={{
+                            background: 'rgba(239, 68, 68, 0.12)',
+                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                            color: '#f87171',
+                            borderRadius: '6px',
+                            padding: '6px 10px',
+                            fontSize: '12px',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          🗑️ Eliminar
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
