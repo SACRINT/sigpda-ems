@@ -14,7 +14,7 @@ export interface BatchItem {
   rowIndex: number;
   rawText: string;
   itemsCount: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export function partitionRowsByMetaDensity<T extends { itemsCount?: number }>(
@@ -46,6 +46,10 @@ export function partitionRowsByMetaDensity<T extends { itemsCount?: number }>(
 
   return batches;
 }
+
+type ExtractedStaffData = NonNullable<PmcPreviousExtractDTO['staffData']>;
+type ExtractedStaffMember = ExtractedStaffData[number];
+type MetaIndividualItem = NonNullable<ExtractedStaffMember['metas_individuales']>[number];
 
 /**
  * Consolida múltiples respuestas de lotes en un único DTO de PMC sin duplicar docentes.
@@ -82,7 +86,7 @@ export function consolidateBatchResults(
       nombre: string;
       cargo: string;
       meta_individual: string;
-      metas_individuales: any[];
+      metas_individuales: MetaIndividualItem[];
     }
   >();
 

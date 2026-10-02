@@ -122,7 +122,6 @@ Texto de cierre sin tablas.
       ]
     });
     const parsed = parseAIResponse(raw, PmcPreviousExtractSchema, { repairNullStrings: true });
-    console.log('--- TEST 3B RESULT ---', 'Success:', parsed.success, 'Error:', parsed.error);
     expect(parsed.success).toBe(true);
   });
 

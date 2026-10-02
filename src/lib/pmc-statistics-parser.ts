@@ -140,15 +140,21 @@ export function parsePmcStatistics(
       const row = rows[r];
       if (!row || row.length === 0) continue;
 
-      const cctRaw = String(row[colMap['cct'] ?? 1] || '').trim().toUpperCase();
-      const nombreRaw = String(row[colMap['nombre'] ?? 0] || '').trim();
+      const cctRaw = colMap['cct'] !== undefined
+        ? String(row[colMap['cct']] || '').trim().toUpperCase()
+        : '';
+      const nombreRaw = colMap['nombre'] !== undefined
+        ? String(row[colMap['nombre']] || '').trim()
+        : '';
 
       // Ignorar filas de totales, promedios o vacías
       if (!cctRaw && !nombreRaw) continue;
       if (nombreRaw.toLowerCase().includes('total') || nombreRaw.toLowerCase().includes('promedio')) continue;
       if (cctRaw.toLowerCase().includes('total') || cctRaw.toLowerCase().includes('promedio')) continue;
 
-      const matricula = parseFloat(String(row[colMap['matricula'] ?? 3] || '0').replace(/[^0-9.]/g, '')) || 0;
+      const matricula = colMap['matricula'] !== undefined
+        ? parseFloat(String(row[colMap['matricula']] || '0').replace(/[^0-9.]/g, '')) || 0
+        : 0;
       if (matricula <= 0 && !cctRaw.startsWith('21')) continue;
 
       // ── Datos 911.7G ──
@@ -229,7 +235,7 @@ export function parsePmcStatistics(
       allPlanteles.push({
         cct: cctRaw || '21EBH0000X',
         nombre: nombreRaw || 'Plantel sin nombre',
-        turno: String(row[colMap['turno'] ?? 2] || 'MATUTINO').trim().toUpperCase(),
+        turno: colMap['turno'] !== undefined ? String(row[colMap['turno']] || 'MATUTINO').trim().toUpperCase() : 'MATUTINO',
         // 911.7G
         matricula,
         egresados,

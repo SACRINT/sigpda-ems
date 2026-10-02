@@ -170,8 +170,8 @@ describe('PMC-EXTRACT v6.4 Enterprise Engine', () => {
 
       const quarantinedMeta3 = result.quarantinedMetas.find((m) => m.numero_origen === 3);
       expect(quarantinedMeta3).toBeDefined();
-      expect(quarantinedMeta3.motivos_revision.some((r: string) => r.includes('NUMERO_INVENTADO_999'))).toBe(true);
-      expect(quarantinedMeta3.motivos_revision.some((r: string) => r.includes('NUMERO_OMITIDO_50'))).toBe(true);
+      expect(quarantinedMeta3?.motivos_revision?.some((r: string) => r.includes('NUMERO_INVENTADO_999'))).toBe(true);
+      expect(quarantinedMeta3?.motivos_revision?.some((r: string) => r.includes('NUMERO_OMITIDO_50'))).toBe(true);
     });
   });
 

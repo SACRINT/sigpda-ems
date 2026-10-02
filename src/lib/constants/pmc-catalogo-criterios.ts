@@ -13,11 +13,6 @@
 
 import type { PmcProject, PmcMetaInstitucional, PmcIndicadoresAcademicos, PmcStaffMember } from '@/types/pmc';
 
-function safeStr(val: unknown, fallback = ''): string {
-  if (val === null || val === undefined || val === '') return fallback;
-  return String(val);
-}
-
 export interface CriterioCatalogItem {
   id: string;
   areaObligatoriaId?: 'area-1-indicadores' | 'area-2-desempeno-docente' | 'area-3-vinculacion' | 'area-4-violencia';
@@ -715,30 +710,74 @@ export function synthesizeContextualizedMeta(
   const director = project?.director_name || 'Director del Plantel';
 
   const staff = Array.isArray(project?.staff_data) ? (project.staff_data as PmcStaffMember[]) : [];
-  const totalDocentes = staff.length > 0 ? staff.length : 14;
+  const totalDocentes = staff.length > 0
+    ? staff.length
+    : (typeof project?.total_staff === 'number' && project.total_staff > 0 ? project.total_staff : undefined);
 
   const indic = (project?.indicadores_academicos as PmcIndicadoresAcademicos) || {};
-  const matricula = indic.matricula || 170;
-  const reprobacion = indic.reprobacion_ant !== undefined ? indic.reprobacion_ant : 15;
-  const metaInc = Math.max(3, Math.min(8, Math.round(reprobacion * 0.4) || 5));
+  const matricula = typeof indic.matricula === 'number' && indic.matricula > 0 ? indic.matricula : undefined;
+  const reprobacion = typeof indic.reprobacion_ant === 'number' && indic.reprobacion_ant >= 0 ? indic.reprobacion_ant : undefined;
+  const metaInc = reprobacion !== undefined ? Math.max(3, Math.min(8, Math.round(reprobacion * 0.4) || 5)) : undefined;
 
   const primerDocente = staff.find(s => s?.nombre && s?.nombre !== director)?.nombre || 'Colectivo Docente';
   const orientador = staff.find(s => /orienta|tutor|psic/i.test(`${s?.cargo || ''} ${s?.funcion || ''}`))?.nombre || 'Tutor del Plantel';
 
   const replacePlaceholders = (text: string): string => {
-    return text
+    let result = text
       .replace(/{ESCUELA}/g, escuela)
       .replace(/{LOCALIDAD}/g, localidad)
       .replace(/{MUNICIPIO}/g, municipio)
       .replace(/{CICLO}/g, ciclo)
       .replace(/{DIRECTOR}/g, director)
-      .replace(/{TOTAL_DOCENTES}/g, String(totalDocentes))
-      .replace(/{MATRICULA}/g, String(matricula))
-      .replace(/{REPROBACION}/g, String(reprobacion))
-      .replace(/{META_APROBACION_INCREMENTO}/g, String(metaInc))
-      .replace(/{NUM_CONVENIOS}/g, '4')
       .replace(/{RESPONSABLE_VINCULACION}/g, primerDocente)
       .replace(/{RESPONSABLE_TUTORIA}/g, orientador);
+
+    // Reemplazo no fabricado de personal docente
+    if (totalDocentes !== undefined) {
+      result = result.replace(/{TOTAL_DOCENTES}/g, String(totalDocentes));
+    } else {
+      result = result
+        .replace(/\s*\({TOTAL_DOCENTES}\s*docentes\)/gi, '')
+        .replace(/los\s+{TOTAL_DOCENTES}\s+docentes/gi, 'las y los docentes')
+        .replace(/los\s+{TOTAL_DOCENTES}\s+integrantes/gi, 'el personal')
+        .replace(/{TOTAL_DOCENTES}/g, 'N/D');
+    }
+
+    // Reemplazo no fabricado de matrícula
+    if (matricula !== undefined) {
+      result = result.replace(/{MATRICULA}/g, String(matricula));
+    } else {
+      result = result
+        .replace(/los\s+{MATRICULA}\s+estudiantes/gi, 'las y los estudiantes')
+        .replace(/los\s+{MATRICULA}\s+aprendientes/gi, 'las y los aprendientes')
+        .replace(/la\s+matrícula\s+de\s+{MATRICULA}\s+alumnos/gi, 'la matrícula estudiantil')
+        .replace(/matrícula\s+de\s+{MATRICULA}\s+estudiantes/gi, 'matrícula escolar')
+        .replace(/{MATRICULA}/g, 'N/D');
+    }
+
+    // Reemplazo no fabricado de reprobación
+    if (reprobacion !== undefined) {
+      result = result.replace(/{REPROBACION}/g, String(reprobacion));
+    } else {
+      result = result
+        .replace(/\s*\({REPROBACION}%\s*reprobación\s*inicial\)/gi, '')
+        .replace(/\s*\({REPROBACION}%\)/gi, '')
+        .replace(/{REPROBACION}/g, 'N/D');
+    }
+
+    // Reemplazo no fabricado de meta de incremento
+    if (metaInc !== undefined) {
+      result = result.replace(/{META_APROBACION_INCREMENTO}/g, String(metaInc));
+    } else {
+      result = result.replace(/{META_APROBACION_INCREMENTO}/g, '5');
+    }
+
+    // Reemplazo no fabricado de convenios
+    result = result
+      .replace(/al\s+menos\s+{NUM_CONVENIOS}\s+instituciones/gi, 'instituciones')
+      .replace(/{NUM_CONVENIOS}/g, 'N/D');
+
+    return result;
   };
 
   const metaFinal = replacePlaceholders(item.formula_creaa_sugerida);
@@ -752,7 +791,9 @@ export function synthesizeContextualizedMeta(
     tema: item.nombre,
     meta: metaFinal,
     estrategia: estrategiaFinal,
-    linea_base: `Línea base institucional ciclo anterior: Matrícula ${matricula} estudiantes en ${localidad}, Puebla.`,
+    linea_base: matricula !== undefined
+      ? `Línea base institucional ciclo anterior: Matrícula ${matricula} estudiantes en ${localidad}, Puebla.`
+      : `Línea base institucional ciclo anterior: Matrícula pendiente de registro en ${localidad}, Puebla.`,
     personal_designado: personalFinal,
     entregable: item.entregable_oficial,
     periodo_inicio: '08/2026',

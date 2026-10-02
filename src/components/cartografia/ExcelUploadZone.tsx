@@ -125,7 +125,7 @@ export default function ExcelUploadZone({
 
         const matriculaTotal = planteles.reduce((sum, p) => sum + (p.matricula ?? 0), 0);
 
-        const conET = planteles.filter(p => p.eficienciaTerminal !== undefined && p.eficienciaTerminal > 0);
+        const conET = planteles.filter(p => p.eficienciaTerminal !== undefined && p.eficienciaTerminal >= 0);
         const promEficiencia = clientResult.zona?.promedioEficiencia ?? (conET.length > 0 ? parseFloat((conET.reduce((a, b) => a + (b.eficienciaTerminal ?? 0), 0) / conET.length).toFixed(2)) : undefined);
         const conAbandono = planteles.filter(p => p.abandono !== undefined);
         const promAbandono = clientResult.zona?.promedioAbandono ?? (conAbandono.length > 0 ? parseFloat((conAbandono.reduce((a, b) => a + (b.abandono ?? 0), 0) / conAbandono.length).toFixed(2)) : undefined);

@@ -145,4 +145,30 @@ describe('Catálogo Base Institucional de Criterios PMC y Formato 5.1 (MCCEMS Pu
 
     expect(used.size).toBe(4);
   });
+
+  it('7. synthesizeContextualizedMeta NO fabrica 14 docentes, 170 matrícula, 15% reprobación ni 4 convenios si los datos están ausentes (H-301)', () => {
+    const emptyProject: Partial<PmcProject> = {
+      school_name: 'Bachillerato General Oficial Cuauhtémoc',
+      locality: 'Zacatlán',
+      municipality: 'Zacatlán',
+      staff_data: [],
+      indicadores_academicos: {},
+    };
+
+    const metaDocente = synthesizeContextualizedMeta('area-2-desempeno-docente', emptyProject);
+    expect(metaDocente.meta).not.toContain('14 docentes');
+    expect(metaDocente.meta).not.toContain('(14 docentes)');
+    expect(metaDocente.diagnostico_meta).not.toContain('14 docentes');
+
+    const metaAcademica = synthesizeContextualizedMeta('area-1-indicadores', emptyProject);
+    expect(metaAcademica.meta).not.toContain('170 estudiantes');
+    expect(metaAcademica.meta).not.toContain('170');
+    expect(metaAcademica.diagnostico_meta).not.toContain('15%');
+    expect(metaAcademica.linea_base).toContain('pendiente de registro');
+
+    const metaVinculacion = synthesizeContextualizedMeta('area-3-vinculacion', emptyProject);
+    expect(metaVinculacion.meta).not.toContain('4 instituciones');
+    expect(metaVinculacion.meta).not.toContain('{NUM_CONVENIOS}');
+  });
 });
+

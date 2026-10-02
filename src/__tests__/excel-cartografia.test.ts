@@ -173,4 +173,37 @@ describe('Excel Import Engine — Formato 911.7G / F11C / Cartografía de Zona',
     expect(resultCero.allPlanteles[1].abandono).toBe(0);
     expect(resultCero.zona?.promedioAbandono).toBe(0);
   });
+
+  it('6. Matriz sin columna de matrícula no asume columna 3 como matrícula y no afirma matrícula de 0 estudiantes (H-299)', () => {
+    const mockRowsSinMatricula = [
+      ['SUBSECRETARÍA DE EDUCACIÓN MEDIA SUPERIOR - CONCENTRADO ZONAL'],
+      ['No.', 'C.C.T.', 'Nombre del Plantel', 'Turno', 'Promedio Calificaciones'],
+      [1, '21EBH0015A', 'BGE Venustiano Carranza', 'MATUTINO', 8.5],
+      [2, '21EBH0020B', 'BGE Francisco Z. Mena', 'VESPERTINO', 7.8],
+    ];
+
+    const result = parsePmcStatistics(mockRowsSinMatricula, {
+      zonaNumero: '004',
+      cicloEscolar: '2026-2027',
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.allPlanteles.length).toBe(2);
+    // Sin columna matrícula, no debe tomar el valor posicional de columna 3 ('MATUTINO' o calificación)
+    expect(result.allPlanteles[0].matricula).toBe(0);
+    expect(result.allPlanteles[1].matricula).toBe(0);
+    expect(result.zona?.matriculaTotal).toBe(0);
+
+    const diagText = buildZoneDiagnosticText({
+      zonaNumero: '004',
+      cicloEscolar: '2026-2027',
+      totalPlanteles: result.allPlanteles.length,
+      matriculaTotal: result.zona?.matriculaTotal ?? 0,
+      promedioAprovechamiento: result.zona?.promedioCalificaciones,
+    });
+
+    expect(diagText).toContain('sin registro consolidado de matrícula');
+    expect(diagText).not.toContain('con una matrícula total de 0 estudiantes');
+  });
 });
+

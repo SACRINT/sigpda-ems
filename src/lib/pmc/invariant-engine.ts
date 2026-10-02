@@ -11,6 +11,7 @@
  */
 
 import type { PreScanScopeResult } from './pre-scanner';
+import type { PmcPlanElement, PmcPreviousExtractDTO } from '@/lib/prompts/pmc-extraction';
 
 // Captura: ciclos escolares (2026-2027), porcentajes (70%), decimales (8.5, .5) y enteros
 export const NUMERIC_TOKEN_REGEX = /(?:\b\d{4}\s*-\s*\d{4}\b|(?:\b\d+(?:[.,]\d+)?|[.,]\d+)\s*%?)/g;
@@ -75,24 +76,30 @@ export interface ReconcileResult {
   missing: number[];
   unexpected: number[];
   duplicates: number[];
-  quarantinedMetas: any[];
+  quarantinedMetas: PmcPlanElement[];
 }
 
 /**
  * Audita la extracción devuelta por el LLM y realiza reconciliación matemática contra el pre-escáner.
  */
-export function auditAndReconcileEnterprise(extractedData: any, preScan: PreScanScopeResult): ReconcileResult {
-  const elementos = extractedData.elementos_plan || [];
-  const metas = elementos.filter((e: any) => e.tipo === 'meta');
+export function auditAndReconcileEnterprise(
+  extractedData: Partial<PmcPreviousExtractDTO> & {
+    elementos_plan?: PmcPlanElement[];
+    totales_detectados?: { metas: number | null; actividades: number | null };
+  },
+  preScan: PreScanScopeResult
+): ReconcileResult {
+  const elementos: PmcPlanElement[] = extractedData.elementos_plan || [];
+  const metas = elementos.filter((e): e is PmcPlanElement => (e.tipo || '').toLowerCase() === 'meta');
   const extractedIndices = metas
-    .map((m: any) => m.numero_origen)
-    .filter((n: any): n is number => typeof n === 'number' && !isNaN(n));
+    .map((m) => m.numero_origen)
+    .filter((n): n is number => typeof n === 'number' && !isNaN(n));
 
   // 1. Detección de duplicados en la extracción
   const counts = new Map<number, number>();
   extractedIndices.forEach((n: number) => counts.set(n, (counts.get(n) ?? 0) + 1));
   const duplicates = Array.from(counts.entries())
-    .filter(([_, c]) => c > 1)
+    .filter(([, c]) => c > 1)
     .map(([n]) => n)
     .sort((a, b) => a - b);
 
@@ -107,7 +114,7 @@ export function auditAndReconcileEnterprise(extractedData: any, preScan: PreScan
   }
 
   // 3. Auditoría de Invarianza Numérica Bidireccional
-  const quarantined: any[] = [];
+  const quarantined: PmcPlanElement[] = [];
   const cicloToken = extractedData.cicloEscolar ? cleanNum(extractedData.cicloEscolar) : null;
 
   for (const meta of metas) {
@@ -153,14 +160,14 @@ export function auditAndReconcileEnterprise(extractedData: any, preScan: PreScan
   let status: ReconcileResult['status'] = 'PASS';
   if (hasSequenceAnomaly) {
     status = 'QUARANTINE_REQUIRED';
-  } else if (quarantined.length > 0 || metas.some((m: any) => m.requiere_revision)) {
+  } else if (quarantined.length > 0 || metas.some((m) => m.requiere_revision)) {
     status = 'PASS_WITH_REVIEW';
   }
 
   // 5. Autoridad de totales delegada al Backend
   extractedData.totales_detectados = {
     metas: metas.length,
-    actividades: elementos.filter((e: any) => e.tipo === 'actividad').length
+    actividades: elementos.filter((e) => (e.tipo || '').toLowerCase() === 'actividad').length
   };
 
   return {

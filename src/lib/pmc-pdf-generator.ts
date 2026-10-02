@@ -12,7 +12,7 @@ import { SCHOOL_YEAR } from '@/lib/config';
 import { logger } from './logger';
 import { calculatePmcIndicatorRows } from './pmc-indicator-calculator';
 import { AREAS_OBLIGATORIAS_51, resolveAreaObligatoria51, PENDIENTE_DEFINICION_51 } from './pmc-docx-generator';
-import type { PmcProject, PmcStatisticalContext, PmcStaffMember } from '@/types/pmc';
+import type { PmcProject, PmcStatisticalContext, PmcStaffMember, PmcMetaInstitucional } from '@/types/pmc';
 import {
   PMC_TITULOS_SECCIONES,
   PMC_SUBSECCIONES_DIAGNOSTICO,
@@ -647,9 +647,9 @@ export async function generatePmcPDF(
   addSectionHeader(PMC_TITULOS_SECCIONES.PLAN_ACCION);
 
   const planAccion = parseJson(project.plan_accion);
-  const metasRaw: any[] = Array.isArray(planAccion.metas_institucionales) ? planAccion.metas_institucionales : [];
+  const metasRaw: PmcMetaInstitucional[] = Array.isArray(planAccion.metas_institucionales) ? planAccion.metas_institucionales : [];
   // Enriquecer con catálogo canónico para eliminar fallbacks genéricos
-  const metasInst: any[] = metasRaw.map((m: any) => enrichMetaWithCatalogBase(m, project));
+  const metasInst: PmcMetaInstitucional[] = metasRaw.map((m) => enrichMetaWithCatalogBase(m, project));
 
   if (metasInst.length === 0) {
     doc.setFont('helvetica', 'italic');

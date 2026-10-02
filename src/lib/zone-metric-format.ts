@@ -42,9 +42,13 @@ export function buildZoneDiagnosticText(params: ZoneDiagnosticParams): string {
   const ciclo = params.cicloEscolar?.trim() ? params.cicloEscolar.trim() : 'N/D';
   const prioritarios = params.plantelesPrioritarios ?? [];
 
+  const matriculaTexto = typeof params.matriculaTotal === 'number' && params.matriculaTotal > 0
+    ? `con una matrícula total de ${params.matriculaTotal} estudiantes`
+    : 'sin registro consolidado de matrícula';
+
   return (
     `Diagnóstico territorial consolidado a partir de la estadística oficial 911.7G y F11C (Zona ${zona}, Ciclo ${ciclo}):\n` +
-    `• Cobertura Zonal: ${params.totalPlanteles} planteles analizados con una matrícula total de ${params.matriculaTotal} estudiantes.\n` +
+    `• Cobertura Zonal: ${params.totalPlanteles} planteles analizados ${matriculaTexto}.\n` +
     `• Línea Base Cuantitativa: Eficiencia Terminal Zonal del ${formatZoneMetric(params.promedioEficiencia, { pct: true })}, Abandono Escolar Zonal del ${formatZoneMetric(params.promedioAbandono, { pct: true })}, Promedio General de Aprovechamiento en ${formatZoneMetric(params.promedioAprovechamiento)} y Reprobación del ${formatZoneMetric(params.promedioReprobacion, { pct: true })}.\n` +
     (prioritarios.length > 0
       ? `• Planteles con Atención Prioritaria: ${prioritarios.join('; ')}.\n`

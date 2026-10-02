@@ -30,9 +30,7 @@ describe('Test partition sizes and structure for Heroes de la Patria and large 1
     expect(planText.length).toBeGreaterThan(15000);
 
     const planChunks = partitionMarkdownDocument(planText, 5000, 9500);
-    console.log(`Plan divided into ${planChunks.length} chunks`);
     for (let i = 0; i < planChunks.length; i++) {
-      console.log(`Chunk ${i + 1}: length ${planChunks[i].length}`);
       expect(planChunks[i].length).toBeLessThanOrEqual(10000);
       expect(planChunks[i].length).toBeGreaterThan(0);
     }
@@ -48,7 +46,6 @@ describe('Test partition sizes and structure for Heroes de la Patria and large 1
     expect(largeTable.length).toBeGreaterThan(20000);
 
     const chunks = partitionMarkdownDocument(largeTable, 5000, 9500);
-    console.log(`Large table (${largeTable.length} chars) divided into ${chunks.length} chunks`);
     for (const c of chunks) {
       expect(c.length).toBeLessThanOrEqual(10500);
       expect(c.includes('| N° | Categoría |')).toBe(true); // Table header propagated

@@ -2308,7 +2308,7 @@ interface EditablePlanElement {
                   <span>📜</span>
                   <span>
                     <strong>PMC anterior cargado:</strong> {parsedPmcData?.metas_institucionales_previas?.length ?? ingestCoverage?.detalles?.metas?.extraidos ?? 0} metas institucionales ({parsedPmcData?.elementos_plan?.length ?? ingestCoverage?.extraidos ?? 0} elementos listos)
-                    {ingestCoverage?.parcial && ingestCoverage.extraidos < (ingestCoverage.detectados || 0) && (
+                    {ingestCoverage?.parcial && typeof ingestCoverage.detectados === 'number' && ingestCoverage.extraidos < ingestCoverage.detectados && (
                       <span style={{ color: '#fbbf24', marginLeft: '6px' }}>— Cobertura parcial ({ingestCoverage.extraidos}/{ingestCoverage.detectados})</span>
                     )}
                   </span>
@@ -3766,40 +3766,48 @@ interface EditablePlanElement {
                   ⚠️ Debes confirmar las metas del ciclo en el Paso 3 antes de generar el diagnóstico.
                 </p>
               )}
-              {ingestCoverage?.parcial && (
-                <div style={{
-                  fontSize: '12px',
-                  color: ingestCoverage.extraidos >= (ingestCoverage.detectados || 0) ? '#6ee7b7' : '#f87171',
-                  background: ingestCoverage.extraidos >= (ingestCoverage.detectados || 0) ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.12)',
-                  border: ingestCoverage.extraidos >= (ingestCoverage.detectados || 0) ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(239,68,68,0.25)',
-                  padding: '10px 14px',
-                  borderRadius: '8px',
-                  marginBottom: '12px',
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                    <span>{ingestCoverage.extraidos >= (ingestCoverage.detectados || 0) ? '✅' : '⚠️'}</span>
-                    <strong>
-                      {ingestCoverage.extraidos >= (ingestCoverage.detectados || 0)
-                        ? `Metas extraídas del PMC anterior (${ingestCoverage.extraidos} metas estructuradas)`
-                        : `Extracción parcial del PMC anterior (${ingestCoverage.extraidos}/${ingestCoverage.detectados || '?'})`}
-                    </strong>
+              {ingestCoverage?.parcial && (() => {
+                const detectados = typeof ingestCoverage.detectados === 'number' ? ingestCoverage.detectados : null;
+                const isComplete = detectados !== null ? ingestCoverage.extraidos >= detectados : false;
+                const ratioDisplay = typeof ingestCoverage.ratio === 'number' ? Math.round(ingestCoverage.ratio * 100) : null;
+                const detectadosLabel = detectados !== null ? String(detectados) : '?';
+                const totalEsperado = ingestCoverage.esperado ?? detectados ?? ingestCoverage.extraidos;
+
+                return (
+                  <div style={{
+                    fontSize: '12px',
+                    color: isComplete ? '#6ee7b7' : '#f87171',
+                    background: isComplete ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.12)',
+                    border: isComplete ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(239,68,68,0.25)',
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    marginBottom: '12px',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                      <span>{isComplete ? '✅' : '⚠️'}</span>
+                      <strong>
+                        {isComplete
+                          ? `Metas extraídas del PMC anterior (${ingestCoverage.extraidos} metas estructuradas)`
+                          : `Extracción parcial del PMC anterior (${ingestCoverage.extraidos}/${detectadosLabel})`}
+                      </strong>
+                    </div>
+                    <p style={{ margin: '0 0 8px', color: 'rgba(240,244,255,0.85)', lineHeight: 1.5 }}>
+                      {isComplete
+                        ? `Se consolidaron exitosamente ${ingestCoverage.extraidos} metas (incluyendo las metas individuales de la plantilla docente). Cobertura total de actividades: ${ratioDisplay !== null ? `${ratioDisplay}%` : 'N/D'} (${ingestCoverage.extraidos}/${totalEsperado}).`
+                        : 'El PMC anterior cargado tiene cobertura de extracción parcial (<90%). Puedes continuar usando las metas extraídas actualmente autorizando la generación.'}
+                    </p>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#fcd34d', fontWeight: 600, fontSize: '12px' }}>
+                      <input
+                        type="checkbox"
+                        checked={allowPartialGeneration}
+                        onChange={(e) => setAllowPartialGeneration(e.target.checked)}
+                        style={{ cursor: 'pointer', accentColor: '#f59e0b' }}
+                      />
+                      <span>Autorizar generación con las metas extraídas ({parsedPmcData?.metas_institucionales_previas?.length ?? ingestCoverage?.detalles?.metas?.extraidos ?? ingestCoverage.extraidos} metas listas)</span>
+                    </label>
                   </div>
-                  <p style={{ margin: '0 0 8px', color: 'rgba(240,244,255,0.85)', lineHeight: 1.5 }}>
-                    {ingestCoverage.extraidos >= (ingestCoverage.detectados || 0)
-                      ? `Se consolidaron exitosamente ${ingestCoverage.extraidos} metas (incluyendo las metas individuales de la plantilla docente). Cobertura total de actividades: ${Math.round((ingestCoverage.ratio || 0) * 100)}% (${ingestCoverage.extraidos}/${ingestCoverage.esperado || ingestCoverage.detectados}).`
-                      : 'El PMC anterior cargado tiene cobertura de extracción parcial (<90%). Puedes continuar usando las metas extraídas actualmente autorizando la generación.'}
-                  </p>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#fcd34d', fontWeight: 600, fontSize: '12px' }}>
-                    <input
-                      type="checkbox"
-                      checked={allowPartialGeneration}
-                      onChange={(e) => setAllowPartialGeneration(e.target.checked)}
-                      style={{ cursor: 'pointer', accentColor: '#f59e0b' }}
-                    />
-                    <span>Autorizar generación con las metas extraídas ({parsedPmcData?.metas_institucionales_previas?.length ?? ingestCoverage?.detalles?.metas?.extraidos ?? ingestCoverage.extraidos} metas listas)</span>
-                  </label>
-                </div>
-              )}
+                );
+              })()}
               {diagnosticoGenerado && (
                 <div style={{ background: 'rgba(8,12,24,0.5)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '16px', fontSize: '13px', color: '#f0f4ff', lineHeight: 1.7 }}>
                   <div style={{ marginBottom: '12px' }}>
