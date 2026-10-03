@@ -1,6 +1,8 @@
 import type { ActiveWorkTextbook, MissionSection } from '@/types/work-textbook';
 import type { SecuenciaBloque } from '@/types/planning';
 import { isStemSubject, isHumanitiesSubject } from '@/lib/visual-engine/visual-dispatcher';
+import { buildSessionMoments } from './pedagogical-moments';
+import { auditPlanWorkbookCoherence, type CoherenceReport } from './plan-workbook-coherence';
 
 /**
  * Plan de Clase individual por sesión derivado determinísticamente del Libro de Bloque.
@@ -47,6 +49,8 @@ export interface ExtractedBlockMaterials {
     executionTimeMs: number;
   };
   planesDeClase: PlanDeClaseDerivado[];
+  /** Auditoría de coherencia cruzada Plan de Clase ↔ Libro (H-324). */
+  coherencia?: CoherenceReport;
   guiaDelBloque: string;
   solucionarioDocente: string;
   instrumentosEvaluacion: string;
@@ -185,6 +189,7 @@ export function extractMaterialsFromWorkbook(
       executionTimeMs,
     },
     planesDeClase,
+    coherencia: auditPlanWorkbookCoherence(workbook, planesDeClase, { expectedSessions: TARGET_SESSIONS }),
     guiaDelBloque,
     solucionarioDocente,
     instrumentosEvaluacion,
@@ -210,28 +215,15 @@ function buildPlanDeClase(
   // Buscar si la sesión específica está modelada en la secuencia didáctica guardada (SecuenciaBloque)
   const sessionFromSeq = blockSequence?.sessions?.find((s) => s.sessionNum === sessionNum);
 
-  // Valores base de la misión macro
-  const aperturaDocenteBase = mission.phenomenonHook?.story
-    ? `Presentar el fenómeno contextual: "${mission.phenomenonHook.story.slice(0, 180)}..." y moderar lluvia de ideas.`
-    : 'Presentar el desafío de la sesión y activar saberes previos mediante preguntas detonadoras.';
-
-  const aperturaEstudianteBase = mission.phenomenonHook?.detonatingQuestion
-    ? `Analizar la situación problemática y reflexionar sobre la interrogante: "${mission.phenomenonHook.detonatingQuestion}".`
-    : 'Participar activamente en la recuperación de saberes previos y registrar reflexiones iniciales.';
-
-  const saberes = mission.conceptZero?.physicalAnalogy
-    ? `Analogía cotidiana: ${mission.conceptZero.physicalAnalogy}`
-    : 'Conexión con conceptos fundamentales y experiencias previas.';
-
-  const desarrolloDocenteBase = mission.iDoSection?.stepByStepDemo
-    ? `Demostración paso a paso (Yo Hago): Modelado explícito del procedimiento. ${mission.iDoSection.stepByStepDemo.slice(0, 220)}...`
-    : 'Modelado instruccional y acompañamiento guiado durante la resolución de ejercicios.';
-
-  const desarrolloEstudianteBase = `Práctica guiada ("Hacemos"): ${mission.weDoSection?.guidedPractice ? mission.weDoSection.guidedPractice.slice(0, 140) + '...' : 'Trabajo colaborativo'}. Reto autónomo ("Tú Haces"): ${mission.youDoSection?.autonomousChallenge ? mission.youDoSection.autonomousChallenge.slice(0, 140) + '...' : 'Resolución individual en cuaderno de trabajo'}.`;
-
-  const cierreDocenteBase = `Monitorear el checkpoint formativo: "${mission.formativeCheckpoint?.question || 'Evaluación de salida'}". Retroalimentar errores comunes detectados.`;
-
-  const cierreEstudianteBase = `Resolver checkpoint formativo, autoevaluar con lista de cotejo y responder reflexión metacognitiva: ${mission.formativeCheckpoint?.reflectionPrompts?.[0] || '¿Cómo aplico lo aprendido?'}.`;
+  // Momentos base diferenciados por rol de sesión (H-323): introducción / práctica / consolidación
+  const moments = buildSessionMoments(mission, sessionNum);
+  const aperturaDocenteBase = moments.apertura.docente;
+  const aperturaEstudianteBase = moments.apertura.estudiante;
+  const saberes = moments.apertura.saberesPrevios;
+  const desarrolloDocenteBase = moments.desarrollo.docente;
+  const desarrolloEstudianteBase = moments.desarrollo.estudiante;
+  const cierreDocenteBase = moments.cierre.docente;
+  const cierreEstudianteBase = moments.cierre.estudiante;
 
   // Desacoplamiento pedagógico por fase si existe sesión en la secuencia
   let aperturaDocente = aperturaDocenteBase;
@@ -240,9 +232,9 @@ function buildPlanDeClase(
   let desarrolloEstudiante = desarrolloEstudianteBase;
   let cierreDocente = cierreDocenteBase;
   let cierreEstudiante = cierreEstudianteBase;
-  let tiempoApertura = 10;
-  let tiempoDesarrollo = 30;
-  let tiempoCierre = 10;
+  let tiempoApertura = moments.tiempos.apertura;
+  let tiempoDesarrollo = moments.tiempos.desarrollo;
+  let tiempoCierre = moments.tiempos.cierre;
 
   if (sessionFromSeq) {
     if (sessionFromSeq.phase === 'Apertura') {
@@ -295,7 +287,7 @@ function buildPlanDeClase(
 
   const propósitoOMeta = sessionFromSeq?.evidence
     ? `Consolidar: ${sessionFromSeq.evidence} (${sessionFromSeq.phase || 'Formativa'})`
-    : (mission.sessionFocus || mission.sessionTopic || mission.title);
+    : moments.proposito;
 
   const transversalidad = sessionFromSeq?.utilidadReal
     ? `${paecText} Aplicación en contexto real: ${sessionFromSeq.utilidadReal}.`
