@@ -28,6 +28,7 @@ import {
   type PaecAcademicBaseline,
 } from '@/lib/prompts/paec-prompts';
 import { getZoneContextForSchool } from '@/lib/zone-sync-service';
+import { getPaecRegulatoryContext } from '@/lib/paec-regulatory-context';
 import { logActivity, generateWithRotation } from '@/lib/ai-provider';
 import { logger } from '@/lib/logger';
 import { getUserLibraryContext } from '@/lib/context-extractor';
@@ -105,6 +106,12 @@ export async function POST(
 
     // Inyectar contexto de la biblioteca documental si existe
     const libraryContext = await getUserLibraryContext(session.user.email);
+
+    // Inyectar contexto regulatorio oficial (H-311) evaluado una sola vez por llamada POST
+    const regulatoryContext = getPaecRegulatoryContext(step);
+    const stepSystemPrompt = regulatoryContext
+      ? `${PAEC_SYSTEM_PROMPT}\n\n${regulatoryContext}`
+      : PAEC_SYSTEM_PROMPT;
 
     let userPrompt = '';
     let fieldName = '';
@@ -242,7 +249,7 @@ export async function POST(
             }
 
             logger.info(`[PAEC-Step3] Generando bloque de Mapeo ${blockNum}/${chunks.length} (${chunks[i].length} UACs)...`);
-            const blockText = await generateWithRotation(PAEC_SYSTEM_PROMPT, chunkPrompt, teacher.id);
+            const blockText = await generateWithRotation(stepSystemPrompt, chunkPrompt, teacher.id);
             if (!blockText) {
               throw new Error(`Respuesta vacía del proveedor en bloque de Mapeo ${blockNum}`);
             }
@@ -318,7 +325,7 @@ export async function POST(
             }
 
             logger.info(`[PAEC-Step5] Generando bloque de Detalle Curricular ${blockNum}/${chunks.length} (${chunks[i].length} UACs)...`);
-            const blockText = await generateWithRotation(PAEC_SYSTEM_PROMPT, chunkPrompt, teacher.id);
+            const blockText = await generateWithRotation(stepSystemPrompt, chunkPrompt, teacher.id);
             if (!blockText) {
               throw new Error(`Respuesta vacía del proveedor en bloque de Detalle ${blockNum}`);
             }
@@ -407,7 +414,7 @@ export async function POST(
           while (attempt <= maxRetries && !chunkSuccess) {
             try {
               logger.info(`[PAEC-Step6] Generando bloque ${blockNum}/${chunks.length} Semestre A (intento ${attempt + 1}/${maxRetries + 1})...`);
-              const blockText = await generateWithRotation(PAEC_SYSTEM_PROMPT, chunkPrompt, teacher.id);
+              const blockText = await generateWithRotation(stepSystemPrompt, chunkPrompt, teacher.id);
               if (!blockText) {
                 throw new Error(`Respuesta vacía del proveedor en bloque ${blockNum}`);
               }
@@ -525,7 +532,7 @@ export async function POST(
           while (attempt <= maxRetries && !chunkSuccess) {
             try {
               logger.info(`[PAEC-Step7] Generando bloque ${blockNum}/${chunks.length} Semestre B (intento ${attempt + 1}/${maxRetries + 1})...`);
-              const blockText = await generateWithRotation(PAEC_SYSTEM_PROMPT, chunkPrompt, teacher.id);
+              const blockText = await generateWithRotation(stepSystemPrompt, chunkPrompt, teacher.id);
               if (!blockText) {
                 throw new Error(`Respuesta vacía del proveedor en bloque ${blockNum}`);
               }
@@ -622,7 +629,7 @@ export async function POST(
           while (attempt <= maxRetries && !b1Success) {
             try {
               logger.info(`[PAEC-Step8] Generando Bloque 1/3 (Minutas, Oficios, Lanzamiento) - intento ${attempt + 1}/${maxRetries + 1}...`);
-              const text1 = await generateWithRotation(PAEC_SYSTEM_PROMPT, fullB1Prompt, teacher.id);
+              const text1 = await generateWithRotation(stepSystemPrompt, fullB1Prompt, teacher.id);
               if (!text1) throw new Error('Respuesta vacía del proveedor en Bloque 1');
               const parsed = parseAIResponse(text1, PaecPaso8Block1Schema, { contextName: 'paec_step_8_block_1' });
               if (!parsed.success) throw new Error(`Error de validación en Bloque 1: ${parsed.error}`);
@@ -660,7 +667,7 @@ export async function POST(
           while (attempt <= maxRetries && !b2Success) {
             try {
               logger.info(`[PAEC-Step8] Generando Bloque 2/3 (Anexos 1-3) - intento ${attempt + 1}/${maxRetries + 1}...`);
-              const text2 = await generateWithRotation(PAEC_SYSTEM_PROMPT, fullB2Prompt, teacher.id);
+              const text2 = await generateWithRotation(stepSystemPrompt, fullB2Prompt, teacher.id);
               if (!text2) throw new Error('Respuesta vacía del proveedor en Bloque 2');
               const parsed = parseAIResponse(text2, PaecPaso8Block2Schema, { contextName: 'paec_step_8_block_2' });
               if (!parsed.success) throw new Error(`Error de validación en Bloque 2: ${parsed.error}`);
@@ -702,7 +709,7 @@ export async function POST(
           while (attempt <= maxRetries && !b3Success) {
             try {
               logger.info(`[PAEC-Step8] Generando Bloque 3/3 (Anexos 4-6) - intento ${attempt + 1}/${maxRetries + 1}...`);
-              const text3 = await generateWithRotation(PAEC_SYSTEM_PROMPT, fullB3Prompt, teacher.id);
+              const text3 = await generateWithRotation(stepSystemPrompt, fullB3Prompt, teacher.id);
               if (!text3) throw new Error('Respuesta vacía del proveedor en Bloque 3');
               const parsed = parseAIResponse(text3, PaecPaso8Block3Schema, { contextName: 'paec_step_8_block_3' });
               if (!parsed.success) throw new Error(`Error de validación en Bloque 3: ${parsed.error}`);
@@ -779,7 +786,7 @@ export async function POST(
           while (attempt <= maxRetries && !b1Success) {
             try {
               logger.info(`[PAEC-Step9] Generando Bloque 1/2 (Gobernanza Colegiada) - intento ${attempt + 1}/${maxRetries + 1}...`);
-              const text1 = await generateWithRotation(PAEC_SYSTEM_PROMPT, fullB1Prompt, teacher.id);
+              const text1 = await generateWithRotation(stepSystemPrompt, fullB1Prompt, teacher.id);
               if (!text1) throw new Error('Respuesta vacía del proveedor en Bloque 1');
               const parsed = parseAIResponse(text1, PaecPaso9Block1Schema, { contextName: 'paec_step_9_block_1' });
               if (!parsed.success) throw new Error(`Error de validación en Bloque 1: ${parsed.error}`);
@@ -817,7 +824,7 @@ export async function POST(
           while (attempt <= maxRetries && !b2Success) {
             try {
               logger.info(`[PAEC-Step9] Generando Bloque 2/2 (Informe de Supervisión) - intento ${attempt + 1}/${maxRetries + 1}...`);
-              const text2 = await generateWithRotation(PAEC_SYSTEM_PROMPT, fullB2Prompt, teacher.id);
+              const text2 = await generateWithRotation(stepSystemPrompt, fullB2Prompt, teacher.id);
               if (!text2) throw new Error('Respuesta vacía del proveedor en Bloque 2');
               const parsed = parseAIResponse(text2, PaecPaso9Block2Schema, { contextName: 'paec_step_9_block_2' });
               if (!parsed.success) throw new Error(`Error de validación en Bloque 2: ${parsed.error}`);
@@ -859,7 +866,7 @@ export async function POST(
       }
 
       logger.info(`[PAEC] Generando Paso ${step} mediante generateWithRotation...`);
-      const text = await generateWithRotation(PAEC_SYSTEM_PROMPT, fullUserPrompt, teacher.id);
+      const text = await generateWithRotation(stepSystemPrompt, fullUserPrompt, teacher.id);
 
       if (!text) {
         throw new Error('Respuesta vacía del proveedor de IA');
