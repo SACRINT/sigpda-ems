@@ -893,18 +893,21 @@ export function sanitizeWorkbookNarratives(wb: ActiveWorkTextbook): ActiveWorkTe
         technicalSpecs: cleanArray(wb.projectSection.technicalSpecs),
         acceptanceCriteria: cleanArray(wb.projectSection.acceptanceCriteria),
         phases: Array.isArray(wb.projectSection.phases)
-          ? wb.projectSection.phases.map((ph: Record<string, unknown>) => {
+          ? (wb.projectSection.phases as unknown[]).map((phItem) => {
+              const ph = phItem as Record<string, unknown>;
               const rawTitle = typeof ph.title === 'string' ? ph.title : typeof ph.name === 'string' ? ph.name : '';
               const rawInstr = typeof ph.instructions === 'string' ? ph.instructions : typeof ph.description === 'string' ? ph.description : '';
               const rawDeliv = Array.isArray(ph.deliverables) ? (ph.deliverables as string[]) : [];
               return {
                 ...ph,
+                phaseNum: typeof ph.phaseNum === 'number' ? ph.phaseNum : 1,
+                allocatedHours: typeof ph.allocatedHours === 'number' ? ph.allocatedHours : 4,
                 title: cleanReq(rawTitle),
                 name: typeof ph.name === 'string' ? cleanReq(ph.name) : undefined,
                 deliverables: cleanArray(rawDeliv),
                 instructions: cleanReq(rawInstr),
                 description: typeof ph.description === 'string' ? cleanReq(ph.description) : undefined,
-              };
+              } as unknown as import('@/types/work-textbook').ProjectPhase;
             })
           : wb.projectSection.phases,
       }
@@ -913,7 +916,7 @@ export function sanitizeWorkbookNarratives(wb: ActiveWorkTextbook): ActiveWorkTe
   const cleanEvaluationSection = wb.evaluationSection
     ? {
         ...wb.evaluationSection,
-        rubric: Array.isArray(wb.evaluationSection.rubric)
+        rubric: (Array.isArray(wb.evaluationSection.rubric)
           ? wb.evaluationSection.rubric.map((r) => {
               const rawCriterion = typeof r.criterion === 'string' ? r.criterion : '';
               const rawLevels = (r as { levels?: unknown }).levels;
@@ -964,7 +967,7 @@ export function sanitizeWorkbookNarratives(wb: ActiveWorkTextbook): ActiveWorkTe
               }
               return wb.evaluationSection.rubric;
             })()
-          : wb.evaluationSection.rubric,
+          : wb.evaluationSection.rubric) as unknown as import('@/types/work-textbook').EvaluationRubricCriterion[],
         checklist: Array.isArray(wb.evaluationSection.checklist)
           ? wb.evaluationSection.checklist.map((ch) => ({
               item: cleanReq(ch.item),
