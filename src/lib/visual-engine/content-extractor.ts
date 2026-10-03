@@ -774,10 +774,34 @@ export function sanitizeWorkbookNarratives(wb: ActiveWorkTextbook): ActiveWorkTe
     return arr.map(cleanReq).filter((s) => s.length > 0);
   };
 
+  const cleanWorkbookElements = (
+    elements: unknown[] | null | undefined
+  ): MissionSection['weDoSection']['workbookElements'] => {
+    if (!Array.isArray(elements)) return [];
+    return elements.map((rawEl) => {
+      const el = rawEl as Record<string, unknown>;
+      const cfg = el.config && typeof el.config === 'object' ? { ...(el.config as Record<string, unknown>) } : undefined;
+      return {
+        ...el,
+        title: typeof el.title === 'string' ? cleanReq(el.title) : undefined,
+        instruction: typeof el.instruction === 'string' ? cleanReq(el.instruction) : undefined,
+        config: cfg
+          ? {
+              ...cfg,
+              checkboxes: Array.isArray(cfg.checkboxes) ? cfg.checkboxes.map(cleanReq).filter((s) => s.length > 0) : cfg.checkboxes,
+              cols: Array.isArray(cfg.cols) ? cfg.cols.map(cleanReq).filter((s) => s.length > 0) : cfg.cols,
+              initialCode: typeof cfg.initialCode === 'string' ? cleanReq(cfg.initialCode) : cfg.initialCode,
+            }
+          : el.config,
+      } as unknown as MissionSection['weDoSection']['workbookElements'][number];
+    });
+  };
+
   const cleanMissions = Array.isArray(wb.missions)
     ? wb.missions.map((m): MissionSection => {
         return {
           ...m,
+          title: cleanReq(m.title),
           sessionTopic: cleanReq(m.sessionTopic),
           sessionFocus: cleanReq(m.sessionFocus),
           phenomenonHook: m.phenomenonHook
@@ -818,22 +842,14 @@ export function sanitizeWorkbookNarratives(wb: ActiveWorkTextbook): ActiveWorkTe
             ? {
                 ...m.weDoSection,
                 guidedPractice: cleanReq(m.weDoSection.guidedPractice),
-                workbookElements: Array.isArray(m.weDoSection.workbookElements)
-                  ? m.weDoSection.workbookElements.map((el) =>
-                      el.instruction ? { ...el, instruction: cleanReq(el.instruction) } : el
-                    )
-                  : [],
+                workbookElements: cleanWorkbookElements(m.weDoSection.workbookElements),
               }
             : m.weDoSection,
           youDoSection: m.youDoSection
             ? {
                 ...m.youDoSection,
                 autonomousChallenge: cleanReq(m.youDoSection.autonomousChallenge),
-                workbookElements: Array.isArray(m.youDoSection.workbookElements)
-                  ? m.youDoSection.workbookElements.map((el) =>
-                      el.instruction ? { ...el, instruction: cleanReq(el.instruction) } : el
-                    )
-                  : [],
+                workbookElements: cleanWorkbookElements(m.youDoSection.workbookElements),
               }
             : m.youDoSection,
           troubleshooting: Array.isArray(m.troubleshooting)
@@ -1015,24 +1031,45 @@ export function sanitizeWorkbookNarratives(wb: ActiveWorkTextbook): ActiveWorkTe
       }
     : wb.evaluationSection;
 
-  return {
+  const cleanCoverVal = (val: string | null | undefined): string => {
+    if (!val) return '';
+    return cleanReq(val);
+  };
+
+  const sanitizedWb: ActiveWorkTextbook = {
     ...wb,
+    blockName: cleanReq(wb.blockName),
     coverData: wb.coverData
       ? {
           ...wb.coverData,
-          title: cleanOpt(wb.coverData.title) || wb.coverData.title,
-          subtitle: cleanOpt(wb.coverData.subtitle) || wb.coverData.subtitle,
-          subjectName: cleanOpt(wb.coverData.subjectName) || wb.coverData.subjectName,
-          schoolName: cleanOpt(wb.coverData.schoolName) || wb.coverData.schoolName,
-          cct: cleanOpt(wb.coverData.cct) || wb.coverData.cct,
-          paecProjectName: cleanOpt(wb.coverData.paecProjectName) || wb.coverData.paecProjectName,
-          teacherName: cleanOpt(wb.coverData.teacherName) || wb.coverData.teacherName,
+          title: cleanCoverVal(wb.coverData.title),
+          subtitle: cleanCoverVal(wb.coverData.subtitle),
+          subjectName: cleanCoverVal(wb.coverData.subjectName),
+          schoolName: cleanCoverVal(wb.coverData.schoolName),
+          cct: cleanCoverVal(wb.coverData.cct),
+          paecProjectName: cleanCoverVal(wb.coverData.paecProjectName),
+          teacherName: cleanCoverVal(wb.coverData.teacherName),
+          municipality: cleanCoverVal(wb.coverData.municipality),
         }
       : wb.coverData,
+    tableOfContents: Array.isArray(wb.tableOfContents)
+      ? wb.tableOfContents.map((entry) => ({
+          ...entry,
+          title: cleanReq(entry.title),
+          sessionsRange: typeof entry.sessionsRange === 'string' ? cleanReq(entry.sessionsRange) : entry.sessionsRange,
+        }))
+      : wb.tableOfContents,
     missions: cleanMissions,
     projectSection: cleanProjectSection,
     evaluationSection: cleanEvaluationSection,
   };
+
+  const rawWb = wb as unknown as Record<string, unknown>;
+  if ('uacName' in rawWb && typeof rawWb.uacName === 'string') {
+    (sanitizedWb as unknown as Record<string, unknown>).uacName = cleanReq(rawWb.uacName);
+  }
+
+  return sanitizedWb;
 }
 
 
