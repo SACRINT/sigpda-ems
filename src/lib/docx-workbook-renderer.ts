@@ -2099,7 +2099,9 @@ function buildDocxMissionRubricTable(rubric: import('@/types/work-textbook').Eva
 function buildDocxPracticeTasks(rawText: string, defaultTaskCount: number = 3): (Paragraph | Table)[] {
   if (!rawText) return [];
 
-  const lines = rawText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const cleanText = stripMarkdown(rawText);
+  if (!cleanText) return [];
+  const lines = cleanText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   const tasks: string[] = [];
 
   for (const line of lines) {
@@ -2123,7 +2125,7 @@ function buildDocxPracticeTasks(rawText: string, defaultTaskCount: number = 3): 
     return [
       new Paragraph({
         spacing: { after: 150, line: 360 },
-        children: [new TextRun({ text: rawText, size: 22, color: C.darkText, font: 'Calibri' })],
+        children: [new TextRun({ text: cleanText, size: 22, color: C.darkText, font: 'Calibri' })],
       }),
     ];
   }
@@ -2228,7 +2230,7 @@ async function buildMissionContent(
       spacing: { before: 100, after: 150, line: 360 }, // 1.5 line spacing
       children: [
         new TextRun({
-          text: mission.phenomenonHook.story,
+          text: stripMarkdown(mission.phenomenonHook.story),
           size: 22,
           color: C.darkText,
           font: 'Calibri',
@@ -2278,7 +2280,7 @@ async function buildMissionContent(
       spacing: { after: 250, line: 360 },
       children: [
         new TextRun({
-          text: mission.conceptZero.coreExplanation,
+          text: stripMarkdown(mission.conceptZero.coreExplanation),
           size: 22,
           color: C.darkText,
           font: 'Calibri',
@@ -2583,7 +2585,7 @@ async function buildMissionContent(
       spacing: { before: 100, after: 200, line: 360 },
       children: [
         new TextRun({
-          text: mission.iDoSection.stepByStepDemo,
+          text: stripMarkdown(mission.iDoSection.stepByStepDemo),
           size: 22,
           color: C.darkText,
           font: 'Calibri',
