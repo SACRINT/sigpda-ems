@@ -23,6 +23,7 @@ import type {
   AnexosData,
   PaecGobernanza,
   PaecInformeSupervision,
+  SeguimientoRow,
 } from '@/types/paec';
 
 // ============================================================================
@@ -310,9 +311,7 @@ function generarPlan16Semanas(semestre: 'A' | 'B'): PlanOperativoRow[] {
       strategy: isLast
         ? (semestre === 'A' ? 'Evaluación parcial colegiada y foro escolar de balance' : 'Feria comunitaria, exposición interactiva y panel de evaluación social')
         : 'Aprendizaje Basado en Proyectos Comunitarios (ABPC) y trabajo de campo colaborativo',
-      instrument: isLast ? 'Rúbrica global de evaluación formativa y matriz de evidencias' : 'Lista de cotejo semanal y bitácora de campo con registro fotográfico',
       evaluationInstrument: isLast ? 'Rúbrica global de evaluación formativa y matriz de evidencias' : 'Lista de cotejo semanal y bitácora de campo con registro fotográfico',
-      resources: 'Contenedores de acopio, báscula industrial, hojas de registro y equipo de protección personal',
       responsibles: 'Docente titular de UAC, brigada estudiantil de ecología y comité de padres de familia',
     });
   }
@@ -325,29 +324,44 @@ const PLAN_B_HEROES = generarPlan16Semanas('B');
 const IMPLEMENTACION_HEROES: PaecImplementacion = {
   cartaInvitacion: {
     asunto: 'Convocatoria a Asamblea Comunitaria de Instalación del Comité del Proyecto Escolar Comunitario (PEC)',
+    fecha: '28 de Agosto de 2026',
+    destinatarios: 'Autoridades civiles, ejidales, comités vecinales y padres de familia',
     cuerpo:
       'Por medio de la presente, la Dirección y el Colectivo Docente del Bachillerato General Héroes de la Patria convocan formalmente a ' +
       'autoridades civiles, ejidales, comités vecinales y padres de familia de la localidad de Coronel Tito Hernández a la sesión solemne ' +
       'de instalación y toma de protesta del Comité Escolar-Comunitario del Proyecto PAEC 2026-2027.',
     fechaReunion: '28 de Agosto de 2026',
-    lugarReunion: 'Auditorio del Bachillerato General Héroes de la Patria, María Andrea',
-    firmante: 'Mtro. Roberto Morales Sánchez — Director del Plantel',
+    hora: '10:00 hrs',
+    lugar: 'Auditorio del Bachillerato General Héroes de la Patria, María Andrea',
+    objetivos: ['Instalación del comité', 'Aprobación de la problemática central'],
+    firmante: 'Mtro. Roberto Morales Sánchez',
+    cargo: 'Director del Plantel',
   },
   minutaArranque: {
     fecha: '28 de Agosto de 2026',
-    hora: '10:00 hrs',
-    lugar: 'Plantel CCT 21EBH0244Z',
-    asistentes: [
-      'Mtro. Roberto Morales Sánchez (Director)',
-      'Profra. Laura Gómez Mendoza (Docente de Ciencias)',
-      'Profr. Carlos Huerta Morales (Docente de Matemáticas)',
-      'C. Juan Tenorio Vargas (Inspector Auxiliar Municipal)',
-      'Sra. Carmen Ortiz Santos (Presidenta Comité Padres)',
-    ],
+    tipoReunion: 'Asamblea Comunitaria de Instalación',
     acuerdos: [
-      'Se aprueba por unanimidad la problemática central: Contaminación por plásticos PET y residuos en la cuenca comunitaria.',
-      'El H. Ayuntamiento proporcionará camión de volteo quincenal para traslado de plástico reciclado.',
-      'El Comité de Padres coordinará las brigadas sabatinas de limpieza en las márgenes del arroyo.',
+      {
+        no: 1,
+        acuerdo: 'Se aprueba por unanimidad la problemática central: Contaminación por plásticos PET y residuos en la cuenca comunitaria.',
+        responsable: 'Comité Central PAEC',
+        fechaLimite: '2026-09-15',
+        estatus: 'cumplido',
+      },
+      {
+        no: 2,
+        acuerdo: 'El H. Ayuntamiento proporcionará camión de volteo quincenal para traslado de plástico reciclado.',
+        responsable: 'Inspectoría y Dirección Escolar',
+        fechaLimite: '2026-10-01',
+        estatus: 'en proceso',
+      },
+      {
+        no: 3,
+        acuerdo: 'El Comité de Padres coordinará las brigadas sabatinas de limpieza en las márgenes del arroyo.',
+        responsable: 'Comité de Padres de Familia',
+        fechaLimite: '2026-10-15',
+        estatus: 'en proceso',
+      },
     ],
     firmas: [
       { nombre: 'Mtro. Roberto Morales Sánchez', cargo: 'Director del Plantel' },
@@ -358,36 +372,35 @@ const IMPLEMENTACION_HEROES: PaecImplementacion = {
   },
   oficiosAliados: [
     {
-      folio: 'OF-BGHP-2026-001',
       destinatario: 'C. Presidente Municipal Constitucional de Venustiano Carranza, Puebla',
       cargo: 'Presidente Municipal',
       institucion: 'H. Ayuntamiento de Venustiano Carranza',
       asunto: 'Solicitud de convenio de colaboración institucional para traslado de material reciclable',
       propuestaColaboracion:
         'Asignación quincenal de transporte municipal para traslado de plástico triturado hacia la planta de reciclaje en Poza Rica.',
-      fecha: '02 de Septiembre de 2026',
     },
     {
-      folio: 'OF-BGHP-2026-002',
       destinatario: 'Dra. María Elena Castro Ríos',
       cargo: 'Directora del Centro de Salud de María Andrea',
       institucion: 'Secretaría de Salud del Estado de Puebla',
       asunto: 'Coordinación de talleres de salud comunitaria y erradicación de vectores de dengue',
       propuestaColaboracion:
         'Impartición de pláticas formativas sobre prevención de enfermedades por acumulación de agua en recipientes plásticos desechados.',
-      fecha: '05 de Septiembre de 2026',
     },
   ],
 };
 
-function generar16SemanasSeguimiento() {
-  const arr = [];
+function generar16SemanasSeguimiento(): SeguimientoRow[] {
+  const arr: SeguimientoRow[] = [];
   for (let i = 1; i <= 16; i++) {
     arr.push({
       semana: `Semana ${i}`,
-      actividad: `Seguimiento operativo y monitoreo de la semana ${i}: verificación de puntos limpios y faenas escolares.`,
-      progreso: `${Math.min(100, Math.round((i / 16) * 100))}% completado`,
-      observaciones: `Registro fotográfico y bitácora de campo auditada sin incidencias en semana ${i}.`,
+      fase: `Fase ${((i % 6) + 1)}`,
+      uac: 'Pensamiento Matemático I',
+      metaOperativa: `Seguimiento operativo y monitoreo de la semana ${i}: verificación de puntos limpios y faenas escolares.`,
+      evidencia: `Registro fotográfico y bitácora de campo auditada sin incidencias en semana ${i}.`,
+      avancePorcentaje: Math.min(100, Math.round((i / 16) * 100)),
+      semaforo: 'verde',
     });
   }
   return arr;
@@ -397,37 +410,47 @@ const ANEXOS_HEROES: AnexosData = {
   anexo1Minuta: IMPLEMENTACION_HEROES.minutaArranque,
   anexo2Seguimiento: generar16SemanasSeguimiento(),
   anexo3ReporteMensual: {
-    mes: 'Noviembre 2026',
-    logros: 'Acopio de 650 kg de plástico, participación de 180 alumnos en faenas y cero quejas vecinales.',
-    retos: 'Habilitar un área techada adicional para resguardo del material limpio durante días lluviosos.',
-    ajustes: 'Ajuste del rol de guardias de fin de semana para supervisión de puntos limpios.',
+    periodo: 'Noviembre 2026',
+    logros: [
+      'Acopio de 650 kg de plástico PET',
+      'Participación de 180 alumnos en faenas territoriales',
+      'Cero quejas vecinales y alta satisfacción comunitaria',
+    ],
+    dificultades: ['Habilitar un área techada adicional para resguardo del material limpio durante días lluviosos'],
+    accionesAjuste: ['Ajuste del rol de guardias de fin de semana para supervisión de puntos limpios'],
   },
   anexo4ImpactoComunidad: {
+    titulo: 'Encuesta de Impacto Comunitario y Percepción Social',
     reactivos: [
-      { id: 1, pregunta: '¿Ha observado disminución en la basura plástica tirada en su calle o arroyo?', promedio: 4.8 },
-      { id: 2, pregunta: '¿Considera útil el mobiliario ecológico instalado para la convivencia comunitaria?', promedio: 4.9 },
-      { id: 3, pregunta: '¿Su familia separa actualmente las botellas de plástico en su hogar?', promedio: 4.5 },
-      { id: 4, pregunta: '¿La escuela mantuvo comunicación clara sobre las actividades del proyecto?', promedio: 4.7 },
-      { id: 5, pregunta: '¿Estaría dispuesto a continuar apoyando el proyecto en el siguiente ciclo escolar?', promedio: 5.0 },
+      { reactivo: '¿Ha observado disminución en la basura plástica tirada en su calle o arroyo?', dimension: 'Medio Ambiente' },
+      { reactivo: '¿Considera útil el mobiliario ecológico instalado para la convivencia comunitaria?', dimension: 'Infraestructura' },
+      { reactivo: '¿Su familia separa actualmente las botellas de plástico en su hogar?', dimension: 'Cultura Ecológica' },
+      { reactivo: '¿La escuela mantuvo comunicación clara sobre las actividades del proyecto?', dimension: 'Gobernanza' },
+      { reactivo: '¿Estaría dispuesto a continuar apoyando el proyecto en el siguiente ciclo escolar?', dimension: 'Sostenibilidad' },
     ],
+    escala: { '1': 'Totalmente en desacuerdo', '5': 'Totalmente de acuerdo' },
   },
   anexo5AutoevaluacionEstudiantes: {
+    titulo: 'Rúbrica de Autoevaluación Formativa del Estudiante',
     reactivos: [
-      { id: 1, criterio: 'Apliqué conocimientos de matemáticas y física en la solución del problema del plástico', promedio: 4.6 },
-      { id: 2, criterio: 'Trabajé de manera colaborativa y respetuosa en las faenas y brigadas ecológicas', promedio: 4.9 },
-      { id: 3, criterio: 'Mejoré mi capacidad de expresión oral al informar a los vecinos de María Andrea', promedio: 4.4 },
-      { id: 4, criterio: 'Comprendo la importancia de la economía circular y la justicia ambiental comunitaria', promedio: 4.8 },
-      { id: 5, criterio: 'Me siento orgulloso del impacto positivo logrado por mi escuela en el territorio', promedio: 5.0 },
+      { reactivo: 'Apliqué conocimientos de matemáticas y física en la solución del problema del plástico', dimension: 'Aprendizajes' },
+      { reactivo: 'Trabajé de manera colaborativa y respetuosa en las faenas y brigadas ecológicas', dimension: 'Colaboración' },
+      { reactivo: 'Mejoré mi capacidad de expresión oral al informar a los vecinos de María Andrea', dimension: 'Comunicación' },
+      { reactivo: 'Comprendo la importancia de la economía circular y la justicia ambiental comunitaria', dimension: 'Ética' },
+      { reactivo: 'Me siento orgulloso del impacto positivo logrado por mi escuela en el territorio', dimension: 'Identidad' },
     ],
+    escala: { '1': 'Insuficiente', '5': 'Excelente' },
   },
   anexo6EvaluacionColegiado: {
+    titulo: 'Evaluación del Trabajo Colegiado e Interdisciplinar Docente',
     reactivos: [
-      { id: 1, aspecto: 'Articulación efectiva de progresiones interdisciplinares en el plan de clase', promedio: 4.7 },
-      { id: 2, aspecto: 'Cumplimiento del cronograma de 16 semanas y trabajo colegiado en sesiones de CTE', promedio: 4.8 },
-      { id: 3, aspecto: 'Vinculación efectiva con familias, autoridades municipales y agentes externos', promedio: 4.6 },
-      { id: 4, aspecto: 'Uso de instrumentos de evaluación formativa acordes a los lineamientos de la NEM', promedio: 4.8 },
-      { id: 5, aspecto: 'Sistematización rigurosa de evidencias y transparencia en rendición de cuentas', promedio: 4.9 },
+      { reactivo: 'Articulación efectiva de progresiones interdisciplinares en el plan de clase', dimension: 'Curricular' },
+      { reactivo: 'Cumplimiento del cronograma de 16 semanas y trabajo colegiado en sesiones de CTE', dimension: 'Gestión' },
+      { reactivo: 'Vinculación efectiva con familias, autoridades municipales y agentes externos', dimension: 'Comunidad' },
+      { reactivo: 'Uso de instrumentos de evaluación formativa acordes a los lineamientos de la NEM', dimension: 'Evaluación' },
+      { reactivo: 'Sistematización rigurosa de evidencias y transparencia en rendición de cuentas', dimension: 'Rendición' },
     ],
+    escala: { '1': 'No cumplido', '5': 'Completamente consolidado' },
   },
 };
 
@@ -489,22 +512,25 @@ const INFORME_HEROES: PaecInformeSupervision = {
       meta: 'Recolectar 1.5 toneladas de plástico PET y PEAD en la comunidad',
       indicador: 'Toneladas pesadas en báscula certificada municipal',
       programado: '1.5 toneladas',
-      logrado: '1.62 toneladas',
-      porcentaje: '108%',
+      alcanzado: '1.62 toneladas',
+      porcentaje: 108,
+      estatus: 'cumplido',
     },
     {
       meta: 'Fabricar e instalar 12 bancas ecológicas en espacios públicos',
       indicador: 'Número de piezas instaladas con acta de entrega-recepción',
       programado: '12 bancas',
-      logrado: '14 bancas',
-      porcentaje: '116%',
+      alcanzado: '14 bancas',
+      porcentaje: 116,
+      estatus: 'cumplido',
     },
     {
       meta: 'Capacitar a 150 familias en separación domiciliaria de residuos',
       indicador: 'Familias registradas con participación activa en acopio',
       programado: '150 familias',
-      logrado: '185 familias',
-      porcentaje: '123%',
+      alcanzado: '185 familias',
+      porcentaje: 123,
+      estatus: 'cumplido',
     },
   ],
   analisisPrePost: {
@@ -517,6 +543,17 @@ const INFORME_HEROES: PaecInformeSupervision = {
     desarrolloCompetencias:
       'Fortalecimiento demostrado de liderazgo juvenil, expresión oral pública y conciencia ecológica orientada al bien común de su pueblo.',
   },
+  evidencias: [
+    'Actas de entrega-recepción de bancas ecológicas a la Inspectoría Auxiliar',
+    'Reporte de pesaje oficial expedido por la báscula municipal de Venustiano Carranza',
+    'Portafolio fotográfico de faenas comunitarias y jornadas escolares de reciclaje',
+  ],
+  obstaculos: [
+    {
+      dificultad: 'Lluvias torrenciales en época de ciclones que humedecieron parte del material acopiado.',
+      solucion: 'El comité de padres habilitó un tejabán de resguardo temporal en el patio posterior.',
+    },
+  ],
   sostenibilidad: [
     'Convenio formal firmado con el H. Ayuntamiento para mantener ruta permanente de recolección quincenal de plástico reciclable.',
     'Reglamento escolar y ejidal aprobado en asamblea que prohíbe el uso de unicel y plásticos de un solo uso en eventos del plantel y la comunidad.',
@@ -535,7 +572,7 @@ const BENCHMARK_PROJECT_HEROES: PaecProject = {
     location: 'Localidad Coronel Tito Hernández (María Andrea), Venustiano Carranza, Puebla',
     demographics: '2,183 habitantes, 649 viviendas habitadas (Censo INEGI)',
     economy: 'Agricultura citrícola, ganadería y comercio local',
-    context: 'Comunidad semiurbana con retos ambientales de manejo de desechos sólidos y quema de basura.',
+    environment: 'Comunidad semiurbana con retos ambientales de manejo de desechos sólidos y quema de basura.',
   },
   schoolContext: {
     cct: '21EBH0244Z',
@@ -543,11 +580,7 @@ const BENCHMARK_PROJECT_HEROES: PaecProject = {
     municipality: 'Venustiano Carranza, Puebla',
     enrollment: '214',
     teacherCount: '12',
-    academicBaseline: {
-      eficienciaTerminal: 88.5,
-      promEficienciaZona: 82.1,
-      problematicasComunesZona: ['Contaminación ambiental', 'Rezago en habilidades matemáticas'],
-    },
+    indicators: 'Eficiencia terminal 88.5%, promedio de zona 82.1%',
   },
   fase1Diagnostico: FASE1_HEROES,
   fase2Justificacion: FASE2_HEROES,
