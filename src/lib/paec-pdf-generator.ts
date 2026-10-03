@@ -892,20 +892,24 @@ export async function generatePaecPDF(
 
   const crono: CronogramaRow[] = p.fase2Cronograma || [];
   const cronoRows = crono.length > 0
-    ? crono.map((r: any, idx) => [
-        safeStr(r.phase || r.faseBimestral || `Fase ${idx + 1}`),
-        safeStr(r.semesterInvolved || r.periodo || `Bimestre ${idx + 1}`),
-        safeStr(r.macroActivities || r.actividad || r.objective || 'Actividades de la fase'),
-        safeStr(r.responsibleSubjects || r.uacParticipantes || 'Colegiado Docente'),
-        safeStr(r.objective || r.entregables || 'Evidencia de aprendizaje'),
-      ])
+    ? crono.map((r: any, idx) => {
+        const rawTitle = r.phaseTitle || r.tituloTematico || '';
+        const rawPhase = r.phase || r.faseBimestral || `Fase ${idx + 1}`;
+        const fase = rawTitle && !rawPhase.includes(rawTitle) ? `${rawPhase}: ${rawTitle}` : rawPhase;
+        const obj = r.objective || r.objetivo || 'Propósito formativo';
+        const act = r.macroActivities || r.actividad || 'Actividades de la fase';
+        const uacs = r.responsibleSubjects || r.uacParticipantes || 'Colegiado Docente';
+        const sem = r.semesterInvolved || r.semestre || (r.semester ? `Semestre ${r.semester}` : 'Todos los semestres');
+
+        return [safeStr(fase), safeStr(obj), safeStr(act), safeStr(uacs), safeStr(sem)];
+      })
     : [
-        ['Fase I: Diagnóstico', 'Bimestre 1 (Sem 1-4)', 'Levantamiento de campo y asamblea comunitaria inicial', 'Ciencias Sociales / Humanidades', 'Documento de Diagnóstico Aprobado'],
-        ['Fase II: Diseño', 'Bimestre 2 (Sem 5-8)', 'Articulación de progresiones y prototipos', 'Pensamiento Matemático / Lengua', 'Diseño Técnico del Prototipo'],
-        ['Fase III: Gestión', 'Bimestre 3 (Sem 9-12)', 'Gestión con aliados y trámites comunitarios', 'Formación Laboral / Tutorías', 'Oficios y Convenios Firmados'],
-        ['Fase IV: Ejecución', 'Bimestre 4 (Sem 13-16)', 'Intervención de campo y faenas escolares', 'Todas las UACs participantes', 'Bitácoras de Implementación'],
-        ['Fase V: Monitoreo', 'Bimestre 5 (Sem 17-20)', 'Medición de impacto y análisis pre/post', 'Metodología / Ciencias', 'Informe Estadístico de Resultados'],
-        ['Fase VI: Cierre y Feria', 'Bimestre 6 (Sem 21-24)', 'Feria Comunitaria y entrega formal de custodias', 'Toda la Comunidad Escolar', 'Memoria Técnica y Dictamen'],
+        ['Fase 1: Diagnóstico (Bimestre 1)', 'Levantar necesidades prioritarias', 'Levantamiento de campo y asamblea inicial', 'Ciencias Sociales / Humanidades', '1° y 3° Semestre'],
+        ['Fase 2: Diseño (Bimestre 2)', 'Articulación pedagógica y prototipos', 'Articulación de progresiones y prototipos', 'Pensamiento Matemático / Lengua', 'Todos'],
+        ['Fase 3: Gestión (Bimestre 3)', 'Vincular aliados estratégicos', 'Gestión con aliados y convenios comunitarios', 'Formación Laboral / Tutorías', 'Todos'],
+        ['Fase 4: Ejecución (Bimestre 4)', 'Intervención territorial situada', 'Intervención de campo y faenas escolares', 'Colegiado Escolar', 'Todos'],
+        ['Fase 5: Monitoreo (Bimestre 5)', 'Evaluación de impacto formativo', 'Medición de impacto y encuestas comunitarias', 'Metodología / Ciencias', 'Todos'],
+        ['Fase 6: Cierre (Bimestre 6)', 'Rendición de cuentas e informe', 'Feria Comunitaria y entrega de custodias', 'Toda la Comunidad', 'Todos'],
       ];
 
   autoTable(doc, {
@@ -919,11 +923,11 @@ export async function generatePaecPDF(
         },
       ],
       [
-        { content: 'Fase Bimestral', styles: { cellWidth: 32 } },
-        { content: 'Periodo', styles: { cellWidth: 26 } },
-        { content: 'Actividades Clave y Viga Maestra', styles: { cellWidth: 48 } },
-        { content: 'Asignaturas Participantes', styles: { cellWidth: 40 } },
-        { content: 'Entregables / Evidencia', styles: { cellWidth: contentWidth - 146 } },
+        { content: 'Fase Temática y Periodo', styles: { cellWidth: 42 } },
+        { content: 'Propósito / Objetivo', styles: { cellWidth: 38 } },
+        { content: 'Actividades Macro', styles: { cellWidth: 44 } },
+        { content: 'Asignaturas Viga Maestra', styles: { cellWidth: 36 } },
+        { content: 'Semestre(s)', styles: { cellWidth: contentWidth - 160 } },
       ],
     ],
     body: cronoRows,

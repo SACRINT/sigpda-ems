@@ -412,7 +412,9 @@ export function auditPaecProject(project: PaecProject): PaecAuditResult {
     let score = 4;
     let status: 'pass' | 'warning' | 'fail' = 'pass';
     let feedback = 'Uso correcto de la nomenclatura NEM: Propósitos Formativos en 1°-4° y Progresiones en 5°-6°.';
-    let evidence = 'Rigor normativo MCCEMS 100% verificado sin infracciones de nomenclatura.';
+    let evidence = totalChecked > 0
+      ? `Rigor normativo MCCEMS verificado en ${totalChecked} asignaturas sin infracciones.`
+      : 'Rigor normativo MCCEMS 100% verificado sin infracciones de nomenclatura.';
 
     if (violations > 3) {
       score = 2;
@@ -451,11 +453,18 @@ export function auditPaecProject(project: PaecProject): PaecAuditResult {
     let feedback = 'El cronograma macro no cuenta con las 6 fases bimensuales reglamentarias.';
     let evidence = `${cron.length} fases registradas.`;
 
+    const thematicPhasesCount = cron.filter(f => {
+      const p = (f.phase || '').trim();
+      return /fase\s*(\d+|[ivx]+)\s*[:—–-]\s*.+/i.test(p);
+    }).length;
+
     if (cron.length === 6) {
       score = 4;
       status = 'pass';
       feedback = 'Cronograma macro estructurado en las 6 fases bimensuales oficiales de la planeación escolar comunitaria.';
-      evidence = '6 fases bimensuales presentes (Fase I a Fase VI).';
+      evidence = thematicPhasesCount === 6
+        ? '6 fases bimensuales presentes con títulos temáticos situados (Fase I a Fase VI).'
+        : '6 fases bimensuales presentes (Fase I a Fase VI).';
     } else if (cron.length >= 4) {
       score = 2;
       status = 'warning';

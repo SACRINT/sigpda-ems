@@ -563,9 +563,29 @@ export function evaluateCriterio11(cronograma: CronogramaRow[] | null | undefine
   const phaseCount = rows.length;
 
   let fullColumnRows = 0;
+  let thematicPhases = 0;
   for (const r of rows) {
-    if (r.phase && r.objective && r.macroActivities && r.responsibleSubjects && r.semesterInvolved) {
+    const rAny = r as unknown as Record<string, unknown>;
+    const rawPhase = r.phase || rAny.fase || '';
+    const rawTitle = rAny.phaseTitle || rAny.tituloTematico || '';
+    const combinedPhase = String(
+      rawTitle && !String(rawPhase).includes(String(rawTitle))
+        ? `${rawPhase}: ${rawTitle}`
+        : rawPhase
+    ).trim();
+
+    const hasPhase = combinedPhase.length > 0;
+    const hasObj = Boolean(r.objective && r.objective.trim().length > 0);
+    const hasMacro = Boolean(r.macroActivities && r.macroActivities.trim().length > 0);
+    const hasResp = Boolean(r.responsibleSubjects && r.responsibleSubjects.trim().length > 0);
+    const hasSem = Boolean((r.semesterInvolved && String(r.semesterInvolved).trim().length > 0) || r.semester);
+
+    if (hasPhase && hasObj && hasMacro && hasResp && hasSem) {
       fullColumnRows++;
+    }
+
+    if (combinedPhase && /fase\s*(\d+|[ivx]+)\s*[:—–-]\s*.+/i.test(combinedPhase)) {
+      thematicPhases++;
     }
   }
 
@@ -578,7 +598,9 @@ export function evaluateCriterio11(cronograma: CronogramaRow[] | null | undefine
     score = 4;
     status = 'pass';
     feedback = 'Cronograma completo con exactamente 6 fases bimestrales y las 5 columnas normativas detalladas al 100%.';
-    evidenceFound = `6/6 fases bimestrales con 5 columnas completas (Fase, Objetivo, Macro-actividades, Responsables, Semestre).`;
+    evidenceFound = thematicPhases > 0
+      ? `6/6 fases bimestrales con 5 columnas completas y títulos temáticos situados (${thematicPhases}/6).`
+      : `6/6 fases bimestrales con 5 columnas completas (Fase, Objetivo, Macro-actividades, Responsables, Semestre).`;
   } else if (phaseCount >= 5 && fullColumnRows >= 4) {
     score = 3;
     status = 'pass';

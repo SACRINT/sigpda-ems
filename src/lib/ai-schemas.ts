@@ -164,15 +164,40 @@ export const PaecPaso3Schema = z.preprocess((input: unknown) => {
   return input;
 }, z.array(MapeoRowSchema).min(1, 'Debe incluir al menos una UAC mapeada'));
 
-// PASO 4: Cronograma en 6 Fases
-const CronogramaRowSchema = z.object({
+// PASO 4: Cronograma en 6 Fases (H-313 Fusión de Título Temático en 5 Columnas)
+const CronogramaRowSchema = z.preprocess((val: unknown) => {
+  if (val && typeof val === 'object') {
+    const v = val as Record<string, unknown>;
+    const rawPhase = String(v.phase || v.fase || '').trim();
+    const rawTitle = String(v.phaseTitle || v.titulo || v.tituloTematico || '').trim();
+    const rawPeriod = String(v.period || v.periodo || v.meses || '').trim();
+
+    let unifiedPhase = rawPhase;
+    if (rawTitle && !unifiedPhase.toLowerCase().includes(rawTitle.toLowerCase())) {
+      unifiedPhase = unifiedPhase ? `${unifiedPhase}: ${rawTitle}` : rawTitle;
+    }
+    if (rawPeriod && !unifiedPhase.toLowerCase().includes(rawPeriod.toLowerCase())) {
+      unifiedPhase = `${unifiedPhase} (${rawPeriod})`;
+    }
+
+    return {
+      phase: unifiedPhase || 'Fase del proyecto',
+      objective: String(v.objective || v.objetivo || ''),
+      bimonthlyGoal: v.bimonthlyGoal ? String(v.bimonthlyGoal) : undefined,
+      macroActivities: String(v.macroActivities || v.actividadesMacro || v.actividades || ''),
+      responsibleSubjects: String(v.responsibleSubjects || v.asignaturasResponsables || v.responsables || ''),
+      semesterInvolved: String(v.semesterInvolved || v.semestresInvolucrados || v.semestre || ''),
+    };
+  }
+  return val;
+}, z.object({
   phase: z.string().min(1, 'Fase requerida'),
   objective: z.string().min(5, 'Objetivo de la fase requerido'),
   bimonthlyGoal: z.string().optional(),
   macroActivities: z.string().min(5, 'Actividades macro requeridas'),
   responsibleSubjects: z.string().min(1, 'Asignaturas responsables requeridas'),
   semesterInvolved: z.string().min(1, 'Semestres involucrados requeridos'),
-});
+}));
 
 export const PaecPaso4Schema = z.preprocess((input: unknown) => {
   if (Array.isArray(input)) return input;

@@ -968,15 +968,15 @@ export async function generatePaecDocx(
   s1Children.push(para('Estructuración temporal por bimestres con identificación del liderazgo pedagógico de las Asignaturas Viga Maestra:'));
 
   const crono: CronogramaRow[] = p.fase2Cronograma || [];
-  const cronoWidths = [1800, 1600, 2600, 2400, 2400]; // Sum: 10800
+  const cronoWidths = [2400, 2200, 2600, 2200, 1400]; // Sum: 10800 DXA
   const cronoRows: TableRow[] = [
     new TableRow({
       children: [
-        tcH('Fase Bimestral', { w: 1800 }),
-        tcH('Periodo / Semanas', { w: 1600 }),
-        tcH('Actividades Clave y Viga Maestra', { w: 2600 }),
-        tcH('UACs Participantes', { w: 2400 }),
-        tcH('Entregables y Evaluación', { w: 2400 }),
+        tcH('Fase Temática y Periodo', { w: 2400 }),
+        tcH('Propósito / Objetivo', { w: 2200 }),
+        tcH('Actividades Macro', { w: 2600 }),
+        tcH('Asignaturas Viga Maestra', { w: 2200 }),
+        tcH('Semestre(s)', { w: 1400 }),
       ],
     }),
   ];
@@ -984,20 +984,22 @@ export async function generatePaecDocx(
     cronoRows.push(new TableRow({ children: [tc('Sin fases bimestrales registradas en el cronograma macro.', { span: 5, italics: true })] }));
   } else {
     crono.forEach((r: any, idx) => {
-      const fase = r.phase || r.faseBimestral || `Fase ${idx + 1}`;
-      const per = r.semesterInvolved || r.periodo || `Bimestre ${idx + 1}`;
-      const act = r.macroActivities || r.actividad || r.objective || 'Actividades de fase';
+      const rawTitle = (r as any).phaseTitle || (r as any).tituloTematico || '';
+      const rawPhase = r.phase || r.faseBimestral || `Fase ${idx + 1}`;
+      const fase = rawTitle && !rawPhase.includes(rawTitle) ? `${rawPhase}: ${rawTitle}` : rawPhase;
+      const obj = r.objective || r.objetivo || 'Propósito formativo';
+      const act = r.macroActivities || r.actividad || 'Actividades de fase';
       const uacs = r.responsibleSubjects || r.uacParticipantes || 'Colegiado Docente';
-      const ent = r.objective || r.entregables || r.evidenciaEvaluacion || 'Evidencia de aprendizaje';
+      const sem = r.semesterInvolved || r.semestre || (r.semester ? `Semestre ${r.semester}` : 'Todos los semestres');
 
       cronoRows.push(
         new TableRow({
           children: [
-            tc(safeStr(fase), { w: 1800, bold: true, fill: idx % 2 === 1 ? C.alt : C.white }),
-            tc(safeStr(per), { w: 1600, fill: idx % 2 === 1 ? C.alt : C.white }),
+            tc(safeStr(fase), { w: 2400, bold: true, fill: idx % 2 === 1 ? C.alt : C.white }),
+            tc(safeStr(obj), { w: 2200, fill: idx % 2 === 1 ? C.alt : C.white }),
             tc(safeStr(act), { w: 2600, fill: idx % 2 === 1 ? C.alt : C.white }),
-            tc(safeStr(uacs), { w: 2400, fill: idx % 2 === 1 ? C.alt : C.white }),
-            tc(safeStr(ent), { w: 2400, fill: idx % 2 === 1 ? C.alt : C.white }),
+            tc(safeStr(uacs), { w: 2200, fill: idx % 2 === 1 ? C.alt : C.white }),
+            tc(safeStr(sem), { w: 1400, fill: idx % 2 === 1 ? C.alt : C.white }),
           ],
         })
       );
