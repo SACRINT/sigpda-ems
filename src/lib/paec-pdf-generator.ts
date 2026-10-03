@@ -1535,6 +1535,40 @@ export async function generatePaecPDF(
   curY += 10;
 
   const anexos = (p.fase2Anexos || {}) as Record<string, any>; // fallback tipado defensivo
+  const a1 = anexos.anexo1 || anexos.anexo1Diagnostico || {};
+  const f1Diag = (p.fase1Diagnostico || (p as any).fase1_diagnostico || {}) as Record<string, any>;
+  const t1List = Array.isArray(f1Diag.tabla1) ? f1Diag.tabla1 : [];
+
+  const a1Universo = safeStr(
+    a1.universo,
+    sCtx.enrollment && sCtx.enrollment !== 'S/D' && sCtx.enrollment !== 'N/D'
+      ? `Población escolar del plantel (${sCtx.enrollment} estudiantes), colectivo docente y familias del entorno comunitario de impacto.`
+      : 'Comunidad escolar y actores del entorno territorial inmediato delimitados en la fase de diagnóstico colectivo.'
+  );
+
+  const a1DimensionesList: string[] =
+    Array.isArray(a1.dimensiones) && a1.dimensiones.length > 0
+      ? a1.dimensiones
+      : t1List.length > 0
+      ? t1List.slice(0, 4).map((r: any) => `${r.col1}: ${r.col2}`)
+      : [
+          'Contexto sociocultural, dinámicas comunitarias y calidad de servicios en el territorio.',
+          'Condiciones ambientales, necesidades prioritarias y factores de riesgo del entorno escolar.',
+          'Recursos, saberes comunitarios y disposición participativa de familias y actores locales.',
+          'Articulación formativa de las asignaturas con las problemáticas del territorio.',
+        ];
+
+  const a1Responsables = safeStr(
+    a1.responsables,
+    teacherName && teacherName !== 'Docente Coordinador'
+      ? `${teacherName} y colectivo docente responsable con brigadas estudiantiles designadas por el comité del PAEC.`
+      : 'Colectivo docente responsable y brigadas estudiantiles del plantel educativo.'
+  );
+
+  const a1Validacion = safeStr(
+    a1.validacion,
+    'Cotejo con actas de asamblea comunitaria, acuerdos de colegiado docente y validación de las autoridades del plantel.'
+  );
 
   autoTable(doc, {
     startY: curY,
@@ -1550,30 +1584,30 @@ export async function generatePaecPDF(
     body: [
       [
         { content: 'Objetivo del Instrumento:', styles: { fontStyle: 'bold', textColor: NAVY, cellWidth: 48 } },
-        { content: 'Levantar información empírica directamente en territorio a través de brigadas estudiantiles para documentar las condiciones de la problemática identificada.', styles: { textColor: TEXT_DARK } },
+        { content: safeStr(a1.objetivo, 'Levantar información empírica directamente en territorio mediante técnicas participativas para fundamentar las acciones del proyecto escolar comunitario.'), styles: { textColor: TEXT_DARK } },
       ],
       [
         { content: 'Metodología de Aplicación:', styles: { fontStyle: 'bold', textColor: NAVY } },
-        { content: 'Entrevistas semiestructuradas, recorridos territoriales de observación guiada y aplicación de cédulas en hogares y comercios locales.', styles: { textColor: TEXT_DARK } },
+        { content: safeStr(a1.metodologia, 'Cédulas diagnósticas de campo, recorridos territoriales de observación guiada y diálogo estructurado con actores de la comunidad escolar y su entorno.'), styles: { textColor: TEXT_DARK } },
       ],
       [
         { content: 'Universo de Muestreo:', styles: { fontStyle: 'bold', textColor: NAVY } },
-        { content: 'Muestra representativa de 150 hogares en la comunidad de impacto, estratificada por cuadrantes y sectores de actividad.', styles: { textColor: TEXT_DARK } },
+        { content: a1Universo, styles: { textColor: TEXT_DARK } },
       ],
       [
         { content: 'Dimensiones Indagadas:', styles: { fontStyle: 'bold', textColor: NAVY } },
         {
-          content:
-            '• Acceso, calidad y regularidad en los servicios básicos comunitarios.\n' +
-            '• Percepción comunitaria sobre los focos de contaminación y riesgos ambientales.\n' +
-            '• Disposición de los vecinos a participar en faenas y talleres escolares de solución.\n' +
-            '• Recursos locales disponibles (materiales, saberes ancestrales y mano de obra voluntaria).',
+          content: a1DimensionesList.map(dim => `• ${dim}`).join('\n'),
           styles: { textColor: TEXT_DARK },
         },
       ],
       [
         { content: 'Responsables de Brigada:', styles: { fontStyle: 'bold', textColor: NAVY } },
-        { content: 'Docentes titulares de Ciencias Sociales y Humanidades con brigadas de estudiantes de 1er y 3er semestre.', styles: { textColor: TEXT_DARK } },
+        { content: a1Responsables, styles: { textColor: TEXT_DARK } },
+      ],
+      [
+        { content: 'Criterios de Validación:', styles: { fontStyle: 'bold', textColor: NAVY } },
+        { content: a1Validacion, styles: { textColor: TEXT_DARK } },
       ],
     ],
     theme: 'grid',

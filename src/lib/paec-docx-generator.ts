@@ -1303,11 +1303,40 @@ export async function generatePaecDocx(
 
   const anexos = (p.fase2Anexos || {}) as Record<string, any>; // fallback tipado defensivo
 
-  // Anexo 1: Cédula de Diagnóstico Comunitario Participativo y Levantamiento de Campo
+  // Anexo 1: Cédula de Diagnóstico Comunitario Participativo y Levantamiento de Campo (H-312 Cero Hardcode)
   s3Children.push(secH('Anexo 1: Cédula de Diagnóstico Comunitario Participativo y Levantamiento de Campo'));
   s3Children.push(para('Instrumento oficial de campo aplicado en territorio para recolectar información empírica, necesidades prioritarias y condiciones de vida en el entorno escolar:'));
 
   const a1 = anexos.anexo1 || anexos.anexo1Diagnostico || {};
+  const f1Diag = (p.fase1Diagnostico || (p as any).fase1_diagnostico || {}) as Record<string, any>;
+  const t1List: TableRow2Cols[] = Array.isArray(f1Diag.tabla1) ? f1Diag.tabla1 : [];
+
+  const a1Universo = safeStr(
+    a1.universo,
+    sCtx.enrollment && sCtx.enrollment !== 'S/D' && sCtx.enrollment !== 'N/D'
+      ? `Población escolar del plantel (${sCtx.enrollment} estudiantes), colectivo docente y familias del entorno comunitario de impacto.`
+      : 'Comunidad escolar y actores del entorno territorial inmediato delimitados en la fase de diagnóstico colectivo.'
+  );
+
+  const a1DimensionesList: string[] =
+    Array.isArray(a1.dimensiones) && a1.dimensiones.length > 0
+      ? a1.dimensiones
+      : t1List.length > 0
+      ? t1List.slice(0, 4).map((r: TableRow2Cols) => `${r.col1}: ${r.col2}`)
+      : [
+          'Contexto sociocultural, dinámicas comunitarias y calidad de servicios en el territorio.',
+          'Condiciones ambientales, necesidades prioritarias y factores de riesgo del entorno escolar.',
+          'Recursos, saberes comunitarios y disposición participativa de familias y actores locales.',
+          'Articulación formativa de las asignaturas con las problemáticas del territorio.',
+        ];
+
+  const a1Responsables = safeStr(
+    a1.responsables,
+    teacherName && teacherName !== 'Docente Coordinador'
+      ? `${teacherName} y colectivo docente responsable con brigadas estudiantiles designadas por el comité del PAEC.`
+      : 'Colectivo docente responsable y brigadas estudiantiles del plantel educativo.'
+  );
+
   const a1Rows: TableRow[] = [
     new TableRow({
       children: [
@@ -1317,31 +1346,26 @@ export async function generatePaecDocx(
     new TableRow({
       children: [
         tc('Objetivo del Instrumento:', { w: 3200, bold: true, color: C.dark, fill: C.alt }),
-        tc(safeStr(a1.objetivo, 'Levantar información empírica directamente en territorio a través de brigadas estudiantiles para documentar las condiciones de la problemática identificada.'), { w: 7600 }),
+        tc(safeStr(a1.objetivo, 'Levantar información empírica directamente en territorio mediante técnicas participativas para fundamentar las acciones del proyecto escolar comunitario.'), { w: 7600 }),
       ],
     }),
     new TableRow({
       children: [
         tc('Metodología de Aplicación:', { w: 3200, bold: true, color: C.dark, fill: C.alt }),
-        tc(safeStr(a1.metodologia, 'Entrevistas semiestructuradas, recorridos territoriales de observación guiada y aplicación de cédulas en hogares y comercios locales.'), { w: 7600 }),
+        tc(safeStr(a1.metodologia, 'Cédulas diagnósticas de campo, recorridos territoriales de observación guiada y diálogo estructurado con actores de la comunidad escolar y su entorno.'), { w: 7600 }),
       ],
     }),
     new TableRow({
       children: [
         tc('Universo de Muestreo:', { w: 3200, bold: true, color: C.dark, fill: C.alt }),
-        tc(safeStr(a1.universo, 'Muestra representativa de 150 hogares en la comunidad de impacto, estratificada por cuadrantes y sectores de actividad comunitaria.'), { w: 7600 }),
+        tc(a1Universo, { w: 7600 }),
       ],
     }),
     new TableRow({
       children: [
         tc('Dimensiones Indagadas:', { w: 3200, bold: true, color: C.dark, fill: C.alt }),
         tc(
-          (a1.dimensiones || [
-            'Acceso, calidad y regularidad en los servicios básicos comunitarios.',
-            'Percepción comunitaria sobre los focos de contaminación y riesgos ambientales.',
-            'Disposición de los vecinos a participar en faenas y talleres escolares de solución.',
-            'Recursos locales disponibles (materiales, saberes ancestrales y mano de obra voluntaria).',
-          ]).map((dim: string) => new Paragraph({ bullet: { level: 0 }, children: [new TextRun({ text: dim, size: 18 })] })),
+          a1DimensionesList.map((dim: string) => new Paragraph({ bullet: { level: 0 }, children: [new TextRun({ text: dim, size: 18 })] })),
           { w: 7600 }
         ),
       ],
@@ -1349,13 +1373,13 @@ export async function generatePaecDocx(
     new TableRow({
       children: [
         tc('Responsables de Brigada:', { w: 3200, bold: true, color: C.dark, fill: C.alt }),
-        tc(safeStr(a1.responsables, 'Docentes titulares de Ciencias Sociales y Humanidades con brigadas de estudiantes de 1er y 3er semestre.'), { w: 7600 }),
+        tc(a1Responsables, { w: 7600 }),
       ],
     }),
     new TableRow({
       children: [
         tc('Criterios de Validación:', { w: 3200, bold: true, color: C.dark, fill: C.alt }),
-        tc(safeStr(a1.validacion, 'Cotejo con actas de asamblea comunitaria y firmas de validación por comités vecinales y autoridades auxiliares del territorio.'), { w: 7600 }),
+        tc(safeStr(a1.validacion, 'Cotejo con actas de asamblea comunitaria, acuerdos de colegiado docente y validación de las autoridades del plantel.'), { w: 7600 }),
       ],
     }),
   ];
