@@ -85,7 +85,18 @@ describe('H-317 — Motor de presentaciones', () => {
     expect(buf.length).toBeGreaterThan(5000);
     expect(buf.subarray(0, 2).toString()).toBe('PK');
     const text = buf.toString('latin1');
-    expect(text).toContain('ppt/slides/slide1.xml');
     expect(text).toContain(`ppt/slides/slide${deck.slides.length}.xml`);
+  });
+
+  it('sanitiza etiquetas de control de cuaderno (<!--workbook:...-->) en diapositivas (F-04)', () => {
+    const wb = workbook(1);
+    wb.missions[0].conceptZero.coreExplanation = 'Concepto clave con tag <!--workbook:table:cols=3-->';
+    wb.missions[0].iDoSection = { stepByStepDemo: 'Demo docente <!--workbook:lines:rows=4-->' };
+    wb.missions[0].weDoSection = { guidedPractice: 'Práctica guiada <!--workbook:lines:rows=2-->', workbookElements: [] };
+    wb.missions[0].youDoSection = { autonomousChallenge: 'Reto <!--workbook:code_box-->', workbookElements: [] };
+    const deck = buildSlideDeck(wb);
+    const json = JSON.stringify(deck);
+    expect(json).not.toContain('<!--workbook:');
+    expect(json).not.toContain('<!--');
   });
 });

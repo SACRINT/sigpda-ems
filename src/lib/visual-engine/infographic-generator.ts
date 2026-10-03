@@ -11,6 +11,7 @@
  */
 
 import type { ActiveWorkTextbook, MissionSection } from '@/types/work-textbook';
+import { stripWorkbookTags } from '@/lib/guide-engine/workbook-tags';
 import { getPalette, type SlidePalette } from '@/lib/presentation-engine/slide-templates';
 
 export type InfographicType = 'proceso' | 'conceptual';
@@ -124,9 +125,9 @@ function footer(m: MissionSection, wb: ActiveWorkTextbook, p: SlidePalette, W: n
 
 function procesoBody(m: MissionSection, p: SlidePalette, W: number): string {
   let steps = (m.conceptZero?.solvedExample?.solutionSteps ?? []).filter(Boolean);
-  if (steps.length === 0) steps = splitSentences(m.iDoSection?.stepByStepDemo ?? '');
+  if (steps.length === 0) steps = splitSentences(stripWorkbookTags(m.iDoSection?.stepByStepDemo ?? ''));
   steps = steps.slice(0, 5);
-  if (steps.length === 0) steps = splitSentences(m.conceptZero?.coreExplanation ?? '').slice(0, 5);
+  if (steps.length === 0) steps = splitSentences(stripWorkbookTags(m.conceptZero?.coreExplanation ?? '')).slice(0, 5);
 
   const top = 392;
   const slot = 190;
@@ -148,7 +149,7 @@ function conceptualBody(m: MissionSection, p: SlidePalette, W: number): string {
   const contrast = m.conceptZero?.contrastTable?.[0];
   const cards: Array<{ label: string; text: string }> = [];
   if (m.conceptZero?.physicalAnalogy) cards.push({ label: 'Analogía', text: m.conceptZero.physicalAnalogy });
-  if (m.conceptZero?.coreExplanation) cards.push({ label: 'Concepto clave', text: m.conceptZero.coreExplanation });
+  if (m.conceptZero?.coreExplanation) cards.push({ label: 'Concepto clave', text: stripWorkbookTags(m.conceptZero.coreExplanation) });
   if (contrast) cards.push({ label: 'Error común', text: `${contrast.commonMisconception} → ${contrast.correctConcept}` });
   const app = m.realLifeConnection?.householdApplication || m.realLifeConnection?.context;
   if (app) cards.push({ label: 'En mi vida diaria', text: app });

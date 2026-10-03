@@ -8,6 +8,7 @@
  */
 
 import type { ActiveWorkTextbook, MissionSection } from '@/types/work-textbook';
+import { stripWorkbookTags } from '@/lib/guide-engine/workbook-tags';
 import { getPalette, type SlidePalette } from './slide-templates';
 
 export type SlideKind =
@@ -96,7 +97,7 @@ function missionSlides(m: MissionSection, n: number): Slide[] {
     subtitle: clip(m.sessionTopic, LIMITS.subtitle),
     bullets: clipList([
       m.conceptZero?.physicalAnalogy ? `Analogía: ${m.conceptZero.physicalAnalogy}` : undefined,
-      m.conceptZero?.coreExplanation,
+      m.conceptZero?.coreExplanation ? stripWorkbookTags(m.conceptZero.coreExplanation) : undefined,
     ], 3),
     callout: contrast
       ? { label: 'Error común', text: clip(`${contrast.commonMisconception} → ${contrast.correctConcept}`, LIMITS.callout) }
@@ -112,10 +113,10 @@ function missionSlides(m: MissionSection, n: number): Slide[] {
     title: clip(`${label}: Yo hago · Hacemos · Tú haces`, LIMITS.title),
     subtitle: clip(m.sessionFocus, LIMITS.subtitle),
     bullets: clipList([
-      m.iDoSection?.stepByStepDemo ? `Yo hago: ${m.iDoSection.stepByStepDemo}` : undefined,
+      m.iDoSection?.stepByStepDemo ? `Yo hago: ${stripWorkbookTags(m.iDoSection.stepByStepDemo)}` : undefined,
       solved?.problemStatement ? `Ejemplo: ${solved.problemStatement}` : undefined,
-      m.weDoSection?.guidedPractice ? `Hacemos: ${m.weDoSection.guidedPractice}` : undefined,
-      m.youDoSection?.autonomousChallenge ? `Tú haces: ${m.youDoSection.autonomousChallenge}` : undefined,
+      m.weDoSection?.guidedPractice ? `Hacemos: ${stripWorkbookTags(m.weDoSection.guidedPractice)}` : undefined,
+      m.youDoSection?.autonomousChallenge ? `Tú haces: ${stripWorkbookTags(m.youDoSection.autonomousChallenge)}` : undefined,
     ], 4),
     notes: 'Desarrollo (20-25 min). Modele, practiquen en equipos y cierre con el reto autónomo en el libro de trabajo.',
     missionIndex: n,

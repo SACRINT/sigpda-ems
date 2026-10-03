@@ -162,4 +162,20 @@ describe('H-321 — endpoint /infografia', () => {
     mockGetBlockWorkbook.mockResolvedValue(null);
     expect((await call('?format=json')).status).toBe(404);
   });
+
+  it('sanitiza etiquetas de cuaderno en infografías de proceso y conceptual (F-04)', () => {
+    const wb = workbook('Pensamiento Matemático I');
+    wb.missions[0].conceptZero.solvedExample = { problemStatement: 'p', solutionSteps: [], interpretation: 'i' };
+    wb.missions[0].iDoSection = { stepByStepDemo: 'Paso modelado docente. <!--workbook:lines:rows=4-->' };
+    wb.missions[0].conceptZero.coreExplanation = 'Explicación del núcleo. <!--workbook:table:cols=2-->';
+    const infoProceso = buildInfographic(wb, 0)!;
+    expect(infoProceso.svg).not.toContain('<!--workbook:');
+    expect(infoProceso.svg).not.toContain('<!--');
+
+    const wbHum = workbook('Historia de México');
+    wbHum.missions[0].conceptZero.coreExplanation = 'Concepto histórico central. <!--workbook:code_box-->';
+    const infoConcept = buildInfographic(wbHum, 0)!;
+    expect(infoConcept.svg).not.toContain('<!--workbook:');
+    expect(infoConcept.svg).not.toContain('<!--');
+  });
 });
