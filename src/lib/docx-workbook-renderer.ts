@@ -65,6 +65,7 @@ import { extractCalloutBox, type CalloutBoxData } from '@/lib/visual-engine/call
 import crypto from 'crypto';
 import QRCode from 'qrcode';
 import { getVerificationUrl } from '@/lib/digital-signature';
+import { stripWorkbookTags } from '@/lib/guide-engine/workbook-tags';
 import { extractComparisonTable, type ComparisonTableData } from '@/lib/visual-engine/comparison-table';
 import {
   extractGlossaryTerms,
@@ -311,15 +312,16 @@ export async function renderWorkbookToDocx(
   }
 
   // ── 5. Ensamblaje Multisección con Aislamiento Estricto de Encabezados (Fase V5) ──
-  const shortSubject = (workbook.coverData?.subjectName || workbook.blockName).length > 42
-    ? (workbook.coverData?.subjectName || workbook.blockName).slice(0, 39) + '...'
-    : (workbook.coverData?.subjectName || workbook.blockName);
+  const rawSubject = stripMarkdown(stripWorkbookTags(workbook.coverData?.subjectName || workbook.blockName || ''));
+  const shortSubject = rawSubject.length > 42
+    ? rawSubject.slice(0, 39) + '...'
+    : rawSubject;
 
-  const rawSchool = workbook.coverData?.schoolName || 'BGE';
+  const rawSchool = stripMarkdown(stripWorkbookTags(workbook.coverData?.schoolName || 'BGE'));
   const schoolSigla = rawSchool
     .replace(/^BACHILLERATO\s+(GENERAL\s+ESTATAL|DIGITAL|TECNOL[OÓ]GICO)\s+/i, '')
     .trim() || 'EMS';
-  const cctClean = workbook.coverData?.cct || '';
+  const cctClean = stripMarkdown(stripWorkbookTags(workbook.coverData?.cct || ''));
   const footerSchoolText = cctClean ? `${schoolSigla} (${cctClean})` : schoolSigla;
 
   const docSections: ISectionOptions[] = [];
@@ -382,7 +384,7 @@ export async function renderWorkbookToDocx(
             alignment: AlignmentType.RIGHT,
             children: [
               new TextRun({
-                text: `${shortSubject} · ${workbook.blockName} (MCCEMS Puebla)`,
+                text: `${shortSubject} · ${stripMarkdown(stripWorkbookTags(workbook.blockName))} (MCCEMS Puebla)`,
                 size: 16,
                 color: C.mutedText,
                 font: 'Calibri',
@@ -1149,15 +1151,15 @@ function buildDocxPlantelComunidadSection(
     })
   );
 
-  const schoolName = workbook.coverData?.schoolName || planning?.contentJson?.sectionI?.schoolName || 'Bachillerato General Oficial';
-  const cct = workbook.coverData?.cct || planning?.contentJson?.sectionI?.cct || '21ECT0017T';
-  const subsystem = (workbook.subsystem || planning?.contentJson?.sectionI?.subsystem || 'BGE').toUpperCase();
-  const municipality = workbook.coverData?.municipality ?? 'Puebla, Pue.';
-  const teacherName = workbook.coverData?.teacherName || planning?.contentJson?.sectionI?.teacherName || 'Academia Docente del Plantel';
-  const subjectName = workbook.coverData?.subjectName || workbook.blockName || planning?.uacName || 'Formación Fundamental';
+  const schoolName = stripMarkdown(stripWorkbookTags(workbook.coverData?.schoolName || planning?.contentJson?.sectionI?.schoolName || 'Bachillerato General Oficial'));
+  const cct = stripMarkdown(stripWorkbookTags(workbook.coverData?.cct || planning?.contentJson?.sectionI?.cct || '21ECT0017T'));
+  const subsystem = stripMarkdown(stripWorkbookTags(workbook.subsystem || planning?.contentJson?.sectionI?.subsystem || 'BGE')).toUpperCase();
+  const municipality = stripMarkdown(stripWorkbookTags(workbook.coverData?.municipality || 'Puebla, Pue.'));
+  const teacherName = stripMarkdown(stripWorkbookTags(workbook.coverData?.teacherName || planning?.contentJson?.sectionI?.teacherName || 'Academia Docente del Plantel'));
+  const subjectName = stripMarkdown(stripWorkbookTags(workbook.coverData?.subjectName || workbook.blockName || planning?.uacName || 'Formación Fundamental'));
   const semesterStr = workbook.coverData?.semester !== undefined ? `${workbook.coverData.semester}° Semestre` : 'Segundo Semestre';
-  const paecProjectName = workbook.coverData?.paecProjectName || workbook.projectSection?.artifactName || planning?.paecContext || 'Transformación Productiva y Social Comunitaria';
-  const paecChallenge = workbook.projectSection?.communityUtility || planning?.paecContext || 'Atención prioritaria al desarrollo comunitario y sustentabilidad local.';
+  const paecProjectName = stripMarkdown(stripWorkbookTags(workbook.coverData?.paecProjectName || workbook.projectSection?.artifactName || planning?.paecContext || 'Transformación Productiva y Social Comunitaria'));
+  const paecChallenge = stripMarkdown(stripWorkbookTags(workbook.projectSection?.communityUtility || planning?.paecContext || 'Atención prioritaria al desarrollo comunitario y sustentabilidad local.'));
 
   // Tabla 1: Ficha Institucional
   elements.push(
@@ -1449,7 +1451,7 @@ function buildTableOfContents(workbook: ActiveWorkTextbook): (Paragraph | Table)
     }));
 
   tocItems.forEach((item) => {
-    const cleanTitle = item.title
+    const cleanTitle = stripMarkdown(stripWorkbookTags(item.title))
       .replace(/^\[.*?\]\s*/, '')
       .replace(/^misi[oó]n\s*\d+\s*:\s*/i, '')
       .trim();
@@ -1461,7 +1463,7 @@ function buildTableOfContents(workbook: ActiveWorkTextbook): (Paragraph | Table)
             color: item.missionIndex > 0 ? C.midBlue : C.navy,
           }),
           cell(cleanTitle),
-          cell(item.sessionsRange),
+          cell(stripMarkdown(stripWorkbookTags(item.sessionsRange || ''))),
           cell(`${item.pageEstimate} págs.`, { align: AlignmentType.CENTER }),
         ],
       })
@@ -2115,7 +2117,7 @@ function buildDocxPracticeTasks(rawText: string, defaultTaskCount: number = 3): 
 
   if (tasks.length === 0) {
     for (const line of lines) {
-      if (line.length > 25 && !line.startsWith('#')) {
+      if (line.length > 25) {
         tasks.push(line);
       }
       if (tasks.length >= defaultTaskCount) break;
@@ -2171,7 +2173,7 @@ async function buildMissionContent(
 ): Promise<(Paragraph | Table)[]> {
   const elements: (Paragraph | Table)[] = [];
 
-  const cleanMissionTitle = mission.title
+  const cleanMissionTitle = stripMarkdown(stripWorkbookTags(mission.title || ''))
     .replace(/^\[.*?\]\s*/, '')
     .replace(/^misi[oó]n\s*\d+\s*:\s*/i, '')
     .trim();
@@ -2738,7 +2740,7 @@ function renderWorkbookElement(element: WorkbookElement): (Paragraph | Table)[] 
         spacing: { before: 150, after: 60 },
         children: [
           new TextRun({
-            text: `[Actividad] ${element.title}`,
+            text: `[Actividad] ${stripMarkdown(stripWorkbookTags(element.title))}`,
             bold: true,
             size: 22,
             color: C.navy,
@@ -2798,7 +2800,7 @@ function renderWorkbookElement(element: WorkbookElement): (Paragraph | Table)[] 
           new Paragraph({
             spacing: { before: 40, after: 40 },
             children: [
-              new TextRun({ text: `☐  ${cb}`, size: 20, font: 'Calibri' }),
+              new TextRun({ text: `☐  ${stripMarkdown(stripWorkbookTags(cb))}`, size: 20, font: 'Calibri' }),
             ],
           })
         );
