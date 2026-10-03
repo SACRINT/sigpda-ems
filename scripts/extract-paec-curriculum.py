@@ -1,5 +1,5 @@
 """
-Extractor Determinista de Propósitos Formativos y Progresiones PAEC 2025-2027
+Extractor Determinista de Propósitos Formativos y Progresiones PAEC 2025-2027 (Refinado)
 Fuentes oficiales verificadas:
 1. [05] DATOS PAEC-PEC/No Usados/PROPOSITOS FORMATIVOS 1ER-6TO SEMESTRE PARA EL PAEC 2025.docx
 2. [05] DATOS PAEC-PEC/02 PROPOSITOS FORMATIVOS 1ER-2DO SEMESTRE PARA EL PAEC 2025.pdf
@@ -43,32 +43,66 @@ def extract_from_docx_tables(doc):
             elif 'SEXTO SEMESTRE' in t.upper():
                 current_sem = 6
             elif not any(h in t.lower() for h in ['propósito', 'contenido']):
-                # Could be UAC title
                 current_uac = t
         elif tag == 'tbl':
             tbl = docx.table.Table(el, doc)
             if not current_uac:
                 continue
             items = []
+            meta_educativa = None
+            item_counter = 1
+
             for row_idx, row in enumerate(tbl.rows):
                 if row_idx == 0:
-                    continue # header
-                cells = [clean_text(c.text) for c in row.cells]
-                if len(cells) >= 2 and (cells[0] or cells[1]):
-                    prop = cells[0]
-                    cont = cells[1]
+                    continue  # encabezado de la tabla
+
+                cells_raw = [c.text.strip() for c in row.cells]
+                if len(cells_raw) < 2:
+                    continue
+
+                col0_clean = clean_text(cells_raw[0])
+                col1_raw = cells_raw[1]
+
+                # Descartar y almacenar meta educativa aparte (no es un propósito numerado)
+                if 'meta educativa' in col0_clean.lower():
+                    meta_educativa = clean_text(col1_raw)
+                    continue
+
+                # Parsear contenidos línea por línea o por punto y coma
+                contenidos = []
+                for line in col1_raw.split('\n'):
+                    for part in line.split(';'):
+                        clean_part = clean_text(part)
+                        if clean_part and len(clean_part) > 2:
+                            contenidos.append(clean_part)
+
+                # Extraer número de propósito si existe en el texto
+                m = re.match(r'^(\d+)\s*(.*)', col0_clean)
+                if m:
+                    num = int(m.group(1))
+                    prop_text = clean_text(m.group(2))
+                else:
+                    num = item_counter
+                    prop_text = col0_clean
+
+                if prop_text:
                     items.append({
-                        "numero": row_idx,
-                        "proposito": prop,
-                        "contenidos": [c.strip() for c in cont.split(';') if c.strip()] if cont else []
+                        "numero": num,
+                        "proposito": prop_text,
+                        "contenidos": contenidos
                     })
+                    item_counter += 1
+
             if items:
-                results.append({
+                uac_entry = {
                     "semester": current_sem,
                     "uac_name": current_uac,
                     "model_type": "propositos_contenidos",
                     "contenidos_formativos": items
-                })
+                }
+                if meta_educativa:
+                    uac_entry["meta_educativa"] = meta_educativa
+                results.append(uac_entry)
     return results
 
 def extract_from_docx_numbered(doc):
@@ -118,14 +152,15 @@ def extract_from_docx_numbered(doc):
         if m:
             num = int(m.group(1))
             desc = clean_text(m.group(2))
-            current_items.append({
-                "numero": num,
-                "proposito": desc if current_sem <= 4 else None,
-                "progresion": desc if current_sem > 4 else None,
-                "contenidos": []
-            })
+            if desc and len(desc) > 5:
+                current_items.append({
+                    "numero": num,
+                    "proposito": desc if current_sem <= 4 else None,
+                    "progresion": desc if current_sem > 4 else None,
+                    "contenidos": []
+                })
         else:
-            # Subject header
+            # Encabezado de materia
             if len(t) < 120 and not t.endswith('.'):
                 if current_uac and current_items:
                     results.append({
@@ -151,7 +186,7 @@ def main():
     print(f"Abriendo {DOCX_ALL}...")
     doc = docx.Document(DOCX_ALL)
     
-    print("Extrayendo tablas de Semestres 1 y 2...")
+    print("Extrayendo tablas de Semestres 1 y 2 (filtrando 'Meta educativa' y normalizando contenidos)...")
     tables_res = extract_from_docx_tables(doc)
     print(f"-> {len(tables_res)} materias extraidas de tablas")
     

@@ -6,70 +6,87 @@
     "contenidos_formativos": [
       {
         "numero": 1,
-        "proposito": "Meta educativa",
+        "proposito": "Reconoce la ciencia como actividad creativa, social y colectiva que involucra el planteamiento de preguntas y la búsqueda de explicaciones sobre fenómenos naturales de su entorno, a través de la experimentación y el análisis.",
         "contenidos": [
-          "Comprenda el carácter creativo, social y colectivo de las ciencias naturales, a través de la apropiación de conceptos que permiten la construcción de explicaciones en torno a la naturaleza intrínseca de la materia."
+          "Concepto de ciencia",
+          "Relatos sobre la historia de los descubrimientos científicos y la ciencia en México",
+          "El método científico y el conocimiento empírico y tradicional, como formas de comprensión de la naturaleza",
+          "Medición: concepto de medición, magnitudes y unidad de medid"
         ]
       },
       {
         "numero": 2,
-        "proposito": "1 Reconoce la ciencia como actividad creativa, social y colectiva que involucra el planteamiento de preguntas y la búsqueda de explicaciones sobre fenómenos naturales de su entorno, a través de la experimentación y el análisis.",
+        "proposito": "Comprende que los fenómenos de la naturaleza están interrelacionados, y pueden estudiarse en su conjunto o de forma especializada, para la generación de conocimiento o innovación tecnológica.",
         "contenidos": [
-          "Concepto de ciencia Relatos sobre la historia de los descubrimientos científicos y la ciencia en México El método científico y el conocimiento empírico y tradicional, como formas de comprensión de la naturaleza Medición: concepto de medición, magnitudes y unidad de medid"
+          "Objetivos de estudio de la Física, la Química",
+          "y la Biología",
+          "elementos en común y sus diferencias",
+          "Ejemplos de ciencias naturales derivadas e interdisciplinares: ecología, ciencias de la Tierra, entre otros",
+          "Concepto de tecnología y su vínculo con las ciencias naturales"
         ]
       },
       {
         "numero": 3,
-        "proposito": "2 Comprende que los fenómenos de la naturaleza están interrelacionados, y pueden estudiarse en su conjunto o de forma especializada, para la generación de conocimiento o innovación tecnológica.",
+        "proposito": "Comprende los conceptos de materia, cuerpo, masa y densidad, a partir de los objetos del entorno perceptible, para describirlos y analizarlos.",
         "contenidos": [
-          "Objetivos de estudio de la Física, la Química y la Biología",
-          "elementos en común y sus diferencias Ejemplos de ciencias naturales derivadas e interdisciplinares: ecología, ciencias de la Tierra, entre otros Concepto de tecnología y su vínculo con las ciencias naturales"
+          "Concepto de materia y cuerpo",
+          "Concepto de masa como cantidad de materia, unidad de medida y su diferencia con el concepto de peso",
+          "Concepto de densidad",
+          "Cálculo de volumen y densidad"
         ]
       },
       {
         "numero": 4,
-        "proposito": "3 Comprende los conceptos de materia, cuerpo, masa y densidad, a partir de los objetos del entorno perceptible, para describirlos y analizarlos.",
+        "proposito": "Comprende los conceptos de sustancia, sustancia pura, elemento compuesto y mezcla, y los aplica para clasificar de forma práctica o analítica distintos tipos de materia y reconocer sus propiedades físicas y químicas.",
         "contenidos": [
-          "Concepto de materia y cuerpo Concepto de masa como cantidad de materia, unidad de medida y su diferencia con el concepto de peso Concepto de densidad Cálculo de volumen y densidad"
+          "Clasificación de la materia",
+          "Propiedades físicas y químicas de la materia",
+          "Tipos y características de las mezclas",
+          "métodos de separación",
+          "Cálculo de concentración de disoluciones: masa-masa, masa-volumen, volumen-volumen y partes por millón",
+          "Clasificación periódica de los elementos"
         ]
       },
       {
         "numero": 5,
-        "proposito": "4 Comprende los conceptos de sustancia, sustancia pura, elemento compuesto y mezcla, y los aplica para clasificar de forma práctica o analítica distintos tipos de materia y reconocer sus propiedades físicas y químicas.",
+        "proposito": "Comprende el átomo y su composición eléctrica como la partícula microscópica que estructura la materia.",
         "contenidos": [
-          "Clasificación de la materia Propiedades físicas y químicas de la materia Tipos y características de las mezclas",
-          "métodos de separación Cálculo de concentración de disoluciones: masa-masa, masa-volumen, volumen-volumen y partes por millón Clasificación periódica de los elementos"
+          "Teoría Atómica: Dalton, Thomson, Rutherford, Bohr y Schrödinger",
+          "Modelos atómicos y carga eléctrica",
+          "Número y masa atómica",
+          "Isótopos",
+          "Concepto de configuración electrónica y valencia"
         ]
       },
       {
         "numero": 6,
-        "proposito": "5 Comprende el átomo y su composición eléctrica como la partícula microscópica que estructura la materia.",
+        "proposito": "Analiza la formación de iones, moléculas y sustancias, a partir de la unión de dos o más átomos que tienden a la estabilidad energética, para explicar la formación de enlaces químicos.",
         "contenidos": [
-          "Teoría Atómica: Dalton, Thomson, Rutherford, Bohr y Schrödinger Modelos atómicos y carga eléctrica Número y masa atómica Isótopos Concepto de configuración electrónica y valencia"
+          "Enlace químico",
+          "Electronegatividad y fuerzas intramoleculares Iones y moléculas"
         ]
       },
       {
         "numero": 7,
-        "proposito": "6 Analiza la formación de iones, moléculas y sustancias, a partir de la unión de dos o más átomos que tienden a la estabilidad energética, para explicar la formación de enlaces químicos.",
+        "proposito": "Explica las propiedades físicas de los estados de agregación de la materia en función del movimiento, separación y fuerzas de atracción o repulsión de las partículas internas, y las vincula con los conceptos de energía cinética, potencial e interna.",
         "contenidos": [
-          "Enlace químico Electronegatividad y fuerzas intramoleculares Iones y moléculas"
+          "Concepto de energía",
+          "Noción intuitiva de movimiento y conceptos de energía cinética, potencial e interna",
+          "Teoría cinética de la materia",
+          "Estados de agregación de la materia y",
+          "sus cambios (sólidos, líquidos, gases y plasma)"
         ]
       },
       {
         "numero": 8,
-        "proposito": "7 Explica las propiedades físicas de los estados de agregación de la materia en función del movimiento, separación y fuerzas de atracción o repulsión de las partículas internas, y las vincula con los conceptos de energía cinética, potencial e interna.",
+        "proposito": "Construye explicaciones sobre la naturaleza energética y corpuscular de la materia, y explora aplicaciones tecnológicas relacionadas.",
         "contenidos": [
-          "Concepto de energía Noción intuitiva de movimiento y conceptos de energía cinética, potencial e interna Teoría cinética de la materia Estados de agregación de la materia y sus cambios (sólidos, líquidos, gases y plasma)"
-        ]
-      },
-      {
-        "numero": 9,
-        "proposito": "8 Construye explicaciones sobre la naturaleza energética y corpuscular de la materia, y explora aplicaciones tecnológicas relacionadas.",
-        "contenidos": [
-          "Fenómenos naturales donde participa la actividad eléctrica de la materia Aplicaciones tecnológicas vinculadas con la materia"
+          "Fenómenos naturales donde participa la actividad eléctrica de la materia",
+          "Aplicaciones tecnológicas vinculadas con la materia"
         ]
       }
-    ]
+    ],
+    "meta_educativa": "Comprenda el carácter creativo, social y colectivo de las ciencias naturales, a través de la apropiación de conceptos que permiten la construcción de explicaciones en torno a la naturaleza intrínseca de la materia."
   },
   {
     "semester": 1,
@@ -78,63 +95,81 @@
     "contenidos_formativos": [
       {
         "numero": 1,
-        "proposito": "Meta educativa",
+        "proposito": "Aplica conceptos básicos de lógica matemática en situaciones de su contexto para desarrollar esquemas de razonamiento estructurado.",
         "contenidos": [
-          "Comprenda las matemáticas como expresión del pensamiento humano para aplicar los elementos esenciales de la aritmética y el pensamiento lógico en situaciones de interés."
+          "Conceptualización de lógica matemática",
+          "Tablas de verdad",
+          "Proposiciones compuestas y operadores lógicos: conjunción (y) y disyunción (o)",
+          "Proposiciones condicionales y bicondicionales"
         ]
       },
       {
         "numero": 2,
-        "proposito": "1 Aplica conceptos básicos de lógica matemática en situaciones de su contexto para desarrollar esquemas de razonamiento estructurado.",
+        "proposito": "Comprende el concepto de conteo a partir del análisis de los procesos sociales que llevaron a su desarrollo para aplicarlo en situaciones de interés. situaciones",
         "contenidos": [
-          "Conceptualización de lógica matemática Tablas de verdad Proposiciones compuestas y operadores lógicos: conjunción (y) y disyunción (o) Proposiciones condicionales y bicondicionales"
+          "Sistemas de conteo en Mesopotamia, Egipto, América, India y Arabia",
+          "importancia del cero en los pueblos olmeca y maya",
+          "Concepto de número y números naturales",
+          "Leonardo de Pisa y el sistema numeral indoarábigo",
+          "Concepto y uso del ábaco"
         ]
       },
       {
         "numero": 3,
-        "proposito": "2 Comprende el concepto de conteo a partir del análisis de los procesos sociales que llevaron a su desarrollo para aplicarlo en situaciones de interés. situaciones",
+        "proposito": "Analiza distintas situaciones cotidianas en donde intervenga el proceso de contar, para comprender la clasificación de los números y realizar operaciones básicas entre números naturales y enteros. contexto para desarrollar",
         "contenidos": [
-          "Sistemas de conteo en Mesopotamia, Egipto, América, India y Arabia",
-          "importancia del cero en los pueblos olmeca y maya Concepto de número y números naturales Leonardo de Pisa y el sistema numeral indoarábigo Concepto y uso del ábaco"
+          "Clasificación de los números reales",
+          "Operaciones aritméticas y sus operaciones inversas con números enteros",
+          "Propiedades de las operaciones aritméticas: cerradura, conmutación, asociación y distribución",
+          "neutros e inversos aditivo y multiplicativo",
+          "Factorización de números naturales (teorema fundamental de la aritmética)",
+          "Máximo común divisor y mínimo comúnmúltiplos básicos de lógica ende su contexto para desarrollar"
         ]
       },
       {
         "numero": 4,
-        "proposito": "3 Analiza distintas situaciones cotidianas en donde intervenga el proceso de contar, para comprender la clasificación de los números y realizar operaciones básicas entre números naturales y enteros. contexto para desarrollar",
+        "proposito": "Comprende el concepto de unidad y la relación entre números fraccionarios y enteros, para realizar operaciones con fracciones y porcentajes.",
         "contenidos": [
-          "Clasificación de los números reales Operaciones aritméticas y sus operaciones inversas con números enteros Propiedades de las operaciones aritméticas: cerradura, conmutación, asociación y distribución",
-          "neutros e inversos aditivo y multiplicativo Factorización de números naturales (teorema fundamental de la aritmética) Máximo común divisor y mínimo comúnmúltiplos básicos de lógica ende su contexto para desarrollar"
+          "Concepto de unidad y de los números racionales como fracciones (estructura)",
+          "Equivalencias entre fracciones y entre números enteros y fracciones",
+          "Simplificación de fracciones",
+          "Proporción, proporción inversa y porcentaje"
         ]
       },
       {
         "numero": 5,
-        "proposito": "4 Comprende el concepto de unidad y la relación entre números fraccionarios y enteros, para realizar operaciones con fracciones y porcentajes.",
+        "proposito": "Comprende los conceptos de potenciación y radicación para realizar operaciones con exponentes y radicales.",
         "contenidos": [
-          "Concepto de unidad y de los números racionales como fracciones (estructura) Equivalencias entre fracciones y entre números enteros y fracciones Simplificación de fracciones Proporción, proporción inversa y porcentaje"
+          "Componentes de una potencia",
+          "Operaciones con potenciación (reglas)",
+          "Explicación de exponentes negativos como el inverso multiplicativo de la base",
+          "Operaciones con exponentes (reglas)",
+          "Definición de raíz cuadrada (enunciación de sus partes) y radicando diferente de 2",
+          "Raíz cuadrada como inverso de potencias de números positivos y cancelación de potencias y raíces"
         ]
       },
       {
         "numero": 6,
-        "proposito": "5 Comprende los conceptos de potenciación y radicación para realizar operaciones con exponentes y radicales.",
+        "proposito": "Comprende el concepto de medición a partir del análisis de los procesos sociales que llevaron a su desarrollo para aplicarlo en situaciones de interés.",
         "contenidos": [
-          "Componentes de una potencia Operaciones con potenciación (reglas) Explicación de exponentes negativos como el inverso multiplicativo de la base Operaciones con exponentes (reglas) Definición de raíz cuadrada (enunciación de sus partes) y radicando diferente de 2 Raíz cuadrada como inverso de potencias de números positivos y cancelación de potencias y raíces"
+          "Concepto de medición",
+          "Unidades de medida y sistema internacional",
+          "Magnitudes y notación científica",
+          "Razón y proporción"
         ]
       },
       {
         "numero": 7,
-        "proposito": "6 Comprende el concepto de medición a partir del análisis de los procesos sociales que llevaron a su desarrollo para aplicarlo en situaciones de interés.",
+        "proposito": "Aplica los elementos de la aritmética para resolver cálculos combinados con números reales.",
         "contenidos": [
-          "Concepto de medición Unidades de medida y sistema internacional Magnitudes y notación científica Razón y proporción"
-        ]
-      },
-      {
-        "numero": 8,
-        "proposito": "7 Aplica los elementos de la aritmética para resolver cálculos combinados con números reales.",
-        "contenidos": [
-          "Técnicas para la resolución de operaciones combinadas (jerarquía de operaciones) Uso de símbolos para resolución de operaciones combinadas (paréntesis, corchetes, llaves y puntos) Resolución de restas de números enteros como la suma con el opuesto de otro Operaciones combinadas con adición, sustracción, multiplicación, división, potencias y raíces"
+          "Técnicas para la resolución de operaciones combinadas (jerarquía de operaciones)",
+          "Uso de símbolos para resolución de operaciones combinadas (paréntesis, corchetes, llaves y puntos)",
+          "Resolución de restas de números enteros como la suma con el opuesto de otro",
+          "Operaciones combinadas con adición, sustracción, multiplicación, división, potencias y raíces"
         ]
       }
-    ]
+    ],
+    "meta_educativa": "Comprenda las matemáticas como expresión del pensamiento humano para aplicar los elementos esenciales de la aritmética y el pensamiento lógico en situaciones de interés."
   },
   {
     "semester": 1,
@@ -143,47 +178,58 @@
     "contenidos_formativos": [
       {
         "numero": 1,
-        "proposito": "Meta educativa",
+        "proposito": ". Reconoce la posibilidad del pensamiento propio a partir de experiencias cotidianas, identificando la práctica filosófica como un modo de problematizar la realidad.",
         "contenidos": [
-          "Desarrolle la capacidad de formular preguntas filosóficas y de participar en diálogos argumentativos. Para ello, aplica métodos de razonamiento y considera diversos enfoques filosóficos, lo que le permite analizar los desafíos de su entorno desde una perspectiva humanista."
+          "¿Para qué reflexionar sobre el pensamiento?",
+          "Naturaleza del pensamiento filosófico y perspectiva humanista",
+          "Introducción a la argumentación filosófica y comunidades de diálogo"
         ]
       },
       {
         "numero": 2,
-        "proposito": "1. Reconoce la posibilidad del pensamiento propio a partir de experiencias cotidianas, identificando la práctica filosófica como un modo de problematizar la realidad.",
+        "proposito": "Formula preguntas significativas sobre la vida a partir de un ejercicio filosófico que genere pensamiento crítico, creativo y cuidadoso con el fin de cuestionar lo que comúnmente se considera cierto y explorar diversas respuestas que enriquezcan la visión del mundo.",
         "contenidos": [
-          "¿Para qué reflexionar sobre el pensamiento? Naturaleza del pensamiento filosófico y perspectiva humanista Introducción a la argumentación filosófica y comunidades de diálogo"
+          "¿Por qué y para qué preguntar?",
+          "Tipos de preguntas",
+          "Importancia de preguntar",
+          "Validez de las preguntas",
+          "La formulación de preguntas filosóficas"
         ]
       },
       {
         "numero": 3,
-        "proposito": "2 Formula preguntas significativas sobre la vida a partir de un ejercicio filosófico que genere pensamiento crítico, creativo y cuidadoso con el fin de cuestionar lo que comúnmente se considera cierto y explorar diversas respuestas que enriquezcan la visión del mundo.",
+        "proposito": "Analiza la cotidianidad desde las normas, valores, creencias y visiones del mundo, para comprender el sentido de la vida desde distintas perspectivas filosóficas, cuestionando lo dado.",
         "contenidos": [
-          "¿Por qué y para qué preguntar? Tipos de preguntas Importancia de preguntar Validez de las preguntas La formulación de preguntas filosóficas"
+          "¿Qué es un problema filosófico?",
+          "La experiencia de categorizar y conceptualizar",
+          "Problemas filosóficos: Realidad, Devenir, Tiempo, Muerte, Libertad, Felicidad, Lenguaje, Sentido de la vida, entre otros"
         ]
       },
       {
         "numero": 4,
-        "proposito": "3 Analiza la cotidianidad desde las normas, valores, creencias y visiones del mundo, para comprender el sentido de la vida desde distintas perspectivas filosóficas, cuestionando lo dado.",
+        "proposito": "Formula preguntas filosóficas en torno al Conocimiento, Ciencia y grados de Verdad para reconocer su relevancia en la vida cotidiana, desarrollando una comprensión crítica sobre cómo se construye el conocimiento.",
         "contenidos": [
-          "¿Qué es un problema filosófico? La experiencia de categorizar y conceptualizar Problemas filosóficos: Realidad, Devenir, Tiempo, Muerte, Libertad, Felicidad, Lenguaje, Sentido de la vida, entre otros"
+          "Encuentros y desencuentros entre el conocimiento científico y los saberes sociales y humanísticos",
+          "Teorías del Conocimiento",
+          "El Problema de la Verdad",
+          "Percepción y Razón",
+          "Posverdad",
+          "¿Qué implica interpretar?"
         ]
       },
       {
         "numero": 5,
-        "proposito": "4 Formula preguntas filosóficas en torno al Conocimiento, Ciencia y grados de Verdad para reconocer su relevancia en la vida cotidiana, desarrollando una comprensión crítica sobre cómo se construye el conocimiento.",
+        "proposito": "Integra la formulación de preguntas para participar con mayor rigor en comunidades de diálogo centradas en problemas filosóficos contemporáneos.",
         "contenidos": [
-          "Encuentros y desencuentros entre el conocimiento científico y los saberes sociales y humanísticos Teorías del Conocimiento El Problema de la Verdad Percepción y Razón Posverdad ¿Qué implica interpretar?"
-        ]
-      },
-      {
-        "numero": 6,
-        "proposito": "5 Integra la formulación de preguntas para participar con mayor rigor en comunidades de diálogo centradas en problemas filosóficos contemporáneos.",
-        "contenidos": [
-          "¿Para qué dialogamos? Características del diálogo filosófico con perspectiva humanista Actitudes y posturas del diálogo filosófico Reglas para la discusión filosófica La controversia como posibilidad de diálogo filosófico"
+          "¿Para qué dialogamos?",
+          "Características del diálogo filosófico con perspectiva humanista",
+          "Actitudes y posturas del diálogo filosófico",
+          "Reglas para la discusión filosófica",
+          "La controversia como posibilidad de diálogo filosófico"
         ]
       }
-    ]
+    ],
+    "meta_educativa": "Desarrolle la capacidad de formular preguntas filosóficas y de participar en diálogos argumentativos. Para ello, aplica métodos de razonamiento y considera diversos enfoques filosóficos, lo que le permite analizar los desafíos de su entorno desde una perspectiva humanista."
   },
   {
     "semester": 1,
@@ -192,68 +238,87 @@
     "contenidos_formativos": [
       {
         "numero": 1,
-        "proposito": "Meta educativa",
+        "proposito": "Reflexiona sobre los vínculos entre la escritura y la lectura para dar sentido a la necesidad humana por comunicar información, ideas, pensamientos u opiniones.",
         "contenidos": [
-          "Identifique la lectura y la escritura como actos colectivos de la experiencia humana útiles en la reflexión, comunicación y problematización del mundo circundante, y utilice algunos rasgos importantes para la escritura de textos propios."
+          "La escritura como posibilidad de desarrollo del pensamiento humano, la empatía, la creación individual y colectiva, la comunicación y la estimulación del avance científico",
+          "La lectura como experiencia de diálogo entre las personas de diversos contextos sociales, históricos y culturales",
+          "La lectura como experiencia de placer individual o compartido"
         ]
       },
       {
         "numero": 2,
-        "proposito": "1 Reflexiona sobre los vínculos entre la escritura y la lectura para dar sentido a la necesidad humana por comunicar información, ideas, pensamientos u opiniones.",
+        "proposito": "Investiga los gustos y las inclinaciones de las personas de su comunidad escolar respecto de la lectura y la escritura para conocer la diversidad de textos.",
         "contenidos": [
-          "La escritura como posibilidad de desarrollo del pensamiento humano, la empatía, la creación individual y colectiva, la comunicación y la estimulación del avance científico La lectura como experiencia de diálogo entre las personas de diversos contextos sociales, históricos y culturales La lectura como experiencia de placer individual o compartido"
+          "Diversidad de textos escritos, soportes y formatos",
+          "Características generales de los textos escritos",
+          "Situaciones de la vida cotidiana donde son necesarios los textos escritos"
         ]
       },
       {
         "numero": 3,
-        "proposito": "2 Investiga los gustos y las inclinaciones de las personas de su comunidad escolar respecto de la lectura y la escritura para conocer la diversidad de textos.",
+        "proposito": "Analiza en textos de su elección la información, ideas, pensamientos y opiniones, para comprender la importancia de transmitir con claridad las ideas en textos escritos.",
         "contenidos": [
-          "Diversidad de textos escritos, soportes y formatos Características generales de los textos escritos Situaciones de la vida cotidiana donde son necesarios los textos escritos"
+          "Introducción a las propiedades del texto:",
+          "Claridad",
+          "Coherencia",
+          "Concordancia",
+          "Escritura de ideas relacionadas con un tema específico"
         ]
       },
       {
         "numero": 4,
-        "proposito": "3 Analiza en textos de su elección la información, ideas, pensamientos y opiniones, para comprender la importancia de transmitir con claridad las ideas en textos escritos.",
+        "proposito": "Reconoce los tipos de párrafos a partir de la exploración de diversos textos, para contrastar su estructura y diferenciar sus rasgos.",
         "contenidos": [
-          "Introducción a las propiedades del texto: Claridad Coherencia Concordancia Escritura de ideas relacionadas con un tema específico"
+          "Párrafos:",
+          "Descriptivos",
+          "Narrativos",
+          "Argumentativos",
+          "Escritura de comentarios",
+          "Puntuación y sintaxis"
         ]
       },
       {
         "numero": 5,
-        "proposito": "4 Reconoce los tipos de párrafos a partir de la exploración de diversos textos, para contrastar su estructura y diferenciar sus rasgos.",
+        "proposito": "Identifica información de un texto que lee para resaltar los elementos significativos.",
         "contenidos": [
-          "Párrafos: Descriptivos Narrativos Argumentativos Escritura de comentarios Puntuación y sintaxis"
+          "Ideas principales y secundarias",
+          "Elementos paratextuales",
+          "Escritura de ideas principales y secundarias"
         ]
       },
       {
         "numero": 6,
-        "proposito": "5 Identifica información de un texto que lee para resaltar los elementos significativos.",
+        "proposito": "Analiza la concordancia y el uso de conectores a partir de la lectura de un texto para destacar su importancia.",
         "contenidos": [
-          "Ideas principales y secundarias Elementos paratextuales Escritura de ideas principales y secundarias"
+          "Concordancia del texto",
+          "Conectores:",
+          "Causales",
+          "Comparativos",
+          "Adición"
         ]
       },
       {
         "numero": 7,
-        "proposito": "6 Analiza la concordancia y el uso de conectores a partir de la lectura de un texto para destacar su importancia.",
+        "proposito": "Practica la lectura en voz alta de algunos textos para luego emitir opiniones al respecto.",
         "contenidos": [
-          "Concordancia del texto Conectores: Causales Comparativos Adición"
+          "Apreciaciones orales y escritas del texto",
+          "Elementos paralingüísticos",
+          "Escritura de elementos paralingüísticos que se perciben cuando comunican sus ideas"
         ]
       },
       {
         "numero": 8,
-        "proposito": "7 Practica la lectura en voz alta de algunos textos para luego emitir opiniones al respecto.",
+        "proposito": "Identifica las características de una exposición oral para conocer su desarrollo y ponerlo en práctica.",
         "contenidos": [
-          "Apreciaciones orales y escritas del texto Elementos paralingüísticos Escritura de elementos paralingüísticos que se perciben cuando comunican sus ideas"
-        ]
-      },
-      {
-        "numero": 9,
-        "proposito": "8 Identifica las características de una exposición oral para conocer su desarrollo y ponerlo en práctica.",
-        "contenidos": [
-          "Preparación y exposición de un texto de su preferencia Seleccionar el contenido Decidir la forma (individual o grupal) Establecer las etapas (planeación, acompañamiento y ejecución) Asignar los recursos (diapositivas, mapas mentales)"
+          "Preparación y exposición de un texto de su preferencia",
+          "Seleccionar el contenido",
+          "Decidir la forma (individual o grupal)",
+          "Establecer las etapas (planeación, acompañamiento y ejecución)",
+          "Asignar los recursos (diapositivas, mapas mentales)"
         ]
       }
-    ]
+    ],
+    "meta_educativa": "Identifique la lectura y la escritura como actos colectivos de la experiencia humana útiles en la reflexión, comunicación y problematización del mundo circundante, y utilice algunos rasgos importantes para la escritura de textos propios."
   },
   {
     "semester": 1,
@@ -262,73 +327,110 @@
     "contenidos_formativos": [
       {
         "numero": 1,
-        "proposito": "Meta educativa",
+        "proposito": "Se presenta y presenta a otras personas en distintos contextos sociales y culturales (saluda y comparte información básica con respeto e inclusión).",
         "contenidos": [
-          "Reconozca y comprenda palabras, frases y expresiones básicas para presentarse, interactuar en el aula y hablar de su entorno inmediato."
+          "Verbo to be (forma afirmativa)",
+          "Pronombres personales",
+          "Sustantivos: comunes y propios",
+          "singulares y plurales",
+          "Información personal (name, age, nationality)",
+          "Números cardinales y ordinales",
+          "Países, nacionalidades",
+          "Saludos formales e informales"
         ]
       },
       {
         "numero": 2,
-        "proposito": "1 Se presenta y presenta a otras personas en distintos contextos sociales y culturales (saluda y comparte información básica con respeto e inclusión).",
+        "proposito": "Sigue indicaciones y participa en interacciones básicas dentro del aula (pide permiso, aclara dudas y responde a instrucciones).",
         "contenidos": [
-          "Verbo to be (forma afirmativa) Pronombres personales Sustantivos: comunes y propios",
-          "singulares y plurales Información personal (name, age, nationality) Números cardinales y ordinales Países, nacionalidades Saludos formales e informales"
-        ]
-      },
-      {
-        "numero": 3,
-        "proposito": "2 Sigue indicaciones y participa en interacciones básicas dentro del aula (pide permiso, aclara dudas y responde a instrucciones).",
-        "contenidos": [
-          "Imperativos (formas afirmativa y negativa) Instrucciones y materiales comunes del aula Verbos frecuentes para actividades escolares (open, close, read, listen) Expresiones útiles para la interacción en clase (How do you say… in English?",
+          "Imperativos (formas afirmativa y negativa)",
+          "Instrucciones y materiales comunes del aula",
+          "Verbos frecuentes para actividades escolares (open, close, read, listen)",
+          "Expresiones útiles para la interacción en clase (How do you say… in English?",
           "May I go to the bathroom?",
           "Can you repeat that, please?)"
         ]
       },
       {
-        "numero": 4,
-        "proposito": "3 Identifica y describe objetos y espacios cotidianos del hogar o la escuela (reconoce características como forma, color y tamaño).",
+        "numero": 3,
+        "proposito": "Identifica y describe objetos y espacios cotidianos del hogar o la escuela (reconoce características como forma, color y tamaño).",
         "contenidos": [
-          "Adjetivos comunes Demostrativos (this, that, these, those) Artículos definidos e indefinidos (the, a, an) Objetos del aula y del hogar Muebles Colores y tamaños"
+          "Adjetivos comunes",
+          "Demostrativos (this, that, these, those)",
+          "Artículos definidos e indefinidos (the, a, an)",
+          "Objetos del aula y del hogar",
+          "Muebles",
+          "Colores y tamaños"
+        ]
+      },
+      {
+        "numero": 4,
+        "proposito": "Solicita y proporciona información personal básica en contextos escolares y comunitarios (nombre, edad, nacionalidad, teléfono, dirección, correo).",
+        "contenidos": [
+          "Verbo to be (formas interrogativa y negativa)",
+          "Preguntas cerradas (yes/no)",
+          "Adjetivos posesivos (my, your, his, etc.)",
+          "Números de teléfono y direcciones",
+          "Alfabeto y deletreo básico (para aclarar su nombre y apellido y dar correo electrónico)",
+          "Profesiones comunes en contexto (teacher, doctor, cook, driver, etc.) y vocabulario escolar"
         ]
       },
       {
         "numero": 5,
-        "proposito": "4 Solicita y proporciona información personal básica en contextos escolares y comunitarios (nombre, edad, nacionalidad, teléfono, dirección, correo).",
+        "proposito": "Hace preguntas sencillas para obtener información general (ubicación, horarios).",
         "contenidos": [
-          "Verbo to be (formas interrogativa y negativa) Preguntas cerradas (yes/no) Adjetivos posesivos (my, your, his, etc.) Números de teléfono y direcciones Alfabeto y deletreo básico (para aclarar su nombre y apellido y dar correo electrónico) Profesiones comunes en contexto (teacher, doctor, cook, driver, etc.) y vocabulario escolar"
+          "Preguntas abiertas con wh- (what, where, when, who, how)",
+          "Verbo to be (revisión de la forma interrogativa)",
+          "Orden de las palabras en preguntas",
+          "Preposiciones de tiempo (in, on, at)",
+          "Años, días y meses",
+          "Horas y momentos del día",
+          "Lugares en la comunidad",
+          "Materias escolares"
         ]
       },
       {
         "numero": 6,
-        "proposito": "5 Hace preguntas sencillas para obtener información general (ubicación, horarios).",
+        "proposito": "Describe personas, vestimenta y clima en contextos cotidianos, respetando la diversidad (identificación y ubicación en el entorno).",
         "contenidos": [
-          "Preguntas abiertas con wh- (what, where, when, who, how) Verbo to be (revisión de la forma interrogativa) Orden de las palabras en preguntas Preposiciones de tiempo (in, on, at) Años, días y meses Horas y momentos del día Lugares en la comunidad Materias escolares"
+          "There is/are",
+          "Preposiciones de lugar (in, on, under)",
+          "Características físicas (tall, short, etc.)",
+          "Lugares de la localidad (park, school, hospital, etc.)",
+          "Habitaciones de la casa",
+          "Objetos cotidianos"
         ]
       },
       {
         "numero": 7,
-        "proposito": "6 Describe personas, vestimenta y clima en contextos cotidianos, respetando la diversidad (identificación y ubicación en el entorno).",
+        "proposito": "Expresa gustos y opiniones simples en situaciones cotidianas (habla sobre preferencias y razones de forma empática).",
         "contenidos": [
-          "There is/are Preposiciones de lugar (in, on, under) Características físicas (tall, short, etc.) Lugares de la localidad (park, school, hospital, etc.) Habitaciones de la casa Objetos cotidianos"
+          "Revisión de preguntas abiertas con wh- (what, where, when, who, how, why)",
+          "Uso de favorite en frases simples y uso de prefer (My favorite color is blue",
+          "I prefer coffee.)",
+          "Verbo-ing (gerundio)",
+          "Intensificadores básicos (very)",
+          "Adjetivos (big/small, hot/cold)",
+          "Actividades y eventos comunes (party, study, etc.)",
+          "Pasatiempos",
+          "Conjunciones: because, and, so (para responder y dar razones)"
         ]
       },
       {
         "numero": 8,
-        "proposito": "7 Expresa gustos y opiniones simples en situaciones cotidianas (habla sobre preferencias y razones de forma empática).",
+        "proposito": "Expresa pertenencia de forma clara y respetuosa (pregunta y responde sobre posesión con el genitivo y los pronombres posesivos).",
         "contenidos": [
-          "Revisión de preguntas abiertas con wh- (what, where, when, who, how, why) Uso de favorite en frases simples y uso de prefer (My favorite color is blue",
-          "I prefer coffee.) Verbo-ing (gerundio) Intensificadores básicos (very) Adjetivos (big/small, hot/cold) Actividades y eventos comunes (party, study, etc.) Pasatiempos Conjunciones: because, and, so (para responder y dar razones)"
-        ]
-      },
-      {
-        "numero": 9,
-        "proposito": "8 Expresa pertenencia de forma clara y respetuosa (pregunta y responde sobre posesión con el genitivo y los pronombres posesivos).",
-        "contenidos": [
-          "Pronombres posesivos (mine, yours, his, hers) Genitivo sajón (‘s) con nombres propios en singular (It’s María’s) Preguntas con whose (Whose pencil is this?) Objetos personales y escolares Colores y materiales Frases simples para indicar pertenencia (It’s Ana’s",
+          "Pronombres posesivos (mine, yours, his, hers)",
+          "Genitivo sajón (‘s) con nombres propios en singular (It’s María’s)",
+          "Preguntas con whose (Whose pencil is this?)",
+          "Objetos personales y escolares",
+          "Colores y materiales",
+          "Frases simples para indicar pertenencia (It’s Ana’s",
           "It’s mine)"
         ]
       }
-    ]
+    ],
+    "meta_educativa": "Reconozca y comprenda palabras, frases y expresiones básicas para presentarse, interactuar en el aula y hablar de su entorno inmediato."
   },
   {
     "semester": 1,
@@ -337,68 +439,99 @@
     "contenidos_formativos": [
       {
         "numero": 1,
-        "proposito": "Meta educativa",
+        "proposito": "Identifica el conjunto de elementos físicos que componen un dispositivo electrónico, así como el conjunto de programas, instrucciones y reglas que permiten que funcione, para analizar críticamente su evolución a lo largo del tiempo.",
         "contenidos": [
-          "Conozca y utilice de manera crítica y responsable el ciberespacio y los distintos recursos digitales, apegándose a su marco normativo para ejercer una ciudadanía digital, acceder al conocimiento y resolver situaciones, fenómenos o problemas de su contexto."
+          "Introducción al hardware y software",
+          "Historia crítica del desarrollo de tecnología digital",
+          "Historia del software libre"
         ]
       },
       {
         "numero": 2,
-        "proposito": "1 Identifica el conjunto de elementos físicos que componen un dispositivo electrónico, así como el conjunto de programas, instrucciones y reglas que permiten que funcione, para analizar críticamente su evolución a lo largo del tiempo.",
+        "proposito": "Conoce los requerimientos, tipos de licenciamiento del software y hardware para acceder a servicios tecnológicos, al ciberespacio y a los servicios digitales (licencias de uso privativo y licencias libres).",
         "contenidos": [
-          "Introducción al hardware y software Historia crítica del desarrollo de tecnología digital Historia del software libre"
+          "Licencia GPL (General Public License)",
+          "Creative Commons y otras licencias libres",
+          "Conectividad",
+          "Navegadores",
+          "Sistemas operativos",
+          "Niveles de acceso",
+          "Unidades de medida (velocidad, procesamiento y almacenamiento)"
         ]
       },
       {
         "numero": 3,
-        "proposito": "2 Conoce los requerimientos, tipos de licenciamiento del software y hardware para acceder a servicios tecnológicos, al ciberespacio y a los servicios digitales (licencias de uso privativo y licencias libres).",
+        "proposito": "Analiza de manera crítica el impacto que tienen el uso de las tecnologías digitales —y las políticas relacionadas con la disponibilidad y gestión de la información— en las personas y en las comunidades.",
         "contenidos": [
-          "Licencia GPL (General Public License) Creative Commons y otras licencias libres Conectividad Navegadores Sistemas operativos Niveles de acceso Unidades de medida (velocidad, procesamiento y almacenamiento)"
+          "Corporaciones de innovación tecnológica",
+          "Colonialismo de datos",
+          "Mercantilización de la atención de las personas usuarias",
+          "Dependencia tecnológica",
+          "Desigualdad en el acceso a las tecnologías digitales (socioeconómica, regional de género)"
         ]
       },
       {
         "numero": 4,
-        "proposito": "3 Analiza de manera crítica el impacto que tienen el uso de las tecnologías digitales —y las políticas relacionadas con la disponibilidad y gestión de la información— en las personas y en las comunidades.",
+        "proposito": "Utiliza herramientas de software libre y experimenta con alternativas a los programas de patente y del software como servicio.",
         "contenidos": [
-          "Corporaciones de innovación tecnológica Colonialismo de datos Mercantilización de la atención de las personas usuarias Dependencia tecnológica Desigualdad en el acceso a las tecnologías digitales (socioeconómica, regional de género)"
+          "Las 4 libertades del software libre",
+          "GNU/ Linux",
+          "Cultura hacker y el “Hazlo tú mismx” en la tecnología",
+          "Software libre vs. open source",
+          "Procesadores de texto, hojas de cálculo y presentaciones electrónicas"
         ]
       },
       {
         "numero": 5,
-        "proposito": "4 Utiliza herramientas de software libre y experimenta con alternativas a los programas de patente y del software como servicio.",
+        "proposito": "Identifica y aplica la normatividad que regula el uso del ciberespacio y servicios digitales para cuidar su seguridad digital y la de otros.",
         "contenidos": [
-          "Las 4 libertades del software libre GNU/ Linux Cultura hacker y el “Hazlo tú mismx” en la tecnología Software libre vs. open source Procesadores de texto, hojas de cálculo y presentaciones electrónicas"
+          "Normatividad en el uso del ciberespacio y servicios digitales",
+          "Privacidad de la información",
+          "Seguridad digital",
+          "Protección de datos",
+          "Uso responsable y ético de la Inteligencia Artificial (IA)",
+          "Licenciamientos copyleft"
         ]
       },
       {
         "numero": 6,
-        "proposito": "5 Identifica y aplica la normatividad que regula el uso del ciberespacio y servicios digitales para cuidar su seguridad digital y la de otros.",
+        "proposito": "Utiliza los recursos digitales a su alcance con fines personales, académicos y sociales para interactuar con seguridad y con consideración al medio ambiente.",
         "contenidos": [
-          "Normatividad en el uso del ciberespacio y servicios digitales Privacidad de la información Seguridad digital Protección de datos Uso responsable y ético de la Inteligencia Artificial (IA) Licenciamientos copyleft"
+          "Ciudadanía e identidad digital",
+          "Credenciales de acceso",
+          "Plataformas de uso cotidiano",
+          "Contaminación digital y tecnológica"
         ]
       },
       {
         "numero": 7,
-        "proposito": "6 Utiliza los recursos digitales a su alcance con fines personales, académicos y sociales para interactuar con seguridad y con consideración al medio ambiente.",
+        "proposito": "Reconoce las posibles formas de comprensión y resolución de problemas algorítmicos para desarrollar una estrategia frente a una situación, fenómeno o problemática, utilizando medios tecnológicos y digitales.",
         "contenidos": [
-          "Ciudadanía e identidad digital Credenciales de acceso Plataformas de uso cotidiano Contaminación digital y tecnológica"
+          "Pasos para solucionar un problema:",
+          "Identificar el problema por resolver",
+          "Comprender el problema",
+          "Analizar alternativas de solución",
+          "Seleccionar la mejor alternativa de solución",
+          "Utilizar métodos, técnicas o diagramas de flujo para resolver problemas"
         ]
       },
       {
         "numero": 8,
-        "proposito": "7 Reconoce las posibles formas de comprensión y resolución de problemas algorítmicos para desarrollar una estrategia frente a una situación, fenómeno o problemática, utilizando medios tecnológicos y digitales.",
+        "proposito": "Conoce los elementos del lenguaje algorítmico a través de medios digitales, para resolver situaciones, fenómenos o problemáticas presentes en las diferentes asignaturas.",
         "contenidos": [
-          "Pasos para solucionar un problema: Identificar el problema por resolver Comprender el problema Analizar alternativas de solución Seleccionar la mejor alternativa de solución Utilizar métodos, técnicas o diagramas de flujo para resolver problemas"
-        ]
-      },
-      {
-        "numero": 9,
-        "proposito": "8 Conoce los elementos del lenguaje algorítmico a través de medios digitales, para resolver situaciones, fenómenos o problemáticas presentes en las diferentes asignaturas.",
-        "contenidos": [
-          "Dato Información Variables Constantes Expresiones Operadores lógicos Operaciones relacionales Operadores aritméticos Estructuras condicionales, selectivas y repetitivas"
+          "Dato",
+          "Información",
+          "Variables",
+          "Constantes",
+          "Expresiones",
+          "Operadores lógicos",
+          "Operaciones relacionales",
+          "Operadores aritméticos",
+          "Estructuras condicionales, selectivas y repetitivas"
         ]
       }
-    ]
+    ],
+    "meta_educativa": "Conozca y utilice de manera crítica y responsable el ciberespacio y los distintos recursos digitales, apegándose a su marco normativo para ejercer una ciudadanía digital, acceder al conocimiento y resolver situaciones, fenómenos o problemas de su contexto."
   },
   {
     "semester": 1,
@@ -407,61 +540,82 @@
     "contenidos_formativos": [
       {
         "numero": 1,
-        "proposito": "Meta educativa",
+        "proposito": ". Selecciona una problemática social de su comunidad desde un enfoque pertinente para su estudio, considerando las características, tipos y paradigmas de investigación en Ciencias Sociales.",
         "contenidos": [
-          "Emplea la metodología de investigación social para proponer alternativas de atención a problemáticas de su comunidad, desde distintos abordajes que abonen a la construcción de una sociedad justa y equitativa para sistematizar de manera reflexiva, analítica y critica los datos de la realidad social que le permita percibirse como agente de transformación social, política, económica y cultural."
+          "Concepto de investigación social y sus características.",
+          "Tipos de investigación: exploratoria, descriptiva, explicativa, participativa, etc.",
+          "Principales paradigmas de investigación: positivista, interpretativo, crítico.",
+          "Importancia de la investigación en el acercamiento, reconocimiento y análisis de problemáticas sociales.",
+          "Relación entre la investigación y el contexto comunitario."
         ]
       },
       {
         "numero": 2,
-        "proposito": "1. Selecciona una problemática social de su comunidad desde un enfoque pertinente para su estudio, considerando las características, tipos y paradigmas de investigación en Ciencias Sociales.",
+        "proposito": ". Construye de manera gradual los elementos teóricos y metodológicos fundamentales del proceso de investigación a partir del esbozo de un protocolo.",
         "contenidos": [
-          "Concepto de investigación social y sus características. Tipos de investigación: exploratoria, descriptiva, explicativa, participativa, etc. Principales paradigmas de investigación: positivista, interpretativo, crítico. Importancia de la investigación en el acercamiento, reconocimiento y análisis de problemáticas sociales. Relación entre la investigación y el contexto comunitario."
+          "Estructura del protocolo de investigación.",
+          "Delimitación y formulación de la problemática.",
+          "Preguntas, objetivos, justificación, hipótesis o supuestos de investigación.",
+          "Cronograma y planificación del proceso de investigación."
         ]
       },
       {
         "numero": 3,
-        "proposito": "2. Construye de manera gradual los elementos teóricos y metodológicos fundamentales del proceso de investigación a partir del esbozo de un protocolo.",
+        "proposito": ". Define el objeto de estudio con base en un método, enfoque teórico-metodológico y herramientas pertinentes a su contexto, conforme a su utilidad y aplicación en el análisis de la problemática seleccionada.",
         "contenidos": [
-          "Estructura del protocolo de investigación. Delimitación y formulación de la problemática. Preguntas, objetivos, justificación, hipótesis o supuestos de investigación. Cronograma y planificación del proceso de investigación."
+          "Métodos de investigación: inductivo, deductivo, análisis–síntesis, comparativo, histórico.",
+          "Diseño de investigación: experimental y no experimental.",
+          "Enfoques de investigación: cualitativo, cuantitativo y mixto.",
+          "Criterios para la elección del enfoque y método según el objeto de estudio.",
+          "La “caja de herramientas” en la investigación social.",
+          "Diseño metodológico: paradigma, enfoque, método, sujetos de estudio, población, muestra, técnicas e instrumentos."
         ]
       },
       {
         "numero": 4,
-        "proposito": "3. Define el objeto de estudio con base en un método, enfoque teórico-metodológico y herramientas pertinentes a su contexto, conforme a su utilidad y aplicación en el análisis de la problemática seleccionada.",
+        "proposito": ". Fundamenta el estudio de la problemática social de la comunidad con los elementos teóricos desde la perspectiva crítica y reflexiva, a través de la elaboración del estado del arte.",
         "contenidos": [
-          "Métodos de investigación: inductivo, deductivo, análisis–síntesis, comparativo, histórico. Diseño de investigación: experimental y no experimental. Enfoques de investigación: cualitativo, cuantitativo y mixto. Criterios para la elección del enfoque y método según el objeto de estudio. La “caja de herramientas” en la investigación social. Diseño metodológico: paradigma, enfoque, método, sujetos de estudio, población, muestra, técnicas e instrumentos."
+          "Marco teórico: conceptual, histórico y referencial.",
+          "Normas APA.",
+          "Estado del arte: revisión y análisis de antecedentes."
         ]
       },
       {
         "numero": 5,
-        "proposito": "4. Fundamenta el estudio de la problemática social de la comunidad con los elementos teóricos desde la perspectiva crítica y reflexiva, a través de la elaboración del estado del arte.",
+        "proposito": ". Recolecta datos relacionados con la problemática y el objeto de estudio, a través de técnicas e instrumentos de investigación en las Ciencias Sociales",
         "contenidos": [
-          "Marco teórico: conceptual, histórico y referencial. Normas APA. Estado del arte: revisión y análisis de antecedentes."
+          "Técnicas de recolección de datos: entrevistas, encuestas, observación, grupos focales.",
+          "Instrumentos: cuestionarios, guías de entrevista, listas de cotejo, diarios de campo.",
+          "Diferencias entre técnicas cuantitativas y cualitativas.",
+          "Criterios de validez y confiabilidad en la recolección de datos.",
+          "Etapas del procesamiento de datos: recolección, organización, sistematización y análisis.",
+          "Ética en el manejo de la información y la relación con los sujetos de estudio."
         ]
       },
       {
         "numero": 6,
-        "proposito": "5. Recolecta datos relacionados con la problemática y el objeto de estudio, a través de técnicas e instrumentos de investigación en las Ciencias Sociales",
+        "proposito": ". Propone soluciones basadas en los hallazgos, que contribuyan a la transformación de la comunidad.",
         "contenidos": [
-          "Técnicas de recolección de datos: entrevistas, encuestas, observación, grupos focales. Instrumentos: cuestionarios, guías de entrevista, listas de cotejo, diarios de campo. Diferencias entre técnicas cuantitativas y cualitativas. Criterios de validez y confiabilidad en la recolección de datos. Etapas del procesamiento de datos: recolección, organización, sistematización y análisis. Ética en el manejo de la información y la relación con los sujetos de estudio."
+          "Diseño y aplicación de técnicas e instrumentos para recolección de datos.",
+          "Análisis e interpretación de datos: sistematización y categorización de información.",
+          "Elaboración de conclusiones y recomendaciones.",
+          "Formulación de propuestas de solución viables y contextualizadas.",
+          "Características y tipos de productos de investigación.",
+          "Alcances y limitaciones de la transformación social."
         ]
       },
       {
         "numero": 7,
-        "proposito": "6. Propone soluciones basadas en los hallazgos, que contribuyan a la transformación de la comunidad.",
+        "proposito": ". Comunica los resultados de la investigación social, que permita identificar nuevas áreas de estudio y el impacto en la comunidad.",
         "contenidos": [
-          "Diseño y aplicación de técnicas e instrumentos para recolección de datos. Análisis e interpretación de datos: sistematización y categorización de información. Elaboración de conclusiones y recomendaciones. Formulación de propuestas de solución viables y contextualizadas. Características y tipos de productos de investigación. Alcances y limitaciones de la transformación social."
-        ]
-      },
-      {
-        "numero": 8,
-        "proposito": "7. Comunica los resultados de la investigación social, que permita identificar nuevas áreas de estudio y el impacto en la comunidad.",
-        "contenidos": [
-          "Estrategias de comunicación y presentación de resultados. Ética en la divulgación de resultados de investigación. Criterios de evaluación de una investigación social. Proyección a futuro de la investigación: Nuevas líneas de estudio."
+          "Estrategias de comunicación y presentación de resultados.",
+          "Ética en la divulgación de resultados de investigación.",
+          "Criterios de evaluación de una investigación social.",
+          "Proyección a futuro de la investigación: Nuevas líneas de estudio."
         ]
       }
-    ]
+    ],
+    "meta_educativa": "Emplea la metodología de investigación social para proponer alternativas de atención a problemáticas de su comunidad, desde distintos abordajes que abonen a la construcción de una sociedad justa y equitativa para sistematizar de manera reflexiva, analítica y critica los datos de la realidad social que le permita percibirse como agente de transformación social, política, económica y cultural."
   },
   {
     "semester": 1,
@@ -470,40 +624,48 @@
     "contenidos_formativos": [
       {
         "numero": 1,
-        "proposito": "Meta educativa",
+        "proposito": "Comprende la conformación e importancia del concepto de Estado, para repensar la construcción de una ciudadanía crítica y reflexiva.",
         "contenidos": [
-          "Problematice la ciudadanía como un derecho y su relación con el Estado, así como la construcción de la demo"
+          "Concepto de Estado",
+          "El Estado como garante de derechos y la perspectiva de derechos humanos",
+          "Sistema jurídico mexicano"
         ]
       },
       {
         "numero": 2,
-        "proposito": "1 Comprende la conformación e importancia del concepto de Estado, para repensar la construcción de una ciudadanía crítica y reflexiva.",
+        "proposito": "Analiza el devenir del concepto de ciudadanía, para la conformación de un Estado democrático e incluyente.",
         "contenidos": [
-          "Concepto de Estado El Estado como garante de derechos y la perspectiva de derechos humanos Sistema jurídico mexicano"
+          "Estado y ciudadanía:",
+          "Política",
+          "Civil",
+          "Económica",
+          "Cultural",
+          "Concepto de ciudadanía, democracia participativa y representativa: espacios para el ejercicio de la ciudadanía",
+          "Concepto de justicia social",
+          "Políticas públicas y derechos ciudadanos"
         ]
       },
       {
         "numero": 3,
-        "proposito": "2 Analiza el devenir del concepto de ciudadanía, para la conformación de un Estado democrático e incluyente.",
+        "proposito": "Comprende y contrasta las normas sociales para explicar su rol en la vida cotidiana.",
         "contenidos": [
-          "Estado y ciudadanía: Política Civil Económica Cultural Concepto de ciudadanía, democracia participativa y representativa: espacios para el ejercicio de la ciudadanía Concepto de justicia social Políticas públicas y derechos ciudadanos"
+          "Normas sociales, normatividad consuetudinaria como fuente de derechos",
+          "Contrato social con perspectiva de género e intercultural",
+          "Funciones y obligaciones de las instituciones federales, estatales y municipales"
         ]
       },
       {
         "numero": 4,
-        "proposito": "3 Comprende y contrasta las normas sociales para explicar su rol en la vida cotidiana.",
+        "proposito": "Discute y reconoce que la diversidad forma parte del espacio democrático.",
         "contenidos": [
-          "Normas sociales, normatividad consuetudinaria como fuente de derechos Contrato social con perspectiva de género e intercultural Funciones y obligaciones de las instituciones federales, estatales y municipales"
-        ]
-      },
-      {
-        "numero": 5,
-        "proposito": "4 Discute y reconoce que la diversidad forma parte del espacio democrático.",
-        "contenidos": [
-          "Inclusión e igualdad, adelantos y pendientes: Acciones afirmativas La edad como clave de discriminación (edadismo) ¿Derechos para todas las personas?: accesos diferenciados y claves de exclusión social"
+          "Inclusión e igualdad, adelantos y pendientes:",
+          "Acciones afirmativas",
+          "La edad como clave de discriminación (edadismo)",
+          "¿Derechos para todas las personas?: accesos diferenciados y claves de exclusión social"
         ]
       }
-    ]
+    ],
+    "meta_educativa": "Problematice la ciudadanía como un derecho y su relación con el Estado, así como la construcción de la demo"
   },
   {
     "semester": 1,
@@ -512,40 +674,40 @@
     "contenidos_formativos": [
       {
         "numero": 1,
-        "proposito": "Meta educativa",
+        "proposito": "Participa de diversas expresiones artísticas para comunicar emociones, ideas y experiencias personales y del colectivo al que pertenece.",
         "contenidos": [
-          "Desarrolle sensibilidad estética y ética mediante el disfrute y el goce del arte como forma de comunicar ideas, experiencias, emociones y necesidades, así como para reconocerse junto con otros como personas que comparten un contexto."
+          "Experimentación con formas de expresión artística y su vínculo con emociones, ideas y experiencias",
+          "La memoria como vínculo colectivo de identidad y posibilidad de transformación social"
         ]
       },
       {
         "numero": 2,
-        "proposito": "1 Participa de diversas expresiones artísticas para comunicar emociones, ideas y experiencias personales y del colectivo al que pertenece.",
+        "proposito": "Genera manifestaciones artísticas variadas como formas de expresión política frente a los problemas que afectan a su comunidad y entorno.",
         "contenidos": [
-          "Experimentación con formas de expresión artística y su vínculo con emociones, ideas y experiencias La memoria como vínculo colectivo de identidad y posibilidad de transformación social"
+          "Las expresiones artísticas como vínculos con la realidad social, política y cultural",
+          "Formas de interacción social a través del arte"
         ]
       },
       {
         "numero": 3,
-        "proposito": "2 Genera manifestaciones artísticas variadas como formas de expresión política frente a los problemas que afectan a su comunidad y entorno.",
+        "proposito": "Recrea la obra de artistas cuyas creaciones buscaron problematizar la realidad y dar cuenta de un posicionamiento político, y formaron parte de procesos colectivos de transformación social.",
         "contenidos": [
-          "Las expresiones artísticas como vínculos con la realidad social, política y cultural Formas de interacción social a través del arte"
+          "Expresiones artísticas y su contexto histórico, social, económico y político para visibilizar denunciar alguna problemática o situación de la realidad",
+          "Enfoque interseccional (conciencia de sí y para apreciar la otredad en sus distintas manifestaciones en los fenómenos socioculturales)",
+          "Expresiones artísticas de su comunidad con el objetivo de preservar su patrimonio histórico-cultural, así como lograr una reconfiguración que atienda a la diversidad sociocultural"
         ]
       },
       {
         "numero": 4,
-        "proposito": "3 Recrea la obra de artistas cuyas creaciones buscaron problematizar la realidad y dar cuenta de un posicionamiento político, y formaron parte de procesos colectivos de transformación social.",
+        "proposito": "Experimenta el arte como un espacio para el autodescubrimiento y el autoconocimiento en el marco de la complejidad de su contexto y momento histórico.",
         "contenidos": [
-          "Expresiones artísticas y su contexto histórico, social, económico y político para visibilizar denunciar alguna problemática o situación de la realidad Enfoque interseccional (conciencia de sí y para apreciar la otredad en sus distintas manifestaciones en los fenómenos socioculturales) Expresiones artísticas de su comunidad con el objetivo de preservar su patrimonio histórico-cultural, así como lograr una reconfiguración que atienda a la diversidad sociocultural"
-        ]
-      },
-      {
-        "numero": 5,
-        "proposito": "4 Experimenta el arte como un espacio para el autodescubrimiento y el autoconocimiento en el marco de la complejidad de su contexto y momento histórico.",
-        "contenidos": [
-          "Experimentación libre con expresiones artísticas: movimiento o danza, dibujo, interpretación vocal, sonora o musical, artes escénicas alguna otra de su entorno cultural Elementos que conforman su identidad cultural y personal (emociones, valores y tradiciones) El cuerpo como herramienta de comunicación de la persona para relacionarse consigo misma y con su entorno"
+          "Experimentación libre con expresiones artísticas: movimiento o danza, dibujo, interpretación vocal, sonora o musical, artes escénicas alguna otra de su entorno cultural",
+          "Elementos que conforman su identidad cultural y personal (emociones, valores y tradiciones)",
+          "El cuerpo como herramienta de comunicación de la persona para relacionarse consigo misma y con su entorno"
         ]
       }
-    ]
+    ],
+    "meta_educativa": "Desarrolle sensibilidad estética y ética mediante el disfrute y el goce del arte como forma de comunicar ideas, experiencias, emociones y necesidades, así como para reconocerse junto con otros como personas que comparten un contexto."
   },
   {
     "semester": 1,
@@ -554,47 +716,52 @@
     "contenidos_formativos": [
       {
         "numero": 1,
-        "proposito": "Meta educativa",
+        "proposito": "Participa en situaciones de juego y actividad física lúdica como una manifestación cultural y expresión de libertad, valorando también el juego como una experiencia formativa y una fuente de disfrute personal que promueve el bienestar y la creatividad.",
         "contenidos": [
-          "Desarrolle hábitos conscientes y reflexivos en torno a la actividad física y deportiva, como medio para el desarrollo integral, una conciencia crítica y el compromiso con el bienestar colectivo."
+          "El juego como derecho humano",
+          "El deporte y el juego",
+          "Juegos tradicionales"
         ]
       },
       {
         "numero": 2,
-        "proposito": "1 Participa en situaciones de juego y actividad física lúdica como una manifestación cultural y expresión de libertad, valorando también el juego como una experiencia formativa y una fuente de disfrute personal que promueve el bienestar y la creatividad.",
+        "proposito": "Participa en actividades deportivas como un derecho humano fundamental que favorece su desarrollo físico y emocional, y promueve la convivencia respetuosa en la diversidad y otras formas de vinculación y disfrute de su propio cuerpo.",
         "contenidos": [
-          "El juego como derecho humano El deporte y el juego Juegos tradicionales"
+          "Derecho a participar en actividades físicas y deportivas",
+          "Beneficios del deporte para la salud y la convivencia",
+          "Diversidad corporal, étnica, cultural y sexogenérica como elementos enriquecedores en el deporte"
         ]
       },
       {
         "numero": 3,
-        "proposito": "2 Participa en actividades deportivas como un derecho humano fundamental que favorece su desarrollo físico y emocional, y promueve la convivencia respetuosa en la diversidad y otras formas de vinculación y disfrute de su propio cuerpo.",
+        "proposito": "Explora las emociones y las posibilidades motrices que experimenta en la práctica deportiva, y la identifica como oportunidad para la toma de decisiones saludables, la capacidad de sentir y reconocer emociones y razonar sobre ellas, al tiempo que desarrolla sus potencialidades psicomotrices.",
         "contenidos": [
-          "Derecho a participar en actividades físicas y deportivas Beneficios del deporte para la salud y la convivencia Diversidad corporal, étnica, cultural y sexogenérica como elementos enriquecedores en el deporte"
+          "Emociones que se identifican durante la práctica deportiva",
+          "Importancia de las reglas y el respeto para canalizar emociones",
+          "Uso del deporte para prevenir riesgos y tomar decisiones saludables",
+          "Potencialidades psicomotrices de la corporalidad"
         ]
       },
       {
         "numero": 4,
-        "proposito": "3 Explora las emociones y las posibilidades motrices que experimenta en la práctica deportiva, y la identifica como oportunidad para la toma de decisiones saludables, la capacidad de sentir y reconocer emociones y razonar sobre ellas, al tiempo que desarrolla sus potencialidades psicomotrices.",
+        "proposito": "Identifica y cuestiona las prácticas discriminatorias y de violencia en el deporte por razones de género o corporalidad, para establecer relaciones empáticas, justas y libres de violencia, y desarrolla la capacidad de afiliación y respeto por la dignidad de cada persona.",
         "contenidos": [
-          "Emociones que se identifican durante la práctica deportiva Importancia de las reglas y el respeto para canalizar emociones Uso del deporte para prevenir riesgos y tomar decisiones saludables Potencialidades psicomotrices de la corporalidad"
+          "Discriminación en el deporte",
+          "Respeto a las diversidades corporales e identidades sexogenéricas",
+          "Comunicación asertiva para resolver conflictos y crear ambientes inclusivos"
         ]
       },
       {
         "numero": 5,
-        "proposito": "4 Identifica y cuestiona las prácticas discriminatorias y de violencia en el deporte por razones de género o corporalidad, para establecer relaciones empáticas, justas y libres de violencia, y desarrolla la capacidad de afiliación y respeto por la dignidad de cada persona.",
+        "proposito": "Promueve la igualdad de oportunidades y la inclusión de todas las personas en el ámbito deportivo, especialmente de mujeres, diversidades sexogenéricas y personas en situación de discapacidad, cultivando una conciencia crítica que impulse el bienestar colectivo y el ejercicio pleno de sus capacidades humanas.",
         "contenidos": [
-          "Discriminación en el deporte Respeto a las diversidades corporales e identidades sexogenéricas Comunicación asertiva para resolver conflictos y crear ambientes inclusivos"
-        ]
-      },
-      {
-        "numero": 6,
-        "proposito": "5 Promueve la igualdad de oportunidades y la inclusión de todas las personas en el ámbito deportivo, especialmente de mujeres, diversidades sexogenéricas y personas en situación de discapacidad, cultivando una conciencia crítica que impulse el bienestar colectivo y el ejercicio pleno de sus capacidades humanas.",
-        "contenidos": [
-          "Inclusión en el deporte: personas de la diversidad sexogenérica o en situación de discapacidad Crítica a las normas y estereotipos que limitan la participación en ciertos grupos deportivos Prácticas deportivas incluyentes como herramientas de transformación social"
+          "Inclusión en el deporte: personas de la diversidad sexogenérica o en situación de discapacidad",
+          "Crítica a las normas y estereotipos que limitan la participación en ciertos grupos deportivos",
+          "Prácticas deportivas incluyentes como herramientas de transformación social"
         ]
       }
-    ]
+    ],
+    "meta_educativa": "Desarrolle hábitos conscientes y reflexivos en torno a la actividad física y deportiva, como medio para el desarrollo integral, una conciencia crítica y el compromiso con el bienestar colectivo."
   },
   {
     "semester": 2,
@@ -603,68 +770,82 @@
     "contenidos_formativos": [
       {
         "numero": 1,
-        "proposito": "Meta educativa",
+        "proposito": "Comprende, a partir del análisis de fenómenos naturales cotidianos, que la energía puede transformarse y transferirse sin destruirse.",
         "contenidos": [
-          "Comprenda la importancia de la energía para construir explicaciones sobre diversos fenómenos naturales."
+          "Definición de energía",
+          "Manifestaciones, tipos y transformación de la energía",
+          "Ley de conservación de la energía",
+          "Medición de la energía y unidades de medida"
         ]
       },
       {
         "numero": 2,
-        "proposito": "1 Comprende, a partir del análisis de fenómenos naturales cotidianos, que la energía puede transformarse y transferirse sin destruirse.",
+        "proposito": "Analiza el cambio de posición de un cuerpo al interactuar con otro, para comprender los conceptos de fuerza, movimiento y su relación con la energía mecánica.",
         "contenidos": [
-          "Definición de energía Manifestaciones, tipos y transformación de la energía Ley de conservación de la energía Medición de la energía y unidades de medida"
+          "Concepto de fuerza",
+          "Conceptos de posición, movimiento y velocidad",
+          "Concepto de energía mecánica",
+          "Cálculo de la energía cinética de un cuerpo o partícula"
         ]
       },
       {
         "numero": 3,
-        "proposito": "2 Analiza el cambio de posición de un cuerpo al interactuar con otro, para comprender los conceptos de fuerza, movimiento y su relación con la energía mecánica.",
+        "proposito": "Analiza el intercambio de calor entre cuerpos y con el entorno, para comprender su concepto, el de temperatura y su diferencia.",
         "contenidos": [
-          "Concepto de fuerza Conceptos de posición, movimiento y velocidad Concepto de energía mecánica Cálculo de la energía cinética de un cuerpo o partícula"
+          "Calor y temperatura",
+          "Medición de calor",
+          "Escalas termométricas absolutas y relativa",
+          "Equilibrio térmico"
         ]
       },
       {
         "numero": 4,
-        "proposito": "3 Analiza el intercambio de calor entre cuerpos y con el entorno, para comprender su concepto, el de temperatura y su diferencia.",
+        "proposito": "Analiza la interacción entre la energía y la estructura de la materia para comprender las formas de propagación de calor.",
         "contenidos": [
-          "Calor y temperatura Medición de calor Escalas termométricas absolutas y relativa Equilibrio térmico"
+          "Propagación de calor: conducción y convección",
+          "Transferencia de calor por radiación",
+          "Conductividad calorífica y capacidad térmica específica"
         ]
       },
       {
         "numero": 5,
-        "proposito": "4 Analiza la interacción entre la energía y la estructura de la materia para comprender las formas de propagación de calor.",
+        "proposito": "Analiza el vínculo entre trabajo mecánico y calor, para comprender el concepto de termodinámica.",
         "contenidos": [
-          "Propagación de calor: conducción y convección Transferencia de calor por radiación Conductividad calorífica y capacidad térmica específica"
+          "Trabajo mecánico",
+          "Concepto de termodinámica",
+          "Vínculo del trabajo mecánico con la termodinámica",
+          "Equivalencia entre una caloría y un Joule",
+          "Principio cero de la termodinámica"
         ]
       },
       {
         "numero": 6,
-        "proposito": "5 Analiza el vínculo entre trabajo mecánico y calor, para comprender el concepto de termodinámica.",
+        "proposito": "Analiza tanto la producción de calor que se genera por procesos mecánicos como las propiedades de un gas ideal, para comprender la primera ley de la termodinámica.",
         "contenidos": [
-          "Trabajo mecánico Concepto de termodinámica Vínculo del trabajo mecánico con la termodinámica Equivalencia entre una caloría y un Joule Principio cero de la termodinámica"
+          "Dinámica y ecuación de un gas ideal",
+          "Características de un sistema termodinámico: fronteras, sistemas abiertos o cerrados, y variables de estado",
+          "Primera ley de la termodinámica"
         ]
       },
       {
         "numero": 7,
-        "proposito": "6 Analiza tanto la producción de calor que se genera por procesos mecánicos como las propiedades de un gas ideal, para comprender la primera ley de la termodinámica.",
+        "proposito": "Analiza las aplicaciones de la primera ley de la termodinámica en situaciones de interés, para comprender el concepto de entropía, entalpía, así como la segunda y tercera leyes de la termodinámica.",
         "contenidos": [
-          "Dinámica y ecuación de un gas ideal Características de un sistema termodinámico: fronteras, sistemas abiertos o cerrados, y variables de estado Primera ley de la termodinámica"
+          "Concepto de Entropía",
+          "Concepto de Entalpía",
+          "Segunda y tercera leyes de la termodinámica"
         ]
       },
       {
         "numero": 8,
-        "proposito": "7 Analiza las aplicaciones de la primera ley de la termodinámica en situaciones de interés, para comprender el concepto de entropía, entalpía, así como la segunda y tercera leyes de la termodinámica.",
+        "proposito": "Construye explicaciones sobre fenómenos naturales en donde intervienen distintos tipos de energía, y explora aplicaciones tecnológicas relacionadas.",
         "contenidos": [
-          "Concepto de Entropía Concepto de Entalpía Segunda y tercera leyes de la termodinámica"
-        ]
-      },
-      {
-        "numero": 9,
-        "proposito": "8 Construye explicaciones sobre fenómenos naturales en donde intervienen distintos tipos de energía, y explora aplicaciones tecnológicas relacionadas.",
-        "contenidos": [
-          "Fenómenos naturales donde interviene la energía Aplicaciones tecnológicas de la energía"
+          "Fenómenos naturales donde interviene la energía",
+          "Aplicaciones tecnológicas de la energía"
         ]
       }
-    ]
+    ],
+    "meta_educativa": "Comprenda la importancia de la energía para construir explicaciones sobre diversos fenómenos naturales."
   },
   {
     "semester": 2,
@@ -673,54 +854,68 @@
     "contenidos_formativos": [
       {
         "numero": 1,
-        "proposito": "Meta educativa",
+        "proposito": "Representa operaciones aritméticas utilizadas en situaciones de interés, mediante letras y símbolos, para comprender el lenguaje algebraico.",
         "contenidos": [
-          "Entienda al lenguaje algebraico como un medio de representación de situaciones cotidianas y escolares para estimular el pensamiento abstracto."
+          "Definición de: suma, producto, razón, cociente, diferencia y residuo",
+          "Símbolos y letras utilizados en el lenguaje algebraico",
+          "Concepto de incógnita",
+          "Términos y expresiones algebraicas",
+          "Representación de expresiones de lenguaje común a expresiones algebraicas"
         ]
       },
       {
         "numero": 2,
-        "proposito": "1 Representa operaciones aritméticas utilizadas en situaciones de interés, mediante letras y símbolos, para comprender el lenguaje algebraico.",
+        "proposito": "Comprende la clasificación de las expresiones algebraicas para construir e identificar monomios, binomios, trinomios y polinomios.",
         "contenidos": [
-          "Definición de: suma, producto, razón, cociente, diferencia y residuo Símbolos y letras utilizados en el lenguaje algebraico Concepto de incógnita Términos y expresiones algebraicas Representación de expresiones de lenguaje común a expresiones algebraicas"
+          "Clasificación de expresiones algebraicas (monomio, binomio, trinomio y polinomio)",
+          "Componentes de un monomio: coeficiente, variable, exponente positivo y grado",
+          "Representación de situaciones reales con monomios y polinomios"
         ]
       },
       {
         "numero": 3,
-        "proposito": "2 Comprende la clasificación de las expresiones algebraicas para construir e identificar monomios, binomios, trinomios y polinomios.",
+        "proposito": "Aplica la aritmética y el manejo del álgebra para realizar operaciones con monomios y binomios, referentes a situaciones de interés, a partir del análisis de sus componentes.",
         "contenidos": [
-          "Clasificación de expresiones algebraicas (monomio, binomio, trinomio y polinomio) Componentes de un monomio: coeficiente, variable, exponente positivo y grado Representación de situaciones reales con monomios y polinomios"
+          "Suma, resta, multiplicación y división con monomios",
+          "Aplicación de las reglas de los exponentes y los signos",
+          "Aplicación de operaciones con fracciones",
+          "Factorización de monomios",
+          "Binomio y trinomio simple"
         ]
       },
       {
         "numero": 4,
-        "proposito": "3 Aplica la aritmética y el manejo del álgebra para realizar operaciones con monomios y binomios, referentes a situaciones de interés, a partir del análisis de sus componentes.",
+        "proposito": "Aplica la aritmética y el manejo del álgebra para realizar operaciones con trinomios y polinomios, referentes a situaciones de interés, a partir del análisis de sus componentes.",
         "contenidos": [
-          "Suma, resta, multiplicación y división con monomios Aplicación de las reglas de los exponentes y los signos Aplicación de operaciones con fracciones Factorización de monomios Binomio y trinomio simple"
+          "Suma, resta, multiplicación y división con polinomios",
+          "Aplicación de las reglas de los exponentes y los signos",
+          "Aplicación de operaciones con fracciones",
+          "Productos notables",
+          "Factorización de polinomios",
+          "Trinomio cuadrado perfecto"
         ]
       },
       {
         "numero": 5,
-        "proposito": "4 Aplica la aritmética y el manejo del álgebra para realizar operaciones con trinomios y polinomios, referentes a situaciones de interés, a partir del análisis de sus componentes.",
+        "proposito": "Aplica el álgebra en situaciones de interés para comprender su relevancia en otras áreas del conocimiento, fenómenos naturales o en distintas esferas de la vida humana.",
         "contenidos": [
-          "Suma, resta, multiplicación y división con polinomios Aplicación de las reglas de los exponentes y los signos Aplicación de operaciones con fracciones Productos notables Factorización de polinomios Trinomio cuadrado perfecto"
+          "Cálculo de un presupuesto personal (ingresos, gastos, ahorros, etc.)",
+          "Ajuste de proporciones en recetas según número",
+          "de personas",
+          "Hallar precios finales aplicando porcentajes y ecuaciones en compras con descuento"
         ]
       },
       {
         "numero": 6,
-        "proposito": "5 Aplica el álgebra en situaciones de interés para comprender su relevancia en otras áreas del conocimiento, fenómenos naturales o en distintas esferas de la vida humana.",
+        "proposito": "Comprende el concepto de ecuación a partir de las igualdades matemáticas para encontrar el valor de una incógnita utilizando situaciones de interés.",
         "contenidos": [
-          "Cálculo de un presupuesto personal (ingresos, gastos, ahorros, etc.) Ajuste de proporciones en recetas según número de personas Hallar precios finales aplicando porcentajes y ecuaciones en compras con descuento"
-        ]
-      },
-      {
-        "numero": 7,
-        "proposito": "6 Comprende el concepto de ecuación a partir de las igualdades matemáticas para encontrar el valor de una incógnita utilizando situaciones de interés.",
-        "contenidos": [
-          "Concepto de igualdad e identidad algebraica Relaciones de igualdad entre números reales Propiedades de igualdad: reflexiva, simétrica, transitiva, uniformidad"
+          "Concepto de igualdad e identidad algebraica",
+          "Relaciones de igualdad entre números reales",
+          "Propiedades de igualdad: reflexiva, simétrica, transitiva, uniformidad"
         ]
       }
-    ]
+    ],
+    "meta_educativa": "Entienda al lenguaje algebraico como un medio de representación de situaciones cotidianas y escolares para estimular el pensamiento abstracto."
   },
   {
     "semester": 2,
@@ -729,47 +924,58 @@
     "contenidos_formativos": [
       {
         "numero": 1,
-        "proposito": "Meta educativa",
+        "proposito": "Reconoce la posibilidad del pensamiento propio a partir de experiencias cotidianas, identificando la práctica filosófica como un modo de problematizar la realidad.",
         "contenidos": [
-          "Desarrolle la capacidad de formular preguntas filosóficas y de participar en diálogos argumentativos. Para ello, aplica métodos de razonamiento y considera diversos enfoques filosóficos, lo que le permite analizar los desafíos de su entorno desde una perspectiva humanista."
+          "¿Para qué reflexionar sobre el pensamiento?",
+          "Naturaleza del pensamiento filosófico y perspectiva humanista",
+          "Introducción a la argumentación filosófica y comunidades de diálogo"
         ]
       },
       {
         "numero": 2,
-        "proposito": "1 Reconoce la posibilidad del pensamiento propio a partir de experiencias cotidianas, identificando la práctica filosófica como un modo de problematizar la realidad.",
+        "proposito": "Formula preguntas significativas sobre la vida a partir de un ejercicio filosófico que genere pensamiento crítico, creativo y cuidadoso con el fin de cuestionar lo que comúnmente se considera cierto y explorar diversas respuestas que enriquezcan la visión del mundo.",
         "contenidos": [
-          "¿Para qué reflexionar sobre el pensamiento? Naturaleza del pensamiento filosófico y perspectiva humanista Introducción a la argumentación filosófica y comunidades de diálogo"
+          "¿Por qué y para qué preguntar?",
+          "Tipos de preguntas",
+          "Importancia de preguntar",
+          "Validez de las preguntas",
+          "La formulación de preguntas filosóficas"
         ]
       },
       {
         "numero": 3,
-        "proposito": "2 Formula preguntas significativas sobre la vida a partir de un ejercicio filosófico que genere pensamiento crítico, creativo y cuidadoso con el fin de cuestionar lo que comúnmente se considera cierto y explorar diversas respuestas que enriquezcan la visión del mundo.",
+        "proposito": "Analiza la cotidianidad desde las normas, valores, creencias y visiones del mundo, para comprender el sentido de la vida desde distintas perspectivas filosóficas, cuestionando lo dado.",
         "contenidos": [
-          "¿Por qué y para qué preguntar? Tipos de preguntas Importancia de preguntar Validez de las preguntas La formulación de preguntas filosóficas"
+          "¿Qué es un problema filosófico?",
+          "La experiencia de categorizar y conceptualizar",
+          "Problemas filosóficos: Realidad, Devenir, Tiempo, Muerte, Libertad, Felicidad, Lenguaje, Sentido de la vida, entre otros"
         ]
       },
       {
         "numero": 4,
-        "proposito": "3 Analiza la cotidianidad desde las normas, valores, creencias y visiones del mundo, para comprender el sentido de la vida desde distintas perspectivas filosóficas, cuestionando lo dado.",
+        "proposito": "Formula preguntas filosóficas en torno al Conocimiento, Ciencia y grados de Verdad para reconocer su relevancia en la vida cotidiana, desarrollando una comprensión crítica sobre cómo se construye el conocimiento.",
         "contenidos": [
-          "¿Qué es un problema filosófico? La experiencia de categorizar y conceptualizar Problemas filosóficos: Realidad, Devenir, Tiempo, Muerte, Libertad, Felicidad, Lenguaje, Sentido de la vida, entre otros"
+          "Encuentros y desencuentros entre el conocimiento científico y los saberes sociales y humanísticos",
+          "Teorías del Conocimiento",
+          "El Problema de la Verdad",
+          "Percepción y Razón",
+          "Posverdad",
+          "¿Qué implica interpretar?"
         ]
       },
       {
         "numero": 5,
-        "proposito": "4 Formula preguntas filosóficas en torno al Conocimiento, Ciencia y grados de Verdad para reconocer su relevancia en la vida cotidiana, desarrollando una comprensión crítica sobre cómo se construye el conocimiento.",
+        "proposito": "Integra la formulación de preguntas para participar con mayor rigor en comunidades de diálogo centradas en problemas filosóficos contemporáneos.",
         "contenidos": [
-          "Encuentros y desencuentros entre el conocimiento científico y los saberes sociales y humanísticos Teorías del Conocimiento El Problema de la Verdad Percepción y Razón Posverdad ¿Qué implica interpretar?"
-        ]
-      },
-      {
-        "numero": 6,
-        "proposito": "5 Integra la formulación de preguntas para participar con mayor rigor en comunidades de diálogo centradas en problemas filosóficos contemporáneos.",
-        "contenidos": [
-          "¿Para qué dialogamos? Características del diálogo filosófico con perspectiva humanista Actitudes y posturas del diálogo filosófico Reglas para la discusión filosófica La controversia como posibilidad de diálogo filosófico"
+          "¿Para qué dialogamos?",
+          "Características del diálogo filosófico con perspectiva humanista",
+          "Actitudes y posturas del diálogo filosófico",
+          "Reglas para la discusión filosófica",
+          "La controversia como posibilidad de diálogo filosófico"
         ]
       }
-    ]
+    ],
+    "meta_educativa": "Desarrolle la capacidad de formular preguntas filosóficas y de participar en diálogos argumentativos. Para ello, aplica métodos de razonamiento y considera diversos enfoques filosóficos, lo que le permite analizar los desafíos de su entorno desde una perspectiva humanista."
   },
   {
     "semester": 2,
@@ -778,68 +984,91 @@
     "contenidos_formativos": [
       {
         "numero": 1,
-        "proposito": "Meta educativa",
+        "proposito": "Narra situaciones de su historia de vida para compartir cómo han dejado una huella en su persona.",
         "contenidos": [
-          "Reconozca sus capacidades creativas y comunicativas en la elaboración de textos libres."
+          "Narración y descripción de situaciones vividas",
+          "Diálogo y reflexión colectiva a partir de ideas prioritarias y secundarias de una narración"
         ]
       },
       {
         "numero": 2,
-        "proposito": "1 Narra situaciones de su historia de vida para compartir cómo han dejado una huella en su persona.",
+        "proposito": "Escribe un texto descriptivo o narrativo de su autoría.",
         "contenidos": [
-          "Narración y descripción de situaciones vividas Diálogo y reflexión colectiva a partir de ideas prioritarias y secundarias de una narración"
+          "Organización de ideas para la escritura de un texto",
+          "Delimitación del sentido comunicativo en un texto",
+          "Ficción y realidad"
         ]
       },
       {
         "numero": 3,
-        "proposito": "2 Escribe un texto descriptivo o narrativo de su autoría.",
+        "proposito": "Identifica características lingüísticas a partir de la lectura de narrativas populares.",
         "contenidos": [
-          "Organización de ideas para la escritura de un texto Delimitación del sentido comunicativo en un texto Ficción y realidad"
+          "Narrativas populares de acuerdo con el contexto e interés estudiantil",
+          "Narración y oralidad",
+          "Adaptaciones modernas de narrativas tradicionales:",
+          "Cómics",
+          "Creepypastas",
+          "Cuentos",
+          "Obras de teatro",
+          "Leyendas y mitos",
+          "Reescritura de alguna narración breve"
         ]
       },
       {
         "numero": 4,
-        "proposito": "3 Identifica características lingüísticas a partir de la lectura de narrativas populares.",
+        "proposito": "Comprende, a partir de la exploración de diversos textos, la relevancia de personajes y escenarios en la narrativa popular, para desarrollar elementos que pueda integrar en sus propios escritos.",
         "contenidos": [
-          "Narrativas populares de acuerdo con el contexto e interés estudiantil Narración y oralidad Adaptaciones modernas de narrativas tradicionales: Cómics Creepypastas Cuentos Obras de teatro Leyendas y mitos Reescritura de alguna narración breve"
+          "Caracterización de personajes y sus relaciones, de inicio a fin, en la narrativa",
+          "Clasificación de los personajes",
+          "Construcción de personajes de las narrativas"
         ]
       },
       {
         "numero": 5,
-        "proposito": "4 Comprende, a partir de la exploración de diversos textos, la relevancia de personajes y escenarios en la narrativa popular, para desarrollar elementos que pueda integrar en sus propios escritos.",
+        "proposito": "Distingue los temas y las ideas centrales y secundarias en las narrativas populares, para reconocer su papel en las distintas expresiones.",
         "contenidos": [
-          "Caracterización de personajes y sus relaciones, de inicio a fin, en la narrativa Clasificación de los personajes Construcción de personajes de las narrativas"
+          "Diferencia entre tema e idea principal Ideas secundarias y su función en la narrativa",
+          "Comparación de un mismo tema en diferentes narrativas populares",
+          "Palabras o frases que marcan jerarquías en la narración: conectores textuales"
         ]
       },
       {
         "numero": 6,
-        "proposito": "5 Distingue los temas y las ideas centrales y secundarias en las narrativas populares, para reconocer su papel en las distintas expresiones.",
+        "proposito": "Reescribe un texto para integrar los elementos lingüísticos y narrativos que considere pertinentes.",
         "contenidos": [
-          "Diferencia entre tema e idea principal Ideas secundarias y su función en la narrativa Comparación de un mismo tema en diferentes narrativas populares Palabras o frases que marcan jerarquías en la narración: conectores textuales"
+          "Trama, conflicto o situación",
+          "Narración:",
+          "Realista",
+          "Fantástica",
+          "Histórica",
+          "Autobiográfica",
+          "Tonos narrativos:",
+          "Humorístico",
+          "Dramático",
+          "Irónico"
         ]
       },
       {
         "numero": 7,
-        "proposito": "6 Reescribe un texto para integrar los elementos lingüísticos y narrativos que considere pertinentes.",
+        "proposito": "Colabora en el análisis de textos para conocer, aprovechar o corregir los procedimientos narrativos.",
         "contenidos": [
-          "Trama, conflicto o situación Narración: Realista Fantástica Histórica Autobiográfica Tonos narrativos: Humorístico Dramático Irónico"
+          "Intercambio de experiencias",
+          "Diálogo entre pares",
+          "Construcción de textos narrativos colaborativos"
         ]
       },
       {
         "numero": 8,
-        "proposito": "7 Colabora en el análisis de textos para conocer, aprovechar o corregir los procedimientos narrativos.",
+        "proposito": "Integra prácticas de lectura, escritura y oralidad en proyectos creativos para presentar el texto elaborado.",
         "contenidos": [
-          "Intercambio de experiencias Diálogo entre pares Construcción de textos narrativos colaborativos"
-        ]
-      },
-      {
-        "numero": 9,
-        "proposito": "8 Integra prácticas de lectura, escritura y oralidad en proyectos creativos para presentar el texto elaborado.",
-        "contenidos": [
-          "Análisis del pódcast u otro formato digital Elementos sobre guion (texto creado), grabación y edición Elementos extralingüísticos Producción y ejecución de un guion narrativo"
+          "Análisis del pódcast u otro formato digital",
+          "Elementos sobre guion (texto creado), grabación y edición",
+          "Elementos extralingüísticos",
+          "Producción y ejecución de un guion narrativo"
         ]
       }
-    ]
+    ],
+    "meta_educativa": "Reconozca sus capacidades creativas y comunicativas en la elaboración de textos libres."
   },
   {
     "semester": 2,
@@ -848,69 +1077,99 @@
     "contenidos_formativos": [
       {
         "numero": 1,
-        "proposito": "Meta educativa",
+        "proposito": "Describe rutinas diarias y actividades cotidianas en casa, la escuela o la comunidad (reconoce acciones frecuentes y las organiza en el tiempo).",
         "contenidos": [
-          "Intercambie información básica sobre su vida cotidiana y su entorno. Participe en interacciones breves y comprensibles que impliquen rutinas sociales, gustos, descripciones simples y necesidades básicas, en contextos escolares y comunitarios."
+          "Presente simple (forma afirmativa)",
+          "Adverbios de frecuencia (always, usually, sometimes, never)",
+          "Verbos comunes en tercera persona (he/she)",
+          "Rutinas diarias",
+          "Actividades escolares y del hogar",
+          "Expresiones de tiempo y horarios"
         ]
       },
       {
         "numero": 2,
-        "proposito": "1 Describe rutinas diarias y actividades cotidianas en casa, la escuela o la comunidad (reconoce acciones frecuentes y las organiza en el tiempo).",
+        "proposito": "Habla sobre lo que hacen otras personas en su tiempo libre y cuándo lo hacen (relaciona actividades con momentos del día o la semana).",
         "contenidos": [
-          "Presente simple (forma afirmativa) Adverbios de frecuencia (always, usually, sometimes, never) Verbos comunes en tercera persona (he/she) Rutinas diarias Actividades escolares y del hogar Expresiones de tiempo y horarios"
+          "Presente simple (forma negativa)",
+          "Preguntas con do/does",
+          "Respuestas cortas",
+          "Pasatiempos y actividades de ocio",
+          "Revisión de días de la semana",
+          "Momentos del día (in the morning, at night)"
         ]
       },
       {
         "numero": 3,
-        "proposito": "2 Habla sobre lo que hacen otras personas en su tiempo libre y cuándo lo hacen (relaciona actividades con momentos del día o la semana).",
+        "proposito": "Expresa habilidades y pide o da permiso en situaciones cotidianas (reconoce lo que se puede o no se puede hacer).",
         "contenidos": [
-          "Presente simple (forma negativa) Preguntas con do/does Respuestas cortas Pasatiempos y actividades de ocio Revisión de días de la semana Momentos del día (in the morning, at night)"
+          "Can / Can’t (habilidad y permiso)",
+          "Preguntas y respuestas con can",
+          "Habilidades comunes (play the guitar, swim, cook)",
+          "Normas del aula y del hogar",
+          "Actividades escolares y reglas"
         ]
       },
       {
         "numero": 4,
-        "proposito": "3 Expresa habilidades y pide o da permiso en situaciones cotidianas (reconoce lo que se puede o no se puede hacer).",
+        "proposito": "Describe personas, vestimenta y clima respetando la diversidad y el contexto cultural (usa el lenguaje para observar sin juzgar).",
         "contenidos": [
-          "Can / Can’t (habilidad y permiso) Preguntas y respuestas con can Habilidades comunes (play the guitar, swim, cook) Normas del aula y del hogar Actividades escolares y reglas"
+          "Verbo to be (revisión)",
+          "Have/has",
+          "Adjetivos posesivos (his, her, their)",
+          "Present continuous para descripciones",
+          "Características físicas y vestimenta",
+          "Clima y estaciones",
+          "Adjetivos relacionados con el clima y la ropa"
         ]
       },
       {
         "numero": 5,
-        "proposito": "4 Describe personas, vestimenta y clima respetando la diversidad y el contexto cultural (usa el lenguaje para observar sin juzgar).",
+        "proposito": "Compara personas, lugares y objetos en contextos cercanos (usa adjetivos para expresar diferencias con respeto).",
         "contenidos": [
-          "Verbo to be (revisión) Have/has Adjetivos posesivos (his, her, their) Present continuous para descripciones Características físicas y vestimenta Clima y estaciones Adjetivos relacionados con el clima y la ropa"
+          "Comparativos (bigger than, more interesting than)",
+          "Adjetivos de una y dos sílabas",
+          "Personas, lugares y objetos",
+          "Preferencias y elecciones"
         ]
       },
       {
         "numero": 6,
-        "proposito": "5 Compara personas, lugares y objetos en contextos cercanos (usa adjetivos para expresar diferencias con respeto).",
+        "proposito": "Pregunta cómo llegar a un lugar y orienta a otras personas en su comunidad (da y sigue referenciaspara ubicarse).",
         "contenidos": [
-          "Comparativos (bigger than, more interesting than) Adjetivos de una y dos sílabas Personas, lugares y objetos Preferencias y elecciones"
+          "Imperativos (go straight, turn left)",
+          "There is/are (revisión)",
+          "Preposiciones de movimiento (into, across, next to)",
+          "Lugares en la ciudad",
+          "Medios de transporte",
+          "Indicaciones de ubicación"
         ]
       },
       {
         "numero": 7,
-        "proposito": "6 Pregunta cómo llegar a un lugar y orienta a otras personas en su comunidad (da y sigue referenciaspara ubicarse).",
+        "proposito": "Participa en intercambios cotidianos sobre necesidades personales o comunitarias (expresa deseos, elige y muestra empatía).",
         "contenidos": [
-          "Imperativos (go straight, turn left) There is/are (revisión) Preposiciones de movimiento (into, across, next to) Lugares en la ciudad Medios de transporte Indicaciones de ubicación"
+          "Would like + sustantivo/infinitivo (I’d like a coffee",
+          "I’d like to go to the park.)",
+          "How much / How many",
+          "Sustantivos contables e incontables",
+          "Alimentos y bebidas",
+          "Precios y cantidades"
         ]
       },
       {
         "numero": 8,
-        "proposito": "7 Participa en intercambios cotidianos sobre necesidades personales o comunitarias (expresa deseos, elige y muestra empatía).",
+        "proposito": "Consolida aprendizajes clave en contextos escolares y comunitarios (revisa estructuras y vocabulario mediante actividades guiadas e integradoras).",
         "contenidos": [
-          "Would like + sustantivo/infinitivo (I’d like a coffee",
-          "I’d like to go to the park.) How much / How many Sustantivos contables e incontables Alimentos y bebidas Precios y cantidades"
-        ]
-      },
-      {
-        "numero": 9,
-        "proposito": "8 Consolida aprendizajes clave en contextos escolares y comunitarios (revisa estructuras y vocabulario mediante actividades guiadas e integradoras).",
-        "contenidos": [
-          "Presente simple (revisión general: singular vs. plural, primera y tercera persona) Vocabulario complementario Números cardinales (hasta centenas o millares) Números ordinales (1st, 2nd, 3rd...) Deletreo de nombres y palabras comunes"
+          "Presente simple (revisión general: singular vs. plural, primera y tercera persona)",
+          "Vocabulario complementario",
+          "Números cardinales (hasta centenas o millares)",
+          "Números ordinales (1st, 2nd, 3rd...)",
+          "Deletreo de nombres y palabras comunes"
         ]
       }
-    ]
+    ],
+    "meta_educativa": "Intercambie información básica sobre su vida cotidiana y su entorno. Participe en interacciones breves y comprensibles que impliquen rutinas sociales, gustos, descripciones simples y necesidades básicas, en contextos escolares y comunitarios."
   },
   {
     "semester": 2,
@@ -919,59 +1178,54 @@
     "contenidos_formativos": [
       {
         "numero": 1,
-        "proposito": "Meta educativa",
+        "proposito": "una manera innovadora y eficiente para acceder al conocimiento y la experiencia de aprendizaje de las diferentes asignaturas.",
         "contenidos": [
-          "Interactúe con las TICCAD para potenciar su aprendizaje autónomo y colaborativo, de una forma creativa e innovadora, de acuerdo con las características y necesidades de su contexto."
+          "Trabajo colaborativo digital",
+          "Herramientas de trabajo colaborativo",
+          "digital libre (Cryptpad, Riseup pad, entre",
+          "otras)"
         ]
       },
       {
         "numero": 2,
-        "proposito": "1 una manera innovadora y eficiente para acceder al conocimiento y la experiencia de aprendizaje de las diferentes asignaturas.",
+        "proposito": "Utiliza las TICCAD para interactuar y comunicase con equipos colaborativos de trabajo, e investigar, buscar, discriminar y gestionar información de una situación, fenómeno o problemática personal, social o ambiental.",
         "contenidos": [
-          "Trabajo colaborativo digital Herramientas de trabajo colaborativo digital libre (Cryptpad, Riseup pad, entre otras)"
+          "Tecnologías de Información, Comunicación,",
+          "Conocimiento y Aprendizajes Digitales de libre",
+          "acceso (Cryptpad, Riseup pad, entre otras)"
         ]
       },
       {
         "numero": 3,
-        "proposito": "2 Utiliza las TICCAD para interactuar y comunicase con equipos colaborativos de trabajo, e investigar, buscar, discriminar y gestionar información de una situación, fenómeno o problemática personal, social o ambiental.",
+        "proposito": "Aplica técnicas y métodos de investigación digital para buscar, recopilar, extraer, organizar y difundir información de una situación, fenómeno o problemática personal, social o ambiental.",
         "contenidos": [
-          "Tecnologías de Información, Comunicación, Conocimiento y Aprendizajes Digitales de libre acceso (Cryptpad, Riseup pad, entre otras)"
+          "Técnicas y métodos de investigación",
+          "digital (Ciberetnografía, análisis en línea de",
+          "contenido, grupo focal, entrevista, observación,",
+          "entre otros)"
         ]
       },
       {
         "numero": 4,
-        "proposito": "3 Aplica técnicas y métodos de investigación digital para buscar, recopilar, extraer, organizar y difundir información de una situación, fenómeno o problemática personal, social o ambiental.",
+        "proposito": "Procesa datos relacionados con una situación, fenómeno o problemática de índole personal, social o ambiental, utilizando herramientas de software que permitan calcular medidas de tendencia central y dispersión, así como generar representaciones gráficas que contribuyan a su análisis.",
         "contenidos": [
-          "Técnicas y métodos de investigación digital (Ciberetnografía, análisis en línea de contenido, grupo focal, entrevista, observación, entre otros)"
+          "Licencias permisivas (Cryptpad, Riseup pad,",
+          "Libre office, entre otras)",
+          "Software estadístico libre (Jamovi, XLSTAT",
+          "Free, JASP, entre otros)"
         ]
       },
       {
         "numero": 5,
-        "proposito": "4 Procesa datos relacionados con una situación, fenómeno o problemática de índole personal, social o ambiental, utilizando herramientas de software que permitan calcular medidas de tendencia central y dispersión, así como generar representaciones gráficas que contribuyan a su análisis.",
+        "proposito": "Utiliza las páginas web para ayudar a difundir información sobre una situación, fenómeno o problemática personal, social o ambiental relacionada con otras asignaturas.",
         "contenidos": [
-          "Licencias permisivas (Cryptpad, Riseup pad, Libre office, entre otras) Software estadístico libre (Jamovi, XLSTAT Free, JASP, entre otros)"
-        ]
-      },
-      {
-        "numero": 6,
-        "proposito": "5 Utiliza las páginas web para ayudar a difundir información sobre una situación, fenómeno o problemática personal, social o ambiental relacionada con otras asignaturas.",
-        "contenidos": [
-          "Páginas web (que impliquen un diseño simple, por ejemplo: Wordpress, Blogspot, entre otras)"
+          "Páginas web (que impliquen un diseño",
+          "simple, por ejemplo: Wordpress, Blogspot,",
+          "entre otras)"
         ]
       }
-    ]
-  },
-  {
-    "semester": 2,
-    "uac_name": "8. La ciencia como un esfuerzo humano para el bienestar, parte 1.5: Discusión de la relación entre ciencia, tecnología y sociedad para proponer ideas innovadoras sobre el impacto de materiales y tecnologías.",
-    "model_type": "propositos_contenidos",
-    "contenidos_formativos": [
-      {
-        "numero": 1,
-        "proposito": "Meta educativa",
-        "contenidos": []
-      }
-    ]
+    ],
+    "meta_educativa": "Interactúe con las TICCAD para potenciar su aprendizaje autónomo y colaborativo, de una forma creativa e innovadora, de acuerdo con las características y necesidades de su contexto."
   },
   {
     "semester": 2,
@@ -980,40 +1234,46 @@
     "contenidos_formativos": [
       {
         "numero": 1,
-        "proposito": "Meta educativa",
+        "proposito": "Identifica sus necesidades y satisfactores materiales, personales, familiares y las de su comunidad, para debatir sobre las formas en que se organiza la sociedad.",
         "contenidos": [
-          "Comprenda la forma en que las personas participan en los procesos de organización social, producción y distribución, y analice el origen de las desigualdades económicas y sociales desde su entorno familiar y comunitario."
+          "Bienestar social desde el enfoque de los derechos: diferentes formas de satisfacer las necesidades económicas y sociales de las personas",
+          "Dimensiones de los procesos de desigualdad",
+          "Necesidades vitales de las personas, y las diferentes formas de satisfacerlas"
         ]
       },
       {
         "numero": 2,
-        "proposito": "1 Identifica sus necesidades y satisfactores materiales, personales, familiares y las de su comunidad, para debatir sobre las formas en que se organiza la sociedad.",
+        "proposito": "Analiza las características y formas de organización social, para comparar y explicar las relaciones entre personas, grupos, comunidades e instituciones.",
         "contenidos": [
-          "Bienestar social desde el enfoque de los derechos: diferentes formas de satisfacer las necesidades económicas y sociales de las personas Dimensiones de los procesos de desigualdad Necesidades vitales de las personas, y las diferentes formas de satisfacerlas"
+          "Formas de organización social: comunitaria, personal y familiar en el contexto económico nacional y local",
+          "Diversidad cultural y exclusión: la discriminación y el racismo",
+          "Disidencias, luchas y resistencias",
+          "Diferentes manifestaciones de la discriminación: subordinación, exclusión y dominación"
         ]
       },
       {
         "numero": 3,
-        "proposito": "2 Analiza las características y formas de organización social, para comparar y explicar las relaciones entre personas, grupos, comunidades e instituciones.",
+        "proposito": "Relaciona los procesos y factores de producción, para explicar las formas de distribución desigual de los bienes en la sociedad.",
         "contenidos": [
-          "Formas de organización social: comunitaria, personal y familiar en el contexto económico nacional y local Diversidad cultural y exclusión: la discriminación y el racismo Disidencias, luchas y resistencias Diferentes manifestaciones de la discriminación: subordinación, exclusión y dominación"
+          "Contextos locales, nacionales y globales: intercambios desiguales",
+          "Diferencias regionales, urbano-rural",
+          "Factores de producción y bienes: tierra, trabajo, capital, organización y tiempo",
+          "Modos de producción y modelos de desarrollo: procesos económicos, incluyendo trabajos del hogar y cuidados"
         ]
       },
       {
         "numero": 4,
-        "proposito": "3 Relaciona los procesos y factores de producción, para explicar las formas de distribución desigual de los bienes en la sociedad.",
+        "proposito": "Reconoce y problematiza las relaciones de poder para explicar su función dentro de la diversidad en el funcionamiento de la organización social.",
         "contenidos": [
-          "Contextos locales, nacionales y globales: intercambios desiguales Diferencias regionales, urbano-rural Factores de producción y bienes: tierra, trabajo, capital, organización y tiempo Modos de producción y modelos de desarrollo: procesos económicos, incluyendo trabajos del hogar y cuidados"
-        ]
-      },
-      {
-        "numero": 5,
-        "proposito": "4 Reconoce y problematiza las relaciones de poder para explicar su función dentro de la diversidad en el funcionamiento de la organización social.",
-        "contenidos": [
-          "Instituciones y prácticas sociales (roles sociales) Hegemonía, consensos y negociación Interseccionalidad: clase social, género, raza, origen étnico, orientación sexual, entre otros Desafíos de los procesos demográficos y su impacto en el ámbito económico, social y político Relación sociedad, naturaleza, y degradación ambiental: diferencias regionales y locales"
+          "Instituciones y prácticas sociales (roles sociales)",
+          "Hegemonía, consensos y negociación",
+          "Interseccionalidad: clase social, género, raza, origen étnico, orientación sexual, entre otros",
+          "Desafíos de los procesos demográficos y su impacto en el ámbito económico, social y político",
+          "Relación sociedad, naturaleza, y degradación ambiental: diferencias regionales y locales"
         ]
       }
-    ]
+    ],
+    "meta_educativa": "Comprenda la forma en que las personas participan en los procesos de organización social, producción y distribución, y analice el origen de las desigualdades económicas y sociales desde su entorno familiar y comunitario."
   },
   {
     "semester": 2,
@@ -1022,40 +1282,40 @@
     "contenidos_formativos": [
       {
         "numero": 1,
-        "proposito": "Meta educativa",
+        "proposito": "Participa de diversas expresiones artísticas para comunicar emociones, ideas y experiencias personales y del colectivo al que pertenece.",
         "contenidos": [
-          "Desarrolle sensibilidad estética y ética mediante el disfrute y el goce del arte como forma de comunicar ideas, experiencias, emociones y necesidades, así como para reconocerse junto con otros como personas que comparten un contexto."
+          "Experimentación con formas de expresión artística y su vínculo con emociones, ideas y experiencias",
+          "La memoria como vínculo colectivo de identidad y posibilidad de transformación social"
         ]
       },
       {
         "numero": 2,
-        "proposito": "1 Participa de diversas expresiones artísticas para comunicar emociones, ideas y experiencias personales y del colectivo al que pertenece.",
+        "proposito": "Genera manifestaciones artísticas variadas como formas de expresión política frente a los problemas que afectan a su comunidad y entorno.",
         "contenidos": [
-          "Experimentación con formas de expresión artística y su vínculo con emociones, ideas y experiencias La memoria como vínculo colectivo de identidad y posibilidad de transformación social"
+          "Las expresiones artísticas como vínculos con la realidad social, política y cultural",
+          "Formas de interacción social a través del arte"
         ]
       },
       {
         "numero": 3,
-        "proposito": "2 Genera manifestaciones artísticas variadas como formas de expresión política frente a los problemas que afectan a su comunidad y entorno.",
+        "proposito": "Recrea la obra de artistas cuyas creaciones buscaron problematizar la realidad y dar cuenta de un posicionamiento político, y formaron parte de procesos colectivos de transformación social.",
         "contenidos": [
-          "Las expresiones artísticas como vínculos con la realidad social, política y cultural Formas de interacción social a través del arte"
+          "Expresiones artísticas y su contexto histórico, social, económico y político para visibilizar denunciar alguna problemática o situación de la realidad",
+          "Enfoque interseccional (conciencia de sí y para apreciar la otredad en sus distintas manifestaciones en los fenómenos socioculturales)",
+          "Expresiones artísticas de su comunidad con el objetivo de preservar su patrimonio histórico-cultural, así como lograr una reconfiguración que atienda a la diversidad sociocultural"
         ]
       },
       {
         "numero": 4,
-        "proposito": "3 Recrea la obra de artistas cuyas creaciones buscaron problematizar la realidad y dar cuenta de un posicionamiento político, y formaron parte de procesos colectivos de transformación social.",
+        "proposito": "Experimenta el arte como un espacio para el autodescubrimiento y el autoconocimiento en el marco de la complejidad de su contexto y momento histórico.",
         "contenidos": [
-          "Expresiones artísticas y su contexto histórico, social, económico y político para visibilizar denunciar alguna problemática o situación de la realidad Enfoque interseccional (conciencia de sí y para apreciar la otredad en sus distintas manifestaciones en los fenómenos socioculturales) Expresiones artísticas de su comunidad con el objetivo de preservar su patrimonio histórico-cultural, así como lograr una reconfiguración que atienda a la diversidad sociocultural"
-        ]
-      },
-      {
-        "numero": 5,
-        "proposito": "4 Experimenta el arte como un espacio para el autodescubrimiento y el autoconocimiento en el marco de la complejidad de su contexto y momento histórico.",
-        "contenidos": [
-          "Experimentación libre con expresiones artísticas: movimiento o danza, dibujo, interpretación vocal, sonora o musical, artes escénicas alguna otra de su entorno cultural Elementos que conforman su identidad cultural y personal (emociones, valores y tradiciones) El cuerpo como herramienta de comunicación de la persona para relacionarse consigo misma y con su entorno"
+          "Experimentación libre con expresiones artísticas: movimiento o danza, dibujo, interpretación vocal, sonora o musical, artes escénicas alguna otra de su entorno cultural",
+          "Elementos que conforman su identidad cultural y personal (emociones, valores y tradiciones)",
+          "El cuerpo como herramienta de comunicación de la persona para relacionarse consigo misma y con su entorno"
         ]
       }
-    ]
+    ],
+    "meta_educativa": "Desarrolle sensibilidad estética y ética mediante el disfrute y el goce del arte como forma de comunicar ideas, experiencias, emociones y necesidades, así como para reconocerse junto con otros como personas que comparten un contexto."
   },
   {
     "semester": 2,
@@ -1064,47 +1324,52 @@
     "contenidos_formativos": [
       {
         "numero": 1,
-        "proposito": "Meta educativa",
+        "proposito": "Participa en situaciones de juego y actividad física lúdica como una manifestación cultural y expresión de libertad, valorando también el juego como una experiencia formativa y una fuente de disfrute personal que promueve el bienestar y la creatividad.",
         "contenidos": [
-          "Desarrolle hábitos conscientes y reflexivos en torno a la actividad física y deportiva, como medio para el desarrollo integral, una conciencia crítica y el compromiso con el bienestar colectivo."
+          "El juego como derecho humano",
+          "El deporte y el juego",
+          "Juegos tradicionales"
         ]
       },
       {
         "numero": 2,
-        "proposito": "1 Participa en situaciones de juego y actividad física lúdica como una manifestación cultural y expresión de libertad, valorando también el juego como una experiencia formativa y una fuente de disfrute personal que promueve el bienestar y la creatividad.",
+        "proposito": "Participa en actividades deportivas como un derecho humano fundamental que favorece su desarrollo físico y emocional, y promueve la convivencia respetuosa en la diversidad y otras formas de vinculación y disfrute de su propio cuerpo.",
         "contenidos": [
-          "El juego como derecho humano El deporte y el juego Juegos tradicionales"
+          "Derecho a participar en actividades físicas y deportivas",
+          "Beneficios del deporte para la salud y la convivencia",
+          "Diversidad corporal, étnica, cultural y sexogenérica como elementos enriquecedores en el deporte"
         ]
       },
       {
         "numero": 3,
-        "proposito": "2 Participa en actividades deportivas como un derecho humano fundamental que favorece su desarrollo físico y emocional, y promueve la convivencia respetuosa en la diversidad y otras formas de vinculación y disfrute de su propio cuerpo.",
+        "proposito": "Explora las emociones y las posibilidades motrices que experimenta en la práctica deportiva, y la identifica como oportunidad para la toma de decisiones saludables, la capacidad de sentir y reconocer emociones y razonar sobre ellas, al tiempo que desarrolla sus potencialidades psicomotrices.",
         "contenidos": [
-          "Derecho a participar en actividades físicas y deportivas Beneficios del deporte para la salud y la convivencia Diversidad corporal, étnica, cultural y sexogenérica como elementos enriquecedores en el deporte"
+          "Emociones que se identifican durante la práctica deportiva",
+          "Importancia de las reglas y el respeto para canalizar emociones",
+          "Uso del deporte para prevenir riesgos y tomar decisiones saludables",
+          "Potencialidades psicomotrices de la corporalidad"
         ]
       },
       {
         "numero": 4,
-        "proposito": "3 Explora las emociones y las posibilidades motrices que experimenta en la práctica deportiva, y la identifica como oportunidad para la toma de decisiones saludables, la capacidad de sentir y reconocer emociones y razonar sobre ellas, al tiempo que desarrolla sus potencialidades psicomotrices.",
+        "proposito": "Identifica y cuestiona las prácticas discriminatorias y de violencia en el deporte por razones de género o corporalidad, para establecer relaciones empáticas, justas y libres de violencia, y desarrolla la capacidad de afiliación y respeto por la dignidad de cada persona.",
         "contenidos": [
-          "Emociones que se identifican durante la práctica deportiva Importancia de las reglas y el respeto para canalizar emociones Uso del deporte para prevenir riesgos y tomar decisiones saludables Potencialidades psicomotrices de la corporalidad"
+          "Discriminación en el deporte",
+          "Respeto a las diversidades corporales e identidades sexogenéricas",
+          "Comunicación asertiva para resolver conflictos y crear ambientes inclusivos"
         ]
       },
       {
         "numero": 5,
-        "proposito": "4 Identifica y cuestiona las prácticas discriminatorias y de violencia en el deporte por razones de género o corporalidad, para establecer relaciones empáticas, justas y libres de violencia, y desarrolla la capacidad de afiliación y respeto por la dignidad de cada persona.",
+        "proposito": "Promueve la igualdad de oportunidades y la inclusión de todas las personas en el ámbito deportivo, especialmente de mujeres, diversidades sexogenéricas y personas en situación de discapacidad, cultivando una conciencia crítica que impulse el bienestar colectivo y el ejercicio pleno de sus capacidades humanas.",
         "contenidos": [
-          "Discriminación en el deporte Respeto a las diversidades corporales e identidades sexogenéricas Comunicación asertiva para resolver conflictos y crear ambientes inclusivos"
-        ]
-      },
-      {
-        "numero": 6,
-        "proposito": "5 Promueve la igualdad de oportunidades y la inclusión de todas las personas en el ámbito deportivo, especialmente de mujeres, diversidades sexogenéricas y personas en situación de discapacidad, cultivando una conciencia crítica que impulse el bienestar colectivo y el ejercicio pleno de sus capacidades humanas.",
-        "contenidos": [
-          "Inclusión en el deporte: personas de la diversidad sexogenérica o en situación de discapacidad Crítica a las normas y estereotipos que limitan la participación en ciertos grupos deportivos Prácticas deportivas incluyentes como herramientas de transformación social"
+          "Inclusión en el deporte: personas de la diversidad sexogenérica o en situación de discapacidad",
+          "Crítica a las normas y estereotipos que limitan la participación en ciertos grupos deportivos",
+          "Prácticas deportivas incluyentes como herramientas de transformación social"
         ]
       }
-    ]
+    ],
+    "meta_educativa": "Desarrolle hábitos conscientes y reflexivos en torno a la actividad física y deportiva, como medio para el desarrollo integral, una conciencia crítica y el compromiso con el bienestar colectivo."
   },
   {
     "semester": 3,
@@ -1423,12 +1688,6 @@
       {
         "numero": 9,
         "proposito": "La ciencia como un esfuerzo humano para el bienestar, parte 3.5.: El estudiantado comunicará sus resultados considerando que la esencia de la ciencia es la divulgación de los mismos, los cuales pueden ser obtenidos mediante el proceso de investigación. La comunicación o divulgación de la investigación científica puede acercar a las personas con la ciencia.",
-        "progresion": null,
-        "contenidos": []
-      },
-      {
-        "numero": 10,
-        "proposito": "",
         "progresion": null,
         "contenidos": []
       }

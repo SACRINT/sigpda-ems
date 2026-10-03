@@ -211,12 +211,20 @@ async function main() {
         );
 
         if (isApply) {
-          await sql`
-            UPDATE programs_catalog
-            SET contenidos_formativos = ${JSON.stringify(bestMatch.contenidos_formativos)}
-            WHERE id = ${row.id}
-              AND contenidos_formativos IS NULL
-          `;
+          try {
+            await sql`BEGIN`;
+            await sql`
+              UPDATE programs_catalog
+              SET contenidos_formativos = ${JSON.stringify(bestMatch.contenidos_formativos)}
+              WHERE id = ${row.id}
+                AND contenidos_formativos IS NULL
+            `;
+            await sql`COMMIT`;
+          } catch (e) {
+            await sql`ROLLBACK`;
+            console.error(`Error actualizando ${row.uac_name}:`, e);
+            throw e;
+          }
         }
       }
     } else {

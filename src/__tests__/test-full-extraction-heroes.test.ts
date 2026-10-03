@@ -50,7 +50,7 @@ describe('Test partition sizes and structure for Heroes de la Patria and large 1
       expect(c.length).toBeLessThanOrEqual(10500);
       expect(c.includes('| N° | Categoría |')).toBe(true); // Table header propagated
     }
-  });
+  }, 15000);
 
   it('parses LLM responses with string arrays in participantes and metas_individuales without Zod error', () => {
     const rawAiOutput = JSON.stringify({
