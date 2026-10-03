@@ -6,6 +6,8 @@
  * para enriquecer la densidad visual de los libros de texto y cuadernos activos.
  */
 
+import { stripMarkdown } from './content-extractor';
+
 export interface CalloutBoxData {
   title: string;
   body: string;
@@ -116,7 +118,7 @@ export function extractCalloutBox(
   const missionNumber = opts.missionNumber ?? 1;
   const subjectName = opts.defaultSubjectName || defaultSubjectName;
   const palette = getMomentPalette(missionNumber);
-  const text = (missionText || '').trim();
+  const text = stripMarkdown(missionText || '').trim();
 
   if (!text) {
     return opts.allowSynthetic
@@ -189,6 +191,8 @@ export function extractCalloutBox(
     .filter((s) => s.length >= 35 && s.length <= 250);
 
   if (sentences.length > 0) {
+    const rawTakeaway = stripMarkdown(sentences[0]);
+    const cleanTakeaway = rawTakeaway.length > 80 ? rawTakeaway.slice(0, 80).trim() + '...' : rawTakeaway;
     return buildCallout(
       opts.defaultTitle || 'PRINCIPIO FUNDAMENTAL',
       sentences[0],
@@ -196,7 +200,7 @@ export function extractCalloutBox(
       opts.defaultType || 'key_concept',
       'IDEA FUERZA',
       '💡',
-      sentences[0].slice(0, 80) + '...'
+      cleanTakeaway
     );
   }
 
