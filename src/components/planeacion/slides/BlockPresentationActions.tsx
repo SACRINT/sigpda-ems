@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import type { SlideDeck } from '@/lib/presentation-engine/slide-model';
 import SlidesViewerModal from './SlidesViewerModal';
+import InfographicModal from '@/components/planeacion/infographics/InfographicModal';
 
 interface BlockPresentationActionsProps {
   planningId: string;
@@ -16,6 +17,7 @@ export default function BlockPresentationActions({ planningId, blockIndex }: Blo
   const [deck, setDeck] = useState<SlideDeck | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showInfographics, setShowInfographics] = useState(false);
 
   const base = `/api/planeaciones/${planningId}/presentacion?blockIndex=${blockIndex}`;
 
@@ -61,8 +63,20 @@ export default function BlockPresentationActions({ planningId, blockIndex }: Blo
       >
         ⬇ Descargar .pptx
       </a>
+      <button
+        id={`btn-infografia-${blockIndex}`}
+        type="button"
+        className="btn"
+        style={{ ...btnStyle, border: '1px solid var(--c-border)', color: 'var(--c-text)', background: 'transparent' }}
+        onClick={() => setShowInfographics(true)}
+      >
+        🖼️ Infografías
+      </button>
       {error && <span role="alert" style={{ color: '#EF4444', fontSize: 12, width: '100%' }}>{error}</span>}
       {deck && <SlidesViewerModal deck={deck} onClose={() => setDeck(null)} />}
+      {showInfographics && (
+        <InfographicModal planningId={planningId} blockIndex={blockIndex} onClose={() => setShowInfographics(false)} />
+      )}
     </div>
   );
 }
