@@ -299,5 +299,85 @@ describe('H-325 — Paridad Arquitectónica Integral DOCX <-> PDF', () => {
     expect(docxText).toContain('Proyecto PAEC');
     expect(pdfText).toContain('Evaluación NEM');
     expect(docxText).toContain('Evaluación NEM');
+
+    // 10. Anti-regresión de paridad de sanitización (F-01)
+    expect(docxText).not.toContain('<!--workbook:');
+    expect(pdfText).not.toContain('<!--workbook:');
+    expect(docxText).not.toContain('<!--');
+    expect(pdfText).not.toContain('<!--');
+
+    // 11. Matriz de Troubleshooting (fixture: m.troubleshooting[0])
+    for (const frag of [
+      'El cálculo resulta en eficiencia',
+      'Inversión de signos',
+      'cuerpo libre térmico',
+    ]) {
+      expect(pdfText).toContain(frag);
+      expect(docxText).toContain(frag);
+    }
+
+    // 12. Créditos institucionales y ficha de acreditación (headers por formato)
+    expect(docxText).toContain('Créditos Institucionales y Atribuciones de Propiedad Intelectual');
+    expect(pdfText).toContain('CRÉDITOS INSTITUCIONALES Y ATRIBUCIONES LEGALES');
+    expect(docxText).toContain('FICHA DE ACREDITACIÓN CURRICULAR Y VALIDACIÓN INSTITUCIONAL');
+    expect(pdfText).toContain('FICHA DE ACREDITACIÓN CURRICULAR Y SELLO INSTITUCIONAL');
+    expect(docxText).toContain('SUBSISTEMA');
+    expect(pdfText).toContain('SUBSISTEMA:');
+
+    // 13. Subsistema y ciclo escolar en portada
+    expect(docxText).toContain('Subsistema:');
+    expect(pdfText).toContain('SUBSISTEMA:');
+    expect(docxText).toContain('Ciclo Escolar');
+    expect(pdfText).toContain('Ciclo Escolar');
+
+    // 14. Estructura del TOC (títulos)
+    for (const t of ['MISIÓN 1', 'Proyecto PAEC', 'Evaluación NEM', 'Créditos']) {
+      expect(pdfText).toContain(t);
+      expect(docxText).toContain(t);
+    }
+  }, 40000);
+
+  it('fallbacks H-325: diagnóstico y semáforo sintéticos + sin etiquetas crudas (F-03)', async () => {
+    const baseMission = makeParityMission();
+    const fallbackMission: MissionSection = {
+      ...baseMission,
+      diagnosticEvaluation: undefined,
+      metacognitiveTrafficLight: undefined,
+      phenomenonHook: {
+        ...baseMission.phenomenonHook,
+        story: 'En los hornos comunitarios de Puebla se analiza el balance térmico de la TERMODINÁMICA para optimizar la combustión y reducir emisiones contaminantes en el entorno escolar. <!--workbook:lines:rows=3-->',
+      },
+      conceptZero: {
+        ...baseMission.conceptZero,
+        coreExplanation: 'La Primera Ley establece la CONSERVACIÓN de la energía entre el calor absorbido y el trabajo entregado por el sistema térmico artesanal. <!--workbook:table:cols=3-->',
+      },
+      iDoSection: { stepByStepDemo: 'Demostración docente guiada del balance térmico con fórmulas fundamentales. <!--workbook:code_box-->' },
+    } as MissionSection;
+
+    const workbookFallback: ActiveWorkTextbook = {
+      ...makeParityWorkbook(),
+      missions: [fallbackMission],
+    };
+    const planning = makeParityPlanning();
+
+    const [pdfBuffer, docxBuffer] = await Promise.all([
+      renderWorkbookToPdf(workbookFallback, planning, { forceFallbackCover: true }),
+      renderWorkbookToDocx(workbookFallback, planning, { forceFallbackCover: true }),
+    ]);
+
+    const pdfParser = new PDFParse({ data: new Uint8Array(pdfBuffer) });
+    const pdfResult = await pdfParser.getText();
+    await pdfParser.destroy();
+    const pdfText = pdfResult.text;
+
+    const docxResult = await mammoth.extractRawText({ buffer: docxBuffer });
+    const docxText = docxResult.value;
+
+    expect(docxText).toContain('EVALUACIÓN DIAGNÓSTICA: SABERES PREVIOS SITUADOS');
+    expect(pdfText).toContain('EVALUACIÓN DIAGNÓSTICA: SABERES PREVIOS SITUADOS');
+    expect(docxText).toContain('SEMÁFORO DE APRENDIZAJE: AUTOEVALUACIÓN METACOGNITIVA');
+    expect(pdfText).toContain('SEMÁFORO DE APRENDIZAJE: AUTOEVALUACIÓN METACOGNITIVA');
+    expect(docxText).not.toContain('<!--');
+    expect(pdfText).not.toContain('<!--');
   }, 40000);
 });
