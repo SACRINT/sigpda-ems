@@ -70,8 +70,11 @@ import {
   extractGlossaryTerms,
   stripMarkdown,
   deduplicateMediaAssets,
+  extractDiagnosticQuestions,
+  buildMetacognitiveTrafficLight,
   type GlossaryItem,
 } from '@/lib/visual-engine/content-extractor';
+import { generateMissionRubric } from '@/lib/visual-engine/mission-rubric-generator';
 import {
   generateBookCover,
   generateContraportadaData,
@@ -1461,6 +1464,32 @@ function buildTableOfContents(workbook: ActiveWorkTextbook): (Paragraph | Table)
     );
   });
 
+  if (workbook.projectSection) {
+    rows.push(
+      new TableRow({
+        children: [
+          cell('Proyecto PAEC', { bold: true, color: C.navy }),
+          cell(workbook.projectSection.artifactName || 'Proyecto Integrador Comunitario'),
+          cell('Fases 1 y 2'),
+          cell('3 págs.', { align: AlignmentType.CENTER }),
+        ],
+      })
+    );
+  }
+
+  if (workbook.evaluationSection) {
+    rows.push(
+      new TableRow({
+        children: [
+          cell('Evaluación NEM', { bold: true, color: C.navy }),
+          cell('Evaluación Formativa y Autovaloración'),
+          cell('Sumativa'),
+          cell('3 págs.', { align: AlignmentType.CENTER }),
+        ],
+      })
+    );
+  }
+
   items.push(
     new Table({
       width: { size: CONTENT_W, type: WidthType.DXA },
@@ -1846,6 +1875,225 @@ function buildDocxSessionDivider(sessionNumber: number, phaseLabel: string, colo
 }
 
 /**
+ * 3C. Sección de Evaluación Diagnóstica DOCX (Paridad con PDF drawDiagnosticSection)
+ */
+function buildDocxDiagnosticSection(diagnostic: { context?: string; questions: string[] }): (Paragraph | Table)[] {
+  const diagContext = stripMarkdown(diagnostic.context || '');
+  const diagQs = diagnostic.questions.slice(0, 3);
+  const elements: (Paragraph | Table)[] = [];
+
+  const cellChildren: Paragraph[] = [
+    new Paragraph({
+      spacing: { before: 40, after: 60 },
+      children: [
+        new TextRun({
+          text: 'EVALUACIÓN DIAGNÓSTICA: SABERES PREVIOS SITUADOS',
+          bold: true,
+          size: 20,
+          color: '2563EB',
+          font: 'Arial',
+        }),
+      ],
+    }),
+  ];
+
+  if (diagContext) {
+    cellChildren.push(
+      new Paragraph({
+        spacing: { after: 80, line: 320 },
+        children: [
+          new TextRun({
+            text: diagContext,
+            size: 20,
+            color: C.darkText,
+            font: 'Calibri',
+          }),
+        ],
+      })
+    );
+  }
+
+  const dotLine = '· · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·';
+
+  diagQs.forEach((q, idx) => {
+    cellChildren.push(
+      new Paragraph({
+        spacing: { before: 60, after: 40 },
+        children: [
+          new TextRun({ text: `${idx + 1}. `, bold: true, size: 20, color: C.navy, font: 'Calibri' }),
+          new TextRun({ text: stripMarkdown(q), size: 20, color: C.darkText, font: 'Calibri' }),
+        ],
+      }),
+      new Paragraph({
+        spacing: { after: 60 },
+        children: [new TextRun({ text: dotLine, size: 18, color: '94A3B8', font: 'Consolas' })],
+      })
+    );
+  });
+
+  elements.push(
+    new Table({
+      width: { size: CONTENT_W, type: WidthType.DXA },
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: CONTENT_W, type: WidthType.DXA },
+              shading: { fill: 'EFF6FF', type: ShadingType.CLEAR },
+              borders: {
+                top: { style: BorderStyle.SINGLE, size: 4, color: 'CBD5E1' },
+                bottom: { style: BorderStyle.SINGLE, size: 4, color: 'CBD5E1' },
+                left: { style: BorderStyle.SINGLE, size: 24, color: '2563EB' },
+                right: { style: BorderStyle.SINGLE, size: 4, color: 'CBD5E1' },
+              },
+              margins: { top: 120, bottom: 120, left: 180, right: 180 },
+              children: cellChildren,
+            }),
+          ],
+        }),
+      ],
+    }),
+    new Paragraph({ spacing: { after: 120 } })
+  );
+
+  return elements;
+}
+
+/**
+ * 3D. Semáforo Metacognitivo DOCX (Paridad con PDF drawMetacognitiveLight)
+ */
+function buildDocxMetacognitiveLight(trafficLight: { green: string; yellow: string; red: string }): (Paragraph | Table)[] {
+  const colW = Math.floor(CONTENT_W / 3);
+
+  const headerTable = new Table({
+    width: { size: CONTENT_W, type: WidthType.DXA },
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            width: { size: CONTENT_W, type: WidthType.DXA },
+            shading: { fill: 'F1F5F9', type: ShadingType.CLEAR },
+            borders: {
+              top: { style: BorderStyle.NONE },
+              bottom: { style: BorderStyle.SINGLE, size: 6, color: '059669' },
+              left: { style: BorderStyle.SINGLE, size: 24, color: '059669' },
+              right: { style: BorderStyle.NONE },
+            },
+            margins: { top: 80, bottom: 80, left: 180, right: 180 },
+            children: [
+              new Paragraph({
+                spacing: { before: 30, after: 30 },
+                children: [
+                  new TextRun({
+                    text: 'SEMÁFORO DE APRENDIZAJE: AUTOEVALUACIÓN METACOGNITIVA',
+                    bold: true,
+                    size: 20,
+                    color: '059669',
+                    font: 'Arial',
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+    ],
+  });
+
+  const bodyTable = new Table({
+    width: { size: CONTENT_W, type: WidthType.DXA },
+    rows: [
+      new TableRow({
+        children: [
+          cell('🟢 LO LOGRÉ', { w: colW, bold: true, fill: 'DCFCE7', color: '15803D', align: AlignmentType.CENTER }),
+          cell('🟡 EN PROCESO', { w: colW, bold: true, fill: 'FEF9C3', color: 'A16207', align: AlignmentType.CENTER }),
+          cell('🔴 NECESITO APOYO', { w: colW, bold: true, fill: 'FEE2E2', color: 'B91C1C', align: AlignmentType.CENTER }),
+        ],
+      }),
+      new TableRow({
+        children: [
+          cell(stripMarkdown(trafficLight.green), { w: colW, size: 18, color: C.darkText }),
+          cell(stripMarkdown(trafficLight.yellow), { w: colW, size: 18, color: C.darkText }),
+          cell(stripMarkdown(trafficLight.red), { w: colW, size: 18, color: C.darkText }),
+        ],
+      }),
+      new TableRow({
+        children: [
+          cell('[   ] Marcar', { w: colW, size: 18, align: AlignmentType.CENTER, color: '15803D', bold: true }),
+          cell('[   ] Marcar', { w: colW, size: 18, align: AlignmentType.CENTER, color: 'A16207', bold: true }),
+          cell('[   ] Marcar', { w: colW, size: 18, align: AlignmentType.CENTER, color: 'B91C1C', bold: true }),
+        ],
+      }),
+    ],
+  });
+
+  return [headerTable, bodyTable, new Paragraph({ spacing: { after: 120 } })];
+}
+
+/**
+ * 3E. Rúbrica Analítica Formativa de la Misión DOCX (Paridad con PDF drawMissionRubricTable)
+ */
+function buildDocxMissionRubricTable(rubric: import('@/types/work-textbook').EvaluationRubricCriterion[]): (Paragraph | Table)[] {
+  if (!rubric || rubric.length === 0) return [];
+
+  const elements: (Paragraph | Table)[] = [];
+
+  elements.push(
+    new Paragraph({
+      spacing: { before: 180, after: 80 },
+      children: [
+        new TextRun({
+          text: 'RÚBRICA FORMATIVA ANALÍTICA DE LA MISIÓN (MCCEMS)',
+          bold: true,
+          size: 22,
+          color: C.navy,
+          font: 'Arial',
+        }),
+      ],
+    })
+  );
+
+  const colW1 = Math.floor(CONTENT_W * 0.24);
+  const colWRem = Math.floor(CONTENT_W * 0.19);
+
+  const rows: TableRow[] = [
+    new TableRow({
+      children: [
+        cell('Criterio y Ponderación', { w: colW1, bold: true, fill: C.navy, color: C.white }),
+        cell('Excelente (10-9)', { w: colWRem, bold: true, fill: C.navy, color: C.white }),
+        cell('Bueno (8-7)', { w: colWRem, bold: true, fill: C.navy, color: C.white }),
+        cell('Suficiente (6-5)', { w: colWRem, bold: true, fill: C.navy, color: C.white }),
+        cell('Requiere Apoyo (4-1)', { w: colWRem, bold: true, fill: C.navy, color: C.white }),
+      ],
+    }),
+  ];
+
+  rubric.forEach((crit) => {
+    rows.push(
+      new TableRow({
+        children: [
+          cell(`${crit.criterion}\n(${crit.weightPercent}%)`, { bold: true }),
+          cell(getRubricLevelDescriptor(crit.levels, 'sobresaliente')),
+          cell(getRubricLevelDescriptor(crit.levels, 'notable')),
+          cell(getRubricLevelDescriptor(crit.levels, 'suficiente')),
+          cell(getRubricLevelDescriptor(crit.levels, 'insuficiente')),
+        ],
+      })
+    );
+  });
+
+  elements.push(
+    new Table({
+      width: { size: CONTENT_W, type: WidthType.DXA },
+      rows,
+    }),
+    new Paragraph({ spacing: { after: 120 } })
+  );
+
+  return elements;
+}
+
+/**
  * 4. Tareas con Casillas [  ] y Renglones Punteados para Respuesta Escrita
  */
 function buildDocxPracticeTasks(rawText: string, defaultTaskCount: number = 3): (Paragraph | Table)[] {
@@ -1962,6 +2210,16 @@ async function buildMissionContent(
     ? 'Apertura, Modelado y Práctica'
     : 'Apertura y Modelado Conceptual';
   elements.push(buildDocxSessionDivider(s1, s1Phase, '1B6B8A', 50));
+
+  // ── Evaluación Diagnóstica de Saberes Previos Situados (Paridad con PDF) ────
+  const diagEval = mission.diagnosticEvaluation ||
+    extractDiagnosticQuestions(
+      `${mission.phenomenonHook?.story || ''} ${mission.conceptZero?.coreExplanation || ''}`,
+      subjectName || 'la asignatura'
+    );
+  if (diagEval && diagEval.questions && diagEval.questions.length > 0) {
+    elements.push(...buildDocxDiagnosticSection(diagEval));
+  }
 
   // 1. Enganche Situado
   elements.push(
@@ -2438,6 +2696,22 @@ async function buildMissionContent(
         );
       });
     }
+  }
+
+  // ── Semáforo de Aprendizaje Metacognitivo (Paridad con PDF) ─────────────
+  const trafficLight = mission.metacognitiveTrafficLight ||
+    buildMetacognitiveTrafficLight(mission.title, subjectName || 'la asignatura');
+  if (trafficLight) {
+    elements.push(...buildDocxMetacognitiveLight(trafficLight));
+  }
+
+  // ── Rúbrica Analítica Formativa de la Misión MCCEMS (Paridad con PDF) ────
+  const missionExtra = mission as unknown as Record<string, unknown>;
+  const missionRubric =
+    (Array.isArray(missionExtra.missionRubric) ? (missionExtra.missionRubric as import('@/types/work-textbook').EvaluationRubricCriterion[]) : undefined) ||
+    generateMissionRubric(mission, subjectName, undefined);
+  if (missionRubric && missionRubric.length > 0) {
+    elements.push(...buildDocxMissionRubricTable(missionRubric));
   }
 
   // ── Cierre de Misión: QR Institucional de Validación y Sello Curricular (Fase V4) ──
