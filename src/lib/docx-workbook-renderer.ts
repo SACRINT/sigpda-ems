@@ -114,6 +114,7 @@ const SECTION_HEX = {
 const PAGE_W = 12240;   // Carta en DXA (8.5in * 1440)
 const MARGIN = 1000;    // Márgenes generosos
 const CONTENT_W = PAGE_W - MARGIN * 2;
+const DOT_LINE = '· · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·';
 
 function thinBorder(color = C.border) {
   const b = { style: BorderStyle.SINGLE, size: 4, color };
@@ -268,7 +269,8 @@ export async function renderWorkbookToDocx(
       planning?.id,
       workbook.blockIndex,
       usedOpenverseAssets,
-      assignedAssetKeys
+      assignedAssetKeys,
+      workbook.blockName
     );
     bodyChildren.push(...missionElements);
     bodyChildren.push(new Paragraph({ children: [new PageBreak()] }));
@@ -1471,7 +1473,7 @@ function buildTableOfContents(workbook: ActiveWorkTextbook): (Paragraph | Table)
           cell('Proyecto PAEC', { bold: true, color: C.navy }),
           cell(workbook.projectSection.artifactName || 'Proyecto Integrador Comunitario'),
           cell('Fases 1 y 2'),
-          cell('3 págs.', { align: AlignmentType.CENTER }),
+          cell('—', { align: AlignmentType.CENTER }),
         ],
       })
     );
@@ -1484,7 +1486,7 @@ function buildTableOfContents(workbook: ActiveWorkTextbook): (Paragraph | Table)
           cell('Evaluación NEM', { bold: true, color: C.navy }),
           cell('Evaluación Formativa y Autovaloración'),
           cell('Sumativa'),
-          cell('3 págs.', { align: AlignmentType.CENTER }),
+          cell('—', { align: AlignmentType.CENTER }),
         ],
       })
     );
@@ -1913,8 +1915,6 @@ function buildDocxDiagnosticSection(diagnostic: { context?: string; questions: s
     );
   }
 
-  const dotLine = '· · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·';
-
   diagQs.forEach((q, idx) => {
     cellChildren.push(
       new Paragraph({
@@ -1926,7 +1926,7 @@ function buildDocxDiagnosticSection(diagnostic: { context?: string; questions: s
       }),
       new Paragraph({
         spacing: { after: 60 },
-        children: [new TextRun({ text: dotLine, size: 18, color: '94A3B8', font: 'Consolas' })],
+        children: [new TextRun({ text: DOT_LINE, size: 18, color: '94A3B8', font: 'Consolas' })],
       })
     );
   });
@@ -2060,8 +2060,8 @@ function buildDocxMissionRubricTable(rubric: import('@/types/work-textbook').Eva
     new TableRow({
       children: [
         cell('Criterio y Ponderación', { w: colW1, bold: true, fill: C.navy, color: C.white }),
-        cell('Excelente (10-9)', { w: colWRem, bold: true, fill: C.navy, color: C.white }),
-        cell('Bueno (8-7)', { w: colWRem, bold: true, fill: C.navy, color: C.white }),
+        cell('Sobresaliente (10-9)', { w: colWRem, bold: true, fill: C.navy, color: C.white }),
+        cell('Notable (8-7)', { w: colWRem, bold: true, fill: C.navy, color: C.white }),
         cell('Suficiente (6-5)', { w: colWRem, bold: true, fill: C.navy, color: C.white }),
         cell('Requiere Apoyo (4-1)', { w: colWRem, bold: true, fill: C.navy, color: C.white }),
       ],
@@ -2131,7 +2131,6 @@ function buildDocxPracticeTasks(rawText: string, defaultTaskCount: number = 3): 
   }
 
   const elements: (Paragraph | Table)[] = [];
-  const dotLine = '· · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·';
 
   for (let idx = 0; idx < selectedTasks.length; idx++) {
     const taskText = selectedTasks[idx];
@@ -2145,11 +2144,11 @@ function buildDocxPracticeTasks(rawText: string, defaultTaskCount: number = 3): 
       }),
       new Paragraph({
         spacing: { after: 40 },
-        children: [new TextRun({ text: dotLine, size: 18, color: '94A3B8', font: 'Consolas' })],
+        children: [new TextRun({ text: DOT_LINE, size: 18, color: '94A3B8', font: 'Consolas' })],
       }),
       new Paragraph({
         spacing: { after: 100 },
-        children: [new TextRun({ text: dotLine, size: 18, color: '94A3B8', font: 'Consolas' })],
+        children: [new TextRun({ text: DOT_LINE, size: 18, color: '94A3B8', font: 'Consolas' })],
       })
     );
   }
@@ -2165,7 +2164,8 @@ async function buildMissionContent(
   planningId?: string,
   blockIndex?: number,
   openverseCollector?: ImageAsset[],
-  assignedAssetKeys?: Set<string>
+  assignedAssetKeys?: Set<string>,
+  blockName?: string
 ): Promise<(Paragraph | Table)[]> {
   const elements: (Paragraph | Table)[] = [];
 
@@ -2711,7 +2711,7 @@ async function buildMissionContent(
   const missionExtra = mission as unknown as Record<string, unknown>;
   const missionRubric =
     (Array.isArray(missionExtra.missionRubric) ? (missionExtra.missionRubric as import('@/types/work-textbook').EvaluationRubricCriterion[]) : undefined) ||
-    generateMissionRubric(mission, subjectName, undefined);
+    generateMissionRubric(mission, subjectName, blockName);
   if (missionRubric && missionRubric.length > 0) {
     elements.push(...buildDocxMissionRubricTable(missionRubric));
   }
