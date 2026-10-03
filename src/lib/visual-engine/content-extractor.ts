@@ -31,6 +31,8 @@ import type {
   SystemBlock,
 } from './generators/laboral-generator';
 import type { ImageAsset } from '@/types/planning';
+import type { ActiveWorkTextbook, MissionSection } from '@/types/work-textbook';
+import { stripWorkbookTags } from '@/lib/guide-engine/workbook-tags';
 
 const STAT_COLORS = ['#2563eb', '#d97706', '#059669', '#7c3aed', '#dc2626', '#0284c7'];
 const GANTT_COLORS = ['#2563eb', '#0284c7', '#059669', '#d97706', '#7c3aed'];
@@ -47,11 +49,14 @@ export function stripMarkdown(text: string | null | undefined): string {
     // Encabezados Markdown (# Título)
     .replace(/^#{1,6}\s+/gm, '')
     // Negrita y cursiva combinada ***texto*** o ___texto___
-    .replace(/(\*{3}|_{3})(.*?)\1/g, '$2')
+    .replace(/\*{3}(.*?)\*{3}/g, '$1')
+    .replace(/(?<!\w)_{3}(.*?)_{3}(?!\w)/g, '$1')
     // Negritas **texto** o __texto__
-    .replace(/(\*{2}|_{2})(.*?)\1/g, '$2')
+    .replace(/\*{2}(.*?)\*{2}/g, '$1')
+    .replace(/(?<!\w)_{2}(.*?)_{2}(?!\w)/g, '$1')
     // Cursivas *texto* o _texto_
-    .replace(/(\*|_)(.*?)\1/g, '$2')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/(?<!\w)_([^_]+)_(?!\w)/g, '$1')
     // Código en línea `código`
     .replace(/`([^`]+)`/g, '$1')
     // Tachado ~~texto~~
@@ -742,6 +747,288 @@ export function buildMetacognitiveTrafficLight(
     green: `Comprendo ${titleClean} con claridad. Puedo explicarlo y aplicarlo en situaciones reales de mi comunidad o trabajo sin ayuda.`,
     yellow: `Entiendo los conceptos principales de ${uacClean}, pero necesito más práctica o un ejemplo adicional para aplicarlos con confianza.`,
     red: `Tengo dudas sobre ${titleClean}. Requiero asesoría del docente, revisar el Concepto Cero o practicar con un compañero antes de continuar.`,
+  };
+}
+
+/**
+ * Sanitiza recursivamente y en profundidad todos los campos narrativos y textuales
+ * de un libro de texto activo (ActiveWorkTextbook), eliminando etiquetas de control <!--workbook:...-->
+ * y marcas Markdown sin procesar antes de enviarlo a los renderizadores DOCX y PDF.
+ */
+export function sanitizeWorkbookNarratives(wb: ActiveWorkTextbook): ActiveWorkTextbook {
+  if (!wb) return wb;
+
+  const cleanReq = (text: string | null | undefined): string => {
+    if (!text) return '';
+    return stripMarkdown(stripWorkbookTags(text));
+  };
+
+  const cleanOpt = (text: string | null | undefined): string | undefined => {
+    if (text === undefined || text === null) return undefined;
+    const cleaned = stripMarkdown(stripWorkbookTags(text));
+    return cleaned || undefined;
+  };
+
+  const cleanArray = (arr: string[] | null | undefined): string[] => {
+    if (!arr) return [];
+    return arr.map(cleanReq).filter((s) => s.length > 0);
+  };
+
+  const cleanMissions = Array.isArray(wb.missions)
+    ? wb.missions.map((m): MissionSection => {
+        return {
+          ...m,
+          sessionTopic: cleanReq(m.sessionTopic),
+          sessionFocus: cleanReq(m.sessionFocus),
+          phenomenonHook: m.phenomenonHook
+            ? {
+                story: cleanReq(m.phenomenonHook.story),
+                detonatingQuestion: cleanReq(m.phenomenonHook.detonatingQuestion),
+              }
+            : m.phenomenonHook,
+          conceptZero: m.conceptZero
+            ? {
+                ...m.conceptZero,
+                physicalAnalogy: cleanReq(m.conceptZero.physicalAnalogy),
+                coreExplanation: cleanReq(m.conceptZero.coreExplanation),
+                narrativeExplanation: cleanOpt(m.conceptZero.narrativeExplanation),
+                solvedExample: m.conceptZero.solvedExample
+                  ? {
+                      problemStatement: cleanReq(m.conceptZero.solvedExample.problemStatement),
+                      solutionSteps: cleanArray(m.conceptZero.solvedExample.solutionSteps),
+                      interpretation: cleanReq(m.conceptZero.solvedExample.interpretation),
+                    }
+                  : undefined,
+                contrastTable: Array.isArray(m.conceptZero.contrastTable)
+                  ? m.conceptZero.contrastTable.map((ct) => ({
+                      correctConcept: cleanReq(ct.correctConcept),
+                      commonMisconception: cleanReq(ct.commonMisconception),
+                      reasoning: cleanReq(ct.reasoning),
+                    }))
+                  : undefined,
+              }
+            : m.conceptZero,
+          iDoSection: m.iDoSection
+            ? {
+                ...m.iDoSection,
+                stepByStepDemo: cleanReq(m.iDoSection.stepByStepDemo),
+              }
+            : m.iDoSection,
+          weDoSection: m.weDoSection
+            ? {
+                ...m.weDoSection,
+                guidedPractice: cleanReq(m.weDoSection.guidedPractice),
+                workbookElements: Array.isArray(m.weDoSection.workbookElements)
+                  ? m.weDoSection.workbookElements.map((el) =>
+                      el.instruction ? { ...el, instruction: cleanReq(el.instruction) } : el
+                    )
+                  : [],
+              }
+            : m.weDoSection,
+          youDoSection: m.youDoSection
+            ? {
+                ...m.youDoSection,
+                autonomousChallenge: cleanReq(m.youDoSection.autonomousChallenge),
+                workbookElements: Array.isArray(m.youDoSection.workbookElements)
+                  ? m.youDoSection.workbookElements.map((el) =>
+                      el.instruction ? { ...el, instruction: cleanReq(el.instruction) } : el
+                    )
+                  : [],
+              }
+            : m.youDoSection,
+          troubleshooting: Array.isArray(m.troubleshooting)
+            ? m.troubleshooting.map((tb) => ({
+                ...tb,
+                symptom: cleanReq(tb.symptom),
+                rootCause: cleanReq(tb.rootCause),
+                solutionSteps: cleanArray(tb.solutionSteps),
+                preventionTip: cleanReq(tb.preventionTip),
+                cause: cleanOpt(tb.cause),
+                solution: cleanOpt(tb.solution),
+                prevention: cleanOpt(tb.prevention),
+              }))
+            : [],
+          formativeCheckpoint: m.formativeCheckpoint
+            ? {
+                question: cleanReq(m.formativeCheckpoint.question),
+                reflectionPrompts: cleanArray(m.formativeCheckpoint.reflectionPrompts),
+                criteriaChecklist: cleanArray(m.formativeCheckpoint.criteriaChecklist),
+              }
+            : m.formativeCheckpoint,
+          diagnosticEvaluation: m.diagnosticEvaluation
+            ? {
+                context: cleanReq(m.diagnosticEvaluation.context),
+                questions: cleanArray(m.diagnosticEvaluation.questions),
+              }
+            : undefined,
+          realLifeConnection: m.realLifeConnection
+            ? {
+                context: cleanReq(m.realLifeConnection.context),
+                householdApplication: cleanReq(m.realLifeConnection.householdApplication),
+                communityImpact: cleanReq(m.realLifeConnection.communityImpact),
+              }
+            : undefined,
+          metacognitiveTrafficLight: m.metacognitiveTrafficLight
+            ? {
+                green: cleanReq(m.metacognitiveTrafficLight.green),
+                yellow: cleanReq(m.metacognitiveTrafficLight.yellow),
+                red: cleanReq(m.metacognitiveTrafficLight.red),
+              }
+            : undefined,
+          safetyOrWorkshopTip: cleanOpt(m.safetyOrWorkshopTip),
+        };
+      })
+    : wb.missions;
+
+  const cleanProjectSection = wb.projectSection
+    ? {
+        ...wb.projectSection,
+        artifactName: cleanReq(wb.projectSection.artifactName),
+        communityUtility: cleanReq(wb.projectSection.communityUtility),
+        learningObjectives: cleanArray(wb.projectSection.learningObjectives),
+        requiredMaterials: cleanArray(wb.projectSection.requiredMaterials),
+        executionSteps: cleanArray(wb.projectSection.executionSteps),
+        deliveryCriteria: cleanArray(wb.projectSection.deliveryCriteria),
+        registrationFormat: cleanOpt(wb.projectSection.registrationFormat),
+        technicalSpecs: cleanArray(wb.projectSection.technicalSpecs),
+        acceptanceCriteria: cleanArray(wb.projectSection.acceptanceCriteria),
+        phases: Array.isArray(wb.projectSection.phases)
+          ? wb.projectSection.phases.map((ph: Record<string, unknown>) => {
+              const rawTitle = typeof ph.title === 'string' ? ph.title : typeof ph.name === 'string' ? ph.name : '';
+              const rawInstr = typeof ph.instructions === 'string' ? ph.instructions : typeof ph.description === 'string' ? ph.description : '';
+              const rawDeliv = Array.isArray(ph.deliverables) ? (ph.deliverables as string[]) : [];
+              return {
+                ...ph,
+                title: cleanReq(rawTitle),
+                name: typeof ph.name === 'string' ? cleanReq(ph.name) : undefined,
+                deliverables: cleanArray(rawDeliv),
+                instructions: cleanReq(rawInstr),
+                description: typeof ph.description === 'string' ? cleanReq(ph.description) : undefined,
+              };
+            })
+          : wb.projectSection.phases,
+      }
+    : wb.projectSection;
+
+  const cleanEvaluationSection = wb.evaluationSection
+    ? {
+        ...wb.evaluationSection,
+        rubric: Array.isArray(wb.evaluationSection.rubric)
+          ? wb.evaluationSection.rubric.map((r) => {
+              const rawCriterion = typeof r.criterion === 'string' ? r.criterion : '';
+              const rawLevels = (r as { levels?: unknown }).levels;
+              let cleanLevels: unknown = rawLevels;
+              if (Array.isArray(rawLevels)) {
+                cleanLevels = rawLevels.map((lvl) => {
+                  if (lvl && typeof lvl === 'object') {
+                    const d = (lvl as { descriptor?: unknown }).descriptor;
+                    return {
+                      ...lvl,
+                      descriptor: typeof d === 'string' ? cleanReq(d) : '',
+                    };
+                  }
+                  return lvl;
+                });
+              } else if (rawLevels && typeof rawLevels === 'object') {
+                cleanLevels = Object.fromEntries(
+                  Object.entries(rawLevels as Record<string, unknown>).map(([k, v]) => [
+                    k,
+                    typeof v === 'string' ? cleanReq(v) : v,
+                  ])
+                );
+              }
+              return {
+                ...r,
+                criterion: cleanReq(rawCriterion),
+                levels: cleanLevels as import('@/types/work-textbook').EvaluationRubricLevel[],
+              };
+            })
+          : wb.evaluationSection.rubric && typeof wb.evaluationSection.rubric === 'object'
+          ? (() => {
+              const rub = wb.evaluationSection.rubric as Record<string, unknown>;
+              if (Array.isArray(rub.criteria)) {
+                return {
+                  ...rub,
+                  criteria: rub.criteria.map((c: unknown) => {
+                    if (c && typeof c === 'object') {
+                      return Object.fromEntries(
+                        Object.entries(c as Record<string, unknown>).map(([k, v]) => [
+                          k,
+                          typeof v === 'string' ? cleanReq(v) : v,
+                        ])
+                      );
+                    }
+                    return c;
+                  }),
+                };
+              }
+              return wb.evaluationSection.rubric;
+            })()
+          : wb.evaluationSection.rubric,
+        checklist: Array.isArray(wb.evaluationSection.checklist)
+          ? wb.evaluationSection.checklist.map((ch) => ({
+              item: cleanReq(ch.item),
+              category: cleanReq(ch.category),
+            }))
+          : wb.evaluationSection.checklist,
+        tieredExercises: Array.isArray(wb.evaluationSection.tieredExercises)
+          ? wb.evaluationSection.tieredExercises.map((te) => ({
+              ...te,
+              levelName: cleanReq(te.levelName),
+              description: cleanReq(te.description),
+              exercises: Array.isArray(te.exercises)
+                ? te.exercises.map((ex) => ({
+                    ...ex,
+                    statement: cleanReq(ex.statement),
+                    contextOrData: cleanOpt(ex.contextOrData),
+                    expectedOutputOrCriteria: cleanReq(ex.expectedOutputOrCriteria),
+                    hint: cleanOpt(ex.hint),
+                  }))
+                : [],
+            }))
+          : wb.evaluationSection.tieredExercises,
+        criticalThinkingQuiz: Array.isArray(wb.evaluationSection.criticalThinkingQuiz)
+          ? wb.evaluationSection.criticalThinkingQuiz.map((q) => ({
+              ...q,
+              question: cleanReq(q.question),
+              scenario: cleanReq(q.scenario),
+              options: cleanArray(q.options),
+              answerExplanation: cleanReq(q.answerExplanation),
+            }))
+          : wb.evaluationSection.criticalThinkingQuiz,
+        metacognitiveReflection: wb.evaluationSection.metacognitiveReflection
+          ? {
+              prompts: cleanArray(wb.evaluationSection.metacognitiveReflection.prompts),
+              selfAssessmentScale: Array.isArray(
+                wb.evaluationSection.metacognitiveReflection.selfAssessmentScale
+              )
+                ? wb.evaluationSection.metacognitiveReflection.selfAssessmentScale.map((s) => ({
+                    dimension: cleanReq(s.dimension),
+                    description: cleanReq(s.description),
+                  }))
+                : wb.evaluationSection.metacognitiveReflection.selfAssessmentScale,
+            }
+          : wb.evaluationSection.metacognitiveReflection,
+      }
+    : wb.evaluationSection;
+
+  return {
+    ...wb,
+    coverData: wb.coverData
+      ? {
+          ...wb.coverData,
+          title: cleanOpt(wb.coverData.title) || wb.coverData.title,
+          subtitle: cleanOpt(wb.coverData.subtitle) || wb.coverData.subtitle,
+          subjectName: cleanOpt(wb.coverData.subjectName) || wb.coverData.subjectName,
+          schoolName: cleanOpt(wb.coverData.schoolName) || wb.coverData.schoolName,
+          cct: cleanOpt(wb.coverData.cct) || wb.coverData.cct,
+          paecProjectName: cleanOpt(wb.coverData.paecProjectName) || wb.coverData.paecProjectName,
+          teacherName: cleanOpt(wb.coverData.teacherName) || wb.coverData.teacherName,
+        }
+      : wb.coverData,
+    missions: cleanMissions,
+    projectSection: cleanProjectSection,
+    evaluationSection: cleanEvaluationSection,
   };
 }
 

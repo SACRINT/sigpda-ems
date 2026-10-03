@@ -72,6 +72,7 @@ import {
   deduplicateMediaAssets,
   extractDiagnosticQuestions,
   buildMetacognitiveTrafficLight,
+  sanitizeWorkbookNarratives,
   type GlossaryItem,
 } from '@/lib/visual-engine/content-extractor';
 import { generateMissionRubric } from '@/lib/visual-engine/mission-rubric-generator';
@@ -178,7 +179,7 @@ function cell(
  * Genera el documento Word (.docx) para el Cuaderno de Trabajo del Bloque.
  */
 export async function renderWorkbookToDocx(
-  workbook: ActiveWorkTextbook,
+  rawWorkbook: ActiveWorkTextbook,
   planning: Planning,
   options: {
     includeAnswerKey?: boolean;
@@ -186,6 +187,7 @@ export async function renderWorkbookToDocx(
     forceFallbackCover?: boolean;
   } = {}
 ): Promise<Buffer> {
+  const workbook = sanitizeWorkbookNarratives(rawWorkbook);
 
   const coverOpts: BookCoverOptions = {
     plantelNombre: workbook.coverData?.schoolName || 'Bachillerato General Oficial',

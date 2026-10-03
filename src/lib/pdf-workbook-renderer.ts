@@ -54,6 +54,7 @@ import {
   extractRealLifeConnection,
   extractSafetyOrCriticalTip,
   buildMetacognitiveTrafficLight,
+  sanitizeWorkbookNarratives,
   type GlossaryItem,
 } from '@/lib/visual-engine/content-extractor';
 import {
@@ -199,7 +200,7 @@ export function sanitizePdfText(text: string | null | undefined): string {
  * Genera el archivo PDF del Libro-Cuaderno de Trabajo Activo del Bloque.
  */
 export async function renderWorkbookToPdf(
-  workbook: ActiveWorkTextbook,
+  rawWorkbook: ActiveWorkTextbook,
   planning: Planning,
   options: {
     includeAnswerKey?: boolean;
@@ -207,6 +208,7 @@ export async function renderWorkbookToPdf(
     forceFallbackCover?: boolean;
   } = {}
 ): Promise<Buffer> {
+  const workbook = sanitizeWorkbookNarratives(rawWorkbook);
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
