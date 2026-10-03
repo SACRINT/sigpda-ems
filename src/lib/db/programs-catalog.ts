@@ -52,22 +52,38 @@ export async function getProgramsCatalog(semester?: number, component?: string, 
   `;
 }
 
-export async function getProgramsCatalogForPaec(semesters: number[], subsystem?: string) {
+export interface PaecCatalogItem {
+  uac_name: string;
+  semester: number;
+  component: string;
+  subsystem?: string | null;
+  model_type?: string | null;
+  contenidos_formativos?: Array<{
+    numero: number;
+    proposito?: string | null;
+    progresion?: string | null;
+    contenidos?: string[];
+    actividad?: string;
+    saberes?: string[];
+  }> | null;
+}
+
+export async function getProgramsCatalogForPaec(semesters: number[], subsystem?: string): Promise<PaecCatalogItem[]> {
   const client = sql();
   if (subsystem && subsystem !== 'all') {
-    return client`
-      SELECT uac_name, semester, component, subsystem, model_type
+    return (await client`
+      SELECT uac_name, semester, component, subsystem, model_type, contenidos_formativos
       FROM programs_catalog
       WHERE semester = ANY(${semesters}) AND (subsystem = ${subsystem.toLowerCase()} OR subsystem = 'bge' OR subsystem = 'all' OR subsystem IS NULL)
       ORDER BY semester, uac_name ASC
-    `;
+    `) as PaecCatalogItem[];
   }
-  return client`
-    SELECT uac_name, semester, component, subsystem, model_type
+  return (await client`
+    SELECT uac_name, semester, component, subsystem, model_type, contenidos_formativos
     FROM programs_catalog
     WHERE semester = ANY(${semesters})
     ORDER BY semester, uac_name ASC
-  `;
+  `) as PaecCatalogItem[];
 }
 
 export async function createProgramCatalogItem(data: ProgramCatalogItem) {

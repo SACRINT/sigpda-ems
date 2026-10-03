@@ -29,6 +29,7 @@ import {
 } from '@/lib/prompts/paec-prompts';
 import { getZoneContextForSchool } from '@/lib/zone-sync-service';
 import { getPaecRegulatoryContext } from '@/lib/paec-regulatory-context';
+import { formatCurricularCatalogForPrompt, matchCurricularContent } from '@/lib/paec-curricular-helper';
 import { logActivity, generateWithRotation } from '@/lib/ai-provider';
 import { logger } from '@/lib/logger';
 import { getUserLibraryContext } from '@/lib/context-extractor';
@@ -243,7 +244,16 @@ export async function POST(
           for (let i = 0; i < chunks.length; i++) {
             const blockNum = i + 1;
             const blockPrompt = buildPrompt3Mapeo(justStr, chunks[i]);
-            let chunkPrompt = blockPrompt;
+            const matchedCatalog = chunks[i].map((u) =>
+              matchCurricularContent(u.uac_name, u.semester, allUacs) || {
+                uac_name: u.uac_name,
+                semester: u.semester,
+                component: 'fundamental',
+                contenidos_formativos: null,
+              }
+            );
+            const curricularBlock = formatCurricularCatalogForPrompt(matchedCatalog);
+            let chunkPrompt = `${blockPrompt}\n\n${curricularBlock}`;
             if (libraryContext) {
               chunkPrompt = `${chunkPrompt}\n\n${libraryContext}`;
             }
@@ -267,7 +277,16 @@ export async function POST(
 
           stepResultData = allMapeoRows;
         } else {
-          userPrompt = buildPrompt3Mapeo(justStr, uacs);
+          const matchedCatalog = uacs.map((u) =>
+            matchCurricularContent(u.uac_name, u.semester, allUacs) || {
+              uac_name: u.uac_name,
+              semester: u.semester,
+              component: 'fundamental',
+              contenidos_formativos: null,
+            }
+          );
+          const curricularBlock = formatCurricularCatalogForPrompt(matchedCatalog);
+          userPrompt = `${buildPrompt3Mapeo(justStr, uacs)}\n\n${curricularBlock}`;
         }
         break;
       }
@@ -303,6 +322,9 @@ export async function POST(
         const mapeoStr = JSON.stringify(mapeo);
         const cronStr = JSON.stringify(project.fase2_cronograma);
 
+        const step5Semesters = project.cycle_type === 'A' ? [1, 3, 5] : project.cycle_type === 'B' ? [2, 4, 6] : [1, 2, 3, 4, 5, 6];
+        const allUacsStep5 = await getProgramsCatalogForPaec(step5Semesters);
+
         // Chunking anti-timeout si el mapeo supera 14 UACs
         if (mapeo.length > 14) {
           const CHUNK_SIZE = 10;
@@ -319,7 +341,16 @@ export async function POST(
               cronStr,
               project.cycle_type
             );
-            let chunkPrompt = blockPrompt;
+            const matchedCatalog = chunks[i].map((u) =>
+              matchCurricularContent(u.uacName, Number(u.semester), allUacsStep5) || {
+                uac_name: u.uacName,
+                semester: Number(u.semester),
+                component: 'fundamental',
+                contenidos_formativos: null,
+              }
+            );
+            const curricularBlock = formatCurricularCatalogForPrompt(matchedCatalog);
+            let chunkPrompt = `${blockPrompt}\n\n${curricularBlock}`;
             if (libraryContext) {
               chunkPrompt = `${chunkPrompt}\n\n${libraryContext}`;
             }
@@ -343,7 +374,16 @@ export async function POST(
 
           stepResultData = allDetalleRows;
         } else {
-          userPrompt = buildPrompt5DetalleCurricular(mapeoStr, cronStr, project.cycle_type);
+          const matchedCatalog = mapeo.map((u) =>
+            matchCurricularContent(u.uacName, Number(u.semester), allUacsStep5) || {
+              uac_name: u.uacName,
+              semester: Number(u.semester),
+              component: 'fundamental',
+              contenidos_formativos: null,
+            }
+          );
+          const curricularBlock = formatCurricularCatalogForPrompt(matchedCatalog);
+          userPrompt = `${buildPrompt5DetalleCurricular(mapeoStr, cronStr, project.cycle_type)}\n\n${curricularBlock}`;
         }
         break;
       }
@@ -380,6 +420,7 @@ export async function POST(
 
         const cronStr = JSON.stringify(project.fase2_cronograma);
         const detStr = JSON.stringify(project.fase2_detalle_curricular);
+        const allUacsStep6 = await getProgramsCatalogForPaec([1, 3, 5]);
 
         // Chunking anti-timeout: Bloques de máximo 6 UACs si supera 8 UACs
         const CHUNK_SIZE = uacListA.length > 8 ? 6 : uacListA.length;
@@ -401,7 +442,16 @@ export async function POST(
             chunks.length
           );
 
-          let chunkPrompt = blockPrompt;
+          const matchedCatalog = chunks[i].map((u) =>
+            matchCurricularContent(u.uacName, u.semester, allUacsStep6) || {
+              uac_name: u.uacName,
+              semester: u.semester,
+              component: 'fundamental',
+              contenidos_formativos: null,
+            }
+          );
+          const curricularBlock = formatCurricularCatalogForPrompt(matchedCatalog);
+          let chunkPrompt = `${blockPrompt}\n\n${curricularBlock}`;
           if (libraryContext) {
             chunkPrompt = `${chunkPrompt}\n\n${libraryContext}`;
           }
@@ -498,6 +548,7 @@ export async function POST(
 
         const cronStr = JSON.stringify(project.fase2_cronograma);
         const detStr = JSON.stringify(project.fase2_detalle_curricular);
+        const allUacsStep7 = await getProgramsCatalogForPaec([2, 4, 6]);
 
         // Chunking anti-timeout: Bloques de máximo 6 UACs si supera 8 UACs
         const CHUNK_SIZE = uacListB.length > 8 ? 6 : uacListB.length;
@@ -519,7 +570,16 @@ export async function POST(
             chunks.length
           );
 
-          let chunkPrompt = blockPrompt;
+          const matchedCatalog = chunks[i].map((u) =>
+            matchCurricularContent(u.uacName, u.semester, allUacsStep7) || {
+              uac_name: u.uacName,
+              semester: u.semester,
+              component: 'fundamental',
+              contenidos_formativos: null,
+            }
+          );
+          const curricularBlock = formatCurricularCatalogForPrompt(matchedCatalog);
+          let chunkPrompt = `${blockPrompt}\n\n${curricularBlock}`;
           if (libraryContext) {
             chunkPrompt = `${chunkPrompt}\n\n${libraryContext}`;
           }
