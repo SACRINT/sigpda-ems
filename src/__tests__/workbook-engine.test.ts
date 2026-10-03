@@ -48,7 +48,7 @@ vi.mock('@/lib/visual-engine/openverse-client', async () => {
 });
 
 import { generateFallbackCover } from '@/lib/visual-engine/cover-generator';
-import { stripMarkdown } from '@/lib/visual-engine/content-extractor';
+import { stripMarkdown, sanitizeWorkbookNarratives } from '@/lib/visual-engine/content-extractor';
 import { sanitizePdfText } from '@/lib/pdf-workbook-renderer';
 import {
   consolidateWorkbookElements,
@@ -57,7 +57,7 @@ import {
 } from '@/lib/guide-engine/workbook-tags';
 import { resolveVisualForMission } from '@/lib/visual-engine/visual-asset-manager';
 import { parseMarkdownTable } from '@/lib/visual-engine/column-flow-manager';
-import type { WorkbookElement } from '@/types/work-textbook';
+import type { WorkbookElement, ActiveWorkTextbook } from '@/types/work-textbook';
 
 describe('Workbook Engine Architecture Tests (Fase 10)', () => {
   beforeEach(() => {
@@ -271,5 +271,270 @@ describe('Workbook Engine Architecture Tests (Fase 10)', () => {
     // 4. Texto con pipe único o tabla incompleta sin separador
     const brokenTable = '| Solo encabezado | Sin divisor |';
     expect(parseMarkdownTable(brokenTable)).toBeNull();
+  });
+
+  describe('sanitizeWorkbookNarratives (F-16 Suite Unitaria Exhaustiva)', () => {
+    it('sanea todos los campos narrativos, estructurales y de configuración sin mutar el objeto de entrada', () => {
+      const tag = '<!--workbook:lines:rows=4-->';
+      const tagOnly = '<!--workbook:table:cols=2-->';
+
+      const input: ActiveWorkTextbook = {
+        id: 'wb-test-unit',
+        planningId: 'plan-unit-01',
+        blockIndex: 0,
+        blockName: `Bloque 1: Materia y Energía ${tag}`,
+        version: 1,
+        subsystem: 'bge',
+        targetPages: 40,
+        totalPages: 40,
+        totalWords: 3500,
+        generatedAt: '2026-10-03',
+        qualityScore: 95,
+        qualityWarning: false,
+        coverData: {
+          title: tagOnly, // Tag-only: debe reducirse a '' sin regresar al crudo por fallback ||
+          subtitle: `**Subtítulo Editorial** ${tag}`,
+          subjectName: `Ciencias Naturales ${tag}`,
+          semester: 2,
+          blockNumber: 1,
+          teacherName: `Mtra. González ${tag}`,
+          schoolName: `Bachillerato Gral Puebla ${tag}`,
+          cct: `21EBH0001X ${tag}`,
+          paecProjectName: `Sustentabilidad Escolar ${tag}`,
+          municipality: `Puebla, Pue. ${tag}`,
+        },
+        tableOfContents: [
+          {
+            missionIndex: 1,
+            title: `Misión 1: Ley de Conservación ${tag}`,
+            sessionsRange: `Sesiones 1 a 4 ${tag}`,
+            pageEstimate: 6,
+          },
+        ],
+        missions: [
+          {
+            missionIndex: 1,
+            title: `Misión 1: Balance de Masa ${tag}`,
+            coveredSessions: [1, 2],
+            sessionTopic: `Termodinámica Básica ${tag}`,
+            sessionFocus: `Conservación de la Materia ${tag}`,
+            wordCount: 1200,
+            phenomenonHook: {
+              story: `Un trozo de hielo se derrite lentamente ${tag}`,
+              detonatingQuestion: `¿Adónde fue la masa perdida? ${tag}`,
+            },
+            conceptZero: {
+              physicalAnalogy: `Como una balanza de dos platos ${tag}`,
+              coreExplanation: `La materia no se crea ni se destruye ${tag}`,
+              narrativeExplanation: `Explicación narrativa ${tag}`,
+              solvedExample: {
+                problemStatement: `Calcular la masa final ${tag}`,
+                solutionSteps: [`Paso 1: Sumar reactivos ${tag}`, `Paso 2: Igualar productos ${tag}`],
+                interpretation: `La masa neta se conserva ${tag}`,
+              },
+              contrastTable: [
+                {
+                  correctConcept: `La masa total permanece constante ${tag}`,
+                  commonMisconception: `El gas liberado no tiene masa ${tag}`,
+                  reasoning: `Porque los átomos se reorganizan ${tag}`,
+                },
+              ],
+            },
+            iDoSection: {
+              stepByStepDemo: `El docente pesa un matraz sellado ${tag}`,
+              visualOrDiagram: 'flowchart TD; A[Inicio]-->B[Fin];',
+            },
+            weDoSection: {
+              guidedPractice: `En equipos medimos reactivos en probeta ${tag}`,
+              workbookElements: [
+                {
+                  id: 'el-cb-1',
+                  type: 'checkbox_list',
+                  title: `Lista de Verificación de Laboratorio ${tag}`,
+                  instruction: `Marca cada paso conforme lo concluyas ${tag}`,
+                  config: {
+                    checkboxes: [
+                      `Calibrar la báscula a cero ${tag}`,
+                      `Registrar masa inicial del vaso ${tag}`,
+                    ],
+                    cols: [`Parámetro ${tag}`, `Medición ${tag}`],
+                    initialCode: `console.log("medicion"); ${tag}`,
+                  },
+                } as unknown as WorkbookElement,
+              ],
+            },
+            youDoSection: {
+              autonomousChallenge: `Calcula el rendimiento porcentual ${tag}`,
+              workbookElements: [
+                {
+                  id: 'el-lines-1',
+                  type: 'lines',
+                  title: `Espacio de Trabajo Autónomo ${tag}`,
+                  instruction: `Desarrolla tus operaciones completas ${tag}`,
+                  config: { rows: 5 },
+                } as unknown as WorkbookElement,
+              ],
+            },
+            troubleshooting: [
+              {
+                id: 'tb-01',
+                symptom: `La masa final difiere en más de 0.5g ${tag}`,
+                rootCause: `Fuga de gas o balanza descalibrada ${tag}`,
+                solution: `Verificar el sello del matraz y recalibrar ${tag}`,
+                solutionSteps: [`Paso 1: Recalibrar ${tag}`],
+                prevention: `Revisar empaques de goma antes de iniciar ${tag}`,
+                preventionTip: `Tip prevención ${tag}`,
+              },
+            ],
+            formativeCheckpoint: {
+              question: `¿Qué principio termodinámico demostraste? ${tag}`,
+              reflectionPrompts: [`Reflexiona sobre posibles fuentes de error ${tag}`],
+              criteriaChecklist: [`Anotó unidades correctas ${tag}`],
+            },
+            diagnosticEvaluation: {
+              context: `Situación de diagnóstico inicial ${tag}`,
+              questions: [`¿Qué ocurre cuando una vela se consume? ${tag}`],
+            },
+            metacognitiveTrafficLight: {
+              green: `Comprendo y aplico el balance ${tag}`,
+              yellow: `Entiendo el concepto pero dudo en cálculos ${tag}`,
+              red: `Requiero asesoría docente ${tag}`,
+            },
+            safetyOrWorkshopTip: `Usar gafas de seguridad y guantes térmicos ${tag}`,
+          },
+        ],
+        projectSection: {
+          artifactName: `Calentador Solar Comunitario ${tag}`,
+          communityUtility: `Agua caliente para el comedor escolar ${tag}`,
+          phases: [
+            {
+              phaseNum: 1,
+              title: `Fase 1: Diagnóstico Territorial ${tag}`,
+              allocatedHours: 4,
+              deliverables: [`Plano inicial ${tag}`],
+              instructions: `Inspeccionar techumbre escolar ${tag}`,
+            },
+          ],
+          technicalSpecs: [`Tubería de cobre 1/2 pulgada ${tag}`],
+          acceptanceCriteria: [`Alcanzar 45 grados centígrados ${tag}`],
+        },
+        evaluationSection: {
+          source: 'generated_fresh',
+          rubric: [
+            {
+              criterion: `Rigurosidad Experimental ${tag}`,
+              weightPercent: 25,
+              levels: [
+                { levelName: 'Excelente', points: 10, descriptor: `Procedimiento impecable y registro exacto ${tag}` },
+                { levelName: 'Bueno', points: 8, descriptor: `Procedimiento correcto con mínimas desviaciones ${tag}` },
+                { levelName: 'Suficiente', points: 6, descriptor: `Cumple los pasos con apoyo parcial ${tag}` },
+                { levelName: 'Requiere Apoyo', points: 4, descriptor: `Omite mediciones y medidas de seguridad ${tag}` },
+              ],
+            },
+          ],
+          checklist: [],
+          criticalThinkingQuiz: [],
+          metacognitiveReflection: { prompts: [] },
+        },
+      };
+
+      // Clon profundo del input para verificar NO-MUTACIÓN
+      const inputSnapshot = JSON.parse(JSON.stringify(input));
+
+      // Ejecución del sanitizador
+      const result = sanitizeWorkbookNarratives(input);
+
+      // 1. Verificación de Inmutabilidad del objeto original
+      expect(JSON.parse(JSON.stringify(input))).toEqual(inputSnapshot);
+
+      // 2. Tabla de aserciones campo por campo sin etiquetas ni Markdown residual
+      // A) Bloque y Portada
+      expect(result.blockName).toBe('Bloque 1: Materia y Energía');
+      expect(result.coverData.title).toBe(''); // Saneado de solo-tag sin fallback al crudo
+      expect(result.coverData.subtitle).toBe('Subtítulo Editorial');
+      expect(result.coverData.subjectName).toBe('Ciencias Naturales');
+      expect(result.coverData.teacherName).toBe('Mtra. González');
+      expect(result.coverData.schoolName).toBe('Bachillerato Gral Puebla');
+      expect(result.coverData.cct).toBe('21EBH0001X');
+      expect(result.coverData.paecProjectName).toBe('Sustentabilidad Escolar');
+      expect(result.coverData.municipality).toBe('Puebla, Pue.');
+
+      // B) Tabla de Contenidos (TOC)
+      expect(result.tableOfContents[0].title).toBe('Misión 1: Ley de Conservación');
+      expect(result.tableOfContents[0].sessionsRange).toBe('Sesiones 1 a 4');
+
+      // C) Misión y Secciones Didácticas
+      const m = result.missions[0];
+      expect(m.title).toBe('Misión 1: Balance de Masa');
+      expect(m.sessionTopic).toBe('Termodinámica Básica');
+      expect(m.sessionFocus).toBe('Conservación de la Materia');
+      expect(m.phenomenonHook?.story).toBe('Un trozo de hielo se derrite lentamente');
+      expect(m.phenomenonHook?.detonatingQuestion).toBe('¿Adónde fue la masa perdida?');
+      expect(m.conceptZero?.physicalAnalogy).toBe('Como una balanza de dos platos');
+      expect(m.conceptZero?.coreExplanation).toBe('La materia no se crea ni se destruye');
+      expect(m.conceptZero?.narrativeExplanation).toBe('Explicación narrativa');
+      expect(m.conceptZero?.solvedExample?.problemStatement).toBe('Calcular la masa final');
+      expect(m.conceptZero?.solvedExample?.solutionSteps[0]).toBe('Paso 1: Sumar reactivos');
+      expect(m.conceptZero?.solvedExample?.solutionSteps[1]).toBe('Paso 2: Igualar productos');
+      expect(m.conceptZero?.solvedExample?.interpretation).toBe('La masa neta se conserva');
+      expect(m.conceptZero?.contrastTable?.[0].correctConcept).toBe('La masa total permanece constante');
+      expect(m.conceptZero?.contrastTable?.[0].commonMisconception).toBe('El gas liberado no tiene masa');
+      expect(m.conceptZero?.contrastTable?.[0].reasoning).toBe('Porque los átomos se reorganizan');
+      expect(m.iDoSection?.stepByStepDemo).toBe('El docente pesa un matraz sellado');
+      expect(m.iDoSection?.visualOrDiagram).toBe('flowchart TD; A[Inicio]-->B[Fin];');
+      expect(m.weDoSection?.guidedPractice).toBe('En equipos medimos reactivos en probeta');
+
+      // D) WorkbookElements (títulos, instrucciones y config)
+      const elCb = m.weDoSection?.workbookElements?.[0];
+      expect(elCb?.title).toBe('Lista de Verificación de Laboratorio');
+      expect(elCb?.instruction).toBe('Marca cada paso conforme lo concluyas');
+      const cfg = elCb?.config as Record<string, unknown>;
+      expect(cfg?.checkboxes).toEqual([
+        'Calibrar la báscula a cero',
+        'Registrar masa inicial del vaso',
+      ]);
+      expect(cfg?.cols).toEqual(['Parámetro', 'Medición']);
+      expect(cfg?.initialCode).toBe('console.log("medicion");');
+
+      const elLines = m.youDoSection?.workbookElements?.[0];
+      expect(elLines?.title).toBe('Espacio de Trabajo Autónomo');
+      expect(elLines?.instruction).toBe('Desarrolla tus operaciones completas');
+
+      // E) Troubleshooting, Checkpoint, Diagnóstico, Semáforo y Seguridad
+      expect(m.troubleshooting?.[0].symptom).toBe('La masa final difiere en más de 0.5g');
+      expect(m.troubleshooting?.[0].rootCause).toBe('Fuga de gas o balanza descalibrada');
+      expect(m.troubleshooting?.[0].solution).toBe('Verificar el sello del matraz y recalibrar');
+      expect(m.troubleshooting?.[0].prevention).toBe('Revisar empaques de goma antes de iniciar');
+      expect(m.formativeCheckpoint?.question).toBe('¿Qué principio termodinámico demostraste?');
+      expect(m.formativeCheckpoint?.reflectionPrompts[0]).toBe('Reflexiona sobre posibles fuentes de error');
+      expect(m.formativeCheckpoint?.criteriaChecklist[0]).toBe('Anotó unidades correctas');
+      expect(m.diagnosticEvaluation?.context).toBe('Situación de diagnóstico inicial');
+      expect(m.diagnosticEvaluation?.questions[0]).toBe('¿Qué ocurre cuando una vela se consume?');
+      expect(m.metacognitiveTrafficLight?.green).toBe('Comprendo y aplico el balance');
+      expect(m.metacognitiveTrafficLight?.yellow).toBe('Entiendo el concepto pero dudo en cálculos');
+      expect(m.metacognitiveTrafficLight?.red).toBe('Requiero asesoría docente');
+      expect(m.safetyOrWorkshopTip).toBe('Usar gafas de seguridad y guantes térmicos');
+
+      // F) Sección Proyecto PAEC
+      expect(result.projectSection?.artifactName).toBe('Calentador Solar Comunitario');
+      expect(result.projectSection?.communityUtility).toBe('Agua caliente para el comedor escolar');
+      expect(result.projectSection?.phases[0].title).toBe('Fase 1: Diagnóstico Territorial');
+      expect(result.projectSection?.phases[0].deliverables[0]).toBe('Plano inicial');
+      expect(result.projectSection?.phases[0].instructions).toBe('Inspeccionar techumbre escolar');
+      expect(result.projectSection?.technicalSpecs[0]).toBe('Tubería de cobre 1/2 pulgada');
+      expect(result.projectSection?.acceptanceCriteria[0]).toBe('Alcanzar 45 grados centígrados');
+
+      // G) Sección Evaluación (Rúbrica)
+      const rubric = result.evaluationSection?.rubric?.[0];
+      expect(rubric?.criterion).toBe('Rigurosidad Experimental');
+      expect(rubric?.levels[0].descriptor).toBe('Procedimiento impecable y registro exacto');
+      expect(rubric?.levels[1].descriptor).toBe('Procedimiento correcto con mínimas desviaciones');
+      expect(rubric?.levels[2].descriptor).toBe('Cumple los pasos con apoyo parcial');
+      expect(rubric?.levels[3].descriptor).toBe('Omite mediciones y medidas de seguridad');
+
+      // H) Aserción global: NINGÚN campo del resultado contiene '<!--'
+      const serialized = JSON.stringify(result);
+      expect(serialized).not.toContain('<!--');
+    });
   });
 });
