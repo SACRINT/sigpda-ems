@@ -339,6 +339,11 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [errorType, setErrorType] = useState<'timeout' | 'json' | 'rate_limit' | 'network' | 'unknown' | null>(null);
   const [retryCount, setRetryCount] = useState<Record<number, number>>({});
+  const [needsInputWarning, setNeedsInputWarning] = useState<{
+    step: number;
+    missingFields: string[];
+    message: string;
+  } | null>(null);
 
   // Form States (Paso 1: Datos Base) — initialized from saved draft if present
   const [projectName, setProjectName] = useState(savedDraft?.projectName ?? '');
@@ -962,7 +967,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
   }
 
   // Handle Step Generation (Call Claude API)
-  async function generateCurrentStep() {
+  async function generateCurrentStep(allowPartial?: boolean | React.MouseEvent) {
     if (!projectId) return;
 
     // Invalidar caché si el usuario regenera un paso anterior
@@ -976,11 +981,15 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
     setGenerating(true);
     setError(null);
     setErrorType(null);
+    setNeedsInputWarning(null);
     try {
       const res = await fetch(`/api/paec/${projectId}/generate-step`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ step: activeStep }),
+        body: JSON.stringify({
+          step: activeStep,
+          allowPartialGeneration: allowPartial === true,
+        }),
       });
 
       if (!res.ok) {
@@ -996,6 +1005,18 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
       }
 
       const data = await res.json();
+
+      // H-314: Intercepción de falta de insumos mínimos
+      if (data.needsInput) {
+        setNeedsInputWarning({
+          step: activeStep,
+          missingFields: data.missingFields || [],
+          message: data.message || 'Se requiere información adicional antes de generar este paso.',
+        });
+        setGenerating(false);
+        return;
+      }
+
       setProject(data.project);
 
       if (data.stepAudit) {
@@ -2561,6 +2582,57 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
       {/* Main Panel Content */}
       <div className="card" style={{ padding: '24px', background: 'rgba(13,21,48,0.75)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
         
+        {needsInputWarning && (
+          <div
+            data-testid="needs-input-banner"
+            style={{
+              backgroundColor: 'rgba(234,179,8,0.12)',
+              color: '#fde047',
+              border: '1px solid rgba(234,179,8,0.3)',
+              padding: '16px',
+              borderRadius: '8px',
+              marginBottom: '20px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: '280px' }}>
+                <div style={{ fontWeight: 700, fontSize: '15px', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  ⚠️ Insumos Mínimos Requeridos (Regla B-001 Cero Invención)
+                </div>
+                <div style={{ fontSize: '14px', lineHeight: 1.5, color: '#fef08a' }}>
+                  {needsInputWarning.message}
+                </div>
+                {needsInputWarning.missingFields.length > 0 && (
+                  <div style={{ marginTop: '8px', fontSize: '12.5px', color: '#fef9c3' }}>
+                    <span style={{ fontWeight: 600 }}>Campos no detectados: </span>
+                    {needsInputWarning.missingFields.join(', ')}
+                  </div>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  data-testid="bypass-needs-input-button"
+                  onClick={() => generateCurrentStep(true)}
+                  disabled={generating}
+                  className="btn btn-secondary"
+                  style={{
+                    backgroundColor: 'rgba(234,179,8,0.25)',
+                    borderColor: 'rgba(234,179,8,0.5)',
+                    color: '#fef08a',
+                    padding: '8px 14px',
+                    fontSize: '12.5px',
+                    fontWeight: 600,
+                    cursor: generating ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  ⚡ Generar de todas formas (Preliminar)
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {error && (
           <div style={{ backgroundColor: 'rgba(244,63,94,0.12)', color: '#fb7185', border: '1px solid rgba(244,63,94,0.25)', padding: '16px', borderRadius: '8px', marginBottom: '20px' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
@@ -2580,7 +2652,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
               {(retryCount[activeStep] || 0) < 3 ? (
                 <button
                   type="button"
-                  onClick={generateCurrentStep}
+                  onClick={() => generateCurrentStep()}
                   disabled={generating}
                   className="btn btn-primary"
                   style={{
@@ -2631,7 +2703,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
             </p>
 
             <button
-              onClick={generateCurrentStep}
+              onClick={() => generateCurrentStep()}
               disabled={generating}
               className="btn btn-primary"
               style={{ padding: '12px 32px', fontSize: '15px', display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
@@ -2689,7 +2761,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                       <span>✏️</span> Editar Contenido
                     </button>
                     <button
-                      onClick={generateCurrentStep}
+                      onClick={() => generateCurrentStep()}
                       disabled={generating}
                       className="btn btn-ghost"
                       style={{ fontSize: '13px', color: 'var(--c-navy-light)', textDecoration: 'underline', display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: generating ? 'not-allowed' : 'pointer' }}

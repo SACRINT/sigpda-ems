@@ -30,6 +30,7 @@ import {
 import { getZoneContextForSchool } from '@/lib/zone-sync-service';
 import { getPaecRegulatoryContext } from '@/lib/paec-regulatory-context';
 import { formatCurricularCatalogForPrompt, matchCurricularContent } from '@/lib/paec-curricular-helper';
+import { validatePaecStepInputs } from '@/lib/paec-input-guard';
 import { logActivity, generateWithRotation } from '@/lib/ai-provider';
 import { logger } from '@/lib/logger';
 import { getUserLibraryContext } from '@/lib/context-extractor';
@@ -83,13 +84,30 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { step } = body as { step: number };
+    const { step, allowPartialGeneration } = body as {
+      step: number;
+      allowPartialGeneration?: boolean;
+    };
 
     if (!step || step < 1 || step > 9) {
       return NextResponse.json(
         { error: 'Número de paso no válido (debe ser de 1 a 9)' },
         { status: 400 }
       );
+    }
+
+    // H-314: Validación de Insumos Mínimos Reales (needsInput Guard)
+    const inputGuard = validatePaecStepInputs(step, project as unknown as Record<string, unknown>, {
+      allowPartialGeneration,
+    });
+    if (inputGuard.needsInput) {
+      return NextResponse.json({
+        success: true,
+        needsInput: true,
+        step,
+        missingFields: inputGuard.missingFields,
+        message: inputGuard.message,
+      });
     }
 
     // Mejora #24: Verificación de Idempotencia y Deduplicación
