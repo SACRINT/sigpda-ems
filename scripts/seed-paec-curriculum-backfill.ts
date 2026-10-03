@@ -173,9 +173,9 @@ async function main() {
 
   console.log(`Encontradas ${dbRows.length} materias fundamentales en BD.\n`);
 
-  let matchedCount = 0;
   let skippedAlreadyHasCf = 0;
   let updateCandidates = 0;
+  let noSourceCount = 0;
 
   console.log('------------------------------------------------------------------------');
   console.log('REPORTE DE COINCIDENCIAS (Matching Levenshtein / Exacto)');
@@ -199,47 +199,49 @@ async function main() {
       }
     }
 
-    if (bestMatch && highestSim >= 0.70) {
-      matchedCount++;
-      if (hasExisting) {
-        skippedAlreadyHasCf++;
-        console.log(`[PRESERVADA] Sem ${row.semester} | BD: "${row.uac_name}" (Ya tiene ${row.contenidos_formativos.length} elementos)`);
-      } else {
-        updateCandidates++;
-        console.log(
-          `[CANDIDATA]  Sem ${row.semester} | BD: "${row.uac_name}" <--> Doc: "${bestMatch.uac_name}" (Sim: ${(highestSim * 100).toFixed(1)}%) -> ${bestMatch.contenidos_formativos.length} contenidos`
-        );
+    const isMatch = bestMatch !== null && highestSim >= 0.70;
 
-        if (isApply) {
-          try {
-            await sql`BEGIN`;
-            await sql`
+    if (hasExisting) {
+      skippedAlreadyHasCf++;
+      const matchNote = isMatch && bestMatch
+        ? `Coincide con fuente: "${bestMatch.uac_name}" (${(highestSim * 100).toFixed(1)}%)`
+        : `Sin coincidencia en DOCX PAEC 2025; contenido precargado en BD preservado`;
+      console.log(`[PRESERVADA] Sem ${row.semester} | BD: "${row.uac_name}" (${row.contenidos_formativos.length} elementos en BD) | ${matchNote}`);
+    } else if (isMatch && bestMatch) {
+      updateCandidates++;
+      console.log(
+        `[CANDIDATA]  Sem ${row.semester} | BD: "${row.uac_name}" <--> Doc: "${bestMatch.uac_name}" (Sim: ${(highestSim * 100).toFixed(1)}%) -> ${bestMatch.contenidos_formativos.length} contenidos`
+      );
+
+      if (isApply) {
+        try {
+          await sql.transaction([
+            sql`
               UPDATE programs_catalog
               SET contenidos_formativos = ${JSON.stringify(bestMatch.contenidos_formativos)}
               WHERE id = ${row.id}
                 AND contenidos_formativos IS NULL
-            `;
-            await sql`COMMIT`;
-          } catch (e) {
-            await sql`ROLLBACK`;
-            console.error(`Error actualizando ${row.uac_name}:`, e);
-            throw e;
-          }
+            `
+          ]);
+        } catch (e) {
+          console.error(`Error actualizando ${row.uac_name}:`, e);
+          throw e;
         }
       }
     } else {
-      console.log(`[SIN FUENTE] Sem ${row.semester} | BD: "${row.uac_name}" -> Permanecerá en NULL (Regla B-001)`);
+      noSourceCount++;
+      console.log(`[SIN FUENTE] Sem ${row.semester} | BD: "${row.uac_name}" -> Sin fuente oficial y sin contenidos en BD; permanecerá en NULL (Regla B-001)`);
     }
   }
 
   console.log('\n------------------------------------------------------------------------');
   console.log('RESUMEN DE AUDITORÍA');
   console.log('------------------------------------------------------------------------');
-  console.log(`• Total materias fundamentales analizadas: ${dbRows.length}`);
-  console.log(`• Materias que ya contaban con CF validado: ${skippedAlreadyHasCf}`);
-  console.log(`• Materias candidatas a actualización:    ${updateCandidates}`);
-  console.log(`• Materias coincidentes con fuente oficial: ${matchedCount}`);
-  console.log(`• Acción ejecutada:                       ${isApply ? '✅ UPDATES APLICADOS CON GUARDIA EN BD' : 'ℹ️ NINGUNA (Modo Dry-Run completado)'}`);
+  console.log(`• Total materias fundamentales analizadas:        ${dbRows.length}`);
+  console.log(`• Materias con contenidos válidos en BD (preservadas): ${skippedAlreadyHasCf}`);
+  console.log(`• Materias candidatas a actualización (vacías en BD):  ${updateCandidates}`);
+  console.log(`• Materias sin fuente y vacías en BD:                ${noSourceCount}`);
+  console.log(`• Acción ejecutada:                              ${isApply ? '✅ UPDATES APLICADOS VIA sql.transaction EN BD' : 'ℹ️ NINGUNA (Modo Dry-Run completado)'}`);
   console.log('------------------------------------------------------------------------\n');
 }
 

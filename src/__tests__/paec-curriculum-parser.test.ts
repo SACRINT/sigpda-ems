@@ -18,12 +18,19 @@ interface ExtractedCurriculumItem {
 describe('H-309: Parser y Extractor de Currículo Oficial PAEC', () => {
   const jsonPath = path.resolve(process.cwd(), 'scripts', 'paec-curriculum-extracted.json');
 
-  it('el archivo JSON extraído existe y es un JSON válido', () => {
+  it('el archivo JSON extraído existe y es un JSON válido con UACs limpias', () => {
     expect(fs.existsSync(jsonPath)).toBe(true);
     const raw = fs.readFileSync(jsonPath, 'utf-8');
     const data = JSON.parse(raw);
     expect(Array.isArray(data)).toBe(true);
-    expect(data.length).toBeGreaterThanOrEqual(70);
+    expect(data.length).toBeGreaterThanOrEqual(55);
+
+    // Verificar ausencia de ruido de categorías socioemocionales o placeholders
+    for (const item of data) {
+      expect(item.uac_name.toLowerCase()).not.toContain('categoría:');
+      expect(item.uac_name.toLowerCase()).not.toContain('categoria:');
+      expect(item.uac_name.toLowerCase()).not.toMatch(/^uac\s*\d+/);
+    }
   });
 
   it('cubre asignaturas desde el 1.º hasta el 6.º semestre', () => {

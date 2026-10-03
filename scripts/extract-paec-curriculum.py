@@ -69,8 +69,10 @@ def extract_from_docx_tables(doc):
                     continue
 
                 # Parsear contenidos línea por línea o por punto y coma
+                # Nota técnica: el DOCX oficial de SEP/DGB presenta la errata tipográfica "unidad de medid" en tabla 0
+                col1_clean_source = col1_raw.replace('unidad de medid', 'unidad de medida')
                 contenidos = []
-                for line in col1_raw.split('\n'):
+                for line in col1_clean_source.split('\n'):
                     for part in line.split(';'):
                         clean_part = clean_text(part)
                         if clean_part and len(clean_part) > 2:
@@ -162,7 +164,8 @@ def extract_from_docx_numbered(doc):
         else:
             # Encabezado de materia
             if len(t) < 120 and not t.endswith('.'):
-                if current_uac and current_items:
+                is_noise = any(p in t.lower() for p in ['categoría:', 'categoria:']) or bool(re.match(r'^uac\s*\d+', t.lower()))
+                if current_uac and current_items and not any(p in current_uac.lower() for p in ['categoría:', 'categoria:']) and not bool(re.match(r'^uac\s*\d+', current_uac.lower())):
                     results.append({
                         "semester": current_sem,
                         "uac_name": current_uac,
@@ -170,9 +173,9 @@ def extract_from_docx_numbered(doc):
                         "contenidos_formativos": current_items
                     })
                     current_items = []
-                current_uac = t
+                current_uac = None if is_noise else t
 
-    if current_uac and current_items:
+    if current_uac and current_items and not any(p in current_uac.lower() for p in ['categoría:', 'categoria:']) and not bool(re.match(r'^uac\s*\d+', current_uac.lower())):
         results.append({
             "semester": current_sem,
             "uac_name": current_uac,

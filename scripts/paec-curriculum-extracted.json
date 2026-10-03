@@ -11,7 +11,7 @@
           "Concepto de ciencia",
           "Relatos sobre la historia de los descubrimientos científicos y la ciencia en México",
           "El método científico y el conocimiento empírico y tradicional, como formas de comprensión de la naturaleza",
-          "Medición: concepto de medición, magnitudes y unidad de medid"
+          "Medición: concepto de medición, magnitudes y unidad de medida"
         ]
       },
       {
@@ -30,7 +30,7 @@
         "proposito": "Comprende los conceptos de materia, cuerpo, masa y densidad, a partir de los objetos del entorno perceptible, para describirlos y analizarlos.",
         "contenidos": [
           "Concepto de materia y cuerpo",
-          "Concepto de masa como cantidad de materia, unidad de medida y su diferencia con el concepto de peso",
+          "Concepto de masa como cantidad de materia, unidad de medidaa y su diferencia con el concepto de peso",
           "Concepto de densidad",
           "Cálculo de volumen y densidad"
         ]
@@ -1695,7 +1695,7 @@
   },
   {
     "semester": 3,
-    "uac_name": "Categoría: Vida saludable",
+    "uac_name": "Lengua y Comunicación III",
     "model_type": "propositos_contenidos",
     "contenidos_formativos": [
       {
@@ -1739,14 +1739,7 @@
         "proposito": "Solicita apoyo de especialistas al reconocer síntomas frente a cualquier trastorno emocional",
         "progresion": null,
         "contenidos": []
-      }
-    ]
-  },
-  {
-    "semester": 3,
-    "uac_name": "Categoría: Salud y sociedad",
-    "model_type": "propositos_contenidos",
-    "contenidos_formativos": [
+      },
       {
         "numero": 1,
         "proposito": "Reflexiona sobre la desigualdad de oportunidades en cuanto al acceso a servicios de salud y una vida saludable.",
@@ -1782,14 +1775,7 @@
         "proposito": "Aplica habilidades socioemocionales para afrontar situaciones de riesgo que vulneran el bienestar propio y colectivo.",
         "progresion": null,
         "contenidos": []
-      }
-    ]
-  },
-  {
-    "semester": 3,
-    "uac_name": "Categoría: Hábitos saludables",
-    "model_type": "propositos_contenidos",
-    "contenidos_formativos": [
+      },
       {
         "numero": 1,
         "proposito": "Desarrolla prácticas en torno a la alimentación y hábitos saludables para promover el bienestar físico, mental y emocional de las comunidades escolares de educación media superior.",
@@ -1867,14 +1853,7 @@
         "proposito": "Identifica estrategias para el uso responsable en el ámbito personal y académico de las tecnologías.",
         "progresion": null,
         "contenidos": []
-      }
-    ]
-  },
-  {
-    "semester": 3,
-    "uac_name": "Categoría: Relaciones interpersonales",
-    "model_type": "propositos_contenidos",
-    "contenidos_formativos": [
+      },
       {
         "numero": 1,
         "proposito": "Utiliza estrategias para el manejo del estrés y las emociones asociadas a este, en el ámbito escolar y el contexto familiar que le permitan su bienestar intra e interpersonal.",
@@ -1898,14 +1877,7 @@
         "proposito": "Contribuye a la construcción de relaciones libres de violencia",
         "progresion": null,
         "contenidos": []
-      }
-    ]
-  },
-  {
-    "semester": 3,
-    "uac_name": "Lengua y Comunicación III",
-    "model_type": "propositos_contenidos",
-    "contenidos_formativos": [
+      },
       {
         "numero": 1,
         "proposito": "Define qué es un ensayo para comprender por qué es importante saber elaborar este tipo de ejercicio de problematización sobre la realidad.",
@@ -2097,7 +2069,7 @@
   },
   {
     "semester": 3,
-    "uac_name": "UAC 1",
+    "uac_name": "INSTALACIONES RESIDENCIALES",
     "model_type": "propositos_contenidos",
     "contenidos_formativos": [
       {
@@ -2110,7 +2082,7 @@
   },
   {
     "semester": 3,
-    "uac_name": "UAC 1",
+    "uac_name": "PREPARACION DE ALIMENTOS ARTESANALES",
     "model_type": "propositos_contenidos",
     "contenidos_formativos": [
       {
@@ -2123,7 +2095,7 @@
   },
   {
     "semester": 3,
-    "uac_name": "UAC 1",
+    "uac_name": "Formación Laboral “B”",
     "model_type": "propositos_contenidos",
     "contenidos_formativos": [
       {
@@ -2136,7 +2108,7 @@
   },
   {
     "semester": 3,
-    "uac_name": "UAC 2",
+    "uac_name": "INSTALACIONES RESIDENCIALES",
     "model_type": "propositos_contenidos",
     "contenidos_formativos": [
       {
@@ -2149,7 +2121,7 @@
   },
   {
     "semester": 3,
-    "uac_name": "UAC 2",
+    "uac_name": "PREPARACION DE ALIMENTOS ARTESANALES",
     "model_type": "propositos_contenidos",
     "contenidos_formativos": [
       {
@@ -2161,8 +2133,8 @@
     ]
   },
   {
-    "semester": 3,
-    "uac_name": "UAC 2",
+    "semester": 4,
+    "uac_name": "Reacciones Químicas",
     "model_type": "propositos_contenidos",
     "contenidos_formativos": [
       {
@@ -2170,14 +2142,7 @@
         "proposito": "Aplica principios de la Nixtamalización 2. Elabora tortillas, totopo y tostada 3. Elabora tamales, atoles y tortillas enriquecidas",
         "progresion": null,
         "contenidos": []
-      }
-    ]
-  },
-  {
-    "semester": 4,
-    "uac_name": "Reacciones Químicas",
-    "model_type": "propositos_contenidos",
-    "contenidos_formativos": [
+      },
       {
         "numero": 1,
         "proposito": "Las sustancias reaccionan químicamente de formas características. En un proceso químico, los átomos que componen las sustancias originales llamadas reactivos se reagrupan formando diferentes sustancias, denominadas productos, que se caracterizan por tener propiedades distintas a las de los reactivos.",
@@ -2681,7 +2646,7 @@
   },
   {
     "semester": 4,
-    "uac_name": "Categoría: Libertad de conciencia, placer y autonomía del cuerpo",
+    "uac_name": "Formación Laboral “A”",
     "model_type": "propositos_contenidos",
     "contenidos_formativos": [
       {
@@ -2761,14 +2726,7 @@
         "proposito": "Identifica las emociones que pueden influir en la toma de decisiones en las relaciones sexuales y/o afectivas, reconoce cómo marcar límites, especialmente ante una relación no saludable.",
         "progresion": null,
         "contenidos": []
-      }
-    ]
-  },
-  {
-    "semester": 4,
-    "uac_name": "Categoría: Equidad, inclusión y no violencia",
-    "model_type": "propositos_contenidos",
-    "contenidos_formativos": [
+      },
       {
         "numero": 1,
         "proposito": "Practica acciones diarias que cuestionen las normas sociales de género para crear un ciclo de equidad-inclusión-paz frente a uno de inequidaddiscriminación-violencia.",
@@ -2822,14 +2780,7 @@
         "proposito": "Aboga por la igualdad de género y la eliminación de la violencia de género y pone el ejemplo construyendo relaciones que tienen una base en la igualdad y los derechos.",
         "progresion": null,
         "contenidos": []
-      }
-    ]
-  },
-  {
-    "semester": 4,
-    "uac_name": "Categoría: Salud sexual y reproductiva",
-    "model_type": "propositos_contenidos",
-    "contenidos_formativos": [
+      },
       {
         "numero": 1,
         "proposito": "Reconoce que la imagen corporal puede afectar la autoestima y la toma de decisiones en relaciones sexuales y/o afectivas; demuestra maneras de cuestionar estándares poco realistas acerca de la apariencia física.",
@@ -2925,14 +2876,7 @@
         "proposito": "Reconoce la importancia de usar anticonceptivos y preservativos de manera correcta; tiene un plan para acceder al método cuando inicie su vida sexual y demuestra seguridad ante ello.",
         "progresion": null,
         "contenidos": []
-      }
-    ]
-  },
-  {
-    "semester": 4,
-    "uac_name": "Categoría: Educación Integral de la Sexualidad",
-    "model_type": "propositos_contenidos",
-    "contenidos_formativos": [
+      },
       {
         "numero": 1,
         "proposito": "Conoce las características que hacen de una Educación Integral en Sexualidad (EIS) por ejemplo: laica, gradual, científica, con perspectiva de género, etcétera.",
@@ -2974,14 +2918,7 @@
         "proposito": "Toma decisiones en un marco de corresponsabilidad cívica y ética.",
         "progresion": null,
         "contenidos": []
-      }
-    ]
-  },
-  {
-    "semester": 4,
-    "uac_name": "Categoría: Ciudadanía Sexual",
-    "model_type": "propositos_contenidos",
-    "contenidos_formativos": [
+      },
       {
         "numero": 1,
         "proposito": "Aboga por entornos seguros que alienten el trato digno y respetuoso de todas las personas con base en los derechos humanos.",
@@ -3028,7 +2965,7 @@
   },
   {
     "semester": 4,
-    "uac_name": "UAC 1",
+    "uac_name": "INSTALACIONES RESIDENCIALES",
     "model_type": "propositos_contenidos",
     "contenidos_formativos": [
       {
@@ -3041,7 +2978,7 @@
   },
   {
     "semester": 4,
-    "uac_name": "UAC 1",
+    "uac_name": "PREPARACION DE ALIMENTOS ARTESANALES",
     "model_type": "propositos_contenidos",
     "contenidos_formativos": [
       {
@@ -3054,7 +2991,7 @@
   },
   {
     "semester": 4,
-    "uac_name": "UAC 1",
+    "uac_name": "Formación Laboral “B”",
     "model_type": "propositos_contenidos",
     "contenidos_formativos": [
       {
@@ -3067,7 +3004,7 @@
   },
   {
     "semester": 4,
-    "uac_name": "UAC 2",
+    "uac_name": "INSTALACIONES RESIDENCIALES",
     "model_type": "propositos_contenidos",
     "contenidos_formativos": [
       {
@@ -3080,7 +3017,7 @@
   },
   {
     "semester": 4,
-    "uac_name": "UAC 2",
+    "uac_name": "PREPARACION DE ALIMENTOS ARTESANALES",
     "model_type": "propositos_contenidos",
     "contenidos_formativos": [
       {
@@ -3092,23 +3029,16 @@
     ]
   },
   {
-    "semester": 4,
-    "uac_name": "UAC 2",
-    "model_type": "propositos_contenidos",
+    "semester": 5,
+    "uac_name": "La Energía en los Procesos de la Vida Diaria",
+    "model_type": "progresiones",
     "contenidos_formativos": [
       {
         "numero": 1,
         "proposito": "Elabora productos cristalizados 2. Produce dulces típicos a base de semillas 3. Prepara diversos dulces típicos mexicanos",
         "progresion": null,
         "contenidos": []
-      }
-    ]
-  },
-  {
-    "semester": 5,
-    "uac_name": "La Energía en los Procesos de la Vida Diaria",
-    "model_type": "progresiones",
-    "contenidos_formativos": [
+      },
       {
         "numero": 2,
         "proposito": null,
@@ -3270,7 +3200,7 @@
   },
   {
     "semester": 5,
-    "uac_name": "Categoría: Educación cívica y cultura democrática",
+    "uac_name": "Formación Laboral “A”",
     "model_type": "progresiones",
     "contenidos_formativos": [
       {
@@ -3314,14 +3244,7 @@
         "proposito": null,
         "progresion": "Establece un diálogo plural y abierto en grupo, considerando valores como el respeto, la inclusión, la solidaridad y la tolerancia, para proponer alternativas de solución a problemas de su entorno escolar o comunitario.",
         "contenidos": []
-      }
-    ]
-  },
-  {
-    "semester": 5,
-    "uac_name": "Categoría: Seguridad y educación para la paz",
-    "model_type": "progresiones",
-    "contenidos_formativos": [
+      },
       {
         "numero": 1,
         "proposito": null,
@@ -3357,14 +3280,7 @@
         "proposito": null,
         "progresion": "Elabora una propuesta grupal para favorecer que en su plantel existan relaciones de convivencia más inclusivas, solidarias, pacíficas y de respeto mutuo.",
         "contenidos": []
-      }
-    ]
-  },
-  {
-    "semester": 5,
-    "uac_name": "Categoría: Perspectiva de género",
-    "model_type": "progresiones",
-    "contenidos_formativos": [
+      },
       {
         "numero": 1,
         "proposito": null,
@@ -3394,14 +3310,7 @@
         "proposito": null,
         "progresion": "Reflexiona y analiza cómo es que la asignación de roles de género en la sociedad facilita o dificulta la consolidación de sistemas democráticos, justos, inclusivos y pacíficos.",
         "contenidos": []
-      }
-    ]
-  },
-  {
-    "semester": 5,
-    "uac_name": "Categoría: Conservación y cuidado del medio ambiente",
-    "model_type": "progresiones",
-    "contenidos_formativos": [
+      },
       {
         "numero": 1,
         "proposito": null,
@@ -3430,7 +3339,7 @@
   },
   {
     "semester": 5,
-    "uac_name": "UAC 1",
+    "uac_name": "INSTALACIONES RESIDENCIALES",
     "model_type": "progresiones",
     "contenidos_formativos": [
       {
@@ -3443,7 +3352,7 @@
   },
   {
     "semester": 5,
-    "uac_name": "UAC 1",
+    "uac_name": "PREPARACION DE ALIMENTOS ARTESANALES",
     "model_type": "progresiones",
     "contenidos_formativos": [
       {
@@ -3456,7 +3365,7 @@
   },
   {
     "semester": 5,
-    "uac_name": "UAC 1",
+    "uac_name": "Formación Laboral “B”",
     "model_type": "progresiones",
     "contenidos_formativos": [
       {
@@ -3469,7 +3378,7 @@
   },
   {
     "semester": 5,
-    "uac_name": "UAC 2",
+    "uac_name": "INSTALACIONES RESIDENCIALES",
     "model_type": "progresiones",
     "contenidos_formativos": [
       {
@@ -3482,7 +3391,7 @@
   },
   {
     "semester": 5,
-    "uac_name": "UAC 2",
+    "uac_name": "PREPARACION DE ALIMENTOS ARTESANALES",
     "model_type": "progresiones",
     "contenidos_formativos": [
       {
@@ -3494,8 +3403,8 @@
     ]
   },
   {
-    "semester": 5,
-    "uac_name": "UAC 2",
+    "semester": 6,
+    "uac_name": "Organismos, Estructuras y Procesos. Herencia y Evolución Biológica",
     "model_type": "progresiones",
     "contenidos_formativos": [
       {
@@ -3503,14 +3412,7 @@
         "proposito": null,
         "progresion": "Prepara productos a base de cerdo y res curados y cocidos 2. Prepara productos a base de aves marinadas y cocidas 3. Prepara productos a base de soya procesada en diferentes presentaciones y sustitutos de proteína",
         "contenidos": []
-      }
-    ]
-  },
-  {
-    "semester": 6,
-    "uac_name": "Organismos, Estructuras y Procesos. Herencia y Evolución Biológica",
-    "model_type": "progresiones",
-    "contenidos_formativos": [
+      },
       {
         "numero": 1,
         "proposito": null,
@@ -3721,7 +3623,7 @@
   },
   {
     "semester": 6,
-    "uac_name": "Categoría: Libertad de conciencia, placer y autonomía del cuerpo",
+    "uac_name": "Formación Laboral “A”",
     "model_type": "progresiones",
     "contenidos_formativos": [
       {
@@ -3801,14 +3703,7 @@
         "proposito": null,
         "progresion": "Identifica las emociones que pueden influir en la toma de decisiones en las relaciones sexuales y/o afectivas, reconoce cómo marcar límites, especialmente ante una relación no saludable.",
         "contenidos": []
-      }
-    ]
-  },
-  {
-    "semester": 6,
-    "uac_name": "Categoría: Equidad, inclusión y no violencia",
-    "model_type": "progresiones",
-    "contenidos_formativos": [
+      },
       {
         "numero": 1,
         "proposito": null,
@@ -3862,14 +3757,7 @@
         "proposito": null,
         "progresion": "Aboga por la igualdad de género y la eliminación de la violencia de género y pone el ejemplo construyendo relaciones que tienen una base en la igualdad y los derechos.",
         "contenidos": []
-      }
-    ]
-  },
-  {
-    "semester": 6,
-    "uac_name": "Categoría: Salud sexual y reproductiva",
-    "model_type": "progresiones",
-    "contenidos_formativos": [
+      },
       {
         "numero": 1,
         "proposito": null,
@@ -3965,14 +3853,7 @@
         "proposito": null,
         "progresion": "Reconoce la importancia de usar anticonceptivos y preservativos de manera correcta; tiene un plan para acceder al método cuando inicie su vida sexual y demuestra seguridad ante ello.",
         "contenidos": []
-      }
-    ]
-  },
-  {
-    "semester": 6,
-    "uac_name": "Categoría: Educación Integral de la Sexualidad",
-    "model_type": "progresiones",
-    "contenidos_formativos": [
+      },
       {
         "numero": 1,
         "proposito": null,
@@ -4014,14 +3895,7 @@
         "proposito": null,
         "progresion": "Toma decisiones en un marco de corresponsabilidad cívica y ética.",
         "contenidos": []
-      }
-    ]
-  },
-  {
-    "semester": 6,
-    "uac_name": "Categoría: Ciudadanía Sexual",
-    "model_type": "progresiones",
-    "contenidos_formativos": [
+      },
       {
         "numero": 1,
         "proposito": null,
@@ -4068,7 +3942,7 @@
   },
   {
     "semester": 6,
-    "uac_name": "UAC 1",
+    "uac_name": "INSTALACIONES RESIDENCIALES",
     "model_type": "progresiones",
     "contenidos_formativos": [
       {
@@ -4081,7 +3955,7 @@
   },
   {
     "semester": 6,
-    "uac_name": "UAC 1",
+    "uac_name": "PREPARACION DE ALIMENTOS ARTESANALES",
     "model_type": "progresiones",
     "contenidos_formativos": [
       {
@@ -4094,7 +3968,7 @@
   },
   {
     "semester": 6,
-    "uac_name": "UAC 1",
+    "uac_name": "Formación Laboral “B”",
     "model_type": "progresiones",
     "contenidos_formativos": [
       {
@@ -4107,7 +3981,7 @@
   },
   {
     "semester": 6,
-    "uac_name": "UAC 2",
+    "uac_name": "INSTALACIONES RESIDENCIALES",
     "model_type": "progresiones",
     "contenidos_formativos": [
       {
@@ -4120,26 +3994,13 @@
   },
   {
     "semester": 6,
-    "uac_name": "UAC 2",
+    "uac_name": "PREPARACION DE ALIMENTOS ARTESANALES",
     "model_type": "progresiones",
     "contenidos_formativos": [
       {
         "numero": 1,
         "proposito": null,
         "progresion": "Clasifica material sobrante durante la construcción o instalación residencial 2. Registra material sobrante en una bitácora acorde con especificaciones del especialista 3. Reutiliza material sobrante de manera sustentable",
-        "contenidos": []
-      }
-    ]
-  },
-  {
-    "semester": 6,
-    "uac_name": "UAC 2",
-    "model_type": "progresiones",
-    "contenidos_formativos": [
-      {
-        "numero": 1,
-        "proposito": null,
-        "progresion": "Prepara aceite saborizados 2. Realiza emulsiones con aceites y grasas 3. Elabora condimentos y especias",
         "contenidos": []
       }
     ]
