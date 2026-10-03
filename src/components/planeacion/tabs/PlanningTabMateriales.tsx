@@ -4,6 +4,7 @@ import React from 'react';
 import type { GeneratedPlanningContent, Planning, PlanningExtra } from '@/types/planning';
 import type { ActiveWorkTextbook, GenerationProgressState } from '@/types/work-textbook';
 import GenerationFeedback from '@/components/feedback/GenerationFeedback';
+import BlockPresentationActions from '@/components/planeacion/slides/BlockPresentationActions';
 import {
   Zap, RefreshCw, CheckCircle
 } from 'lucide-react';
@@ -790,6 +791,8 @@ export default function PlanningTabMateriales({
                           {syncingSuite === actIdx ? 'Sincronizando…' : 'Volver a sincronizar Suite'}
                         </button>
                       </div>
+
+                      <BlockPresentationActions planningId={planning.id} blockIndex={actIdx} />
                     </div>
                   ) : (
                     /* Tarjeta de Bloque Pendiente */
