@@ -38,7 +38,7 @@ vi.mock('@/lib/logger', () => ({
 function makeParityMission(): MissionSection {
   return {
     missionIndex: 1,
-    title: 'Misión 1: Leyes de Conservación y Balance Termodinámico en Hornos Rurales',
+    title: 'Misión 1: Leyes de Conservación y Balance Termodinámico en Hornos Rurales <!--workbook:lines:rows=4-->',
     coveredSessions: [1, 2],
     sessionTopic: 'Primera Ley de la Termodinámica y Rendimiento Energético',
     sessionFocus: 'Modelación del calor transferido en la cocción de ladrillo rojo tradicional',
@@ -73,9 +73,21 @@ function makeParityMission(): MissionSection {
         {
           id: 'wb-lines-1',
           type: 'lines',
-          title: 'Espacio de Deducción',
-          instruction: 'Desarrolla el balance:',
+          title: 'Espacio de Deducción <!--workbook:lines:rows=4-->',
+          instruction: 'Desarrolla el balance: <!--workbook:lines:rows=4-->',
           config: { rows: 4 },
+        },
+        {
+          id: 'wb-cb-1',
+          type: 'checkbox_list',
+          title: 'Lista de Control de Parámetros <!--workbook:lines:rows=4-->',
+          instruction: 'Marca cada criterio verificado: <!--workbook:lines:rows=4-->',
+          config: {
+            checkboxes: [
+              'Verificar aislamiento térmico en compuertas <!--workbook:lines:rows=4-->',
+              'Comprobar sello hermético de ductos <!--workbook:lines:rows=4-->',
+            ],
+          },
         },
       ],
     },
@@ -85,9 +97,9 @@ function makeParityMission(): MissionSection {
         {
           id: 'wb-table-1',
           type: 'empty_table',
-          title: 'Tabla de Balance',
-          instruction: 'Registra los datos:',
-          config: { cols: ['Etapa', 'Calor Q', 'Trabajo W'] },
+          title: 'Tabla de Balance <!--workbook:lines:rows=4-->',
+          instruction: 'Registra los datos: <!--workbook:lines:rows=4-->',
+          config: { cols: ['Etapa <!--workbook:lines:rows=4-->', 'Calor Q <!--workbook:lines:rows=4-->', 'Trabajo W <!--workbook:lines:rows=4-->'] },
         },
       ],
     },
@@ -171,7 +183,7 @@ function makeParityWorkbook(): ActiveWorkTextbook {
 
   return {
     uacName: 'CONSERVACIÓN DE LA ENERGÍA Y SUS INTERACCIONES',
-    blockName: 'Bloque I: La Energía Térmica en los Procesos de Producción',
+    blockName: 'Bloque I: La Energía Térmica en los Procesos de Producción <!--workbook:lines:rows=4-->',
     blockIndex: 0,
     semester: 2,
     subsystem: 'Bachillerato General Estatal (BGE)',
@@ -182,7 +194,16 @@ function makeParityWorkbook(): ActiveWorkTextbook {
       semester: 2,
       paecProjectName: 'Eficiencia Energética y Producción Sustentable',
       teacherName: 'Academia de Ciencias Naturales',
+      municipality: 'San Pedro Cholula, Pue. <!--workbook:lines:rows=4-->',
     },
+    tableOfContents: [
+      {
+        missionIndex: 1,
+        title: 'Leyes de Conservación y Balance Termodinámico <!--workbook:lines:rows=4-->',
+        sessionsRange: 'Sesiones 1 a 2 <!--workbook:lines:rows=4-->',
+        pageEstimate: 6,
+      },
+    ],
     missions: [makeParityMission()],
     projectSection,
     evaluationSection,
