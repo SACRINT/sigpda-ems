@@ -44,28 +44,28 @@ function makeParityMission(): MissionSection {
     sessionFocus: 'Modelación del calor transferido en la cocción de ladrillo rojo tradicional',
     wordCount: 1200,
     phenomenonHook: {
-      story: 'En los hornos ladrilleros de San Pedro Cholula, el consumo excesivo de leña genera costos elevados y emisiones.',
-      detonatingQuestion: '¿Cómo podemos estimar la energía térmica útil para reducir el combustible en un 25%?',
+      story: 'En los hornos ladrilleros de San Pedro Cholula, el consumo excesivo de leña genera costos elevados y emisiones. <!--workbook:lines:rows=4-->',
+      detonatingQuestion: '¿Cómo podemos estimar la energía térmica útil para reducir el combustible en un 25%? <!--workbook:lines:rows=4-->',
     },
     conceptZero: {
-      physicalAnalogy: 'Como el presupuesto familiar: la energía que ingresa debe ser igual a la energía útil más las pérdidas.',
-      coreExplanation: 'La Primera Ley establece que delta U = Q - W, conservando la masa-energía de manera continua.',
-      narrativeExplanation: 'El aislamiento de los muros refractarios reduce la tasa de pérdidas por conducción y radiación.',
+      physicalAnalogy: 'Como el presupuesto familiar: la energía que ingresa debe ser igual a la energía útil más las pérdidas. <!--workbook:lines:rows=4-->',
+      coreExplanation: 'La Primera Ley establece que delta U = Q - W, conservando la masa-energía de manera continua. <!--workbook:lines:rows=4-->',
+      narrativeExplanation: 'El aislamiento de los muros refractarios reduce la tasa de pérdidas por conducción y radiación. <!--workbook:lines:rows=4-->',
       solvedExample: {
-        problemStatement: 'Calcular el calor suministrado Q si el trabajo W es 40 kJ y delta U es 110 kJ.',
-        solutionSteps: ['Paso 1: Q = delta U + W', 'Paso 2: Q = 110 + 40 = 150 kJ'],
-        interpretation: 'Se requieren exactamente 150 kJ de energía térmica neta.',
+        problemStatement: 'Calcular el calor suministrado Q si el trabajo W es 40 kJ y delta U es 110 kJ. <!--workbook:lines:rows=4-->',
+        solutionSteps: ['Paso 1: Q = delta U + W <!--workbook:lines:rows=4-->', 'Paso 2: Q = 110 + 40 = 150 kJ <!--workbook:lines:rows=4-->'],
+        interpretation: 'Se requieren exactamente 150 kJ de energía térmica neta. <!--workbook:lines:rows=4-->',
       },
       contrastTable: [
         {
-          correctConcept: 'El calor es energía en tránsito.',
-          commonMisconception: 'Creer que los cuerpos poseen calor.',
-          reasoning: 'La temperatura mide energía cinética media.',
+          correctConcept: 'El calor es energía en tránsito. <!--workbook:lines:rows=4-->',
+          commonMisconception: 'Creer que los cuerpos poseen calor. <!--workbook:lines:rows=4-->',
+          reasoning: 'La temperatura mide energía cinética media. <!--workbook:lines:rows=4-->',
         },
       ],
     },
     iDoSection: {
-      stepByStepDemo: 'El docente grafica en el pizarrón el diagrama P-V del ciclo termodinámico.',
+      stepByStepDemo: 'El docente grafica en el pizarrón el diagrama P-V del ciclo termodinámico. <!--workbook:lines:rows=4-->',
     },
     weDoSection: {
       guidedPractice: 'En parejas, calculen el trabajo neto del ciclo: <!--workbook:lines:rows=4-->',
@@ -80,7 +80,7 @@ function makeParityMission(): MissionSection {
       ],
     },
     youDoSection: {
-      autonomousChallenge: 'Reto autónomo individual: Calcula la eficiencia térmica de un intercambiador.',
+      autonomousChallenge: 'Reto autónomo individual: Calcula la eficiencia térmica de un intercambiador. <!--workbook:lines:rows=4-->',
       workbookElements: [
         {
           id: 'wb-table-1',
@@ -94,16 +94,16 @@ function makeParityMission(): MissionSection {
     troubleshooting: [
       {
         id: 'tb-1',
-        symptom: 'El cálculo resulta en eficiencia superior al 100%.',
-        rootCause: 'Inversión de signos en la convención de trabajo y calor.',
-        solutionSteps: ['1. El calor entrante es positivo (+Q).', '2. El trabajo realizado es positivo (+W).'],
-        preventionTip: 'Traza el diagrama de cuerpo libre térmico antes de operar.',
+        symptom: 'El cálculo resulta en eficiencia superior al 100%. <!--workbook:lines:rows=4-->',
+        rootCause: 'Inversión de signos en la convención de trabajo y calor. <!--workbook:lines:rows=4-->',
+        solutionSteps: ['1. El calor entrante es positivo (+Q). <!--workbook:lines:rows=4-->', '2. El trabajo realizado es positivo (+W). <!--workbook:lines:rows=4-->'],
+        preventionTip: 'Traza el diagrama de cuerpo libre térmico antes de operar. <!--workbook:lines:rows=4-->',
       },
     ],
     formativeCheckpoint: {
-      question: '¿Por qué ninguna máquina térmica puede transformar todo el calor absorbido en trabajo?',
-      reflectionPrompts: ['Explica la relación entre la Primera Ley y el ahorro comunitario.'],
-      criteriaChecklist: ['Aplica la ecuación con signos correctos.', 'Convierte unidades con precisión.'],
+      question: '¿Por qué ninguna máquina térmica puede transformar todo el calor absorbido en trabajo? <!--workbook:lines:rows=4-->',
+      reflectionPrompts: ['Explica la relación entre la Primera Ley y el ahorro comunitario. <!--workbook:lines:rows=4-->'],
+      criteriaChecklist: ['Aplica la ecuación con signos correctos. <!--workbook:lines:rows=4-->', 'Convierte unidades con precisión. <!--workbook:lines:rows=4-->'],
     },
     diagnosticEvaluation: {
       context: 'Exploración de conceptos previos: temperatura, calor y escalas.',
@@ -120,15 +120,15 @@ function makeParityMission(): MissionSection {
 
 function makeParityWorkbook(): ActiveWorkTextbook {
   const projectSection: ProjectSection = {
-    artifactName: 'Prototipo de Intercambiador Térmico para Secado de Tabique',
-    communityUtility: 'Dispositivo recuperador de calor residual para optimizar la combustión.',
+    artifactName: 'Prototipo de Intercambiador Térmico para Secado de Tabique <!--workbook:lines:rows=4-->',
+    communityUtility: 'Dispositivo recuperador de calor residual para optimizar la combustión. <!--workbook:lines:rows=4-->',
     phases: [
       {
         phaseNum: 1,
-        title: 'Medición de temperatura',
+        title: 'Medición de temperatura <!--workbook:lines:rows=4-->',
         allocatedHours: 4,
-        deliverables: ['Registro termográfico'],
-        instructions: 'Medir la temperatura de los gases de escape.',
+        deliverables: ['Registro termográfico <!--workbook:lines:rows=4-->'],
+        instructions: 'Medir la temperatura de los gases de escape. <!--workbook:lines:rows=4-->',
       },
     ],
     technicalSpecs: ['Sensor termopar tipo K', 'Cámara aislada'],
@@ -139,10 +139,10 @@ function makeParityWorkbook(): ActiveWorkTextbook {
     source: 'generated_fresh',
     rubric: [
       {
-        criterion: 'Balance Termodinámico',
+        criterion: 'Balance Termodinámico <!--workbook:lines:rows=4-->',
         weightPercent: 30,
         levels: [
-          { levelName: 'Excelente', points: 10, descriptor: 'Modela el sistema térmico con balance exacto.' },
+          { levelName: 'Excelente', points: 10, descriptor: 'Modela el sistema térmico con balance exacto. <!--workbook:lines:rows=4-->' },
           { levelName: 'Bueno', points: 8, descriptor: 'Aplica la fórmula general con mínimas omisiones.' },
           { levelName: 'Suficiente', points: 6, descriptor: 'Identifica variables con asistencia.' },
           { levelName: 'Requiere Apoyo', points: 4, descriptor: 'No identifica los términos de calor y trabajo.' },
@@ -377,6 +377,8 @@ describe('H-325 — Paridad Arquitectónica Integral DOCX <-> PDF', () => {
     expect(pdfText).toContain('EVALUACIÓN DIAGNÓSTICA: SABERES PREVIOS SITUADOS');
     expect(docxText).toContain('SEMÁFORO DE APRENDIZAJE: AUTOEVALUACIÓN METACOGNITIVA');
     expect(pdfText).toContain('SEMÁFORO DE APRENDIZAJE: AUTOEVALUACIÓN METACOGNITIVA');
+    expect(docxText).toContain('¿Has observado o experimentado algo relacionado con "Termodinámica"');
+    expect(pdfText).toContain('¿Has observado o experimentado algo relacionado con "Termodinámica"');
     expect(docxText).not.toContain('<!--');
     expect(pdfText).not.toContain('<!--');
   }, 40000);
