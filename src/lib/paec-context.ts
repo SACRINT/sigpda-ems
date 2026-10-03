@@ -6,12 +6,18 @@
  * el sistema extraiga de la base de datos la problemática comunitaria priorizada,
  * el nombre del proyecto PAEC-PEC del plantel, y la vinculación curricular exacta
  * que el Paso 3 / Plan Operativo del PAEC asignó a esa UAC.
+ *
+ * H-322: el emparejamiento por UAC es ahora estricto y compatible con el esquema real
+ * persistido por el generador PAEC (PlanOperativoRow: uac/activity/strategy/progression/week/phase)
+ * y con el esquema legado (asignatura/actividad/estrategiaDidactica/...).
  */
 
 import { sql } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { normalizeUnicode } from '@/lib/utils/normalize';
 
 export interface PaecLinkedActivity {
+  asignatura: string;
   actividad: string;
   semana?: string;
   fase?: string;
@@ -35,6 +41,105 @@ export interface PaecLinkedContext {
   operationalActivity?: PaecLinkedActivity | null;
 }
 
+type JsonRecord = Record<string, unknown>;
+
+function asRecord(v: unknown): JsonRecord {
+  return v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonRecord) : {};
+}
+
+function str(v: unknown): string {
+  if (typeof v === 'string') return v.trim();
+  if (typeof v === 'number' && Number.isFinite(v)) return String(v);
+  return '';
+}
+
+function firstStr(rec: JsonRecord, keys: string[]): string {
+  for (const k of keys) {
+    const s = str(rec[k]);
+    if (s) return s;
+  }
+  return '';
+}
+
+/**
+ * Coincidencia estricta de UAC: ambos lados no vacíos, igualdad o contención
+ * sobre texto normalizado (sin acentos, minúsculas). Nunca coincide con vacío.
+ */
+export function uacMatches(a: string, b: string): boolean {
+  const x = normalizeUnicode(a).replace(/\s+/g, ' ').trim();
+  const y = normalizeUnicode(b).replace(/\s+/g, ' ').trim();
+  if (!x || !y) return false;
+  return x === y || x.includes(y) || y.includes(x);
+}
+
+/**
+ * Aplana plan operativo en cualquiera de sus formas persistidas:
+ * arreglo de filas, o { semestreA, semestreB }.
+ */
+export function flattenPlanOperativo(raw: unknown): JsonRecord[] {
+  if (Array.isArray(raw)) return raw.map(asRecord);
+  const rec = asRecord(raw);
+  const a = Array.isArray(rec.semestreA) ? rec.semestreA : [];
+  const b = Array.isArray(rec.semestreB) ? rec.semestreB : [];
+  return [...a, ...b].map(asRecord);
+}
+
+function formatWeek(week: string): string | undefined {
+  if (!week) return undefined;
+  return /^\d/.test(week) ? `Semana ${week}` : week;
+}
+
+/**
+ * Busca en las filas del plan operativo la actividad de la UAC dada.
+ * Solo devuelve filas con actividad no vacía (no fabrica vínculos).
+ */
+export function matchOperationalActivity(
+  planRows: JsonRecord[],
+  targetUac: string
+): PaecLinkedActivity | null {
+  if (!normalizeUnicode(targetUac).trim()) return null;
+  for (const row of planRows) {
+    const asignatura = firstStr(row, ['uac', 'asignatura', 'uacName']);
+    const actividad = firstStr(row, ['activity', 'actividad', 'macroActivities']);
+    if (!actividad || !uacMatches(asignatura, targetUac)) continue;
+    return {
+      asignatura,
+      actividad,
+      semana: formatWeek(firstStr(row, ['week', 'semana', 'periodo'])),
+      fase: firstStr(row, ['phase', 'fase']) || undefined,
+      estrategiaDidactica: firstStr(row, ['strategy', 'estrategiaDidactica']) || undefined,
+      propositoFormativo: firstStr(row, ['propositoFormativo']) || undefined,
+      progresion: firstStr(row, ['progression', 'progresion']) || undefined,
+      isPrescheduled: true,
+    };
+  }
+  return null;
+}
+
+/**
+ * Busca en el mapeo curricular (Paso 3, DetalleCurricularRow) la fila de la UAC/semestre.
+ */
+export function matchCurricularMapping(
+  mapeo: unknown,
+  targetUac: string,
+  targetSemester?: number
+): { uacTopic?: string; uacLinking?: string } {
+  const rows = (Array.isArray(mapeo) ? mapeo : []).map(asRecord);
+  if (!normalizeUnicode(targetUac).trim() && !targetSemester) return {};
+  const row = rows.find((item) => {
+    const itemUac = firstStr(item, ['uacName', 'asignatura', 'uac']);
+    const itemSem = Number(item.semester ?? item.semestre);
+    const uacOk = targetUac ? uacMatches(itemUac, targetUac) : true;
+    const semOk = targetSemester ? itemSem === targetSemester : true;
+    return uacOk && semOk;
+  });
+  if (!row) return {};
+  return {
+    uacTopic: firstStr(row, ['progressionsOrPurposes', 'topic', 'contenido', 'tema']) || undefined,
+    uacLinking: firstStr(row, ['curricularJustification', 'linking', 'vinculacion']) || undefined,
+  };
+}
+
 export async function loadPaecContext(
   cct: string,
   options?: {
@@ -49,11 +154,11 @@ export async function loadPaecContext(
   }
 
   try {
-    let rows: any[] = [];
+    let rows: JsonRecord[] = [];
 
     if (cleanCct) {
       // Buscar proyectos que coincidan con el CCT en school_context o community_context
-      rows = await sql()`
+      rows = (await sql()`
         SELECT id, project_name, problem_statement, cycle_type, school_context, community_context,
                fase2_mapeo, fase2_plan_operativo, fase3_plan_operativo_a, fase3_plan_operativo_b
         FROM paec_projects
@@ -62,19 +167,19 @@ export async function loadPaecContext(
            OR school_context::text ILIKE ${'%' + cleanCct + '%'}
         ORDER BY updated_at DESC
         LIMIT 1
-      `;
+      `) as JsonRecord[];
     }
 
     // Fallback: Si no se encuentra por CCT pero hay teacherId, buscar por docente
     if (rows.length === 0 && options?.teacherId) {
-      rows = await sql()`
+      rows = (await sql()`
         SELECT id, project_name, problem_statement, cycle_type, school_context, community_context,
                fase2_mapeo, fase2_plan_operativo, fase3_plan_operativo_a, fase3_plan_operativo_b
         FROM paec_projects
         WHERE teacher_id = ${options.teacherId}::uuid
         ORDER BY updated_at DESC
         LIMIT 1
-      `;
+      `) as JsonRecord[];
     }
 
     if (rows.length === 0) {
@@ -82,69 +187,32 @@ export async function loadPaecContext(
     }
 
     const p = rows[0];
-    const schoolCtx = p.school_context || {};
-    const commCtx = p.community_context || {};
+    const schoolCtx = asRecord(p.school_context);
+    const commCtx = asRecord(p.community_context);
 
-    const schoolName = schoolCtx.nombre_escuela || schoolCtx.schoolName || commCtx.schoolName || '';
-    const municipality = schoolCtx.municipio || schoolCtx.municipality || commCtx.municipality || '';
-    const foundCct = schoolCtx.cct || commCtx.cct || cleanCct;
+    const schoolName = firstStr(schoolCtx, ['nombre_escuela', 'schoolName']) || firstStr(commCtx, ['schoolName']);
+    const municipality = firstStr(schoolCtx, ['municipio', 'municipality']) || firstStr(commCtx, ['municipality']);
+    const foundCct = firstStr(schoolCtx, ['cct']) || firstStr(commCtx, ['cct']) || cleanCct;
 
-    let uacTopic: string | undefined;
-    let uacLinking: string | undefined;
-    let operationalActivity: PaecLinkedActivity | null = null;
+    const targetUac = (options?.uacName || '').trim();
 
-    const targetUac = (options?.uacName || '').toLowerCase().trim();
-    const targetSemester = options?.semester;
+    // 1. Mapeo curricular (Paso 3 del PAEC)
+    const { uacTopic, uacLinking } = matchCurricularMapping(p.fase2_mapeo, targetUac, options?.semester);
 
-    // 1. Buscar en fase2_mapeo (Paso 3 del PAEC)
-    const mapeo = Array.isArray(p.fase2_mapeo) ? p.fase2_mapeo : [];
-    if (targetUac || targetSemester) {
-      const matchMapeo = mapeo.find((item: any) => {
-        const itemUac = (item.uacName || item.asignatura || '').toLowerCase();
-        const itemSem = Number(item.semester || item.semestre);
-        const uacMatches = targetUac ? (itemUac.includes(targetUac) || targetUac.includes(itemUac)) : true;
-        const semMatches = targetSemester ? itemSem === targetSemester : true;
-        return uacMatches && semMatches;
-      });
-
-      if (matchMapeo) {
-        uacTopic = matchMapeo.topic || matchMapeo.contenido || matchMapeo.tema;
-        uacLinking = matchMapeo.linking || matchMapeo.vinculacion;
-      }
-    }
-
-    // 2. Buscar en plan operativo (Paso 6 o 7 del PAEC)
-    const planRows: any[] = [
-      ...(Array.isArray(p.fase2_plan_operativo) ? p.fase2_plan_operativo : []),
-      ...(Array.isArray(p.fase3_plan_operativo_a) ? p.fase3_plan_operativo_a : []),
-      ...(Array.isArray(p.fase3_plan_operativo_b) ? p.fase3_plan_operativo_b : []),
+    // 2. Plan operativo (Pasos 6 y 7 del PAEC; también formato legado fase2)
+    const planRows = [
+      ...flattenPlanOperativo(p.fase2_plan_operativo),
+      ...flattenPlanOperativo(p.fase3_plan_operativo_a),
+      ...flattenPlanOperativo(p.fase3_plan_operativo_b),
     ];
-
-    if (planRows.length > 0 && targetUac) {
-      const matchPlan = planRows.find((item: any) => {
-        const itemAsig = (item.asignatura || item.uacName || '').toLowerCase();
-        return itemAsig.includes(targetUac) || targetUac.includes(itemAsig);
-      });
-
-      if (matchPlan) {
-        operationalActivity = {
-          actividad: matchPlan.actividad || matchPlan.macroActivities || '',
-          semana: matchPlan.semana ? `Semana ${matchPlan.semana}` : matchPlan.periodo || undefined,
-          fase: matchPlan.fase || undefined,
-          estrategiaDidactica: matchPlan.estrategiaDidactica || undefined,
-          propositoFormativo: matchPlan.propositoFormativo || undefined,
-          progresion: matchPlan.progresion || undefined,
-          isPrescheduled: true,
-        };
-      }
-    }
+    const operationalActivity = matchOperationalActivity(planRows, targetUac);
 
     return {
       found: true,
-      projectId: p.id,
-      projectName: p.project_name,
-      problemStatement: p.problem_statement,
-      cycleType: p.cycle_type,
+      projectId: str(p.id),
+      projectName: str(p.project_name),
+      problemStatement: str(p.problem_statement),
+      cycleType: str(p.cycle_type),
       schoolName,
       municipality,
       cct: foundCct,
