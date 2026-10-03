@@ -59,7 +59,15 @@ describe('B2: Chunking, Reintentos y Checkpoints en Pasos 8 y 9 de PAEC', () => 
     fase3_plan_operativo_b: [{ uacName: 'Lengua y Comunicación', semestre: '2' }],
     fase3_implementacion: null,
     fase4_gobernanza_e_informe: null,
-    school_context: { cct: '21EBH0004Z' },
+    school_context: {
+      cct: '21EBH0004Z',
+      comite: {
+        directivo: 'Prof. Carlos Mendoza',
+        docentes: 'Mtra. Elena Vázquez, Profr. Miguel Ángel',
+        estudiantes: 'Sofía López, Daniel Ortiz',
+        padres: 'Sra. Carmen Morales',
+      },
+    },
   };
 
   const block1Response = JSON.stringify({

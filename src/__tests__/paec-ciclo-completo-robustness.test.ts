@@ -74,6 +74,12 @@ describe('B6: Suite de Integración y Robustez para Ciclo Completo PAEC (B1-B5)'
         promEficienciaZona: 82.1,
         problematicasComunesZona: ['Rezago en lectoescritura', 'Déficit en infraestructura'],
       },
+      comite: {
+        directivo: 'Mtra. Elena Vázquez',
+        docentes: 'Mtra. Lucía P., Profr. Armando S.',
+        estudiantes: 'Mateo R., Valeria C.',
+        padres: 'Sr. Fernando Castillo',
+      },
     },
     fase1_diagnostico: null,
     fase2_justificacion: null,
