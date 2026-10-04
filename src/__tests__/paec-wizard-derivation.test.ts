@@ -8,6 +8,8 @@ import {
   FFE_CONTINUIDAD_5_A_6,
   obtenerFfeSemestre6,
   areGroupTrackConfigsEqual,
+  deriveSelectedLaboralUacs,
+  deriveSelectedFfeUacs,
 } from '@/lib/escuela-grupos';
 import {
   getMissingStep1Fields,
@@ -260,6 +262,75 @@ describe('F-A08: Verificación de Derivación Curricular e Invariantes del Wizar
       expect(mergedSchool.schoolName).toBe('Bachillerato Oficial Lázaro Cárdenas');
     });
   });
+
+  // Test 6: Derivación Resiliente y Fallback de UACs Laborales y FFE (F-R3-03 / F-R4-05)
+  describe('Test 6: Derivación Resiliente y Fallback de UACs Laborales y FFE (F-R3-03 / F-R4-05)', () => {
+    const adminUacs = [
+      'Entrega recursos materiales a otras áreas de una organización',
+      'Organiza recursos materiales a solicitud de un superior',
+      'Captura información solicitada por un superior',
+      'Registra entrada y salida del personal de una organización',
+      'Aplica encuesta de clima laboral',
+      'Registra el desarrollo de eventos',
+      'Aplica cuestionario de evaluación del desempeño',
+      'Controla expedientes del personal',
+    ];
+
+    const contaUacs = [
+      'Elabora pólizas de ingresos, egresos y diario',
+      'Registra operaciones en libros de contabilidad',
+      'Formula estados financieros básicos',
+      'Elabora conciliaciones bancarias',
+    ];
+
+    it('retorna 100% de UACs asignadas si la selección customizada está vacía (por defecto)', () => {
+      const derived = deriveSelectedLaboralUacs(adminUacs, []);
+      expect(derived).toEqual(adminUacs);
+      expect(derived).toHaveLength(8);
+    });
+
+    it('retorna exactamente el subconjunto interactivo elegido por el docente en Multi-PAEC', () => {
+      const customSelection = [
+        'Entrega recursos materiales a otras áreas de una organización',
+        'Organiza recursos materiales a solicitud de un superior',
+      ];
+      const derived = deriveSelectedLaboralUacs(adminUacs, customSelection);
+      expect(derived).toEqual(customSelection);
+      expect(derived).toHaveLength(2);
+    });
+
+    it('aplica fallback automático al 100% si el usuario cambia de capacitación y la selección previa queda desfasada', () => {
+      // El usuario tenía seleccionadas materias de Contabilidad, pero ahora el grupo se configuró con Administración
+      const staleContaSelection = [...contaUacs];
+
+      // Al no haber intersección con las UACs asignadas de Administración, aplica fallback a todas las de Administración
+      const derived = deriveSelectedLaboralUacs(adminUacs, staleContaSelection);
+      expect(derived).toEqual(adminUacs);
+      expect(derived).toHaveLength(8);
+    });
+
+    it('retorna arreglo vacío si no existen formaciones laborales asignadas en ningún grupo', () => {
+      const derived = deriveSelectedLaboralUacs([], ['Cualquier UAC']);
+      expect(derived).toEqual([]);
+    });
+
+    it('deriva FFE con idéntica resiliencia ante selecciones vacías o desfasadas', () => {
+      const ffeUacs = ['Inglés V', 'Inglés VI', 'Dibujo Técnico I', 'Dibujo Técnico II'];
+      
+      // Vacía -> 100%
+      expect(deriveSelectedFfeUacs(ffeUacs, [])).toEqual(ffeUacs);
+
+      // Selección válida
+      expect(deriveSelectedFfeUacs(ffeUacs, ['Inglés V'])).toEqual(['Inglés V']);
+
+      // Selección obsoleta sin intersección -> fallback al 100%
+      expect(deriveSelectedFfeUacs(ffeUacs, ['Biología Molecular'])).toEqual(ffeUacs);
+
+      // Sin asignaciones -> []
+      expect(deriveSelectedFfeUacs([], ['Inglés V'])).toEqual([]);
+    });
+  });
 });
+
 
 

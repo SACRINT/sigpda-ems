@@ -1193,5 +1193,34 @@ export function toggleGroupFfeSubject(
   });
 }
 
+/**
+ * Deriva de forma resiliente la lista de UACs laborales seleccionadas para el padrón (F-R3-03 / F-R4-05).
+ * Si la selección customizada queda vacía o no intersecta tras un cambio de capacitación, aplica fallback al 100% de UACs asignadas.
+ */
+export function deriveSelectedLaboralUacs(
+  allAssignedLaboralUacs: string[],
+  selectedLaboralCustom: string[]
+): string[] {
+  if (allAssignedLaboralUacs.length === 0) return [];
+  if (selectedLaboralCustom.length === 0) return allAssignedLaboralUacs;
+  const filtered = allAssignedLaboralUacs.filter(u => selectedLaboralCustom.includes(u));
+  return filtered.length > 0 ? filtered : allAssignedLaboralUacs;
+}
+
+/**
+ * Deriva de forma resiliente la lista de UACs de Formación Fundamental Extendida seleccionadas para el padrón (F-R3-03 / F-R4-05).
+ * Si la selección customizada queda vacía o no intersecta tras un cambio, aplica fallback al 100% de UACs FFE asignadas.
+ */
+export function deriveSelectedFfeUacs(
+  allAssignedFfeUacs: string[],
+  selectedFfeCustom: string[]
+): string[] {
+  if (allAssignedFfeUacs.length === 0) return [];
+  if (selectedFfeCustom.length === 0) return allAssignedFfeUacs;
+  const filtered = allAssignedFfeUacs.filter(u => selectedFfeCustom.includes(u));
+  return filtered.length > 0 ? filtered : allAssignedFfeUacs;
+}
+
+
 
 

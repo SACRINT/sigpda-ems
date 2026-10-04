@@ -28,6 +28,8 @@ import {
   obtenerFfeSemestre6,
   areGroupTrackConfigsEqual,
   toggleGroupFfeSubject,
+  deriveSelectedLaboralUacs,
+  deriveSelectedFfeUacs,
 } from '@/lib/escuela-grupos';
 import { UACS_LABORALES_OFICIALES_BGE } from '@/lib/capacitaciones-data';
 import { loadCarrerasTecnicas, type BTCarrera } from '@/lib/bt-carreras-catalog';
@@ -642,11 +644,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
 
   // UACs laborales seleccionadas para este proyecto PAEC específico (Soporte Multi-PAEC)
   const selectedLaboral = useMemo(() => {
-    if (selectedLaboralCustom.length === 0) {
-      return allAssignedLaboralUacs;
-    }
-    const filtered = allAssignedLaboralUacs.filter(u => selectedLaboralCustom.includes(u));
-    return filtered.length > 0 ? filtered : allAssignedLaboralUacs;
+    return deriveSelectedLaboralUacs(allAssignedLaboralUacs, selectedLaboralCustom);
   }, [allAssignedLaboralUacs, selectedLaboralCustom]);
 
   // Todas las UACs FFE derivadas de las selecciones de grupos
@@ -670,11 +668,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
 
   // UACs FFE seleccionadas para este proyecto PAEC específico (Soporte Multi-PAEC)
   const selectedFfe = useMemo(() => {
-    if (selectedFfeCustom.length === 0) {
-      return allAssignedFfeUacs;
-    }
-    const filtered = allAssignedFfeUacs.filter(u => selectedFfeCustom.includes(u));
-    return filtered.length > 0 ? filtered : allAssignedFfeUacs;
+    return deriveSelectedFfeUacs(allAssignedFfeUacs, selectedFfeCustom);
   }, [allAssignedFfeUacs, selectedFfeCustom]);
 
   const [expandedGroupFfe, setExpandedGroupFfe] = useState<Record<string, boolean>>({});
