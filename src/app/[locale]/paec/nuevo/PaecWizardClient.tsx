@@ -790,8 +790,6 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
             : ffeList.filter(s => FFE_PAIRS.some(p => p.name5 === s));
           return {
             ...g,
-            trackId: 'custom',
-            trackName: 'Personalizado',
             ffeSelections: relevant.length > 0 ? relevant : ffeList.slice(0, 4),
           };
         }
@@ -880,8 +878,8 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                 groupId: gId,
                 groupName: gName,
                 semester: sem,
-                trackId: (sem === 3 || sem === 4) ? defaultTrack : (fallbackFfe.length > 0 ? 'custom' : ''),
-                trackName: (sem === 3 || sem === 4) ? defaultTrack : (fallbackFfe.length > 0 ? 'Personalizado' : ''),
+                trackId: (sem === 3 || sem === 4) ? defaultTrack : '',
+                trackName: (sem === 3 || sem === 4) ? defaultTrack : '',
                 ffeSelections: fallbackFfe,
               });
             }
@@ -1074,8 +1072,6 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                 : activeFfe.filter(s => FFE_PAIRS.some(p => p.name5 === s));
               updated = {
                 ...updated,
-                trackId: updated.trackId || 'custom',
-                trackName: updated.trackName || 'Personalizado',
                 ffeSelections: relevant.length > 0 ? relevant : activeFfe.slice(0, 4),
               };
             }
@@ -2178,7 +2174,9 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                                   {matching5th && (
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#a5b4fc', background: 'rgba(99,102,241,0.12)', padding: '4px 10px', borderRadius: '4px', border: '1px solid rgba(99,102,241,0.3)' }}>
                                       <span>🔗 Vinculado a {matching5th.groupName}</span>
-                                      <span style={{ color: '#cbd5e1', fontWeight: 500 }}>({matching5th.trackName || 'Personalizado'})</span>
+                                      {(matching5th.ffeSelections && matching5th.ffeSelections.length > 0) && (
+                                        <span style={{ color: '#cbd5e1', fontWeight: 500 }}>({matching5th.ffeSelections.length} FFE)</span>
+                                      )}
                                     </div>
                                   )}
                                 </div>
@@ -2212,16 +2210,12 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                                                 if (g.groupId === grp.groupId) {
                                                   return {
                                                     ...g,
-                                                    trackId: 'custom',
-                                                    trackName: 'Personalizado',
                                                     ffeSelections: (g.ffeSelections || []).filter(s => s !== subj),
                                                   };
                                                 }
                                                 if (grp.semester === 5 && (g.groupId === matching6thId || (g.semester === 6 && g.groupName.endsWith(groupLetter)))) {
                                                   return {
                                                     ...g,
-                                                    trackId: 'custom',
-                                                    trackName: 'Personalizado',
                                                     ffeSelections: (g.ffeSelections || []).filter(s => s !== subj6),
                                                   };
                                                 }
@@ -2278,9 +2272,9 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                                           type="button"
                                           onClick={() => {
                                             setGroupAssignments(prev => prev.map(g => {
-                                              if (g.groupId === grp.groupId) return { ...g, trackId: '', trackName: '', ffeSelections: [] };
+                                              if (g.groupId === grp.groupId) return { ...g, ffeSelections: [] };
                                               if (grp.semester === 5 && (g.groupId === matching6thId || (g.semester === 6 && g.groupName.endsWith(groupLetter)))) {
-                                                return { ...g, trackId: '', trackName: '', ffeSelections: [] };
+                                                return { ...g, ffeSelections: [] };
                                               }
                                               return g;
                                             }));
@@ -2313,8 +2307,6 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                                                         const next = isChecked ? current.filter(s => s !== subjectName) : [...current, subjectName];
                                                         return {
                                                           ...g,
-                                                          trackId: 'custom',
-                                                          trackName: 'Personalizado',
                                                           ffeSelections: next,
                                                         };
                                                       }
@@ -2323,8 +2315,6 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                                                         const next6 = isChecked ? current6.filter(s => s !== subj6) : [...current6, subj6];
                                                         return {
                                                           ...g,
-                                                          trackId: 'custom',
-                                                          trackName: 'Personalizado',
                                                           ffeSelections: next6,
                                                         };
                                                       }
@@ -2362,8 +2352,6 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                                                         const next = isChecked ? current.filter(s => s !== subjectName) : [...current, subjectName];
                                                         return {
                                                           ...g,
-                                                          trackId: 'custom',
-                                                          trackName: 'Personalizado',
                                                           ffeSelections: next,
                                                         };
                                                       }
@@ -2372,8 +2360,6 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                                                         const next6 = isChecked ? current6.filter(s => s !== subj6) : [...current6, subj6];
                                                         return {
                                                           ...g,
-                                                          trackId: 'custom',
-                                                          trackName: 'Personalizado',
                                                           ffeSelections: next6,
                                                         };
                                                       }

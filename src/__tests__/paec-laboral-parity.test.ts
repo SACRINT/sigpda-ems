@@ -216,5 +216,64 @@ describe('PAEC H-02 & H-03: Paridad Curricular Laboral y Validación de Paso 1',
     expect(ffeConsolidadas).toHaveLength(2);
     expect(ffeConsolidadas.map(u => u.uacName).sort()).toEqual(subconjuntoFfe.sort());
   });
+
+  it('F-R3-01: Preservación de capacitación laboral en 5° y 6° al asignar y modificar asignaturas FFE', () => {
+    const track5 = 'Tecnología Informática';
+    const group5: GroupTrackConfig = {
+      groupId: '5-A',
+      groupName: '5° A',
+      semester: 5,
+      trackId: track5,
+      trackName: track5,
+      ffeSelections: [],
+    };
+    const group6: GroupTrackConfig = {
+      groupId: '6-A',
+      groupName: '6° A',
+      semester: 6,
+      trackId: track5,
+      trackName: track5,
+      ffeSelections: [],
+    };
+
+    // Simular que el usuario selecciona asignaturas FFE para 5° y 6°
+    const updatedGroup5: GroupTrackConfig = {
+      ...group5,
+      ffeSelections: ['Inglés V', 'Dibujo Técnico I'],
+    };
+    const updatedGroup6: GroupTrackConfig = {
+      ...group6,
+      ffeSelections: ['Inglés VI', 'Dibujo Técnico II'],
+    };
+
+    // Verificar invariantes: trackId y trackName DEBEN conservar la capacitación laboral y NO ser 'Personalizado'
+    expect(updatedGroup5.trackName).toBe(track5);
+    expect(updatedGroup5.trackId).toBe(track5);
+    expect(updatedGroup6.trackName).toBe(track5);
+    expect(updatedGroup6.trackId).toBe(track5);
+
+    // Consolidación en el padrón curricular
+    const uniqueUacs = consolidarUacsUnicasPlantel({
+      semesters: [5, 6],
+      schoolType: 'general',
+      groupAssignments: [updatedGroup5, updatedGroup6],
+    });
+
+    const laboralConsolidadas = uniqueUacs.filter(u => u.component === 'laboral');
+    const ffeConsolidadas = uniqueUacs.filter(u => u.component === 'ffe');
+
+    // Debe incluir las 4 UACs laborales de Tecnología Informática en semestres 5° y 6°
+    expect(laboralConsolidadas).toHaveLength(4);
+    expect(laboralConsolidadas.every(u => u.originTrack === track5)).toBe(true);
+
+    // Y además debe incluir las UACs de FFE seleccionadas
+    expect(ffeConsolidadas.map(u => u.uacName).sort()).toEqual([
+      'Dibujo Técnico I',
+      'Dibujo Técnico II',
+      'Inglés V',
+      'Inglés VI',
+    ]);
+  });
 });
+
 
