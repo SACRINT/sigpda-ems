@@ -788,17 +788,26 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
     setGroupAssignments(nextGroups);
     setShowPaecReviewModal(false);
 
-    // Derivar de nextGroups si efectivamente quedan cubiertas las asignaciones laborales y FFE
-    const hasAssignedLaboral = nextGroups.some(
-      g => (g.semester === 3 || g.semester === 4) && Boolean(g.trackName && g.trackName.trim())
-    );
-    const hasAssignedFfe = nextGroups.some(
-      g => (g.semester === 5 || g.semester === 6) && Array.isArray(g.ffeSelections) && g.ffeSelections.length > 0
-    );
+    // Derivar dinámicamente de nextGroups el conteo real de UACs laborales y FFE (F-R3-08)
+    const derivedLaboralUacs = new Set<string>();
+    for (const g of nextGroups) {
+      if ((g.semester === 3 || g.semester === 4 || g.semester === 5 || g.semester === 6) && g.trackName) {
+        const uacs = UACS_LABORALES_OFICIALES_BGE[g.trackName]?.[g.semester] || [];
+        for (const u of uacs) derivedLaboralUacs.add(u);
+      }
+    }
+    const derivedFfeUacs = new Set<string>();
+    for (const g of nextGroups) {
+      if (g.semester === 5 || g.semester === 6) {
+        if (Array.isArray(g.ffeSelections)) {
+          for (const u of g.ffeSelections) derivedFfeUacs.add(u);
+        }
+      }
+    }
 
     const effectiveIsTecnico = (parsedPaecData.schoolType || schoolType) === 'tecnico';
-    const effectiveLaboralCount = hasAssignedLaboral ? 8 : 0;
-    const effectiveFfeCount = hasAssignedFfe ? 4 : 0;
+    const effectiveLaboralCount = derivedLaboralUacs.size;
+    const effectiveFfeCount = derivedFfeUacs.size;
 
     const missing = getMissingStep1Fields({
       projectName: parsedPaecData.projectName || projectName,
