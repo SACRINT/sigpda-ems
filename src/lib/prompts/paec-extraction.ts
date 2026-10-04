@@ -126,7 +126,7 @@ Estructura la información en el siguiente esquema JSON exacto:
   "projectName": "Nombre o título oficial del Proyecto Aula Escuela Comunidad",
   "problemStatement": "Descripción o planteamiento central de la problemática socioeducativa o comunitaria atendida",
   "cycleType": "A | B | annual (según el semestre o ciclo: 'A' para semestres impares 1,3,5; 'B' para pares 2,4,6; 'annual' si abarca ambos)",
-  "schoolType": "general | tecnico | telesecundaria | indigena",
+  "schoolType": "general | tecnico | telebachillerato",
   "school": {
     "schoolName": "Nombre oficial del plantel o bachillerato",
     "cct": "Clave de Centro de Trabajo (ej. 21EBH0001A)",
