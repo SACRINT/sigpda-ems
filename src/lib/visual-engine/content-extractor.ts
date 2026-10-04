@@ -774,6 +774,11 @@ export function sanitizeWorkbookNarratives(wb: ActiveWorkTextbook): ActiveWorkTe
     return arr.map(cleanReq).filter((s) => s.length > 0);
   };
 
+  const cleanCode = (code: string | null | undefined): string => {
+    if (!code) return '';
+    return stripWorkbookTags(code).replace(/<!--[\s\S]*?-->/g, '').trim();
+  };
+
   const cleanWorkbookElements = (
     elements: unknown[] | null | undefined
   ): MissionSection['weDoSection']['workbookElements'] => {
@@ -790,7 +795,7 @@ export function sanitizeWorkbookNarratives(wb: ActiveWorkTextbook): ActiveWorkTe
               ...cfg,
               checkboxes: Array.isArray(cfg.checkboxes) ? cfg.checkboxes.map(cleanReq).filter((s) => s.length > 0) : cfg.checkboxes,
               cols: Array.isArray(cfg.cols) ? cfg.cols.map(cleanReq).filter((s) => s.length > 0) : cfg.cols,
-              initialCode: typeof cfg.initialCode === 'string' ? cleanReq(cfg.initialCode) : cfg.initialCode,
+              initialCode: typeof cfg.initialCode === 'string' ? cleanCode(cfg.initialCode) : cfg.initialCode,
             }
           : el.config,
       } as unknown as MissionSection['weDoSection']['workbookElements'][number];
