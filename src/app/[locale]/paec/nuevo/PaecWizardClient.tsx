@@ -43,7 +43,11 @@ import {
 import { PaecStepQualityAuditBadge } from '@/components/paec/PaecStepQualityAuditBadge';
 import PaecWizardLegacy from './legacy/PaecWizardLegacy';
 import { useAssistant } from '@/components/assistant';
-
+import {
+  type PaecPreviousExtractDTO,
+  mapParsedCommunityToState,
+  getMissingStep1Fields,
+} from '@/lib/prompts/paec-extraction';
 
 const PAEC_DRAFT_KEY = 'didactica_paec_draft';
 
@@ -570,27 +574,6 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
     return obtenerFundamentalesPorSemestres(sems);
   }, [cycleType]);
 
-  interface PaecPreviousExtractDTO {
-    projectName?: string;
-    problemStatement?: string;
-    cycleType?: 'A' | 'B' | 'annual';
-    schoolType?: SchoolType;
-    school?: {
-      schoolName?: string;
-      cct?: string;
-      directorName?: string;
-      municipality?: string;
-      [key: string]: unknown;
-    };
-    community?: {
-      context?: string;
-      [key: string]: unknown;
-    };
-    diagnosticoGeneral?: string;
-    resumenFase1?: string;
-    [key: string]: unknown;
-  }
-
   // Carga inteligente de PAEC anterior (PDF/Word)
   const fileInputPaecRef = useRef<HTMLInputElement>(null);
   const [uploadingPaec, setUploadingPaec] = useState(false);
@@ -630,20 +613,23 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
     if (parsedPaecData.projectName) setProjectName(parsedPaecData.projectName);
     if (parsedPaecData.problemStatement) setProblemStatement(parsedPaecData.problemStatement);
     if (parsedPaecData.cycleType) setCycleType(parsedPaecData.cycleType);
-    if (parsedPaecData.schoolType) setSchoolType(parsedPaecData.schoolType);
-
-    if (parsedPaecData.school) {
-      setSchool(prev => ({
-        ...prev,
-        ...parsedPaecData.school,
-      }));
+    if (parsedPaecData.schoolType === 'general' || parsedPaecData.schoolType === 'tecnico' || parsedPaecData.schoolType === 'telebachillerato') {
+      setSchoolType(parsedPaecData.schoolType);
     }
 
+    let nextSchool = school;
+    if (parsedPaecData.school) {
+      nextSchool = {
+        ...school,
+        ...parsedPaecData.school,
+      };
+      setSchool(nextSchool);
+    }
+
+    let nextCommunity = community;
     if (parsedPaecData.community) {
-      setCommunity(prev => ({
-        ...prev,
-        ...parsedPaecData.community,
-      }));
+      nextCommunity = mapParsedCommunityToState(parsedPaecData.community, community);
+      setCommunity(nextCommunity);
     }
 
     if (Array.isArray(parsedPaecData.selectedLaboral) && parsedPaecData.selectedLaboral.length > 0) {
@@ -655,7 +641,21 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
     }
 
     setShowPaecReviewModal(false);
-    setPaecSuccessBanner('✓ Datos del PAEC anterior extraídos y aplicados exitosamente.');
+
+    const missing = getMissingStep1Fields({
+      projectName: parsedPaecData.projectName || projectName,
+      problemStatement: parsedPaecData.problemStatement || problemStatement,
+      community: nextCommunity,
+      school: nextSchool,
+    });
+
+    if (missing.length > 0) {
+      setPaecSuccessBanner(
+        `✓ Datos del PAEC anterior extraídos y aplicados. Por favor completa los campos obligatorios pendientes (*): ${missing.join(', ')}.`
+      );
+    } else {
+      setPaecSuccessBanner('✓ Datos del PAEC anterior extraídos y aplicados exitosamente. Todos los campos obligatorios del Paso 1 están completos.');
+    }
   };
 
   useEffect(() => {

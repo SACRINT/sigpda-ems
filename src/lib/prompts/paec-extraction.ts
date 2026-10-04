@@ -10,7 +10,7 @@ export const PaecPreviousExtractSchema = z.object({
   projectName: nullableString(),
   problemStatement: nullableString(),
   cycleType: z.enum(['A', 'B', 'annual']).catch('A'),
-  schoolType: z.enum(['general', 'tecnico', 'telesecundaria', 'indigena']).catch('general'),
+  schoolType: z.enum(['general', 'tecnico', 'telebachillerato']).catch('general'),
   school: z.object({
     schoolName: nullableString(),
     cct: nullableString(),
@@ -23,9 +23,14 @@ export const PaecPreviousExtractSchema = z.object({
   community: z.object({
     context: nullableString(),
     location: nullableString(),
+    demographics: nullableString(),
     problematics: nullableString(),
+    economy: nullableString(),
     economicActivities: nullableString(),
+    traditions: nullableString(),
     culturalAspects: nullableString(),
+    security: nullableString(),
+    environment: nullableString(),
   }).partial().optional().default({}),
   selectedLaboral: z.array(z.string()).optional().default([]),
   selectedFfe: z.array(z.string()).optional().default([]),
@@ -38,6 +43,54 @@ export const PaecPreviousExtractSchema = z.object({
 });
 
 export type PaecPreviousExtractDTO = z.infer<typeof PaecPreviousExtractSchema>;
+
+export interface MappedCommunityState {
+  location?: string;
+  demographics?: string;
+  economy?: string;
+  traditions?: string;
+  security?: string;
+  environment?: string;
+}
+
+/**
+ * Mapea las claves extraídas del PAEC anterior al estado del formulario de la comunidad,
+ * resolviendo aliases como context -> demographics, economicActivities -> economy y culturalAspects -> traditions.
+ */
+export function mapParsedCommunityToState(
+  extracted: PaecPreviousExtractDTO['community'] | undefined,
+  current: MappedCommunityState
+): MappedCommunityState {
+  if (!extracted) return current;
+  return {
+    location: extracted.location?.trim() || current.location || '',
+    demographics: extracted.demographics?.trim() || extracted.context?.trim() || current.demographics || '',
+    economy: extracted.economy?.trim() || extracted.economicActivities?.trim() || current.economy || '',
+    traditions: extracted.traditions?.trim() || extracted.culturalAspects?.trim() || current.traditions || '',
+    environment: extracted.environment?.trim() || current.environment || '',
+    security: extracted.security?.trim() || current.security || '',
+  };
+}
+
+/**
+ * Identifica los campos obligatorios del Paso 1 (isStep1Valid) que quedan sin completar
+ */
+export function getMissingStep1Fields(params: {
+  projectName?: string | null;
+  problemStatement?: string | null;
+  community: MappedCommunityState;
+  school: { enrollment?: string | null; teacherCount?: string | null };
+}): string[] {
+  const missing: string[] = [];
+  if (!params.projectName?.trim()) missing.push('Nombre del Proyecto');
+  if (!params.problemStatement?.trim()) missing.push('Problemática Central');
+  if (!params.community.location?.trim()) missing.push('Ubicación Geográfica');
+  if (!params.community.demographics?.trim()) missing.push('Situación Demográfica');
+  if (!params.community.economy?.trim()) missing.push('Actividades Socioeconómicas');
+  if (!params.school.enrollment?.trim()) missing.push('Matrícula Estudiantil');
+  if (!params.school.teacherCount?.trim()) missing.push('Plantilla Docente');
+  return missing;
+}
 
 export const PAEC_EXTRACTION_SYSTEM_PROMPT = `Eres un auditor y especialista educativo experto en el Proyecto Aula Escuela Comunidad (PAEC) de la Educación Media Superior en México (MCCEMS / NEM).
 Tu objetivo es analizar textos extraídos de documentos previos del PAEC (PDFs o archivos Word) y estructurar con precisión todos los datos encontrados.
