@@ -50,6 +50,7 @@ import {
   type PaecPreviousExtractDTO,
   mapParsedCommunityToState,
   getMissingStep1Fields,
+  sanitizeSchoolUpdates,
 } from '@/lib/prompts/paec-extraction';
 
 const PAEC_DRAFT_KEY = 'didactica_paec_draft';
@@ -735,11 +736,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
 
     let nextSchool = school;
     if (parsedPaecData.school) {
-      const cleanSchoolUpdates = Object.fromEntries(
-        Object.entries(parsedPaecData.school).filter(
-          ([, val]) => val !== undefined && val !== null && String(val).trim() !== ''
-        )
-      );
+      const cleanSchoolUpdates = sanitizeSchoolUpdates(parsedPaecData.school);
       nextSchool = {
         ...school,
         ...cleanSchoolUpdates,

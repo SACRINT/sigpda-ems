@@ -15,6 +15,7 @@ import {
   buildPaecChunkExtractionPrompt,
   partitionPaecDocument,
   mergePaecExtracts,
+  sanitizeSchoolUpdates,
 } from '@/lib/prompts/paec-extraction';
 import type { GroupTrackConfig } from '@/types/paec';
 
@@ -222,8 +223,8 @@ describe('F-A08: Verificación de Derivación Curricular e Invariantes del Wizar
     });
   });
 
-  // Test 5: Sanitización de metadatos escolares ante extracciones con strings vacíos (F-R3-05)
-  describe('Test 5: Preservación de Matrícula y Plantilla ante Extracciones Vacías (F-R3-05)', () => {
+  // Test 5: Sanitización de metadatos escolares ante extracciones con strings vacíos (F-R3-05 / F-R4-02)
+  describe('Test 5: Preservación de Matrícula y Plantilla ante Extracciones Vacías (F-R3-05 / F-R4-02)', () => {
     it('ignora strings vacíos y valores nulos para no sobrescribir matrícula de 911/F11 preexistente', () => {
       const existingSchool = {
         cct: '21EBH0001A',
@@ -240,11 +241,13 @@ describe('F-A08: Verificación de Derivación Curricular e Invariantes del Wizar
         teacherCount: '   ', // espacios en blanco
       };
 
-      const cleanSchoolUpdates = Object.fromEntries(
-        Object.entries(parsedSchoolAI).filter(
-          ([, val]) => val !== undefined && val !== null && String(val).trim() !== ''
-        )
-      );
+      // Invocación directa a la función pura de producción
+      const cleanSchoolUpdates = sanitizeSchoolUpdates(parsedSchoolAI);
+
+      expect(cleanSchoolUpdates.enrollment).toBeUndefined();
+      expect(cleanSchoolUpdates.teacherCount).toBeUndefined();
+      expect(cleanSchoolUpdates.cct).toBeUndefined();
+      expect(cleanSchoolUpdates.schoolName).toBe('Bachillerato Oficial Lázaro Cárdenas');
 
       const mergedSchool = {
         ...existingSchool,

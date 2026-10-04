@@ -111,6 +111,21 @@ export function getMissingStep1Fields(params: {
   return missing;
 }
 
+/**
+ * Sanitiza las actualizaciones de datos escolares descartando valores vacíos, nulos o no definidos,
+ * garantizando que metadatos preexistentes (CCT, matrícula de 911/F11, plantilla) no se sobrescriban (F-R3-05 / F-R4-02).
+ */
+export function sanitizeSchoolUpdates(
+  updates: Record<string, string | number | undefined | null> | undefined | null
+): Record<string, string> {
+  if (!updates || typeof updates !== 'object') return {};
+  return Object.fromEntries(
+    Object.entries(updates)
+      .filter(([, val]) => val !== undefined && val !== null && String(val).trim() !== '')
+      .map(([k, val]) => [k, String(val).trim()])
+  );
+}
+
 export const PAEC_EXTRACTION_SYSTEM_PROMPT = `Eres un auditor y especialista educativo experto en el Proyecto Aula Escuela Comunidad (PAEC) de la Educación Media Superior en México (MCCEMS / NEM).
 Tu objetivo es analizar textos extraídos de documentos previos del PAEC (PDFs o archivos Word) y estructurar con precisión todos los datos encontrados.
 Debes responder EXCLUSIVAMENTE con un objeto JSON válido, sin bloques de código markdown, explicaciones ni comentarios.`;
