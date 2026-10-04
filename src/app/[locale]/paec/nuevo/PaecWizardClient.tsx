@@ -668,6 +668,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
   const [parsedPaecData, setParsedPaecData] = useState<PaecPreviousExtractDTO | null>(null);
   const [showPaecReviewModal, setShowPaecReviewModal] = useState(false);
   const [paecSuccessBanner, setPaecSuccessBanner] = useState<string | null>(null);
+  const [paecWarnings, setPaecWarnings] = useState<string[]>([]);
 
   const handleUploadPreviousPaec = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -686,6 +687,11 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
         throw new Error(json.error || 'Error al analizar el PAEC anterior.');
       }
       setParsedPaecData(json.data as PaecPreviousExtractDTO);
+      if (Array.isArray(json.warnings) && json.warnings.length > 0) {
+        setPaecWarnings(json.warnings);
+      } else {
+        setPaecWarnings([]);
+      }
       setShowPaecReviewModal(true);
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : 'No se pudo procesar el documento anterior.';
@@ -1399,6 +1405,27 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
               type="button"
               onClick={() => setPaecSuccessBanner(null)}
               style={{ background: 'none', border: 'none', color: '#6ee7b7', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' }}
+            >
+              ×
+            </button>
+          </div>
+        )}
+
+        {paecWarnings.length > 0 && (
+          <div style={{ marginBottom: '18px', padding: '12px 16px', borderRadius: '8px', background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.35)', color: '#fbbf24', fontSize: '12.5px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <span style={{ fontWeight: 700 }}>⚠️ Advertencias de extracción del PAEC anterior:</span>
+              <ul style={{ margin: '4px 0 0', paddingLeft: '18px' }}>
+                {paecWarnings.map((w, idx) => (
+                  <li key={idx}>{w}</li>
+                ))}
+              </ul>
+            </div>
+            <button
+              type="button"
+              onClick={() => setPaecWarnings([])}
+              style={{ background: 'none', border: 'none', color: '#fcd34d', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' }}
+              title="Cerrar advertencias"
             >
               ×
             </button>
@@ -2667,6 +2694,17 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                   ×
                 </button>
               </div>
+
+              {paecWarnings.length > 0 && (
+                <div style={{ marginBottom: '16px', padding: '10px 14px', borderRadius: '8px', background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.4)', color: '#fbbf24', fontSize: '12px' }}>
+                  <div style={{ fontWeight: 700, marginBottom: '4px' }}>⚠️ Advertencias de extracción:</div>
+                  <ul style={{ margin: 0, paddingLeft: '18px' }}>
+                    {paecWarnings.map((w, idx) => (
+                      <li key={idx}>{w}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {/* Proyecto y Problemática */}
               <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '10px', padding: '14px', marginBottom: '14px', border: '1px solid rgba(255,255,255,0.06)' }}>
