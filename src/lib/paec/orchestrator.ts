@@ -159,11 +159,18 @@ export class PaecOrchestrator implements IPaecOrchestrator {
       );
     }
 
+    const warnings = [...(parsed.warnings || [])];
+    if (documentText.length > 75000) {
+      warnings.push(
+        `El documento original contiene ${documentText.length.toLocaleString('es-MX')} caracteres. Se procesaron los primeros 75,000 caracteres prioritarios que abarcan portada, diagnóstico comunitario y mapa curricular.`
+      );
+    }
+
     return {
       success: true,
       filename: options.filename,
       data: parsed.data,
-      warnings: parsed.warnings,
+      warnings,
     };
   }
 

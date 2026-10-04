@@ -152,11 +152,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const warnings = [...(parsed.warnings || [])];
+    if (documentText.length > 75000) {
+      warnings.push(
+        `El documento original contiene ${documentText.length.toLocaleString('es-MX')} caracteres. Se procesaron los primeros 75,000 caracteres prioritarios que abarcan portada, diagnóstico comunitario y mapa curricular.`
+      );
+    }
+
     return NextResponse.json({
       success: true,
       filename: file.name,
       data: parsed.data,
-      warnings: parsed.warnings,
+      warnings,
     });
   } catch (err: unknown) {
     logger.error('[paec-parse-previous] Unhandled error:', err);

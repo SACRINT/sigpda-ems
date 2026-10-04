@@ -114,7 +114,12 @@ Tu objetivo es analizar textos extraídos de documentos previos del PAEC (PDFs o
 Debes responder EXCLUSIVAMENTE con un objeto JSON válido, sin bloques de código markdown, explicaciones ni comentarios.`;
 
 export function buildPaecExtractionPrompt(documentText: string): string {
-  return `Analiza con minuciosidad el siguiente documento correspondiente a un Proyecto Aula Escuela Comunidad (PAEC) previo y extrae la información general, comunitaria, institucional y curricular.
+  const isTruncated = documentText.length > 75000;
+  const truncationNotice = isTruncated
+    ? `\n[AVISO DE CAPACIDAD DOCUMENTAL: El texto excede la ventana de análisis individual (longitud: ${documentText.length.toLocaleString('es-MX')} caracteres). Se procesan los primeros 75,000 caracteres prioritarios que abarcan portada, diagnóstico comunitario y mapa curricular principal.]\n`
+    : '';
+
+  return `Analiza con minuciosidad el siguiente documento correspondiente a un Proyecto Aula Escuela Comunidad (PAEC) previo y extrae la información general, comunitaria, institucional y curricular.${truncationNotice}
 
 TEXTO DEL DOCUMENTO:
 """
@@ -162,4 +167,62 @@ REGLAS DE EXTRACCIÓN:
 2. Si se mencionan datos del plantel (CCT, Director, Zona, Municipio), asígnalos en el objeto "school".
 3. Si el texto detalla el diagnóstico comunitario o el contexto territorial, sintetiza con fidelidad en el objeto "community".
 4. Si un dato no se encuentra en el texto, coloca una cadena vacía "" o arreglo vacío []. NUNCA uses null ni omitas claves.`;
+}
+
+/**
+ * Genera el prompt para extraer información de un fragmento o bloque documental de PAEC (H-13).
+ * Sigue el patrón canónico de chunking estructurado empleado en PMC.
+ */
+export function buildPaecChunkExtractionPrompt(
+  chunkText: string,
+  chunkIndex: number,
+  totalChunks: number
+): string {
+  return `Analiza el siguiente fragmento (${chunkIndex + 1} de ${totalChunks}) correspondiente a un Proyecto Aula Escuela Comunidad (PAEC) previo y extrae la información general, comunitaria, institucional y curricular presente en este segmento.
+
+TEXTO DEL FRAGMENTO (${chunkIndex + 1}/${totalChunks}):
+"""
+${chunkText.slice(0, 75000)}
+"""
+
+Estructura la información en el siguiente esquema JSON exacto:
+{
+  "projectName": "Nombre o título oficial del Proyecto Aula Escuela Comunidad si se menciona en este fragmento",
+  "problemStatement": "Descripción o planteamiento central de la problemática socioeducativa o comunitaria atendida",
+  "cycleType": "A | B | annual (según el semestre o ciclo)",
+  "schoolType": "general | tecnico | telebachillerato",
+  "school": {
+    "schoolName": "Nombre oficial del plantel o bachillerato",
+    "cct": "Clave de Centro de Trabajo (ej. 21EBH0001A)",
+    "municipality": "Municipio donde se ubica",
+    "locality": "Localidad o comunidad",
+    "schoolZone": "Zona escolar (ej. 013)",
+    "directorName": "Nombre del Director(a)",
+    "supervisorName": "Nombre del Supervisor(a) escolar"
+  },
+  "community": {
+    "context": "Contexto territorial, geográfico y demográfico de la comunidad",
+    "location": "Ubicación geográfica o entorno de la comunidad",
+    "problematics": "Principales problemáticas comunitarias observadas o analizadas",
+    "economicActivities": "Actividades económicas predominantes de la comunidad",
+    "culturalAspects": "Aspectos socioculturales, tradiciones o patrimonio local"
+  },
+  "selectedLaboral": [
+    "Nombres de las capacitaciones o formaciones laborales detectadas en este fragmento"
+  ],
+  "selectedFfe": [
+    "Nombres de las asignaturas de Formación Fundamental Extendida detectadas en este fragmento"
+  ],
+  "foda": {
+    "fortalezas": "Fortalezas institucionales identificadas en el FODA",
+    "oportunidades": "Oportunidades del entorno identificadas en el FODA",
+    "debilidades": "Debilidades o carencias internas identificadas en el FODA",
+    "amenazas": "Riesgos del entorno identificados en el FODA"
+  }
+}
+
+REGLAS DE EXTRACCIÓN:
+1. Extrae únicamente los datos verificables en este fragmento.
+2. Si un dato no se encuentra en el fragmento, coloca cadena vacía "" o arreglo vacío [].
+3. Responde estrictamente con JSON válido.`;
 }
