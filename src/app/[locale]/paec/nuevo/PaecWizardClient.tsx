@@ -1993,6 +1993,9 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                       const isLaboralSem = grp.semester === 3 || grp.semester === 4;
                       const isFfeSem = grp.semester === 5 || grp.semester === 6;
                       const groupLetter = grp.groupName.split(' ')[1] || grp.groupId.split('-')[1];
+                      const matching3rd = grp.semester === 4
+                        ? groupAssignments.find(g => g.semester === 3 && (g.groupId === `3-${groupLetter}` || g.groupName.endsWith(groupLetter)))
+                        : null;
                       const matching5th = grp.semester === 6
                         ? groupAssignments.find(g => g.semester === 5 && (g.groupId === `5-${groupLetter}` || g.groupName.endsWith(groupLetter)))
                         : null;
@@ -2040,7 +2043,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                                 <label style={{ display: 'block', fontWeight: 600, fontSize: '11.5px', color: '#818cf8', marginBottom: '2px' }}>
                                   Formación Laboral (3°-4°)
                                 </label>
-                                {grp.semester === 3 ? (
+                                {grp.semester === 3 || !matching3rd ? (
                                   <select
                                     value={grp.trackName || ''}
                                     onChange={(e) => {
@@ -2050,7 +2053,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                                           if (g.groupId === grp.groupId) {
                                             return { ...g, trackId: val, trackName: val };
                                           }
-                                          if (g.semester === 4 && (g.groupId === `4-${groupLetter}` || g.groupName.endsWith(groupLetter))) {
+                                          if (grp.semester === 3 && g.semester === 4 && (g.groupId === `4-${groupLetter}` || g.groupName.endsWith(groupLetter))) {
                                             return { ...g, trackId: val, trackName: val };
                                           }
                                           return g;
@@ -2114,7 +2117,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                                 <label style={{ display: 'block', fontWeight: 600, fontSize: '11.5px', color: '#818cf8', marginBottom: '4px' }}>
                                   Formación Laboral (5°-6°)
                                 </label>
-                                {grp.semester === 5 ? (
+                                {grp.semester === 5 || !matching5th ? (
                                   <select
                                     value={grp.trackName || ''}
                                     onChange={(e) => {
@@ -2124,7 +2127,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                                           if (g.groupId === grp.groupId) {
                                             return { ...g, trackId: val, trackName: val };
                                           }
-                                          if (g.semester === 6 && (g.groupId === `6-${groupLetter}` || g.groupName.endsWith(groupLetter))) {
+                                          if (grp.semester === 5 && g.semester === 6 && (g.groupId === `6-${groupLetter}` || g.groupName.endsWith(groupLetter))) {
                                             return { ...g, trackId: val, trackName: val };
                                           }
                                           return g;
