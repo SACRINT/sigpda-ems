@@ -754,9 +754,14 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
 
     let nextSchool = school;
     if (parsedPaecData.school) {
+      const cleanSchoolUpdates = Object.fromEntries(
+        Object.entries(parsedPaecData.school).filter(
+          ([, val]) => val !== undefined && val !== null && String(val).trim() !== ''
+        )
+      );
       nextSchool = {
         ...school,
-        ...parsedPaecData.school,
+        ...cleanSchoolUpdates,
       };
       setSchool(nextSchool);
     }

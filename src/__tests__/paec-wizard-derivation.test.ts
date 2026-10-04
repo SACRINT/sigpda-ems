@@ -221,4 +221,42 @@ describe('F-A08: Verificación de Derivación Curricular e Invariantes del Wizar
       }
     });
   });
+
+  // Test 5: Sanitización de metadatos escolares ante extracciones con strings vacíos (F-R3-05)
+  describe('Test 5: Preservación de Matrícula y Plantilla ante Extracciones Vacías (F-R3-05)', () => {
+    it('ignora strings vacíos y valores nulos para no sobrescribir matrícula de 911/F11 preexistente', () => {
+      const existingSchool = {
+        cct: '21EBH0001A',
+        schoolName: 'Bachillerato Oficial Lázaro Cárdenas',
+        enrollment: '345',
+        teacherCount: '18',
+        groupCount: '12',
+      };
+
+      const parsedSchoolAI: Record<string, string | undefined> = {
+        cct: '',
+        schoolName: 'Bachillerato Oficial Lázaro Cárdenas',
+        enrollment: '', // la IA no lo encontró y puso string vacío según prompt
+        teacherCount: '   ', // espacios en blanco
+      };
+
+      const cleanSchoolUpdates = Object.fromEntries(
+        Object.entries(parsedSchoolAI).filter(
+          ([, val]) => val !== undefined && val !== null && String(val).trim() !== ''
+        )
+      );
+
+      const mergedSchool = {
+        ...existingSchool,
+        ...cleanSchoolUpdates,
+      };
+
+      expect(mergedSchool.enrollment).toBe('345');
+      expect(mergedSchool.teacherCount).toBe('18');
+      expect(mergedSchool.cct).toBe('21EBH0001A');
+      expect(mergedSchool.schoolName).toBe('Bachillerato Oficial Lázaro Cárdenas');
+    });
+  });
 });
+
+
