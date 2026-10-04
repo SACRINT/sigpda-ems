@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { consolidarUacsUnicasPlantel } from '@/lib/escuela-grupos';
+import {
+  consolidarUacsUnicasPlantel,
+  toggleGroupFfeSubject,
+} from '@/lib/escuela-grupos';
 import { UACS_LABORALES_OFICIALES_BGE } from '@/lib/capacitaciones-data';
 import { getMissingStep1Fields } from '@/lib/prompts/paec-extraction';
 import type { GroupTrackConfig } from '@/types/paec';
@@ -236,21 +239,21 @@ describe('PAEC H-02 & H-03: Paridad Curricular Laboral y Validación de Paso 1',
       ffeSelections: [],
     };
 
-    // Simular que el usuario selecciona asignaturas FFE para 5° y 6°
-    const updatedGroup5: GroupTrackConfig = {
-      ...group5,
-      ffeSelections: ['Inglés V', 'Dibujo Técnico I'],
-    };
-    const updatedGroup6: GroupTrackConfig = {
-      ...group6,
-      ffeSelections: ['Inglés VI', 'Dibujo Técnico II'],
-    };
+    // Simular la interacción real del usuario marcando asignaturas FFE con toggleGroupFfeSubject
+    let groups: GroupTrackConfig[] = [group5, group6];
+    groups = toggleGroupFfeSubject(groups, '5-A', 'Inglés V', '6-A');
+    groups = toggleGroupFfeSubject(groups, '5-A', 'Dibujo Técnico I', '6-A');
+
+    const updatedGroup5 = groups.find(g => g.groupId === '5-A')!;
+    const updatedGroup6 = groups.find(g => g.groupId === '6-A')!;
 
     // Verificar invariantes: trackId y trackName DEBEN conservar la capacitación laboral y NO ser 'Personalizado'
     expect(updatedGroup5.trackName).toBe(track5);
     expect(updatedGroup5.trackId).toBe(track5);
+    expect(updatedGroup5.ffeSelections).toEqual(['Inglés V', 'Dibujo Técnico I']);
     expect(updatedGroup6.trackName).toBe(track5);
     expect(updatedGroup6.trackId).toBe(track5);
+    expect(updatedGroup6.ffeSelections).toEqual(['Inglés VI', 'Dibujo Técnico II']);
 
     // Consolidación en el padrón curricular
     const uniqueUacs = consolidarUacsUnicasPlantel({

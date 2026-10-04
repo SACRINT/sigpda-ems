@@ -1151,4 +1151,47 @@ export function areGroupTrackConfigsEqual(
   });
 }
 
+/**
+ * Alterna una asignatura FFE en un grupo de 5° o 6° semestre preservando íntegramente la capacitación laboral
+ * (trackId y trackName) y aplicando la continuidad normativa oficial hacia el semestre espejo (F-R3-01 / F-R4-03).
+ */
+export function toggleGroupFfeSubject(
+  groups: GroupTrackConfig[],
+  targetGroupId: string,
+  subjectName: string,
+  matching6thId?: string
+): GroupTrackConfig[] {
+  const targetGroup = groups.find(g => g.groupId === targetGroupId);
+  if (!targetGroup) return groups;
+
+  const currentSelections = targetGroup.ffeSelections || [];
+  const isChecked = currentSelections.includes(subjectName);
+  const subj6 = obtenerFfeSemestre6(subjectName);
+  const groupLetter = targetGroup.groupName.slice(-1);
+
+  return groups.map(g => {
+    if (g.groupId === targetGroupId) {
+      const next = isChecked
+        ? currentSelections.filter(s => s !== subjectName)
+        : [...currentSelections, subjectName];
+      return {
+        ...g,
+        ffeSelections: next,
+      };
+    }
+    if (targetGroup.semester === 5 && (g.groupId === matching6thId || (g.semester === 6 && g.groupName.endsWith(groupLetter)))) {
+      const current6 = g.ffeSelections || [];
+      const next6 = isChecked
+        ? current6.filter(s => s !== subj6)
+        : [...current6, subj6];
+      return {
+        ...g,
+        ffeSelections: next6,
+      };
+    }
+    return g;
+  });
+}
+
+
 

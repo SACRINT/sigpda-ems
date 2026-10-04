@@ -27,6 +27,7 @@ import {
   obtenerFundamentalesPorSemestres,
   obtenerFfeSemestre6,
   areGroupTrackConfigsEqual,
+  toggleGroupFfeSubject,
 } from '@/lib/escuela-grupos';
 import { UACS_LABORALES_OFICIALES_BGE } from '@/lib/capacitaciones-data';
 import { loadCarrerasTecnicas, type BTCarrera } from '@/lib/bt-carreras-catalog';
@@ -2294,32 +2295,13 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                                           {FFE_PAIRS.filter(p => p.category === 'Recursos Sociocognitivos').map((pair) => {
                                             const subjectName = grp.semester === 6 ? pair.name6 : pair.name5;
                                             const isChecked = (grp.ffeSelections || []).includes(subjectName);
-                                            const subj6 = obtenerFfeSemestre6(subjectName);
                                             return (
                                               <label key={pair.name5} style={{ display: 'flex', alignItems: 'flex-start', gap: '5px', fontSize: '11px', cursor: 'pointer', color: isChecked ? '#ffffff' : 'rgba(240,244,255,0.7)', lineHeight: 1.25 }}>
                                                 <input
                                                   type="checkbox"
                                                   checked={isChecked}
                                                   onChange={() => {
-                                                    setGroupAssignments(prev => prev.map(g => {
-                                                      if (g.groupId === grp.groupId) {
-                                                        const current = g.ffeSelections || [];
-                                                        const next = isChecked ? current.filter(s => s !== subjectName) : [...current, subjectName];
-                                                        return {
-                                                          ...g,
-                                                          ffeSelections: next,
-                                                        };
-                                                      }
-                                                      if (grp.semester === 5 && (g.groupId === matching6thId || (g.semester === 6 && g.groupName.endsWith(groupLetter)))) {
-                                                        const current6 = g.ffeSelections || [];
-                                                        const next6 = isChecked ? current6.filter(s => s !== subj6) : [...current6, subj6];
-                                                        return {
-                                                          ...g,
-                                                          ffeSelections: next6,
-                                                        };
-                                                      }
-                                                      return g;
-                                                    }));
+                                                    setGroupAssignments(prev => toggleGroupFfeSubject(prev, grp.groupId, subjectName, matching6thId));
                                                   }}
                                                   style={{ marginTop: '1px' }}
                                                 />
@@ -2339,32 +2321,13 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                                           {FFE_PAIRS.filter(p => p.category !== 'Recursos Sociocognitivos').map((pair) => {
                                             const subjectName = grp.semester === 6 ? pair.name6 : pair.name5;
                                             const isChecked = (grp.ffeSelections || []).includes(subjectName);
-                                            const subj6 = obtenerFfeSemestre6(subjectName);
                                             return (
                                               <label key={pair.name5} style={{ display: 'flex', alignItems: 'flex-start', gap: '5px', fontSize: '11px', cursor: 'pointer', color: isChecked ? '#ffffff' : 'rgba(240,244,255,0.7)', lineHeight: 1.25 }}>
                                                 <input
                                                   type="checkbox"
                                                   checked={isChecked}
                                                   onChange={() => {
-                                                    setGroupAssignments(prev => prev.map(g => {
-                                                      if (g.groupId === grp.groupId) {
-                                                        const current = g.ffeSelections || [];
-                                                        const next = isChecked ? current.filter(s => s !== subjectName) : [...current, subjectName];
-                                                        return {
-                                                          ...g,
-                                                          ffeSelections: next,
-                                                        };
-                                                      }
-                                                      if (grp.semester === 5 && (g.groupId === matching6thId || (g.semester === 6 && g.groupName.endsWith(groupLetter)))) {
-                                                        const current6 = g.ffeSelections || [];
-                                                        const next6 = isChecked ? current6.filter(s => s !== subj6) : [...current6, subj6];
-                                                        return {
-                                                          ...g,
-                                                          ffeSelections: next6,
-                                                        };
-                                                      }
-                                                      return g;
-                                                    }));
+                                                    setGroupAssignments(prev => toggleGroupFfeSubject(prev, grp.groupId, subjectName, matching6thId));
                                                   }}
                                                   style={{ marginTop: '1px' }}
                                                 />
