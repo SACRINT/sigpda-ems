@@ -756,11 +756,27 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
 
     setShowPaecReviewModal(false);
 
+    const effectiveLaboralCount = (Array.isArray(parsedPaecData.selectedLaboral) && parsedPaecData.selectedLaboral.length > 0)
+      ? parsedPaecData.selectedLaboral.length
+      : selectedLaboral.length;
+    const effectiveFfeCount = (Array.isArray(parsedPaecData.selectedFfe) && parsedPaecData.selectedFfe.length > 0)
+      ? parsedPaecData.selectedFfe.length
+      : selectedFfe.length;
+    const effectiveIsTecnico = (parsedPaecData.schoolType || schoolType) === 'tecnico';
+
     const missing = getMissingStep1Fields({
       projectName: parsedPaecData.projectName || projectName,
       problemStatement: parsedPaecData.problemStatement || problemStatement,
       community: nextCommunity,
       school: nextSchool,
+      curricular: {
+        hasLaboralSemesters,
+        selectedLaboralCount: effectiveLaboralCount,
+        hasFfeSemesters,
+        selectedFfeCount: effectiveFfeCount,
+        isTecnico: effectiveIsTecnico,
+        selectedBtCarrerasCount: selectedBtCarreras.length,
+      },
     });
 
     if (missing.length > 0) {
@@ -961,7 +977,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
     } finally {
       setLoadingAudit(false);
     }
-  }, []);
+  }, [setAuditResult]);
 
   const loadProject = useCallback(async (id: string) => {
     setLoading(true);
@@ -1046,7 +1062,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [fetchAudit, findTrackForUacOrTrackName]);
+  }, [fetchAudit, findTrackForUacOrTrackName, setAuditResult]);
 
   // Load project details if ID is present
   useEffect(() => {
