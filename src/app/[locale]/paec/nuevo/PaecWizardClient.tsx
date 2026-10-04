@@ -333,8 +333,8 @@ export interface AcademicBaseline {
 function PaecWizardModularClient({ locale, initialId }: Props) {
   const router = useRouter();
 
-  // Restore draft from localStorage if this is a fresh wizard (no project ID in URL)
-  const savedDraft = !initialId ? readPaecDraft() : null;
+  // Restore draft from localStorage once on mount if this is a fresh wizard (no project ID in URL)
+  const [savedDraft] = useState<PaecFormDraft | null>(() => (!initialId ? readPaecDraft() : null));
 
   // Navigation / Loading States
   const [projectId, setProjectId] = useState<string | null>(initialId);
@@ -821,10 +821,29 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
             }
           }
         }
+
+        // Guard F-A01: si no hay cambios estructurales, mantener la referencia previa para evitar render loops
+        const isSameLength = updated.length === prev.length;
+        const isSameContent = isSameLength && updated.every((u, idx) => {
+          const p = prev[idx];
+          if (!p) return false;
+          return u.groupId === p.groupId &&
+                 u.groupName === p.groupName &&
+                 u.semester === p.semester &&
+                 u.trackId === p.trackId &&
+                 u.trackName === p.trackName &&
+                 (u.ffeSelections?.length ?? 0) === (p.ffeSelections?.length ?? 0) &&
+                 (u.ffeSelections || []).every((s, i) => s === (p.ffeSelections || [])[i]);
+        });
+
+        if (isSameContent) {
+          return prev;
+        }
+
         return updated;
       });
     });
-  }, [cycleType, semestersConfig, findTrackForUacOrTrackName, savedDraft?.selectedLaboral, savedDraft?.selectedFfe]);
+  }, [cycleType, semestersConfig, findTrackForUacOrTrackName, savedDraft]);
 
   // Cómputo en tiempo real de UACs Únicas Consolidadas (Regla de Oro Curricular: Cero Duplicados)
   const uniqueUacsList = useMemo(() => {
