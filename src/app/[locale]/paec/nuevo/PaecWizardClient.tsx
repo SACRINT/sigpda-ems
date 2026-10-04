@@ -26,6 +26,7 @@ import {
   resolverSocioemocionalGrupo,
   obtenerFundamentalesPorSemestres,
   obtenerFfeSemestre6,
+  areGroupTrackConfigsEqual,
 } from '@/lib/escuela-grupos';
 import { UACS_LABORALES_OFICIALES_BGE } from '@/lib/capacitaciones-data';
 import { loadCarrerasTecnicas, type BTCarrera } from '@/lib/bt-carreras-catalog';
@@ -726,6 +727,8 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
       setCommunity(nextCommunity);
     }
 
+    let nextGroups = [...groupAssignments];
+
     if (Array.isArray(parsedPaecData.selectedLaboral) && parsedPaecData.selectedLaboral.length > 0) {
       const detectedTracks = new Set<string>();
       for (const item of parsedPaecData.selectedLaboral) {
@@ -734,41 +737,44 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
       }
       if (detectedTracks.size > 0) {
         const primaryTrack = Array.from(detectedTracks)[0];
-        setGroupAssignments(prev =>
-          prev.map(g => (g.semester === 3 || g.semester === 4) && !g.trackName ? { ...g, trackId: primaryTrack, trackName: primaryTrack } : g)
+        nextGroups = nextGroups.map(g =>
+          (g.semester === 3 || g.semester === 4) && !g.trackName ? { ...g, trackId: primaryTrack, trackName: primaryTrack } : g
         );
       }
     }
 
     if (Array.isArray(parsedPaecData.selectedFfe) && parsedPaecData.selectedFfe.length > 0) {
       const ffeList = parsedPaecData.selectedFfe;
-      setGroupAssignments(prev =>
-        prev.map(g => {
-          if ((g.semester === 5 || g.semester === 6) && (!g.ffeSelections || g.ffeSelections.length === 0)) {
-            const relevant = g.semester === 6
-              ? ffeList.filter(s => FFE_PAIRS.some(p => p.name6 === s))
-              : ffeList.filter(s => FFE_PAIRS.some(p => p.name5 === s));
-            return {
-              ...g,
-              trackId: 'custom',
-              trackName: 'Personalizado',
-              ffeSelections: relevant.length > 0 ? relevant : ffeList.slice(0, 4),
-            };
-          }
-          return g;
-        })
-      );
+      nextGroups = nextGroups.map(g => {
+        if ((g.semester === 5 || g.semester === 6) && (!g.ffeSelections || g.ffeSelections.length === 0)) {
+          const relevant = g.semester === 6
+            ? ffeList.filter(s => FFE_PAIRS.some(p => p.name6 === s))
+            : ffeList.filter(s => FFE_PAIRS.some(p => p.name5 === s));
+          return {
+            ...g,
+            trackId: 'custom',
+            trackName: 'Personalizado',
+            ffeSelections: relevant.length > 0 ? relevant : ffeList.slice(0, 4),
+          };
+        }
+        return g;
+      });
     }
 
+    setGroupAssignments(nextGroups);
     setShowPaecReviewModal(false);
 
-    const effectiveLaboralCount = (Array.isArray(parsedPaecData.selectedLaboral) && parsedPaecData.selectedLaboral.length > 0)
-      ? parsedPaecData.selectedLaboral.length
-      : selectedLaboral.length;
-    const effectiveFfeCount = (Array.isArray(parsedPaecData.selectedFfe) && parsedPaecData.selectedFfe.length > 0)
-      ? parsedPaecData.selectedFfe.length
-      : selectedFfe.length;
+    // Derivar de nextGroups si efectivamente quedan cubiertas las asignaciones laborales y FFE
+    const hasAssignedLaboral = nextGroups.some(
+      g => (g.semester === 3 || g.semester === 4) && Boolean(g.trackName && g.trackName.trim())
+    );
+    const hasAssignedFfe = nextGroups.some(
+      g => (g.semester === 5 || g.semester === 6) && Array.isArray(g.ffeSelections) && g.ffeSelections.length > 0
+    );
+
     const effectiveIsTecnico = (parsedPaecData.schoolType || schoolType) === 'tecnico';
+    const effectiveLaboralCount = hasAssignedLaboral ? 8 : 0;
+    const effectiveFfeCount = hasAssignedFfe ? 4 : 0;
 
     const missing = getMissingStep1Fields({
       projectName: parsedPaecData.projectName || projectName,
@@ -844,21 +850,8 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
           }
         }
 
-        // Guard F-A01: si no hay cambios estructurales, mantener la referencia previa para evitar render loops
-        const isSameLength = updated.length === prev.length;
-        const isSameContent = isSameLength && updated.every((u, idx) => {
-          const p = prev[idx];
-          if (!p) return false;
-          return u.groupId === p.groupId &&
-                 u.groupName === p.groupName &&
-                 u.semester === p.semester &&
-                 u.trackId === p.trackId &&
-                 u.trackName === p.trackName &&
-                 (u.ffeSelections?.length ?? 0) === (p.ffeSelections?.length ?? 0) &&
-                 (u.ffeSelections || []).every((s, i) => s === (p.ffeSelections || [])[i]);
-        });
-
-        if (isSameContent) {
+        // Guard F-A01/F-A08: si no hay cambios estructurales, mantener la referencia previa para evitar render loops
+        if (areGroupTrackConfigsEqual(prev, updated)) {
           return prev;
         }
 
@@ -2547,7 +2540,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
               </div>
 
               {/* Laboral Checklist / Confirmación (Sincronizado con Grupos H-02) */}
-              <div id="paec-laboral-section" style={{ borderTop: '1px solid var(--c-border)', paddingTop: '16px', marginTop: '8px' }}>
+              <div id="paec-laboral-section" tabIndex={-1} style={{ borderTop: '1px solid var(--c-border)', paddingTop: '16px', marginTop: '8px', outline: 'none' }}>
                 <label style={{ display: 'block', fontWeight: 600, marginBottom: '10px', fontSize: '15px', color: 'var(--c-navy)' }}>
                   Capacitaciones para el Trabajo (Formación Laboral) activas *
                 </label>
@@ -2610,7 +2603,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
               </div>
 
               {/* FFE Resumen Vinculado a Grupos (H-04) */}
-              <div id="paec-ffe-section" style={{ borderTop: '1px solid var(--c-border)', paddingTop: '16px', marginTop: '16px' }}>
+              <div id="paec-ffe-section" tabIndex={-1} style={{ borderTop: '1px solid var(--c-border)', paddingTop: '16px', marginTop: '16px', outline: 'none' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                   <label style={{ display: 'block', fontWeight: 600, fontSize: '15px', color: 'var(--c-navy)' }}>
                     Formación Fundamental Extendida (FFE/FFEO) vinculadas al plantel

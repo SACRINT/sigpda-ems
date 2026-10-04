@@ -226,3 +226,96 @@ REGLAS DE EXTRACCIÓN:
 2. Si un dato no se encuentra en el fragmento, coloca cadena vacía "" o arreglo vacío [].
 3. Responde estrictamente con JSON válido.`;
 }
+
+/**
+ * Divide un texto extenso de PAEC en fragmentos balanceados respetando saltos de párrafo (H-13).
+ */
+export function partitionPaecDocument(documentText: string, maxChunkSize = 65000): string[] {
+  if (documentText.length <= maxChunkSize) {
+    return [documentText];
+  }
+
+  const chunks: string[] = [];
+  let startIndex = 0;
+  const overlap = 3000;
+
+  while (startIndex < documentText.length) {
+    let endIndex = startIndex + maxChunkSize;
+    if (endIndex >= documentText.length) {
+      chunks.push(documentText.slice(startIndex));
+      break;
+    }
+
+    // Buscar el salto de párrafo más cercano antes del límite
+    const nextNewline = documentText.lastIndexOf('\n\n', endIndex);
+    if (nextNewline > startIndex + 20000) {
+      endIndex = nextNewline;
+    }
+
+    chunks.push(documentText.slice(startIndex, endIndex));
+    startIndex = Math.max(startIndex + 1, endIndex - overlap);
+  }
+
+  return chunks;
+}
+
+/**
+ * Fusiona de forma aditiva y determinista dos extracciones de PAEC procedentes de fragmentos distintos (H-13).
+ */
+export function mergePaecExtracts(
+  base: PaecPreviousExtractDTO,
+  addition: Partial<PaecPreviousExtractDTO>
+): PaecPreviousExtractDTO {
+  const mergedLaboral = Array.from(
+    new Set([...(base.selectedLaboral || []), ...(addition.selectedLaboral || [])].map(s => s.trim()).filter(Boolean))
+  );
+
+  const mergedFfe = Array.from(
+    new Set([...(base.selectedFfe || []), ...(addition.selectedFfe || [])].map(s => s.trim()).filter(Boolean))
+  );
+
+  const mergeText = (t1?: string | null, t2?: string | null, separator = '\n\n') => {
+    const p1 = (t1 || '').trim();
+    const p2 = (t2 || '').trim();
+    if (!p1) return p2;
+    if (!p2 || p1.includes(p2)) return p1;
+    if (p2.includes(p1)) return p2;
+    return `${p1}${separator}${p2}`;
+  };
+
+  return {
+    projectName: base.projectName?.trim() || addition.projectName?.trim() || '',
+    problemStatement: mergeText(base.problemStatement, addition.problemStatement),
+    cycleType: base.cycleType || addition.cycleType || 'annual',
+    schoolType: base.schoolType || addition.schoolType || 'general',
+    school: {
+      schoolName: base.school?.schoolName || addition.school?.schoolName || '',
+      cct: base.school?.cct || addition.school?.cct || '',
+      municipality: base.school?.municipality || addition.school?.municipality || '',
+      locality: base.school?.locality || addition.school?.locality || '',
+      schoolZone: base.school?.schoolZone || addition.school?.schoolZone || '',
+      directorName: base.school?.directorName || addition.school?.directorName || '',
+      supervisorName: base.school?.supervisorName || addition.school?.supervisorName || '',
+    },
+    community: {
+      context: mergeText(base.community?.context, addition.community?.context),
+      location: base.community?.location || addition.community?.location || '',
+      demographics: mergeText(base.community?.demographics, addition.community?.demographics),
+      problematics: mergeText(base.community?.problematics, addition.community?.problematics),
+      economy: base.community?.economy || addition.community?.economy || '',
+      economicActivities: base.community?.economicActivities || addition.community?.economicActivities || '',
+      traditions: base.community?.traditions || addition.community?.traditions || '',
+      culturalAspects: base.community?.culturalAspects || addition.community?.culturalAspects || '',
+      security: base.community?.security || addition.community?.security || '',
+      environment: base.community?.environment || addition.community?.environment || '',
+    },
+    selectedLaboral: mergedLaboral,
+    selectedFfe: mergedFfe,
+    foda: {
+      fortalezas: mergeText(base.foda?.fortalezas, addition.foda?.fortalezas, '; '),
+      oportunidades: mergeText(base.foda?.oportunidades, addition.foda?.oportunidades, '; '),
+      debilidades: mergeText(base.foda?.debilidades, addition.foda?.debilidades, '; '),
+      amenazas: mergeText(base.foda?.amenazas, addition.foda?.amenazas, '; '),
+    },
+  };
+}

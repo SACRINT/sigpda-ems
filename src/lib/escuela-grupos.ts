@@ -1096,4 +1096,29 @@ export function obtenerFundamentalesPorSemestres(semestres: number[]): { nombre:
   return result;
 }
 
+/**
+ * Comprueba igualdad estructural profunda entre dos arreglos de configuraciones de grupo (GroupTrackConfig[])
+ * para evitar re-renderizados innecesarios o loops infinitos en React (F-A01/F-A08).
+ */
+export function areGroupTrackConfigsEqual(
+  prev: GroupTrackConfig[] | null | undefined,
+  updated: GroupTrackConfig[] | null | undefined
+): boolean {
+  if (prev === updated) return true;
+  if (!prev || !updated || prev.length !== updated.length) return false;
+  return updated.every((u, idx) => {
+    const p = prev[idx];
+    if (!p) return false;
+    return (
+      u.groupId === p.groupId &&
+      u.groupName === p.groupName &&
+      u.semester === p.semester &&
+      u.trackId === p.trackId &&
+      u.trackName === p.trackName &&
+      (u.ffeSelections?.length ?? 0) === (p.ffeSelections?.length ?? 0) &&
+      (u.ffeSelections || []).every((s, i) => s === (p.ffeSelections || [])[i])
+    );
+  });
+}
+
 

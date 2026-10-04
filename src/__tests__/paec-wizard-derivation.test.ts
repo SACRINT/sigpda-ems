@@ -7,19 +7,22 @@ import {
   FFE_PAIRS,
   FFE_CONTINUIDAD_5_A_6,
   obtenerFfeSemestre6,
+  areGroupTrackConfigsEqual,
 } from '@/lib/escuela-grupos';
 import {
   getMissingStep1Fields,
   buildPaecExtractionPrompt,
   buildPaecChunkExtractionPrompt,
+  partitionPaecDocument,
+  mergePaecExtracts,
 } from '@/lib/prompts/paec-extraction';
 import type { GroupTrackConfig } from '@/types/paec';
 
 describe('F-A08: Verificación de Derivación Curricular e Invariantes del Wizard PAEC', () => {
 
-  // Test 1: Invariante F-A01 — Guard de igualdad estructural previene re-renders
-  describe('Test 1: Guard de Igualdad Estructural (F-A01)', () => {
-    it('mantiene la referencia previa (Object.is) si los grupos no sufren cambios estructurales', () => {
+  // Test 1: Invariante F-A01/F-A08 — Guard de igualdad estructural areGroupTrackConfigsEqual importado
+  describe('Test 1: Guard de Igualdad Estructural (F-A01/F-A08)', () => {
+    it('mantiene la referencia previa si los grupos no sufren cambios estructurales con areGroupTrackConfigsEqual', () => {
       const prev: GroupTrackConfig[] = [
         { groupId: '1-A', groupName: '1° A', semester: 1 },
         { groupId: '3-A', groupName: '3° A', semester: 3, trackId: 'Contabilidad', trackName: 'Contabilidad' },
@@ -33,25 +36,15 @@ describe('F-A08: Verificación de Derivación Curricular e Invariantes del Wizar
         { groupId: '5-A', groupName: '5° A', semester: 5, trackId: 'custom', trackName: 'Personalizado', ffeSelections: ['Inglés V', 'Dibujo Técnico I'] },
       ];
 
-      // Evaluación del guard exacto de PaecWizardClient.tsx
-      const isSameLength = updated.length === prev.length;
-      const isSameContent = isSameLength && updated.every((u, idx) => {
-        const p = prev[idx];
-        if (!p) return false;
-        return u.groupId === p.groupId &&
-               u.groupName === p.groupName &&
-               u.semester === p.semester &&
-               u.trackId === p.trackId &&
-               u.trackName === p.trackName &&
-               (u.ffeSelections?.length ?? 0) === (p.ffeSelections?.length ?? 0) &&
-               (u.ffeSelections || []).every((s, i) => s === (p.ffeSelections || [])[i]);
-      });
+      // Verificación directa de la función importada de producción
+      expect(areGroupTrackConfigsEqual(prev, updated)).toBe(true);
 
-      const result = isSameContent ? prev : updated;
+      // Evaluación del guard en el hook de estado
+      const result = areGroupTrackConfigsEqual(prev, updated) ? prev : updated;
       expect(Object.is(result, prev)).toBe(true);
     });
 
-    it('emite una nueva referencia si se modifica alguna asignación curricular', () => {
+    it('emite false y genera nueva referencia si se modifica alguna asignación curricular', () => {
       const prev: GroupTrackConfig[] = [
         { groupId: '3-A', groupName: '3° A', semester: 3, trackId: 'Contabilidad', trackName: 'Contabilidad' },
       ];
@@ -59,22 +52,22 @@ describe('F-A08: Verificación de Derivación Curricular e Invariantes del Wizar
         { groupId: '3-A', groupName: '3° A', semester: 3, trackId: 'Administración', trackName: 'Administración' },
       ];
 
-      const isSameLength = updated.length === prev.length;
-      const isSameContent = isSameLength && updated.every((u, idx) => {
-        const p = prev[idx];
-        if (!p) return false;
-        return u.groupId === p.groupId &&
-               u.groupName === p.groupName &&
-               u.semester === p.semester &&
-               u.trackId === p.trackId &&
-               u.trackName === p.trackName &&
-               (u.ffeSelections?.length ?? 0) === (p.ffeSelections?.length ?? 0) &&
-               (u.ffeSelections || []).every((s, i) => s === (p.ffeSelections || [])[i]);
-      });
+      expect(areGroupTrackConfigsEqual(prev, updated)).toBe(false);
 
-      const result = isSameContent ? prev : updated;
+      const result = areGroupTrackConfigsEqual(prev, updated) ? prev : updated;
       expect(Object.is(result, prev)).toBe(false);
       expect(result).toBe(updated);
+    });
+
+    it('retorna false si cambian las asignaciones de optativas FFE', () => {
+      const prev: GroupTrackConfig[] = [
+        { groupId: '5-A', groupName: '5° A', semester: 5, ffeSelections: ['Inglés V'] },
+      ];
+      const updated: GroupTrackConfig[] = [
+        { groupId: '5-A', groupName: '5° A', semester: 5, ffeSelections: ['Inglés V', 'Dibujo Técnico I'] },
+      ];
+
+      expect(areGroupTrackConfigsEqual(prev, updated)).toBe(false);
     });
   });
 
@@ -162,6 +155,46 @@ describe('F-A08: Verificación de Derivación Curricular e Invariantes del Wizar
       expect(chunkPrompt).toContain('Analiza el siguiente fragmento (1 de 3)');
       expect(chunkPrompt).toContain('"schoolType": "general | tecnico | telebachillerato"');
       expect(chunkPrompt).toContain('TEXTO DEL FRAGMENTO (1/3)');
+    });
+
+    it('partitionPaecDocument divide un documento largo en fragmentos respetando el tamaño máximo', () => {
+      const longText = 'A'.repeat(80000) + '\n\n' + 'B'.repeat(40000);
+      const chunks = partitionPaecDocument(longText, 65000);
+      expect(chunks.length).toBeGreaterThan(1);
+      expect(chunks[0].length).toBeLessThanOrEqual(65000 + 3000);
+    });
+
+    it('mergePaecExtracts consolida datos de múltiples fragmentos sin duplicación', () => {
+      const base = {
+        projectName: 'Proyecto Vida Saludable',
+        problemStatement: 'Problemática de nutrición',
+        cycleType: 'A' as const,
+        schoolType: 'general' as const,
+        school: { schoolName: 'BGE Héroes', cct: '21EBH0200X' },
+        community: { location: 'Puebla', context: 'Contexto territorial fase 1' },
+        selectedLaboral: ['Administración'],
+        selectedFfe: ['Inglés V'],
+        foda: { fortalezas: 'Docentes capacitados' },
+      };
+
+      const addition = {
+        projectName: '',
+        problemStatement: 'Ampliación en fase 2 comunitaria',
+        cycleType: 'A' as const,
+        schoolType: 'general' as const,
+        selectedLaboral: ['Administración', 'Contabilidad'],
+        selectedFfe: ['Inglés V', 'Salud Integral I'],
+        foda: { fortalezas: 'Docentes capacitados', debilidades: 'Falta de equipo' },
+      };
+
+      const merged = mergePaecExtracts(base, addition);
+
+      expect(merged.projectName).toBe('Proyecto Vida Saludable');
+      expect(merged.selectedLaboral).toEqual(['Administración', 'Contabilidad']);
+      expect(merged.selectedFfe).toEqual(['Inglés V', 'Salud Integral I']);
+      expect(merged.foda?.fortalezas).toBe('Docentes capacitados');
+      expect(merged.foda?.debilidades).toBe('Falta de equipo');
+      expect(merged.community?.location).toBe('Puebla');
     });
   });
 

@@ -8,7 +8,11 @@ import { parseAIResponse } from '@/lib/ai-response-parser';
 import {
   PAEC_EXTRACTION_SYSTEM_PROMPT,
   buildPaecExtractionPrompt,
+  buildPaecChunkExtractionPrompt,
+  partitionPaecDocument,
+  mergePaecExtracts,
   PaecPreviousExtractSchema,
+  type PaecPreviousExtractDTO,
 } from '@/lib/prompts/paec-extraction';
 import { isFeatureEnabled } from '@/lib/platform/feature-flags';
 import {
@@ -106,63 +110,101 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. Extracción asistida por IA con clave rotativa
+    // 2. Extracción asistida por IA con clave rotativa y soporte de chunking (H-13 / F-A03)
     const isPremium = await resolveUserIsPremium(teacher.id);
     const systemPrompt = PAEC_EXTRACTION_SYSTEM_PROMPT;
-    const userPrompt = buildPaecExtractionPrompt(documentText);
+    const chunks = partitionPaecDocument(documentText);
+    const warnings: string[] = [];
+    let parsedData: PaecPreviousExtractDTO;
 
-    const aiRaw = await withTimeoutBudget(
-      generateWithRotation(
-        systemPrompt,
-        userPrompt,
-        teacher.id,
-        isPremium,
-        { temperature: 0.1, jsonMode: true }
-      ),
-      Math.max(1, deadline - Date.now())
-    );
+    if (chunks.length <= 1) {
+      const userPrompt = buildPaecExtractionPrompt(documentText);
+      const aiRaw = await withTimeoutBudget(
+        generateWithRotation(
+          systemPrompt,
+          userPrompt,
+          teacher.id,
+          isPremium,
+          { temperature: 0.1, jsonMode: true }
+        ),
+        Math.max(1, deadline - Date.now())
+      );
 
-    // 3. Parseo y validación de respuesta JSON con reintento correctivo resiliente
-    let parsed = parseAIResponse(aiRaw, PaecPreviousExtractSchema, {
-      contextName: 'paec-parse-previous',
-      repairNullStrings: true,
-    });
-
-    if (!parsed.success) {
-      parsed = await correctiveRetry({
-        systemPrompt,
-        previousRaw: aiRaw,
-        zodIssues: parsed.error || '',
-        schema: PaecPreviousExtractSchema,
-        callAI: (sys, user, remaining) =>
-          withTimeoutBudget(
-            generateWithRotation(sys, user, teacher.id, isPremium, { temperature: 0, jsonMode: true }),
-            remaining
-          ),
-        deadline,
+      let parsed = parseAIResponse(aiRaw, PaecPreviousExtractSchema, {
         contextName: 'paec-parse-previous',
+        repairNullStrings: true,
       });
-    }
 
-    if (!parsed.success) {
-      logger.error('[paec-parse-previous] AI response parsing failed:', parsed.error);
-      return NextResponse.json(
-        { error: `No se pudieron estructurar los datos del PAEC anterior: ${parsed.error}` },
-        { status: 422 }
-      );
-    }
+      if (!parsed.success) {
+        parsed = await correctiveRetry({
+          systemPrompt,
+          previousRaw: aiRaw,
+          zodIssues: parsed.error || '',
+          schema: PaecPreviousExtractSchema,
+          callAI: (sys, user, remaining) =>
+            withTimeoutBudget(
+              generateWithRotation(sys, user, teacher.id, isPremium, { temperature: 0, jsonMode: true }),
+              remaining
+            ),
+          deadline,
+          contextName: 'paec-parse-previous',
+        });
+      }
 
-    const warnings = [...(parsed.warnings || [])];
-    if (documentText.length > 75000) {
+      if (!parsed.success) {
+        logger.error('[paec-parse-previous] AI response parsing failed:', parsed.error);
+        return NextResponse.json(
+          { error: `No se pudieron estructurar los datos del PAEC anterior: ${parsed.error}` },
+          { status: 422 }
+        );
+      }
+
+      parsedData = parsed.data;
+      if (parsed.warnings) warnings.push(...parsed.warnings);
+    } else {
+      // Chunking multi-fragmento estructurado
+      logger.info(`[paec-parse-previous] Documento de ${documentText.length} caracteres: procesando en ${chunks.length} fragmentos.`);
       warnings.push(
-        `El documento original contiene ${documentText.length.toLocaleString('es-MX')} caracteres. Se procesaron los primeros 75,000 caracteres prioritarios que abarcan portada, diagnóstico comunitario y mapa curricular.`
+        `El documento contiene ${documentText.length.toLocaleString('es-MX')} caracteres. Se procesó mediante fragmentación estructurada (${chunks.length} bloques) garantizando la extracción íntegra.`
       );
+
+      const chunkPromises = chunks.map((chunk, idx) => {
+        const prompt = idx === 0
+          ? buildPaecExtractionPrompt(chunk)
+          : buildPaecChunkExtractionPrompt(chunk, idx, chunks.length);
+        const remaining = Math.max(1, deadline - Date.now());
+        return withTimeoutBudget(
+          generateWithRotation(systemPrompt, prompt, teacher.id, isPremium, { temperature: 0.1, jsonMode: true }),
+          remaining
+        ).then(raw => {
+          const parsed = parseAIResponse(raw, PaecPreviousExtractSchema, {
+            contextName: `paec-parse-previous-chunk-${idx}`,
+            repairNullStrings: true,
+          });
+          return parsed.success ? parsed.data : null;
+        }).catch(err => {
+          logger.warn(`[paec-parse-previous] Falló chunk ${idx}:`, err);
+          return null;
+        });
+      });
+
+      const results = await Promise.all(chunkPromises);
+      const validResults = results.filter((r): r is PaecPreviousExtractDTO => r !== null);
+
+      if (validResults.length === 0) {
+        return NextResponse.json(
+          { error: 'No se pudieron estructurar los datos de los fragmentos del PAEC anterior.' },
+          { status: 422 }
+        );
+      }
+
+      parsedData = validResults.reduce((acc, curr) => mergePaecExtracts(acc, curr));
     }
 
     return NextResponse.json({
       success: true,
       filename: file.name,
-      data: parsed.data,
+      data: parsedData,
       warnings,
     });
   } catch (err: unknown) {
