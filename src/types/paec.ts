@@ -19,12 +19,13 @@ export interface GroupTrackConfig {
   trackId?: string;         // id o nombre de capacitación laboral o carrera BT
   trackName?: string;       // nombre descriptivo
   ffeSelections?: string[]; // nombres de asignaturas FFE asignadas a este grupo
+  ffeoSocioemocional?: string; // Formación socioemocional asignada (H-01)
 }
 
 export interface UniqueUacItem {
   uacName: string;
   semester: number;
-  component: 'fundamental' | 'laboral' | 'ffe' | 'profesional_bt';
+  component: 'fundamental' | 'laboral' | 'ffe' | 'profesional_bt' | 'socioemocional';
   originTrack?: string;
 }
 

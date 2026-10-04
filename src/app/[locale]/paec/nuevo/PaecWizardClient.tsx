@@ -22,6 +22,8 @@ import type {
 import {
   consolidarUacsUnicasPlantel,
   FORMACIONES_LABORALES,
+  FORMACIONES_SOCIOEMOCIONALES,
+  resolverSocioemocionalGrupo,
   obtenerFundamentalesPorSemestres,
   obtenerFfeSemestre6,
 } from '@/lib/escuela-grupos';
@@ -1785,62 +1787,103 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                 </p>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {groupAssignments.map((grp) => {
-                    const isLaboralSem = grp.semester === 3 || grp.semester === 4;
-                    const isFfeSem = grp.semester === 5 || grp.semester === 6;
+                  {(() => {
+                    const socio3Config = groupAssignments.find(g => g.semester === 3 && g.ffeoSocioemocional)?.ffeoSocioemocional || FORMACIONES_SOCIOEMOCIONALES[0];
+                    const socio5Config = groupAssignments.find(g => g.semester === 5 && g.ffeoSocioemocional)?.ffeoSocioemocional || FORMACIONES_SOCIOEMOCIONALES.find(s => s !== socio3Config) || FORMACIONES_SOCIOEMOCIONALES[1];
+                    const resolvedSocio = resolverSocioemocionalGrupo(socio3Config, socio5Config);
+                    const opcionesSocio5 = FORMACIONES_SOCIOEMOCIONALES.filter(s => s !== socio3Config);
 
-                    if (!isLaboralSem && !isFfeSem && schoolType !== 'tecnico') {
-                      return (
-                        <div key={grp.groupId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: '6px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                          <span style={{ fontWeight: 600, fontSize: '13px', color: '#a5b4fc' }}>Grupo {grp.groupName}</span>
-                          <span style={{ fontSize: '11.5px', color: 'rgba(240,244,255,0.6)' }}>Tronco Fundamental MCCEMS (Unificado)</span>
-                        </div>
-                      );
-                    }
+                    return groupAssignments.map((grp) => {
+                      const isLaboralSem = grp.semester === 3 || grp.semester === 4;
+                      const isFfeSem = grp.semester === 5 || grp.semester === 6;
 
-                    return (
-                      <div key={grp.groupId} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', gap: '10px' }}>
-                        <div style={{ minWidth: '120px' }}>
-                          <span style={{ fontWeight: 700, fontSize: '13.5px', color: '#ffffff' }}>Grupo {grp.groupName}</span>
-                          <div style={{ fontSize: '11px', color: '#818cf8', marginTop: '2px' }}>
-                            {schoolType === 'tecnico' ? 'Carrera Técnica BT' : isLaboralSem ? 'Formación Laboral (3°-4°)' : 'Paquete FFE (5°-6°)'}
+                      if (!isLaboralSem && !isFfeSem && schoolType !== 'tecnico') {
+                        return (
+                          <div key={grp.groupId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: '6px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                            <span style={{ fontWeight: 600, fontSize: '13px', color: '#a5b4fc' }}>Grupo {grp.groupName}</span>
+                            <span style={{ fontSize: '11.5px', color: 'rgba(240,244,255,0.6)' }}>
+                              Tronco Fundamental MCCEMS + Actividades Físicas y Deportivas {grp.semester === 1 ? 'I' : 'II'}
+                            </span>
                           </div>
-                        </div>
+                        );
+                      }
 
-                        <div style={{ flex: '1', minWidth: '240px' }}>
-                          {schoolType === 'tecnico' ? (
-                            <select
-                              value={grp.trackId || ''}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setGroupAssignments((prev) =>
-                                  prev.map((g) => (g.groupId === grp.groupId ? { ...g, trackId: val, trackName: val } : g))
-                                );
-                              }}
-                              style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: '#0f172a', color: '#f0f4ff', fontSize: '12.5px' }}
-                            >
-                              <option value="">Selecciona Carrera Técnica BT...</option>
-                              {carrerasBT.map((c) => (
-                                <option key={c.id} value={c.id}>{c.nombre}</option>
-                              ))}
-                            </select>
-                          ) : isLaboralSem ? (
-                            <select
-                              value={grp.trackName || ''}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setGroupAssignments((prev) =>
-                                  prev.map((g) => (g.groupId === grp.groupId ? { ...g, trackId: val, trackName: val } : g))
-                                );
-                              }}
-                              style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: '#0f172a', color: '#f0f4ff', fontSize: '12.5px' }}
-                            >
-                              <option value="">Selecciona Capacitación Laboral...</option>
-                              {FORMACIONES_LABORALES.map((f) => (
-                                <option key={f} value={f}>{f}</option>
-                              ))}
-                            </select>
-                          ) : (
+                      return (
+                        <div key={grp.groupId} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', gap: '10px' }}>
+                          <div style={{ minWidth: '120px' }}>
+                            <span style={{ fontWeight: 700, fontSize: '13.5px', color: '#ffffff' }}>Grupo {grp.groupName}</span>
+                            <div style={{ fontSize: '11px', color: '#818cf8', marginTop: '2px' }}>
+                              {schoolType === 'tecnico' ? 'Carrera Técnica BT' : isLaboralSem ? 'Formación Laboral y Socioemocional (3°-4°)' : 'Paquete FFE y Socioemocional (5°-6°)'}
+                            </div>
+                          </div>
+
+                          <div style={{ flex: '1', minWidth: '240px' }}>
+                            {schoolType === 'tecnico' ? (
+                              <select
+                                value={grp.trackId || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setGroupAssignments((prev) =>
+                                    prev.map((g) => (g.groupId === grp.groupId ? { ...g, trackId: val, trackName: val } : g))
+                                  );
+                                }}
+                                style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: '#0f172a', color: '#f0f4ff', fontSize: '12.5px' }}
+                              >
+                                <option value="">Selecciona Carrera Técnica BT...</option>
+                                {carrerasBT.map((c) => (
+                                  <option key={c.id} value={c.id}>{c.nombre}</option>
+                                ))}
+                              </select>
+                            ) : isLaboralSem ? (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                <select
+                                  value={grp.trackName || ''}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setGroupAssignments((prev) =>
+                                      prev.map((g) => (g.groupId === grp.groupId ? { ...g, trackId: val, trackName: val } : g))
+                                    );
+                                  }}
+                                  style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: '#0f172a', color: '#f0f4ff', fontSize: '12.5px' }}
+                                >
+                                  <option value="">Selecciona Capacitación Laboral...</option>
+                                  {FORMACIONES_LABORALES.map((f) => (
+                                    <option key={f} value={f}>{f}</option>
+                                  ))}
+                                </select>
+
+                                {/* Selector Socioemocional 3° / Indicador 4° (H-01) */}
+                                {grp.semester === 3 ? (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
+                                    <span style={{ fontSize: '11px', color: '#f472b6', fontWeight: 600, whiteSpace: 'nowrap' }}>💖 Socioemocional (3°):</span>
+                                    <select
+                                      value={grp.ffeoSocioemocional || socio3Config}
+                                      onChange={(e) => {
+                                        const newS3 = e.target.value;
+                                        const res = resolverSocioemocionalGrupo(newS3, socio5Config);
+                                        setGroupAssignments(prev => prev.map(g => {
+                                          if (g.semester === 3) return { ...g, ffeoSocioemocional: newS3 };
+                                          if (g.semester === 4 || g.semester === 6) return { ...g, ffeoSocioemocional: res.sem4 };
+                                          return g;
+                                        }));
+                                      }}
+                                      style={{ width: '100%', padding: '4px 8px', borderRadius: '4px', border: '1px solid rgba(244,114,182,0.3)', background: '#0f172a', color: '#fbcfe8', fontSize: '11.5px' }}
+                                    >
+                                      {FORMACIONES_SOCIOEMOCIONALES.map(s => (
+                                        <option key={s} value={s}>{s}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                ) : (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px', fontSize: '11px', color: '#f472b6' }}>
+                                    <span style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>💖 Socioemocional (4°):</span>
+                                    <span style={{ padding: '2px 8px', borderRadius: '4px', background: 'rgba(244,114,182,0.1)', border: '1px solid rgba(244,114,182,0.25)', color: '#fbcfe8', fontSize: '11px' }}>
+                                      {resolvedSocio.sem4} (Regla 4°=6°)
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                               {/* Barra de estado y presets rápidos */}
                               <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
@@ -2007,12 +2050,44 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                                   </div>
                                 </div>
                               )}
+
+                              {/* Selector Socioemocional 5° / Indicador 6° (H-01) */}
+                              {grp.semester === 5 ? (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '6px' }}>
+                                  <span style={{ fontSize: '11px', color: '#f472b6', fontWeight: 600, whiteSpace: 'nowrap' }}>💖 Socioemocional (5°):</span>
+                                  <select
+                                    value={grp.ffeoSocioemocional || (opcionesSocio5.includes(socio5Config) ? socio5Config : opcionesSocio5[0])}
+                                    onChange={(e) => {
+                                      const newS5 = e.target.value;
+                                      const res = resolverSocioemocionalGrupo(socio3Config, newS5);
+                                      setGroupAssignments(prev => prev.map(g => {
+                                        if (g.semester === 5) return { ...g, ffeoSocioemocional: newS5 };
+                                        if (g.semester === 4 || g.semester === 6) return { ...g, ffeoSocioemocional: res.sem4 };
+                                        return g;
+                                      }));
+                                    }}
+                                    style={{ width: '100%', padding: '4px 8px', borderRadius: '4px', border: '1px solid rgba(244,114,182,0.3)', background: '#0f172a', color: '#fbcfe8', fontSize: '11.5px' }}
+                                  >
+                                    {opcionesSocio5.map(s => (
+                                      <option key={s} value={s}>{s}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                              ) : (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '6px', fontSize: '11px', color: '#f472b6' }}>
+                                  <span style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>💖 Socioemocional (6°):</span>
+                                  <span style={{ padding: '2px 8px', borderRadius: '4px', background: 'rgba(244,114,182,0.1)', border: '1px solid rgba(244,114,182,0.25)', color: '#fbcfe8', fontSize: '11px' }}>
+                                    {resolvedSocio.sem6} (Regla 4°=6°)
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
                       </div>
                     );
-                  })}
+                  });
+                })()}
                 </div>
               </div>
 
@@ -2149,6 +2224,9 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '12px' }}>
                   <span style={{ fontSize: '11.5px', padding: '4px 10px', borderRadius: '6px', background: 'rgba(30,58,138,0.5)', border: '1px solid rgba(59,130,246,0.3)', color: '#93c5fd', fontWeight: 500 }}>
                     📘 Fundamental: {uniqueUacsList.filter((u) => u.component === 'fundamental').length}
+                  </span>
+                  <span style={{ fontSize: '11.5px', padding: '4px 10px', borderRadius: '6px', background: 'rgba(234,88,12,0.25)', border: '1px solid rgba(249,115,22,0.4)', color: '#fdba74', fontWeight: 500 }}>
+                    💖 Socioemocional: {uniqueUacsList.filter((u) => u.component === 'socioemocional').length}
                   </span>
                   <span style={{ fontSize: '11.5px', padding: '4px 10px', borderRadius: '6px', background: 'rgba(6,78,59,0.5)', border: '1px solid rgba(16,185,129,0.3)', color: '#6ee7b7', fontWeight: 500 }}>
                     💼 Laboral: {uniqueUacsList.filter((u) => u.component === 'laboral').length}

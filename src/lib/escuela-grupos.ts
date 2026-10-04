@@ -879,10 +879,15 @@ export function consolidarUacsUnicasPlantel(params: ConsolidacionParams): Unique
 
   const resultMap = new Map<string, UniqueUacItem>();
 
-  // 1. TRONCO FUNDAMENTAL ÚNICO POR SEMESTRE
+  // Resolver socioemocionales institucionales usando regla 4°=6° (H-01)
+  const socio3Group = groupAssignments.find(g => g.semester === 3 && g.ffeoSocioemocional);
+  const socio5Group = groupAssignments.find(g => g.semester === 5 && g.ffeoSocioemocional);
+  const resolvedSocio = resolverSocioemocionalGrupo(socio3Group?.ffeoSocioemocional, socio5Group?.ffeoSocioemocional);
+
+  // 1. TRONCO FUNDAMENTAL Y SOCIOEMOCIONAL ÚNICOS POR SEMESTRE
   for (const sem of semesters) {
     const fundFromDb = dbFundamentalUacs.filter(
-      u => u.semester === sem && (!u.component || u.component === 'fundamental' || u.component === 'ampliado')
+      u => u.semester === sem && (!u.component || u.component === 'fundamental' || u.component === 'ampliado' || u.component === 'socioemocional')
     );
 
     if (fundFromDb.length > 0) {
@@ -896,22 +901,26 @@ export function consolidarUacsUnicasPlantel(params: ConsolidacionParams): Unique
           if (!isSelected) continue;
         }
 
+        const comp: 'fundamental' | 'socioemocional' = u.component === 'socioemocional' ? 'socioemocional' : 'fundamental';
         const key = `${sem}__${uacNameClean.toLowerCase()}`;
         if (!resultMap.has(key)) {
           resultMap.set(key, {
             uacName: uacNameClean,
             semester: sem,
-            component: 'fundamental',
+            component: comp,
           });
         }
       }
     } else {
+      const explicitSocio = groupAssignments.find(g => g.semester === sem && g.ffeoSocioemocional)?.ffeoSocioemocional;
+      const socioForSem = explicitSocio || (sem === 3 ? resolvedSocio.sem3 : sem === 4 ? resolvedSocio.sem4 : sem === 5 ? resolvedSocio.sem5 : sem === 6 ? resolvedSocio.sem6 : undefined);
+
       const asignaturasSem = schoolType === 'tecnico'
         ? (sem === 1 ? obtenerAsignaturas1erSemestreTecnologico() : obtenerAsignaturasParaGrupoTecnologico(sem, ''))
-        : obtenerAsignaturasParaGrupo(sem, 'Administración');
+        : obtenerAsignaturasParaGrupo(sem, 'Administración', [], socioForSem);
 
       for (const asig of asignaturasSem) {
-        if (asig.tipo === 'FUNDAMENTAL' || asig.tipo === 'SOCIOEMOCIONAL') {
+        if (asig.tipo === 'FUNDAMENTAL') {
           const asigClean = asig.nombre.trim();
           if (activeFundamentalUacs && activeFundamentalUacs.length > 0) {
             const isSelected = activeFundamentalUacs.some(
@@ -926,6 +935,16 @@ export function consolidarUacsUnicasPlantel(params: ConsolidacionParams): Unique
               uacName: asigClean,
               semester: sem,
               component: 'fundamental',
+            });
+          }
+        } else if (asig.tipo === 'SOCIOEMOCIONAL') {
+          const asigClean = asig.nombre.trim();
+          const key = `${sem}__${asigClean.toLowerCase()}`;
+          if (!resultMap.has(key)) {
+            resultMap.set(key, {
+              uacName: asigClean,
+              semester: sem,
+              component: 'socioemocional',
             });
           }
         }
