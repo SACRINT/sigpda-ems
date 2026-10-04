@@ -1138,6 +1138,29 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
           ? `Por favor completa los siguientes campos obligatorios (*) antes de continuar: ${missing.join(', ')}.`
           : 'Por favor completa todos los campos obligatorios marcados con asterisco rojo (*) antes de continuar.'
       );
+      if (typeof window !== 'undefined') {
+        setTimeout(() => {
+          const firstMissing = missing[0];
+          let targetEl: HTMLElement | null = null;
+          if (firstMissing === 'Nombre del Proyecto') targetEl = document.getElementById('paec-project-name');
+          else if (firstMissing === 'Problemática Central') targetEl = document.getElementById('paec-problem-statement');
+          else if (firstMissing === 'Ubicación Geográfica') targetEl = document.getElementById('paec-community-location');
+          else if (firstMissing === 'Situación Demográfica') targetEl = document.getElementById('paec-community-demographics');
+          else if (firstMissing === 'Actividades Socioeconómicas') targetEl = document.getElementById('paec-community-economy');
+          else if (firstMissing === 'Matrícula Estudiantil') targetEl = document.getElementById('paec-school-enrollment');
+          else if (firstMissing === 'Plantilla Docente') targetEl = document.getElementById('paec-school-teachercount');
+          else if (firstMissing?.includes('Laboral')) targetEl = document.getElementById('paec-laboral-section');
+          else if (firstMissing?.includes('FFE')) targetEl = document.getElementById('paec-ffe-section');
+
+          const errorBanner = document.getElementById('step1-error-banner');
+          if (targetEl) {
+            targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            targetEl.focus?.();
+          } else if (errorBanner) {
+            errorBanner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 50);
+      }
       return;
     }
 
@@ -1474,6 +1497,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                   Nombre Preliminar del Proyecto Escolar Comunitario <span style={{ color: '#ef4444' }}>*</span>
                 </label>
                 <input
+                  id="paec-project-name"
                   type="text"
                   required
                   placeholder="Ej: Transformando el PET en Soluciones Comunitarias Ecológicas"
@@ -1487,6 +1511,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                   Problemática o Necesidad seleccionada por el Comité del Plantel <span style={{ color: '#ef4444' }}>*</span>
                 </label>
                 <textarea
+                  id="paec-problem-statement"
                   required
                   rows={3}
                   placeholder="Ej: Alto índice de contaminación por residuos plásticos en los alrededores del plantel y falta de cultura de reciclaje en la comunidad."
@@ -1527,6 +1552,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                   Ubicación Geográfica y Nombre de la Localidad <span style={{ color: '#ef4444' }}>*</span>
                 </label>
                 <input
+                  id="paec-community-location"
                   type="text"
                   required
                   placeholder="Ej: San Antonio Tepetitlán, Municipio de Chignahuapan, Puebla"
@@ -1540,6 +1566,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                   Situación Demográfica <span style={{ color: '#ef4444' }}>*</span>
                 </label>
                 <input
+                  id="paec-community-demographics"
                   type="text"
                   required
                   placeholder="Ej: Población de 4,200 habitantes, mayoría joven menor de 25 años"
@@ -1553,6 +1580,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                   Actividades Socioeconómicas Principales <span style={{ color: '#ef4444' }}>*</span>
                 </label>
                 <input
+                  id="paec-community-economy"
                   type="text"
                   required
                   placeholder="Ej: Agricultura de temporal, comercio local y artesanías"
@@ -1735,6 +1763,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                   Matrícula Escolar (Estudiantes) <span style={{ color: '#ef4444' }}>*</span>
                 </label>
                 <input
+                  id="paec-school-enrollment"
                   type="text"
                   required
                   placeholder="Ej: 280 alumnos inscritos en ambos semestres"
@@ -1748,6 +1777,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                   Plantilla Docente <span style={{ color: '#ef4444' }}>*</span>
                 </label>
                 <input
+                  id="paec-school-teachercount"
                   type="text"
                   required
                   placeholder="Ej: 12 docentes, 1 orientador y 2 administrativos"
@@ -2517,7 +2547,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
               </div>
 
               {/* Laboral Checklist / Confirmación (Sincronizado con Grupos H-02) */}
-              <div style={{ borderTop: '1px solid var(--c-border)', paddingTop: '16px', marginTop: '8px' }}>
+              <div id="paec-laboral-section" style={{ borderTop: '1px solid var(--c-border)', paddingTop: '16px', marginTop: '8px' }}>
                 <label style={{ display: 'block', fontWeight: 600, marginBottom: '10px', fontSize: '15px', color: 'var(--c-navy)' }}>
                   Capacitaciones para el Trabajo (Formación Laboral) activas *
                 </label>
@@ -2580,7 +2610,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
               </div>
 
               {/* FFE Resumen Vinculado a Grupos (H-04) */}
-              <div style={{ borderTop: '1px solid var(--c-border)', paddingTop: '16px', marginTop: '16px' }}>
+              <div id="paec-ffe-section" style={{ borderTop: '1px solid var(--c-border)', paddingTop: '16px', marginTop: '16px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                   <label style={{ display: 'block', fontWeight: 600, fontSize: '15px', color: 'var(--c-navy)' }}>
                     Formación Fundamental Extendida (FFE/FFEO) vinculadas al plantel
@@ -3050,7 +3080,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
         )}
 
         {error && (
-          <div style={{ backgroundColor: 'rgba(244,63,94,0.12)', color: '#fb7185', border: '1px solid rgba(244,63,94,0.25)', padding: '16px', borderRadius: '8px', marginBottom: '20px' }}>
+          <div id="step1-error-banner" style={{ backgroundColor: 'rgba(244,63,94,0.12)', color: '#fb7185', border: '1px solid rgba(244,63,94,0.25)', padding: '16px', borderRadius: '8px', marginBottom: '20px' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
               <div>
                 <div style={{ fontWeight: 700, fontSize: '15px', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
