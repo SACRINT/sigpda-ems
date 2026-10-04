@@ -776,7 +776,7 @@ export function sanitizeWorkbookNarratives(wb: ActiveWorkTextbook): ActiveWorkTe
 
   const cleanCode = (code: string | null | undefined): string => {
     if (!code) return '';
-    return stripWorkbookTags(code).replace(/<!--[\s\S]*?-->/g, '').trim();
+    return stripWorkbookTags(code).replace(/<!--\s*workbook:[\s\S]*?-->/gi, '').trim();
   };
 
   const cleanWorkbookElements = (
