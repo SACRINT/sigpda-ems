@@ -553,7 +553,6 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
   const [laboralCatalog, setLaboralCatalog] = useState<{ uac_name: string; semester: number; curriculum_name: string }[]>([]);
   const [, setFfeCatalog] = useState<{ uac_name: string; semester: number; component: string }[]>([]);
   const [selectedFundamental, setSelectedFundamental] = useState<string[]>(savedDraft?.selectedFundamental ?? []);
-  const [selectedLaboral, setSelectedLaboral] = useState<string[]>(savedDraft?.selectedLaboral ?? []);
   const [selectedFfe, setSelectedFfe] = useState<string[]>(savedDraft?.selectedFfe ?? []);
   const [groupsCount, setGroupsCount] = useState(savedDraft?.groupsCount ?? '1');
   const [groupsConfig, setGroupsConfig] = useState(savedDraft?.groupsConfig ?? '');
@@ -565,6 +564,54 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
   const [groupAssignments, setGroupAssignments] = useState<GroupTrackConfig[]>(
     savedDraft?.groupAssignments ?? []
   );
+
+  // H-02: Helper para identificar capacitación oficial desde nombre de UAC o track
+  const findTrackForUacOrTrackName = useCallback((item: string): string | null => {
+    if (FORMACIONES_LABORALES.includes(item as (typeof FORMACIONES_LABORALES)[number]) || Object.prototype.hasOwnProperty.call(CAPACITACION_TITLES, item)) {
+      return item;
+    }
+    for (const [track, semObj] of Object.entries(UACS_LABORALES_OFICIALES_BGE)) {
+      for (const uacs of Object.values(semObj)) {
+        if (uacs.some(u => u.toLowerCase() === item.toLowerCase())) {
+          return track;
+        }
+      }
+    }
+    return null;
+  }, []);
+
+  // H-02: Derivar capacitaciones asignadas en grupos (Single Source of Truth)
+  const assignedLaboralTracks = useMemo(() => {
+    const tracks = new Set<string>();
+    for (const g of groupAssignments) {
+      if (g.trackName && g.trackName.trim()) {
+        const name = g.trackName.trim();
+        if (FORMACIONES_LABORALES.includes(name as (typeof FORMACIONES_LABORALES)[number]) || Object.prototype.hasOwnProperty.call(CAPACITACION_TITLES, name)) {
+          tracks.add(name);
+        }
+      }
+    }
+    return Array.from(tracks);
+  }, [groupAssignments]);
+
+  // H-02: Derivar selectedLaboral a partir de assignedLaboralTracks (8 UACs por capacitación asignada)
+  const selectedLaboral = useMemo(() => {
+    const uacs: string[] = [];
+    for (const track of assignedLaboralTracks) {
+      const semMap = UACS_LABORALES_OFICIALES_BGE[track];
+      if (semMap) {
+        for (const semUacs of Object.values(semMap)) {
+          for (const u of semUacs) {
+            if (!uacs.includes(u)) {
+              uacs.push(u);
+            }
+          }
+        }
+      }
+    }
+    return uacs;
+  }, [assignedLaboralTracks]);
+
   const [expandedGroupFfe, setExpandedGroupFfe] = useState<Record<string, boolean>>({});
   const [showFundamentalCustomizer, setShowFundamentalCustomizer] = useState<boolean>(false);
   const [carrerasBT, setCarrerasBT] = useState<BTCarrera[]>([]);
@@ -633,7 +680,17 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
     }
 
     if (Array.isArray(parsedPaecData.selectedLaboral) && parsedPaecData.selectedLaboral.length > 0) {
-      setSelectedLaboral(parsedPaecData.selectedLaboral);
+      const detectedTracks = new Set<string>();
+      for (const item of parsedPaecData.selectedLaboral) {
+        const found = findTrackForUacOrTrackName(item);
+        if (found) detectedTracks.add(found);
+      }
+      if (detectedTracks.size > 0) {
+        const primaryTrack = Array.from(detectedTracks)[0];
+        setGroupAssignments(prev =>
+          prev.map(g => (g.semester === 3 || g.semester === 4) && !g.trackName ? { ...g, trackId: primaryTrack, trackName: primaryTrack } : g)
+        );
+      }
     }
 
     if (Array.isArray(parsedPaecData.selectedFfe) && parsedPaecData.selectedFfe.length > 0) {
@@ -671,6 +728,14 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
     queueMicrotask(() => {
       setGroupAssignments((prev) => {
         const updated: GroupTrackConfig[] = [];
+        let fallbackTrack = '';
+        if (savedDraft?.selectedLaboral && savedDraft.selectedLaboral.length > 0) {
+          for (const item of savedDraft.selectedLaboral) {
+            const t = findTrackForUacOrTrackName(item);
+            if (t) { fallbackTrack = t; break; }
+          }
+        }
+
         for (const sem of sems) {
           const count = Math.max(1, Math.min(8, semestersConfig[sem] || 1));
           for (let i = 0; i < count; i++) {
@@ -681,12 +746,13 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
             if (existing) {
               updated.push(existing);
             } else {
+              const defaultTrack = (sem === 3 || sem === 4) ? fallbackTrack : '';
               updated.push({
                 groupId: gId,
                 groupName: gName,
                 semester: sem,
-                trackId: '',
-                trackName: '',
+                trackId: defaultTrack,
+                trackName: defaultTrack,
                 ffeSelections: [],
               });
             }
@@ -695,7 +761,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
         return updated;
       });
     });
-  }, [cycleType, semestersConfig]);
+  }, [cycleType, semestersConfig, findTrackForUacOrTrackName, savedDraft?.selectedLaboral]);
 
   // Cómputo en tiempo real de UACs Únicas Consolidadas (Regla de Oro Curricular: Cero Duplicados)
   const uniqueUacsList = useMemo(() => {
@@ -848,13 +914,25 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
           setAcademicBaseline((p.schoolContext as unknown as Record<string, unknown>).academicBaseline as AcademicBaseline);
         }
         setSelectedFundamental(p.schoolContext.activeFundamentalUacs || []);
-        setSelectedLaboral(p.schoolContext.activeLaboralUacs || []);
         setSelectedFfe(p.schoolContext.activeFfeUacs || []);
         setSelectedBtCarreras(p.schoolContext.activeBtCarreras || []);
         setSchoolType(p.schoolContext.schoolType || 'general');
         if (p.schoolContext.groupStructure) {
+          const rawGroups = p.schoolContext.groupStructure.groupAssignments || [];
+          let fallbackTrack = '';
+          if (Array.isArray(p.schoolContext.activeLaboralUacs) && p.schoolContext.activeLaboralUacs.length > 0) {
+            for (const item of p.schoolContext.activeLaboralUacs) {
+              const t = findTrackForUacOrTrackName(item);
+              if (t) { fallbackTrack = t; break; }
+            }
+          }
+          const hydratedGroups = rawGroups.map(g =>
+            (g.semester === 3 || g.semester === 4) && !g.trackName && fallbackTrack
+              ? { ...g, trackId: fallbackTrack, trackName: fallbackTrack }
+              : g
+          );
           setSemestersConfig(p.schoolContext.groupStructure.semestersConfig || { 1: 1, 3: 1, 5: 1 });
-          setGroupAssignments(p.schoolContext.groupStructure.groupAssignments || []);
+          setGroupAssignments(hydratedGroups);
         }
         setGroupsCount(p.schoolContext.groupsCount || '1');
         setGroupsConfig(p.schoolContext.groupsConfig || '');
@@ -873,7 +951,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [fetchAudit]);
+  }, [fetchAudit, findTrackForUacOrTrackName]);
 
   // Load project details if ID is present
   useEffect(() => {
@@ -903,6 +981,10 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
     };
   }, [projectId, fetchAudit]);
 
+  const semsInCycle = cycleType === 'A' ? [1, 3, 5] : cycleType === 'B' ? [2, 4, 6] : [1, 2, 3, 4, 5, 6];
+  const hasLaboralSemesters = schoolType !== 'tecnico' && semsInCycle.some(s => s >= 3 && (semestersConfig[s] ?? 0) > 0);
+  const hasFfeSemesters = schoolType !== 'tecnico' && semsInCycle.some(s => s >= 5 && (semestersConfig[s] ?? 0) > 0);
+
   const isStep1Valid = Boolean(
     projectName.trim() &&
     problemStatement.trim() &&
@@ -910,14 +992,35 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
     community.demographics?.trim() &&
     community.economy?.trim() &&
     school.enrollment?.trim() &&
-    school.teacherCount?.trim()
+    school.teacherCount?.trim() &&
+    (!hasLaboralSemesters || selectedLaboral.length > 0) &&
+    (!hasFfeSemesters || selectedFfe.length > 0) &&
+    (schoolType !== 'tecnico' || selectedBtCarreras.length > 0)
   );
 
   // Handle Form Submission (Create Project)
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     if (!isStep1Valid) {
-      setError('Por favor completa todos los campos obligatorios marcados con asterisco rojo (*) antes de continuar.');
+      const missing = getMissingStep1Fields({
+        projectName,
+        problemStatement,
+        community,
+        school,
+        curricular: {
+          hasLaboralSemesters,
+          selectedLaboralCount: selectedLaboral.length,
+          hasFfeSemesters,
+          selectedFfeCount: selectedFfe.length,
+          isTecnico: schoolType === 'tecnico',
+          selectedBtCarrerasCount: selectedBtCarreras.length,
+        },
+      });
+      setError(
+        missing.length > 0
+          ? `Por favor completa los siguientes campos obligatorios (*) antes de continuar: ${missing.join(', ')}.`
+          : 'Por favor completa todos los campos obligatorios marcados con asterisco rojo (*) antes de continuar.'
+      );
       return;
     }
 
@@ -2077,74 +2180,57 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                 </div>
               </div>
 
-              {/* Laboral Checklist */}
+              {/* Laboral Checklist / Confirmación (Sincronizado con Grupos H-02) */}
               <div style={{ borderTop: '1px solid var(--c-border)', paddingTop: '16px', marginTop: '8px' }}>
                 <label style={{ display: 'block', fontWeight: 600, marginBottom: '10px', fontSize: '15px', color: 'var(--c-navy)' }}>
                   Capacitaciones para el Trabajo (Formación Laboral) activas *
                 </label>
                 <p style={{ fontSize: '12.5px', color: 'var(--c-text-muted)', marginBottom: '14px', marginTop: '-6px' }}>
-                  Selecciona las capacitaciones de tu escuela. Cada capacitación contiene 8 asignaturas divididas de 3° a 6° semestre.
+                  {assignedLaboralTracks.length > 0
+                    ? `Capacitaciones sincronizadas con la asignación de grupos (${assignedLaboralTracks.length} activa${assignedLaboralTracks.length > 1 ? 's' : ''}, ${selectedLaboral.length} UACs consolidadas en el padrón).`
+                    : 'Selecciona las capacitaciones de tu escuela en la sección de grupos arriba (3° a 6° semestre) para incorporarlas al padrón curricular.'}
                 </p>
 
-                {laboralCatalog.length === 0 ? (
-                  <p style={{ fontSize: '13px', color: 'rgba(240,244,255,0.5)', fontStyle: 'italic' }}>Cargando catálogo laboral...</p>
+                {assignedLaboralTracks.length === 0 ? (
+                  <div style={{ padding: '16px', borderRadius: '8px', border: '1px dashed rgba(239,68,68,0.4)', background: 'rgba(239,68,68,0.06)', color: '#fca5a5', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '20px' }}>⚠️</span>
+                    <div>
+                      <strong>No se ha seleccionado ninguna Capacitación Laboral en los grupos.</strong>
+                      <div style={{ fontSize: '12px', marginTop: '4px', color: '#fecaca' }}>
+                        Para el componente curricular laboral (3° a 6° semestre), asigna la capacitación de cada grupo en la tabla superior. Cada capacitación incluye 8 UACs oficiales distribuidas en los 4 semestres.
+                      </div>
+                    </div>
+                  </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '420px', overflowY: 'auto', padding: '12px', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', background: 'rgba(8,12,24,0.5)' }}>
-                    {Object.keys(CAPACITACION_TITLES).map((capKey) => {
-                      const title = CAPACITACION_TITLES[capKey];
+                    {assignedLaboralTracks.map((capKey) => {
+                      const title = CAPACITACION_TITLES[capKey] || capKey;
                       const semGroups = groupedLaboral[capKey] || {};
-                      
                       const capUacs = Object.values(semGroups).flat();
-                      const allSelected = capUacs.length > 0 && capUacs.every(u => selectedLaboral.includes(u.uac_name));
 
                       return (
-                        <div key={capKey} style={{ border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', padding: '12px', background: 'rgba(255,255,255,0.03)' }}>
+                        <div key={capKey} style={{ border: '1px solid rgba(99,102,241,0.3)', borderRadius: '6px', padding: '12px', background: 'rgba(99,102,241,0.04)' }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '8px', marginBottom: '10px' }}>
                             <span style={{ fontWeight: 600, fontSize: '14px', color: '#818cf8' }}>{title}</span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const names = capUacs.map(u => u.uac_name);
-                                if (allSelected) {
-                                  setSelectedLaboral(prev => prev.filter(n => !names.includes(n)));
-                                } else {
-                                  setSelectedLaboral(prev => Array.from(new Set([...prev, ...names])));
-                                }
-                              }}
-                              style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '4px', border: '1px solid rgba(99,102,241,0.3)', background: 'rgba(99,102,241,0.15)', color: '#a5b4fc', cursor: 'pointer', fontWeight: 600 }}
-                            >
-                              {allSelected ? 'Deseleccionar todo' : 'Seleccionar todo'}
-                            </button>
+                            <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '4px', border: '1px solid rgba(99,102,241,0.4)', background: 'rgba(99,102,241,0.2)', color: '#a5b4fc', fontWeight: 600 }}>
+                              ✓ Asignada en Grupos ({capUacs.length || 8} UACs)
+                            </span>
                           </div>
                           
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
                             {[3, 4, 5, 6].map((sem) => {
-                              const uacs = semGroups[sem] || [];
+                              const uacs = semGroups[sem] || (UACS_LABORALES_OFICIALES_BGE[capKey]?.[sem] || []).map(name => ({ uac_name: name, semester: sem, curriculum_name: capKey }));
                               if (uacs.length === 0) return null;
                               return (
                                 <div key={sem} style={{ background: 'rgba(255,255,255,0.04)', padding: '8px', borderRadius: '4px' }}>
                                   <div style={{ fontSize: '11px', fontWeight: 700, color: '#818cf8', marginBottom: '6px' }}>{sem}° Semestre</div>
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                    {uacs.map((u) => {
-                                      const isChecked = selectedLaboral.includes(u.uac_name);
-                                      return (
-                                        <label key={u.uac_name} style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', fontSize: '11.5px', cursor: 'pointer', lineHeight: 1.3 }}>
-                                          <input
-                                            type="checkbox"
-                                            checked={isChecked}
-                                            onChange={() => {
-                                              if (isChecked) {
-                                                setSelectedLaboral(selectedLaboral.filter(n => n !== u.uac_name));
-                                              } else {
-                                                setSelectedLaboral([...selectedLaboral, u.uac_name]);
-                                              }
-                                            }}
-                                            style={{ marginTop: '2px' }}
-                                          />
-                                          <span>{u.uac_name}</span>
-                                        </label>
-                                      );
-                                    })}
+                                    {uacs.map((u) => (
+                                      <div key={u.uac_name} style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', fontSize: '11.5px', lineHeight: 1.3, color: '#e2e8f0' }}>
+                                        <span style={{ color: '#38bdf8', fontWeight: 'bold' }}>✓</span>
+                                        <span>{u.uac_name}</span>
+                                      </div>
+                                    ))}
                                   </div>
                                 </div>
                               );

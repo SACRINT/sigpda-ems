@@ -80,6 +80,14 @@ export function getMissingStep1Fields(params: {
   problemStatement?: string | null;
   community: MappedCommunityState;
   school: { enrollment?: string | null; teacherCount?: string | null };
+  curricular?: {
+    hasLaboralSemesters?: boolean;
+    selectedLaboralCount?: number;
+    hasFfeSemesters?: boolean;
+    selectedFfeCount?: number;
+    isTecnico?: boolean;
+    selectedBtCarrerasCount?: number;
+  };
 }): string[] {
   const missing: string[] = [];
   if (!params.projectName?.trim()) missing.push('Nombre del Proyecto');
@@ -89,6 +97,15 @@ export function getMissingStep1Fields(params: {
   if (!params.community.economy?.trim()) missing.push('Actividades Socioeconómicas');
   if (!params.school.enrollment?.trim()) missing.push('Matrícula Estudiantil');
   if (!params.school.teacherCount?.trim()) missing.push('Plantilla Docente');
+  if (params.curricular?.hasLaboralSemesters && (params.curricular.selectedLaboralCount ?? 0) === 0) {
+    missing.push('Capacitación Laboral (Formación para el Trabajo)');
+  }
+  if (params.curricular?.hasFfeSemesters && (params.curricular.selectedFfeCount ?? 0) === 0) {
+    missing.push('Formación Fundamental Extendida (FFE)');
+  }
+  if (params.curricular?.isTecnico && (params.curricular.selectedBtCarrerasCount ?? 0) === 0) {
+    missing.push('Carrera Técnica BT');
+  }
   return missing;
 }
 

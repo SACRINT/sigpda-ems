@@ -1,0 +1,159 @@
+import { describe, it, expect } from 'vitest';
+import { consolidarUacsUnicasPlantel } from '@/lib/escuela-grupos';
+import { UACS_LABORALES_OFICIALES_BGE } from '@/lib/capacitaciones-data';
+import { getMissingStep1Fields } from '@/lib/prompts/paec-extraction';
+import type { GroupTrackConfig } from '@/types/paec';
+
+describe('PAEC H-02 & H-03: Paridad Curricular Laboral y Validación de Paso 1', () => {
+  it('H-02: Una sola capacitación asignada (Redes y Mantenimiento) genera exactamente 8 UACs en ciclo anual (nunca 16)', () => {
+    const track = 'Redes y Mantenimiento';
+    const groupAssignments: GroupTrackConfig[] = [
+      { groupId: '1-A', groupName: '1° A', semester: 1, trackId: '', trackName: '', ffeSelections: [] },
+      { groupId: '2-A', groupName: '2° A', semester: 2, trackId: '', trackName: '', ffeSelections: [] },
+      { groupId: '3-A', groupName: '3° A', semester: 3, trackId: track, trackName: track, ffeSelections: [] },
+      { groupId: '4-A', groupName: '4° A', semester: 4, trackId: track, trackName: track, ffeSelections: [] },
+      { groupId: '5-A', groupName: '5° A', semester: 5, trackId: '', trackName: '', ffeSelections: ['Análisis de Fenómenos Físicos I'] },
+      { groupId: '6-A', groupName: '6° A', semester: 6, trackId: '', trackName: '', ffeSelections: ['Análisis de Fenómenos Físicos II'] },
+    ];
+
+    // Derivar selectedLaboral a partir de los grupos asignados (patrón Single Source of Truth)
+    const assignedTracks = Array.from(new Set(groupAssignments.filter(g => Boolean(g.trackName)).map(g => g.trackName as string)));
+    expect(assignedTracks).toEqual(['Redes y Mantenimiento']);
+
+    const derivedLaboralUacs: string[] = [];
+    for (const t of assignedTracks) {
+      const sems = UACS_LABORALES_OFICIALES_BGE[t];
+      if (sems) {
+        for (const uacList of Object.values(sems) as string[][]) {
+          for (const u of uacList) {
+            if (!derivedLaboralUacs.includes(u)) derivedLaboralUacs.push(u);
+          }
+        }
+      }
+    }
+
+    expect(derivedLaboralUacs).toHaveLength(8);
+
+    const uniqueUacs = consolidarUacsUnicasPlantel({
+      semesters: [1, 2, 3, 4, 5, 6],
+      schoolType: 'general',
+      groupAssignments,
+      activeLaboralUacs: derivedLaboralUacs,
+      activeFfeUacs: ['Análisis de Fenómenos Físicos I', 'Análisis de Fenómenos Físicos II'],
+    });
+
+    const laboralConsolidadas = uniqueUacs.filter(u => u.component === 'laboral');
+    // DEBE SER EXACTAMENTE 8, NUNCA 16
+    expect(laboralConsolidadas).toHaveLength(8);
+
+    // Verificar que solo pertenecen a Redes y Mantenimiento
+    for (const u of laboralConsolidadas) {
+      expect(u.originTrack).toBe('Redes y Mantenimiento');
+    }
+  });
+
+  it('H-02: En ciclo A (1, 3, 5), una capacitación genera exactamente 4 UACs laborales (semestres 3 y 5)', () => {
+    const track = 'Redes y Mantenimiento';
+    const groupAssignments: GroupTrackConfig[] = [
+      { groupId: '1-A', groupName: '1° A', semester: 1, trackId: '', trackName: '', ffeSelections: [] },
+      { groupId: '3-A', groupName: '3° A', semester: 3, trackId: track, trackName: track, ffeSelections: [] },
+      { groupId: '5-A', groupName: '5° A', semester: 5, trackId: '', trackName: '', ffeSelections: ['Análisis de Fenómenos Físicos I'] },
+    ];
+
+    const derivedLaboralUacs: string[] = [];
+    for (const uacList of Object.values(UACS_LABORALES_OFICIALES_BGE[track]) as string[][]) {
+      for (const u of uacList) {
+        if (!derivedLaboralUacs.includes(u)) derivedLaboralUacs.push(u);
+      }
+    }
+
+    const uniqueUacs = consolidarUacsUnicasPlantel({
+      semesters: [1, 3, 5],
+      schoolType: 'general',
+      groupAssignments,
+      activeLaboralUacs: derivedLaboralUacs,
+    });
+
+    const laboralConsolidadas = uniqueUacs.filter(u => u.component === 'laboral');
+    expect(laboralConsolidadas).toHaveLength(4);
+    expect(laboralConsolidadas.map(u => u.semester).sort()).toEqual([3, 3, 5, 5]);
+  });
+
+  it('H-02: Dos capacitaciones legítimas asignadas a grupos distintos generan 16 UACs (8 cada una)', () => {
+    const groupAssignments: GroupTrackConfig[] = [
+      { groupId: '3-A', groupName: '3° A', semester: 3, trackId: 'Redes y Mantenimiento', trackName: 'Redes y Mantenimiento', ffeSelections: [] },
+      { groupId: '3-B', groupName: '3° B', semester: 3, trackId: 'Contabilidad', trackName: 'Contabilidad', ffeSelections: [] },
+    ];
+
+    const assignedTracks = ['Redes y Mantenimiento', 'Contabilidad'];
+    const derivedLaboralUacs: string[] = [];
+    for (const t of assignedTracks) {
+      for (const uacList of Object.values(UACS_LABORALES_OFICIALES_BGE[t]) as string[][]) {
+        for (const u of uacList) {
+          if (!derivedLaboralUacs.includes(u)) derivedLaboralUacs.push(u);
+        }
+      }
+    }
+
+    expect(derivedLaboralUacs).toHaveLength(16);
+
+    const uniqueUacs = consolidarUacsUnicasPlantel({
+      semesters: [1, 2, 3, 4, 5, 6],
+      schoolType: 'general',
+      groupAssignments,
+      activeLaboralUacs: derivedLaboralUacs,
+    });
+
+    const laboralConsolidadas = uniqueUacs.filter(u => u.component === 'laboral');
+    expect(laboralConsolidadas).toHaveLength(16);
+  });
+
+  it('H-03: isStep1Valid y getMissingStep1Fields exigen selectedLaboral cuando hay semestres laborales', () => {
+    const baseParams = {
+      projectName: 'Proyecto Escolar Sustentable',
+      problemStatement: 'Problemática de deserción e integración',
+      community: {
+        location: 'Comunidad Rural',
+        demographics: 'Población de 2500 hab',
+        economy: 'Agricultura y ganadería',
+        traditions: 'Fiestas patronales',
+        environment: '',
+        security: '',
+      },
+      school: {
+        enrollment: '120',
+        teacherCount: '8',
+      },
+    };
+
+    // Caso 1: Semestres laborales activos pero selectedLaboralCount === 0
+    const missingSinLaboral = getMissingStep1Fields({
+      ...baseParams,
+      curricular: {
+        hasLaboralSemesters: true,
+        selectedLaboralCount: 0,
+        hasFfeSemesters: false,
+        selectedFfeCount: 0,
+        isTecnico: false,
+        selectedBtCarrerasCount: 0,
+      },
+    });
+
+    expect(missingSinLaboral).toContain('Capacitación Laboral (Formación para el Trabajo)');
+
+    // Caso 2: Con capacitación laboral seleccionada
+    const missingConLaboral = getMissingStep1Fields({
+      ...baseParams,
+      curricular: {
+        hasLaboralSemesters: true,
+        selectedLaboralCount: 8,
+        hasFfeSemesters: false,
+        selectedFfeCount: 0,
+        isTecnico: false,
+        selectedBtCarrerasCount: 0,
+      },
+    });
+
+    expect(missingConLaboral).not.toContain('Capacitación Laboral (Formación para el Trabajo)');
+  });
+});
