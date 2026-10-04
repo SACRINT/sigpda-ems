@@ -182,7 +182,12 @@ export function buildPaecChunkExtractionPrompt(
   chunkIndex: number,
   totalChunks: number
 ): string {
-  return `Analiza el siguiente fragmento (${chunkIndex + 1} de ${totalChunks}) correspondiente a un Proyecto Aula Escuela Comunidad (PAEC) previo y extrae la información general, comunitaria, institucional y curricular presente en este segmento.
+  const isTruncated = chunkText.length > 75000;
+  const truncationNotice = isTruncated
+    ? `\n[AVISO DE CAPACIDAD DE FRAGMENTO: El segmento excede la ventana de análisis individual (longitud: ${chunkText.length.toLocaleString('es-MX')} caracteres). Se procesan los primeros 75,000 caracteres prioritarios del bloque.]\n`
+    : '';
+
+  return `Analiza el siguiente fragmento (${chunkIndex + 1} de ${totalChunks}) correspondiente a un Proyecto Aula Escuela Comunidad (PAEC) previo y extrae la información general, comunitaria, institucional y curricular presente en este segmento.${truncationNotice}
 
 TEXTO DEL FRAGMENTO (${chunkIndex + 1}/${totalChunks}):
 """

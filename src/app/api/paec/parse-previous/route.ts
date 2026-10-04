@@ -162,13 +162,18 @@ export async function POST(request: NextRequest) {
       parsedData = parsed.data;
       if (parsed.warnings) warnings.push(...parsed.warnings);
     } else {
-      // Chunking multi-fragmento estructurado con concurrencia acotada (F-R3-04)
-      logger.info(`[paec-parse-previous] Documento de ${documentText.length} caracteres: procesando en ${chunks.length} fragmentos.`);
-      warnings.push(
-        `El documento contiene ${documentText.length.toLocaleString('es-MX')} caracteres. Se procesó mediante fragmentación estructurada (${chunks.length} bloques) garantizando la extracción íntegra.`
-      );
+      // Chunking multi-fragmento estructurado con concurrencia acotada (F-R3-04 / F-R4-01)
+      const analyzedChars = chunks.reduce((acc, c) => acc + Math.min(c.length, 75000), 0);
+      logger.info(`[paec-parse-previous] Documento de ${documentText.length} caracteres: procesando en ${chunks.length} fragmentos (${analyzedChars} caracteres analizados).`);
+
       if (chunks.length >= 8) {
-        warnings.push('El documento alcanzó el límite máximo de 8 fragmentos de extracción.');
+        warnings.push(
+          `El documento contiene ${documentText.length.toLocaleString('es-MX')} caracteres y alcanzó el límite de 8 fragmentos. Se analizaron ${analyzedChars.toLocaleString('es-MX')} caracteres prioritarios estructurados en 8 bloques.`
+        );
+      } else {
+        warnings.push(
+          `El documento contiene ${documentText.length.toLocaleString('es-MX')} caracteres. Se procesó mediante fragmentación estructurada (${chunks.length} bloques) garantizando la extracción íntegra.`
+        );
       }
 
       const results: (PaecPreviousExtractDTO | null)[] = [];
