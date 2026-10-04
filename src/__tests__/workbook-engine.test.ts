@@ -53,6 +53,7 @@ import { sanitizePdfText, renderWorkbookToPdf } from '@/lib/pdf-workbook-rendere
 import { renderWorkbookToDocx } from '@/lib/docx-workbook-renderer';
 import mammoth from 'mammoth';
 import { PDFParse } from 'pdf-parse';
+import JSZip from 'jszip';
 import {
   consolidateWorkbookElements,
   stripWorkbookTags,
@@ -60,7 +61,13 @@ import {
 } from '@/lib/guide-engine/workbook-tags';
 import { resolveVisualForMission } from '@/lib/visual-engine/visual-asset-manager';
 import { parseMarkdownTable } from '@/lib/visual-engine/column-flow-manager';
-import type { WorkbookElement, ActiveWorkTextbook } from '@/types/work-textbook';
+import type {
+  WorkbookElement,
+  ActiveWorkTextbook,
+  MissionSection,
+  ProjectSection,
+  EvaluationSection,
+} from '@/types/work-textbook';
 import type { Planning } from '@/types/planning';
 
 describe('Workbook Engine Architecture Tests (Fase 10)', () => {
@@ -278,7 +285,7 @@ describe('Workbook Engine Architecture Tests (Fase 10)', () => {
   });
 
   describe('sanitizeWorkbookNarratives (F-16 Suite Unitaria Exhaustiva)', () => {
-    it('sanea todos los campos narrativos, estructurales y de configuración sin mutar el objeto de entrada', async () => {
+    it('sanea todos los campos narrativos, estructurales y de configuración sin mutar el objeto de entrada', () => {
       const tag = '<!--workbook:lines:rows=4-->';
       const tagOnly = '<!--workbook:table:cols=2-->';
 
@@ -569,8 +576,137 @@ describe('Workbook Engine Architecture Tests (Fase 10)', () => {
       // H) Aserción global: NINGÚN campo del resultado contiene '<!--'
       const serialized = JSON.stringify(result);
       expect(serialized).not.toContain('<!--');
+    });
 
-      // I) F-22-gap: Verificación de activación de defaults en DOCX y PDF cuando checkboxes o cols son []
+    it('F-22-gap: defaults en DOCX y PDF cuando casillas o columnas se reducen a vacio [] tras sanitizar', async () => {
+      const tag = '<!--workbook:lines:rows=4-->';
+      const tagOnly = '<!--workbook:table:cols=2-->';
+
+      const input: ActiveWorkTextbook = {
+        id: 'wb-test-defaults',
+        planningId: 'plan-unit-01',
+        blockIndex: 0,
+        blockName: `Bloque 1: Materia y Energía ${tag}`,
+        version: 1,
+        subsystem: `Bachillerato General Estatal ${tag}`,
+        targetPages: 40,
+        totalPages: 40,
+        totalWords: 3500,
+        generatedAt: '2026-10-03',
+        qualityScore: 95,
+        qualityWarning: false,
+        coverData: {
+          title: tagOnly,
+          subtitle: `**Subtítulo Editorial** ${tag}`,
+          subjectName: `Ciencias Naturales ${tag}`,
+          semester: 2,
+          blockNumber: 1,
+          teacherName: `Mtra. González ${tag}`,
+          schoolName: `Bachillerato Gral Puebla ${tag}`,
+          cct: `21EBH0001X ${tag}`,
+          paecProjectName: `Sustentabilidad Escolar ${tag}`,
+          municipality: `Puebla, Pue. ${tag}`,
+        },
+        tableOfContents: [
+          {
+            missionIndex: 1,
+            title: `Misión 1: Ley de Conservación ${tag}`,
+            sessionsRange: `Sesiones 1 a 4 ${tag}`,
+            pageEstimate: 6,
+          },
+        ],
+        missions: [
+          {
+            missionIndex: 1,
+            title: `Misión 1: Ley de Conservación de la Materia ${tag}`,
+            coveredSessions: [1, 2, 3, 4],
+            sessionTopic: `Transformaciones Químicas y Ley de Lavoisier ${tag}`,
+            sessionFocus: `Comprobación experimental en sistema cerrado ${tag}`,
+            wordCount: 850,
+            phenomenonHook: {
+              story: `En un taller de herrería en Tepeaca, el óxido de hierro... ${tag}`,
+              detonatingQuestion: `¿Por qué el hierro oxidado parece pesar más? ${tag}`,
+            },
+            conceptZero: {
+              physicalAnalogy: `Una báscula de dos platos en equilibrio ${tag}`,
+              coreExplanation: `La materia no se crea ni se destruye ${tag}`,
+              narrativeExplanation: `Durante cualquier reacción química ordinaria... ${tag}`,
+              solvedExample: {
+                problemStatement: `Calcular la masa final ${tag}`,
+                solutionSteps: [`Paso 1: Sumar reactivos ${tag}`, `Paso 2: Igualar productos ${tag}`],
+                interpretation: `La masa neta se conserva ${tag}`,
+              },
+              contrastTable: [
+                {
+                  correctConcept: `La masa total permanece constante ${tag}`,
+                  commonMisconception: `El gas liberado no tiene masa ${tag}`,
+                  reasoning: `Porque los átomos se reorganizan ${tag}`,
+                },
+              ],
+            },
+            iDoSection: {
+              stepByStepDemo: `El docente pesa un matraz sellado ${tag}`,
+              visualOrDiagram: 'flowchart TD; A[Inicio]-->B[Fin];',
+            },
+            weDoSection: {
+              guidedPractice: `En equipos medimos reactivos en probeta ${tag}`,
+              workbookElements: [
+                {
+                  id: 'el-cb-alltag',
+                  type: 'checkbox_list',
+                  title: `Lista Casillas Solo Tag ${tag}`,
+                  instruction: `Marca cada paso conforme avances ${tag}`,
+                  config: {
+                    checkboxes: [tagOnly, tagOnly],
+                  },
+                } as unknown as WorkbookElement,
+                {
+                  id: 'el-table-alltag',
+                  type: 'empty_table',
+                  title: `Tabla Columnas Solo Tag ${tag}`,
+                  instruction: `Registra datos experimentales ${tag}`,
+                  config: {
+                    cols: [tagOnly, tagOnly],
+                  },
+                } as unknown as WorkbookElement,
+              ],
+            },
+            youDoSection: {
+              autonomousChallenge: `Calcula el rendimiento porcentual ${tag}`,
+              workbookElements: [],
+            },
+            troubleshooting: [],
+            formativeCheckpoint: {
+              question: `¿Qué principio termodinámico demostraste? ${tag}`,
+              reflectionPrompts: [`Reflexiona sobre posibles fuentes de error ${tag}`],
+              criteriaChecklist: [`Anotó unidades correctas ${tag}`],
+            },
+            diagnosticEvaluation: {
+              context: `Situación de diagnóstico inicial ${tag}`,
+              questions: [`¿Qué ocurre cuando una vela se consume? ${tag}`],
+            },
+            metacognitiveTrafficLight: {
+              green: `Comprendo y aplico el balance ${tag}`,
+              yellow: `Entiendo el concepto pero dudo en cálculos ${tag}`,
+              red: `Requiero asesoría docente ${tag}`,
+            },
+            safetyOrWorkshopTip: `Usar gafas de seguridad y guantes térmicos ${tag}`,
+          } as unknown as MissionSection,
+        ],
+        projectSection: {
+          artifactName: `Calentador Solar Comunitario ${tag}`,
+          communityUtility: `Agua caliente para el comedor escolar ${tag}`,
+          phases: [],
+          technicalSpecs: [],
+          acceptanceCriteria: [],
+        } as unknown as ProjectSection,
+        evaluationSection: {
+          source: 'generated_fresh',
+          rubric: [],
+        } as unknown as EvaluationSection,
+      };
+
+      const sanitized = sanitizeWorkbookNarratives(input);
       const dummyPlanning: Planning = {
         id: 'plan-unit-01',
         teacherId: 'teacher-unit',
@@ -580,19 +716,31 @@ describe('Workbook Engine Architecture Tests (Fase 10)', () => {
         contentJson: {},
       } as unknown as Planning;
 
-      const docxBuf = await renderWorkbookToDocx(result, dummyPlanning, {});
+      const docxBuf = await renderWorkbookToDocx(sanitized, dummyPlanning, {});
       const docxText = (await mammoth.extractRawText({ buffer: docxBuf })).value;
       expect(docxText).toContain('He verificado los requerimientos antes de iniciar.');
       expect(docxText).toContain('Aspecto / Variable');
       expect(docxText).not.toContain('<!--');
 
-      const pdfBuf = await renderWorkbookToPdf(result, dummyPlanning, {});
+      // Inspección de partes XML del DOCX para certificar 0 etiquetas workbook
+      const zip = await JSZip.loadAsync(docxBuf);
+      let xmlWorkbookTags = 0;
+      for (const [filename, file] of Object.entries(zip.files)) {
+        if (filename.endsWith('.xml')) {
+          const content = await file.async('string');
+          const matches = content.match(/<!--\s*workbook:/gi);
+          if (matches) xmlWorkbookTags += matches.length;
+        }
+      }
+      expect(xmlWorkbookTags).toBe(0);
+
+      const pdfBuf = await renderWorkbookToPdf(sanitized, dummyPlanning, {});
       const p = new PDFParse({ data: new Uint8Array(pdfBuf) });
       const pdfText = (await p.getText()).text;
       await p.destroy();
       expect(pdfText).toContain('Instrumentos verificados y listos');
       expect(pdfText).toContain('Variable / Parámetro');
       expect(pdfText).not.toContain('<!--');
-    }, 30000);
+    }, 60000);
   });
 });
