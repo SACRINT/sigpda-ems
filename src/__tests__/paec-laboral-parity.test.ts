@@ -156,4 +156,65 @@ describe('PAEC H-02 & H-03: Paridad Curricular Laboral y Validación de Paso 1',
 
     expect(missingConLaboral).not.toContain('Capacitación Laboral (Formación para el Trabajo)');
   });
+
+  it('H-Multi-PAEC: Permite seleccionar un subconjunto específico de UACs laborales para un proyecto específico', () => {
+    const track = 'Redes y Mantenimiento';
+    const groupAssignments: GroupTrackConfig[] = [
+      { groupId: '3-A', groupName: '3° A', semester: 3, trackId: track, trackName: track, ffeSelections: [] },
+      { groupId: '4-A', groupName: '4° A', semester: 4, trackId: track, trackName: track, ffeSelections: [] },
+    ];
+
+    // El plantel ofrece Redes y Mantenimiento, pero para este PAEC específico solo participan 2 UACs de 3° semestre
+    const subconjuntoSeleccionado = [
+      'Actualiza equipos de cómputo de acuerdo con especificaciones del fabricante',
+      'Usa técnicas y estrategias de mantenimiento del equipo de cómputo',
+    ];
+
+    const uniqueUacs = consolidarUacsUnicasPlantel({
+      semesters: [3, 4],
+      schoolType: 'general',
+      groupAssignments,
+      activeLaboralUacs: subconjuntoSeleccionado,
+    });
+
+    const laboralConsolidadas = uniqueUacs.filter(u => u.component === 'laboral');
+    expect(laboralConsolidadas).toHaveLength(2);
+    expect(laboralConsolidadas.map(u => u.uacName)).toEqual(subconjuntoSeleccionado);
+  });
+
+  it('H-Multi-PAEC: Permite seleccionar un subconjunto específico de UACs FFE para un proyecto específico', () => {
+    const groupAssignments: GroupTrackConfig[] = [
+      {
+        groupId: '5-A',
+        groupName: '5° A',
+        semester: 5,
+        trackId: '',
+        trackName: '',
+        ffeSelections: ['Análisis de Fenómenos Físicos I', 'Pensamiento Filosófico I'],
+      },
+      {
+        groupId: '6-A',
+        groupName: '6° A',
+        semester: 6,
+        trackId: '',
+        trackName: '',
+        ffeSelections: ['Análisis de Fenómenos Físicos II', 'Pensamiento Filosófico II'],
+      },
+    ];
+
+    // El usuario selecciona solo la UAC de física para este PAEC de ciencias
+    const subconjuntoFfe = ['Análisis de Fenómenos Físicos I', 'Análisis de Fenómenos Físicos II'];
+
+    const uniqueUacs = consolidarUacsUnicasPlantel({
+      semesters: [5, 6],
+      schoolType: 'general',
+      groupAssignments,
+      activeFfeUacs: subconjuntoFfe,
+    });
+
+    const ffeConsolidadas = uniqueUacs.filter(u => u.component === 'ffe');
+    expect(ffeConsolidadas).toHaveLength(2);
+    expect(ffeConsolidadas.map(u => u.uacName).sort()).toEqual(subconjuntoFfe.sort());
+  });
 });
+

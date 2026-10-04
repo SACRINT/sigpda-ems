@@ -966,10 +966,19 @@ export function consolidarUacsUnicasPlantel(params: ConsolidacionParams): Unique
 
     if (capData && capData[semKey]) {
       for (const sub of capData[semKey]) {
-        const key = `${g.semester}__${sub.name.trim().toLowerCase()}`;
+        const subNameClean = sub.name.trim();
+        // Multi-PAEC filtering: if activeLaboralUacs is explicitly configured, only include if present
+        if (activeLaboralUacs && activeLaboralUacs.length > 0) {
+          const isSelected = activeLaboralUacs.some(
+            name => name.trim().toLowerCase() === subNameClean.toLowerCase()
+          );
+          if (!isSelected) continue;
+        }
+
+        const key = `${g.semester}__${subNameClean.toLowerCase()}`;
         if (!resultMap.has(key)) {
           resultMap.set(key, {
-            uacName: sub.name.trim(),
+            uacName: subNameClean,
             semester: g.semester,
             component: 'laboral',
             originTrack: track,
@@ -1011,6 +1020,15 @@ export function consolidarUacsUnicasPlantel(params: ConsolidacionParams): Unique
       const nameClean = ffeName.trim();
       if (!nameClean) continue;
       const finalName = g.semester === 6 ? obtenerFfeSemestre6(nameClean) : nameClean;
+
+      // Multi-PAEC filtering: if activeFfeUacs is explicitly configured, only include if present
+      if (activeFfeUacs && activeFfeUacs.length > 0) {
+        const isSelected = activeFfeUacs.some(
+          name => name.trim().toLowerCase() === finalName.toLowerCase() || name.trim().toLowerCase() === nameClean.toLowerCase()
+        );
+        if (!isSelected) continue;
+      }
+
       const key = `${g.semester}__${finalName.toLowerCase()}`;
       if (!resultMap.has(key)) {
         resultMap.set(key, {
@@ -1023,19 +1041,31 @@ export function consolidarUacsUnicasPlantel(params: ConsolidacionParams): Unique
     }
   }
 
-  // Fallback para activeFfeUacs pre-existentes
+  // Fallback para activeFfeUacs pre-existentes (respetando semestres canónicos 5° y 6°)
   for (const ffeUac of activeFfeUacs) {
-    for (const sem of semesters) {
-      if (sem === 5 || sem === 6) {
-        const finalName = sem === 6 ? obtenerFfeSemestre6(ffeUac.trim()) : ffeUac.trim();
-        const key = `${sem}__${finalName.toLowerCase()}`;
-        if (!resultMap.has(key)) {
-          resultMap.set(key, {
-            uacName: finalName,
-            semester: sem,
-            component: 'ffe',
-          });
-        }
+    const clean = ffeUac.trim();
+    if (!clean) continue;
+    const pair5 = FFE_PAIRS.find(p => p.name5.toLowerCase() === clean.toLowerCase());
+    const pair6 = FFE_PAIRS.find(p => p.name6.toLowerCase() === clean.toLowerCase());
+
+    if (pair5 && semesters.includes(5)) {
+      const key = `5__${pair5.name5.toLowerCase()}`;
+      if (!resultMap.has(key)) {
+        resultMap.set(key, {
+          uacName: pair5.name5,
+          semester: 5,
+          component: 'ffe',
+        });
+      }
+    }
+    if (pair6 && semesters.includes(6)) {
+      const key = `6__${pair6.name6.toLowerCase()}`;
+      if (!resultMap.has(key)) {
+        resultMap.set(key, {
+          uacName: pair6.name6,
+          semester: 6,
+          component: 'ffe',
+        });
       }
     }
   }
