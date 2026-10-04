@@ -693,7 +693,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
   }, [allAssignedFfeUacs, selectedFfeCustom]);
 
   const [expandedGroupFfe, setExpandedGroupFfe] = useState<Record<string, boolean>>({});
-  const [showFundamentalCustomizer, setShowFundamentalCustomizer] = useState<boolean>(false);
+  const [showFundamentalCustomizer, setShowFundamentalCustomizer] = useState<boolean>(true);
   const [carrerasBT, setCarrerasBT] = useState<BTCarrera[]>([]);
 
   const availableFundamentalUacs = useMemo(() => {
@@ -2461,7 +2461,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                       fontWeight: 500,
                     }}
                   >
-                    {showFundamentalCustomizer ? '▲ Ocultar selector' : '⚙️ Personalizar asignaturas'}
+                    {showFundamentalCustomizer ? '▲ Colapsar catálogo' : '⚙️ Personalizar asignaturas'}
                   </button>
                 </div>
 
@@ -2539,69 +2539,8 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                 )}
               </div>
 
-              {/* 4.4 PREVISUALIZACIÓN EN TIEMPO REAL: CERO DUPLICADOS */}
-              <div style={{ marginTop: '6px', padding: '16px', borderRadius: '10px', background: 'linear-gradient(135deg, rgba(30,41,59,0.8) 0%, rgba(15,23,42,0.9) 100%)', border: '1px solid rgba(99,102,241,0.3)', boxShadow: '0 4px 15px rgba(0,0,0,0.25)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px' }}>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '18px' }}>🎯</span>
-                      <h3 style={{ margin: 0, fontSize: '15px', color: '#ffffff', fontWeight: 700 }}>
-                        Padrón Curricular Consolidado del PAEC
-                      </h3>
-                      <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '12px', background: 'rgba(16,185,129,0.2)', color: '#34d399', fontWeight: 600, border: '1px solid rgba(16,185,129,0.4)' }}>
-                        ✓ CERO DUPLICADOS
-                      </span>
-                    </div>
-                    <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'rgba(240,244,255,0.7)' }}>
-                      Fórmula Oficial: Fundamental (1 vez) ∪ Laborales Únicas ∪ FFE Únicas ∪ BT Únicos
-                    </p>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-                    <span style={{ fontSize: '26px', fontWeight: 800, color: '#818cf8' }}>{uniqueUacsList.length}</span>
-                    <span style={{ fontSize: '12px', color: 'rgba(240,244,255,0.8)', fontWeight: 600 }}>UACs Únicas</span>
-                  </div>
-                </div>
-
-                {/* Badges de Desglose */}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '12px' }}>
-                  <span style={{ fontSize: '11.5px', padding: '4px 10px', borderRadius: '6px', background: 'rgba(30,58,138,0.5)', border: '1px solid rgba(59,130,246,0.3)', color: '#93c5fd', fontWeight: 500 }}>
-                    📘 Fundamental: {uniqueUacsList.filter((u) => u.component === 'fundamental').length}
-                  </span>
-                  <span style={{ fontSize: '11.5px', padding: '4px 10px', borderRadius: '6px', background: 'rgba(234,88,12,0.25)', border: '1px solid rgba(249,115,22,0.4)', color: '#fdba74', fontWeight: 500 }}>
-                    💖 Socioemocional: {uniqueUacsList.filter((u) => u.component === 'socioemocional').length}
-                  </span>
-                  <span style={{ fontSize: '11.5px', padding: '4px 10px', borderRadius: '6px', background: 'rgba(6,78,59,0.5)', border: '1px solid rgba(16,185,129,0.3)', color: '#6ee7b7', fontWeight: 500 }}>
-                    💼 Laboral: {uniqueUacsList.filter((u) => u.component === 'laboral').length}
-                  </span>
-                  <span style={{ fontSize: '11.5px', padding: '4px 10px', borderRadius: '6px', background: 'rgba(88,28,135,0.5)', border: '1px solid rgba(168,85,247,0.3)', color: '#d8b4fe', fontWeight: 500 }}>
-                    🧬 FFE: {uniqueUacsList.filter((u) => u.component === 'ffe').length}
-                  </span>
-                  {schoolType === 'tecnico' && (
-                    <span style={{ fontSize: '11.5px', padding: '4px 10px', borderRadius: '6px', background: 'rgba(120,53,15,0.5)', border: '1px solid rgba(245,158,11,0.3)', color: '#fcd34d', fontWeight: 500 }}>
-                      ⚙️ Profesional BT: {uniqueUacsList.filter((u) => u.component === 'profesional_bt').length}
-                    </span>
-                  )}
-                </div>
-
-                {/* Vista previa colapsable de las materias */}
-                <div style={{ marginTop: '12px', maxHeight: '160px', overflowY: 'auto', padding: '8px 12px', borderRadius: '6px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '6px' }}>
-                    {uniqueUacsList.map((u, i) => (
-                      <div key={`${u.semester}-${u.uacName}-${i}`} style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '6px', color: 'rgba(240,244,255,0.85)' }}>
-                        <span style={{ padding: '1px 5px', borderRadius: '3px', background: 'rgba(255,255,255,0.1)', fontWeight: 600, fontSize: '10px' }}>
-                          {u.semester}°
-                        </span>
-                        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={u.uacName}>
-                          {u.uacName}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
               {/* Laboral Checklist / Confirmación (Sincronizado con Grupos H-02 y Selección Multi-PAEC) */}
-              <div id="paec-laboral-section" tabIndex={-1} style={{ borderTop: '1px solid var(--c-border)', paddingTop: '16px', marginTop: '8px', outline: 'none' }}>
+              <div id="paec-laboral-section" tabIndex={-1} style={{ borderTop: '1px solid var(--c-border)', paddingTop: '16px', marginTop: '16px', outline: 'none' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
                   <div>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, fontSize: '15px', color: 'var(--c-navy)', margin: 0 }}>
@@ -2835,6 +2774,67 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                     })}
                   </div>
                 )}
+              </div>
+
+              {/* 4.4 RESUMEN MAESTRO EN TIEMPO REAL: CERO DUPLICADOS */}
+              <div style={{ marginTop: '16px', padding: '18px', borderRadius: '10px', background: 'linear-gradient(135deg, rgba(30,41,59,0.85) 0%, rgba(15,23,42,0.95) 100%)', border: '1px solid rgba(99,102,241,0.35)', boxShadow: '0 4px 18px rgba(0,0,0,0.3)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '20px' }}>🎯</span>
+                      <h3 style={{ margin: 0, fontSize: '15.5px', color: '#ffffff', fontWeight: 700 }}>
+                        Padrón Curricular Consolidado del PAEC
+                      </h3>
+                      <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '12px', background: 'rgba(16,185,129,0.2)', color: '#34d399', fontWeight: 600, border: '1px solid rgba(16,185,129,0.4)' }}>
+                        ✓ CERO DUPLICADOS
+                      </span>
+                    </div>
+                    <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'rgba(240,244,255,0.7)' }}>
+                      Resumen integral de asignaturas seleccionadas: Fundamental (1 vez) ∪ Laborales Únicas ∪ FFE Únicas ∪ BT Únicos
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                    <span style={{ fontSize: '26px', fontWeight: 800, color: '#818cf8' }}>{uniqueUacsList.length}</span>
+                    <span style={{ fontSize: '12px', color: 'rgba(240,244,255,0.8)', fontWeight: 600 }}>UACs Únicas</span>
+                  </div>
+                </div>
+
+                {/* Badges de Desglose */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '12px' }}>
+                  <span style={{ fontSize: '11.5px', padding: '4px 10px', borderRadius: '6px', background: 'rgba(30,58,138,0.5)', border: '1px solid rgba(59,130,246,0.3)', color: '#93c5fd', fontWeight: 500 }}>
+                    📘 Fundamental: {uniqueUacsList.filter((u) => u.component === 'fundamental').length}
+                  </span>
+                  <span style={{ fontSize: '11.5px', padding: '4px 10px', borderRadius: '6px', background: 'rgba(234,88,12,0.25)', border: '1px solid rgba(249,115,22,0.4)', color: '#fdba74', fontWeight: 500 }}>
+                    💖 Socioemocional: {uniqueUacsList.filter((u) => u.component === 'socioemocional').length}
+                  </span>
+                  <span style={{ fontSize: '11.5px', padding: '4px 10px', borderRadius: '6px', background: 'rgba(6,78,59,0.5)', border: '1px solid rgba(16,185,129,0.3)', color: '#6ee7b7', fontWeight: 500 }}>
+                    💼 Laboral: {uniqueUacsList.filter((u) => u.component === 'laboral').length}
+                  </span>
+                  <span style={{ fontSize: '11.5px', padding: '4px 10px', borderRadius: '6px', background: 'rgba(88,28,135,0.5)', border: '1px solid rgba(168,85,247,0.3)', color: '#d8b4fe', fontWeight: 500 }}>
+                    🧬 FFE: {uniqueUacsList.filter((u) => u.component === 'ffe').length}
+                  </span>
+                  {schoolType === 'tecnico' && (
+                    <span style={{ fontSize: '11.5px', padding: '4px 10px', borderRadius: '6px', background: 'rgba(120,53,15,0.5)', border: '1px solid rgba(245,158,11,0.3)', color: '#fcd34d', fontWeight: 500 }}>
+                      ⚙️ Profesional BT: {uniqueUacsList.filter((u) => u.component === 'profesional_bt').length}
+                    </span>
+                  )}
+                </div>
+
+                {/* Vista previa colapsable de las materias */}
+                <div style={{ marginTop: '12px', maxHeight: '180px', overflowY: 'auto', padding: '8px 12px', borderRadius: '6px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '6px' }}>
+                    {uniqueUacsList.map((u, i) => (
+                      <div key={`${u.semester}-${u.uacName}-${i}`} style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '6px', color: 'rgba(240,244,255,0.85)' }}>
+                        <span style={{ padding: '1px 5px', borderRadius: '3px', background: 'rgba(255,255,255,0.1)', fontWeight: 600, fontSize: '10px' }}>
+                          {u.semester}°
+                        </span>
+                        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={u.uacName}>
+                          {u.uacName}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
 
             </div>
