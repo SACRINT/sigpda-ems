@@ -2790,11 +2790,13 @@ function renderWorkbookElement(element: WorkbookElement): (Paragraph | Table)[] 
     }
 
     case 'checkbox_list': {
-      const cbs = element.config?.checkboxes || [
-        'He verificado los requerimientos antes de iniciar.',
-        'Los resultados coinciden con los parámetros especificados.',
-        'El espacio de trabajo quedó limpio y ordenado.',
-      ];
+      const cbs = element.config?.checkboxes?.length
+        ? element.config.checkboxes
+        : [
+            'He verificado los requerimientos antes de iniciar.',
+            'Los resultados coinciden con los parámetros especificados.',
+            'El espacio de trabajo quedó limpio y ordenado.',
+          ];
       cbs.forEach((cb) => {
         items.push(
           new Paragraph({
@@ -2810,7 +2812,10 @@ function renderWorkbookElement(element: WorkbookElement): (Paragraph | Table)[] 
 
     case 'empty_table':
     case 'data_recording': {
-      const cols = element.config?.cols || ['Aspecto / Variable', 'Descripción / Parámetro', 'Observación / Registro'];
+      const rawCols = element.config?.cols?.length
+        ? element.config.cols
+        : ['Aspecto / Variable', 'Descripción / Parámetro', 'Observación / Registro'];
+      const cols = rawCols.map((col) => stripMarkdown(stripWorkbookTags(col)));
       const sampleRows = element.config?.sampleRows || 4;
       const colWidth = Math.floor(CONTENT_W / cols.length);
 

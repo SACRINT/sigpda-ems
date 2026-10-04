@@ -2473,11 +2473,13 @@ function drawPdfWorkbookElement(
     }
 
     case 'checkbox_list': {
-      const cbs = element.config?.checkboxes || [
-        'Instrumentos verificados y listos',
-        'Protocolo de seguridad seguido al 100%',
-        'Registro de evidencias concluido',
-      ];
+      const cbs = element.config?.checkboxes?.length
+        ? element.config.checkboxes
+        : [
+            'Instrumentos verificados y listos',
+            'Protocolo de seguridad seguido al 100%',
+            'Registro de evidencias concluido',
+          ];
       for (const cb of cbs) {
         y = printParagraph(doc, `[  ]  ${cb}`, y, margin + 2, contentWidth - 2, pageHeight, {
           size: 8,
@@ -2492,7 +2494,9 @@ function drawPdfWorkbookElement(
 
     case 'empty_table':
     case 'data_recording': {
-      const cols = element.config?.cols || ['Variable / Parámetro', 'Valor Esperado', 'Registro Observado', 'Notas'];
+      const cols = element.config?.cols?.length
+        ? element.config.cols
+        : ['Variable / Parámetro', 'Valor Esperado', 'Registro Observado', 'Notas'];
       const sampleRows = Math.max(element.config?.sampleRows || 6, 6);
 
       const body = [];
