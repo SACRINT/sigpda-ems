@@ -19,6 +19,8 @@ export default function BlockPresentationActions({ planningId, blockIndex }: Blo
   const [error, setError] = useState<string | null>(null);
   const [showInfographics, setShowInfographics] = useState(false);
 
+  const [downloading, setDownloading] = useState(false);
+
   const base = `/api/planeaciones/${planningId}/presentacion?blockIndex=${blockIndex}`;
 
   const openViewer = async () => {
@@ -33,6 +35,31 @@ export default function BlockPresentationActions({ planningId, blockIndex }: Blo
       setError(e instanceof Error ? e.message : 'Error desconocido');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const downloadPptx = async () => {
+    setDownloading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${base}&format=pptx`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || `Error ${res.status} al descargar presentación`);
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Presentacion_Bloque_${blockIndex + 1}.pptx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Error desconocido al descargar presentación');
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -51,18 +78,20 @@ export default function BlockPresentationActions({ planningId, blockIndex }: Blo
         className="btn btn-navy"
         style={btnStyle}
         onClick={openViewer}
-        disabled={loading}
+        disabled={loading || downloading}
       >
         {loading ? '⏳ Cargando…' : '▶ Proyectar'}
       </button>
-      <a
+      <button
         id={`btn-descargar-pptx-${blockIndex}`}
+        type="button"
         className="btn"
-        href={base}
-        style={{ ...btnStyle, textDecoration: 'none', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
+        onClick={downloadPptx}
+        disabled={loading || downloading}
+        style={{ ...btnStyle, border: '1px solid var(--c-border)', color: 'var(--c-text)', background: 'transparent' }}
       >
-        ⬇ Descargar .pptx
-      </a>
+        {downloading ? '⏳ Generando…' : '⬇ Descargar .pptx'}
+      </button>
       <button
         id={`btn-infografia-${blockIndex}`}
         type="button"
