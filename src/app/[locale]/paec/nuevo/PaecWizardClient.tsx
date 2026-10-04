@@ -259,7 +259,7 @@ const CAPACITACION_TITLES: Record<string, string> = {
 export const FFE_PACKAGES: Record<string, { label: string; subjects: string[] }> = {
   'fisico_matematico': {
     label: '📐 Físico-Matemático',
-    subjects: ['Análisis de Fenómenos Físicos I', 'Dibujo Técnico I', 'Taller de Pensamiento Variacional I', 'Taller de Probabilidad y Estadística I']
+    subjects: ['Análisis de Fenómenos Físicos I', 'Dibujo Técnico I', 'Taller Pensamiento Variacional I', 'Taller de Probabilidad y Estadística I']
   },
   'quimico_biologico': {
     label: '🧬 Químico-Biológico',
@@ -279,8 +279,8 @@ export const FFE_PAIRS = [
   // ── Recursos Sociocognitivos (7) ──────────────────────────────────────────
   { name5: 'Comunicación y Sociedad I', name6: 'Comunicación y Sociedad II', label: 'Comunicación y Sociedad', category: 'Recursos Sociocognitivos' },
   { name5: 'Raíces Etimológicas del Español I', name6: 'Raíces Etimológicas del Español II', label: 'Raíces Etimológicas del Español', category: 'Recursos Sociocognitivos' },
-  { name5: 'Inglés V (Avanzado)', name6: 'Inglés VI (Avanzado)', label: 'Inglés Avanzado', category: 'Recursos Sociocognitivos' },
-  { name5: 'Taller de Pensamiento Variacional I', name6: 'Taller de Pensamiento Variacional II', label: 'Taller de Pensamiento Variacional', category: 'Recursos Sociocognitivos' },
+  { name5: 'Inglés V', name6: 'Inglés VI', label: 'Inglés Avanzado', category: 'Recursos Sociocognitivos' },
+  { name5: 'Taller Pensamiento Variacional I', name6: 'Taller Pensamiento Variacional II', label: 'Taller de Pensamiento Variacional', category: 'Recursos Sociocognitivos' },
   { name5: 'Dibujo Técnico I', name6: 'Dibujo Técnico II', label: 'Dibujo Técnico', category: 'Recursos Sociocognitivos' },
   { name5: 'Pensamiento Matemático Aplicado a las Finanzas I', name6: 'Pensamiento Matemático Aplicado a las Finanzas II', label: 'Pensamiento Matemático Finanzas', category: 'Recursos Sociocognitivos' },
   { name5: 'Taller de Probabilidad y Estadística I', name6: 'Taller de Probabilidad y Estadística II', label: 'Taller de Probabilidad y Estadística', category: 'Recursos Sociocognitivos' },
@@ -289,7 +289,7 @@ export const FFE_PAIRS = [
   { name5: 'Salud Integral I', name6: 'Salud Integral II', label: 'Salud Integral', category: 'Ciencias Naturales y Salud' },
   { name5: 'Análisis de Fenómenos y Procesos Biológicos', name6: 'Temas Selectos de Biología', label: 'Ciencias Biológicas', category: 'Ciencias Naturales y Salud' },
   { name5: 'Análisis de Fenómenos Físicos I', name6: 'Análisis de Fenómenos Físicos II', label: 'Análisis de Fenómenos Físicos', category: 'Ciencias Naturales y Salud' },
-  { name5: 'Organización del Flujo de Materia y Energía en los Organismos I', name6: 'Organización del Flujo de Materia en los Organismos II', label: 'Flujo de Materia y Energía', category: 'Ciencias Naturales y Salud' },
+  { name5: 'Organización del Flujo de Materia y Energía en los Organismos I', name6: 'Organización del Flujo de Materia y Energía en los Organismos II', label: 'Flujo de Materia y Energía', category: 'Ciencias Naturales y Salud' },
   { name5: 'Fundamentos de Administración I', name6: 'Fundamentos de Administración II', label: 'Fundamentos de Administración', category: 'Ciencias Sociales' },
   { name5: 'Procesos Contables I', name6: 'Procesos Contables II', label: 'Procesos Contables', category: 'Ciencias Sociales' },
   { name5: 'Derecho y Sociedad I', name6: 'Derecho y Sociedad II', label: 'Derecho y Sociedad', category: 'Ciencias Sociales' },
@@ -555,7 +555,6 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
   const [laboralCatalog, setLaboralCatalog] = useState<{ uac_name: string; semester: number; curriculum_name: string }[]>([]);
   const [, setFfeCatalog] = useState<{ uac_name: string; semester: number; component: string }[]>([]);
   const [selectedFundamental, setSelectedFundamental] = useState<string[]>(savedDraft?.selectedFundamental ?? []);
-  const [selectedFfe, setSelectedFfe] = useState<string[]>(savedDraft?.selectedFfe ?? []);
   const [groupsCount, setGroupsCount] = useState(savedDraft?.groupsCount ?? '1');
   const [groupsConfig, setGroupsConfig] = useState(savedDraft?.groupsConfig ?? '');
   const [schoolType, setSchoolType] = useState<SchoolType>(savedDraft?.schoolType ?? 'general');
@@ -563,9 +562,30 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
   const [semestersConfig, setSemestersConfig] = useState<Record<number, number>>(
     savedDraft?.semestersConfig ?? { 1: 1, 3: 1, 5: 1 }
   );
-  const [groupAssignments, setGroupAssignments] = useState<GroupTrackConfig[]>(
+  const [rawGroupAssignments, setGroupAssignments] = useState<GroupTrackConfig[]>(
     savedDraft?.groupAssignments ?? []
   );
+
+  // H-04: Acoplar automáticamente continuidad de 5° a 6° en grupos correspondientes (Single Source of Truth)
+  const groupAssignments = useMemo(() => {
+    const sem5Groups = rawGroupAssignments.filter(g => g.semester === 5);
+    if (sem5Groups.length === 0) return rawGroupAssignments;
+
+    return rawGroupAssignments.map(g => {
+      if (g.semester !== 6) return g;
+      const letter = g.groupName.split(' ')[1] || g.groupId.split('-')[1];
+      const match5 = sem5Groups.find(s5 => (s5.groupId === `5-${letter}` || s5.groupName.endsWith(letter)));
+      if (!match5) return g;
+
+      const expectedFfe = (match5.ffeSelections || []).map(s => obtenerFfeSemestre6(s));
+      return {
+        ...g,
+        trackId: match5.trackId || g.trackId,
+        trackName: match5.trackName || g.trackName,
+        ffeSelections: expectedFfe,
+      };
+    });
+  }, [rawGroupAssignments]);
 
   // H-02: Helper para identificar capacitación oficial desde nombre de UAC o track
   const findTrackForUacOrTrackName = useCallback((item: string): string | null => {
@@ -613,6 +633,25 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
     }
     return uacs;
   }, [assignedLaboralTracks]);
+
+  // H-04: Derivar selectedFfe a partir de ffeSelections de los grupos (Single Source of Truth)
+  const selectedFfe = useMemo(() => {
+    const set = new Set<string>();
+    for (const g of groupAssignments) {
+      if (Array.isArray(g.ffeSelections)) {
+        for (const subj of g.ffeSelections) {
+          if (subj && subj.trim()) {
+            set.add(subj.trim());
+            const cont = obtenerFfeSemestre6(subj.trim());
+            if (cont && cont !== 'Optativa FFE II') {
+              set.add(cont);
+            }
+          }
+        }
+      }
+    }
+    return Array.from(set);
+  }, [groupAssignments]);
 
   const [expandedGroupFfe, setExpandedGroupFfe] = useState<Record<string, boolean>>({});
   const [showFundamentalCustomizer, setShowFundamentalCustomizer] = useState<boolean>(false);
@@ -696,7 +735,23 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
     }
 
     if (Array.isArray(parsedPaecData.selectedFfe) && parsedPaecData.selectedFfe.length > 0) {
-      setSelectedFfe(parsedPaecData.selectedFfe);
+      const ffeList = parsedPaecData.selectedFfe;
+      setGroupAssignments(prev =>
+        prev.map(g => {
+          if ((g.semester === 5 || g.semester === 6) && (!g.ffeSelections || g.ffeSelections.length === 0)) {
+            const relevant = g.semester === 6
+              ? ffeList.filter(s => FFE_PAIRS.some(p => p.name6 === s))
+              : ffeList.filter(s => FFE_PAIRS.some(p => p.name5 === s));
+            return {
+              ...g,
+              trackId: 'custom',
+              trackName: 'Personalizado',
+              ffeSelections: relevant.length > 0 ? relevant : ffeList.slice(0, 4),
+            };
+          }
+          return g;
+        })
+      );
     }
 
     setShowPaecReviewModal(false);
@@ -749,13 +804,19 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
               updated.push(existing);
             } else {
               const defaultTrack = (sem === 3 || sem === 4) ? fallbackTrack : '';
+              const fallbackFfe = (sem === 5 || sem === 6) && savedDraft?.selectedFfe && savedDraft.selectedFfe.length > 0
+                ? (sem === 6
+                    ? savedDraft.selectedFfe.filter(s => FFE_PAIRS.some(p => p.name6 === s))
+                    : savedDraft.selectedFfe.filter(s => FFE_PAIRS.some(p => p.name5 === s))
+                  ).slice(0, 4)
+                : [];
               updated.push({
                 groupId: gId,
                 groupName: gName,
                 semester: sem,
-                trackId: defaultTrack,
-                trackName: defaultTrack,
-                ffeSelections: [],
+                trackId: (sem === 3 || sem === 4) ? defaultTrack : (fallbackFfe.length > 0 ? 'custom' : ''),
+                trackName: (sem === 3 || sem === 4) ? defaultTrack : (fallbackFfe.length > 0 ? 'Personalizado' : ''),
+                ffeSelections: fallbackFfe,
               });
             }
           }
@@ -763,7 +824,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
         return updated;
       });
     });
-  }, [cycleType, semestersConfig, findTrackForUacOrTrackName, savedDraft?.selectedLaboral]);
+  }, [cycleType, semestersConfig, findTrackForUacOrTrackName, savedDraft?.selectedLaboral, savedDraft?.selectedFfe]);
 
   // Cómputo en tiempo real de UACs Únicas Consolidadas (Regla de Oro Curricular: Cero Duplicados)
   const uniqueUacsList = useMemo(() => {
@@ -916,7 +977,6 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
           setAcademicBaseline((p.schoolContext as unknown as Record<string, unknown>).academicBaseline as AcademicBaseline);
         }
         setSelectedFundamental(p.schoolContext.activeFundamentalUacs || []);
-        setSelectedFfe(p.schoolContext.activeFfeUacs || []);
         setSelectedBtCarreras(p.schoolContext.activeBtCarreras || []);
         setSchoolType(p.schoolContext.schoolType || 'general');
         if (p.schoolContext.groupStructure) {
@@ -928,11 +988,25 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
               if (t) { fallbackTrack = t; break; }
             }
           }
-          const hydratedGroups = rawGroups.map(g =>
-            (g.semester === 3 || g.semester === 4) && !g.trackName && fallbackTrack
-              ? { ...g, trackId: fallbackTrack, trackName: fallbackTrack }
-              : g
-          );
+          const activeFfe = Array.isArray(p.schoolContext.activeFfeUacs) ? p.schoolContext.activeFfeUacs : [];
+          const hydratedGroups = rawGroups.map(g => {
+            let updated = g;
+            if ((g.semester === 3 || g.semester === 4) && !g.trackName && fallbackTrack) {
+              updated = { ...updated, trackId: fallbackTrack, trackName: fallbackTrack };
+            }
+            if ((g.semester === 5 || g.semester === 6) && (!g.ffeSelections || g.ffeSelections.length === 0) && activeFfe.length > 0) {
+              const relevant = g.semester === 6
+                ? activeFfe.filter(s => FFE_PAIRS.some(p => p.name6 === s))
+                : activeFfe.filter(s => FFE_PAIRS.some(p => p.name5 === s));
+              updated = {
+                ...updated,
+                trackId: updated.trackId || 'custom',
+                trackName: updated.trackName || 'Personalizado',
+                ffeSelections: relevant.length > 0 ? relevant : activeFfe.slice(0, 4),
+              };
+            }
+            return updated;
+          });
           setSemestersConfig(p.schoolContext.groupStructure.semestersConfig || { 1: 1, 3: 1, 5: 1 });
           setGroupAssignments(hydratedGroups);
         }
@@ -1796,6 +1870,11 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                     return groupAssignments.map((grp) => {
                       const isLaboralSem = grp.semester === 3 || grp.semester === 4;
                       const isFfeSem = grp.semester === 5 || grp.semester === 6;
+                      const groupLetter = grp.groupName.split(' ')[1] || grp.groupId.split('-')[1];
+                      const matching5th = grp.semester === 6
+                        ? groupAssignments.find(g => g.semester === 5 && (g.groupId === `5-${groupLetter}` || g.groupName.endsWith(groupLetter)))
+                        : null;
+                      const matching6thId = `6-${groupLetter}`;
 
                       if (!isLaboralSem && !isFfeSem && schoolType !== 'tecnico') {
                         return (
@@ -1884,11 +1963,12 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                                 )}
                               </div>
                             ) : (
+                            // BLOQUE FFE (5° Y 6° SEMESTRE) - H-04 Acoplamiento Obligatorio 5° ➔ 6°
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                               {/* Barra de estado y presets rápidos */}
                               <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                  <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '12px', background: (grp.ffeSelections?.length || 0) > 0 ? 'rgba(99,102,241,0.25)' : 'rgba(255,255,255,0.08)', color: (grp.ffeSelections?.length || 0) > 0 ? '#a5b4fc' : '#94a3b8', fontWeight: 600, border: '1px solid rgba(99,102,241,0.3)' }}>
+                                  <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '12px', background: (grp.ffeSelections?.length || 0) > 0 ? (matching5th ? 'rgba(52,211,153,0.2)' : 'rgba(99,102,241,0.25)') : 'rgba(255,255,255,0.08)', color: (grp.ffeSelections?.length || 0) > 0 ? (matching5th ? '#6ee7b7' : '#a5b4fc') : '#94a3b8', fontWeight: 600, border: `1px solid ${matching5th ? 'rgba(52,211,153,0.3)' : 'rgba(99,102,241,0.3)'}` }}>
                                     {grp.ffeSelections?.length || 0} UACs FFE
                                   </span>
                                   <button
@@ -1896,159 +1976,275 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                                     onClick={() => setExpandedGroupFfe(prev => ({ ...prev, [grp.groupId]: !prev[grp.groupId] }))}
                                     style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.15)', background: expandedGroupFfe[grp.groupId] ? 'rgba(99,102,241,0.3)' : 'rgba(255,255,255,0.06)', color: '#ffffff', cursor: 'pointer', fontWeight: 500 }}
                                   >
-                                    {expandedGroupFfe[grp.groupId] ? '▲ Ocultar 20 FFE' : '▼ Seleccionar asignaturas individuales (20 FFE)'}
+                                    {expandedGroupFfe[grp.groupId] ? (matching5th ? '▲ Ocultar continuidad' : '▲ Ocultar 20 FFE') : (matching5th ? '▼ Ver continuidad de 5°' : '▼ Seleccionar asignaturas individuales (20 FFE)')}
                                   </button>
                                 </div>
 
-                                {/* Selector de Presets opcional */}
-                                <select
-                                  value={grp.trackId || ''}
-                                  onChange={(e) => {
-                                    const pkgKey = e.target.value;
-                                    if (!pkgKey) {
-                                      setGroupAssignments(prev => prev.map(g => g.groupId === grp.groupId ? { ...g, trackId: '', trackName: '', ffeSelections: [] } : g));
-                                      return;
-                                    }
-                                    const pkg = FFE_PACKAGES[pkgKey];
-                                    const subjects = pkg ? pkg.subjects.map(s => grp.semester === 6 ? obtenerFfeSemestre6(s) : s) : [];
-                                    setGroupAssignments(prev =>
-                                      prev.map(g =>
-                                        g.groupId === grp.groupId
-                                          ? {
+                                {/* Si es 6° y existe 5°, se muestra indicador de vínculo en vez del combo */}
+                                {matching5th ? (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#a5b4fc', background: 'rgba(99,102,241,0.12)', padding: '4px 10px', borderRadius: '4px', border: '1px solid rgba(99,102,241,0.3)' }}>
+                                    <span>🔗 Vinculado a {matching5th.groupName}</span>
+                                    <span style={{ color: '#cbd5e1', fontWeight: 500 }}>({matching5th.trackName || 'Personalizado'})</span>
+                                  </div>
+                                ) : (
+                                  /* Selector de Presets opcional para 5° (o 6° sin 5°) */
+                                  <select
+                                    value={grp.trackId || ''}
+                                    onChange={(e) => {
+                                      const pkgKey = e.target.value;
+                                      if (!pkgKey) {
+                                        setGroupAssignments(prev => prev.map(g => {
+                                          if (g.groupId === grp.groupId) return { ...g, trackId: '', trackName: '', ffeSelections: [] };
+                                          if (grp.semester === 5 && (g.groupId === matching6thId || (g.semester === 6 && g.groupName.endsWith(groupLetter)))) {
+                                            return { ...g, trackId: '', trackName: '', ffeSelections: [] };
+                                          }
+                                          return g;
+                                        }));
+                                        return;
+                                      }
+                                      const pkg = FFE_PACKAGES[pkgKey];
+                                      const subjects5 = pkg ? pkg.subjects : [];
+                                      const subjects6 = subjects5.map(s => obtenerFfeSemestre6(s));
+
+                                      setGroupAssignments(prev =>
+                                        prev.map(g => {
+                                          if (g.groupId === grp.groupId) {
+                                            return {
                                               ...g,
                                               trackId: pkgKey,
                                               trackName: pkg ? pkg.label : 'Personalizado',
-                                              ffeSelections: subjects,
-                                            }
-                                          : g
-                                      )
-                                    );
-                                  }}
-                                  style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.12)', background: '#0f172a', color: '#cbd5e1', fontSize: '11px' }}
-                                >
-                                  <option value="">⚡ Cargar preset propedéutico...</option>
-                                  {Object.entries(FFE_PACKAGES).map(([k, p]) => (
-                                    <option key={k} value={k}>{p.label}</option>
-                                  ))}
-                                </select>
+                                              ffeSelections: grp.semester === 6 ? subjects6 : subjects5,
+                                            };
+                                          }
+                                          if (grp.semester === 5 && (g.groupId === matching6thId || (g.semester === 6 && g.groupName.endsWith(groupLetter)))) {
+                                            return {
+                                              ...g,
+                                              trackId: pkgKey,
+                                              trackName: pkg ? pkg.label : 'Personalizado',
+                                              ffeSelections: subjects6,
+                                            };
+                                          }
+                                          return g;
+                                        })
+                                      );
+                                    }}
+                                    style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.12)', background: '#0f172a', color: '#cbd5e1', fontSize: '11px' }}
+                                  >
+                                    <option value="">⚡ Cargar preset propedéutico...</option>
+                                    {Object.entries(FFE_PACKAGES).map(([k, p]) => (
+                                      <option key={k} value={k}>{p.label}</option>
+                                    ))}
+                                  </select>
+                                )}
                               </div>
 
                               {/* Resumen de materias seleccionadas actualmente */}
-                              {(grp.ffeSelections && grp.ffeSelections.length > 0) && (
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '2px' }}>
-                                  {grp.ffeSelections.map((subj) => (
-                                    <span key={subj} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10.5px', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)', color: '#c7d2fe', padding: '1px 6px', borderRadius: '4px' }}>
-                                      {subj}
+                              {matching5th ? (
+                                (grp.ffeSelections && grp.ffeSelections.length > 0) ? (
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '2px' }}>
+                                    {grp.ffeSelections.map((subj) => (
+                                      <span key={subj} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10.5px', background: 'rgba(52,211,153,0.15)', border: '1px solid rgba(52,211,153,0.3)', color: '#6ee7b7', padding: '2px 8px', borderRadius: '4px' }}>
+                                        ✓ {subj}
+                                      </span>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div style={{ fontSize: '11px', color: '#94a3b8', fontStyle: 'italic', marginTop: '2px' }}>
+                                    Selecciona las 4 materias FFE en el grupo {matching5th.groupName} de 5° para heredar la continuidad obligatoria de 6°.
+                                  </div>
+                                )
+                              ) : (
+                                (grp.ffeSelections && grp.ffeSelections.length > 0) && (
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '2px' }}>
+                                    {grp.ffeSelections.map((subj) => (
+                                      <span key={subj} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10.5px', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)', color: '#c7d2fe', padding: '1px 6px', borderRadius: '4px' }}>
+                                        {subj}
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const subj6 = obtenerFfeSemestre6(subj);
+                                            setGroupAssignments(prev => prev.map(g => {
+                                              if (g.groupId === grp.groupId) {
+                                                return {
+                                                  ...g,
+                                                  trackId: 'custom',
+                                                  trackName: 'Personalizado',
+                                                  ffeSelections: (g.ffeSelections || []).filter(s => s !== subj),
+                                                };
+                                              }
+                                              if (grp.semester === 5 && (g.groupId === matching6thId || (g.semester === 6 && g.groupName.endsWith(groupLetter)))) {
+                                                return {
+                                                  ...g,
+                                                  trackId: 'custom',
+                                                  trackName: 'Personalizado',
+                                                  ffeSelections: (g.ffeSelections || []).filter(s => s !== subj6),
+                                                };
+                                              }
+                                              return g;
+                                            }));
+                                          }}
+                                          style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', padding: '0 2px', fontSize: '11px', fontWeight: 'bold' }}
+                                          title="Quitar asignatura"
+                                        >
+                                          ×
+                                        </button>
+                                      </span>
+                                    ))}
+                                  </div>
+                                )
+                              )}
+
+                              {/* Panel desplegable con las asignaturas */}
+                              {expandedGroupFfe[grp.groupId] && (
+                                matching5th ? (
+                                  <div style={{ marginTop: '8px', padding: '10px', borderRadius: '6px', background: 'rgba(15,23,42,0.95)', border: '1px solid rgba(99,102,241,0.3)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    <div style={{ fontSize: '11px', color: '#a5b4fc', fontWeight: 600 }}>
+                                      Continuidad Normativa Oficial (5° {groupLetter} ➔ 6° {groupLetter})
+                                    </div>
+                                    {(!matching5th.ffeSelections || matching5th.ffeSelections.length === 0) ? (
+                                      <div style={{ fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>
+                                        El grupo {matching5th.groupName} aún no tiene asignaturas FFE seleccionadas. Configúralo en 5° Semestre para vincularlas automáticamente aquí.
+                                      </div>
+                                    ) : (
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                        {matching5th.ffeSelections.map((s5) => {
+                                          const s6 = obtenerFfeSemestre6(s5);
+                                          return (
+                                            <div key={s6} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11.5px', padding: '5px 10px', borderRadius: '4px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <span style={{ color: '#94a3b8' }}>5° {s5}</span>
+                                                <span style={{ color: '#6366f1' }}>➔</span>
+                                                <span style={{ color: '#34d399', fontWeight: 600 }}>6° {s6}</span>
+                                              </div>
+                                              <span style={{ fontSize: '10.5px', color: '#38bdf8', fontWeight: 600 }}>✓ Acoplada oficialmente</span>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <div style={{ marginTop: '8px', padding: '10px', borderRadius: '6px', background: 'rgba(15,23,42,0.95)', border: '1px solid rgba(99,102,241,0.3)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '6px' }}>
+                                      <span style={{ fontSize: '11px', color: '#a5b4fc', fontWeight: 600 }}>
+                                        Catálogo Oficial de 20 UACs FFE ({grp.semester}° Semestre)
+                                      </span>
                                       <button
                                         type="button"
                                         onClick={() => {
-                                          setGroupAssignments(prev => prev.map(g => g.groupId === grp.groupId ? {
-                                            ...g,
-                                            trackId: 'custom',
-                                            trackName: 'Personalizado',
-                                            ffeSelections: (g.ffeSelections || []).filter(s => s !== subj),
-                                          } : g));
+                                          setGroupAssignments(prev => prev.map(g => {
+                                            if (g.groupId === grp.groupId) return { ...g, trackId: '', trackName: '', ffeSelections: [] };
+                                            if (grp.semester === 5 && (g.groupId === matching6thId || (g.semester === 6 && g.groupName.endsWith(groupLetter)))) {
+                                              return { ...g, trackId: '', trackName: '', ffeSelections: [] };
+                                            }
+                                            return g;
+                                          }));
                                         }}
-                                        style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', padding: '0 2px', fontSize: '11px', fontWeight: 'bold' }}
-                                        title="Quitar asignatura"
+                                        style={{ fontSize: '10px', background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', textDecoration: 'underline' }}
                                       >
-                                        ×
+                                        Limpiar asignaturas
                                       </button>
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
+                                    </div>
 
-                              {/* Panel desplegable con las 20 asignaturas de FFE */}
-                              {expandedGroupFfe[grp.groupId] && (
-                                <div style={{ marginTop: '8px', padding: '10px', borderRadius: '6px', background: 'rgba(15,23,42,0.95)', border: '1px solid rgba(99,102,241,0.3)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '6px' }}>
-                                    <span style={{ fontSize: '11px', color: '#a5b4fc', fontWeight: 600 }}>
-                                      Catálogo Oficial de 20 UACs FFE ({grp.semester}° Semestre)
-                                    </span>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setGroupAssignments(prev => prev.map(g => g.groupId === grp.groupId ? { ...g, trackId: '', trackName: '', ffeSelections: [] } : g));
-                                      }}
-                                      style={{ fontSize: '10px', background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', textDecoration: 'underline' }}
-                                    >
-                                      Limpiar asignaturas
-                                    </button>
-                                  </div>
+                                    {/* Recursos Sociocognitivos (7) */}
+                                    <div>
+                                      <div style={{ fontSize: '10.5px', fontWeight: 700, color: '#38bdf8', marginBottom: '6px' }}>
+                                        📘 Recursos Sociocognitivos (7 asignaturas)
+                                      </div>
+                                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '5px' }}>
+                                        {FFE_PAIRS.filter(p => p.category === 'Recursos Sociocognitivos').map((pair) => {
+                                          const subjectName = grp.semester === 6 ? pair.name6 : pair.name5;
+                                          const isChecked = (grp.ffeSelections || []).includes(subjectName);
+                                          const subj6 = obtenerFfeSemestre6(subjectName);
+                                          return (
+                                            <label key={pair.name5} style={{ display: 'flex', alignItems: 'flex-start', gap: '5px', fontSize: '11px', cursor: 'pointer', color: isChecked ? '#ffffff' : 'rgba(240,244,255,0.7)', lineHeight: 1.25 }}>
+                                              <input
+                                                type="checkbox"
+                                                checked={isChecked}
+                                                onChange={() => {
+                                                  setGroupAssignments(prev => prev.map(g => {
+                                                    if (g.groupId === grp.groupId) {
+                                                      const current = g.ffeSelections || [];
+                                                      const next = isChecked ? current.filter(s => s !== subjectName) : [...current, subjectName];
+                                                      return {
+                                                        ...g,
+                                                        trackId: 'custom',
+                                                        trackName: 'Personalizado',
+                                                        ffeSelections: next,
+                                                      };
+                                                    }
+                                                    if (grp.semester === 5 && (g.groupId === matching6thId || (g.semester === 6 && g.groupName.endsWith(groupLetter)))) {
+                                                      const current6 = g.ffeSelections || [];
+                                                      const next6 = isChecked ? current6.filter(s => s !== subj6) : [...current6, subj6];
+                                                      return {
+                                                        ...g,
+                                                        trackId: 'custom',
+                                                        trackName: 'Personalizado',
+                                                        ffeSelections: next6,
+                                                      };
+                                                    }
+                                                    return g;
+                                                  }));
+                                                }}
+                                                style={{ marginTop: '1px' }}
+                                              />
+                                              <span>{subjectName}</span>
+                                            </label>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
 
-                                  {/* Recursos Sociocognitivos (7) */}
-                                  <div>
-                                    <div style={{ fontSize: '10.5px', fontWeight: 700, color: '#38bdf8', marginBottom: '6px' }}>
-                                      📘 Recursos Sociocognitivos (7 asignaturas)
-                                    </div>
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '5px' }}>
-                                      {FFE_PAIRS.filter(p => p.category === 'Recursos Sociocognitivos').map((pair) => {
-                                        const subjectName = grp.semester === 6 ? pair.name6 : pair.name5;
-                                        const isChecked = (grp.ffeSelections || []).includes(subjectName);
-                                        return (
-                                          <label key={pair.name5} style={{ display: 'flex', alignItems: 'flex-start', gap: '5px', fontSize: '11px', cursor: 'pointer', color: isChecked ? '#ffffff' : 'rgba(240,244,255,0.7)', lineHeight: 1.25 }}>
-                                            <input
-                                              type="checkbox"
-                                              checked={isChecked}
-                                              onChange={() => {
-                                                setGroupAssignments(prev => prev.map(g => {
-                                                  if (g.groupId !== grp.groupId) return g;
-                                                  const current = g.ffeSelections || [];
-                                                  const next = isChecked ? current.filter(s => s !== subjectName) : [...current, subjectName];
-                                                  return {
-                                                    ...g,
-                                                    trackId: 'custom',
-                                                    trackName: 'Personalizado',
-                                                    ffeSelections: next,
-                                                  };
-                                                }));
-                                              }}
-                                              style={{ marginTop: '1px' }}
-                                            />
-                                            <span>{subjectName}</span>
-                                          </label>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
-
-                                  {/* Áreas de Conocimiento (13) */}
-                                  <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '6px' }}>
-                                    <div style={{ fontSize: '10.5px', fontWeight: 700, color: '#34d399', marginBottom: '6px' }}>
-                                      🔬 Áreas de Conocimiento (13 asignaturas)
-                                    </div>
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '5px' }}>
-                                      {FFE_PAIRS.filter(p => p.category !== 'Recursos Sociocognitivos').map((pair) => {
-                                        const subjectName = grp.semester === 6 ? pair.name6 : pair.name5;
-                                        const isChecked = (grp.ffeSelections || []).includes(subjectName);
-                                        return (
-                                          <label key={pair.name5} style={{ display: 'flex', alignItems: 'flex-start', gap: '5px', fontSize: '11px', cursor: 'pointer', color: isChecked ? '#ffffff' : 'rgba(240,244,255,0.7)', lineHeight: 1.25 }}>
-                                            <input
-                                              type="checkbox"
-                                              checked={isChecked}
-                                              onChange={() => {
-                                                setGroupAssignments(prev => prev.map(g => {
-                                                  if (g.groupId !== grp.groupId) return g;
-                                                  const current = g.ffeSelections || [];
-                                                  const next = isChecked ? current.filter(s => s !== subjectName) : [...current, subjectName];
-                                                  return {
-                                                    ...g,
-                                                    trackId: 'custom',
-                                                    trackName: 'Personalizado',
-                                                    ffeSelections: next,
-                                                  };
-                                                }));
-                                              }}
-                                              style={{ marginTop: '1px' }}
-                                            />
-                                            <span>{subjectName}</span>
-                                          </label>
-                                        );
-                                      })}
+                                    {/* Áreas de Conocimiento (13) */}
+                                    <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '6px' }}>
+                                      <div style={{ fontSize: '10.5px', fontWeight: 700, color: '#34d399', marginBottom: '6px' }}>
+                                        🔬 Áreas de Conocimiento (13 asignaturas)
+                                      </div>
+                                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '5px' }}>
+                                        {FFE_PAIRS.filter(p => p.category !== 'Recursos Sociocognitivos').map((pair) => {
+                                          const subjectName = grp.semester === 6 ? pair.name6 : pair.name5;
+                                          const isChecked = (grp.ffeSelections || []).includes(subjectName);
+                                          const subj6 = obtenerFfeSemestre6(subjectName);
+                                          return (
+                                            <label key={pair.name5} style={{ display: 'flex', alignItems: 'flex-start', gap: '5px', fontSize: '11px', cursor: 'pointer', color: isChecked ? '#ffffff' : 'rgba(240,244,255,0.7)', lineHeight: 1.25 }}>
+                                              <input
+                                                type="checkbox"
+                                                checked={isChecked}
+                                                onChange={() => {
+                                                  setGroupAssignments(prev => prev.map(g => {
+                                                    if (g.groupId === grp.groupId) {
+                                                      const current = g.ffeSelections || [];
+                                                      const next = isChecked ? current.filter(s => s !== subjectName) : [...current, subjectName];
+                                                      return {
+                                                        ...g,
+                                                        trackId: 'custom',
+                                                        trackName: 'Personalizado',
+                                                        ffeSelections: next,
+                                                      };
+                                                    }
+                                                    if (grp.semester === 5 && (g.groupId === matching6thId || (g.semester === 6 && g.groupName.endsWith(groupLetter)))) {
+                                                      const current6 = g.ffeSelections || [];
+                                                      const next6 = isChecked ? current6.filter(s => s !== subj6) : [...current6, subj6];
+                                                      return {
+                                                        ...g,
+                                                        trackId: 'custom',
+                                                        trackName: 'Personalizado',
+                                                        ffeSelections: next6,
+                                                      };
+                                                    }
+                                                    return g;
+                                                  }));
+                                                }}
+                                                style={{ marginTop: '1px' }}
+                                              />
+                                              <span>{subjectName}</span>
+                                            </label>
+                                          );
+                                        })}
+                                      </div>
                                     </div>
                                   </div>
-                                </div>
+                                )
                               )}
 
                               {/* Selector Socioemocional 5° / Indicador 6° (H-01) */}
@@ -2321,68 +2517,51 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                 )}
               </div>
 
-              {/* FFE Checklist */}
+              {/* FFE Resumen Vinculado a Grupos (H-04) */}
               <div style={{ borderTop: '1px solid var(--c-border)', paddingTop: '16px', marginTop: '16px' }}>
-                <label style={{ display: 'block', fontWeight: 600, marginBottom: '10px', fontSize: '15px', color: 'var(--c-navy)' }}>
-                  Formación Fundamental Extendida (FFE/FFEO) activas
-                </label>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <label style={{ display: 'block', fontWeight: 600, fontSize: '15px', color: 'var(--c-navy)' }}>
+                    Formación Fundamental Extendida (FFE/FFEO) vinculadas al plantel
+                  </label>
+                  <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: selectedFfe.length > 0 ? 'rgba(99,102,241,0.2)' : 'rgba(255,255,255,0.06)', color: selectedFfe.length > 0 ? '#a5b4fc' : '#94a3b8', fontWeight: 600, border: '1px solid rgba(99,102,241,0.3)' }}>
+                    {selectedFfe.length} UACs activas en total
+                  </span>
+                </div>
                 <p style={{ fontSize: '12.5px', color: 'var(--c-text-muted)', marginBottom: '14px', marginTop: '-6px' }}>
-                  Selecciona las asignaturas de FFE. Dado que tienen continuidad obligatoria, al seleccionar la materia de 5° Semestre se vinculará automáticamente con su continuación en 6° Semestre.
+                  Las asignaturas de FFE se derivan automáticamente de las selecciones realizadas en cada grupo de 5° y 6° Semestre, respetando la continuidad obligatoria de duplas oficiales.
                 </p>
 
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '360px', overflowY: 'auto', padding: '12px', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', background: 'rgba(8,12,24,0.5)' }}>
-                    {FFE_PAIRS.map((pair) => {
-                      const isChecked5 = selectedFfe.includes(pair.name5);
-                      const isChecked6 = selectedFfe.includes(pair.name6);
+                {selectedFfe.length === 0 ? (
+                  <div style={{ padding: '16px', borderRadius: '8px', border: '1px dashed rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.02)', textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}>
+                    No hay asignaturas de FFE seleccionadas aún. Configura los grupos de 5° y/o 6° Semestre en la sección superior para activarlas.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '360px', overflowY: 'auto', padding: '12px', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', background: 'rgba(8,12,24,0.5)' }}>
+                    {FFE_PAIRS.filter(pair => selectedFfe.includes(pair.name5) || selectedFfe.includes(pair.name6)).map((pair) => {
+                      const has5 = selectedFfe.includes(pair.name5);
+                      const has6 = selectedFfe.includes(pair.name6);
 
                       return (
-                        <div key={pair.label} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', padding: '10px', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', background: 'rgba(255,255,255,0.03)', gap: '10px' }}>
-                          <div style={{ minWidth: '220px', flex: '1' }}>
-                            <strong style={{ fontSize: '13px', color: '#818cf8' }}>{pair.label}</strong>
+                        <div key={pair.label} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', border: '1px solid rgba(99,102,241,0.25)', borderRadius: '6px', background: 'rgba(99,102,241,0.05)', gap: '8px' }}>
+                          <div style={{ minWidth: '200px', flex: '1' }}>
+                            <strong style={{ fontSize: '12.5px', color: '#a5b4fc' }}>{pair.label}</strong>
+                            <span style={{ marginLeft: '8px', fontSize: '10.5px', color: '#64748b' }}>({pair.category})</span>
                           </div>
                           
-                          <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer' }}>
-                              <input
-                                type="checkbox"
-                                checked={isChecked5}
-                                onChange={() => {
-                                  if (isChecked5) {
-                                    setSelectedFfe(selectedFfe.filter(n => n !== pair.name5 && n !== pair.name6));
-                                  } else {
-                                    // Autoselect matching 6th semester FFE too
-                                    setSelectedFfe(prev => Array.from(new Set([...prev, pair.name5, pair.name6])));
-                                  }
-                                }}
-                              />
-                              <span style={{ fontWeight: 500 }}>5° Sem:</span>
-                              <span style={{ color: 'var(--c-text-muted)' }}>{pair.name5.split(' (')[0]}</span>
-                            </label>
-
-                            <span style={{ color: '#cbd5e1' }}>➔</span>
-
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer' }}>
-                              <input
-                                type="checkbox"
-                                checked={isChecked6}
-                                onChange={() => {
-                                  if (isChecked6) {
-                                    setSelectedFfe(selectedFfe.filter(n => n !== pair.name6 && n !== pair.name5));
-                                  } else {
-                                    // Autoselect matching 5th semester FFE too
-                                    setSelectedFfe(prev => Array.from(new Set([...prev, pair.name5, pair.name6])));
-                                  }
-                                }}
-                              />
-                              <span style={{ fontWeight: 500 }}>6° Sem:</span>
-                              <span style={{ color: 'var(--c-text-muted)' }}>{pair.name6.split(' (')[0]}</span>
-                            </label>
+                          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', fontSize: '11.5px' }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: has5 ? '#38bdf8' : '#64748b', fontWeight: has5 ? 600 : 400 }}>
+                              {has5 ? '✓' : '○'} 5°: {pair.name5}
+                            </span>
+                            <span style={{ color: '#475569' }}>➔</span>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: has6 ? '#34d399' : '#64748b', fontWeight: has6 ? 600 : 400 }}>
+                              {has6 ? '✓' : '○'} 6°: {pair.name6}
+                            </span>
                           </div>
                         </div>
                       );
                     })}
                   </div>
+                )}
               </div>
 
             </div>

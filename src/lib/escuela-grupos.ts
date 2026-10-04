@@ -376,6 +376,7 @@ export const FFE_CONTINUIDAD_5_A_6: Record<string, string> = {
 
   // Recursos Sociocognitivos - Pensamiento Matemático
   "Taller de Pensamiento Variacional I": "Taller de Pensamiento Variacional II",
+  "Taller Pensamiento Variacional I": "Taller Pensamiento Variacional II",
   "Dibujo Técnico I": "Dibujo Técnico II",
   "Pensamiento Matemático Aplicado a las Finanzas I": "Pensamiento Matemático Aplicado a las Finanzas II",
   "Taller de Probabilidad y Estadística I": "Taller de Probabilidad y Estadística II",
@@ -384,13 +385,15 @@ export const FFE_CONTINUIDAD_5_A_6: Record<string, string> = {
   "Salud Integral I": "Salud Integral II",
   "Análisis de Fenómenos y Procesos Biológicos": "Temas Selectos de Biología",
   "Análisis de Fenómenos Físicos I": "Análisis de Fenómenos Físicos II",
-  "Organización del Flujo de Materia y Energía en los Organismos I": "Organización del Flujo de Materia en los Organismos II",
+  "Organización del Flujo de Materia y Energía en los Organismos I": "Organización del Flujo de Materia y Energía en los Organismos II",
+  "Organización del Flujo de Materia en los Organismos I": "Organización del Flujo de Materia y Energía en los Organismos II",
 
   // Áreas de Conocimiento - Ciencias Sociales
   "Fundamentos de Administración I": "Fundamentos de Administración II",
   "Procesos Contables I": "Procesos Contables II",
   "Derecho y Sociedad I": "Derecho y Sociedad II",
   "Economía I. La Función de los Agentes Económicos en la Sociedad": "Economía II. Política Económica y Política Pública Mexicana",
+  "Economía I": "Economía II",
   "Temas Selectos de Ciencias Sociales I": "Temas Selectos de Ciencias Sociales II",
   "Psicología I": "Psicología II",
 
@@ -419,7 +422,7 @@ export const FFE_OPTATIVAS_CATALOGO = [
 export const FFE_PACKAGES: Record<string, { label: string; subjects: string[] }> = {
   'fisico_matematico': {
     label: '📐 Físico-Matemático',
-    subjects: ['Análisis de Fenómenos Físicos I', 'Dibujo Técnico I', 'Taller de Pensamiento Variacional I', 'Taller de Probabilidad y Estadística I']
+    subjects: ['Análisis de Fenómenos Físicos I', 'Dibujo Técnico I', 'Taller Pensamiento Variacional I', 'Taller de Probabilidad y Estadística I']
   },
   'quimico_biologico': {
     label: '🧬 Químico-Biológico',
@@ -439,8 +442,8 @@ export const FFE_PAIRS = [
   // ── Recursos Sociocognitivos (7) ──────────────────────────────────────────
   { name5: 'Comunicación y Sociedad I', name6: 'Comunicación y Sociedad II', label: 'Comunicación y Sociedad', category: 'Recursos Sociocognitivos' },
   { name5: 'Raíces Etimológicas del Español I', name6: 'Raíces Etimológicas del Español II', label: 'Raíces Etimológicas del Español', category: 'Recursos Sociocognitivos' },
-  { name5: 'Inglés V (Avanzado)', name6: 'Inglés VI (Avanzado)', label: 'Inglés Avanzado', category: 'Recursos Sociocognitivos' },
-  { name5: 'Taller de Pensamiento Variacional I', name6: 'Taller de Pensamiento Variacional II', label: 'Taller de Pensamiento Variacional', category: 'Recursos Sociocognitivos' },
+  { name5: 'Inglés V', name6: 'Inglés VI', label: 'Inglés Avanzado', category: 'Recursos Sociocognitivos' },
+  { name5: 'Taller Pensamiento Variacional I', name6: 'Taller Pensamiento Variacional II', label: 'Taller de Pensamiento Variacional', category: 'Recursos Sociocognitivos' },
   { name5: 'Dibujo Técnico I', name6: 'Dibujo Técnico II', label: 'Dibujo Técnico', category: 'Recursos Sociocognitivos' },
   { name5: 'Pensamiento Matemático Aplicado a las Finanzas I', name6: 'Pensamiento Matemático Aplicado a las Finanzas II', label: 'Pensamiento Matemático Finanzas', category: 'Recursos Sociocognitivos' },
   { name5: 'Taller de Probabilidad y Estadística I', name6: 'Taller de Probabilidad y Estadística II', label: 'Taller de Probabilidad y Estadística', category: 'Recursos Sociocognitivos' },
@@ -449,7 +452,7 @@ export const FFE_PAIRS = [
   { name5: 'Salud Integral I', name6: 'Salud Integral II', label: 'Salud Integral', category: 'Ciencias Naturales y Salud' },
   { name5: 'Análisis de Fenómenos y Procesos Biológicos', name6: 'Temas Selectos de Biología', label: 'Ciencias Biológicas', category: 'Ciencias Naturales y Salud' },
   { name5: 'Análisis de Fenómenos Físicos I', name6: 'Análisis de Fenómenos Físicos II', label: 'Análisis de Fenómenos Físicos', category: 'Ciencias Naturales y Salud' },
-  { name5: 'Organización del Flujo de Materia y Energía en los Organismos I', name6: 'Organización del Flujo de Materia en los Organismos II', label: 'Flujo de Materia y Energía', category: 'Ciencias Naturales y Salud' },
+  { name5: 'Organización del Flujo de Materia y Energía en los Organismos I', name6: 'Organización del Flujo de Materia y Energía en los Organismos II', label: 'Flujo de Materia y Energía', category: 'Ciencias Naturales y Salud' },
   { name5: 'Fundamentos de Administración I', name6: 'Fundamentos de Administración II', label: 'Fundamentos de Administración', category: 'Ciencias Sociales' },
   { name5: 'Procesos Contables I', name6: 'Procesos Contables II', label: 'Procesos Contables', category: 'Ciencias Sociales' },
   { name5: 'Derecho y Sociedad I', name6: 'Derecho y Sociedad II', label: 'Derecho y Sociedad', category: 'Ciencias Sociales' },

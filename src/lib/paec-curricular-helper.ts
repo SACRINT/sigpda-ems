@@ -18,13 +18,18 @@
 import type { PaecCatalogItem } from '@/lib/db/programs-catalog';
 
 /**
- * Normaliza nombres de UAC para comparación insensible a mayúsculas y acentos.
+ * Normaliza nombres de UAC para comparación insensible a mayúsculas, acentos y variantes textuales (H-05).
  */
 export function normalizeUacName(name: string): string {
   return name
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s*\(avanzado\)/gi, '')
+    .replace(/\btaller\s+de\s+pensamiento\b/gi, 'taller pensamiento')
+    .replace(/\beconomia\s+i\.\s+la\s+funcion.*$/gi, 'economia i')
+    .replace(/\beconomia\s+ii\.\s+politica.*$/gi, 'economia ii')
+    .replace(/\bflujo\s+de\s+materia\s+en\s+los\s+organismos\b/gi, 'flujo de materia y energia en los organismos')
     .trim();
 }
 
