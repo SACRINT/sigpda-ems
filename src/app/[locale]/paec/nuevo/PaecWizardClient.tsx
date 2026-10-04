@@ -662,7 +662,8 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
     if (selectedLaboralCustom.length === 0) {
       return allAssignedLaboralUacs;
     }
-    return allAssignedLaboralUacs.filter(u => selectedLaboralCustom.includes(u));
+    const filtered = allAssignedLaboralUacs.filter(u => selectedLaboralCustom.includes(u));
+    return filtered.length > 0 ? filtered : allAssignedLaboralUacs;
   }, [allAssignedLaboralUacs, selectedLaboralCustom]);
 
   // Todas las UACs FFE derivadas de las selecciones de grupos
@@ -689,7 +690,8 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
     if (selectedFfeCustom.length === 0) {
       return allAssignedFfeUacs;
     }
-    return allAssignedFfeUacs.filter(u => selectedFfeCustom.includes(u));
+    const filtered = allAssignedFfeUacs.filter(u => selectedFfeCustom.includes(u));
+    return filtered.length > 0 ? filtered : allAssignedFfeUacs;
   }, [allAssignedFfeUacs, selectedFfeCustom]);
 
   const [expandedGroupFfe, setExpandedGroupFfe] = useState<Record<string, boolean>>({});
@@ -2048,6 +2050,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                                     value={grp.trackName || ''}
                                     onChange={(e) => {
                                       const val = e.target.value;
+                                      setSelectedLaboralCustom([]);
                                       setGroupAssignments((prev) =>
                                         prev.map((g) => {
                                           if (g.groupId === grp.groupId) {
@@ -2122,6 +2125,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                                     value={grp.trackName || ''}
                                     onChange={(e) => {
                                       const val = e.target.value;
+                                      setSelectedLaboralCustom([]);
                                       setGroupAssignments((prev) =>
                                         prev.map((g) => {
                                           if (g.groupId === grp.groupId) {
@@ -2274,6 +2278,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                                         <button
                                           type="button"
                                           onClick={() => {
+                                            setSelectedFfeCustom([]);
                                             setGroupAssignments(prev => prev.map(g => {
                                               if (g.groupId === grp.groupId) return { ...g, ffeSelections: [] };
                                               if (grp.semester === 5 && (g.groupId === matching6thId || (g.semester === 6 && g.groupName.endsWith(groupLetter)))) {
