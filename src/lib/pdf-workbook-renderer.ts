@@ -46,6 +46,7 @@ import crypto from 'crypto';
 import QRCode from 'qrcode';
 import { getVerificationUrl } from '@/lib/digital-signature';
 import { formatearBadgeMetodologia } from '@/lib/catalogo-metodologias';
+import { stripWorkbookTags } from '@/lib/guide-engine/workbook-tags';
 import {
   extractGlossaryTerms,
   stripMarkdown,
@@ -245,7 +246,7 @@ export async function renderWorkbookToPdf(
     cicloEscolar: SCHOOL_YEAR,
     blockName: workbook.blockName,
     blockIndex: workbook.blockIndex,
-    subsystem: workbook.subsystem || 'BGE',
+    subsystem: sanitizePdfText(stripMarkdown(stripWorkbookTags(workbook.subsystem || 'BGE'))),
     paecProjectName: workbook.coverData?.paecProjectName,
     docente: workbook.coverData?.teacherName,
     forceFallback: options.forceFallbackCover,
@@ -590,7 +591,7 @@ function drawCoverPage(
   doc.text(schoolLines[0], margin + 6, 34);
 
   const cct = workbook.coverData?.cct || '21ECT0017T';
-  const subsistema = (workbook.subsystem || 'BGE').toUpperCase();
+  const subsistema = sanitizePdfText(stripMarkdown(stripWorkbookTags(workbook.subsystem || 'BGE'))).toUpperCase();
   const rawSem = workbook.coverData?.semester;
   const semStr = rawSem ? (String(rawSem).toLowerCase().includes('semestre') ? String(rawSem) : `${rawSem}° Semestre`) : 'Segundo Semestre';
 
@@ -790,7 +791,7 @@ function drawCoverPage(
   setFontBody(doc, 'normal');
   doc.setFontSize(6.2);
   doc.setTextColor(203, 213, 225);
-  doc.text(`Subsistema Oficial: ${(workbook.subsystem || 'BGE').toUpperCase()} · Modalidad Escolarizada · Ciclo Escolar: ${SCHOOL_YEAR}`, margin + 8, 255);
+  doc.text(`Subsistema Oficial: ${sanitizePdfText(stripMarkdown(stripWorkbookTags(workbook.subsystem || 'BGE'))).toUpperCase()} · Modalidad Escolarizada · Ciclo Escolar: ${SCHOOL_YEAR}`, margin + 8, 255);
 
   // 6. Cintillo de Pie Oficial (y: 266 - 279.4mm)
   doc.setFillColor(4, 8, 16);
@@ -1009,7 +1010,7 @@ function drawContraportadaPage(
   const dataItems = [
     { label: 'PLANTEL:', value: data.plantelNombre },
     { label: 'CLAVE C.C.T.:', value: data.cct },
-    { label: 'SUBSISTEMA:', value: `${data.subsystem} · BACHILLERATO ESTATAL` },
+    { label: 'SUBSISTEMA:', value: `${sanitizePdfText(stripMarkdown(stripWorkbookTags(data.subsystem)))} · BACHILLERATO ESTATAL` },
     { label: 'ASIGNATURA (UAC):', value: data.uacName },
     { label: 'SEMESTRE / CICLO:', value: `${data.semestre} · CICLO ESCOLAR ${data.cicloEscolar}` },
     { label: 'DOCENTE TITULAR:', value: data.docente },

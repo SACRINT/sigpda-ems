@@ -1043,6 +1043,7 @@ export function sanitizeWorkbookNarratives(wb: ActiveWorkTextbook): ActiveWorkTe
 
   const sanitizedWb: ActiveWorkTextbook = {
     ...wb,
+    subsystem: cleanReq(wb.subsystem),
     blockName: cleanReq(wb.blockName),
     coverData: wb.coverData
       ? {

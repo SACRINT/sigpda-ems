@@ -203,7 +203,7 @@ export async function renderWorkbookToDocx(
     cicloEscolar: SCHOOL_YEAR,
     blockName: workbook.blockName,
     blockIndex: workbook.blockIndex,
-    subsystem: workbook.subsystem || 'BGE',
+    subsystem: stripMarkdown(stripWorkbookTags(workbook.subsystem || 'BGE')),
     paecProjectName: workbook.coverData?.paecProjectName,
     docente: workbook.coverData?.teacherName,
     forceFallback: options.forceFallbackCover,
@@ -509,7 +509,7 @@ function buildCoverSection(workbook: ActiveWorkTextbook): Paragraph[] {
       spacing: { after: 400 },
       children: [
         new TextRun({
-          text: `Clave C.C.T.: ${cover.cct || '21ECT0017T'} | Subsistema: ${(workbook.subsystem || 'BGE').toUpperCase()}`,
+          text: `Clave C.C.T.: ${cover.cct || '21ECT0017T'} | Subsistema: ${(stripMarkdown(stripWorkbookTags(workbook.subsystem)) || 'BGE').toUpperCase()}`,
           size: 18,
           color: C.mutedText,
           font: 'Calibri',
@@ -921,7 +921,7 @@ function buildDocxContraportada(data: ContraportadaData): (Paragraph | Table)[] 
           children: [
             new Paragraph({
               children: [
-                new TextRun({ text: `${data.subsystem} · BACHILLERATO ESTATAL PUEBLA`, size: 16, color: C.darkText, font: 'Calibri' }),
+                new TextRun({ text: `${stripMarkdown(stripWorkbookTags(data.subsystem))} · BACHILLERATO ESTATAL PUEBLA`, size: 16, color: C.darkText, font: 'Calibri' }),
               ],
             }),
           ],
