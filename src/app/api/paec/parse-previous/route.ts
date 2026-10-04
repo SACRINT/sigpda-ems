@@ -162,33 +162,43 @@ export async function POST(request: NextRequest) {
       parsedData = parsed.data;
       if (parsed.warnings) warnings.push(...parsed.warnings);
     } else {
-      // Chunking multi-fragmento estructurado
+      // Chunking multi-fragmento estructurado con concurrencia acotada (F-R3-04)
       logger.info(`[paec-parse-previous] Documento de ${documentText.length} caracteres: procesando en ${chunks.length} fragmentos.`);
       warnings.push(
         `El documento contiene ${documentText.length.toLocaleString('es-MX')} caracteres. Se procesó mediante fragmentación estructurada (${chunks.length} bloques) garantizando la extracción íntegra.`
       );
+      if (chunks.length >= 8) {
+        warnings.push('El documento alcanzó el límite máximo de 8 fragmentos de extracción.');
+      }
 
-      const chunkPromises = chunks.map((chunk, idx) => {
-        const prompt = idx === 0
-          ? buildPaecExtractionPrompt(chunk)
-          : buildPaecChunkExtractionPrompt(chunk, idx, chunks.length);
-        const remaining = Math.max(1, deadline - Date.now());
-        return withTimeoutBudget(
-          generateWithRotation(systemPrompt, prompt, teacher.id, isPremium, { temperature: 0.1, jsonMode: true }),
-          remaining
-        ).then(raw => {
-          const parsed = parseAIResponse(raw, PaecPreviousExtractSchema, {
-            contextName: `paec-parse-previous-chunk-${idx}`,
-            repairNullStrings: true,
+      const results: (PaecPreviousExtractDTO | null)[] = [];
+      const CONCURRENCY_LIMIT = 3;
+      for (let i = 0; i < chunks.length; i += CONCURRENCY_LIMIT) {
+        const batch = chunks.slice(i, i + CONCURRENCY_LIMIT);
+        const batchPromises = batch.map((chunk, batchIdx) => {
+          const idx = i + batchIdx;
+          const prompt = idx === 0
+            ? buildPaecExtractionPrompt(chunk)
+            : buildPaecChunkExtractionPrompt(chunk, idx, chunks.length);
+          const remaining = Math.max(1, deadline - Date.now());
+          return withTimeoutBudget(
+            generateWithRotation(systemPrompt, prompt, teacher.id, isPremium, { temperature: 0.1, jsonMode: true }),
+            remaining
+          ).then(raw => {
+            const parsed = parseAIResponse(raw, PaecPreviousExtractSchema, {
+              contextName: `paec-parse-previous-chunk-${idx}`,
+              repairNullStrings: true,
+            });
+            return parsed.success ? parsed.data : null;
+          }).catch(err => {
+            logger.warn(`[paec-parse-previous] Falló chunk ${idx}:`, err);
+            return null;
           });
-          return parsed.success ? parsed.data : null;
-        }).catch(err => {
-          logger.warn(`[paec-parse-previous] Falló chunk ${idx}:`, err);
-          return null;
         });
-      });
+        const batchResults = await Promise.all(batchPromises);
+        results.push(...batchResults);
+      }
 
-      const results = await Promise.all(chunkPromises);
       const validResults = results.filter((r): r is PaecPreviousExtractDTO => r !== null);
 
       if (validResults.length === 0) {

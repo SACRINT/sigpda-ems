@@ -236,7 +236,11 @@ REGLAS DE EXTRACCIÓN:
 /**
  * Divide un texto extenso de PAEC en fragmentos balanceados respetando saltos de párrafo (H-13).
  */
-export function partitionPaecDocument(documentText: string, maxChunkSize = 65000): string[] {
+export function partitionPaecDocument(
+  documentText: string,
+  maxChunkSize = 65000,
+  maxChunks = 8
+): string[] {
   if (documentText.length <= maxChunkSize) {
     return [documentText];
   }
@@ -245,9 +249,9 @@ export function partitionPaecDocument(documentText: string, maxChunkSize = 65000
   let startIndex = 0;
   const overlap = 3000;
 
-  while (startIndex < documentText.length) {
+  while (startIndex < documentText.length && chunks.length < maxChunks) {
     let endIndex = startIndex + maxChunkSize;
-    if (endIndex >= documentText.length) {
+    if (endIndex >= documentText.length || chunks.length === maxChunks - 1) {
       chunks.push(documentText.slice(startIndex));
       break;
     }
@@ -289,9 +293,13 @@ export function mergePaecExtracts(
     return `${p1}${separator}${p2}`;
   };
 
+  const resolvedProblem = (base.problemStatement && base.problemStatement.length > 50)
+    ? base.problemStatement
+    : mergeText(base.problemStatement, addition.problemStatement);
+
   return {
     projectName: base.projectName?.trim() || addition.projectName?.trim() || '',
-    problemStatement: mergeText(base.problemStatement, addition.problemStatement),
+    problemStatement: resolvedProblem,
     cycleType: base.cycleType || addition.cycleType || 'annual',
     schoolType: base.schoolType || addition.schoolType || 'general',
     school: {
