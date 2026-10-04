@@ -19,6 +19,8 @@ export const PaecPreviousExtractSchema = z.object({
     schoolZone: nullableString(),
     directorName: nullableString(),
     supervisorName: nullableString(),
+    enrollment: nullableString(),
+    teacherCount: nullableString(),
   }).partial().optional().default({}),
   community: z.object({
     context: nullableString(),
@@ -139,7 +141,9 @@ Estructura la información en el siguiente esquema JSON exacto:
     "locality": "Localidad o comunidad",
     "schoolZone": "Zona escolar (ej. 013)",
     "directorName": "Nombre del Director(a)",
-    "supervisorName": "Nombre del Supervisor(a) escolar"
+    "supervisorName": "Nombre del Supervisor(a) escolar",
+    "enrollment": "Matrícula total de estudiantes si se menciona (ej. '168 estudiantes')",
+    "teacherCount": "Número total de docentes del plantel si se menciona (ej. '12 docentes')"
   },
   "community": {
     "context": "Contexto territorial, geográfico y demográfico de la comunidad donde se inserta el plantel",
@@ -198,7 +202,9 @@ Estructura la información en el siguiente esquema JSON exacto:
     "locality": "Localidad o comunidad",
     "schoolZone": "Zona escolar (ej. 013)",
     "directorName": "Nombre del Director(a)",
-    "supervisorName": "Nombre del Supervisor(a) escolar"
+    "supervisorName": "Nombre del Supervisor(a) escolar",
+    "enrollment": "Matrícula estudiantil si se menciona",
+    "teacherCount": "Plantilla docente si se menciona"
   },
   "community": {
     "context": "Contexto territorial, geográfico y demográfico de la comunidad",
@@ -296,6 +302,8 @@ export function mergePaecExtracts(
       schoolZone: base.school?.schoolZone || addition.school?.schoolZone || '',
       directorName: base.school?.directorName || addition.school?.directorName || '',
       supervisorName: base.school?.supervisorName || addition.school?.supervisorName || '',
+      enrollment: base.school?.enrollment || addition.school?.enrollment || '',
+      teacherCount: base.school?.teacherCount || addition.school?.teacherCount || '',
     },
     community: {
       context: mergeText(base.community?.context, addition.community?.context),
