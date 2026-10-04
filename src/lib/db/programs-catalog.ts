@@ -210,11 +210,19 @@ export async function getProgramByUacAndSemester(
 
 export async function getFfeContinuity(uacName: string) {
   const client = sql();
+  const trimmed = uacName.trim();
+  const variantWithoutEnergia = trimmed.replace(/\s+y\s+energ[ií]a/gi, '');
+  const variantWithDe = trimmed.replace(/\btaller\s+pensamiento\b/gi, 'Taller de Pensamiento');
+
   const rows = await client`
     SELECT *
     FROM ffe_continuity
-    WHERE semester_5_uac ILIKE ${'%' + uacName.trim() + '%'} 
-       OR semester_6_uac ILIKE ${'%' + uacName.trim() + '%'}
+    WHERE semester_5_uac ILIKE ${'%' + trimmed + '%'} 
+       OR semester_6_uac ILIKE ${'%' + trimmed + '%'}
+       OR semester_5_uac ILIKE ${'%' + variantWithoutEnergia + '%'}
+       OR semester_6_uac ILIKE ${'%' + variantWithoutEnergia + '%'}
+       OR semester_5_uac ILIKE ${'%' + variantWithDe + '%'}
+       OR semester_6_uac ILIKE ${'%' + variantWithDe + '%'}
     LIMIT 1
   `;
   return rows[0] || null;
