@@ -49,7 +49,10 @@ vi.mock('@/lib/visual-engine/openverse-client', async () => {
 
 import { generateFallbackCover } from '@/lib/visual-engine/cover-generator';
 import { stripMarkdown, sanitizeWorkbookNarratives } from '@/lib/visual-engine/content-extractor';
-import { sanitizePdfText } from '@/lib/pdf-workbook-renderer';
+import { sanitizePdfText, renderWorkbookToPdf } from '@/lib/pdf-workbook-renderer';
+import { renderWorkbookToDocx } from '@/lib/docx-workbook-renderer';
+import mammoth from 'mammoth';
+import { PDFParse } from 'pdf-parse';
 import {
   consolidateWorkbookElements,
   stripWorkbookTags,
@@ -58,6 +61,7 @@ import {
 import { resolveVisualForMission } from '@/lib/visual-engine/visual-asset-manager';
 import { parseMarkdownTable } from '@/lib/visual-engine/column-flow-manager';
 import type { WorkbookElement, ActiveWorkTextbook } from '@/types/work-textbook';
+import type { Planning } from '@/types/planning';
 
 describe('Workbook Engine Architecture Tests (Fase 10)', () => {
   beforeEach(() => {
@@ -274,7 +278,7 @@ describe('Workbook Engine Architecture Tests (Fase 10)', () => {
   });
 
   describe('sanitizeWorkbookNarratives (F-16 Suite Unitaria Exhaustiva)', () => {
-    it('sanea todos los campos narrativos, estructurales y de configuración sin mutar el objeto de entrada', () => {
+    it('sanea todos los campos narrativos, estructurales y de configuración sin mutar el objeto de entrada', async () => {
       const tag = '<!--workbook:lines:rows=4-->';
       const tagOnly = '<!--workbook:table:cols=2-->';
 
@@ -359,6 +363,24 @@ describe('Workbook Engine Architecture Tests (Fase 10)', () => {
                     ],
                     cols: [`Parámetro ${tag}`, `Medición ${tag}`, tagOnly],
                     initialCode: `# Comentario Python de ejemplo\nconst potencia = base ** exponente;\nif (__name__ === "__main__") {\n  console.log("listo");\n} ${tag}`,
+                  },
+                } as unknown as WorkbookElement,
+                {
+                  id: 'el-cb-alltag',
+                  type: 'checkbox_list',
+                  title: `Lista Casillas Solo Tag ${tag}`,
+                  instruction: `Marca cada paso conforme avances ${tag}`,
+                  config: {
+                    checkboxes: [tagOnly, tagOnly],
+                  },
+                } as unknown as WorkbookElement,
+                {
+                  id: 'el-table-alltag',
+                  type: 'empty_table',
+                  title: `Tabla Columnas Solo Tag ${tag}`,
+                  instruction: `Registra datos experimentales ${tag}`,
+                  config: {
+                    cols: [tagOnly, tagOnly],
                   },
                 } as unknown as WorkbookElement,
               ],
@@ -499,6 +521,15 @@ describe('Workbook Engine Architecture Tests (Fase 10)', () => {
         '# Comentario Python de ejemplo\nconst potencia = base ** exponente;\nif (__name__ === "__main__") {\n  console.log("listo");\n}'
       );
 
+      // Elementos cuyos arrays se reducen a [] por contener únicamente etiquetas de control
+      const elCbAllTag = m.weDoSection?.workbookElements?.[1];
+      expect(elCbAllTag?.title).toBe('Lista Casillas Solo Tag');
+      expect((elCbAllTag?.config as Record<string, unknown>)?.checkboxes).toEqual([]);
+
+      const elTableAllTag = m.weDoSection?.workbookElements?.[2];
+      expect(elTableAllTag?.title).toBe('Tabla Columnas Solo Tag');
+      expect((elTableAllTag?.config as Record<string, unknown>)?.cols).toEqual([]);
+
       const elLines = m.youDoSection?.workbookElements?.[0];
       expect(elLines?.title).toBe('Espacio de Trabajo Autónomo');
       expect(elLines?.instruction).toBe('Desarrolla tus operaciones completas');
@@ -538,6 +569,30 @@ describe('Workbook Engine Architecture Tests (Fase 10)', () => {
       // H) Aserción global: NINGÚN campo del resultado contiene '<!--'
       const serialized = JSON.stringify(result);
       expect(serialized).not.toContain('<!--');
-    });
+
+      // I) F-22-gap: Verificación de activación de defaults en DOCX y PDF cuando checkboxes o cols son []
+      const dummyPlanning: Planning = {
+        id: 'plan-unit-01',
+        teacherId: 'teacher-unit',
+        uacName: 'Ciencias Naturales',
+        semester: 2,
+        subsystem: 'Bachillerato General Estatal',
+        contentJson: {},
+      } as unknown as Planning;
+
+      const docxBuf = await renderWorkbookToDocx(result, dummyPlanning, {});
+      const docxText = (await mammoth.extractRawText({ buffer: docxBuf })).value;
+      expect(docxText).toContain('He verificado los requerimientos antes de iniciar.');
+      expect(docxText).toContain('Aspecto / Variable');
+      expect(docxText).not.toContain('<!--');
+
+      const pdfBuf = await renderWorkbookToPdf(result, dummyPlanning, {});
+      const p = new PDFParse({ data: new Uint8Array(pdfBuf) });
+      const pdfText = (await p.getText()).text;
+      await p.destroy();
+      expect(pdfText).toContain('Instrumentos verificados y listos');
+      expect(pdfText).toContain('Variable / Parámetro');
+      expect(pdfText).not.toContain('<!--');
+    }, 30000);
   });
 });
