@@ -259,25 +259,6 @@ const CAPACITACION_TITLES: Record<string, string> = {
   'Turismo': '✈️ Turismo',
 };
 
-export const FFE_PACKAGES: Record<string, { label: string; subjects: string[] }> = {
-  'fisico_matematico': {
-    label: '📐 Físico-Matemático',
-    subjects: ['Análisis de Fenómenos Físicos I', 'Dibujo Técnico I', 'Taller Pensamiento Variacional I', 'Taller de Probabilidad y Estadística I']
-  },
-  'quimico_biologico': {
-    label: '🧬 Químico-Biológico',
-    subjects: ['Análisis de Fenómenos y Procesos Biológicos', 'Salud Integral I', 'Organización del Flujo de Materia y Energía en los Organismos I', 'Taller de Probabilidad y Estadística I']
-  },
-  'economico_admin': {
-    label: '📊 Económico-Administrativo',
-    subjects: ['Fundamentos de Administración I', 'Procesos Contables I', 'Economía I. La Función de los Agentes Económicos en la Sociedad', 'Pensamiento Matemático Aplicado a las Finanzas I']
-  },
-  'humanidades_sociales': {
-    label: '🏛️ Humanidades y Ciencias Sociales',
-    subjects: ['Derecho y Sociedad I', 'Psicología I', 'Temas Selectos de Ciencias Sociales I', 'Pensamiento Filosófico I']
-  }
-};
-
 export const FFE_PAIRS = [
   // ── Recursos Sociocognitivos (7) ──────────────────────────────────────────
   { name5: 'Comunicación y Sociedad I', name6: 'Comunicación y Sociedad II', label: 'Comunicación y Sociedad', category: 'Recursos Sociocognitivos' },
