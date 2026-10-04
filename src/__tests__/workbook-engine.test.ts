@@ -284,7 +284,7 @@ describe('Workbook Engine Architecture Tests (Fase 10)', () => {
         blockIndex: 0,
         blockName: `Bloque 1: Materia y Energía ${tag}`,
         version: 1,
-        subsystem: 'bge',
+        subsystem: `Bachillerato General Estatal ${tag}`,
         targetPages: 40,
         totalPages: 40,
         totalWords: 3500,
@@ -357,8 +357,8 @@ describe('Workbook Engine Architecture Tests (Fase 10)', () => {
                       `Calibrar la báscula a cero ${tag}`,
                       `Registrar masa inicial del vaso ${tag}`,
                     ],
-                    cols: [`Parámetro ${tag}`, `Medición ${tag}`],
-                    initialCode: `console.log("medicion"); ${tag}`,
+                    cols: [`Parámetro ${tag}`, `Medición ${tag}`, tagOnly],
+                    initialCode: `# Comentario Python de ejemplo\nconst potencia = base ** exponente;\nif (__name__ === "__main__") {\n  console.log("listo");\n} ${tag}`,
                   },
                 } as unknown as WorkbookElement,
               ],
@@ -450,6 +450,7 @@ describe('Workbook Engine Architecture Tests (Fase 10)', () => {
       // 2. Tabla de aserciones campo por campo sin etiquetas ni Markdown residual
       // A) Bloque y Portada
       expect(result.blockName).toBe('Bloque 1: Materia y Energía');
+      expect(result.subsystem).toBe('Bachillerato General Estatal');
       expect(result.coverData.title).toBe(''); // Saneado de solo-tag sin fallback al crudo
       expect(result.coverData.subtitle).toBe('Subtítulo Editorial');
       expect(result.coverData.subjectName).toBe('Ciencias Naturales');
@@ -494,7 +495,9 @@ describe('Workbook Engine Architecture Tests (Fase 10)', () => {
         'Registrar masa inicial del vaso',
       ]);
       expect(cfg?.cols).toEqual(['Parámetro', 'Medición']);
-      expect(cfg?.initialCode).toBe('console.log("medicion");');
+      expect(cfg?.initialCode).toBe(
+        '# Comentario Python de ejemplo\nconst potencia = base ** exponente;\nif (__name__ === "__main__") {\n  console.log("listo");\n}'
+      );
 
       const elLines = m.youDoSection?.workbookElements?.[0];
       expect(elLines?.title).toBe('Espacio de Trabajo Autónomo');
