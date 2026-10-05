@@ -3841,7 +3841,7 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
                 >
                   Siguiente: {nextStep.label} (Paso {nextStep.num}) →
                 </button>
-              ) : (
+              ) : (isStepGenerated(activeStep) || project?.status === 'completed') ? (
                 <div style={{ marginLeft: 'auto', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
                   <span style={{ color: '#28a745', fontWeight: 600 }}>
                     🎉 ¡Proyecto PAEC-PEC Completo ({cycleType === 'annual' ? '9 Pasos' : 'Ciclo ' + cycleType})!
@@ -3853,7 +3853,7 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
                     ↓ PAEC Oficial PDF
                   </a>
                 </div>
-              )}
+              ) : null}
             </div>
 
           </div>

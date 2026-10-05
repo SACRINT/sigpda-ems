@@ -153,7 +153,6 @@ export async function updatePaecProjectStep(
     throw new Error(`Campo de paso no válido: ${targetField}`);
   }
 
-  const status = step >= 9 ? 'completed' : 'draft';
   const dataStr = JSON.stringify(stepData);
 
   const stepObj = (typeof stepData === 'object' && stepData !== null ? stepData : {}) as Record<string, unknown>;
@@ -191,7 +190,10 @@ export async function updatePaecProjectStep(
       END,
       fase2_plan_operativo = CASE WHEN ${targetField} = 'fase2_plan_operativo' THEN ${dataStr}::jsonb ELSE fase2_plan_operativo END,
       current_step = GREATEST(COALESCE(current_step, 1), LEAST(${step} + 1, 9)),
-      status = ${status},
+      status = CASE
+        WHEN (cycle_type = 'A' AND ${step} >= 8) OR ${step} >= 9 THEN 'completed'
+        ELSE 'draft'
+      END,
       updated_at = NOW()
     WHERE id = ${id}::uuid AND teacher_id = ${teacherId}::uuid
     RETURNING *

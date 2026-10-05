@@ -540,6 +540,22 @@ describe('db.ts — Core Database Queries (Fase 20A)', () => {
     expect(result.status).toBe('completed');
   });
 
+  it('updatePaecProjectStep — actualiza a completed cuando ciclo es A y step es 8', async () => {
+    mockQueryFn.mockResolvedValueOnce([{
+      id: 'paec-102',
+      teacher_id: 'teacher-1',
+      project_name: 'Proyecto Ciclo A',
+      cycle_type: 'A',
+      current_step: 8,
+      status: 'completed',
+    }]);
+
+    const result = await updatePaecProjectStep('paec-102', 'teacher-1', 8, 'fase3_implementacion', { implementacion: {} });
+    expect(result.currentStep).toBe(8);
+    expect(result.cycleType).toBe('A');
+    expect(result.status).toBe('completed');
+  });
+
   it('updatePaecProjectStep — arroja error si el paso no está en el rango 1 a 9', async () => {
     await expect(
       updatePaecProjectStep('paec-101', 'teacher-1', 10, 'fase4_gobernanza', {})

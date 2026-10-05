@@ -3030,7 +3030,12 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
           <span className="badge" style={{ backgroundColor: project?.status === 'completed' ? '#28a745' : '#ffc107', color: project?.status === 'completed' ? '#fff' : '#212529' }}>
             {project?.status === 'completed' ? 'Completado' : `Borrador — Paso ${activeStep} de ${visibleSteps.length}`}
           </span>
-          {Boolean(project?.fase4Gobernanza || project?.fase4InformeSupervision) && (
+          {Boolean(
+            project?.status === 'completed' ||
+            (cycleType === 'A'
+              ? (project?.fase3Implementacion || project?.fase2Anexos || isStepGenerated(8))
+              : (project?.fase4Gobernanza || project?.fase4InformeSupervision || isStepGenerated(9)))
+          ) && (
             <a href={`/api/docx/paec/${projectId}`} className="btn btn-amber btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: 'var(--c-amber)', color: '#fff', marginLeft: 'auto' }}>
               <span>↓</span> Descargar PEC Completo (DOCX)
             </a>
@@ -3556,7 +3561,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                 >
                   Siguiente: {nextStep.label} (Paso {nextStep.num}) →
                 </button>
-              ) : (
+              ) : (isStepGenerated(activeStep) || project?.status === 'completed') ? (
                 <div style={{ marginLeft: 'auto', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
                   <span style={{ color: '#28a745', fontWeight: 600 }}>
                     🎉 ¡Proyecto PAEC-PEC Completo ({cycleType === 'annual' ? '9 Pasos' : 'Ciclo ' + cycleType})!
@@ -3568,7 +3573,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                     ↓ PAEC Oficial PDF
                   </a>
                 </div>
-              )}
+              ) : null}
             </div>
 
           </div>
