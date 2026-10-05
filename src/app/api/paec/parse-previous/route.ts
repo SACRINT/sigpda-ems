@@ -11,6 +11,7 @@ import {
   buildPaecChunkExtractionPrompt,
   partitionPaecDocument,
   mergePaecExtracts,
+  PAEC_CHUNK_OVERLAP,
   PaecPreviousExtractSchema,
   type PaecPreviousExtractDTO,
 } from '@/lib/prompts/paec-extraction';
@@ -162,9 +163,9 @@ export async function POST(request: NextRequest) {
       parsedData = parsed.data;
       if (parsed.warnings) warnings.push(...parsed.warnings);
     } else {
-      // Chunking multi-fragmento estructurado con concurrencia acotada (F-R3-04 / F-R4-01 / F-R5-02)
+      // Chunking multi-fragmento estructurado con concurrencia acotada (F-R3-04 / F-R4-01 / F-R5-02 / F-R6-01)
       const rawAnalyzed = chunks.reduce((acc, c) => acc + Math.min(c.length, 75000), 0);
-      const overlapDeduction = Math.max(0, (chunks.length - 1) * 3000);
+      const overlapDeduction = Math.max(0, (chunks.length - 1) * PAEC_CHUNK_OVERLAP);
       const analyzedChars = Math.min(documentText.length, Math.max(0, rawAnalyzed - overlapDeduction));
       logger.info(`[paec-parse-previous] Documento de ${documentText.length} caracteres: procesando en ${chunks.length} fragmentos (${analyzedChars} caracteres analizados netos).`);
 

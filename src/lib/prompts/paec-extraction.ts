@@ -254,6 +254,11 @@ REGLAS DE EXTRACCIÓN:
 }
 
 /**
+ * Solape (overlap) en caracteres entre fragmentos contiguos para preservar contexto semántico (H-13 / F-R6-01).
+ */
+export const PAEC_CHUNK_OVERLAP = 3000;
+
+/**
  * Divide un texto extenso de PAEC en fragmentos balanceados respetando saltos de párrafo (H-13).
  */
 export function partitionPaecDocument(
@@ -267,7 +272,7 @@ export function partitionPaecDocument(
 
   const chunks: string[] = [];
   let startIndex = 0;
-  const overlap = 3000;
+  const overlap = PAEC_CHUNK_OVERLAP;
 
   while (startIndex < documentText.length && chunks.length < maxChunks) {
     let endIndex = startIndex + maxChunkSize;
