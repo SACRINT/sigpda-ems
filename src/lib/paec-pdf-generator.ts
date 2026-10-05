@@ -2078,7 +2078,7 @@ export async function generatePaecPDF(
   curY = doc.lastAutoTable.finalY + 8;
 
   // Metas vs Logros
-  const metas: any[] = inf.metasVsLogros || inf.metasLogros || [];
+  const metas: (PaecMetaLogroRow | Record<string, unknown>)[] = (inf.metasVsLogros || inf.metasLogros || []) as (PaecMetaLogroRow | Record<string, unknown>)[];
   const metasRows = metas.length > 0
     ? metas.map((m: any, idx) => [
         `M-${idx + 1}`,
