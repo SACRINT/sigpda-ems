@@ -559,7 +559,12 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
   );
 
   // H-04: Acoplar automáticamente continuidad de 3° a 4° y de 5° a 6° (Single Source of Truth)
+  // Excepción Semestre B: Si cycleType === 'B', 3° y 5° no están cursando; 4° y 6° operan de forma autónoma.
   const groupAssignments = useMemo(() => {
+    if (cycleType === 'B') {
+      return rawGroupAssignments;
+    }
+
     const sem3Groups = rawGroupAssignments.filter(g => g.semester === 3);
     const sem5Groups = rawGroupAssignments.filter(g => g.semester === 5);
 
@@ -595,7 +600,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
 
       return g;
     });
-  }, [rawGroupAssignments]);
+  }, [rawGroupAssignments, cycleType]);
 
   // H-02: Helper para identificar capacitación oficial desde nombre de UAC o track
   const findTrackForUacOrTrackName = useCallback((item: string): string | null => {
@@ -1030,12 +1035,15 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
         if (cached5) p.fase2DetalleCurricular = cached5 as unknown as PaecProject['fase2DetalleCurricular'];
       }
       setProject(p);
-      setProjectName(p.projectName);
-      setProblemStatement(p.problemStatement);
-      setCycleType(p.cycleType);
-      if (p.communityContext) setCommunity(p.communityContext);
-      if (p.schoolContext) {
-        setSchool(p.schoolContext);
+      const rawP = p as unknown as Record<string, unknown>;
+      setProjectName(p.projectName || (rawP.project_name as string) || '');
+      setProblemStatement(p.problemStatement || (rawP.problem_statement as string) || '');
+      setCycleType(p.cycleType || (rawP.cycle_type as PaecProject['cycleType']) || 'A');
+      const commCtx = p.communityContext || (rawP.community_context as PaecProject['communityContext']);
+      if (commCtx) setCommunity(commCtx);
+      const schoolCtx = p.schoolContext || (rawP.school_context as PaecProject['schoolContext']);
+      if (schoolCtx) {
+        setSchool(schoolCtx);
         if ((p.schoolContext as unknown as Record<string, unknown>).academicBaseline) {
           setAcademicBaseline((p.schoolContext as unknown as Record<string, unknown>).academicBaseline as AcademicBaseline);
         }
@@ -1123,13 +1131,13 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
   const hasFfeSemesters = schoolType !== 'tecnico' && semsInCycle.some(s => s >= 5 && (semestersConfig[s] ?? 0) > 0);
 
   const isStep1Valid = Boolean(
-    projectName.trim() &&
-    problemStatement.trim() &&
-    community.location?.trim() &&
-    community.demographics?.trim() &&
-    community.economy?.trim() &&
-    school.enrollment?.trim() &&
-    school.teacherCount?.trim() &&
+    (projectName?.trim?.() ?? '') &&
+    (problemStatement?.trim?.() ?? '') &&
+    (community?.location?.trim?.() ?? '') &&
+    (community?.demographics?.trim?.() ?? '') &&
+    (community?.economy?.trim?.() ?? '') &&
+    (school?.enrollment?.trim?.() ?? '') &&
+    (school?.teacherCount?.trim?.() ?? '') &&
     (!hasLaboralSemesters || selectedLaboral.length > 0) &&
     (!hasFfeSemesters || selectedFfe.length > 0) &&
     (schoolType !== 'tecnico' || selectedBtCarreras.length > 0)
@@ -1984,13 +1992,13 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                       const isLaboralSem = grp.semester === 3 || grp.semester === 4;
                       const isFfeSem = grp.semester === 5 || grp.semester === 6;
                       const groupLetter = grp.groupName.split(' ')[1] || grp.groupId.split('-')[1];
-                      const matching3rd = grp.semester === 4
+                      const matching3rd = (cycleType !== 'B' && grp.semester === 4)
                         ? groupAssignments.find(g => g.semester === 3 && (g.groupId === `3-${groupLetter}` || g.groupName.endsWith(groupLetter)))
                         : null;
-                      const matching5th = grp.semester === 6
+                      const matching5th = (cycleType !== 'B' && grp.semester === 6)
                         ? groupAssignments.find(g => g.semester === 5 && (g.groupId === `5-${groupLetter}` || g.groupName.endsWith(groupLetter)))
                         : null;
-                      const matching6thId = `6-${groupLetter}`;
+                      const matching6thId = cycleType === 'B' ? undefined : `6-${groupLetter}`;
 
                       if (!isLaboralSem && !isFfeSem && schoolType !== 'tecnico') {
                         return (
@@ -2045,7 +2053,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                                           if (g.groupId === grp.groupId) {
                                             return { ...g, trackId: val, trackName: val };
                                           }
-                                          if (grp.semester === 3 && g.semester === 4 && (g.groupId === `4-${groupLetter}` || g.groupName.endsWith(groupLetter))) {
+                                          if (cycleType !== 'B' && grp.semester === 3 && g.semester === 4 && (g.groupId === `4-${groupLetter}` || g.groupName.endsWith(groupLetter))) {
                                             return { ...g, trackId: val, trackName: val };
                                           }
                                           return g;
@@ -2070,18 +2078,21 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                                   </div>
                                 )}
 
-                                {/* Selector Socioemocional 3° / Indicador 4° (H-01) */}
-                                {grp.semester === 3 ? (
+                                {/* Selector Socioemocional 3° / 4° */}
+                                {grp.semester === 3 || cycleType === 'B' ? (
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
                                     <span style={{ fontSize: '11px', color: '#f472b6', fontWeight: 600, whiteSpace: 'nowrap' }}>💖 Formación Socioemocional:</span>
                                     <select
-                                      value={grp.ffeoSocioemocional || socio3Config}
+                                      value={grp.ffeoSocioemocional || (cycleType === 'B' ? (grp.ffeoSocioemocional || resolvedSocio.sem4 || FORMACIONES_SOCIOEMOCIONALES[2]) : socio3Config)}
                                       onChange={(e) => {
-                                        const newS3 = e.target.value;
-                                        const res = resolverSocioemocionalGrupo(newS3, socio5Config);
+                                        const newS = e.target.value;
                                         setGroupAssignments(prev => prev.map(g => {
-                                          if (g.semester === 3) return { ...g, ffeoSocioemocional: newS3 };
-                                          if (g.semester === 4 || g.semester === 6) return { ...g, ffeoSocioemocional: res.sem4 };
+                                          if (g.groupId === grp.groupId) return { ...g, ffeoSocioemocional: newS };
+                                          if (cycleType !== 'B') {
+                                            const res = resolverSocioemocionalGrupo(newS, socio5Config);
+                                            if (g.semester === 3) return { ...g, ffeoSocioemocional: newS };
+                                            if (g.semester === 4 || g.semester === 6) return { ...g, ffeoSocioemocional: res.sem4 };
+                                          }
                                           return g;
                                         }));
                                       }}
@@ -2120,7 +2131,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                                           if (g.groupId === grp.groupId) {
                                             return { ...g, trackId: val, trackName: val };
                                           }
-                                          if (grp.semester === 5 && g.semester === 6 && (g.groupId === `6-${groupLetter}` || g.groupName.endsWith(groupLetter))) {
+                                          if (cycleType !== 'B' && grp.semester === 5 && g.semester === 6 && (g.groupId === `6-${groupLetter}` || g.groupName.endsWith(groupLetter))) {
                                             return { ...g, trackId: val, trackName: val };
                                           }
                                           return g;
@@ -2317,24 +2328,27 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                                 )}
                               </div>
 
-                              {/* Selector Socioemocional 5° / Indicador 6° (H-01) */}
-                              {grp.semester === 5 ? (
+                              {/* Selector Socioemocional 5° / 6° */}
+                              {grp.semester === 5 || cycleType === 'B' ? (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '6px' }}>
                                   <span style={{ fontSize: '11px', color: '#f472b6', fontWeight: 600, whiteSpace: 'nowrap' }}>💖 Formación Socioemocional:</span>
                                   <select
-                                    value={grp.ffeoSocioemocional || (opcionesSocio5.includes(socio5Config) ? socio5Config : opcionesSocio5[0])}
+                                    value={grp.ffeoSocioemocional || (cycleType === 'B' ? (grp.ffeoSocioemocional || resolvedSocio.sem6 || FORMACIONES_SOCIOEMOCIONALES[2]) : (opcionesSocio5.includes(socio5Config) ? socio5Config : opcionesSocio5[0]))}
                                     onChange={(e) => {
                                       const newS5 = e.target.value;
-                                      const res = resolverSocioemocionalGrupo(socio3Config, newS5);
                                       setGroupAssignments(prev => prev.map(g => {
-                                        if (g.semester === 5) return { ...g, ffeoSocioemocional: newS5 };
-                                        if (g.semester === 4 || g.semester === 6) return { ...g, ffeoSocioemocional: res.sem4 };
+                                        if (g.groupId === grp.groupId) return { ...g, ffeoSocioemocional: newS5 };
+                                        if (cycleType !== 'B') {
+                                          const res = resolverSocioemocionalGrupo(socio3Config, newS5);
+                                          if (g.semester === 5) return { ...g, ffeoSocioemocional: newS5 };
+                                          if (g.semester === 4 || g.semester === 6) return { ...g, ffeoSocioemocional: res.sem4 };
+                                        }
                                         return g;
                                       }));
                                     }}
                                     style={{ width: '100%', padding: '4px 8px', borderRadius: '4px', border: '1px solid rgba(244,114,182,0.3)', background: '#0f172a', color: '#fbcfe8', fontSize: '11.5px' }}
                                   >
-                                    {opcionesSocio5.map(s => (
+                                    {FORMACIONES_SOCIOEMOCIONALES.map(s => (
                                       <option key={s} value={s}>{s}</option>
                                     ))}
                                   </select>
@@ -2526,7 +2540,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                           </div>
                           
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
-                            {[3, 4, 5, 6].map((sem) => {
+                            {(cycleType === 'A' ? [3, 5] : cycleType === 'B' ? [4, 6] : [3, 4, 5, 6]).map((sem) => {
                               const uacs = semGroups[sem] || (UACS_LABORALES_OFICIALES_BGE[capKey]?.[sem] || []).map(name => ({ uac_name: name, semester: sem, curriculum_name: capKey }));
                               if (uacs.length === 0) return null;
                               return (
@@ -2643,7 +2657,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                           </div>
                           
                           <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', fontSize: '11.5px' }}>
-                            {has5 && (
+                            {has5 && cycleType !== 'B' && (
                               <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', padding: '3px 8px', borderRadius: '4px', background: isChecked5 ? 'rgba(56,189,248,0.12)' : 'rgba(255,255,255,0.02)', border: `1px solid ${isChecked5 ? 'rgba(56,189,248,0.3)' : 'rgba(255,255,255,0.05)'}`, color: isChecked5 ? '#38bdf8' : 'rgba(240,244,255,0.4)' }}>
                                 <input
                                   type="checkbox"
@@ -2667,8 +2681,8 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                                 <span>5°: {pair.name5}</span>
                               </label>
                             )}
-                            {has5 && has6 && <span style={{ color: '#475569' }}>➔</span>}
-                            {has6 && (
+                            {has5 && has6 && cycleType === 'annual' && <span style={{ color: '#475569' }}>➔</span>}
+                            {has6 && cycleType !== 'A' && (
                               <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', padding: '3px 8px', borderRadius: '4px', background: isChecked6 ? 'rgba(52,211,153,0.12)' : 'rgba(255,255,255,0.02)', border: `1px solid ${isChecked6 ? 'rgba(52,211,153,0.3)' : 'rgba(255,255,255,0.05)'}`, color: isChecked6 ? '#34d399' : 'rgba(240,244,255,0.4)' }}>
                                 <input
                                   type="checkbox"

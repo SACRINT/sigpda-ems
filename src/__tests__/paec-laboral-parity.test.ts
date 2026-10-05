@@ -317,4 +317,69 @@ describe('PAEC H-02 & H-03: Paridad Curricular Laboral y Validación de Paso 1',
     expect(g5.trackName).toBe(track);
     expect(g6.trackName).toBe(track);
   });
+
+  it('Semestre B Autonomía: Estructura 2-2-2 permite seleccionar diferentes capacitaciones laborales y FFE en 4° y 6° sin depender de 3° y 5°', () => {
+    // En Semestre B (ciclo B: 2°, 4°, 6°), los semestres 3° y 5° están inactivos.
+    // Cada grupo de 4° y 6° puede definir su propia formación laboral y FFE con total autonomía.
+    const groupAssignments: GroupTrackConfig[] = [
+      { groupId: '2-A', groupName: '2° A', semester: 2, trackId: '', trackName: '', ffeSelections: [] },
+      { groupId: '2-B', groupName: '2° B', semester: 2, trackId: '', trackName: '', ffeSelections: [] },
+      { groupId: '4-A', groupName: '4° A', semester: 4, trackId: 'Redes y Mantenimiento', trackName: 'Redes y Mantenimiento', ffeSelections: [] },
+      { groupId: '4-B', groupName: '4° B', semester: 4, trackId: 'Contabilidad', trackName: 'Contabilidad', ffeSelections: [] },
+      { groupId: '6-A', groupName: '6° A', semester: 6, trackId: 'Redes y Mantenimiento', trackName: 'Redes y Mantenimiento', ffeSelections: ['Análisis de Fenómenos Físicos II'] },
+      { groupId: '6-B', groupName: '6° B', semester: 6, trackId: 'Contabilidad', trackName: 'Contabilidad', ffeSelections: ['Economía II. Política Económica y Política Pública Mexicana'] },
+    ];
+
+    // Verificar que 4° A y 4° B tienen diferentes capacitaciones laborales asignadas
+    const g4A = groupAssignments.find(g => g.groupId === '4-A')!;
+    const g4B = groupAssignments.find(g => g.groupId === '4-B')!;
+    expect(g4A.trackName).toBe('Redes y Mantenimiento');
+    expect(g4B.trackName).toBe('Contabilidad');
+    expect(g4A.trackName).not.toBe(g4B.trackName);
+
+    // Verificar que 6° A y 6° B tienen diferentes FFE asignadas de forma independiente
+    const g6A = groupAssignments.find(g => g.groupId === '6-A')!;
+    const g6B = groupAssignments.find(g => g.groupId === '6-B')!;
+    expect(g6A.ffeSelections).toContain('Análisis de Fenómenos Físicos II');
+    expect(g6B.ffeSelections).toContain('Economía II. Política Económica y Política Pública Mexicana');
+
+    // Derivar UACs laborales activas de ambas capacitaciones para ciclo B (semestres 4° y 6°)
+    const assignedTracks = Array.from(new Set(groupAssignments.filter(g => Boolean(g.trackName)).map(g => g.trackName as string)));
+    expect(assignedTracks).toEqual(['Redes y Mantenimiento', 'Contabilidad']);
+
+    const derivedLaboralUacs: string[] = [];
+    for (const t of assignedTracks) {
+      const sems = UACS_LABORALES_OFICIALES_BGE[t];
+      if (sems) {
+        for (const [semStr, uacList] of Object.entries(sems)) {
+          if (semStr === '4' || semStr === '6') {
+            for (const u of uacList as string[]) {
+              if (!derivedLaboralUacs.includes(u)) derivedLaboralUacs.push(u);
+            }
+          }
+        }
+      }
+    }
+
+    // Cada capacitación tiene 2 UACs en 4° y 2 UACs en 6° = 4 UACs por capacitación en ciclo B = 8 en total
+    expect(derivedLaboralUacs).toHaveLength(8);
+
+    const uniqueUacs = consolidarUacsUnicasPlantel({
+      semesters: [2, 4, 6],
+      schoolType: 'general',
+      groupAssignments,
+      activeLaboralUacs: derivedLaboralUacs,
+      activeFfeUacs: ['Análisis de Fenómenos Físicos II', 'Economía II. Política Económica y Política Pública Mexicana'],
+    });
+
+    const laboralConsolidadas = uniqueUacs.filter(u => u.component === 'laboral');
+    expect(laboralConsolidadas).toHaveLength(8);
+    expect(laboralConsolidadas.every(u => u.semester === 4 || u.semester === 6)).toBe(true);
+
+    const ffeConsolidadas = uniqueUacs.filter(u => u.component === 'ffe');
+    expect(ffeConsolidadas).toHaveLength(2);
+    expect(ffeConsolidadas.map(u => u.uacName)).toContain('Análisis de Fenómenos Físicos II');
+    expect(ffeConsolidadas.map(u => u.uacName)).toContain('Economía II. Política Económica y Política Pública Mexicana');
+  });
 });
+
