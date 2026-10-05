@@ -1045,22 +1045,22 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
       const schoolCtx = p.schoolContext || (rawP.school_context as PaecProject['schoolContext']);
       if (schoolCtx) {
         setSchool(schoolCtx);
-        if ((p.schoolContext as unknown as Record<string, unknown>).academicBaseline) {
-          setAcademicBaseline((p.schoolContext as unknown as Record<string, unknown>).academicBaseline as AcademicBaseline);
+        if ((schoolCtx as unknown as Record<string, unknown>).academicBaseline) {
+          setAcademicBaseline((schoolCtx as unknown as Record<string, unknown>).academicBaseline as AcademicBaseline);
         }
-        setSelectedFundamental(p.schoolContext.activeFundamentalUacs || []);
-        setSelectedBtCarreras(p.schoolContext.activeBtCarreras || []);
-        setSchoolType(p.schoolContext.schoolType || 'general');
-        if (p.schoolContext.groupStructure) {
-          const rawGroups = p.schoolContext.groupStructure.groupAssignments || [];
+        setSelectedFundamental(schoolCtx.activeFundamentalUacs || []);
+        setSelectedBtCarreras(schoolCtx.activeBtCarreras || []);
+        setSchoolType(schoolCtx.schoolType || 'general');
+        if (schoolCtx.groupStructure) {
+          const rawGroups = schoolCtx.groupStructure.groupAssignments || [];
           let fallbackTrack = '';
-          if (Array.isArray(p.schoolContext.activeLaboralUacs) && p.schoolContext.activeLaboralUacs.length > 0) {
-            for (const item of p.schoolContext.activeLaboralUacs) {
+          if (Array.isArray(schoolCtx.activeLaboralUacs) && schoolCtx.activeLaboralUacs.length > 0) {
+            for (const item of schoolCtx.activeLaboralUacs) {
               const t = findTrackForUacOrTrackName(item);
               if (t) { fallbackTrack = t; break; }
             }
           }
-          const activeFfe = Array.isArray(p.schoolContext.activeFfeUacs) ? p.schoolContext.activeFfeUacs : [];
+          const activeFfe = Array.isArray(schoolCtx.activeFfeUacs) ? schoolCtx.activeFfeUacs : [];
           const hydratedGroups = rawGroups.map(g => {
             let updated = g;
             if ((g.semester === 3 || g.semester === 4) && !g.trackName && fallbackTrack) {
@@ -1077,11 +1077,11 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
             }
             return updated;
           });
-          setSemestersConfig(p.schoolContext.groupStructure.semestersConfig || { 1: 1, 3: 1, 5: 1 });
+          setSemestersConfig(schoolCtx.groupStructure.semestersConfig || { 1: 1, 3: 1, 5: 1 });
           setGroupAssignments(hydratedGroups);
         }
-        setGroupsCount(p.schoolContext.groupsCount || '1');
-        setGroupsConfig(p.schoolContext.groupsConfig || '');
+        setGroupsCount(schoolCtx.groupsCount || '1');
+        setGroupsConfig(schoolCtx.groupsConfig || '');
       }
 
       // Set active step to the furthest generated step, or current step

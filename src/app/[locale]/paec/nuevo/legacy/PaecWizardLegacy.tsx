@@ -559,22 +559,25 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
         if (cached5) (p as any).fase2DetalleCurricular = cached5;
       }
       setProject(p);
-      setProjectName(p.projectName);
-      setProblemStatement(p.problemStatement);
-      setCycleType(p.cycleType);
-      if (p.communityContext) setCommunity(p.communityContext);
-      if (p.schoolContext) {
-        setSchool(p.schoolContext);
-        setSelectedLaboral(p.schoolContext.activeLaboralUacs || []);
-        setSelectedFfe(p.schoolContext.activeFfeUacs || []);
-        setSelectedBtCarreras(p.schoolContext.activeBtCarreras || []);
-        setSchoolType(p.schoolContext.schoolType || 'general');
-        if (p.schoolContext.groupStructure) {
-          setSemestersConfig(p.schoolContext.groupStructure.semestersConfig || { 1: 1, 3: 1, 5: 1 });
-          setGroupAssignments(p.schoolContext.groupStructure.groupAssignments || []);
+      const rawP = p as unknown as Record<string, unknown>;
+      setProjectName(p.projectName || (rawP.project_name as string) || '');
+      setProblemStatement(p.problemStatement || (rawP.problem_statement as string) || '');
+      setCycleType(p.cycleType || (rawP.cycle_type as PaecProject['cycleType']) || 'A');
+      const commCtx = p.communityContext || (rawP.community_context as PaecProject['communityContext']);
+      if (commCtx) setCommunity(commCtx);
+      const schoolCtx = p.schoolContext || (rawP.school_context as PaecProject['schoolContext']);
+      if (schoolCtx) {
+        setSchool(schoolCtx);
+        setSelectedLaboral(schoolCtx.activeLaboralUacs || []);
+        setSelectedFfe(schoolCtx.activeFfeUacs || []);
+        setSelectedBtCarreras(schoolCtx.activeBtCarreras || []);
+        setSchoolType(schoolCtx.schoolType || 'general');
+        if (schoolCtx.groupStructure) {
+          setSemestersConfig(schoolCtx.groupStructure.semestersConfig || { 1: 1, 3: 1, 5: 1 });
+          setGroupAssignments(schoolCtx.groupStructure.groupAssignments || []);
         }
-        setGroupsCount(p.schoolContext.groupsCount || '1');
-        setGroupsConfig(p.schoolContext.groupsConfig || '');
+        setGroupsCount(schoolCtx.groupsCount || '1');
+        setGroupsConfig(schoolCtx.groupsConfig || '');
       }
 
       // Set active step to the furthest generated step, or current step
@@ -622,13 +625,13 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
   }, [projectId]);
 
   const isStep1Valid = Boolean(
-    projectName.trim() &&
-    problemStatement.trim() &&
-    community.location?.trim() &&
-    community.demographics?.trim() &&
-    community.economy?.trim() &&
-    school.enrollment?.trim() &&
-    school.teacherCount?.trim()
+    (projectName?.trim?.() ?? '') &&
+    (problemStatement?.trim?.() ?? '') &&
+    (community?.location?.trim?.() ?? '') &&
+    (community?.demographics?.trim?.() ?? '') &&
+    (community?.economy?.trim?.() ?? '') &&
+    (school?.enrollment?.trim?.() ?? '') &&
+    (school?.teacherCount?.trim?.() ?? '')
   );
 
   // Handle Form Submission (Create Project)
