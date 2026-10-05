@@ -162,9 +162,11 @@ export async function POST(request: NextRequest) {
       parsedData = parsed.data;
       if (parsed.warnings) warnings.push(...parsed.warnings);
     } else {
-      // Chunking multi-fragmento estructurado con concurrencia acotada (F-R3-04 / F-R4-01)
-      const analyzedChars = chunks.reduce((acc, c) => acc + Math.min(c.length, 75000), 0);
-      logger.info(`[paec-parse-previous] Documento de ${documentText.length} caracteres: procesando en ${chunks.length} fragmentos (${analyzedChars} caracteres analizados).`);
+      // Chunking multi-fragmento estructurado con concurrencia acotada (F-R3-04 / F-R4-01 / F-R5-02)
+      const rawAnalyzed = chunks.reduce((acc, c) => acc + Math.min(c.length, 75000), 0);
+      const overlapDeduction = Math.max(0, (chunks.length - 1) * 3000);
+      const analyzedChars = Math.min(documentText.length, Math.max(0, rawAnalyzed - overlapDeduction));
+      logger.info(`[paec-parse-previous] Documento de ${documentText.length} caracteres: procesando en ${chunks.length} fragmentos (${analyzedChars} caracteres analizados netos).`);
 
       if (chunks.length >= 8) {
         warnings.push(
