@@ -241,6 +241,16 @@ export function getVisibleSteps(cycle: 'A' | 'B' | 'annual') {
   return ALL_STEPS;
 }
 
+export function normalizeActiveStep(currentStep: number | undefined | null, cycle: 'A' | 'B' | 'annual'): number {
+  const visible = getVisibleSteps(cycle);
+  const step = currentStep || 1;
+  if (visible.some((s) => s.num === step)) {
+    return step;
+  }
+  const nextVisible = visible.find((s) => s.num >= step);
+  return nextVisible ? nextVisible.num : visible[visible.length - 1].num;
+}
+
 const CYCLE_LABELS: Record<string, string> = {
   A: 'Semestre A (1°, 3° y 5°)',
   B: 'Semestre B (2°, 4° y 6°)',
@@ -931,14 +941,11 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
 
   // Lógica condicional: Sincronizar activeStep si el ciclo oculta el paso actual
   useEffect(() => {
-    const visible = getVisibleSteps(cycleType);
-    if (!visible.some((s) => s.num === activeStep)) {
-      const nextValid = visible.find((s) => s.num >= activeStep) || visible[visible.length - 1];
-      if (nextValid) {
-        queueMicrotask(() => {
-          setActiveStep(nextValid.num);
-        });
-      }
+    const norm = normalizeActiveStep(activeStep, cycleType);
+    if (norm !== activeStep) {
+      queueMicrotask(() => {
+        setActiveStep(norm);
+      });
     }
   }, [cycleType, activeStep]);
 
@@ -1085,7 +1092,8 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
       }
 
       // Set active step to the furthest generated step, or current step
-      setActiveStep(p.currentStep);
+      const effectiveCycle = (p.cycleType || (rawP.cycle_type as PaecProject['cycleType']) || 'A') as 'A' | 'B' | 'annual';
+      setActiveStep(normalizeActiveStep(p.currentStep, effectiveCycle));
 
       // Cargar auditoría inicial si existe
       if (p.qualityAudit) {
@@ -3028,7 +3036,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
             {CYCLE_LABELS[cycleType]}
           </span>
           <span className="badge" style={{ backgroundColor: project?.status === 'completed' ? '#28a745' : '#ffc107', color: project?.status === 'completed' ? '#fff' : '#212529' }}>
-            {project?.status === 'completed' ? 'Completado' : `Borrador — Paso ${currentStepIdx >= 0 ? currentStepIdx + 1 : activeStep} de ${visibleSteps.length}`}
+            {project?.status === 'completed' ? 'Completado' : `Borrador — Paso ${currentStepIdx >= 0 ? currentStepIdx + 1 : 1} de ${visibleSteps.length}`}
           </span>
           {Boolean(
             project?.status === 'completed' ||
@@ -3045,10 +3053,11 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
 
       {/* Horizontal Step Indicator */}
       <div className="step-wizard" style={{ marginBottom: '20px', maxWidth: '100%', overflowX: 'auto', boxSizing: 'border-box' }}>
-        {visibleSteps.map((s) => {
+        {visibleSteps.map((s, sIdx) => {
           const isDone = isStepGenerated(s.num);
           const isActive = s.num === activeStep;
-          const canNavigate = isDone || s.num === 1 || isStepGenerated(s.num - 1) || s.num <= (project?.currentStep || 1);
+          const prevVisStep = sIdx > 0 ? visibleSteps[sIdx - 1] : null;
+          const canNavigate = isDone || s.num === 1 || (prevVisStep ? isStepGenerated(prevVisStep.num) : false) || s.num <= (project?.currentStep || 1);
           return (
             <button
               key={s.num}
