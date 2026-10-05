@@ -1766,7 +1766,7 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
             {CYCLE_LABELS[cycleType]}
           </span>
           <span className="badge" style={{ backgroundColor: project?.status === 'completed' ? '#28a745' : '#ffc107', color: project?.status === 'completed' ? '#fff' : '#212529' }}>
-            {project?.status === 'completed' ? 'Completado' : `Borrador — Paso ${activeStep} de ${visibleSteps.length}`}
+            {project?.status === 'completed' ? 'Completado' : `Borrador — Paso ${currentStepIdx >= 0 ? currentStepIdx + 1 : activeStep} de ${visibleSteps.length}`}
           </span>
           {(project?.fase4Gobernanza || project?.fase3Implementacion || project?.fase2Anexos) && (
             <a href={`/api/docx/paec/${projectId}`} className="btn btn-amber btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: 'var(--c-amber)', color: '#fff', marginLeft: 'auto' }}>

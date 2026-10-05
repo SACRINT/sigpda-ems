@@ -18,6 +18,18 @@ const CYCLE_LABELS: Record<string, string> = {
   annual: 'Ciclo Anual (1° al 6°)',
 };
 
+function getStepDisplay(currentStep: number, cycleType?: string): string {
+  const total = cycleType === 'annual' ? 9 : 7;
+  let stepNum = currentStep || 1;
+  if (cycleType === 'A' && stepNum >= 8) {
+    stepNum = 7;
+  } else if (cycleType === 'B') {
+    if (stepNum >= 9) stepNum = 7;
+    else if (stepNum >= 7) stepNum = 6;
+  }
+  return `Paso ${stepNum} de ${total}`;
+}
+
 export default async function PaecDashboardPage({
   params,
 }: {
@@ -91,7 +103,7 @@ export default async function PaecDashboardPage({
                     backgroundColor: p.status === 'completed' ? '#28a745' : '#ffc107',
                     color: p.status === 'completed' ? '#fff' : '#212529'
                   }}>
-                    {p.status === 'completed' ? 'Completado' : `Paso ${p.current_step} de 7`}
+                    {p.status === 'completed' ? 'Completado' : getStepDisplay(p.current_step as number, p.cycle_type as string)}
                   </span>
                 </div>
               </div>

@@ -3028,7 +3028,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
             {CYCLE_LABELS[cycleType]}
           </span>
           <span className="badge" style={{ backgroundColor: project?.status === 'completed' ? '#28a745' : '#ffc107', color: project?.status === 'completed' ? '#fff' : '#212529' }}>
-            {project?.status === 'completed' ? 'Completado' : `Borrador — Paso ${activeStep} de ${visibleSteps.length}`}
+            {project?.status === 'completed' ? 'Completado' : `Borrador — Paso ${currentStepIdx >= 0 ? currentStepIdx + 1 : activeStep} de ${visibleSteps.length}`}
           </span>
           {Boolean(
             project?.status === 'completed' ||
