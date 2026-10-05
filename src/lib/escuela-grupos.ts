@@ -1221,6 +1221,63 @@ export function deriveSelectedFfeUacs(
   return filtered.length > 0 ? filtered : allAssignedFfeUacs;
 }
 
+/**
+ * Remueve una asignatura FFE de un grupo de 5° o 6° semestre preservando la continuidad espejo oficial (F-R5-03).
+ */
+export function removeGroupFfeSubject(
+  groups: GroupTrackConfig[],
+  targetGroupId: string,
+  subjectName: string,
+  matching6thId?: string
+): GroupTrackConfig[] {
+  const targetGroup = groups.find(g => g.groupId === targetGroupId);
+  if (!targetGroup) return groups;
+
+  const subj6 = obtenerFfeSemestre6(subjectName);
+  const groupLetter = targetGroup.groupName.slice(-1);
+
+  return groups.map(g => {
+    if (g.groupId === targetGroupId) {
+      return {
+        ...g,
+        ffeSelections: (g.ffeSelections || []).filter(s => s !== subjectName),
+      };
+    }
+    if (targetGroup.semester === 5 && (g.groupId === matching6thId || (g.semester === 6 && g.groupName.endsWith(groupLetter)))) {
+      return {
+        ...g,
+        ffeSelections: (g.ffeSelections || []).filter(s => s !== subj6),
+      };
+    }
+    return g;
+  });
+}
+
+/**
+ * Limpia todas las asignaturas FFE seleccionadas de un grupo y de su contraparte en espejo oficial de 6° (F-R5-03).
+ */
+export function clearGroupFfeSubjects(
+  groups: GroupTrackConfig[],
+  targetGroupId: string,
+  matching6thId?: string
+): GroupTrackConfig[] {
+  const targetGroup = groups.find(g => g.groupId === targetGroupId);
+  if (!targetGroup) return groups;
+
+  const groupLetter = targetGroup.groupName.slice(-1);
+
+  return groups.map(g => {
+    if (g.groupId === targetGroupId) {
+      return { ...g, ffeSelections: [] };
+    }
+    if (targetGroup.semester === 5 && (g.groupId === matching6thId || (g.semester === 6 && g.groupName.endsWith(groupLetter)))) {
+      return { ...g, ffeSelections: [] };
+    }
+    return g;
+  });
+}
+
+
 
 
 

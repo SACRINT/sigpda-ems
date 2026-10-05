@@ -28,6 +28,8 @@ import {
   obtenerFfeSemestre6,
   areGroupTrackConfigsEqual,
   toggleGroupFfeSubject,
+  removeGroupFfeSubject,
+  clearGroupFfeSubjects,
   deriveSelectedLaboralUacs,
   deriveSelectedFfeUacs,
 } from '@/lib/escuela-grupos';
@@ -2199,22 +2201,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                                           <button
                                             type="button"
                                             onClick={() => {
-                                              const subj6 = obtenerFfeSemestre6(subj);
-                                              setGroupAssignments(prev => prev.map(g => {
-                                                if (g.groupId === grp.groupId) {
-                                                  return {
-                                                    ...g,
-                                                    ffeSelections: (g.ffeSelections || []).filter(s => s !== subj),
-                                                  };
-                                                }
-                                                if (grp.semester === 5 && (g.groupId === matching6thId || (g.semester === 6 && g.groupName.endsWith(groupLetter)))) {
-                                                  return {
-                                                    ...g,
-                                                    ffeSelections: (g.ffeSelections || []).filter(s => s !== subj6),
-                                                  };
-                                                }
-                                                return g;
-                                              }));
+                                              setGroupAssignments(prev => removeGroupFfeSubject(prev, grp.groupId, subj, matching6thId));
                                             }}
                                             style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', padding: '0 2px', fontSize: '11px', fontWeight: 'bold' }}
                                             title="Quitar asignatura"
@@ -2266,13 +2253,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                                           type="button"
                                           onClick={() => {
                                             setSelectedFfeCustom([]);
-                                            setGroupAssignments(prev => prev.map(g => {
-                                              if (g.groupId === grp.groupId) return { ...g, ffeSelections: [] };
-                                              if (grp.semester === 5 && (g.groupId === matching6thId || (g.semester === 6 && g.groupName.endsWith(groupLetter)))) {
-                                                return { ...g, ffeSelections: [] };
-                                              }
-                                              return g;
-                                            }));
+                                            setGroupAssignments(prev => clearGroupFfeSubjects(prev, grp.groupId, matching6thId));
                                           }}
                                           style={{ fontSize: '10px', background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', textDecoration: 'underline' }}
                                         >

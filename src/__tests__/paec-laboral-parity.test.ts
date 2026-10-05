@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   consolidarUacsUnicasPlantel,
   toggleGroupFfeSubject,
+  removeGroupFfeSubject,
+  clearGroupFfeSubjects,
 } from '@/lib/escuela-grupos';
 import { UACS_LABORALES_OFICIALES_BGE } from '@/lib/capacitaciones-data';
 import { getMissingStep1Fields } from '@/lib/prompts/paec-extraction';
@@ -277,6 +279,45 @@ describe('PAEC H-02 & H-03: Paridad Curricular Laboral y Validación de Paso 1',
       'Inglés VI',
     ]);
   });
+
+  it('F-R5-03: removeGroupFfeSubject remueve asignatura en 5° y replica remoción en espejo de 6° sin mutar laboral', () => {
+    const track = 'Tecnología Informática';
+    let groups: GroupTrackConfig[] = [
+      { groupId: '5-A', groupName: '5° A', semester: 5, trackId: track, trackName: track, ffeSelections: ['Inglés V', 'Dibujo Técnico I'] },
+      { groupId: '6-A', groupName: '6° A', semester: 6, trackId: track, trackName: track, ffeSelections: ['Inglés VI', 'Dibujo Técnico II'] },
+    ];
+
+    // Quitar 'Dibujo Técnico I' de 5° A debe quitar 'Dibujo Técnico II' de 6° A automáticamente
+    groups = removeGroupFfeSubject(groups, '5-A', 'Dibujo Técnico I', '6-A');
+
+    const g5 = groups.find(g => g.groupId === '5-A')!;
+    const g6 = groups.find(g => g.groupId === '6-A')!;
+
+    expect(g5.ffeSelections).toEqual(['Inglés V']);
+    expect(g6.ffeSelections).toEqual(['Inglés VI']);
+    expect(g5.trackName).toBe(track);
+    expect(g6.trackName).toBe(track);
+  });
+
+  it('F-R5-03: clearGroupFfeSubjects limpia completamente FFE en 5° y su espejo en 6° preservando laboral', () => {
+    const track = 'Contabilidad';
+    let groups: GroupTrackConfig[] = [
+      { groupId: '5-B', groupName: '5° B', semester: 5, trackId: track, trackName: track, ffeSelections: ['Inglés V', 'Salud Integral I'] },
+      { groupId: '6-B', groupName: '6° B', semester: 6, trackId: track, trackName: track, ffeSelections: ['Inglés VI', 'Salud Integral II'] },
+    ];
+
+    // Limpiar 5° B
+    groups = clearGroupFfeSubjects(groups, '5-B', '6-B');
+
+    const g5 = groups.find(g => g.groupId === '5-B')!;
+    const g6 = groups.find(g => g.groupId === '6-B')!;
+
+    expect(g5.ffeSelections).toEqual([]);
+    expect(g6.ffeSelections).toEqual([]);
+    expect(g5.trackName).toBe(track);
+    expect(g6.trackName).toBe(track);
+  });
 });
+
 
 
