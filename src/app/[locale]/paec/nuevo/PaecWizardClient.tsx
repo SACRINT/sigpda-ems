@@ -3030,11 +3030,20 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
           <span className="badge" style={{ backgroundColor: project?.status === 'completed' ? '#28a745' : '#ffc107', color: project?.status === 'completed' ? '#fff' : '#212529' }}>
             {project?.status === 'completed' ? 'Completado' : `Borrador — Paso ${activeStep} de ${visibleSteps.length}`}
           </span>
-          {(project?.fase4Gobernanza || project?.fase3Implementacion || project?.fase2Anexos) && (
+          {Boolean(project?.fase4Gobernanza || project?.fase4InformeSupervision) ? (
             <a href={`/api/docx/paec/${projectId}`} className="btn btn-amber btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: 'var(--c-amber)', color: '#fff', marginLeft: 'auto' }}>
               <span>↓</span> Descargar PEC Completo (DOCX)
             </a>
-          )}
+          ) : Boolean(project?.fase3Implementacion || project?.fase2Anexos) ? (
+            <a
+              href={`/api/docx/paec/${projectId}`}
+              className="btn btn-ghost btn-sm"
+              title="Descarga anticipada del borrador en construcción. Para obtener el PEC Oficial definitivo con Gobernanza y Supervisión, concluye el Paso 9."
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', border: '1px solid rgba(255, 193, 7, 0.4)', color: '#fde047', marginLeft: 'auto' }}
+            >
+              <span>↓</span> Descargar Borrador Parcial (Pasos 1-8 DOCX)
+            </a>
+          ) : null}
         </div>
       </div>
 
