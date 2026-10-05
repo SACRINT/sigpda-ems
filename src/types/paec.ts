@@ -347,6 +347,31 @@ export interface PaecProject {
   status: PaecStatus;
   createdAt: Date;
   updatedAt: Date;
+
+  // Propiedades opcionales snake_case para compatibilidad retroactiva con route handlers
+  project_name?: string;
+  problem_statement?: string;
+  cycle_type?: CycleType | string;
+  current_step?: number;
+  community_context?: CommunityContext;
+  school_context?: SchoolContext;
+  fase1_diagnostico?: Fase1Diagnostico | null;
+  fase2_justificacion?: Fase2Justificacion | null;
+  fase2_mapeo?: MapeoRow[] | null;
+  fase2_cronograma?: CronogramaRow[] | null;
+  fase2_detalle_curricular?: DetalleCurricularRow[] | null;
+  fase2_plan_operativo?: PlanOperativoData | null;
+  fase2_anexos?: AnexosData | null;
+  fase3_plan_operativo_a?: PlanOperativoRow[] | null;
+  fase3_plan_operativo_b?: PlanOperativoRow[] | null;
+  fase3_implementacion?: PaecImplementacion | null;
+  fase4_gobernanza?: PaecGobernanza | null;
+  fase4_informe_supervision?: PaecInformeSupervision | null;
+  fase4_gobernanza_e_informe?: Record<string, unknown> | null;
+  quality_audit?: PaecQualityAudit | null;
+  teacher_id?: string;
+  created_at?: Date;
+  updated_at?: Date;
 }
 
 export interface CreatePaecInput {

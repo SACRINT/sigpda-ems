@@ -170,7 +170,7 @@ export async function POST(
           }
         }
 
-        userPrompt = buildPrompt1Diagnostico(comm, school, project.problem_statement, baseline);
+        userPrompt = buildPrompt1Diagnostico(comm, school, (project.problem_statement || project.problemStatement), baseline);
         break;
       }
 
@@ -186,7 +186,7 @@ export async function POST(
           );
         }
         const diagStr = JSON.stringify(project.fase1_diagnostico);
-        userPrompt = buildPrompt2Justificacion(diagStr, project.project_name, project.problem_statement);
+        userPrompt = buildPrompt2Justificacion(diagStr, (project.project_name || project.projectName), (project.problem_statement || project.problemStatement));
         break;
       }
 
@@ -321,7 +321,7 @@ export async function POST(
           );
         }
         const mapeoStr = JSON.stringify(project.fase2_mapeo);
-        userPrompt = buildPrompt4Cronograma(mapeoStr, project.cycle_type);
+        userPrompt = buildPrompt4Cronograma(mapeoStr, (project.cycle_type || project.cycleType));
         break;
       }
 
@@ -357,7 +357,7 @@ export async function POST(
             const blockPrompt = buildPrompt5DetalleCurricular(
               JSON.stringify(chunks[i]),
               cronStr,
-              project.cycle_type
+              (project.cycle_type || project.cycleType)
             );
             const matchedCatalog = chunks[i].map((u) =>
               matchCurricularContent(u.uacName, Number(u.semester), allUacsStep5) || {
@@ -401,7 +401,7 @@ export async function POST(
             }
           );
           const curricularBlock = formatCurricularCatalogForPrompt(matchedCatalog);
-          userPrompt = `${buildPrompt5DetalleCurricular(mapeoStr, cronStr, project.cycle_type)}\n\n${curricularBlock}`;
+          userPrompt = `${buildPrompt5DetalleCurricular(mapeoStr, cronStr, (project.cycle_type || project.cycleType))}\n\n${curricularBlock}`;
         }
         break;
       }

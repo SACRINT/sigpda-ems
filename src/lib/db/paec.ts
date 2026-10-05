@@ -4,12 +4,13 @@ import { sql } from './client';
 // ─── PAEC Projects queries ──────────────────────────────────────────────────
 
 export async function getPaecProjectsByTeacher(teacherId: string) {
-  return sql()`
+  const rows = await sql()`
     SELECT id, teacher_id, project_name, problem_statement, cycle_type, current_step, status, created_at, updated_at
     FROM paec_projects
     WHERE teacher_id = ${teacherId}::uuid
     ORDER BY created_at DESC
   `;
+  return rows.map((r) => mapRawPaecProject(r)).filter((p): p is PaecProject => p !== null);
 }
 
 export async function getPaecProjectById(id: string, teacherId: string) {
@@ -19,7 +20,7 @@ export async function getPaecProjectById(id: string, teacherId: string) {
     WHERE id = ${id}::uuid AND teacher_id = ${teacherId}::uuid
     LIMIT 1
   `;
-  return rows[0] || null;
+  return rows[0] ? mapRawPaecProject(rows[0]) : null;
 }
 
 export async function createPaecProject(data: {
@@ -47,37 +48,62 @@ export async function createPaecProject(data: {
     )
     RETURNING *
   `;
-  return rows[0];
+  return mapRawPaecProject(rows[0]) as PaecProject;
 }
 
-export function mapRawPaecProject(raw: Record<string, unknown> | null | undefined): PaecProject | null {
+export function mapRawPaecProject(raw: Record<string, unknown> | PaecProject | null | undefined): PaecProject | null {
   if (!raw) return null;
-  return {
-    id: raw.id as string,
-    teacherId: raw.teacher_id as string,
-    projectName: raw.project_name as string,
-    problemStatement: raw.problem_statement as string,
-    cycleType: raw.cycle_type as PaecProject['cycleType'],
-    currentStep: raw.current_step as number,
-    communityContext: (raw.community_context || {}) as PaecProject['communityContext'],
-    schoolContext: (raw.school_context || {}) as PaecProject['schoolContext'],
-    fase1Diagnostico: (raw.fase1_diagnostico ?? null) as PaecProject['fase1Diagnostico'],
-    fase2Justificacion: (raw.fase2_justificacion ?? null) as PaecProject['fase2Justificacion'],
-    fase2Mapeo: (raw.fase2_mapeo ?? null) as PaecProject['fase2Mapeo'],
-    fase2Cronograma: (raw.fase2_cronograma ?? null) as PaecProject['fase2Cronograma'],
-    fase2DetalleCurricular: (raw.fase2_detalle_curricular ?? null) as PaecProject['fase2DetalleCurricular'],
-    fase2PlanOperativo: (raw.fase2_plan_operativo ?? null) as PaecProject['fase2PlanOperativo'],
-    fase2Anexos: (raw.fase2_anexos ?? null) as PaecProject['fase2Anexos'],
-    fase3PlanOperativoA: (raw.fase3_plan_operativo_a ?? null) as PaecProject['fase3PlanOperativoA'],
-    fase3PlanOperativoB: (raw.fase3_plan_operativo_b ?? null) as PaecProject['fase3PlanOperativoB'],
-    fase3Implementacion: (raw.fase3_implementacion ?? null) as PaecProject['fase3Implementacion'],
-    fase4Gobernanza: (raw.fase4_gobernanza ?? null) as PaecProject['fase4Gobernanza'],
-    fase4InformeSupervision: (raw.fase4_informe_supervision ?? null) as PaecProject['fase4InformeSupervision'],
-    qualityAudit: (raw.quality_audit ?? null) as PaecProject['qualityAudit'],
-    status: ((raw.status as PaecProject['status']) || 'draft'),
-    createdAt: raw.created_at as Date,
-    updatedAt: raw.updated_at as Date,
+  const r = raw as Record<string, unknown>;
+  const project: unknown = {
+    id: r.id as string,
+    teacherId: (r.teacherId ?? r.teacher_id) as string,
+    projectName: (r.projectName ?? r.project_name ?? '') as string,
+    problemStatement: (r.problemStatement ?? r.problem_statement ?? '') as string,
+    cycleType: (r.cycleType ?? r.cycle_type ?? 'A') as PaecProject['cycleType'],
+    currentStep: (r.currentStep ?? r.current_step ?? 1) as number,
+    communityContext: (r.communityContext ?? r.community_context ?? {}) as PaecProject['communityContext'],
+    schoolContext: (r.schoolContext ?? r.school_context ?? {}) as PaecProject['schoolContext'],
+    fase1Diagnostico: (r.fase1Diagnostico ?? r.fase1_diagnostico ?? null) as PaecProject['fase1Diagnostico'],
+    fase2Justificacion: (r.fase2Justificacion ?? r.fase2_justificacion ?? null) as PaecProject['fase2Justificacion'],
+    fase2Mapeo: (r.fase2Mapeo ?? r.fase2_mapeo ?? null) as PaecProject['fase2Mapeo'],
+    fase2Cronograma: (r.fase2Cronograma ?? r.fase2_cronograma ?? null) as PaecProject['fase2Cronograma'],
+    fase2DetalleCurricular: (r.fase2DetalleCurricular ?? r.fase2_detalle_curricular ?? null) as PaecProject['fase2DetalleCurricular'],
+    fase2PlanOperativo: (r.fase2PlanOperativo ?? r.fase2_plan_operativo ?? null) as PaecProject['fase2PlanOperativo'],
+    fase2Anexos: (r.fase2Anexos ?? r.fase2_anexos ?? null) as PaecProject['fase2Anexos'],
+    fase3PlanOperativoA: (r.fase3PlanOperativoA ?? r.fase3_plan_operativo_a ?? null) as PaecProject['fase3PlanOperativoA'],
+    fase3PlanOperativoB: (r.fase3PlanOperativoB ?? r.fase3_plan_operativo_b ?? null) as PaecProject['fase3PlanOperativoB'],
+    fase3Implementacion: (r.fase3Implementacion ?? r.fase3_implementacion ?? null) as PaecProject['fase3Implementacion'],
+    fase4Gobernanza: (r.fase4Gobernanza ?? r.fase4_gobernanza ?? null) as PaecProject['fase4Gobernanza'],
+    fase4InformeSupervision: (r.fase4InformeSupervision ?? r.fase4_informe_supervision ?? null) as PaecProject['fase4InformeSupervision'],
+    qualityAudit: (r.qualityAudit ?? r.quality_audit ?? null) as PaecProject['qualityAudit'],
+    status: ((r.status as PaecProject['status']) || 'draft'),
+    createdAt: (r.createdAt ?? r.created_at) as Date,
+    updatedAt: (r.updatedAt ?? r.updated_at) as Date,
+    // Aliases snake_case para retrocompatibilidad con endpoints existentes:
+    project_name: (r.projectName ?? r.project_name ?? '') as string,
+    problem_statement: (r.problemStatement ?? r.problem_statement ?? '') as string,
+    cycle_type: (r.cycleType ?? r.cycle_type ?? 'A') as string,
+    community_context: (r.communityContext ?? r.community_context ?? {}),
+    school_context: (r.schoolContext ?? r.school_context ?? {}),
+    fase1_diagnostico: (r.fase1Diagnostico ?? r.fase1_diagnostico ?? null),
+    fase2_justificacion: (r.fase2Justificacion ?? r.fase2_justificacion ?? null),
+    fase2_mapeo: (r.fase2Mapeo ?? r.fase2_mapeo ?? null),
+    fase2_cronograma: (r.fase2Cronograma ?? r.fase2_cronograma ?? null),
+    fase2_detalle_curricular: (r.fase2DetalleCurricular ?? r.fase2_detalle_curricular ?? null),
+    fase2_plan_operativo: (r.fase2PlanOperativo ?? r.fase2_plan_operativo ?? null),
+    fase2_anexos: (r.fase2Anexos ?? r.fase2_anexos ?? null),
+    fase3_plan_operativo_a: (r.fase3PlanOperativoA ?? r.fase3_plan_operativo_a ?? null),
+    fase3_plan_operativo_b: (r.fase3PlanOperativoB ?? r.fase3_plan_operativo_b ?? null),
+    fase3_implementacion: (r.fase3Implementacion ?? r.fase3_implementacion ?? null),
+    fase4_gobernanza: (r.fase4Gobernanza ?? r.fase4_gobernanza ?? null),
+    fase4_informe_supervision: (r.fase4InformeSupervision ?? r.fase4_informe_supervision ?? null),
+    quality_audit: (r.qualityAudit ?? r.quality_audit ?? null),
+    current_step: (r.currentStep ?? r.current_step ?? 1),
+    teacher_id: (r.teacherId ?? r.teacher_id),
+    created_at: (r.createdAt ?? r.created_at),
+    updated_at: (r.updatedAt ?? r.updated_at),
   };
+  return project as PaecProject;
 }
 
 export const PAEC_STEP_FIELD_MAP: Record<number, string> = {
