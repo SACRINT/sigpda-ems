@@ -1651,7 +1651,7 @@ export async function generatePaecDocx(
     }),
   ];
   metasData.forEach((m: any, idx) => {
-    const pct = m.porcentaje || 100;
+    const pct = typeof m.porcentaje === 'number' ? m.porcentaje : (typeof m.porcentajeCumplimiento === 'number' ? m.porcentajeCumplimiento : 100);
     const statusBg = pct >= 80 ? C.greenBg : pct >= 60 ? C.yellowBg : C.redBg;
     metaRows.push(
       new TableRow({

@@ -1982,44 +1982,27 @@ export async function generatePaecPDF(
 
   // Preguntas Guía NEM
   const metEval = (gob.metodologiaEvaluacion || {}) as Record<string, any>;
-  const pregNEM = (metEval.preguntasGuiaNem || gob.preguntasGuia || {}) as Record<string, any>;
-  const pregRows: any[] = pregNEM.dondeEstamos
-    ? [
-        [
-          { content: '1. ¿Dónde estamos? (Diagnóstico situado):', styles: { fontStyle: 'bold', cellWidth: 50, fillColor: GRAY_BG } },
-          { content: safeStr(pregNEM.dondeEstamos) },
-        ],
-        [
-          { content: '2. ¿Hacia dónde vamos? (Direccionalidad):', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-          { content: safeStr(pregNEM.haciaDondeVamos) },
-        ],
-        [
-          { content: '3. ¿Cómo superamos las dificultades?:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-          { content: safeStr(pregNEM.comoSuperamos) },
-        ],
-      ]
-    : [
-        [
-          { content: '1. ¿Qué transformamos en la comunidad?', styles: { fontStyle: 'bold', cellWidth: 50, fillColor: GRAY_BG } },
-          { content: safeStr(pregNEM.queTransformamos, 'La conciencia ambiental colectiva y el mejoramiento concreto en el manejo sustentable de los recursos en el entorno inmediato.') },
-        ],
-        [
-          { content: '2. ¿Cómo aprendieron los estudiantes?', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-          { content: safeStr(pregNEM.comoAprendieron, 'A través del aprendizaje situado, la investigación de campo, la resolución colaborativa de problemas y el diálogo con su comunidad.') },
-        ],
-        [
-          { content: '3. ¿Qué saberes locales se integraron?', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-          { content: safeStr(pregNEM.queSaberes, 'Los conocimientos tradicionales de los agricultores y familias sobre la historia territorial y el manejo de los ecosistemas locales.') },
-        ],
-        [
-          { content: '4. ¿Qué dificultades se superaron?', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-          { content: safeStr(pregNEM.queDificultades, 'La escasez inicial de materiales mediante el reciclaje solidario y la coordinación de horarios a través de roles escalonados.') },
-        ],
-        [
-          { content: '5. ¿Qué compromisos de continuidad asumimos?', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-          { content: safeStr(pregNEM.queCompromisos, 'Mantener la custodia técnica de los prototipos instalados y transferir la experiencia a las nuevas cohortes escolares.') },
-        ],
-      ];
+  const pregNEM = (metEval.preguntasGuiaNem || {}) as Record<string, any>;
+  const ambitosText = (metEval.ambitos || ['Aula (Formativa)', 'Escuela (Colegiada)', 'Comunidad Territorial (Impacto Social)']).join(' | ');
+
+  const pregRows: any[] = [
+    [
+      { content: 'Ámbitos de Evaluación Formativa:', styles: { fontStyle: 'bold', cellWidth: 50, fillColor: GRAY_BG } },
+      { content: ambitosText },
+    ],
+    [
+      { content: '1. ¿Dónde estamos? (Diagnóstico situacional):', styles: { fontStyle: 'bold', cellWidth: 50, fillColor: GRAY_BG } },
+      { content: safeStr(pregNEM.dondeEstamos, 'Se partió del reconocimiento participativo de las condiciones reales del territorio.') },
+    ],
+    [
+      { content: '2. ¿Hacia dónde vamos? (Direccionalidad formativa):', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
+      { content: safeStr(pregNEM.haciaDondeVamos, 'Hacia la consolidación de aprendizajes contextualizados y la transformación del entorno.') },
+    ],
+    [
+      { content: '3. ¿Cómo superamos dificultades? (Adaptabilidad):', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
+      { content: safeStr(pregNEM.comoSuperamos, 'Mediante el trabajo colegiado docente, el diálogo comunitario y ajustes curriculares en academia.') },
+    ],
+  ];
 
   autoTable(doc, {
     startY: curY,
@@ -2080,13 +2063,16 @@ export async function generatePaecPDF(
   // Metas vs Logros
   const metas: (PaecMetaLogroRow | Record<string, unknown>)[] = (inf.metasVsLogros || inf.metasLogros || []) as (PaecMetaLogroRow | Record<string, unknown>)[];
   const metasRows = metas.length > 0
-    ? metas.map((m: any, idx) => [
-        `M-${idx + 1}`,
-        safeStr(m.meta || m.metaPlaneada || 'Meta del proyecto'),
-        safeStr(m.alcanzado || m.logroAlcanzado || m.logro || 'Logro reportado'),
-        `${m.porcentaje || (m.porcentajeCumplimiento ?? 100)}%`,
-        (m.estatus || 'Cumplida').toUpperCase(),
-      ])
+    ? metas.map((m: any, idx) => {
+        const pct = typeof m.porcentaje === 'number' ? m.porcentaje : (typeof m.porcentajeCumplimiento === 'number' ? m.porcentajeCumplimiento : 100);
+        return [
+          `M-${idx + 1}`,
+          safeStr(m.meta || m.metaPlaneada || 'Meta del proyecto'),
+          safeStr(m.alcanzado || m.logroAlcanzado || m.logro || 'Logro reportado'),
+          `${pct}%`,
+          (m.estatus || 'Cumplida').toUpperCase(),
+        ];
+      })
     : [
         ['M-1', 'Constituir formalmente el Comité Comunitario y levantar el 100% de las encuestas diagnósticas.', 'Comité instalado con acta formal y 180 encuestas procesadas.', '100%', 'CUMPLIDA'],
         ['M-2', 'Articular el 100% de las UACs del semestre en el plan operativo de 16 semanas.', 'Todas las UACs integraron al menos 2 progresiones situadas.', '100%', 'CUMPLIDA'],
