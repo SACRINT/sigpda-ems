@@ -343,6 +343,3 @@ describe('F-A08: Verificación de Derivación Curricular e Invariantes del Wizar
     });
   });
 });
-
-
-

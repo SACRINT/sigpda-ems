@@ -318,6 +318,3 @@ describe('PAEC H-02 & H-03: Paridad Curricular Laboral y Validación de Paso 1',
     expect(g6.trackName).toBe(track);
   });
 });
-
-
-
