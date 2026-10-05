@@ -554,6 +554,10 @@ describe('db.ts — Core Database Queries (Fase 20A)', () => {
     expect(result.currentStep).toBe(8);
     expect(result.cycleType).toBe('A');
     expect(result.status).toBe('completed');
+
+    // F-R8-02: Aserción sobre la consulta SQL generada comprobando el CASE condicional para cycle_type = 'A'
+    const lastCallStrings = mockQueryFn.mock.calls[mockQueryFn.mock.calls.length - 1][0] as string[];
+    expect(lastCallStrings.join(' ')).toContain("cycle_type = 'A'");
   });
 
   it('updatePaecProjectStep — arroja error si el paso no está en el rango 1 a 9', async () => {
