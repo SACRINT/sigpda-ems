@@ -114,7 +114,6 @@ interface Props {
 }
 
 import { ALL_STEPS, getVisibleSteps, normalizeActiveStep, getRelativeStepNumber, canNavigateStep } from '@/lib/paec-steps';
-export { ALL_STEPS, getVisibleSteps, normalizeActiveStep, getRelativeStepNumber, canNavigateStep };
 
 const CYCLE_LABELS: Record<string, string> = {
   A: 'Semestre A (1°, 3° y 5°)',
