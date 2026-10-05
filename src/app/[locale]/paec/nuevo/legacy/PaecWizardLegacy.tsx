@@ -113,8 +113,8 @@ interface Props {
   initialId: string | null;
 }
 
-import { ALL_STEPS, getVisibleSteps, normalizeActiveStep } from '@/lib/paec-steps';
-export { ALL_STEPS, getVisibleSteps, normalizeActiveStep };
+import { ALL_STEPS, getVisibleSteps, normalizeActiveStep, getRelativeStepNumber, canNavigateStep } from '@/lib/paec-steps';
+export { ALL_STEPS, getVisibleSteps, normalizeActiveStep, getRelativeStepNumber, canNavigateStep };
 
 const CYCLE_LABELS: Record<string, string> = {
   A: 'Semestre A (1°, 3° y 5°)',
@@ -1750,7 +1750,7 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
             {CYCLE_LABELS[cycleType]}
           </span>
           <span className="badge" style={{ backgroundColor: project?.status === 'completed' ? '#28a745' : '#ffc107', color: project?.status === 'completed' ? '#fff' : '#212529' }}>
-            {project?.status === 'completed' ? 'Completado' : `Borrador — Paso ${currentStepIdx >= 0 ? currentStepIdx + 1 : 1} de ${visibleSteps.length}`}
+            {project?.status === 'completed' ? 'Completado' : `Borrador — Paso ${getRelativeStepNumber(visibleSteps, activeStep)} de ${visibleSteps.length}`}
           </span>
           {Boolean(
             project?.status === 'completed' ||
@@ -1770,8 +1770,7 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
         {visibleSteps.map((s, sIdx) => {
           const isDone = isStepGenerated(s.num);
           const isActive = s.num === activeStep;
-          const prevVisStep = sIdx > 0 ? visibleSteps[sIdx - 1] : null;
-          const canNavigate = isDone || s.num === 1 || (prevVisStep ? isStepGenerated(prevVisStep.num) : false) || s.num <= (project?.currentStep || 1);
+          const canNavigate = canNavigateStep(visibleSteps, sIdx, isStepGenerated, project?.currentStep);
           return (
             <button
               key={s.num}

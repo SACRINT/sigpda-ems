@@ -36,3 +36,21 @@ export function normalizeActiveStep(currentStep: number | undefined | null, cycl
   const nextVisible = visible.find((s) => s.num >= step);
   return nextVisible ? nextVisible.num : visible[visible.length - 1].num;
 }
+
+export function getRelativeStepNumber(visibleSteps: readonly PaecStepItem[] | PaecStepItem[], activeStep: number): number {
+  const idx = visibleSteps.findIndex((s) => s.num === activeStep);
+  return idx >= 0 ? idx + 1 : 1;
+}
+
+export function canNavigateStep(
+  visibleSteps: readonly PaecStepItem[] | PaecStepItem[],
+  idx: number,
+  isStepGenerated: (stepNum: number) => boolean,
+  currentStep?: number | null
+): boolean {
+  const s = visibleSteps[idx];
+  if (!s) return false;
+  const isDone = isStepGenerated(s.num);
+  const prevVisStep = idx > 0 ? visibleSteps[idx - 1] : null;
+  return isDone || s.num === 1 || (prevVisStep ? isStepGenerated(prevVisStep.num) : false) || s.num <= (currentStep || 1);
+}
