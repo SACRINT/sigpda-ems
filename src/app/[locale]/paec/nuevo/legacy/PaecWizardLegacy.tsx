@@ -238,6 +238,7 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
   // Form States (Paso 1: Datos Base) — initialized from saved draft if present
   const [projectName, setProjectName] = useState(savedDraft?.projectName ?? '');
   const [problemStatement, setProblemStatement] = useState(savedDraft?.problemStatement ?? '');
+  const [showFullProblem, setShowFullProblem] = useState(false);
   const [cycleType, setCycleType] = useState<'A' | 'B' | 'annual'>(savedDraft?.cycleType ?? 'A');
 
   const [community, setCommunity] = useState<CommunityContext>(savedDraft?.community ?? {
@@ -1683,18 +1684,84 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
   const activeStepInfo = ALL_STEPS.find(s => s.num === activeStep) || ALL_STEPS[0];
 
   return (
-    <div style={{ maxWidth: '1024px', margin: '0 auto', paddingBottom: '40px' }}>
+    <div style={{ maxWidth: '1024px', margin: '0 auto', paddingBottom: '40px', width: '100%', boxSizing: 'border-box' }}>
       
       {/* Header */}
-      <div className="page-header" style={{ borderBottom: '1px solid var(--c-border)', paddingBottom: '16px', marginBottom: '24px' }}>
+      <div className="page-header" style={{
+        borderBottom: '1px solid var(--c-border)',
+        paddingBottom: '16px',
+        marginBottom: '24px',
+        width: '100%',
+        boxSizing: 'border-box',
+        overflowWrap: 'break-word',
+        wordBreak: 'break-word'
+      }}>
         <Link href={`/${locale}/paec`} className="btn btn-ghost" style={{ marginBottom: '12px', display: 'inline-flex' }}>
           ← Volver a Proyectos
         </Link>
-        <h1 className="page-title" style={{ fontSize: '28px', color: 'var(--c-navy)' }}>{projectName}</h1>
-        <p style={{ color: 'var(--c-text-muted)', fontSize: '15px', margin: '4px 0 0' }}>
-          Problemática: {problemStatement}
-        </p>
-        <div style={{ marginTop: '12px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <h1 className="page-title" style={{
+          fontSize: '26px',
+          fontWeight: 800,
+          color: '#f0f4ff',
+          lineHeight: 1.3,
+          wordBreak: 'break-word',
+          overflowWrap: 'break-word',
+          margin: '0 0 10px 0'
+        }}>
+          {projectName}
+        </h1>
+
+        {problemStatement && (
+          <div style={{
+            background: 'rgba(15, 23, 42, 0.65)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: '8px',
+            padding: '12px 16px',
+            marginTop: '8px',
+            marginBottom: '14px',
+            width: '100%',
+            boxSizing: 'border-box'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '6px' }}>
+              <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                📌 Problemática Comunitaria Detectada
+              </span>
+              {problemStatement.length > 220 && (
+                <button
+                  type="button"
+                  onClick={() => setShowFullProblem(prev => !prev)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#93c5fd',
+                    fontSize: '11.5px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    padding: '2px 6px',
+                    textDecoration: 'underline'
+                  }}
+                >
+                  {showFullProblem ? 'Ver menos ▲' : 'Ver fundamentación completa ▼'}
+                </button>
+              )}
+            </div>
+            <p style={{
+              color: 'rgba(240, 244, 255, 0.85)',
+              fontSize: '13.5px',
+              lineHeight: 1.6,
+              margin: 0,
+              wordBreak: 'break-word',
+              overflowWrap: 'anywhere',
+              whiteSpace: 'pre-line'
+            }}>
+              {showFullProblem || problemStatement.length <= 220
+                ? problemStatement
+                : `${problemStatement.slice(0, 220)}...`}
+            </p>
+          </div>
+        )}
+
+        <div style={{ marginTop: '12px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
           <span className="badge badge-semester" style={{ backgroundColor: 'var(--c-blue-mid)', color: '#fff' }}>
             {CYCLE_LABELS[cycleType]}
           </span>
@@ -1710,7 +1777,7 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
       </div>
 
       {/* Horizontal Step Indicator */}
-      <div className="step-wizard" style={{ marginBottom: '20px' }}>
+      <div className="step-wizard" style={{ marginBottom: '20px', maxWidth: '100%', overflowX: 'auto', boxSizing: 'border-box' }}>
         {visibleSteps.map((s) => {
           const isDone = isStepGenerated(s.num);
           const isActive = s.num === activeStep;
