@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getVisibleSteps, normalizeActiveStep } from '@/app/[locale]/paec/nuevo/PaecWizardClient';
+import { getVisibleSteps, normalizeActiveStep } from '@/lib/paec-steps';
 import type { CycleType } from '@/types/paec';
 
 describe('F-R8-04: Normalización de activeStep y límites de navegación por ciclo', () => {

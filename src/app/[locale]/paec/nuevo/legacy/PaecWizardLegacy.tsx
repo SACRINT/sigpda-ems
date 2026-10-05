@@ -113,37 +113,8 @@ interface Props {
   initialId: string | null;
 }
 
-export const ALL_STEPS = [
-  { num: 1, label: 'Diagnóstico Colectivo' },
-  { num: 2, label: 'Justificación y Propósitos' },
-  { num: 3, label: 'Mapeo de UACs' },
-  { num: 4, label: 'Cronograma' },
-  { num: 5, label: 'Detalle Curricular' },
-  { num: 6, label: 'Plan Operativo Semestre A' },
-  { num: 7, label: 'Plan Operativo Semestre B' },
-  { num: 8, label: 'Implementación y Anexos' },
-  { num: 9, label: 'Gobernanza e Informe' },
-];
-
-export function getVisibleSteps(cycle: 'A' | 'B' | 'annual') {
-  if (cycle === 'A') {
-    return ALL_STEPS.filter((s) => s.num !== 7 && s.num !== 9);
-  }
-  if (cycle === 'B') {
-    return ALL_STEPS.filter((s) => s.num !== 6 && s.num !== 8);
-  }
-  return ALL_STEPS;
-}
-
-export function normalizeActiveStep(currentStep: number | undefined | null, cycle: 'A' | 'B' | 'annual'): number {
-  const visible = getVisibleSteps(cycle);
-  const step = currentStep || 1;
-  if (visible.some((s) => s.num === step)) {
-    return step;
-  }
-  const nextVisible = visible.find((s) => s.num >= step);
-  return nextVisible ? nextVisible.num : visible[visible.length - 1].num;
-}
+import { ALL_STEPS, getVisibleSteps, normalizeActiveStep } from '@/lib/paec-steps';
+export { ALL_STEPS, getVisibleSteps, normalizeActiveStep };
 
 const CYCLE_LABELS: Record<string, string> = {
   A: 'Semestre A (1°, 3° y 5°)',
