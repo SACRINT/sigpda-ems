@@ -1781,7 +1781,12 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
           <span className="badge" style={{ backgroundColor: project?.status === 'completed' ? '#28a745' : '#ffc107', color: project?.status === 'completed' ? '#fff' : '#212529' }}>
             {project?.status === 'completed' ? 'Completado' : `Borrador — Paso ${currentStepIdx >= 0 ? currentStepIdx + 1 : 1} de ${visibleSteps.length}`}
           </span>
-          {(project?.fase4Gobernanza || project?.fase3Implementacion || project?.fase2Anexos) && (
+          {Boolean(
+            project?.status === 'completed' ||
+            (cycleType === 'A'
+              ? (project?.fase3Implementacion || project?.fase2Anexos || isStepGenerated(8))
+              : (project?.fase4Gobernanza || project?.fase4InformeSupervision || isStepGenerated(9)))
+          ) && (
             <a href={`/api/docx/paec/${projectId}`} className="btn btn-amber btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: 'var(--c-amber)', color: '#fff', marginLeft: 'auto' }}>
               <span>↓</span> Descargar PEC Completo (DOCX)
             </a>
