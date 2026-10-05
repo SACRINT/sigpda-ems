@@ -190,7 +190,7 @@ export async function updatePaecProjectStep(
         ELSE fase2_anexos
       END,
       fase2_plan_operativo = CASE WHEN ${targetField} = 'fase2_plan_operativo' THEN ${dataStr}::jsonb ELSE fase2_plan_operativo END,
-      current_step = ${step},
+      current_step = GREATEST(COALESCE(current_step, 1), LEAST(${step} + 1, 9)),
       status = ${status},
       updated_at = NOW()
     WHERE id = ${id}::uuid AND teacher_id = ${teacherId}::uuid

@@ -3043,19 +3043,20 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
         {visibleSteps.map((s) => {
           const isDone = isStepGenerated(s.num);
           const isActive = s.num === activeStep;
+          const canNavigate = isDone || s.num === 1 || isStepGenerated(s.num - 1) || s.num <= (project?.currentStep || 1);
           return (
             <button
               key={s.num}
               onClick={() => {
-                // Allowed to click any step that has been generated or is the current step
-                if (isDone || s.num <= (project?.currentStep || 1)) {
+                // Allowed to click any step that has been generated or is the current/next unlocked step
+                if (canNavigate) {
                   setActiveStep(s.num);
                   setError(null);
                 }
               }}
               className={`step-item ${isDone ? 'done' : isActive ? 'active' : ''}`}
-              style={{ background: 'none', border: 'none', cursor: (isDone || s.num <= (project?.currentStep || 1)) ? 'pointer' : 'not-allowed', outline: 'none' }}
-              disabled={!(isDone || s.num <= (project?.currentStep || 1))}
+              style={{ background: 'none', border: 'none', cursor: canNavigate ? 'pointer' : 'not-allowed', outline: 'none' }}
+              disabled={!canNavigate}
             >
               <div className="step-num">{isDone ? '✓' : s.num}</div>
               <span className="step-label" style={{ fontWeight: isActive ? 700 : 500 }}>{s.label}</span>
@@ -3551,7 +3552,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
                   }}
                   className="btn btn-primary"
                   style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                  disabled={project.currentStep < nextStep.num && !isStepGenerated(nextStep.num)}
+                  disabled={generating || (!isStepGenerated(activeStep) && (project?.currentStep || 1) < nextStep.num)}
                 >
                   Siguiente: {nextStep.label} (Paso {nextStep.num}) →
                 </button>
