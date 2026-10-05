@@ -160,6 +160,18 @@ describe('F-A08: Verificación de Derivación Curricular e Invariantes del Wizar
       expect(chunkPrompt).toContain('TEXTO DEL FRAGMENTO (1/3)');
     });
 
+    it('buildPaecChunkExtractionPrompt incluye aviso de capacidad cuando el fragmento excede 75,000 caracteres (F-R4-01)', () => {
+      const longChunk = 'C'.repeat(76000);
+      const chunkPrompt = buildPaecChunkExtractionPrompt(longChunk, 1, 8);
+      expect(chunkPrompt).toContain('[AVISO DE CAPACIDAD DE FRAGMENTO: El segmento excede la ventana de análisis individual (longitud: 76,000 caracteres). Se procesan los primeros 75,000 caracteres prioritarios del bloque.]');
+    });
+
+    it('buildPaecChunkExtractionPrompt no incluye aviso de capacidad cuando el fragmento es menor a 75,000 caracteres', () => {
+      const normalChunk = 'C'.repeat(65000);
+      const chunkPrompt = buildPaecChunkExtractionPrompt(normalChunk, 0, 3);
+      expect(chunkPrompt).not.toContain('[AVISO DE CAPACIDAD DE FRAGMENTO');
+    });
+
     it('partitionPaecDocument divide un documento largo en fragmentos respetando el tamaño máximo', () => {
       const longText = 'A'.repeat(80000) + '\n\n' + 'B'.repeat(40000);
       const chunks = partitionPaecDocument(longText, 65000);
