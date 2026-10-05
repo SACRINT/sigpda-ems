@@ -8,38 +8,41 @@ interface PDFParseInstance {
 }
 type PDFParseConstructor = new (opts: { data: Buffer }) => PDFParseInstance;
 
-describe('F-R7-02 & F-R7-03: Paridad NEM y Preservación de 0% en Metas', () => {
-  const baseGobernanza: PaecGobernanza = {
+describe('F-R7-02 & F-R7-03 / F-R8-01: Paridad NEM y Discriminación Estricta de 0% en Metas', () => {
+  // Fixture sin preguntasGuiaNem explícitas (simula datos vacíos / legacy sin preguntasGuiaNem):
+  // Debe usar fallbacks canónicos de 3 preguntas y NO la rama legada de 5 preguntas
+  const baseGobernanzaDefault: PaecGobernanza = {
     calendario: [
       { tipo: 'Reunión Mensual', frecuencia: 'Mensual', participantes: 'Docentes', objetivo: 'Seguimiento', evidencia: 'Minuta' }
     ],
     metodologiaEvaluacion: {
       ambitos: ['Aula', 'Escuela', 'Comunidad'],
       preguntasGuiaNem: {
-        dondeEstamos: 'Diagnóstico situado real de la comunidad',
-        haciaDondeVamos: 'Hacia la sustentabilidad comunitaria',
-        comoSuperamos: 'Mediante faenas y biofiltros'
+        dondeEstamos: '',
+        haciaDondeVamos: '',
+        comoSuperamos: '',
       }
     }
   };
 
-  const baseInforme: PaecInformeSupervision = {
-    resumenEjecutivo: 'Resumen ejecutivo de prueba',
+  // Fixture donde alcanzado es '—' (sin subcadena '0%'), obligando a que '0%' provenga de la columna de porcentaje
+  const baseInformeCeroPorciento: PaecInformeSupervision = {
+    resumenEjecutivo: 'Resumen ejecutivo de prueba para metas',
     metasVsLogros: [
       {
-        meta: 'Meta que comenzó en 0% por causas ajenas',
-        indicador: 'Avance registrado',
-        programado: '100%',
-        alcanzado: '0%',
-        porcentaje: 0, // CRÍTICO: 0% real, no debe volverse 100%
+        meta: 'Meta con avance cero por causas ajenas',
+        indicador: 'Avance registrado al corte',
+        programado: 'Sin retraso',
+        alcanzado: '—', // CRÍTICO: '—' no contiene '0%'
+        porcentaje: 0,  // CRÍTICO: 0% real, en c20f42c evaluaba erróneamente a 100%
         estatus: 'En Proceso'
       }
     ],
     analisisPrePost: {
-      participacionTotal: '180 familias activas',
-      alcanceComunitario: '2 km del cauce',
-      cambioConocimientos: '42% reducción turbidez',
-      desarrolloCompetencias: 'STEAM y pensamiento crítico'
+      participacionTotal: 'Familias activas del plantel',
+      alcanceComunitario: 'Zona del cauce comunal',
+      cambioConocimientos: 'Monitoreo de turbidez inicial',
+      desarrolloCompetencias: 'Pensamiento reflexivo y colaborativo'
     },
     evidencias: [],
     obstaculos: [],
@@ -64,7 +67,7 @@ describe('F-R7-02 & F-R7-03: Paridad NEM y Preservación de 0% en Metas', () => 
       teacherCount: '5',
     },
     communityContext: {
-      demographics: '180 familias',
+      demographics: 'Población escolar comunitaria',
     },
     fase1Diagnostico: null,
     fase2Justificacion: null,
@@ -76,27 +79,36 @@ describe('F-R7-02 & F-R7-03: Paridad NEM y Preservación de 0% en Metas', () => 
     fase3PlanOperativoA: [],
     fase3PlanOperativoB: [],
     fase3Implementacion: null,
-    fase4Gobernanza: baseGobernanza,
-    fase4InformeSupervision: baseInforme,
+    fase4Gobernanza: baseGobernanzaDefault,
+    fase4InformeSupervision: baseInformeCeroPorciento,
     qualityAudit: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
 
-  it('debe generar el documento DOCX preservando el porcentaje 0% y preguntas NEM', async () => {
+  it('debe generar el documento DOCX discriminando 0% real y asegurando las 3 preguntas NEM canónicas', async () => {
     const docxBuffer = await generatePaecDocx(baseProject, 'Profesor Test');
     expect(docxBuffer).toBeDefined();
     expect(docxBuffer.byteLength).toBeGreaterThan(1000);
 
     const mammoth = await import('mammoth');
     const { value: text } = await mammoth.extractRawText({ buffer: docxBuffer });
-    expect(text).toContain('0%');
+
+    // F-R8-01: Regex de celda % para la meta — debe ser 0% y NO 100%
+    expect(text).toMatch(/Meta con avance cero por causas ajenas[\s\S]*?0%[\s\S]*?En Proceso/i);
+    expect(text).not.toMatch(/Meta con avance cero por causas ajenas[\s\S]*?100%[\s\S]*?En Proceso/i);
+
+    // Preguntas canónicas de NEM
     expect(text).toContain('¿Dónde estamos?');
     expect(text).toContain('¿Hacia dónde vamos?');
     expect(text).toContain('¿Cómo superamos dificultades?');
+
+    // No debe contener preguntas de la rama legada de 5 preguntas
+    expect(text).not.toContain('¿Qué transformamos en la comunidad?');
+    expect(text).not.toContain('¿Cómo aprendieron los estudiantes?');
   });
 
-  it('debe generar el documento PDF con paridad en preguntas NEM y porcentaje 0%', async () => {
+  it('debe generar el documento PDF con paridad idéntica: 0% real y sin rama legada de 5 preguntas', async () => {
     const pdfBuffer = await generatePaecPDF(baseProject, 'Profesor Test');
     expect(pdfBuffer).toBeDefined();
     expect(pdfBuffer.byteLength).toBeGreaterThan(1000);
@@ -105,9 +117,19 @@ describe('F-R7-02 & F-R7-03: Paridad NEM y Preservación de 0% en Metas', () => 
     const PDFParser = PDFParse as unknown as PDFParseConstructor;
     const parser = new PDFParser({ data: pdfBuffer });
     const { text } = await parser.getText();
-    expect(text).toContain('0%');
+
+    // F-R8-01: Regex de celda % para M-1 — debe ser 0% y NO 100%
+    expect(text).toMatch(/M-1[\s\S]*?0%[\s\S]*?EN PROCESO/i);
+    expect(text).not.toMatch(/M-1[\s\S]*?100%[\s\S]*?EN PROCESO/i);
+
+    // Preguntas canónicas de NEM
     expect(text).toContain('¿Dónde estamos?');
     expect(text).toContain('¿Hacia dónde vamos?');
     expect(text).toContain('¿Cómo superamos dificultades?');
+
+    // En c20f42c, sin dondeEstamos el PDF emitía la rama legada de 5 preguntas:
+    expect(text).not.toContain('¿Qué transformamos en la comunidad?');
+    expect(text).not.toContain('¿Cómo aprendieron los estudiantes?');
+    expect(text).not.toContain('¿Qué compromisos de continuidad asumimos?');
   });
 });
