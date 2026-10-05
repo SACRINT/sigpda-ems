@@ -1856,7 +1856,16 @@ export async function generatePaecPDF(
   curY += 10;
 
   const gob = (p.fase4Gobernanza || {}) as Partial<NonNullable<PaecProject['fase4Gobernanza']>> & Record<string, any>; // fallback tipado defensivo
-  const gobSesiones: any[] = gob.sesiones || [
+  const gobSesiones: any[] = (gob.calendario && Array.isArray(gob.calendario) && gob.calendario.length > 0)
+    ? gob.calendario.map((c: any) => ({
+        tipo: c.tipo || 'Sesión de Gobernanza',
+        participantes: c.participantes || 'Comité del Plantel y Colegiado',
+        fecha: c.frecuencia || 'Periódica',
+        agenda: c.objetivo || 'Seguimiento y evaluación formativa del PEC',
+        evidencia: c.evidencia || 'Minuta y bitácora de seguimiento',
+        acuerdos: c.objetivo || 'Acuerdos de avance y alineación de progresiones',
+      }))
+    : gob.sesiones || [
     {
       tipo: 'Instalación y Planeación',
       participantes: 'Director, Colegiado Docente y Comité Comunitario',
@@ -1972,7 +1981,46 @@ export async function generatePaecPDF(
   curY = doc.lastAutoTable.finalY + 8;
 
   // Preguntas Guía NEM
-  const pregNEM = gob.preguntasGuia || {};
+  const metEval = (gob.metodologiaEvaluacion || {}) as Record<string, any>;
+  const pregNEM = (metEval.preguntasGuiaNem || gob.preguntasGuia || {}) as Record<string, any>;
+  const pregRows: any[] = pregNEM.dondeEstamos
+    ? [
+        [
+          { content: '1. ¿Dónde estamos? (Diagnóstico situado):', styles: { fontStyle: 'bold', cellWidth: 50, fillColor: GRAY_BG } },
+          { content: safeStr(pregNEM.dondeEstamos) },
+        ],
+        [
+          { content: '2. ¿Hacia dónde vamos? (Direccionalidad):', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
+          { content: safeStr(pregNEM.haciaDondeVamos) },
+        ],
+        [
+          { content: '3. ¿Cómo superamos las dificultades?:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
+          { content: safeStr(pregNEM.comoSuperamos) },
+        ],
+      ]
+    : [
+        [
+          { content: '1. ¿Qué transformamos en la comunidad?', styles: { fontStyle: 'bold', cellWidth: 50, fillColor: GRAY_BG } },
+          { content: safeStr(pregNEM.queTransformamos, 'La conciencia ambiental colectiva y el mejoramiento concreto en el manejo sustentable de los recursos en el entorno inmediato.') },
+        ],
+        [
+          { content: '2. ¿Cómo aprendieron los estudiantes?', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
+          { content: safeStr(pregNEM.comoAprendieron, 'A través del aprendizaje situado, la investigación de campo, la resolución colaborativa de problemas y el diálogo con su comunidad.') },
+        ],
+        [
+          { content: '3. ¿Qué saberes locales se integraron?', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
+          { content: safeStr(pregNEM.queSaberes, 'Los conocimientos tradicionales de los agricultores y familias sobre la historia territorial y el manejo de los ecosistemas locales.') },
+        ],
+        [
+          { content: '4. ¿Qué dificultades se superaron?', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
+          { content: safeStr(pregNEM.queDificultades, 'La escasez inicial de materiales mediante el reciclaje solidario y la coordinación de horarios a través de roles escalonados.') },
+        ],
+        [
+          { content: '5. ¿Qué compromisos de continuidad asumimos?', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
+          { content: safeStr(pregNEM.queCompromisos, 'Mantener la custodia técnica de los prototipos instalados y transferir la experiencia a las nuevas cohortes escolares.') },
+        ],
+      ];
+
   autoTable(doc, {
     startY: curY,
     head: [
@@ -1984,28 +2032,7 @@ export async function generatePaecPDF(
         },
       ],
     ],
-    body: [
-      [
-        { content: '1. ¿Qué transformamos en la comunidad?', styles: { fontStyle: 'bold', cellWidth: 50, fillColor: GRAY_BG } },
-        { content: safeStr(pregNEM.queTransformamos, 'La conciencia ambiental colectiva y el mejoramiento concreto en el manejo sustentable de los recursos en el entorno inmediato.') },
-      ],
-      [
-        { content: '2. ¿Cómo aprendieron los estudiantes?', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-        { content: safeStr(pregNEM.comoAprendieron, 'A través del aprendizaje situado, la investigación de campo, la resolución colaborativa de problemas y el diálogo con su comunidad.') },
-      ],
-      [
-        { content: '3. ¿Qué saberes locales se integraron?', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-        { content: safeStr(pregNEM.queSaberes, 'Los conocimientos tradicionales de los agricultores y familias sobre la historia territorial y el manejo de los ecosistemas locales.') },
-      ],
-      [
-        { content: '4. ¿Qué dificultades se superaron?', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-        { content: safeStr(pregNEM.queDificultades, 'La escasez inicial de materiales mediante el reciclaje solidario y la coordinación de horarios a través de roles escalonados.') },
-      ],
-      [
-        { content: '5. ¿Qué compromisos de continuidad asumimos?', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-        { content: safeStr(pregNEM.queCompromisos, 'Mantener la custodia técnica de los prototipos instalados y transferir la experiencia a las nuevas cohortes escolares.') },
-      ],
-    ],
+    body: pregRows,
     theme: 'grid',
     styles: { fontSize: 7.2, cellPadding: 2.2, overflow: 'linebreak' },
     margin: { left: margin, right: margin },
@@ -2051,13 +2078,13 @@ export async function generatePaecPDF(
   curY = doc.lastAutoTable.finalY + 8;
 
   // Metas vs Logros
-  const metas: PaecMetaLogroRow[] = inf.metasLogros || [];
+  const metas: any[] = inf.metasVsLogros || inf.metasLogros || [];
   const metasRows = metas.length > 0
     ? metas.map((m: any, idx) => [
         `M-${idx + 1}`,
-        safeStr(m.metaPlaneada || m.meta || 'Meta del proyecto'),
-        safeStr(m.logroAlcanzado || m.logro || 'Logro reportado'),
-        `${m.porcentajeCumplimiento ?? 100}%`,
+        safeStr(m.meta || m.metaPlaneada || 'Meta del proyecto'),
+        safeStr(m.alcanzado || m.logroAlcanzado || m.logro || 'Logro reportado'),
+        `${m.porcentaje || (m.porcentajeCumplimiento ?? 100)}%`,
         (m.estatus || 'Cumplida').toUpperCase(),
       ])
     : [
@@ -2106,6 +2133,16 @@ export async function generatePaecPDF(
   curY += 10;
 
   const prePost = (inf.analisisPrePost || {}) as Record<string, any>;
+  const preText = prePost.antes || [
+    prePost.participacionTotal ? `• Participación Total:\n${prePost.participacionTotal}` : '',
+    prePost.alcanceComunitario ? `• Alcance Comunitario:\n${prePost.alcanceComunitario}` : '',
+  ].filter(Boolean).join('\n\n') || 'Diagnóstico situacional inicial de la comunidad respecto al problema ambiental.';
+
+  const postText = prePost.despues || [
+    prePost.cambioConocimientos ? `• Apropiación de Conocimientos:\n${prePost.cambioConocimientos}` : '',
+    prePost.desarrolloCompetencias ? `• Desarrollo de Competencias:\n${prePost.desarrolloCompetencias}` : '',
+  ].filter(Boolean).join('\n\n') || 'Resultados tangibles e impacto transformador logrado tras la intervención comunitaria.';
+
   autoTable(doc, {
     startY: curY,
     head: [
@@ -2123,8 +2160,8 @@ export async function generatePaecPDF(
     ],
     body: [
       [
-        { content: safeStr(prePost.antes, 'Escasa conciencia ambiental en el alumnado, desvinculación entre las materias y problemas reales del entorno, y carencia de infraestructura sustentable comunitaria.') },
-        { content: safeStr(prePost.despues, 'Estudiantes activos y conscientes como agentes de transformación cívica, prototipos funcionales instalados y fortalecimiento del vínculo solidario entre escuela y comunidad.') },
+        { content: safeStr(preText) },
+        { content: safeStr(postText) },
       ],
     ],
     theme: 'grid',
