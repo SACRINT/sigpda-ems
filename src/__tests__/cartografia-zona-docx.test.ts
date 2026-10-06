@@ -261,4 +261,27 @@ describe('Generador DOCX de Cartografía de Zona (Estructura I-IV y Resumen Ejec
     expect(text).toContain('3. ANÁLISIS DE EFECTIVIDAD');
     expect(text).toContain('4. HOJA DE RUTA (CICLO 2026-2027)');
   });
+
+  // ── TEST 5: Enforcement de extensión máxima (F-R12-03) ──────────────────────
+  it('acota textos largos y limita a 3 recomendaciones para garantizar un máximo de 2 cuartillas', async () => {
+    const projectExcesivo = makeRealisticCartografiaProject();
+    projectExcesivo.memoriaPedagogica!.hojaDeRutaProximoCiclo = [
+      'Recomendación 1: ' + 'A'.repeat(300),
+      'Recomendación 2: ' + 'B'.repeat(300),
+      'Recomendación 3: ' + 'C'.repeat(300),
+      'Recomendación 4: Esta cuarta recomendación debe omitirse para no exceder 2 cuartillas',
+      'Recomendación 5: Esta quinta recomendación también debe omitirse',
+    ];
+    projectExcesivo.memoriaPedagogica!.queLogramos = 'Logro muy extenso '.repeat(50);
+
+    const buffer = await generateResumenEjecutivoDocx(projectExcesivo);
+    const { value: text } = await mammoth.extractRawText({ buffer });
+
+    // Truncado con elipsis presente
+    expect(text).toContain('...');
+    // Solo toma las primeras 3 recomendaciones
+    expect(text).not.toContain('Recomendación 4');
+    expect(text).not.toContain('Recomendación 5');
+  });
 });
+
