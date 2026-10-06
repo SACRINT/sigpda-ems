@@ -1231,44 +1231,86 @@ export default function PipsWizard({ locale }: { locale: string }) {
             {generating ? '⏳ Consolidando...' : '🤖 Consolidar con IA'}
           </button>
           {projectId && (
-            <a
-              href={`/api/pdf/cartografia/${projectId}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn"
-              style={{
-                background: '#1F3864',
-                color: '#fff',
-                border: '1.5px solid #E8A020',
-                fontSize: 14,
-                padding: '12px 24px',
-                textDecoration: 'none',
-                borderRadius: 8,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                fontWeight: 700,
-                boxShadow: '0 4px 12px rgba(31, 56, 100, 0.4)',
-              }}
-            >
-              📄 Descargar Cartografía Oficial (PDF)
-            </a>
+            <>
+              <a
+                href={`/api/pdf/cartografia/${projectId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn"
+                style={{
+                  background: '#1F3864',
+                  color: '#fff',
+                  border: '1.5px solid #E8A020',
+                  fontSize: 14,
+                  padding: '12px 24px',
+                  textDecoration: 'none',
+                  borderRadius: 8,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontWeight: 700,
+                  boxShadow: '0 4px 12px rgba(31, 56, 100, 0.4)',
+                }}
+              >
+                📄 Descargar Cartografía Oficial (PDF)
+              </a>
+              <a
+                href={`/api/docx/cartografia/${projectId}`}
+                className="btn"
+                style={{
+                  background: '#2563EB',
+                  color: '#fff',
+                  border: 'none',
+                  fontSize: 14,
+                  padding: '12px 24px',
+                  textDecoration: 'none',
+                  borderRadius: 8,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontWeight: 700,
+                  boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)',
+                }}
+              >
+                📥 Descargar Proyecto Completo (Word I-IV)
+              </a>
+              <a
+                href={`/api/docx/cartografia/${projectId}/resumen`}
+                className="btn"
+                style={{
+                  background: '#0D9488',
+                  color: '#fff',
+                  border: 'none',
+                  fontSize: 14,
+                  padding: '12px 24px',
+                  textDecoration: 'none',
+                  borderRadius: 8,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontWeight: 700,
+                  boxShadow: '0 4px 12px rgba(13, 148, 136, 0.3)',
+                }}
+              >
+                📄 Descargar Resumen Ejecutivo (Word)
+              </a>
+            </>
           )}
           {projectId && pips.status === 'completed' && (
             <>
               <a
                 href={`/api/pdf/pips/${projectId}`}
                 className="btn"
-                style={{ background: '#c0392b', color: '#fff', border: 'none', fontSize: 14, padding: '12px 28px', textDecoration: 'none', borderRadius: 8, display: 'inline-block', fontWeight: 600 }}
+                style={{ background: '#64748B', color: '#fff', border: 'none', fontSize: 13, padding: '12px 20px', textDecoration: 'none', borderRadius: 8, display: 'inline-block', fontWeight: 500 }}
               >
-                ↓ Descargar PDF Resumen
+                ↓ PDF Resumen (Histórico PIPS)
               </a>
               <a
                 href={`/api/docx/pips/${projectId}`}
                 className="btn"
-                style={{ background: '#f59e0b', color: '#fff', border: 'none', fontSize: 14, padding: '12px 28px', textDecoration: 'none', borderRadius: 8, display: 'inline-block' }}
+                style={{ background: '#64748B', color: '#fff', border: 'none', fontSize: 13, padding: '12px 20px', textDecoration: 'none', borderRadius: 8, display: 'inline-block', fontWeight: 500 }}
               >
-                ↓ Descargar Word Oficial
+                ↓ Word Formato PIPS (Histórico)
               </a>
             </>
           )}
