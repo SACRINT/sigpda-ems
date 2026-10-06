@@ -62,6 +62,8 @@ import {
   formatRegistrationFormatText,
 } from '@/types/workbook-legacy';
 import { extractCalloutBox, type CalloutBoxData } from '@/lib/visual-engine/callout-box';
+import { readMaterialPng } from '@/lib/materials/material-figure-doc';
+import { parseMaterialTokens, resolveMaterialTokensForMarkdown } from '@/lib/materials/material-tokens';
 import crypto from 'crypto';
 import QRCode from 'qrcode';
 import { getVerificationUrl } from '@/lib/digital-signature';
@@ -3040,14 +3042,93 @@ function buildProjectSection(project: ProjectSection): (Paragraph | Table)[] {
     );
     for (const mat of project.requiredMaterials) {
       const matStr = resolveMaterialString(mat);
+      const cleanMat = resolveMaterialTokensForMarkdown(matStr);
       elements.push(
         new Paragraph({
           spacing: { after: 50 },
           children: [
-            new TextRun({ text: `☐  ${matStr}`, size: 20, font: 'Calibri' }),
+            new TextRun({ text: `☐  ${cleanMat}`, size: 20, font: 'Calibri' }),
           ],
         })
       );
+    }
+
+    // Figuras de materiales resueltas con ImageRun y readMaterialPng (T-IMG-06)
+    const allTokens = project.requiredMaterials.flatMap((mat) =>
+      parseMaterialTokens(resolveMaterialString(mat))
+    );
+    const uniqueTokens = Array.from(new Map(allTokens.map((t) => [t.slug, t])).values());
+
+    if (uniqueTokens.length > 0) {
+      const figureCells: TableCell[] = [];
+      const cols = Math.min(uniqueTokens.length, 3);
+      const colWidthDxa = Math.floor(CONTENT_W / cols);
+
+      for (const tok of uniqueTokens) {
+        const pngBuffer = readMaterialPng(tok.slug);
+        if (!pngBuffer) continue;
+
+        const caption = tok.item?.altText || tok.label;
+        const cellChildren: Paragraph[] = [
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { before: 80, after: 40 },
+            children: [
+              new ImageRun({
+                data: pngBuffer,
+                transformation: { width: 100, height: 100 },
+                type: 'png',
+              }),
+            ],
+          }),
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 80 },
+            children: [
+              new TextRun({
+                text: caption,
+                size: 16,
+                font: 'Calibri',
+                color: C.mutedText,
+                italics: true,
+              }),
+            ],
+          }),
+        ];
+
+        figureCells.push(
+          new TableCell({
+            width: { size: colWidthDxa, type: WidthType.DXA },
+            shading: { fill: 'F8FAFC', type: ShadingType.CLEAR },
+            borders: {
+              top: { style: BorderStyle.SINGLE, size: 4, color: 'E2E8F0' },
+              bottom: { style: BorderStyle.SINGLE, size: 4, color: 'E2E8F0' },
+              left: { style: BorderStyle.SINGLE, size: 4, color: 'E2E8F0' },
+              right: { style: BorderStyle.SINGLE, size: 4, color: 'E2E8F0' },
+            },
+            children: cellChildren,
+          })
+        );
+      }
+
+      if (figureCells.length > 0) {
+        const rows: TableRow[] = [];
+        for (let i = 0; i < figureCells.length; i += cols) {
+          rows.push(
+            new TableRow({
+              children: figureCells.slice(i, i + cols),
+            })
+          );
+        }
+
+        elements.push(
+          new Paragraph({ spacing: { before: 100, after: 60 } }),
+          new Table({
+            width: { size: CONTENT_W, type: WidthType.DXA },
+            rows,
+          })
+        );
+      }
     }
   }
 
@@ -3096,41 +3177,43 @@ function buildProjectSection(project: ProjectSection): (Paragraph | Table)[] {
     })
   );
 
-  const colW1 = Math.floor(CONTENT_W * 0.15);
-  const colW2 = Math.floor(CONTENT_W * 0.30);
-  const colW3 = Math.floor(CONTENT_W * 0.15);
-  const colW4 = Math.floor(CONTENT_W * 0.40);
+  if (project.phases && project.phases.length > 0) {
+    const colW1 = Math.floor(CONTENT_W * 0.15);
+    const colW2 = Math.floor(CONTENT_W * 0.30);
+    const colW3 = Math.floor(CONTENT_W * 0.15);
+    const colW4 = Math.floor(CONTENT_W * 0.40);
 
-  const phaseRows: TableRow[] = [
-    new TableRow({
-      children: [
-        cell('Fase', { w: colW1, bold: true, fill: C.navy, color: C.white }),
-        cell('Título de la Etapa', { w: colW2, bold: true, fill: C.navy, color: C.white }),
-        cell('Horas', { w: colW3, bold: true, fill: C.navy, color: C.white, align: AlignmentType.CENTER }),
-        cell('Entregables y Criterios', { w: colW4, bold: true, fill: C.navy, color: C.white }),
-      ],
-    }),
-  ];
-
-  project.phases.forEach((p) => {
-    phaseRows.push(
+    const phaseRows: TableRow[] = [
       new TableRow({
         children: [
-          cell(`Fase ${p.phaseNum}`, { bold: true, color: C.midBlue }),
-          cell(p.title),
-          cell(`${p.allocatedHours} hrs`, { align: AlignmentType.CENTER }),
-          cell(`${(p.deliverables || []).join(', ')} — ${p.instructions}`),
+          cell('Fase', { w: colW1, bold: true, fill: C.navy, color: C.white }),
+          cell('Título de la Etapa', { w: colW2, bold: true, fill: C.navy, color: C.white }),
+          cell('Horas', { w: colW3, bold: true, fill: C.navy, color: C.white, align: AlignmentType.CENTER }),
+          cell('Entregables y Criterios', { w: colW4, bold: true, fill: C.navy, color: C.white }),
         ],
+      }),
+    ];
+
+    project.phases.forEach((p) => {
+      phaseRows.push(
+        new TableRow({
+          children: [
+            cell(`Fase ${p.phaseNum}`, { bold: true, color: C.midBlue }),
+            cell(p.title),
+            cell(`${p.allocatedHours} hrs`, { align: AlignmentType.CENTER }),
+            cell(`${(p.deliverables || []).join(', ')} — ${p.instructions}`),
+          ],
+        })
+      );
+    });
+
+    elements.push(
+      new Table({
+        width: { size: CONTENT_W, type: WidthType.DXA },
+        rows: phaseRows,
       })
     );
-  });
-
-  elements.push(
-    new Table({
-      width: { size: CONTENT_W, type: WidthType.DXA },
-      rows: phaseRows,
-    })
-  );
+  }
 
   // Criterios de Entrega y Aceptación
   const criteriaList = [
