@@ -42,6 +42,8 @@ import {
 } from '@/types/workbook-legacy';
 import { extractCalloutBox, type CalloutBoxData } from '@/lib/visual-engine/callout-box';
 import { extractComparisonTable, type ComparisonTableData } from '@/lib/visual-engine/comparison-table';
+import { readMaterialPng } from '@/lib/materials/material-figure-doc';
+import { parseMaterialTokens, resolveMaterialTokensForMarkdown } from '@/lib/materials/material-tokens';
 import crypto from 'crypto';
 import QRCode from 'qrcode';
 import { getVerificationUrl } from '@/lib/digital-signature';
@@ -2637,7 +2639,8 @@ function drawProjectSection(
 
     for (const mat of project.requiredMaterials) {
       const matStr = resolveMaterialString(mat);
-      y = printParagraph(doc, `[  ]  ${matStr}`, y, margin + 3, contentWidth - 3, pageHeight, {
+      const cleanMat = resolveMaterialTokensForMarkdown(matStr);
+      y = printParagraph(doc, `[  ]  ${cleanMat}`, y, margin + 3, contentWidth - 3, pageHeight, {
         size: 7.8,
         fontStyle: 'normal',
         color: DARK_TEXT,
@@ -2645,6 +2648,53 @@ function drawProjectSection(
       });
     }
     y += 3;
+
+    // Figuras de materiales en anexo/sección con imagen fija y alt del catálogo como pie (T-IMG-05)
+    const allTokens = project.requiredMaterials.flatMap((mat) =>
+      parseMaterialTokens(resolveMaterialString(mat))
+    );
+    const uniqueTokens = Array.from(new Map(allTokens.map((t) => [t.slug, t])).values());
+
+    if (uniqueTokens.length > 0) {
+      const cols = Math.min(3, uniqueTokens.length);
+      const colGap = 4;
+      const cardW = (contentWidth - colGap * (cols - 1)) / cols;
+      const imgSize = 20;
+      const cardH = 32;
+
+      for (let i = 0; i < uniqueTokens.length; i += cols) {
+        y = ensureVerticalSpace(doc, y, cardH + 4, margin, pageHeight);
+        const rowTokens = uniqueTokens.slice(i, i + cols);
+
+        for (let c = 0; c < rowTokens.length; c++) {
+          const tok = rowTokens[c];
+          const pngBuffer = readMaterialPng(tok.slug);
+          if (!pngBuffer) continue;
+
+          const cardX = margin + c * (cardW + colGap);
+          doc.setFillColor(248, 250, 252);
+          doc.rect(cardX, y, cardW, cardH, 'F');
+          doc.setDrawColor(226, 232, 240);
+          doc.rect(cardX, y, cardW, cardH, 'S');
+
+          const imgX = cardX + (cardW - imgSize) / 2;
+          try {
+            doc.addImage(pngBuffer, 'PNG', imgX, y + 2, imgSize, imgSize);
+          } catch {
+            // Protección ante fallos de decodificación de imagen
+          }
+
+          setFontCaption(doc);
+          doc.setFontSize(5.5);
+          doc.setTextColor(...MUTED_TEXT);
+          const caption = tok.item?.altText || tok.label;
+          const captionLines = doc.splitTextToSize(sanitizePdfText(caption), cardW - 3);
+          doc.text(captionLines.slice(0, 2), cardX + cardW / 2, y + imgSize + 4.5, { align: 'center' });
+        }
+        y += cardH + 3.5;
+      }
+      y += 2;
+    }
   }
 
   // Pasos Estructurados de Ejecución Procedimental
@@ -2669,39 +2719,41 @@ function drawProjectSection(
   }
 
   // Cronograma por Fases
-  y = ensureVerticalSpace(doc, y, 16, margin, pageHeight);
-  setFontBody(doc, 'bold');
-  doc.setFontSize(8.5);
-  doc.setTextColor(...NAVY);
-  doc.text('Cronograma y Entregables por Fases de Desarrollo:', margin, y);
-  y += 4.5;
+  if (project.phases && project.phases.length > 0) {
+    y = ensureVerticalSpace(doc, y, 16, margin, pageHeight);
+    setFontBody(doc, 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...NAVY);
+    doc.text('Cronograma y Entregables por Fases de Desarrollo:', margin, y);
+    y += 4.5;
 
-  const phaseBody = project.phases.map((p) => [
-    `Fase ${p.phaseNum}`,
-    p.title,
-    `${p.allocatedHours} hrs`,
-    `${Array.isArray(p.deliverables) ? p.deliverables.join(', ') : (p.deliverables || '')} — ${p.instructions || ''}`,
-  ]);
+    const phaseBody = project.phases.map((p) => [
+      `Fase ${p.phaseNum}`,
+      p.title,
+      `${p.allocatedHours} hrs`,
+      `${Array.isArray(p.deliverables) ? p.deliverables.join(', ') : (p.deliverables || '')} — ${p.instructions || ''}`,
+    ]);
 
-  y = ensureVerticalSpace(doc, y, 35, margin, pageHeight);
+    y = ensureVerticalSpace(doc, y, 35, margin, pageHeight);
 
-  autoTable(doc, {
-    startY: y,
-    margin: { left: margin, right: margin },
-    head: [['Fase', 'Etapa', 'Horas', 'Entregables y Criterios']],
-    body: phaseBody,
-    theme: 'grid',
-    headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontSize: 7.5, fontStyle: 'bold' },
-    styles: { fontSize: 7.2, cellPadding: 2.2, textColor: DARK_TEXT },
-    columnStyles: {
-      0: { cellWidth: 20, fontStyle: 'bold', textColor: MID_BLUE },
-      1: { cellWidth: 45 },
-      2: { cellWidth: 20, halign: 'center' },
-      3: { cellWidth: 'auto' },
-    },
-  });
+    autoTable(doc, {
+      startY: y,
+      margin: { left: margin, right: margin },
+      head: [['Fase', 'Etapa', 'Horas', 'Entregables y Criterios']],
+      body: phaseBody,
+      theme: 'grid',
+      headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontSize: 7.5, fontStyle: 'bold' },
+      styles: { fontSize: 7.2, cellPadding: 2.2, textColor: DARK_TEXT },
+      columnStyles: {
+        0: { cellWidth: 20, fontStyle: 'bold', textColor: MID_BLUE },
+        1: { cellWidth: 45 },
+        2: { cellWidth: 20, halign: 'center' },
+        3: { cellWidth: 'auto' },
+      },
+    });
 
-  y = doc.lastAutoTable!.finalY + 6;
+    y = doc.lastAutoTable!.finalY + 6;
+  }
 
   // Criterios de Entrega y Aceptación
   const criteriaList = [
