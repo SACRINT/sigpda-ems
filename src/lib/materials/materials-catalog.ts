@@ -633,12 +633,15 @@ const CATALOG_BY_SLUG = new Map<string, MaterialCatalogItem>(
   MATERIALES_CATALOG.map((item) => [item.slug, item])
 );
 
-// Mapeo inverso de alias a slug principal
+// Mapeo inverso de alias a slug principal (soporta variantes con y sin tildes)
 const ALIAS_TO_SLUG = new Map<string, string>();
 for (const item of MATERIALES_CATALOG) {
   if (item.aliases) {
     for (const alias of item.aliases) {
-      ALIAS_TO_SLUG.set(alias.toLowerCase(), item.slug);
+      const lower = alias.toLowerCase();
+      ALIAS_TO_SLUG.set(lower, item.slug);
+      const unaccented = lower.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      ALIAS_TO_SLUG.set(unaccented, item.slug);
     }
   }
 }
@@ -651,7 +654,8 @@ export function getMaterial(slugOrAlias: string): MaterialCatalogItem | undefine
   const normalized = slugOrAlias.trim().toLowerCase();
   const direct = CATALOG_BY_SLUG.get(normalized);
   if (direct) return direct;
-  const canonicalSlug = ALIAS_TO_SLUG.get(normalized);
+  const unaccented = normalized.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const canonicalSlug = ALIAS_TO_SLUG.get(normalized) || ALIAS_TO_SLUG.get(unaccented);
   return canonicalSlug ? CATALOG_BY_SLUG.get(canonicalSlug) : undefined;
 }
 
