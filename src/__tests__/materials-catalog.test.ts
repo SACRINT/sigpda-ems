@@ -103,4 +103,11 @@ describe('T-IMG-08: Test de Integridad Cruzada del Catálogo de Materiales', () 
     // <= 60 KB = 61440 bytes
     expect(stats.size).toBeLessThanOrEqual(61440);
   });
+
+  it('readMaterialPng rechaza slugs con caracteres no permitidos o intentos de path traversal (F-R13-05)', () => {
+    expect(readMaterialPng('../../secret')).toBeNull();
+    expect(readMaterialPng('slug_con_guion_bajo')).toBeNull();
+    expect(readMaterialPng('slug con espacio')).toBeNull();
+    expect(readMaterialPng('slug/con/slash')).toBeNull();
+  });
 });

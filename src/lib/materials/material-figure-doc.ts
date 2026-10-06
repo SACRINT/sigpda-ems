@@ -15,6 +15,7 @@ import path from 'path';
 export function readMaterialPng(slug: string): Buffer | null {
   if (!slug || typeof slug !== 'string') return null;
   const cleanSlug = slug.trim().toLowerCase();
+  if (!/^[a-z0-9-]+$/.test(cleanSlug)) return null;
   const baseDir = path.join(process.cwd(), 'public', 'images', 'materiales');
   const targetPath = path.join(baseDir, `${cleanSlug}.png`);
 
