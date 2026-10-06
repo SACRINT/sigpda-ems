@@ -50,7 +50,7 @@ Para referenciar un material en el cuerpo de una práctica, sesión de laborator
 
 ---
 
-## 3. Catálogo de los 48 Slugs Prioritarios P1
+## 3. Catálogo de los 49 Slugs Prioritarios P1
 
 | # | Slug | Nombre Oficial | Categoría | EPP Requerido | Equivalente Virtual |
 |---|---|---|---|---|---|
@@ -102,8 +102,7 @@ Para referenciar un material en el cuerpo de una práctica, sesión de laborator
 | 46 | `cuaderno-campo` | Cuaderno y Bitácora de Registro de Campo | medicion | — | — |
 | 47 | `material-arte` | Kit de Materiales Artísticos (Pinturas) | arte | — | Sketchpad / AutoDraw |
 | 48 | `balon` | Balones Deportivos Reglamentarios | deportivo | — | — |
-
-*(Nota: el asset complementario `conos` también está registrado con prioridad P1).*
+| 49 | `conos` | Juego de Conos y Marcadores Deportivos | deportivo | — | — |
 
 ---
 
