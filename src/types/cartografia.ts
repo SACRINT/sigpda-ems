@@ -23,6 +23,13 @@ export interface CartografiaPlantelItem {
   director?: string;
   docentesCount?: number;
   ubicacion?: string;
+  // Metas CREAA opcionales por plantel (G4 / Formato BGE-004)
+  matriculaAgosto?: number;
+  metaEficienciaTerminal?: number;
+  metaAbandono?: number;
+  metaEvaluaciones?: number;
+  metaAprobadosPct?: number;
+  metaAprobadosNum?: number;
 }
 
 export interface RecursoComunitario {
