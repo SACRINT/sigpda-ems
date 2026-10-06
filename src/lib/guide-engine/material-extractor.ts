@@ -3,6 +3,8 @@ import type { SecuenciaBloque } from '@/types/planning';
 import { isStemSubject, isHumanitiesSubject } from '@/lib/visual-engine/visual-dispatcher';
 import { buildSessionMoments } from './pedagogical-moments';
 import { auditPlanWorkbookCoherence, type CoherenceReport } from './plan-workbook-coherence';
+import { parseMaterialTokens, resolveMaterialTokensForMarkdown } from '@/lib/materials/material-tokens';
+import { getMaterialImagePaths } from '@/lib/materials/materials-catalog';
 
 /**
  * Plan de Clase individual por sesión derivado determinísticamente del Libro de Bloque.
@@ -403,7 +405,7 @@ function buildGuiaDelBloqueMarkdown(workbook: ActiveWorkTextbook): string {
     if (p.requiredMaterials && p.requiredMaterials.length > 0) {
       parts.push('### Materiales e Insumos:');
       for (const mat of p.requiredMaterials) {
-        parts.push(`- [ ] ${mat}`);
+        parts.push(`- [ ] ${resolveMaterialTokensForMarkdown(mat)}`);
       }
       parts.push('');
     }
@@ -749,16 +751,53 @@ function buildMaterialDidacticoMarkdown(
   parts.push(`**Bloque ${blockNum}** · ${workbook.coverData?.subjectName || ''}\n`);
 
   parts.push('## INVENTARIO DE MATERIALES Y CONSUMIBLES POR SESIÓN\n');
-  parts.push('| Sesión | Misión / Práctica | Materiales e Insumos Didácticos | Espacio Requerido |');
-  parts.push('|---|---|---|---|');
+  parts.push(
+    '| Sesión | Misión / Práctica | Materiales e Insumos Didácticos | Token | Imagen | EPP | Equivalente Virtual | Espacio Requerido |'
+  );
+  parts.push('|---|---|---|---|---|---|---|---|');
 
   for (const plan of planes) {
-    const isLab = plan.desarrollo.actividadEstudiante.toLowerCase().includes('laboratorio') ||
-                  plan.desarrollo.actividadEstudiante.toLowerCase().includes('taller') ||
-                  plan.tituloSesion.toLowerCase().includes('práctica');
+    const isLab =
+      plan.desarrollo.actividadEstudiante.toLowerCase().includes('laboratorio') ||
+      plan.desarrollo.actividadEstudiante.toLowerCase().includes('taller') ||
+      plan.tituloSesion.toLowerCase().includes('práctica');
     const espacio = isLab ? 'Laboratorio / Taller Especializado' : 'Aula de Clases';
 
-    parts.push(`| Sesión ${plan.numeroSesion} | ${plan.tituloSesion} | ${plan.desarrollo.recursosDidacticos} | ${espacio} |`);
+    const tokens = parseMaterialTokens(plan.desarrollo.recursosDidacticos);
+    const resolvedRecursos = resolveMaterialTokensForMarkdown(plan.desarrollo.recursosDidacticos);
+
+    let tokenCell = '-';
+    let imageCell = '-';
+    let eppCell = 'No requerido';
+    let virtualCell = '-';
+
+    if (tokens.length > 0) {
+      tokenCell = tokens.map((t) => `\`[[material:${t.slug}]]\``).join(', ');
+      imageCell = tokens.map((t) => getMaterialImagePaths(t.slug).png).join(', ');
+
+      const eppItems = tokens
+        .filter((t) => t.item?.eppRequerido && t.item.eppRequerido.length > 0)
+        .flatMap((t) => t.item?.eppRequerido || []);
+      if (eppItems.length > 0) {
+        eppCell = Array.from(new Set(eppItems)).join(', ');
+      }
+
+      const virtuals = tokens
+        .filter((t) => t.item?.equivalenteVirtual)
+        .map((t) => `[${t.item!.equivalenteVirtual!.nombre}](${t.item!.equivalenteVirtual!.url})`);
+      if (virtuals.length > 0) {
+        virtualCell = virtuals.join('; ');
+      }
+    }
+
+    const cleanSession = `Sesión ${plan.numeroSesion}`;
+    const cleanTitle = plan.tituloSesion.replace(/\|/g, '/');
+    const cleanRecursos = resolvedRecursos.replace(/\|/g, '/');
+    const cleanEspacio = espacio.replace(/\|/g, '/');
+
+    parts.push(
+      `| ${cleanSession} | ${cleanTitle} | ${cleanRecursos} | ${tokenCell} | ${imageCell} | ${eppCell} | ${virtualCell} | ${cleanEspacio} |`
+    );
   }
 
   return parts.join('\n');
