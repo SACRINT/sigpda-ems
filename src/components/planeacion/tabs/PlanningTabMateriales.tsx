@@ -8,6 +8,8 @@ import BlockPresentationActions from '@/components/planeacion/slides/BlockPresen
 import {
   Zap, RefreshCw, CheckCircle
 } from 'lucide-react';
+import { MaterialFigure } from '@/components/planeacion/MaterialFigure';
+import { parseMaterialTokens } from '@/lib/materials/material-tokens';
 
 
 
@@ -564,6 +566,36 @@ export default function PlanningTabMateriales({
                             <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: 'var(--c-text-muted)', lineHeight: 1.4 }}>
                               Guión técnico, reactivos didácticos, casos análogos, recursos digitales y requerimientos de aula/taller.
                             </p>
+
+                            {/* T-IMG-07 / F-R13-03: Figuras e insumos ilustrados detectados */}
+                            {(() => {
+                              const blockText = [
+                                materialExtra?.contentText || '',
+                                act.apertura?.materials || '',
+                                act.ejecucion?.materials || '',
+                                act.conclusion?.materials || '',
+                              ].join(' ');
+                              const detected = parseMaterialTokens(blockText);
+                              const unique = Array.from(new Map(detected.map((m) => [m.slug, m])).values()).slice(0, 4);
+                              if (unique.length === 0) return null;
+                              return (
+                                <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                  <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--c-text-muted)' }}>
+                                    Insumos ilustrados del bloque ({unique.length}):
+                                  </span>
+                                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                    {unique.map((mat, mIdx) => (
+                                      <MaterialFigure
+                                        key={`${mat.slug}-${mIdx}`}
+                                        slug={mat.slug}
+                                        label={mat.label}
+                                        width={68}
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            })()}
                           </div>
 
                           <div>
