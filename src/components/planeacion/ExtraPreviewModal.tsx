@@ -9,6 +9,9 @@ const MarkdownWithMermaid = dynamic(
   { ssr: false }
 );
 
+import { MaterialFigure } from '@/components/planeacion/MaterialFigure';
+import { parseMaterialTokens } from '@/lib/materials/material-tokens';
+
 interface ExtraPreviewModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -25,6 +28,38 @@ export function ExtraPreviewModal({
   type,
 }: ExtraPreviewModalProps) {
   const [copied, setCopied] = useState(false);
+
+  const detectedMaterials = parseMaterialTokens(contentText || '');
+  const uniqueMaterials = Array.from(
+    new Map(detectedMaterials.map((m) => [m.slug, m])).values()
+  );
+
+  function renderCellContent(cell: string) {
+    const tokens = parseMaterialTokens(cell);
+    if (tokens.length > 0) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div>{renderTextFormatting(cell)}</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+            {tokens.map((tok, idx) => (
+              <MaterialFigure key={`${tok.slug}-${idx}`} slug={tok.slug} label={tok.label} width={90} />
+            ))}
+          </div>
+        </div>
+      );
+    }
+    if (cell.includes('/images/materiales/') && cell.endsWith('.png')) {
+      const match = cell.match(/\/images\/materiales\/([a-zA-Z0-9-]+)\.png/);
+      if (match) {
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <MaterialFigure slug={match[1]} width={90} />
+          </div>
+        );
+      }
+    }
+    return renderTextFormatting(cell);
+  }
 
   useEffect(() => {
     if (!isOpen) return;
@@ -136,7 +171,7 @@ export function ExtraPreviewModal({
                             borderRight: cIdx < row.length - 1 ? '1px solid rgba(255,255,255,0.04)' : undefined,
                           }}
                         >
-                          {renderTextFormatting(cell)}
+                          {renderCellContent(cell)}
                         </td>
                       ))}
                     </tr>
@@ -315,7 +350,7 @@ export function ExtraPreviewModal({
                         borderRight: cIdx < row.length - 1 ? '1px solid rgba(255,255,255,0.04)' : undefined,
                       }}
                     >
-                      {renderTextFormatting(cell)}
+                      {renderCellContent(cell)}
                     </td>
                   ))}
                 </tr>
@@ -641,6 +676,37 @@ export function ExtraPreviewModal({
               color: 'var(--c-text, #f1f5f9)',
             }}
           >
+            {uniqueMaterials.length > 0 && (
+              <div
+                style={{
+                  marginBottom: '20px',
+                  padding: '16px',
+                  borderRadius: '10px',
+                  background: 'rgba(30, 41, 59, 0.6)',
+                  border: '1px solid rgba(56, 189, 248, 0.25)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#38bdf8', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                    🔬 Catálogo de Materiales y Herramientas ({uniqueMaterials.length})
+                  </span>
+                  <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+                    Repositorio Offline SIGPDA-EMS
+                  </span>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                  {uniqueMaterials.map((mat) => (
+                    <MaterialFigure
+                      key={mat.slug}
+                      slug={mat.slug}
+                      label={mat.label}
+                      width={140}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
             {!(contentText || '').trim() ? (
               <div style={{ padding: '48px 24px', textAlign: 'center', color: '#94a3b8' }}>
                 <p style={{ fontSize: '18px', fontWeight: 600, marginBottom: '8px', color: '#cbd5e1' }}>
