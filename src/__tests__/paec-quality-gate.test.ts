@@ -383,6 +383,17 @@ describe('paec-quality-gate — criterios individuales', () => {
     expect(result.evidenceFound).toContain('3 nombres de planes antiguos detectados');
   });
 
+  it('C9: no cuenta como válida UAC con nombre arbitrario no alineado al MCCEMS (sin tautología F-R12-04)', () => {
+    const mapeoArbitrario: MapeoRow[] = [
+      { semester: 1, uacName: 'Pensamiento Matemático I', topic: '', linking: '' }, // Coincide con MCCEMS
+      { semester: 1, uacName: 'XYZ123 Desconocido', topic: '', linking: '' }, // NO coincide con MCCEMS
+    ];
+    const result = evaluateCriterio9(mapeoArbitrario);
+    expect(result.score).toBe(4);
+    expect(result.status).toBe('pass');
+    expect(result.evidenceFound).toContain('1/2 UACs validadas');
+  });
+
   // ── Dimension 4: Cronograma (C11-C12) ───────────────────────────────────
 
   it('C11: null -> score=1, status=fail (Dim 4)', () => {

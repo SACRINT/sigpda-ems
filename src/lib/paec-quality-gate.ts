@@ -455,7 +455,7 @@ export function evaluateCriterio9(mapeo: MapeoRow[] | null | undefined): PaecAud
     const name = r.uacName || '';
     if (obsoletePattern.test(name)) {
       obsoleteCount++;
-    } else if (mccemsPattern.test(name) || name.trim().length > 0) {
+    } else if (mccemsPattern.test(name)) {
       mccemsCount++;
     }
   }
