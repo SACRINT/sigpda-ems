@@ -420,7 +420,7 @@ export default function PipsWizard({ locale }: { locale: string }) {
   const totalMujeres = planteles.reduce((sum, p) => sum + (Number(p.mujeres) || 0), 0);
   const granTotalAlumnos = planteles.reduce((sum, p) => sum + (Number(p.total) || (Number(p.hombres) || 0) + (Number(p.mujeres) || 0)), 0);
 
-  // ── Step 3 ── Directorio de Escuelas y Reflexión PIPS anterior
+  // ── Step 3 ── Directorio de Escuelas y Antecedente del Ciclo Previo
   const step3 = (
     <>
       {/* Directorio de Escuelas y Concentrado Zonal */}
@@ -700,9 +700,9 @@ export default function PipsWizard({ locale }: { locale: string }) {
         </div>
       </div>
 
-      {/* Reflexión PIPS anterior */}
+      {/* Antecedente del Ciclo Previo */}
       <div style={cardStyle}>
-        {sectionTitle('Reflexión del PIPS del ciclo anterior')}
+        {sectionTitle('Antecedente del Ciclo Previo')}
         <div style={{ marginBottom: 20 }}>
           <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: 'var(--c-text-muted)' }}>
             ¿Realizó PIPS en el ciclo escolar anterior?
@@ -722,7 +722,7 @@ export default function PipsWizard({ locale }: { locale: string }) {
         </div>
         {pips.pips_anterior_realizado ? (
           <>
-            {inp('Reflexión general del PIPS anterior', pips.reflexion_pips_anterior ?? '', v => set('reflexion_pips_anterior', v), {
+            {inp('Antecedente del Ciclo Previo', pips.reflexion_pips_anterior ?? '', v => set('reflexion_pips_anterior', v), {
               rows: 5, placeholder: 'Describe los principales resultados, logros y aprendizajes del PIPS del ciclo anterior...',
             })}
             {inp('Fortalezas identificadas (una por línea)', pips.fortalezas_anterior ?? '', v => set('fortalezas_anterior', v), {
