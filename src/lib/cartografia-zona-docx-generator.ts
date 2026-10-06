@@ -162,7 +162,15 @@ export async function generateCartografiaZonaDocx(project: CartografiaZonaProjec
   children.push(
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { before: 120, after: 60 },
+      spacing: { before: 80, after: 40 },
+      children: [
+        bold('SECRETARÍA DE EDUCACIÓN PÚBLICA DEL ESTADO DE PUEBLA\n', 12, NAVY),
+        bold('SUBSECRETARÍA DE EDUCACIÓN OBLIGATORIA · DBEPA\n', 10.5, '475569'),
+      ],
+    }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 80, after: 60 },
       children: [
         bold('CARTOGRAFÍA DE LA ZONA ESCOLAR', 16, NAVY),
         new TextRun({ text: `\nZONA ESCOLAR ${zona.toUpperCase()}`, bold: true, size: pt(13), color: GOLD, font: 'Arial' }),
