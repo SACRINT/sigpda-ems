@@ -523,9 +523,229 @@ export async function generateCartografiaZonaDocx(project: CartografiaZonaProjec
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GENERADOR (b): RESUMEN EJECUTIVO — MÁXIMO 2 CUARTILLAS (MÓDULO 4)
-// (Implementación completa en T3)
 // ─────────────────────────────────────────────────────────────────────────────
-export async function generateResumenEjecutivoDocx(_project: CartografiaZonaProject): Promise<Buffer> {
-  void _project;
-  return Buffer.from('');
+export async function generateResumenEjecutivoDocx(project: CartografiaZonaProject): Promise<Buffer> {
+  const p_ = project || ({} as CartografiaZonaProject);
+  const zona = p_.zonaNumero || p_.zonaClave || '004';
+  const ciclo = p_.cicloEscolar || '2026-2027';
+  const supervisor = p_.supervisorName || 'Supervisor(a) Escolar';
+  const memoria = p_.memoriaPedagogica;
+
+  const children: (Paragraph | Table)[] = [];
+
+  children.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 60, after: 100 },
+      children: [
+        bold('RESUMEN EJECUTIVO DE LA CARTOGRAFÍA DE ZONA', 13, NAVY),
+        new TextRun({ text: `\nZONA ESCOLAR ${zona.toUpperCase()} · CICLO ESCOLAR ${ciclo}`, bold: true, size: pt(10), color: GOLD, font: 'Arial' }),
+      ],
+    }),
+
+    // ── 1. DIAGNÓSTICO TERRITORIAL ──────────────────────────────────────
+    h1('1. DIAGNÓSTICO TERRITORIAL'),
+    p(
+      p_.momento2Organizar?.capaCuantitativa?.resumenEstadistico911F11 ||
+      p_.momento3Ubicar?.descripcionTerritorial ||
+      p_.momento1Conocer?.caracterizacionInicial ||
+      'La zona escolar integra planteles con condiciones territoriales semiurbanas y rurales, donde las dinámicas de movilidad, el contexto socioeconómico y los indicadores del 911/F11 sustentan la necesidad de un acompañamiento formativo y contextualizado.'
+    ),
+    br(),
+
+    // ── 2. SISTEMATIZACIÓN DE LA AUTONOMÍA ──────────────────────────────
+    h1('2. SISTEMATIZACIÓN DE LA AUTONOMÍA'),
+    p(
+      memoria?.comoLoLogramos ||
+      (p_.momento4Analizar?.acuerdosAutonomiaConsejo && p_.momento4Analizar.acuerdosAutonomiaConsejo.length > 0
+        ? p_.momento4Analizar.acuerdosAutonomiaConsejo.join(' ')
+        : 'Los colectivos docentes y directivos de la zona asumieron la autonomía profesional adaptando las progresiones de aprendizaje y desarrollando proyectos integradores PAEC acordes con la realidad de sus comunidades.')
+    ),
+    br(),
+
+    // ── 3. ANÁLISIS DE EFECTIVIDAD ──────────────────────────────────────
+    h1('3. ANÁLISIS DE EFECTIVIDAD'),
+    p(
+      memoria?.queLogramos ||
+      'Se observa una mejora tangible en la diversificación de estrategias de evaluación formativa y en el clima escolar, articulando los ejes de transformación del Modelo Educativo 2025 y la disminución de alertas de rezago.'
+    )
+  );
+
+  if (memoria?.indicadoresCambio) {
+    children.push(
+      bullet(`Indicador de Proceso: ${memoria.indicadoresCambio.proceso || 'Consolidación de planeaciones situadas'}`),
+      bullet(`Indicador CREAA: ${memoria.indicadoresCambio.creaa || 'Aumento en retención escolar'}`),
+      bullet(`Impacto Territorial: ${memoria.indicadoresCambio.impactoTerritorial || 'Mayor vinculación con la comunidad'}`)
+    );
+  }
+  children.push(br());
+
+  // ── 4. HOJA DE RUTA (CICLO 2026-2027) ───────────────────────────────
+  children.push(
+    h1('4. HOJA DE RUTA (CICLO 2026-2027)'),
+    p('Recomendaciones prioritarias para la mejora continua y el acompañamiento situado en la zona:')
+  );
+
+  const recomendaciones = (memoria?.hojaDeRutaProximoCiclo && memoria.hojaDeRutaProximoCiclo.length > 0)
+    ? memoria.hojaDeRutaProximoCiclo
+    : (p_.momento5Decidir?.compromisosSupervision && p_.momento5Decidir.compromisosSupervision.length > 0)
+      ? p_.momento5Decidir.compromisosSupervision
+      : [
+          '1. Fortalecer el acompañamiento formativo a planteles de atención prioritaria focalizando causas territoriales de abandono.',
+          '2. Homologar el seguimiento de evaluaciones diagnósticas (EDIEMS/ESA) mediante academias colegiadas de zona.',
+          '3. Consolidar la red de proyectos comunitarios PAEC y la memoria pedagógica viva de los colectivos docentes.',
+        ];
+
+  for (const rec of recomendaciones) {
+    children.push(bullet(rec));
+  }
+  children.push(br());
+
+  // Firma compacta
+  children.push(
+    new Table({
+      width: { size: 9600, type: WidthType.DXA },
+      borders: {
+        top: { style: BorderStyle.NONE },
+        bottom: { style: BorderStyle.NONE },
+        left: { style: BorderStyle.NONE },
+        right: { style: BorderStyle.NONE },
+      },
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: 9600, type: WidthType.DXA },
+              borders: {
+                top: { style: BorderStyle.SINGLE, size: 6, color: NAVY },
+                bottom: { style: BorderStyle.NONE },
+                left: { style: BorderStyle.NONE },
+                right: { style: BorderStyle.NONE },
+              },
+              margins: { top: mm(3), bottom: mm(2) },
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  children: [
+                    bold(`${supervisor}\n`, 9, NAVY),
+                    italic(`Supervisor(a) de la Zona Escolar ${zona} · Ciclo ${ciclo}`, 8),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+      ],
+    })
+  );
+
+  const doc = new Document({
+    creator: 'SIGPDA-EMS · Resumen Ejecutivo Cartografía',
+    title: `Resumen Ejecutivo de la Cartografía — Zona ${zona}`,
+    description: 'Resumen Ejecutivo de Zona Escolar (4 Secciones Módulo 4)',
+    sections: [
+      {
+        properties: {
+          page: {
+            margin: {
+              top: mm(18),
+              bottom: mm(18),
+              left: mm(20),
+              right: mm(20),
+            },
+          },
+        },
+        headers: {
+          default: new Header({
+            children: [
+              new Table({
+                width: { size: 9600, type: WidthType.DXA },
+                borders: {
+                  top: { style: BorderStyle.NONE },
+                  bottom: { style: BorderStyle.SINGLE, size: 6, color: GOLD },
+                  left: { style: BorderStyle.NONE },
+                  right: { style: BorderStyle.NONE },
+                },
+                rows: [
+                  new TableRow({
+                    children: [
+                      new TableCell({
+                        margins: { bottom: mm(1.5) },
+                        children: [
+                          new Paragraph({
+                            children: [
+                              bold('SECRETARÍA DE EDUCACIÓN PÚBLICA DEL ESTADO DE PUEBLA · DBEPA\n', 8, NAVY),
+                              italic(`Cartografía de Zona ${zona} — Ciclo ${ciclo} · Supervisor(a): ${supervisor}`, 7.5, '64748B'),
+                            ],
+                          }),
+                        ],
+                      }),
+                      new TableCell({
+                        margins: { bottom: mm(1.5) },
+                        children: [
+                          new Paragraph({
+                            alignment: AlignmentType.RIGHT,
+                            children: [
+                              bold('RESUMEN EJECUTIVO\n', 8, NAVY),
+                              italic('Máximo 2 cuartillas', 7.5, GOLD),
+                            ],
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
+        },
+        footers: {
+          default: new Footer({
+            children: [
+              new Table({
+                width: { size: 9600, type: WidthType.DXA },
+                borders: {
+                  top: { style: BorderStyle.SINGLE, size: 4, color: 'D9D9D9' },
+                  bottom: { style: BorderStyle.NONE },
+                  left: { style: BorderStyle.NONE },
+                  right: { style: BorderStyle.NONE },
+                },
+                rows: [
+                  new TableRow({
+                    children: [
+                      new TableCell({
+                        margins: { top: mm(1.5) },
+                        children: [
+                          new Paragraph({
+                            children: [
+                              italic('SIGPDA-EMS · Entregable Oficial Módulo 4 · Memoria Pedagógica', 7.5),
+                            ],
+                          }),
+                        ],
+                      }),
+                      new TableCell({
+                        margins: { top: mm(1.5) },
+                        children: [
+                          new Paragraph({
+                            alignment: AlignmentType.RIGHT,
+                            children: [
+                              normal('Página ', 7.5),
+                              new PageNumberElement(),
+                            ],
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
+        },
+        children,
+      },
+    ],
+  });
+
+  return await Packer.toBuffer(doc);
 }
