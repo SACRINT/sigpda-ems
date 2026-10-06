@@ -11,15 +11,9 @@ import { PmcPreviousExtractSchema } from '@/lib/prompts/pmc-extraction';
 import { parseAIResponse } from '@/lib/ai-response-parser';
 
 describe('Test partition sizes and structure for Heroes de la Patria and large 15-15-15 schools', () => {
-  const fixturePath = path.resolve(
-    process.cwd(),
-    '..',
-    'documentos_referencia',
-    '[05] Proyectos_PAEC_y_PMC',
-    '911 y F11',
-    'Heroes',
-    'PMC 2026-Heroes de la Patria.docx'
-  );
+  const cand1 = path.resolve(process.cwd(), '..', 'documentos_referencia', '[02]PMC', '911 y F11', 'Heroes', 'PMC 2026-Heroes de la Patria.docx');
+  const cand2 = path.resolve(process.cwd(), '..', 'documentos_referencia', '[05] Proyectos_PAEC_y_PMC', '911 y F11', 'Heroes', 'PMC 2026-Heroes de la Patria.docx');
+  const fixturePath = fs.existsSync(cand1) ? cand1 : cand2;
 
   it('partitions planText into balanced sub-chunks (< 10,000 chars) for high fidelity', async () => {
     const buffer = fs.readFileSync(fixturePath);

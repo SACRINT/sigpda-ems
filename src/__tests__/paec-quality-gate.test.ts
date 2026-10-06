@@ -13,6 +13,7 @@ import {
   evaluateCriterio2,
   evaluateCriterio5,
   evaluateCriterio8,
+  evaluateCriterio9,
   evaluateCriterio11,
   evaluateCriterio12,
   evaluateCriterio13,
@@ -342,6 +343,44 @@ describe('paec-quality-gate — criterios individuales', () => {
     const result = evaluateCriterio8(MAPEO_COMPLETO);
     expect(result.status).toBe('pass');
     expect(result.score).toBeGreaterThanOrEqual(3);
+  });
+
+  it('C9: null o vacio -> score=1, status=fail (Dim 3)', () => {
+    const resultNull = evaluateCriterio9(null);
+    expect(resultNull.score).toBe(1);
+    expect(resultNull.status).toBe('fail');
+
+    const resultEmpty = evaluateCriterio9([]);
+    expect(resultEmpty.score).toBe(1);
+    expect(resultEmpty.status).toBe('fail');
+  });
+
+  it('C9: mapeo con UACs oficiales MCCEMS sin nombres obsoletos -> score=4, status=pass y 0 obsoletos', () => {
+    const mapeoMccems: MapeoRow[] = [
+      { semester: 1, uacName: 'Pensamiento Matemático I', topic: 'Medición', linking: 'Vinculación comunitaria' },
+      { semester: 1, uacName: 'Lengua y Comunicación I', topic: 'Redacción', linking: 'Vinculación comunitaria' },
+      { semester: 1, uacName: 'La Materia y sus Interacciones', topic: 'Química verde', linking: 'Vinculación comunitaria' },
+      { semester: 3, uacName: 'Ecosistemas: Interacciones, Energía y Dinámica', topic: 'Huerto', linking: 'Vinculación comunitaria' },
+      { semester: 3, uacName: 'Entrega recursos materiales a otras áreas de una organización', topic: 'Logística', linking: 'Vinculación comunitaria' },
+      { semester: 5, uacName: 'Organismos: Estructuras y Procesos', topic: 'Biología', linking: 'Vinculación comunitaria' },
+      { semester: 5, uacName: 'Cálculo Diferencial', topic: 'Optimización', linking: 'Vinculación comunitaria' },
+    ];
+    const result = evaluateCriterio9(mapeoMccems);
+    expect(result.score).toBe(4);
+    expect(result.status).toBe('pass');
+    expect(result.evidenceFound).toContain('0 nombres obsoletos');
+  });
+
+  it('C9: mapeo con nombres de planes anteriores vigentes -> penaliza a score 2 con advertencia', () => {
+    const mapeoObsoleto: MapeoRow[] = [
+      { semester: 1, uacName: 'Álgebra', topic: 'Ecuaciones', linking: 'Vinculación' },
+      { semester: 1, uacName: 'Química I', topic: 'Compuestos', linking: 'Vinculación' },
+      { semester: 1, uacName: 'Física I', topic: 'Mecánica', linking: 'Vinculación' },
+    ];
+    const result = evaluateCriterio9(mapeoObsoleto);
+    expect(result.score).toBe(2);
+    expect(result.status).toBe('warning');
+    expect(result.evidenceFound).toContain('3 nombres de planes antiguos detectados');
   });
 
   // ── Dimension 4: Cronograma (C11-C12) ───────────────────────────────────

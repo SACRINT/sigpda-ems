@@ -36,15 +36,9 @@ vi.mock('@/lib/ai-provider', () => ({
 import { generateWithRotation } from '@/lib/ai-provider';
 
 describe('Paquete C (H-216) — Metas institucionales del PMC: >40 sin truncar y cobertura', () => {
-  const fixturePath = path.resolve(
-    process.cwd(),
-    '..',
-    'documentos_referencia',
-    '[05] Proyectos_PAEC_y_PMC',
-    '911 y F11',
-    'Heroes',
-    'PMC 2026-Heroes de la Patria.docx'
-  );
+  const cand1 = path.resolve(process.cwd(), '..', 'documentos_referencia', '[02]PMC', '911 y F11', 'Heroes', 'PMC 2026-Heroes de la Patria.docx');
+  const cand2 = path.resolve(process.cwd(), '..', 'documentos_referencia', '[05] Proyectos_PAEC_y_PMC', '911 y F11', 'Heroes', 'PMC 2026-Heroes de la Patria.docx');
+  const fixturePath = fs.existsSync(cand1) ? cand1 : cand2;
 
   it('1. Conteo determinista: detecta honestamente ~22 actividades/metas en el fixture real de Héroes de la Patria (excluyendo firmas finales, H-298)', async () => {
     expect(fs.existsSync(fixturePath)).toBe(true);

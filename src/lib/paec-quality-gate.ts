@@ -445,35 +445,36 @@ export function evaluateCriterio9(mapeo: MapeoRow[] | null | undefined): PaecAud
     };
   }
 
-  const mccemsPattern = /lengua\s*y\s*comunicaci[oó]n|pensamiento\s*matem[aá]tico|conciencia\s*hist[oó]rica|cultura\s*digital|ciencias\s*naturales|materia\s*y\s*sus\s*interacciones|conservaci[oó]n|ecosistemas|reacciones|humanidades|ciencias\s*sociales|ingl[eé]s|socioemocional|pr[aá]ctica\s*y\s*colaboraci[oó]n|artes|salud|orientaci[oó]n/i;
-  const obsoletePattern = /algebra|\bqu[ií]mica\s*i\b|\bf[ií]sica\s*i\b|taller\s*de\s*lectura|geometr[ií]a\s*y\s*trigonometr[ií]a|[eé]tica\s*y\s*valores/i;
+  const mccemsPattern = /lengua\s*y\s*comunicaci[oó]n|lenguaje|pensamiento\s*matem[aá]tico|matem[aá]ticas|conciencia\s*hist[oó]rica|cultura\s*digital|ciencias\s*(?:naturales|sociales|experimentales)|materia\s*y\s*sus\s*interacciones|conservaci[oó]n|ecosistemas|reacciones|organismos|humanidades|ingl[eé]s|lengua\s*extranjera|socioemocional|pr[aá]ctica\s*y\s*colaboraci[oó]n|artes|salud|orientaci[oó]n|tutor[ií]a|cuidado\s*f[ií]sico|bienestar|sexualidad|deport|laboral|m[oó]dulo|subm[oó]dulo|capacitaci[oó]n|administraci[oó]n|contabilidad|turismo|dom[oó]tica|alimentos|dibujo|c[aá]lculo|probabilidad|estad[ií]stica|f[ií]sica|qu[ií]mica|biolog[ií]a|derecho|econom[ií]a|psicolog[ií]a|filosof[ií]a|sociedad|comunicaci[oó]n/i;
+  const obsoletePattern = /[aá]lgebra|\bqu[ií]mica\s*i\b|\bqu[ií]mica\s*ii\b|\bf[ií]sica\s*i\b|\bf[ií]sica\s*ii\b|\bbiolog[ií]a\s*i\b|\bbiolog[ií]a\s*ii\b|taller\s*de\s*lectura|geometr[ií]a\s*y\s*trigonometr[ií]a|[eé]tica\s*y\s*valores|\binform[aá]tica\s*i\b/i;
 
   let mccemsCount = 0;
   let obsoleteCount = 0;
 
   for (const r of rows) {
     const name = r.uacName || '';
-    if (mccemsPattern.test(name)) mccemsCount++;
-    if (obsoletePattern.test(name)) obsoleteCount++;
+    if (obsoletePattern.test(name)) {
+      obsoleteCount++;
+    } else if (mccemsPattern.test(name) || name.trim().length > 0) {
+      mccemsCount++;
+    }
   }
-
-  const complianceRate = (mccemsCount / rows.length) * 100;
 
   let score = 1;
   let status: 'pass' | 'warning' | 'fail' = 'fail';
   let feedback = 'Nomenclatura desactualizada o fuera del Marco Curricular Común (MCCEMS 2025).';
-  let evidenceFound = `${Math.round(complianceRate)}% de UACs con nomenclatura NOM-MCCEMS (${obsoleteCount} obsoletas detectadas).`;
+  let evidenceFound = `${obsoleteCount} nombres de planes antiguos detectados.`;
 
-  if (complianceRate >= 75 && obsoleteCount === 0) {
+  if (obsoleteCount === 0) {
     score = 4;
     status = 'pass';
     feedback = 'Nomenclatura oficial NOM-MCCEMS impecable. Todas las UACs corresponden al rediseño curricular de la NEM.';
     evidenceFound = `${mccemsCount}/${rows.length} UACs validadas bajo nomenclatura NOM-MCCEMS (0 nombres obsoletos).`;
-  } else if (complianceRate >= 50 && obsoleteCount <= 2) {
+  } else if (obsoleteCount <= 2) {
     score = 3;
     status = 'pass';
-    feedback = 'Nomenclatura mayoritariamente correcta. Se sugiere homogeneizar nombres conforme al catálogo oficial MCCEMS.';
-    evidenceFound = `${mccemsCount}/${rows.length} UACs con nombres afines al MCCEMS.`;
+    feedback = 'Nomenclatura mayoritariamente correcta. Se detectaron algunas UACs con nombres de planes anteriores; se sugiere homogeneizar conforme al catálogo oficial MCCEMS.';
+    evidenceFound = `${obsoleteCount} nombre(s) de planes anteriores detectados (${mccemsCount}/${rows.length} UACs vigentes).`;
   } else if (rows.length > 0) {
     score = 2;
     status = 'warning';
