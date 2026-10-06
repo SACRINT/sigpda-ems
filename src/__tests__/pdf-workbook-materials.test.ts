@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { renderWorkbookToPdf } from '@/lib/pdf-workbook-renderer';
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
+import type { Planning } from '@/types/planning';
 
 describe('T-IMG-05: Renderizado de Figuras de Materiales en Libro PDF', () => {
   const mockWorkbook: Partial<ActiveWorkTextbook> = {
@@ -50,11 +51,30 @@ describe('T-IMG-05: Renderizado de Figuras de Materiales en Libro PDF', () => {
       executionSteps: ['Paso 1: Medición de voltaje'],
       technicalSpecs: ['Rango 0-250V'],
       acceptanceCriteria: ['Lectura correcta'],
+      phases: [
+        {
+          phaseNum: 1,
+          title: 'Fase 1: Diagnóstico',
+          allocatedHours: 2,
+          deliverables: ['Reporte inicial'],
+          instructions: 'Verificar tablero',
+        },
+      ],
     },
   };
 
+  const mockPlanning = {
+    id: 'plan-test-01',
+    uacName: 'Física y Circuitos',
+    contentJson: { sectionI: {}, sectionII: {} },
+  };
+
   it('renderiza exitosamente a PDF un libro con tokens de materiales en projectSection', async () => {
-    const pdfBuffer = await renderWorkbookToPdf(mockWorkbook as ActiveWorkTextbook);
+    const pdfBuffer = await renderWorkbookToPdf(
+      mockWorkbook as ActiveWorkTextbook,
+      mockPlanning as unknown as Planning,
+      { forceFallbackCover: true }
+    );
 
     expect(pdfBuffer).toBeInstanceOf(Buffer);
     expect(pdfBuffer.length).toBeGreaterThan(1000);

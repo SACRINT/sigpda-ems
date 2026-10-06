@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { renderWorkbookToDocx } from '@/lib/docx-workbook-renderer';
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
+import type { Planning } from '@/types/planning';
 
 describe('T-IMG-06: Renderizado de Figuras de Materiales en Libro DOCX', () => {
   const mockWorkbook: Partial<ActiveWorkTextbook> = {
@@ -50,11 +51,29 @@ describe('T-IMG-06: Renderizado de Figuras de Materiales en Libro DOCX', () => {
       executionSteps: ['Paso 1: Medición'],
       technicalSpecs: ['Norma NOM-001'],
       acceptanceCriteria: ['Precisión certificada'],
+      phases: [
+        {
+          phaseNum: 1,
+          title: 'Fase 1: Diagnóstico',
+          allocatedHours: 2,
+          deliverables: ['Reporte técnico'],
+          instructions: 'Verificar conexionado',
+        },
+      ],
     },
   };
 
+  const mockPlanning = {
+    id: 'plan-test-docx',
+    uacName: 'Electrónica y Mediciones',
+    contentJson: { sectionI: {}, sectionII: {} },
+  };
+
   it('renderiza exitosamente a DOCX un libro con tokens de materiales incrustando ImageRun', async () => {
-    const docxBuffer = await renderWorkbookToDocx(mockWorkbook as ActiveWorkTextbook);
+    const docxBuffer = await renderWorkbookToDocx(
+      mockWorkbook as ActiveWorkTextbook,
+      mockPlanning as unknown as Planning
+    );
 
     expect(docxBuffer).toBeInstanceOf(Buffer);
     expect(docxBuffer.length).toBeGreaterThan(2000);
