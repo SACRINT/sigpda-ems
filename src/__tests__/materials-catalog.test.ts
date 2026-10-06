@@ -10,9 +10,9 @@ import {
 import { readMaterialPng } from '@/lib/materials/material-figure-doc';
 
 describe('T-IMG-08: Test de Integridad Cruzada del Catálogo de Materiales', () => {
-  it('contiene los 48 slugs prioritarios P1 del Modelo Educativo 2025 / MCCEMS', () => {
+  it('contiene los 49 slugs prioritarios P1 del Modelo Educativo 2025 / MCCEMS (incluyendo tester-cable)', () => {
     const p1Items = MATERIALES_CATALOG.filter((item) => item.priority === 'P1');
-    expect(p1Items.length).toBeGreaterThanOrEqual(48);
+    expect(p1Items.length).toBe(49);
   });
 
   it('todos los slugs son únicos y cumplen con formato kebab-case estricto', () => {
