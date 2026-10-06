@@ -132,18 +132,41 @@ export default async function PipsDashboardPage({
                   {proj.status === 'completed' && (
                     <>
                       <a
+                        href={`/api/pdf/cartografia/${proj.id as string}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn btn-sm"
+                        style={{ backgroundColor: '#1F3864', borderColor: '#E8A020', color: '#fff', fontWeight: 600 }}
+                      >
+                        📄 Cartografía PDF
+                      </a>
+                      <a
+                        href={`/api/docx/cartografia/${proj.id as string}`}
+                        className="btn btn-sm"
+                        style={{ backgroundColor: '#2563EB', borderColor: '#2563EB', color: '#fff', fontWeight: 600 }}
+                      >
+                        📥 Word I-IV
+                      </a>
+                      <a
+                        href={`/api/docx/cartografia/${proj.id as string}/resumen`}
+                        className="btn btn-sm"
+                        style={{ backgroundColor: '#0D9488', borderColor: '#0D9488', color: '#fff', fontWeight: 600 }}
+                      >
+                        📄 Resumen Word
+                      </a>
+                      <a
                         href={`/api/pdf/pips/${proj.id as string}`}
                         className="btn btn-sm"
-                        style={{ backgroundColor: '#c0392b', borderColor: '#c0392b', color: '#fff', fontWeight: 600 }}
+                        style={{ backgroundColor: '#64748B', borderColor: '#64748B', color: '#fff', fontSize: '11px' }}
                       >
-                        ↓ PIPS Oficial PDF
+                        ↓ PDF (PIPS)
                       </a>
                       <a
                         href={`/api/docx/pips/${proj.id as string}`}
-                        className="btn btn-primary btn-sm"
-                        style={{ backgroundColor: 'var(--c-amber)', borderColor: 'var(--c-amber)', color: '#fff' }}
+                        className="btn btn-sm"
+                        style={{ backgroundColor: '#64748B', borderColor: '#64748B', color: '#fff', fontSize: '11px' }}
                       >
-                        ↓ Descargar Word
+                        ↓ Word (PIPS)
                       </a>
                     </>
                   )}
