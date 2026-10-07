@@ -205,5 +205,35 @@ describe('Excel Import Engine — Formato 911.7G / F11C / Cartografía de Zona',
     expect(diagText).toContain('sin registro consolidado de matrícula');
     expect(diagText).not.toContain('con una matrícula total de 0 estudiantes');
   });
+
+  it('7. Matriz con columna de matrícula suma correctamente la matrícula total (420) sin regresión (T8/H-095)', () => {
+    const mockRowsConMatricula = [
+      ['SUBSECRETARÍA DE EDUCACIÓN MEDIA SUPERIOR - CONCENTRADO ZONAL'],
+      ['No.', 'C.C.T.', 'Nombre del Plantel', 'Turno', 'Matrícula', 'Promedio Calificaciones'],
+      [1, '21EBH0015A', 'BGE Venustiano Carranza', 'MATUTINO', 240, 8.5],
+      [2, '21EBH0020B', 'BGE Francisco Z. Mena', 'VESPERTINO', 180, 7.8],
+    ];
+
+    const result = parsePmcStatistics(mockRowsConMatricula, {
+      zonaNumero: '004',
+      cicloEscolar: '2026-2027',
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.allPlanteles.length).toBe(2);
+    expect(result.allPlanteles[0].matricula).toBe(240);
+    expect(result.allPlanteles[1].matricula).toBe(180);
+    expect(result.zona?.matriculaTotal).toBe(420);
+
+    const diagText = buildZoneDiagnosticText({
+      zonaNumero: '004',
+      cicloEscolar: '2026-2027',
+      totalPlanteles: result.allPlanteles.length,
+      matriculaTotal: result.zona?.matriculaTotal,
+      promedioAprovechamiento: result.zona?.promedioCalificaciones,
+    });
+
+    expect(diagText).toContain('con una matrícula total de 420 estudiantes');
+  });
 });
 
