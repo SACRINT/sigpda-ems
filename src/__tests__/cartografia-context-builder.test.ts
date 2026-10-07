@@ -301,6 +301,20 @@ describe('Cartografia Context Builder (H-011)', () => {
     expect(diagText).toContain('Reprobación del N/D');
     expect(diagText).not.toContain('del 0%');
   });
+
+  // (h) Función pura de diagnóstico de zona: maneja ausencia de zonaNumero y cicloEscolar sin defaults fabricados (H-092, H-100)
+  it('(h) buildZoneDiagnosticText maneja zona y ciclo ausentes sin fabricar defaults "004" ni "2026-2027" (H-092, H-100)', () => {
+    const diagText = buildZoneDiagnosticText({
+      totalPlanteles: 1,
+      matriculaTotal: undefined,
+    });
+
+    expect(diagText).toContain('Zona N/D');
+    expect(diagText).toContain('Ciclo N/D');
+    expect(diagText).not.toContain('Zona 004');
+    expect(diagText).not.toContain('Ciclo 2026-2027');
+    expect(diagText).toContain('sin registro consolidado de matrícula');
+  });
 });
 
 describe('Cartografia Fallback Defaults (H-013)', () => {
