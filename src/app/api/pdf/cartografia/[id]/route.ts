@@ -75,6 +75,23 @@ export async function GET(_req: NextRequest, { params }: RouteCtx) {
     const audit = auditCartografiaProject(cartografiaProject);
     logger.info(`[Cartografia PDF Export] Quality Gate: ${audit.percentage}% (${audit.status}) para proyecto ${id}`);
 
+    // Bloqueo suave por Quality Gate: Si el estado es 'REQUIERE_REVISION' (< 50%), denegar con 422 (F-R20-03)
+    if (audit.status === 'REQUIERE_REVISION') {
+      return NextResponse.json(
+        {
+          error: `El proyecto no cumple con los criterios mínimos de calidad requeridos (${audit.percentage}% - ${audit.status}). Complete los campos obligatorios antes de exportar.`,
+          quality: {
+            score: audit.totalScore,
+            maxScore: audit.maxScore,
+            percentage: audit.percentage,
+            status: audit.status,
+            recommendations: audit.recommendations,
+          },
+        },
+        { status: 422 }
+      );
+    }
+
     const buffer = await generateCartografiaPDF(cartografiaProject);
 
     const zonaSanitized = (cartografiaProject.zonaNumero || '004').replace(/\s+/g, '_');

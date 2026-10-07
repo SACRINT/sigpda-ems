@@ -24,6 +24,7 @@ import { auth } from '@/lib/auth';
 import { getTeacherByEmail } from '@/lib/db';
 import { GET as handleDocxIIV } from '@/app/api/docx/cartografia/[id]/route';
 import { GET as handleDocxResumen } from '@/app/api/docx/cartografia/[id]/resumen/route';
+import { GET as handlePdfCartografia } from '@/app/api/pdf/cartografia/[id]/route';
 
 const mockTeacher = {
   id: '00000000-0000-0000-0000-000000000001',
@@ -85,6 +86,30 @@ describe('API Routes: Descargas DOCX de Cartografía de Zona', () => {
       expect(res.headers.get('Content-Disposition')).toContain('attachment; filename="Cartografia_Zona_');
       expect(res.headers.get('X-Quality-Score')).toBeDefined();
     });
+
+    it('retorna 422 si el Quality Gate determina REQUIERE_REVISION (< 50%) (F-R20-03)', async () => {
+      vi.mocked(auth).mockResolvedValueOnce({ user: { email: mockTeacher.email } } as never);
+      vi.mocked(getTeacherByEmail).mockResolvedValueOnce(mockTeacher as never);
+      mockSqlTag.mockResolvedValueOnce([
+        {
+          ...mockProjectRow,
+          planteles_json: [],
+          num_planteles: 0,
+          momento3_ubicar: { comunidadesProcedencia: [] },
+          momento4_analizar: { triangulacion: {} },
+          momento5_decidir: { metaGeneralZona: '', lineasAccion: [] },
+          memoria_pedagogica: { queLogramos: '' },
+        },
+      ]);
+
+      const req = new NextRequest('http://localhost:3000/api/docx/cartografia/11111111-1111-1111-1111-111111111111');
+      const res = await handleDocxIIV(req, { params: Promise.resolve({ id: '11111111-1111-1111-1111-111111111111' }) });
+      expect(res.status).toBe(422);
+      const data = await res.json();
+      expect(data.error).toContain('criterios mínimos de calidad requeridos');
+      expect(data.quality.status).toBe('REQUIERE_REVISION');
+      expect(data.quality.percentage).toBeLessThan(50);
+    });
   });
 
   describe('GET /api/docx/cartografia/[id]/resumen (Resumen Ejecutivo)', () => {
@@ -105,6 +130,73 @@ describe('API Routes: Descargas DOCX de Cartografía de Zona', () => {
       expect(res.status).toBe(200);
       expect(res.headers.get('Content-Type')).toBe('application/vnd.openxmlformats-officedocument.wordprocessingml.document');
       expect(res.headers.get('Content-Disposition')).toContain('Resumen_Ejecutivo_Zona_');
+      expect(res.headers.get('X-Quality-Score')).toBeDefined();
+    });
+
+    it('retorna 422 si el Quality Gate determina REQUIERE_REVISION en Resumen Ejecutivo (F-R20-03)', async () => {
+      vi.mocked(auth).mockResolvedValueOnce({ user: { email: mockTeacher.email } } as never);
+      vi.mocked(getTeacherByEmail).mockResolvedValueOnce(mockTeacher as never);
+      mockSqlTag.mockResolvedValueOnce([
+        {
+          ...mockProjectRow,
+          planteles_json: [],
+          num_planteles: 0,
+          momento3_ubicar: { comunidadesProcedencia: [] },
+          momento4_analizar: { triangulacion: {} },
+          momento5_decidir: { metaGeneralZona: '', lineasAccion: [] },
+          memoria_pedagogica: { queLogramos: '' },
+        },
+      ]);
+
+      const req = new NextRequest('http://localhost:3000/api/docx/cartografia/11111111-1111-1111-1111-111111111111/resumen');
+      const res = await handleDocxResumen(req, { params: Promise.resolve({ id: '11111111-1111-1111-1111-111111111111' }) });
+      expect(res.status).toBe(422);
+      const data = await res.json();
+      expect(data.error).toContain('criterios mínimos de calidad requeridos');
+      expect(data.quality.status).toBe('REQUIERE_REVISION');
+    });
+  });
+
+  describe('GET /api/pdf/cartografia/[id] (PDF Institucional)', () => {
+    it('retorna 401 si no hay sesión autenticada', async () => {
+      vi.mocked(auth).mockResolvedValueOnce(null as never);
+      const req = new NextRequest('http://localhost:3000/api/pdf/cartografia/11111111-1111-1111-1111-111111111111');
+      const res = await handlePdfCartografia(req, { params: Promise.resolve({ id: '11111111-1111-1111-1111-111111111111' }) });
+      expect(res.status).toBe(401);
+    });
+
+    it('retorna 422 si el Quality Gate determina REQUIERE_REVISION en PDF (F-R20-03)', async () => {
+      vi.mocked(auth).mockResolvedValueOnce({ user: { email: mockTeacher.email } } as never);
+      vi.mocked(getTeacherByEmail).mockResolvedValueOnce(mockTeacher as never);
+      mockSqlTag.mockResolvedValueOnce([
+        {
+          ...mockProjectRow,
+          planteles_json: [],
+          num_planteles: 0,
+          momento3_ubicar: { comunidadesProcedencia: [] },
+          momento4_analizar: { triangulacion: {} },
+          momento5_decidir: { metaGeneralZona: '', lineasAccion: [] },
+          memoria_pedagogica: { queLogramos: '' },
+        },
+      ]);
+
+      const req = new NextRequest('http://localhost:3000/api/pdf/cartografia/11111111-1111-1111-1111-111111111111');
+      const res = await handlePdfCartografia(req, { params: Promise.resolve({ id: '11111111-1111-1111-1111-111111111111' }) });
+      expect(res.status).toBe(422);
+      const data = await res.json();
+      expect(data.error).toContain('criterios mínimos de calidad requeridos');
+      expect(data.quality.status).toBe('REQUIERE_REVISION');
+    });
+
+    it('retorna 200 con archivo PDF cuando el proyecto cumple calidad', async () => {
+      vi.mocked(auth).mockResolvedValueOnce({ user: { email: mockTeacher.email } } as never);
+      vi.mocked(getTeacherByEmail).mockResolvedValueOnce(mockTeacher as never);
+      mockSqlTag.mockResolvedValueOnce([mockProjectRow]);
+
+      const req = new NextRequest('http://localhost:3000/api/pdf/cartografia/11111111-1111-1111-1111-111111111111');
+      const res = await handlePdfCartografia(req, { params: Promise.resolve({ id: '11111111-1111-1111-1111-111111111111' }) });
+      expect(res.status).toBe(200);
+      expect(res.headers.get('Content-Type')).toBe('application/pdf');
       expect(res.headers.get('X-Quality-Score')).toBeDefined();
     });
   });
