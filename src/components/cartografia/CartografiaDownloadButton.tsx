@@ -2,11 +2,88 @@
 
 import React, { useState } from 'react';
 
-interface QualityReportError {
+export interface QualityReportError {
   error: string;
   percentage?: number;
   status?: string;
   recommendations?: string[];
+}
+
+export type ParseDownloadResponseResult =
+  | {
+      kind: 'quality_422';
+      data: QualityReportError;
+    }
+  | {
+      kind: 'generic_error';
+      status: number;
+      error: string;
+    }
+  | {
+      kind: 'success';
+      filename: string;
+      blob: Blob;
+    };
+
+interface ApiResponsePayload {
+  error?: string;
+  quality?: {
+    percentage?: number;
+    status?: string;
+    recommendations?: string[];
+  };
+}
+
+/**
+ * Función pura que analiza la respuesta HTTP de descarga de cartografía.
+ * Maneja el bloqueo suave 422 del Quality Gate, errores HTTP genéricos y la obtención del archivo binario.
+ */
+export async function parseDownloadResponse(
+  res: Response,
+  defaultFilename = 'documento'
+): Promise<ParseDownloadResponseResult> {
+  if (res.status === 422) {
+    const data = (await res.json().catch(() => ({}))) as ApiResponsePayload;
+    return {
+      kind: 'quality_422',
+      data: {
+        error: data.error || 'El proyecto no cumple con los criterios mínimos de calidad requeridos.',
+        percentage: data.quality?.percentage,
+        status: data.quality?.status,
+        recommendations: Array.isArray(data.quality?.recommendations) ? data.quality.recommendations : [],
+      },
+    };
+  }
+
+  if (!res.ok) {
+    const data = (await res.json().catch(() => ({}))) as ApiResponsePayload;
+    return {
+      kind: 'generic_error',
+      status: res.status,
+      error: data.error || `Error ${res.status}: No se pudo descargar el documento.`,
+    };
+  }
+
+  const disposition = res.headers.get('Content-Disposition');
+  let filename = defaultFilename;
+  if (disposition) {
+    const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+    if (utf8Match && utf8Match[1]) {
+      filename = decodeURIComponent(utf8Match[1]);
+    } else {
+      const match = disposition.match(/filename="?([^";]+)"?/i);
+      if (match && match[1]) {
+        filename = match[1];
+      }
+    }
+  }
+
+  const blob = await res.blob();
+  return {
+    kind: 'success',
+    filename,
+    blob,
+  };
 }
 
 interface CartografiaDownloadButtonProps {
@@ -38,43 +115,22 @@ export default function CartografiaDownloadButton({
 
     try {
       const res = await fetch(url);
+      const parsed = await parseDownloadResponse(res, defaultFilename);
 
-      if (res.status === 422) {
-        const data = await res.json().catch(() => ({}));
-        setQualityError({
-          error: data.error || 'El proyecto no cumple con los criterios mínimos de calidad requeridos.',
-          percentage: data.quality?.percentage,
-          status: data.quality?.status,
-          recommendations: data.quality?.recommendations || [],
-        });
+      if (parsed.kind === 'quality_422') {
+        setQualityError(parsed.data);
         return;
       }
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setGenericError(data.error || `Error ${res.status}: No se pudo descargar el documento.`);
+      if (parsed.kind === 'generic_error') {
+        setGenericError(parsed.error);
         return;
       }
 
-      const disposition = res.headers.get('Content-Disposition');
-      let filename = defaultFilename;
-      if (disposition) {
-        const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
-        if (utf8Match && utf8Match[1]) {
-          filename = decodeURIComponent(utf8Match[1]);
-        } else {
-          const match = disposition.match(/filename="?([^";]+)"?/i);
-          if (match && match[1]) {
-            filename = match[1];
-          }
-        }
-      }
-
-      const blob = await res.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
+      const blobUrl = window.URL.createObjectURL(parsed.blob);
       const a = document.createElement('a');
       a.href = blobUrl;
-      a.download = filename;
+      a.download = parsed.filename;
       document.body.appendChild(a);
       a.click();
       a.remove();
