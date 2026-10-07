@@ -93,7 +93,7 @@ export function buildCartografiaFullPrompt(
 - Municipios de Cobertura: ${identificacion.municipiosAtiende}
 - Asesores Técnicos Pedagógicos (ATP): ${identificacion.atps.join(', ') || 'Equipo de Asesoría de Zona'}
 - Total de Planteles: ${numPlanteles} planteles oficiales
-- Matrícula Total Atendida: ${matTotal} estudiantes
+- Matrícula Total Atendida: ${matTotal !== undefined && matTotal > 0 ? matTotal : 'N/D'} estudiantes
 
 ${libraryContext || ''}
 
@@ -283,7 +283,7 @@ function renderBaseStats(
 - Zona Escolar: ${identificacion.zonaNumero} (Clave: ${identificacion.zonaClave}) | Subsistema: ${identificacion.subsistema}
 - Supervisor(a): ${identificacion.supervisorName} | Ciclo Escolar: ${identificacion.cicloEscolar}
 - Municipio Sede: ${identificacion.municipioSede} | Municipios de Cobertura: ${identificacion.municipiosAtiende}
-- Total de Planteles: ${numPlanteles} | Matrícula Total Atendida: ${matTotal} estudiantes
+- Total de Planteles: ${numPlanteles} | Matrícula Total Atendida: ${matTotal !== undefined && matTotal > 0 ? matTotal : 'N/D'} estudiantes
 - Equipo ATP: ${identificacion.atps.join(', ') || 'Equipo de Asesoría de Zona'}
 
 ${libraryContext ? `CONTEXTO DE BIBLIOTECA DOCENTE:\n${libraryContext}\n` : ''}

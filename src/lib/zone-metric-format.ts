@@ -25,7 +25,7 @@ export interface ZoneDiagnosticParams {
   zonaNumero?: string;
   cicloEscolar?: string;
   totalPlanteles: number;
-  matriculaTotal: number;
+  matriculaTotal?: number;
   promedioEficiencia?: number;
   promedioAbandono?: number;
   promedioAprovechamiento?: number;

@@ -198,7 +198,7 @@ describe('Excel Import Engine — Formato 911.7G / F11C / Cartografía de Zona',
       zonaNumero: '004',
       cicloEscolar: '2026-2027',
       totalPlanteles: result.allPlanteles.length,
-      matriculaTotal: result.zona?.matriculaTotal ?? 0,
+      matriculaTotal: result.zona?.matriculaTotal,
       promedioAprovechamiento: result.zona?.promedioCalificaciones,
     });
 

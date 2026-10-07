@@ -171,11 +171,13 @@ export async function generateCartografiaPDF(
   doc.text('«Antes de construir el mapa, aprendemos a mirar el territorio»', pageWidth / 2, 84, { align: 'center' });
 
   // Ficha de Datos Institucionales de la Zona
+  const matTotalZona = project.momento1Conocer?.matriculaTotalZona;
+  const matTotalDisplay = matTotalZona !== undefined && matTotalZona > 0 ? `${matTotalZona} estudiantes` : 'N/D';
   const infoData: RowInput[] = [
     ['Clave de Zona Escolar:', project.zonaClave, 'Ciclo Escolar:', project.cicloEscolar || SCHOOL_YEAR],
     ['Supervisor(a) Escolar:', project.supervisorName, 'Municipio Sede:', project.municipioSede],
     ['Municipios de Cobertura:', project.municipiosAtiende, 'Planteles Integrantes:', String(project.momento1Conocer?.planteles?.length || 0)],
-    ['Matrícula Total Atendida:', `${project.momento1Conocer?.matriculaTotalZona || 0} estudiantes`, 'Asesores Técnicos (ATP):', project.atps?.join(', ') || 'N/D'],
+    ['Matrícula Total Atendida:', matTotalDisplay, 'Asesores Técnicos (ATP):', project.atps?.join(', ') || 'N/D'],
   ];
 
   autoTable(doc, {

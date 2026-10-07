@@ -40,7 +40,7 @@ export function auditCartografiaProject(project: CartografiaZonaProject): Cartog
 
   // C1: Momento 1 - Conocer (15 pts)
   const numPlanteles = project.momento1Conocer?.planteles?.length || 0;
-  const matTotal = project.momento1Conocer?.matriculaTotalZona || 0;
+  const matTotal = project.momento1Conocer?.matriculaTotalZona ?? 0;
   if (numPlanteles >= 5 && matTotal > 0 && hasText(project.momento1Conocer?.caracterizacionInicial, 20)) {
     criteria.push({
       id: 'CART-C1',
