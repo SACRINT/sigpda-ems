@@ -1,8 +1,8 @@
 // src/__tests__/cartografia-download-button.test.tsx
 /**
- * Test suite para F-R21-01: CartografiaDownloadButton y manejo en UI del bloqueo 422
- * Verifica que el componente capture la respuesta 422 del Quality Gate y
- * renderice el diálogo con el mensaje institucional y las recomendaciones oficiales.
+ * Test suite para CartografiaDownloadButton y parseDownloadResponse (F-R21-01, F-R22-02, F-R23-03)
+ * Verifica que el componente capture la respuesta 422 del Quality Gate, maneje errores de red,
+ * y procese cabeceras Content-Disposition tanto estándar como RFC 5987 (UTF-8) y fallbacks.
  */
 
 import React from 'react';
@@ -12,7 +12,7 @@ import CartografiaDownloadButton, {
   parseDownloadResponse,
 } from '@/components/cartografia/CartografiaDownloadButton';
 
-describe('F-R21-01 / F-R22-02: CartografiaDownloadButton — Manejo UI de Bloqueo 422', () => {
+describe('CartografiaDownloadButton — Manejo UI de Bloqueo 422 y Parsing de Descarga (F-R23-03)', () => {
   it('1. Renderiza el botón de descarga con su texto y clases', () => {
     const html = renderToString(
       <CartografiaDownloadButton
@@ -29,11 +29,7 @@ describe('F-R21-01 / F-R22-02: CartografiaDownloadButton — Manejo UI de Bloque
     expect(html).toContain('type="button"');
   });
 
-  it('2. El componente define estructura para el modal de Quality Gate (422)', () => {
-    expect(typeof CartografiaDownloadButton).toBe('function');
-  });
-
-  it('3. parseDownloadResponse captura HTTP 422 y extrae el reporte de Quality Gate', async () => {
+  it('2. parseDownloadResponse captura HTTP 422 y extrae el reporte de Quality Gate', async () => {
     const mockPayload = {
       error: 'El proyecto no cumple con los criterios mínimos de calidad requeridos (35% - REQUIERE_REVISION). Complete los campos obligatorios antes de exportar.',
       quality: {
@@ -65,7 +61,7 @@ describe('F-R21-01 / F-R22-02: CartografiaDownloadButton — Manejo UI de Bloque
     }
   });
 
-  it('4. parseDownloadResponse maneja 422 resiliente con payload JSON corrupto o vacío', async () => {
+  it('3. parseDownloadResponse maneja 422 resiliente con payload JSON corrupto o vacío', async () => {
     const res = new Response('Invalid JSON payload', {
       status: 422,
       headers: { 'Content-Type': 'application/json' },
@@ -80,7 +76,7 @@ describe('F-R21-01 / F-R22-02: CartografiaDownloadButton — Manejo UI de Bloque
     }
   });
 
-  it('5. parseDownloadResponse captura errores HTTP no-422 (ej. 500, 404)', async () => {
+  it('4. parseDownloadResponse captura errores HTTP no-422 (ej. 500, 404)', async () => {
     const res500 = new Response(JSON.stringify({ error: 'Falla interna del servidor' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
@@ -102,7 +98,7 @@ describe('F-R21-01 / F-R22-02: CartografiaDownloadButton — Manejo UI de Bloque
     }
   });
 
-  it('6. parseDownloadResponse procesa exitosamente 200 OK y extrae nombre de archivo', async () => {
+  it('5. parseDownloadResponse procesa exitosamente 200 OK y extrae nombre de archivo estándar con comillas', async () => {
     const blobContent = 'PK...mock zip or docx content';
     const res = new Response(blobContent, {
       status: 200,
@@ -121,11 +117,54 @@ describe('F-R21-01 / F-R22-02: CartografiaDownloadButton — Manejo UI de Bloque
     }
   });
 
-  it('7. Mutación/Invariante: si res.status === 422 no se bifurca como quality_422, falla la verificación', async () => {
+  it('6. Mutación/Invariante: si res.status === 422 no se bifurca como quality_422, falla la verificación', async () => {
     const res = new Response(JSON.stringify({ quality: { percentage: 40 } }), { status: 422 });
     const parsed = await parseDownloadResponse(res);
     expect(parsed.kind).not.toBe('generic_error');
     expect(parsed.kind).not.toBe('success');
     expect(parsed.kind).toBe('quality_422');
+  });
+
+  it('7. parseDownloadResponse procesa cabecera RFC 5987 (filename*=UTF-8\'\') decodificando tildes y caracteres UTF-8', async () => {
+    const res = new Response('mock-docx-data', {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'Content-Disposition': "attachment; filename*=UTF-8''Cartograf%C3%ADa%20Zona004.docx",
+      },
+    });
+
+    const parsed = await parseDownloadResponse(res, 'fallback.docx');
+    expect(parsed.kind).toBe('success');
+    if (parsed.kind === 'success') {
+      expect(parsed.filename).toBe('Cartografía Zona004.docx');
+    }
+  });
+
+  it('8. parseDownloadResponse utiliza el defaultFilename especificado cuando no hay cabecera Content-Disposition', async () => {
+    const res = new Response('mock-content', {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      },
+    });
+
+    const parsed = await parseDownloadResponse(res, 'Cartografia_Resumen.docx');
+    expect(parsed.kind).toBe('success');
+    if (parsed.kind === 'success') {
+      expect(parsed.filename).toBe('Cartografia_Resumen.docx');
+    }
+  });
+
+  it('9. parseDownloadResponse utiliza fallback por defecto "documento" cuando no hay cabecera ni defaultFilename', async () => {
+    const res = new Response('mock-content', {
+      status: 200,
+    });
+
+    const parsed = await parseDownloadResponse(res);
+    expect(parsed.kind).toBe('success');
+    if (parsed.kind === 'success') {
+      expect(parsed.filename).toBe('documento');
+    }
   });
 });
