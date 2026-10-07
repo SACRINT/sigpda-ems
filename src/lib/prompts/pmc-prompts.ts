@@ -326,7 +326,7 @@ LÍNEA BASE ESTADÍSTICA OFICIAL (Formato 911 y F11):
 - Tasa de Aprobación Escolar Línea Base: ${aprobacionTexto} (Fuente: F11C)
 - Aprovechamiento General Promedio: ${promedioTexto} (Fuente: F11C Control Escolar)
 ${stats?.promediosPorAsignatura ? `- Desglose de Promedios por Asignatura F11C:\n${Object.entries(stats.promediosPorAsignatura).map(([asig, prom]) => `    • ${asig}: ${prom}`).join('\n')}` : ''}
-${zona ? `- Promedios de Zona (${zona.zonaNumero || '004'}): Abandono ${formatZoneMetric(zona.promedioAbandono, { pct: true })}, Eficiencia ${formatZoneMetric(zona.promedioEficiencia, { pct: true })}, Reprobación ${formatZoneMetric(zona.promedioReprobacion, { pct: true })}` : ''}
+${zona ? `- Promedios de Zona (${zona.zonaNumero || 'N/D'}): Abandono ${formatZoneMetric(zona.promedioAbandono, { pct: true })}, Eficiencia ${formatZoneMetric(zona.promedioEficiencia, { pct: true })}, Reprobación ${formatZoneMetric(zona.promedioReprobacion, { pct: true })}` : ''}
 
 CATEGORÍAS Y TEMAS SELECCIONADOS POR EL PLANTEL:
 ${categoriasList}
