@@ -75,13 +75,6 @@ function placeholderParagraph(seccion: string): Paragraph {
   });
 }
 
-function clampText(text: string, maxLen: number): string {
-  if (!text || text.length <= maxLen) return text || '';
-  const truncated = text.slice(0, maxLen);
-  const lastSpace = truncated.lastIndexOf(' ');
-  return (lastSpace > 0 ? truncated.slice(0, lastSpace) : truncated) + '...';
-}
-
 function kvTable(rows: [string, string][], colWidths: [number, number] = [3200, 6400]): Table {
   const [w1, w2] = colWidths;
   return new Table({
@@ -561,45 +554,36 @@ export async function generateResumenEjecutivoDocx(project: CartografiaZonaProje
     // ── 1. DIAGNÓSTICO TERRITORIAL ──────────────────────────────────────
     h1('1. DIAGNÓSTICO TERRITORIAL'),
     p(
-      clampText(
-        p_.momento2Organizar?.capaCuantitativa?.resumenEstadistico911F11 ||
-        p_.momento3Ubicar?.descripcionTerritorial ||
-        p_.momento1Conocer?.caracterizacionInicial ||
-        'La zona escolar integra planteles con condiciones territoriales semiurbanas y rurales, donde las dinámicas de movilidad, el contexto socioeconómico y los indicadores del 911/F11 sustentan la necesidad de un acompañamiento formativo y contextualizado.',
-        500
-      )
+      p_.momento2Organizar?.capaCuantitativa?.resumenEstadistico911F11 ||
+      p_.momento3Ubicar?.descripcionTerritorial ||
+      p_.momento1Conocer?.caracterizacionInicial ||
+      'La zona escolar integra planteles con condiciones territoriales semiurbanas y rurales, donde las dinámicas de movilidad, el contexto socioeconómico y los indicadores del 911/F11 sustentan la necesidad de un acompañamiento formativo y contextualizado.'
     ),
     br(),
 
     // ── 2. SISTEMATIZACIÓN DE LA AUTONOMÍA ──────────────────────────────
     h1('2. SISTEMATIZACIÓN DE LA AUTONOMÍA'),
     p(
-      clampText(
-        memoria?.comoLoLogramos ||
-        (p_.momento4Analizar?.acuerdosAutonomiaConsejo && p_.momento4Analizar.acuerdosAutonomiaConsejo.length > 0
-          ? p_.momento4Analizar.acuerdosAutonomiaConsejo.join(' ')
-          : 'Los colectivos docentes y directivos de la zona asumieron la autonomía profesional adaptando las progresiones de aprendizaje y desarrollando proyectos integradores PAEC acordes con la realidad de sus comunidades.'),
-        450
-      )
+      memoria?.comoLoLogramos ||
+      (p_.momento4Analizar?.acuerdosAutonomiaConsejo && p_.momento4Analizar.acuerdosAutonomiaConsejo.length > 0
+        ? p_.momento4Analizar.acuerdosAutonomiaConsejo.join(' ')
+        : 'Los colectivos docentes y directivos de la zona asumieron la autonomía profesional adaptando las progresiones de aprendizaje y desarrollando proyectos integradores PAEC acordes con la realidad de sus comunidades.')
     ),
     br(),
 
     // ── 3. ANÁLISIS DE EFECTIVIDAD ──────────────────────────────────────
     h1('3. ANÁLISIS DE EFECTIVIDAD'),
     p(
-      clampText(
-        memoria?.queLogramos ||
-        'Se observa una mejora tangible en la diversificación de estrategias de evaluación formativa y en el clima escolar, articulando los ejes de transformación del Modelo Educativo 2025 y la disminución de alertas de rezago.',
-        400
-      )
+      memoria?.queLogramos ||
+      'Se observa una mejora tangible en la diversificación de estrategias de evaluación formativa y en el clima escolar, articulando los ejes de transformación del Modelo Educativo 2025 y la disminución de alertas de rezago.'
     )
   );
 
   if (memoria?.indicadoresCambio) {
     children.push(
-      bullet(`Indicador de Proceso: ${clampText(memoria.indicadoresCambio.proceso || 'Consolidación de planeaciones situadas', 120)}`),
-      bullet(`Indicador CREAA: ${clampText(memoria.indicadoresCambio.creaa || 'Aumento en retención escolar', 120)}`),
-      bullet(`Impacto Territorial: ${clampText(memoria.indicadoresCambio.impactoTerritorial || 'Mayor vinculación con la comunidad', 120)}`)
+      bullet(`Indicador de Proceso: ${memoria.indicadoresCambio.proceso || 'Consolidación de planeaciones situadas'}`),
+      bullet(`Indicador CREAA: ${memoria.indicadoresCambio.creaa || 'Aumento en retención escolar'}`),
+      bullet(`Impacto Territorial: ${memoria.indicadoresCambio.impactoTerritorial || 'Mayor vinculación con la comunidad'}`)
     );
   }
   children.push(br());
@@ -610,7 +594,7 @@ export async function generateResumenEjecutivoDocx(project: CartografiaZonaProje
     p('Recomendaciones prioritarias para la mejora continua y el acompañamiento situado en la zona:')
   );
 
-  const rawRecs = (memoria?.hojaDeRutaProximoCiclo && memoria.hojaDeRutaProximoCiclo.length > 0)
+  const recomendaciones = (memoria?.hojaDeRutaProximoCiclo && memoria.hojaDeRutaProximoCiclo.length > 0)
     ? memoria.hojaDeRutaProximoCiclo
     : (p_.momento5Decidir?.compromisosSupervision && p_.momento5Decidir.compromisosSupervision.length > 0)
       ? p_.momento5Decidir.compromisosSupervision
@@ -619,8 +603,6 @@ export async function generateResumenEjecutivoDocx(project: CartografiaZonaProje
           '2. Homologar el seguimiento de evaluaciones diagnósticas (EDIEMS/ESA) mediante academias colegiadas de zona.',
           '3. Consolidar la red de proyectos comunitarios PAEC y la memoria pedagógica viva de los colectivos docentes.',
         ];
-
-  const recomendaciones = rawRecs.slice(0, 3).map((r) => clampText(r, 160));
 
   for (const rec of recomendaciones) {
     children.push(bullet(rec));
