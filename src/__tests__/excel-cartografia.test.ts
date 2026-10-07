@@ -235,5 +235,27 @@ describe('Excel Import Engine — Formato 911.7G / F11C / Cartografía de Zona',
 
     expect(diagText).toContain('con una matrícula total de 420 estudiantes');
   });
+
+  it('8. Descarta filas-footer ("Fuente:...", firmas o notas sin CCT válido) incluso cuando la columna de matrícula está ausente (F-R18-02)', () => {
+    const mockRowsConFooter = [
+      ['SUBSECRETARÍA DE EDUCACIÓN MEDIA SUPERIOR - CONCENTRADO ZONAL'],
+      ['No.', 'C.C.T.', 'Nombre del Plantel', 'Turno', 'Promedio Calificaciones'],
+      [1, '21EBH0015A', 'BGE Venustiano Carranza', 'MATUTINO', 8.5],
+      [2, '21EBH0020B', 'BGE Francisco Z. Mena', 'VESPERTINO', 7.8],
+      ['', '', 'Fuente: Dirección de Control Escolar - Cifras oficiales al corte 2026', '', ''],
+      ['', 'NOTA', 'Información sujeta a validación final por la supervisión de zona', '', ''],
+      ['', '', 'Mtro. Juan Pérez - Supervisor Escolar Zona 004', '', ''],
+    ];
+
+    const result = parsePmcStatistics(mockRowsConFooter, {
+      zonaNumero: '004',
+      cicloEscolar: '2026-2027',
+    });
+
+    expect(result.success).toBe(true);
+    // Debe descartar exactamente las 3 filas footer y conservar solo los 2 planteles legítimos
+    expect(result.allPlanteles.length).toBe(2);
+    expect(result.allPlanteles.map((p) => p.cct)).toEqual(['21EBH0015A', '21EBH0020B']);
+  });
 });
 

@@ -152,6 +152,11 @@ export function parsePmcStatistics(
       if (nombreRaw.toLowerCase().includes('total') || nombreRaw.toLowerCase().includes('promedio')) continue;
       if (cctRaw.toLowerCase().includes('total') || cctRaw.toLowerCase().includes('promedio')) continue;
 
+      // Guard de CCT oficial: Todo plantel oficial válido debe tener una Clave de Centro de Trabajo (CCT) no vacía
+      // con formato oficial (inicia con código de 2 dígitos y al menos 3 caracteres alfanuméricos).
+      // Descarta filas-footer ("Fuente:...", notas al pie, firmas de supervisor) que carecen de CCT legítimo.
+      if (!cctRaw || !/^\d{2}[A-Z0-9]{3,}/i.test(cctRaw)) continue;
+
       let matricula: number | undefined = undefined;
       if (colMap['matricula'] !== undefined) {
         const rawMat = String(row[colMap['matricula']] ?? '').replace(/[^0-9.]/g, '');
