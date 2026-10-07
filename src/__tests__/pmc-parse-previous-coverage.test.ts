@@ -287,7 +287,7 @@ Texto de cierre sin tablas.
 
     expect(coverage.parcial).toBe(false);
     expect(coverage.ratio).toBeGreaterThanOrEqual(0.9);
-  }, 35000);
+  }, 15000);
 
   it('6. Bucle de completitud (gap-fill, H-295): si extraidos < 90% expected, recupera elementos faltantes', async () => {
     // Documento sintético con 20 actividades esperadas
