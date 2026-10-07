@@ -576,15 +576,16 @@ export default function PlanningTabMateriales({
                                 act.conclusion?.materials || '',
                               ].join(' ');
                               const detected = parseMaterialTokens(blockText);
-                              const unique = Array.from(new Map(detected.map((m) => [m.slug, m])).values()).slice(0, 4);
-                              if (unique.length === 0) return null;
+                              const allUnique = Array.from(new Map(detected.map((m) => [m.slug, m])).values());
+                              if (allUnique.length === 0) return null;
+                              const displayed = allUnique.slice(0, 4);
                               return (
                                 <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                   <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--c-text-muted)' }}>
-                                    Insumos ilustrados del bloque ({unique.length}):
+                                    Insumos ilustrados del bloque ({allUnique.length}):
                                   </span>
                                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                    {unique.map((mat, mIdx) => (
+                                    {displayed.map((mat, mIdx) => (
                                       <MaterialFigure
                                         key={`${mat.slug}-${mIdx}`}
                                         slug={mat.slug}
