@@ -392,6 +392,7 @@ describe('paec-quality-gate — criterios individuales', () => {
     expect(result.score).toBe(4);
     expect(result.status).toBe('pass');
     expect(result.evidenceFound).toContain('1/2 UACs validadas');
+    expect(result.feedback).toContain('1/2 UACs con validación directa');
   });
 
   // ── Dimension 4: Cronograma (C11-C12) ───────────────────────────────────

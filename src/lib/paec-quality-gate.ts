@@ -468,7 +468,11 @@ export function evaluateCriterio9(mapeo: MapeoRow[] | null | undefined): PaecAud
   if (obsoleteCount === 0) {
     score = 4;
     status = 'pass';
-    feedback = 'Nomenclatura oficial NOM-MCCEMS impecable. Todas las UACs corresponden al rediseño curricular de la NEM.';
+    if (mccemsCount === rows.length) {
+      feedback = 'Nomenclatura oficial NOM-MCCEMS impecable. Todas las UACs corresponden al rediseño curricular de la NEM.';
+    } else {
+      feedback = `Nomenclatura vigente sin planes antiguos detectados (${mccemsCount}/${rows.length} UACs con validación directa de catálogo NOM-MCCEMS).`;
+    }
     evidenceFound = `${mccemsCount}/${rows.length} UACs validadas bajo nomenclatura NOM-MCCEMS (0 nombres obsoletos).`;
   } else if (obsoleteCount <= 2) {
     score = 3;
