@@ -65,7 +65,7 @@ export function buildCartografiaBaseContext(
   const planteles: CartografiaPlantelItem[] = rawPlanteles.map((p, idx) => {
     const rawEficiencia = p.eficienciaTerminal;
     const parsedEficiencia = rawEficiencia !== undefined && rawEficiencia !== null && rawEficiencia !== '' ? Number(rawEficiencia) : NaN;
-    const eficienciaTerminal = Number.isFinite(parsedEficiencia) && parsedEficiencia > 0 ? parsedEficiencia : undefined;
+    const eficienciaTerminal = Number.isFinite(parsedEficiencia) && parsedEficiencia >= 0 ? parsedEficiencia : undefined;
 
     return {
       no: idx + 1,
@@ -75,8 +75,8 @@ export function buildCartografiaBaseContext(
       municipio: String(p.municipio || row.municipio_sede || identificacion.municipioSede),
       turno: String(p.turno || 'MATUTINO'),
       matricula: parseNum(p.matricula) ?? parseNum(p.total),
-      egresados: Number(p.egresados) || 0,
-      bajasDefinitivas: Number(p.bajasDefinitivas) || 0,
+      egresados: parseNum(p.egresados),
+      bajasDefinitivas: parseNum(p.bajasDefinitivas),
       eficienciaTerminal,
       abandono: parseNum(p.abandono),
       reprobacion: parseNum(p.reprobacion),

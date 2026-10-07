@@ -346,7 +346,8 @@ export async function getZoneSupervisorDashboard(supervisorId: string): Promise<
     // Generar alertas pedagógicas
     const alertas: string[] = [];
     if (isPrioritario && pmcStatus !== 'completed') {
-      alertas.push(`Prioridad: Abandono elevado (${cartografiaPlantel?.abandono || 0}%) con PMC en proceso o pendiente.`);
+      const abandonoDisplay = cartografiaPlantel?.abandono !== undefined ? `${cartografiaPlantel.abandono}%` : 'N/D';
+      alertas.push(`Prioridad: Abandono elevado (${abandonoDisplay}) con PMC en proceso o pendiente.`);
     }
     if (paecStatus === 'none') {
       alertas.push('Proyecto Comunitario PAEC no iniciado.');
