@@ -257,5 +257,28 @@ describe('Excel Import Engine — Formato 911.7G / F11C / Cartografía de Zona',
     expect(result.allPlanteles.length).toBe(2);
     expect(result.allPlanteles.map((p) => p.cct)).toEqual(['21EBH0015A', '21EBH0020B']);
   });
+
+  it('9. Parsea cabeceras escuela+matrícula sin columna CCT sin descartar los planteles legítimos (F-R19-01)', () => {
+    const mockRowsSinCct = [
+      ['CONCENTRADO ZONAL SIN COLUMNA CCT'],
+      ['Nombre del Plantel', 'Matrícula'],
+      ['BGE Venustiano Carranza', '240'],
+      ['BGE Francisco Z. Mena', '180'],
+    ];
+
+    const result = parsePmcStatistics(mockRowsSinCct, {
+      zonaNumero: '004',
+      cicloEscolar: '2026-2027',
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.allPlanteles.length).toBe(2);
+    expect(result.allPlanteles[0].nombre).toBe('BGE Venustiano Carranza');
+    expect(result.allPlanteles[0].matricula).toBe(240);
+    expect(result.allPlanteles[1].matricula).toBe(180);
+    expect(result.zona?.matriculaTotal).toBe(420);
+    // Sin columna CCT las filas conservan el placeholder histórico de cct
+    expect(result.allPlanteles.map((p) => p.cct)).toEqual(['21EBH0000X', '21EBH0000X']);
+  });
 });
 

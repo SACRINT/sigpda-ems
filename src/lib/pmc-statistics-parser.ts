@@ -152,10 +152,11 @@ export function parsePmcStatistics(
       if (nombreRaw.toLowerCase().includes('total') || nombreRaw.toLowerCase().includes('promedio')) continue;
       if (cctRaw.toLowerCase().includes('total') || cctRaw.toLowerCase().includes('promedio')) continue;
 
-      // Guard de CCT oficial: Todo plantel oficial válido debe tener una Clave de Centro de Trabajo (CCT) no vacía
-      // con formato oficial (inicia con código de 2 dígitos y al menos 3 caracteres alfanuméricos).
-      // Descarta filas-footer ("Fuente:...", notas al pie, firmas de supervisor) que carecen de CCT legítimo.
-      if (!cctRaw || !/^\d{2}[A-Z0-9]{3,}/i.test(cctRaw)) continue;
+      // Guard de CCT oficial: si la matriz tiene columna CCT, todo plantel válido debe llevar una Clave de Centro
+      // de Trabajo no vacía con formato oficial (2 dígitos + 3+ alfanuméricos); descarta filas-footer ("Fuente:...",
+      // notas al pie, firmas de supervisor) que carecen de CCT legítimo.
+      // Sin columna CCT no hay nada que validar y el guard descartaría también los planteles legítimos (F-R19-01).
+      if (colMap['cct'] !== undefined && (!cctRaw || !/^\d{2}[A-Z0-9]{3,}/i.test(cctRaw))) continue;
 
       let matricula: number | undefined = undefined;
       if (colMap['matricula'] !== undefined) {
