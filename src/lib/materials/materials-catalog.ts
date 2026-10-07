@@ -2,7 +2,7 @@
 /**
  * Catálogo tipado maestro de materiales, insumos, herramientas y laboratorios virtuales.
  * SIGPDA-EMS · Ciclo Escolar 2026-2027
- * Fuente de verdad de los 48 slugs prioritarios P1 del Modelo Educativo 2025 / MCCEMS.
+ * Fuente de verdad de los 53 slugs prioritarios P1 del Modelo Educativo 2025 / MCCEMS.
  */
 
 export type MaterialCategory =
@@ -113,13 +113,21 @@ export const MATERIALES_CATALOG: readonly MaterialCatalogItem[] = [
     category: 'laboratorio_quimica',
     priority: 'P1',
     altText: 'Probeta de vidrio borosilicato graduada de 100 ml con base hexagonal',
-    aliases: ['probeta-graduada', 'cilindro-graduado'],
+    aliases: ['cilindro-graduado'],
     eppRequerido: ['Bata de laboratorio', 'Gafas de seguridad', 'Guantes de nitrilo'],
     equivalenteVirtual: {
       nombre: 'PhET Simulación de Densidad y Volumen',
       url: 'https://phet.colorado.edu/es/simulations/density',
       offline: true,
     },
+  },
+  {
+    slug: 'probeta-graduada',
+    name: 'Probeta Graduada de Vidrio',
+    category: 'laboratorio_quimica',
+    priority: 'P1',
+    altText: 'Probeta de vidrio con escala graduada milimétrica y base ancha para medir volúmenes',
+    eppRequerido: ['Bata de laboratorio', 'Gafas de seguridad', 'Guantes de nitrilo'],
   },
   {
     slug: 'matraz-erlenmeyer',
@@ -216,6 +224,33 @@ export const MATERIALES_CATALOG: readonly MaterialCatalogItem[] = [
       url: 'https://phet.colorado.edu/es/simulations/energy-forms-and-changes',
       offline: true,
     },
+  },
+  {
+    slug: 'embudo-de-vidrio',
+    name: 'Embudo de Vidrio de Laboratorio',
+    category: 'laboratorio_quimica',
+    priority: 'P1',
+    altText: 'Embudo de vidrio borosilicato con cono y tallo para filtración de sólidos',
+    aliases: ['embudo-filtracion', 'embudo-lab'],
+    eppRequerido: ['Bata de laboratorio', 'Gafas de seguridad'],
+  },
+  {
+    slug: 'mortero-con-pilon',
+    name: 'Mortero de Porcelana con Pilón',
+    category: 'laboratorio_quimica',
+    priority: 'P1',
+    altText: 'Mortero de porcelana con pilón para trituración y pulverización de sólidos',
+    aliases: ['mortero-porcelana', 'pilon-mortero'],
+    eppRequerido: ['Gafas de seguridad'],
+  },
+  {
+    slug: 'soporte-universal',
+    name: 'Soporte Universal de Laboratorio',
+    category: 'laboratorio_quimica',
+    priority: 'P1',
+    altText: 'Base pesada con varilla recta y pinzas para sujetar equipos y recipientes',
+    aliases: ['soporte-lab', 'pinza-universal'],
+    eppRequerido: ['Gafas de seguridad'],
   },
 
   // ── Física, Óptica y Magnetismo ──────────────────────────────────────────

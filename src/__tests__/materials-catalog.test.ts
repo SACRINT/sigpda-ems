@@ -10,9 +10,19 @@ import {
 import { readMaterialPng } from '@/lib/materials/material-figure-doc';
 
 describe('T-IMG-08: Test de Integridad Cruzada del Catálogo de Materiales', () => {
-  it('contiene los 49 slugs prioritarios P1 del Modelo Educativo 2025 / MCCEMS (incluyendo tester-cable)', () => {
+  it('contiene los 53 slugs prioritarios P1 del Modelo Educativo 2025 / MCCEMS (incluyendo tester-cable y ampliación de 4)', () => {
     const p1Items = MATERIALES_CATALOG.filter((item) => item.priority === 'P1');
-    expect(p1Items.length).toBe(49);
+    expect(p1Items.length).toBe(53);
+
+    const slugs = p1Items.map((item) => item.slug);
+    for (const nuevo of [
+      'embudo-de-vidrio',
+      'mortero-con-pilon',
+      'soporte-universal',
+      'probeta-graduada',
+    ]) {
+      expect(slugs).toContain(nuevo);
+    }
   });
 
   it('todos los slugs son únicos y cumplen con formato kebab-case estricto', () => {

@@ -50,7 +50,7 @@ Para referenciar un material en el cuerpo de una práctica, sesión de laborator
 
 ---
 
-## 3. Catálogo de los 49 Slugs Prioritarios P1
+## 3. Catálogo de los 53 Slugs Prioritarios P1
 
 | # | Slug | Nombre Oficial | Categoría | EPP Requerido | Equivalente Virtual |
 |---|---|---|---|---|---|
@@ -103,6 +103,12 @@ Para referenciar un material en el cuerpo de una práctica, sesión de laborator
 | 47 | `material-arte` | Kit de Materiales Artísticos (Pinturas) | arte | — | Sketchpad / AutoDraw |
 | 48 | `balon` | Balones Deportivos Reglamentarios | deportivo | — | — |
 | 49 | `conos` | Juego de Conos y Marcadores Deportivos | deportivo | — | — |
+| 50 | `probeta-graduada` | Probeta Graduada de Vidrio | laboratorio_quimica | Bata, Gafas, Guantes nitrilo | — |
+| 51 | `embudo-de-vidrio` | Embudo de Vidrio de Laboratorio | laboratorio_quimica | Bata, Gafas de seguridad | — |
+| 52 | `mortero-con-pilon` | Mortero de Porcelana con Pilón | laboratorio_quimica | Gafas de seguridad | — |
+| 53 | `soporte-universal` | Soporte Universal de Laboratorio | laboratorio_quimica | Gafas de seguridad | — |
+
+> Filas 50–53: ampliación P1 del 2026-10-06 (imágenes `<slug>.png` añadidas al mismo lote).
 
 ---
 
