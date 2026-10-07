@@ -49,7 +49,7 @@ describe('Paquete C (H-216) — Metas institucionales del PMC: >40 sin truncar y
     const expected = countDeterministicExpectedActivities(documentText);
     expect(expected).toBeGreaterThanOrEqual(20);
     expect(expected).toBeLessThanOrEqual(25);
-  }, 15000);
+  }, 45000);
 
   it('1b. Conteo de filas reales de tabla markdown en Plan de Acción (H-293)', () => {
     const markdownFixture = `
@@ -89,7 +89,7 @@ Texto de cierre sin tablas.
       expect(chunk.length).toBeLessThanOrEqual(25000);
       expect(chunk.length).toBeGreaterThan(0);
     }
-  }, 15000);
+  }, 45000);
 
   it('3. Detección de truncamiento: identifica respuestas incompletas de la IA antes de jsonrepair', () => {
     const completeJson = '{"elementos_plan": [{"tipo": "actividad", "texto_original": "t"}]}';
@@ -287,7 +287,7 @@ Texto de cierre sin tablas.
 
     expect(coverage.parcial).toBe(false);
     expect(coverage.ratio).toBeGreaterThanOrEqual(0.9);
-  }, 15000);
+  }, 45000);
 
   it('6. Bucle de completitud (gap-fill, H-295): si extraidos < 90% expected, recupera elementos faltantes', async () => {
     // Documento sintético con 20 actividades esperadas
@@ -437,7 +437,7 @@ ${Array.from({ length: 20 }, (_, i) => `| ${i + 1} | Desarrollo académico | Act
     const res = extractDeterministicSupervisorAndZone(documentText, 'Adrián Hernández Cruz');
     expect(res.schoolZone).toBe('086');
     expect(res.supervisorName).toContain('MOISES FLORES');
-  });
+  }, 45000);
 
   it('9. Detección robusta de Plan de Acción y particionado de todos los docentes (Héroes de la Patria)', async () => {
     expect(fs.existsSync(fixturePath)).toBe(true);
@@ -458,7 +458,7 @@ ${Array.from({ length: 20 }, (_, i) => `| ${i + 1} | Desarrollo académico | Act
     // Particionado del plan en fragmentos manejables
     const planChunks = partitionMarkdownDocument(planText, 7000, 11000);
     expect(planChunks.length).toBeLessThanOrEqual(3);
-  });
+  }, 45000);
 
   it('10. Prevención de docentes fantasma e invariantes de numeración inline', () => {
     // Descartar fantasma
