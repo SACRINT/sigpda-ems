@@ -8,6 +8,7 @@ import AppLayout from '@/components/layout/AppLayout';
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import DeletePipsButton from './DeletePipsButton';
+import CartografiaDownloadButton from '@/components/cartografia/CartografiaDownloadButton';
 
 export const metadata: Metadata = {
   title: 'Cartografía de Zona Escolar — Supervisión de Zona · SIGPDA-EMS',
@@ -131,29 +132,27 @@ export default async function PipsDashboardPage({
                   </Link>
                   {proj.status === 'completed' && (
                     <>
-                      <a
-                        href={`/api/pdf/cartografia/${proj.id as string}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <CartografiaDownloadButton
+                        url={`/api/pdf/cartografia/${proj.id as string}`}
                         className="btn btn-sm"
                         style={{ backgroundColor: '#1F3864', borderColor: '#E8A020', color: '#fff', fontWeight: 600 }}
                       >
                         📄 Cartografía PDF
-                      </a>
-                      <a
-                        href={`/api/docx/cartografia/${proj.id as string}`}
+                      </CartografiaDownloadButton>
+                      <CartografiaDownloadButton
+                        url={`/api/docx/cartografia/${proj.id as string}`}
                         className="btn btn-sm"
                         style={{ backgroundColor: '#2563EB', borderColor: '#2563EB', color: '#fff', fontWeight: 600 }}
                       >
                         📥 Word I-IV
-                      </a>
-                      <a
-                        href={`/api/docx/cartografia/${proj.id as string}/resumen`}
+                      </CartografiaDownloadButton>
+                      <CartografiaDownloadButton
+                        url={`/api/docx/cartografia/${proj.id as string}/resumen`}
                         className="btn btn-sm"
                         style={{ backgroundColor: '#0D9488', borderColor: '#0D9488', color: '#fff', fontWeight: 600 }}
                       >
                         📄 Resumen Word
-                      </a>
+                      </CartografiaDownloadButton>
                       <a
                         href={`/api/pdf/pips/${proj.id as string}`}
                         className="btn btn-sm"

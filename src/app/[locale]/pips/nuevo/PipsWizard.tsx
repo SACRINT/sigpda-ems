@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import type { PipsProject, PipsPlantele, PipsCronogramaActividad } from '@/types/pips';
 import { SCHOOL_YEAR } from '@/lib/config';
 import ExcelUploadZone from '@/components/cartografia/ExcelUploadZone';
+import CartografiaDownloadButton from '@/components/cartografia/CartografiaDownloadButton';
 
 // ─── Step labels ──────────────────────────────────────────────────────────────
 const STEPS = [
@@ -1232,10 +1233,8 @@ export default function PipsWizard({ locale }: { locale: string }) {
           </button>
           {projectId && (
             <>
-              <a
-                href={`/api/pdf/cartografia/${projectId}`}
-                target="_blank"
-                rel="noopener noreferrer"
+              <CartografiaDownloadButton
+                url={`/api/pdf/cartografia/${projectId}`}
                 className="btn"
                 style={{
                   background: '#1F3864',
@@ -1253,9 +1252,9 @@ export default function PipsWizard({ locale }: { locale: string }) {
                 }}
               >
                 📄 Descargar Cartografía Oficial (PDF)
-              </a>
-              <a
-                href={`/api/docx/cartografia/${projectId}`}
+              </CartografiaDownloadButton>
+              <CartografiaDownloadButton
+                url={`/api/docx/cartografia/${projectId}`}
                 className="btn"
                 style={{
                   background: '#2563EB',
@@ -1273,9 +1272,9 @@ export default function PipsWizard({ locale }: { locale: string }) {
                 }}
               >
                 📥 Descargar Proyecto Completo (Word I-IV)
-              </a>
-              <a
-                href={`/api/docx/cartografia/${projectId}/resumen`}
+              </CartografiaDownloadButton>
+              <CartografiaDownloadButton
+                url={`/api/docx/cartografia/${projectId}/resumen`}
                 className="btn"
                 style={{
                   background: '#0D9488',
@@ -1293,7 +1292,7 @@ export default function PipsWizard({ locale }: { locale: string }) {
                 }}
               >
                 📄 Descargar Resumen Ejecutivo (Word)
-              </a>
+              </CartografiaDownloadButton>
             </>
           )}
           {projectId && pips.status === 'completed' && (
