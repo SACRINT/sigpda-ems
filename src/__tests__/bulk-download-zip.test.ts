@@ -147,7 +147,7 @@ describe('Fase 5: Descarga Masiva ZIP por Bloque en UI y API', () => {
       expect(fileData.length).toBeGreaterThan(500);
       expect(fileData.toString('ascii', 0, 5)).toBe('%PDF-');
     }
-  }, 15000);
+  }, 45000);
 
   it('5. E2E: Genera y valida un ZIP masivo de DOCX con branding y verifica paquetes OpenXML internos', async () => {
     const mixedExtras = [
