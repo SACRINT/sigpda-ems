@@ -88,7 +88,7 @@ export function buildCartografiaBaseContext(
 
   const matriculaTotalZona = planteles.reduce((sum, p) => sum + (p.matricula ?? 0), 0);
 
-  const plantelesConEficiencia = planteles.filter((p) => p.eficienciaTerminal !== undefined && p.eficienciaTerminal > 0);
+  const plantelesConEficiencia = planteles.filter((p) => p.eficienciaTerminal !== undefined && p.eficienciaTerminal >= 0);
   const promEficiencia = plantelesConEficiencia.length > 0
     ? parseFloat((plantelesConEficiencia.reduce((a, b) => a + (b.eficienciaTerminal ?? 0), 0) / plantelesConEficiencia.length).toFixed(2))
     : undefined;
