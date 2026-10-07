@@ -152,10 +152,15 @@ export function parsePmcStatistics(
       if (nombreRaw.toLowerCase().includes('total') || nombreRaw.toLowerCase().includes('promedio')) continue;
       if (cctRaw.toLowerCase().includes('total') || cctRaw.toLowerCase().includes('promedio')) continue;
 
-      const matricula = colMap['matricula'] !== undefined
-        ? parseFloat(String(row[colMap['matricula']] || '0').replace(/[^0-9.]/g, '')) || 0
-        : 0;
-      if (matricula <= 0 && !cctRaw.startsWith('21')) continue;
+      let matricula: number | undefined = undefined;
+      if (colMap['matricula'] !== undefined) {
+        const rawMat = String(row[colMap['matricula']] ?? '').replace(/[^0-9.]/g, '');
+        const parsedMat = parseFloat(rawMat);
+        if (!isNaN(parsedMat) && parsedMat >= 0) {
+          matricula = parsedMat;
+        }
+      }
+      if (matricula !== undefined && matricula <= 0 && !cctRaw.startsWith('21')) continue;
 
       // ── Datos 911.7G ──
       const egresados = colMap['egresados'] !== undefined ? parseInt(String(row[colMap['egresados']] || '0').replace(/[^0-9]/g, ''), 10) || undefined : undefined;
@@ -179,7 +184,7 @@ export function parsePmcStatistics(
           abandono = parsedAb;
         }
       }
-      if (abandono === undefined && bajasDefinitivas !== undefined && matricula > 0) {
+      if (abandono === undefined && bajasDefinitivas !== undefined && matricula !== undefined && matricula > 0) {
         abandono = parseFloat(((bajasDefinitivas / matricula) * 100).toFixed(2));
       }
 
@@ -200,7 +205,7 @@ export function parsePmcStatistics(
         if (!isNaN(parsedAp) && parsedAp >= 0) {
           aprobadosPorcentaje = parsedAp;
         }
-      } else if (estudiantesAprobados !== undefined && matricula > 0) {
+      } else if (estudiantesAprobados !== undefined && matricula !== undefined && matricula > 0) {
         aprobadosPorcentaje = parseFloat(((estudiantesAprobados / matricula) * 100).toFixed(2));
       }
 
@@ -213,7 +218,7 @@ export function parsePmcStatistics(
         if (!isNaN(parsedRep) && parsedRep >= 0) {
           reprobacion = parsedRep;
         }
-      } else if (estudiantesReprobados !== undefined && matricula > 0) {
+      } else if (estudiantesReprobados !== undefined && matricula !== undefined && matricula > 0) {
         reprobacion = parseFloat(((estudiantesReprobados / matricula) * 100).toFixed(2));
       }
 
@@ -265,9 +270,12 @@ export function parsePmcStatistics(
     }
 
     // Calcular estadísticas globales de zona (excluyendo planteles con matrícula <= 0 para no distorsionar benchmarks)
-    const plantelesZonaValidos = allPlanteles.filter((p) => p.matricula > 0);
+    const plantelesZonaValidos = allPlanteles.filter((p) => p.matricula !== undefined && p.matricula > 0);
     const totalPlanteles = allPlanteles.length;
-    const matriculaTotal = allPlanteles.reduce((acc, p) => acc + p.matricula, 0);
+    const plantelesConMatricula = allPlanteles.filter((p) => p.matricula !== undefined);
+    const matriculaTotal = plantelesConMatricula.length > 0
+      ? plantelesConMatricula.reduce((acc, p) => acc + (p.matricula ?? 0), 0)
+      : undefined;
 
     const plantelesConAbandono = plantelesZonaValidos.filter((p) => p.abandono !== undefined);
     const sumaAbandono = plantelesConAbandono.reduce((acc, p) => acc + (p.abandono ?? 0), 0);

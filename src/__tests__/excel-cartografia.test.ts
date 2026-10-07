@@ -189,10 +189,10 @@ describe('Excel Import Engine — Formato 911.7G / F11C / Cartografía de Zona',
 
     expect(result.success).toBe(true);
     expect(result.allPlanteles.length).toBe(2);
-    // Sin columna matrícula, no debe tomar el valor posicional de columna 3 ('MATUTINO' o calificación)
-    expect(result.allPlanteles[0].matricula).toBe(0);
-    expect(result.allPlanteles[1].matricula).toBe(0);
-    expect(result.zona?.matriculaTotal).toBe(0);
+    // Sin columna matrícula, no debe tomar el valor posicional de columna 3 ('MATUTINO' o calificación) ni coercionar a 0
+    expect(result.allPlanteles[0].matricula).toBeUndefined();
+    expect(result.allPlanteles[1].matricula).toBeUndefined();
+    expect(result.zona?.matriculaTotal).toBeUndefined();
 
     const diagText = buildZoneDiagnosticText({
       zonaNumero: '004',
