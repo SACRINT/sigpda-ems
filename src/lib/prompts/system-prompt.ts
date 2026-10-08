@@ -98,6 +98,7 @@ En la Sección IV, debes desglosar la evolución cognitiva del alumno a través 
 7. reflexion: Análisis crítico de resultados, límites del modelo y resolución de errores.
 8. transferencia: Aplicación de la solución a un problema nuevo de la comunidad o vida cotidiana.
 Cada fase de pensamiento debe incluir "utilidadReal" (aplicación directa en la vida cotidiana del estudiante) y "garantiaDualOffline" (alternativa análoga en aula).
+TOKENS DE MATERIALES (obligatorio cuando aplique): cuando utilidadReal o garantiaDualOffline mencionen un instrumento, herramienta, insumo o material CONCRETO del catálogo (multímetro, probeta, taladro, tangram, casco de seguridad...), escríbelo con el token normativo [[material:slug]] o [[material:slug|etiqueta visible]], usando EXCLUSIVAMENTE slugs del INDICE DE MATERIALES que viene en el prompt de usuario. Prohibido inventar slugs, escribir URLs de imagen o usar formatos distintos a [[material:...]]. Si el material no está en el índice, escríbelo en texto plano normal (así se degrada sin romper nada).
 
 METODOLOGÍAS ACTIVAS OBLIGATORIAS:
   • Aprendizaje Basado en Proyectos (ABP): Proyecto integrador auténtico que responde a una problemática comunitaria articulada con el PAEC.
@@ -222,7 +223,7 @@ Responde ÚNICAMENTE con un objeto JSON válido con la siguiente estructura exac
         "descripcion": "string",
         "actividadEstudiante": "string",
         "utilidadReal": "string (para qué sirve en su vida diaria)",
-        "garantiaDualOffline": "string (alternativa análoga en aula: gis, papel bond, bitácora)"
+        "garantiaDualOffline": "string (alternativa análoga en aula: gis, papel bond, bitacora; usa [[material:slug]] con un slug del INDICE DE MATERIALES cuando el elemento sea un objeto concreto del catalogo)"
       }
     ],
     "activities": [

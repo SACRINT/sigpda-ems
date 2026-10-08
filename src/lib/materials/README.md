@@ -35,10 +35,11 @@ Para referenciar un material en el cuerpo de una práctica, sesión de laborator
   - En UI: componente React inline SVG (cero llamadas de red).
   - En PDF y DOCX: asset estático `public/images/materiales/_placeholder.png` (512×512 px) mediante `doc.addImage` e `ImageRun`.
 - **D5 — Enganche en Puntos Existentes**:
-  1. `material-extractor.ts`: columnas de inventario (Token, Imagen, EPP, Equivalente Virtual).
-  2. `pdf-workbook-renderer.ts`: figuras con pie altText en sección de requerimientos.
-  3. `docx-workbook-renderer.ts`: figuras tabulares con `ImageRun`.
-  4. UI de planeación: `ExtraPreviewModal` y `MaterialFigure`.
+  1. `material-extractor.ts`: columnas de inventario (Token, Imagen, EPP, Equivalente Virtual) con `parseMaterialTokensWithFallback`.
+  2. `pdf-workbook-renderer.ts`: figuras con pie altText en sección de requerimientos y figuras de misión vía `material_png`.
+  3. `docx-workbook-renderer.ts`: figuras tabulares con `ImageRun` y figuras de misión vía `material_png`.
+  4. UI de planeación: `ExtraPreviewModal` y `PlanningTabMateriales` vía `parseMaterialTokensWithFallback` y `MaterialFigure`.
+  5. `cascade-block-materials.ts`: payload JSON persistido con `slug` y `altText`.
 - **D6 — Sin Dependencias Nuevas**: Ejecuta en Node.js puro y librerías preexistentes (`sharp`, `jspdf`, `docx`).
 - **D7 — Offline-First**: Todo se resuelve localmente en `/public`; los equivalentes virtuales son informativos y no realizan fetch externo.
 - **D8 — EPP Normativo**: `eppRequerido?: string[]` destaca el equipo de protección obligatorio según normas oficiales mexicanas.
@@ -47,6 +48,7 @@ Para referenciar un material en el cuerpo de una práctica, sesión de laborator
   2. Imagen PNG pendiente: se muestra el placeholder institucional automático.
   3. Texto sin tokens: procesamiento regular idéntico sin mutaciones.
 - **D10 — Rendimiento**: Límite de asset 512×512 px / ≤ 60 KB.
+- **D11 — Resolvedor Visual Unificado**: Orden de precedencia documentado: Openverse (si aplica) → PNG catálogo de materiales (`material_png`) → SVG sintético determinístico → placeholder institucional.
 
 ---
 
@@ -117,6 +119,40 @@ Para referenciar un material en el cuerpo de una práctica, sesión de laborator
 Para crear o reemplazar los PNG de los materiales:
 1. **Ruta**: `public/images/materiales/<slug>.png`.
 2. **Dimensiones**: 512×512 píxeles (relación 1:1).
-3. **Formato**: PNG de 24 o 32 bits con transparencia o fondo institucional claro (#F8FAFC).
+3. **Formato**: PNG de 24 bits con fondo blanco sólido (#FFFFFF) sin transparencia ni canal alfa (contrato normativo estricto D10).
 4. **Peso máximo**: ≤ 60 KB por archivo (con compresión PNG nivel 9 en Sharp o TinyPNG).
 5. **Estilo visual**: Fotografía técnica aislada o ilustración vectorial de alta fidelidad sin marcas de agua ni elementos publicitarios.
+
+---
+
+## 5. Activación T-OP-IMG (2026-10)
+
+### 5.1 Inyección de Índices en Prompts de IA
+El catálogo normativo de materiales se inyecta dinámicamente y contextualizado en tres puntos neurálgicos:
+1. `src/lib/prompts/system-prompt.ts`: Regla normativa en `SYSTEM_PROMPT` para restringir la emisión de `[[material:slug]]` a slugs existentes y actualización del esquema de `garantiaDualOffline`.
+2. `src/lib/prompts/build-prompt.ts`: Inyección de `INDICE DE MATERIALES AUTORIZADOS` filtrado por UAC/subsistema inmediatamente antes de la orden final de respuesta.
+3. `src/lib/guide-engine/writers/project-writer.ts`: Directiva y ejemplo JSON con tokens normativos en `systemInstruction` para la generación de `requiredMaterials`.
+
+### 5.2 Auto-tokenizador Determinista (`auto-tokenize.ts`)
+Para recuperar tokens incluso si la IA redacta en texto plano, el módulo `auto-tokenize.ts` proporciona:
+- Precedencia por longitud de variantes (mínimo 6 caracteres).
+- Fronteras de palabra deterministas y compatibilidad diacrítica (`normalizeUnicode`).
+- Protección de URLs y claves JSON.
+- Idempotencia estricta: `autoTokenizeMaterials(autoTokenizeMaterials(x)) === autoTokenizeMaterials(x)`.
+- Fachada transparente: `parseMaterialTokensWithFallback` en `material-tokens.ts`.
+
+Flujo de datos:
+`Texto libre ("Se requiere un multímetro digital")`
+  → `autoTokenizeMaterials()`
+  → `Token normativo ("Se requiere un [[material:multimetro|multímetro digital]]")`
+  → `parseMaterialTokensWithFallback()` / `readMaterialPng('multimetro')`
+  → `Embebe PNG en PDF (addImage) / DOCX (ImageRun) / UI (MaterialFigure)`
+
+### 5.3 Precedencia del Resolvedor Visual Unificado (D11)
+`resolveVisualForMission()` en `visual-asset-manager.ts`:
+1. Activo previo persistido en BD (`image_assets`).
+2. Imagen CC de Openverse (si `preferOpenverseMedia: true` y existe candidato).
+3. **PNG de Catálogo de Materiales (`material_png`)**: detección contextual en título/contexto de la misión vía `detectCatalogMaterials()` con verificación física de archivo en `/public`.
+4. Gráfico sintético vectorial SVG (`dispatchVisual`).
+5. Placeholder institucional offline (`_placeholder.png`).
+

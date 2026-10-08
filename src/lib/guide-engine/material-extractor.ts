@@ -3,7 +3,8 @@ import type { SecuenciaBloque } from '@/types/planning';
 import { isStemSubject, isHumanitiesSubject } from '@/lib/visual-engine/visual-dispatcher';
 import { buildSessionMoments } from './pedagogical-moments';
 import { auditPlanWorkbookCoherence, type CoherenceReport } from './plan-workbook-coherence';
-import { parseMaterialTokens, resolveMaterialTokensForMarkdown } from '@/lib/materials/material-tokens';
+import { parseMaterialTokensWithFallback, resolveMaterialTokensForMarkdown } from '@/lib/materials/material-tokens';
+import { autoTokenizeMaterials } from '@/lib/materials/auto-tokenize';
 import { getMaterialImagePaths } from '@/lib/materials/materials-catalog';
 
 /**
@@ -300,8 +301,8 @@ function buildPlanDeClase(
     : 'Aprendizaje Basado en Retos y Modelado Cognitivo (I Do - We Do - You Do)';
 
   const recursosDidacticos = sessionFromSeq?.garantiaDualOffline
-    ? `Cuaderno de Trabajo Activo, bitácora de trabajo. Estrategia dual sin conectividad: ${sessionFromSeq.garantiaDualOffline}`
-    : 'Cuaderno de Trabajo Activo del estudiante, bitácora de taller/laboratorio, instrumental didáctico.';
+    ? `Cuaderno de Trabajo Activo, bitácora de trabajo. Estrategia dual sin conectividad: ${autoTokenizeMaterials(sessionFromSeq.garantiaDualOffline)}`
+    : autoTokenizeMaterials('Cuaderno de Trabajo Activo del estudiante, bitácora de taller/laboratorio, instrumental didáctico.');
 
   const productoEsperado = sessionFromSeq?.evidence
     ? sessionFromSeq.evidence
@@ -763,7 +764,7 @@ function buildMaterialDidacticoMarkdown(
       plan.tituloSesion.toLowerCase().includes('práctica');
     const espacio = isLab ? 'Laboratorio / Taller Especializado' : 'Aula de Clases';
 
-    const tokens = parseMaterialTokens(plan.desarrollo.recursosDidacticos);
+    const tokens = parseMaterialTokensWithFallback(plan.desarrollo.recursosDidacticos);
     const resolvedRecursos = resolveMaterialTokensForMarkdown(plan.desarrollo.recursosDidacticos);
 
     let tokenCell = '-';

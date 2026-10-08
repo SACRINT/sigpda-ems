@@ -6,6 +6,7 @@
  */
 
 import { getMaterial, type MaterialCatalogItem } from './materials-catalog';
+import { autoTokenizeMaterials } from './auto-tokenize';
 
 /**
  * Expresión regular para detectar tokens de materiales en textos.
@@ -67,3 +68,9 @@ export function resolveMaterialTokensForMarkdown(text: string): string {
     return label && label.length > 0 ? label : item.name;
   });
 }
+
+/** Fachada para consumidores de render/UI: primero recupera tokens del texto libre, luego parsea. */
+export function parseMaterialTokensWithFallback(text: string): ResolvedMaterial[] {
+  return parseMaterialTokens(autoTokenizeMaterials(text));
+}
+

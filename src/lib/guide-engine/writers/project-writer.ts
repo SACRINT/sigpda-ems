@@ -16,6 +16,11 @@ import type { MissionSection, ProjectSection, WorkbookElement } from '@/types/wo
 import { type WriterInput, type WriterOutput, evaluateQuality } from './writer-contract';
 import { buildPlanningAlignmentPrompt } from './planning-alignment-prompt';
 import { logger } from '@/lib/logger';
+import {
+  buildMaterialSlugIndex,
+  getMaterialCategoriesForContext,
+} from '@/lib/materials/slug-index';
+import { autoTokenizeMaterials } from '@/lib/materials/auto-tokenize';
 
 export async function generateProjectMission(input: WriterInput): Promise<WriterOutput> {
   const projectMission = input.missions.find((m) => m.missionType === 'project') || input.missions[input.missions.length - 2] || input.missions[0];
@@ -33,7 +38,7 @@ ${planningAlignmentChunk}
 DIRECTIVAS DEL PROYECTO Y METAS FORMATIVAS:
 1. Artefacto Real: Producto auténtico útil para la vida diaria o el empleo (no un mero resumen).
 2. Utilidad Comunitaria (1,000-1,500 palabras): Vinculación profunda con la problemática PAEC: "${input.paecContext}", justificando beneficiarios e impacto.
-3. Objetivos y Materiales: 3 a 5 learningObjectives de orden superior y lista detallada de requiredMaterials con especificaciones.
+3. Objetivos y Materiales: 3 a 5 learningObjectives de orden superior y lista detallada de requiredMaterials con especificaciones. Cada requiredMaterials que corresponda a un instrumento/herramienta/insumo del INDICE DE MATERIALES debe escribirse como token normativo [[material:slug]] o [[material:slug|etiqueta con especificación]] usando SOLO slugs de ese índice (prohibido inventar slugs o URLs); los materiales fuera del índice van en texto plano.
 4. Fases y Pasos (1,500-2,000 palabras en total): 6 a 8 executionSteps secuenciales y 3 a 5 phases con entregables verificables e instrucciones detalladas.
 5. Criterios de Entrega y Aceptación: 4 a 6 deliveryCriteria formales y acceptanceCriteria medibles con normas NOM/ISO.
 6. Bitácora de Registro: registrationFormat estructurado con campos de sesión, parámetros, incidencias, firmas y sellos.
@@ -50,9 +55,9 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
     "Validar el impacto comunitario en el entorno PAEC..."
   ],
   "requiredMaterials": [
-    "Material 1 con especificación técnica",
-    "Herramienta 2 con versión o tolerancia",
-    "Instrumental 3"
+    "[[material:multimetro|Multímetro digital autorango de 3½ dígitos]]",
+    "[[material:cable-red|Cable de red UTP Cat 6 — 3 m]]",
+    "Insumo específico no catalogado con su especificación técnica"
   ],
   "executionSteps": [
     "1. Planificación y acopio...",
@@ -93,7 +98,10 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
       "insufficient": "No opera o no cumple especificaciones mínimas."
     }
   ]
-}`;
+}
+
+INDICE DE MATERIALES AUTORIZADOS (usa SOLO estos slugs en los tokens [[material:slug]] de requiredMaterials; lo que no esté aquí, en texto plano):
+${buildMaterialSlugIndex(getMaterialCategoriesForContext(input.uacName, input.subsystem))}`;
 
   const prompt = `UAC: ${input.uacName}
 Subsistema: ${input.subsystem.toUpperCase()}
@@ -166,7 +174,7 @@ Redacta la Misión del Proyecto y Construcción del Artefacto Real:`;
             'Evaluar la efectividad del producto mediante pruebas de campo y bitácora de registro.',
           ],
       requiredMaterials: Array.isArray(parsed.requiredMaterials) && parsed.requiredMaterials.length > 0
-        ? parsed.requiredMaterials
+        ? parsed.requiredMaterials.map((m: unknown) => (typeof m === 'string' ? autoTokenizeMaterials(m) : m))
         : [
             'Insumos específicos de la disciplina según la fase de planeación.',
             'Instrumental y herramientas de taller con especificaciones de seguridad.',

@@ -10,7 +10,8 @@ const MarkdownWithMermaid = dynamic(
 );
 
 import { MaterialFigure } from '@/components/planeacion/MaterialFigure';
-import { parseMaterialTokens, resolveMaterialTokensForMarkdown } from '@/lib/materials/material-tokens';
+import { parseMaterialTokensWithFallback, resolveMaterialTokensForMarkdown } from '@/lib/materials/material-tokens';
+import { autoTokenizeMaterials } from '@/lib/materials/auto-tokenize';
 
 interface ExtraPreviewModalProps {
   isOpen: boolean;
@@ -29,15 +30,15 @@ export function ExtraPreviewModal({
 }: ExtraPreviewModalProps) {
   const [copied, setCopied] = useState(false);
 
-  const detectedMaterials = parseMaterialTokens(contentText || '');
+  const detectedMaterials = parseMaterialTokensWithFallback(contentText || '');
   const uniqueMaterials = Array.from(
     new Map(detectedMaterials.map((m) => [m.slug, m])).values()
   );
 
   function renderCellContent(cell: string) {
-    const tokens = parseMaterialTokens(cell);
+    const tokens = parseMaterialTokensWithFallback(cell);
     if (tokens.length > 0) {
-      const cleanCell = resolveMaterialTokensForMarkdown(cell);
+      const cleanCell = resolveMaterialTokensForMarkdown(autoTokenizeMaterials(cell));
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           {cleanCell.trim().length > 0 && <div>{renderTextFormatting(cleanCell)}</div>}

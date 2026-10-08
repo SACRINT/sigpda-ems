@@ -26,6 +26,10 @@ import {
 import { generateObjectBlueprintSvg } from './object-svg-generator';
 import { downloadAndProcessImage } from './image-downloader';
 import { svgToPngBuffer } from './svg-to-png';
+import fs from 'fs';
+import path from 'path';
+import { detectCatalogMaterials } from '@/lib/materials/auto-tokenize';
+import { getMaterial, getMaterialImagePaths } from '@/lib/materials/materials-catalog';
 
 export interface ResolveVisualOptions {
   planningId?: string;
@@ -40,11 +44,25 @@ export interface ResolveVisualOptions {
 }
 
 export interface ResolvedVisual {
-  type: 'vector_svg' | 'openverse_media';
+  type: 'vector_svg' | 'openverse_media' | 'material_png';
   svg?: string;
   annotations?: VisualResult['annotations'];
   mediaAsset?: ImageAsset;
   caption: string;
+  materialSlug?: string;
+  materialAltText?: string;
+  materialPngPath?: string;
+}
+
+function materialPngFileExists(slug: string): boolean {
+  if (typeof window !== 'undefined') return false;
+  try {
+    const relPath = getMaterialImagePaths(slug).png;
+    const fullPath = path.join(process.cwd(), 'public', relPath);
+    return fs.existsSync(fullPath);
+  } catch {
+    return false;
+  }
 }
 
 const NATURAL_SCIENCES_KEYWORDS = [
@@ -259,6 +277,23 @@ export async function resolveVisualForMission(
       }
     } catch (openverseErr) {
       logger.warn('[VisualAssetManager] Fallback a Capa 0 tras error Openverse:', openverseErr);
+    }
+  }
+
+  // 1.5 Catálogo de materiales ilustrados (PNG)
+  const matches = detectCatalogMaterials(`${missionTitle} ${contextText || ''}`);
+  const slugLibre = matches.find((m) => !options.usedAssetIds?.has(`material:${m.slug}`));
+  if (slugLibre) {
+    const item = getMaterial(slugLibre.slug);
+    if (item && materialPngFileExists(slugLibre.slug)) {
+      options.usedAssetIds?.add(`material:${slugLibre.slug}`);
+      return {
+        type: 'material_png',
+        caption: item.name,
+        materialSlug: slugLibre.slug,
+        materialAltText: item.altText,
+        materialPngPath: getMaterialImagePaths(slugLibre.slug).png,
+      };
     }
   }
 

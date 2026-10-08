@@ -6,6 +6,11 @@ import { CATALOGO_METODOLOGIAS_ACTIVAS } from '@/lib/catalogo-metodologias';
 import { formatearEstrategiasParaPrompt } from '@/lib/catalogo-estrategias';
 import { isTechnologicalSubsystem } from '@/lib/subsystem-config';
 import { SCHOOL_YEAR } from '@/lib/config';
+import {
+  buildMaterialSlugIndex,
+  getMaterialCategoriesForContext,
+  MATERIAL_INDEX_MAX_CHARS,
+} from '@/lib/materials/slug-index';
 
 export interface AuditFeedbackContext {
   overall_score: number;
@@ -474,6 +479,9 @@ ${(context.usePaecActivity !== false && context.paecOperationalActivity?.activid
    - "procesosPensamiento": Desglosa los 8 procesos cognitivos oficiales (asombro, problematizacion, traduccion, conceptualizacion, razonamiento, indagacion, reflexion, transferencia) indicando para cada uno su "utilidadReal" cotidiana y su "garantiaDualOffline" en aula (material análogo). CERO tareas de relleno o memorísticas pasivas.
 9. SECCIÓN V-B (BITÁCORA FORMATIVA Y REGULADORA 50-20-30):
    - "bitacora502030": Genera la bitácora oficial con criterioProceso50 (observando participativo, dialogante, cuestionador, apoyo), evidenciaColectiva20, evidenciaIndividual30, ticketSalidaPregunta y 4-5 estudiantes representativos con calificaciones y notas cualitativas de acompañamiento.
+
+INDICE DE MATERIALES AUTORIZADOS — usa SOLO estos slugs dentro de tokens [[material:slug]] en "garantiaDualOffline" (y en cualquier campo que liste materiales). Si un material no aparece aquí, escríbelo en texto plano:
+${buildMaterialSlugIndex(getMaterialCategoriesForContext(extractedData.uacName || officialProgram?.uac_name || '', component), MATERIAL_INDEX_MAX_CHARS - 300)}
 
 Responde ÚNICAMENTE con el objeto JSON válido que cumpla la estructura exacta solicitada en el system prompt.`;
 }

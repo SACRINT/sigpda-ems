@@ -260,6 +260,8 @@ export async function cascadeBlockMaterials(
           annotations: resolved.annotations || [],
           mediaAsset: resolved.mediaAsset,
           caption: resolved.caption,
+          slug: resolved.materialSlug,
+          altText: resolved.materialAltText,
           missionNumber: mIdx + 1,
           missionTitle: mission.title,
           subjectName,

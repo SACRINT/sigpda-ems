@@ -63,7 +63,7 @@ import {
 } from '@/types/workbook-legacy';
 import { extractCalloutBox, type CalloutBoxData } from '@/lib/visual-engine/callout-box';
 import { readMaterialPng } from '@/lib/materials/material-figure-doc';
-import { parseMaterialTokens, resolveMaterialTokensForMarkdown } from '@/lib/materials/material-tokens';
+import { parseMaterialTokensWithFallback, resolveMaterialTokensForMarkdown } from '@/lib/materials/material-tokens';
 import crypto from 'crypto';
 import QRCode from 'qrcode';
 import { getVerificationUrl } from '@/lib/digital-signature';
@@ -2443,7 +2443,38 @@ async function buildMissionContent(
       usedAssetIds: assignedAssetKeys,
     });
     if (resolvedVisual) {
-      if (resolvedVisual.type === 'vector_svg' && resolvedVisual.svg) {
+      if (resolvedVisual.type === 'material_png' && resolvedVisual.materialSlug) {
+        const pngBuffer = readMaterialPng(resolvedVisual.materialSlug);
+        if (pngBuffer) {
+          const caption = resolvedVisual.materialAltText || resolvedVisual.caption;
+          elements.push(
+            new Paragraph({
+              alignment: AlignmentType.CENTER,
+              spacing: { before: 200, after: 80 },
+              children: [
+                new ImageRun({
+                  data: pngBuffer,
+                  transformation: { width: 320, height: 320 },
+                  type: 'png',
+                }),
+              ],
+            }),
+            new Paragraph({
+              alignment: AlignmentType.CENTER,
+              spacing: { after: 180 },
+              children: [
+                new TextRun({
+                  text: caption,
+                  italics: true,
+                  size: 16, // 8pt
+                  color: C.mutedText,
+                  font: 'Calibri',
+                }),
+              ],
+            })
+          );
+        }
+      } else if (resolvedVisual.type === 'vector_svg' && resolvedVisual.svg) {
         const imgResult = await svgToPngBuffer(resolvedVisual.svg);
         if (imgResult) {
           elements.push(
@@ -3055,7 +3086,7 @@ function buildProjectSection(project: ProjectSection): (Paragraph | Table)[] {
 
     // Figuras de materiales resueltas con ImageRun y readMaterialPng (T-IMG-06)
     const allTokens = project.requiredMaterials.flatMap((mat) =>
-      parseMaterialTokens(resolveMaterialString(mat))
+      parseMaterialTokensWithFallback(resolveMaterialString(mat))
     );
     const uniqueTokens = Array.from(new Map(allTokens.map((t) => [t.slug, t])).values());
 

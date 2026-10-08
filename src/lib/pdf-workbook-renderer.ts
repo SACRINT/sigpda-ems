@@ -43,7 +43,7 @@ import {
 import { extractCalloutBox, type CalloutBoxData } from '@/lib/visual-engine/callout-box';
 import { extractComparisonTable, type ComparisonTableData } from '@/lib/visual-engine/comparison-table';
 import { readMaterialPng } from '@/lib/materials/material-figure-doc';
-import { parseMaterialTokens, resolveMaterialTokensForMarkdown } from '@/lib/materials/material-tokens';
+import { parseMaterialTokensWithFallback, resolveMaterialTokensForMarkdown } from '@/lib/materials/material-tokens';
 import crypto from 'crypto';
 import QRCode from 'qrcode';
 import { getVerificationUrl } from '@/lib/digital-signature';
@@ -2138,7 +2138,24 @@ async function drawMission(
         preferOpenverseMedia: false, // Forzar vector SVG para STEM — fotos son irrelevantes en Matemáticas
         usedAssetIds: assignedAssetKeys,
       });
-      if (resolvedVisual?.type === 'vector_svg' && resolvedVisual.svg) {
+      if (resolvedVisual?.type === 'material_png' && resolvedVisual.materialSlug) {
+        const png = readMaterialPng(resolvedVisual.materialSlug);
+        if (png) {
+          const imgW = Math.min(mainW * 0.92, 90);
+          const imgH = imgW;
+          y = checkSpace(y, imgH + 18);
+          const imgX = margin + (mainW - imgW) / 2;
+          doc.addImage(png, 'PNG', imgX, y, imgW, imgH);
+          y += imgH + 3.5;
+          setFontCaption(doc);
+          doc.setFontSize(7.5);
+          doc.setTextColor(...MUTED_TEXT);
+          const captionText = resolvedVisual.materialAltText || resolvedVisual.caption;
+          const captionLines = doc.splitTextToSize(captionText, mainW * 0.88);
+          doc.text(captionLines, margin + mainW / 2, y, { align: 'center' });
+          y += (captionLines.length * 3.2) + 4;
+        }
+      } else if (resolvedVisual?.type === 'vector_svg' && resolvedVisual.svg) {
         const imgResult = await svgToPngBuffer(resolvedVisual.svg);
         if (imgResult) {
           const imgW = Math.min(mainW * 0.92, 124);
@@ -2185,7 +2202,24 @@ async function drawMission(
         usedAssetIds: assignedAssetKeys,
       });
       if (resolvedVisual) {
-        if (resolvedVisual.type === 'vector_svg' && resolvedVisual.svg) {
+        if (resolvedVisual.type === 'material_png' && resolvedVisual.materialSlug) {
+          const png = readMaterialPng(resolvedVisual.materialSlug);
+          if (png) {
+            const imgW = Math.min(mainW * 0.88, 90);
+            const imgH = imgW;
+            y = checkSpace(y, imgH + 16);
+            const imgX = margin + (mainW - imgW) / 2;
+            doc.addImage(png, 'PNG', imgX, y, imgW, imgH);
+            y += imgH + 3.5;
+            setFontCaption(doc);
+            doc.setFontSize(7.5);
+            doc.setTextColor(...MUTED_TEXT);
+            const captionText = resolvedVisual.materialAltText || resolvedVisual.caption;
+            const captionLines = doc.splitTextToSize(captionText, mainW * 0.88);
+            doc.text(captionLines, margin + mainW / 2, y, { align: 'center' });
+            y += (captionLines.length * 3.2) + 3.5;
+          }
+        } else if (resolvedVisual.type === 'vector_svg' && resolvedVisual.svg) {
           const imgResult = await svgToPngBuffer(resolvedVisual.svg);
           if (imgResult) {
             const imgW = Math.min(120, mainW * 0.88);
@@ -2651,7 +2685,7 @@ function drawProjectSection(
 
     // Figuras de materiales en anexo/sección con imagen fija y alt del catálogo como pie (T-IMG-05)
     const allTokens = project.requiredMaterials.flatMap((mat) =>
-      parseMaterialTokens(resolveMaterialString(mat))
+      parseMaterialTokensWithFallback(resolveMaterialString(mat))
     );
     const uniqueTokens = Array.from(new Map(allTokens.map((t) => [t.slug, t])).values());
 

@@ -9,7 +9,7 @@ import {
   Zap, RefreshCw, CheckCircle
 } from 'lucide-react';
 import { MaterialFigure } from '@/components/planeacion/MaterialFigure';
-import { parseMaterialTokens } from '@/lib/materials/material-tokens';
+import { parseMaterialTokensWithFallback } from '@/lib/materials/material-tokens';
 
 
 
@@ -575,7 +575,7 @@ export default function PlanningTabMateriales({
                                 act.ejecucion?.materials || '',
                                 act.conclusion?.materials || '',
                               ].join(' ');
-                              const detected = parseMaterialTokens(blockText);
+                              const detected = parseMaterialTokensWithFallback(blockText);
                               const allUnique = Array.from(new Map(detected.map((m) => [m.slug, m])).values());
                               if (allUnique.length === 0) return null;
                               const displayed = allUnique.slice(0, 4);
