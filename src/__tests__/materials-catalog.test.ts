@@ -25,6 +25,15 @@ describe('T-IMG-08: Test de Integridad Cruzada del Catálogo de Materiales', () 
     }
   });
 
+  it('el catálogo completo cubre el plan de 244 slugs P1-P6 (53 ejecutados + 191 pendientes de imagen)', () => {
+    expect(MATERIALES_CATALOG.length).toBe(244);
+
+    const p1Items = MATERIALES_CATALOG.filter((item) => item.priority === 'P1');
+    const p2Items = MATERIALES_CATALOG.filter((item) => item.priority === 'P2');
+    expect(p1Items.length).toBe(53);
+    expect(p2Items.length).toBe(191);
+  });
+
   it('todos los slugs son únicos y cumplen con formato kebab-case estricto', () => {
     const slugs = MATERIALES_CATALOG.map((item) => item.slug);
     const uniqueSlugs = new Set(slugs);
