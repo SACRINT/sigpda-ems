@@ -79,4 +79,18 @@ describe('slug-index — helper de índices para prompts', () => {
     expect(fisIndex.length).toBeLessThanOrEqual(MATERIAL_INDEX_MAX_CHARS);
     expect(fisIndex.length).toBeLessThan(4000);
   });
+
+  it('F-04: cuando contexto es vacio [] con maxChars = MATERIAL_INDEX_MAX_CHARS - 300, la longitud no excede el límite y trunca por categorías', () => {
+    const emptyContextCats = getMaterialCategoriesForContext('');
+    expect(emptyContextCats).toEqual([]);
+
+    const maxLimit = MATERIAL_INDEX_MAX_CHARS - 300;
+    const indexWithGuard = buildMaterialSlugIndex(emptyContextCats, maxLimit);
+    expect(indexWithGuard.length).toBeLessThanOrEqual(maxLimit);
+    // Verifica que contiene una cantidad coherente de slugs truncada por categorías enteras (~156 de 244)
+    const lines = indexWithGuard.split('\n');
+    expect(lines.length).toBeGreaterThan(100);
+    expect(lines.length).toBeLessThanOrEqual(244);
+  });
 });
+

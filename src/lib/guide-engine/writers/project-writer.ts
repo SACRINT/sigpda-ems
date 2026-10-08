@@ -19,6 +19,7 @@ import { logger } from '@/lib/logger';
 import {
   buildMaterialSlugIndex,
   getMaterialCategoriesForContext,
+  MATERIAL_INDEX_MAX_CHARS,
 } from '@/lib/materials/slug-index';
 import { autoTokenizeMaterials } from '@/lib/materials/auto-tokenize';
 
@@ -101,7 +102,7 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
 }
 
 INDICE DE MATERIALES AUTORIZADOS (usa SOLO estos slugs en los tokens [[material:slug]] de requiredMaterials; lo que no esté aquí, en texto plano):
-${buildMaterialSlugIndex(getMaterialCategoriesForContext(input.uacName, input.subsystem))}`;
+${buildMaterialSlugIndex(getMaterialCategoriesForContext(input.uacName, input.subsystem), MATERIAL_INDEX_MAX_CHARS - 300)}`;
 
   const prompt = `UAC: ${input.uacName}
 Subsistema: ${input.subsystem.toUpperCase()}
@@ -155,12 +156,12 @@ Redacta la Misión del Proyecto y Construcción del Artefacto Real:`;
       }
     }
 
-    const phases = (parsed.phases || []).map((p: any, i: number) => ({
-      phaseNum: p.phaseNum || i + 1,
-      title: p.title || `Fase ${i + 1}`,
-      allocatedHours: p.allocatedHours || 2,
-      deliverables: Array.isArray(p.deliverables) ? p.deliverables : ['Entregable de fase'],
-      instructions: p.instructions || 'Desarrollar las actividades asignadas para esta fase.',
+    const phases = (parsed.phases || []).map((p: Record<string, unknown>, i: number) => ({
+      phaseNum: (p.phaseNum as number) || i + 1,
+      title: (p.title as string) || `Fase ${i + 1}`,
+      allocatedHours: (p.allocatedHours as number) || 2,
+      deliverables: Array.isArray(p.deliverables) ? (p.deliverables as string[]) : ['Entregable de fase'],
+      instructions: (p.instructions as string) || 'Desarrollar las actividades asignadas para esta fase.',
     }));
 
     const projectSection: ProjectSection = {
@@ -237,9 +238,9 @@ Redacta la Misión del Proyecto y Construcción del Artefacto Real:`;
       },
     ];
 
-    const phasesText = phases.map((p: any) => `${p.title}: ${p.instructions}`).join('\n\n');
+    const phasesText = phases.map((p: { title: string; instructions: string }) => `${p.title}: ${p.instructions}`).join('\n\n');
     const rubricText = Array.isArray(parsed.rubricSummary)
-      ? parsed.rubricSummary.map((r: any) => `${r.criterion || ''}: ${r.excellent || ''} ${r.good || ''} ${r.sufficient || ''} ${r.insufficient || ''}`).join(' ')
+      ? parsed.rubricSummary.map((r: Record<string, unknown>) => `${(r.criterion as string) || ''}: ${(r.excellent as string) || ''} ${(r.good as string) || ''} ${(r.sufficient as string) || ''} ${(r.insufficient as string) || ''}`).join(' ')
       : '';
     const specsText = Array.isArray(projectSection.technicalSpecs) ? projectSection.technicalSpecs.join(' ') : '';
     const criteriaText = Array.isArray(projectSection.acceptanceCriteria) ? projectSection.acceptanceCriteria.join(' ') : '';
@@ -303,7 +304,7 @@ Redacta la Misión del Proyecto y Construcción del Artefacto Real:`;
       qualityScore: quality.qualityScore,
       warnings: quality.warnings,
     };
-  } catch (err: any) {
+  } catch (err) {
     logger.error('[generateProjectMission] Error:', err);
     // Fallback estructurado de proyecto
     const fallbackProject: ProjectSection = {
@@ -373,7 +374,7 @@ Redacta la Misión del Proyecto y Construcción del Artefacto Real:`;
       wordCount: 500,
       tokensUsed: 0,
       qualityScore: 70,
-      warnings: ['Generado con fallback estructurado de proyecto: ' + String(err?.message || err)],
+      warnings: ['Generado con fallback estructurado de proyecto: ' + String((err as Error)?.message || err)],
     };
   }
 }
