@@ -280,7 +280,7 @@ export async function resolveVisualForMission(
     }
   }
 
-  // 1.5 Catálogo de materiales ilustrados (PNG)
+  // 2.5 Catálogo de materiales ilustrados (PNG)
   const matches = detectCatalogMaterials(`${missionTitle} ${contextText || ''}`);
   const slugLibre = matches.find((m) => !options.usedAssetIds?.has(`material:${m.slug}`));
   if (slugLibre) {

@@ -241,6 +241,7 @@ export async function cascadeBlockMaterials(
 
     // 8. Insertar Recursos Gráficos Determinísticos del Bloque (Visual Engine)
     const subjectName = workbook.coverData?.subjectName || '';
+    const usedAssetIds = new Set<string>();
     for (let mIdx = 0; mIdx < (workbook.missions || []).length; mIdx++) {
       const mission = workbook.missions[mIdx];
       const contextText = `${mission.conceptZero?.physicalAnalogy || ''} ${mission.conceptZero?.coreExplanation || ''}`;
@@ -252,6 +253,7 @@ export async function cascadeBlockMaterials(
         missionTitle: mission.title,
         contextText,
         preferOpenverseMedia: true,
+        usedAssetIds,
       });
       if (resolved) {
         const visualTitle = `[Visual] Recurso Gráfico Misión ${mIdx + 1}: ${mission.title}`;
