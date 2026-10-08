@@ -10,7 +10,7 @@ const MarkdownWithMermaid = dynamic(
 );
 
 import { MaterialFigure } from '@/components/planeacion/MaterialFigure';
-import { parseMaterialTokensWithFallback, resolveMaterialTokensForMarkdown } from '@/lib/materials/material-tokens';
+import { parseMaterialTokensWithFallback, resolveMaterialTokensForMarkdown, stripMaterialTokens } from '@/lib/materials/material-tokens';
 import { autoTokenizeMaterials } from '@/lib/materials/auto-tokenize';
 
 interface ExtraPreviewModalProps {
@@ -773,7 +773,7 @@ export function ExtraPreviewModal({
               </>
             ) : (
               // Rúbricas, listas de cotejo, planes de clase: parser existente con tablas
-              renderMarkdown(contentText || '')
+              renderMarkdown(stripMaterialTokens(contentText || ''))
             )}
           </div>
         </div>

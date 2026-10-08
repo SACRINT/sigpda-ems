@@ -33,6 +33,7 @@ import {
   INSTITUTIONAL_DEFAULTS,
   type BrandingContext,
 } from '@/lib/document-branding';
+import { stripMaterialTokens } from '@/lib/materials/material-tokens';
 
 // ── Paleta institucional MCCEMS ─────────────────────────────────────────────
 const NAVY: RGB     = [26, 26, 46];
@@ -204,7 +205,7 @@ export function renderExtraDocument(
   };
 
   // ── Parsing de líneas y componentes ───────────────────────────────────────
-  const lines = (extra.content_text || '').split('\n');
+  const lines = stripMaterialTokens(extra.content_text || '').split('\n');
   let inTable = false;
   let tableHeaders: string[] = [];
   let tableData: string[][] = [];

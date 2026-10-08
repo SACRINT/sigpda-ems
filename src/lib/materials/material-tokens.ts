@@ -74,3 +74,19 @@ export function parseMaterialTokensWithFallback(text: string): ResolvedMaterial[
   return parseMaterialTokens(autoTokenizeMaterials(text));
 }
 
+/**
+ * Remueve completamente la sintaxis de tokens [[material:...]] transformándolos en texto plano legible.
+ * Garantiza 0 brackets/tokens crudos en documentos de texto final como planes de clase impresos.
+ */
+export function stripMaterialTokens(text: string): string {
+  if (!text || typeof text !== 'string') return '';
+  const regex = new RegExp(MATERIAL_TOKEN_RE.source, MATERIAL_TOKEN_RE.flags);
+
+  return text.replace(regex, (_fullMatch, rawSlug: string, rawLabel: string | undefined) => {
+    const label = rawLabel?.trim();
+    if (label && label.length > 0) return label;
+    const item = getMaterial(rawSlug.toLowerCase());
+    return item ? item.name : rawSlug;
+  });
+}
+

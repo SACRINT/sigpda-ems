@@ -4,6 +4,7 @@ import {
   MATERIAL_TOKEN_RE,
   parseMaterialTokens,
   resolveMaterialTokensForMarkdown,
+  stripMaterialTokens,
 } from '@/lib/materials/material-tokens';
 
 describe('T-IMG-02: Material Tokens Parser & Resolver', () => {
@@ -93,9 +94,22 @@ describe('T-IMG-02: Material Tokens Parser & Resolver', () => {
   it('maneja textos vacíos o nulos de forma segura', () => {
     expect(parseMaterialTokens('')).toEqual([]);
     expect(resolveMaterialTokensForMarkdown('')).toBe('');
+    expect(stripMaterialTokens('')).toBe('');
     // @ts-expect-error validación en runtime
     expect(parseMaterialTokens(null)).toEqual([]);
     // @ts-expect-error validación en runtime
     expect(resolveMaterialTokensForMarkdown(null)).toBe('');
+    // @ts-expect-error validación en runtime
+    expect(stripMaterialTokens(null)).toBe('');
+  });
+
+  it('F-01: stripMaterialTokens elimina completamente la sintaxis [[material:...]] dejando texto plano limpio', () => {
+    const raw = 'Práctica con [[material:multimetro|multímetro digital]] y [[material:probeta]] o [[material:desconocido|etiqueta libre]] o [[material:solo-slug]].';
+    const clean = stripMaterialTokens(raw);
+
+    expect(clean).not.toContain('[[');
+    expect(clean).not.toContain(']]');
+    expect(clean).not.toContain('material:');
+    expect(clean).toBe('Práctica con multímetro digital y Probeta Graduada de Vidrio (100 ml) o etiqueta libre o solo-slug.');
   });
 });

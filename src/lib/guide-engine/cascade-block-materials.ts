@@ -14,6 +14,7 @@ import type { ActiveWorkTextbook } from '@/types/work-textbook';
 import type { SecuenciaBloque } from '@/types/planning';
 import { extractMaterialsFromWorkbook, type PlanDeClaseDerivado } from './material-extractor';
 import { resolveVisualForMission } from '@/lib/visual-engine/visual-asset-manager';
+import { stripMaterialTokens } from '@/lib/materials/material-tokens';
 import { logger } from '@/lib/logger';
 
 export interface CascadeResult {
@@ -36,7 +37,7 @@ function formatPlanDeClaseMarkdown(
   const uacName = (cover.subjectName as string) || 'Formación Disciplinar';
   const semester = (cover.semester as number | string) || 1;
 
-  return `# PLAN DE CLASE OFICIAL MCCEMS · SESIÓN ${plan.numeroSesion}
+  return stripMaterialTokens(`# PLAN DE CLASE OFICIAL MCCEMS · SESIÓN ${plan.numeroSesion}
 **UAC:** ${uacName} | **Semestre:** ${semester}° | **Sesión:** ${plan.numeroSesion} de 24 (${plan.duracionMinutos} min)
 **Título de la Sesión:** ${plan.tituloSesion}
 **Propósito / Meta de Aprendizaje:** ${plan.propósitoOMeta}
@@ -71,7 +72,7 @@ function formatPlanDeClaseMarkdown(
 
 ---
 *SIGPDA-EMS · Documento derivado en cascada del Cuaderno de Trabajo Activo (Bloque ${(workbook.blockIndex ?? 0) + 1})*
-`;
+`);
 }
 
 /**
