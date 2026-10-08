@@ -8,6 +8,7 @@ import { SCHOOL_YEAR } from '@/lib/config';
 import { PHASE_COLORS_HEX } from '@/lib/visual-engine/design-tokens';
 import { bdr } from '@/lib/docx-helpers';
 import { formatearBadgeMetodologia } from '@/lib/catalogo-metodologias';
+import { stripMaterialTokens } from '@/lib/materials/material-tokens';
 
 // ── Color palette (MCCEMS institutional) ─────────────────────────────────────────────
 const C = {
@@ -450,7 +451,7 @@ function buildSectionVI(content: GeneratedPlanningContent): (Paragraph | Table)[
       new TableRow({ children: [tcM('Categoría', { w: cL }), tcM('Detalle', { w: cR })] }),
       ...cats.map(([cat, items], i) => new TableRow({ children: [
         tcL(cat, { w: cL }),
-        multiCell(items, cR, 1, i % 2 === 0 ? C.white : C.alt),
+        multiCell((items || []).map((it) => stripMaterialTokens(it)), cR, 1, i % 2 === 0 ? C.white : C.alt),
       ]})),
     ], [cL, cR]),
     sp(),

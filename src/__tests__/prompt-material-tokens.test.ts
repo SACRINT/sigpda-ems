@@ -58,4 +58,16 @@ describe('prompt-material-tokens — Integración de tokens de materiales en pro
     );
     expect(prompt.length).toBeLessThanOrEqual(40000);
   });
+
+  it('F-02: el prompt acota el uso de tokens exclusivamente a garantiaDualOffline y utilidadReal', () => {
+    const prompt = buildUserPrompt(
+      minimalExtractedData,
+      minimalContext,
+      2,
+      'fundamental'
+    );
+    expect(prompt).toContain('usa SOLO estos slugs dentro de tokens [[material:slug]] en "garantiaDualOffline" y "utilidadReal"');
+    expect(prompt).not.toContain('(y en cualquier campo que liste materiales)');
+    expect(SYSTEM_PROMPT).toContain('exclusivo para utilidadReal y garantiaDualOffline');
+  });
 });

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import type { Planning, GeneratedPlanningContent, SecuenciaBloque } from '@/types/planning';
 import { generatePlanningPDF } from '@/lib/planning-pdf-renderer';
 import { enrichWithExplicitSaberes } from '@/lib/planning-integrity-system';
+import { stripMaterialTokens } from '@/lib/materials/material-tokens';
 
 interface DocumentA4ViewerProps {
   planning: Planning;
@@ -459,7 +460,7 @@ export default function DocumentA4Viewer({
                       <div>{act.apertura?.activities || 'Exploración y recuperación de saberes previos.'}</div>
                       {act.apertura?.materials && (
                         <div style={{ fontSize: '8.5px', color: '#64748b', marginTop: '2px' }}>
-                          <em>Insumos/Recursos:</em> {act.apertura.materials}
+                          <em>Insumos/Recursos:</em> {stripMaterialTokens(act.apertura.materials)}
                         </div>
                       )}
                     </td>
@@ -472,7 +473,7 @@ export default function DocumentA4Viewer({
                       <div>{act.ejecucion?.activities || 'Construcción activa del conocimiento y práctica técnica.'}</div>
                       {act.ejecucion?.materials && (
                         <div style={{ fontSize: '8.5px', color: '#64748b', marginTop: '2px' }}>
-                          <em>Herramientas, Insumos y EPP:</em> {act.ejecucion.materials}
+                          <em>Herramientas, Insumos y EPP:</em> {stripMaterialTokens(act.ejecucion.materials)}
                         </div>
                       )}
                     </td>
@@ -603,11 +604,11 @@ export default function DocumentA4Viewer({
               <tbody>
                 <tr>
                   <td className="label-cell" style={{ width: '25%' }}>Materiales del Estudiante:</td>
-                  <td>{(s6?.studentMaterials || []).join('; ') || 'Libreta de apuntes, útiles básicos, celular para consulta.'}</td>
+                  <td>{(s6?.studentMaterials || []).map(stripMaterialTokens).join('; ') || 'Libreta de apuntes, útiles básicos, celular para consulta.'}</td>
                 </tr>
                 <tr>
                   <td className="label-cell">Materiales del Docente:</td>
-                  <td>{(s6?.teacherMaterials || []).join('; ') || 'Manual de prácticas impreso, guías didácticas, rúbricas analíticas.'}</td>
+                  <td>{(s6?.teacherMaterials || []).map(stripMaterialTokens).join('; ') || 'Manual de prácticas impreso, guías didácticas, rúbricas analíticas.'}</td>
                 </tr>
                 <tr>
                   <td className="label-cell">Recursos Digitales / TICCAD:</td>

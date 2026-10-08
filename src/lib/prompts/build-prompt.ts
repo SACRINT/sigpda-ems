@@ -480,7 +480,7 @@ ${(context.usePaecActivity !== false && context.paecOperationalActivity?.activid
 9. SECCIÓN V-B (BITÁCORA FORMATIVA Y REGULADORA 50-20-30):
    - "bitacora502030": Genera la bitácora oficial con criterioProceso50 (observando participativo, dialogante, cuestionador, apoyo), evidenciaColectiva20, evidenciaIndividual30, ticketSalidaPregunta y 4-5 estudiantes representativos con calificaciones y notas cualitativas de acompañamiento.
 
-INDICE DE MATERIALES AUTORIZADOS — usa SOLO estos slugs dentro de tokens [[material:slug]] en "garantiaDualOffline" (y en cualquier campo que liste materiales). Si un material no aparece aquí, escríbelo en texto plano:
+INDICE DE MATERIALES AUTORIZADOS — usa SOLO estos slugs dentro de tokens [[material:slug]] en "garantiaDualOffline" y "utilidadReal". En cualquier otro campo (actividades de apertura/ejecucion/conclusion, materiales generales de sección VI, saberes), escribe SIEMPRE en texto plano legible sin corchetes ni tokens:
 ${buildMaterialSlugIndex(getMaterialCategoriesForContext(extractedData.uacName || officialProgram?.uac_name || '', component), MATERIAL_INDEX_MAX_CHARS - 300)}
 
 Responde ÚNICAMENTE con el objeto JSON válido que cumpla la estructura exacta solicitada en el system prompt.`;

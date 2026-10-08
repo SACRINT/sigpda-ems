@@ -11,6 +11,7 @@ import { SCHOOL_YEAR } from '@/lib/config';
 import { logger } from './logger';
 import { COLORS } from './visual-engine/design-tokens';
 import { normalizeEvaluationPercentages, sanitizePlanningContent } from '@/lib/planning/quality-pipeline';
+import { stripMaterialTokens } from '@/lib/materials/material-tokens';
 
 const NAVY: [number, number, number] = [31, 56, 100];       // #1F3864 - Azul Institucional
 const BLUE_MID: [number, number, number] = [46, 116, 181];   // #2E74B5 - Azul Secundario
@@ -252,19 +253,19 @@ export async function generatePlanningPDF(
     // Apertura
     activityRows.push([
       { content: 'Apertura (Exploración):', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 38 } },
-      { content: `${act.apertura?.activities || 'Recuperación de conocimientos previos.'}\nMateriales: ${act.apertura?.materials || 'Cuaderno, pizarrón.'}`, colSpan: 3 },
+      { content: `${act.apertura?.activities || 'Recuperación de conocimientos previos.'}\nMateriales: ${stripMaterialTokens(act.apertura?.materials || 'Cuaderno, pizarrón.')}`, colSpan: 3 },
     ]);
 
     // Desarrollo
     activityRows.push([
       { content: 'Desarrollo (Construcción):', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-      { content: `${act.ejecucion?.activities || 'Investigación, análisis y aplicación.'}\nMateriales: ${act.ejecucion?.materials || 'Guías, dispositivos.'}`, colSpan: 3 },
+      { content: `${act.ejecucion?.activities || 'Investigación, análisis y aplicación.'}\nMateriales: ${stripMaterialTokens(act.ejecucion?.materials || 'Guías, dispositivos.')}`, colSpan: 3 },
     ]);
 
     // Cierre
     activityRows.push([
       { content: 'Cierre (Metacognición):', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-      { content: `${act.conclusion?.activities || 'Socialización de evidencias y síntesis.'}\nMateriales: ${act.conclusion?.materials || 'Instrumentos de evaluación.'}`, colSpan: 3 },
+      { content: `${act.conclusion?.activities || 'Socialización de evidencias y síntesis.'}\nMateriales: ${stripMaterialTokens(act.conclusion?.materials || 'Instrumentos de evaluación.')}`, colSpan: 3 },
     ]);
 
     // Micro-Sesiones de 50 min
