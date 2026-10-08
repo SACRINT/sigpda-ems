@@ -161,8 +161,11 @@ export function autoTokenizeMaterials(text: string): string {
     return text;
   }
 
+  // F-03: Normalizar a NFC para garantizar alineación 1:1 de offsets de slice
+  const nfcText = text.normalize('NFC');
+
   // Partir por tokens existentes para no doble-tokenizar
-  const parts = text.split(/(\[\[[^\]]*\]\])/);
+  const parts = nfcText.split(/(\[\[[^\]]*\]\])/);
 
   return parts
     .map((part) => {
@@ -207,7 +210,9 @@ export function detectCatalogMaterials(
     return [];
   }
 
-  const parts = text.split(/(\[\[[^\]]*\]\])/);
+  // F-03: Normalizar a NFC para alineación uniforme de offsets
+  const nfcText = text.normalize('NFC');
+  const parts = nfcText.split(/(\[\[[^\]]*\]\])/);
   const detected: { slug: string; matchedText: string }[] = [];
   const seenSlugs = new Set<string>();
 

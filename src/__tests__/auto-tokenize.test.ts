@@ -78,4 +78,14 @@ describe('auto-tokenize — Recuperación determinista de tokens de materiales',
     expect(resolved.map((r) => r.slug)).toContain('multimetro');
     expect(resolved.map((r) => r.slug)).toContain('probeta');
   });
+
+  it('F-03: entrada descompuesta en NFD preserva alineación exacta de offsets sin corromper letras adyacentes', () => {
+    const nfdText = 'Práctica con probeta en la mesa.'.normalize('NFD');
+    const result = autoTokenizeMaterials(nfdText);
+
+    expect(result).toContain('[[material:probeta]]');
+    expect(result).not.toMatch(/\[\[material:probeta\]\][a-zA-Z]/);
+    expect(result).toBe('Práctica con [[material:probeta]] en la mesa.');
+  });
 });
+
