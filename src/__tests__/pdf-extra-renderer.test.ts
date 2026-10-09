@@ -4,6 +4,7 @@ import {
   renderFormattedBlock,
   renderExtraDocument,
   generateExtraPdfDocument,
+  getExtraContentForRender,
   type ExtraInput,
 } from '@/lib/pdf-extra-renderer';
 import { areEditorialFontsLoaded } from '@/lib/visual-engine/font-loader';
@@ -90,13 +91,15 @@ Los estudiantes en parejas resuelven el problema de costos en GeoGebra.
     expect(buffer.byteLength).toBeGreaterThan(5000);
   });
 
-  it('R-01: preserva tokens literales cuando type === "material" y los remueve en lesson_plan', () => {
+  it('R-01 / T-01: preserva tokens literales cuando type === "material" y los remueve en lesson_plan', () => {
     const extraMaterial: ExtraInput = {
       id: 'test-mat-inventory',
       title: 'Inventario de Materiales',
       type: 'material',
       content_text: '| Sesión | Material | Token |\n| --- | --- | --- |\n| 1 | Multímetro | `[[material:multimetro]]` |',
     };
+    const contentMaterial = getExtraContentForRender(extraMaterial);
+    expect(contentMaterial).toContain('[[material:multimetro]]');
     const docMat = generateExtraPdfDocument(extraMaterial);
     expect(docMat).toBeDefined();
 
@@ -106,6 +109,9 @@ Los estudiantes en parejas resuelven el problema de costos en GeoGebra.
       type: 'lesson_plan',
       content_text: 'Recursos: [[material:multimetro|multímetro digital]].',
     };
+    const contentLesson = getExtraContentForRender(extraLesson);
+    expect(contentLesson).not.toContain('[[material');
+    expect(contentLesson).toContain('multímetro digital');
     const docLesson = generateExtraPdfDocument(extraLesson);
     expect(docLesson).toBeDefined();
   });

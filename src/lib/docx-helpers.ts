@@ -30,7 +30,7 @@ import {
 } from 'docx';
 import { PHASE_COLORS_HEX } from '@/lib/visual-engine/design-tokens';
 import { resolveHeaderBranding, type BrandingContext } from '@/lib/document-branding';
-import { stripMaterialTokens } from '@/lib/materials/material-tokens';
+import { getExtraContentForRender } from './pdf-extra-renderer';
 
 // ── Paleta de Colores Institucionales DOCX (Hexadecimal sin #) ──────────────
 export const DOCX_COLORS = {
@@ -365,9 +365,7 @@ export async function buildExtraDocx(
   context?: BrandingContext
 ): Promise<Buffer> {
   const title = extra.title || 'Recurso Didáctico Oficial';
-  const rawContent = extra.type === 'material'
-    ? (extra.content_text || '')
-    : stripMaterialTokens(extra.content_text || '');
+  const rawContent = getExtraContentForRender(extra);
   const lines = rawContent.split('\n');
 
   const branding = resolveHeaderBranding(extra.type, context);

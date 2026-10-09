@@ -53,6 +53,18 @@ export interface ExtraInput {
   content_text: string;
 }
 
+/**
+ * Helper puro de renderizado para recursos extra:
+ * Si extra.type === 'material', preserva los tokens intactos para la columna de trazabilidad D5.
+ * Para cualquier otro tipo (lesson_plan, rubric, etc.), aplica sanitización exhaustiva de tokens.
+ */
+export function getExtraContentForRender(extra: { type?: string; content_text?: string | null }): string {
+  if (extra.type === 'material') {
+    return extra.content_text || '';
+  }
+  return stripMaterialTokens(extra.content_text || '');
+}
+
 export interface FormattedBlockOptions {
   x: number;
   y: number;
@@ -205,9 +217,7 @@ export function renderExtraDocument(
   };
 
   // ── Parsing de líneas y componentes ───────────────────────────────────────
-  const contentToParse = extra.type === 'material'
-    ? (extra.content_text || '')
-    : stripMaterialTokens(extra.content_text || '');
+  const contentToParse = getExtraContentForRender(extra);
   const lines = contentToParse.split('\n');
   let inTable = false;
   let tableHeaders: string[] = [];
