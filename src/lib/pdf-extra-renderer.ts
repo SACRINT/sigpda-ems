@@ -205,7 +205,10 @@ export function renderExtraDocument(
   };
 
   // ── Parsing de líneas y componentes ───────────────────────────────────────
-  const lines = stripMaterialTokens(extra.content_text || '').split('\n');
+  const contentToParse = extra.type === 'material'
+    ? (extra.content_text || '')
+    : stripMaterialTokens(extra.content_text || '');
+  const lines = contentToParse.split('\n');
   let inTable = false;
   let tableHeaders: string[] = [];
   let tableData: string[][] = [];

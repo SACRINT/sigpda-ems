@@ -365,7 +365,9 @@ export async function buildExtraDocx(
   context?: BrandingContext
 ): Promise<Buffer> {
   const title = extra.title || 'Recurso Didáctico Oficial';
-  const rawContent = stripMaterialTokens(extra.content_text || '');
+  const rawContent = extra.type === 'material'
+    ? (extra.content_text || '')
+    : stripMaterialTokens(extra.content_text || '');
   const lines = rawContent.split('\n');
 
   const branding = resolveHeaderBranding(extra.type, context);

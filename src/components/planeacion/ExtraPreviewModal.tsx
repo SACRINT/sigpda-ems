@@ -773,7 +773,7 @@ export function ExtraPreviewModal({
               </>
             ) : (
               // Rúbricas, listas de cotejo, planes de clase: parser existente con tablas
-              renderMarkdown(stripMaterialTokens(contentText || ''))
+              renderMarkdown(type === 'material' ? (contentText || '') : stripMaterialTokens(contentText || ''))
             )}
           </div>
         </div>

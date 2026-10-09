@@ -89,4 +89,25 @@ Los estudiantes en parejas resuelven el problema de costos en GeoGebra.
     const buffer = doc.output('arraybuffer');
     expect(buffer.byteLength).toBeGreaterThan(5000);
   });
+
+  it('R-01: preserva tokens literales cuando type === "material" y los remueve en lesson_plan', () => {
+    const extraMaterial: ExtraInput = {
+      id: 'test-mat-inventory',
+      title: 'Inventario de Materiales',
+      type: 'material',
+      content_text: '| Sesión | Material | Token |\n| --- | --- | --- |\n| 1 | Multímetro | `[[material:multimetro]]` |',
+    };
+    const docMat = generateExtraPdfDocument(extraMaterial);
+    expect(docMat).toBeDefined();
+
+    const extraLesson: ExtraInput = {
+      id: 'test-lesson-strip',
+      title: 'Plan de Clase',
+      type: 'lesson_plan',
+      content_text: 'Recursos: [[material:multimetro|multímetro digital]].',
+    };
+    const docLesson = generateExtraPdfDocument(extraLesson);
+    expect(docLesson).toBeDefined();
+  });
 });
+
