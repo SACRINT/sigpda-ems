@@ -44,8 +44,10 @@ Para referenciar un material en el cuerpo de una práctica, sesión de laborator
 - **D7 — Offline-First**: Todo se resuelve localmente en `/public`; los equivalentes virtuales son informativos y no realizan fetch externo.
 - **D8 — EPP Normativo**: `eppRequerido?: string[]` destaca el equipo de protección obligatorio según normas oficiales mexicanas.
 - **D9 — Degradación Segura (3 Fallbacks)**:
-  1. Slug desconocido: token permanece intacto en el texto literal sin romper el renderizado.
-  2. Imagen PNG pendiente: se muestra el placeholder institucional automático.
+  1. Slug desconocido:
+     - En resolución Markdown (`resolveMaterialTokensForMarkdown`): el token permanece intacto en el texto literal (`[[material:slug]]`) sin romper la redacción.
+     - En sanitización administrativa (`stripMaterialTokens`): se remueven delimitadores y se devuelve la etiqueta o slug en texto plano (`slug`), garantizando que destinos sin soporte de tokens no exhiban corchetes.
+  2. Imagen PNG pendiente: se muestra el placeholder institucional automático (`_placeholder.png`).
   3. Texto sin tokens: procesamiento regular idéntico sin mutaciones.
 - **D10 — Rendimiento**: Límite de asset 512×512 px / ≤ 60 KB.
 - **D11 — Resolvedor Visual Unificado**: Orden de precedencia documentado: Openverse (si aplica) → PNG catálogo de materiales (`material_png`) → SVG sintético determinístico → placeholder institucional.
@@ -147,6 +149,9 @@ Flujo de datos:
   → `Token normativo ("Se requiere un [[material:multimetro|multímetro digital]]")`
   → `parseMaterialTokensWithFallback()` / `readMaterialPng('multimetro')`
   → `Embebe PNG en PDF (addImage) / DOCX (ImageRun) / UI (MaterialFigure)`
+
+### 5.2.1 Tratamiento de Bigramas y Heurística de Variantes (R-04)
+El auto-tokenizador prioriza secuencias multipalabra (bigramas y frases compuestas ordenadas por longitud descendente de caracteres normalizados, umbral mínimo de longitud ≥ 6 caracteres). En casos como "tarjetas didácticas" o frases con "tarjetas de...", la variante se enlaza al slug normativo correspondiente (`tarjetas-vocabulario`). Esta estrategia de recall prioritario sobre bigramas maximiza la cobertura de materiales en textos generados por IA; cuando se requiera desambiguación manual precisa, la sintaxis explícita `[[material:slug|etiqueta]]` anula cualquier coincidencia heurística.
 
 ### 5.3 Precedencia del Resolvedor Visual Unificado (D11)
 `resolveVisualForMission()` en `visual-asset-manager.ts`:
