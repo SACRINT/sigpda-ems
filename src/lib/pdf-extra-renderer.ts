@@ -33,7 +33,8 @@ import {
   INSTITUTIONAL_DEFAULTS,
   type BrandingContext,
 } from '@/lib/document-branding';
-import { stripMaterialTokens } from '@/lib/materials/material-tokens';
+import { getExtraContentForRender } from '@/lib/materials/material-tokens';
+export { getExtraContentForRender };
 
 // ── Paleta institucional MCCEMS ─────────────────────────────────────────────
 const NAVY: RGB     = [26, 26, 46];
@@ -51,18 +52,6 @@ export interface ExtraInput {
   title: string;
   type: string;
   content_text: string;
-}
-
-/**
- * Helper puro de renderizado para recursos extra:
- * Si extra.type === 'material', preserva los tokens intactos para la columna de trazabilidad D5.
- * Para cualquier otro tipo (lesson_plan, rubric, etc.), aplica sanitización exhaustiva de tokens.
- */
-export function getExtraContentForRender(extra: { type?: string; content_text?: string | null }): string {
-  if (extra.type === 'material') {
-    return extra.content_text || '';
-  }
-  return stripMaterialTokens(extra.content_text || '');
 }
 
 export interface FormattedBlockOptions {

@@ -8,6 +8,7 @@ import {
   type ExtraInput,
 } from '@/lib/pdf-extra-renderer';
 import { areEditorialFontsLoaded } from '@/lib/visual-engine/font-loader';
+import { getExtraContentForRender as getExtraContentFromTokens } from '@/lib/materials/material-tokens';
 
 describe('Fase 2 — pdf-extra-renderer.ts (Motor Visual Unificado)', () => {
   it('renderFormattedBlock divide por palabras y respeta el ancho máximo sin desbordar', () => {
@@ -98,6 +99,7 @@ Los estudiantes en parejas resuelven el problema de costos en GeoGebra.
       type: 'material',
       content_text: '| Sesión | Material | Token |\n| --- | --- | --- |\n| 1 | Multímetro | `[[material:multimetro]]` |',
     };
+    expect(getExtraContentForRender).toBe(getExtraContentFromTokens);
     const contentMaterial = getExtraContentForRender(extraMaterial);
     expect(contentMaterial).toContain('[[material:multimetro]]');
     const docMat = generateExtraPdfDocument(extraMaterial);
