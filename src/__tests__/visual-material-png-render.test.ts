@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { renderWorkbookToPdf } from '@/lib/pdf-workbook-renderer';
 import { renderWorkbookToDocx } from '@/lib/docx-workbook-renderer';
+import * as materialFigureDoc from '@/lib/materials/material-figure-doc';
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
 import type { Planning } from '@/types/planning';
 import { createRequire } from 'module';
@@ -99,5 +100,32 @@ describe('visual-material-png-render — Renderizado de figura de misión con ma
     const zip = await JSZip.loadAsync(Buffer.from(docxBuffer));
     const mediaFiles = Object.keys(zip.files).filter((f) => f.startsWith('word/media/'));
     expect(mediaFiles.length).toBeGreaterThanOrEqual(1);
+  }, 30000);
+
+  it('T-03: fallback Capa 0 sintético vectorial se activa en PDF y DOCX cuando readMaterialPng devuelve null', async () => {
+    const pngSpy = vi.spyOn(materialFigureDoc, 'readMaterialPng').mockReturnValue(null);
+    try {
+      const pdfBuffer = await renderWorkbookToPdf(
+        mockWorkbook as ActiveWorkTextbook,
+        mockPlanning as unknown as Planning,
+        { forceFallbackCover: true }
+      );
+      expect(pdfBuffer).toBeInstanceOf(Buffer);
+      expect(pdfBuffer.subarray(0, 5).toString('ascii')).toBe('%PDF-');
+      const pdfString = pdfBuffer.toString('latin1');
+      const imageCount = (pdfString.match(/\/Subtype\s*\/Image/g) || []).length;
+      expect(imageCount).toBeGreaterThanOrEqual(1);
+
+      const docxBuffer = await renderWorkbookToDocx(
+        mockWorkbook as ActiveWorkTextbook,
+        mockPlanning as unknown as Planning
+      );
+      expect(docxBuffer).toBeInstanceOf(Buffer);
+      const zip = await JSZip.loadAsync(Buffer.from(docxBuffer));
+      const mediaFiles = Object.keys(zip.files).filter((f) => f.startsWith('word/media/'));
+      expect(mediaFiles.length).toBeGreaterThanOrEqual(1);
+    } finally {
+      pngSpy.mockRestore();
+    }
   }, 30000);
 });
