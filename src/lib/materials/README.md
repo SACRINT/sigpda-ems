@@ -150,8 +150,12 @@ Flujo de datos:
   → `parseMaterialTokensWithFallback()` / `readMaterialPng('multimetro')`
   → `Embebe PNG en PDF (addImage) / DOCX (ImageRun) / UI (MaterialFigure)`
 
-### 5.2.1 Tratamiento de Bigramas y Heurística de Variantes (R-04)
-El auto-tokenizador prioriza secuencias multipalabra (bigramas y frases compuestas ordenadas por longitud descendente de caracteres normalizados, umbral mínimo de longitud ≥ 6 caracteres). En casos como "tarjetas didácticas" o frases con "tarjetas de...", la variante se enlaza al slug normativo correspondiente (`tarjetas-vocabulario`). Esta estrategia de recall prioritario sobre bigramas maximiza la cobertura de materiales en textos generados por IA; cuando se requiera desambiguación manual precisa, la sintaxis explícita `[[material:slug|etiqueta]]` anula cualquier coincidencia heurística.
+### 5.2.1 Tratamiento de Bigramas y Heurística de Variantes (R-04, T-02)
+El auto-tokenizador prioriza secuencias multipalabra (bigramas y frases compuestas ordenadas por longitud descendente de caracteres normalizados, umbral mínimo de longitud ≥ 6 caracteres). Por ejemplo:
+- Frases con el bigrama "tarjetas de..." (como "tarjetas de papel" o "tarjetas de trabajo") se enlazan a Tarjetas de Trabajo Didácticas (`tarjetas-trabajo`).
+- Frases con "tarjetas didácticas" (como "tarjetas didácticas de vocabulario") se enlazan a Tarjetas Didácticas Flashcards (`tarjetas-vocabulario`).
+
+Esta estrategia de recall prioritario sobre bigramas maximiza la cobertura de materiales en textos generados por IA; cuando se requiera desambiguación manual precisa, la sintaxis explícita `[[material:slug|etiqueta]]` anula cualquier coincidencia heurística.
 
 ### 5.3 Precedencia del Resolvedor Visual Unificado (D11)
 `resolveVisualForMission()` en `visual-asset-manager.ts`:
