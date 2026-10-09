@@ -2,6 +2,9 @@ import { describe, it, expect, vi } from 'vitest';
 import { renderWorkbookToPdf } from '@/lib/pdf-workbook-renderer';
 import { renderWorkbookToDocx } from '@/lib/docx-workbook-renderer';
 import * as materialFigureDoc from '@/lib/materials/material-figure-doc';
+import * as visualDispatcher from '@/lib/visual-engine/visual-dispatcher';
+import * as svgToPngModule from '@/lib/visual-engine/svg-to-png';
+import * as visualAssetManager from '@/lib/visual-engine/visual-asset-manager';
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
 import type { Planning } from '@/types/planning';
 import { createRequire } from 'module';
@@ -103,8 +106,18 @@ describe('visual-material-png-render — Renderizado de figura de misión con ma
   }, 30000);
 
   it('T-03: fallback Capa 0 sintético vectorial se activa en PDF y DOCX cuando readMaterialPng devuelve null', async () => {
+    const visualSpy = vi.spyOn(visualAssetManager, 'resolveVisualForMission').mockResolvedValue({
+      type: 'material_png',
+      caption: 'Multímetro Digital',
+      materialSlug: 'multimetro',
+      materialAltText: 'Multímetro digital autorango',
+      materialPngPath: '/images/materials/multimetro.png',
+    });
     const pngSpy = vi.spyOn(materialFigureDoc, 'readMaterialPng').mockReturnValue(null);
+    const dispatchSpy = vi.spyOn(visualDispatcher, 'dispatchVisual');
+    const svgSpy = vi.spyOn(svgToPngModule, 'svgToPngBuffer');
     try {
+      // 1. PDF: al fallar readMaterialPng, debe invocar dispatchVisual y svgToPngBuffer para generar el vector
       const pdfBuffer = await renderWorkbookToPdf(
         mockWorkbook as ActiveWorkTextbook,
         mockPlanning as unknown as Planning,
@@ -112,20 +125,32 @@ describe('visual-material-png-render — Renderizado de figura de misión con ma
       );
       expect(pdfBuffer).toBeInstanceOf(Buffer);
       expect(pdfBuffer.subarray(0, 5).toString('ascii')).toBe('%PDF-');
-      const pdfString = pdfBuffer.toString('latin1');
-      const imageCount = (pdfString.match(/\/Subtype\s*\/Image/g) || []).length;
-      expect(imageCount).toBeGreaterThanOrEqual(1);
+      expect(dispatchSpy).toHaveBeenCalledTimes(1);
+      expect(dispatchSpy).toHaveBeenLastCalledWith(
+        'Taller de Instrumentación',
+        expect.stringContaining('Multímetro'),
+        expect.any(String),
+        1
+      );
+      expect(svgSpy).toHaveBeenCalledTimes(1);
 
+      // 2. DOCX: al fallar readMaterialPng, debe invocar dispatchVisual y svgToPngBuffer para generar el vector
       const docxBuffer = await renderWorkbookToDocx(
         mockWorkbook as ActiveWorkTextbook,
         mockPlanning as unknown as Planning
       );
       expect(docxBuffer).toBeInstanceOf(Buffer);
+      expect(dispatchSpy).toHaveBeenCalledTimes(2);
+      expect(svgSpy).toHaveBeenCalledTimes(2);
+
       const zip = await JSZip.loadAsync(Buffer.from(docxBuffer));
       const mediaFiles = Object.keys(zip.files).filter((f) => f.startsWith('word/media/'));
       expect(mediaFiles.length).toBeGreaterThanOrEqual(1);
     } finally {
+      visualSpy.mockRestore();
       pngSpy.mockRestore();
+      dispatchSpy.mockRestore();
+      svgSpy.mockRestore();
     }
   }, 30000);
 });
