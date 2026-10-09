@@ -15,6 +15,7 @@ import { EditorToolbar } from './editor-toolbar';
 import { BloqueApertura, BloqueDesarrollo, BloqueCierre, BloqueRubrica, BloqueProposito, BloqueActividad, BloqueSeccion } from './editor-extensions';
 import type { GeneratedPlanningContent, ActivityPhase } from '@/types/planning';
 import { Save, FileDown, Loader2, Check, Sparkles } from 'lucide-react';
+import { stripMaterialTokens } from '@/lib/materials/material-tokens';
 
 interface PlanningEditorProps {
   planningId: string;
@@ -81,14 +82,14 @@ function contentToHTML(content: GeneratedPlanningContent): string {
     if (act.contenidoFormativo) lines.push(`<p><strong>Contenido formativo:</strong> ${act.contenidoFormativo}</p>`);
     if (act.methodology) lines.push(`<p><strong>Metodología:</strong> ${act.methodology}</p>`);
     ['apertura', 'ejecucion', 'conclusion'].forEach(phase => {
-      const p = (act as Record<string, any>)[phase];
+      const p = (act as unknown as Record<string, { activities?: string; processes?: string; materials?: string }>)[phase];
       if (p) {
         const label = phase === 'apertura' ? 'Apertura' : phase === 'ejecucion' ? 'Desarrollo' : 'Cierre';
         lines.push(`<div data-bloque="${phase}" class="bloque-${phase}">`);
         lines.push(`<h4>${label}</h4>`);
         if (p.activities) lines.push(`<p><strong>Actividades:</strong> ${p.activities}</p>`);
         if (p.processes) lines.push(`<p><strong>Procesos:</strong> ${p.processes}</p>`);
-        if (p.materials) lines.push(`<p><strong>Materiales:</strong> ${p.materials}</p>`);
+        if (p.materials) lines.push(`<p><strong>Materiales:</strong> ${stripMaterialTokens(p.materials)}</p>`);
         lines.push(`</div>`);
       }
     });
@@ -124,7 +125,7 @@ function contentToHTML(content: GeneratedPlanningContent): string {
   resourceLists.forEach(([title, items]) => {
     if (items?.length) {
       lines.push(`<h3>${title}</h3><ul>`);
-      items.forEach(item => lines.push(`<li>${item}</li>`));
+      items.forEach(item => lines.push(`<li>${stripMaterialTokens(item)}</li>`));
       lines.push(`</ul>`);
     }
   });

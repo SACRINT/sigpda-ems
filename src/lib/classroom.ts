@@ -7,6 +7,7 @@
 import { getPlanningById } from '@/lib/db';
 import type { GeneratedPlanningContent } from '@/types/planning';
 import { logger } from '@/lib/logger';
+import { stripMaterialTokens } from '@/lib/materials/material-tokens';
 
 export interface ClassroomConfigStatus {
   configured: boolean;
@@ -189,7 +190,7 @@ export async function publishPlanningToGoogleClassroom(planningId: string, teach
           act.apertura?.activities ? `🟢 **Apertura:** ${act.apertura.activities}` : '',
           act.ejecucion?.activities ? `🟡 **Desarrollo / Ejecución:** ${act.ejecucion.activities}` : '',
           act.conclusion?.activities ? `🔴 **Cierre:** ${act.conclusion.activities}` : '',
-          act.ejecucion?.materials ? `📦 **Materiales:** ${act.ejecucion.materials}` : '',
+          act.ejecucion?.materials ? `📦 **Materiales:** ${stripMaterialTokens(act.ejecucion.materials)}` : '',
           '\nRecuerda entregar tu evidencia en tiempo y forma según las indicaciones de clase.',
         ].filter(Boolean).join('\n');
 
@@ -230,12 +231,12 @@ export async function publishPlanningToGoogleClassroom(planningId: string, teach
       assignmentsCreated,
       message: `¡Curso publicado con éxito en Google Classroom! Se crearon ${topicsCreated} temas y ${assignmentsCreated} tareas formativas.`,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[publishPlanningToGoogleClassroom error]:', error);
     return {
       success: false,
       configured: true,
-      message: error?.message || 'Error al comunicarse con el servicio de Google Classroom.',
+      message: (error as Error)?.message || 'Error al comunicarse con el servicio de Google Classroom.',
       error: String(error),
     };
   }

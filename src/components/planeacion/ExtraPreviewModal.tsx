@@ -769,7 +769,7 @@ export function ExtraPreviewModal({
                     </div>
                   </div>
                 )}
-                <MarkdownWithMermaid markdown={contentText || ''} />
+                <MarkdownWithMermaid markdown={stripMaterialTokens(contentText || '')} />
               </>
             ) : (
               // Rúbricas, listas de cotejo, planes de clase: parser existente con tablas

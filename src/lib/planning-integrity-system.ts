@@ -14,6 +14,7 @@
 
 import type { GeneratedPlanningContent, Planning, KeyActivityPlan, CurriculumComponent } from '@/types/planning';
 import { SCHOOL_YEAR } from '@/lib/config';
+import { stripMaterialTokens } from '@/lib/materials/material-tokens';
 
 export interface IntegrityValidationResult {
   isValid: boolean;
@@ -334,17 +335,17 @@ export function getSafeEvaluationContext(
     lines.push(`  - MOMENTO APERTURA:`);
     lines.push(`    * Actividades: ${act.apertura?.activities}`);
     lines.push(`    * Procesos Mentales: ${act.apertura?.processes}`);
-    lines.push(`    * Materiales e Insumos: ${act.apertura?.materials}`);
+    lines.push(`    * Materiales e Insumos: ${stripMaterialTokens(act.apertura?.materials || '')}`);
 
     lines.push(`  - MOMENTO DESARROLLO (EJECUCIÓN PRÁCTICA):`);
     lines.push(`    * Actividades Hands-on: ${act.ejecucion?.activities}`);
     lines.push(`    * Procesos y Aplicación Técnica: ${act.ejecucion?.processes}`);
-    lines.push(`    * Herramientas y EPP: ${act.ejecucion?.materials}`);
+    lines.push(`    * Herramientas y EPP: ${stripMaterialTokens(act.ejecucion?.materials || '')}`);
 
     lines.push(`  - MOMENTO CIERRE (CONSOLIDACIÓN Y EVALUACIÓN):`);
     lines.push(`    * Actividades de Evaluación / Defensa: ${act.conclusion?.activities}`);
     lines.push(`    * Metacognición: ${act.conclusion?.processes}`);
-    lines.push(`    * Evidencias y Productos: ${act.conclusion?.materials}`);
+    lines.push(`    * Evidencias y Productos: ${stripMaterialTokens(act.conclusion?.materials || '')}`);
   });
   lines.push('\n');
 
@@ -359,8 +360,8 @@ export function getSafeEvaluationContext(
   lines.push('\n');
 
   lines.push('VI. MATERIALES Y RECURSOS DIDÁCTICOS:');
-  lines.push(`- Materiales del Alumno: ${(s6?.studentMaterials || []).join(', ')}`);
-  lines.push(`- Materiales Impresos Creados por el Docente: ${(s6?.teacherMaterials || []).join(', ')}`);
+  lines.push(`- Materiales del Alumno: ${(s6?.studentMaterials || []).map(m => stripMaterialTokens(m)).join(', ')}`);
+  lines.push(`- Materiales Impresos Creados por el Docente: ${(s6?.teacherMaterials || []).map(m => stripMaterialTokens(m)).join(', ')}`);
   lines.push(`- Recursos Digitales y TICCAD: ${(s6?.digital || []).join(', ')}`);
   lines.push(`- Espacios de Aprendizaje: ${(s6?.spaces || []).join(', ')}`);
   lines.push(`- Fuentes y Normas Oficiales: ${(s6?.references || []).join(', ')}`);
