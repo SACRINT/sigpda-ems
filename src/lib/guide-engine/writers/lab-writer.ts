@@ -37,6 +37,7 @@ BASE DE CONOCIMIENTO (SEMILLA CANÓNICA PRE-VALIDADA):
 
   const planningAlignmentChunk = buildPlanningAlignmentPrompt(input.planningActivities, 'lab');
 
+  // NOTA DE DISEÑO (F-06): materialsList de manuales no se tokeniza; los renderers strippan defensivamente.
   const systemInstruction = `Eres un instructor técnico y científico de alto nivel para Bachillerato en Puebla (MCCEMS Puebla).
 Tu tarea es redactar la misión práctica de laboratorio o taller ("${missionTitle}") para la UAC: "${input.uacName}" (${input.subsystem.toUpperCase()}).
 ${planningAlignmentChunk}

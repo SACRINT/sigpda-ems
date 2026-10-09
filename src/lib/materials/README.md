@@ -156,3 +156,7 @@ Flujo de datos:
 4. Gráfico sintético vectorial SVG (`dispatchVisual`).
 5. Placeholder institucional offline (`_placeholder.png`).
 
+### 5.4 Manuales de Laboratorio (F-06)
+El generador `lab-writer.ts` produce manuales de laboratorio independientes. Por diseño de arquitectura, materialsList de manuales no se tokeniza; los renderers strippan defensivamente.
+
+

@@ -43,6 +43,7 @@ import {
   type ResolvedEquipmentVisual,
 } from '@/lib/visual-engine/visual-asset-manager';
 import { svgToPngBuffer } from '@/lib/visual-engine/svg-to-png';
+import { dispatchVisual } from '@/lib/visual-engine/visual-dispatcher';
 import { downloadAndProcessImage } from '@/lib/visual-engine/image-downloader';
 import { SCHOOL_YEAR } from '@/lib/config';
 import type {
@@ -2473,6 +2474,41 @@ async function buildMissionContent(
               ],
             })
           );
+        } else {
+          // Fallback sintético determinístico Capa 0 si el asset PNG de material no se pudo leer
+          const vectorResult = dispatchVisual(subjectName, mission.title, contextText, missionNumber);
+          if (vectorResult) {
+            const imgResult = await svgToPngBuffer(vectorResult.svg);
+            if (imgResult) {
+              const fallbackCaption = `Figura M${missionNumber}.1 — Representación gráfica conceptual y espacio de tabulación guiada`;
+              elements.push(
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  spacing: { before: 200, after: 80 },
+                  children: [
+                    new ImageRun({
+                      data: imgResult.buffer,
+                      transformation: { width: 440, height: 286 },
+                      type: 'png',
+                    }),
+                  ],
+                }),
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  spacing: { after: 180 },
+                  children: [
+                    new TextRun({
+                      text: fallbackCaption,
+                      italics: true,
+                      size: 16,
+                      color: C.mutedText,
+                      font: 'Calibri',
+                    }),
+                  ],
+                })
+              );
+            }
+          }
         }
       } else if (resolvedVisual.type === 'vector_svg' && resolvedVisual.svg) {
         const imgResult = await svgToPngBuffer(resolvedVisual.svg);

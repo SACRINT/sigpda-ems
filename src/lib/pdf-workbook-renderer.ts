@@ -29,7 +29,7 @@ import {
   resolveEquipmentVisualForMission,
 } from '@/lib/visual-engine/visual-asset-manager';
 import { svgToPngBuffer } from '@/lib/visual-engine/svg-to-png';
-import { isStemSubject } from '@/lib/visual-engine/visual-dispatcher';
+import { isStemSubject, dispatchVisual } from '@/lib/visual-engine/visual-dispatcher';
 import { downloadAndProcessImage } from '@/lib/visual-engine/image-downloader';
 import type { VisualAnnotation } from '@/lib/visual-engine/generators/stem-generator';
 import { SCHOOL_YEAR } from '@/lib/config';
@@ -2218,6 +2218,30 @@ async function drawMission(
             const captionLines = doc.splitTextToSize(captionText, mainW * 0.88);
             doc.text(captionLines, margin + mainW / 2, y, { align: 'center' });
             y += (captionLines.length * 3.2) + 3.5;
+          } else {
+            // Fallback sintético determinístico Capa 0 si el asset PNG de material no se pudo leer
+            const vectorResult = dispatchVisual(subjectName, mission.title, contextText, missionNumber);
+            if (vectorResult) {
+              const imgResult = await svgToPngBuffer(vectorResult.svg);
+              if (imgResult) {
+                const imgW = Math.min(120, mainW * 0.88);
+                const imgH = imgW * 0.65;
+                y = checkSpace(y, imgH + 16);
+                const imgX = margin + (mainW - imgW) / 2;
+                doc.addImage(imgResult.buffer, imgResult.format, imgX, y, imgW, imgH);
+                if (vectorResult.annotations && vectorResult.annotations.length > 0) {
+                  drawVisualAnnotations(doc, vectorResult.annotations, imgX, y, imgW, imgH);
+                }
+                y += imgH + 3.5;
+                setFontCaption(doc);
+                doc.setFontSize(7.5);
+                doc.setTextColor(...MUTED_TEXT);
+                const fallbackCaption = `Figura M${missionNumber}.1 — Representación gráfica conceptual y espacio de tabulación guiada`;
+                const captionLines = doc.splitTextToSize(fallbackCaption, mainW * 0.88);
+                doc.text(captionLines, margin + mainW / 2, y, { align: 'center' });
+                y += (captionLines.length * 3.2) + 3.5;
+              }
+            }
           }
         } else if (resolvedVisual.type === 'vector_svg' && resolvedVisual.svg) {
           const imgResult = await svgToPngBuffer(resolvedVisual.svg);
