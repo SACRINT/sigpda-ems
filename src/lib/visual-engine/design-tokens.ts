@@ -255,3 +255,21 @@ export const CODE_IDE = {
   terminalBg:      [15,  23,  42]  as RGB, // #0F172A (azul pizarra)
   expectedOutput:  [16,  185, 129] as RGB, // #10B981 (verde esmeralda)
 } as const;
+
+// ── Sistema de Color para Tarjetas de Paso de Laboratorio (Fase 2) ───────────
+export const STEP_CARDS = {
+  bg:           [248, 250, 252] as RGB, // #F8FAFC (fondo tarjeta suave)
+  border:       [226, 232, 240] as RGB, // #E2E8F0 (borde tarjeta)
+  badgeBg:      [37,  99,  235] as RGB, // #2563EB (azul primario badge)
+  badgeText:    [255, 255, 255] as RGB, // #FFFFFF (número paso)
+  titleText:    [30,  41,  59]  as RGB, // #1E293B (título oscuro)
+  descText:     [71,  85,  105] as RGB, // #475569 (descripción slate)
+  outputBg:     [236, 253, 245] as RGB, // #ECFDF5 (fondo verde esmeralda)
+  outputBorder: [16,  185, 129] as RGB, // #10B981 (borde verde)
+  outputLabel:  [5,   150, 105] as RGB, // #059669 (etiqueta verde bold)
+  outputText:   [6,   95,  70]  as RGB, // #065F46 (texto verde profundo)
+  tipBg:        [254, 243, 199] as RGB, // #FEF3C7 (fondo ámbar tip)
+  tipBorder:    [245, 158, 11]  as RGB, // #F59E0B (borde ámbar)
+  tipLabel:     [180, 83,  9]   as RGB, // #B45309 (etiqueta ámbar bold)
+  tipText:      [146, 64,  14]  as RGB, // #92400E (texto ámbar profundo)
+} as const;

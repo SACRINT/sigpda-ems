@@ -53,6 +53,7 @@ describe('Widget Step-Cards Grid — Renderizado y Prueba de Mutación Anti-F11'
 
     const fillSpy = vi.spyOn(doc, 'setFillColor');
     const circleSpy = vi.spyOn(doc, 'circle');
+    const textSpy = vi.spyOn(doc, 'text');
 
     const nextY = drawStepCardGrid(doc, mockCards, {
       margin: 15,
@@ -75,6 +76,13 @@ describe('Widget Step-Cards Grid — Renderizado y Prueba de Mutación Anti-F11'
 
     // Debe haber dibujado caja de tip (#FEF3C7 = [254, 243, 199])
     expect(fillSpy).toHaveBeenCalledWith(254, 243, 199);
+
+    // F-24: Etiquetas deben estar sanitizadas a WinAnsi canónico [OK] y [IDEA] (nunca glifos crudos ✓ o 💡)
+    expect(textSpy).toHaveBeenCalledWith('[OK] Salida esperada:', expect.any(Number), expect.any(Number));
+    expect(textSpy).toHaveBeenCalledWith('[IDEA] Tip / Pista técnica:', expect.any(Number), expect.any(Number));
+    const allRenderedText = textSpy.mock.calls.map(c => String(c[0]));
+    expect(allRenderedText.some(t => t.includes('✓'))).toBe(false);
+    expect(allRenderedText.some(t => t.includes('💡'))).toBe(false);
   });
 
   it('PRUEBA DE MUTACIÓN ANTI-F11: renderWorkbookToPdf DEBE invocar drawStepCardGrid cuando el protocolo contiene >= 3 pasos', async () => {

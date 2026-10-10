@@ -2225,6 +2225,7 @@ function buildDocxStepCardGrid(cards: LabStepCard[]): Table {
           cellChildren.push(
             new Paragraph({
               spacing: { before: 10, after: 10 },
+              shading: { fill: '252526', type: ShadingType.CLEAR },
               children: [
                 new TextRun({
                   text: `  ${cLine}`,

@@ -12,7 +12,7 @@
 
 import type { jsPDF } from 'jspdf';
 import type { LabStepCard } from '@/types/work-textbook';
-import { CODE_IDE, SPACING } from './design-tokens';
+import { CODE_IDE, STEP_CARDS, SPACING } from './design-tokens';
 import { sanitizePdfText } from './pdf-components-core';
 
 export interface StepCardGridOptions {
@@ -163,33 +163,33 @@ function renderSingleStepCard(
   const innerW = colW - 8;
 
   // 1. Chasis exterior con esquinas suaves
-  doc.setFillColor(248, 250, 252); // #F8FAFC
-  doc.setDrawColor(226, 232, 240); // #E2E8F0
+  doc.setFillColor(...STEP_CARDS.bg);
+  doc.setDrawColor(...STEP_CARDS.border);
   doc.setLineWidth(0.35);
   doc.roundedRect(cardX, y, colW, cardH, 2, 2, 'FD');
 
   // 2. Badge circular azul con número de paso
   const badgeCenterX = cardX + 5.5;
   const badgeCenterY = y + 5.5;
-  doc.setFillColor(37, 99, 235); // #2563EB
+  doc.setFillColor(...STEP_CARDS.badgeBg);
   doc.circle(badgeCenterX, badgeCenterY, 2.75, 'F');
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.2);
-  doc.setTextColor(255, 255, 255);
+  doc.setTextColor(...STEP_CARDS.badgeText);
   doc.text(String(card.stepNumber), badgeCenterX, badgeCenterY + 1.0, { align: 'center' });
 
   // 3. Título del paso
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.2);
-  doc.setTextColor(30, 41, 59); // #1E293B
+  doc.setTextColor(...STEP_CARDS.titleText);
   doc.text(dim.titleLines, cardX + 10, y + 4.8);
 
   // 4. Descripción de la acción técnica
   let curY = y + 5 + dim.titleH + 1.5;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.6);
-  doc.setTextColor(71, 85, 105); // #475569
+  doc.setTextColor(...STEP_CARDS.descText);
   doc.text(dim.descLines, cardX + 4, curY);
   curY += dim.descH + 2.5;
 
@@ -210,38 +210,38 @@ function renderSingleStepCard(
     curY += dim.codeH + 2.5;
   }
 
-  // 6. Caja verde de resultado esperado / salida
+  // 6. Caja verde de resultado esperado / salida (etiqueta sanitizada WinAnsi)
   if (dim.outputLines.length > 0) {
-    doc.setFillColor(236, 253, 245); // #ECFDF5
-    doc.setDrawColor(16, 185, 129);  // #10B981
+    doc.setFillColor(...STEP_CARDS.outputBg);
+    doc.setDrawColor(...STEP_CARDS.outputBorder);
     doc.setLineWidth(0.25);
     doc.roundedRect(cardX + 4, curY, innerW, dim.outputH, 1, 1, 'FD');
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(6.0);
-    doc.setTextColor(5, 150, 105);   // #059669
-    doc.text('✓ Salida esperada:', cardX + 6, curY + 3.0);
+    doc.setTextColor(...STEP_CARDS.outputLabel);
+    doc.text(sanitizePdfText('[OK] Salida esperada:'), cardX + 6, curY + 3.0);
 
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(6, 95, 70);     // #065F46
+    doc.setTextColor(...STEP_CARDS.outputText);
     doc.text(dim.outputLines, cardX + 6, curY + 5.8);
     curY += dim.outputH + 2.5;
   }
 
-  // 7. Caja de observación o tip de taller
+  // 7. Caja de observación o tip de taller (etiqueta sanitizada WinAnsi)
   if (dim.tipLines.length > 0) {
-    doc.setFillColor(254, 243, 199); // #FEF3C7
-    doc.setDrawColor(245, 158, 11);  // #F59E0B
+    doc.setFillColor(...STEP_CARDS.tipBg);
+    doc.setDrawColor(...STEP_CARDS.tipBorder);
     doc.setLineWidth(0.25);
     doc.roundedRect(cardX + 4, curY, innerW, dim.tipH, 1, 1, 'FD');
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(5.8);
-    doc.setTextColor(180, 83, 9);    // #B45309
-    doc.text('💡 Tip / Pista técnica:', cardX + 6, curY + 2.8);
+    doc.setTextColor(...STEP_CARDS.tipLabel);
+    doc.text(sanitizePdfText('[IDEA] Tip / Pista técnica:'), cardX + 6, curY + 2.8);
 
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(146, 64, 14);   // #92400E
+    doc.setTextColor(...STEP_CARDS.tipText);
     doc.text(dim.tipLines, cardX + 6, curY + 5.4);
   }
 }

@@ -38,6 +38,7 @@ export const EMOJI_TO_TEXT: Record<string, string> = {
   '🔬': '[LAB]',
   '⚠️': '[ALERTA]',
   '✅': '[OK]',
+  '✓': '[OK]',
   '❌': '[X]',
   '🎯': '[META]',
   '📌': '[NOTA]',
