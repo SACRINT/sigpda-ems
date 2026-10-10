@@ -40,6 +40,23 @@ export interface TroubleshootItem {
   prevention?: string;       // Prevención (formato directo SACRINT)
 }
 
+export interface LabStepCard {
+  stepNumber: number;
+  title: string;
+  actionDescription: string;
+  codeSnippet?: string;
+  expectedOutput?: string;
+  tipOrNote?: string;
+}
+
+export interface ConceptCardItem {
+  title: string;
+  badge?: string;
+  description: string;
+  example?: string;
+  materialSlug?: string; // Slug del catálogo existente (244 PNGs)
+}
+
 export interface MissionSection {
   missionIndex: number;
   title: string;
@@ -64,6 +81,8 @@ export interface MissionSection {
       commonMisconception: string;
       reasoning: string;
     }[];
+    /** Tarjetas conceptuales opcionales con iconografía o catalog de materiales (Fase 3) */
+    conceptCards?: ConceptCardItem[];
   };
   iDoSection: {
     stepByStepDemo: string;       // Demostración guiada resuelta por el autor ("Yo Hago")

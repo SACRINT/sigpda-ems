@@ -238,3 +238,20 @@ export function contrastText(bg: RGB): RGB {
   const L = 0.2126 * lin(bg[0]) + 0.7152 * lin(bg[1]) + 0.0722 * lin(bg[2]);
   return L > 0.179 ? COLOR.TEXT_PRIMARY : COLOR.TEXT_ON_DARK;
 }
+
+// ── Sistema de Color para Código y Terminal (IDE Dark / Dual Print) ─────────
+export const CODE_IDE = {
+  editorBg:        [30,  30,  30]  as RGB, // #1E1E1E (código con contenido)
+  editorEmptyBg:   [248, 250, 252] as RGB, // #F8FAFC (caja vacía print-friendly para escribir con pluma)
+  gutterBg:        [37,  37,  38]  as RGB, // #252526 (chasis)
+  border:          [60,  60,  60]  as RGB, // #3C3C3C
+  gutterText:      [133, 133, 133] as RGB, // #858585
+  emptyLineRule:   [226, 232, 240] as RGB, // #E2E8F0 (renglones tenues para escritura)
+  keyword:         [197, 134, 192] as RGB, // #C586C0 (púrpura)
+  string:          [206, 145, 120] as RGB, // #CE9178 (naranja)
+  number:          [181, 206, 168] as RGB, // #B5CEA8 (verde claro)
+  comment:         [106, 153, 85]  as RGB, // #6A9955 (verde bosque)
+  baseText:        [212, 212, 212] as RGB, // #D4D4D4 (blanco perla)
+  terminalBg:      [15,  23,  42]  as RGB, // #0F172A (azul pizarra)
+  expectedOutput:  [16,  185, 129] as RGB, // #10B981 (verde esmeralda)
+} as const;
