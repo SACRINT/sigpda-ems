@@ -87,6 +87,11 @@ import {
   type BookCoverOptions,
 } from '@/lib/visual-engine/cover-generator';
 import { logger } from '@/lib/logger';
+import { highlightCodeBlock } from '@/lib/visual-engine/code-highlighter';
+
+function rgbToHex(rgb: [number, number, number]): string {
+  return rgb.map((x) => x.toString(16).padStart(2, '0')).join('').toUpperCase();
+}
 
 // ── Paleta de Colores Institucionales MCCEMS ──────────────────────────────────
 const C = {
@@ -2914,38 +2919,140 @@ function renderWorkbookElement(element: WorkbookElement): (Paragraph | Table)[] 
     }
 
     case 'code_box': {
-      const initialCode = element.config?.initialCode || '// Escribe aquí tus instrucciones o código:\n\n\n\n';
-      items.push(
-        new Table({
-          width: { size: CONTENT_W, type: WidthType.DXA },
-          rows: [
-            new TableRow({
-              children: [
-                new TableCell({
-                  width: { size: CONTENT_W, type: WidthType.DXA },
-                  shading: { fill: C.codeBg, type: ShadingType.CLEAR },
-                  borders: thinBorder(C.codeBorder),
-                  margins: cellPadding(),
-                  children: initialCode.split('\n').map(
-                    (line) =>
+      const rawCode = element.config?.initialCode || '';
+      const isRealCode = rawCode.trim().length > 0 && !rawCode.startsWith('// Escribe');
+      const boxTitle = element.title ? `Editor de Código — ${element.title}` : 'Editor de Código Python';
+
+      if (isRealCode) {
+        const highlightedLines = highlightCodeBlock(rawCode, 'python');
+        items.push(
+          new Table({
+            width: { size: CONTENT_W, type: WidthType.DXA },
+            rows: [
+              // Barra superior estilo IDE
+              new TableRow({
+                children: [
+                  new TableCell({
+                    width: { size: CONTENT_W, type: WidthType.DXA },
+                    shading: { fill: '252526', type: ShadingType.CLEAR },
+                    borders: thinBorder('3C3C3C'),
+                    margins: { top: 80, bottom: 80, left: 140, right: 140 },
+                    children: [
                       new Paragraph({
-                        spacing: { before: 20, after: 20 },
                         children: [
                           new TextRun({
-                            text: line || ' ',
+                            text: `● ● ●  ${boxTitle}`,
                             font: 'Consolas',
-                            size: 18, // 9pt
-                            color: C.darkText,
+                            size: 16, // 8pt
+                            color: 'CCCCCC',
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              // Cuerpo del editor con gutter y resaltado sintáctico
+              new TableRow({
+                children: [
+                  new TableCell({
+                    width: { size: CONTENT_W, type: WidthType.DXA },
+                    shading: { fill: '1E1E1E', type: ShadingType.CLEAR },
+                    borders: thinBorder('3C3C3C'),
+                    margins: { top: 100, bottom: 100, left: 140, right: 140 },
+                    children: highlightedLines.map((hLine) => {
+                      const lineRuns: TextRun[] = [
+                        new TextRun({
+                          text: `${String(hLine.lineNumber).padStart(2, ' ')}  `,
+                          font: 'Consolas',
+                          size: 17,
+                          color: '858585',
+                        }),
+                      ];
+                      for (const t of hLine.tokens) {
+                        lineRuns.push(
+                          new TextRun({
+                            text: t.text,
+                            font: 'Consolas',
+                            size: 17,
+                            color: rgbToHex(t.color),
+                            bold: t.bold,
+                          })
+                        );
+                      }
+                      return new Paragraph({
+                        spacing: { before: 15, after: 15 },
+                        children: lineRuns,
+                      });
+                    }),
+                  }),
+                ],
+              }),
+            ],
+          })
+        );
+      } else {
+        // Caja vacía print-friendly para resolver con pluma en papel
+        const emptyLines = Array.from({ length: 10 }, (_, i) => i + 1);
+        items.push(
+          new Table({
+            width: { size: CONTENT_W, type: WidthType.DXA },
+            rows: [
+              new TableRow({
+                children: [
+                  new TableCell({
+                    width: { size: CONTENT_W, type: WidthType.DXA },
+                    shading: { fill: '252526', type: ShadingType.CLEAR },
+                    borders: thinBorder('3C3C3C'),
+                    margins: { top: 80, bottom: 80, left: 140, right: 140 },
+                    children: [
+                      new Paragraph({
+                        children: [
+                          new TextRun({
+                            text: `● ● ●  ${boxTitle} (Área de desarrollo del estudiante)`,
+                            font: 'Consolas',
+                            size: 16,
+                            color: 'CCCCCC',
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              new TableRow({
+                children: [
+                  new TableCell({
+                    width: { size: CONTENT_W, type: WidthType.DXA },
+                    shading: { fill: 'F8FAFC', type: ShadingType.CLEAR },
+                    borders: thinBorder('E2E8F0'),
+                    margins: { top: 100, bottom: 100, left: 140, right: 140 },
+                    children: emptyLines.map((lineNum) =>
+                      new Paragraph({
+                        spacing: { before: 30, after: 30 },
+                        children: [
+                          new TextRun({
+                            text: `${String(lineNum).padStart(2, ' ')} | `,
+                            font: 'Consolas',
+                            size: 17,
+                            color: '94A3B8',
+                          }),
+                          new TextRun({
+                            text: '                                                                                  ',
+                            font: 'Consolas',
+                            size: 17,
+                            color: 'E2E8F0',
                           }),
                         ],
                       })
-                  ),
-                }),
-              ],
-            }),
-          ],
-        })
-      );
+                    ),
+                  }),
+                ],
+              }),
+            ],
+          })
+        );
+      }
       break;
     }
 

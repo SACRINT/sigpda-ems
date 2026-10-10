@@ -81,6 +81,7 @@ import {
   drawMetacognitiveLight,
   drawPageHeader,
   drawPageFooter,
+  drawDarkIdeCodeBlock,
 } from '@/lib/visual-engine/pdf-components';
 import {
   ColumnFlowManager,
@@ -109,7 +110,6 @@ const GOLD: RGB = COLOR.GOLD;
 const DARK_TEXT: RGB = COLOR.TEXT_PRIMARY;
 const MUTED_TEXT: RGB = COLOR.MUTED_TEXT;
 const LIGHT_BG: RGB = COLOR.LIGHT_BG;
-const CODE_BG: RGB = COLOR.TABLE_ALT_ROW;
 
 
 // Colores de acento para encabezados de sección
@@ -2582,32 +2582,20 @@ function drawPdfWorkbookElement(
     }
 
     case 'code_box': {
-      const initialCode = element.config?.initialCode || '// Escribe tus comandos, desarrollo analítico o bloque de código:\n\n\n\n\n';
-      const rawLines = initialCode.split('\n');
-      const lineH = 4.4;
-      const padTop = 5;
-      const padBot = 5;
-      const maxLinesPerPage = Math.max(10, Math.floor((pageHeight - margin * 2 - 24) / lineH));
+      const codeContent = element.config?.initialCode && !element.config.initialCode.startsWith('// Escribe')
+        ? element.config.initialCode
+        : (element.config?.initialCode || '');
 
-      for (let i = 0; i < rawLines.length; i += maxLinesPerPage) {
-        const linesChunk = rawLines.slice(i, i + maxLinesPerPage);
-        const calculatedHeight = Math.max(45, linesChunk.length * lineH + padTop + padBot);
-
-        y = ensureVerticalSpace(doc, y, calculatedHeight, margin, pageHeight);
-
-        doc.setFillColor(...CODE_BG);
-        doc.setDrawColor(203, 213, 225);
-        doc.setLineWidth(0.4);
-        doc.rect(margin, y, contentWidth, calculatedHeight, 'FD');
-
-        doc.setFont('courier', 'normal');
-        doc.setFontSize(8);
-        doc.setTextColor(...DARK_TEXT);
-        linesChunk.forEach((line, idx) => {
-          doc.text(line || ' ', margin + 4, y + padTop + idx * lineH);
-        });
-        y += calculatedHeight + 6;
-      }
+      y = drawDarkIdeCodeBlock(doc, {
+        code: codeContent,
+        language: 'python',
+        title: element.title,
+        margin,
+        drawWidth: contentWidth,
+        y,
+        pageHeight,
+        ensureVerticalSpace,
+      });
       break;
     }
 

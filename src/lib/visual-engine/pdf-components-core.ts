@@ -19,8 +19,10 @@ import {
   STROKE,
   SPACING,
   TYPE,
+  CODE_IDE,
   type RGB,
 } from './design-tokens';
+import { highlightCodeBlock } from './code-highlighter';
 import {
   setFontHeading,
   setFontBody,
@@ -564,3 +566,189 @@ export function drawPageFooter(
 
   return y;
 }
+
+// ── 7. WIDGET DARK IDE: EDITOR DE CÓDIGO CON GUTTER Y SYNTAX HIGHLIGHTING ───
+
+export interface DarkIdeCodeBlockOptions {
+  code?: string;
+  language?: 'python' | 'bash';
+  title?: string;
+  margin: number;
+  drawWidth: number;
+  y: number;
+  pageHeight: number;
+  ensureVerticalSpace: (doc: jsPDF, y: number, neededH: number, margin: number, pageHeight: number) => number;
+}
+
+/**
+ * Renderiza un bloque de código estilo Dark IDE (VS Code) con gutter de números
+ * de línea y resaltado de sintaxis tokenizado.
+ *
+ * Si el código está vacío, dibuja el chasis técnico (barra y gutter 1..10)
+ * pero con interior claro/papel (`CODE_IDE.editorEmptyBg` #F8FAFC) y renglones tenues
+ * para permitir la escritura manual del alumno en el PDF impreso (Garantía Dual).
+ */
+export function drawDarkIdeCodeBlock(
+  doc: jsPDF,
+  opts: DarkIdeCodeBlockOptions
+): number {
+  const {
+    code = '',
+    language = 'python',
+    title,
+    margin,
+    drawWidth,
+    pageHeight,
+    ensureVerticalSpace,
+  } = opts;
+
+  let y = opts.y;
+  const isCodeEmpty = !code || code.trim().length === 0;
+  const headerH = 6.2;
+  const gutterW = 10.5;
+  const lineH = 4.2;
+
+  // Título canónico de la ventana
+  const defaultTitle = language === 'bash' ? 'Terminal de Comandos / Bash' : 'Editor de Código Python';
+  const windowTitle = sanitizePdfText(title || defaultTitle);
+
+  // CASO A: Caja vacía para que el estudiante escriba con pluma (Dual Print-Friendly)
+  if (isCodeEmpty) {
+    const emptyRows = 10;
+    const bodyH = emptyRows * lineH + 3;
+    const totalH = headerH + bodyH;
+
+    y = ensureVerticalSpace(doc, y, totalH + 4, margin, pageHeight);
+
+    // 1. Marco exterior
+    doc.setDrawColor(...CODE_IDE.border);
+    doc.setLineWidth(STROKE.THIN);
+    doc.setFillColor(...CODE_IDE.editorEmptyBg);
+    doc.rect(margin, y, drawWidth, totalH, 'FD');
+
+    // 2. Barra de título estilo chasis oscuro
+    doc.setFillColor(...CODE_IDE.gutterBg);
+    doc.rect(margin, y, drawWidth, headerH, 'F');
+    doc.setDrawColor(...CODE_IDE.border);
+    doc.line(margin, y + headerH, margin + drawWidth, y + headerH);
+
+    // Controles de ventana (macOS dots)
+    doc.setFillColor(255, 95, 86); // Rojo
+    doc.circle(margin + 3.2, y + 3.1, 1.0, 'F');
+    doc.setFillColor(255, 189, 46); // Amarillo
+    doc.circle(margin + 6.4, y + 3.1, 1.0, 'F');
+    doc.setFillColor(39, 201, 63); // Verde
+    doc.circle(margin + 9.6, y + 3.1, 1.0, 'F');
+
+    // Título de la ventana
+    setFontHeading(doc);
+    doc.setFontSize(6.8);
+    doc.setTextColor(...CODE_IDE.baseText);
+    doc.text(windowTitle, margin + 14, y + 4.2);
+
+    // 3. Gutter lateral izquierdo oscuro
+    doc.setFillColor(...CODE_IDE.gutterBg);
+    doc.rect(margin, y + headerH, gutterW, bodyH, 'F');
+    doc.setDrawColor(...CODE_IDE.border);
+    doc.line(margin + gutterW, y + headerH, margin + gutterW, y + totalH);
+
+    // Números de línea 1 a 10 y renglones tenues en el área clara
+    doc.setFont('courier', 'normal');
+    doc.setFontSize(7.0);
+
+    for (let r = 1; r <= emptyRows; r++) {
+      const lineY = y + headerH + (r - 1) * lineH + 3.2;
+
+      // Número en el gutter
+      doc.setTextColor(...CODE_IDE.gutterText);
+      doc.text(String(r), margin + gutterW - 2.5, lineY, { align: 'right' });
+
+      // Renglón tenue para pluma en el área de escritura
+      const ruleY = y + headerH + r * lineH + 0.5;
+      if (r < emptyRows) {
+        doc.setDrawColor(...CODE_IDE.emptyLineRule);
+        doc.setLineWidth(STROKE.HAIRLINE);
+        doc.line(margin + gutterW + 2, ruleY, margin + drawWidth - 2, ruleY);
+      }
+    }
+
+    return y + totalH + SPACING.AFTER_SECTION + 2;
+  }
+
+  // CASO B: Código con contenido real -> Resaltado sintáctico Dark IDE completo
+  const highlightedLines = highlightCodeBlock(code, language);
+  const maxLinesPerPage = Math.max(8, Math.floor((pageHeight - margin * 2 - 25) / lineH));
+
+  for (let chunkStart = 0; chunkStart < highlightedLines.length; chunkStart += maxLinesPerPage) {
+    const chunk = highlightedLines.slice(chunkStart, chunkStart + maxLinesPerPage);
+    const isContinuation = chunkStart > 0;
+    const chunkBodyH = chunk.length * lineH + 3.5;
+    const chunkTotalH = headerH + chunkBodyH;
+
+    y = ensureVerticalSpace(doc, y, chunkTotalH + 4, margin, pageHeight);
+
+    // 1. Fondo completo del editor oscuro
+    doc.setFillColor(...CODE_IDE.editorBg);
+    doc.setDrawColor(...CODE_IDE.border);
+    doc.setLineWidth(STROKE.THIN);
+    doc.rect(margin, y, drawWidth, chunkTotalH, 'FD');
+
+    // 2. Barra de título superior
+    doc.setFillColor(...CODE_IDE.gutterBg);
+    doc.rect(margin, y, drawWidth, headerH, 'F');
+    doc.setDrawColor(...CODE_IDE.border);
+    doc.line(margin, y + headerH, margin + drawWidth, y + headerH);
+
+    // Controles de ventana
+    doc.setFillColor(255, 95, 86);
+    doc.circle(margin + 3.2, y + 3.1, 1.0, 'F');
+    doc.setFillColor(255, 189, 46);
+    doc.circle(margin + 6.4, y + 3.1, 1.0, 'F');
+    doc.setFillColor(39, 201, 63);
+    doc.circle(margin + 9.6, y + 3.1, 1.0, 'F');
+
+    // Título y badge de continuación si aplica
+    setFontHeading(doc);
+    doc.setFontSize(6.8);
+    doc.setTextColor(...CODE_IDE.baseText);
+    const displayTitle = isContinuation ? `${windowTitle} (continuación)` : windowTitle;
+    doc.text(displayTitle, margin + 14, y + 4.2);
+
+    // 3. Gutter lateral
+    doc.setFillColor(...CODE_IDE.gutterBg);
+    doc.rect(margin, y + headerH, gutterW, chunkBodyH, 'F');
+    doc.setDrawColor(...CODE_IDE.border);
+    doc.line(margin + gutterW, y + headerH, margin + gutterW, y + chunkTotalH);
+
+    // 4. Renderizado de líneas y tokens coloreados
+    for (let i = 0; i < chunk.length; i++) {
+      const hLine = chunk[i];
+      const lineBaselineY = y + headerH + i * lineH + 3.2;
+
+      // Número de línea en el gutter
+      doc.setFont('courier', 'normal');
+      doc.setFontSize(7.2);
+      doc.setTextColor(...CODE_IDE.gutterText);
+      doc.text(String(hLine.lineNumber), margin + gutterW - 2.5, lineBaselineY, { align: 'right' });
+
+      // Tokens de código
+      let tokenX = margin + gutterW + 2.5;
+
+      for (const token of hLine.tokens) {
+        if (!token.text) continue;
+        doc.setFont('courier', token.bold ? 'bold' : 'normal');
+        doc.setFontSize(7.2);
+        doc.setTextColor(...token.color);
+
+        const cleanToken = sanitizePdfText(token.text);
+        doc.text(cleanToken, tokenX, lineBaselineY);
+        tokenX += doc.getTextWidth(cleanToken);
+      }
+    }
+
+    y += chunkTotalH + SPACING.AFTER_SECTION + 2;
+  }
+
+  return y;
+}
+
