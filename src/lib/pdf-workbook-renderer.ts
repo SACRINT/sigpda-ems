@@ -2582,8 +2582,8 @@ function drawPdfWorkbookElement(
     }
 
     case 'code_box': {
-      const codeContent = element.config?.initialCode && !element.config.initialCode.startsWith('// Escribe')
-        ? element.config.initialCode
+      const codeContent = (element.config?.initialCode?.startsWith('// Escribe'))
+        ? ''
         : (element.config?.initialCode || '');
 
       y = drawDarkIdeCodeBlock(doc, {
