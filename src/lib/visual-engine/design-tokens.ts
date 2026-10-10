@@ -348,3 +348,19 @@ export const PROCESS_FLOW_DOCX = {
   bannerBorder:  'E2E8F0',
   bannerTitle:   '1E3A8A',
 } as const;
+
+// ── Sistema de Iconografía Vectorial Offline (Fase 6B) ───────────────────────
+export const ICON_SET = {
+  check:          [16,  185, 129] as RGB, // #10B981 (esmeralda éxito)
+  bombilla:       [245, 158, 11]  as RGB, // #F59E0B (ámbar tip/idea)
+  engranaje:      [100, 116, 139] as RGB, // #64748B (slate configuración/mecanismo)
+  herramienta:    [59,  130, 246] as RGB, // #3B82F6 (azul técnico/herramienta)
+  warning:        [239, 68,  68]  as RGB, // #EF4444 (rojo alerta)
+  libro:          [99,  102, 241] as RGB, // #6366F1 (índigo estudio/concepto)
+  lupa:           [14,  165, 233] as RGB, // #0EA5E9 (sky investigación/detalle)
+  gota:           [6,   182, 212] as RGB, // #06B6D4 (cian fluidos/química)
+  chip:           [139, 92,  246] as RGB, // #8B5CF6 (violeta digital/hardware)
+  flechaDoble:    [59,  130, 246] as RGB, // #3B82F6 (azul avance/proceso)
+  'flecha-doble': [59,  130, 246] as RGB, // Alias canónico con guion
+} as const;
+

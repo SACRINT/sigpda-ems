@@ -14,6 +14,7 @@ import type { jsPDF } from 'jspdf';
 import type { LabStepCard } from '@/types/work-textbook';
 import { CODE_IDE, STEP_CARDS, SPACING } from './design-tokens';
 import { sanitizePdfText } from './pdf-components-core';
+import { drawIcon } from './icon-renderer';
 
 export interface StepCardGridOptions {
   margin: number;
@@ -210,7 +211,7 @@ function renderSingleStepCard(
     curY += dim.codeH + 2.5;
   }
 
-  // 6. Caja verde de resultado esperado / salida (etiqueta sanitizada WinAnsi)
+  // 6. Caja verde de resultado esperado / salida (icono vectorial con fallback D9)
   if (dim.outputLines.length > 0) {
     doc.setFillColor(...STEP_CARDS.outputBg);
     doc.setDrawColor(...STEP_CARDS.outputBorder);
@@ -220,7 +221,12 @@ function renderSingleStepCard(
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(6.0);
     doc.setTextColor(...STEP_CARDS.outputLabel);
-    doc.text(sanitizePdfText('[OK] Salida esperada:'), cardX + 6, curY + 3.0);
+    const iconDrawn = drawIcon(doc, 'check', cardX + 6, curY + 1.1, 2.2, STEP_CARDS.outputLabel);
+    if (iconDrawn) {
+      doc.text(sanitizePdfText('Salida esperada:'), cardX + 9.2, curY + 3.0);
+    } else {
+      doc.text(sanitizePdfText('[OK] Salida esperada:'), cardX + 6, curY + 3.0);
+    }
 
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(...STEP_CARDS.outputText);
@@ -228,7 +234,7 @@ function renderSingleStepCard(
     curY += dim.outputH + 2.5;
   }
 
-  // 7. Caja de observación o tip de taller (etiqueta sanitizada WinAnsi)
+  // 7. Caja de observación o tip de taller (icono vectorial con fallback D9)
   if (dim.tipLines.length > 0) {
     doc.setFillColor(...STEP_CARDS.tipBg);
     doc.setDrawColor(...STEP_CARDS.tipBorder);
@@ -238,7 +244,12 @@ function renderSingleStepCard(
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(5.8);
     doc.setTextColor(...STEP_CARDS.tipLabel);
-    doc.text(sanitizePdfText('[IDEA] Tip / Pista técnica:'), cardX + 6, curY + 2.8);
+    const iconDrawn = drawIcon(doc, 'bombilla', cardX + 6, curY + 1.0, 2.2, STEP_CARDS.tipLabel);
+    if (iconDrawn) {
+      doc.text(sanitizePdfText('Tip / Pista técnica:'), cardX + 9.2, curY + 2.8);
+    } else {
+      doc.text(sanitizePdfText('[IDEA] Tip / Pista técnica:'), cardX + 6, curY + 2.8);
+    }
 
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(...STEP_CARDS.tipText);

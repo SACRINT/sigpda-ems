@@ -887,4 +887,10 @@ export {
   type ProcessFlowBannerOptions,
 } from './process-flow-renderer';
 
+// ── 14. ICONOGRAFÍA VECTORIAL OFFLINE (FASE 6B) ───────────────────────────────
+export {
+  drawIcon,
+  type IconName,
+} from './icon-renderer';
+
 

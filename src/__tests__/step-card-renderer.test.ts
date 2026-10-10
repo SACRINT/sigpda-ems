@@ -69,7 +69,8 @@ describe('Widget Step-Cards Grid — Renderizado y Prueba de Mutación Anti-F11'
 
     // Debe haber dibujado badges circulares azules (#2563EB = [37, 99, 235])
     expect(fillSpy).toHaveBeenCalledWith(37, 99, 235);
-    expect(circleSpy).toHaveBeenCalledTimes(3);
+    // 3 badges circulares de paso + 1 cúpula vectorial de la bombilla de tip (Fase 6B)
+    expect(circleSpy).toHaveBeenCalledTimes(4);
 
     // Debe haber dibujado cajas de salida verde (#ECFDF5 = [236, 253, 245])
     expect(fillSpy).toHaveBeenCalledWith(236, 253, 245);
@@ -77,9 +78,9 @@ describe('Widget Step-Cards Grid — Renderizado y Prueba de Mutación Anti-F11'
     // Debe haber dibujado caja de tip (#FEF3C7 = [254, 243, 199])
     expect(fillSpy).toHaveBeenCalledWith(254, 243, 199);
 
-    // F-24: Etiquetas deben estar sanitizadas a WinAnsi canónico [OK] y [IDEA] (nunca glifos crudos ✓ o 💡)
-    expect(textSpy).toHaveBeenCalledWith('[OK] Salida esperada:', expect.any(Number), expect.any(Number));
-    expect(textSpy).toHaveBeenCalledWith('[IDEA] Tip / Pista técnica:', expect.any(Number), expect.any(Number));
+    // Fase 6B: Etiquetas de salida y tip renderizadas con icono vectorial (sin [OK]/[IDEA] ni glifos crudos)
+    expect(textSpy).toHaveBeenCalledWith('Salida esperada:', expect.any(Number), expect.any(Number));
+    expect(textSpy).toHaveBeenCalledWith('Tip / Pista técnica:', expect.any(Number), expect.any(Number));
     const allRenderedText = textSpy.mock.calls.map(c => String(c[0]));
     expect(allRenderedText.some(t => t.includes('✓'))).toBe(false);
     expect(allRenderedText.some(t => t.includes('💡'))).toBe(false);
