@@ -16,7 +16,7 @@ El motor visual de SIGPDA-EMS implementa una **Garantía Dual Offline**:
 | Widget | Archivo Renderer | Función PDF | Función DOCX | Extractor Determinista | Tokens | Umbral D9 |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | **1. Dark IDE Code Block** | `code-highlighter.ts` | `drawDarkIdeCodeBlock` | N/A (tabla IDE nativa) | `highlightCodeBlock` | `CODE_IDE` | Prosa sin código $\to$ párrafos normales |
-| **2. Step-Cards Grid** | `step-card-renderer.ts` | `drawStepCardGrid` | `buildDocxStepCardGrid` | `parseLabStepsFromProse` | `STEP_CARDS` / `STEP_CARDS_DOCX` | $< 3$ pasos $\to$ lista numerada tradicional |
+| **2. Step-Cards Grid** | `step-card-renderer.ts` | `drawStepCardGrid` | `buildDocxStepCardGrid` | `parseLabStepsFromProse` | `STEP_CARDS` / `STEP_CARDS_DOCX` | $< 3$ pasos $\to$ bloque de práctica con líneas punteadas (`drawPracticeTasksWithDottedLines`) |
 | **3. Concept-Cards Grid** | `concept-card-renderer.ts` | `drawConceptCardsGrid` | `buildDocxConceptCardsGrid` | `extractConceptCardsFromMission` | `CONCEPT_CARDS` / `CONCEPT_CARDS_DOCX` | $< 2$ conceptos $\to$ párrafos de fundamentación |
 | **4. Process Flow Banner** | `process-flow-renderer.ts` | `drawProcessFlowBanner` | `buildDocxProcessFlowBanner` | `extractProcessFlowSteps` | `PROCESS_FLOW` / `PROCESS_FLOW_DOCX` | $< 2$ fases $\to$ omite banner, mantiene tabla |
 
@@ -43,7 +43,7 @@ El motor visual de SIGPDA-EMS implementa una **Garantía Dual Offline**:
 - **Propósito**: Desglose visual de conceptos clave, analogías físicas y aplicaciones prácticas del MCCEMS.
 - **Capacidades**:
   - Cuadrícula de 2 o 3 tarjetas por fila con sombras suaves y bordes de alta fidelidad.
-  - Integración nativa con el catálogo institucional de 244 activos PNG (miniaturas escaladas a $18 \times 18\text{ mm}$).
+  - Integración nativa con el catálogo institucional de 244 slugs de materiales (53 ejecutados con imagen PNG y 191 pendientes de renderizado, escaladas a $18 \times 18\text{ mm}$).
   - Extractor determinista `extractConceptCardsFromMission` a partir de `conceptZero` o fenomenología.
 
 #### 3.4 Process Flow Banner
