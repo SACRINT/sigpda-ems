@@ -55,6 +55,7 @@ import type {
   ProjectSection,
   LabStepCard,
   ConceptCardItem,
+  ProcessFlowStep,
 } from '@/types/work-textbook';
 import type { Planning, ImageAsset } from '@/types/planning';
 import { getRubricLevelDescriptor } from '@/lib/rubric-helpers';
@@ -90,8 +91,9 @@ import {
 } from '@/lib/visual-engine/cover-generator';
 import { logger } from '@/lib/logger';
 import { highlightCodeBlock } from '@/lib/visual-engine/code-highlighter';
-import { CODE_IDE, STEP_CARDS_DOCX, CONCEPT_CARDS_DOCX } from '@/lib/visual-engine/design-tokens';
+import { CODE_IDE, STEP_CARDS_DOCX, CONCEPT_CARDS_DOCX, PROCESS_FLOW_DOCX } from '@/lib/visual-engine/design-tokens';
 import { extractConceptCardsFromMission } from '@/lib/visual-engine/concept-card-renderer';
+import { extractProcessFlowSteps } from '@/lib/visual-engine/process-flow-renderer';
 import { parseLabStepsFromProse } from '@/lib/guide-engine/lab-step-parser';
 
 function rgbToHex(rgb: [number, number, number]): string {
@@ -2451,6 +2453,137 @@ function buildDocxConceptCardsGrid(cards: ConceptCardItem[]): Table {
   });
 }
 
+function buildDocxProcessFlowBanner(steps: ProcessFlowStep[], title?: string): Table {
+  const n = steps.length;
+  const arrowWidthDxa = 360;
+  const totalArrowDxa = (n - 1) * arrowWidthDxa;
+  const availWidthDxa = CONTENT_W - totalArrowDxa;
+  const nodeWidthDxa = Math.floor(availWidthDxa / n);
+
+  const cells: TableCell[] = [];
+
+  for (let i = 0; i < n; i++) {
+    const step = steps[i];
+    const nodeChildren: Paragraph[] = [
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 40, after: 20 },
+        children: [
+          new TextRun({
+            text: `[Etapa ${step.stepNumber}]`,
+            bold: true,
+            size: 16,
+            color: PROCESS_FLOW_DOCX.numberBg,
+            font: 'Calibri',
+          }),
+        ],
+      }),
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 10, after: 20 },
+        children: [
+          new TextRun({
+            text: step.title,
+            bold: true,
+            size: 18,
+            color: PROCESS_FLOW_DOCX.titleText,
+            font: 'Calibri',
+          }),
+        ],
+      }),
+    ];
+
+    if (step.subtitle) {
+      nodeChildren.push(
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 10, after: 30 },
+          children: [
+            new TextRun({
+              text: step.subtitle,
+              size: 14,
+              color: PROCESS_FLOW_DOCX.subtitleText,
+              font: 'Calibri',
+            }),
+          ],
+        })
+      );
+    }
+
+    cells.push(
+      new TableCell({
+        width: { size: nodeWidthDxa, type: WidthType.DXA },
+        shading: { fill: PROCESS_FLOW_DOCX.nodeBg, type: ShadingType.CLEAR },
+        borders: thinBorder(PROCESS_FLOW_DOCX.nodeBorder),
+        margins: { top: 80, bottom: 80, left: 80, right: 80 },
+        children: nodeChildren,
+      })
+    );
+
+    if (i < n - 1) {
+      cells.push(
+        new TableCell({
+          width: { size: arrowWidthDxa, type: WidthType.DXA },
+          borders: noBorders(),
+          children: [
+            new Paragraph({
+              alignment: AlignmentType.CENTER,
+              spacing: { before: 80, after: 80 },
+              children: [
+                new TextRun({
+                  text: '➔',
+                  size: 22,
+                  color: PROCESS_FLOW_DOCX.arrowColor,
+                }),
+              ],
+            }),
+          ],
+        })
+      );
+    }
+  }
+
+  const rows: TableRow[] = [];
+
+  if (title && title.trim().length > 0) {
+    const totalCols = n + (n - 1);
+    rows.push(
+      new TableRow({
+        children: [
+          new TableCell({
+            width: { size: CONTENT_W, type: WidthType.DXA },
+            columnSpan: totalCols,
+            shading: { fill: PROCESS_FLOW_DOCX.bannerBg, type: ShadingType.CLEAR },
+            borders: thinBorder(PROCESS_FLOW_DOCX.bannerBorder),
+            margins: { top: 60, bottom: 40, left: 100, right: 100 },
+            children: [
+              new Paragraph({
+                spacing: { before: 20, after: 20 },
+                children: [
+                  new TextRun({
+                    text: title.toUpperCase(),
+                    bold: true,
+                    size: 18,
+                    color: PROCESS_FLOW_DOCX.bannerTitle,
+                    font: 'Calibri',
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      })
+    );
+  }
+
+  rows.push(new TableRow({ children: cells }));
+
+  return new Table({
+    width: { size: CONTENT_W, type: WidthType.DXA },
+    rows,
+  });
+}
+
 async function buildMissionContent(
   mission: MissionSection,
   missionNumber: number,
@@ -3653,6 +3786,12 @@ function buildProjectSection(project: ProjectSection): (Paragraph | Table)[] {
   );
 
   if (project.phases && project.phases.length > 0) {
+    // ── Flujo de Procesos y Fases (Fase 4: Process Flow Banner 100% Offline) ───
+    const processSteps = extractProcessFlowSteps(project.phases);
+    if (processSteps.length >= 2) {
+      elements.push(buildDocxProcessFlowBanner(processSteps, 'Ruta de Desarrollo del Proyecto'));
+    }
+
     const colW1 = Math.floor(CONTENT_W * 0.15);
     const colW2 = Math.floor(CONTENT_W * 0.30);
     const colW3 = Math.floor(CONTENT_W * 0.15);

@@ -880,3 +880,11 @@ export {
   type ConceptCardGridOptions,
 } from './concept-card-renderer';
 
+// ── 13. WIDGET DE FLUJO DE PROCESOS Y FASES (FASE 4) ──────────────────────────
+export {
+  drawProcessFlowBanner,
+  extractProcessFlowSteps,
+  type ProcessFlowBannerOptions,
+} from './process-flow-renderer';
+
+

@@ -57,6 +57,13 @@ export interface ConceptCardItem {
   materialSlug?: string; // Slug del catálogo existente (244 PNGs)
 }
 
+export interface ProcessFlowStep {
+  stepNumber: number;
+  title: string;
+  subtitle?: string; // Ej: '2 hrs' o 'Fase Inicial'
+  description?: string;
+}
+
 export interface MissionSection {
   missionIndex: number;
   title: string;

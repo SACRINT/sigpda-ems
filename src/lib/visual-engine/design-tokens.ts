@@ -321,3 +321,32 @@ export const CONCEPT_CARDS_DOCX = {
   exampleLabel: 'B45309',
   exampleText:  '92400E',
 } as const;
+
+// ── Sistema de Color para Flujo de Procesos y Fases (Fase 4) ─────────────────
+export const PROCESS_FLOW = {
+  nodeBg:        [239, 246, 255] as RGB, // #EFF6FF (fondo azul tenue píldora)
+  nodeBorder:    [191, 219, 254] as RGB, // #BFDBFE (borde suave)
+  nodeActiveBg:  [37,  99,  235] as RGB, // #2563EB (azul primario paso activo)
+  numberBg:      [30,  58,  138] as RGB, // #1E3A8A (azul marino número)
+  numberText:    [255, 255, 255] as RGB, // #FFFFFF
+  titleText:     [30,  41,  59]  as RGB, // #1E293B (título oscuro slate-800)
+  subtitleText:  [100, 116, 139] as RGB, // #64748B (subtítulo slate-500)
+  arrowColor:    [59,  130, 246] as RGB, // #3B82F6 (flecha conectora azul)
+  bannerBg:      [248, 250, 252] as RGB, // #F8FAFC (contenedor exterior suave)
+  bannerBorder:  [226, 232, 240] as RGB, // #E2E8F0
+  bannerTitle:   [30,  58,  138] as RGB, // #1E3A8A (título de sección)
+} as const;
+
+export const PROCESS_FLOW_DOCX = {
+  nodeBg:        'EFF6FF',
+  nodeBorder:    'BFDBFE',
+  nodeActiveBg:  '2563EB',
+  numberBg:      '1E3A8A',
+  numberText:    'FFFFFF',
+  titleText:     '1E293B',
+  subtitleText:  '64748B',
+  arrowColor:    '3B82F6',
+  bannerBg:      'F8FAFC',
+  bannerBorder:  'E2E8F0',
+  bannerTitle:   '1E3A8A',
+} as const;

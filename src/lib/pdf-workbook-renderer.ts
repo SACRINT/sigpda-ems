@@ -85,6 +85,8 @@ import {
   drawStepCardGrid,
   drawConceptCardsGrid,
   extractConceptCardsFromMission,
+  drawProcessFlowBanner,
+  extractProcessFlowSteps,
 } from '@/lib/visual-engine/pdf-components';
 import { parseLabStepsFromProse } from '@/lib/guide-engine/lab-step-parser';
 import {
@@ -2800,6 +2802,20 @@ function drawProjectSection(
 
   // Cronograma por Fases
   if (project.phases && project.phases.length > 0) {
+    // ── Flujo de Procesos y Fases (Fase 4: Process Flow Banner 100% Offline) ───
+    const processSteps = extractProcessFlowSteps(project.phases);
+    if (processSteps.length >= 2) {
+      y = drawProcessFlowBanner(doc, processSteps, {
+        margin,
+        drawWidth: contentWidth,
+        y,
+        pageHeight,
+        bannerTitle: 'Ruta de Desarrollo del Proyecto',
+        ensureVerticalSpace,
+      });
+      y += 2.0;
+    }
+
     y = ensureVerticalSpace(doc, y, 16, margin, pageHeight);
     setFontBody(doc, 'bold');
     doc.setFontSize(8.5);
