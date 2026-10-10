@@ -1,6 +1,6 @@
 [
   {
-    "uac_name": "Pensamiento Matemático I",
+    "uac_name": "Pensamiento Matemático I. Pensamiento aritmético",
     "semester": 1,
     "component": "fundamental",
     "subsystem": "bge",
@@ -128,7 +128,7 @@
     "curriculum_name": "Pensamiento aritmético"
   },
   {
-    "uac_name": "Pensamiento Matemático II",
+    "uac_name": "Pensamiento Matemático II. Introducción al álgebra",
     "semester": 2,
     "component": "fundamental",
     "subsystem": "bge",
@@ -240,7 +240,7 @@
     "curriculum_name": "Introducción al álgebra"
   },
   {
-    "uac_name": "Pensamiento Matemático III",
+    "uac_name": "Pensamiento Matemático III. Pensamientos algebraico e introducción a geometría plana",
     "semester": 3,
     "component": "fundamental",
     "subsystem": "bge",
@@ -353,7 +353,7 @@
     "curriculum_name": "Pensamiento algebraico e introducción a geometría plana"
   },
   {
-    "uac_name": "Pensamiento Matemático IV",
+    "uac_name": "Pensamiento Matemático IV. Trigonometría y geometría analítica",
     "semester": 4,
     "component": "fundamental",
     "subsystem": "bge",
@@ -739,7 +739,7 @@
     "curriculum_name": "Pensamiento estadístico y probabilístico"
   },
   {
-    "uac_name": "Ciencias Naturales, Experimentales y Tecnología I",
+    "uac_name": "Ciencias Naturales, Experimentales y Tecnología I. Invitación a la Ciencia. Naturaleza de la materia",
     "semester": 1,
     "component": "fundamental",
     "subsystem": "bge",
@@ -879,7 +879,7 @@
     "curriculum_name": "Invitación a la ciencia"
   },
   {
-    "uac_name": "Ciencias Naturales, Experimentales y Tecnología II",
+    "uac_name": "Ciencias Naturales, Experimentales y Tecnología II. El poder de la energía",
     "semester": 2,
     "component": "fundamental",
     "subsystem": "bge",
@@ -1015,7 +1015,7 @@
     "curriculum_name": "El poder de la energía"
   },
   {
-    "uac_name": "Ciencias Naturales, Experimentales y Tecnología III",
+    "uac_name": "Ciencias Naturales, Experimentales y Tecnología III. Nuestro hogar. El sistema terrestre",
     "semester": 3,
     "component": "fundamental",
     "subsystem": "bge",
@@ -1150,7 +1150,7 @@
     "curriculum_name": "Nuestro hogar"
   },
   {
-    "uac_name": "Ciencias Naturales, Experimentales y Tecnología IV",
+    "uac_name": "Ciencias Naturales, Experimentales y Tecnología IV. El poder de la química",
     "semester": 4,
     "component": "fundamental",
     "subsystem": "bge",
@@ -1572,7 +1572,7 @@
     "curriculum_name": "¿Qué es la vida? Evolución y biodiversidad"
   },
   {
-    "uac_name": "Ciencias Sociales I",
+    "uac_name": "Ciencias sociales I. Estado, ciudadanía y relaciones de poder",
     "semester": 1,
     "component": "fundamental",
     "subsystem": "bge",
@@ -1654,7 +1654,7 @@
     "curriculum_name": "Estado, ciudadanía y relaciones de poder"
   },
   {
-    "uac_name": "Ciencias Sociales II",
+    "uac_name": "Ciencias Sociales II. Organización, relaciones sociales y económicas",
     "semester": 2,
     "component": "fundamental",
     "subsystem": "bge",
@@ -1735,7 +1735,7 @@
     "curriculum_name": "Organización, relaciones sociales y económicas"
   },
   {
-    "uac_name": "Ciencias Sociales III",
+    "uac_name": "Ciencias Sociales III. Las dinámicas de la realidad actual: la condición estudiantil al centro",
     "semester": 4,
     "component": "fundamental",
     "subsystem": "bge",
@@ -1813,7 +1813,7 @@
     "curriculum_name": "Las dinámicas de la realidad actual: la condición estudiantil"
   },
   {
-    "uac_name": "Conciencia Histórica I",
+    "uac_name": "Conciencia Histórica I. Coordenadas de la Historia",
     "semester": 4,
     "component": "fundamental",
     "subsystem": "bge",
@@ -2047,7 +2047,7 @@
     "curriculum_name": "Navegar en el tiempo: investigaciones históricas"
   },
   {
-    "uac_name": "Cultura Digital I",
+    "uac_name": "Cultura Digital I. Ciudadanía digital",
     "semester": 1,
     "component": "fundamental",
     "subsystem": "bge",
@@ -2202,7 +2202,7 @@
     "curriculum_name": "Ciudadanía digital"
   },
   {
-    "uac_name": "Cultura Digital II",
+    "uac_name": "Cultura Digital II. Aprendizaje individual y colaborativo",
     "semester": 2,
     "component": "fundamental",
     "subsystem": "bge",
@@ -2375,7 +2375,7 @@
     "curriculum_name": "Uso y difusión del conocimiento"
   },
   {
-    "uac_name": "Lengua y Comunicación I",
+    "uac_name": "Lenguaje y Comunicación I. Leer y escribir para pensar juntos",
     "semester": 1,
     "component": "fundamental",
     "subsystem": "bge",
@@ -2516,7 +2516,7 @@
     "curriculum_name": "Leer y escribir para pensarnos juntos"
   },
   {
-    "uac_name": "Lengua y Comunicación II",
+    "uac_name": "Lengua y Comunicación II. Libertad para imaginar, poder para comunicar",
     "semester": 2,
     "component": "fundamental",
     "subsystem": "bge",
@@ -2662,7 +2662,7 @@
     "curriculum_name": "Libertad para imaginar, poder para comunicar"
   },
   {
-    "uac_name": "Lengua y Comunicación III",
+    "uac_name": "Lengua y Comunicación III. Descubrir culturas, apropiarse de las palabras",
     "semester": 3,
     "component": "fundamental",
     "subsystem": "bge",
@@ -2801,7 +2801,7 @@
     "curriculum_name": "Describir culturas, apropiarse de las palabras"
   },
   {
-    "uac_name": "Inglés I",
+    "uac_name": "Inglés I. To Be, or Not to be, That is the Question",
     "semester": 1,
     "component": "fundamental",
     "subsystem": "bge",
@@ -2964,7 +2964,7 @@
     "curriculum_name": "To be, or not to be, that is the question (A1)"
   },
   {
-    "uac_name": "Inglés II",
+    "uac_name": "Inglés II. These are a few of my favorite things",
     "semester": 2,
     "component": "fundamental",
     "subsystem": "bge",
@@ -3118,7 +3118,7 @@
     "curriculum_name": "Once upon a time (A1-A2)"
   },
   {
-    "uac_name": "Inglés III",
+    "uac_name": "Inglés III. What We Were, We Share",
     "semester": 3,
     "component": "fundamental",
     "subsystem": "bge",
@@ -3262,7 +3262,7 @@
     "curriculum_name": "A picture is worth a thousand words (A2)"
   },
   {
-    "uac_name": "Inglés IV",
+    "uac_name": "Inglés IV. Should I stay or should I go?",
     "semester": 4,
     "component": "fundamental",
     "subsystem": "bge",
@@ -3400,7 +3400,7 @@
     "curriculum_name": "Life is a journey, not a destination (A2+)"
   },
   {
-    "uac_name": "Humanidades I",
+    "uac_name": "Pensamiento Filosófico y Humanidades I. El ejercicio de filosofar y la perspectiva",
     "semester": 1,
     "component": "fundamental",
     "subsystem": "bge",
@@ -3500,7 +3500,7 @@
     "curriculum_name": "Vivir aquí y ahora"
   },
   {
-    "uac_name": "Humanidades II",
+    "uac_name": "Pensamiento Filosófico y Humanidades II. Las reflexiones filosóficas sobre el Conocer",
     "semester": 2,
     "component": "fundamental",
     "subsystem": "bge",
@@ -3601,7 +3601,7 @@
     "curriculum_name": "Estar juntos"
   },
   {
-    "uac_name": "Humanidades III",
+    "uac_name": "Pensamiento Filosófico y Humanidades III. Las reflexiones filosóficas sobre el hacer",
     "semester": 3,
     "component": "fundamental",
     "subsystem": "bge",
@@ -9941,7 +9941,7 @@
     "curriculum_name": "Currículum Ampliado"
   },
   {
-    "uac_name": "Actividades Físicas y Deportivas I",
+    "uac_name": "Ámbito de la formación socioemocional I. Actividades físicas y deportivas",
     "semester": 1,
     "component": "socioemocional",
     "subsystem": "bge",
@@ -9955,7 +9955,7 @@
     "curriculum_name": "Currículum Ampliado"
   },
   {
-    "uac_name": "Actividades Artísticas y Culturales II",
+    "uac_name": "Ámbito de la formación socioemocional II. Actividades artísticas y culturales",
     "semester": 2,
     "component": "socioemocional",
     "subsystem": "bge",
@@ -9969,7 +9969,7 @@
     "curriculum_name": "Currículum Ampliado"
   },
   {
-    "uac_name": "Actividades Físicas y Deportivas II",
+    "uac_name": "Ámbito de la formación socioemocional II. Actividades físicas y deportivas",
     "semester": 2,
     "component": "socioemocional",
     "subsystem": "bge",
@@ -9983,7 +9983,7 @@
     "curriculum_name": "Currículum Ampliado"
   },
   {
-    "uac_name": "Formación Socioemocional III",
+    "uac_name": "Ámbito de la formación socioemocional I. Educación para la Salud",
     "semester": 3,
     "component": "socioemocional",
     "subsystem": "bge",
@@ -9997,7 +9997,7 @@
     "curriculum_name": "Currículum Ampliado"
   },
   {
-    "uac_name": "Formación Socioemocional IV",
+    "uac_name": "Ámbito de la formación socioemocional II. Educación Integral en Sexualidad y Género",
     "semester": 4,
     "component": "socioemocional",
     "subsystem": "bge",
@@ -10011,7 +10011,7 @@
     "curriculum_name": "Currículum Ampliado"
   },
   {
-    "uac_name": "Formación Socioemocional V",
+    "uac_name": "Ámbito de la formación socioemocional I. Práctica y Colaboración Ciudadana",
     "semester": 5,
     "component": "socioemocional",
     "subsystem": "bge",
@@ -10155,7 +10155,7 @@
     "curriculum_name": "Formación Fundamental Extendida Obligatoria"
   },
   {
-    "uac_name": "Taller de Ciencias II",
+    "uac_name": "Taller de Ciencias II.",
     "semester": 3,
     "component": "ffeo",
     "subsystem": "bge",
