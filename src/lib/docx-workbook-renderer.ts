@@ -54,6 +54,7 @@ import type {
   EvaluationSection,
   ProjectSection,
   LabStepCard,
+  ConceptCardItem,
 } from '@/types/work-textbook';
 import type { Planning, ImageAsset } from '@/types/planning';
 import { getRubricLevelDescriptor } from '@/lib/rubric-helpers';
@@ -89,7 +90,8 @@ import {
 } from '@/lib/visual-engine/cover-generator';
 import { logger } from '@/lib/logger';
 import { highlightCodeBlock } from '@/lib/visual-engine/code-highlighter';
-import { CODE_IDE } from '@/lib/visual-engine/design-tokens';
+import { CODE_IDE, STEP_CARDS_DOCX, CONCEPT_CARDS_DOCX } from '@/lib/visual-engine/design-tokens';
+import { extractConceptCardsFromMission } from '@/lib/visual-engine/concept-card-renderer';
 import { parseLabStepsFromProse } from '@/lib/guide-engine/lab-step-parser';
 
 function rgbToHex(rgb: [number, number, number]): string {
@@ -2194,7 +2196,7 @@ function buildDocxStepCardGrid(cards: LabStepCard[]): Table {
               text: `● Paso ${card.stepNumber}: `,
               bold: true,
               size: 20, // 10pt
-              color: '2563EB',
+              color: STEP_CARDS_DOCX.badgeBg,
               font: 'Calibri',
             }),
             new TextRun({
@@ -2212,7 +2214,7 @@ function buildDocxStepCardGrid(cards: LabStepCard[]): Table {
             new TextRun({
               text: card.actionDescription || '',
               size: 18, // 9pt
-              color: '475569',
+              color: STEP_CARDS_DOCX.descText,
               font: 'Calibri',
             }),
           ],
@@ -2225,13 +2227,13 @@ function buildDocxStepCardGrid(cards: LabStepCard[]): Table {
           cellChildren.push(
             new Paragraph({
               spacing: { before: 10, after: 10 },
-              shading: { fill: '252526', type: ShadingType.CLEAR },
+              shading: { fill: STEP_CARDS_DOCX.codeBg, type: ShadingType.CLEAR },
               children: [
                 new TextRun({
                   text: `  ${cLine}`,
                   font: 'Consolas',
                   size: 16,
-                  color: 'D4D4D4',
+                  color: STEP_CARDS_DOCX.codeColor,
                 }),
               ],
             })
@@ -2248,13 +2250,13 @@ function buildDocxStepCardGrid(cards: LabStepCard[]): Table {
                 text: '✓ Salida: ',
                 bold: true,
                 size: 16,
-                color: '059669',
+                color: STEP_CARDS_DOCX.outputLabel,
                 font: 'Calibri',
               }),
               new TextRun({
                 text: card.expectedOutput,
                 size: 16,
-                color: '065F46',
+                color: STEP_CARDS_DOCX.outputText,
                 font: 'Calibri',
               }),
             ],
@@ -2271,13 +2273,13 @@ function buildDocxStepCardGrid(cards: LabStepCard[]): Table {
                 text: '💡 Tip: ',
                 bold: true,
                 size: 16,
-                color: 'B45309',
+                color: STEP_CARDS_DOCX.tipLabel,
                 font: 'Calibri',
               }),
               new TextRun({
                 text: card.tipOrNote,
                 size: 16,
-                color: '92400E',
+                color: STEP_CARDS_DOCX.tipText,
                 font: 'Calibri',
               }),
             ],
@@ -2287,8 +2289,8 @@ function buildDocxStepCardGrid(cards: LabStepCard[]): Table {
 
       return new TableCell({
         width: { size: colW, type: WidthType.DXA },
-        shading: { fill: 'F8FAFC', type: ShadingType.CLEAR },
-        borders: thinBorder('E2E8F0'),
+        shading: { fill: STEP_CARDS_DOCX.cardBg, type: ShadingType.CLEAR },
+        borders: thinBorder(STEP_CARDS_DOCX.cardBorder),
         margins: { top: 100, bottom: 100, left: 140, right: 140 },
         children: cellChildren,
       });
@@ -2298,6 +2300,139 @@ function buildDocxStepCardGrid(cards: LabStepCard[]): Table {
     if (rightCard) {
       cells.push(renderCardCell(rightCard));
     } else {
+      cells.push(
+        new TableCell({
+          width: { size: colW, type: WidthType.DXA },
+          borders: noBorders(),
+          children: [new Paragraph({})],
+        })
+      );
+    }
+
+    rows.push(new TableRow({ children: cells }));
+  }
+
+  return new Table({
+    width: { size: CONTENT_W, type: WidthType.DXA },
+    rows,
+  });
+}
+
+function buildDocxConceptCardsGrid(cards: ConceptCardItem[]): Table {
+  const numCols = cards.length === 3 ? 3 : 2;
+  const colW = Math.floor(CONTENT_W / numCols);
+  const rows: TableRow[] = [];
+
+  for (let idx = 0; idx < cards.length; idx += numCols) {
+    const rowCards = cards.slice(idx, idx + numCols);
+    const cells: TableCell[] = rowCards.map((card) => {
+      const cellChildren: Paragraph[] = [];
+
+      // 1. Badge superior tipo cápsula
+      const badgeUpper = (card.badge || 'CONCEPTO').toUpperCase();
+      let badgeColor: string = CONCEPT_CARDS_DOCX.badgeDefault;
+      if (badgeUpper.includes('ANALOG')) badgeColor = CONCEPT_CARDS_DOCX.badgeAnalogy;
+      else if (badgeUpper.includes('CONCEP')) badgeColor = CONCEPT_CARDS_DOCX.badgeConcept;
+      else if (badgeUpper.includes('APLIC') || badgeUpper.includes('CRITER')) badgeColor = CONCEPT_CARDS_DOCX.badgeApply;
+
+      cellChildren.push(
+        new Paragraph({
+          spacing: { before: 40, after: 30 },
+          children: [
+            new TextRun({
+              text: `[${card.badge || 'CONCEPTO'}] `,
+              bold: true,
+              size: 16,
+              color: badgeColor,
+              font: 'Calibri',
+            }),
+          ],
+        })
+      );
+
+      // 2. Miniatura si existe materialSlug
+      if (card.materialSlug) {
+        const pngBuffer = readMaterialPng(card.materialSlug);
+        if (pngBuffer) {
+          cellChildren.push(
+            new Paragraph({
+              alignment: AlignmentType.CENTER,
+              spacing: { before: 20, after: 30 },
+              children: [
+                new ImageRun({
+                  data: pngBuffer,
+                  transformation: { width: 70, height: 70 },
+                  type: 'png',
+                }),
+              ],
+            })
+          );
+        }
+      }
+
+      // 3. Título
+      cellChildren.push(
+        new Paragraph({
+          spacing: { before: 20, after: 40 },
+          children: [
+            new TextRun({
+              text: card.title || 'Concepto Clave',
+              bold: true,
+              size: 20,
+              color: CONCEPT_CARDS_DOCX.titleText,
+              font: 'Calibri',
+            }),
+          ],
+        }),
+        // 4. Descripción
+        new Paragraph({
+          spacing: { before: 20, after: 50, line: 300 },
+          children: [
+            new TextRun({
+              text: stripMarkdown(card.description || ''),
+              size: 18,
+              color: CONCEPT_CARDS_DOCX.descText,
+              font: 'Calibri',
+            }),
+          ],
+        })
+      );
+
+      // 5. Ejemplo opcional
+      if (card.example && card.example.trim().length > 0) {
+        cellChildren.push(
+          new Paragraph({
+            spacing: { before: 40, after: 30 },
+            shading: { fill: CONCEPT_CARDS_DOCX.exampleBg, type: ShadingType.CLEAR },
+            children: [
+              new TextRun({
+                text: 'Ejemplo: ',
+                bold: true,
+                size: 16,
+                color: CONCEPT_CARDS_DOCX.exampleLabel,
+                font: 'Calibri',
+              }),
+              new TextRun({
+                text: stripMarkdown(card.example),
+                size: 16,
+                color: CONCEPT_CARDS_DOCX.exampleText,
+                font: 'Calibri',
+              }),
+            ],
+          })
+        );
+      }
+
+      return new TableCell({
+        width: { size: colW, type: WidthType.DXA },
+        shading: { fill: CONCEPT_CARDS_DOCX.bg, type: ShadingType.CLEAR },
+        borders: thinBorder(CONCEPT_CARDS_DOCX.border),
+        margins: { top: 100, bottom: 100, left: 120, right: 120 },
+        children: cellChildren,
+      });
+    });
+
+    while (cells.length < numCols) {
       cells.push(
         new TableCell({
           width: { size: colW, type: WidthType.DXA },
@@ -2424,30 +2559,39 @@ async function buildMissionContent(
   // 2. Concepto Cero
   elements.push(
     buildDocxSectionHeader('💡 2. Concepto Cero: Analogía Intuitiva y Fundamento', SECTION_HEX.concepto, '[LEO Y COMPRENDO]'),
-    new Paragraph({
-      spacing: { before: 100, after: 150, line: 360 },
-      children: [
-        new TextRun({
-          text: `Analogía Cotidiana: ${mission.conceptZero.physicalAnalogy}`,
-          italics: true,
-          size: 22,
-          color: C.darkText,
-          font: 'Calibri',
-        }),
-      ],
-    }),
-    new Paragraph({
-      spacing: { after: 250, line: 360 },
-      children: [
-        new TextRun({
-          text: stripMarkdown(mission.conceptZero.coreExplanation),
-          size: 22,
-          color: C.darkText,
-          font: 'Calibri',
-        }),
-      ],
-    })
   );
+
+  const conceptCards = extractConceptCardsFromMission(mission);
+  if (conceptCards.length >= 2) {
+    elements.push(buildDocxConceptCardsGrid(conceptCards));
+  } else {
+    // Degradación histórica D9: párrafos directos
+    elements.push(
+      new Paragraph({
+        spacing: { before: 100, after: 150, line: 360 },
+        children: [
+          new TextRun({
+            text: `Analogía Cotidiana: ${mission.conceptZero.physicalAnalogy}`,
+            italics: true,
+            size: 22,
+            color: C.darkText,
+            font: 'Calibri',
+          }),
+        ],
+      }),
+      new Paragraph({
+        spacing: { after: 250, line: 360 },
+        children: [
+          new TextRun({
+            text: stripMarkdown(mission.conceptZero.coreExplanation),
+            size: 22,
+            color: C.darkText,
+            font: 'Calibri',
+          }),
+        ],
+      })
+    );
+  }
 
   if (mission.conceptZero.narrativeExplanation) {
     elements.push(

@@ -273,3 +273,51 @@ export const STEP_CARDS = {
   tipLabel:     [180, 83,  9]   as RGB, // #B45309 (etiqueta ámbar bold)
   tipText:      [146, 64,  14]  as RGB, // #92400E (texto ámbar profundo)
 } as const;
+
+export const STEP_CARDS_DOCX = {
+  cardBg:       'F8FAFC',
+  cardBorder:   'E2E8F0',
+  badgeBg:      '2563EB',
+  badgeText:    'FFFFFF',
+  titleText:    '1E293B',
+  descText:     '475569',
+  codeColor:    'D4D4D4',
+  codeBg:       '252526',
+  outputLabel:  '059669',
+  outputText:   '065F46',
+  tipLabel:     'B45309',
+  tipText:      '92400E',
+} as const;
+
+// ── Sistema de Color para Tarjetas Conceptuales (Fase 3) ────────────────────
+export const CONCEPT_CARDS = {
+  bg:           [248, 250, 252] as RGB, // #F8FAFC (fondo tarjeta suave)
+  border:       [226, 232, 240] as RGB, // #E2E8F0 (borde tarjeta)
+  badgeAnalogy: [14,  165, 233] as RGB, // #0EA5E9 (sky/azul analogía)
+  badgeConcept: [99,  102, 241] as RGB, // #6366F1 (índigo fundamento)
+  badgeApply:   [16,  185, 129] as RGB, // #10B981 (esmeralda aplicación)
+  badgeDefault: [79,  70,  229] as RGB, // #4F46E5 (azul índigo)
+  badgeText:    [255, 255, 255] as RGB, // #FFFFFF
+  titleText:    [30,  41,  59]  as RGB, // #1E293B (título oscuro slate-800)
+  descText:     [71,  85,  105] as RGB, // #475569 (descripción slate-600)
+  exampleBg:    [254, 243, 199] as RGB, // #FEF3C7 (fondo ámbar ejemplo)
+  exampleBorder:[245, 158, 11]  as RGB, // #F59E0B (borde ámbar)
+  exampleLabel: [180, 83,  9]   as RGB, // #B45309 (etiqueta ámbar bold)
+  exampleText:  [146, 64,  14]  as RGB, // #92400E (texto ámbar profundo)
+} as const;
+
+export const CONCEPT_CARDS_DOCX = {
+  bg:           'F8FAFC',
+  border:       'E2E8F0',
+  badgeAnalogy: '0EA5E9',
+  badgeConcept: '6366F1',
+  badgeApply:   '10B981',
+  badgeDefault: '4F46E5',
+  badgeText:    'FFFFFF',
+  titleText:    '1E293B',
+  descText:     '475569',
+  exampleBg:    'FEF3C7',
+  exampleBorder:'F59E0B',
+  exampleLabel: 'B45309',
+  exampleText:  '92400E',
+} as const;

@@ -83,6 +83,8 @@ import {
   drawPageFooter,
   drawDarkIdeCodeBlock,
   drawStepCardGrid,
+  drawConceptCardsGrid,
+  extractConceptCardsFromMission,
 } from '@/lib/visual-engine/pdf-components';
 import { parseLabStepsFromProse } from '@/lib/guide-engine/lab-step-parser';
 import {
@@ -2014,10 +2016,25 @@ async function drawMission(
 
   // 2. Concepto Cero
   y = drawSectionHeader(doc, '2. Concepto Cero: Analogia Intuitiva y Fundamento', margin, mainW, y, pageHeight, SECTION_COLORS.concepto, checkSpace, '[ LEO Y COMPRENDO ]');
-  y = flow.printMainParagraph(`Analogia Fisica Cotidiana: ${mission.conceptZero.physicalAnalogy}`, y, { size: 8, fontStyle: 'italic', color: DARK_TEXT, lineHeight: 4.0 });
-  y += 2;
-  y = flow.printMainParagraph(mission.conceptZero.coreExplanation, y, { size: 8, color: DARK_TEXT, lineHeight: 4.0, parseParagraphs: true });
-  y += 3;
+
+  // Widget Concept-Cards (Fase 3) con Degradación Canónica D9
+  const conceptCards = extractConceptCardsFromMission(mission);
+  if (conceptCards.length >= 2) {
+    y = drawConceptCardsGrid(doc, conceptCards, {
+      margin,
+      drawWidth: mainW,
+      y,
+      pageHeight,
+      ensureVerticalSpace,
+    });
+    y += 2.5;
+  } else {
+    // Degradación histórica D9: párrafos directos de analogía y fundamento
+    y = flow.printMainParagraph(`Analogia Fisica Cotidiana: ${mission.conceptZero.physicalAnalogy}`, y, { size: 8, fontStyle: 'italic', color: DARK_TEXT, lineHeight: 4.0 });
+    y += 2;
+    y = flow.printMainParagraph(mission.conceptZero.coreExplanation, y, { size: 8, color: DARK_TEXT, lineHeight: 4.0, parseParagraphs: true });
+    y += 3;
+  }
 
   if (mission.conceptZero.narrativeExplanation) {
     y = flow.printMainParagraph(mission.conceptZero.narrativeExplanation, y, { size: 8, color: DARK_TEXT, lineHeight: 4.0, parseParagraphs: true });

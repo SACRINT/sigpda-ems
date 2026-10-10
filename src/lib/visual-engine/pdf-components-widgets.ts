@@ -872,3 +872,11 @@ export function drawDigitalToolCardWidget(
 }
 // ── 11. WIDGET DE TARJETAS DE PASO DE LABORATORIO (FASE 2) ───────────────────
 export { drawStepCardGrid, type StepCardGridOptions } from './step-card-renderer';
+
+// ── 12. WIDGET DE TARJETAS CONCEPTUALES (FASE 3) ──────────────────────────────
+export {
+  drawConceptCardsGrid,
+  extractConceptCardsFromMission,
+  type ConceptCardGridOptions,
+} from './concept-card-renderer';
+
