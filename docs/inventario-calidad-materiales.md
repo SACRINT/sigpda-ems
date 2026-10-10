@@ -10,9 +10,9 @@
 - **Desglose por lote y prioridad**:
   - **Lote P1 (53 materiales)**: 53 presentes (100%), tamaño promedio de 37.2 KB. Todos validados y en producción.
   - **Lote P2 (191 materiales)**: 191 presentes (100%), distribuidos en tres niveles de calidad:
-    - **Alta Calidad (42 imágenes, 22.0%)**: >= 35 KB, fotografía o render con alto nivel de textura y detalle.
-    - **Media Calidad (133 imágenes, 69.6%)**: 8 KB - 35 KB, ilustración técnica limpia con canal alfa transparente, perfectamente nítida para escala editorial de 18 × 18 mm.
-    - **Baja Calidad (16 imágenes, 8.4%)**: < 8.2 KB, siluetas o trazos planos esquemáticos con baja densidad de información cromática.
+    - **Alta Calidad (42 imágenes, 22.0%)**: >= 35 000 bytes (aprox. >= 35 KB decimal), fotografía o render con alto nivel de textura y detalle.
+    - **Media Calidad (133 imágenes, 69.6%)**: 8 200 a 34 999 bytes (aprox. 8.2 KB a 35 KB decimal), ilustración técnica limpia con canal alfa transparente, perfectamente nítida para escala editorial de 18 × 18 mm.
+    - **Baja Calidad (16 imágenes, 8.4%)**: < 8 200 bytes (aprox. < 8.2 KB decimal), siluetas o trazos planos esquemáticos con baja densidad de información cromática.
 
 - **Diagnóstico honesto de usabilidad**: **228 de 244 materiales (93.4%)** ofrecen calidad visual excelente o completamente adecuada para el libro impreso y digital. Solo 16 materiales P2 (8.4% del lote P2) presentan una estética básica esquemática.
 
@@ -20,11 +20,11 @@
 
 ### 2. Heurística de Clasificación de Calidad Offline
 
-| Nivel | Rango de Bytes | Resolución IHDR | Características Visuales | Estado Editorial |
+| Nivel | Rango de Bytes Exactos | Resolución IHDR | Características Visuales | Estado Editorial |
 | :--- | :--- | :--- | :--- | :--- |
-| **Alta** | >= 35 KB | 512 × 512 px | Riqueza textural, sombras, detalles tridimensionales o fotográficos complejos | Óptimo para portada y figuras destacadas |
-| **Media** | 8 KB - 34.9 KB | 512 × 512 px | Ilustración técnica vectorial/raster limpia, bordes nítidos, fondo transparente | Totalmente apto para tarjetas 18 × 18 mm |
-| **Baja** | < 8.2 KB | 512 × 512 px | Gráfico minimalista, silueta plana o esquema monocromático | Usable funcionalmente, mejorable estéticamente |
+| **Alta** | >= 35 000 bytes (aprox. >= 35 KB) | 512 × 512 px | Riqueza textural, sombras, detalles tridimensionales o fotográficos complejos | Óptimo para portada y figuras destacadas |
+| **Media** | 8 200 a 34 999 bytes (aprox. 8.2 - 35 KB) | 512 × 512 px | Ilustración técnica vectorial/raster limpia, bordes nítidos, fondo transparente | Totalmente apto para tarjetas 18 × 18 mm |
+| **Baja** | < 8 200 bytes (aprox. < 8.2 KB) | 512 × 512 px | Gráfico minimalista, silueta plana o esquema monocromático | Usable funcionalmente, mejorable estéticamente |
 
 Los 16 materiales identificados con calidad baja son:
 1. `libro-digital` (Lector de Libro Digital (E-reader)) — 7997 bytes (7.8 KB), 512×512 px (Categoría: computo)
