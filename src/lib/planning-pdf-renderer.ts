@@ -10,6 +10,12 @@ import { loadAllLogos } from './pdf-logos';
 import { SCHOOL_YEAR } from '@/lib/config';
 import { logger } from './logger';
 import { COLORS } from './visual-engine/design-tokens';
+import {
+  loadEditorialFonts,
+  setFontHeading,
+  setFontBody,
+  setFontCaption,
+} from './visual-engine/font-loader';
 import { normalizeEvaluationPercentages, sanitizePlanningContent } from '@/lib/planning/quality-pipeline';
 import { stripMaterialTokens } from '@/lib/materials/material-tokens';
 
@@ -43,6 +49,9 @@ export async function generatePlanningPDF(
     unit: 'mm',
     format: 'letter',
   });
+
+  // Inicializar fuentes editoriales oficiales (Lato Regular/Bold + Montserrat Bold)
+  loadEditorialFonts(doc);
 
   const pageWidth = doc.internal.pageSize.getWidth();   // 215.9 mm (Carta)
   const pageHeight = doc.internal.pageSize.getHeight(); // 279.4 mm (Carta)
@@ -85,14 +94,14 @@ export async function generatePlanningPDF(
 
     // 2. Jerarquía Institucional de Texto Oficial Centrado
     currentY += 9;
-    doc.setFont('helvetica', 'bold');
+    setFontHeading(doc);
     doc.setFontSize(8.5);
     doc.setTextColor(...NAVY);
     doc.text('SECRETARÍA DE EDUCACIÓN', pageWidth / 2, currentY, { align: 'center' });
     currentY += 3.8;
 
     doc.setFontSize(7.5);
-    doc.setFont('helvetica', 'normal');
+    setFontBody(doc, 'normal');
     doc.setTextColor(...TEXT_DARK);
     doc.text('SUBSECRETARÍA DE EDUCACIÓN OBLIGATORIA', pageWidth / 2, currentY, { align: 'center' });
     currentY += 3.4;
@@ -104,21 +113,22 @@ export async function generatePlanningPDF(
     doc.text('DIRECCIÓN DE BACHILLERATOS ESTATALES Y PREPARATORIA ABIERTA', pageWidth / 2, currentY, { align: 'center' });
     currentY += 3.8;
 
-    doc.setFont('helvetica', 'bold');
+    setFontHeading(doc);
     doc.setFontSize(8);
     doc.setTextColor(...NAVY);
     doc.text('SUPERVISIÓN DE BACHILLERATOS 004', pageWidth / 2, currentY, { align: 'center' });
     currentY += 3.4;
 
     const cctPlantel = s1?.cct || s1?.schoolName || '21EBH0000X';
+    setFontCaption(doc, 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(...BLUE_MID);
     doc.text(`CCT: ${cctPlantel}`, pageWidth / 2, currentY, { align: 'center' });
 
     currentY += 3.8;
 
+    setFontHeading(doc);
     doc.setFontSize(8.5);
-    doc.setFont('helvetica', 'bold');
     doc.setTextColor(...NAVY);
     doc.text('INSTRUMENTO DE PLANEACIÓN DIDÁCTICA OFICIAL (MCCEMS NEM)', pageWidth / 2, currentY, { align: 'center' });
     currentY += 3.5;
@@ -364,6 +374,7 @@ export async function generatePlanningPDF(
   const totalPages = doc.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
+    setFontCaption(doc, 'normal');
     doc.setFontSize(7);
     doc.setTextColor(120, 120, 120);
     doc.text(
@@ -401,6 +412,9 @@ export async function generateSecuenciaPDF(
     format: 'letter',
   });
 
+  // Inicializar fuentes editoriales oficiales (Lato Regular/Bold + Montserrat Bold)
+  loadEditorialFonts(doc);
+
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 12;
@@ -433,38 +447,39 @@ export async function generateSecuenciaPDF(
   }
 
   currentY += 9;
-  doc.setFont('helvetica', 'bold');
+  setFontHeading(doc);
   doc.setFontSize(8.5);
   doc.setTextColor(...NAVY);
   doc.text('SECRETARÍA DE EDUCACIÓN PÚBLICA DEL ESTADO DE PUEBLA', pageWidth / 2, currentY, { align: 'center' });
   currentY += 3.8;
 
   doc.setFontSize(7.5);
-  doc.setFont('helvetica', 'normal');
+  setFontBody(doc, 'normal');
   doc.setTextColor(...TEXT_DARK);
   doc.text('SUBSECRETARÍA DE EDUCACIÓN MEDIA SUPERIOR · DIRECCIÓN DE BACHILLERATOS ESTATALES', pageWidth / 2, currentY, { align: 'center' });
   currentY += 3.4;
 
-  doc.setFont('helvetica', 'bold');
+  setFontHeading(doc);
   doc.setFontSize(8);
   doc.setTextColor(...NAVY);
   doc.text('SUPERVISIÓN DE BACHILLERATOS 004', pageWidth / 2, currentY, { align: 'center' });
   currentY += 3.4;
 
   const cctPlantel = s1?.cct || s1?.schoolName || '21EBH0000X';
+  setFontCaption(doc, 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(...BLUE_MID);
   doc.text(`CCT: ${cctPlantel}`, pageWidth / 2, currentY, { align: 'center' });
   currentY += 3.8;
 
   doc.setFontSize(9);
-  doc.setFont('helvetica', 'bold');
+  setFontHeading(doc);
   doc.setTextColor(...NAVY);
   doc.text('FORMATO OFICIAL DE SECUENCIA DIDÁCTICA (ESLABÓN MICRO)', pageWidth / 2, currentY, { align: 'center' });
   currentY += 3.4;
 
   doc.setFontSize(7.5);
-  doc.setFont('helvetica', 'normal');
+  setFontBody(doc, 'normal');
   doc.setTextColor(...TEXT_DARK);
   doc.text(`DESGLOSE DETALLADO DE SESIONES DE 50 MINUTOS · CICLO ESCOLAR ${SCHOOL_YEAR}`, pageWidth / 2, currentY, { align: 'center' });
   currentY += 3.5;
@@ -630,6 +645,7 @@ export async function generateSecuenciaPDF(
   const totalPages = doc.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
+    setFontCaption(doc, 'normal');
     doc.setFontSize(7);
     doc.setTextColor(120, 120, 120);
     doc.text(
