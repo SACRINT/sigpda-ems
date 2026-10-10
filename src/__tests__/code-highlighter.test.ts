@@ -94,4 +94,30 @@ def limpiar_datos(df):
     expect(flagToken?.color).toEqual([156, 220, 254]);
     expect(commentToken?.color).toEqual(CODE_IDE.comment);
   });
+
+  it('F-15: maneja docstrings triples con prefijos (f""", r""", b""") sin contaminar líneas posteriores', () => {
+    const prefixedDocstringCode = `f"""doc\nlinea2\n"""\nx = 1`;
+    const lines = highlightCodeBlock(prefixedDocstringCode, 'python');
+    expect(lines).toHaveLength(4);
+
+    // L1: f"""doc -> string
+    expect(lines[0].tokens[0].color).toEqual(CODE_IDE.string);
+    expect(lines[0].tokens[0].text).toBe('f"""doc');
+
+    // L2: linea2 -> string (carry-over correcto dentro del docstring)
+    expect(lines[1].tokens[0].color).toEqual(CODE_IDE.string);
+    expect(lines[1].tokens[0].text).toBe('linea2');
+
+    // L3: """ -> string (cierre de docstring)
+    expect(lines[2].tokens[0].color).toEqual(CODE_IDE.string);
+    expect(lines[2].tokens[0].text).toBe('"""');
+
+    // L4: x = 1 -> código normal NO contaminado como string
+    const l4Tokens = lines[3].tokens;
+    const xToken = l4Tokens.find((t) => t.text === 'x');
+    const numToken = l4Tokens.find((t) => t.text === '1');
+
+    expect(xToken?.color).toEqual(CODE_IDE.baseText);
+    expect(numToken?.color).toEqual(CODE_IDE.number);
+  });
 });

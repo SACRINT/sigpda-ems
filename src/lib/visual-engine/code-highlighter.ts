@@ -135,28 +135,21 @@ function tokenizePythonLineWithState(
       break;
     }
 
-    // 3. Inicio de Docstrings triples (""" o ''')
-    if (line.startsWith('"""', cursor)) {
-      const closingPos = line.indexOf('"""', cursor + 3);
-      if (closingPos !== -1) {
-        tokens.push({ text: line.slice(cursor, closingPos + 3), color: CODE_IDE.string });
-        cursor = closingPos + 3;
-      } else {
-        tokens.push({ text: line.slice(cursor), color: CODE_IDE.string });
-        state = 'triple_double';
-        break;
-      }
-      continue;
-    }
+    // 3. Inicio de Docstrings triples (""" o ''') con o sin prefijo (f""", r""", b""")
+    const tripleMatch = line.slice(cursor).match(/^([frbFRB]?)(?:("""|'''))/);
+    if (tripleMatch) {
+      const prefix = tripleMatch[1];
+      const delim = tripleMatch[2]; // '"""' o "'''"
+      const prefixLen = prefix.length;
+      const fullStartLen = prefixLen + 3;
+      const closingPos = line.indexOf(delim, cursor + fullStartLen);
 
-    if (line.startsWith("'''", cursor)) {
-      const closingPos = line.indexOf("'''", cursor + 3);
       if (closingPos !== -1) {
         tokens.push({ text: line.slice(cursor, closingPos + 3), color: CODE_IDE.string });
         cursor = closingPos + 3;
       } else {
         tokens.push({ text: line.slice(cursor), color: CODE_IDE.string });
-        state = 'triple_single';
+        state = delim === '"""' ? 'triple_double' : 'triple_single';
         break;
       }
       continue;
