@@ -24,8 +24,9 @@ export function parseLabStepsFromProse(text: string | null | undefined): LabStep
   let currentStep: { stepNumber: number; rawLines: string[] } | null = null;
 
   // Regex para detectar inicio de paso numerado:
-  // "1. Título", "1) Título", "Paso 1: Título", "PASO 1. Título"
-  const stepStartRegex = /^\s*(?:paso\s*)?(\d+)[\.\:\)]\s*(.*)$/i;
+  // "1. Título", "1) Título", "Paso 1. Título", "PASO 1) Título"
+  // Requiere separador '.' o ')' seguido de espacio obligatorio (\s+) para evitar falsos positivos con decimales (ej. 3.14).
+  const stepStartRegex = /^\s*(?:paso\s+)?(\d+)[\.\)]\s+(.*)$/i;
 
   for (const line of lines) {
     const trimmed = line.trim();
@@ -37,7 +38,9 @@ export function parseLabStepsFromProse(text: string | null | undefined): LabStep
     const match = line.match(stepStartRegex);
     if (match) {
       const num = parseInt(match[1], 10);
-      if (!isNaN(num) && num > 0) {
+      const expectedNum: number = currentStep ? currentStep.stepNumber + 1 : 1;
+
+      if (num === expectedNum) {
         if (currentStep) {
           rawSteps.push(currentStep);
         }
@@ -46,6 +49,10 @@ export function parseLabStepsFromProse(text: string | null | undefined): LabStep
           rawLines: [match[2].trim()],
         };
         continue;
+      } else {
+        // Discontinuidad en la numeración correlativa (salto, reinicio o duplicado):
+        // Se detiene la secuencia de pasos estructurados.
+        break;
       }
     }
 

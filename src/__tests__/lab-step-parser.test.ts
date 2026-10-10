@@ -81,16 +81,39 @@ Salida: Archivo limpio.csv generado exitosamente.
     expect(result[0].actionDescription).not.toContain('<!--workbook:');
   });
 
-  it('maneja variantes de formato de numeración (Paso 1:, 1), 1.)', () => {
+  it('maneja variantes de formato de numeración (Paso 1., 1), 1.)', () => {
     const variantText = `
-Paso 1: Configurar variables
-Paso 2: Compilar algoritmo
-Paso 3: Validar métricas
+Paso 1. Configurar variables
+Paso 2. Compilar algoritmo
+Paso 3. Validar métricas
     `;
     const result = parseLabStepsFromProse(variantText);
     expect(result).toHaveLength(3);
     expect(result[0].stepNumber).toBe(1);
     expect(result[1].stepNumber).toBe(2);
     expect(result[2].stepNumber).toBe(3);
+  });
+
+  it('F-16: no produce paso fantasma ante números decimales como 3.14 es el valor de pi', () => {
+    const textWithDecimal = `
+1. Preparar datos
+2. Entrenar modelo
+3. Validar resultados
+3.14 es el valor de pi
+    `;
+    const result = parseLabStepsFromProse(textWithDecimal);
+    expect(result).toHaveLength(3);
+    expect(result.map((r) => r.stepNumber)).toEqual([1, 2, 3]);
+    expect(result.find((r) => r.title.includes('14 es el valor'))).toBeUndefined();
+  });
+
+  it('F-16: degrada a vacío ante discontinuidad en la numeración correlativa (< 3 pasos válidos)', () => {
+    const textDiscontinuous = `
+1. Paso uno: Inicializar
+2. Paso dos: Cargar dependencias
+5. Paso cinco: Proceso avanzado
+    `;
+    const result = parseLabStepsFromProse(textDiscontinuous);
+    expect(result).toEqual([]);
   });
 });
