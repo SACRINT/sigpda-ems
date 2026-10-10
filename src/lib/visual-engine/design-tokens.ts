@@ -326,7 +326,6 @@ export const CONCEPT_CARDS_DOCX = {
 export const PROCESS_FLOW = {
   nodeBg:        [239, 246, 255] as RGB, // #EFF6FF (fondo azul tenue píldora)
   nodeBorder:    [191, 219, 254] as RGB, // #BFDBFE (borde suave)
-  nodeActiveBg:  [37,  99,  235] as RGB, // #2563EB (azul primario paso activo)
   numberBg:      [30,  58,  138] as RGB, // #1E3A8A (azul marino número)
   numberText:    [255, 255, 255] as RGB, // #FFFFFF
   titleText:     [30,  41,  59]  as RGB, // #1E293B (título oscuro slate-800)
@@ -340,7 +339,6 @@ export const PROCESS_FLOW = {
 export const PROCESS_FLOW_DOCX = {
   nodeBg:        'EFF6FF',
   nodeBorder:    'BFDBFE',
-  nodeActiveBg:  '2563EB',
   numberBg:      '1E3A8A',
   numberText:    'FFFFFF',
   titleText:     '1E293B',

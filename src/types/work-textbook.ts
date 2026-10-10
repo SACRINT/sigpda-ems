@@ -61,7 +61,6 @@ export interface ProcessFlowStep {
   stepNumber: number;
   title: string;
   subtitle?: string; // Ej: '2 hrs' o 'Fase Inicial'
-  description?: string;
 }
 
 export interface MissionSection {
