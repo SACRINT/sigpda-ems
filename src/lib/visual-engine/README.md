@@ -43,7 +43,7 @@ El motor visual de SIGPDA-EMS implementa una **Garantía Dual Offline**:
 - **Propósito**: Desglose visual de conceptos clave, analogías físicas y aplicaciones prácticas del MCCEMS.
 - **Capacidades**:
   - Cuadrícula de 2 o 3 tarjetas por fila con sombras suaves y bordes de alta fidelidad.
-  - Integración nativa con el catálogo institucional de 244 slugs de materiales (53 ejecutados con imagen PNG y 191 pendientes de renderizado, escaladas a $18 \times 18\text{ mm}$).
+  - Integración nativa con el catálogo institucional de 244 slugs de materiales (100% presentes físicamente en `public/images/materiales/`: 53 P1 validados + 191 P2; inventario exhaustivo documentado en `docs/inventario-calidad-materiales.md`).
   - Extractor determinista `extractConceptCardsFromMission` a partir de `conceptZero` o fenomenología.
 
 #### 3.4 Process Flow Banner
@@ -53,6 +53,27 @@ El motor visual de SIGPDA-EMS implementa una **Garantía Dual Offline**:
   - Extractor determinista `extractProcessFlowSteps` que soporta `ProjectPhase[]`, listas de ejecución y objetos mixtos.
   - Paridad DOCX mediante tabla de fila única con celdas de nodos alternadas con flechas `➔`.
 
+#### 3.5 Iconografía Vectorial Offline (Fase 6B)
+- **Propósito**: Conjunto canónico de 10 iconos vectoriales offline (`check`, `bombilla`, `engranaje`, `herramienta`, `warning`, `libro`, `lupa`, `gota`, `chip`, `flecha-doble`).
+- **Capacidades**:
+  - **100% WinAnsi-safe**: Cero llamadas a `doc.text()` (construidos puramente con `circle`, `line`, `rect`, `roundedRect`, `triangle`).
+  - **Browser-Safe**: Cero imports de Node.js (`fs`, `path`, `Buffer`, `crypto`).
+  - **Preservación de Estado Gráfico**: Restaura automáticamente `setLineWidth(0.2)`, `setDrawColor` y `setFillColor` del documento compartido para prevenir fugas de color (F-37).
+  - **Degradación D9**: Si un icono no existe o los parámetros son inválidos, retorna `false` determinísticamente para activar el fallback a texto clásico sanitizado.
+
+#### 3.6 Tipografía Editorial Oficial en Planeaciones (Fase 6A)
+- **Propósito**: Integración de tipografía de imprenta oficial (Lato y Montserrat) en `planning-pdf-renderer.ts`.
+- **Capacidades**:
+  - Carga en memoria virtual VFS vía `loadEditorialFonts(doc)`.
+  - Reemplazo de Helvetica cruda en encabezados, cuerpos y tablas con Lato / Montserrat.
+  - Intercepción transparente en `autoTable` respetando fuentes monoespaciadas (`courier`).
+  - Fallback D9 limpio: si las fuentes fallan al registrarse, degrada a Helvetica sin romper la generación del documento.
+
+#### 3.7 Inventario y Auditoría de Calidad de Materiales (Fase 6C)
+- **Documento Maestro**: `docs/inventario-calidad-materiales.md`.
+- **Cobertura**: 244 de 244 materiales verificados en disco a resolución $512 \times 512\text{ px}$.
+- **Diagnóstico**: 93.4% de usabilidad inmediata (42 alta + 133 media en P2, más 53 P1). 16 materiales esquemáticos de baja densidad con 3 opciones arquitectónicas para decisión del usuario.
+
 ---
 
 ### 4. Sistema de Tokens Centralizado
@@ -61,11 +82,13 @@ Todos los colores residen inmutables en `src/lib/visual-engine/design-tokens.ts`
 - **`STEP_CARDS`** / **`STEP_CARDS_DOCX`**: Paleta dual para chasis de tarjetas procedimentales, badges y textos.
 - **`CONCEPT_CARDS`** / **`CONCEPT_CARDS_DOCX`**: Paleta dual para tarjetas conceptuales, badges semánticos y ejemplos.
 - **`PROCESS_FLOW`** / **`PROCESS_FLOW_DOCX`**: Paleta dual para píldoras de proceso, números, flechas y chasis.
+- **`ICON_SET`**: Paleta RGB canónica para los 10 iconos vectoriales del sistema.
 
 ---
 
 ### 5. Marco de Pruebas y Detección de Regresiones (Anti-F11)
 La suite garantiza la estabilidad a través de:
-1. **Espías dedicados (Spies)** en ambos renderizadores (`pdf-workbook-renderer.ts` y `docx-workbook-renderer.ts`).
-2. **Pruebas de Falsación por Mutación**: Si un consumer desconecta un widget, Vitest falla de manera determinista con `AssertionError`.
-3. **Aislamiento de Mocks**: Limpieza de estado (`mockClear()`) para garantizar independencia entre el pipeline PDF y DOCX.
+1. **Espías dedicados (Spies)** en ambos renderizadores (`pdf-workbook-renderer.ts`, `docx-workbook-renderer.ts`, `planning-pdf-renderer.ts` e `icon-renderer.ts`).
+2. **Pruebas de Falsación por Mutación**: Si un consumer desconecta un widget o una tipografía, Vitest falla de manera determinista con `AssertionError`.
+3. **Aislamiento de Mocks**: Limpieza de estado (`mockClear()` / `mockRestore()`) para garantizar independencia entre pipelines.
+

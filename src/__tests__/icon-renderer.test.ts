@@ -149,4 +149,20 @@ describe('Motor de Iconografía Vectorial Offline — Pruebas Unitarias y Anti-W
     drawIconSpy.mockRestore();
     textSpy.mockRestore();
   });
+
+  it('PREVENCIÓN DE FUGA DE ESTADO (F-37): drawIcon preserva y restaura setDrawColor y setFillColor del documento', () => {
+    const doc = new jsPDF();
+    doc.setDrawColor(33, 44, 55);
+    doc.setFillColor(77, 88, 99);
+    const initialDraw = doc.getDrawColor();
+    const initialFill = doc.getFillColor();
+
+    const ok = drawIcon(doc, 'check', 10, 10, 3.5);
+    expect(ok).toBe(true);
+
+    // Debe haber restaurado exactamente los colores previos del documento
+    expect(doc.getDrawColor()).toBe(initialDraw);
+    expect(doc.getFillColor()).toBe(initialFill);
+  });
 });
+

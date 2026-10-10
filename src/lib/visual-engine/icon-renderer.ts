@@ -69,6 +69,9 @@ export function drawIcon(
     return false;
   }
 
+  const prevDraw = typeof doc.getDrawColor === 'function' ? doc.getDrawColor() : undefined;
+  const prevFill = typeof doc.getFillColor === 'function' ? doc.getFillColor() : undefined;
+
   doc.setDrawColor(rgb[0], rgb[1], rgb[2]);
   doc.setFillColor(rgb[0], rgb[1], rgb[2]);
 
@@ -243,7 +246,13 @@ export function drawIcon(
     }
   }
 
-  // Restaurar grosor de línea estándar
+  // Restaurar grosor de línea estándar y estado de color compartido (F-37)
   doc.setLineWidth(0.2);
+  if (prevDraw) {
+    doc.setDrawColor(prevDraw);
+  }
+  if (prevFill) {
+    doc.setFillColor(prevFill);
+  }
   return true;
 }
