@@ -2586,9 +2586,12 @@ function drawPdfWorkbookElement(
         ? ''
         : (element.config?.initialCode || '');
 
+      const firstLine = codeContent.split('\n').find((l) => l.trim().length > 0) || '';
+      const detectedLanguage: 'python' | 'bash' = /^\s*\$/.test(firstLine) ? 'bash' : 'python';
+
       y = drawDarkIdeCodeBlock(doc, {
         code: codeContent,
-        language: 'python',
+        language: detectedLanguage,
         title: element.title,
         margin,
         drawWidth: contentWidth,

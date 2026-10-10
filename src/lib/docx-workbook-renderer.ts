@@ -88,6 +88,7 @@ import {
 } from '@/lib/visual-engine/cover-generator';
 import { logger } from '@/lib/logger';
 import { highlightCodeBlock } from '@/lib/visual-engine/code-highlighter';
+import { CODE_IDE } from '@/lib/visual-engine/design-tokens';
 
 function rgbToHex(rgb: [number, number, number]): string {
   return rgb.map((x) => x.toString(16).padStart(2, '0')).join('').toUpperCase();
@@ -103,8 +104,6 @@ const C = {
   mutedText: '64748B',  // Texto secundario
   lightBg: 'F8FAFC',    // Fondo suave
   tableBg: 'F1F5F9',    // Fondo encabezados de tabla
-  codeBg: 'F3F4F6',     // Fondo cajas de código
-  codeBorder: 'CBD5E1', // Borde caja código
   border: 'E2E8F0',     // Bordes generales
   white: 'FFFFFF',
 };
@@ -2921,10 +2920,13 @@ function renderWorkbookElement(element: WorkbookElement): (Paragraph | Table)[] 
     case 'code_box': {
       const rawCode = element.config?.initialCode || '';
       const isRealCode = rawCode.trim().length > 0 && !rawCode.startsWith('// Escribe');
-      const boxTitle = element.title ? `Editor de Código — ${element.title}` : 'Editor de Código Python';
+      const firstLine = rawCode.split('\n').find((l) => l.trim().length > 0) || '';
+      const detectedLanguage: 'python' | 'bash' = /^\s*\$/.test(firstLine) ? 'bash' : 'python';
+      const defaultTitle = detectedLanguage === 'bash' ? 'Terminal de Comandos / Bash' : 'Editor de Código Python';
+      const boxTitle = element.title ? `Editor de Código — ${element.title}` : defaultTitle;
 
       if (isRealCode) {
-        const highlightedLines = highlightCodeBlock(rawCode, 'python');
+        const highlightedLines = highlightCodeBlock(rawCode, detectedLanguage);
         items.push(
           new Table({
             width: { size: CONTENT_W, type: WidthType.DXA },
@@ -2934,8 +2936,8 @@ function renderWorkbookElement(element: WorkbookElement): (Paragraph | Table)[] 
                 children: [
                   new TableCell({
                     width: { size: CONTENT_W, type: WidthType.DXA },
-                    shading: { fill: '252526', type: ShadingType.CLEAR },
-                    borders: thinBorder('3C3C3C'),
+                    shading: { fill: rgbToHex(CODE_IDE.gutterBg), type: ShadingType.CLEAR },
+                    borders: thinBorder(rgbToHex(CODE_IDE.border)),
                     margins: { top: 80, bottom: 80, left: 140, right: 140 },
                     children: [
                       new Paragraph({
@@ -2944,7 +2946,7 @@ function renderWorkbookElement(element: WorkbookElement): (Paragraph | Table)[] 
                             text: `● ● ●  ${boxTitle}`,
                             font: 'Consolas',
                             size: 16, // 8pt
-                            color: 'CCCCCC',
+                            color: rgbToHex(CODE_IDE.baseText),
                           }),
                         ],
                       }),
@@ -2957,8 +2959,8 @@ function renderWorkbookElement(element: WorkbookElement): (Paragraph | Table)[] 
                 children: [
                   new TableCell({
                     width: { size: CONTENT_W, type: WidthType.DXA },
-                    shading: { fill: '1E1E1E', type: ShadingType.CLEAR },
-                    borders: thinBorder('3C3C3C'),
+                    shading: { fill: rgbToHex(CODE_IDE.editorBg), type: ShadingType.CLEAR },
+                    borders: thinBorder(rgbToHex(CODE_IDE.border)),
                     margins: { top: 100, bottom: 100, left: 140, right: 140 },
                     children: highlightedLines.map((hLine) => {
                       const lineRuns: TextRun[] = [
@@ -2966,7 +2968,7 @@ function renderWorkbookElement(element: WorkbookElement): (Paragraph | Table)[] 
                           text: `${String(hLine.lineNumber).padStart(2, ' ')}  `,
                           font: 'Consolas',
                           size: 17,
-                          color: '858585',
+                          color: rgbToHex(CODE_IDE.gutterText),
                         }),
                       ];
                       for (const t of hLine.tokens) {
@@ -2977,6 +2979,7 @@ function renderWorkbookElement(element: WorkbookElement): (Paragraph | Table)[] 
                             size: 17,
                             color: rgbToHex(t.color),
                             bold: t.bold,
+                            italics: t.italic || false,
                           })
                         );
                       }
@@ -3002,8 +3005,8 @@ function renderWorkbookElement(element: WorkbookElement): (Paragraph | Table)[] 
                 children: [
                   new TableCell({
                     width: { size: CONTENT_W, type: WidthType.DXA },
-                    shading: { fill: '252526', type: ShadingType.CLEAR },
-                    borders: thinBorder('3C3C3C'),
+                    shading: { fill: rgbToHex(CODE_IDE.gutterBg), type: ShadingType.CLEAR },
+                    borders: thinBorder(rgbToHex(CODE_IDE.border)),
                     margins: { top: 80, bottom: 80, left: 140, right: 140 },
                     children: [
                       new Paragraph({
@@ -3012,7 +3015,7 @@ function renderWorkbookElement(element: WorkbookElement): (Paragraph | Table)[] 
                             text: `● ● ●  ${boxTitle} (Área de desarrollo del estudiante)`,
                             font: 'Consolas',
                             size: 16,
-                            color: 'CCCCCC',
+                            color: rgbToHex(CODE_IDE.baseText),
                           }),
                         ],
                       }),
@@ -3024,8 +3027,8 @@ function renderWorkbookElement(element: WorkbookElement): (Paragraph | Table)[] 
                 children: [
                   new TableCell({
                     width: { size: CONTENT_W, type: WidthType.DXA },
-                    shading: { fill: 'F8FAFC', type: ShadingType.CLEAR },
-                    borders: thinBorder('E2E8F0'),
+                    shading: { fill: rgbToHex(CODE_IDE.editorEmptyBg), type: ShadingType.CLEAR },
+                    borders: thinBorder(rgbToHex(CODE_IDE.emptyLineRule)),
                     margins: { top: 100, bottom: 100, left: 140, right: 140 },
                     children: emptyLines.map((lineNum) =>
                       new Paragraph({
@@ -3035,13 +3038,13 @@ function renderWorkbookElement(element: WorkbookElement): (Paragraph | Table)[] 
                             text: `${String(lineNum).padStart(2, ' ')} | `,
                             font: 'Consolas',
                             size: 17,
-                            color: '94A3B8',
+                            color: rgbToHex(CODE_IDE.gutterText),
                           }),
                           new TextRun({
                             text: '                                                                                  ',
                             font: 'Consolas',
                             size: 17,
-                            color: 'E2E8F0',
+                            color: rgbToHex(CODE_IDE.emptyLineRule),
                           }),
                         ],
                       })

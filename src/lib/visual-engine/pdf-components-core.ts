@@ -736,7 +736,8 @@ export function drawDarkIdeCodeBlock(
 
       for (const token of hLine.tokens) {
         if (!token.text) continue;
-        doc.setFont('courier', token.bold ? 'bold' : 'normal');
+        const fontStyle = token.italic ? 'italic' : (token.bold ? 'bold' : 'normal');
+        doc.setFont('courier', fontStyle);
         doc.setFontSize(7.2);
         doc.setTextColor(...token.color);
 

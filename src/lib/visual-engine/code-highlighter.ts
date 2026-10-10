@@ -14,6 +14,7 @@ export interface CodeHighlightToken {
   text: string;
   color: RGB;
   bold?: boolean;
+  italic?: boolean;
 }
 
 export interface HighlightedLine {
@@ -131,7 +132,7 @@ function tokenizePythonLineWithState(
 
     // 2. Comentario de una línea
     if (char === '#') {
-      tokens.push({ text: line.slice(cursor), color: CODE_IDE.comment, italic: true } as CodeHighlightToken);
+      tokens.push({ text: line.slice(cursor), color: CODE_IDE.comment, italic: true });
       break;
     }
 
@@ -235,7 +236,7 @@ function tokenizeBashLine(line: string, tokens: CodeHighlightToken[]): void {
 
     // Comentario #
     if (char === '#') {
-      tokens.push({ text: line.slice(cursor), color: CODE_IDE.comment, italic: true } as CodeHighlightToken);
+      tokens.push({ text: line.slice(cursor), color: CODE_IDE.comment, italic: true });
       break;
     }
 
