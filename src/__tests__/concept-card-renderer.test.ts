@@ -4,6 +4,7 @@ import {
   drawConceptCardsGrid,
   extractConceptCardsFromMission,
 } from '@/lib/visual-engine/concept-card-renderer';
+import * as conceptCardRenderer from '@/lib/visual-engine/concept-card-renderer';
 import * as pdfComponents from '@/lib/visual-engine/pdf-components';
 import { renderWorkbookToPdf } from '@/lib/pdf-workbook-renderer';
 import { renderWorkbookToDocx } from '@/lib/docx-workbook-renderer';
@@ -252,10 +253,12 @@ describe('Widget Concept-Cards Grid — Renderizado, Extractor y Prueba de Mutac
     expect(pdfBuffer).toBeDefined();
     expect(pdfBuffer.byteLength).toBeGreaterThan(1000);
 
-    // Aserción Anti-F11: Si la llamada al widget se desconecta o muta a false, este test falla inmediatamente
+    // Aserción Anti-F11 (PDF): Si la llamada al widget se desconecta o muta a false, este test falla inmediatamente
     expect(conceptGridSpy).toHaveBeenCalledTimes(1);
 
-    // 2. DOCX Parity check: el renderizador DOCX debe generar el buffer sin errores conteniendo el grid
+    // 2. DOCX Parity & Anti-F11 check: el consumer DOCX DEBE invocar extractConceptCardsFromMission (F-31)
+    const docxExtractorSpy = vi.spyOn(conceptCardRenderer, 'extractConceptCardsFromMission');
+
     const docxBuffer = await renderWorkbookToDocx(
       mockWorkbook,
       mockPlanning,
@@ -264,5 +267,6 @@ describe('Widget Concept-Cards Grid — Renderizado, Extractor y Prueba de Mutac
 
     expect(docxBuffer).toBeDefined();
     expect(docxBuffer.byteLength).toBeGreaterThan(1000);
+    expect(docxExtractorSpy).toHaveBeenCalled();
   });
 });
