@@ -82,7 +82,9 @@ import {
   drawPageHeader,
   drawPageFooter,
   drawDarkIdeCodeBlock,
+  drawStepCardGrid,
 } from '@/lib/visual-engine/pdf-components';
+import { parseLabStepsFromProse } from '@/lib/guide-engine/lab-step-parser';
 import {
   ColumnFlowManager,
   type PageContext,
@@ -2304,7 +2306,19 @@ async function drawMission(
 
   // 3. Yo Hago (Demostración) — zona principal
   y = drawSectionHeader(doc, '3. Yo Hago: Demostracion y Protocolo Guiado por el Docente', margin, mainW, y, pageHeight, SECTION_COLORS.yoHago, checkSpace, '[ MODELO DOCENTE ]');
-  y = drawPracticeTasksWithDottedLines(doc, mission.iDoSection.stepByStepDemo, margin, mainW, pageHeight, y, 3, checkSpace);
+
+  const labSteps = parseLabStepsFromProse(mission.iDoSection.stepByStepDemo);
+  if (labSteps.length >= 3) {
+    y = drawStepCardGrid(doc, labSteps, {
+      margin,
+      drawWidth: mainW,
+      y,
+      pageHeight,
+      ensureVerticalSpace,
+    });
+  } else {
+    y = drawPracticeTasksWithDottedLines(doc, mission.iDoSection.stepByStepDemo, margin, mainW, pageHeight, y, 3, checkSpace);
+  }
   y += 3;
 
   const demoCallout = extractCalloutBox(mission.iDoSection.stepByStepDemo || '', {

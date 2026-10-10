@@ -870,5 +870,5 @@ export function drawDigitalToolCardWidget(
 
   return sy + cardH + 3.0;
 }
-
-
+// ── 11. WIDGET DE TARJETAS DE PASO DE LABORATORIO (FASE 2) ───────────────────
+export { drawStepCardGrid, type StepCardGridOptions } from './step-card-renderer';

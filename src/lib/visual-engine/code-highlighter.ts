@@ -136,8 +136,8 @@ function tokenizePythonLineWithState(
       break;
     }
 
-    // 3. Inicio de Docstrings triples (""" o ''') con o sin prefijo (f""", r""", b""")
-    const tripleMatch = line.slice(cursor).match(/^([frbFRB]?)(?:("""|'''))/);
+    // 3. Inicio de Docstrings triples (""" o ''') con o sin prefijo simple o doble (f""", r""", b""", fr""", rb""")
+    const tripleMatch = line.slice(cursor).match(/^([frbFRB]{0,2})(?:("""|'''))/);
     if (tripleMatch) {
       const prefix = tripleMatch[1];
       const delim = tripleMatch[2]; // '"""' o "'''"
@@ -156,8 +156,8 @@ function tokenizePythonLineWithState(
       continue;
     }
 
-    // 4. Strings normales simples ('...' o "...") incluyendo prefijos f, r, b
-    const stringPrefixMatch = line.slice(cursor).match(/^([frbFRB]?)(["'])/);
+    // 4. Strings normales simples ('...' o "...") incluyendo prefijos simples o dobles
+    const stringPrefixMatch = line.slice(cursor).match(/^([frbFRB]{0,2})(["'])/);
     if (stringPrefixMatch) {
       const prefix = stringPrefixMatch[1];
       const quoteChar = stringPrefixMatch[2];

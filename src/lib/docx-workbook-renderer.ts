@@ -53,6 +53,7 @@ import type {
   TroubleshootItem,
   EvaluationSection,
   ProjectSection,
+  LabStepCard,
 } from '@/types/work-textbook';
 import type { Planning, ImageAsset } from '@/types/planning';
 import { getRubricLevelDescriptor } from '@/lib/rubric-helpers';
@@ -89,6 +90,7 @@ import {
 import { logger } from '@/lib/logger';
 import { highlightCodeBlock } from '@/lib/visual-engine/code-highlighter';
 import { CODE_IDE } from '@/lib/visual-engine/design-tokens';
+import { parseLabStepsFromProse } from '@/lib/guide-engine/lab-step-parser';
 
 function rgbToHex(rgb: [number, number, number]): string {
   return rgb.map((x) => x.toString(16).padStart(2, '0')).join('').toUpperCase();
@@ -127,6 +129,11 @@ const DOT_LINE = '· · · · · · · · · · · · · · · · · · · · ·
 
 function thinBorder(color = C.border) {
   const b = { style: BorderStyle.SINGLE, size: 4, color };
+  return { top: b, bottom: b, left: b, right: b };
+}
+
+function noBorders() {
+  const b = { style: BorderStyle.NONE, size: 0, color: 'auto' };
   return { top: b, bottom: b, left: b, right: b };
 }
 
@@ -2167,6 +2174,147 @@ function buildDocxPracticeTasks(rawText: string, defaultTaskCount: number = 3): 
   return elements;
 }
 
+/**
+ * Renderiza la cuadrícula de tarjetas de paso de laboratorio en DOCX (2 columnas)
+ */
+function buildDocxStepCardGrid(cards: LabStepCard[]): Table {
+  const colW = Math.floor(CONTENT_W / 2);
+  const rows: TableRow[] = [];
+
+  for (let idx = 0; idx < cards.length; idx += 2) {
+    const leftCard = cards[idx];
+    const rightCard = cards[idx + 1] as LabStepCard | undefined;
+
+    const renderCardCell = (card: LabStepCard) => {
+      const cellChildren: Paragraph[] = [
+        new Paragraph({
+          spacing: { before: 40, after: 40 },
+          children: [
+            new TextRun({
+              text: `● Paso ${card.stepNumber}: `,
+              bold: true,
+              size: 20, // 10pt
+              color: '2563EB',
+              font: 'Calibri',
+            }),
+            new TextRun({
+              text: card.title || `Paso ${card.stepNumber}`,
+              bold: true,
+              size: 20,
+              color: C.darkText,
+              font: 'Calibri',
+            }),
+          ],
+        }),
+        new Paragraph({
+          spacing: { before: 30, after: 60, line: 300 },
+          children: [
+            new TextRun({
+              text: card.actionDescription || '',
+              size: 18, // 9pt
+              color: '475569',
+              font: 'Calibri',
+            }),
+          ],
+        }),
+      ];
+
+      if (card.codeSnippet) {
+        const codeLines = card.codeSnippet.split(/\r?\n/).slice(0, 8);
+        for (const cLine of codeLines) {
+          cellChildren.push(
+            new Paragraph({
+              spacing: { before: 10, after: 10 },
+              children: [
+                new TextRun({
+                  text: `  ${cLine}`,
+                  font: 'Consolas',
+                  size: 16,
+                  color: 'D4D4D4',
+                }),
+              ],
+            })
+          );
+        }
+      }
+
+      if (card.expectedOutput) {
+        cellChildren.push(
+          new Paragraph({
+            spacing: { before: 40, after: 40 },
+            children: [
+              new TextRun({
+                text: '✓ Salida: ',
+                bold: true,
+                size: 16,
+                color: '059669',
+                font: 'Calibri',
+              }),
+              new TextRun({
+                text: card.expectedOutput,
+                size: 16,
+                color: '065F46',
+                font: 'Calibri',
+              }),
+            ],
+          })
+        );
+      }
+
+      if (card.tipOrNote) {
+        cellChildren.push(
+          new Paragraph({
+            spacing: { before: 30, after: 30 },
+            children: [
+              new TextRun({
+                text: '💡 Tip: ',
+                bold: true,
+                size: 16,
+                color: 'B45309',
+                font: 'Calibri',
+              }),
+              new TextRun({
+                text: card.tipOrNote,
+                size: 16,
+                color: '92400E',
+                font: 'Calibri',
+              }),
+            ],
+          })
+        );
+      }
+
+      return new TableCell({
+        width: { size: colW, type: WidthType.DXA },
+        shading: { fill: 'F8FAFC', type: ShadingType.CLEAR },
+        borders: thinBorder('E2E8F0'),
+        margins: { top: 100, bottom: 100, left: 140, right: 140 },
+        children: cellChildren,
+      });
+    };
+
+    const cells: TableCell[] = [renderCardCell(leftCard)];
+    if (rightCard) {
+      cells.push(renderCardCell(rightCard));
+    } else {
+      cells.push(
+        new TableCell({
+          width: { size: colW, type: WidthType.DXA },
+          borders: noBorders(),
+          children: [new Paragraph({})],
+        })
+      );
+    }
+
+    rows.push(new TableRow({ children: cells }));
+  }
+
+  return new Table({
+    width: { size: CONTENT_W, type: WidthType.DXA },
+    rows,
+  });
+}
+
 async function buildMissionContent(
   mission: MissionSection,
   missionNumber: number,
@@ -2657,19 +2805,24 @@ async function buildMissionContent(
     );
   }
 
-  elements.push(
-    new Paragraph({
-      spacing: { before: 100, after: 200, line: 360 },
-      children: [
-        new TextRun({
-          text: stripMarkdown(mission.iDoSection.stepByStepDemo),
-          size: 22,
-          color: C.darkText,
-          font: 'Calibri',
-        }),
-      ],
-    })
-  );
+  const labSteps = parseLabStepsFromProse(mission.iDoSection.stepByStepDemo);
+  if (labSteps.length >= 3) {
+    elements.push(buildDocxStepCardGrid(labSteps));
+  } else {
+    elements.push(
+      new Paragraph({
+        spacing: { before: 100, after: 200, line: 360 },
+        children: [
+          new TextRun({
+            text: stripMarkdown(mission.iDoSection.stepByStepDemo),
+            size: 22,
+            color: C.darkText,
+            font: 'Calibri',
+          }),
+        ],
+      })
+    );
+  }
 
   // Tip de Taller / Seguridad Operativa destacado
   const demoCallout = extractCalloutBox(mission.iDoSection.stepByStepDemo || '', {
