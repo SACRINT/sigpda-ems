@@ -162,6 +162,43 @@ describe('Widget Concept-Cards Grid — Renderizado, Extractor y Prueba de Mutac
     expect(allRenderedText.some(t => t.includes('[EJEMPLO]:'))).toBe(true);
   });
 
+  it('H-7: clampLinesWithEllipsis recorta con "..." y respeta textos que ya caben', () => {
+    const lines = ['uno', 'dos', 'tres', 'cuatro', 'cinco'];
+    expect(conceptCardRenderer.clampLinesWithEllipsis(lines, 10)).toEqual(lines);
+    const clipped = conceptCardRenderer.clampLinesWithEllipsis(lines, 3);
+    expect(clipped).toHaveLength(3);
+    expect(clipped[2]).toBe('tres...');
+  });
+
+  it('H-7: con una tarjeta de >200 palabras usa ancho completo y la altura no excede la página útil', () => {
+    const doc = new jsPDF();
+    const longText = Array.from({ length: 900 }, (_, i) => `termino${i}`).join(' ');
+    const roundedRectSpy = vi.spyOn(doc, 'roundedRect');
+    const pageHeight = 279;
+    const margin = 15;
+    const cards: ConceptCardItem[] = [
+      { title: 'Analogía Intuitiva', badge: 'ANALOGÍA', description: 'Breve analogía cotidiana del fenómeno.' },
+      { title: 'Fundamento Central', badge: 'CONCEPTO', description: longText },
+      { title: 'Criterio de Aplicación', badge: 'APLICACIÓN', description: 'Criterio observable y verificable.' },
+    ];
+
+    drawConceptCardsGrid(doc, cards, {
+      margin,
+      drawWidth: 180,
+      y: 30,
+      pageHeight,
+      ensureVerticalSpace: vi.fn((_d, curY) => curY),
+    });
+
+    // Chasis exteriores: roundedRect(x, y, w, h, rx, ry, 'FD'). Ancho completo (180) y altura <= página útil.
+    const chassis = roundedRectSpy.mock.calls.filter((c) => c[6] === 'FD' && Number(c[2]) > 100);
+    expect(chassis.length).toBe(3);
+    for (const call of chassis) {
+      expect(Number(call[2])).toBeCloseTo(180, 0);
+      expect(Number(call[3])).toBeLessThanOrEqual(pageHeight - margin * 2);
+    }
+  });
+
   it('PRUEBA DE MUTACIÓN ANTI-F11: renderWorkbookToPdf DEBE invocar drawConceptCardsGrid cuando la misión contiene conceptos válidos', async () => {
     const mockPlanning = {
       id: 'plan-concept-grid-1',

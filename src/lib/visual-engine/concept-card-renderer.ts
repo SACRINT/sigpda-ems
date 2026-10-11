@@ -100,10 +100,32 @@ interface MeasuredConceptCard {
   cardH: number;
 }
 
+/** Umbral de palabras por tarjeta a partir del cual se abandona la cuadrícula de columnas (H-7). */
+export const CONCEPT_CARD_LONG_TEXT_WORDS = 200;
+
+function countCardWords(card: ConceptCardItem): number {
+  const text = `${card.description || ''} ${card.example || ''}`.trim();
+  return text.length === 0 ? 0 : text.split(/\s+/).length;
+}
+
+/**
+ * Recorta líneas ya medidas para que quepan en `maxLines`, añadiendo "…" a la última línea visible.
+ * Si caben todas, las devuelve intactas.
+ */
+export function clampLinesWithEllipsis(lines: string[], maxLines: number): string[] {
+  if (lines.length <= maxLines) return lines;
+  const keep = Math.max(1, maxLines);
+  const clipped = lines.slice(0, keep);
+  const last = clipped[keep - 1].replace(/[\s.,;:]+$/, '');
+  clipped[keep - 1] = `${last}...`;
+  return clipped;
+}
+
 function measureSingleCard(
   doc: jsPDF,
   card: ConceptCardItem,
-  colW: number
+  colW: number,
+  maxCardH: number = Number.POSITIVE_INFINITY
 ): MeasuredConceptCard {
   const innerW = colW - 8;
   const pngBuffer = card.materialSlug ? readMaterialPng(card.materialSlug) : null;
@@ -121,8 +143,7 @@ function measureSingleCard(
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.8);
   const cleanDesc = sanitizePdfText(card.description || '');
-  const descLines = doc.splitTextToSize(cleanDesc, innerW);
-  const descH = descLines.length * 3.1;
+  let descLines: string[] = doc.splitTextToSize(cleanDesc, innerW);
 
   let exampleH = 0;
   let exampleLines: string[] = [];
@@ -130,10 +151,27 @@ function measureSingleCard(
     doc.setFontSize(6.2);
     const cleanExample = sanitizePdfText(card.example.trim());
     exampleLines = doc.splitTextToSize(cleanExample, innerW - 4);
-    exampleH = 5.0 + exampleLines.length * 2.8;
   }
 
   const topAreaH = hasImage ? Math.max(titleH + 7, 18) : titleH + 6;
+
+  // Truncamiento por altura (H-7): ninguna tarjeta puede exceder la altura útil de una página.
+  // Primero se limita el ejemplo (máx. 4 líneas) y luego la descripción, con "..." al final.
+  if (Number.isFinite(maxCardH)) {
+    const fixedH = 5 + topAreaH + 5;
+    const exampleOverhead = exampleLines.length > 0 ? 5.0 + 2 : 0;
+    if (exampleLines.length > 4) {
+      exampleLines = clampLinesWithEllipsis(exampleLines, 4);
+    }
+    const exampleBlockH = exampleLines.length > 0 ? exampleOverhead + exampleLines.length * 2.8 : 0;
+    const maxDescLines = Math.max(3, Math.floor((maxCardH - fixedH - exampleBlockH) / 3.1));
+    descLines = clampLinesWithEllipsis(descLines, maxDescLines);
+  }
+
+  const descH = descLines.length * 3.1;
+  if (exampleLines.length > 0) {
+    exampleH = 5.0 + exampleLines.length * 2.8;
+  }
   const totalH = 5 + topAreaH + descH + (exampleH > 0 ? exampleH + 2 : 0) + 5;
 
   return {
@@ -250,13 +288,19 @@ export function drawConceptCardsGrid(
   const { margin, drawWidth, pageHeight, ensureVerticalSpace } = options;
   let curY = options.y;
 
-  // Disposición de columnas: 3 columnas si exactamente 3 tarjetas; 2 columnas si 2 o >= 4 tarjetas
-  const numCols = cards.length === 3 ? 3 : 2;
+  // Disposición de columnas: 3 columnas si exactamente 3 tarjetas; 2 columnas si 2 o >= 4 tarjetas.
+  // H-7: si cualquier tarjeta supera ~200 palabras, se abandona la cuadrícula y cada tarjeta ocupa
+  // el ancho completo (título como subheader + párrafo) para que el texto no quede en columnas estrechas.
+  const hasLongCard = cards.some((c) => countCardWords(c) > CONCEPT_CARD_LONG_TEXT_WORDS);
+  const numCols = hasLongCard ? 1 : cards.length === 3 ? 3 : 2;
   const gap = 3.5;
   const colW = (drawWidth - gap * (numCols - 1)) / numCols;
 
+  // Altura máxima permitida por tarjeta: una página útil (descontando márgenes y banda de cabecera/pie)
+  const maxCardH = Math.max(40, pageHeight - margin * 2 - 24);
+
   // Pre-medir todas las tarjetas
-  const measuredCards = cards.map(c => measureSingleCard(doc, c, colW));
+  const measuredCards = cards.map(c => measureSingleCard(doc, c, colW, maxCardH));
 
   // Agrupar en filas
   const rows: MeasuredConceptCard[][] = [];
