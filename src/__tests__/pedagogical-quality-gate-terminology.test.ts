@@ -12,6 +12,8 @@ describe('F-63: Pedagogical Quality Gate - Terminology Linting', () => {
     expect(FORBIDDEN_PM3_TERMINOLOGY_REGEX.test('Utilizamos balanza   romana antigua.')).toBe(true);
     expect(FORBIDDEN_PM3_TERMINOLOGY_REGEX.test('Una báscula de dos platillos en equilibrio.')).toBe(true);
     expect(FORBIDDEN_PM3_TERMINOLOGY_REGEX.test('Una bascula de dos platillo para medir.')).toBe(true);
+    expect(FORBIDDEN_PM3_TERMINOLOGY_REGEX.test('Una báscula de dos platos en equilibrio.')).toBe(true);
+    expect(FORBIDDEN_PM3_TERMINOLOGY_REGEX.test('Una bascula de dos plato comparativa.')).toBe(true);
   });
 
   it('no detecta falsos positivos en balanza analítica, digital o algebraica', () => {

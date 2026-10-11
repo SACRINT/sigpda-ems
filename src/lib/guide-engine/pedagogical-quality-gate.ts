@@ -184,7 +184,8 @@ export function auditBapInclusivity(textbook: ActiveWorkTextbook): {
  * Regex oficial para detección de terminología arcaica / prohibida en PM3 y ciencias.
  * Prohíbe balanza romana y báscula de dos platillos.
  */
-export const FORBIDDEN_PM3_TERMINOLOGY_REGEX = /balanza\s+romana|b[áa]scula\s+de\s+dos\s+platillo/i;
+export const FORBIDDEN_PM3_TERMINOLOGY_REGEX =
+  /balanza\s+romana|b[áa]scula\s+de\s+dos\s+(?:platillos?|platillo|platos?)/i;
 
 export interface TerminologyLintResult {
   hasForbiddenTerminology: boolean;
