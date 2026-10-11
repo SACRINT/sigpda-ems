@@ -129,6 +129,10 @@ const SECTION_HEX = {
 const PAGE_W = 12240;   // Carta en DXA (8.5in * 1440)
 const MARGIN = 1000;    // Márgenes generosos
 const CONTENT_W = PAGE_W - MARGIN * 2;
+// Anchos de diagramación editorial de 2 columnas (70% principal / 30% sidebar lateral) (F-70)
+const LAYOUT_LEFT_W = 7100;   // ~69.3% del ancho útil (Columna principal de contenido didáctico)
+const LAYOUT_RIGHT_W = 3140;  // ~30.7% del ancho útil (Columna lateral / Sidebar de widgets)
+const SIDEBAR_CARD_W = 2860;  // Ancho interno de las tarjetas de widgets en el sidebar
 const DOT_LINE = '· · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·';
 
 function thinBorder(color = C.border) {
@@ -1617,7 +1621,10 @@ function buildDocxComparisonTable(compTable: ComparisonTableData): (Paragraph | 
 /**
  * 2. Cajas de Llamado (Callout Box) DOCX: tarjeta con fondo suave y cinta lateral
  */
-function buildDocxCalloutBox(callout: Partial<CalloutBoxData> & { title: string; body?: string }): Table {
+function buildDocxCalloutBox(
+  callout: Partial<CalloutBoxData> & { title: string; body?: string },
+  targetWidth: number = CONTENT_W
+): Table {
   const accentHex = (callout.accent || '#2563eb').replace('#', '');
   const bgHex = (callout.bgHex || 'EFF6FF').replace('#', '');
 
@@ -1670,12 +1677,12 @@ function buildDocxCalloutBox(callout: Partial<CalloutBoxData> & { title: string;
   }
 
   return new Table({
-    width: { size: CONTENT_W, type: WidthType.DXA },
+    width: { size: targetWidth, type: WidthType.DXA },
     rows: [
       new TableRow({
         children: [
           new TableCell({
-            width: { size: CONTENT_W, type: WidthType.DXA },
+            width: { size: targetWidth, type: WidthType.DXA },
             shading: { fill: bgHex, type: ShadingType.CLEAR },
             borders: {
               top: { style: BorderStyle.SINGLE, size: 4, color: 'E2E8F0' },
@@ -1695,7 +1702,7 @@ function buildDocxCalloutBox(callout: Partial<CalloutBoxData> & { title: string;
 /**
  * 2b. Widgets visuales con paridad PDF: IDEA FUERZA, ESTUDIO ACTIVO, MISIÓN SÍNTESIS (F-70)
  */
-function buildDocxIdeaFuerzaBox(analogy: string): Table {
+function buildDocxIdeaFuerzaBox(analogy: string, targetWidth: number = SIDEBAR_CARD_W): Table {
   return buildDocxCalloutBox({
     type: 'idea_clave',
     title: 'IDEA FUERZA: ANALOGÍA FÍSICA COTIDIANA',
@@ -1704,10 +1711,10 @@ function buildDocxIdeaFuerzaBox(analogy: string): Table {
     accent: 'B45309',
     bgHex: 'FEF3C7',
     keyTakeaway: 'Vincula este principio intuitivo con el modelo matemático o experimental formal.',
-  });
+  }, targetWidth);
 }
 
-function buildDocxStudyTipBox(tip?: string): Table {
+function buildDocxStudyTipBox(tip?: string, targetWidth: number = SIDEBAR_CARD_W): Table {
   return buildDocxCalloutBox({
     type: 'tip_taller',
     title: 'ESTUDIO ACTIVO: CONSEJO METACOGNITIVO',
@@ -1716,10 +1723,10 @@ function buildDocxStudyTipBox(tip?: string): Table {
     accent: '0369A1',
     bgHex: 'E0F2FE',
     keyTakeaway: 'La autorregulación y la contrastación constante garantizan el aprendizaje profundo.',
-  });
+  }, targetWidth);
 }
 
-function buildDocxMissionSynthesisBox(missionNumber: number): Table {
+function buildDocxMissionSynthesisBox(missionNumber: number, targetWidth: number = SIDEBAR_CARD_W): Table {
   return buildDocxCalloutBox({
     type: 'pro_tip',
     title: `MISIÓN ${missionNumber} · SÍNTESIS Y CONSOLIDACIÓN`,
@@ -1728,6 +1735,108 @@ function buildDocxMissionSynthesisBox(missionNumber: number): Table {
     accent: '1E3A8A',
     bgHex: 'F1F5F9',
     keyTakeaway: 'Evidencia lista para evaluación formativa y retroalimentación docente NEM.',
+  }, targetWidth);
+}
+
+/**
+ * 2c. Badge superior del sidebar lateral (F-70: Paridad con drawSidebarHeaderBadge en column-flow-manager)
+ */
+function buildDocxSidebarHeaderBadge(
+  title: string,
+  subtitle: string,
+  accentHex: string = '1E3A8A',
+  targetWidth: number = SIDEBAR_CARD_W
+): Table {
+  return new Table({
+    width: { size: targetWidth, type: WidthType.DXA },
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            width: { size: targetWidth, type: WidthType.DXA },
+            shading: { fill: 'F8FAFC', type: ShadingType.CLEAR },
+            borders: {
+              top: { style: BorderStyle.SINGLE, size: 12, color: accentHex.replace('#', '') },
+              bottom: { style: BorderStyle.SINGLE, size: 4, color: 'CBD5E1' },
+              left: { style: BorderStyle.SINGLE, size: 4, color: 'CBD5E1' },
+              right: { style: BorderStyle.SINGLE, size: 4, color: 'CBD5E1' },
+            },
+            margins: { top: 80, bottom: 80, left: 100, right: 100 },
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                spacing: { before: 0, after: 20 },
+                children: [
+                  new TextRun({
+                    text: title.toUpperCase(),
+                    bold: true,
+                    size: 16,
+                    color: accentHex.replace('#', ''),
+                    font: 'Arial',
+                  }),
+                ],
+              }),
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                spacing: { before: 0, after: 0 },
+                children: [
+                  new TextRun({
+                    text: subtitle,
+                    italics: true,
+                    size: 14,
+                    color: '64748B',
+                    font: 'Calibri',
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+    ],
+  });
+}
+
+/**
+ * 2d. Layout editorial de 2 columnas (70% principal / 30% sidebar) con línea separadora vertical (F-70).
+ * Emula la diagramación lateral de column-flow-manager.ts del PDF en DOCX.
+ */
+function buildDocxTwoColumnLayout(
+  mainChildren: (Paragraph | Table)[],
+  sidebarChildren: (Paragraph | Table)[],
+  leftWidth: number = LAYOUT_LEFT_W,
+  rightWidth: number = LAYOUT_RIGHT_W
+): Table {
+  return new Table({
+    width: { size: leftWidth + rightWidth, type: WidthType.DXA },
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            width: { size: leftWidth, type: WidthType.DXA },
+            margins: { top: 60, bottom: 60, left: 0, right: 140 },
+            borders: {
+              top: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+              bottom: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+              left: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+              right: { style: BorderStyle.SINGLE, size: 6, color: 'CBD5E1' }, // Separador vertical idéntico al PDF
+            },
+            children: mainChildren.length > 0 ? mainChildren : [new Paragraph({})],
+          }),
+          new TableCell({
+            width: { size: rightWidth, type: WidthType.DXA },
+            margins: { top: 60, bottom: 60, left: 140, right: 0 },
+            borders: {
+              top: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+              bottom: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+              left: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+              right: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+            },
+            children: sidebarChildren.length > 0 ? sidebarChildren : [new Paragraph({})],
+          }),
+        ],
+      }),
+    ],
   });
 }
 
@@ -1860,7 +1969,12 @@ function buildDocxEquipmentCard(equipmentVisual: ResolvedEquipmentVisual): (Para
 /**
  * 3. Cintas de Encabezado de Sección DOCX: celda sombreada con borde temático y badge
  */
-function buildDocxSectionHeader(title: string, colorHex: string = C.navy, badge?: string): Table {
+function buildDocxSectionHeader(
+  title: string,
+  colorHex: string = C.navy,
+  badge?: string,
+  targetWidth: number = CONTENT_W
+): Table {
   const runs: TextRun[] = [
     new TextRun({
       text: title.toUpperCase(),
@@ -1883,12 +1997,12 @@ function buildDocxSectionHeader(title: string, colorHex: string = C.navy, badge?
   }
 
   return new Table({
-    width: { size: CONTENT_W, type: WidthType.DXA },
+    width: { size: targetWidth, type: WidthType.DXA },
     rows: [
       new TableRow({
         children: [
           new TableCell({
-            width: { size: CONTENT_W, type: WidthType.DXA },
+            width: { size: targetWidth, type: WidthType.DXA },
             shading: { fill: 'F1F5F9', type: ShadingType.CLEAR },
             borders: {
               top: { style: BorderStyle.NONE },
@@ -1986,7 +2100,11 @@ function extractTaskStrings(rawText: string, defaultTaskCount: number = 3): stri
   return tasks;
 }
 
-function buildDocxSingleTask(taskText: string, taskIdx: number): (Paragraph | Table)[] {
+function buildDocxSingleTask(
+  taskText: string,
+  taskIdx: number,
+  targetWidth: number = CONTENT_W
+): (Paragraph | Table)[] {
   return [
     new Paragraph({
       spacing: { before: 120, after: 60 },
@@ -1996,12 +2114,12 @@ function buildDocxSingleTask(taskText: string, taskIdx: number): (Paragraph | Ta
       ],
     }),
     new Table({
-      width: { size: CONTENT_W, type: WidthType.DXA },
+      width: { size: targetWidth, type: WidthType.DXA },
       rows: [
         new TableRow({
           children: [
             new TableCell({
-              width: { size: CONTENT_W, type: WidthType.DXA },
+              width: { size: targetWidth, type: WidthType.DXA },
               shading: { fill: 'FAFAFA', type: ShadingType.CLEAR },
               borders: dottedBorder(),
               margins: cellPadding(),
@@ -2395,8 +2513,8 @@ function buildDocxPracticeTasks(rawText: string, defaultTaskCount: number = 3): 
 /**
  * Renderiza la cuadrícula de tarjetas de paso de laboratorio en DOCX (2 columnas)
  */
-function buildDocxStepCardGrid(cards: LabStepCard[]): Table {
-  const colW = Math.floor(CONTENT_W / 2);
+function buildDocxStepCardGrid(cards: LabStepCard[], targetWidth: number = CONTENT_W): Table {
+  const colW = Math.floor(targetWidth / 2);
   const rows: TableRow[] = [];
 
   for (let idx = 0; idx < cards.length; idx += 2) {
@@ -2529,14 +2647,14 @@ function buildDocxStepCardGrid(cards: LabStepCard[]): Table {
   }
 
   return new Table({
-    width: { size: CONTENT_W, type: WidthType.DXA },
+    width: { size: targetWidth, type: WidthType.DXA },
     rows,
   });
 }
 
-function buildDocxConceptCardsGrid(cards: ConceptCardItem[]): Table {
+function buildDocxConceptCardsGrid(cards: ConceptCardItem[], targetWidth: number = CONTENT_W): Table {
   const numCols = cards.length === 3 ? 3 : 2;
-  const colW = Math.floor(CONTENT_W / numCols);
+  const colW = Math.floor(targetWidth / numCols);
   const rows: TableRow[] = [];
 
   for (let idx = 0; idx < cards.length; idx += numCols) {
@@ -2662,7 +2780,7 @@ function buildDocxConceptCardsGrid(cards: ConceptCardItem[]): Table {
   }
 
   return new Table({
-    width: { size: CONTENT_W, type: WidthType.DXA },
+    width: { size: targetWidth, type: WidthType.DXA },
     rows,
   });
 }
@@ -2871,9 +2989,41 @@ async function buildMissionContent(
     elements.push(...buildDocxDiagnosticSection(diagEval));
   }
 
+  // ══════════════════════════════════════════════════════════════════════════════
+  // FASE 1: APERTURA (Enganche Situado y Concepto Cero en Layout de 2 Columnas 70/30)
+  // ══════════════════════════════════════════════════════════════════════════════
+  const aperturaMain: (Paragraph | Table)[] = [];
+  const aperturaSidebar: (Paragraph | Table)[] = [];
+
+  // Sidebar de Apertura: Badge temático + Widget IDEA FUERZA (F-70)
+  aperturaSidebar.push(
+    buildDocxSidebarHeaderBadge(
+      `MISIÓN ${missionNumber} · APERTURA`,
+      'Marco Curricular Común EMS',
+      SECTION_HEX.enganche,
+      SIDEBAR_CARD_W
+    )
+  );
+
+  const conceptFullText = `${mission.conceptZero.physicalAnalogy || ''}\n${mission.conceptZero.coreExplanation || ''}\n${mission.conceptZero.narrativeExplanation || ''}`;
+
+  if (mission.conceptZero?.physicalAnalogy) {
+    aperturaSidebar.push(buildDocxIdeaFuerzaBox(mission.conceptZero.physicalAnalogy, SIDEBAR_CARD_W));
+  } else {
+    const conceptCallout = extractCalloutBox(conceptFullText, {
+      missionNumber,
+      defaultType: 'idea_clave',
+      defaultTitle: 'Idea Clave de la Misión',
+      defaultSubjectName: subjectName,
+    });
+    if (conceptCallout) {
+      aperturaSidebar.push(buildDocxCalloutBox(conceptCallout, SIDEBAR_CARD_W));
+    }
+  }
+
   // 1. Enganche Situado
-  elements.push(
-    buildDocxSectionHeader('📖 1. Enganche y Desafío Situado en la Comunidad', SECTION_HEX.enganche, '[SITUACIÓN REAL]'),
+  aperturaMain.push(
+    buildDocxSectionHeader('📖 1. Enganche y Desafío Situado en la Comunidad', SECTION_HEX.enganche, '[SITUACIÓN REAL]', LAYOUT_LEFT_W),
     new Paragraph({
       spacing: { before: 100, after: 150, line: 360 }, // 1.5 line spacing
       children: [
@@ -2904,22 +3054,16 @@ async function buildMissionContent(
           font: 'Calibri',
         }),
       ],
-    })
-  );
-
-  const conceptFullText = `${mission.conceptZero.physicalAnalogy || ''}\n${mission.conceptZero.coreExplanation || ''}\n${mission.conceptZero.narrativeExplanation || ''}`;
-
-  // 2. Concepto Cero
-  elements.push(
-    buildDocxSectionHeader('💡 2. Concepto Cero: Analogía Intuitiva y Fundamento', SECTION_HEX.concepto, '[LEO Y COMPRENDO]'),
+    }),
+    buildDocxSectionHeader('💡 2. Concepto Cero: Analogía Intuitiva y Fundamento', SECTION_HEX.concepto, '[LEO Y COMPRENDO]', LAYOUT_LEFT_W)
   );
 
   const conceptCards = extractConceptCardsFromMission(mission);
   if (conceptCards.length >= 2) {
-    elements.push(buildDocxConceptCardsGrid(conceptCards));
+    aperturaMain.push(buildDocxConceptCardsGrid(conceptCards, LAYOUT_LEFT_W));
   } else {
     // Degradación histórica D9: párrafos directos
-    elements.push(
+    aperturaMain.push(
       new Paragraph({
         spacing: { before: 100, after: 150, line: 360 },
         children: [
@@ -2947,7 +3091,7 @@ async function buildMissionContent(
   }
 
   if (mission.conceptZero.narrativeExplanation) {
-    elements.push(
+    aperturaMain.push(
       new Paragraph({
         spacing: { after: 200, line: 360 },
         children: [
@@ -2964,7 +3108,7 @@ async function buildMissionContent(
 
   if (mission.conceptZero.solvedExample) {
     const ex = mission.conceptZero.solvedExample;
-    elements.push(
+    aperturaMain.push(
       new Paragraph({
         spacing: { before: 180, after: 80 },
         children: [
@@ -2987,7 +3131,7 @@ async function buildMissionContent(
     );
 
     for (let sIdx = 0; sIdx < (ex.solutionSteps || []).length; sIdx++) {
-      elements.push(
+      aperturaMain.push(
         new Paragraph({
           spacing: { after: 50, line: 320 },
           children: [
@@ -2999,7 +3143,7 @@ async function buildMissionContent(
     }
 
     if (ex.interpretation) {
-      elements.push(
+      aperturaMain.push(
         new Paragraph({
           spacing: { before: 80, after: 150, line: 320 },
           children: [
@@ -3010,6 +3154,8 @@ async function buildMissionContent(
       );
     }
   }
+
+  elements.push(buildDocxTwoColumnLayout(aperturaMain, aperturaSidebar));
 
   if (mission.conceptZero.contrastTable && mission.conceptZero.contrastTable.length > 0) {
     elements.push(
@@ -3252,21 +3398,6 @@ async function buildMissionContent(
     elements.push(...buildDocxEquipmentCard(equipmentVisual));
   }
 
-  // Tarjeta de Idea Fuerza destacada (Callout Box con paridad PDF) posterior al recurso visual
-  if (mission.conceptZero?.physicalAnalogy) {
-    elements.push(buildDocxIdeaFuerzaBox(mission.conceptZero.physicalAnalogy));
-  } else {
-    const conceptCallout = extractCalloutBox(conceptFullText, {
-      missionNumber,
-      defaultType: 'idea_clave',
-      defaultTitle: 'Idea Clave de la Misión',
-      defaultSubjectName: subjectName,
-    });
-    if (conceptCallout) {
-      elements.push(buildDocxCalloutBox(conceptCallout));
-    }
-  }
-
   // Si la misión abarca 3 o más sesiones, la Sesión 2 inicia en el Modelado Docente
   if (totalSessionsCount >= 3) {
     const s2 = coveredSessions[1];
@@ -3274,21 +3405,38 @@ async function buildMissionContent(
     elements.push(buildDocxSessionDivider(s2, s2Meta.phase, getPhaseColorHex(s2Meta.phase), 50, s2Meta.title));
   }
 
+  // ══════════════════════════════════════════════════════════════════════════════
+  // FASE 2: DESARROLLO (Yo Hago + Nosotros Hacemos en Layout de 2 Columnas 70/30)
+  // ══════════════════════════════════════════════════════════════════════════════
+  const desarrolloMain: (Paragraph | Table)[] = [];
+  const desarrolloSidebar: (Paragraph | Table)[] = [];
+
+  // Sidebar de Desarrollo: Badge temático + Widget ESTUDIO ACTIVO (F-70)
+  desarrolloSidebar.push(
+    buildDocxSidebarHeaderBadge(
+      `MISIÓN ${missionNumber} · DESARROLLO`,
+      'Protocolo de Taller y Práctica',
+      SECTION_HEX.yoHago,
+      SIDEBAR_CARD_W
+    ),
+    buildDocxStudyTipBox(undefined, SIDEBAR_CARD_W)
+  );
+
   // 3. Yo Hago (Demostración)
-  elements.push(
-    buildDocxSectionHeader('👨‍🏫 3. Yo Hago: Demostración y Protocolo Guiado por el Docente', SECTION_HEX.yoHago, '[MODELO DOCENTE]')
+  desarrolloMain.push(
+    buildDocxSectionHeader('👨‍🏫 3. Yo Hago: Demostración y Protocolo Guiado por el Docente', SECTION_HEX.yoHago, '[MODELO DOCENTE]', LAYOUT_LEFT_W)
   );
 
   // Si equipmentVisual fue marcado como Hero (30% demostrativo), se renderiza como imagen principal del Yo Hago
   if (equipmentVisual && equipmentVisual.isHero) {
-    elements.push(
+    desarrolloMain.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
         spacing: { before: 140, after: 80 },
         children: [
           new ImageRun({
             data: equipmentVisual.buffer,
-            transformation: { width: 480, height: 270 },
+            transformation: { width: 440, height: 250 },
             type: equipmentVisual.format.toLowerCase() === 'png' ? 'png' : 'jpg',
           }),
         ],
@@ -3311,9 +3459,9 @@ async function buildMissionContent(
 
   const labSteps = parseLabStepsFromProse(mission.iDoSection.stepByStepDemo);
   if (labSteps.length >= 3) {
-    elements.push(buildDocxStepCardGrid(labSteps));
+    desarrolloMain.push(buildDocxStepCardGrid(labSteps, LAYOUT_LEFT_W));
   } else {
-    elements.push(
+    desarrolloMain.push(
       new Paragraph({
         spacing: { before: 100, after: 200, line: 360 },
         children: [
@@ -3336,7 +3484,7 @@ async function buildMissionContent(
     defaultSubjectName: subjectName,
   });
   if (demoCallout) {
-    elements.push(buildDocxCalloutBox(demoCallout));
+    desarrolloMain.push(buildDocxCalloutBox(demoCallout, LAYOUT_LEFT_W));
   }
 
   // 4. Nosotros Hacemos (Práctica Colaborativa) y Distribución de Sesiones
@@ -3345,17 +3493,17 @@ async function buildMissionContent(
     if (totalSessionsCount === 2) {
       const s2 = coveredSessions[1];
       const s2Meta = getSessionMetaFromSequence(sequenceJson, s2, blockIndex, 'Desarrollo', 'Práctica Guiada, Reto y Cierre');
-      elements.push(buildDocxSessionDivider(s2, s2Meta.phase, getPhaseColorHex(s2Meta.phase), 50, s2Meta.title));
+      desarrolloMain.push(buildDocxSessionDivider(s2, s2Meta.phase, getPhaseColorHex(s2Meta.phase), 50, s2Meta.title));
     }
 
-    elements.push(
-      buildDocxSectionHeader('👥 4. Nosotros Hacemos: Práctica Guiada y Cuaderno Activo', SECTION_HEX.hacemos, '[TRABAJO EN EQUIPO]'),
+    desarrolloMain.push(
+      buildDocxSectionHeader('👥 4. Nosotros Hacemos: Práctica Guiada y Cuaderno Activo', SECTION_HEX.hacemos, '[TRABAJO EN EQUIPO]', LAYOUT_LEFT_W),
       ...buildDocxPracticeTasks(mission.weDoSection.guidedPractice)
     );
 
     if (mission.weDoSection.workbookElements) {
       for (const el of mission.weDoSection.workbookElements) {
-        elements.push(...renderWorkbookElement(el));
+        desarrolloMain.push(...renderWorkbookElement(el));
       }
     }
   } else {
@@ -3366,8 +3514,8 @@ async function buildMissionContent(
     const taskBuckets = distributeItems(allWeDoTasks, midSessions.length);
     const elemBuckets = distributeItems(allWeDoElements, midSessions.length);
 
-    elements.push(
-      buildDocxSectionHeader('👥 4. Nosotros Hacemos: Práctica Guiada y Cuaderno Activo', SECTION_HEX.hacemos, '[TRABAJO EN EQUIPO]')
+    desarrolloMain.push(
+      buildDocxSectionHeader('👥 4. Nosotros Hacemos: Práctica Guiada y Cuaderno Activo', SECTION_HEX.hacemos, '[TRABAJO EN EQUIPO]', LAYOUT_LEFT_W)
     );
 
     for (let mIdx = 0; mIdx < midSessions.length; mIdx++) {
@@ -3379,10 +3527,10 @@ async function buildMissionContent(
         'Desarrollo',
         `Práctica Colaborativa y Taller de Aplicación (Sesión ${sNum})`
       );
-      elements.push(buildDocxSessionDivider(sNum, sMeta.phase, getPhaseColorHex(sMeta.phase), 50, sMeta.title));
+      desarrolloMain.push(buildDocxSessionDivider(sNum, sMeta.phase, getPhaseColorHex(sMeta.phase), 50, sMeta.title));
 
       if (sMeta.teachingActivity || sMeta.learningActivity) {
-        elements.push(
+        desarrolloMain.push(
           new Paragraph({
             spacing: { before: 80, after: 60 },
             children: [
@@ -3396,24 +3544,24 @@ async function buildMissionContent(
       const assignedTasks = taskBuckets[mIdx];
       if (assignedTasks && assignedTasks.length > 0) {
         for (let tIdx = 0; tIdx < assignedTasks.length; tIdx++) {
-          elements.push(...buildDocxSingleTask(assignedTasks[tIdx], tIdx + 1));
+          desarrolloMain.push(...buildDocxSingleTask(assignedTasks[tIdx], tIdx + 1, LAYOUT_LEFT_W));
         }
       } else {
         const fallbackTaskText = `${sMeta.title || 'Resolución guiada de ejercicios y consolidación técnica'}. Aplica los conceptos de la misión y registra el procedimiento colaborativo en equipo:`;
-        elements.push(...buildDocxSingleTask(fallbackTaskText, 1));
+        desarrolloMain.push(...buildDocxSingleTask(fallbackTaskText, 1, LAYOUT_LEFT_W));
       }
 
       const assignedElems = elemBuckets[mIdx];
       if (assignedElems && assignedElems.length > 0) {
         for (const el of assignedElems) {
-          elements.push(...renderWorkbookElement(el));
+          desarrolloMain.push(...renderWorkbookElement(el));
         }
       }
     }
   }
 
-  // Widget de Estudio Activo / Metacognición (Paridad con PDF column-flow-manager)
-  elements.push(buildDocxStudyTipBox());
+  // Agregamos layout de 2 columnas de Desarrollo
+  elements.push(buildDocxTwoColumnLayout(desarrolloMain, desarrolloSidebar));
 
   // 5. Tú Haces (Reto Autónomo)
   if (totalSessionsCount >= 3) {
@@ -3422,29 +3570,38 @@ async function buildMissionContent(
     elements.push(buildDocxSessionDivider(lastSession, lastMeta.phase, getPhaseColorHex(lastMeta.phase), 50, lastMeta.title));
   }
 
-  elements.push(
-    buildDocxSectionHeader('✏️ 5. Tú Haces: Reto Autónomo de Aplicación Real', SECTION_HEX.tuHaces, '[HAGO Y RESUELVO]'),
+  // ══════════════════════════════════════════════════════════════════════════════
+  // FASE 3: CIERRE Y RETO AUTÓNOMO (Tú Haces + Checkpoint en Layout de 2 Columnas 70/30)
+  // ══════════════════════════════════════════════════════════════════════════════
+  const cierreMain: (Paragraph | Table)[] = [];
+  const cierreSidebar: (Paragraph | Table)[] = [];
+
+  // Sidebar de Cierre: Badge temático + Widget MISIÓN SÍNTESIS (F-70)
+  cierreSidebar.push(
+    buildDocxSidebarHeaderBadge(
+      `MISIÓN ${missionNumber} · SÍNTESIS`,
+      'Consolidación de Evidencias',
+      SECTION_HEX.tuHaces,
+      SIDEBAR_CARD_W
+    ),
+    buildDocxMissionSynthesisBox(missionNumber, SIDEBAR_CARD_W)
+  );
+
+  cierreMain.push(
+    buildDocxSectionHeader('✏️ 5. Tú Haces: Reto Autónomo de Aplicación Real', SECTION_HEX.tuHaces, '[HAGO Y RESUELVO]', LAYOUT_LEFT_W),
     ...buildDocxPracticeTasks(mission.youDoSection.autonomousChallenge)
   );
 
   if (mission.youDoSection.workbookElements) {
     for (const el of mission.youDoSection.workbookElements) {
-      elements.push(...renderWorkbookElement(el));
+      cierreMain.push(...renderWorkbookElement(el));
     }
-  }
-
-  // 6. Troubleshooting (Zona de Depuración)
-  if (mission.troubleshooting && mission.troubleshooting.length > 0) {
-    elements.push(
-      buildDocxSectionHeader('⚠️ 6. Matriz de Resiliencia y Depuración: "¿Qué hacer si falla?"', SECTION_HEX.resiliencia, '[ERROR COMÚN]'),
-      buildTroubleshootTable(mission.troubleshooting)
-    );
   }
 
   // 7. Checkpoint Formativo
   if (mission.formativeCheckpoint) {
-    elements.push(
-      buildDocxSectionHeader('🎯 7. Punto de Control Formativo (Metacognición y Criterios)', SECTION_HEX.checkpoint, '[MI ENTREGA]'),
+    cierreMain.push(
+      buildDocxSectionHeader('🎯 7. Punto de Control Formativo (Metacognición y Criterios)', SECTION_HEX.checkpoint, '[MI ENTREGA]', LAYOUT_LEFT_W),
       new Paragraph({
         spacing: { before: 100, after: 100 },
         children: [
@@ -3461,7 +3618,7 @@ async function buildMissionContent(
 
     if (mission.formativeCheckpoint.reflectionPrompts) {
       mission.formativeCheckpoint.reflectionPrompts.forEach((prompt) => {
-        elements.push(
+        cierreMain.push(
           new Paragraph({
             spacing: { after: 80 },
             children: [
@@ -3473,7 +3630,7 @@ async function buildMissionContent(
     }
 
     if (mission.formativeCheckpoint.criteriaChecklist) {
-      elements.push(
+      cierreMain.push(
         new Paragraph({
           spacing: { before: 100, after: 60 },
           children: [
@@ -3482,7 +3639,7 @@ async function buildMissionContent(
         })
       );
       mission.formativeCheckpoint.criteriaChecklist.forEach((crit) => {
-        elements.push(
+        cierreMain.push(
           new Paragraph({
             spacing: { after: 60 },
             children: [
@@ -3494,8 +3651,16 @@ async function buildMissionContent(
     }
   }
 
-  // Widget de Misión Síntesis y Consolidación (Paridad con PDF column-flow-manager)
-  elements.push(buildDocxMissionSynthesisBox(missionNumber));
+  // Agregamos layout de 2 columnas de Cierre
+  elements.push(buildDocxTwoColumnLayout(cierreMain, cierreSidebar));
+
+  // 6. Troubleshooting (Zona de Depuración) — Se despliega a ancho completo
+  if (mission.troubleshooting && mission.troubleshooting.length > 0) {
+    elements.push(
+      buildDocxSectionHeader('⚠️ 6. Matriz de Resiliencia y Depuración: "¿Qué hacer si falla?"', SECTION_HEX.resiliencia, '[ERROR COMÚN]'),
+      buildTroubleshootTable(mission.troubleshooting)
+    );
+  }
 
   // ── Semáforo de Aprendizaje Metacognitivo (Paridad con PDF) ─────────────
   const trafficLight = mission.metacognitiveTrafficLight ||

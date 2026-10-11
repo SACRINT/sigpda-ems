@@ -89,5 +89,15 @@ describe('F-70: Paridad Visual DOCX ≈ PDF - Widgets y Cajas de Colores', () =>
 
     // 3. Widget MISIÓN SÍNTESIS
     expect(docXml).toContain('MISI\u00d3N 1 \u00b7 S\u00cdNTESIS Y CONSOLIDACI\u00d3N');
+
+    // 4. Layout 2 Columnas (70/30) para Sidebar en DOCX (F-70)
+    expect(docXml).toContain('w:w="7100"'); // Columna principal (69.3%)
+    expect(docXml).toContain('w:w="3140"'); // Columna lateral / Sidebar (30.7%)
+    expect(docXml).toContain('CBD5E1');     // Separador vertical sutil entre columnas
+
+    // 5. Badges superiores de fase del sidebar lateral
+    expect(docXml).toContain('MISI\u00d3N 1 \u00b7 APERTURA');
+    expect(docXml).toContain('MISI\u00d3N 1 \u00b7 DESARROLLO');
+    expect(docXml).toContain('MISI\u00d3N 1 \u00b7 S\u00cdNTESIS');
   });
 });
