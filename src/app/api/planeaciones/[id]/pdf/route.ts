@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
+import { sql } from '@/lib/db/client';
+import { isAdmin } from '@/lib/admin-unified';
 import { isFeatureEnabled } from '@/lib/platform/feature-flags';
 import { planeacionesOrchestrator, PlaneacionOrchestratorError } from '@/lib/planeaciones/orchestrator';
 import { logger } from '@/lib/logger';
@@ -32,9 +34,11 @@ export const maxDuration = 60;
  *               format: binary
  *       400:
  *         description: Parámetros inválidos
- *       401:
- *         description: No autorizado
- *       404:
+     *       401:
+     *         description: No autorizado
+     *       403:
+     *         description: Acceso denegado a la planeación (pertenece a otro docente y el usuario no es administrador)
+     *       404:
  *         description: Planeación no encontrada
  *       501:
  *         description: Exportación PDF en servidor no implementada en modo legacy (flag OFF)
@@ -57,6 +61,27 @@ export async function GET(
         { error: 'Exportación a PDF en servidor no habilitada en modo legacy (controlado por PLANEACION_ORCHESTRATOR_V2).' },
         { status: 501 }
       );
+    }
+
+    const db = sql();
+    const userEmail = session.user.email;
+    const isUserAdmin = await isAdmin(userEmail);
+
+    const rows = await db`
+      SELECT p.id, p.teacher_id, t.email as teacher_email
+      FROM plannings p
+      LEFT JOIN teachers t ON p.teacher_id = t.id
+      WHERE p.id = ${id}::uuid
+      LIMIT 1
+    `;
+
+    if (rows.length === 0) {
+      return NextResponse.json({ error: 'Planeación no encontrada' }, { status: 404 });
+    }
+
+    const plan = rows[0];
+    if (!isUserAdmin && plan.teacher_email !== userEmail) {
+      return NextResponse.json({ error: 'Acceso denegado a esta planeación' }, { status: 403 });
     }
 
     const pdfBuffer = await planeacionesOrchestrator.renderPDF(id);

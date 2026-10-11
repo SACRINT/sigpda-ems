@@ -452,8 +452,9 @@ describe('PlaneacionOrchestrator (Piloto Nivel 1 & Strangler Fig)', () => {
     ).rejects.toThrow(PlaneacionOrchestratorError);
   });
 
-  it('13. Fase 3 / Strangler Fig: /api/planeaciones/[id]/pdf conmuta entre 501 legacy y 200 orquestador con paridad HTTP', async () => {
+  it('13. Fase 3 / Strangler Fig: /api/planeaciones/[id]/pdf conmuta entre 501 legacy y 200 orquestador con paridad HTTP y ownership F-49', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { email: 'docente@bachillerato.edu.mx' } } as never);
+    vi.mocked(isAdmin).mockResolvedValue(false);
 
     // 1. Con flag OFF (default legacy): responde 501
     setFeatureFlag('PLANEACION_ORCHESTRATOR_V2', false);
@@ -463,23 +464,24 @@ describe('PlaneacionOrchestrator (Piloto Nivel 1 & Strangler Fig)', () => {
     const jsonOff = await resOff.json();
     expect(jsonOff.error).toContain('Exportación a PDF en servidor no habilitada en modo legacy');
 
-    // 2. Con flag ON: delega a planeacionesOrchestrator.renderPDF()
+    // 2. Con flag ON: ownership OK (docente dueña) → delega a planeacionesOrchestrator.renderPDF()
     setFeatureFlag('PLANEACION_ORCHESTRATOR_V2', true);
-    mockDb.mockResolvedValueOnce([
-      {
-        id: 'plan-pdf-1',
-        teacher_id: 'teacher-1',
-        uac_name: 'Sistemas Embebidos e IoT',
-        semester: 4,
-        component: 'laboral',
-        curriculum_name: 'Mecatrónica',
-        paec_context: 'Comunidad Tepeaca',
-        content_json: mockEditorialPlanning.contentJson,
-        status: 'generated',
-        created_at: new Date(),
-        updated_at: new Date(),
-      },
-    ]);
+    const pdfOwnerRow = {
+      id: 'plan-pdf-1',
+      teacher_id: 'teacher-1',
+      teacher_email: 'docente@bachillerato.edu.mx',
+      uac_name: 'Sistemas Embebidos e IoT',
+      semester: 4,
+      component: 'laboral',
+      curriculum_name: 'Mecatrónica',
+      paec_context: 'Comunidad Tepeaca',
+      content_json: mockEditorialPlanning.contentJson,
+      status: 'generated',
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
+    mockDb.mockResolvedValueOnce([pdfOwnerRow]);
+    mockDb.mockResolvedValueOnce([pdfOwnerRow]);
 
     const reqOn = new Request('http://localhost:3000/api/planeaciones/plan-pdf-1/pdf');
     const resOn = await handlePlaneacionPdfGet(reqOn as never, { params: Promise.resolve({ id: 'plan-pdf-1' }) });
@@ -495,6 +497,20 @@ describe('PlaneacionOrchestrator (Piloto Nivel 1 & Strangler Fig)', () => {
     const reqNotFound = new Request('http://localhost:3000/api/planeaciones/non-existent/pdf');
     const resNotFound = await handlePlaneacionPdfGet(reqNotFound as never, { params: Promise.resolve({ id: 'non-existent' }) });
     expect(resNotFound.status).toBe(404);
+
+    // 4. Negativo F-49: sesión autenticada sin ownership y sin admin → 403
+    mockDb.mockResolvedValueOnce([
+      {
+        id: 'plan-pdf-1',
+        teacher_id: 'teacher-2',
+        teacher_email: 'otro-docente@bachillerato.edu.mx',
+      },
+    ]);
+    const reqForbidden = new Request('http://localhost:3000/api/planeaciones/plan-pdf-1/pdf');
+    const resForbidden = await handlePlaneacionPdfGet(reqForbidden as never, { params: Promise.resolve({ id: 'plan-pdf-1' }) });
+    expect(resForbidden.status).toBe(403);
+    const jsonForbidden = await resForbidden.json();
+    expect(jsonForbidden.error).toContain('Acceso denegado');
   });
 
   it('14. Fase 3 / Strangler Fig: /api/planeaciones/[id]/secuencia conmuta entre legacy y orquestador con cota F-47', async () => {
