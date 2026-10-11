@@ -719,7 +719,20 @@ export function drawEquipmentCardWidget(
   const availH = sideBottom - startY;
   if (availH < 38) return startY;
 
-  const cardH = Math.min(availH - 2, 54);
+  // Medir textos completos para dimensionar la tarjeta dinámicamente y prevenir truncado / superposición
+  doc.setFontSize(6.2);
+  const nameLines = doc.splitTextToSize(sanitizePdfText(detected.name), sideW - 6);
+  const nameH = nameLines.length * 3.4;
+
+  doc.setFontSize(5.0);
+  const descText = detected.safetyRule || detected.technicalRole || '';
+  const descLines = doc.splitTextToSize(sanitizePdfText(descText), sideW - 6);
+  const descH = descLines.length * 2.8;
+
+  const headerH = 6.0;
+  const imgAreaH = imageBuffer ? 26.5 : 2.0;
+  const neededCardH = headerH + imgAreaH + nameH + 1.5 + descH + 3.0;
+  const cardH = Math.min(availH - 2, Math.max(neededCardH, 42));
   const sy = startY;
 
   // Fondo de tarjeta con esquinas redondeadas
@@ -743,7 +756,7 @@ export function drawEquipmentCardWidget(
   doc.setTextColor(...COLOR.MID_BLUE);
   doc.text(badgeLabel, sideXAbs + 4.5, sy + 4.0);
 
-  let curY = sy + 6.0;
+  let curY = sy + headerH;
 
   // Imagen centrada en el sidebar
   const imgW = Math.min(sideW - 8, 38);
@@ -757,22 +770,23 @@ export function drawEquipmentCardWidget(
     curY += 2;
   }
 
-  // Nombre del equipo en negrita
+  // Nombre del equipo en negrita (todas las líneas sin superposición)
   setFontBody(doc, 'bold');
   doc.setFontSize(6.2);
   doc.setTextColor(...COLOR.NAVY);
-  const nameLines = doc.splitTextToSize(sanitizePdfText(detected.name), sideW - 6);
-  doc.text(nameLines[0], sideXAbs + 4.5, curY + 1.5);
-  curY += 4.5;
+  nameLines.forEach((l: string, i: number) => {
+    if (curY + i * 3.4 < sy + cardH - 2.0) {
+      doc.text(l, sideXAbs + 4.5, curY + 2.0 + i * 3.4);
+    }
+  });
+  curY += nameH + 2.5;
 
-  // Función o norma en cuerpo pequeño
+  // Función o norma en cuerpo pequeño (renderiza todas las líneas completas)
   setFontBody(doc, 'normal');
   doc.setFontSize(5.0);
   doc.setTextColor(...COLOR.TEXT_PRIMARY);
-  const descText = detected.safetyRule || detected.technicalRole;
-  const descLines = doc.splitTextToSize(sanitizePdfText(descText), sideW - 6);
-  descLines.slice(0, 2).forEach((l: string, i: number) => {
-    if (curY + i * 2.8 < sy + cardH - 1.5) {
+  descLines.forEach((l: string, i: number) => {
+    if (curY + i * 2.8 < sy + cardH - 1.0) {
       doc.text(l, sideXAbs + 4.5, curY + i * 2.8);
     }
   });
