@@ -8,6 +8,8 @@ import { logger } from '@/lib/logger';
 import { obtenerMetodologiaPorId, CATALOGO_METODOLOGIAS_ACTIVAS } from '@/lib/catalogo-metodologias';
 import { ensureRetoSituadoCalidad, validateRetoSituado } from '@/lib/planning-evaluator';
 import type { SecuenciaBloque, SecuenciaSesion, RetoSituado } from '@/types/planning';
+import { isFeatureEnabled } from '@/lib/platform/feature-flags';
+import { planeacionesOrchestrator, PlaneacionOrchestratorError } from '@/lib/planeaciones/orchestrator';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -176,6 +178,14 @@ export async function POST(
 
     const { blockIndex, totalHours: customHours } = parseResult.data;
 
+    // F-47: Cota defensiva de totalHours en el cableado de la ruta (máximo 200 horas)
+    if (customHours !== undefined && customHours > 200) {
+      return NextResponse.json(
+        { error: 'totalHours excede la cota curricular permitida (máximo 200 horas)' },
+        { status: 400 }
+      );
+    }
+
     const db = sql();
     const userEmail = session.user.email;
     const isUserAdmin = await isAdmin(userEmail);
@@ -206,6 +216,59 @@ export async function POST(
     }
 
     const hours = customHours || blockActivity.hours || (plan.component === 'laboral' ? 18 : 12);
+
+    // Strangler Fig: Delegación al Orquestador Central de Planeaciones si la bandera está activa
+    if (isFeatureEnabled('PLANEACION_ORCHESTRATOR_V2')) {
+      try {
+        const orchSequence = await planeacionesOrchestrator.buildSequence({
+          blockIndex,
+          totalHours: hours,
+          planningId: id,
+        });
+
+        const rawSessions = (orchSequence.sessions as SecuenciaSesion[]) || [];
+        const updatedSequence: Record<number, SecuenciaBloque> = {
+          ...(plan.sequence_json || {}),
+          [blockIndex]: {
+            blockIndex,
+            blockName: blockActivity.name || `Bloque ${blockIndex + 1}`,
+            hours,
+            sessions: rawSessions,
+            updatedAt: new Date().toISOString(),
+          },
+        };
+
+        try {
+          await db`
+            UPDATE plannings
+            SET sequence_json = ${JSON.stringify(updatedSequence)}::jsonb,
+                updated_at = NOW()
+            WHERE id = ${id}::uuid
+          `;
+        } catch (dbErr) {
+          logger.error('Error persistiendo sequence_json en Neon DB:', dbErr);
+        }
+
+        return NextResponse.json({
+          success: true,
+          blockIndex,
+          sequence: updatedSequence[blockIndex],
+          fullSequence: updatedSequence,
+          attempts: 1,
+          warnings: [],
+        });
+      } catch (err) {
+        if (err instanceof PlaneacionOrchestratorError) {
+          return NextResponse.json({ error: err.message }, { status: err.status });
+        }
+        logger.error('Error en planeacionesOrchestrator.buildSequence:', err);
+        return NextResponse.json(
+          { error: 'Error interno generando secuencia con el orquestador' },
+          { status: 500 }
+        );
+      }
+    }
+
     const sessionsCount = hours; // 1 hora curricular = 1 sesión de 50 minutos
     const learningOutcome = content.sectionII?.learningOutcomes?.[blockIndex] || '';
     const saberes = blockActivity.saberes || null;
@@ -500,6 +563,23 @@ export async function PUT(
     }
 
     const { blockIndex, sessions, retoSituado } = parseResult.data;
+
+    // Strangler Fig: Validación de actualización estructurada con Orquestador N1 si está activo
+    if (isFeatureEnabled('PLANEACION_ORCHESTRATOR_V2')) {
+      try {
+        await planeacionesOrchestrator.buildSequence({
+          blockIndex,
+          sessions,
+          retoSituado,
+          planningId: id,
+        });
+      } catch (err) {
+        if (err instanceof PlaneacionOrchestratorError) {
+          return NextResponse.json({ error: err.message }, { status: err.status });
+        }
+        throw err;
+      }
+    }
 
     const db = sql();
     const userEmail = session.user.email;

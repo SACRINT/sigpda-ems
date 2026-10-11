@@ -37,6 +37,10 @@ vi.mock('@/lib/planeaciones-evaluator', () => ({
   evaluarPlaneacion: vi.fn(),
 }));
 
+vi.mock('@/lib/ai-retry-manager', () => ({
+  generateWithRetry: vi.fn(),
+}));
+
 vi.mock('@/lib/logger', () => ({
   logger: {
     error: vi.fn(),
@@ -49,6 +53,10 @@ import { auth } from '@/lib/auth';
 import { isAdmin } from '@/lib/admin-unified';
 import { evaluarPlaneacion } from '@/lib/planeaciones-evaluator';
 import { POST as handleEvaluarPost } from '@/app/api/planeaciones/evaluar/route';
+import { GET as handlePlaneacionPdfGet } from '@/app/api/planeaciones/[id]/pdf/route';
+import { POST as handleSecuenciaPost } from '@/app/api/planeaciones/[id]/secuencia/route';
+import { POST as handleGeneratePost } from '@/app/api/planeaciones/generate/route';
+import { generateWithRetry } from '@/lib/ai-retry-manager';
 import * as planningPdfRenderer from '@/lib/planning-pdf-renderer';
 import type { Planning } from '@/types/planning';
 
@@ -442,6 +450,201 @@ describe('PlaneacionOrchestrator (Piloto Nivel 1 & Strangler Fig)', () => {
         sessions: [{ sessionNum: 1 } as unknown as { sessionNum: number; phase: 'Apertura'; title: string; teachingActivity: string; learningActivity: string; evidence: string; evaluation: string }],
       })
     ).rejects.toThrow(PlaneacionOrchestratorError);
+  });
+
+  it('13. Fase 3 / Strangler Fig: /api/planeaciones/[id]/pdf conmuta entre 501 legacy y 200 orquestador con paridad HTTP', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { email: 'docente@bachillerato.edu.mx' } } as never);
+
+    // 1. Con flag OFF (default legacy): responde 501
+    setFeatureFlag('PLANEACION_ORCHESTRATOR_V2', false);
+    const reqOff = new Request('http://localhost:3000/api/planeaciones/plan-pdf-1/pdf');
+    const resOff = await handlePlaneacionPdfGet(reqOff as never, { params: Promise.resolve({ id: 'plan-pdf-1' }) });
+    expect(resOff.status).toBe(501);
+    const jsonOff = await resOff.json();
+    expect(jsonOff.error).toContain('Exportación a PDF en servidor no habilitada en modo legacy');
+
+    // 2. Con flag ON: delega a planeacionesOrchestrator.renderPDF()
+    setFeatureFlag('PLANEACION_ORCHESTRATOR_V2', true);
+    mockDb.mockResolvedValueOnce([
+      {
+        id: 'plan-pdf-1',
+        teacher_id: 'teacher-1',
+        uac_name: 'Sistemas Embebidos e IoT',
+        semester: 4,
+        component: 'laboral',
+        curriculum_name: 'Mecatrónica',
+        paec_context: 'Comunidad Tepeaca',
+        content_json: mockEditorialPlanning.contentJson,
+        status: 'generated',
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+    ]);
+
+    const reqOn = new Request('http://localhost:3000/api/planeaciones/plan-pdf-1/pdf');
+    const resOn = await handlePlaneacionPdfGet(reqOn as never, { params: Promise.resolve({ id: 'plan-pdf-1' }) });
+    expect(resOn.status).toBe(200);
+    expect(resOn.headers.get('Content-Type')).toBe('application/pdf');
+    const arrayBuf = await resOn.arrayBuffer();
+    const buf = Buffer.from(arrayBuf);
+    expect(buf.subarray(0, 4).toString()).toBe('%PDF');
+    expect(buf.byteLength).toBeGreaterThan(3000);
+
+    // 3. Negativo: ID inexistente bajo flag ON responde 404
+    mockDb.mockResolvedValueOnce([]);
+    const reqNotFound = new Request('http://localhost:3000/api/planeaciones/non-existent/pdf');
+    const resNotFound = await handlePlaneacionPdfGet(reqNotFound as never, { params: Promise.resolve({ id: 'non-existent' }) });
+    expect(resNotFound.status).toBe(404);
+  });
+
+  it('14. Fase 3 / Strangler Fig: /api/planeaciones/[id]/secuencia conmuta entre legacy y orquestador con cota F-47', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { email: 'docente@bachillerato.edu.mx' } } as never);
+    vi.mocked(isAdmin).mockResolvedValue(true);
+
+    const mockPlanningRow = {
+      id: 'plan-sec-1',
+      teacher_id: 'teacher-1',
+      teacher_email: 'docente@bachillerato.edu.mx',
+      uac_name: 'Sistemas Embebidos e IoT',
+      semester: 4,
+      component: 'laboral',
+      content_json: {
+        sectionIV: {
+          activities: [{ name: 'Bloque I: Fundamentos', hours: 12 }],
+        },
+      },
+      sequence_json: {},
+    };
+
+    // 1. Con flag OFF: ejecuta flujo legacy llamando a generateWithRetry
+    setFeatureFlag('PLANEACION_ORCHESTRATOR_V2', false);
+    mockDb.mockResolvedValueOnce([mockPlanningRow]);
+    vi.mocked(generateWithRetry).mockResolvedValueOnce({
+      data: {
+        sessions: [
+          {
+            sessionNum: 1,
+            phase: 'Apertura',
+            title: 'Sesión Legacy 1',
+            teachingActivity: 'Docente legacy',
+            learningActivity: 'Alumno legacy',
+            evidence: 'Producto legacy',
+            evaluation: 'Lista de cotejo',
+          },
+        ],
+      },
+      provider: 'gemini',
+      latencyMs: 150,
+      attempts: 1,
+      warnings: [],
+    } as never);
+
+    const reqOff = new Request('http://localhost:3000/api/planeaciones/plan-sec-1/secuencia', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ blockIndex: 0, totalHours: 12 }),
+    });
+    const resOff = await handleSecuenciaPost(reqOff as never, { params: Promise.resolve({ id: 'plan-sec-1' }) });
+    expect(resOff.status).toBe(200);
+    const jsonOff = await resOff.json();
+    expect(jsonOff.success).toBe(true);
+    expect(jsonOff.sequence.sessions[0].title).toBe('Sesión Legacy 1');
+    expect(jsonOff.sequence.sessions[0].teachingActivity).toBe('Docente legacy');
+
+    // 2. Con flag ON: delega a planeacionesOrchestrator.buildSequence()
+    setFeatureFlag('PLANEACION_ORCHESTRATOR_V2', true);
+    mockDb.mockResolvedValueOnce([mockPlanningRow]);
+    const reqOn = new Request('http://localhost:3000/api/planeaciones/plan-sec-1/secuencia', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ blockIndex: 0, totalHours: 12 }),
+    });
+    const resOn = await handleSecuenciaPost(reqOn as never, { params: Promise.resolve({ id: 'plan-sec-1' }) });
+    expect(resOn.status).toBe(200);
+    const jsonOn = await resOn.json();
+    expect(jsonOn.success).toBe(true);
+    expect(jsonOn.blockIndex).toBe(0);
+    expect(jsonOn.sequence.sessions.length).toBe(12);
+
+    // 3. F-47: Cota defensiva de totalHours rechaza valores > 200 con HTTP 400
+    const reqExcess = new Request('http://localhost:3000/api/planeaciones/plan-sec-1/secuencia', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ blockIndex: 0, totalHours: 999999 }),
+    });
+    const resExcess = await handleSecuenciaPost(reqExcess as never, { params: Promise.resolve({ id: 'plan-sec-1' }) });
+    expect(resExcess.status).toBe(400);
+    const jsonExcess = await resExcess.json();
+    expect(jsonExcess.error).toContain('totalHours excede la cota curricular permitida (máximo 200 horas)');
+  });
+
+  it('15. Fase 3 / Robustez: renderPDF() captura excepciones genéricas y las envuelve en PlaneacionOrchestratorError 500', async () => {
+    vi.spyOn(planningPdfRenderer, 'generatePlanningPDF').mockRejectedValueOnce(
+      new Error('Fallo crítico no tipado en motor editorial V8')
+    );
+
+    await expect(planeacionesOrchestrator.renderPDF(mockEditorialPlanning)).rejects.toThrow(
+      PlaneacionOrchestratorError
+    );
+
+    try {
+      vi.spyOn(planningPdfRenderer, 'generatePlanningPDF').mockRejectedValueOnce(
+        new Error('Fallo crítico no tipado en motor editorial V8')
+      );
+      await planeacionesOrchestrator.renderPDF(mockEditorialPlanning);
+    } catch (err) {
+      expect(err).toBeInstanceOf(PlaneacionOrchestratorError);
+      expect((err as PlaneacionOrchestratorError).status).toBe(500);
+      expect((err as PlaneacionOrchestratorError).message).toContain('Fallo en el motor editorial al generar PDF');
+      expect((err as PlaneacionOrchestratorError).message).toContain('Fallo crítico no tipado en motor editorial V8');
+    }
+  });
+
+  it('16. Fase 3 / Strangler Fig: /api/planeaciones/generate conmuta entre 501 legacy y 200 orquestador con paridad HTTP', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { email: 'docente@bachillerato.edu.mx' } } as never);
+
+    // 1. Con flag OFF (default legacy): responde 501
+    setFeatureFlag('PLANEACION_ORCHESTRATOR_V2', false);
+    const reqOff = new Request('http://localhost:3000/api/planeaciones/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ asignatura: 'Lengua y Comunicación I', semestre: 1 }),
+    });
+    const resOff = await handleGeneratePost(reqOff as never);
+    expect(resOff.status).toBe(501);
+    const jsonOff = await resOff.json();
+    expect(jsonOff.error).toContain('Generación directa de planeación no habilitada en modo legacy');
+
+    // 2. Con flag ON: delega a planeacionesOrchestrator.generate()
+    setFeatureFlag('PLANEACION_ORCHESTRATOR_V2', true);
+    const reqOn = new Request('http://localhost:3000/api/planeaciones/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        asignatura: 'Lengua y Comunicación I',
+        semestre: 1,
+        docenteNombre: 'Prof. Mario Alberto',
+        contextoComunitario: 'Comunidad de Tepeaca Puebla',
+      }),
+    });
+    const resOn = await handleGeneratePost(reqOn as never);
+    expect(resOn.status).toBe(200);
+    const jsonOn = await resOn.json();
+    expect(jsonOn.success).toBe(true);
+    expect(jsonOn.planning.uacName).toBe('Lengua y Comunicación I');
+    expect(jsonOn.planning.semester).toBe(1);
+    expect(jsonOn.planning.tresSaberes.conceptual).toBeDefined();
+
+    // 3. Negativo bajo flag ON: datos inválidos (asignatura vacía) responde 400
+    const reqInvalid = new Request('http://localhost:3000/api/planeaciones/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ asignatura: '', semestre: 1 }),
+    });
+    const resInvalid = await handleGeneratePost(reqInvalid as never);
+    expect(resInvalid.status).toBe(400);
+    const jsonInvalid = await resInvalid.json();
+    expect(jsonInvalid.error).toContain('asignatura (UAC) es obligatoria');
   });
 
   it('5. Valida salud y métricas de Planeaciones bajo el contrato IProgramSystem (Nivel 2)', async () => {
