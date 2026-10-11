@@ -585,6 +585,7 @@ describe('PlaneacionOrchestrator (Piloto Nivel 1 & Strangler Fig)', () => {
     expect(jsonOn.success).toBe(true);
     expect(jsonOn.blockIndex).toBe(0);
     expect(jsonOn.sequence.sessions.length).toBe(12);
+    expect(jsonOn.warnings).toEqual([]);
 
     // 3. F-47: Cota defensiva de totalHours rechaza valores > 200 con HTTP 400
     const reqExcess = new Request('http://localhost:3000/api/planeaciones/plan-sec-1/secuencia', {
