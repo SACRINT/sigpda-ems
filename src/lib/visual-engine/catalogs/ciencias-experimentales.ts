@@ -108,7 +108,7 @@ export const CIENCIAS_EXPERIMENTALES_CATALOG: CatalogItem[] = [
     safetyRule: 'Verificar el modo angular de trabajo (grados DEG, radianes RAD o gradianes GRA) antes de evaluar funciones trigonométricas',
     normaNOM: 'NOM-001-SCFI-2018',
     familias: ['ciencias_experimentales', 'diseno_grafico'],
-    svgKey: 'multimetro',
+    svgKey: 'calculadora',
   },
   {
     id: 'cinta_metrica_agrimensor',
@@ -147,6 +147,6 @@ export const CIENCIAS_EXPERIMENTALES_CATALOG: CatalogItem[] = [
     safetyRule: 'Limpiar el prisma óptico de lectura con toalla de microfibra sin alcoholes abrasivos que degraden el sensor',
     normaNOM: 'NOM-001-SCFI-2018',
     familias: ['ciencias_experimentales', 'tics_ciberseguridad'],
-    svgKey: 'multimetro',
+    svgKey: 'reloj_checador',
   },
 ];

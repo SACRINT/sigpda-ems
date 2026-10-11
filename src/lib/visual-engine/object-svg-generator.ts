@@ -451,6 +451,111 @@ const SVG_TEMPLATES: Record<string, (label: string) => string> = {
     return wrapBlueprintSvg(body, label || 'Probador de Cable UTP RJ45');
   },
 
+  // ── Calculadora Científica / Pantalla Natural ──
+  calculadora: (label) => {
+    const body = `
+      <!-- Carcasa de la calculadora científica -->
+      <rect x="135" y="38" width="130" height="214" rx="12" fill="#1E293B" stroke="#0F172A" stroke-width="2.5"/>
+      <rect x="142" y="44" width="116" height="202" rx="8" fill="#0F172A"/>
+
+      <!-- Pantalla LCD Natural Display -->
+      <rect x="148" y="52" width="104" height="42" rx="4" fill="#99F6E4" stroke="#0D9488" stroke-width="1.5"/>
+      <text x="154" y="65" font-family="Courier, monospace" font-size="8" font-weight="bold" fill="#0F766E">DEG · STAT · Math▲</text>
+      <text x="246" y="85" font-family="Courier, monospace" font-size="16" font-weight="bold" fill="#042F2E" text-anchor="end">sin(45°) = √2/2</text>
+
+      <!-- Panel solar superior -->
+      <rect x="152" y="100" width="38" height="10" rx="2" fill="#451A03" stroke="#78350F" stroke-width="1"/>
+      <line x1="161" y1="100" x2="161" y2="110" stroke="#78350F" stroke-width="0.8"/>
+      <line x1="171" y1="100" x2="171" y2="110" stroke="#78350F" stroke-width="0.8"/>
+      <line x1="181" y1="100" x2="181" y2="110" stroke="#78350F" stroke-width="0.8"/>
+
+      <!-- Pad Direccional D-Pad -->
+      <circle cx="228" cy="112" r="13" fill="#334155" stroke="#64748B" stroke-width="1.5"/>
+      <polygon points="228,103 225,107 231,107" fill="#CBD5E1"/>
+      <polygon points="228,121 225,117 231,117" fill="#CBD5E1"/>
+      <polygon points="219,112 223,109 223,115" fill="#CBD5E1"/>
+      <polygon points="237,112 233,109 233,115" fill="#CBD5E1"/>
+
+      <!-- Teclas de Función Científica -->
+      <g fill="#334155" stroke="#475569" stroke-width="0.5">
+        <rect x="148" y="130" width="22" height="10" rx="2"/><text x="159" y="137" font-family="Arial" font-size="5" fill="#CBD5E1" text-anchor="middle">x⁻¹</text>
+        <rect x="175" y="130" width="22" height="10" rx="2"/><text x="186" y="137" font-family="Arial" font-size="5" fill="#CBD5E1" text-anchor="middle">log</text>
+        <rect x="202" y="130" width="22" height="10" rx="2"/><text x="213" y="137" font-family="Arial" font-size="5" fill="#CBD5E1" text-anchor="middle">ln</text>
+        <rect x="230" y="130" width="22" height="10" rx="2"/><text x="241" y="137" font-family="Arial" font-size="5" fill="#CBD5E1" text-anchor="middle">x²</text>
+
+        <rect x="148" y="144" width="22" height="10" rx="2"/><text x="159" y="151" font-family="Arial" font-size="5" fill="#CBD5E1" text-anchor="middle">sin</text>
+        <rect x="175" y="144" width="22" height="10" rx="2"/><text x="186" y="151" font-family="Arial" font-size="5" fill="#CBD5E1" text-anchor="middle">cos</text>
+        <rect x="202" y="144" width="22" height="10" rx="2"/><text x="213" y="151" font-family="Arial" font-size="5" fill="#CBD5E1" text-anchor="middle">tan</text>
+        <rect x="230" y="144" width="22" height="10" rx="2"/><text x="241" y="151" font-family="Arial" font-size="5" fill="#CBD5E1" text-anchor="middle">√</text>
+      </g>
+
+      <!-- Teclado Numérico Principal -->
+      <g fill="#1E293B" stroke="#334155" stroke-width="0.5">
+        <rect x="148" y="160" width="18" height="12" rx="2"/><text x="157" y="169" font-family="Arial" font-size="8" font-weight="bold" fill="#F8FAFC" text-anchor="middle">7</text>
+        <rect x="170" y="160" width="18" height="12" rx="2"/><text x="179" y="169" font-family="Arial" font-size="8" font-weight="bold" fill="#F8FAFC" text-anchor="middle">8</text>
+        <rect x="192" y="160" width="18" height="12" rx="2"/><text x="201" y="169" font-family="Arial" font-size="8" font-weight="bold" fill="#F8FAFC" text-anchor="middle">9</text>
+        <rect x="214" y="160" width="18" height="12" rx="2" fill="#B91C1C"/><text x="223" y="169" font-family="Arial" font-size="6" font-weight="bold" fill="#FFFFFF" text-anchor="middle">DEL</text>
+        <rect x="234" y="160" width="18" height="12" rx="2" fill="#B91C1C"/><text x="243" y="169" font-family="Arial" font-size="6" font-weight="bold" fill="#FFFFFF" text-anchor="middle">AC</text>
+
+        <rect x="148" y="176" width="18" height="12" rx="2"/><text x="157" y="185" font-family="Arial" font-size="8" font-weight="bold" fill="#F8FAFC" text-anchor="middle">4</text>
+        <rect x="170" y="176" width="18" height="12" rx="2"/><text x="179" y="185" font-family="Arial" font-size="8" font-weight="bold" fill="#F8FAFC" text-anchor="middle">5</text>
+        <rect x="192" y="176" width="18" height="12" rx="2"/><text x="201" y="185" font-family="Arial" font-size="8" font-weight="bold" fill="#F8FAFC" text-anchor="middle">6</text>
+        <rect x="214" y="176" width="18" height="12" rx="2" fill="#2563EB"/><text x="223" y="185" font-family="Arial" font-size="8" font-weight="bold" fill="#FFFFFF" text-anchor="middle">×</text>
+        <rect x="234" y="176" width="18" height="12" rx="2" fill="#2563EB"/><text x="243" y="185" font-family="Arial" font-size="8" font-weight="bold" fill="#FFFFFF" text-anchor="middle">÷</text>
+
+        <rect x="148" y="192" width="18" height="12" rx="2"/><text x="157" y="201" font-family="Arial" font-size="8" font-weight="bold" fill="#F8FAFC" text-anchor="middle">1</text>
+        <rect x="170" y="192" width="18" height="12" rx="2"/><text x="179" y="201" font-family="Arial" font-size="8" font-weight="bold" fill="#F8FAFC" text-anchor="middle">2</text>
+        <rect x="192" y="192" width="18" height="12" rx="2"/><text x="201" y="201" font-family="Arial" font-size="8" font-weight="bold" fill="#F8FAFC" text-anchor="middle">3</text>
+        <rect x="214" y="192" width="18" height="12" rx="2" fill="#2563EB"/><text x="223" y="201" font-family="Arial" font-size="8" font-weight="bold" fill="#FFFFFF" text-anchor="middle">+</text>
+        <rect x="234" y="192" width="18" height="12" rx="2" fill="#2563EB"/><text x="243" y="201" font-family="Arial" font-size="8" font-weight="bold" fill="#FFFFFF" text-anchor="middle">−</text>
+
+        <rect x="148" y="208" width="18" height="12" rx="2"/><text x="157" y="217" font-family="Arial" font-size="8" font-weight="bold" fill="#F8FAFC" text-anchor="middle">0</text>
+        <rect x="170" y="208" width="18" height="12" rx="2"/><text x="179" y="217" font-family="Arial" font-size="8" font-weight="bold" fill="#F8FAFC" text-anchor="middle">.</text>
+        <rect x="192" y="208" width="18" height="12" rx="2"/><text x="201" y="217" font-family="Arial" font-size="6" font-weight="bold" fill="#F8FAFC" text-anchor="middle">×10ˣ</text>
+        <rect x="214" y="208" width="18" height="12" rx="2"/><text x="223" y="217" font-family="Arial" font-size="6" font-weight="bold" fill="#F8FAFC" text-anchor="middle">Ans</text>
+        <rect x="234" y="208" width="18" height="12" rx="2" fill="#15803D"/><text x="243" y="217" font-family="Arial" font-size="9" font-weight="bold" fill="#FFFFFF" text-anchor="middle">=</text>
+      </g>
+    `;
+    return wrapBlueprintSvg(body, label || 'Calculadora Científica');
+  },
+
+  // ── Reloj Checador Biométrico de Huella Digital ──
+  reloj_checador: (label) => {
+    const body = `
+      <!-- Chasis del terminal biométrico -->
+      <rect x="125" y="40" width="150" height="210" rx="12" fill="#0F172A" stroke="#1E293B" stroke-width="2.5"/>
+      <rect x="132" y="46" width="136" height="198" rx="8" fill="#1E293B"/>
+
+      <!-- Pantalla TFT con reloj y estado -->
+      <rect x="142" y="56" width="116" height="42" rx="4" fill="#0284C7" fill-opacity="0.2" stroke="#0284C7" stroke-width="1.5"/>
+      <text x="200" y="75" font-family="Courier, monospace" font-size="14" font-weight="bold" fill="#38BDF8" text-anchor="middle">07:45:12 AM</text>
+      <text x="200" y="90" font-family="Arial, sans-serif" font-size="7" font-weight="bold" fill="#4ADE80" text-anchor="middle">● ASISTENCIA CORRECTA</text>
+
+      <!-- Sensor óptico de huella dactilar -->
+      <rect x="165" y="108" width="70" height="74" rx="8" fill="#022C22" stroke="#059669" stroke-width="2"/>
+      <ellipse cx="200" cy="145" rx="20" ry="24" fill="none" stroke="#10B981" stroke-width="1.8" stroke-dasharray="8 3"/>
+      <ellipse cx="200" cy="145" rx="14" ry="18" fill="none" stroke="#34D399" stroke-width="1.8" stroke-dasharray="6 2"/>
+      <ellipse cx="200" cy="145" rx="8" ry="11" fill="none" stroke="#6EE7B7" stroke-width="1.8"/>
+      <circle cx="200" cy="145" r="3" fill="#A7F3D0"/>
+
+      <!-- Indicador LED de verificación -->
+      <circle cx="250" cy="115" r="4" fill="#22C55E"/>
+
+      <!-- Teclado táctil inferior -->
+      <g fill="#0F172A" stroke="#334155" stroke-width="0.5">
+        <rect x="150" y="194" width="22" height="10" rx="2"/><text x="161" y="202" font-family="Arial" font-size="6" fill="#F8FAFC" text-anchor="middle">1</text>
+        <rect x="178" y="194" width="22" height="10" rx="2"/><text x="189" y="202" font-family="Arial" font-size="6" fill="#F8FAFC" text-anchor="middle">2</text>
+        <rect x="206" y="194" width="22" height="10" rx="2"/><text x="217" y="202" font-family="Arial" font-size="6" fill="#F8FAFC" text-anchor="middle">3</text>
+        <rect x="234" y="194" width="16" height="10" rx="2" fill="#15803D"/><text x="242" y="202" font-family="Arial" font-size="5" fill="#FFFFFF" text-anchor="middle">OK</text>
+        <rect x="150" y="208" width="22" height="10" rx="2"/><text x="161" y="216" font-family="Arial" font-size="6" fill="#F8FAFC" text-anchor="middle">4</text>
+        <rect x="178" y="208" width="22" height="10" rx="2"/><text x="189" y="216" font-family="Arial" font-size="6" fill="#F8FAFC" text-anchor="middle">5</text>
+        <rect x="206" y="208" width="22" height="10" rx="2"/><text x="217" y="216" font-family="Arial" font-size="6" fill="#F8FAFC" text-anchor="middle">6</text>
+        <rect x="234" y="208" width="16" height="10" rx="2" fill="#B91C1C"/><text x="242" y="216" font-family="Arial" font-size="5" fill="#FFFFFF" text-anchor="middle">ESC</text>
+      </g>
+    `;
+    return wrapBlueprintSvg(body, label || 'Reloj Checador Biométrico');
+  },
+
   // ── Plantilla Genérica de Taller y Ciencias (Fallback) ──
   herramienta_generica: (label) => {
     const body = `
@@ -488,6 +593,8 @@ SVG_TEMPLATES['probador_cable_red_tester'] = SVG_TEMPLATES['probador_red'];
 SVG_TEMPLATES['guantes_dielectricos'] = SVG_TEMPLATES['herramienta_generica'];
 SVG_TEMPLATES['gafas_seguridad'] = SVG_TEMPLATES['herramienta_generica'];
 SVG_TEMPLATES['pinzas_punta'] = SVG_TEMPLATES['cautin'];
+SVG_TEMPLATES['calculadora_cientifica'] = SVG_TEMPLATES['calculadora'];
+SVG_TEMPLATES['reloj_checador_biometrico'] = SVG_TEMPLATES['reloj_checador'];
 
 // ── 2. FUNCIÓN PRINCIPAL EXPORTADA ─────────────────────────────────────────────
 
