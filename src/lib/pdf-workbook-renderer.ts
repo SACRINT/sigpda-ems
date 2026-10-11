@@ -2159,6 +2159,8 @@ async function drawMission(
         preferOpenverseMedia: false, // Forzar vector SVG para STEM — fotos son irrelevantes en Matemáticas
         usedAssetIds: assignedAssetKeys,
       });
+      let stemVisualRendered = false;
+
       if (resolvedVisual?.type === 'material_png' && resolvedVisual.materialSlug) {
         const png = readMaterialPng(resolvedVisual.materialSlug);
         if (png) {
@@ -2175,6 +2177,7 @@ async function drawMission(
           const captionLines = doc.splitTextToSize(captionText, mainW * 0.88);
           doc.text(captionLines, margin + mainW / 2, y, { align: 'center' });
           y += (captionLines.length * 3.2) + 4;
+          stemVisualRendered = true;
         }
       } else if (resolvedVisual?.type === 'vector_svg' && resolvedVisual.svg) {
         const imgResult = await svgToPngBuffer(resolvedVisual.svg);
@@ -2194,6 +2197,35 @@ async function drawMission(
           const captionLines = doc.splitTextToSize(resolvedVisual.caption, mainW * 0.88);
           doc.text(captionLines, margin + mainW / 2, y, { align: 'center' });
           y += (captionLines.length * 3.2) + 4;
+          stemVisualRendered = true;
+        }
+      }
+
+      // ── Fallback sintético determinístico Capa 0 para STEM (F-13) ───────────
+      // Si la resolución primaria (PNG de material o SVG) falló o no existe,
+      // dispatchVisual garantiza una representación matemática/científica 100% offline.
+      if (!stemVisualRendered) {
+        const vectorResult = dispatchVisual(subjectName, mission.title, contextText, missionNumber);
+        if (vectorResult) {
+          const imgResult = await svgToPngBuffer(vectorResult.svg);
+          if (imgResult) {
+            const imgW = Math.min(mainW * 0.92, 124);
+            const imgH = imgW * 0.68;
+            y = checkSpace(y, imgH + 18);
+            const imgX = margin + (mainW - imgW) / 2;
+            doc.addImage(imgResult.buffer, imgResult.format, imgX, y, imgW, imgH);
+            if (vectorResult.annotations && vectorResult.annotations.length > 0) {
+              drawVisualAnnotations(doc, vectorResult.annotations, imgX, y, imgW, imgH);
+            }
+            y += imgH + 3.5;
+            setFontCaption(doc);
+            doc.setFontSize(7.5);
+            doc.setTextColor(...MUTED_TEXT);
+            const fallbackCaption = `Figura M${missionNumber}.1 — Representación gráfica conceptual y espacio de tabulación guiada`;
+            const captionLines = doc.splitTextToSize(fallbackCaption, mainW * 0.88);
+            doc.text(captionLines, margin + mainW / 2, y, { align: 'center' });
+            y += (captionLines.length * 3.2) + 4;
+          }
         }
       }
     } else if (equipmentVisual && equipmentVisual.isHero) {

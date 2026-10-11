@@ -1,8 +1,20 @@
 // src/__tests__/pdf-workbook-materials.test.ts
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+import { PDFParse } from 'pdf-parse';
 import { renderWorkbookToPdf } from '@/lib/pdf-workbook-renderer';
+import * as visualAssetManager from '@/lib/visual-engine/visual-asset-manager';
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
 import type { Planning } from '@/types/planning';
+
+async function extractPdfText(buffer: Buffer): Promise<string> {
+  const parser = new PDFParse({ data: buffer });
+  try {
+    const textResult = await parser.getText();
+    return textResult.text;
+  } finally {
+    await parser.destroy();
+  }
+}
 
 describe('T-IMG-05: Renderizado de Figuras de Materiales en Libro PDF', () => {
   const mockWorkbook: Partial<ActiveWorkTextbook> = {
@@ -81,4 +93,25 @@ describe('T-IMG-05: Renderizado de Figuras de Materiales en Libro PDF', () => {
     // Cabecera estándar PDF
     expect(pdfBuffer.subarray(0, 5).toString('ascii')).toBe('%PDF-');
   });
+
+  it('F-13: activa el fallback sintético determinista Capa 0 cuando la resolución STEM no encuentra asset ni SVG', async () => {
+    // Espiar resolveVisualForMission para simular fallo/ausencia de asset primario
+    const resolveSpy = vi.spyOn(visualAssetManager, 'resolveVisualForMission').mockResolvedValue(null);
+
+    const pdfBuffer = await renderWorkbookToPdf(
+      mockWorkbook as ActiveWorkTextbook,
+      mockPlanning as unknown as Planning,
+      { forceFallbackCover: true }
+    );
+
+    resolveSpy.mockRestore();
+
+    expect(pdfBuffer).toBeInstanceOf(Buffer);
+    const pdfText = await extractPdfText(pdfBuffer);
+
+    // Debe contener el pie de figura del fallback determinista Capa 0
+    expect(pdfText).toContain('Representación gráfica conceptual y espacio de tabulación guiada');
+    expect(pdfText).toContain('Figura M1.1');
+  }, 25000);
 });
+
