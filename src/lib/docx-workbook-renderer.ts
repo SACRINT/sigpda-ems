@@ -57,7 +57,7 @@ import type {
   ConceptCardItem,
   ProcessFlowStep,
 } from '@/types/work-textbook';
-import type { Planning, ImageAsset } from '@/types/planning';
+import type { Planning, ImageAsset, SecuenciaBloque } from '@/types/planning';
 import { getRubricLevelDescriptor } from '@/lib/rubric-helpers';
 import {
   resolveMaterialString,
@@ -291,7 +291,8 @@ export async function renderWorkbookToDocx(
       workbook.blockIndex,
       usedOpenverseAssets,
       assignedAssetKeys,
-      workbook.blockName
+      workbook.blockName,
+      planning?.sequenceJson || (planning as unknown as { sequence_json?: Record<number, SecuenciaBloque> })?.sequence_json
     );
     bodyChildren.push(...missionElements);
     bodyChildren.push(new Paragraph({ children: [new PageBreak()] }));
@@ -1470,12 +1471,18 @@ function buildTableOfContents(workbook: ActiveWorkTextbook): (Paragraph | Table)
 
   const tocItems =
     workbook.tableOfContents ||
-    workbook.missions.map((m, i) => ({
-      missionIndex: i + 1,
-      title: m.title,
-      sessionsRange: 'Sesiones 1 a 4',
-      pageEstimate: 6,
-    }));
+    workbook.missions.map((m, i) => {
+      const cov = m.coveredSessions;
+      const range = cov && cov.length > 0
+        ? (cov.length === 1 ? `Sesión ${cov[0]}` : `Sesiones ${cov[0]} a ${cov[cov.length - 1]}`)
+        : `Sesiones ${i * 2 + 1} a ${i * 2 + 2}`;
+      return {
+        missionIndex: i + 1,
+        title: m.title,
+        sessionsRange: range,
+        pageEstimate: cov && cov.length > 2 ? Math.max(6, cov.length * 2) : 6,
+      };
+    });
 
   tocItems.forEach((item) => {
     const cleanTitle = stripMarkdown(stripWorkbookTags(item.title))
@@ -1860,43 +1867,202 @@ function buildDocxSectionHeader(title: string, colorHex: string = C.navy, badge?
   });
 }
 
+function getSessionMetaFromSequence(
+  sequenceJson: Record<number, SecuenciaBloque> | null | undefined,
+  sessionNum: number,
+  blockIndex?: number,
+  fallbackPhase: string = 'Desarrollo',
+  fallbackTitle: string = ''
+): { phase: string; title: string; teachingActivity?: string; learningActivity?: string } {
+  if (sequenceJson && typeof sequenceJson === 'object') {
+    const blocksToSearch: SecuenciaBloque[] = [];
+    if (blockIndex !== undefined && sequenceJson[blockIndex]) {
+      blocksToSearch.push(sequenceJson[blockIndex]);
+    }
+    for (const k of Object.keys(sequenceJson)) {
+      const b = sequenceJson[Number(k)];
+      if (b && !blocksToSearch.includes(b)) {
+        blocksToSearch.push(b);
+      }
+    }
+    for (const block of blocksToSearch) {
+      if (Array.isArray(block.sessions)) {
+        const match = block.sessions.find((s) => s.sessionNum === sessionNum);
+        if (match) {
+          return {
+            phase: match.phase || fallbackPhase,
+            title: match.title || fallbackTitle,
+            teachingActivity: match.teachingActivity,
+            learningActivity: match.learningActivity,
+          };
+        }
+      }
+    }
+  }
+  return {
+    phase: fallbackPhase,
+    title: fallbackTitle,
+  };
+}
+
+function getPhaseColorHex(phase: string): string {
+  const p = (phase || '').toLowerCase();
+  if (p.includes('apertura')) return '1B6B8A';
+  if (p.includes('cierre') || p.includes('conclusi')) return '6B3A1B';
+  return '1B6B3A';
+}
+
+function distributeItems<T>(items: T[], bucketCount: number): T[][] {
+  const count = Math.max(1, bucketCount);
+  const buckets: T[][] = Array.from({ length: count }, () => []);
+  if (!items || items.length === 0 || bucketCount <= 0) return buckets;
+  items.forEach((item, idx) => {
+    buckets[idx % count].push(item);
+  });
+  return buckets;
+}
+
+function extractTaskStrings(rawText: string, defaultTaskCount: number = 3): string[] {
+  if (!rawText) return [];
+  const cleanText = stripMarkdown(rawText);
+  if (!cleanText) return [];
+  const lines = cleanText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const tasks: string[] = [];
+
+  for (const line of lines) {
+    const taskMatch = line.match(/^(\d+[\.\)]|[-*•])\s*(.+)$/);
+    if (taskMatch && taskMatch[2].length > 10) {
+      tasks.push(taskMatch[2]);
+    }
+  }
+
+  if (tasks.length === 0) {
+    for (const line of lines) {
+      if (line.length > 25 && !line.startsWith('#')) {
+        tasks.push(line);
+      }
+      if (tasks.length >= defaultTaskCount) break;
+    }
+  }
+  return tasks;
+}
+
+function buildDocxSingleTask(taskText: string, taskIdx: number): (Paragraph | Table)[] {
+  return [
+    new Paragraph({
+      spacing: { before: 120, after: 60 },
+      children: [
+        new TextRun({ text: `[  ] Tarea ${taskIdx}: `, bold: true, size: 21, color: C.darkText, font: 'Calibri' }),
+        new TextRun({ text: taskText, size: 21, color: C.darkText, font: 'Calibri' }),
+      ],
+    }),
+    new Table({
+      width: { size: CONTENT_W, type: WidthType.DXA },
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: CONTENT_W, type: WidthType.DXA },
+              shading: { fill: 'FAFAFA', type: ShadingType.CLEAR },
+              borders: dottedBorder(),
+              margins: cellPadding(),
+              children: [
+                new Paragraph({
+                  spacing: { before: 40, after: 40 },
+                  children: [new TextRun({ text: DOT_LINE, size: 18, color: C.border, font: 'Calibri' })],
+                }),
+                new Paragraph({
+                  spacing: { before: 40, after: 40 },
+                  children: [new TextRun({ text: DOT_LINE, size: 18, color: C.border, font: 'Calibri' })],
+                }),
+              ],
+            }),
+          ],
+        }),
+      ],
+    }),
+    new Paragraph({ spacing: { after: 100 } }),
+  ];
+}
+
 /**
- * 3B. Separador Institucional de Sesión DOCX (con emojis admitidos)
+ * 3B. Separador Institucional de Sesión DOCX (con badge de color y título real)
  */
-function buildDocxSessionDivider(sessionNumber: number, phaseLabel: string, colorHex: string = '1B6B8A', durationMin: number = 50): Table {
+function buildDocxSessionDivider(
+  sessionNumber: number,
+  phaseLabel: string,
+  colorHex: string = '1B6B8A',
+  durationMin: number = 50,
+  sessionTitle?: string
+): Table {
+  const badgeW = 3200;
+  const contentCellW = CONTENT_W - badgeW;
+  const cleanTitle = sessionTitle ? stripMarkdown(stripWorkbookTags(sessionTitle)).trim() : '';
+
   return new Table({
     width: { size: CONTENT_W, type: WidthType.DXA },
     rows: [
       new TableRow({
         children: [
           new TableCell({
-            width: { size: CONTENT_W, type: WidthType.DXA },
+            width: { size: badgeW, type: WidthType.DXA },
+            shading: { fill: colorHex, type: ShadingType.CLEAR },
+            borders: {
+              top: { style: BorderStyle.SINGLE, size: 6, color: colorHex },
+              bottom: { style: BorderStyle.SINGLE, size: 6, color: colorHex },
+              left: { style: BorderStyle.SINGLE, size: 6, color: colorHex },
+              right: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+            },
+            margins: { top: 100, bottom: 100, left: 140, right: 140 },
+            verticalAlign: VerticalAlign.CENTER,
+            children: [
+              new Paragraph({
+                spacing: { before: 40, after: 40 },
+                children: [
+                  new TextRun({
+                    text: `⏱️ SESIÓN ${sessionNumber} (${durationMin} MIN)`,
+                    bold: true,
+                    size: 20,
+                    color: C.white,
+                    font: 'Arial',
+                  }),
+                ],
+              }),
+            ],
+          }),
+          new TableCell({
+            width: { size: contentCellW, type: WidthType.DXA },
             shading: { fill: 'F8FAFC', type: ShadingType.CLEAR },
             borders: {
               top: { style: BorderStyle.SINGLE, size: 6, color: colorHex },
               bottom: { style: BorderStyle.SINGLE, size: 6, color: colorHex },
-              left: { style: BorderStyle.SINGLE, size: 24, color: colorHex },
+              left: { style: BorderStyle.NONE, size: 0, color: 'auto' },
               right: { style: BorderStyle.SINGLE, size: 6, color: colorHex },
             },
-            margins: { top: 120, bottom: 120, left: 180, right: 180 },
+            margins: { top: 100, bottom: 100, left: 160, right: 160 },
+            verticalAlign: VerticalAlign.CENTER,
             children: [
               new Paragraph({
-                spacing: { before: 50, after: 50 },
+                spacing: { before: 40, after: 40 },
                 children: [
                   new TextRun({
-                    text: `⏱️ SESIÓN ${sessionNumber} (${durationMin} MIN) `,
+                    text: `FASE: ${phaseLabel.toUpperCase()}`,
                     bold: true,
-                    size: 22,
+                    size: 20,
                     color: colorHex,
                     font: 'Arial',
                   }),
-                  new TextRun({
-                    text: `| FASE: ${phaseLabel.toUpperCase()}`,
-                    bold: true,
-                    size: 20,
-                    color: '475569',
-                    font: 'Calibri',
-                  }),
+                  ...(cleanTitle
+                    ? [
+                        new TextRun({
+                          text: `  ·  ${cleanTitle}`,
+                          italics: true,
+                          size: 19,
+                          color: C.darkText,
+                          font: 'Calibri',
+                        }),
+                      ]
+                    : []),
                 ],
               }),
             ],
@@ -2602,7 +2768,8 @@ async function buildMissionContent(
   blockIndex?: number,
   openverseCollector?: ImageAsset[],
   assignedAssetKeys?: Set<string>,
-  blockName?: string
+  blockName?: string,
+  sequenceJson?: Record<number, SecuenciaBloque> | null
 ): Promise<(Paragraph | Table)[]> {
   const elements: (Paragraph | Table)[] = [];
 
@@ -2642,13 +2809,18 @@ async function buildMissionContent(
   const coveredSessions = (mission.coveredSessions && mission.coveredSessions.length > 0)
     ? mission.coveredSessions
     : [missionNumber * 2 - 1, missionNumber * 2];
+  const totalSessionsCount = coveredSessions.length;
 
-  // ── Sesión 1: Apertura y Modelado ───────────────────────────────────────────
+  // ── Sesión 1: Apertura y Fundamento ───────────────────────────────────────────
   const s1 = coveredSessions[0];
-  const s1Phase = coveredSessions.length === 1
-    ? 'Apertura, Modelado y Práctica'
-    : 'Apertura y Modelado Conceptual';
-  elements.push(buildDocxSessionDivider(s1, s1Phase, '1B6B8A', 50));
+  const s1Meta = getSessionMetaFromSequence(
+    sequenceJson,
+    s1,
+    blockIndex,
+    totalSessionsCount === 1 ? 'Apertura y Cierre' : 'Apertura',
+    'Apertura y Modelado Conceptual'
+  );
+  elements.push(buildDocxSessionDivider(s1, s1Meta.phase, getPhaseColorHex(s1Meta.phase), 50, s1Meta.title));
 
   // ── Evaluación Diagnóstica de Saberes Previos Situados (Paridad con PDF) ────
   const diagEval = mission.diagnosticEvaluation ||
@@ -3053,8 +3225,10 @@ async function buildMissionContent(
   }
 
   // Si la misión abarca 3 o más sesiones, la Sesión 2 inicia en el Modelado Docente
-  if (coveredSessions.length >= 3) {
-    elements.push(buildDocxSessionDivider(coveredSessions[1], 'Modelado y Práctica Guiada', '1B6B3A', 50));
+  if (totalSessionsCount >= 3) {
+    const s2 = coveredSessions[1];
+    const s2Meta = getSessionMetaFromSequence(sequenceJson, s2, blockIndex, 'Desarrollo', 'Modelado y Práctica Guiada');
+    elements.push(buildDocxSessionDivider(s2, s2Meta.phase, getPhaseColorHex(s2Meta.phase), 50, s2Meta.title));
   }
 
   // 3. Yo Hago (Demostración)
@@ -3122,29 +3296,86 @@ async function buildMissionContent(
     elements.push(buildDocxCalloutBox(demoCallout));
   }
 
-  // Si la misión abarca exactamente 2 sesiones (caso estándar), la Sesión 2 inicia en la Práctica Guiada
-  if (coveredSessions.length === 2) {
-    elements.push(buildDocxSessionDivider(coveredSessions[1], 'Práctica Guiada, Reto y Cierre', '1B6B3A', 50));
-  }
+  // 4. Nosotros Hacemos (Práctica Colaborativa) y Distribución de Sesiones
+  if (totalSessionsCount <= 3) {
+    // Si la misión abarca exactamente 2 sesiones (caso estándar), la Sesión 2 inicia en la Práctica Guiada
+    if (totalSessionsCount === 2) {
+      const s2 = coveredSessions[1];
+      const s2Meta = getSessionMetaFromSequence(sequenceJson, s2, blockIndex, 'Desarrollo', 'Práctica Guiada, Reto y Cierre');
+      elements.push(buildDocxSessionDivider(s2, s2Meta.phase, getPhaseColorHex(s2Meta.phase), 50, s2Meta.title));
+    }
 
-  // 4. Nosotros Hacemos (Práctica Colaborativa)
-  elements.push(
-    buildDocxSectionHeader('👥 4. Nosotros Hacemos: Práctica Guiada y Cuaderno Activo', SECTION_HEX.hacemos, '[TRABAJO EN EQUIPO]'),
-    ...buildDocxPracticeTasks(mission.weDoSection.guidedPractice)
-  );
+    elements.push(
+      buildDocxSectionHeader('👥 4. Nosotros Hacemos: Práctica Guiada y Cuaderno Activo', SECTION_HEX.hacemos, '[TRABAJO EN EQUIPO]'),
+      ...buildDocxPracticeTasks(mission.weDoSection.guidedPractice)
+    );
 
-  if (mission.weDoSection.workbookElements) {
-    for (const el of mission.weDoSection.workbookElements) {
-      elements.push(...renderWorkbookElement(el));
+    if (mission.weDoSection.workbookElements) {
+      for (const el of mission.weDoSection.workbookElements) {
+        elements.push(...renderWorkbookElement(el));
+      }
+    }
+  } else {
+    // Misión con >= 4 sesiones: distribuir tareas y elementos entre las sesiones intermedias (coveredSessions[2..totalSessionsCount-2])
+    const midSessions = coveredSessions.slice(2, totalSessionsCount - 1);
+    const allWeDoTasks = extractTaskStrings(mission.weDoSection.guidedPractice);
+    const allWeDoElements = mission.weDoSection.workbookElements || [];
+    const taskBuckets = distributeItems(allWeDoTasks, midSessions.length);
+    const elemBuckets = distributeItems(allWeDoElements, midSessions.length);
+
+    elements.push(
+      buildDocxSectionHeader('👥 4. Nosotros Hacemos: Práctica Guiada y Cuaderno Activo', SECTION_HEX.hacemos, '[TRABAJO EN EQUIPO]')
+    );
+
+    for (let mIdx = 0; mIdx < midSessions.length; mIdx++) {
+      const sNum = midSessions[mIdx];
+      const sMeta = getSessionMetaFromSequence(
+        sequenceJson,
+        sNum,
+        blockIndex,
+        'Desarrollo',
+        `Práctica Colaborativa y Taller de Aplicación (Sesión ${sNum})`
+      );
+      elements.push(buildDocxSessionDivider(sNum, sMeta.phase, getPhaseColorHex(sMeta.phase), 50, sMeta.title));
+
+      if (sMeta.teachingActivity || sMeta.learningActivity) {
+        elements.push(
+          new Paragraph({
+            spacing: { before: 80, after: 60 },
+            children: [
+              new TextRun({ text: `Consigna de Aprendizaje: `, bold: true, size: 21, color: C.midBlue, font: 'Calibri' }),
+              new TextRun({ text: sMeta.learningActivity || sMeta.teachingActivity || '', size: 21, color: C.darkText, font: 'Calibri' }),
+            ],
+          })
+        );
+      }
+
+      const assignedTasks = taskBuckets[mIdx];
+      if (assignedTasks && assignedTasks.length > 0) {
+        for (let tIdx = 0; tIdx < assignedTasks.length; tIdx++) {
+          elements.push(...buildDocxSingleTask(assignedTasks[tIdx], tIdx + 1));
+        }
+      } else {
+        const fallbackTaskText = `${sMeta.title || 'Resolución guiada de ejercicios y consolidación técnica'}. Aplica los conceptos de la misión y registra el procedimiento colaborativo en equipo:`;
+        elements.push(...buildDocxSingleTask(fallbackTaskText, 1));
+      }
+
+      const assignedElems = elemBuckets[mIdx];
+      if (assignedElems && assignedElems.length > 0) {
+        for (const el of assignedElems) {
+          elements.push(...renderWorkbookElement(el));
+        }
+      }
     }
   }
 
-  // Si la misión abarca 3 o más sesiones, la Sesión 3 inicia en el Reto Autónomo y Cierre
-  if (coveredSessions.length >= 3) {
-    elements.push(buildDocxSessionDivider(coveredSessions[2], 'Reto Autónomo y Cierre Formativo', '6B3A1B', 50));
+  // 5. Tú Haces (Reto Autónomo)
+  if (totalSessionsCount >= 3) {
+    const lastSession = coveredSessions[totalSessionsCount - 1];
+    const lastMeta = getSessionMetaFromSequence(sequenceJson, lastSession, blockIndex, 'Cierre', 'Reto Autónomo y Cierre Formativo');
+    elements.push(buildDocxSessionDivider(lastSession, lastMeta.phase, getPhaseColorHex(lastMeta.phase), 50, lastMeta.title));
   }
 
-  // 5. Tú Haces (Reto Autónomo)
   elements.push(
     buildDocxSectionHeader('✏️ 5. Tú Haces: Reto Autónomo de Aplicación Real', SECTION_HEX.tuHaces, '[HAGO Y RESUELVO]'),
     ...buildDocxPracticeTasks(mission.youDoSection.autonomousChallenge)

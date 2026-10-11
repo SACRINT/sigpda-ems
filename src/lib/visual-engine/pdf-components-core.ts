@@ -247,6 +247,7 @@ export interface SessionDividerOptions {
   margin: number;
   drawWidth: number;
   y: number;
+  sessionTitle?: string;
 }
 
 export function drawSessionDivider(doc: jsPDF, opts: SessionDividerOptions): number {
@@ -257,6 +258,7 @@ export function drawSessionDivider(doc: jsPDF, opts: SessionDividerOptions): num
     themeColor = COLOR.PHASE_APERTURA,
     margin,
     drawWidth,
+    sessionTitle,
   } = opts;
   const y = opts.y;
   const dividerH = 9.0;
@@ -284,9 +286,11 @@ export function drawSessionDivider(doc: jsPDF, opts: SessionDividerOptions): num
   doc.setFontSize(7.5);
   doc.setTextColor(...themeColor);
   const cleanPhase = sanitizePdfText(phaseLabel).toUpperCase();
+  const titlePart = sessionTitle ? ` · ${sanitizePdfText(sessionTitle)}` : '';
   const maxPhaseW = drawWidth - badgeW - 10;
-  const phaseLines = doc.splitTextToSize(`FASE: ${cleanPhase}`, maxPhaseW);
-  doc.text(phaseLines[0] || `FASE: ${cleanPhase}`, margin + badgeW + 4.5, y + 6.0);
+  const fullLabel = `FASE: ${cleanPhase}${titlePart}`;
+  const phaseLines = doc.splitTextToSize(fullLabel, maxPhaseW);
+  doc.text(phaseLines[0] || fullLabel, margin + badgeW + 4.5, y + 6.0);
 
   return y + dividerH + SPACING.AFTER_SECTION;
 }

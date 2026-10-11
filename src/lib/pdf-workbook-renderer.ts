@@ -22,7 +22,7 @@ import type {
   ProjectSection,
   EvaluationRubricCriterion,
 } from '@/types/work-textbook';
-import type { Planning, ImageAsset } from '@/types/planning';
+import type { Planning, ImageAsset, SecuenciaBloque } from '@/types/planning';
 import { loadAllLogos } from './pdf-logos';
 import {
   resolveVisualForMission,
@@ -336,10 +336,15 @@ export async function renderWorkbookToPdf(
       .replace(/^misi[oó]n\s*\d+\s*:\s*/i, '')
       .trim();
 
+    const cov = mission.coveredSessions;
+    const sessionsRange = cov && cov.length > 0
+      ? (cov.length === 1 ? `Sesión ${cov[0]}` : `Sesiones ${cov[0]}-${cov[cov.length - 1]}`)
+      : `Sesiones ${i * 2 + 1}-${i * 2 + 2}`;
+
     realTocEntries.push({
       sectionLabel: `Misión ${i + 1}`,
       title: cleanTitle,
-      sessionsRange: `Sesión ${mission.coveredSessions?.join(', ') || `${i * 2 + 1}-${i * 2 + 2}`}`,
+      sessionsRange,
       pageNumber: missionStartPage,
     });
 
@@ -367,7 +372,8 @@ export async function renderWorkbookToPdf(
       usedOpenverseAssets,
       pageContextMap,
       workbook.blockName,
-      assignedAssetKeys
+      assignedAssetKeys,
+      planning?.sequenceJson || (planning as unknown as { sequence_json?: Record<number, SecuenciaBloque> })?.sequence_json
     );
   }
 
@@ -1803,6 +1809,126 @@ function drawPracticeTasksWithDottedLines(
   return y + 2;
 }
 
+function getSessionMetaFromSequence(
+  sequenceJson: Record<number, SecuenciaBloque> | null | undefined,
+  sessionNum: number,
+  blockIndex?: number,
+  fallbackPhase: string = 'DESARROLLO',
+  fallbackTitle: string = ''
+): { phase: string; title: string; teachingActivity?: string; learningActivity?: string } {
+  if (sequenceJson && typeof sequenceJson === 'object') {
+    const blocksToSearch: SecuenciaBloque[] = [];
+    if (blockIndex !== undefined && sequenceJson[blockIndex]) {
+      blocksToSearch.push(sequenceJson[blockIndex]);
+    }
+    for (const k of Object.keys(sequenceJson)) {
+      const b = sequenceJson[Number(k)];
+      if (b && !blocksToSearch.includes(b)) {
+        blocksToSearch.push(b);
+      }
+    }
+    for (const block of blocksToSearch) {
+      if (Array.isArray(block.sessions)) {
+        const match = block.sessions.find((s) => s.sessionNum === sessionNum);
+        if (match) {
+          return {
+            phase: match.phase || fallbackPhase,
+            title: match.title || fallbackTitle,
+            teachingActivity: match.teachingActivity,
+            learningActivity: match.learningActivity,
+          };
+        }
+      }
+    }
+  }
+  return {
+    phase: fallbackPhase,
+    title: fallbackTitle,
+  };
+}
+
+function getPhaseColorRgb(phase: string): RGB {
+  const p = (phase || '').toLowerCase();
+  if (p.includes('apertura')) return COLOR.PHASE_APERTURA;
+  if (p.includes('cierre') || p.includes('conclusi')) return COLOR.PHASE_CONCLUSION;
+  return COLOR.PHASE_EJECUCION;
+}
+
+function distributeItems<T>(items: T[], bucketCount: number): T[][] {
+  const count = Math.max(1, bucketCount);
+  const buckets: T[][] = Array.from({ length: count }, () => []);
+  if (!items || items.length === 0 || bucketCount <= 0) return buckets;
+  items.forEach((item, idx) => {
+    buckets[idx % count].push(item);
+  });
+  return buckets;
+}
+
+function extractTaskStrings(rawText: string, defaultTaskCount: number = 3): string[] {
+  if (!rawText) return [];
+  const lines = rawText
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l && !l.includes('<!--') && !l.includes('-->'));
+  const tasks: string[] = [];
+
+  for (const line of lines) {
+    const taskMatch = line.match(/^(\d+[\.\)]|[-*•])\s*(.+)$/);
+    if (taskMatch && taskMatch[2].length > 10) {
+      tasks.push(taskMatch[2]);
+    }
+  }
+
+  if (tasks.length === 0) {
+    for (const line of lines) {
+      if (line.length > 25 && !line.startsWith('#')) {
+        tasks.push(line);
+      }
+      if (tasks.length >= defaultTaskCount) break;
+    }
+  }
+
+  return tasks
+    .map((t) => sanitizePdfText(stripMarkdown(t)).trim())
+    .filter((t) => t.length > 5);
+}
+
+function drawSingleTaskWithDottedLines(
+  doc: jsPDF,
+  taskText: string,
+  taskIdx: number,
+  margin: number,
+  drawWidth: number,
+  pageHeight: number,
+  y: number,
+  checkSpace: (y: number, neededH: number) => number
+): number {
+  const cleanTaskText = sanitizePdfText(stripMarkdown(taskText)).trim();
+  const taskLines = doc.splitTextToSize(`[  ] Tarea ${taskIdx}: ${cleanTaskText}`, clampTextWidth(drawWidth, drawWidth, 4));
+  const neededH = taskLines.length * 4 + 18;
+  y = checkSpace(y, neededH);
+
+  setFontBody(doc, 'bold');
+  doc.setFontSize(7.8);
+  doc.setTextColor(...DARK_TEXT);
+  taskLines.forEach((tl: string, i: number) => {
+    doc.text(tl, margin + 2, y + i * 4);
+  });
+  y += taskLines.length * 4 + 2.5;
+
+  doc.setDrawColor(203, 213, 225);
+  doc.setLineWidth(0.3);
+  doc.setLineDashPattern([1, 1.5], 0);
+
+  y += 4.5;
+  doc.line(margin + 6, y, margin + drawWidth, y);
+  y += 4.5;
+  doc.line(margin + 6, y, margin + drawWidth, y);
+
+  doc.setLineDashPattern([], 0);
+  return y + 3.5;
+}
+
 async function drawMission(
   doc: jsPDF,
   mission: MissionSection,
@@ -1818,7 +1944,8 @@ async function drawMission(
   openverseCollector?: ImageAsset[],
   pageContextMap?: Map<number, PageContext>,
   blockName?: string,
-  assignedAssetKeys?: Set<string>
+  assignedAssetKeys?: Set<string>,
+  sequenceJson?: Record<number, SecuenciaBloque> | null
 ): Promise<number> {
   let y = startY;
 
@@ -1959,18 +2086,24 @@ async function drawMission(
   const coveredSessions = (mission.coveredSessions && mission.coveredSessions.length > 0)
     ? mission.coveredSessions
     : [missionNumber * 2 - 1, missionNumber * 2];
+  const totalSessionsCount = coveredSessions.length;
 
-  // ── Sesión 1: Apertura y Modelado ───────────────────────────────────────────
+  // ── Sesión 1: Apertura y Fundamento ───────────────────────────────────────────
   const s1 = coveredSessions[0];
-  const s1Phase = coveredSessions.length === 1
-    ? 'APERTURA, MODELADO Y PRACTICA'
-    : 'APERTURA Y MODELADO CONCEPTUAL';
+  const s1Meta = getSessionMetaFromSequence(
+    sequenceJson,
+    s1,
+    blockIndex,
+    totalSessionsCount === 1 ? 'APERTURA Y CIERRE' : 'APERTURA',
+    'APERTURA Y MODELADO CONCEPTUAL'
+  );
   y = checkSpace(y, 14);
   y = drawSessionDivider(doc, {
     sessionNumber: s1,
     durationMin: 50,
-    phaseLabel: s1Phase,
-    themeColor: COLOR.PHASE_APERTURA,
+    phaseLabel: s1Meta.phase,
+    sessionTitle: s1Meta.title,
+    themeColor: getPhaseColorRgb(s1Meta.phase),
     margin,
     drawWidth: mainW,
     y,
@@ -2346,13 +2479,16 @@ async function drawMission(
   }
 
   // Si la misión abarca 3 o más sesiones, la Sesión 2 inicia en el Modelado Docente
-  if (coveredSessions.length >= 3) {
+  if (totalSessionsCount >= 3) {
+    const s2 = coveredSessions[1];
+    const s2Meta = getSessionMetaFromSequence(sequenceJson, s2, blockIndex, 'DESARROLLO', 'MODELADO Y PRACTICA GUIADA');
     y = checkSpace(y, 14);
     y = drawSessionDivider(doc, {
-      sessionNumber: coveredSessions[1],
+      sessionNumber: s2,
       durationMin: 50,
-      phaseLabel: 'MODELADO Y PRACTICA GUIADA',
-      themeColor: COLOR.PHASE_EJECUCION,
+      phaseLabel: s2Meta.phase,
+      sessionTitle: s2Meta.title,
+      themeColor: getPhaseColorRgb(s2Meta.phase),
       margin,
       drawWidth: mainW,
       y,
@@ -2386,46 +2522,101 @@ async function drawMission(
     y = drawPdfCallout(doc, demoCallout, margin, mainW, pageHeight, y, checkSpace);
   }
 
-  // Si la misión abarca exactamente 2 sesiones (caso estándar), la Sesión 2 inicia en la Práctica Guiada
-  if (coveredSessions.length === 2) {
-    y = checkSpace(y, 14);
-    y = drawSessionDivider(doc, {
-      sessionNumber: coveredSessions[1],
-      durationMin: 50,
-      phaseLabel: 'PRACTICA GUIADA, RETO Y CIERRE',
-      themeColor: COLOR.PHASE_EJECUCION,
-      margin,
-      drawWidth: mainW,
-      y,
-    });
-  }
+  // 4. Nosotros Hacemos (Práctica Colaborativa) y Distribución de Sesiones
+  if (totalSessionsCount <= 3) {
+    // Si la misión abarca exactamente 2 sesiones (caso estándar), la Sesión 2 inicia en la Práctica Guiada
+    if (totalSessionsCount === 2) {
+      const s2 = coveredSessions[1];
+      const s2Meta = getSessionMetaFromSequence(sequenceJson, s2, blockIndex, 'DESARROLLO', 'PRACTICA GUIADA, RETO Y CIERRE');
+      y = checkSpace(y, 14);
+      y = drawSessionDivider(doc, {
+        sessionNumber: s2,
+        durationMin: 50,
+        phaseLabel: s2Meta.phase,
+        sessionTitle: s2Meta.title,
+        themeColor: getPhaseColorRgb(s2Meta.phase),
+        margin,
+        drawWidth: mainW,
+        y,
+      });
+    }
 
-  // 4. Nosotros Hacemos (Práctica Colaborativa)
-  y = drawSectionHeader(doc, '4. Nosotros Hacemos: Practica Guiada en Equipo', margin, mainW, y, pageHeight, SECTION_COLORS.hacemos, checkSpace, '[ TRABAJO EN EQUIPO ]');
-  y = drawPracticeTasksWithDottedLines(doc, mission.weDoSection.guidedPractice, margin, mainW, pageHeight, y, 3, checkSpace);
-  y += 4;
+    y = drawSectionHeader(doc, '4. Nosotros Hacemos: Practica Guiada en Equipo', margin, mainW, y, pageHeight, SECTION_COLORS.hacemos, checkSpace, '[ TRABAJO EN EQUIPO ]');
+    y = drawPracticeTasksWithDottedLines(doc, mission.weDoSection.guidedPractice, margin, mainW, pageHeight, y, 3, checkSpace);
+    y += 4;
 
-  if (mission.weDoSection.workbookElements) {
-    for (const el of mission.weDoSection.workbookElements) {
-      y = drawPdfWorkbookElement(doc, el, margin, mainW, pageHeight, y, checkSpace);
+    if (mission.weDoSection.workbookElements) {
+      for (const el of mission.weDoSection.workbookElements) {
+        y = drawPdfWorkbookElement(doc, el, margin, mainW, pageHeight, y, checkSpace);
+      }
+    }
+  } else {
+    // Misión con >= 4 sesiones: distribuir tareas y elementos entre las sesiones intermedias (coveredSessions[2..totalSessionsCount-2])
+    const midSessions = coveredSessions.slice(2, totalSessionsCount - 1);
+    const allWeDoTasks = extractTaskStrings(mission.weDoSection.guidedPractice);
+    const allWeDoElements = mission.weDoSection.workbookElements || [];
+    const taskBuckets = distributeItems(allWeDoTasks, midSessions.length);
+    const elemBuckets = distributeItems(allWeDoElements, midSessions.length);
+
+    y = drawSectionHeader(doc, '4. Nosotros Hacemos: Practica Guiada en Equipo', margin, mainW, y, pageHeight, SECTION_COLORS.hacemos, checkSpace, '[ TRABAJO EN EQUIPO ]');
+
+    for (let mIdx = 0; mIdx < midSessions.length; mIdx++) {
+      const sNum = midSessions[mIdx];
+      const sMeta = getSessionMetaFromSequence(sequenceJson, sNum, blockIndex, 'DESARROLLO', `PRACTICA COLABORATIVA (SESION ${sNum})`);
+      y = checkSpace(y, 14);
+      y = drawSessionDivider(doc, {
+        sessionNumber: sNum,
+        durationMin: 50,
+        phaseLabel: sMeta.phase,
+        sessionTitle: sMeta.title,
+        themeColor: getPhaseColorRgb(sMeta.phase),
+        margin,
+        drawWidth: mainW,
+        y,
+      });
+
+      if (sMeta.teachingActivity || sMeta.learningActivity) {
+        const consignaText = `Consigna: ${sMeta.learningActivity || sMeta.teachingActivity}`;
+        y = flow.printMainParagraph(consignaText, y, { size: 7.2, fontStyle: 'bold', color: MID_BLUE, lineHeight: 3.8 });
+        y += 2;
+      }
+
+      const assignedTasks = taskBuckets[mIdx];
+      if (assignedTasks && assignedTasks.length > 0) {
+        for (let tIdx = 0; tIdx < assignedTasks.length; tIdx++) {
+          y = drawSingleTaskWithDottedLines(doc, assignedTasks[tIdx], tIdx + 1, margin, mainW, pageHeight, y, checkSpace);
+        }
+      } else {
+        const fallbackTaskText = `${sMeta.title || 'Resolucion guiada de ejercicios y consolidacion tecnica'}. Registra el procedimiento en equipo:`;
+        y = drawSingleTaskWithDottedLines(doc, fallbackTaskText, 1, margin, mainW, pageHeight, y, checkSpace);
+      }
+
+      const assignedElems = elemBuckets[mIdx];
+      if (assignedElems && assignedElems.length > 0) {
+        for (const el of assignedElems) {
+          y = drawPdfWorkbookElement(doc, el, margin, mainW, pageHeight, y, checkSpace);
+        }
+      }
     }
   }
 
-  // Si la misión abarca 3 o más sesiones, la Sesión 3 inicia en el Reto Autónomo y Cierre
-  if (coveredSessions.length >= 3) {
+  // 5. Tú Haces (Reto Autónomo)
+  if (totalSessionsCount >= 3) {
+    const lastSession = coveredSessions[totalSessionsCount - 1];
+    const lastMeta = getSessionMetaFromSequence(sequenceJson, lastSession, blockIndex, 'CIERRE', 'RETO AUTONOMO Y CIERRE FORMATIVO');
     y = checkSpace(y, 14);
     y = drawSessionDivider(doc, {
-      sessionNumber: coveredSessions[2],
+      sessionNumber: lastSession,
       durationMin: 50,
-      phaseLabel: 'RETO AUTONOMO Y CIERRE FORMATIVO',
-      themeColor: COLOR.PHASE_CONCLUSION,
+      phaseLabel: lastMeta.phase,
+      sessionTitle: lastMeta.title,
+      themeColor: getPhaseColorRgb(lastMeta.phase),
       margin,
       drawWidth: mainW,
       y,
     });
   }
 
-  // 5. Tú Haces (Reto Autónomo)
   y = drawSectionHeader(doc, '5. Tu Haces: Reto Autonomo con Evidencia Cotidiana', margin, mainW, y, pageHeight, SECTION_COLORS.tuHaces, checkSpace, '[ HAGO Y RESUELVO ]');
   y = drawPracticeTasksWithDottedLines(doc, mission.youDoSection.autonomousChallenge, margin, mainW, pageHeight, y, 3, checkSpace);
   y += 4;
