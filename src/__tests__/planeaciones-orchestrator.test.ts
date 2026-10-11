@@ -280,6 +280,16 @@ describe('PlaneacionOrchestrator (Piloto Nivel 1 & Strangler Fig)', () => {
     expect(Buffer.isBuffer(bufferFromId)).toBe(true);
     expect(bufferFromId.subarray(0, 4).toString()).toBe('%PDF');
     expect(bufferFromId.byteLength).toBeGreaterThan(3000);
+    // Aserción Anti-F11 / F-48: valida que el mapeo BD -> Planning preserve fidelidad en campos clave
+    expect(pdfSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        id: 'plan-db-1',
+        teacherId: 'teacher-1',
+        uacName: 'Sistemas Embebidos e IoT',
+        semester: 4,
+      }),
+      undefined
+    );
 
     // 3. Negativo / Robustez: ID inexistente en BD lanza 404
     mockDb.mockResolvedValueOnce([]);
