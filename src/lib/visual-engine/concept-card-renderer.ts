@@ -122,16 +122,14 @@ function measureSingleCard(
   doc.setFontSize(6.8);
   const cleanDesc = sanitizePdfText(card.description || '');
   const descLines = doc.splitTextToSize(cleanDesc, innerW);
-  // Limitar descripción a máximo 10 líneas para evitar tarjetas desproporcionadas
-  const clampedDescLines = descLines.slice(0, 10);
-  const descH = clampedDescLines.length * 3.1;
+  const descH = descLines.length * 3.1;
 
   let exampleH = 0;
   let exampleLines: string[] = [];
   if (card.example && card.example.trim().length > 0) {
     doc.setFontSize(6.2);
     const cleanExample = sanitizePdfText(card.example.trim());
-    exampleLines = doc.splitTextToSize(cleanExample, innerW - 4).slice(0, 4);
+    exampleLines = doc.splitTextToSize(cleanExample, innerW - 4);
     exampleH = 5.0 + exampleLines.length * 2.8;
   }
 
@@ -143,7 +141,7 @@ function measureSingleCard(
     pngBuffer,
     badgeText: sanitizePdfText(card.badge || 'IDEA'),
     titleLines,
-    descLines: clampedDescLines,
+    descLines,
     exampleLines,
     cardH: Math.max(totalH, 32),
   };

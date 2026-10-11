@@ -269,4 +269,57 @@ describe('Widget Concept-Cards Grid — Renderizado, Extractor y Prueba de Mutac
     expect(docxBuffer.byteLength).toBeGreaterThan(1000);
     expect(docxExtractorSpy).toHaveBeenCalled();
   });
+
+  it('F-71: renderiza descripción completa de 15 líneas y ejemplo de 6+ líneas sin truncar', () => {
+    const doc = new jsPDF({ unit: 'mm', format: 'letter' });
+    const textSpy = vi.spyOn(doc, 'text');
+
+    // Construir una descripción de 15 líneas
+    const fifteenLineDesc = Array.from(
+      { length: 15 },
+      (_, i) => `Línea explicativa ${i + 1} del principio fundamental de conservación y balance.`
+    ).join(' ');
+
+    const sixLineExample = Array.from(
+      { length: 6 },
+      (_, i) => `Paso experimental ${i + 1} para calibrar la balanza analítica en el laboratorio.`
+    ).join(' ');
+
+    const cards: ConceptCardItem[] = [
+      {
+        title: 'Principio Extendido de Conservación',
+        badge: 'CONCEPTO',
+        description: fifteenLineDesc,
+        example: sixLineExample,
+      },
+      {
+        title: 'Segundo Concepto de Acompañamiento',
+        badge: 'APLICACIÓN',
+        description: 'Descripción complementaria para cumplir con el mínimo de 2 tarjetas.',
+      },
+    ];
+
+    const nextY = drawConceptCardsGrid(doc, cards, {
+      margin: 15,
+      drawWidth: 180,
+      y: 20,
+      pageHeight: 279,
+      ensureVerticalSpace: vi.fn((_d, curY) => curY),
+    });
+
+    expect(nextY).toBeGreaterThan(20);
+
+    // Verificar que todas las llamadas a doc.text incluyan las líneas de la descripción larga
+    const allRenderedText = textSpy.mock.calls.map(c => {
+      const arg = c[0];
+      return Array.isArray(arg) ? arg.join('\n') : String(arg);
+    }).join('\n');
+
+    expect(allRenderedText).toContain('Línea explicativa 1');
+    expect(allRenderedText).toContain('Línea explicativa 10');
+    expect(allRenderedText).toContain('Línea explicativa 15');
+    expect(allRenderedText).toContain('Paso experimental 1');
+    expect(allRenderedText).toContain('experimental 6');
+  });
 });
+
