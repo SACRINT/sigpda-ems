@@ -117,7 +117,7 @@ La meta principal es dotar al **Orquestador de Planeaciones (`PlaneacionOrchestr
 Para mantener la estabilidad absoluta en producción y cumplir las reglas de SIGPDA-EMS, cada fase se ejecutará de forma atómica:
 
 ### Fase 0 — Chore Inicial (Remediación F-13 y F-14)
-- **Alcance**: `src/lib/pdf-workbook-renderer.ts` (línea 2162–2198).
+- **Alcance**: `src/lib/pdf-workbook-renderer.ts` (línea 2162–2230).
 - **Acción**: Añadir fallback sintético determinista Capa 0 con `dispatchVisual` en la rama STEM.
 - **Gates**: `tsc --noEmit`, `eslint`, `npm test`, `npm run build`, byte 10.
 - **Commit**: `fix(visual-engine): add deterministic stem fallback in workbook renderer (F-13, F-14)`.

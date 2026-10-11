@@ -172,16 +172,117 @@ describe('PlaneacionOrchestrator (Piloto Nivel 1 & Strangler Fig)', () => {
     expect(json.error).toContain('demasiado corto o inválido');
   });
 
-  it('4. Métodos no implementados en orquestador Planeaciones lanzan PlaneacionOrchestratorError con HTTP 501', async () => {
-    await expect(planeacionesOrchestrator.generate()).rejects.toThrow(PlaneacionOrchestratorError);
-    await expect(planeacionesOrchestrator.buildSequence()).rejects.toThrow(PlaneacionOrchestratorError);
+  it('4. Métodos no implementados (renderPDF) lanzan PlaneacionOrchestratorError con HTTP 501 (B-001)', async () => {
     await expect(planeacionesOrchestrator.renderPDF()).rejects.toThrow(PlaneacionOrchestratorError);
 
     try {
-      await planeacionesOrchestrator.generate();
+      await planeacionesOrchestrator.renderPDF();
     } catch (err) {
       expect(err).toBeInstanceOf(PlaneacionOrchestratorError);
       expect((err as PlaneacionOrchestratorError).status).toBe(501);
+    }
+  });
+
+  it('7. Fase 1: buildSequence() construye secuencia didáctica tripartita validada con SecuenciaGenerateInputSchema', async () => {
+    const res = await planeacionesOrchestrator.buildSequence({
+      blockIndex: 0,
+      totalHours: 12,
+    });
+
+    expect(res.success).toBe(true);
+    expect(res.blockIndex).toBe(0);
+    expect(res.totalHours).toBe(12);
+
+    const sessions = res.sessions as Array<{ phase: string; sessionNumber: number; title: string }>;
+    expect(sessions).toHaveLength(12);
+
+    // Distribución tripartita oficial MCCEMS (12 horas -> 2 apertura, 8 desarrollo, 2 cierre)
+    const distribution = res.distribution as { apertura: number; desarrollo: number; cierre: number };
+    expect(distribution.apertura).toBe(2);
+    expect(distribution.desarrollo).toBe(8);
+    expect(distribution.cierre).toBe(2);
+
+    expect(sessions[0].phase).toBe('Apertura');
+    expect(sessions[1].phase).toBe('Apertura');
+    expect(sessions[2].phase).toBe('Desarrollo');
+    expect(sessions[10].phase).toBe('Cierre');
+    expect(sessions[11].phase).toBe('Cierre');
+  });
+
+  it('8. Fase 1: buildSequence() rechaza parámetros inválidos (blockIndex < 0) con HTTP 400 vía SecuenciaGenerateInputSchema', async () => {
+    await expect(
+      planeacionesOrchestrator.buildSequence({ blockIndex: -1 })
+    ).rejects.toThrow(PlaneacionOrchestratorError);
+
+    try {
+      await planeacionesOrchestrator.buildSequence({ blockIndex: -1 });
+    } catch (err) {
+      expect(err).toBeInstanceOf(PlaneacionOrchestratorError);
+      expect((err as PlaneacionOrchestratorError).status).toBe(400);
+      expect((err as PlaneacionOrchestratorError).message).toContain('blockIndex debe ser un número entero mayor o igual a 0');
+    }
+  });
+
+  it('9. Fase 1: buildSequence() valida actualización estructurada con SecuenciaUpdateInputSchema', async () => {
+    const customSession = {
+      sessionNum: 1,
+      phase: 'Apertura' as const,
+      title: 'Sesión 1: Problematización Comunitaria',
+      teachingActivity: 'Presentación del problema y detonación reflexiva',
+      learningActivity: 'Diagnóstico contextual y planteamiento del reto',
+      evidence: 'Registro diagnóstico',
+      evaluation: 'Lista de cotejo',
+    };
+
+    const res = await planeacionesOrchestrator.buildSequence({
+      blockIndex: 1,
+      sessions: [customSession],
+      retoSituado: '¿Cómo diseñar un sistema de captación pluvial en la comunidad?',
+    });
+
+    expect(res.success).toBe(true);
+    expect(res.blockIndex).toBe(1);
+    expect(res.retoSituado).toContain('captación pluvial');
+    expect((res.sessions as unknown[])).toHaveLength(1);
+  });
+
+  it('10. Fase 1: generate() estructura planeación integral con Tres Saberes y NEM', async () => {
+    const res = await planeacionesOrchestrator.generate({
+      asignatura: 'Pensamiento Matemático I',
+      semestre: 1,
+      docenteNombre: 'Prof. Mario Alberto',
+      contextoComunitario: 'Comunidad de Tepeaca Puebla',
+      horasSemanales: 4,
+    });
+
+    expect(res.success).toBe(true);
+    expect(res.uacName).toBe('Pensamiento Matemático I');
+    expect(res.semester).toBe(1);
+    expect(res.weeklyHours).toBe(4);
+    expect(res.teacherName).toBe('Prof. Mario Alberto');
+    expect(res.status).toBe('DRAFT_ESTRUCTURADO');
+
+    const tresSaberes = res.tresSaberes as { conceptual: string; procedimental: string; actitudinal: string };
+    expect(tresSaberes.conceptual).toContain('Pensamiento Matemático I');
+    expect(tresSaberes.procedimental).toContain('semestre 1');
+    expect(tresSaberes.actitudinal).toContain('responsabilidad social');
+  });
+
+  it('11. Fase 1: generate() rechaza entradas incompletas o sin asignatura con HTTP 400', async () => {
+    await expect(
+      planeacionesOrchestrator.generate({ asignatura: '', semestre: 1 })
+    ).rejects.toThrow(PlaneacionOrchestratorError);
+
+    await expect(
+      planeacionesOrchestrator.generate({ asignatura: 'Física I', semestre: 7 })
+    ).rejects.toThrow(PlaneacionOrchestratorError);
+
+    try {
+      await planeacionesOrchestrator.generate({ asignatura: '', semestre: 1 });
+    } catch (err) {
+      expect(err).toBeInstanceOf(PlaneacionOrchestratorError);
+      expect((err as PlaneacionOrchestratorError).status).toBe(400);
+      expect((err as PlaneacionOrchestratorError).message).toContain('asignatura (UAC) es obligatoria');
     }
   });
 
