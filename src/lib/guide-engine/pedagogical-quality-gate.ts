@@ -31,6 +31,7 @@ export interface PedagogicalAuditResult {
   bapRecommendations: string[];
   pedagogicalHealthGrade: 'A+' | 'A' | 'B' | 'C' | 'D';
   summary: string;
+  terminologyLint?: TerminologyLintResult;
 }
 
 // Diccionario de verbos operativos por nivel taxonómico de Bloom (español educativo)
@@ -180,11 +181,48 @@ export function auditBapInclusivity(textbook: ActiveWorkTextbook): {
 }
 
 /**
+ * Regex oficial para detección de terminología arcaica / prohibida en PM3 y ciencias.
+ * Prohíbe balanza romana y báscula de dos platillos.
+ */
+export const FORBIDDEN_PM3_TERMINOLOGY_REGEX = /balanza\s+romana|b[áa]scula\s+de\s+dos\s+platillo/i;
+
+export interface TerminologyLintResult {
+  hasForbiddenTerminology: boolean;
+  forbiddenMatches: string[];
+  recommendation: string;
+}
+
+/**
+ * Realiza el linting de terminología pedagógica sobre el texto o la estructura del libro
+ */
+export function lintPedagogicalTerminology(content: string | ActiveWorkTextbook): TerminologyLintResult {
+  const textToScan = typeof content === 'string' ? content : JSON.stringify(content);
+  const regex = new RegExp(FORBIDDEN_PM3_TERMINOLOGY_REGEX.source, 'gi');
+  const matches = textToScan.match(regex) || [];
+  const uniqueMatches = Array.from(new Set(matches.map((m) => m.toLowerCase())));
+
+  return {
+    hasForbiddenTerminology: uniqueMatches.length > 0,
+    forbiddenMatches: uniqueMatches,
+    recommendation: uniqueMatches.length > 0
+      ? 'Sustituir instrumental o terminología arcaica (balanza romana, báscula de dos platillos) por báscula digital de precisión, balanza analítica de laboratorio o balanza algebraica contemporánea.'
+      : 'Terminología pedagógica conforme a estándares MCCEMS 2026-2027.',
+  };
+}
+
+/**
  * Ejecuta la auditoría pedagógica integral del libro de trabajo
  */
 export function runPedagogicalAudit(textbook: ActiveWorkTextbook): PedagogicalAuditResult {
   const bloom = auditBloomTaxonomy(textbook);
   const bap = auditBapInclusivity(textbook);
+  const terminologyLint = lintPedagogicalTerminology(textbook);
+
+  if (terminologyLint.hasForbiddenTerminology) {
+    bap.recommendations.push(
+      `Terminología obsoleta detectada (${terminologyLint.forbiddenMatches.join(', ')}). ${terminologyLint.recommendation}`
+    );
+  }
 
   // Calcular calificación integral de salud pedagógica
   // 50% Bloom HOTS balance + 50% BAP Inclusivity
@@ -206,5 +244,6 @@ export function runPedagogicalAudit(textbook: ActiveWorkTextbook): PedagogicalAu
     bapRecommendations: bap.recommendations,
     pedagogicalHealthGrade,
     summary,
+    terminologyLint,
   };
 }

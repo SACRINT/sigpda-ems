@@ -17,6 +17,7 @@ import type { MissionSection, WorkbookElement } from '@/types/work-textbook';
 import { type WriterInput, type WriterOutput, evaluateQuality } from './writer-contract';
 import { buildPlanningAlignmentPrompt } from './planning-alignment-prompt';
 import { logger } from '@/lib/logger';
+import { lintPedagogicalTerminology, FORBIDDEN_PM3_TERMINOLOGY_REGEX } from '../pedagogical-quality-gate';
 
 export async function generateFoundationMission(input: WriterInput): Promise<WriterOutput> {
   const foundationMission = input.missions.find((m) => m.missionType === 'foundation') || input.missions[0];
@@ -112,6 +113,42 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
         }
       } catch (retryErr) {
         logger.warn('[FoundationWriter] Error en reintento, preservando primera respuesta:', { error: String(retryErr) });
+      }
+    }
+
+    // Validación de terminología PM3 y reintento correctivo (F-63)
+    const terminologyLint = lintPedagogicalTerminology(JSON.stringify(parsed));
+    if (terminologyLint.hasForbiddenTerminology) {
+      attempt = 2;
+      logger.warn(`[FoundationWriter] Detectada terminología obsoleta (${terminologyLint.forbiddenMatches.join(', ')}). Ejecutando correctiveRetry...`);
+      try {
+        const correctivePrompt = `${prompt}\n\n[REQUISITO CRÍTICO DE TERMINOLOGÍA - CORRECTIVE RETRY]: Tu respuesta previa contenía términos obsoletos prohibidos (${terminologyLint.forbiddenMatches.join(', ')}). Es ESTRICTAMENTE OBLIGATORIO eliminar cualquier mención a 'balanza romana' o 'báscula de dos platillos' y sustituirlas por balanza de precisión analítica, báscula digital de laboratorio o balanza algebraica contemporánea.`;
+        const correctiveResponse = await generateWithRotation(
+          systemInstruction,
+          correctivePrompt,
+          input.planning.teacherId,
+          false,
+          { jsonMode: true, maxTokens: 8192 }
+        );
+        const retryParsed = robustJsonParse(correctiveResponse);
+        const retryLint = lintPedagogicalTerminology(JSON.stringify(retryParsed));
+        if (!retryLint.hasForbiddenTerminology) {
+          parsed = retryParsed;
+        } else {
+          // Si el modelo reincide, sanitizar deterministamente las ocurrencias
+          const sanitized = JSON.stringify(retryParsed).replace(
+            new RegExp(FORBIDDEN_PM3_TERMINOLOGY_REGEX.source, 'gi'),
+            'balanza de precisión analítica'
+          );
+          parsed = robustJsonParse(sanitized);
+        }
+      } catch (retryErr) {
+        logger.warn('[FoundationWriter] Error en correctiveRetry de terminología, aplicando sanitización determinista:', { error: String(retryErr) });
+        const sanitized = JSON.stringify(parsed).replace(
+          new RegExp(FORBIDDEN_PM3_TERMINOLOGY_REGEX.source, 'gi'),
+          'balanza de precisión analítica'
+        );
+        parsed = robustJsonParse(sanitized);
       }
     }
 
