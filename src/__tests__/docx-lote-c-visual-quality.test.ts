@@ -101,4 +101,27 @@ describe('Lote C — Calidad visual DOCX', () => {
     expect(xml).toMatch(/<w:left [^>]*w:sz="48"[^>]*w:color="B45309"|<w:left [^>]*w:color="B45309"[^>]*w:sz="48"/);
     expect(xml).toMatch(/<w:left [^>]*w:sz="48"[^>]*w:color="0369A1"|<w:left [^>]*w:color="0369A1"[^>]*w:sz="48"/);
   });
+
+  it('H-5: las tarjetas de conceptos tienen badge de color, icono emoji, fondo suave y borde accent', async () => {
+    const xml = await renderMockDocx({
+      formativeCheckpoint: {
+        question: '¿Qué aprendiste hoy?',
+        reflectionPrompts: ['Explica tus pasos.'],
+        criteriaChecklist: ['Aplica el modelo lineal a una situación comunitaria real.'],
+      },
+    });
+    // Badges de color (fondo + texto)
+    expect(xml).toContain('w:fill="FED7AA"'); // ANALOGÍA
+    expect(xml).toContain('w:color w:val="9A3412"');
+    expect(xml).toContain('w:fill="BFDBFE"'); // CONCEPTO
+    expect(xml).toContain('w:color w:val="1E40AF"');
+    expect(xml).toContain('w:fill="BBF7D0"'); // APLICACIÓN
+    expect(xml).toContain('w:color w:val="166534"');
+    // Iconos emoji en el badge
+    expect(xml).toContain('🔍');
+    expect(xml).toContain('📐');
+    expect(xml).toContain('✅');
+    // Fondo suave de la tarjeta
+    expect(xml).toContain('w:fill="F8FAFC"');
+  });
 });

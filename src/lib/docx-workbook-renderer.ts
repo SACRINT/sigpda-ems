@@ -2681,6 +2681,23 @@ function buildDocxStepCardGrid(cards: LabStepCard[], targetWidth: number = CONTE
   });
 }
 
+interface ConceptBadgeStyle {
+  bg: string;
+  text: string;
+  accent: string;
+  icon: string;
+}
+
+const CONCEPT_CARD_SOFT_BG = 'F8FAFC';
+
+/** Paleta de badges DOCX de las tarjetas de concepto (paridad con las cápsulas de color del PDF). */
+const CONCEPT_BADGE_STYLES: Record<'analogy' | 'concept' | 'apply' | 'default', ConceptBadgeStyle> = {
+  analogy: { bg: 'FED7AA', text: '9A3412', accent: 'F97316', icon: '🔍' },
+  concept: { bg: 'BFDBFE', text: '1E40AF', accent: '3B82F6', icon: '📐' },
+  apply: { bg: 'BBF7D0', text: '166534', accent: '22C55E', icon: '✅' },
+  default: { bg: 'E0E7FF', text: '3730A3', accent: '6366F1', icon: '📌' },
+};
+
 function buildDocxConceptCardsGrid(cards: ConceptCardItem[], targetWidth: number = CONTENT_W): Table {
   const numCols = cards.length === 3 ? 3 : 2;
   const colW = Math.floor(targetWidth / numCols);
@@ -2691,22 +2708,23 @@ function buildDocxConceptCardsGrid(cards: ConceptCardItem[], targetWidth: number
     const cells: TableCell[] = rowCards.map((card) => {
       const cellChildren: Paragraph[] = [];
 
-      // 1. Badge superior tipo cápsula
+      // 1. Badge superior de color (fondo suave + texto oscuro + icono), paridad con las cápsulas del PDF
       const badgeUpper = (card.badge || 'CONCEPTO').toUpperCase();
-      let badgeColor: string = CONCEPT_CARDS_DOCX.badgeDefault;
-      if (badgeUpper.includes('ANALOG')) badgeColor = CONCEPT_CARDS_DOCX.badgeAnalogy;
-      else if (badgeUpper.includes('CONCEP')) badgeColor = CONCEPT_CARDS_DOCX.badgeConcept;
-      else if (badgeUpper.includes('APLIC') || badgeUpper.includes('CRITER')) badgeColor = CONCEPT_CARDS_DOCX.badgeApply;
+      let badgeStyle: ConceptBadgeStyle = CONCEPT_BADGE_STYLES.default;
+      if (badgeUpper.includes('ANALOG')) badgeStyle = CONCEPT_BADGE_STYLES.analogy;
+      else if (badgeUpper.includes('CONCEP')) badgeStyle = CONCEPT_BADGE_STYLES.concept;
+      else if (badgeUpper.includes('APLIC') || badgeUpper.includes('CRITER')) badgeStyle = CONCEPT_BADGE_STYLES.apply;
 
       cellChildren.push(
         new Paragraph({
-          spacing: { before: 40, after: 30 },
+          spacing: { before: 40, after: 80 },
+          shading: { type: ShadingType.CLEAR, fill: badgeStyle.bg, color: 'auto' },
           children: [
             new TextRun({
-              text: `[${card.badge || 'CONCEPTO'}] `,
+              text: ` ${badgeStyle.icon} ${card.badge || 'CONCEPTO'} `,
               bold: true,
-              size: 16,
-              color: badgeColor,
+              size: 17,
+              color: badgeStyle.text,
               font: 'Calibri',
             }),
           ],
@@ -2788,8 +2806,13 @@ function buildDocxConceptCardsGrid(cards: ConceptCardItem[], targetWidth: number
 
       return new TableCell({
         width: { size: colW, type: WidthType.DXA },
-        shading: { fill: CONCEPT_CARDS_DOCX.bg, type: ShadingType.CLEAR },
-        borders: thinBorder(CONCEPT_CARDS_DOCX.border),
+        shading: { fill: CONCEPT_CARD_SOFT_BG, type: ShadingType.CLEAR, color: 'auto' },
+        borders: {
+          top: { style: BorderStyle.SINGLE, size: 8, color: badgeStyle.accent },
+          bottom: { style: BorderStyle.SINGLE, size: 8, color: badgeStyle.accent },
+          left: { style: BorderStyle.SINGLE, size: 8, color: badgeStyle.accent },
+          right: { style: BorderStyle.SINGLE, size: 8, color: badgeStyle.accent },
+        },
         margins: { top: 100, bottom: 100, left: 120, right: 120 },
         children: cellChildren,
       });
