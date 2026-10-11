@@ -78,4 +78,16 @@ describe('Lote C — Calidad visual DOCX', () => {
     // Aire de 10pt antes de encabezados/tareas (w:before=200)
     expect(xml).toContain('w:before="200"');
   });
+
+  it('H-3: los encabezados de sección usan fondo temático sólido, texto blanco y badge contrastante', async () => {
+    const xml = await renderMockDocx();
+    // Fondos temáticos de los ribbons (SECTION_HEX: concepto, yoHago, tuHaces, checkpoint)
+    expect(xml).toContain('w:fill="1F3864"');
+    expect(xml).toContain('w:fill="2563EB"');
+    // Texto blanco sobre el ribbon y badge con fondo blanco
+    expect(xml).toContain('w:color w:val="FFFFFF"');
+    expect(xml).toContain('w:fill="FFFFFF"');
+    // Título en mayúsculas dentro del ribbon
+    expect(xml).toContain('2. CONCEPTO CERO');
+  });
 });

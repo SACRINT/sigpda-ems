@@ -1977,7 +1977,22 @@ function sectionGap(): Paragraph {
 }
 
 /**
- * 3. Cintas de Encabezado de Sección DOCX: celda sombreada con borde temático y badge
+ * Oscurece un color hex (RRGGBB) multiplicando sus canales; usado para el filete inferior del ribbon.
+ */
+function darkenHex(hex: string, factor = 0.72): string {
+  const clean = hex.replace('#', '');
+  if (!/^[0-9a-fA-F]{6}$/.test(clean)) return clean;
+  const ch = [0, 2, 4].map((i) =>
+    Math.max(0, Math.min(255, Math.round(parseInt(clean.slice(i, i + 2), 16) * factor)))
+      .toString(16)
+      .padStart(2, '0')
+  );
+  return ch.join('').toUpperCase();
+}
+
+/**
+ * 3. Cintas de Encabezado de Sección DOCX (paridad con los ribbons del PDF):
+ *    fondo sólido de color temático, texto blanco y badge con fondo contrastante.
  */
 function buildDocxSectionHeader(
   title: string,
@@ -1985,23 +2000,26 @@ function buildDocxSectionHeader(
   badge?: string,
   targetWidth: number = CONTENT_W
 ): Table {
+  const fill = colorHex.replace('#', '');
   const runs: TextRun[] = [
     new TextRun({
       text: title.toUpperCase(),
       bold: true,
       size: 22,
-      color: colorHex,
+      color: 'FFFFFF',
       font: 'Arial',
     }),
   ];
   if (badge) {
     runs.push(
+      new TextRun({ text: '   ', size: 18, font: 'Calibri' }),
       new TextRun({
-        text: `   ${badge}`,
+        text: ` ${badge} `,
         bold: true,
-        size: 18,
-        color: colorHex,
+        size: 17,
+        color: fill,
         font: 'Calibri',
+        shading: { type: ShadingType.CLEAR, fill: 'FFFFFF', color: 'auto' },
       })
     );
   }
@@ -2013,14 +2031,14 @@ function buildDocxSectionHeader(
         children: [
           new TableCell({
             width: { size: targetWidth, type: WidthType.DXA },
-            shading: { fill: 'F1F5F9', type: ShadingType.CLEAR },
+            shading: { fill, type: ShadingType.CLEAR },
             borders: {
               top: { style: BorderStyle.NONE },
-              bottom: { style: BorderStyle.SINGLE, size: 6, color: colorHex },
-              left: { style: BorderStyle.SINGLE, size: 24, color: colorHex },
+              bottom: { style: BorderStyle.SINGLE, size: 24, color: darkenHex(fill) },
+              left: { style: BorderStyle.SINGLE, size: 36, color: darkenHex(fill) },
               right: { style: BorderStyle.NONE },
             },
-            margins: { top: 100, bottom: 100, left: 180, right: 180 },
+            margins: { top: 110, bottom: 110, left: 200, right: 180 },
             children: [
               new Paragraph({
                 spacing: { before: 40, after: 40 },
