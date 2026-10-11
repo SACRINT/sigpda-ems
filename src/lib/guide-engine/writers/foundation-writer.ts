@@ -41,6 +41,7 @@ REGLAS DE PROFUNDIDAD Y CUADERNO ACTIVO:
 5. Tú Haces (800-1,200 palabras): Desafío individual de aplicación real con espacios de trabajo.
 6. Cuaderno activo: Incluye 2-4 etiquetas <!--workbook:...--> (lines:rows=8, table:cols=..., code:lines=15, drawing:height=160).
 7. Sintaxis JSON: Usa comillas simples ('...') en código/citas. Cero comillas dobles sin escapar dentro de valores JSON.
+8. GUARDRAIL DE TERMINOLOGÍA (CERO ARCAÍSMOS): Queda estrictamente PROHIBIDO emplear conceptos o instrumentos arcaicos/obsoletos tales como 'balanza romana' o 'báscula de dos platillos'. Emplear en su lugar balances analíticos contemporáneos, básculas de precisión digital, balanzas algebraicas de equilibrio o herramientas modernas de medición y modelado.
 
 Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
 {
@@ -72,6 +73,10 @@ DISTRIBUCIÓN OBLIGATORIA DE PALABRAS:
 - iDoDemo: 1,500 a 2,000 palabras
 - weDoPractice: 1,000 a 1,500 palabras
 - youDoChallenge: 800 a 1,200 palabras
+
+GUARDRAIL TERMINOLÓGICO OBLIGATORIO:
+- Queda estrictamente PROHIBIDO usar 'balanza romana' o 'báscula de dos platillos'.
+- Usa exclusivamente instrumental y terminología contemporánea (báscula digital, balanza analítica, balanza algebraica).
 
 Redacta la Misión de Fundamentación e Intuición completa con máxima profundidad:`;
 
