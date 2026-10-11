@@ -133,6 +133,9 @@ const CONTENT_W = PAGE_W - MARGIN * 2;
 const LAYOUT_LEFT_W = 7100;   // ~69.3% del ancho útil (Columna principal de contenido didáctico)
 const LAYOUT_RIGHT_W = 3140;  // ~30.7% del ancho útil (Columna lateral / Sidebar de widgets)
 const SIDEBAR_CARD_W = 2860;  // Ancho interno de las tarjetas de widgets en el sidebar
+// Espaciado editorial unificado de cuerpo (H-2): 8pt tras párrafo + interlineado 1.5; 10pt antes de bloques nuevos
+const PARA_SPACING = { after: 160, line: 360 } as const;
+const SECTION_GAP_BEFORE = 200;
 const DOT_LINE = '· · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·';
 
 function thinBorder(color = C.border) {
@@ -1967,6 +1970,13 @@ function buildDocxEquipmentCard(equipmentVisual: ResolvedEquipmentVisual): (Para
 }
 
 /**
+ * Separador vertical previo a encabezados de sección (H-2): 10pt de aire antes de cada bloque nuevo.
+ */
+function sectionGap(): Paragraph {
+  return new Paragraph({ spacing: { before: SECTION_GAP_BEFORE, after: 0 }, children: [] });
+}
+
+/**
  * 3. Cintas de Encabezado de Sección DOCX: celda sombreada con borde temático y badge
  */
 function buildDocxSectionHeader(
@@ -2107,7 +2117,7 @@ function buildDocxSingleTask(
 ): (Paragraph | Table)[] {
   return [
     new Paragraph({
-      spacing: { before: 120, after: 60 },
+      spacing: { before: SECTION_GAP_BEFORE, after: 120 },
       children: [
         new TextRun({ text: `[  ] Tarea ${taskIdx}: `, bold: true, size: 21, color: C.darkText, font: 'Calibri' }),
         new TextRun({ text: taskText, size: 21, color: C.darkText, font: 'Calibri' }),
@@ -2490,7 +2500,7 @@ function buildDocxPracticeTasks(rawText: string, defaultTaskCount: number = 3): 
     const taskText = selectedTasks[idx];
     elements.push(
       new Paragraph({
-        spacing: { before: 120, after: 60 },
+        spacing: { before: SECTION_GAP_BEFORE, after: 120 },
         children: [
           new TextRun({ text: `[  ] Tarea ${idx + 1}: `, bold: true, size: 21, color: C.darkText, font: 'Calibri' }),
           new TextRun({ text: taskText, size: 21, color: C.darkText, font: 'Calibri' }),
@@ -2501,7 +2511,7 @@ function buildDocxPracticeTasks(rawText: string, defaultTaskCount: number = 3): 
         children: [new TextRun({ text: DOT_LINE, size: 18, color: '94A3B8', font: 'Consolas' })],
       }),
       new Paragraph({
-        spacing: { after: 100 },
+        spacing: { after: 160 },
         children: [new TextRun({ text: DOT_LINE, size: 18, color: '94A3B8', font: 'Consolas' })],
       })
     );
@@ -3023,9 +3033,10 @@ async function buildMissionContent(
 
   // 1. Enganche Situado
   aperturaMain.push(
+    sectionGap(),
     buildDocxSectionHeader('📖 1. Enganche y Desafío Situado en la Comunidad', SECTION_HEX.enganche, '[SITUACIÓN REAL]', LAYOUT_LEFT_W),
     new Paragraph({
-      spacing: { before: 100, after: 150, line: 360 }, // 1.5 line spacing
+      spacing: { before: 100, ...PARA_SPACING }, // 1.5 line spacing + 8pt
       children: [
         new TextRun({
           text: stripMarkdown(mission.phenomenonHook.story),
@@ -3055,6 +3066,7 @@ async function buildMissionContent(
         }),
       ],
     }),
+    sectionGap(),
     buildDocxSectionHeader('💡 2. Concepto Cero: Analogía Intuitiva y Fundamento', SECTION_HEX.concepto, '[LEO Y COMPRENDO]', LAYOUT_LEFT_W)
   );
 
@@ -3424,6 +3436,7 @@ async function buildMissionContent(
 
   // 3. Yo Hago (Demostración)
   desarrolloMain.push(
+    sectionGap(),
     buildDocxSectionHeader('👨‍🏫 3. Yo Hago: Demostración y Protocolo Guiado por el Docente', SECTION_HEX.yoHago, '[MODELO DOCENTE]', LAYOUT_LEFT_W)
   );
 
@@ -3497,6 +3510,7 @@ async function buildMissionContent(
     }
 
     desarrolloMain.push(
+      sectionGap(),
       buildDocxSectionHeader('👥 4. Nosotros Hacemos: Práctica Guiada y Cuaderno Activo', SECTION_HEX.hacemos, '[TRABAJO EN EQUIPO]', LAYOUT_LEFT_W),
       ...buildDocxPracticeTasks(mission.weDoSection.guidedPractice)
     );
@@ -3515,6 +3529,7 @@ async function buildMissionContent(
     const elemBuckets = distributeItems(allWeDoElements, midSessions.length);
 
     desarrolloMain.push(
+      sectionGap(),
       buildDocxSectionHeader('👥 4. Nosotros Hacemos: Práctica Guiada y Cuaderno Activo', SECTION_HEX.hacemos, '[TRABAJO EN EQUIPO]', LAYOUT_LEFT_W)
     );
 
@@ -3532,7 +3547,7 @@ async function buildMissionContent(
       if (sMeta.teachingActivity || sMeta.learningActivity) {
         desarrolloMain.push(
           new Paragraph({
-            spacing: { before: 80, after: 60 },
+            spacing: { before: SECTION_GAP_BEFORE, ...PARA_SPACING },
             children: [
               new TextRun({ text: `Consigna de Aprendizaje: `, bold: true, size: 21, color: C.midBlue, font: 'Calibri' }),
               new TextRun({ text: sMeta.learningActivity || sMeta.teachingActivity || '', size: 21, color: C.darkText, font: 'Calibri' }),
@@ -3588,6 +3603,7 @@ async function buildMissionContent(
   );
 
   cierreMain.push(
+    sectionGap(),
     buildDocxSectionHeader('✏️ 5. Tú Haces: Reto Autónomo de Aplicación Real', SECTION_HEX.tuHaces, '[HAGO Y RESUELVO]', LAYOUT_LEFT_W),
     ...buildDocxPracticeTasks(mission.youDoSection.autonomousChallenge)
   );
@@ -3601,6 +3617,7 @@ async function buildMissionContent(
   // 7. Checkpoint Formativo
   if (mission.formativeCheckpoint) {
     cierreMain.push(
+      sectionGap(),
       buildDocxSectionHeader('🎯 7. Punto de Control Formativo (Metacognición y Criterios)', SECTION_HEX.checkpoint, '[MI ENTREGA]', LAYOUT_LEFT_W),
       new Paragraph({
         spacing: { before: 100, after: 100 },
@@ -3620,7 +3637,7 @@ async function buildMissionContent(
       mission.formativeCheckpoint.reflectionPrompts.forEach((prompt) => {
         cierreMain.push(
           new Paragraph({
-            spacing: { after: 80 },
+            spacing: { ...PARA_SPACING },
             children: [
               new TextRun({ text: `• ${prompt}`, size: 20, font: 'Calibri' }),
             ],
@@ -3641,7 +3658,7 @@ async function buildMissionContent(
       mission.formativeCheckpoint.criteriaChecklist.forEach((crit) => {
         cierreMain.push(
           new Paragraph({
-            spacing: { after: 60 },
+            spacing: { after: 120 },
             children: [
               new TextRun({ text: `☐ ${crit}`, size: 20, font: 'Calibri' }),
             ],
@@ -3657,6 +3674,7 @@ async function buildMissionContent(
   // 6. Troubleshooting (Zona de Depuración) — Se despliega a ancho completo
   if (mission.troubleshooting && mission.troubleshooting.length > 0) {
     elements.push(
+      sectionGap(),
       buildDocxSectionHeader('⚠️ 6. Matriz de Resiliencia y Depuración: "¿Qué hacer si falla?"', SECTION_HEX.resiliencia, '[ERROR COMÚN]'),
       buildTroubleshootTable(mission.troubleshooting)
     );

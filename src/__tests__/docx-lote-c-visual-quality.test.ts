@@ -1,0 +1,81 @@
+import { describe, it, expect, vi } from 'vitest';
+import JSZip from 'jszip';
+import { renderWorkbookToDocx } from '@/lib/docx-workbook-renderer';
+import type { ActiveWorkTextbook } from '@/types/work-textbook';
+import type { Planning } from '@/types/planning';
+
+vi.mock('@/lib/logger', () => ({
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+}));
+
+export async function renderMockDocx(
+  missionOverrides: Record<string, unknown> = {}
+): Promise<string> {
+  const mockWorkbook = {
+    coverData: {
+      title: 'Cuaderno de Trabajo Integral',
+      subtitle: 'Bachillerato General',
+      subjectName: 'Pensamiento Matemático III',
+      schoolName: 'Plantel CCT-01',
+      semester: 3,
+      blockNumber: 1,
+      teacherName: 'Profesor Titular',
+    },
+    missions: [
+      {
+        missionIndex: 1,
+        title: 'Misión 1: Leyes de Modelado',
+        coveredSessions: [1, 2],
+        sessionTopic: 'Variables y modelos',
+        sessionFocus: 'Ecuaciones y métodos',
+        phenomenonHook: {
+          story: 'Un contexto real en Puebla.',
+          detonatingQuestion: '¿Cómo modelar el fenómeno?',
+        },
+        conceptZero: {
+          physicalAnalogy: 'Como engranajes coordinados en un molino artesanal.',
+          coreExplanation: 'Sistemas de relaciones matemáticas lineales.',
+        },
+        iDoSection: { stepByStepDemo: 'Demostración paso a paso del docente.' },
+        weDoSection: { guidedPractice: '1. Tarea de práctica colaborativa en equipo.', workbookElements: [] },
+        youDoSection: { autonomousChallenge: 'Reto autónomo para el alumno.', workbookElements: [] },
+        troubleshooting: [],
+        formativeCheckpoint: {
+          question: '¿Qué aprendiste hoy?',
+          reflectionPrompts: ['Explica tus pasos.'],
+          criteriaChecklist: ['Criterio 1.'],
+        },
+        wordCount: 400,
+        ...missionOverrides,
+      },
+    ],
+    projectSection: undefined,
+    evaluationSection: undefined,
+  } as unknown as ActiveWorkTextbook;
+
+  const mockPlanning = {
+    id: 'plan-test-lote-c',
+    title: 'Pensamiento Matemático III',
+    subject: 'Pensamiento Matemático III',
+    subsystem: 'bge',
+    semester: 'Tercero',
+    targetGrade: 2,
+    school: 'Plantel CCT-01',
+    schoolId: 'cct-01',
+    teacherId: 'prof-01',
+    unitOrBlock: 'Bloque I',
+  } as unknown as Planning;
+
+  const docxBuffer = await renderWorkbookToDocx(mockWorkbook, mockPlanning, { coverBuffer: undefined });
+  const zip = await JSZip.loadAsync(docxBuffer);
+  return (await zip.file('word/document.xml')?.async('text')) || '';
+}
+
+describe('Lote C — Calidad visual DOCX', () => {
+  it('H-2: los párrafos de cuerpo usan 8pt de separación (w:after=160) con interlineado 1.5 (w:line=360)', async () => {
+    const xml = await renderMockDocx();
+    expect(xml).toMatch(/w:after="160"[^>]*w:line="360"|w:line="360"[^>]*w:after="160"/);
+    // Aire de 10pt antes de encabezados/tareas (w:before=200)
+    expect(xml).toContain('w:before="200"');
+  });
+});
