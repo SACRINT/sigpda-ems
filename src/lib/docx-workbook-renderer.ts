@@ -2771,8 +2771,13 @@ const CONCEPT_BADGE_STYLES: Record<'analogy' | 'concept' | 'apply' | 'default', 
   default: { bg: 'E0E7FF', text: '3730A3', accent: '6366F1', icon: '📌' },
 };
 
-function buildDocxConceptCardsGrid(cards: ConceptCardItem[], targetWidth: number = CONTENT_W): Table {
-  const numCols = cards.length === 3 ? 3 : 2;
+export const MIN_CONCEPT_CARD_COL_W = 2800; // DXA (~4.94 cm) — Umbral mínimo legible por columna de tarjeta (REG-5)
+
+export function buildDocxConceptCardsGrid(cards: ConceptCardItem[], targetWidth: number = CONTENT_W): Table {
+  let numCols = cards.length >= 3 ? 3 : Math.min(cards.length, 2);
+  while (numCols > 1 && Math.floor(targetWidth / numCols) < MIN_CONCEPT_CARD_COL_W) {
+    numCols--;
+  }
   const colW = Math.floor(targetWidth / numCols);
   const rows: TableRow[] = [];
 

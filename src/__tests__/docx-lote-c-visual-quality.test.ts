@@ -1,6 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
 import JSZip from 'jszip';
-import { renderWorkbookToDocx, computeProportionalWidths } from '@/lib/docx-workbook-renderer';
+import {
+  renderWorkbookToDocx,
+  computeProportionalWidths,
+  buildDocxConceptCardsGrid,
+  MIN_CONCEPT_CARD_COL_W,
+} from '@/lib/docx-workbook-renderer';
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
 import type { Planning } from '@/types/planning';
 
@@ -172,5 +177,26 @@ describe('Lote C — Calidad visual DOCX', () => {
     const widths = [...xml.matchAll(/<w:tcW [^>]*w:w="(\d+)"/g)].map((m) => Number(m[1]));
     // La columna de fundamentación domina: recibe el mayor porcentaje (≈58 % / 5954 DXA de 10240)
     expect(widths.some((w) => w >= 5500)).toBe(true);
+  });
+
+  it('REG-5: buildDocxConceptCardsGrid degrada a 2 columnas cuando colW < 2800 DXA (umbral aperturaW = 7100)', () => {
+    const cards = [
+      { title: 'Concepto 1', badge: 'ANALOGÍA', description: 'Desc 1' },
+      { title: 'Concepto 2', badge: 'CONCEPTO CLAVE', description: 'Desc 2' },
+      { title: 'Concepto 3', badge: 'APLICACIÓN TÉCNICA', description: 'Desc 3' },
+    ];
+    // En ancho completo (10240 DXA): cabe en 3 columnas (3413 DXA >= 2800) -> 1 fila
+    const fullGrid = buildDocxConceptCardsGrid(cards, 10240);
+    // En ancho estrecho (aperturaW = 7100 DXA): 7100/3 = 2366 < 2800 -> degrada a 2 columnas (3550 DXA) -> 2 filas
+    const narrowGrid = buildDocxConceptCardsGrid(cards, 7100);
+
+    expect(MIN_CONCEPT_CARD_COL_W).toBe(2800);
+    const countTr = (grid: unknown): number => {
+      const rootChildren = (grid as { root: Array<{ rootKey?: string }> }).root;
+      return rootChildren.filter((c) => c.rootKey === 'w:tr').length;
+    };
+
+    expect(countTr(fullGrid)).toBe(1);
+    expect(countTr(narrowGrid)).toBe(2);
   });
 });
