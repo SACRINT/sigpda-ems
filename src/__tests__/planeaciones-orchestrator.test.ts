@@ -286,6 +286,35 @@ describe('PlaneacionOrchestrator (Piloto Nivel 1 & Strangler Fig)', () => {
     }
   });
 
+  it('12. Fase 1 / F-46: buildSequence() rechaza actualización con sesiones inválidas (sessions: []) con HTTP 400 vía SecuenciaUpdateInputSchema', async () => {
+    await expect(
+      planeacionesOrchestrator.buildSequence({
+        blockIndex: 0,
+        sessions: [], // Array vacío rechazado por .min(1) de SecuenciaUpdateInputSchema
+      })
+    ).rejects.toThrow(PlaneacionOrchestratorError);
+
+    try {
+      await planeacionesOrchestrator.buildSequence({
+        blockIndex: 0,
+        sessions: [],
+      });
+    } catch (err) {
+      expect(err).toBeInstanceOf(PlaneacionOrchestratorError);
+      expect((err as PlaneacionOrchestratorError).status).toBe(400);
+      expect((err as PlaneacionOrchestratorError).message).toContain('Estructura de sesiones inválida');
+      expect((err as PlaneacionOrchestratorError).message).toContain('sessions debe contener al menos una sesión didáctica válida');
+    }
+
+    // Rechazo de sesión con campos requeridos faltantes
+    await expect(
+      planeacionesOrchestrator.buildSequence({
+        blockIndex: 0,
+        sessions: [{ sessionNum: 1 } as unknown as { sessionNum: number; phase: 'Apertura'; title: string; teachingActivity: string; learningActivity: string; evidence: string; evaluation: string }],
+      })
+    ).rejects.toThrow(PlaneacionOrchestratorError);
+  });
+
   it('5. Valida salud y métricas de Planeaciones bajo el contrato IProgramSystem (Nivel 2)', async () => {
     expect(planeacionesOrchestrator).toBeInstanceOf(PlaneacionOrchestrator);
     expect(planeacionesOrchestrator.programId).toBe('planeaciones');

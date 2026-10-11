@@ -100,7 +100,8 @@ La meta principal es dotar al **Orquestador de Planeaciones (`PlaneacionOrchestr
 
 ### 4.1 Métodos del Contrato `IPlaneacionOrchestrator` a Habilitar
 
-> **Nota de Refirmado (F-41)**: En la Fase 1 se refirma formalmente la interfaz `IPlaneacionOrchestrator` (cuyas firmas vigentes son `buildSequence(id: string): Promise<Record<string, unknown>>` y `generate(): Promise<Record<string, unknown>>` sin argumentos) y se auditan exhaustivamente todos los consumidores de la interfaz (`src/__tests__/planeaciones-orchestrator.test.ts`, etc.) para asegurar compatibilidad y tipado estricto.
+> **Nota de Refirmado (F-41)**: En la Fase 1 se refirma formalmente la interfaz `IPlaneacionOrchestrator` (cuyas firmas vigentes son `buildSequence(id: string): Promise<Record<string, unknown>>` y `generate(): Promise<Record<string, unknown>>` sin argumentos) y se auditan exhaustivamente todos los consumidores de la interfaz (`src/__tests__/planeaciones-orchestrator.test.ts`, etc.) para asegurar compatibilidad y tipado estricto.  
+> **Requisito Defensivo de Ruta (F-47)**: En la posterior fase de cableado de endpoints HTTP para `buildSequence()`, se debe imponer una cota superior determinista (`.max(200)` o tope curricular del bloque MCCEMS) sobre `totalHours` en el esquema de la ruta para prevenir asignaciones de memoria no acotadas ante entradas anómalas (e.g. `totalHours: 999999`).
 
 | Método | Entrada Vigente → Nueva (Fase 1) | Salida | Propósito y Contrato |
 | :--- | :--- | :--- | :--- |
