@@ -4,7 +4,7 @@
 > **Documento Oficial de Arquitectura — Gate 0**  
 > **Sistema**: SIGPDA-EMS DBEPA Puebla (Ciclo Escolar 2026–2027)  
 > **Área**: Plataforma Nivel 2 y Orquestadores Centrales Nivel 1  
-> **Estado**: Propuesta de Diseño para Aprobación  
+> **Estado**: Aprobado / Gate 0 Cerrado Formalmente (Fases 0 a 3 Publicadas en 8b9fde8)  
 > **Auditoría Receptora**: OpenCode / SACRINT Systems IA  
 
 ---
@@ -113,33 +113,31 @@ La meta principal es dotar al **Orquestador de Planeaciones (`PlaneacionOrchestr
 
 ---
 
-## 5. Plan de Ejecución por Fases (1 Commit por Fase, Protocolo Estricto)
+## 5. Plan de Ejecución por Fases — Fases 0-3 Implementadas y publicadas (8b9fde8)
 
-Para mantener la estabilidad absoluta en producción y cumplir las reglas de SIGPDA-EMS, cada fase se ejecutará de forma atómica:
+Todas las fases programadas del Gate 0 han sido ejecutadas, verificadas de forma adversarial y publicadas en `origin/main` (commit base `8b9fde8`):
 
-### Fase 0 — Chore Inicial (Remediación F-13 y F-14)
+### Fase 0 — Chore Inicial (Remediación F-13 y F-14) — [PUBLICADO `c106f26`]
 - **Alcance**: `src/lib/pdf-workbook-renderer.ts` (línea 2162–2230).
-- **Acción**: Añadir fallback sintético determinista Capa 0 con `dispatchVisual` en la rama STEM.
-- **Gates**: `tsc --noEmit`, `eslint`, `npm test`, `npm run build`, byte 10.
-- **Commit**: `fix(visual-engine): add deterministic stem fallback in workbook renderer (F-13, F-14)`.
+- **Acción**: Añadido fallback sintético determinista Capa 0 con `dispatchVisual` en la rama STEM ante ausencia o fallo de assets.
+- **Veredicto Auditoría**: APTO. Commit `c106f26`.
 
-### Fase 1 — Planeaciones N1: Generación y Secuenciación Didáctica
-- **Alcance**: `src/lib/planeaciones/orchestrator.ts` y pruebas unitarias en `src/__tests__/planeaciones-orchestrator.test.ts`.
-- **Acción**: Refirmar `IPlaneacionOrchestrator`, auditar consumidores, e implementar `buildSequence()` y `generate()` conectando con los esquemas de validación `SecuenciaGenerateInputSchema` y `SecuenciaUpdateInputSchema` de `@/lib/ai-schemas` (F-40), garantizando el cumplimiento de la política B-001 (sin stubs silenciosos).
-- **Gates**: `tsc --noEmit`, `eslint`, `npm test`, `npm run build`, byte 10.
-- **Commit**: `feat(planeaciones): implement sequence building and planning generation in orchestrator (Phase 1)`.
+### Fase 1 — Planeaciones N1: Generación y Secuenciación Didáctica — [PUBLICADO `41f0dbb`, `5f76ecf`]
+- **Alcance**: `src/lib/planeaciones/orchestrator.ts` y `src/__tests__/planeaciones-orchestrator.test.ts`.
+- **Acción**: Refirmada interfaz `IPlaneacionOrchestrator`, e implementados `buildSequence()` y `generate()` conectando con esquemas Zod `SecuenciaGenerateInputSchema` y `SecuenciaUpdateInputSchema` de `@/lib/ai-schemas` (F-40), cumpliendo política B-001 (sin stubs silenciosos). Remediados F-46 y F-47 con test negativo falsable (`sessions: []`).
+- **Veredicto Auditoría**: APTO. Commits `41f0dbb` y `5f76ecf`.
 
-### Fase 2 — Planeaciones N1: Renderizado Editorial Tipográfico
+### Fase 2 — Planeaciones N1: Renderizado Editorial Tipográfico — [PUBLICADO `4da2d6e`, `ee9d833`]
 - **Alcance**: `src/lib/planeaciones/orchestrator.ts`, delegación en `planning-pdf-renderer.ts`.
-- **Acción**: Implementar `renderPDF()` para generar el documento de planeación con fuentes Lato/Montserrat y motor vectorial offline de forma determinista.
-- **Gates**: `tsc --noEmit`, `eslint`, `npm test`, `npm run build`, byte 10.
-- **Commit**: `feat(planeaciones): implement editorial pdf rendering in planeaciones orchestrator (Phase 2)`.
+- **Acción**: Implementado `renderPDF()` para generar el documento oficial de planeación con fuentes Lato/Montserrat y motor vectorial offline de forma determinista. Remediado F-48 con aserciones load-bearing de mapeo BD -> Planning verificadas bajo mutación MUT-D.
+- **Veredicto Auditoría**: APTO. Commits `4da2d6e` y `ee9d833`.
 
-### Fase 3 — Gobernanza Strangler Fig, Cobertura y Verificación de Paridad
-- **Alcance**: `src/__tests__/planeaciones-orchestrator.test.ts` y rutas de consumo.
-- **Acción**: Tests exhaustivos de conmutación de bandera (`PLANEACION_ORCHESTRATOR_V2 = true / false`), verificación de códigos de estado HTTP y mutaciones falsables anti-F11.
-- **Gates**: `tsc --noEmit`, `eslint`, `npm test`, `npm run build`, byte 10.
-- **Commit**: `test(planeaciones): complete strangler fig parity and mutation test suite (Phase 3)`.
+### Fase 3 — Gobernanza Strangler Fig, Cobertura y Verificación de Paridad — [PUBLICADO `90f8cf4`, `8b9fde8`]
+- **Alcance**: `src/app/api/planeaciones/[id]/pdf/route.ts`, `src/app/api/planeaciones/[id]/secuencia/route.ts`, `src/app/api/planeaciones/generate/route.ts`, y `src/__tests__/planeaciones-orchestrator.test.ts`.
+- **Acción**: Conmutación completa bajo `PLANEACION_ORCHESTRATOR_V2` con paridad HTTP (200, 400, 403, 404, 500, 501 legacy intacto). Cota defensiva F-47 (`totalHours <= 200` -> 400). Pruebas de mutación falsables anti-F11 (MUT-C1, MUT-C2, MUT-C3).
+- **Cierre P1-F49**: En commit `8b9fde8`, cerrado el control de ownership en exportación PDF (`pdf/route.ts`), retornando 403 ante usuario no autorizado ni admin, con mutación load-bearing verificada de forma adversarial.
+- **Cierre P3-F50 y P3-F51**: Incorporado warning institucional (`['Secuencia generada pero no persistida en BD']`) ante fallas en `UPDATE` de BD sin romper el status 200; aislado `mockDb` con `mockReset()` en el runner de pruebas para eliminar acoplamiento de colas entre tests 13/14.
+- **Veredicto Auditoría**: APTO. Commits `90f8cf4` y `8b9fde8`.
 
 ---
 
@@ -155,7 +153,15 @@ Para mantener la estabilidad absoluta en producción y cumplir las reglas de SIG
 
 ---
 
-## 7. Dictamen Solicitado
+## 7. Dictamen y Cierre Formal del Gate 0
 
-Se somete este documento a revisión de **OpenCode / Usuario** para emitir el dictamen del **Gate 0**.
-Una vez aprobado, se dará inicio a la **Fase 0 (Chore F-13/F-14)** bajo el protocolo de ejecución estándar.
+| Hito / Criterio | Estado | Evidencia |
+| :--- | :--- | :--- |
+| **Gate 0: Fases 0 a 3** | **CERRADO FORMALMENTE (APTO)** | Commits `c106f26` .. `8b9fde8` validados y en producción (`origin/main`). |
+| **Gobernanza G1** | **CUMPLIDO** | `PLANEACION_ORCHESTRATOR_V2 = false` por defecto en código fuente. Flujo legacy 100% operativo y byte-idéntico. |
+| **Gobernanza G2** | **CUMPLIDO** | Cero silent stubs (B-001); paridad de códigos HTTP (200, 400, 403, 404, 500, 501); esquemas Zod estrictos. |
+| **Gobernanza G3 (Activación)** | **PENDIENTE DE APROBACIÓN** | La conmutación a `true` en producción requiere autorización explícita del usuario y smoke test con plantel piloto. |
+| **P1-F49 (Ownership PDF)** | **CERRADO** | Query con validación `teacher_email` vs `session.user.email` + `isAdmin` (HTTP 403) en `8b9fde8`. |
+| **P3-F50 (Warning Persistencia)** | **CERRADO** | Warning descriptivo ante catch en UPDATE sin degradar 200 con test unitario dedicado. |
+| **P3-F51 (Aislamiento Mocks)** | **CERRADO** | `mockDb.mockReset()` en setup y colas locales de tests 13/14. |
+

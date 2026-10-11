@@ -238,6 +238,7 @@ export async function POST(
           },
         };
 
+        const warnings: string[] = [];
         try {
           await db`
             UPDATE plannings
@@ -247,6 +248,7 @@ export async function POST(
           `;
         } catch (dbErr) {
           logger.error('Error persistiendo sequence_json en Neon DB:', dbErr);
+          warnings.push('Secuencia generada pero no persistida en BD');
         }
 
         return NextResponse.json({
@@ -255,7 +257,7 @@ export async function POST(
           sequence: updatedSequence[blockIndex],
           fullSequence: updatedSequence,
           attempts: 1,
-          warnings: [],
+          warnings,
         });
       } catch (err) {
         if (err instanceof PlaneacionOrchestratorError) {

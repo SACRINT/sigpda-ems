@@ -163,10 +163,12 @@ const mockEditorialPlanning: Planning = {
 describe('PlaneacionOrchestrator (Piloto Nivel 1 & Strangler Fig)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockDb.mockReset();
     resetFeatureFlags();
   });
 
   afterEach(() => {
+    mockDb.mockReset();
     resetFeatureFlags();
   });
 
@@ -453,6 +455,7 @@ describe('PlaneacionOrchestrator (Piloto Nivel 1 & Strangler Fig)', () => {
   });
 
   it('13. Fase 3 / Strangler Fig: /api/planeaciones/[id]/pdf conmuta entre 501 legacy y 200 orquestador con paridad HTTP y ownership F-49', async () => {
+    mockDb.mockReset();
     vi.mocked(auth).mockResolvedValue({ user: { email: 'docente@bachillerato.edu.mx' } } as never);
     vi.mocked(isAdmin).mockResolvedValue(false);
 
@@ -514,6 +517,7 @@ describe('PlaneacionOrchestrator (Piloto Nivel 1 & Strangler Fig)', () => {
   });
 
   it('14. Fase 3 / Strangler Fig: /api/planeaciones/[id]/secuencia conmuta entre legacy y orquestador con cota F-47', async () => {
+    mockDb.mockReset();
     vi.mocked(auth).mockResolvedValue({ user: { email: 'docente@bachillerato.edu.mx' } } as never);
     vi.mocked(isAdmin).mockResolvedValue(true);
 
@@ -661,6 +665,46 @@ describe('PlaneacionOrchestrator (Piloto Nivel 1 & Strangler Fig)', () => {
     expect(resInvalid.status).toBe(400);
     const jsonInvalid = await resInvalid.json();
     expect(jsonInvalid.error).toContain('asignatura (UAC) es obligatoria');
+  });
+
+  it('17. P3-F50: /api/planeaciones/[id]/secuencia bajo flag ON retorna warning cuando falla el UPDATE en BD sin alterar status 200', async () => {
+    mockDb.mockReset();
+    vi.mocked(auth).mockResolvedValue({ user: { email: 'docente@bachillerato.edu.mx' } } as never);
+    vi.mocked(isAdmin).mockResolvedValue(true);
+    setFeatureFlag('PLANEACION_ORCHESTRATOR_V2', true);
+
+    const mockPlanningRow = {
+      id: 'plan-sec-warn',
+      teacher_id: 'teacher-1',
+      teacher_email: 'docente@bachillerato.edu.mx',
+      uac_name: 'Sistemas Embebidos e IoT',
+      semester: 4,
+      component: 'laboral',
+      content_json: {
+        sectionIV: {
+          activities: [{ name: 'Bloque I: Fundamentos', hours: 12 }],
+        },
+      },
+      sequence_json: {},
+    };
+
+    // 1er llamado a sql() (SELECT en autenticación/ownership): resuelve con mockPlanningRow
+    mockDb.mockResolvedValueOnce([mockPlanningRow]);
+    // 2do llamado a sql() (UPDATE en bloque try/catch): simula fallo en Neon DB
+    mockDb.mockRejectedValueOnce(new Error('Simulated Neon DB connection timeout on UPDATE'));
+
+    const req = new Request('http://localhost:3000/api/planeaciones/plan-sec-warn/secuencia', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ blockIndex: 0, totalHours: 12 }),
+    });
+
+    const res = await handleSecuenciaPost(req as never, { params: Promise.resolve({ id: 'plan-sec-warn' }) });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.success).toBe(true);
+    expect(json.sequence.sessions.length).toBe(12);
+    expect(json.warnings).toEqual(['Secuencia generada pero no persistida en BD']);
   });
 
   it('5. Valida salud y métricas de Planeaciones bajo el contrato IProgramSystem (Nivel 2)', async () => {
