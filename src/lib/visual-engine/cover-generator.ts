@@ -191,7 +191,31 @@ function buildEmbeddedFontStyle(): string {
     <style>
       @font-face {
         font-family: 'Montserrat';
+        font-weight: 400;
+        font-style: normal;
+        src: url('data:font/ttf;charset=utf-8;base64,${montserratBoldB64}') format('truetype');
+      }
+      @font-face {
+        font-family: 'Montserrat';
+        font-weight: 500;
+        font-style: normal;
+        src: url('data:font/ttf;charset=utf-8;base64,${montserratBoldB64}') format('truetype');
+      }
+      @font-face {
+        font-family: 'Montserrat';
+        font-weight: 600;
+        font-style: normal;
+        src: url('data:font/ttf;charset=utf-8;base64,${montserratBoldB64}') format('truetype');
+      }
+      @font-face {
+        font-family: 'Montserrat';
         font-weight: 700;
+        font-style: normal;
+        src: url('data:font/ttf;charset=utf-8;base64,${montserratBoldB64}') format('truetype');
+      }
+      @font-face {
+        font-family: 'Montserrat';
+        font-weight: 800;
         font-style: normal;
         src: url('data:font/ttf;charset=utf-8;base64,${montserratBoldB64}') format('truetype');
       }
@@ -202,8 +226,32 @@ function buildEmbeddedFontStyle(): string {
         src: url('data:font/ttf;charset=utf-8;base64,${montserratBoldB64}') format('truetype');
       }
       @font-face {
+        font-family: 'Montserrat';
+        font-weight: normal;
+        font-style: normal;
+        src: url('data:font/ttf;charset=utf-8;base64,${montserratBoldB64}') format('truetype');
+      }
+      @font-face {
+        font-family: 'Montserrat';
+        font-weight: bold;
+        font-style: normal;
+        src: url('data:font/ttf;charset=utf-8;base64,${montserratBoldB64}') format('truetype');
+      }
+      @font-face {
+        font-family: 'Lato';
+        font-weight: 300;
+        font-style: normal;
+        src: url('data:font/ttf;charset=utf-8;base64,${latoRegularB64}') format('truetype');
+      }
+      @font-face {
         font-family: 'Lato';
         font-weight: 400;
+        font-style: normal;
+        src: url('data:font/ttf;charset=utf-8;base64,${latoRegularB64}') format('truetype');
+      }
+      @font-face {
+        font-family: 'Lato';
+        font-weight: 500;
         font-style: normal;
         src: url('data:font/ttf;charset=utf-8;base64,${latoRegularB64}') format('truetype');
       }
@@ -219,8 +267,32 @@ function buildEmbeddedFontStyle(): string {
         font-style: normal;
         src: url('data:font/ttf;charset=utf-8;base64,${latoBoldB64}') format('truetype');
       }
+      @font-face {
+        font-family: 'Lato';
+        font-weight: 800;
+        font-style: normal;
+        src: url('data:font/ttf;charset=utf-8;base64,${latoBoldB64}') format('truetype');
+      }
+      @font-face {
+        font-family: 'Lato';
+        font-weight: 900;
+        font-style: normal;
+        src: url('data:font/ttf;charset=utf-8;base64,${latoBoldB64}') format('truetype');
+      }
+      @font-face {
+        font-family: 'Lato';
+        font-weight: normal;
+        font-style: normal;
+        src: url('data:font/ttf;charset=utf-8;base64,${latoRegularB64}') format('truetype');
+      }
+      @font-face {
+        font-family: 'Lato';
+        font-weight: bold;
+        font-style: normal;
+        src: url('data:font/ttf;charset=utf-8;base64,${latoBoldB64}') format('truetype');
+      }
       text {
-        font-family: 'Lato', 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-family: 'Montserrat', 'Lato', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       }
     </style>`;
 }
@@ -720,7 +792,7 @@ export async function generateFallbackCover(opts: BookCoverOptions): Promise<Cov
   } catch (error) {
     logger.warn('[CoverGenerator] Error inesperado en generateFallbackCover, generando buffer minimalista:', error);
     // Buffer de emergencia mínimo en caso de fallo crítico de sharp
-    const emergencySvg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1600" viewBox="0 0 1200 1600"><rect width="1200" height="1600" fill="#1F3864"/><text x="600" y="800" font-family="Arial" font-size="48" fill="#FFFFFF" text-anchor="middle">${escapeXml(opts.uacName)}</text></svg>`;
+    const emergencySvg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1600" viewBox="0 0 1200 1600"><defs>${buildEmbeddedFontStyle()}</defs><rect width="1200" height="1600" fill="#1F3864"/><text x="600" y="800" font-family="'Montserrat', sans-serif" font-weight="bold" font-size="48" fill="#FFFFFF" text-anchor="middle">${escapeXml(opts.uacName)}</text></svg>`;
     const emergencyBuffer = await sharp(Buffer.from(emergencySvg, 'utf8')).jpeg({ quality: 80 }).toBuffer();
     return {
       buffer: emergencyBuffer,
