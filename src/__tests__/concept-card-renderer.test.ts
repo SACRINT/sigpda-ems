@@ -3,6 +3,7 @@ import { jsPDF } from 'jspdf';
 import {
   drawConceptCardsGrid,
   extractConceptCardsFromMission,
+  cleanConceptCardDescription,
 } from '@/lib/visual-engine/concept-card-renderer';
 import * as conceptCardRenderer from '@/lib/visual-engine/concept-card-renderer';
 import * as pdfComponents from '@/lib/visual-engine/pdf-components';
@@ -357,6 +358,57 @@ describe('Widget Concept-Cards Grid — Renderizado, Extractor y Prueba de Mutac
     expect(allRenderedText).toContain('Línea explicativa 15');
     expect(allRenderedText).toContain('Paso experimental 1');
     expect(allRenderedText).toContain('experimental 6');
+  });
+
+  it('REG-8: cleanConceptCardDescription y drawConceptCardsGrid eliminan bloques de tabla markdown y pipes', () => {
+    const rawWithTable = [
+      'Explicación introductoria del concepto de proporcionalidad directa.',
+      '<!--workbook:table:cols=Aspecto Cotidiano,Concepto Técnico Formal,Función en el Problema-->',
+      '| Aspecto Cotidiano | Concepto Técnico Formal | Función en el Problema |',
+      '|-------------------|-------------------------|------------------------|',
+      '| Presupuesto total asignado | Término independiente | Valor inicial |',
+      '| Costo unitario por hora | Pendiente de la recta | Tasa de cambio |',
+      'Conclusión sintética del modelo en el contexto comunitario.',
+    ].join('\n');
+
+    const cleaned = cleanConceptCardDescription(rawWithTable);
+    expect(cleaned).not.toContain('|');
+    expect(cleaned).not.toContain('Aspecto Cotidiano');
+    expect(cleaned).not.toContain('workbook:table');
+    expect(cleaned).toContain('Explicación introductoria del concepto de proporcionalidad directa');
+    expect(cleaned).toContain('Conclusión sintética del modelo en el contexto comunitario');
+
+    const doc = new jsPDF({ unit: 'mm', format: 'letter' });
+    const textSpy = vi.spyOn(doc, 'text');
+
+    const cards: ConceptCardItem[] = [
+      {
+        title: 'Modelo Matemático',
+        badge: 'CONCEPTO',
+        description: rawWithTable,
+      },
+      {
+        title: 'Criterio de Validación',
+        badge: 'APLICACIÓN',
+        description: 'Verificar coherencia entre las variables medidas en la comunidad.',
+      },
+    ];
+
+    drawConceptCardsGrid(doc, cards, {
+      margin: 15,
+      drawWidth: 180,
+      y: 20,
+      pageHeight: 279,
+      ensureVerticalSpace: vi.fn((_d, curY) => curY),
+    });
+
+    const allRendered = textSpy.mock.calls
+      .map((c) => (Array.isArray(c[0]) ? c[0].join('\n') : String(c[0])))
+      .join('\n');
+
+    expect(allRendered).not.toContain('|');
+    expect(allRendered).not.toContain('Aspecto Cotidiano');
+    expect(allRendered).toContain('Explicación introductoria');
   });
 });
 

@@ -17,6 +17,7 @@ import { CONCEPT_CARDS } from './design-tokens';
 import { sanitizePdfText } from './pdf-components-core';
 import { readMaterialPng } from '@/lib/materials/material-figure-doc';
 import { detectCatalogMaterials } from '@/lib/materials/auto-tokenize';
+import { stripMarkdown } from './content-extractor';
 
 export interface ConceptCardGridOptions {
   margin: number;
@@ -24,6 +25,39 @@ export interface ConceptCardGridOptions {
   y: number;
   pageHeight: number;
   ensureVerticalSpace: (doc: jsPDF, y: number, neededH: number, margin: number, pageHeight: number) => number;
+}
+
+/**
+ * Limpia la descripción de una tarjeta conceptual eliminando bloques de tabla markdown
+ * (<!--workbook:table...--> y filas con pipes |...|) y marcas de formato (REG-8).
+ */
+export function cleanConceptCardDescription(raw: string | null | undefined): string {
+  if (!raw) return '';
+  // 1. Eliminar etiquetas de control HTML o workbook:table (<!--...-->)
+  let text = raw.replace(/<!--[\s\S]*?-->/g, '');
+
+  // 2. Si contiene pipes de tabla markdown, eliminar líneas que sean filas de tabla o separadores
+  if (text.includes('|')) {
+    const lines = text.split(/\r?\n/);
+    const nonTableLines = lines.filter((l) => {
+      const trimmed = l.trim();
+      if (!trimmed) return true;
+      // Fila de tabla markdown (| Col 1 | Col 2 |) o divisor (|---|---|)
+      const isTableRow =
+        (trimmed.startsWith('|') && trimmed.endsWith('|')) ||
+        /^\|?[\s\-:|]+\|?$/.test(trimmed) ||
+        (trimmed.startsWith('|') && trimmed.includes('|'));
+      return !isTableRow;
+    });
+    text = nonTableLines.join('\n');
+  }
+
+  // 3. stripMarkdown elimina marcas restantes (asteriscos, cursivas, negritas)
+  const stripped = stripMarkdown(text);
+
+  // 4. Eliminar cualquier pipe remanente suelto y sanitizar WinAnsi
+  const withoutPipes = stripped.replace(/\|/g, '').replace(/[^\S\r\n]+/g, ' ').trim();
+  return sanitizePdfText(withoutPipes);
 }
 
 /**
@@ -58,14 +92,14 @@ export function extractConceptCardsFromMission(mission: Partial<MissionSection>)
     });
   }
 
-  // Card 2: Fundamento conceptual formal
-  const coreText = mission.conceptZero?.coreExplanation?.trim();
-  if (coreText && coreText.length > 5) {
-    const detected = detectCatalogMaterials(coreText);
+  // Card 2: Fundamento conceptual formal (limpiando tablas markdown si existen, REG-8)
+  const coreClean = cleanConceptCardDescription(mission.conceptZero?.coreExplanation);
+  if (coreClean && coreClean.length > 5) {
+    const detected = detectCatalogMaterials(coreClean);
     cards.push({
       title: 'Fundamento Central',
       badge: 'CONCEPTO',
-      description: coreText,
+      description: coreClean,
       materialSlug: detected[0]?.slug,
     });
   }
@@ -142,7 +176,7 @@ function measureSingleCard(
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.8);
-  const cleanDesc = sanitizePdfText(card.description || '');
+  const cleanDesc = cleanConceptCardDescription(card.description);
   let descLines: string[] = doc.splitTextToSize(cleanDesc, innerW);
 
   let exampleH = 0;
