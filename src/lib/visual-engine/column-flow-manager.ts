@@ -487,7 +487,6 @@ export class ColumnFlowManager {
       paragraphSpacing = 6.5,
     } = opts;
 
-    const clean = sanitizePdfText(stripMarkdown(text || ''));
     const bodyWeight = fontStyle === 'bold' ? 'bold' : 'normal';
     setFontBody(this.doc, bodyWeight);
     this.doc.setFontSize(size);
@@ -496,8 +495,9 @@ export class ColumnFlowManager {
     let py = startPY;
 
     if (parseParagraphs) {
+      const rawText = stripMarkdown(text || '');
       // Pre-proceso: forzar separación de párrafo (\n\n) antes de pasos numerados, listas y viñetas
-      const stepProtected = clean
+      const stepProtected = rawText
         .replace(/(?:^|\n|\.\s+)(Paso\s+\d+\s*[:\-])/gi, '\n\n$1')
         .replace(/(?:^|\n)(\d+[\.\)]\s+)/g, '\n\n$1')
         .replace(/(?:^|\n)([•\-\*]\s+)/g, '\n\n$1');
@@ -510,7 +510,7 @@ export class ColumnFlowManager {
         .replace(/\u0000/g, '\n\n')        // Restaurar dobles saltos
         .replace(/  +/g, ' ');            // Normalizar espacios múltiples
 
-      let rawParagraphs = normalized.split(/\n\n/).map((p) => p.trim()).filter(Boolean);
+      let rawParagraphs = normalized.split(/\n\n/).map((p) => sanitizePdfText(p.trim())).filter(Boolean);
 
       // Si solo hay 1 párrafo grande (muro de texto), auto-chunking por oraciones (máx 3 por párrafo)
       if (rawParagraphs.length <= 1 && (rawParagraphs[0] || '').length > 280) {
@@ -577,6 +577,7 @@ export class ColumnFlowManager {
     }
 
 
+    const clean = sanitizePdfText(stripMarkdown(text || ''));
     const lines = this.doc.splitTextToSize(clean, this.mainW);
 
     for (let li = 0; li < lines.length; li++) {

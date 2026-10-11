@@ -69,7 +69,7 @@ export function sanitizePdfText(text: string | null | undefined): string {
   }
   return str
     .replace(/[^\x20-\x7E\xA0-\xFF\n\r\t]/g, ' ')
-    .replace(/[^\S\r\n]+/g, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
