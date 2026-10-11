@@ -628,7 +628,7 @@ describe('Workbook Engine Architecture Tests (Fase 10)', () => {
               detonatingQuestion: `¿Por qué el hierro oxidado parece pesar más? ${tag}`,
             },
             conceptZero: {
-              physicalAnalogy: `Una báscula de dos platos en equilibrio ${tag}`,
+              physicalAnalogy: `Una balanza de precisión analítica en equilibrio ${tag}`,
               coreExplanation: `La materia no se crea ni se destruye ${tag}`,
               narrativeExplanation: `Durante cualquier reacción química ordinaria... ${tag}`,
               solvedExample: {
