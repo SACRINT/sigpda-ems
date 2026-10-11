@@ -1617,7 +1617,7 @@ function buildDocxComparisonTable(compTable: ComparisonTableData): (Paragraph | 
 /**
  * 2. Cajas de Llamado (Callout Box) DOCX: tarjeta con fondo suave y cinta lateral
  */
-function buildDocxCalloutBox(callout: CalloutBoxData): Table {
+function buildDocxCalloutBox(callout: Partial<CalloutBoxData> & { title: string; body?: string }): Table {
   const accentHex = (callout.accent || '#2563eb').replace('#', '');
   const bgHex = (callout.bgHex || 'EFF6FF').replace('#', '');
 
@@ -1689,6 +1689,45 @@ function buildDocxCalloutBox(callout: CalloutBoxData): Table {
         ],
       }),
     ],
+  });
+}
+
+/**
+ * 2b. Widgets visuales con paridad PDF: IDEA FUERZA, ESTUDIO ACTIVO, MISIÓN SÍNTESIS (F-70)
+ */
+function buildDocxIdeaFuerzaBox(analogy: string): Table {
+  return buildDocxCalloutBox({
+    type: 'idea_clave',
+    title: 'IDEA FUERZA: ANALOGÍA FÍSICA COTIDIANA',
+    icon: '⚡',
+    body: analogy,
+    accent: 'B45309',
+    bgHex: 'FEF3C7',
+    keyTakeaway: 'Vincula este principio intuitivo con el modelo matemático o experimental formal.',
+  });
+}
+
+function buildDocxStudyTipBox(tip?: string): Table {
+  return buildDocxCalloutBox({
+    type: 'tip_taller',
+    title: 'ESTUDIO ACTIVO: CONSEJO METACOGNITIVO',
+    icon: '💡',
+    body: tip || 'Registra tus observaciones de inmediato y contrasta los datos empíricos con la teoría antes de emitir conclusiones.',
+    accent: '0369A1',
+    bgHex: 'E0F2FE',
+    keyTakeaway: 'La autorregulación y la contrastación constante garantizan el aprendizaje profundo.',
+  });
+}
+
+function buildDocxMissionSynthesisBox(missionNumber: number): Table {
+  return buildDocxCalloutBox({
+    type: 'pro_tip',
+    title: `MISIÓN ${missionNumber} · SÍNTESIS Y CONSOLIDACIÓN`,
+    icon: '📌',
+    body: 'Integra los hallazgos del modelado docente, la práctica colaborativa y tus retos autónomos en tu portafolio de evidencias de aprendizaje.',
+    accent: '1E3A8A',
+    bgHex: 'F1F5F9',
+    keyTakeaway: 'Evidencia lista para evaluación formativa y retroalimentación docente NEM.',
   });
 }
 
@@ -3217,15 +3256,19 @@ async function buildMissionContent(
     elements.push(...buildDocxEquipmentCard(equipmentVisual));
   }
 
-  // Tarjeta de Idea Clave destacada (Callout Box) posterior al recurso visual
-  const conceptCallout = extractCalloutBox(conceptFullText, {
-    missionNumber,
-    defaultType: 'idea_clave',
-    defaultTitle: 'Idea Clave de la Misión',
-    defaultSubjectName: subjectName,
-  });
-  if (conceptCallout) {
-    elements.push(buildDocxCalloutBox(conceptCallout));
+  // Tarjeta de Idea Fuerza destacada (Callout Box con paridad PDF) posterior al recurso visual
+  if (mission.conceptZero?.physicalAnalogy) {
+    elements.push(buildDocxIdeaFuerzaBox(mission.conceptZero.physicalAnalogy));
+  } else {
+    const conceptCallout = extractCalloutBox(conceptFullText, {
+      missionNumber,
+      defaultType: 'idea_clave',
+      defaultTitle: 'Idea Clave de la Misión',
+      defaultSubjectName: subjectName,
+    });
+    if (conceptCallout) {
+      elements.push(buildDocxCalloutBox(conceptCallout));
+    }
   }
 
   // Si la misión abarca 3 o más sesiones, la Sesión 2 inicia en el Modelado Docente
@@ -3373,6 +3416,9 @@ async function buildMissionContent(
     }
   }
 
+  // Widget de Estudio Activo / Metacognición (Paridad con PDF column-flow-manager)
+  elements.push(buildDocxStudyTipBox());
+
   // 5. Tú Haces (Reto Autónomo)
   if (totalSessionsCount >= 3) {
     const lastSession = coveredSessions[totalSessionsCount - 1];
@@ -3451,6 +3497,9 @@ async function buildMissionContent(
       });
     }
   }
+
+  // Widget de Misión Síntesis y Consolidación (Paridad con PDF column-flow-manager)
+  elements.push(buildDocxMissionSynthesisBox(missionNumber));
 
   // ── Semáforo de Aprendizaje Metacognitivo (Paridad con PDF) ─────────────
   const trafficLight = mission.metacognitiveTrafficLight ||
