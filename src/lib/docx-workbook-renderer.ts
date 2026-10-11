@@ -1844,6 +1844,40 @@ function buildDocxTwoColumnLayout(
   });
 }
 
+/** Umbral de palabras por encima del cual un bloque deja de usar layout de 2 columnas (H-6). */
+const TWO_COLUMN_WORD_LIMIT = 400;
+
+/** Cuenta palabras aproximadas de textos sueltos o listas de textos (ignora vacíos). */
+function countWords(...texts: Array<string | readonly string[] | null | undefined>): number {
+  let total = 0;
+  for (const t of texts) {
+    if (!t) continue;
+    const parts = typeof t === 'string' ? [t] : t;
+    for (const p of parts) {
+      if (typeof p !== 'string') continue;
+      const trimmed = p.trim();
+      if (trimmed.length > 0) total += trimmed.split(/\s+/).length;
+    }
+  }
+  return total;
+}
+
+/**
+ * Layout adaptativo (H-6): con texto largo la columna principal se renderiza a ancho completo
+ * y los widgets del sidebar se apilan debajo como cajas inline; con texto corto se usan 2 columnas 70/30.
+ */
+function buildDocxAdaptiveLayout(
+  mainChildren: (Paragraph | Table)[],
+  sidebarChildren: (Paragraph | Table)[],
+  wide: boolean
+): (Paragraph | Table)[] {
+  if (!wide) return [buildDocxTwoColumnLayout(mainChildren, sidebarChildren)];
+  return [
+    ...mainChildren,
+    ...sidebarChildren.flatMap((child) => [child, new Paragraph({ spacing: { after: 80 }, children: [] })]),
+  ];
+}
+
 /**
  * Ficha Técnica de Equipamiento / Material Didáctico DOCX (Nivel 1 Contextual)
  */
@@ -3046,6 +3080,10 @@ async function buildMissionContent(
   // ══════════════════════════════════════════════════════════════════════════════
   const aperturaMain: (Paragraph | Table)[] = [];
   const aperturaSidebar: (Paragraph | Table)[] = [];
+  // H-6: texto largo (> 400 palabras) => ancho completo con widgets inline; si no, 2 columnas 70/30
+  const aperturaWide = countWords(mission.phenomenonHook?.story, mission.phenomenonHook?.detonatingQuestion, mission.conceptZero?.physicalAnalogy, mission.conceptZero?.coreExplanation, mission.conceptZero?.narrativeExplanation, mission.conceptZero?.solvedExample?.problemStatement, mission.conceptZero?.solvedExample?.solutionSteps, mission.conceptZero?.solvedExample?.interpretation) > TWO_COLUMN_WORD_LIMIT;
+  const aperturaW = aperturaWide ? CONTENT_W : LAYOUT_LEFT_W;
+  const aperturaSideW = aperturaWide ? CONTENT_W : SIDEBAR_CARD_W;
 
   // Sidebar de Apertura: Badge temático + Widget IDEA FUERZA (F-70)
   aperturaSidebar.push(
@@ -3053,14 +3091,14 @@ async function buildMissionContent(
       `MISIÓN ${missionNumber} · APERTURA`,
       'Marco Curricular Común EMS',
       SECTION_HEX.enganche,
-      SIDEBAR_CARD_W
+      aperturaSideW
     )
   );
 
   const conceptFullText = `${mission.conceptZero.physicalAnalogy || ''}\n${mission.conceptZero.coreExplanation || ''}\n${mission.conceptZero.narrativeExplanation || ''}`;
 
   if (mission.conceptZero?.physicalAnalogy) {
-    aperturaSidebar.push(buildDocxIdeaFuerzaBox(mission.conceptZero.physicalAnalogy, SIDEBAR_CARD_W));
+    aperturaSidebar.push(buildDocxIdeaFuerzaBox(mission.conceptZero.physicalAnalogy, aperturaSideW));
   } else {
     const conceptCallout = extractCalloutBox(conceptFullText, {
       missionNumber,
@@ -3069,14 +3107,14 @@ async function buildMissionContent(
       defaultSubjectName: subjectName,
     });
     if (conceptCallout) {
-      aperturaSidebar.push(buildDocxCalloutBox(conceptCallout, SIDEBAR_CARD_W));
+      aperturaSidebar.push(buildDocxCalloutBox(conceptCallout, aperturaSideW));
     }
   }
 
   // 1. Enganche Situado
   aperturaMain.push(
     sectionGap(),
-    buildDocxSectionHeader('📖 1. Enganche y Desafío Situado en la Comunidad', SECTION_HEX.enganche, '[SITUACIÓN REAL]', LAYOUT_LEFT_W),
+    buildDocxSectionHeader('📖 1. Enganche y Desafío Situado en la Comunidad', SECTION_HEX.enganche, '[SITUACIÓN REAL]', aperturaW),
     new Paragraph({
       spacing: { before: 100, ...PARA_SPACING }, // 1.5 line spacing + 8pt
       children: [
@@ -3109,12 +3147,12 @@ async function buildMissionContent(
       ],
     }),
     sectionGap(),
-    buildDocxSectionHeader('💡 2. Concepto Cero: Analogía Intuitiva y Fundamento', SECTION_HEX.concepto, '[LEO Y COMPRENDO]', LAYOUT_LEFT_W)
+    buildDocxSectionHeader('💡 2. Concepto Cero: Analogía Intuitiva y Fundamento', SECTION_HEX.concepto, '[LEO Y COMPRENDO]', aperturaW)
   );
 
   const conceptCards = extractConceptCardsFromMission(mission);
   if (conceptCards.length >= 2) {
-    aperturaMain.push(buildDocxConceptCardsGrid(conceptCards, LAYOUT_LEFT_W));
+    aperturaMain.push(buildDocxConceptCardsGrid(conceptCards, aperturaW));
   } else {
     // Degradación histórica D9: párrafos directos
     aperturaMain.push(
@@ -3209,7 +3247,7 @@ async function buildMissionContent(
     }
   }
 
-  elements.push(buildDocxTwoColumnLayout(aperturaMain, aperturaSidebar));
+  elements.push(...buildDocxAdaptiveLayout(aperturaMain, aperturaSidebar, aperturaWide));
 
   if (mission.conceptZero.contrastTable && mission.conceptZero.contrastTable.length > 0) {
     elements.push(
@@ -3464,6 +3502,10 @@ async function buildMissionContent(
   // ══════════════════════════════════════════════════════════════════════════════
   const desarrolloMain: (Paragraph | Table)[] = [];
   const desarrolloSidebar: (Paragraph | Table)[] = [];
+  // H-6: texto largo (> 400 palabras) => ancho completo con widgets inline; si no, 2 columnas 70/30
+  const desarrolloWide = countWords(mission.iDoSection?.stepByStepDemo, mission.weDoSection?.guidedPractice) > TWO_COLUMN_WORD_LIMIT;
+  const desarrolloW = desarrolloWide ? CONTENT_W : LAYOUT_LEFT_W;
+  const desarrolloSideW = desarrolloWide ? CONTENT_W : SIDEBAR_CARD_W;
 
   // Sidebar de Desarrollo: Badge temático + Widget ESTUDIO ACTIVO (F-70)
   desarrolloSidebar.push(
@@ -3471,15 +3513,15 @@ async function buildMissionContent(
       `MISIÓN ${missionNumber} · DESARROLLO`,
       'Protocolo de Taller y Práctica',
       SECTION_HEX.yoHago,
-      SIDEBAR_CARD_W
+      desarrolloSideW
     ),
-    buildDocxStudyTipBox(undefined, SIDEBAR_CARD_W)
+    buildDocxStudyTipBox(undefined, desarrolloSideW)
   );
 
   // 3. Yo Hago (Demostración)
   desarrolloMain.push(
     sectionGap(),
-    buildDocxSectionHeader('👨‍🏫 3. Yo Hago: Demostración y Protocolo Guiado por el Docente', SECTION_HEX.yoHago, '[MODELO DOCENTE]', LAYOUT_LEFT_W)
+    buildDocxSectionHeader('👨‍🏫 3. Yo Hago: Demostración y Protocolo Guiado por el Docente', SECTION_HEX.yoHago, '[MODELO DOCENTE]', desarrolloW)
   );
 
   // Si equipmentVisual fue marcado como Hero (30% demostrativo), se renderiza como imagen principal del Yo Hago
@@ -3514,7 +3556,7 @@ async function buildMissionContent(
 
   const labSteps = parseLabStepsFromProse(mission.iDoSection.stepByStepDemo);
   if (labSteps.length >= 3) {
-    desarrolloMain.push(buildDocxStepCardGrid(labSteps, LAYOUT_LEFT_W));
+    desarrolloMain.push(buildDocxStepCardGrid(labSteps, desarrolloW));
   } else {
     desarrolloMain.push(
       new Paragraph({
@@ -3539,7 +3581,7 @@ async function buildMissionContent(
     defaultSubjectName: subjectName,
   });
   if (demoCallout) {
-    desarrolloMain.push(buildDocxCalloutBox(demoCallout, LAYOUT_LEFT_W));
+    desarrolloMain.push(buildDocxCalloutBox(demoCallout, desarrolloW));
   }
 
   // 4. Nosotros Hacemos (Práctica Colaborativa) y Distribución de Sesiones
@@ -3553,7 +3595,7 @@ async function buildMissionContent(
 
     desarrolloMain.push(
       sectionGap(),
-      buildDocxSectionHeader('👥 4. Nosotros Hacemos: Práctica Guiada y Cuaderno Activo', SECTION_HEX.hacemos, '[TRABAJO EN EQUIPO]', LAYOUT_LEFT_W),
+      buildDocxSectionHeader('👥 4. Nosotros Hacemos: Práctica Guiada y Cuaderno Activo', SECTION_HEX.hacemos, '[TRABAJO EN EQUIPO]', desarrolloW),
       ...buildDocxPracticeTasks(mission.weDoSection.guidedPractice)
     );
 
@@ -3572,7 +3614,7 @@ async function buildMissionContent(
 
     desarrolloMain.push(
       sectionGap(),
-      buildDocxSectionHeader('👥 4. Nosotros Hacemos: Práctica Guiada y Cuaderno Activo', SECTION_HEX.hacemos, '[TRABAJO EN EQUIPO]', LAYOUT_LEFT_W)
+      buildDocxSectionHeader('👥 4. Nosotros Hacemos: Práctica Guiada y Cuaderno Activo', SECTION_HEX.hacemos, '[TRABAJO EN EQUIPO]', desarrolloW)
     );
 
     for (let mIdx = 0; mIdx < midSessions.length; mIdx++) {
@@ -3601,11 +3643,11 @@ async function buildMissionContent(
       const assignedTasks = taskBuckets[mIdx];
       if (assignedTasks && assignedTasks.length > 0) {
         for (let tIdx = 0; tIdx < assignedTasks.length; tIdx++) {
-          desarrolloMain.push(...buildDocxSingleTask(assignedTasks[tIdx], tIdx + 1, LAYOUT_LEFT_W));
+          desarrolloMain.push(...buildDocxSingleTask(assignedTasks[tIdx], tIdx + 1, desarrolloW));
         }
       } else {
         const fallbackTaskText = `${sMeta.title || 'Resolución guiada de ejercicios y consolidación técnica'}. Aplica los conceptos de la misión y registra el procedimiento colaborativo en equipo:`;
-        desarrolloMain.push(...buildDocxSingleTask(fallbackTaskText, 1, LAYOUT_LEFT_W));
+        desarrolloMain.push(...buildDocxSingleTask(fallbackTaskText, 1, desarrolloW));
       }
 
       const assignedElems = elemBuckets[mIdx];
@@ -3618,7 +3660,7 @@ async function buildMissionContent(
   }
 
   // Agregamos layout de 2 columnas de Desarrollo
-  elements.push(buildDocxTwoColumnLayout(desarrolloMain, desarrolloSidebar));
+  elements.push(...buildDocxAdaptiveLayout(desarrolloMain, desarrolloSidebar, desarrolloWide));
 
   // 5. Tú Haces (Reto Autónomo)
   if (totalSessionsCount >= 3) {
@@ -3632,6 +3674,10 @@ async function buildMissionContent(
   // ══════════════════════════════════════════════════════════════════════════════
   const cierreMain: (Paragraph | Table)[] = [];
   const cierreSidebar: (Paragraph | Table)[] = [];
+  // H-6: texto largo (> 400 palabras) => ancho completo con widgets inline; si no, 2 columnas 70/30
+  const cierreWide = countWords(mission.youDoSection?.autonomousChallenge, mission.formativeCheckpoint?.question, mission.formativeCheckpoint?.reflectionPrompts, mission.formativeCheckpoint?.criteriaChecklist) > TWO_COLUMN_WORD_LIMIT;
+  const cierreW = cierreWide ? CONTENT_W : LAYOUT_LEFT_W;
+  const cierreSideW = cierreWide ? CONTENT_W : SIDEBAR_CARD_W;
 
   // Sidebar de Cierre: Badge temático + Widget MISIÓN SÍNTESIS (F-70)
   cierreSidebar.push(
@@ -3639,14 +3685,14 @@ async function buildMissionContent(
       `MISIÓN ${missionNumber} · SÍNTESIS`,
       'Consolidación de Evidencias',
       SECTION_HEX.tuHaces,
-      SIDEBAR_CARD_W
+      cierreSideW
     ),
-    buildDocxMissionSynthesisBox(missionNumber, SIDEBAR_CARD_W)
+    buildDocxMissionSynthesisBox(missionNumber, cierreSideW)
   );
 
   cierreMain.push(
     sectionGap(),
-    buildDocxSectionHeader('✏️ 5. Tú Haces: Reto Autónomo de Aplicación Real', SECTION_HEX.tuHaces, '[HAGO Y RESUELVO]', LAYOUT_LEFT_W),
+    buildDocxSectionHeader('✏️ 5. Tú Haces: Reto Autónomo de Aplicación Real', SECTION_HEX.tuHaces, '[HAGO Y RESUELVO]', cierreW),
     ...buildDocxPracticeTasks(mission.youDoSection.autonomousChallenge)
   );
 
@@ -3660,7 +3706,7 @@ async function buildMissionContent(
   if (mission.formativeCheckpoint) {
     cierreMain.push(
       sectionGap(),
-      buildDocxSectionHeader('🎯 7. Punto de Control Formativo (Metacognición y Criterios)', SECTION_HEX.checkpoint, '[MI ENTREGA]', LAYOUT_LEFT_W),
+      buildDocxSectionHeader('🎯 7. Punto de Control Formativo (Metacognición y Criterios)', SECTION_HEX.checkpoint, '[MI ENTREGA]', cierreW),
       new Paragraph({
         spacing: { before: 100, after: 100 },
         children: [
@@ -3711,7 +3757,7 @@ async function buildMissionContent(
   }
 
   // Agregamos layout de 2 columnas de Cierre
-  elements.push(buildDocxTwoColumnLayout(cierreMain, cierreSidebar));
+  elements.push(...buildDocxAdaptiveLayout(cierreMain, cierreSidebar, cierreWide));
 
   // 6. Troubleshooting (Zona de Depuración) — Se despliega a ancho completo
   if (mission.troubleshooting && mission.troubleshooting.length > 0) {

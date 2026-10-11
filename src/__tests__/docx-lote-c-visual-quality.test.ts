@@ -124,4 +124,22 @@ describe('Lote C — Calidad visual DOCX', () => {
     // Fondo suave de la tarjeta
     expect(xml).toContain('w:fill="F8FAFC"');
   });
+
+  it('H-6: con más de 400 palabras el bloque usa ancho completo (sin tabla 70/30) y con texto corto conserva 2 columnas', async () => {
+    const longText = Array.from({ length: 520 }, (_, i) => `palabra${i}`).join(' ');
+    const wideXml = await renderMockDocx({
+      phenomenonHook: { story: longText, detonatingQuestion: '¿Cómo modelar el fenómeno?' },
+      iDoSection: { stepByStepDemo: longText },
+      youDoSection: { autonomousChallenge: longText, workbookElements: [] },
+    });
+    expect(wideXml).not.toContain('w:w="7100"');
+    expect(wideXml).not.toContain('w:w="3140"');
+    // Los widgets del sidebar siguen presentes, ahora como cajas inline
+    expect(wideXml).toContain('IDEA FUERZA');
+    expect(wideXml).toContain('ESTUDIO ACTIVO');
+
+    const narrowXml = await renderMockDocx();
+    expect(narrowXml).toContain('w:w="7100"');
+    expect(narrowXml).toContain('w:w="3140"');
+  });
 });
