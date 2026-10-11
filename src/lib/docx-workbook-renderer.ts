@@ -2142,7 +2142,7 @@ function buildDocxPracticeTasks(rawText: string, defaultTaskCount: number = 3): 
     }
   }
 
-  const selectedTasks = tasks.slice(0, 4);
+  const selectedTasks = tasks;
   if (selectedTasks.length === 0) {
     return [
       new Paragraph({

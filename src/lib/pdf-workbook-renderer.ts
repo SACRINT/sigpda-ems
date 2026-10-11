@@ -1758,7 +1758,7 @@ function drawPracticeTasksWithDottedLines(
     .map((t) => sanitizePdfText(stripMarkdown(t)).trim())
     .filter((t) => t.length > 5);
 
-  const selectedTasks = validTasks.slice(0, 4);
+  const selectedTasks = validTasks;
   if (selectedTasks.length === 0) {
     const cleanRaw = sanitizePdfText(stripMarkdown(rawText)).trim();
     if (!cleanRaw) return y;
