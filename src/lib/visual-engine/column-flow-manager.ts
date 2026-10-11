@@ -481,10 +481,10 @@ export class ColumnFlowManager {
       size = 9.0,
       fontStyle = 'normal',
       color = COLOR.TEXT_PRIMARY,
-      lineHeight = 4.8,
+      lineHeight = 6.0,
       justify = true,
       parseParagraphs = false,
-      paragraphSpacing = 3.5,
+      paragraphSpacing = 6.5,
     } = opts;
 
     const clean = sanitizePdfText(stripMarkdown(text || ''));

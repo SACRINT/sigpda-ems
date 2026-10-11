@@ -1229,10 +1229,10 @@ export function printParagraph(
     fontStyle = 'normal',
     fontName = 'helvetica',
     color = DARK_TEXT,
-    lineHeight = 4.8,
+    lineHeight = 6.0,
     justify = true,
     parseParagraphs = false,
-    paragraphSpacing = 3.5,
+    paragraphSpacing = 6.5,
   } = options;
 
   // Sanitizar texto en una sola pasada al inicio: elimina asteriscos markdown y caracteres no-WinAnsi
@@ -2148,7 +2148,7 @@ async function drawMission(
 
   // 1. Enganche y Desafío Situado
   y = drawSectionHeader(doc, '1. Enganche y Desafio Situado en la Comunidad', margin, mainW, y, pageHeight, SECTION_COLORS.enganche, checkSpace, '[ SITUACION REAL ]');
-  y = flow.printMainParagraph(mission.phenomenonHook.story, y, { size: 8, color: DARK_TEXT, lineHeight: 4.0, parseParagraphs: true });
+  y = flow.printMainParagraph(mission.phenomenonHook.story, y, { size: 8, color: DARK_TEXT, lineHeight: 6.0, paragraphSpacing: 6.5, parseParagraphs: true });
   y += 3;
 
   // Pregunta Detonadora en caja destacada
@@ -2185,14 +2185,14 @@ async function drawMission(
     y += 2.5;
   } else {
     // Degradación histórica D9: párrafos directos de analogía y fundamento
-    y = flow.printMainParagraph(`Analogia Fisica Cotidiana: ${mission.conceptZero.physicalAnalogy}`, y, { size: 8, fontStyle: 'italic', color: DARK_TEXT, lineHeight: 4.0 });
+    y = flow.printMainParagraph(`Analogia Fisica Cotidiana: ${mission.conceptZero.physicalAnalogy}`, y, { size: 8, fontStyle: 'italic', color: DARK_TEXT, lineHeight: 6.0, paragraphSpacing: 6.5 });
     y += 2;
-    y = flow.printMainParagraph(mission.conceptZero.coreExplanation, y, { size: 8, color: DARK_TEXT, lineHeight: 4.0, parseParagraphs: true });
+    y = flow.printMainParagraph(mission.conceptZero.coreExplanation, y, { size: 8, color: DARK_TEXT, lineHeight: 6.0, paragraphSpacing: 6.5, parseParagraphs: true });
     y += 3;
   }
 
   if (mission.conceptZero.narrativeExplanation) {
-    y = flow.printMainParagraph(mission.conceptZero.narrativeExplanation, y, { size: 8, color: DARK_TEXT, lineHeight: 4.0, parseParagraphs: true });
+    y = flow.printMainParagraph(mission.conceptZero.narrativeExplanation, y, { size: 8, color: DARK_TEXT, lineHeight: 6.0, paragraphSpacing: 6.5, parseParagraphs: true });
     y += 4;
   }
 
