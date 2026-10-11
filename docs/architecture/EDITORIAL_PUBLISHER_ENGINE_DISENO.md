@@ -81,6 +81,7 @@ Conforme al dictamen adversarial y consenso técnico con OpenCode:
   2. La ruta valida la suscripción con `getSubscriptionStatus()` y encola un trabajo de tipo `editorial_book` en la tabla de jobs.
   3. El worker existente ([`src/lib/job-worker.ts`](file:///c:/Proyectos_SACRINT/Proyecto_SIGPDA_EMS/SIGPDA_EMS/src/lib/job-worker.ts)), invocado por el endpoint asegurado [`/api/jobs/process`](file:///c:/Proyectos_SACRINT/Proyecto_SIGPDA_EMS/SIGPDA_EMS/src/app/api/jobs/process/route.ts) con `claimNextPendingJob`, toma la tarea y ejecuta Typst.
   4. Al concluir, el PDF queda persistido y se emite notificación al docente para descarga directa.
+* **Almacenamiento persistente del PDF**: Vercel Blob (`@vercel/blob` ^2.4.1, ya presente en `package.json`) — obligatorio porque el filesystem de Vercel Serverless es efímero entre invocaciones del worker y requests de descarga.
 
 ### Q3: Desacoplamiento de Datos $\rightarrow$ ARTEFACTO SEPARADO `editorial_books`
 * **Decisión**: **Prohibido contaminar o extender `ActiveWorkTextbook`**.
@@ -93,7 +94,7 @@ Conforme al dictamen adversarial y consenso técnico con OpenCode:
     workbook_id TEXT NOT NULL,
     content_hash TEXT NOT NULL,
     metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
-    pdf_storage_path TEXT,
+    pdf_storage_path TEXT, -- URL en Vercel Blob (@vercel/blob ^2.4.1)
     page_count INTEGER,
     spine_width_mm NUMERIC(5,2),
     status TEXT NOT NULL DEFAULT 'pending', -- 'pending' | 'processing' | 'completed' | 'failed'
@@ -103,7 +104,8 @@ Conforme al dictamen adversarial y consenso técnico con OpenCode:
   );
   CREATE INDEX idx_editorial_books_planning_hash ON editorial_books(planning_id, content_hash);
   ```
-* **Control de Acceso**: Se utiliza la función real y probada [`getSubscriptionStatus(email)`](file:///c:/Proyectos_SACRINT/Proyecto_SIGPDA_EMS/SIGPDA_EMS/src/lib/subscription-gate.ts) de `src/lib/subscription-gate.ts`. Si el docente no cuenta con suscripción activa o plan con acceso editorial, la API retorna `403 Forbidden` con detalle de plan para upsell.
+* **Almacenamiento persistente del PDF (`pdf_storage_path`)**: Vercel Blob (`@vercel/blob` ^2.4.1, ya presente en `package.json`) — obligatorio porque el filesystem de Vercel Serverless es efímero entre invocaciones del worker y requests de descarga.
+* **Control de Acceso**: Se utiliza la función real y probada [`getSubscriptionStatus(teacherId, teacherEmail?)`](file:///c:/Proyectos_SACRINT/Proyecto_SIGPDA_EMS/SIGPDA_EMS/src/lib/subscription-gate.ts) de `src/lib/subscription-gate.ts`. Si el docente no cuenta con suscripción activa o plan con acceso editorial, la API retorna `403 Forbidden` con detalle de plan para upsell.
 
 ---
 
@@ -118,7 +120,7 @@ Conforme al dictamen adversarial y consenso técnico con OpenCode:
    * Ghostscript no forma parte del runtime estándar de Vercel Serverless.
    * Por tanto, la Fase 1 y 2 utilizarán la exportación CMYK y PDF/A nativa de Typst. El procesamiento con Ghostscript se confina a la Fase 4 como un paso opcional empaquetado exclusivamente si una imprenta comercial exige de forma ineludible perfiles `PDF/X-1a` externos.
 3. **Gobierno Estricto de IA vía `src/lib/ai-provider`**:
-   * Todo módulo de pulido editorial con LLMs debe invocar de forma obligatoria `generateWithRotation` desde [`src/lib/ai-provider.ts`](file:///c:/Proyectos_SACRINT/Proyecto_SIGPDA_EMS/SIGPDA_EMS/src/lib/ai-provider.ts), cumpliendo las reglas de `AGENTS.md` (rotación de llaves, modelos autorizados y presupuesto temporal de 90s).
+   * Todo módulo de pulido editorial con LLMs debe invocar de forma obligatoria `generateWithRotation` desde [`src/lib/ai-provider/index.ts`](file:///c:/Proyectos_SACRINT/Proyecto_SIGPDA_EMS/SIGPDA_EMS/src/lib/ai-provider/index.ts), cumpliendo las reglas de `AGENTS.md` (rotación de llaves, modelos autorizados y presupuesto temporal de 90s).
 
 ---
 
@@ -172,7 +174,7 @@ El orden de construcción sitúa el **motor tipográfico y la arquitectura en pr
 - **Alcance Técnico**:
   - Compilar un capítulo completo a partir de un JSON fixture real de `ActiveWorkTextbook` sin llamadas a modelos de IA.
   - Implementar retícula de 2 columnas asimétricas (columna de contenido principal + columna marginal de notas), encabezados dinámicos con UAC y bloque, cajas estilizadas para el Reto Situado y portada escolar institucional.
-  - Generación de un PDF de $\ge 30$ páginas en $< 2$ segundos con determinismo estricto (dos ejecuciones con el mismo fixture producen un binario con hash idéntico).
+  - Generación de un PDF de $\ge 30$ páginas en $< 2$ segundos con determinismo estricto (dos ejecuciones con el mismo fixture producen un binario con hash idéntico, fijando `SOURCE_DATE_EPOCH=0` en el wrapper `typst-compiler.ts` para que Typst no varíe `CreationDate`/`ModDate` en el trailer del PDF).
 - **Comando de Verificación**:
   ```bash
   npx vitest run src/__tests__/editorial-typst-spike.test.ts
