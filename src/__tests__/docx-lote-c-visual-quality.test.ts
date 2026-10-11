@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import JSZip from 'jszip';
-import { renderWorkbookToDocx } from '@/lib/docx-workbook-renderer';
+import { renderWorkbookToDocx, computeProportionalWidths } from '@/lib/docx-workbook-renderer';
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
 import type { Planning } from '@/types/planning';
 
@@ -141,5 +141,36 @@ describe('Lote C — Calidad visual DOCX', () => {
     const narrowXml = await renderMockDocx();
     expect(narrowXml).toContain('w:w="7100"');
     expect(narrowXml).toContain('w:w="3140"');
+  });
+
+  it('H-10: computeProportionalWidths reparte 30/70 con 2 columnas desbalanceadas y respeta mínimos con 3+', () => {
+    // 2 columnas equilibradas -> 50/50
+    expect(computeProportionalWidths(10000, [['a'.repeat(50)], ['b'.repeat(50)]])).toEqual([5000, 5000]);
+    // Una columna concentra >60 % del texto -> 30/70
+    expect(computeProportionalWidths(10000, [['a'.repeat(10)], ['b'.repeat(90)]])).toEqual([3000, 7000]);
+    expect(computeProportionalWidths(10000, [['a'.repeat(90)], ['b'.repeat(10)]])).toEqual([7000, 3000]);
+    // 3 columnas: proporcional, mínimo 18 %, la suma es exacta
+    const three = computeProportionalWidths(10240, [['a'.repeat(5)], ['b'.repeat(200)], ['c'.repeat(100)]]);
+    expect(three.reduce((a, b) => a + b, 0)).toBe(10240);
+    expect(Math.min(...three)).toBeGreaterThanOrEqual(Math.floor(10240 * 0.17));
+    expect(three[1]).toBeGreaterThan(three[2]);
+  });
+
+  it('H-10: la tabla de contraste conceptual usa anchos según el contenido (no 35/35/30 fijo)', async () => {
+    const reasoning = Array.from({ length: 120 }, (_, i) => `razon${i}`).join(' ');
+    const xml = await renderMockDocx({
+      conceptZero: {
+        physicalAnalogy: 'Como engranajes coordinados en un molino artesanal.',
+        coreExplanation: 'Sistemas de relaciones matemáticas lineales.',
+        contrastTable: [
+          { correctConcept: 'Pendiente', commonMisconception: 'Es el corte', reasoning },
+        ],
+      },
+    });
+    // 35 % fijo de 10240 = 3584: ya no debe usarse; la columna de fundamentación domina
+    expect(xml).not.toContain('w:w="3584"');
+    const widths = [...xml.matchAll(/<w:tcW [^>]*w:w="(\d+)"/g)].map((m) => Number(m[1]));
+    // La columna de fundamentación domina: recibe el mayor porcentaje (≈58 % / 5954 DXA de 10240)
+    expect(widths.some((w) => w >= 5500)).toBe(true);
   });
 });

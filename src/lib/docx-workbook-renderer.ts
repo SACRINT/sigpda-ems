@@ -203,6 +203,39 @@ function cell(
 }
 
 /**
+ * H-10: reparte el ancho de una tabla DOCX según el volumen de texto de cada columna.
+ *  - 2 columnas: 30/70 (o 70/30) si una concentra >60 % del texto, 50/50 si están equilibradas.
+ *  - 3+ columnas: proporcional al texto con mínimo 18 % y máximo 50 % por columna.
+ * La suma de los anchos devueltos es exactamente `totalW`.
+ */
+export function computeProportionalWidths(totalW: number, columnTexts: readonly (readonly string[])[]): number[] {
+  const n = columnTexts.length;
+  if (n === 0) return [];
+  if (n === 1) return [totalW];
+
+  const lengths = columnTexts.map((col) => col.reduce((acc, t) => acc + (t ? t.trim().length : 0), 0));
+  const sum = lengths.reduce((a, b) => a + b, 0);
+  let shares: number[];
+
+  if (sum === 0) {
+    shares = columnTexts.map(() => 1 / n);
+  } else if (n === 2) {
+    const s0 = lengths[0] / sum;
+    shares = s0 > 0.6 ? [0.7, 0.3] : s0 < 0.4 ? [0.3, 0.7] : [0.5, 0.5];
+  } else {
+    const MIN_SHARE = 0.18;
+    const MAX_SHARE = 0.5;
+    shares = lengths.map((l) => Math.min(MAX_SHARE, Math.max(MIN_SHARE, l / sum)));
+    const total = shares.reduce((a, b) => a + b, 0);
+    shares = shares.map((s) => s / total);
+  }
+
+  const widths = shares.map((s) => Math.floor(totalW * s));
+  widths[n - 1] += totalW - widths.reduce((a, b) => a + b, 0);
+  return widths;
+}
+
+/**
  * Genera el documento Word (.docx) para el Cuaderno de Trabajo del Bloque.
  */
 export async function renderWorkbookToDocx(
@@ -1556,11 +1589,16 @@ function buildTableOfContents(workbook: ActiveWorkTextbook): (Paragraph | Table)
  * 1. Tabla Comparativa DOCX: renderiza pares comparativos o cuadros de contraste
  */
 function buildDocxComparisonTable(compTable: ComparisonTableData): (Paragraph | Table)[] {
+  // H-10: 2 columnas con ancho 30/70 (o 70/30) cuando una concentra >60 % del texto; 50/50 si están equilibradas
+  const [cmpW0, cmpW1] = computeProportionalWidths(CONTENT_W, [
+    [compTable.headers[0], ...compTable.rows.map((r) => r[0])],
+    [compTable.headers[1], ...compTable.rows.map((r) => r[1])],
+  ]);
   const rows: TableRow[] = [
     new TableRow({
       children: [
-        cell(compTable.headers[0], { w: Math.floor(CONTENT_W * 0.42), bold: true, fill: C.midBlue, color: C.white }),
-        cell(compTable.headers[1], { w: Math.floor(CONTENT_W * 0.58), bold: true, fill: C.midBlue, color: C.white }),
+        cell(compTable.headers[0], { w: cmpW0, bold: true, fill: C.midBlue, color: C.white }),
+        cell(compTable.headers[1], { w: cmpW1, bold: true, fill: C.midBlue, color: C.white }),
       ],
     }),
   ];
@@ -1570,8 +1608,8 @@ function buildDocxComparisonTable(compTable: ComparisonTableData): (Paragraph | 
     rows.push(
       new TableRow({
         children: [
-          cell(r[0], { w: Math.floor(CONTENT_W * 0.42), bold: true, fill: rowBg }),
-          cell(r[1], { w: Math.floor(CONTENT_W * 0.58), fill: rowBg }),
+          cell(r[0], { w: cmpW0, bold: true, fill: rowBg }),
+          cell(r[1], { w: cmpW1, fill: rowBg }),
         ],
       })
     );
@@ -3266,11 +3304,15 @@ async function buildMissionContent(
       })
     );
 
-    const ctCols = [
-      { title: 'Concepto Técnico Válido', w: Math.floor(CONTENT_W * 0.35) },
-      { title: 'Error Frecuente / Concepto Erróneo', w: Math.floor(CONTENT_W * 0.35) },
-      { title: 'Fundamentación', w: Math.floor(CONTENT_W * 0.30) },
-    ];
+    const ctRowsData = mission.conceptZero.contrastTable;
+    const ctTitles = ['Concepto Técnico Válido', 'Error Frecuente / Concepto Erróneo', 'Fundamentación'];
+    // H-10: anchos proporcionales al contenido real de cada columna (mínimo 18 % por columna)
+    const ctWidths = computeProportionalWidths(CONTENT_W, [
+      [ctTitles[0], ...ctRowsData.map((r) => r.correctConcept)],
+      [ctTitles[1], ...ctRowsData.map((r) => r.commonMisconception)],
+      [ctTitles[2], ...ctRowsData.map((r) => r.reasoning)],
+    ]);
+    const ctCols = ctTitles.map((title, i) => ({ title, w: ctWidths[i] }));
 
     const ctRows: TableRow[] = [
       new TableRow({
@@ -3278,13 +3320,13 @@ async function buildMissionContent(
       }),
     ];
 
-    mission.conceptZero.contrastTable.forEach((row) => {
+    ctRowsData.forEach((row) => {
       ctRows.push(
         new TableRow({
           children: [
-            cell(row.correctConcept, { bold: true }),
-            cell(row.commonMisconception, { color: 'C0392B' }),
-            cell(row.reasoning),
+            cell(row.correctConcept, { w: ctCols[0].w, bold: true }),
+            cell(row.commonMisconception, { w: ctCols[1].w, color: 'C0392B' }),
+            cell(row.reasoning, { w: ctCols[2].w }),
           ],
         })
       );
