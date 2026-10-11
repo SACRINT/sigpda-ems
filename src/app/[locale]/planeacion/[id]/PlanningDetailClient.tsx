@@ -346,13 +346,23 @@ function PlanningDetailModular({
           }
           const outcome = content?.sectionII?.learningOutcomes?.[blockIndex] || '';
           const hours = act.hours || (isLaboral ? 18 : 12);
-          const sessions = generateBlockSessions(act, blockIndex, hours, outcome, isLaboral, null);
+          const rawSessions = generateBlockSessions(act, blockIndex, hours, outcome, isLaboral, null);
+          const sessions: SecuenciaSesion[] = rawSessions.map((s) => ({
+            sessionNum: s.sessionNum,
+            totalSessions: s.totalSessions,
+            phase: s.phase,
+            title: s.title,
+            teachingActivity: s.teachingActivity || s.description || 'Desarrollo de actividades formativas',
+            learningActivity: s.learningActivity || s.focus || 'Participación activa en la sesión',
+            evidence: s.evidence || 'Evidencia de trabajo en clase',
+            evaluation: s.evaluation,
+          }));
           return {
             sequence: {
               blockIndex,
               blockName: act.name || `Bloque ${blockIndex + 1}`,
               hours,
-              sessions: sessions as any,
+              sessions,
               updatedAt: new Date().toISOString(),
             },
           };

@@ -13,6 +13,7 @@ describe('planeaciones strangler-client (Patrón Strangler Fig UI & Feature Dete
 
   afterEach(() => {
     global.fetch = originalFetch;
+    vi.unstubAllGlobals();
   });
 
   describe('exportPlanningPdfWithFallback', () => {
@@ -60,22 +61,19 @@ describe('planeaciones strangler-client (Patrón Strangler Fig UI & Feature Dete
         remove: removeSpy,
       };
 
-      const originalWindow = (globalThis as any).window;
-      const originalDocument = (globalThis as any).document;
-
-      (globalThis as any).window = {
+      vi.stubGlobal('window', {
         URL: {
           createObjectURL: createObjectURLMock,
           revokeObjectURL: revokeObjectURLMock,
         },
-      };
+      });
 
-      (globalThis as any).document = {
+      vi.stubGlobal('document', {
         createElement: vi.fn().mockReturnValue(mockLink),
         body: {
           appendChild: appendChildSpy,
         },
-      };
+      });
 
       global.fetch = vi.fn().mockResolvedValue({
         status: 200,
@@ -98,9 +96,6 @@ describe('planeaciones strangler-client (Patrón Strangler Fig UI & Feature Dete
       expect(clickSpy).toHaveBeenCalled();
       expect(removeSpy).toHaveBeenCalled();
       expect(revokeObjectURLMock).toHaveBeenCalledWith('blob:mock-url');
-
-      (globalThis as any).window = originalWindow;
-      (globalThis as any).document = originalDocument;
     });
 
     it('3. HTTP 403 (F-49 ownership) retorna mensaje descriptivo de permisos sin ejecutar fallback', async () => {
