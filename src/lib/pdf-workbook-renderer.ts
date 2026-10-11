@@ -1821,27 +1821,23 @@ function getSessionMetaFromSequence(
   fallbackTitle: string = ''
 ): { phase: string; title: string; teachingActivity?: string; learningActivity?: string } {
   if (sequenceJson && typeof sequenceJson === 'object') {
-    const blocksToSearch: SecuenciaBloque[] = [];
+    let targetBlock: SecuenciaBloque | undefined;
     if (blockIndex !== undefined && sequenceJson[blockIndex]) {
-      blocksToSearch.push(sequenceJson[blockIndex]);
+      targetBlock = sequenceJson[blockIndex];
+    } else if (blockIndex === undefined && Object.keys(sequenceJson).length === 1) {
+      const singleKey = Number(Object.keys(sequenceJson)[0]);
+      targetBlock = sequenceJson[singleKey];
     }
-    for (const k of Object.keys(sequenceJson)) {
-      const b = sequenceJson[Number(k)];
-      if (b && !blocksToSearch.includes(b)) {
-        blocksToSearch.push(b);
-      }
-    }
-    for (const block of blocksToSearch) {
-      if (Array.isArray(block.sessions)) {
-        const match = block.sessions.find((s) => s.sessionNum === sessionNum);
-        if (match) {
-          return {
-            phase: match.phase || fallbackPhase,
-            title: match.title || fallbackTitle,
-            teachingActivity: match.teachingActivity,
-            learningActivity: match.learningActivity,
-          };
-        }
+
+    if (targetBlock && Array.isArray(targetBlock.sessions)) {
+      const match = targetBlock.sessions.find((s) => s.sessionNum === sessionNum);
+      if (match) {
+        return {
+          phase: match.phase || fallbackPhase,
+          title: match.title || fallbackTitle,
+          teachingActivity: match.teachingActivity,
+          learningActivity: match.learningActivity,
+        };
       }
     }
   }
