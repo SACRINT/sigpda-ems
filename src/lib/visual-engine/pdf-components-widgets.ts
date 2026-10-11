@@ -18,6 +18,7 @@
  */
 
 import { GState, type jsPDF } from 'jspdf';
+import { drawImageSafe, type BoundingBox } from './pdf-layout-guard';
 import {
   COLOR,
   RADIUS,
@@ -758,16 +759,42 @@ export function drawEquipmentCardWidget(
 
   let curY = sy + headerH;
 
-  // Imagen centrada en el sidebar
+  // Imagen centrada en el sidebar (H-9): se calcula su bounding box y el de los bloques de texto.
+  // Si la tarjeta está comprimida y la imagen no cabe encima del texto, se dibuja como watermark
+  // (opacidad 0.12) detrás del texto, que arranca justo bajo el encabezado, en lugar de recortarlo.
   const imgW = Math.min(sideW - 8, 38);
   const imgH = 24;
-  const imgX = sideXAbs + (sideW - imgW) / 2;
+  const stackedLayoutH = headerH + imgH + 2.5 + nameH + 2.5 + descH + 1.0;
+  const fitsStacked = stackedLayoutH <= cardH;
+
+  let imgBox: BoundingBox;
+  let textTop: number;
+  if (fitsStacked) {
+    imgBox = { x: sideXAbs + (sideW - imgW) / 2, y: sy + headerH, w: imgW, h: imgH };
+    textTop = sy + headerH + imgH + 2.5;
+  } else {
+    const areaH = Math.max(cardH - headerH - 2, 10);
+    const wmH = Math.min(imgH, areaH);
+    const wmW = imgW * (wmH / imgH);
+    imgBox = {
+      x: sideXAbs + (sideW - wmW) / 2,
+      y: sy + headerH + (areaH - wmH) / 2,
+      w: wmW,
+      h: wmH,
+    };
+    textTop = sy + headerH;
+  }
+
+  const textBoxes: BoundingBox[] = [
+    { x: sideXAbs + 4.5, y: textTop, w: sideW - 6, h: nameH },
+    { x: sideXAbs + 4.5, y: textTop + nameH + 2.5, w: sideW - 6, h: descH },
+  ];
 
   try {
-    doc.addImage(imageBuffer, imageFormat, imgX, curY, imgW, imgH);
-    curY += imgH + 2.5;
+    drawImageSafe(doc, imageBuffer, imageFormat, imgBox, textBoxes);
+    curY = textTop;
   } catch {
-    curY += 2;
+    curY = sy + headerH + 2;
   }
 
   // Nombre del equipo en negrita (todas las líneas sin superposición)

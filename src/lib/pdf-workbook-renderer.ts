@@ -108,6 +108,7 @@ import {
   getMissionColor,
 } from '@/lib/visual-engine/design-tokens';
 import { buildSessionFallbackTaskText } from '@/lib/session-task-fallback';
+import { drawImageSafe, type BoundingBox } from '@/lib/visual-engine/pdf-layout-guard';
 
 // ── Paleta de Colores Institucionales MCCEMS (Consumida desde Design Tokens) ──
 const NAVY: RGB = COLOR.NAVY;
@@ -2062,6 +2063,20 @@ async function drawMission(
 
   const checkSpace = (cy: number, nh: number) => flow.ensureVerticalSpace(cy, nh);
 
+  // H-9: guardia de colisión imagen-texto. La zona reservada del sidebar nunca debe ser invadida por
+  // imágenes del flujo principal; si lo hiciera, la imagen se degrada a watermark (opacidad 0.12).
+  const sidebarGuardBox: BoundingBox = { x: sideXAbs, y: margin, w: sideW, h: pageHeight - margin * 2 };
+  const addMainFlowImage = (
+    buffer: Buffer | Uint8Array,
+    format: string,
+    imgX: number,
+    imgY: number,
+    imgW: number,
+    imgH: number
+  ): void => {
+    drawImageSafe(doc, buffer, format, { x: imgX, y: imgY, w: imgW, h: imgH }, [sidebarGuardBox]);
+  };
+
   // ── V7: Banner Editorial de Misión ────────
   const bannerH = 22;
   y = checkSpace(y, bannerH + 4);
@@ -2306,7 +2321,7 @@ async function drawMission(
           const imgH = imgW;
           y = checkSpace(y, imgH + 18);
           const imgX = margin + (mainW - imgW) / 2;
-          doc.addImage(png, 'PNG', imgX, y, imgW, imgH);
+          addMainFlowImage(png, 'PNG', imgX, y, imgW, imgH);
           y += imgH + 3.5;
           setFontCaption(doc);
           doc.setFontSize(7.5);
@@ -2324,7 +2339,7 @@ async function drawMission(
           const imgH = imgW * 0.68;
           y = checkSpace(y, imgH + 18);
           const imgX = margin + (mainW - imgW) / 2;
-          doc.addImage(imgResult.buffer, imgResult.format, imgX, y, imgW, imgH);
+          addMainFlowImage(imgResult.buffer, imgResult.format, imgX, y, imgW, imgH);
           if (resolvedVisual.annotations && resolvedVisual.annotations.length > 0) {
             drawVisualAnnotations(doc, resolvedVisual.annotations, imgX, y, imgW, imgH);
           }
@@ -2351,7 +2366,7 @@ async function drawMission(
             const imgH = imgW * 0.68;
             y = checkSpace(y, imgH + 18);
             const imgX = margin + (mainW - imgW) / 2;
-            doc.addImage(imgResult.buffer, imgResult.format, imgX, y, imgW, imgH);
+            addMainFlowImage(imgResult.buffer, imgResult.format, imgX, y, imgW, imgH);
             if (vectorResult.annotations && vectorResult.annotations.length > 0) {
               drawVisualAnnotations(doc, vectorResult.annotations, imgX, y, imgW, imgH);
             }
@@ -2372,7 +2387,7 @@ async function drawMission(
       const imgH = 55;
       y = checkSpace(y, imgH + 16);
       const imgX = margin + (mainW - imgW) / 2;
-      doc.addImage(equipmentVisual.buffer, equipmentVisual.format, imgX, y, imgW, imgH);
+      addMainFlowImage(equipmentVisual.buffer, equipmentVisual.format, imgX, y, imgW, imgH);
       y += imgH + 3.5;
       setFontCaption(doc);
       doc.setFontSize(7.5);
@@ -2400,7 +2415,7 @@ async function drawMission(
             const imgH = imgW;
             y = checkSpace(y, imgH + 16);
             const imgX = margin + (mainW - imgW) / 2;
-            doc.addImage(png, 'PNG', imgX, y, imgW, imgH);
+            addMainFlowImage(png, 'PNG', imgX, y, imgW, imgH);
             y += imgH + 3.5;
             setFontCaption(doc);
             doc.setFontSize(7.5);
@@ -2419,7 +2434,7 @@ async function drawMission(
                 const imgH = imgW * 0.65;
                 y = checkSpace(y, imgH + 16);
                 const imgX = margin + (mainW - imgW) / 2;
-                doc.addImage(imgResult.buffer, imgResult.format, imgX, y, imgW, imgH);
+                addMainFlowImage(imgResult.buffer, imgResult.format, imgX, y, imgW, imgH);
                 if (vectorResult.annotations && vectorResult.annotations.length > 0) {
                   drawVisualAnnotations(doc, vectorResult.annotations, imgX, y, imgW, imgH);
                 }
@@ -2441,7 +2456,7 @@ async function drawMission(
             const imgH = imgW * 0.65;
             y = checkSpace(y, imgH + 16);
             const imgX = margin + (mainW - imgW) / 2;
-            doc.addImage(imgResult.buffer, imgResult.format, imgX, y, imgW, imgH);
+            addMainFlowImage(imgResult.buffer, imgResult.format, imgX, y, imgW, imgH);
             if (resolvedVisual.annotations && resolvedVisual.annotations.length > 0) {
               drawVisualAnnotations(doc, resolvedVisual.annotations, imgX, y, imgW, imgH);
             }
@@ -2465,7 +2480,7 @@ async function drawMission(
             const imgH = Math.min(80, Math.max(50, imgW * (ratio || 0.65)));
             y = checkSpace(y, imgH + 18);
             const imgX = margin + (mainW - imgW) / 2;
-            doc.addImage(imgResult.buffer, imgResult.format, imgX, y, imgW, imgH);
+            addMainFlowImage(imgResult.buffer, imgResult.format, imgX, y, imgW, imgH);
             y += imgH + 3.5;
             setFontCaption(doc);
             doc.setFontSize(7.5);
