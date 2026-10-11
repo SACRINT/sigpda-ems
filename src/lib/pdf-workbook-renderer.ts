@@ -692,10 +692,15 @@ function drawCoverPage(
   let yPillars = yBlock + 21;
   if (workbook.coverData?.paecProjectName) {
     const yPaec = yBlock + 21;
+    setFontBody(doc, 'bold');
+    doc.setFontSize(7.2);
+    const paecLines = doc.splitTextToSize(workbook.coverData.paecProjectName, contentWidth - 24);
+    const paecBoxH = Math.max(14, 6.0 + paecLines.length * 3.2 + 2.5);
+
     doc.setFillColor(128, 0, 32);
     doc.setDrawColor(248, 113, 113);
     doc.setLineWidth(0.2);
-    doc.roundedRect(margin + 8, yPaec, contentWidth - 16, 14, 1.8, 1.8, 'FD');
+    doc.roundedRect(margin + 8, yPaec, contentWidth - 16, paecBoxH, 1.8, 1.8, 'FD');
 
     setFontHeading(doc);
     doc.setFontSize(6.2);
@@ -705,9 +710,8 @@ function drawCoverPage(
     setFontBody(doc, 'bold');
     doc.setFontSize(7.2);
     doc.setTextColor(255, 255, 255);
-    const paecLines = doc.splitTextToSize(workbook.coverData.paecProjectName, contentWidth - 24);
-    doc.text(paecLines.slice(0, 1), margin + 12, yPaec + 9.5);
-    yPillars = yPaec + 17;
+    doc.text(paecLines, margin + 12, yPaec + 9.0);
+    yPillars = yPaec + paecBoxH + 3;
   }
 
   // 4 Pilares del Aprendizaje Activo
