@@ -90,4 +90,15 @@ describe('Lote C — Calidad visual DOCX', () => {
     // Título en mayúsculas dentro del ribbon
     expect(xml).toContain('2. CONCEPTO CERO');
   });
+
+  it('H-4: los widgets del sidebar tienen fondo de color visible y cinta lateral de 6pt en color accent', async () => {
+    const xml = await renderMockDocx();
+    // Fondos del PDF: amarillo / azul claro / gris azulado (shading clear + fill, color auto)
+    expect(xml).toMatch(/w:val="clear"[^>]*w:fill="FEF3C7"|w:fill="FEF3C7"[^>]*w:val="clear"/);
+    expect(xml).toContain('w:fill="E0F2FE"');
+    expect(xml).toContain('w:fill="F1F5F9"');
+    // Cinta lateral gruesa (48 octavos de punto = 6pt) con color accent
+    expect(xml).toMatch(/<w:left [^>]*w:sz="48"[^>]*w:color="B45309"|<w:left [^>]*w:color="B45309"[^>]*w:sz="48"/);
+    expect(xml).toMatch(/<w:left [^>]*w:sz="48"[^>]*w:color="0369A1"|<w:left [^>]*w:color="0369A1"[^>]*w:sz="48"/);
+  });
 });

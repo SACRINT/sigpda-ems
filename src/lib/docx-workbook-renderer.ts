@@ -1686,11 +1686,12 @@ function buildDocxCalloutBox(
         children: [
           new TableCell({
             width: { size: targetWidth, type: WidthType.DXA },
-            shading: { fill: bgHex, type: ShadingType.CLEAR },
+            // ShadingType.CLEAR + fill es la forma canónica de fondo sólido en Word (SOLID pintaría el color de primer plano).
+            shading: { fill: bgHex, type: ShadingType.CLEAR, color: 'auto' },
             borders: {
               top: { style: BorderStyle.SINGLE, size: 4, color: 'E2E8F0' },
               bottom: { style: BorderStyle.SINGLE, size: 4, color: 'E2E8F0' },
-              left: { style: BorderStyle.SINGLE, size: 24, color: accentHex },
+              left: { style: BorderStyle.SINGLE, size: 48, color: accentHex },
               right: { style: BorderStyle.SINGLE, size: 4, color: 'E2E8F0' },
             },
             margins: { top: 120, bottom: 120, left: 180, right: 180 },
