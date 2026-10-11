@@ -102,7 +102,7 @@ describe('H-9 — drawEquipmentCardWidget: tarjeta comprimida degrada la imagen 
     expect(opacitiesOf(gStateSpy)).not.toContain(0.12);
   });
 
-  it('espacio ajustado: la imagen se dibuja a 0.12 detrás del texto y el texto vuelve a opacidad 1', () => {
+  it('espacio ajustado: la imagen se escala proporcionalmente para caber apilada sin degradarse a watermark (REG-2)', () => {
     const doc = new jsPDF();
     const gStateSpy = vi.spyOn(doc, 'setGState');
     const textSpy = vi.spyOn(doc, 'text');
@@ -118,13 +118,13 @@ describe('H-9 — drawEquipmentCardWidget: tarjeta comprimida degrada la imagen 
       sideBottom: 70, // availH = 40 → tarjeta comprimida (< layout apilado)
     });
 
-    expect(opacitiesOf(gStateSpy)).toEqual([0.12, 1]);
+    // REG-2: No debe degradarse a watermark 0.12 invisible
+    expect(opacitiesOf(gStateSpy)).not.toContain(0.12);
     expect(addImageSpy).toHaveBeenCalledTimes(1);
-    // El texto se dibuja DESPUÉS de la imagen (queda encima)
-    const imageOrder = addImageSpy.mock.invocationCallOrder[0];
-    const lastGStateOrder = gStateSpy.mock.invocationCallOrder[1];
-    const textOrders = textSpy.mock.invocationCallOrder;
-    expect(lastGStateOrder).toBeGreaterThan(imageOrder);
-    expect(textOrders.some((o) => o > lastGStateOrder)).toBe(true);
+    const addedW = (addImageSpy.mock.calls[0] as unknown[])[4] as number;
+    const addedH = (addImageSpy.mock.calls[0] as unknown[])[5] as number;
+    expect(addedH).toBeLessThanOrEqual(24);
+    expect(addedW).toBeLessThanOrEqual(38);
+    expect(textSpy).toHaveBeenCalled();
   });
 });

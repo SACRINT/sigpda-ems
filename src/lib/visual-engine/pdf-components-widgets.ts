@@ -759,42 +759,50 @@ export function drawEquipmentCardWidget(
 
   let curY = sy + headerH;
 
-  // Imagen centrada en el sidebar (H-9): se calcula su bounding box y el de los bloques de texto.
-  // Si la tarjeta está comprimida y la imagen no cabe encima del texto, se dibuja como watermark
-  // (opacidad 0.12) detrás del texto, que arranca justo bajo el encabezado, en lugar de recortarlo.
-  const imgW = Math.min(sideW - 8, 38);
-  const imgH = 24;
-  const stackedLayoutH = headerH + imgH + 2.5 + nameH + 2.5 + descH + 1.0;
-  const fitsStacked = stackedLayoutH <= cardH;
+  // Imagen en el sidebar (REG-2 / H-9):
+  // Si la tarjeta está comprimida y la imagen estándar (24mm) no cabe encima del texto,
+  // se escala proporcionalmente para caber apilada sin degradarse a watermark (opacidad 1.0 visible).
+  // Solo si el espacio es menor a 8mm se omite la imagen para priorizar la legibilidad del texto técnico.
+  const baseImgW = Math.min(sideW - 8, 38);
+  const baseImgH = 24;
+  const standardLayoutH = headerH + baseImgH + 2.5 + nameH + 2.5 + descH + 1.0;
+  const availableForImg = cardH - (headerH + nameH + 2.5 + descH + 3.0);
 
-  let imgBox: BoundingBox;
-  let textTop: number;
-  if (fitsStacked) {
-    imgBox = { x: sideXAbs + (sideW - imgW) / 2, y: sy + headerH, w: imgW, h: imgH };
-    textTop = sy + headerH + imgH + 2.5;
-  } else {
-    const areaH = Math.max(cardH - headerH - 2, 10);
-    const wmH = Math.min(imgH, areaH);
-    const wmW = imgW * (wmH / imgH);
-    imgBox = {
-      x: sideXAbs + (sideW - wmW) / 2,
-      y: sy + headerH + (areaH - wmH) / 2,
-      w: wmW,
-      h: wmH,
+  if (standardLayoutH <= cardH) {
+    const imgBox: BoundingBox = { x: sideXAbs + (sideW - baseImgW) / 2, y: sy + headerH, w: baseImgW, h: baseImgH };
+    const textTop = sy + headerH + baseImgH + 2.5;
+    const textBoxes: BoundingBox[] = [
+      { x: sideXAbs + 4.5, y: textTop, w: sideW - 6, h: nameH },
+      { x: sideXAbs + 4.5, y: textTop + nameH + 2.5, w: sideW - 6, h: descH },
+    ];
+    try {
+      drawImageSafe(doc, imageBuffer, imageFormat, imgBox, textBoxes);
+      curY = textTop;
+    } catch {
+      curY = sy + headerH + 2;
+    }
+  } else if (availableForImg >= 8) {
+    const scaledImgH = Math.min(baseImgH, Math.max(8, availableForImg));
+    const scaledImgW = baseImgW * (scaledImgH / baseImgH);
+    const imgBox: BoundingBox = {
+      x: sideXAbs + (sideW - scaledImgW) / 2,
+      y: sy + headerH + 0.5,
+      w: scaledImgW,
+      h: scaledImgH,
     };
-    textTop = sy + headerH;
-  }
-
-  const textBoxes: BoundingBox[] = [
-    { x: sideXAbs + 4.5, y: textTop, w: sideW - 6, h: nameH },
-    { x: sideXAbs + 4.5, y: textTop + nameH + 2.5, w: sideW - 6, h: descH },
-  ];
-
-  try {
-    drawImageSafe(doc, imageBuffer, imageFormat, imgBox, textBoxes);
-    curY = textTop;
-  } catch {
-    curY = sy + headerH + 2;
+    const textTop = sy + headerH + scaledImgH + 2.0;
+    const textBoxes: BoundingBox[] = [
+      { x: sideXAbs + 4.5, y: textTop, w: sideW - 6, h: nameH },
+      { x: sideXAbs + 4.5, y: textTop + nameH + 2.0, w: sideW - 6, h: descH },
+    ];
+    try {
+      drawImageSafe(doc, imageBuffer, imageFormat, imgBox, textBoxes);
+      curY = textTop;
+    } catch {
+      curY = sy + headerH + 2;
+    }
+  } else {
+    curY = sy + headerH + 1.0;
   }
 
   // Nombre del equipo en negrita (todas las líneas sin superposición)
