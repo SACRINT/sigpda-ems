@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildSessionFallbackTaskText } from '@/lib/session-task-fallback';
 
-describe('H-8 — Tarea de respaldo específica por sesión', () => {
+describe('H-8 / REG-3 — Tarea de respaldo específica por sesión', () => {
   it('incluye tema y enfoque de la misión y las instrucciones de evidencias', () => {
     const text = buildSessionFallbackTaskText(
       { sessionTopic: 'Funciones lineales', sessionFocus: 'Modelado de costos locales' },
@@ -27,7 +27,35 @@ describe('H-8 — Tarea de respaldo específica por sesión', () => {
 
   it('usa un respaldo con número de sesión si la misión no trae tema ni enfoque', () => {
     const text = buildSessionFallbackTaskText({}, 12);
-    expect(text).toContain('sesion 12');
+    expect(text).toContain('sesión 12');
     expect(text).toContain('Registre el procedimiento y evidencias en su cuaderno');
+  });
+
+  it('REG-3: produce textos diferenciados y únicos para sesiones de la misma misión usando sMeta', () => {
+    const mission = {
+      sessionTopic: 'Módulo Interactivo y Presupuestario de Espacios Recreativos Libres de Riesgos (MIP-ELR)',
+      sessionFocus: 'Construcción del artefacto e integración socioproductiva',
+    };
+
+    const sMeta17 = {
+      title: 'PRACTICA COLABORATIVA (SESION 17)',
+      phase: 'DESARROLLO',
+      learningActivity: 'Modelado y cálculo de áreas recreativas en plano cartesiano',
+    };
+
+    const sMeta18 = {
+      title: 'PRACTICA COLABORATIVA (SESION 18)',
+      phase: 'DESARROLLO',
+      learningActivity: 'Presupuestación de insumos y estructura de costos por metro cuadrado',
+    };
+
+    const text17 = buildSessionFallbackTaskText(mission, 17, sMeta17);
+    const text18 = buildSessionFallbackTaskText(mission, 18, sMeta18);
+
+    expect(text17).not.toEqual(text18);
+    expect(text17).toContain('Modelado y cálculo de áreas recreativas');
+    expect(text18).toContain('Presupuestación de insumos y estructura de costos');
+    expect(text17).toContain(mission.sessionTopic);
+    expect(text18).toContain(mission.sessionTopic);
   });
 });

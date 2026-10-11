@@ -3689,7 +3689,7 @@ async function buildMissionContent(
           desarrolloMain.push(...buildDocxSingleTask(assignedTasks[tIdx], tIdx + 1, desarrolloW));
         }
       } else {
-        const fallbackTaskText = buildSessionFallbackTaskText(mission, sNum, sMeta.title);
+        const fallbackTaskText = buildSessionFallbackTaskText(mission, sNum, sMeta);
         desarrolloMain.push(...buildDocxSingleTask(fallbackTaskText, 1, desarrolloW));
       }
 

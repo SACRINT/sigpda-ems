@@ -22,12 +22,31 @@ function isGenericSessionTitle(title: string): boolean {
   return /\(\s*sesi[oó]n\s+\d+\s*\)/i.test(title) || /^pr[aá]ctica colaborativa/i.test(title);
 }
 
+export interface SessionMetaTaskInput {
+  title?: string | null;
+  learningActivity?: string | null;
+  teachingActivity?: string | null;
+  phase?: string | null;
+}
+
 export function buildSessionFallbackTaskText(
   mission: SessionTaskFallbackInput,
   sessionNumber: number,
-  sessionTitle?: string | null
+  session?: string | SessionMetaTaskInput | null
 ): string {
-  const title = cleanSentence(sessionTitle);
+  let title = '';
+  let learningActivity = '';
+  let teachingActivity = '';
+
+  if (typeof session === 'string') {
+    title = cleanSentence(session);
+  } else if (session && typeof session === 'object') {
+    title = cleanSentence(session.title);
+    learningActivity = cleanSentence(session.learningActivity);
+    teachingActivity = cleanSentence(session.teachingActivity);
+  }
+
+  const specificActivity = learningActivity || teachingActivity;
   const topic = cleanSentence(mission.sessionTopic);
   const focus = cleanSentence(mission.sessionFocus);
 
@@ -41,10 +60,12 @@ export function buildSessionFallbackTaskText(
     }
   };
 
+  // Priorizar la consigna/actividad específica de la sesión si existe (garantiza unicidad por sesión)
+  if (specificActivity) push(specificActivity);
   if (title && !isGenericSessionTitle(title)) push(title);
   push(topic);
   push(focus);
 
-  const context = parts.length > 0 ? parts.join('. ') : `Resolucion guiada de la sesion ${sessionNumber}`;
+  const context = parts.length > 0 ? parts.join('. ') : `Resolución guiada de la sesión ${sessionNumber}`;
   return `${context}. Registre el procedimiento y evidencias en su cuaderno:`;
 }

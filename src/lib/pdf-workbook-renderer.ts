@@ -2603,7 +2603,7 @@ async function drawMission(
           y = drawSingleTaskWithDottedLines(doc, assignedTasks[tIdx], tIdx + 1, margin, mainW, pageHeight, y, checkSpace);
         }
       } else {
-        const fallbackTaskText = buildSessionFallbackTaskText(mission, sNum, sMeta.title);
+        const fallbackTaskText = buildSessionFallbackTaskText(mission, sNum, sMeta);
         y = drawSingleTaskWithDottedLines(doc, fallbackTaskText, 1, margin, mainW, pageHeight, y, checkSpace);
       }
 
