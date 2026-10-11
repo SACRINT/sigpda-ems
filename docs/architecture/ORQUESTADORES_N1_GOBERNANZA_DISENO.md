@@ -108,7 +108,7 @@ La meta principal es dotar al **Orquestador de Planeaciones (`PlaneacionOrchestr
 | `evaluate(input)` | `InputEvaluacion` | `ResultadoEvaluacion` | **Implementado y operando**. Evaluación rúbrica Anexo 12 USICAMM. |
 | `buildSequence(...)` | `id: string` → `SecuenciaInput` | `SecuenciaDidacticaDTO` | **Fase 1 (Refirmado)**. Construcción de secuencias didácticas (Apertura, Desarrollo, Cierre), articulación con Progresiones y Reto Situado 4/4. |
 | `generate(...)` | `void` → `PlaneacionGenInput` | `PlaneacionDTO` | **Fase 1 (Refirmado)**. Generación completa de planeación con Tres Saberes (Saber, Saber Hacer, Saber Ser/Convivir) y transversalidad PAEC. |
-| `renderPDF(id)` | `string` (UUID) | `Buffer` | **Fase 2**. Renderizado tipográfico editorial a PDF oficial con `planning-pdf-renderer.ts`, fuentes Lato/Montserrat e iconografía vectorial offline. |
+| `renderPDF(id)` | `id?: string` / `Planning` | `Buffer` | **Fase 2 (Implementado)**. Renderizado tipográfico editorial a PDF oficial con `planning-pdf-renderer.ts`, fuentes Lato/Montserrat e iconografía vectorial offline. |
 | `healthCheck()` | — | `HealthCheckResult` | **Implementado**. Sondeo honesto de Neon DB, credencial de IA y Feature Flags. |
 
 ---

@@ -49,6 +49,8 @@ import { auth } from '@/lib/auth';
 import { isAdmin } from '@/lib/admin-unified';
 import { evaluarPlaneacion } from '@/lib/planeaciones-evaluator';
 import { POST as handleEvaluarPost } from '@/app/api/planeaciones/evaluar/route';
+import * as planningPdfRenderer from '@/lib/planning-pdf-renderer';
+import type { Planning } from '@/types/planning';
 
 const mockEvaluationResult: ResultadoEvaluacion = {
   rubricaUsada: 'Anexo 12 USICAMM — Semestres 1-4',
@@ -74,6 +76,80 @@ const mockEvaluationResult: ResultadoEvaluacion = {
   alineacionPaecPec: 'Vinculada al PEC Comunitario de la Zona 004.',
   retroalimentacionDocente: 'Cumple satisfactoriamente con la normativa estatal.',
   evaluadoAt: new Date().toISOString(),
+};
+
+const mockEditorialPlanning: Planning = {
+  id: 'plan-editorial-orchestrator-1',
+  teacherId: 'teacher-1',
+  uacName: 'Sistemas Embebidos e IoT',
+  semester: 4,
+  component: 'laboral',
+  curriculumName: 'Mecatrónica',
+  paecContext: 'Proyecto Aula Escuela Comunidad de Telemetría',
+  status: 'generated',
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  contentJson: {
+    sectionI: {
+      teacherName: 'Ing. Docente Titular',
+      uacName: 'Sistemas Embebidos e IoT',
+      semester: 4,
+      groups: '4A',
+      schoolYear: '2026-2027',
+      applicationPeriod: 'Ago-Dic 2026',
+      estimatedSessions: '16',
+      component: 'Formación Profesional',
+      totalHours: 64,
+      subsystem: 'CECyTE',
+      schoolName: 'CECyTE Plantel Tepeaca',
+      cct: '21ETC0004Y',
+      period: '2026-2027',
+    },
+    sectionII: {
+      problematicContext: 'Automatización del monitoreo hídrico en Tepeaca',
+      paecLinking: 'Proyecto Aula Escuela Comunidad de Telemetría',
+      transversalTheme: 'Cuidado del Agua',
+    },
+    sectionIII: {
+      learningGoal: 'Desarrollar soluciones embebidas para telemetría ambiental.',
+      fundamentalConcepts: ['Microcontroladores', 'Sensores de Flujo', 'Comunicaciones'],
+    },
+    sectionIV: {
+      sessions: [
+        {
+          sessionNum: 1,
+          totalSessions: 16,
+          phase: 'Apertura',
+          title: 'Diagnóstico de instrumentación digital',
+          teachingActivity: 'Presentar problemática de desabasto y variables de medición.',
+          learningActivity: 'Identificar componentes del circuito medidor de nivel.',
+          evidence: 'Diagrama esquemático inicial',
+        },
+        {
+          sessionNum: 2,
+          totalSessions: 16,
+          phase: 'Desarrollo',
+          title: 'Ensamble del circuito con microcontrolador',
+          teachingActivity: 'Modelar conexión del sensor ultrasónico y pines GPIO.',
+          learningActivity: 'Realizar montaje en protoboard y verificar señales.',
+          evidence: 'Circuito funcional en banco de trabajo',
+        },
+      ],
+    },
+    sectionV: {
+      evaluations: [
+        {
+          moment: 'Formativa',
+          agent: 'Heteroevaluación',
+          evidence: 'Circuito funcional',
+          instrument: 'Rúbrica analítica',
+          weight: '40%',
+        },
+      ],
+    },
+  } as unknown as Planning['contentJson'],
+  sequenceJson: null,
+  extractedData: null,
 };
 
 describe('PlaneacionOrchestrator (Piloto Nivel 1 & Strangler Fig)', () => {
@@ -172,14 +248,57 @@ describe('PlaneacionOrchestrator (Piloto Nivel 1 & Strangler Fig)', () => {
     expect(json.error).toContain('demasiado corto o inválido');
   });
 
-  it('4. Métodos no implementados (renderPDF) lanzan PlaneacionOrchestratorError con HTTP 501 (B-001)', async () => {
-    await expect(planeacionesOrchestrator.renderPDF()).rejects.toThrow(PlaneacionOrchestratorError);
+  it('4. Fase 2: renderPDF() delega en planning-pdf-renderer.ts generando un Buffer de PDF oficial con fuentes Lato/Montserrat', async () => {
+    const pdfSpy = vi.spyOn(planningPdfRenderer, 'generatePlanningPDF');
 
+    // 1. Generación exitosa a partir de una instancia Planning en memoria
+    const bufferFromObj = await planeacionesOrchestrator.renderPDF(mockEditorialPlanning);
+    expect(Buffer.isBuffer(bufferFromObj)).toBe(true);
+    expect(bufferFromObj.subarray(0, 4).toString()).toBe('%PDF');
+    expect(bufferFromObj.byteLength).toBeGreaterThan(3000);
+    // Aserción Anti-F11: verificar que generatePlanningPDF fue invocado formalmente
+    expect(pdfSpy).toHaveBeenCalledWith(mockEditorialPlanning, undefined);
+
+    // 2. Generación exitosa resolviendo la planeación desde BD por ID
+    mockDb.mockResolvedValueOnce([
+      {
+        id: 'plan-db-1',
+        teacher_id: 'teacher-1',
+        uac_name: 'Sistemas Embebidos e IoT',
+        semester: 4,
+        component: 'laboral',
+        curriculum_name: 'Mecatrónica',
+        paec_context: 'Comunidad Tepeaca',
+        content_json: mockEditorialPlanning.contentJson,
+        status: 'generated',
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+    ]);
+
+    const bufferFromId = await planeacionesOrchestrator.renderPDF('plan-db-1');
+    expect(Buffer.isBuffer(bufferFromId)).toBe(true);
+    expect(bufferFromId.subarray(0, 4).toString()).toBe('%PDF');
+    expect(bufferFromId.byteLength).toBeGreaterThan(3000);
+
+    // 3. Negativo / Robustez: ID inexistente en BD lanza 404
+    mockDb.mockResolvedValueOnce([]);
+    await expect(planeacionesOrchestrator.renderPDF('plan-inexistente')).rejects.toThrow(PlaneacionOrchestratorError);
+    try {
+      mockDb.mockResolvedValueOnce([]);
+      await planeacionesOrchestrator.renderPDF('plan-inexistente');
+    } catch (err) {
+      expect(err).toBeInstanceOf(PlaneacionOrchestratorError);
+      expect((err as PlaneacionOrchestratorError).status).toBe(404);
+    }
+
+    // 4. Negativo / Robustez: Sin parámetros lanza 400
+    await expect(planeacionesOrchestrator.renderPDF()).rejects.toThrow(PlaneacionOrchestratorError);
     try {
       await planeacionesOrchestrator.renderPDF();
     } catch (err) {
       expect(err).toBeInstanceOf(PlaneacionOrchestratorError);
-      expect((err as PlaneacionOrchestratorError).status).toBe(501);
+      expect((err as PlaneacionOrchestratorError).status).toBe(400);
     }
   });
 

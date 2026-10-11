@@ -21,6 +21,9 @@ import {
   type SecuenciaGenerateInputDTO,
 } from '@/lib/ai-schemas';
 import { logger } from '@/lib/logger';
+import { generatePlanningPDF } from '@/lib/planning-pdf-renderer';
+import type { Planning } from '@/types/planning';
+import { getPlanningById } from '@/lib/db';
 
 export class PlaneacionOrchestratorError extends Error {
   public status: number;
@@ -54,11 +57,16 @@ export interface PlaneacionGenInput {
   isPremium?: boolean;
 }
 
+export interface RenderPdfOptions {
+  planning?: Planning;
+  logos?: { gobierno?: string; sep?: string; supervision?: string };
+}
+
 export interface IPlaneacionOrchestrator extends IProgramSystem {
   evaluate(input: InputEvaluacion): Promise<ResultadoEvaluacion>;
   generate(input: PlaneacionGenInput): Promise<Record<string, unknown>>;
   buildSequence(input: SecuenciaInput): Promise<Record<string, unknown>>;
-  renderPDF(id?: string): Promise<Buffer>;
+  renderPDF(idOrPlanning?: string | Planning, options?: RenderPdfOptions): Promise<Buffer>;
 }
 
 export class PlaneacionOrchestrator implements IPlaneacionOrchestrator {
@@ -247,13 +255,84 @@ export class PlaneacionOrchestrator implements IPlaneacionOrchestrator {
   }
 
   /**
-   * Renderizado a PDF del libro o planeación didáctica (Contrato N1 — Fase 2).
+   * Renderizado a PDF de la planeación didáctica oficial (Contrato N1 — Fase 2).
+   * Delega en planning-pdf-renderer.ts para tipografía Lato/Montserrat y diseño oficial Carta.
    */
-  public async renderPDF(): Promise<Buffer> {
-    throw new PlaneacionOrchestratorError(
-      'Método renderPDF() no implementado en la fase actual del orquestador Planeaciones.',
-      501
-    );
+  public async renderPDF(
+    idOrPlanning?: string | Planning,
+    options?: RenderPdfOptions
+  ): Promise<Buffer> {
+    if (!idOrPlanning && !options?.planning) {
+      throw new PlaneacionOrchestratorError(
+        'Se requiere un ID o una instancia de Planeación para renderizar el PDF.',
+        400
+      );
+    }
+
+    let planning: Planning | null = null;
+
+    if (typeof idOrPlanning === 'object' && idOrPlanning !== null) {
+      planning = idOrPlanning as Planning;
+    } else if (options?.planning) {
+      planning = options.planning;
+    } else if (typeof idOrPlanning === 'string') {
+      try {
+        const rawPlanning = await getPlanningById(idOrPlanning);
+        if (!rawPlanning) {
+          throw new PlaneacionOrchestratorError(
+            `Planeación con ID ${idOrPlanning} no encontrada en la base de datos.`,
+            404
+          );
+        }
+        planning = {
+          id: rawPlanning.id,
+          teacherId: rawPlanning.teacher_id,
+          uacName: rawPlanning.uac_name,
+          semester: rawPlanning.semester,
+          component: rawPlanning.component,
+          curriculumName: rawPlanning.curriculum_name || '',
+          paecContext: rawPlanning.paec_context || '',
+          extractedData: rawPlanning.extracted_data,
+          contentJson: rawPlanning.content_json,
+          status: rawPlanning.status,
+          createdAt: rawPlanning.created_at,
+          updatedAt: rawPlanning.updated_at,
+          sequenceJson: rawPlanning.sequence_json,
+          evaluationJson: rawPlanning.evaluation_json,
+        };
+      } catch (err) {
+        if (err instanceof PlaneacionOrchestratorError) {
+          throw err;
+        }
+        logger.error('[planeaciones-orchestrator] Error al consultar planeación de BD:', { error: err });
+        throw new PlaneacionOrchestratorError(
+          `Error al consultar la planeación ${idOrPlanning}: ${(err as Error).message}`,
+          500
+        );
+      }
+    }
+
+    if (!planning) {
+      throw new PlaneacionOrchestratorError(
+        'Estructura de planeación no disponible para renderizado.',
+        400
+      );
+    }
+
+    try {
+      const doc = await generatePlanningPDF(planning, options?.logos);
+      const arrayBuffer = doc.output('arraybuffer');
+      return Buffer.from(arrayBuffer);
+    } catch (err) {
+      if (err instanceof PlaneacionOrchestratorError) {
+        throw err;
+      }
+      logger.error('[planeaciones-orchestrator] Error en renderizado editorial de PDF:', { error: err });
+      throw new PlaneacionOrchestratorError(
+        `Fallo en el motor editorial al generar PDF: ${(err as Error).message}`,
+        500
+      );
+    }
   }
 
   /**
