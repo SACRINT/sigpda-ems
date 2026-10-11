@@ -9,6 +9,7 @@ import DeletePlanningButton from '@/components/planeacion/DeletePlanningButton';
 import GenerationFeedback from '@/components/feedback/GenerationFeedback';
 import DocumentA4Viewer from '@/components/common/DocumentA4Viewer';
 import { generatePlanningPDF, generateSecuenciaPDF } from '@/lib/planning-pdf-renderer';
+import { exportPlanningPdfWithFallback } from '@/lib/planeaciones/strangler-client';
 import { generateBlockSessions, type DetailedSession } from '@/lib/session-progression-engine';
 import type { ActiveWorkTextbook, GenerationProgressState } from '@/types/work-textbook';
 // ── Lucide Icons ────────────────────────────────────────────────────────────
@@ -627,9 +628,18 @@ export default function PlanningDetailLegacy({
   const handleDownloadPdf = async () => {
     try {
       setDownloadingPdf(true);
-      const pdf = await generatePlanningPDF({ ...planning, sequenceJson: sequenceData });
       const filename = `Planeacion_${planning.uacName.replace(/\s+/g, '_')}_Semestre_${planning.semester}.pdf`;
-      pdf.save(filename);
+      const result = await exportPlanningPdfWithFallback({
+        planningId: planning.id,
+        filename,
+        onLegacyFallback: async () => {
+          const pdf = await generatePlanningPDF({ ...planning, sequenceJson: sequenceData });
+          pdf.save(filename);
+        },
+      });
+      if (result.error) {
+        alert(result.error);
+      }
     } catch (e) {
       console.error('Error generating PDF:', e);
       alert('Hubo un error al generar el archivo PDF.');

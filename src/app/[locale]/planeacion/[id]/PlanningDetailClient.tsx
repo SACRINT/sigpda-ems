@@ -8,6 +8,7 @@ import { ExtraPreviewModal } from '@/components/planeacion/ExtraPreviewModal';
 import DeletePlanningButton from '@/components/planeacion/DeletePlanningButton';
 import { generatePlanningPDF, generateSecuenciaPDF } from '@/lib/planning-pdf-renderer';
 import { generateBlockSessions, type DetailedSession } from '@/lib/session-progression-engine';
+import { exportPlanningPdfWithFallback, generateSequenceWithFallback } from '@/lib/planeaciones/strangler-client';
 import type { ActiveWorkTextbook, GenerationProgressState } from '@/types/work-textbook';
 // ── Lucide Icons ────────────────────────────────────────────────────────────
 import {
@@ -335,16 +336,39 @@ function PlanningDetailModular({
     setGeneratingSeqBlock(blockIndex);
     setSeqMessage(null);
     try {
-      const res = await fetch(`/api/planeaciones/${planning.id}/secuencia`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ blockIndex }),
+      const result = await generateSequenceWithFallback<{ sequence: SecuenciaBloque }>({
+        planningId: planning.id,
+        blockIndex,
+        onLegacyFallback: async () => {
+          const act = content?.sectionIV?.activities?.[blockIndex];
+          if (!act) {
+            throw new Error(`Bloque ${blockIndex + 1} no encontrado en la planeación`);
+          }
+          const outcome = content?.sectionII?.learningOutcomes?.[blockIndex] || '';
+          const hours = act.hours || (isLaboral ? 18 : 12);
+          const sessions = generateBlockSessions(act, blockIndex, hours, outcome, isLaboral, null);
+          return {
+            sequence: {
+              blockIndex,
+              blockName: act.name || `Bloque ${blockIndex + 1}`,
+              hours,
+              sessions: sessions as any,
+              updatedAt: new Date().toISOString(),
+            },
+          };
+        },
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error al generar secuencia didáctica');
-      setSequenceData(prev => ({ ...prev, [blockIndex]: data.sequence }));
-      setExpandedSeqBlock(blockIndex);
-      setSeqMessage({ block: blockIndex, text: '¡Secuencia didáctica generada y guardada con éxito!', type: 'success' });
+
+      if (result.error) {
+        setSeqMessage({ block: blockIndex, text: result.error, type: 'error' });
+        return;
+      }
+
+      if (result.data?.sequence) {
+        setSequenceData(prev => ({ ...prev, [blockIndex]: result.data!.sequence }));
+        setExpandedSeqBlock(blockIndex);
+        setSeqMessage({ block: blockIndex, text: '¡Secuencia didáctica generada y guardada con éxito!', type: 'success' });
+      }
     } catch (err: unknown) {
       setSeqMessage({ block: blockIndex, text: err instanceof Error ? err.message : 'Error al generar secuencia', type: 'error' });
     } finally {
@@ -656,9 +680,18 @@ function PlanningDetailModular({
   const handleDownloadPdf = async () => {
     try {
       setDownloadingPdf(true);
-      const pdf = await generatePlanningPDF({ ...planning, sequenceJson: sequenceData });
       const filename = `Planeacion_${planning.uacName.replace(/\s+/g, '_')}_Semestre_${planning.semester}.pdf`;
-      pdf.save(filename);
+      const result = await exportPlanningPdfWithFallback({
+        planningId: planning.id,
+        filename,
+        onLegacyFallback: async () => {
+          const pdf = await generatePlanningPDF({ ...planning, sequenceJson: sequenceData });
+          pdf.save(filename);
+        },
+      });
+      if (result.error) {
+        alert(result.error);
+      }
     } catch (e) {
       console.error('Error generating PDF:', e);
       alert('Hubo un error al generar el archivo PDF.');

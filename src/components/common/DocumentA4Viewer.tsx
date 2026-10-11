@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import type { Planning, GeneratedPlanningContent, SecuenciaBloque } from '@/types/planning';
 import { generatePlanningPDF } from '@/lib/planning-pdf-renderer';
+import { exportPlanningPdfWithFallback } from '@/lib/planeaciones/strangler-client';
 import { enrichWithExplicitSaberes } from '@/lib/planning-integrity-system';
 import { stripMaterialTokens } from '@/lib/materials/material-tokens';
 
@@ -31,9 +32,18 @@ export default function DocumentA4Viewer({
   const handleDownloadPdf = async () => {
     try {
       setDownloadingPdf(true);
-      const pdf = await generatePlanningPDF(planning);
       const filename = `Planeacion_${planning.uacName.replace(/\s+/g, '_')}_Semestre_${planning.semester}.pdf`;
-      pdf.save(filename);
+      const result = await exportPlanningPdfWithFallback({
+        planningId: planning.id,
+        filename,
+        onLegacyFallback: async () => {
+          const pdf = await generatePlanningPDF(planning);
+          pdf.save(filename);
+        },
+      });
+      if (result.error) {
+        alert(result.error);
+      }
     } catch (e) {
       console.error('Error generating PDF:', e);
       alert('Hubo un error al generar el archivo PDF.');
