@@ -796,4 +796,38 @@ describe('PlaneacionOrchestrator (Piloto Nivel 1 & Strangler Fig)', () => {
     expect(s18?.learningActivity).not.toEqual(s19?.learningActivity);
     expect(s19?.learningActivity).not.toEqual(s20?.learningActivity);
   });
+
+  it('19. H-2 / P3: buildSequence() con cursos largos (>20 sesiones de Desarrollo) preserva unicidad total en learningActivity mediante cycleSuffix', async () => {
+    // 30 horas -> 3 apertura, 24 desarrollo (> 20 hitos base), 3 cierre
+    const res = await planeacionesOrchestrator.buildSequence({
+      blockIndex: 0,
+      totalHours: 30,
+    });
+
+    expect(res.success).toBe(true);
+    const sessions = res.sessions as Array<{
+      sessionNum: number;
+      phase: string;
+      title: string;
+      learningActivity: string;
+      teachingActivity: string;
+    }>;
+
+    expect(sessions).toHaveLength(30);
+
+    const desarrolloSessions = sessions.filter((s) => s.phase === 'Desarrollo');
+    expect(desarrolloSessions).toHaveLength(24);
+
+    // Todas las actividades de aprendizaje deben ser únicas incluso ciclando
+    const learningActivities = desarrolloSessions.map((s) => s.learningActivity);
+    const uniqueLearningActivities = new Set(learningActivities);
+    expect(uniqueLearningActivities.size).toBe(desarrolloSessions.length);
+
+    // Sesión 21 (primera del ciclo 2 de desarrollo) debe tener sufijo y ser distinta a la sesión 1 del ciclo 1
+    const s4 = desarrolloSessions[0]; // hito 0, ciclo 1
+    const s24 = desarrolloSessions[20]; // hito 0, ciclo 2
+    expect(s4.learningActivity).not.toEqual(s24.learningActivity);
+    expect(s24.title).toContain('(Ciclo 2)');
+    expect(s24.learningActivity).toContain('ciclo 2');
+  });
 });

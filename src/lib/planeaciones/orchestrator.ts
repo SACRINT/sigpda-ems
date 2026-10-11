@@ -409,12 +409,15 @@ export class PlaneacionOrchestrator implements IPlaneacionOrchestrator {
     // Fase 1: Apertura (Diagnóstico, detonador situado, motivación y saberes previos)
     for (let i = 0; i < aperturaCount; i++) {
       const milestone = APERTURA_SESSION_MILESTONES[i % APERTURA_SESSION_MILESTONES.length];
+      const cycle = Math.floor(i / APERTURA_SESSION_MILESTONES.length);
+      const cycleSuffix = cycle > 0 ? ` (Etapa ${cycle + 1})` : '';
+      const actSuffix = cycle > 0 ? ` (Etapa diagnóstica ${cycle + 1} · Sesión ${sessionNumber})` : '';
       sessions.push({
         sessionNum: sessionNumber,
         phase: 'Apertura' as const,
-        title: `Sesión ${sessionNumber}: ${milestone.title}`,
-        teachingActivity: milestone.teachingActivity,
-        learningActivity: milestone.learningActivity,
+        title: `Sesión ${sessionNumber}: ${milestone.title}${cycleSuffix}`,
+        teachingActivity: `${milestone.teachingActivity}${actSuffix}`,
+        learningActivity: `${milestone.learningActivity}${actSuffix}`,
         evidence: milestone.evidence,
         evaluation: milestone.evaluation,
       });
@@ -424,13 +427,15 @@ export class PlaneacionOrchestrator implements IPlaneacionOrchestrator {
     // Fase 2: Desarrollo (Construcción activa, modelado docente, práctica guiada y autónoma)
     for (let i = 0; i < desarrolloCount; i++) {
       const milestone = DESARROLLO_SESSION_MILESTONES[i % DESARROLLO_SESSION_MILESTONES.length];
-      const cycleSuffix = i >= DESARROLLO_SESSION_MILESTONES.length ? ` (Ciclo ${Math.floor(i / DESARROLLO_SESSION_MILESTONES.length) + 1})` : '';
+      const cycle = Math.floor(i / DESARROLLO_SESSION_MILESTONES.length);
+      const cycleSuffix = cycle > 0 ? ` (Ciclo ${cycle + 1})` : '';
+      const actSuffix = cycle > 0 ? ` (Profundización ciclo ${cycle + 1} · Sesión ${sessionNumber})` : '';
       sessions.push({
         sessionNum: sessionNumber,
         phase: 'Desarrollo' as const,
         title: `Sesión ${sessionNumber}: ${milestone.title}${cycleSuffix}`,
-        teachingActivity: milestone.teachingActivity,
-        learningActivity: milestone.learningActivity,
+        teachingActivity: `${milestone.teachingActivity}${actSuffix}`,
+        learningActivity: `${milestone.learningActivity}${actSuffix}`,
         evidence: milestone.evidence,
         evaluation: milestone.evaluation,
       });
@@ -440,12 +445,15 @@ export class PlaneacionOrchestrator implements IPlaneacionOrchestrator {
     // Fase 3: Cierre (Síntesis, evaluación formativa, metacognición y producto integrador)
     for (let i = 0; i < cierreCount; i++) {
       const milestone = CIERRE_SESSION_MILESTONES[i % CIERRE_SESSION_MILESTONES.length];
+      const cycle = Math.floor(i / CIERRE_SESSION_MILESTONES.length);
+      const cycleSuffix = cycle > 0 ? ` (Etapa ${cycle + 1})` : '';
+      const actSuffix = cycle > 0 ? ` (Consolidación ${cycle + 1} · Sesión ${sessionNumber})` : '';
       sessions.push({
         sessionNum: sessionNumber,
         phase: 'Cierre' as const,
-        title: `Sesión ${sessionNumber}: ${milestone.title}`,
-        teachingActivity: milestone.teachingActivity,
-        learningActivity: milestone.learningActivity,
+        title: `Sesión ${sessionNumber}: ${milestone.title}${cycleSuffix}`,
+        teachingActivity: `${milestone.teachingActivity}${actSuffix}`,
+        learningActivity: `${milestone.learningActivity}${actSuffix}`,
         evidence: milestone.evidence,
         evaluation: milestone.evaluation,
       });
