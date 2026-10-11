@@ -14,7 +14,12 @@ export interface SessionTaskFallbackInput {
 }
 
 function cleanSentence(text: string | null | undefined): string {
-  return (text || '').replace(/\s+/g, ' ').trim().replace(/[.:;,\s]+$/, '');
+  return (text || '')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/[.:;,\s]+$/, '')
+    .trim();
 }
 
 /** Un título es genérico si es el fallback "… (SESIÓN N)" que inyectan los renderers. */
@@ -66,6 +71,10 @@ export function buildSessionFallbackTaskText(
   push(topic);
   push(focus);
 
-  const context = parts.length > 0 ? parts.join('. ') : `Resolución guiada de la sesión ${sessionNumber}`;
+  const rawContext = parts.length > 0 ? parts.join('. ') : `Resolución guiada de la sesión ${sessionNumber}`;
+  const context = rawContext
+    .replace(/\.{2,}/g, '.')
+    .replace(/[.:;,\s]+$/, '')
+    .trim();
   return `${context}. Registre el procedimiento y evidencias en su cuaderno:`;
 }

@@ -58,4 +58,23 @@ describe('H-8 / REG-3 — Tarea de respaldo específica por sesión', () => {
     expect(text17).toContain(mission.sessionTopic);
     expect(text18).toContain(mission.sessionTopic);
   });
+
+  it('H-3: no genera dobles puntos (..) cuando las entradas de BD terminan en punto o tienen puntos suspensivos', () => {
+    const mission = {
+      sessionTopic: 'Módulo Interactivo y Presupuestario...',
+      sessionFocus: 'Construcción del artefacto en equipo.',
+    };
+
+    const sMeta = {
+      title: 'Sesión 17: Desarrollo y Aplicación Práctica.',
+      phase: 'Desarrollo',
+      learningActivity: 'Resolución de retos situados y construcción de artefactos didácticos en equipo.',
+      teachingActivity: 'Modelado procedimental, asesoría metodológica y acompañamiento guiado.',
+    };
+
+    const text = buildSessionFallbackTaskText(mission, 17, sMeta);
+    expect(text).not.toContain('..');
+    expect(text).not.toContain('equipo..');
+    expect(text).toMatch(/\. Registre el procedimiento y evidencias en su cuaderno:$/);
+  });
 });
