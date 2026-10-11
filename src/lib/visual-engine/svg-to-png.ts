@@ -7,6 +7,7 @@
  * Incluye salvaguarda de error para nunca interrumpir la generación del libro.
  */
 
+import './svg-font-bootstrap';
 import sharp from 'sharp';
 import { logger } from '@/lib/logger';
 

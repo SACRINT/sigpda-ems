@@ -15,6 +15,7 @@
  *    - Folio criptográfico SHA-256 institucional.
  */
 
+import './svg-font-bootstrap';
 import sharp from 'sharp';
 import QRCode from 'qrcode';
 import crypto from 'crypto';
