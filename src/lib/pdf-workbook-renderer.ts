@@ -395,7 +395,11 @@ export async function renderWorkbookToPdf(
       pageNumber: projectStartPage,
     });
     currentY = margin + 8;
-    currentY = drawProjectSection(doc, workbook.projectSection, margin, contentWidth, pageHeight, currentY);
+    const allWorkbookSessions = Array.from(
+      new Set(workbook.missions.flatMap((m) => m.coveredSessions || []))
+    ).sort((a, b) => a - b);
+    const sessionList = allWorkbookSessions.length > 0 ? allWorkbookSessions : undefined;
+    currentY = drawProjectSection(doc, workbook.projectSection, margin, contentWidth, pageHeight, currentY, sessionList);
   }
 
   // ── 6. Evaluación Formativa y Sumativa NEM (Rúbrica y Lista de Cotejo) ─────
@@ -2889,7 +2893,8 @@ function drawProjectSection(
   margin: number,
   contentWidth: number,
   pageHeight: number,
-  startY: number
+  startY: number,
+  sessionList?: number[]
 ): number {
   let y = startY;
 
@@ -3131,18 +3136,16 @@ function drawProjectSection(
     y += boxHeight + 6;
 
     // Tabla de registro de bitácora y firmas de asesoría docente
+    const effectiveSessions = (sessionList && sessionList.length > 0)
+      ? sessionList
+      : [1, 2, 3, 4, 5];
+
     y = ensureVerticalSpace(doc, y, 46, margin, pageHeight);
     autoTable(doc, {
       startY: y,
       margin: { left: margin, right: margin },
       head: [['Sesión / Fecha', 'Actividad Procedimental Desarrollada', 'Evidencia Obtenida', 'Firma y Sello Docente']],
-      body: [
-        ['Sesión 1: ___/___/2026', ' ', ' ', ' '],
-        ['Sesión 2: ___/___/2026', ' ', ' ', ' '],
-        ['Sesión 3: ___/___/2026', ' ', ' ', ' '],
-        ['Sesión 4: ___/___/2026', ' ', ' ', ' '],
-        ['Sesión 5: ___/___/2026', ' ', ' ', ' '],
-      ],
+      body: effectiveSessions.map((s) => [`Sesión ${s}: ___/___/2026`, ' ', ' ', ' ']),
       theme: 'grid',
       headStyles: { fillColor: MID_BLUE, textColor: [255, 255, 255], fontSize: 7, fontStyle: 'bold' },
       styles: { fontSize: 7, minCellHeight: 8, textColor: DARK_TEXT },

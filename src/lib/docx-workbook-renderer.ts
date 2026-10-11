@@ -300,7 +300,11 @@ export async function renderWorkbookToDocx(
 
   // Proyecto Formativo Comunitario
   if (workbook.projectSection) {
-    bodyChildren.push(...buildProjectSection(workbook.projectSection));
+    const allWorkbookSessions = Array.from(
+      new Set(workbook.missions.flatMap((m) => m.coveredSessions || []))
+    ).sort((a, b) => a - b);
+    const sessionList = allWorkbookSessions.length > 0 ? allWorkbookSessions : undefined;
+    bodyChildren.push(...buildProjectSection(workbook.projectSection, sessionList));
     bodyChildren.push(new Paragraph({ children: [new PageBreak()] }));
   }
 
@@ -3806,7 +3810,7 @@ function buildTroubleshootTable(items: TroubleshootItem[]): Table {
   });
 }
 
-function buildProjectSection(project: ProjectSection): (Paragraph | Table)[] {
+function buildProjectSection(project: ProjectSection, sessionList?: number[]): (Paragraph | Table)[] {
   const elements: (Paragraph | Table)[] = [
     new Paragraph({
       spacing: { before: 200, after: 100 },
@@ -4153,7 +4157,11 @@ function buildProjectSection(project: ProjectSection): (Paragraph | Table)[] {
       }),
     ];
 
-    for (let s = 1; s <= 5; s++) {
+    const effectiveSessions = (sessionList && sessionList.length > 0)
+      ? sessionList
+      : [1, 2, 3, 4, 5];
+
+    for (const s of effectiveSessions) {
       logRows.push(
         new TableRow({
           children: [
