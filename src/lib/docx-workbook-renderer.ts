@@ -92,6 +92,7 @@ import {
 import { logger } from '@/lib/logger';
 import { highlightCodeBlock } from '@/lib/visual-engine/code-highlighter';
 import { CODE_IDE, STEP_CARDS_DOCX, CONCEPT_CARDS_DOCX, PROCESS_FLOW_DOCX } from '@/lib/visual-engine/design-tokens';
+import { buildSessionFallbackTaskText } from '@/lib/session-task-fallback';
 import { extractConceptCardsFromMission } from '@/lib/visual-engine/concept-card-renderer';
 import { extractProcessFlowSteps } from '@/lib/visual-engine/process-flow-renderer';
 import { parseLabStepsFromProse } from '@/lib/guide-engine/lab-step-parser';
@@ -3646,7 +3647,7 @@ async function buildMissionContent(
           desarrolloMain.push(...buildDocxSingleTask(assignedTasks[tIdx], tIdx + 1, desarrolloW));
         }
       } else {
-        const fallbackTaskText = `${sMeta.title || 'Resolución guiada de ejercicios y consolidación técnica'}. Aplica los conceptos de la misión y registra el procedimiento colaborativo en equipo:`;
+        const fallbackTaskText = buildSessionFallbackTaskText(mission, sNum, sMeta.title);
         desarrolloMain.push(...buildDocxSingleTask(fallbackTaskText, 1, desarrolloW));
       }
 
