@@ -261,7 +261,22 @@ export function drawSessionDivider(doc: jsPDF, opts: SessionDividerOptions): num
     sessionTitle,
   } = opts;
   const y = opts.y;
-  const dividerH = 9.0;
+  const cleanPhase = sanitizePdfText(phaseLabel).toUpperCase();
+  const titlePart = sessionTitle ? ` · ${sanitizePdfText(sessionTitle)}` : '';
+
+  // Medir badge y texto previo a pintar contenedores para altura dinámica
+  setFontHeading(doc);
+  doc.setFontSize(7.2);
+  const badgeText = `SESION ${sessionNumber} (${durationMin} MIN)`;
+  const badgeW = doc.getTextWidth(badgeText) + 7;
+
+  doc.setFontSize(7.5);
+  const maxPhaseW = drawWidth - badgeW - 10;
+  const fullLabel = `FASE: ${cleanPhase}${titlePart}`;
+  const phaseLines = doc.splitTextToSize(fullLabel, maxPhaseW);
+  const linesToRender = phaseLines.slice(0, 2);
+  const isMultiLine = linesToRender.length > 1;
+  const dividerH = isMultiLine ? 13.5 : 9.0;
 
   // Fondo sutil de tarjeta con borde temático
   doc.setFillColor(...COLOR.TABLE_ALT_ROW);
@@ -270,27 +285,24 @@ export function drawSessionDivider(doc: jsPDF, opts: SessionDividerOptions): num
   doc.roundedRect(margin, y, drawWidth, dividerH, RADIUS.SM, RADIUS.SM, 'FD');
 
   // Badge izquierdo relleno con el color de la fase
-  const badgeText = `SESION ${sessionNumber} (${durationMin} MIN)`;
-  setFontHeading(doc);
-  doc.setFontSize(7.2);
-  const badgeW = doc.getTextWidth(badgeText) + 7;
   doc.setFillColor(...themeColor);
   doc.roundedRect(margin, y, badgeW, dividerH, RADIUS.SM, RADIUS.SM, 'F');
   doc.rect(margin + badgeW - 2, y, 2, dividerH, 'F'); // Relleno de empalme derecho
 
   doc.setTextColor(255, 255, 255);
-  doc.text(badgeText, margin + 3.5, y + 6.0);
+  doc.setFontSize(7.2);
+  const badgeY = isMultiLine ? y + 8.2 : y + 6.0;
+  doc.text(badgeText, margin + 3.5, badgeY);
 
-  // Etiqueta de fase a la derecha del badge en texto de alta legibilidad
-  setFontHeading(doc);
+  // Etiqueta de fase y título de sesión a la derecha del badge (multilínea completo)
   doc.setFontSize(7.5);
   doc.setTextColor(...themeColor);
-  const cleanPhase = sanitizePdfText(phaseLabel).toUpperCase();
-  const titlePart = sessionTitle ? ` · ${sanitizePdfText(sessionTitle)}` : '';
-  const maxPhaseW = drawWidth - badgeW - 10;
-  const fullLabel = `FASE: ${cleanPhase}${titlePart}`;
-  const phaseLines = doc.splitTextToSize(fullLabel, maxPhaseW);
-  doc.text(phaseLines[0] || fullLabel, margin + badgeW + 4.5, y + 6.0);
+  if (isMultiLine) {
+    doc.text(linesToRender[0], margin + badgeW + 4.5, y + 5.2);
+    doc.text(linesToRender[1], margin + badgeW + 4.5, y + 9.8);
+  } else {
+    doc.text(linesToRender[0] || fullLabel, margin + badgeW + 4.5, y + 6.0);
+  }
 
   return y + dividerH + SPACING.AFTER_SECTION;
 }
