@@ -173,7 +173,7 @@ function cell(
     fill = C.white,
     color = C.darkText,
     size = 20, // 10pt (docx usa medios puntos: 20 = 10pt)
-    align = AlignmentType.LEFT,
+    align = AlignmentType.JUSTIFIED,
     font = 'Calibri',
   } = opts;
 
@@ -472,6 +472,15 @@ export async function renderWorkbookToDocx(
   }
 
   const doc = new Document({
+    styles: {
+      default: {
+        document: {
+          paragraph: {
+            alignment: AlignmentType.JUSTIFIED,
+          },
+        },
+      },
+    },
     sections: docSections,
   });
 
