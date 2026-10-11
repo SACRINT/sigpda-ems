@@ -760,4 +760,40 @@ describe('PlaneacionOrchestrator (Piloto Nivel 1 & Strangler Fig)', () => {
     expect(planningEvaluatorModule.autoRepairRetoSituado).toBeDefined();
     expect(planningEvaluatorModule.ensureRetoSituadoCalidad).toBeDefined();
   });
+
+  it('18. H-1 / REG-3: buildSequence() genera actividades pedagógicas progresivas únicas por sesión en cursos de 24 horas', async () => {
+    const res = await planeacionesOrchestrator.buildSequence({
+      blockIndex: 0,
+      totalHours: 24,
+    });
+
+    expect(res.success).toBe(true);
+    const sessions = res.sessions as Array<{
+      sessionNum: number;
+      phase: string;
+      title: string;
+      learningActivity: string;
+      teachingActivity: string;
+    }>;
+
+    expect(sessions).toHaveLength(24);
+
+    // Las sesiones de Desarrollo (4 a 21) deben tener actividades de aprendizaje únicas entre sí
+    const desarrolloSessions = sessions.filter((s) => s.phase === 'Desarrollo');
+    expect(desarrolloSessions).toHaveLength(18);
+
+    const learningActivities = desarrolloSessions.map((s) => s.learningActivity);
+    const uniqueLearningActivities = new Set(learningActivities);
+    expect(uniqueLearningActivities.size).toBe(desarrolloSessions.length);
+
+    // Sesiones 17, 18, 19, 20 deben ser completamente distintas
+    const s17 = sessions.find((s) => s.sessionNum === 17);
+    const s18 = sessions.find((s) => s.sessionNum === 18);
+    const s19 = sessions.find((s) => s.sessionNum === 19);
+    const s20 = sessions.find((s) => s.sessionNum === 20);
+
+    expect(s17?.learningActivity).not.toEqual(s18?.learningActivity);
+    expect(s18?.learningActivity).not.toEqual(s19?.learningActivity);
+    expect(s19?.learningActivity).not.toEqual(s20?.learningActivity);
+  });
 });

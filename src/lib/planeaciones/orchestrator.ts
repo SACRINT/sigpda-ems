@@ -69,6 +69,215 @@ export interface IPlaneacionOrchestrator extends IProgramSystem {
   renderPDF(idOrPlanning?: string | Planning, options?: RenderPdfOptions): Promise<Buffer>;
 }
 
+// ============================================================================
+// HITOS PEDAGÓGICOS PROGRESIVOS MCCEMS (H-1 / REG-3)
+// Garantiza unicidad sustantiva por sesión a lo largo de las 3 fases formativas.
+// ============================================================================
+export const APERTURA_SESSION_MILESTONES = [
+  {
+    title: 'Exploración Diagnóstica y Problematización Situada',
+    teachingActivity: 'Presentación del detonador situado y dinamización de saberes previos con preguntas generadoras.',
+    learningActivity: 'Análisis de la problemática comunitaria, lluvia de ideas y planteamiento de hipótesis iniciales.',
+    evidence: 'Cuestionario diagnóstico y mapa conceptual inicial',
+    evaluation: 'Lista de cotejo diagnóstica',
+  },
+  {
+    title: 'Recuperación de Saberes y Delimitación del Reto',
+    teachingActivity: 'Modelado metodológico para la delimitación del problema y vinculación con el contexto local.',
+    learningActivity: 'Identificación de variables clave, saberes contextuales y formulación de objetivos del equipo.',
+    evidence: 'Matriz de contextualización comunitaria y preguntas guía',
+    evaluation: 'Guía de observación formativa',
+  },
+  {
+    title: 'Organización de Equipos y Ruta de Trabajo',
+    teachingActivity: 'Asesoría en distribución de roles colaborativos y definición del cronograma de indagación.',
+    learningActivity: 'Acuerdo de roles de equipo, definición de metas de aprendizaje y plan de trabajo situado.',
+    evidence: 'Ruta de trabajo colaborativo y acuerdos de equipo',
+    evaluation: 'Rúbrica de trabajo colaborativo',
+  },
+  {
+    title: 'Indagación Inicial y Marco de Referencia',
+    teachingActivity: 'Orientación en la búsqueda de fuentes pertinentes y conceptos nodales del área.',
+    learningActivity: 'Exploración bibliográfica y de campo sobre necesidades prioritarias de la comunidad.',
+    evidence: 'Ficha de registro de fuentes y conceptos nodales',
+    evaluation: 'Lista de cotejo de indagación documental',
+  },
+];
+
+export const DESARROLLO_SESSION_MILESTONES = [
+  {
+    title: 'Fundamentación Teórica y Análisis de Variables',
+    teachingActivity: 'Explicación dialogada de principios disciplinares y modelado de relaciones entre variables.',
+    learningActivity: 'Análisis conceptual de variables críticas y resolución de ejercicios formativos introductorios.',
+    evidence: 'Reporte de análisis conceptual y ejercicios resueltos',
+    evaluation: 'Escala estimativa de dominio conceptual',
+  },
+  {
+    title: 'Modelado Metodológico y Procedimientos Clave',
+    teachingActivity: 'Demostración guiada del procedimiento metodológico y resolución de problemas tipo.',
+    learningActivity: 'Práctica guiada en pares para replicar y adaptar el procedimiento al caso situado.',
+    evidence: 'Algoritmo de solución o diagrama de flujo metodológico',
+    evaluation: 'Lista de cotejo procesual',
+  },
+  {
+    title: 'Diseño Preliminar y Bosquejo del Artefacto',
+    teachingActivity: 'Asesoría técnica en criterios de diseño, viabilidad y pertinencia contextual.',
+    learningActivity: 'Elaboración del boceto o esquema preliminar del artefacto o propuesta de solución.',
+    evidence: 'Boceto técnico preliminar con especificaciones básicas',
+    evaluation: 'Rúbrica de diseño técnico preliminar',
+  },
+  {
+    title: 'Presupuestación y Selección de Recursos',
+    teachingActivity: 'Orientación en análisis de costos, insumos sustentables y aprovechamiento de recursos locales.',
+    learningActivity: 'Estimación presupuestaria, catálogo de insumos y evaluación de factibilidad económica.',
+    evidence: 'Tabla de presupuesto de insumos y justificación de materiales',
+    evaluation: 'Lista de cotejo presupuestaria',
+  },
+  {
+    title: 'Experimentación y Prueba de Parámetros',
+    teachingActivity: 'Supervisión de prácticas de laboratorio o taller con énfasis en seguridad y precisión.',
+    learningActivity: 'Experimentación con variables de control, toma de mediciones y registro en bitácora.',
+    evidence: 'Bitácora de mediciones y datos experimentales',
+    evaluation: 'Rúbrica de práctica experimental',
+  },
+  {
+    title: 'Construcción y Ensamblaje del Prototipo',
+    teachingActivity: 'Acompañamiento técnico en procesos de construcción, montaje y seguridad operativa.',
+    learningActivity: 'Construcción colaborativa del prototipo aplicando técnicas disciplinares apropiadas.',
+    evidence: 'Avance físico o digital del prototipo construido',
+    evaluation: 'Guía de observación técnica de taller',
+  },
+  {
+    title: 'Modelado Matemático y Cálculo de Dimensiones',
+    teachingActivity: 'Guía en formulación matemática, cálculo de proporciones y optimización de recursos.',
+    learningActivity: 'Aplicación de fórmulas y herramientas cuantitativas para optimizar dimensiones y costos.',
+    evidence: 'Memoria de cálculo y justificación matemática',
+    evaluation: 'Rúbrica de modelado cuantitativo',
+  },
+  {
+    title: 'Validación Técnica y Pruebas de Funcionamiento',
+    teachingActivity: 'Asesoría en diseño de protocolos de prueba y criterios de tolerancia técnica.',
+    learningActivity: 'Ejecución de pruebas funcionales, registro de fallas y verificación de desempeño.',
+    evidence: 'Protocolo de pruebas y matriz de resultados funcionales',
+    evaluation: 'Lista de cotejo de validación técnica',
+  },
+  {
+    title: 'Análisis de Rendimiento y Ajuste de Tolerancias',
+    teachingActivity: 'Retroalimentación focalizada sobre puntos críticos identificados en las pruebas.',
+    learningActivity: 'Ajuste de parámetros, calibración de componentes y optimización del artefacto.',
+    evidence: 'Registro de calibración y ajustes implementados',
+    evaluation: 'Escala de valoración de mejoras técnicas',
+  },
+  {
+    title: 'Integración Socioproductiva y Pertinencia Local',
+    teachingActivity: 'Facilitación del diálogo sobre impacto comunitario, sustentabilidad y ética del proyecto.',
+    learningActivity: 'Evaluación del impacto social y ambiental de la solución en el entorno comunitario.',
+    evidence: 'Ficha de impacto socioambiental y pertinencia comunitaria',
+    evaluation: 'Rúbrica de responsabilidad social y ética',
+  },
+  {
+    title: 'Sistematización de Datos y Análisis de Tendencias',
+    teachingActivity: 'Orientación en representación gráfica de datos, estadística descriptiva e inferencias.',
+    learningActivity: 'Construcción de gráficas comparativas e interpretación estadística de resultados.',
+    evidence: 'Gráficos interpretativos y síntesis estadística de desempeño',
+    evaluation: 'Rúbrica de análisis de datos',
+  },
+  {
+    title: 'Documentación Técnica y Manual Operativo',
+    teachingActivity: 'Revisión de estándares de redacción técnica, diagramación y normatividad aplicable.',
+    learningActivity: 'Redacción de instructivos de operación, diagramas de conexión y fichas técnicas.',
+    evidence: 'Borrador del manual operativo o guía técnica de usuario',
+    evaluation: 'Lista de cotejo de documentación técnica',
+  },
+  {
+    title: 'Revisión Cruzada y Coevaluación Inter-Equipos',
+    teachingActivity: 'Moderación de sesiones de crítica constructiva y coevaluación entre equipos.',
+    learningActivity: 'Revisión cruzada de prototipos entre pares y registro de recomendaciones de mejora.',
+    evidence: 'Instrumento de coevaluación técnica entre pares',
+    evaluation: 'Rúbrica de evaluación formativa entre pares',
+  },
+  {
+    title: 'Refinamiento e Iteración del Artefacto',
+    teachingActivity: 'Asesoría personalizada para resolver observaciones técnicas de la coevaluación.',
+    learningActivity: 'Implementación de mejoras al prototipo basadas en la retroalimentación recibida.',
+    evidence: 'Bitácora de iteración y evidencia fotográfica de mejoras',
+    evaluation: 'Guía de verificación de adecuaciones',
+  },
+  {
+    title: 'Prueba de Esfuerzo y Validación de Calidad',
+    teachingActivity: 'Supervisión de pruebas integrales bajo condiciones simuladas de operación real.',
+    learningActivity: 'Simulación de escenarios operativos reales y verificación de resistencia y durabilidad.',
+    evidence: 'Reporte de prueba integral de esfuerzo y calidad',
+    evaluation: 'Rúbrica de calidad y confiabilidad del producto',
+  },
+  {
+    title: 'Integración Final del Producto y Acabados',
+    teachingActivity: 'Supervisión de detalles finales, presentación estética y seguridad de uso.',
+    learningActivity: 'Ensamblaje definitivo, control de calidad y preparación del artefacto terminado.',
+    evidence: 'Artefacto o producto terminado con control de calidad aprobado',
+    evaluation: 'Lista de cotejo de producto concluido',
+  },
+  {
+    title: 'Estructuración de la Memoria del Proyecto',
+    teachingActivity: 'Orientación en la integración de la memoria técnica y estructura del informe final.',
+    learningActivity: 'Consolidación de evidencias, metodología, resultados y conclusiones en memoria técnica.',
+    evidence: 'Memoria técnica estructurada del proyecto situado',
+    evaluation: 'Rúbrica analítica de informe técnico',
+  },
+  {
+    title: 'Diseño de Recursos y Medios de Divulgación',
+    teachingActivity: 'Asesoría en diseño de infografías, carteles científicos o apoyos multimedia.',
+    learningActivity: 'Diseño de recursos visuales y material expositivo para la difusión comunitaria.',
+    evidence: 'Cartel científico, infografía o presentación interactiva',
+    evaluation: 'Rúbrica de comunicación visual y divulgación',
+  },
+  {
+    title: 'Ensayo General de Demostración Práctica',
+    teachingActivity: 'Simulación de plenaria y retroalimentación en técnica expositiva y argumentación.',
+    learningActivity: 'Ensayo de exposición, defensa argumentativa y resolución de cuestionamientos técnicos.',
+    evidence: 'Guion de presentación y lista de verificación de demostración',
+    evaluation: 'Escala estimativa de expresión oral y argumentación',
+  },
+  {
+    title: 'Verificación Integral de Entregables y Cierre Técnico',
+    teachingActivity: 'Revisión final de portafolios de evidencias y cotejo contra rúbrica sumativa.',
+    learningActivity: 'Cotejo y organización final de carpetas de evidencias y artefactos por equipo.',
+    evidence: 'Portafolio de evidencias completo debidamente integrado',
+    evaluation: 'Lista de cotejo integral de evidencias',
+  },
+];
+
+export const CIERRE_SESSION_MILESTONES = [
+  {
+    title: 'Socialización Comunitaria y Demostración Integral',
+    teachingActivity: 'Coordinación de la plenaria pública de socialización con la comunidad escolar.',
+    learningActivity: 'Exposición y demostración práctica del artefacto o solución ante el grupo y comunidad.',
+    evidence: 'Exposición pública y demostración práctica del artefacto',
+    evaluation: 'Rúbrica analítica de desempeño y socialización',
+  },
+  {
+    title: 'Evaluación Formativa y Coevaluación del Impacto',
+    teachingActivity: 'Aplicación de instrumentos de evaluación integral y diálogo reflexivo sobre logros.',
+    learningActivity: 'Coevaluación grupal, valoración del impacto social y autoevaluación de competencias.',
+    evidence: 'Instrumento de coevaluación y rúbrica sumativa completada',
+    evaluation: 'Rúbrica sumativa institucional MCCEMS',
+  },
+  {
+    title: 'Síntesis Metacognitiva y Plan de Transferencia',
+    teachingActivity: 'Guía de la reflexión metacognitiva sobre aprendizajes logrados y retos superados.',
+    learningActivity: 'Elaboración de síntesis metacognitiva personal y propuesta de continuidad comunitaria.',
+    evidence: 'Texto reflexivo de metacognición y plan de mejora continua',
+    evaluation: 'Escala estimativa de metacognición',
+  },
+  {
+    title: 'Cierre Institucional y Registro de Logros',
+    teachingActivity: 'Cierre pedagógico, retroalimentación final colectiva y asentamiento de evidencias.',
+    learningActivity: 'Entrega final del portafolio consolidado y acuerdos de seguimiento del proyecto.',
+    evidence: 'Portafolio final dictaminado y rúbrica firmada',
+    evaluation: 'Dictamen de acreditación formativa',
+  },
+];
+
 export class PlaneacionOrchestrator implements IPlaneacionOrchestrator {
   public readonly programId: ProgramId = 'planeaciones';
   public readonly version: string = '2.0.0';
@@ -199,42 +408,46 @@ export class PlaneacionOrchestrator implements IPlaneacionOrchestrator {
 
     // Fase 1: Apertura (Diagnóstico, detonador situado, motivación y saberes previos)
     for (let i = 0; i < aperturaCount; i++) {
+      const milestone = APERTURA_SESSION_MILESTONES[i % APERTURA_SESSION_MILESTONES.length];
       sessions.push({
         sessionNum: sessionNumber,
         phase: 'Apertura' as const,
-        title: `Sesión ${sessionNumber}: Exploración y Vinculación Situada`,
-        teachingActivity: 'Presentación del detonador situado y dinamización de saberes previos.',
-        learningActivity: 'Análisis de la problemática comunitaria y planteamiento de hipótesis.',
-        evidence: 'Cuestionario de diagnóstico / mapa conceptual inicial',
-        evaluation: 'Lista de cotejo formativa',
+        title: `Sesión ${sessionNumber}: ${milestone.title}`,
+        teachingActivity: milestone.teachingActivity,
+        learningActivity: milestone.learningActivity,
+        evidence: milestone.evidence,
+        evaluation: milestone.evaluation,
       });
       sessionNumber++;
     }
 
     // Fase 2: Desarrollo (Construcción activa, modelado docente, práctica guiada y autónoma)
     for (let i = 0; i < desarrolloCount; i++) {
+      const milestone = DESARROLLO_SESSION_MILESTONES[i % DESARROLLO_SESSION_MILESTONES.length];
+      const cycleSuffix = i >= DESARROLLO_SESSION_MILESTONES.length ? ` (Ciclo ${Math.floor(i / DESARROLLO_SESSION_MILESTONES.length) + 1})` : '';
       sessions.push({
         sessionNum: sessionNumber,
         phase: 'Desarrollo' as const,
-        title: `Sesión ${sessionNumber}: Desarrollo y Aplicación Práctica`,
-        teachingActivity: 'Modelado procedimental, asesoría metodológica y acompañamiento guiado.',
-        learningActivity: 'Resolución de retos situados y construcción de artefactos didácticos en equipo.',
-        evidence: 'Bitácora de taller / reporte procedimental',
-        evaluation: 'Rúbrica formativa procesual',
+        title: `Sesión ${sessionNumber}: ${milestone.title}${cycleSuffix}`,
+        teachingActivity: milestone.teachingActivity,
+        learningActivity: milestone.learningActivity,
+        evidence: milestone.evidence,
+        evaluation: milestone.evaluation,
       });
       sessionNumber++;
     }
 
     // Fase 3: Cierre (Síntesis, evaluación formativa, metacognición y producto integrador)
     for (let i = 0; i < cierreCount; i++) {
+      const milestone = CIERRE_SESSION_MILESTONES[i % CIERRE_SESSION_MILESTONES.length];
       sessions.push({
         sessionNum: sessionNumber,
         phase: 'Cierre' as const,
-        title: `Sesión ${sessionNumber}: Consolidación y Evaluación Formativa`,
-        teachingActivity: 'Coordinación de plenaria de socialización y retroalimentación formativa.',
-        learningActivity: 'Socialización comunitaria, coevaluación y síntesis metacognitiva.',
-        evidence: 'Producto integrador / síntesis metacognitiva',
-        evaluation: 'Rúbrica analítica sumativa',
+        title: `Sesión ${sessionNumber}: ${milestone.title}`,
+        teachingActivity: milestone.teachingActivity,
+        learningActivity: milestone.learningActivity,
+        evidence: milestone.evidence,
+        evaluation: milestone.evaluation,
       });
       sessionNumber++;
     }
