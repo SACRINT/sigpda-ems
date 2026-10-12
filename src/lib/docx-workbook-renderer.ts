@@ -737,11 +737,11 @@ function buildDocxCreditsSection(
     const headerRow = new TableRow({
       tableHeader: true,
       children: [
-        cell('Ref.', { w: 1000, bold: true, fill: C.navy, color: C.white, size: 16 }),
-        cell('Título de la Obra', { w: 3200, bold: true, fill: C.navy, color: C.white, size: 16 }),
-        cell('Autor / Creador', { w: 2600, bold: true, fill: C.navy, color: C.white, size: 16 }),
-        cell('Licencia CC', { w: 1800, bold: true, fill: C.navy, color: C.white, size: 16 }),
-        cell('Fuente / Repositorio', { w: 1640, bold: true, fill: C.navy, color: C.white, size: 16 }),
+        cell('Ref.', { w: 800, bold: true, fill: C.navy, color: C.white, size: 16 }),
+        cell('Título de la Obra', { w: 3100, bold: true, fill: C.navy, color: C.white, size: 16 }),
+        cell('Autor / Creador', { w: 2400, bold: true, fill: C.navy, color: C.white, size: 16 }),
+        cell('Licencia CC', { w: 1540, bold: true, fill: C.navy, color: C.white, size: 16 }),
+        cell('Fuente / Repositorio', { w: 2400, bold: true, fill: C.navy, color: C.white, size: 16 }),
       ],
     });
 
@@ -750,14 +750,24 @@ function buildDocxCreditsSection(
       const cleanCreator = stripMarkdown(asset.creator || 'Autor no especificado');
       const cleanLic = stripMarkdown(asset.license || 'CC BY-SA');
       const rawSource = asset.sourceUrl || asset.externalId || 'Openverse';
-      const cleanSource = stripMarkdown(rawSource);
+      let cleanSource = stripMarkdown(rawSource);
+      try {
+        if (cleanSource.startsWith('http://') || cleanSource.startsWith('https://')) {
+          const parsed = new URL(cleanSource);
+          cleanSource = `${parsed.hostname}${parsed.pathname.length > 15 ? parsed.pathname.slice(0, 15) + '...' : parsed.pathname}`;
+        }
+      } catch {
+        if (cleanSource.length > 30) {
+          cleanSource = `${cleanSource.slice(0, 27)}...`;
+        }
+      }
       return new TableRow({
         children: [
-          cell(`Fig. ${idx + 1}`, { w: 1000, bold: true, size: 16 }),
-          cell(cleanTitle, { w: 3200, size: 16 }),
-          cell(cleanCreator, { w: 2600, size: 16 }),
-          cell(cleanLic, { w: 1800, size: 16 }),
-          cell(cleanSource, { w: 1640, size: 16 }),
+          cell(`Fig. ${idx + 1}`, { w: 800, bold: true, size: 16 }),
+          cell(cleanTitle, { w: 3100, size: 16 }),
+          cell(cleanCreator, { w: 2400, size: 16 }),
+          cell(cleanLic, { w: 1540, size: 16 }),
+          cell(cleanSource, { w: 2400, size: 16 }),
         ],
       });
     });
@@ -1615,12 +1625,15 @@ function buildDocxComparisonTable(compTable: ComparisonTableData): (Paragraph | 
   );
 
   if (compTable.caption) {
+    const rawCaption = compTable.caption.trim();
+    const cleanCaption = rawCaption.length > 120 ? `${rawCaption.slice(0, 117)}...` : rawCaption;
     result.push(
       new Paragraph({
+        alignment: AlignmentType.JUSTIFIED,
         spacing: { before: 60, after: 120 },
         children: [
           new TextRun({
-            text: compTable.caption,
+            text: cleanCaption,
             italics: true,
             size: 16,
             color: C.mutedText,
