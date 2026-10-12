@@ -14,7 +14,7 @@ import { generateWithRotation } from '@/lib/ai-provider';
 import { robustJsonParse } from '@/lib/ai-response-parser';
 import { extractWorkbookTags, consolidateWorkbookElements, stripWorkbookTags } from '../workbook-tags';
 import type { MissionSection, WorkbookElement, TroubleshootItem } from '@/types/work-textbook';
-import { type WriterInput, type WriterOutput, evaluateQuality } from './writer-contract';
+import { type WriterInput, type WriterOutput, evaluateQuality, sanitizeSessionPlans } from './writer-contract';
 import { buildPlanningAlignmentPrompt } from './planning-alignment-prompt';
 import { logger } from '@/lib/logger';
 
@@ -49,7 +49,7 @@ DIRECTIVAS TÉCNICAS Y METAS DE EXTENSIÓN:
 3. Tabla de datos vacía: Encabezados descriptivos con <!--workbook:table:cols=Parámetro,Teórico,Medición 1,Medición 2,Error,Unidad-->.
 4. Código o protocolo experimental (800 a 1,500 palabras): Bloques de código reales y comentados en BT; protocolo experimental exhaustivo en BGE.
 5. Reto autónomo ("Tú Haces" - 350 a 600 palabras): EXACTAMENTE 5 a 7 PASOS NUMERADOS con variables cuantitativas y vinculación PAEC: "${input.paecContext}". OBLIGATORIO: anclar cada paso a una aplicación real en la vida diaria del estudiante o su comunidad en Puebla (no ejercicios abstractos); el estudiante debe percibir para qué le sirve en la práctica.
-6. Estructura pedagógica de la sesión (integrar de forma natural): (a) conocimientos previos breves; (b) nuevos conocimientos; (c) problema real a resolver; (d) ejemplo resuelto con datos; (e) aplicación en la vida diaria; (f) evaluación.
+6. Estructura pedagógica por sesión (OBLIGATORIA — genera un plan por cada sesión asignada): Para CADA sesión de "Sesiones asignadas" genera un objeto en "sessionPlans" con la estructura INICIO/DESARROLLO/CIERRE: (a) INICIO: motivación situada + recuperación breve de saberes previos (~10 min); (b) DESARROLLO: nuevos conocimientos (1-2 frases) + ejemplo guiado con datos + 1-3 tareas de práctica concretas + aplicación a la vida diaria / producto (~30 min); (c) CIERRE: avance del producto integrador + instrumento de evaluación del objetivo + instrumento de evaluación del producto (~10 min). Los planes deben VARIAR entre sesiones y ser específicos del contexto PAEC/comunidad.
 7. Preguntas y Casos de Error: 4-6 preguntas analíticas amplias y al menos 3 casos de fallo (Síntoma → Causa → Solución → Prevención).
 8. Sintaxis JSON: Usa comillas simples ('...') en código/citas. Cero comillas dobles sin escapar dentro de valores JSON.
 
@@ -72,6 +72,20 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
       "rootCause": "Causa técnica...",
       "solutionSteps": ["Solución directa paso a paso."],
       "preventionTip": "Acción preventiva para evitarlo."
+    }
+  ],
+  "sessionPlans": [
+    {
+      "sessionNumber": 3,
+      "motivacion": "Motivación situada de la sesión 3 (caso real PAEC/comunidad)...",
+      "conocimientosPrevios": "Recuperación breve de saberes previos...",
+      "nuevosConocimientos": "Nuevo conocimiento de la sesión 3 (1-2 frases)...",
+      "ejemplo": "Ejemplo guiado con datos concretos...",
+      "practica": ["Tarea 1 concreta de la sesión 3", "Tarea 2 concreta (opcional)"],
+      "aplicacion": "Aplicación a la vida diaria / avance de producto...",
+      "productoIntegrador": "Avance del entregable de la sesión 3...",
+      "evaluacionObjetivo": "Instrumento de evaluación del objetivo...",
+      "evaluacionProducto": "Instrumento de evaluación del producto integrador..."
     }
   ]
 }`;
@@ -98,7 +112,7 @@ Redacta la Misión Práctica de Laboratorio/Taller completa:`;
       prompt,
       input.planning.teacherId,
       false,
-      { jsonMode: true, maxTokens: 8192 }
+      { jsonMode: true, maxTokens: 16384 }
     );
     let parsed = robustJsonParse(rawResponse);
 
@@ -117,7 +131,7 @@ Redacta la Misión Práctica de Laboratorio/Taller completa:`;
           retryPrompt,
           input.planning.teacherId,
           false,
-          { jsonMode: true, maxTokens: 8192 }
+          { jsonMode: true, maxTokens: 16384 }
         );
         const retryParsed = robustJsonParse(retryResponse);
         const retryText = typeof retryParsed.autonomousChallenge === 'string' ? retryParsed.autonomousChallenge : '';
@@ -261,6 +275,7 @@ Redacta la Misión Práctica de Laboratorio/Taller completa:`;
         reflectionPrompts: parsed.reflectionQuestions || ['Analiza las causas de dispersión de tus datos.'],
         criteriaChecklist: ['Registré todas las lecturas con sus unidades de medida correspondientes.'],
       },
+      sessionPlans: sanitizeSessionPlans(parsed.sessionPlans, coveredSessions),
       wordCount,
     };
 

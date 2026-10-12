@@ -14,6 +14,7 @@ import type {
   MissionSection,
   ProjectSection,
   EvaluationSection,
+  SessionPlan,
 } from '@/types/work-textbook';
 
 /**
@@ -152,4 +153,48 @@ export function evaluateQuality(params: {
     qualityScore: Math.min(100, Math.max(0, score)),
     warnings,
   };
+}
+
+/**
+ * Sanitiza el array `sessionPlans` devuelto por la IA: garantiza que cada plan
+ * corresponda a una sesión cubierta real, que los campos obligatorios sean strings
+ * no vacíos y que `practica` sea un array de strings. Descarta planes inválidos.
+ * Devuelve `undefined` si no hay planes utilizables (los renderers usan fallback).
+ */
+export function sanitizeSessionPlans(
+  raw: unknown,
+  coveredSessions: number[]
+): SessionPlan[] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0 || coveredSessions.length === 0) return undefined;
+
+  const validPlans: SessionPlan[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const rec = item as Record<string, unknown>;
+    const sessionNumber = Number(rec.sessionNumber);
+    if (!Number.isInteger(sessionNumber) || !coveredSessions.includes(sessionNumber)) continue;
+
+    const asText = (v: unknown, fallback: string): string =>
+      typeof v === 'string' && v.trim().length >= 10 ? v.trim() : fallback;
+
+    const practicaRaw = Array.isArray(rec.practica) ? rec.practica : [];
+    const practica = practicaRaw
+      .filter((p): p is string => typeof p === 'string' && p.trim().length >= 10)
+      .map((p) => p.trim());
+
+    validPlans.push({
+      sessionNumber,
+      motivacion: asText(rec.motivacion, `Presentar el reto de la sesión ${sessionNumber} y conectar con la sesión anterior.`),
+      conocimientosPrevios: asText(rec.conocimientosPrevios, `Recordar en equipo las ideas clave de la sesión anterior sobre el tema.`),
+      nuevosConocimientos: asText(rec.nuevosConocimientos, `Profundizar en el siguiente aspecto del tema de la sesión ${sessionNumber}.`),
+      ejemplo: asText(rec.ejemplo, `Analizar un ejemplo guiado paso a paso con datos concretos.`),
+      practica: practica.length > 0 ? practica : [`Resolver la práctica colaborativa asignada a la sesión ${sessionNumber} y documentar el procedimiento.`],
+      aplicacion: asText(rec.aplicacion, `Aplicar lo aprendido a una situación de la vida diaria del estudiante y registrar la evidencia.`),
+      productoIntegrador: asText(rec.productoIntegrador, `Consolidar el avance del producto integrador de la misión con evidencia fechada.`),
+      evaluacionObjetivo: asText(rec.evaluacionObjetivo, `Responder la pregunta de reflexión de la sesión y autoevaluar la comprensión.`),
+      evaluacionProducto: asText(rec.evaluacionProducto, `Verificar el criterio del producto integrador y registrar la observación.`),
+    });
+  }
+
+  return validPlans.length > 0 ? validPlans : undefined;
 }

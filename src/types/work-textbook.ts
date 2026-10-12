@@ -130,6 +130,37 @@ export interface MissionSection {
   };
   /** Tip técnico de seguridad o rigor metodológico para el sidebar (extraído o provisto). */
   safetyOrWorkshopTip?: string;
+
+  /**
+   * Plan pedagógico por sesión (Opción B — guía real sesión a sesión).
+   * Generado por los writers de IA para cada sesión cubierta por la misión.
+   * Cuando existe, los renderers lo priorizan sobre el scaffold determinista
+   * de rotación de contenido (fallback).
+   */
+  sessionPlans?: SessionPlan[];
+}
+
+/** Plan de una sesión individual con la estructura INICIO/DESARROLLO/CIERRE (guía real). */
+export interface SessionPlan {
+  sessionNumber: number;
+  /** INICIO (~10 min): motivación situada detonante. */
+  motivacion: string;
+  /** INICIO (~2 min): recuperación breve de saberes previos. */
+  conocimientosPrevios: string;
+  /** DESARROLLO (~10 min): exposición del nuevo conocimiento de la sesión. */
+  nuevosConocimientos: string;
+  /** DESARROLLO (~8 min): ejemplo guiado o analogía con datos. */
+  ejemplo: string;
+  /** DESARROLLO: 1-3 tareas de práctica colaborativa concretas. */
+  practica: string[];
+  /** DESARROLLO (~8 min): aplicación a la vida real / avance de producto. */
+  aplicacion: string;
+  /** CIERRE (~4 min): consolidación del producto integrador. */
+  productoIntegrador: string;
+  /** CIERRE: instrumento de evaluación del objetivo de la sesión. */
+  evaluacionObjetivo: string;
+  /** CIERRE: instrumento de evaluación del producto integrador. */
+  evaluacionProducto: string;
 }
 
 export interface ProjectPhase {
