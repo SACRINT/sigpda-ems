@@ -6,7 +6,7 @@
  * concurrentes del motor editorial (Foundation, Lab, Project, Evaluation).
  */
 
-import type { Planning, KeyActivityPlan } from '@/types/planning';
+import type { Planning } from '@/types/planning';
 import type { DetailedSession } from '@/lib/session-progression-engine';
 import type { MissionBlueprint } from '../blueprint-architect-agent';
 import type {
@@ -122,6 +122,12 @@ export function evaluateQuality(params: {
   } else {
     score += 10;
     warnings.push(`Falta vocabulario distintivo del subsistema ${params.subsystem.toUpperCase()}`);
+  }
+
+  // 3b. Señal de aplicación a la vida diaria (contexto real, no ejercicios abstractos)
+  const hasDailyLifeApplication = /vida diaria|cotidian|comunidad|Puebla|PAEC|situación real|problema real|contexto real|del entorno|en la vida/i.test(params.content);
+  if (!hasDailyLifeApplication) {
+    warnings.push('Las actividades carecen de anclaje claro en la vida diaria del estudiante (contexto real/Puebla/PAEC)');
   }
 
   // 4. +15 si incluye al menos 2 elementos de cuaderno activo
