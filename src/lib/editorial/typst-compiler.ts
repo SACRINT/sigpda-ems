@@ -174,7 +174,6 @@ export async function compileTypst(
   outputPath: string,
   options: TypstCompileOptions = {},
 ): Promise<TypstCompileResult> {
-  const startTime = Date.now();
   const binary = resolveTypstBinary(options.binaryPath);
   const version = await getTypstVersion(binary);
 
