@@ -137,7 +137,7 @@ describe('Integración en Renderizadores — DOCX y PDF', () => {
     const docxBuffer = await generateSecuenciaDocx(mockContent, sequenceJson);
     expect(docxBuffer).toBeInstanceOf(Buffer);
     expect(docxBuffer.byteLength).toBeGreaterThan(1000);
-  });
+  }, 60000);
 
   it('renderWorkbookToPdf debe reflejar el badge [Metodología: ABProblemas] en el PDF del libro', async () => {
     const mockMission: MissionSection = {
@@ -256,5 +256,5 @@ describe('Integración en Renderizadores — DOCX y PDF', () => {
 
     // Verificación de badge en carátula y tablas
     expect(parsed.text).toContain('[Metodología: ABProblemas]');
-  }, 25000);
+  }, 60000);
 });

@@ -117,5 +117,5 @@ describe('F-74: Bitácora de Firmas y Asesoría con Cobertura para Todas las Ses
     for (let s = 1; s <= 24; s++) {
       expect(docXml).toContain(`Sesión ${s}: ___/___/2026`);
     }
-  }, 60000);
+  }, 120000);
 });

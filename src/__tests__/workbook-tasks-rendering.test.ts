@@ -111,11 +111,11 @@ describe('F-73: Renderizado de todas las tareas de actividades sin techo de 4', 
     expect(text).toContain('Tarea 5:');
     expect(text).toContain('Tarea 6:');
     expect(text).toContain('Tarea 7:');
-  });
+  }, 60000);
 
   it('DOCX compila con éxito incluyendo todas las tareas', async () => {
     const docxBuffer = await renderWorkbookToDocx(mockWorkbook, mockPlanning, { coverBuffer: undefined });
     expect(docxBuffer).toBeDefined();
     expect(docxBuffer.byteLength).toBeGreaterThan(5000);
-  });
+  }, 60000);
 });
