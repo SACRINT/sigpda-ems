@@ -300,7 +300,7 @@ export async function renderWorkbookToPdf(
     // Si no hay clave FLUX, falló, o es fallback determinista: dibujar portada vectorial nativa en jsPDF
     // garantizando diseño V7 dark-institutional completo y CERO glifos tofu en Linux/Vercel serverless.
     if (!coverRendered) {
-      drawCoverPage(doc, workbook, logos, pageWidth, pageHeight, margin, metBadge);
+      drawCoverPage(doc, workbook, logos, pageWidth, pageHeight, margin, metBadge, planning);
     }
   }
 
@@ -548,7 +548,8 @@ function drawCoverPage(
   pageWidth: number,
   pageHeight: number,
   margin: number,
-  metBadge: string = '[Metodología: Activa]'
+  metBadge: string = '[Metodología: Activa]',
+  planning?: Planning
 ) {
   const contentWidth = pageWidth - margin * 2;
 
@@ -769,7 +770,7 @@ function drawCoverPage(
   doc.setTextColor(203, 213, 225);
   doc.text('Diseñado para el desarrollo de progresiones de aprendizaje, pensamiento crítico y proyectos integradores.', margin + 8, 211.5);
 
-  const teacherText = `Docente Titular: ${workbook.coverData?.teacherName || 'Docente de Bachillerato'}`;
+  const teacherText = `Docente Titular: ${workbook.coverData?.teacherName || planning?.contentJson?.sectionI?.teacherName || 'Docente de Bachillerato'}`;
   setFontBody(doc, 'bold');
   doc.setFontSize(7);
   doc.setTextColor(232, 160, 32);

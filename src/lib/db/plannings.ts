@@ -41,9 +41,13 @@ export async function createPlanning(data: {
   extractedData?: object;
   metodologiaActiva?: string;   // ID de metodología activa seleccionada (ej: 'abp', 'steam')
   paecOperationalActivity?: object | null;
+  teacherName?: string;
   contentJson?: object | null;
 }) {
-  const initialContent = data.contentJson || (data.paecOperationalActivity ? { sectionI: { paecOperationalActivity: data.paecOperationalActivity } } : null);
+  const sectionI: Record<string, unknown> = {};
+  if (data.teacherName) sectionI.teacherName = data.teacherName;
+  if (data.paecOperationalActivity) sectionI.paecOperationalActivity = data.paecOperationalActivity;
+  const initialContent = data.contentJson || (Object.keys(sectionI).length > 0 ? { sectionI } : null);
 
   const rows = await sql()`
     INSERT INTO plannings (

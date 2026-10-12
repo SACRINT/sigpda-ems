@@ -301,7 +301,7 @@ export async function renderWorkbookToDocx(
       })
     );
   } else {
-    coverSectionChildren.push(...buildCoverSection(workbook));
+    coverSectionChildren.push(...buildCoverSection(workbook, planning));
   }
 
   // ── 2. Páginas Preliminares (Mi Plantel + TOC) (Fase V4 & V5) ─────────────
@@ -537,7 +537,7 @@ export async function renderWorkbookToDocx(
 
 // ── Constructores de Secciones DOCX ──────────────────────────────────────────
 
-function buildCoverSection(workbook: ActiveWorkTextbook): Paragraph[] {
+function buildCoverSection(workbook: ActiveWorkTextbook, planning?: Planning): Paragraph[] {
   const cover = workbook.coverData;
   return [
     new Paragraph({
@@ -673,7 +673,7 @@ function buildCoverSection(workbook: ActiveWorkTextbook): Paragraph[] {
       spacing: { before: 400, after: 100 },
       children: [
         new TextRun({
-          text: `Docente Titular: ${cover.teacherName}`,
+          text: `Docente Titular: ${cover?.teacherName || planning?.contentJson?.sectionI?.teacherName || 'Docente Titular'}`,
           bold: true,
           size: 22,
           color: C.darkText,

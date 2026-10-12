@@ -96,6 +96,7 @@ export default function NuevaPlaneacionClient({ locale }: Props) {
           curriculumName: draft.uacSelection.curriculumName,
           paecContext: ctx.paecProblem,
           extractedData: draft.extractedData,
+          teacherName: ctx.teacherName,
           metodologiaActiva: ctx.metodologiaActiva || undefined,
           paecOperationalActivity: (ctx.usePaecActivity !== false && ctx.paecOperationalActivity) ? ctx.paecOperationalActivity : undefined,
         }),

@@ -125,7 +125,7 @@ export async function generateBlockWorkTextbook(
   const normalizedSubsystem: 'bge' | 'bt' = isTeacherBt ? 'bt' : 'bge';
 
   const teacherContext: TeacherContext = {
-    teacherName: teacher?.name || 'Docente Titular',
+    teacherName: rawPlanning.content_json?.sectionI?.teacherName || teacher?.name || 'Docente Titular',
     schoolName: teacher?.school_name || 'Bachillerato del Estado de Puebla',
     municipality: teacher?.municipality || 'Puebla',
     state: 'Puebla',
@@ -525,7 +525,7 @@ export async function generateBlockWorkTextbook(
       subjectName: planning.uacName,
       semester: planning.semester,
       blockNumber: blockIndex + 1,
-      teacherName: teacher?.name || 'Docente Titular',
+      teacherName: rawPlanning.content_json?.sectionI?.teacherName || teacher?.name || 'Docente Titular',
       schoolName: teacherContext.schoolName,
       cct: teacher?.cct || '21ECT0017T',
       paecProjectName: curriculumContext.paecConnection.projectName || planning.paecContext,

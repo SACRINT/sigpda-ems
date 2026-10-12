@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Docente no encontrado' }, { status: 404 });
     }
     const body = await request.json();
-    const { uacName, semester, component, curriculumName, paecContext, extractedData, metodologiaActiva, paecOperationalActivity } = body;
+    const { uacName, semester, component, curriculumName, paecContext, extractedData, metodologiaActiva, paecOperationalActivity, teacherName } = body;
 
     if (!uacName || !semester || !component) {
       return NextResponse.json(
@@ -73,6 +73,7 @@ export async function POST(request: NextRequest) {
       extractedData,
       metodologiaActiva: metodologiaActiva || undefined,
       paecOperationalActivity: paecOperationalActivity || undefined,
+      teacherName: teacherName || undefined,
     });
 
     // Registrar la materia en la suscripción si aún no está (consume un slot)
