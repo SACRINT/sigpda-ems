@@ -260,10 +260,10 @@ describe('Motor Editorial Fase 1 — Spike Typst y Modelo de Estudiante', () => 
   });
 
   // ==========================================================================
-  // 7. Adaptador Bidireccional OpenCode (SessionPlan <-> StudentSession) — H-03
+  // 7. Adaptador de Interoperabilidad OpenCode (SessionPlan <-> StudentSession) — H-03, AUD-07
   // ==========================================================================
-  describe('7. Adaptador OpenCode (SessionPlan <-> StudentSession) (H-03)', () => {
-    it('debe adaptar un SessionPlan plano de OpenCode a una StudentSession estructurada y válida', () => {
+  describe('7. Adaptador de Interoperabilidad OpenCode (SessionPlan <-> StudentSession) (H-03, AUD-07)', () => {
+    it('debe adaptar un SessionPlan plano de OpenCode a una StudentSession y mapear de regreso con pérdida documentada', () => {
       const mockSessionPlan = {
         sessionNumber: 3,
         objetivo: 'Aprenderás a calcular la distancia entre dos puntos en el plano cartesiano.',
@@ -297,7 +297,7 @@ describe('Motor Editorial Fase 1 — Spike Typst y Modelo de Estudiante', () => 
       expect(adapted.ejemploResuelto.pasos.length).toBe(2);
       expect(adapted.productoIntegrador).toBe(mockSessionPlan.productoIntegrador);
 
-      // Paridad bidireccional
+      // Interoperabilidad con pérdida documentada de campos editoriales no soportados por SessionPlan (AUD-07)
       const roundTrip = adaptStudentSessionToSessionPlan(adapted);
       expect(roundTrip.sessionNumber).toBe(mockSessionPlan.sessionNumber);
       expect(roundTrip.objetivo).toBe(mockSessionPlan.objetivo);

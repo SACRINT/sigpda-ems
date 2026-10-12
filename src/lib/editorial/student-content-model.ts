@@ -407,7 +407,13 @@ export function adaptSessionPlanToStudentSession(
 }
 
 /**
- * Adapta una StudentSession del motor editorial a un SessionPlan para interoperabilidad bidireccional.
+ * Adapta una StudentSession del motor editorial a un SessionPlan para interoperabilidad con OpenCode.
+ *
+ * NOTA DE DISEÑO (AUD-07):
+ * Esta transformación es de interoperabilidad hacia el modelo plano heredado. Descarta intencionalmente
+ * campos del motor editorial no soportados por el esquema de SessionPlan (como `titulo`, `materialSpot`
+ * y `sidenote`). Garantiza preservación de la estructura pedagógica fundamental (número, objetivo, contenidos,
+ * ejemplo, práctica, autoevaluación y producto integrador).
  */
 export function adaptStudentSessionToSessionPlan(session: StudentSession): SessionPlan {
   const contenidoStr = session.contenido
