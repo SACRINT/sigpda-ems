@@ -95,6 +95,11 @@ import { buildSessionFallbackTaskText } from '@/lib/session-task-fallback';
 import { extractConceptCardsFromMission } from '@/lib/visual-engine/concept-card-renderer';
 import { extractProcessFlowSteps } from '@/lib/visual-engine/process-flow-renderer';
 import { parseLabStepsFromProse } from '@/lib/guide-engine/lab-step-parser';
+import {
+  resolveMultipleDigitalToolsForMission,
+  generateToolQrPng,
+  type DigitalTool,
+} from '@/lib/visual-engine/digital-tools-registry';
 
 function rgbToHex(rgb: [number, number, number]): string {
   return rgb.map((x) => x.toString(16).padStart(2, '0')).join('').toUpperCase();
@@ -196,7 +201,7 @@ function cell(
     children: [
       new Paragraph({
         alignment: align,
-        spacing: { before: 40, after: 40 },
+        spacing: { before: 70, after: 70, line: 300 },
         children: [new TextRun({ text, bold, size, color, font })],
       }),
     ],
@@ -507,8 +512,28 @@ export async function renderWorkbookToDocx(
 
 // ── Constructores de Secciones DOCX ──────────────────────────────────────────
 
-function buildCoverSection(workbook: ActiveWorkTextbook, planning?: Planning): Paragraph[] {
+function buildCoverSection(workbook: ActiveWorkTextbook, planning?: Planning): (Paragraph | Table)[] {
   const cover = workbook.coverData;
+
+  // Caja con borde fino y fondo suave (bloque informativo)
+  const infoBox = (children: Paragraph[], fill = 'F4F6FA'): Table =>
+    new Table({
+      width: { size: CONTENT_W, type: WidthType.DXA },
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: CONTENT_W, type: WidthType.DXA },
+              shading: { fill, type: ShadingType.CLEAR },
+              borders: thinBorder(C.midBlue),
+              margins: { top: 160, bottom: 160, left: 240, right: 240 },
+              children,
+            }),
+          ],
+        }),
+      ],
+    });
+
   return [
     new Paragraph({
       alignment: AlignmentType.CENTER,
@@ -536,146 +561,190 @@ function buildCoverSection(workbook: ActiveWorkTextbook, planning?: Planning): P
         }),
       ],
     }),
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { before: 120, after: 60 },
-      children: [
-        new TextRun({
-          text: cover.schoolName || 'Bachillerato del Estado de Puebla',
-          size: 22,
-          bold: true,
-          color: C.darkText,
-          font: 'Arial',
+
+    // Caja: Plantel y CCT
+    infoBox([
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 20, after: 60 },
+        children: [
+          new TextRun({
+            text: cover.schoolName || 'Bachillerato del Estado de Puebla',
+            size: 22,
+            bold: true,
+            color: C.darkText,
+            font: 'Arial',
+          }),
+        ],
+      }),
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 20 },
+        children: [
+          new TextRun({
+            text: `Clave C.C.T.: ${cover.cct || '21ECT0017T'} | Subsistema: ${(stripMarkdown(stripWorkbookTags(workbook.subsystem)) || 'BGE').toUpperCase()}`,
+            size: 18,
+            color: C.mutedText,
+            font: 'Calibri',
+          }),
+        ],
+      }),
+    ]),
+    new Paragraph({ spacing: { after: 160 }, children: [] }),
+
+    // Caja: Título principal (placa de color con acento dorado)
+    new Table({
+      width: { size: CONTENT_W, type: WidthType.DXA },
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: CONTENT_W, type: WidthType.DXA },
+              shading: { fill: C.navy, type: ShadingType.CLEAR },
+              borders: {
+                top: { style: BorderStyle.SINGLE, size: 8, color: C.navy },
+                bottom: { style: BorderStyle.SINGLE, size: 24, color: C.gold },
+                left: { style: BorderStyle.SINGLE, size: 8, color: C.navy },
+                right: { style: BorderStyle.SINGLE, size: 8, color: C.navy },
+              },
+              margins: { top: 200, bottom: 200, left: 240, right: 240 },
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  spacing: { before: 20, after: 80 },
+                  children: [
+                    new TextRun({
+                      text: (cover.title || workbook.blockName || 'CUADERNO DE APRENDIZAJE ACTIVO').toUpperCase(),
+                      bold: true,
+                      size: 34,
+                      color: 'FFFFFF',
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  spacing: { after: 20 },
+                  children: [
+                    new TextRun({
+                      text: cover.subtitle || `Bloque Formativo: ${workbook.blockName || ''}`,
+                      italics: true,
+                      size: 22,
+                      color: C.gold,
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
         }),
       ],
     }),
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 200 },
-      children: [
-        new TextRun({
-          text: `Clave C.C.T.: ${cover.cct || '21ECT0017T'} | Subsistema: ${(stripMarkdown(stripWorkbookTags(workbook.subsystem)) || 'BGE').toUpperCase()}`,
-          size: 18,
-          color: C.mutedText,
-          font: 'Calibri',
-        }),
-      ],
-    }),
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { before: 240, after: 80 },
-      children: [
-        new TextRun({
-          text: (cover.title || workbook.blockName || 'CUADERNO DE APRENDIZAJE ACTIVO').toUpperCase(),
-          bold: true,
-          size: 34, // 17pt
-          color: C.navy,
-          font: 'Arial',
-        }),
-      ],
-    }),
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 180 },
-      children: [
-        new TextRun({
-          text: cover.subtitle || `Bloque Formativo: ${workbook.blockName || ''}`,
-          italics: true,
-          size: 22, // 11pt
-          color: C.gold,
-          font: 'Arial',
-        }),
-      ],
-    }),
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { before: 160, after: 60 },
-      children: [
-        new TextRun({
-          text: `Unidad de Aprendizaje Curricular (UAC): ${cover.subjectName}`,
-          bold: true,
-          size: 22,
-          color: C.darkText,
-          font: 'Calibri',
-        }),
-      ],
-    }),
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 160 },
-      children: [
-        new TextRun({
-          text: `Semestre: ${cover.semester}° Semestre | Bloque de Aprendizaje: ${cover.blockNumber}`,
-          size: 20,
-          color: C.darkText,
-          font: 'Calibri',
-        }),
-      ],
-    }),
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { before: 160, after: 60 },
-      children: [
-        new TextRun({
-          text: `Proyecto Comunitario PAEC:`,
-          bold: true,
-          size: 20,
-          color: C.navy,
-          font: 'Calibri',
-        }),
-      ],
-    }),
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 200 },
-      children: [
-        new TextRun({
-          text: cover.paecProjectName || 'Impacto social y productivo en la comunidad escolar',
-          italics: true,
-          size: 20,
-          color: C.darkText,
-          font: 'Calibri',
-        }),
-      ],
-    }),
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { before: 200, after: 80 },
-      children: [
-        new TextRun({
-          text: `Docente Titular: ${cover?.teacherName || planning?.contentJson?.sectionI?.teacherName || 'Docente Titular'}`,
-          bold: true,
-          size: 22,
-          color: C.darkText,
-          font: 'Calibri',
-        }),
-      ],
-    }),
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { before: 180, after: 100 },
-      children: [
-        new TextRun({
-          text: 'Nombre del Estudiante: ____________________________________________________',
-          bold: true,
-          size: 20,
-          color: C.navy,
-          font: 'Calibri',
-        }),
-      ],
-    }),
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 100 },
-      children: [
-        new TextRun({
-          text: `Grupo: _________   Turno: _________   Ciclo Escolar: ${SCHOOL_YEAR}`,
-          size: 20,
-          color: C.mutedText,
-          font: 'Calibri',
-        }),
-      ],
-    }),
+    new Paragraph({ spacing: { after: 160 }, children: [] }),
+
+    // Caja: UAC, Semestre y Bloque
+    infoBox([
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 20, after: 60 },
+        children: [
+          new TextRun({
+            text: `Unidad de Aprendizaje Curricular (UAC): ${cover.subjectName}`,
+            bold: true,
+            size: 22,
+            color: C.darkText,
+            font: 'Calibri',
+          }),
+        ],
+      }),
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 20 },
+        children: [
+          new TextRun({
+            text: `Semestre: ${cover.semester}° Semestre | Bloque de Aprendizaje: ${cover.blockNumber}`,
+            size: 20,
+            color: C.darkText,
+            font: 'Calibri',
+          }),
+        ],
+      }),
+    ]),
+    new Paragraph({ spacing: { after: 160 }, children: [] }),
+
+    // Caja: Proyecto Comunitario PAEC (fondo dorado suave)
+    infoBox([
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 20, after: 60 },
+        children: [
+          new TextRun({
+            text: 'Proyecto Comunitario PAEC',
+            bold: true,
+            size: 20,
+            color: C.navy,
+            font: 'Calibri',
+          }),
+        ],
+      }),
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 20 },
+        children: [
+          new TextRun({
+            text: cover.paecProjectName || 'Impacto social y productivo en la comunidad escolar',
+            italics: true,
+            size: 20,
+            color: C.darkText,
+            font: 'Calibri',
+          }),
+        ],
+      }),
+    ], 'FEF6E3'),
+    new Paragraph({ spacing: { after: 200 }, children: [] }),
+
+    // Caja: Docente y datos del estudiante
+    infoBox([
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 20, after: 120 },
+        children: [
+          new TextRun({
+            text: `Docente Titular: ${cover?.teacherName || planning?.contentJson?.sectionI?.teacherName || 'Docente Titular'}`,
+            bold: true,
+            size: 22,
+            color: C.darkText,
+            font: 'Calibri',
+          }),
+        ],
+      }),
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 100 },
+        children: [
+          new TextRun({
+            text: 'Nombre del Estudiante: ____________________________________________________',
+            bold: true,
+            size: 20,
+            color: C.navy,
+            font: 'Calibri',
+          }),
+        ],
+      }),
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 20 },
+        children: [
+          new TextRun({
+            text: `Grupo: _________   Turno: _________   Ciclo Escolar: ${SCHOOL_YEAR}`,
+            size: 20,
+            color: C.mutedText,
+            font: 'Calibri',
+          }),
+        ],
+      }),
+    ]),
   ];
 }
 
@@ -1355,6 +1424,68 @@ function buildDocxGlossaryTable(terms: GlossaryItem[]): (Paragraph | Table)[] {
   return elements;
 }
 
+/**
+ * Glosario compacto para el sidebar DOCX (paridad con el widget de glosario del PDF).
+ * Apila término + definición en una caja estrecha en vez de una tabla ancha.
+ */
+function buildDocxSidebarGlossary(terms: GlossaryItem[], targetWidth: number = SIDEBAR_CARD_W): (Paragraph | Table)[] {
+  const children: Paragraph[] = [
+    new Paragraph({
+      spacing: { before: 20, after: 40 },
+      children: [
+        new TextRun({
+          text: 'GLOSARIO CLAVE',
+          bold: true,
+          size: 14,
+          color: C.vino,
+          font: 'Arial',
+        }),
+      ],
+    }),
+  ];
+  const limited = terms.slice(0, 4);
+  for (const item of limited) {
+    children.push(
+      new Paragraph({
+        spacing: { before: 20, after: 10 },
+        children: [
+          new TextRun({ text: item.term, bold: true, size: 14, color: C.navy, font: 'Calibri' }),
+        ],
+      }),
+      new Paragraph({
+        spacing: { after: 40, line: 264 },
+        children: [
+          new TextRun({ text: item.definition, size: 12, color: C.darkText, font: 'Calibri' }),
+        ],
+      })
+    );
+  }
+
+  const table = new Table({
+    width: { size: targetWidth, type: WidthType.DXA },
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            width: { size: targetWidth, type: WidthType.DXA },
+            shading: { fill: 'FDF2F5', type: ShadingType.CLEAR },
+            borders: {
+              top: { style: BorderStyle.SINGLE, size: 4, color: C.border },
+              bottom: { style: BorderStyle.SINGLE, size: 4, color: C.border },
+              left: { style: BorderStyle.SINGLE, size: 16, color: C.vino },
+              right: { style: BorderStyle.SINGLE, size: 4, color: C.border },
+            },
+            margins: { top: 80, bottom: 80, left: 140, right: 100 },
+            children,
+          }),
+        ],
+      }),
+    ],
+  });
+
+  return [table, new Paragraph({ spacing: { after: 100 } })];
+}
+
 async function buildDocxMissionQrBox(verificationUrl: string, hashMission: string): Promise<Table> {
   let qrBuffer: Buffer | null = null;
   try {
@@ -1869,8 +2000,12 @@ function buildDocxTwoColumnLayout(
   });
 }
 
-/** Umbral de palabras por encima del cual un bloque deja de usar layout de 2 columnas (H-6). */
-const TWO_COLUMN_WORD_LIMIT = 400;
+/**
+ * Umbral de palabras por encima del cual un bloque dejaría de usar 2 columnas.
+ * Fijado a Infinity para forzar SIEMPRE layout de 2 columnas 70/30 (paridad con el PDF,
+ * que nunca colapsa). El sidebar se llena con equipo + herramientas digitales + widgets.
+ */
+const TWO_COLUMN_WORD_LIMIT = Infinity;
 
 /** Cuenta palabras aproximadas de textos sueltos o listas de textos (ignora vacíos). */
 function countWords(...texts: Array<string | readonly string[] | null | undefined>): number {
@@ -1906,11 +2041,15 @@ function buildDocxAdaptiveLayout(
 /**
  * Ficha Técnica de Equipamiento / Material Didáctico DOCX (Nivel 1 Contextual)
  */
-function buildDocxEquipmentCard(equipmentVisual: ResolvedEquipmentVisual): (Paragraph | Table)[] {
+function buildDocxEquipmentCard(
+  equipmentVisual: ResolvedEquipmentVisual,
+  targetWidth: number = CONTENT_W
+): (Paragraph | Table)[] {
   const { detected, buffer, caption, format } = equipmentVisual;
+  const imgW = Math.min(170, Math.floor(targetWidth * 0.32) - 40);
   const imageRun = new ImageRun({
     data: buffer,
-    transformation: { width: 170, height: 120 },
+    transformation: { width: imgW, height: Math.round(imgW * 0.7) },
     type: format.toLowerCase() === 'png' ? 'png' : 'jpg',
   });
 
@@ -1986,12 +2125,12 @@ function buildDocxEquipmentCard(equipmentVisual: ResolvedEquipmentVisual): (Para
   );
 
   const table = new Table({
-    width: { size: CONTENT_W, type: WidthType.DXA },
+    width: { size: targetWidth, type: WidthType.DXA },
     rows: [
       new TableRow({
         children: [
           new TableCell({
-            width: { size: Math.floor(CONTENT_W * 0.32), type: WidthType.DXA },
+            width: { size: Math.floor(targetWidth * 0.32), type: WidthType.DXA },
             verticalAlign: VerticalAlign.CENTER,
             shading: { fill: C.white, type: ShadingType.CLEAR, color: 'auto' },
             borders: {
@@ -2008,7 +2147,7 @@ function buildDocxEquipmentCard(equipmentVisual: ResolvedEquipmentVisual): (Para
             ],
           }),
           new TableCell({
-            width: { size: Math.floor(CONTENT_W * 0.68), type: WidthType.DXA },
+            width: { size: Math.floor(targetWidth * 0.68), type: WidthType.DXA },
             verticalAlign: VerticalAlign.CENTER,
             shading: { fill: C.lightBg, type: ShadingType.CLEAR, color: 'auto' },
             borders: {
@@ -2028,6 +2167,134 @@ function buildDocxEquipmentCard(equipmentVisual: ResolvedEquipmentVisual): (Para
     table,
     new Paragraph({ spacing: { after: 120 } }),
   ];
+}
+
+/**
+ * Tarjeta "HERRAMIENTA DIGITAL · MCCEMS" (GeoGebra + QR) para el sidebar DOCX.
+ * Paridad con drawDigitalToolCardWidget del PDF.
+ */
+async function buildDocxDigitalToolCard(
+  tool: DigitalTool,
+  targetWidth: number = SIDEBAR_CARD_W
+): Promise<(Paragraph | Table)[]> {
+  const ACCENT_DIGITAL = '2563EB';
+  let qrRun: ImageRun | null = null;
+  try {
+    const qrBuf = await generateToolQrPng(tool.url);
+    qrRun = new ImageRun({
+      data: qrBuf,
+      transformation: { width: 62, height: 62 },
+      type: 'png',
+    });
+  } catch {
+    qrRun = null;
+  }
+
+  const textW = Math.floor(targetWidth * 0.62);
+  const qrW = Math.floor(targetWidth * 0.38);
+
+  const leftCellChildren: Paragraph[] = [
+    new Paragraph({
+      spacing: { before: 20, after: 40 },
+      children: [
+        new TextRun({
+          text: 'HERRAMIENTA DIGITAL · MCCEMS',
+          bold: true,
+          size: 13,
+          color: ACCENT_DIGITAL,
+          font: 'Arial',
+        }),
+      ],
+    }),
+    new Paragraph({
+      spacing: { after: 30 },
+      children: [
+        new TextRun({
+          text: tool.name,
+          bold: true,
+          size: 18,
+          color: C.navy,
+          font: 'Arial',
+        }),
+      ],
+    }),
+    new Paragraph({
+      spacing: { after: 30 },
+      children: [
+        new TextRun({
+          text: tool.platforms.join(' · '),
+          size: 12,
+          color: C.mutedText,
+          font: 'Calibri',
+        }),
+      ],
+    }),
+    new Paragraph({
+      spacing: { after: 30, line: 276 },
+      children: [
+        new TextRun({
+          text: tool.description,
+          size: 14,
+          color: C.darkText,
+          font: 'Calibri',
+        }),
+      ],
+    }),
+    new Paragraph({
+      spacing: { after: 10 },
+      children: [
+        new TextRun({
+          text: 'Escanea el QR para interactuar',
+          bold: true,
+          size: 12,
+          color: ACCENT_DIGITAL,
+          font: 'Calibri',
+        }),
+      ],
+    }),
+  ];
+
+  const table = new Table({
+    width: { size: targetWidth, type: WidthType.DXA },
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            width: { size: textW, type: WidthType.DXA },
+            shading: { fill: 'F4F6FA', type: ShadingType.CLEAR },
+            borders: {
+              top: { style: BorderStyle.SINGLE, size: 4, color: C.border },
+              bottom: { style: BorderStyle.SINGLE, size: 4, color: C.border },
+              left: { style: BorderStyle.SINGLE, size: 16, color: ACCENT_DIGITAL },
+              right: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+            },
+            margins: { top: 80, bottom: 80, left: 140, right: 80 },
+            children: leftCellChildren,
+          }),
+          new TableCell({
+            width: { size: qrW, type: WidthType.DXA },
+            shading: { fill: 'F4F6FA', type: ShadingType.CLEAR },
+            borders: {
+              top: { style: BorderStyle.SINGLE, size: 4, color: C.border },
+              bottom: { style: BorderStyle.SINGLE, size: 4, color: C.border },
+              left: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+              right: { style: BorderStyle.SINGLE, size: 4, color: C.border },
+            },
+            margins: { top: 80, bottom: 80, left: 60, right: 100 },
+            verticalAlign: VerticalAlign.CENTER,
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: qrRun ? [qrRun] : [],
+              }),
+            ],
+          }),
+        ],
+      }),
+    ],
+  });
+
+  return [table, new Paragraph({ spacing: { after: 100 } })];
 }
 
 /**
@@ -2061,13 +2328,15 @@ function buildDocxSectionHeader(
   badge?: string,
   targetWidth: number = CONTENT_W
 ): Table {
-  const fill = colorHex.replace('#', '');
+  const accent = colorHex.replace('#', '');
+  const lightBg = 'F4F6FA'; // caja clara tipo tarjeta (paridad con el ribbon del PDF)
+
   const runs: TextRun[] = [
     new TextRun({
       text: title.toUpperCase(),
       bold: true,
       size: 22,
-      color: 'FFFFFF',
+      color: accent,
       font: 'Arial',
     }),
   ];
@@ -2075,12 +2344,12 @@ function buildDocxSectionHeader(
     runs.push(
       new TextRun({ text: '   ', size: 18, font: 'Calibri' }),
       new TextRun({
-        text: ` ${badge} `,
+        text: ` ${badge.toUpperCase()} `,
         bold: true,
-        size: 17,
-        color: fill,
+        size: 15,
+        color: 'FFFFFF',
         font: 'Calibri',
-        shading: { type: ShadingType.CLEAR, fill: 'FFFFFF', color: 'auto' },
+        shading: { type: ShadingType.CLEAR, fill: accent, color: 'auto' },
       })
     );
   }
@@ -2092,17 +2361,18 @@ function buildDocxSectionHeader(
         children: [
           new TableCell({
             width: { size: targetWidth, type: WidthType.DXA },
-            shading: { fill, type: ShadingType.CLEAR },
+            shading: { fill: lightBg, type: ShadingType.CLEAR },
             borders: {
-              top: { style: BorderStyle.SINGLE, size: 12, color: darkenHex(fill) },
-              bottom: { style: BorderStyle.SINGLE, size: 12, color: darkenHex(fill) },
-              left: { style: BorderStyle.SINGLE, size: 18, color: darkenHex(fill) },
-              right: { style: BorderStyle.SINGLE, size: 12, color: darkenHex(fill) },
+              top: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+              bottom: { style: BorderStyle.SINGLE, size: 8, color: accent },
+              left: { style: BorderStyle.SINGLE, size: 36, color: accent },
+              right: { style: BorderStyle.NONE, size: 0, color: 'auto' },
             },
-            margins: { top: 140, bottom: 140, left: 220, right: 220 },
+            margins: { top: 130, bottom: 130, left: 240, right: 220 },
             children: [
               new Paragraph({
                 spacing: { before: 40, after: 40 },
+                alignment: AlignmentType.LEFT,
                 children: runs,
               }),
             ],
@@ -2837,9 +3107,10 @@ export function buildDocxConceptCardsGrid(cards: ConceptCardItem[], targetWidth:
             }),
           ],
         }),
-        // 4. Descripción
+        // 4. Descripción (justificada explícitamente; no confiar en docDefaults dentro de celdas)
         new Paragraph({
-          spacing: { before: 20, after: 50, line: 300 },
+          alignment: AlignmentType.JUSTIFIED,
+          spacing: { before: 20, after: 60, line: 300 },
           children: [
             new TextRun({
               text: stripMarkdown(card.description || ''),
@@ -2851,10 +3122,11 @@ export function buildDocxConceptCardsGrid(cards: ConceptCardItem[], targetWidth:
         })
       );
 
-      // 5. Ejemplo opcional
+      // 5. Ejemplo opcional (justificado)
       if (card.example && card.example.trim().length > 0) {
         cellChildren.push(
           new Paragraph({
+            alignment: AlignmentType.JUSTIFIED,
             spacing: { before: 40, after: 30 },
             shading: { fill: CONCEPT_CARDS_DOCX.exampleBg, type: ShadingType.CLEAR },
             children: [
@@ -3059,32 +3331,78 @@ async function buildMissionContent(
     .replace(/^misi[oó]n\s*\d+\s*:\s*/i, '')
     .trim();
 
-  // Encabezado de la Misión
+  // Encabezado de la Misión (banner de color a ancho completo, paridad con drawMissionBanner del PDF)
+  const missionSessionsStr = mission.coveredSessions?.join(', ') || `${missionNumber * 2 - 1}-${missionNumber * 2}`;
+  const bannerBorders = {
+    top: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+    bottom: { style: BorderStyle.SINGLE, size: 24, color: C.gold },
+    left: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+    right: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+  };
   elements.push(
-    new Paragraph({
-      spacing: { before: 200, after: 100 },
-      children: [
-        new TextRun({
-          text: `MISIÓN ${missionNumber}: ${cleanMissionTitle.toUpperCase()}`,
-          bold: true,
-          size: 32, // 16pt
-          color: C.navy,
-          font: 'Arial',
+    new Table({
+      width: { size: CONTENT_W, type: WidthType.DXA },
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: 900, type: WidthType.DXA },
+              shading: { fill: darkenHex(C.navy, 0.82), type: ShadingType.CLEAR },
+              borders: bannerBorders,
+              margins: { top: 100, bottom: 100, left: 120, right: 120 },
+              verticalAlign: VerticalAlign.CENTER,
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  spacing: { before: 0, after: 0 },
+                  children: [
+                    new TextRun({
+                      text: String(missionNumber).padStart(2, '0'),
+                      bold: true,
+                      size: 48,
+                      color: 'FFFFFF',
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+              ],
+            }),
+            new TableCell({
+              width: { size: CONTENT_W - 900, type: WidthType.DXA },
+              shading: { fill: C.navy, type: ShadingType.CLEAR },
+              borders: bannerBorders,
+              margins: { top: 100, bottom: 100, left: 220, right: 200 },
+              children: [
+                new Paragraph({
+                  spacing: { before: 20, after: 40 },
+                  children: [
+                    new TextRun({
+                      text: `MISIÓN ${missionNumber}: ${cleanMissionTitle.toUpperCase()}`,
+                      bold: true,
+                      size: 28,
+                      color: 'FFFFFF',
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+                new Paragraph({
+                  spacing: { before: 0, after: 20 },
+                  children: [
+                    new TextRun({
+                      text: `Sesiones ${missionSessionsStr} · Enfoque: ${mission.sessionFocus || 'Desarrollo de competencias situadas'}`,
+                      size: 18,
+                      color: 'FFFFFF',
+                      font: 'Calibri',
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
         }),
       ],
     }),
-    new Paragraph({
-      spacing: { after: 300 },
-      children: [
-        new TextRun({
-          text: `Sesiones asignadas: ${mission.coveredSessions?.join(', ') || 'N/A'} | Enfoque: ${mission.sessionFocus}`,
-          bold: true,
-          size: 20,
-          color: C.midBlue,
-          font: 'Calibri',
-        }),
-      ],
-    })
+    new Paragraph({ spacing: { after: 160 }, children: [] })
   );
 
   const coveredSessions = (mission.coveredSessions && mission.coveredSessions.length > 0)
@@ -3113,17 +3431,37 @@ async function buildMissionContent(
     elements.push(...buildDocxDiagnosticSection(diagEval));
   }
 
+  // ── Resolución temprana de equipo + herramientas digitales para el sidebar de Apertura ──
+  let aperturaEquipmentVisual: ResolvedEquipmentVisual | null = null;
+  if (subjectName) {
+    try {
+      aperturaEquipmentVisual = await resolveEquipmentVisualForMission(mission, subjectName, {
+        preferSidebar: true,
+      });
+      if (aperturaEquipmentVisual?.mediaAsset && openverseCollector) {
+        openverseCollector.push(aperturaEquipmentVisual.mediaAsset);
+      }
+    } catch (err) {
+      logger.warn('[docx-workbook-renderer] Error resolviendo equipo contextual:', err);
+    }
+  }
+  const digitalToolsText = `${mission.title || ''} ${mission.phenomenonHook?.story || ''} ${mission.conceptZero?.coreExplanation || ''}`;
+  const resolvedDigitalTools = subjectName
+    ? resolveMultipleDigitalToolsForMission(subjectName, mission.title || '', digitalToolsText, 2)
+    : [];
+
   // ══════════════════════════════════════════════════════════════════════════════
   // FASE 1: APERTURA (Enganche Situado y Concepto Cero en Layout de 2 Columnas 70/30)
   // ══════════════════════════════════════════════════════════════════════════════
   const aperturaMain: (Paragraph | Table)[] = [];
   const aperturaSidebar: (Paragraph | Table)[] = [];
-  // H-6: texto largo (> 400 palabras) => ancho completo con widgets inline; si no, 2 columnas 70/30
+  // Paridad con PDF: TWO_COLUMN_WORD_LIMIT=Infinity fuerza SIEMPRE 2 columnas 70/30 (aperturaWide=false);
+  // el sidebar se llena con equipo + herramientas digitales + widgets en vez de colapsar a ancho completo.
   const aperturaWide = countWords(mission.phenomenonHook?.story, mission.phenomenonHook?.detonatingQuestion, mission.conceptZero?.physicalAnalogy, mission.conceptZero?.coreExplanation, mission.conceptZero?.narrativeExplanation, mission.conceptZero?.solvedExample?.problemStatement, mission.conceptZero?.solvedExample?.solutionSteps, mission.conceptZero?.solvedExample?.interpretation) > TWO_COLUMN_WORD_LIMIT;
   const aperturaW = aperturaWide ? CONTENT_W : LAYOUT_LEFT_W;
   const aperturaSideW = aperturaWide ? CONTENT_W : SIDEBAR_CARD_W;
 
-  // Sidebar de Apertura: Badge temático + Widget IDEA FUERZA (F-70)
+  // Sidebar de Apertura: Badge temático + Ficha de Equipo + Herramientas Digitales + Idea Fuerza (paridad PDF)
   aperturaSidebar.push(
     buildDocxSidebarHeaderBadge(
       `MISIÓN ${missionNumber} · APERTURA`,
@@ -3132,6 +3470,22 @@ async function buildMissionContent(
       aperturaSideW
     )
   );
+
+  // Ficha de equipo (calculadora/geo) al sidebar — paridad con PDF (preferSidebar).
+  // Nota: con preferSidebar:true, isHero es siempre false (ver visual-asset-manager.ts), por lo que
+  // la ficha SIEMPRE va al sidebar y la ruta "hero" de imagen grande ya no existe en DOCX.
+  if (aperturaEquipmentVisual) {
+    aperturaSidebar.push(...buildDocxEquipmentCard(aperturaEquipmentVisual, aperturaSideW));
+  }
+  // Tarjetas de herramientas digitales (GeoGebra + QR) — paridad con PDF
+  for (const tool of resolvedDigitalTools) {
+    aperturaSidebar.push(...(await buildDocxDigitalToolCard(tool, aperturaSideW)));
+  }
+  // Glosario compacto al sidebar — paridad con PDF
+  const sidebarGlossaryTerms = extractGlossaryTerms(mission.conceptZero?.coreExplanation || '');
+  if (sidebarGlossaryTerms && sidebarGlossaryTerms.length > 0) {
+    aperturaSidebar.push(...buildDocxSidebarGlossary(sidebarGlossaryTerms, aperturaSideW));
+  }
 
   const conceptFullText = `${mission.conceptZero.physicalAnalogy || ''}\n${mission.conceptZero.coreExplanation || ''}\n${mission.conceptZero.narrativeExplanation || ''}`;
 
@@ -3424,7 +3778,7 @@ async function buildMissionContent(
                     new ImageRun({
                       data: imgResult.buffer,
                       transformation: { width: 440, height: 286 },
-                      type: 'jpg',
+                      type: imgResult.format.toLowerCase() === 'png' ? 'png' : 'jpg',
                     }),
                   ],
                 }),
@@ -3456,7 +3810,7 @@ async function buildMissionContent(
                 new ImageRun({
                   data: imgResult.buffer,
                   transformation: { width: 500, height: 325 },
-                  type: 'jpg',
+                  type: imgResult.format.toLowerCase() === 'png' ? 'png' : 'jpg',
                 }),
               ],
             }),
@@ -3517,26 +3871,6 @@ async function buildMissionContent(
     }
   }
 
-  // ── 2.15 Ficha Técnica Contextual / Imagen de Demostración (Hero) ─────────────
-  let equipmentVisual: ResolvedEquipmentVisual | null = null;
-  if (subjectName) {
-    try {
-      equipmentVisual = await resolveEquipmentVisualForMission(mission, subjectName, {
-        preferSidebar: false,
-      });
-      if (equipmentVisual?.mediaAsset && openverseCollector) {
-        openverseCollector.push(equipmentVisual.mediaAsset);
-      }
-    } catch (err) {
-      logger.warn('[docx-workbook-renderer] Error resolviendo equipo contextual:', err);
-    }
-  }
-
-  // Si no es Hero (el 70% de los casos), renderizar como Ficha Técnica antes de la Demostración
-  if (equipmentVisual && !equipmentVisual.isHero) {
-    elements.push(...buildDocxEquipmentCard(equipmentVisual));
-  }
-
   // Si la misión abarca 3 o más sesiones, la Sesión 2 inicia en el Modelado Docente
   if (totalSessionsCount >= 3) {
     const s2 = coveredSessions[1];
@@ -3570,36 +3904,6 @@ async function buildMissionContent(
     sectionGap(),
     buildDocxSectionHeader('👨‍🏫 3. Yo Hago: Demostración y Protocolo Guiado por el Docente', SECTION_HEX.yoHago, '[MODELO DOCENTE]', desarrolloW)
   );
-
-  // Si equipmentVisual fue marcado como Hero (30% demostrativo), se renderiza como imagen principal del Yo Hago
-  if (equipmentVisual && equipmentVisual.isHero) {
-    desarrolloMain.push(
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        spacing: { before: 140, after: 80 },
-        children: [
-          new ImageRun({
-            data: equipmentVisual.buffer,
-            transformation: { width: 440, height: 250 },
-            type: equipmentVisual.format.toLowerCase() === 'png' ? 'png' : 'jpg',
-          }),
-        ],
-      }),
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        spacing: { after: 140 },
-        children: [
-          new TextRun({
-            text: equipmentVisual.caption,
-            italics: true,
-            size: 16, // 8pt
-            color: C.mutedText,
-            font: 'Calibri',
-          }),
-        ],
-      })
-    );
-  }
 
   const labSteps = parseLabStepsFromProse(mission.iDoSection.stepByStepDemo);
   if (labSteps.length >= 3) {
@@ -3676,20 +3980,16 @@ async function buildMissionContent(
       );
       desarrolloMain.push(buildDocxSessionDivider(sNum, sMeta.phase, getPhaseColorHex(sMeta.phase), 50, sMeta.title));
 
-      // Apertura
+      // Apertura (sin encabezado literal)
       desarrolloMain.push(
-        sectionGap(),
-        buildDocxSectionHeader('⏱️ Apertura (10 min)', SECTION_HEX.apertura, '[CONECTAR]', desarrolloW),
-        new Paragraph({ spacing: { ...PARA_SPACING }, children: [ new TextRun({ text: 'Docente: ', bold: true, size: 21 }), new TextRun({ text: `Activación focalizada: conectar la sesión anterior con el reto "${sMeta.title}".`, size: 21 }) ] }),
-        new Paragraph({ spacing: { ...PARA_SPACING }, children: [ new TextRun({ text: 'Estudiante: ', bold: true, size: 21 }), new TextRun({ text: 'Recuperar insumos previos y organizar la mesa de trabajo.', size: 21 }) ] }),
+        new Paragraph({ spacing: { ...PARA_SPACING, after: 80 }, children: [ new TextRun({ text: 'Docente: ', bold: true, size: 21 }), new TextRun({ text: `Activación focalizada: conectar la sesión anterior con el reto "${sMeta.title}".`, size: 21 }) ] }),
+        new Paragraph({ spacing: { ...PARA_SPACING, after: 160 }, children: [ new TextRun({ text: 'Estudiante: ', bold: true, size: 21 }), new TextRun({ text: 'Recuperar insumos previos y organizar la mesa de trabajo.', size: 21 }) ] }),
       );
 
       // Desarrollo
       desarrolloMain.push(
-        sectionGap(),
-        buildDocxSectionHeader('📖 Desarrollo (30 min)', SECTION_HEX.hacemos, '[PRÁCTICA]', desarrolloW),
-        new Paragraph({ spacing: { ...PARA_SPACING }, children: [ new TextRun({ text: 'Docente: ', bold: true, size: 21 }), new TextRun({ text: sMeta.teachingActivity || 'Monitoreo y orientación de la práctica en equipo.', size: 21 }) ] }),
-        new Paragraph({ spacing: { ...PARA_SPACING }, children: [ new TextRun({ text: 'Estudiante: ', bold: true, size: 21 }), new TextRun({ text: sMeta.learningActivity || 'Desarrollo de la práctica colaborativa.', size: 21 }) ] }),
+        new Paragraph({ spacing: { ...PARA_SPACING, after: 80 }, children: [ new TextRun({ text: 'Docente: ', bold: true, size: 21 }), new TextRun({ text: sMeta.teachingActivity || 'Monitoreo y orientación de la práctica en equipo.', size: 21 }) ] }),
+        new Paragraph({ spacing: { ...PARA_SPACING, after: 160 }, children: [ new TextRun({ text: 'Estudiante: ', bold: true, size: 21 }), new TextRun({ text: sMeta.learningActivity || 'Desarrollo de la práctica colaborativa.', size: 21 }) ] }),
       );
 
       const assignedTasks = taskBuckets[mIdx];
@@ -3709,11 +4009,9 @@ async function buildMissionContent(
         }
       }
 
-      // Cierre
+      // Cierre (sin encabezado literal)
       desarrolloMain.push(
-        sectionGap(),
-        buildDocxSectionHeader('✅ Cierre (10 min)', SECTION_HEX.cierre, '[REGISTRAR]', desarrolloW),
-        new Paragraph({ spacing: { ...PARA_SPACING }, children: [ new TextRun({ text: 'Docente: ', bold: true, size: 21 }), new TextRun({ text: sMeta.evaluation ? `Monitoreo del avance: ${sMeta.evaluation}. Retroalimentación formativa inmediata.` : 'Moderación de cierre y síntesis de la sesión.', size: 21 }) ] }),
+        new Paragraph({ spacing: { ...PARA_SPACING, before: 160, after: 80 }, children: [ new TextRun({ text: 'Docente: ', bold: true, size: 21 }), new TextRun({ text: sMeta.evaluation ? `Monitoreo del avance: ${sMeta.evaluation}. Retroalimentación formativa inmediata.` : 'Moderación de cierre y síntesis de la sesión.', size: 21 }) ] }),
         new Paragraph({ spacing: { ...PARA_SPACING }, children: [ new TextRun({ text: 'Estudiante: ', bold: true, size: 21 }), new TextRun({ text: sMeta.evidence ? `Registro de avance sobre "${sMeta.evidence}" y revisión de dudas críticas.` : 'Presentación de evidencias y autoevaluación formativa.', size: 21 }) ] }),
       );
     }

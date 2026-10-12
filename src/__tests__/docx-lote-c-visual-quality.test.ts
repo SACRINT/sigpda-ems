@@ -130,16 +130,17 @@ describe('Lote C — Calidad visual DOCX', () => {
     expect(xml).toContain('w:fill="F8FAFC"');
   });
 
-  it('H-6: con más de 400 palabras el bloque usa ancho completo (sin tabla 70/30) y con texto corto conserva 2 columnas', async () => {
+  it('H-6: SIEMPRE usa 2 columnas 70/30 (paridad con PDF), incluso con más de 400 palabras', async () => {
     const longText = Array.from({ length: 520 }, (_, i) => `palabra${i}`).join(' ');
     const wideXml = await renderMockDocx({
       phenomenonHook: { story: longText, detonatingQuestion: '¿Cómo modelar el fenómeno?' },
       iDoSection: { stepByStepDemo: longText },
       youDoSection: { autonomousChallenge: longText, workbookElements: [] },
     });
-    expect(wideXml).not.toContain('w:w="7100"');
-    expect(wideXml).not.toContain('w:w="3140"');
-    // Los widgets del sidebar siguen presentes, ahora como cajas inline
+    // Con texto largo también se conserva la tabla de 2 columnas 70/30 (paridad con el PDF, que nunca colapsa)
+    expect(wideXml).toContain('w:w="7100"');
+    expect(wideXml).toContain('w:w="3140"');
+    // Los widgets del sidebar siguen presentes
     expect(wideXml).toContain('IDEA FUERZA');
     expect(wideXml).toContain('ESTUDIO ACTIVO');
 
