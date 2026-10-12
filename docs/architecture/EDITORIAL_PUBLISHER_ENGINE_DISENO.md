@@ -282,7 +282,22 @@ El orden de construcción sitúa el **motor tipográfico y la arquitectura en pr
 | Rol / Responsabilidad | Nombre y Entidad | Estado de Aprobación | Fecha |
 | :--- | :--- | :--- | :--- |
 | **Ingeniería de Software / Arquitectura** | Antigravity AI Agent (SACRINT) | **Propuesta Técnica Formalizada** | 2026-10-11 |
-| **Auditoría de Calidad y Procesos** | OpenCode Adversarial Reviewer | **PENDIENTE DE AUDITORÍA FORMAL** | — |
-| **Dirección de Tecnología / Producto** | *Usuario / Administrador SIGPDA-EMS* | **PENDIENTE DE REVISIÓN Y FIRMA** | — |
+| **Auditoría de Calidad y Procesos** | OpenCode Adversarial Reviewer | **APROBADO CON SALVEDAD CRÍTICA** (ver §9) | 2026-10-12 |
+| **Dirección de Tecnología / Producto** | *Usuario / Administrador SIGPDA-EMS* | **APROBADO** | 2026-10-11 |
 
 > **Compromiso Estricto**: Ninguna línea de código de las Fases 1 a 5 será escrita o introducida en el repositorio hasta que este documento cuente con el visto bueno y dictamen favorable de la Auditoría OpenCode.
+
+---
+
+## 9. Dictamen de Auditoría OpenCode (Gate 0) — 2026-10-12
+
+**Veredicto: APROBADO CON SALVEDAD CRÍTICA.** La arquitectura es sólida para su objetivo declarado (PDF de imprenta con Typst). Fortalezas verificadas: auditoría de licencias correcta (Typst Apache-2.0; se evita el copyleft comercial de `electric-book` GPL-3.0), justificación de rendimiento frente a Puppeteer/Paged.js válida para el timeout de 60 s de Vercel, separación de dominio (`editorial_books` sin contaminar `ActiveWorkTextbook`), gate de suscripción y gobernanza de flags/IA conforme a `AGENTS.md`, y cada fase con test falsable + mutación anti-F11.
+
+**Salvedad crítica (bloquea Fases 3–5 hasta resolverse):**
+1. **Modelo de contenido**: la Fase 1 compila desde un fixture de `ActiveWorkTextbook`, cuyo contenido de sesión es **guía del docente** (etiquetas "Docente:"/"Estudiante:", verbos de instrucción), no material que un estudiante pueda leer solo. Typst imprimiría con calidad de imprenta el mismo contenido deficiente. **Obligación**: migrar el modelo de contenido a **voz de estudiante** (teoría real, ejemplo resuelto con números, práctica con pistas, recursos de ampliación) antes de que Fases 3–5 consuman contenido real; idealmente la Fase 1 ya usa el modelo de estudiante.
+
+**Salvedades menores:**
+2. **Binario Typst en Vercel Serverless**: riesgo técnico real. Mitigación (binario estático embebido o worker en contenedor Fly/Render) debe validarse de forma temprana en la Fase 1, no postergarse a la Fase 4.
+3. **Determinismo de hash**: fijar `SOURCE_DATE_EPOCH=0` es correcto, pero verificar también el orden de incrustación de fuentes/imágenes para lograr hash idéntico entre ejecuciones.
+4. **Enlaces `file:///c:/…`**: las referencias a archivos usan rutas absolutas de Windows, inoperantes como vínculos relativos en el repo. Corregir a rutas relativas del repositorio.
+5. **Alcance DOCX**: el Motor Editorial es solo PDF (Typst). La exportación editorial de alta calidad en DOCX queda fuera de alcance y seguirá en el renderer actual.
