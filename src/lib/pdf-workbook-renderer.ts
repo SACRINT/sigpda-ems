@@ -77,6 +77,7 @@ import {
   drawSectionRibbon,
   drawSessionDivider,
   drawCalloutBox,
+  measureCalloutBoxHeight,
   drawDiagnosticSection,
   drawMetacognitiveLight,
   drawPageHeader,
@@ -1655,7 +1656,8 @@ function drawPdfCallout(
   ensureSpaceFn?: (y: number, neededH: number) => number
 ): number {
   const checkSpace = ensureSpaceFn || ((cy: number, nh: number) => ensureVerticalSpace(doc, cy, nh, margin, pageHeight));
-  y = checkSpace(y, 22);
+  // Reservar la altura REAL del callout (no un estimado fijo) para evitar desbordes de página
+  y = checkSpace(y, measureCalloutBoxHeight(doc, callout, drawWidth) + 4);
   return drawCalloutBox(doc, callout, margin, drawWidth, y);
 }
 
@@ -1899,6 +1901,37 @@ function extractTaskStrings(rawText: string, defaultTaskCount: number = 3): stri
   return tasks
     .map((t) => sanitizePdfText(stripMarkdown(t)).trim())
     .filter((t) => t.length > 5);
+}
+
+/** Etiqueta de fase de sesión (INICIO / DESARROLLO / CIERRE) — ancla visual dentro de cada sesión (paridad DOCX). */
+function printSessionPhaseLabel(
+  flow: ColumnFlowManager,
+  label: string,
+  color: RGB,
+  startY: number
+): number {
+  return flow.printMainParagraph(`  ${label}`, startY, {
+    size: 7.0,
+    fontStyle: 'bold',
+    color,
+    lineHeight: 4.2,
+    justify: false,
+  });
+}
+
+/** Divide texto en oraciones útiles (>= 40 chars) para rotar contenido entre sesiones. */
+function splitIntoSentences(text: string | null | undefined): string[] {
+  return (text || '')
+    .replace(/\s+/g, ' ')
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length >= 40);
+}
+
+/** Selecciona una oración rotando por índice de sesión (garantiza variedad entre sesiones intermedias). */
+function rotateSentence(sentences: string[], sessionIdx: number): string {
+  if (sentences.length === 0) return '';
+  return sentences[sessionIdx % sentences.length];
 }
 
 function drawSingleTaskWithDottedLines(
@@ -2606,46 +2639,95 @@ async function drawMission(
     const taskBuckets = distributeItems(allWeDoTasks, midSessions.length);
     const elemBuckets = distributeItems(allWeDoElements, midSessions.length);
 
+    // ── Pools de contenido de la misión para la estructura pedagógica por sesión (paridad DOCX) ──
+    const conceptSentences = splitIntoSentences(mission.conceptZero.coreExplanation);
+    const narrativeSentences = splitIntoSentences(mission.conceptZero.narrativeExplanation);
+    const exampleSteps: string[] = (mission.conceptZero.solvedExample?.solutionSteps || []).map((s) => s.trim()).filter((s) => s.length >= 20);
+    const diagQuestions: string[] = (mission.diagnosticEvaluation?.questions || []).map((q) => q.trim()).filter((q) => q.length >= 15);
+    const reflPrompts: string[] = (mission.formativeCheckpoint.reflectionPrompts || []).map((p) => p.trim()).filter((p) => p.length >= 15);
+    const criteriaItems: string[] = (mission.formativeCheckpoint.criteriaChecklist || []).map((c) => c.trim()).filter((c) => c.length >= 10);
+    const topicLabel = (mission.sessionTopic || mission.sessionFocus || mission.title || '').replace(/\s+/g, ' ').trim() || 'la misión';
+
     y = drawSectionHeader(doc, '4. Nosotros Hacemos: Practica Guiada en Equipo', margin, mainW, y, pageHeight, SECTION_COLORS.hacemos, checkSpace, '[ TRABAJO EN EQUIPO ]');
 
     for (let mIdx = 0; mIdx < midSessions.length; mIdx++) {
       const sNum = midSessions[mIdx];
       const sMeta = getSessionMetaFromSequence(sequenceJson, sNum, blockIndex, 'DESARROLLO', `PRACTICA COLABORATIVA (SESION ${sNum})`);
+      const phaseColor = getPhaseColorRgb(sMeta.phase);
       y = checkSpace(y, 14);
       y = drawSessionDivider(doc, {
         sessionNumber: sNum,
         durationMin: 50,
         phaseLabel: sMeta.phase,
         sessionTitle: sMeta.title,
-        themeColor: getPhaseColorRgb(sMeta.phase),
+        themeColor: phaseColor,
         margin,
         drawWidth: mainW,
         y,
       });
 
-      // ── Apertura (sin encabezado literal: la estructura se da por el contenido) ──
-      const missionCtx = (mission.sessionTopic || mission.sessionFocus || mission.title || '').replace(/\s+/g, ' ').trim();
-      const ctxFragment = missionCtx ? `del tema "${missionCtx}"` : 'de la misión';
-      const aperturaDocente = `Activación situada (Sesión ${sNum}): recuperar los avances de la sesión ${sNum - 1}, revisar brevemente el reto ${ctxFragment} y plantear la meta de trabajo de hoy.`;
-      const aperturaEstudiante = `Traer su cuaderno y materiales previos; en equipo, resumir en 2 minutos lo avanzado y leer la consigna de la Sesión ${sNum}.`;
-      y = flow.printMainParagraph(`Docente: ${aperturaDocente}`, y, { size: 7.2, lineHeight: 3.8 });
-      y = flow.printMainParagraph(`Estudiante: ${aperturaEstudiante}`, y, { size: 7.2, lineHeight: 3.8 });
+      // Plan de sesión generado por IA (Opción B) — priorizado sobre el fallback determinista
+      const plan = mission.sessionPlans?.find((p) => p.sessionNumber === sNum);
+
+      // ══════════════════════════════════════════════════════════════
+      // INICIO (≈10 min): Motivación situada + Recuperación de saberes previos
+      // ══════════════════════════════════════════════════════════════
+      y = printSessionPhaseLabel(flow, 'INICIO (≈10 min) · Motivación y recuperación de saberes previos', phaseColor, y);
+      const motivVariants = [
+        `Presentar a los equipos el reto "${topicLabel}" con un caso concreto de la vida cotidiana de nuestra comunidad, conectando con lo vivido en la sesión ${sNum - 1} y detonando la pregunta central: "${mission.phenomenonHook.detonatingQuestion || '¿Cómo aplicamos lo aprendido?'}".`,
+        `Retomar el desafío situado "${topicLabel}" y plantear una nueva arista del problema: qué cambia hoy en la sesión ${sNum} y por qué es relevante para la familia y la comunidad del estudiante.`,
+        `Activar el interés con una situación del contexto local vinculada al tema "${topicLabel}", explicitando el porqué social del contenido de la sesión ${sNum}.`,
+      ];
+      y = flow.printMainParagraph(`Docente: ${plan?.motivacion || motivVariants[mIdx % motivVariants.length]}`, y, { size: 7.2, lineHeight: 3.8 });
+      if (plan?.conocimientosPrevios) {
+        y = flow.printMainParagraph(`Estudiante: Recuperación (2 min): ${plan.conocimientosPrevios}`, y, { size: 7.2, lineHeight: 3.8 });
+      } else if (diagQuestions.length > 0) {
+        y = flow.printMainParagraph(`Estudiante: Recuperación (2 min): responder en el cuaderno — ${diagQuestions[mIdx % diagQuestions.length]} Compartir brevemente en equipo.`, y, { size: 7.2, lineHeight: 3.8 });
+      } else {
+        y = flow.printMainParagraph(`Estudiante: Recuperación (2 min): en equipo, anotar en el cuaderno 2 ideas clave recordadas de la sesión anterior sobre "${topicLabel}" y una duda pendiente; compartirlas en un minuto.`, y, { size: 7.2, lineHeight: 3.8 });
+      }
       y += 4;
 
-      // ── Desarrollo ──
-      const desDocente = sMeta.teachingActivity || `Acompañamiento situado (Sesión ${sNum}): circular entre equipos, orientar la aplicación ${ctxFragment}, resolver dudas de procedimiento y registrar observaciones para la retroalimentación.`;
+      // ══════════════════════════════════════════════════════════════
+      // DESARROLLO (≈30 min): Nuevos conocimientos + Ejemplo + Práctica + Aplicación
+      // ══════════════════════════════════════════════════════════════
+      y = printSessionPhaseLabel(flow, 'DESARROLLO (≈30 min) · Construcción, ejemplo, práctica y aplicación', phaseColor, y);
+      const conceptLine = rotateSentence(conceptSentences.length > 0 ? conceptSentences : narrativeSentences, mIdx);
+      const fallbackConcept = `seguir avanzando en "${topicLabel}"`;
+      const desDocente = plan?.nuevosConocimientos
+        ? `Nuevos conocimientos (≈10 min): ${plan.nuevosConocimientos}`
+        : sMeta.teachingActivity
+          ? `${sMeta.teachingActivity} Punto clave a reforzar: ${conceptLine || fallbackConcept}.`
+          : conceptLine
+            ? `Nuevos conocimientos (≈10 min): exponer y problematizar el siguiente aspecto del tema "${topicLabel}": ${conceptLine} Verificar comprensión con una pregunta de contraste.`
+            : `Nuevos conocimientos (≈10 min): profundizar en "${topicLabel}" con diagrama, tabla o ejemplo del libro de texto, explicitando qué cambia respecto a la sesión anterior.`;
       y = flow.printMainParagraph(`Docente: ${desDocente}`, y, { size: 7.2, lineHeight: 3.8 });
-      const desEstudiante = sMeta.learningActivity || `Avanzar en la práctica colaborativa ${ctxFragment}, documentar procedimiento y evidencias en el cuaderno, y compartir avances con su equipo de trabajo.`;
-      y = flow.printMainParagraph(`Estudiante: ${desEstudiante}`, y, { size: 7.2, lineHeight: 3.8 });
 
-      const assignedTasks = taskBuckets[mIdx];
-      if (assignedTasks && assignedTasks.length > 0) {
-        for (let tIdx = 0; tIdx < assignedTasks.length; tIdx++) {
-          y = drawSingleTaskWithDottedLines(doc, assignedTasks[tIdx], tIdx + 1, margin, mainW, pageHeight, y, checkSpace);
+      if (plan?.ejemplo) {
+        y = flow.printMainParagraph(`Estudiante: Ejemplo guiado (≈8 min): ${plan.ejemplo}`, y, { size: 7.2, lineHeight: 3.8 });
+      } else if (mission.conceptZero.solvedExample?.problemStatement) {
+        const exStmt = mission.conceptZero.solvedExample.problemStatement;
+        const step = exampleSteps.length > 0 ? ` Un paso representativo: ${exampleSteps[mIdx % exampleSteps.length]}` : '';
+        y = flow.printMainParagraph(`Estudiante: Ejemplo guiado (≈8 min): analizar el ejemplo resuelto — "${exStmt.slice(0, 180)}${exStmt.length > 180 ? '…' : ''}".${step} Anotar en el cuaderno el procedimiento seguido.`, y, { size: 7.2, lineHeight: 3.8 });
+      } else if (mission.conceptZero.physicalAnalogy) {
+        const analogy = mission.conceptZero.physicalAnalogy;
+        y = flow.printMainParagraph(`Estudiante: Ejemplo guiado (≈8 min): relacionar la analogía "${analogy.slice(0, 160)}${analogy.length > 160 ? '…' : ''}" con el tema "${topicLabel}" y explicar con sus palabras la conexión.`, y, { size: 7.2, lineHeight: 3.8 });
+      }
+
+      if (plan?.practica && plan.practica.length > 0) {
+        for (let tIdx = 0; tIdx < plan.practica.length; tIdx++) {
+          y = drawSingleTaskWithDottedLines(doc, plan.practica[tIdx], tIdx + 1, margin, mainW, pageHeight, y, checkSpace);
         }
       } else {
-        const fallbackTaskText = buildSessionFallbackTaskText(mission, sNum, sMeta);
-        y = drawSingleTaskWithDottedLines(doc, fallbackTaskText, 1, margin, mainW, pageHeight, y, checkSpace);
+        const assignedTasks = taskBuckets[mIdx];
+        if (assignedTasks && assignedTasks.length > 0) {
+          for (let tIdx = 0; tIdx < assignedTasks.length; tIdx++) {
+            y = drawSingleTaskWithDottedLines(doc, assignedTasks[tIdx], tIdx + 1, margin, mainW, pageHeight, y, checkSpace);
+          }
+        } else {
+          const fallbackTaskText = buildSessionFallbackTaskText(mission, sNum, sMeta);
+          y = drawSingleTaskWithDottedLines(doc, fallbackTaskText, 1, margin, mainW, pageHeight, y, checkSpace);
+        }
       }
 
       const assignedElems = elemBuckets[mIdx];
@@ -2655,16 +2737,39 @@ async function drawMission(
         }
       }
 
-      // ── Cierre ──
+      const appVariants = [
+        mission.realLifeConnection?.householdApplication
+          ? `Aplicación (≈8 min): llevar el reto al contexto real — ${mission.realLifeConnection.householdApplication} Documentar la evidencia (foto, esquema o nota) en el cuaderno como avance del producto integrador.`
+          : `Aplicación (≈8 min): aplicar lo practicado a una situación nueva del tema "${topicLabel}" y registrar el procedimiento y el resultado en el cuaderno (avance del producto integrador).`,
+        mission.realLifeConnection?.communityImpact
+          ? `Aplicación (≈8 min): analizar cómo lo aprendido hoy impacta a la comunidad — ${mission.realLifeConnection.communityImpact} Escribir 2-3 líneas de reflexión.`
+          : `Aplicación (≈8 min): resolver una situación no prevista del tema "${topicLabel}", justificar el procedimiento y comparar con el ejemplo visto (avance del producto integrador).`,
+      ];
+      y = flow.printMainParagraph(`Estudiante: ${plan?.aplicacion ? `Aplicación (≈8 min): ${plan.aplicacion}` : appVariants[mIdx % appVariants.length]}`, y, { size: 7.2, lineHeight: 3.8 });
       y += 4;
-      const cierreDocente = sMeta.evaluation
-        ? `Monitoreo del avance: ${sMeta.evaluation}. Retroalimentación formativa inmediata.`
-        : `Cierre de la Sesión ${sNum}: socializar avances breves por equipo, aclarar dudas críticas y anticipar la conexión con la siguiente sesión.`;
-      const cierreEstudiante = sMeta.evidence
-        ? `Registro de avance sobre "${sMeta.evidence}" y revisión de dudas críticas.`
-        : `Presentar evidencias de la sesión, autoevaluarse con la rúbrica y registrar pendientes para el trabajo colaborativo.`;
-      y = flow.printMainParagraph(`Docente: ${cierreDocente}`, y, { size: 7.2, lineHeight: 3.8 });
-      y = flow.printMainParagraph(`Estudiante: ${cierreEstudiante}`, y, { size: 7.2, lineHeight: 3.8 });
+
+      // ══════════════════════════════════════════════════════════════
+      // CIERRE (≈10 min): Producto integrador + Instrumentos de evaluación
+      // ══════════════════════════════════════════════════════════════
+      y = printSessionPhaseLabel(flow, 'CIERRE (≈10 min) · Producto integrador y evaluación', phaseColor, y);
+      y = flow.printMainParagraph(`Docente: ${plan?.productoIntegrador
+        ? `Producto integrador (≈4 min): ${plan.productoIntegrador}`
+        : `Producto integrador (≈4 min): orientar el avance del entregable de la misión "${mission.title || topicLabel}" — consolidar lo producido hoy y verificar que quede registrado en el cuaderno / portafolio con evidencia legible y fechada.`}`, y, { size: 7.2, lineHeight: 3.8 });
+      const evalQuestion = mission.formativeCheckpoint.question?.trim();
+      if (plan?.evaluacionObjetivo) {
+        y = flow.printMainParagraph(`Estudiante: Evaluación del objetivo: ${plan.evaluacionObjetivo}`, y, { size: 7.2, lineHeight: 3.8 });
+      } else if (evalQuestion) {
+        y = flow.printMainParagraph(`Estudiante: Evaluación del objetivo: responder "${evalQuestion.slice(0, 180)}${evalQuestion.length > 180 ? '…' : ''}" y autoevaluar su comprensión con el semáforo de la misión.`, y, { size: 7.2, lineHeight: 3.8 });
+      } else if (reflPrompts.length > 0) {
+        y = flow.printMainParagraph(`Estudiante: Evaluación del objetivo: reflexionar — "${reflPrompts[mIdx % reflPrompts.length]}" Escribir la respuesta en el cuaderno.`, y, { size: 7.2, lineHeight: 3.8 });
+      }
+      if (plan?.evaluacionProducto) {
+        y = flow.printMainParagraph(`Docente: Evaluación del producto integrador: ${plan.evaluacionProducto}`, y, { size: 7.2, lineHeight: 3.8 });
+      } else {
+        const criterion = criteriaItems.length > 0 ? ` Criterio a verificar hoy: ${criteriaItems[mIdx % criteriaItems.length]}` : '';
+        y = flow.printMainParagraph(`Docente: Evaluación del producto integrador: aplicar el criterio de verificación del entregable y registrar calificación u observaciones.${criterion}`, y, { size: 7.2, lineHeight: 3.8 });
+      }
+      y += 4;
     }
   }
 

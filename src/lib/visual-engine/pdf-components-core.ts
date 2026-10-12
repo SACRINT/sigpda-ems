@@ -195,46 +195,62 @@ export function drawSectionRibbon(doc: jsPDF, opts: SectionRibbonOptions): numbe
   } = opts;
   const y = opts.y;
 
+  // ── Medición previa: título y badge ANTES de dibujar (para dimensionar altura real) ──
+  setFontHeading(doc);
+  doc.setFontSize(TYPE.H3);
+  const cleanTitle = sanitizePdfText(stripMarkdown(title)).toUpperCase();
+
+  let reservedBadgeW = 0;
+  let cleanBadge = '';
+  if (badge) {
+    doc.setFontSize(6.2);
+    cleanBadge = sanitizePdfText(badge).toUpperCase();
+    reservedBadgeW = doc.getTextWidth(cleanBadge) + 5.5 + 5;
+  }
+
+  doc.setFontSize(TYPE.H3);
+  const maxTitleW = drawWidth - 10 - reservedBadgeW;
+  const titleLines: string[] = (doc.splitTextToSize(cleanTitle, maxTitleW) as string[]) || [];
+  if (titleLines.length === 0) titleLines.push(cleanTitle);
+
+  // Altura real del ribbon: si el título ocupa más de una línea, crece para mostrarlo COMPLETO
+  const titleLineH = 4.6;
+  const neededH = titleLines.length > 1 ? 5.1 + (titleLines.length - 1) * titleLineH + 3.2 : ribbonHeight;
+  const actualH = Math.max(ribbonHeight, neededH);
+
   // Fondo sutil de tarjeta con radio suave
   doc.setFillColor(...COLOR.TABLE_ALT_ROW);
-  doc.roundedRect(margin, y, drawWidth, ribbonHeight, RADIUS.SM, RADIUS.SM, 'F');
+  doc.roundedRect(margin, y, drawWidth, actualH, RADIUS.SM, RADIUS.SM, 'F');
 
   // Píldora lateral con el color temático
   doc.setFillColor(...themeColor);
-  doc.roundedRect(margin, y, 4, ribbonHeight, RADIUS.SM, RADIUS.SM, 'F');
+  doc.roundedRect(margin, y, 4, actualH, RADIUS.SM, RADIUS.SM, 'F');
 
   // Borde inferior sutil
   doc.setDrawColor(...themeColor);
   doc.setLineWidth(STROKE.THIN);
-  doc.line(margin + 4, y + ribbonHeight, margin + drawWidth, y + ribbonHeight);
+  doc.line(margin + 4, y + actualH, margin + drawWidth, y + actualH);
 
-  // Badge en píldora a la derecha si está definido (WinAnsi)
-  let reservedBadgeW = 0;
+  // Badge en píldora a la derecha si está definido (WinAnsi) — anclado arriba
   if (badge) {
-    setFontHeading(doc);
     doc.setFontSize(6.2);
-    const cleanBadge = sanitizePdfText(badge).toUpperCase();
-    const badgeTextW = doc.getTextWidth(cleanBadge);
-    const badgePillW = badgeTextW + 5.5;
+    const badgePillW = doc.getTextWidth(cleanBadge) + 5.5;
     const badgeX = margin + drawWidth - badgePillW - 2.5;
-    reservedBadgeW = badgePillW + 5;
-
     doc.setFillColor(...themeColor);
     doc.roundedRect(badgeX, y + 1.2, badgePillW, ribbonHeight - 2.4, RADIUS.SM, RADIUS.SM, 'F');
     doc.setTextColor(255, 255, 255);
     doc.text(cleanBadge, badgeX + 2.75, y + 4.9);
   }
 
-  // Título en Montserrat Bold estilizado (restringido para no solapar el badge)
+  // Título COMPLETO en Montserrat Bold (todas las líneas, sin truncar)
   setFontHeading(doc);
   doc.setFontSize(TYPE.H3);
   doc.setTextColor(...themeColor);
-  const maxTitleW = drawWidth - 10 - reservedBadgeW;
-  const cleanTitle = sanitizePdfText(stripMarkdown(title)).toUpperCase();
-  const truncatedTitle = doc.splitTextToSize(cleanTitle, maxTitleW)[0] || cleanTitle;
-  doc.text(truncatedTitle, margin + 7, y + 5.1);
+  titleLines.forEach((line, i) => {
+    doc.text(line, margin + 7, y + 5.1 + i * titleLineH);
+  });
 
-  return y + ribbonHeight + SPACING.AFTER_SECTION;
+  return y + actualH + SPACING.AFTER_SECTION;
 }
 
 // ── 2B. SEPARADOR INSTITUCIONAL DE SESIÓN (WINANSI) ───────────────────────────
@@ -309,6 +325,26 @@ export function drawSessionDivider(doc: jsPDF, opts: SessionDividerOptions): num
 
 // ── 3. CAJA PEDAGÓGICA (CALLOUT) CON BADGE TIPO PÍLDORA ───────────────────────
 
+/**
+ * Mide la altura exacta (mm) que ocupará drawCalloutBox para el callout dado.
+ * Permite al llamador reservar espacio REAL antes de dibujar (evita desbordes de página).
+ */
+export function measureCalloutBoxHeight(doc: jsPDF, callout: CalloutBoxData, drawWidth: number): number {
+  const safeTextWidth = clampTextWidth(drawWidth, drawWidth, 14);
+  setFontBody(doc, 'normal');
+  doc.setFontSize(TYPE.BODY_SM);
+  const contentLines = doc.splitTextToSize(
+    sanitizePdfText(stripMarkdown(callout.content || callout.body || '')),
+    safeTextWidth
+  );
+  doc.setFontSize(TYPE.CAPTION);
+  const takeawayLines = callout.keyTakeaway
+    ? doc.splitTextToSize(`• Clave: ${sanitizePdfText(stripMarkdown(callout.keyTakeaway))}`, safeTextWidth)
+    : [];
+  const textLinesCount = contentLines.length + takeawayLines.length;
+  return Math.max(18, 9 + textLinesCount * 3.8);
+}
+
 export function drawCalloutBox(
   doc: jsPDF,
   callout: CalloutBoxData,
@@ -341,7 +377,7 @@ export function drawCalloutBox(
     : [];
 
   const textLinesCount = contentLines.length + takeawayLines.length;
-  const boxHeight = Math.max(18, 9 + textLinesCount * 3.8);
+  const boxHeight = Math.max(18, 9 + textLinesCount * 3.8); // SSoT: measureCalloutBoxHeight replica esta fórmula
 
   // Fondo suave con esquinas redondeadas
   doc.setFillColor(...bgColor);
