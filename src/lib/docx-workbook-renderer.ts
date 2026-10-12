@@ -3681,7 +3681,7 @@ async function buildMissionContent(
         sectionGap(),
         buildDocxSectionHeader('⏱️ Apertura (10 min)', SECTION_HEX.apertura, '[CONECTAR]', desarrolloW),
         new Paragraph({ spacing: { ...PARA_SPACING }, children: [ new TextRun({ text: 'Docente: ', bold: true, size: 21 }), new TextRun({ text: `Activación focalizada: conectar la sesión anterior con el reto "${sMeta.title}".`, size: 21 }) ] }),
-        new Paragraph({ spacing: { ...PARA_SPACING }, children: [ new TextRun({ text: 'Estudiante: ', bold: true, size: 21 }), new TextRun({ text: sMeta.learningActivity || 'Recuperar insumos previos y organizar la mesa de trabajo.', size: 21 }) ] }),
+        new Paragraph({ spacing: { ...PARA_SPACING }, children: [ new TextRun({ text: 'Estudiante: ', bold: true, size: 21 }), new TextRun({ text: 'Recuperar insumos previos y organizar la mesa de trabajo.', size: 21 }) ] }),
       );
 
       // Desarrollo

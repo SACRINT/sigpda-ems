@@ -2626,7 +2626,7 @@ async function drawMission(
       // ── Apertura (10 min) ──
       y = drawSectionHeader(doc, 'Apertura (10 min)', margin, mainW, y, pageHeight, SECTION_COLORS.apertura, checkSpace, '[ CONECTAR ]');
       const aperturaDocente = `Activación focalizada: conectar la sesión anterior con el reto "${sMeta.title}".`;
-      const aperturaEstudiante = sMeta.learningActivity || 'Recuperar insumos previos y organizar la mesa de trabajo.';
+      const aperturaEstudiante = 'Recuperar insumos previos y organizar la mesa de trabajo.';
       y = flow.printMainParagraph(`Docente: ${aperturaDocente}`, y, { size: 7.2, lineHeight: 3.8 });
       y = flow.printMainParagraph(`Estudiante: ${aperturaEstudiante}`, y, { size: 7.2, lineHeight: 3.8 });
 
