@@ -3412,7 +3412,7 @@ async function buildMissionContent(
                     new ImageRun({
                       data: imgResult.buffer,
                       transformation: { width: 440, height: 286 },
-                      type: 'png',
+                      type: 'jpg',
                     }),
                   ],
                 }),
