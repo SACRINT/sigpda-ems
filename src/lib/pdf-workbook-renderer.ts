@@ -1919,6 +1919,52 @@ function printSessionPhaseLabel(
   });
 }
 
+/** Sub-etiqueta de sección dentro de una sesión (Nuevos conceptos / Ejemplo / Practica / etc.). */
+function printPdfSubLabel(
+  flow: ColumnFlowManager,
+  label: string,
+  color: RGB,
+  startY: number
+): number {
+  return flow.printMainParagraph(label, startY, {
+    size: 7.2,
+    fontStyle: 'bold',
+    color,
+    lineHeight: 4.0,
+    justify: false,
+  });
+}
+
+/** Ítem de autoevaluación (viñeta con casilla) — paridad DOCX buildDocxCheckItem. */
+function printPdfCheckItem(
+  flow: ColumnFlowManager,
+  text: string,
+  startY: number
+): number {
+  return flow.printMainParagraph(`☐ ${sanitizePdfText(stripMarkdown(text))}`, startY, {
+    size: 7.0,
+    lineHeight: 3.6,
+    justify: true,
+  });
+}
+
+/** Recurso de ampliación (título + URL) — paridad DOCX buildDocxResourceLine. */
+function printPdfResourceLine(
+  flow: ColumnFlowManager,
+  titulo: string,
+  url: string,
+  tipo: string,
+  startY: number
+): number {
+  const icono = tipo === 'video' ? '[Video]' : tipo === 'lectura' ? '[Lectura]' : '[Web]';
+  return flow.printMainParagraph(`${icono} ${sanitizePdfText(stripMarkdown(titulo))} — ${url}`, startY, {
+    size: 6.8,
+    color: [37, 99, 235] as RGB,
+    lineHeight: 3.4,
+    justify: false,
+  });
+}
+
 /** Divide texto en oraciones útiles (>= 40 chars) para rotar contenido entre sesiones. */
 function splitIntoSentences(text: string | null | undefined): string[] {
   return (text || '')
@@ -1942,11 +1988,14 @@ function drawSingleTaskWithDottedLines(
   drawWidth: number,
   pageHeight: number,
   y: number,
-  checkSpace: (y: number, neededH: number) => number
+  checkSpace: (y: number, neededH: number) => number,
+  pista?: string
 ): number {
   const cleanTaskText = sanitizePdfText(stripMarkdown(taskText)).trim();
+  const cleanPista = pista ? sanitizePdfText(stripMarkdown(pista)).trim() : '';
   const taskLines = doc.splitTextToSize(`[  ] Tarea ${taskIdx}: ${cleanTaskText}`, clampTextWidth(drawWidth, drawWidth, 4));
-  const neededH = taskLines.length * 4 + 18;
+  const pistaLines = cleanPista ? doc.splitTextToSize(`Pista: ${cleanPista}`, clampTextWidth(drawWidth, drawWidth, 8)) : [];
+  const neededH = taskLines.length * 4 + pistaLines.length * 3.4 + 18;
   y = checkSpace(y, neededH);
 
   setFontBody(doc, 'bold');
@@ -1956,6 +2005,16 @@ function drawSingleTaskWithDottedLines(
     doc.text(tl, margin + 2, y + i * 4);
   });
   y += taskLines.length * 4 + 2.5;
+
+  if (pistaLines.length > 0) {
+    setFontBody(doc, 'normal');
+    doc.setFontSize(6.8);
+    doc.setTextColor(100, 116, 139);
+    pistaLines.forEach((pl: string, i: number) => {
+      doc.text(pl, margin + 6, y + i * 3.4);
+    });
+    y += pistaLines.length * 3.4 + 2;
+  }
 
   doc.setDrawColor(203, 213, 225);
   doc.setLineWidth(0.3);
@@ -2642,7 +2701,6 @@ async function drawMission(
     // ── Pools de contenido de la misión para la estructura pedagógica por sesión (paridad DOCX) ──
     const conceptSentences = splitIntoSentences(mission.conceptZero.coreExplanation);
     const narrativeSentences = splitIntoSentences(mission.conceptZero.narrativeExplanation);
-    const exampleSteps: string[] = (mission.conceptZero.solvedExample?.solutionSteps || []).map((s) => s.trim()).filter((s) => s.length >= 20);
     const diagQuestions: string[] = (mission.diagnosticEvaluation?.questions || []).map((q) => q.trim()).filter((q) => q.length >= 15);
     const reflPrompts: string[] = (mission.formativeCheckpoint.reflectionPrompts || []).map((p) => p.trim()).filter((p) => p.length >= 15);
     const criteriaItems: string[] = (mission.formativeCheckpoint.criteriaChecklist || []).map((c) => c.trim()).filter((c) => c.length >= 10);
@@ -2670,53 +2728,56 @@ async function drawMission(
       const plan = mission.sessionPlans?.find((p) => p.sessionNumber === sNum);
 
       // ══════════════════════════════════════════════════════════════
-      // INICIO (≈10 min): Motivación situada + Recuperación de saberes previos
+      // LIBRO PARA EL ESTUDIANTE (autodidacta). Voz en "tú", sin roles de docente.
       // ══════════════════════════════════════════════════════════════
-      y = printSessionPhaseLabel(flow, 'INICIO (≈10 min) · Motivación y recuperación de saberes previos', phaseColor, y);
-      const motivVariants = [
-        `Presentar a los equipos el reto "${topicLabel}" con un caso concreto de la vida cotidiana de nuestra comunidad, conectando con lo vivido en la sesión ${sNum - 1} y detonando la pregunta central: "${mission.phenomenonHook.detonatingQuestion || '¿Cómo aplicamos lo aprendido?'}".`,
-        `Retomar el desafío situado "${topicLabel}" y plantear una nueva arista del problema: qué cambia hoy en la sesión ${sNum} y por qué es relevante para la familia y la comunidad del estudiante.`,
-        `Activar el interés con una situación del contexto local vinculada al tema "${topicLabel}", explicitando el porqué social del contenido de la sesión ${sNum}.`,
-      ];
-      y = flow.printMainParagraph(`Docente: ${plan?.motivacion || motivVariants[mIdx % motivVariants.length]}`, y, { size: 7.2, lineHeight: 3.8 });
-      if (plan?.conocimientosPrevios) {
-        y = flow.printMainParagraph(`Estudiante: Recuperación (2 min): ${plan.conocimientosPrevios}`, y, { size: 7.2, lineHeight: 3.8 });
-      } else if (diagQuestions.length > 0) {
-        y = flow.printMainParagraph(`Estudiante: Recuperación (2 min): responder en el cuaderno — ${diagQuestions[mIdx % diagQuestions.length]} Compartir brevemente en equipo.`, y, { size: 7.2, lineHeight: 3.8 });
-      } else {
-        y = flow.printMainParagraph(`Estudiante: Recuperación (2 min): en equipo, anotar en el cuaderno 2 ideas clave recordadas de la sesión anterior sobre "${topicLabel}" y una duda pendiente; compartirlas en un minuto.`, y, { size: 7.2, lineHeight: 3.8 });
-      }
-      y += 4;
+      const para = (text: string): number =>
+        flow.printMainParagraph(sanitizePdfText(stripMarkdown(text)), y, { size: 7.2, lineHeight: 3.8, justify: true, parseParagraphs: true });
+      const lead = (l: string, t: string): number =>
+        flow.printMainParagraph(`${sanitizePdfText(stripMarkdown(l))} ${sanitizePdfText(stripMarkdown(t))}`, y, { size: 7.2, lineHeight: 3.8, justify: true });
 
-      // ══════════════════════════════════════════════════════════════
-      // DESARROLLO (≈30 min): Nuevos conocimientos + Ejemplo + Práctica + Aplicación
-      // ══════════════════════════════════════════════════════════════
-      y = printSessionPhaseLabel(flow, 'DESARROLLO (≈30 min) · Construcción, ejemplo, práctica y aplicación', phaseColor, y);
+      // ── EMPIEZA AQUÍ (~10 min) ──
+      y = printSessionPhaseLabel(flow, 'EMPIEZA AQUI · Objetivo y motivacion (~10 min)', phaseColor, y);
+      y = lead('Lo que vas a aprender:', plan?.objetivo
+        || `En la sesion ${sNum} vas a estudiar "${topicLabel}" y aprenderas a aplicarlo en situaciones reales de tu comunidad.`);
+      const motivFallback = mission.phenomenonHook.detonatingQuestion
+        ? `Imagina un caso real de tu comunidad donde aparece "${topicLabel}". En la sesion anterior (${sNum - 1}) ya viste bases del tema; hoy vas a ver como se usa en un problema cercano a ti. Preguntate: "${mission.phenomenonHook.detonatingQuestion}"`
+        : `Piensa en una situacion de la vida diaria donde se aplica "${topicLabel}". Hoy vas a aprender a resolverla paso a paso y a explicar por que importa en tu comunidad.`;
+      y = lead('Imagina esto:', plan?.motivacion || motivFallback);
+      const saberesFallback = diagQuestions.length > 0
+        ? `Antes de empezar, responde en tu cuaderno: ${diagQuestions[mIdx % diagQuestions.length]} Escribe lo que recuerdes; sirve como punto de partida.`
+        : `Anota en tu cuaderno 2 ideas que recuerdes de la sesion anterior sobre "${topicLabel}" y 1 duda que te quede. Ese es tu punto de partida.`;
+      y = lead('Sabes que ya:', plan?.saberesPrevios || saberesFallback);
+      y += 3;
+
+      // ── APRENDE Y PRACTICA (~30 min) ──
+      y = printSessionPhaseLabel(flow, 'APRENDE Y PRACTICA · Conceptos, ejemplo y ejercicios (~30 min)', phaseColor, y);
       const conceptLine = rotateSentence(conceptSentences.length > 0 ? conceptSentences : narrativeSentences, mIdx);
-      const fallbackConcept = `seguir avanzando en "${topicLabel}"`;
-      const desDocente = plan?.nuevosConocimientos
-        ? `Nuevos conocimientos (≈10 min): ${plan.nuevosConocimientos}`
-        : sMeta.teachingActivity
-          ? `${sMeta.teachingActivity} Punto clave a reforzar: ${conceptLine || fallbackConcept}.`
-          : conceptLine
-            ? `Nuevos conocimientos (≈10 min): exponer y problematizar el siguiente aspecto del tema "${topicLabel}": ${conceptLine} Verificar comprensión con una pregunta de contraste.`
-            : `Nuevos conocimientos (≈10 min): profundizar en "${topicLabel}" con diagrama, tabla o ejemplo del libro de texto, explicitando qué cambia respecto a la sesión anterior.`;
-      y = flow.printMainParagraph(`Docente: ${desDocente}`, y, { size: 7.2, lineHeight: 3.8 });
-
-      if (plan?.ejemplo) {
-        y = flow.printMainParagraph(`Estudiante: Ejemplo guiado (≈8 min): ${plan.ejemplo}`, y, { size: 7.2, lineHeight: 3.8 });
-      } else if (mission.conceptZero.solvedExample?.problemStatement) {
-        const exStmt = mission.conceptZero.solvedExample.problemStatement;
-        const step = exampleSteps.length > 0 ? ` Un paso representativo: ${exampleSteps[mIdx % exampleSteps.length]}` : '';
-        y = flow.printMainParagraph(`Estudiante: Ejemplo guiado (≈8 min): analizar el ejemplo resuelto — "${exStmt.slice(0, 180)}${exStmt.length > 180 ? '…' : ''}".${step} Anotar en el cuaderno el procedimiento seguido.`, y, { size: 7.2, lineHeight: 3.8 });
-      } else if (mission.conceptZero.physicalAnalogy) {
-        const analogy = mission.conceptZero.physicalAnalogy;
-        y = flow.printMainParagraph(`Estudiante: Ejemplo guiado (≈8 min): relacionar la analogía "${analogy.slice(0, 160)}${analogy.length > 160 ? '…' : ''}" con el tema "${topicLabel}" y explicar con sus palabras la conexión.`, y, { size: 7.2, lineHeight: 3.8 });
+      const theoryPool = [...conceptSentences, ...narrativeSentences];
+      let theoryFallback: string;
+      if (theoryPool.length === 0) {
+        theoryFallback = `En la sesion ${sNum} vas a estudiar "${topicLabel}". Este tema te permite entender como se aplica en situaciones reales. Lee con atencion, toma notas en tu cuaderno y trata de explicar cada idea con tus palabras.`;
+      } else {
+        const picked: string[] = [];
+        for (let i = 0; i < theoryPool.length && picked.length < 6; i++) picked.push(theoryPool[(mIdx + i) % theoryPool.length]);
+        const mid = Math.ceil(picked.length / 2);
+        theoryFallback = [picked.slice(0, mid).join(' '), picked.slice(mid).join(' ')].filter(Boolean).join('\n\n');
       }
+      y = printPdfSubLabel(flow, 'Nuevos conceptos', phaseColor, y);
+      y = para(plan?.contenido || (conceptLine ? `${conceptLine}\n\n${theoryFallback}` : theoryFallback));
 
+      const exampleFallback = mission.conceptZero.solvedExample?.problemStatement
+        ? `Observa el ejemplo resuelto: "${mission.conceptZero.solvedExample.problemStatement}" Sigue el procedimiento paso a paso en tu cuaderno y anota cada calculo.`
+        : mission.conceptZero.physicalAnalogy
+          ? `Conectalo con lo que ya conoces: "${mission.conceptZero.physicalAnalogy}" Ahora traduce esa analogia al tema "${topicLabel}" y escribela con tus palabras.`
+          : `Elabora un ejemplo propio de "${topicLabel}" con datos numericos concretos, resuelvelo paso a paso y verifica el resultado.`;
+      y = printPdfSubLabel(flow, 'Ejemplo resuelto', phaseColor, y);
+      y = para(plan?.ejemploResuelto || exampleFallback);
+
+      y = printPdfSubLabel(flow, 'Practica', phaseColor, y);
       if (plan?.practica && plan.practica.length > 0) {
         for (let tIdx = 0; tIdx < plan.practica.length; tIdx++) {
-          y = drawSingleTaskWithDottedLines(doc, plan.practica[tIdx], tIdx + 1, margin, mainW, pageHeight, y, checkSpace);
+          const item = plan.practica[tIdx];
+          y = drawSingleTaskWithDottedLines(doc, item.enunciado, tIdx + 1, margin, mainW, pageHeight, y, checkSpace, item.pista || undefined);
         }
       } else {
         const assignedTasks = taskBuckets[mIdx];
@@ -2737,37 +2798,35 @@ async function drawMission(
         }
       }
 
-      const appVariants = [
-        mission.realLifeConnection?.householdApplication
-          ? `Aplicación (≈8 min): llevar el reto al contexto real — ${mission.realLifeConnection.householdApplication} Documentar la evidencia (foto, esquema o nota) en el cuaderno como avance del producto integrador.`
-          : `Aplicación (≈8 min): aplicar lo practicado a una situación nueva del tema "${topicLabel}" y registrar el procedimiento y el resultado en el cuaderno (avance del producto integrador).`,
-        mission.realLifeConnection?.communityImpact
-          ? `Aplicación (≈8 min): analizar cómo lo aprendido hoy impacta a la comunidad — ${mission.realLifeConnection.communityImpact} Escribir 2-3 líneas de reflexión.`
-          : `Aplicación (≈8 min): resolver una situación no prevista del tema "${topicLabel}", justificar el procedimiento y comparar con el ejemplo visto (avance del producto integrador).`,
-      ];
-      y = flow.printMainParagraph(`Estudiante: ${plan?.aplicacion ? `Aplicación (≈8 min): ${plan.aplicacion}` : appVariants[mIdx % appVariants.length]}`, y, { size: 7.2, lineHeight: 3.8 });
-      y += 4;
+      const appFallback = mission.realLifeConnection?.householdApplication
+        ? `Ahora lleva lo aprendido a tu contexto real: ${mission.realLifeConnection.householdApplication} Documenta la evidencia (foto, esquema o nota) en tu cuaderno.`
+        : `Aplica lo aprendido a una situacion nueva de "${topicLabel}" y registra en tu cuaderno el procedimiento y el resultado.`;
+      y = printPdfSubLabel(flow, 'Aplica en tu vida', phaseColor, y);
+      y = para(plan?.aplicacion || appFallback);
+      y += 3;
 
-      // ══════════════════════════════════════════════════════════════
-      // CIERRE (≈10 min): Producto integrador + Instrumentos de evaluación
-      // ══════════════════════════════════════════════════════════════
-      y = printSessionPhaseLabel(flow, 'CIERRE (≈10 min) · Producto integrador y evaluación', phaseColor, y);
-      y = flow.printMainParagraph(`Docente: ${plan?.productoIntegrador
-        ? `Producto integrador (≈4 min): ${plan.productoIntegrador}`
-        : `Producto integrador (≈4 min): orientar el avance del entregable de la misión "${mission.title || topicLabel}" — consolidar lo producido hoy y verificar que quede registrado en el cuaderno / portafolio con evidencia legible y fechada.`}`, y, { size: 7.2, lineHeight: 3.8 });
-      const evalQuestion = mission.formativeCheckpoint.question?.trim();
-      if (plan?.evaluacionObjetivo) {
-        y = flow.printMainParagraph(`Estudiante: Evaluación del objetivo: ${plan.evaluacionObjetivo}`, y, { size: 7.2, lineHeight: 3.8 });
-      } else if (evalQuestion) {
-        y = flow.printMainParagraph(`Estudiante: Evaluación del objetivo: responder "${evalQuestion.slice(0, 180)}${evalQuestion.length > 180 ? '…' : ''}" y autoevaluar su comprensión con el semáforo de la misión.`, y, { size: 7.2, lineHeight: 3.8 });
-      } else if (reflPrompts.length > 0) {
-        y = flow.printMainParagraph(`Estudiante: Evaluación del objetivo: reflexionar — "${reflPrompts[mIdx % reflPrompts.length]}" Escribir la respuesta en el cuaderno.`, y, { size: 7.2, lineHeight: 3.8 });
+      // ── TU PRODUCTO (~10 min) ──
+      y = printSessionPhaseLabel(flow, 'TU PRODUCTO · Avance y autoevaluacion (~10 min)', phaseColor, y);
+      y = lead('Tu producto de hoy:', plan?.productoIntegrador
+        || `Agrega a tu producto integrador el avance de esta sesion: deja registrado en tu cuaderno o portafolio lo que produjiste, con evidencia legible y fechada.`);
+
+      y = printPdfSubLabel(flow, 'Autoevaluacion', phaseColor, y);
+      const autoevalItems: string[] = plan?.autoevaluacion && plan.autoevaluacion.length > 0
+        ? plan.autoevaluacion
+        : [
+            mission.formativeCheckpoint.question?.trim() || `¿Puedo explicar con mis palabras el concepto central de "${topicLabel}"?`,
+            reflPrompts.length > 0 ? reflPrompts[mIdx % reflPrompts.length] : `¿Logre resolver la practica sin copiar el ejemplo?`,
+            criteriaItems.length > 0 ? criteriaItems[mIdx % criteriaItems.length] : `¿Registre mi trabajo con evidencia fechada en el cuaderno?`,
+          ].filter((q) => q.length >= 10);
+      for (const item of autoevalItems) {
+        y = printPdfCheckItem(flow, item, y);
       }
-      if (plan?.evaluacionProducto) {
-        y = flow.printMainParagraph(`Docente: Evaluación del producto integrador: ${plan.evaluacionProducto}`, y, { size: 7.2, lineHeight: 3.8 });
-      } else {
-        const criterion = criteriaItems.length > 0 ? ` Criterio a verificar hoy: ${criteriaItems[mIdx % criteriaItems.length]}` : '';
-        y = flow.printMainParagraph(`Docente: Evaluación del producto integrador: aplicar el criterio de verificación del entregable y registrar calificación u observaciones.${criterion}`, y, { size: 7.2, lineHeight: 3.8 });
+
+      if (plan?.recursos && plan.recursos.length > 0) {
+        y = printPdfSubLabel(flow, 'Para saber mas', phaseColor, y);
+        for (const r of plan.recursos) {
+          y = printPdfResourceLine(flow, r.titulo, r.url, r.tipo, y);
+        }
       }
       y += 4;
     }

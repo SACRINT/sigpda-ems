@@ -503,6 +503,17 @@ export async function renderWorkbookToDocx(
           },
         },
       },
+      paragraphStyles: [
+        {
+          id: 'Normal',
+          name: 'Normal',
+          quickFormat: true,
+          paragraph: {
+            alignment: AlignmentType.JUSTIFIED,
+            spacing: { line: 360 },
+          },
+        },
+      ],
     },
     sections: docSections,
   });
@@ -1962,6 +1973,8 @@ function buildDocxSidebarHeaderBadge(
 /**
  * 2d. Layout editorial de 2 columnas (70% principal / 30% sidebar) con línea separadora vertical (F-70).
  * Emula la diagramación lateral de column-flow-manager.ts del PDF en DOCX.
+ * FIX MULTIPÁGINA: el contenido principal se trocea en filas de ~6 elementos con `cantSplit`,
+ * de modo que NINGUNA fila se estira por 2+ páginas. El sidebar aparece solo en la primera fila.
  */
 function buildDocxTwoColumnLayout(
   mainChildren: (Paragraph | Table)[],
@@ -1969,36 +1982,53 @@ function buildDocxTwoColumnLayout(
   leftWidth: number = LAYOUT_LEFT_W,
   rightWidth: number = LAYOUT_RIGHT_W
 ): Table {
+  const CHUNK_SIZE = 6;
+  const chunks: (Paragraph | Table)[][] = [];
+  for (let i = 0; i < mainChildren.length; i += CHUNK_SIZE) {
+    chunks.push(mainChildren.slice(i, i + CHUNK_SIZE));
+  }
+  if (chunks.length === 0) chunks.push([]);
+
+  const leftCell = (children: (Paragraph | Table)[]): TableCell =>
+    new TableCell({
+      width: { size: leftWidth, type: WidthType.DXA },
+      margins: { top: 60, bottom: 60, left: 0, right: 140 },
+      borders: {
+        top: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+        bottom: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+        left: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+        right: { style: BorderStyle.SINGLE, size: 6, color: 'CBD5E1' }, // Separador vertical idéntico al PDF
+      },
+      children: children.length > 0 ? children : [new Paragraph({})],
+    });
+
+  const rightCell = (children: (Paragraph | Table)[]): TableCell =>
+    new TableCell({
+      width: { size: rightWidth, type: WidthType.DXA },
+      margins: { top: 60, bottom: 60, left: 140, right: 0 },
+      borders: {
+        top: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+        bottom: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+        left: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+        right: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+      },
+      children: children.length > 0 ? children : [new Paragraph({})],
+    });
+
+  const rows = chunks.map(
+    (chunk, idx) =>
+      new TableRow({
+        cantSplit: true, // La fila nunca cruza páginas: evita columnas eternas de 2+ páginas
+        children: [
+          leftCell(chunk),
+          rightCell(idx === 0 && sidebarChildren.length > 0 ? sidebarChildren : []),
+        ],
+      })
+  );
+
   return new Table({
     width: { size: leftWidth + rightWidth, type: WidthType.DXA },
-    rows: [
-      new TableRow({
-        children: [
-          new TableCell({
-            width: { size: leftWidth, type: WidthType.DXA },
-            margins: { top: 60, bottom: 60, left: 0, right: 140 },
-            borders: {
-              top: { style: BorderStyle.NONE, size: 0, color: 'auto' },
-              bottom: { style: BorderStyle.NONE, size: 0, color: 'auto' },
-              left: { style: BorderStyle.NONE, size: 0, color: 'auto' },
-              right: { style: BorderStyle.SINGLE, size: 6, color: 'CBD5E1' }, // Separador vertical idéntico al PDF
-            },
-            children: mainChildren.length > 0 ? mainChildren : [new Paragraph({})],
-          }),
-          new TableCell({
-            width: { size: rightWidth, type: WidthType.DXA },
-            margins: { top: 60, bottom: 60, left: 140, right: 0 },
-            borders: {
-              top: { style: BorderStyle.NONE, size: 0, color: 'auto' },
-              bottom: { style: BorderStyle.NONE, size: 0, color: 'auto' },
-              left: { style: BorderStyle.NONE, size: 0, color: 'auto' },
-              right: { style: BorderStyle.NONE, size: 0, color: 'auto' },
-            },
-            children: sidebarChildren.length > 0 ? sidebarChildren : [new Paragraph({})],
-          }),
-        ],
-      }),
-    ],
+    rows,
   });
 }
 
@@ -2501,10 +2531,32 @@ function buildDocxBodyParagraphs(
     .replace(/(?:^|\n)(\d+[\.\)]\s+)/g, '\n\n$1')
     .replace(/(?:^|\n)([•\-\*]\s+)/g, '\n\n$1');
 
-  const rawParagraphs = protectedText
-    .split(/\r?\n\r?\n/)
+  // Dividir por saltos simples O dobles (\n también separa párrafos en prosa)
+  const initialParagraphs = protectedText
+    .split(/\r?\n+/)
     .map((p) => p.trim())
     .filter(Boolean);
+
+  // Partir Muros de texto: un párrafo muy largo se divide en trozos por oraciones
+  const MAX_PARA_CHARS = 480;
+  const rawParagraphs: string[] = [];
+  for (const p of initialParagraphs) {
+    if (p.length <= MAX_PARA_CHARS) {
+      rawParagraphs.push(p);
+      continue;
+    }
+    const sentences = p.split(/(?<=[.!?])\s+/).filter(Boolean);
+    let buf = '';
+    for (const s of sentences) {
+      if (buf && buf.length + s.length + 1 > MAX_PARA_CHARS) {
+        rawParagraphs.push(buf.trim());
+        buf = s;
+      } else {
+        buf = buf ? `${buf} ${s}` : s;
+      }
+    }
+    if (buf.trim()) rawParagraphs.push(buf.trim());
+  }
 
   return rawParagraphs.map(
     (p, idx) =>
@@ -2532,14 +2584,42 @@ function buildDocxSessionPhaseLabel(label: string, colorHex: string): Paragraph 
   });
 }
 
-/** Rol (Docente/Estudiante) con etiqueta en negrita — párrafo de actividad dentro de una fase, justificado. */
-function buildDocxRoleLine(role: 'Docente' | 'Estudiante', text: string, after: number = 100): Paragraph {
+/** Línea de estudiante: lead en negrita + cuerpo justificado (voz al estudiante, sin etiqueta de rol). */
+function buildDocxStudentLead(lead: string, text: string, after: number = 120): Paragraph {
   return new Paragraph({
     alignment: AlignmentType.JUSTIFIED,
-    spacing: { after, line: 320 },
+    spacing: { after, line: 340 },
     children: [
-      new TextRun({ text: `${role}: `, bold: true, size: 21, color: C.navy, font: 'Calibri' }),
+      new TextRun({ text: `${lead} `, bold: true, size: 21, color: C.navy, font: 'Calibri' }),
       new TextRun({ text, size: 21, color: C.darkText, font: 'Calibri' }),
+    ],
+  });
+}
+
+/** Ítem de autoevaluación / checklist (viñeta con casilla) justificado. */
+function buildDocxCheckItem(text: string): Paragraph {
+  return new Paragraph({
+    alignment: AlignmentType.JUSTIFIED,
+    spacing: { after: 60, line: 320 },
+    indent: { left: 240 },
+    children: [
+      new TextRun({ text: '☐ ', size: 21, color: C.navy, font: 'Calibri' }),
+      new TextRun({ text, size: 21, color: C.darkText, font: 'Calibri' }),
+    ],
+  });
+}
+
+/** Recurso de ampliación (título + URL) como línea justificada. */
+function buildDocxResourceLine(titulo: string, url: string, tipo: string): Paragraph {
+  const icono = tipo === 'video' ? '🎬' : tipo === 'lectura' ? '📄' : '🌐';
+  return new Paragraph({
+    alignment: AlignmentType.JUSTIFIED,
+    spacing: { after: 40, line: 300 },
+    indent: { left: 240 },
+    children: [
+      new TextRun({ text: `${icono} `, size: 20, font: 'Calibri' }),
+      new TextRun({ text: titulo, size: 20, color: C.darkText, font: 'Calibri' }),
+      new TextRun({ text: ` — ${url}`, size: 18, color: '2563EB', font: 'Calibri' }),
     ],
   });
 }
@@ -2562,17 +2642,35 @@ function rotateSentence(sentences: string[], sessionIdx: number): string {
 function buildDocxSingleTask(
   taskText: string,
   taskIdx: number,
-  targetWidth: number = CONTENT_W
+  targetWidth: number = CONTENT_W,
+  pista?: string
 ): (Paragraph | Table)[] {
-  return [
+  const taskChildren: (TextRun | TextRun[])[] = [
+    new TextRun({ text: `[  ] Tarea ${taskIdx}: `, bold: true, size: 21, color: C.darkText, font: 'Calibri' }),
+    new TextRun({ text: taskText, size: 21, color: C.darkText, font: 'Calibri' }),
+  ];
+  const taskParagraphs: Paragraph[] = [
     new Paragraph({
       alignment: AlignmentType.JUSTIFIED,
-      spacing: { before: SECTION_GAP_BEFORE, after: 120 },
-      children: [
-        new TextRun({ text: `[  ] Tarea ${taskIdx}: `, bold: true, size: 21, color: C.darkText, font: 'Calibri' }),
-        new TextRun({ text: taskText, size: 21, color: C.darkText, font: 'Calibri' }),
-      ],
+      spacing: { before: SECTION_GAP_BEFORE, after: pista ? 40 : 120 },
+      children: taskChildren as never,
     }),
+  ];
+  if (pista && pista.trim()) {
+    taskParagraphs.push(
+      new Paragraph({
+        alignment: AlignmentType.JUSTIFIED,
+        spacing: { after: 120 },
+        indent: { left: 240 },
+        children: [
+          new TextRun({ text: '💡 Pista: ', bold: true, size: 19, color: '64748B', font: 'Calibri' }),
+          new TextRun({ text: pista.trim(), size: 19, color: '64748B', italics: true, font: 'Calibri' }),
+        ],
+      })
+    );
+  }
+  return [
+    ...taskParagraphs,
     new Table({
       width: { size: targetWidth, type: WidthType.DXA },
       rows: [
@@ -4029,7 +4127,6 @@ async function buildMissionContent(
     // ── Pools de contenido de la misión para la estructura pedagógica por sesión (INICIO/DESARROLLO/CIERRE) ──
     const conceptSentences = splitIntoSentences(mission.conceptZero.coreExplanation);
     const narrativeSentences = splitIntoSentences(mission.conceptZero.narrativeExplanation);
-    const exampleSteps: string[] = (mission.conceptZero.solvedExample?.solutionSteps || []).map((s) => s.trim()).filter((s) => s.length >= 20);
     const diagQuestions: string[] = (mission.diagnosticEvaluation?.questions || []).map((q) => q.trim()).filter((q) => q.length >= 15);
     const reflPrompts: string[] = (mission.formativeCheckpoint.reflectionPrompts || []).map((p) => p.trim()).filter((p) => p.length >= 15);
     const criteriaItems: string[] = (mission.formativeCheckpoint.criteriaChecklist || []).map((c) => c.trim()).filter((c) => c.length >= 10);
@@ -4056,55 +4153,62 @@ async function buildMissionContent(
       const plan = mission.sessionPlans?.find((p) => p.sessionNumber === sNum);
 
       // ══════════════════════════════════════════════════════════════
-      // INICIO (≈10 min): Motivación situada + Recuperación de saberes previos
+      // LIBRO PARA EL ESTUDIANTE (autodidacta). Voz en "tú", sin roles de docente.
       // ══════════════════════════════════════════════════════════════
-      desarrolloMain.push(buildDocxSessionPhaseLabel('INICIO (≈10 min) · Motivación y recuperación de saberes previos', phaseColor));
+      const subLabel = (t: string): Paragraph =>
+        new Paragraph({
+          spacing: { before: 100, after: 50 },
+          children: [new TextRun({ text: t, bold: true, size: 22, color: phaseColor, font: 'Calibri' })],
+        });
 
-      const motivVariants = [
-        `Presentar a los equipos el reto "${topicLabel}" con un caso concreto de la vida cotidiana de nuestra comunidad, conectando con lo vivido en la sesión ${sNum - 1} y detonando la pregunta central: "${mission.phenomenonHook.detonatingQuestion || '¿Cómo aplicamos lo aprendido?'}".`,
-        `Retomar el desafío situado "${topicLabel}" y plantear una nueva arista del problema: qué cambia hoy en la sesión ${sNum} y por qué es relevante para la familia y la comunidad del estudiante.`,
-        `Activar el interés con una situación del contexto local vinculada al tema "${topicLabel}", explicitando el porqué social del contenido de la sesión ${sNum}.`,
-      ];
-      desarrolloMain.push(buildDocxRoleLine('Docente', plan?.motivacion || motivVariants[mIdx % motivVariants.length]));
+      // ── EMPIEZA AQUÍ (~10 min): objetivo + motivación + saberes previos ──
+      desarrolloMain.push(buildDocxSessionPhaseLabel('✨ EMPIEZA AQUÍ · Objetivo y motivación (~10 min)', phaseColor));
 
-      if (plan?.conocimientosPrevios) {
-        desarrolloMain.push(buildDocxRoleLine('Estudiante', `Recuperación (2 min): ${plan.conocimientosPrevios}`, 140));
-      } else if (diagQuestions.length > 0) {
-        desarrolloMain.push(buildDocxRoleLine('Estudiante', `Recuperación (2 min): responder en el cuaderno — ${diagQuestions[mIdx % diagQuestions.length]} Compartir brevemente en equipo.`, 140));
-      } else {
-        desarrolloMain.push(buildDocxRoleLine('Estudiante', `Recuperación (2 min): en equipo, anotar en el cuaderno 2 ideas clave recordadas de la sesión anterior sobre "${topicLabel}" y una duda pendiente; compartirlas en un minuto.`, 140));
-      }
+      desarrolloMain.push(buildDocxStudentLead('Lo que vas a aprender:', plan?.objetivo
+        || `En la sesión ${sNum} vas a estudiar "${topicLabel}" y aprenderás a aplicarlo en situaciones reales de tu comunidad.`));
 
-      // ══════════════════════════════════════════════════════════════
-      // DESARROLLO (≈30 min): Nuevos conocimientos + Ejemplo + Práctica + Aplicación
-      // ══════════════════════════════════════════════════════════════
-      desarrolloMain.push(buildDocxSessionPhaseLabel('DESARROLLO (≈30 min) · Construcción, ejemplo, práctica y aplicación', phaseColor));
+      const motivFallback = mission.phenomenonHook.detonatingQuestion
+        ? `Imagina un caso real de tu comunidad donde aparece "${topicLabel}". En la sesión anterior (${sNum - 1}) ya viste bases del tema; hoy vas a ver cómo se usa en un problema cercano a ti. Pregúntate: "${mission.phenomenonHook.detonatingQuestion}"`
+        : `Piensa en una situación de la vida diaria donde se aplica "${topicLabel}". Hoy vas a aprender a resolverla paso a paso y a explicar por qué importa en tu comunidad.`;
+      desarrolloMain.push(buildDocxStudentLead('Imagina esto:', plan?.motivacion || motivFallback));
+
+      const saberesFallback = diagQuestions.length > 0
+        ? `Antes de empezar, responde en tu cuaderno: ${diagQuestions[mIdx % diagQuestions.length]} Escribe lo que recuerdes; sirve como punto de partida.`
+        : `Anota en tu cuaderno 2 ideas que recuerdes de la sesión anterior sobre "${topicLabel}" y 1 duda que te quede. Ese es tu punto de partida.`;
+      desarrolloMain.push(buildDocxStudentLead('Sabes que ya:', plan?.saberesPrevios || saberesFallback, 160));
+
+      // ── APRENDE Y PRACTICA (~30 min): teoría real + ejemplo + práctica + aplicación ──
+      desarrolloMain.push(buildDocxSessionPhaseLabel('📖 APRENDE Y PRACTICA · Conceptos, ejemplo y ejercicios (~30 min)', phaseColor));
 
       const conceptLine = rotateSentence(conceptSentences.length > 0 ? conceptSentences : narrativeSentences, mIdx);
-      if (plan?.nuevosConocimientos) {
-        desarrolloMain.push(buildDocxRoleLine('Docente', `Nuevos conocimientos (≈10 min): ${plan.nuevosConocimientos}`, 80));
-      } else if (sMeta.teachingActivity) {
-        desarrolloMain.push(buildDocxRoleLine('Docente', `${sMeta.teachingActivity} Punto clave a reforzar: ${conceptLine || `seguir avanzando en "${topicLabel}"`}.`, 80));
-      } else if (conceptLine) {
-        desarrolloMain.push(buildDocxRoleLine('Docente', `Nuevos conocimientos (≈10 min): exponer y problematizar el siguiente aspecto del tema "${topicLabel}": ${conceptLine} Verificar comprensión con una pregunta de contraste.`, 80));
+      const theoryPool = [...conceptSentences, ...narrativeSentences];
+      let theoryFallback: string;
+      if (theoryPool.length === 0) {
+        theoryFallback = `En la sesión ${sNum} vas a estudiar "${topicLabel}". Este tema te permite entender cómo se aplica en situaciones reales. Lee con atención, toma notas en tu cuaderno y trata de explicar cada idea con tus palabras.`;
       } else {
-        desarrolloMain.push(buildDocxRoleLine('Docente', `Nuevos conocimientos (≈10 min): profundizar en "${topicLabel}" con diagrama, tabla o ejemplo del libro de texto, explicitando qué cambia respecto a la sesión anterior.`, 80));
+        const picked: string[] = [];
+        for (let i = 0; i < theoryPool.length && picked.length < 6; i++) {
+          picked.push(theoryPool[(mIdx + i) % theoryPool.length]);
+        }
+        const mid = Math.ceil(picked.length / 2);
+        theoryFallback = [picked.slice(0, mid).join(' '), picked.slice(mid).join(' ')].filter(Boolean).join('\n\n');
       }
+      desarrolloMain.push(subLabel('Nuevos conceptos'));
+      desarrolloMain.push(...buildDocxBodyParagraphs(plan?.contenido || (conceptLine ? `${conceptLine}\n\n${theoryFallback}` : theoryFallback), { after: 140 }));
 
-      if (plan?.ejemplo) {
-        desarrolloMain.push(buildDocxRoleLine('Estudiante', `Ejemplo guiado (≈8 min): ${plan.ejemplo}`, 120));
-      } else if (mission.conceptZero.solvedExample?.problemStatement) {
-        const step = exampleSteps.length > 0 ? ` Un paso representativo: ${exampleSteps[mIdx % exampleSteps.length]}` : '';
-        const exStmt = mission.conceptZero.solvedExample.problemStatement;
-        desarrolloMain.push(buildDocxRoleLine('Estudiante', `Ejemplo guiado (≈8 min): analizar el ejemplo resuelto — "${exStmt.slice(0, 180)}${exStmt.length > 180 ? '…' : ''}".${step} Anotar en el cuaderno el procedimiento seguido.`, 120));
-      } else if (mission.conceptZero.physicalAnalogy) {
-        const analogy = mission.conceptZero.physicalAnalogy;
-        desarrolloMain.push(buildDocxRoleLine('Estudiante', `Ejemplo guiado (≈8 min): relacionar la analogía "${analogy.slice(0, 160)}${analogy.length > 160 ? '…' : ''}" con el tema "${topicLabel}" y explicar con sus palabras la conexión.`, 120));
-      }
+      const exampleFallback = mission.conceptZero.solvedExample?.problemStatement
+        ? `Observa el ejemplo resuelto: "${mission.conceptZero.solvedExample.problemStatement}" Sigue el procedimiento paso a paso en tu cuaderno y anota cada cálculo.`
+        : mission.conceptZero.physicalAnalogy
+          ? `Conéctalo con lo que ya conoces: "${mission.conceptZero.physicalAnalogy}" Ahora traduce esa analogía al tema "${topicLabel}" y escríbela con tus palabras.`
+          : `Elabora un ejemplo propio de "${topicLabel}" con datos numéricos concretos, resuélvelo paso a paso y verifica el resultado.`;
+      desarrolloMain.push(subLabel('Ejemplo resuelto'));
+      desarrolloMain.push(...buildDocxBodyParagraphs(plan?.ejemploResuelto || exampleFallback, { after: 140 }));
 
+      desarrolloMain.push(subLabel('Practica'));
       if (plan?.practica && plan.practica.length > 0) {
         for (let tIdx = 0; tIdx < plan.practica.length; tIdx++) {
-          desarrolloMain.push(...buildDocxSingleTask(plan.practica[tIdx], tIdx + 1, desarrolloW));
+          const item = plan.practica[tIdx];
+          desarrolloMain.push(...buildDocxSingleTask(item.enunciado, tIdx + 1, desarrolloW, item.pista || undefined));
         }
       } else {
         const assignedTasks = taskBuckets[mIdx];
@@ -4125,39 +4229,35 @@ async function buildMissionContent(
         }
       }
 
-      const appVariants = [
-        mission.realLifeConnection?.householdApplication
-          ? `Aplicación (≈8 min): llevar el reto al contexto real — ${mission.realLifeConnection.householdApplication} Documentar la evidencia (foto, esquema o nota) en el cuaderno como avance del producto integrador.`
-          : `Aplicación (≈8 min): aplicar lo practicado a una situación nueva del tema "${topicLabel}" y registrar el procedimiento y el resultado en el cuaderno (avance del producto integrador).`,
-        mission.realLifeConnection?.communityImpact
-          ? `Aplicación (≈8 min): analizar cómo lo aprendido hoy impacta a la comunidad — ${mission.realLifeConnection.communityImpact} Escribir 2-3 líneas de reflexión.`
-          : `Aplicación (≈8 min): resolver una situación no prevista del tema "${topicLabel}", justificar el procedimiento y comparar con el ejemplo visto (avance del producto integrador).`,
-      ];
-      desarrolloMain.push(buildDocxRoleLine('Estudiante', plan?.aplicacion ? `Aplicación (≈8 min): ${plan.aplicacion}` : appVariants[mIdx % appVariants.length], 160));
+      const appFallback = mission.realLifeConnection?.householdApplication
+        ? `Ahora lleva lo aprendido a tu contexto real: ${mission.realLifeConnection.householdApplication} Documenta la evidencia (foto, esquema o nota) en tu cuaderno.`
+        : `Aplica lo aprendido a una situación nueva de "${topicLabel}" y registra en tu cuaderno el procedimiento y el resultado.`;
+      desarrolloMain.push(subLabel('Aplica en tu vida'));
+      desarrolloMain.push(...buildDocxBodyParagraphs(plan?.aplicacion || appFallback, { after: 160 }));
 
-      // ══════════════════════════════════════════════════════════════
-      // CIERRE (≈10 min): Producto integrador + Instrumentos de evaluación
-      // ══════════════════════════════════════════════════════════════
-      desarrolloMain.push(buildDocxSessionPhaseLabel('CIERRE (≈10 min) · Producto integrador y evaluación', phaseColor));
+      // ── TU PRODUCTO (~10 min): avance del producto + autoevaluación + recursos ──
+      desarrolloMain.push(buildDocxSessionPhaseLabel('🏁 TU PRODUCTO · Avance y autoevaluación (~10 min)', phaseColor));
 
-      desarrolloMain.push(buildDocxRoleLine('Docente', plan?.productoIntegrador
-        ? `Producto integrador (≈4 min): ${plan.productoIntegrador}`
-        : `Producto integrador (≈4 min): orientar el avance del entregable de la misión "${mission.title || topicLabel}" — consolidar lo producido hoy y verificar que quede registrado en el cuaderno / portafolio con evidencia legible y fechada.`, 80));
+      desarrolloMain.push(buildDocxStudentLead('Tu producto de hoy:', plan?.productoIntegrador
+        || `Agrega a tu producto integrador el avance de esta sesión: deja registrado en tu cuaderno o portafolio lo que produjiste, con evidencia legible y fechada.`));
 
-      const evalQuestion = mission.formativeCheckpoint.question?.trim();
-      if (plan?.evaluacionObjetivo) {
-        desarrolloMain.push(buildDocxRoleLine('Estudiante', `Evaluación del objetivo: ${plan.evaluacionObjetivo}`, 80));
-      } else if (evalQuestion) {
-        desarrolloMain.push(buildDocxRoleLine('Estudiante', `Evaluación del objetivo: responder "${evalQuestion.slice(0, 180)}${evalQuestion.length > 180 ? '…' : ''}" y autoevaluar su comprensión con el semáforo de la misión.`, 80));
-      } else if (reflPrompts.length > 0) {
-        desarrolloMain.push(buildDocxRoleLine('Estudiante', `Evaluación del objetivo: reflexionar — "${reflPrompts[mIdx % reflPrompts.length]}" Escribir la respuesta en el cuaderno.`, 80));
+      desarrolloMain.push(subLabel('Autoevaluación'));
+      const autoevalItems: string[] = plan?.autoevaluacion && plan.autoevaluacion.length > 0
+        ? plan.autoevaluacion
+        : [
+            mission.formativeCheckpoint.question?.trim() || `¿Puedo explicar con mis palabras el concepto central de "${topicLabel}"?`,
+            reflPrompts.length > 0 ? reflPrompts[mIdx % reflPrompts.length] : `¿Logré resolver la práctica sin copiar el ejemplo?`,
+            criteriaItems.length > 0 ? criteriaItems[mIdx % criteriaItems.length] : `¿Registré mi trabajo con evidencia fechada en el cuaderno?`,
+          ].filter((q) => q.length >= 10);
+      for (const item of autoevalItems) {
+        desarrolloMain.push(buildDocxCheckItem(item));
       }
 
-      if (plan?.evaluacionProducto) {
-        desarrolloMain.push(buildDocxRoleLine('Docente', `Evaluación del producto integrador: ${plan.evaluacionProducto}`));
-      } else {
-        const criterion = criteriaItems.length > 0 ? ` Criterio a verificar hoy: ${criteriaItems[mIdx % criteriaItems.length]}` : '';
-        desarrolloMain.push(buildDocxRoleLine('Docente', `Evaluación del producto integrador: aplicar el criterio de verificación del entregable y registrar calificación u observaciones.${criterion}`));
+      if (plan?.recursos && plan.recursos.length > 0) {
+        desarrolloMain.push(subLabel('Para saber más'));
+        for (const r of plan.recursos) {
+          desarrolloMain.push(buildDocxResourceLine(r.titulo, r.url, r.tipo));
+        }
       }
     }
   }
