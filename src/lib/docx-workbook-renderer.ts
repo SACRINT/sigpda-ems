@@ -2778,10 +2778,15 @@ const CONCEPT_BADGE_STYLES: Record<'analogy' | 'concept' | 'apply' | 'default', 
   default: { bg: 'E0E7FF', text: '3730A3', accent: '6366F1', icon: '📌' },
 };
 
+const CONCEPT_CARD_LONG_TEXT_WORDS = 200;
 export const MIN_CONCEPT_CARD_COL_W = 2800; // DXA (~4.94 cm) — Umbral mínimo legible por columna de tarjeta (REG-5)
 
 export function buildDocxConceptCardsGrid(cards: ConceptCardItem[], targetWidth: number = CONTENT_W): Table {
   let numCols = cards.length >= 3 ? 3 : Math.min(cards.length, 2);
+  const maxWords = cards.length > 0 ? Math.max(...cards.map((c) => (c.description || '').split(/\s+/).length)) : 0;
+  if (maxWords > CONCEPT_CARD_LONG_TEXT_WORDS) {
+    numCols = 1;
+  }
   while (numCols > 1 && Math.floor(targetWidth / numCols) < MIN_CONCEPT_CARD_COL_W) {
     numCols--;
   }
@@ -2913,7 +2918,7 @@ export function buildDocxConceptCardsGrid(cards: ConceptCardItem[], targetWidth:
       );
     }
 
-    rows.push(new TableRow({ children: cells }));
+    rows.push(new TableRow({ cantSplit: true, children: cells }));
   }
 
   return new Table({
@@ -3204,7 +3209,9 @@ async function buildMissionContent(
 
   const conceptCards = extractConceptCardsFromMission(mission);
   if (conceptCards.length >= 2) {
-    aperturaMain.push(buildDocxConceptCardsGrid(conceptCards, aperturaW));
+    const maxWords = Math.max(...conceptCards.map((c) => (c.description || '').split(/\s+/).length));
+    const targetW = maxWords > CONCEPT_CARD_LONG_TEXT_WORDS ? CONTENT_W : aperturaW;
+    aperturaMain.push(buildDocxConceptCardsGrid(conceptCards, targetW));
   } else {
     // Degradación histórica D9: párrafos directos
     aperturaMain.push(
