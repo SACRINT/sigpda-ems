@@ -15,6 +15,8 @@ import type {
   ProjectSection,
   EvaluationSection,
   SessionPlan,
+  PracticaItem,
+  RecursoItem,
 } from '@/types/work-textbook';
 
 /**
@@ -157,15 +159,27 @@ export function evaluateQuality(params: {
 
 /**
  * Sanitiza el array `sessionPlans` devuelto por la IA: garantiza que cada plan
- * corresponda a una sesión cubierta real, que los campos obligatorios sean strings
- * no vacíos y que `practica` sea un array de strings. Descarta planes inválidos.
- * Devuelve `undefined` si no hay planes utilizables (los renderers usan fallback).
+ * corresponda a una sesión cubierta real y que sea LIBRO PARA EL ESTUDIANTE
+ * (voz en "tú", sin verbos de instrucción al docente). Acepta también la forma
+ * heredada (docente) y la mapea al modelo de estudiante para no romper datos
+ * viejos. Descarta planes inválidos. Devuelve `undefined` si no hay utilizables.
  */
 export function sanitizeSessionPlans(
   raw: unknown,
   coveredSessions: number[]
 ): SessionPlan[] | undefined {
   if (!Array.isArray(raw) || raw.length === 0 || coveredSessions.length === 0) return undefined;
+
+  const asText = (v: unknown, min = 10): string =>
+    typeof v === 'string' && v.trim().length >= min ? v.trim() : '';
+
+  // Elimina cualquier rastro de voz de docente (defensa anti "guía de clase").
+  const toStudentVoice = (s: string): string =>
+    s
+      .replace(/^\s*(docente|estudiante)\s*:\s*/gim, '')
+      .replace(/\b(exponer y problematizar|verificar comprensión|orientar el avance|activar el interés|plantear la situación|retomar el desafío|presentar a los equipos)\b/gi, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
 
   const validPlans: SessionPlan[] = [];
   for (const item of raw) {
@@ -174,26 +188,62 @@ export function sanitizeSessionPlans(
     const sessionNumber = Number(rec.sessionNumber);
     if (!Number.isInteger(sessionNumber) || !coveredSessions.includes(sessionNumber)) continue;
 
-    const asText = (v: unknown, fallback: string): string =>
-      typeof v === 'string' && v.trim().length >= 10 ? v.trim() : fallback;
-
+    // Práctica: acepta [{enunciado,pista}] (nuevo) o string[] (heredado).
     const practicaRaw = Array.isArray(rec.practica) ? rec.practica : [];
-    const practica = practicaRaw
-      .filter((p): p is string => typeof p === 'string' && p.trim().length >= 10)
-      .map((p) => p.trim());
+    const practica: PracticaItem[] = practicaRaw
+      .map((p): PracticaItem | null => {
+        if (typeof p === 'string') {
+          const t = toStudentVoice(p);
+          return t.length >= 10 ? { enunciado: t, pista: '' } : null;
+        }
+        if (p && typeof p === 'object') {
+          const pr = p as Record<string, unknown>;
+          const enunciado = toStudentVoice(asText(pr.enunciado ?? pr.texto ?? pr.tarea));
+          if (enunciado.length < 10) return null;
+          return { enunciado, pista: asText(pr.pista ?? pr.hint ?? pr.pista_) };
+        }
+        return null;
+      })
+      .filter((p): p is PracticaItem => p !== null);
 
-    validPlans.push({
+    // Recursos: acepta [{titulo,url,tipo}] validando URL http(s).
+    const recursosRaw = Array.isArray(rec.recursos) ? rec.recursos : [];
+    const recursos: RecursoItem[] = recursosRaw
+      .map((r): RecursoItem | null => {
+        if (!r || typeof r !== 'object') return null;
+        const rr = r as Record<string, unknown>;
+        const titulo = asText(rr.titulo ?? rr.title);
+        const url = asText(rr.url ?? rr.enlace, 7);
+        if (titulo.length < 4 || !/^https?:\/\//i.test(url)) return null;
+        const tipo = rr.tipo === 'video' || rr.tipo === 'lectura' ? rr.tipo : 'web';
+        return { titulo, url, tipo };
+      })
+      .filter((r): r is RecursoItem => r !== null);
+
+    // Autoevaluación: string[] (nuevo) o un string (heredado evaluacionObjetivo).
+    const autoevalRaw = Array.isArray(rec.autoevaluacion) ? rec.autoevaluacion : [rec.autoevaluacion];
+    const autoevaluacion = autoevalRaw
+      .map((a) => toStudentVoice(asText(a)))
+      .filter((a) => a.length >= 10);
+
+    // Contenido teórico: campo nuevo "contenido" o heredado "nuevosConocimientos".
+    const contenido = toStudentVoice(asText(rec.contenido ?? rec.nuevosConocimientos, 20));
+
+    const objetivo = toStudentVoice(asText(rec.objetivo, 10));
+    const plan: SessionPlan = {
       sessionNumber,
-      motivacion: asText(rec.motivacion, `Presentar el reto de la sesión ${sessionNumber} y conectar con la sesión anterior.`),
-      conocimientosPrevios: asText(rec.conocimientosPrevios, `Recordar en equipo las ideas clave de la sesión anterior sobre el tema.`),
-      nuevosConocimientos: asText(rec.nuevosConocimientos, `Profundizar en el siguiente aspecto del tema de la sesión ${sessionNumber}.`),
-      ejemplo: asText(rec.ejemplo, `Analizar un ejemplo guiado paso a paso con datos concretos.`),
-      practica: practica.length > 0 ? practica : [`Resolver la práctica colaborativa asignada a la sesión ${sessionNumber} y documentar el procedimiento.`],
-      aplicacion: asText(rec.aplicacion, `Aplicar lo aprendido a una situación de la vida diaria del estudiante y registrar la evidencia.`),
-      productoIntegrador: asText(rec.productoIntegrador, `Consolidar el avance del producto integrador de la misión con evidencia fechada.`),
-      evaluacionObjetivo: asText(rec.evaluacionObjetivo, `Responder la pregunta de reflexión de la sesión y autoevaluar la comprensión.`),
-      evaluacionProducto: asText(rec.evaluacionProducto, `Verificar el criterio del producto integrador y registrar la observación.`),
-    });
+      objetivo: objetivo || `Al terminar la sesión ${sessionNumber} sabrás aplicar los conceptos del tema en situaciones reales.`,
+      motivacion: toStudentVoice(asText(rec.motivacion, 20)) || `Imagina que en tu comunidad existe un problema real que puede resolverse con lo que vas a aprender hoy.`,
+      saberesPrevios: toStudentVoice(asText(rec.saberesPrevios ?? rec.conocimientosPrevios, 10)) || `Ya conoces ideas previas del tema de la sesión anterior; úsalas como punto de partida.`,
+      contenido: contenido || `En esta sesión estudiarás los conceptos fundamentales del tema con definiciones, fórmulas y ejemplos que podrás aplicar de inmediato.`,
+      ejemploResuelto: toStudentVoice(asText(rec.ejemploResuelto ?? rec.ejemplo, 20)) || `A continuación verás un ejemplo resuelto paso a paso con números concretos; sigue el procedimiento en tu cuaderno.`,
+      practica: practica.length > 0 ? practica : [{ enunciado: `Resuelve los ejercicios de práctica de la sesión ${sessionNumber} usando los datos del ejemplo resuelto.`, pista: `Repasa el ejemplo resuelto y aplica el mismo procedimiento paso a paso.` }],
+      aplicacion: toStudentVoice(asText(rec.aplicacion, 15)) || `Aplica lo aprendido a una situación de tu vida diaria y registra la evidencia en tu cuaderno.`,
+      autoevaluacion: autoevaluacion.length > 0 ? autoevaluacion : [`¿Puedo explicar con mis palabras el concepto central de esta sesión?`, `¿Logré resolver la práctica sin mirar el ejemplo?`],
+      recursos,
+      productoIntegrador: toStudentVoice(asText(rec.productoIntegrador, 10)) || `Agrega a tu producto integrador el avance de esta sesión con evidencia legible y fechada.`,
+    };
+    validPlans.push(plan);
   }
 
   return validPlans.length > 0 ? validPlans : undefined;

@@ -140,27 +140,47 @@ export interface MissionSection {
   sessionPlans?: SessionPlan[];
 }
 
-/** Plan de una sesión individual con la estructura INICIO/DESARROLLO/CIERRE (guía real). */
+/** Un recurso de ampliación (video / página web / lectura) para que el estudiante profundice. */
+export interface RecursoItem {
+  titulo: string;
+  url: string;
+  tipo: 'video' | 'web' | 'lectura';
+}
+
+/** Un ejercicio de práctica con su pista (hint). El estudiante resuelve; no se entrega la solución completa. */
+export interface PracticaItem {
+  enunciado: string;
+  pista: string;
+}
+
+/**
+ * Plan de una sesión individual como LIBRO PARA EL ESTUDIANTE (autodidacta).
+ * Voz en "tú", dirigida al estudiante. NUNCA verbos de instrucción al docente.
+ * Estructura pedagógica: objetivo → motivación/saberes → teoría → ejemplo →
+ * práctica (con pistas) → aplicación → autoevaluación → recursos.
+ */
 export interface SessionPlan {
   sessionNumber: number;
-  /** INICIO (~10 min): motivación situada detonante. */
+  /** "Lo que vas a aprender" — objetivo de aprendizaje del estudiante (1-2 frases). */
+  objetivo: string;
+  /** Motivación: caso real / historia detonadora contada AL estudiante. */
   motivacion: string;
-  /** INICIO (~2 min): recuperación breve de saberes previos. */
-  conocimientosPrevios: string;
-  /** DESARROLLO (~10 min): exposición del nuevo conocimiento de la sesión. */
-  nuevosConocimientos: string;
-  /** DESARROLLO (~8 min): ejemplo guiado o analogía con datos. */
-  ejemplo: string;
-  /** DESARROLLO: 1-3 tareas de práctica colaborativa concretas. */
-  practica: string[];
-  /** DESARROLLO (~8 min): aplicación a la vida real / avance de producto. */
+  /** Saberes previos: qué ya sabe el estudiante que conecta con esto. */
+  saberesPrevios: string;
+  /** TEORÍA REAL: definiciones, fórmulas, explicación conceptual (varios párrafos). */
+  contenido: string;
+  /** Ejemplo resuelto paso a paso CON NÚMEROS. */
+  ejemploResuelto: string;
+  /** Práctica: ejercicios concretos con datos y pista. */
+  practica: PracticaItem[];
+  /** Aplicación a la vida real del estudiante / avance del producto. */
   aplicacion: string;
-  /** CIERRE (~4 min): consolidación del producto integrador. */
+  /** Autoevaluación: preguntas o checklist de autorevisión. */
+  autoevaluacion: string[];
+  /** Recursos de ampliación (enlaces a video / web / lectura). */
+  recursos: RecursoItem[];
+  /** Producto integrador: qué agrega el estudiante a su proyecto hoy. */
   productoIntegrador: string;
-  /** CIERRE: instrumento de evaluación del objetivo de la sesión. */
-  evaluacionObjetivo: string;
-  /** CIERRE: instrumento de evaluación del producto integrador. */
-  evaluacionProducto: string;
 }
 
 export interface ProjectPhase {

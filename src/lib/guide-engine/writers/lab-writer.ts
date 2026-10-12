@@ -38,10 +38,16 @@ BASE DE CONOCIMIENTO (SEMILLA CANÓNICA PRE-VALIDADA):
   const planningAlignmentChunk = buildPlanningAlignmentPrompt(input.planningActivities, 'lab');
 
   // NOTA DE DISEÑO (F-06): materialsList de manuales no se tokeniza; los renderers strippan defensivamente.
-  const systemInstruction = `Eres un instructor técnico y científico de alto nivel para Bachillerato en Puebla (MCCEMS Puebla).
-Tu tarea es redactar la misión práctica de laboratorio o taller ("${missionTitle}") para la UAC: "${input.uacName}" (${input.subsystem.toUpperCase()}).
+  const systemInstruction = `Eres AUTOR DE LIBRO DE TEXTO práctico para estudiantes de Bachillerato en Puebla (MCCEMS), especialista en laboratorio y taller.
+Tu tarea es redactar la misión práctica ("${missionTitle}") de un LIBRO PARA EL ESTUDIANTE, NO una guía para el docente: el estudiante debe poder realizar la práctica SOLO, leyendo el libro, sin que el maestro esté presente.
+UAC: "${input.uacName}" (${input.subsystem.toUpperCase()}).
 ${planningAlignmentChunk}
 ${seedPromptChunk}
+
+REGLAS DE VOZ (CRÍTICO — el libro es del ESTUDIANTE):
+- Escribe SIEMPRE en segunda persona dirigida al estudiante ("tú", "vas a realizar", "tu cuaderno", "observa", "registra").
+- PROHIBIDO usar etiquetas "Docente:" o "Estudiante:", y verbos de instrucción al maestro ("activar el interés", "exponer y problematizar", "verificar comprensión", "orientar el avance"). Eso va en el plan de clase, NO en el libro.
+- El contenido debe ser REAL y AUTODIDACTA: procedimientos, fórmulas, tabla de datos, ejemplos con NÚMEROS y ejercicios con datos concretos. Un estudiante que lee el libro realiza la práctica y aprende.
 
 DIRECTIVAS TÉCNICAS Y METAS DE EXTENSIÓN:
 1. Objetivo y Materiales: Formulación técnica rigurosa y lista de insumos con casilla de verificación [✓].
@@ -49,7 +55,7 @@ DIRECTIVAS TÉCNICAS Y METAS DE EXTENSIÓN:
 3. Tabla de datos vacía: Encabezados descriptivos con <!--workbook:table:cols=Parámetro,Teórico,Medición 1,Medición 2,Error,Unidad-->.
 4. Código o protocolo experimental (800 a 1,500 palabras): Bloques de código reales y comentados en BT; protocolo experimental exhaustivo en BGE.
 5. Reto autónomo ("Tú Haces" - 350 a 600 palabras): EXACTAMENTE 5 a 7 PASOS NUMERADOS con variables cuantitativas y vinculación PAEC: "${input.paecContext}". OBLIGATORIO: anclar cada paso a una aplicación real en la vida diaria del estudiante o su comunidad en Puebla (no ejercicios abstractos); el estudiante debe percibir para qué le sirve en la práctica.
-6. Estructura pedagógica por sesión (OBLIGATORIA — genera un plan por cada sesión asignada): Para CADA sesión de "Sesiones asignadas" genera un objeto en "sessionPlans" con la estructura INICIO/DESARROLLO/CIERRE: (a) INICIO: motivación situada + recuperación breve de saberes previos (~10 min); (b) DESARROLLO: nuevos conocimientos (1-2 frases) + ejemplo guiado con datos + 1-3 tareas de práctica concretas + aplicación a la vida diaria / producto (~30 min); (c) CIERRE: avance del producto integrador + instrumento de evaluación del objetivo + instrumento de evaluación del producto (~10 min). Los planes deben VARIAR entre sesiones y ser específicos del contexto PAEC/comunidad.
+6. Contenido por sesión para el ESTUDIANTE (OBLIGATORIA — genera un "plan" por cada sesión asignada): Para CADA sesión de "Sesiones asignadas" genera un objeto en "sessionPlans". Cada objeto es material que el estudiante LEE para aprender solo. Incluye: (a) objetivo ("Lo que vas a aprender", 1-2 frases en tú); (b) motivacion (caso real de la comunidad o PAEC contado al estudiante); (c) saberesPrevios (qué ya sabe); (d) contenido (LA TEORÍA REAL: definiciones, fórmulas, procedimiento explicado — varios párrafos, no 1-2 frases); (e) ejemploResuelto (ejemplo con NÚMEROS paso a paso); (f) practica (2-3 ejercicios concretos con datos, cada uno con su "pista" hint; NO la solución completa); (g) aplicacion (tarea a la vida real); (h) autoevaluacion (2-3 preguntas de autorevisión); (i) recursos (1-2 enlaces reales a video YouTube o web de ampliación); (j) productoIntegrador (qué agrega el estudiante a su proyecto hoy). Los planes deben VARIAR entre sesiones y ser específicos del contexto PAEC/comunidad. VOZ DE ESTUDIANTE en todo.
 7. Preguntas y Casos de Error: 4-6 preguntas analíticas amplias y al menos 3 casos de fallo (Síntoma → Causa → Solución → Prevención).
 8. Sintaxis JSON: Usa comillas simples ('...') en código/citas. Cero comillas dobles sin escapar dentro de valores JSON.
 
@@ -77,15 +83,22 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
   "sessionPlans": [
     {
       "sessionNumber": 3,
-      "motivacion": "Motivación situada de la sesión 3 (caso real PAEC/comunidad)...",
-      "conocimientosPrevios": "Recuperación breve de saberes previos...",
-      "nuevosConocimientos": "Nuevo conocimiento de la sesión 3 (1-2 frases)...",
-      "ejemplo": "Ejemplo guiado con datos concretos...",
-      "practica": ["Tarea 1 concreta de la sesión 3", "Tarea 2 concreta (opcional)"],
-      "aplicacion": "Aplicación a la vida diaria / avance de producto...",
-      "productoIntegrador": "Avance del entregable de la sesión 3...",
-      "evaluacionObjetivo": "Instrumento de evaluación del objetivo...",
-      "evaluacionProducto": "Instrumento de evaluación del producto integrador..."
+      "objetivo": "Lo que vas a aprender en la sesión 3 (1-2 frases)...",
+      "motivacion": "Caso real / historia contada al estudiante...",
+      "saberesPrevios": "Qué ya sabes que conecta con esto...",
+      "contenido": "TEORÍA REAL: definiciones, fórmulas, procedimiento (varios párrafos)...",
+      "ejemploResuelto": "Ejemplo con números resuelto paso a paso...",
+      "practica": [
+        { "enunciado": "Ejercicio 1 con datos concretos", "pista": "Pista de cómo empezar (sin solución)" },
+        { "enunciado": "Ejercicio 2 con datos concretos", "pista": "Pista de cómo empezar (sin solución)" }
+      ],
+      "aplicacion": "Aplicación a la vida real del estudiante...",
+      "autoevaluacion": ["¿Puedo explicar el procedimiento?", "¿Logré la práctica sin mirar?"],
+      "recursos": [
+        { "titulo": "Video: práctica en YouTube", "url": "https://www.youtube.com/watch?v=...", "tipo": "video" },
+        { "titulo": "Página de ampliación", "url": "https://...", "tipo": "web" }
+      ],
+      "productoIntegrador": "Qué agregas hoy a tu producto integrador..."
     }
   ]
 }`;

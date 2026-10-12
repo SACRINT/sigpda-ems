@@ -27,10 +27,16 @@ export async function generateFoundationMission(input: WriterInput): Promise<Wri
   const approach = input.subsystem === 'bt' ? 'estándar industrial y tecnológico' : 'indagación científica y dialógica';
   const planningAlignmentChunk = buildPlanningAlignmentPrompt(input.planningActivities, 'foundation');
 
-  const systemInstruction = `Eres un pedagogo experto en Educación Media Superior en México y en el modelo educativo de Finlandia (Phenomenon-Based Learning).
-Tu tarea es redactar la primera misión formativa ("Misión 1: Fundamentación e Intuición - Concepto Cero") para el libro de texto activo de: "${input.uacName}" (${input.subsystem.toUpperCase()}).
+  const systemInstruction = `Eres AUTOR DE LIBRO DE TEXTO para estudiantes de Educación Media Superior en México (estilo Santillana/Pearson), especialista en Pedagogía y en el modelo de Finlandia (Phenomenon-Based Learning).
+Tu tarea es redactar la primera misión formativa ("Misión 1: Fundamentación e Intuición - Concepto Cero") de un LIBRO PARA EL ESTUDIANTE, NO una guía para el docente: el estudiante debe poder aprender SOLO, leyendo el libro, sin que el maestro esté presente.
+Libro de: "${input.uacName}" (${input.subsystem.toUpperCase()}).
 Enfoque pedagógico: "${approach}".
 ${planningAlignmentChunk}
+
+REGLAS DE VOZ (CRÍTICO — el libro es del ESTUDIANTE):
+- Escribe SIEMPRE en segunda persona dirigida al estudiante ("tú", "vas a aprender", "tu cuaderno", "observa", "resuelve").
+- PROHIBIDO usar etiquetas "Docente:" o "Estudiante:", y verbos de instrucción al maestro ("activar el interés", "exponer y problematizar", "verificar comprensión", "orientar el avance", "plantear la situación", "retomar el desafío"). Eso va en el plan de clase, NO en el libro.
+- El contenido debe ser REAL y AUTODIDACTA: definiciones, fórmulas, explicaciones, ejemplos resueltos con NÚMEROS y ejercicios con datos concretos. Un estudiante que lee el libro aprende el tema.
 
 REGLAS DE PROFUNDIDAD Y CUADERNO ACTIVO:
 1. Concepto Cero (MÍNIMO 2,000-3,000 palabras en total entre physicalAnalogy y coreExplanation):
@@ -40,42 +46,56 @@ REGLAS DE PROFUNDIDAD Y CUADERNO ACTIVO:
 3. Yo Hago (1,500-2,000 palabras): Tutorial maestro modelado paso a paso (código funcional comentado en BT; modelación/experimento en BGE).
 4. Hacemos Juntos (1,000-1,500 palabras): Práctica colaborativa en equipo. OBLIGATORIO: cada actividad debe plantear un PROBLEMA REAL de la vida diaria del estudiante en Puebla, su comunidad o el proyecto PAEC ("${input.paecContext}"), con datos cuantitativos concretos y aplicables. PROHIBIDO usar ejercicios abstractos desconectados de la realidad (ej. 'resuelve 2x+5=15' sin contexto). Cada práctica debe responder '¿dónde veo esto en mi vida?'.
 5. Tú Haces (800-1,200 palabras): Desafío individual de aplicación real con espacios de trabajo, anclado a una situación cotidiana verificable del entorno del estudiante.
-6. Estructura pedagógica por sesión (OBLIGATORIA — genera un plan por cada sesión cubierta):
-   Para CADA sesión de "Sesiones cubiertas" genera un objeto en "sessionPlans" con la estructura INICIO/DESARROLLO/CIERRE:
-   (a) INICIO: motivación situada en la vida real + recuperación breve de saberes previos (~10 min);
-   (b) DESARROLLO: nuevos conocimientos (1-2 frases) + ejemplo guiado con datos + 1-3 tareas de práctica concretas + aplicación a la vida diaria / producto (~30 min);
-   (c) CIERRE: avance del producto integrador + instrumento de evaluación del objetivo + instrumento de evaluación del producto (~10 min).
-   Los planes deben VARIAR entre sesiones (cada sesión aborda una arista distinta del tema) y ser específicos del contexto PAEC/comunidad.
+6. Contenido por sesión para el ESTUDIANTE (OBLIGATORIO — genera un "plan" por cada sesión cubierta):
+   Para CADA sesión de "Sesiones cubiertas" genera un objeto en "sessionPlans". Cada objeto es material que el estudiante LEE para aprender solo. Incluye:
+   (a) objetivo: "Lo que vas a aprender" (1-2 frases, en tú);
+   (b) motivacion: un caso real / historia detonadora de la comunidad o PAEC contada AL estudiante;
+   (c) saberesPrevios: qué ya sabe el estudiante que conecta con esto;
+   (d) contenido: LA TEORÍA REAL de la sesión — definiciones, fórmulas, explicación paso a paso (varios párrafos, con tecnicismos explicados). Es el corazón del libro; NO resumas en 1-2 frases, explica de verdad como un libro de texto;
+   (e) ejemploResuelto: un ejemplo con NÚMEROS resuelto paso a paso (enunciado + procedimiento);
+   (f) practica: 2-3 ejercicios concretos con datos, cada uno con su "pista" (hint de cómo empezar; NO la solución completa);
+   (g) aplicacion: tarea aplicada a la vida real del estudiante;
+   (h) autoevaluacion: 2-3 preguntas de autorevisión;
+   (i) recursos: 1-2 enlaces reales a video (YouTube) o página web de ampliación (usa URLs verosímiles y relevantes);
+   (j) productoIntegrador: qué agrega el estudiante a su proyecto hoy.
+   Los planes deben VARIAR entre sesiones (cada sesión aborda una arista distinta del tema) y ser específicos del contexto PAEC/comunidad. VOZ DE ESTUDIANTE en todo.
 7. Cuaderno activo: Incluye 2-4 etiquetas <!--workbook:...--> (lines:rows=8, table:cols=..., code:lines=15, drawing:height=160).
 8. Sintaxis JSON: Usa comillas simples ('...') en código/citas. Cero comillas dobles sin escapar dentro de valores JSON.
 9. GUARDRAIL DE TERMINOLOGÍA (CERO ARCAÍSMOS): Queda estrictamente PROHIBIDO emplear conceptos o instrumentos arcaicos/obsoletos tales como 'balanza romana' o 'báscula de dos platillos'. Emplear en su lugar balances analíticos contemporáneos, básculas de precisión digital, balanzas algebraicas de equilibrio o herramientas modernas de medición y modelado.
 
 Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
 {
-  "phenomenonStory": "Relato fenomenológico motivador...",
+  "phenomenonStory": "Relato fenomenológico motivador contado al estudiante...",
   "detonatingQuestion": "¿Pregunta detonadora de pensamiento crítico?",
   "physicalAnalogy": "Analogía cotidiana física e intuitiva...",
-  "coreExplanation": "Explicación conceptual profunda (2 párrafos + ejemplo resuelto paso a paso + tabla comparativa)...",
-  "iDoDemo": "Demostración guiada paso a paso ('Yo Hago')...",
-  "weDoPractice": "Actividad colaborativa guiada ('Hacemos Juntos')...",
+  "coreExplanation": "Explicación conceptual profunda en voz de estudiante (2+ párrafos + ejemplo resuelto paso a paso con números + tabla comparativa)...",
+  "iDoDemo": "Demostración guiada paso a paso que el estudiante sigue ('Yo Hago')...",
+  "weDoPractice": "Práctica colaborativa que el estudiante realiza ('Hacemos Juntos')...",
   "youDoChallenge": "Reto autónomo individual ('Tú Haces')...",
   "formativeCheckpoint": {
-    "question": "Pregunta de reflexión metacognitiva...",
+    "question": "Pregunta de reflexión metacognitiva para el estudiante...",
     "reflectionPrompts": ["Pregunta de reflexión 1", "Pregunta de reflexión 2"],
     "criteriaChecklist": ["Criterio de auto-verificación 1", "Criterio 2"]
   },
   "sessionPlans": [
     {
       "sessionNumber": 1,
-      "motivacion": "Motivación situada de la sesión 1 (caso real PAEC/comunidad)...",
-      "conocimientosPrevios": "Recuperación breve de saberes previos...",
-      "nuevosConocimientos": "Nuevo conocimiento de la sesión 1 (1-2 frases)...",
-      "ejemplo": "Ejemplo guiado con datos concretos...",
-      "practica": ["Tarea 1 concreta de la sesión 1", "Tarea 2 concreta (opcional)"],
-      "aplicacion": "Aplicación a la vida diaria / avance de producto...",
-      "productoIntegrador": "Avance del entregable de la sesión 1...",
-      "evaluacionObjetivo": "Instrumento de evaluación del objetivo...",
-      "evaluacionProducto": "Instrumento de evaluación del producto integrador..."
+      "objetivo": "Lo que vas a aprender en la sesión 1 (1-2 frases)...",
+      "motivacion": "Caso real / historia contada al estudiante...",
+      "saberesPrevios": "Qué ya sabes que conecta con esto...",
+      "contenido": "TEORÍA REAL de la sesión: definiciones, fórmulas, explicación (varios párrafos)...",
+      "ejemploResuelto": "Ejemplo con números resuelto paso a paso...",
+      "practica": [
+        { "enunciado": "Ejercicio 1 con datos concretos", "pista": "Pista de cómo empezar (sin solución)" },
+        { "enunciado": "Ejercicio 2 con datos concretos", "pista": "Pista de cómo empezar (sin solución)" }
+      ],
+      "aplicacion": "Aplicación a la vida real del estudiante...",
+      "autoevaluacion": ["¿Puedo explicar el concepto central?", "¿Logré la práctica sin mirar?"],
+      "recursos": [
+        { "titulo": "Video: tema en YouTube", "url": "https://www.youtube.com/watch?v=...", "tipo": "video" },
+        { "titulo": "Página de ampliación", "url": "https://...", "tipo": "web" }
+      ],
+      "productoIntegrador": "Qué agregas hoy a tu producto integrador..."
     }
   ]
 }`;
