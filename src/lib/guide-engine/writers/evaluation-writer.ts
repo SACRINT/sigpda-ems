@@ -37,7 +37,10 @@ export async function generateEvaluationSection(input: WriterInput): Promise<Wri
 - Lista previa: ${JSON.stringify(extras.checklist || extras.lista_verificacion || {})}`;
   }
 
-  const planningAlignmentChunk = buildPlanningAlignmentPrompt(input.planningActivities, 'evaluation');
+  const planningAlignmentChunk = buildPlanningAlignmentPrompt(input.planningActivities, 'evaluation') +
+  (input.alignmentDirective ? ` 
+ALINEACION DURA — TERMINOS OBLIGATORIOS DE LA PLANEACION (reproduce su redaccion original en tu seccion): ` + input.alignmentDirective + ` 
+ ` : '');
 
   const systemInstruction = `Eres un evaluador educativo de élite especializado en el Marco Curricular Común de la EMS (NEM / MCCEMS Puebla).
 Tu tarea es redactar el paquete integral de 4 instrumentos de evaluación formativa y sumativa para: "${input.uacName}" (${input.subsystem.toUpperCase()}).
@@ -174,7 +177,7 @@ Genera el paquete oficial de 4 instrumentos de evaluación NEM con ejercicios es
     // Validación de extensión mínima (MEJORA 1)
     const tiers = Array.isArray(parsed.tieredExercises) ? parsed.tieredExercises : [];
     const has3Levels = tiers.length >= 3;
-    const allHave2Exercises = has3Levels && tiers.every((t: any) => Array.isArray(t.exercises) && t.exercises.length >= 2);
+    const allHave2Exercises = has3Levels && tiers.every((t: { exercises?: unknown }) => Array.isArray(t.exercises) && t.exercises.length >= 2);
 
     if (!has3Levels || !allHave2Exercises) {
       attempt = 2;
@@ -239,7 +242,7 @@ Genera el paquete oficial de 4 instrumentos de evaluación NEM con ejercicios es
       qualityScore: quality.qualityScore,
       warnings: quality.warnings,
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
     logger.error('[generateEvaluationSection] Error:', err);
     // Fallback estructurado de evaluación NEM con 3 niveles escalonados
     const fallbackEval: EvaluationSection = {
@@ -355,7 +358,7 @@ Genera el paquete oficial de 4 instrumentos de evaluación NEM con ejercicios es
       wordCount: 450,
       tokensUsed: 0,
       qualityScore: 75,
-      warnings: ['Generado con instrumentos NEM de respaldo por contingencia: ' + String(err?.message || err)],
+      warnings: ['Generado con instrumentos NEM de respaldo por contingencia: ' + String((err instanceof Error ? err.message : null) || err)],
     };
   }
 }

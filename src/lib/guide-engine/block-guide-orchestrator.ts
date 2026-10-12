@@ -36,6 +36,12 @@ import { generateProjectMission } from './writers/project-writer';
 import { generateEvaluationSection } from './writers/evaluation-writer';
 import { generateTroubleshootingMatrix } from './resilience-agent';
 import { validateBlockGuideQuality } from './quality-validator';
+import {
+  evaluatePlanningContentAlignment,
+  extractMissingTerms,
+  sectionCorpus,
+  corpusCoversTerm,
+} from './planning-content-alignment';
 import type { WriterInput, WriterOutput, PlanningActivities } from './writers/writer-contract';
 import type {
   ActiveWorkTextbook,
@@ -419,6 +425,76 @@ export async function generateBlockWorkTextbook(
     });
   }
 
+  // ── Fase 8.5: Alineación DURA planeación ↔ libro (verificación + 1 reintento) ──
+  await notifyProgress({
+    phase: 'validating',
+    currentStep: 'Verificando alineación dura planeación ↔ contenido del libro...',
+    percent: 92,
+  });
+
+  const alignmentSource = () => ({
+    missions: writerOutputs.map((w) => w.section).filter(Boolean),
+    evaluationSection: writerOutputs.find((w) => w.type === 'evaluation')?.evaluationSection ?? null,
+    projectSection: writerOutputs.find((w) => w.type === 'project')?.projectSection ?? null,
+  });
+
+  let alignmentReport = evaluatePlanningContentAlignment(alignmentSource(), planningActivities);
+
+  if (!alignmentReport.pass && planningActivities) {
+    const missingTerms = extractMissingTerms(alignmentReport);
+    if (missingTerms.length > 0) {
+      const alignmentDirective =
+        'TERMINOS OBLIGATORIOS DE LA PLANEACION (reproduce su redaccion original en tu seccion): ' +
+        missingTerms.join(' | ');
+
+      for (const writerType of ['foundation', 'lab', 'project', 'evaluation'] as const) {
+        const idx = writerOutputs.findIndex((w) => w.type === writerType);
+        if (idx === -1) continue;
+        const own = writerOutputs[idx];
+        const ownCorpus =
+          sectionCorpus(own.section) +
+          ' ' +
+          sectionCorpus(own.evaluationSection ?? own.projectSection ?? null);
+        const lacking = missingTerms.filter((t) => !corpusCoversTerm(ownCorpus, t));
+        if (lacking.length === 0) continue;
+
+        logger.info(`[orchestrator] Reintento de alineación para ${writerType} (faltan ${lacking.length} términos)...`);
+        try {
+          const split = writerSplits[writerType];
+          const alignInput: WriterInput = {
+            ...baseWriterInput,
+            targetWords: {
+              min: Math.round(blockMinWords * split),
+              ideal: Math.round(blockIdealWords * split),
+              max: Math.round(blockMaxWords * split),
+            },
+            alignmentDirective,
+          };
+          let reRun: WriterOutput;
+          if (writerType === 'foundation') reRun = await generateFoundationMission(alignInput);
+          else if (writerType === 'lab') reRun = await generateLabMission(alignInput);
+          else if (writerType === 'project') reRun = await generateProjectMission(alignInput);
+          else reRun = await generateEvaluationSection(alignInput);
+          if (reRun.qualityScore >= own.qualityScore) writerOutputs[idx] = reRun;
+        } catch (alignErr) {
+          logger.warn(`[orchestrator] Falló reintento de alineación de ${writerType}:`, { error: String(alignErr) });
+        }
+      }
+
+      // Re-validar volumen/qualidad y re-medir alineación tras el reintento
+      validation = validateBlockGuideQuality({
+        writerOutputs,
+        subsystem: curriculumContext.subsystem,
+        targetWords: { min: blockMinWords, ideal: blockIdealWords, max: blockMaxWords },
+      });
+      alignmentReport = evaluatePlanningContentAlignment(alignmentSource(), planningActivities);
+    }
+  }
+
+  if (!alignmentReport.pass) {
+    logger.warn(`[Orchestrator] Alineación planeación↔libro bajo umbral: ${alignmentReport.summary}`);
+  }
+
   // ── Fase 9: Ensamblado del ActiveWorkTextbook ───────────────────────────
   await reportProgress(planningId, blockIndex, {
     phase: 'assembling',
@@ -522,7 +598,7 @@ export async function generateBlockWorkTextbook(
     totalWords,
     generatedAt: new Date().toISOString(),
     qualityScore: validation.qualityScore,
-    qualityWarning: validation.qualityWarning,
+    qualityWarning: validation.qualityWarning || !alignmentReport.pass,
     coverData: {
       title: `Cuaderno de Aprendizaje Activo: ${blockName}`,
       subtitle: `Misiones Didácticas Orientadas al Proyecto PAEC Comunitario`,
@@ -538,6 +614,12 @@ export async function generateBlockWorkTextbook(
     missions,
     projectSection,
     evaluationSection,
+  };
+
+  activeWorkTextbook.planningAlignment = {
+    score: alignmentReport.score,
+    pass: alignmentReport.pass,
+    summary: alignmentReport.summary,
   };
 
   // ── Fase 10: Persistencia en DB con Versionamiento ─────────────────────

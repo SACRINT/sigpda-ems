@@ -30,7 +30,10 @@ export async function generateProjectMission(input: WriterInput): Promise<Writer
     : [Math.max(1, input.sessions.length - 3), Math.max(2, input.sessions.length - 2)];
   const missionTitle = projectMission ? projectMission.title : `Misión 3: Construcción del Artefacto Real`;
 
-  const planningAlignmentChunk = buildPlanningAlignmentPrompt(input.planningActivities, 'project');
+  const planningAlignmentChunk = buildPlanningAlignmentPrompt(input.planningActivities, 'project') +
+  (input.alignmentDirective ? ` 
+ALINEACION DURA — TERMINOS OBLIGATORIOS DE LA PLANEACION (reproduce su redaccion original en tu seccion): ` + input.alignmentDirective + ` 
+ ` : '');
 
   const systemInstruction = `Eres un diseñador pedagógico y director de proyectos socioproductivos para Educación Media Superior en Puebla (MCCEMS).
 Tu tarea es redactar la misión cumbre del bloque: la construcción de un "Artefacto Tecnológico o Comunitario Real" para la UAC: "${input.uacName}" (${input.subsystem.toUpperCase()}).
