@@ -314,7 +314,7 @@ export async function renderWorkbookToDocx(
 
   if (hasPlantelData) {
     preliminaryChildren.push(...buildDocxPlantelComunidadSection(workbook, planning));
-    preliminaryChildren.push(new Paragraph({ children: [new PageBreak()] }));
+    preliminaryChildren.push(new Paragraph({ spacing: { before: 0, after: 0 }, children: [new PageBreak()] }));
   }
 
   preliminaryChildren.push(...buildTableOfContents(workbook));
@@ -338,7 +338,7 @@ export async function renderWorkbookToDocx(
       planning?.sequenceJson || (planning as unknown as { sequence_json?: Record<number, SecuenciaBloque> })?.sequence_json
     );
     bodyChildren.push(...missionElements);
-    bodyChildren.push(new Paragraph({ children: [new PageBreak()] }));
+    bodyChildren.push(new Paragraph({ spacing: { before: 0, after: 0 }, children: [new PageBreak()] }));
   }
 
   // Proyecto Formativo Comunitario
@@ -348,13 +348,13 @@ export async function renderWorkbookToDocx(
     ).sort((a, b) => a - b);
     const sessionList = allWorkbookSessions.length > 0 ? allWorkbookSessions : undefined;
     bodyChildren.push(...buildProjectSection(workbook.projectSection, sessionList));
-    bodyChildren.push(new Paragraph({ children: [new PageBreak()] }));
+    bodyChildren.push(new Paragraph({ spacing: { before: 0, after: 0 }, children: [new PageBreak()] }));
   }
 
   // Evaluación Formativa y Sumativa NEM
   if (workbook.evaluationSection) {
     bodyChildren.push(...buildEvaluationSection(workbook.evaluationSection));
-    bodyChildren.push(new Paragraph({ children: [new PageBreak()] }));
+    bodyChildren.push(new Paragraph({ spacing: { before: 0, after: 0 }, children: [new PageBreak()] }));
   }
 
   // Sello digital y folio SHA-256
@@ -525,6 +525,7 @@ export async function renderWorkbookToDocx(
         document: {
           paragraph: {
             alignment: AlignmentType.JUSTIFIED,
+            spacing: { line: 360 },
           },
         },
       },
@@ -1431,6 +1432,7 @@ async function buildDocxMissionQrBox(verificationUrl: string, hashMission: strin
       ],
     }),
     new Paragraph({
+      spacing: { ...PARA_SPACING },
       children: [
         new TextRun({
           text: `Sello Digital: ${hashMission.slice(0, 24)}... · MCCEMS Puebla · ${SCHOOL_YEAR}`,
@@ -1988,6 +1990,7 @@ function buildDocxEquipmentCard(equipmentVisual: ResolvedEquipmentVisual): (Para
 
   textParagraphs.push(
     new Paragraph({
+      spacing: { ...PARA_SPACING },
       children: [
         new TextRun({
           text: caption,
@@ -3164,6 +3167,7 @@ async function buildMissionContent(
     sectionGap(),
     buildDocxSectionHeader('📖 1. Enganche y Desafío Situado en la Comunidad', SECTION_HEX.enganche, '[SITUACIÓN REAL]', aperturaW),
     new Paragraph({
+      alignment: AlignmentType.JUSTIFIED,
       spacing: { before: 100, ...PARA_SPACING }, // 1.5 line spacing + 8pt
       children: [
         new TextRun({
@@ -3217,6 +3221,7 @@ async function buildMissionContent(
         ],
       }),
       new Paragraph({
+        alignment: AlignmentType.JUSTIFIED,
         spacing: { after: 250, line: 360 },
         children: [
           new TextRun({
@@ -3233,6 +3238,7 @@ async function buildMissionContent(
   if (mission.conceptZero.narrativeExplanation) {
     aperturaMain.push(
       new Paragraph({
+        alignment: AlignmentType.JUSTIFIED,
         spacing: { after: 200, line: 360 },
         children: [
           new TextRun({
@@ -3612,6 +3618,7 @@ async function buildMissionContent(
   } else {
     desarrolloMain.push(
       new Paragraph({
+        alignment: AlignmentType.JUSTIFIED,
         spacing: { before: 100, after: 200, line: 360 },
         children: [
           new TextRun({
@@ -3996,6 +4003,7 @@ function renderWorkbookElement(element: WorkbookElement): (Paragraph | Table)[] 
                     margins: { top: 80, bottom: 80, left: 140, right: 140 },
                     children: [
                       new Paragraph({
+                        spacing: { before: 40, after: 40 },
                         children: [
                           new TextRun({
                             text: `● ● ●  ${boxTitle}`,
@@ -4065,6 +4073,7 @@ function renderWorkbookElement(element: WorkbookElement): (Paragraph | Table)[] 
                     margins: { top: 80, bottom: 80, left: 140, right: 140 },
                     children: [
                       new Paragraph({
+                        spacing: { before: 40, after: 40 },
                         children: [
                           new TextRun({
                             text: `● ● ●  ${boxTitle} (Área de desarrollo del estudiante)`,
@@ -4129,6 +4138,7 @@ function renderWorkbookElement(element: WorkbookElement): (Paragraph | Table)[] 
                   children: [
                     new Paragraph({
                       alignment: AlignmentType.CENTER,
+                      spacing: { before: 100, after: 100 },
                       children: [
                         new TextRun({
                           text: '[ Espacio reservado para esquema, diagrama o boceto a mano ]',
