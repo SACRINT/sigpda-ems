@@ -1,7 +1,7 @@
 /**
  * build-editorial-fixture.ts
  * Genera el fixture canónico de capítulo para estudiante bajo Pensamiento Matemático II (Bloque 1)
- * con 12 sesiones completas, rigurosas, situadas en Puebla (PAEC) y validadas contra student-content-model.
+ * con 14 sesiones completas, rigurosas, situadas en Puebla (PAEC) y validadas contra student-content-model.
  */
 
 import * as fs from 'fs';

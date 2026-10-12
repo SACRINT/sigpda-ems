@@ -53,7 +53,8 @@
   )
 ]
 
-#let marginal-spot-figure(img-path, caption-text) = [
+#let marginal-spot-figure(img-path, caption-text, ancho-cm: 3.8) = [
+  #let safe-ancho = calc.min(ancho-cm, 4.2) * 1cm
   #block(
     width: 100%,
     stroke: 0.5pt + c-border,
@@ -63,8 +64,8 @@
     spacing: 7pt,
     [
       #align(center)[
-        // Restricción dimensional estricta: ancho <= 3.8 cm (<= 4.2 cm a >= 300 DPI)
-        #image(img-path, width: 3.8cm)
+        // Restricción dimensional estricta conectada al modelo: ancho <= min(anchoCm, 4.2 cm) (>= 300 DPI)
+        #image(img-path, width: safe-ancho)
       ]
       #if caption-text != none and caption-text != "" [
         #v(2pt)
@@ -362,7 +363,8 @@
       #if "materialSpot" in s and s.materialSpot != none [
         #marginal-spot-figure(
           (if "assetsRoot" in chapter and chapter.assetsRoot != none { chapter.assetsRoot } else { "/public" }) + "/images/materiales/" + s.materialSpot.archivo,
-          if "pie" in s.materialSpot and s.materialSpot.pie != none { s.materialSpot.pie } else { s.materialSpot.nombre }
+          if "pie" in s.materialSpot and s.materialSpot.pie != none { s.materialSpot.pie } else { s.materialSpot.nombre },
+          ancho-cm: if "anchoCm" in s.materialSpot and s.materialSpot.anchoCm != none { s.materialSpot.anchoCm } else { 3.8 }
         )
       ]
 
@@ -435,6 +437,22 @@
       ]
     )
   )
+
+  #if "productoIntegrador" in s and s.productoIntegrador != none and s.productoIntegrador != "" [
+    #v(6pt)
+    #rect(
+      width: 100%,
+      fill: rgb("f0fdf4"),
+      stroke: 0.5pt + rgb("86efac"),
+      radius: 3pt,
+      inset: 6pt,
+      [
+        #text(fill: rgb("15803d"), weight: "bold", size: 8.5pt)[🎯 Avance del Producto Integrador (PAEC):]
+        #h(4pt)
+        #text(fill: c-slate-dark, size: 8pt)[#s.productoIntegrador]
+      ]
+    )
+  ]
 
   #pagebreak()
 ]

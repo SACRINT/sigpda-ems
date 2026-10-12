@@ -156,7 +156,7 @@ export function isTypstAvailableSync(binaryPath?: string): boolean {
 }
 
 /**
- * Cuenta las páginas del buffer PDF de forma O(1) determinista.
+ * Cuenta las páginas del buffer PDF de forma O(N) determinista escaneando marcadores /Type /Page.
  */
 export function extractPageCountFromPdf(pdfBuffer: Buffer): number {
   const str = pdfBuffer.toString('latin1');
