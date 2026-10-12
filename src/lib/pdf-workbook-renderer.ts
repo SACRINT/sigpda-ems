@@ -133,6 +133,8 @@ const SECTION_COLORS: Record<string, RGB> = {
   diagnostica: COLOR.DIAGNOSTIC_BORDER,
   semaforo: COLOR.MISSION[2],
   vidaReal: COLOR.REAL_LIFE_ACCENT,
+  apertura: COLOR.PHASE_APERTURA,
+  cierre: COLOR.PHASE_CONCLUSION,
 };
 
 // ── Geometría de Retícula de 2 Columnas (V6 Sidebar) ────────────────────────
@@ -1821,7 +1823,7 @@ function getSessionMetaFromSequence(
   blockIndex?: number,
   fallbackPhase: string = 'DESARROLLO',
   fallbackTitle: string = ''
-): { phase: string; title: string; teachingActivity?: string; learningActivity?: string } {
+): { phase: string; title: string; teachingActivity?: string; learningActivity?: string; evidence?: string; evaluation?: string } {
   if (sequenceJson && typeof sequenceJson === 'object') {
     let targetBlock: SecuenciaBloque | undefined;
     if (blockIndex !== undefined && sequenceJson[blockIndex]) {
@@ -1839,6 +1841,8 @@ function getSessionMetaFromSequence(
           title: match.title || fallbackTitle,
           teachingActivity: match.teachingActivity,
           learningActivity: match.learningActivity,
+          evidence: match.evidence,
+          evaluation: match.evaluation,
         };
       }
     }
@@ -2591,11 +2595,19 @@ async function drawMission(
         y,
       });
 
-      if (sMeta.teachingActivity || sMeta.learningActivity) {
-        const consignaText = `Consigna: ${sMeta.learningActivity || sMeta.teachingActivity}`;
-        y = flow.printMainParagraph(consignaText, y, { size: 7.2, fontStyle: 'bold', color: MID_BLUE, lineHeight: 3.8 });
-        y += 2;
-      }
+      // ── Apertura (10 min) ──
+      y = drawSectionHeader(doc, 'Apertura (10 min)', margin, mainW, y, pageHeight, SECTION_COLORS.apertura, checkSpace, '[ CONECTAR ]');
+      const aperturaDocente = `Activación focalizada: conectar la sesión anterior con el reto "${sMeta.title}".`;
+      const aperturaEstudiante = sMeta.learningActivity || 'Recuperar insumos previos y organizar la mesa de trabajo.';
+      y = flow.printMainParagraph(`Docente: ${aperturaDocente}`, y, { size: 7.2, lineHeight: 3.8 });
+      y = flow.printMainParagraph(`Estudiante: ${aperturaEstudiante}`, y, { size: 7.2, lineHeight: 3.8 });
+
+      // ── Desarrollo (30 min) ──
+      y = drawSectionHeader(doc, 'Desarrollo (30 min)', margin, mainW, y, pageHeight, SECTION_COLORS.hacemos, checkSpace, '[ PRÁCTICA ]');
+      const desDocente = sMeta.teachingActivity || 'Monitoreo y orientación de la práctica en equipo.';
+      y = flow.printMainParagraph(`Docente: ${desDocente}`, y, { size: 7.2, lineHeight: 3.8 });
+      const desEstudiante = sMeta.learningActivity || 'Desarrollo de la práctica colaborativa.';
+      y = flow.printMainParagraph(`Estudiante: ${desEstudiante}`, y, { size: 7.2, lineHeight: 3.8 });
 
       const assignedTasks = taskBuckets[mIdx];
       if (assignedTasks && assignedTasks.length > 0) {
@@ -2613,6 +2625,17 @@ async function drawMission(
           y = drawPdfWorkbookElement(doc, el, margin, mainW, pageHeight, y, checkSpace);
         }
       }
+
+      // ── Cierre (10 min) ──
+      y = drawSectionHeader(doc, 'Cierre (10 min)', margin, mainW, y, pageHeight, SECTION_COLORS.cierre, checkSpace, '[ REGISTRAR ]');
+      const cierreDocente = sMeta.evaluation
+        ? `Monitoreo del avance: ${sMeta.evaluation}. Retroalimentación formativa inmediata.`
+        : 'Moderación de cierre y síntesis de la sesión.';
+      const cierreEstudiante = sMeta.evidence
+        ? `Registro de avance sobre "${sMeta.evidence}" y revisión de dudas críticas.`
+        : 'Presentación de evidencias y autoevaluación formativa.';
+      y = flow.printMainParagraph(`Docente: ${cierreDocente}`, y, { size: 7.2, lineHeight: 3.8 });
+      y = flow.printMainParagraph(`Estudiante: ${cierreEstudiante}`, y, { size: 7.2, lineHeight: 3.8 });
     }
   }
 

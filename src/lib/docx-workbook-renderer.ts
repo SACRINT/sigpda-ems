@@ -125,6 +125,8 @@ const SECTION_HEX = {
   resiliencia: '800020',// Guinda
   checkpoint: '059669', // Esmeralda (#059669)
   evaluacion: '059669', // Esmeralda (#059669)
+  apertura: '1B6B8A',
+  cierre: '6B3A1B',
 };
 
 const PAGE_W = 12240;   // Carta en DXA (8.5in * 1440)
@@ -2132,7 +2134,7 @@ function getSessionMetaFromSequence(
   blockIndex?: number,
   fallbackPhase: string = 'Desarrollo',
   fallbackTitle: string = ''
-): { phase: string; title: string; teachingActivity?: string; learningActivity?: string } {
+): { phase: string; title: string; teachingActivity?: string; learningActivity?: string; evidence?: string; evaluation?: string } {
   if (sequenceJson && typeof sequenceJson === 'object') {
     let targetBlock: SecuenciaBloque | undefined;
     if (blockIndex !== undefined && sequenceJson[blockIndex]) {
@@ -2150,6 +2152,8 @@ function getSessionMetaFromSequence(
           title: match.title || fallbackTitle,
           teachingActivity: match.teachingActivity,
           learningActivity: match.learningActivity,
+          evidence: match.evidence,
+          evaluation: match.evaluation,
         };
       }
     }
@@ -3676,17 +3680,21 @@ async function buildMissionContent(
       );
       desarrolloMain.push(buildDocxSessionDivider(sNum, sMeta.phase, getPhaseColorHex(sMeta.phase), 50, sMeta.title));
 
-      if (sMeta.teachingActivity || sMeta.learningActivity) {
-        desarrolloMain.push(
-          new Paragraph({
-            spacing: { before: SECTION_GAP_BEFORE, ...PARA_SPACING },
-            children: [
-              new TextRun({ text: `Consigna de Aprendizaje: `, bold: true, size: 21, color: C.midBlue, font: 'Calibri' }),
-              new TextRun({ text: sMeta.learningActivity || sMeta.teachingActivity || '', size: 21, color: C.darkText, font: 'Calibri' }),
-            ],
-          })
-        );
-      }
+      // Apertura
+      desarrolloMain.push(
+        sectionGap(),
+        buildDocxSectionHeader('⏱️ Apertura (10 min)', SECTION_HEX.apertura, '[CONECTAR]', desarrolloW),
+        new Paragraph({ spacing: { ...PARA_SPACING }, children: [ new TextRun({ text: 'Docente: ', bold: true, size: 21 }), new TextRun({ text: `Activación focalizada: conectar la sesión anterior con el reto "${sMeta.title}".`, size: 21 }) ] }),
+        new Paragraph({ spacing: { ...PARA_SPACING }, children: [ new TextRun({ text: 'Estudiante: ', bold: true, size: 21 }), new TextRun({ text: sMeta.learningActivity || 'Recuperar insumos previos y organizar la mesa de trabajo.', size: 21 }) ] }),
+      );
+
+      // Desarrollo
+      desarrolloMain.push(
+        sectionGap(),
+        buildDocxSectionHeader('📖 Desarrollo (30 min)', SECTION_HEX.hacemos, '[PRÁCTICA]', desarrolloW),
+        new Paragraph({ spacing: { ...PARA_SPACING }, children: [ new TextRun({ text: 'Docente: ', bold: true, size: 21 }), new TextRun({ text: sMeta.teachingActivity || 'Monitoreo y orientación de la práctica en equipo.', size: 21 }) ] }),
+        new Paragraph({ spacing: { ...PARA_SPACING }, children: [ new TextRun({ text: 'Estudiante: ', bold: true, size: 21 }), new TextRun({ text: sMeta.learningActivity || 'Desarrollo de la práctica colaborativa.', size: 21 }) ] }),
+      );
 
       const assignedTasks = taskBuckets[mIdx];
       if (assignedTasks && assignedTasks.length > 0) {
@@ -3704,6 +3712,14 @@ async function buildMissionContent(
           desarrolloMain.push(...renderWorkbookElement(el));
         }
       }
+
+      // Cierre
+      desarrolloMain.push(
+        sectionGap(),
+        buildDocxSectionHeader('✅ Cierre (10 min)', SECTION_HEX.cierre, '[REGISTRAR]', desarrolloW),
+        new Paragraph({ spacing: { ...PARA_SPACING }, children: [ new TextRun({ text: 'Docente: ', bold: true, size: 21 }), new TextRun({ text: sMeta.evaluation ? `Monitoreo del avance: ${sMeta.evaluation}. Retroalimentación formativa inmediata.` : 'Moderación de cierre y síntesis de la sesión.', size: 21 }) ] }),
+        new Paragraph({ spacing: { ...PARA_SPACING }, children: [ new TextRun({ text: 'Estudiante: ', bold: true, size: 21 }), new TextRun({ text: sMeta.evidence ? `Registro de avance sobre "${sMeta.evidence}" y revisión de dudas críticas.` : 'Presentación de evidencias y autoevaluación formativa.', size: 21 }) ] }),
+      );
     }
   }
 
