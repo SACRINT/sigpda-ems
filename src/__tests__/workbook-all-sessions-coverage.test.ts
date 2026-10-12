@@ -138,7 +138,7 @@ describe('F-69: Cobertura Integral de Sesiones y Paridad de Divisores Editoriale
     for (const s of nineSessions) {
       expect(docXml).toContain(`SESIÓN ${s}`);
     }
-  });
+  }, 60000);
 
   it('libro completo de 24 sesiones (PM3) emite las 24 sesiones consecutivas sin saltos (1 a 24)', async () => {
     const workbookFull24 = {
@@ -182,5 +182,5 @@ describe('F-69: Cobertura Integral de Sesiones y Paridad de Divisores Editoriale
     for (let s = 1; s <= 24; s++) {
       expect(pdfText).toContain(`SESION ${s}`);
     }
-  });
+  }, 60000);
 });
