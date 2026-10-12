@@ -2095,12 +2095,12 @@ function buildDocxSectionHeader(
             width: { size: targetWidth, type: WidthType.DXA },
             shading: { fill, type: ShadingType.CLEAR },
             borders: {
-              top: { style: BorderStyle.NONE },
-              bottom: { style: BorderStyle.SINGLE, size: 24, color: darkenHex(fill) },
-              left: { style: BorderStyle.SINGLE, size: 36, color: darkenHex(fill) },
-              right: { style: BorderStyle.NONE },
+              top: { style: BorderStyle.SINGLE, size: 12, color: darkenHex(fill) },
+              bottom: { style: BorderStyle.SINGLE, size: 12, color: darkenHex(fill) },
+              left: { style: BorderStyle.SINGLE, size: 18, color: darkenHex(fill) },
+              right: { style: BorderStyle.SINGLE, size: 12, color: darkenHex(fill) },
             },
-            margins: { top: 110, bottom: 110, left: 200, right: 180 },
+            margins: { top: 140, bottom: 140, left: 220, right: 220 },
             children: [
               new Paragraph({
                 spacing: { before: 40, after: 40 },
