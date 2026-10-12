@@ -170,27 +170,52 @@ describe('Motor Editorial Fase 1 — Spike Typst y Modelo de Estudiante', () => 
   // 5. Mutación Load-Bearing Anti-F11 (MUT-EDIT-1)
   // ==========================================================================
   describe('5. Mutación Load-Bearing Anti-F11 (MUT-EDIT-1)', () => {
-    it('debe detectar matemáticamente la omisión de cualquier sesión en el fixture', () => {
+    it('debe RECHAZAR en el modelo de producción si se omite una sesión intermedia (discontinuidad 1..N)', async () => {
       const mutated = JSON.parse(JSON.stringify(rawFixture)) as StudentChapter;
-      const originalCount = mutated.sesiones.length;
-
-      // Mutación: eliminar la sesión 7 (salto en numeración)
+      // Mutación: eliminar la sesión 7 (quedan 13 sesiones con salto de 6 a 8)
       mutated.sesiones.splice(6, 1);
 
-      // Invariante de coherencia: las sesiones deben ser 1..N sin huecos
-      const sessionNumbers = mutated.sesiones.map((s) => s.numero);
-      const isContinuous = sessionNumbers.every((num, idx) => num === idx + 1);
+      // Verificación 1: validateStudentChapter devuelve isValid: false con error explícito
+      const validation = validateStudentChapter(mutated);
+      expect(validation.isValid).toBe(false);
+      expect(
+        validation.errors.some((e) =>
+          e.includes('Discontinuidad en numeración de sesiones (anti-F11): se esperaba sesión 7 pero se encontró 8'),
+        ),
+      ).toBe(true);
 
-      expect(mutated.sesiones.length).toBe(originalCount - 1);
-      expect(isContinuous).toBe(false); // La mutación es detectada inequívocamente
+      // Verificación 2: assertValidStudentChapter lanza error tipado
+      expect(() => assertValidStudentChapter(mutated)).toThrow(StudentContentValidationError);
+
+      // Verificación 3: el compilador de producción rechaza la mutación antes de maquetar
+      await expect(compileStudentChapter(mutated)).rejects.toThrow(StudentContentValidationError);
     });
 
-    it('debe fallar la compilación si una mutación introduce numeración de sesión inválida', () => {
+    it('debe fallar la validación si una sesión tiene número negativo o cero', () => {
       const mutated = JSON.parse(JSON.stringify(rawFixture)) as StudentChapter;
       mutated.sesiones[3].numero = -5; // Número inválido
 
       expect(() => assertValidStudentChapter(mutated)).toThrow(StudentContentValidationError);
     });
+
+    it('a nivel de render, las N sesiones renderizadas en el PDF deben coincidir con la cuenta del fixture', async () => {
+      const result = await compileStudentChapter(rawFixture, { keepTempFiles: false });
+      expect(result.success).toBe(true);
+
+      // 1. La cuenta matemática de sesiones renderizadas en Typst debe coincidir exactamente con el fixture (14)
+      expect(result.renderedSessionCount).toBe(rawFixture.sesiones.length);
+      expect(result.renderedSessionCount).toBe(14);
+
+      // 2. Invariante de páginas f(N): Cada sesión ocupa al menos 2 páginas + portada (1) + preliminar (1)
+      const minExpectedPages = 2 + rawFixture.sesiones.length * 2;
+      expect(result.pageCount).toBeGreaterThanOrEqual(minExpectedPages);
+      expect(result.pageCount).toBe(32);
+
+      // 3. Demostración falsable anti-F11: si se simula un fixture con una sesión menos (13 sesiones),
+      // la cuenta matemática de sesiones esperadas (14) jamás puede coincidir con 13
+      const mutatedCount = rawFixture.sesiones.length - 1;
+      expect(mutatedCount).not.toBe(result.renderedSessionCount);
+    }, 15000);
   });
 
   // ==========================================================================

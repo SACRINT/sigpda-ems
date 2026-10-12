@@ -33,6 +33,7 @@ export interface TypstCompileResult {
   pdfBuffer: Buffer;
   durationMs: number;
   pageCount: number;
+  renderedSessionCount?: number;
   sha256: string;
   binaryVersion: string;
   stdout?: string;
@@ -268,7 +269,29 @@ export async function compileStudentChapter(
       rootDir: repoRoot,
       workDir: tempDir,
     });
-    return result;
+
+    let renderedSessionCount: number | undefined;
+    try {
+      const binary = resolveTypstBinary(options.binaryPath);
+      const { stdout: queryOut } = await execFileAsync(binary, [
+        'query',
+        '--root',
+        repoRoot,
+        typPath,
+        '<rendered-session>',
+      ]);
+      const parsed = JSON.parse(queryOut);
+      if (Array.isArray(parsed)) {
+        renderedSessionCount = parsed.length;
+      }
+    } catch {
+      // Fallback tolerante si la consulta no está soportada
+    }
+
+    return {
+      ...result,
+      renderedSessionCount,
+    };
   } finally {
     if (!options.keepTempFiles) {
       await fs.promises.unlink(jsonPath).catch(() => {});

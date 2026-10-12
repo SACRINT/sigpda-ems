@@ -238,6 +238,7 @@
 // Renderizado de Sesión Individual
 // ============================================================================
 #let render-session-item(s, chapter) = [
+  #metadata((sessionNum: s.numero, title: s.titulo)) <rendered-session>
   // Encabezado de Sesión (Full Width)
   #block(
     fill: c-primary,

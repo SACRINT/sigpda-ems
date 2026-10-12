@@ -146,6 +146,19 @@ export const StudentChapterSchema = z.object({
   subsecretaria: z.string().optional(),
   editorialSubtitle: z.string().optional(),
   sesiones: z.array(StudentSessionSchema).min(1, 'El capítulo debe contener sesiones'),
+}).superRefine((chapter, ctx) => {
+  // Invariante Load-Bearing anti-F11: continuidad estricta 1..N sin omisiones ni desorden
+  for (let i = 0; i < chapter.sesiones.length; i++) {
+    const s = chapter.sesiones[i];
+    const expectedNum = i + 1;
+    if (s.numero !== expectedNum) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Discontinuidad en numeración de sesiones (anti-F11): se esperaba sesión ${expectedNum} pero se encontró ${s.numero}`,
+        path: ['sesiones', i, 'numero'],
+      });
+    }
+  }
 });
 
 // ============================================================================
