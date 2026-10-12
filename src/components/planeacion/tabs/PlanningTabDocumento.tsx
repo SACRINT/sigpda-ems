@@ -760,6 +760,23 @@ export default function PlanningTabDocumento({
                                 Calidad: {wbItem.workbook.qualityScore}/100
                               </span>
                             )}
+
+                            {wbItem?.workbook?.planningAlignment !== undefined && (
+                              <span
+                                style={{
+                                  fontSize: '11px',
+                                  fontWeight: 700,
+                                  padding: '2px 7px',
+                                  borderRadius: '12px',
+                                  background: wbItem.workbook.planningAlignment.pass ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                                  color: wbItem.workbook.planningAlignment.pass ? '#34d399' : '#fbbf24',
+                                  border: `1px solid ${wbItem.workbook.planningAlignment.pass ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
+                                }}
+                                title={wbItem.workbook.planningAlignment.summary}
+                              >
+                                Alineación: {wbItem.workbook.planningAlignment.score}/100
+                              </span>
+                            )}
                           </div>
 
                           <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#94a3b8', lineHeight: 1.4 }}>
