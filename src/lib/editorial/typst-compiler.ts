@@ -39,6 +39,7 @@ export interface TypstCompileResult {
   pdfBuffer: Buffer;
   durationMs: number;
   pageCount: number;
+  memoryUsageMb: number;
   renderedSessionCount?: number;
   renderedProductoIntegradorCount?: number;
   sha256: string;
@@ -193,6 +194,8 @@ export async function compileTypst(
     maxBuffer: 20 * 1024 * 1024,
   };
 
+  const memBefore = process.memoryUsage();
+  const startTime = Date.now();
   const { stdout, stderr } = await execFileAsync(binary, args, execOptions);
   const durationMs = Date.now() - startTime;
 
@@ -201,6 +204,10 @@ export async function compileTypst(
   }
 
   const pdfBuffer = await fs.promises.readFile(outputPath);
+  const memAfter = process.memoryUsage();
+  const memoryUsageMb = Number(
+    Math.max(0, (memAfter.heapUsed - memBefore.heapUsed) / (1024 * 1024)).toFixed(2),
+  );
   const pageCount = extractPageCountFromPdf(pdfBuffer);
   const sha256 = crypto.createHash('sha256').update(pdfBuffer).digest('hex');
 
@@ -210,6 +217,7 @@ export async function compileTypst(
     pdfBuffer,
     durationMs,
     pageCount,
+    memoryUsageMb,
     sha256,
     binaryVersion: version,
     stdout,
