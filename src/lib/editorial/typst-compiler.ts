@@ -8,12 +8,18 @@
  * - Soporta resolución automática de binario en Windows (WinGet / User PATH) y Linux (Docker / Contenedor).
  * - Extrae métricas de tiempo de compilación (ms), páginas y consumo de memoria.
  * - Soporta paso de `--root` para resolución de assets estáticos (/public/images/materiales).
+ * - Temp files: almacena por defecto en `os.tmpdir()` para compatibilidad estricta con
+ *   sistemas de archivos read-only en entornos serverless (Vercel Serverless / Lambda).
+ * - Determinismo de fuentes (H-04): Determinismo de hash SHA-256 es exacto por máquina con
+ *   fijación de época. Entre sistemas operativos (Windows vs Linux) la tipografía 'Arial' puede
+ *   variar si no está instalada en el SO anfitrión; Fase 2 embeberá tipografía canónica con `--font-path`.
  */
 
 import { execFile, spawnSync } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 import * as crypto from 'crypto';
 import { StudentChapter, assertValidStudentChapter } from './student-content-model';
 
@@ -218,7 +224,7 @@ export async function compileTypstSource(
   outputPath?: string,
   options: TypstCompileOptions = {},
 ): Promise<TypstCompileResult> {
-  const tempDir = options.workDir || path.join(process.cwd(), 'src', '__tests__', 'scratch_editorial');
+  const tempDir = options.workDir || path.join(os.tmpdir(), 'sigpda_editorial_scratch');
   await fs.promises.mkdir(tempDir, { recursive: true });
 
   const runId = crypto.randomUUID();
@@ -259,7 +265,7 @@ export async function compileStudentChapter(
     throw new Error(`Plantilla de Typst no encontrada en '${templatePath}'`);
   }
 
-  const tempDir = options.workDir || path.join(repoRoot, 'src', '__tests__', 'scratch_editorial');
+  const tempDir = options.workDir || path.join(os.tmpdir(), 'sigpda_editorial_scratch');
   await fs.promises.mkdir(tempDir, { recursive: true });
 
   const runId = crypto.randomBytes(8).toString('hex');
@@ -267,13 +273,17 @@ export async function compileStudentChapter(
   const typPath = path.join(tempDir, `entry-${runId}.typ`);
   const outPdfPath = options.outputPath || path.join(tempDir, `chapter-${runId}.pdf`);
 
-  // Serialización normalizada y determinista del JSON
-  const jsonContent = JSON.stringify(chapter, null, 2);
-  await fs.promises.writeFile(jsonPath, jsonContent, 'utf8');
+  // Raíz de proyecto para Typst: contiene tanto tempDir como repoRoot
+  const effectiveRootDir = options.rootDir || path.parse(repoRoot).root;
 
-  // Rutas relativas a rootDir requeridas por Typst con bandera --root
-  const rootRelativeTemplate = '/' + path.relative(repoRoot, templatePath).replace(/\\/g, '/');
-  const rootRelativeJson = '/' + path.relative(repoRoot, jsonPath).replace(/\\/g, '/');
+  // Rutas relativas a effectiveRootDir requeridas por Typst con bandera --root
+  const rootRelativeTemplate = '/' + path.relative(effectiveRootDir, templatePath).replace(/\\/g, '/');
+  const rootRelativeJson = '/' + path.relative(effectiveRootDir, jsonPath).replace(/\\/g, '/');
+  const assetsRoot = '/' + path.relative(effectiveRootDir, path.join(repoRoot, 'public')).replace(/\\/g, '/');
+
+  // Serialización normalizada y determinista del JSON
+  const jsonContent = JSON.stringify({ ...chapter, assetsRoot }, null, 2);
+  await fs.promises.writeFile(jsonPath, jsonContent, 'utf8');
 
   const entryTypSource = `
 #import "${rootRelativeTemplate}": render-student-chapter
@@ -287,7 +297,7 @@ export async function compileStudentChapter(
   try {
     const result = await compileTypst(typPath, outPdfPath, {
       ...options,
-      rootDir: repoRoot,
+      rootDir: effectiveRootDir,
       workDir: tempDir,
     });
 
@@ -297,7 +307,7 @@ export async function compileStudentChapter(
       const { stdout: queryOut } = await execFileAsync(binary, [
         'query',
         '--root',
-        repoRoot,
+        effectiveRootDir,
         typPath,
         '<rendered-session>',
       ]);

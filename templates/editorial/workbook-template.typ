@@ -361,7 +361,7 @@
       // Barra Marginal: Spot Didáctico + Glosario + Recursos
       #if "materialSpot" in s and s.materialSpot != none [
         #marginal-spot-figure(
-          "/public/images/materiales/" + s.materialSpot.archivo,
+          (if "assetsRoot" in chapter and chapter.assetsRoot != none { chapter.assetsRoot } else { "/public" }) + "/images/materiales/" + s.materialSpot.archivo,
           if "pie" in s.materialSpot and s.materialSpot.pie != none { s.materialSpot.pie } else { s.materialSpot.nombre }
         )
       ]
@@ -486,6 +486,10 @@
     }
   )
 
+  // Tipografía editorial institucional
+  // Nota H-04: Arial garantiza métricas limpias y compilación sin advertencias en Windows.
+  // En Linux/Docker/Vercel sin Arial instalada, Typst recurre a fuentes del sistema, lo cual
+  // altera métricas y hash byte-a-byte. En Fase 2 se embeberán fuentes canónicas vía --font-path.
   #set text(
     font: "Arial",
     size: 9pt,
