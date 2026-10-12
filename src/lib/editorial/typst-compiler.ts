@@ -195,7 +195,6 @@ export async function compileTypst(
   };
 
   const memBefore = process.memoryUsage();
-  const startTime = Date.now();
   const { stdout, stderr } = await execFileAsync(binary, args, execOptions);
   const durationMs = Date.now() - startTime;
 

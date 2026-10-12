@@ -149,6 +149,10 @@ describe('Motor Editorial Fase 1 — Spike Typst y Modelo de Estudiante', () => 
 
       // Requisito 3: Hash SHA-256 no vacío
       expect(result.sha256).toMatch(/^[a-f0-9]{64}$/);
+
+      // Requisito 4: Consumo de memoria acotado (< 50 MB RAM por corrida)
+      expect(result.memoryUsageMb).toBeDefined();
+      expect(result.memoryUsageMb).toBeLessThan(50);
     }, 15000);
   });
 
