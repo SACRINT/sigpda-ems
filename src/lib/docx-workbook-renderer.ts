@@ -272,37 +272,9 @@ export async function renderWorkbookToDocx(
 
   const usedOpenverseAssets: ImageAsset[] = [];
 
-  // ── 1. Portada Editorial Personalizada (Fase V2 & V5) ───────────────────────────
-  let coverBuffer = options.coverBuffer;
-  if (!coverBuffer) {
-    const coverRes = await generateBookCover(coverOpts).catch((e) => {
-      logger.warn('[docx-workbook-renderer] Error generando portada editorial:', { error: e, planningId: planning?.id });
-      return null;
-    });
-    if (coverRes?.buffer) {
-      coverBuffer = coverRes.buffer;
-    }
-  }
-
+  // ── 1. Portada Editorial Personalizada (Texto Nativo Editable) ───────────────
   const coverSectionChildren: (Paragraph | Table)[] = [];
-  if (coverBuffer) {
-    // Ajuste 1: fit-inside de 1200x1600 (ratio 0.75) dentro de carta 816x1056 -> 792x1056 px (0% deformación)
-    coverSectionChildren.push(
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        spacing: { before: 0, after: 0 },
-        children: [
-          new ImageRun({
-            data: coverBuffer,
-            transformation: { width: 792, height: 1056 },
-            type: 'jpg',
-          }),
-        ],
-      })
-    );
-  } else {
-    coverSectionChildren.push(...buildCoverSection(workbook, planning));
-  }
+  coverSectionChildren.push(...buildCoverSection(workbook, planning));
 
   // ── 2. Páginas Preliminares (Mi Plantel + TOC) (Fase V4 & V5) ─────────────
   const preliminaryChildren: (Paragraph | Table)[] = [];
@@ -392,13 +364,11 @@ export async function renderWorkbookToDocx(
 
   const docSections: ISectionOptions[] = [];
 
-  // Sección 1: Portada (Márgenes en 0, sin encabezado, sin pie)
+  // Sección 1: Portada (Texto nativo editable, sin encabezado, sin pie)
   docSections.push({
     properties: {
       page: {
-        margin: coverBuffer
-          ? { top: 0, bottom: 0, left: 0, right: 0 }
-          : { top: MARGIN, bottom: MARGIN, left: MARGIN, right: MARGIN },
+        margin: { top: MARGIN, bottom: MARGIN, left: MARGIN, right: MARGIN },
       },
     },
     headers: {},
@@ -543,7 +513,7 @@ function buildCoverSection(workbook: ActiveWorkTextbook, planning?: Planning): P
   return [
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { before: 300, after: 100 },
+      spacing: { before: 200, after: 60 },
       children: [
         new TextRun({
           text: 'SECRETARÍA DE EDUCACIÓN PÚBLICA DE PUEBLA',
@@ -556,7 +526,7 @@ function buildCoverSection(workbook: ActiveWorkTextbook, planning?: Planning): P
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { after: 300 },
+      spacing: { after: 180 },
       children: [
         new TextRun({
           text: 'DIRECCIÓN DE EDUCACIÓN MEDIA SUPERIOR',
@@ -569,7 +539,7 @@ function buildCoverSection(workbook: ActiveWorkTextbook, planning?: Planning): P
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { before: 200, after: 100 },
+      spacing: { before: 120, after: 60 },
       children: [
         new TextRun({
           text: cover.schoolName || 'Bachillerato del Estado de Puebla',
@@ -582,7 +552,7 @@ function buildCoverSection(workbook: ActiveWorkTextbook, planning?: Planning): P
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { after: 400 },
+      spacing: { after: 200 },
       children: [
         new TextRun({
           text: `Clave C.C.T.: ${cover.cct || '21ECT0017T'} | Subsistema: ${(stripMarkdown(stripWorkbookTags(workbook.subsystem)) || 'BGE').toUpperCase()}`,
@@ -594,12 +564,12 @@ function buildCoverSection(workbook: ActiveWorkTextbook, planning?: Planning): P
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { before: 400, after: 150 },
+      spacing: { before: 240, after: 80 },
       children: [
         new TextRun({
           text: (cover.title || workbook.blockName || 'CUADERNO DE APRENDIZAJE ACTIVO').toUpperCase(),
           bold: true,
-          size: 36, // 18pt
+          size: 34, // 17pt
           color: C.navy,
           font: 'Arial',
         }),
@@ -607,12 +577,12 @@ function buildCoverSection(workbook: ActiveWorkTextbook, planning?: Planning): P
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { after: 300 },
+      spacing: { after: 180 },
       children: [
         new TextRun({
           text: cover.subtitle || `Bloque Formativo: ${workbook.blockName || ''}`,
           italics: true,
-          size: 24, // 12pt
+          size: 22, // 11pt
           color: C.gold,
           font: 'Arial',
         }),
@@ -620,23 +590,11 @@ function buildCoverSection(workbook: ActiveWorkTextbook, planning?: Planning): P
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { before: 300, after: 100 },
+      spacing: { before: 160, after: 60 },
       children: [
         new TextRun({
           text: `Unidad de Aprendizaje Curricular (UAC): ${cover.subjectName}`,
           bold: true,
-          size: 24,
-          color: C.darkText,
-          font: 'Calibri',
-        }),
-      ],
-    }),
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 300 },
-      children: [
-        new TextRun({
-          text: `Semestre: ${cover.semester}° Semestre | Bloque de Aprendizaje: ${cover.blockNumber}`,
           size: 22,
           color: C.darkText,
           font: 'Calibri',
@@ -645,7 +603,19 @@ function buildCoverSection(workbook: ActiveWorkTextbook, planning?: Planning): P
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { before: 300, after: 100 },
+      spacing: { after: 160 },
+      children: [
+        new TextRun({
+          text: `Semestre: ${cover.semester}° Semestre | Bloque de Aprendizaje: ${cover.blockNumber}`,
+          size: 20,
+          color: C.darkText,
+          font: 'Calibri',
+        }),
+      ],
+    }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 160, after: 60 },
       children: [
         new TextRun({
           text: `Proyecto Comunitario PAEC:`,
@@ -658,7 +628,7 @@ function buildCoverSection(workbook: ActiveWorkTextbook, planning?: Planning): P
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { after: 400 },
+      spacing: { after: 200 },
       children: [
         new TextRun({
           text: cover.paecProjectName || 'Impacto social y productivo en la comunidad escolar',
@@ -671,7 +641,7 @@ function buildCoverSection(workbook: ActiveWorkTextbook, planning?: Planning): P
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { before: 400, after: 100 },
+      spacing: { before: 200, after: 80 },
       children: [
         new TextRun({
           text: `Docente Titular: ${cover?.teacherName || planning?.contentJson?.sectionI?.teacherName || 'Docente Titular'}`,
@@ -684,7 +654,7 @@ function buildCoverSection(workbook: ActiveWorkTextbook, planning?: Planning): P
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { before: 300, after: 200 },
+      spacing: { before: 180, after: 100 },
       children: [
         new TextRun({
           text: 'Nombre del Estudiante: ____________________________________________________',
@@ -697,7 +667,7 @@ function buildCoverSection(workbook: ActiveWorkTextbook, planning?: Planning): P
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { after: 200 },
+      spacing: { after: 100 },
       children: [
         new TextRun({
           text: `Grupo: _________   Turno: _________   Ciclo Escolar: ${SCHOOL_YEAR}`,
