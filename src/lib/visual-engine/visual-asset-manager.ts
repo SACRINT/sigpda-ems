@@ -163,15 +163,19 @@ export async function resolveVisualForMission(
             (existing.imageUrl && options.usedAssetIds.has(existing.imageUrl))
           );
           if (!isDuplicate) {
-            if (options.usedAssetIds) {
-              if (existing.externalId) options.usedAssetIds.add(existing.externalId);
-              if (existing.imageUrl) options.usedAssetIds.add(existing.imageUrl);
+            const testUrl = existing.thumbnailUrl || existing.imageUrl;
+            const testImg = testUrl ? await downloadAndProcessImage(testUrl) : null;
+            if (testImg) {
+              if (options.usedAssetIds) {
+                if (existing.externalId) options.usedAssetIds.add(existing.externalId);
+                if (existing.imageUrl) options.usedAssetIds.add(existing.imageUrl);
+              }
+              return {
+                type: 'openverse_media',
+                mediaAsset: existing,
+                caption: existing.caption,
+              };
             }
-            return {
-              type: 'openverse_media',
-              mediaAsset: existing,
-              caption: existing.caption,
-            };
           }
         }
       }

@@ -718,7 +718,7 @@ export function drawEquipmentCardWidget(
 ): number {
   const { detected, imageBuffer, imageFormat = 'JPEG', sideXAbs, sideW, startY, sideBottom } = opts;
   const availH = sideBottom - startY;
-  if (availH < 38) return startY;
+  if (availH < 28) return startY;
 
   // Medir textos completos para dimensionar la tarjeta dinámicamente y prevenir truncado / superposición
   doc.setFontSize(6.2);
@@ -733,7 +733,7 @@ export function drawEquipmentCardWidget(
   const headerH = 6.0;
   const imgAreaH = imageBuffer ? 26.5 : 2.0;
   const neededCardH = headerH + imgAreaH + nameH + 1.5 + descH + 3.0;
-  const cardH = Math.min(availH - 2, Math.max(neededCardH, 42));
+  const cardH = Math.min(availH - 2, Math.max(neededCardH, 26));
   const sy = startY;
 
   // Fondo de tarjeta con esquinas redondeadas
@@ -781,8 +781,8 @@ export function drawEquipmentCardWidget(
     } catch {
       curY = sy + headerH + 2;
     }
-  } else if (availableForImg >= 8) {
-    const scaledImgH = Math.min(baseImgH, Math.max(8, availableForImg));
+  } else if (availableForImg >= 6) {
+    const scaledImgH = Math.min(baseImgH, Math.max(6, availableForImg));
     const scaledImgW = baseImgW * (scaledImgH / baseImgH);
     const imgBox: BoundingBox = {
       x: sideXAbs + (sideW - scaledImgW) / 2,

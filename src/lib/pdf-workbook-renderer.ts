@@ -377,7 +377,8 @@ export async function renderWorkbookToPdf(
       pageContextMap,
       workbook.blockName,
       assignedAssetKeys,
-      planning?.sequenceJson || (planning as unknown as { sequence_json?: Record<number, SecuenciaBloque> })?.sequence_json
+      planning?.sequenceJson || (planning as unknown as { sequence_json?: Record<number, SecuenciaBloque> })?.sequence_json,
+      planning
     );
   }
 
@@ -1952,7 +1953,8 @@ async function drawMission(
   pageContextMap?: Map<number, PageContext>,
   blockName?: string,
   assignedAssetKeys?: Set<string>,
-  sequenceJson?: Record<number, SecuenciaBloque> | null
+  sequenceJson?: Record<number, SecuenciaBloque> | null,
+  planning?: Planning
 ): Promise<number> {
   let y = startY;
 
@@ -2289,7 +2291,8 @@ async function drawMission(
   }
 
   // ── 2.1 Gráfico Conceptual STEM o Fotografía Situacional ─────────────────
-  if (subjectName) {
+  const effSubject = subjectName || planning?.uacName;
+  if (effSubject) {
     const contextText = [
       mission.phenomenonHook?.story,
       mission.phenomenonHook?.detonatingQuestion,
@@ -2301,7 +2304,7 @@ async function drawMission(
       mission.youDoSection?.autonomousChallenge,
     ].filter(Boolean).join('\n\n');
 
-    const subjectIsStem = isStemSubject(subjectName);
+    const subjectIsStem = isStemSubject(effSubject);
 
     if (subjectIsStem) {
       // ── RAMA STEM: Siempre gráfica vectorial matemática/científica ──────────
@@ -2309,7 +2312,7 @@ async function drawMission(
       // NO bloqueamos la gráfica conceptual con el blueprint de equipo.
       const resolvedVisual = await resolveVisualForMission({
         planningId,
-        uacName: subjectName,
+        uacName: effSubject,
         blockIndex: blockIndex ?? 0,
         missionIndex: missionNumber,
         missionTitle: mission.title,
@@ -2363,7 +2366,7 @@ async function drawMission(
       // Si la resolución primaria (PNG de material o SVG) falló o no existe,
       // dispatchVisual garantiza una representación matemática/científica 100% offline.
       if (!stemVisualRendered) {
-        const vectorResult = dispatchVisual(subjectName, mission.title, contextText, missionNumber);
+        const vectorResult = dispatchVisual(effSubject, mission.title, contextText, missionNumber);
         if (vectorResult) {
           const imgResult = await svgToPngBuffer(vectorResult.svg);
           if (imgResult) {
@@ -2404,7 +2407,7 @@ async function drawMission(
       // ── RAMA NO-STEM (fallback): Openverse o vector genérico ────────────────
       const resolvedVisual = await resolveVisualForMission({
         planningId,
-        uacName: subjectName,
+        uacName: effSubject,
         blockIndex: blockIndex ?? 0,
         missionIndex: missionNumber,
         missionTitle: mission.title,
@@ -2431,7 +2434,7 @@ async function drawMission(
             y += (captionLines.length * 3.2) + 3.5;
           } else {
             // Fallback sintético determinístico Capa 0 si el asset PNG de material no se pudo leer
-            const vectorResult = dispatchVisual(subjectName, mission.title, contextText, missionNumber);
+            const vectorResult = dispatchVisual(effSubject, mission.title, contextText, missionNumber);
             if (vectorResult) {
               const imgResult = await svgToPngBuffer(vectorResult.svg);
               if (imgResult) {
@@ -2493,6 +2496,30 @@ async function drawMission(
             const captionLines = doc.splitTextToSize(resolvedVisual.caption, mainW * 0.88);
             doc.text(captionLines, margin + mainW / 2, y, { align: 'center' });
             y += (captionLines.length * 3.2) + 4;
+          } else {
+            // Fallback sintético determinístico Capa 0 cuando falla la descarga de Openverse
+            const vectorResult = dispatchVisual(effSubject, mission.title, contextText, missionNumber);
+            if (vectorResult) {
+              const fallbackImg = await svgToPngBuffer(vectorResult.svg);
+              if (fallbackImg) {
+                const imgW = Math.min(mainW * 0.92, 124);
+                const imgH = imgW * 0.68;
+                y = checkSpace(y, imgH + 16);
+                const imgX = margin + (mainW - imgW) / 2;
+                addMainFlowImage(fallbackImg.buffer, fallbackImg.format, imgX, y, imgW, imgH);
+                if (vectorResult.annotations && vectorResult.annotations.length > 0) {
+                  drawVisualAnnotations(doc, vectorResult.annotations, imgX, y, imgW, imgH);
+                }
+                y += imgH + 3.5;
+                setFontCaption(doc);
+                doc.setFontSize(7.5);
+                doc.setTextColor(...MUTED_TEXT);
+                const fallbackCaption = `Figura M${missionNumber}.1 — Representación gráfica conceptual y espacio de tabulación guiada`;
+                const captionLines = doc.splitTextToSize(fallbackCaption, mainW * 0.88);
+                doc.text(captionLines, margin + mainW / 2, y, { align: 'center' });
+                y += (captionLines.length * 3.2) + 3.5;
+              }
+            }
           }
         }
       }
