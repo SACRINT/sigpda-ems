@@ -2461,6 +2461,61 @@ function extractTaskStrings(rawText: string, defaultTaskCount: number = 3): stri
   return tasks;
 }
 
+/**
+ * Convierte texto multipárrafo (separado por \n\n) en párrafos DOCX individuales
+ * con espaciado editorial, en paridad con parseParagraphs del PDF (printMainParagraph).
+ * Protege "Paso N:", listas numeradas y viñetas forzando salto de párrafo antes.
+ */
+function buildDocxBodyParagraphs(
+  rawText: string | null | undefined,
+  options: {
+    size?: number;
+    color?: string;
+    font?: string;
+    alignment?: (typeof AlignmentType)[keyof typeof AlignmentType];
+    line?: number;
+    after?: number;
+    before?: number;
+  } = {}
+): Paragraph[] {
+  const cleanText = stripMarkdown(rawText || '');
+  if (!cleanText) return [];
+
+  const {
+    size = 22,
+    color = C.darkText,
+    font = 'Calibri',
+    alignment = AlignmentType.JUSTIFIED,
+    line = 360,
+    after = 200,
+    before = 0,
+  } = options;
+
+  // Proteger inicios de paso/lista/viñeta forzando salto de párrafo (paridad PDF parseParagraphs)
+  const protectedText = cleanText
+    .replace(/(?:^|\n|\.\s+)(Paso\s+\d+\s*[:\-])/gi, '\n\n$1')
+    .replace(/(?:^|\n)(\d+[\.\)]\s+)/g, '\n\n$1')
+    .replace(/(?:^|\n)([•\-\*]\s+)/g, '\n\n$1');
+
+  const rawParagraphs = protectedText
+    .split(/\r?\n\r?\n/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  return rawParagraphs.map(
+    (p, idx) =>
+      new Paragraph({
+        alignment,
+        spacing: {
+          before: idx === 0 ? before : 0,
+          after,
+          line,
+        },
+        children: [new TextRun({ text: p, size, color, font })],
+      })
+  );
+}
+
 function buildDocxSingleTask(
   taskText: string,
   taskIdx: number,
@@ -3093,13 +3148,14 @@ export function buildDocxConceptCardsGrid(cards: ConceptCardItem[], targetWidth:
         }
       }
 
-      // 3. Título
+      // 3. Título (con fondo suave de acento, paridad con las barras de título del PDF)
       cellChildren.push(
         new Paragraph({
           spacing: { before: 20, after: 40 },
+          shading: { fill: 'EEF2FF', type: ShadingType.CLEAR },
           children: [
             new TextRun({
-              text: card.title || 'Concepto Clave',
+              text: ` ${card.title || 'Concepto Clave'}`,
               bold: true,
               size: 20,
               color: CONCEPT_CARDS_DOCX.titleText,
@@ -3507,18 +3563,8 @@ async function buildMissionContent(
   aperturaMain.push(
     sectionGap(),
     buildDocxSectionHeader('📖 1. Enganche y Desafío Situado en la Comunidad', SECTION_HEX.enganche, '[SITUACIÓN REAL]', aperturaW),
-    new Paragraph({
-      alignment: AlignmentType.JUSTIFIED,
-      spacing: { before: 100, ...PARA_SPACING }, // 1.5 line spacing + 8pt
-      children: [
-        new TextRun({
-          text: stripMarkdown(mission.phenomenonHook.story),
-          size: 22,
-          color: C.darkText,
-          font: 'Calibri',
-        }),
-      ],
-    }),
+    // Texto multipárrafo dividido en párrafos individuales con espaciado (paridad PDF parseParagraphs)
+    ...buildDocxBodyParagraphs(mission.phenomenonHook.story, { before: 100, after: 200 }),
     new Paragraph({
       spacing: { before: 100, after: 250 },
       children: [
@@ -3563,35 +3609,15 @@ async function buildMissionContent(
           }),
         ],
       }),
-      new Paragraph({
-        alignment: AlignmentType.JUSTIFIED,
-        spacing: { after: 250, line: 360 },
-        children: [
-          new TextRun({
-            text: stripMarkdown(mission.conceptZero.coreExplanation),
-            size: 22,
-            color: C.darkText,
-            font: 'Calibri',
-          }),
-        ],
-      })
+      // coreExplanation multipárrafo dividido con espaciado (paridad PDF)
+      ...buildDocxBodyParagraphs(mission.conceptZero.coreExplanation, { after: 250 })
     );
   }
 
   if (mission.conceptZero.narrativeExplanation) {
     aperturaMain.push(
-      new Paragraph({
-        alignment: AlignmentType.JUSTIFIED,
-        spacing: { after: 200, line: 360 },
-        children: [
-          new TextRun({
-            text: mission.conceptZero.narrativeExplanation,
-            size: 22,
-            color: C.darkText,
-            font: 'Calibri',
-          }),
-        ],
-      })
+      // narrativeExplanation multipárrafo dividido con espaciado (paridad PDF)
+      ...buildDocxBodyParagraphs(mission.conceptZero.narrativeExplanation, { after: 200 })
     );
   }
 
@@ -3909,19 +3935,9 @@ async function buildMissionContent(
   if (labSteps.length >= 3) {
     desarrolloMain.push(buildDocxStepCardGrid(labSteps, desarrolloW));
   } else {
+    // stepByStepDemo multipárrafo dividido con espaciado (paridad PDF parseParagraphs)
     desarrolloMain.push(
-      new Paragraph({
-        alignment: AlignmentType.JUSTIFIED,
-        spacing: { before: 100, after: 200, line: 360 },
-        children: [
-          new TextRun({
-            text: stripMarkdown(mission.iDoSection.stepByStepDemo),
-            size: 22,
-            color: C.darkText,
-            font: 'Calibri',
-          }),
-        ],
-      })
+      ...buildDocxBodyParagraphs(mission.iDoSection.stepByStepDemo, { before: 100, after: 200 })
     );
   }
 
@@ -3980,16 +3996,20 @@ async function buildMissionContent(
       );
       desarrolloMain.push(buildDocxSessionDivider(sNum, sMeta.phase, getPhaseColorHex(sMeta.phase), 50, sMeta.title));
 
-      // Apertura (sin encabezado literal)
+      // Contexto de la misión para enriquecer el scaffold de sesiones intermedias
+      const missionCtx = (mission.sessionTopic || mission.sessionFocus || mission.title || '').replace(/\s+/g, ' ').trim();
+      const ctxFragment = missionCtx ? `del tema "${missionCtx}"` : 'de la misión';
+
+      // Apertura (sin encabezado literal) — contextual y variada por sesión
       desarrolloMain.push(
-        new Paragraph({ spacing: { ...PARA_SPACING, after: 80 }, children: [ new TextRun({ text: 'Docente: ', bold: true, size: 21 }), new TextRun({ text: `Activación focalizada: conectar la sesión anterior con el reto "${sMeta.title}".`, size: 21 }) ] }),
-        new Paragraph({ spacing: { ...PARA_SPACING, after: 160 }, children: [ new TextRun({ text: 'Estudiante: ', bold: true, size: 21 }), new TextRun({ text: 'Recuperar insumos previos y organizar la mesa de trabajo.', size: 21 }) ] }),
+        new Paragraph({ spacing: { ...PARA_SPACING, after: 80 }, children: [ new TextRun({ text: 'Docente: ', bold: true, size: 21 }), new TextRun({ text: `Activación situada (Sesión ${sNum}): recuperar los avances de la sesión ${sNum - 1}, revisar brevemente el reto ${ctxFragment} y plantear la meta de trabajo de hoy.`, size: 21 }) ] }),
+        new Paragraph({ spacing: { ...PARA_SPACING, after: 160 }, children: [ new TextRun({ text: 'Estudiante: ', bold: true, size: 21 }), new TextRun({ text: `Traer su cuaderno y materiales previos; en equipo, resumir en 2 minutos lo avanzado y leer la consigna de la Sesión ${sNum}.`, size: 21 }) ] }),
       );
 
-      // Desarrollo
+      // Desarrollo — usa teachingActivity/learningActivity de la secuencia si existen; si no, contexto rico
       desarrolloMain.push(
-        new Paragraph({ spacing: { ...PARA_SPACING, after: 80 }, children: [ new TextRun({ text: 'Docente: ', bold: true, size: 21 }), new TextRun({ text: sMeta.teachingActivity || 'Monitoreo y orientación de la práctica en equipo.', size: 21 }) ] }),
-        new Paragraph({ spacing: { ...PARA_SPACING, after: 160 }, children: [ new TextRun({ text: 'Estudiante: ', bold: true, size: 21 }), new TextRun({ text: sMeta.learningActivity || 'Desarrollo de la práctica colaborativa.', size: 21 }) ] }),
+        new Paragraph({ spacing: { ...PARA_SPACING, after: 80 }, children: [ new TextRun({ text: 'Docente: ', bold: true, size: 21 }), new TextRun({ text: sMeta.teachingActivity || `Acompañamiento situado (Sesión ${sNum}): circular entre equipos, orientar la aplicación ${ctxFragment}, resolver dudas de procedimiento y registrar observaciones para la retroalimentación.`, size: 21 }) ] }),
+        new Paragraph({ spacing: { ...PARA_SPACING, after: 160 }, children: [ new TextRun({ text: 'Estudiante: ', bold: true, size: 21 }), new TextRun({ text: sMeta.learningActivity || `Avanzar en la práctica colaborativa ${ctxFragment}, documentar procedimiento y evidencias en el cuaderno, y compartir avances con su equipo de trabajo.`, size: 21 }) ] }),
       );
 
       const assignedTasks = taskBuckets[mIdx];
@@ -4011,8 +4031,8 @@ async function buildMissionContent(
 
       // Cierre (sin encabezado literal)
       desarrolloMain.push(
-        new Paragraph({ spacing: { ...PARA_SPACING, before: 160, after: 80 }, children: [ new TextRun({ text: 'Docente: ', bold: true, size: 21 }), new TextRun({ text: sMeta.evaluation ? `Monitoreo del avance: ${sMeta.evaluation}. Retroalimentación formativa inmediata.` : 'Moderación de cierre y síntesis de la sesión.', size: 21 }) ] }),
-        new Paragraph({ spacing: { ...PARA_SPACING }, children: [ new TextRun({ text: 'Estudiante: ', bold: true, size: 21 }), new TextRun({ text: sMeta.evidence ? `Registro de avance sobre "${sMeta.evidence}" y revisión de dudas críticas.` : 'Presentación de evidencias y autoevaluación formativa.', size: 21 }) ] }),
+        new Paragraph({ spacing: { ...PARA_SPACING, before: 160, after: 80 }, children: [ new TextRun({ text: 'Docente: ', bold: true, size: 21 }), new TextRun({ text: sMeta.evaluation ? `Monitoreo del avance: ${sMeta.evaluation}. Retroalimentación formativa inmediata.` : `Cierre de la Sesión ${sNum}: socializar avances breves por equipo, aclarar dudas críticas y anticipar la conexión con la siguiente sesión.`, size: 21 }) ] }),
+        new Paragraph({ spacing: { ...PARA_SPACING }, children: [ new TextRun({ text: 'Estudiante: ', bold: true, size: 21 }), new TextRun({ text: sMeta.evidence ? `Registro de avance sobre "${sMeta.evidence}" y revisión de dudas críticas.` : `Presentar evidencias de la sesión, autoevaluarse con la rúbrica y registrar pendientes para el trabajo colaborativo.`, size: 21 }) ] }),
       );
     }
   }

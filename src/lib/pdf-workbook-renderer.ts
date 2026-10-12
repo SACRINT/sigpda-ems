@@ -2624,16 +2624,18 @@ async function drawMission(
       });
 
       // ── Apertura (sin encabezado literal: la estructura se da por el contenido) ──
-      const aperturaDocente = `Activación focalizada: conectar la sesión anterior con el reto "${sMeta.title}".`;
-      const aperturaEstudiante = 'Recuperar insumos previos y organizar la mesa de trabajo.';
+      const missionCtx = (mission.sessionTopic || mission.sessionFocus || mission.title || '').replace(/\s+/g, ' ').trim();
+      const ctxFragment = missionCtx ? `del tema "${missionCtx}"` : 'de la misión';
+      const aperturaDocente = `Activación situada (Sesión ${sNum}): recuperar los avances de la sesión ${sNum - 1}, revisar brevemente el reto ${ctxFragment} y plantear la meta de trabajo de hoy.`;
+      const aperturaEstudiante = `Traer su cuaderno y materiales previos; en equipo, resumir en 2 minutos lo avanzado y leer la consigna de la Sesión ${sNum}.`;
       y = flow.printMainParagraph(`Docente: ${aperturaDocente}`, y, { size: 7.2, lineHeight: 3.8 });
       y = flow.printMainParagraph(`Estudiante: ${aperturaEstudiante}`, y, { size: 7.2, lineHeight: 3.8 });
       y += 4;
 
       // ── Desarrollo ──
-      const desDocente = sMeta.teachingActivity || 'Monitoreo y orientación de la práctica en equipo.';
+      const desDocente = sMeta.teachingActivity || `Acompañamiento situado (Sesión ${sNum}): circular entre equipos, orientar la aplicación ${ctxFragment}, resolver dudas de procedimiento y registrar observaciones para la retroalimentación.`;
       y = flow.printMainParagraph(`Docente: ${desDocente}`, y, { size: 7.2, lineHeight: 3.8 });
-      const desEstudiante = sMeta.learningActivity || 'Desarrollo de la práctica colaborativa.';
+      const desEstudiante = sMeta.learningActivity || `Avanzar en la práctica colaborativa ${ctxFragment}, documentar procedimiento y evidencias en el cuaderno, y compartir avances con su equipo de trabajo.`;
       y = flow.printMainParagraph(`Estudiante: ${desEstudiante}`, y, { size: 7.2, lineHeight: 3.8 });
 
       const assignedTasks = taskBuckets[mIdx];
@@ -2657,10 +2659,10 @@ async function drawMission(
       y += 4;
       const cierreDocente = sMeta.evaluation
         ? `Monitoreo del avance: ${sMeta.evaluation}. Retroalimentación formativa inmediata.`
-        : 'Moderación de cierre y síntesis de la sesión.';
+        : `Cierre de la Sesión ${sNum}: socializar avances breves por equipo, aclarar dudas críticas y anticipar la conexión con la siguiente sesión.`;
       const cierreEstudiante = sMeta.evidence
         ? `Registro de avance sobre "${sMeta.evidence}" y revisión de dudas críticas.`
-        : 'Presentación de evidencias y autoevaluación formativa.';
+        : `Presentar evidencias de la sesión, autoevaluarse con la rúbrica y registrar pendientes para el trabajo colaborativo.`;
       y = flow.printMainParagraph(`Docente: ${cierreDocente}`, y, { size: 7.2, lineHeight: 3.8 });
       y = flow.printMainParagraph(`Estudiante: ${cierreEstudiante}`, y, { size: 7.2, lineHeight: 3.8 });
     }
