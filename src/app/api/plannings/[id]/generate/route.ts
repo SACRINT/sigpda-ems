@@ -188,6 +188,13 @@ export async function POST(
             } else if (existingSectionI?.paecOperationalActivity) {
               parsedContent.sectionI.paecOperationalActivity = existingSectionI.paecOperationalActivity;
             }
+            if (!parsedContent.sectionI.teacherName) {
+              if (context.teacherName) {
+                parsedContent.sectionI.teacherName = context.teacherName;
+              } else if (typeof existingSectionI?.teacherName === 'string') {
+                parsedContent.sectionI.teacherName = existingSectionI.teacherName;
+              }
+            }
 
             await updatePlanningContent(id, teacher.id, parsedContent);
 
