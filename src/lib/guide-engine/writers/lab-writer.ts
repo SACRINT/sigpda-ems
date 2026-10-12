@@ -35,7 +35,10 @@ BASE DE CONOCIMIENTO (SEMILLA CANÓNICA PRE-VALIDADA):
 - Errores comunes: ${input.canonicalSeed.content.commonErrors?.map((e) => e.symptom).join('; ') || 'Ninguno'}`;
   }
 
-  const planningAlignmentChunk = buildPlanningAlignmentPrompt(input.planningActivities, 'lab');
+  const planningAlignmentChunk = buildPlanningAlignmentPrompt(input.planningActivities, 'lab') +
+  (input.alignmentDirective ? ` 
+ALINEACION DURA — TERMINOS OBLIGATORIOS DE LA PLANEACION (reproduce su redaccion original en tu seccion): ` + input.alignmentDirective + ` 
+ ` : '');
 
   // NOTA DE DISEÑO (F-06): materialsList de manuales no se tokeniza; los renderers strippan defensivamente.
   const systemInstruction = `Eres AUTOR DE LIBRO DE TEXTO práctico para estudiantes de Bachillerato en Puebla (MCCEMS), especialista en laboratorio y taller.
@@ -55,7 +58,7 @@ DIRECTIVAS TÉCNICAS Y METAS DE EXTENSIÓN:
 3. Tabla de datos vacía: Encabezados descriptivos con <!--workbook:table:cols=Parámetro,Teórico,Medición 1,Medición 2,Error,Unidad-->.
 4. Código o protocolo experimental (800 a 1,500 palabras): Bloques de código reales y comentados en BT; protocolo experimental exhaustivo en BGE.
 5. Reto autónomo ("Tú Haces" - 350 a 600 palabras): EXACTAMENTE 5 a 7 PASOS NUMERADOS con variables cuantitativas y vinculación PAEC: "${input.paecContext}". OBLIGATORIO: anclar cada paso a una aplicación real en la vida diaria del estudiante o su comunidad en Puebla (no ejercicios abstractos); el estudiante debe percibir para qué le sirve en la práctica.
-6. Contenido por sesión para el ESTUDIANTE (OBLIGATORIA — genera un "plan" por cada sesión asignada): Para CADA sesión de "Sesiones asignadas" genera un objeto en "sessionPlans". Cada objeto es material que el estudiante LEE para aprender solo. Incluye: (a) objetivo ("Lo que vas a aprender", 1-2 frases en tú); (b) motivacion (caso real de la comunidad o PAEC contado al estudiante); (c) saberesPrevios (qué ya sabe); (d) contenido (LA TEORÍA REAL: definiciones, fórmulas, procedimiento explicado — varios párrafos, no 1-2 frases); (e) ejemploResuelto (ejemplo con NÚMEROS paso a paso); (f) practica (2-3 ejercicios concretos con datos, cada uno con su "pista" hint; NO la solución completa); (g) aplicacion (tarea a la vida real); (h) autoevaluacion (2-3 preguntas de autorevisión); (i) recursos (1-2 enlaces reales a video YouTube o web de ampliación); (j) productoIntegrador (qué agrega el estudiante a su proyecto hoy). Los planes deben VARIAR entre sesiones y ser específicos del contexto PAEC/comunidad. VOZ DE ESTUDIANTE en todo.
+6. Contenido por sesión para el ESTUDIANTE (OBLIGATORIA — genera un "plan" por cada sesión asignada): Para CADA sesión de "Sesiones asignadas" genera un objeto en "sessionPlans". Cada objeto es material que el estudiante LEE para aprender solo. Incluye: (a) objetivo ("Lo que vas a aprender", 1-2 frases en tú); (b) motivacion (caso real de la comunidad o PAEC contado al estudiante); (c) saberesPrevios (qué ya sabe); (d) contenido (LA TEORÍA REAL: definiciones, fórmulas, procedimiento explicado — varios párrafos, no 1-2 frases); (e) ejemploResuelto (ejemplo con NÚMEROS paso a paso); (f) practica (2-3 ejercicios concretos con datos; cada uno con "pista" hint para empezar Y "solucion" con 3-6 pasos numerados que resuelven el ejercicio con números — la "solucion" SOLO la lee el solucionario docente, el libro del estudiante solo imprime enunciado y pista); (g) aplicacion (tarea a la vida real); (h) autoevaluacion (2-3 preguntas de autorevisión); (i) recursos (1-2 enlaces reales a video YouTube o web de ampliación); (j) productoIntegrador (qué agrega el estudiante a su proyecto hoy). Los planes deben VARIAR entre sesiones y ser específicos del contexto PAEC/comunidad. VOZ DE ESTUDIANTE en todo.
 7. Preguntas y Casos de Error: 4-6 preguntas analíticas amplias y al menos 3 casos de fallo (Síntoma → Causa → Solución → Prevención).
 8. Sintaxis JSON: Usa comillas simples ('...') en código/citas. Cero comillas dobles sin escapar dentro de valores JSON.
 
@@ -89,8 +92,8 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
       "contenido": "TEORÍA REAL: definiciones, fórmulas, procedimiento (varios párrafos)...",
       "ejemploResuelto": "Ejemplo con números resuelto paso a paso...",
       "practica": [
-        { "enunciado": "Ejercicio 1 con datos concretos", "pista": "Pista de cómo empezar (sin solución)" },
-        { "enunciado": "Ejercicio 2 con datos concretos", "pista": "Pista de cómo empezar (sin solución)" }
+        { "enunciado": "Ejercicio 1 con datos concretos", "pista": "Pista de cómo empezar (sin solución)", "solucion": ["Paso 1: sustituir los datos medidos...", "Paso 2: operar y despejar...", "Respuesta final: ..."] },
+        { "enunciado": "Ejercicio 2 con datos concretos", "pista": "Pista de cómo empezar (sin solución)", "solucion": ["Paso 1: ...", "Respuesta final: ..."] }
       ],
       "aplicacion": "Aplicación a la vida real del estudiante...",
       "autoevaluacion": ["¿Puedo explicar el procedimiento?", "¿Logré la práctica sin mirar?"],

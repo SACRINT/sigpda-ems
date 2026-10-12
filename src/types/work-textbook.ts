@@ -151,6 +151,12 @@ export interface RecursoItem {
 export interface PracticaItem {
   enunciado: string;
   pista: string;
+  /**
+   * Solución modelo en pasos numerados — SOLO para el solucionario docente.
+   * Los renderers del libro del estudiante (DOCX/PDF) NUNCA deben leer este
+   * campo: la garantía se valida en `src/__tests__/student-teacher-parity.test.ts`.
+   */
+  solucion?: string[];
 }
 
 /**
@@ -267,7 +273,16 @@ export interface ActiveWorkTextbook {
   totalWords: number;
   generatedAt: string;
   qualityScore: number;           // 0 - 100
-  qualityWarning: boolean;        // true si se usó fallback de calidad
+  qualityWarning: boolean;        // true si se us� fallback de calidad
+  /**
+   * Resultado de la alineación DURA planeación ↔ libro (Fase 8.5 del orquestador).
+   * Determinista, 0 tokens. `pass=false` fuerza `qualityWarning=true`.
+   */
+  planningAlignment?: {
+    score: number;
+    pass: boolean;
+    summary: string;
+  };
   coverData: {
     title: string;
     subtitle: string;

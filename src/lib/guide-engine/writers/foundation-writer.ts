@@ -25,7 +25,10 @@ export async function generateFoundationMission(input: WriterInput): Promise<Wri
   const missionTitle = foundationMission ? foundationMission.title : `Misión 1: Fundamentación e Intuición`;
 
   const approach = input.subsystem === 'bt' ? 'estándar industrial y tecnológico' : 'indagación científica y dialógica';
-  const planningAlignmentChunk = buildPlanningAlignmentPrompt(input.planningActivities, 'foundation');
+  const planningAlignmentChunk = buildPlanningAlignmentPrompt(input.planningActivities, 'foundation') +
+  (input.alignmentDirective ? ` 
+ALINEACION DURA — TERMINOS OBLIGATORIOS DE LA PLANEACION (reproduce su redaccion original en tu seccion): ` + input.alignmentDirective + ` 
+ ` : '');
 
   const systemInstruction = `Eres AUTOR DE LIBRO DE TEXTO para estudiantes de Educación Media Superior en México (estilo Santillana/Pearson), especialista en Pedagogía y en el modelo de Finlandia (Phenomenon-Based Learning).
 Tu tarea es redactar la primera misión formativa ("Misión 1: Fundamentación e Intuición - Concepto Cero") de un LIBRO PARA EL ESTUDIANTE, NO una guía para el docente: el estudiante debe poder aprender SOLO, leyendo el libro, sin que el maestro esté presente.
@@ -53,7 +56,7 @@ REGLAS DE PROFUNDIDAD Y CUADERNO ACTIVO:
    (c) saberesPrevios: qué ya sabe el estudiante que conecta con esto;
    (d) contenido: LA TEORÍA REAL de la sesión — definiciones, fórmulas, explicación paso a paso (varios párrafos, con tecnicismos explicados). Es el corazón del libro; NO resumas en 1-2 frases, explica de verdad como un libro de texto;
    (e) ejemploResuelto: un ejemplo con NÚMEROS resuelto paso a paso (enunciado + procedimiento);
-   (f) practica: 2-3 ejercicios concretos con datos, cada uno con su "pista" (hint de cómo empezar; NO la solución completa);
+   (f) practica: 2-3 ejercicios concretos con datos; cada uno con "pista" (hint de cómo empezar) y "solucion" (3-6 pasos numerados que resuelven el ejercicio con números concretos; SOLO la lee el solucionario docente — el libro del estudiante imprime únicamente enunciado y pista);
    (g) aplicacion: tarea aplicada a la vida real del estudiante;
    (h) autoevaluacion: 2-3 preguntas de autorevisión;
    (i) recursos: 1-2 enlaces reales a video (YouTube) o página web de ampliación (usa URLs verosímiles y relevantes);
@@ -86,8 +89,8 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
       "contenido": "TEORÍA REAL de la sesión: definiciones, fórmulas, explicación (varios párrafos)...",
       "ejemploResuelto": "Ejemplo con números resuelto paso a paso...",
       "practica": [
-        { "enunciado": "Ejercicio 1 con datos concretos", "pista": "Pista de cómo empezar (sin solución)" },
-        { "enunciado": "Ejercicio 2 con datos concretos", "pista": "Pista de cómo empezar (sin solución)" }
+        { "enunciado": "Ejercicio 1 con datos concretos", "pista": "Pista de cómo empezar (sin solución)", "solucion": ["Paso 1: sustituir datos en la fórmula...", "Paso 2: operar y despejar...", "Respuesta final: ..."] },
+        { "enunciado": "Ejercicio 2 con datos concretos", "pista": "Pista de cómo empezar (sin solución)", "solucion": ["Paso 1: ...", "Respuesta final: ..."] }
       ],
       "aplicacion": "Aplicación a la vida real del estudiante...",
       "autoevaluacion": ["¿Puedo explicar el concepto central?", "¿Logré la práctica sin mirar?"],

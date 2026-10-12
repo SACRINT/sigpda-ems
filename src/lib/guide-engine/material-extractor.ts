@@ -280,6 +280,16 @@ function buildPlanDeClase(
     }
   }
 
+  // Paridad plan de clase ↔ libro: si la sesión tiene sessionPlan, la actividad del
+  // estudiante refleja lo que realmente hará en el libro (teoría, ejemplo, práctica).
+  const bookPlan = mission.sessionPlans?.find((p) => p.sessionNumber === sessionNum);
+  if (bookPlan) {
+    const bookAct = `Libro del estudiante: estudia "${bookPlan.objetivo}" — lee la teoría y el ejemplo resuelto, resuelve ${bookPlan.practica.length} ejercicio(s) de práctica con pistas y registra tu evidencia.`;
+    desarrolloEstudiante = sessionFromSeq?.learningActivity
+      ? `${desarrolloEstudiante} ${bookAct}`
+      : bookAct;
+  }
+
   // Título pedagógico desacoplado
   const rawTitle = sessionFromSeq?.title;
   const tituloSesion = rawTitle
@@ -503,8 +513,34 @@ function buildSolucionarioDocenteMarkdown(workbook: ActiveWorkTextbook): string 
       parts.push('');
     }
 
-    // C. Práctica guiada y reto autónomo (STEM vs Humanidades)
-    parts.push(`#### C. Criterios de Acreditación y Solución del Reto ("Hacemos" y "Tú Haces")`);
+    // C. Paridad 1:1 con el libro del estudiante: cada sesión con sessionPlans
+    //    aporta EXACTAMENTE los ejercicios impresos en su bloque "Practica".
+    const sessionPlans = (mission.sessionPlans ?? [])
+      .slice()
+      .sort((a, b) => a.sessionNumber - b.sessionNumber);
+    if (sessionPlans.length > 0) {
+      parts.push(`#### C. Guía de Ejercicios Resueltos — MISMO ORDEN Y CONTENIDO QUE EL LIBRO DEL ESTUDIANTE`);
+      parts.push(`*Cada sesión lista exactamente los ejercicios impresos en la sección "Practica" del libro: mismo enunciado, misma pista visible y, en uso exclusivo docente, la solución modelo.*\n`);
+      for (const plan of sessionPlans) {
+        parts.push(`**Sesión ${plan.sessionNumber} — ${plan.objetivo}**`);
+        plan.practica.forEach((item, idx) => {
+          parts.push(`${idx + 1}. **${item.enunciado}**`);
+          if (item.pista) parts.push(`   - *Pista (visible en el libro):* ${item.pista}`);
+          if (item.solucion && item.solucion.length > 0) {
+            parts.push(`   - *Solución modelo (solo docente):*`);
+            item.solucion.forEach((step, sIdx) => parts.push(`     ${sIdx + 1}. ${step}`));
+          } else {
+            parts.push(`   - *Solución modelo:* modelar en el pizarrón siguiendo el ejemplo resuelto de la sesión y validar el procedimiento con el grupo.`);
+          }
+        });
+        parts.push('');
+      }
+    }
+
+    // C2. Práctica guiada y reto autónomo (STEM vs Humanidades)
+    parts.push(sessionPlans.length > 0
+      ? `#### C2. Criterios de Acreditación y Solución del Reto ("Hacemos" y "Tú Haces")`
+      : `#### C. Criterios de Acreditación y Solución del Reto ("Hacemos" y "Tú Haces")`);
     if (mission.weDoSection?.guidedPractice) {
       parts.push(`- **Práctica Guiada (En Equipo):** ${mission.weDoSection.guidedPractice}`);
     }

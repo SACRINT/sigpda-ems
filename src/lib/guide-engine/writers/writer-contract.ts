@@ -69,6 +69,11 @@ export interface WriterInput {
   targetWords: { min: number; ideal: number; max: number };
   /** Actividades de la planeación para alinear contenido de la guía */
   planningActivities?: PlanningActivities;
+  /**
+   * Términos faltantes detectados por la Fase 8.5 (alineación dura). Se inyecta
+   * textual en el prompt SOLO durante el reintento dirigido de alineación.
+   */
+  alignmentDirective?: string;
 }
 
 export interface WriterOutput {
@@ -182,6 +187,22 @@ export function sanitizeSessionPlans(
       .trim();
 
   const validPlans: SessionPlan[] = [];
+
+  // Solución modelo: material SOLO del solucionario docente. No se impone voz de
+  // estudiante (los pasos son procedimentales), pero se limpia ruido y se acota.
+  const sanitizeSolucion = (v: unknown): string[] => {
+    const arr = Array.isArray(v) ? v : typeof v === 'string' ? v.split(/\n+/) : [];
+    return arr
+      .map((s) =>
+        typeof s === 'string'
+          ? s.replace(/^\s*(docente|estudiante)\s*:\s*/gim, '').replace(/\s{2,}/g, ' ').trim()
+          : ''
+      )
+      .filter((s) => s.length >= 5)
+      .slice(0, 6)
+      .map((s) => (s.length > 400 ? `${s.slice(0, 397)}...` : s));
+  };
+
   for (const item of raw) {
     if (!item || typeof item !== 'object') continue;
     const rec = item as Record<string, unknown>;
@@ -200,7 +221,12 @@ export function sanitizeSessionPlans(
           const pr = p as Record<string, unknown>;
           const enunciado = toStudentVoice(asText(pr.enunciado ?? pr.texto ?? pr.tarea));
           if (enunciado.length < 10) return null;
-          return { enunciado, pista: asText(pr.pista ?? pr.hint ?? pr.pista_) };
+          const solucion = sanitizeSolucion(pr.solucion ?? pr.solution);
+          return {
+            enunciado,
+            pista: asText(pr.pista ?? pr.hint ?? pr.pista_),
+            ...(solucion.length > 0 ? { solucion } : {}),
+          };
         }
         return null;
       })
