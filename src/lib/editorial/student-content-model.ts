@@ -11,6 +11,7 @@
  */
 
 import { z } from 'zod';
+import type { SessionPlan } from '@/types/work-textbook';
 
 // ============================================================================
 // 1. Tipos e Interfaces Fundamentales
@@ -273,4 +274,168 @@ export function assertValidStudentChapter(chapter: unknown): asserts chapter is 
       result.errors,
     );
   }
+}
+
+// ============================================================================
+// 4. Adaptador Bidireccional OpenCode (SessionPlan <-> StudentSession) — H-03
+// ============================================================================
+
+/**
+ * Convierte un bloque de texto plano o markdown generado por los writers de OpenCode
+ * en bloques estructurados ContenidoBloque[] requeridos por el motor editorial Typst.
+ */
+export function parseContenidoToBloques(rawContenido: string): ContenidoBloque[] {
+  if (!rawContenido || typeof rawContenido !== 'string') {
+    return [{ tipo: 'parrafo', texto: '' }];
+  }
+
+  const rawParagraphs = rawContenido
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0);
+
+  if (rawParagraphs.length === 0) {
+    return [{ tipo: 'parrafo', texto: rawContenido.trim() }];
+  }
+
+  return rawParagraphs.map((parrafo) => {
+    // Detección de fórmulas en display o bloques matemáticos
+    if (/^\$\$[\s\S]+\$\$$/.test(parrafo) || /^\\\[[\s\S]+\\\]$/.test(parrafo)) {
+      const cleanMath = parrafo.replace(/^\$\$|^\$\$\$|\$\$$|\\\[|\\\]/g, '').trim();
+      return { tipo: 'formula', texto: cleanMath };
+    }
+
+    // Detección de definiciones formales
+    if (/^(definici[oó]n|concepto|propiedad)\b/i.test(parrafo)) {
+      const match = parrafo.match(/^(definici[oó]n|concepto|propiedad)\s*(?:[:\-–]\s*(.+?))?[:\-–]\s*(.+)$/i);
+      if (match) {
+        return {
+          tipo: 'definicion',
+          titulo: match[2]?.trim() || match[1]?.trim() || 'Definición Formal',
+          texto: match[3]?.trim() || parrafo,
+        };
+      }
+      return { tipo: 'definicion', titulo: 'Definición', texto: parrafo };
+    }
+
+    return { tipo: 'parrafo', texto: parrafo };
+  });
+}
+
+/**
+ * Convierte una cadena de ejemplo resuelto en el formato estructurado
+ * { enunciado: string, pasos: string[] } requerido por el motor editorial.
+ */
+export function parseEjemploResuelto(rawEjemplo: string): EjemploResuelto {
+  if (!rawEjemplo || typeof rawEjemplo !== 'string') {
+    return {
+      enunciado: 'Ejemplo resuelto de aplicación guiada.',
+      pasos: [
+        'Paso 1: Identificar los datos iniciales y aplicar la fórmula correspondiente.',
+        'Paso 2: Realizar los cálculos y validar el resultado final.',
+      ],
+    };
+  }
+
+  const lines = rawEjemplo.split(/\r?\n/).map((l) => l.trim()).filter((l) => l.length > 0);
+  const pasoRegex = /^(?:paso\s*\d+[:.\-]?|\d+[:.)\-]|[-*•])\s*(.+)$/i;
+
+  const pasos: string[] = [];
+  const enunciadoLines: string[] = [];
+
+  for (const line of lines) {
+    const match = line.match(pasoRegex);
+    if (match) {
+      pasos.push(match[1].trim());
+    } else if (pasos.length === 0) {
+      enunciadoLines.push(line);
+    } else {
+      pasos[pasos.length - 1] += ' ' + line;
+    }
+  }
+
+  const enunciado =
+    enunciadoLines.join(' ').trim() || (pasos.length > 0 ? pasos.shift()! : rawEjemplo.slice(0, 100));
+
+  if (pasos.length < 2) {
+    if (pasos.length === 1) {
+      pasos.push('Paso 2: Concluir y verificar el resultado con el contexto de la situación.');
+    } else {
+      pasos.push('Paso 1: Plantear la ecuación con los datos dados en el enunciado.');
+      pasos.push('Paso 2: Despejar y calcular la solución numérica requerida.');
+    }
+  }
+
+  return { enunciado, pasos };
+}
+
+/**
+ * Adapta un SessionPlan generado por los writers de OpenCode en una StudentSession
+ * compatible con el compilador editorial de Typst (Fase 3/5).
+ */
+export function adaptSessionPlanToStudentSession(
+  plan: SessionPlan,
+  tituloPersonalizado?: string,
+): StudentSession {
+  const contenido = parseContenidoToBloques(plan.contenido);
+  const ejemploResuelto = parseEjemploResuelto(plan.ejemploResuelto);
+
+  return {
+    numero: plan.sessionNumber,
+    titulo: tituloPersonalizado || `Sesión ${plan.sessionNumber}: ${plan.objetivo.slice(0, 60).replace(/[.:]+$/, '')}`,
+    objetivo: plan.objetivo,
+    motivacion: plan.motivacion,
+    saberesPrevios: plan.saberesPrevios,
+    contenido,
+    ejemploResuelto,
+    practica: plan.practica.map((p) => ({
+      enunciado: p.enunciado,
+      pista: p.pista,
+    })),
+    aplicacion: plan.aplicacion,
+    autoevaluacion: plan.autoevaluacion,
+    recursos: plan.recursos.map((r) => ({
+      titulo: r.titulo,
+      url: r.url,
+      tipo: (r.tipo === 'video' || r.tipo === 'web' || r.tipo === 'lectura' ? r.tipo : 'web') as
+        | 'video'
+        | 'web'
+        | 'lectura',
+    })),
+    productoIntegrador: plan.productoIntegrador,
+  };
+}
+
+/**
+ * Adapta una StudentSession del motor editorial a un SessionPlan para interoperabilidad bidireccional.
+ */
+export function adaptStudentSessionToSessionPlan(session: StudentSession): SessionPlan {
+  const contenidoStr = session.contenido
+    .map((b) => (b.titulo ? `${b.titulo}:\n${b.texto}` : b.texto))
+    .join('\n\n');
+
+  const ejemploStr = `${session.ejemploResuelto.enunciado}\n${session.ejemploResuelto.pasos
+    .map((p, i) => `Paso ${i + 1}: ${p}`)
+    .join('\n')}`;
+
+  return {
+    sessionNumber: session.numero,
+    objetivo: session.objetivo,
+    motivacion: session.motivacion,
+    saberesPrevios: session.saberesPrevios,
+    contenido: contenidoStr,
+    ejemploResuelto: ejemploStr,
+    practica: session.practica.map((p) => ({
+      enunciado: p.enunciado,
+      pista: p.pista,
+    })),
+    aplicacion: session.aplicacion,
+    autoevaluacion: session.autoevaluacion,
+    recursos: session.recursos.map((r) => ({
+      titulo: r.titulo,
+      url: r.url,
+      tipo: r.tipo,
+    })),
+    productoIntegrador: session.productoIntegrador || '',
+  };
 }

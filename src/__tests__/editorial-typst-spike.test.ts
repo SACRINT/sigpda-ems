@@ -27,6 +27,8 @@ import {
   validateStudentChapter,
   assertValidStudentChapter,
   StudentContentValidationError,
+  adaptSessionPlanToStudentSession,
+  adaptStudentSessionToSessionPlan,
 } from '@/lib/editorial/student-content-model';
 
 describe('Motor Editorial Fase 1 — Spike Typst y Modelo de Estudiante', () => {
@@ -238,6 +240,52 @@ describe('Motor Editorial Fase 1 — Spike Typst y Modelo de Estudiante', () => 
           }
         }
       }
+    });
+  });
+
+  // ==========================================================================
+  // 7. Adaptador Bidireccional OpenCode (SessionPlan <-> StudentSession) — H-03
+  // ==========================================================================
+  describe('7. Adaptador OpenCode (SessionPlan <-> StudentSession) (H-03)', () => {
+    it('debe adaptar un SessionPlan plano de OpenCode a una StudentSession estructurada y válida', () => {
+      const mockSessionPlan = {
+        sessionNumber: 3,
+        objetivo: 'Aprenderás a calcular la distancia entre dos puntos en el plano cartesiano.',
+        motivacion: 'Cuando se traza una red de agua potable en San Jerónimo Tecuanipan...',
+        saberesPrevios: 'Teorema de Pitágoras y plano cartesiano.',
+        contenido:
+          'Definición: La distancia euclidiana es la longitud del segmento de recta.\n\n$$d = \\sqrt{(x_2 - x_1)^2 + (y_2 - y_1)^2}$$\n\nEste cálculo permite dimensionar tuberías.',
+        ejemploResuelto:
+          'Calcula la distancia entre el pozo A(2, 3) y el tanque B(6, 6).\nPaso 1: Identificar las coordenadas de ambos puntos.\nPaso 2: Sustituir en la fórmula d = sqrt(16 + 9) = 5 metros.',
+        practica: [
+          { enunciado: 'Calcula la distancia entre P1(0, 0) y P2(3, 4).', pista: 'Usa el teorema de Pitágoras.' },
+        ],
+        aplicacion: 'Mide la distancia de tu casa a la escuela en el mapa.',
+        autoevaluacion: ['¿Puedo calcular distancias con la fórmula?'],
+        recursos: [
+          {
+            titulo: 'Video explicativo',
+            url: 'https://youtube.com/watch?v=ejemplo',
+            tipo: 'video' as const,
+          },
+        ],
+        productoIntegrador: 'Agregar el mapa de distancias al proyecto.',
+      };
+
+      const adapted = adaptSessionPlanToStudentSession(mockSessionPlan);
+      expect(adapted.numero).toBe(3);
+      expect(adapted.titulo).toContain('Sesión 3');
+      expect(adapted.contenido.length).toBeGreaterThanOrEqual(3);
+      expect(adapted.contenido[0].tipo).toBe('definicion');
+      expect(adapted.contenido[1].tipo).toBe('formula');
+      expect(adapted.ejemploResuelto.pasos.length).toBe(2);
+      expect(adapted.productoIntegrador).toBe(mockSessionPlan.productoIntegrador);
+
+      // Paridad bidireccional
+      const roundTrip = adaptStudentSessionToSessionPlan(adapted);
+      expect(roundTrip.sessionNumber).toBe(mockSessionPlan.sessionNumber);
+      expect(roundTrip.objetivo).toBe(mockSessionPlan.objetivo);
+      expect(roundTrip.productoIntegrador).toBe(mockSessionPlan.productoIntegrador);
     });
   });
 });
