@@ -17,6 +17,9 @@
  *   * Determinismo de fuentes cross-OS: Se embeberán tipografías abiertas canónicas (Liberation Sans / Inter,
  *     métricamente compatibles; Arial descartada por licencias propietarias en Linux) mediante `--font-path`.
  *   * En Fase 1 NO se construye contenedor Docker; el spike valida la compatibilidad CLI local y serverless.
+ *   * Medición de memoria (AUD-04 P2): `nodeHeapDeltaMb` reporta el heap asignado en el proceso padre Node.js.
+ *     La medición de RAM del binario Typst como child process (VmHWM / cgroups) queda explícitamente agendada
+ *     como TODO de Fase 2 en el worker container.
  */
 
 import { execFile, spawnSync } from 'child_process';
@@ -43,6 +46,13 @@ export interface TypstCompileResult {
   pdfBuffer: Buffer;
   durationMs: number;
   pageCount: number;
+  /**
+   * Delta de memoria heap asignada en el proceso padre Node.js durante la invocación y buffering de Typst.
+   * NOTA AUD-04 (P2): Typst corre como child process vía execFileAsync; la medición de RAM del proceso Typst
+   * en sí (VmHWM en Linux / cgroups) queda formalmente agendada como TODO de Fase 2 en el contenedor worker.
+   */
+  nodeHeapDeltaMb: number;
+  /** @deprecated Utilizar `nodeHeapDeltaMb`. Conservado por compatibilidad de contrato. */
   memoryUsageMb: number;
   renderedSessionCount?: number;
   renderedProductoIntegradorCount?: number;
@@ -208,7 +218,10 @@ export async function compileTypst(
 
   const pdfBuffer = await fs.promises.readFile(outputPath);
   const memAfter = process.memoryUsage();
-  const memoryUsageMb = Number(
+  // AUD-04 (P2): Mide el delta de heap del proceso padre Node.js.
+  // El binario Typst corre como child process desacoplado vía execFileAsync.
+  // TODO(Fase2): Medición de memoria pico del child process (VmHWM / cgroups) en worker container.
+  const nodeHeapDeltaMb = Number(
     Math.max(0, (memAfter.heapUsed - memBefore.heapUsed) / (1024 * 1024)).toFixed(2),
   );
   const pageCount = extractPageCountFromPdf(pdfBuffer);
@@ -220,7 +233,8 @@ export async function compileTypst(
     pdfBuffer,
     durationMs,
     pageCount,
-    memoryUsageMb,
+    nodeHeapDeltaMb,
+    memoryUsageMb: nodeHeapDeltaMb,
     sha256,
     binaryVersion: version,
     stdout,
