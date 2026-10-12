@@ -431,7 +431,7 @@ export async function resolveEquipmentVisualForMission(
         detected,
         sourceType: 'blueprint_svg',
         buffer: pngResult.buffer,
-        format: 'JPEG',
+        format: pngResult.format,
         caption: `Esquema técnico: ${detected.name} — ${detected.technicalRole}`,
         isHero: !options?.preferSidebar && detected.category === 'herramienta_taller',
       };

@@ -280,11 +280,11 @@ function renderSingleCard(
     curY = Math.max(curY, cardY + 3.5 + imgSize + 2);
   }
 
-  // 5. Descripción explicativa
+  // 5. Descripción explicativa (justificada)
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.8);
   doc.setTextColor(...CONCEPT_CARDS.descText);
-  doc.text(measured.descLines, cardX + 4, curY);
+  doc.text(measured.descLines, cardX + 4, curY, { align: 'justify', maxWidth: innerW });
   curY += measured.descLines.length * 3.1 + 2.0;
 
   // 6. Caja de ejemplo práctico si existe
@@ -302,7 +302,7 @@ function renderSingleCard(
 
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(...CONCEPT_CARDS.exampleText);
-    doc.text(measured.exampleLines, cardX + 6, curY + 5.4);
+    doc.text(measured.exampleLines, cardX + 6, curY + 5.4, { align: 'justify', maxWidth: innerW - 4 });
   }
 }
 

@@ -2623,15 +2623,14 @@ async function drawMission(
         y,
       });
 
-      // ── Apertura (10 min) ──
-      y = drawSectionHeader(doc, 'Apertura (10 min)', margin, mainW, y, pageHeight, SECTION_COLORS.apertura, checkSpace, '[ CONECTAR ]');
+      // ── Apertura (sin encabezado literal: la estructura se da por el contenido) ──
       const aperturaDocente = `Activación focalizada: conectar la sesión anterior con el reto "${sMeta.title}".`;
       const aperturaEstudiante = 'Recuperar insumos previos y organizar la mesa de trabajo.';
       y = flow.printMainParagraph(`Docente: ${aperturaDocente}`, y, { size: 7.2, lineHeight: 3.8 });
       y = flow.printMainParagraph(`Estudiante: ${aperturaEstudiante}`, y, { size: 7.2, lineHeight: 3.8 });
+      y += 4;
 
-      // ── Desarrollo (30 min) ──
-      y = drawSectionHeader(doc, 'Desarrollo (30 min)', margin, mainW, y, pageHeight, SECTION_COLORS.hacemos, checkSpace, '[ PRÁCTICA ]');
+      // ── Desarrollo ──
       const desDocente = sMeta.teachingActivity || 'Monitoreo y orientación de la práctica en equipo.';
       y = flow.printMainParagraph(`Docente: ${desDocente}`, y, { size: 7.2, lineHeight: 3.8 });
       const desEstudiante = sMeta.learningActivity || 'Desarrollo de la práctica colaborativa.';
@@ -2654,8 +2653,8 @@ async function drawMission(
         }
       }
 
-      // ── Cierre (10 min) ──
-      y = drawSectionHeader(doc, 'Cierre (10 min)', margin, mainW, y, pageHeight, SECTION_COLORS.cierre, checkSpace, '[ REGISTRAR ]');
+      // ── Cierre ──
+      y += 4;
       const cierreDocente = sMeta.evaluation
         ? `Monitoreo del avance: ${sMeta.evaluation}. Retroalimentación formativa inmediata.`
         : 'Moderación de cierre y síntesis de la sesión.';

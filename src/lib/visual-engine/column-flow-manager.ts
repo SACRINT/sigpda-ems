@@ -543,7 +543,7 @@ export class ColumnFlowManager {
             body: mdTable.rows,
             theme: 'grid',
             headStyles: { fillColor: COLOR.TABLE_HEADER_BG, textColor: [255, 255, 255], fontSize: 7, fontStyle: 'bold' },
-            styles: { fontSize: 6.8, cellPadding: 2, textColor: COLOR.TEXT_PRIMARY },
+            styles: { fontSize: 6.8, cellPadding: 2, textColor: COLOR.TEXT_PRIMARY, halign: 'justify' },
             didDrawPage: (data) => this.onAutoTablePage(data.pageNumber),
           });
           py = (this.doc as jsPDF & { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY ?? (py + 20);

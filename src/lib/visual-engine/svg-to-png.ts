@@ -12,18 +12,18 @@ import sharp from 'sharp';
 import { logger } from '@/lib/logger';
 
 /**
- * Convierte una cadena SVG a una imagen rasterizada optimizada para jsPDF.
- * Utiliza sharp con fondo blanco y compresión JPEG 85 a 180 DPI, produciendo
- * diagramas nítidos de ~25KB en vez de bitmaps sin comprimir de 12MB.
+ * Convierte una cadena SVG a una imagen rasterizada optimizada para PDF/DOCX.
+ * Utiliza sharp con fondo TRANSPARENTE (canal alfa) y compresión PNG, produciendo
+ * figuras vectoriales que se integran sin recuadro blanco sobre el papel.
  *
  * @param svgString Cadena de texto que contiene el marcado <svg>...</svg>
  * @param density Densidad de píxeles (DPI) (default: 180)
- * @returns Buffer JPEG listo para doc.addImage(), o null si falla.
+ * @returns Buffer PNG (con transparencia) listo para doc.addImage()/ImageRun, o null si falla.
  */
 export async function svgToPngBuffer(
   svgString: string,
   density = 180
-): Promise<{ buffer: Buffer; format: 'JPEG' } | null> {
+): Promise<{ buffer: Buffer; format: 'PNG' } | null> {
   try {
     if (!svgString || typeof svgString !== 'string') {
       return null;
@@ -33,12 +33,11 @@ export async function svgToPngBuffer(
       return null;
     }
 
-    const jpegBuffer = await sharp(Buffer.from(cleanSvg, 'utf8'), { density })
-      .flatten({ background: '#FFFFFF' })
-      .jpeg({ quality: 85 })
+    const pngBuffer = await sharp(Buffer.from(cleanSvg, 'utf8'), { density })
+      .png({ compressionLevel: 9 })
       .toBuffer();
 
-    return { buffer: jpegBuffer, format: 'JPEG' };
+    return { buffer: pngBuffer, format: 'PNG' };
   } catch (error) {
     logger.error('[VisualEngine] Error al convertir SVG a imagen con sharp:', error);
     return null;
