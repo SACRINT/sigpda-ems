@@ -10,9 +10,13 @@
  * - Soporta paso de `--root` para resolución de assets estáticos (/public/images/materiales).
  * - Temp files: almacena por defecto en `os.tmpdir()` para compatibilidad estricta con
  *   sistemas de archivos read-only en entornos serverless (Vercel Serverless / Lambda).
- * - Determinismo de fuentes (H-04): Determinismo de hash SHA-256 es exacto por máquina con
- *   fijación de época. Entre sistemas operativos (Windows vs Linux) la tipografía 'Arial' puede
- *   variar si no está instalada en el SO anfitrión; Fase 2 embeberá tipografía canónica con `--font-path`.
+ * - Arquitectura de Ejecución (§7.4): Decisión adoptada para Fase 2:
+ *   * Typst se ejecutará en un worker container dedicado (Fly Machines scale-to-zero) o microservicio Node/Linux.
+ *   * Vercel Serverless conserva exclusivamente UI/API, desacoplando la generación pesada.
+ *   * El PDF compilado por el worker se persistirá directamente en Vercel Blob Storage.
+ *   * Determinismo de fuentes cross-OS: Se embeberán tipografías abiertas canónicas (Liberation Sans / Inter,
+ *     métricamente compatibles; Arial descartada por licencias propietarias en Linux) mediante `--font-path`.
+ *   * En Fase 1 NO se construye contenedor Docker; el spike valida la compatibilidad CLI local y serverless.
  */
 
 import { execFile, spawnSync } from 'child_process';
