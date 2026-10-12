@@ -17,6 +17,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import {
   isTypstAvailable,
+  isTypstAvailableSync,
   getTypstVersion,
   resolveTypstBinary,
   compileStudentChapter,
@@ -29,6 +30,7 @@ import {
 } from '@/lib/editorial/student-content-model';
 
 describe('Motor Editorial Fase 1 — Spike Typst y Modelo de Estudiante', () => {
+  const hasTypst = isTypstAvailableSync();
   const fixturePath = path.join(
     process.cwd(),
     'src/__tests__/fixtures/editorial/student-workbook-chapter.fixture.json',
@@ -38,7 +40,7 @@ describe('Motor Editorial Fase 1 — Spike Typst y Modelo de Estudiante', () => 
   // ==========================================================================
   // 1. Binario Typst en el Entorno
   // ==========================================================================
-  describe('1. Resolución y Disponibilidad del Binario Typst', () => {
+  describe.skipIf(!hasTypst)('1. Resolución y Disponibilidad del Binario Typst', () => {
     it('debe resolver la ruta del ejecutable Typst en el sistema', () => {
       const binaryPath = resolveTypstBinary();
       expect(binaryPath).toBeDefined();
@@ -122,7 +124,7 @@ describe('Motor Editorial Fase 1 — Spike Typst y Modelo de Estudiante', () => 
   // ==========================================================================
   // 3. Compilación Editorial Typst (Rendimiento, Retícula y Páginas)
   // ==========================================================================
-  describe('3. Spike de Compilación Editorial con Typst', () => {
+  describe.skipIf(!hasTypst)('3. Spike de Compilación Editorial con Typst', () => {
     it('debe compilar un capítulo completo de >= 30 páginas en < 2 segundos de forma determinista', async () => {
       const startTime = Date.now();
       const result = await compileStudentChapter(rawFixture, {
@@ -149,7 +151,7 @@ describe('Motor Editorial Fase 1 — Spike Typst y Modelo de Estudiante', () => 
   // ==========================================================================
   // 4. Determinismo Estricto (SOURCE_DATE_EPOCH=0)
   // ==========================================================================
-  describe('4. Determinismo Estricto de Hash (SOURCE_DATE_EPOCH=0)', () => {
+  describe.skipIf(!hasTypst)('4. Determinismo Estricto de Hash (SOURCE_DATE_EPOCH=0)', () => {
     it('dos compilaciones independientes del mismo fixture deben producir un hash SHA-256 idéntico', async () => {
       const run1 = await compileStudentChapter(rawFixture, {
         sourceDateEpoch: 0,
@@ -198,7 +200,7 @@ describe('Motor Editorial Fase 1 — Spike Typst y Modelo de Estudiante', () => 
       expect(() => assertValidStudentChapter(mutated)).toThrow(StudentContentValidationError);
     });
 
-    it('a nivel de render, las N sesiones renderizadas en el PDF deben coincidir con la cuenta del fixture', async () => {
+    it.skipIf(!hasTypst)('a nivel de render, las N sesiones renderizadas en el PDF deben coincidir con la cuenta del fixture', async () => {
       const result = await compileStudentChapter(rawFixture, { keepTempFiles: false });
       expect(result.success).toBe(true);
 

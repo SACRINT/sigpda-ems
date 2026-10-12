@@ -10,7 +10,7 @@
  * - Soporta paso de `--root` para resolución de assets estáticos (/public/images/materiales).
  */
 
-import { execFile } from 'child_process';
+import { execFile, spawnSync } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -123,6 +123,27 @@ export async function isTypstAvailable(binaryPath?: string): Promise<boolean> {
   try {
     const version = await getTypstVersion(binaryPath);
     return version.toLowerCase().includes('typst');
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Verifica de forma sincrónica si Typst está instalado y ejecutable.
+ * Permite condicionar suites de tests mediante it.skipIf / describe.skipIf sin romper gates de CI.
+ */
+export function isTypstAvailableSync(binaryPath?: string): boolean {
+  try {
+    const bin = resolveTypstBinary(binaryPath);
+    const result = spawnSync(bin, ['--version'], {
+      encoding: 'utf8',
+      windowsHide: true,
+      timeout: 3000,
+    });
+    if (result.error || result.status !== 0) {
+      return false;
+    }
+    return (result.stdout || '').toLowerCase().includes('typst');
   } catch {
     return false;
   }
