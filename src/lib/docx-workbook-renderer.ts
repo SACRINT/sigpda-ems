@@ -4096,6 +4096,50 @@ async function buildMissionContent(
     desarrolloMain.push(buildDocxCalloutBox(demoCallout, desarrolloW));
   }
 
+  // ── Figura visual por sesión: SVG vectorial determinista (offline, sin red/BD)
+  //    rasterizado con sharp a PNG con canal alfa transparente. Nunca rompe el render.
+  const pushSessionFigure = async (
+    target: (Paragraph | Table)[],
+    sNum: number,
+    topic: string,
+    context: string
+  ): Promise<void> => {
+    try {
+      const visual = dispatchVisual(subjectName || 'Formación Fundamental', topic, context, sNum);
+      if (!visual) return;
+      const img = await svgToPngBuffer(visual.svg);
+      if (!img) return;
+      target.push(
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 120, after: 60 },
+          children: [
+            new ImageRun({
+              data: img.buffer,
+              transformation: { width: 340, height: 221 },
+              type: img.format.toLowerCase() === 'png' ? 'png' : 'jpg',
+            }),
+          ],
+        }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 120 },
+          children: [
+            new TextRun({
+              text: `Figura S${sNum} - ${topic}`,
+              italics: true,
+              size: 16,
+              color: C.mutedText,
+              font: 'Calibri',
+            }),
+          ],
+        })
+      );
+    } catch (sessionFigureErr) {
+      logger.warn('[docx-workbook] Figura de sesión omitida:', { error: String(sessionFigureErr) });
+    }
+  };
+
   // 4. Nosotros Hacemos (Práctica Colaborativa) y Distribución de Sesiones
   if (totalSessionsCount <= 3) {
     // Si la misión abarca exactamente 2 sesiones (caso estándar), la Sesión 2 inicia en la Práctica Guiada
@@ -4107,9 +4151,15 @@ async function buildMissionContent(
 
     desarrolloMain.push(
       sectionGap(),
-      buildDocxSectionHeader('👥 4. Nosotros Hacemos: Práctica Guiada y Cuaderno Activo', SECTION_HEX.hacemos, '[TRABAJO EN EQUIPO]', desarrolloW),
-      ...buildDocxPracticeTasks(mission.weDoSection.guidedPractice)
+      buildDocxSectionHeader('👥 4. Nosotros Hacemos: Práctica Guiada y Cuaderno Activo', SECTION_HEX.hacemos, '[TRABAJO EN EQUIPO]', desarrolloW)
     );
+    await pushSessionFigure(
+      desarrolloMain,
+      coveredSessions[1] ?? coveredSessions[0] ?? 1,
+      mission.sessionTopic || mission.title,
+      `${mission.conceptZero.coreExplanation || ''} ${mission.sessionFocus || ''}`
+    );
+    desarrolloMain.push(...buildDocxPracticeTasks(mission.weDoSection.guidedPractice));
 
     if (mission.weDoSection.workbookElements) {
       for (const el of mission.weDoSection.workbookElements) {
@@ -4203,6 +4253,14 @@ async function buildMissionContent(
           : `Elabora un ejemplo propio de "${topicLabel}" con datos numéricos concretos, resuélvelo paso a paso y verifica el resultado.`;
       desarrolloMain.push(subLabel('Ejemplo resuelto'));
       desarrolloMain.push(...buildDocxBodyParagraphs(plan?.ejemploResuelto || exampleFallback, { after: 140 }));
+
+      // Figura visual de la sesión (vector determinista con alfa transparente)
+      await pushSessionFigure(
+        desarrolloMain,
+        sNum,
+        sMeta.title || topicLabel,
+        `${plan?.contenido || ''} ${topicLabel}`
+      );
 
       desarrolloMain.push(subLabel('Practica'));
       if (plan?.practica && plan.practica.length > 0) {

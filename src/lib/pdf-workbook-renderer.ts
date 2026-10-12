@@ -2662,6 +2662,36 @@ async function drawMission(
     y = drawPdfCallout(doc, demoCallout, margin, mainW, pageHeight, y, checkSpace);
   }
 
+  // ── Figura visual por sesión: SVG vectorial determinista (offline, sin red/BD)
+  //    rasterizado con sharp a PNG con canal alfa transparente. Nunca rompe el render.
+  const drawSessionFigure = async (sNum: number, topic: string, context: string, curY: number): Promise<number> => {
+    try {
+      const visual = dispatchVisual(effSubject || 'Formación Fundamental', topic, context, sNum);
+      if (!visual) return curY;
+      const img = await svgToPngBuffer(visual.svg);
+      if (!img) return curY;
+      const imgW = Math.min(110, mainW * 0.85);
+      const imgH = imgW * 0.65;
+      let ny = checkSpace(curY, imgH + 16);
+      const imgX = margin + (mainW - imgW) / 2;
+      addMainFlowImage(img.buffer, img.format, imgX, ny, imgW, imgH);
+      if (visual.annotations && visual.annotations.length > 0) {
+        drawVisualAnnotations(doc, visual.annotations, imgX, ny, imgW, imgH);
+      }
+      ny += imgH + 3.5;
+      setFontCaption(doc);
+      doc.setFontSize(7.5);
+      doc.setTextColor(...MUTED_TEXT);
+      const capLines = doc.splitTextToSize(`Figura S${sNum} - ${topic}`, mainW * 0.88);
+      doc.text(capLines, margin + mainW / 2, ny, { align: 'center' });
+      ny += capLines.length * 3.2 + 3.5;
+      return ny;
+    } catch (sessionFigureErr) {
+      logger.warn('[pdf-workbook] Figura de sesión omitida:', { error: String(sessionFigureErr) });
+      return curY;
+    }
+  };
+
   // 4. Nosotros Hacemos (Práctica Colaborativa) y Distribución de Sesiones
   if (totalSessionsCount <= 3) {
     // Si la misión abarca exactamente 2 sesiones (caso estándar), la Sesión 2 inicia en la Práctica Guiada
@@ -2682,6 +2712,12 @@ async function drawMission(
     }
 
     y = drawSectionHeader(doc, '4. Nosotros Hacemos: Practica Guiada en Equipo', margin, mainW, y, pageHeight, SECTION_COLORS.hacemos, checkSpace, '[ TRABAJO EN EQUIPO ]');
+    y = await drawSessionFigure(
+      coveredSessions[1] ?? coveredSessions[0] ?? 1,
+      mission.sessionTopic || mission.title,
+      `${mission.conceptZero.coreExplanation || ''} ${mission.sessionFocus || ''}`,
+      y
+    );
     y = drawPracticeTasksWithDottedLines(doc, mission.weDoSection.guidedPractice, margin, mainW, pageHeight, y, 3, checkSpace);
     y += 4;
 
@@ -2772,6 +2808,9 @@ async function drawMission(
           : `Elabora un ejemplo propio de "${topicLabel}" con datos numericos concretos, resuelvelo paso a paso y verifica el resultado.`;
       y = printPdfSubLabel(flow, 'Ejemplo resuelto', phaseColor, y);
       y = para(plan?.ejemploResuelto || exampleFallback);
+
+      // Figura visual de la sesión (vector determinista con alfa transparente)
+      y = await drawSessionFigure(sNum, sMeta.title || topicLabel, `${plan?.contenido || ''} ${topicLabel}`, y);
 
       y = printPdfSubLabel(flow, 'Practica', phaseColor, y);
       if (plan?.practica && plan.practica.length > 0) {

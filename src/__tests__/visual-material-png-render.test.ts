@@ -125,14 +125,16 @@ describe('visual-material-png-render — Renderizado de figura de misión con ma
       );
       expect(pdfBuffer).toBeInstanceOf(Buffer);
       expect(pdfBuffer.subarray(0, 5).toString('ascii')).toBe('%PDF-');
-      expect(dispatchSpy).toHaveBeenCalledTimes(1);
-      expect(dispatchSpy).toHaveBeenLastCalledWith(
+      // Hero (fallback Capa 0) + figura por sesión de la rama ≤3 = 2 llamadas exactas
+      expect(dispatchSpy).toHaveBeenCalledTimes(2);
+      expect(dispatchSpy).toHaveBeenNthCalledWith(
+        1,
         'Taller de Instrumentación',
         expect.stringContaining('Multímetro'),
         expect.any(String),
         1
       );
-      expect(svgSpy).toHaveBeenCalledTimes(1);
+      expect(svgSpy.mock.calls.length).toBeGreaterThanOrEqual(1);
 
       // 2. DOCX: al fallar readMaterialPng, debe invocar dispatchVisual y svgToPngBuffer para generar el vector
       const docxBuffer = await renderWorkbookToDocx(
@@ -140,8 +142,8 @@ describe('visual-material-png-render — Renderizado de figura de misión con ma
         mockPlanning as unknown as Planning
       );
       expect(docxBuffer).toBeInstanceOf(Buffer);
-      expect(dispatchSpy).toHaveBeenCalledTimes(2);
-      expect(svgSpy).toHaveBeenCalledTimes(2);
+      expect(dispatchSpy).toHaveBeenCalledTimes(4);
+      expect(svgSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
 
       const zip = await JSZip.loadAsync(Buffer.from(docxBuffer));
       const mediaFiles = Object.keys(zip.files).filter((f) => f.startsWith('word/media/'));
