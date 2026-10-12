@@ -1,5 +1,13 @@
 /**
- * build-editorial-fixture.ts
+ * build-editorial-fixture.ts — Herramienta CLI de Generación de Fixtures Editoriales
+ * SIGPDA-EMS · Motor Editorial de Alta Gama (Fase 1 Spike)
+ *
+ * Ubicación del archivo (AUD-06):
+ * Este script reside en `scripts/` por ser una herramienta auxiliar de línea de comandos para
+ * desarrolladores, ejecutada fuera de línea (`npx tsx scripts/build-editorial-fixture.ts`) para
+ * generar y validar el fixture JSON canónico en `src/__tests__/fixtures/editorial/`.
+ * NO forma parte del bundle de runtime ni de las rutas de producción de Next.js.
+ *
  * Genera el fixture canónico de capítulo para estudiante bajo Pensamiento Matemático II (Bloque 1)
  * con 14 sesiones completas, rigurosas, situadas en Puebla (PAEC) y validadas contra student-content-model.
  */

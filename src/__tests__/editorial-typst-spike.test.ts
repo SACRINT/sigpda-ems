@@ -149,6 +149,12 @@ describe('Motor Editorial Fase 1 — Spike Typst y Modelo de Estudiante', () => 
 
       // Requisito 3: Hash SHA-256 no vacío
       expect(result.sha256).toMatch(/^[a-f0-9]{64}$/);
+
+      // Requisito 4: Consumo de memoria heap de Node.js acotado (< 50 MB por corrida)
+      // AUD-04 (P2): nodeHeapDeltaMb mide el delta de heap del proceso padre Node.js.
+      // TODO(Fase2): Medición de memoria pico del child process Typst (VmHWM / cgroups) en worker container.
+      expect(result.nodeHeapDeltaMb).toBeDefined();
+      expect(result.nodeHeapDeltaMb).toBeLessThan(50);
     }, 15000);
   });
 
@@ -256,10 +262,10 @@ describe('Motor Editorial Fase 1 — Spike Typst y Modelo de Estudiante', () => 
   });
 
   // ==========================================================================
-  // 7. Adaptador Bidireccional OpenCode (SessionPlan <-> StudentSession) — H-03
+  // 7. Adaptador de Interoperabilidad OpenCode (SessionPlan <-> StudentSession) — H-03, AUD-07
   // ==========================================================================
-  describe('7. Adaptador OpenCode (SessionPlan <-> StudentSession) (H-03)', () => {
-    it('debe adaptar un SessionPlan plano de OpenCode a una StudentSession estructurada y válida', () => {
+  describe('7. Adaptador de Interoperabilidad OpenCode (SessionPlan <-> StudentSession) (H-03, AUD-07)', () => {
+    it('debe adaptar un SessionPlan plano de OpenCode a una StudentSession y mapear de regreso con pérdida documentada', () => {
       const mockSessionPlan = {
         sessionNumber: 3,
         objetivo: 'Aprenderás a calcular la distancia entre dos puntos en el plano cartesiano.',
@@ -293,7 +299,7 @@ describe('Motor Editorial Fase 1 — Spike Typst y Modelo de Estudiante', () => 
       expect(adapted.ejemploResuelto.pasos.length).toBe(2);
       expect(adapted.productoIntegrador).toBe(mockSessionPlan.productoIntegrador);
 
-      // Paridad bidireccional
+      // Interoperabilidad con pérdida documentada de campos editoriales no soportados por SessionPlan (AUD-07)
       const roundTrip = adaptStudentSessionToSessionPlan(adapted);
       expect(roundTrip.sessionNumber).toBe(mockSessionPlan.sessionNumber);
       expect(roundTrip.objetivo).toBe(mockSessionPlan.objetivo);
