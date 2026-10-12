@@ -214,12 +214,14 @@ describe('Motor Editorial Fase 1 — Spike Typst y Modelo de Estudiante', () => 
       const minExpectedPages = 2 + rawFixture.sesiones.length * 2;
       expect(result.pageCount).toBeGreaterThanOrEqual(minExpectedPages);
       expect(result.pageCount).toBe(32);
-
-      // 3. Demostración falsable anti-F11: si se simula un fixture con una sesión menos (13 sesiones),
-      // la cuenta matemática de sesiones esperadas (14) jamás puede coincidir con 13
-      const mutatedCount = rawFixture.sesiones.length - 1;
-      expect(mutatedCount).not.toBe(result.renderedSessionCount);
     }, 15000);
+
+    it.skipIf(!hasTypst)('el pipeline de compilación debe abortar y rechazar maquetar si se omite una sesión del fixture', async () => {
+      const mutated = JSON.parse(JSON.stringify(rawFixture)) as StudentChapter;
+      mutated.sesiones.splice(6, 1); // Mutación: eliminar sesión 7
+
+      await expect(compileStudentChapter(mutated)).rejects.toThrow(StudentContentValidationError);
+    });
   });
 
   // ==========================================================================
