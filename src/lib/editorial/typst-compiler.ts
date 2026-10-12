@@ -40,6 +40,7 @@ export interface TypstCompileResult {
   durationMs: number;
   pageCount: number;
   renderedSessionCount?: number;
+  renderedProductoIntegradorCount?: number;
   sha256: string;
   binaryVersion: string;
   stdout?: string;
@@ -302,6 +303,7 @@ export async function compileStudentChapter(
     });
 
     let renderedSessionCount: number | undefined;
+    let renderedProductoIntegradorCount: number | undefined;
     try {
       const binary = resolveTypstBinary(options.binaryPath);
       const { stdout: queryOut } = await execFileAsync(binary, [
@@ -315,6 +317,18 @@ export async function compileStudentChapter(
       if (Array.isArray(parsed)) {
         renderedSessionCount = parsed.length;
       }
+
+      const { stdout: prodOut } = await execFileAsync(binary, [
+        'query',
+        '--root',
+        effectiveRootDir,
+        typPath,
+        '<rendered-producto-integrador>',
+      ]);
+      const parsedProd = JSON.parse(prodOut);
+      if (Array.isArray(parsedProd)) {
+        renderedProductoIntegradorCount = parsedProd.length;
+      }
     } catch {
       // Fallback tolerante si la consulta no está soportada
     }
@@ -322,6 +336,7 @@ export async function compileStudentChapter(
     return {
       ...result,
       renderedSessionCount,
+      renderedProductoIntegradorCount,
     };
   } finally {
     if (!options.keepTempFiles) {

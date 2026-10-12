@@ -439,6 +439,7 @@
   )
 
   #if "productoIntegrador" in s and s.productoIntegrador != none and s.productoIntegrador != "" [
+    #metadata((sessionNum: s.numero, avance: s.productoIntegrador)) <rendered-producto-integrador>
     #v(6pt)
     #rect(
       width: 100%,

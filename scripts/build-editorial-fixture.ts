@@ -259,7 +259,8 @@ const chapter: StudentChapter = {
         archivo: 'alicates.png',
         pie: 'Figura 3.1: Fijación mecánica en el punto medio de un tendido de cables.'
       },
-      sidenote: 'En física, el punto medio de dos masas iguales representa exactamente el centro de gravedad del sistema.'
+      sidenote: 'En física, el punto medio de dos masas iguales representa exactamente el centro de gravedad del sistema.',
+      productoIntegrador: 'Identifica y calcula las coordenadas del punto medio del tendido principal para tu proyecto PAEC.'
     },
     {
       numero: 4,
@@ -585,7 +586,8 @@ const chapter: StudentChapter = {
         archivo: 'balanza-algebraica.png',
         pie: 'Figura 7.1: Equilibrio vectorial y nivelación en ángulos de 90 grados.'
       },
-      sidenote: 'El método constructivo 3-4-5 se basa en el teorema de Pitágoras: 3² + 4² = 9 + 16 = 25 = 5², garantizando un ángulo recto sin necesidad de transportador.'
+      sidenote: 'El método constructivo 3-4-5 se basa en el teorema de Pitágoras: 3² + 4² = 9 + 16 = 25 = 5², garantizando un ángulo recto sin necesidad de transportador.',
+      productoIntegrador: 'Elabora el plano del trazado ortogonal y conexiones perpendiculares de la red comunitaria.'
     },
     {
       numero: 8,
@@ -1153,7 +1155,8 @@ const chapter: StudentChapter = {
         archivo: 'afiche-mural.png',
         pie: 'Figura 14.1: Socialización comunitaria de resultados y prototipos del PAEC.'
       },
-      sidenote: 'La UNESCO señala que las competencias de modelado matemático son fundamentales para el desarrollo sostenible y la resiliencia comunitaria.'
+      sidenote: 'La UNESCO señala que las competencias de modelado matemático son fundamentales para el desarrollo sostenible y la resiliencia comunitaria.',
+      productoIntegrador: 'Consolida el Informe Técnico Final de Modelado Matemático Comunitario (PAEC) con planos y memoria de cálculo.'
     }
   ]
 };

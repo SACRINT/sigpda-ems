@@ -214,6 +214,11 @@ describe('Motor Editorial Fase 1 — Spike Typst y Modelo de Estudiante', () => 
       const minExpectedPages = 2 + rawFixture.sesiones.length * 2;
       expect(result.pageCount).toBeGreaterThanOrEqual(minExpectedPages);
       expect(result.pageCount).toBe(32);
+
+      // 3. Verificación de cobertura real de productoIntegrador (AUD-02):
+      const expectedProdCount = rawFixture.sesiones.filter((s) => Boolean(s.productoIntegrador)).length;
+      expect(expectedProdCount).toBeGreaterThanOrEqual(1);
+      expect(result.renderedProductoIntegradorCount).toBe(expectedProdCount);
     }, 15000);
 
     it.skipIf(!hasTypst)('el pipeline de compilación debe abortar y rechazar maquetar si se omite una sesión del fixture', async () => {
