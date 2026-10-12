@@ -84,7 +84,6 @@ import {
 } from '@/lib/visual-engine/content-extractor';
 import { generateMissionRubric } from '@/lib/visual-engine/mission-rubric-generator';
 import {
-  generateBookCover,
   generateContraportadaData,
   type ContraportadaData,
   type BookCoverOptions,

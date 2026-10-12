@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { ExtractedPdfData, TeacherContext } from '@/types/planning';
 import StepUAC from '@/components/planeacion/StepUAC';
@@ -115,9 +115,10 @@ export default function NuevaPlaneacionClient({ locale }: Props) {
         planningId: data.planning.id,
         step: 4,
       }));
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error creating planning record:', err);
-      setPlanningError(err.message || 'Error de conexión al crear el registro de la planeación.');
+      const message = err instanceof Error ? err.message : 'Error de conexión al crear el registro de la planeación.';
+      setPlanningError(message);
     } finally {
       setIsCreatingPlanning(false);
     }

@@ -70,7 +70,7 @@ interface RawPlanningRow {
   created_at: Date;
   updated_at: Date;
   metodologia_activa?: string | null;
-  evaluation_json?: any | null;
+  evaluation_json?: unknown | null;
   sequence_json?: Record<number, SecuenciaBloque> | null;
 }
 
@@ -88,7 +88,6 @@ export async function generateBlockWorkTextbook(
   blockIndex: number,
   options: OrchestratorOptions = {}
 ): Promise<ActiveWorkTextbook> {
-  const startTime = Date.now();
   const maxRetries = options.maxRetriesPerWriter ?? 2;
   const jobId = options.jobId;
 
@@ -132,7 +131,12 @@ export async function generateBlockWorkTextbook(
     region: 'Puebla',
     subsystem: normalizedSubsystem,
     groupInfo: rawPlanning.semester ? `${rawPlanning.semester}° Semestre` : 'Grupo A',
-    paecProjectName: rawPlanning.paec_project_name || (rawPlanning.content_json as Record<string, any>)?.sectionI?.paecProjectName || (rawPlanning.extracted_data as Record<string, any>)?.paecProjectName || rawPlanning.paec_context || 'Proyecto Escolar Comunitario PAEC',
+    paecProjectName:
+      rawPlanning.paec_project_name ||
+      (rawPlanning.content_json?.sectionI as { paecProjectName?: string } | undefined)?.paecProjectName ||
+      (rawPlanning.extracted_data as { paecProjectName?: string } | null | undefined)?.paecProjectName ||
+      rawPlanning.paec_context ||
+      'Proyecto Escolar Comunitario PAEC',
     paecProblem: rawPlanning.paec_context || 'Mejora del entorno escolar y convivencia comunitaria',
     studentContext: 'Estudiantes de educación media superior de Puebla con diversos estilos de aprendizaje.',
   };
@@ -205,8 +209,8 @@ export async function generateBlockWorkTextbook(
     percent: 30,
   });
 
-  const extrasRows = await getPlanningExtras(planningId, planning.teacherId).catch((err: any) => {
-    logger.warn('[orchestrator] Error obteniendo extras:', { error: err?.message });
+  const extrasRows = await getPlanningExtras(planningId, planning.teacherId).catch((err: unknown) => {
+    logger.warn('[orchestrator] Error obteniendo extras:', { error: err instanceof Error ? err.message : String(err) });
     return [];
   });
   const existingExtras: Record<string, unknown> = {};
@@ -615,8 +619,8 @@ async function reportProgress(
     error: params.error,
     updatedAt: new Date().toISOString(),
   };
-  await updateWorkbookProgress(planningId, blockIndex, state).catch((err: any) =>
-    logger.warn('[Orchestrator] Progress update failed:', { error: err?.message })
+  await updateWorkbookProgress(planningId, blockIndex, state).catch((err: unknown) =>
+    logger.warn('[Orchestrator] Progress update failed:', { error: err instanceof Error ? err.message : String(err) })
   );
 
   if (jobId) {
@@ -624,8 +628,8 @@ async function reportProgress(
       progress: params.percent,
       current_phase: params.phase,
       current_step: params.currentStep,
-    }).catch((err: any) =>
-      logger.warn('[Orchestrator] Job progress update failed:', { error: err?.message })
+    }).catch((err: unknown) =>
+      logger.warn('[Orchestrator] Job progress update failed:', { error: err instanceof Error ? err.message : String(err) })
     );
   }
 }
@@ -639,7 +643,7 @@ async function runWriterSafely(
 ): Promise<WriterOutput> {
   try {
     return await fn();
-  } catch (err: any) {
+  } catch (err: unknown) {
     logger.error(`[runWriterSafely] Falló el redactor ${type}:`, err);
     throw err;
   }
