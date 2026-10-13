@@ -129,4 +129,27 @@ describe('Worker Container Typst — Integración Real sobre HTTP (P1-2)', () =>
     const data = await res.json();
     expect(data.error).toContain('sesiones[]');
   });
+
+  it('debe rechazar con 500 (fail-closed) en NODE_ENV=production si no hay secret configurado (P2-B)', async () => {
+    const prevNodeEnv = process.env.NODE_ENV;
+    const prevSecret = process.env.EDITORIAL_WORKER_SECRET;
+    const envMutable = process.env as Record<string, string | undefined>;
+    try {
+      envMutable['NODE_ENV'] = 'production';
+      delete process.env.EDITORIAL_WORKER_SECRET;
+
+      const res = await fetch(`${workerBaseUrl}/compile`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chapter: rawFixture }),
+      });
+
+      expect(res.status).toBe(500);
+      const data = await res.json();
+      expect(data.error).toContain('EDITORIAL_WORKER_SECRET es obligatorio');
+    } finally {
+      envMutable['NODE_ENV'] = prevNodeEnv;
+      process.env.EDITORIAL_WORKER_SECRET = prevSecret;
+    }
+  });
 });
