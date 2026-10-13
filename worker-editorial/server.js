@@ -282,8 +282,23 @@ function handleRequest(req, res) {
     );
   }
 
-  // Autenticación de seguridad para endpoints operacionales (/compile) si WORKER_SECRET está configurado
+  // Autenticación de seguridad para endpoints operacionales (/compile)
   const effectiveSecret = process.env.EDITORIAL_WORKER_SECRET || WORKER_SECRET;
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  // P2-B: Fail-closed en producción si no se ha configurado secret
+  if (isProduction && !effectiveSecret) {
+    process.stderr.write(
+      '[CRITICAL][sigpda-editorial-worker] EDITORIAL_WORKER_SECRET no configurado en entorno de producción. Endpoint bloqueado por seguridad (fail-closed).\n',
+    );
+    res.writeHead(500);
+    return res.end(
+      JSON.stringify({
+        error: 'Error de configuración de seguridad: EDITORIAL_WORKER_SECRET es obligatorio en entorno de producción.',
+      }),
+    );
+  }
+
   if (effectiveSecret) {
     const authHeader = req.headers['authorization'] || '';
     const secretHeader = req.headers['x-worker-secret'] || '';
