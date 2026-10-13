@@ -262,21 +262,9 @@ async function compileWithTypstChildProcess(inputPath, outputPath, options = {})
 function handleRequest(req, res) {
   res.setHeader('Content-Type', 'application/json');
 
-  // Autenticación de seguridad si WORKER_SECRET está configurado
-  if (WORKER_SECRET) {
-    const authHeader = req.headers['authorization'] || '';
-    const secretHeader = req.headers['x-worker-secret'] || '';
-    const bearer = authHeader.replace(/^Bearer\s+/i, '').trim();
-
-    if (bearer !== WORKER_SECRET && secretHeader !== WORKER_SECRET) {
-      res.writeHead(401);
-      return res.end(JSON.stringify({ error: 'No autorizado' }));
-    }
-  }
-
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
 
-  // Endpoint 1: Health check
+  // Endpoint 1: Health check público para Fly Machines / orquestadores
   if (req.method === 'GET' && (url.pathname === '/health' || url.pathname === '/')) {
     res.writeHead(200);
     return res.end(
@@ -288,6 +276,19 @@ function handleRequest(req, res) {
         timestamp: new Date().toISOString(),
       }),
     );
+  }
+
+  // Autenticación de seguridad para endpoints operacionales (/compile) si WORKER_SECRET está configurado
+  const effectiveSecret = process.env.EDITORIAL_WORKER_SECRET || WORKER_SECRET;
+  if (effectiveSecret) {
+    const authHeader = req.headers['authorization'] || '';
+    const secretHeader = req.headers['x-worker-secret'] || '';
+    const bearer = authHeader.replace(/^Bearer\s+/i, '').trim();
+
+    if (bearer !== effectiveSecret && secretHeader !== effectiveSecret) {
+      res.writeHead(401);
+      return res.end(JSON.stringify({ error: 'No autorizado' }));
+    }
   }
 
   // Endpoint 2: Compilación de capítulo
