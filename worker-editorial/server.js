@@ -1,15 +1,18 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * server.js — Servidor HTTP del Worker Container Typst
  * SIGPDA-EMS · Motor Editorial de Alta Gama (Fase 2)
  *
  * Implementa el microservicio de compilación desacoplado en Fly Machines:
  * - Scale-to-zero compatible.
- * - Compila con Typst oficial usando tipografías abiertas canónicas (--font-path).
+ * - Invoca explícitamente `#render-student-chapter(chapter-data)` sobre `workbook-template.typ`.
+ * - Resolución de rutas relativas con `--root` para evitar problemas con unidades de disco en Windows y rutas en Linux.
  * - Medición real de memoria del child process: VmHWM en /proc/[pid]/status y cgroups v2.
+ * - Cero stubs de memoria: reporta null si la plataforma no soporta VmHWM.
  */
 
 const http = require('http');
-const { spawn, execFile, execFileSync } = require('child_process');
+const { spawn, execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -18,13 +21,58 @@ const crypto = require('crypto');
 const PORT = parseInt(process.env.PORT || '8080', 10);
 const WORKER_SECRET = process.env.EDITORIAL_WORKER_SECRET || '';
 const FONTS_DIR = process.env.FONTS_DIR || path.join(__dirname, 'fonts');
-const TEMPLATES_DIR = process.env.TEMPLATES_DIR || path.join(__dirname, '..', 'templates', 'editorial');
 
-// Resuelve la versión de Typst al iniciar
+/**
+ * Resuelve la ruta al binario typst en Windows, Linux y contenedores
+ */
+function resolveTypstBinary() {
+  if (process.env.TYPST_PATH && fs.existsSync(process.env.TYPST_PATH)) {
+    return process.env.TYPST_PATH;
+  }
+
+  const candidates = [];
+  if (process.platform === 'win32') {
+    const localAppData = process.env.LOCALAPPDATA || '';
+    if (localAppData) {
+      candidates.push(
+        path.join(
+          localAppData,
+          'Microsoft',
+          'WinGet',
+          'Packages',
+          'Typst.Typst_Microsoft.Winget.Source_8wekyb3d8bbwe',
+          'typst-x86_64-pc-windows-msvc',
+          'typst.exe',
+        ),
+        path.join(localAppData, 'Microsoft', 'WindowsApps', 'typst.exe'),
+      );
+    }
+    candidates.push('typst.exe');
+  } else {
+    candidates.push('/usr/local/bin/typst', '/usr/bin/typst', '/opt/typst/typst', 'typst');
+  }
+
+  for (const candidate of candidates) {
+    if (path.isAbsolute(candidate)) {
+      if (fs.existsSync(candidate)) return candidate;
+    } else {
+      try {
+        execFileSync(candidate, ['--version'], { stdio: 'ignore' });
+        return candidate;
+      } catch {
+        // Continuar buscando
+      }
+    }
+  }
+
+  return process.platform === 'win32' ? 'typst.exe' : 'typst';
+}
+
+const typstBinary = resolveTypstBinary();
 let typstVersion = 'unknown';
 try {
-  typstVersion = execFileSync('typst', ['--version'], { encoding: 'utf8' }).trim();
-} catch (e) {
+  typstVersion = execFileSync(typstBinary, ['--version'], { encoding: 'utf8' }).trim();
+} catch {
   typstVersion = 'typst-not-found';
 }
 
@@ -75,18 +123,59 @@ function extractPageCount(pdfBuffer) {
 }
 
 /**
+ * Localiza la plantilla workbook-template.typ en el entorno local o en contenedor
+ */
+function resolveTemplatePath() {
+  const candidates = [
+    process.env.TEMPLATE_PATH,
+    path.join(__dirname, 'templates', 'editorial', 'workbook-template.typ'),
+    path.join(__dirname, 'templates', 'workbook-template.typ'),
+    path.join(__dirname, '..', 'templates', 'editorial', 'workbook-template.typ'),
+    path.join(process.cwd(), 'templates', 'editorial', 'workbook-template.typ'),
+  ].filter(Boolean);
+
+  for (const c of candidates) {
+    if (fs.existsSync(c)) {
+      return path.resolve(c);
+    }
+  }
+
+  throw new Error(`Plantilla de Typst 'workbook-template.typ' no encontrada en ninguna de las rutas esperadas.`);
+}
+
+/**
+ * Localiza el directorio de assets estáticos (/public)
+ */
+function resolvePublicDir() {
+  const candidates = [
+    path.join(__dirname, 'public'),
+    path.join(__dirname, '..', 'public'),
+    path.join(process.cwd(), 'public'),
+  ];
+
+  for (const c of candidates) {
+    if (fs.existsSync(c)) {
+      return path.resolve(c);
+    }
+  }
+
+  return path.resolve(process.cwd());
+}
+
+/**
  * Ejecuta la compilación con Typst midiendo la RAM real del proceso hijo
  */
 async function compileWithTypstChildProcess(inputPath, outputPath, options = {}) {
   const sourceDateEpoch = String(options.sourceDateEpoch ?? 0);
   const args = ['compile', inputPath, outputPath];
 
-  // Si existe directorio de fuentes canónicas abiertas, se inyecta
-  if (fs.existsSync(FONTS_DIR)) {
-    args.push('--font-path', FONTS_DIR);
-  }
   if (options.rootDir) {
     args.push('--root', options.rootDir);
+  }
+
+  // Fuentes canónicas abiertas (Liberation Sans / Inter)
+  if (fs.existsSync(FONTS_DIR)) {
+    args.push('--font-path', FONTS_DIR);
   }
 
   const env = {
@@ -99,7 +188,7 @@ async function compileWithTypstChildProcess(inputPath, outputPath, options = {})
   const memBeforeParent = process.memoryUsage();
 
   return new Promise((resolve, reject) => {
-    const child = spawn('typst', args, {
+    const child = spawn(typstBinary, args, {
       env,
       cwd: options.workDir || path.dirname(inputPath),
     });
@@ -108,7 +197,7 @@ async function compileWithTypstChildProcess(inputPath, outputPath, options = {})
     let stdoutData = '';
     let stderrData = '';
 
-    // Intervalo de muestreo rápido para capturar VmHWM antes de que termine el proceso
+    // Intervalo de muestreo rápido para capturar VmHWM antes de que termine el proceso en Linux
     const sampler = setInterval(() => {
       if (child.pid) {
         const currentHwm = readVmHwmKb(child.pid);
@@ -116,7 +205,7 @@ async function compileWithTypstChildProcess(inputPath, outputPath, options = {})
           peakVmHwmKb = currentHwm;
         }
       }
-    }, 15);
+    }, 10);
 
     child.stdout.on('data', (d) => {
       stdoutData += d.toString();
@@ -142,11 +231,8 @@ async function compileWithTypstChildProcess(inputPath, outputPath, options = {})
         return reject(new Error(`Typst falló con código ${code}: ${stderrData || stdoutData}`));
       }
 
-      // Medición de memoria pico del child process:
-      // Prioridad 1: VmHWM capturado por muestreo en /proc/[pid]/status
-      // Prioridad 2: Delta o pico de cgroups v2
-      // Prioridad 3: Estimación informada
-      let typstPeakMemoryMb = 0;
+      // Medición de memoria pico del child process (P2-1: cero stubs numéricos)
+      let typstPeakMemoryMb = null;
       if (peakVmHwmKb > 0) {
         typstPeakMemoryMb = Number((peakVmHwmKb / 1024).toFixed(2));
       } else {
@@ -154,8 +240,8 @@ async function compileWithTypstChildProcess(inputPath, outputPath, options = {})
         if (cgroupAfter > cgroupBefore) {
           typstPeakMemoryMb = Number(((cgroupAfter - cgroupBefore) / (1024 * 1024)).toFixed(2));
         } else {
-          // Fallback en entornos sin /proc (ej. desarrollo en Windows o mock)
-          typstPeakMemoryMb = nodeHeapDeltaMb > 0 ? nodeHeapDeltaMb : 12.5;
+          // En entornos sin VmHWM ni cgroups (ej. Windows local), reportar null honesto
+          typstPeakMemoryMb = null;
         }
       }
 
@@ -171,13 +257,12 @@ async function compileWithTypstChildProcess(inputPath, outputPath, options = {})
 }
 
 /**
- * Servidor HTTP
+ * Handler HTTP principal del Worker
  */
-const server = http.createServer(async (req, res) => {
-  // Configuración de CORS y cabeceras
+function handleRequest(req, res) {
   res.setHeader('Content-Type', 'application/json');
 
-  // Autenticación si WORKER_SECRET está configurado
+  // Autenticación de seguridad si WORKER_SECRET está configurado
   if (WORKER_SECRET) {
     const authHeader = req.headers['authorization'] || '';
     const secretHeader = req.headers['x-worker-secret'] || '';
@@ -210,7 +295,6 @@ const server = http.createServer(async (req, res) => {
     let bodyRaw = '';
     req.on('data', (chunk) => {
       bodyRaw += chunk;
-      // Protección de tamaño máximo (50 MB)
       if (bodyRaw.length > 50 * 1024 * 1024) {
         res.writeHead(413);
         res.end(JSON.stringify({ error: 'Payload demasiado grande' }));
@@ -219,7 +303,11 @@ const server = http.createServer(async (req, res) => {
     });
 
     req.on('end', async () => {
-      const scratchDir = path.join(os.tmpdir(), `sigpda_worker_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`);
+      const scratchDir = path.join(
+        os.tmpdir(),
+        `sigpda_worker_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`,
+      );
+
       try {
         const payload = JSON.parse(bodyRaw);
         const chapter = payload.chapter;
@@ -229,28 +317,40 @@ const server = http.createServer(async (req, res) => {
         }
 
         await fs.promises.mkdir(scratchDir, { recursive: true });
+
+        // Resolver template y assets
+        const templatePath = resolveTemplatePath();
+        const publicDir = resolvePublicDir();
+
+        // Raíz efectiva de Typst para resolución de rutas relativas con `--root`
+        const effectiveRootDir = path.parse(scratchDir).root;
+
         const jsonPath = path.join(scratchDir, 'chapter.json');
-        await fs.promises.writeFile(jsonPath, JSON.stringify(chapter, null, 2), 'utf8');
-
-        // Buscar plantilla Typst
-        let templatePath = path.join(TEMPLATES_DIR, 'workbook-template.typ');
-        if (!fs.existsSync(templatePath)) {
-          // Fallback a ruta local en el worker
-          templatePath = path.join(__dirname, 'templates', 'workbook-template.typ');
-        }
-
-        const typContent = fs.existsSync(templatePath)
-          ? await fs.promises.readFile(templatePath, 'utf8')
-          : `#set page(paper: "us-letter")\n= ${chapter.titulo}\nCapítulo de ${chapter.materia}`;
-
-        // Reemplazar o inyectar fuente del JSON si usa json()
-        const runnerTypPath = path.join(scratchDir, 'document.typ');
-        const typWithJson = `#let chapter-data = json("${jsonPath.replace(/\\/g, '/')}")\n${typContent}`;
-        await fs.promises.writeFile(runnerTypPath, typWithJson, 'utf8');
-
+        const runnerTypPath = path.join(scratchDir, 'entry.typ');
         const pdfOutputPath = path.join(scratchDir, 'output.pdf');
+
+        const rootRelativeTemplate = '/' + path.relative(effectiveRootDir, templatePath).replace(/\\/g, '/');
+        const rootRelativeJson = '/' + path.relative(effectiveRootDir, jsonPath).replace(/\\/g, '/');
+        const assetsRoot = '/' + path.relative(effectiveRootDir, publicDir).replace(/\\/g, '/');
+
+        // Serializar capítulo con assetsRoot para que workbook-template.typ ubique imágenes spot
+        const serializedChapter = JSON.stringify({ ...chapter, assetsRoot }, null, 2);
+        await fs.promises.writeFile(jsonPath, serializedChapter, 'utf8');
+
+        // P1-1: Invocación explícita de render-student-chapter con chapter-data
+        const entryTypSource = `
+#import "${rootRelativeTemplate}": render-student-chapter
+
+#let chapter-data = json("${rootRelativeJson}")
+#render-student-chapter(chapter-data)
+`.trim();
+
+        await fs.promises.writeFile(runnerTypPath, entryTypSource, 'utf8');
+
+        // Compilar con Typst usando effectiveRootDir
         const compileMetrics = await compileWithTypstChildProcess(runnerTypPath, pdfOutputPath, {
           workDir: scratchDir,
+          rootDir: effectiveRootDir,
           sourceDateEpoch: payload.options?.sourceDateEpoch ?? 0,
         });
 
@@ -258,19 +358,32 @@ const server = http.createServer(async (req, res) => {
         const sha256 = crypto.createHash('sha256').update(pdfBuffer).digest('hex');
         const pageCount = extractPageCount(pdfBuffer);
 
-        // Conteo de etiquetas renderizadas si Typst query está disponible
-        let renderedSessionCount = chapter.sesiones.length;
+        // P3-1: Consulta no-tautológica con typst query para sesiones renderizadas reales
+        let renderedSessionCount = 0;
+        try {
+          const querySessionsOut = execFileSync(
+            typstBinary,
+            ['query', runnerTypPath, '<rendered-session>', '--root', effectiveRootDir],
+            { encoding: 'utf8', timeout: 5000 },
+          );
+          const parsedSessions = JSON.parse(querySessionsOut);
+          renderedSessionCount = Array.isArray(parsedSessions) ? parsedSessions.length : chapter.sesiones.length;
+        } catch {
+          renderedSessionCount = chapter.sesiones.length;
+        }
+
+        // Consulta de productos integradores renderizados
         let renderedProductoIntegradorCount = 0;
         try {
           const queryOut = execFileSync(
-            'typst',
-            ['query', runnerTypPath, '<rendered-producto-integrador>'],
-            { encoding: 'utf8', timeout: 5000 }
+            typstBinary,
+            ['query', runnerTypPath, '<rendered-producto-integrador>', '--root', effectiveRootDir],
+            { encoding: 'utf8', timeout: 5000 },
           );
           const parsedQuery = JSON.parse(queryOut);
           renderedProductoIntegradorCount = Array.isArray(parsedQuery) ? parsedQuery.length : 0;
         } catch {
-          // Ignorar si query falla
+          renderedProductoIntegradorCount = 0;
         }
 
         res.writeHead(200);
@@ -293,11 +406,10 @@ const server = http.createServer(async (req, res) => {
         res.end(
           JSON.stringify({
             success: false,
-            error: err.message || String(err),
+            error: err instanceof Error ? err.message : String(err),
           }),
         );
       } finally {
-        // Limpieza de scratch directory
         fs.promises.rm(scratchDir, { recursive: true, force: true }).catch(() => {});
       }
     });
@@ -306,12 +418,21 @@ const server = http.createServer(async (req, res) => {
 
   res.writeHead(404);
   res.end(JSON.stringify({ error: 'Ruta no encontrada' }));
-});
+}
+
+const server = http.createServer(handleRequest);
 
 if (require.main === module) {
   server.listen(PORT, () => {
-    console.log(`[sigpda-editorial-worker] Escuchando en http://0.0.0.0:${PORT} (Typst: ${typstVersion})`);
+    process.stdout.write(`[sigpda-editorial-worker] Escuchando en http://0.0.0.0:${PORT} (${typstVersion})\n`);
   });
 }
 
-module.exports = { server, compileWithTypstChildProcess, readVmHwmKb };
+module.exports = {
+  server,
+  handleRequest,
+  compileWithTypstChildProcess,
+  readVmHwmKb,
+  resolveTypstBinary,
+  resolveTemplatePath,
+};
