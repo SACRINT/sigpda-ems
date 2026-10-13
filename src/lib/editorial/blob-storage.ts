@@ -62,7 +62,7 @@ export async function uploadEditorialPdfToBlob(
   const localFilePath = path.join(localDir, path.basename(pathname));
   await fs.promises.writeFile(localFilePath, pdfBuffer);
 
-  const fallbackUrl = `https://blob.vercel-storage.com/mock-editorial/${path.basename(pathname)}`;
+  const fallbackUrl = `local://${path.basename(pathname)}`;
   logger.info(`[blob-storage] PDF almacenado en fallback local: ${localFilePath}`);
 
   return {

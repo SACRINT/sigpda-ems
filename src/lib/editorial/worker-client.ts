@@ -21,7 +21,7 @@ export interface WorkerCompileResponse {
   sha256: string;
   pageCount: number;
   durationMs: number;
-  typstPeakMemoryMb: number;
+  typstPeakMemoryMb: number | null;
   nodeHeapDeltaMb: number;
   renderedSessionCount: number;
   renderedProductoIntegradorCount: number;
@@ -83,7 +83,7 @@ export async function dispatchToEditorialWorker(
         sha256: data.sha256,
         pageCount: data.pageCount,
         durationMs: data.durationMs,
-        typstPeakMemoryMb: data.typstPeakMemoryMb,
+        typstPeakMemoryMb: typeof data.typstPeakMemoryMb === 'number' ? data.typstPeakMemoryMb : null,
         nodeHeapDeltaMb: data.nodeHeapDeltaMb,
         renderedSessionCount: data.renderedSessionCount,
         renderedProductoIntegradorCount: data.renderedProductoIntegradorCount,
@@ -110,8 +110,8 @@ export async function dispatchToEditorialWorker(
     sha256: localResult.sha256,
     pageCount: localResult.pageCount,
     durationMs: localResult.durationMs,
-    // Métrica de child process local estimada / nodeHeapDeltaMb
-    typstPeakMemoryMb: localResult.nodeHeapDeltaMb > 0 ? localResult.nodeHeapDeltaMb : 14.5,
+    // En fallback local sin /proc (desarrollo/CI), null honesto (P2-1: cero stubs silenciosos)
+    typstPeakMemoryMb: null,
     nodeHeapDeltaMb: localResult.nodeHeapDeltaMb,
     renderedSessionCount: localResult.renderedSessionCount ?? chapter.sesiones.length,
     renderedProductoIntegradorCount: localResult.renderedProductoIntegradorCount ?? 0,

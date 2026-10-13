@@ -246,10 +246,13 @@ describe('Motor Editorial Fase 2 — Pipeline Asíncrono, Worker y Subscription 
       // Determinismo de hash SHA-256
       expect(result.sha256).toMatch(/^[a-f0-9]{64}$/);
 
-      // Medición de memoria real del child process reportada por el worker
-      expect(result.typstPeakMemoryMb).toBeDefined();
-      expect(result.typstPeakMemoryMb).toBeGreaterThan(0);
-      expect(result.typstPeakMemoryMb).toBeLessThan(50);
+      // Medición de memoria: null honesto en fallback local sin /proc; acotada si viene de worker
+      if (result.source === 'local_fallback') {
+        expect(result.typstPeakMemoryMb).toBeNull();
+      } else {
+        expect(result.typstPeakMemoryMb).toBeGreaterThan(0);
+        expect(result.typstPeakMemoryMb).toBeLessThan(50);
+      }
 
       // Medición del heap del padre Node.js acotada (< 50 MB)
       expect(result.nodeHeapDeltaMb).toBeLessThan(50);
