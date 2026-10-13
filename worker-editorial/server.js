@@ -126,8 +126,11 @@ function extractPageCount(pdfBuffer) {
  * Localiza la plantilla workbook-template.typ en el entorno local o en contenedor
  */
 function resolveTemplatePath() {
+  const templatesDir = process.env.TEMPLATES_DIR;
   const candidates = [
     process.env.TEMPLATE_PATH,
+    templatesDir ? path.join(templatesDir, 'editorial', 'workbook-template.typ') : null,
+    templatesDir ? path.join(templatesDir, 'workbook-template.typ') : null,
     path.join(__dirname, 'templates', 'editorial', 'workbook-template.typ'),
     path.join(__dirname, 'templates', 'workbook-template.typ'),
     path.join(__dirname, '..', 'templates', 'editorial', 'workbook-template.typ'),
@@ -148,10 +151,11 @@ function resolveTemplatePath() {
  */
 function resolvePublicDir() {
   const candidates = [
+    process.env.PUBLIC_DIR,
     path.join(__dirname, 'public'),
     path.join(__dirname, '..', 'public'),
     path.join(process.cwd(), 'public'),
-  ];
+  ].filter(Boolean);
 
   for (const c of candidates) {
     if (fs.existsSync(c)) {
