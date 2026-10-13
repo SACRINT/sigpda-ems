@@ -123,6 +123,34 @@ function extractPageCount(pdfBuffer) {
 }
 
 /**
+ * Consulta etiquetas en el documento Typst usando `typst eval` (Typst >= 0.13)
+ * con fallback transparente a `typst query` para retrocompatibilidad.
+ */
+function queryTypstDocument(typstBin, label, runnerTypPath, rootDir) {
+  try {
+    const evalOut = execFileSync(
+      typstBin,
+      ['eval', `query(<${label}>)`, '--in', runnerTypPath, '--root', rootDir],
+      { encoding: 'utf8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] },
+    );
+    const parsed = JSON.parse(evalOut);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    try {
+      const queryOut = execFileSync(
+        typstBin,
+        ['query', runnerTypPath, `<${label}>`, '--root', rootDir],
+        { encoding: 'utf8', timeout: 5000, stdio: ['pipe', 'pipe', 'ignore'] },
+      );
+      const parsed = JSON.parse(queryOut);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+}
+
+/**
  * Localiza la plantilla workbook-template.typ en el entorno local o en contenedor
  */
 function resolveTemplatePath() {
@@ -378,33 +406,23 @@ function handleRequest(req, res) {
         const sha256 = crypto.createHash('sha256').update(pdfBuffer).digest('hex');
         const pageCount = extractPageCount(pdfBuffer);
 
-        // P3-1: Consulta no-tautológica con typst query para sesiones renderizadas reales
-        let renderedSessionCount = 0;
-        try {
-          const querySessionsOut = execFileSync(
-            typstBinary,
-            ['query', runnerTypPath, '<rendered-session>', '--root', effectiveRootDir],
-            { encoding: 'utf8', timeout: 5000 },
-          );
-          const parsedSessions = JSON.parse(querySessionsOut);
-          renderedSessionCount = Array.isArray(parsedSessions) ? parsedSessions.length : chapter.sesiones.length;
-        } catch {
-          renderedSessionCount = chapter.sesiones.length;
-        }
+        // P3-1 y P3-A: Consulta no-tautológica con typst eval query (sin deprecation warnings)
+        const renderedSessions = queryTypstDocument(
+          typstBinary,
+          'rendered-session',
+          runnerTypPath,
+          effectiveRootDir,
+        );
+        const renderedSessionCount =
+          renderedSessions.length > 0 ? renderedSessions.length : chapter.sesiones.length;
 
-        // Consulta de productos integradores renderizados
-        let renderedProductoIntegradorCount = 0;
-        try {
-          const queryOut = execFileSync(
-            typstBinary,
-            ['query', runnerTypPath, '<rendered-producto-integrador>', '--root', effectiveRootDir],
-            { encoding: 'utf8', timeout: 5000 },
-          );
-          const parsedQuery = JSON.parse(queryOut);
-          renderedProductoIntegradorCount = Array.isArray(parsedQuery) ? parsedQuery.length : 0;
-        } catch {
-          renderedProductoIntegradorCount = 0;
-        }
+        const renderedProductos = queryTypstDocument(
+          typstBinary,
+          'rendered-producto-integrador',
+          runnerTypPath,
+          effectiveRootDir,
+        );
+        const renderedProductoIntegradorCount = renderedProductos.length;
 
         res.writeHead(200);
         res.end(
