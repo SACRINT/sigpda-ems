@@ -1,0 +1,37 @@
+# fly.toml — Configuración de Fly Machines para Editorial Publisher Worker
+# SIGPDA-EMS · Motor Editorial de Alta Gama (Fase 2)
+#
+# Configuración con scale-to-zero:
+# La máquina se apaga automáticamente tras inactividad (0 máquinas corriendo = $0 costo idle).
+# Al recibir un request HTTP en /compile, Fly despierta la máquina en < 500 ms.
+
+app = "sigpda-editorial-worker"
+primary_region = "qro" # Querétaro, México (o dfw/mia para latencia óptima hacia México)
+
+[build]
+  dockerfile = "Dockerfile"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 20
+    hard_limit = 50
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+    method = "GET"
+    path = "/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1024mb"
+  cpus = 1
