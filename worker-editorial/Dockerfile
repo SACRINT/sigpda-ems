@@ -35,7 +35,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && chmod +x /usr/local/bin/typst \
     && mkdir -p /app/fonts \
     && cp /usr/share/fonts/truetype/liberation/*.ttf /app/fonts/ \
-    && (cp /usr/share/fonts/truetype/inter/*.ttf /app/fonts/ 2>/dev/null || true)
+    && find /usr/share/fonts/ -type f \( -name "*Inter*.otf" -o -name "*Inter*.ttf" \) -exec cp {} /app/fonts/ \;
 
 # Verificar instalación y versiones
 RUN typst --version && ls -la /app/fonts/
