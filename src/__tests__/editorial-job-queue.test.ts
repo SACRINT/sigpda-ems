@@ -224,6 +224,33 @@ describe('Motor Editorial Fase 2 — Pipeline Asíncrono, Worker y Subscription 
       const res = await POST(req, { params: Promise.resolve({ id: planningId }) });
       expect(res.status).toBe(200);
     }, 15000);
+
+    it('debe AUTORIZAR el acceso si el docente tiene rol administrador en BD aunque subscriptionStatus.isAdmin sea false', async () => {
+      vi.mocked(getTeacherByEmail).mockResolvedValueOnce({
+        id: mockTeacher.id,
+        email: mockTeacher.email,
+        role: 'administrador',
+      } as never);
+
+      vi.mocked(getSubscriptionStatus).mockResolvedValueOnce({
+        hasActiveSubscription: false,
+        isAdmin: false,
+        subscription: null,
+        subjects: [],
+        usedSubjectsCount: 0,
+        availableSlots: 0,
+      } as never);
+
+      const req = new NextRequest(`http://localhost:3000/api/pdf/libro-editorial/${planningId}`, {
+        method: 'POST',
+        body: JSON.stringify({ chapter: rawFixture }),
+      });
+
+      const res = await POST(req, { params: Promise.resolve({ id: planningId }) });
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data.success).toBe(true);
+    }, 15000);
   });
 
   // ==========================================================================
