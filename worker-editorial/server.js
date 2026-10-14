@@ -23,6 +23,45 @@ const WORKER_SECRET = process.env.EDITORIAL_WORKER_SECRET || '';
 const FONTS_DIR = process.env.FONTS_DIR || path.join(__dirname, 'fonts');
 
 /**
+ * Logger estructurado para worker standalone (compatible con formato JSON en producción)
+ */
+const logger = {
+  info(message, meta = {}) {
+    process.stdout.write(
+      JSON.stringify({
+        timestamp: new Date().toISOString(),
+        level: 'info',
+        service: 'sigpda-editorial-worker',
+        message,
+        ...meta,
+      }) + '\n',
+    );
+  },
+  warn(message, meta = {}) {
+    process.stderr.write(
+      JSON.stringify({
+        timestamp: new Date().toISOString(),
+        level: 'warn',
+        service: 'sigpda-editorial-worker',
+        message,
+        ...meta,
+      }) + '\n',
+    );
+  },
+  error(message, meta = {}) {
+    process.stderr.write(
+      JSON.stringify({
+        timestamp: new Date().toISOString(),
+        level: 'error',
+        service: 'sigpda-editorial-worker',
+        message,
+        ...meta,
+      }) + '\n',
+    );
+  },
+};
+
+/**
  * Resuelve la ruta al binario typst en Windows, Linux y contenedores
  */
 function resolveTypstBinary() {
@@ -316,9 +355,10 @@ function handleRequest(req, res) {
 
   // P2-B: Fail-closed en producción si no se ha configurado secret
   if (isProduction && !effectiveSecret) {
-    process.stderr.write(
-      '[CRITICAL][sigpda-editorial-worker] EDITORIAL_WORKER_SECRET no configurado en entorno de producción. Endpoint bloqueado por seguridad (fail-closed).\n',
-    );
+    logger.error('EDITORIAL_WORKER_SECRET no configurado en entorno de producción. Endpoint bloqueado por seguridad (fail-closed).', {
+      securityEvent: 'FAIL_CLOSED_NO_SECRET',
+      code: 'UNCONFIGURED_SECRET',
+    });
     res.writeHead(500);
     return res.end(
       JSON.stringify({
@@ -443,6 +483,10 @@ function handleRequest(req, res) {
           }),
         );
       } catch (err) {
+        logger.error('Error durante compilación de capítulo en worker', {
+          error: err instanceof Error ? err.message : String(err),
+          stack: err instanceof Error ? err.stack : undefined,
+        });
         res.writeHead(500);
         res.end(
           JSON.stringify({
@@ -465,7 +509,7 @@ const server = http.createServer(handleRequest);
 
 if (require.main === module) {
   server.listen(PORT, () => {
-    process.stdout.write(`[sigpda-editorial-worker] Escuchando en http://0.0.0.0:${PORT} (${typstVersion})\n`);
+    logger.info(`Escuchando en http://0.0.0.0:${PORT}`, { typstVersion, port: PORT });
   });
 }
 
@@ -476,4 +520,5 @@ module.exports = {
   readVmHwmKb,
   resolveTypstBinary,
   resolveTemplatePath,
+  logger,
 };
