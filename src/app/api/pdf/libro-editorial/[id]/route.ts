@@ -26,7 +26,11 @@ import {
   getLatestEditorialBookForPlanning,
   updateEditorialBookStatus,
 } from '@/lib/editorial/editorial-db';
-import { dispatchToEditorialWorker } from '@/lib/editorial/worker-client';
+import {
+  dispatchToEditorialWorker,
+  EDITORIAL_WORKER_DEFAULT_TIMEOUT_MS,
+  EDITORIAL_WORKER_MAX_BUDGET_MS,
+} from '@/lib/editorial/worker-client';
 import { uploadEditorialPdfToBlob } from '@/lib/editorial/blob-storage';
 import {
   StudentChapter,
@@ -131,6 +135,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const requestStartTime = Date.now();
     const authResult = await authorizeRequest(request);
     if (!authResult.authorized || authResult.errorResponse) {
       return authResult.errorResponse!;
@@ -234,11 +239,17 @@ export async function POST(
     // Marcar como 'processing'
     await updateEditorialBookStatus(bookRecord.id, 'processing');
 
-    // Despachar compilación al worker container de Typst
-    logger.info(`[api/pdf/libro-editorial] Despachando compilación a worker para book ${bookRecord.id}...`);
+    // Despachar compilación al worker container de Typst con presupuesto dinámico Vercel (< 60s)
+    const elapsedMs = Date.now() - requestStartTime;
+    const remainingBudgetMs = Math.max(5000, EDITORIAL_WORKER_MAX_BUDGET_MS - elapsedMs);
+    const dynamicTimeoutMs = Math.min(EDITORIAL_WORKER_DEFAULT_TIMEOUT_MS, remainingBudgetMs);
+
+    logger.info(
+      `[api/pdf/libro-editorial] Despachando compilación a worker para book ${bookRecord.id} (timeout: ${dynamicTimeoutMs}ms)...`,
+    );
     const workerResponse = await dispatchToEditorialWorker(chapter, {
       sourceDateEpoch: 0,
-      timeoutMs: 50000,
+      timeoutMs: dynamicTimeoutMs,
     });
 
     if (!workerResponse.success || !workerResponse.pdfBuffer) {

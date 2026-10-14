@@ -11,6 +11,9 @@ import { StudentChapter } from './student-content-model';
 import { compileStudentChapter } from './typst-compiler';
 import { logger } from '@/lib/logger';
 
+export const EDITORIAL_WORKER_DEFAULT_TIMEOUT_MS = 50000;
+export const EDITORIAL_WORKER_MAX_BUDGET_MS = 55000;
+
 export interface WorkerCompileOptions {
   sourceDateEpoch?: number | string;
   timeoutMs?: number;
@@ -63,7 +66,7 @@ export async function dispatchToEditorialWorker(
             sourceDateEpoch: options.sourceDateEpoch ?? 0,
           },
         }),
-        signal: AbortSignal.timeout(options.timeoutMs ?? 55000), // Respetar presupuesto Vercel < 60s
+        signal: AbortSignal.timeout(options.timeoutMs ?? EDITORIAL_WORKER_DEFAULT_TIMEOUT_MS), // Respetar presupuesto Vercel < 60s
       });
 
       if (!response.ok) {
