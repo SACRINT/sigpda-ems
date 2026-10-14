@@ -370,26 +370,29 @@ function handleRequest(req, res) {
         const templatePath = resolveTemplatePath();
         const publicDir = resolvePublicDir();
 
-        // Raíz efectiva de Typst para resolución de rutas relativas con `--root`
-        const effectiveRootDir = path.parse(scratchDir).root;
+        // AUD-01: Copiar plantilla a scratchDir para que entry.typ use importación local
+        // relativa y elimine dependencia de componentes de disco (C:) o rutas raíz externas.
+        const localTemplatePath = path.join(scratchDir, 'workbook-template.typ');
+        await fs.promises.copyFile(templatePath, localTemplatePath);
+
+        // Raíz efectiva de Typst para resolución de assets estáticos
+        const effectiveRootDir = path.parse(publicDir).root;
 
         const jsonPath = path.join(scratchDir, 'chapter.json');
         const runnerTypPath = path.join(scratchDir, 'entry.typ');
         const pdfOutputPath = path.join(scratchDir, 'output.pdf');
 
-        const rootRelativeTemplate = '/' + path.relative(effectiveRootDir, templatePath).replace(/\\/g, '/');
-        const rootRelativeJson = '/' + path.relative(effectiveRootDir, jsonPath).replace(/\\/g, '/');
         const assetsRoot = '/' + path.relative(effectiveRootDir, publicDir).replace(/\\/g, '/');
 
         // Serializar capítulo con assetsRoot para que workbook-template.typ ubique imágenes spot
         const serializedChapter = JSON.stringify({ ...chapter, assetsRoot }, null, 2);
         await fs.promises.writeFile(jsonPath, serializedChapter, 'utf8');
 
-        // P1-1: Invocación explícita de render-student-chapter con chapter-data
+        // Invocación explícita de render-student-chapter con importación local autocontenida
         const entryTypSource = `
-#import "${rootRelativeTemplate}": render-student-chapter
+#import "workbook-template.typ": render-student-chapter
 
-#let chapter-data = json("${rootRelativeJson}")
+#let chapter-data = json("chapter.json")
 #render-student-chapter(chapter-data)
 `.trim();
 
