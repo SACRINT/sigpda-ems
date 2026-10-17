@@ -239,10 +239,30 @@ export async function POST(
     // Marcar como 'processing'
     await updateEditorialBookStatus(bookRecord.id, 'processing');
 
-    // Despachar compilación al worker container de Typst con presupuesto dinámico Vercel (< 60s)
+    // Despachar compilación al worker container de Typst con presupuesto dinámico Vercel (< 60s, AUD-R3)
     const elapsedMs = Date.now() - requestStartTime;
-    const remainingBudgetMs = Math.max(5000, EDITORIAL_WORKER_MAX_BUDGET_MS - elapsedMs);
-    const dynamicTimeoutMs = Math.min(EDITORIAL_WORKER_DEFAULT_TIMEOUT_MS, remainingBudgetMs);
+    const remainingBudgetMs = EDITORIAL_WORKER_MAX_BUDGET_MS - elapsedMs;
+    const MIN_REQUIRED_BUDGET_MS = 8000;
+
+    if (remainingBudgetMs < MIN_REQUIRED_BUDGET_MS) {
+      logger.warn('[api/pdf/libro-editorial] Presupuesto de tiempo insuficiente antes de despachar al worker:', {
+        elapsedMs,
+        remainingBudgetMs,
+      });
+      await updateEditorialBookStatus(bookRecord.id, 'failed', {
+        errorMessage: 'Presupuesto de ejecución agotado antes del despacho al compilador',
+      });
+      return NextResponse.json(
+        {
+          error: 'Tiempo de ejecución insuficiente para completar la compilación editorial. Intente nuevamente.',
+          code: 'TIMEOUT_BUDGET_EXCEEDED',
+        },
+        { status: 504, headers: { 'Retry-After': '5' } },
+      );
+    }
+
+    // Reservar 5s de margen para la posterior subida a Vercel Blob y persistencia en BD
+    const dynamicTimeoutMs = Math.min(EDITORIAL_WORKER_DEFAULT_TIMEOUT_MS, remainingBudgetMs - 5000);
 
     logger.info(
       `[api/pdf/libro-editorial] Despachando compilación a worker para book ${bookRecord.id} (timeout: ${dynamicTimeoutMs}ms)...`,

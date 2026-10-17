@@ -384,4 +384,33 @@ describe('Motor Editorial Fase 2 — Pipeline Asíncrono, Worker y Subscription 
       expect(data.status).toBe('completed');
     });
   });
+
+  // ==========================================================================
+  // 6. Presupuesto Dinámico y Control de Timeout Vercel (AUD-R3)
+  // ==========================================================================
+  describe('6. Presupuesto Dinámico y Control de Timeout Vercel (AUD-R3)', () => {
+    it('debe responder con HTTP 504 y TIMEOUT_BUDGET_EXCEEDED si el presupuesto restante es menor a 8 segundos', async () => {
+      let callCount = 0;
+      const dateSpy = vi.spyOn(Date, 'now').mockImplementation(() => {
+        callCount++;
+        // Primera llamada marca requestStartTime (1000000); llamadas posteriores simulan 50s transcurridos (1050000)
+        return callCount === 1 ? 1000000 : 1000000 + 50000;
+      });
+
+      try {
+        const req = new NextRequest(`http://localhost:3000/api/pdf/libro-editorial/${planningId}`, {
+          method: 'POST',
+          body: JSON.stringify({ chapter: rawFixture }),
+        });
+
+        const res = await POST(req, { params: Promise.resolve({ id: planningId }) });
+        expect(res.status).toBe(504);
+        const data = await res.json();
+        expect(data.code).toBe('TIMEOUT_BUDGET_EXCEEDED');
+        expect(res.headers.get('Retry-After')).toBe('5');
+      } finally {
+        dateSpy.mockRestore();
+      }
+    });
+  });
 });
