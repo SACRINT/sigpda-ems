@@ -19,6 +19,34 @@ export interface UploadPdfResult {
   provider: 'vercel_blob' | 'local_fallback';
 }
 
+export const LOCAL_BLOB_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 horas de TTL
+
+/**
+ * Limpia archivos huérfanos del directorio local de blobs con antigüedad superior al TTL.
+ * Exclusivo de entornos de desarrollo local y runners de CI (AUD-02 / AUD-R1).
+ */
+export async function pruneExpiredLocalBlobs(dir: string, maxAgeMs = LOCAL_BLOB_MAX_AGE_MS): Promise<void> {
+  try {
+    const entries = await fs.promises.readdir(dir, { withFileTypes: true });
+    const now = Date.now();
+    for (const entry of entries) {
+      if (entry.isFile()) {
+        const fullPath = path.join(dir, entry.name);
+        try {
+          const stats = await fs.promises.stat(fullPath);
+          if (now - stats.mtimeMs > maxAgeMs) {
+            await fs.promises.unlink(fullPath).catch(() => {});
+          }
+        } catch {
+          // Continuar sin interrumpir la poda
+        }
+      }
+    }
+  } catch {
+    // Si la lectura del directorio falla, no bloquear la persistencia
+  }
+}
+
 /**
  * Persiste un buffer PDF editorial en Vercel Blob Storage.
  * Si BLOB_READ_WRITE_TOKEN no está configurado (ej. desarrollo local o tests sin red),
@@ -55,34 +83,6 @@ export async function uploadEditorialPdfToBlob(
       });
     }
   }
-
-const LOCAL_BLOB_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 horas de TTL
-
-/**
- * Limpia archivos huérfanos del directorio local de blobs con antigüedad superior al TTL.
- * Exclusivo de entornos de desarrollo local y runners de CI (AUD-02).
- */
-async function pruneExpiredLocalBlobs(dir: string, maxAgeMs = LOCAL_BLOB_MAX_AGE_MS): Promise<void> {
-  try {
-    const entries = await fs.promises.readdir(dir, { withFileTypes: true });
-    const now = Date.now();
-    for (const entry of entries) {
-      if (entry.isFile()) {
-        const fullPath = path.join(dir, entry.name);
-        try {
-          const stats = await fs.promises.stat(fullPath);
-          if (now - stats.mtimeMs > maxAgeMs) {
-            await fs.promises.unlink(fullPath).catch(() => {});
-          }
-        } catch {
-          // Continuar sin interrumpir la poda
-        }
-      }
-    }
-  } catch {
-    // Si la lectura del directorio falla, no bloquear la persistencia
-  }
-}
 
   // 2. Persistencia local para desarrollo y tests (exclusivo dev/CI con poda automática)
   const localDir = path.join(os.tmpdir(), 'sigpda_editorial_blobs');
