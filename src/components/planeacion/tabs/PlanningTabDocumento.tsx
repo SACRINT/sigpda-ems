@@ -1,10 +1,13 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
+import toast from 'react-hot-toast';
 import type { GeneratedPlanningContent, Planning, SecuenciaBloque, SecuenciaSesion } from '@/types/planning';
 import type { ActiveWorkTextbook, GenerationProgressState } from '@/types/work-textbook';
 import DocumentA4Viewer from '@/components/common/DocumentA4Viewer';
 import { featureFlags } from '@/lib/platform/feature-flags';
+import { useEditorialBook } from '@/hooks/useEditorialBook';
+import EditorialSubscriptionModal from '@/components/ui/EditorialSubscriptionModal';
 import {
   FileText, Zap, BookOpen, Download, RefreshCw, AlertTriangle,
   CheckCircle, ChevronDown, ChevronUp, Library
@@ -82,7 +85,7 @@ export default function PlanningTabDocumento({
   handleStartEdit = () => {},
   handleUpdateEditedSession = () => {},
   isEditorialGenerating = false,
-  handleExportEditorial = async () => {},
+  handleExportEditorial,
 }: PlanningTabDocumentoProps) {
   const content = planning?.contentJson as GeneratedPlanningContent | null;
   const s1 = content?.sectionI;
@@ -92,6 +95,44 @@ export default function PlanningTabDocumento({
   const allBlocksGenerated = (generatedWorkbookCount === totalWorkbookBlocks && totalWorkbookBlocks > 0);
   const isEditorialEngineEnabled = featureFlags.isEnabled('EDITORIAL_PUBLISHER_ENGINE');
   const hasPlanningId = Boolean(planning?.id);
+
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const editorialBook = useEditorialBook({
+    planningId: planning?.id,
+    onPremiumRequired: () => {
+      toast.dismiss('editorial-toast');
+      setShowSubscriptionModal(true);
+    },
+    onCompleted: () => {
+      toast.dismiss('editorial-toast');
+      toast.success('¡Libro editorial generado con éxito!');
+    },
+    onError: (msg) => {
+      toast.dismiss('editorial-toast');
+      toast.error(msg);
+    },
+  });
+
+  const isGenerating = isEditorialGenerating || editorialBook.status === 'generating';
+
+  const onExportClick = async () => {
+    if (handleExportEditorial) {
+      await handleExportEditorial();
+      return;
+    }
+    toast.loading('Generando libro editorial de alta gama…', { id: 'editorial-toast' });
+    try {
+      const ok = await editorialBook.generateBook();
+      if (!ok) {
+        toast.dismiss('editorial-toast');
+        if (editorialBook.isPremiumRequired) {
+          setShowSubscriptionModal(true);
+        }
+      }
+    } catch {
+      toast.dismiss('editorial-toast');
+    }
+  };
 
   if (activeSubTab === 'a4print') {
     return (
@@ -141,12 +182,36 @@ export default function PlanningTabDocumento({
                 </span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                {editorialBook.status === 'completed' && editorialBook.downloadUrl && (
+                  <a
+                    href={editorialBook.downloadUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-testid="btn-descargar-editorial"
+                    className="btn"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '8px 16px',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      borderRadius: '8px',
+                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                      color: '#ffffff',
+                      textDecoration: 'none',
+                      boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)',
+                    }}
+                  >
+                    <Download size={15} /> Descargar PDF
+                  </a>
+                )}
                 <button
                   type="button"
                   data-testid="btn-exportar-editorial"
                   id="btn-exportar-editorial"
-                  onClick={handleExportEditorial}
-                  disabled={!hasPlanningId || isEditorialGenerating}
+                  onClick={onExportClick}
+                  disabled={!hasPlanningId || isGenerating}
                   className="btn"
                   style={{
                     display: 'inline-flex',
@@ -156,27 +221,33 @@ export default function PlanningTabDocumento({
                     fontSize: '13px',
                     fontWeight: 600,
                     borderRadius: '8px',
-                    background: (!hasPlanningId || isEditorialGenerating)
+                    background: (!hasPlanningId || isGenerating)
                       ? 'var(--c-bg-muted)'
                       : 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)',
                     color: '#ffffff',
                     border: '1px solid rgba(167, 139, 250, 0.4)',
-                    cursor: (!hasPlanningId || isEditorialGenerating) ? 'not-allowed' : 'pointer',
-                    opacity: (!hasPlanningId || isEditorialGenerating) ? 0.6 : 1,
+                    cursor: (!hasPlanningId || isGenerating) ? 'not-allowed' : 'pointer',
+                    opacity: (!hasPlanningId || isGenerating) ? 0.6 : 1,
                     transition: 'all 0.15s ease',
-                    boxShadow: (!hasPlanningId || isEditorialGenerating) ? 'none' : '0 4px 12px rgba(124, 58, 237, 0.25)',
+                    boxShadow: (!hasPlanningId || isGenerating) ? 'none' : '0 4px 12px rgba(124, 58, 237, 0.25)',
                   }}
                   title="Exportar Libro Editorial de Alta Gama (Imprenta)"
                 >
-                  {isEditorialGenerating ? (
+                  {isGenerating ? (
                     <RefreshCw size={15} className="animate-spin" />
                   ) : (
                     <BookOpen size={15} />
                   )}
-                  <span>{isEditorialGenerating ? 'Generando Libro…' : 'Exportar Libro Editorial'}</span>
+                  <span>{isGenerating ? 'Generando Libro…' : 'Exportar Libro Editorial'}</span>
                 </button>
               </div>
             </div>
+          )}
+          {isEditorialEngineEnabled && showSubscriptionModal && (
+            <EditorialSubscriptionModal
+              isOpen={showSubscriptionModal}
+              onClose={() => setShowSubscriptionModal(false)}
+            />
           )}
           {/* Section I */}
           <div className="section-card">
