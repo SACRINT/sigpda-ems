@@ -4,6 +4,7 @@ import React from 'react';
 import type { GeneratedPlanningContent, Planning, SecuenciaBloque, SecuenciaSesion } from '@/types/planning';
 import type { ActiveWorkTextbook, GenerationProgressState } from '@/types/work-textbook';
 import DocumentA4Viewer from '@/components/common/DocumentA4Viewer';
+import { featureFlags } from '@/lib/platform/feature-flags';
 import {
   FileText, Zap, BookOpen, Download, RefreshCw, AlertTriangle,
   CheckCircle, ChevronDown, ChevronUp, Library
@@ -26,6 +27,8 @@ export interface PlanningTabDocumentoProps {
   handleDownloadPdf?: () => Promise<void> | void;
   handleDownloadSecuenciaPdf?: () => Promise<void> | void;
   downloadingSeqPdf?: boolean;
+  isEditorialGenerating?: boolean;
+  handleExportEditorial?: () => Promise<void> | void;
   accumulatedWorkbookWords?: number;
   macroTargetWords?: number;
   generatedWorkbookCount?: number;
@@ -78,20 +81,24 @@ export default function PlanningTabDocumento({
   setEditingSeqBlock = () => {},
   handleStartEdit = () => {},
   handleUpdateEditedSession = () => {},
+  isEditorialGenerating = false,
+  handleExportEditorial = async () => {},
 }: PlanningTabDocumentoProps) {
-  const content = planning.contentJson as GeneratedPlanningContent | null;
+  const content = planning?.contentJson as GeneratedPlanningContent | null;
   const s1 = content?.sectionI;
   const isLaboral = s1?.component?.toLowerCase().includes('laboral') || false;
   const activityLabel = isLaboral ? 'Actividades Clave' : 'Propósitos y Contenidos formativos';
   const prefix = isLaboral ? 'AC' : 'PC';
   const allBlocksGenerated = (generatedWorkbookCount === totalWorkbookBlocks && totalWorkbookBlocks > 0);
+  const isEditorialEngineEnabled = featureFlags.isEnabled('EDITORIAL_PUBLISHER_ENGINE');
+  const hasPlanningId = Boolean(planning?.id);
 
   if (activeSubTab === 'a4print') {
     return (
         <DocumentA4Viewer
           planning={{ ...planning, sequenceJson: sequenceData }}
           onDownloadDocx={() => {
-            window.location.href = `/api/docx/${planning.id}`;
+            window.location.href = `/api/docx/${planning?.id}`;
           }}
         />
     );
@@ -99,6 +106,78 @@ export default function PlanningTabDocumento({
 
   return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* ── BARRA DE ACCIONES EDITORIAL (FASE 3 — TAREA 1 & 2) ── */}
+          {isEditorialEngineEnabled && (
+            <div
+              data-testid="editorial-action-bar"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '12px',
+                padding: '12px 18px',
+                background: 'var(--c-bg-elevated)',
+                border: '1px solid var(--c-border)',
+                borderRadius: '10px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Library size={18} style={{ color: 'var(--c-accent-bright)' }} />
+                <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--c-text)' }}>
+                  Motor Editorial de Alta Gama
+                </span>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    padding: '2px 8px',
+                    borderRadius: '10px',
+                    background: 'rgba(99, 102, 241, 0.15)',
+                    color: 'var(--c-accent-bright)',
+                    fontWeight: 700,
+                  }}
+                >
+                  MCCEMS · Typst 0.14
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <button
+                  type="button"
+                  data-testid="btn-exportar-editorial"
+                  id="btn-exportar-editorial"
+                  onClick={handleExportEditorial}
+                  disabled={!hasPlanningId || isEditorialGenerating}
+                  className="btn"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '8px 16px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    borderRadius: '8px',
+                    background: (!hasPlanningId || isEditorialGenerating)
+                      ? 'var(--c-bg-muted)'
+                      : 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)',
+                    color: '#ffffff',
+                    border: '1px solid rgba(167, 139, 250, 0.4)',
+                    cursor: (!hasPlanningId || isEditorialGenerating) ? 'not-allowed' : 'pointer',
+                    opacity: (!hasPlanningId || isEditorialGenerating) ? 0.6 : 1,
+                    transition: 'all 0.15s ease',
+                    boxShadow: (!hasPlanningId || isEditorialGenerating) ? 'none' : '0 4px 12px rgba(124, 58, 237, 0.25)',
+                  }}
+                  title="Exportar Libro Editorial de Alta Gama (Imprenta)"
+                >
+                  {isEditorialGenerating ? (
+                    <RefreshCw size={15} className="animate-spin" />
+                  ) : (
+                    <BookOpen size={15} />
+                  )}
+                  <span>{isEditorialGenerating ? 'Generando Libro…' : 'Exportar Libro Editorial'}</span>
+                </button>
+              </div>
+            </div>
+          )}
           {/* Section I */}
           <div className="section-card">
             <div className="section-card-header">
