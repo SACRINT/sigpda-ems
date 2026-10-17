@@ -1,8 +1,9 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { renderToString } from 'react-dom/server';
+import fs from 'node:fs';
+import path from 'node:path';
 import PlanningTabDocumento from '@/components/planning/PlanningTabDocumento';
-import { featureFlags } from '@/lib/platform/feature-flags';
 import type { Planning, GeneratedPlanningContent } from '@/types/planning';
 
 describe('PlanningTabDocumento — Tarea 1: Botón de exportación editorial', () => {
@@ -48,18 +49,18 @@ describe('PlanningTabDocumento — Tarea 1: Botón de exportación editorial', (
     updatedAt: new Date(),
   };
 
-  beforeEach(() => {
-    vi.restoreAllMocks();
+  it('AUD-T1 Invariante Arquitectónico: PlanningTabDocumento no debe importar feature-flags en código cliente', () => {
+    const tabSource = fs.readFileSync(
+      path.join(process.cwd(), 'src/components/planeacion/tabs/PlanningTabDocumento.tsx'),
+      'utf8',
+    );
+    expect(tabSource).not.toContain('@/lib/platform/feature-flags');
+    expect(tabSource).not.toContain('featureFlags.isEnabled');
   });
 
-  it('con feature flag false, el botón "Exportar Libro Editorial" NO debe renderizarse', () => {
-    vi.spyOn(featureFlags, 'isEnabled').mockImplementation((flag) => {
-      if (flag === 'EDITORIAL_PUBLISHER_ENGINE') return false;
-      return false;
-    });
-
+  it('con editorialEngineEnabled=false, el botón "Exportar Libro Editorial" NO debe renderizarse', () => {
     const html = renderToString(
-      <PlanningTabDocumento planning={dummyPlanning} />,
+      <PlanningTabDocumento planning={dummyPlanning} editorialEngineEnabled={false} />,
     );
 
     expect(html).not.toContain('btn-exportar-editorial');
@@ -67,19 +68,14 @@ describe('PlanningTabDocumento — Tarea 1: Botón de exportación editorial', (
     expect(html).not.toContain('editorial-action-bar');
   });
 
-  it('con feature flag true pero sin id en planeación, el botón renderiza pero está disabled', () => {
-    vi.spyOn(featureFlags, 'isEnabled').mockImplementation((flag) => {
-      if (flag === 'EDITORIAL_PUBLISHER_ENGINE') return true;
-      return false;
-    });
-
+  it('con editorialEngineEnabled=true pero sin id en planeación, el botón renderiza pero está disabled', () => {
     const emptyIdPlanning: Planning = {
       ...dummyPlanning,
       id: '',
     };
 
     const html = renderToString(
-      <PlanningTabDocumento planning={emptyIdPlanning} />,
+      <PlanningTabDocumento planning={emptyIdPlanning} editorialEngineEnabled={true} />,
     );
 
     expect(html).toContain('btn-exportar-editorial');
@@ -87,14 +83,13 @@ describe('PlanningTabDocumento — Tarea 1: Botón de exportación editorial', (
     expect(html).toContain('disabled=""');
   });
 
-  it('con feature flag true y planeación con id, el botón renderiza y está habilitado', () => {
-    vi.spyOn(featureFlags, 'isEnabled').mockImplementation((flag) => {
-      if (flag === 'EDITORIAL_PUBLISHER_ENGINE') return true;
-      return false;
-    });
-
+  it('con editorialEngineEnabled=true y planeación con id, el botón renderiza y está habilitado', () => {
     const html = renderToString(
-      <PlanningTabDocumento planning={dummyPlanning} isEditorialGenerating={false} />,
+      <PlanningTabDocumento
+        planning={dummyPlanning}
+        editorialEngineEnabled={true}
+        isEditorialGenerating={false}
+      />,
     );
 
     expect(html).toContain('btn-exportar-editorial');
@@ -103,16 +98,17 @@ describe('PlanningTabDocumento — Tarea 1: Botón de exportación editorial', (
     expect(html).toMatch(/<button[^>]*id="btn-exportar-editorial"[^>]*>/);
     const buttonMatch = html.match(/<button[^>]*id="btn-exportar-editorial"[^>]*>/)?.[0] || '';
     expect(buttonMatch).not.toContain('disabled');
+    // AUD-T2: Badge debe reflejar Typst 0.13 en coherencia con el Dockerfile
+    expect(html).toContain('MCCEMS · Typst 0.13');
   });
 
-  it('con feature flag true y isEditorialGenerating=true, el botón renderiza en estado disabled con spinner', () => {
-    vi.spyOn(featureFlags, 'isEnabled').mockImplementation((flag) => {
-      if (flag === 'EDITORIAL_PUBLISHER_ENGINE') return true;
-      return false;
-    });
-
+  it('con editorialEngineEnabled=true y isEditorialGenerating=true, el botón renderiza en estado disabled con spinner', () => {
     const html = renderToString(
-      <PlanningTabDocumento planning={dummyPlanning} isEditorialGenerating={true} />,
+      <PlanningTabDocumento
+        planning={dummyPlanning}
+        editorialEngineEnabled={true}
+        isEditorialGenerating={true}
+      />,
     );
 
     expect(html).toContain('btn-exportar-editorial');

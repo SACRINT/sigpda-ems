@@ -1,10 +1,11 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderToString } from 'react-dom/server';
+import fs from 'node:fs';
+import path from 'node:path';
 import PlanningTabDocumento from '@/components/planning/PlanningTabDocumento';
 import EditorialSubscriptionModal from '@/components/ui/EditorialSubscriptionModal';
 import { EditorialBookClient } from '@/hooks/useEditorialBook';
-import { featureFlags } from '@/lib/platform/feature-flags';
 import type { Planning, GeneratedPlanningContent } from '@/types/planning';
 
 const pushMock = vi.fn();
@@ -77,16 +78,20 @@ describe('Editorial UI Integration Suite (Fase 3 — Tarea 5)', () => {
     vi.useRealTimers();
   });
 
-  it('Escenario 1: Ciclo completo UI → POST 200 → Polls GET (pending → completed) → Entrega URL de descarga', async () => {
-    vi.spyOn(featureFlags, 'isEnabled').mockImplementation((flag) => {
-      if (flag === 'EDITORIAL_PUBLISHER_ENGINE') return true;
-      return false;
-    });
+  it('Invariante Arquitectónico AUD-T1: PlanningTabDocumento no importa feature-flags', () => {
+    const tabSource = fs.readFileSync(
+      path.join(process.cwd(), 'src/components/planeacion/tabs/PlanningTabDocumento.tsx'),
+      'utf8',
+    );
+    expect(tabSource).not.toContain('@/lib/platform/feature-flags');
+    expect(tabSource).not.toContain('featureFlags.isEnabled');
+  });
 
+  it('Escenario 1: Ciclo completo UI → POST 200 → Polls GET (pending → completed) → Entrega URL de descarga', async () => {
     const targetUrl = 'https://blob.vercel-storage.com/editorial-books/plan-integration-101-final.pdf';
     let pollCount = 0;
 
-    const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+    const fetchMock = vi.fn().mockImplementation((_url: string, init?: RequestInit) => {
       if (init?.method === 'POST') {
         return Promise.resolve({
           ok: true,
@@ -155,21 +160,16 @@ describe('Editorial UI Integration Suite (Fase 3 — Tarea 5)', () => {
     expect(state.spineWidthMm).toBe(4.6);
     expect(onCompletedMock).toHaveBeenCalledWith(targetUrl);
 
-    // Verificar que el componente renderiza el botón de descarga con la URL entregada
+    // Verificar que el componente con editorialEngineEnabled=true renderiza la barra y botón
     const html = renderToString(
-      <PlanningTabDocumento planning={dummyPlanning} />,
+      <PlanningTabDocumento planning={dummyPlanning} editorialEngineEnabled={true} />,
     );
-    // El botón de exportar sigue disponible
     expect(html).toContain('btn-exportar-editorial');
     expect(html).toContain('Exportar Libro Editorial');
+    expect(html).toContain('MCCEMS · Typst 0.13');
   });
 
   it('Escenario 2: Caso premium — POST 403 PREMIUM_REQUIRED → Modal visible → Click "Ver planes" → router.push("/suscripcion")', async () => {
-    vi.spyOn(featureFlags, 'isEnabled').mockImplementation((flag) => {
-      if (flag === 'EDITORIAL_PUBLISHER_ENGINE') return true;
-      return false;
-    });
-
     global.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 403,
@@ -203,18 +203,13 @@ describe('Editorial UI Integration Suite (Fase 3 — Tarea 5)', () => {
     expect(modalHtml).toContain('Compilación de Imprenta Typst');
     expect(modalHtml).toContain('Lomo Paramétrico Automatizado');
 
-    // Simular click en "Ver planes" navegando a /suscripcion
+    // Simular navegación hacia suscripción
     const router = { push: pushMock };
     router.push('/suscripcion');
     expect(pushMock).toHaveBeenCalledWith('/suscripcion');
   });
 
   it('Escenario 3: Caso presupuesto agotado — POST 504 TIMEOUT_BUDGET_EXCEEDED → Retry-After toast y estado de reintento', async () => {
-    vi.spyOn(featureFlags, 'isEnabled').mockImplementation((flag) => {
-      if (flag === 'EDITORIAL_PUBLISHER_ENGINE') return true;
-      return false;
-    });
-
     const headersMock = new Headers();
     headersMock.set('Retry-After', '8');
 
@@ -246,11 +241,6 @@ describe('Editorial UI Integration Suite (Fase 3 — Tarea 5)', () => {
   });
 
   it('Escenario 4: Caso error 500 COMPILE_FAILED → feedback visual y estado de falla', async () => {
-    vi.spyOn(featureFlags, 'isEnabled').mockImplementation((flag) => {
-      if (flag === 'EDITORIAL_PUBLISHER_ENGINE') return true;
-      return false;
-    });
-
     global.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 500,
@@ -273,14 +263,9 @@ describe('Editorial UI Integration Suite (Fase 3 — Tarea 5)', () => {
     expect(onErrorMock).toHaveBeenCalledWith('Fallo al invocar el worker editorial remoto');
   });
 
-  it('Escenario 5: Feature flag desactivado → La UI editorial permanece 100% oculta', () => {
-    vi.spyOn(featureFlags, 'isEnabled').mockImplementation((flag) => {
-      if (flag === 'EDITORIAL_PUBLISHER_ENGINE') return false;
-      return false;
-    });
-
+  it('Escenario 5: Feature flag desactivado (editorialEngineEnabled=false) → La UI editorial permanece 100% oculta', () => {
     const html = renderToString(
-      <PlanningTabDocumento planning={dummyPlanning} />,
+      <PlanningTabDocumento planning={dummyPlanning} editorialEngineEnabled={false} />,
     );
 
     expect(html).not.toContain('editorial-action-bar');
