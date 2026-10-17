@@ -5,7 +5,6 @@ import toast from 'react-hot-toast';
 import type { GeneratedPlanningContent, Planning, SecuenciaBloque, SecuenciaSesion } from '@/types/planning';
 import type { ActiveWorkTextbook, GenerationProgressState } from '@/types/work-textbook';
 import DocumentA4Viewer from '@/components/common/DocumentA4Viewer';
-import { featureFlags } from '@/lib/platform/feature-flags';
 import { useEditorialBook } from '@/hooks/useEditorialBook';
 import EditorialSubscriptionModal from '@/components/ui/EditorialSubscriptionModal';
 import {
@@ -32,6 +31,7 @@ export interface PlanningTabDocumentoProps {
   downloadingSeqPdf?: boolean;
   isEditorialGenerating?: boolean;
   handleExportEditorial?: () => Promise<void> | void;
+  editorialEngineEnabled?: boolean;
   accumulatedWorkbookWords?: number;
   macroTargetWords?: number;
   generatedWorkbookCount?: number;
@@ -86,6 +86,7 @@ export default function PlanningTabDocumento({
   handleUpdateEditedSession = () => {},
   isEditorialGenerating = false,
   handleExportEditorial,
+  editorialEngineEnabled = false,
 }: PlanningTabDocumentoProps) {
   const content = planning?.contentJson as GeneratedPlanningContent | null;
   const s1 = content?.sectionI;
@@ -93,7 +94,7 @@ export default function PlanningTabDocumento({
   const activityLabel = isLaboral ? 'Actividades Clave' : 'Propósitos y Contenidos formativos';
   const prefix = isLaboral ? 'AC' : 'PC';
   const allBlocksGenerated = (generatedWorkbookCount === totalWorkbookBlocks && totalWorkbookBlocks > 0);
-  const isEditorialEngineEnabled = featureFlags.isEnabled('EDITORIAL_PUBLISHER_ENGINE');
+  const isEditorialEngineEnabled = Boolean(editorialEngineEnabled);
   const hasPlanningId = Boolean(planning?.id);
 
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
@@ -178,7 +179,7 @@ export default function PlanningTabDocumento({
                     fontWeight: 700,
                   }}
                 >
-                  MCCEMS · Typst 0.14
+                  MCCEMS · Typst 0.13
                 </span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

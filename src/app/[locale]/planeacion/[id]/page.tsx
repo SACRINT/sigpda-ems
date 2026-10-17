@@ -2,9 +2,17 @@ import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { getTeacherByEmail, getPlanningById, getPlanningExtras } from '@/lib/db';
 import AppLayout from '@/components/layout/AppLayout';
+import { featureFlags } from '@/lib/platform/feature-flags';
 import PlanningDetailClient from './PlanningDetailClient';
 import type { Metadata } from 'next';
-import type { Planning, PlanningExtra } from '@/types/planning';
+import type {
+  Planning,
+  PlanningExtra,
+  CurriculumComponent,
+  ExtractedPdfData,
+  GeneratedPlanningContent,
+  PlanningStatus,
+} from '@/types/planning';
 
 export const metadata: Metadata = {
   title: 'Ver UAC y Recursos — SIGPDA-EMS',
@@ -34,12 +42,12 @@ export default async function PlanningDetailPage({
     teacherId: planning.teacher_id,
     uacName: planning.uac_name,
     semester: planning.semester,
-    component: planning.component as any,
+    component: (planning.component as CurriculumComponent) || 'fundamental',
     curriculumName: planning.curriculum_name || '',
     paecContext: planning.paec_context || '',
-    extractedData: planning.extracted_data as any,
-    contentJson: planning.content_json as any,
-    status: planning.status as any,
+    extractedData: (planning.extracted_data as unknown as ExtractedPdfData) || null,
+    contentJson: (planning.content_json as unknown as GeneratedPlanningContent) || null,
+    status: (planning.status as PlanningStatus) || 'draft',
     createdAt: planning.created_at,
     updatedAt: planning.updated_at,
     metodologiaActiva: planning.metodologia_activa || undefined,
@@ -51,12 +59,14 @@ export default async function PlanningDetailPage({
   const extrasTyped: PlanningExtra[] = extras.map((ex) => ({
     id: ex.id,
     planningId: ex.planning_id,
-    type: ex.type as any,
+    type: ex.type as PlanningExtra['type'],
     title: ex.title,
     keyIndex: ex.key_index,
     contentText: ex.content_text,
     createdAt: ex.created_at,
   }));
+
+  const editorialEngineEnabled = featureFlags.isEnabled('EDITORIAL_PUBLISHER_ENGINE');
 
   return (
     <AppLayout locale={locale}>
@@ -64,6 +74,7 @@ export default async function PlanningDetailPage({
         locale={locale}
         planning={planningTyped}
         initialExtras={extrasTyped}
+        editorialEngineEnabled={editorialEngineEnabled}
       />
     </AppLayout>
   );

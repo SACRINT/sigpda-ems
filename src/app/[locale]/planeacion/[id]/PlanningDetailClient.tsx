@@ -20,6 +20,7 @@ interface PlanningDetailClientProps {
   locale: string;
   planning: Planning;
   initialExtras: PlanningExtra[];
+  editorialEngineEnabled?: boolean;
 }
 
 import PlanningDetailLegacy from './legacy/PlanningDetailLegacy';
@@ -44,6 +45,7 @@ function PlanningDetailModular({
   locale,
   planning,
   initialExtras,
+  editorialEngineEnabled,
 }: PlanningDetailClientProps) {
   const content = planning.contentJson as GeneratedPlanningContent | null;
   const s1 = content?.sectionI;
@@ -1025,6 +1027,7 @@ function PlanningDetailModular({
       {(activeTab === 'planning' || activeTab === 'a4print') && (
         <PlanningTabDocumento
           planning={planning}
+          editorialEngineEnabled={editorialEngineEnabled}
           activeSubTab={activeTab === 'a4print' ? 'a4print' : 'planning'}
           sequenceData={sequenceData}
           downloadingPdf={downloadingPdf}
