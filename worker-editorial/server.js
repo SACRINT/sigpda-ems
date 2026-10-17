@@ -329,6 +329,12 @@ async function compileWithTypstChildProcess(inputPath, outputPath, options = {})
 
 /**
  * Handler HTTP principal del Worker
+ *
+ * Arquitectura de Filesystem (AUD-01 / AUD-R2):
+ * - En Linux (Fly Machines / Docker), todo el sistema de archivos reside bajo la raíz unificada `/`.
+ * - En Windows (entorno de desarrollo local), `os.tmpdir()` y el repositorio de código deben
+ *   coexistir en el mismo volumen/unidad de disco para que `--root` englobe tanto el scratch
+ *   de compilación como los assets públicos en `/public/images/materiales`.
  */
 function handleRequest(req, res) {
   res.setHeader('Content-Type', 'application/json');
@@ -415,7 +421,9 @@ function handleRequest(req, res) {
         const localTemplatePath = path.join(scratchDir, 'workbook-template.typ');
         await fs.promises.copyFile(templatePath, localTemplatePath);
 
-        // Raíz efectiva de Typst para resolución de assets estáticos
+        // Raíz efectiva de Typst para resolución de assets estáticos (AUD-01 / AUD-R2).
+        // En Linux/Fly Machines /app y /tmp residen bajo /. En Windows dev local,
+        // presupone que scratchDir y publicDir residen en el mismo volumen de disco.
         const effectiveRootDir = path.parse(publicDir).root;
 
         const jsonPath = path.join(scratchDir, 'chapter.json');
