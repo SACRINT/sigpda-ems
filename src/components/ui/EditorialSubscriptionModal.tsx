@@ -44,6 +44,13 @@ export default function EditorialSubscriptionModal({
         const firstElement = focusable[0];
         const lastElement = focusable[focusable.length - 1];
 
+        // AUD-U2: Si el foco quedó fuera del modal, reincorporarlo al primer elemento
+        if (!modalRef.current.contains(document.activeElement)) {
+          event.preventDefault();
+          firstElement.focus();
+          return;
+        }
+
         if (event.shiftKey) {
           if (document.activeElement === firstElement) {
             event.preventDefault();
