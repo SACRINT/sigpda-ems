@@ -242,7 +242,7 @@ export async function POST(
     // Despachar compilación al worker container de Typst con presupuesto dinámico Vercel (< 60s, AUD-R3)
     const elapsedMs = Date.now() - requestStartTime;
     const remainingBudgetMs = EDITORIAL_WORKER_MAX_BUDGET_MS - elapsedMs;
-    const MIN_REQUIRED_BUDGET_MS = 8000;
+    const MIN_REQUIRED_BUDGET_MS = 13000;
 
     if (remainingBudgetMs < MIN_REQUIRED_BUDGET_MS) {
       logger.warn('[api/pdf/libro-editorial] Presupuesto de tiempo insuficiente antes de despachar al worker:', {

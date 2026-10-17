@@ -19,13 +19,13 @@ export interface UploadPdfResult {
   provider: 'vercel_blob' | 'local_fallback';
 }
 
-export const LOCAL_BLOB_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 horas de TTL
+const LOCAL_BLOB_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 horas de TTL
 
 /**
  * Limpia archivos huérfanos del directorio local de blobs con antigüedad superior al TTL.
  * Exclusivo de entornos de desarrollo local y runners de CI (AUD-02 / AUD-R1).
  */
-export async function pruneExpiredLocalBlobs(dir: string, maxAgeMs = LOCAL_BLOB_MAX_AGE_MS): Promise<void> {
+async function pruneExpiredLocalBlobs(dir: string, maxAgeMs = LOCAL_BLOB_MAX_AGE_MS): Promise<void> {
   try {
     const entries = await fs.promises.readdir(dir, { withFileTypes: true });
     const now = Date.now();
