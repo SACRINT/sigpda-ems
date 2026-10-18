@@ -67,11 +67,7 @@ describe('Motor Editorial Fase 2 — Pipeline Asíncrono, Worker y Subscription 
     teacher_id: mockTeacher.id,
     uac_name: 'Pensamiento Matemático II',
     semester: 2,
-    school_name: 'Bachillerato Digital Núm. 42',
-    cct: '21EBH0042Z',
-    structured_plan: {
-      sessionPlans: [],
-    },
+    workbooks_json: {},
   };
 
   beforeEach(() => {

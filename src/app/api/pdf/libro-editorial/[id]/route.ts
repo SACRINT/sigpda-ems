@@ -35,8 +35,11 @@ import { uploadEditorialPdfToBlob } from '@/lib/editorial/blob-storage';
 import {
   StudentChapter,
   StudentChapterSchema,
+  StudentSessionSchema,
   adaptSessionPlanToStudentSession,
 } from '@/lib/editorial/student-content-model';
+import type { StudentSession } from '@/lib/editorial/student-content-model';
+import type { SessionPlan } from '@/types/work-textbook';
 import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
@@ -50,6 +53,8 @@ async function authorizeRequest(request: NextRequest): Promise<{
   teacherId?: string;
   teacherEmail?: string;
   isAdmin?: boolean;
+  teacherSchoolName?: string | null;
+  teacherCct?: string | null;
   errorResponse?: NextResponse;
 }> {
   // 1. Verificación de Feature Flag
@@ -71,6 +76,8 @@ async function authorizeRequest(request: NextRequest): Promise<{
   let teacherEmail: string | undefined;
   let teacherId: string | undefined;
   let isSuperAdmin = false;
+  let teacherSchoolName: string | null = null;
+  let teacherCct: string | null = null;
 
   const session = await auth();
   if (session?.user?.email) {
@@ -79,6 +86,8 @@ async function authorizeRequest(request: NextRequest): Promise<{
     if (teacher) {
       teacherId = teacher.id;
       isSuperAdmin = teacher.role === 'administrador';
+      teacherSchoolName = teacher.school_name ?? null;
+      teacherCct = teacher.cct ?? null;
     }
   }
 
@@ -123,7 +132,73 @@ async function authorizeRequest(request: NextRequest): Promise<{
     teacherId,
     teacherEmail,
     isAdmin: subscriptionStatus.isAdmin || isSuperAdmin,
+    teacherSchoolName,
+    teacherCct,
   };
+}
+
+/**
+ * Compone las sesiones del estudiante desde los libros de bloque persistidos
+ * en plannings.workbooks_json (block_N.current.missions[].sessionPlans),
+ * ordenando por bloque y sessionNumber y renumerando 1..N para cumplir el
+ * invariante anti-F11 (continuidad estricta) de StudentChapterSchema.
+ */
+function composeStudentSessionsFromWorkbooks(rawPlanning: {
+  workbooks_json?: Record<string, { current?: { missions?: unknown[] } } | null> | null;
+}): { sessions: StudentSession[]; blocksPresent: number[] } {
+  const workbooks = rawPlanning.workbooks_json;
+  if (!workbooks || typeof workbooks !== 'object') {
+    return { sessions: [], blocksPresent: [] };
+  }
+
+  const blockKeys = Object.keys(workbooks)
+    .filter((key) => /^block_\d+$/.test(key))
+    .sort((a, b) => Number(a.slice('block_'.length)) - Number(b.slice('block_'.length)));
+
+  const plans: SessionPlan[] = [];
+  const blocksPresent: number[] = [];
+
+  for (const key of blockKeys) {
+    const missions = (workbooks[key]?.current?.missions ?? []) as Array<{
+      sessionPlans?: SessionPlan[];
+    }>;
+    const blockPlans = missions.flatMap((mission) =>
+      Array.isArray(mission?.sessionPlans) ? mission.sessionPlans : [],
+    );
+    if (blockPlans.length === 0) continue;
+
+    blocksPresent.push(Number(key.slice('block_'.length)));
+    blockPlans.sort((a, b) => (a?.sessionNumber || 0) - (b?.sessionNumber || 0));
+    plans.push(...blockPlans);
+  }
+
+  const validSessions: StudentSession[] = [];
+  for (const plan of plans) {
+    try {
+      const parsed = StudentSessionSchema.safeParse(adaptSessionPlanToStudentSession(plan));
+      if (parsed.success) {
+        validSessions.push(parsed.data);
+      } else {
+        logger.warn('[api/pdf/libro-editorial] Sesión descartada al componer el capítulo (no cumple el modelo de estudiante):', {
+          sessionNumber: plan?.sessionNumber,
+          issues: parsed.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`),
+        });
+      }
+    } catch (error) {
+      logger.warn('[api/pdf/libro-editorial] Sesión descartada por error de adaptación SessionPlan→StudentSession:', {
+        sessionNumber: plan?.sessionNumber,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  const sessions = validSessions.map((session, index) => ({
+    ...session,
+    numero: index + 1,
+    titulo: session.titulo.replace(/^Sesión \d+:\s*/, `Sesión ${index + 1}: `),
+  }));
+
+  return { sessions, blocksPresent };
 }
 
 /**
@@ -169,36 +244,47 @@ export async function POST(
         throw new Error('Sin chapter explícito en el body');
       }
     } catch {
-      // Si no se proveyó en el body, construir capítulo a partir de las sesiones de la planeación
-      const rawSessions = Array.isArray(rawPlanning.structured_plan?.sessionPlans)
-        ? rawPlanning.structured_plan.sessionPlans
-        : [];
+      // Sin chapter explícito en el body: componer desde los libros de bloque persistidos
+      const composed = composeStudentSessionsFromWorkbooks(rawPlanning);
 
-      const studentSessions = rawSessions.map((sp: unknown) =>
-        adaptSessionPlanToStudentSession(sp as Parameters<typeof adaptSessionPlanToStudentSession>[0]),
-      );
-
-      // Si la planeación no tiene sesiones estructuradas suficientes, responder error
-      if (studentSessions.length === 0) {
+      if (composed.sessions.length === 0) {
+        logger.warn('[api/pdf/libro-editorial] NO_SESSIONS: la planeación no tiene libros de bloque con sesiones de estudiante', {
+          planningId,
+        });
         return NextResponse.json(
           {
-            error: 'La planeación no cuenta con sesiones curriculares válidas para componer el libro del estudiante.',
+            error:
+              'Esta planeación aún no tiene libros de bloque generados (PC1–PC3). Genera primero los libros de bloque desde la pestaña Documento y vuelve a exportar el Libro Editorial.',
             code: 'NO_SESSIONS',
           },
           { status: 400 },
         );
       }
 
+      const plantel =
+        typeof authResult.teacherSchoolName === 'string' && authResult.teacherSchoolName.trim().length >= 3
+          ? authResult.teacherSchoolName.trim()
+          : 'Educación Media Superior Puebla';
+      const cct =
+        typeof authResult.teacherCct === 'string' && authResult.teacherCct.trim().length >= 5
+          ? authResult.teacherCct.trim()
+          : '21EBH0001X';
+      const firstBlock = composed.blocksPresent[0] ?? 0;
+      const bloqueEtiqueta =
+        composed.blocksPresent.length > 1
+          ? `Bloques ${composed.blocksPresent.map((n) => n + 1).join(', ')}`
+          : `Bloque ${firstBlock + 1}`;
+
       chapter = StudentChapterSchema.parse({
         uac: rawPlanning.uac_name || 'Pensamiento Matemático',
-        bloque: 'Bloque 1',
+        bloque: bloqueEtiqueta,
         editorialSubtitle: 'Alineado al MCCEMS y Proyectos Aula Escuela Comunidad (PAEC)',
         semestre: String(rawPlanning.semester || '2'),
         cicloEscolar: '2026-2027',
-        plantel: rawPlanning.school_name || 'Educación Media Superior Puebla',
-        cct: rawPlanning.cct || '21EBH0001X',
+        plantel,
+        cct,
         zonaEscolar: 'Zona 001',
-        sesiones: studentSessions,
+        sesiones: composed.sessions,
       });
     }
 
