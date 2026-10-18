@@ -17,11 +17,10 @@ import { generateWithRotation } from '@/lib/ai-provider';
 import { robustJsonParse } from '@/lib/ai-response-parser';
 import type {
   EvaluationSection,
-  EvaluationRubricCriterion,
   MissionSection,
   WorkbookElement,
 } from '@/types/work-textbook';
-import { type WriterInput, type WriterOutput, evaluateQuality } from './writer-contract';
+import { type WriterInput, type WriterOutput, evaluateQuality, completeSessionPlans } from './writer-contract';
 import { buildPlanningAlignmentPrompt } from './planning-alignment-prompt';
 import { logger } from '@/lib/logger';
 
@@ -29,6 +28,7 @@ export async function generateEvaluationSection(input: WriterInput): Promise<Wri
   const extras = input.existingExtras || {};
   const hasExistingRubric = Boolean(extras.rubric || extras.rubrica);
   const hasExistingChecklist = Boolean(extras.checklist || extras.lista_verificacion);
+  const { coveredSessions } = resolveEvaluationMission(input);
 
   let extrasContext = '';
   if (hasExistingRubric || hasExistingChecklist) {
@@ -53,7 +53,8 @@ ESTÁNDARES FORMATIVOS OBLIGATORIOS Y METAS NEM:
 3. Cuestionario de juicio crítico (800-1,200 palabras): 3 a 5 escenarios reales en Puebla con retroalimentación docente formativa > 150 palabras.
 4. Autoevaluación metacognitiva (500-800 palabras): 5 a 8 preguntas abiertas de reflexión y transferencia.
 5. Evaluación Escalonada (tieredExercises - 800-1,200 palabras): EXACTAMENTE 3 NIVELES ('basico', 'intermedio', 'avanzado') con al menos 2 ejercicios por nivel (mínimo 6 ejercicios en total) con statement, contextOrData, expectedOutputOrCriteria y hint.
-6. Sintaxis JSON: Usa comillas simples ('...') en código/citas. Cero comillas dobles sin escapar dentro de valores JSON.
+6. Contenido por sesión para el ESTUDIANTE (OBLIGATORIO — genera un "plan" por cada sesión asignada): Para CADA sesión de "Sesiones asignadas" genera un objeto en "sessionPlans". Cada objeto es material que el estudiante LEE para aprender solo. Incluye: (a) objetivo ("Lo que vas a aprender", 1-2 frases en tú); (b) motivacion (caso real de la comunidad o PAEC contado al estudiante); (c) saberesPrevios (qué ya sabe); (d) contenido (LA TEORÍA REAL de la sesión — definiciones, fórmulas, criterios de evaluación o fase de cierre explicada con detalle, varios párrafos, no 1-2 frases); (e) ejemploResuelto (ejemplo con NÚMEROS paso a paso); (f) practica (2-3 ejercicios concretos con datos; cada uno con "pista" hint para empezar Y "solucion" con 3-6 pasos numerados que resuelven el ejercicio con números — la "solucion" SOLO la lee el solucionario docente, el libro del estudiante solo imprime enunciado y pista); (g) aplicacion (tarea aplicada a la vida real); (h) autoevaluacion (2-3 preguntas de autorevisión); (i) recursos (1-2 enlaces reales a video YouTube o web de ampliación); (j) productoIntegrador (qué agrega el estudiante a su proyecto hoy). Los planes deben VARIAR entre sesiones y ser específicos del contexto PAEC/comunidad. VOZ DE ESTUDIANTE en todo.
+7. Sintaxis JSON: Usa comillas simples ('...') en código/citas. Cero comillas dobles sin escapar dentro de valores JSON.
 
 Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
 {
@@ -145,12 +146,34 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
       "¿Qué aprendizaje de este bloque consideras más transformador y por qué?",
       "¿Qué estrategia implementaste para superar el obstáculo técnico más difícil?"
     ]
-  }
+  },
+  "sessionPlans": [
+    {
+      "sessionNumber": 22,
+      "objetivo": "Lo que vas a aprender en la sesión 22 (1-2 frases)...",
+      "motivacion": "Caso real / historia contada al estudiante...",
+      "saberesPrevios": "Qué ya sabes que conecta con esto...",
+      "contenido": "TEORÍA REAL de la sesión: definiciones, fórmulas o criterios de evaluación (varios párrafos)...",
+      "ejemploResuelto": "Ejemplo con números resuelto paso a paso...",
+      "practica": [
+        { "enunciado": "Ejercicio 1 con datos concretos", "pista": "Pista de cómo empezar (sin solución)", "solucion": ["Paso 1: sustituir datos...", "Paso 2: operar y verificar...", "Respuesta final: ..."] },
+        { "enunciado": "Ejercicio 2 con datos concretos", "pista": "Pista de cómo empezar (sin solución)", "solucion": ["Paso 1: ...", "Respuesta final: ..."] }
+      ],
+      "aplicacion": "Aplicación a la vida real del estudiante...",
+      "autoevaluacion": ["¿Puedo explicar el criterio central?", "¿Logré la práctica sin mirar?"],
+      "recursos": [
+        { "titulo": "Video: tema en YouTube", "url": "https://www.youtube.com/watch?v=...", "tipo": "video" },
+        { "titulo": "Página de ampliación", "url": "https://...", "tipo": "web" }
+      ],
+      "productoIntegrador": "Qué agregas hoy a tu producto integrador..."
+    }
+  ]
 }`;
 
   const prompt = `UAC: ${input.uacName}
 Subsistema: ${input.subsystem.toUpperCase()}
 Bloque: ${input.blockName} (Índice ${input.blockIndex})
+Sesiones asignadas: Sesiones ${coveredSessions.join(', ')}
 Problemática PAEC comunitaria: ${input.paecContext}
 Meta de palabras para esta misión: mínimo ${input.targetWords.min} palabras (ideal ${input.targetWords.ideal} palabras).
 
@@ -170,30 +193,48 @@ Genera el paquete oficial de 4 instrumentos de evaluación NEM con ejercicios es
       prompt,
       input.planning.teacherId,
       false,
-      { jsonMode: true, maxTokens: 8192 }
+      { jsonMode: true, maxTokens: 16384 }
     );
     let parsed = robustJsonParse(rawResponse);
 
-    // Validación de extensión mínima (MEJORA 1)
+    // Validación de estructura + cobertura total de sesiones (Fase A)
     const tiers = Array.isArray(parsed.tieredExercises) ? parsed.tieredExercises : [];
     const has3Levels = tiers.length >= 3;
     const allHave2Exercises = has3Levels && tiers.every((t: { exercises?: unknown }) => Array.isArray(t.exercises) && t.exercises.length >= 2);
+    const planCount = Array.isArray(parsed.sessionPlans) ? parsed.sessionPlans.length : 0;
+    const missingPlans = planCount < coveredSessions.length;
 
-    if (!has3Levels || !allHave2Exercises) {
+    if (!has3Levels || !allHave2Exercises || missingPlans) {
       attempt = 2;
-      logger.warn(`[EvaluationWriter] tieredExercises tiene niveles o ejercicios insuficientes (${tiers.length} niveles). Reintentando con instrucción estricta...`);
+      logger.warn(
+        `[EvaluationWriter] tieredExercises=${tiers.length} niveles (3 requeridos) o sessionPlans=${planCount}/${coveredSessions.length}. Reintentando con instrucción estricta...`
+      );
+      const strictDirectives: string[] = [];
+      if (!has3Levels || !allHave2Exercises) {
+        strictDirectives.push(
+          `Tu respuesta anterior no cumplió la estructura de 'tieredExercises'. Es OBLIGATORIO incluir EXACTAMENTE 3 NIVELES ('basico', 'intermedio', 'avanzado') y al menos 2 EJERCICIOS POR CADA NIVEL (mínimo 6 ejercicios en total), con sus datos, pistas de andamiaje y criterios de evaluación.`
+        );
+      }
+      if (missingPlans) {
+        strictDirectives.push(
+          `Tu respuesta anterior solo incluyó ${planCount} de ${coveredSessions.length} planes en 'sessionPlans'. Genera OBLIGATORIAMENTE UN plan por cada sesión asignada (${coveredSessions.join(', ')}), es decir EXACTAMENTE ${coveredSessions.length} objetos en 'sessionPlans', cada uno con su "sessionNumber" correcto y contenido real de estudiante (voz en tú).`
+        );
+      }
       try {
-        const retryPrompt = `${prompt}\n\n[REQUISITO CRÍTICO DE PROFUNDIDAD]: Tu respuesta anterior no cumplió la estructura de 'tieredExercises'. Es OBLIGATORIO incluir EXACTAMENTE 3 NIVELES ('basico', 'intermedio', 'avanzado') y al menos 2 EJERCICIOS POR CADA NIVEL (mínimo 6 ejercicios en total), con sus datos, pistas de andamiaje y criterios de evaluación.`;
+        const retryPrompt = `${prompt}\n\n[REQUISITO CRÍTICO - REINTENTO OBLIGATORIO]: ${strictDirectives.join(' ')}`;
         const retryResponse = await generateWithRotation(
           systemInstruction,
           retryPrompt,
           input.planning.teacherId,
           false,
-          { jsonMode: true, maxTokens: 8192 }
+          { jsonMode: true, maxTokens: 16384 }
         );
         const retryParsed = robustJsonParse(retryResponse);
         const retryTiers = Array.isArray(retryParsed.tieredExercises) ? retryParsed.tieredExercises : [];
-        if (retryTiers.length >= tiers.length) {
+        const retryPlanCount = Array.isArray(retryParsed.sessionPlans) ? retryParsed.sessionPlans.length : 0;
+        const tiersOk = retryTiers.length >= tiers.length;
+        const retryExercisesOk = retryTiers.every((t: { exercises?: unknown }) => Array.isArray(t.exercises));
+        if (tiersOk && retryExercisesOk && retryPlanCount >= planCount) {
           parsed = retryParsed;
         }
       } catch (retryErr) {
@@ -215,6 +256,7 @@ Genera el paquete oficial de 4 instrumentos de evaluación NEM con ejercicios es
     };
 
     const missionSection = buildEvaluationMissionSection(input, evaluationSection);
+    missionSection.sessionPlans = completeSessionPlans(parsed.sessionPlans, coveredSessions);
     const evalRealText = getEvaluationRealText(evaluationSection);
     const wordCount = evalRealText.split(/\s+/).filter(Boolean).length;
     missionSection.wordCount = wordCount;
@@ -350,6 +392,7 @@ Genera el paquete oficial de 4 instrumentos de evaluación NEM con ejercicios es
     };
 
     const missionSection = buildEvaluationMissionSection(input, fallbackEval);
+    missionSection.sessionPlans = completeSessionPlans([], coveredSessions);
 
     return {
       type: 'evaluation',
@@ -364,6 +407,25 @@ Genera el paquete oficial de 4 instrumentos de evaluación NEM con ejercicios es
 }
 
 /**
+ * Resuelve la misión de evaluación, sus sesiones cubiertas, índice y título.
+ * SSoT compartido entre la generación (cobertura de sessionPlans) y el ensamblado
+ * de la MissionSection, para que ambos usen SIEMPRE las mismas sesiones.
+ */
+function resolveEvaluationMission(input: WriterInput): {
+  evalMission: WriterInput['missions'][number] | undefined;
+  coveredSessions: number[];
+  missionIndex: number;
+  title: string;
+} {
+  const evalMission = input.missions.find((m) => m.missionType === 'evaluation') || input.missions[input.missions.length - 1];
+  const lastSession = input.sessions[input.sessions.length - 1];
+  const coveredSessions = evalMission ? evalMission.sessionNumbers : (lastSession ? [lastSession.sessionNum] : [input.sessions.length || 16]);
+  const missionIndex = evalMission?.missionIndex || 4;
+  const title = evalMission?.title || `Misión 4: Demostración Integral y Evaluación Formativa`;
+  return { evalMission, coveredSessions, missionIndex, title };
+}
+
+/**
  * Construye la sección de misión (MissionSection) correspondiente a la evaluación
  * para garantizar el contrato uniforme de salida entre todos los redactores.
  */
@@ -371,11 +433,7 @@ function buildEvaluationMissionSection(
   input: WriterInput,
   evaluation: EvaluationSection
 ): MissionSection {
-  const evalMission = input.missions.find((m) => m.missionType === 'evaluation') || input.missions[input.missions.length - 1];
-  const lastSession = input.sessions[input.sessions.length - 1];
-  const coveredSessions = evalMission ? evalMission.sessionNumbers : (lastSession ? [lastSession.sessionNum] : [input.sessions.length || 16]);
-  const missionIndex = evalMission?.missionIndex || 4;
-  const title = evalMission?.title || `Misión 4: Demostración Integral y Evaluación Formativa`;
+  const { evalMission, coveredSessions, missionIndex, title } = resolveEvaluationMission(input);
 
   const workbookElements: WorkbookElement[] = [
     {

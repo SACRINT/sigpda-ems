@@ -14,7 +14,7 @@ import { generateWithRotation } from '@/lib/ai-provider';
 import { robustJsonParse } from '@/lib/ai-response-parser';
 import { extractWorkbookTags, consolidateWorkbookElements, stripWorkbookTags } from '../workbook-tags';
 import type { MissionSection, WorkbookElement, TroubleshootItem } from '@/types/work-textbook';
-import { type WriterInput, type WriterOutput, evaluateQuality, sanitizeSessionPlans } from './writer-contract';
+import { type WriterInput, type WriterOutput, evaluateQuality, completeSessionPlans } from './writer-contract';
 import { buildPlanningAlignmentPrompt } from './planning-alignment-prompt';
 import { logger } from '@/lib/logger';
 
@@ -291,7 +291,7 @@ Redacta la Misión Práctica de Laboratorio/Taller completa:`;
         reflectionPrompts: parsed.reflectionQuestions || ['Analiza las causas de dispersión de tus datos.'],
         criteriaChecklist: ['Registré todas las lecturas con sus unidades de medida correspondientes.'],
       },
-      sessionPlans: sanitizeSessionPlans(parsed.sessionPlans, coveredSessions),
+      sessionPlans: completeSessionPlans(parsed.sessionPlans, coveredSessions),
       wordCount,
     };
 
@@ -373,6 +373,7 @@ Redacta la Misión Práctica de Laboratorio/Taller completa:`;
         reflectionPrompts: ['Evalúa el impacto de la precisión técnica.'],
         criteriaChecklist: ['Completé la tabla de datos y las observaciones del taller.'],
       },
+      sessionPlans: completeSessionPlans([], coveredSessions),
       wordCount: 600,
     };
 

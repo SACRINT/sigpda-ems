@@ -9,6 +9,7 @@
 import type { Planning } from '@/types/planning';
 import type { DetailedSession } from '@/lib/session-progression-engine';
 import type { MissionBlueprint } from '../blueprint-architect-agent';
+import { logger } from '@/lib/logger';
 import type {
   CanonicalSeed,
   MissionSection,
@@ -273,4 +274,46 @@ export function sanitizeSessionPlans(
   }
 
   return validPlans.length > 0 ? validPlans : undefined;
+}
+
+/**
+ * Garantía de cobertura total de sesiones (anti "36 vs 72").
+ *
+ * Devuelve SIEMPRE un plan por cada sesión cubierta: primero sanitiza lo que la IA
+ * respondió y luego completa las sesiones faltantes (IA que omitió planes o writer
+ * en fallback de error) con planes genéricos en voz de estudiante, registrando un
+ * warning en el log. Nunca se descarta una sesión en silencio.
+ */
+export function completeSessionPlans(raw: unknown, coveredSessions: number[]): SessionPlan[] {
+  if (coveredSessions.length === 0) return [];
+
+  const sanitized = sanitizeSessionPlans(raw, coveredSessions) ?? [];
+
+  // Deduplica por sesión (si la IA repitió un plan, se conserva el primero).
+  const plans: SessionPlan[] = [];
+  const present = new Set<number>();
+  for (const plan of sanitized) {
+    if (present.has(plan.sessionNumber)) {
+      logger.warn(`[writer-contract] Plan de sesión ${plan.sessionNumber} duplicado en la respuesta; se conserva el primero.`);
+      continue;
+    }
+    present.add(plan.sessionNumber);
+    plans.push(plan);
+  }
+
+  const missing = coveredSessions.filter((n) => !present.has(n));
+
+  if (missing.length > 0) {
+    logger.warn(
+      `[writer-contract] sessionPlans incompletos: faltan las sesiones ${missing.join(', ')} de ${coveredSessions.join(', ')}. Completando con planes genéricos.`
+    );
+    const filler =
+      sanitizeSessionPlans(
+        missing.map((n) => ({ sessionNumber: n })),
+        coveredSessions
+      ) ?? [];
+    plans.push(...filler);
+  }
+
+  return plans.sort((a, b) => a.sessionNumber - b.sessionNumber);
 }

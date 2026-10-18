@@ -13,7 +13,7 @@
 import { generateWithRotation } from '@/lib/ai-provider';
 import { robustJsonParse } from '@/lib/ai-response-parser';
 import type { MissionSection, ProjectSection, WorkbookElement } from '@/types/work-textbook';
-import { type WriterInput, type WriterOutput, evaluateQuality } from './writer-contract';
+import { type WriterInput, type WriterOutput, evaluateQuality, completeSessionPlans } from './writer-contract';
 import { buildPlanningAlignmentPrompt } from './planning-alignment-prompt';
 import { logger } from '@/lib/logger';
 import {
@@ -47,7 +47,8 @@ DIRECTIVAS DEL PROYECTO Y METAS FORMATIVAS:
 5. Criterios de Entrega y Aceptación: 4 a 6 deliveryCriteria formales y acceptanceCriteria medibles con normas NOM/ISO.
 6. Bitácora de Registro: registrationFormat estructurado con campos de sesión, parámetros, incidencias, firmas y sellos.
 7. Rúbrica y Desafío Autónomo: Rúbrica en 4 niveles NEM (Excelente 10-9, Bueno 8-7, Suficiente 6-5, Insuficiente 4-1) y reto autónomo de campo (You Do - 200-350 palabras).
-8. Sintaxis JSON: Usa comillas simples ('...') en código/citas. Cero comillas dobles sin escapar dentro de valores JSON.
+8. Contenido por sesión para el ESTUDIANTE (OBLIGATORIO — genera un "plan" por cada sesión asignada): Para CADA sesión de "Sesiones asignadas" genera un objeto en "sessionPlans". Cada objeto es material que el estudiante LEE para aprender solo. Incluye: (a) objetivo ("Lo que vas a aprender", 1-2 frases en tú); (b) motivacion (caso real de la comunidad o PAEC contado al estudiante); (c) saberesPrevios (qué ya sabe); (d) contenido (LA TEORÍA REAL de la sesión — definiciones, fórmulas, criterios o fase de construcción del artefacto explicada con detalle, varios párrafos, no 1-2 frases); (e) ejemploResuelto (ejemplo con NÚMEROS paso a paso); (f) practica (2-3 ejercicios/tareas concretas con datos; cada uno con "pista" hint para empezar Y "solucion" con 3-6 pasos numerados que resuelven la tarea con números — la "solucion" SOLO la lee el solucionario docente, el libro del estudiante solo imprime enunciado y pista); (g) aplicacion (tarea aplicada a la vida real); (h) autoevaluacion (2-3 preguntas de autorevisión); (i) recursos (1-2 enlaces reales a video YouTube o web de ampliación); (j) productoIntegrador (qué agrega el estudiante a su proyecto hoy). Cada sesión de esta misión corresponde a un avance concreto del artefacto: VARIA el contenido entre sesiones y ancla cada una a su fase de construcción en el contexto PAEC. VOZ DE ESTUDIANTE en todo.
+9. Sintaxis JSON: Usa comillas simples ('...') en código/citas. Cero comillas dobles sin escapar dentro de valores JSON.
 
 Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
 {
@@ -101,6 +102,27 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
       "sufficient": "Opera de forma básica con asistencia docente.",
       "insufficient": "No opera o no cumple especificaciones mínimas."
     }
+  ],
+  "sessionPlans": [
+    {
+      "sessionNumber": 13,
+      "objetivo": "Lo que vas a aprender en la sesión 13 (1-2 frases)...",
+      "motivacion": "Caso real / historia contada al estudiante...",
+      "saberesPrevios": "Qué ya sabes que conecta con esto...",
+      "contenido": "TEORÍA REAL de la sesión: definiciones, fórmulas o fase de construcción (varios párrafos)...",
+      "ejemploResuelto": "Ejemplo con números resuelto paso a paso...",
+      "practica": [
+        { "enunciado": "Ejercicio 1 con datos concretos", "pista": "Pista de cómo empezar (sin solución)", "solucion": ["Paso 1: sustituir datos...", "Paso 2: operar y verificar...", "Respuesta final: ..."] },
+        { "enunciado": "Ejercicio 2 con datos concretos", "pista": "Pista de cómo empezar (sin solución)", "solucion": ["Paso 1: ...", "Respuesta final: ..."] }
+      ],
+      "aplicacion": "Aplicación a la vida real del estudiante...",
+      "autoevaluacion": ["¿Puedo explicar el avance de mi artefacto?", "¿Logré la práctica sin mirar?"],
+      "recursos": [
+        { "titulo": "Video: tema en YouTube", "url": "https://www.youtube.com/watch?v=...", "tipo": "video" },
+        { "titulo": "Página de ampliación", "url": "https://...", "tipo": "web" }
+      ],
+      "productoIntegrador": "Qué agregas hoy a tu producto integrador..."
+    }
   ]
 }
 
@@ -132,26 +154,43 @@ Redacta la Misión del Proyecto y Construcción del Artefacto Real:`;
       prompt,
       input.planning.teacherId,
       false,
-      { jsonMode: true, maxTokens: 8192 }
+      { jsonMode: true, maxTokens: 16384 }
     );
     let parsed = robustJsonParse(rawResponse);
 
-    // Validación de extensión mínima (MEJORA 1)
+    // Validación de extensión mínima + cobertura total de sesiones (Fase A)
     const objCount = Array.isArray(parsed.learningObjectives) ? parsed.learningObjectives.length : 0;
-    if (objCount < 3) {
+    const planCount = Array.isArray(parsed.sessionPlans) ? parsed.sessionPlans.length : 0;
+    const missingPlans = planCount < coveredSessions.length;
+    if (objCount < 3 || missingPlans) {
       attempt = 2;
-      logger.warn(`[ProjectWriter] learningObjectives tiene solo ${objCount} items (< 3). Reintentando con instrucción estricta...`);
+      logger.warn(
+        `[ProjectWriter] learningObjectives=${objCount} (<3: ${objCount < 3}) o sessionPlans=${planCount}/${coveredSessions.length}. Reintentando con instrucción estricta...`
+      );
+      const strictDirectives: string[] = [];
+      if (objCount < 3) {
+        strictDirectives.push(
+          `Tu respuesta anterior tuvo menos de 3 objetivos en 'learningObjectives'. Genera OBLIGATORIAMENTE al menos 3 a 5 'learningObjectives' exhaustivos, orientados al logro de competencias integrales y vinculados al problema comunitario PAEC.`
+        );
+      }
+      if (missingPlans) {
+        strictDirectives.push(
+          `Tu respuesta anterior solo incluyó ${planCount} de ${coveredSessions.length} planes en 'sessionPlans'. Genera OBLIGATORIAMENTE UN plan por cada sesión asignada (${coveredSessions.join(', ')}), es decir EXACTAMENTE ${coveredSessions.length} objetos en 'sessionPlans', cada uno con su "sessionNumber" correcto y contenido real de estudiante (voz en tú).`
+        );
+      }
       try {
-        const retryPrompt = `${prompt}\n\n[REQUISITO CRÍTICO DE PROFUNDIDAD]: Tu respuesta anterior tuvo menos de 3 objetivos en 'learningObjectives'. Genera OBLIGATORIAMENTE al menos 3 a 5 'learningObjectives' exhaustivos, orientados al logro de competencias integrales y vinculados al problema comunitario PAEC.`;
+        const retryPrompt = `${prompt}\n\n[REQUISITO CRÍTICO - REINTENTO OBLIGATORIO]: ${strictDirectives.join(' ')}`;
         const retryResponse = await generateWithRotation(
           systemInstruction,
           retryPrompt,
           input.planning.teacherId,
           false,
-          { jsonMode: true, maxTokens: 8192 }
+          { jsonMode: true, maxTokens: 16384 }
         );
         const retryParsed = robustJsonParse(retryResponse);
-        if (Array.isArray(retryParsed.learningObjectives) && retryParsed.learningObjectives.length >= objCount) {
+        const retryObjCount = Array.isArray(retryParsed.learningObjectives) ? retryParsed.learningObjectives.length : 0;
+        const retryPlanCount = Array.isArray(retryParsed.sessionPlans) ? retryParsed.sessionPlans.length : 0;
+        if (retryObjCount >= objCount && retryPlanCount >= planCount) {
           parsed = retryParsed;
         }
       } catch (retryErr) {
@@ -281,6 +320,7 @@ Redacta la Misión del Proyecto y Construcción del Artefacto Real:`;
         reflectionPrompts: ['Evalúa la viabilidad y durabilidad de tu propuesta.'],
         criteriaChecklist: ['El artefacto cumple los criterios de aceptación acordados.'],
       },
+      sessionPlans: completeSessionPlans(parsed.sessionPlans, coveredSessions),
       wordCount,
     };
 
@@ -367,6 +407,7 @@ Redacta la Misión del Proyecto y Construcción del Artefacto Real:`;
         reflectionPrompts: ['Reflexiona sobre el valor del trabajo en equipo.'],
         criteriaChecklist: ['Cumplí con todos los entregables de la misión.'],
       },
+      sessionPlans: completeSessionPlans([], coveredSessions),
       wordCount: 500,
     };
 

@@ -42,7 +42,7 @@ import {
   sectionCorpus,
   corpusCoversTerm,
 } from './planning-content-alignment';
-import type { WriterInput, WriterOutput, PlanningActivities } from './writers/writer-contract';
+import { completeSessionPlans, type WriterInput, type WriterOutput, type PlanningActivities } from './writers/writer-contract';
 import type {
   ActiveWorkTextbook,
   CanonicalSeed,
@@ -739,10 +739,18 @@ function createEmergencyFallbackOutput(
   input: WriterInput,
   errorMsg: string
 ): WriterOutput {
+  // Usa las sesiones REALES de la misión correspondiente (nunca un rango fijo):
+  // el workbook resultante debe seguir cubriendo el 100% de las sesiones del bloque.
+  const emergencyMission = input.missions.find((m) => m.missionType === type) || input.missions[0];
+  const coveredSessions =
+    Array.isArray(emergencyMission?.sessionNumbers) && emergencyMission.sessionNumbers.length > 0
+      ? emergencyMission.sessionNumbers
+      : [1, 2];
+
   const fallbackSection: MissionSection = {
-    missionIndex: 1,
+    missionIndex: emergencyMission?.missionIndex || 1,
     title: `Misión Formativa: ${input.blockName}`,
-    coveredSessions: [1, 2],
+    coveredSessions,
     sessionTopic: input.uacName,
     sessionFocus: 'Desarrollo de competencias esenciales',
     phenomenonHook: {
@@ -772,6 +780,7 @@ function createEmergencyFallbackOutput(
       reflectionPrompts: ['Revisa los pasos realizados.'],
       criteriaChecklist: ['Identifico los conceptos centrales.'],
     },
+    sessionPlans: completeSessionPlans([], coveredSessions),
     wordCount: 500,
   };
 

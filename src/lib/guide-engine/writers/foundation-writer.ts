@@ -14,7 +14,7 @@ import { generateWithRotation } from '@/lib/ai-provider';
 import { robustJsonParse } from '@/lib/ai-response-parser';
 import { extractWorkbookTags, consolidateWorkbookElements, stripWorkbookTags } from '../workbook-tags';
 import type { MissionSection, WorkbookElement } from '@/types/work-textbook';
-import { type WriterInput, type WriterOutput, evaluateQuality, sanitizeSessionPlans } from './writer-contract';
+import { type WriterInput, type WriterOutput, evaluateQuality, completeSessionPlans } from './writer-contract';
 import { buildPlanningAlignmentPrompt } from './planning-alignment-prompt';
 import { logger } from '@/lib/logger';
 import { lintPedagogicalTerminology, FORBIDDEN_PM3_TERMINOLOGY_REGEX } from '../pedagogical-quality-gate';
@@ -268,7 +268,7 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
         reflectionPrompts: parsed.formativeCheckpoint?.reflectionPrompts || ['Identifica un ejemplo similar en tu entorno.'],
         criteriaChecklist: parsed.formativeCheckpoint?.criteriaChecklist || ['Explico el concepto sin memorizar fórmulas.'],
       },
-      sessionPlans: sanitizeSessionPlans(parsed.sessionPlans, coveredSessions),
+      sessionPlans: completeSessionPlans(parsed.sessionPlans, coveredSessions),
       wordCount,
     };
 
@@ -343,6 +343,7 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
         reflectionPrompts: ['Revisa los pasos que seguiste y contrástalos con tu compañero.'],
         criteriaChecklist: ['Identifico el propósito central de la misión.'],
       },
+      sessionPlans: completeSessionPlans([], coveredSessions),
       wordCount: 500,
     };
 
