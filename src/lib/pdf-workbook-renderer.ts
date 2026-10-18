@@ -17,6 +17,7 @@ import autoTable from 'jspdf-autotable';
 import type {
   ActiveWorkTextbook,
   MissionSection,
+  SessionPlan,
   WorkbookElement,
   EvaluationSection,
   ProjectSection,
@@ -1857,6 +1858,8 @@ function getSessionMetaFromSequence(
   };
 }
 
+type SessionMeta = ReturnType<typeof getSessionMetaFromSequence>;
+
 function getPhaseColorRgb(phase: string): RGB {
   const p = (phase || '').toLowerCase();
   if (p.includes('apertura')) return COLOR.PHASE_APERTURA;
@@ -2203,6 +2206,168 @@ async function drawMission(
     : [missionNumber * 2 - 1, missionNumber * 2];
   const totalSessionsCount = coveredSessions.length;
 
+  // ════════════════════════════════════════════════════════════════════════
+  // Fase D (alineación total libro ↔ solucionario): el flujo de la sesión del
+  // estudiante se imprime tras CADA divisor de sesión (s1, s2, intermedias y
+  // última), no solo en las intermedias de misiones grandes.
+  // ════════════════════════════════════════════════════════════════════════
+  const effSubject = subjectName || planning?.uacName;
+  const conceptSentences = splitIntoSentences(mission.conceptZero?.coreExplanation);
+  const narrativeSentences = splitIntoSentences(mission.conceptZero?.narrativeExplanation);
+  const diagQuestions: string[] = (mission.diagnosticEvaluation?.questions || []).map((q) => q.trim()).filter((q) => q.length >= 15);
+  const reflPrompts: string[] = (mission.formativeCheckpoint?.reflectionPrompts || []).map((p) => p.trim()).filter((p) => p.length >= 15);
+  const criteriaItems: string[] = (mission.formativeCheckpoint?.criteriaChecklist || []).map((c) => c.trim()).filter((c) => c.length >= 10);
+  const topicLabel = (mission.sessionTopic || mission.sessionFocus || mission.title || '').replace(/\s+/g, ' ').trim() || 'la misión';
+
+  // ── Figura visual por sesión: SVG vectorial determinista (offline, sin red/BD)
+  //    rasterizado con sharp a PNG con canal alfa transparente. Nunca rompe el render.
+  const drawSessionFigure = async (sNum: number, topic: string, context: string, curY: number): Promise<number> => {
+    try {
+      const visual = dispatchVisual(effSubject || 'Formación Fundamental', topic, context, sNum);
+      if (!visual) return curY;
+      const img = await svgToPngBuffer(visual.svg);
+      if (!img) return curY;
+      const imgW = Math.min(110, mainW * 0.85);
+      const imgH = imgW * 0.65;
+      let ny = checkSpace(curY, imgH + 16);
+      const imgX = margin + (mainW - imgW) / 2;
+      addMainFlowImage(img.buffer, img.format, imgX, ny, imgW, imgH);
+      if (visual.annotations && visual.annotations.length > 0) {
+        drawVisualAnnotations(doc, visual.annotations, imgX, ny, imgW, imgH);
+      }
+      ny += imgH + 3.5;
+      setFontCaption(doc);
+      doc.setFontSize(7.5);
+      doc.setTextColor(...MUTED_TEXT);
+      const capLines = doc.splitTextToSize(`Figura S${sNum} - ${topic}`, mainW * 0.88);
+      doc.text(capLines, margin + mainW / 2, ny, { align: 'center' });
+      ny += capLines.length * 3.2 + 3.5;
+      return ny;
+    } catch (sessionFigureErr) {
+      logger.warn('[pdf-workbook] Figura de sesión omitida:', { error: String(sessionFigureErr) });
+      return curY;
+    }
+  };
+
+  /**
+   * Imprime el flujo completo de la sesión del estudiante desde su sessionPlan
+   * (voz "tú"): objetivo, motivación, saberes, teoría, ejemplo, práctica con
+   * ENUNCIADOS EXACTOS del libro, aplicación, producto, autoevaluación y recursos.
+   * Fase D: se invoca tras el divisor de CADA sesión (s1, s2, intermedias, última).
+   * `plan` null → fallbacks deterministas de la misión.
+   */
+  const renderStudentPlanFlow = async (
+    plan: SessionPlan | null,
+    sNum: number,
+    sMeta: SessionMeta,
+    phaseColor: RGB,
+    rotation: number,
+    assignedTasks?: string[],
+    assignedElems?: WorkbookElement[],
+  ): Promise<void> => {
+    // ══════════════════════════════════════════════════════════════
+    // LIBRO PARA EL ESTUDIANTE (autodidacta). Voz en "tú", sin roles de docente.
+    // ══════════════════════════════════════════════════════════════
+    const para = (text: string): number =>
+      flow.printMainParagraph(sanitizePdfText(stripMarkdown(text)), y, { size: 7.2, lineHeight: 3.8, justify: true, parseParagraphs: true });
+    const lead = (l: string, t: string): number =>
+      flow.printMainParagraph(`${sanitizePdfText(stripMarkdown(l))} ${sanitizePdfText(stripMarkdown(t))}`, y, { size: 7.2, lineHeight: 3.8, justify: true });
+
+    // ── EMPIEZA AQUÍ (~10 min) ──
+    y = printSessionPhaseLabel(flow, 'EMPIEZA AQUI · Objetivo y motivacion (~10 min)', phaseColor, y);
+    y = lead('Lo que vas a aprender:', plan?.objetivo
+      || `En la sesion ${sNum} vas a estudiar "${topicLabel}" y aprenderas a aplicarlo en situaciones reales de tu comunidad.`);
+    const motivFallback = mission.phenomenonHook?.detonatingQuestion
+      ? `Imagina un caso real de tu comunidad donde aparece "${topicLabel}". En la sesion anterior (${sNum - 1}) ya viste bases del tema; hoy vas a ver como se usa en un problema cercano a ti. Preguntate: "${mission.phenomenonHook.detonatingQuestion}"`
+      : `Piensa en una situacion de la vida diaria donde se aplica "${topicLabel}". Hoy vas a aprender a resolverla paso a paso y a explicar por que importa en tu comunidad.`;
+    y = lead('Imagina esto:', plan?.motivacion || motivFallback);
+    const saberesFallback = diagQuestions.length > 0
+      ? `Antes de empezar, responde en tu cuaderno: ${diagQuestions[rotation % diagQuestions.length]} Escribe lo que recuerdes; sirve como punto de partida.`
+      : `Anota en tu cuaderno 2 ideas que recuerdes de la sesion anterior sobre "${topicLabel}" y 1 duda que te quede. Ese es tu punto de partida.`;
+    y = lead('Sabes que ya:', plan?.saberesPrevios || saberesFallback);
+    y += 3;
+
+    // ── APRENDE Y PRACTICA (~30 min) ──
+    y = printSessionPhaseLabel(flow, 'APRENDE Y PRACTICA · Conceptos, ejemplo y ejercicios (~30 min)', phaseColor, y);
+    const conceptLine = rotateSentence(conceptSentences.length > 0 ? conceptSentences : narrativeSentences, rotation);
+    const theoryPool = [...conceptSentences, ...narrativeSentences];
+    let theoryFallback: string;
+    if (theoryPool.length === 0) {
+      theoryFallback = `En la sesion ${sNum} vas a estudiar "${topicLabel}". Este tema te permite entender como se aplica en situaciones reales. Lee con atencion, toma notas en tu cuaderno y trata de explicar cada idea con tus palabras.`;
+    } else {
+      const picked: string[] = [];
+      for (let i = 0; i < theoryPool.length && picked.length < 6; i++) picked.push(theoryPool[(rotation + i) % theoryPool.length]);
+      const mid = Math.ceil(picked.length / 2);
+      theoryFallback = [picked.slice(0, mid).join(' '), picked.slice(mid).join(' ')].filter(Boolean).join('\n\n');
+    }
+    y = printPdfSubLabel(flow, 'Nuevos conceptos', phaseColor, y);
+    y = para(plan?.contenido || (conceptLine ? `${conceptLine}\n\n${theoryFallback}` : theoryFallback));
+
+    const exampleFallback = mission.conceptZero?.solvedExample?.problemStatement
+      ? `Observa el ejemplo resuelto: "${mission.conceptZero.solvedExample.problemStatement}" Sigue el procedimiento paso a paso en tu cuaderno y anota cada calculo.`
+      : mission.conceptZero?.physicalAnalogy
+        ? `Conectalo con lo que ya conoces: "${mission.conceptZero.physicalAnalogy}" Ahora traduce esa analogia al tema "${topicLabel}" y escribela con tus palabras.`
+        : `Elabora un ejemplo propio de "${topicLabel}" con datos numericos concretos, resuelvelo paso a paso y verifica el resultado.`;
+    y = printPdfSubLabel(flow, 'Ejemplo resuelto', phaseColor, y);
+    y = para(plan?.ejemploResuelto || exampleFallback);
+
+    // Figura visual de la sesión (vector determinista con alfa transparente)
+    y = await drawSessionFigure(sNum, sMeta.title || topicLabel, `${plan?.contenido || ''} ${topicLabel}`, y);
+
+    y = printPdfSubLabel(flow, 'Practica', phaseColor, y);
+    if (plan?.practica && plan.practica.length > 0) {
+      for (let tIdx = 0; tIdx < plan.practica.length; tIdx++) {
+        const item = plan.practica[tIdx];
+        y = drawSingleTaskWithDottedLines(doc, item.enunciado, tIdx + 1, margin, mainW, pageHeight, y, checkSpace, item.pista || undefined);
+      }
+    } else if (assignedTasks && assignedTasks.length > 0) {
+      for (let tIdx = 0; tIdx < assignedTasks.length; tIdx++) {
+        y = drawSingleTaskWithDottedLines(doc, assignedTasks[tIdx], tIdx + 1, margin, mainW, pageHeight, y, checkSpace);
+      }
+    } else {
+      const fallbackTaskText = buildSessionFallbackTaskText(mission, sNum, sMeta);
+      y = drawSingleTaskWithDottedLines(doc, fallbackTaskText, 1, margin, mainW, pageHeight, y, checkSpace);
+    }
+
+    if (assignedElems && assignedElems.length > 0) {
+      for (const el of assignedElems) {
+        y = drawPdfWorkbookElement(doc, el, margin, mainW, pageHeight, y, checkSpace);
+      }
+    }
+
+    const appFallback = mission.realLifeConnection?.householdApplication
+      ? `Ahora lleva lo aprendido a tu contexto real: ${mission.realLifeConnection.householdApplication} Documenta la evidencia (foto, esquema o nota) en tu cuaderno.`
+      : `Aplica lo aprendido a una situacion nueva de "${topicLabel}" y registra en tu cuaderno el procedimiento y el resultado.`;
+    y = printPdfSubLabel(flow, 'Aplica en tu vida', phaseColor, y);
+    y = para(plan?.aplicacion || appFallback);
+    y += 3;
+
+    // ── TU PRODUCTO (~10 min) ──
+    y = printSessionPhaseLabel(flow, 'TU PRODUCTO · Avance y autoevaluacion (~10 min)', phaseColor, y);
+    y = lead('Tu producto de hoy:', plan?.productoIntegrador
+      || `Agrega a tu producto integrador el avance de esta sesion: deja registrado en tu cuaderno o portafolio lo que produjiste, con evidencia legible y fechada.`);
+
+    y = printPdfSubLabel(flow, 'Autoevaluacion', phaseColor, y);
+    const autoevalItems: string[] = plan?.autoevaluacion && plan.autoevaluacion.length > 0
+      ? plan.autoevaluacion
+      : [
+          mission.formativeCheckpoint?.question?.trim() || `¿Puedo explicar con mis palabras el concepto central de "${topicLabel}"?`,
+          reflPrompts.length > 0 ? reflPrompts[rotation % reflPrompts.length] : `¿Logre resolver la practica sin copiar el ejemplo?`,
+          criteriaItems.length > 0 ? criteriaItems[rotation % criteriaItems.length] : `¿Registre mi trabajo con evidencia fechada en el cuaderno?`,
+        ].filter((q) => q.length >= 10);
+    for (const item of autoevalItems) {
+      y = printPdfCheckItem(flow, item, y);
+    }
+
+    if (plan?.recursos && plan.recursos.length > 0) {
+      y = printPdfSubLabel(flow, 'Para saber mas', phaseColor, y);
+      for (const r of plan.recursos) {
+        y = printPdfResourceLine(flow, r.titulo, r.url, r.tipo, y);
+      }
+    }
+    y += 4;
+  };
+
   // ── Sesión 1: Apertura y Fundamento ───────────────────────────────────────────
   const s1 = coveredSessions[0];
   const s1Meta = getSessionMetaFromSequence(
@@ -2213,18 +2378,32 @@ async function drawMission(
     'APERTURA Y MODELADO CONCEPTUAL'
   );
   y = checkSpace(y, 14);
-  y = drawSessionDivider(doc, {
-    sessionNumber: s1,
-    durationMin: 50,
-    phaseLabel: s1Meta.phase,
-    sessionTitle: s1Meta.title,
-    themeColor: getPhaseColorRgb(s1Meta.phase),
-    margin,
-    drawWidth: mainW,
-    y,
-  });
+    y = drawSessionDivider(doc, {
+      sessionNumber: s1,
+      durationMin: 50,
+      phaseLabel: s1Meta.phase,
+      sessionTitle: s1Meta.title,
+      themeColor: getPhaseColorRgb(s1Meta.phase),
+      margin,
+      drawWidth: mainW,
+      y,
+    });
 
-  // ── V7: Evaluación Diagnóstica (al inicio de la misión) ─────────────────────
+    // Fase D: flujo de la Sesión 1 desde su sessionPlan (libro ↔ solucionario)
+    const planS1 = mission.sessionPlans?.find((p) => p.sessionNumber === s1);
+    if (planS1) {
+      await renderStudentPlanFlow(planS1, s1, s1Meta, getPhaseColorRgb(s1Meta.phase), 0);
+    } else {
+      logger.warn('[pdf-workbook] Fallback determinista de sesión (sin sessionPlan):', {
+        blockIndex,
+        missionIndex: mission.missionIndex,
+        sessionNumber: s1,
+        sessionPlansCount: mission.sessionPlans?.length ?? 0,
+        section: 'apertura',
+      });
+    }
+
+    // ── V7: Evaluación Diagnóstica (al inicio de la misión) ─────────────────────
   const diagEval = mission.diagnosticEvaluation ||
     extractDiagnosticQuestions(
       `${mission.phenomenonHook?.story || ''} ${mission.conceptZero?.coreExplanation || ''}`,
@@ -2383,7 +2562,6 @@ async function drawMission(
   }
 
   // ── 2.1 Gráfico Conceptual STEM o Fotografía Situacional ─────────────────
-  const effSubject = subjectName || planning?.uacName;
   if (effSubject) {
     const contextText = [
       mission.phenomenonHook?.story,
@@ -2633,6 +2811,20 @@ async function drawMission(
       drawWidth: mainW,
       y,
     });
+
+    // Fase D: flujo de la Sesión 2 desde su sessionPlan (libro ↔ solucionario)
+    const planS2 = mission.sessionPlans?.find((p) => p.sessionNumber === s2);
+    if (planS2) {
+      await renderStudentPlanFlow(planS2, s2, s2Meta, getPhaseColorRgb(s2Meta.phase), 1);
+    } else {
+      logger.warn('[pdf-workbook] Fallback determinista de sesión (sin sessionPlan):', {
+        blockIndex,
+        missionIndex: mission.missionIndex,
+        sessionNumber: s2,
+        sessionPlansCount: mission.sessionPlans?.length ?? 0,
+        section: 'modelado',
+      });
+    }
   }
 
   // 3. Yo Hago (Demostración) — zona principal
@@ -2662,36 +2854,6 @@ async function drawMission(
     y = drawPdfCallout(doc, demoCallout, margin, mainW, pageHeight, y, checkSpace);
   }
 
-  // ── Figura visual por sesión: SVG vectorial determinista (offline, sin red/BD)
-  //    rasterizado con sharp a PNG con canal alfa transparente. Nunca rompe el render.
-  const drawSessionFigure = async (sNum: number, topic: string, context: string, curY: number): Promise<number> => {
-    try {
-      const visual = dispatchVisual(effSubject || 'Formación Fundamental', topic, context, sNum);
-      if (!visual) return curY;
-      const img = await svgToPngBuffer(visual.svg);
-      if (!img) return curY;
-      const imgW = Math.min(110, mainW * 0.85);
-      const imgH = imgW * 0.65;
-      let ny = checkSpace(curY, imgH + 16);
-      const imgX = margin + (mainW - imgW) / 2;
-      addMainFlowImage(img.buffer, img.format, imgX, ny, imgW, imgH);
-      if (visual.annotations && visual.annotations.length > 0) {
-        drawVisualAnnotations(doc, visual.annotations, imgX, ny, imgW, imgH);
-      }
-      ny += imgH + 3.5;
-      setFontCaption(doc);
-      doc.setFontSize(7.5);
-      doc.setTextColor(...MUTED_TEXT);
-      const capLines = doc.splitTextToSize(`Figura S${sNum} - ${topic}`, mainW * 0.88);
-      doc.text(capLines, margin + mainW / 2, ny, { align: 'center' });
-      ny += capLines.length * 3.2 + 3.5;
-      return ny;
-    } catch (sessionFigureErr) {
-      logger.warn('[pdf-workbook] Figura de sesión omitida:', { error: String(sessionFigureErr) });
-      return curY;
-    }
-  };
-
   // 4. Nosotros Hacemos (Práctica Colaborativa) y Distribución de Sesiones
   if (totalSessionsCount <= 3) {
     // Si la misión abarca exactamente 2 sesiones (caso estándar), la Sesión 2 inicia en la Práctica Guiada
@@ -2709,6 +2871,20 @@ async function drawMission(
         drawWidth: mainW,
         y,
       });
+
+      // Fase D: flujo de la Sesión 2 desde su sessionPlan (libro ↔ solucionario)
+      const planS2 = mission.sessionPlans?.find((p) => p.sessionNumber === s2);
+      if (planS2) {
+        await renderStudentPlanFlow(planS2, s2, s2Meta, getPhaseColorRgb(s2Meta.phase), 1);
+      } else {
+        logger.warn('[pdf-workbook] Fallback determinista de sesión (sin sessionPlan):', {
+          blockIndex,
+          missionIndex: mission.missionIndex,
+          sessionNumber: s2,
+          sessionPlansCount: mission.sessionPlans?.length ?? 0,
+          section: 'practica-guiada',
+        });
+      }
     }
 
     y = drawSectionHeader(doc, '4. Nosotros Hacemos: Practica Guiada en Equipo', margin, mainW, y, pageHeight, SECTION_COLORS.hacemos, checkSpace, '[ TRABAJO EN EQUIPO ]');
@@ -2733,14 +2909,6 @@ async function drawMission(
     const allWeDoElements = mission.weDoSection.workbookElements || [];
     const taskBuckets = distributeItems(allWeDoTasks, midSessions.length);
     const elemBuckets = distributeItems(allWeDoElements, midSessions.length);
-
-    // ── Pools de contenido de la misión para la estructura pedagógica por sesión (paridad DOCX) ──
-    const conceptSentences = splitIntoSentences(mission.conceptZero.coreExplanation);
-    const narrativeSentences = splitIntoSentences(mission.conceptZero.narrativeExplanation);
-    const diagQuestions: string[] = (mission.diagnosticEvaluation?.questions || []).map((q) => q.trim()).filter((q) => q.length >= 15);
-    const reflPrompts: string[] = (mission.formativeCheckpoint.reflectionPrompts || []).map((p) => p.trim()).filter((p) => p.length >= 15);
-    const criteriaItems: string[] = (mission.formativeCheckpoint.criteriaChecklist || []).map((c) => c.trim()).filter((c) => c.length >= 10);
-    const topicLabel = (mission.sessionTopic || mission.sessionFocus || mission.title || '').replace(/\s+/g, ' ').trim() || 'la misión';
 
     y = drawSectionHeader(doc, '4. Nosotros Hacemos: Practica Guiada en Equipo', margin, mainW, y, pageHeight, SECTION_COLORS.hacemos, checkSpace, '[ TRABAJO EN EQUIPO ]');
 
@@ -2773,111 +2941,17 @@ async function drawMission(
         });
       }
 
-      // ══════════════════════════════════════════════════════════════
-      // LIBRO PARA EL ESTUDIANTE (autodidacta). Voz en "tú", sin roles de docente.
-      // ══════════════════════════════════════════════════════════════
-      const para = (text: string): number =>
-        flow.printMainParagraph(sanitizePdfText(stripMarkdown(text)), y, { size: 7.2, lineHeight: 3.8, justify: true, parseParagraphs: true });
-      const lead = (l: string, t: string): number =>
-        flow.printMainParagraph(`${sanitizePdfText(stripMarkdown(l))} ${sanitizePdfText(stripMarkdown(t))}`, y, { size: 7.2, lineHeight: 3.8, justify: true });
-
-      // ── EMPIEZA AQUÍ (~10 min) ──
-      y = printSessionPhaseLabel(flow, 'EMPIEZA AQUI · Objetivo y motivacion (~10 min)', phaseColor, y);
-      y = lead('Lo que vas a aprender:', plan?.objetivo
-        || `En la sesion ${sNum} vas a estudiar "${topicLabel}" y aprenderas a aplicarlo en situaciones reales de tu comunidad.`);
-      const motivFallback = mission.phenomenonHook.detonatingQuestion
-        ? `Imagina un caso real de tu comunidad donde aparece "${topicLabel}". En la sesion anterior (${sNum - 1}) ya viste bases del tema; hoy vas a ver como se usa en un problema cercano a ti. Preguntate: "${mission.phenomenonHook.detonatingQuestion}"`
-        : `Piensa en una situacion de la vida diaria donde se aplica "${topicLabel}". Hoy vas a aprender a resolverla paso a paso y a explicar por que importa en tu comunidad.`;
-      y = lead('Imagina esto:', plan?.motivacion || motivFallback);
-      const saberesFallback = diagQuestions.length > 0
-        ? `Antes de empezar, responde en tu cuaderno: ${diagQuestions[mIdx % diagQuestions.length]} Escribe lo que recuerdes; sirve como punto de partida.`
-        : `Anota en tu cuaderno 2 ideas que recuerdes de la sesion anterior sobre "${topicLabel}" y 1 duda que te quede. Ese es tu punto de partida.`;
-      y = lead('Sabes que ya:', plan?.saberesPrevios || saberesFallback);
-      y += 3;
-
-      // ── APRENDE Y PRACTICA (~30 min) ──
-      y = printSessionPhaseLabel(flow, 'APRENDE Y PRACTICA · Conceptos, ejemplo y ejercicios (~30 min)', phaseColor, y);
-      const conceptLine = rotateSentence(conceptSentences.length > 0 ? conceptSentences : narrativeSentences, mIdx);
-      const theoryPool = [...conceptSentences, ...narrativeSentences];
-      let theoryFallback: string;
-      if (theoryPool.length === 0) {
-        theoryFallback = `En la sesion ${sNum} vas a estudiar "${topicLabel}". Este tema te permite entender como se aplica en situaciones reales. Lee con atencion, toma notas en tu cuaderno y trata de explicar cada idea con tus palabras.`;
-      } else {
-        const picked: string[] = [];
-        for (let i = 0; i < theoryPool.length && picked.length < 6; i++) picked.push(theoryPool[(mIdx + i) % theoryPool.length]);
-        const mid = Math.ceil(picked.length / 2);
-        theoryFallback = [picked.slice(0, mid).join(' '), picked.slice(mid).join(' ')].filter(Boolean).join('\n\n');
-      }
-      y = printPdfSubLabel(flow, 'Nuevos conceptos', phaseColor, y);
-      y = para(plan?.contenido || (conceptLine ? `${conceptLine}\n\n${theoryFallback}` : theoryFallback));
-
-      const exampleFallback = mission.conceptZero.solvedExample?.problemStatement
-        ? `Observa el ejemplo resuelto: "${mission.conceptZero.solvedExample.problemStatement}" Sigue el procedimiento paso a paso en tu cuaderno y anota cada calculo.`
-        : mission.conceptZero.physicalAnalogy
-          ? `Conectalo con lo que ya conoces: "${mission.conceptZero.physicalAnalogy}" Ahora traduce esa analogia al tema "${topicLabel}" y escribela con tus palabras.`
-          : `Elabora un ejemplo propio de "${topicLabel}" con datos numericos concretos, resuelvelo paso a paso y verifica el resultado.`;
-      y = printPdfSubLabel(flow, 'Ejemplo resuelto', phaseColor, y);
-      y = para(plan?.ejemploResuelto || exampleFallback);
-
-      // Figura visual de la sesión (vector determinista con alfa transparente)
-      y = await drawSessionFigure(sNum, sMeta.title || topicLabel, `${plan?.contenido || ''} ${topicLabel}`, y);
-
-      y = printPdfSubLabel(flow, 'Practica', phaseColor, y);
-      if (plan?.practica && plan.practica.length > 0) {
-        for (let tIdx = 0; tIdx < plan.practica.length; tIdx++) {
-          const item = plan.practica[tIdx];
-          y = drawSingleTaskWithDottedLines(doc, item.enunciado, tIdx + 1, margin, mainW, pageHeight, y, checkSpace, item.pista || undefined);
-        }
-      } else {
-        const assignedTasks = taskBuckets[mIdx];
-        if (assignedTasks && assignedTasks.length > 0) {
-          for (let tIdx = 0; tIdx < assignedTasks.length; tIdx++) {
-            y = drawSingleTaskWithDottedLines(doc, assignedTasks[tIdx], tIdx + 1, margin, mainW, pageHeight, y, checkSpace);
-          }
-        } else {
-          const fallbackTaskText = buildSessionFallbackTaskText(mission, sNum, sMeta);
-          y = drawSingleTaskWithDottedLines(doc, fallbackTaskText, 1, margin, mainW, pageHeight, y, checkSpace);
-        }
-      }
-
-      const assignedElems = elemBuckets[mIdx];
-      if (assignedElems && assignedElems.length > 0) {
-        for (const el of assignedElems) {
-          y = drawPdfWorkbookElement(doc, el, margin, mainW, pageHeight, y, checkSpace);
-        }
-      }
-
-      const appFallback = mission.realLifeConnection?.householdApplication
-        ? `Ahora lleva lo aprendido a tu contexto real: ${mission.realLifeConnection.householdApplication} Documenta la evidencia (foto, esquema o nota) en tu cuaderno.`
-        : `Aplica lo aprendido a una situacion nueva de "${topicLabel}" y registra en tu cuaderno el procedimiento y el resultado.`;
-      y = printPdfSubLabel(flow, 'Aplica en tu vida', phaseColor, y);
-      y = para(plan?.aplicacion || appFallback);
-      y += 3;
-
-      // ── TU PRODUCTO (~10 min) ──
-      y = printSessionPhaseLabel(flow, 'TU PRODUCTO · Avance y autoevaluacion (~10 min)', phaseColor, y);
-      y = lead('Tu producto de hoy:', plan?.productoIntegrador
-        || `Agrega a tu producto integrador el avance de esta sesion: deja registrado en tu cuaderno o portafolio lo que produjiste, con evidencia legible y fechada.`);
-
-      y = printPdfSubLabel(flow, 'Autoevaluacion', phaseColor, y);
-      const autoevalItems: string[] = plan?.autoevaluacion && plan.autoevaluacion.length > 0
-        ? plan.autoevaluacion
-        : [
-            mission.formativeCheckpoint.question?.trim() || `¿Puedo explicar con mis palabras el concepto central de "${topicLabel}"?`,
-            reflPrompts.length > 0 ? reflPrompts[mIdx % reflPrompts.length] : `¿Logre resolver la practica sin copiar el ejemplo?`,
-            criteriaItems.length > 0 ? criteriaItems[mIdx % criteriaItems.length] : `¿Registre mi trabajo con evidencia fechada en el cuaderno?`,
-          ].filter((q) => q.length >= 10);
-      for (const item of autoevalItems) {
-        y = printPdfCheckItem(flow, item, y);
-      }
-
-      if (plan?.recursos && plan.recursos.length > 0) {
-        y = printPdfSubLabel(flow, 'Para saber mas', phaseColor, y);
-        for (const r of plan.recursos) {
-          y = printPdfResourceLine(flow, r.titulo, r.url, r.tipo, y);
-        }
-      }
-      y += 4;
+      // LIBRO PARA EL ESTUDIANTE — flujo completo desde sessionPlan (misma
+      // impresión que s1/s2/última; ver renderStudentPlanFlow — Fase D).
+      await renderStudentPlanFlow(
+        plan ?? null,
+        sNum,
+        sMeta,
+        phaseColor,
+        mIdx,
+        taskBuckets[mIdx],
+        elemBuckets[mIdx],
+      );
     }
   }
 
@@ -2896,6 +2970,20 @@ async function drawMission(
       drawWidth: mainW,
       y,
     });
+
+    // Fase D: flujo de la última sesión desde su sessionPlan (libro ↔ solucionario)
+    const planLast = mission.sessionPlans?.find((p) => p.sessionNumber === lastSession);
+    if (planLast) {
+      await renderStudentPlanFlow(planLast, lastSession, lastMeta, getPhaseColorRgb(lastMeta.phase), 2);
+    } else {
+      logger.warn('[pdf-workbook] Fallback determinista de sesión (sin sessionPlan):', {
+        blockIndex,
+        missionIndex: mission.missionIndex,
+        sessionNumber: lastSession,
+        sessionPlansCount: mission.sessionPlans?.length ?? 0,
+        section: 'cierre',
+      });
+    }
   }
 
   y = drawSectionHeader(doc, '5. Tu Haces: Reto Autonomo con Evidencia Cotidiana', margin, mainW, y, pageHeight, SECTION_COLORS.tuHaces, checkSpace, '[ HAGO Y RESUELVO ]');
