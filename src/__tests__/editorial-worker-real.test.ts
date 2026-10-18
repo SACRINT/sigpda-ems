@@ -14,6 +14,9 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import http from 'http';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
 import rawFixture from './fixtures/editorial/student-workbook-chapter.fixture.json';
 import { dispatchToEditorialWorker } from '@/lib/editorial/worker-client';
 import { StudentChapter } from '@/lib/editorial/student-content-model';
@@ -157,4 +160,70 @@ describe('Worker Container Typst — Integración Real sobre HTTP (P1-2)', () =>
       process.env.EDITORIAL_WORKER_SECRET = prevSecret;
     }
   });
+
+  it('debe compilar exitosamente cuando PUBLIC_DIR apunta a un directorio con la imagen requerida por materialSpot', async () => {
+    const testPublicDir = path.join(os.tmpdir(), `sigpda_test_public_${Date.now()}`);
+    const materialesDir = path.join(testPublicDir, 'images', 'materiales');
+    await fs.promises.mkdir(materialesDir, { recursive: true });
+
+    const sourceMateriales = path.resolve(process.cwd(), 'public', 'images', 'materiales');
+    await fs.promises.cp(sourceMateriales, materialesDir, { recursive: true });
+
+    const prevPublicDir = process.env.PUBLIC_DIR;
+    process.env.PUBLIC_DIR = testPublicDir;
+
+    try {
+      const res = await fetch(`${workerBaseUrl}/compile`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${TEST_SECRET}`,
+        },
+        body: JSON.stringify({ chapter: rawFixture }),
+      });
+
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data.success).toBe(true);
+      expect(data.pageCount).toBeGreaterThanOrEqual(30);
+    } finally {
+      if (prevPublicDir !== undefined) {
+        process.env.PUBLIC_DIR = prevPublicDir;
+      } else {
+        delete process.env.PUBLIC_DIR;
+      }
+      await fs.promises.rm(testPublicDir, { recursive: true, force: true }).catch(() => {});
+    }
+  }, 25000);
+
+  it('debe fallar con 500 controlado cuando la imagen de materialSpot no existe en PUBLIC_DIR', async () => {
+    const emptyPublicDir = path.join(os.tmpdir(), `sigpda_test_empty_public_${Date.now()}`);
+    await fs.promises.mkdir(emptyPublicDir, { recursive: true });
+
+    const prevPublicDir = process.env.PUBLIC_DIR;
+    process.env.PUBLIC_DIR = emptyPublicDir;
+
+    try {
+      const res = await fetch(`${workerBaseUrl}/compile`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${TEST_SECRET}`,
+        },
+        body: JSON.stringify({ chapter: rawFixture }),
+      });
+
+      expect(res.status).toBe(500);
+      const data = await res.json();
+      expect(data.success).toBe(false);
+      expect(data.error).toContain('file not found');
+    } finally {
+      if (prevPublicDir !== undefined) {
+        process.env.PUBLIC_DIR = prevPublicDir;
+      } else {
+        delete process.env.PUBLIC_DIR;
+      }
+      await fs.promises.rm(emptyPublicDir, { recursive: true, force: true }).catch(() => {});
+    }
+  }, 25000);
 });

@@ -18,7 +18,8 @@ ENV NODE_ENV=production \
     PORT=8080 \
     TYPST_VERSION=0.13.0 \
     FONTS_DIR=/app/fonts \
-    TEMPLATES_DIR=/app/templates
+    TEMPLATES_DIR=/app/templates \
+    PUBLIC_DIR=/app/public
 
 WORKDIR /app
 
@@ -40,11 +41,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Verificar instalación y versiones
 RUN typst --version && ls -la /app/fonts/
 
-# Copiar archivos del worker
-COPY package.json ./
+# Copiar dependencias y código del worker
+COPY worker-editorial/package.json ./
 RUN npm install --omit=dev
 
-COPY . .
+COPY worker-editorial/ ./
+COPY public/images ./public/images
 
 # Exponer puerto HTTP
 EXPOSE 8080
