@@ -73,6 +73,11 @@ describe('Worker Container Typst — Integración Real sobre HTTP (P1-2)', () =>
     expect(data.typstVersion).toContain('typst');
   });
 
+  it('debe responder al health check con método HEAD con 200 sin cuerpo', async () => {
+    const res = await fetch(`${workerBaseUrl}/health`, { method: 'HEAD' });
+    expect(res.status).toBe(200);
+  });
+
   it('debe rechazar solicitudes con 401 si no se provee el secret de autenticación', async () => {
     const res = await fetch(`${workerBaseUrl}/compile`, {
       method: 'POST',

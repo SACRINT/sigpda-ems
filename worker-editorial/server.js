@@ -341,9 +341,12 @@ function handleRequest(req, res) {
 
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
 
-  // Endpoint 1: Health check público para Fly Machines / orquestadores
-  if (req.method === 'GET' && (url.pathname === '/health' || url.pathname === '/')) {
+  // Endpoint 1: Health check público para Fly Machines / orquestadores (GET y HEAD)
+  if ((req.method === 'GET' || req.method === 'HEAD') && (url.pathname === '/health' || url.pathname === '/')) {
     res.writeHead(200);
+    if (req.method === 'HEAD') {
+      return res.end();
+    }
     return res.end(
       JSON.stringify({
         status: 'ok',
