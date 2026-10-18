@@ -445,3 +445,43 @@ export function adaptStudentSessionToSessionPlan(session: StudentSession): Sessi
     productoIntegrador: session.productoIntegrador || '',
   };
 }
+
+// ============================================================================
+// 5. Renumeración Global de Referencias de Sesión (Fase C — numeración 1..72)
+// ============================================================================
+// Los sessionPlans se generan con numeración LOCAL por bloque (1..24). El libro
+// editorial imprime la numeración GLOBAL 1..72, por lo que toda referencia en
+// prosa ("las sesiones 4 a 11", "Sesión 4 hasta la 11", "Sesiones 13, 14, 15",
+// "Sesión 1:") debe desplazarse por el offset del bloque (0, +24 o +48).
+
+const SESSION_NUM_EXPR_SRC =
+  '\\d{1,2}(?!\\d)(?:\\s*(?:[,y]\\s*|a(?:\\s+la)?\\s+|al\\s+|hasta(?:\\s+la)?\\s+|[-–—])\\s*\\d{1,2}(?!\\d))*';
+const SESSION_REF_REGEX = new RegExp(`(sesi(?:ón|ones|on)\\b\\s*)(${SESSION_NUM_EXPR_SRC})`, 'gi');
+
+/** Desplaza las referencias de sesión en un texto (offset 0 = no-op). */
+export function remapSessionReferences(text: string, offset: number): string {
+  if (!offset || !text) return text;
+  return text.replace(SESSION_REF_REGEX, (_full, prefix: string, numExpr: string) => {
+    const remapped = numExpr.replace(/\d{1,2}/g, (digit) => {
+      const v = Number(digit);
+      const target = v + offset;
+      return v >= 1 && v <= 24 && target >= 1 && target <= 72 ? String(target) : digit;
+    });
+    return `${prefix}${remapped}`;
+  });
+}
+
+/** Aplica remapSessionReferences recursivamente a todas las cadenas de una estructura. */
+export function remapSessionReferencesDeep<T>(value: T, offset: number): T {
+  if (!offset) return value;
+  if (typeof value === 'string') return remapSessionReferences(value, offset) as T;
+  if (Array.isArray(value)) return value.map((item) => remapSessionReferencesDeep(item, offset)) as T;
+  if (value !== null && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [key, item] of Object.entries(value)) {
+      out[key] = remapSessionReferencesDeep(item, offset);
+    }
+    return out as T;
+  }
+  return value;
+}

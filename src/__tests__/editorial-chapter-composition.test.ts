@@ -9,6 +9,9 @@
  *    plantel/CCT reales del docente en lugar de constantes hardcodeadas.
  * 3. Sesión inválida (URL de recurso malformada) → se descarta con log y el resto
  *    se renumera manteniendo continuidad estricta 1..N.
+ * 4. Fase C — numeración global: las referencias en prosa a sesiones (numeración
+ *    local por bloque 1..24) se desplazan al número global 1..72 vía
+ *    remapSessionReferences / remapSessionReferencesDeep (offset por bloque).
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -61,6 +64,10 @@ import {
   getEditorialBookByPlanningAndHash,
   updateEditorialBookStatus,
 } from '@/lib/editorial/editorial-db';
+import {
+  remapSessionReferences,
+  remapSessionReferencesDeep,
+} from '@/lib/editorial/student-content-model';
 import type { StudentChapter } from '@/lib/editorial/student-content-model';
 
 describe('Motor Editorial — Composición de capítulo desde plannings.workbooks_json', () => {
@@ -82,13 +89,17 @@ describe('Motor Editorial — Composición de capítulo desde plannings.workbook
     workbooks_json: null,
   };
 
-  function makePlan(sessionNumber: number, opts?: { tag?: string; badUrl?: boolean }): SessionPlan {
+  function makePlan(
+    sessionNumber: number,
+    opts?: { tag?: string; badUrl?: boolean; saberes?: string },
+  ): SessionPlan {
     const tag = opts?.tag ?? `unidad ${sessionNumber}`;
     return {
       sessionNumber,
       objetivo: `Vas a aprender a calcular la variación numérica con ejemplos reales de ${tag}.`,
       motivacion: `Imagina que en tu comunidad los precios cambian cada semana: medir esa variación numérica es la tarea real de hoy en ${tag}.`,
-      saberesPrevios: `Ya dominas operaciones básicas, porcentajes y tabulación de datos en clase.`,
+      saberesPrevios:
+        opts?.saberes ?? `Ya dominas operaciones básicas, porcentajes y tabulación de datos en clase.`,
       contenido: `Parrafo: La variación numérica describe qué tan grande o pequeña es la diferencia entre dos cantidades medibles.\n\nDefinicion: Relación de cambio proporcional entre dos magnitudes que se expresa en porcentaje o razón.`,
       ejemploResuelto: `Un vendedor vendió 5 artículos en 2 días.\nPaso 1: Calcular el ritmo diario: 5 / 2 = 2.5 artículos por día.\nPaso 2: Estimar la semana completa: 2.5 * 7 = 17.5 artículos.`,
       practica: [
@@ -343,4 +354,108 @@ describe('Motor Editorial — Composición de capítulo desde plannings.workbook
     // Bloque etiquetado según bloques presentes (solo block_0)
     expect(chapter.bloque).toBe('Bloque 1');
   }, 15000);
+
+  // ==========================================================================
+  // 4. Fase C — numeración global: las referencias en prosa se desplazan
+  // ==========================================================================
+  it('desplaza las referencias en prosa de sesiones al número global (offset por bloque)', async () => {
+    const refText = 'Continúa con las sesiones 4 a 11 y la sesión 6 del plan de estudio.';
+    vi.mocked(getPlanningById).mockResolvedValue({
+      ...basePlanning,
+      workbooks_json: {
+        block_0: workbook([
+          {
+            title: 'Misión 1',
+            sessionPlans: [
+              makePlan(1, { tag: 'PC1 ses1', saberes: refText }),
+              makePlan(2, { tag: 'PC1 ses2' }),
+            ],
+          },
+        ]),
+        block_1: workbook([
+          {
+            title: 'Misión 1',
+            sessionPlans: [
+              makePlan(1, { tag: 'PC2 ses1', saberes: refText }),
+              makePlan(2, { tag: 'PC2 ses2' }),
+            ],
+          },
+        ]),
+      },
+    } as never);
+
+    const res = await POST(postEmptyBody(), { params: Promise.resolve({ id: planningId }) });
+    expect(res.status).toBe(200);
+
+    const chapter = dispatchedChapter();
+    expect(chapter.sesiones.map((s) => s.numero)).toEqual([1, 2, 3, 4]);
+
+    // Bloque 0 = offset 0 → la referencia local queda intacta
+    expect(chapter.sesiones[0].saberesPrevios).toBe(refText);
+
+    // Bloque 1 = sesión local 1 → global 3 (offset +2) → referencias desplazadas +2
+    expect(chapter.sesiones[2].saberesPrevios).toBe(
+      'Continúa con las sesiones 6 a 13 y la sesión 8 del plan de estudio.'
+    );
+    expect(chapter.sesiones[2].titulo.startsWith('Sesión 3:')).toBe(true);
+    expect(chapter.sesiones[3].titulo.startsWith('Sesión 4:')).toBe(true);
+  }, 15000);
+});
+
+describe('Motor Editorial — remapSessionReferences (numeración global 1..72)', () => {
+  it('offset 0 (bloque 1) no modifica nada', () => {
+    expect(remapSessionReferences('Estudiaste las sesiones 1 y 2 en el bloque 1.', 0)).toBe(
+      'Estudiaste las sesiones 1 y 2 en el bloque 1.'
+    );
+  });
+
+  it('desplaza rangos y listas reales del corpus (+24 y +48)', () => {
+    expect(
+      remapSessionReferences('Todo el contenido desarrollado en las sesiones 4 a 11, portafolio completo.', 24)
+    ).toBe('Todo el contenido desarrollado en las sesiones 28 a 35, portafolio completo.');
+    expect(remapSessionReferences('repasa la sesión 4 hasta la 11.', 48)).toBe(
+      'repasa la sesión 52 hasta la 59.'
+    );
+    expect(remapSessionReferences('Sesiones 13, 14, 15 del reto.', 24)).toBe(
+      'Sesiones 37, 38, 39 del reto.'
+    );
+    expect(remapSessionReferences('Sesiones 18, 19 y 20 del reto.', 48)).toBe(
+      'Sesiones 66, 67 y 68 del reto.'
+    );
+    expect(remapSessionReferences('Sesiones 15-17 del bloque.', 24)).toBe('Sesiones 39-41 del bloque.');
+    expect(remapSessionReferences('Sesión 1: Exploración Diagnóstica', 24)).toBe(
+      'Sesión 25: Exploración Diagnóstica'
+    );
+    expect(remapSessionReferences('entre las sesiones 13 y 14)', 24)).toBe('entre las sesiones 37 y 38)');
+  });
+
+  it('respeta límites: >24 no se toca, objetivo ≤72, sin acentos también', () => {
+    expect(remapSessionReferences('la sesión 30 queda pendiente', 24)).toBe('la sesión 30 queda pendiente');
+    expect(remapSessionReferences('la sesión 24', 48)).toBe('la sesión 72');
+    expect(remapSessionReferences('la sesión 25', 48)).toBe('la sesión 25');
+    expect(remapSessionReferences('la sesion 4 del cuaderno', 24)).toBe('la sesion 28 del cuaderno');
+  });
+
+  it('números sin "sesión" previa quedan intactos', () => {
+    expect(remapSessionReferences('apunta 5 ideas y 12 dudas en tu cuaderno', 24)).toBe(
+      'apunta 5 ideas y 12 dudas en tu cuaderno'
+    );
+    expect(remapSessionReferences('valores de 10 a 20 pesos', 24)).toBe('valores de 10 a 20 pesos');
+  });
+
+  it('remapSessionReferencesDeep recorre estructuras anidadas completas', () => {
+    const input = {
+      titulo: 'Sesión 4: taller',
+      autoevaluacion: ['¿Qué viste en la sesión 6?', '¿Qué falta de la sesión 7?'],
+      practica: [{ enunciado: 'Ejercicio basado en la sesión 5', pista: 'Revisa la sesión 4' }],
+      numero: 4,
+    };
+    const out = remapSessionReferencesDeep(input, 24);
+    expect(out.titulo).toBe('Sesión 28: taller');
+    expect(out.autoevaluacion[0]).toBe('¿Qué viste en la sesión 30?');
+    expect(out.autoevaluacion[1]).toBe('¿Qué falta de la sesión 31?');
+    expect(out.practica[0].enunciado).toBe('Ejercicio basado en la sesión 29');
+    expect(out.practica[0].pista).toBe('Revisa la sesión 28');
+    expect(out.numero).toBe(4);
+  });
 });

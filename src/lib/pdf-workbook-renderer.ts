@@ -2762,6 +2762,16 @@ async function drawMission(
 
       // Plan de sesión generado por IA (Opción B) — priorizado sobre el fallback determinista
       const plan = mission.sessionPlans?.find((p) => p.sessionNumber === sNum);
+      if (!plan) {
+        // Fase C (anti-fallback silencioso): el contenido de esta sesión sale de los
+        // pools deterministas de la misión, no de su sessionPlan.
+        logger.warn('[pdf-workbook] Fallback determinista de sesión (sin sessionPlan):', {
+          blockIndex,
+          missionIndex: mission.missionIndex,
+          sessionNumber: sNum,
+          sessionPlansCount: mission.sessionPlans?.length ?? 0,
+        });
+      }
 
       // ══════════════════════════════════════════════════════════════
       // LIBRO PARA EL ESTUDIANTE (autodidacta). Voz en "tú", sin roles de docente.

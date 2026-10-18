@@ -37,6 +37,7 @@ import {
   StudentChapterSchema,
   StudentSessionSchema,
   adaptSessionPlanToStudentSession,
+  remapSessionReferencesDeep,
 } from '@/lib/editorial/student-content-model';
 import type { StudentSession } from '@/lib/editorial/student-content-model';
 import type { SessionPlan } from '@/types/work-textbook';
@@ -192,11 +193,20 @@ function composeStudentSessionsFromWorkbooks(rawPlanning: {
     }
   }
 
-  const sessions = validSessions.map((session, index) => ({
-    ...session,
-    numero: index + 1,
-    titulo: session.titulo.replace(/^Sesión \d+:\s*/, `Sesión ${index + 1}: `),
-  }));
+  // Fase C — numeración global: los sessionPlans citan sesiones con numeración LOCAL
+  // por bloque (1..24). Al componer el capítulo con numeración global 1..72, cada
+  // referencia en prosa ("las sesiones 4 a 11", "Sesión 4 hasta la 11") se desplaza
+  // por el offset real (global − local) para que el lector vea coherencia total.
+  const sessions = validSessions.map((session, index) => {
+    const globalNumber = index + 1;
+    const offset = globalNumber - session.numero;
+    const remapped = offset !== 0 ? remapSessionReferencesDeep(session, offset) : session;
+    return {
+      ...remapped,
+      numero: globalNumber,
+      titulo: remapped.titulo.replace(/^Sesión \d+:\s*/, `Sesión ${globalNumber}: `),
+    };
+  });
 
   return { sessions, blocksPresent };
 }
