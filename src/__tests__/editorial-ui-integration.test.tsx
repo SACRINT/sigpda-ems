@@ -1,10 +1,11 @@
+// @vitest-environment jsdom
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
 import fs from 'node:fs';
 import path from 'node:path';
 import PlanningTabDocumento from '@/components/planning/PlanningTabDocumento';
-import EditorialSubscriptionModal from '@/components/ui/EditorialSubscriptionModal';
 import { EditorialBookClient } from '@/hooks/useEditorialBook';
 import type { Planning, GeneratedPlanningContent } from '@/types/planning';
 
@@ -169,7 +170,9 @@ describe('Editorial UI Integration Suite (Fase 3 — Tarea 5)', () => {
     expect(html).toContain('MCCEMS · Typst 0.13');
   });
 
-  it('Escenario 2: Caso premium — POST 403 PREMIUM_REQUIRED → Modal visible → Click "Ver planes" → router.push("/suscripcion")', async () => {
+  it('Escenario 2: Caso premium — POST 403 PREMIUM_REQUIRED → Modal visible en Tab → Click "Ver planes" → router.push("/suscripcion")', async () => {
+    vi.useRealTimers();
+
     global.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 403,
@@ -179,33 +182,28 @@ describe('Editorial UI Integration Suite (Fase 3 — Tarea 5)', () => {
       }),
     });
 
-    const onPremiumRequiredMock = vi.fn();
-    const client = new EditorialBookClient({
-      planningId: dummyPlanning.id,
-      onPremiumRequired: onPremiumRequiredMock,
-    });
-
-    const result = await client.generateBook();
-
-    expect(result).toBe(false);
-    expect(client.getState().status).toBe('failed');
-    expect(client.getState().isPremiumRequired).toBe(true);
-    expect(onPremiumRequiredMock).toHaveBeenCalledTimes(1);
-
-    // Renderizar modal abierto
-    const modalHtml = renderToString(
-      <EditorialSubscriptionModal isOpen={true} onClose={vi.fn()} />,
+    // 1. Renderizar el componente Tab real con editorialEngineEnabled=true
+    render(
+      <PlanningTabDocumento planning={dummyPlanning} editorialEngineEnabled={true} />,
     );
 
-    expect(modalHtml).toContain('role="dialog"');
-    expect(modalHtml).toContain('Motor Editorial Premium');
-    expect(modalHtml).toContain('Ver planes');
-    expect(modalHtml).toContain('Compilación de Imprenta Typst');
-    expect(modalHtml).toContain('Lomo Paramétrico Automatizado');
+    // 2. Localizar el botón de exportación editorial y hacer click
+    const exportBtn = screen.getByTestId('btn-exportar-editorial');
+    expect(exportBtn).toBeTruthy();
+    fireEvent.click(exportBtn);
 
-    // Simular navegación hacia suscripción
-    const router = { push: pushMock };
-    router.push('/suscripcion');
+    // 3. Verificar que el cableado reactivo (onPremiumRequired → setShowSubscriptionModal) monta el diálogo en el DOM
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).toBeTruthy();
+    expect(screen.getByText('Motor Editorial Premium')).toBeTruthy();
+    expect(screen.getByText(/Compilación de Imprenta Typst/i)).toBeTruthy();
+    expect(screen.getByText(/Lomo Paramétrico Automatizado/i)).toBeTruthy();
+
+    // 4. Hacer click en "Ver planes" dentro del modal
+    const verPlanesBtn = screen.getByRole('button', { name: /ver planes/i });
+    fireEvent.click(verPlanesBtn);
+
+    // 5. Verificar que se ejecuta la redirección con router.push
     expect(pushMock).toHaveBeenCalledWith('/suscripcion');
   });
 
