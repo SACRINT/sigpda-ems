@@ -281,10 +281,20 @@ function buildPlanDeClase(
   }
 
   // Paridad plan de clase ↔ libro: si la sesión tiene sessionPlan, la actividad del
-  // estudiante refleja lo que realmente hará en el libro (teoría, ejemplo, práctica).
+  // estudiante refleja lo que realmente hará en el libro (teoría, ejemplo, práctica) e
+  // incluye LOS MISMOS enunciados con sus pistas (1:1 con el libro del estudiante y
+  // con el solucionario docente — Fase B de alineación).
   const bookPlan = mission.sessionPlans?.find((p) => p.sessionNumber === sessionNum);
   if (bookPlan) {
-    const bookAct = `Libro del estudiante: estudia "${bookPlan.objetivo}" — lee la teoría y el ejemplo resuelto, resuelve ${bookPlan.practica.length} ejercicio(s) de práctica con pistas y registra tu evidencia.`;
+    const ejercicios = bookPlan.practica
+      .map((pr, i) => `${i + 1}. ${pr.enunciado}${pr.pista ? ` Pista: ${pr.pista}` : ''}`)
+      .join('\n');
+    const bookAct =
+      `Libro del estudiante: estudia "${bookPlan.objetivo}" — lee la teoría y el ejemplo resuelto, ` +
+      `resuelve ${bookPlan.practica.length} ejercicio(s) de práctica con pistas y registra tu evidencia.` +
+      (ejercicios
+        ? `\nEjercicios de la sesión (mismos enunciados que el libro y el solucionario docente):\n${ejercicios}`
+        : '');
     desarrolloEstudiante = sessionFromSeq?.learningActivity
       ? `${desarrolloEstudiante} ${bookAct}`
       : bookAct;

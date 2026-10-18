@@ -18,6 +18,7 @@ import { join } from 'node:path';
 import { extractMaterialsFromWorkbook } from '@/lib/guide-engine/material-extractor';
 import { sanitizeSessionPlans } from '@/lib/guide-engine/writers/writer-contract';
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
+import type { SecuenciaBloque, SecuenciaSesion } from '@/types/planning';
 
 const EX1 = 'Calcula el área de un terreno rectangular de 12.5 m de largo por 8.4 m de ancho.';
 const EX1_PISTA = 'Recuerda: área de un rectángulo = largo × ancho.';
@@ -222,6 +223,163 @@ describe('Paridad plan de clase ↔ sessionPlans del libro', () => {
     const materials = extractMaterialsFromWorkbook(legacy);
     const plan = materials.planesDeClase.find((p) => p.numeroSesion === 1);
     expect(plan!.desarrollo.actividadEstudiante).not.toContain('Libro del estudiante');
+  });
+
+  it('el plan de clase lista los mismos enunciados y pistas del libro (sin soluciones)', () => {
+    const materials = extractMaterialsFromWorkbook(makeParityWorkbook());
+    const plan1 = materials.planesDeClase.find((p) => p.numeroSesion === 1);
+    expect(plan1!.desarrollo.actividadEstudiante).toContain(EX1);
+    expect(plan1!.desarrollo.actividadEstudiante).toContain(EX1_PISTA);
+    expect(plan1!.desarrollo.actividadEstudiante).toContain(EX2);
+    expect(plan1!.desarrollo.actividadEstudiante).toContain(EX2_PISTA);
+    expect(plan1!.desarrollo.actividadEstudiante).toContain(
+      'Ejercicios de la sesión (mismos enunciados que el libro y el solucionario docente):'
+    );
+    // La solución modelo vive SOLO en el solucionario docente: ni en el plan ni en el libro.
+    expect(plan1!.desarrollo.actividadEstudiante).not.toContain(EX1_SOL[2]);
+    const plan2 = materials.planesDeClase.find((p) => p.numeroSesion === 2);
+    expect(plan2!.desarrollo.actividadEstudiante).toContain(
+      'Calcula el área de una forma en L de 6 m × 4 m con un hueco de 2 m × 2 m.'
+    );
+  });
+});
+
+// ─── Fase B: cobertura total 24/24 con paridad plan ↔ libro ↔ solucionario ────
+
+const FULL_SESSION_GROUPS: ReadonlyArray<{ sessions: number[]; topic: string }> = [
+  { sessions: [1, 2, 3], topic: 'fracciones y decimales' },
+  { sessions: [4, 5, 6, 7, 8, 9, 10, 11, 12], topic: 'proporcionalidad y porcentajes' },
+  { sessions: [13, 14, 15, 16, 17, 18, 19, 20, 21], topic: 'geometría del plano' },
+  { sessions: [22, 23, 24], topic: 'estadística descriptiva' },
+];
+
+function topicOfSession(n: number): string {
+  return FULL_SESSION_GROUPS.find((g) => g.sessions.includes(n))!.topic;
+}
+
+function fullSessionPlan(n: number, topic: string) {
+  return {
+    sessionNumber: n,
+    objetivo: `Objetivo ${n}: dominar ${topic}.`,
+    motivacion: `Caso real ${n} de ${topic} en la comunidad.`,
+    saberesPrevios: `En sesiones previas trabajaste aspectos de ${topic}.`,
+    contenido: `Contenido teórico de ${topic}: definiciones, propiedades y fórmulas esenciales.`,
+    ejemploResuelto: `Ejemplo ${n}: resolver un problema de ${topic} paso a paso con números concretos.`,
+    practica: [
+      {
+        enunciado: `Ejercicio ${n}.1: aplica ${topic} para resolver el caso planteado con datos concretos.`,
+        pista: `Usa la fórmula de ${topic} del ejemplo resuelto.`,
+        solucion: [
+          `Paso 1: identifica los datos del ejercicio ${n}.`,
+          `Paso 2: sustituye en la fórmula de ${topic}.`,
+          `Respuesta final: resultado del ejercicio ${n}.`,
+        ],
+      },
+    ],
+    aplicacion: `Aplica ${topic} en una situación de tu vida diaria.`,
+    autoevaluacion: [`¿Puedo resolver ejercicios de ${topic}?`],
+    recursos: [],
+    productoIntegrador: `Agrega la evidencia de la sesión ${n} a tu proyecto.`,
+  };
+}
+
+function makeFullCoverageWorkbook(): { workbook: ActiveWorkTextbook; sequence: SecuenciaBloque } {
+  const missions = FULL_SESSION_GROUPS.map((group, k) => ({
+    missionIndex: k + 1,
+    title: `Misión ${k + 1}: ${group.topic}`,
+    coveredSessions: group.sessions,
+    sessionTopic: group.topic,
+    sessionFocus: `${group.topic} en contexto comunitario`,
+    phenomenonHook: {
+      story: `Situación real de ${group.topic} en la comunidad.`,
+      detonatingQuestion: `¿Cómo aplicamos ${group.topic} en la vida diaria?`,
+    },
+    conceptZero: {
+      physicalAnalogy: `Analogía cotidiana de ${group.topic}.`,
+      coreExplanation: `Explicación fundamental de ${group.topic} con definiciones y fórmulas.`,
+      solvedExample: {
+        problemStatement: `Problema modelo de ${group.topic}.`,
+        solutionSteps: ['Paso 1: sustituir datos.', 'Paso 2: operar.'],
+        interpretation: 'Resultado verificado.',
+      },
+    },
+    iDoSection: { stepByStepDemo: `Demostración modelada de ${group.topic}.` },
+    weDoSection: { guidedPractice: `Práctica guiada de ${group.topic}.` },
+    youDoSection: { autonomousChallenge: `Reto autónomo de ${group.topic}.` },
+    troubleshooting: [],
+    formativeCheckpoint: {
+      question: `¿Qué aprendiste de ${group.topic}?`,
+      reflectionPrompts: ['Reflexiona sobre tu proceso de aprendizaje.'],
+      criteriaChecklist: ['Explico el concepto con claridad.'],
+    },
+    sessionPlans: group.sessions.map((n) => fullSessionPlan(n, group.topic)),
+    wordCount: 600,
+  }));
+
+  const workbook = {
+    uacName: 'Pensamiento Matemático III',
+    blockName: 'Bloque I: Medición y Superficies',
+    blockNumber: 1,
+    coverData: {
+      schoolName: 'BACHILLERATO ESTATAL DE PRUEBA',
+      subjectName: 'Pensamiento Matemático III',
+      semester: 2,
+      paecProjectName: 'Proyecto Comunitario de Prueba',
+    },
+    missions,
+  } as unknown as ActiveWorkTextbook;
+
+  const sessions: SecuenciaSesion[] = Array.from({ length: 24 }, (_, i) => {
+    const n = i + 1;
+    const phase: SecuenciaSesion['phase'] = n <= 3 ? 'Apertura' : n <= 21 ? 'Desarrollo' : 'Cierre';
+    return {
+      sessionNum: n,
+      totalSessions: 24,
+      phase,
+      title: `Título único de la sesión ${n}`,
+      teachingActivity: `El docente guía la sesión ${n} paso a paso con el grupo.`,
+      learningActivity: `El estudiante desarrolla la sesión ${n} en su cuaderno.`,
+      evidence: `Evidencia de la sesión ${n}`,
+      evaluation: `Evaluación formativa de la sesión ${n}`,
+    };
+  });
+
+  return {
+    workbook,
+    sequence: { blockIndex: 0, blockName: 'Bloque I: Medición y Superficies', hours: 34, sessions },
+  };
+}
+
+describe('Paridad total 24/24: planes de clase y solucionario con cobertura completa (Fase B)', () => {
+  const { workbook, sequence } = makeFullCoverageWorkbook();
+  const materials = extractMaterialsFromWorkbook(workbook, sequence);
+  const expectedNumbers = Array.from({ length: 24 }, (_, i) => i + 1);
+
+  it('genera exactamente los 24 planes consecutivos y la auditoría de coherencia no arroja errores', () => {
+    expect(materials.planesDeClase.map((p) => p.numeroSesion)).toEqual(expectedNumbers);
+    expect(materials.coherencia?.errors).toEqual([]);
+    expect(materials.coherencia?.ok).toBe(true);
+  });
+
+  it('el solucionario lista exactamente las 24 sesiones en orden 1..24', () => {
+    const headers = materials.solucionarioDocente.match(/\*\*Sesión (\d+) —/g) ?? [];
+    expect(headers.map((h) => Number(h.match(/(\d+)/)![1]))).toEqual(expectedNumbers);
+  });
+
+  it('cada plan de clase contiene el enunciado y la pista de su sesión (paridad plan ↔ libro ↔ solucionario)', () => {
+    for (let n = 1; n <= 24; n++) {
+      const topic = topicOfSession(n);
+      const enunciado = `Ejercicio ${n}.1: aplica ${topic} para resolver el caso planteado con datos concretos.`;
+      const pista = `Usa la fórmula de ${topic} del ejemplo resuelto.`;
+      const plan = materials.planesDeClase[n - 1];
+      expect(plan.desarrollo.actividadEstudiante).toContain(enunciado);
+      expect(plan.desarrollo.actividadEstudiante).toContain(pista);
+      expect(materials.solucionarioDocente).toContain(enunciado);
+      expect(materials.solucionarioDocente).toContain(pista);
+      // La solución modelo permanece SOLO en el solucionario, nunca en el plan de clase.
+      expect(plan.desarrollo.actividadEstudiante).not.toContain(`Respuesta final: resultado del ejercicio ${n}.`);
+      expect(materials.solucionarioDocente).toContain(`Respuesta final: resultado del ejercicio ${n}.`);
+    }
   });
 });
 
