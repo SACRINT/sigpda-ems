@@ -506,11 +506,10 @@
   )
 
   // Tipografía editorial institucional
-  // Nota H-04: Arial garantiza métricas limpias y compilación sin advertencias en Windows.
-  // En Linux/Docker/Vercel sin Arial instalada, Typst recurre a fuentes del sistema, lo cual
-  // altera métricas y hash byte-a-byte. En Fase 2 se embeberán fuentes canónicas vía --font-path.
+  // Nota H-04: Liberation Sans (SIL OFL) métricamente compatible con Arial, libre de licencias
+  // propietarias y embebida en el contenedor del worker vía --font-path (/app/fonts).
   #set text(
-    font: "Arial",
+    font: "Liberation Sans",
     size: 9pt,
     fill: c-slate-dark,
     lang: "es"
