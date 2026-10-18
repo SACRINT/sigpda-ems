@@ -73,10 +73,15 @@ async function run() {
 
     const inList = EXPECTED_TYPES.map((t) => `'${t}'`).join(', ');
 
-    await sql.unsafe(`ALTER TABLE ${current.table_name} DROP CONSTRAINT IF EXISTS ${CONSTRAINT_NAME}`);
+    // Nota: sql.unsafe() del driver neon HTTP es un fragmento para interpolación
+    // dentro de template tags (await sql.unsafe(...) NO ejecuta nada). Para DDL
+    // standalone se usa sql.query(cadena).
+    await sql.query(
+      `ALTER TABLE ${current.table_name} DROP CONSTRAINT IF EXISTS ${CONSTRAINT_NAME}`,
+    );
     console.log(`✅  DROP ${CONSTRAINT_NAME}: OK`);
 
-    await sql.unsafe(
+    await sql.query(
       `ALTER TABLE ${current.table_name} ADD CONSTRAINT ${CONSTRAINT_NAME} CHECK (type IN (${inList}))`,
     );
     console.log(`✅  ADD  ${CONSTRAINT_NAME} CHECK (type IN (${inList})): OK`);
