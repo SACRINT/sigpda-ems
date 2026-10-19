@@ -36,6 +36,20 @@ export default async function PlanningDetailPage({
   // Fetch initial generated extras (rubrics, materials, lesson plans)
   const extras = await getPlanningExtras(id, teacher.id);
 
+  // Inyectar CCT/nombre del plantel del docente en sectionI (los generadores PDF/DOCX
+  // leen s1.cct/s1.schoolName; en BD sectionI no siempre los trae).
+  const rawContent = planning.content_json as unknown as GeneratedPlanningContent | null;
+  const contentJson: GeneratedPlanningContent | null = rawContent
+    ? {
+        ...rawContent,
+        sectionI: {
+          ...(rawContent.sectionI ?? ({} as GeneratedPlanningContent['sectionI'])),
+          cct: rawContent.sectionI?.cct || teacher.cct || undefined,
+          schoolName: rawContent.sectionI?.schoolName || teacher.school_name || undefined,
+        },
+      }
+    : null;
+
   // Cast raw db rows to standard interfaces
   const planningTyped: Planning = {
     id: planning.id,
@@ -46,7 +60,7 @@ export default async function PlanningDetailPage({
     curriculumName: planning.curriculum_name || '',
     paecContext: planning.paec_context || '',
     extractedData: planning.extracted_data as unknown as ExtractedPdfData | null,
-    contentJson: planning.content_json as unknown as GeneratedPlanningContent | null,
+    contentJson,
     status: planning.status as PlanningStatus,
     createdAt: planning.created_at,
     updatedAt: planning.updated_at,

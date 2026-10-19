@@ -312,7 +312,7 @@ export default function DocumentA4Viewer({
                   <td className="label-cell">Plantel / Escuela:</td>
                   <td>{s1?.schoolName || 'Bachillerato General Oficial'}</td>
                   <td className="label-cell">Clave C.C.T.:</td>
-                  <td>{s1?.cct || '21EBH0000X'}</td>
+                  <td>{s1?.cct || 'CCT no disponible'}</td>
                 </tr>
                 <tr>
                   <td className="label-cell">Docente Titular:</td>

@@ -72,6 +72,22 @@ function clipList(items: Array<string | undefined | null>, maxItems: number = LI
     .slice(0, maxItems);
 }
 
+/**
+ * Quita el prefijo "Misión N: " de un título si ya lo incluye.
+ * Evita duplicados como "Misión 1: Misión 1: Fundamentación…" (los títulos
+ * del blueprint ya vienen prefijados).
+ */
+export function stripMissionPrefix(title: string | undefined | null): string {
+  return (title ?? '').replace(/^misi[oó]n\s*\d+\s*:\s*/i, '').trim();
+}
+
+/** Normaliza "Sesiones 1, 2" / "1-2" para no duplicar la palabra "sesiones". */
+function formatSessionsRange(range: string | undefined | null): string {
+  const r = (range ?? '').trim();
+  if (!r) return '';
+  return /^sesiones?\b/i.test(r) ? r : `Sesiones ${r}`;
+}
+
 function missionSlides(m: MissionSection, n: number): Slide[] {
   const slides: Slide[] = [];
   const label = `Misión ${n}`;
@@ -79,7 +95,7 @@ function missionSlides(m: MissionSection, n: number): Slide[] {
   // 1. Gancho fenomenológico
   slides.push({
     kind: 'hook',
-    title: clip(`${label}: ${m.title}`, LIMITS.title),
+    title: clip(`${label}: ${stripMissionPrefix(m.title)}`, LIMITS.title),
     subtitle: 'Situación de partida',
     bullets: clipList([m.phenomenonHook?.story], 1),
     callout: m.phenomenonHook?.detonatingQuestion
@@ -176,7 +192,7 @@ export function buildSlideDeck(
       title: 'Ruta de aprendizaje',
       subtitle: clip(workbook.blockName, LIMITS.subtitle),
       bullets: clipList(
-        workbook.tableOfContents.map((t) => `Misión ${t.missionIndex}: ${t.title} (sesiones ${t.sessionsRange})`),
+        workbook.tableOfContents.map((t) => `Misión ${t.missionIndex}: ${stripMissionPrefix(t.title)} (${formatSessionsRange(t.sessionsRange)})`),
         8
       ),
       notes: 'Muestre el recorrido completo para que el grupo anticipe qué y cuándo aprenderá.',

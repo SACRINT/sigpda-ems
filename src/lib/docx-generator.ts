@@ -375,7 +375,7 @@ function buildSectionIV(content: GeneratedPlanningContent, sequenceJson?: Record
         new TableRow({ children: [tcM('Sesión', { w: sc[0], align: AlignmentType.CENTER }), tcM('Título / Tema', { w: sc[1] }), tcM('Actividad del Docente', { w: sc[2] }), tcM('Actividad del Estudiante / Evidencia', { w: sc[3] })] }),
         ...blockSeq.sessions.map((s, si) => new TableRow({ children: [
           new TableCell({ width: { size: sc[0], type: WidthType.DXA }, shading: { fill: si % 2 === 0 ? C.white : C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, verticalAlign: VerticalAlign.CENTER, children: [
-            new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `${s.phase.charAt(0)} ${s.sessionNum}/${s.totalSessions}`, bold: true, size: 14, font: 'Arial', color: phaseColor[s.phase] || C.ejecucion })] }),
+            new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `${s.phase.charAt(0)} ${s.sessionNum}/${s.totalSessions ?? blockSeq.sessions.length}`, bold: true, size: 14, font: 'Arial', color: phaseColor[s.phase] || C.ejecucion })] }),
           ] }),
           new TableCell({ width: { size: sc[1], type: WidthType.DXA }, shading: { fill: si % 2 === 0 ? C.white : C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [new Paragraph({ children: [new TextRun({ text: s.title, bold: true, size: 15, font: 'Arial', color: C.text })] })] }),
           new TableCell({ width: { size: sc[2], type: WidthType.DXA }, shading: { fill: si % 2 === 0 ? C.white : C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [new Paragraph({ children: [new TextRun({ text: s.teachingActivity, size: 14, font: 'Arial', color: C.text })] })] }),

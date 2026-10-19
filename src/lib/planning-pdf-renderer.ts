@@ -119,7 +119,7 @@ export async function generatePlanningPDF(
     doc.text('SUPERVISIÓN DE BACHILLERATOS 004', pageWidth / 2, currentY, { align: 'center' });
     currentY += 3.4;
 
-    const cctPlantel = s1?.cct || s1?.schoolName || '21EBH0000X';
+  const cctPlantel = s1?.cct || 'CCT no disponible';
     setFontCaption(doc, 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(...BLUE_MID);
@@ -151,7 +151,7 @@ export async function generatePlanningPDF(
         { content: 'Plantel / Escuela:', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 35 } },
         { content: s1?.schoolName || 'Bachillerato General Oficial', styles: { cellWidth: 58 } },
         { content: 'Clave C.C.T.:', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 25 } },
-        { content: s1?.cct || '21EBH0000X', styles: { cellWidth: 68 } },
+        { content: s1?.cct || 'CCT no disponible', styles: { cellWidth: 68 } },
       ],
       [
         { content: 'Docente Titular:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
@@ -294,7 +294,7 @@ export async function generatePlanningPDF(
         const phaseShort = isAp ? 'A' : isDes ? 'D' : 'C';
         const phaseColor = isAp ? PHASE_APERTURA : isDes ? PHASE_DESARROLLO : PHASE_CIERRE;
         activityRows.push([
-          { content: `${phaseShort} ${s.sessionNum}/${s.totalSessions}`, styles: { fontStyle: 'bold', cellWidth: 20, fontSize: 6, textColor: phaseColor } },
+          { content: `${phaseShort} ${s.sessionNum}/${s.totalSessions ?? blockSeq.sessions.length}`, styles: { fontStyle: 'bold', cellWidth: 20, fontSize: 6, textColor: phaseColor } },
           { content: s.title, styles: { fontStyle: 'bold', fontSize: 6 } },
           { content: s.teachingActivity, styles: { fontSize: 5.8 } },
           { content: `${s.learningActivity}${s.evidence ? `\nEvidencia: ${s.evidence}` : ''}`, styles: { fontSize: 5.8 } },
@@ -465,7 +465,7 @@ export async function generateSecuenciaPDF(
   doc.text('SUPERVISIÓN DE BACHILLERATOS 004', pageWidth / 2, currentY, { align: 'center' });
   currentY += 3.4;
 
-  const cctPlantel = s1?.cct || s1?.schoolName || '21EBH0000X';
+  const cctPlantel = s1?.cct || 'CCT no disponible';
   setFontCaption(doc, 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(...BLUE_MID);
@@ -572,7 +572,7 @@ export async function generateSecuenciaPDF(
         const phaseColor = isAp ? PHASE_APERTURA : isDes ? PHASE_DESARROLLO : PHASE_CIERRE;
         rows.push([
           {
-            content: `S${s.sessionNum}/${s.totalSessions}\n[${s.phase}]`,
+            content: `S${s.sessionNum}/${s.totalSessions ?? sessions.length}\n[${s.phase}]`,
             styles: { fontStyle: 'bold', fontSize: 6.5, halign: 'center', textColor: phaseColor },
           },
           { content: s.title, styles: { fontStyle: 'bold', fontSize: 6.5 } },
