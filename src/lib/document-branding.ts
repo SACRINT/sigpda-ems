@@ -205,3 +205,24 @@ export function sanitizeDocFilename(
   const base = prefix ? `${prefix}_${clean}` : clean;
   return base.substring(0, maxLength);
 }
+
+/**
+ * Sanitiza títulos de extras garantizando que la identificación de bloque
+ * ("Bloque N") SOBREVIVA al corte del nombre de archivo.
+ *
+ * Títulos tipo "Materiales Didácticos e Insumos del Docente · Bloque 2: Sistemas…"
+ * producían con sanitizeDocFilename simple nombres sin número de bloque
+ * ("…del_docente_bloque.pdf" cortado justo antes del "2"), haciendo indistinguibles
+ * los PDFs de los 3 bloques. Esta variante reordena a "{tipo}_bloque_N_{tema}".
+ *
+ * Fallback: mismo comportamiento que sanitizeDocFilename si no hay patrón de bloque.
+ */
+export function sanitizeDocFilenameWithBlock(title: string, maxLength = 70): string {
+  const raw = (title || '').trim();
+  const m = raw.match(/^(.*?)\s*·\s*Bloque\s+(\d+)\s*:\s*(.+)$/i);
+  if (!m) return sanitizeDocFilename(raw, maxLength);
+  const slugTipo = sanitizeDocFilename(m[1], 60);
+  const temaBudget = Math.max(8, maxLength - slugTipo.length - `_bloque_${m[2]}`.length - 1);
+  const slugTema = sanitizeDocFilename(m[3], temaBudget);
+  return `${slugTipo}_bloque_${m[2]}${slugTema ? `_${slugTema}` : ''}`.substring(0, maxLength);
+}

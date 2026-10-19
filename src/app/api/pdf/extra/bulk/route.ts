@@ -8,7 +8,7 @@ import {
   getPlanningExtrasByIds,
 } from '@/lib/db';
 import { generateExtraPdfDocument } from '@/lib/pdf-extra-renderer';
-import { sanitizeDocFilename, type BrandingContext } from '@/lib/document-branding';
+import { sanitizeDocFilename, sanitizeDocFilenameWithBlock, type BrandingContext } from '@/lib/document-branding';
 import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
@@ -100,7 +100,7 @@ async function handleBulkPdf(request: NextRequest) {
 
     // 1. Asignación determinista de nombres de archivo con deduplicación
     const fileEntries = extras.map((item, i) => {
-      let baseName = sanitizeDocFilename(item.title, 55);
+      let baseName = sanitizeDocFilenameWithBlock(item.title, 70);
       if (!baseName) baseName = `extra_${i + 1}`;
 
       let fileName = `${baseName}.pdf`;

@@ -379,10 +379,12 @@ export function parseEjemploResuelto(rawEjemplo: string): EjemploResuelto {
  */
 /**
  * Límite del título de sesión (banner y Mapa de Sesiones). El corte es por
- * palabra con "…" — nunca a media palabra como hacía el slice(0, 60) anterior
- * que dejaba títulos como "…de modelación a".
+ * palabra con "…" — nunca a media palabra. Medición real de los 72 planes
+ * (2026-10-19): max=222, p95=205, media=152 chars ("Sesión N: " + objetivo);
+ * con 150 se cortaba ~la mitad de los títulos, por lo que el límite ahora
+ * asegura el 100% de los objetivos actuales con margen de crecimiento.
  */
-const TITULO_SESION_MAX = 150;
+const TITULO_SESION_MAX = 300;
 
 function tituloDeSesion(numero: number, objetivo: unknown): string {
   const base = `Sesión ${numero}:`;

@@ -4,6 +4,7 @@ import {
   resolveHeaderBranding,
   resolveFooterBranding,
   sanitizeDocFilename,
+  sanitizeDocFilenameWithBlock,
   INSTITUTIONAL_DEFAULTS,
 } from '@/lib/document-branding';
 import {
@@ -63,6 +64,30 @@ describe('Fase 1 — document-branding.ts & docx-helpers.ts', () => {
       );
       expect(sanitizeDocFilename('Materiales Didácticos e Insumos')).toBe(
         'materiales_didacticos_e_insumos'
+      );
+    });
+
+    it('sanitizeDocFilenameWithBlock garantiza "bloque_N" en nombres largos (anti filenames indistinguibles)', () => {
+      const materiales =
+        'Materiales Didácticos e Insumos del Docente · Bloque 2: Sistemas de ecuaciones lineales y análisis estadístico del PAEC';
+      // El sanitize simple cortaba en 50 y ELIMINABA el "2" → 3 PDFs idénticos en nombre.
+      expect(sanitizeDocFilename(materiales, 50)).toBe(
+        'materiales_didacticos_e_insumos_del_docente_bloque'
+      );
+      const conBloque = sanitizeDocFilenameWithBlock(materiales, 70);
+      expect(conBloque).toContain('bloque_2');
+      expect(conBloque.startsWith('materiales_didacticos_e_insumos_del_docente')).toBe(true);
+      expect(conBloque.length).toBeLessThanOrEqual(70);
+
+      const solucionario =
+        'Solucionario y Guía Pedagógica del Docente · Bloque 3: Ecuaciones cuadráticas, modelos exponenciales y geometría plana';
+      const sol = sanitizeDocFilenameWithBlock(solucionario, 70);
+      expect(sol).toContain('bloque_3');
+      expect(sol.startsWith('solucionario_y_guia_pedagogica_del_docente')).toBe(true);
+
+      // Sin patrón de bloque → mismo contrato que sanitizeDocFilename.
+      expect(sanitizeDocFilenameWithBlock('Rúbrica Analítica de Evaluación · Aprendizaje 1', 60)).toBe(
+        sanitizeDocFilename('Rúbrica Analítica de Evaluación · Aprendizaje 1', 60)
       );
     });
   });

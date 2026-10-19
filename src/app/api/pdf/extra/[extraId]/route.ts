@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, getPlanningExtraById } from '@/lib/db';
 import { generateExtraPDF } from '@/lib/pdf-extra-generator';
+import { sanitizeDocFilenameWithBlock } from '@/lib/document-branding';
 
 import { logger } from '@/lib/logger';
 export const runtime = 'nodejs';
@@ -38,14 +39,9 @@ export async function GET(
     // Get buffer from jsPDF
     const buffer = Buffer.from(doc.output('arraybuffer'));
 
-    // Safe filename
-    const safeFilename = (extra.title || 'recurso_extra')
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')  // strip accents
-      .replace(/[^a-z0-9\s_-]/g, '')
-      .replace(/\s+/g, '_')
-      .substring(0, 50);
+    // Safe filename con número de bloque garantizado (anti "…_bloque.pdf"
+    // indistinguible entre bloques; ver sanitizeDocFilenameWithBlock).
+    const safeFilename = sanitizeDocFilenameWithBlock(extra.title || 'recurso_extra', 70);
 
     return new Response(buffer, {
       status: 200,

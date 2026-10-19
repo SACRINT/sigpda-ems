@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, getPlanningExtraById } from '@/lib/db';
 import { buildExtraDocx } from '@/lib/docx-helpers';
-import { sanitizeDocFilename } from '@/lib/document-branding';
+import { sanitizeDocFilenameWithBlock } from '@/lib/document-branding';
 import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
@@ -29,7 +29,7 @@ export async function GET(
     }
 
     const buffer = await buildExtraDocx(extra);
-    const safeFilename = sanitizeDocFilename(extra.title, 60);
+    const safeFilename = sanitizeDocFilenameWithBlock(extra.title, 70);
 
     return new Response(new Uint8Array(buffer), {
       status: 200,

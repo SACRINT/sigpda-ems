@@ -181,9 +181,9 @@ async function main(): Promise<void> {
         offset,
       ).replace(/^Sesión \d+:\s*/, `Sesión ${globalN}: `);
 
-    if (book.includes(fold(tituloCompleto))) {
+    if (contained(book, fold(tituloCompleto))) {
       titulosCompletos++;
-    } else if (book.includes(fold(tituloLegacy))) {
+    } else if (contained(book, fold(tituloLegacy))) {
       truncados.push(globalN);
     } else {
       truncados.push(globalN); // ni completo ni por el corte viejo → también pendiente
@@ -201,7 +201,7 @@ async function main(): Promise<void> {
   if (titulosCompletos === 72) console.log('OK  Títulos: 72/72 COMPLETOS ("Sesión N: objetivo")');
   else
     pendings.push(
-      `PENDIENTE RE-EXPORT: ${truncados.length} títulos incompletos/cortados (histórico slice 60) — ej. sesiones ${truncados.slice(0, 8).join(', ')}${truncados.length > 8 ? '…' : ''} (${titulosCompletos}/72 completos)`,
+      `PENDIENTE RE-EXPORT: ${truncados.length} títulos incompletos/cortados (libro generado con TITULO_SESION_MAX anterior; el límite actual 300 ≥ máx. real 222) — ej. sesiones ${truncados.slice(0, 8).join(', ')}${truncados.length > 8 ? '…' : ''} (${titulosCompletos}/72 completos)`,
     );
 
   // ── 5. Zona escolar ──────────────────────────────────────────────────────
