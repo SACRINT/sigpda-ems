@@ -102,3 +102,25 @@ export function getExtraContentForRender(extra: { type?: string; content_text?: 
   return stripMaterialTokens(extra.content_text || '');
 }
 
+/**
+ * Aplica stripMaterialTokens recursivamente a TODOS los strings de un valor arbitrario
+ * (objetos, arrays, primitivos) sin mutar la estructura original.
+ *
+ * Garantía anti-fuga (Paridad Libro ↔ Plan): los libros de bloque (PDF/DOCX) y el
+ * capítulo editorial leen sessionPlans directo de workbooks_json; este helper asegura
+ * que ningún token crudo [[material:...]] llegue al documento final del estudiante,
+ * mostrando en su lugar la etiqueta humana (la misma que imprime el plan de clase).
+ */
+export function stripMaterialTokensDeep<T>(value: T): T {
+  if (typeof value === 'string') return stripMaterialTokens(value) as unknown as T;
+  if (Array.isArray(value)) return value.map((v) => stripMaterialTokensDeep(v)) as unknown as T;
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = stripMaterialTokensDeep(v);
+    }
+    return out as T;
+  }
+  return value;
+}
+

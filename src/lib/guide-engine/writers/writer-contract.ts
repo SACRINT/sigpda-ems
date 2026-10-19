@@ -164,6 +164,30 @@ export function evaluateQuality(params: {
 }
 
 /**
+ * Preguntas de autoevaluación de respaldo (mínimo editorial: 2 por sesión).
+ * Completan planes donde la IA devolvió menos de 2 ítems válidos.
+ */
+export const DEFAULT_AUTOEVALUACION: readonly string[] = [
+  '¿Puedo explicar con mis palabras el concepto central de esta sesión?',
+  '¿Logré resolver la práctica sin mirar el ejemplo?',
+];
+
+/** Pista genérica de respaldo cuando la IA no devolvió orientación para el ejercicio. */
+export const FALLBACK_PISTA =
+  'Observa el ejemplo resuelto paso a paso y aplica el mismo procedimiento con los datos del ejercicio.';
+
+/**
+ * Normaliza URLs casi-válidas devueltas por la IA (p.ej. "www.youtube.com/watch?v=…"
+ * sin protocolo) añadiendo https://. Cadenas que no parecen dominio se conservan tal
+ * cual para que las reglas de validación las descarten sin inventar enlaces.
+ */
+export function normalizeHttpUrl(raw: string): string {
+  if (!raw || /^https?:\/\//i.test(raw)) return raw;
+  if (!/\s/.test(raw) && /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}([/?#].*)?$/i.test(raw)) return `https://${raw}`;
+  return raw;
+}
+
+/**
  * Sanitiza el array `sessionPlans` devuelto por la IA: garantiza que cada plan
  * corresponda a una sesión cubierta real y que sea LIBRO PARA EL ESTUDIANTE
  * (voz en "tú", sin verbos de instrucción al docente). Acepta también la forma
@@ -216,16 +240,17 @@ export function sanitizeSessionPlans(
       .map((p): PracticaItem | null => {
         if (typeof p === 'string') {
           const t = toStudentVoice(p);
-          return t.length >= 10 ? { enunciado: t, pista: '' } : null;
+          return t.length >= 10 ? { enunciado: t, pista: FALLBACK_PISTA } : null;
         }
         if (p && typeof p === 'object') {
           const pr = p as Record<string, unknown>;
           const enunciado = toStudentVoice(asText(pr.enunciado ?? pr.texto ?? pr.tarea));
           if (enunciado.length < 10) return null;
           const solucion = sanitizeSolucion(pr.solucion ?? pr.solution);
+          const pistaCruda = asText(pr.pista ?? pr.hint ?? pr.pista_, 5);
           return {
             enunciado,
-            pista: asText(pr.pista ?? pr.hint ?? pr.pista_),
+            pista: pistaCruda.length >= 5 ? pistaCruda : FALLBACK_PISTA,
             ...(solucion.length > 0 ? { solucion } : {}),
           };
         }
@@ -233,21 +258,23 @@ export function sanitizeSessionPlans(
       })
       .filter((p): p is PracticaItem => p !== null);
 
-    // Recursos: acepta [{titulo,url,tipo}] validando URL http(s).
+    // Recursos: acepta [{titulo,url,tipo}] validando URL http(s). Se normaliza
+    // primero la URL por si la IA devolvió un dominio sin protocolo (www.…).
     const recursosRaw = Array.isArray(rec.recursos) ? rec.recursos : [];
     const recursos: RecursoItem[] = recursosRaw
       .map((r): RecursoItem | null => {
         if (!r || typeof r !== 'object') return null;
         const rr = r as Record<string, unknown>;
         const titulo = asText(rr.titulo ?? rr.title);
-        const url = asText(rr.url ?? rr.enlace, 7);
-        if (titulo.length < 4 || !/^https?:\/\//i.test(url)) return null;
+        const url = normalizeHttpUrl(asText(rr.url ?? rr.enlace, 7));
+        if (titulo.length < 4 || !/^https?:\/\/\S+$/i.test(url)) return null;
         const tipo = rr.tipo === 'video' || rr.tipo === 'lectura' ? rr.tipo : 'web';
         return { titulo, url, tipo };
       })
       .filter((r): r is RecursoItem => r !== null);
 
     // Autoevaluación: string[] (nuevo) o un string (heredado evaluacionObjetivo).
+    // Mínimo editorial:2 ítems (StudentSessionSchema) — se completa con defaults.
     const autoevalRaw = Array.isArray(rec.autoevaluacion) ? rec.autoevaluacion : [rec.autoevaluacion];
     const autoevaluacion = autoevalRaw
       .map((a) => toStudentVoice(asText(a)))
@@ -266,7 +293,10 @@ export function sanitizeSessionPlans(
       ejemploResuelto: toStudentVoice(asText(rec.ejemploResuelto ?? rec.ejemplo, 20)) || `A continuación verás un ejemplo resuelto paso a paso con números concretos; sigue el procedimiento en tu cuaderno.`,
       practica: practica.length > 0 ? practica : [{ enunciado: `Resuelve los ejercicios de práctica de la sesión ${sessionNumber} usando los datos del ejemplo resuelto.`, pista: `Repasa el ejemplo resuelto y aplica el mismo procedimiento paso a paso.` }],
       aplicacion: toStudentVoice(asText(rec.aplicacion, 15)) || `Aplica lo aprendido a una situación de tu vida diaria y registra la evidencia en tu cuaderno.`,
-      autoevaluacion: autoevaluacion.length > 0 ? autoevaluacion : [`¿Puedo explicar con mis palabras el concepto central de esta sesión?`, `¿Logré resolver la práctica sin mirar el ejemplo?`],
+      autoevaluacion:
+        autoevaluacion.length >= 2
+          ? autoevaluacion
+          : [...autoevaluacion, ...DEFAULT_AUTOEVALUACION].slice(0, 2),
       recursos,
       productoIntegrador: toStudentVoice(asText(rec.productoIntegrador, 10)) || `Agrega a tu producto integrador el avance de esta sesión con evidencia legible y fechada.`,
     };

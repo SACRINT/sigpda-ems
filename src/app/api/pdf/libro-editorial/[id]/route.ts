@@ -35,16 +35,21 @@ import { uploadEditorialPdfToBlob } from '@/lib/editorial/blob-storage';
 import {
   StudentChapter,
   StudentChapterSchema,
-  StudentSessionSchema,
-  adaptSessionPlanToStudentSession,
-  remapSessionReferencesDeep,
 } from '@/lib/editorial/student-content-model';
-import type { StudentSession } from '@/lib/editorial/student-content-model';
-import type { SessionPlan } from '@/types/work-textbook';
+import { composeStudentSessionsFromWorkbooks } from '@/lib/editorial/compose-student-sessions';
+import { ensureEditorialPlanCompleteness } from '@/lib/editorial/plan-completeness';
 import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60; // Timeout máximo compatible con plan Hobby y Vercel Serverless
+
+/**
+ * Presupuesto de la auto-sanación con IA antes de componer (24 s). Deja margen
+ * para el dispatch al worker Typst (~7 s), la subida a Blob y el guardado (5 s+)
+ * dentro del maxDuration=60 s de Vercel. Si la IA se demora de más, la red de
+ * seguridad determinista completa el resto sin bloquear la exportación.
+ */
+const EDITORIAL_REPAIR_DEADLINE_MS = 24_000;
 
 /**
  * Helper para validar autenticación y suscripción Premium
@@ -139,79 +144,6 @@ async function authorizeRequest(request: NextRequest): Promise<{
 }
 
 /**
- * Compone las sesiones del estudiante desde los libros de bloque persistidos
- * en plannings.workbooks_json (block_N.current.missions[].sessionPlans),
- * ordenando por bloque y sessionNumber y renumerando 1..N para cumplir el
- * invariante anti-F11 (continuidad estricta) de StudentChapterSchema.
- */
-function composeStudentSessionsFromWorkbooks(rawPlanning: {
-  workbooks_json?: Record<string, { current?: { missions?: unknown[] } } | null> | null;
-}): { sessions: StudentSession[]; blocksPresent: number[] } {
-  const workbooks = rawPlanning.workbooks_json;
-  if (!workbooks || typeof workbooks !== 'object') {
-    return { sessions: [], blocksPresent: [] };
-  }
-
-  const blockKeys = Object.keys(workbooks)
-    .filter((key) => /^block_\d+$/.test(key))
-    .sort((a, b) => Number(a.slice('block_'.length)) - Number(b.slice('block_'.length)));
-
-  const plans: SessionPlan[] = [];
-  const blocksPresent: number[] = [];
-
-  for (const key of blockKeys) {
-    const missions = (workbooks[key]?.current?.missions ?? []) as Array<{
-      sessionPlans?: SessionPlan[];
-    }>;
-    const blockPlans = missions.flatMap((mission) =>
-      Array.isArray(mission?.sessionPlans) ? mission.sessionPlans : [],
-    );
-    if (blockPlans.length === 0) continue;
-
-    blocksPresent.push(Number(key.slice('block_'.length)));
-    blockPlans.sort((a, b) => (a?.sessionNumber || 0) - (b?.sessionNumber || 0));
-    plans.push(...blockPlans);
-  }
-
-  const validSessions: StudentSession[] = [];
-  for (const plan of plans) {
-    try {
-      const parsed = StudentSessionSchema.safeParse(adaptSessionPlanToStudentSession(plan));
-      if (parsed.success) {
-        validSessions.push(parsed.data);
-      } else {
-        logger.warn('[api/pdf/libro-editorial] Sesión descartada al componer el capítulo (no cumple el modelo de estudiante):', {
-          sessionNumber: plan?.sessionNumber,
-          issues: parsed.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`),
-        });
-      }
-    } catch (error) {
-      logger.warn('[api/pdf/libro-editorial] Sesión descartada por error de adaptación SessionPlan→StudentSession:', {
-        sessionNumber: plan?.sessionNumber,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
-
-  // Fase C — numeración global: los sessionPlans citan sesiones con numeración LOCAL
-  // por bloque (1..24). Al componer el capítulo con numeración global 1..72, cada
-  // referencia en prosa ("las sesiones 4 a 11", "Sesión 4 hasta la 11") se desplaza
-  // por el offset real (global − local) para que el lector vea coherencia total.
-  const sessions = validSessions.map((session, index) => {
-    const globalNumber = index + 1;
-    const offset = globalNumber - session.numero;
-    const remapped = offset !== 0 ? remapSessionReferencesDeep(session, offset) : session;
-    return {
-      ...remapped,
-      numero: globalNumber,
-      titulo: remapped.titulo.replace(/^Sesión \d+:\s*/, `Sesión ${globalNumber}: `),
-    };
-  });
-
-  return { sessions, blocksPresent };
-}
-
-/**
  * POST /api/pdf/libro-editorial/[id]
  * Encola o procesa la compilación editorial del libro del estudiante para la planeación indicada.
  */
@@ -254,7 +186,20 @@ export async function POST(
         throw new Error('Sin chapter explícito en el body');
       }
     } catch {
-      // Sin chapter explícito en el body: componer desde los libros de bloque persistidos
+      // Sin chapter explícito en el body: componer desde los libros de bloque persistidos.
+      // ANTES: auto-sanación de integridad con IA (recurso/evaluación faltantes) + red
+      // determinista, para que el libro salga SIEMPRE completo (72/72 sesiones).
+      const repair = await ensureEditorialPlanCompleteness({
+        workbooksJson: (rawPlanning.workbooks_json ?? {}) as never,
+        planningId,
+        uacName: rawPlanning.uac_name,
+        teacherId: authResult.teacherId,
+        deadlineMs: EDITORIAL_REPAIR_DEADLINE_MS,
+      });
+      if (repair.mode !== 'noop') {
+        rawPlanning.workbooks_json = repair.workbooksJson as typeof rawPlanning.workbooks_json;
+      }
+
       const composed = composeStudentSessionsFromWorkbooks(rawPlanning);
 
       if (composed.sessions.length === 0) {
@@ -268,6 +213,25 @@ export async function POST(
             code: 'NO_SESSIONS',
           },
           { status: 400 },
+        );
+      }
+
+      // Nunca se publica un libro parcial en silencio: si un plan falla por reglas
+      // DURAS (contenido corrupto), se aborta con el detalle exacto de la sesión.
+      if (composed.dropped.length > 0) {
+        logger.error('[api/pdf/libro-editorial] EXPORT_ABORTED: sesiones con contenido duramente inválido', {
+          planningId,
+          dropped: composed.dropped,
+        });
+        return NextResponse.json(
+          {
+            error: `El libro editorial no se pudo generar: ${composed.dropped.length} sesión(es) tienen contenido inválido en workbooks_json. Regenera los libros de bloque afectados (botón Regenerar) y vuelve a exportar. Sesiones: ${composed.dropped
+              .map((d) => `${d.blockKey}#${d.sessionNumber}`)
+              .join(', ')}`,
+            code: 'EDITORIAL_SESSION_INVALID',
+            dropped: composed.dropped,
+          },
+          { status: 422 },
         );
       }
 

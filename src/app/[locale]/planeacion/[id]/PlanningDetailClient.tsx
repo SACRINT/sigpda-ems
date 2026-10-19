@@ -985,8 +985,8 @@ function PlanningDetailModular({
         </button>
       </div>
 
-      {/* Tabs Menu — Lucide icons */}
-      <div style={{ display: 'flex', borderBottom: '2px solid var(--c-border)', gap: '4px', marginBottom: '8px', flexWrap: 'wrap' }}>
+      {/* Tabs Menu — Lucide icons · estilo pestañas reales (.planning-tabs-bar) */}
+      <div className="planning-tabs-bar">
         {([
           { key: 'planning',      label: 'Planeación',         icon: <FileText   size={15}/>, color: 'var(--c-blue-mid)' },
           { key: 'extras',        label: 'Rúbricas y Materiales', icon: <Zap     size={15}/>, color: 'var(--c-blue-mid)' },
@@ -999,25 +999,11 @@ function PlanningDetailModular({
         ] as const).map(({ key, label, icon, color }) => (
           <button
             key={key}
+            type="button"
             onClick={() => setActiveTab(key as any)}
-            style={{
-              padding: '10px 14px',
-              fontSize: '13px',
-              fontWeight: 600,
-              borderBottom: activeTab === key ? `3px solid ${color}` : '3px solid transparent',
-              color: activeTab === key ? color : 'var(--c-text-muted)',
-              background: activeTab === key ? `${color}10` : 'none',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              borderRadius: '6px 6px 0 0',
-              transition: 'all 0.15s',
-              border: 'none',
-              borderBottomWidth: '3px',
-              borderBottomStyle: 'solid',
-              borderBottomColor: activeTab === key ? color : 'transparent',
-            }}
+            className={`planning-tab${activeTab === key ? ' is-active' : ''}`}
+            style={{ '--tab-color': color } as unknown as React.CSSProperties}
+            aria-current={activeTab === key ? 'page' : undefined}
           >
             {icon} {label}
           </button>

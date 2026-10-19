@@ -68,7 +68,7 @@ import {
 } from '@/types/workbook-legacy';
 import { extractCalloutBox, type CalloutBoxData } from '@/lib/visual-engine/callout-box';
 import { readMaterialPng } from '@/lib/materials/material-figure-doc';
-import { parseMaterialTokensWithFallback, resolveMaterialTokensForMarkdown } from '@/lib/materials/material-tokens';
+import { parseMaterialTokensWithFallback, resolveMaterialTokensForMarkdown, stripMaterialTokensDeep } from '@/lib/materials/material-tokens';
 import crypto from 'crypto';
 import QRCode from 'qrcode';
 import { getVerificationUrl } from '@/lib/digital-signature';
@@ -3690,6 +3690,9 @@ async function buildMissionContent(
     // ══════════════════════════════════════════════════════════════
     // LIBRO PARA EL ESTUDIANTE (autodidacta). Voz en "tú", sin roles de docente.
     // ══════════════════════════════════════════════════════════════
+    // Paridad Libro ↔ Plan: los tokens [[material:...]] se traducen a la etiqueta
+    // humana del catálogo (mismo texto que imprime el plan de clase).
+    plan = plan ? stripMaterialTokensDeep(plan) : plan;
     const subLabel = (t: string): Paragraph =>
       new Paragraph({
         spacing: { before: 100, after: 50 },

@@ -12,6 +12,7 @@
 
 import { z } from 'zod';
 import type { SessionPlan } from '@/types/work-textbook';
+import { stripMaterialTokensDeep } from '@/lib/materials/material-tokens';
 
 // ============================================================================
 // 1. Tipos e Interfaces Fundamentales
@@ -372,11 +373,15 @@ export function parseEjemploResuelto(rawEjemplo: string): EjemploResuelto {
 /**
  * Adapta un SessionPlan generado por los writers de OpenCode en una StudentSession
  * compatible con el compilador editorial de Typst (Fase 3/5).
+ *
+ * Paridad Libro ↔ Plan: traduce los tokens [[material:...]] a su etiqueta humana
+ * antes de validar, para que el libro del estudiante nunca muestre sintaxis cruda.
  */
 export function adaptSessionPlanToStudentSession(
   plan: SessionPlan,
   tituloPersonalizado?: string,
 ): StudentSession {
+  plan = stripMaterialTokensDeep(plan);
   const contenido = parseContenidoToBloques(plan.contenido);
   const ejemploResuelto = parseEjemploResuelto(plan.ejemploResuelto);
 

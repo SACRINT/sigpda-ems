@@ -44,7 +44,7 @@ import {
 import { extractCalloutBox, type CalloutBoxData } from '@/lib/visual-engine/callout-box';
 import { extractComparisonTable, type ComparisonTableData } from '@/lib/visual-engine/comparison-table';
 import { readMaterialPng } from '@/lib/materials/material-figure-doc';
-import { parseMaterialTokensWithFallback, resolveMaterialTokensForMarkdown } from '@/lib/materials/material-tokens';
+import { parseMaterialTokensWithFallback, resolveMaterialTokensForMarkdown, stripMaterialTokensDeep } from '@/lib/materials/material-tokens';
 import crypto from 'crypto';
 import QRCode from 'qrcode';
 import { getVerificationUrl } from '@/lib/digital-signature';
@@ -2268,6 +2268,9 @@ async function drawMission(
     // ══════════════════════════════════════════════════════════════
     // LIBRO PARA EL ESTUDIANTE (autodidacta). Voz en "tú", sin roles de docente.
     // ══════════════════════════════════════════════════════════════
+    // Paridad Libro ↔ Plan: los tokens [[material:...]] se traducen a la etiqueta
+    // humana del catálogo (mismo texto que imprime el plan de clase).
+    plan = plan ? stripMaterialTokensDeep(plan) : plan;
     const para = (text: string): number =>
       flow.printMainParagraph(sanitizePdfText(stripMarkdown(text)), y, { size: 7.2, lineHeight: 3.8, justify: true, parseParagraphs: true });
     const lead = (l: string, t: string): number =>

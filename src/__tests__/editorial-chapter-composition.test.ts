@@ -7,8 +7,10 @@
  * 2. 3 bloques × 2 sesiones (sessionNumber reinicia por bloque) → un único despacho,
  *    6 sesiones renumeradas 1..6 (invariante anti-F11), orden por bloque y sessionNumber,
  *    plantel/CCT reales del docente en lugar de constantes hardcodeadas.
- * 3. Sesión inválida (URL de recurso malformada) → se descarta con log y el resto
- *    se renumera manteniendo continuidad estricta 1..N.
+ * 3. Sesión con URL de recurso inválida → la capa editorial la REPARA (con la IA
+ *    deshabilitada en este archivo, la red de seguridad determinista con recurso
+ *    de catálogo) y compone 3/3 con continuidad estricta 1..N. El descarte duro
+ *    (dropped) solo queda para contenido corrupto y responde 422 explícito.
  * 4. Fase C — numeración global: las referencias en prosa a sesiones (numeración
  *    local por bloque 1..24) se desplazan al número global 1..72 vía
  *    remapSessionReferences / remapSessionReferencesDeep (offset por bloque).
@@ -52,8 +54,24 @@ vi.mock('@/lib/editorial/blob-storage', () => ({
   uploadEditorialPdfToBlob: vi.fn(),
 }));
 
+// Reparador de integridad: IA deshabilitada (mockRejectedValue en beforeEach) para
+// que este archivo ejerza la RED DE SEGURIDAD DETERMINISTA de forma determinista,
+// sin llamadas reales de IA ni costos. La capa IA se cubre en
+// editorial-plan-completeness.test.ts con deps inyectadas.
+vi.mock('@/lib/ai-provider', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/ai-provider')>()),
+  generateWithRotation: vi.fn(),
+}));
+
+vi.mock('@/lib/db/workbooks', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/db/workbooks')>()),
+  saveBlockWorkbook: vi.fn().mockResolvedValue({ version: 2, success: true }),
+}));
+
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, getPlanningById } from '@/lib/db';
+import { generateWithRotation } from '@/lib/ai-provider';
+import { saveBlockWorkbook } from '@/lib/db/workbooks';
 import { getSubscriptionStatus } from '@/lib/subscription-gate';
 import { featureFlags } from '@/lib/platform/feature-flags';
 import { POST } from '@/app/api/pdf/libro-editorial/[id]/route';
@@ -65,6 +83,7 @@ import {
   updateEditorialBookStatus,
 } from '@/lib/editorial/editorial-db';
 import {
+  adaptSessionPlanToStudentSession,
   remapSessionReferences,
   remapSessionReferencesDeep,
 } from '@/lib/editorial/student-content-model';
@@ -144,6 +163,10 @@ describe('Motor Editorial — Composición de capítulo desde plannings.workbook
   beforeEach(() => {
     vi.clearAllMocks();
     featureFlags.setOverride('EDITORIAL_PUBLISHER_ENGINE', true);
+
+    // Reparador: la IA "está caída" en este archivo → siempre red determinista.
+    vi.mocked(generateWithRotation).mockRejectedValue(new Error('IA deshabilitada en tests de composición'));
+    vi.mocked(saveBlockWorkbook).mockResolvedValue({ version: 2, success: true });
 
     vi.mocked(auth).mockResolvedValue({
       user: { email: mockTeacher.email },
@@ -315,9 +338,9 @@ describe('Motor Editorial — Composición de capítulo desde plannings.workbook
   }, 15000);
 
   // ==========================================================================
-  // 3. Sesión inválida → drop + renumeración continúa 1..N
+  // 3. URL inválida → REPARACIÓN (red determinista) + 3/3 sesiones
   // ==========================================================================
-  it('descarta la sesión con URL inválida y renumera el resto manteniendo continuidad 1..N', async () => {
+  it('repara la sesión con URL de recurso inválida (IA caída → catálogo) y compone 3/3 con continuidad 1..N', async () => {
     vi.mocked(getPlanningById).mockResolvedValue({
       ...basePlanning,
       workbooks_json: {
@@ -341,15 +364,26 @@ describe('Motor Editorial — Composición de capítulo desde plannings.workbook
     expect(data.success).toBe(true);
     expect(dispatchToEditorialWorker).toHaveBeenCalledTimes(1);
 
+    // El reparador corrió: IA caída en este test → red determinista + persistencia
+    expect(generateWithRotation).toHaveBeenCalled();
+    expect(saveBlockWorkbook).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(saveBlockWorkbook).mock.calls[0][1]).toBe(0); // bloque tocado: block_0
+
     const chapter = dispatchedChapter();
 
-    // 2 válidas de 3 (la #2 cae por URL inválida) y numeración continua
-    expect(chapter.sesiones).toHaveLength(2);
-    expect(chapter.sesiones.map((s) => s.numero)).toEqual([1, 2]);
+    // 3/3 sesiones (la #2 ya NO se descarta) y numeración continua
+    expect(chapter.sesiones).toHaveLength(3);
+    expect(chapter.sesiones.map((s) => s.numero)).toEqual([1, 2, 3]);
 
-    // La tercera sesión original ocupa ahora el índice 1 con título renumerado
-    expect(chapter.sesiones[1].objetivo).toContain('unidad 3');
-    expect(chapter.sesiones[1].titulo.startsWith('Sesión 2:')).toBe(true);
+    // La sesión reparada conserva su identidad y gana un recurso https real del catálogo
+    expect(chapter.sesiones[1].objetivo).toContain('unidad 2');
+    expect(chapter.sesiones[1].recursos).toHaveLength(1);
+    expect(chapter.sesiones[1].recursos[0].url).toMatch(/^https:\/\//);
+    expect(chapter.sesiones[1].recursos[0].titulo.length).toBeGreaterThanOrEqual(3);
+
+    // La tercera sesión mantiene su numeración original (sin desplazamiento por drop)
+    expect(chapter.sesiones[2].objetivo).toContain('unidad 3');
+    expect(chapter.sesiones[2].titulo.startsWith('Sesión 3:')).toBe(true);
 
     // Bloque etiquetado según bloques presentes (solo block_0)
     expect(chapter.bloque).toBe('Bloque 1');
@@ -457,5 +491,47 @@ describe('Motor Editorial — remapSessionReferences (numeración global 1..72)'
     expect(out.practica[0].enunciado).toBe('Ejercicio basado en la sesión 29');
     expect(out.practica[0].pista).toBe('Revisa la sesión 28');
     expect(out.numero).toBe(4);
+  });
+});
+
+describe('adaptSessionPlanToStudentSession — tokens [[material:...]] (paridad plan ↔ libro)', () => {
+  it('la sesión de estudiante no expone tokens crudos en NINGÚN campo (objetivo, teoría, práctica, recursos)', () => {
+    const plan: SessionPlan = {
+      sessionNumber: 1,
+      objetivo: 'Vas a usar el [[material:papel-milimetrado]] para trazar figuras con precisión.',
+      motivacion: 'En tu comunidad se miden terrenos cada semana con planos impresos en papel milimetrado real.',
+      saberesPrevios: 'Ya conoces el plano cartesiano y las unidades de medida del semestre anterior.',
+      contenido:
+        'Parrafo: El [[material:papel-milimetrado]] permite trazar con exactitud las figuras.\n\nDefinicion: Superficie con retícula milimétrica que ayuda a trabajar a escala.',
+      ejemploResuelto: 'Trazar un rectángulo de 5 cm por 3 cm.\nPaso 1: Ubica el origen en el papel.',
+      practica: [
+        {
+          enunciado: 'Trazar un triángulo equilátero de 6 cm de lado usando el [[material:compas]].',
+          pista: 'Apoya la medición con [[material:regla|la regla graduada]] antes de trazar.',
+        },
+      ],
+      aplicacion: 'Aplica el trazado a un plano simple de tu salón con medidas reales.',
+      autoevaluacion: ['¿Pudiste trazar la figura usando el [[material:compas]] sin ayuda?'],
+      recursos: [
+        { titulo: 'Tutorial de trazado con [[material:regla]]', url: 'https://www.youtube.com/watch?v=traz1', tipo: 'video' },
+      ],
+      productoIntegrador: 'Agregas el plano trazado a tu proyecto comunitario.',
+    };
+
+    const session = adaptSessionPlanToStudentSession(plan);
+    const serialized = JSON.stringify(session);
+
+    // Anti-fuga total: ni un rastro de sintaxis de token en la sesión final
+    expect(serialized).not.toContain('[[');
+    expect(serialized).not.toContain(']]');
+    expect(serialized).not.toContain('material:');
+
+    // El contenido teórico conserva el sentido (token del catálogo → nombre legible)
+    expect(session.contenido.map((b) => b.texto).join(' ')).toContain('Papel Milimetrado');
+    expect(session.practica[0].pista).toContain('la regla graduada');
+    expect(session.autoevaluacion[0]).not.toContain('[[');
+
+    // El plan original de workbooks_json queda intacto (helper puro)
+    expect(plan.objetivo).toContain('[[material:papel-milimetrado]]');
   });
 });

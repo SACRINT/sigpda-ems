@@ -60,6 +60,7 @@
   --c-navy:           #6366f1;
   --c-navy-light:     #818cf8;
   --c-blue-pale:      rgba(99,102,241,0.1);
+  --c-blue-mid:       #6366f1; /* se referenciaba en +15 componentes sin existir: fondo transparente silencioso */
   --c-green:          #10b981;
   --c-gray-100:       rgba(255,255,255,0.04);
   --c-gray-200:       rgba(255,255,255,0.08);
@@ -689,6 +690,54 @@ input[style*="background: #f0f7ff"] { background: rgba(99,102,241,0.1) !importan
 .fade-in-1 { animation-delay: 0.05s; }
 .fade-in-2 { animation-delay: 0.10s; }
 .fade-in-3 { animation-delay: 0.15s; }
+
+/* ── Pestañas tipo folder del detalle de planeación ──────────────────────────── */
+.planning-tabs-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 4px;
+  margin: 0 0 14px;
+  padding: 8px 10px 0;
+  background: var(--c-bg-subtle);
+  border-bottom: 2px solid var(--c-border);
+  border-radius: 12px 12px 0 0;
+}
+.planning-tab {
+  --tab-color: var(--c-blue-mid);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--c-text-muted);
+  background: transparent;
+  border: 2px solid transparent;
+  border-radius: 9px 9px 0 0;
+  margin-bottom: -2px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+.planning-tab:hover:not(.is-active) {
+  background: var(--c-bg-hover);
+  color: var(--c-text);
+}
+.planning-tab.is-active {
+  position: relative;
+  z-index: 1;
+  color: var(--tab-color);
+  font-weight: 700;
+  background: var(--c-bg-elevated);
+  border-color: var(--c-border);
+  box-shadow: inset 0 -3px 0 var(--tab-color);
+}
+.planning-tab:focus-visible {
+  outline: 2px solid var(--tab-color);
+  outline-offset: 1px;
+}
 
 /* ── Responsive ──────────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {

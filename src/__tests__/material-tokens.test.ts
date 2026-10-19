@@ -5,6 +5,7 @@ import {
   parseMaterialTokens,
   resolveMaterialTokensForMarkdown,
   stripMaterialTokens,
+  stripMaterialTokensDeep,
 } from '@/lib/materials/material-tokens';
 
 describe('T-IMG-02: Material Tokens Parser & Resolver', () => {
@@ -111,5 +112,46 @@ describe('T-IMG-02: Material Tokens Parser & Resolver', () => {
     expect(clean).not.toContain(']]');
     expect(clean).not.toContain('material:');
     expect(clean).toBe('Práctica con multímetro digital y Probeta Graduada de Vidrio (100 ml) o etiqueta libre o solo-slug.');
+  });
+});
+
+describe('stripMaterialTokensDeep — anti-fuga de tokens en libros y capítulo editorial', () => {
+  it('limpia tokens en TODOS los strings anidados (objetivos, pistas, títulos de recurso) sin mutar el original', () => {
+    const plan = {
+      sessionNumber: 4,
+      objetivo: 'Vas a usar un [[material:multimetro]] para medir con precisión.',
+      practica: [{ enunciado: 'Mide el voltaje con [[material:multimetro]].', pista: 'Usa [[material:regla|la regla]] como apoyo.' }],
+      recursos: [{ titulo: 'Trazados con [[material:compas]]', url: 'https://example.com/x', tipo: 'video' as const }],
+      autoevaluacion: ['¿Pudiste medir con [[material:multimetro]] sin ayuda?'],
+    };
+
+    const out = stripMaterialTokensDeep(plan);
+
+    const serialized = JSON.stringify(out);
+    expect(serialized).not.toContain('[[');
+    expect(serialized).not.toContain('material:');
+    expect(out.objetivo).toContain('Multímetro Digital'); // resuelve al nombre del catálogo
+    expect(out.practica[0].pista).toContain('la regla'); // etiqueta visible personalizada
+    expect(out.recursos[0].titulo).toMatch(/Comp[áa]s/);
+    expect(out.autoevaluacion[0]).toContain('Multímetro Digital');
+
+    // El objeto de entrada queda intacto (helper puro, no muta workbooks_json)
+    expect(plan.objetivo).toContain('[[material:multimetro]]');
+    expect(plan.recursos[0].titulo).toContain('[[material:compas]]');
+  });
+
+  it('preserva primitivos, null y estructuras sin tokens', () => {
+    expect(stripMaterialTokensDeep(42)).toBe(42);
+    expect(stripMaterialTokensDeep(null)).toBe(null);
+    expect(stripMaterialTokensDeep(undefined)).toBe(undefined);
+    expect(stripMaterialTokensDeep({ a: 1, b: 'texto plano', c: [1, 'x'] })).toEqual({ a: 1, b: 'texto plano', c: [1, 'x'] });
+  });
+
+  it('deja marcadores de contenido intactos (solo toca strings con sintaxis de token)', () => {
+    const contenido = 'Parrafo: Practica con [[material:geoplano]].\n\nDefinicion: Área de figuras planas.';
+    const out = stripMaterialTokensDeep({ contenido });
+    expect(out.contenido).toContain('Parrafo:');
+    expect(out.contenido).toContain('Definicion:');
+    expect(out.contenido).not.toContain('[[');
   });
 });
