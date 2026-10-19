@@ -15,6 +15,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { PDFParse } from 'pdf-parse';
 import { neon } from '@neondatabase/serverless';
+import { stripMaterialTokens } from '../src/lib/materials/material-tokens';
 
 function loadEnvLocal(): void {
   try {
@@ -85,9 +86,11 @@ async function main(): Promise<void> {
     if (!byBlock.has(b)) byBlock.set(b, new Map());
     const sess = byBlock.get(b)!;
     if (!sess.has(r.session_number)) sess.set(r.session_number, { enunciados: [], pistas: [] });
-    const e = fold(r.enunciado);
+    // La BD puede contener tokens [[material:...]] (reparación IA); los PDFs de
+    // planes imprimen la etiqueta humana → strippear ANTES de comparar.
+    const e = fold(stripMaterialTokens(r.enunciado));
     if (e.length >= 30) sess.get(r.session_number)!.enunciados.push(e);
-    const p = fold(r.pista || '');
+    const p = fold(stripMaterialTokens(r.pista || ''));
     if (p.length >= 20) sess.get(r.session_number)!.pistas.push(p);
   }
 

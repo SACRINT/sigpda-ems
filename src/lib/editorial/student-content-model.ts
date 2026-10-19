@@ -377,6 +377,25 @@ export function parseEjemploResuelto(rawEjemplo: string): EjemploResuelto {
  * Paridad Libro ↔ Plan: traduce los tokens [[material:...]] a su etiqueta humana
  * antes de validar, para que el libro del estudiante nunca muestre sintaxis cruda.
  */
+/**
+ * Límite del título de sesión (banner y Mapa de Sesiones). El corte es por
+ * palabra con "…" — nunca a media palabra como hacía el slice(0, 60) anterior
+ * que dejaba títulos como "…de modelación a".
+ */
+const TITULO_SESION_MAX = 150;
+
+function tituloDeSesion(numero: number, objetivo: unknown): string {
+  const base = `Sesión ${numero}:`;
+  const limpio = String(objetivo ?? '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/[.:;,]+$/, '');
+  if (limpio.length <= TITULO_SESION_MAX) return `${base} ${limpio}`;
+  const corte = limpio.slice(0, TITULO_SESION_MAX);
+  const espacio = corte.lastIndexOf(' ');
+  return `${base} ${(espacio > 40 ? corte.slice(0, espacio) : corte).trim()}…`;
+}
+
 export function adaptSessionPlanToStudentSession(
   plan: SessionPlan,
   tituloPersonalizado?: string,
@@ -387,7 +406,7 @@ export function adaptSessionPlanToStudentSession(
 
   return {
     numero: plan.sessionNumber,
-    titulo: tituloPersonalizado || `Sesión ${plan.sessionNumber}: ${plan.objetivo.slice(0, 60).replace(/[.:]+$/, '')}`,
+    titulo: tituloPersonalizado || tituloDeSesion(plan.sessionNumber, plan.objetivo),
     objetivo: plan.objetivo,
     motivacion: plan.motivacion,
     saberesPrevios: plan.saberesPrevios,

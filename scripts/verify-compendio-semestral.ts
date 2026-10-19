@@ -17,8 +17,8 @@
  *
  * Sale con código != 0 si alguna verificación FALLA.
  */
-import { readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { join, basename } from 'node:path';
 import { PDFParse } from 'pdf-parse';
 import { neon } from '@neondatabase/serverless';
 
@@ -53,19 +53,29 @@ interface PracticeRow {
 }
 
 async function main(): Promise<void> {
-  const dir = process.argv[2];
-  if (!dir) {
-    console.error('Uso: npx tsx scripts/verify-compendio-semestral.ts "<carpeta con el PDF>"');
+  const arg = process.argv[2];
+  if (!arg) {
+    console.error('Uso: npx tsx scripts/verify-compendio-semestral.ts "<carpeta con el PDF | ruta del PDF>"');
     process.exit(2);
   }
 
-  const file = readdirSync(dir).find((f) => f.toLowerCase().startsWith('libro_maestro') && f.toLowerCase().endsWith('.pdf'));
-  if (!file) {
-    console.error(`No se encontró ningún PDF que empiece con "Libro_Maestro" en: ${dir}`);
-    process.exit(2);
+  // Acepta ruta directa al PDF o carpeta (excluye el libro editorial nuevo,
+  // que también empieza con "Libro_Maestro" en la misma carpeta).
+  let pdfPath: string;
+  if (/\.pdf$/i.test(arg) && existsSync(arg)) {
+    pdfPath = arg;
+  } else {
+    const candidates = readdirSync(arg).filter(
+      (f) => f.toLowerCase().startsWith('libro_maestro') && f.toLowerCase().endsWith('.pdf'),
+    );
+    const file = candidates.find((f) => !f.toLowerCase().includes('editorial')) ?? candidates[0];
+    if (!file) {
+      console.error(`No se encontró ningún PDF que empiece con "Libro_Maestro" en: ${arg}`);
+      process.exit(2);
+    }
+    pdfPath = join(arg, file);
   }
-  const pdfPath = join(dir, file);
-  console.log(`PDF: ${file}`);
+  console.log(`PDF: ${basename(pdfPath)}`);
 
   const failures: string[] = [];
   const infos: string[] = [];

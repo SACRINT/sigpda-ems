@@ -29,6 +29,8 @@
 
 #let callout-box(
   title: none,
+  // icon: reservado por compatibilidad; NO se imprime: Liberation Sans carece de
+  // glifos emoji y Typst dibuja un "tofu" □ antes de cada título de caja.
   icon: "",
   bg-color: c-bg-card,
   border-color: c-primary,
@@ -45,7 +47,7 @@
     spacing: 9pt,
     [
       #if title != none [
-        #text(fill: border-color, weight: "bold", size: 9.5pt)[#icon #title]
+        #text(fill: border-color, weight: "bold", size: 9.5pt)[#title]
         #v(4pt)
       ]
       #text(fill: text-color, size: 9pt)[#body]
@@ -86,7 +88,7 @@
     inset: 6pt,
     spacing: 7pt,
     [
-      #text(fill: c-accent.darken(20%), weight: "bold", size: 8pt)[📌 #title]
+      #text(fill: c-accent.darken(20%), weight: "bold", size: 8pt)[#title]
       #v(2pt)
       #text(fill: c-slate-dark, size: 7.5pt)[#body]
     ]
@@ -103,7 +105,7 @@
       inset: 6pt,
       spacing: 7pt,
       [
-        #text(fill: rgb("1d4ed8"), weight: "bold", size: 8pt)[🌐 Enlaces de Ampliación]
+        #text(fill: rgb("1d4ed8"), weight: "bold", size: 8pt)[Enlaces de Ampliación]
         #v(3pt)
         #for r in recursos [
           #text(size: 7.5pt)[
@@ -272,14 +274,12 @@
     gutter: 8pt,
     callout-box(
       title: "Lo que vas a aprender hoy (Objetivo)",
-      icon: "🎯",
       bg-color: rgb("f0fdf4"),
       border-color: rgb("16a34a"),
       [#s.objetivo]
     ),
     callout-box(
       title: "Saberes que ya tienes",
-      icon: "🧠",
       bg-color: rgb("f8fafc"),
       border-color: c-slate-muted,
       [#s.saberesPrevios]
@@ -296,7 +296,6 @@
       // 1. Motivación y Contexto Situado
       #callout-box(
         title: "Punto de Partida: ¿Por qué importa esto en tu comunidad?",
-        icon: "💡",
         bg-color: c-gold-bg,
         border-color: c-accent.darken(10%),
         [#s.motivacion]
@@ -306,7 +305,7 @@
 
       // 2. Fundamentación Teórica / Contenido Real
       #text(fill: c-primary, weight: "bold", size: 10.5pt)[
-        📖 Conceptos Fundamentales y Modelado Matemático
+        Conceptos Fundamentales y Modelado Matemático
       ]
       #v(4pt)
 
@@ -334,7 +333,6 @@
         ] else if bloque.tipo == "definicion" [
           #callout-box(
             title: if "titulo" in bloque and bloque.titulo != none { bloque.titulo } else { "Definición Formal" },
-            icon: "📐",
             bg-color: rgb("f8fafc"),
             border-color: c-teal,
             [#bloque.texto]
@@ -383,7 +381,6 @@
   // 3. Ejemplo Resuelto Paso a Paso (Callout Ancho)
   #callout-box(
     title: "Ejemplo Resuelto con Números: Paso a Paso",
-    icon: "📝",
     bg-color: c-teal-bg,
     border-color: c-teal,
     [
@@ -400,13 +397,12 @@
   // 4. Práctica Autónoma Guiada (Ponte a Prueba)
   #callout-box(
     title: "Ponte a Prueba: Actividad Individual de Práctica",
-    icon: "⚡",
     bg-color: c-purple-bg,
     border-color: rgb("9333ea"),
     [
       #for (idx, item) in s.practica.enumerate() [
         #text(weight: "bold", size: 8.8pt)[Ejercicio #(idx + 1):] #text(size: 8.6pt)[#item.enunciado]\
-        #text(fill: rgb("7e22ce"), size: 8pt, style: "italic")[💡 Pista para comenzar: #item.pista]
+        #text(fill: rgb("7e22ce"), size: 8pt, style: "italic")[Pista para comenzar: #item.pista]
         #v(4pt)
       ]
     ]
@@ -420,19 +416,17 @@
     gutter: 8pt,
     callout-box(
       title: "Conexión con tu Comunidad (PAEC)",
-      icon: "🌐",
       bg-color: rgb("fff7ed"),
       border-color: rgb("ea580c"),
       [#s.aplicacion]
     ),
     callout-box(
       title: "Lista de Autoverificación",
-      icon: "✅",
       bg-color: rgb("f8fafc"),
       border-color: rgb("0284c7"),
       [
         #for check in s.autoevaluacion [
-          #text(size: 8.2pt)[☐ #check]\
+          #text(size: 8.2pt)[\[ \] #check]\
         ]
       ]
     )
@@ -448,7 +442,7 @@
       radius: 3pt,
       inset: 6pt,
       [
-        #text(fill: rgb("15803d"), weight: "bold", size: 8.5pt)[🎯 Avance del Producto Integrador (PAEC):]
+        #text(fill: rgb("15803d"), weight: "bold", size: 8.5pt)[Avance del Producto Integrador (PAEC):]
         #h(4pt)
         #text(fill: c-slate-dark, size: 8pt)[#s.productoIntegrador]
       ]
@@ -540,24 +534,23 @@
 
     #callout-box(
       title: "¿Cómo aprender con este libro de texto?",
-      icon: "📘",
       bg-color: rgb("eff6ff"),
       border-color: rgb("2563eb"),
       [
         Este cuaderno de trabajo ha sido diseñado para que tú construyas tu conocimiento de forma autónoma. Cada sesión contiene:
-        - *🎯 Objetivo*: La meta concreta de aprendizaje que alcanzarás.
-        - *💡 Punto de partida*: Un reto real de tu comunidad en el estado de Puebla (PAEC) para conectar la teoría con tu realidad.
-        - *📖 Teoría clara*: Fórmulas, definiciones rigurosas y explicaciones sin tecnicismos innecesarios.
-        - *📝 Ejemplo resuelto paso a paso*: Procedimientos numéricos explícitos para que veas exactamente cómo se aplican las fórmulas.
-        - *⚡ Ponte a prueba*: Ejercicios con pistas estratégicas para que desarrolles tu razonamiento sin frustrarte.
-        - *🌐 Conexión con tu vida y autoevaluación*: Preguntas de reflexión para verificar lo aprendido antes de avanzar.
+        - *Objetivo*: La meta concreta de aprendizaje que alcanzarás.
+        - *Punto de partida*: Un reto real de tu comunidad en el estado de Puebla (PAEC) para conectar la teoría con tu realidad.
+        - *Teoría clara*: Fórmulas, definiciones rigurosas y explicaciones sin tecnicismos innecesarios.
+        - *Ejemplo resuelto paso a paso*: Procedimientos numéricos explícitos para que veas exactamente cómo se aplican las fórmulas.
+        - *Ponte a prueba*: Ejercicios con pistas estratégicas para que desarrolles tu razonamiento sin frustrarte.
+        - *Conexión con tu vida y autoevaluación*: Preguntas de reflexión para verificar lo aprendido antes de avanzar.
       ]
     )
 
     #v(0.8cm)
 
     #text(fill: c-primary, weight: "bold", size: 12pt)[
-      📋 Mapa de Sesiones de Aprendizaje:
+      Mapa de Sesiones de Aprendizaje:
     ]
     #v(0.4cm)
 

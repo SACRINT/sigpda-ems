@@ -16,7 +16,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as crypto from 'crypto';
 import { auth } from '@/lib/auth';
-import { getTeacherByEmail, getPlanningById } from '@/lib/db';
+import { getTeacherByEmail, getPlanningById, sql } from '@/lib/db';
 import { getSubscriptionStatus } from '@/lib/subscription-gate';
 import { featureFlags } from '@/lib/platform/feature-flags';
 import {
@@ -52,6 +52,20 @@ export const maxDuration = 60; // Timeout máximo compatible con plan Hobby y Ve
 const EDITORIAL_REPAIR_DEADLINE_MS = 24_000;
 
 /**
+ * Normaliza la zona escolar para portada e índice del libro.
+ * '086' → 'Zona 086' · 'Zona 086' → 'Zona 086' · vacío → default institucional
+ * (mismo default que el exportador legacy; nunca inventa zonas falsas tipo 001
+ * cuando el docente sí tiene zona configurada en el Wizard).
+ */
+function formatZonaEscolar(raw?: string | null): string {
+  const v = (raw ?? '').trim();
+  if (!v) return 'Zona 004';
+  if (/^zona\b/i.test(v)) return v;
+  if (/^\d{2,4}$/.test(v)) return `Zona ${v}`;
+  return v;
+}
+
+/**
  * Helper para validar autenticación y suscripción Premium
  */
 async function authorizeRequest(request: NextRequest): Promise<{
@@ -61,6 +75,7 @@ async function authorizeRequest(request: NextRequest): Promise<{
   isAdmin?: boolean;
   teacherSchoolName?: string | null;
   teacherCct?: string | null;
+  teacherZone?: string | null;
   errorResponse?: NextResponse;
 }> {
   // 1. Verificación de Feature Flag
@@ -84,6 +99,7 @@ async function authorizeRequest(request: NextRequest): Promise<{
   let isSuperAdmin = false;
   let teacherSchoolName: string | null = null;
   let teacherCct: string | null = null;
+  let teacherZone: string | null = null;
 
   const session = await auth();
   if (session?.user?.email) {
@@ -94,6 +110,34 @@ async function authorizeRequest(request: NextRequest): Promise<{
       isSuperAdmin = teacher.role === 'administrador';
       teacherSchoolName = teacher.school_name ?? null;
       teacherCct = teacher.cct ?? null;
+      // Zona escolar REAL del docente: Wizard de Configuración → horario_config
+      // (con copia de respaldo en teachers.custom_preferences). Nunca hardcodeada.
+      try {
+        const cfgRows = await sql()`
+          SELECT zona_escolar FROM horario_config
+          WHERE teacher_id = ${teacher.id}::uuid
+          LIMIT 1
+        `;
+        const cfgZone = cfgRows[0]?.zona_escolar;
+        if (typeof cfgZone === 'string' && cfgZone.trim().length > 0) {
+          teacherZone = cfgZone;
+        } else {
+          const prefRows = await sql()`
+            SELECT custom_preferences FROM teachers WHERE id = ${teacher.id}::uuid
+          `;
+          const prefs = (prefRows[0]?.custom_preferences ?? null) as {
+            zonaEscolar?: string;
+            zona?: string;
+          } | null;
+          teacherZone = prefs?.zonaEscolar || prefs?.zona || null;
+        }
+      } catch (error) {
+        logger.warn('[api/pdf/libro-editorial] No fue posible leer la zona escolar del docente; se usará el default.', {
+          teacherId: teacher.id,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        teacherZone = null;
+      }
     }
   }
 
@@ -140,6 +184,7 @@ async function authorizeRequest(request: NextRequest): Promise<{
     isAdmin: subscriptionStatus.isAdmin || isSuperAdmin,
     teacherSchoolName,
     teacherCct,
+    teacherZone,
   };
 }
 
@@ -257,7 +302,7 @@ export async function POST(
         cicloEscolar: '2026-2027',
         plantel,
         cct,
-        zonaEscolar: 'Zona 001',
+        zonaEscolar: formatZonaEscolar(authResult.teacherZone),
         sesiones: composed.sessions,
       });
     }
