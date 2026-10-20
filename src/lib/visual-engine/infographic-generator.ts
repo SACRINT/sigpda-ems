@@ -29,7 +29,7 @@ export interface Infographic {
 export const INFOGRAPHIC_WIDTH = 1200;
 export const INFOGRAPHIC_HEIGHT = 1553; // proporción Carta (11 / 8.5)
 
-const FONT = "Arial, Helvetica, sans-serif";
+const FONT = "Montserrat, Lato, Arial, Helvetica, sans-serif";
 
 export function escapeXml(s: string): string {
   return s
@@ -114,8 +114,15 @@ function footer(m: MissionSection, wb: ActiveWorkTextbook, p: SlidePalette, W: n
   out += textBlock(['VERIFICO LO APRENDIDO'], 60, y0 + 42, 20, `#${p.accent}`, { weight: 'bold' });
   let y = y0 + 80;
   for (const it of items.slice(0, 3)) {
-    const ls = wrapText(it, W - 120, 24, 1);
-    out += textBlock(ls, 60, y, 24, '#FFFFFF');
+    const isCheck = it.startsWith('☐ ');
+    const raw = isCheck ? it.slice(2) : it;
+    const ls = wrapText(raw, W - 140, 24, 1);
+    if (isCheck) {
+      out += `<rect x="60" y="${y - 16}" width="18" height="18" rx="3" fill="none" stroke="#${p.accent}" stroke-width="2.5"/>`;
+      out += textBlock(ls, 90, y, 24, '#FFFFFF');
+    } else {
+      out += textBlock(ls, 60, y, 24, '#FFFFFF');
+    }
     y += 34;
   }
   const meta = [wb.coverData?.schoolName, wb.coverData?.paecProjectName ? `PAEC: ${wb.coverData.paecProjectName}` : '']

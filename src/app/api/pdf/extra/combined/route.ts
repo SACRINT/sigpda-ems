@@ -1,0 +1,131 @@
+import { NextRequest } from 'next/server';
+import { PDFDocument } from 'pdf-lib';
+import { auth } from '@/lib/auth';
+import {
+  getTeacherByEmail,
+  getPlanningById,
+  getPlanningExtrasByBlock,
+} from '@/lib/db';
+import { generateExtraPdfDocument } from '@/lib/pdf-extra-renderer';
+import { sanitizeDocFilename, type BrandingContext } from '@/lib/document-branding';
+import { logger } from '@/lib/logger';
+
+export const runtime = 'nodejs';
+
+const COMBINED_TYPES: Record<string, string> = {
+  rubric: 'Rubricas',
+  checklist: 'Lista_de_Cotejo',
+  material: 'Materiales_Docente',
+  teacher_guide: 'Solucionarios',
+};
+
+export async function GET(request: NextRequest) {
+  return handleCombinedPdf(request);
+}
+
+export async function POST(request: NextRequest) {
+  return handleCombinedPdf(request);
+}
+
+async function handleCombinedPdf(request: NextRequest) {
+  try {
+    const session = await auth();
+    if (!session?.user?.email) {
+      return new Response('No autorizado', { status: 401 });
+    }
+
+    const teacher = await getTeacherByEmail(session.user.email);
+    if (!teacher) {
+      return new Response('Docente no encontrado', { status: 404 });
+    }
+
+    let planningId: string | null = null;
+    let type: string | undefined = undefined;
+
+    if (request.method === 'POST') {
+      try {
+        const body = await request.json();
+        planningId = body.planningId || null;
+        type = body.type;
+      } catch {
+        // Ignorar
+      }
+    }
+
+    if (!planningId) {
+      planningId = request.nextUrl.searchParams.get('planningId');
+      type = type || request.nextUrl.searchParams.get('type') || undefined;
+    }
+
+    if (!planningId || !type || !COMBINED_TYPES[type]) {
+      return new Response(
+        `Parámetros insuficientes. Requiere planningId y type válido (${Object.keys(COMBINED_TYPES).join(', ')})`,
+        { status: 400 }
+      );
+    }
+
+    const planning = await getPlanningById(planningId, teacher.id);
+    if (!planning) {
+      return new Response('Planeación no encontrada o no autorizada', { status: 404 });
+    }
+
+    const brandingCtx: BrandingContext = {
+      schoolName: planning.extracted_data?.schoolName,
+      cct: planning.extracted_data?.cct,
+      semester: planning.semester,
+    };
+
+    // Recolectar extras de los 3 bloques (key_index 0, 1, 2)
+    const allExtras: Array<{ id: string; planning_id: string; type: string; title: string; key_index: number | null; content_text: string }> = [];
+    for (let blockIndex = 0; blockIndex < 3; blockIndex++) {
+      const blockExtras = await getPlanningExtrasByBlock(planningId, blockIndex, teacher.id, type);
+      allExtras.push(...blockExtras);
+    }
+
+    if (allExtras.length === 0) {
+      return new Response('No se encontraron documentos de este tipo para combinar', { status: 404 });
+    }
+
+    // Generar PDF individual por extra y fusionar con pdf-lib
+    const mergedPdf = await PDFDocument.create();
+    let generatedCount = 0;
+
+    for (const extra of allExtras) {
+      try {
+        const pdfDoc = generateExtraPdfDocument(extra, brandingCtx);
+        const bytes = Buffer.from(pdfDoc.output('arraybuffer'));
+        const individualPdf = await PDFDocument.load(bytes);
+        const pages = await mergedPdf.copyPages(individualPdf, individualPdf.getPageIndices());
+        for (const page of pages) {
+          mergedPdf.addPage(page);
+        }
+        generatedCount++;
+      } catch (err) {
+        logger.warn(`Error generando PDF para extra ${extra.id}:`, {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
+    if (generatedCount === 0) {
+      return new Response('No se pudo generar ningún documento', { status: 500 });
+    }
+
+    const mergedBytes = await mergedPdf.save();
+    const cleanSubject = sanitizeDocFilename(planning.uac_name || 'UAC', 30);
+    const typeLabel = COMBINED_TYPES[type];
+    const fileName = `${typeLabel}_3_Bloques_${cleanSubject}.pdf`;
+
+    return new Response(new Uint8Array(mergedBytes), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="${fileName}"`,
+      },
+    });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Error desconocido';
+    logger.error('Combined PDF export error:', msg);
+    return new Response(`Error: ${msg}`, { status: 500 });
+  }
+}

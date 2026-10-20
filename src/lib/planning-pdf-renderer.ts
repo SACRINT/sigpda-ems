@@ -28,6 +28,17 @@ const TEXT_DARK: [number, number, number] = [30, 41, 59];    // #1E293B - Texto
 // Colores institucionales de fases didácticas (homologados MCCEMS vía design-tokens)
 const { PHASE_APERTURA, PHASE_DESARROLLO, PHASE_CIERRE } = COLORS;
 
+/**
+ * Etiqueta de Supervisión a partir de la zona real del docente.
+ * '086' → 'SUPERVISIÓN DE BACHILLERATOS 086' · 'Zona 086' → '…086' · vacío → default 004.
+ */
+function supervisionLabel(schoolZone?: string | null): string {
+  const v = (schoolZone ?? '').trim();
+  if (!v) return 'SUPERVISIÓN DE BACHILLERATOS 004';
+  const num = v.match(/(\d{2,4})/);
+  return num ? `SUPERVISIÓN DE BACHILLERATOS ${num[1].padStart(3, '0')}` : `SUPERVISIÓN DE BACHILLERATOS ${v}`;
+}
+
 export async function generatePlanningPDF(
   planning: Planning,
   providedLogos?: { gobierno?: string; sep?: string; supervision?: string }
@@ -98,26 +109,26 @@ export async function generatePlanningPDF(
     doc.setFontSize(8.5);
     doc.setTextColor(...NAVY);
     doc.text('SECRETARÍA DE EDUCACIÓN', pageWidth / 2, currentY, { align: 'center' });
-    currentY += 3.8;
+    currentY += 3.4;
 
     doc.setFontSize(7.5);
     setFontBody(doc, 'normal');
     doc.setTextColor(...TEXT_DARK);
     doc.text('SUBSECRETARÍA DE EDUCACIÓN OBLIGATORIA', pageWidth / 2, currentY, { align: 'center' });
-    currentY += 3.4;
+    currentY += 3.1;
 
     doc.setFontSize(7);
     doc.text('DIRECCIÓN GENERAL DE EDUCACIÓN BÁSICA SEGUNDO NIVEL', pageWidth / 2, currentY, { align: 'center' });
-    currentY += 3.4;
+    currentY += 3.1;
 
     doc.text('DIRECCIÓN DE BACHILLERATOS ESTATALES Y PREPARATORIA ABIERTA', pageWidth / 2, currentY, { align: 'center' });
-    currentY += 3.8;
+    currentY += 3.4;
 
     setFontHeading(doc);
     doc.setFontSize(8);
     doc.setTextColor(...NAVY);
-    doc.text('SUPERVISIÓN DE BACHILLERATOS 004', pageWidth / 2, currentY, { align: 'center' });
-    currentY += 3.4;
+    doc.text(supervisionLabel(s1?.schoolZone), pageWidth / 2, currentY, { align: 'center' });
+    currentY += 3.1;
 
   const cctPlantel = s1?.cct || 'CCT no disponible';
     setFontCaption(doc, 'normal');
@@ -125,19 +136,19 @@ export async function generatePlanningPDF(
     doc.setTextColor(...BLUE_MID);
     doc.text(`CCT: ${cctPlantel}`, pageWidth / 2, currentY, { align: 'center' });
 
-    currentY += 3.8;
+    currentY += 3.4;
 
     setFontHeading(doc);
     doc.setFontSize(8.5);
     doc.setTextColor(...NAVY);
     doc.text('INSTRUMENTO DE PLANEACIÓN DIDÁCTICA OFICIAL (MCCEMS NEM)', pageWidth / 2, currentY, { align: 'center' });
-    currentY += 3.5;
+    currentY += 3.2;
 
     // 3. Línea divisora dorada (#E8A020)
     doc.setDrawColor(...GOLD_LINE);
     doc.setLineWidth(1.0);
     doc.line(margin, currentY, pageWidth - margin, currentY);
-    currentY += 3.5;
+    currentY += 3.0;
   };
 
   drawOfficialHeader();
@@ -173,11 +184,11 @@ export async function generatePlanningPDF(
       ],
     ],
     theme: 'grid',
-    styles: { fontSize: 7, cellPadding: 1.8, textColor: TEXT_DARK },
+    styles: { fontSize: 6.5, cellPadding: 1.4, textColor: TEXT_DARK },
     margin: { left: margin, right: margin },
   });
 
-  currentY = doc.lastAutoTable!.finalY + 3.5;
+  currentY = doc.lastAutoTable!.finalY + 2.5;
 
   // ─── Sección II: Propósito y Metas Formativas ─────────────────────────────
   autoTable(doc, {
@@ -198,11 +209,11 @@ export async function generatePlanningPDF(
       ],
     ],
     theme: 'grid',
-    styles: { fontSize: 7, cellPadding: 1.8, textColor: TEXT_DARK },
+    styles: { fontSize: 6.5, cellPadding: 1.4, textColor: TEXT_DARK },
     margin: { left: margin, right: margin },
   });
 
-  currentY = doc.lastAutoTable!.finalY + 3.5;
+  currentY = doc.lastAutoTable!.finalY + 2.5;
 
   // ─── Sección III: Transversalidad y PAEC ──────────────────────────────────
   const transItems = [
@@ -224,11 +235,11 @@ export async function generatePlanningPDF(
       ],
     ],
     theme: 'grid',
-    styles: { fontSize: 7, cellPadding: 1.8, textColor: TEXT_DARK },
+    styles: { fontSize: 6.5, cellPadding: 1.4, textColor: TEXT_DARK },
     margin: { left: margin, right: margin },
   });
 
-  currentY = doc.lastAutoTable!.finalY + 3.5;
+  currentY = doc.lastAutoTable!.finalY + 2.5;
 
   // ─── Sección IV: Secuencia Didáctica por Momentos ─────────────────────────
   const activities = s4?.activities || [];
@@ -309,12 +320,12 @@ export async function generatePlanningPDF(
       head: [[{ content: 'IV. SECUENCIA DIDÁCTICA DETALLADA POR MOMENTOS FORMATIVOS', colSpan: 4, styles: { fillColor: NAVY, fontStyle: 'bold', textColor: [255, 255, 255] } }]],
       body: activityRows,
       theme: 'grid',
-      styles: { fontSize: 6.8, cellPadding: 1.8, textColor: TEXT_DARK },
+      styles: { fontSize: 6.3, cellPadding: 1.4, textColor: TEXT_DARK },
       margin: { left: margin, right: margin },
       pageBreak: 'auto',
     });
 
-    currentY = doc.lastAutoTable!.finalY + 3.5;
+    currentY = doc.lastAutoTable!.finalY + 2.5;
   }
 
   // ─── Sección V: Evaluación y Ponderaciones (Normalización Determinista 100%) ───
@@ -336,12 +347,12 @@ export async function generatePlanningPDF(
       ],
       body: evalRows,
       theme: 'grid',
-      styles: { fontSize: 6.8, cellPadding: 1.8, textColor: TEXT_DARK },
+      styles: { fontSize: 6.3, cellPadding: 1.4, textColor: TEXT_DARK },
       margin: { left: margin, right: margin },
       pageBreak: 'avoid',
     });
 
-    currentY = doc.lastAutoTable!.finalY + 3.5;
+    currentY = doc.lastAutoTable!.finalY + 2.5;
   }
 
   // ─── Firmas Oficiales Tripartitas (Docente / Director / Supervisión) ─────
@@ -351,21 +362,21 @@ export async function generatePlanningPDF(
     body: [
       [
         {
-          content: `\n\n\n___________________________________\nDOCENTE TITULAR\n${s1?.teacherName || 'Nombre y Firma del Docente'}`,
+          content: `\n\n___________________________________\nDOCENTE TITULAR\n${s1?.teacherName || 'Nombre y Firma del Docente'}`,
           styles: { halign: 'center', cellWidth: 62 },
         },
         {
-          content: '\n\n\n___________________________________\nDIRECTOR(A) DEL PLANTEL\nNombre, Firma y Sello Oficial',
+          content: '\n\n___________________________________\nDIRECTOR(A) DEL PLANTEL\nNombre, Firma y Sello Oficial',
           styles: { halign: 'center', cellWidth: 62 },
         },
         {
-          content: '\n\n\n___________________________________\nSUPERVISIÓN ESCOLAR 004\nVo. Bo. / Sello de Zona',
+          content: '\n\n___________________________________\nSUPERVISIÓN ESCOLAR 004\nVo. Bo. / Sello de Zona',
           styles: { halign: 'center', cellWidth: 62 },
         },
       ],
     ],
     theme: 'plain',
-    styles: { fontSize: 7, cellPadding: 1.8, textColor: TEXT_DARK },
+    styles: { fontSize: 7, cellPadding: 1.4, textColor: TEXT_DARK },
     margin: { left: margin, right: margin },
     pageBreak: 'avoid',
   });
@@ -462,7 +473,7 @@ export async function generateSecuenciaPDF(
   setFontHeading(doc);
   doc.setFontSize(8);
   doc.setTextColor(...NAVY);
-  doc.text('SUPERVISIÓN DE BACHILLERATOS 004', pageWidth / 2, currentY, { align: 'center' });
+  doc.text(supervisionLabel(s1?.schoolZone), pageWidth / 2, currentY, { align: 'center' });
   currentY += 3.4;
 
   const cctPlantel = s1?.cct || 'CCT no disponible';
@@ -607,7 +618,7 @@ export async function generateSecuenciaPDF(
       ]],
       body: rows,
       theme: 'grid',
-      styles: { fontSize: 6.5, cellPadding: 1.8, textColor: TEXT_DARK },
+      styles: { fontSize: 6.5, cellPadding: 1.4, textColor: TEXT_DARK },
       margin: { left: margin, right: margin },
       pageBreak: 'auto',
     });
@@ -636,7 +647,7 @@ export async function generateSecuenciaPDF(
       ],
     ],
     theme: 'plain',
-    styles: { fontSize: 7, cellPadding: 1.8, textColor: TEXT_DARK },
+    styles: { fontSize: 7, cellPadding: 1.4, textColor: TEXT_DARK },
     margin: { left: margin, right: margin },
     pageBreak: 'avoid',
   });

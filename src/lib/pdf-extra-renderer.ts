@@ -127,6 +127,8 @@ export function renderFormattedBlock(
       if (currentY > pageHeight - 16) {
         addNewPage();
         currentY = 22;
+        doc.setFontSize(fontSize);
+        doc.setTextColor(...textColor);
       }
     }
 
@@ -215,16 +217,41 @@ export function renderExtraDocument(
   const flushTable = () => {
     if (!inTable || tableHeaders.length === 0) return;
 
-    const colCount = tableHeaders.length;
+    // Filtrar columnas vacías (todas las celdas son "", "-", "—" o "N/A")
+    const colCount0 = tableHeaders.length;
+    const keepIdx: number[] = [];
+    for (let c = 0; c < colCount0; c++) {
+      const hasContent = tableData.some(
+        (row) => {
+          const cell = (row[c] ?? '').trim();
+          return cell !== '' && cell !== '-' && cell !== '—' && cell.toLowerCase() !== 'n/a';
+        }
+      );
+      if (hasContent) keepIdx.push(c);
+    }
+    // Si todo queda vacío, conservar original
+    const effectiveKeep = keepIdx.length > 0 ? keepIdx : tableHeaders.map((_, i) => i);
+    const filteredHeaders = effectiveKeep.map((i) => tableHeaders[i]);
+    const filteredData = tableData.map((row) => effectiveKeep.map((i) => row[i] ?? ''));
+
+    const colCount = filteredHeaders.length;
     let colWidths: number[];
-    if (colCount === 5) {
+    if (colCount === 5 && isRubric) {
+      // Rúbrica landscape: criterio ancho + 4 niveles iguales
       const c1 = Math.round(contentW * 0.24);
       const rest = Math.round((contentW - c1) / 4);
       colWidths = [c1, rest, rest, rest, contentW - c1 - rest * 3];
-    } else if (colCount === 4) {
-      const c1 = Math.round(contentW * 0.5);
-      const c2 = Math.round(contentW * 0.1);
-      colWidths = [c1, c2, c2, contentW - c1 - c2 * 2];
+    } else if (colCount > 2) {
+      // Distribución proporcional al contenido máximo de cada columna
+      const maxLens = filteredHeaders.map((h, c) =>
+        Math.max(h.length, ...filteredData.map((row) => (row[c] ?? '').length), 1)
+      );
+      const totalLen = maxLens.reduce((a, b) => a + b, 0);
+      const minW = 14;
+      const usable = contentW - minW * colCount;
+      colWidths = maxLens.map((l) => minW + Math.round((usable * l) / totalLen));
+      const diff = contentW - colWidths.reduce((a, b) => a + b, 0);
+      colWidths[colWidths.length - 1] += diff;
     } else {
       const eq = Math.floor(contentW / colCount);
       colWidths = Array(colCount - 1).fill(eq);
@@ -234,12 +261,12 @@ export function renderExtraDocument(
     autoTable(doc, {
       startY: y,
       head: [
-        tableHeaders.map((h) => ({
+        filteredHeaders.map((h) => ({
           content: h,
           styles: { fillColor: MID, textColor: WHITE, fontStyle: 'bold', halign: 'center' },
         })),
       ],
-      body: tableData.map((row) =>
+      body: filteredData.map((row) =>
         row.map((cell, cellIdx) => {
           const isCheck = cell === 'Sí' || cell === 'No' || /^\d+%$/.test(cell);
           const cellLower = cell.toLowerCase();

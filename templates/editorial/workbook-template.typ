@@ -27,7 +27,7 @@
 // Cajas Pedagógicas y Componentes de Retícula (En modo Markup)
 // ============================================================================
 
-#let callout-box(
+  #let callout-box(
   title: none,
   // icon: reservado por compatibilidad; NO se imprime: Liberation Sans carece de
   // glifos emoji y Typst dibuja un "tofu" □ antes de cada título de caja.
@@ -41,14 +41,14 @@
     fill: bg-color,
     stroke: (left: 3.5pt + border-color, rest: 0.5pt + border-color.lighten(70%)),
     radius: (right: 4pt),
-    inset: 9pt,
+    inset: 8pt,
     width: 100%,
     outset: 0pt,
-    spacing: 9pt,
+    spacing: 7pt,
     [
       #if title != none [
         #text(fill: border-color, weight: "bold", size: 9.5pt)[#title]
-        #v(4pt)
+        #v(3pt)
       ]
       #text(fill: text-color, size: 9pt)[#body]
     ]
@@ -266,7 +266,7 @@
       )
     ]
   )
-  #v(6pt)
+  #v(5pt)
 
   // Caja de Objetivo y Saberes Previos
   #grid(
@@ -286,7 +286,7 @@
     )
   )
 
-  #v(8pt)
+  #v(6pt)
 
   // Retícula Asimétrica: Columna Principal + Columna Marginal
   #grid(
@@ -311,8 +311,8 @@
 
       #for bloque in s.contenido [
         #if bloque.tipo == "parrafo" [
-          #text(fill: c-slate-dark, size: 8.8pt)[#bloque.texto]
-          #v(6pt)
+          #text(fill: c-slate-dark, size: 8.5pt)[#bloque.texto]
+          #v(5pt)
         ] else if bloque.tipo == "formula" [
           #rect(
             fill: rgb("f1f5f9"),
@@ -376,7 +376,7 @@
     ]
   )
 
-  #v(8pt)
+  #v(6pt)
 
   // 3. Ejemplo Resuelto Paso a Paso (Callout Ancho)
   #callout-box(
@@ -392,7 +392,7 @@
     ]
   )
 
-  #v(8pt)
+  #v(6pt)
 
   // 4. Práctica Autónoma Guiada (Ponte a Prueba)
   #callout-box(
@@ -401,14 +401,14 @@
     border-color: rgb("9333ea"),
     [
       #for (idx, item) in s.practica.enumerate() [
-        #text(weight: "bold", size: 8.8pt)[Ejercicio #(idx + 1):] #text(size: 8.6pt)[#item.enunciado]\
-        #text(fill: rgb("7e22ce"), size: 8pt, style: "italic")[Pista para comenzar: #item.pista]
-        #v(4pt)
+        #text(weight: "bold", size: 8.5pt)[Ejercicio #(idx + 1):] #text(size: 8.4pt)[#item.enunciado]\
+        #text(fill: rgb("7e22ce"), size: 7.8pt, style: "italic")[Pista para comenzar: #item.pista]
+        #v(3pt)
       ]
     ]
   )
 
-  #v(8pt)
+  #v(6pt)
 
   // 5. Aplicación Comunitaria y Autoevaluación
   #grid(
@@ -426,7 +426,7 @@
       border-color: rgb("0284c7"),
       [
         #for check in s.autoevaluacion [
-          #text(size: 8.2pt)[\[ \] #check]\
+          #text(size: 8pt)[\[ \] #check]\
         ]
       ]
     )
@@ -511,7 +511,7 @@
 
   #set par(
     justify: true,
-    leading: 0.65em
+    leading: 0.62em
   )
 
   // 1. Portada Institucional

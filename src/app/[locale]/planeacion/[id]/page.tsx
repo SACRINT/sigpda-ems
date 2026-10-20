@@ -1,6 +1,6 @@
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
-import { getTeacherByEmail, getPlanningById, getPlanningExtras } from '@/lib/db';
+import { getTeacherByEmail, getTeacherSchoolZone, getPlanningById, getPlanningExtras } from '@/lib/db';
 import AppLayout from '@/components/layout/AppLayout';
 import { featureFlags } from '@/lib/platform/feature-flags';
 import PlanningDetailClient from './PlanningDetailClient';
@@ -36,8 +36,9 @@ export default async function PlanningDetailPage({
   // Fetch initial generated extras (rubrics, materials, lesson plans)
   const extras = await getPlanningExtras(id, teacher.id);
 
-  // Inyectar CCT/nombre del plantel del docente en sectionI (los generadores PDF/DOCX
-  // leen s1.cct/s1.schoolName; en BD sectionI no siempre los trae).
+  // Inyectar CCT/nombre del plantel/zona del docente en sectionI (los generadores PDF/DOCX
+  // leen s1.cct/s1.schoolName/s1.schoolZone; en BD sectionI no siempre los trae).
+  const teacherZone = await getTeacherSchoolZone(teacher.id);
   const rawContent = planning.content_json as unknown as GeneratedPlanningContent | null;
   const contentJson: GeneratedPlanningContent | null = rawContent
     ? {
@@ -46,6 +47,7 @@ export default async function PlanningDetailPage({
           ...(rawContent.sectionI ?? ({} as GeneratedPlanningContent['sectionI'])),
           cct: rawContent.sectionI?.cct || teacher.cct || undefined,
           schoolName: rawContent.sectionI?.schoolName || teacher.school_name || undefined,
+          schoolZone: rawContent.sectionI?.schoolZone || teacherZone || undefined,
         },
       }
     : null;

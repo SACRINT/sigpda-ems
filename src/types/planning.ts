@@ -191,6 +191,7 @@ export interface GeneratedPlanningContent {
     subsystem: string;
     schoolName?: string;
     cct?: string;
+    schoolZone?: string;
     period?: string;
     totalHoursWeekly?: number;
     totalHoursSemester?: number;

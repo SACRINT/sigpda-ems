@@ -3,6 +3,7 @@
  * SIGPDA-EMS · Motor Visual (H-321)
  */
 
+import './svg-font-bootstrap';
 import sharp from 'sharp';
 import { jsPDF } from 'jspdf';
 import type { Infographic } from './infographic-generator';

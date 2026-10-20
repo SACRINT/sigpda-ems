@@ -279,6 +279,53 @@ export default function PlanningTabMateriales({
             </div>
           </div>
 
+          {/* Descargas Combinadas — 1 archivo con los 3 bloques por tipo */}
+          <div className="section-card" style={{ border: '1px solid rgba(59, 130, 246, 0.35)' }}>
+            <div className="section-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span className="section-card-title">📦 Descargas Combinadas — Los 3 Bloques en un Solo Archivo</span>
+              <span className="text-xs" style={{ color: 'var(--c-blue-mid)', fontWeight: 600 }}>PDF · Word</span>
+            </div>
+            <div className="section-card-body">
+              <p style={{ margin: '0 0 12px 0', fontSize: '12.5px', color: 'var(--c-text-muted)', lineHeight: 1.45 }}>
+                Descarga un único archivo con todos los documentos del mismo tipo integrados de los 3 bloques curriculares.
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '10px' }}>
+                {([
+                  { type: 'rubric',         label: '📊 Rúbricas (3 Bloques)',        color: '#3b82f6' },
+                  { type: 'checklist',      label: '✅ Lista de Cotejo (3 Bloques)',  color: '#10b981' },
+                  { type: 'material',       label: '📦 Materiales Docente (3 Bloques)', color: '#f59e0b' },
+                  { type: 'teacher_guide',  label: '🔒 Solucionarios (3 Bloques)',   color: '#7c3aed' },
+                ] as const).map(({ type, label, color }) => (
+                  <div key={type} style={{
+                    display: 'flex', flexDirection: 'column', gap: '6px',
+                    padding: '12px', background: 'var(--c-bg-surface)',
+                    border: `1px solid ${color}33`, borderRadius: '8px'
+                  }}>
+                    <span style={{ fontSize: '12.5px', fontWeight: 700, color }}>{label}</span>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <a
+                        href={`/api/pdf/extra/combined?planningId=${planning.id}&type=${type}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn"
+                        style={{ padding: '5px 10px', fontSize: '11px', borderRadius: '4px', textDecoration: 'none', background: '#dc2626', color: '#fff', fontWeight: 600 }}
+                      >
+                        ↓ PDF
+                      </a>
+                      <a
+                        href={`/api/docx/extra/combined?planningId=${planning.id}&type=${type}`}
+                        className="btn btn-amber"
+                        style={{ padding: '5px 10px', fontSize: '11px', borderRadius: '4px', textDecoration: 'none', fontWeight: 600 }}
+                      >
+                        ↓ Word (ZIP)
+                      </a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
           {/* Acuerdo Institucional de Acreditación Semestral */}
           {content?.sectionV?.evaluationAgreement && (
             <div className="section-card">
@@ -647,78 +694,37 @@ export default function PlanningTabMateriales({
                           </div>
                         </div>
 
-                        {/* 4. Guía de Trabajo Activo del Estudiante */}
+                        {/* 4. Solucionario — Redirigido a pestaña dedicada (deduplicación) */}
                         <div style={{
                           padding: '16px',
                           background: 'var(--c-bg-surface)',
-                          border: '1px solid var(--c-border)',
+                          border: '1px dashed #7c3aed55',
                           borderRadius: '8px',
                           display: 'flex',
                           flexDirection: 'column',
-                          justifyContent: 'space-between',
-                          gap: '12px'
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          gap: '10px',
+                          textAlign: 'center'
                         }}>
                           <div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                              <span style={{ fontSize: '11px', fontWeight: 700, color: '#7c3aed', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                                Solucionario Pedagógico
-                              </span>
-                              <span style={{ fontSize: '11px', color: '#a78bfa', fontWeight: 600 }}>Uso Exclusivo Docente</span>
-                            </div>
-                            <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: 'var(--c-text)' }}>
-                              📘 Solucionario y Guía Pedagógica ({blockNumStr})
+                            <span style={{ fontSize: '11px', fontWeight: 700, color: '#7c3aed', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                              Solucionario Pedagógico
+                            </span>
+                            <h4 style={{ margin: '6px 0 4px 0', fontSize: '13px', fontWeight: 600, color: 'var(--c-text-muted)' }}>
+                              📘 Disponible en pestaña dedicada
                             </h4>
-                            <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: 'var(--c-text-muted)', lineHeight: 1.4 }}>
-                              Claves analíticas de resolución paso a paso, pautas de mediación didáctica y contraste de errores comunes exclusivas para el docente.
+                            <p style={{ margin: 0, fontSize: '11.5px', color: 'var(--c-text-muted)', lineHeight: 1.4 }}>
+                              El Solucionario y Guía del Docente tiene su propia pestaña con gestión completa.
                             </p>
                           </div>
-
-                          <div>
-                            {guideExtra ? (
-                              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                                <button
-                                  onClick={() => setPreviewExtra(guideExtra)}
-                                  className="btn"
-                                  style={{ padding: '5px 10px', fontSize: '11.5px', background: 'var(--c-blue-pale)', border: '1px solid var(--c-blue-mid)', color: 'var(--c-blue-mid)', borderRadius: '4px', fontWeight: 600 }}
-                                >
-                                  👁️ Ver
-                                </button>
-                                <a
-                                  href={`/api/docx/extra/${guideExtra.id}`}
-                                  className="btn btn-amber"
-                                  style={{ padding: '5px 10px', fontSize: '11.5px', borderRadius: '4px', textDecoration: 'none', fontWeight: 600 }}
-                                >
-                                  ↓ Word
-                                </a>
-                                <a
-                                  href={`/api/pdf/extra/${guideExtra.id}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="btn"
-                                  style={{ padding: '5px 10px', fontSize: '11.5px', borderRadius: '4px', textDecoration: 'none', background: '#dc2626', color: '#fff', fontWeight: 600 }}
-                                >
-                                  ↓ PDF
-                                </a>
-                                <button
-                                  onClick={() => handleDeleteExtra(guideExtra.id)}
-                                  className="btn"
-                                  title="Eliminar solucionario"
-                                  style={{ padding: '5px 8px', fontSize: '11.5px', background: '#FEE2E2', border: '1px solid #EF4444', color: '#EF4444', borderRadius: '4px' }}
-                                >
-                                  🗑️
-                                </button>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => handleSyncSuite(actIdx)}
-                                disabled={syncingSuite === actIdx}
-                                className="btn btn-navy"
-                                style={{ padding: '6px 12px', fontSize: '11.5px', borderRadius: '4px', cursor: 'pointer' }}
-                              >
-                                {syncingSuite === actIdx ? '⏳ Sincronizando…' : '⚡ Extraer del Libro'}
-                              </button>
-                            )}
-                          </div>
+                          <button
+                            onClick={() => setActiveTab?.('teacherGuides')}
+                            className="btn"
+                            style={{ padding: '6px 14px', fontSize: '11.5px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: '4px', fontWeight: 600, cursor: 'pointer' }}
+                          >
+                            → Ir al Solucionario
+                          </button>
                         </div>
 
                         {/* 5. Recursos Gráficos y Visuales Vectoriales */}

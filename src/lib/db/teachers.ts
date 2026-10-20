@@ -19,6 +19,28 @@ export async function getTeacherByEmail(email: string) {
   return teacher;
 }
 
+/**
+ * Zona escolar del docente: horario_config.zona_escolar → custom_preferences.zonaEscolar/zona.
+ * Devuelve el valor crudo ('086', 'Zona 086', …) o null si no está configurado.
+ */
+export async function getTeacherSchoolZone(teacherId: string): Promise<string | null> {
+  try {
+    const rows = await sql()`
+      SELECT h.zona_escolar AS horario_zone,
+             t.custom_preferences->>'zonaEscolar' AS prefs_zone,
+             t.custom_preferences->>'zona' AS prefs_zona
+      FROM teachers t
+      LEFT JOIN horario_config h ON h.teacher_id = t.id
+      WHERE t.id = ${teacherId}::uuid
+      LIMIT 1
+    `;
+    const r = rows[0];
+    return r?.horario_zone || r?.prefs_zone || r?.prefs_zona || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function getTeacherById(id: string) {
   const rows = await sql()`
     SELECT id, name, email, school_name, municipality, subsystem, cct,
