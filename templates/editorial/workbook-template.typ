@@ -240,7 +240,8 @@
 // ============================================================================
 // Renderizado de Sesión Individual
 // ============================================================================
-#let render-session-item(s, chapter) = [
+#let render-session-item(s, chapter) = {
+  let content = [
   #metadata((sessionNum: s.numero, title: s.titulo)) <rendered-session>
   // Encabezado de Sesión (Full Width)
   #block(
@@ -443,7 +444,19 @@
       ]
     )
   )
-]
+  ];
+  // Auto-escalado: mide la altura natural de la sesión y la escala para llenar
+  // exactamente la página disponible (sesiones ligeras escalan hacia arriba,
+  // densas escalan hacia abajo). Clamp [0.88, 1.3] para mantener legibilidad.
+  layout(size => {
+    let natural = measure(content).height
+    let avail = size.height - 4pt
+    let f = if natural > 0pt {
+      calc.min(calc.max(avail / natural, 0.88), 1.3)
+    } else { 1.0 }
+    if f == 1.0 { content } else { scale(x: f * 100%, y: f * 100%, content) }
+  })
+}
 
 // ============================================================================
 // Función Maestra: Renderizado del Capítulo Completo
