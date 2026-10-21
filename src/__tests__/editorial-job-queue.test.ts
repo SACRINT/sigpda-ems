@@ -262,9 +262,9 @@ describe('Motor Editorial Fase 2 — Pipeline Asíncrono, Worker y Subscription 
       expect(result.pdfBuffer).toBeDefined();
       expect(result.pdfBuffer.length).toBeGreaterThan(50000);
 
-      // Requisito de páginas: rango [30, 40]
-      expect(result.pageCount).toBeGreaterThanOrEqual(30);
-      expect(result.pageCount).toBeLessThanOrEqual(40);
+      // Requisito de páginas: rango [16, 25] (14 sesiones × 1 pág. + portada + preliminar)
+      expect(result.pageCount).toBeGreaterThanOrEqual(16);
+      expect(result.pageCount).toBeLessThanOrEqual(25);
 
       // Determinismo de hash SHA-256
       expect(result.sha256).toMatch(/^[a-f0-9]{64}$/);

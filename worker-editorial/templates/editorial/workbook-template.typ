@@ -41,16 +41,16 @@
     fill: bg-color,
     stroke: (left: 3.5pt + border-color, rest: 0.5pt + border-color.lighten(70%)),
     radius: (right: 4pt),
-    inset: 7pt,
+    inset: 5pt,
     width: 100%,
     outset: 0pt,
-    spacing: 5pt,
+    spacing: 2pt,
     [
       #if title != none [
-        #text(fill: border-color, weight: "bold", size: 9.5pt)[#title]
-        #v(2pt)
+        #text(fill: border-color, weight: "bold", size: 8.5pt)[#title]
+        #v(1.5pt)
       ]
-      #text(fill: text-color, size: 9pt)[#body]
+      #text(fill: text-color, size: 8pt)[#body]
     ]
   )
 ]
@@ -70,7 +70,7 @@
         #image(img-path, width: safe-ancho)
       ]
       #if caption-text != none and caption-text != "" [
-        #v(2pt)
+        #v(1.5pt)
         #text(fill: c-slate-muted, size: 7.5pt, style: "italic")[
           #align(center)[#caption-text]
         ]
@@ -89,7 +89,7 @@
     spacing: 5pt,
     [
       #text(fill: c-accent.darken(20%), weight: "bold", size: 8pt)[#title]
-      #v(2pt)
+      #v(1.5pt)
       #text(fill: c-slate-dark, size: 7.5pt)[#body]
     ]
   )
@@ -106,13 +106,13 @@
       spacing: 5pt,
       [
         #text(fill: rgb("1d4ed8"), weight: "bold", size: 8pt)[Enlaces de Ampliación]
-        #v(3pt)
+        #v(1.5pt)
         #for r in recursos [
           #text(size: 7.5pt)[
             *#r.titulo* (#r.tipo)\
             #text(fill: rgb("2563eb"), size: 6.8pt)[#r.url]\
           ]
-          #v(2pt)
+          #v(1.5pt)
         ]
       ]
     )
@@ -199,14 +199,14 @@
             [
               #text(fill: c-slate-muted, size: 8pt)[Plantel Educativo:]\
               #text(fill: c-primary, weight: "bold", size: 10pt)[#chapter.plantel]\
-              #v(4pt)
+              #v(1.5pt)
               #text(fill: c-slate-muted, size: 8pt)[Clave de Centro de Trabajo (CCT):]\
               #text(fill: c-slate-dark, weight: "bold", size: 9pt)[#chapter.cct]
             ],
             [
               #text(fill: c-slate-muted, size: 8pt)[Semestre:]\
               #text(fill: c-primary, weight: "bold", size: 10pt)[Semestre #chapter.semestre]\
-              #v(4pt)
+              #v(1.5pt)
               #text(fill: c-slate-muted, size: 8pt)[Ciclo Escolar:]\
               #text(fill: c-slate-dark, weight: "bold", size: 9pt)[#chapter.cicloEscolar]
             ]
@@ -218,7 +218,7 @@
 
       #align(bottom)[
         #line(length: 100%, stroke: 0.5pt + c-border)
-        #v(4pt)
+        #v(1.5pt)
         #grid(
           columns: (1fr, auto),
           align(left)[
@@ -246,7 +246,7 @@
   #block(
     fill: c-primary,
     radius: 4pt,
-    inset: (x: 12pt, y: 7pt),
+    inset: (x: 12pt, y: 4pt),
     width: 100%,
     [
       #grid(
@@ -256,22 +256,22 @@
           #rect(
             fill: c-accent,
             radius: 3pt,
-            inset: (x: 7pt, y: 4pt),
-            [#text(fill: c-primary, weight: "bold", size: 10pt)[SESIÓN #s.numero]]
+            inset: (x: 6pt, y: 3pt),
+            [#text(fill: c-primary, weight: "bold", size: 9.5pt)[SESIÓN #s.numero]]
           )
         ],
         align(horizon)[
-          #text(fill: white, weight: "bold", size: 12pt)[#s.titulo]
+          #text(fill: white, weight: "bold", size: 10.5pt)[#s.titulo]
         ]
       )
     ]
   )
-  #v(4pt)
+  #v(1.5pt)
 
   // Caja de Objetivo y Saberes Previos
   #grid(
     columns: (3fr, 2fr),
-    gutter: 8pt,
+    gutter: 6pt,
     callout-box(
       title: "Lo que vas a aprender hoy (Objetivo)",
       bg-color: rgb("f0fdf4"),
@@ -286,12 +286,12 @@
     )
   )
 
-  #v(4pt)
+  #v(1.5pt)
 
   // Retícula Asimétrica: Columna Principal + Columna Marginal
   #grid(
     columns: (1fr, 4.2cm),
-    gutter: 14pt,
+    gutter: 12pt,
     [
       // 1. Motivación y Contexto Situado
       #callout-box(
@@ -301,35 +301,35 @@
         [#s.motivacion]
       )
 
-      #v(5pt)
+      #v(4pt)
 
       // 2. Fundamentación Teórica / Contenido Real
-      #text(fill: c-primary, weight: "bold", size: 10.5pt)[
+      #text(fill: c-primary, weight: "bold", size: 8.5pt)[
         Conceptos Fundamentales y Modelado Matemático
       ]
-      #v(4pt)
+      #v(1.5pt)
 
       #for bloque in s.contenido [
         #if bloque.tipo == "parrafo" [
-          #text(fill: c-slate-dark, size: 8.5pt)[#bloque.texto]
-          #v(4pt)
+          #text(fill: c-slate-dark, size: 8pt)[#bloque.texto]
+          #v(1.5pt)
         ] else if bloque.tipo == "formula" [
           #rect(
             fill: rgb("f1f5f9"),
             stroke: 0.5pt + c-border,
             radius: 3pt,
             width: 100%,
-            inset: 6pt,
+            inset: 4pt,
             [
               #align(center)[
-                #text(fill: c-primary, weight: "bold", size: 9.5pt)[
+                #text(fill: c-primary, weight: "bold", size: 9pt)[
                   #if "titulo" in bloque and bloque.titulo != none [#bloque.titulo: ]
                   #bloque.texto
                 ]
               ]
             ]
           )
-          #v(4pt)
+          #v(1.5pt)
         ] else if bloque.tipo == "definicion" [
           #callout-box(
             title: if "titulo" in bloque and bloque.titulo != none { bloque.titulo } else { "Definición Formal" },
@@ -337,21 +337,21 @@
             border-color: c-teal,
             [#bloque.texto]
           )
-          #v(4pt)
+          #v(1.5pt)
         ] else if bloque.tipo == "tabla" [
           #if "columnas" in bloque and bloque.columnas != none and "filas" in bloque and bloque.filas != none [
             #table(
               columns: bloque.columnas.len(),
               fill: (col, row) => if row == 0 { c-primary.lighten(90%) } else if calc.odd(row) { rgb("f8fafc") } else { white },
               stroke: 0.5pt + c-border,
-              inset: 5pt,
-              ..bloque.columnas.map(c => text(weight: "bold", size: 8pt, fill: c-primary)[#c]),
-              ..bloque.filas.flatten().map(cell => text(size: 7.8pt, fill: c-slate-dark)[#cell])
+              inset: 4pt,
+              ..bloque.columnas.map(c => text(weight: "bold", size: 7.8pt, fill: c-primary)[#c]),
+              ..bloque.filas.flatten().map(cell => text(size: 7.5pt, fill: c-slate-dark)[#cell])
             )
-            #v(4pt)
+            #v(1.5pt)
           ] else if "texto" in bloque and bloque.texto != none [
             #text(size: 8.5pt)[#bloque.texto]
-            #v(4pt)
+            #v(1.5pt)
           ]
         ]
       ]
@@ -376,7 +376,7 @@
     ]
   )
 
-  #v(4pt)
+  #v(1.5pt)
 
   // 3. Ejemplo Resuelto Paso a Paso (Callout Ancho)
   #callout-box(
@@ -384,15 +384,16 @@
     bg-color: c-teal-bg,
     border-color: c-teal,
     [
-      #text(weight: "bold", size: 9pt)[#s.ejemploResuelto.enunciado]
-      #v(4pt)
+      #text(weight: "bold", size: 8.5pt)[#s.ejemploResuelto.enunciado]
+      #v(1.5pt)
+      #set list(spacing: 2pt)
       #list(
-        ..s.ejemploResuelto.pasos.map(paso => text(size: 8.5pt)[#paso])
+        ..s.ejemploResuelto.pasos.map(paso => text(size: 8pt)[#paso])
       )
     ]
   )
 
-  #v(4pt)
+  #v(1.5pt)
 
   // 4. Práctica Autónoma Guiada (Ponte a Prueba)
   #callout-box(
@@ -400,56 +401,48 @@
     bg-color: c-purple-bg,
     border-color: rgb("9333ea"),
     [
+      #set par(spacing: 1pt, leading: 0.5em)
       #for (idx, item) in s.practica.enumerate() [
-        #text(weight: "bold", size: 8.5pt)[Ejercicio #(idx + 1):] #text(size: 8.4pt)[#item.enunciado]\
-        #text(fill: rgb("7e22ce"), size: 7.8pt, style: "italic")[Pista para comenzar: #item.pista]
-        #v(2pt)
+        #text(weight: "bold", size: 8pt)[Ejercicio #(idx + 1):] #text(size: 8pt)[#item.enunciado]\
+        #text(fill: rgb("7e22ce"), size: 7.2pt, style: "italic")[Pista para comenzar: #item.pista]
+        #v(1.5pt)
       ]
     ]
   )
 
-  #v(4pt)
+  #v(1.5pt)
 
   // 5. Aplicación Comunitaria y Autoevaluación
   #grid(
     columns: (1fr, 1fr),
-    gutter: 8pt,
+    gutter: 6pt,
     callout-box(
       title: "Conexión con tu Comunidad (PAEC)",
       bg-color: rgb("fff7ed"),
       border-color: rgb("ea580c"),
-      [#s.aplicacion]
+      [
+        #s.aplicacion
+        #if "productoIntegrador" in s and s.productoIntegrador != none and s.productoIntegrador != "" [
+          #metadata((sessionNum: s.numero, avance: s.productoIntegrador)) <rendered-producto-integrador>
+          #v(1.5pt)
+          #text(fill: rgb("15803d"), weight: "bold", size: 7.5pt)[Avance del Producto Integrador:]
+          #h(3pt)
+          #text(fill: c-slate-dark, size: 7.5pt)[#s.productoIntegrador]
+        ]
+      ]
     ),
     callout-box(
       title: "Lista de Autoverificación",
       bg-color: rgb("f8fafc"),
       border-color: rgb("0284c7"),
       [
+        #set par(spacing: 0.8pt, leading: 0.45em)
         #for check in s.autoevaluacion [
-          #text(size: 8pt)[\[ \] #check]\
+          #text(size: 7.5pt)[\[ \] #check]\
         ]
       ]
     )
   )
-
-  #if "productoIntegrador" in s and s.productoIntegrador != none and s.productoIntegrador != "" [
-    #metadata((sessionNum: s.numero, avance: s.productoIntegrador)) <rendered-producto-integrador>
-    #v(4pt)
-    #rect(
-      width: 100%,
-      fill: rgb("f0fdf4"),
-      stroke: 0.5pt + rgb("86efac"),
-      radius: 3pt,
-      inset: 6pt,
-      [
-        #text(fill: rgb("15803d"), weight: "bold", size: 8.5pt)[Avance del Producto Integrador (PAEC):]
-        #h(4pt)
-        #text(fill: c-slate-dark, size: 8pt)[#s.productoIntegrador]
-      ]
-    )
-  ]
-
-  #pagebreak()
 ]
 
 // ============================================================================
@@ -459,7 +452,7 @@
   // Configuración de Página Editorial
   #set page(
     paper: "us-letter",
-    margin: (inside: 2.0cm, outside: 1.6cm, top: 2.0cm, bottom: 2.0cm),
+    margin: (inside: 2.0cm, outside: 1.6cm, top: 1.65cm, bottom: 1.6cm),
     header: context {
       let page-num = counter(page).get().first()
       if page-num > 1 [
@@ -473,7 +466,7 @@
             #text(fill: c-secondary, weight: "bold", size: 8pt)[SIGPDA-EMS]
           ]
         )
-        #v(2pt)
+        #v(1.5pt)
         #line(length: 100%, stroke: 0.5pt + c-primary)
       ]
     },
@@ -481,7 +474,7 @@
       let page-num = counter(page).get().first()
       if page-num > 1 [
         #line(length: 100%, stroke: 0.5pt + c-border)
-        #v(3pt)
+        #v(1.5pt)
         #grid(
           columns: (1fr, auto),
           align(left)[
@@ -511,7 +504,7 @@
 
   #set par(
     justify: true,
-    leading: 0.58em
+    leading: 0.45em
   )
 
   // 1. Portada Institucional
@@ -570,7 +563,7 @@
         align(top)[
           #text(weight: "bold", size: 8.8pt)[#s.titulo]\
           #text(fill: c-slate-muted, size: 7.8pt)[#s.objetivo]
-          #v(3pt)
+          #v(1.5pt)
         ]
       )
     ]
@@ -578,8 +571,13 @@
 
   #pagebreak()
 
-  // 3. Renderizado de las Sesiones
-  #for s in chapter.sesiones [
+  // 3. Renderizado de las Sesiones (salto de página SOLO entre sesiones; sin
+  // página en blanco al final del capítulo)
+  #let session-list = chapter.sesiones
+  #for (session-idx, s) in session-list.enumerate() [
     #render-session-item(s, chapter)
+    #if session-idx < session-list.len() - 1 [
+      #pagebreak()
+    ]
   ]
 ]

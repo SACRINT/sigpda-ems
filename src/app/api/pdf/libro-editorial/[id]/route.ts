@@ -52,6 +52,15 @@ export const maxDuration = 60; // Timeout máximo compatible con plan Hobby y Ve
 const EDITORIAL_REPAIR_DEADLINE_MS = 24_000;
 
 /**
+ * Versión de la plantilla Typst (workbook-template.typ). Se incluye en el
+ * content_hash para que cualquier cambio de espaciado/tipografía/estructura
+ * invalide la caché de PDFs ya compilados (deduplicación estricta) y fuerce
+ * una nueva compilación al reexportar. BUMPEAR en cada commit que toque
+ * templates/editorial/workbook-template.typ o su copia en worker-editorial.
+ */
+export const EDITORIAL_TEMPLATE_VERSION = 'v2026.10.20.1';
+
+/**
  * Normaliza la zona escolar para portada e índice del libro.
  * '086' → 'Zona 086' · 'Zona 086' → 'Zona 086' · vacío → default institucional
  * (mismo default que el exportador legacy; nunca inventa zonas falsas tipo 001
@@ -307,9 +316,12 @@ export async function POST(
       });
     }
 
-    // Cálculo del content_hash del capítulo para deduplicación estricta
+    // Cálculo del content_hash del capítulo para deduplicación estricta.
+    // Se mezcla la versión de la plantilla Typst para que un cambio de espaciado
+    // o tipografía invalide la caché y no sirva un PDF con el diseño anterior.
     const contentHash = crypto
       .createHash('sha256')
+      .update(EDITORIAL_TEMPLATE_VERSION)
       .update(JSON.stringify(chapter))
       .digest('hex');
 

@@ -24,6 +24,7 @@ export interface EditorialBookState {
 export interface UseEditorialBookReturn extends EditorialBookState {
   generateBook: (customBody?: Record<string, unknown>) => Promise<boolean>;
   pollBookStatus: (planningIdToPoll?: string) => Promise<void>;
+  hydrateStatus: () => Promise<void>;
   reset: () => void;
 }
 
@@ -106,6 +107,53 @@ export class EditorialBookClient {
       isPremiumRequired: false,
       pollAttempts: 0,
     });
+  }
+
+  /**
+   * Hidratación al montar: consulta GET una sola vez para restaurar el estado
+   * del libro después de un F5 o navegación. 404 / errores de red se manejan
+   * en silencio (status idle) sin toasts, para no asustar al usuario si aún
+   * no se ha exportado nada.
+   */
+  public async hydrateStatus(): Promise<void> {
+    const targetId = this.options.planningId;
+    if (!targetId || this.isDestroyed) return;
+
+    try {
+      const res = await fetch(`/api/pdf/libro-editorial/${targetId}`, {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+      });
+
+      if (res.status === 404) {
+        // Sin libro previo — se queda idle, sin error.
+        return;
+      }
+      if (!res.ok) {
+        // Cualquier otro error (403 feature flag off, 500, etc.) — idle silencioso.
+        return;
+      }
+
+      const data = await res.json();
+      const bookStatus = data.status || data.editorialBook?.status;
+
+      if (bookStatus === 'completed' && data.downloadUrl) {
+        // Restauración silenciosa: no invocamos onCompleted para no
+        // mostrar el toast de "¡generado con éxito!" tras un F5.
+        this.setState({
+          status: 'completed',
+          downloadUrl: data.downloadUrl,
+          pageCount: data.pageCount ?? null,
+          spineWidthMm: data.spineWidthMm ?? null,
+        });
+      } else if (bookStatus === 'processing' || bookStatus === 'pending') {
+        // Reanudar polling si la compilación quedó a medias antes del F5.
+        await this.pollBookStatus(targetId);
+      }
+      // 'failed' / 'error' → se queda idle para que el usuario pueda reintentar.
+    } catch {
+      // Silencioso: sin conexión no bloquea el UI.
+    }
   }
 
   /**
@@ -307,6 +355,14 @@ export function useEditorialBook(options: UseEditorialBookOptions = {}): UseEdit
     };
   }, [client]);
 
+  // Hidratar estado del libro al montar (sobrevive a F5 / navegación).
+  // Se ejecuta solo cuando hay planningId, y una sola vez por montaje.
+  useEffect(() => {
+    if (options.planningId) {
+      void client.hydrateStatus();
+    }
+  }, [client, options.planningId]);
+
   useEffect(() => {
     return () => {
       client.destroy();
@@ -317,6 +373,7 @@ export function useEditorialBook(options: UseEditorialBookOptions = {}): UseEdit
     ...state,
     generateBook: (customBody) => client.generateBook(customBody),
     pollBookStatus: (id) => client.pollBookStatus(id),
+    hydrateStatus: () => client.hydrateStatus(),
     reset: () => client.reset(),
   };
 }

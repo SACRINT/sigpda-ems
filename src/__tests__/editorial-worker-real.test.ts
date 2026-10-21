@@ -7,7 +7,7 @@
  * - Configura EDITORIAL_WORKER_URL y EDITORIAL_WORKER_SECRET.
  * - Despacha el fixture canónico a través del cliente oficial (dispatchToEditorialWorker).
  * - Verifica que source === 'remote_worker' (cero fallback local).
- * - Verifica contenido real del PDF: pageCount >= 30, pdfBuffer > 50KB.
+ * - Verifica contenido real del PDF: pageCount >= 16, pdfBuffer > 50KB.
  * - Verifica que renderedSessionCount y renderedProductoIntegradorCount provengan
  *   de consultas reales con `typst query` dentro del worker.
  */
@@ -105,9 +105,9 @@ describe('Worker Container Typst — Integración Real sobre HTTP (P1-2)', () =>
     expect(Buffer.isBuffer(result.pdfBuffer)).toBe(true);
     expect(result.pdfBuffer.length).toBeGreaterThan(50000);
 
-    // 3. Paginación real y determinista (el PDF NO está vacío)
-    expect(result.pageCount).toBeGreaterThanOrEqual(30);
-    expect(result.pageCount).toBeLessThanOrEqual(40);
+    // 3. Paginación real y determinista (14 sesiones × 1 pág. + portada + preliminar = 16)
+    expect(result.pageCount).toBeGreaterThanOrEqual(16);
+    expect(result.pageCount).toBeLessThanOrEqual(25);
 
     // 4. Conteo de sesiones renderizadas reales (no tautológico, obtenido vía typst query en worker)
     expect(result.renderedSessionCount).toBe(14);
@@ -185,7 +185,7 @@ describe('Worker Container Typst — Integración Real sobre HTTP (P1-2)', () =>
       expect(res.status).toBe(200);
       const data = await res.json();
       expect(data.success).toBe(true);
-      expect(data.pageCount).toBeGreaterThanOrEqual(30);
+      expect(data.pageCount).toBeGreaterThanOrEqual(16);
     } finally {
       if (prevPublicDir !== undefined) {
         process.env.PUBLIC_DIR = prevPublicDir;
