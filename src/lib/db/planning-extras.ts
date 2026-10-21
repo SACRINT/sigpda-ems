@@ -37,6 +37,27 @@ export async function getPlanningExtras(planningId: string, teacherId: string) {
   return rows.map((r: Record<string, unknown>) => mapRawPlanningExtra(r));
 }
 
+/**
+ * Todos los extras de un tipo en TODOS los bloques (sin asumir cantidad de bloques),
+ * ordenados por bloque y luego por creación. Base de las descargas combinadas.
+ */
+export async function getPlanningExtrasByType(
+  planningId: string,
+  teacherId: string,
+  type: string
+): Promise<PlanningExtraRecord[]> {
+  const rows = await sql()`
+    SELECT pe.id, pe.planning_id, pe.type, pe.title, pe.key_index, pe.content_text, pe.created_at
+    FROM planning_extras pe
+    JOIN plannings p ON pe.planning_id = p.id
+    WHERE pe.planning_id = ${planningId}::uuid
+      AND pe.type = ${type}
+      AND p.teacher_id = ${teacherId}::uuid
+    ORDER BY pe.key_index ASC NULLS LAST, pe.created_at ASC, pe.id ASC
+  `;
+  return rows.map((r: Record<string, unknown>) => mapRawPlanningExtra(r));
+}
+
 export async function getPlanningExtraById(id: string, teacherId: string) {
   const rows = await sql()`
     SELECT pe.id, pe.planning_id, pe.type, pe.title, pe.key_index, pe.content_text, pe.created_at

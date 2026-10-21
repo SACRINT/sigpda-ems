@@ -1,23 +1,32 @@
 import { NextRequest } from 'next/server';
-import JSZip from 'jszip';
 import { auth } from '@/lib/auth';
 import {
   getTeacherByEmail,
   getPlanningById,
-  getPlanningExtrasByBlock,
+  getPlanningExtrasByType,
 } from '@/lib/db';
-import { buildExtraDocx } from '@/lib/docx-helpers';
-import { sanitizeDocFilename, sanitizeDocFilenameWithBlock, type BrandingContext } from '@/lib/document-branding';
+import { buildCombinedExtraDocx } from '@/lib/docx-helpers';
+import { isStructuredVisualPayload } from '@/lib/materials/material-tokens';
+import { sanitizeDocFilename, type BrandingContext } from '@/lib/document-branding';
 import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
 
-const COMBINED_TYPES: Record<string, string> = {
+/** Etiquetas conocidas de tipo → nombre de archivo. Cualquier otro tipo se acepta con fallback. */
+const TYPE_LABELS: Record<string, string> = {
   rubric: 'Rubricas',
   checklist: 'Lista_de_Cotejo',
   material: 'Materiales_Docente',
   teacher_guide: 'Solucionarios',
+  lesson_plan: 'Planes_de_Clase',
+  practice_guide: 'Guias_de_Trabajo',
+  visual: 'Recursos_Visuales',
 };
+
+function typeLabel(type: string): string {
+  if (TYPE_LABELS[type]) return TYPE_LABELS[type];
+  return sanitizeDocFilename(type.replace(/_/g, '-'), 40) || 'Documento';
+}
 
 export async function GET(request: NextRequest) {
   return handleCombinedDocx(request);
@@ -57,11 +66,11 @@ async function handleCombinedDocx(request: NextRequest) {
       type = type || request.nextUrl.searchParams.get('type') || undefined;
     }
 
-    if (!planningId || !type || !COMBINED_TYPES[type]) {
-      return new Response(
-        `Parámetros insuficientes. Requiere planningId y type válido (${Object.keys(COMBINED_TYPES).join(', ')})`,
-        { status: 400 }
-      );
+    const cleanType = (type || '').trim();
+    if (!planningId || !cleanType) {
+      return new Response('Parámetros insuficientes. Requiere planningId y type (cualquier tipo de extra).', {
+        status: 400,
+      });
     }
 
     const planning = await getPlanningById(planningId, teacher.id);
@@ -75,63 +84,32 @@ async function handleCombinedDocx(request: NextRequest) {
       semester: planning.semester,
     };
 
-    // Recolectar extras de los 3 bloques
-    const allExtras: Array<{ id: string; planning_id: string; type: string; title: string; key_index: number | null; content_text: string }> = [];
-    for (let blockIndex = 0; blockIndex < 3; blockIndex++) {
-      const blockExtras = await getPlanningExtrasByBlock(planningId, blockIndex, teacher.id, type);
-      allExtras.push(...blockExtras);
-    }
+    // Todos los bloques del tipo solicitado, excluyendo payloads visuales JSON (no renderizables)
+    const fetched = await getPlanningExtrasByType(planningId, teacher.id, cleanType);
+    const allExtras = fetched.filter((ex) => !isStructuredVisualPayload(ex.content_text));
 
     if (allExtras.length === 0) {
       return new Response('No se encontraron documentos de este tipo para combinar', { status: 404 });
     }
 
-    // Generar DOCX y organizar en carpetas por bloque dentro del ZIP
-    const zip = new JSZip();
-    const usedNames = new Set<string>();
-
-    for (const extra of allExtras) {
-      const blockNum = (extra.key_index ?? 0) + 1;
-      const folder = zip.folder(`Bloque_${blockNum}`) || zip;
-      let baseName = sanitizeDocFilenameWithBlock(extra.title, 70);
-      if (!baseName) baseName = `extra_${extra.id.substring(0, 8)}`;
-
-      let fileName = `${baseName}.docx`;
-      let counter = 1;
-      while (usedNames.has(fileName.toLowerCase())) {
-        fileName = `${baseName}_${counter}.docx`;
-        counter++;
-      }
-      usedNames.add(fileName.toLowerCase());
-
-      try {
-        const docxBuffer = await buildExtraDocx(extra, brandingCtx);
-        folder.file(fileName, docxBuffer);
-      } catch (err) {
-        logger.warn(`Error generando DOCX para extra ${extra.id}:`, {
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
+    // UN SOLO .docx con todos los documentos separados por salto de página
+    let docxBuffer: Buffer;
+    try {
+      docxBuffer = await buildCombinedExtraDocx(allExtras, brandingCtx);
+    } catch (err) {
+      logger.error('Error construyendo DOCX combinado:', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return new Response('No se pudo generar el documento combinado', { status: 500 });
     }
-
-    if (Object.keys(zip.files).length === 0) {
-      return new Response('No se pudo generar ningún documento', { status: 500 });
-    }
-
-    const zipBuffer = await zip.generateAsync({
-      type: 'nodebuffer',
-      compression: 'DEFLATE',
-      compressionOptions: { level: 6 },
-    });
 
     const cleanSubject = sanitizeDocFilename(planning.uac_name || 'UAC', 30);
-    const typeLabel = COMBINED_TYPES[type];
-    const fileName = `${typeLabel}_3_Bloques_${cleanSubject}_DOCX.zip`;
+    const fileName = `${typeLabel(cleanType)}_Todos_Bloques_${cleanSubject}.docx`;
 
-    return new Response(new Uint8Array(zipBuffer), {
+    return new Response(new Uint8Array(docxBuffer), {
       status: 200,
       headers: {
-        'Content-Type': 'application/zip',
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         'Content-Disposition': `attachment; filename="${fileName}"`,
       },
     });

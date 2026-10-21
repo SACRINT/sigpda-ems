@@ -41,14 +41,14 @@
     fill: bg-color,
     stroke: (left: 3.5pt + border-color, rest: 0.5pt + border-color.lighten(70%)),
     radius: (right: 4pt),
-    inset: 8pt,
+    inset: 7pt,
     width: 100%,
     outset: 0pt,
-    spacing: 7pt,
+    spacing: 5pt,
     [
       #if title != none [
         #text(fill: border-color, weight: "bold", size: 9.5pt)[#title]
-        #v(3pt)
+        #v(2pt)
       ]
       #text(fill: text-color, size: 9pt)[#body]
     ]
@@ -63,7 +63,7 @@
     radius: 4pt,
     fill: white,
     inset: 5pt,
-    spacing: 7pt,
+    spacing: 5pt,
     [
       #align(center)[
         // Restricción dimensional estricta conectada al modelo: ancho <= min(anchoCm, 4.2 cm) (>= 300 DPI)
@@ -86,7 +86,7 @@
     stroke: (top: 2pt + c-accent, rest: 0.5pt + c-border),
     radius: 3pt,
     inset: 6pt,
-    spacing: 7pt,
+    spacing: 5pt,
     [
       #text(fill: c-accent.darken(20%), weight: "bold", size: 8pt)[#title]
       #v(2pt)
@@ -103,7 +103,7 @@
       stroke: (top: 2pt + rgb("2563eb"), rest: 0.5pt + c-border),
       radius: 3pt,
       inset: 6pt,
-      spacing: 7pt,
+      spacing: 5pt,
       [
         #text(fill: rgb("1d4ed8"), weight: "bold", size: 8pt)[Enlaces de Ampliación]
         #v(3pt)
@@ -246,7 +246,7 @@
   #block(
     fill: c-primary,
     radius: 4pt,
-    inset: (x: 12pt, y: 9pt),
+    inset: (x: 12pt, y: 7pt),
     width: 100%,
     [
       #grid(
@@ -266,7 +266,7 @@
       )
     ]
   )
-  #v(5pt)
+  #v(4pt)
 
   // Caja de Objetivo y Saberes Previos
   #grid(
@@ -286,7 +286,7 @@
     )
   )
 
-  #v(6pt)
+  #v(4pt)
 
   // Retícula Asimétrica: Columna Principal + Columna Marginal
   #grid(
@@ -301,7 +301,7 @@
         [#s.motivacion]
       )
 
-      #v(8pt)
+      #v(5pt)
 
       // 2. Fundamentación Teórica / Contenido Real
       #text(fill: c-primary, weight: "bold", size: 10.5pt)[
@@ -312,7 +312,7 @@
       #for bloque in s.contenido [
         #if bloque.tipo == "parrafo" [
           #text(fill: c-slate-dark, size: 8.5pt)[#bloque.texto]
-          #v(5pt)
+          #v(4pt)
         ] else if bloque.tipo == "formula" [
           #rect(
             fill: rgb("f1f5f9"),
@@ -329,7 +329,7 @@
               ]
             ]
           )
-          #v(6pt)
+          #v(4pt)
         ] else if bloque.tipo == "definicion" [
           #callout-box(
             title: if "titulo" in bloque and bloque.titulo != none { bloque.titulo } else { "Definición Formal" },
@@ -337,7 +337,7 @@
             border-color: c-teal,
             [#bloque.texto]
           )
-          #v(6pt)
+          #v(4pt)
         ] else if bloque.tipo == "tabla" [
           #if "columnas" in bloque and bloque.columnas != none and "filas" in bloque and bloque.filas != none [
             #table(
@@ -348,10 +348,10 @@
               ..bloque.columnas.map(c => text(weight: "bold", size: 8pt, fill: c-primary)[#c]),
               ..bloque.filas.flatten().map(cell => text(size: 7.8pt, fill: c-slate-dark)[#cell])
             )
-            #v(6pt)
+            #v(4pt)
           ] else if "texto" in bloque and bloque.texto != none [
             #text(size: 8.5pt)[#bloque.texto]
-            #v(6pt)
+            #v(4pt)
           ]
         ]
       ]
@@ -376,7 +376,7 @@
     ]
   )
 
-  #v(6pt)
+  #v(4pt)
 
   // 3. Ejemplo Resuelto Paso a Paso (Callout Ancho)
   #callout-box(
@@ -392,7 +392,7 @@
     ]
   )
 
-  #v(6pt)
+  #v(4pt)
 
   // 4. Práctica Autónoma Guiada (Ponte a Prueba)
   #callout-box(
@@ -403,12 +403,12 @@
       #for (idx, item) in s.practica.enumerate() [
         #text(weight: "bold", size: 8.5pt)[Ejercicio #(idx + 1):] #text(size: 8.4pt)[#item.enunciado]\
         #text(fill: rgb("7e22ce"), size: 7.8pt, style: "italic")[Pista para comenzar: #item.pista]
-        #v(3pt)
+        #v(2pt)
       ]
     ]
   )
 
-  #v(6pt)
+  #v(4pt)
 
   // 5. Aplicación Comunitaria y Autoevaluación
   #grid(
@@ -434,7 +434,7 @@
 
   #if "productoIntegrador" in s and s.productoIntegrador != none and s.productoIntegrador != "" [
     #metadata((sessionNum: s.numero, avance: s.productoIntegrador)) <rendered-producto-integrador>
-    #v(6pt)
+    #v(4pt)
     #rect(
       width: 100%,
       fill: rgb("f0fdf4"),
@@ -459,7 +459,7 @@
   // Configuración de Página Editorial
   #set page(
     paper: "us-letter",
-    margin: (inside: 2.0cm, outside: 1.6cm, top: 2.2cm, bottom: 2.2cm),
+    margin: (inside: 2.0cm, outside: 1.6cm, top: 2.0cm, bottom: 2.0cm),
     header: context {
       let page-num = counter(page).get().first()
       if page-num > 1 [
@@ -511,7 +511,7 @@
 
   #set par(
     justify: true,
-    leading: 0.62em
+    leading: 0.58em
   )
 
   // 1. Portada Institucional

@@ -1,23 +1,29 @@
 import { NextRequest } from 'next/server';
 import { PDFDocument } from 'pdf-lib';
 import { auth } from '@/lib/auth';
-import {
-  getTeacherByEmail,
-  getPlanningById,
-  getPlanningExtrasByBlock,
-} from '@/lib/db';
+import { getTeacherByEmail, getPlanningById, getPlanningExtrasByType } from '@/lib/db';
 import { generateExtraPdfDocument } from '@/lib/pdf-extra-renderer';
+import { isStructuredVisualPayload } from '@/lib/materials/material-tokens';
 import { sanitizeDocFilename, type BrandingContext } from '@/lib/document-branding';
 import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
 
-const COMBINED_TYPES: Record<string, string> = {
+/** Etiquetas conocidas de tipo → nombre de archivo. Cualquier otro tipo se acepta con fallback. */
+const TYPE_LABELS: Record<string, string> = {
   rubric: 'Rubricas',
   checklist: 'Lista_de_Cotejo',
   material: 'Materiales_Docente',
   teacher_guide: 'Solucionarios',
+  lesson_plan: 'Planes_de_Clase',
+  practice_guide: 'Guias_de_Trabajo',
+  visual: 'Recursos_Visuales',
 };
+
+function typeLabel(type: string): string {
+  if (TYPE_LABELS[type]) return TYPE_LABELS[type];
+  return sanitizeDocFilename(type.replace(/_/g, '-'), 40) || 'Documento';
+}
 
 export async function GET(request: NextRequest) {
   return handleCombinedPdf(request);
@@ -57,11 +63,11 @@ async function handleCombinedPdf(request: NextRequest) {
       type = type || request.nextUrl.searchParams.get('type') || undefined;
     }
 
-    if (!planningId || !type || !COMBINED_TYPES[type]) {
-      return new Response(
-        `Parámetros insuficientes. Requiere planningId y type válido (${Object.keys(COMBINED_TYPES).join(', ')})`,
-        { status: 400 }
-      );
+    const cleanType = (type || '').trim();
+    if (!planningId || !cleanType) {
+      return new Response('Parámetros insuficientes. Requiere planningId y type (cualquier tipo de extra).', {
+        status: 400,
+      });
     }
 
     const planning = await getPlanningById(planningId, teacher.id);
@@ -75,12 +81,9 @@ async function handleCombinedPdf(request: NextRequest) {
       semester: planning.semester,
     };
 
-    // Recolectar extras de los 3 bloques (key_index 0, 1, 2)
-    const allExtras: Array<{ id: string; planning_id: string; type: string; title: string; key_index: number | null; content_text: string }> = [];
-    for (let blockIndex = 0; blockIndex < 3; blockIndex++) {
-      const blockExtras = await getPlanningExtrasByBlock(planningId, blockIndex, teacher.id, type);
-      allExtras.push(...blockExtras);
-    }
+    // Todos los bloques del tipo solicitado, excluyendo payloads visuales JSON (no renderizables)
+    const fetched = await getPlanningExtrasByType(planningId, teacher.id, cleanType);
+    const allExtras = fetched.filter((ex) => !isStructuredVisualPayload(ex.content_text));
 
     if (allExtras.length === 0) {
       return new Response('No se encontraron documentos de este tipo para combinar', { status: 404 });
@@ -113,8 +116,7 @@ async function handleCombinedPdf(request: NextRequest) {
 
     const mergedBytes = await mergedPdf.save();
     const cleanSubject = sanitizeDocFilename(planning.uac_name || 'UAC', 30);
-    const typeLabel = COMBINED_TYPES[type];
-    const fileName = `${typeLabel}_3_Bloques_${cleanSubject}.pdf`;
+    const fileName = `${typeLabel(cleanType)}_Todos_Bloques_${cleanSubject}.pdf`;
 
     return new Response(new Uint8Array(mergedBytes), {
       status: 200,

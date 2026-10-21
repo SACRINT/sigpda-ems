@@ -65,6 +65,9 @@ export default function PlanningTabSecuencias({
     return generateBlockSessions(act, actIdx, act.hours || (isLaboral ? 18 : 12), outcome, isLaboral, savedSeq);
   });
   const allDetailedSessions: DetailedSession[] = blockSessionsMap.flat();
+  const generatedLessonPlans = allDetailedSessions.filter(
+    (s) => !!findExtra('lesson_plan', s.activityIndex, undefined, s.sessionNum)
+  ).length;
 
   return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -131,6 +134,51 @@ export default function PlanningTabSecuencias({
                       ? `⏳ Sincronizando Bloque ${(syncingSuite ?? 0) + 1}...`
                       : `⚡ Sincronizar ${allDetailedSessions.length || 24} Planes desde el Libro`}
                   </button>
+                )}
+                {generatedLessonPlans > 0 && (
+                  <div
+                    style={{ display: 'flex', gap: '6px' }}
+                    title={`Descarga los ${generatedLessonPlans} planes de clase (todos los bloques) en un solo archivo`}
+                  >
+                    <a
+                      href={`/api/pdf/extra/combined?planningId=${planning.id}&type=lesson_plan`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        background: 'linear-gradient(135deg, rgba(220, 38, 38, 0.35) 0%, rgba(153, 27, 27, 0.45) 100%)',
+                        border: '1px solid rgba(248, 113, 113, 0.5)',
+                        color: '#fecaca',
+                        padding: '5px 12px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        textDecoration: 'none',
+                      }}
+                    >
+                      📄 PDF ({generatedLessonPlans} en 1)
+                    </a>
+                    <a
+                      href={`/api/docx/extra/combined?planningId=${planning.id}&type=lesson_plan`}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.35) 0%, rgba(30, 64, 175, 0.45) 100%)',
+                        border: '1px solid rgba(147, 197, 253, 0.5)',
+                        color: '#bfdbfe',
+                        padding: '5px 12px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        textDecoration: 'none',
+                      }}
+                    >
+                      📝 Word ({generatedLessonPlans} en 1)
+                    </a>
+                  </div>
                 )}
                 {(content?.sectionIV?.activities?.length || 0) > 1 && (
                   <button

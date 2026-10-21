@@ -9,7 +9,29 @@ import {
   Zap, RefreshCw, CheckCircle
 } from 'lucide-react';
 import { MaterialFigure } from '@/components/planeacion/MaterialFigure';
-import { parseMaterialTokensWithFallback } from '@/lib/materials/material-tokens';
+import { parseMaterialTokensWithFallback, isStructuredVisualPayload } from '@/lib/materials/material-tokens';
+
+/** Metadata de tarjeta para tipos conocidos; cualquier otro tipo cae en fallback genérico. */
+const COMBINED_TYPE_META: Record<string, { icon: string; label: string; color: string }> = {
+  rubric: { icon: '📊', label: 'Rúbricas', color: '#3b82f6' },
+  checklist: { icon: '✅', label: 'Lista de Cotejo', color: '#10b981' },
+  material: { icon: '📦', label: 'Materiales Docente', color: '#f59e0b' },
+  teacher_guide: { icon: '🔒', label: 'Solucionarios', color: '#7c3aed' },
+  lesson_plan: { icon: '🗓️', label: 'Planes de Clase', color: '#0ea5e9' },
+  practice_guide: { icon: '📝', label: 'Guías de Práctica', color: '#ec4899' },
+};
+
+const COMBINED_TYPE_ORDER = ['rubric', 'checklist', 'material', 'teacher_guide', 'lesson_plan', 'practice_guide'];
+
+function combinedTypeMeta(type: string) {
+  return (
+    COMBINED_TYPE_META[type] || {
+      icon: '📄',
+      label: type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+      color: '#64748b',
+    }
+  );
+}
 
 
 
@@ -87,6 +109,23 @@ export default function PlanningTabMateriales({
   const s1 = content?.sectionI;
   const isLaboral = s1?.component?.toLowerCase().includes('laboral') || false;
 
+  // Tipos presentes en esta planeación con contenido renderizable (excluye payloads visuales JSON).
+  // La barra es 100% data-driven: cualquier tipo nuevo (incluidos los futuros) aparece solo.
+  const combinedTypes = Array.from(
+    new Set(
+      extras
+        .filter((ex) => ex.type !== 'visual' && !isStructuredVisualPayload(ex.contentText))
+        .map((ex) => ex.type)
+    )
+  ).sort((a, b) => {
+    const ia = COMBINED_TYPE_ORDER.indexOf(a);
+    const ib = COMBINED_TYPE_ORDER.indexOf(b);
+    if (ia !== -1 && ib !== -1) return ia - ib;
+    if (ia !== -1) return -1;
+    if (ib !== -1) return 1;
+    return a.localeCompare(b);
+  });
+
   if (activeSubTab === 'teacherGuides') {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -108,6 +147,52 @@ export default function PlanningTabMateriales({
                   </p>
                 )}
               </div>
+
+              {/* Descarga combinada — todos los solucionarios en 1 solo archivo */}
+              {(() => {
+                const guideCount = extras.filter(
+                  (ex) => ex.type === 'teacher_guide' && !isStructuredVisualPayload(ex.contentText)
+                ).length;
+                if (guideCount === 0) return null;
+                return (
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: '10px',
+                      padding: '10px 14px',
+                      background: 'rgba(124, 58, 237, 0.08)',
+                      border: '1px dashed rgba(124, 58, 237, 0.4)',
+                      borderRadius: '8px',
+                      marginBottom: '16px',
+                    }}
+                  >
+                    <span style={{ fontSize: '12.5px', color: '#c4b5fd', fontWeight: 600 }}>
+                      📦 Descarga combinada: los {guideCount} solucionarios (todos los bloques) en un solo archivo
+                    </span>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <a
+                        href={`/api/pdf/extra/combined?planningId=${planning.id}&type=teacher_guide`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn"
+                        style={{ padding: '6px 14px', fontSize: '12px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: '6px', textDecoration: 'none', fontWeight: 600 }}
+                      >
+                        ↓ PDF (1 archivo)
+                      </a>
+                      <a
+                        href={`/api/docx/extra/combined?planningId=${planning.id}&type=teacher_guide`}
+                        className="btn"
+                        style={{ padding: '6px 14px', fontSize: '12px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: '6px', textDecoration: 'none', fontWeight: 600 }}
+                      >
+                        ↓ Word (1 archivo)
+                      </a>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* One card per key activity */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -279,29 +364,29 @@ export default function PlanningTabMateriales({
             </div>
           </div>
 
-          {/* Descargas Combinadas — 1 archivo con los 3 bloques por tipo */}
+          {/* Descargas Combinadas — 1 archivo con todos los bloques por tipo (data-driven) */}
+          {combinedTypes.length > 0 && (
           <div className="section-card" style={{ border: '1px solid rgba(59, 130, 246, 0.35)' }}>
             <div className="section-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span className="section-card-title">📦 Descargas Combinadas — Los 3 Bloques en un Solo Archivo</span>
+              <span className="section-card-title">📦 Descargas Combinadas — Todos los Bloques en un Solo Archivo</span>
               <span className="text-xs" style={{ color: 'var(--c-blue-mid)', fontWeight: 600 }}>PDF · Word</span>
             </div>
             <div className="section-card-body">
               <p style={{ margin: '0 0 12px 0', fontSize: '12.5px', color: 'var(--c-text-muted)', lineHeight: 1.45 }}>
-                Descarga un único archivo con todos los documentos del mismo tipo integrados de los 3 bloques curriculares.
+                Descarga un único archivo con todos los documentos del mismo tipo integrados de todos los bloques curriculares.
               </p>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '10px' }}>
-                {([
-                  { type: 'rubric',         label: '📊 Rúbricas (3 Bloques)',        color: '#3b82f6' },
-                  { type: 'checklist',      label: '✅ Lista de Cotejo (3 Bloques)',  color: '#10b981' },
-                  { type: 'material',       label: '📦 Materiales Docente (3 Bloques)', color: '#f59e0b' },
-                  { type: 'teacher_guide',  label: '🔒 Solucionarios (3 Bloques)',   color: '#7c3aed' },
-                ] as const).map(({ type, label, color }) => (
+                {combinedTypes.map((type) => {
+                  const meta = combinedTypeMeta(type);
+                  return (
                   <div key={type} style={{
                     display: 'flex', flexDirection: 'column', gap: '6px',
                     padding: '12px', background: 'var(--c-bg-surface)',
-                    border: `1px solid ${color}33`, borderRadius: '8px'
+                    border: `1px solid ${meta.color}33`, borderRadius: '8px'
                   }}>
-                    <span style={{ fontSize: '12.5px', fontWeight: 700, color }}>{label}</span>
+                    <span style={{ fontSize: '12.5px', fontWeight: 700, color: meta.color }}>
+                      {meta.icon} {meta.label} (Todos los bloques)
+                    </span>
                     <div style={{ display: 'flex', gap: '6px' }}>
                       <a
                         href={`/api/pdf/extra/combined?planningId=${planning.id}&type=${type}`}
@@ -317,14 +402,16 @@ export default function PlanningTabMateriales({
                         className="btn btn-amber"
                         style={{ padding: '5px 10px', fontSize: '11px', borderRadius: '4px', textDecoration: 'none', fontWeight: 600 }}
                       >
-                        ↓ Word (ZIP)
+                        ↓ Word (1 archivo)
                       </a>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
+          )}
 
           {/* Acuerdo Institucional de Acreditación Semestral */}
           {content?.sectionV?.evaluationAgreement && (

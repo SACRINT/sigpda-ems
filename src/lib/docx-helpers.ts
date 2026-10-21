@@ -360,24 +360,52 @@ export const createWordTable = createMarkdownTable;
  * con banner institucional, tablas enriquecidas, orientación adaptativa (Landscape para rúbricas)
  * y encabezado/pie de página normativo de SEMS Puebla.
  */
-export async function buildExtraDocx(
+
+function isLandscapeExtra(extra: { type: string; title: string }): boolean {
+  const t = extra.title.toLowerCase();
+  return extra.type === 'rubric' || t.includes('rúbrica') || t.includes('rubrica');
+}
+
+interface ExtraDocxLayout {
+  pageW: number;
+  pageH: number;
+  contentW: number;
+  landscape: boolean;
+}
+
+function resolveExtraDocxLayout(extras: Array<{ type: string; title: string }>): ExtraDocxLayout {
+  const landscape = extras.some((ex) => isLandscapeExtra(ex));
+  return {
+    landscape,
+    pageW: landscape ? DOCX_DIMENSIONS.PAGE_HEIGHT_LETTER : DOCX_DIMENSIONS.PAGE_WIDTH_LETTER,
+    pageH: landscape ? DOCX_DIMENSIONS.PAGE_WIDTH_LETTER : DOCX_DIMENSIONS.PAGE_HEIGHT_LETTER,
+    contentW: landscape ? 14400 : DOCX_DIMENSIONS.CONTENT_WIDTH_EXTRA,
+  };
+}
+
+interface ExtraDocxBody {
+  children: (Paragraph | Table)[];
+  branding: ReturnType<typeof resolveHeaderBranding>;
+  title: string;
+}
+
+/** Construye solo el cuerpo (banner + markdown parseado) de un extra con el layout dado. */
+function buildExtraDocxBody(
   extra: { type: string; title: string; content_text: string },
-  context?: BrandingContext
-): Promise<Buffer> {
+  context: BrandingContext | undefined,
+  layout: ExtraDocxLayout
+): ExtraDocxBody {
   const title = extra.title || 'Recurso Didáctico Oficial';
   const rawContent = getExtraContentForRender(extra);
   const lines = rawContent.split('\n');
 
   const branding = resolveHeaderBranding(extra.type, context);
-  const isRubric = extra.type === 'rubric' || extra.title.toLowerCase().includes('rúbrica') || extra.title.toLowerCase().includes('rubrica');
-  const pageW = isRubric ? DOCX_DIMENSIONS.PAGE_HEIGHT_LETTER : DOCX_DIMENSIONS.PAGE_WIDTH_LETTER;
-  const pageH = isRubric ? DOCX_DIMENSIONS.PAGE_WIDTH_LETTER : DOCX_DIMENSIONS.PAGE_HEIGHT_LETTER;
-  const contentW = isRubric ? 14400 : DOCX_DIMENSIONS.CONTENT_WIDTH_EXTRA;
+  const contentW = layout.contentW;
 
-  const docChildren: (Paragraph | Table)[] = [];
+  const children: (Paragraph | Table)[] = [];
 
   // Banner institucional de portada
-  docChildren.push(
+  children.push(
     new Table({
       width: { size: contentW, type: WidthType.DXA },
       columnWidths: [contentW],
@@ -436,7 +464,7 @@ export async function buildExtraDocx(
     })
   );
 
-  docChildren.push(new Paragraph({ spacing: { before: 120, after: 120 } }));
+  children.push(new Paragraph({ spacing: { before: 120, after: 120 } }));
 
   // Parse Markdown lines y tablas
   let inTable = false;
@@ -465,37 +493,52 @@ export async function buildExtraDocx(
       }
     } else {
       if (inTable) {
-        docChildren.push(createWordTable(tableHeaders, tableData, contentW));
-        docChildren.push(new Paragraph({ spacing: { before: 80, after: 80 } }));
+        children.push(createWordTable(tableHeaders, tableData, contentW));
+        children.push(new Paragraph({ spacing: { before: 80, after: 80 } }));
         inTable = false;
       }
 
       if (line !== '') {
-        docChildren.push(createParagraphFromLine(line, { contentWidth: contentW }));
+        children.push(createParagraphFromLine(line, { contentWidth: contentW }));
       }
     }
   }
 
   if (inTable) {
-    docChildren.push(createWordTable(tableHeaders, tableData, contentW));
+    children.push(createWordTable(tableHeaders, tableData, contentW));
   }
 
-  // Ensamblado final del documento DOCX
+  return { children, branding, title };
+}
+
+function buildExtraDocxSection(layout: ExtraDocxLayout) {
+  return {
+    properties: {
+      page: {
+        size: { width: layout.pageW, height: layout.pageH },
+        margin: {
+          top: DOCX_DIMENSIONS.MARGIN_EXTRA,
+          right: DOCX_DIMENSIONS.MARGIN_EXTRA,
+          bottom: DOCX_DIMENSIONS.MARGIN_EXTRA,
+          left: DOCX_DIMENSIONS.MARGIN_EXTRA,
+        },
+      },
+    },
+  };
+}
+
+export async function buildExtraDocx(
+  extra: { type: string; title: string; content_text: string },
+  context?: BrandingContext
+): Promise<Buffer> {
+  const layout = resolveExtraDocxLayout([extra]);
+  const { children, branding, title } = buildExtraDocxBody(extra, context, layout);
+
   const doc = new Document({
     styles: { default: { document: { run: { font: 'Arial', size: 18 } } } },
     sections: [
       {
-        properties: {
-          page: {
-            size: { width: pageW, height: pageH },
-            margin: {
-              top: DOCX_DIMENSIONS.MARGIN_EXTRA,
-              right: DOCX_DIMENSIONS.MARGIN_EXTRA,
-              bottom: DOCX_DIMENSIONS.MARGIN_EXTRA,
-              left: DOCX_DIMENSIONS.MARGIN_EXTRA,
-            },
-          },
-        },
+        ...buildExtraDocxSection(layout),
         headers: {
           default: new Header({
             children: [
@@ -532,7 +575,90 @@ export async function buildExtraDocx(
             ],
           }),
         },
-        children: docChildren,
+        children,
+      },
+    ],
+  });
+
+  return Buffer.from(await Packer.toBuffer(doc));
+}
+
+/**
+ * Combina N extras (mismo tipo, cualquier cantidad de bloques) en UN SOLO documento .docx:
+ * cada documento conserva su banner institucional y se separa con salto de página.
+ * La orientación se unifica (landscape si alguno es rúbrica).
+ */
+export async function buildCombinedExtraDocx(
+  extras: Array<{ type: string; title: string; content_text: string }>,
+  context?: BrandingContext,
+  combinedTitle?: string
+): Promise<Buffer> {
+  if (extras.length === 0) {
+    throw new Error('buildCombinedExtraDocx: lista de extras vacía');
+  }
+
+  const layout = resolveExtraDocxLayout(extras);
+  const firstBranding = resolveHeaderBranding(extras[0].type, context);
+  const docTitle =
+    combinedTitle ||
+    `${firstBranding.typeLabel} · ${extras.length} documentos (todos los bloques)`;
+
+  const children: (Paragraph | Table)[] = [];
+  extras.forEach((extra, idx) => {
+    if (idx > 0) {
+      children.push(
+        new Paragraph({
+          pageBreakBefore: true,
+          spacing: { before: 0, after: 0 },
+        })
+      );
+    }
+    const body = buildExtraDocxBody(extra, context, layout);
+    children.push(...body.children);
+  });
+
+  const doc = new Document({
+    styles: { default: { document: { run: { font: 'Arial', size: 18 } } } },
+    sections: [
+      {
+        ...buildExtraDocxSection(layout),
+        headers: {
+          default: new Header({
+            children: [
+              new Paragraph({
+                spacing: { before: 0, after: 60 },
+                border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: C.accent, space: 1 } },
+                children: [
+                  new TextRun({
+                    text: `${firstBranding.topSup} | ${firstBranding.shortLabel} | ${docTitle.substring(0, 45)}`,
+                    size: 14,
+                    color: '777777',
+                    font: 'Arial',
+                  }),
+                ],
+              }),
+            ],
+          }),
+        },
+        footers: {
+          default: new Footer({
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                border: { top: { style: BorderStyle.SINGLE, size: 4, color: C.accent, space: 1 } },
+                spacing: { before: 60 },
+                children: [
+                  new TextRun({ text: 'Página ', size: 14, color: '777777', font: 'Arial' }),
+                  new TextRun({ children: [PageNumber.CURRENT], size: 14, color: '777777', font: 'Arial' }),
+                  new TextRun({ text: ' de ', size: 14, color: '777777', font: 'Arial' }),
+                  new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 14, color: '777777', font: 'Arial' }),
+                  new TextRun({ text: ' | SIGPDA-EMS MCCEMS', size: 14, color: '777777', font: 'Arial' }),
+                ],
+              }),
+            ],
+          }),
+        },
+        children,
       },
     ],
   });

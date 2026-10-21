@@ -8,6 +8,7 @@ import {
   getPlanningExtrasByIds,
 } from '@/lib/db';
 import { buildExtraDocx } from '@/lib/docx-helpers';
+import { isStructuredVisualPayload } from '@/lib/materials/material-tokens';
 import { sanitizeDocFilename, sanitizeDocFilenameWithBlock, type BrandingContext } from '@/lib/document-branding';
 import { logger } from '@/lib/logger';
 
@@ -90,6 +91,9 @@ async function handleBulkDocx(request: NextRequest) {
     } else {
       return new Response('Parámetros insuficientes (requiere planningId y blockIndex o extraIds)', { status: 400 });
     }
+
+    // Excluir payloads visuales JSON (recursos gráficos almacenados como content_text)
+    extras = extras.filter((item) => !isStructuredVisualPayload(item.content_text));
 
     if (extras.length === 0) {
       return new Response('No se encontraron materiales para empaquetar', { status: 404 });

@@ -75,6 +75,27 @@ export function parseMaterialTokensWithFallback(text: string): ResolvedMaterial[
 }
 
 /**
+ * Detecta payloads estructurados de recursos visuales ({"type":"vector_svg"|...}) que viven
+ * almacenados como `content_text` en planning_extras de tipo material/visual.
+ * NO son markdown: volcarlos a PDF/DOCX produciría páginas de basura JSON.
+ * Los documentos reales (markdown) jamás parsean como objeto JSON con campo `type`.
+ */
+export function isStructuredVisualPayload(contentText: string | null | undefined): boolean {
+  const raw = (contentText || '').trim();
+  if (!raw.startsWith('{')) return false;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return (
+      !!parsed &&
+      typeof parsed === 'object' &&
+      typeof (parsed as { type?: unknown }).type === 'string'
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Remueve completamente la sintaxis de tokens [[material:...]] transformándolos en texto plano legible.
  * Garantiza 0 brackets/tokens crudos en documentos de texto final como planes de clase impresos.
  */
