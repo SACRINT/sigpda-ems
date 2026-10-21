@@ -22,6 +22,14 @@ const nextConfig: NextConfig = {
 
   // Server external packages for PDF parsing (must not be bundled by Turbopack)
   serverExternalPackages: ['pdf-parse', 'pdfjs-dist'],
+
+  // La ruta del libro editorial lee templates/editorial/workbook-template.typ en
+  // runtime para derivar la versión de plantilla del content_hash (cache-bust
+  // automático). @vercel/nft no siempre traza ese fs.readFileSync, así que se
+  // fuerza la inclusión en el bundle del serverless function.
+  outputFileTracingIncludes: {
+    '/api/pdf/libro-editorial/\\[id\\]': ['./templates/editorial/*.typ'],
+  },
 };
 
 export default withNextIntl(nextConfig);

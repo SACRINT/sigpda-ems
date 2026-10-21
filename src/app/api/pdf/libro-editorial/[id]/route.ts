@@ -15,6 +15,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import * as crypto from 'crypto';
+import * as fs from 'fs';
+import * as path from 'path';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, getPlanningById, sql } from '@/lib/db';
 import { getSubscriptionStatus } from '@/lib/subscription-gate';
@@ -52,13 +54,35 @@ export const maxDuration = 60; // Timeout máximo compatible con plan Hobby y Ve
 const EDITORIAL_REPAIR_DEADLINE_MS = 24_000;
 
 /**
- * Versión de la plantilla Typst (workbook-template.typ). Se incluye en el
- * content_hash para que cualquier cambio de espaciado/tipografía/estructura
- * invalide la caché de PDFs ya compilados (deduplicación estricta) y fuerce
- * una nueva compilación al reexportar. BUMPEAR en cada commit que toque
- * templates/editorial/workbook-template.typ o su copia en worker-editorial.
+ * Versión de respaldo de la plantilla Typst. Se usa SOLO si no es posible leer
+ * el archivo .typ en runtime (defensa ante un bundle sin trazar). BUMPEAR junto
+ * con cada commit que toque templates/editorial/workbook-template.typ.
  */
-export const EDITORIAL_TEMPLATE_VERSION = 'v2026.10.20.1';
+export const EDITORIAL_TEMPLATE_VERSION_FALLBACK = 'v2026.10.20.2';
+
+let cachedTemplateVersion: string | null = null;
+
+/**
+ * Versión de la plantilla Typst derivada del CONTENIDO REAL de
+ * templates/editorial/workbook-template.typ (sha256 → 16 hex). Se incluye en el
+ * content_hash para que cualquier cambio de espaciado/tipografía/estructura
+ * invalide la caché de PDFs ya compilados sin depender de que alguien recuerde
+ * bumpear una constante a mano (eso ya falló una vez: la caché quedó pegada con
+ * un PDF de diseño viejo). Fallback: EDITORIAL_TEMPLATE_VERSION_FALLBACK.
+ */
+export function resolveEditorialTemplateVersion(): string {
+  if (cachedTemplateVersion !== null) {
+    return cachedTemplateVersion;
+  }
+  try {
+    const templatePath = path.join(process.cwd(), 'templates', 'editorial', 'workbook-template.typ');
+    const sha = crypto.createHash('sha256').update(fs.readFileSync(templatePath)).digest('hex');
+    cachedTemplateVersion = `tpl:${sha.slice(0, 16)}`;
+  } catch {
+    cachedTemplateVersion = EDITORIAL_TEMPLATE_VERSION_FALLBACK;
+  }
+  return cachedTemplateVersion;
+}
 
 /**
  * Normaliza la zona escolar para portada e índice del libro.
@@ -317,13 +341,16 @@ export async function POST(
     }
 
     // Cálculo del content_hash del capítulo para deduplicación estricta.
-    // Se mezcla la versión de la plantilla Typst para que un cambio de espaciado
-    // o tipografía invalide la caché y no sirva un PDF con el diseño anterior.
+    // Se mezcla la versión REAL de la plantilla Typst (contenido del .typ) para
+    // que un cambio de espaciado o tipografía invalide la caché y no sirva un
+    // PDF con el diseño anterior.
+    const templateVersion = resolveEditorialTemplateVersion();
     const contentHash = crypto
       .createHash('sha256')
-      .update(EDITORIAL_TEMPLATE_VERSION)
+      .update(templateVersion)
       .update(JSON.stringify(chapter))
       .digest('hex');
+    logger.info(`[api/pdf/libro-editorial] templateVersion=${templateVersion} contentHash=${contentHash}`);
 
     // Revisar si ya existe un libro editorial completado con exactamente este content_hash
     const existing = await getEditorialBookByPlanningAndHash(planningId, contentHash);
