@@ -47,10 +47,10 @@
     spacing: 2pt,
     [
       #if title != none [
-        #text(fill: border-color, weight: "bold", size: 8.5pt)[#title]
+        #text(fill: border-color, weight: "bold", size: 9pt)[#title]
         #v(1.5pt)
       ]
-      #text(fill: text-color, size: 8pt)[#body]
+      #text(fill: text-color, size: 8.5pt)[#body]
     ]
   )
 ]
@@ -71,7 +71,7 @@
       ]
       #if caption-text != none and caption-text != "" [
         #v(1.5pt)
-        #text(fill: c-slate-muted, size: 7.5pt, style: "italic")[
+        #text(fill: c-slate-muted, size: 8pt, style: "italic")[
           #align(center)[#caption-text]
         ]
       ]
@@ -88,9 +88,9 @@
     inset: 6pt,
     spacing: 5pt,
     [
-      #text(fill: c-accent.darken(20%), weight: "bold", size: 8pt)[#title]
+      #text(fill: c-accent.darken(20%), weight: "bold", size: 9pt)[#title]
       #v(1.5pt)
-      #text(fill: c-slate-dark, size: 7.5pt)[#body]
+      #text(fill: c-slate-dark, size: 8.5pt)[#body]
     ]
   )
 ]
@@ -105,12 +105,12 @@
       inset: 6pt,
       spacing: 5pt,
       [
-        #text(fill: rgb("1d4ed8"), weight: "bold", size: 8pt)[Enlaces de Ampliación]
+        #text(fill: rgb("1d4ed8"), weight: "bold", size: 9pt)[Enlaces de Ampliación]
         #v(1.5pt)
         #for r in recursos [
-          #text(size: 7.5pt)[
+          #text(size: 8.5pt)[
             *#r.titulo* (#r.tipo)\
-            #text(fill: rgb("2563eb"), size: 6.8pt)[#r.url]\
+            #text(fill: rgb("2563eb"), size: 7.5pt)[#r.url]\
           ]
           #v(1.5pt)
         ]
@@ -246,7 +246,7 @@
   #block(
     fill: c-primary,
     radius: 4pt,
-    inset: (x: 12pt, y: 4pt),
+    inset: (x: 12pt, y: 5pt),
     width: 100%,
     [
       #grid(
@@ -257,11 +257,11 @@
             fill: c-accent,
             radius: 3pt,
             inset: (x: 6pt, y: 3pt),
-            [#text(fill: c-primary, weight: "bold", size: 9.5pt)[SESIÓN #s.numero]]
+            [#text(fill: c-primary, weight: "bold", size: 10.5pt)[SESIÓN #s.numero]]
           )
         ],
         align(horizon)[
-          #text(fill: white, weight: "bold", size: 10.5pt)[#s.titulo]
+          #text(fill: white, weight: "bold", size: 11pt)[#s.titulo]
         ]
       )
     ]
@@ -304,14 +304,14 @@
       #v(4pt)
 
       // 2. Fundamentación Teórica / Contenido Real
-      #text(fill: c-primary, weight: "bold", size: 8.5pt)[
+      #text(fill: c-primary, weight: "bold", size: 9pt)[
         Conceptos Fundamentales y Modelado Matemático
       ]
       #v(1.5pt)
 
       #for bloque in s.contenido [
         #if bloque.tipo == "parrafo" [
-          #text(fill: c-slate-dark, size: 8pt)[#bloque.texto]
+          #text(fill: c-slate-dark, size: 8.5pt)[#bloque.texto]
           #v(1.5pt)
         ] else if bloque.tipo == "formula" [
           #rect(
@@ -322,7 +322,7 @@
             inset: 4pt,
             [
               #align(center)[
-                #text(fill: c-primary, weight: "bold", size: 9pt)[
+                #text(fill: c-primary, weight: "bold", size: 9.5pt)[
                   #if "titulo" in bloque and bloque.titulo != none [#bloque.titulo: ]
                   #bloque.texto
                 ]
@@ -345,12 +345,12 @@
               fill: (col, row) => if row == 0 { c-primary.lighten(90%) } else if calc.odd(row) { rgb("f8fafc") } else { white },
               stroke: 0.5pt + c-border,
               inset: 4pt,
-              ..bloque.columnas.map(c => text(weight: "bold", size: 7.8pt, fill: c-primary)[#c]),
-              ..bloque.filas.flatten().map(cell => text(size: 7.5pt, fill: c-slate-dark)[#cell])
+              ..bloque.columnas.map(c => text(weight: "bold", size: 8.5pt, fill: c-primary)[#c]),
+              ..bloque.filas.flatten().map(cell => text(size: 8.5pt, fill: c-slate-dark)[#cell])
             )
             #v(1.5pt)
           ] else if "texto" in bloque and bloque.texto != none [
-            #text(size: 8.5pt)[#bloque.texto]
+            #text(size: 9.5pt)[#bloque.texto]
             #v(1.5pt)
           ]
         ]
@@ -384,11 +384,11 @@
     bg-color: c-teal-bg,
     border-color: c-teal,
     [
-      #text(weight: "bold", size: 8.5pt)[#s.ejemploResuelto.enunciado]
+      #text(weight: "bold", size: 9pt)[#s.ejemploResuelto.enunciado]
       #v(1.5pt)
       #set list(spacing: 2pt)
       #list(
-        ..s.ejemploResuelto.pasos.map(paso => text(size: 8pt)[#paso])
+        ..s.ejemploResuelto.pasos.map(paso => text(size: 8.5pt)[#paso])
       )
     ]
   )
@@ -401,10 +401,10 @@
     bg-color: c-purple-bg,
     border-color: rgb("9333ea"),
     [
-      #set par(spacing: 1pt, leading: 0.5em)
+      #set par(spacing: 1.2pt, leading: 0.5em)
       #for (idx, item) in s.practica.enumerate() [
-        #text(weight: "bold", size: 8pt)[Ejercicio #(idx + 1):] #text(size: 8pt)[#item.enunciado]\
-        #text(fill: rgb("7e22ce"), size: 7.2pt, style: "italic")[Pista para comenzar: #item.pista]
+        #text(weight: "bold", size: 8.5pt)[Ejercicio #(idx + 1):] #text(size: 8.5pt)[#item.enunciado]\
+        #text(fill: rgb("7e22ce"), size: 7.5pt, style: "italic")[Pista para comenzar: #item.pista]
         #v(1.5pt)
       ]
     ]
@@ -425,9 +425,9 @@
         #if "productoIntegrador" in s and s.productoIntegrador != none and s.productoIntegrador != "" [
           #metadata((sessionNum: s.numero, avance: s.productoIntegrador)) <rendered-producto-integrador>
           #v(1.5pt)
-          #text(fill: rgb("15803d"), weight: "bold", size: 7.5pt)[Avance del Producto Integrador:]
+          #text(fill: rgb("15803d"), weight: "bold", size: 8pt)[Avance del Producto Integrador:]
           #h(3pt)
-          #text(fill: c-slate-dark, size: 7.5pt)[#s.productoIntegrador]
+          #text(fill: c-slate-dark, size: 8pt)[#s.productoIntegrador]
         ]
       ]
     ),
@@ -436,9 +436,9 @@
       bg-color: rgb("f8fafc"),
       border-color: rgb("0284c7"),
       [
-        #set par(spacing: 0.8pt, leading: 0.45em)
+        #set par(spacing: 1pt, leading: 0.5em)
         #for check in s.autoevaluacion [
-          #text(size: 7.5pt)[\[ \] #check]\
+          #text(size: 8pt)[\[ \] #check]\
         ]
       ]
     )

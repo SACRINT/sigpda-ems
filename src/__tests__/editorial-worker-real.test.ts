@@ -107,7 +107,7 @@ describe('Worker Container Typst — Integración Real sobre HTTP (P1-2)', () =>
 
     // 3. Paginación real y determinista (14 sesiones × 1 pág. + portada + preliminar = 16)
     expect(result.pageCount).toBeGreaterThanOrEqual(16);
-    expect(result.pageCount).toBeLessThanOrEqual(25);
+    expect(result.pageCount).toBeLessThanOrEqual(30);
 
     // 4. Conteo de sesiones renderizadas reales (no tautológico, obtenido vía typst query en worker)
     expect(result.renderedSessionCount).toBe(14);
