@@ -40,28 +40,78 @@ export function escapeXml(s: string): string {
     .replace(/'/g, '&apos;');
 }
 
-/** Ajuste de línea determinista por ancho estimado; recorta con elipsis al exceder maxLines. */
-export function wrapText(text: string, widthPx: number, fontSize: number, maxLines: number): string[] {
+/**
+ * Ancho medio por carácter (en em) calibrado para Montserrat/Lato/Arial.
+ * Con 0.54 fijo las líneas desbordaban el viewBox y se recortaban "duro" en el borde.
+ * Valores conservadores: si la fuente real es más angosta, solo sobra holgura.
+ */
+const CHAR_WIDTH_EM: Record<string, number> = {
+  normal: 0.58,
+  '400': 0.58,
+  '500': 0.6,
+  '600': 0.62,
+  '700': 0.64,
+  bold: 0.64,
+};
+
+function charWidthEm(weight: string): number {
+  const key = (weight ?? 'normal').toLowerCase();
+  if (CHAR_WIDTH_EM[key]) return CHAR_WIDTH_EM[key];
+  const n = Number(key);
+  if (!Number.isNaN(n) && n >= 600) return 0.64;
+  if (!Number.isNaN(n) && n >= 500) return 0.6;
+  return 0.58;
+}
+
+/**
+ * Ajuste de línea determinista por ancho estimado; recorta con elipsis al exceder maxLines.
+ * `weight` debe coincidir con el font-weight del render (bold/600/normal) para que el
+ * cálculo de caracteres por línea corresponda al ancho real de los glifos.
+ */
+export function wrapText(
+  text: string,
+  widthPx: number,
+  fontSize: number,
+  maxLines: number,
+  weight: string = 'normal'
+): string[] {
   const clean = (text ?? '').replace(/\s+/g, ' ').trim();
   if (!clean) return [];
-  const maxChars = Math.max(8, Math.floor(widthPx / (fontSize * 0.54)));
+  const maxChars = Math.max(8, Math.floor(widthPx / (fontSize * charWidthEm(weight))));
   const all: string[] = [];
   let cur = '';
   for (const w of clean.split(' ')) {
-    const word = w.length > maxChars ? `${w.slice(0, maxChars - 1)}…` : w;
-    const next = cur ? `${cur} ${word}` : word;
+    if (w.length > maxChars) {
+      if (cur) {
+        all.push(cur);
+        cur = '';
+      }
+      let rest = w;
+      while (rest.length > maxChars) {
+        all.push(rest.slice(0, maxChars));
+        rest = rest.slice(maxChars);
+      }
+      cur = rest;
+      continue;
+    }
+    const next = cur ? `${cur} ${w}` : w;
     if (next.length <= maxChars) {
       cur = next;
     } else {
       all.push(cur);
-      cur = word;
+      cur = w;
     }
   }
   if (cur) all.push(cur);
   if (all.length <= maxLines) return all;
   const lines = all.slice(0, maxLines);
   const last = lines[maxLines - 1];
-  lines[maxLines - 1] = last.length >= maxChars ? `${last.slice(0, maxChars - 1)}…` : `${last}…`;
+  const space = last.lastIndexOf(' ');
+  if (space > 0 && last.slice(0, space).length >= Math.floor(maxChars * 0.5)) {
+    lines[maxLines - 1] = `${last.slice(0, space)}…`;
+  } else {
+    lines[maxLines - 1] = last.length >= maxChars ? `${last.slice(0, maxChars - 1)}…` : `${last}…`;
+  }
   return lines;
 }
 
@@ -86,7 +136,7 @@ function splitSentences(text: string): string[] {
 }
 
 function header(deck: { title: string; sub: string }, p: SlidePalette, W: number): string {
-  const titleLines = wrapText(deck.title, W - 120, 46, 2);
+  const titleLines = wrapText(deck.title, W - 120, 46, 2, 'bold');
   return (
     `<rect x="0" y="0" width="${W}" height="210" fill="#${p.primary}"/>` +
     `<rect x="0" y="210" width="${W}" height="10" fill="#${p.accent}"/>` +
@@ -96,38 +146,39 @@ function header(deck: { title: string; sub: string }, p: SlidePalette, W: number
 }
 
 function callout(label: string, text: string, p: SlidePalette, W: number): string {
-  const lines = wrapText(text, W - 160, 28, 2);
+  const lines = wrapText(text, W - 160, 28, 3, '600');
   return (
-    `<rect x="40" y="240" width="${W - 80}" height="128" rx="18" fill="#${p.highlight}" stroke="#${p.accent}" stroke-width="3"/>` +
-    textBlock([label.toUpperCase()], 70, 275, 18, `#${p.primary}`, { weight: 'bold' }) +
-    textBlock(lines, 70, 312, 28, `#${p.text}`, { weight: '600' })
+    `<rect x="40" y="240" width="${W - 80}" height="140" rx="18" fill="#${p.highlight}" stroke="#${p.accent}" stroke-width="3"/>` +
+    textBlock([label.toUpperCase()], 70, 274, 18, `#${p.primary}`, { weight: 'bold' }) +
+    textBlock(lines, 70, 304, 28, `#${p.text}`, { weight: '600', lineHeight: 32 })
   );
 }
 
 function footer(m: MissionSection, wb: ActiveWorkTextbook, p: SlidePalette, W: number, H: number): string {
-  const y0 = 1350;
+  const y0 = 1320;
   const items = [
     m.formativeCheckpoint?.question,
     ...(m.formativeCheckpoint?.criteriaChecklist ?? []).slice(0, 2).map((c) => `☐ ${c}`),
   ].filter((s): s is string => Boolean(s));
   let out = `<rect x="0" y="${y0}" width="${W}" height="${H - y0}" fill="#${p.primary}"/>`;
   out += textBlock(['VERIFICO LO APRENDIDO'], 60, y0 + 42, 20, `#${p.accent}`, { weight: 'bold' });
-  let y = y0 + 80;
+  const LH = 27;
+  let y = y0 + 78;
   for (const it of items.slice(0, 3)) {
-    const isCheck = it.startsWith('☐ ');
+    const isCheck = it.startsWith('\u2610 ');
     const raw = isCheck ? it.slice(2) : it;
-    const ls = wrapText(raw, W - 140, 24, 1);
+    const ls = wrapText(raw, isCheck ? W - 160 : W - 120, 23, isCheck ? 1 : 2);
     if (isCheck) {
       out += `<rect x="60" y="${y - 16}" width="18" height="18" rx="3" fill="none" stroke="#${p.accent}" stroke-width="2.5"/>`;
-      out += textBlock(ls, 90, y, 24, '#FFFFFF');
+      out += textBlock(ls, 90, y, 23, '#FFFFFF', { lineHeight: LH });
     } else {
-      out += textBlock(ls, 60, y, 24, '#FFFFFF');
+      out += textBlock(ls, 60, y, 23, '#FFFFFF', { lineHeight: LH });
     }
-    y += 34;
+    y += LH * Math.max(1, ls.length) + 6;
   }
   const meta = [wb.coverData?.schoolName, wb.coverData?.paecProjectName ? `PAEC: ${wb.coverData.paecProjectName}` : '']
     .filter(Boolean).join('  ·  ');
-  if (meta) out += textBlock(wrapText(meta, W - 120, 18, 1), 60, H - 24, 18, `#${p.highlight}`);
+  if (meta) out += textBlock(wrapText(meta, W - 120, 18, 1), 60, H - 20, 18, `#${p.highlight}`);
   return out;
 }
 
@@ -186,7 +237,7 @@ function conceptualBody(m: MissionSection, p: SlidePalette, W: number): string {
     out += textBlock([c.label], x + 24, y + 38, 26, '#FFFFFF', { weight: 'bold' });
     out += textBlock(wrapText(c.text, cw - 48, 29, 7), x + 24, y + 108, 29, `#${p.text}`);
   });
-  const topic = wrapText(m.sessionTopic || m.title, 150, 22, 3);
+  const topic = wrapText(m.sessionTopic || m.title, 150, 22, 3, 'bold');
   out += `<circle cx="${cx}" cy="${cy}" r="88" fill="#${p.primary}" stroke="#FFFFFF" stroke-width="6"/>`;
   out += textBlock(topic, cx, cy - (topic.length - 1) * 13 + 6, 22, '#FFFFFF', { weight: 'bold', anchor: 'middle', lineHeight: 26 });
   return out;

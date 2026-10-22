@@ -1,5 +1,6 @@
 // src/__tests__/docx-workbook-materials.test.ts
 import { describe, it, expect } from 'vitest';
+import mammoth from 'mammoth';
 import { renderWorkbookToDocx } from '@/lib/docx-workbook-renderer';
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
 import type { Planning } from '@/types/planning';
@@ -82,5 +83,29 @@ describe('T-IMG-06: Renderizado de Figuras de Materiales en Libro DOCX', () => {
     expect(docxBuffer[1]).toBe(0x4b);
     expect(docxBuffer[2]).toBe(0x03);
     expect(docxBuffer[3]).toBe(0x04);
+  }, 30000);
+
+  it('F-01: los tokens [[material:...]] de mission.* (iDo/weDo/youDo) NO llegan crudos al libro DOCX', async () => {
+    const workbookWithTokens = {
+      ...mockWorkbook,
+      missions: [
+        {
+          ...mockWorkbook.missions![0],
+          iDoSection: { stepByStepDemo: '1. Usa la [[material:recta-numerica|Recta Numérica (Lámina)]] para graficar' },
+          weDoSection: { guidedPractice: '- Practica con [[material:coordenadas-cartesianas|Plano Cartesiano]] y grafica', workbookElements: [] },
+          youDoSection: { autonomousChallenge: 'Reto: representa las ecuaciones en la [[material:recta-numerica]]', workbookElements: [] },
+        },
+      ],
+    };
+
+    const docxBuffer = await renderWorkbookToDocx(
+      workbookWithTokens as ActiveWorkTextbook,
+      mockPlanning as unknown as Planning
+    );
+
+    const { value } = await mammoth.extractRawText({ buffer: docxBuffer });
+    expect(value).not.toContain('[[material:');
+    expect(value).toContain('Recta Numérica (Lámina)');
+    expect(value).toContain('Plano Cartesiano');
   }, 30000);
 });

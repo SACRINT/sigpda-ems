@@ -68,7 +68,7 @@ import {
 } from '@/types/workbook-legacy';
 import { extractCalloutBox, type CalloutBoxData } from '@/lib/visual-engine/callout-box';
 import { readMaterialPng } from '@/lib/materials/material-figure-doc';
-import { parseMaterialTokensWithFallback, resolveMaterialTokensForMarkdown, stripMaterialTokensDeep } from '@/lib/materials/material-tokens';
+import { parseMaterialTokensWithFallback, resolveMaterialTokensForMarkdown, stripMaterialTokens, stripMaterialTokensDeep } from '@/lib/materials/material-tokens';
 import crypto from 'crypto';
 import QRCode from 'qrcode';
 import { getVerificationUrl } from '@/lib/digital-signature';
@@ -313,7 +313,10 @@ export async function renderWorkbookToDocx(
   const assignedAssetKeys = new Set<string>();
 
   for (let i = 0; i < workbook.missions.length; i++) {
-    const mission = workbook.missions[i];
+    // Paridad Libro ↔ Plan: tokens [[material:...]] de la misión → etiqueta humana ANTES de
+    // imprimir (tareas, callouts "IDEA", step-cards y sidebar). projectSection NO se toca:
+    // sus tokens se resuelven como figuras de materiales más abajo.
+    const mission = stripMaterialTokensDeep(workbook.missions[i]);
     const missionElements = await buildMissionContent(
       mission,
       i + 1,
@@ -3028,7 +3031,8 @@ function buildDocxMissionRubricTable(rubric: import('@/types/work-textbook').Eva
 function buildDocxPracticeTasks(rawText: string, defaultTaskCount: number = 3): (Paragraph | Table)[] {
   if (!rawText) return [];
 
-  const cleanText = stripMarkdown(rawText);
+  // Paridad Libro ↔ Plan: los tokens [[material:...]] de mission.* no llegan al estudiante.
+  const cleanText = stripMarkdown(stripMaterialTokens(rawText));
   if (!cleanText) return [];
   const lines = cleanText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   const tasks: string[] = [];
@@ -4910,6 +4914,13 @@ function buildTroubleshootTable(items: TroubleshootItem[]): Table {
 }
 
 function buildProjectSection(project: ProjectSection, sessionList?: number[]): (Paragraph | Table)[] {
+  // Paridad Libro ↔ Plan: tokens [[material:...]] de fases/instrucciones/cronograma →
+  // etiqueta humana. requiredMaterials se conserva crudo: de ahí se resuelven las
+  // figuras de materiales (T-IMG-06).
+  const rawRequiredMaterials = project.requiredMaterials;
+  project = stripMaterialTokensDeep(project);
+  project.requiredMaterials = rawRequiredMaterials;
+
   const elements: (Paragraph | Table)[] = [
     new Paragraph({
       spacing: { before: 200, after: 100 },

@@ -44,7 +44,7 @@ import {
 import { extractCalloutBox, type CalloutBoxData } from '@/lib/visual-engine/callout-box';
 import { extractComparisonTable, type ComparisonTableData } from '@/lib/visual-engine/comparison-table';
 import { readMaterialPng } from '@/lib/materials/material-figure-doc';
-import { parseMaterialTokensWithFallback, resolveMaterialTokensForMarkdown, stripMaterialTokensDeep } from '@/lib/materials/material-tokens';
+import { parseMaterialTokensWithFallback, resolveMaterialTokensForMarkdown, stripMaterialTokens, stripMaterialTokensDeep } from '@/lib/materials/material-tokens';
 import crypto from 'crypto';
 import QRCode from 'qrcode';
 import { getVerificationUrl } from '@/lib/digital-signature';
@@ -345,7 +345,10 @@ export async function renderWorkbookToPdf(
   const assignedAssetKeys = new Set<string>();
 
   for (let i = 0; i < workbook.missions.length; i++) {
-    const mission = workbook.missions[i];
+    // Paridad Libro ↔ Plan: tokens [[material:...]] de la misión → etiqueta humana ANTES de
+    // imprimir (tareas, callouts "IDEA", step-cards y sidebar). projectSection NO se toca:
+    // sus tokens se resuelven como figuras de materiales más abajo.
+    const mission = stripMaterialTokensDeep(workbook.missions[i]);
     doc.addPage();
     const missionStartPage = doc.getNumberOfPages();
 
@@ -1767,6 +1770,9 @@ function drawPracticeTasksWithDottedLines(
   ensureSpaceFn?: (y: number, neededH: number) => number
 ): number {
   if (!rawText) return y;
+
+  // Paridad Libro ↔ Plan: los tokens [[material:...]] de mission.* no llegan al estudiante.
+  rawText = stripMaterialTokens(rawText);
 
   const lines = rawText
     .split(/\r?\n/)
@@ -3282,6 +3288,13 @@ function drawProjectSection(
   sessionList?: number[]
 ): number {
   let y = startY;
+
+  // Paridad Libro ↔ Plan: tokens [[material:...]] de fases/instrucciones/cronograma →
+  // etiqueta humana. requiredMaterials se conserva crudo: de ahí se resuelven las
+  // figuras de materiales (T-IMG-05).
+  const rawRequiredMaterials = project.requiredMaterials;
+  project = stripMaterialTokensDeep(project);
+  project.requiredMaterials = rawRequiredMaterials;
 
   y = ensureVerticalSpace(doc, y, 22, margin, pageHeight);
   doc.setFillColor(...NAVY);

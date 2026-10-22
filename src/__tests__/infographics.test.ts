@@ -97,6 +97,109 @@ describe('H-320 — generador de infografías', () => {
   });
 });
 
+describe('Sesión 3 — infografía sin texto cortado', () => {
+  const unescape = (s: string) =>
+    s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&');
+  const EM: Record<string, number> = { normal: 0.58, '500': 0.6, '600': 0.62, '700': 0.64, bold: 0.64 };
+  const emOf = (fw: string) => EM[fw] ?? (Number(fw) >= 600 ? 0.64 : Number(fw) >= 500 ? 0.6 : 0.58);
+
+  interface ParsedText { x: number; y: number; fontSize: number; weight: string; anchor: string; content: string }
+  function parseTexts(svg: string): ParsedText[] {
+    const out: ParsedText[] = [];
+    const re = /<text x="([\d.]+)" y="([\d.]+)"[^>]*font-size="([\d.]+)"[^>]*font-weight="([^"]+)"[^>]*text-anchor="([^"]+)">([^<]*)<\/text>/g;
+    for (const m of svg.matchAll(re)) {
+      out.push({
+        x: Number(m[1]), y: Number(m[2]), fontSize: Number(m[3]),
+        weight: m[4], anchor: m[5], content: unescape(m[6]),
+      });
+    }
+    return out;
+  }
+
+  it('wrapText calibra por peso: bold admite menos caracteres que normal', () => {
+    const texto = 'palabra '.repeat(50).trim();
+    const normal = wrapText(texto, 1080, 46, 5, 'normal');
+    const bold = wrapText(texto, 1080, 46, 5, 'bold');
+    const maxLen = (ls: string[]) => Math.max(...ls.map((l) => l.length));
+    const capN = Math.floor(1080 / (46 * 0.58));
+    const capB = Math.floor(1080 / (46 * 0.64));
+    expect(maxLen(normal)).toBeLessThanOrEqual(capN);
+    expect(maxLen(bold)).toBeLessThanOrEqual(capB);
+    expect(maxLen(normal)).toBeGreaterThanOrEqual(capN - 7);
+    expect(maxLen(bold)).toBeGreaterThanOrEqual(capB - 7);
+    expect(maxLen(bold)).toBeLessThan(maxLen(normal));
+  });
+
+  it('parte palabras largas conservando todo el texto dentro de maxChars', () => {
+    const largo = 'x'.repeat(65);
+    const out = wrapText(largo, 300, 24, 5);
+    expect(out.join('')).toBe(largo);
+    expect(Math.max(...out.map((l) => l.length))).toBeLessThanOrEqual(Math.floor(300 / (24 * 0.58)));
+  });
+
+  it('la elipsis corta en frontera de palabra (nunca a mitad de palabra)', () => {
+    const original = 'palabra '.repeat(80).trim();
+    const out = wrapText(original, 300, 24, 3);
+    const vocabulario = new Set(original.split(' '));
+    const visible = out[2].replace(/…$/, '');
+    expect(out[2].endsWith('…')).toBe(true);
+    expect(vocabulario.has(visible.split(' ').pop() ?? '')).toBe(true);
+  });
+
+  it('ningún <text> desborda horizontalmente el viewBox (corte duro del borde)', () => {
+    const wbs = ['Pensamiento Matemático I', 'Historia de México'];
+    for (const subject of wbs) {
+      const info = buildInfographic(workbook(subject), 0)!;
+      const texts = parseTexts(info.svg);
+      expect(texts.length).toBeGreaterThan(5);
+      for (const t of texts) {
+        const est = t.content.length * t.fontSize * emOf(t.weight);
+        if (t.anchor === 'middle') {
+          expect(t.x - est / 2).toBeGreaterThanOrEqual(0);
+          expect(t.x + est / 2).toBeLessThanOrEqual(INFOGRAPHIC_WIDTH - 5);
+        } else {
+          expect(t.x + est).toBeLessThanOrEqual(INFOGRAPHIC_WIDTH - 5);
+        }
+      }
+    }
+  });
+
+  it('el footer sube a y=1320 y ningún texto baja del margen inferior', () => {
+    const info = buildInfographic(workbook('Pensamiento Matemático I'), 0)!;
+    expect(info.svg).toContain('<rect x="0" y="1320"');
+    for (const t of parseTexts(info.svg)) {
+      expect(t.y).toBeLessThanOrEqual(INFOGRAPHIC_HEIGHT - 20);
+    }
+  });
+
+  it('la pregunta detonadora larga cabe en 2 líneas sin elipsis', () => {
+    const wb = workbook('Pensamiento Matemático I');
+    const pregunta =
+      '¿Qué es una función cuadrática y cómo se identifican sus coeficientes en una ecuación de segundo grado?';
+    wb.missions[0].formativeCheckpoint = {
+      question: pregunta, reflectionPrompts: [],
+      criteriaChecklist: ['Identifica los coeficientes', 'Grafica la parábola'],
+    };
+    const info = buildInfographic(wb, 0)!;
+    const footerTexts = parseTexts(info.svg).filter((t) => t.fontSize === 23 && t.y >= 1398);
+    const preguntaLines = footerTexts.filter((t) => t.x === 60);
+    expect(preguntaLines).toHaveLength(2);
+    expect(preguntaLines.some((t) => t.content.includes('…'))).toBe(false);
+    expect(preguntaLines.map((t) => t.content).join(' ')).toContain('coeficientes');
+  });
+
+  it('los ítems del footer no invaden la línea de meta (plantel · PAEC)', () => {
+    const info = buildInfographic(workbook('Pensamiento Matemático I'), 0)!;
+    const texts = parseTexts(info.svg);
+    const items = texts.filter((t) => t.fontSize === 23);
+    const meta = texts.find((t) => t.fontSize === 18 && t.y > 1500)!;
+    expect(meta).toBeDefined();
+    expect(meta.y).toBe(INFOGRAPHIC_HEIGHT - 20);
+    const lastItemBottom = Math.max(...items.map((t) => t.y + t.fontSize * 0.3));
+    expect(lastItemBottom).toBeLessThan(meta.y - meta.fontSize * 0.75);
+  });
+});
+
 describe('H-321 — exportación', () => {
   it('PNG Carta a 300 DPI', async () => {
     const info = buildInfographic(workbook('Física'), 0)!;

@@ -113,5 +113,30 @@ describe('T-IMG-05: Renderizado de Figuras de Materiales en Libro PDF', () => {
     expect(pdfText).toContain('Representación gráfica conceptual y espacio de tabulación guiada');
     expect(pdfText).toContain('Figura M1.1');
   }, 25000);
+
+  it('F-01: los tokens [[material:...]] de mission.* (iDo/weDo/youDo) NO se imprimen crudos en el libro PDF', async () => {
+    const workbookWithTokens = {
+      ...mockWorkbook,
+      missions: [
+        {
+          ...mockWorkbook.missions![0],
+          iDoSection: { stepByStepDemo: '1. Usa la [[material:recta-numerica|Recta Numérica (Lámina)]] para graficar' },
+          weDoSection: { guidedPractice: '- Practica con [[material:coordenadas-cartesianas|Plano Cartesiano]] y grafica', workbookElements: [] },
+          youDoSection: { autonomousChallenge: 'Reto: representa las ecuaciones en la [[material:recta-numerica]]', workbookElements: [] },
+        },
+      ],
+    };
+
+    const pdfBuffer = await renderWorkbookToPdf(
+      workbookWithTokens as ActiveWorkTextbook,
+      mockPlanning as unknown as Planning,
+      { forceFallbackCover: true }
+    );
+
+    const pdfText = await extractPdfText(pdfBuffer);
+    expect(pdfText).not.toContain('[[material:');
+    expect(pdfText).toContain('Recta Numérica (Lámina)');
+    expect(pdfText).toContain('Plano Cartesiano');
+  }, 25000);
 });
 
