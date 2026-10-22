@@ -22,6 +22,7 @@ import {
   WidthType,
   AlignmentType,
   ShadingType,
+  LineRuleType,
   Header,
   Footer,
   PageNumber,
@@ -83,6 +84,15 @@ export function bdr(color: string = C.border, size = 4): ITableCellBorders {
 export function sp(before = 60, after = 60): ISpacingProperties {
   return { before, after };
 }
+
+/**
+ * Interlineado del cuerpo de texto de los extras DOCX: 1.15 (line=276, auto).
+ * Antes el cuerpo usaba el default de Word (1.0) y se veía apretado frente al PDF.
+ */
+export const BODY_LINE_SPACING: ISpacingProperties = {
+  line: 276,
+  lineRule: LineRuleType.AUTO,
+};
 
 /**
  * Parsea una cadena con formato Markdown de negritas (**texto**) y genera un array de TextRun de Word.
@@ -267,7 +277,11 @@ export function createParagraphFromLine(
   if (line.startsWith('- ') || line.startsWith('* ') || line.startsWith('• ')) {
     const content = line.replace(/^[-*•]\s+/, '');
     return new Paragraph({
-      spacing: { before: Math.round(40 * scale), after: Math.round(40 * scale) },
+      spacing: {
+        before: Math.round(40 * scale),
+        after: Math.round(40 * scale),
+        ...BODY_LINE_SPACING,
+      },
       children: [
         new TextRun({ text: '•  ', size: baseSize, color: C.mid, font: 'Arial', bold: true }),
         ...parseTextRuns(content, baseSize, textColor),
@@ -281,7 +295,11 @@ export function createParagraphFromLine(
     const num = numMatch[1];
     const content = numMatch[2];
     return new Paragraph({
-      spacing: { before: Math.round(40 * scale), after: Math.round(40 * scale) },
+      spacing: {
+        before: Math.round(40 * scale),
+        after: Math.round(40 * scale),
+        ...BODY_LINE_SPACING,
+      },
       children: [
         new TextRun({ text: `${num}.  `, bold: true, size: baseSize, color: C.mid, font: 'Arial' }),
         ...parseTextRuns(content, baseSize, textColor),
@@ -293,7 +311,7 @@ export function createParagraphFromLine(
   if (line.startsWith('> ')) {
     const quoteContent = line.replace(/^>\s*/, '');
     return new Paragraph({
-      spacing: { before: Math.round(80 * scale), after: Math.round(80 * scale) },
+      spacing: { before: Math.round(80 * scale), after: Math.round(80 * scale), ...BODY_LINE_SPACING },
       border: {
         left: { style: BorderStyle.SINGLE, size: 16, color: C.accent, space: 6 },
       },
@@ -303,7 +321,11 @@ export function createParagraphFromLine(
 
   // Párrafo normal de cuerpo
   return new Paragraph({
-    spacing: { before: Math.round(60 * scale), after: Math.round(60 * scale) },
+    spacing: {
+      before: Math.round(60 * scale),
+      after: Math.round(60 * scale),
+      ...BODY_LINE_SPACING,
+    },
     children: parseTextRuns(line, baseSize, textColor),
   });
 }
@@ -374,6 +396,93 @@ export function createMarkdownTable(
 }
 
 export const createWordTable = createMarkdownTable;
+
+// ── Listas de ítems cortos en 2 columnas (materiales / insumos / casillas) ───
+
+/** Ítems más largos que este umbral conservan la columna completa. */
+export const TWO_COL_ITEM_MAX_CHARS = 110;
+/** Mínimo de ítems consecutivos para repartir la lista en 2 columnas. */
+export const TWO_COL_ITEM_MIN = 3;
+
+export type ExtraItemKind = 'bullet' | 'check';
+
+const ITEM_KIND_CHECK = /^(\[[ xX]\]|\(\s*\))\s*\S/;
+const ITEM_KIND_BULLET = /^[-*•]\s+\S/;
+
+export function detectExtraItemKind(line: string): ExtraItemKind | null {
+  if (ITEM_KIND_CHECK.test(line)) return 'check';
+  if (ITEM_KIND_BULLET.test(line)) return 'bullet';
+  return null;
+}
+
+export function extraItemText(line: string, kind: ExtraItemKind): string {
+  return kind === 'check'
+    ? line.replace(/^(\[[ xX]\]|\(\s*\))\s*/, '')
+    : line.replace(/^[-*•]\s+/, '');
+}
+
+const NO_BORDERS: ITableCellBorders = {
+  top: { style: BorderStyle.NONE, size: 0, color: C.white },
+  bottom: { style: BorderStyle.NONE, size: 0, color: C.white },
+  left: { style: BorderStyle.NONE, size: 0, color: C.white },
+  right: { style: BorderStyle.NONE, size: 0, color: C.white },
+};
+
+function twoColItemCell(text: string, width: number, kind: ExtraItemKind): TableCell {
+  const marker = kind === 'check' ? '☐  ' : '•  ';
+  return new TableCell({
+    width: { size: width, type: WidthType.DXA },
+    borders: NO_BORDERS,
+    margins: { top: 20, bottom: 20, left: 0, right: 80 },
+    children: [
+      new Paragraph({
+        spacing: { before: 0, after: 20, ...BODY_LINE_SPACING },
+        children: [
+          new TextRun({
+            text: marker,
+            size: 18,
+            color: kind === 'check' ? C.mid : C.accent,
+            font: 'Arial',
+            bold: true,
+          }),
+          ...parseTextRuns(text, 18, C.text),
+        ],
+      }),
+    ],
+  });
+}
+
+/**
+ * Reparte una lista de ítems cortos (materiales, insumos, casillas) en 2 columnas
+ * mediante una tabla invisible de 2 celdas por fila, en lugar de una lista de
+ * 1 ítem por renglón a ancho completo.
+ */
+export function createTwoColumnItemList(
+  items: string[],
+  kind: ExtraItemKind = 'bullet',
+  contentWidth: number = DOCX_DIMENSIONS.CONTENT_WIDTH_EXTRA
+): Table {
+  const colGap = 160;
+  const colW = Math.floor((contentWidth - colGap) / 2);
+  const rightW = contentWidth - colW;
+  const rows: TableRow[] = [];
+  for (let i = 0; i < items.length; i += 2) {
+    const right =
+      i + 1 < items.length
+        ? twoColItemCell(items[i + 1], rightW, kind)
+        : new TableCell({
+            width: { size: rightW, type: WidthType.DXA },
+            borders: NO_BORDERS,
+            children: [new Paragraph({ spacing: { before: 0, after: 0 } })],
+          });
+    rows.push(new TableRow({ children: [twoColItemCell(items[i], colW, kind), right] }));
+  }
+  return new Table({
+    width: { size: contentWidth, type: WidthType.DXA },
+    columnWidths: [colW, rightW],
+    rows,
+  });
+}
 
 /**
  * Compila un recurso extra individual o en cascada a un documento Buffer DOCX
@@ -486,6 +595,27 @@ function buildExtraDocxBody(
 
   children.push(new Paragraph({ spacing: { before: 120, after: 120 } }));
 
+  /** Racha de ítems cortos consecutivos → candidata a 2 columnas. */
+  const collectItemRun = (
+    start: number
+  ): { items: string[]; kind: ExtraItemKind; next: number } | null => {
+    const kind = detectExtraItemKind(lines[start].trim());
+    if (!kind) return null;
+    const items: string[] = [];
+    let idx = start;
+    while (idx < lines.length) {
+      const raw = lines[idx].trim();
+      const itemKind = detectExtraItemKind(raw);
+      if (itemKind !== kind) break;
+      const text = extraItemText(raw, kind);
+      if (text.length > TWO_COL_ITEM_MAX_CHARS) break;
+      items.push(text);
+      idx++;
+    }
+    if (items.length < TWO_COL_ITEM_MIN) return null;
+    return { items, kind, next: idx };
+  };
+
   // Parse Markdown lines y tablas
   let inTable = false;
   let tableHeaders: string[] = [];
@@ -519,7 +649,13 @@ function buildExtraDocxBody(
       }
 
       if (line !== '') {
-        children.push(createParagraphFromLine(line, { contentWidth: contentW }));
+        const run = collectItemRun(i);
+        if (run) {
+          children.push(createTwoColumnItemList(run.items, run.kind, contentW));
+          i = run.next - 1;
+        } else {
+          children.push(createParagraphFromLine(line, { contentWidth: contentW }));
+        }
       }
     }
   }

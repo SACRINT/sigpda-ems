@@ -463,6 +463,119 @@ export function renderExtraDocument(
     tableData = [];
   };
 
+  // ── Ítems cortos (materiales / insumos / casillas) en 2 columnas ──────────
+  // Las listas largas de materiales salían 1 ítem por renglón a ancho completo;
+  // los ítems cortos consecutivos se reparten ahora en 2 columnas (pares a la
+  // izquierda). Los ítems largos (p.ej. "Rol del Docente: …") conservan 1 columna.
+  const TWO_COL_MAX_ITEM_CHARS = 110;
+  const TWO_COL_MIN_ITEMS = 3;
+  const TWO_COL_GAP = 8;
+
+  const detectItemKind = (text: string): 'bullet' | 'check' | null => {
+    if (/^(\[[ xX]\]|\(\s*\))\s*\S/.test(text)) return 'check';
+    if (/^[-*•]\s+\S/.test(text)) return 'bullet';
+    return null;
+  };
+
+  const itemTextOf = (text: string, kind: 'bullet' | 'check'): string =>
+    kind === 'check'
+      ? text.replace(/^(\[[ xX]\]|\(\s*\))\s*/, '')
+      : text.replace(/^[-*•]\s+/, '');
+
+  const collectItemRun = (
+    start: number
+  ): { items: string[]; kind: 'bullet' | 'check'; next: number } | null => {
+    const kind = detectItemKind(lines[start]);
+    if (!kind) return null;
+    const items: string[] = [];
+    let idx = start;
+    while (idx < lines.length) {
+      const raw = lines[idx].trim();
+      if (detectItemKind(raw) !== kind) break;
+      const text = itemTextOf(raw, kind);
+      if (text.length > TWO_COL_MAX_ITEM_CHARS) break;
+      items.push(text);
+      idx++;
+    }
+    if (items.length < TWO_COL_MIN_ITEMS) return null;
+    return { items, kind, next: idx };
+  };
+
+  const countItemLines = (text: string, width: number): number => {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(smallFontSize);
+    const clean = text.replace(/\*\*/g, '');
+    const wrapped = doc.splitTextToSize(clean, Math.max(20, width * 0.96)) as string[];
+    return Math.max(1, wrapped.length);
+  };
+
+  const drawItemInColumn = (
+    text: string,
+    kind: 'bullet' | 'check',
+    colX: number,
+    colY: number,
+    colW: number
+  ): void => {
+    if (kind === 'check') {
+      doc.setDrawColor(...typeColor);
+      doc.setFillColor(...WHITE);
+      doc.setLineWidth(0.4);
+      doc.roundedRect(colX + 1, colY - 2.8, 3.2, 3.2, 0.5, 0.5, 'S');
+      renderFormattedBlock(doc, text, {
+        x: colX + 6,
+        y: colY,
+        maxWidth: colW - 7,
+        pageHeight,
+        lineHeight: bodyLineHeight,
+        bottomReserve,
+        addNewPage,
+        fontSize: smallFontSize,
+      });
+    } else {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8.0);
+      doc.setTextColor(...ACCENT);
+      doc.text('•', colX + 1, colY);
+      renderFormattedBlock(doc, text, {
+        x: colX + 5,
+        y: colY,
+        maxWidth: colW - 6,
+        pageHeight,
+        lineHeight: bodyLineHeight,
+        bottomReserve,
+        addNewPage,
+        fontSize: smallFontSize,
+      });
+    }
+  };
+
+  const renderTwoColumnItems = (items: string[], kind: 'bullet' | 'check'): number => {
+    const colW = (contentW - TWO_COL_GAP) / 2;
+    const textW = colW - 6;
+    let idx = 0;
+    let yCur = y;
+    while (idx < items.length) {
+      const left = items[idx];
+      const right = items[idx + 1];
+      const rows = Math.max(
+        countItemLines(left, textW),
+        right ? countItemLines(right, textW) : 1
+      );
+      const rowH = rows * bodyLineHeight + 1.4;
+      if (yCur + rowH > pageHeight - bottomReserve) {
+        if (yCur <= 24) break; // sin espacio efectivo: no buclear
+        addNewPage();
+        yCur = 22;
+      }
+      drawItemInColumn(left, kind, margin, yCur, colW);
+      if (right) drawItemInColumn(right, kind, margin + colW + TWO_COL_GAP, yCur, colW);
+      yCur += rowH;
+      idx += 2;
+    }
+    markContent();
+    return yCur;
+  };
+
   for (let i = 0; i < lines.length; i++) {
     const raw = lines[i];
     const line = raw.trim();
@@ -622,6 +735,12 @@ export function renderExtraDocument(
     // Casillas de verificación ([ ] / [x] / ( ))
     const checkMatch = line.match(/^(\[[ xX]\]|\(\s*\))\s*(.*)/);
     if (checkMatch) {
+      const checkRun = collectItemRun(i);
+      if (checkRun && checkRun.kind === 'check') {
+        y = renderTwoColumnItems(checkRun.items, checkRun.kind);
+        i = checkRun.next - 1;
+        continue;
+      }
       const isChecked = checkMatch[1].toLowerCase().includes('x');
       const checkText = checkMatch[2];
       if (y > pageHeight - bottomReserve) { addNewPage(); }
@@ -653,6 +772,12 @@ export function renderExtraDocument(
 
     // Listas con viñetas (- / * / •)
     if (line.startsWith('- ') || line.startsWith('* ') || line.startsWith('• ')) {
+      const bulletRun = collectItemRun(i);
+      if (bulletRun && bulletRun.kind === 'bullet') {
+        y = renderTwoColumnItems(bulletRun.items, bulletRun.kind);
+        i = bulletRun.next - 1;
+        continue;
+      }
       const content = line.replace(/^[-*•]\s+/, '');
       if (y > pageHeight - bottomReserve) { addNewPage(); }
 
