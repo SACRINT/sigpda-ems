@@ -34,6 +34,36 @@ export interface WorkerCompileResponse {
 }
 
 /**
+ * Obtiene la versión de plantilla Typst (templateVersion, sha256) que el worker
+ * remotamente está ejecutando, vía GET /health. Devuelve null si no hay worker
+ * configurado o si /health no responde (timeout 5s).
+ *
+ * Se usa para anclar el content_hash del PDF a la plantilla que el worker REALMENTE
+ * usará al compilar (no a la copia local de Vercel). Si Vercel y el worker divergen
+ * durante una carrera de despliegues, la caché queda etiquetada con lo que el worker
+ * compiló, evitando envenenarla con PDFs de diseño viejo.
+ */
+export async function fetchEditorialWorkerTemplateVersion(): Promise<string | null> {
+  const workerUrl = process.env.EDITORIAL_WORKER_URL;
+  if (!workerUrl || workerUrl.trim().length === 0) {
+    return null;
+  }
+  try {
+    const healthUrl = `${workerUrl.replace(/\/+$/, '')}/health`;
+    const response = await fetch(healthUrl, { signal: AbortSignal.timeout(5000) });
+    if (!response.ok) {
+      return null;
+    }
+    const data = (await response.json()) as { templateVersion?: unknown };
+    return typeof data.templateVersion === 'string' && data.templateVersion.length > 0
+      ? data.templateVersion
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Despacha la compilación de un capítulo escolar al worker de Typst o al motor local.
  */
 export async function dispatchToEditorialWorker(

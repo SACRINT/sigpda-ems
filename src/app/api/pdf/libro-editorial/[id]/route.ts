@@ -30,6 +30,7 @@ import {
 } from '@/lib/editorial/editorial-db';
 import {
   dispatchToEditorialWorker,
+  fetchEditorialWorkerTemplateVersion,
   EDITORIAL_WORKER_DEFAULT_TIMEOUT_MS,
   EDITORIAL_WORKER_MAX_BUDGET_MS,
 } from '@/lib/editorial/worker-client';
@@ -341,16 +342,30 @@ export async function POST(
     }
 
     // Cálculo del content_hash del capítulo para deduplicación estricta.
-    // Se mezcla la versión REAL de la plantilla Typst (contenido del .typ) para
-    // que un cambio de espaciado o tipografía invalide la caché y no sirva un
-    // PDF con el diseño anterior.
-    const templateVersion = resolveEditorialTemplateVersion();
+    // El hash se ancla a la versión REAL de la plantilla Typst que el WORKER usará
+    // al compilar (GET /health → templateVersion), no a la copia local de Vercel.
+    // Si Vercel y el worker divergen durante una carrera de despliegues, la caché
+    // queda etiquetada con lo que el worker compiló, evitando envenenarla con PDFs
+    // de diseño viejo (incidente hash ff2d67c466: Vercel con .typ nuevo → hash
+    // nuevo, pero worker con plantilla vieja → PDF viejo cacheado bajo hash nuevo).
+    // El prefijo 'v2' bumpa el esquema del hash para invalidar las entradas
+    // envenenadas previas (ancladas a la versión local de Vercel).
+    const workerTemplateVersion = await fetchEditorialWorkerTemplateVersion();
+    const templateVersion = workerTemplateVersion ?? resolveEditorialTemplateVersion();
+    if (!workerTemplateVersion) {
+      logger.warn('[api/pdf/libro-editorial] /health del worker no disponible; usando versión local de plantilla para el hash', {
+        localTemplateVersion: resolveEditorialTemplateVersion(),
+      });
+    }
     const contentHash = crypto
       .createHash('sha256')
+      .update('v2')
       .update(templateVersion)
       .update(JSON.stringify(chapter))
       .digest('hex');
-    logger.info(`[api/pdf/libro-editorial] templateVersion=${templateVersion} contentHash=${contentHash}`);
+    logger.info(
+      `[api/pdf/libro-editorial] templateVersion=${templateVersion} (source=${workerTemplateVersion ? 'worker' : 'local'}) contentHash=${contentHash}`,
+    );
 
     // Revisar si ya existe un libro editorial completado con exactamente este content_hash
     const existing = await getEditorialBookByPlanningAndHash(planningId, contentHash);

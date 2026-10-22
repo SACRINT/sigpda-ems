@@ -46,6 +46,7 @@ vi.mock('@/lib/editorial/editorial-db', () => ({
 
 vi.mock('@/lib/editorial/worker-client', () => ({
   dispatchToEditorialWorker: vi.fn(),
+  fetchEditorialWorkerTemplateVersion: vi.fn().mockResolvedValue(null),
   EDITORIAL_WORKER_DEFAULT_TIMEOUT_MS: 50000,
   EDITORIAL_WORKER_MAX_BUDGET_MS: 55000,
 }));
