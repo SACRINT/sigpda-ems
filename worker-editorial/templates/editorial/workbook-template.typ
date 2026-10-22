@@ -445,16 +445,35 @@
     )
   )
   ];
-  // Auto-escalado: mide la altura natural de la sesión y la escala para llenar
-  // exactamente la página disponible (sesiones ligeras escalan hacia arriba,
-  // densas escalan hacia abajo). Clamp [0.88, 1.3] para mantener legibilidad.
+  // Auto-escalado: ajusta la sesión para llenar la página disponible.
+  // `measure` envuelve el contenido en un box de ancho fijo para no
+  // sobre-reportar la altura (los bloques width:100% medidos sin ancho fijo se
+  // disponen estrechos y devuelven una altura inflada). El escalado se envuelve
+  // en block(height:)+clip para RESERVAR exactamente el alto escalado (si no,
+  // `scale` reserva el alto original y la sesión deja una página casi vacía).
+  // - Sesiones cortas (natural <= objetivo): escalan hacia arriba (f>=1) y
+  //   llenan la página, eliminando el espacio en blanco al pie.
+  // - Sesiones casi llenas (objetivo < natural <= objetivo/0.88): scale-down
+  //   suave (f>=0.88) para caber en 1 página sin distorsionar.
+  // - Sesiones muy altas (natural > objetivo/0.88): NO se escalan; fluyen
+  //   naturalmente a 1+ páginas. Comprimirlas fuerte con `scale` colapsa los
+  //   bloques internos y solapa/solicita contenido.
   layout(size => {
-    let natural = measure(content).height
+    let natural = measure(box(width: size.width, content)).height
     let avail = size.height - 4pt
-    let f = if natural > 0pt {
-      calc.min(calc.max(avail / natural, 0.88), 1.3)
-    } else { 1.0 }
-    if f == 1.0 { content } else { scale(x: f * 100%, y: f * 100%, content) }
+    let target = avail - 12pt
+    let floor-h = target / 0.88
+    if natural > 0pt and natural <= floor-h {
+      let f = calc.min(calc.max(target / natural, 0.88), 1.3)
+      block(
+        width: size.width,
+        height: natural * f,
+        clip: true,
+        scale(x: f * 100%, y: f * 100%, box(width: size.width, content)),
+      )
+    } else {
+      content
+    }
   })
 }
 
