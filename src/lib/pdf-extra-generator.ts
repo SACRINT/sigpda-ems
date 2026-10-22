@@ -11,6 +11,7 @@ import jsPDF from 'jspdf';
 import { loadEditorialFonts } from '@/lib/visual-engine/font-loader';
 import {
   renderExtraDocument,
+  resolveExtraDensity,
   type ExtraInput,
 } from '@/lib/pdf-extra-renderer';
 import type { BrandingContext } from '@/lib/document-branding';
@@ -35,8 +36,8 @@ export function generateExtraPDF(
   // H-028: Inicializar fuentes editoriales oficiales (Lato Regular/Bold + Montserrat Bold)
   loadEditorialFonts(doc);
 
-  // Orquestación visual delegada al motor unificado
-  renderExtraDocument(doc, extra, context);
+  // Orquestación visual delegada al motor unificado (densidad ajustada al contenido)
+  renderExtraDocument(doc, extra, context, resolveExtraDensity(extra, context));
 
   return doc;
 }

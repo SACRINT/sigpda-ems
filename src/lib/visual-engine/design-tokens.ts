@@ -204,6 +204,48 @@ export const PHASE_COLORS_HEX = {
   conclusion: '6B3A1B',
 } as const;
 
+/**
+ * SSoT de la paleta de las cajas de nivel 4 (markdown `####`) que delimitan los
+ * bloques de sesión A–E del solucionario y de las guías. Un solo mapa para los tres
+ * destinos: PDF (`LEVEL4_RGB`), DOCX (`LEVEL4_HEX` sin `#`, formato OOXML) y la
+ * vista previa HTML (prefijar `#`). Sin hash inicial: la añade cada consumidor.
+ */
+export const LEVEL4_HEX = {
+  A: '1B6B8A', // COLOR.PHASE_APERTURA
+  B: '1B6B3A', // COLOR.PHASE_DESARROLLO
+  C: '0F3460', // MID institucional
+  D: 'E65100', // ACCENT / naranja evaluación
+  E: '6B3A1B', // COLOR.PHASE_CIERRE
+} as const;
+
+export type Level4Key = keyof typeof LEVEL4_HEX;
+
+export const LEVEL4_RGB: Record<Level4Key, RGB> = {
+  A: [27, 107, 138],
+  B: [27, 107, 58],
+  C: [15, 52, 96],
+  D: [230, 81, 0],
+  E: [107, 58, 27],
+};
+
+/**
+ * Resuelve la letra/fase de una caja H4 a partir de su título.
+ * Precedencia: letra inicial (`A.`…`E.`) → palabras clave de fase → `null`
+ * (el llamador aplica su color institucional por defecto).
+ */
+export function resolveLevel4Key(title: string): Level4Key | null {
+  const letter = title.match(/^([A-Za-z])\d?\./);
+  if (letter) {
+    const key = letter[1].toUpperCase() as Level4Key;
+    if (key in LEVEL4_HEX) return key;
+  }
+  const lower = title.toLowerCase();
+  if (lower.includes('apertura') || lower.includes('inicio')) return 'A';
+  if (lower.includes('desarrollo') || lower.includes('ejecucion') || lower.includes('ejecución')) return 'B';
+  if (lower.includes('cierre') || lower.includes('conclusion') || lower.includes('conclusión')) return 'E';
+  return null;
+}
+
 // -- Helpers ------------------------------------------------------------------
 
 /**

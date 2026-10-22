@@ -16,11 +16,14 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import {
   COLORS,
+  LEVEL4_RGB,
+  resolveLevel4Key,
   type RGB,
 } from '@/lib/visual-engine/design-tokens';
 import {
   drawSectionRibbon,
   drawCalloutBox,
+  sanitizePdfText,
 } from '@/lib/visual-engine/pdf-components-core';
 import {
   loadEditorialFonts,
@@ -54,6 +57,14 @@ export interface ExtraInput {
   content_text: string;
 }
 
+/**
+ * Niveles de densidad tipográfica del motor.
+ * - `normal`   : métrica editorial estándar.
+ * - `compact`  : el plan de clase (29-30 renglones) debe caber en una sola hoja.
+ * - `ultra`    : último recurso cuando `compact` todavía desborda de una hoja.
+ */
+export type ExtraDensity = 'normal' | 'compact' | 'ultra';
+
 export interface FormattedBlockOptions {
   x: number;
   y: number;
@@ -62,6 +73,8 @@ export interface FormattedBlockOptions {
   lineHeight?: number;
   fontSize?: number;
   textColor?: RGB;
+  /** Reserva inferior sobre la línea de pie antes de romper página (default 16 mm). */
+  bottomReserve?: number;
   addNewPage: () => void;
 }
 
@@ -78,6 +91,7 @@ export function renderFormattedBlock(
   const lineHeight = opts.lineHeight || 4.6;
   const fontSize = opts.fontSize || 8.0;
   const textColor = opts.textColor || TEXT;
+  const bottomReserve = opts.bottomReserve ?? 16;
 
   doc.setFontSize(fontSize);
   doc.setTextColor(...textColor);
@@ -124,7 +138,7 @@ export function renderFormattedBlock(
       currentY += lineHeight;
       currentX = x;
 
-      if (currentY > pageHeight - 16) {
+      if (currentY > pageHeight - bottomReserve) {
         addNewPage();
         currentY = 22;
         doc.setFontSize(fontSize);
@@ -140,12 +154,86 @@ export function renderFormattedBlock(
 }
 
 /**
+ * Cajas de color H4 (####): delimitan los bloques de sesión del solucionario
+ * (A–E por misión). Se dibujan como barra sólida con letra destacada en píldora,
+ * a diferencia de los ribbons claros de H2/H3.
+ */
+const LEVEL4_FONT_SIZE = 8.0;
+const LEVEL4_LINE_H = 4.4;
+const LEVEL4_MIN_H = 6.6;
+const LEVEL4_PAD = 5;
+
+interface Level4BoxMetrics {
+  badge: string;
+  lines: string[];
+  height: number;
+}
+
+function resolveLevel4Color(title: string, fallback: RGB): RGB {
+  const key = resolveLevel4Key(title);
+  return key ? LEVEL4_RGB[key] : fallback;
+}
+
+function prepareLevel4Box(doc: jsPDF, title: string, drawWidth: number): Level4BoxMetrics {
+  const badgeMatch = title.match(/^([A-Za-z]\d?)\.\s+/);
+  const badge = badgeMatch ? `${badgeMatch[1].toUpperCase()}.` : '';
+  const label = badgeMatch ? title.slice(badgeMatch[0].length).trim() : title;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(LEVEL4_FONT_SIZE);
+  const badgeW = badge ? doc.getTextWidth(badge) + 6 : 0;
+  const clean = sanitizePdfText(label);
+  const lines =
+    (doc.splitTextToSize(clean, Math.max(30, drawWidth - LEVEL4_PAD * 2 - badgeW)) as string[]) || [];
+  if (lines.length === 0) lines.push(clean);
+
+  const height = Math.max(LEVEL4_MIN_H, LEVEL4_MIN_H + (lines.length - 1) * LEVEL4_LINE_H);
+  return { badge, lines, height };
+}
+
+function drawLevel4Box(
+  doc: jsPDF,
+  box: Level4BoxMetrics,
+  opts: { margin: number; drawWidth: number; y: number; themeColor: RGB }
+): number {
+  const { margin, drawWidth, themeColor } = opts;
+  const y = opts.y;
+  const { badge, lines, height } = box;
+
+  doc.setFillColor(...themeColor);
+  doc.roundedRect(margin, y, drawWidth, height, 1.2, 1.2, 'F');
+
+  if (badge) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(6.6);
+    const badgeW = doc.getTextWidth(badge) + 5;
+    const badgeX = margin + drawWidth - badgeW - 3;
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(badgeX, y + 1.2, badgeW, height - 2.4, 0.9, 0.9, 'F');
+    doc.setTextColor(...themeColor);
+    doc.text(badge, badgeX + badgeW / 2, y + height / 2 + 0.8, { align: 'center' });
+  }
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(LEVEL4_FONT_SIZE);
+  doc.setTextColor(255, 255, 255);
+  const blockH = lines.length * LEVEL4_LINE_H;
+  const startY = y + Math.max(0, (height - blockH) / 2) + 2.9;
+  lines.forEach((text, i) => {
+    doc.text(text, margin + LEVEL4_PAD, startY + i * LEVEL4_LINE_H);
+  });
+
+  return y + height;
+}
+
+/**
  * Renderiza el documento completo de un recurso didáctico (Extra) en jsPDF.
  */
 export function renderExtraDocument(
   doc: jsPDF,
   extra: ExtraInput,
-  context?: BrandingContext
+  context?: BrandingContext,
+  densityOverride?: ExtraDensity
 ): jsPDF {
   // H-056 / H-058: Asegurar fuentes editoriales si no fueron inicializadas por el llamador
   if (!areEditorialFontsLoaded(doc)) {
@@ -157,15 +245,47 @@ export function renderExtraDocument(
   const typeLabel = branding.typeLabel;
 
   const isRubric = extra.type === 'rubric';
+  // Ajuste inteligente de densidad: el plan de clase (29-30 renglones) debe caber en
+  // una sola hoja sin sacrificar legibilidad; el resto de extras conserva su métrica normal.
+  const density: ExtraDensity =
+    densityOverride ?? (extra.type === 'lesson_plan' ? 'compact' : 'normal');
+  const isUltra = density === 'ultra';
+  const isNormal = density === 'normal';
+  const compact = !isNormal;
+  const bodyFontSize = isUltra ? 7.4 : compact ? 7.6 : 8.0;
+  const smallFontSize = isUltra ? 7.2 : compact ? 7.4 : 7.8;
+  const bodyLineHeight = isUltra ? 3.9 : compact ? 4.1 : 4.6;
+  const gapEmpty = isUltra ? 0.5 : compact ? 0.6 : 1.5;
+  const gapDivider = isUltra ? 2.0 : compact ? 2.5 : 4.5;
+  const gapH1 = isUltra ? 4.6 : compact ? 5.0 : 7.0;
+  const bottomReserve = isUltra ? 14 : compact ? 15 : 16;
+  // Listas de cotejo y materiales son tablas largas: se densifican para que la
+  // última fila no quede huérfana en una página casi vacía al final del documento.
+  const denseTable = extra.type === 'checklist' || extra.type === 'material';
+
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 13;
   const contentW = pageWidth - margin * 2;
   let y = margin;
 
+  // La métrica del título se calcula YA con el tamaño con el que se dibuja (9 pt):
+  // con el tamaño previo de la pila jsPDF (16 pt) se sobreestimaba el alto de cabecera.
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
   const titleLines = doc.splitTextToSize(extra.title, contentW - 10) as string[];
-  const titleLineHeight = 4.5;
-  const headerHeight = Math.max(36, 23 + titleLines.length * titleLineHeight + 4);
+  const titleLineHeight = isUltra ? 3.9 : compact ? 4.0 : 4.5;
+  const titleStartY = isUltra ? 24.5 : compact ? 24.5 : 25.5;
+  const minHeader = isUltra ? 26 : compact ? 28 : 36;
+  const headerHeight = Math.max(
+    minHeader,
+    titleStartY + Math.max(0, titleLines.length - 1) * titleLineHeight + 1.4
+  );
+
+  // ── Páginas con contenido de cuerpo (para descartar páginas finales vacías) ──
+  const contentPages = new Set<number>();
+  const markContent = () => contentPages.add(doc.getCurrentPageInfo().pageNumber);
+  contentPages.add(1); // la cabecera institucional siempre ocupa la página 1
 
   // ── Cabecera institucional (Página 1) ──────────────────────────────────────
   doc.setFillColor(...typeColor);
@@ -182,17 +302,17 @@ export function renderExtraDocument(
 
   doc.setFontSize(9);
   doc.setTextColor(...WHITE);
-  let titleY = 25.5;
+  let titleY = titleStartY;
   titleLines.forEach((line) => {
     doc.text(line, pageWidth / 2, titleY, { align: 'center' });
     titleY += titleLineHeight;
   });
 
-  y = headerHeight + 3;
+  y = headerHeight + (compact ? 2 : 3);
   doc.setDrawColor(...ACCENT);
   doc.setLineWidth(0.8);
   doc.line(margin, y, pageWidth - margin, y);
-  y += 5;
+  y += compact ? 3 : 5;
 
   const addNewPage = () => {
     doc.addPage();
@@ -300,8 +420,8 @@ export function renderExtraDocument(
         })
       ),
       styles: {
-        fontSize: isRubric ? 6.5 : 7.2,
-        cellPadding: isRubric ? 2.2 : 2.8,
+        fontSize: isRubric ? 6.5 : denseTable ? 6.9 : 7.2,
+        cellPadding: isRubric ? 1.8 : denseTable ? 2.1 : 2.8,
         lineColor: [200, 210, 225],
         lineWidth: 0.25,
         font: 'helvetica',
@@ -310,16 +430,20 @@ export function renderExtraDocument(
         fillColor: MID,
         textColor: WHITE,
         fontStyle: 'bold',
-        fontSize: isRubric ? 7.0 : 7.5,
+        fontSize: isRubric ? 7.0 : denseTable ? 7.2 : 7.5,
       },
       columnStyles: colWidths.reduce<Record<number, { cellWidth: number }>>((acc, w, i) => {
         acc[i] = { cellWidth: w };
         return acc;
       }, {}),
-      margin: { top: 16, left: margin, right: margin, bottom: 14 },
+      margin: { top: 16, left: margin, right: margin, bottom: isRubric || denseTable ? 12 : 14 },
       theme: 'grid',
       pageBreak: 'auto',
+      // Rúbricas: nunca partir una fila de criterio entre dos hojas (dejaba en la
+      // última página solo la última línea de cada celda, aparentando página en blanco).
+      rowPageBreak: isRubric ? 'avoid' : 'auto',
       didDrawPage: (data) => {
+        markContent();
         if (data.pageNumber > 1) {
           doc.setFillColor(...typeColor);
           doc.rect(0, 0, pageWidth, 12, 'F');
@@ -359,7 +483,7 @@ export function renderExtraDocument(
     if (inTable) flushTable();
 
     if (line === '') {
-      y += 1.5;
+      y += gapEmpty;
       continue;
     }
 
@@ -374,7 +498,8 @@ export function renderExtraDocument(
       doc.setDrawColor(...ACCENT);
       doc.setLineWidth(0.6);
       doc.line(margin, y + 1.2, margin + Math.min(doc.getTextWidth(text), contentW), y + 1.2);
-      y += 7.0;
+      y += gapH1;
+      markContent();
       continue;
     }
 
@@ -403,10 +528,11 @@ export function renderExtraDocument(
         drawWidth: contentW,
         y,
         themeColor,
-        ribbonHeight: 8.0,
+        ribbonHeight: isUltra ? 6.8 : compact ? 7.0 : 8.0,
         badge,
       });
-      y += 2.5;
+      y += isUltra ? 1.4 : compact ? 1.6 : 2.5;
+      markContent();
       continue;
     }
 
@@ -428,17 +554,30 @@ export function renderExtraDocument(
         badge = 'FASE III';
       }
 
-      if (y > pageHeight - 16) { addNewPage(); }
+      if (y > pageHeight - bottomReserve) { addNewPage(); }
       y = drawSectionRibbon(doc, {
         title: text,
         margin,
         drawWidth: contentW,
         y,
         themeColor,
-        ribbonHeight: 6.8,
+        ribbonHeight: compact ? 6.6 : 6.8,
         badge,
       });
-      y += 2.0;
+      y += isUltra ? 1.0 : compact ? 1.2 : 2.0;
+      markContent();
+      continue;
+    }
+
+    // Cajas de color H4 (####) — bloques de sesión del solucionario (A–E)
+    if (line.startsWith('#### ')) {
+      const text = line.replace(/^####\s+/, '');
+      const themeColor = resolveLevel4Color(text, typeColor);
+      const box = prepareLevel4Box(doc, text, contentW);
+      if (y + box.height > pageHeight - 15) { addNewPage(); }
+      y = drawLevel4Box(doc, box, { margin, drawWidth: contentW, y, themeColor });
+      y += 2.2;
+      markContent();
       continue;
     }
 
@@ -465,6 +604,7 @@ export function renderExtraDocument(
 
       y = drawCalloutBox(doc, callout, margin, contentW, y);
       y += 2.0;
+      markContent();
       continue;
     }
 
@@ -474,7 +614,8 @@ export function renderExtraDocument(
       doc.setDrawColor(...ACCENT);
       doc.setLineWidth(0.4);
       doc.line(margin, y, pageWidth - margin, y);
-      y += 4.5;
+      y += gapDivider;
+      markContent();
       continue;
     }
 
@@ -483,7 +624,7 @@ export function renderExtraDocument(
     if (checkMatch) {
       const isChecked = checkMatch[1].toLowerCase().includes('x');
       const checkText = checkMatch[2];
-      if (y > pageHeight - 16) { addNewPage(); }
+      if (y > pageHeight - bottomReserve) { addNewPage(); }
 
       doc.setDrawColor(...typeColor);
       doc.setFillColor(...(isChecked ? typeColor : WHITE));
@@ -501,16 +642,19 @@ export function renderExtraDocument(
         y,
         maxWidth: contentW - 10,
         pageHeight,
+        lineHeight: bodyLineHeight,
+        bottomReserve,
         addNewPage,
-        fontSize: 7.8,
+        fontSize: smallFontSize,
       });
+      markContent();
       continue;
     }
 
     // Listas con viñetas (- / * / •)
     if (line.startsWith('- ') || line.startsWith('* ') || line.startsWith('• ')) {
       const content = line.replace(/^[-*•]\s+/, '');
-      if (y > pageHeight - 16) { addNewPage(); }
+      if (y > pageHeight - bottomReserve) { addNewPage(); }
 
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(8.0);
@@ -522,9 +666,12 @@ export function renderExtraDocument(
         y,
         maxWidth: contentW - 8,
         pageHeight,
+        lineHeight: bodyLineHeight,
+        bottomReserve,
         addNewPage,
-        fontSize: 7.8,
+        fontSize: smallFontSize,
       });
+      markContent();
       continue;
     }
 
@@ -533,7 +680,7 @@ export function renderExtraDocument(
     if (numMatch) {
       const num = numMatch[1];
       const content = numMatch[2];
-      if (y > pageHeight - 16) { addNewPage(); }
+      if (y > pageHeight - bottomReserve) { addNewPage(); }
 
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(7.8);
@@ -546,25 +693,41 @@ export function renderExtraDocument(
         y,
         maxWidth: contentW - (4 + numWidth),
         pageHeight,
+        lineHeight: bodyLineHeight,
+        bottomReserve,
         addNewPage,
-        fontSize: 7.8,
+        fontSize: smallFontSize,
       });
+      markContent();
       continue;
     }
 
     // Párrafo regular de texto con soporte de negritas en línea
-    if (y > pageHeight - 16) { addNewPage(); }
+    if (y > pageHeight - bottomReserve) { addNewPage(); }
     y = renderFormattedBlock(doc, line, {
       x: margin,
       y,
       maxWidth: contentW,
       pageHeight,
+      lineHeight: bodyLineHeight,
+      bottomReserve,
       addNewPage,
-      fontSize: 8.0,
+      fontSize: bodyFontSize,
     });
+    markContent();
   }
 
   if (inTable) flushTable();
+
+  // ── Páginas finales sin contenido de cuerpo (solo cabecera/pie) ─────────────
+  // El bucle de paginación puede crear una hoja nueva al romper página aunque solo
+  // sobre una última línea; si en esa hoja no llegó a dibujarse nada de cuerpo, el
+  // usuario la ve como "página sin información". Se eliminan de atrás hacia adelante.
+  let lastPage = doc.getNumberOfPages();
+  while (lastPage > 1 && !contentPages.has(lastPage)) {
+    doc.deletePage(lastPage);
+    lastPage--;
+  }
 
   // ── Pie de página uniforme en todas las páginas compiladas ───────────────────
   const totalPages = doc.getNumberOfPages();
@@ -591,6 +754,28 @@ export function renderExtraDocument(
 }
 
 /**
+ * Selecciona la menor densidad con la que el plan de clase cabe en UNA sola hoja.
+ * Se sondea con renderizados reales (sin IA ni BD): `compact` primero y `ultra` como
+ * último recurso. Si ni `ultra` alcanza, se conserva `compact` para no degradar la
+ * legibilidad de un documento que igualmente necesita dos hojas de contenido pleno.
+ */
+export function resolveExtraDensity(
+  extra: ExtraInput,
+  context?: BrandingContext
+): ExtraDensity {
+  if (extra.type !== 'lesson_plan') return 'normal';
+
+  const fitsOnePage = (density: ExtraDensity): boolean => {
+    const probe = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+    renderExtraDocument(probe, extra, context, density);
+    return probe.getNumberOfPages() === 1;
+  };
+
+  if (fitsOnePage('compact')) return 'compact';
+  return fitsOnePage('ultra') ? 'ultra' : 'compact';
+}
+
+/**
  * Inicializa e instancia un documento jsPDF con la orientación adecuada
  * y renderiza el recurso extra didáctico institucionalmente.
  */
@@ -605,6 +790,6 @@ export function generateExtraPdfDocument(
     unit: 'mm',
     format: 'letter',
   });
-  return renderExtraDocument(doc, extra, context);
+  return renderExtraDocument(doc, extra, context, resolveExtraDensity(extra, context));
 }
 

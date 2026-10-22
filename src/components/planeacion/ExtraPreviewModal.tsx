@@ -12,6 +12,7 @@ const MarkdownWithMermaid = dynamic(
 import { MaterialFigure } from '@/components/planeacion/MaterialFigure';
 import { parseMaterialTokensWithFallback, resolveMaterialTokensForMarkdown, stripMaterialTokens } from '@/lib/materials/material-tokens';
 import { autoTokenizeMaterials } from '@/lib/materials/auto-tokenize';
+import { LEVEL4_HEX, resolveLevel4Key } from '@/lib/visual-engine/design-tokens';
 
 interface ExtraPreviewModalProps {
   isOpen: boolean;
@@ -19,6 +20,16 @@ interface ExtraPreviewModalProps {
   title?: string | null;
   contentText?: string | null;
   type?: string | null;
+}
+
+/**
+ * Paleta de las cajas H4 (####) — delegada al SSoT `design-tokens` compartido con
+ * `pdf-extra-renderer.ts` (PDF) y `docx-helpers.ts` (Word): A apertura, B desarrollo,
+ * C transversal, D evaluación, E cierre. El `#` lo añade solo la vista previa HTML.
+ */
+export function level4Color(title: string): string {
+  const key = resolveLevel4Key(title);
+  return `#${key ? LEVEL4_HEX[key] : LEVEL4_HEX.C}`;
 }
 
 export function ExtraPreviewModal({
@@ -188,7 +199,47 @@ export function ExtraPreviewModal({
         if (line === '') continue;
 
         // Headers
-        if (line.startsWith('# ')) {
+        if (line.startsWith('#### ')) {
+          const rawTitle = line.replace('#### ', '');
+          const badgeMatch = rawTitle.match(/^([A-Za-z]\d?)\.\s+/);
+          const badge = badgeMatch ? `${badgeMatch[1].toUpperCase()}.` : '';
+          const label = badgeMatch ? rawTitle.slice(badgeMatch[0].length).trim() : rawTitle;
+          const fill = level4Color(rawTitle);
+          elements.push(
+            <div
+              key={key++}
+              style={{
+                background: fill,
+                color: '#ffffff',
+                borderRadius: '6px',
+                padding: '8px 12px',
+                margin: '14px 0 8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+              }}
+            >
+              {badge ? (
+                <span
+                  style={{
+                    background: '#ffffff',
+                    color: fill,
+                    borderRadius: '999px',
+                    padding: '1px 8px',
+                    fontSize: '11px',
+                    fontWeight: 800,
+                    letterSpacing: '0.04em',
+                  }}
+                >
+                  {badge}
+                </span>
+              ) : null}
+              <span style={{ fontSize: '13.5px', fontWeight: 700 }}>
+                {renderTextFormatting(label)}
+              </span>
+            </div>
+          );
+        } else if (line.startsWith('# ')) {
           elements.push(
             <h1
               key={key++}

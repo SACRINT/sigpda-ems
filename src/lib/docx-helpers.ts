@@ -28,7 +28,7 @@ import {
   type ITableCellBorders,
   type ISpacingProperties,
 } from 'docx';
-import { PHASE_COLORS_HEX } from '@/lib/visual-engine/design-tokens';
+import { LEVEL4_HEX, PHASE_COLORS_HEX, resolveLevel4Key } from '@/lib/visual-engine/design-tokens';
 import { resolveHeaderBranding, type BrandingContext } from '@/lib/document-branding';
 import { getExtraContentForRender } from '@/lib/materials/material-tokens';
 
@@ -52,6 +52,12 @@ export const DOCX_COLORS = {
 } as const;
 
 export const C = DOCX_COLORS;
+
+// ── Cajas de color H4 (####): paleta compartida SSoT (design-tokens.LEVEL4_HEX) ──
+function resolveLevel4Fill(text: string): string {
+  const key = resolveLevel4Key(text);
+  return key ? LEVEL4_HEX[key] : C.mid;
+}
 
 // ── Dimensiones estándar en DXA (1/20 de punto) ─────────────────────────────
 export const DOCX_DIMENSIONS = {
@@ -240,6 +246,20 @@ export function createParagraphFromLine(
     return new Paragraph({
       spacing: { before: Math.round(160 * scale), after: Math.round(60 * scale) },
       children: parseTextRuns(text, Math.round(18 * scale), headingColor, true),
+    });
+  }
+
+  // Cajas de color H4 (####) — bloques de sesión del solucionario (A–E)
+  if (line.startsWith('#### ')) {
+    const text = line.replace(/^####\s+/, '');
+    const fill = resolveLevel4Fill(text);
+    // Los espacios en blanco no separables preservan el padding interior de la caja
+    // (el shading del párrafo ocupa el ancho completo de la columna de texto).
+    const padded = `\u00A0\u00A0${text}\u00A0\u00A0`;
+    return new Paragraph({
+      spacing: { before: Math.round(150 * scale), after: Math.round(70 * scale) },
+      shading: { fill, type: ShadingType.CLEAR },
+      children: parseTextRuns(padded, Math.round(17 * scale), C.white, true),
     });
   }
 
