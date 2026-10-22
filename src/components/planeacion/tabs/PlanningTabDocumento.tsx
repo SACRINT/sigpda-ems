@@ -185,7 +185,7 @@ export default function PlanningTabDocumento({
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 {editorialBook.status === 'completed' && editorialBook.downloadUrl && (
                   <a
-                    href={editorialBook.downloadUrl}
+                    href={`/api/pdf/libro-editorial/${planning?.id}/download`}
                     target="_blank"
                     rel="noopener noreferrer"
                     data-testid="btn-descargar-editorial"
