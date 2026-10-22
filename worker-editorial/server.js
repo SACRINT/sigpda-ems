@@ -214,6 +214,27 @@ function resolveTemplatePath() {
 }
 
 /**
+ * Hash SHA-256 (16 hex) de la plantilla workbook-template.typ en uso.
+ * Permite verificar en /health qué versión de plantilla corre el worker
+ * (diagnóstico de deploys con plantilla vieja / carrera de despliegues).
+ * Se memoiza en el primer cálculo.
+ */
+let cachedTemplateVersion = null;
+function getTemplateVersion() {
+  if (cachedTemplateVersion !== null) {
+    return cachedTemplateVersion;
+  }
+  try {
+    const tplPath = resolveTemplatePath();
+    const hash = crypto.createHash('sha256').update(fs.readFileSync(tplPath)).digest('hex');
+    cachedTemplateVersion = `tpl:${hash.slice(0, 16)}`;
+  } catch {
+    cachedTemplateVersion = 'tpl:unavailable';
+  }
+  return cachedTemplateVersion;
+}
+
+/**
  * Localiza el directorio de assets estáticos (/public)
  */
 function resolvePublicDir() {
@@ -352,6 +373,7 @@ function handleRequest(req, res) {
         status: 'ok',
         service: 'sigpda-editorial-worker',
         typstVersion,
+        templateVersion: getTemplateVersion(),
         uptimeSeconds: Math.round(process.uptime()),
         timestamp: new Date().toISOString(),
       }),
