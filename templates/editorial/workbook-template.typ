@@ -448,28 +448,37 @@
   // Auto-escalado: ajusta la sesión para llenar la página disponible.
   // `measure` envuelve el contenido en un box de ancho fijo para no
   // sobre-reportar la altura (los bloques width:100% medidos sin ancho fijo se
-  // disponen estrechos y devuelven una altura inflada). El escalado se envuelve
-  // en block(height:)+clip para RESERVAR exactamente el alto escalado (si no,
-  // `scale` reserva el alto original y la sesión deja una página casi vacía).
-  // - Sesiones cortas (natural <= objetivo): escalan hacia arriba (f>=1) y
-  //   llenan la página, eliminando el espacio en blanco al pie.
-  // - Sesiones casi llenas (objetivo < natural <= objetivo/0.88): scale-down
-  //   suave (f>=0.88) para caber en 1 página sin distorsionar.
+  // disponen estrechos y devuelven una altura inflada).
+  // CLAVE: para escalar sin CORTAR el texto a izquierda/derecha, el contenido
+  // se compone a un ancho REDUCIDO (size.width / f) de modo que tras `scale(f)`
+  // el ancho visual sea exactamente `size.width`. Si se compone a size.width y
+  // se escala f>1, el contenido se ensancha y `clip` cortaría los bordes.
+  // `origin: top + left` ancla la escala a la esquina superior izquierda (por
+  // defecto Typst escala desde el centro y desbordaría el borde izquierdo).
+  // El escalado se envuelve en block(height:)+clip para RESERVAR exactamente el
+  // alto escalado (si no, `scale` reserva el alto original y deja página vacía).
+  // - Sesiones cortas (natural <= objetivo): escalan hacia arriba y llenan.
   // - Sesiones muy altas (natural > objetivo/0.88): NO se escalan; fluyen
-  //   naturalmente a 1+ páginas. Comprimirlas fuerte con `scale` colapsa los
-  //   bloques internos y solapa/solicita contenido.
+  //   naturalmente a 1+ páginas (comprimirlas fuerte con `scale` solapa contenido).
   layout(size => {
-    let natural = measure(box(width: size.width, content)).height
+    let natural-full = measure(box(width: size.width, content)).height
     let avail = size.height - 4pt
     let target = avail - 12pt
     let floor-h = target / 0.88
-    if natural > 0pt and natural <= floor-h {
-      let f = calc.min(calc.max(target / natural, 0.88), 1.3)
+    if natural-full > 0pt and natural-full <= floor-h {
+      // f estimada; el alto natural crece al reducir el ancho de composición,
+      // así que se re-mide a un ancho reducido y se recalcula f.
+      let f-est = calc.min(calc.max(target / natural-full, 0.88), 1.3)
+      let reduced-w = size.width / f-est
+      let natural-reduced = measure(box(width: reduced-w, content)).height
+      let f = calc.min(calc.max(target / natural-reduced, 0.88), 1.3)
+      let final-w = size.width / f
+      let natural-final = measure(box(width: final-w, content)).height
       block(
         width: size.width,
-        height: natural * f,
+        height: calc.min(natural-final * f, target),
         clip: true,
-        scale(x: f * 100%, y: f * 100%, box(width: size.width, content)),
+        scale(x: f * 100%, y: f * 100%, origin: top + left, box(width: final-w, content)),
       )
     } else {
       content
