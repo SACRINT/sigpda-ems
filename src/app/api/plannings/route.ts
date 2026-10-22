@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, getPlanningsByTeacher, createPlanning } from '@/lib/db';
 import { canCreatePlanningForSubject, lockSubjectInSubscription } from '@/lib/subscription-gate';
+import { resolverIdentidadEscolar } from '@/lib/school-identity';
 import { logger } from '@/lib/logger';
 
 export async function GET() {
@@ -34,7 +35,6 @@ export async function POST(request: NextRequest) {
     }
     const body = await request.json();
     const { uacName, semester, component, curriculumName, paecContext, extractedData, metodologiaActiva, paecOperationalActivity, teacherName } = body;
-
     if (!uacName || !semester || !component) {
       return NextResponse.json(
         { error: 'Faltan campos requeridos: uacName, semester, component' },
@@ -63,6 +63,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Crear la planeación
+    const identidad = resolverIdentidadEscolar({
+      schoolName: body.schoolName,
+      cct: body.cct,
+      municipality: body.municipality,
+      schoolZone: body.schoolZone,
+    });
     const planning = await createPlanning({
       teacherId: teacher.id as string,
       uacName,
@@ -74,6 +80,10 @@ export async function POST(request: NextRequest) {
       metodologiaActiva: metodologiaActiva || undefined,
       paecOperationalActivity: paecOperationalActivity || undefined,
       teacherName: teacherName || undefined,
+      schoolName: identidad.schoolName,
+      cct: identidad.cct,
+      municipality: identidad.municipality,
+      schoolZone: identidad.schoolZone,
     });
 
     // Registrar la materia en la suscripción si aún no está (consume un slot)

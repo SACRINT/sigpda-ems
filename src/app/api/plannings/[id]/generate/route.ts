@@ -18,6 +18,7 @@ import { getUserLibraryContext } from '@/lib/context-extractor';
 import { searchCurriculum } from '@/lib/rag-curricular';
 import { extractIdempotencyKey, checkIdempotencyKey, createIdempotencyKey } from '@/lib/idempotency';
 import { evaluatePlanningQuality } from '@/lib/planning/quality-pipeline';
+import { resolverIdentidadEscolar } from '@/lib/school-identity';
 import type { ExtractedPdfData, TeacherContext, GeneratedPlanningContent } from '@/types/planning';
 import type { RagContext } from '@/lib/rag-curricular';
 
@@ -195,6 +196,18 @@ export async function POST(
                 parsedContent.sectionI.teacherName = existingSectionI.teacherName;
               }
             }
+
+            const identidad = resolverIdentidadEscolar({
+              schoolName: context.schoolName || existingSectionI?.schoolName || teacher.school_name,
+              cct: context.cct || existingSectionI?.cct || teacher.cct,
+              municipality:
+                context.municipality || existingSectionI?.municipality || teacher.municipality,
+              schoolZone: context.schoolZone || existingSectionI?.schoolZone,
+            });
+            if (identidad.schoolName) parsedContent.sectionI.schoolName = identidad.schoolName;
+            if (identidad.cct) parsedContent.sectionI.cct = identidad.cct;
+            if (identidad.municipality) parsedContent.sectionI.municipality = identidad.municipality;
+            if (identidad.schoolZone) parsedContent.sectionI.schoolZone = identidad.schoolZone;
 
             await updatePlanningContent(id, teacher.id, parsedContent);
 

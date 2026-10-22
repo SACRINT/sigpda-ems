@@ -22,6 +22,7 @@ import crypto from 'crypto';
 import { logger } from '@/lib/logger';
 import { getVerificationUrl } from '@/lib/digital-signature';
 import { SCHOOL_YEAR } from '@/lib/config';
+import { CCT_NO_REGISTRADO, PLANTEL_NO_REGISTRADO } from '@/lib/school-identity';
 import {
   detectCurricularArea,
   buildThematicVectorBackground,
@@ -302,8 +303,8 @@ function buildEmbeddedFontStyle(): string {
  * Genera el marcado SVG de alta definición (1200 x 1600 px) para la portada institucional Capa 0.
  */
 function buildDeterministicCoverSvg(opts: BookCoverOptions): string {
-  const plantel = escapeXml(opts.plantelNombre || 'Bachillerato General Oficial');
-  const cct = escapeXml(opts.cct || '21ECT0017T');
+  const plantel = escapeXml(opts.plantelNombre || PLANTEL_NO_REGISTRADO);
+  const cct = escapeXml(opts.cct || CCT_NO_REGISTRADO);
   const subsistema = escapeXml((opts.subsystem || 'BGE').toUpperCase());
   const semestre = escapeXml(cleanSemesterString(opts.semestre));
   const ciclo = escapeXml(opts.cicloEscolar || SCHOOL_YEAR);
@@ -509,8 +510,8 @@ function buildDeterministicCoverSvg(opts: BookCoverOptions): string {
  * para componer sobre un fondo generado por IA (FLUX.1-schnell).
  */
 function buildGenerativeTypographyOverlaySvg(opts: BookCoverOptions): string {
-  const plantel = escapeXml(opts.plantelNombre || 'Bachillerato General Oficial');
-  const cct = escapeXml(opts.cct || '21ECT0017T');
+  const plantel = escapeXml(opts.plantelNombre || PLANTEL_NO_REGISTRADO);
+  const cct = escapeXml(opts.cct || CCT_NO_REGISTRADO);
   const subsistema = escapeXml((opts.subsystem || 'BGE').toUpperCase());
   const semestre = escapeXml(cleanSemesterString(opts.semestre));
   const ciclo = escapeXml(opts.cicloEscolar || SCHOOL_YEAR);
@@ -920,8 +921,8 @@ export async function generateBookCover(opts: BookCoverOptions): Promise<CoverGe
 export async function generateContraportadaData(
   opts: BookCoverOptions & { hash?: string; baseUrl?: string }
 ): Promise<ContraportadaData> {
-  const plantelNombre = opts.plantelNombre || 'Bachillerato General Oficial';
-  const cct = opts.cct || '21ECT0017T';
+  const plantelNombre = opts.plantelNombre || PLANTEL_NO_REGISTRADO;
+  const cct = opts.cct || CCT_NO_REGISTRADO;
   const subsystem = (opts.subsystem || 'BGE').toUpperCase();
   const uacName = opts.uacName;
   const semestre = cleanSemesterString(opts.semestre);

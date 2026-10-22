@@ -14,6 +14,7 @@
 
 import type { GeneratedPlanningContent, Planning, KeyActivityPlan, CurriculumComponent } from '@/types/planning';
 import { SCHOOL_YEAR } from '@/lib/config';
+import { resolveSchoolIdentity } from '@/lib/school-identity';
 import { stripMaterialTokens } from '@/lib/materials/material-tokens';
 
 export interface IntegrityValidationResult {
@@ -288,7 +289,8 @@ export function getSafeEvaluationContext(
   lines.push('================================================================================');
   lines.push(`PLANEACIÓN DIDÁCTICA OFICIAL — ${uacTitle.toUpperCase()}`);
   lines.push(`SEMESTRE: ${planning.semester}° Semestre | COMPONENTE: ${component.toUpperCase()}`);
-  lines.push(`DOCENTE: ${s1?.teacherName || 'Docente Responsable'} | PLANTEL: ${s1?.schoolName || 'Bachillerato General'} (CCT: ${s1?.cct || '21EBH0000X'})`);
+  const identidad = resolveSchoolIdentity({ sectionI: s1 });
+  lines.push(`DOCENTE: ${s1?.teacherName || 'Docente Responsable'} | PLANTEL: ${identidad.schoolName} (CCT: ${identidad.cct})`);
   lines.push(`HORAS TOTALES: ${s1?.totalHours || 54}h | CICLO: ${s1?.schoolYear || SCHOOL_YEAR}`);
   lines.push('================================================================================\n');
 

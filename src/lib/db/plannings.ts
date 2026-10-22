@@ -42,10 +42,18 @@ export async function createPlanning(data: {
   metodologiaActiva?: string;   // ID de metodología activa seleccionada (ej: 'abp', 'steam')
   paecOperationalActivity?: object | null;
   teacherName?: string;
+  schoolName?: string | null;
+  cct?: string | null;
+  municipality?: string | null;
+  schoolZone?: string | null;
   contentJson?: object | null;
 }) {
   const sectionI: Record<string, unknown> = {};
   if (data.teacherName) sectionI.teacherName = data.teacherName;
+  if (data.schoolName) sectionI.schoolName = data.schoolName;
+  if (data.cct) sectionI.cct = data.cct;
+  if (data.municipality) sectionI.municipality = data.municipality;
+  if (data.schoolZone) sectionI.schoolZone = data.schoolZone;
   if (data.paecOperationalActivity) sectionI.paecOperationalActivity = data.paecOperationalActivity;
   const initialContent = data.contentJson || (Object.keys(sectionI).length > 0 ? { sectionI } : null);
 

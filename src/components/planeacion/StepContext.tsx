@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import type { ExtractedPdfData, TeacherContext, PaecOperationalActivity } from '@/types/planning';
 import { CATALOGO_METODOLOGIAS_ACTIVAS, type MetodologiaActiva } from '@/lib/catalogo-metodologias';
+import { buscarPlantelPorNombre } from '@/lib/catalogo-escuelas';
 import { recomendarMetodologia } from '@/lib/recomendador-metodologia';
 import { logger } from '@/lib/logger';
 
@@ -89,6 +90,8 @@ export default function StepContext({
   const [form, setForm] = useState<TeacherContext>(() => ({
     teacherName: initialContext?.teacherName || '',
     schoolName: initialContext?.schoolName || '',
+    cct: initialContext?.cct || '',
+    schoolZone: initialContext?.schoolZone || '',
     municipality: initialContext?.municipality || '',
     state: initialContext?.state || 'Puebla',
     region: initialContext?.region || '',
@@ -131,6 +134,8 @@ export default function StepContext({
             ...prev,
             teacherName: prev.teacherName || profile.name || '',
             schoolName: prev.schoolName || profile.school_name || '',
+            cct: prev.cct || profile.cct || '',
+            schoolZone: prev.schoolZone || profile.schoolZone || '',
             municipality: prev.municipality || profile.municipality || '',
             subsystem: prev.subsystem && prev.subsystem !== 'bge' ? prev.subsystem : (profile.subsystem || 'bge'),
           }));
@@ -307,6 +312,21 @@ export default function StepContext({
     }
   };
 
+  const handleSchoolNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const schoolName = e.target.value;
+    const ficha = buscarPlantelPorNombre(schoolName);
+    set(
+      ficha
+        ? {
+            schoolName,
+            cct: ficha.cct,
+            municipality: ficha.municipio,
+            schoolZone: ficha.zonaEscolar,
+          }
+        : { schoolName }
+    );
+  };
+
   return (
     <form onSubmit={handleSubmit} autoComplete="off">
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -351,7 +371,7 @@ export default function StepContext({
                       autoComplete="off"
                       placeholder="Ej: EMSAD 03 Héroes de la Patria"
                       value={form.schoolName}
-                      onChange={e => set({ schoolName: e.target.value })}
+                      onChange={handleSchoolNameChange}
                     />
                     {errors.schoolName && <span className="form-error">{errors.schoolName}</span>}
                   </div>
@@ -367,6 +387,33 @@ export default function StepContext({
                       onChange={e => set({ municipality: e.target.value })}
                     />
                     {errors.municipality && <span className="form-error">{errors.municipality}</span>}
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Clave de Centro de Trabajo (CCT)</label>
+                    <input
+                      id="input-cct"
+                      name="cct"
+                      className="form-input"
+                      autoComplete="off"
+                      placeholder="Ej: 21EBH0200X"
+                      value={form.cct}
+                      onChange={e => set({ cct: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Zona Escolar</label>
+                    <input
+                      id="input-schoolZone"
+                      name="schoolZone"
+                      className="form-input"
+                      autoComplete="off"
+                      placeholder="Ej: Zona Escolar 004"
+                      value={form.schoolZone}
+                      onChange={e => set({ schoolZone: e.target.value })}
+                    />
                   </div>
                 </div>
 

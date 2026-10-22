@@ -476,9 +476,9 @@ describe('pdf-workbook-renderer.ts — Cobertura de Subject Types y Configuracio
     const pdfData = await extractPdfData(buffer);
     expect(pdfData.numpages).toBeGreaterThanOrEqual(3);
 
-    // Debe contener los valores de respaldo institucionales por defecto
+    // Debe degradar a la identidad de la planeación (nunca a un plantel/CCT inventados)
     expect(pdfData.text).toContain('BACHILLERATO GENERAL OFICIAL');
-    expect(pdfData.text).toContain('21ECT0017T');
+    expect(pdfData.text).toContain('21EBH0012A');
   }, 25000);
 
   // ── 6. TEST EXTENSO: Paginación continua en libro con más de 5 misiones ──────

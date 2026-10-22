@@ -10,6 +10,7 @@
  */
 
 import { SCHOOL_YEAR } from '@/lib/config';
+import { CCT_NO_REGISTRADO, PLANTEL_NO_REGISTRADO } from '@/lib/school-identity';
 import type { RGB } from '@/lib/visual-engine/design-tokens';
 
 export interface BrandingContext {
@@ -32,7 +33,7 @@ export const INSTITUTIONAL_DEFAULTS = {
   SIGLA: 'MCCEMS',
   ORGANISMO: 'MCCEMS',
   DEFAULT_CYCLE: SCHOOL_YEAR,
-  DEFAULT_CCT: '21EBH0000X',
+  DEFAULT_CCT: CCT_NO_REGISTRADO,
   SUPERVISION_FALLBACK: 'SUPERVISIÓN DE BACHILLERATOS',
 } as const;
 
@@ -131,7 +132,7 @@ export function resolveHeaderBranding(docType: string, ctx?: BrandingContext): H
 
   const cycle = ctx?.cycle || ctx?.academic_cycle || INSTITUTIONAL_DEFAULTS.DEFAULT_CYCLE;
   const cct = ctx?.cct || ctx?.cct_plantel || INSTITUTIONAL_DEFAULTS.DEFAULT_CCT;
-  const schoolName = ctx?.schoolName || ctx?.school_name || 'BACHILLERATO GENERAL ESTATAL';
+  const schoolName = ctx?.schoolName || ctx?.school_name || PLANTEL_NO_REGISTRADO;
 
   const topSup = `${INSTITUTIONAL_DEFAULTS.ORGANISMO} — SECUENCIAS DIDÁCTICAS ${cycle}`;
 

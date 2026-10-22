@@ -89,6 +89,7 @@ import {
   type ContraportadaData,
   type BookCoverOptions,
 } from '@/lib/visual-engine/cover-generator';
+import { resolveSchoolIdentity, type SchoolIdentity } from '@/lib/school-identity';
 import { logger } from '@/lib/logger';
 import { highlightCodeBlock } from '@/lib/visual-engine/code-highlighter';
 import { CODE_IDE, STEP_CARDS_DOCX, CONCEPT_CARDS_DOCX, PROCESS_FLOW_DOCX } from '@/lib/visual-engine/design-tokens';
@@ -242,6 +243,16 @@ export function computeProportionalWidths(totalW: number, columnTexts: readonly 
   return widths;
 }
 
+function identidadDelLibro(
+  workbook: ActiveWorkTextbook,
+  planning?: Planning | null
+): SchoolIdentity {
+  return resolveSchoolIdentity({
+    sectionI: planning?.contentJson?.sectionI,
+    cover: workbook.coverData,
+  });
+}
+
 /**
  * Genera el documento Word (.docx) para el Cuaderno de Trabajo del Bloque.
  */
@@ -256,9 +267,10 @@ export async function renderWorkbookToDocx(
 ): Promise<Buffer> {
   const workbook = sanitizeWorkbookNarratives(rawWorkbook);
 
+  const identidad = identidadDelLibro(workbook, planning);
   const coverOpts: BookCoverOptions = {
-    plantelNombre: workbook.coverData?.schoolName || 'Bachillerato General Oficial',
-    cct: workbook.coverData?.cct || '21ECT0017T',
+    plantelNombre: identidad.schoolName,
+    cct: identidad.cct,
     uacName: workbook.coverData?.subjectName || workbook.blockName,
     semestre: (() => {
       const raw = workbook.coverData?.semester;
@@ -526,6 +538,7 @@ export async function renderWorkbookToDocx(
 
 function buildCoverSection(workbook: ActiveWorkTextbook, planning?: Planning): (Paragraph | Table)[] {
   const cover = workbook.coverData;
+  const identidad = identidadDelLibro(workbook, planning);
 
   // Caja con borde fino y fondo suave (bloque informativo)
   const infoBox = (children: Paragraph[], fill = 'F4F6FA'): Table =>
@@ -581,7 +594,7 @@ function buildCoverSection(workbook: ActiveWorkTextbook, planning?: Planning): (
         spacing: { before: 20, after: 60 },
         children: [
           new TextRun({
-            text: cover.schoolName || 'Bachillerato del Estado de Puebla',
+            text: identidad.schoolName,
             size: 22,
             bold: true,
             color: C.darkText,
@@ -594,7 +607,7 @@ function buildCoverSection(workbook: ActiveWorkTextbook, planning?: Planning): (
         spacing: { after: 20 },
         children: [
           new TextRun({
-            text: `Clave C.C.T.: ${cover.cct || '21ECT0017T'} | Subsistema: ${(stripMarkdown(stripWorkbookTags(workbook.subsystem)) || 'BGE').toUpperCase()}`,
+            text: `Clave C.C.T.: ${identidad.cct} | Subsistema: ${(stripMarkdown(stripWorkbookTags(workbook.subsystem)) || 'BGE').toUpperCase()}`,
             size: 18,
             color: C.mutedText,
             font: 'Calibri',
@@ -1287,10 +1300,11 @@ function buildDocxPlantelComunidadSection(
     })
   );
 
-  const schoolName = stripMarkdown(stripWorkbookTags(workbook.coverData?.schoolName || planning?.contentJson?.sectionI?.schoolName || 'Bachillerato General Oficial'));
-  const cct = stripMarkdown(stripWorkbookTags(workbook.coverData?.cct || planning?.contentJson?.sectionI?.cct || '21ECT0017T'));
+  const identidad = identidadDelLibro(workbook, planning);
+  const schoolName = stripMarkdown(stripWorkbookTags(identidad.schoolName));
+  const cct = stripMarkdown(stripWorkbookTags(identidad.cct));
   const subsystem = stripMarkdown(stripWorkbookTags(workbook.subsystem || planning?.contentJson?.sectionI?.subsystem || 'BGE')).toUpperCase();
-  const municipality = stripMarkdown(stripWorkbookTags(workbook.coverData?.municipality || 'Puebla, Pue.'));
+  const municipality = stripMarkdown(stripWorkbookTags(identidad.municipality));
   const teacherName = stripMarkdown(stripWorkbookTags(workbook.coverData?.teacherName || planning?.contentJson?.sectionI?.teacherName || 'Academia Docente del Plantel'));
   const subjectName = stripMarkdown(stripWorkbookTags(workbook.coverData?.subjectName || workbook.blockName || planning?.uacName || 'Formación Fundamental'));
   const semesterStr = workbook.coverData?.semester !== undefined ? `${workbook.coverData.semester}° Semestre` : 'Segundo Semestre';

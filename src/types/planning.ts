@@ -55,6 +55,7 @@ export interface TeacherContext {
   cct?: string;                  // Clave de Centro de Trabajo oficial
   locality?: string;             // Localidad o comunidad específica
   municipality: string;
+  schoolZone?: string;           // Zona Escolar oficial (ej: 'Zona Escolar 004')
   state: string;                 // Estado (default "Puebla")
   region: string;                // Región administrativa / CORDE
   subsystem: Subsystem;
@@ -192,6 +193,7 @@ export interface GeneratedPlanningContent {
     schoolName?: string;
     cct?: string;
     schoolZone?: string;
+    municipality?: string;
     period?: string;
     totalHoursWeekly?: number;
     totalHoursSemester?: number;

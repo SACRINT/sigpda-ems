@@ -18,6 +18,7 @@ import {
 } from './visual-engine/font-loader';
 import { normalizeEvaluationPercentages, sanitizePlanningContent } from '@/lib/planning/quality-pipeline';
 import { stripMaterialTokens } from '@/lib/materials/material-tokens';
+import { resolveSchoolIdentity, resolverIdentidadEscolar, CCT_NO_REGISTRADO } from '@/lib/school-identity';
 
 const NAVY: [number, number, number] = [31, 56, 100];       // #1F3864 - Azul Institucional
 const BLUE_MID: [number, number, number] = [46, 116, 181];   // #2E74B5 - Azul Secundario
@@ -28,28 +29,25 @@ const TEXT_DARK: [number, number, number] = [30, 41, 59];    // #1E293B - Texto
 // Colores institucionales de fases didácticas (homologados MCCEMS vía design-tokens)
 const { PHASE_APERTURA, PHASE_DESARROLLO, PHASE_CIERRE } = COLORS;
 
-/**
- * Etiqueta de Supervisión a partir de la zona real del docente.
- * '086' → 'SUPERVISIÓN DE BACHILLERATOS 086' · 'Zona 086' → '…086' · vacío → default 004.
- */
-function supervisionLabel(schoolZone?: string | null): string {
-  const v = (schoolZone ?? '').trim();
-  if (!v) return 'SUPERVISIÓN DE BACHILLERATOS 004';
-  const num = v.match(/(\d{2,4})/);
-  return num ? `SUPERVISIÓN DE BACHILLERATOS ${num[1].padStart(3, '0')}` : `SUPERVISIÓN DE BACHILLERATOS ${v}`;
-}
-
 export async function generatePlanningPDF(
   planning: Planning,
   providedLogos?: { gobierno?: string; sep?: string; supervision?: string }
 ): Promise<jsPDF> {
-  const rawContent = planning.contentJson as GeneratedPlanningContent | null;
-  const content = rawContent ? sanitizePlanningContent(rawContent) : null;
-  const s1 = content?.sectionI;
+const rawContent = planning.contentJson as GeneratedPlanningContent | null;
+const identidadPrevia = resolverIdentidadEscolar({
+  schoolName: rawContent?.sectionI?.schoolName,
+  cct: rawContent?.sectionI?.cct,
+  schoolZone: rawContent?.sectionI?.schoolZone,
+});
+const content = rawContent
+  ? sanitizePlanningContent(rawContent, { fallbackCct: identidadPrevia.cct || CCT_NO_REGISTRADO })
+  : null;
+const s1 = content?.sectionI;
   const s2 = content?.sectionII;
   const s3 = content?.sectionIII;
   const s4 = content?.sectionIV;
   const s5 = content?.sectionV;
+  const identidad = resolveSchoolIdentity({ sectionI: s1 });
 
   // Cargar logotipos en Base64 si no fueron suministrados
   const logos = providedLogos || (await loadAllLogos());
@@ -127,10 +125,10 @@ export async function generatePlanningPDF(
     setFontHeading(doc);
     doc.setFontSize(8);
     doc.setTextColor(...NAVY);
-    doc.text(supervisionLabel(s1?.schoolZone), pageWidth / 2, currentY, { align: 'center' });
+    doc.text(identidad.supervision, pageWidth / 2, currentY, { align: 'center' });
     currentY += 3.1;
 
-  const cctPlantel = s1?.cct || 'CCT no disponible';
+    const cctPlantel = identidad.cct;
     setFontCaption(doc, 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(...BLUE_MID);
@@ -160,9 +158,9 @@ export async function generatePlanningPDF(
     body: [
       [
         { content: 'Plantel / Escuela:', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 35 } },
-        { content: s1?.schoolName || 'Bachillerato General Oficial', styles: { cellWidth: 58 } },
+        { content: identidad.schoolName, styles: { cellWidth: 58 } },
         { content: 'Clave C.C.T.:', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 25 } },
-        { content: s1?.cct || 'CCT no disponible', styles: { cellWidth: 68 } },
+        { content: identidad.cct, styles: { cellWidth: 68 } },
       ],
       [
         { content: 'Docente Titular:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
@@ -414,6 +412,7 @@ export async function generateSecuenciaPDF(
   const s1 = content?.sectionI;
   const s4 = content?.sectionIV;
   const sequenceData = planning.sequenceJson as Record<number, SecuenciaBloque> | null | undefined;
+  const identidad = resolveSchoolIdentity({ sectionI: s1 });
 
   const logos = providedLogos || (await loadAllLogos());
 
@@ -473,10 +472,10 @@ export async function generateSecuenciaPDF(
   setFontHeading(doc);
   doc.setFontSize(8);
   doc.setTextColor(...NAVY);
-  doc.text(supervisionLabel(s1?.schoolZone), pageWidth / 2, currentY, { align: 'center' });
+  doc.text(identidad.supervision, pageWidth / 2, currentY, { align: 'center' });
   currentY += 3.4;
 
-  const cctPlantel = s1?.cct || 'CCT no disponible';
+  const cctPlantel = identidad.cct;
   setFontCaption(doc, 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(...BLUE_MID);
@@ -507,7 +506,7 @@ export async function generateSecuenciaPDF(
     body: [
       [
         { content: 'Plantel:', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 30 } },
-        { content: s1?.schoolName || 'Bachillerato General Oficial', styles: { cellWidth: 63 } },
+        { content: identidad.schoolName, styles: { cellWidth: 63 } },
         { content: 'UAC / Asignatura:', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 35 } },
         { content: s1?.uacName || planning.uacName, styles: { cellWidth: 63 } },
       ],

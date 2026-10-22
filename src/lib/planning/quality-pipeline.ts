@@ -16,6 +16,7 @@ import {
   type RetoContextoInput
 } from '@/lib/planning-evaluator';
 import { CATALOGO_METODOLOGIAS_ACTIVAS } from '@/lib/catalogo-metodologias';
+import { CCT_NO_REGISTRADO } from '@/lib/school-identity';
 import type {
   Planning,
   RetoSituado,
@@ -149,11 +150,11 @@ export function normalizeEvaluationPercentages<T extends { percentage: number; t
  * Sanitizador Lingüístico Determinista:
  * 1. Erradica anglicismos comunes generados por el LLM ("Habits" -> "Hábitos").
  * 2. Corrige el título del proyecto PAEC ("Cuantificando Mis Habits" -> "Cuantificando Mis Hábitos").
- * 3. Normaliza CCTs genéricos/placeholder ("21EBH0000X" -> CCT del plantel o "21EBH0200X").
+ * 3. Normaliza CCTs genéricos/placeholder ("21EBH0000X" -> CCT real del plantel o "CCT no registrado").
  */
 export function sanitizeLinguistic(text: string, options?: { fallbackCct?: string }): string {
   if (!text || typeof text !== 'string') return text;
-  const targetCct = options?.fallbackCct || '21EBH0200X';
+  const targetCct = options?.fallbackCct || CCT_NO_REGISTRADO;
   return text
     .replace(/\bCuantificando\s+Mis\s+Habits\b/gi, 'Cuantificando Mis Hábitos')
     .replace(/\bHabits\b/g, 'Hábitos')

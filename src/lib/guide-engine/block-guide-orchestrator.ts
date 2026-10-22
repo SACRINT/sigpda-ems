@@ -28,6 +28,7 @@ import {
   incrementSeedUsage,
 } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { resolveSchoolIdentity } from '@/lib/school-identity';
 import { extractCurriculumContext } from './curriculum-context-agent';
 import { buildBlockBlueprint } from './blueprint-architect-agent';
 import { generateFoundationMission } from './writers/foundation-writer';
@@ -129,10 +130,19 @@ export async function generateBlockWorkTextbook(
                       teacherSubsystemRaw.toLowerCase().includes('cbtis');
   const normalizedSubsystem: 'bge' | 'bt' = isTeacherBt ? 'bt' : 'bge';
 
+  const identidadEscolar = resolveSchoolIdentity({
+    sectionI: rawPlanning.content_json?.sectionI,
+    teacher: {
+      schoolName: teacher?.school_name,
+      cct: teacher?.cct,
+      municipality: teacher?.municipality,
+    },
+  });
+
   const teacherContext: TeacherContext = {
     teacherName: rawPlanning.content_json?.sectionI?.teacherName || teacher?.name || 'Docente Titular',
-    schoolName: teacher?.school_name || 'Bachillerato del Estado de Puebla',
-    municipality: teacher?.municipality || 'Puebla',
+    schoolName: identidadEscolar.schoolName,
+    municipality: identidadEscolar.municipality,
     state: 'Puebla',
     region: 'Puebla',
     subsystem: normalizedSubsystem,
@@ -606,8 +616,8 @@ export async function generateBlockWorkTextbook(
       semester: planning.semester,
       blockNumber: blockIndex + 1,
       teacherName: rawPlanning.content_json?.sectionI?.teacherName || teacher?.name || 'Docente Titular',
-      schoolName: teacherContext.schoolName,
-      cct: teacher?.cct || '21ECT0017T',
+      schoolName: identidadEscolar.schoolName,
+      cct: identidadEscolar.cct,
       paecProjectName: curriculumContext.paecConnection.projectName || planning.paecContext,
     },
     tableOfContents,

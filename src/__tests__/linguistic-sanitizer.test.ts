@@ -19,8 +19,10 @@ describe('Sanitizador Lingüístico y Normalizador CCT Determinista', () => {
     expect(sanitizeLinguistic('inhabited area')).toBe('inhabited area');
   });
 
-  it('4. Reemplaza CCT comodín "21EBH0000X" por la clave oficial o fallback', () => {
-    expect(sanitizeLinguistic('Plantel con clave 21EBH0000X en la Sierra.')).toBe('Plantel con clave 21EBH0200X en la Sierra.');
+  it('4. Reemplaza CCT comodín "21EBH0000X" por la clave del plantel; sin dato, por "CCT no registrado"', () => {
+    expect(sanitizeLinguistic('Plantel con clave 21EBH0000X en la Sierra.')).toBe(
+      'Plantel con clave CCT no registrado en la Sierra.'
+    );
     expect(sanitizeLinguistic('CCT: 21EBH0000X', { fallbackCct: '21EBH0123A' })).toBe('CCT: 21EBH0123A');
   });
 

@@ -67,6 +67,7 @@ import {
   type ContraportadaData,
   type BookCoverOptions,
 } from '@/lib/visual-engine/cover-generator';
+import { resolveSchoolIdentity, type SchoolIdentity } from '@/lib/school-identity';
 import {
   loadEditorialFonts,
   setFontHeading,
@@ -211,6 +212,16 @@ export function sanitizePdfText(text: string | null | undefined): string {
   return str.replace(WIN_ANSI_REGEX, '');
 }
 
+function identidadDelLibro(
+  workbook: ActiveWorkTextbook,
+  planning?: Planning | null
+): SchoolIdentity {
+  return resolveSchoolIdentity({
+    sectionI: planning?.contentJson?.sectionI,
+    cover: workbook.coverData,
+  });
+}
+
 /**
  * Genera el archivo PDF del Libro-Cuaderno de Trabajo Activo del Bloque.
  */
@@ -247,9 +258,10 @@ export async function renderWorkbookToPdf(
   let currentY = margin;
 
   // Preparar opciones unificadas de portada y contraportada (Fase V2)
+  const identidad = identidadDelLibro(workbook, planning);
   const coverOpts: BookCoverOptions = {
-    plantelNombre: workbook.coverData?.schoolName || 'Bachillerato General Oficial',
-    cct: workbook.coverData?.cct || '21ECT0017T',
+    plantelNombre: identidad.schoolName,
+    cct: identidad.cct,
     uacName: workbook.coverData?.subjectName || workbook.blockName,
     semestre: (() => {
       const raw = workbook.coverData?.semester;
@@ -458,7 +470,8 @@ export async function renderWorkbookToPdf(
     margin,
     contentWidth,
     pageHeight,
-    bookHash
+    bookHash,
+    planning
   );
 
   // ── 9. Contraportada Institucional con QR y Sello Criptográfico ───────────
@@ -528,8 +541,8 @@ export async function renderWorkbookToPdf(
 
     // Pie de Página Editorial oficial V7
     drawPageFooter(doc, {
-      schoolName: workbook.coverData?.schoolName,
-      cct: workbook.coverData?.cct,
+      schoolName: identidad.schoolName,
+      cct: identidad.cct,
       pageNum: p,
       totalPages,
       margin,
@@ -609,14 +622,15 @@ function drawCoverPage(
   doc.setFillColor(232, 160, 32);
   doc.roundedRect(margin, 28, 2.5, 21, 1, 1, 'F');
 
-  const schoolName = (workbook.coverData?.schoolName || 'Bachillerato General Oficial').toUpperCase();
+  const identidad = identidadDelLibro(workbook, planning);
+  const schoolName = identidad.schoolName.toUpperCase();
   setFontHeading(doc);
   doc.setFontSize(9.5);
   doc.setTextColor(255, 255, 255);
   const schoolLines = doc.splitTextToSize(schoolName, contentWidth - 14);
   doc.text(schoolLines[0], margin + 6, 34);
 
-  const cct = workbook.coverData?.cct || '21ECT0017T';
+  const cct = identidad.cct;
   const subsistema = sanitizePdfText(stripMarkdown(stripWorkbookTags(workbook.subsystem || 'BGE'))).toUpperCase();
   const rawSem = workbook.coverData?.semester;
   const semStr = rawSem ? (String(rawSem).toLowerCase().includes('semestre') ? String(rawSem) : `${rawSem}° Semestre`) : 'Segundo Semestre';
@@ -843,9 +857,11 @@ function drawCreditsPage(
   margin: number,
   contentWidth: number,
   pageHeight: number,
-  bookHash: string
+  bookHash: string,
+  planning?: Planning
 ) {
   let y = margin + 8;
+  const identidad = identidadDelLibro(workbook, planning);
 
   // 1. Encabezado de la Página de Créditos
   doc.setFillColor(...NAVY);
@@ -939,8 +955,8 @@ function drawCreditsPage(
   doc.text('DIRECTORIO INSTITUCIONAL Y PRODUCCIÓN EDITORIAL', margin, y);
   y += 4;
 
-  const plantelName = sanitizePdfText(workbook.coverData?.schoolName || 'Bachillerato General Oficial');
-  const cct = sanitizePdfText(workbook.coverData?.cct || '21ECT0017T');
+  const plantelName = sanitizePdfText(identidad.schoolName);
+  const cct = sanitizePdfText(identidad.cct);
   const docente = sanitizePdfText(workbook.coverData?.teacherName || 'Academia Docente del Plantel');
   const uac = sanitizePdfText(workbook.coverData?.subjectName || workbook.blockName);
 
@@ -1381,6 +1397,7 @@ function drawPlantelComunidadPage(
   pageHeight: number
 ) {
   let y = margin + 6;
+  const identidad = identidadDelLibro(workbook, planning);
 
   // Franja superior institucional
   doc.setFillColor(...NAVY);
@@ -1411,12 +1428,12 @@ function drawPlantelComunidadPage(
   );
   y += 6;
 
-  const rawSchoolName = workbook.coverData?.schoolName || planning?.contentJson?.sectionI?.schoolName || 'Bachillerato General Oficial';
+  const rawSchoolName = identidad.schoolName;
   const schoolName = sanitizePdfText(stripMarkdown(rawSchoolName));
-  const cct = sanitizePdfText(workbook.coverData?.cct || planning?.contentJson?.sectionI?.cct || '21ECT0017T');
+  const cct = sanitizePdfText(identidad.cct);
   const subsystem = sanitizePdfText((workbook.subsystem || planning?.contentJson?.sectionI?.subsystem || 'BGE').toUpperCase());
   const coverExtra = workbook.coverData as Record<string, unknown> | undefined;
-  const municipality = sanitizePdfText(typeof coverExtra?.municipality === 'string' ? coverExtra.municipality : 'Puebla, Pue.');
+  const municipality = sanitizePdfText(identidad.municipality);
   const teacherName = sanitizePdfText(stripMarkdown(workbook.coverData?.teacherName || planning?.contentJson?.sectionI?.teacherName || 'Academia Docente del Plantel'));
   const subjectName = sanitizePdfText(stripMarkdown(workbook.coverData?.subjectName || workbook.blockName || planning?.uacName || 'Formación Fundamental'));
 

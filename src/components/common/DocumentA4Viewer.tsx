@@ -6,6 +6,7 @@ import { generatePlanningPDF } from '@/lib/planning-pdf-renderer';
 import { exportPlanningPdfWithFallback } from '@/lib/planeaciones/strangler-client';
 import { enrichWithExplicitSaberes } from '@/lib/planning-integrity-system';
 import { stripMaterialTokens } from '@/lib/materials/material-tokens';
+import { resolveSchoolIdentity } from '@/lib/school-identity';
 
 interface DocumentA4ViewerProps {
   planning: Planning;
@@ -28,6 +29,9 @@ export default function DocumentA4Viewer({
   const s5 = content?.sectionV;
   const s6 = content?.sectionVI;
   const sequenceData = planning.sequenceJson as Record<number, SecuenciaBloque> | null | undefined;
+  const identidad = resolveSchoolIdentity({ sectionI: s1 });
+  const zonaNum = identidad.schoolZone?.match(/\d{2,4}/)?.[1]?.padStart(3, '0') ?? null;
+  const zonaTexto = zonaNum ? `ZONA ${zonaNum}` : 'ZONA NO REGISTRADA';
 
   const handleDownloadPdf = async () => {
     try {
@@ -277,11 +281,13 @@ export default function DocumentA4Viewer({
                   alt="Secretaría de Educación Pública"
                   style={{ height: '34px', maxWidth: '140px', objectFit: 'contain' }}
                 />
-                <img
-                  src="/images/logo-supervision-004.png"
-                  alt="Supervisión Escolar 004"
-                  style={{ height: '40px', maxWidth: '120px', objectFit: 'contain' }}
-                />
+                {zonaNum === '004' && (
+                  <img
+                    src="/images/logo-supervision-004.png"
+                    alt="Supervisión Escolar Zona 004"
+                    style={{ height: '40px', maxWidth: '120px', objectFit: 'contain' }}
+                  />
+                )}
               </div>
 
               <div style={{ textAlign: 'center' }}>
@@ -292,7 +298,7 @@ export default function DocumentA4Viewer({
                   SUBSECRETARÍA DE EDUCACIÓN OBLIGATORIA · DIRECCIÓN DE BACHILLERATOS ESTATALES
                 </div>
                 <div style={{ fontSize: '10px', fontWeight: 800, color: '#2e74b5', marginTop: '2px' }}>
-                  SUPERVISIÓN ESCOLAR DE BACHILLERATOS ZONA 004
+                  SUPERVISIÓN ESCOLAR DE BACHILLERATOS {zonaTexto}
                 </div>
                 <div style={{ fontSize: '11px', fontWeight: 900, color: '#1f3864', marginTop: '4px', letterSpacing: '0.03em' }}>
                   INSTRUMENTO OFICIAL DE PLANEACIÓN DIDÁCTICA (MCCEMS NEM 2026-2027)
@@ -310,9 +316,9 @@ export default function DocumentA4Viewer({
               <tbody>
                 <tr>
                   <td className="label-cell">Plantel / Escuela:</td>
-                  <td>{s1?.schoolName || 'Bachillerato General Oficial'}</td>
+                  <td>{identidad.schoolName}</td>
                   <td className="label-cell">Clave C.C.T.:</td>
-                  <td>{s1?.cct || 'CCT no disponible'}</td>
+                  <td>{identidad.cct}</td>
                 </tr>
                 <tr>
                   <td className="label-cell">Docente Titular:</td>
@@ -425,7 +431,7 @@ export default function DocumentA4Viewer({
           <div className="a4-page">
             {/* Header de continuidad */}
             <div className="header-continuity">
-              <span>SEP PUEBLA · SUPERVISIÓN ESCOLAR 004 · MCCEMS</span>
+              <span>SEP PUEBLA · SUPERVISIÓN ESCOLAR {zonaTexto} · MCCEMS</span>
               <span>{planning.uacName} · {planning.semester}° SEMESTRE</span>
             </div>
 
@@ -565,7 +571,7 @@ export default function DocumentA4Viewer({
           <div className="a4-page">
             {/* Header de continuidad */}
             <div className="header-continuity">
-              <span>SEP PUEBLA · SUPERVISIÓN ESCOLAR 004 · MCCEMS</span>
+              <span>SEP PUEBLA · SUPERVISIÓN ESCOLAR {zonaTexto} · MCCEMS</span>
               <span>{planning.uacName} · {planning.semester}° SEMESTRE</span>
             </div>
 

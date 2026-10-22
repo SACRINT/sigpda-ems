@@ -1,6 +1,7 @@
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { getTeacherByEmail, getTeacherSchoolZone, getPlanningById, getPlanningExtras } from '@/lib/db';
+import { resolverIdentidadEscolar } from '@/lib/school-identity';
 import AppLayout from '@/components/layout/AppLayout';
 import { featureFlags } from '@/lib/platform/feature-flags';
 import PlanningDetailClient from './PlanningDetailClient';
@@ -38,16 +39,25 @@ export default async function PlanningDetailPage({
 
   // Inyectar CCT/nombre del plantel/zona del docente en sectionI (los generadores PDF/DOCX
   // leen s1.cct/s1.schoolName/s1.schoolZone; en BD sectionI no siempre los trae).
+  // Precedencia: plantel escrito en la planeación > perfil docente > catálogo oficial > sin dato.
   const teacherZone = await getTeacherSchoolZone(teacher.id);
   const rawContent = planning.content_json as unknown as GeneratedPlanningContent | null;
+  const baseSectionI = rawContent?.sectionI ?? ({} as GeneratedPlanningContent['sectionI']);
+  const identidad = resolverIdentidadEscolar({
+    schoolName: baseSectionI.schoolName || teacher.school_name,
+    cct: baseSectionI.cct || teacher.cct,
+    municipality: baseSectionI.municipality || teacher.municipality,
+    schoolZone: baseSectionI.schoolZone || teacherZone,
+  });
   const contentJson: GeneratedPlanningContent | null = rawContent
     ? {
         ...rawContent,
         sectionI: {
-          ...(rawContent.sectionI ?? ({} as GeneratedPlanningContent['sectionI'])),
-          cct: rawContent.sectionI?.cct || teacher.cct || undefined,
-          schoolName: rawContent.sectionI?.schoolName || teacher.school_name || undefined,
-          schoolZone: rawContent.sectionI?.schoolZone || teacherZone || undefined,
+          ...baseSectionI,
+          schoolName: identidad.schoolName || undefined,
+          cct: identidad.cct || undefined,
+          schoolZone: identidad.schoolZone || undefined,
+          municipality: identidad.municipality || undefined,
         },
       }
     : null;

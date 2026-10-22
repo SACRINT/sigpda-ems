@@ -180,7 +180,11 @@ Responde ÚNICAMENTE con un objeto JSON válido con la siguiente estructura exac
     "estimatedSessions": "string",
     "component": "string",
     "totalHours": number,
-    "subsystem": "string"
+    "subsystem": "string",
+    "schoolName": "string (copia EXACTAMENTE el valor de \"Plantel Educativo\"; si no viene, usa \"Plantel no registrado\" y nunca inventes uno)",
+    "cct": "string (copia EXACTAMENTE el valor de \"CCT Oficial\"; si no viene, usa \"CCT no registrado\" y nunca inventes una clave)",
+    "municipality": "string (copia EXACTAMENTE el valor de \"Municipio\"; si no viene, usa \"Municipio no registrado\")",
+    "schoolZone": "string (copia EXACTAMENTE la zona escolar proporcionada; si no viene, usa \"\" y nunca inventes una)"
   },
   "sectionII": {
     "purpose": "string (2-4 oraciones, contextualizado a Puebla y vinculándolo explícitamente con otras asignaturas del mismo semestre)",

@@ -5,6 +5,7 @@ import { buildRagContextBlock } from '@/lib/rag-curricular';
 import { CATALOGO_METODOLOGIAS_ACTIVAS } from '@/lib/catalogo-metodologias';
 import { formatearEstrategiasParaPrompt } from '@/lib/catalogo-estrategias';
 import { isTechnologicalSubsystem } from '@/lib/subsystem-config';
+import { resolverIdentidadEscolar } from '@/lib/school-identity';
 import { SCHOOL_YEAR } from '@/lib/config';
 import {
   buildMaterialSlugIndex,
@@ -243,15 +244,37 @@ export function buildUserPrompt(
   const subsystemLabel = subsystemLabels[subsystemKey] || context.subsystem;
 
   // ── Identidad Territorial y CCT Fidedigno ──────────────────────────────────
-  const effectiveCct = (context.cct && context.cct !== '21EBH0000X')
-    ? context.cct
-    : (extractedData.cct && extractedData.cct !== '21EBH0000X')
-      ? extractedData.cct
-      : '21EBH0200X';
+  const identidadPlantel = resolverIdentidadEscolar({
+    schoolName: context.schoolName,
+    cct: context.cct || extractedData.cct,
+    municipality: context.municipality,
+    schoolZone: context.schoolZone,
+  });
+  const effectiveCct =
+    identidadPlantel.cct && identidadPlantel.cct !== '21EBH0000X' ? identidadPlantel.cct : '';
+  const effectiveLocality = context.locality || context.municipality || '';
+  const effectiveMunicipality = identidadPlantel.municipality || '';
+  const effectiveCorde = context.region || '';
 
-  const effectiveLocality = context.locality || (context.schoolName?.toLowerCase().includes('tito') ? 'Coronel Tito Hernández' : (context.municipality || 'Comunidad escolar'));
-  const effectiveMunicipality = context.municipality || 'Venustiano Carranza';
-  const effectiveCorde = context.region || 'CORDE 01 Huauchinango';
+  const directricesIdentidad = [
+    effectiveLocality || effectiveMunicipality
+      ? `El plantel se ubica geográficamente en la localidad "${effectiveLocality || 'no registrada'}"${
+          effectiveMunicipality ? `, municipio de "${effectiveMunicipality}"` : ''
+        }.`
+      : null,
+    effectiveCorde
+      ? `La adscripción administrativa de supervisión oficial es la "${effectiveCorde}".`
+      : null,
+    `Queda ESTRICTAMENTE PROHIBIDO sustituir el municipio o la localidad de residencia de los estudiantes${
+      effectiveCorde ? ` por la cabecera distrital de la CORDE ("${effectiveCorde}")` : ''
+    } al formular el Reto Situado o las problemáticas del aula.`,
+    effectiveCct
+      ? `Queda ESTRICTAMENTE PROHIBIDO utilizar claves CCT comodines, ficticias o genéricas (como 21EBH0000X). Usa obligatoriamente: ${effectiveCct}.`
+      : `Queda ESTRICTAMENTE PROHIBIDO inventar o completar una clave CCT. No se tiene registro de la clave del plantel: indícala como "CCT no registrado".`,
+  ]
+    .filter((linea): linea is string => Boolean(linea))
+    .map((linea, i) => `${i + 1}. ${linea}`)
+    .join('\n');
 
   const learningOutcome = officialProgram?.learning_outcome || extractedData.learningOutcome || 
     `Desarrollar competencias integrales y saberes formativos en ${extractedData.uacName} aplicados al contexto comunitario de los estudiantes.`;
@@ -391,11 +414,11 @@ DOSIFICACIÓN OBLIGATORIA:
 
 ═══════════ DATOS DEL DOCENTE Y PLANTEL (IDENTIDAD OFICIAL) ═══════════
 Docente Titular: ${context.teacherName}
-Plantel Educativo: ${context.schoolName}
-CCT Oficial: ${effectiveCct}
-Localidad Escolar: ${effectiveLocality}
-Municipio: ${effectiveMunicipality}
-Región Administrativa (CORDE): ${effectiveCorde}
+Plantel Educativo: ${identidadPlantel.schoolName || 'Plantel no registrado'}
+CCT Oficial: ${effectiveCct || 'CCT no registrado'}
+Localidad Escolar: ${effectiveLocality || 'Comunidad escolar'}
+Municipio: ${effectiveMunicipality || 'Municipio no registrado'}
+Región Administrativa (CORDE): ${effectiveCorde || 'No registrada'}
 Estado: ${context.state || 'Puebla'}
 Subsistema: ${subsystemLabel}
 Grupos: ${context.groupInfo || 'Grupo A'}
@@ -403,10 +426,7 @@ Período de aplicación: ${context.applicationPeriod || `Ciclo escolar ${SCHOOL_
 Recursos disponibles: ${context.schoolResources || 'Recursos básicos de aula y tecnología accesible'}
 
 DIRECTRICES DE IDENTIDAD TERRITORIAL Y ADMINISTRATIVA OBLIGATORIAS:
-1. El plantel se ubica geográficamente en la localidad "${effectiveLocality}", municipio de "${effectiveMunicipality}".
-2. La adscripción administrativa de supervisión oficial es la "${effectiveCorde}".
-3. Queda ESTRICTAMENTE PROHIBIDO sustituir el municipio o la localidad de residencia de los estudiantes por la cabecera distrital de la CORDE ("${effectiveCorde}") al formular el Reto Situado o las problemáticas del aula.
-4. Queda ESTRICTAMENTE PROHIBIDO utilizar claves CCT comodines, ficticias o genéricas (como 21EBH0000X). Usa obligatoriamente: ${effectiveCct}.
+${directricesIdentidad}
 
 ═══════════ PROYECTO PAEC/PEC (VINCULACIÓN COMUNITARIA OBLIGATORIA) ═══════════
 Nombre del proyecto PAEC: ${context.paecProjectName || 'Transformación e Innovación Comunitaria'}
