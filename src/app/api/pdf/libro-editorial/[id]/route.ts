@@ -41,6 +41,7 @@ import {
 } from '@/lib/editorial/student-content-model';
 import { composeStudentSessionsFromWorkbooks } from '@/lib/editorial/compose-student-sessions';
 import { ensureEditorialPlanCompleteness } from '@/lib/editorial/plan-completeness';
+import { sanitizeDocFilename } from '@/lib/document-branding';
 import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
@@ -441,8 +442,16 @@ export async function POST(
       );
     }
 
-    // Persistir PDF en Vercel Blob Storage
-    const filename = `${planningId}_editorial_${contentHash.slice(0, 10)}.pdf`;
+    // Persistir PDF en Vercel Blob Storage.
+    // Nombre de archivo legible para el docente (UAC + bloque) en lugar del
+    // UUID de la planeación, conservando un sufijo corto de hash para que el
+    // path del blob sea único por contenido (evita que una reexportación
+    // sobrescriba el PDF de un registro editorial anterior que referencie la
+    // misma URL).
+    const uacSlug = sanitizeDocFilename(chapter.uac, 48);
+    const bloqueSlug = sanitizeDocFilename(chapter.bloque, 20);
+    const friendlyBase = [uacSlug, bloqueSlug].filter(Boolean).join('_');
+    const filename = `${friendlyBase || planningId}_editorial_${contentHash.slice(0, 10)}.pdf`;
     const uploadResult = await uploadEditorialPdfToBlob(workerResponse.pdfBuffer, filename);
 
     // Calcular lomo paramétrico (calibre papel estándar 0.09 mm)
