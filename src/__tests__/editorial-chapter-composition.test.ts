@@ -41,6 +41,7 @@ vi.mock('@/lib/editorial/editorial-db', () => ({
   getEditorialBookByPlanningAndHash: vi.fn(),
   getEditorialBookById: vi.fn(),
   getLatestEditorialBookForPlanning: vi.fn(),
+  getDownloadableEditorialBookForPlanning: vi.fn(),
   updateEditorialBookStatus: vi.fn(),
 }));
 
@@ -53,6 +54,7 @@ vi.mock('@/lib/editorial/worker-client', () => ({
 
 vi.mock('@/lib/editorial/blob-storage', () => ({
   uploadEditorialPdfToBlob: vi.fn(),
+  isEditorialPdfStorageAvailable: vi.fn().mockResolvedValue(true),
 }));
 
 // Reparador de integridad: IA deshabilitada (mockRejectedValue en beforeEach) para

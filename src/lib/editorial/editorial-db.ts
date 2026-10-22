@@ -107,6 +107,11 @@ export async function createEditorialBook(params: {
 
 /**
  * Busca un libro editorial existente por planningId y contentHash para deduplicación / caché a costo 0.
+ *
+ * Con el mismo `content_hash` el contenido es idéntico, así que se prioriza la copia
+ * servible: los registros `local://` solo son legibles en la instancia que los escribió
+ * (BD Neon compartida entre local y Vercel), por lo que no deben eclipsar a su gemelo
+ * remoto en Vercel Blob.
  */
 export async function getEditorialBookByPlanningAndHash(
   planningId: string,
@@ -119,7 +124,9 @@ export async function getEditorialBookByPlanningAndHash(
     SELECT * FROM editorial_books
     WHERE planning_id = ${planningId}::uuid
       AND content_hash = ${contentHash}
-    ORDER BY created_at DESC
+    ORDER BY
+      CASE WHEN pdf_storage_path LIKE 'local://%' THEN 1 ELSE 0 END,
+      created_at DESC
     LIMIT 1;
   `;
 
@@ -153,6 +160,46 @@ export async function getLatestEditorialBookForPlanning(planningId: string): Pro
     SELECT * FROM editorial_books
     WHERE planning_id = ${planningId}::uuid
     ORDER BY created_at DESC
+    LIMIT 1;
+  `;
+
+  return (rows[0] as unknown as EditorialBookRecord) || null;
+}
+
+/**
+ * Devuelve la copia DESCARGABLE del contenido vigente de una planeación.
+ *
+ * "Contenido vigente" = el `content_hash` del registro más reciente (aunque esté pendiente
+ * o haya fallado): así nunca se sirve un libro obsoleto. Entre las copias completadas de
+ * ese hash se prioriza Vercel Blob sobre `local://`, que solo es legible en la instancia
+ * que lo escribió. Devuelve `null` si el contenido vigente no tiene PDF servible.
+ *
+ * Usa `getLatestEditorialBookForPlanning` para el ciclo de vida (polling) y esta función
+ * para exponer enlaces de descarga.
+ */
+export async function getDownloadableEditorialBookForPlanning(
+  planningId: string,
+): Promise<EditorialBookRecord | null> {
+  await initEditorialBooksTable();
+  const client = sql();
+
+  const rows = await client`
+    WITH current_content AS (
+      SELECT content_hash
+      FROM editorial_books
+      WHERE planning_id = ${planningId}::uuid
+      ORDER BY created_at DESC
+      LIMIT 1
+    )
+    SELECT e.*
+    FROM editorial_books e
+    JOIN current_content c ON c.content_hash = e.content_hash
+    WHERE e.planning_id = ${planningId}::uuid
+      AND e.status = 'completed'
+      AND e.pdf_storage_path IS NOT NULL
+    ORDER BY
+      CASE WHEN e.pdf_storage_path LIKE 'local://%' THEN 1 ELSE 0 END,
+      e.created_at DESC
     LIMIT 1;
   `;
 

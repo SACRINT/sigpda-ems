@@ -23,6 +23,7 @@ import { getSubscriptionStatus } from '@/lib/subscription-gate';
 import { featureFlags } from '@/lib/platform/feature-flags';
 import {
   createEditorialBook,
+  getDownloadableEditorialBookForPlanning,
   getEditorialBookByPlanningAndHash,
   getEditorialBookById,
   getLatestEditorialBookForPlanning,
@@ -34,7 +35,7 @@ import {
   EDITORIAL_WORKER_DEFAULT_TIMEOUT_MS,
   EDITORIAL_WORKER_MAX_BUDGET_MS,
 } from '@/lib/editorial/worker-client';
-import { uploadEditorialPdfToBlob } from '@/lib/editorial/blob-storage';
+import { isEditorialPdfStorageAvailable, uploadEditorialPdfToBlob } from '@/lib/editorial/blob-storage';
 import {
   StudentChapter,
   StudentChapterSchema,
@@ -368,9 +369,16 @@ export async function POST(
       `[api/pdf/libro-editorial] templateVersion=${templateVersion} (source=${workerTemplateVersion ? 'worker' : 'local'}) contentHash=${contentHash}`,
     );
 
-    // Revisar si ya existe un libro editorial completado con exactamente este content_hash
+    // Revisar si ya existe un libro editorial completado con exactamente este content_hash.
+    // Solo cuenta como caché si el PDF puede leerse desde este entorno: un `local://`
+    // escrito en otra instancia (BD compartida) no es descargable y debe recompilarse.
     const existing = await getEditorialBookByPlanningAndHash(planningId, contentHash);
-    if (existing && existing.status === 'completed' && existing.pdf_storage_path) {
+    const existingServable =
+      existing && existing.status === 'completed'
+        ? await isEditorialPdfStorageAvailable(existing.pdf_storage_path)
+        : false;
+
+    if (existing && existing.status === 'completed' && existing.pdf_storage_path && existingServable) {
       logger.info(`[api/pdf/libro-editorial] Libro en caché detectado para hash ${contentHash}`);
       return NextResponse.json({
         success: true,
@@ -381,6 +389,13 @@ export async function POST(
         pageCount: existing.page_count,
         spineWidthMm: existing.spine_width_mm,
         contentHash,
+      });
+    }
+
+    if (existing && existing.status === 'completed' && !existingServable) {
+      logger.warn('[api/pdf/libro-editorial] Registro en caché no descargable; se recompila:', {
+        contentHash,
+        pdfStoragePath: existing.pdf_storage_path,
       });
     }
 
@@ -529,6 +544,31 @@ export async function GET(
         { error: 'No se encontró un libro editorial para esta planeación', code: 'NOT_FOUND' },
         { status: 404 },
       );
+    }
+
+    // El registro más reciente puede ser un `local://` huérfano (escrito en otra instancia
+    // contra la BD compartida) ilegible desde aquí. Sin filtro explícito, buscar la copia
+    // servible del mismo contenido vigente; si no existe, 404 honesto para re-exportar.
+    if (book.status === 'completed' && !(await isEditorialPdfStorageAvailable(book.pdf_storage_path))) {
+      if (!bookId && !contentHash) {
+        const servable = await getDownloadableEditorialBookForPlanning(planningId);
+        if (servable) book = servable;
+      }
+
+      if (!(await isEditorialPdfStorageAvailable(book.pdf_storage_path))) {
+        logger.warn('[api/pdf/libro-editorial] Libro completado sin PDF descargable:', {
+          planningId,
+          bookId: book.id,
+          pdfStoragePath: book.pdf_storage_path,
+        });
+        return NextResponse.json(
+          {
+            error: 'El PDF generado ya no está disponible. Vuelve a exportar el libro.',
+            code: 'STORAGE_UNAVAILABLE',
+          },
+          { status: 404 },
+        );
+      }
     }
 
     return NextResponse.json({

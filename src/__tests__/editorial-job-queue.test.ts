@@ -35,6 +35,7 @@ vi.mock('@/lib/editorial/editorial-db', () => ({
   getEditorialBookByPlanningAndHash: vi.fn(),
   getEditorialBookById: vi.fn(),
   getLatestEditorialBookForPlanning: vi.fn(),
+  getDownloadableEditorialBookForPlanning: vi.fn(),
   updateEditorialBookStatus: vi.fn(),
 }));
 
@@ -48,6 +49,7 @@ import { uploadEditorialPdfToBlob } from '@/lib/editorial/blob-storage';
 import { StudentChapter } from '@/lib/editorial/student-content-model';
 import {
   createEditorialBook,
+  getDownloadableEditorialBookForPlanning,
   getEditorialBookByPlanningAndHash,
   getLatestEditorialBookForPlanning,
   updateEditorialBookStatus,
@@ -336,6 +338,55 @@ describe('Motor Editorial Fase 2 — Pipeline Asíncrono, Worker y Subscription 
       expect(data.cached).toBe(true);
       expect(data.downloadUrl).toContain('cached.pdf');
     });
+
+    it('NO confía en un registro de caché `local://` ilegible y vuelve a despachar la compilación', async () => {
+      // Regresión: la BD Neon es compartida entre local y Vercel. Un `local://` escrito
+      // en desarrollo no existe en el filesystem de producción, por lo que tratarlo como
+      // caché devolvía un enlace de descarga 404.
+      const orphanFilename = `orphan_${Date.now()}_no_descargable.pdf`;
+      vi.mocked(getEditorialBookByPlanningAndHash).mockResolvedValueOnce({
+        id: 'orphan-local-book-uuid',
+        planning_id: planningId,
+        workbook_id: 'orphan_local_wb',
+        content_hash: 'existing_hash',
+        metadata: {},
+        pdf_storage_path: `local://${orphanFilename}`,
+        page_count: 32,
+        spine_width_mm: 1.44,
+        status: 'completed',
+        job_id: null,
+        error_message: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+
+      vi.mocked(createEditorialBook).mockResolvedValueOnce({
+        id: 'fresh-book-uuid',
+        planning_id: planningId,
+        workbook_id: 'fresh_wb',
+        content_hash: 'fresh_hash',
+        metadata: {},
+        pdf_storage_path: null,
+        page_count: null,
+        spine_width_mm: null,
+        status: 'pending',
+        job_id: null,
+        error_message: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+
+      const req = new NextRequest(`http://localhost:3000/api/pdf/libro-editorial/${planningId}`, {
+        method: 'POST',
+        body: JSON.stringify({ chapter: rawFixture }),
+      });
+
+      const res = await POST(req, { params: Promise.resolve({ id: planningId }) });
+      const data = await res.json();
+
+      expect(data.cached).not.toBe(true);
+      expect(createEditorialBook).toHaveBeenCalledTimes(1);
+    });
   });
 
   // ==========================================================================
@@ -378,6 +429,77 @@ describe('Motor Editorial Fase 2 — Pipeline Asíncrono, Worker y Subscription 
       expect(data.success).toBe(true);
       expect(data.downloadUrl).toBe('https://blob.vercel-storage.com/editorial-books/final.pdf');
       expect(data.status).toBe('completed');
+    });
+
+    it('prefiere la copia en Blob cuando el registro más reciente es un `local://` huérfano', async () => {
+      // Regresión del 404 de producción: el registro local (más reciente) eclipsaba a su
+      // gemelo remoto con el MISMO contenido y el enlace devuelto era ilegible en Vercel.
+      vi.mocked(getLatestEditorialBookForPlanning).mockResolvedValueOnce({
+        id: 'orphan-local-uuid',
+        planning_id: planningId,
+        workbook_id: 'orphan_wb',
+        content_hash: 'same_hash',
+        metadata: {},
+        pdf_storage_path: `local://orfano_${Date.now()}.pdf`,
+        page_count: 78,
+        spine_width_mm: 7.02,
+        status: 'completed',
+        job_id: null,
+        error_message: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+
+      vi.mocked(getDownloadableEditorialBookForPlanning).mockResolvedValueOnce({
+        id: 'servable-blob-uuid',
+        planning_id: planningId,
+        workbook_id: 'servable_wb',
+        content_hash: 'same_hash',
+        metadata: {},
+        pdf_storage_path: 'https://blob.vercel-storage.com/editorial-books/servable.pdf',
+        page_count: 78,
+        spine_width_mm: 7.02,
+        status: 'completed',
+        job_id: null,
+        error_message: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+
+      const req = new NextRequest(`http://localhost:3000/api/pdf/libro-editorial/${planningId}`);
+      const res = await GET(req, { params: Promise.resolve({ id: planningId }) });
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(data.downloadUrl).toBe('https://blob.vercel-storage.com/editorial-books/servable.pdf');
+      expect(getDownloadableEditorialBookForPlanning).toHaveBeenCalledWith(planningId);
+    });
+
+    it('responde 404 STORAGE_UNAVAILABLE si el contenido vigente no tiene copia descargable', async () => {
+      vi.mocked(getLatestEditorialBookForPlanning).mockResolvedValueOnce({
+        id: 'only-orphan-uuid',
+        planning_id: planningId,
+        workbook_id: 'only_orphan_wb',
+        content_hash: 'same_hash',
+        metadata: {},
+        pdf_storage_path: `local://unico_${Date.now()}.pdf`,
+        page_count: 78,
+        spine_width_mm: 7.02,
+        status: 'completed',
+        job_id: null,
+        error_message: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+      vi.mocked(getDownloadableEditorialBookForPlanning).mockResolvedValueOnce(null);
+
+      const req = new NextRequest(`http://localhost:3000/api/pdf/libro-editorial/${planningId}`);
+      const res = await GET(req, { params: Promise.resolve({ id: planningId }) });
+      const data = await res.json();
+
+      expect(res.status).toBe(404);
+      expect(data.code).toBe('STORAGE_UNAVAILABLE');
+      expect(data.downloadUrl).toBeUndefined();
     });
   });
 

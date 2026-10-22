@@ -19,9 +19,9 @@ import { auth } from '@/lib/auth';
 import { getTeacherByEmail, getPlanningById } from '@/lib/db';
 import { featureFlags } from '@/lib/platform/feature-flags';
 import {
+  getDownloadableEditorialBookForPlanning,
   getEditorialBookByPlanningAndHash,
   getEditorialBookById,
-  getLatestEditorialBookForPlanning,
 } from '@/lib/editorial/editorial-db';
 import { logger } from '@/lib/logger';
 
@@ -61,7 +61,9 @@ export async function GET(request: NextRequest, { params }: RouteCtx) {
     } else if (contentHash) {
       book = await getEditorialBookByPlanningAndHash(planningId, contentHash);
     } else {
-      book = await getLatestEditorialBookForPlanning(planningId);
+      // Sin filtro explícito: copia descargable del contenido vigente (prioriza Vercel Blob
+      // sobre `local://` huérfanos ilegibles desde esta instancia).
+      book = await getDownloadableEditorialBookForPlanning(planningId);
     }
 
     if (!book || book.status !== 'completed' || !book.pdf_storage_path) {
