@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import type { ExtractedPdfData, TeacherContext, PaecOperationalActivity } from '@/types/planning';
 import { CATALOGO_METODOLOGIAS_ACTIVAS, type MetodologiaActiva } from '@/lib/catalogo-metodologias';
-import { buscarPlantelPorNombre } from '@/lib/catalogo-escuelas';
+import { buscarPlantelPorCct, buscarPlantelPorNombre } from '@/lib/catalogo-escuelas';
 import { recomendarMetodologia } from '@/lib/recomendador-metodologia';
 import { logger } from '@/lib/logger';
 
@@ -130,12 +130,16 @@ export default function StepContext({
         const res = await fetch('/api/teacher-profile');
         if (res.ok) {
           const profile = await res.json();
+          // Zona de precarga: el catálogo del plantel del perfil (Héroes → 086) va
+          // ANTES que la zona global de la cuenta (cuentas multiplantel pueden tener
+          // otra zona base). La captura del usuario en el Paso 3 siempre prevalece.
+          const fichaPerfil = buscarPlantelPorCct(profile.cct) || buscarPlantelPorNombre(profile.school_name);
           setForm(prev => ({
             ...prev,
             teacherName: prev.teacherName || profile.name || '',
             schoolName: prev.schoolName || profile.school_name || '',
             cct: prev.cct || profile.cct || '',
-            schoolZone: prev.schoolZone || profile.schoolZone || '',
+            schoolZone: prev.schoolZone || fichaPerfil?.zonaEscolar || profile.schoolZone || '',
             municipality: prev.municipality || profile.municipality || '',
             subsystem: prev.subsystem && prev.subsystem !== 'bge' ? prev.subsystem : (profile.subsystem || 'bge'),
           }));

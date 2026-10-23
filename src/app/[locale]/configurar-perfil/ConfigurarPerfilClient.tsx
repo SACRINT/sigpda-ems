@@ -83,12 +83,14 @@ interface Props {
     city?: string;
     cct?: string;
     subsystem: string;
+    schoolZone?: string;
   };
+  editMode?: boolean;
 }
 
-export default function ConfigurarPerfilClient({ locale, teacherName, teacherEmail, currentData }: Props) {
+export default function ConfigurarPerfilClient({ locale, teacherName, teacherEmail, currentData, editMode = false }: Props) {
   const router = useRouter();
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2>(editMode ? 2 : 1);
   const [selectedRole, setSelectedRole] = useState('');
   const [form, setForm] = useState({
     schoolName: currentData.schoolName || '',
@@ -96,6 +98,7 @@ export default function ConfigurarPerfilClient({ locale, teacherName, teacherEma
     city: currentData.city || '',
     cct: currentData.cct || '',
     subsystem: currentData.subsystem || '',
+    schoolZone: currentData.schoolZone || '',
     teacherFullName: teacherName || '',
   });
   const [saving, setSaving] = useState(false);
@@ -125,18 +128,18 @@ export default function ConfigurarPerfilClient({ locale, teacherName, teacherEma
           city: form.city.trim(),
           cct: form.cct.trim(),
           subsystem: form.subsystem,
+          schoolZone: form.schoolZone.trim(),
           name: form.teacherFullName.trim(),
           role: selectedRole,
-          lockProfile: true,
         }),
       });
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || 'Error al guardar');
       }
-      router.push(`/${locale}/suscripcion`);
-    } catch (err: any) {
-      setError(err.message || 'Error al guardar. Intenta de nuevo.');
+      router.push(editMode ? `/${locale}/dashboard` : `/${locale}/suscripcion`);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error al guardar. Intenta de nuevo.');
       setSaving(false);
     }
   };
@@ -442,7 +445,7 @@ export default function ConfigurarPerfilClient({ locale, teacherName, teacherEma
             </div>
 
             {/* CCT */}
-            <div style={{ marginBottom: 22 }}>
+            <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'rgba(240,244,255,0.6)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                 {selectedRole === 'supervisor' ? 'Clave de Supervisión *' : 'CCT del plantel *'}
               </label>
@@ -456,6 +459,25 @@ export default function ConfigurarPerfilClient({ locale, teacherName, teacherEma
                 onFocus={e => (e.target.style.borderColor = '#6366f1')}
                 onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,0.15)')}
               />
+            </div>
+
+            {/* Zona Escolar (precarga por defecto de los wizards; editable por documento) */}
+            <div style={{ marginBottom: 22 }}>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'rgba(240,244,255,0.6)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Zona Escolar (precarga)
+              </label>
+              <input
+                type="text"
+                value={form.schoolZone}
+                onChange={e => setForm({ ...form, schoolZone: e.target.value })}
+                placeholder="Ej: 086"
+                style={inputStyle}
+                onFocus={e => (e.target.style.borderColor = '#6366f1')}
+                onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,0.15)')}
+              />
+              <p style={{ fontSize: 11, color: 'rgba(240,244,255,0.35)', marginTop: 6 }}>
+                Es solo un valor inicial: en cada documento (planeación, PAEC, PMC…) puedes capturar la zona que corresponda y esa prevalece.
+              </p>
             </div>
 
             {/* Error */}
@@ -472,23 +494,25 @@ export default function ConfigurarPerfilClient({ locale, teacherName, teacherEma
 
             {/* Botones */}
             <div style={{ display: 'flex', gap: 10 }}>
-              <button
-                type="button"
-                onClick={() => { setStep(1); setError(''); }}
-                style={{
-                  padding: '13px 20px',
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  borderRadius: 12,
-                  color: 'rgba(240,244,255,0.7)',
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                ← Regresar
-              </button>
+              {!editMode && (
+                <button
+                  type="button"
+                  onClick={() => { setStep(1); setError(''); }}
+                  style={{
+                    padding: '13px 20px',
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    borderRadius: 12,
+                    color: 'rgba(240,244,255,0.7)',
+                    fontSize: 14,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  ← Regresar
+                </button>
+              )}
               <button
                 type="submit"
                 disabled={saving}
@@ -506,7 +530,7 @@ export default function ConfigurarPerfilClient({ locale, teacherName, teacherEma
                   boxShadow: saving ? 'none' : '0 4px 20px rgba(99,102,241,0.4)',
                 }}
               >
-                {saving ? '⏳ Guardando...' : '✅ Guardar y continuar →'}
+                {saving ? '⏳ Guardando...' : editMode ? '✅ Guardar cambios' : '✅ Guardar y continuar →'}
               </button>
             </div>
           </form>

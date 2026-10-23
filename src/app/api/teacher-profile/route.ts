@@ -1,5 +1,6 @@
 import { sql } from '@/lib/db/client';
 import { auth } from '@/lib/auth';
+import { getTeacherSchoolZone } from '@/lib/db/teachers';
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 
@@ -11,7 +12,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { schoolName, municipality, city, cct, subsystem, name, role, lockProfile } = body;
+    const { schoolName, municipality, city, cct, subsystem, name, role, schoolZone } = body;
 
     // Validaciones básicas
     if (!schoolName?.trim() || !municipality?.trim() || !city?.trim() || !cct?.trim() || !subsystem?.trim()) {
@@ -30,7 +31,7 @@ export async function POST(req: Request) {
 
     // Verificar si existe el docente
     const existing = await db`
-      SELECT id, school_locked, profile_completed
+      SELECT id
       FROM teachers
       WHERE email = ${session.user.email}
       LIMIT 1
@@ -40,17 +41,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Docente no encontrado' }, { status: 404 });
     }
 
-    const teacher = existing[0];
-
-    // Si el perfil ya está bloqueado, no permitir cambios en datos de escuela
-    if (teacher.school_locked) {
-      return NextResponse.json(
-        { error: 'Los datos de tu escuela ya están bloqueados y no pueden modificarse.' },
-        { status: 403 }
-      );
-    }
-
-    // Actualizar el perfil del docente
+    // El perfil es editable en cualquier momento (cuentas multiplantel del dueño de la
+    // plataforma y correcciones de usuarios): ya no se bloquea de por vida con school_locked.
     await db`
       UPDATE teachers SET
         name = ${name?.trim() || session.user.name || session.user.email},
@@ -61,13 +53,25 @@ export async function POST(req: Request) {
         subsystem = ${subsystem.trim()},
         role = COALESCE(${role || null}, role, 'docente'),
         profile_completed = true,
-        school_locked = ${lockProfile === true},
+        school_locked = false,
         updated_at = now()
       WHERE email = ${session.user.email}
     `;
 
+    // Zona escolar (opcional): se guarda como precarga por defecto de los wizards
+    // (custom_preferences.zona/zonaEscolar). La captura por documento siempre prevalece.
+    if (typeof schoolZone === 'string' && schoolZone.trim()) {
+      const z = schoolZone.trim();
+      await db`
+        UPDATE teachers
+        SET custom_preferences = COALESCE(custom_preferences, '{}'::jsonb) || jsonb_build_object('zona', ${z}, 'zonaEscolar', ${z}),
+            updated_at = now()
+        WHERE email = ${session.user.email}
+      `;
+    }
+
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[teacher-profile] Error:', error);
     return NextResponse.json(
       { error: 'Error interno del servidor' },
@@ -86,7 +90,7 @@ export async function GET() {
 
     const db = sql();
     const rows = await db`
-      SELECT name, school_name, municipality, city, cct, subsystem,
+      SELECT id, name, school_name, municipality, city, cct, subsystem,
              profile_completed, school_locked, role
       FROM teachers
       WHERE email = ${session.user.email}
@@ -97,8 +101,12 @@ export async function GET() {
       return NextResponse.json({ error: 'No encontrado' }, { status: 404 });
     }
 
-    return NextResponse.json(rows[0]);
-  } catch (error: any) {
+    // Zona escolar de precarga (horario_config → custom_preferences); los wizards
+    // la usan solo si el campo está vacío, la captura del usuario siempre gana.
+    const schoolZone = await getTeacherSchoolZone(rows[0].id);
+
+    return NextResponse.json({ ...rows[0], schoolZone });
+  } catch (error: unknown) {
     logger.error('[teacher-profile] GET Error:', error);
     return NextResponse.json({ error: 'Error interno' }, { status: 500 });
   }

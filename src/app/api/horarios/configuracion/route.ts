@@ -3,6 +3,66 @@ import { auth } from "@/lib/auth";
 import { sql, getTeacherByEmail } from "@/lib/db";
 import { logger } from "@/lib/logger";
 
+// Tipos para filas de la BD (evitan `any` en el route)
+interface HorarioConfigRow {
+  dias_lectivos?: number;
+  horas_por_dia?: number;
+  hora_inicio?: string;
+  periodo_activo?: string;
+  g1?: number;
+  g2?: number;
+  g3?: number;
+  mapa_curricular_completado?: boolean;
+  zona_escolar?: string;
+  horario_generado?: unknown;
+}
+
+interface GrupoRow {
+  id?: string;
+  nombre?: string;
+  semestre?: number;
+  capacitacion_nombre?: string;
+  ffeo_socioemocional?: boolean;
+  ffe_optativas?: unknown;
+  carrera_tecnica_id?: string;
+  version_programa?: string;
+  materia_propedutica_5to?: boolean;
+  custom_uacs?: unknown;
+  horas_por_dia?: number;
+}
+
+interface CargaRow {
+  id?: string;
+  grupoId?: string;
+  uacName?: string;
+  personalId?: string;
+  horasSemanales?: number;
+  requiereAulaEspecial?: boolean;
+}
+
+interface PersonalRow {
+  id?: string;
+  nombre?: string;
+  apellido_paterno?: string;
+  apellido_materno?: string;
+  cargo?: string;
+  horas_base?: number;
+  email?: string;
+}
+
+interface CustomPreferences {
+  zona?: string;
+  zonaEscolar?: string;
+  escuela?: { nombre?: string; cct?: string };
+}
+
+interface RequestBody {
+  config?: Record<string, unknown>;
+  grupos?: Array<Record<string, unknown> & { nombre?: string; semestre?: number; capacitacionNombre?: string; ffeoSocioemocional?: boolean; ffeOptativas?: unknown; carreraTecnicaId?: string; versionPrograma?: string; materiaPropedutica5to?: boolean; customUacs?: unknown; horasPorDia?: number; horas_por_dia?: number }>;
+  cargas?: Array<Record<string, unknown> & { grupoId?: string; uacName?: string; personalId?: string; horasSemanales?: number; requiereAulaEspecial?: boolean }>;
+  escuela?: Record<string, unknown> & { nombre?: string; cct?: string; zonaEscolar?: string; zona?: string; gruposPrimerAno?: number; gruposSegundoAno?: number; gruposTercerAno?: number };
+}
+
 export async function GET(req: NextRequest) {
   try {
     const session = await auth();
@@ -18,7 +78,7 @@ export async function GET(req: NextRequest) {
     const teacherId = teacher.id;
 
     // ── Configuración del horario ──────────────────────────────────────
-    let configRows: any[] = [];
+    let configRows: HorarioConfigRow[] = [];
     try {
       configRows = await sql()`
         SELECT * FROM horario_config WHERE teacher_id = ${teacherId}::uuid LIMIT 1
@@ -42,7 +102,7 @@ export async function GET(req: NextRequest) {
     };
 
     // ── Grupos guardados ───────────────────────────────────────────────
-    let gruposRows: any[] = [];
+    let gruposRows: GrupoRow[] = [];
     try {
       gruposRows = await sql()`
         SELECT
@@ -78,11 +138,13 @@ export async function GET(req: NextRequest) {
       gruposRows.filter(g => g.semestre === 6).length
     );
 
-    const zonaGuardada = configDB?.zona_escolar || (teacher.custom_preferences as any)?.zonaEscolar || (teacher.custom_preferences as any)?.zona || "";
+    const prefs = (teacher.custom_preferences as CustomPreferences | null) || {};
+    const escuelaPrefs = prefs.escuela || {};
+    const zonaGuardada = configDB?.zona_escolar || prefs.zonaEscolar || prefs.zona || "";
     const escuela = {
       id: teacherId,
-      cct: teacher.cct || teacher.school_name || "SIN CCT",
-      nombre: teacher.school_name || "Mi Plantel",
+      cct: escuelaPrefs.cct || teacher.cct || teacher.school_name || "SIN CCT",
+      nombre: escuelaPrefs.nombre || teacher.school_name || "Mi Plantel",
       zonaEscolar: zonaGuardada,
       zona: zonaGuardada,
       subsystem: teacher.subsystem || "bge",
@@ -103,7 +165,7 @@ export async function GET(req: NextRequest) {
     }
 
     // ── Cargas guardadas ───────────────────────────────────────────────
-    let cargasRows: any[] = [];
+    let cargasRows: CargaRow[] = [];
     try {
       cargasRows = await sql()`
         SELECT
@@ -120,7 +182,7 @@ export async function GET(req: NextRequest) {
     } catch { /* tabla no existe */ }
 
     // Normalizar cargas al formato interno del wizard
-    const cargas = cargasRows.map((c: any) => ({
+    const cargas = cargasRows.map((c: CargaRow) => ({
       grupoId: c.grupoId,
       asignaturaId: c.uacName,   // usamos uacName como asignaturaId
       uacName: c.uacName,
@@ -130,7 +192,7 @@ export async function GET(req: NextRequest) {
     }));
 
     // ── Docentes: Personal del plantel registrado por el Director ────────
-    let personalRows: any[] = [];
+    let personalRows: PersonalRow[] = [];
     try {
       personalRows = await sql()`
         SELECT id::text, nombre, apellido_paterno, apellido_materno, cargo, horas_base, email
@@ -142,7 +204,7 @@ export async function GET(req: NextRequest) {
       logger.warn("[api/horarios/configuracion GET] Error consultando escuela_personal:", e);
     }
 
-    let docentes = personalRows.map((p: any) => ({
+    let docentes = personalRows.map((p: PersonalRow) => ({
       id: p.id,
       nombre: p.nombre || "",
       apellidoPaterno: p.apellido_paterno || "",
@@ -177,7 +239,7 @@ export async function GET(req: NextRequest) {
       cargas,
       horario: configDB?.horario_generado || null,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("[api/horarios/configuracion GET]", error);
     return NextResponse.json({ error: "Error al cargar configuración de horario" }, { status: 500 });
   }
@@ -196,7 +258,7 @@ export async function POST(req: NextRequest) {
     }
 
     const teacherId = teacher.id;
-    const body = await req.json();
+    const body: RequestBody = await req.json();
     const { config, grupos, cargas, escuela: escuelaBody } = body;
 
     // ── 1. Guardar / actualizar configuración ──────────────────────────
@@ -205,6 +267,11 @@ export async function POST(req: NextRequest) {
     const g3 = escuelaBody?.gruposTercerAno  ?? config?.g3  ?? 1;
     const zonaEscolar = escuelaBody?.zonaEscolar || escuelaBody?.zona || config?.zonaEscolar || "";
     const mapaDone = true; // Si se guarda configuración desde el Wizard, siempre está completado
+
+    // Plantel/CCT editados en el wizard (multiplantel): se persisten como valores
+    // por cuenta (custom_preferences.escuela); antes se ignoraban y se perdían.
+    const escuelaNombre = typeof escuelaBody?.nombre === "string" ? escuelaBody.nombre.trim() : "";
+    const escuelaCct = typeof escuelaBody?.cct === "string" ? escuelaBody.cct.trim() : "";
 
     try {
       await sql()`
@@ -232,10 +299,13 @@ export async function POST(req: NextRequest) {
           updated_at                = NOW()
       `;
 
-      // Sincronizar zona_escolar en preferencias del perfil docente
+      // Sincronizar zona escolar y plantel del wizard en preferencias del perfil docente
       try {
-        const currentPrefs = (teacher.custom_preferences as any) || {};
-        const updatedPrefs = { ...currentPrefs, zonaEscolar, zona: zonaEscolar };
+        const currentPrefs = (teacher.custom_preferences as CustomPreferences | null) || {};
+        const escuelaPrefs = (escuelaNombre || escuelaCct)
+          ? { ...(currentPrefs.escuela || {}), ...(escuelaNombre ? { nombre: escuelaNombre } : {}), ...(escuelaCct ? { cct: escuelaCct } : {}) }
+          : currentPrefs.escuela;
+        const updatedPrefs = { ...currentPrefs, zonaEscolar, zona: zonaEscolar, ...(escuelaPrefs ? { escuela: escuelaPrefs } : {}) };
         await sql()`
           UPDATE teachers
           SET custom_preferences = ${JSON.stringify(updatedPrefs)}::jsonb
@@ -251,7 +321,7 @@ export async function POST(req: NextRequest) {
     // ── 2. Guardar grupos (upsert por teacher_id + nombre) ─────────────
     if (Array.isArray(grupos) && grupos.length > 0) {
       // Purgar grupos obsoletos si la estructura se redujo (ej: de 3 grupos a 2 grupos)
-      const nombresActivos = grupos.map((g: any) => (g.nombre || "").trim()).filter(Boolean);
+      const nombresActivos = grupos.map(g => (g.nombre || "").trim()).filter(Boolean);
       if (nombresActivos.length > 0) {
         try {
           await sql()`
@@ -339,7 +409,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ success: true, message: "Configuración guardada correctamente" });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("[api/horarios/configuracion POST]", error);
     return NextResponse.json({ error: "Error al guardar configuración" }, { status: 500 });
   }
@@ -372,7 +442,7 @@ export async function DELETE(req: NextRequest) {
     }
 
     return NextResponse.json({ success: true, message: "Datos del horario limpiados correctamente" });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("[api/horarios/configuracion DELETE]", error);
     return NextResponse.json({ error: "Error al limpiar datos" }, { status: 500 });
   }
