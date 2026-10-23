@@ -162,9 +162,9 @@ describe('Fichas de trabajo imprimibles por sesión', () => {
   it('distribuye los materiales tokenizados en la sesión que los declara', () => {
     const extracted = extractMaterialsFromWorkbook(makeWorkbook(), makeSequence());
 
+    expect(extracted.materialDidactico).not.toContain('## INVENTARIO');
     expect(extracted.materialDidactico).toContain('Balanza algebraica de dos platos');
-    expect(extracted.materialDidactico).toContain('`[[material:balanza-algebraica]]`');
     expect(extracted.materialDidactico).toContain('| Sesión 1 |');
-    expect(extracted.materialDidactico).toContain('Balanza algebraica de dos platos');
+    expect(extracted.materialDidactico).toContain('Según la actividad');
   });
 });

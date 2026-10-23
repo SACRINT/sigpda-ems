@@ -15,10 +15,12 @@ let mockPlanRows: Array<{ id: string; teacher_id: string; uac_name: string; comp
 const mockSql = vi.fn(() => Promise.resolve(mockPlanRows));
 const mockGetTeacherByEmail = vi.fn();
 const mockGetBlockWorkbook = vi.fn();
+const mockGetAllBlockWorkbooks = vi.fn();
 vi.mock('@/lib/db', () => ({
   sql: () => mockSql,
   getTeacherByEmail: (e: string) => mockGetTeacherByEmail(e),
   getBlockWorkbook: (id: string, idx: number) => mockGetBlockWorkbook(id, idx),
+  getAllBlockWorkbooks: (id: string) => mockGetAllBlockWorkbooks(id),
 }));
 
 vi.mock('@/lib/logger', () => ({
@@ -26,6 +28,7 @@ vi.mock('@/lib/logger', () => ({
 }));
 
 import { GET } from '@/app/api/planeaciones/[id]/presentacion/route';
+import { GET as GET_COMBINED } from '@/app/api/planeaciones/[id]/presentacion/combinada/route';
 
 const planningId = '11111111-1111-1111-1111-111111111111';
 const teacherId = 'teacher-1';
@@ -52,6 +55,10 @@ describe('H-319 — endpoint de presentación', () => {
     mockPlanRows = [{ id: planningId, teacher_id: teacherId, uac_name: 'PM I', component: null }];
     mockGetTeacherByEmail.mockResolvedValue({ id: teacherId, role: 'docente' });
     mockGetBlockWorkbook.mockResolvedValue(workbook);
+    mockGetAllBlockWorkbooks.mockResolvedValue({
+      block_0: { current: workbook },
+      block_1: { current: { ...workbook, coverData: { ...workbook.coverData, blockNumber: 2 } } },
+    });
   });
 
   it('401 sin sesión', async () => {
@@ -96,5 +103,26 @@ describe('H-319 — endpoint de presentación', () => {
     expect(res.headers.get('Content-Disposition')).toContain('.pptx');
     const buf = Buffer.from(await res.arrayBuffer());
     expect(buf.subarray(0, 2).toString()).toBe('PK');
+  });
+
+  it('genera un solo PPTX con todos los bloques', async () => {
+    const res = await GET_COMBINED(
+      new NextRequest(`http://localhost:3000/api/planeaciones/${planningId}/presentacion/combinada`),
+      { params: Promise.resolve({ id: planningId }) }
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Content-Type')).toContain('presentationml.presentation');
+    expect(res.headers.get('Content-Disposition')).toContain('Todos_Bloques');
+    const buf = Buffer.from(await res.arrayBuffer());
+    expect(buf.subarray(0, 2).toString()).toBe('PK');
+  });
+
+  it('404 en combinada si no hay libros generados', async () => {
+    mockGetAllBlockWorkbooks.mockResolvedValue({});
+    const res = await GET_COMBINED(
+      new NextRequest(`http://localhost:3000/api/planeaciones/${planningId}/presentacion/combinada`),
+      { params: Promise.resolve({ id: planningId }) }
+    );
+    expect(res.status).toBe(404);
   });
 });

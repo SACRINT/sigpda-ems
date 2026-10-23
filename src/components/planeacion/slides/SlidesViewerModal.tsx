@@ -34,7 +34,7 @@ function SlideView({ slide, deck, theme }: { slide: Slide; deck: SlideDeck; them
         display: 'flex', flexDirection: 'column', justifyContent: dark ? 'center' : 'flex-start',
         padding: dark ? '6% 8%' : '4% 6%', boxSizing: 'border-box',
         borderLeft: dark ? `14px solid #${deck.palette.accent}` : undefined,
-        fontFamily: 'Calibri, "Segoe UI", system-ui, sans-serif', overflow: 'hidden',
+        fontFamily: 'Calibri, "Segoe UI", system-ui, sans-serif', overflow: 'auto',
       }}
     >
       <h2 style={{ fontSize: dark ? 'clamp(28px,4.2vw,56px)' : 'clamp(22px,2.8vw,38px)', fontWeight: 800, margin: 0, color: dark ? '#fff' : c.muted, lineHeight: 1.15 }}>

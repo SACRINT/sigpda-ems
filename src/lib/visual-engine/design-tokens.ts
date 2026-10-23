@@ -228,6 +228,35 @@ export const LEVEL4_RGB: Record<Level4Key, RGB> = {
   E: [107, 58, 27],
 };
 
+export const SESSION_BOX_HEX = 'F59E0B';
+export const SESSION_BOX_RGB: RGB = [245, 158, 11];
+export const SESSION_BOX_TEXT_HEX = '111827';
+export const SESSION_BOX_TEXT_RGB: RGB = [17, 24, 39];
+
+export function isSessionBox(title: string): boolean {
+  return /^\s*sesi[oó]n\b/i.test(title);
+}
+
+export function resolveLevel4FillHex(title: string, fallback: string): string {
+  if (isSessionBox(title)) return SESSION_BOX_HEX;
+  const key = resolveLevel4Key(title);
+  return key ? LEVEL4_HEX[key] : fallback;
+}
+
+export function resolveLevel4FillRgb(title: string, fallback: RGB): RGB {
+  if (isSessionBox(title)) return SESSION_BOX_RGB;
+  const key = resolveLevel4Key(title);
+  return key ? LEVEL4_RGB[key] : fallback;
+}
+
+export function resolveLevel4TextHex(title: string): string {
+  return isSessionBox(title) ? SESSION_BOX_TEXT_HEX : 'FFFFFF';
+}
+
+export function resolveLevel4TextRgb(title: string): RGB {
+  return isSessionBox(title) ? SESSION_BOX_TEXT_RGB : COLOR.TEXT_ON_DARK;
+}
+
 /**
  * Resuelve la letra/fase de una caja H4 a partir de su título.
  * Precedencia: letra inicial (`A.`…`E.`) → palabras clave de fase → `null`

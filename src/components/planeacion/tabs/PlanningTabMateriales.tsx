@@ -126,6 +126,12 @@ export default function PlanningTabMateriales({
     return a.localeCompare(b);
   });
 
+  const generatedBlockIndexes = Object.entries(blockWorkbooks)
+    .filter(([, item]) => Boolean(item.workbook))
+    .map(([index]) => Number(index))
+    .filter((index) => Number.isFinite(index))
+    .sort((a, b) => a - b);
+
   if (activeSubTab === 'teacherGuides') {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -365,11 +371,11 @@ export default function PlanningTabMateriales({
           </div>
 
           {/* Descargas Combinadas — 1 archivo con todos los bloques por tipo (data-driven) */}
-          {combinedTypes.length > 0 && (
+          {(combinedTypes.length > 0 || generatedBlockIndexes.length > 0) && (
           <div className="section-card" style={{ border: '1px solid rgba(59, 130, 246, 0.35)' }}>
             <div className="section-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span className="section-card-title">📦 Descargas Combinadas — Todos los Bloques en un Solo Archivo</span>
-              <span className="text-xs" style={{ color: 'var(--c-blue-mid)', fontWeight: 600 }}>PDF · Word</span>
+              <span className="section-card-title">📊 Descargas Combinadas — Todos los Bloques en un Solo Archivo</span>
+              <span className="text-xs" style={{ color: 'var(--c-blue-mid)', fontWeight: 600 }}>PDF · Word · PPTX</span>
             </div>
             <div className="section-card-body">
               <p style={{ margin: '0 0 12px 0', fontSize: '12.5px', color: 'var(--c-text-muted)', lineHeight: 1.45 }}>
@@ -408,6 +414,46 @@ export default function PlanningTabMateriales({
                   </div>
                   );
                 })}
+                {generatedBlockIndexes.length > 0 && (
+                  <>
+                    <div style={{
+                      display: 'flex', flexDirection: 'column', gap: '6px',
+                      padding: '12px', background: 'var(--c-bg-surface)',
+                      border: '1px solid rgba(139, 92, 246, 0.35)', borderRadius: '8px'
+                    }}>
+                      <span style={{ fontSize: '12.5px', fontWeight: 700, color: '#7c3aed' }}>
+                        Presentaciones PPTX (Todos los bloques)
+                      </span>
+                      <a
+                        href={`/api/planeaciones/${planning.id}/presentacion/combinada`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn"
+                        style={{ alignSelf: 'flex-start', padding: '5px 10px', fontSize: '11px', borderRadius: '4px', textDecoration: 'none', background: '#7c3aed', color: '#fff', fontWeight: 600 }}
+                      >
+                        ↓ PPTX (1 archivo)
+                      </a>
+                    </div>
+                    <div style={{
+                      display: 'flex', flexDirection: 'column', gap: '6px',
+                      padding: '12px', background: 'var(--c-bg-surface)',
+                      border: '1px solid rgba(236, 72, 153, 0.35)', borderRadius: '8px'
+                    }}>
+                      <span style={{ fontSize: '12.5px', fontWeight: 700, color: '#ec4899' }}>
+                        Infografías (Todos los bloques)
+                      </span>
+                      <a
+                        href={`/api/planeaciones/${planning.id}/infografia/combinada?format=pdf`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn"
+                        style={{ alignSelf: 'flex-start', padding: '5px 10px', fontSize: '11px', borderRadius: '4px', textDecoration: 'none', background: '#ec4899', color: '#fff', fontWeight: 600 }}
+                      >
+                        ↓ PDF (1 archivo)
+                      </a>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>

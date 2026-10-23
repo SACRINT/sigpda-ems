@@ -16,14 +16,17 @@ let mockPlanRows: Array<{ id: string; teacher_id: string; uac_name: string; comp
 const mockSql = vi.fn(() => Promise.resolve(mockPlanRows));
 const mockGetTeacherByEmail = vi.fn();
 const mockGetBlockWorkbook = vi.fn();
+const mockGetAllBlockWorkbooks = vi.fn();
 vi.mock('@/lib/db', () => ({
   sql: () => mockSql,
   getTeacherByEmail: (e: string) => mockGetTeacherByEmail(e),
   getBlockWorkbook: (id: string, idx: number) => mockGetBlockWorkbook(id, idx),
+  getAllBlockWorkbooks: (id: string) => mockGetAllBlockWorkbooks(id),
 }));
 vi.mock('@/lib/logger', () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }));
 
 import { GET } from '@/app/api/planeaciones/[id]/infografia/route';
+import { GET as GET_COMBINED } from '@/app/api/planeaciones/[id]/infografia/combinada/route';
 
 function mission(i: number, over: Partial<MissionSection> = {}): MissionSection {
   return {
@@ -172,7 +175,7 @@ describe('Sesión 3 — infografía sin texto cortado', () => {
     }
   });
 
-  it('la pregunta detonadora larga cabe en 2 líneas sin elipsis', () => {
+  it('la pregunta detonadora larga cabe completa sin elipsis', () => {
     const wb = workbook('Pensamiento Matemático I');
     const pregunta =
       '¿Qué es una función cuadrática y cómo se identifican sus coeficientes en una ecuación de segundo grado?';
@@ -181,9 +184,9 @@ describe('Sesión 3 — infografía sin texto cortado', () => {
       criteriaChecklist: ['Identifica los coeficientes', 'Grafica la parábola'],
     };
     const info = buildInfographic(wb, 0)!;
-    const footerTexts = parseTexts(info.svg).filter((t) => t.fontSize === 23 && t.y >= 1398);
+    const footerTexts = parseTexts(info.svg).filter((t) => t.fontSize === 21);
     const preguntaLines = footerTexts.filter((t) => t.x === 60);
-    expect(preguntaLines).toHaveLength(2);
+    expect(preguntaLines.length).toBeGreaterThanOrEqual(1);
     expect(preguntaLines.some((t) => t.content.includes('…'))).toBe(false);
     expect(preguntaLines.map((t) => t.content).join(' ')).toContain('coeficientes');
   });
@@ -191,12 +194,41 @@ describe('Sesión 3 — infografía sin texto cortado', () => {
   it('los ítems del footer no invaden la línea de meta (plantel · PAEC)', () => {
     const info = buildInfographic(workbook('Pensamiento Matemático I'), 0)!;
     const texts = parseTexts(info.svg);
-    const items = texts.filter((t) => t.fontSize === 23);
+    const items = texts.filter((t) => t.fontSize === 21);
     const meta = texts.find((t) => t.fontSize === 18 && t.y > 1500)!;
     expect(meta).toBeDefined();
     expect(meta.y).toBe(INFOGRAPHIC_HEIGHT - 20);
     const lastItemBottom = Math.max(...items.map((t) => t.y + t.fontSize * 0.3));
     expect(lastItemBottom).toBeLessThan(meta.y - meta.fontSize * 0.75);
+  });
+
+  it('con contenido largo no recorta con elipsis ni pierde el final de los textos', () => {
+    const wb = workbook('Pensamiento Matemático I');
+    const pregunta = `¿Cómo se relacionan los coeficientes de una función cuadrática con la forma de su gráfica en situaciones de la vida cotidiana? ${'Contexto real. '.repeat(8)}finpregunta`;
+    const criterios = [
+      `Identifica los coeficientes a, b y c en una ecuación de segundo grado y explica su efecto en la parábola. ${'Detalle. '.repeat(8)}fincriterio1`,
+      `Grafica la parábola ubicando vértice, eje de simetría e intersecciones con los ejes coordenados. ${'Detalle. '.repeat(8)}fincriterio2`,
+      `Resuelve un problema de optimización y justifica la solución con el modelo cuadrático elegido. ${'Detalle. '.repeat(8)}fincriterio3`,
+    ];
+    const pasos = Array.from({ length: 5 }, (_, i) =>
+      `Paso ${i + 1}: ${'Describe el procedimiento completo con datos, operaciones y verificación del resultado. '.repeat(4)}finpaso${i + 1}`
+    );
+    wb.missions[0].phenomenonHook = { story: 's', detonatingQuestion: pregunta };
+    wb.missions[0].formativeCheckpoint = { question: pregunta, reflectionPrompts: [], criteriaChecklist: criterios };
+    wb.missions[0].conceptZero.solvedExample = {
+      problemStatement: 'p',
+      solutionSteps: pasos,
+      interpretation: 'i',
+    };
+
+    const info = buildInfographic(wb, 0)!;
+    expect(info.svg).not.toContain('…');
+    for (const token of ['finpregunta', 'fincriterio1', 'fincriterio2', 'fincriterio3', 'finpaso1', 'finpaso5']) {
+      expect(info.svg).toContain(token);
+    }
+    for (const t of parseTexts(info.svg)) {
+      expect(t.y).toBeLessThanOrEqual(INFOGRAPHIC_HEIGHT - 20);
+    }
   });
 });
 
@@ -232,6 +264,10 @@ describe('H-321 — endpoint /infografia', () => {
     mockPlanRows = [{ id: planningId, teacher_id: 't1', uac_name: 'x', component: null }];
     mockGetTeacherByEmail.mockResolvedValue({ id: 't1', role: 'docente' });
     mockGetBlockWorkbook.mockResolvedValue(workbook('Física'));
+    mockGetAllBlockWorkbooks.mockResolvedValue({
+      block_0: { current: workbook('Física') },
+      block_1: { current: { ...workbook('Física'), coverData: { ...workbook('Física').coverData, blockNumber: 2 } } },
+    });
   });
 
   it('401 / 400 / 404 / 403', async () => {
@@ -280,5 +316,26 @@ describe('H-321 — endpoint /infografia', () => {
     const infoConcept = buildInfographic(wbHum, 0)!;
     expect(infoConcept.svg).not.toContain('<!--workbook:');
     expect(infoConcept.svg).not.toContain('<!--');
+  });
+
+  it('genera un solo PDF con las infografías de todos los bloques', async () => {
+    const res = await GET_COMBINED(
+      new NextRequest(`http://localhost:3000/api/planeaciones/${planningId}/infografia/combinada?format=pdf`),
+      { params: Promise.resolve({ id: planningId }) }
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Content-Type')).toBe('application/pdf');
+    expect(res.headers.get('Content-Disposition')).toContain('Todos_Bloques');
+    const buf = Buffer.from(await res.arrayBuffer());
+    expect(buf.subarray(0, 5).toString()).toBe('%PDF-');
+  }, 30000);
+
+  it('404 en combinada si no hay libros generados', async () => {
+    mockGetAllBlockWorkbooks.mockResolvedValue({});
+    const res = await GET_COMBINED(
+      new NextRequest(`http://localhost:3000/api/planeaciones/${planningId}/infografia/combinada?format=pdf`),
+      { params: Promise.resolve({ id: planningId }) }
+    );
+    expect(res.status).toBe(404);
   });
 });

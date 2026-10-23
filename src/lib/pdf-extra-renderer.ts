@@ -16,8 +16,8 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import {
   COLORS,
-  LEVEL4_RGB,
-  resolveLevel4Key,
+  resolveLevel4FillRgb,
+  resolveLevel4TextRgb,
   type RGB,
 } from '@/lib/visual-engine/design-tokens';
 import {
@@ -170,8 +170,7 @@ interface Level4BoxMetrics {
 }
 
 function resolveLevel4Color(title: string, fallback: RGB): RGB {
-  const key = resolveLevel4Key(title);
-  return key ? LEVEL4_RGB[key] : fallback;
+  return resolveLevel4FillRgb(title, fallback);
 }
 
 function prepareLevel4Box(doc: jsPDF, title: string, drawWidth: number): Level4BoxMetrics {
@@ -194,9 +193,9 @@ function prepareLevel4Box(doc: jsPDF, title: string, drawWidth: number): Level4B
 function drawLevel4Box(
   doc: jsPDF,
   box: Level4BoxMetrics,
-  opts: { margin: number; drawWidth: number; y: number; themeColor: RGB }
+  opts: { margin: number; drawWidth: number; y: number; themeColor: RGB; textColor: RGB }
 ): number {
-  const { margin, drawWidth, themeColor } = opts;
+  const { margin, drawWidth, themeColor, textColor } = opts;
   const y = opts.y;
   const { badge, lines, height } = box;
 
@@ -216,7 +215,7 @@ function drawLevel4Box(
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(LEVEL4_FONT_SIZE);
-  doc.setTextColor(255, 255, 255);
+  doc.setTextColor(...textColor);
   const blockH = lines.length * LEVEL4_LINE_H;
   const startY = y + Math.max(0, (height - blockH) / 2) + 2.9;
   lines.forEach((text, i) => {
@@ -693,7 +692,13 @@ export function renderExtraDocument(
       const themeColor = resolveLevel4Color(text, typeColor);
       const box = prepareLevel4Box(doc, text, contentW);
       if (y + box.height > pageHeight - 15) { addNewPage(); }
-      y = drawLevel4Box(doc, box, { margin, drawWidth: contentW, y, themeColor });
+      y = drawLevel4Box(doc, box, {
+        margin,
+        drawWidth: contentW,
+        y,
+        themeColor,
+        textColor: resolveLevel4TextRgb(text),
+      });
       y += 2.2;
       markContent();
       continue;

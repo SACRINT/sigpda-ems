@@ -23,8 +23,8 @@ export function bodyFontSize(bullets: string[]): number {
   return 14;
 }
 
-function addFooter(s: PptxGenJS.Slide, deck: SlideDeck, index: number, total: number) {
-  s.addText(`${deck.meta.subjectName} · Bloque ${deck.meta.blockNumber}`, {
+function addFooter(s: PptxGenJS.Slide, deck: SlideDeck, index: number, total: number, slide: Slide) {
+  s.addText(`${deck.meta.subjectName} · Bloque ${slide.blockNumber ?? deck.meta.blockNumber}`, {
     x: 0.4, y: H - 0.38, w: 7, h: 0.28,
     fontFace: FONT_BODY, fontSize: 10, color: '7A8794',
   });
@@ -112,7 +112,7 @@ function renderContent(pptx: PptxGenJS, deck: SlideDeck, slide: Slide, index: nu
     );
   }
 
-  addFooter(s, deck, index, total);
+  addFooter(s, deck, index, total, slide);
   s.addNotes(slide.notes);
 }
 

@@ -88,28 +88,20 @@ describe('T-IMG-04: Integración de Tokens en Extractor de Materiales', () => {
     expect(extracted.guiaDelBloque).toContain('- [ ] Cinta aislante de uso rudo (material local sin token)');
   });
 
-  it('construye el inventario del bloque con Token, Imagen, EPP y Equivalente Virtual', () => {
+  it('distribuye los materiales por sesión sin tabla de inventario', () => {
     const extracted = extractMaterialsFromWorkbook(
       baseWorkbook as unknown as ActiveWorkTextbook,
       sequenceWithTokens
     );
 
-    expect(extracted.materialDidactico).toContain(
-      '| Material | Token | Imagen | EPP | Equivalente virtual | Sesiones sugeridas |'
-    );
+    expect(extracted.materialDidactico).not.toContain('## INVENTARIO');
+    expect(extracted.materialDidactico).not.toContain('| Material | Token |');
+    expect(extracted.materialDidactico).toContain('## DISTRIBUCIÓN POR SESIÓN');
 
     expect(extracted.materialDidactico).toContain('Multímetro digital autorango');
-    expect(extracted.materialDidactico).toContain('`[[material:multimetro]]`');
-    expect(extracted.materialDidactico).toContain('/images/materiales/multimetro.png');
-    expect(extracted.materialDidactico).toContain('Gafas de seguridad');
-    expect(extracted.materialDidactico).toContain('Falstad CircuitJS');
-    expect(extracted.materialDidactico).toContain('Cable de Red Ethernet UTP Cat 6 con Conectores RJ45');
-    expect(extracted.materialDidactico).toContain('Cinta aislante de uso rudo (material local sin token)');
-    expect(extracted.materialDidactico).toContain('Sin token');
-
+    expect(extracted.materialDidactico).toContain('Placas de Contactos Eléctricos');
     expect(extracted.materialDidactico).toContain('| Sesión 1 |');
-    expect(extracted.materialDidactico).toContain('Multímetro digital autorango');
     expect(extracted.materialDidactico).toContain('| Sesión 2 |');
-    expect(extracted.materialDidactico).toContain('Materiales del inventario del bloque (ver arriba)');
+    expect(extracted.materialDidactico).toContain('Según la actividad');
   });
 });

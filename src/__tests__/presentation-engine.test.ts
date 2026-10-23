@@ -79,6 +79,16 @@ describe('H-317 — Motor de presentaciones', () => {
     expect(bodyFontSize(['a'])).toBeGreaterThan(bodyFontSize(['x'.repeat(200), 'y'.repeat(200), 'z'.repeat(200)]));
   });
 
+  it('no recorta el texto de los slides; lo conserva completo', () => {
+    const wb = workbook(1);
+    const long = 'palabra '.repeat(60).trim();
+    wb.missions[0].phenomenonHook = { story: long, detonatingQuestion: long };
+    const deck = buildSlideDeck(wb);
+    const hook = deck.slides.find((s) => s.kind === 'hook')!;
+    expect(hook.bullets?.[0]).toBe(long);
+    expect(hook.callout?.text).toBe(long);
+  });
+
   it('genera un .pptx válido (ZIP con ppt/slides)', async () => {
     const deck = buildSlideDeck(workbook(2));
     const buf = await generatePptxBuffer(deck);

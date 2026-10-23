@@ -12,7 +12,11 @@ const MarkdownWithMermaid = dynamic(
 import { MaterialFigure } from '@/components/planeacion/MaterialFigure';
 import { parseMaterialTokensWithFallback, resolveMaterialTokensForMarkdown, stripMaterialTokens } from '@/lib/materials/material-tokens';
 import { autoTokenizeMaterials } from '@/lib/materials/auto-tokenize';
-import { LEVEL4_HEX, resolveLevel4Key } from '@/lib/visual-engine/design-tokens';
+import {
+  LEVEL4_HEX,
+  resolveLevel4FillHex,
+  resolveLevel4TextHex,
+} from '@/lib/visual-engine/design-tokens';
 
 interface ExtraPreviewModalProps {
   isOpen: boolean;
@@ -28,8 +32,11 @@ interface ExtraPreviewModalProps {
  * C transversal, D evaluación, E cierre. El `#` lo añade solo la vista previa HTML.
  */
 export function level4Color(title: string): string {
-  const key = resolveLevel4Key(title);
-  return `#${key ? LEVEL4_HEX[key] : LEVEL4_HEX.C}`;
+  return `#${resolveLevel4FillHex(title, LEVEL4_HEX.C)}`;
+}
+
+export function level4TextColor(title: string): string {
+  return `#${resolveLevel4TextHex(title)}`;
 }
 
 export function ExtraPreviewModal({
@@ -219,12 +226,13 @@ export function ExtraPreviewModal({
           const badge = badgeMatch ? `${badgeMatch[1].toUpperCase()}.` : '';
           const label = badgeMatch ? rawTitle.slice(badgeMatch[0].length).trim() : rawTitle;
           const fill = level4Color(rawTitle);
+          const textColor = level4TextColor(rawTitle);
           elements.push(
             <div
               key={key++}
               style={{
                 background: fill,
-                color: '#ffffff',
+                color: textColor,
                 borderRadius: '6px',
                 padding: '8px 12px',
                 margin: '14px 0 8px',

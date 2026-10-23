@@ -30,7 +30,11 @@ import {
   type ITableCellBorders,
   type ISpacingProperties,
 } from 'docx';
-import { LEVEL4_HEX, PHASE_COLORS_HEX, resolveLevel4Key } from '@/lib/visual-engine/design-tokens';
+import {
+  PHASE_COLORS_HEX,
+  resolveLevel4FillHex,
+  resolveLevel4TextHex,
+} from '@/lib/visual-engine/design-tokens';
 import { resolveHeaderBranding, type BrandingContext } from '@/lib/document-branding';
 import { getExtraContentForRender } from '@/lib/materials/material-tokens';
 
@@ -57,8 +61,7 @@ export const C = DOCX_COLORS;
 
 // ── Cajas de color H4 (####): paleta compartida SSoT (design-tokens.LEVEL4_HEX) ──
 function resolveLevel4Fill(text: string): string {
-  const key = resolveLevel4Key(text);
-  return key ? LEVEL4_HEX[key] : C.mid;
+  return resolveLevel4FillHex(text, C.mid);
 }
 
 // ── Dimensiones estándar en DXA (1/20 de punto) ─────────────────────────────
@@ -270,7 +273,7 @@ export function createParagraphFromLine(
     return new Paragraph({
       spacing: { before: Math.round(150 * scale), after: Math.round(70 * scale) },
       shading: { fill, type: ShadingType.CLEAR },
-      children: parseTextRuns(padded, Math.round(17 * scale), C.white, true),
+      children: parseTextRuns(padded, Math.round(17 * scale), resolveLevel4TextHex(text), true),
     });
   }
 

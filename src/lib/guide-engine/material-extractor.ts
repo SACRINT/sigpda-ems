@@ -501,7 +501,10 @@ function buildSolucionarioDocenteMarkdown(workbook: ActiveWorkTextbook): string 
 
   parts.push('## 1. RESOLUCIÓN DETALLADA Y GUÍA DE MEDIACIÓN POR MISIÓN\n');
 
+  let isFirstMission = true;
   for (const mission of workbook.missions || []) {
+    if (!isFirstMission) parts.push('<!-- pagebreak -->');
+    isFirstMission = false;
     const sStart = mission.coveredSessions?.[0] ?? (mission.missionIndex * 3 - 2);
     const sEnd = mission.coveredSessions?.[mission.coveredSessions.length - 1] ?? (mission.missionIndex * 3);
     parts.push(`### MISIÓN ${mission.missionIndex}: ${mission.title.toUpperCase()} (Sesiones ${sStart} a ${sEnd})`);
@@ -839,22 +842,6 @@ function buildMaterialDidacticoMarkdown(
 
   parts.push(`# REQUERIMIENTOS DE MATERIAL DIDÁCTICO E INSUMOS`);
   parts.push(`**Bloque ${blockNum}** · ${workbook.coverData?.subjectName || ''}\n`);
-  parts.push('## INVENTARIO DE MATERIALES DEL BLOQUE\n');
-
-  if (inventory.length > 0) {
-    parts.push('| Material | Token | Imagen | EPP | Equivalente virtual | Sesiones sugeridas |');
-    parts.push('|---|---|---|---|---|---|');
-    for (const row of inventory) {
-      parts.push(renderInventoryRow(row, usage));
-    }
-    parts.push('');
-    parts.push(
-      '*Los materiales con token están vinculados al catálogo institucional (imagen, EPP y equivalente virtual). Los materiales marcados como "Todas las sesiones" son transversales al proyecto; la distribución por sesión resalta los materiales específicos detectados en cada actividad. Los materiales sin token se conservan como insumos locales del proyecto.*\n'
-    );
-  } else {
-    parts.push('No se registraron materiales en el inventario del bloque. Se muestran los recursos declarados por sesión.\n');
-  }
-
   parts.push('## DISTRIBUCIÓN POR SESIÓN\n');
   parts.push('| Sesión | Misión / Práctica | Materiales de la sesión | Espacio requerido |');
   parts.push('|---|---|---|---|');
@@ -869,7 +856,7 @@ function buildMaterialDidacticoMarkdown(
     const sessionMaterialsText =
       labels.length > 0
         ? labels.join('; ')
-        : 'Materiales del inventario del bloque (ver arriba)';
+        : 'Según la actividad';
 
     parts.push(
       `| Sesión ${plan.numeroSesion} | ${sanitizeTableCell(cleanSessionTitle(plan.tituloSesion, plan.numeroSesion))} | ${sanitizeTableCell(sessionMaterialsText)} | ${sanitizeTableCell(espacio)} |`
@@ -1167,22 +1154,6 @@ function toInventoryRow(token: ResolvedMaterial, sessions: number[], isProject: 
     sessionNumbers: sessions,
     isProject,
   };
-}
-
-function renderInventoryRow(row: BlockMaterialRow, usage: Map<string, number[]>): string {
-  const sessions = row.slug ? usage.get(row.slug) ?? row.sessionNumbers : row.sessionNumbers;
-  const sessionsCell =
-    sessions.length > 0
-      ? sessions.join(', ')
-      : row.isProject
-        ? 'Todas las sesiones (proyecto integrador)'
-        : 'Según la actividad';
-  const eppCell = row.epp.length > 0 ? Array.from(new Set(row.epp)).join(', ') : 'No requerido';
-  const virtualCell = row.virtual
-    ? `[${sanitizeTableCell(row.virtual.nombre)}](${sanitizeTableCell(row.virtual.url)})`
-    : '—';
-
-  return `| ${sanitizeTableCell(row.label)} | ${row.token ? `\`${row.token}\`` : 'Sin token'} | ${row.image ?? '—'} | ${sanitizeTableCell(eppCell)} | ${virtualCell} | ${sanitizeTableCell(sessionsCell)} |`;
 }
 
 function uniqueLabels(tokens: ResolvedMaterial[]): string[] {

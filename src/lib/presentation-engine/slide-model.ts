@@ -30,6 +30,7 @@ export interface Slide {
   /** Notas del docente: sugerencias didácticas y tiempo sugerido. */
   notes: string;
   missionIndex?: number;
+  blockNumber?: number;
 }
 
 export interface SlideDeck {
@@ -56,9 +57,14 @@ export const LIMITS = {
   subtitle: 120,
 } as const;
 
+/** Normaliza espacios sin recortar el contenido. */
+export function cleanText(text: string | undefined | null): string {
+  return (text ?? '').replace(/\s+/g, ' ').trim();
+}
+
 /** Recorta texto en límite de palabra, añadiendo elipsis solo si fue necesario. */
 export function clip(text: string | undefined | null, max: number): string {
-  const clean = (text ?? '').replace(/\s+/g, ' ').trim();
+  const clean = cleanText(text);
   if (clean.length <= max) return clean;
   const cut = clean.slice(0, max - 1);
   const lastSpace = cut.lastIndexOf(' ');
@@ -67,7 +73,7 @@ export function clip(text: string | undefined | null, max: number): string {
 
 function clipList(items: Array<string | undefined | null>, maxItems: number = LIMITS.bullets): string[] {
   return items
-    .map((i) => clip(i, LIMITS.bullet))
+    .map((i) => cleanText(i))
     .filter((i) => i.length > 0)
     .slice(0, maxItems);
 }
@@ -95,11 +101,11 @@ function missionSlides(m: MissionSection, n: number): Slide[] {
   // 1. Gancho fenomenológico
   slides.push({
     kind: 'hook',
-    title: clip(`${label}: ${stripMissionPrefix(m.title)}`, LIMITS.title),
+    title: cleanText(`${label}: ${stripMissionPrefix(m.title)}`),
     subtitle: 'Situación de partida',
     bullets: clipList([m.phenomenonHook?.story], 1),
     callout: m.phenomenonHook?.detonatingQuestion
-      ? { label: 'Pregunta detonadora', text: clip(m.phenomenonHook.detonatingQuestion, LIMITS.callout) }
+      ? { label: 'Pregunta detonadora', text: cleanText(m.phenomenonHook.detonatingQuestion) }
       : undefined,
     notes: 'Apertura (5-10 min). Proyecte la situación, deje 2 min de reflexión individual y recoja 3 respuestas orales antes de avanzar.',
     missionIndex: n,
@@ -109,14 +115,14 @@ function missionSlides(m: MissionSection, n: number): Slide[] {
   const contrast = m.conceptZero?.contrastTable?.[0];
   slides.push({
     kind: 'concept',
-    title: clip(`${label}: Concepto clave`, LIMITS.title),
-    subtitle: clip(m.sessionTopic, LIMITS.subtitle),
+    title: cleanText(`${label}: Concepto clave`),
+    subtitle: cleanText(m.sessionTopic),
     bullets: clipList([
       m.conceptZero?.physicalAnalogy ? `Analogía: ${m.conceptZero.physicalAnalogy}` : undefined,
       m.conceptZero?.coreExplanation ? stripWorkbookTags(m.conceptZero.coreExplanation) : undefined,
     ], 3),
     callout: contrast
-      ? { label: 'Error común', text: clip(`${contrast.commonMisconception} → ${contrast.correctConcept}`, LIMITS.callout) }
+      ? { label: 'Error común', text: cleanText(`${contrast.commonMisconception} → ${contrast.correctConcept}`) }
       : undefined,
     notes: 'Desarrollo (10-15 min). Explique la analogía primero y el concepto después; verifique comprensión con una pregunta rápida al grupo.',
     missionIndex: n,
@@ -126,8 +132,8 @@ function missionSlides(m: MissionSection, n: number): Slide[] {
   const solved = m.conceptZero?.solvedExample;
   slides.push({
     kind: 'practice',
-    title: clip(`${label}: Yo hago · Hacemos · Tú haces`, LIMITS.title),
-    subtitle: clip(m.sessionFocus, LIMITS.subtitle),
+    title: cleanText(`${label}: Yo hago · Hacemos · Tú haces`),
+    subtitle: cleanText(m.sessionFocus),
     bullets: clipList([
       m.iDoSection?.stepByStepDemo ? `Yo hago: ${stripWorkbookTags(m.iDoSection.stepByStepDemo)}` : undefined,
       solved?.problemStatement ? `Ejemplo: ${solved.problemStatement}` : undefined,
@@ -143,16 +149,16 @@ function missionSlides(m: MissionSection, n: number): Slide[] {
   const tl = m.metacognitiveTrafficLight;
   slides.push({
     kind: 'checkpoint',
-    title: clip(`${label}: Verifico lo aprendido`, LIMITS.title),
+    title: cleanText(`${label}: Verifico lo aprendido`),
     subtitle: 'Evaluación formativa',
     bullets: clipList([
       cp?.question,
       ...(cp?.criteriaChecklist ?? []).map((c) => `☐ ${c}`),
     ], 4),
     callout: tl
-      ? { label: 'Semáforo de autoevaluación', text: clip(`🟢 ${tl.green}  ·  🟡 ${tl.yellow}  ·  🔴 ${tl.red}`, LIMITS.callout) }
+      ? { label: 'Semáforo de autoevaluación', text: cleanText(`🟢 ${tl.green}  ·  🟡 ${tl.yellow}  ·  🔴 ${tl.red}`) }
       : (cp?.reflectionPrompts?.[0]
-          ? { label: 'Reflexión', text: clip(cp.reflectionPrompts[0], LIMITS.callout) }
+          ? { label: 'Reflexión', text: cleanText(cp.reflectionPrompts[0]) }
           : undefined),
     notes: 'Cierre (5-10 min). Aplique el ticket de salida; use el semáforo para decidir qué reforzar en la siguiente sesión.',
     missionIndex: n,
@@ -175,12 +181,11 @@ export function buildSlideDeck(
 
   slides.push({
     kind: 'cover',
-    title: clip(cover?.title || workbook.blockName, LIMITS.title),
-    subtitle: clip(
+    title: cleanText(cover?.title || workbook.blockName),
+    subtitle: cleanText(
       [cover?.subjectName, cover?.semester ? `Semestre ${cover.semester}` : '', `Bloque ${cover?.blockNumber ?? workbook.blockIndex + 1}`]
         .filter(Boolean)
-        .join(' · '),
-      LIMITS.subtitle
+        .join(' · ')
     ),
     bullets: clipList([cover?.schoolName, cover?.teacherName, cover?.paecProjectName ? `PAEC: ${cover.paecProjectName}` : undefined], 3),
     notes: 'Presente el bloque, su propósito y la ruta de misiones que recorrerán.',
@@ -190,7 +195,7 @@ export function buildSlideDeck(
     slides.push({
       kind: 'agenda',
       title: 'Ruta de aprendizaje',
-      subtitle: clip(workbook.blockName, LIMITS.subtitle),
+      subtitle: cleanText(workbook.blockName),
       bullets: clipList(
         workbook.tableOfContents.map((t) => `Misión ${t.missionIndex}: ${stripMissionPrefix(t.title)} (${formatSessionsRange(t.sessionsRange)})`),
         8
@@ -205,7 +210,7 @@ export function buildSlideDeck(
   if (proj?.artifactName) {
     slides.push({
       kind: 'project',
-      title: clip(`Proyecto integrador: ${proj.artifactName}`, LIMITS.title),
+      title: cleanText(`Proyecto integrador: ${proj.artifactName}`),
       subtitle: 'Utilidad comunitaria',
       bullets: clipList([
         proj.communityUtility,
