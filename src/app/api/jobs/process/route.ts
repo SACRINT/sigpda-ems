@@ -6,7 +6,9 @@ import { auth } from '@/lib/auth';
 import { isAdmin } from '@/lib/admin-unified';
 
 export const runtime = 'nodejs';
-export const maxDuration = 60; // Máximo permitido en plan gratuito Hobby (y compatible con Pro)
+// El pipeline editorial completo puede tardar 60-90 s; 60 s truncaba el worker.
+// Vercel permite hasta 300 s por defecto en Hobby/Pro (fluid compute).
+export const maxDuration = 300;
 
 /**
  * Worker Trigger Endpoint (para Vercel Cron Jobs o triggers asíncronos desacoplados)

@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { after } from 'next/server';
 import { auth } from '@/lib/auth';
-import { getPlanningById, getTeacherByEmail, createGenerationJob } from '@/lib/db';
+import { getPlanningById, getTeacherByEmail, createGenerationJob, claimGenerationJob } from '@/lib/db';
 import { processGenerationJob } from '@/lib/job-worker';
 import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
-export const maxDuration = 60;
+// El pipeline editorial completo (4 redactores + matriz + validación) suele
+// tardar 60-90 s. El límite anterior de 60 s mataba la invocación de `after()`
+// a mitad del trabajo y dejaba el job en `running` para siempre.
+export const maxDuration = 300;
+
+// Un job `running` sin heartbeat durante este lapso se considera interrumpido
+// (la duración máxima de una invocación es de 300 s; los redactores refrescan
+// el progreso al terminar cada fase).
+const STALE_RUNNING_SECONDS = 120;
 
 // ── POST: Crear o encolar un trabajo de generación de Libro de Bloque ────────
 export async function POST(
@@ -43,15 +51,26 @@ export async function POST(
     // Crear trabajo en Neon PostgreSQL (o recuperar el activo si ya está corriendo)
     const job = await createGenerationJob(id, teacher.id, Number(blockIndex));
 
-    // Si el job está pendiente o recién creado, disparar ejecución asíncrona de inmediato vía after()
-    if (job.status === 'pending') {
-      after(async () => {
-        try {
-          await processGenerationJob(job.id);
-        } catch (workerErr: any) {
-          logger.error(`[POST /create] Error en worker asíncrono para job ${job.id}:`, workerErr);
-        }
-      });
+    const isPending = job.status === 'pending';
+    const isStaleRunning =
+      job.status === 'running' &&
+      Date.now() - new Date(job.updated_at).getTime() > STALE_RUNNING_SECONDS * 1000;
+
+    // Reclamar atómicamente antes de disparar: evita workers duplicados cuando
+    // dos peticiones llegan a la vez. Un job `running` estancado se reanuda.
+    let restarted = false;
+    if (isPending || isStaleRunning) {
+      const claimed = await claimGenerationJob(job.id, isPending ? 0 : STALE_RUNNING_SECONDS);
+      if (claimed) {
+        restarted = isStaleRunning;
+        after(async () => {
+          try {
+            await processGenerationJob(job.id);
+          } catch (workerErr: unknown) {
+            logger.error(`[POST /create] Error en worker asíncrono para job ${job.id}:`, workerErr);
+          }
+        });
+      }
     }
 
     return NextResponse.json(
@@ -62,15 +81,17 @@ export async function POST(
         progress: job.progress,
         currentPhase: job.current_phase,
         currentStep: job.current_step,
-        message: job.status === 'running' ? 'El libro ya se encuentra en generación' : 'Trabajo encolado exitosamente',
+        message: restarted
+          ? 'La generación anterior se interrumpió; reanudando el trabajo'
+          : job.status === 'running'
+          ? 'El libro ya se encuentra en generación'
+          : 'Trabajo encolado exitosamente',
       },
       { status: 202 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[POST /api/planeaciones/[id]/libro-bloque/create] Error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Error al iniciar la generación del libro' },
-      { status: 500 }
-    );
+    const message = error instanceof Error ? error.message : 'Error al iniciar la generación del libro';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

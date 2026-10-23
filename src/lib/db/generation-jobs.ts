@@ -181,6 +181,40 @@ export async function failGenerationJob(
 }
 
 /**
+ * Reclama atómicamente un trabajo concreto para procesarlo.
+ *
+ * - Si el job está `pending`, lo pasa a `running` (staleSeconds es irrelevante).
+ * - Si está `running`, solo lo reclama cuando lleva más de `staleSeconds` sin
+ *   heartbeat (updated_at), lo que indica que la invocación anterior murió.
+ *
+ * El UPDATE condicional garantiza que dos invocaciones concurrentes (p. ej. dos
+ * polls de /status) no disparen workers duplicados: solo una obtiene la fila.
+ */
+export async function claimGenerationJob(
+  jobId: string,
+  staleSeconds = 0
+): Promise<GenerationJob | null> {
+  const client = sql();
+  const rows = await client`
+    UPDATE generation_jobs
+    SET status = 'running',
+        started_at = COALESCE(started_at, NOW()),
+        updated_at = NOW()
+    WHERE id = ${jobId}::uuid
+      AND (
+        status = 'pending'
+        OR (status = 'running' AND updated_at < NOW() - (${staleSeconds}::int * INTERVAL '1 second'))
+      )
+    RETURNING id, planning_id, teacher_id, block_index, status, progress,
+              current_phase, current_step, result, error, started_at, completed_at,
+              created_at, updated_at
+  `;
+
+  if (!rows || rows.length === 0) return null;
+  return rows[0] as unknown as GenerationJob;
+}
+
+/**
  * Reclama atómicamente el siguiente trabajo pendiente o stale para procesarlo
  */
 export async function claimNextPendingJob(): Promise<GenerationJob | null> {

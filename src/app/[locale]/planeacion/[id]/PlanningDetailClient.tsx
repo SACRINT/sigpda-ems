@@ -669,7 +669,20 @@ function PlanningDetailModular({
     const prog = blockWorkbooks[idx]?.progress;
     const words = wb?.totalWords || prog?.totalWords || prog?.wordCount;
     if (words) {
-      return `Bloque ${roman}: ${words.toLocaleString()} palabras`;
+      const generatedAt = wb?.generatedAt ? new Date(wb.generatedAt) : null;
+      const stamp =
+        generatedAt && !Number.isNaN(generatedAt.getTime())
+          ? ` (${generatedAt.toLocaleDateString('es-MX', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+            })}, ${generatedAt.toLocaleTimeString('es-MX', {
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false,
+            })})`
+          : '';
+      return `Bloque ${roman}: ${words.toLocaleString()} palabras${stamp}`;
     }
     return `Bloque ${roman}: pendiente`;
   });

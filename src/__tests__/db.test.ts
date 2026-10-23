@@ -61,6 +61,7 @@ import {
   // ── Fase 20A: Generation Jobs ──
   createGenerationJob,
   getGenerationJobById,
+  claimGenerationJob,
   claimNextPendingJob,
 } from '@/lib/db';
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
@@ -726,6 +727,28 @@ describe('db.ts — Core Database Queries (Fase 20A)', () => {
     mockQueryFn.mockResolvedValueOnce([]);
 
     const result = await getGenerationJobById('job-inexistente');
+    expect(result).toBeNull();
+  });
+
+  it('claimGenerationJob — reclama atómicamente un job pending o stale-running', async () => {
+    const claimedJob = {
+      id: 'job-claim-1',
+      status: 'running',
+      progress: 5,
+    };
+    mockQueryFn.mockResolvedValueOnce([claimedJob]);
+
+    const result = await claimGenerationJob('job-claim-1', 120);
+
+    expect(result).not.toBeNull();
+    expect(result?.id).toBe('job-claim-1');
+    expect(result?.status).toBe('running');
+  });
+
+  it('claimGenerationJob — retorna null si otro worker lo reclamó o no está estancado', async () => {
+    mockQueryFn.mockResolvedValueOnce([]);
+
+    const result = await claimGenerationJob('job-claim-2', 120);
     expect(result).toBeNull();
   });
 

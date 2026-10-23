@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { after } from 'next/server';
 import { auth } from '@/lib/auth';
-import { getPlanningById, getTeacherByEmail, getGenerationJobById, getLatestGenerationJob } from '@/lib/db';
+import { getPlanningById, getTeacherByEmail, getGenerationJobById, getLatestGenerationJob, claimGenerationJob } from '@/lib/db';
 import { processGenerationJob } from '@/lib/job-worker';
 import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
+// La recuperación de jobs se ejecuta en `after()` y necesita el mismo margen
+// que el pipeline editorial completo.
+export const maxDuration = 300;
+
+// Un job `running` sin heartbeat por más de 5 min está muerto con certeza:
+// ninguna invocación puede vivir más de 300 s (maxDuration).
+const STALE_RUNNING_SECONDS = 300;
 
 // ── GET: Consultar el estado y progreso en tiempo real de un trabajo ────────
 export async function GET(
@@ -54,16 +61,27 @@ export async function GET(
       );
     }
 
-    // Mecanismo de auto-recuperación: si el job quedó en 'pending' por más de 5 segundos,
-    // disparar worker de respaldo inmediatamente vía after()
-    if (job.status === 'pending') {
-      const createdTime = new Date(job.created_at).getTime();
-      if (Date.now() - createdTime > 5000) {
+    // Mecanismo de auto-recuperación:
+    // 1. Si el job quedó en 'pending' por más de 5 s, disparar worker de respaldo.
+    // 2. Si está 'running' pero sin heartbeat por más de 5 min, la invocación
+    //    anterior murió (p. ej. timeout de Vercel): reanudar el trabajo.
+    // El claim atómico garantiza un solo worker aunque haya varios polls.
+    const isStalePending =
+      job.status === 'pending' && Date.now() - new Date(job.created_at).getTime() > 5000;
+    const isStaleRunning =
+      job.status === 'running' &&
+      Date.now() - new Date(job.updated_at).getTime() > STALE_RUNNING_SECONDS * 1000;
+
+    if (isStalePending || isStaleRunning) {
+      const claimed = await claimGenerationJob(job.id, isStalePending ? 0 : STALE_RUNNING_SECONDS);
+      if (claimed) {
         after(async () => {
           try {
             await processGenerationJob(job.id);
-          } catch (err: any) {
-            logger.warn(`[status] Auto-trigger falló para job ${job.id}:`, { error: err?.message || err });
+          } catch (err: unknown) {
+            logger.warn(`[status] Auto-trigger falló para job ${job.id}:`, {
+              error: err instanceof Error ? err.message : String(err),
+            });
           }
         });
       }
@@ -83,11 +101,9 @@ export async function GET(
       completedAt: job.completed_at,
       updatedAt: job.updated_at,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[GET /api/planeaciones/[id]/libro-bloque/status] Error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Error al consultar estado del trabajo' },
-      { status: 500 }
-    );
+    const message = error instanceof Error ? error.message : 'Error al consultar estado del trabajo';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
