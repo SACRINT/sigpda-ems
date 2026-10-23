@@ -217,7 +217,29 @@ export async function cascadeBlockMaterials(
       insertedCount++;
     }
 
-    // 7. Insertar Solucionario y Guía Pedagógica del Docente (Uso exclusivo docente)
+    // 7. Insertar Fichas de Trabajo Imprimibles por Sesión
+    if (extracted.fichasTrabajo) {
+      await db`
+        INSERT INTO planning_extras (
+          planning_id,
+          type,
+          title,
+          key_index,
+          content_text,
+          created_at
+        ) VALUES (
+          ${planningId}::uuid,
+          'practice_guide',
+          ${`Fichas de Trabajo Imprimibles · Bloque ${blockNum}: ${blockTitle}`},
+          ${blockIndex},
+          ${extracted.fichasTrabajo},
+          NOW()
+        )
+      `;
+      insertedCount++;
+    }
+
+    // 8. Insertar Solucionario y Guía Pedagógica del Docente (Uso exclusivo docente)
     if (extracted.solucionarioDocente) {
       await db`
         INSERT INTO planning_extras (
@@ -239,7 +261,7 @@ export async function cascadeBlockMaterials(
       insertedCount++;
     }
 
-    // 8. Insertar Recursos Gráficos Determinísticos del Bloque (Visual Engine)
+    // 9. Insertar Recursos Gráficos Determinísticos del Bloque (Visual Engine)
     const subjectName = workbook.coverData?.subjectName || '';
     const usedAssetIds = new Set<string>();
     for (let mIdx = 0; mIdx < (workbook.missions || []).length; mIdx++) {

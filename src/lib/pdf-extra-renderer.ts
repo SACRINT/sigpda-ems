@@ -595,6 +595,11 @@ export function renderExtraDocument(
 
     if (inTable) flushTable();
 
+    if (line.trim() === '<!-- pagebreak -->' || line.trim() === '[[pagebreak]]') {
+      if (y > margin + 10) addNewPage();
+      continue;
+    }
+
     if (line === '') {
       y += gapEmpty;
       continue;

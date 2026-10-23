@@ -1,11 +1,17 @@
-import type { ActiveWorkTextbook, MissionSection } from '@/types/work-textbook';
+import type { ActiveWorkTextbook, MissionSection, SessionPlan } from '@/types/work-textbook';
 import type { SecuenciaBloque } from '@/types/planning';
 import { isStemSubject, isHumanitiesSubject } from '@/lib/visual-engine/visual-dispatcher';
 import { buildSessionMoments } from './pedagogical-moments';
 import { auditPlanWorkbookCoherence, type CoherenceReport } from './plan-workbook-coherence';
-import { parseMaterialTokensWithFallback, resolveMaterialTokensForMarkdown } from '@/lib/materials/material-tokens';
+import {
+  parseMaterialTokens,
+  parseMaterialTokensWithFallback,
+  resolveMaterialTokensForMarkdown,
+  type ResolvedMaterial,
+} from '@/lib/materials/material-tokens';
 import { autoTokenizeMaterials } from '@/lib/materials/auto-tokenize';
-import { getMaterialImagePaths } from '@/lib/materials/materials-catalog';
+import { getMaterial, getMaterialImagePaths } from '@/lib/materials/materials-catalog';
+import { normalizeUnicode } from '@/lib/utils/normalize';
 
 /**
  * Plan de Clase individual por sesión derivado determinísticamente del Libro de Bloque.
@@ -60,6 +66,7 @@ export interface ExtractedBlockMaterials {
   rubricaEvaluacion?: string;
   listaCotejo?: string;
   materialDidactico: string;
+  fichasTrabajo: string;
   quiz: Array<{
     questionNumber: number;
     question: string;
@@ -167,6 +174,7 @@ export function extractMaterialsFromWorkbook(
 
   // 4. Extraer Material Didáctico (Insumos, reactivos, herramientas y equipo por sesión)
   const materialDidactico = buildMaterialDidacticoMarkdown(workbook, planesDeClase);
+  const fichasTrabajo = buildFichasTrabajoMarkdown(workbook, planesDeClase);
 
   // 5. Extraer Quiz de Pensamiento Crítico
   const quiz = (workbook.evaluationSection?.criticalThinkingQuiz || []).map((q, idx) => ({
@@ -199,6 +207,7 @@ export function extractMaterialsFromWorkbook(
     rubricaEvaluacion,
     listaCotejo,
     materialDidactico,
+    fichasTrabajo,
     quiz,
   };
 }
@@ -790,14 +799,65 @@ function buildMaterialDidacticoMarkdown(
 ): string {
   const parts: string[] = [];
   const blockNum = (workbook.blockIndex ?? 0) + 1;
+  const sessionMaterials = buildSessionMaterialIndex(workbook, planes);
+  const resolvedBySlug = new Map<string, ResolvedMaterial>();
+  const usage = new Map<string, number[]>();
+
+  for (const [sessionNumber, tokens] of sessionMaterials) {
+    for (const token of tokens) {
+      resolvedBySlug.set(token.slug, token);
+      const sessions = usage.get(token.slug) ?? [];
+      sessions.push(sessionNumber);
+      usage.set(token.slug, sessions);
+    }
+  }
+
+  const inventory = buildBlockMaterialInventory(workbook);
+  const inventorySlugs = new Set(inventory.map((row) => row.slug).filter((slug): slug is string => Boolean(slug)));
+
+  for (const [slug, sessions] of usage) {
+    if (inventorySlugs.has(slug)) continue;
+    const token = resolvedBySlug.get(slug);
+    if (token) inventory.push(toInventoryRow(token, sessions, false));
+  }
+
+  const targetedUsage = detectInventoryUsage(workbook, planes, inventory);
+  for (const [slug, sessions] of targetedUsage) {
+    const merged = new Set([...(usage.get(slug) ?? []), ...sessions]);
+    usage.set(slug, Array.from(merged).sort((a, b) => a - b));
+  }
+
+  const sessionLabels = new Map<number, string[]>();
+  for (const row of inventory) {
+    if (!row.slug) continue;
+    for (const sessionNumber of usage.get(row.slug) ?? []) {
+      const labels = sessionLabels.get(sessionNumber) ?? [];
+      if (!labels.includes(row.label)) labels.push(row.label);
+      sessionLabels.set(sessionNumber, labels);
+    }
+  }
+
   parts.push(`# REQUERIMIENTOS DE MATERIAL DIDÁCTICO E INSUMOS`);
   parts.push(`**Bloque ${blockNum}** · ${workbook.coverData?.subjectName || ''}\n`);
+  parts.push('## INVENTARIO DE MATERIALES DEL BLOQUE\n');
 
-  parts.push('## INVENTARIO DE MATERIALES Y CONSUMIBLES POR SESIÓN\n');
-  parts.push(
-    '| Sesión | Misión / Práctica | Materiales e Insumos Didácticos | Token | Imagen | EPP | Equivalente Virtual | Espacio Requerido |'
-  );
-  parts.push('|---|---|---|---|---|---|---|---|');
+  if (inventory.length > 0) {
+    parts.push('| Material | Token | Imagen | EPP | Equivalente virtual | Sesiones sugeridas |');
+    parts.push('|---|---|---|---|---|---|');
+    for (const row of inventory) {
+      parts.push(renderInventoryRow(row, usage));
+    }
+    parts.push('');
+    parts.push(
+      '*Los materiales con token están vinculados al catálogo institucional (imagen, EPP y equivalente virtual). Los materiales marcados como "Todas las sesiones" son transversales al proyecto; la distribución por sesión resalta los materiales específicos detectados en cada actividad. Los materiales sin token se conservan como insumos locales del proyecto.*\n'
+    );
+  } else {
+    parts.push('No se registraron materiales en el inventario del bloque. Se muestran los recursos declarados por sesión.\n');
+  }
+
+  parts.push('## DISTRIBUCIÓN POR SESIÓN\n');
+  parts.push('| Sesión | Misión / Práctica | Materiales de la sesión | Espacio requerido |');
+  parts.push('|---|---|---|---|');
 
   for (const plan of planes) {
     const isLab =
@@ -805,45 +865,449 @@ function buildMaterialDidacticoMarkdown(
       plan.desarrollo.actividadEstudiante.toLowerCase().includes('taller') ||
       plan.tituloSesion.toLowerCase().includes('práctica');
     const espacio = isLab ? 'Laboratorio / Taller Especializado' : 'Aula de Clases';
-
-    const tokens = parseMaterialTokensWithFallback(plan.desarrollo.recursosDidacticos);
-    const resolvedRecursos = resolveMaterialTokensForMarkdown(plan.desarrollo.recursosDidacticos);
-
-    let tokenCell = '-';
-    let imageCell = '-';
-    let eppCell = 'No requerido';
-    let virtualCell = '-';
-
-    if (tokens.length > 0) {
-      tokenCell = tokens.map((t) => `\`[[material:${t.slug}]]\``).join(', ');
-      imageCell = tokens.map((t) => getMaterialImagePaths(t.slug).png).join(', ');
-
-      const eppItems = tokens
-        .filter((t) => t.item?.eppRequerido && t.item.eppRequerido.length > 0)
-        .flatMap((t) => t.item?.eppRequerido || []);
-      if (eppItems.length > 0) {
-        eppCell = Array.from(new Set(eppItems)).join(', ');
-      }
-
-      const virtuals = tokens
-        .filter((t) => t.item?.equivalenteVirtual)
-        .map((t) => `[${t.item!.equivalenteVirtual!.nombre}](${t.item!.equivalenteVirtual!.url})`);
-      if (virtuals.length > 0) {
-        virtualCell = virtuals.join('; ');
-      }
-    }
-
-    const cleanSession = `Sesión ${plan.numeroSesion}`;
-    const cleanTitle = plan.tituloSesion.replace(/\|/g, '/');
-    const cleanRecursos = resolvedRecursos.replace(/\|/g, '/');
-    const cleanEspacio = espacio.replace(/\|/g, '/');
+    const labels = sessionLabels.get(plan.numeroSesion) ?? [];
+    const sessionMaterialsText =
+      labels.length > 0
+        ? labels.join('; ')
+        : 'Materiales del inventario del bloque (ver arriba)';
 
     parts.push(
-      `| ${cleanSession} | ${cleanTitle} | ${cleanRecursos} | ${tokenCell} | ${imageCell} | ${eppCell} | ${virtualCell} | ${cleanEspacio} |`
+      `| Sesión ${plan.numeroSesion} | ${sanitizeTableCell(cleanSessionTitle(plan.tituloSesion, plan.numeroSesion))} | ${sanitizeTableCell(sessionMaterialsText)} | ${sanitizeTableCell(espacio)} |`
     );
   }
 
   return parts.join('\n');
+}
+
+interface BlockMaterialRow {
+  slug?: string;
+  label: string;
+  token?: string;
+  image?: string;
+  epp: string[];
+  virtual?: { nombre: string; url: string };
+  sessionNumbers: number[];
+  isProject: boolean;
+}
+
+function collectMaterialsFromText(
+  text: string | null | undefined,
+  allowAutoTokenize: boolean
+): ResolvedMaterial[] {
+  if (!text) return [];
+  const resolved = allowAutoTokenize ? parseMaterialTokensWithFallback(text) : parseMaterialTokens(text);
+  const unique = new Map<string, ResolvedMaterial>();
+  for (const token of resolved) {
+    if (!unique.has(token.slug)) unique.set(token.slug, token);
+  }
+  return Array.from(unique.values());
+}
+
+function mergeMaterials(...groups: ResolvedMaterial[][]): ResolvedMaterial[] {
+  const merged = new Map<string, ResolvedMaterial>();
+  for (const group of groups) {
+    for (const token of group) {
+      if (!merged.has(token.slug)) merged.set(token.slug, token);
+    }
+  }
+  return Array.from(merged.values());
+}
+
+interface SessionLookup {
+  bookPlanBySession: Map<number, SessionPlan>;
+  missionBySession: Map<number, MissionSection>;
+}
+
+function buildSessionLookup(workbook: ActiveWorkTextbook): SessionLookup {
+  const bookPlanBySession = new Map<number, SessionPlan>();
+  const missionBySession = new Map<number, MissionSection>();
+
+  for (const mission of workbook.missions ?? []) {
+    for (const sessionNumber of mission.coveredSessions ?? []) {
+      missionBySession.set(sessionNumber, mission);
+    }
+    for (const sessionPlan of mission.sessionPlans ?? []) {
+      bookPlanBySession.set(sessionPlan.sessionNumber, sessionPlan);
+      missionBySession.set(sessionPlan.sessionNumber, mission);
+    }
+  }
+
+  return { bookPlanBySession, missionBySession };
+}
+
+function buildSessionSpecificTextParts(
+  plan: PlanDeClaseDerivado,
+  bookPlan: SessionPlan | undefined
+): string[] {
+  const textParts: string[] = [
+    plan.tituloSesion,
+    plan.propósitoOMeta,
+    plan.transversalidad,
+    plan.apertura.actividadDocente,
+    plan.apertura.actividadEstudiante,
+    plan.apertura.saberesPrevios,
+    plan.desarrollo.actividadDocente,
+    plan.desarrollo.actividadEstudiante,
+    plan.desarrollo.recursosDidacticos,
+    plan.cierre.actividadDocente,
+    plan.cierre.actividadEstudiante,
+    plan.cierre.productoEsperado,
+  ];
+
+  if (bookPlan) {
+    textParts.push(
+      bookPlan.objetivo,
+      bookPlan.motivacion,
+      bookPlan.contenido,
+      bookPlan.ejemploResuelto,
+      bookPlan.aplicacion,
+      bookPlan.productoIntegrador,
+      ...bookPlan.practica.flatMap((item) => [item.enunciado, item.pista ?? ''])
+    );
+  }
+
+  return textParts;
+}
+
+function buildSessionTextParts(
+  plan: PlanDeClaseDerivado,
+  bookPlan: SessionPlan | undefined,
+  mission: MissionSection | undefined
+): string[] {
+  const textParts = buildSessionSpecificTextParts(plan, bookPlan);
+
+  if (mission) {
+    textParts.push(
+      mission.title,
+      mission.sessionTopic,
+      mission.sessionFocus,
+      mission.phenomenonHook?.story ?? '',
+      mission.phenomenonHook?.detonatingQuestion ?? '',
+      mission.conceptZero?.physicalAnalogy ?? '',
+      mission.conceptZero?.coreExplanation ?? ''
+    );
+  }
+
+  return textParts;
+}
+
+function buildSessionMaterialIndex(
+  workbook: ActiveWorkTextbook,
+  planes: PlanDeClaseDerivado[]
+): Map<number, ResolvedMaterial[]> {
+  const { bookPlanBySession, missionBySession } = buildSessionLookup(workbook);
+  const index = new Map<number, ResolvedMaterial[]>();
+
+  for (const plan of planes) {
+    const textParts = buildSessionTextParts(
+      plan,
+      bookPlanBySession.get(plan.numeroSesion),
+      missionBySession.get(plan.numeroSesion)
+    );
+    const explicitTokens = collectMaterialsFromText(textParts.filter(Boolean).join('\n'), false);
+    const resourceTokens = collectMaterialsFromText(plan.desarrollo.recursosDidacticos, true);
+    index.set(plan.numeroSesion, mergeMaterials(explicitTokens, resourceTokens));
+  }
+
+  return index;
+}
+
+const GENERIC_SINGLE_WORD_PATTERNS = new Set([
+  'balanza',
+  'regla',
+  'plano',
+  'grafica',
+  'papel',
+  'cuaderno',
+  'libreta',
+  'mapa',
+  'tarjetas',
+  'hojas',
+  'hoja',
+  'material',
+  'materiales',
+  'equipo',
+  'instrumento',
+  'instrumentos',
+  'libro',
+  'cuadernillo',
+]);
+
+const NAME_PREFIX_STOPWORDS = new Set([
+  'de',
+  'del',
+  'la',
+  'el',
+  'los',
+  'las',
+  'en',
+  'para',
+  'con',
+  'y',
+  'o',
+]);
+
+function normalizeUsageText(value: string): string {
+  return normalizeUnicode(value)
+    .replace(/[^a-z0-9\s-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function escapeUsageRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function buildUsagePatterns(row: BlockMaterialRow): RegExp[] {
+  if (!row.slug) return [];
+  const item = getMaterial(row.slug);
+  const candidates = new Set<string>();
+  const add = (value: string | undefined) => {
+    if (!value) return;
+    const normalized = normalizeUsageText(value);
+    if (normalized.length >= 8) candidates.add(normalized);
+  };
+
+  const cleanName = normalizeUsageText((item?.name ?? '').replace(/\(.*?\)/g, ''));
+  add(cleanName);
+  add(row.slug.replace(/-/g, ' '));
+  for (const alias of item?.aliases ?? []) {
+    const normalized = normalizeUsageText(alias);
+    if (!normalized.includes(' ') && GENERIC_SINGLE_WORD_PATTERNS.has(normalized)) continue;
+    add(alias);
+  }
+
+  const nameWords = cleanName.split(' ').filter(Boolean);
+  for (const size of [2, 3]) {
+    if (nameWords.length < size) continue;
+    if (NAME_PREFIX_STOPWORDS.has(nameWords[size - 1])) continue;
+    add(nameWords.slice(0, size).join(' '));
+  }
+
+  const firstWord = nameWords[0] ?? '';
+  if (firstWord.length >= 8 && !GENERIC_SINGLE_WORD_PATTERNS.has(firstWord)) {
+    candidates.add(firstWord);
+  }
+
+  return Array.from(candidates).map(
+    (pattern) => new RegExp(`\\b${escapeUsageRegExp(pattern)}\\b`)
+  );
+}
+
+function detectInventoryUsage(
+  workbook: ActiveWorkTextbook,
+  planes: PlanDeClaseDerivado[],
+  inventory: BlockMaterialRow[]
+): Map<string, number[]> {
+  const { bookPlanBySession } = buildSessionLookup(workbook);
+  const sessionTexts = new Map<number, string>();
+
+  for (const plan of planes) {
+    const text = buildSessionSpecificTextParts(
+      plan,
+      bookPlanBySession.get(plan.numeroSesion)
+    )
+      .filter(Boolean)
+      .join('\n');
+    sessionTexts.set(plan.numeroSesion, normalizeUsageText(text));
+  }
+
+  const usage = new Map<string, number[]>();
+  for (const row of inventory) {
+    if (!row.slug) continue;
+    const patterns = buildUsagePatterns(row);
+    if (patterns.length === 0) continue;
+
+    const sessions: number[] = [];
+    for (const [sessionNumber, text] of sessionTexts) {
+      if (patterns.some((regex) => regex.test(text))) {
+        sessions.push(sessionNumber);
+      }
+    }
+    if (sessions.length > 0) usage.set(row.slug, sessions);
+  }
+
+  return usage;
+}
+
+function buildBlockMaterialInventory(workbook: ActiveWorkTextbook): BlockMaterialRow[] {
+  const rows: BlockMaterialRow[] = [];
+  const seen = new Set<string>();
+
+  for (const raw of workbook.projectSection?.requiredMaterials ?? []) {
+    const tokens = collectMaterialsFromText(raw, true);
+    if (tokens.length === 0) {
+      const label = resolveMaterialTokensForMarkdown(raw).trim();
+      if (!label) continue;
+      const key = `text:${label.toLowerCase()}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      rows.push({ label, epp: [], sessionNumbers: [], isProject: false });
+      continue;
+    }
+
+    for (const token of tokens) {
+      if (seen.has(token.slug)) continue;
+      seen.add(token.slug);
+      rows.push(toInventoryRow(token, [], true));
+    }
+  }
+
+  return rows;
+}
+
+function toInventoryRow(token: ResolvedMaterial, sessions: number[], isProject: boolean): BlockMaterialRow {
+  return {
+    slug: token.slug,
+    label: token.label || token.item?.name || token.slug,
+    token: `[[material:${token.slug}]]`,
+    image: getMaterialImagePaths(token.slug).png,
+    epp: token.item?.eppRequerido ?? [],
+    virtual: token.item?.equivalenteVirtual,
+    sessionNumbers: sessions,
+    isProject,
+  };
+}
+
+function renderInventoryRow(row: BlockMaterialRow, usage: Map<string, number[]>): string {
+  const sessions = row.slug ? usage.get(row.slug) ?? row.sessionNumbers : row.sessionNumbers;
+  const sessionsCell =
+    sessions.length > 0
+      ? sessions.join(', ')
+      : row.isProject
+        ? 'Todas las sesiones (proyecto integrador)'
+        : 'Según la actividad';
+  const eppCell = row.epp.length > 0 ? Array.from(new Set(row.epp)).join(', ') : 'No requerido';
+  const virtualCell = row.virtual
+    ? `[${sanitizeTableCell(row.virtual.nombre)}](${sanitizeTableCell(row.virtual.url)})`
+    : '—';
+
+  return `| ${sanitizeTableCell(row.label)} | ${row.token ? `\`${row.token}\`` : 'Sin token'} | ${row.image ?? '—'} | ${sanitizeTableCell(eppCell)} | ${virtualCell} | ${sanitizeTableCell(sessionsCell)} |`;
+}
+
+function uniqueLabels(tokens: ResolvedMaterial[]): string[] {
+  const labels = new Map<string, string>();
+  for (const token of tokens) {
+    if (!labels.has(token.slug)) labels.set(token.slug, token.label || token.item?.name || token.slug);
+  }
+  return Array.from(labels.values());
+}
+
+function sanitizeTableCell(value: string): string {
+  return value.replace(/\|/g, '/').replace(/\r?\n/g, ' ').trim();
+}
+
+function buildFichasTrabajoMarkdown(
+  workbook: ActiveWorkTextbook,
+  planes: PlanDeClaseDerivado[]
+): string {
+  if (planes.length === 0) return '';
+  const blockNum = (workbook.blockIndex ?? 0) + 1;
+  const bookPlanBySession = new Map<number, SessionPlan>();
+  for (const mission of workbook.missions ?? []) {
+    for (const sessionPlan of mission.sessionPlans ?? []) {
+      bookPlanBySession.set(sessionPlan.sessionNumber, sessionPlan);
+    }
+  }
+  const sessionMaterials = buildSessionMaterialIndex(workbook, planes);
+
+  const parts: string[] = [];
+  parts.push(`# FICHAS DE TRABAJO IMPRIMIBLES · BLOQUE ${blockNum}`);
+  if (workbook.coverData?.subjectName) {
+    parts.push(`**Asignatura / UAC:** ${sanitizeInline(workbook.coverData.subjectName)}`);
+  }
+  if (workbook.coverData?.schoolName) {
+    parts.push(`**Plantel:** ${sanitizeInline(workbook.coverData.schoolName)}`);
+  }
+  parts.push(`**Bloque:** ${sanitizeInline(workbook.blockName || `Bloque ${blockNum}`)}`);
+  parts.push(
+    '**Instrucciones generales:** Resuelve cada ficha en el espacio indicado. Escribe tu procedimiento completo, no solo el resultado. Puedes apoyarte en tu Libro de Bloque para consultar la teoría y el ejemplo resuelto.'
+  );
+  parts.push('');
+
+  planes.forEach((plan, index) => {
+    if (index > 0) parts.push('<!-- pagebreak -->');
+
+    const bookPlan = bookPlanBySession.get(plan.numeroSesion);
+    const materiales = uniqueLabels(sessionMaterials.get(plan.numeroSesion) ?? []);
+
+    parts.push(
+      `## FICHA DE TRABAJO · SESIÓN ${plan.numeroSesion}: ${sanitizeInline(cleanSessionTitle(plan.tituloSesion, plan.numeroSesion))}`
+    );
+    parts.push(
+      '**Nombre:** ______________________________________  **Grupo:** ________  **Fecha:** ____/____/________'
+    );
+    parts.push(`**Propósito:** ${sanitizeInline(bookPlan?.objetivo || plan.propósitoOMeta)}`);
+    const materialesTexto =
+      materiales.length > 0
+        ? materiales.map(sanitizeInline).join('; ')
+        : 'Materiales del inventario del bloque (ver material didáctico)';
+    parts.push(`**Materiales:** ${materialesTexto}`);
+    parts.push('');
+
+    const ejercicios = bookPlan?.practica ?? [];
+    if (ejercicios.length > 0) {
+      buildExerciseBlocks(parts, ejercicios);
+    } else {
+      parts.push('**Actividad.** ' + sanitizeInline(plan.desarrollo.actividadEstudiante));
+      parts.push('Planteamiento: ______________________________________________________');
+      parts.push('Operaciones: ________________________________________________________');
+      parts.push('Respuesta: __________________________________________________________');
+      parts.push('');
+    }
+
+    if (bookPlan?.aplicacion) {
+      parts.push(`**Aplicación a la vida real:** ${sanitizeInline(bookPlan.aplicacion)}`);
+      parts.push('____________________________________________________________________');
+      parts.push('');
+    }
+
+    const producto = bookPlan?.productoIntegrador || plan.cierre.productoEsperado;
+    if (producto) {
+      parts.push(`**Producto de la sesión:** ${sanitizeInline(producto)}`);
+      parts.push('____________________________________________________________________');
+      parts.push('');
+    }
+
+    const autoevaluacion = bookPlan?.autoevaluacion ?? [];
+    const metacognicion = autoevaluacion.length > 0 ? autoevaluacion : [plan.cierre.metacognicion];
+    if (metacognicion.some(Boolean)) {
+      parts.push('**Autoevaluación:**');
+      for (const item of metacognicion.filter(Boolean)) {
+        parts.push(`- [ ] ${sanitizeInline(item)}`);
+      }
+      parts.push('');
+    }
+  });
+
+  return parts.join('\n');
+}
+
+function buildExerciseBlocks(
+  parts: string[],
+  ejercicios: NonNullable<SessionPlan['practica']>
+): void {
+  parts.push('**Ejercicios**');
+  parts.push('');
+  ejercicios.forEach((ejercicio, index) => {
+    parts.push(`**Ejercicio ${index + 1}.** ${sanitizeInline(ejercicio.enunciado)}`);
+    if (ejercicio.pista) {
+      parts.push(`**Pista:** ${sanitizeInline(ejercicio.pista)}`);
+    }
+    parts.push('Planteamiento: ______________________________________________________');
+    parts.push('Operaciones: ________________________________________________________');
+    parts.push('Respuesta: __________________________________________________________');
+    parts.push('');
+  });
+}
+
+function sanitizeInline(value: string): string {
+  return value.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function cleanSessionTitle(title: string, sessionNumber: number): string {
+  const prefix = new RegExp(`^Sesi[oó]n\\s*${sessionNumber}\\s*[:\\-–—]\\s*`, 'i');
+  return title.replace(prefix, '').trim() || title;
 }
 
 /**
@@ -851,7 +1315,7 @@ function buildMaterialDidacticoMarkdown(
  */
 export function extractSpecificMaterial(
   workbook: ActiveWorkTextbook,
-  type: 'guia' | 'solucionario' | 'instrumentos' | 'materiales'
+  type: 'guia' | 'solucionario' | 'instrumentos' | 'materiales' | 'fichas'
 ): string {
   const extracted = extractMaterialsFromWorkbook(workbook);
   switch (type) {
@@ -863,6 +1327,8 @@ export function extractSpecificMaterial(
       return extracted.instrumentosEvaluacion;
     case 'materiales':
       return extracted.materialDidactico;
+    case 'fichas':
+      return extracted.fichasTrabajo;
     default:
       return extracted.guiaDelBloque;
   }

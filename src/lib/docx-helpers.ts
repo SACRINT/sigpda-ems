@@ -26,6 +26,7 @@ import {
   Header,
   Footer,
   PageNumber,
+  PageBreak,
   type ITableCellBorders,
   type ISpacingProperties,
 } from 'docx';
@@ -646,6 +647,11 @@ function buildExtraDocxBody(
         children.push(createWordTable(tableHeaders, tableData, contentW));
         children.push(new Paragraph({ spacing: { before: 80, after: 80 } }));
         inTable = false;
+      }
+
+      if (line.trim() === '<!-- pagebreak -->' || line.trim() === '[[pagebreak]]') {
+        children.push(new Paragraph({ children: [new PageBreak()] }));
+        continue;
       }
 
       if (line !== '') {

@@ -181,6 +181,30 @@ describe('Paginación de PDF de extras — sin páginas en blanco', () => {
     const doc = generateExtraPdfDocument(extra);
     expect(doc.getNumberOfPages()).toBe(1);
   });
+
+  it('respeta el marcador <!-- pagebreak --> entre fichas y no lo imprime', async () => {
+    const extra: ExtraInput = {
+      id: 'test-pagebreak',
+      title: 'Fichas de Trabajo Imprimibles · Bloque 1',
+      type: 'practice_guide',
+      content_text: [
+        '# FICHA DE TRABAJO · SESIÓN 1',
+        'Contenido de la ficha 1.',
+        '<!-- pagebreak -->',
+        '# FICHA DE TRABAJO · SESIÓN 2',
+        'Contenido de la ficha 2.',
+      ].join('\n'),
+    };
+
+    const doc = generateExtraPdfDocument(extra);
+    expect(doc.getNumberOfPages()).toBe(2);
+
+    const { fullText, pages } = await extractPages(doc);
+    expect(fullText).not.toContain('<!-- pagebreak -->');
+    expect(pages[0]).toContain('FICHA DE TRABAJO');
+    expect(pages[1]).toContain('FICHA DE TRABAJO');
+    expect(pages[1]).toContain('SESIÓN 2');
+  });
 });
 
 describe('Cajas H4 (####) — paridad PDF / DOCX / vista previa', () => {

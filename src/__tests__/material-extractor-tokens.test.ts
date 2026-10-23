@@ -88,25 +88,28 @@ describe('T-IMG-04: Integración de Tokens en Extractor de Materiales', () => {
     expect(extracted.guiaDelBloque).toContain('- [ ] Cinta aislante de uso rudo (material local sin token)');
   });
 
-  it('construye la tabla de materiales con las columnas Token, Imagen, EPP y Equivalente Virtual', () => {
+  it('construye el inventario del bloque con Token, Imagen, EPP y Equivalente Virtual', () => {
     const extracted = extractMaterialsFromWorkbook(
       baseWorkbook as unknown as ActiveWorkTextbook,
       sequenceWithTokens
     );
 
-    // Cabecera enriquecida de 8 columnas
     expect(extracted.materialDidactico).toContain(
-      '| Sesión | Misión / Práctica | Materiales e Insumos Didácticos | Token | Imagen | EPP | Equivalente Virtual | Espacio Requerido |'
+      '| Material | Token | Imagen | EPP | Equivalente virtual | Sesiones sugeridas |'
     );
 
-    // Sesión 1 con tokens detectados
+    expect(extracted.materialDidactico).toContain('Multímetro digital autorango');
     expect(extracted.materialDidactico).toContain('`[[material:multimetro]]`');
     expect(extracted.materialDidactico).toContain('/images/materiales/multimetro.png');
     expect(extracted.materialDidactico).toContain('Gafas de seguridad');
     expect(extracted.materialDidactico).toContain('Falstad CircuitJS');
+    expect(extracted.materialDidactico).toContain('Cable de Red Ethernet UTP Cat 6 con Conectores RJ45');
+    expect(extracted.materialDidactico).toContain('Cinta aislante de uso rudo (material local sin token)');
+    expect(extracted.materialDidactico).toContain('Sin token');
 
-    // Sesión 2 sin tokens: valores de fallback
+    expect(extracted.materialDidactico).toContain('| Sesión 1 |');
+    expect(extracted.materialDidactico).toContain('Multímetro digital autorango');
     expect(extracted.materialDidactico).toContain('| Sesión 2 |');
-    expect(extracted.materialDidactico).toContain('| - | - | No requerido | - |');
+    expect(extracted.materialDidactico).toContain('Materiales del inventario del bloque (ver arriba)');
   });
 });

@@ -196,6 +196,20 @@ export function ExtraPreviewModal({
           inTable = false;
         }
 
+        if (line.trim() === '<!-- pagebreak -->' || line.trim() === '[[pagebreak]]') {
+          elements.push(
+            <hr
+              key={`pagebreak-${key++}`}
+              style={{
+                border: 'none',
+                borderTop: '2px dashed rgba(56, 189, 248, 0.45)',
+                margin: '28px 0',
+              }}
+            />
+          );
+          continue;
+        }
+
         if (line === '') continue;
 
         // Headers
