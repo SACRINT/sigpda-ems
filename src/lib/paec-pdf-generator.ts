@@ -8,7 +8,7 @@
  * - Macro-Fase II: Justificación Pedagógica y Diseño Curricular (pp. 6-11) [Portrait]
  * - Macro-Fase III: Plan Operativo Territorial Semestres A y B (pp. 12-19) [Landscape]
  *                   Formalización Institucional (Carta, Minuta, 3 Oficios) y 6 Anexos (pp. 20-30) [Portrait]
- * - Macro-Fase IV: Gobernanza, Evaluación, Informe de Supervisión 004 y Firmas (pp. 31-35) [Portrait]
+ * - Macro-Fase IV: Gobernanza, Evaluación, Informe de Supervisión de Zona y Firmas (pp. 31-35) [Portrait]
  * 
  * Paginación Global Dinámica: Membrete institucional y "Página X de 35" adaptativos a orientación.
  * Cero texto hardcodeado: Extracción directa de la estructura PaecProject con fallbacks institucionales.
@@ -80,6 +80,15 @@ export async function generatePaecPDF(
   const p = project;
   const sCtx = p.schoolContext || {};
   const cCtx = p.communityContext || {};
+
+  // Zona real del plantel — sin defaults fijos tipo "004" (bug: pintaba 004 a
+  // docentes de la zona 086). 'Zona no registrada' es el marcador honesto.
+  const zonaTexto = safeStr(sCtx.schoolZone, 'Zona no registrada');
+  const zonaNum = zonaTexto.match(/\d{2,4}/)?.[0] ?? null;
+  const supervisionDeZona = zonaNum
+    ? `Supervisión Escolar de la Zona ${zonaNum}`
+    : 'Supervisión Escolar (zona no registrada)';
+  const supervisionFirma = zonaNum ? `Supervisión Escolar Zona ${zonaNum}` : 'Supervisión Escolar';
 
   const margin = 14;
   let pageWidth = doc.internal.pageSize.getWidth();   // 215.9 mm
@@ -208,7 +217,7 @@ export async function generatePaecPDF(
       ],
       [
         { content: 'Supervisión Escolar:', styles: { fontStyle: 'bold', textColor: NAVY } },
-        { content: `${safeStr(sCtx.schoolZone, 'Zona Escolar 004')} | ${safeStr(sCtx.municipality, 'Zacatlán')}, Puebla`, styles: {} },
+        { content: `${zonaTexto} | ${safeStr(sCtx.municipality, 'Zacatlán')}, Puebla`, styles: {} },
       ],
       [
         { content: 'Territorio de Impacto:', styles: { fontStyle: 'bold', textColor: NAVY } },
@@ -269,7 +278,7 @@ export async function generatePaecPDF(
       ],
       [
         { content: 'Zona / Municipio / Localidad:', styles: { fontStyle: 'bold', textColor: NAVY } },
-        { content: `${safeStr(sCtx.schoolZone, 'Zona Escolar 004')} | Municipio: ${safeStr(sCtx.municipality)} | Localidad: ${safeStr(sCtx.locality)}`, styles: { textColor: TEXT_DARK } },
+        { content: `${zonaTexto} | Municipio: ${safeStr(sCtx.municipality)} | Localidad: ${safeStr(sCtx.locality)}`, styles: { textColor: TEXT_DARK } },
       ],
       [
         { content: 'Comunidad de Impacto:', styles: { fontStyle: 'bold', textColor: NAVY } },
@@ -1892,7 +1901,7 @@ export async function generatePaecPDF(
     },
     {
       tipo: 'Cierre, Rendición de Cuentas y Dictamen',
-      participantes: 'Comunidad Escolar en Pleno y Supervisión 004',
+      participantes: `Comunidad Escolar en Pleno y ${supervisionFirma}`,
       fecha: 'Semana 16 del ciclo escolar',
       agenda: 'Presentación en Feria Comunitaria, entrega de custodias y firma del informe técnico.',
       evidencia: 'Memoria técnica, encuestas Likert y dictamen oficial.',
@@ -2026,7 +2035,7 @@ export async function generatePaecPDF(
   // ═════════════════════════════════════════════════════════════════════════════
   doc.addPage('letter', 'portrait');
   curY = 24;
-  addSectionBar(doc, '4.3 Informe Oficial para Supervisión Escolar (Guía Oficial 004)', curY, margin, contentWidth);
+  addSectionBar(doc, `4.3 Informe Oficial para Supervisión Escolar${zonaNum ? ` (Guía Oficial ${zonaNum})` : ''}`, curY, margin, contentWidth);
   curY += 10;
 
   const inf = (p.fase4InformeSupervision || {}) as Partial<NonNullable<PaecProject['fase4InformeSupervision']>> & Record<string, any>; // fallback tipado defensivo
@@ -2041,7 +2050,7 @@ export async function generatePaecPDF(
     head: [
       [
         {
-          content: 'INFORME TÉCNICO DE IMPLEMENTACIÓN Y RENDICIÓN DE CUENTAS (ZONA 004)',
+          content: `INFORME TÉCNICO DE IMPLEMENTACIÓN Y RENDICIÓN DE CUENTAS (${zonaNum ? `ZONA ${zonaNum}` : 'ZONA NO REGISTRADA'})`,
           styles: { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
         },
       ],
@@ -2216,7 +2225,7 @@ export async function generatePaecPDF(
       [
         {
           content:
-            `El Consejo Técnico Escolar del Bachillerato General ${safeStr(sCtx.schoolName)} (CCT: ${safeStr(sCtx.cct)}), en coordinación con la Supervisión Escolar de la Zona 004 de la Dirección de Educación Media Superior de la SEP Puebla, una vez analizadas las evidencias, bitácoras y memorias técnicas del Proyecto Escolar Comunitario titulado:\n\n` +
+            `El Consejo Técnico Escolar del Bachillerato General ${safeStr(sCtx.schoolName)} (CCT: ${safeStr(sCtx.cct)}), en coordinación con la ${supervisionDeZona} de la Dirección de Educación Media Superior de la SEP Puebla, una vez analizadas las evidencias, bitácoras y memorias técnicas del Proyecto Escolar Comunitario titulado:\n\n` +
             `"${safeStr(p.projectName)}"\n\n` +
             'EMITEN EL PRESENTE DICTAMEN DE APROBACIÓN SATISFACTORIA Y EXCELENCIA TÉCNICO-PEDAGÓGICA, haciendo constar que ha cumplido cabalmente con las directrices del Marco Curricular Común de la Educación Media Superior (MCCEMS) y los principios de la Nueva Escuela Mexicana, transformando significativamente la realidad comunitaria de su entorno territorial.',
           styles: { fontSize: 7.5, cellPadding: 3.5, textColor: TEXT_DARK, overflow: 'linebreak' },
@@ -2232,7 +2241,7 @@ export async function generatePaecPDF(
   // Extraer firmas reales
   const firmas = (inf.firmas || {}) as Record<string, any>;
   const nombreDirector = safeStr(firmas.responsableInforme, carta.firmante || teacherName || 'Director(a) del Plantel');
-  const nombreSupervision = safeStr(firmas.autoridadEscolar, 'Supervisión Escolar Zona 004');
+  const nombreSupervision = safeStr(firmas.autoridadEscolar, supervisionFirma);
   const nombreComunidad = partMinuta?.[0]?.nombre ? `${partMinuta[0].nombre} (${partMinuta[0].cargo || 'Presidente del Comité'})` : 'Presidente(a) del Comité Comunitario';
 
   const colW = (contentWidth - 12) / 3;
@@ -2268,7 +2277,7 @@ export async function generatePaecPDF(
   doc.setFontSize(7);
   doc.text(nombreSupervision, col2X + colW / 2, lineY + 8, { align: 'center' });
   doc.setTextColor(...TEXT_MUTED);
-  doc.text('Supervisión Escolar Zona 004', col2X + colW / 2, lineY + 11.5, { align: 'center' });
+  doc.text(supervisionFirma, col2X + colW / 2, lineY + 11.5, { align: 'center' });
   doc.text('SEMS · SEP Puebla', col2X + colW / 2, lineY + 14.5, { align: 'center' });
 
   // Línea 3: Testigo Comunitario
@@ -2310,7 +2319,7 @@ export async function generatePaecPDF(
   // ═════════════════════════════════════════════════════════════════════════════
   // ENCABEZADOS Y PIES DE PÁGINA GLOBALES HÍBRIDOS (PÁGINA 2 A TOTAL_PAGES)
   // ═════════════════════════════════════════════════════════════════════════════
-  addOfficialHybridHeadersAndFooters(doc, p.projectName, sCtx.cct, logos);
+  addOfficialHybridHeadersAndFooters(doc, p.projectName, sCtx.cct, logos, zonaTexto);
 
   const arrayBuffer = doc.output('arraybuffer');
   return Buffer.from(arrayBuffer);
@@ -2324,7 +2333,8 @@ function addOfficialHybridHeadersAndFooters(
   doc: jsPDF,
   projectName: string,
   cct?: string,
-  logos?: { sep?: string; supervision?: string }
+  logos?: { sep?: string; supervision?: string },
+  zonaTexto: string = 'Zona no registrada'
 ): void {
   const totalPages = doc.getNumberOfPages();
   const margin = 14;
@@ -2372,7 +2382,7 @@ function addOfficialHybridHeadersAndFooters(
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(6.5);
     doc.setTextColor(...TEXT_MUTED);
-    const footerSchool = cct ? `CCT: ${cct} · Zona Escolar 004 · Puebla` : 'Bachilleratos Estatales Puebla · Zona Escolar 004';
+    const footerSchool = cct ? `CCT: ${cct} · ${zonaTexto} · Puebla` : `Bachilleratos Estatales Puebla · ${zonaTexto}`;
     doc.text(footerSchool, margin, pH - 7);
 
     // Paginación "Página X de Y"

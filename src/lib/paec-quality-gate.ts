@@ -1628,7 +1628,11 @@ export function calculateGlobalPaecScore(project: PaecProjectInput): PaecQuality
  * @param audit Resultado de la auditoría oficial
  * @returns Texto en formato Markdown con el reporte oficial
  */
-export function formatAuditReport(audit: PaecQualityAudit): string {
+export function formatAuditReport(audit: PaecQualityAudit, schoolZone?: string): string {
+  const zonaNumReporte = (schoolZone ?? '').match(/\d{2,4}/)?.[0] ?? null;
+  const supervisionDictamen = zonaNumReporte
+    ? `SUPERVISIÓN ESCOLAR ZONA ${zonaNumReporte}`
+    : 'SUPERVISIÓN ESCOLAR (ZONA NO REGISTRADA)';
   const dateStr = audit.updatedAt
     ? new Date(audit.updatedAt).toLocaleDateString('es-MX', {
         year: 'numeric',
@@ -1701,7 +1705,7 @@ export function formatAuditReport(audit: PaecQualityAudit): string {
   report += `El presente reporte certifica que el Proyecto Escolar Comunitario ha sido auditado contra los 23 criterios de la Rúbrica Oficial PAEC-PEC 2025 del Marco Curricular Común de la Educación Media Superior (NEM).\n\n`;
   report += `\`\`\`\n`;
   report += `____________________________________          ____________________________________\n`;
-  report += `     COORDINACIÓN PAEC DE PLANTEL                  SUPERVISIÓN ESCOLAR ZONA 004   \n`;
+  report += `     COORDINACIÓN PAEC DE PLANTEL                  ${supervisionDictamen.padEnd(33, ' ')}   \n`;
   report += `     Validación Colegiada Docente                   Sello y Dictamen de Aprobación \n`;
   report += `\`\`\`\n`;
 

@@ -17,18 +17,21 @@ const STEPS = [
 ];
 
 // ─── Default PIPS object ─────────────────────────────────────────────────────
+// Sin datos fijos de ninguna zona (el hardcode anterior pre-poblaba "Zona
+// Escolar 004", supervisor y municipios de la 004 a todos los usuarios).
+// La zona real se precarga desde la configuración del docente al montar.
 function defaultPips(): Partial<PipsProject> {
   return {
-    zona_clave: '21FMS0020X',
-    zona_nombre: 'Zona Escolar 004',
-    supervisor_name: 'Ing. Alejandro Escamilla Martínez',
-    municipio_sede: 'Lázaro Cárdenas, Venustiano Carranza, Puebla',
-    municipios_atiende: 'Venustiano Carranza, Francisco Z. Mena, Pantepec y Jalpan',
-    num_planteles: 17,
+    zona_clave: '',
+    zona_nombre: '',
+    supervisor_name: '',
+    municipio_sede: '',
+    municipios_atiende: '',
+    num_planteles: 0,
     subsistema: 'BGE',
     modalidad: 'Escolarizada',
     ciclo_escolar: SCHOOL_YEAR,
-    atps: 'Ing. Samuel Cruz Interial, Imelda Hernández García, Víctor Manuel Sáenz Cuellar, Lilia Castillo Leyva',
+    atps: '',
     presentacion_supervisor: '',
     pips_anterior_realizado: true,
     reflexion_pips_anterior: '',
@@ -235,7 +238,27 @@ export default function PipsWizard({ locale }: { locale: string }) {
             setStep(Math.min((data.project.current_step as number) || 1, 6));
           }
         });
+      return;
     }
+
+    // Precargar la zona escolar real del docente (nunca una zona fija 004).
+    fetch('/api/horarios/configuracion')
+      .then(r => (r.ok ? r.json() : null))
+      .then(data => {
+        const zona = String(data?.escuela?.zona || data?.escuela?.zonaEscolar || '').trim();
+        if (!zona) return;
+        const formateada = /zona/i.test(zona)
+          ? zona
+          : /^\d+$/.test(zona)
+          ? `Zona Escolar ${zona.padStart(3, '0')}`
+          : zona;
+        setPips(prev =>
+          prev.zona_nombre && prev.zona_nombre !== defaultPips().zona_nombre
+            ? prev
+            : { ...prev, zona_nombre: formateada }
+        );
+      })
+      .catch(() => { /* sin configuración de horario: se captura manualmente */ });
   }, [existingId]);
 
   const set = (key: keyof PipsProject, value: unknown) =>
@@ -465,7 +488,7 @@ export default function PipsWizard({ locale }: { locale: string }) {
         {showExcelUpload && (
           <div style={{ margin: '16px 0' }}>
             <ExcelUploadZone
-              zonaNumero={pips.zona_nombre?.replace(/[^0-9]/g, '') || '004'}
+              zonaNumero={pips.zona_nombre?.replace(/[^0-9]/g, '') || '000'}
               cicloEscolar={pips.ciclo_escolar || SCHOOL_YEAR}
               onDataInjected={({ planteles: importedPlanteles, diagnosticoText }) => {
                 set('planteles_json', importedPlanteles);

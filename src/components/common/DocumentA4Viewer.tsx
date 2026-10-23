@@ -284,7 +284,7 @@ export default function DocumentA4Viewer({
                 {zonaNum === '004' && (
                   <img
                     src="/images/logo-supervision-004.png"
-                    alt="Supervisión Escolar Zona 004"
+                    alt={identidad.supervision}
                     style={{ height: '40px', maxWidth: '120px', objectFit: 'contain' }}
                   />
                 )}

@@ -8,7 +8,7 @@
  * - MACRO-FASE II: Justificación, Pilares NEM, Criterio MIFO, Mapeo Curricular y Cronograma Bimestral [Portrait]
  * - MACRO-FASE III: Plan Operativo Semestres A y B (16 semanas x 8 cols con Callout Sem 16) [Landscape]
  *                   Formalización Institucional (Carta, Minuta, 3 Oficios) y 6 Anexos Técnicos [Portrait]
- * - MACRO-FASE IV: Gobernanza 4 Niveles, Informe de Supervisión 004 y Firmas Reglamentarias [Portrait]
+ * - MACRO-FASE IV: Gobernanza 4 Niveles, Informe de Supervisión de Zona y Firmas Reglamentarias [Portrait]
  * 
  * Orientación Híbrida: 3 Secciones nativas de Word (Portrait -> Landscape -> Portrait).
  * Cero texto hardcodeado: Todos los datos se extraen de la estructura JSON del PaecProject.
@@ -402,6 +402,13 @@ export async function generatePaecDocx(
   const sCtx = p.schoolContext || {};
   const cCtx = p.communityContext || {};
 
+  // Zona real del plantel — sin defaults fijos tipo "004" (bug: pintaba 004 a
+  // docentes de la zona 086). 'Zona no registrada' es el marcador honesto.
+  const zonaTexto = safeStr(sCtx.schoolZone, 'Zona no registrada');
+  const zonaNum = zonaTexto.match(/\d{2,4}/)?.[0] ?? null;
+  const supervisionFirma = zonaNum ? `Supervisión Escolar Zona ${zonaNum}` : 'Supervisión Escolar';
+  const zonaFirmaTexto = zonaNum ? `Zona Escolar ${zonaNum} Puebla` : 'Zona no registrada';
+
   // Headers y Footers Institucionales
   const makeHeader = (subtitle: string) =>
     new Header({
@@ -576,7 +583,7 @@ export async function generatePaecDocx(
     new TableRow({
       children: [
         tc('Zona Escolar / Municipio / Localidad:', { bold: true, color: C.dark, w: 3200 }),
-        tc(`${safeStr(sCtx.schoolZone, 'Zona 004')} | ${safeStr(sCtx.municipality)} | ${safeStr(sCtx.locality)}`, { w: 7600 }),
+        tc(`${zonaTexto} | ${safeStr(sCtx.municipality)} | ${safeStr(sCtx.locality)}`, { w: 7600 }),
       ],
     }),
     new TableRow({
@@ -1569,7 +1576,7 @@ export async function generatePaecDocx(
 
   s3Children.push(new Paragraph({ children: [new PageBreak()] }));
 
-  // --- MACRO-FASE IV: GOBERNANZA E INFORME DE SUPERVISIÓN 004 ---
+  // --- MACRO-FASE IV: GOBERNANZA E INFORME DE SUPERVISIÓN DE ZONA ---
   s3Children.push(...macroH('Macro-Fase IV: Gobernanza Escolar, Informe de Supervisión y Rendición de Cuentas'));
 
   const gob = (p.fase4Gobernanza || {}) as Partial<NonNullable<PaecProject['fase4Gobernanza']>> & Record<string, any>; // fallback tipado defensivo
@@ -1583,7 +1590,7 @@ export async function generatePaecDocx(
     { tipo: 'Nivel 1: Academia Colegiada Docente', frecuencia: 'Quincenal', participantes: 'Docentes de todas las UACs', objetivo: 'Alineación de progresiones y evaluación formativa', evidencia: 'Minuta de Academia' },
     { tipo: 'Nivel 2: Asambleas Estudiantiles', frecuencia: 'Mensual', participantes: 'Grupos escolares y líderes de equipo', objetivo: 'Seguimiento de tareas de campo y coevaluación', evidencia: 'Bitácoras de Trabajo' },
     { tipo: 'Nivel 3: Comité de Seguimiento Comunitario', frecuencia: 'Bimestral', participantes: 'Directivos, familias y autoridades', objetivo: 'Rendición de cuentas parcial y soporte logístico', evidencia: 'Actas de Acuerdo' },
-    { tipo: 'Nivel 4: Supervisión Escolar Zona 004', frecuencia: 'Semestral', participantes: 'Supervisor de Zona y Dirección', objetivo: 'Validación normativa y dictamen de impacto', evidencia: 'Informe Oficial 004' },
+    { tipo: `Nivel 4: ${supervisionFirma}`, frecuencia: 'Semestral', participantes: 'Supervisor de Zona y Dirección', objetivo: 'Validación normativa y dictamen de impacto', evidencia: zonaNum ? `Informe Oficial ${zonaNum}` : 'Informe Oficial de Zona' },
   ];
   const calWidths = [2400, 1600, 2200, 2400, 2200]; // Sum: 10800
   const calRows: TableRow[] = [
@@ -1626,8 +1633,8 @@ export async function generatePaecDocx(
   s3Children.push(tblP(pgRows, [3200, 7600]));
   s3Children.push(sp());
 
-  // 2. Informe Final para Supervisión Escolar Guía 004
-  s3Children.push(secH('4.3 Informe Final para Supervisión Escolar (Guía Oficial 004)'));
+  // 2. Informe Final para Supervisión Escolar (número de zona real del plantel)
+  s3Children.push(secH(`4.3 Informe Final para Supervisión Escolar${zonaNum ? ` (Guía Oficial ${zonaNum})` : ''}`));
   s3Children.push(para(safeStr(inf.resumenEjecutivo, 'El presente informe consolida los resultados cualitativos y cuantitativos alcanzados durante el desarrollo del Proyecto Escolar Comunitario, demostrando la transformación social territorial y el fortalecimiento de los aprendizajes significativos en el marco del MCCEMS.')));
   s3Children.push(sp());
 
@@ -1725,7 +1732,7 @@ export async function generatePaecDocx(
   // Extraer nombres reales de firmas
   const firmas = (inf.firmas || {}) as Record<string, any>;
   const nombreDirector = safeStr(firmas.responsableInforme, carta.firmante || teacherName || 'Director(a) del Plantel');
-  const nombreSupervision = safeStr(firmas.autoridadEscolar, 'Supervisión Escolar Zona 004');
+  const nombreSupervision = safeStr(firmas.autoridadEscolar, supervisionFirma);
   const nombreComunidad = firmasMinuta?.[0]?.nombre ? `${firmasMinuta[0].nombre} (${firmasMinuta[0].cargo || 'Presidente del Comité'})` : 'Presidente(a) del Comité Comunitario';
 
   const firmaRows: TableRow[] = [
@@ -1754,7 +1761,7 @@ export async function generatePaecDocx(
             new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: '____________________________________', color: C.borderDark })] }),
             new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: nombreSupervision, bold: true, size: 18 })] }),
             new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Supervisor(a) Escolar de Bachilleratos', size: 16, color: C.textMuted })] }),
-            new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Zona Escolar 004 Puebla', size: 15, color: C.textMuted })] }),
+            new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: zonaFirmaTexto, size: 15, color: C.textMuted })] }),
           ],
           { w: 3600 }
         ),

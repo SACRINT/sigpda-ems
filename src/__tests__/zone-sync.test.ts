@@ -326,8 +326,8 @@ describe('Zone Synchronization & Bridges (Fase 9 / Fase 18)', () => {
 
       expect(dashboard.zona.hasCartografia).toBe(false);
       expect(dashboard.zona.cartografiaProjectId).toBeUndefined();
-      expect(dashboard.zona.nombre).toBe('004');
-      expect(dashboard.zona.clave).toBe('21FMS0004Z');
+      expect(dashboard.zona.nombre).toBe('000');
+      expect(dashboard.zona.clave).toBe('Sin clave');
       expect(dashboard.zona.supervisorName).toBe('Supervisor(a) Escolar');
       expect(dashboard.zona.momento5Completed).toBe(false);
       expect(dashboard.zona.memoriaCompleted).toBe(false);

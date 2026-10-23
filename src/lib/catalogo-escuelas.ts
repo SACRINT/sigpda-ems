@@ -14,7 +14,7 @@ export const CATALOGO_PUEBLA_FIJO: EscuelaCatalogo[] = [
     nombre: 'Héroes de la Patria',
     municipio: 'Venustiano Carranza',
     localidad: 'Lázaro Cárdenas',
-    zonaEscolar: 'Zona Escolar 004',
+    zonaEscolar: 'Zona Escolar 086',
     subsistema: 'BGE'
   },
   {

@@ -91,7 +91,7 @@ const s1 = content?.sectionI;
       }
     }
 
-    // Logo Derecho: Supervisión 004 (w: 30mm, h: 11.6mm, aspect ~2.57)
+    // Logo Derecho: Supervisión Escolar (logo institucional genérico; w: 30mm, h: 11.6mm, aspect ~2.57)
     if (logos.supervision) {
       try {
         const fmt = logos.supervision.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
@@ -368,7 +368,7 @@ const s1 = content?.sectionI;
           styles: { halign: 'center', cellWidth: 62 },
         },
         {
-          content: '\n\n___________________________________\nSUPERVISIÓN ESCOLAR 004\nVo. Bo. / Sello de Zona',
+          content: `\n\n___________________________________\n${identidad.supervision}\nVo. Bo. / Sello de Zona`,
           styles: { halign: 'center', cellWidth: 62 },
         },
       ],
@@ -640,7 +640,7 @@ export async function generateSecuenciaPDF(
           styles: { halign: 'center', cellWidth: 62 },
         },
         {
-          content: '\n\n\n___________________________________\nSUPERVISIÓN ESCOLAR 004\nVo. Bo. / Sello de Zona',
+          content: `\n\n\n___________________________________\n${identidad.supervision}\nVo. Bo. / Sello de Zona`,
           styles: { halign: 'center', cellWidth: 62 },
         },
       ],

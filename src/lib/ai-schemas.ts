@@ -445,7 +445,7 @@ export const PaecPaso8ImplementacionSchema = z.preprocess((input: unknown) => {
   anexos: PaecPaso7Schema.optional(),
 }));
 
-// PASO 9: Gobernanza Escolar e Informe de Rendición de Cuentas (Supervisión 004)
+// PASO 9: Gobernanza Escolar e Informe de Rendición de Cuentas (Supervisión de Zona)
 export const CalendarioItemSchema = z.object({
   tipo: z.string().min(1, 'Tipo de comité o nivel de gobernanza requerido'),
   frecuencia: z.string().default('Bimestral'),

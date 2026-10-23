@@ -2002,7 +2002,7 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
               {activeStep === 6 && 'Desglose detallado del Plan Operativo Semestre A (16 semanas × 8 columnas) con actividades semanales, UACs, progresiones, metodologías activas e instrumentos de evaluación.'}
               {activeStep === 7 && 'Desglose del Plan Operativo Semestre B (16 semanas × 8 columnas) con continuidad metodológica por relevos y preparación de la muestra o feria de aprendizajes final.'}
               {activeStep === 8 && 'Fase de Implementación y Anexos: Carta de Convocatoria Comunitaria, Minuta de Arranque con firmas, 3 Oficios de Vinculación y los 6 anexos técnicos normativos con vista en tabs.'}
-              {activeStep === 9 && 'Gobernanza Escolar e Informe de Supervisión: Estructura de gobernanza escolar en 4 niveles, Informe Final Guía 004 con tabla de Metas vs Logros (Pre/Post) y scorecard técnico.'}
+              {activeStep === 9 && 'Gobernanza Escolar e Informe de Supervisión: Estructura de gobernanza escolar en 4 niveles, Informe Final de Supervisión Escolar con tabla de Metas vs Logros (Pre/Post) y scorecard técnico.'}
             </p>
 
             <button
@@ -3370,7 +3370,7 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
                       )}
                     </div>
 
-                    {/* 2. Informe Final de Supervisión (Guía 004) */}
+                    {/* 2. Informe Final de Supervisión Escolar */}
                     <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--c-border)', borderRadius: '10px', overflow: 'hidden' }}>
                       <div
                         onClick={() => setCollapsedInforme(!collapsedInforme)}
@@ -3379,7 +3379,7 @@ export default function PaecWizardClient({ locale, initialId }: Props) {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <span style={{ fontSize: '18px' }}>📊</span>
                           <span style={{ fontWeight: 700, fontSize: '15px', color: '#7dd3fc' }}>
-                            2. Informe Final de Supervisión Escolar (Guía Oficial 004)
+                            2. Informe Final de Supervisión Escolar
                           </span>
                         </div>
                         <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>

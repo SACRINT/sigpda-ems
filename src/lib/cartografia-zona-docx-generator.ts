@@ -147,7 +147,7 @@ function tableDataRow(cells: string[], widths: number[], isEven = false): TableR
 // ─────────────────────────────────────────────────────────────────────────────
 export async function generateCartografiaZonaDocx(project: CartografiaZonaProject): Promise<Buffer> {
   const p_ = project || ({} as CartografiaZonaProject);
-  const zona = p_.zonaNumero || p_.zonaClave || '004';
+  const zona = p_.zonaNumero || p_.zonaClave || '000';
   const ciclo = p_.cicloEscolar || '2026-2027';
   const supervisor = p_.supervisorName || 'Supervisor(a) Escolar';
   const subsistema = p_.subsistema || 'Dirección de Bachilleratos Estatales y Preparatoria Abierta (DBEPA)';
@@ -534,7 +534,7 @@ export async function generateCartografiaZonaDocx(project: CartografiaZonaProjec
 // ─────────────────────────────────────────────────────────────────────────────
 export async function generateResumenEjecutivoDocx(project: CartografiaZonaProject): Promise<Buffer> {
   const p_ = project || ({} as CartografiaZonaProject);
-  const zona = p_.zonaNumero || p_.zonaClave || '004';
+  const zona = p_.zonaNumero || p_.zonaClave || '000';
   const ciclo = p_.cicloEscolar || '2026-2027';
   const supervisor = p_.supervisorName || 'Supervisor(a) Escolar';
   const memoria = p_.memoriaPedagogica;

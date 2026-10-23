@@ -60,7 +60,9 @@ export function resolverIdentidadEscolar(input: {
     schoolName,
     cct: ficha?.cct || cct,
     municipality: ficha?.municipio || primerTexto(input.municipality),
-    schoolZone: ficha?.zonaEscolar || primerTexto(input.schoolZone),
+    // La zona capturada por el docente (Wizard Paso 1) PREVALECE sobre el catálogo:
+    // el catálogo solo rellena si no hay captura. Así 086 no se pisca con 004.
+    schoolZone: (primerTexto(input.schoolZone) || ficha?.zonaEscolar) ?? null,
   };
 }
 
@@ -87,13 +89,14 @@ export function resolveSchoolIdentity(sources: {
   );
 
   const ficha = buscarPlantelPorNombre(schoolName) || buscarPlantelPorCct(cct);
-  const schoolZoneResuelta = ficha?.zonaEscolar || schoolZone;
+  // Zona capturada (sectionI/cover/perfil) primero; el catálogo solo como respaldo.
+  const schoolZoneResuelta = schoolZone || ficha?.zonaEscolar;
 
   return {
     schoolName: schoolName || ficha?.nombre || PLANTEL_NO_REGISTRADO,
     cct: ficha?.cct || cct || CCT_NO_REGISTRADO,
     municipality: ficha?.municipio || municipality || MUNICIPIO_NO_REGISTRADO,
-    schoolZone: schoolZoneResuelta,
+    schoolZone: schoolZoneResuelta ?? null,
     supervision: supervisionLabel(schoolZoneResuelta),
   };
 }

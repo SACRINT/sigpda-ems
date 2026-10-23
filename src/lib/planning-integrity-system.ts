@@ -372,7 +372,7 @@ export function getSafeEvaluationContext(
   lines.push('VII. VALIDACIÓN INSTITUCIONAL Y FIRMAS:');
   lines.push('- Elaboró: Docente Titular');
   lines.push('- Revisó: Coordinación Académica / Dirección del Plantel');
-  lines.push('- Autorizó: Supervisión Escolar 004');
+  lines.push(`- Autorizó: ${identidad.supervision}`);
   lines.push('================================================================================');
 
   const formattedText = lines.join('\n');

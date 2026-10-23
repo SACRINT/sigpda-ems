@@ -100,7 +100,7 @@ export async function handleCartografiaDocxRequest(
 
     const buffer = await builder(cartografiaProject);
 
-    const zonaSanitized = (cartografiaProject.zonaNumero || '004')
+    const zonaSanitized = (cartografiaProject.zonaNumero || '000')
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/[^a-zA-Z0-9_-]/g, '_');

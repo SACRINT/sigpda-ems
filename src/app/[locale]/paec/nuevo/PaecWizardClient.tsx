@@ -3315,7 +3315,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
               {activeStep === 6 && 'Desglose detallado del Plan Operativo Semestre A (16 semanas × 8 columnas) con actividades semanales, UACs, progresiones, metodologías activas e instrumentos de evaluación.'}
               {activeStep === 7 && 'Desglose del Plan Operativo Semestre B (16 semanas × 8 columnas) con continuidad metodológica por relevos y preparación de la muestra o feria de aprendizajes final.'}
               {activeStep === 8 && 'Fase de Implementación y Anexos: Carta de Convocatoria Comunitaria, Minuta de Arranque con firmas, 3 Oficios de Vinculación y los 6 anexos técnicos normativos con vista en tabs.'}
-              {activeStep === 9 && 'Gobernanza Escolar e Informe de Supervisión: Estructura de gobernanza escolar en 4 niveles, Informe Final Guía 004 con tabla de Metas vs Logros (Pre/Post) y scorecard técnico.'}
+              {activeStep === 9 && 'Gobernanza Escolar e Informe de Supervisión: Estructura de gobernanza escolar en 4 niveles, Informe Final de Supervisión Escolar con tabla de Metas vs Logros (Pre/Post) y scorecard técnico.'}
             </p>
 
             <button

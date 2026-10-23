@@ -101,7 +101,7 @@ export function exportarHorarioPDF(datos: DatosExportacionHorario) {
   const GOLD_RGB: [number, number, number] = [201, 162, 39]; // #C9A227
   const BORDER_RGB: [number, number, number] = [226, 232, 240]; // #E2E8F0
 
-  const zonaTexto = datos.zonaEscolar ? (datos.zonaEscolar.toLowerCase().includes("zona") ? datos.zonaEscolar.toUpperCase() : `ZONA ${datos.zonaEscolar}`) : "ZONA 004";
+  const zonaTexto = datos.zonaEscolar ? (datos.zonaEscolar.toLowerCase().includes("zona") ? datos.zonaEscolar.toUpperCase() : `ZONA ${datos.zonaEscolar}`) : "ZONA NO REGISTRADA";
 
   datos.filas.forEach((fila, idxFila) => {
     if (idxFila > 0) {
@@ -195,7 +195,7 @@ export function exportarHorarioPDF(datos: DatosExportacionHorario) {
 
     // ── 5. Construcción de Tabla Oficial ──
     const head = [["PERIODO", "LUNES", "MARTES", "MIÉRCOLES", "JUEVES", "VIERNES"]];
-    const body: any[][] = [];
+    const body: (string | null)[][] = [];
     const materiasGrid: (string | null)[][] = [];
 
     for (let p = 0; p < datos.periodos.length; p++) {
@@ -358,7 +358,7 @@ export function exportarHorarioPDF(datos: DatosExportacionHorario) {
 export async function exportarHorarioDOCX(datos: DatosExportacionHorario) {
   const NAVY = "1E3A8A";
   const BORDER = "E2E8F0";
-  const zonaTexto = datos.zonaEscolar ? (datos.zonaEscolar.toLowerCase().includes("zona") ? datos.zonaEscolar.toUpperCase() : `ZONA ${datos.zonaEscolar}`) : "ZONA 004";
+  const zonaTexto = datos.zonaEscolar ? (datos.zonaEscolar.toLowerCase().includes("zona") ? datos.zonaEscolar.toUpperCase() : `ZONA ${datos.zonaEscolar}`) : "ZONA NO REGISTRADA";
 
   // Dimensiones Carta Horizontal en DXA (1 pulgada = 1440 DXA)
   // Ancho: 11 in * 1440 = 15840 DXA. Alto: 8.5 in * 1440 = 12240 DXA.
@@ -367,7 +367,7 @@ export async function exportarHorarioDOCX(datos: DatosExportacionHorario) {
   const COL_DIA_DXA = 2480; // 5 * 2480 = 12400 DXA. Total = 14400 DXA.
 
   const sections = datos.filas.map((fila) => {
-    const children: any[] = [];
+    const children: (Paragraph | Table)[] = [];
 
     // 1. Membrete Institucional Centrado Formal
     children.push(
@@ -675,7 +675,7 @@ export async function exportarHorarioExcel(datos: DatosExportacionHorario) {
   const wb = new ExcelJS.Workbook();
   wb.creator = "SIGPDA-EMS";
   wb.created = new Date();
-  const zonaTexto = datos.zonaEscolar ? (datos.zonaEscolar.toLowerCase().includes("zona") ? datos.zonaEscolar.toUpperCase() : `ZONA ${datos.zonaEscolar}`) : "ZONA 004";
+  const zonaTexto = datos.zonaEscolar ? (datos.zonaEscolar.toLowerCase().includes("zona") ? datos.zonaEscolar.toUpperCase() : `ZONA ${datos.zonaEscolar}`) : "ZONA NO REGISTRADA";
 
   for (const fila of datos.filas) {
     const sheetName = fila.encabezado.replace(/[\\/?*:[\]]/g, "_").slice(0, 30);
@@ -810,7 +810,7 @@ export async function exportarHorarioExcel(datos: DatosExportacionHorario) {
 export async function exportarSumarioExcel(datos: DatosSumario, tipo: "DOCENTE" | "GRUPO") {
   const wb = new ExcelJS.Workbook();
   const { dias, numHorasPorDia } = datos;
-  const zonaTexto = datos.zonaEscolar ? (datos.zonaEscolar.toLowerCase().includes("zona") ? datos.zonaEscolar.toUpperCase() : `ZONA ${datos.zonaEscolar}`) : "ZONA 004";
+  const zonaTexto = datos.zonaEscolar ? (datos.zonaEscolar.toLowerCase().includes("zona") ? datos.zonaEscolar.toUpperCase() : `ZONA ${datos.zonaEscolar}`) : "ZONA NO REGISTRADA";
 
   const ws = wb.addWorksheet(tipo === "DOCENTE" ? "Sumario Maestros" : "Sumario Grupos", {
     views: [{ state: "frozen", ySplit: 5, xSplit: 1 }]
@@ -913,7 +913,7 @@ export async function exportarLibroIntegralExcel(datos: DatosLibroIntegralExcel)
   const wb = new ExcelJS.Workbook();
   wb.creator = "SIGPDA-EMS — Motor Institucional";
   wb.created = new Date();
-  const zonaTexto = datos.zonaEscolar ? (datos.zonaEscolar.toLowerCase().includes("zona") ? datos.zonaEscolar.toUpperCase() : `ZONA ${datos.zonaEscolar}`) : "ZONA 004";
+  const zonaTexto = datos.zonaEscolar ? (datos.zonaEscolar.toLowerCase().includes("zona") ? datos.zonaEscolar.toUpperCase() : `ZONA ${datos.zonaEscolar}`) : "ZONA NO REGISTRADA";
 
   // Helper de membrete estándar para cada hoja
   function aplicarMembreteHoja(ws: ExcelJS.Worksheet, tituloSeccion: string) {
@@ -1251,7 +1251,7 @@ export async function exportarHorarioWhatsApp(
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
 
-  const zonaTexto = datos.zonaEscolar ? (datos.zonaEscolar.toLowerCase().includes("zona") ? datos.zonaEscolar.toUpperCase() : `ZONA ${datos.zonaEscolar}`) : "ZONA 004";
+  const zonaTexto = datos.zonaEscolar ? (datos.zonaEscolar.toLowerCase().includes("zona") ? datos.zonaEscolar.toUpperCase() : `ZONA ${datos.zonaEscolar}`) : "ZONA NO REGISTRADA";
 
   // ── 1. Fondo Oscuro Cyber Degradado ──
   const bgGrad = ctx.createLinearGradient(0, 0, width, height);

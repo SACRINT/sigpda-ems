@@ -157,7 +157,7 @@ export async function getZoneAnalytics(supervisorId: string): Promise<ZoneMetric
 
   return {
     zoneId: supervisorId,
-    zoneName: dashboard.zona.nombre || 'Zona Escolar 004',
+    zoneName: dashboard.zona.nombre || 'Zona no registrada',
     supervisorName: dashboard.zona.supervisorName || 'Supervisor(a) Escolar',
     totalSchools: planteles.length,
     totalTeachers,

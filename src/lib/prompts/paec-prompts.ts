@@ -669,15 +669,20 @@ Debes responder ÚNICAMENTE con un objeto JSON con la siguiente estructura exact
 export const buildPrompt7Anexos = (projectSummary: string) => buildPrompt8ImplementacionYAnexos(projectSummary, '', '');
 
 // ============================================================================
-// PROMPT 9: Gobernanza Escolar e Informe Final de Rendición de Cuentas (Supervisión 004)
+// PROMPT 9: Gobernanza Escolar e Informe Final de Rendición de Cuentas
 // ============================================================================
 export function buildPrompt9GobernanzaEInformeSupervision(
   projectSummary: string,
   planASummary: string,
   planBSummary: string,
-  implementacionSummary: string
+  implementacionSummary: string,
+  schoolZone?: string
 ): string {
-  return `Genera la FASE IV: GOBERNANZA ESCOLAR E INFORME FINAL DE RENDICIÓN DE CUENTAS del PEC (Ciclo Escolar ${SCHOOL_YEAR}) para la Supervisión Escolar 004 y la Dirección de Educación Media Superior (SEMS Puebla).
+  const zonaNumPrompt = (schoolZone ?? '').match(/\d{2,4}/)?.[0] ?? null;
+  const supervisionPromptLabel = zonaNumPrompt
+    ? `Supervisión Escolar ${zonaNumPrompt}`
+    : 'Supervisión Escolar (zona no registrada)';
+  return `Genera la FASE IV: GOBERNANZA ESCOLAR E INFORME FINAL DE RENDICIÓN DE CUENTAS del PEC (Ciclo Escolar ${SCHOOL_YEAR}) para la ${supervisionPromptLabel} y la Dirección de Educación Media Superior (SEMS Puebla).
 
 Datos del Proyecto:
 ${projectSummary}
@@ -696,7 +701,7 @@ DIRECTRICES OBLIGATORIAS DE EXCELENCIA:
    - Nivel 1: Comité de Salud y Medio Ambiente del PEC (reuniones quincenales/mensuales de brigadas).
    - Nivel 2: Consejo Técnico Escolar (sesiones ordinarias de CTE para seguimiento curricular).
    - Nivel 3: Asamblea Comunitaria (asambleas de apertura, seguimiento intersemestral y cierre con familias).
-   - Nivel 4: Supervisión Escolar 004 (visitas de acompañamiento técnico-pedagógico y entrega de informes).
+   - Nivel 4: ${supervisionPromptLabel} (visitas de acompañamiento técnico-pedagógico y entrega de informes).
 2. METODOLOGÍA DE EVALUACIÓN FORMATIVA NEM (TABLA 6 OFICIAL):
    - Ambitos de evaluación: Formativo, Comunitario e Institucional.
    - Preguntas Guía NEM:
@@ -738,7 +743,7 @@ Debes responder ÚNICAMENTE con un objeto JSON con la siguiente estructura exact
         "evidencia": "Minutas de asamblea con firmas y memoria fotográfica"
       },
       {
-        "tipo": "Supervisión Escolar 004",
+        "tipo": "${supervisionPromptLabel}",
         "frecuencia": "Bimestral / Semestral",
         "participantes": "Equipo de Supervisión de Zona, Directivo y Coordinador PAEC",
         "objetivo": "Acompañamiento técnico, validación contra la Rúbrica Oficial y entrega de informes de avance",
@@ -928,9 +933,12 @@ export function buildPrompt9Bloque2(
   projectSummary: string,
   planASummary: string,
   planBSummary: string,
-  implementacionSummary: string
+  implementacionSummary: string,
+  schoolZone?: string
 ): string {
-  return `Genera el BLOQUE 2/2 del Paso 9 (Informe de Rendición de Cuentas para Supervisión 004) del PEC (Ciclo ${SCHOOL_YEAR}):
+  const zonaNumB2 = (schoolZone ?? '').match(/\d{2,4}/)?.[0] ?? null;
+  const supervisionB2 = zonaNumB2 ? `Supervisión ${zonaNumB2}` : 'Supervisión Escolar';
+  return `Genera el BLOQUE 2/2 del Paso 9 (Informe de Rendición de Cuentas para la ${supervisionB2}) del PEC (Ciclo ${SCHOOL_YEAR}):
 Datos del Proyecto: ${projectSummary}
 Operación Semestre A: ${planASummary}
 Operación Semestre B: ${planBSummary}

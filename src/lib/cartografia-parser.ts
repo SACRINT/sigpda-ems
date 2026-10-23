@@ -45,7 +45,7 @@ export async function parseCartografiaMatriz(
 }> {
   try {
     const statsResult: ParsePmcResult = parsePmcStatistics(input as Parameters<typeof parsePmcStatistics>[0], {
-      zonaNumero: options?.zonaNumero || '004',
+      zonaNumero: options?.zonaNumero || '000',
       cicloEscolar: options?.cicloEscolar || '2026-2027',
     });
 

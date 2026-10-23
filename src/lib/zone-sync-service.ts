@@ -391,8 +391,8 @@ export async function getZoneSupervisorDashboard(supervisorId: string): Promise<
 
   return {
     zona: {
-      nombre: pipsBaseCtx?.identificacion.zonaNumero || '004',
-      clave: pipsBaseCtx?.identificacion.zonaClave || '21FMS0004Z',
+      nombre: pipsBaseCtx?.identificacion.zonaNumero || '000',
+      clave: pipsBaseCtx?.identificacion.zonaClave || 'Sin clave',
       supervisorName: pipsBaseCtx?.identificacion.supervisorName || 'Supervisor(a) Escolar',
       hasCartografia: !!pipsRow,
       cartografiaProjectId: pipsRow?.id,

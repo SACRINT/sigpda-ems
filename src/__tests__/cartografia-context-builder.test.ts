@@ -93,11 +93,12 @@ describe('Cartografia Context Builder (H-011)', () => {
     ]);
   });
 
-  it('handles empty or missing DB row gracefully with sensible defaults', () => {
+  it('handles empty or missing DB row gracefully with honest markers (sin zona fija)', () => {
     const emptyRow: Record<string, unknown> = {};
     const ctx = buildCartografiaBaseContext(emptyRow, { name: 'Supervisora Default' });
 
-    expect(ctx.identificacion.zonaNumero).toBe('004');
+    expect(ctx.identificacion.zonaNumero).toBe('000');
+    expect(ctx.identificacion.zonaClave).toBe('Sin clave');
     expect(ctx.identificacion.supervisorName).toBe('Supervisora Default');
     expect(ctx.planteles).toEqual([]);
     expect(ctx.matriculaTotalZona).toBe(0);

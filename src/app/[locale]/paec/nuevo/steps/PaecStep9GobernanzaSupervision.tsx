@@ -147,7 +147,7 @@ export default function PaecStep9GobernanzaSupervision({
           )}
         </div>
 
-        {/* 2. Informe Final de Supervisión (Guía 004) */}
+        {/* 2. Informe Final de Supervisión Escolar */}
         <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--c-border)', borderRadius: '10px', overflow: 'hidden' }}>
           <div
             onClick={() => setCollapsedInforme(!collapsedInforme)}
@@ -156,7 +156,7 @@ export default function PaecStep9GobernanzaSupervision({
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <span style={{ fontSize: '18px' }}>📊</span>
               <span style={{ fontWeight: 700, fontSize: '15px', color: '#7dd3fc' }}>
-                2. Informe Final de Supervisión Escolar (Guía Oficial 004)
+                2. Informe Final de Supervisión Escolar
               </span>
             </div>
             <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>

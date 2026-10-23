@@ -13,25 +13,32 @@ import { SCHOOL_YEAR } from '@/lib/config';
  */
 
 export const PIPS_SYSTEM_PROMPT = `Eres un experto en supervisión escolar y planificación pedagógica del Bachillerato General Estatal (BGE) en Puebla, México.
-Tu tarea es generar secciones de alta calidad para el Plan de Intervención Pedagógica de Supervisión (PIPS) ${SCHOOL_YEAR} de la Zona Escolar 004.
+Tu tarea es generar secciones de alta calidad para el Plan de Intervención Pedagógica de Supervisión (PIPS) ${SCHOOL_YEAR}. La zona escolar, municipios de cobertura y demás datos institucionales se proveen en el contexto de cada parte.
 
 Directrices institucionales del PIPS en Puebla:
 1. Usar un lenguaje formal, institucional y con sólida fundamentación técnico-pedagógica.
 2. Alineación rigurosa a los principios de la Nueva Escuela Mexicana (NEM) y el MCCEMS.
-3. Incorporar los municipios de cobertura: Venustiano Carranza, Francisco Z. Mena, Pantepec y Jalpan.
+3. Incorpora los municipios de cobertura y datos de la zona exclusivamente desde los datos provistos en el contexto.
 4. NUNCA inventes nombres de planteles, claves CCT ni estadísticas. Todo debe salir de los datos provistos.
 5. El calendario y cronograma se anclan en las directrices del Plan Anual de Trabajo (PAT) 2025-2026 proyectado a ${SCHOOL_YEAR} como fechas preliminares.`;
 
 export function getChunk1Prompt(row: any, plantelesData: any[], totalAlumnos: number, totalPersonal: any): string {
+  const municipiosCobertura = Array.from(
+    new Set(
+      plantelesData
+        .map((p) => (typeof p.municipio === 'string' ? p.municipio.trim() : ''))
+        .filter((m) => m && m !== 'Sin municipio')
+    )
+  ).join(', ') || row.municipio_sede || 'Sin municipios registrados';
   return `Genera la **PARTE 1** del Plan de Intervención Pedagógica de Supervisión (PIPS) ${SCHOOL_YEAR}.
 
 Información base de la supervisión:
-- Zona escolar: ${row.zona_nombre} (Clave: ${row.zona_clave ?? '21FMS0020X'})
+- Zona escolar: ${row.zona_nombre} (Clave: ${row.zona_clave ?? 'Sin clave'})
 - Supervisor: ${row.supervisor_name || 'Ing. Alejandro Escamilla Martínez'}
 - Municipio Sede: ${row.municipio_sede || 'Venustiano Carranza (Lázaro Cárdenas)'}
-- Municipios que atiende: Venustiano Carranza, Francisco Z. Mena, Pantepec, Jalpan
+- Municipios que atiende: ${municipiosCobertura}
 - Sede: Lázaro Cárdenas, Venustiano Carranza, Puebla.
-- Planteles activos: 17 planteles generales.
+- Planteles activos: ${plantelesData.length} planteles generales.
 - Asesores Técnicos Pedagógicos (ATP):
   * Ing. Samuel Cruz Interial
   * Imelda Hernández García
@@ -49,7 +56,7 @@ Reflexión del PIPS del ciclo anterior (2024-2025):
 - Reflexión general: ${row.reflexion_pips_anterior || 'Se detectó que el plan anterior era muy generalista y no atacaba las problemáticas específicas de cada plantel.'}
 
 Contexto Socioeducativo de la zona:
-"${row.diagnostico_contexto || 'La zona 004 está ubicada en la región Sierra Norte de Puebla, caracterizada por planteles rurales y semiurbanos con alto grado de marginación, asimetrías de conectividad y recursos limitados.'}"
+"${row.diagnostico_contexto || 'La zona escolar se ubica en el estado de Puebla, con planteles rurales y semiurbanos que presentan grados variables de marginación, asimetrías de conectividad y recursos limitados.'}"
 
 Detalle cuantitativo de los 17 planteles para el diagnóstico:
 ${JSON.stringify(plantelesData, null, 2)}
@@ -97,7 +104,7 @@ ${chunk1Result.slice(-4000)} // Contexto reciente
 
 **ESTRUCTURA QUE DEBES GENERAR PARA LA PARTE 2 (Redacta en Markdown):**
 
-# 5. ANÁLISIS FODA DE LA SUPERVISIÓN ESCOLAR (ZONA 004)
+# 5. ANÁLISIS FODA DE LA SUPERVISIÓN ESCOLAR (${row.zona_nombre})
 Genera un análisis FODA exhaustivo y adaptado específicamente al diagnóstico previo:
 - **Fortalezas:** Compromiso del supervisor y los 4 ATPs, PMC y PAEC entregados en su mayoría.
 - **Oportunidades:** El PAT establece un marco de fechas oficial claro, sinergias con comités comunitarios.
@@ -117,7 +124,7 @@ Asegúrate de que la redacción sea formal, madura y completa. Devuelve únicame
 }
 
 export function getChunk3Prompt(row: any, chunk1And2Result: string): string {
-  return `Con base en toda la planeación de objetivos y el diagnóstico previo de la Zona Escolar 004, genera la **PARTE 3 (Y FINAL)** del Plan de Intervención Pedagógica de Supervisión (PIPS) ${SCHOOL_YEAR}.
+  return `Con base en toda la planeación de objetivos y el diagnóstico previo de ${row.zona_nombre}, genera la **PARTE 3 (Y FINAL)** del Plan de Intervención Pedagógica de Supervisión (PIPS) ${SCHOOL_YEAR}.
 
 ---
 **CONTEXTO DE OBJETIVOS GENERADOS (Como referencia):**

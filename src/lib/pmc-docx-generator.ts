@@ -1663,7 +1663,7 @@ export async function generatePmcInformeDocx(
         new TableRow({ children: [tcSub('Localidad / Municipio'), tc(location)] }),
         new TableRow({ children: [tcSub('Estado'), tc('Puebla')] }),
         new TableRow({ children: [tcSub('Turno'), tc('Matutino')] }),
-        new TableRow({ children: [tcSub('Zona Escolar'), tc(safeStr(project.school_zone) || 'Zona Escolar 004')] }),
+        new TableRow({ children: [tcSub('Zona Escolar'), tc(safeStr(project.school_zone) || 'Zona no registrada')] }),
         new TableRow({ children: [tcSub('Supervisor(a) de Zona'), tc(supervisorName)] }),
         new TableRow({ children: [tcSub('Director(a) del Plantel'), tc(directorName)] }),
         new TableRow({ children: [tcSub('Fecha de Elaboración'), tc(today)] }),
@@ -1926,14 +1926,17 @@ export async function generatePmcInformeDocx(
 
   const sampleDocente = teacherWithGoal?.nombre ? safeStr(teacherWithGoal.nombre) : directorName;
   const sampleCargo = teacherWithGoal?.cargo ? safeStr(teacherWithGoal.cargo) : 'Docente del Plantel';
-  const sampleMeta = (teacherWithGoal as any)?.meta_individual
-    ? cleanPmcPlaceholders((teacherWithGoal as any).meta_individual)
+  const teacherConMeta = (teacherWithGoal ?? null) as {
+    meta_individual?: unknown; estrategia?: unknown; entregable?: unknown; categoria?: unknown;
+  } | null;
+  const sampleMeta = typeof teacherConMeta?.meta_individual === 'string'
+    ? cleanPmcPlaceholders(teacherConMeta.meta_individual)
     : 'Disminución de la reprobación y acompañamiento tutoral de alumnos en riesgo.';
-  const sampleEstrategia = (teacherWithGoal as any)?.estrategia
-    ? cleanPmcPlaceholders((teacherWithGoal as any).estrategia)
+  const sampleEstrategia = typeof teacherConMeta?.estrategia === 'string'
+    ? cleanPmcPlaceholders(teacherConMeta.estrategia)
     : 'Diseño de guías didácticas situadas, impartición de tutorías individuales y reporte de alertas tempranas.';
-  const sampleEntregable = (teacherWithGoal as any)?.entregable
-    ? cleanPmcPlaceholders((teacherWithGoal as any).entregable)
+  const sampleEntregable = typeof teacherConMeta?.entregable === 'string'
+    ? cleanPmcPlaceholders(teacherConMeta.entregable)
     : 'Bitácora de acompañamiento tutoral y reporte cualitativo de evaluación formativa.';
 
   children.push(
@@ -1942,7 +1945,7 @@ export async function generatePmcInformeDocx(
         new TableRow({ children: [tcH('INFORME INDIVIDUAL DEL DOCENTE', { span: 2 })] }),
         new TableRow({ children: [tcSub('Nombre completo del docente'), tc(sampleDocente)] }),
         new TableRow({ children: [tcSub('Materias / Áreas que imparte'), tc(sampleCargo)] }),
-        new TableRow({ children: [tcSub('Categorías del PMC en que participó'), tc((teacherWithGoal as any)?.categoria || 'Desarrollo académico y aprendizaje / Fortalecimiento docente')] }),
+        new TableRow({ children: [tcSub('Categorías del PMC en que participó'), tc(typeof teacherConMeta?.categoria === 'string' && teacherConMeta.categoria ? teacherConMeta.categoria : 'Desarrollo académico y aprendizaje / Fortalecimiento docente')] }),
         new TableRow({ children: [tcSub('Meta(s) a las que contribuyó'), tc(sampleMeta)] }),
         new TableRow({ children: [tcSub('Acciones específicas que realizó'), tc(sampleEstrategia)] }),
         new TableRow({ children: [tcSub('Evidencias generadas'), tc(sampleEntregable)] }),

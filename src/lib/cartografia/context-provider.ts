@@ -72,7 +72,7 @@ export class CartografiaContextProvider implements ICartografiaContextProvider {
 
     try {
       const result = await parseCartografiaMatriz(buffer, {
-        zonaNumero: options.zonaNumero || '004',
+        zonaNumero: options.zonaNumero || '000',
         cicloEscolar: options.cicloEscolar || '2026-2027',
         linkDbPaec: options.linkDbPaec ?? true,
       });

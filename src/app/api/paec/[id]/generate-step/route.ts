@@ -889,11 +889,13 @@ export async function POST(
           logger.info('[PAEC-Step9] Bloque 1/2 ya existente en BD, omitiendo regeneración.');
         }
 
-        // Bloque 2: Informe de Rendición de Cuentas para Supervisión 004
+        // Bloque 2: Informe de Rendición de Cuentas para la Supervisión de Zona
         const infObj = (accumulatedPaso9.informeSupervision as Record<string, unknown> | undefined) || {};
         const hasBlock2 = Boolean(infObj.resumenEjecutivo && (infObj.metasVsLogros as unknown[])?.length);
         if (!hasBlock2) {
-          const b2Prompt = buildPrompt9Bloque2(projectSummary, planASummary, planBSummary, implSummary);
+          const schoolCtxRaw = (project.school_context ?? {}) as Record<string, unknown>;
+          const schoolZoneRaw = typeof schoolCtxRaw.schoolZone === 'string' ? schoolCtxRaw.schoolZone : undefined;
+          const b2Prompt = buildPrompt9Bloque2(projectSummary, planASummary, planBSummary, implSummary, schoolZoneRaw);
           const fullB2Prompt = libraryContext ? `${b2Prompt}\n\n${libraryContext}` : b2Prompt;
           let attempt = 0;
           let delay = 1500;

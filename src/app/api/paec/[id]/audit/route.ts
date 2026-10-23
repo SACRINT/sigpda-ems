@@ -34,7 +34,7 @@ export async function GET(
     }
 
     const audit = calculateGlobalPaecScore(project);
-    const reportText = formatAuditReport(audit);
+    const reportText = formatAuditReport(audit, project.schoolContext?.schoolZone);
 
     return NextResponse.json({
       success: true,

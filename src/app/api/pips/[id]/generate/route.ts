@@ -61,14 +61,22 @@ export async function POST(
     }
 
     // ── Cruce y Extracción de Datos ──────────────────────────────────────────
-    const plantelesRaw = Array.isArray(row.planteles_json) ? row.planteles_json : [];
+    type PlantelCrudo = {
+      nombre?: unknown; cct?: unknown; municipio?: unknown;
+      total?: unknown; docentes?: unknown; responsables?: unknown;
+      admin?: unknown; apoyo?: unknown; horas?: unknown;
+      cumplimiento_pmc?: unknown; evaluacion_paec?: unknown;
+    };
+    type PersonalAcum = { docentes: number; responsables: number; apoyo: number; horas: number; total: number };
+
+    const plantelesRaw: PlantelCrudo[] = Array.isArray(row.planteles_json) ? row.planteles_json : [];
     const totalAlumnos = plantelesRaw.reduce(
-      (acc: number, p: any) => acc + (Number(p.total) || 0),
+      (acc: number, p) => acc + (Number(p.total) || 0),
       0
     );
 
     // Mapear planteles con análisis básico
-    const plantelesData = plantelesRaw.map((p: any) => ({
+    const plantelesData = plantelesRaw.map((p) => ({
       nombre: p.nombre || 'Sin nombre',
       cct: p.cct || 'Sin CCT',
       municipio: p.municipio || 'Sin municipio',
@@ -82,15 +90,15 @@ export async function POST(
     }));
 
     // Cuentas agregadas de personal en la zona
-    const totalPersonal = plantelesRaw.reduce(
-      (acc: any, p: any) => {
+    const totalPersonal = plantelesRaw.reduce<PersonalAcum>(
+      (acc, p) => {
         acc.docentes += Number(p.docentes) || 0;
-        acc.responsables += Number(p.responsables || (p.docentes > 0 ? 1 : 0)) || 0;
+        acc.responsables += Number(p.responsables || (Number(p.docentes) > 0 ? 1 : 0)) || 0;
         acc.apoyo += (Number(p.admin) || 0) + (Number(p.apoyo) || 0);
         acc.horas += Number(p.horas) || 0;
         return acc;
       },
-      { docentes: 0, responsables: 0, apoyo: 0, horas: 0 }
+      { docentes: 0, responsables: 0, apoyo: 0, horas: 0, total: 0 }
     );
     totalPersonal.total = totalPersonal.docentes + totalPersonal.responsables + totalPersonal.apoyo;
 
@@ -111,9 +119,10 @@ async function generateChunkWithRetry(
         return result;
       }
       throw new Error(`Respuesta vacía al generar ${chunkName}`);
-    } catch (err: any) {
+    } catch (err) {
       attempt++;
-      logger.warn(`[PIPS-Gen] Falla en ${chunkName} (intento ${attempt}/${maxRetries + 1}): ${err?.message || err}`);
+      const msgErr = err instanceof Error ? err.message : String(err);
+      logger.warn(`[PIPS-Gen] Falla en ${chunkName} (intento ${attempt}/${maxRetries + 1}): ${msgErr}`);
       if (attempt > maxRetries) {
         throw err;
       }
@@ -126,7 +135,7 @@ async function generateChunkWithRetry(
 }
 
     // ── Ejecución de la IA por Chunks (Secuencial con Rotación & Checkpoints) ───
-    logger.info(`[PIPS-Gen] Iniciando generación de PIPS para Zona 004 en 3 partes con checkpoints...`);
+    logger.info(`[PIPS-Gen] Iniciando generación de PIPS para ${row.zona_nombre || 'zona no registrada'} en 3 partes con checkpoints...`);
 
     const libraryContext = await getUserLibraryContext(teacher.email);
 
@@ -226,10 +235,11 @@ async function generateChunkWithRetry(
     }
 
     return NextResponse.json(responsePayload);
-  } catch (error: any) {
+  } catch (error) {
+    const mensajeError = error instanceof Error ? error.message : 'Error interno del servidor al generar PIPS';
     logger.error('POST /api/pips/[id]/generate error:', error);
     return NextResponse.json({ 
-      error: error?.message || 'Error interno del servidor al generar PIPS',
+      error: mensajeError,
       hasPartialCheckpoint: true
     }, { status: 500 });
   }

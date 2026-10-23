@@ -44,11 +44,13 @@ export function buildCartografiaBaseContext(
     : [];
 
   const identificacion: CartografiaIdentificacion = {
-    zonaNumero: String(row.zona_nombre || '004').replace(/[^0-9]/g, '') || '004',
-    zonaClave: String(row.zona_clave || '21FMS0004Z'),
+    // Sin zona fija de fallback: '000'/'Sin clave' marcan datos no registrados
+    // (los defaults anteriores de zona y clave fijas pintaban la zona ajena a 086).
+    zonaNumero: String(row.zona_nombre || '').replace(/[^0-9]/g, '') || '000',
+    zonaClave: String(row.zona_clave || '') || 'Sin clave',
     supervisorName: String(row.supervisor_name || teacher?.name || 'Supervisor(a) Escolar'),
-    municipioSede: String(row.municipio_sede || 'Venustiano Carranza'),
-    municipiosAtiende: String(row.municipios_atiende || 'Venustiano Carranza, Francisco Z. Mena, Pantepec, Jalpan'),
+    municipioSede: String(row.municipio_sede || 'Sin sede registrada'),
+    municipiosAtiende: String(row.municipios_atiende || row.municipio_sede || 'Sin municipios registrados'),
     subsistema: String(row.subsistema || 'Bachilleratos Estatales'),
     cicloEscolar: String(row.ciclo_escolar || '2026-2027'),
     atps: atpsList,

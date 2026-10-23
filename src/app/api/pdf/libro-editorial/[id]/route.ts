@@ -43,6 +43,7 @@ import {
 import { composeStudentSessionsFromWorkbooks } from '@/lib/editorial/compose-student-sessions';
 import { ensureEditorialPlanCompleteness } from '@/lib/editorial/plan-completeness';
 import { sanitizeDocFilename } from '@/lib/document-branding';
+import { resolverIdentidadEscolar } from '@/lib/school-identity';
 import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
@@ -89,13 +90,19 @@ export function resolveEditorialTemplateVersion(): string {
 
 /**
  * Normaliza la zona escolar para portada e índice del libro.
- * '086' → 'Zona 086' · 'Zona 086' → 'Zona 086' · vacío → default institucional
- * (mismo default que el exportador legacy; nunca inventa zonas falsas tipo 001
- * cuando el docente sí tiene zona configurada en el Wizard).
+ * '086' → 'Zona 086' · 'Zona 086' → 'Zona 086' · vacío → respaldo de identidad
+ * (catálogo del plantel) → 'Zona no registrada'. NUNCA un default fijo tipo 004:
+ * ese hardcode pintó "Zona 004" en portadas de docentes de la zona 086.
  */
-function formatZonaEscolar(raw?: string | null): string {
+function formatZonaEscolar(raw?: string | null, fallbackCatalogo?: string | null): string {
   const v = (raw ?? '').trim();
-  if (!v) return 'Zona 004';
+  if (!v) {
+    const f = (fallbackCatalogo ?? '').trim();
+    if (!f) return 'Zona no registrada';
+    if (/^zona\b/i.test(f)) return f;
+    if (/^\d{2,4}$/.test(f)) return `Zona ${f}`;
+    return f;
+  }
   if (/^zona\b/i.test(v)) return v;
   if (/^\d{2,4}$/.test(v)) return `Zona ${v}`;
   return v;
@@ -338,7 +345,10 @@ export async function POST(
         cicloEscolar: '2026-2027',
         plantel,
         cct,
-        zonaEscolar: formatZonaEscolar(authResult.teacherZone),
+        zonaEscolar: formatZonaEscolar(
+          authResult.teacherZone,
+          resolverIdentidadEscolar({ schoolName: plantel, cct }).schoolZone,
+        ),
         sesiones: composed.sessions,
       });
     }

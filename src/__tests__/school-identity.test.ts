@@ -17,7 +17,7 @@ describe('Identidad escolar — plantel / CCT / zona supervisión', () => {
     const ficha = buscarPlantelPorNombre('Héroes de la Patria');
     expect(ficha?.cct).toBe('21EBH0200X');
     expect(ficha?.municipio).toBe('Venustiano Carranza');
-    expect(ficha?.zonaEscolar).toBe('Zona Escolar 004');
+    expect(ficha?.zonaEscolar).toBe('Zona Escolar 086');
     expect(ficha?.subsistema).toBe('BGE');
   });
 
@@ -37,8 +37,22 @@ describe('Identidad escolar — plantel / CCT / zona supervisión', () => {
     });
     expect(identidad.cct).toBe('21EBH0200X');
     expect(identidad.municipality).toBe('Venustiano Carranza');
-    expect(identidad.schoolZone).toBe('Zona Escolar 004');
-    expect(identidad.supervision).toBe('SUPERVISIÓN DE BACHILLERATOS 004');
+    expect(identidad.schoolZone).toBe('Zona Escolar 086');
+    expect(identidad.supervision).toBe('SUPERVISIÓN DE BACHILLERATOS 086');
+  });
+
+  it('la zona capturada por el docente tiene precedencia sobre el catálogo (bug 004→086)', () => {
+    const identidad = resolveSchoolIdentity({
+      sectionI: { schoolName: 'Héroes de la Patria', schoolZone: 'Zona Escolar 086' },
+    });
+    expect(identidad.schoolZone).toBe('Zona Escolar 086');
+    expect(identidad.supervision).toBe('SUPERVISIÓN DE BACHILLERATOS 086');
+
+    const payload = resolverIdentidadEscolar({
+      schoolName: 'Héroes de la Patria',
+      schoolZone: 'Zona Escolar 086',
+    });
+    expect(payload.schoolZone).toBe('Zona Escolar 086');
   });
 
   it('nunca inventa plantel ni CCT: degrada a marcadores honestos', () => {
@@ -65,7 +79,7 @@ describe('Identidad escolar — plantel / CCT / zona supervisión', () => {
     });
     expect(payload.cct).toBe('21EBH0200X');
     expect(payload.municipality).toBe('Venustiano Carranza');
-    expect(payload.schoolZone).toBe('Zona Escolar 004');
+    expect(payload.schoolZone).toBe('Zona Escolar 086');
 
     const desconocido = resolverIdentidadEscolar({ schoolName: 'Escuela Inexistente' });
     expect(desconocido.cct).toBeNull();
@@ -101,6 +115,21 @@ describe('Anti-hardcode: ningún renderer puede fabricar plantel/CCT/supervisió
     { archivo: 'lib/document-branding.ts', patron: /21EBH0000X/, motivo: 'CCT comodín institucional' },
     { archivo: 'components/common/DocumentA4Viewer.tsx', patron: /SUPERVISIÓN ESCOLAR 004/, motivo: 'supervisión 004 fija en la vista A4' },
     { archivo: 'components/common/DocumentA4Viewer.tsx', patron: /Bachillerato General Oficial/, motivo: 'plantel falso en la vista A4' },
+    { archivo: 'lib/planning-pdf-renderer.ts', patron: /Zona 004|Zona Escolar 004/, motivo: 'zona 004 hardcodeada en PDF de planeación' },
+    { archivo: 'lib/planning-integrity-system.ts', patron: /Supervisión Escolar 004|Zona Escolar 004/, motivo: 'zona 004 hardcodeada en extracto de integridad' },
+    { archivo: 'lib/paec-pdf-generator.ts', patron: /Zona 004|Zona Escolar 004|Supervisión Escolar Zona 004/, motivo: 'zona 004 hardcodeada en PDF PAEC' },
+    { archivo: 'lib/paec-docx-generator.ts', patron: /Zona Escolar 004|Supervisión Escolar Zona 004/, motivo: 'zona 004 hardcodeada en DOCX PAEC' },
+    { archivo: 'lib/paec-quality-gate.ts', patron: /ZONA 004/, motivo: 'zona 004 hardcodeada en dictamen PAEC' },
+    { archivo: 'lib/horarios/exportador.ts', patron: /ZONA 004/, motivo: 'zona 004 hardcodeada en exportación de horarios' },
+    { archivo: 'lib/pmc-docx-generator.ts', patron: /'Zona Escolar 004'/, motivo: 'zona 004 como fallback en DOCX PMC' },
+    { archivo: 'lib/analytics/aggregations.ts', patron: /'Zona Escolar 004'/, motivo: 'zona 004 como fallback en analítica' },
+    { archivo: 'lib/prompts/pips-chunks.ts', patron: /Zona Escolar 004|la zona 004|ZONA 004/, motivo: 'zona 004 fija en prompts PIPS' },
+    { archivo: 'lib/prompts/paec-prompts.ts', patron: /Supervisión Escolar 004/, motivo: 'supervisión 004 fija en prompts PAEC' },
+    { archivo: 'lib/zone-sync-service.ts', patron: /'21FMS0004Z'|\|\| '004'/, motivo: 'zona 004 como fallback en zone-sync' },
+    { archivo: 'lib/cartografia-context-builder.ts', patron: /'21FMS0004Z'|\|\| '004'/, motivo: 'zona 004 como fallback en context-builder' },
+    { archivo: 'lib/cartografia-zona-docx-generator.ts', patron: /\|\| '004'/, motivo: 'zona 004 como fallback en DOCX de cartografía' },
+    { archivo: 'app/api/admin/catalogo-escuelas/route.ts', patron: /'Zona Escolar 004'/, motivo: 'zona 004 como fallback en búsqueda de catálogo' },
+    { archivo: 'app/api/pdf/libro-editorial/[id]/route.ts', patron: /'Zona Escolar 004'/, motivo: 'zona 004 como fallback en portada editorial' },
   ];
 
   it('ningún archivo de render/prompt contiene plantel, CCT o supervisión fabricados', () => {

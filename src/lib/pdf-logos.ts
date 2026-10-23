@@ -126,14 +126,16 @@ export async function getLogoSep(): Promise<string> {
 }
 
 /**
- * Retorna el logo de la Supervisión Escolar 004 en Base64 con caché en memoria.
+ * Retorna el logo institucional de Supervisión Escolar en Base64 con caché en memoria.
+ * (El archivo `logo-supervision-004.png` es el logo genérico "Por Amor a Puebla",
+ * sin número de zona visible — el nombre del archivo es solo referencia histórica.)
  */
 export async function getLogoSupervision(): Promise<string> {
   if (cachedLogoSupervision) return cachedLogoSupervision;
   try {
     cachedLogoSupervision = await fetchImageAsBase64('/images/logo-supervision-004.png');
   } catch (e) {
-    logger.error('Error cargando logo Supervisión 004:', e);
+    logger.error('Error cargando logo Supervisión Escolar:', e);
     return '';
   }
   return cachedLogoSupervision;

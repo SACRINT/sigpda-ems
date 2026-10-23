@@ -42,13 +42,17 @@ export async function GET(req: NextRequest) {
 
       // Buscar en supervisor_escuelas
       const rowsSupervisor = await sql`
-        SELECT nombre, cct, municipio, subsistema
+        SELECT nombre, cct, municipio, subsistema, zona_clave_std
         FROM supervisor_escuelas
         WHERE UPPER(TRIM(cct)) = ${cctBuscado}
         LIMIT 1
       `;
       if (rowsSupervisor.length > 0) {
         const row = rowsSupervisor[0];
+        const zonaClave = typeof row.zona_clave_std === 'string' ? row.zona_clave_std.trim() : '';
+        const zonaEscolar = zonaClave
+          ? `Zona Escolar ${zonaClave.padStart(3, '0')}`
+          : 'Zona no registrada';
         return NextResponse.json({
           success: true,
           escuela: {
@@ -56,29 +60,39 @@ export async function GET(req: NextRequest) {
             nombre: row.nombre,
             municipio: row.municipio || 'Venustiano Carranza',
             localidad: row.localidad || row.municipio || 'Lázaro Cárdenas',
-            zonaEscolar: 'Zona Escolar 004',
+            zonaEscolar,
             subsistema: row.subsistema || 'BGE'
           }
         });
       }
 
-      // Buscar en teachers
+      // Buscar en teachers (columnas reales: cct / municipality / custom_preferences)
       const rowsTeachers = await sql`
-        SELECT school_name, school_cct, municipality, subsystem
+        SELECT school_name, cct, municipality, subsystem, custom_preferences
         FROM teachers
-        WHERE UPPER(TRIM(school_cct)) = ${cctBuscado}
+        WHERE UPPER(TRIM(cct)) = ${cctBuscado}
         LIMIT 1
       `;
       if (rowsTeachers.length > 0) {
         const row = rowsTeachers[0];
+        const prefs = (row.custom_preferences ?? {}) as { zonaEscolar?: unknown; zona?: unknown };
+        const zonaPrefs =
+          typeof prefs.zonaEscolar === 'string' ? prefs.zonaEscolar.trim()
+          : typeof prefs.zona === 'string' ? prefs.zona.trim()
+          : '';
+        const zonaEscolar = !zonaPrefs
+          ? 'Zona no registrada'
+          : /zona/i.test(zonaPrefs)
+          ? zonaPrefs
+          : `Zona Escolar ${zonaPrefs}`;
         return NextResponse.json({
           success: true,
           escuela: {
-            cct: row.school_cct || cctBuscado,
+            cct: row.cct || cctBuscado,
             nombre: row.school_name || 'Bachillerato General',
-            municipio: row.municipio || 'Puebla',
-            localidad: row.municipio || 'Puebla',
-            zonaEscolar: 'Zona Escolar Puebla',
+            municipio: row.municipality || 'Puebla',
+            localidad: row.municipality || 'Puebla',
+            zonaEscolar,
             subsistema: row.subsystem || 'BGE'
           }
         });
@@ -86,7 +100,7 @@ export async function GET(req: NextRequest) {
 
       // Buscar en pmc_projects
       const rowsPmc = await sql`
-        SELECT school_name, school_cct, municipality, subsystem
+        SELECT school_name, school_cct, municipality, locality, school_zone, subsystem
         FROM pmc_projects
         WHERE UPPER(TRIM(school_cct)) = ${cctBuscado}
         LIMIT 1
@@ -98,9 +112,9 @@ export async function GET(req: NextRequest) {
           escuela: {
             cct: row.school_cct || cctBuscado,
             nombre: row.school_name || 'Bachillerato General',
-            municipio: row.municipio || 'Puebla',
-            localidad: row.municipio || 'Puebla',
-            zonaEscolar: 'Zona Escolar Puebla',
+            municipio: row.municipality || 'Puebla',
+            localidad: row.locality || row.municipality || 'Puebla',
+            zonaEscolar: row.school_zone || 'Zona no registrada',
             subsistema: row.subsystem || 'BGE'
           }
         });
@@ -117,7 +131,7 @@ export async function GET(req: NextRequest) {
       },
       { status: 404 }
     );
-  } catch (err: any) {
+  } catch (err) {
     logger.error('[catalogo-escuelas] Error interno:', { error: String(err) });
     return NextResponse.json(
       { success: false, error: 'Error interno del servidor al consultar el catálogo' },
