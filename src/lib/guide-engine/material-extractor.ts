@@ -529,10 +529,8 @@ function buildSolucionarioDocenteMarkdown(workbook: ActiveWorkTextbook): string 
       .slice()
       .sort((a, b) => a.sessionNumber - b.sessionNumber);
     if (sessionPlans.length > 0) {
-      parts.push(`#### C. Guía de Ejercicios Resueltos — MISMO ORDEN Y CONTENIDO QUE EL LIBRO DEL ESTUDIANTE`);
-      parts.push(`*Cada sesión lista exactamente los ejercicios impresos en la sección "Practica" del libro: mismo enunciado, misma pista visible y, en uso exclusivo docente, la solución modelo.*\n`);
       for (const plan of sessionPlans) {
-        parts.push(`**Sesión ${plan.sessionNumber} — ${plan.objetivo}**`);
+        parts.push(`#### Sesión ${plan.sessionNumber} — ${plan.objetivo}`);
         plan.practica.forEach((item, idx) => {
           parts.push(`${idx + 1}. **${item.enunciado}**`);
           if (item.pista) parts.push(`   - *Pista (visible en el libro):* ${item.pista}`);
@@ -547,10 +545,8 @@ function buildSolucionarioDocenteMarkdown(workbook: ActiveWorkTextbook): string 
       }
     }
 
-    // C2. Práctica guiada y reto autónomo (STEM vs Humanidades)
-    parts.push(sessionPlans.length > 0
-      ? `#### C2. Criterios de Acreditación y Solución del Reto ("Hacemos" y "Tú Haces")`
-      : `#### C. Criterios de Acreditación y Solución del Reto ("Hacemos" y "Tú Haces")`);
+    // C. Práctica guiada y reto autónomo (STEM vs Humanidades)
+    parts.push(`#### C. Criterios de Acreditación y Solución del Reto ("Hacemos" y "Tú Haces")`);
     if (mission.weDoSection?.guidedPractice) {
       parts.push(`- **Práctica Guiada (En Equipo):** ${mission.weDoSection.guidedPractice}`);
     }

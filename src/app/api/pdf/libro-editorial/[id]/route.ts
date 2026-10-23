@@ -43,7 +43,12 @@ import {
 import { composeStudentSessionsFromWorkbooks } from '@/lib/editorial/compose-student-sessions';
 import { ensureEditorialPlanCompleteness } from '@/lib/editorial/plan-completeness';
 import { sanitizeDocFilename } from '@/lib/document-branding';
-import { resolverIdentidadEscolar } from '@/lib/school-identity';
+import {
+  resolveSchoolIdentity,
+  PLANTEL_NO_REGISTRADO,
+  CCT_NO_REGISTRADO,
+  type SchoolIdentitySource,
+} from '@/lib/school-identity';
 import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
@@ -323,14 +328,23 @@ export async function POST(
         );
       }
 
+      const planningSectionI = ((rawPlanning.content_json ?? {}) as {
+        sectionI?: SchoolIdentitySource;
+      }).sectionI;
+      const schoolIdentity = resolveSchoolIdentity({
+        sectionI: planningSectionI,
+        teacher: {
+          schoolName: authResult.teacherSchoolName,
+          cct: authResult.teacherCct,
+          schoolZone: authResult.teacherZone,
+        },
+      });
       const plantel =
-        typeof authResult.teacherSchoolName === 'string' && authResult.teacherSchoolName.trim().length >= 3
-          ? authResult.teacherSchoolName.trim()
+        schoolIdentity.schoolName !== PLANTEL_NO_REGISTRADO
+          ? schoolIdentity.schoolName
           : 'Educación Media Superior Puebla';
       const cct =
-        typeof authResult.teacherCct === 'string' && authResult.teacherCct.trim().length >= 5
-          ? authResult.teacherCct.trim()
-          : '21EBH0001X';
+        schoolIdentity.cct !== CCT_NO_REGISTRADO ? schoolIdentity.cct : '21EBH0001X';
       const firstBlock = composed.blocksPresent[0] ?? 0;
       const bloqueEtiqueta =
         composed.blocksPresent.length > 1
@@ -345,10 +359,7 @@ export async function POST(
         cicloEscolar: '2026-2027',
         plantel,
         cct,
-        zonaEscolar: formatZonaEscolar(
-          authResult.teacherZone,
-          resolverIdentidadEscolar({ schoolName: plantel, cct }).schoolZone,
-        ),
+        zonaEscolar: formatZonaEscolar(schoolIdentity.schoolZone),
         sesiones: composed.sessions,
       });
     }

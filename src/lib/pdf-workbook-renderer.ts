@@ -1066,6 +1066,10 @@ function drawContraportadaPage(
     { label: 'PROYECTO PAEC:', value: data.paecProjectName },
   ];
 
+  const valueX = margin + 46;
+  const valueMaxWidth = contentWidth - 46 - 8;
+  const valueLineHeight = 4.2;
+
   for (const item of dataItems) {
     setFontBody(doc, 'bold');
     doc.setFontSize(8.5);
@@ -1075,13 +1079,18 @@ function drawContraportadaPage(
     setFontBody(doc, 'normal');
     doc.setFontSize(8.5);
     doc.setTextColor(...DARK_TEXT);
-    doc.text(item.value, margin + 46, y);
+    const valueLines = doc.splitTextToSize(item.value, valueMaxWidth) as string[];
+    valueLines.forEach((line, lineIndex) => {
+      doc.text(line, valueX, y + lineIndex * valueLineHeight);
+    });
+
+    const lastBaseline = y + (valueLines.length - 1) * valueLineHeight;
 
     doc.setDrawColor(230, 235, 245);
     doc.setLineWidth(0.2);
-    doc.line(margin + 8, y + 2.5, margin + contentWidth - 8, y + 2.5);
+    doc.line(margin + 8, lastBaseline + 2.5, margin + contentWidth - 8, lastBaseline + 2.5);
 
-    y += 9.5;
+    y += Math.max(9.5, (valueLines.length - 1) * valueLineHeight + 6.5);
   }
 
   y += 6;

@@ -312,7 +312,7 @@ export function renderExtraDocument(
   doc.setDrawColor(...ACCENT);
   doc.setLineWidth(0.8);
   doc.line(margin, y, pageWidth - margin, y);
-  y += compact ? 3 : 5;
+  y += compact ? 4.6 : 6;
 
   const addNewPage = () => {
     doc.addPage();
@@ -610,7 +610,7 @@ export function renderExtraDocument(
       doc.text(text, margin, y);
       doc.setDrawColor(...ACCENT);
       doc.setLineWidth(0.6);
-      doc.line(margin, y + 1.2, margin + Math.min(doc.getTextWidth(text), contentW), y + 1.2);
+      doc.line(margin, y + 2.0, margin + Math.min(doc.getTextWidth(text), contentW), y + 2.0);
       y += gapH1;
       markContent();
       continue;

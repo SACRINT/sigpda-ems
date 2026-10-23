@@ -162,11 +162,11 @@ describe('Cadena de paridad E2E: writer raw → sanitizador → extractor (docen
     expect(plans?.[1]?.practica[0]?.solucion).toEqual([PASO_INGLES_A, PASO_INGLES_B]);
   });
 
-  it('el solucionario docente imprime la sección C con MISMO orden y pasos completos', () => {
+  it('el solucionario docente destaca cada sesión y conserva el orden con pasos completos', () => {
     const solucionario = extractSpecificMaterial(workbook, 'solucionario');
 
-    expect(solucionario).toContain('#### C. Guía de Ejercicios Resueltos');
-    expect(solucionario).toContain('#### C2.');
+    expect(solucionario).toContain('#### Sesión 1 —');
+    expect(solucionario).toContain('#### C. Criterios de Acreditación');
     expect(solucionario).toContain(ENUNCIADO_1);
     expect(solucionario).toContain(ENUNCIADO_1B);
     expect(solucionario).toContain(ENUNCIADO_2);
