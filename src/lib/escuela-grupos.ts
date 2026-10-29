@@ -615,7 +615,7 @@ export function obtenerAsignaturasParaGrupo(
       { nombre: "Taller de Ciencias III", tipo: "FUNDAMENTAL", horas: 3 },
       { nombre: "Lengua y Comunicación IV", tipo: "FUNDAMENTAL", horas: 3 },
       { nombre: "Inglés IV", tipo: "FUNDAMENTAL", horas: 3 },
-      { nombre: socioNombre, tipo: "SOCIOEMOCIONAL", horas: 2 },
+      { nombre: socioNombre, tipo: "SOCIOEMOCIONAL", horas: 1 },
       { nombre: labInfo[0].name, tipo: "LABORAL", horas: 3 },
       { nombre: labInfo[1].name, tipo: "LABORAL", horas: 3 },
     ];
@@ -658,7 +658,7 @@ export function obtenerAsignaturasParaGrupo(
     { nombre: "La Energía en los Procesos de la Vida Diaria II", tipo: "FUNDAMENTAL", horas: 4 },
     { nombre: "Conciencia Histórica III. México en el Siglo XXI", tipo: "FUNDAMENTAL", horas: 3 },
     { nombre: "Taller de Habilidades del Pensamiento II", tipo: "FUNDAMENTAL", horas: 3 },
-    { nombre: socioNombre, tipo: "SOCIOEMOCIONAL", horas: 2 },
+    { nombre: socioNombre, tipo: "SOCIOEMOCIONAL", horas: 1 },
     { nombre: labInfo6[0].name, tipo: "LABORAL", horas: 3 },
     { nombre: labInfo6[1].name, tipo: "LABORAL", horas: 3 },
     { nombre: ffe1, tipo: "EXTENDIDO", horas: 3 },

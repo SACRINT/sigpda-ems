@@ -430,16 +430,40 @@ async function seed() {
     const materiasPermitidas = MALLA_AMPLIADO_POR_SEMESTRE[semester];
     console.log(`\n--- Semestre ${semester}: ${materiasPermitidas.length} asignatura(s) permitida(s) ---`);
 
+    const isOneHourSemester = semester === 4 || semester === 6;
+    const totalHours = isOneHourSemester ? 18 : 36;
+
     for (const nombreUac of materiasPermitidas) {
       const ambito = AMBITOS_CURRICULUM_AMPLIADO_2025[nombreUac];
       if (!ambito) {
         throw new Error(`Ámbito no encontrado: ${nombreUac}`);
       }
 
-      const activities = ambito.propositos.map(p => ({
+      // Distribución oficial de horas por propósito: 18h en 4° y 6° (1 h/semana), 36h en 1°, 2°, 3° y 5° (2 h/semana)
+      const numProps = ambito.propositos.length;
+      let scaledHours: number[] = [];
+      if (isOneHourSemester) {
+        if (numProps === 4) {
+          scaledHours = [5, 5, 4, 4];
+        } else if (numProps === 5) {
+          scaledHours = [4, 4, 4, 3, 3];
+        } else {
+          let rem = 18;
+          scaledHours = ambito.propositos.map((_, idx) => {
+            if (idx === numProps - 1) return rem;
+            const h = Math.round(18 / numProps);
+            rem -= h;
+            return h;
+          });
+        }
+      } else {
+        scaledHours = ambito.propositos.map(p => p.hours);
+      }
+
+      const activities = ambito.propositos.map((p, idx) => ({
         order: p.order,
         name: p.proposito,
-        hours: p.hours,
+        hours: scaledHours[idx],
       }));
 
       const contenidosFormativos = ambito.propositos.map(p => ({
@@ -468,7 +492,7 @@ async function seed() {
           'ampliado',
           'Currículum Ampliado',
           2025,
-          ${ambito.total_hours},
+          ${totalHours},
           ${ambito.learning_outcome},
           ${JSON.stringify(activities)}::jsonb,
           ${JSON.stringify(ambito.evidences)}::jsonb,
@@ -478,7 +502,7 @@ async function seed() {
         );
       `;
 
-      console.log(`  ✓ [Semestre ${semester}] ${ambito.uac_name} (36h, ${ambito.propositos.length} propósitos)`);
+      console.log(`  ✓ [Semestre ${semester}] ${ambito.uac_name} (${totalHours}h, ${ambito.propositos.length} propósitos)`);
       totalInsertados++;
     }
   }

@@ -10859,33 +10859,33 @@
     "semester": 4,
     "component": "ampliado",
     "subsystem": "bge",
-    "total_hours": 36,
+    "total_hours": 18,
     "learning_outcome": "Valore la importancia de la construcción de ciudadanía a partir del análisis de las condiciones de vida de su comunidad, para involucrarse como agente de transformación social en la atención de necesidades y problemas desde un enfoque de derechos humanos y perspectiva de juventudes.",
     "activities": [
       {
         "order": 1,
         "name": "Reconoce los principales instrumentos que tutelan los derechos humanos en general, y específicamente de las infancias, adolescencias y juventudes.",
-        "hours": 8
+        "hours": 4
       },
       {
         "order": 2,
         "name": "Analiza las causas de las situaciones de inseguridad y violencia existentes en su entorno familiar, escolar o comunitario y que afectan su bienestar físico, mental, emocional o social, para promover acciones colectivas de autocuidado y una cultura de paz.",
-        "hours": 7
+        "hours": 4
       },
       {
         "order": 3,
         "name": "Reflexiona desde la perspectiva de género sobre las dimensiones de la violencia de género contra las mujeres y contra las diversidades sexogenéricas, para promover relaciones de respeto a partir del reconocimiento de los derechos humanos.",
-        "hours": 7
+        "hours": 4
       },
       {
         "order": 4,
         "name": "Investiga la forma en que los hábitos de consumo, formas de producción en la comunidad, y prácticas y comportamientos en la vida cotidiana influyen en el medio ambiente, el cambio climático y el bienestar personal y colectivo a nivel local, nacional e internacional.",
-        "hours": 7
+        "hours": 3
       },
       {
         "order": 5,
         "name": "Desarrolla las habilidades de diálogo y escucha activa para la construcción de grupos de trabajo colaborativo durante la identificación y solución de problemas de su entorno.",
-        "hours": 7
+        "hours": 3
       }
     ],
     "evidences": [
@@ -10955,28 +10955,28 @@
     "semester": 4,
     "component": "ampliado",
     "subsystem": "bge",
-    "total_hours": 36,
+    "total_hours": 18,
     "learning_outcome": "Cuide su salud a partir de la reflexión y transformación de prácticas cotidianas vinculadas con la alimentación, las relaciones interpersonales y la prevención de riesgos, para convertirse en agente activo del bienestar personal y colectivo, capaz de ejercer su libertad con responsabilidad y compromiso hacia una vida digna.",
     "activities": [
       {
         "order": 1,
         "name": "Desarrolla, junto con la comunidad estudiantil a la que pertenece, una conciencia crítica y reflexiva sobre los hábitos que configuran su existencia, y promueve el cuidado de sí como una práctica ética que articula el bienestar físico, emocional, mental y social.",
-        "hours": 9
+        "hours": 5
       },
       {
         "order": 2,
         "name": "Desarrolla la capacidad de discernir y elegir prácticas alimenticias que expresen un cuidado consciente de sí, del cuerpo y del entorno, para fomentar una relación ética con la alimentación que reconozca su dimensión cultural, ecológica y política, y que contribuya a una vida más justa y sostenible.",
-        "hours": 9
+        "hours": 5
       },
       {
         "order": 3,
         "name": "Identifica, analiza y transforma los factores que afectan el bienestar, a partir del ejercicio del cuidado de sí —con autoconocimiento, autodominio y libertad ética—, para convertirse en agente activo de la salud que reconoce su poder de decisión ante prácticas riesgosas.",
-        "hours": 9
+        "hours": 4
       },
       {
         "order": 4,
         "name": "Impulsa la construcción de las relaciones interpersonales, basadas en el respeto, el diálogo y el reconocimiento de las diferencias entre personas, entendiendo que el cuidado de sí, incluye la manera de vincularse con las demás personas, para promover una ética de la convivencia que contribuya al bienestar común y a la transformación de dinámicas violentas.",
-        "hours": 9
+        "hours": 4
       }
     ],
     "evidences": [
@@ -11040,33 +11040,33 @@
     "semester": 4,
     "component": "ampliado",
     "subsystem": "bge",
-    "total_hours": 36,
+    "total_hours": 18,
     "learning_outcome": "Cuide su salud y proteja su integridad al desarrollar relaciones sociales y sexuales constructivas e igualitarias, fincadas en conductas de respeto e inclusión, advirtiendo cómo sus elecciones y decisiones afectan su propio bienestar y el de las demás personas. Entienda, proteja y ejerza su sexualidad con libertad y responsabilidad para la construcción de su proyecto de vida.",
     "activities": [
       {
         "order": 1,
         "name": "Comprende la identidad y orientación sexual, así como la construcción de vínculos afectivos saludables, mediante habilidades de comunicación, diálogo y responsabilidad afectiva en relaciones sociales.",
-        "hours": 8
+        "hours": 4
       },
       {
         "order": 2,
         "name": "Reconoce las dimensiones de la sexualidad desde un enfoque de derechos humanos y sexuales, desmitificando creencias, hábitos y estereotipos, y valorando la diversidad sexual como parte de la identidad y expresión colectiva.",
-        "hours": 7
+        "hours": 4
       },
       {
         "order": 3,
         "name": "Analiza la influencia de los roles de género en la toma de decisiones sobre la vida sexual y reproductiva, y promueve tanto la prevención de embarazos no planificados como el ejercicio informado y corresponsable de la sexualidad.",
-        "hours": 7
+        "hours": 4
       },
       {
         "order": 4,
         "name": "Desarrolla una conciencia crítica sobre el cuerpo, la autonomía y el placer, al cuestionar las normas sociales, culturales y de género que propician la discriminación y la violencia.",
-        "hours": 7
+        "hours": 3
       },
       {
         "order": 5,
         "name": "Ejerce una ciudadanía sexual crítica e informada, que integra el cuidado de sí, el acceso a la salud sexual y reproductiva, y la construcción de un proyecto de vida con perspectiva de género, libre de estereotipos, violencias y jerarquías.",
-        "hours": 7
+        "hours": 3
       }
     ],
     "evidences": [
@@ -11417,33 +11417,33 @@
     "semester": 6,
     "component": "ampliado",
     "subsystem": "bge",
-    "total_hours": 36,
+    "total_hours": 18,
     "learning_outcome": "Valore la importancia de la construcción de ciudadanía a partir del análisis de las condiciones de vida de su comunidad, para involucrarse como agente de transformación social en la atención de necesidades y problemas desde un enfoque de derechos humanos y perspectiva de juventudes.",
     "activities": [
       {
         "order": 1,
         "name": "Reconoce los principales instrumentos que tutelan los derechos humanos en general, y específicamente de las infancias, adolescencias y juventudes.",
-        "hours": 8
+        "hours": 4
       },
       {
         "order": 2,
         "name": "Analiza las causas de las situaciones de inseguridad y violencia existentes en su entorno familiar, escolar o comunitario y que afectan su bienestar físico, mental, emocional o social, para promover acciones colectivas de autocuidado y una cultura de paz.",
-        "hours": 7
+        "hours": 4
       },
       {
         "order": 3,
         "name": "Reflexiona desde la perspectiva de género sobre las dimensiones de la violencia de género contra las mujeres y contra las diversidades sexogenéricas, para promover relaciones de respeto a partir del reconocimiento de los derechos humanos.",
-        "hours": 7
+        "hours": 4
       },
       {
         "order": 4,
         "name": "Investiga la forma en que los hábitos de consumo, formas de producción en la comunidad, y prácticas y comportamientos en la vida cotidiana influyen en el medio ambiente, el cambio climático y el bienestar personal y colectivo a nivel local, nacional e internacional.",
-        "hours": 7
+        "hours": 3
       },
       {
         "order": 5,
         "name": "Desarrolla las habilidades de diálogo y escucha activa para la construcción de grupos de trabajo colaborativo durante la identificación y solución de problemas de su entorno.",
-        "hours": 7
+        "hours": 3
       }
     ],
     "evidences": [
@@ -11513,28 +11513,28 @@
     "semester": 6,
     "component": "ampliado",
     "subsystem": "bge",
-    "total_hours": 36,
+    "total_hours": 18,
     "learning_outcome": "Cuide su salud a partir de la reflexión y transformación de prácticas cotidianas vinculadas con la alimentación, las relaciones interpersonales y la prevención de riesgos, para convertirse en agente activo del bienestar personal y colectivo, capaz de ejercer su libertad con responsabilidad y compromiso hacia una vida digna.",
     "activities": [
       {
         "order": 1,
         "name": "Desarrolla, junto con la comunidad estudiantil a la que pertenece, una conciencia crítica y reflexiva sobre los hábitos que configuran su existencia, y promueve el cuidado de sí como una práctica ética que articula el bienestar físico, emocional, mental y social.",
-        "hours": 9
+        "hours": 5
       },
       {
         "order": 2,
         "name": "Desarrolla la capacidad de discernir y elegir prácticas alimenticias que expresen un cuidado consciente de sí, del cuerpo y del entorno, para fomentar una relación ética con la alimentación que reconozca su dimensión cultural, ecológica y política, y que contribuya a una vida más justa y sostenible.",
-        "hours": 9
+        "hours": 5
       },
       {
         "order": 3,
         "name": "Identifica, analiza y transforma los factores que afectan el bienestar, a partir del ejercicio del cuidado de sí —con autoconocimiento, autodominio y libertad ética—, para convertirse en agente activo de la salud que reconoce su poder de decisión ante prácticas riesgosas.",
-        "hours": 9
+        "hours": 4
       },
       {
         "order": 4,
         "name": "Impulsa la construcción de las relaciones interpersonales, basadas en el respeto, el diálogo y el reconocimiento de las diferencias entre personas, entendiendo que el cuidado de sí, incluye la manera de vincularse con las demás personas, para promover una ética de la convivencia que contribuya al bienestar común y a la transformación de dinámicas violentas.",
-        "hours": 9
+        "hours": 4
       }
     ],
     "evidences": [
@@ -11598,33 +11598,33 @@
     "semester": 6,
     "component": "ampliado",
     "subsystem": "bge",
-    "total_hours": 36,
+    "total_hours": 18,
     "learning_outcome": "Cuide su salud y proteja su integridad al desarrollar relaciones sociales y sexuales constructivas e igualitarias, fincadas en conductas de respeto e inclusión, advirtiendo cómo sus elecciones y decisiones afectan su propio bienestar y el de las demás personas. Entienda, proteja y ejerza su sexualidad con libertad y responsabilidad para la construcción de su proyecto de vida.",
     "activities": [
       {
         "order": 1,
         "name": "Comprende la identidad y orientación sexual, así como la construcción de vínculos afectivos saludables, mediante habilidades de comunicación, diálogo y responsabilidad afectiva en relaciones sociales.",
-        "hours": 8
+        "hours": 4
       },
       {
         "order": 2,
         "name": "Reconoce las dimensiones de la sexualidad desde un enfoque de derechos humanos y sexuales, desmitificando creencias, hábitos y estereotipos, y valorando la diversidad sexual como parte de la identidad y expresión colectiva.",
-        "hours": 7
+        "hours": 4
       },
       {
         "order": 3,
         "name": "Analiza la influencia de los roles de género en la toma de decisiones sobre la vida sexual y reproductiva, y promueve tanto la prevención de embarazos no planificados como el ejercicio informado y corresponsable de la sexualidad.",
-        "hours": 7
+        "hours": 4
       },
       {
         "order": 4,
         "name": "Desarrolla una conciencia crítica sobre el cuerpo, la autonomía y el placer, al cuestionar las normas sociales, culturales y de género que propician la discriminación y la violencia.",
-        "hours": 7
+        "hours": 3
       },
       {
         "order": 5,
         "name": "Ejerce una ciudadanía sexual crítica e informada, que integra el cuidado de sí, el acceso a la salud sexual y reproductiva, y la construcción de un proyecto de vida con perspectiva de género, libre de estereotipos, violencias y jerarquías.",
-        "hours": 7
+        "hours": 3
       }
     ],
     "evidences": [
