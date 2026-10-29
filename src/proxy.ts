@@ -23,6 +23,10 @@ const protectedPaths = [
   '/mis-documentos',
   '/mis-escuelas',
   '/biblioteca-personal',
+  '/horarios',
+  '/mi-escuela',
+  '/mi-zona',
+  '/mi-progreso',
   '/admin',
 ];
 
