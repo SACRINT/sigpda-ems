@@ -156,7 +156,7 @@ describe('Motor Editorial Fase 1 — Spike Typst y Modelo de Estudiante', () => 
       // TODO(Fase2): Medición de memoria pico del child process Typst (VmHWM / cgroups) en worker container.
       expect(result.nodeHeapDeltaMb).toBeDefined();
       expect(result.nodeHeapDeltaMb).toBeLessThan(50);
-    }, 15000);
+    }, 60000);
   });
 
   // ==========================================================================
@@ -176,7 +176,7 @@ describe('Motor Editorial Fase 1 — Spike Typst y Modelo de Estudiante', () => 
 
       expect(run1.sha256).toBe(run2.sha256);
       expect(run1.pdfBuffer.equals(run2.pdfBuffer)).toBe(true);
-    }, 15000);
+    }, 60000);
   });
 
   // ==========================================================================

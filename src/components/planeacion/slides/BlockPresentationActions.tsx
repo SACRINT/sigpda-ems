@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import type { SlideDeck } from '@/lib/presentation-engine/slide-model';
 import SlidesViewerModal from './SlidesViewerModal';
+import SacrintSlidesViewerModal from './SacrintSlidesViewerModal';
 import InfographicModal from '@/components/planeacion/infographics/InfographicModal';
 
 interface BlockPresentationActionsProps {
@@ -18,6 +19,7 @@ export default function BlockPresentationActions({ planningId, blockIndex }: Blo
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showInfographics, setShowInfographics] = useState(false);
+  const [showSacrint, setShowSacrint] = useState(false);
 
   const [downloading, setDownloading] = useState(false);
 
@@ -83,6 +85,16 @@ export default function BlockPresentationActions({ planningId, blockIndex }: Blo
         {loading ? '⏳ Cargando…' : '▶ Proyectar'}
       </button>
       <button
+        id={`btn-proyectar-sacrint-${blockIndex}`}
+        type="button"
+        className="btn"
+        style={{ ...btnStyle, border: '1px solid rgba(212,175,55,0.55)', color: '#D4AF37', background: 'transparent' }}
+        onClick={() => setShowSacrint(true)}
+        disabled={loading || downloading}
+      >
+        ▶ SACRINT
+      </button>
+      <button
         id={`btn-descargar-pptx-${blockIndex}`}
         type="button"
         className="btn"
@@ -103,6 +115,9 @@ export default function BlockPresentationActions({ planningId, blockIndex }: Blo
       </button>
       {error && <span role="alert" style={{ color: '#EF4444', fontSize: 12, width: '100%' }}>{error}</span>}
       {deck && <SlidesViewerModal deck={deck} onClose={() => setDeck(null)} />}
+      {showSacrint && (
+        <SacrintSlidesViewerModal planningId={planningId} blockIndex={blockIndex} onClose={() => setShowSacrint(false)} />
+      )}
       {showInfographics && (
         <InfographicModal planningId={planningId} blockIndex={blockIndex} onClose={() => setShowInfographics(false)} />
       )}

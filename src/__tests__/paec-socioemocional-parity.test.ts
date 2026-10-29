@@ -56,8 +56,8 @@ describe('PAEC H-01 & H-09: Socioemocional Dinámico (Regla 4°=6°) y Desglose 
 
     // Verificar las materias socioemocionales exactas
     const socioPorSemestre = Object.fromEntries(socioUacs.map(u => [u.semester, u.uacName]));
-    expect(socioPorSemestre[1]).toBe('Actividades Físicas y Deportivas I');
-    expect(socioPorSemestre[2]).toBe('Actividades Físicas y Deportivas II');
+    expect(socioPorSemestre[1]).toBe('Actividades Físicas y Deportivas');
+    expect(socioPorSemestre[2]).toBe('Actividades Artísticas y Culturales');
     expect(socioPorSemestre[3]).toBe('Educación para la Salud');
     expect(socioPorSemestre[4]).toBe('Práctica y Colaboración Ciudadana');
     expect(socioPorSemestre[5]).toBe('Educación Integral en Sexualidad y Género');

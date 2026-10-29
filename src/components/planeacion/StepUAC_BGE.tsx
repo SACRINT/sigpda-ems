@@ -114,21 +114,7 @@ export default function StepUAC_BGE({ onNext, selectedSubsystem, onSubsystemChan
         const data = await res.json();
 
         if (data.programs) {
-          let filtered = data.programs;
-          if (form.component === 'ampliado') {
-            if (form.semester === 1 || form.semester === 2) {
-              filtered = data.programs.filter((p: any) =>
-                p.uac_name.includes('Artísticas y Culturales') ||
-                p.uac_name.includes('Físicas y Deportivas')
-              );
-            } else {
-              filtered = data.programs.filter((p: any) =>
-                !p.uac_name.includes('Artísticas y Culturales') &&
-                !p.uac_name.includes('Físicas y Deportivas')
-              );
-            }
-          }
-
+          const filtered = data.programs;
           setCatalogPrograms(filtered);
 
           if (form.component === 'laboral') {
@@ -390,8 +376,13 @@ export default function StepUAC_BGE({ onNext, selectedSubsystem, onSubsystemChan
     if (isManualInput || !selectedCatalogUac) {
       onNext(form);
     } else {
+      const isAmpliado = form.component === 'ampliado' || form.component === 'socioemocional' || selectedCatalogUac.component === 'ampliado' || selectedCatalogUac.component === 'socioemocional';
+      const cleanUacName = isAmpliado
+        ? cleanSocioemotionalName(selectedCatalogUac.uac_name, form.semester)
+        : selectedCatalogUac.uac_name;
+
       const initialData: ExtractedPdfData = {
-        uacName: selectedCatalogUac.uac_name,
+        uacName: cleanUacName,
         learningOutcome: selectedCatalogUac.learning_outcome,
         totalHours: selectedCatalogUac.total_hours || 54,
         activities: selectedCatalogUac.activities ||
@@ -573,12 +564,13 @@ export default function StepUAC_BGE({ onNext, selectedSubsystem, onSubsystemChan
                   onChange={handleUacSelectChange}
                 >
                   {filteredUacs.map((p) => {
-                    const displayName = form.component === 'ampliado'
+                    const isAmpliado = form.component === 'ampliado' || form.component === 'socioemocional' || p.component === 'ampliado' || p.component === 'socioemocional';
+                    const displayName = isAmpliado
                       ? cleanSocioemotionalName(p.uac_name, form.semester)
                       : p.uac_name;
                     const suffix = isLaboral
                       ? ''
-                      : form.component === 'ampliado'
+                      : isAmpliado
                         ? ''
                         : p.curriculum_name ? ` (${p.curriculum_name})` : '';
                     return (

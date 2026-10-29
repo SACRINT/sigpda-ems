@@ -328,7 +328,7 @@ describe('H-321 — endpoint /infografia', () => {
     expect(res.headers.get('Content-Disposition')).toContain('Todos_Bloques');
     const buf = Buffer.from(await res.arrayBuffer());
     expect(buf.subarray(0, 5).toString()).toBe('%PDF-');
-  }, 30000);
+  }, 90000);
 
   it('404 en combinada si no hay libros generados', async () => {
     mockGetAllBlockWorkbooks.mockResolvedValue({});

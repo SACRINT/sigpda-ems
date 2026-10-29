@@ -27,7 +27,8 @@ export const COMPONENT_MAP: Record<string, string[]> = {
   'ffeo': ['ext_obligatorio', 'ffeo'],
   'laboral': ['laboral'],
   'fundamental': ['fundamental'],
-  'ampliado': ['ampliado'],
+  'ampliado': ['ampliado', 'socioemocional'],
+  'socioemocional': ['ampliado', 'socioemocional'],
 };
 
 export function resolveComponentAliases(comp?: string): string[] | null {

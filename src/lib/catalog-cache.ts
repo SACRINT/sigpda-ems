@@ -1,4 +1,5 @@
 import { sql, ProgramCatalogItem, resolveComponentAliases } from '@/lib/db';
+import { cleanSocioemotionalName } from '@/lib/utils';
 
 interface CacheEntry<T> {
   data: T;
@@ -46,15 +47,25 @@ export async function getFilteredCachedPrograms(
   const compAliases = resolveComponentAliases(component);
   const sem = (semester !== undefined && !isNaN(semester)) ? semester : null;
 
-  return allPrograms.filter(p => {
-    if (sem !== null && p.semester !== sem) return false;
-    if (compAliases !== null && !compAliases.includes(p.component)) return false;
-    if (normalizedSubsystem !== null) {
-      const pSub = (p.subsystem || 'all').toLowerCase();
-      if (pSub !== 'all' && pSub !== normalizedSubsystem && pSub !== 'bge') return false;
-    }
-    return true;
-  });
+  return allPrograms
+    .filter(p => {
+      if (sem !== null && p.semester !== sem) return false;
+      if (compAliases !== null && !compAliases.includes(p.component)) return false;
+      if (normalizedSubsystem !== null) {
+        const pSub = (p.subsystem || 'all').toLowerCase();
+        if (pSub !== 'all' && pSub !== normalizedSubsystem && pSub !== 'bge') return false;
+      }
+      return true;
+    })
+    .map(p => {
+      if (p.component === 'ampliado' || p.component === 'socioemocional') {
+        return {
+          ...p,
+          uac_name: cleanSocioemotionalName(p.uac_name, p.semester),
+        };
+      }
+      return p;
+    });
 }
 
 /**
@@ -79,19 +90,26 @@ export async function getCachedProgramByUacAndSemester(
     (comp === null || p.component === comp) &&
     (sub === null || (p.subsystem || 'bge').toLowerCase() === sub || (p.subsystem || '').toLowerCase() === 'bge')
   );
-  if (exact) return exact;
 
   // 2. Coincidencia por nombre y semestre
   const matchSem = allPrograms.find(p => 
     (p.uac_name.toLowerCase() === target || p.uac_name.toLowerCase().includes(target) || target.includes(p.uac_name.toLowerCase())) &&
     (sem === null || p.semester === sem)
   );
-  if (matchSem) return matchSem;
 
   // 3. Coincidencia general
-  return allPrograms.find(p => 
+  const found = exact || matchSem || allPrograms.find(p => 
     p.uac_name.toLowerCase().includes(target) || target.includes(p.uac_name.toLowerCase())
   ) || null;
+
+  if (found && (found.component === 'ampliado' || found.component === 'socioemocional')) {
+    return {
+      ...found,
+      uac_name: cleanSocioemotionalName(found.uac_name, found.semester),
+    };
+  }
+
+  return found;
 }
 
 /**

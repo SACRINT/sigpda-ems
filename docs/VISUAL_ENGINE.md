@@ -171,3 +171,34 @@ Los libros de trabajo generados con el Visual Engine tienen un peso promedio de:
 * Libro BGE (35-40 páginas completas): **~620 KB**
 * Libro Humanidades (9 páginas condensadas): **~200 KB**
 * Todos los documentos se mantienen muy por debajo del umbral objetivo de **1.0 MB**, permitiendo descargas instantáneas en conexiones de baja velocidad en planteles comunitarios.
+
+---
+
+## 6. Motor SACRINT de Presentaciones e Infografías
+
+El motor SACRINT es independiente del Visual Engine descrito arriba. No usa `sharp` ni el contrato de anotaciones: renderiza SVG con `<text>` y fuentes Space Grotesk/Inter embebidas en base64, y rasteriza con `@resvg/resvg-js`.
+
+### Rasterizado y despliegue
+- `@resvg/resvg-js` está declarado en `serverExternalPackages` de `next.config.ts` para que Next.js no lo empaquete en el bundle del servidor.
+- Validación estática completada: `package-lock.json` incluye los binarios Linux x64 gnu/musl y arm64; las fuentes base64 se escriben en `os.tmpdir()` (ruta escribible en Vercel) y el rasterizador usa `loadSystemFonts: false`, por lo que no depende de fontconfig ni de fuentes del sistema.
+- La ejecución real en Linux/Vercel sigue pendiente: este entorno Windows no tiene WSL ni Docker instalados, y tampoco Vercel CLI/credenciales. Antes de desplegar, validar en un preview de Vercel `GET /api/planeaciones/[id]/infografia/sacrint?format=png` y una descarga PDF/PPTX. Si el binario nativo falla, el fallback es ejecutar el rasterizado en un servicio/contenedor Linux con la dependencia instalada; no volver a `sharp` para SACRINT.
+
+### PPTX editable y fallback de fuentes
+- El PPTX usa texto nativo editable, no imágenes de texto. Los fondos, tarjetas, conectores y diagramas son formas nativas.
+- Space Grotesk e Inter pueden no estar instaladas en el equipo que abre el archivo; PowerPoint sustituye por una fuente de fallback (por ejemplo Arial). El layout debe tolerar ese cambio sin recortar texto crítico.
+- El generador preenvuelve las líneas y crea cuadros de texto independientes para evitar la duplicación de la última palabra/frase que introducía PowerPoint al ajustar líneas.
+- Cada deck tiene 8 diapositivas nativas (`SACRINT_SLIDE_COUNT = 8`): cover, hook, concept, demo (Yo hago), practice (Hacemos), challenge (Tú haces), evidence (Evidencia) y closing. Los HUD y progress rails usan 8 segmentos.
+- Los 15 packs (`matematicas`, `fisica`, `quimica`, `biologia`, `salud`, `filosofia`, `literatura`, `ingles`, `historia`, `tecnologia`, `laboral`, `artes`, `educacion_fisica`, `socioemocional`, `general`) tienen diagrama propio o compartido según su disciplina: los nuevos usan `creative-cycle` (Artes), `training-cycle` (Educación Física) y `regulation-flow` (Desarrollo Socioemocional).
+- La QA verificó 8 slides por PPTX en los 15 packs, cero imágenes embebidas, texto nativo en todas las slides y ausencia de frases duplicadas.
+- `resolveSacrintPack` evalúa `educacion_fisica` antes que `fisica` porque «Educación Física» contiene la cadena «física»; respetar ese orden evita clasificar la asignatura en el pack equivocado.
+- Para reproducir la QA visual: `npx tsx scripts/render-sacrint-packs.ts`; los artefactos quedan en `scratch/output/sacrint-packs/` (directorio gitignored).
+- QA con libros reales de la base Neon: `npx tsx scratch/qa-real-workbooks.ts` valida los 8 bloques existentes (32 misiones), genera SVG/PNG/PPTX en `scratch/output/sacrint-real/` y `node scratch/check-sacrint-pptx.mjs scratch/output/sacrint-real` verifica la estructura.
+- La QA real detectó y corrigió: desborde horizontal del nombre del producto integrador (ahora autosize a 2 líneas), pérdida de pasos/andamiaje cuando el libro solo trae texto etiquetado (`PASO N`, `Instrucción N`) y notación LaTeX cruda. `normalizeMathNotation` convierte comandos (`\rightarrow`, `\neg`, `\land`, etc.) antes del render; como Space Grotesk/Inter no incluyen ∧/∨/∼/∀/∃, se mapean a palabras o `¬` para evitar glifos faltantes.
+- Cuando el libro real no contiene una función lineal explícita, el diagrama degrada honestamente a `MODELO POR CONSTRUIR` (sin inventar parámetros), conforme a B-001.
+
+### Estilos por familia de asignatura (Fase 5)
+- `visual-styles.ts` es el SSoT del mapeo pack → familia visual; `resolveSacrintStyle(pack.id)` alimenta `deck.style` e `infographic.style`.
+- Seis familias con motivo propio: `exactas` (retícula y geometría), `naturales` (red molecular y pulso), `humanidades` (página abierta y columnas), `socioemocional` (ondas y contención), `tecnica` (chevrones y bloques) y `general` (retícula neutra). El estilo se aplica en tres capas: fondo periférico del slide, variante de progress rail y arte de portada.
+- En SVG cada slide expone `data-style="<familia>"`; en PPTX el arte de portada se dibuja con formas nativas equivalentes y las diapositivas interiores reciben un fondo decorativo discreto en los bordes. No se añadieron fuentes nuevas: se mantienen Space Grotesk/Inter para evitar riesgos de bundle y de sustitución en PowerPoint.
+- Mapeo vigente: `matematicas`/`fisica` → `exactas`; `quimica`/`biologia`/`salud` → `naturales`; `filosofia`/`literatura`/`ingles`/`historia` → `humanidades`; `tecnologia`/`laboral`/`artes`/`educacion_fisica` → `tecnica`; `socioemocional` y `general` conservan su propia familia.
+- Catálogo comparativo para aprobación visual: `npx tsx scratch/render-style-catalog.ts`; genera portada y concepto por familia más el póster en `scratch/output/sacrint-style-catalog/poster.png`.

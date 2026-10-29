@@ -20,8 +20,8 @@ const nextConfig: NextConfig = {
     ],
   },
 
-  // Server external packages for PDF parsing (must not be bundled by Turbopack)
-  serverExternalPackages: ['pdf-parse', 'pdfjs-dist'],
+  // Server external packages with native/binary assets (must not be bundled by Turbopack)
+  serverExternalPackages: ['pdf-parse', 'pdfjs-dist', '@resvg/resvg-js'],
 
   // La ruta del libro editorial lee templates/editorial/workbook-template.typ en
   // runtime para derivar la versión de plantilla del content_hash (cache-bust

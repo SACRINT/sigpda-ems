@@ -570,7 +570,7 @@ export function obtenerAsignaturasParaGrupo(
       { nombre: "Inglés I", tipo: "FUNDAMENTAL", horas: 3 },
       { nombre: "Cultura Digital I", tipo: "FUNDAMENTAL", horas: 3 },
       { nombre: "Ciencias Sociales I", tipo: "FUNDAMENTAL", horas: 2 },
-      { nombre: "Actividades Físicas y Deportivas I", tipo: "SOCIOEMOCIONAL", horas: 2 },
+      { nombre: "Actividades Físicas y Deportivas", tipo: "SOCIOEMOCIONAL", horas: 2 },
     ];
   }
 
@@ -583,7 +583,7 @@ export function obtenerAsignaturasParaGrupo(
       { nombre: "Inglés II", tipo: "FUNDAMENTAL", horas: 3 },
       { nombre: "Cultura Digital II", tipo: "FUNDAMENTAL", horas: 3 },
       { nombre: "Ciencias Sociales II", tipo: "FUNDAMENTAL", horas: 2 },
-      { nombre: "Actividades Físicas y Deportivas II", tipo: "SOCIOEMOCIONAL", horas: 2 },
+      { nombre: "Actividades Artísticas y Culturales", tipo: "SOCIOEMOCIONAL", horas: 2 },
     ];
   }
 
@@ -729,7 +729,7 @@ export function obtenerAsignaturasParaGrupoTecnologico(
       { nombre: "Inglés II", tipo: "FUNDAMENTAL", horas: 3 },
       { nombre: "Cultura Digital II", tipo: "FUNDAMENTAL", horas: 3 },
       { nombre: "Ciencias Sociales II", tipo: "FUNDAMENTAL", horas: 2 },
-      { nombre: "Actividades Físicas y Deportivas II", tipo: "SOCIOEMOCIONAL", horas: 2 },
+      { nombre: "Actividades Artísticas y Culturales", tipo: "SOCIOEMOCIONAL", horas: 2 },
       ...modulares
     ];
   }

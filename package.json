@@ -16,6 +16,7 @@
     "@anthropic-ai/sdk": "^0.106.0",
     "@google/generative-ai": "^0.24.1",
     "@neondatabase/serverless": "^1.1.0",
+    "@resvg/resvg-js": "^2.6.2",
     "@stripe/stripe-js": "^9.12.1",
     "@tiptap/extension-bullet-list": "^3.30.6",
     "@tiptap/extension-color": "^3.30.6",
