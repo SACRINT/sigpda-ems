@@ -20,13 +20,15 @@ export function bodyFontSize(bullets: string[]): number {
   if (bullets.length <= 2 && total < 260) return 20;
   if (total < 330) return 18;
   if (total < 480) return 16;
-  return 14;
+  if (total < 650) return 14;
+  return 12.5;
 }
 
 function addFooter(s: PptxGenJS.Slide, deck: SlideDeck, index: number, total: number, slide: Slide) {
-  s.addText(`${deck.meta.subjectName} · Bloque ${slide.blockNumber ?? deck.meta.blockNumber}`, {
-    x: 0.4, y: H - 0.38, w: 7, h: 0.28,
-    fontFace: FONT_BODY, fontSize: 10, color: '7A8794',
+  const footerLeft = `${deck.meta.subjectName} · Bloque ${slide.blockNumber ?? deck.meta.blockNumber}`;
+  s.addText(footerLeft, {
+    x: 0.4, y: H - 0.38, w: 8.0, h: 0.28,
+    fontFace: FONT_BODY, fontSize: footerLeft.length > 55 ? 9 : 10, color: '7A8794', fit: 'shrink',
   });
   s.addText(`${index} / ${total}`, {
     x: W - 1.4, y: H - 0.38, w: 1, h: 0.28,

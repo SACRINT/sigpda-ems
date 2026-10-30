@@ -391,10 +391,13 @@ export function buildSacrintDeck(workbook: ActiveWorkTextbook, options: SacrintB
     facts,
   };
 
-  const checklist = (workbook.evaluationSection?.checklist ?? [])
+  const evalChecklist = (workbook.evaluationSection?.checklist ?? [])
     .map((item) => clean(item.item))
     .filter(Boolean)
     .slice(0, 5);
+  const checklist = evalChecklist.length > 0
+    ? evalChecklist
+    : (mission.formativeCheckpoint?.criteriaChecklist ?? []).map(clean).filter(Boolean).slice(0, 5);
   const evidence: SacrintEvidenceSlide = {
     kind: 'evidence',
     eyebrow: 'EVIDENCIA // RÚBRICA Y CRITERIOS',

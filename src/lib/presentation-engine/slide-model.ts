@@ -153,7 +153,10 @@ function missionSlides(m: MissionSection, n: number): Slide[] {
     subtitle: 'Evaluación formativa',
     bullets: clipList([
       cp?.question,
-      ...(cp?.criteriaChecklist ?? []).map((c) => `☐ ${c}`),
+      ...(cp?.criteriaChecklist ?? [])
+        .map((c) => cleanText(c))
+        .filter((c) => c.length > 0)
+        .map((c) => `☐ ${c}`),
     ], 4),
     callout: tl
       ? { label: 'Semáforo de autoevaluación', text: cleanText(`🟢 ${tl.green}  ·  🟡 ${tl.yellow}  ·  🔴 ${tl.red}`) }

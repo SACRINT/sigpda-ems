@@ -1117,7 +1117,7 @@ function renderCover(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Extrac
   });
   addLabel(slide, spec.metaLine, 80, 748, 700, 20, C.muted, 9);
   addPanel(slide, 80, 820, 940, 54, { fill: C.panel, transparency: 22 });
-  addText(slide, spec.footerNote, 102, 838, 890, 20, { fontSize: pt(18), color: C.textSoft });
+  addText(slide, spec.footerNote, 102, 828, 890, 38, { fontSize: pt(spec.footerNote.length > 90 ? 13 : 16), color: C.textSoft, maxLines: 2 });
   addFactStrip(slide, spec.facts, 80, 880, 940, 84);
   coverArt(slide, deck, accent, accent2);
   addFooter(slide, deck, 'SACRINT · EMS', accent);
@@ -1136,10 +1136,11 @@ function renderHook(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Extract
   });
   addLabel(slide, spec.subtitle ?? '', 80, 360, 600, 20, accent, 10);
   addText(slide, '“', 82, 400, 80, 72, { fontFace: FONT_DISPLAY, fontSize: pt(72), bold: true, color: accent });
-  addText(slide, spec.story, 146, 430, 860, 350, {
-    fontSize: pt(23),
+  addText(slide, spec.story, 146, 420, 860, 360, {
+    fontSize: pt(spec.story.length > 520 ? 16 : spec.story.length > 360 ? 19 : 22),
     color: C.text,
-    lineSpacingMultiple: 1.08,
+    lineSpacingMultiple: 1.06,
+    maxLines: 14,
   });
   addLine(slide, 146, 792, 1020, 792, accent, 0.75);
 
@@ -1411,13 +1412,17 @@ function renderEvidence(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Ext
     }
   });
 
+  const validChecklist = spec.checklist.map((c) => c.trim()).filter(Boolean).slice(0, 5);
+  const slotCount = Math.max(1, validChecklist.length);
+  const slotStep = Math.floor(540 / slotCount);
+  const slotHeight = Math.min(108, slotStep - 14);
   addPanel(slide, 1152, 166, 688, 646, { fill: C.panel, transparency: 14 });
   addLabel(slide, 'Checklist de verificación', 1178, 194, 380, 18, accent, 9);
-  spec.checklist.slice(0, 5).forEach((item, index) => {
-    const y = 248 + index * 108;
-    addPanel(slide, 1178, y, 636, 92, { fill: C.canvas, transparency: 18, stroke: C.strokeSoft });
-    slide.addShape('roundRect', { x: inch(1198), y: inch(y + 30), w: inch(16), h: inch(16), fill: { color: C.canvas, transparency: 100 }, line: { color: accent2, width: 1.2 }, rectRadius: 0.03 });
-    addText(slide, item, 1230, y + 20, 566, 60, { fontSize: pt(14), color: C.textSoft, maxLines: 3 });
+  validChecklist.forEach((item, index) => {
+    const y = 248 + index * slotStep;
+    addPanel(slide, 1178, y, 636, slotHeight, { fill: C.canvas, transparency: 18, stroke: C.strokeSoft });
+    slide.addShape('roundRect', { x: inch(1198), y: inch(y + Math.floor((slotHeight - 16) / 2)), w: inch(16), h: inch(16), fill: { color: C.canvas, transparency: 100 }, line: { color: accent2, width: 1.2 }, rectRadius: 0.03 });
+    addText(slide, item, 1230, y + 18, 566, slotHeight - 28, { fontSize: pt(14), color: C.textSoft, maxLines: 3 });
   });
 
   addPanel(slide, 1152, 832, 688, 76, { fill: C.panel, transparency: 20, stroke: C.strokeSoft });

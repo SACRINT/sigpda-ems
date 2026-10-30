@@ -87,7 +87,17 @@ function renderCover(deck: SacrintDeckSpec, slide: Extract<SacrintSlide, { kind:
   parts.push(singleLine(uppercaseLabel(slide.metaLine), leftX, subtitleY + subtitle.fitted.height + 42, { fill: SACRINT.muted, fontSize: 12, weight: 'semibold', letterSpacing: 2 }));
 
   parts.push(factStrip(slide.facts, leftX, 876, leftW));
-  parts.push(singleLine(slide.footerNote, leftX, 1006, { fill: SACRINT.muted, fontSize: 12, letterSpacing: 0.8 }));
+  const paecNote = textBlock(slide.footerNote, leftW, {
+    x: leftX,
+    y: 984,
+    fill: SACRINT.muted,
+    maxFontSize: 12,
+    minFontSize: 9.5,
+    maxLines: 2,
+    lineHeightRatio: 1.25,
+    truncate: false,
+  });
+  parts.push(paecNote.svg);
   parts.push(styleCoverArt(deck.style.id, 1140, 150, 700, 760, accent, accent2));
   parts.push(footer(W, H, `${deck.meta.schoolName}  ·  ${deck.meta.teacherName}`, `${accent2 === SACRINT.blue ? 'SIGPDA / EMS' : 'SACRINT'}  ·  EMS`, accent));
   return svgDocument(W, H, parts.join(''), accent, accent2, deck.style.id);
@@ -125,18 +135,18 @@ function renderHook(deck: SacrintDeckSpec, slide: Extract<SacrintSlide, { kind: 
   parts.push(singleLine('“', leftX + 2, 442, { fill: accent, fontSize: 92, family: 'display', weight: 'bold', opacity: 0.45 }));
   const story = textBlock(slide.story, leftW - 70, {
     x: leftX + 66,
-    y: 430,
+    y: 420,
     fill: SACRINT.text,
     family: 'body',
     weight: 'regular',
     maxFontSize: 25,
-    minFontSize: 16,
-    maxLines: 11,
-    lineHeightRatio: 1.42,
-    truncate: true,
+    minFontSize: 13.5,
+    maxLines: 14,
+    lineHeightRatio: 1.35,
+    truncate: false,
   });
   parts.push(story.svg);
-  parts.push(line(leftX + 66, 430 + story.fitted.height + 28, leftX + leftW, 430 + story.fitted.height + 28, accent, 1, 'stroke-opacity="0.35"'));
+  parts.push(line(leftX + 66, Math.min(826, 420 + story.fitted.height + 24), leftX + leftW, Math.min(826, 420 + story.fitted.height + 24), accent, 1, 'stroke-opacity="0.35"'));
 
   parts.push(panel(rightX, 166, rightW, 276, { fill: 'rgba(7,17,29,0.86)', radius: 22 }));
   parts.push(rect(rightX, 166, 4, 276, `fill="${accent}"`));
@@ -731,12 +741,16 @@ function renderEvidence(deck: SacrintDeckSpec, slide: Extract<SacrintSlide, { ki
     }
   });
 
+  const validChecklist = slide.checklist.map((c) => c.trim()).filter(Boolean).slice(0, 5);
+  const slotCount = Math.max(1, validChecklist.length);
+  const slotStep = Math.floor(540 / slotCount);
+  const slotHeight = Math.min(108, slotStep - 14);
   parts.push(panel(rightX, 166, rightW, 646, { fill: 'rgba(6,14,24,0.78)', radius: 22 }));
-  parts.push(sectionLabel(rightX + 26, 204, rightW - 52, 'Checklist de verificación', accent, `${slide.checklist.length}`));
-  slide.checklist.slice(0, 5).forEach((item, index) => {
-    const y = 248 + index * 108;
-    parts.push(panel(rightX + 26, y, rightW - 52, 92, { fill: 'rgba(4,10,18,0.52)', radius: 12, stroke: SACRINT.strokeSoft }));
-    parts.push(rect(rightX + 46, y + 30, 16, 16, `rx="4" fill="none" stroke="${accent2}" stroke-width="2"`));
+  parts.push(sectionLabel(rightX + 26, 204, rightW - 52, 'Checklist de verificación', accent, `${validChecklist.length}`));
+  validChecklist.forEach((item, index) => {
+    const y = 248 + index * slotStep;
+    parts.push(panel(rightX + 26, y, rightW - 52, slotHeight, { fill: 'rgba(4,10,18,0.52)', radius: 12, stroke: SACRINT.strokeSoft }));
+    parts.push(rect(rightX + 46, y + Math.floor((slotHeight - 16) / 2), 16, 16, `rx="4" fill="none" stroke="${accent2}" stroke-width="2"`));
     const body = textBlock(item, rightW - 120, {
       x: rightX + 78,
       y: y + 22,
@@ -745,7 +759,7 @@ function renderEvidence(deck: SacrintDeckSpec, slide: Extract<SacrintSlide, { ki
       minFontSize: 11,
       maxLines: 3,
       lineHeightRatio: 1.3,
-      truncate: true,
+      truncate: false,
     });
     parts.push(body.svg);
   });
