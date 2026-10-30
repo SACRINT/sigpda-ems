@@ -1,5 +1,5 @@
 /**
- * Fixture: plan de clase REAL de peor caso (30 líneas no vacías / ~4 900 caracteres),
+ * Fixture: plan de clase REAL de peor caso (30 líneas no vacías / ~5 160 caracteres),
  * tomado de la BD (`planning_extras`, sesión 1 de Pensamiento Matemático III) y
  * ANONIMIZADO (nombres de localidad → "la comunidad local") para los tests de
  * paginación de PDF de extras.
@@ -11,7 +11,9 @@
 const RAW = `# PLAN DE CLASE OFICIAL MCCEMS · SESIÓN 1
 **UAC:** Pensamiento Matemático III. Pensamientos algebraico e introducción a geometría plana | **Semestre:** 3° | **Sesión:** 1 de 24 (50 min)
 **Título de la Sesión:** Sesión 1: Exploración Diagnóstica y Problematización Situada · Ecuaciones lineales y situaciones de interés
-**Propósito / Meta de Aprendizaje:** Consolidar: Cuestionario diagnóstico y mapa conceptual inicial (Apertura)
+**Meta Educativa:** Aplique el lenguaje algebraico como herramienta para describir situaciones de la realidad y expresar relaciones matemáticas, y mediante procesos de intuición y razonamiento, logre explicar y resolver problemas.
+**Propósito Formativo:** Aplica la aritmética y el manejo del álgebra para encontrar el valor de una incógnita en ecuaciones lineales que refieran a situaciones de interés.
+**Contenido Formativo:** Concepto de ecuación y sus partes, ecuaciones lineales de primer grado, procedimiento para encontrar el valor de una incógnita y forma estándar de las ecuaciones lineales.
 **Transversalidad Comunitaria (PAEC):** Vinculación PAEC: La vulnerabilidad de los jóvenes ante conductas de riesgo, derivada de la falta de espacios recreativos, hábitos de vida poco saludables y un entorno con factores de estrés socioeconómico, así como la normalización del consumo temprano de alcohol en eventos sociales y festividades tradicionales.. Impacto escolar y comunitario.
 
 ---
@@ -35,14 +37,15 @@ Ejercicios de la sesión (mismos enunciados que el libro y el solucionario docen
 ### 3. Fase de Cierre (10 min) — Consolidación y Metacognición
 - **Rol del Docente:** Semáforo de autoevaluación: ¿De qué manera el uso correcto de las propiedades de la igualdad en una ecuación lineal te otorga seguridad y transparencia al resolver problemas financieros o comunitarios?.
 - **Rol del Estudiante:** Responder la verificación inicial y reflexionar: ¿Identifiqué con claridad la diferencia entre un término independiente y un coeficiente al resolver la ecuación?.
-- **Evaluación Formativa:** Lista de cotejo diagnóstica
-- **Pregunta Metacognitiva:** ¿Identifiqué con claridad la diferencia entre un término independiente y un coeficiente al resolver la ecuación? ¿Pude relacionar el concepto de balanza algebraica con el proceso de despejar una incógnita sin alterar el equilibrio?
 
 ---
 
 ## EVALUACIÓN Y PRODUCTO ESPERADO
 - **Evidencia Tangible de la Sesión:** Cuestionario diagnóstico y mapa conceptual inicial
-- **Instrumento de Evaluación Oficial:** Lista de cotejo diagnóstica · Sesión 1
+- **Heteroevaluación:** Diagnóstica 5% (Lista de cotejo diagnóstica) y Sumativa 40% (Rúbrica holística de resolución de problemas y defensa pública)
+- **Autoevaluación / Coevaluación:** Autoevaluación con semáforo y ticket de salida; Formativa 55% (Rúbrica analítica de proceso (Bitácora 50-20-30))
+- **Ponderación:** Diagnóstica 5% · Formativa 55% · Sumativa 40%
+- **Pregunta Metacognitiva:** ¿Identifiqué con claridad la diferencia entre un término independiente y un coeficiente al resolver la ecuación? ¿Pude relacionar el concepto de balanza algebraica con el proceso de despejar una incógnita sin alterar el equilibrio?
 
 ---
 *SIGPDA-EMS · Documento derivado en cascada del Cuaderno de Trabajo Activo (Bloque 1)*`;

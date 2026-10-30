@@ -251,13 +251,13 @@ export function renderExtraDocument(
   const isUltra = density === 'ultra';
   const isNormal = density === 'normal';
   const compact = !isNormal;
-  const bodyFontSize = isUltra ? 7.4 : compact ? 7.6 : 8.0;
-  const smallFontSize = isUltra ? 7.2 : compact ? 7.4 : 7.8;
-  const bodyLineHeight = isUltra ? 3.9 : compact ? 4.1 : 4.6;
-  const gapEmpty = isUltra ? 0.5 : compact ? 0.6 : 1.5;
-  const gapDivider = isUltra ? 2.0 : compact ? 2.5 : 4.5;
+  const bodyFontSize = isUltra ? 7.1 : compact ? 7.6 : 8.0;
+  const smallFontSize = isUltra ? 6.9 : compact ? 7.4 : 7.8;
+  const bodyLineHeight = isUltra ? 3.65 : compact ? 4.1 : 4.6;
+  const gapEmpty = isUltra ? 0.4 : compact ? 0.6 : 1.5;
+  const gapDivider = isUltra ? 1.8 : compact ? 2.5 : 4.5;
   const gapH1 = isUltra ? 4.6 : compact ? 5.0 : 7.0;
-  const bottomReserve = isUltra ? 14 : compact ? 15 : 16;
+  const bottomReserve = isUltra ? 12 : compact ? 15 : 16;
   // Listas de cotejo y materiales son tablas largas: se densifican para que la
   // última fila no quede huérfana en una página casi vacía al final del documento.
   const denseTable = extra.type === 'checklist' || extra.type === 'material';

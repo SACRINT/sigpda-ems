@@ -115,7 +115,9 @@ describe('Paginación de PDF de extras — sin páginas en blanco', () => {
     expect(fullText).toContain('FASE DE DESARROLLO');
     expect(fullText).toContain('FASE DE CIERRE');
     expect(fullText).toContain('EVALUACIÓN Y PRODUCTO ESPERADO');
-    expect(fullText).toContain('Instrumento de Evaluación Oficial');
+    expect(fullText).toContain('Contenido Formativo');
+    expect(fullText).toContain('Heteroevaluación');
+    expect(fullText).toContain('Ponderación');
     expect(fullText).toContain('x - 180 = 820');
     expect(fullText).not.toContain('####');
   });

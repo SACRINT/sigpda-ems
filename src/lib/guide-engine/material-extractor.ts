@@ -14,6 +14,18 @@ import { getMaterial, getMaterialImagePaths } from '@/lib/materials/materials-ca
 import { normalizeUnicode } from '@/lib/utils/normalize';
 
 /**
+ * Anclaje curricular oficial del bloque (MCC 2025, 1º-4º semestre).
+ * Permite que el plan de clase muestre la Meta educativa, el Propósito Formativo
+ * y el Contenido Formativo reales del programa de estudios, en lugar de una
+ * paráfrasis derivada de la evidencia de sesión.
+ */
+export interface BlockCurricularAnchor {
+  metaEducativa?: string;
+  propositoFormativo?: string;
+  contenidoFormativo?: string;
+}
+
+/**
  * Plan de Clase individual por sesión derivado determinísticamente del Libro de Bloque.
  * Cumple con la interfaz SesionClase de SEMS Puebla y MCCEMS 2026.
  */
@@ -22,6 +34,9 @@ export interface PlanDeClaseDerivado {
   duracionMinutos: number;
   tituloSesion: string;
   propósitoOMeta: string;
+  metaEducativa?: string;
+  propositoFormativo?: string;
+  contenidoFormativo?: string;
   transversalidad: string;
   apertura: {
     actividadDocente: string;
@@ -87,7 +102,8 @@ export interface ExtractedBlockMaterials {
  */
 export function extractMaterialsFromWorkbook(
   workbook: ActiveWorkTextbook,
-  blockSequence?: SecuenciaBloque | null
+  blockSequence?: SecuenciaBloque | null,
+  curricularAnchor?: BlockCurricularAnchor | null
 ): ExtractedBlockMaterials {
   const startTime = performance.now();
 
@@ -107,7 +123,7 @@ export function extractMaterialsFromWorkbook(
 
       for (const sNum of sessions) {
         if (sNum <= TARGET_SESSIONS) {
-          planesDeClase.push(buildPlanDeClase(workbook, mission, sNum, blockSequence));
+          planesDeClase.push(buildPlanDeClase(workbook, mission, sNum, blockSequence, curricularAnchor));
         }
       }
     }
@@ -154,7 +170,7 @@ export function extractMaterialsFromWorkbook(
       const parentMission = missions.length > 0
         ? missions[(i - 1) % missions.length]
         : fallbackMission;
-      planesDeClase.push(buildPlanDeClase(workbook, parentMission, i, blockSequence));
+      planesDeClase.push(buildPlanDeClase(workbook, parentMission, i, blockSequence, curricularAnchor));
     }
   }
 
@@ -218,7 +234,8 @@ function buildPlanDeClase(
   workbook: ActiveWorkTextbook,
   mission: MissionSection,
   sessionNum: number,
-  blockSequence?: SecuenciaBloque | null
+  blockSequence?: SecuenciaBloque | null,
+  curricularAnchor?: BlockCurricularAnchor | null
 ): PlanDeClaseDerivado {
   const paecText = workbook.coverData?.paecProjectName
     ? `Vinculación PAEC: ${workbook.coverData.paecProjectName}. Impacto escolar y comunitario.`
@@ -321,6 +338,10 @@ function buildPlanDeClase(
     ? `Consolidar: ${sessionFromSeq.evidence} (${sessionFromSeq.phase || 'Formativa'})`
     : moments.proposito;
 
+  const metaEducativa = curricularAnchor?.metaEducativa?.trim() || '';
+  const propositoFormativo = curricularAnchor?.propositoFormativo?.trim() || '';
+  const contenidoFormativo = curricularAnchor?.contenidoFormativo?.trim() || '';
+
   const transversalidad = sessionFromSeq?.utilidadReal
     ? `${paecText} Aplicación en contexto real: ${sessionFromSeq.utilidadReal}.`
     : paecText;
@@ -345,6 +366,9 @@ function buildPlanDeClase(
     duracionMinutos: 50,
     tituloSesion,
     propósitoOMeta,
+    metaEducativa,
+    propositoFormativo,
+    contenidoFormativo,
     transversalidad,
     apertura: {
       actividadDocente: aperturaDocente,
