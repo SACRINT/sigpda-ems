@@ -1297,7 +1297,7 @@ function renderDemo(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Extract
 
   addPanel(slide, 80, 344, 860, 268, { fill: C.panel, transparency: 12 });
   addLabel(slide, 'Demostración guiada', 104, 372, 320, 18, accent, 9);
-  addText(slide, spec.demoText, 104, 410, 812, 180, { fontSize: pt(20), color: C.text, lineSpacingMultiple: 1.06, maxLines: 8 });
+  addText(slide, spec.demoText, 104, 410, 812, 180, { fontSize: pt(20), color: C.text, lineSpacingMultiple: 1.05, maxLines: 6 });
 
   if (spec.problemStatement) {
     addPanel(slide, 80, 632, 860, 128, { fill: C.panel, transparency: 20, stroke: C.strokeSoft });
@@ -1333,7 +1333,7 @@ function renderPractice(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Ext
 
   addPanel(slide, 80, 344, 900, 330, { fill: C.panel, transparency: 12 });
   addLabel(slide, 'Práctica colaborativa', 104, 372, 320, 18, accent, 9);
-  addText(slide, spec.practiceText, 104, 410, 852, 240, { fontSize: pt(20), color: C.text, lineSpacingMultiple: 1.06, maxLines: 10 });
+  addText(slide, spec.practiceText, 104, 410, 852, 240, { fontSize: pt(20), color: C.text, lineSpacingMultiple: 1.05, maxLines: 8 });
 
   if (spec.hint) {
     addPanel(slide, 80, 696, 900, 140, { fill: '1E1808', transparency: 30, stroke: C.amber });
@@ -1363,7 +1363,7 @@ function renderChallenge(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Ex
 
   addPanel(slide, 80, 344, 940, 288, { fill: C.panel, transparency: 12 });
   addLabel(slide, 'Reto autónomo', 104, 372, 300, 18, accent, 9);
-  addText(slide, spec.challengeText, 104, 410, 892, 200, { fontSize: pt(20), color: C.text, lineSpacingMultiple: 1.06, maxLines: 9 });
+  addText(slide, spec.challengeText, 104, 410, 892, 200, { fontSize: pt(20), color: C.text, lineSpacingMultiple: 1.05, maxLines: 7 });
 
   addPanel(slide, 80, 654, 940, 158, { fill: C.panel, transparency: 20, stroke: C.strokeSoft });
   addLabel(slide, 'Producto integrador', 104, 680, 300, 18, accent2, 9);
@@ -1432,14 +1432,7 @@ function renderEvidence(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Ext
   addFooter(slide, deck, 'criterios · rúbrica · verificación', accent);
 }
 
-export async function generateSacrintPptx(deck: SacrintDeckSpec): Promise<Buffer> {
-  const pptx = new PptxGenJS();
-  pptx.layout = 'LAYOUT_16x9';
-  pptx.title = deck.meta.missionTitle;
-  pptx.subject = deck.meta.subjectName;
-  pptx.company = deck.meta.schoolName || 'SIGPDA-EMS';
-  pptx.author = deck.meta.teacherName || 'SIGPDA-EMS';
-
+function renderDeckIntoPptx(pptx: PptxGenJS, deck: SacrintDeckSpec): void {
   for (const spec of deck.slides) {
     const slide = pptx.addSlide();
     slide.background = { color: C.canvas };
@@ -1451,6 +1444,37 @@ export async function generateSacrintPptx(deck: SacrintDeckSpec): Promise<Buffer
     else if (spec.kind === 'challenge') renderChallenge(slide, deck, spec);
     else if (spec.kind === 'evidence') renderEvidence(slide, deck, spec);
     else renderClosing(slide, deck, spec);
+  }
+}
+
+export async function generateSacrintPptx(deck: SacrintDeckSpec): Promise<Buffer> {
+  const pptx = new PptxGenJS();
+  pptx.layout = 'LAYOUT_16x9';
+  pptx.title = deck.meta.missionTitle;
+  pptx.subject = deck.meta.subjectName;
+  pptx.company = deck.meta.schoolName || 'SIGPDA-EMS';
+  pptx.author = deck.meta.teacherName || 'SIGPDA-EMS';
+
+  renderDeckIntoPptx(pptx, deck);
+
+  const out = await pptx.write({ outputType: 'nodebuffer' });
+  return Buffer.from(out as Uint8Array);
+}
+
+export async function generateCombinedSacrintPptx(
+  decks: SacrintDeckSpec[],
+  meta?: { title?: string; subjectName?: string; schoolName?: string; teacherName?: string }
+): Promise<Buffer> {
+  const pptx = new PptxGenJS();
+  pptx.layout = 'LAYOUT_16x9';
+  const first = decks[0];
+  pptx.title = meta?.title || first?.meta.subjectName || 'Presentación SACRINT';
+  pptx.subject = meta?.subjectName || first?.meta.subjectName || 'SIGPDA-EMS';
+  pptx.company = meta?.schoolName || first?.meta.schoolName || 'SIGPDA-EMS';
+  pptx.author = meta?.teacherName || first?.meta.teacherName || 'SIGPDA-EMS';
+
+  for (const deck of decks) {
+    renderDeckIntoPptx(pptx, deck);
   }
 
   const out = await pptx.write({ outputType: 'nodebuffer' });
