@@ -163,6 +163,16 @@ describe('Arquitectura Universal Multi-UAC (Fases 1 a 6)', () => {
       expect(safe).toContain('https://www.youtube.com/results?search_query=');
       expect(safe).not.toContain('watch?v=ejemplo_cir');
     });
+
+    it('convierte enlaces scholar.google bloqueados por bot-detection a búsqueda limpia de Google', () => {
+      const safeWeb = sanitizeEducationalResourceUrl(
+        'https://scholar.google.es/scholar?q=fisiologia+del+ejercicio',
+        'Fisiología del ejercicio y frecuencia cardíaca básica',
+        'web'
+      );
+      expect(safeWeb).toContain('https://www.google.com/search?q=');
+      expect(safeWeb).not.toContain('scholar.google');
+    });
   });
 
   describe('Fase 5: Matriz de 14 Estrategias Disciplinares Dinámicas', () => {

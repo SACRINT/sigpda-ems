@@ -2634,16 +2634,18 @@ function buildDocxResourceLine(titulo: string, url: string, tipo: string): Parag
   const icono = tipo === 'video' ? '🎬' : tipo === 'lectura' ? '📄' : '🌐';
   const rawUrl = (url || '').trim();
   const isYoutubeWatch = /youtube\.com\/watch\?v=|youtu\.be\//i.test(rawUrl);
+  const isScholar = /scholar\.google/i.test(rawUrl);
   const isPlaceholderUrl =
     !rawUrl ||
+    isScholar ||
     /ejemplo|example\.com|tu-enlace|url-del-recurso|watch\?v=123|watch\?v=abc/i.test(rawUrl);
   let safeUrl = rawUrl;
   if (tipo === 'video' || isYoutubeWatch) {
     if (!rawUrl.includes('youtube.com/results?search_query=')) {
       safeUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(`${titulo} educación media superior`)}`;
     }
-  } else if (isPlaceholderUrl) {
-    safeUrl = `https://scholar.google.es/scholar?q=${encodeURIComponent(`${titulo} bachillerato académico`)}`;
+  } else if (isPlaceholderUrl || isScholar) {
+    safeUrl = `https://www.google.com/search?q=${encodeURIComponent(`${titulo} bachillerato`)}`;
   }
   return new Paragraph({
     alignment: AlignmentType.JUSTIFIED,

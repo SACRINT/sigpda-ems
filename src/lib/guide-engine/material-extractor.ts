@@ -303,10 +303,16 @@ function buildPlanDeClase(
       aperturaDocente = sessionFromSeq.teachingActivity || aperturaDocenteBase;
       aperturaEstudiante = sessionFromSeq.learningActivity || aperturaEstudianteBase;
       if (mission.iDoSection?.stepByStepDemo) {
-        desarrolloDocente = `Modelado introductorio: ${mission.iDoSection.stepByStepDemo.slice(0, 180)}...`;
+        const demoClean = mission.iDoSection.stepByStepDemo.replace(/<!--[\s\S]*?-->/g, '').replace(/\s+/g, ' ').trim();
+        const sentenceMatch = demoClean.match(/^([^.!?]+[.!?])/);
+        const demoText = sentenceMatch && sentenceMatch[1].length >= 25 ? sentenceMatch[1].trim() : demoClean.slice(0, 180).replace(/\s+[^\s]*$/, '');
+        desarrolloDocente = `Modelado introductorio: ${demoText}`;
       }
       if (mission.weDoSection?.guidedPractice) {
-        desarrolloEstudiante = `Exploración inicial grupal: ${mission.weDoSection.guidedPractice.slice(0, 140)}...`;
+        const practiceClean = mission.weDoSection.guidedPractice.replace(/<!--[\s\S]*?-->/g, '').replace(/\s+/g, ' ').trim();
+        const sentenceMatch = practiceClean.match(/^([^.!?]+[.!?])/);
+        const practiceText = sentenceMatch && sentenceMatch[1].length >= 25 ? sentenceMatch[1].trim() : practiceClean.slice(0, 140).replace(/\s+[^\s]*$/, '');
+        desarrolloEstudiante = `Exploración inicial grupal: ${practiceText}`;
       }
     } else if (sessionFromSeq.phase === 'Cierre') {
       tiempoApertura = 10;

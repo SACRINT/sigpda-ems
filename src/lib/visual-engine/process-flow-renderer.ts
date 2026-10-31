@@ -50,9 +50,6 @@ export function extractProcessFlowSteps(
           let cleanTitle = (p.title || `Fase ${p.phaseNum}`).trim();
           // Limpiar prefijo redundante "Fase X:"
           cleanTitle = cleanTitle.replace(/^Fase\s*\d+[:\s-]*/i, '').trim() || cleanTitle;
-          if (cleanTitle.length > 22) {
-            cleanTitle = cleanTitle.slice(0, 20).trim() + '...';
-          }
           const subtitle = p.allocatedHours ? `${p.allocatedHours} hrs` : undefined;
           return {
             stepNumber: p.phaseNum,
@@ -73,10 +70,7 @@ export function extractProcessFlowSteps(
         if (!clean) return;
         const match = clean.match(/^(\d+)[.)\s:-]+(.*)/);
         const stepNum = match ? parseInt(match[1], 10) : idx + 1;
-        let title = match ? match[2].trim() : clean;
-        if (title.length > 22) {
-          title = title.slice(0, 20).trim() + '...';
-        }
+        const title = match ? match[2].trim() : clean;
         steps.push({
           stepNumber: stepNum,
           title,

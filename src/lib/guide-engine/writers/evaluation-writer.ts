@@ -163,7 +163,7 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
       "autoevaluacion": ["¿Puedo explicar el criterio central?", "¿Logré la práctica sin mirar?"],
       "recursos": [
         { "titulo": "Video de repaso e integración", "url": "https://www.youtube.com/results?search_query=repaso+educacion+media+superior", "tipo": "video" },
-        { "titulo": "Consulta académica de ampliación", "url": "https://scholar.google.es/scholar?q=evaluacion+bachillerato", "tipo": "web" }
+        { "titulo": "Consulta temática de ampliación", "url": "https://www.google.com/search?q=evaluacion+bachillerato", "tipo": "web" }
       ],
       "productoIntegrador": "Qué agregas hoy a tu producto integrador..."
     }

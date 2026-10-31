@@ -2005,8 +2005,10 @@ export function sanitizeEducationalResourceUrl(url: string, titulo: string, tipo
   const cleanTitle = sanitizePdfText(stripMarkdown(titulo || 'Recurso educativo EMS')).trim();
   const rawUrl = (url || '').trim();
   const isYoutubeWatch = /youtube\.com\/watch\?v=|youtu\.be\//i.test(rawUrl);
+  const isScholar = /scholar\.google/i.test(rawUrl);
   const isPlaceholderUrl =
     !rawUrl ||
+    isScholar ||
     /ejemplo|example\.com|tu-enlace|url-del-recurso|watch\?v=123|watch\?v=abc/i.test(rawUrl);
 
   if (tipo === 'video' || isYoutubeWatch) {
@@ -2017,9 +2019,9 @@ export function sanitizeEducationalResourceUrl(url: string, titulo: string, tipo
     return `https://www.youtube.com/results?search_query=${query}`;
   }
 
-  if (isPlaceholderUrl) {
-    const query = encodeURIComponent(`${cleanTitle} bachillerato académico`);
-    return `https://scholar.google.es/scholar?q=${query}`;
+  if (isPlaceholderUrl || isScholar) {
+    const query = encodeURIComponent(`${cleanTitle} bachillerato`);
+    return `https://www.google.com/search?q=${query}`;
   }
 
   return rawUrl;

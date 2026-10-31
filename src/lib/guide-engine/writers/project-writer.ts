@@ -119,7 +119,7 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
       "autoevaluacion": ["¿Puedo explicar el avance de mi artefacto?", "¿Logré la práctica sin mirar?"],
       "recursos": [
         { "titulo": "Video de proyecto aplicado", "url": "https://www.youtube.com/results?search_query=proyecto+educacion+media+superior", "tipo": "video" },
-        { "titulo": "Consulta académica de ampliación", "url": "https://scholar.google.es/scholar?q=proyecto+bachillerato", "tipo": "web" }
+        { "titulo": "Consulta temática de ampliación", "url": "https://www.google.com/search?q=proyecto+bachillerato", "tipo": "web" }
       ],
       "productoIntegrador": "Qué agregas hoy a tu producto integrador..."
     }

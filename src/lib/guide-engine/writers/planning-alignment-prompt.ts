@@ -24,7 +24,7 @@ export function buildPlanningAlignmentPrompt(
 REGLA DE ENLACES EDUCATIVOS RESILIENTES (CERO 404):
 - En el arreglo "recursos" de cada "sessionPlans", NUNCA inventes IDs de video ("watch?v=...") que no existen.
 - Para recursos de tipo "video", usa SIEMPRE consultas de búsqueda funcional de YouTube: "https://www.youtube.com/results?search_query=TEMA+EDUCACION+MEDIA+SUPERIOR".
-- Para recursos de tipo "web" o "lectura", usa dominios educativos reales (Khan Academy, PhET, UNAM, INEGI, RAE, SEP) o búsqueda académica: "https://scholar.google.es/scholar?q=TEMA".`;
+- Para recursos de tipo "web" o "lectura", usa dominios educativos reales (Khan Academy, PhET, UNAM, INEGI, RAE, SEP) o búsqueda web formativa: "https://www.google.com/search?q=TEMA+bachillerato".`;
 
   if (!pa) return `${disciplinaryBlock}${urlGuardrail}`;
 
