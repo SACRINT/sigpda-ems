@@ -289,6 +289,7 @@ export const SACRINT_PACKS: Record<SacrintPackId, SacrintPack> = {
       'actividades fisicas y deportivas',
       'actividades fisicas',
       'actividad fisica',
+      'acondicionamiento fisico',
       'educacion fisica',
       'deporte',
       'deportes',
