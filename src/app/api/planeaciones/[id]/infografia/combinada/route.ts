@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PDFDocument } from 'pdf-lib';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, getAllBlockWorkbooks, sql } from '@/lib/db';
 import { isAdmin } from '@/lib/admin-unified';
-import { buildInfographic } from '@/lib/visual-engine/infographic-generator';
-import { infographicToPdf } from '@/lib/visual-engine/infographic-exporter';
+import { buildSacrintInfographic, type SacrintInfographicSpec } from '@/lib/visual-engine/sacrint/spec';
+import { renderCombinedSacrintInfographicsPdf } from '@/lib/visual-engine/sacrint/sacrint-rasterizer';
 import { logger } from '@/lib/logger';
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
 
@@ -66,35 +65,29 @@ export async function GET(
       );
     }
 
-    const mergedPdf = await PDFDocument.create();
-    let generatedCount = 0;
+    const layoutParam = (searchParams.get('layout') || 'wide').toLowerCase();
+    const layout = layoutParam === 'letter' ? 'letter' : 'wide';
+    const specs: SacrintInfographicSpec[] = [];
 
     for (const entry of entries) {
-      const missions = entry.workbook.missions ?? [];
-      for (let missionPos = 0; missionPos < missions.length; missionPos++) {
+      const missionCount = Math.max(1, (entry.workbook.missions ?? []).length);
+      for (let missionPos = 0; missionPos < missionCount; missionPos++) {
         try {
-          const info = buildInfographic(entry.workbook, missionPos, {
-            component: planRows[0].component ?? undefined,
-          });
-          if (!info) continue;
-          const pdfBytes = await infographicToPdf(info);
-          const individualPdf = await PDFDocument.load(pdfBytes);
-          const pages = await mergedPdf.copyPages(individualPdf, individualPdf.getPageIndices());
-          for (const page of pages) mergedPdf.addPage(page);
-          generatedCount++;
+          const spec = buildSacrintInfographic(entry.workbook, layout, { missionIndex: missionPos });
+          specs.push(spec);
         } catch (err) {
-          logger.warn(`Error generando infografía del bloque ${entry.blockIndex + 1}, misión ${missionPos + 1}:`, {
+          logger.warn(`Error generando infografía SACRINT del bloque ${entry.blockIndex + 1}, misión ${missionPos + 1}:`, {
             error: err instanceof Error ? err.message : String(err),
           });
         }
       }
     }
 
-    if (generatedCount === 0) {
+    if (specs.length === 0) {
       return NextResponse.json({ error: 'No se pudo generar ninguna infografía' }, { status: 500 });
     }
 
-    const mergedBytes = await mergedPdf.save();
+    const mergedBytes = await renderCombinedSacrintInfographicsPdf(specs, layout);
     const safeName = (planRows[0].uac_name || 'infografias')
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')

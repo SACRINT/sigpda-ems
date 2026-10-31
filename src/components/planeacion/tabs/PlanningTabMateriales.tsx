@@ -422,7 +422,7 @@ export default function PlanningTabMateriales({
                       border: '1px solid rgba(139, 92, 246, 0.35)', borderRadius: '8px'
                     }}>
                       <span style={{ fontSize: '12.5px', fontWeight: 700, color: '#7c3aed' }}>
-                        Presentaciones PPTX (Todos los bloques)
+                        🎞️ Presentaciones SACRINT PPTX (Todos los bloques)
                       </span>
                       <a
                         href={`/api/planeaciones/${planning.id}/presentacion/combinada`}
@@ -440,7 +440,7 @@ export default function PlanningTabMateriales({
                       border: '1px solid rgba(236, 72, 153, 0.35)', borderRadius: '8px'
                     }}>
                       <span style={{ fontSize: '12.5px', fontWeight: 700, color: '#ec4899' }}>
-                        Infografías (Todos los bloques)
+                        🖼️ Infografías SACRINT (Todos los bloques)
                       </span>
                       <a
                         href={`/api/planeaciones/${planning.id}/infografia/combinada?format=pdf`}

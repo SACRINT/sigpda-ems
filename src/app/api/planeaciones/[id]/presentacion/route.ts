@@ -3,7 +3,8 @@ import { auth } from '@/lib/auth';
 import { getTeacherByEmail, getBlockWorkbook, sql } from '@/lib/db';
 import { isAdmin } from '@/lib/admin-unified';
 import { buildSlideDeck } from '@/lib/presentation-engine/slide-model';
-import { generatePptxBuffer } from '@/lib/presentation-engine/pptx-generator';
+import { buildSacrintDeck, type SacrintDeckSpec } from '@/lib/visual-engine/sacrint/spec';
+import { generateCombinedSacrintPptx } from '@/lib/visual-engine/sacrint/sacrint-pptx-generator';
 import { logger } from '@/lib/logger';
 
 /**
@@ -76,7 +77,16 @@ export async function GET(
       return NextResponse.json({ success: true, blockIndex, deck });
     }
 
-    const buffer = await generatePptxBuffer(deck);
+    const missionCount = Math.max(1, (workbook.missions ?? []).length);
+    const sacrintDecks: SacrintDeckSpec[] = [];
+    for (let missionIndex = 0; missionIndex < missionCount; missionIndex += 1) {
+      sacrintDecks.push(buildSacrintDeck(workbook, { missionIndex }));
+    }
+
+    const buffer = await generateCombinedSacrintPptx(sacrintDecks, {
+      title: `Presentación SACRINT — ${deck.meta.subjectName} — Bloque ${blockIndex + 1}`,
+      subjectName: deck.meta.subjectName,
+    });
     const safeName = (deck.meta.subjectName || 'presentacion')
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')

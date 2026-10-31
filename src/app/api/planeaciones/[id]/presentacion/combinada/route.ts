@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, getAllBlockWorkbooks, sql } from '@/lib/db';
 import { isAdmin } from '@/lib/admin-unified';
-import { buildSlideDeck, type SlideDeck } from '@/lib/presentation-engine/slide-model';
-import { generatePptxBuffer } from '@/lib/presentation-engine/pptx-generator';
+import { buildSacrintDeck, type SacrintDeckSpec } from '@/lib/visual-engine/sacrint/spec';
+import { generateCombinedSacrintPptx } from '@/lib/visual-engine/sacrint/sacrint-pptx-generator';
 import { logger } from '@/lib/logger';
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
 
@@ -59,26 +59,20 @@ export async function GET(
       );
     }
 
-    const decks = entries.map((entry) =>
-      buildSlideDeck(entry.workbook, { component: planRows[0].component ?? undefined })
-    );
+    const sacrintDecks: SacrintDeckSpec[] = [];
+    for (const entry of entries) {
+      const missionCount = Math.max(1, (entry.workbook.missions ?? []).length);
+      for (let missionIndex = 0; missionIndex < missionCount; missionIndex += 1) {
+        sacrintDecks.push(buildSacrintDeck(entry.workbook, { missionIndex }));
+      }
+    }
 
-    const slides = decks.flatMap((deck) =>
-      deck.slides.map((slide) => ({ ...slide, blockNumber: deck.meta.blockNumber }))
-    );
-
-    const combinedDeck: SlideDeck = {
-      meta: {
-        ...decks[0].meta,
-        title: `Presentación completa — ${decks[0].meta.subjectName}`,
-        blockName: 'Todos los bloques',
-      },
-      palette: decks[0].palette,
-      slides,
-    };
-
-    const buffer = await generatePptxBuffer(combinedDeck);
-    const safeName = (combinedDeck.meta.subjectName || 'presentacion')
+    const subjectName = sacrintDecks[0]?.meta.subjectName || planRows[0].uac_name || 'presentacion';
+    const buffer = await generateCombinedSacrintPptx(sacrintDecks, {
+      title: `Presentación SACRINT completa — ${subjectName}`,
+      subjectName,
+    });
+    const safeName = subjectName
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/[^a-zA-Z0-9]+/g, '_')

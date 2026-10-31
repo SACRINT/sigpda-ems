@@ -102,7 +102,7 @@ export default function BlockPresentationActions({ planningId, blockIndex }: Blo
         disabled={loading || downloading}
         style={{ ...btnStyle, border: '1px solid var(--c-border)', color: 'var(--c-text)', background: 'transparent' }}
       >
-        {downloading ? '⏳ Generando…' : '⬇ Descargar .pptx'}
+        {downloading ? '⏳ Generando…' : '⬇ Descargar .pptx SACRINT'}
       </button>
       <button
         id={`btn-infografia-${blockIndex}`}

@@ -278,7 +278,21 @@ function baseFacts(meta: SacrintMissionMeta, mission: MissionSection): SacrintFa
 function selectMission(workbook: ActiveWorkTextbook, options: SacrintBuildOptions): MissionSection {
   const missions = workbook.missions ?? [];
   const index = Math.max(0, Math.min(options.missionIndex ?? 0, missions.length - 1));
-  return missions[index] ?? missions[0];
+  return missions[index] ?? missions[0] ?? ({
+    missionIndex: 1,
+    title: workbook.blockName || workbook.coverData?.title || 'Misión 1',
+    coveredSessions: [1],
+    sessionTopic: workbook.blockName || workbook.coverData?.subjectName || 'Sesión situada',
+    sessionFocus: workbook.coverData?.subtitle || 'Desarrollo situado del bloque',
+    phenomenonHook: { story: 'Situación contextualizada del entorno escolar y comunitario.', guidingQuestion: '¿Cómo aplicar los saberes del bloque en nuestro contexto?' },
+    conceptZero: { intuitiveAnalogy: 'Modelo conceptual de referencia.', formalExplanation: 'Fundamentación disciplinar del bloque.', contrastTable: [], solvedExample: { problemStatement: '', solutionSteps: [], interpretation: '' } },
+    iDoSection: { stepByStepDemo: 'Demostración guiada del docente.' },
+    weDoSection: { guidedPractice: 'Práctica colaborativa en aula.', workbookElements: [] },
+    youDoSection: { autonomousChallenge: 'Reto autónomo de aplicación.', projectConnection: '' },
+    troubleshooting: [],
+    formativeCheckpoint: { question: '¿Qué aprendimos hoy?', criteriaChecklist: ['Cumple con los criterios del bloque.'], reflectionPrompts: ['¿Cómo lo aplico en mi comunidad?'] },
+    metacognitiveTrafficLight: { green: 'Domino el contenido.', yellow: 'Requiero práctica adicional.', red: 'Necesito apoyo docente.' },
+  } as unknown as MissionSection);
 }
 
 export function buildSacrintDeck(workbook: ActiveWorkTextbook, options: SacrintBuildOptions = {}): SacrintDeckSpec {
