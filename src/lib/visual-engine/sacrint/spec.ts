@@ -295,6 +295,51 @@ function selectMission(workbook: ActiveWorkTextbook, options: SacrintBuildOption
   } as unknown as MissionSection);
 }
 
+function resolveMissionMisconception(mission: MissionSection, withCorrection = false): string {
+  const firstRow = mission.conceptZero?.contrastTable?.[0];
+  if (firstRow?.commonMisconception) {
+    return withCorrection && firstRow.correctConcept
+      ? `${clean(firstRow.commonMisconception)} → ${clean(firstRow.correctConcept)}`
+      : clean(firstRow.commonMisconception);
+  }
+
+  const contextText = [
+    mission.title,
+    mission.sessionTopic,
+    mission.conceptZero?.coreExplanation,
+    mission.iDoSection?.stepByStepDemo,
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  if (/cuadr[aá]tica|par[aá]bola|segundo grado/i.test(contextText)) {
+    const err = 'Omitir el signo del coeficiente lineal o descartar raíces sin verificar el discriminante.';
+    const fix = 'Evaluar b² - 4ac e interpretar ambas raíces en el contexto real.';
+    return withCorrection ? `${err} → ${fix}` : err;
+  }
+  if (/sistema[s]? de ecuaciones|dos inc[oó]gnitas/i.test(contextText)) {
+    const err = 'Sustituir la expresión despejada en la misma ecuación de origen sin cruzar con la segunda.';
+    const fix = 'Sustituir en la ecuación complementaria y verificar el par (x, y) en ambas.';
+    return withCorrection ? `${err} → ${fix}` : err;
+  }
+  if (/ecuaci[oó]n|algebraic|inc[oó]gnita|balanza|lineal/i.test(contextText)) {
+    const err = 'Confundir el término independiente con el coeficiente o aplicar la operación inversa en un solo miembro.';
+    const fix = 'Aplicar operaciones inversas simétricas en ambos lados de la igualdad.';
+    return withCorrection ? `${err} → ${fix}` : err;
+  }
+
+  const firstCriterion = clean(mission.formativeCheckpoint?.criteriaChecklist?.[0]);
+  if (firstCriterion) {
+    const err = `Omitir la verificación rigurosa: ${firstCriterion}`;
+    const fix = 'Validar paso a paso con evidencia e instrumentos del bloque.';
+    return withCorrection ? `${err} → ${fix}` : err;
+  }
+
+  return withCorrection
+    ? 'Aplicar procedimientos mecánicos sin validar el contexto. → Verificar coherencia y unidades del modelo.'
+    : 'Aplicar procedimientos mecánicos sin validar la coherencia contextual del resultado.';
+}
+
 export function buildSacrintDeck(workbook: ActiveWorkTextbook, options: SacrintBuildOptions = {}): SacrintDeckSpec {
   const mission = selectMission(workbook, options);
   const pack = resolveSacrintPack(workbook.coverData?.subjectName ?? '', workbook.subsystem);
@@ -303,9 +348,7 @@ export function buildSacrintDeck(workbook: ActiveWorkTextbook, options: SacrintB
   const diagram = buildSacrintDiagram(mission, pack, options);
   const variables = buildDiagramVariables(diagram);
   const formula = diagramFormula(diagram);
-  const misconception = mission.conceptZero?.contrastTable?.[0]
-    ? `${mission.conceptZero.contrastTable[0].commonMisconception}`
-    : '';
+  const misconception = resolveMissionMisconception(mission, false);
 
   const cover: SacrintCoverSlide = {
     kind: 'cover',
@@ -490,8 +533,6 @@ export function buildSacrintInfographic(
   const facts = baseFacts(meta, mission);
   const diagram = buildSacrintDiagram(mission, pack, options);
   const formula = diagramFormula(diagram);
-  const misconception = mission.conceptZero?.contrastTable?.[0]?.commonMisconception;
-  const correct = mission.conceptZero?.contrastTable?.[0]?.correctConcept;
   const criteria = (mission.formativeCheckpoint?.criteriaChecklist ?? []).map(clean).filter(Boolean);
   const project = workbook.projectSection;
 
@@ -507,7 +548,7 @@ export function buildSacrintInfographic(
     variables: buildDiagramVariables(diagram),
     diagram,
     steps: buildSteps(mission, pack),
-    misconception: misconception && correct ? `${misconception} → ${correct}` : 'Sin error común registrado.',
+    misconception: resolveMissionMisconception(mission, true),
     criteria,
     rubric: buildRubric(workbook),
     project: {

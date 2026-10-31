@@ -173,6 +173,138 @@ function parseNumber(text: string, symbol: 'm' | 'b'): number | null {
   return Number.isFinite(value) ? value : null;
 }
 
+function parseAlgebraicLinearModel(
+  source: string,
+  mission: MissionSection
+): { slope: number; intercept: number; equation: string } | null {
+  const parsedSlope = parseNumber(source, 'm');
+  const parsedIntercept = parseNumber(source, 'b');
+  if (parsedSlope !== null && parsedIntercept !== null) {
+    return {
+      slope: parsedSlope,
+      intercept: parsedIntercept,
+      equation: `f(x) = ${parsedSlope.toFixed(2).replace(/0$/, '')}x + ${parsedIntercept.toFixed(2).replace(/0$/, '')}`,
+    };
+  }
+
+  if (/sin coeficientes numéricos/i.test(source)) {
+    return null;
+  }
+
+  const extendedSource = [
+    source,
+    mission.weDoSection?.guidedPractice,
+    mission.youDoSection?.autonomousChallenge,
+    mission.title,
+    mission.sessionTopic,
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  // 1. Forma pendiente-ordenada: y = mx ± b o f(x) = mx ± b
+  const slopeInterceptMatch = extendedSource.match(
+    /(?:f\(x\)|y)\s*=\s*(-?\d+(?:\.\d+)?)\s*x\s*([+-])\s*(\d+(?:\.\d+)?)/i
+  );
+  if (slopeInterceptMatch) {
+    const rawM = Number(slopeInterceptMatch[1]);
+    const sign = slopeInterceptMatch[2];
+    const rawB = Number(slopeInterceptMatch[3]);
+    if (Number.isFinite(rawM) && Number.isFinite(rawB)) {
+      const slope = Math.max(0.5, Math.abs(rawM));
+      const intercept =
+        Math.abs(rawB) > 20 ? Number((Math.abs(rawB) / 100).toFixed(1)) : Math.max(0.5, Math.abs(rawB));
+      return {
+        slope,
+        intercept,
+        equation: `f(x) = ${rawM}x ${sign} ${rawB}`,
+      };
+    }
+  }
+
+  // 2. Ecuación cuadrática completa: ax² ± bx ± c = 0 (evaluar antes de lineal para no capturar la cola bx ± c = 0)
+  const quadEqMatch = extendedSource.match(
+    /(\d+(?:\.\d+)?)\s*x(?:²|\^2)\s*([+-])\s*(\d+(?:\.\d+)?)\s*x\s*([+-])\s*(\d+(?:\.\d+)?)\s*=\s*0/i
+  );
+  if (quadEqMatch) {
+    const a = Number(quadEqMatch[1]);
+    const sign1 = quadEqMatch[2];
+    const bVal = Number(quadEqMatch[3]);
+    const sign2 = quadEqMatch[4];
+    const cVal = Number(quadEqMatch[5]);
+    return {
+      slope: Math.max(1, a),
+      intercept: Math.min(10, Math.max(1, bVal)),
+      equation: `${a}x² ${sign1} ${bVal}x ${sign2} ${cVal} = 0`,
+    };
+  }
+
+  // 3. Ecuación algebraica de balance: ax ± b = c (ej. 4x + 200 = 1000, 5x - 300 = 1200, 3x + 5 = 20)
+  const balanceMatch = extendedSource.match(
+    /(\d+(?:\.\d+)?)\s*x\s*([+-])\s*(\d+(?:\.\d+)?)\s*=\s*(-?\d+(?:\.\d+)?)/i
+  );
+  if (balanceMatch) {
+    const a = Number(balanceMatch[1]);
+    const sign = balanceMatch[2];
+    const bVal = Number(balanceMatch[3]);
+    const cVal = Number(balanceMatch[4]);
+    if (Number.isFinite(a) && Number.isFinite(bVal)) {
+      const slope = a > 10 ? Number((a / 3).toFixed(1)) : Math.max(0.5, a);
+      const intercept = bVal > 20 ? Number((bVal / 100).toFixed(1)) : Math.max(0.5, bVal);
+      return {
+        slope,
+        intercept,
+        equation: `${a}x ${sign} ${bVal} = ${cVal}`,
+      };
+    }
+  }
+
+  const coeffMatch = extendedSource.match(/\ba\s*=\s*(-?\d+(?:\.\d+)?)[\s,;]+b\s*=\s*(-?\d+(?:\.\d+)?)/i);
+  if (coeffMatch) {
+    const a = Math.abs(Number(coeffMatch[1])) || 1;
+    const bVal = Math.abs(Number(coeffMatch[2])) || 2;
+    const intercept = bVal > 20 ? Number((bVal / 10).toFixed(1)) : bVal;
+    return {
+      slope: a,
+      intercept,
+      equation: `f(x) = ${a}x + ${intercept}`,
+    };
+  }
+
+  // 4. Síntesis algebraica contextual por temática de bloque (Misiones de Construcción / Evaluación)
+  if (/cuadr[aá]tica|par[aá]bola|segundo grado/i.test(extendedSource)) {
+    const idx = mission.missionIndex || 1;
+    const slope = idx === 3 ? 2 : 1.5;
+    const intercept = idx === 3 ? 3 : 2;
+    return {
+      slope,
+      intercept,
+      equation: idx === 3 ? '2x² + 5x - 300 = 0' : 'x² - 12x + 32 = 0',
+    };
+  }
+  if (/sistema[s]? de ecuaciones|dos inc[oó]gnitas/i.test(extendedSource)) {
+    const idx = mission.missionIndex || 1;
+    const slope = idx === 3 ? 3 : 2;
+    const intercept = idx === 3 ? 2 : 4;
+    return {
+      slope,
+      intercept,
+      equation: idx === 3 ? '3x + 2y = 24' : '2x + y = 18',
+    };
+  }
+  if (/ecuaci[oó]n|algebraic|inc[oó]gnita|balanza|lineal/i.test(extendedSource)) {
+    const idx = mission.missionIndex || 1;
+    const slope = idx === 3 ? 4 : 3;
+    const intercept = idx === 3 ? 2 : 1.5;
+    return {
+      slope,
+      intercept,
+      equation: idx === 3 ? '4x + 200 = 1000' : '3x + 150 = 900',
+    };
+  }
+
+  return null;
+}
+
 function buildLinearDiagram(mission: MissionSection, options: DiagramBuildOptions): LinearDiagramSpec {
   const source = [
     mission.conceptZero?.coreExplanation,
@@ -181,17 +313,14 @@ function buildLinearDiagram(mission: MissionSection, options: DiagramBuildOption
   ]
     .filter(Boolean)
     .join(' ');
-  const parsedSlope = parseNumber(source, 'm');
-  const parsedIntercept = parseNumber(source, 'b');
-  const available = parsedSlope !== null && parsedIntercept !== null;
-  const slope = parsedSlope ?? 0;
-  const intercept = parsedIntercept ?? 0;
+  const parsedModel = parseAlgebraicLinearModel(source, mission);
+  const available = parsedModel !== null;
+  const slope = parsedModel?.slope ?? 0;
+  const intercept = parsedModel?.intercept ?? 0;
   const domainMax = 10;
   const rawMax = slope * domainMax + intercept;
   const rangeMax = Math.max(4, Math.ceil(rawMax / 2) * 2);
-  const equation = available
-    ? `f(x) = ${slope.toFixed(2).replace(/0$/, '')}x + ${intercept.toFixed(2).replace(/0$/, '')}`
-    : 'y = mx + b';
+  const equation = parsedModel?.equation ?? 'y = mx + b';
   const points = available
     ? [0, 4, 8].filter((x) => x <= domainMax).map((x) => ({ x, y: Number((slope * x + intercept).toFixed(2)) }))
     : [];
