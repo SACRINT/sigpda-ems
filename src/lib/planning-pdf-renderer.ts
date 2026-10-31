@@ -6,6 +6,7 @@
 import jsPDF from 'jspdf';
 import autoTable, { RowInput } from 'jspdf-autotable';
 import type { GeneratedPlanningContent, Planning, SecuenciaBloque } from '@/types/planning';
+import type { ActiveWorkTextbook } from '@/types/work-textbook';
 import { loadAllLogos } from './pdf-logos';
 import { SCHOOL_YEAR } from '@/lib/config';
 import { logger } from './logger';
@@ -18,6 +19,7 @@ import {
 } from './visual-engine/font-loader';
 import { normalizeEvaluationPercentages, sanitizePlanningContent } from '@/lib/planning/quality-pipeline';
 import { DEFAULT_UAC_WEEKLY_HOURS, normalizeUacKey } from '@/lib/planning/uac-hours-catalog';
+import { buildFullSequenceFromWorkbooks } from '@/lib/planning/workbook-sequence-sync';
 import { stripMaterialTokens } from '@/lib/materials/material-tokens';
 import { resolveSchoolIdentity, resolverIdentidadEscolar, CCT_NO_REGISTRADO } from '@/lib/school-identity';
 
@@ -64,7 +66,11 @@ export async function generatePlanningPDF(
 ): Promise<jsPDF> {
   const rawPlan = planning as unknown as Record<string, unknown>;
   const rawContent = (planning.contentJson || rawPlan.content_json) as GeneratedPlanningContent | null;
-  const sequenceData = (planning.sequenceJson || rawPlan.sequence_json) as Record<number, SecuenciaBloque> | null | undefined;
+  const rawSequenceData = (planning.sequenceJson || rawPlan.sequence_json) as Record<number, SecuenciaBloque> | null | undefined;
+  const rawWorkbooks = (rawPlan.workbooks_json || rawPlan.workbooksJson) as
+    | Record<string, { current?: ActiveWorkTextbook } | ActiveWorkTextbook | undefined>
+    | null
+    | undefined;
   const identidadPrevia = resolverIdentidadEscolar({
     schoolName: rawContent?.sectionI?.schoolName,
     cct: rawContent?.sectionI?.cct,
@@ -78,6 +84,9 @@ export async function generatePlanningPDF(
   const s3 = content?.sectionIII;
   const s4 = content?.sectionIV;
   const s5 = content?.sectionV;
+  const sequenceData = rawWorkbooks
+    ? buildFullSequenceFromWorkbooks(rawWorkbooks, s4?.activities, rawSequenceData)
+    : rawSequenceData;
   const identidad = resolveSchoolIdentity({ sectionI: s1 });
 
   const rawUacName = String(
@@ -297,96 +306,70 @@ export async function generatePlanningPDF(
   currentY = doc.lastAutoTable!.finalY + 2.5;
 
   // ─── Sección IV: Secuencia Didáctica por Momentos ─────────────────────────
-  const activityRows: RowInput[] = [];
-
   activities.forEach((act, idx) => {
-    activityRows.push([
-      {
-        content: `Bloque / Actividad ${idx + 1}: ${act.name} (${act.hours || 18} Horas) — Metodología: ${act.methodology || 'ABP'}`,
-        colSpan: 4,
-        styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], fontStyle: 'bold' },
-      },
-    ]);
+    const macroRows: RowInput[] = [];
 
-    activityRows.push([
+    macroRows.push([
       { content: 'Contenido Formativo:', styles: { fontStyle: 'bold', fillColor: [241, 245, 249], cellWidth: 38 } },
-      { content: act.contenidoFormativo || 'No especificado', colSpan: 3 },
+      { content: act.contenidoFormativo || 'No especificado' },
     ]);
 
     // Saberes curriculares vinculados al contenido formativo
     if (act.saberes && (act.saberes.saber || act.saberes.saberHacer || act.saberes.saberSer)) {
-      activityRows.push([
+      macroRows.push([
         { content: 'Saber (Teórico):', styles: { fontStyle: 'bold', fillColor: [241, 245, 249], cellWidth: 38 } },
-        { content: act.saberes.saber || 'No especificado', colSpan: 3 },
+        { content: act.saberes.saber || 'No especificado' },
       ]);
-      activityRows.push([
-        { content: 'Saber Hacer (Práctico):', styles: { fontStyle: 'bold', fillColor: [241, 245, 249] } },
-        { content: act.saberes.saberHacer || 'No especificado', colSpan: 3 },
+      macroRows.push([
+        { content: 'Saber Hacer (Práctico):', styles: { fontStyle: 'bold', fillColor: [241, 245, 249], cellWidth: 38 } },
+        { content: act.saberes.saberHacer || 'No especificado' },
       ]);
-      activityRows.push([
-        { content: 'Saber Ser (Actitudinal):', styles: { fontStyle: 'bold', fillColor: [241, 245, 249] } },
-        { content: act.saberes.saberSer || 'No especificado', colSpan: 3 },
+      macroRows.push([
+        { content: 'Saber Ser (Actitudinal):', styles: { fontStyle: 'bold', fillColor: [241, 245, 249], cellWidth: 38 } },
+        { content: act.saberes.saberSer || 'No especificado' },
       ]);
     }
 
     // Apertura
-    activityRows.push([
+    macroRows.push([
       { content: 'Apertura (Exploración):', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 38 } },
-      { content: `${act.apertura?.activities || 'Recuperación de conocimientos previos.'}\nMateriales: ${stripMaterialTokens(act.apertura?.materials || 'Cuaderno, pizarrón.')}`, colSpan: 3 },
+      { content: `${act.apertura?.activities || 'Recuperación de conocimientos previos.'}\nMateriales: ${stripMaterialTokens(act.apertura?.materials || 'Cuaderno, pizarrón.')}` },
     ]);
 
     // Desarrollo
-    activityRows.push([
-      { content: 'Desarrollo (Construcción):', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-      { content: `${act.ejecucion?.activities || 'Investigación, análisis y aplicación.'}\nMateriales: ${stripMaterialTokens(act.ejecucion?.materials || 'Guías, dispositivos.')}`, colSpan: 3 },
+    macroRows.push([
+      { content: 'Desarrollo (Construcción):', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 38 } },
+      { content: `${act.ejecucion?.activities || 'Investigación, análisis y aplicación.'}\nMateriales: ${stripMaterialTokens(act.ejecucion?.materials || 'Guías, dispositivos.')}` },
     ]);
 
     // Cierre
-    activityRows.push([
-      { content: 'Cierre (Metacognición):', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-      { content: `${act.conclusion?.activities || 'Socialización de evidencias y síntesis.'}\nMateriales: ${stripMaterialTokens(act.conclusion?.materials || 'Instrumentos de evaluación.')}`, colSpan: 3 },
+    macroRows.push([
+      { content: 'Cierre (Metacognición):', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 38 } },
+      { content: `${act.conclusion?.activities || 'Socialización de evidencias y síntesis.'}\nMateriales: ${stripMaterialTokens(act.conclusion?.materials || 'Instrumentos de evaluación.')}` },
     ]);
 
-    // Micro-Sesiones de 50 min
-    const blockSeq = sequenceData?.[idx];
-    if (blockSeq && blockSeq.sessions && blockSeq.sessions.length > 0) {
-      activityRows.push([
+    const macroHead: RowInput[] = [];
+    if (idx === 0) {
+      macroHead.push([
         {
-          content: `Sesiones de 50 minutos — ${blockSeq.sessions.length} sesiones totales`,
-          colSpan: 4,
-          styles: { fillColor: [241, 245, 249], textColor: [30, 41, 59], fontStyle: 'bold', fontSize: 6.5 },
+          content: 'IV. SECUENCIA DIDÁCTICA DETALLADA POR MOMENTOS FORMATIVOS',
+          colSpan: 2,
+          styles: { fillColor: NAVY, fontStyle: 'bold', textColor: [255, 255, 255] },
         },
       ]);
-      activityRows.push([
-        { content: 'Sesión / Fase', styles: { fontStyle: 'bold', fillColor: [226, 232, 240], textColor: NAVY, fontSize: 6, cellWidth: 22 } },
-        { content: 'Título / Tema Situado', styles: { fontStyle: 'bold', fillColor: [226, 232, 240], textColor: NAVY, fontSize: 6 } },
-        { content: 'Actividades del Docente (Enseñanza)', styles: { fontStyle: 'bold', fillColor: [226, 232, 240], textColor: NAVY, fontSize: 6 } },
-        { content: 'Actividades del Estudiante y Evidencia Formativa', styles: { fontStyle: 'bold', fillColor: [226, 232, 240], textColor: NAVY, fontSize: 6 } },
-      ]);
-      blockSeq.sessions.forEach((s) => {
-        const isAp = s.phase === 'Apertura';
-        const isDes = s.phase === 'Desarrollo';
-        const phaseName = isAp ? 'Apertura' : isDes ? 'Desarrollo' : 'Cierre';
-        const phaseColor = isAp ? PHASE_APERTURA : isDes ? PHASE_DESARROLLO : PHASE_CIERRE;
-        const total = s.totalSessions ?? blockSeq.sessions.length;
-        activityRows.push([
-          { content: `S${s.sessionNum}/${total}\n[${phaseName}]`, styles: { fontStyle: 'bold', cellWidth: 22, fontSize: 5.8, textColor: phaseColor, halign: 'center' } },
-          { content: s.title, styles: { fontStyle: 'bold', fontSize: 6 } },
-          { content: s.teachingActivity, styles: { fontSize: 5.8 } },
-          { content: `${s.learningActivity}${s.evidence ? `\nEvidencia: ${s.evidence}` : ''}`, styles: { fontSize: 5.8 } },
-        ]);
-      });
     }
-  });
+    macroHead.push([
+      {
+        content: `Bloque / Actividad ${idx + 1}: ${act.name} (${act.hours || 18} Horas) — Metodología: ${act.methodology || 'ABP'}`,
+        colSpan: 2,
+        styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], fontStyle: 'bold' },
+      },
+    ]);
 
-  if (activityRows.length > 0) {
     autoTable(doc, {
       startY: currentY,
-      head: [
-        [{ content: 'IV. SECUENCIA DIDÁCTICA DETALLADA POR MOMENTOS FORMATIVOS', colSpan: 4, styles: { fillColor: NAVY, fontStyle: 'bold', textColor: [255, 255, 255] } }],
-        ['Momento / Sesión', 'Título / Tema Situado', 'Actividades del Docente (Enseñanza)', 'Actividades del Estudiante y Evidencia Formativa'].map((h) => ({ content: h, styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], fontStyle: 'bold' } })),
-      ],
-      body: activityRows,
+      head: macroHead,
+      body: macroRows,
       theme: 'grid',
       styles: { fontSize: 6.3, cellPadding: 1.4, textColor: TEXT_DARK },
       margin: { left: margin, right: margin },
@@ -394,8 +377,55 @@ export async function generatePlanningPDF(
       rowPageBreak: 'avoid',
     });
 
-    currentY = doc.lastAutoTable!.finalY + 2.5;
-  }
+    currentY = doc.lastAutoTable!.finalY;
+
+    // Micro-Sesiones de 50 min (Tabla independiente de 4 columnas con sus propios títulos)
+    const blockSeq = sequenceData?.[idx];
+    if (blockSeq && blockSeq.sessions && blockSeq.sessions.length > 0) {
+      const sessionRows: RowInput[] = blockSeq.sessions.map((s) => {
+        const isAp = s.phase === 'Apertura';
+        const isDes = s.phase === 'Desarrollo';
+        const phaseName = isAp ? 'Apertura' : isDes ? 'Desarrollo' : 'Cierre';
+        const phaseColor = isAp ? PHASE_APERTURA : isDes ? PHASE_DESARROLLO : PHASE_CIERRE;
+        const total = s.totalSessions ?? blockSeq.sessions.length;
+        return [
+          { content: `S${s.sessionNum}/${total}\n[${phaseName}]`, styles: { fontStyle: 'bold', cellWidth: 22, fontSize: 5.8, textColor: phaseColor, halign: 'center' } },
+          { content: s.title, styles: { fontStyle: 'bold', fontSize: 6, cellWidth: 42 } },
+          { content: s.teachingActivity, styles: { fontSize: 5.8 } },
+          { content: `${s.learningActivity}${s.evidence ? `\nEvidencia: ${s.evidence}` : ''}`, styles: { fontSize: 5.8 } },
+        ];
+      });
+
+      autoTable(doc, {
+        startY: currentY,
+        head: [
+          [
+            {
+              content: `Sesiones de 50 minutos — ${blockSeq.sessions.length} sesiones totales`,
+              colSpan: 4,
+              styles: { fillColor: [241, 245, 249], textColor: [30, 41, 59], fontStyle: 'bold', fontSize: 6.5 },
+            },
+          ],
+          [
+            { content: 'Sesión / Fase', styles: { fontStyle: 'bold', fillColor: [226, 232, 240], textColor: NAVY, fontSize: 6, cellWidth: 22, halign: 'center' } },
+            { content: 'Título / Tema Situado', styles: { fontStyle: 'bold', fillColor: [226, 232, 240], textColor: NAVY, fontSize: 6, cellWidth: 42 } },
+            { content: 'Actividades del Docente (Enseñanza)', styles: { fontStyle: 'bold', fillColor: [226, 232, 240], textColor: NAVY, fontSize: 6 } },
+            { content: 'Actividades del Estudiante y Evidencia Formativa', styles: { fontStyle: 'bold', fillColor: [226, 232, 240], textColor: NAVY, fontSize: 6 } },
+          ],
+        ],
+        body: sessionRows,
+        theme: 'grid',
+        styles: { fontSize: 6.3, cellPadding: 1.4, textColor: TEXT_DARK },
+        margin: { left: margin, right: margin },
+        pageBreak: 'auto',
+        rowPageBreak: 'avoid',
+      });
+
+      currentY = doc.lastAutoTable!.finalY + 2.5;
+    } else {
+      currentY += 2.5;
+    }
+  });
 
   // ─── Sección V: Evaluación y Ponderaciones (Normalización Determinista 100%) ───
   const normalizedEvaluations = normalizeEvaluationPercentages(s5?.evaluations);
@@ -517,7 +547,8 @@ export async function generateSecuenciaPDF(
 ): Promise<jsPDF> {
   const rawPlan = planning as unknown as Record<string, unknown>;
   const rawContent = (planning.contentJson || rawPlan.content_json) as GeneratedPlanningContent | null;
-  const sequenceData = (planning.sequenceJson || rawPlan.sequence_json) as Record<number, SecuenciaBloque> | null | undefined;
+  const rawSequenceData = (planning.sequenceJson || rawPlan.sequence_json) as Record<number, SecuenciaBloque> | null | undefined;
+  const rawWorkbooks = (rawPlan.workbooks_json || rawPlan.workbooksJson) as Record<string, ActiveWorkTextbook> | null | undefined;
   const identidadPrevia = resolverIdentidadEscolar({
     schoolName: rawContent?.sectionI?.schoolName,
     cct: rawContent?.sectionI?.cct,
@@ -530,6 +561,9 @@ export async function generateSecuenciaPDF(
   const s2 = content?.sectionII;
   const s4 = content?.sectionIV;
   const s5 = content?.sectionV;
+  const sequenceData = rawWorkbooks
+    ? buildFullSequenceFromWorkbooks(rawWorkbooks, s4?.activities, rawSequenceData)
+    : rawSequenceData;
   const identidad = resolveSchoolIdentity({ sectionI: s1 });
 
   const rawUacName = String(
@@ -696,91 +730,63 @@ export async function generateSecuenciaPDF(
     const blockSeq = sequenceData?.[idx];
     const sessions = blockSeq?.sessions || [];
 
-    const rows: RowInput[] = [];
+    const macroRows: RowInput[] = [];
 
-    rows.push([
+    macroRows.push([
       { content: 'Contenido Formativo:', styles: { fontStyle: 'bold', fontSize: 6.5, fillColor: GRAY_BG, cellWidth: 38 } },
-      { content: act.contenidoFormativo || 'No especificado', colSpan: 3, styles: { fontSize: 6.5 } },
+      { content: act.contenidoFormativo || 'No especificado', styles: { fontSize: 6.5 } },
     ]);
 
     // Saberes curriculares vinculados al contenido formativo
     if (act.saberes && (act.saberes.saber || act.saberes.saberHacer || act.saberes.saberSer)) {
-      rows.push([
+      macroRows.push([
         {
           content: 'Saberes curriculares vinculados al contenido formativo',
-          colSpan: 4,
+          colSpan: 2,
           styles: { fillColor: [241, 245, 249], textColor: [30, 41, 59], fontStyle: 'bold', fontSize: 7 },
         },
       ]);
-      rows.push([
+      macroRows.push([
         { content: 'Saber (Teórico):', styles: { fontStyle: 'bold', fontSize: 6.5, fillColor: GRAY_BG, cellWidth: 38 } },
-        { content: act.saberes.saber || 'N/A', colSpan: 3, styles: { fontSize: 6.5 } },
+        { content: act.saberes.saber || 'N/A', styles: { fontSize: 6.5 } },
       ]);
-      rows.push([
-        { content: 'Saber Hacer (Práctico):', styles: { fontStyle: 'bold', fontSize: 6.5, fillColor: GRAY_BG } },
-        { content: act.saberes.saberHacer || 'N/A', colSpan: 3, styles: { fontSize: 6.5 } },
+      macroRows.push([
+        { content: 'Saber Hacer (Práctico):', styles: { fontStyle: 'bold', fontSize: 6.5, fillColor: GRAY_BG, cellWidth: 38 } },
+        { content: act.saberes.saberHacer || 'N/A', styles: { fontSize: 6.5 } },
       ]);
-      rows.push([
-        { content: 'Saber Ser (Actitudinal):', styles: { fontStyle: 'bold', fontSize: 6.5, fillColor: GRAY_BG } },
-        { content: act.saberes.saberSer || 'N/A', colSpan: 3, styles: { fontSize: 6.5 } },
+      macroRows.push([
+        { content: 'Saber Ser (Actitudinal):', styles: { fontStyle: 'bold', fontSize: 6.5, fillColor: GRAY_BG, cellWidth: 38 } },
+        { content: act.saberes.saberSer || 'N/A', styles: { fontSize: 6.5 } },
       ]);
     }
 
-    if (sessions.length > 0) {
-      rows.push([
-        {
-          content: `Sesiones Programadas (${sessions.length} sesiones de 50 minutos) — Enfoque por Momentos Formativos`,
-          colSpan: 4,
-          styles: { fillColor: [241, 245, 249], textColor: [30, 41, 59], fontStyle: 'bold', fontSize: 7 },
-        },
-      ]);
-      rows.push([
-        { content: 'Sesión / Fase', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5, cellWidth: 24, halign: 'center' } },
-        { content: 'Título / Tema Situado', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5, cellWidth: 42 } },
-        { content: 'Actividades del Docente (Enseñanza)', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5, cellWidth: 60 } },
-        { content: 'Actividades del Estudiante y Evidencia Formativa', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5 } },
-      ]);
-
-      sessions.forEach((s) => {
-        const isAp = s.phase === 'Apertura';
-        const isDes = s.phase === 'Desarrollo';
-        const phaseColor = isAp ? PHASE_APERTURA : isDes ? PHASE_DESARROLLO : PHASE_CIERRE;
-        rows.push([
-          {
-            content: `S${s.sessionNum}/${s.totalSessions ?? sessions.length}\n[${s.phase}]`,
-            styles: { fontStyle: 'bold', fontSize: 6.5, halign: 'center', textColor: phaseColor },
-          },
-          { content: s.title, styles: { fontStyle: 'bold', fontSize: 6.5 } },
-          { content: s.teachingActivity, styles: { fontSize: 6.2 } },
-          { content: `${s.learningActivity}${s.evidence ? `\n\n📌 Evidencia: ${s.evidence}` : ''}`, styles: { fontSize: 6.2 } },
-        ]);
-      });
-    } else {
+    if (sessions.length === 0) {
       // Fallback a momentos macro si no se generó secuencia micro
-      rows.push([
+      macroRows.push([
         { content: 'Apertura (Exploración):', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 38, textColor: PHASE_APERTURA } },
-        { content: act.apertura?.activities || 'Recuperación de conocimientos previos.', colSpan: 3 },
+        { content: act.apertura?.activities || 'Recuperación de conocimientos previos.' },
       ]);
-      rows.push([
-        { content: 'Desarrollo (Construcción):', styles: { fontStyle: 'bold', fillColor: GRAY_BG, textColor: PHASE_DESARROLLO } },
-        { content: act.ejecucion?.activities || 'Construcción y análisis.', colSpan: 3 },
+      macroRows.push([
+        { content: 'Desarrollo (Construcción):', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 38, textColor: PHASE_DESARROLLO } },
+        { content: act.ejecucion?.activities || 'Construcción y análisis.' },
       ]);
-      rows.push([
-        { content: 'Cierre (Metacognición):', styles: { fontStyle: 'bold', fillColor: GRAY_BG, textColor: PHASE_CIERRE } },
-        { content: act.conclusion?.activities || 'Síntesis y evaluación.', colSpan: 3 },
+      macroRows.push([
+        { content: 'Cierre (Metacognición):', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 38, textColor: PHASE_CIERRE } },
+        { content: act.conclusion?.activities || 'Síntesis y evaluación.' },
       ]);
     }
 
+    // Sub-tabla 1 (2 columnas): Encabezado del bloque y saberes curriculares
     autoTable(doc, {
       startY: currentY,
       head: [[
         {
           content: `BLOQUE / UNIDAD ${idx + 1}: ${act.name} (${act.hours || 12} HORAS) — Metodología: ${act.methodology || 'ABP'}`,
-          colSpan: 4,
+          colSpan: 2,
           styles: { fillColor: NAVY, fontStyle: 'bold', textColor: [255, 255, 255], fontSize: 7.5 },
         },
       ]],
-      body: rows,
+      body: macroRows,
       theme: 'grid',
       styles: { fontSize: 6.5, cellPadding: 1.4, textColor: TEXT_DARK },
       margin: { left: margin, right: margin },
@@ -788,7 +794,55 @@ export async function generateSecuenciaPDF(
       rowPageBreak: 'avoid',
     });
 
-    currentY = doc.lastAutoTable!.finalY + 4;
+    currentY = doc.lastAutoTable!.finalY;
+
+    // Sub-tabla 2 (4 columnas): Sesiones de 50 minutos con su propio head de 4 columnas
+    if (sessions.length > 0) {
+      const sessionRows: RowInput[] = [];
+      sessions.forEach((s) => {
+        const isAp = s.phase === 'Apertura';
+        const isDes = s.phase === 'Desarrollo';
+        const phaseColor = isAp ? PHASE_APERTURA : isDes ? PHASE_DESARROLLO : PHASE_CIERRE;
+        sessionRows.push([
+          {
+            content: `S${s.sessionNum}/${s.totalSessions ?? sessions.length}\n[${s.phase}]`,
+            styles: { fontStyle: 'bold', fontSize: 6.5, halign: 'center', textColor: phaseColor, cellWidth: 24 },
+          },
+          { content: s.title, styles: { fontStyle: 'bold', fontSize: 6.5, cellWidth: 42 } },
+          { content: s.teachingActivity, styles: { fontSize: 6.2, cellWidth: 60 } },
+          { content: `${s.learningActivity}${s.evidence ? `\n\n📌 Evidencia: ${s.evidence}` : ''}`, styles: { fontSize: 6.2 } },
+        ]);
+      });
+
+      autoTable(doc, {
+        startY: currentY,
+        head: [
+          [
+            {
+              content: `Sesiones Programadas (${sessions.length} sesiones de 50 minutos) — Enfoque por Momentos Formativos`,
+              colSpan: 4,
+              styles: { fillColor: [241, 245, 249], textColor: [30, 41, 59], fontStyle: 'bold', fontSize: 7 },
+            },
+          ],
+          [
+            { content: 'Sesión / Fase', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5, cellWidth: 24, halign: 'center' } },
+            { content: 'Título / Tema Situado', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5, cellWidth: 42 } },
+            { content: 'Actividades del Docente (Enseñanza)', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5, cellWidth: 60 } },
+            { content: 'Actividades del Estudiante y Evidencia Formativa', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5 } },
+          ],
+        ],
+        body: sessionRows,
+        theme: 'grid',
+        styles: { fontSize: 6.5, cellPadding: 1.4, textColor: TEXT_DARK },
+        margin: { left: margin, right: margin },
+        pageBreak: 'auto',
+        rowPageBreak: 'avoid',
+      });
+
+      currentY = doc.lastAutoTable!.finalY;
+    }
+
+    currentY += 4;
   });
 
   // Evaluación, heteroevaluación y ponderación
