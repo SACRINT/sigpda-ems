@@ -103,6 +103,32 @@ describe('formatPlanDeClaseMarkdown · MCC 2025 y evaluación', () => {
     expect(value.endsWith('…')).toBe(false);
   });
 
+  it('usa "Asignatura" en 1º-4º semestre y conserva "UAC" en 5º-6º', () => {
+    const md3 = formatPlanDeClaseMarkdown(buildPlan(), workbook, summary);
+    expect(md3).toContain('**Asignatura:** Pensamiento Matemático III');
+    expect(md3).not.toContain('**UAC:**');
+
+    const workbook5 = {
+      blockIndex: 4,
+      coverData: { subjectName: 'Pensamiento Matemático V', semester: 5 },
+    } as unknown as ActiveWorkTextbook;
+    const md5 = formatPlanDeClaseMarkdown(buildPlan(), workbook5, summary);
+    expect(md5).toContain('**UAC:** Pensamiento Matemático V');
+    expect(md5).not.toContain('**Asignatura:**');
+  });
+
+  it('no agrega la nota de cascada ni duplica el prefijo de la sesión', () => {
+    const md = formatPlanDeClaseMarkdown(
+      buildPlan({ tituloSesion: 'Sesión 1: Ecuaciones lineales y situaciones de interés' }),
+      workbook,
+      summary
+    );
+
+    expect(md).not.toContain('Documento derivado en cascada');
+    expect(md).toContain('**Título de la Sesión:** Ecuaciones lineales y situaciones de interés');
+    expect(md).not.toContain('**Título de la Sesión:** Sesión 1:');
+  });
+
   it('normaliza la ponderación oficial desde las evaluaciones de la planeación', () => {
     const result = buildPlanEvaluationSummary([
       { type: 'Diagnóstica', agent: 'Heteroevaluación', instrument: 'Lista de cotejo diagnóstica', percentage: 5 },

@@ -551,18 +551,22 @@ function buildExtraDocxBody(
               borders: bdr(C.dark, 8),
               margins: { top: 180, bottom: 180, left: 240, right: 240 },
               children: [
-                new Paragraph({
-                  alignment: AlignmentType.CENTER,
-                  spacing: { before: 0, after: 60 },
-                  children: [
-                    new TextRun({
-                      text: `${branding.topSup} · ${branding.cycle}`,
-                      size: 15,
-                      color: 'B0C4DE',
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
+                ...(branding.topSup
+                  ? [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        spacing: { before: 0, after: 60 },
+                        children: [
+                          new TextRun({
+                            text: branding.topSup,
+                            size: 15,
+                            color: 'B0C4DE',
+                            font: 'Arial',
+                          }),
+                        ],
+                      }),
+                    ]
+                  : []),
                 new Paragraph({
                   alignment: AlignmentType.CENTER,
                   spacing: { before: 0, after: 40 },
@@ -693,7 +697,7 @@ function buildExtraDocxSection(layout: ExtraDocxLayout) {
 }
 
 export async function buildExtraDocx(
-  extra: { type: string; title: string; content_text: string },
+  extra: { type: string; title: string; content_text: string; keyIndex?: number | null },
   context?: BrandingContext
 ): Promise<Buffer> {
   const layout = resolveExtraDocxLayout([extra]);
@@ -712,7 +716,13 @@ export async function buildExtraDocx(
                 border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: C.accent, space: 1 } },
                 children: [
                   new TextRun({
-                    text: `${branding.topSup} | ${branding.shortLabel} | ${title.substring(0, 45)}`,
+                    text: [
+                      branding.topSup,
+                      branding.shortLabel,
+                      extra.type === 'lesson_plan'
+                        ? (extra.keyIndex != null ? `Bloque ${extra.keyIndex + 1}` : '')
+                        : title.substring(0, 45),
+                    ].filter(Boolean).join(' | '),
                     size: 14,
                     color: '777777',
                     font: 'Arial',
@@ -795,7 +805,9 @@ export async function buildCombinedExtraDocx(
                 border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: C.accent, space: 1 } },
                 children: [
                   new TextRun({
-                    text: `${firstBranding.topSup} | ${firstBranding.shortLabel} | ${docTitle.substring(0, 45)}`,
+                    text: [firstBranding.topSup, firstBranding.shortLabel, docTitle.substring(0, 45)]
+                      .filter(Boolean)
+                      .join(' | '),
                     size: 14,
                     color: '777777',
                     font: 'Arial',

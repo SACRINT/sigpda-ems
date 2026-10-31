@@ -134,7 +134,9 @@ export function resolveHeaderBranding(docType: string, ctx?: BrandingContext): H
   const cct = ctx?.cct || ctx?.cct_plantel || INSTITUTIONAL_DEFAULTS.DEFAULT_CCT;
   const schoolName = ctx?.schoolName || ctx?.school_name || PLANTEL_NO_REGISTRADO;
 
-  const topSup = `${INSTITUTIONAL_DEFAULTS.ORGANISMO} — SECUENCIAS DIDÁCTICAS ${cycle}`;
+  const topSup = docType === 'lesson_plan'
+    ? ''
+    : `${INSTITUTIONAL_DEFAULTS.ORGANISMO} — SECUENCIAS DIDÁCTICAS ${cycle}`;
 
   return {
     topSup,
@@ -164,15 +166,18 @@ export function resolveFooterBranding(
   title: string,
   ctx?: BrandingContext,
   page = 1,
-  totalPages = 1
+  totalPages = 1,
+  blockIndex?: number | null
 ): FooterBranding {
   const meta = DOC_TYPE_CONFIG[docType] || {
     shortLabel: 'RECURSO',
     color: [26, 26, 46] as RGB,
   };
 
-  const truncatedTitle = (title || '').substring(0, 50);
-  const leftText = `SIGPDA-EMS · ${meta.shortLabel} · ${truncatedTitle}`;
+  const blockSuffix = blockIndex != null ? ` · Bloque ${blockIndex + 1}` : '';
+  const leftText = docType === 'lesson_plan'
+    ? `SIGPDA-EMS · ${meta.shortLabel}${blockSuffix}`
+    : `SIGPDA-EMS · ${meta.shortLabel} · ${(title || '').substring(0, 50)}`;
   const rightText = `Página ${page} de ${totalPages}`;
 
   return {

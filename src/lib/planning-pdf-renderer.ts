@@ -188,18 +188,30 @@ const s1 = content?.sectionI;
 
   currentY = doc.lastAutoTable!.finalY + 2.5;
 
-  // ─── Sección II: Propósito y Metas Formativas ─────────────────────────────
+  // ─── Sección II: Meta educativa, propósitos y contenidos formativos ───────
+  const activities = s4?.activities || [];
+  const propositosFormativos = (s2?.learningOutcomes ?? [])
+    .map((p, index) => `${index + 1}. ${p}`)
+    .join('\n');
+  const contenidosFormativos = activities
+    .map((act, index) => `${index + 1}. ${act.name || `Bloque ${index + 1}`}: ${act.contenidoFormativo || 'No especificado'}`)
+    .join('\n');
+
   autoTable(doc, {
     startY: currentY,
-    head: [[{ content: 'II. PROPÓSITO FORMATIVO Y METAS DE APRENDIZAJE', colSpan: 2, styles: { fillColor: NAVY, fontStyle: 'bold', textColor: [255, 255, 255] } }]],
+    head: [[{ content: 'II. META EDUCATIVA, PROPÓSITOS FORMATIVOS Y CONTENIDOS FORMATIVOS', colSpan: 2, styles: { fillColor: NAVY, fontStyle: 'bold', textColor: [255, 255, 255] } }]],
     body: [
       [
-        { content: 'Propósito General de la Asignatura:', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 42 } },
+        { content: 'Meta educativa:', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 42 } },
         { content: s2?.purpose || 'Desarrollar competencias integrales mediante metodologías activas y pensamiento crítico.' },
       ],
       [
-        { content: 'Metas de Aprendizaje:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-        { content: s2?.learningOutcomes?.join('; ') || 'Alcanzar los aprendizajes de trayectoria establecidos en el MCCEMS.' },
+        { content: 'Propósitos Formativos:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
+        { content: propositosFormativos || 'Alcanzar los propósitos formativos establecidos en el MCCEMS.' },
+      ],
+      [
+        { content: 'Contenidos Formativos:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
+        { content: contenidosFormativos || 'Contenidos formativos establecidos en el programa de estudio.' },
       ],
       [
         { content: 'Problemática Central / Contexto:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
@@ -240,7 +252,6 @@ const s1 = content?.sectionI;
   currentY = doc.lastAutoTable!.finalY + 2.5;
 
   // ─── Sección IV: Secuencia Didáctica por Momentos ─────────────────────────
-  const activities = s4?.activities || [];
   const sequenceData = planning.sequenceJson as Record<number, SecuenciaBloque> | null | undefined;
   const activityRows: RowInput[] = [];
 
@@ -253,7 +264,12 @@ const s1 = content?.sectionI;
       },
     ]);
 
-    // Tres Saberes Curriculares MCCEMS
+    activityRows.push([
+      { content: 'Contenido Formativo:', styles: { fontStyle: 'bold', fillColor: [241, 245, 249], cellWidth: 38 } },
+      { content: act.contenidoFormativo || 'No especificado', colSpan: 3 },
+    ]);
+
+    // Saberes curriculares vinculados al contenido formativo
     if (act.saberes && (act.saberes.saber || act.saberes.saberHacer || act.saberes.saberSer)) {
       activityRows.push([
         { content: 'Saber (Teórico):', styles: { fontStyle: 'bold', fillColor: [241, 245, 249], cellWidth: 38 } },
@@ -321,6 +337,7 @@ const s1 = content?.sectionI;
       styles: { fontSize: 6.3, cellPadding: 1.4, textColor: TEXT_DARK },
       margin: { left: margin, right: margin },
       pageBreak: 'auto',
+      rowPageBreak: 'avoid',
     });
 
     currentY = doc.lastAutoTable!.finalY + 2.5;
@@ -330,17 +347,28 @@ const s1 = content?.sectionI;
   const normalizedEvaluations = normalizeEvaluationPercentages(s5?.evaluations);
   const evalRows = normalizedEvaluations.map((ev) => [
     { content: ev.moment || 'Formativa' },
-    { content: ev.type || 'Heteroevaluación' },
+    { content: `${ev.type || 'Formativa'} / ${ev.agent || 'Heteroevaluación'}` },
     { content: ev.evidence || 'Producto de aprendizaje' },
     { content: ev.instrument || 'Rúbrica analítica' },
     { content: `${ev.percentage}%` },
   ]);
+  const heteroSummary = normalizedEvaluations
+    .filter((ev) => /hetero/i.test(ev.agent ?? ''))
+    .map((ev) => `${ev.type} ${ev.percentage}% (${ev.instrument})`)
+    .join('; ');
+  const autoCoSummary = normalizedEvaluations
+    .filter((ev) => /(auto|co)evaluaci/i.test(ev.agent ?? ''))
+    .map((ev) => `${ev.type} ${ev.percentage}% (${ev.instrument})`)
+    .join('; ');
+  const ponderacionSummary = normalizedEvaluations
+    .map((ev) => `${ev.type} ${ev.percentage}%`)
+    .join(' · ');
 
   if (evalRows.length > 0) {
     autoTable(doc, {
       startY: currentY,
       head: [
-        [{ content: 'V. CRITERIOS E INSTRUMENTOS DE EVALUACIÓN FORMATIVA', colSpan: 5, styles: { fillColor: NAVY, fontStyle: 'bold', textColor: [255, 255, 255] } }],
+        [{ content: 'V. EVALUACIÓN FORMATIVA, HETEROEVALUACIÓN Y PONDERACIÓN', colSpan: 5, styles: { fillColor: NAVY, fontStyle: 'bold', textColor: [255, 255, 255] } }],
         ['Momento', 'Tipo / Agente', 'Evidencia / Producto', 'Instrumento', 'Pond.'].map((h) => ({ content: h, styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], fontStyle: 'bold' } })),
       ],
       body: evalRows,
@@ -352,6 +380,31 @@ const s1 = content?.sectionI;
 
     currentY = doc.lastAutoTable!.finalY + 2.5;
   }
+
+  autoTable(doc, {
+    startY: currentY,
+    head: [[{ content: 'V.1 AGENTES, HETEROEVALUACIÓN Y PONDERACIÓN', colSpan: 2, styles: { fillColor: NAVY, fontStyle: 'bold', textColor: [255, 255, 255] } }]],
+    body: [
+      [
+        { content: 'Heteroevaluación:', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 42 } },
+        { content: heteroSummary || 'No especificada' },
+      ],
+      [
+        { content: 'Autoevaluación / Coevaluación:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
+        { content: autoCoSummary || 'No especificada' },
+      ],
+      [
+        { content: 'Ponderación:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
+        { content: ponderacionSummary || 'No especificada' },
+      ],
+    ],
+    theme: 'grid',
+    styles: { fontSize: 6.5, cellPadding: 1.4, textColor: TEXT_DARK },
+    margin: { left: margin, right: margin },
+    pageBreak: 'avoid',
+  });
+
+  currentY = doc.lastAutoTable!.finalY + 2.5;
 
   // ─── Firmas Oficiales Tripartitas (Docente / Director / Supervisión) ─────
   autoTable(doc, {
@@ -410,7 +463,9 @@ export async function generateSecuenciaPDF(
 ): Promise<jsPDF> {
   const content = planning.contentJson as GeneratedPlanningContent | null;
   const s1 = content?.sectionI;
+  const s2 = content?.sectionII;
   const s4 = content?.sectionIV;
+  const s5 = content?.sectionV;
   const sequenceData = planning.sequenceJson as Record<number, SecuenciaBloque> | null | undefined;
   const identidad = resolveSchoolIdentity({ sectionI: s1 });
 
@@ -530,19 +585,55 @@ export async function generateSecuenciaPDF(
 
   currentY = doc.lastAutoTable!.finalY + 4;
 
-  // Bloques y Sesiones
   const activities = s4?.activities || [];
+  const propositosFormativos = (s2?.learningOutcomes ?? [])
+    .map((p, index) => `${index + 1}. ${p}`)
+    .join('\n');
+  const contenidosFormativos = activities
+    .map((act, index) => `${index + 1}. ${act.name || `Bloque ${index + 1}`}: ${act.contenidoFormativo || 'No especificado'}`)
+    .join('\n');
+
+  autoTable(doc, {
+    startY: currentY,
+    head: [[{ content: 'II. META EDUCATIVA, PROPÓSITOS FORMATIVOS Y CONTENIDOS FORMATIVOS', colSpan: 2, styles: { fillColor: NAVY, fontStyle: 'bold', textColor: [255, 255, 255] } }]],
+    body: [
+      [
+        { content: 'Meta educativa:', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 42 } },
+        { content: s2?.purpose || 'Desarrollar competencias integrales mediante metodologías activas y pensamiento crítico.' },
+      ],
+      [
+        { content: 'Propósitos Formativos:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
+        { content: propositosFormativos || 'Alcanzar los propósitos formativos establecidos en el MCCEMS.' },
+      ],
+      [
+        { content: 'Contenidos Formativos:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
+        { content: contenidosFormativos || 'Contenidos formativos establecidos en el programa de estudio.' },
+      ],
+    ],
+    theme: 'grid',
+    styles: { fontSize: 6.8, cellPadding: 1.5, textColor: TEXT_DARK },
+    margin: { left: margin, right: margin },
+  });
+
+  currentY = doc.lastAutoTable!.finalY + 4;
+
+  // Bloques y Sesiones
   activities.forEach((act, idx) => {
     const blockSeq = sequenceData?.[idx];
     const sessions = blockSeq?.sessions || [];
 
     const rows: RowInput[] = [];
 
-    // Tres Saberes Curriculares MCCEMS
+    rows.push([
+      { content: 'Contenido Formativo:', styles: { fontStyle: 'bold', fontSize: 6.5, fillColor: GRAY_BG, cellWidth: 38 } },
+      { content: act.contenidoFormativo || 'No especificado', colSpan: 3, styles: { fontSize: 6.5 } },
+    ]);
+
+    // Saberes curriculares vinculados al contenido formativo
     if (act.saberes && (act.saberes.saber || act.saberes.saberHacer || act.saberes.saberSer)) {
       rows.push([
         {
-          content: 'Taxonomía de Saberes Curriculares MCCEMS',
+          content: 'Saberes curriculares vinculados al contenido formativo',
           colSpan: 4,
           styles: { fillColor: [241, 245, 249], textColor: [30, 41, 59], fontStyle: 'bold', fontSize: 7 },
         },
@@ -620,10 +711,88 @@ export async function generateSecuenciaPDF(
       styles: { fontSize: 6.5, cellPadding: 1.4, textColor: TEXT_DARK },
       margin: { left: margin, right: margin },
       pageBreak: 'auto',
+      rowPageBreak: 'avoid',
     });
 
     currentY = doc.lastAutoTable!.finalY + 4;
   });
+
+  // Evaluación, heteroevaluación y ponderación
+  const normalizedEvaluations = normalizeEvaluationPercentages(s5?.evaluations);
+  if (normalizedEvaluations.length > 0) {
+    const evalRows = normalizedEvaluations.map((ev) => [
+      { content: ev.moment || 'Formativa' },
+      { content: `${ev.type || 'Formativa'} / ${ev.agent || 'Heteroevaluación'}` },
+      { content: ev.evidence || 'Producto de aprendizaje' },
+      { content: ev.instrument || 'Rúbrica analítica' },
+      { content: `${ev.percentage}%` },
+    ]);
+    const heteroSummary = normalizedEvaluations
+      .filter((ev) => /hetero/i.test(ev.agent ?? ''))
+      .map((ev) => `${ev.type} ${ev.percentage}% (${ev.instrument})`)
+      .join('; ');
+    const autoCoSummary = normalizedEvaluations
+      .filter((ev) => /(auto|co)evaluaci/i.test(ev.agent ?? ''))
+      .map((ev) => `${ev.type} ${ev.percentage}% (${ev.instrument})`)
+      .join('; ');
+    const ponderacionSummary = normalizedEvaluations
+      .map((ev) => `${ev.type} ${ev.percentage}%`)
+      .join(' · ');
+
+    autoTable(doc, {
+      startY: currentY,
+      head: [
+        [{ content: 'V. EVALUACIÓN FORMATIVA, HETEROEVALUACIÓN Y PONDERACIÓN', colSpan: 5, styles: { fillColor: NAVY, fontStyle: 'bold', textColor: [255, 255, 255] } }],
+        ['Momento', 'Tipo / Agente', 'Evidencia / Producto', 'Instrumento', 'Pond.'].map((h) => ({ content: h, styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], fontStyle: 'bold' } })),
+      ],
+      body: evalRows,
+      theme: 'grid',
+      styles: { fontSize: 6.5, cellPadding: 1.5, textColor: TEXT_DARK },
+      margin: { left: margin, right: margin },
+      pageBreak: 'avoid',
+    });
+
+    currentY = doc.lastAutoTable!.finalY + 4;
+
+    autoTable(doc, {
+      startY: currentY,
+      head: [[{ content: 'AGENTES Y PONDERACIÓN', colSpan: 2, styles: { fillColor: NAVY, fontStyle: 'bold', textColor: [255, 255, 255] } }]],
+      body: [
+        [
+          { content: 'Heteroevaluación:', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 42 } },
+          { content: heteroSummary || 'No especificada' },
+        ],
+        [
+          { content: 'Autoevaluación / Coevaluación:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
+          { content: autoCoSummary || 'No especificada' },
+        ],
+        [
+          { content: 'Ponderación:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
+          { content: ponderacionSummary || 'No especificada' },
+        ],
+      ],
+      theme: 'grid',
+      styles: { fontSize: 6.5, cellPadding: 1.5, textColor: TEXT_DARK },
+      margin: { left: margin, right: margin },
+      pageBreak: 'avoid',
+    });
+
+    currentY = doc.lastAutoTable!.finalY + 4;
+  }
+
+  if (s5?.evaluationAgreement) {
+    autoTable(doc, {
+      startY: currentY,
+      head: [[{ content: 'ACUERDO DE EVALUACIÓN', colSpan: 2, styles: { fillColor: NAVY, fontStyle: 'bold', textColor: [255, 255, 255] } }]],
+      body: [[{ content: s5.evaluationAgreement, colSpan: 2 }]],
+      theme: 'grid',
+      styles: { fontSize: 6.5, cellPadding: 1.5, textColor: TEXT_DARK },
+      margin: { left: margin, right: margin },
+      pageBreak: 'avoid',
+    });
+
+    currentY = doc.lastAutoTable!.finalY + 4;
+  }
 
   // Firmas oficiales
   autoTable(doc, {

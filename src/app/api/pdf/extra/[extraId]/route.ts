@@ -34,6 +34,7 @@ export async function GET(
       title:        extra.title || 'Recurso Extra',
       type:         extra.type,
       content_text: extra.content_text,
+      keyIndex:     extra.keyIndex,
     });
 
     // Get buffer from jsPDF

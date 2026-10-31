@@ -55,6 +55,7 @@ export interface ExtraInput {
   title: string;
   type: string;
   content_text: string;
+  keyIndex?: number | null;
 }
 
 /**
@@ -242,6 +243,7 @@ export function renderExtraDocument(
   const branding = resolveHeaderBranding(extra.type, context);
   const typeColor = branding.color || NAVY;
   const typeLabel = branding.typeLabel;
+  const hasTopSup = Boolean(branding.topSup);
 
   const isRubric = extra.type === 'rubric';
   // Ajuste inteligente de densidad: el plan de clase (29-30 renglones) debe caber en
@@ -274,7 +276,9 @@ export function renderExtraDocument(
   doc.setFontSize(9);
   const titleLines = doc.splitTextToSize(extra.title, contentW - 10) as string[];
   const titleLineHeight = isUltra ? 3.9 : compact ? 4.0 : 4.5;
-  const titleStartY = isUltra ? 24.5 : compact ? 24.5 : 25.5;
+  const titleStartY = hasTopSup
+    ? (isUltra ? 24.5 : compact ? 24.5 : 25.5)
+    : (isUltra ? 17.5 : 18.5);
   const minHeader = isUltra ? 26 : compact ? 28 : 36;
   const headerHeight = Math.max(
     minHeader,
@@ -290,14 +294,17 @@ export function renderExtraDocument(
   doc.setFillColor(...typeColor);
   doc.rect(0, 0, pageWidth, headerHeight, 'F');
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(...GRAY_BG);
-  doc.text(branding.topSup, pageWidth / 2, 10, { align: 'center' });
+  if (hasTopSup) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...GRAY_BG);
+    doc.text(branding.topSup, pageWidth / 2, 10, { align: 'center' });
+  }
 
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(13);
   doc.setTextColor(...GOLD);
-  doc.text(typeLabel, pageWidth / 2, 19, { align: 'center' });
+  doc.text(typeLabel, pageWidth / 2, hasTopSup ? 19 : 13, { align: 'center' });
 
   doc.setFontSize(9);
   doc.setTextColor(...WHITE);
@@ -868,7 +875,7 @@ export function renderExtraDocument(
   const totalPages = doc.getNumberOfPages();
   for (let p = 1; p <= totalPages; p++) {
     doc.setPage(p);
-    const footer = resolveFooterBranding(extra.type, extra.title, context, p, totalPages);
+    const footer = resolveFooterBranding(extra.type, extra.title, context, p, totalPages, extra.keyIndex);
 
     doc.setDrawColor(...footer.dividerColor);
     doc.setLineWidth(0.5);

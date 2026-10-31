@@ -124,7 +124,7 @@ async function handleBulkPdf(request: NextRequest) {
       const generated = await Promise.all(
         batch.map(async ({ item, fileName }) => {
           try {
-            const pdfDoc = generateExtraPdfDocument(item, brandingCtx);
+            const pdfDoc = generateExtraPdfDocument({ ...item, keyIndex: item.key_index }, brandingCtx);
             const pdfBytes = Buffer.from(pdfDoc.output('arraybuffer'));
             return { fileName, pdfBytes };
           } catch (err) {

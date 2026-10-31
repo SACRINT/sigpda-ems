@@ -17,12 +17,30 @@ import { isTechnologicalSubsystem } from '@/lib/subsystem-config';
 export interface ReglaRecomendacion {
   /** ID de metodología a recomendar */
   metodologiaId: string;
-  /** Palabras clave en el nombre de la UAC (case-insensitive) */
+  /** Palabras clave en el nombre de la UAC (case-insensitive). Coinciden por
+   *  subcadena, por lo que también cubren prefijos ("electr" → "electrónica")
+   *  y plurales ("proyecto" → "proyectos"). */
   keywordsUac?: string[];
+  /** Palabras clave que deben coincidir como PALABRA COMPLETA (límite de palabra).
+   *  Evita falsos positivos por subcadena: "física" ya no coincide dentro de
+   *  "Físicas" (Actividades Físicas y Deportivas), pero sí en "Física Experimental". */
+  keywordsExact?: string[];
   /** Componentes curriculares que activan esta regla */
   components?: string[];
   /** Subsistemas que favorecen esta regla */
   subsystems?: string[];
+}
+
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Coincide `keyword` solo si aparece como palabra completa dentro de `uacLower`. */
+function matchExactWord(uacLower: string, keyword: string): boolean {
+  const normKw = normalizeUnicode(keyword).trim();
+  if (!normKw) return false;
+  const pattern = new RegExp(`\\b${escapeRegex(normKw)}\\b`, 'i');
+  return pattern.test(uacLower);
 }
 
 export const REGLAS: ReglaRecomendacion[] = [
@@ -51,13 +69,29 @@ export const REGLAS: ReglaRecomendacion[] = [
       'taller', 'mantenimiento', 'maquinaria', 'metalmecánica', 'metalmecanic',
     ],
   },
+  // ── Actividades Físicas, Deportes, Educación Física → Gamificación ──────────
+  // (antes de Indagación: "Físicas" no debe caer en la regla de Física de ciencias)
+  {
+    metodologiaId: 'gamificacion',
+    keywordsUac: [
+      'actividades físicas', 'actividad física', 'deportiv',
+      'educación física', 'educacion fisica',
+      'condición física', 'condicion fisica',
+    ],
+  },
   // ── Ciencias Experimentales (Naturales) → Indagación ABI [PRIORIDAD 1] ──────
   {
     metodologiaId: 'indagacion',
-    keywordsUac: [
+    // Ciencias naturales: coinciden como PALABRA COMPLETA para evitar falsos
+    // positivos ("Física" vs "Físicas" de Actividades Físicas y Deportivas)
+    keywordsExact: [
       'química', 'quimica', 'física', 'fisica', 'biología', 'biologia',
-      'ecología', 'ecologia', 'ciencias naturales', 'la materia',
-      'ecosistema', 'biodiversidad',
+      'ecología', 'ecologia',
+    ],
+    // Frases y términos compuestos: coinciden por subcadena
+    keywordsUac: [
+      'ciencias naturales', 'la materia',
+      'ecosistema', 'biodiversidad', 'ciencias química', 'ciencias quimica',
     ],
   },
   // ── Ingeniería, Prototipado, Energía → STEAM [Fallback para ciencias] ────────
@@ -163,23 +197,30 @@ export function recomendarMetodologia(
     if (regla.components && !regla.components.includes(componentLower)) {
       // Si la regla tiene restricción de componente y no coincide, saltamos
       // EXCEPTO si también tiene keywords (regla mixta)
-      if (!regla.keywordsUac) continue;
+      if (!regla.keywordsUac && !regla.keywordsExact) continue;
     }
 
     // Si la regla requiere componente específico y coincide (y no tiene keywords), usar directamente
-    if (regla.components?.includes(componentLower) && !regla.keywordsUac) {
+    if (regla.components?.includes(componentLower) && !regla.keywordsUac && !regla.keywordsExact) {
       return regla.metodologiaId;
     }
 
-    // Verificar palabras clave en el nombre de la UAC
-    if (regla.keywordsUac) {
-      const match = regla.keywordsUac.some(kw => {
-        const normKw = normalizeUnicode(kw);
-        return normKw.startsWith(' ') || normKw.endsWith(' ')
-          ? uacPadded.includes(normKw)
-          : uacLower.includes(normKw);
-      });
-      if (match) return regla.metodologiaId;
+    // Verificar palabras clave en el nombre de la UAC:
+    //  - keywordsUac: coinciden por subcadena (cubren prefijos y plurales)
+    //  - keywordsExact: coinciden por límite de palabra (evitan subcadenas falsas)
+    if (regla.keywordsUac || regla.keywordsExact) {
+      const substringMatch = regla.keywordsUac
+        ? regla.keywordsUac.some(kw => {
+            const normKw = normalizeUnicode(kw);
+            return normKw.startsWith(' ') || normKw.endsWith(' ')
+              ? uacPadded.includes(normKw)
+              : uacLower.includes(normKw);
+          })
+        : false;
+      const exactMatch = regla.keywordsExact
+        ? regla.keywordsExact.some(kw => matchExactWord(uacLower, kw))
+        : false;
+      if (substringMatch || exactMatch) return regla.metodologiaId;
     }
   }
 

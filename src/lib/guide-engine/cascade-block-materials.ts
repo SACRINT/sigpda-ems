@@ -36,6 +36,13 @@ export interface PlanEvaluationSummary {
   ponderacion: string;
 }
 
+export function cleanSessionTitle(title: string, sessionNumber: number): string {
+  const raw = (title || '').trim();
+  const prefix = `Sesión ${sessionNumber}`;
+  if (!raw.toLowerCase().startsWith(prefix.toLowerCase())) return raw;
+  return raw.substring(prefix.length).replace(/^\s*[:\-–—]\s*/, '').trim();
+}
+
 /**
  * Convierte un PlanDeClaseDerivado al formato Markdown estándar institucional MCCEMS.
  */
@@ -47,6 +54,9 @@ export function formatPlanDeClaseMarkdown(
   const cover = (workbook.coverData || {}) as Record<string, unknown>; // fallback tipado defensivo
   const uacName = (cover.subjectName as string) || 'Formación Disciplinar';
   const semester = (cover.semester as number | string) || 1;
+  const semesterNumber = Number.parseInt(String(semester), 10);
+  const subjectLabel = semesterNumber >= 5 ? 'UAC' : 'Asignatura';
+  const sessionTitle = cleanSessionTitle(plan.tituloSesion, plan.numeroSesion);
 
   const curricularLines: string[] = [];
   if (plan.metaEducativa) curricularLines.push(`**Meta Educativa:** ${plan.metaEducativa}`);
@@ -67,8 +77,8 @@ export function formatPlanDeClaseMarkdown(
   evaluationLines.push(`- **Pregunta Metacognitiva:** ${plan.cierre.metacognicion}`);
 
   return stripMaterialTokens(`# PLAN DE CLASE OFICIAL MCCEMS · SESIÓN ${plan.numeroSesion}
-**UAC:** ${uacName} | **Semestre:** ${semester}° | **Sesión:** ${plan.numeroSesion} de 24 (${plan.duracionMinutos} min)
-**Título de la Sesión:** ${plan.tituloSesion}
+**${subjectLabel}:** ${uacName} | **Semestre:** ${semester}° | **Duración:** ${plan.duracionMinutos} min
+**Título de la Sesión:** ${sessionTitle}
 ${curricularLines.join('\n')}
 **Transversalidad Comunitaria (PAEC):** ${plan.transversalidad}
 
@@ -95,9 +105,6 @@ ${curricularLines.join('\n')}
 
 ## EVALUACIÓN Y PRODUCTO ESPERADO
 ${evaluationLines.join('\n')}
-
----
-*SIGPDA-EMS · Documento derivado en cascada del Cuaderno de Trabajo Activo (Bloque ${(workbook.blockIndex ?? 0) + 1})*
 `);
 }
 
@@ -331,7 +338,10 @@ export async function cascadeBlockMaterials(
 
     // 3. Insertar los 24 Planes de Clase individuales
     for (const plan of planes) {
-      const planTitle = `Plan de Clase: Sesión ${plan.numeroSesion} - ${plan.tituloSesion}`;
+      const sessionTitle = cleanSessionTitle(plan.tituloSesion, plan.numeroSesion);
+      const planTitle = sessionTitle
+        ? `Plan de Clase: Sesión ${plan.numeroSesion} · ${sessionTitle}`
+        : `Plan de Clase: Sesión ${plan.numeroSesion}`;
       const planMarkdown = formatPlanDeClaseMarkdown(plan, workbook, evaluationSummary);
 
       await db`

@@ -95,7 +95,7 @@ async function handleCombinedPdf(request: NextRequest) {
 
     for (const extra of allExtras) {
       try {
-        const pdfDoc = generateExtraPdfDocument(extra, brandingCtx);
+        const pdfDoc = generateExtraPdfDocument({ ...extra, keyIndex: extra.key_index }, brandingCtx);
         const bytes = Buffer.from(pdfDoc.output('arraybuffer'));
         const individualPdf = await PDFDocument.load(bytes);
         const pages = await mergedPdf.copyPages(individualPdf, individualPdf.getPageIndices());
