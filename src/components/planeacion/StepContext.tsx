@@ -110,6 +110,7 @@ export default function StepContext({
 
   const [paecLoading, setPaecLoading] = useState(false);
   const [paecSuccess, setPaecSuccess] = useState(false);
+  const [paecPrecargedFromDb, setPaecPrecargedFromDb] = useState(false);
   const [paecError, setPaecError] = useState<string | null>(null);
   const [isSuggestedProblem, setIsSuggestedProblem] = useState<boolean | null>(null);
   const [detectedPaecActivity, setDetectedPaecActivity] = useState<PaecOperationalActivity | null>(
@@ -156,7 +157,9 @@ export default function StepContext({
                   setForm(prev => ({
                     ...prev,
                     paecProjectName: prev.paecProjectName || pData.projectName || '',
+                    paecObjective: prev.paecObjective || pData.objective || '',
                     paecProblem: prev.paecProblem || pData.problemStatement || '',
+                    studentContext: prev.studentContext || pData.studentContext || '',
                     schoolName: prev.schoolName || pData.schoolName || profile.school_name || '',
                     municipality: prev.municipality || pData.municipality || profile.municipality || '',
                     paecOperationalActivity: pData.operationalActivity || prev.paecOperationalActivity,
@@ -166,7 +169,7 @@ export default function StepContext({
                     setDetectedPaecActivity(pData.operationalActivity);
                     setHasPlanOperativoScan(true);
                   }
-                  setPaecSuccess(true);
+                  setPaecPrecargedFromDb(true);
                 }
               }
             } catch {
@@ -210,6 +213,7 @@ export default function StepContext({
 
     setPaecLoading(true);
     setPaecSuccess(false);
+    setPaecPrecargedFromDb(false);
     setPaecError(null);
     setIsSuggestedProblem(null);
 
@@ -539,6 +543,11 @@ export default function StepContext({
                   {paecSuccess && (
                     <div className="alert alert-success" style={{ margin: '8px 0 0 0', padding: '8px 12px', fontSize: '13px' }}>
                       ✓ Datos del PAEC extraídos correctamente e integrados en el formulario. Por favor, revísalos.
+                    </div>
+                  )}
+                  {!paecSuccess && paecPrecargedFromDb && (
+                    <div className="alert alert-info" style={{ margin: '8px 0 0 0', padding: '8px 12px', fontSize: '13px', background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.3)', color: '#93c5fd' }}>
+                      ℹ️ Se precargaron datos institucionales previos de tu plantel. Si tienes el documento PAEC-PEC (.pdf o .docx), cárgalo arriba para extraer todos los campos actualizados.
                     </div>
                   )}
                   {paecError && (

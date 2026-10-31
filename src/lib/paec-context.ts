@@ -31,7 +31,9 @@ export interface PaecLinkedContext {
   found: boolean;
   projectId?: string;
   projectName?: string;
+  objective?: string;
   problemStatement?: string;
+  studentContext?: string;
   cycleType?: string;
   schoolName?: string;
   municipality?: string;
@@ -160,6 +162,7 @@ export async function loadPaecContext(
       // Buscar proyectos que coincidan con el CCT en school_context o community_context
       rows = (await sql()`
         SELECT id, project_name, problem_statement, cycle_type, school_context, community_context,
+               fase1_diagnostico, fase2_justificacion,
                fase2_mapeo, fase2_plan_operativo, fase3_plan_operativo_a, fase3_plan_operativo_b
         FROM paec_projects
         WHERE school_context->>'cct' ILIKE ${cleanCct}
@@ -174,6 +177,7 @@ export async function loadPaecContext(
     if (rows.length === 0 && options?.teacherId) {
       rows = (await sql()`
         SELECT id, project_name, problem_statement, cycle_type, school_context, community_context,
+               fase1_diagnostico, fase2_justificacion,
                fase2_mapeo, fase2_plan_operativo, fase3_plan_operativo_a, fase3_plan_operativo_b
         FROM paec_projects
         WHERE teacher_id = ${options.teacherId}::uuid
@@ -189,10 +193,25 @@ export async function loadPaecContext(
     const p = rows[0];
     const schoolCtx = asRecord(p.school_context);
     const commCtx = asRecord(p.community_context);
+    const justif = asRecord(p.fase2_justificacion);
+    const diag = asRecord(p.fase1_diagnostico);
 
     const schoolName = firstStr(schoolCtx, ['nombre_escuela', 'schoolName']) || firstStr(commCtx, ['schoolName']);
     const municipality = firstStr(schoolCtx, ['municipio', 'municipality']) || firstStr(commCtx, ['municipality']);
     const foundCct = firstStr(schoolCtx, ['cct']) || firstStr(commCtx, ['cct']) || cleanCct;
+    const objective =
+      firstStr(justif, ['objetivo_general', 'generalObjective', 'objective', 'objetivoGeneral']) ||
+      firstStr(schoolCtx, ['objective', 'paecObjective']);
+    const studentContext =
+      firstStr(commCtx, ['studentContext', 'demographics', 'caracterizacion_estudiantes']) ||
+      firstStr(schoolCtx, ['studentContext', 'caracterizacion_estudiantes']) ||
+      (Array.isArray(diag.tabla2)
+        ? diag.tabla2
+            .map((r: unknown) => str(asRecord(r).col2))
+            .filter(Boolean)
+            .slice(0, 2)
+            .join(' ')
+        : '');
 
     const targetUac = (options?.uacName || '').trim();
 
@@ -211,7 +230,9 @@ export async function loadPaecContext(
       found: true,
       projectId: str(p.id),
       projectName: str(p.project_name),
+      objective: objective || undefined,
       problemStatement: str(p.problem_statement),
+      studentContext: studentContext || undefined,
       cycleType: str(p.cycle_type),
       schoolName,
       municipality,
