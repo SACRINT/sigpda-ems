@@ -63,6 +63,17 @@ export type SecuenciaResponseDTO = z.infer<typeof SecuenciaResponseSchema>;
 export const SecuenciaGenerateInputSchema = z.object({
   blockIndex: z.number().int().min(0, 'blockIndex debe ser un número entero mayor o igual a 0'),
   totalHours: z.number().int().positive('totalHours debe ser un entero positivo').optional(),
+  uacName: z.string().optional(),
+  blockName: z.string().optional(),
+  contenidoFormativo: z.string().optional(),
+  saberes: z.object({
+    saber: z.string().optional(),
+    saberHacer: z.string().optional(),
+    saberSer: z.string().optional(),
+  }).nullable().optional(),
+  learningOutcome: z.string().optional(),
+  methodology: z.string().optional(),
+  paecContext: z.string().optional(),
 });
 
 export type SecuenciaGenerateInputDTO = z.infer<typeof SecuenciaGenerateInputSchema>;

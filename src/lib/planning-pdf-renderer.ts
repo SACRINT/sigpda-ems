@@ -151,7 +151,13 @@ const s1 = content?.sectionI;
 
   drawOfficialHeader();
 
-  // ─── Sección I: Datos Generales ──────────────────────────────────────────
+    // ─── Sección I: Datos Generales ──────────────────────────────────────────
+  // totalHoursWeekly nunca se persiste en la planeación; se deriva de totalHours
+  // usando la carga curricular oficial del semestre (18 semanas):
+  // 18→1, 36→2, 54→3, 64→4, 72→4, 90→5 hrs/semana.
+  const totalHoursVal = s1?.totalHours ?? 0;
+  const weeklyHoursVal =
+    s1?.totalHoursWeekly ?? (totalHoursVal > 0 ? Math.round(totalHoursVal / 18) : 0);
   autoTable(doc, {
     startY: currentY,
     head: [[{ content: 'I. DATOS DE IDENTIFICACIÓN INSTITUCIONAL Y CURRICULAR', colSpan: 4, styles: { fillColor: NAVY, fontStyle: 'bold', halign: 'left', textColor: [255, 255, 255] } }]],
@@ -176,7 +182,7 @@ const s1 = content?.sectionI;
       ],
       [
         { content: 'Horas Semanales / Totales:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-        { content: `${s1?.totalHoursWeekly || 4} hrs/sem · ${s1?.totalHours || 64} hrs/semestre` },
+        { content: `${weeklyHoursVal > 0 ? weeklyHoursVal : '—'} hrs/sem · ${totalHoursVal > 0 ? totalHoursVal : '—'} hrs/semestre` },
         { content: 'Periodo de Aplicación:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
         { content: s1?.applicationPeriod || s1?.period || `Semestre ${SCHOOL_YEAR}` },
       ],
@@ -313,13 +319,20 @@ const s1 = content?.sectionI;
           styles: { fillColor: [241, 245, 249], textColor: [30, 41, 59], fontStyle: 'bold', fontSize: 6.5 },
         },
       ]);
+      activityRows.push([
+        { content: 'Sesión / Fase', styles: { fontStyle: 'bold', fillColor: [226, 232, 240], textColor: NAVY, fontSize: 6, cellWidth: 22 } },
+        { content: 'Título / Tema Situado', styles: { fontStyle: 'bold', fillColor: [226, 232, 240], textColor: NAVY, fontSize: 6 } },
+        { content: 'Actividades del Docente (Enseñanza)', styles: { fontStyle: 'bold', fillColor: [226, 232, 240], textColor: NAVY, fontSize: 6 } },
+        { content: 'Actividades del Estudiante y Evidencia Formativa', styles: { fontStyle: 'bold', fillColor: [226, 232, 240], textColor: NAVY, fontSize: 6 } },
+      ]);
       blockSeq.sessions.forEach((s) => {
         const isAp = s.phase === 'Apertura';
         const isDes = s.phase === 'Desarrollo';
-        const phaseShort = isAp ? 'A' : isDes ? 'D' : 'C';
+        const phaseName = isAp ? 'Apertura' : isDes ? 'Desarrollo' : 'Cierre';
         const phaseColor = isAp ? PHASE_APERTURA : isDes ? PHASE_DESARROLLO : PHASE_CIERRE;
+        const total = s.totalSessions ?? blockSeq.sessions.length;
         activityRows.push([
-          { content: `${phaseShort} ${s.sessionNum}/${s.totalSessions ?? blockSeq.sessions.length}`, styles: { fontStyle: 'bold', cellWidth: 20, fontSize: 6, textColor: phaseColor } },
+          { content: `S${s.sessionNum}/${total}\n[${phaseName}]`, styles: { fontStyle: 'bold', cellWidth: 22, fontSize: 5.8, textColor: phaseColor, halign: 'center' } },
           { content: s.title, styles: { fontStyle: 'bold', fontSize: 6 } },
           { content: s.teachingActivity, styles: { fontSize: 5.8 } },
           { content: `${s.learningActivity}${s.evidence ? `\nEvidencia: ${s.evidence}` : ''}`, styles: { fontSize: 5.8 } },
@@ -331,7 +344,10 @@ const s1 = content?.sectionI;
   if (activityRows.length > 0) {
     autoTable(doc, {
       startY: currentY,
-      head: [[{ content: 'IV. SECUENCIA DIDÁCTICA DETALLADA POR MOMENTOS FORMATIVOS', colSpan: 4, styles: { fillColor: NAVY, fontStyle: 'bold', textColor: [255, 255, 255] } }]],
+      head: [
+        [{ content: 'IV. SECUENCIA DIDÁCTICA DETALLADA POR MOMENTOS FORMATIVOS', colSpan: 4, styles: { fillColor: NAVY, fontStyle: 'bold', textColor: [255, 255, 255] } }],
+        ['Momento / Sesión', 'Título / Tema Situado', 'Actividades del Docente (Enseñanza)', 'Actividades del Estudiante y Evidencia Formativa'].map((h) => ({ content: h, styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], fontStyle: 'bold' } })),
+      ],
       body: activityRows,
       theme: 'grid',
       styles: { fontSize: 6.3, cellPadding: 1.4, textColor: TEXT_DARK },

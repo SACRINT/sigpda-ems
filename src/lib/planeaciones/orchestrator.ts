@@ -40,6 +40,17 @@ export interface SecuenciaInput {
   planningId?: string;
   sessions?: unknown[];
   retoSituado?: unknown;
+  uacName?: string;
+  blockName?: string;
+  contenidoFormativo?: string;
+  saberes?: {
+    saber?: string;
+    saberHacer?: string;
+    saberSer?: string;
+  } | null;
+  learningOutcome?: string;
+  methodology?: string;
+  paecContext?: string;
 }
 
 export interface PlaneacionGenInput {
@@ -148,11 +159,11 @@ export const DESARROLLO_SESSION_MILESTONES = [
     evaluation: 'Guía de observación técnica de taller',
   },
   {
-    title: 'Modelado Matemático y Cálculo de Dimensiones',
-    teachingActivity: 'Guía en formulación matemática, cálculo de proporciones y optimización de recursos.',
-    learningActivity: 'Aplicación de fórmulas y herramientas cuantitativas para optimizar dimensiones y costos.',
-    evidence: 'Memoria de cálculo y justificación matemática',
-    evaluation: 'Rúbrica de modelado cuantitativo',
+    title: 'Aplicación de Principios Disciplinares y Ajuste de Parámetros',
+    teachingActivity: 'Guía en aplicación de criterios disciplinares, proporción operativa y optimización de recursos.',
+    learningActivity: 'Aplicación de herramientas disciplinares y criterios prácticos para optimizar el desempeño.',
+    evidence: 'Memoria operativa y justificación disciplinar',
+    evaluation: 'Rúbrica de aplicación disciplinar',
   },
   {
     title: 'Validación Técnica y Pruebas de Funcionamiento',
@@ -387,9 +398,32 @@ export class PlaneacionOrchestrator implements IPlaneacionOrchestrator {
       };
     }
 
-    const { blockIndex, totalHours: customHours }: SecuenciaGenerateInputDTO = parseResult.data;
+    const {
+      blockIndex,
+      totalHours: customHours,
+      uacName,
+      blockName,
+      contenidoFormativo,
+      saberes,
+      learningOutcome,
+      methodology,
+    }: SecuenciaGenerateInputDTO = parseResult.data;
     const hours = customHours && customHours > 0 ? customHours : 12;
     const sessionsCount = hours;
+
+    const cleanBlockTitle = (blockName || '')
+      .replace(/^(bloque|prop[oó]sito|unidad|actividad)\s*[\d,\sy]+:\s*/i, '')
+      .trim();
+    const rawTopics = (contenidoFormativo || cleanBlockTitle || '')
+      .split(/[,;·•]+/)
+      .map((t) => t.trim())
+      .filter((t) => t.length > 3);
+    const hasBlockContext = Boolean(cleanBlockTitle || rawTopics.length > 0 || saberes?.saber || saberes?.saberHacer);
+    const blockTheme = cleanBlockTitle || rawTopics[0] || '';
+    const saberFocus = saberes?.saber ? saberes.saber.replace(/\.$/, '') : '';
+    const hacerFocus = saberes?.saberHacer ? saberes.saberHacer.replace(/\.$/, '') : '';
+    const serFocus = saberes?.saberSer ? saberes.saberSer.replace(/\.$/, '') : '';
+    const metLabel = methodology ? ` (${methodology})` : '';
 
     // Distribución pedagógica oficial MCCEMS por fases (Apertura, Desarrollo, Cierre)
     let aperturaCount = 1;
@@ -408,16 +442,26 @@ export class PlaneacionOrchestrator implements IPlaneacionOrchestrator {
 
     // Fase 1: Apertura (Diagnóstico, detonador situado, motivación y saberes previos)
     for (let i = 0; i < aperturaCount; i++) {
-      const milestone = APERTURA_SESSION_MILESTONES[i % APERTURA_SESSION_MILESTONES.length];
+      const idx = hasBlockContext ? (i + blockIndex) % APERTURA_SESSION_MILESTONES.length : i % APERTURA_SESSION_MILESTONES.length;
+      const milestone = APERTURA_SESSION_MILESTONES[idx];
       const cycle = Math.floor(i / APERTURA_SESSION_MILESTONES.length);
       const cycleSuffix = cycle > 0 ? ` (Etapa ${cycle + 1})` : '';
       const actSuffix = cycle > 0 ? ` (Etapa diagnóstica ${cycle + 1} · Sesión ${sessionNumber})` : '';
+      const subTopic = rawTopics[i % Math.max(1, rawTopics.length)] || blockTheme;
+      const titleSuffix = hasBlockContext && subTopic ? ` — ${subTopic}` : '';
+      const contextTeaching = hasBlockContext && blockTheme
+        ? ` Enfoque en ${blockTheme}${uacName ? ` (${uacName})` : ''}.`
+        : '';
+      const contextLearning = hasBlockContext && saberFocus
+        ? ` Vinculación con el saber: ${saberFocus}.`
+        : '';
+
       sessions.push({
         sessionNum: sessionNumber,
         phase: 'Apertura' as const,
-        title: `Sesión ${sessionNumber}: ${milestone.title}${cycleSuffix}`,
-        teachingActivity: `${milestone.teachingActivity}${actSuffix}`,
-        learningActivity: `${milestone.learningActivity}${actSuffix}`,
+        title: `Sesión ${sessionNumber}: ${milestone.title}${titleSuffix}${cycleSuffix}`,
+        teachingActivity: `${milestone.teachingActivity}${contextTeaching}${actSuffix}`,
+        learningActivity: `${milestone.learningActivity}${contextLearning}${actSuffix}`,
         evidence: milestone.evidence,
         evaluation: milestone.evaluation,
       });
@@ -426,16 +470,28 @@ export class PlaneacionOrchestrator implements IPlaneacionOrchestrator {
 
     // Fase 2: Desarrollo (Construcción activa, modelado docente, práctica guiada y autónoma)
     for (let i = 0; i < desarrolloCount; i++) {
-      const milestone = DESARROLLO_SESSION_MILESTONES[i % DESARROLLO_SESSION_MILESTONES.length];
+      const idx = hasBlockContext
+        ? (i + blockIndex * 3) % DESARROLLO_SESSION_MILESTONES.length
+        : i % DESARROLLO_SESSION_MILESTONES.length;
+      const milestone = DESARROLLO_SESSION_MILESTONES[idx];
       const cycle = Math.floor(i / DESARROLLO_SESSION_MILESTONES.length);
       const cycleSuffix = cycle > 0 ? ` (Ciclo ${cycle + 1})` : '';
       const actSuffix = cycle > 0 ? ` (Profundización ciclo ${cycle + 1} · Sesión ${sessionNumber})` : '';
+      const subTopic = rawTopics[i % Math.max(1, rawTopics.length)] || blockTheme;
+      const titleSuffix = hasBlockContext && subTopic ? ` — ${subTopic}` : '';
+      const contextTeaching = hasBlockContext
+        ? ` Mediación sobre ${subTopic || blockTheme}${metLabel}.`
+        : '';
+      const contextLearning = hasBlockContext
+        ? ` Práctica activa sobre ${subTopic || blockTheme}${hacerFocus ? `: ${hacerFocus}` : ''}.`
+        : '';
+
       sessions.push({
         sessionNum: sessionNumber,
         phase: 'Desarrollo' as const,
-        title: `Sesión ${sessionNumber}: ${milestone.title}${cycleSuffix}`,
-        teachingActivity: `${milestone.teachingActivity}${actSuffix}`,
-        learningActivity: `${milestone.learningActivity}${actSuffix}`,
+        title: `Sesión ${sessionNumber}: ${milestone.title}${titleSuffix}${cycleSuffix}`,
+        teachingActivity: `${milestone.teachingActivity}${contextTeaching}${actSuffix}`,
+        learningActivity: `${milestone.learningActivity}${contextLearning}${actSuffix}`,
         evidence: milestone.evidence,
         evaluation: milestone.evaluation,
       });
@@ -444,16 +500,25 @@ export class PlaneacionOrchestrator implements IPlaneacionOrchestrator {
 
     // Fase 3: Cierre (Síntesis, evaluación formativa, metacognición y producto integrador)
     for (let i = 0; i < cierreCount; i++) {
-      const milestone = CIERRE_SESSION_MILESTONES[i % CIERRE_SESSION_MILESTONES.length];
+      const idx = hasBlockContext ? (i + blockIndex) % CIERRE_SESSION_MILESTONES.length : i % CIERRE_SESSION_MILESTONES.length;
+      const milestone = CIERRE_SESSION_MILESTONES[idx];
       const cycle = Math.floor(i / CIERRE_SESSION_MILESTONES.length);
       const cycleSuffix = cycle > 0 ? ` (Etapa ${cycle + 1})` : '';
       const actSuffix = cycle > 0 ? ` (Consolidación ${cycle + 1} · Sesión ${sessionNumber})` : '';
+      const titleSuffix = hasBlockContext && blockTheme ? ` — ${blockTheme}` : '';
+      const contextTeaching = hasBlockContext && learningOutcome
+        ? ` Verificación del propósito: ${learningOutcome}.`
+        : '';
+      const contextLearning = hasBlockContext && serFocus
+        ? ` Reflexión actitudinal: ${serFocus}.`
+        : '';
+
       sessions.push({
         sessionNum: sessionNumber,
         phase: 'Cierre' as const,
-        title: `Sesión ${sessionNumber}: ${milestone.title}${cycleSuffix}`,
-        teachingActivity: `${milestone.teachingActivity}${actSuffix}`,
-        learningActivity: `${milestone.learningActivity}${actSuffix}`,
+        title: `Sesión ${sessionNumber}: ${milestone.title}${titleSuffix}${cycleSuffix}`,
+        teachingActivity: `${milestone.teachingActivity}${contextTeaching}${actSuffix}`,
+        learningActivity: `${milestone.learningActivity}${contextLearning}${actSuffix}`,
         evidence: milestone.evidence,
         evaluation: milestone.evaluation,
       });

@@ -334,7 +334,13 @@ export default function DocumentA4Viewer({
                 </tr>
                 <tr>
                   <td className="label-cell">Horas Semanales / Totales:</td>
-                  <td>{s1?.totalHoursWeekly || 4} hrs/sem · {s1?.totalHours || 54} hrs/semestre</td>
+                  <td>
+                    {(() => {
+                      const totalH = s1?.totalHours ?? 0;
+                      const weeklyH = s1?.totalHoursWeekly ?? (totalH > 0 ? Math.round(totalH / 18) : 0);
+                      return `${weeklyH > 0 ? weeklyH : '—'} hrs/sem · ${totalH > 0 ? totalH : '—'} hrs/semestre`;
+                    })()}
+                  </td>
                   <td className="label-cell">Periodo / Ciclo:</td>
                   <td>{s1?.applicationPeriod || s1?.period || 'Semestre 2026-2027'}</td>
                 </tr>

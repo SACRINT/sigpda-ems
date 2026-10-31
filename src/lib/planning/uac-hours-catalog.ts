@@ -18,6 +18,13 @@ export const DEFAULT_UAC_WEEKLY_HOURS: Record<string, number> = {
   'lengua extranjera': 3,
   'ingles': 3,
   'formacion socioemocional': 1,
+  'actividades fisicas y deportivas': 2,
+  'educacion fisica': 2,
+  'artes': 2,
+  'actividades artisticas y culturales': 2,
+  'practica y colaboracion ciudadana': 2,
+  'educacion para la salud': 2,
+  'educacion integral en sexualidad y genero': 2,
 };
 
 /**

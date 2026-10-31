@@ -216,6 +216,13 @@ export async function POST(
     }
 
     const hours = customHours || blockActivity.hours || (plan.component === 'laboral' ? 18 : 12);
+    const learningOutcome = content.sectionII?.learningOutcomes?.[blockIndex] || '';
+    const saberes = blockActivity.saberes || null;
+    const paecContext = plan.paec_context || '';
+    const rawMet = blockActivity.methodology || plan.metodologia_activa || 'abp';
+    const metObj = obtenerMetodologiaPorId(rawMet) ||
+      CATALOGO_METODOLOGIAS_ACTIVAS.find(m => m.nombre === rawMet);
+    const methodology = metObj?.nombre || rawMet || 'Aprendizaje Basado en Proyectos (ABP)';
 
     // Strangler Fig: Delegación al Orquestador Central de Planeaciones si la bandera está activa
     if (isFeatureEnabled('PLANEACION_ORCHESTRATOR_V2')) {
@@ -224,6 +231,13 @@ export async function POST(
           blockIndex,
           totalHours: hours,
           planningId: id,
+          uacName: plan.uac_name,
+          blockName: blockActivity.name,
+          contenidoFormativo: blockActivity.contenidoFormativo,
+          saberes,
+          learningOutcome,
+          methodology,
+          paecContext,
         });
 
         const rawSessions = (orchSequence.sessions as SecuenciaSesion[]) || [];
@@ -272,16 +286,6 @@ export async function POST(
     }
 
     const sessionsCount = hours; // 1 hora curricular = 1 sesión de 50 minutos
-    const learningOutcome = content.sectionII?.learningOutcomes?.[blockIndex] || '';
-    const saberes = blockActivity.saberes || null;
-    const paecContext = plan.paec_context || '';
-    // Resolución defensiva de metodología activa:
-    // Soporta slugs nuevos (ej: 'abp') y nombres completos legacy almacenados
-    // en registros de planeaciones anteriores (ej: 'Aprendizaje Basado en Proyectos (ABP)').
-    const rawMet = blockActivity.methodology || plan.metodologia_activa || 'abp';
-    const metObj = obtenerMetodologiaPorId(rawMet) ||
-      CATALOGO_METODOLOGIAS_ACTIVAS.find(m => m.nombre === rawMet);
-    const methodology = metObj?.nombre || rawMet || 'Aprendizaje Basado en Proyectos (ABP)';
     const methodologyFases = metObj?.fases
       ? metObj.fases.map((f, i) => `  ${i + 1}. ${f}`).join('\n')
       : '';
@@ -324,6 +328,7 @@ REQUISITOS PEDAGÓGICOS:
    - Sesiones ${aperturaCount + desarrolloCount + 1} a ${sessionsCount} (Fase de "Cierre"): Desglosan operativamente la CONCLUSIÓN/CIERRE PLANIFICADO (integración del producto final, coevaluación con rúbricas/listas de cotejo, evaluación sumativa y metacognición).
 3. Cada sesión debe tener un título pedagógico situado y concreto, actividades claras y diferenciadas para el rol del docente y rol del estudiante, y la evidencia o producto tangible generado en esos 50 minutos.
 4. Incorpora los Tres Saberes (Saber, Saber Hacer, Saber Ser) de manera secuencial y progresiva en las sesiones de desarrollo.
+5. PROHIBICIÓN ESTRICTA: Prohibido incluir temas de otras asignaturas (ej. no incluir modelado matemático, cálculo o física en asignaturas de Educación Física, Humanidades o Lengua). Las sesiones deben derivarse exclusivamente del contenido formativo y saberes de este bloque específico y diferenciarse de cualquier otro bloque.
 
 DEBES RESPONDER EXCLUSIVAMENTE EN FORMATO JSON VÁLIDO con la siguiente estructura:
 {
@@ -404,7 +409,10 @@ Genera la secuencia didáctica completa de exactamente ${sessionsCount} sesiones
       };
     });
 
-    // Si la IA generó menos sesiones que las requeridas por el bloque, completar con la progresión temática
+    // Si la IA generó menos sesiones que las requeridas por el bloque, completar con la progresión temática del bloque
+    const blockThemeFallback = (blockActivity.contenidoFormativo || blockActivity.name || `Bloque ${blockIndex + 1}`)
+      .replace(/^(bloque|prop[oó]sito|unidad|actividad)\s*[\d,\sy]+:\s*/i, '')
+      .trim();
     while (formattedSessions.length < sessionsCount) {
       const sNum = formattedSessions.length + 1;
       let phase: 'Apertura' | 'Desarrollo' | 'Cierre' = 'Desarrollo';
@@ -415,14 +423,14 @@ Genera la secuencia didáctica completa de exactamente ${sessionsCount} sesiones
         sessionNum: sNum,
         totalSessions: sessionsCount,
         phase,
-        title: `Sesión ${sNum}: ${phase === 'Cierre' ? 'Evaluación formativa y síntesis' : 'Práctica guiada y consolidación de saberes'}`,
+        title: `Sesión ${sNum}: ${phase === 'Cierre' ? `Evaluación formativa y síntesis — ${blockThemeFallback}` : `Práctica situada y consolidación — ${blockThemeFallback}`}`,
         teachingActivity: phase === 'Cierre'
-          ? 'Coordinación de la plenaria de evaluación formativa y retroalimentación grupal.'
-          : 'Acompañamiento en el aula, aclaración de dudas y supervisión de la práctica.',
+          ? `Coordinación de la plenaria de evaluación formativa y retroalimentación sobre ${blockThemeFallback}.`
+          : `Acompañamiento docente, modelado y supervisión de la práctica sobre ${blockThemeFallback}.`,
         learningActivity: phase === 'Cierre'
-          ? 'Coevaluación con rúbrica, autoevaluación reflexiva y consolidación del producto formativo.'
-          : 'Resolución colaborativa de ejercicios y avance en la evidencia del bloque.',
-        evidence: phase === 'Cierre' ? 'Rúbrica/Lista de cotejo completada y producto final del bloque.' : 'Bitácora de trabajo y resolución de ejercicios.',
+          ? `Coevaluación con rúbrica, autoevaluación reflexiva y consolidación de evidencias sobre ${blockThemeFallback}.`
+          : `Práctica activa colaborativa y desarrollo de evidencias aplicadas a ${blockThemeFallback}.`,
+        evidence: phase === 'Cierre' ? 'Rúbrica/Lista de cotejo completada y producto final del bloque.' : 'Bitácora de trabajo y evidencia práctica de sesión.',
         evaluation: phase === 'Cierre' ? 'Heteroevaluación formativa y sumativa.' : 'Evaluación formativa continua.',
       });
     }
