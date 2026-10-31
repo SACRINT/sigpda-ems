@@ -17,7 +17,7 @@ export const DISENO_GRAFICO_CATALOG: CatalogItem[] = [
     safetyRule: 'No utilizar los bordes de plástico del escalímetro como guía para corte con navaja o cúter',
     normaNOM: 'NOM-008-SCFI-2002',
     familias: ['diseno_grafico', 'ciencias_experimentales'],
-    svgKey: 'vernier',
+    svgKey: 'escalimetro',
   },
   {
     id: 'compas_precision_bigotera',
@@ -82,6 +82,6 @@ export const DISENO_GRAFICO_CATALOG: CatalogItem[] = [
     safetyRule: 'Controlar el retroceso de la cinta con el dedo índice para evitar cortes metálicos en la mano al enrollar',
     normaNOM: 'NOM-046-SCFI-1999',
     familias: ['diseno_grafico', 'electricidad_energia'],
-    svgKey: 'vernier',
+    svgKey: 'flexometro',
   },
 ];

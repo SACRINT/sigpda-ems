@@ -116,9 +116,21 @@ export function drawMissionBanner(doc: jsPDF, opts: MissionBannerOptions): numbe
   const bannerTitleStr = `MISIÓN ${missionNumber}: ${cleanTitle}`;
   setFontHeading(doc);
   doc.setFontSize(10.0);
-  const titleLines = doc.splitTextToSize(bannerTitleStr, mainW - 28);
+  const titleLines = doc.splitTextToSize(bannerTitleStr, mainW - 26) as string[];
   const isMultiLine = titleLines.length > 1;
-  const actualBannerH = isMultiLine && sessionFocus ? Math.max(bannerH, 25) : bannerH;
+
+  // Enfoque pedagógico medido completo sin truncamiento (.slice eliminado)
+  const rawFocus = sessionFocus ? sanitizePdfText(stripMarkdown(sessionFocus)) : '';
+  setFontBody(doc, 'normal');
+  doc.setFontSize(6.8);
+  const focusLines: string[] = rawFocus
+    ? (doc.splitTextToSize(rawFocus, contentWidth - 28) as string[])
+    : [];
+
+  const titleBlockH = titleLines.length * 4.6;
+  const focusBlockH = focusLines.length > 0 ? focusLines.length * 3.4 + 1.5 : 0;
+  const neededBannerH = 8.5 + titleBlockH + focusBlockH + 3.0;
+  const actualBannerH = Math.max(bannerH, neededBannerH);
 
   // Fondo decorativo full-width
   doc.setFillColor(...momentColor);
@@ -137,35 +149,36 @@ export function drawMissionBanner(doc: jsPDF, opts: MissionBannerOptions): numbe
   doc.text(numStr, margin + 3, y + actualBannerH - 3);
   doc.setGState(new GState({ opacity: 1 }));
 
-  // Etiqueta UAC / Sesiones en píldora o texto superior
+  // Etiqueta UAC / Sesiones en píldora o texto superior (sin truncar UAC)
   setFontHeading(doc);
   doc.setFontSize(6.5);
   doc.setTextColor(255, 255, 255);
   doc.setGState(new GState({ opacity: 0.85 }));
-  const cleanUac = sanitizePdfText(uacLabel.slice(0, 38));
+  const cleanUac = sanitizePdfText(uacLabel);
   doc.text(`${cleanUac} · SES. ${sessionsStr}`, margin + 22, y + 6.0);
   doc.setGState(new GState({ opacity: 1 }));
 
-  // Título de misión en Montserrat Bold
+  // Título de misión en Montserrat Bold (todas las líneas)
   setFontHeading(doc);
   doc.setFontSize(10.0);
   doc.setTextColor(255, 255, 255);
-  if (isMultiLine) {
-    doc.text(titleLines[0], margin + 22, y + 11.2);
-    doc.text(titleLines[1], margin + 22, y + 15.8);
-  } else {
-    doc.text(titleLines[0], margin + 22, y + 12.8);
+  let curBannerY = isMultiLine ? y + 11.2 : y + 12.2;
+  for (let i = 0; i < titleLines.length; i++) {
+    doc.text(titleLines[i], margin + 22, curBannerY);
+    curBannerY += 4.6;
   }
 
-  // Enfoque pedagógico en la base si cabe
-  if (sessionFocus) {
-    const focusStr = sanitizePdfText(stripMarkdown(sessionFocus)).slice(0, 65);
+  // Enfoque pedagógico completo en la base (multilínea sin cortar palabras)
+  if (focusLines.length > 0) {
     setFontBody(doc, 'normal');
     doc.setFontSize(6.8);
     doc.setTextColor(255, 255, 255);
     doc.setGState(new GState({ opacity: 0.85 }));
-    const focusY = isMultiLine ? y + 20.6 : y + actualBannerH - 3.2;
-    doc.text(focusStr, margin + 22, focusY);
+    let focusY = Math.max(curBannerY + 0.4, y + actualBannerH - 2.8 - (focusLines.length - 1) * 3.4);
+    for (const fLine of focusLines) {
+      doc.text(fLine, margin + 22, focusY);
+      focusY += 3.4;
+    }
     doc.setGState(new GState({ opacity: 1 }));
   }
 
@@ -325,21 +338,32 @@ export function drawSessionDivider(doc: jsPDF, opts: SessionDividerOptions): num
 
 // ── 3. CAJA PEDAGÓGICA (CALLOUT) CON BADGE TIPO PÍLDORA ───────────────────────
 
+function normalizeDistinctTakeaway(cleanContent: string, rawTakeaway?: string): string {
+  if (!rawTakeaway) return '';
+  const clean = sanitizePdfText(stripMarkdown(rawTakeaway)).replace(/\.{3}$/, '').trim();
+  if (!clean) return '';
+  const normBody = cleanContent.toLowerCase().replace(/\s+/g, ' ').trim();
+  const normTakeaway = clean.toLowerCase().replace(/\s+/g, ' ').trim();
+  if (normBody === normTakeaway || normBody.startsWith(normTakeaway) || normBody.includes(normTakeaway)) {
+    return '';
+  }
+  return sanitizePdfText(stripMarkdown(rawTakeaway)).trim();
+}
+
 /**
  * Mide la altura exacta (mm) que ocupará drawCalloutBox para el callout dado.
  * Permite al llamador reservar espacio REAL antes de dibujar (evita desbordes de página).
  */
 export function measureCalloutBoxHeight(doc: jsPDF, callout: CalloutBoxData, drawWidth: number): number {
   const safeTextWidth = clampTextWidth(drawWidth, drawWidth, 14);
+  const cleanContent = sanitizePdfText(stripMarkdown(callout.content || callout.body || ''));
+  const cleanTakeaway = normalizeDistinctTakeaway(cleanContent, callout.keyTakeaway);
   setFontBody(doc, 'normal');
   doc.setFontSize(TYPE.BODY_SM);
-  const contentLines = doc.splitTextToSize(
-    sanitizePdfText(stripMarkdown(callout.content || callout.body || '')),
-    safeTextWidth
-  );
+  const contentLines = doc.splitTextToSize(cleanContent, safeTextWidth);
   doc.setFontSize(TYPE.CAPTION);
-  const takeawayLines = callout.keyTakeaway
-    ? doc.splitTextToSize(`• Clave: ${sanitizePdfText(stripMarkdown(callout.keyTakeaway))}`, safeTextWidth)
+  const takeawayLines = cleanTakeaway
+    ? doc.splitTextToSize(`• Clave: ${cleanTakeaway}`, safeTextWidth)
     : [];
   const textLinesCount = contentLines.length + takeawayLines.length;
   return Math.max(18, 9 + textLinesCount * 3.8);
@@ -361,7 +385,7 @@ export function drawCalloutBox(
   const badgeLabel = `[ ${iconText} · ${cleanTitle} ]`;
 
   const cleanContent = sanitizePdfText(stripMarkdown(callout.content || callout.body || ''));
-  const cleanTakeaway = callout.keyTakeaway ? sanitizePdfText(stripMarkdown(callout.keyTakeaway)) : '';
+  const cleanTakeaway = normalizeDistinctTakeaway(cleanContent, callout.keyTakeaway);
 
   // Guardián de texto estricto
   const safeTextWidth = clampTextWidth(drawWidth, drawWidth, 14);
@@ -540,27 +564,34 @@ export function drawPageHeader(
   doc.setFontSize(7.0);
   doc.setTextColor(...COLOR.TEXT_SECONDARY);
 
-  // UAC a la izquierda
+  // UAC a la izquierda (sin truncar con '...', ajustando escala si es necesario)
   const cleanUac = sanitizePdfText(uacName);
-  const maxUacW = contentWidth * 0.45;
-  let displayUac = cleanUac;
-  if (doc.getTextWidth(displayUac) > maxUacW) {
-    while (doc.getTextWidth(displayUac + '...') > maxUacW && displayUac.length > 5) {
-      displayUac = displayUac.slice(0, -1).trim();
-    }
-    displayUac += '...';
+  const maxUacW = contentWidth * 0.44;
+  let uacFontSize = 7.0;
+  doc.setFontSize(uacFontSize);
+  while (doc.getTextWidth(cleanUac) > maxUacW && uacFontSize > 5.2) {
+    uacFontSize -= 0.3;
+    doc.setFontSize(uacFontSize);
   }
-  doc.text(displayUac, margin, y);
+  doc.text(cleanUac, margin, y);
 
-  // Título de misión a la derecha si existe (con recorte de seguridad para evitar solapamiento)
+  // Título de misión a la derecha si existe (sin truncar con '...')
   if (missionTitle) {
-    const maxTitleW = contentWidth * 0.50;
+    const maxTitleW = contentWidth * 0.54;
     let cleanTitle = sanitizePdfText(stripMarkdown(missionTitle));
+    doc.setFontSize(7.0);
     if (doc.getTextWidth(cleanTitle) > maxTitleW) {
-      while (doc.getTextWidth(cleanTitle + '...') > maxTitleW && cleanTitle.length > 5) {
-        cleanTitle = cleanTitle.slice(0, -1).trim();
+      // Si incluye sufijo redundante de "Sesión X: ...", dejar el título puro de la Misión
+      const strippedSession = cleanTitle.replace(/\s*[-—·]?\s*Sesi[oó]n\s+\d+\s*:.*$/i, '').trim();
+      if (strippedSession.length >= 8) {
+        cleanTitle = strippedSession;
       }
-      cleanTitle += '...';
+    }
+    let titleFontSize = 7.0;
+    doc.setFontSize(titleFontSize);
+    while (doc.getTextWidth(cleanTitle) > maxTitleW && titleFontSize > 5.2) {
+      titleFontSize -= 0.3;
+      doc.setFontSize(titleFontSize);
     }
     doc.text(cleanTitle, margin + contentWidth, y, { align: 'right' });
   }

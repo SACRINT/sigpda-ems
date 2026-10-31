@@ -37,7 +37,7 @@ export async function generateEvaluationSection(input: WriterInput): Promise<Wri
 - Lista previa: ${JSON.stringify(extras.checklist || extras.lista_verificacion || {})}`;
   }
 
-  const planningAlignmentChunk = buildPlanningAlignmentPrompt(input.planningActivities, 'evaluation') +
+  const planningAlignmentChunk = buildPlanningAlignmentPrompt(input.planningActivities, 'evaluation', input.uacName) +
   (input.alignmentDirective ? ` 
 ALINEACION DURA — TERMINOS OBLIGATORIOS DE LA PLANEACION (reproduce su redaccion original en tu seccion): ` + input.alignmentDirective + ` 
  ` : '');
@@ -162,8 +162,8 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
       "aplicacion": "Aplicación a la vida real del estudiante...",
       "autoevaluacion": ["¿Puedo explicar el criterio central?", "¿Logré la práctica sin mirar?"],
       "recursos": [
-        { "titulo": "Video: tema en YouTube", "url": "https://www.youtube.com/watch?v=...", "tipo": "video" },
-        { "titulo": "Página de ampliación", "url": "https://...", "tipo": "web" }
+        { "titulo": "Video de repaso e integración", "url": "https://www.youtube.com/results?search_query=repaso+educacion+media+superior", "tipo": "video" },
+        { "titulo": "Consulta académica de ampliación", "url": "https://scholar.google.es/scholar?q=evaluacion+bachillerato", "tipo": "web" }
       ],
       "productoIntegrador": "Qué agregas hoy a tu producto integrador..."
     }

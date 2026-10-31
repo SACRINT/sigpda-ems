@@ -15,15 +15,12 @@ export interface ComparisonTableData {
 }
 
 /**
- * Limpia y recorta una celda de texto para evitar overflow en tablas.
+ * Limpia una celda o título de texto eliminando viñetas redundantes y espacios múltiples,
+ * sin truncar con puntos suspensivos (...) para respetar el Contrato Cero Truncamiento.
  */
-function cleanCell(text: string, maxLen: number = 180): string {
+function cleanCell(text: string, _maxLen: number = 280): string {
   if (!text) return '';
-  let cleaned = text.trim().replace(/^[-*•\s]+/, '').replace(/\s+/g, ' ');
-  if (cleaned.length > maxLen) {
-    cleaned = cleaned.slice(0, maxLen - 3) + '...';
-  }
-  return cleaned;
+  return text.trim().replace(/^[-*•\s]+/, '').replace(/\s+/g, ' ');
 }
 
 export interface ExtractComparisonTableOptions {

@@ -556,6 +556,103 @@ const SVG_TEMPLATES: Record<string, (label: string) => string> = {
     return wrapBlueprintSvg(body, label || 'Reloj Checador Biométrico');
   },
 
+  // ── Cronómetro Digital Deportivo ──
+  cronometro: (label) => {
+    const body = `
+      <!-- Cordón superior (Lanyard) y argolla metálica -->
+      <path d="M 185 52 Q 200 28 215 52" fill="none" stroke="#1E293B" stroke-width="3.5" stroke-linecap="round"/>
+      <circle cx="200" cy="58" r="8" fill="none" stroke="#64748B" stroke-width="2.5"/>
+
+      <!-- Botones superiores mecánicos: LAP/RESET (izq), MODE (centro), START/STOP (der) -->
+      <g transform="rotate(-32, 152, 86)">
+        <rect x="142" y="70" width="18" height="14" rx="3" fill="#475569" stroke="#1E293B" stroke-width="1.5"/>
+        <rect x="140" y="65" width="22" height="6" rx="2" fill="#EF4444" stroke="#991B1B" stroke-width="1.2"/>
+      </g>
+      <rect x="191" y="64" width="18" height="10" rx="2" fill="#64748B" stroke="#1E293B" stroke-width="1.5"/>
+      <g transform="rotate(32, 248, 86)">
+        <rect x="240" y="70" width="18" height="14" rx="3" fill="#475569" stroke="#1E293B" stroke-width="1.5"/>
+        <rect x="238" y="65" width="22" height="6" rx="2" fill="#22C55E" stroke="#166534" stroke-width="1.2"/>
+      </g>
+
+      <!-- Carcasa circular ergonómica deportiva -->
+      <circle cx="200" cy="148" r="74" fill="#1E293B" stroke="#0F172A" stroke-width="3"/>
+      <circle cx="200" cy="148" r="65" fill="#334155" stroke="#2563EB" stroke-width="2"/>
+
+      <!-- Marcas de escala de segundos alrededor del bisel -->
+      ${Array.from({ length: 12 }).map((_, i) => `
+        <line x1="200" y1="86" x2="200" y2="91" stroke="#94A3B8" stroke-width="1.5" transform="rotate(${i * 30}, 200, 148)"/>
+      `).join('')}
+
+      <!-- Pantalla LCD de alto contraste -->
+      <rect x="148" y="114" width="104" height="54" rx="6" fill="#DCFCE7" stroke="#0F172A" stroke-width="2"/>
+      <text x="155" y="126" font-family="Arial, sans-serif" font-size="6.5" font-weight="bold" fill="#166534">LAP 01 · SPLIT</text>
+      <text x="245" y="126" font-family="Arial, sans-serif" font-size="6.5" font-weight="bold" fill="#15803D" text-anchor="end">1/100s</text>
+      <text x="200" y="152" font-family="Courier New, monospace" font-size="21" font-weight="bold" fill="#0F172A" text-anchor="middle">00:12.48</text>
+      <text x="200" y="164" font-family="Arial, sans-serif" font-size="6.5" fill="#334155" text-anchor="middle">CHRONO · SPORT</text>
+
+      <!-- Etiquetas de botones en carcasa -->
+      <text x="165" y="188" font-family="Arial, sans-serif" font-size="6.5" font-weight="bold" fill="#F8FAFC" text-anchor="middle">RESET</text>
+      <text x="200" y="198" font-family="Arial, sans-serif" font-size="6.5" font-weight="bold" fill="#93C5FD" text-anchor="middle">MODE</text>
+      <text x="235" y="188" font-family="Arial, sans-serif" font-size="6.5" font-weight="bold" fill="#86EFAC" text-anchor="middle">START</text>
+    `;
+    return wrapBlueprintSvg(body, label || 'Cronómetro Digital Deportivo');
+  },
+
+  // ── Flexómetro de Cinta Metálica con Seguro ──
+  flexometro: (label) => {
+    const body = `
+      <!-- Cinta metálica extendida con graduación milimétrica -->
+      <rect x="185" y="162" width="165" height="28" fill="#FEF08A" stroke="#CA8A04" stroke-width="1.8"/>
+      ${Array.from({ length: 15 }).map((_, i) => {
+        const x = 195 + i * 10;
+        const isMajor = i % 5 === 0;
+        return `<line x1="${x}" y1="162" x2="${x}" y2="${isMajor ? 174 : 169}" stroke="#1E293B" stroke-width="${isMajor ? 1.5 : 0.9}"/>`;
+      }).join('')}
+      <text x="245" y="184" font-family="Arial, sans-serif" font-size="8" font-weight="bold" fill="#1E293B">10 cm</text>
+      <text x="295" y="184" font-family="Arial, sans-serif" font-size="8" font-weight="bold" fill="#1E293B">20 cm</text>
+
+      <!-- Gancho metálico en el extremo con remaches -->
+      <path d="M 348 158 L 356 158 L 356 198 L 348 198 Z" fill="#94A3B8" stroke="#334155" stroke-width="1.5"/>
+      <circle cx="336" cy="176" r="2.2" fill="#475569"/>
+      <circle cx="343" cy="176" r="2.2" fill="#475569"/>
+
+      <!-- Carcasa ergonómica antichoque del flexómetro -->
+      <path d="M 75 190 L 75 115 Q 75 78 115 78 L 168 78 Q 202 78 208 118 L 208 190 Z" fill="#FACC15" stroke="#1E293B" stroke-width="2.5"/>
+      <!-- Inserto de goma negra antideslizante -->
+      <circle cx="138" cy="138" r="34" fill="#1E293B" stroke="#0F172A" stroke-width="2"/>
+      <circle cx="138" cy="138" r="22" fill="#2563EB" stroke="#FFFFFF" stroke-width="1.5"/>
+      <text x="138" y="136" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#FFFFFF" text-anchor="middle">5m</text>
+      <text x="138" y="147" font-family="Arial, sans-serif" font-size="6.5" fill="#E2E8F0" text-anchor="middle">16 ft</text>
+
+      <!-- Botón deslizante de freno / seguro superior -->
+      <rect x="196" y="102" width="16" height="24" rx="4" fill="#EF4444" stroke="#7F1D1D" stroke-width="1.5"/>
+      <text x="175" y="96" font-family="Arial, sans-serif" font-size="6.5" font-weight="bold" fill="#1E293B">SEGURO</text>
+    `;
+    return wrapBlueprintSvg(body, label || 'Flexómetro de Cinta Metálica con Seguro');
+  },
+
+  // ── Escalímetro Triangular Profesional ──
+  escalimetro: (label) => {
+    const body = `
+      <!-- Cuerpo prismático triangular en perspectiva -->
+      <polygon points="65,155 325,95 340,122 80,182" fill="#F8FAFC" stroke="#1E293B" stroke-width="2"/>
+      <polygon points="80,182 340,122 332,144 72,204" fill="#E2E8F0" stroke="#1E293B" stroke-width="1.8"/>
+      <!-- Ranura central de color codificado (rojo técnico) -->
+      <line x1="74" y1="168" x2="333" y2="108" stroke="#EF4444" stroke-width="4"/>
+      <!-- Graduaciones de escala 1:100 y 1:50 -->
+      ${Array.from({ length: 20 }).map((_, i) => {
+        const t = (i + 1) / 22;
+        const x1 = 65 + t * 260;
+        const y1 = 155 - t * 60;
+        const len = i % 5 === 0 ? 9 : 5;
+        return `<line x1="${x1}" y1="${y1}" x2="${x1 + 3}" y2="${y1 + len}" stroke="#0F172A" stroke-width="${i % 5 === 0 ? 1.4 : 0.8}"/>`;
+      }).join('')}
+      <text x="115" y="152" font-family="Arial, sans-serif" font-size="8" font-weight="bold" fill="#1E293B" transform="rotate(-13, 115, 152)">1:100</text>
+      <text x="275" y="115" font-family="Arial, sans-serif" font-size="8" font-weight="bold" fill="#2563EB" transform="rotate(-13, 275, 115)">1:50</text>
+    `;
+    return wrapBlueprintSvg(body, label || 'Escalímetro Triangular Profesional');
+  },
+
   // ── Plantilla Genérica de Taller y Ciencias (Fallback) ──
   herramienta_generica: (label) => {
     const body = `
@@ -585,7 +682,9 @@ SVG_TEMPLATES['mechero_bunsen'] = SVG_TEMPLATES['cautin'];
 SVG_TEMPLATES['pipeta'] = SVG_TEMPLATES['matraz_erlenmeyer'];
 SVG_TEMPLATES['balanza_granataria'] = SVG_TEMPLATES['vernier'];
 SVG_TEMPLATES['dinamometro'] = SVG_TEMPLATES['vernier'];
-SVG_TEMPLATES['escalimetro'] = SVG_TEMPLATES['vernier'];
+SVG_TEMPLATES['cronometro_digital'] = SVG_TEMPLATES['cronometro'];
+SVG_TEMPLATES['flexometro_cinta_seguro'] = SVG_TEMPLATES['flexometro'];
+SVG_TEMPLATES['cinta_metrica'] = SVG_TEMPLATES['flexometro'];
 SVG_TEMPLATES['transportador'] = SVG_TEMPLATES['compas_precision'];
 SVG_TEMPLATES['computadora'] = SVG_TEMPLATES['osciloscopio'];
 SVG_TEMPLATES['baumanometro'] = SVG_TEMPLATES['multimetro'];

@@ -92,7 +92,37 @@ export interface ExtractedBlockMaterials {
 }
 
 /**
- * Función pura determinística que extrae los 24 Planes de Clase, la Guía de Trabajo,
+ * Calcula dinámicamente el total oficial de sesiones del bloque (12, 18 o 24)
+ * respetando la carga horaria curricular de la UAC (36h -> 12/bloque, 54h -> 18/bloque, 72h -> 24/bloque)
+ * y manteniendo retrocompatibilidad con mocks parciales de pruebas unitarias.
+ */
+export function resolveTargetSessionsForWorkbook(
+  workbook: ActiveWorkTextbook,
+  blockSequence?: SecuenciaBloque | null
+): number {
+  if (blockSequence?.hours && blockSequence.hours >= 6) {
+    return Math.round(blockSequence.hours);
+  }
+  if (Array.isArray(blockSequence?.sessions) && blockSequence.sessions.length >= 6) {
+    return blockSequence.sessions.length;
+  }
+  const missions = workbook.missions || [];
+  if (missions.length >= 4) {
+    const allSessions = missions.flatMap((m) =>
+      Array.isArray(m.coveredSessions) ? m.coveredSessions : []
+    );
+    if (allSessions.length > 0) {
+      const maxSession = Math.max(...allSessions);
+      if (maxSession >= 6 && maxSession <= 30) {
+        return maxSession;
+      }
+    }
+  }
+  return 24;
+}
+
+/**
+ * Función pura determinística que extrae los Planes de Clase del bloque (12, 18 o 24 según UAC), la Guía de Trabajo,
  * los Instrumentos de Evaluación y el Material Didáctico del Libro de Bloque (ActiveWorkTextbook).
  * Opcionalmente integra la secuencia didáctica guardada (SecuenciaBloque) para desacoplar
  * pedagógicamente cada una de las sesiones individuales y evitar clones homogéneos.
@@ -110,8 +140,8 @@ export function extractMaterialsFromWorkbook(
   const missions = workbook.missions || [];
   const planesDeClase: PlanDeClaseDerivado[] = [];
 
-  // 1. Extraer o mapear las 24 sesiones de clase a partir de las misiones
-  const TARGET_SESSIONS = 24;
+  // 1. Extraer o mapear las sesiones oficiales de clase a partir de las misiones y secuencia
+  const TARGET_SESSIONS = resolveTargetSessionsForWorkbook(workbook, blockSequence);
 
   if (missions.length > 0) {
     // Si las misiones tienen coveredSessions explícitas, mapearlas
@@ -519,8 +549,9 @@ function buildSolucionarioDocenteMarkdown(workbook: ActiveWorkTextbook): string 
   parts.push(`**Asignatura / UAC:** ${subjectName} (${isStem ? 'Área STEM / Ciencias Exactas' : isHumanities ? 'Área Humanidades / Ciencias Sociales' : 'Formación Fundamental'})`);
   parts.push(`**Plantel:** ${(cover.schoolName as string) || ''} | **Semestre:** ${(cover.semester as number | string) || 1}°`);
   if (cover.paecProjectName) parts.push(`**Proyecto Comunitario (PAEC):** ${cover.paecProjectName}`);
+  const totalSessions = resolveTargetSessionsForWorkbook(workbook);
   parts.push('\n> **DOCUMENTO CONFIDENCIAL DE USO EXCLUSIVO PARA EL DOCENTE**');
-  parts.push('> Contiene resoluciones modelo, claves de respuesta esperadas, criterios de mediación dialéctica y pautas de retroalimentación formativa para la conducción de las 24 sesiones de clase.\n');
+  parts.push(`> Contiene resoluciones modelo, claves de respuesta esperadas, criterios de mediación dialéctica y pautas de retroalimentación formativa para la conducción de las ${totalSessions} sesiones de clase.\n`);
   parts.push('---\n');
 
   parts.push('## 1. RESOLUCIÓN DETALLADA Y GUÍA DE MEDIACIÓN POR MISIÓN\n');

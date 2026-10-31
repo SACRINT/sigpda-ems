@@ -7,17 +7,26 @@
  */
 
 import type { PlanningActivities } from './writer-contract';
+import { buildDisciplinaryPromptBlock } from '@/lib/prompts/disciplinary-adapters';
 
 export type WriterRoleFocus = 'foundation' | 'lab' | 'project' | 'evaluation';
 
 /**
- * Genera el bloque textual de alineación curricular para inyectar en el prompt del writer.
+ * Genera el bloque textual de alineación curricular y disciplinar para inyectar en el prompt del writer.
  */
 export function buildPlanningAlignmentPrompt(
   pa?: PlanningActivities,
-  focus: WriterRoleFocus = 'foundation'
+  focus: WriterRoleFocus = 'foundation',
+  uacName: string = ''
 ): string {
-  if (!pa) return '';
+  const disciplinaryBlock = uacName ? buildDisciplinaryPromptBlock(uacName) : '';
+  const urlGuardrail = `
+REGLA DE ENLACES EDUCATIVOS RESILIENTES (CERO 404):
+- En el arreglo "recursos" de cada "sessionPlans", NUNCA inventes IDs de video ("watch?v=...") que no existen.
+- Para recursos de tipo "video", usa SIEMPRE consultas de búsqueda funcional de YouTube: "https://www.youtube.com/results?search_query=TEMA+EDUCACION+MEDIA+SUPERIOR".
+- Para recursos de tipo "web" o "lectura", usa dominios educativos reales (Khan Academy, PhET, UNAM, INEGI, RAE, SEP) o búsqueda académica: "https://scholar.google.es/scholar?q=TEMA".`;
+
+  if (!pa) return `${disciplinaryBlock}${urlGuardrail}`;
 
   let specificRule = '';
   switch (focus) {
@@ -35,7 +44,7 @@ export function buildPlanningAlignmentPrompt(
       break;
   }
 
-  return `
+  return `${disciplinaryBlock}${urlGuardrail}
 ALINEACIÓN OBLIGATORIA CON LA PLANEACIÓN DIDÁCTICA:
 - APERTURA: ${pa.apertura.description || 'No especificada'} | Procesos: ${pa.apertura.processes || 'N/A'} | Materiales: ${pa.apertura.materials || 'N/A'}
 - DESARROLLO: ${pa.ejecucion.description || 'No especificado'} | Procesos: ${pa.ejecucion.processes || 'N/A'} | Materiales: ${pa.ejecucion.materials || 'N/A'}
@@ -43,6 +52,6 @@ ALINEACIÓN OBLIGATORIA CON LA PLANEACIÓN DIDÁCTICA:
 ${pa.saberes ? `- SABERES: [Teórico]: ${pa.saberes.saber} | [Procedimental]: ${pa.saberes.saberHacer} | [Actitudinal]: ${pa.saberes.saberSer}` : ''}
 ${pa.contenidoFormativo ? `- CONTENIDO FORMATIVO: ${pa.contenidoFormativo}` : ''}
 ${pa.methodology ? `- METODOLOGÍA: ${pa.methodology}` : ''}
-${specificRule} NO generes actividades ajenas a la planeación.
+${specificRule} NO generes actividades ni materiales ajenos a la planeación o a la disciplina.
 `;
 }

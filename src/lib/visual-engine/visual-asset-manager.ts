@@ -65,6 +65,64 @@ function materialPngFileExists(slug: string): boolean {
   }
 }
 
+function isMaterialCompatibleWithSubject(
+  item: ReturnType<typeof getMaterial>,
+  uacName: string
+): boolean {
+  if (!item) return false;
+  const normUac = normalizeUnicode(uacName || '').toLowerCase();
+
+  // 1. Educación Física y Deportes: bloquear cocina, soldadura, química y electrónica
+  if (
+    normUac.includes('deport') ||
+    normUac.includes('actividades fisicas') ||
+    normUac.includes('educacion fisica')
+  ) {
+    const blockedSlugs = new Set([
+      'tabla-cortar',
+      'horno-reposteria',
+      'batidora',
+      'cocina-industrial',
+      'soldadura-mig',
+      'torno-mecanico',
+      'matraz-erlenmeyer',
+      'bureta',
+      'mechero-lab',
+      'osciloscopio',
+      'multimetro',
+      'fuente-poder',
+    ]);
+    if (blockedSlugs.has(item.slug)) return false;
+    const allowedCategories = new Set(['deportivo', 'medicion', 'salud', 'seguridad_epp']);
+    return allowedCategories.has(item.category);
+  }
+
+  // 2. Matemáticas y Pensamiento Variacional: bloquear cocina, agropecuaria, soldadura y reactivos
+  if (
+    normUac.includes('matemat') ||
+    normUac.includes('variacional') ||
+    normUac.includes('calculo') ||
+    normUac.includes('estadistica')
+  ) {
+    const disallowedCategories = new Set(['alimentos', 'agro', 'laboratorio_quimica', 'laboratorio_bio', 'industrial']);
+    if (disallowedCategories.has(item.category) || item.slug === 'tabla-cortar') return false;
+  }
+
+  // 3. Humanidades, Ciencias Sociales y Lengua: bloquear cocina, taller industrial y química
+  if (
+    normUac.includes('humanidades') ||
+    normUac.includes('ciencias sociales') ||
+    normUac.includes('historia') ||
+    normUac.includes('lengua') ||
+    normUac.includes('ingles')
+  ) {
+    const disallowedCategories = new Set(['alimentos', 'industrial', 'laboratorio_quimica', 'construccion']);
+    if (disallowedCategories.has(item.category) || item.slug === 'tabla-cortar') return false;
+  }
+
+  return true;
+}
+
 const NATURAL_SCIENCES_KEYWORDS = [
   'biología',
   'biologia',
@@ -284,8 +342,10 @@ export async function resolveVisualForMission(
     }
   }
 
-  // 2.5 Catálogo de materiales ilustrados (PNG)
-  const matches = detectCatalogMaterials(`${missionTitle} ${contextText || ''}`);
+  // 2.5 Catálogo de materiales ilustrados (PNG) con filtro de compatibilidad disciplinar
+  const matches = detectCatalogMaterials(`${missionTitle} ${contextText || ''}`).filter((m) =>
+    isMaterialCompatibleWithSubject(getMaterial(m.slug), uacName)
+  );
   const slugLibre = matches.find((m) => !options.usedAssetIds?.has(`material:${m.slug}`));
   if (slugLibre) {
     const item = getMaterial(slugLibre.slug);
@@ -368,6 +428,42 @@ export async function resolveEquipmentVisualForMission(
   const cacheKey = `${detected.id}_${subjectName || 'uac'}`;
   if (equipmentAssetCache.has(cacheKey)) {
     return equipmentAssetCache.get(cacheKey)!;
+  }
+
+  // 0. Carga local prioritaria: verificar si el instrumento tiene un asset 512x512 PNG en public/images/materiales/
+  const candidateSlugs = Array.from(
+    new Set(
+      [
+        detected.id.replace(/_/g, '-'),
+        detected.svgKey.replace(/_/g, '-'),
+        getMaterial(detected.id)?.slug,
+        getMaterial(detected.svgKey)?.slug,
+        getMaterial(detected.name)?.slug,
+        detected.id === 'flexometro_cinta_seguro' || detected.svgKey === 'flexometro' ? 'cinta-metrica' : undefined,
+      ].filter((s): s is string => Boolean(s))
+    )
+  );
+
+  for (const slug of candidateSlugs) {
+    if (materialPngFileExists(slug)) {
+      try {
+        const relPath = getMaterialImagePaths(slug).png;
+        const fullPath = path.join(process.cwd(), 'public', relPath);
+        const pngBuffer = fs.readFileSync(fullPath);
+        const visual: ResolvedEquipmentVisual = {
+          detected,
+          sourceType: 'blueprint_svg',
+          buffer: pngBuffer,
+          format: 'PNG',
+          caption: `${detected.name} — ${detected.technicalRole}`,
+          isHero: !options?.preferSidebar && detected.category === 'herramienta_taller',
+        };
+        equipmentAssetCache.set(cacheKey, visual);
+        return visual;
+      } catch {
+        // Si falla la lectura de disco, continuar con Openverse / SVG
+      }
+    }
   }
 
   // 1. Intentar obtener foto real en Openverse con validación de relevancia

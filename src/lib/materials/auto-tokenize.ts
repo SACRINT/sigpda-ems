@@ -25,6 +25,38 @@ function escapeRegExp(str: string): string {
  */
 let cachedVariants: CatalogVariant[] | null = null;
 
+const DANGLING_CONNECTORS = new Set([
+  'de', 'del', 'para', 'con', 'en', 'por', 'sin', 'a', 'al', 'y', 'o', 'e', 'u', 'la', 'el', 'los', 'las', 'un', 'una',
+]);
+
+const AMBIGUOUS_GENERIC_PREFIXES = new Set([
+  'tabla de', 'tablas de',
+  'juego de', 'juegos de',
+  'fuente de', 'fuentes de',
+  'plano de', 'planos de',
+  'equipo de', 'equipos de',
+  'material de', 'materiales de',
+  'sistema de', 'sistemas de',
+  'control de', 'controles de',
+  'lector de', 'lectores de',
+  'medidor de', 'medidores de',
+  'sensor de', 'sensores de',
+  'prueba de', 'pruebas de',
+  'tarjeta de', 'tarjetas de',
+  'bloque de', 'bloques de',
+  'disco de', 'discos de',
+  'linea de', 'lineas de',
+  'mapa de', 'mapas de',
+  'cuaderno de', 'cuadernos de',
+  'red de', 'redes de',
+  'kit de', 'kits de',
+  'caja de', 'cajas de',
+  'frasco de', 'frascos de',
+  'tubo de', 'tubos de',
+  'cable de', 'cables de',
+  'cinta de', 'cintas de',
+]);
+
 function getSortedVariants(): CatalogVariant[] {
   if (cachedVariants) return cachedVariants;
 
@@ -48,10 +80,17 @@ function getSortedVariants(): CatalogVariant[] {
     const cleanName = m.name.replace(/\(.*?\)/g, '').replace(/[/]/g, ' ').trim();
     const words = cleanName.split(/\s+/);
     if (words.length >= 2) {
-      candidatePhrases.push(words.slice(0, 2).join(' '));
+      const secondWordNorm = normalizeUnicode(words[1]).toLowerCase();
+      // Solo agregar subfrase de 2 palabras si la segunda palabra NO es preposición/conector colgante
+      if (!DANGLING_CONNECTORS.has(secondWordNorm)) {
+        candidatePhrases.push(words.slice(0, 2).join(' '));
+      }
     }
     if (words.length >= 3) {
-      candidatePhrases.push(words.slice(0, 3).join(' '));
+      const thirdWordNorm = normalizeUnicode(words[2]).toLowerCase();
+      if (!DANGLING_CONNECTORS.has(thirdWordNorm)) {
+        candidatePhrases.push(words.slice(0, 3).join(' '));
+      }
     }
 
     for (const phrase of candidatePhrases) {
@@ -62,6 +101,12 @@ function getSortedVariants(): CatalogVariant[] {
         .replace(/\s+/g, ' ')
         .trim();
 
+      const normWords = norm.split(' ');
+      const lastWord = normWords[normWords.length - 1];
+      if (DANGLING_CONNECTORS.has(lastWord) || AMBIGUOUS_GENERIC_PREFIXES.has(norm)) {
+        continue;
+      }
+
       if (norm.length >= 6) {
         if (!rawVariantsMap.has(norm)) {
           rawVariantsMap.set(norm, m.slug);
@@ -69,7 +114,7 @@ function getSortedVariants(): CatalogVariant[] {
 
         // Plural simple si singular >= 6
         const plural = /[aeiou]$/.test(norm) ? norm + 's' : norm + 'es';
-        if (!rawVariantsMap.has(plural)) {
+        if (!AMBIGUOUS_GENERIC_PREFIXES.has(plural) && !rawVariantsMap.has(plural)) {
           rawVariantsMap.set(plural, m.slug);
         }
       }

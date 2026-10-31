@@ -899,17 +899,19 @@ export function drawDigitalToolCardWidget(
     }
   }
 
-  // Descripción didáctica a la izquierda del QR
+  // Descripción didáctica completa (sin cortar en 2 o 3 líneas)
   const textMaxW = sideW - qrSize - 9;
-  doc.setFontSize(5.0);
+  setFontBody(doc, 'normal');
+  doc.setFontSize(4.9);
   doc.setTextColor(...COLOR.TEXT_PRIMARY);
   const descLines = doc.splitTextToSize(sanitizePdfText(tool.description), textMaxW) as string[];
-  const maxLines = compact ? 2 : 3;
-  let lineY = sy + 14.5;
-  descLines.slice(0, maxLines).forEach((line: string) => {
+  let lineY = sy + 14.2;
+  const maxAllowedY = sy + cardH - 5.2;
+  for (const line of descLines) {
+    if (lineY > maxAllowedY) break;
     doc.text(line, sideXAbs + 4.5, lineY);
-    lineY += 2.8;
-  });
+    lineY += 2.6;
+  }
 
   // Callout inferior de interacción
   setFontBody(doc, 'bold');

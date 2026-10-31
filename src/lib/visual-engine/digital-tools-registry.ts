@@ -139,8 +139,38 @@ export const MCCEMS_DIGITAL_TOOLS: DigitalTool[] = [
     description: 'Atlas anatómico en tercera dimensión de sistemas del cuerpo humano.',
     platforms: ['Web', 'Android', 'iOS'],
     requiresAccount: false,
-    subjectAffinity: ['biología', 'ciencias de la salud', 'anatomía', 'cuidado del cuerpo'],
-    relevanceKeywords: ['sistema', 'órgano', 'célula', 'tejido', 'esqueleto', 'músculo', 'circulatorio', 'digestivo', 'salud'],
+    subjectAffinity: ['biología', 'ciencias de la salud', 'anatomía', 'cuidado del cuerpo', 'salud integral', 'actividades físicas y deportivas', 'educación física'],
+    relevanceKeywords: ['sistema', 'órgano', 'célula', 'tejido', 'esqueleto', 'músculo', 'circulatorio', 'digestivo', 'salud', 'frecuencia cardíaca', 'acondicionamiento'],
+  },
+  {
+    id: 'kinovea_sport',
+    name: 'Kinovea Video Sport',
+    url: 'https://www.kinovea.org/',
+    description: 'Análisis biomecánico en video, cronometraje deportivo y medición de ángulos motrices.',
+    platforms: ['Web', 'Offline'],
+    requiresAccount: false,
+    subjectAffinity: ['actividades físicas y deportivas', 'educación física', 'deporte', 'cuidado físico'],
+    relevanceKeywords: ['juego', 'deporte', 'motricidad', 'agilidad', 'circuito', 'velocidad', 'coordinación', 'biomecánica', 'desempeño', 'recorrido', 'entrenamiento'],
+  },
+  {
+    id: 'tabata_timer',
+    name: 'Cronómetro HIIT / Tabata',
+    url: 'https://www.intervaltimer.com/',
+    description: 'Temporizador deportivo programable para circuitos de activación, series y control de pulso.',
+    platforms: ['Web', 'Android', 'iOS', 'Offline'],
+    requiresAccount: false,
+    subjectAffinity: ['actividades físicas y deportivas', 'educación física', 'deporte', 'salud integral'],
+    relevanceKeywords: ['cronómetro', 'tiempo', 'pulsaciones', 'frecuencia cardíaca', 'estaciones', 'activación', 'calentamiento', 'resistencia', 'aeróbico', 'series'],
+  },
+  {
+    id: 'librecad',
+    name: 'LibreCAD / QCAD Técnico',
+    url: 'https://librecad.org/',
+    description: 'Diseño asistido por computadora (CAD 2D) para planos técnicos, vistas diédricas y acotación.',
+    platforms: ['Web', 'Offline'],
+    requiresAccount: false,
+    subjectAffinity: ['dibujo técnico', 'geometría descriptiva', 'diseño', 'arquitectura'],
+    relevanceKeywords: ['plano', 'proyección', 'ortogonal', 'isométrico', 'escala', 'acotación', 'restirador', 'escuadra', 'trazo', 'vistas', 'alzado', 'planta'],
   },
 ];
 
@@ -185,14 +215,31 @@ export function resolveMultipleDigitalToolsForMission(
   const normText = (missionText || '').toLowerCase();
   const fullText = `${normSubject} ${normTitle} ${normText}`;
 
+  const isSportsOrPE =
+    normSubject.includes('deport') ||
+    normSubject.includes('actividades físicas') ||
+    normSubject.includes('actividades fisicas') ||
+    normSubject.includes('educación física') ||
+    normSubject.includes('educacion fisica');
+
   const scoredTools: Array<{ tool: DigitalTool; score: number }> = [];
 
   for (const tool of MCCEMS_DIGITAL_TOOLS) {
+    // En asignaturas físico-deportivas, bloquear herramientas de electrónica, programación o álgebra pura
+    if (isSportsOrPE && ['geogebra', 'desmos', 'phet', 'tinkercad', 'molview', 'scratch', 'stellarium', 'librecad'].includes(tool.id)) {
+      continue;
+    }
+
     let score = 0;
 
     // Afinidad disciplinar (3 puntos)
     for (const affinity of tool.subjectAffinity) {
-      if (normSubject.includes(affinity.toLowerCase())) {
+      const lowerAff = affinity.toLowerCase();
+      // Evitar que 'física' matchee con 'actividades físicas' o 'educación física'
+      if ((lowerAff === 'física' || lowerAff === 'fisica') && isSportsOrPE) {
+        continue;
+      }
+      if (normSubject.includes(lowerAff)) {
         score += 3;
         break;
       }

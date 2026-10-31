@@ -191,8 +191,7 @@ export function extractCalloutBox(
     .filter((s) => s.length >= 35 && s.length <= 250);
 
   if (sentences.length > 0) {
-    const rawTakeaway = stripMarkdown(sentences[0]);
-    const cleanTakeaway = rawTakeaway.length > 80 ? rawTakeaway.slice(0, 80).trim() + '...' : rawTakeaway;
+    const distinctTakeaway = sentences.length > 1 ? stripMarkdown(sentences[1]) : undefined;
     return buildCallout(
       opts.defaultTitle || 'PRINCIPIO FUNDAMENTAL',
       sentences[0],
@@ -200,7 +199,7 @@ export function extractCalloutBox(
       opts.defaultType || 'key_concept',
       'IDEA FUERZA',
       '💡',
-      cleanTakeaway
+      distinctTakeaway
     );
   }
 

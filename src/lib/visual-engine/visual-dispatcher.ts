@@ -76,6 +76,19 @@ const STEM_KEYWORDS = [
   'trigonometría',
   'estadística',
   'cultura digital',
+  'pensamiento variacional',
+  'probabilidad y estadística',
+  'taller de ciencias',
+];
+
+const SPORTS_SOCIOEMOTIONAL_EXCLUSIONS = [
+  'actividades fisicas',
+  'educacion fisica',
+  'cuidado fisico',
+  'deportivas',
+  'deporte',
+  'actividades artisticas',
+  'arte y cultura',
 ];
 
 const HUMANITIES_KEYWORDS = [
@@ -134,6 +147,9 @@ const LABORAL_KEYWORDS = [
  */
 export function isStemSubject(uacName: string): boolean {
   const norm = normalizeUnicode(uacName);
+  if (SPORTS_SOCIOEMOTIONAL_EXCLUSIONS.some((ex) => norm.includes(ex))) {
+    return false;
+  }
   return STEM_KEYWORDS.some((kw) => {
     const normKw = normalizeUnicode(kw);
     return norm.includes(normKw);

@@ -30,7 +30,7 @@ export async function generateProjectMission(input: WriterInput): Promise<Writer
     : [Math.max(1, input.sessions.length - 3), Math.max(2, input.sessions.length - 2)];
   const missionTitle = projectMission ? projectMission.title : `Misión 3: Construcción del Artefacto Real`;
 
-  const planningAlignmentChunk = buildPlanningAlignmentPrompt(input.planningActivities, 'project') +
+  const planningAlignmentChunk = buildPlanningAlignmentPrompt(input.planningActivities, 'project', input.uacName) +
   (input.alignmentDirective ? ` 
 ALINEACION DURA — TERMINOS OBLIGATORIOS DE LA PLANEACION (reproduce su redaccion original en tu seccion): ` + input.alignmentDirective + ` 
  ` : '');
@@ -118,8 +118,8 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
       "aplicacion": "Aplicación a la vida real del estudiante...",
       "autoevaluacion": ["¿Puedo explicar el avance de mi artefacto?", "¿Logré la práctica sin mirar?"],
       "recursos": [
-        { "titulo": "Video: tema en YouTube", "url": "https://www.youtube.com/watch?v=...", "tipo": "video" },
-        { "titulo": "Página de ampliación", "url": "https://...", "tipo": "web" }
+        { "titulo": "Video de proyecto aplicado", "url": "https://www.youtube.com/results?search_query=proyecto+educacion+media+superior", "tipo": "video" },
+        { "titulo": "Consulta académica de ampliación", "url": "https://scholar.google.es/scholar?q=proyecto+bachillerato", "tipo": "web" }
       ],
       "productoIntegrador": "Qué agregas hoy a tu producto integrador..."
     }

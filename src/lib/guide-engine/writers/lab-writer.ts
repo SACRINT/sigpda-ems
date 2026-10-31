@@ -35,7 +35,7 @@ BASE DE CONOCIMIENTO (SEMILLA CANÓNICA PRE-VALIDADA):
 - Errores comunes: ${input.canonicalSeed.content.commonErrors?.map((e) => e.symptom).join('; ') || 'Ninguno'}`;
   }
 
-  const planningAlignmentChunk = buildPlanningAlignmentPrompt(input.planningActivities, 'lab') +
+  const planningAlignmentChunk = buildPlanningAlignmentPrompt(input.planningActivities, 'lab', input.uacName) +
   (input.alignmentDirective ? ` 
 ALINEACION DURA — TERMINOS OBLIGATORIOS DE LA PLANEACION (reproduce su redaccion original en tu seccion): ` + input.alignmentDirective + ` 
  ` : '');
@@ -98,8 +98,8 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
       "aplicacion": "Aplicación a la vida real del estudiante...",
       "autoevaluacion": ["¿Puedo explicar el procedimiento?", "¿Logré la práctica sin mirar?"],
       "recursos": [
-        { "titulo": "Video: práctica en YouTube", "url": "https://www.youtube.com/watch?v=...", "tipo": "video" },
-        { "titulo": "Página de ampliación", "url": "https://...", "tipo": "web" }
+        { "titulo": "Video práctico sobre el tema", "url": "https://www.youtube.com/results?search_query=practica+educacion+media+superior", "tipo": "video" },
+        { "titulo": "Consulta académica de ampliación", "url": "https://scholar.google.es/scholar?q=practica+bachillerato", "tipo": "web" }
       ],
       "productoIntegrador": "Qué agregas hoy a tu producto integrador..."
     }

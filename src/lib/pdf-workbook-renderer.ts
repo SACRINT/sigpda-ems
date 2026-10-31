@@ -1703,16 +1703,24 @@ function drawPdfComparisonTable(
   if (!tableData.rows || tableData.rows.length === 0) return y;
 
   const cleanTitle = tableData.title ? sanitizePdfText(stripMarkdown(tableData.title)) : '';
-  const headerHeight = cleanTitle ? 10 : 4;
+  setFontBody(doc, 'bold');
+  doc.setFontSize(8.2);
+  const titleLines: string[] = cleanTitle
+    ? (doc.splitTextToSize(cleanTitle, clampTextWidth(contentWidth, contentWidth, 4)) as string[])
+    : [];
+  const headerHeight = titleLines.length > 0 ? titleLines.length * 4.2 + 5 : 4;
   const checkSpace = ensureSpaceFn || ((cy: number, nh: number) => ensureVerticalSpace(doc, cy, nh, margin, pageHeight));
   y = checkSpace(y, 32 + headerHeight);
 
-  if (cleanTitle) {
+  if (titleLines.length > 0) {
     setFontBody(doc, 'bold');
     doc.setFontSize(8.2);
     doc.setTextColor(...NAVY);
-    doc.text(cleanTitle, margin, y);
-    y += 4.5;
+    for (const tLine of titleLines) {
+      doc.text(tLine, margin, y);
+      y += 4.2;
+    }
+    y += 1.0;
   }
 
   const cleanHeaders = [
@@ -1825,8 +1833,13 @@ function drawPracticeTasksWithDottedLines(
 
   for (let idx = 0; idx < selectedTasks.length; idx++) {
     const cleanTaskText = selectedTasks[idx];
-    // GUARDIÁN: texto de tarea nunca excede drawWidth
-    const taskLines = doc.splitTextToSize(`[  ] Tarea ${idx + 1}: ${cleanTaskText}`, clampTextWidth(drawWidth, drawWidth, 4));
+    // GUARDIÁN: Configurar fuente BOLD ANTES de splitTextToSize para medir el ancho real exacto
+    setFontBody(doc, 'bold');
+    doc.setFontSize(7.8);
+    const taskLines = doc.splitTextToSize(
+      `[  ] Tarea ${idx + 1}: ${cleanTaskText}`,
+      clampTextWidth(drawWidth, drawWidth, 8)
+    );
     const neededH = taskLines.length * 4 + 18;
     y = checkSpace(y, neededH);
 
@@ -1983,7 +1996,36 @@ function printPdfCheckItem(
   });
 }
 
-/** Recurso de ampliación (título + URL) — paridad DOCX buildDocxResourceLine. */
+/**
+ * Normaliza enlaces de recursos educativos para erradicar errores 404 por IDs de YouTube
+ * o URLs de ejemplo alucinadas por el LLM. Convierte cualquier watch?v=... o enlace roto
+ * en una consulta de búsqueda educativa funcional.
+ */
+export function sanitizeEducationalResourceUrl(url: string, titulo: string, tipo: string): string {
+  const cleanTitle = sanitizePdfText(stripMarkdown(titulo || 'Recurso educativo EMS')).trim();
+  const rawUrl = (url || '').trim();
+  const isYoutubeWatch = /youtube\.com\/watch\?v=|youtu\.be\//i.test(rawUrl);
+  const isPlaceholderUrl =
+    !rawUrl ||
+    /ejemplo|example\.com|tu-enlace|url-del-recurso|watch\?v=123|watch\?v=abc/i.test(rawUrl);
+
+  if (tipo === 'video' || isYoutubeWatch) {
+    if (rawUrl.includes('youtube.com/results?search_query=')) {
+      return rawUrl;
+    }
+    const query = encodeURIComponent(`${cleanTitle} educación media superior`);
+    return `https://www.youtube.com/results?search_query=${query}`;
+  }
+
+  if (isPlaceholderUrl) {
+    const query = encodeURIComponent(`${cleanTitle} bachillerato académico`);
+    return `https://scholar.google.es/scholar?q=${query}`;
+  }
+
+  return rawUrl;
+}
+
+/** Recurso de ampliación (título + URL resiliente sin 404) — paridad DOCX buildDocxResourceLine. */
 function printPdfResourceLine(
   flow: ColumnFlowManager,
   titulo: string,
@@ -1992,7 +2034,8 @@ function printPdfResourceLine(
   startY: number
 ): number {
   const icono = tipo === 'video' ? '[Video]' : tipo === 'lectura' ? '[Lectura]' : '[Web]';
-  return flow.printMainParagraph(`${icono} ${sanitizePdfText(stripMarkdown(titulo))} — ${url}`, startY, {
+  const safeUrl = sanitizeEducationalResourceUrl(url, titulo, tipo);
+  return flow.printMainParagraph(`${icono} ${sanitizePdfText(stripMarkdown(titulo))} — ${safeUrl}`, startY, {
     size: 6.8,
     color: [37, 99, 235] as RGB,
     lineHeight: 3.4,
@@ -2028,8 +2071,18 @@ function drawSingleTaskWithDottedLines(
 ): number {
   const cleanTaskText = sanitizePdfText(stripMarkdown(taskText)).trim();
   const cleanPista = pista ? sanitizePdfText(stripMarkdown(pista)).trim() : '';
-  const taskLines = doc.splitTextToSize(`[  ] Tarea ${taskIdx}: ${cleanTaskText}`, clampTextWidth(drawWidth, drawWidth, 4));
-  const pistaLines = cleanPista ? doc.splitTextToSize(`Pista: ${cleanPista}`, clampTextWidth(drawWidth, drawWidth, 8)) : [];
+  // GUARDIÁN: Configurar fuente BOLD ANTES de splitTextToSize para evitar desborde al sidebar
+  setFontBody(doc, 'bold');
+  doc.setFontSize(7.8);
+  const taskLines = doc.splitTextToSize(
+    `[  ] Tarea ${taskIdx}: ${cleanTaskText}`,
+    clampTextWidth(drawWidth, drawWidth, 8)
+  );
+  setFontBody(doc, 'normal');
+  doc.setFontSize(6.8);
+  const pistaLines = cleanPista
+    ? doc.splitTextToSize(`Pista: ${cleanPista}`, clampTextWidth(drawWidth, drawWidth, 10))
+    : [];
   const neededH = taskLines.length * 4 + pistaLines.length * 3.4 + 18;
   y = checkSpace(y, neededH);
 

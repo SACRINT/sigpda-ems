@@ -2629,9 +2629,22 @@ function buildDocxCheckItem(text: string): Paragraph {
   });
 }
 
-/** Recurso de ampliación (título + URL) como línea justificada. */
+/** Recurso de ampliación (título + URL resiliente sin 404) como línea justificada. */
 function buildDocxResourceLine(titulo: string, url: string, tipo: string): Paragraph {
   const icono = tipo === 'video' ? '🎬' : tipo === 'lectura' ? '📄' : '🌐';
+  const rawUrl = (url || '').trim();
+  const isYoutubeWatch = /youtube\.com\/watch\?v=|youtu\.be\//i.test(rawUrl);
+  const isPlaceholderUrl =
+    !rawUrl ||
+    /ejemplo|example\.com|tu-enlace|url-del-recurso|watch\?v=123|watch\?v=abc/i.test(rawUrl);
+  let safeUrl = rawUrl;
+  if (tipo === 'video' || isYoutubeWatch) {
+    if (!rawUrl.includes('youtube.com/results?search_query=')) {
+      safeUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(`${titulo} educación media superior`)}`;
+    }
+  } else if (isPlaceholderUrl) {
+    safeUrl = `https://scholar.google.es/scholar?q=${encodeURIComponent(`${titulo} bachillerato académico`)}`;
+  }
   return new Paragraph({
     alignment: AlignmentType.JUSTIFIED,
     spacing: { after: 40, line: 300 },
@@ -2639,7 +2652,7 @@ function buildDocxResourceLine(titulo: string, url: string, tipo: string): Parag
     children: [
       new TextRun({ text: `${icono} `, size: 20, font: 'Calibri' }),
       new TextRun({ text: titulo, size: 20, color: C.darkText, font: 'Calibri' }),
-      new TextRun({ text: ` — ${url}`, size: 18, color: '2563EB', font: 'Calibri' }),
+      new TextRun({ text: ` — ${safeUrl}`, size: 18, color: '2563EB', font: 'Calibri' }),
     ],
   });
 }

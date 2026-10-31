@@ -12,6 +12,10 @@ import {
   getMaterialCategoriesForContext,
   MATERIAL_INDEX_MAX_CHARS,
 } from '@/lib/materials/slug-index';
+import {
+  getDisciplinaryAdapter,
+  buildDisciplinaryPromptBlock,
+} from '@/lib/prompts/disciplinary-adapters';
 
 export interface AuditFeedbackContext {
   overall_score: number;
@@ -451,30 +455,20 @@ INSTRUCCIÓN: Genera en la SECCIÓN III y en la SECCIÓN IV propuestas formativa
 Caracterización y Perfil de los Estudiantes:
 ${context.studentContext || 'Estudiantes de bachillerato con interés en proyectos prácticos y resolución de problemas comunitarios.'}
 
-${metodologiaBlock}${estrategiasBlock}
-═══════════ EJEMPLO DE REFERENCIA — SECCIÓN IV DE NIVEL EXCELENCIA (FEW-SHOT) ═══════════
-El siguiente es UN EJEMPLO de la calidad y estructura requerida para la Sección IV.
-Adapta el contenido a la UAC, semestre y contexto PAEC indicados arriba. NO copies este ejemplo.
+${metodologiaBlock}${estrategiasBlock}${buildDisciplinaryPromptBlock(
+    extractedData.uacName || officialProgram?.uac_name || '',
+    component,
+    extractedData.carreraTecnica || officialProgram?.curriculum_name || ''
+  )}
+═══════════ EJEMPLO DE REFERENCIA — SECCIÓN IV DE NIVEL EXCELENCIA (FEW-SHOT DISCIPLINAR) ═══════════
+El siguiente es UN EJEMPLO de la calidad y estructura requerida para la Sección IV en esta disciplina.
+Adapta el contenido a la UAC, semestre, carga horaria oficial y contexto PAEC indicados arriba. NO copies este ejemplo literalmente.
 
-SECUENCIA DIDÁCTICA EJEMPLO (Propósito Formativo: Analizar circuitos eléctricos en C.A. | 18h | Corte 1):
-
-  APERTURA (3h):
-  - Fenómeno Situado y Disonancia Cognitiva (1h): El docente presenta el caso real observable: "Apagones y caída de tensión en la colonia Loma Bella de Tehuacán al encender soldadoras de arco — ¿por qué parpadean las luces?". En equipos observan el fenómeno, formulan preguntas de indagación y registran hipótesis iniciales en su libreta de campo.
-  - Activación y cuestionamiento (1h): Preguntas socráticas diagnósticas sobre corriente, voltaje y resistencia. El docente sondea concepciones previas y guía a los estudiantes a reconocer la necesidad de medir variables físicas reales.
-  - Planteamiento del reto PAEC (1h): "¿Cómo diseñaríamos un circuito de iluminación de emergencia eficiente para el centro comunitario?". Equipos delimitan el reto y definen roles de trabajo colaborativo.
-
-  DESARROLLO (13h):
-  - Indagación empírica y simulación (3h): Equipos modelan el comportamiento de la carga en simulador PhET (Circuits AC/DC) y contrastan con la Ley de Ohm y potencia eléctrica (Bloom: Analizar).
-  - Medición y laboratorio con sensores (3h): Con la app móvil Phyphox / multímetro del taller, los equipos miden caídas de potencial y consumo de 10 luminarias LED. Distribuyen roles: operador de medición, registrador de datos y analista de variables.
-  - Fase ABR — Prototipado (4h): Cada equipo construye el circuito físico en tablero de prueba: diagrama unifilar, conexiones seguras y prueba de continuidad bajo normas de seguridad NOM. El docente acompaña con lista de cotejo formativa.
-  - Análisis de datos y optimización (3h): Contrastan valores experimentales medidos vs. cálculos teóricos, identificando fuentes de pérdida de energía y mejoras al diseño para la comunidad.
-
-  CIERRE (2h):
-  - Defensa pública técnica (1h): Cada equipo presenta y defiende su solución ante el grupo en 5 min, justificando sus decisiones técnicas con los datos obtenidos en el laboratorio.
-  - Reflexión metacognitiva y crecimiento (0.5h): Autoevaluación dialógica: "¿Qué comprendí del fenómeno? ¿Qué dificultad técnica superamos y cómo?".
-  - Evaluación formativa (0.5h): Rúbrica analítica centrada en el proceso y la calidad técnica del producto entregable.
-
-TOTAL HORAS CORTE 1: 3h + 13h + 2h = 18 horas ✓ (Coincide con la distribución obligatoria)
+${getDisciplinaryAdapter(
+    extractedData.uacName || officialProgram?.uac_name || '',
+    component,
+    extractedData.carreraTecnica || officialProgram?.curriculum_name || ''
+  ).fewShotExampleBlock}
 ═══════════ FIN DEL EJEMPLO ═══════════
 
 ═══════════ INSTRUCCIONES DE CALIDAD PEDAGÓGICA EXIGIDAS ═══════════
