@@ -327,7 +327,9 @@ export default function DocumentA4Viewer({
                   <td>{planning.semester}° Semestre · {s1?.groups || 'Grupos Únicos'}</td>
                 </tr>
                 <tr>
-                  <td className="label-cell">Unidad de Aprendizaje:</td>
+                  <td className="label-cell">
+                    {(planning.semester ?? 1) >= 5 ? 'Unidad de Aprendizaje (UAC):' : 'Asignatura:'}
+                  </td>
                   <td style={{ fontWeight: 'bold', color: '#1f3864' }}>{planning.uacName}</td>
                   <td className="label-cell">Componente:</td>
                   <td>{planning.component === 'laboral' ? 'Formación Laboral' : 'Fundamental / Ampliado'}</td>

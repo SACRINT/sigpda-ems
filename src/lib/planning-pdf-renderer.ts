@@ -17,6 +17,7 @@ import {
   setFontCaption,
 } from './visual-engine/font-loader';
 import { normalizeEvaluationPercentages, sanitizePlanningContent } from '@/lib/planning/quality-pipeline';
+import { DEFAULT_UAC_WEEKLY_HOURS, normalizeUacKey } from '@/lib/planning/uac-hours-catalog';
 import { stripMaterialTokens } from '@/lib/materials/material-tokens';
 import { resolveSchoolIdentity, resolverIdentidadEscolar, CCT_NO_REGISTRADO } from '@/lib/school-identity';
 
@@ -29,25 +30,63 @@ const TEXT_DARK: [number, number, number] = [30, 41, 59];    // #1E293B - Texto
 // Colores institucionales de fases didácticas (homologados MCCEMS vía design-tokens)
 const { PHASE_APERTURA, PHASE_DESARROLLO, PHASE_CIERRE } = COLORS;
 
+function resolveCanonicalHours(
+  uacName: string,
+  s1TotalHours?: number,
+  s1WeeklyHours?: number
+): { totalHours: number; weeklyHours: number } {
+  const norm = normalizeUacKey(uacName);
+  let catalogWeekly = 0;
+  for (const [key, hrs] of Object.entries(DEFAULT_UAC_WEEKLY_HOURS)) {
+    if (norm.includes(key)) {
+      catalogWeekly = hrs;
+      break;
+    }
+  }
+  const totalHours =
+    s1TotalHours && s1TotalHours > 0
+      ? s1TotalHours
+      : catalogWeekly > 0
+        ? catalogWeekly * 18
+        : 72;
+  const weeklyHours =
+    s1WeeklyHours && s1WeeklyHours > 0
+      ? s1WeeklyHours
+      : catalogWeekly > 0
+        ? catalogWeekly
+        : Math.round(totalHours / 18);
+  return { totalHours, weeklyHours };
+}
+
 export async function generatePlanningPDF(
   planning: Planning,
   providedLogos?: { gobierno?: string; sep?: string; supervision?: string }
 ): Promise<jsPDF> {
-const rawContent = planning.contentJson as GeneratedPlanningContent | null;
-const identidadPrevia = resolverIdentidadEscolar({
-  schoolName: rawContent?.sectionI?.schoolName,
-  cct: rawContent?.sectionI?.cct,
-  schoolZone: rawContent?.sectionI?.schoolZone,
-});
-const content = rawContent
-  ? sanitizePlanningContent(rawContent, { fallbackCct: identidadPrevia.cct || CCT_NO_REGISTRADO })
-  : null;
-const s1 = content?.sectionI;
+  const rawPlan = planning as unknown as Record<string, unknown>;
+  const rawContent = (planning.contentJson || rawPlan.content_json) as GeneratedPlanningContent | null;
+  const sequenceData = (planning.sequenceJson || rawPlan.sequence_json) as Record<number, SecuenciaBloque> | null | undefined;
+  const identidadPrevia = resolverIdentidadEscolar({
+    schoolName: rawContent?.sectionI?.schoolName,
+    cct: rawContent?.sectionI?.cct,
+    schoolZone: rawContent?.sectionI?.schoolZone,
+  });
+  const content = rawContent
+    ? sanitizePlanningContent(rawContent, { fallbackCct: identidadPrevia.cct || CCT_NO_REGISTRADO })
+    : null;
+  const s1 = content?.sectionI;
   const s2 = content?.sectionII;
   const s3 = content?.sectionIII;
   const s4 = content?.sectionIV;
   const s5 = content?.sectionV;
   const identidad = resolveSchoolIdentity({ sectionI: s1 });
+
+  const rawUacName = String(
+    planning.uacName || rawPlan.uac_name || s1?.uacName || 'Asignatura no especificada'
+  );
+  const semesterVal = Number(planning.semester ?? rawPlan.semester ?? s1?.semester ?? 1) || 1;
+  const isUac = semesterVal >= 5;
+  const subjectLabel = isUac ? 'Unidad de Aprendizaje (UAC):' : 'Asignatura:';
+  const rawComponent = String(planning.component || rawPlan.component || s1?.component || '');
 
   // Cargar logotipos en Base64 si no fueron suministrados
   const logos = providedLogos || (await loadAllLogos());
@@ -151,13 +190,12 @@ const s1 = content?.sectionI;
 
   drawOfficialHeader();
 
-    // ─── Sección I: Datos Generales ──────────────────────────────────────────
-  // totalHoursWeekly nunca se persiste en la planeación; se deriva de totalHours
-  // usando la carga curricular oficial del semestre (18 semanas):
-  // 18→1, 36→2, 54→3, 64→4, 72→4, 90→5 hrs/semana.
-  const totalHoursVal = s1?.totalHours ?? 0;
-  const weeklyHoursVal =
-    s1?.totalHoursWeekly ?? (totalHoursVal > 0 ? Math.round(totalHoursVal / 18) : 0);
+  // ─── Sección I: Datos Generales ──────────────────────────────────────────
+  const { totalHours: totalHoursVal, weeklyHours: weeklyHoursVal } = resolveCanonicalHours(
+    rawUacName,
+    s1?.totalHours,
+    s1?.totalHoursWeekly
+  );
   autoTable(doc, {
     startY: currentY,
     head: [[{ content: 'I. DATOS DE IDENTIFICACIÓN INSTITUCIONAL Y CURRICULAR', colSpan: 4, styles: { fillColor: NAVY, fontStyle: 'bold', halign: 'left', textColor: [255, 255, 255] } }]],
@@ -172,13 +210,13 @@ const s1 = content?.sectionI;
         { content: 'Docente Titular:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
         { content: s1?.teacherName || 'Docente Responsable' },
         { content: 'Semestre / Grupo:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-        { content: `${planning.semester}° Semestre · ${s1?.groups || 'Grupos Únicos'}` },
+        { content: `${semesterVal}° Semestre · ${s1?.groups || 'Grupos Únicos'}` },
       ],
       [
-        { content: 'Unidad de Aprendizaje (UAC):', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-        { content: planning.uacName, styles: { fontStyle: 'bold', textColor: NAVY } },
+        { content: subjectLabel, styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
+        { content: rawUacName, styles: { fontStyle: 'bold', textColor: NAVY } },
         { content: 'Componente:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-        { content: planning.component === 'laboral' ? 'Formación Laboral' : 'Fundamental / Ampliado' },
+        { content: rawComponent.toLowerCase().includes('laboral') ? 'Formación Laboral' : 'Fundamental / Ampliado' },
       ],
       [
         { content: 'Horas Semanales / Totales:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
@@ -202,6 +240,7 @@ const s1 = content?.sectionI;
   const contenidosFormativos = activities
     .map((act, index) => `${index + 1}. ${act.name || `Bloque ${index + 1}`}: ${act.contenidoFormativo || 'No especificado'}`)
     .join('\n');
+  const rawPaecContext = String(planning.paecContext || rawPlan.paec_context || '');
 
   autoTable(doc, {
     startY: currentY,
@@ -221,7 +260,7 @@ const s1 = content?.sectionI;
       ],
       [
         { content: 'Problemática Central / Contexto:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-        { content: s2?.paecConnection || planning.paecContext || 'Contextualización a las necesidades socioformativas de la comunidad.' },
+        { content: s2?.paecConnection || rawPaecContext || 'Contextualización a las necesidades socioformativas de la comunidad.' },
       ],
     ],
     theme: 'grid',
@@ -243,7 +282,7 @@ const s1 = content?.sectionI;
     body: [
       [
         { content: 'Proyecto Comunitario (PAEC):', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 42 } },
-        { content: s2?.paecConnection || planning.paecContext || 'Articulación con el Programa de Trabajo Comunitario del Plantel.' },
+        { content: s2?.paecConnection || rawPaecContext || 'Articulación con el Programa de Trabajo Comunitario del Plantel.' },
       ],
       [
         { content: 'Transversalidad Interdisciplinar:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
@@ -258,7 +297,6 @@ const s1 = content?.sectionI;
   currentY = doc.lastAutoTable!.finalY + 2.5;
 
   // ─── Sección IV: Secuencia Didáctica por Momentos ─────────────────────────
-  const sequenceData = planning.sequenceJson as Record<number, SecuenciaBloque> | null | undefined;
   const activityRows: RowInput[] = [];
 
   activities.forEach((act, idx) => {
@@ -362,7 +400,7 @@ const s1 = content?.sectionI;
   // ─── Sección V: Evaluación y Ponderaciones (Normalización Determinista 100%) ───
   const normalizedEvaluations = normalizeEvaluationPercentages(s5?.evaluations);
   const evalRows = normalizedEvaluations.map((ev) => [
-    { content: ev.moment || 'Formativa' },
+    { content: (ev.moment || 'Formativa').replace(/\bUAC\b/g, isUac ? 'UAC' : 'Asignatura') },
     { content: `${ev.type || 'Formativa'} / ${ev.agent || 'Heteroevaluación'}` },
     { content: ev.evidence || 'Producto de aprendizaje' },
     { content: ev.instrument || 'Rúbrica analítica' },
@@ -456,7 +494,7 @@ const s1 = content?.sectionI;
     doc.setFontSize(7);
     doc.setTextColor(120, 120, 120);
     doc.text(
-      `SIGPDA-EMS · ${planning.uacName} (${planning.semester}° Semestre) — Página ${i} de ${totalPages}`,
+      `SIGPDA-EMS · ${rawUacName} (${semesterVal}° Semestre) — Página ${i} de ${totalPages}`,
       pageWidth / 2,
       pageHeight - 6,
       { align: 'center' }
@@ -477,13 +515,33 @@ export async function generateSecuenciaPDF(
   planning: Planning,
   providedLogos?: { gobierno?: string; sep?: string; supervision?: string }
 ): Promise<jsPDF> {
-  const content = planning.contentJson as GeneratedPlanningContent | null;
+  const rawPlan = planning as unknown as Record<string, unknown>;
+  const rawContent = (planning.contentJson || rawPlan.content_json) as GeneratedPlanningContent | null;
+  const sequenceData = (planning.sequenceJson || rawPlan.sequence_json) as Record<number, SecuenciaBloque> | null | undefined;
+  const identidadPrevia = resolverIdentidadEscolar({
+    schoolName: rawContent?.sectionI?.schoolName,
+    cct: rawContent?.sectionI?.cct,
+    schoolZone: rawContent?.sectionI?.schoolZone,
+  });
+  const content = rawContent
+    ? sanitizePlanningContent(rawContent, { fallbackCct: identidadPrevia.cct || CCT_NO_REGISTRADO })
+    : null;
   const s1 = content?.sectionI;
   const s2 = content?.sectionII;
   const s4 = content?.sectionIV;
   const s5 = content?.sectionV;
-  const sequenceData = planning.sequenceJson as Record<number, SecuenciaBloque> | null | undefined;
   const identidad = resolveSchoolIdentity({ sectionI: s1 });
+
+  const rawUacName = String(
+    planning.uacName || rawPlan.uac_name || s1?.uacName || 'Asignatura no especificada'
+  );
+  const semesterVal = Number(planning.semester ?? rawPlan.semester ?? s1?.semester ?? 1) || 1;
+  const isUac = semesterVal >= 5;
+  const { totalHours: totalHoursVal, weeklyHours: weeklyHoursVal } = resolveCanonicalHours(
+    rawUacName,
+    s1?.totalHours,
+    s1?.totalHoursWeekly
+  );
 
   const logos = providedLogos || (await loadAllLogos());
 
@@ -573,19 +631,19 @@ export async function generateSecuenciaPDF(
   // Datos Generales
   autoTable(doc, {
     startY: currentY,
-    head: [[{ content: 'DATOS DE IDENTIFICACIÓN DE LA UNIDAD DE APRENDIZAJE CURRICULAR', colSpan: 4, styles: { fillColor: NAVY, fontStyle: 'bold', halign: 'left', textColor: [255, 255, 255] } }]],
+    head: [[{ content: isUac ? 'DATOS DE IDENTIFICACIÓN DE LA UNIDAD DE APRENDIZAJE CURRICULAR' : 'DATOS DE IDENTIFICACIÓN DE LA ASIGNATURA', colSpan: 4, styles: { fillColor: NAVY, fontStyle: 'bold', halign: 'left', textColor: [255, 255, 255] } }]],
     body: [
       [
         { content: 'Plantel:', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 30 } },
         { content: identidad.schoolName, styles: { cellWidth: 63 } },
-        { content: 'UAC / Asignatura:', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 35 } },
-        { content: s1?.uacName || planning.uacName, styles: { cellWidth: 63 } },
+        { content: isUac ? 'UAC:' : 'Asignatura:', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 35 } },
+        { content: rawUacName, styles: { cellWidth: 63 } },
       ],
       [
         { content: 'Docente:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
         { content: s1?.teacherName || 'Docente Titular' },
         { content: 'Semestre / Horas:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-        { content: `${s1?.semester || planning.semester}° Semestre · ${s1?.totalHours || 48} Horas Totales` },
+        { content: `${semesterVal}° Semestre · ${weeklyHoursVal} hrs/sem · ${totalHoursVal} Horas Totales` },
       ],
       [
         { content: 'Componente:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
@@ -737,7 +795,7 @@ export async function generateSecuenciaPDF(
   const normalizedEvaluations = normalizeEvaluationPercentages(s5?.evaluations);
   if (normalizedEvaluations.length > 0) {
     const evalRows = normalizedEvaluations.map((ev) => [
-      { content: ev.moment || 'Formativa' },
+      { content: (ev.moment || 'Formativa').replace(/\bUAC\b/g, isUac ? 'UAC' : 'Asignatura') },
       { content: `${ev.type || 'Formativa'} / ${ev.agent || 'Heteroevaluación'}` },
       { content: ev.evidence || 'Producto de aprendizaje' },
       { content: ev.instrument || 'Rúbrica analítica' },
@@ -844,7 +902,7 @@ export async function generateSecuenciaPDF(
     doc.setFontSize(7);
     doc.setTextColor(120, 120, 120);
     doc.text(
-      `SIGPDA-EMS · Secuencia Didáctica Micro · ${planning.uacName} (${planning.semester}° Semestre) — Página ${i} de ${totalPages}`,
+      `SIGPDA-EMS · Secuencia Didáctica Micro · ${rawUacName} (${semesterVal}° Semestre) — Página ${i} de ${totalPages}`,
       pageWidth / 2,
       pageHeight - 6,
       { align: 'center' }
