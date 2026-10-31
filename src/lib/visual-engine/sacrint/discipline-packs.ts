@@ -89,7 +89,18 @@ export const SACRINT_PACKS: Record<SacrintPackId, SacrintPack> = {
     motif: 'living systems',
     diagram: 'system-map',
     heroPrompt: `${BASE_HERO}, cellular microscopy, DNA helix, ecosystem network, botanical scan lines, emerald bioluminescence`,
-    keywords: ['biologia', 'ciencias naturales', 'ecologia', 'ecosistemas', 'organismos', 'botanica', 'zoologia', 'genetica'],
+    keywords: [
+      'biologia',
+      'ciencias naturales',
+      'ecologia',
+      'ecosistemas',
+      'organismos',
+      'botanica',
+      'zoologia',
+      'genetica',
+      'procesos biologicos',
+      'biologicos',
+    ],
   },
   salud: {
     id: 'salud',
@@ -100,18 +111,31 @@ export const SACRINT_PACKS: Record<SacrintPackId, SacrintPack> = {
     motif: 'clinical protocol',
     diagram: 'clinical-flow',
     heroPrompt: `${BASE_HERO}, anatomical scan, ECG waveform, sterile clinical instrumentation, DNA diagnostics, emerald and red alert accents`,
-    keywords: ['salud', 'anatomia', 'microbiologia', 'enfermeria', 'medicina', 'nutricion', 'odontologia', 'primeros auxilios'],
+    keywords: ['salud', 'salud integral', 'anatomia', 'microbiologia', 'enfermeria', 'medicina', 'nutricion', 'odontologia', 'primeros auxilios'],
   },
   filosofia: {
     id: 'filosofia',
-    label: 'Filosofía',
+    label: 'Filosofía y Humanidades',
     short: 'FIL',
     accent: '#D4AF37',
     accent2: '#AFC1D6',
     motif: 'argument architecture',
     diagram: 'argument-map',
     heroPrompt: `${BASE_HERO}, classical bust dissolved into wireframe, argument nodes, golden geometric halos, archival paper texture under glass, gold and ivory light`,
-    keywords: ['filosofia', 'etica', 'logica', 'estetica', 'epistemologia', 'ontologia', 'pensamiento critico'],
+    keywords: [
+      'filosofia',
+      'humanidades',
+      'pensamiento filosofico',
+      'filosofico',
+      'etica',
+      'logica',
+      'estetica',
+      'experiencia estetica',
+      'epistemologia',
+      'ontologia',
+      'pensamiento critico',
+      'etimologicas',
+    ],
   },
   literatura: {
     id: 'literatura',
@@ -122,7 +146,20 @@ export const SACRINT_PACKS: Record<SacrintPackId, SacrintPack> = {
     motif: 'textual constellation',
     diagram: 'rhetorical-map',
     heroPrompt: `${BASE_HERO}, floating manuscript pages, typographic constellations, quill and ink silhouette, gold and crimson rim light, editorial archive`,
-    keywords: ['literatura', 'lengua', 'comunicacion', 'lectura', 'escritura', 'redaccion', 'analisis literario', 'espanol'],
+    keywords: [
+      'literatura',
+      'lengua',
+      'lengua y comunicacion',
+      'comunicacion y sociedad',
+      'pensamiento literario',
+      'literario',
+      'comunicacion',
+      'lectura',
+      'escritura',
+      'redaccion',
+      'analisis literario',
+      'espanol',
+    ],
   },
   ingles: {
     id: 'ingles',
@@ -144,7 +181,21 @@ export const SACRINT_PACKS: Record<SacrintPackId, SacrintPack> = {
     motif: 'chronology and territory',
     diagram: 'timeline',
     heroPrompt: `${BASE_HERO}, archival maps, timeline filaments, causal network, museum vitrine reflections, amber and red signal accents`,
-    keywords: ['historia', 'ciencias sociales', 'sociologia', 'geografia', 'economia', 'politica', 'conciencia historica', 'estructura socioeconomica'],
+    keywords: [
+      'historia',
+      'ciencias sociales',
+      'sociologia',
+      'geografia',
+      'economia',
+      'politica',
+      'conciencia historica',
+      'estructura socioeconomica',
+      'espacio y sociedad',
+      'derecho',
+      'derecho y sociedad',
+      'investigacion social',
+      'laboratorio de investigacion',
+    ],
   },
   tecnologia: {
     id: 'tecnologia',
@@ -182,18 +233,48 @@ export const SACRINT_PACKS: Record<SacrintPackId, SacrintPack> = {
     motif: 'technical operations',
     diagram: 'sop-flow',
     heroPrompt: `${BASE_HERO}, industrial workshop, precision tools, technical drawing table, safety protocol HUD, gold and blue instrumentation`,
-    keywords: ['formacion para el trabajo', 'capacitacion para el trabajo', 'contabilidad', 'administracion', 'mantenimiento', 'electricidad', 'mecanica', 'gastronomia', 'agropecuario', 'seguridad e higiene'],
+    keywords: [
+      'formacion para el trabajo',
+      'capacitacion para el trabajo',
+      'contabilidad',
+      'contable',
+      'procesos contables',
+      'administracion',
+      'fundamentos de administracion',
+      'mantenimiento',
+      'electricidad',
+      'mecanica',
+      'gastronomia',
+      'agropecuario',
+      'seguridad e higiene',
+      'turismo',
+      'ofimatica',
+    ],
   },
   artes: {
     id: 'artes',
-    label: 'Artes',
+    label: 'Artes y Cultura',
     short: 'ART',
     accent: '#C084FC',
     accent2: '#D4AF37',
     motif: 'expressive composition',
     diagram: 'creative-cycle',
     heroPrompt: `${BASE_HERO}, expressive brushstroke light trails, stage lighting beams, musical waveform sculpture, gallery glass reflections, violet and gold glow`,
-    keywords: ['artes', 'artes visuales', 'musica', 'danza', 'teatro', 'expresion artistica', 'apreciacion artistica', 'artes plasticas', 'taller de artes'],
+    keywords: [
+      'artes',
+      'artes visuales',
+      'musica',
+      'danza',
+      'teatro',
+      'expresion artistica',
+      'apreciacion artistica',
+      'artes plasticas',
+      'taller de artes',
+      'actividades artisticas',
+      'artisticas',
+      'arte y cultura',
+      'culturales',
+    ],
   },
   educacion_fisica: {
     id: 'educacion_fisica',
@@ -246,6 +327,112 @@ export const SACRINT_PACKS: Record<SacrintPackId, SacrintPack> = {
   },
 };
 
+export const CANONICAL_UAC_PACKS: Record<string, SacrintPackId> = {
+  // Ciencias Naturales y Exactas
+  'ciencias naturales, experimentales y tecnologia i': 'biologia',
+  'ciencias naturales, experimentales y tecnologia ii': 'quimica',
+  'ciencias naturales, experimentales y tecnologia iii': 'fisica',
+  'ciencias naturales, experimentales y tecnologia iv': 'biologia',
+  'ciencias naturales, experimentales y tecnologia v': 'quimica',
+  'ciencias naturales, experimentales y tecnologia vi': 'fisica',
+  'taller de ciencias i': 'biologia',
+  'taller de ciencias ii': 'quimica',
+  'temas selectos de biologia': 'biologia',
+  'analisis de fenomenos y procesos biologicos': 'biologia',
+  'organizacion del flujo de materia y energia en los organismos i': 'biologia',
+  'organizacion del flujo de materia y energia en los organismos ii': 'biologia',
+  'analisis de fenomenos fisicos i': 'fisica',
+  'analisis de fenomenos fisicos ii': 'fisica',
+
+  // Pensamiento Matemático
+  'pensamiento matematico i': 'matematicas',
+  'pensamiento matematico ii': 'matematicas',
+  'pensamiento matematico iii': 'matematicas',
+  'taller de pensamiento variacional i': 'matematicas',
+  'taller pensamiento variacional i': 'matematicas',
+  'taller pensamiento variacional ii': 'matematicas',
+  'temas selectos de matematicas i': 'matematicas',
+  'temas selectos de matematicas ii': 'matematicas',
+  'pensamiento matematico aplicado a las finanzas i': 'matematicas',
+  'pensamiento matematico aplicado a las finanzas ii': 'matematicas',
+  'taller de probabilidad y estadistica i': 'matematicas',
+  'taller de probabilidad y estadistica ii': 'matematicas',
+
+  // Tecnología e Ingeniería
+  'cultura digital i': 'tecnologia',
+  'cultura digital ii': 'tecnologia',
+  'taller de cultura digital i': 'tecnologia',
+  'dibujo tecnico i': 'tecnologia',
+  'dibujo tecnico ii': 'tecnologia',
+
+  // Lengua, Comunicación e Idiomas
+  'lengua y comunicacion i': 'literatura',
+  'lengua y comunicacion ii': 'literatura',
+  'lengua y comunicacion iii': 'literatura',
+  'comunicacion y sociedad i': 'literatura',
+  'comunicacion y sociedad ii': 'literatura',
+  'pensamiento literario': 'literatura',
+  'ingles i': 'ingles',
+  'ingles ii': 'ingles',
+  'ingles iii': 'ingles',
+  'ingles iv': 'ingles',
+  'ingles v': 'ingles',
+  'ingles vi': 'ingles',
+
+  // Humanidades y Filosofía
+  'humanidades i': 'filosofia',
+  'humanidades ii': 'filosofia',
+  'humanidades iii': 'filosofia',
+  'pensamiento filosofico i': 'filosofia',
+  'pensamiento filosofico ii': 'filosofia',
+  'logica y pensamiento critico': 'filosofia',
+  'experiencia estetica': 'filosofia',
+  'raices etimologicas del espanol i': 'filosofia',
+  'raices etimologicas del espanol ii': 'filosofia',
+
+  // Ciencias Sociales e Historia
+  'ciencias sociales i': 'historia',
+  'ciencias sociales ii': 'historia',
+  'ciencias sociales iii': 'historia',
+  'conciencia historica i': 'historia',
+  'conciencia historica ii': 'historia',
+  'conciencia historica iii': 'historia',
+  'laboratorio de investigacion': 'historia',
+  'espacio y sociedad': 'historia',
+  'derecho y sociedad i': 'historia',
+  'derecho y sociedad ii': 'historia',
+  'economia i. la funcion de los agentes economicos en la sociedad': 'historia',
+  'economia ii. politica economica y politica publica mexicana': 'historia',
+  'temas selectos de ciencias sociales i': 'historia',
+  'temas selectos de ciencias sociales ii': 'historia',
+
+  // Educación Física y Salud
+  'actividades fisicas y deportivas i': 'educacion_fisica',
+  'actividades fisicas y deportivas ii': 'educacion_fisica',
+  'actividades fisicas y deportivas': 'educacion_fisica',
+  'salud integral i': 'salud',
+  'salud integral ii': 'salud',
+
+  // Artes y Cultura
+  'actividades artisticas y culturales i': 'artes',
+  'actividades artisticas y culturales ii': 'artes',
+  'arte y cultura i': 'artes',
+  'arte y cultura ii': 'artes',
+
+  // Formación Socioemocional
+  'formacion socioemocional iii': 'socioemocional',
+  'formacion socioemocional iv': 'socioemocional',
+  'formacion socioemocional v': 'socioemocional',
+  'psicologia i': 'socioemocional',
+  'psicologia ii': 'socioemocional',
+
+  // Formación Laboral y Contabilidad
+  'fundamentos de administracion i': 'laboral',
+  'fundamentos de administracion ii': 'laboral',
+  'procesos contables i': 'laboral',
+  'procesos contables ii': 'laboral',
+};
+
 const ORDER: SacrintPackId[] = [
   'matematicas',
   'educacion_fisica',
@@ -265,15 +452,26 @@ const ORDER: SacrintPackId[] = [
 
 export function resolveSacrintPack(uacName: string, component?: string): SacrintPack {
   const normalized = normalizeUnicode(uacName || '');
+
+  // 1. Catálogo Canónico Integral SSoT (inmunidad a colisiones de subcadenas)
+  const canonicalPackId = CANONICAL_UAC_PACKS[normalized];
+  if (canonicalPackId && SACRINT_PACKS[canonicalPackId]) {
+    return SACRINT_PACKS[canonicalPackId];
+  }
+
+  // 2. Garantía para módulos del componente de formación laboral
+  if (component && normalizeUnicode(component).includes('laboral')) {
+    return SACRINT_PACKS.laboral;
+  }
+
+  // 3. Fallback disciplinar por palabras clave
   for (const id of ORDER) {
     const pack = SACRINT_PACKS[id];
     if (pack.keywords.some((keyword) => normalized.includes(normalizeUnicode(keyword)))) {
       return pack;
     }
   }
-  if (component && normalizeUnicode(component).includes('laboral')) {
-    return SACRINT_PACKS.laboral;
-  }
+
   return SACRINT_PACKS.general;
 }
 
