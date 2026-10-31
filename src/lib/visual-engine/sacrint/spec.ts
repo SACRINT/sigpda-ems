@@ -239,7 +239,12 @@ function firstSentence(value: string | null | undefined): string {
 }
 
 function stripMissionPrefix(title: string | null | undefined): string {
-  return clean(title).replace(/^misi[oó]n\s*\d+\s*:\s*/i, '').trim();
+  const stripped = clean(title).replace(/^misi[oó]n\s*\d+\s*:\s*/i, '').trim();
+  const sessionSplit = stripped.split(/\s*—\s*sesi[oó]n\s*\d+/i);
+  if (sessionSplit.length > 1 && sessionSplit[0].length >= 8) {
+    return sessionSplit[0].trim();
+  }
+  return stripped;
 }
 
 function sessionsLabel(mission: MissionSection): string {
@@ -354,7 +359,7 @@ export function buildSacrintDeck(workbook: ActiveWorkTextbook, options: SacrintB
     kind: 'cover',
     eyebrow: `MISIÓN ${String(meta.missionNumber).padStart(2, '0')} // ${pack.label.toLocaleUpperCase('es-MX')}`,
     title: meta.missionTitle,
-    subtitle: clip(mission.sessionTopic, 120),
+    subtitle: clean(mission.sessionTopic),
     missionIndex: meta.missionNumber,
     metaLine: `${meta.subjectName} · SEMESTRE ${meta.semester} · BLOQUE ${meta.blockNumber}`,
     facts,
@@ -364,7 +369,7 @@ export function buildSacrintDeck(workbook: ActiveWorkTextbook, options: SacrintB
   const hook: SacrintHookSlide = {
     kind: 'hook',
     eyebrow: 'FENÓMENO SITUADO // PUNTO DE PARTIDA',
-    title: clip(mission.sessionTopic || meta.missionTitle, 90),
+    title: clean(mission.sessionTopic) || meta.missionTitle,
     subtitle: 'Situación de partida',
     missionIndex: meta.missionNumber,
     story: clean(mission.phenomenonHook?.story) || 'Sin situación registrada.',
@@ -380,7 +385,7 @@ export function buildSacrintDeck(workbook: ActiveWorkTextbook, options: SacrintB
   const concept: SacrintConceptSlide = {
     kind: 'concept',
     eyebrow: 'NÚCLEO TÉCNICO // CONCEPTO CERO',
-    title: clip(mission.sessionTopic || 'Concepto clave', 90),
+    title: clean(mission.sessionTopic) || 'Concepto clave',
     subtitle: diagramSubtitle(diagram),
     missionIndex: meta.missionNumber,
     analogy: clean(mission.conceptZero?.physicalAnalogy) || 'Sin analogía registrada.',
@@ -400,7 +405,7 @@ export function buildSacrintDeck(workbook: ActiveWorkTextbook, options: SacrintB
   const demo: SacrintDemoSlide = {
     kind: 'demo',
     eyebrow: 'YO HAGO // DEMOSTRACIÓN GUIADA',
-    title: clip(mission.sessionTopic || 'Demostración', 90),
+    title: clean(mission.sessionTopic) || 'Demostración',
     subtitle: 'Paso a paso con el autor',
     missionIndex: meta.missionNumber,
     demoText: clean(mission.iDoSection?.stepByStepDemo) || 'Sin demostración registrada.',
@@ -420,7 +425,7 @@ export function buildSacrintDeck(workbook: ActiveWorkTextbook, options: SacrintB
   const practice: SacrintPracticeSlide = {
     kind: 'practice',
     eyebrow: 'HACEMOS // PRÁCTICA GUIADA',
-    title: clip(mission.sessionTopic || 'Práctica', 90),
+    title: clean(mission.sessionTopic) || 'Práctica',
     subtitle: 'Resolvemos juntos con andamiaje',
     missionIndex: meta.missionNumber,
     practiceText: clean(mission.weDoSection?.guidedPractice) || 'Sin práctica guiada registrada.',
@@ -438,7 +443,7 @@ export function buildSacrintDeck(workbook: ActiveWorkTextbook, options: SacrintB
   const challenge: SacrintChallengeSlide = {
     kind: 'challenge',
     eyebrow: 'TÚ HACES // RETO Y PROYECTO',
-    title: clip(mission.sessionTopic || 'Reto autónomo', 90),
+    title: clean(mission.sessionTopic) || 'Reto autónomo',
     subtitle: 'Aplicación independiente e integración al proyecto',
     missionIndex: meta.missionNumber,
     challengeText: clean(mission.youDoSection?.autonomousChallenge) || 'Sin reto autónomo registrado.',

@@ -218,15 +218,28 @@ ${singleLine(fitted.lines[0] ?? '', rightX + 52, rowY, { fill: SACRINT.textSoft,
   const projectW = rightW - errorW - 24;
   parts.push(panel(projectX, bottomY, projectW, bottomH, { fill: 'rgba(5,12,20,0.7)', radius: 22 }));
   parts.push(sectionLabel(projectX + 28, bottomY + 46, projectW - 56, 'Producto y evaluación', accent, 'PAEC'));
-  parts.push(singleLine(uppercaseLabel(spec.project.artifactName), projectX + 28, bottomY + 94, { fill: SACRINT.white, fontSize: 24, family: 'display', weight: 'bold' }));
+  const artifactBlock = textBlock(uppercaseLabel(spec.project.artifactName), projectW - 56, {
+    x: projectX + 28,
+    y: bottomY + 84,
+    fill: SACRINT.white,
+    maxFontSize: 19,
+    minFontSize: 12,
+    maxLines: 2,
+    family: 'display',
+    weight: 'bold',
+    lineHeightRatio: 1.15,
+  });
+  parts.push(artifactBlock.svg);
+
+  const utilityY = bottomY + 84 + Math.max(26, artifactBlock.fitted.height) + 10;
   const utility = textBlock(spec.project.communityUtility, projectW - 56, {
     x: projectX + 28,
-    y: bottomY + 128,
+    y: utilityY,
     fill: SACRINT.textSoft,
-    maxFontSize: 16,
+    maxFontSize: 15,
     minFontSize: 11,
-    maxLines: 3,
-    lineHeightRatio: 1.35,
+    maxLines: 2,
+    lineHeightRatio: 1.3,
     truncate: true,
   });
   parts.push(utility.svg);

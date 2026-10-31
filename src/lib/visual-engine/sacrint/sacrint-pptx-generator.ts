@@ -78,12 +78,13 @@ function addText(
   } = options;
   const pxSize = Math.max(6, (textOptions.fontSize ?? pt(16)) / 0.375);
   const lineHeightRatio = explicitLineHeightRatio ?? lineSpacingMultiple ?? 1.2;
-  const maxLines = explicitMaxLines ?? Math.max(1, Math.floor(height / (pxSize * lineHeightRatio)));
+  const minFontSize = Math.max(6, Math.round(pxSize * 0.48));
+  const maxLines = explicitMaxLines ?? Math.max(1, Math.floor(height / (minFontSize * lineHeightRatio)));
   const fitted = fitText(value, width, {
     family: textOptions.fontFace === FONT_DISPLAY ? 'display' : 'body',
     weight: textOptions.bold ? 'bold' : 'regular',
     maxFontSize: Math.round(pxSize),
-    minFontSize: Math.max(6, Math.round(pxSize * 0.85)),
+    minFontSize,
     maxLines,
     lineHeightRatio,
     truncate: true,

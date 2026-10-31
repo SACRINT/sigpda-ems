@@ -153,14 +153,21 @@ function clip(value: string, max: number): string {
   return `${(space > max * 0.6 ? cut.slice(0, space) : cut).trimEnd()}…`;
 }
 
-function firstSentence(value: string | null | undefined, max = 160): string {
+function firstSentence(value: string | null | undefined, max = 220): string {
   const text = clean(value);
   if (!text) return '';
   const sentence = text.match(/^(.{12,}?[.!?])(?:\s|$)/)?.[1] ?? text;
-  return clip(sentence, max);
+  if (sentence.length <= max) return sentence;
+  const punctuationCut = sentence.slice(0, max).search(/[,;:—](?=[^,;:—]*$)/);
+  if (punctuationCut > max * 0.45) {
+    return `${sentence.slice(0, punctuationCut).trimEnd()}.`;
+  }
+  const space = sentence.slice(0, max).lastIndexOf(' ');
+  const cleanCut = space > max * 0.6 ? sentence.slice(0, space).trimEnd() : sentence.slice(0, max).trimEnd();
+  return `${cleanCut}.`;
 }
 
-function detail(value: string | null | undefined, max = 150, fallback = 'Sin registro.'): string {
+function detail(value: string | null | undefined, max = 220, fallback = 'Sin registro.'): string {
   const text = firstSentence(value, max);
   return text || fallback;
 }

@@ -68,6 +68,9 @@ const PACK_CASES = [
 describe('SACRINT visual engine', () => {
   it('resuelve packs por asignatura', () => {
     expect(resolveSacrintPack('Pensamiento Matemático I').id).toBe('matematicas');
+    expect(resolveSacrintPack('Taller de Pensamiento Variacional I').id).toBe('matematicas');
+    expect(resolveSacrintPack('Actividades Físicas y Deportivas').id).toBe('educacion_fisica');
+    expect(resolveSacrintPack('Dibujo Técnico I').id).toBe('tecnologia');
     expect(resolveSacrintPack('Química').id).toBe('quimica');
     expect(resolveSacrintPack('Filosofía').id).toBe('filosofia');
     expect(resolveSacrintPack('Inglés').id).toBe('ingles');
