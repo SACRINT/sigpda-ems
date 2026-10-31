@@ -24,6 +24,7 @@ export interface ExtractedPdfData {
   cct?: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   contenidosFormativos?: any;
+  carreraTecnica?: string;
 }
 
 export interface PaecOperationalActivity {

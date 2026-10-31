@@ -82,7 +82,7 @@ describe('Currículum Ampliado — Formación Socioemocional (MCCEMS 2025-2028)'
     for (const uac of allAmpliado) {
       // Meta educativa
       expect(typeof uac.learning_outcome).toBe('string');
-      expect(uac.learning_outcome.length).toBeGreaterThan(50);
+      expect(uac.learning_outcome!.length).toBeGreaterThan(50);
 
       // Carga horaria oficial: 18h (1 h/sem) en 4° y 6°, 36h (2 h/sem) en 1°, 2°, 3° y 5°
       const expectedHours = (uac.semester === 4 || uac.semester === 6) ? 18 : 36;
@@ -96,8 +96,8 @@ describe('Currículum Ampliado — Formación Socioemocional (MCCEMS 2025-2028)'
 
       // Contenidos formativos
       expect(Array.isArray(uac.contenidos_formativos)).toBe(true);
-      expect(uac.contenidos_formativos.length).toBe(uac.activities.length);
-      for (const cf of uac.contenidos_formativos) {
+      expect(uac.contenidos_formativos!.length).toBe(uac.activities.length);
+      for (const cf of uac.contenidos_formativos!) {
         expect(typeof cf.proposito).toBe('string');
         expect(Array.isArray(cf.contenidos)).toBe(true);
         expect(cf.contenidos.length).toBeGreaterThan(0);

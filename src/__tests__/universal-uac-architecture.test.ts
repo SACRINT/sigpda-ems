@@ -216,7 +216,7 @@ describe('Arquitectura Universal Multi-UAC (Fases 1 a 6)', () => {
 
       const extracted = extractMaterialsFromWorkbook(wb12, seq12);
       expect(extracted.planesDeClase.length).toBe(12);
-      expect(extracted.coherencia.ok).toBe(true);
+      expect(extracted.coherencia?.ok).toBe(true);
     });
 
     it('extrae exactamente 18 planes de clase para bloques de 18 horas (54h semestrales)', () => {
