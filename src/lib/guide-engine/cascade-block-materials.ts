@@ -17,6 +17,7 @@ import {
   type BlockCurricularAnchor,
   type PlanDeClaseDerivado,
 } from './material-extractor';
+import { buildBlockSequenceFromWorkbook } from '@/lib/planning/workbook-sequence-sync';
 import { resolveVisualForMission } from '@/lib/visual-engine/visual-asset-manager';
 import { stripMaterialTokens } from '@/lib/materials/material-tokens';
 import { logger } from '@/lib/logger';
@@ -325,6 +326,30 @@ export async function cascadeBlockMaterials(
     const planes = extracted.planesDeClase || [];
     const blockNum = blockIndex + 1;
     const blockTitle = workbook.blockName || `Bloque ${blockNum}`;
+
+    // 1.1 Sincronizar canónicamente plannings.sequence_json desde el libro activo (Fuente Única de Verdad)
+    try {
+      const syncedBlockSeq = buildBlockSequenceFromWorkbook(
+        workbook,
+        blockIndex,
+        blockTitle
+      );
+      if (syncedBlockSeq && syncedBlockSeq.sessions.length > 0) {
+        await db`
+          UPDATE plannings
+          SET sequence_json = jsonb_set(
+            COALESCE(sequence_json, '{}'::jsonb),
+            ARRAY[${String(blockIndex)}],
+            ${JSON.stringify(syncedBlockSeq)}::jsonb,
+            true
+          ),
+          updated_at = NOW()
+          WHERE id = ${planningId}::uuid
+        `;
+      }
+    } catch (seqSyncErr) {
+      logger.warn(`[cascadeBlockMaterials] Advertencia al sincronizar sequence_json del bloque ${blockIndex}:`, seqSyncErr);
+    }
 
     // 2. Limpiar registros previos generados automáticamente para este bloque
     // (Permite regeneración idempotente y limpia sin duplicar planes)

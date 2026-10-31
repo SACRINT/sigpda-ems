@@ -1,7 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import * as fontLoader from '@/lib/visual-engine/font-loader';
 import { generatePlanningPDF, generateSecuenciaPDF } from '@/lib/planning-pdf-renderer';
+import { buildFullSequenceFromWorkbooks } from '@/lib/planning/workbook-sequence-sync';
 import type { Planning } from '@/types/planning';
+import type { ActiveWorkTextbook } from '@/types/work-textbook';
 
 describe('Planeación Didáctica PDF — Tipografía Editorial y Anti-F11 (Fase 6A)', () => {
   const mockPlanning = {
@@ -144,5 +146,72 @@ describe('Planeación Didáctica PDF — Tipografía Editorial y Anti-F11 (Fase 
     expect(docSec.output('arraybuffer').byteLength).toBeGreaterThan(2000);
 
     fontSpy.mockRestore();
+  });
+
+  it('buildFullSequenceFromWorkbooks sincroniza sesiones reales y distintas por bloque desde workbooks_json erradicando plantillas repetidas', () => {
+    const mockWorkbooks: Record<string, ActiveWorkTextbook> = {
+      block_0: {
+        blockName: 'Bloque 1: Ecuaciones Lineales',
+        missions: [
+          {
+            missionIndex: 1,
+            title: 'Misión 1: Balanza algebraica de primer grado',
+            sessionTopic: 'Ecuaciones lineales',
+            sessionPlans: [
+              {
+                sessionNumber: 1,
+                objetivo: 'Comprender la igualdad lineal y la balanza algebraica de primer grado.',
+                contenido: 'Ecuaciones de la forma ax + b = c.',
+                motivacion: 'Análisis del costo de sacos de fertilizante en Venustiano Carranza.',
+                ejemploResuelto: 'Despeje paso a paso de 4x + 200 = 1000.',
+                practica: [{ numero: 1, enunciado: 'Resolver 3 ecuaciones lineales contextualizadas.' }],
+                aplicacion: 'Cálculo de tarifa fija agrícola.',
+                productoIntegrador: 'Tabla de despejes lineales verificados',
+              },
+            ],
+          },
+        ],
+      } as unknown as ActiveWorkTextbook,
+      block_1: {
+        blockName: 'Bloque 2: Sistemas de Ecuaciones 2x2',
+        missions: [
+          {
+            missionIndex: 1,
+            title: 'Misión 1: Intersección de dos rectas y método de reducción',
+            sessionTopic: 'Sistemas 2x2',
+            sessionPlans: [
+              {
+                sessionNumber: 1,
+                objetivo: 'Resolver sistemas 2x2 por eliminación e intersección de dos rectas.',
+                contenido: 'Sistemas de dos ecuaciones lineales con dos incógnitas.',
+                motivacion: 'Cruzar datos de hidratación y actividad física del PAEC.',
+                ejemploResuelto: 'Eliminación de variable y en sistema 2x + 3y = 120.',
+                practica: [{ numero: 1, enunciado: 'Plantear y resolver un sistema 2x2 comunitario.' }],
+                aplicacion: 'Punto de equilibrio entre dos insumos.',
+                productoIntegrador: 'Sistema 2x2 resuelto y comprobado',
+              },
+            ],
+          },
+        ],
+      } as unknown as ActiveWorkTextbook,
+    };
+
+    const synced = buildFullSequenceFromWorkbooks(
+      mockWorkbooks,
+      [
+        { name: 'Bloque 1', hours: 24, contenidoFormativo: 'Ecuaciones lineales' } as never,
+        { name: 'Bloque 2', hours: 24, contenidoFormativo: 'Sistemas 2x2' } as never,
+      ],
+      null
+    );
+
+    expect(synced[0]).toBeDefined();
+    expect(synced[1]).toBeDefined();
+    expect(synced[0].sessions[0].title).toContain('balanza algebraica de primer grado');
+    expect(synced[1].sessions[0].title).toContain('intersección de dos rectas');
+    expect(synced[0].sessions[0].teachingActivity).not.toBe(synced[1].sessions[0].teachingActivity);
+    expect(synced[0].sessions[0].learningActivity).not.toBe(synced[1].sessions[0].learningActivity);
+    expect(synced[0].sessions[0].evidence).toBe('Tabla de despejes lineales verificados');
+    expect(synced[1].sessions[0].evidence).toBe('Sistema 2x2 resuelto y comprobado');
   });
 });
