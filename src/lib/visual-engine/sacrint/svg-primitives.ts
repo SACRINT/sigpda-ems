@@ -571,15 +571,13 @@ export function conceptMap(
   const parts: string[] = [];
 
   parts.push(circle(x + width / 2, y + height / 2, Math.min(width, height) * 0.32, 'none', `stroke="${accent}" stroke-opacity="0.14" stroke-width="1" stroke-dasharray="3 8"`));
+  const midX = centerX + centerW / 2;
+  const midY = centerY + centerH / 2;
   for (const position of positions) {
-    parts.push(diagramConnector(
-      centerX + centerW / 2,
-      centerY + centerH / 2,
-      position.x + nodeW / 2,
-      position.y + nodeH / 2,
-      accent2,
-      { width: 1, dash: '4 4', head: false }
-    ));
+    const targetX = position.x + nodeW / 2;
+    const targetY = position.y + nodeH / 2;
+    parts.push(`<path d="M ${midX} ${midY} L ${targetX} ${midY} L ${targetX} ${targetY}" fill="none" stroke="${accent2}" stroke-opacity="0.72" stroke-width="1.2" stroke-dasharray="4 4"/>`);
+    parts.push(circle(targetX, targetY, 3.2, accent2));
   }
 
   parts.push(nodeCard(diagram.center, centerX, centerY, centerW, centerH, {
@@ -587,7 +585,7 @@ export function conceptMap(
     accent2,
     compact,
     border: accent,
-    fill: 'rgba(8,18,30,0.9)',
+    fill: 'rgba(8,18,30,0.92)',
     maxLines: 2,
   }));
   diagram.nodes.slice(0, 4).forEach((node, index) => {
@@ -597,6 +595,7 @@ export function conceptMap(
       accent,
       accent2,
       compact,
+      border: index % 2 === 0 ? accent2 : SACRINT.strokeSoft,
       maxLines: 2,
     }));
   });

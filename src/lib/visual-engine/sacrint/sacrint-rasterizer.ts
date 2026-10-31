@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { Resvg } from '@resvg/resvg-js';
+import { jsPDF } from 'jspdf';
 import type { SacrintDeckSpec, SacrintInfographicSpec } from './spec';
 import { renderDeckSvgs } from './slide-renderer';
 import { infographicFilename, renderInfographicSvg } from './infographic-renderer';
@@ -66,4 +67,40 @@ export async function writeRenderedPngs(items: RenderedPng[], outDir: string): P
     paths.push(target);
   }
   return paths;
+}
+
+export async function renderCombinedSacrintInfographicsPdf(
+  specs: SacrintInfographicSpec[],
+  layout: 'letter' | 'wide' = 'wide'
+): Promise<Buffer> {
+  const isWide = layout === 'wide';
+  const doc = new jsPDF({
+    orientation: isWide ? 'landscape' : 'portrait',
+    unit: 'mm',
+    format: isWide ? [279.4, 157.16] : 'letter',
+    compress: true,
+  });
+
+  const pageWidth = isWide ? 279.4 : 215.9;
+  const pageHeight = isWide ? 157.16 : 279.4;
+
+  for (let index = 0; index < specs.length; index += 1) {
+    const spec = { ...specs[index], format: layout };
+    const png = await renderInfographicPng(spec, 2);
+    if (index > 0) {
+      doc.addPage(isWide ? [279.4, 157.16] : 'letter', isWide ? 'landscape' : 'portrait');
+    }
+    doc.addImage(
+      `data:image/png;base64,${png.buffer.toString('base64')}`,
+      'PNG',
+      0,
+      0,
+      pageWidth,
+      pageHeight,
+      undefined,
+      'FAST'
+    );
+  }
+
+  return Buffer.from(doc.output('arraybuffer'));
 }
