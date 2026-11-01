@@ -334,12 +334,13 @@ export default function DocumentA4Viewer({
                   <td className="label-cell">Componente:</td>
                   <td>
                     {(() => {
-                      const comp = (planning.component || '').toLowerCase();
+                      const comp = (planning.component || s1?.component || '').toLowerCase();
                       if (comp.includes('laboral')) return 'Formación Laboral';
                       if (comp.includes('optativa') || comp === 'ffe_optativa' || comp === 'ext_optativo') return 'Formación Fundamental Extendida (Optativa)';
                       if (comp === 'ffeo' || comp === 'ext_obligatorio') return 'Formación Fundamental Extendida (Obligatoria)';
                       if (comp === 'ampliado' || comp === 'socioemocional') return 'Currículum Ampliado';
-                      return s1?.component || 'Formación Fundamental';
+                      if (s1?.component && !s1.component.includes('Fundamental / Ampliado')) return s1.component;
+                      return 'Formación Fundamental';
                     })()}
                   </td>
                 </tr>
