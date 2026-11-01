@@ -4129,7 +4129,10 @@ export default function AdminClient({ locale, adminEmail }: { locale: string; ad
                                   ? '📋 Criterios de Desempeño y Contenidos Técnicos:'
                                   : '📋 Contenidos Formativos / Temas de estudio para este propósito:'}
                               </div>
-                              {(programForm.contenidos_formativos[actIdx]?.contenidos || ['']).map((tema, tIdx) => (
+                              {(normalizeContenidos(programForm.contenidos_formativos[actIdx]?.contenidos).length > 0
+                                ? normalizeContenidos(programForm.contenidos_formativos[actIdx]?.contenidos)
+                                : ['']
+                              ).map((tema, tIdx) => (
                                 <div key={tIdx} style={{ display: 'flex', gap: 6, marginBottom: 4 }}>
                                   <input
                                     style={{ flex: 1, fontSize: 12, padding: '4px 8px' }}
