@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { removeHyphens } from '@/lib/text-utils';
+import { parsePlanOperativoHeuristics, parsePaecHeuristics } from '@/lib/paec-heuristics';
 
 describe('PAEC Extractor Robustness — Heuristics & Sanitization', () => {
   it('1. Extrae el nombre completo del PEC incluyendo subtítulos en paréntesis en saltos de línea', () => {
@@ -81,5 +82,48 @@ Análisis general: Tenemos estudiantes con fortalezas socioemocionales y deporti
     const rawStudentContext = 'Los estudian- tes de primer semestre presentan problemas de deshidrata-   ción y hábi-\ntos de alimen- tación deficientes en un entorno teórico-práctico.';
     const sanitized = removeHyphens(rawStudentContext).replace(/\s+/g, ' ').trim();
     expect(sanitized).toBe('Los estudiantes de primer semestre presentan problemas de deshidratación y hábitos de alimentación deficientes en un entorno teórico-práctico.');
+  });
+
+  it('5. parsePlanOperativoHeuristics extrae tablas del Plan Operativo eliminando anclas ⟦T##·R##·C##⟧ y discriminando tablas de mapeo simple', () => {
+    const sampleMarkdown = `
+## Mapeo Curricular Preliminar (Sin Plan Operativo)
+| Asignatura | Problemática Comunitaria |
+|---|---|
+| Historia | Diagnóstico general |
+
+## Plan Operativo Oficial del Proyecto
+| Fase | Asignatura / UAC | Actividad Operativa | Semana | Producto o Evidencia | Responsable |
+|---|---|---|---|---|---|
+| Fase 1 | ⟦T08·R01·C01⟧ **Dibujo Técnico I** | ⟦T08·R01·C02⟧ Mapeo participativo y levantamiento de datos espaciales comunitarios | Semana 2 | Croquis técnico del área | Docente Dibujo |
+| Fase 2 | ⟦T08·R02·C01⟧ Taller Pensamiento Variacional I | ⟦T08·R02·C02⟧ Modelado matemático y estadístico de factores de riesgo | Semana 4 | Reporte analítico de variación | Docente Matemáticas |
+`;
+
+    const extracted = parsePlanOperativoHeuristics(sampleMarkdown);
+    expect(extracted).toHaveLength(2);
+    expect(extracted[0].asignatura).toBe('Dibujo Técnico I');
+    expect(extracted[0].actividad).toBe('Mapeo participativo y levantamiento de datos espaciales comunitarios');
+    expect(extracted[0].semana).toBe('Semana 2');
+    expect(extracted[1].asignatura).toBe('Taller Pensamiento Variacional I');
+    expect(extracted[1].actividad).toBe('Modelado matemático y estadístico de factores de riesgo');
+  });
+
+  it('6. parsePaecHeuristics procesa markdown con tablas y extrae plan operativo íntegro', () => {
+    const docWithPlan = `
+# PROYECTO ESCOLAR COMUNITARIO (PEC)
+Comunidad Resiliente: Vida Saludable
+
+Problemáticas o necesidades de la comunidad
+Etapa tres: Selección del problema: Elevada prevalencia de sedentarismo y conductas de riesgo en jóvenes.
+
+| Fase | UAC / Asignatura | Actividades Específicas | Semana | Producto / Evidencia |
+|---|---|---|---|---|
+| Fase 1 | Dibujo Técnico I | Trazado de mapas de zonas recreativas | Semanas 1-3 | Plano comunitario |
+`;
+    const res = parsePaecHeuristics(docWithPlan);
+    expect(res.projectName).toContain('Comunidad Resiliente');
+    expect(res.problem).toContain('Elevada prevalencia de sedentarismo');
+    expect(res.planOperativo).toHaveLength(1);
+    expect(res.planOperativo[0].asignatura).toBe('Dibujo Técnico I');
+    expect(res.planOperativo[0].actividad).toBe('Trazado de mapas de zonas recreativas');
   });
 });
