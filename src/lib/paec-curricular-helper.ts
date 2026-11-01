@@ -16,6 +16,7 @@
  */
 
 import type { PaecCatalogItem } from '@/lib/db/programs-catalog';
+import { normalizeContenidos } from '@/lib/text-utils';
 
 /**
  * Normaliza nombres de UAC para comparación insensible a mayúsculas, acentos y variantes textuales (H-05).
@@ -65,7 +66,8 @@ export function formatUacCurricularContent(uac: PaecCatalogItem): string {
     lines.push(`- ${uac.uac_name} (Semestre ${uac.semester}, Propósitos Formativos):`);
     for (const item of cf) {
       const prop = item.proposito || item.progresion || 'Propósito no especificado';
-      const cont = item.contenidos && item.contenidos.length > 0 ? ` [Contenidos: ${item.contenidos.join(', ')}]` : '';
+      const contList = normalizeContenidos(item.contenidos);
+      const cont = contList.length > 0 ? ` [Contenidos: ${contList.join(', ')}]` : '';
       lines.push(`  * Propósito ${item.numero}: ${prop}${cont}`);
     }
   }

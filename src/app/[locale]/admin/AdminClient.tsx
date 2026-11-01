@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { normalizeContenidos } from '@/lib/text-utils';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -3817,13 +3818,13 @@ export default function AdminClient({ locale, adminEmail }: { locale: string; ad
                             </div>
 
                             {/* Contenidos Temáticos Específicos */}
-                            {matchingCf && matchingCf.contenidos && matchingCf.contenidos.length > 0 && (
+                            {matchingCf && normalizeContenidos(matchingCf.contenidos).length > 0 && (
                               <div style={{ marginTop: 8, paddingLeft: 12, borderLeft: `2px solid ${isLab ? 'rgba(245,158,11,0.4)' : 'rgba(129,140,248,0.3)'}` }}>
                                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginBottom: 4 }}>
                                   {isLab ? 'Contenidos técnicos y criterios de desempeño:' : 'Contenidos y temas oficiales:'}
                                 </div>
                                 <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12, color: 'rgba(255,255,255,0.85)', lineHeight: 1.5 }}>
-                                  {matchingCf.contenidos.map((tema, tIdx) => (
+                                  {normalizeContenidos(matchingCf.contenidos).map((tema, tIdx) => (
                                     <li key={tIdx}>{tema}</li>
                                   ))}
                                 </ul>

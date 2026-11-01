@@ -3,12 +3,12 @@
 import { useState, useCallback, useRef } from 'react';
 import type { ExtractedPdfData, KeyActivity } from '@/types/planning';
 import { isTechnologicalSubsystem } from '@/lib/subsystem-config';
-import { removeHyphens } from '@/lib/text-utils';
+import { removeHyphens, normalizeContenidos } from '@/lib/text-utils';
 
 interface ContenidoFormativoItem {
   order?: number;
   proposito?: string;
-  contenidos: string[];
+  contenidos?: string[] | string;
 }
 
 function cleanData(data: ExtractedPdfData): ExtractedPdfData {
@@ -25,7 +25,7 @@ function cleanData(data: ExtractedPdfData): ExtractedPdfData {
       ? data.contenidosFormativos.map((cf: ContenidoFormativoItem) => ({
           ...cf,
           proposito: removeHyphens(cf.proposito || ''),
-          contenidos: (cf.contenidos || []).map((t: string) => removeHyphens(t || '')),
+          contenidos: normalizeContenidos(cf.contenidos),
         }))
       : data.contenidosFormativos,
   };
@@ -375,7 +375,7 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
               const currentCf = (formData.contenidosFormativos as ContenidoFormativoItem[] | undefined)?.find(
                 cf => cf.order === a.order
               ) || (formData.contenidosFormativos as ContenidoFormativoItem[] | undefined)?.[idx];
-              const contenidos = currentCf?.contenidos || [];
+              const contenidos = normalizeContenidos(currentCf?.contenidos);
 
               return (
                 <div key={idx} className="activity-card-item" style={{ marginBottom: '12px', background: 'var(--c-bg-elevated)', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--c-border-2)' }}>
@@ -445,7 +445,7 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
                                   cfs.push({ order: a.order, proposito: a.name, contenidos: [] });
                                   cfIndex = cfs.length - 1;
                                 }
-                                const newContenidos = [...(cfs[cfIndex].contenidos || [])];
+                                const newContenidos = [...normalizeContenidos(cfs[cfIndex].contenidos)];
                                 newContenidos[tIdx] = val;
                                 cfs[cfIndex] = { ...cfs[cfIndex], contenidos: newContenidos };
                                 return { ...prev, contenidosFormativos: cfs };
@@ -467,7 +467,7 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
                                 if (cfIndex === -1 || !cfs[cfIndex]) return prev;
                                 cfs[cfIndex] = {
                                   ...cfs[cfIndex],
-                                  contenidos: cfs[cfIndex].contenidos.filter((_: string, i: number) => i !== tIdx),
+                                  contenidos: normalizeContenidos(cfs[cfIndex].contenidos).filter((_: string, i: number) => i !== tIdx),
                                 };
                                 return { ...prev, contenidosFormativos: cfs };
                               });
@@ -493,7 +493,7 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
                             } else {
                               cfs[cfIndex] = {
                                 ...cfs[cfIndex],
-                                contenidos: [...(cfs[cfIndex].contenidos || []), ''],
+                                contenidos: [...normalizeContenidos(cfs[cfIndex].contenidos), ''],
                               };
                             }
                             return { ...prev, contenidosFormativos: cfs };

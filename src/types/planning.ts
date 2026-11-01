@@ -22,8 +22,18 @@ export interface ExtractedPdfData {
   parseConfidence: 'high' | 'medium' | 'low' | 'failed';
   year?: number;
   cct?: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  contenidosFormativos?: any;
+  contenidosFormativos?: Array<{
+    order?: number;
+    proposito?: string;
+    progresion?: string;
+    contenidos?: string[] | string;
+    categorias?: string[];
+    subcategorias?: string[];
+    metas?: string[];
+    /** Formato Bachillerato Técnico (módulos/submódulos) */
+    actividad?: string;
+    saberes?: string[];
+  }> | null;
   carreraTecnica?: string;
 }
 
