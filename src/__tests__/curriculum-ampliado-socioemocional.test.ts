@@ -96,11 +96,12 @@ describe('Currículum Ampliado — Formación Socioemocional (MCCEMS 2025-2028)'
 
       // Contenidos formativos
       expect(Array.isArray(uac.contenidos_formativos)).toBe(true);
-      expect(uac.contenidos_formativos!.length).toBe(uac.activities.length);
-      for (const cf of uac.contenidos_formativos!) {
+      const cfList = uac.contenidos_formativos as Array<{ proposito?: string; contenidos?: string[] }>;
+      expect(cfList.length).toBe(uac.activities.length);
+      for (const cf of cfList) {
         expect(typeof cf.proposito).toBe('string');
         expect(Array.isArray(cf.contenidos)).toBe(true);
-        expect(cf.contenidos.length).toBeGreaterThan(0);
+        expect(cf.contenidos!.length).toBeGreaterThan(0);
       }
 
       // Evidencias

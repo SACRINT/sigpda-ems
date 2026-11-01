@@ -158,6 +158,17 @@ export async function deleteProgramCatalogItem(id: string) {
 
 // ─── Program Lookup & Continuity ─────────────────────────────────────────────
 
+export function normalizeUacVariants(uacName: string): {
+  trimmed: string;
+  withDe: string;
+  withoutDe: string;
+} {
+  const trimmed = uacName.trim();
+  const withDe = trimmed.replace(/\bTaller\s+(?!de\s+)([A-ZÁÉÍÓÚÑa-záéíóúñ])/i, 'Taller de $1');
+  const withoutDe = trimmed.replace(/\bTaller\s+de\s+/i, 'Taller ');
+  return { trimmed, withDe, withoutDe };
+}
+
 export async function getProgramByUacAndSemester(
   uacName: string,
   semester?: number,
@@ -166,23 +177,33 @@ export async function getProgramByUacAndSemester(
 ): Promise<ProgramCatalogItem | null> {
   const client = sql();
   const sem = (semester !== undefined && !isNaN(semester)) ? semester : null;
-  const comp = component && component !== 'all' ? component : null;
+  const compAliases = resolveComponentAliases(component);
   const sub = subsystem && subsystem !== 'all' ? subsystem.toLowerCase() : null;
+  const { trimmed, withDe, withoutDe } = normalizeUacVariants(uacName);
 
-  // 1. Intento con el subsistema específico o fallback canónico 'bge'
+  // 1. Intento con el subsistema específico o fallback canónico 'bge' y resolución de alias de componente
   let rows = await client`
     SELECT *
     FROM programs_catalog
     WHERE (
-      uac_name ILIKE ${uacName.trim()} 
-      OR uac_name ILIKE ${'%' + uacName.trim() + '%'}
-      OR ${uacName.trim()} ILIKE ('%' || uac_name || '%')
+      uac_name ILIKE ${trimmed}
+      OR uac_name ILIKE ${withDe}
+      OR uac_name ILIKE ${withoutDe}
+      OR uac_name ILIKE ${'%' + trimmed + '%'}
+      OR uac_name ILIKE ${'%' + withDe + '%'}
+      OR ${trimmed} ILIKE ('%' || uac_name || '%')
+      OR ${withDe} ILIKE ('%' || uac_name || '%')
     )
     AND (${sem}::int IS NULL OR semester = ${sem})
-    AND (${comp}::text IS NULL OR component = ${comp})
-    AND (${sub}::text IS NULL OR subsystem = ${sub} OR subsystem = 'bge' OR subsystem = 'all')
+    AND (${compAliases ? compAliases : null}::text[] IS NULL OR component = ANY(${compAliases}))
+    AND (${sub}::text IS NULL OR subsystem = ${sub} OR subsystem = 'bge' OR subsystem = 'all' OR subsystem IS NULL)
     ORDER BY 
-      CASE WHEN LOWER(uac_name) = LOWER(${uacName.trim()}) THEN 0 ELSE 1 END,
+      CASE 
+        WHEN LOWER(uac_name) = LOWER(${trimmed}) THEN 0
+        WHEN LOWER(uac_name) = LOWER(${withDe}) THEN 0
+        WHEN LOWER(uac_name) = LOWER(${withoutDe}) THEN 0
+        ELSE 1 
+      END,
       CASE WHEN ${sub}::text IS NOT NULL AND subsystem = ${sub} THEN 0 ELSE 1 END,
       CASE WHEN subsystem = 'bge' THEN 0 ELSE 1 END
     LIMIT 1
@@ -194,13 +215,22 @@ export async function getProgramByUacAndSemester(
       SELECT *
       FROM programs_catalog
       WHERE (
-        uac_name ILIKE ${uacName.trim()} 
-        OR uac_name ILIKE ${'%' + uacName.trim() + '%'}
-        OR ${uacName.trim()} ILIKE ('%' || uac_name || '%')
+        uac_name ILIKE ${trimmed}
+        OR uac_name ILIKE ${withDe}
+        OR uac_name ILIKE ${withoutDe}
+        OR uac_name ILIKE ${'%' + trimmed + '%'}
+        OR uac_name ILIKE ${'%' + withDe + '%'}
+        OR ${trimmed} ILIKE ('%' || uac_name || '%')
+        OR ${withDe} ILIKE ('%' || uac_name || '%')
       )
       AND (${sem}::int IS NULL OR semester = ${sem})
       ORDER BY 
-        CASE WHEN LOWER(uac_name) = LOWER(${uacName.trim()}) THEN 0 ELSE 1 END,
+        CASE 
+          WHEN LOWER(uac_name) = LOWER(${trimmed}) THEN 0
+          WHEN LOWER(uac_name) = LOWER(${withDe}) THEN 0
+          WHEN LOWER(uac_name) = LOWER(${withoutDe}) THEN 0
+          ELSE 1 
+        END,
         CASE WHEN subsystem = 'bge' THEN 0 ELSE 1 END
       LIMIT 1
     `;

@@ -195,6 +195,59 @@ function buildSectionI(content: GeneratedPlanningContent): (Paragraph | Table)[]
   ];
 }
 
+function extractRealCategoriasSubcategoriasLinesDocx(
+  s2: unknown,
+  activities: unknown[]
+): string[] {
+  const s2Obj = (s2 && typeof s2 === 'object' ? s2 : {}) as Record<string, unknown>;
+  if (Array.isArray(s2Obj.categoriasSubcategorias) && s2Obj.categoriasSubcategorias.length > 0) {
+    return (s2Obj.categoriasSubcategorias as unknown[]).map(x => String(x || '').trim()).filter(Boolean);
+  }
+  if (typeof s2Obj.categoriasSubcategorias === 'string' && s2Obj.categoriasSubcategorias.trim().length > 0) {
+    return s2Obj.categoriasSubcategorias.split('\n').map(x => x.trim()).filter(Boolean);
+  }
+
+  const cats = new Set<string>();
+  const subcats = new Set<string>();
+  const s2Acts = Array.isArray(s2Obj.activities) ? (s2Obj.activities as unknown[]) : [];
+  for (const raw of [...activities, ...s2Acts]) {
+    const a = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+    if (Array.isArray(a.categorias)) {
+      for (const c of a.categorias) if (typeof c === 'string' && c.trim()) cats.add(c.trim());
+    }
+    if (Array.isArray(a.subcategorias)) {
+      for (const s of a.subcategorias) if (typeof s === 'string' && s.trim()) subcats.add(s.trim());
+    }
+    const cf = typeof a.contenidoFormativo === 'string' ? a.contenidoFormativo : '';
+    for (const cm of cf.matchAll(/C\d\s*\.\s*[^|;\n]+/g)) cats.add(cm[0].trim());
+    for (const sm of cf.matchAll(/S\d\s*\.\s*[^|;\n]+/g)) subcats.add(sm[0].trim());
+  }
+
+  const lines: string[] = [];
+  if (cats.size > 0) lines.push(`Categorías: ${Array.from(cats).join(' | ')}`);
+  if (subcats.size > 0) lines.push(`Subcategorías: ${Array.from(subcats).join(' | ')}`);
+  return lines;
+}
+
+function formatActivityMetasCategoriasDocx(act: unknown): string {
+  const a = (act && typeof act === 'object' ? act : {}) as Record<string, unknown>;
+  const cats = Array.isArray(a.categorias) ? (a.categorias as string[]).filter(Boolean) : [];
+  const subcats = Array.isArray(a.subcategorias) ? (a.subcategorias as string[]).filter(Boolean) : [];
+  const metas = Array.isArray(a.metas) ? (a.metas as string[]).filter(Boolean) : [];
+
+  const parts: string[] = [];
+  if (cats.length > 0) parts.push(`Categorías: ${cats.join('; ')}`);
+  if (subcats.length > 0) parts.push(`Subcategorías: ${subcats.join('; ')}`);
+  if (metas.length > 0) parts.push(`Metas: ${metas.join(' ')}`);
+  if (parts.length > 0) return parts.join(' | ');
+
+  const cf = typeof a.contenidoFormativo === 'string' ? a.contenidoFormativo.trim() : '';
+  if (cf && /(?:Categor[íi]as|Subcategor[íi]as|Metas|C\d\.|S\d\.)/i.test(cf)) {
+    return cf;
+  }
+  return '';
+}
+
 function buildSectionII(content: GeneratedPlanningContent): (Paragraph | Table)[] {
   const s = content.sectionII;
   const cL = Math.floor(CONTENT * 0.27), cR = CONTENT - cL;
@@ -202,7 +255,11 @@ function buildSectionII(content: GeneratedPlanningContent): (Paragraph | Table)[
 
   const isLaboral = content.sectionI.component?.toLowerCase().includes('laboral') || false;
   const semesterVal = Number(content.sectionI.semester || 1);
-  const isProgresiones = semesterVal >= 5;
+  const rawContentObj = content as unknown as Record<string, unknown>;
+  const isProgresiones =
+    semesterVal >= 5 ||
+    rawContentObj.model_type === 'progresiones' ||
+    rawContentObj.modelType === 'progresiones';
   const sectionIIHeading = isLaboral
     ? 'II. RESULTADO DE APRENDIZAJE Y ACTIVIDADES CLAVE (FORMACIÓN LABORAL)'
     : isProgresiones
@@ -211,20 +268,43 @@ function buildSectionII(content: GeneratedPlanningContent): (Paragraph | Table)[
   const activityLabel = isLaboral ? 'Actividades Clave' : isProgresiones ? 'Progresiones de Aprendizaje Oficiales' : 'Propósitos y Contenidos formativos';
   const tableHeader = isLaboral ? 'Actividad Clave / Contenido' : isProgresiones ? 'Progresión de Aprendizaje Oficial' : 'Propósito o Contenido formativo';
 
+  const realCatSubcatLines = isProgresiones
+    ? extractRealCategoriasSubcategoriasLinesDocx(s, content.sectionIV?.activities || [])
+    : [];
+
+  const intencionalidadRows: TableRow[] = [
+    new TableRow({ children: [tcH('INTENCIONALIDAD CURRICULAR', { w: CONTENT, span: 2, align: AlignmentType.CENTER, size: 20 })] }),
+    new TableRow({ children: [tcL(isProgresiones ? 'Meta Educativa / Trayectoria' : 'Propósito General de la UAC', { w: cL }), tc(s.purpose || (s as unknown as Record<string, unknown>)?.learningOutcome as string || '', { w: cR })] }),
+  ];
+
+  if (isProgresiones) {
+    if (realCatSubcatLines.length > 0) {
+      intencionalidadRows.push(new TableRow({
+        children: [
+          tcL('Categorías y Subcategorías', { w: cL }),
+          multiCell(realCatSubcatLines, cR),
+        ],
+      }));
+    }
+  } else {
+    intencionalidadRows.push(new TableRow({
+      children: [
+        tcL('Aprendizajes Esperados\n(Resultados de Aprendizaje)', { w: cL }),
+        multiCell(s.learningOutcomes, cR),
+      ],
+    }));
+  }
+
+  intencionalidadRows.push(new TableRow({
+    children: [
+      tcL('Vinculación con el PAEC\n(Apartado Obligatorio)', { w: cL }),
+      tc(s.paecConnection, { w: cR, fill: C.gray }),
+    ],
+  }));
+
   return [
     secHeading(sectionIIHeading),
-    tbl([
-      new TableRow({ children: [tcH('INTENCIONALIDAD CURRICULAR', { w: CONTENT, span: 2, align: AlignmentType.CENTER, size: 20 })] }),
-      new TableRow({ children: [tcL(isProgresiones ? 'Meta Educativa / Trayectoria' : 'Propósito General de la UAC', { w: cL }), tc(s.purpose, { w: cR })] }),
-      new TableRow({ children: [
-        tcL(isProgresiones ? 'Metas de Aprendizaje / Categorías' : 'Aprendizajes Esperados\n(Resultados de Aprendizaje)', { w: cL }),
-        multiCell(s.learningOutcomes, cR),
-      ] }),
-      new TableRow({ children: [
-        tcL('Vinculación con el PAEC\n(Apartado Obligatorio)', { w: cL }),
-        tc(s.paecConnection, { w: cR, fill: C.gray }),
-      ] }),
-    ], [cL, cR]),
+    tbl(intencionalidadRows, [cL, cR]),
     sp(),
     subH(`${activityLabel} y Distribución Horaria`),
     tbl([
@@ -305,6 +385,17 @@ function buildActivityTable(activity: GeneratedPlanningContent['sectionIV']['act
         ]
       }));
     }
+    if (isProgresiones) {
+      const metaCatText = formatActivityMetasCategoriasDocx(activity);
+      if (metaCatText) {
+        rows.push(new TableRow({
+          children: [
+            new TableCell({ columnSpan: 1, shading: { fill: C.mid, type: ShadingType.CLEAR }, borders: bdr(), margins: { top: 60, bottom: 60, left: 80, right: 80 }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Metas / Categorías / Subcategorías:', bold: true, size: 17, color: C.white, font: 'Arial' })] })] }),
+            new TableCell({ columnSpan: 3, shading: { fill: C.white, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [new Paragraph({ children: [new TextRun({ text: metaCatText, size: 17, font: 'Arial', color: C.text })] })] })
+          ]
+        }));
+      }
+    }
   }
 
   // Tres Saberes Curriculares
@@ -354,7 +445,11 @@ function buildActivityTable(activity: GeneratedPlanningContent['sectionIV']['act
 function buildSectionIV(content: GeneratedPlanningContent, sequenceJson?: Record<number, { blockIndex: number; blockName: string; hours: number; sessions: { sessionNum: number; totalSessions: number; phase: string; title: string; teachingActivity: string; learningActivity: string; evidence: string; evaluation?: string }[] }> | null): (Paragraph | Table)[] {
   const isLaboral = content.sectionI.component?.toLowerCase().includes('laboral') || false;
   const semesterVal = Number(content.sectionI.semester || 1);
-  const isProgresiones = semesterVal >= 5;
+  const rawContentObj = content as unknown as Record<string, unknown>;
+  const isProgresiones =
+    semesterVal >= 5 ||
+    rawContentObj.model_type === 'progresiones' ||
+    rawContentObj.modelType === 'progresiones';
   const label = isLaboral ? 'ACTIVIDAD CLAVE' : isProgresiones ? 'PROGRESIÓN DE APRENDIZAJE' : 'PROPÓSITO FORMATIVO';
 
   const elements: (Paragraph | Table)[] = [
@@ -592,6 +687,8 @@ export async function generateSecuenciaDocx(
         noteP(`Desglose de sesiones de 50 minutos con momentos pedagógicos (Apertura, Desarrollo y Cierre) conforme al Marco Curricular Común de la EMS (MCCEMS NEM). ${formatearBadgeMetodologia(content.sectionI.metodologiaActiva || content.sectionIV?.activities?.[0]?.methodology)}`),
         sp(),
         ...buildSectionI(content),
+        sp(),
+        ...buildSectionII(content),
         sp(),
         ...buildSectionIV(content, sequenceJson),
         sp(),

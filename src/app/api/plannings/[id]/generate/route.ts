@@ -18,6 +18,10 @@ import { getUserLibraryContext } from '@/lib/context-extractor';
 import { searchCurriculum } from '@/lib/rag-curricular';
 import { extractIdempotencyKey, checkIdempotencyKey, createIdempotencyKey } from '@/lib/idempotency';
 import { evaluatePlanningQuality } from '@/lib/planning/quality-pipeline';
+import {
+  repairExtractedDataWithCatalog,
+  enforceOfficialProgresiones,
+} from '@/lib/planning/progresiones-enforcer';
 import { resolverIdentidadEscolar } from '@/lib/school-identity';
 import type { ExtractedPdfData, TeacherContext, GeneratedPlanningContent } from '@/types/planning';
 import type { RagContext } from '@/lib/rag-curricular';
@@ -94,6 +98,13 @@ export async function POST(
       context.subsystem
     );
 
+    const effectiveExtractedData = repairExtractedDataWithCatalog(
+      extractedData,
+      officialProgram,
+      planning.semester as number,
+      planning.component as string
+    );
+
     // 2. Si es FFE optativa o semestre 5/6, consultar continuidad
     let continuityInfo = null;
     if (planning.component === 'ext_optativo' || planning.semester === 5 || planning.semester === 6) {
@@ -132,7 +143,7 @@ export async function POST(
 
     // 5. Construir prompt con catálogo auténtico, RAG y feedback de auditoría
     const userPrompt = buildUserPrompt(
-      extractedData,
+      effectiveExtractedData,
       context,
       planning.semester as number,
       planning.component as string,
@@ -208,6 +219,15 @@ export async function POST(
             if (identidad.cct) parsedContent.sectionI.cct = identidad.cct;
             if (identidad.municipality) parsedContent.sectionI.municipality = identidad.municipality;
             if (identidad.schoolZone) parsedContent.sectionI.schoolZone = identidad.schoolZone;
+
+            // Post-procesamiento determinista para garantizar 1 bloque por Progresión oficial (verbatim) en 5.º/6.º semestre
+            enforceOfficialProgresiones(
+              parsedContent as unknown as Record<string, unknown>,
+              officialProgram,
+              effectiveExtractedData,
+              planning.semester as number,
+              planning.component as string
+            );
 
             await updatePlanningContent(id, teacher.id, parsedContent);
 

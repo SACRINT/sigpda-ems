@@ -79,27 +79,44 @@ export async function getCachedProgramByUacAndSemester(
 ): Promise<ProgramCatalogItem | null> {
   const allPrograms = await getAllCachedPrograms();
   const target = uacName.trim().toLowerCase();
+  const targetWithDe = target.replace(/\btaller\s+(?!de\s+)([a-záéíóúñ])/i, 'taller de $1');
+  const targetWithoutDe = target.replace(/\btaller\s+de\s+/i, 'taller ');
   const sem = (semester !== undefined && !isNaN(semester)) ? semester : null;
-  const comp = component && component !== 'all' ? component : null;
+  const compAliases = resolveComponentAliases(component);
   const sub = subsystem && subsystem !== 'all' ? subsystem.toLowerCase() : null;
 
-  // 1. Coincidencia exacta con subsistema o fallback a 'bge'
+  const matchesNameExact = (pName: string) => {
+    const low = pName.toLowerCase();
+    return low === target || low === targetWithDe || low === targetWithoutDe;
+  };
+  const matchesNameFuzzy = (pName: string) => {
+    const low = pName.toLowerCase();
+    return (
+      matchesNameExact(pName) ||
+      low.includes(target) ||
+      low.includes(targetWithDe) ||
+      target.includes(low) ||
+      targetWithDe.includes(low)
+    );
+  };
+
+  // 1. Coincidencia exacta con subsistema o fallback a 'bge' y alias de componente
   const exact = allPrograms.find(p => 
-    p.uac_name.toLowerCase() === target &&
+    matchesNameExact(p.uac_name) &&
     (sem === null || p.semester === sem) &&
-    (comp === null || p.component === comp) &&
+    (compAliases === null || compAliases.includes(p.component)) &&
     (sub === null || (p.subsystem || 'bge').toLowerCase() === sub || (p.subsystem || '').toLowerCase() === 'bge')
   );
 
   // 2. Coincidencia por nombre y semestre
   const matchSem = allPrograms.find(p => 
-    (p.uac_name.toLowerCase() === target || p.uac_name.toLowerCase().includes(target) || target.includes(p.uac_name.toLowerCase())) &&
+    matchesNameFuzzy(p.uac_name) &&
     (sem === null || p.semester === sem)
   );
 
   // 3. Coincidencia general
   const found = exact || matchSem || allPrograms.find(p => 
-    p.uac_name.toLowerCase().includes(target) || target.includes(p.uac_name.toLowerCase())
+    matchesNameFuzzy(p.uac_name)
   ) || null;
 
   if (found && (found.component === 'ampliado' || found.component === 'socioemocional')) {

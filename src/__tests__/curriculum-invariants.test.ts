@@ -12,7 +12,8 @@ import masterUacs from '@/lib/curriculum/data/uacs_master_203.json';
 import { resolveSacrintPack, CANONICAL_UAC_PACKS, SACRINT_PACKS } from '@/lib/visual-engine/sacrint/discipline-packs';
 import { resolveTargetSessionsForWorkbook } from '@/lib/guide-engine/material-extractor';
 import { sanitizeEducationalResourceUrl } from '@/lib/pdf-workbook-renderer';
-import { normalizeUnicode } from '@/lib/utils/normalize';
+import { extractDeterministicMccemsProgram } from '@/lib/pdf-parser';
+import { enforceOfficialProgresiones } from '@/lib/planning/progresiones-enforcer';
 
 describe('GUARDIÁN DE INVARIANTES CURRICULARES (SEP / MCCEMS 2026-2027)', () => {
   it('INVARIANTE 1: El 100% de las 203 UACs oficiales resuelve a una familia disciplinar específica (Cero huérfanas en general)', () => {
@@ -147,5 +148,84 @@ describe('GUARDIÁN DE INVARIANTES CURRICULARES (SEP / MCCEMS 2026-2027)', () =>
     const var2 = canonicalList.find((u: any) => u.semester === 6 && u.uac_name.includes('Variacional'));
     expect(var2).toBeDefined();
     expect(var2.activities).toHaveLength(7);
+
+    // 5. Verificar Categorías, Subcategorías y Metas reales en las 4 UACs auditadas
+    for (const uacItem of [var1, var2, dib1, dib2]) {
+      expect(Array.isArray(uacItem.contenidos_formativos)).toBe(true);
+      expect(uacItem.contenidos_formativos).toHaveLength(uacItem.activities.length);
+      for (const act of uacItem.activities) {
+        expect(Array.isArray(act.categorias)).toBe(true);
+        expect(act.categorias.length).toBeGreaterThan(0);
+        expect(Array.isArray(act.subcategorias)).toBe(true);
+        expect(act.subcategorias.length).toBeGreaterThan(0);
+        expect(Array.isArray(act.metas)).toBe(true);
+        expect(act.metas.length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('INVARIANTE 8: Extractor determinista multilínea recupera "Progresión\\n6:" partida en líneas y Aprendizajes de trayectoria reales', () => {
+    const samplePdfMarkdown = `
+II. Aprendizajes de trayectoria
+El Taller de Pensamiento Variacional, al formar parte del Recurso sociocognitivo de Pensamiento Matemático, considera los mismos aprendizajes de trayectoria, los cuales se explicitan en el acuerdo secretarial 09/08/23 y se presentan a continuación:
+● Valora la aplicación de procedimientos automáticos y algorítmicos, así como la interpretación de sus resultados para anticipar, encontrar y validar soluciones a problemas matemáticos.
+● Modela y propone soluciones a problemas tanto teóricos como de su entorno, empleando lenguaje y técnicas matemáticas.
+III. Progresiones y metas de aprendizaje
+Progresiones de Aprendizaje
+Taller de Pensamiento Variacional I
+Progresión 1: Aplica técnicas aritméticas, algebraicas y operaciones funcionales a través del planteamiento de problemáticas de las ciencias.
+Metas | Categorías | Subcategorías
+C1M1. Ejecuta cálculos y algoritmos. | C1. Procedural | S1. Elementos aritmético-algebraicos
+Progresión 2: Analiza de manera formal el concepto de límite, profundizando en el cálculo de límites de funciones mediante sus teoremas.
+Metas | Categorías | Subcategorías
+C1M1. Ejecuta cálculos. | C1. Procedural | S3. Elementos variacionales
+Progresión
+6:
+Aplica procedimientos algorítmicos para derivar funciones implícitas y de orden superior, así como el uso de estas últimas para resolver límites indeterminados utilizando la regla de L’Hopital.
+Metas | Categorías | Subcategorías
+C1M2. Analiza los resultados obtenidos. | C1. Procedural | S3. Elementos variacionales
+IV. Transversalidad
+`;
+    const extracted = extractDeterministicMccemsProgram(samplePdfMarkdown, 5);
+    expect(extracted).not.toBeNull();
+    expect(extracted!.learningOutcome).toContain('Valora la aplicación de procedimientos automáticos');
+    expect(extracted!.learningOutcome).not.toContain('se presentan a continuación');
+    const prog6 = extracted!.activities.find((a) => a.order === 6);
+    expect(prog6).toBeDefined();
+    expect(prog6!.name).toContain('regla de L’Hopital');
+    expect(prog6!.categorias).toContain('C1. Procedural');
+  });
+
+  it('INVARIANTE 9: enforceOfficialProgresiones erradica rangos ("Progresión 3 a 7") e impone 1 bloque verbatim por Progresión oficial', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const canonicalList = require('../../scripts/data/curriculum_canonical_203.json');
+    const var1 = canonicalList.find((u: any) => u.semester === 5 && u.uac_name.includes('Variacional'));
+
+    const collapsedAiContent: Record<string, unknown> = {
+      sectionI: { uacName: 'Taller de Pensamiento Variacional I', semester: 5 },
+      sectionII: {
+        learningOutcome: 'El Taller de Pensamiento Variacional, al formar parte del Recurso sociocognitivo...',
+        activities: [{ name: 'Progresión 1 truncada', hours: 18 }],
+      },
+      sectionIV: {
+        activities: [
+          { name: 'Progresión 1', hours: 18, corte: 'Corte 1', apertura: ['Paso A1'], ejecucion: ['Paso D1'], conclusion: ['Paso C1'] },
+          { name: 'Progresión 2', hours: 18, corte: 'Corte 2', apertura: ['Paso A2'], ejecucion: ['Paso D2'], conclusion: ['Paso C2'] },
+          { name: 'Progresión 3 a 7', hours: 18, corte: 'Corte 3', apertura: ['Paso A3'], ejecucion: ['Paso D3'], conclusion: ['Paso C3'] },
+        ],
+      },
+    };
+
+    const enforced = enforceOfficialProgresiones(collapsedAiContent, var1, null, 5, 'ext_optativo');
+    const s4Acts = (enforced.sectionIV as any).activities;
+    expect(s4Acts).toHaveLength(8);
+    for (let i = 0; i < 8; i++) {
+      expect(s4Acts[i].name).toMatch(new RegExp(`^Progresión ${i + 1}:`));
+      expect(s4Acts[i].name).not.toContain('a 7');
+      expect(s4Acts[i].contenidoFormativo).toContain('Categorías:');
+      expect(s4Acts[i].contenidoFormativo).toContain('Subcategorías:');
+    }
+    const totalHours = s4Acts.reduce((acc: number, a: any) => acc + a.hours, 0);
+    expect(totalHours).toBe(54);
   });
 });

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { getTeacherByEmail, getPlanningsByTeacher, createPlanning } from '@/lib/db';
+import { getTeacherByEmail, getPlanningsByTeacher, createPlanning, getProgramByUacAndSemester } from '@/lib/db';
 import { canCreatePlanningForSubject, lockSubjectInSubscription } from '@/lib/subscription-gate';
 import { resolverIdentidadEscolar } from '@/lib/school-identity';
+import { repairExtractedDataWithCatalog } from '@/lib/planning/progresiones-enforcer';
 import { logger } from '@/lib/logger';
 
 export async function GET() {
@@ -62,6 +63,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Si es 5.º o 6.º semestre, enriquecer/reparar extractedData con el catálogo oficial
+    let finalExtractedData = extractedData;
+    if (Number(semester) >= 5 && component !== 'laboral' && extractedData) {
+      try {
+        const officialProgram = await getProgramByUacAndSemester(uacName, Number(semester), component);
+        if (officialProgram) {
+          finalExtractedData = repairExtractedDataWithCatalog(
+            extractedData,
+            officialProgram,
+            Number(semester),
+            component
+          );
+        }
+      } catch (catErr) {
+        logger.warn('[plannings POST] Optional catalog repair skipped:', catErr);
+      }
+    }
+
     // Crear la planeación
     const identidad = resolverIdentidadEscolar({
       schoolName: body.schoolName,
@@ -76,7 +95,7 @@ export async function POST(request: NextRequest) {
       component,
       curriculumName,
       paecContext,
-      extractedData,
+      extractedData: finalExtractedData,
       metodologiaActiva: metodologiaActiva || undefined,
       paecOperationalActivity: paecOperationalActivity || undefined,
       teacherName: teacherName || undefined,

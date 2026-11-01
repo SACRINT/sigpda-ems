@@ -40,14 +40,57 @@ export interface FfeContinuityContext {
 
 interface ActivitySourceItem {
   name?: string;
+  description?: string;
   hours?: number;
+  corte?: string;
+  categorias?: string[];
+  subcategorias?: string[];
+  metas?: string[];
+  contenidoFormativo?: string;
 }
 
 interface ContenidoFormativoItem {
   proposito?: string;
+  progresion?: string;
   actividad_clave?: string;
   contenidos?: string[];
   temas?: string[];
+  categorias?: string[];
+  subcategorias?: string[];
+  metas?: string[];
+}
+
+/**
+ * Distribución canónica de horas y cortes para N progresiones (sumando 18h por Corte = 54h).
+ */
+function resolveProgressionHoursAndCorte(
+  index: number,
+  totalN: number,
+  totalHours: number = 54
+): { hours: number; corte: string } {
+  if (totalN === 8 && totalHours === 54) {
+    const hoursList = [6, 6, 6, 6, 6, 6, 9, 9];
+    const cortesList = [
+      'Corte 1', 'Corte 1', 'Corte 1',
+      'Corte 2', 'Corte 2', 'Corte 2',
+      'Corte 3', 'Corte 3',
+    ];
+    return { hours: hoursList[index] ?? 6, corte: cortesList[index] ?? 'Corte 3' };
+  }
+  if (totalN === 7 && totalHours === 54) {
+    const hoursList = [9, 9, 6, 6, 6, 9, 9];
+    const cortesList = [
+      'Corte 1', 'Corte 1',
+      'Corte 2', 'Corte 2', 'Corte 2',
+      'Corte 3', 'Corte 3',
+    ];
+    return { hours: hoursList[index] ?? 6, corte: cortesList[index] ?? 'Corte 3' };
+  }
+  const base = Math.floor(totalHours / Math.max(1, totalN));
+  const rem = totalHours % Math.max(1, totalN);
+  const hours = base + (index < rem ? 1 : 0);
+  const corteNum = Math.min(3, Math.floor((index * 3) / Math.max(1, totalN)) + 1);
+  return { hours, corte: `Corte ${corteNum}` };
 }
 
 /**
@@ -63,9 +106,26 @@ function sanitizeActivityItem(raw: unknown): ActivitySourceItem {
       ? Number(r.hours)
       : undefined;
 
+  const rawName = typeof r.name === 'string' && r.name.trim().length > 0 ? r.name.trim() : undefined;
+  const rawDesc = typeof r.description === 'string' && r.description.trim().length > 0 ? r.description.trim() : undefined;
+
   return {
-    name: typeof r.name === 'string' && r.name.trim().length > 0 ? r.name.trim() : undefined,
+    name: rawName || rawDesc,
+    description: rawDesc,
     hours: parsedHours,
+    corte: typeof r.corte === 'string' && r.corte.trim().length > 0 ? r.corte.trim() : undefined,
+    categorias: Array.isArray(r.categorias)
+      ? r.categorias.filter((c): c is string => typeof c === 'string' && c.trim().length > 0)
+      : undefined,
+    subcategorias: Array.isArray(r.subcategorias)
+      ? r.subcategorias.filter((s): s is string => typeof s === 'string' && s.trim().length > 0)
+      : undefined,
+    metas: Array.isArray(r.metas)
+      ? r.metas.filter((m): m is string => typeof m === 'string' && m.trim().length > 0)
+      : undefined,
+    contenidoFormativo: typeof r.contenidoFormativo === 'string' && r.contenidoFormativo.trim().length > 0
+      ? r.contenidoFormativo.trim()
+      : undefined,
   };
 }
 
@@ -78,12 +138,24 @@ function sanitizeContenidoFormativoItem(raw: unknown): ContenidoFormativoItem {
   const r = raw as Record<string, unknown>;
   return {
     proposito: typeof r.proposito === 'string' && r.proposito.trim().length > 0 ? r.proposito.trim() : undefined,
+    progresion: typeof r.progresion === 'string' && r.progresion.trim().length > 0 ? r.progresion.trim() : undefined,
     actividad_clave: typeof r.actividad_clave === 'string' && r.actividad_clave.trim().length > 0 ? r.actividad_clave.trim() : undefined,
     contenidos: Array.isArray(r.contenidos)
       ? r.contenidos.filter((c): c is string => typeof c === 'string' && c.trim().length > 0)
-      : undefined,
+      : typeof r.contenidos === 'string' && r.contenidos.trim().length > 0
+        ? [r.contenidos.trim()]
+        : undefined,
     temas: Array.isArray(r.temas)
       ? r.temas.filter((t): t is string => typeof t === 'string' && t.trim().length > 0)
+      : undefined,
+    categorias: Array.isArray(r.categorias)
+      ? r.categorias.filter((c): c is string => typeof c === 'string' && c.trim().length > 0)
+      : undefined,
+    subcategorias: Array.isArray(r.subcategorias)
+      ? r.subcategorias.filter((s): s is string => typeof s === 'string' && s.trim().length > 0)
+      : undefined,
+    metas: Array.isArray(r.metas)
+      ? r.metas.filter((m): m is string => typeof m === 'string' && m.trim().length > 0)
       : undefined,
   };
 }
@@ -111,7 +183,17 @@ export function buildUserPrompt(
   const weeklyLoad = Math.max(1, Math.round(totalHours / weeksPerSemester));
 
   // ── Prepare Activities & Official Content ───────────────────────────────────
-  let activitiesList: { name: string; hours: number; topics?: string[]; purpose?: string }[] = [];
+  let activitiesList: {
+    name: string;
+    hours: number;
+    corte?: string;
+    topics?: string[];
+    purpose?: string;
+    categorias?: string[];
+    subcategorias?: string[];
+    metas?: string[];
+    contenidoFormativo?: string;
+  }[] = [];
 
   if (isLaboral) {
     if (isTec) {
@@ -171,11 +253,23 @@ export function buildUserPrompt(
       ? (officialProgram.activities as unknown[])
       : (extractedData.activities as unknown[]);
 
+    const totalN = sourceActivities.length;
     activitiesList = sourceActivities.map((raw, idx: number) => {
       const a = sanitizeActivityItem(raw);
+      const { hours: canonicalHours, corte: canonicalCorte } = resolveProgressionHoursAndCorte(idx, totalN, totalHours);
+      const baseName = a.name || a.description || `${isTransitionSemester ? 'Progresión' : 'Propósito Formativo'} ${idx + 1}`;
+      const formattedName = isTransitionSemester && !/^Progresi[óo]n\s*\d+/i.test(baseName)
+        ? `Progresión ${idx + 1}: ${baseName}`
+        : baseName;
+
       return {
-        name: a.name || `${isTransitionSemester ? 'Progresión' : 'Propósito Formativo'} ${idx + 1}`,
-        hours: a.hours || Math.round(totalHours / Math.max(1, sourceActivities.length)),
+        name: formattedName,
+        hours: isTransitionSemester ? canonicalHours : (a.hours || canonicalHours),
+        corte: a.corte || canonicalCorte,
+        categorias: a.categorias,
+        subcategorias: a.subcategorias,
+        metas: a.metas,
+        contenidoFormativo: a.contenidoFormativo,
       };
     });
   }
@@ -188,11 +282,16 @@ export function buildUserPrompt(
       // Intentar coincidir por nombre o índice
       const match = contenidosSource.find((cf: ContenidoFormativoItem) => 
         cf.proposito === act.name || 
+        cf.progresion === act.name ||
         cf.actividad_clave === act.name ||
-        (cf.proposito && cf.proposito.substring(0, 45) === act.name.substring(0, 45))
+        (cf.proposito && cf.proposito.substring(0, 45) === act.name.substring(0, 45)) ||
+        (cf.progresion && cf.progresion.substring(0, 45) === act.name.substring(0, 45))
       ) || contenidosSource[i];
 
       if (match) {
+        if (!act.categorias?.length && match.categorias?.length) act.categorias = match.categorias;
+        if (!act.subcategorias?.length && match.subcategorias?.length) act.subcategorias = match.subcategorias;
+        if (!act.metas?.length && match.metas?.length) act.metas = match.metas;
         if (Array.isArray(match.contenidos) && match.contenidos.length > 0) {
           act.topics = match.contenidos;
         } else if (Array.isArray(match.temas) && match.temas.length > 0) {
@@ -204,8 +303,20 @@ export function buildUserPrompt(
 
   const activitiesText = activitiesList
     .map((a, i) => {
-      let text = `  ${i + 1}. ${a.name} (${a.hours} horas) [Asignado al Corte ${Math.min(3, i + 1)}]`;
-      if (a.topics && a.topics.length > 0) {
+      const assignedCorte = a.corte || `Corte ${Math.min(3, i + 1)}`;
+      let text = `  ${i + 1}. ${a.name} (${a.hours} horas) [Asignado al ${assignedCorte}]`;
+      if (a.categorias?.length || a.subcategorias?.length || a.metas?.length) {
+        text += `\n     [Categorías, Subcategorías y Metas Oficiales de esta Progresión]:`;
+        if (a.categorias?.length) {
+          text += `\n       • Categorías: ${a.categorias.join('; ')}`;
+        }
+        if (a.subcategorias?.length) {
+          text += `\n       • Subcategorías: ${a.subcategorias.join('; ')}`;
+        }
+        if (a.metas?.length) {
+          text += `\n       • Metas de Aprendizaje: ${a.metas.join(' ')}`;
+        }
+      } else if (a.topics && a.topics.length > 0) {
         text += `\n     [Contenidos Temáticos Oficiales obligatorios para esta unidad]:\n` + 
                 a.topics.map(t => `       • ${t}`).join('\n');
       }
@@ -476,7 +587,12 @@ ${getDisciplinaryAdapter(
 ${(context.usePaecActivity !== false && context.paecOperationalActivity?.actividad) ? `   - Integra OBLIGATORIAMENTE en la Sección III y en la secuencia de la Sección IV la actividad oficial del Plan Operativo: "${context.paecOperationalActivity.actividad}".` : '   - Propón actividades transversales pertinentes que atiendan la problemática comunitaria diagnosticada.'}
 2. METODOLOGÍAS ACTIVAS: ${context.metodologiaActiva ? `Aplica EXCLUSIVAMENTE la metodología ${CATALOGO_METODOLOGIAS_ACTIVAS.find(m => m.id === context.metodologiaActiva)?.nombre ?? context.metodologiaActiva} respetando sus fases en el orden indicado arriba.` : 'Aplica estrictamente metodologías activas (Aprendizaje Basado en Proyectos, Estudio de Casos, Simulación y Prácticas de Campo). Prohibidas clases expositivas pasivas.'}
 ${isTransitionSemester
-  ? '   - MCCEMS 5.° y 6.° SEMESTRE (FFE Optativas): Esta UAC se rige por PROGRESIONES DE APRENDIZAJE y METAS. En cada bloque de la Sección IV asigna la Progresión oficial auténtica en "name" y en "contenidoFormativo" vincula las metas y categorías curriculares correspondientes. PROHIBIDO inventar propósitos formativos.'
+  ? `   - MCCEMS 5.° y 6.° SEMESTRE (FFE Optativas - PROGRESIONES DE APRENDIZAJE):
+     • Esta UAC tiene EXACTAMENTE ${activitiesList.length} Progresiones de Aprendizaje oficiales (Progresión 1 a Progresión ${activitiesList.length}).
+     • Tanto "sectionII.activities" como "sectionIV.activities" DEBEN contener EXACTAMENTE ${activitiesList.length} elementos individuales (1 elemento por cada Progresión oficial, en orden 1 a ${activitiesList.length}).
+     • Queda ESTRICTAMENTE PROHIBIDO colapsar o agrupar varias progresiones en un solo bloque o rango (ej. PROHIBIDO escribir "Progresión 3 a 7" o "Progresión 1 a 3").
+     • En cada elemento i (1..${activitiesList.length}), el campo "name" DEBE ser COPIA VERBATIM ÍNTEGRA del texto oficial de la Progresión i tal como se listó arriba ("Progresión K: <texto oficial completo>"). PROHIBIDO resumir, parafrasear o truncar.
+     • En cada elemento i de "sectionIV.activities", el campo "contenidoFormativo" DEBE incluir las Categorías (C1...), Subcategorías (S1...) y Metas (C1M1...) oficiales correspondientes a esa Progresión.`
   : '   - Para asignaturas no laborales: Especifica obligatoriamente el "contenidoFormativo" oficial exacto desarrollado en la secuencia.'
 }
    - Para Formación Laboral (BGE): Exige que el Desarrollo alcance Nivel 2 de complejidad técnica y el Cierre sea una simulación práctica evaluable con lista de cotejo/rúbrica.

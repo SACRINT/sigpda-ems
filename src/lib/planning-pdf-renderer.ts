@@ -32,6 +32,79 @@ const TEXT_DARK: [number, number, number] = [30, 41, 59];    // #1E293B - Texto
 // Colores institucionales de fases didácticas (homologados MCCEMS vía design-tokens)
 const { PHASE_APERTURA, PHASE_DESARROLLO, PHASE_CIERRE } = COLORS;
 
+/**
+ * Extrae únicamente las Categorías y Subcategorías reales del programa MCCEMS (C1.., S1..),
+ * prohibiendo estrictamente mostrar learningOutcomes/propósitos formativos bajo esa etiqueta.
+ */
+function extractRealCategoriasSubcategoriasText(
+  s2: unknown,
+  activities: unknown[]
+): string {
+  const s2Obj = (s2 && typeof s2 === 'object' ? s2 : {}) as Record<string, unknown>;
+  if (Array.isArray(s2Obj.categoriasSubcategorias) && s2Obj.categoriasSubcategorias.length > 0) {
+    return (s2Obj.categoriasSubcategorias as unknown[])
+      .map(x => String(x || '').trim())
+      .filter(Boolean)
+      .join('\n');
+  }
+  if (typeof s2Obj.categoriasSubcategorias === 'string' && s2Obj.categoriasSubcategorias.trim().length > 0) {
+    return s2Obj.categoriasSubcategorias.trim();
+  }
+
+  const cats = new Set<string>();
+  const subcats = new Set<string>();
+  const s2Acts = Array.isArray(s2Obj.activities) ? (s2Obj.activities as unknown[]) : [];
+  const combined = [...activities, ...s2Acts];
+
+  for (const raw of combined) {
+    const a = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+    if (Array.isArray(a.categorias)) {
+      for (const c of a.categorias) {
+        if (typeof c === 'string' && c.trim()) cats.add(c.trim());
+      }
+    }
+    if (Array.isArray(a.subcategorias)) {
+      for (const s of a.subcategorias) {
+        if (typeof s === 'string' && s.trim()) subcats.add(s.trim());
+      }
+    }
+    const cf = typeof a.contenidoFormativo === 'string' ? a.contenidoFormativo : '';
+    for (const cm of cf.matchAll(/C\d\s*\.\s*[^|;\n]+/g)) {
+      cats.add(cm[0].trim());
+    }
+    for (const sm of cf.matchAll(/S\d\s*\.\s*[^|;\n]+/g)) {
+      subcats.add(sm[0].trim());
+    }
+  }
+
+  const lines: string[] = [];
+  if (cats.size > 0) lines.push(`Categorías: ${Array.from(cats).join(' | ')}`);
+  if (subcats.size > 0) lines.push(`Subcategorías: ${Array.from(subcats).join(' | ')}`);
+  return lines.join('\n');
+}
+
+/**
+ * Formatea las Metas, Categorías y Subcategorías específicas de una Progresión individual.
+ */
+function formatActivityMetasCategorias(act: unknown): string {
+  const a = (act && typeof act === 'object' ? act : {}) as Record<string, unknown>;
+  const cats = Array.isArray(a.categorias) ? (a.categorias as string[]).filter(Boolean) : [];
+  const subcats = Array.isArray(a.subcategorias) ? (a.subcategorias as string[]).filter(Boolean) : [];
+  const metas = Array.isArray(a.metas) ? (a.metas as string[]).filter(Boolean) : [];
+
+  const parts: string[] = [];
+  if (cats.length > 0) parts.push(`Categorías: ${cats.join('; ')}`);
+  if (subcats.length > 0) parts.push(`Subcategorías: ${subcats.join('; ')}`);
+  if (metas.length > 0) parts.push(`Metas: ${metas.join(' ')}`);
+  if (parts.length > 0) return parts.join('\n');
+
+  const cf = typeof a.contenidoFormativo === 'string' ? a.contenidoFormativo.trim() : '';
+  if (cf && /(?:Categor[íi]as|Subcategor[íi]as|Metas|C\d\.|S\d\.)/i.test(cf)) {
+    return cf;
+  }
+  return '';
+}
+
 function resolveCanonicalHours(
   uacName: string,
   s1TotalHours?: number,
@@ -259,11 +332,16 @@ export async function generatePlanningPDF(
       ? 'II. METAS EDUCATIVAS Y PROGRESIONES DE APRENDIZAJE MCCEMS'
       : 'II. META EDUCATIVA, PROPÓSITOS FORMATIVOS Y CONTENIDOS FORMATIVOS';
 
+  const realCatSubcatMacro = extractRealCategoriasSubcategoriasText(s2, activities);
+  const progresionesListTextMacro = activities
+    .map((a, i) => (/^Progresi[óo]n\s*\d+/i.test(a.name || '') ? a.name : `${i + 1}. ${a.name}`))
+    .join('\n');
+
   const sectionIIBodyMacro: RowInput[] = isLaboral
     ? [
         [
           { content: 'Resultado de Aprendizaje (Módulo):', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 42 } },
-          { content: s2?.purpose || 'Desarrollar competencias laborales técnicas y operativas.' },
+          { content: s2?.purpose || (s2 as Record<string, unknown>)?.learningOutcome as string || 'Desarrollar competencias laborales técnicas y operativas.' },
         ],
         [
           { content: 'Actividades Clave Oficiales:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
@@ -278,16 +356,20 @@ export async function generatePlanningPDF(
       ? [
           [
             { content: 'Meta Educativa / Trayectoria:', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 42 } },
-            { content: s2?.purpose || 'Desarrollar progresiones de aprendizaje integrales mediante pensamiento crítico y modelado.' },
+            { content: s2?.purpose || (s2 as Record<string, unknown>)?.learningOutcome as string || 'Desarrollar progresiones de aprendizaje integrales mediante pensamiento crítico y modelado.' },
           ],
           [
             { content: 'Progresiones de Aprendizaje Oficiales:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-            { content: activities.map((a, i) => `${i + 1}. ${a.name}`).join('\n') || propositosFormativos || 'Progresiones de aprendizaje oficiales del MCCEMS.' },
+            { content: progresionesListTextMacro || 'Progresiones de aprendizaje oficiales del MCCEMS.' },
           ],
-          [
-            { content: 'Categorías y Subcategorías:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-            { content: propositosFormativos || 'Categorías y subcategorías curriculares vinculadas a la UAC.' },
-          ],
+          ...(realCatSubcatMacro
+            ? [
+                [
+                  { content: 'Categorías y Subcategorías:', styles: { fontStyle: 'bold' as const, fillColor: GRAY_BG } },
+                  { content: realCatSubcatMacro },
+                ],
+              ]
+            : []),
           [
             { content: 'Problemática Central / Contexto (PAEC):', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
             { content: s2?.paecConnection || rawPaecContext || 'Contextualización a las necesidades socioformativas de la comunidad.' },
@@ -369,8 +451,25 @@ export async function generatePlanningPDF(
       { content: isProgresiones ? (act.name || act.contenidoFormativo || 'No especificado') : (act.contenidoFormativo || act.name || 'No especificado') },
     ]);
 
+    if (isProgresiones) {
+      const actMetaCat = formatActivityMetasCategorias(act);
+      if (actMetaCat) {
+        macroRows.push([
+          { content: 'Metas, Categorías y Subcategorías:', styles: { fontStyle: 'bold', fillColor: [241, 245, 249], cellWidth: 38 } },
+          { content: actMetaCat },
+        ]);
+      }
+    }
+
     // Saberes curriculares vinculados
     if (act.saberes && (act.saberes.saber || act.saberes.saberHacer || act.saberes.saberSer)) {
+      macroRows.push([
+        {
+          content: saberesHeaderLabelMacro,
+          colSpan: 2,
+          styles: { fillColor: [241, 245, 249], textColor: [30, 41, 59], fontStyle: 'bold' },
+        },
+      ]);
       macroRows.push([
         { content: 'Saber (Teórico):', styles: { fontStyle: 'bold', fillColor: [241, 245, 249], cellWidth: 38 } },
         { content: act.saberes.saber || 'No especificado' },
@@ -761,11 +860,16 @@ export async function generateSecuenciaPDF(
       ? 'II. METAS EDUCATIVAS Y PROGRESIONES DE APRENDIZAJE MCCEMS'
       : 'II. META EDUCATIVA, PROPÓSITOS FORMATIVOS Y CONTENIDOS FORMATIVOS';
 
+  const realCatSubcatSec = extractRealCategoriasSubcategoriasText(s2, activities);
+  const progresionesListTextSec = activities
+    .map((a, i) => (/^Progresi[óo]n\s*\d+/i.test(a.name || '') ? a.name : `${i + 1}. ${a.name}`))
+    .join('\n');
+
   const sectionIIBodySec: RowInput[] = isLaboral
     ? [
         [
           { content: 'Resultado de Aprendizaje (Módulo):', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 42 } },
-          { content: s2?.purpose || 'Desarrollar competencias laborales técnicas y operativas.' },
+          { content: s2?.purpose || (s2 as Record<string, unknown>)?.learningOutcome as string || 'Desarrollar competencias laborales técnicas y operativas.' },
         ],
         [
           { content: 'Actividades Clave Oficiales:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
@@ -780,16 +884,20 @@ export async function generateSecuenciaPDF(
       ? [
           [
             { content: 'Meta Educativa / Trayectoria:', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 42 } },
-            { content: s2?.purpose || 'Desarrollar progresiones de aprendizaje integrales mediante pensamiento crítico y modelado.' },
+            { content: s2?.purpose || (s2 as Record<string, unknown>)?.learningOutcome as string || 'Desarrollar progresiones de aprendizaje integrales mediante pensamiento crítico y modelado.' },
           ],
           [
             { content: 'Progresiones de Aprendizaje Oficiales:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-            { content: activities.map((a, i) => `${i + 1}. ${a.name}`).join('\n') || propositosFormativos || 'Progresiones de aprendizaje oficiales del MCCEMS.' },
+            { content: progresionesListTextSec || 'Progresiones de aprendizaje oficiales del MCCEMS.' },
           ],
-          [
-            { content: 'Categorías y Subcategorías:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-            { content: propositosFormativos || 'Categorías y subcategorías curriculares vinculadas a la UAC.' },
-          ],
+          ...(realCatSubcatSec
+            ? [
+                [
+                  { content: 'Categorías y Subcategorías:', styles: { fontStyle: 'bold' as const, fillColor: GRAY_BG } },
+                  { content: realCatSubcatSec },
+                ],
+              ]
+            : []),
           [
             { content: 'Problemática Central / Contexto (PAEC):', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
             { content: s2?.paecConnection || 'Contextualización a las necesidades socioformativas de la comunidad.' },
@@ -843,6 +951,16 @@ export async function generateSecuenciaPDF(
       { content: blockTitleLabelSec, styles: { fontStyle: 'bold', fontSize: 6.5, fillColor: GRAY_BG, cellWidth: 38 } },
       { content: isProgresiones ? (act.name || act.contenidoFormativo || 'No especificado') : (act.contenidoFormativo || act.name || 'No especificado'), colSpan: 3, styles: { fontSize: 6.5 } },
     ]);
+
+    if (isProgresiones) {
+      const actMetaCat = formatActivityMetasCategorias(act);
+      if (actMetaCat) {
+        rows.push([
+          { content: 'Metas, Categorías y Subcategorías:', styles: { fontStyle: 'bold', fontSize: 6.5, fillColor: GRAY_BG, cellWidth: 38 } },
+          { content: actMetaCat, colSpan: 3, styles: { fontSize: 6.5 } },
+        ]);
+      }
+    }
 
     // Saberes curriculares vinculados al contenido formativo
     if (act.saberes && (act.saberes.saber || act.saberes.saberHacer || act.saberes.saberSer)) {
