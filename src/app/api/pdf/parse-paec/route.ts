@@ -9,6 +9,7 @@ import { PaecExtractedDocSchema } from '@/lib/ai-schemas';
 import type { PaecOperationalActivity, PaecParseResult } from '@/types/planning';
 import { normalizeUnicode } from '@/lib/utils/normalize';
 import { removeHyphens } from '@/lib/text-utils';
+import { uacMatches } from '@/lib/paec-context';
 import {
   parsePaecHeuristics,
   parsePlanOperativoHeuristics,
@@ -115,17 +116,26 @@ export async function POST(request: NextRequest) {
     if (!parsedData.municipality && heuristicResult.municipality) parsedData.municipality = heuristicResult.municipality;
     if (!parsedData.cct && heuristicResult.cct) parsedData.cct = heuristicResult.cct;
     
-    // Fusión de plan operativo IA + Heurísticas con deduplicación por asignatura + actividad
-    const combinedPlan: PaecOperationalActivity[] = [...(parsedData.planOperativo || [])];
+    // Fusión de plan operativo con prioridad oficial a filas heurísticas extraídas de la tabla
+    const combinedPlan: PaecOperationalActivity[] = [];
+    const seenUac = new Set<string>();
+
     if (heuristicResult.planOperativo?.length) {
-      const seen = new Set(
-        combinedPlan.map(p => `${normalizeUnicode(p.asignatura).toLowerCase()}|${normalizeUnicode(p.actividad).toLowerCase()}`)
-      );
       for (const hItem of heuristicResult.planOperativo) {
-        const key = `${normalizeUnicode(hItem.asignatura).toLowerCase()}|${normalizeUnicode(hItem.actividad).toLowerCase()}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          combinedPlan.push(hItem);
+        combinedPlan.push(hItem);
+        seenUac.add(normalizeUnicode(hItem.asignatura).toLowerCase().trim());
+      }
+    }
+
+    if (Array.isArray(parsedData.planOperativo)) {
+      for (const aiItem of parsedData.planOperativo) {
+        const normAiAsig = normalizeUnicode(aiItem.asignatura).toLowerCase().trim();
+        const alreadyCovered = Array.from(seenUac).some(existingAsig =>
+          existingAsig === normAiAsig || uacMatches(existingAsig, normAiAsig)
+        );
+        if (!alreadyCovered) {
+          combinedPlan.push(aiItem);
+          seenUac.add(normAiAsig);
         }
       }
     }
