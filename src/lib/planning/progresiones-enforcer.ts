@@ -321,13 +321,19 @@ export function enforceOfficialProgresiones(
       ? baseBlock.saberes
       : {}) as Record<string, unknown>;
 
-    const catText = prog.categorias.length > 0 ? prog.categorias.join(', ') : 'Categorías oficiales MCCEMS';
-    const subcatText = prog.subcategorias.length > 0 ? prog.subcategorias.join(', ') : 'Subcategorías oficiales MCCEMS';
+    // Sin placeholders: si el programa oficial no trae Categorías/Subcategorías, se omite la cláusula.
+    const catText = prog.categorias.join(', ');
+    const subcatText = prog.subcategorias.join(', ');
+    const articulacion = catText
+      ? ` articulando ${catText}${subcatText ? ` (${subcatText})` : ''}`
+      : subcatText
+        ? ` articulando ${subcatText}`
+        : '';
     const metaText = prog.metas.length > 0 ? prog.metas[0] : prog.description;
 
     const saberes = {
       saber: isSharedFallback || !existingSaberes.saber
-        ? `Fundamentos conceptuales y formales de la Progresión ${prog.order}: ${prog.description} articulando ${catText} (${subcatText}).`
+        ? `Fundamentos conceptuales y formales de la Progresión ${prog.order}: ${prog.description}${articulacion}.`
         : String(existingSaberes.saber),
       saberHacer: isSharedFallback || !existingSaberes.saberHacer
         ? `Aplicación procedimental y resolución situada en ${uacTitle} para cumplir la meta: ${metaText}`
@@ -379,7 +385,7 @@ export function enforceOfficialProgresiones(
           ? isSharedFallback
             ? `Evidencia Progresión ${prog.order} (${prog.subcategorias[0] || prog.categorias[0] || uacTitle}): ${String(baseBlock.evidence).replace(/^Evidencia\s+Progresi[óo]n\s*\d+\s*:\s*/i, '')}`
             : baseBlock.evidence
-          : `Producto integrador de la Progresión ${prog.order} evaluado conforme a ${prog.categorias.join(' y ') || 'criterios MCCEMS'}.`,
+          : `Producto integrador de la Progresión ${prog.order}${prog.categorias.length > 0 ? ` evaluado conforme a ${prog.categorias.join(' y ')}` : ''}.`,
     };
   });
 
