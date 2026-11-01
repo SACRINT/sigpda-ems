@@ -126,4 +126,66 @@ Etapa tres: Selección del problema: Elevada prevalencia de sedentarismo y condu
     expect(res.planOperativo[0].asignatura).toBe('Dibujo Técnico I');
     expect(res.planOperativo[0].actividad).toBe('Trazado de mapas de zonas recreativas');
   });
+
+  it('7. parsePlanOperativoHeuristics mantiene colMap estable con celdas internas que contienen palabras clave y excluye Tabla 8 de actividades macro', () => {
+    const markdown = `
+## Tabla 8. Actividades Macro y Asignaturas Viga Maestra
+| Fase | Actividades Macro | Asignaturas Viga Maestra | Responsables |
+|---|---|---|---|
+| Fase 1 | Coordinación general | Lengua y Comunicación | Comité Escolar |
+
+## Tabla 10. Plan Operativo Oficial del Proyecto
+| Semestre | Fase | Asignatura / UAC | Actividad / Acción | Estrategia | Progresiones/Recursos | Productos | Responsables |
+|---|---|---|---|---|---|---|---|
+| 5to | Fase 1 | Taller de Pensamiento Variacional I | C01: Análisis de razones de cambio y variación | Estrategia de indagación y actividad matemática | P01 a P04 | Reporte gráfico | Docente A |
+| 5to | Fase 1 | Dibujo Técnico I | C02: Representación técnica a escala | Estrategia gráfica | P01 a P03 | Plano | Docente B |
+| 5to | Fase 2 | Taller de Pensamiento Variacional I | C03: Modelado de optimización de recursos | Actividad de campo con la asignatura de física | P05 a P08 | Maqueta | Docente A |
+| 6to | Fase 2 | Dibujo Técnico II | C04: Proyección ortogonal en maqueta | Estrategia proyectual | P01 a P08 | Lámina | Docente B |
+`;
+    const res = parsePlanOperativoHeuristics(markdown);
+    // Debe excluir Tabla 8 y procesar exactamente las 4 filas de Tabla 10
+    expect(res).toHaveLength(4);
+    expect(res[0].asignatura).toBe('Taller de Pensamiento Variacional I');
+    expect(res[0].actividad).toBe('C01: Análisis de razones de cambio y variación');
+    expect(res[1].asignatura).toBe('Dibujo Técnico I');
+    expect(res[1].actividad).toBe('C02: Representación técnica a escala');
+    // Fila 3 contiene "actividad" y "asignatura" dentro de la columna Estrategia, pero colMap no debe corromperse
+    expect(res[2].asignatura).toBe('Taller de Pensamiento Variacional I');
+    expect(res[2].actividad).toBe('C03: Modelado de optimización de recursos');
+    expect(res[3].asignatura).toBe('Dibujo Técnico II');
+    expect(res[3].actividad).toBe('C04: Proyección ortogonal en maqueta');
+  });
+
+  it('8. parsePaecHeuristics limita la longitud de problem a un máximo de 600 caracteres', () => {
+    const hugeProblemText = 'Problema grave de la comunidad: ' + 'Sedentarismo y consumo de alimentos ultraprocesados. '.repeat(30);
+    const doc = `
+# PROYECTO ESCOLAR COMUNITARIO
+PEC Bienestar
+
+Problemáticas o necesidades de la comunidad
+Etapa tres: Selección del problema: ${hugeProblemText}
+
+Fase 1: Diagnóstico
+`;
+    const res = parsePaecHeuristics(doc);
+    expect(res.problem).toBeTruthy();
+    expect(res.problem!.length).toBeLessThanOrEqual(600);
+    expect(res.problem).toContain('Sedentarismo');
+  });
+
+  it('9. parsePaecHeuristics recupera studentContext mediante fallbackMatch cuando no hay encabezados segmentados', () => {
+    const doc = `
+# PROYECTO ESCOLAR COMUNITARIO
+PEC Saludable
+
+Caracterización de los estudiantes y el plantel:
+El bachillerato se ubica en una zona semiurbana con alta cohesión social pero con carencia de espacios recreativos techados. Los estudiantes muestran interés en el deporte pero no cuentan con instalaciones adecuadas.
+
+Propósito general: Fortalecer estilos de vida saludables.
+`;
+    const res = parsePaecHeuristics(doc);
+    expect(res.studentContext).toBeTruthy();
+    expect(res.studentContext).toContain('semiurbana');
+    expect(res.studentContext).toContain('espacios recreativos techados');
+  });
 });

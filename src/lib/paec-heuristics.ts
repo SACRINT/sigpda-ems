@@ -79,8 +79,13 @@ export function parsePlanOperativoHeuristics(text: string): PaecOperationalActiv
       c.includes('fase') ||
       c.includes('etapa')
     );
+    const isExcludedTable = lowerCells.some(c =>
+      c.includes('actividades macro') ||
+      c.includes('asignaturas viga maestra') ||
+      c.includes('viga maestra')
+    );
 
-    if (hasAsignatura && hasActividad && hasPlanMarkers) {
+    if (!inTable && hasAsignatura && hasActividad && hasPlanMarkers && !isExcludedTable) {
       inTable = true;
       colMap = {
         fase: lowerCells.findIndex(c => c.includes('fase') || c.includes('etapa')),
@@ -165,15 +170,15 @@ export function parsePaecHeuristics(text: string): PaecHeuristicResult {
   // 2. Problemática comunitaria (Multi-ancla)
   const matchPNC = text.match(/Problemáticas\s+o\s+necesidades\s+de\s+la\s+comunidad[\s\S]*?(?:Etapa\s+tres[:\s]*|eje\s+central\s+del\s+proyecto[:\s]*|selección\s+del\s+problema[:\s]*)([\s\S]*?)(?=\b(?:Fase|FASE|1\.\s+Introducción|Propósito|Alcance|=== PÁGINA|\r?\n\||$))/i);
   if (matchPNC && matchPNC[1]?.trim().length > 30) {
-    problem = matchPNC[1].trim();
+    problem = matchPNC[1].trim().slice(0, 600);
   } else {
     const matchEtapa3 = text.match(/(?:Etapa\s+tres[:\s]*[^\n\r]*selecci[oó]n\s+del\s+problema[^\n\r]*)[\s\S]*?([A-ZÁÉÍÓÚ][\s\S]{30,600}?)(?=\b(?:Fase|FASE|1\.\s+Introducción|Propósito|=== PÁGINA|$))/i);
     if (matchEtapa3 && matchEtapa3[1]?.trim().length > 30) {
-      problem = matchEtapa3[1].trim();
+      problem = matchEtapa3[1].trim().slice(0, 600);
     } else {
       const matchProbDet = text.match(/(?:problem[aá]tica\s+detectada|problema\s+detectado|problema\s+central|problema\s+a\s+resolver)\s*[:\-\s]*([^\n\r]+(?:\r?\n[^\n\r]+){1,5})/i);
       if (matchProbDet && matchProbDet[1]?.trim().length > 25) {
-        problem = matchProbDet[1].trim();
+        problem = matchProbDet[1].trim().slice(0, 600);
       }
     }
   }
@@ -224,6 +229,11 @@ export function parsePaecHeuristics(text: string): PaecHeuristicResult {
 
   if (contextParts.length > 0) {
     studentContext = contextParts.join('\n\n');
+  } else {
+    const fallbackMatch = text.match(/(?:Contexto|Diagn[oó]stico|Caracterizaci[oó]n)[^\n\r]*[:\-\s]*([^\n\r]+(?:\r?\n[^\n\r]+){1,6})/i);
+    if (fallbackMatch && fallbackMatch[1]?.trim().length > 30) {
+      studentContext = fallbackMatch[1].trim();
+    }
   }
 
   // 5. Clave CCT (10 caracteres, ej: 21EBH0200X, 21ECT0017T)
@@ -249,7 +259,7 @@ export function parsePaecHeuristics(text: string): PaecHeuristicResult {
   return {
     projectName: projectName ? clean(projectName) : null,
     objective: objective ? clean(objective) : null,
-    problem: problem ? clean(problem) : null,
+    problem: problem ? clean(problem).slice(0, 600) : null,
     studentContext: studentContext ? clean(studentContext) : null,
     schoolName: schoolName ? clean(schoolName) : null,
     municipality: municipality ? clean(municipality) : null,
