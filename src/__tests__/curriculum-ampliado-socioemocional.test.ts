@@ -1,7 +1,20 @@
 import { describe, it, expect } from 'vitest';
 import { COMPONENT_MAP, resolveComponentAliases } from '@/lib/db/programs-catalog';
 import { cleanSocioemotionalName } from '@/lib/utils';
-import canonicalCurriculum from '../../scripts/data/curriculum_canonical_203.json';
+import canonicalRaw from '../../scripts/data/curriculum_canonical_203.json';
+
+interface AmpliadoUac {
+  uac_name: string;
+  semester: number;
+  component: string;
+  total_hours?: number;
+  learning_outcome?: string | null;
+  activities: Array<{ hours: number }>;
+  contenidos_formativos?: Array<{ proposito?: string; contenidos?: string[] }> | null;
+  evidences?: unknown[];
+}
+
+const canonicalCurriculum = canonicalRaw as unknown as AmpliadoUac[];
 
 describe('Currículum Ampliado — Formación Socioemocional (MCCEMS 2025-2028)', () => {
   const EXPECTED_5_AMBITOS = [
@@ -42,14 +55,14 @@ describe('Currículum Ampliado — Formación Socioemocional (MCCEMS 2025-2028)'
   it('3. En curriculum_canonical_203.json existe la distribución oficial SEP por semestre', () => {
     // Semestre 1: Únicamente Actividades Físicas y Deportivas
     const sem1 = canonicalCurriculum.filter(
-      (it: any) => it.semester === 1 && (it.component === 'ampliado' || it.component === 'socioemocional')
+      (it) => it.semester === 1 && (it.component === 'ampliado' || it.component === 'socioemocional')
     );
     expect(sem1.length).toBe(1);
     expect(sem1[0].uac_name).toBe('Actividades Físicas y Deportivas');
 
     // Semestre 2: Únicamente Actividades Artísticas y Culturales
     const sem2 = canonicalCurriculum.filter(
-      (it: any) => it.semester === 2 && (it.component === 'ampliado' || it.component === 'socioemocional')
+      (it) => it.semester === 2 && (it.component === 'ampliado' || it.component === 'socioemocional')
     );
     expect(sem2.length).toBe(1);
     expect(sem2[0].uac_name).toBe('Actividades Artísticas y Culturales');
@@ -63,10 +76,10 @@ describe('Currículum Ampliado — Formación Socioemocional (MCCEMS 2025-2028)'
 
     for (let sem = 3; sem <= 6; sem++) {
       const semItems = canonicalCurriculum.filter(
-        (it: any) => it.semester === sem && (it.component === 'ampliado' || it.component === 'socioemocional')
+        (it) => it.semester === sem && (it.component === 'ampliado' || it.component === 'socioemocional')
       );
       expect(semItems.length).toBe(3);
-      const uacNames = semItems.map((it: any) => it.uac_name);
+      const uacNames = semItems.map((it) => it.uac_name);
       for (const expected of ROTATIVAS_3_A_6) {
         expect(uacNames).toContain(expected);
       }
@@ -75,7 +88,7 @@ describe('Currículum Ampliado — Formación Socioemocional (MCCEMS 2025-2028)'
 
   it('4. Cada una de las 5 UACs oficiales tiene Meta Educativa, Propósitos Formativos y Contenidos Temáticos completos', () => {
     const allAmpliado = canonicalCurriculum.filter(
-      (it: any) => it.component === 'ampliado' || it.component === 'socioemocional'
+      (it) => it.component === 'ampliado' || it.component === 'socioemocional'
     );
     expect(allAmpliado.length).toBe(14); // 1 + 1 + 3 + 3 + 3 + 3
 
@@ -91,12 +104,12 @@ describe('Currículum Ampliado — Formación Socioemocional (MCCEMS 2025-2028)'
       // Propósitos (activities)
       expect(Array.isArray(uac.activities)).toBe(true);
       expect(uac.activities.length).toBeGreaterThanOrEqual(4);
-      const totalHours = uac.activities.reduce((acc: number, a: any) => acc + a.hours, 0);
+      const totalHours = uac.activities.reduce((acc: number, a) => acc + a.hours, 0);
       expect(totalHours).toBe(expectedHours);
 
       // Contenidos formativos
       expect(Array.isArray(uac.contenidos_formativos)).toBe(true);
-      const cfList = uac.contenidos_formativos as Array<{ proposito?: string; contenidos?: string[] }>;
+      const cfList = uac.contenidos_formativos ?? [];
       expect(cfList.length).toBe(uac.activities.length);
       for (const cf of cfList) {
         expect(typeof cf.proposito).toBe('string');
@@ -106,7 +119,7 @@ describe('Currículum Ampliado — Formación Socioemocional (MCCEMS 2025-2028)'
 
       // Evidencias
       expect(Array.isArray(uac.evidences)).toBe(true);
-      expect(uac.evidences.length).toBeGreaterThan(0);
+      expect((uac.evidences ?? []).length).toBeGreaterThan(0);
     }
   });
 });

@@ -9,18 +9,59 @@
 
 import { describe, it, expect } from 'vitest';
 import masterUacs from '@/lib/curriculum/data/uacs_master_203.json';
-import { resolveSacrintPack, CANONICAL_UAC_PACKS, SACRINT_PACKS } from '@/lib/visual-engine/sacrint/discipline-packs';
+import { resolveSacrintPack, CANONICAL_UAC_PACKS } from '@/lib/visual-engine/sacrint/discipline-packs';
 import { resolveTargetSessionsForWorkbook } from '@/lib/guide-engine/material-extractor';
 import { sanitizeEducationalResourceUrl } from '@/lib/pdf-workbook-renderer';
 import { extractDeterministicMccemsProgram } from '@/lib/pdf-parser';
 import { enforceOfficialProgresiones } from '@/lib/planning/progresiones-enforcer';
+import type { ProgramCatalogItem } from '@/lib/db/programs-catalog';
+
+interface MasterUac {
+  uac_name?: string;
+  name?: string;
+  component?: string;
+}
+
+interface CanonicalActivity {
+  order: number;
+  name: string;
+  hours: number;
+  categorias: string[];
+  subcategorias: string[];
+  metas: string[];
+}
+
+interface CanonicalUac {
+  uac_name: string;
+  semester: number;
+  component: string;
+  activities: CanonicalActivity[];
+  contenidos_formativos: unknown[] | null;
+}
+
+type WorkbookArgs = Parameters<typeof resolveTargetSessionsForWorkbook>;
+
+function loadCanonical(): CanonicalUac[] {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  return require('../../scripts/data/curriculum_canonical_203.json') as CanonicalUac[];
+}
+
+function mustFind(list: CanonicalUac[], pred: (u: CanonicalUac) => boolean): CanonicalUac {
+  const found = list.find(pred);
+  if (!found) throw new Error('UAC canónica no encontrada');
+  return found;
+}
+
+function sessionsFor(hours: number): number {
+  return resolveTargetSessionsForWorkbook({} as unknown as WorkbookArgs[0], { hours } as unknown as WorkbookArgs[1]);
+}
 
 describe('GUARDIÁN DE INVARIANTES CURRICULARES (SEP / MCCEMS 2026-2027)', () => {
   it('INVARIANTE 1: El 100% de las 203 UACs oficiales resuelve a una familia disciplinar específica (Cero huérfanas en general)', () => {
     const unclassified: string[] = [];
 
-    for (const uac of masterUacs as any[]) {
-      const name = uac.uac_name || uac.name;
+    for (const uac of masterUacs as unknown as MasterUac[]) {
+      const name = uac.uac_name || uac.name || '';
       const pack = resolveSacrintPack(name, uac.component);
       if (pack.id === 'general') {
         unclassified.push(`"${name}" (Componente: ${uac.component})`);
@@ -52,11 +93,11 @@ describe('GUARDIÁN DE INVARIANTES CURRICULARES (SEP / MCCEMS 2026-2027)', () =>
   });
 
   it('INVARIANTE 3: Ningún módulo de Formación para el Trabajo puede ser capturado por disciplinas académicas puras', () => {
-    const vocationalModules = (masterUacs as any[]).filter((u) => u.component === 'laboral');
+    const vocationalModules = (masterUacs as unknown as MasterUac[]).filter((u) => u.component === 'laboral');
     expect(vocationalModules.length).toBeGreaterThan(50);
 
     for (const uac of vocationalModules) {
-      const pack = resolveSacrintPack(uac.uac_name, 'laboral');
+      const pack = resolveSacrintPack(uac.uac_name || '', 'laboral');
       expect(pack.id).toBe('laboral');
       expect(pack.short).toBe('LAB');
     }
@@ -66,17 +107,17 @@ describe('GUARDIÁN DE INVARIANTES CURRICULARES (SEP / MCCEMS 2026-2027)', () =>
     // 1. Taller de Pensamiento Variacional I (54h = 18 sesiones/bloque)
     const variacionalPack = resolveSacrintPack('Taller de Pensamiento Variacional I', 'ffeo');
     expect(variacionalPack.id).toBe('matematicas');
-    expect(resolveTargetSessionsForWorkbook({} as any, { hours: 18 } as any)).toBe(18);
+    expect(sessionsFor(18)).toBe(18);
 
     // 2. Dibujo Técnico I (54h = 18 sesiones/bloque)
     const dibujoPack = resolveSacrintPack('Dibujo Técnico I', 'ffe_optativa');
     expect(dibujoPack.id).toBe('tecnologia');
-    expect(resolveTargetSessionsForWorkbook({} as any, { hours: 18 } as any)).toBe(18);
+    expect(sessionsFor(18)).toBe(18);
 
     // 3. Actividades Físicas y Deportivas (36h = 12 sesiones/bloque)
     const afydPack = resolveSacrintPack('Actividades Físicas y Deportivas', 'socioemocional');
     expect(afydPack.id).toBe('educacion_fisica');
-    expect(resolveTargetSessionsForWorkbook({} as any, { hours: 12 } as any)).toBe(12);
+    expect(sessionsFor(12)).toBe(12);
   });
 
   it('INVARIANTE 5: Cero enlaces de soporte a Google Scholar (resiliencia absoluta anti-CAPTCHA y anti-429)', () => {
@@ -111,43 +152,38 @@ describe('GUARDIÁN DE INVARIANTES CURRICULARES (SEP / MCCEMS 2026-2027)', () =>
   });
 
   it('INVARIANTE 7: Progresiones íntegras sin truncamiento para FFE de 5.° y 6.° semestre (8 en Variacional I)', () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const canonicalList = require('../../scripts/data/curriculum_canonical_203.json');
+    const canonicalList = loadCanonical();
 
     // 1. Taller de Pensamiento Variacional I (Sem 5)
-    const var1 = canonicalList.find((u: any) => u.semester === 5 && u.uac_name.includes('Variacional'));
-    expect(var1).toBeDefined();
-    expect(var1.activities).toHaveLength(8);
-    const var1Orders = var1.activities.map((a: any) => a.order);
+    const var1 = mustFind(canonicalList, (u) => u.semester === 5 && u.uac_name.includes('Variacional'));
+        expect(var1.activities).toHaveLength(8);
+    const var1Orders = var1.activities.map((a) => a.order);
     expect(var1Orders).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
     for (const act of var1.activities) {
       expect(act.name.length).toBeGreaterThan(60);
       expect(act.hours).toBeGreaterThan(0);
     }
-    const var1HoursSum = var1.activities.reduce((s: number, a: any) => s + a.hours, 0);
+    const var1HoursSum = var1.activities.reduce((s: number, a) => s + a.hours, 0);
     expect(var1HoursSum).toBe(54);
 
     // 2. Dibujo Técnico I (Sem 5)
-    const dib1 = canonicalList.find((u: any) => u.semester === 5 && u.uac_name.includes('Dibujo') && u.uac_name.includes('I'));
-    expect(dib1).toBeDefined();
-    expect(dib1.activities).toHaveLength(7);
-    const dib1Orders = dib1.activities.map((a: any) => a.order);
+    const dib1 = mustFind(canonicalList, (u) => u.semester === 5 && u.uac_name.includes('Dibujo') && u.uac_name.includes('I'));
+        expect(dib1.activities).toHaveLength(7);
+    const dib1Orders = dib1.activities.map((a) => a.order);
     expect(dib1Orders).toEqual([1, 2, 3, 4, 5, 6, 7]);
     for (const act of dib1.activities) {
       expect(act.name.length).toBeGreaterThan(60);
     }
 
     // 3. Dibujo Técnico II (Sem 6)
-    const dib2 = canonicalList.find((u: any) => u.semester === 6 && u.uac_name.includes('Dibujo') && u.uac_name.includes('II'));
-    expect(dib2).toBeDefined();
-    expect(dib2.activities).toHaveLength(8);
-    const dib2Orders = dib2.activities.map((a: any) => a.order);
+    const dib2 = mustFind(canonicalList, (u) => u.semester === 6 && u.uac_name.includes('Dibujo') && u.uac_name.includes('II'));
+        expect(dib2.activities).toHaveLength(8);
+    const dib2Orders = dib2.activities.map((a) => a.order);
     expect(dib2Orders).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
 
     // 4. Taller de Pensamiento Variacional II (Sem 6)
-    const var2 = canonicalList.find((u: any) => u.semester === 6 && u.uac_name.includes('Variacional'));
-    expect(var2).toBeDefined();
-    expect(var2.activities).toHaveLength(7);
+    const var2 = mustFind(canonicalList, (u) => u.semester === 6 && u.uac_name.includes('Variacional'));
+        expect(var2.activities).toHaveLength(7);
 
     // 5. Verificar Categorías, Subcategorías y Metas reales en las 4 UACs auditadas
     for (const uacItem of [var1, var2, dib1, dib2]) {
@@ -197,9 +233,8 @@ IV. Transversalidad
   });
 
   it('INVARIANTE 9: enforceOfficialProgresiones erradica rangos ("Progresión 3 a 7") e impone 1 bloque verbatim por Progresión oficial', () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const canonicalList = require('../../scripts/data/curriculum_canonical_203.json');
-    const var1 = canonicalList.find((u: any) => u.semester === 5 && u.uac_name.includes('Variacional'));
+    const canonicalList = loadCanonical();
+    const var1 = mustFind(canonicalList, (u) => u.semester === 5 && u.uac_name.includes('Variacional'));
 
     const collapsedAiContent: Record<string, unknown> = {
       sectionI: { uacName: 'Taller de Pensamiento Variacional I', semester: 5 },
@@ -216,8 +251,8 @@ IV. Transversalidad
       },
     };
 
-    const enforced = enforceOfficialProgresiones(collapsedAiContent, var1, null, 5, 'ext_optativo');
-    const s4Acts = (enforced.sectionIV as any).activities;
+    const enforced = enforceOfficialProgresiones(collapsedAiContent, var1 as unknown as ProgramCatalogItem, null, 5, 'ext_optativo');
+    const s4Acts = (enforced.sectionIV as { activities: Array<{ name: string; hours: number; contenidoFormativo: string }> }).activities;
     expect(s4Acts).toHaveLength(8);
     for (let i = 0; i < 8; i++) {
       expect(s4Acts[i].name).toMatch(new RegExp(`^Progresión ${i + 1}:`));
@@ -225,7 +260,21 @@ IV. Transversalidad
       expect(s4Acts[i].contenidoFormativo).toContain('Categorías:');
       expect(s4Acts[i].contenidoFormativo).toContain('Subcategorías:');
     }
-    const totalHours = s4Acts.reduce((acc: number, a: any) => acc + a.hours, 0);
+    const totalHours = s4Acts.reduce((acc: number, a) => acc + a.hours, 0);
     expect(totalHours).toBe(54);
+  });
+
+  it('INVARIANTE 10: contenidos_formativos[].contenidos es string[] y no hay encabezados/prosa como categorias (5.° y 6.°)', () => {
+    const BAD = /Metas de aprendizaje|Concepto (central|transversal)|Categor[ií]as:|Subcategor[ií]as:/i;
+    for (const u of loadCanonical().filter((x) => x.semester >= 5)) {
+      for (const cf of (u.contenidos_formativos ?? []) as Array<{ contenidos?: unknown }>) {
+        if (cf.contenidos !== undefined) expect(Array.isArray(cf.contenidos), u.uac_name).toBe(true);
+      }
+      for (const a of u.activities) {
+        for (const t of [...(a.categorias ?? []), ...(a.subcategorias ?? [])]) {
+          expect(BAD.test(t), u.uac_name + ': ' + t).toBe(false);
+        }
+      }
+    }
   });
 });
