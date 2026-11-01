@@ -63,15 +63,39 @@ function firstStr(rec: JsonRecord, keys: string[]): string {
   return '';
 }
 
+function cleanUacToken(s: string): string {
+  return normalizeUnicode(s)
+    .toLowerCase()
+    .replace(/⟦[^⟧]*⟧/g, '')
+    .replace(/[.,:;()\[\]{}'"`]/g, ' ')
+    .replace(/\b(de|del|la|el|los|las|y|en)\b/g, ' ')
+    .replace(/\bvi\b/g, '6')
+    .replace(/\bv\b/g, '5')
+    .replace(/\biv\b/g, '4')
+    .replace(/\biii\b/g, '3')
+    .replace(/\bii\b/g, '2')
+    .replace(/\bi\b/g, '1')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 /**
- * Coincidencia estricta de UAC: ambos lados no vacíos, igualdad o contención
- * sobre texto normalizado (sin acentos, minúsculas). Nunca coincide con vacío.
+ * Coincidencia robusta de UAC: ambos lados no vacíos.
+ * Tolera diferencias en stopwords ("de", "del"), acentos, mayúsculas,
+ * puntuación y numerales romanos vs arábigos (ej: "Taller Pensamiento Variacional I" vs
+ * "Taller de Pensamiento Variacional I").
+ * Nunca coincide con vacío.
  */
 export function uacMatches(a: string, b: string): boolean {
-  const x = normalizeUnicode(a).replace(/\s+/g, ' ').trim();
-  const y = normalizeUnicode(b).replace(/\s+/g, ' ').trim();
+  const x = normalizeUnicode(a).toLowerCase().replace(/\s+/g, ' ').trim();
+  const y = normalizeUnicode(b).toLowerCase().replace(/\s+/g, ' ').trim();
   if (!x || !y) return false;
-  return x === y || x.includes(y) || y.includes(x);
+  if (x === y || x.includes(y) || y.includes(x)) return true;
+
+  const cleanX = cleanUacToken(a);
+  const cleanY = cleanUacToken(b);
+  if (!cleanX || !cleanY) return false;
+  return cleanX === cleanY || cleanX.includes(cleanY) || cleanY.includes(cleanX);
 }
 
 /**

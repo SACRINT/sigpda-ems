@@ -35,6 +35,13 @@ describe('H-322 — uacMatches', () => {
   it('UACs distintas no coinciden', () => {
     expect(uacMatches('Física', 'Historia de México')).toBe(false);
   });
+  it('empareja tolerando stopwords como "de", acentos, anclas y numeración romana vs arábiga', () => {
+    expect(uacMatches('Taller Pensamiento Variacional I', 'Taller de Pensamiento Variacional I')).toBe(true);
+    expect(uacMatches('Taller de Pensamiento Variacional I', 'Taller Pensamiento Variacional I')).toBe(true);
+    expect(uacMatches('Dibujo Técnico I', 'Dibujo Tecnico 1')).toBe(true);
+    expect(uacMatches('⟦T08·R01·C01⟧ Dibujo Técnico I', 'Dibujo Técnico I')).toBe(true);
+    expect(uacMatches('Química II', 'Quimica 2')).toBe(true);
+  });
 });
 
 describe('H-322 — flattenPlanOperativo', () => {
