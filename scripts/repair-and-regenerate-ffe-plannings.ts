@@ -1,3 +1,15 @@
+/**
+ * ⚠️ SCRIPT DESTRUCTIVO — LEER ANTES DE EJECUTAR
+ *
+ * Este script MUTA datos de producción en Neon y NO es reversible con git:
+ *  - `UPDATE plannings SET workbooks_json = NULL` en las planeaciones objetivo
+ *    (los libros/workbooks existentes se pierden; hay que regenerarlos).
+ *  - Sobrescribe `extracted_data`, `content_json` y `sequence_json` de las planeaciones objetivo.
+ *  - (Script hermano update-programs-catalog-from-canonical.ts) ejecuta
+ *    `DELETE FROM programs_catalog WHERE component='ffeo' AND uac_name ILIKE '%Pensamiento Variacional%'`.
+ *
+ * NO re-ejecutar sin un snapshot/branch de Neon previo (o respaldo JSON de las filas afectadas).
+ */
 import * as fs from 'fs';
 import * as path from 'path';
 import { sql } from '../src/lib/db/client';
@@ -169,12 +181,13 @@ async function main() {
     );
 
     // 2. Reparar content_json
-    const contentJson = (row.content_json || {}) as Record<string, any>;
-    if (contentJson.sectionI) {
-      contentJson.sectionI.uacName = t.canonicalUac;
+    const contentJson = (row.content_json || {}) as Record<string, unknown>;
+    const sectionI = contentJson.sectionI as { uacName?: string } | undefined;
+    if (sectionI) {
+      sectionI.uacName = t.canonicalUac;
     }
     const defaultMethodology =
-      contentJson.sectionIV?.activities?.[0]?.methodology ||
+      (contentJson.sectionIV as { activities?: Array<{ methodology?: string }> } | undefined)?.activities?.[0]?.methodology ||
       (t.canonicalUac.includes('Variacional') ? 'Enfoque STEAM' : 'Enfoque STEAM / Aprendizaje-Servicio (ApS)');
 
     enforceOfficialProgresiones(
@@ -186,7 +199,7 @@ async function main() {
     );
 
     // Enriquecer cada bloque de sectionIV.activities con saberes y momentos específicos por progresión
-    contentJson.sectionIV.activities = canonicalProgs.map((prog) => {
+    (contentJson.sectionIV as { activities: unknown[] }).activities = canonicalProgs.map((prog) => {
       const details = buildDetailedBlockActivities(t.canonicalUac, prog, defaultMethodology);
       return {
         order: prog.order,

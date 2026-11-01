@@ -1,3 +1,9 @@
+/**
+ * ⚠️ MUTA programs_catalog en Neon (no reversible con git):
+ *  - DELETE de la fila duplicada component='ffeo' de "Pensamiento Variacional".
+ *  - UPDATE/INSERT de las UAC ffe_optativa de 5.° y 6.° desde curriculum_canonical_203.json.
+ * Hacer snapshot de Neon o respaldo JSON de programs_catalog (semester >= 5) antes de ejecutar.
+ */
 import { sql } from '../src/lib/db/client';
 import * as fs from 'fs';
 import * as path from 'path';
