@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import type { ExtractedPdfData, TeacherContext, PaecOperationalActivity } from '@/types/planning';
 import { CATALOGO_METODOLOGIAS_ACTIVAS, type MetodologiaActiva } from '@/lib/catalogo-metodologias';
 import { buscarPlantelPorCct, buscarPlantelPorNombre } from '@/lib/catalogo-escuelas';
-import { recomendarMetodologia } from '@/lib/recomendador-metodologia';
+import { recomendarMetodologia, recomendarMetodologiaConDetalle } from '@/lib/recomendador-metodologia';
 import { logger } from '@/lib/logger';
 
 interface Props {
@@ -184,19 +184,26 @@ export default function StepContext({
     loadTeacherProfile();
   }, []);
 
-  // Sugerencia automática de metodología según UAC/materia
+  // Sugerencia automática de metodología según UAC/materia y contenidos oficiales
   const uacName = (extractedData as { uacName?: string })?.uacName || '';
   const component = (extractedData as { component?: string })?.component || '';
+
+  const recomendacionDetalle = useMemo(() => {
+    if (!uacName) return null;
+    return recomendarMetodologiaConDetalle(uacName, component, form.subsystem, {
+      learningOutcome: extractedData?.learningOutcome,
+      contenidosFormativos: extractedData?.contenidosFormativos,
+      activities: extractedData?.activities,
+      carreraTecnica: extractedData?.carreraTecnica,
+    });
+  }, [uacName, component, form.subsystem, extractedData]);
+
   useEffect(() => {
-    if (uacName && !form.metodologiaActiva) {
-      const sugeridaId = recomendarMetodologia(uacName, component, form.subsystem);
-      if (sugeridaId) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setForm(f => ({ ...f, metodologiaActiva: sugeridaId }));
-      }
+    if (uacName && !form.metodologiaActiva && recomendacionDetalle?.metodologiaId) {
+      setForm(f => ({ ...f, metodologiaActiva: recomendacionDetalle.metodologiaId }));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uacName]);
+  }, [uacName, recomendacionDetalle?.metodologiaId]);
 
   const handlePaecUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -912,11 +919,15 @@ export default function StepContext({
               <p style={{ marginBottom: '12px', color: 'var(--c-gray-600)', fontSize: '14px' }}>
                 Elige la metodología con la que diseñarás las actividades. La IA adaptará la
                 secuencia didáctica a sus fases.
-                {uacName && (
+                {recomendacionDetalle ? (
                   <span style={{ marginLeft: '6px', fontWeight: 600, color: 'var(--c-navy)' }}>
-                    (Sugerencia basada en &ldquo;{uacName}&rdquo;)
+                    ({recomendacionDetalle.razon})
                   </span>
-                )}
+                ) : uacName ? (
+                  <span style={{ marginLeft: '6px', fontWeight: 600, color: 'var(--c-navy)' }}>
+                    (Sugerencia basada en el programa de &ldquo;{uacName}&rdquo;)
+                  </span>
+                ) : null}
               </p>
               <div
                 style={{
@@ -948,7 +959,7 @@ export default function StepContext({
                       }}
                     >
                       <div style={{ fontWeight: 700, marginBottom: '4px', color: isSelected ? 'var(--c-amber)' : 'var(--c-text)' }}>
-                        🧪 {m.nombreCorto}
+                        {m.icono || '📌'} {m.nombreCorto}
                       </div>
                       <div
                         style={{

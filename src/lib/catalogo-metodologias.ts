@@ -8,6 +8,7 @@ export interface MetodologiaActiva {
   id: string;
   nombre: string;
   nombreCorto: string;
+  icono?: string;
   definicion: string;
   fases: string[];
   asignaturasRecomendadas: string[];
@@ -22,6 +23,7 @@ export const CATALOGO_METODOLOGIAS_ACTIVAS: MetodologiaActiva[] = [
     id: "abp",
     nombre: "Aprendizaje Basado en Proyectos (ABP)",
     nombreCorto: "ABP",
+    icono: "🎯",
     definicion: "Estrategia integradora en la que los estudiantes planean, ejecutan y evalúan un proyecto auténtico que responde a una necesidad o problemática real comunitaria, articulado de manera natural con el PAEC.",
     fases: [
       "1. Pregunta detonadora y definición del reto comunitario",
@@ -46,6 +48,7 @@ export const CATALOGO_METODOLOGIAS_ACTIVAS: MetodologiaActiva[] = [
     id: "steam",
     nombre: "Enfoque STEAM (Ciencia, Tecnología, Ingeniería, Artes y Matemáticas)",
     nombreCorto: "STEAM",
+    icono: "⚛️",
     definicion: "Metodología interdisciplinaria centrada en la indagación empírica, el modelado matemático, el diseño técnico y la creatividad artística para formular soluciones a fenómenos y problemas físicos, ecológicos o técnicos.",
     fases: [
       "1. Planteamiento de la incógnita empírica o fenómeno a investigar",
@@ -70,6 +73,7 @@ export const CATALOGO_METODOLOGIAS_ACTIVAS: MetodologiaActiva[] = [
     id: "abr",
     nombre: "Aprendizaje Basado en Retos (ABR)",
     nombreCorto: "ABR / Retos",
+    icono: "⚡",
     definicion: "Enfoque pedagógico activo que confronta al estudiante con un desafío técnico o social de corta/mediana duración, real y apremiante, que exige una solución tangible directamente aplicable a su vida diaria o especialidad técnica.",
     fases: [
       "1. Enganche con el reto del entorno productivo o cotidiano",
@@ -93,6 +97,7 @@ export const CATALOGO_METODOLOGIAS_ACTIVAS: MetodologiaActiva[] = [
     id: "estudio_casos",
     nombre: "Estudio de Casos Situados",
     nombreCorto: "Casos Situados",
+    icono: "⚖️",
     definicion: "Análisis exhaustivo y deliberativo de una situación o dilema real (técnico, ético, legal, económico o comunitario), donde no existe una única respuesta correcta y los alumnos deben argumentar basándose en evidencias y normativas.",
     fases: [
       "1. Presentación de la narrativa o expediente del caso real",
@@ -117,6 +122,7 @@ export const CATALOGO_METODOLOGIAS_ACTIVAS: MetodologiaActiva[] = [
     id: "aula_invertida",
     nombre: "Aula Invertida (Flipped Classroom)",
     nombreCorto: "Aula Invertida",
+    icono: "🔄",
     definicion: "Modelo pedagógico donde la transferencia inicial de conceptos se realiza fuera del aula mediante materiales breves y accesibles (videos, guías visuales o audios), liberando el 100% del tiempo presencial para resolución activa de dudas, talleres prácticos y discusión guiada.",
     fases: [
       "1. Exploración previa autónoma con material detonador (asíncrono)",
@@ -140,6 +146,7 @@ export const CATALOGO_METODOLOGIAS_ACTIVAS: MetodologiaActiva[] = [
     id: "aprendizaje_servicio",
     nombre: "Aprendizaje-Servicio (ApS)",
     nombreCorto: "ApS",
+    icono: "🤝",
     definicion: "Propuesta educativa que combina procesos de aprendizaje formal y de servicio a la comunidad en un solo proyecto bien articulado, donde los estudiantes aprenden al trabajar sobre necesidades reales del entorno con la finalidad de mejorarlo.",
     fases: [
       "1. Diagnóstico participativo de necesidades con actores comunitarios",
@@ -164,6 +171,7 @@ export const CATALOGO_METODOLOGIAS_ACTIVAS: MetodologiaActiva[] = [
     id: "gamificacion",
     nombre: "Gamificación Pedagógica (Game-Based Learning)",
     nombreCorto: "Gamificación",
+    icono: "🎮",
     definicion: "Integración de mecánicas, dinámicas y elementos de diseño de juegos (misiones, desafíos, niveles, insignias y retroalimentación inmediata) en entornos de aprendizaje para potenciar la motivación intrínseca, la concentración y la resiliencia ante el error.",
     fases: [
       "1. Presentación de la narrativa de la misión y reglas claras del juego",
@@ -188,6 +196,7 @@ export const CATALOGO_METODOLOGIAS_ACTIVAS: MetodologiaActiva[] = [
     id: "practica_laboratorio",
     nombre: "Prácticas de Laboratorio / Taller (Estilo Manual Tecnológico)",
     nombreCorto: "Práctica de Taller",
+    icono: "🛠️",
     definicion: "Estructura rigurosa y procedimental propia de los bachilleratos tecnológicos (CECyTE, DGETI, CBTis) donde el estudiante ejecuta un protocolo técnico paso a paso, analiza el flujo lógico, previene errores frecuentes y elabora un reporte formal con evidencias auténticas.",
     fases: [
       "1. Objetivo general y diagrama de flujo conceptual del proceso",
@@ -211,6 +220,7 @@ export const CATALOGO_METODOLOGIAS_ACTIVAS: MetodologiaActiva[] = [
     id: "abproblemas",
     nombre: "Aprendizaje Basado en Problemas (ABProblemas)",
     nombreCorto: "ABProblemas",
+    icono: "🧩",
     definicion: "Estrategia didáctica inductiva centrada en el análisis, indagación y resolución colaborativa de situaciones problemáticas complejas y abiertas del entorno, donde el aprendizaje surge del proceso mismo de resolución y no de la transmisión previa de contenidos.",
     fases: [
       "1. Delimitación y clarificación de la situación problema (¿qué sabemos? ¿qué necesitamos saber?)",
@@ -235,6 +245,7 @@ export const CATALOGO_METODOLOGIAS_ACTIVAS: MetodologiaActiva[] = [
     id: "indagacion",
     nombre: "Aprendizaje Basado en Indagación (ABI)",
     nombreCorto: "Indagación (ABI)",
+    icono: "🔍",
     definicion: "Metodología fundamentada en la investigación científica escolar donde los estudiantes construyen conocimiento respondiendo preguntas investigables mediante experimentación empírica, recolección sistemática de datos y contrastación de hipótesis con evidencia observable.",
     fases: [
       "1. Focalización: formulación de preguntas investigables a partir de un fenómeno observable",

@@ -78,6 +78,16 @@ const testCases = [
   { uac: 'Programación de App Móvil', component: 'fundamental', expected: 'abr' },
   { uac: 'Pensamiento Matemático I', component: 'fundamental', expected: 'abproblemas' },
   { uac: 'Módulo Profesional Laboral', component: 'laboral', expected: 'practica_laboratorio' },
+  // Casos de inmunidad a falsos positivos ("Taller" académico ≠ Taller de maquinado)
+  { uac: 'Taller Pensamiento Variacional I', component: 'ffe_optativa', expected: 'steam' },
+  { uac: 'Taller de Pensamiento Variacional I', component: 'ffeo', expected: 'steam' },
+  { uac: 'Taller Pensamiento Variacional II', component: 'ffe_optativa', expected: 'steam' },
+  { uac: 'Taller de Probabilidad y Estadística I', component: 'ffe_optativa', expected: 'abproblemas' },
+  { uac: 'Taller de Ciencias I', component: 'ffe_optativa', expected: 'indagacion' },
+  { uac: 'Laboratorio de Investigación', component: 'ffeo', expected: 'estudio_casos' },
+  { uac: 'Taller de Lectura y Redacción I', component: 'fundamental', expected: 'abp' },
+  { uac: 'Taller de Cultura Digital I', component: 'fundamental', expected: 'abr' },
+  { uac: 'Actividades Físicas y Deportivas', component: 'fundamental', expected: 'gamificacion' },
 ];
 
 let functionalErrors = 0;
