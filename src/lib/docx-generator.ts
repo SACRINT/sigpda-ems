@@ -201,16 +201,23 @@ function buildSectionII(content: GeneratedPlanningContent): (Paragraph | Table)[
   const cA0 = Math.floor(CONTENT * 0.45), cA1 = Math.floor(CONTENT * 0.15), cA2 = Math.floor(CONTENT * 0.15), cA3 = CONTENT - cA0 - cA1 - cA2;
 
   const isLaboral = content.sectionI.component?.toLowerCase().includes('laboral') || false;
-  const activityLabel = isLaboral ? 'Actividades Clave' : 'Propósitos y Contenidos formativos';
-  const tableHeader = isLaboral ? 'Actividad Clave / Contenido' : 'Propósito o Contenido formativo';
+  const semesterVal = Number(content.sectionI.semester || 1);
+  const isProgresiones = semesterVal >= 5;
+  const sectionIIHeading = isLaboral
+    ? 'II. RESULTADO DE APRENDIZAJE Y ACTIVIDADES CLAVE (FORMACIÓN LABORAL)'
+    : isProgresiones
+      ? 'II. METAS EDUCATIVAS Y PROGRESIONES DE APRENDIZAJE MCCEMS'
+      : 'II. PROPÓSITO FORMATIVO DE LA CLASE';
+  const activityLabel = isLaboral ? 'Actividades Clave' : isProgresiones ? 'Progresiones de Aprendizaje Oficiales' : 'Propósitos y Contenidos formativos';
+  const tableHeader = isLaboral ? 'Actividad Clave / Contenido' : isProgresiones ? 'Progresión de Aprendizaje Oficial' : 'Propósito o Contenido formativo';
 
   return [
-    secHeading('II. PROPÓSITO FORMATIVO DE LA CLASE'),
+    secHeading(sectionIIHeading),
     tbl([
       new TableRow({ children: [tcH('INTENCIONALIDAD CURRICULAR', { w: CONTENT, span: 2, align: AlignmentType.CENTER, size: 20 })] }),
-      new TableRow({ children: [tcL('Propósito General de la UAC', { w: cL }), tc(s.purpose, { w: cR })] }),
+      new TableRow({ children: [tcL(isProgresiones ? 'Meta Educativa / Trayectoria' : 'Propósito General de la UAC', { w: cL }), tc(s.purpose, { w: cR })] }),
       new TableRow({ children: [
-        tcL('Aprendizajes Esperados\n(Resultados de Aprendizaje)', { w: cL }),
+        tcL(isProgresiones ? 'Metas de Aprendizaje / Categorías' : 'Aprendizajes Esperados\n(Resultados de Aprendizaje)', { w: cL }),
         multiCell(s.learningOutcomes, cR),
       ] }),
       new TableRow({ children: [
@@ -268,7 +275,7 @@ function buildSectionIII(content: GeneratedPlanningContent): (Paragraph | Table)
   return [secHeading('III. TRANSVERSALIDAD'), tbl(rows, c), sp()];
 }
 
-function buildActivityTable(activity: GeneratedPlanningContent['sectionIV']['activities'][0], isLaboral: boolean): Table {
+function buildActivityTable(activity: GeneratedPlanningContent['sectionIV']['activities'][0], isLaboral: boolean, isProgresiones: boolean = false): Table {
   const cols = [Math.floor(CONTENT * 0.09), Math.floor(CONTENT * 0.38), Math.floor(CONTENT * 0.28), CONTENT - Math.floor(CONTENT * 0.09) - Math.floor(CONTENT * 0.38) - Math.floor(CONTENT * 0.28)];
 
   function phaseRow(name: string, color: string, phase: { activities: string; processes: string; materials: string }) {
@@ -282,19 +289,22 @@ function buildActivityTable(activity: GeneratedPlanningContent['sectionIV']['act
     });
   }
 
-  const label = isLaboral ? 'ACTIVIDAD CLAVE' : 'PROPÓSITO FORMATIVO';
+  const label = isLaboral ? 'ACTIVIDAD CLAVE' : isProgresiones ? 'PROGRESIÓN DE APRENDIZAJE' : 'PROPÓSITO FORMATIVO';
   const rows: TableRow[] = [
     new TableRow({ children: [tcH(`${label}: ${activity.name} (${activity.hours} horas)`, { w: CONTENT, span: 4, align: AlignmentType.CENTER, size: 19 })] }),
   ];
 
-  // If it's not laboral and has a defined Contenido Formativo, add a row for it
-  if (!isLaboral && activity.contenidoFormativo) {
-    rows.push(new TableRow({
-      children: [
-        new TableCell({ columnSpan: 1, shading: { fill: C.mid, type: ShadingType.CLEAR }, borders: bdr(), margins: { top: 60, bottom: 60, left: 80, right: 80 }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Tema / Contenido:', bold: true, size: 17, color: C.white, font: 'Arial' })] })] }),
-        new TableCell({ columnSpan: 3, shading: { fill: C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [new Paragraph({ children: [new TextRun({ text: activity.contenidoFormativo, bold: true, size: 18, font: 'Arial', color: C.dark })] })] })
-      ]
-    }));
+  // If it's not laboral and has a defined Contenido Formativo / Progresión, add a row for it
+  if (!isLaboral) {
+    const topicText = isProgresiones ? (activity.name || activity.contenidoFormativo) : (activity.contenidoFormativo || activity.name);
+    if (topicText) {
+      rows.push(new TableRow({
+        children: [
+          new TableCell({ columnSpan: 1, shading: { fill: C.mid, type: ShadingType.CLEAR }, borders: bdr(), margins: { top: 60, bottom: 60, left: 80, right: 80 }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: isProgresiones ? 'Progresión:' : 'Tema / Contenido:', bold: true, size: 17, color: C.white, font: 'Arial' })] })] }),
+          new TableCell({ columnSpan: 3, shading: { fill: C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [new Paragraph({ children: [new TextRun({ text: topicText, bold: true, size: 18, font: 'Arial', color: C.dark })] })] })
+        ]
+      }));
+    }
   }
 
   // Tres Saberes Curriculares
@@ -343,7 +353,9 @@ function buildActivityTable(activity: GeneratedPlanningContent['sectionIV']['act
 
 function buildSectionIV(content: GeneratedPlanningContent, sequenceJson?: Record<number, { blockIndex: number; blockName: string; hours: number; sessions: { sessionNum: number; totalSessions: number; phase: string; title: string; teachingActivity: string; learningActivity: string; evidence: string; evaluation?: string }[] }> | null): (Paragraph | Table)[] {
   const isLaboral = content.sectionI.component?.toLowerCase().includes('laboral') || false;
-  const label = isLaboral ? 'ACTIVIDAD CLAVE' : 'PROPÓSITO FORMATIVO';
+  const semesterVal = Number(content.sectionI.semester || 1);
+  const isProgresiones = semesterVal >= 5;
+  const label = isLaboral ? 'ACTIVIDAD CLAVE' : isProgresiones ? 'PROGRESIÓN DE APRENDIZAJE' : 'PROPÓSITO FORMATIVO';
 
   const elements: (Paragraph | Table)[] = [
     secHeading('IV. DISEÑO DE ESCENARIOS DE APRENDIZAJE (SECUENCIA DE ACTIVIDADES DIDÁCTICAS)'),
@@ -354,7 +366,7 @@ function buildSectionIV(content: GeneratedPlanningContent, sequenceJson?: Record
     const blockMet = activity.methodology || content.sectionI.metodologiaActiva;
     const badge = formatearBadgeMetodologia(blockMet);
     elements.push(subH(`▶ ${label} ${i + 1}: ${activity.name} (${activity.hours} horas) · ${badge}`));
-    elements.push(buildActivityTable(activity, isLaboral));
+    elements.push(buildActivityTable(activity, isLaboral, isProgresiones));
     elements.push(sp());
 
     // Micro-Sesiones de 50 min

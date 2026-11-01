@@ -379,14 +379,26 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
 
               return (
                 <div key={idx} className="activity-card-item" style={{ marginBottom: '12px', background: 'var(--c-bg-elevated)', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--c-border-2)' }}>
-                  <div className="activity-row" style={{ marginBottom: '6px' }}>
-                    <input
-                      className="form-input"
-                      placeholder={`${activityPlaceholder} ${idx + 1}`}
-                      value={a.name}
-                      onChange={e => updateActivity(idx, 'name', e.target.value)}
-                      required
-                    />
+                  <div className="activity-row" style={{ marginBottom: '6px', alignItems: 'flex-start' }}>
+                    {isProgresiones ? (
+                      <textarea
+                        className="form-textarea"
+                        style={{ flex: 1, minHeight: '56px', resize: 'vertical', fontSize: '13px', lineHeight: '1.4' }}
+                        rows={2}
+                        placeholder={`${activityPlaceholder} ${idx + 1}`}
+                        value={a.name}
+                        onChange={e => updateActivity(idx, 'name', e.target.value)}
+                        required
+                      />
+                    ) : (
+                      <input
+                        className="form-input"
+                        placeholder={`${activityPlaceholder} ${idx + 1}`}
+                        value={a.name}
+                        onChange={e => updateActivity(idx, 'name', e.target.value)}
+                        required
+                      />
+                    )}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <input
                         type="number"

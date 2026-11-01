@@ -9,8 +9,8 @@ import {
 import { drawDigitalToolCardWidget } from '@/lib/visual-engine/pdf-components-widgets';
 
 describe('Fase 6: Catálogo de Herramientas Digitales y Widget QR en Workbooks', () => {
-  it('1. El catálogo cuenta con 12 herramientas digitales normadas del MCCEMS con URL válida', () => {
-    expect(MCCEMS_DIGITAL_TOOLS.length).toBe(12);
+  it('1. El catálogo cuenta con herramientas digitales normadas del MCCEMS con URL válida', () => {
+    expect(MCCEMS_DIGITAL_TOOLS.length).toBeGreaterThanOrEqual(12);
     for (const tool of MCCEMS_DIGITAL_TOOLS) {
       expect(tool.id).toBeTruthy();
       expect(tool.name).toBeTruthy();

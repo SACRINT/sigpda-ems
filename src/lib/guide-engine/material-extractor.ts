@@ -100,11 +100,11 @@ export function resolveTargetSessionsForWorkbook(
   workbook: ActiveWorkTextbook,
   blockSequence?: SecuenciaBloque | null
 ): number {
-  if (blockSequence?.hours && blockSequence.hours >= 6) {
-    return Math.round(blockSequence.hours);
-  }
   if (Array.isArray(blockSequence?.sessions) && blockSequence.sessions.length >= 6) {
     return blockSequence.sessions.length;
+  }
+  if (blockSequence?.hours && blockSequence.hours >= 6) {
+    return Math.round(blockSequence.hours);
   }
   const missions = workbook.missions || [];
   if (missions.length >= 4) {

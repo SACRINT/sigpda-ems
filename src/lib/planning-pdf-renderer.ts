@@ -94,8 +94,10 @@ export async function generatePlanningPDF(
   );
   const semesterVal = Number(planning.semester ?? rawPlan.semester ?? s1?.semester ?? 1) || 1;
   const isUac = semesterVal >= 5;
-  const subjectLabel = isUac ? 'Unidad de Aprendizaje (UAC):' : 'Asignatura:';
   const rawComponent = String(planning.component || rawPlan.component || s1?.component || '');
+  const isLaboral = rawComponent.toLowerCase().includes('laboral') || false;
+  const isProgresiones = semesterVal >= 5 || rawPlan.model_type === 'progresiones' || rawPlan.modelType === 'progresiones';
+  const subjectLabel = isUac ? 'Unidad de Aprendizaje (UAC):' : 'Asignatura:';
 
   // Cargar logotipos en Base64 si no fueron suministrados
   const logos = providedLogos || (await loadAllLogos());
@@ -241,7 +243,7 @@ export async function generatePlanningPDF(
 
   currentY = doc.lastAutoTable!.finalY + 2.5;
 
-  // ─── Sección II: Meta educativa, propósitos y contenidos formativos ───────
+  // ─── Sección II: Metas, Propósitos o Actividades según Modelo Curricular ───
   const activities = s4?.activities || [];
   const propositosFormativos = (s2?.learningOutcomes ?? [])
     .map((p, index) => `${index + 1}. ${p}`)
@@ -251,27 +253,69 @@ export async function generatePlanningPDF(
     .join('\n');
   const rawPaecContext = String(planning.paecContext || rawPlan.paec_context || '');
 
+  const sectionIIHeadMacro = isLaboral
+    ? 'II. RESULTADO DE APRENDIZAJE Y ACTIVIDADES CLAVE (FORMACIÓN LABORAL)'
+    : isProgresiones
+      ? 'II. METAS EDUCATIVAS Y PROGRESIONES DE APRENDIZAJE MCCEMS'
+      : 'II. META EDUCATIVA, PROPÓSITOS FORMATIVOS Y CONTENIDOS FORMATIVOS';
+
+  const sectionIIBodyMacro: RowInput[] = isLaboral
+    ? [
+        [
+          { content: 'Resultado de Aprendizaje (Módulo):', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 42 } },
+          { content: s2?.purpose || 'Desarrollar competencias laborales técnicas y operativas.' },
+        ],
+        [
+          { content: 'Actividades Clave Oficiales:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
+          { content: activities.map((a, i) => `${i + 1}. ${a.name}`).join('\n') || 'Actividades clave del programa.' },
+        ],
+        [
+          { content: 'Problemática Central / Contexto (PAEC):', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
+          { content: s2?.paecConnection || rawPaecContext || 'Vinculación técnico-productiva con el entorno comunitario.' },
+        ],
+      ]
+    : isProgresiones
+      ? [
+          [
+            { content: 'Meta Educativa / Trayectoria:', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 42 } },
+            { content: s2?.purpose || 'Desarrollar progresiones de aprendizaje integrales mediante pensamiento crítico y modelado.' },
+          ],
+          [
+            { content: 'Progresiones de Aprendizaje Oficiales:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
+            { content: activities.map((a, i) => `${i + 1}. ${a.name}`).join('\n') || propositosFormativos || 'Progresiones de aprendizaje oficiales del MCCEMS.' },
+          ],
+          [
+            { content: 'Categorías y Subcategorías:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
+            { content: propositosFormativos || 'Categorías y subcategorías curriculares vinculadas a la UAC.' },
+          ],
+          [
+            { content: 'Problemática Central / Contexto (PAEC):', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
+            { content: s2?.paecConnection || rawPaecContext || 'Contextualización a las necesidades socioformativas de la comunidad.' },
+          ],
+        ]
+      : [
+          [
+            { content: 'Meta educativa:', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 42 } },
+            { content: s2?.purpose || 'Desarrollar competencias integrales mediante metodologías activas y pensamiento crítico.' },
+          ],
+          [
+            { content: 'Propósitos Formativos:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
+            { content: propositosFormativos || 'Alcanzar los propósitos formativos establecidos en el MCCEMS.' },
+          ],
+          [
+            { content: 'Contenidos Formativos:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
+            { content: contenidosFormativos || 'Contenidos formativos establecidos en el programa de estudio.' },
+          ],
+          [
+            { content: 'Problemática Central / Contexto:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
+            { content: s2?.paecConnection || rawPaecContext || 'Contextualización a las necesidades socioformativas de la comunidad.' },
+          ],
+        ];
+
   autoTable(doc, {
     startY: currentY,
-    head: [[{ content: 'II. META EDUCATIVA, PROPÓSITOS FORMATIVOS Y CONTENIDOS FORMATIVOS', colSpan: 2, styles: { fillColor: NAVY, fontStyle: 'bold', textColor: [255, 255, 255] } }]],
-    body: [
-      [
-        { content: 'Meta educativa:', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 42 } },
-        { content: s2?.purpose || 'Desarrollar competencias integrales mediante metodologías activas y pensamiento crítico.' },
-      ],
-      [
-        { content: 'Propósitos Formativos:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-        { content: propositosFormativos || 'Alcanzar los propósitos formativos establecidos en el MCCEMS.' },
-      ],
-      [
-        { content: 'Contenidos Formativos:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-        { content: contenidosFormativos || 'Contenidos formativos establecidos en el programa de estudio.' },
-      ],
-      [
-        { content: 'Problemática Central / Contexto:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-        { content: s2?.paecConnection || rawPaecContext || 'Contextualización a las necesidades socioformativas de la comunidad.' },
-      ],
-    ],
+    head: [[{ content: sectionIIHeadMacro, colSpan: 2, styles: { fillColor: NAVY, fontStyle: 'bold', textColor: [255, 255, 255] } }]],
+    body: sectionIIBodyMacro,
     theme: 'grid',
     styles: { fontSize: 6.5, cellPadding: 1.4, textColor: TEXT_DARK },
     margin: { left: margin, right: margin },
@@ -306,15 +350,26 @@ export async function generatePlanningPDF(
   currentY = doc.lastAutoTable!.finalY + 2.5;
 
   // ─── Sección IV: Secuencia Didáctica por Momentos ─────────────────────────
+  const blockTitleLabelMacro = isLaboral 
+    ? 'Actividad Clave:' 
+    : isProgresiones 
+      ? 'Progresión de Aprendizaje:' 
+      : 'Contenido Formativo:';
+  const saberesHeaderLabelMacro = isLaboral
+    ? 'Saberes técnicos vinculados a la actividad clave'
+    : isProgresiones
+      ? 'Saberes curriculares vinculados a la progresión'
+      : 'Saberes curriculares vinculados al contenido formativo';
+
   activities.forEach((act, idx) => {
     const macroRows: RowInput[] = [];
 
     macroRows.push([
-      { content: 'Contenido Formativo:', styles: { fontStyle: 'bold', fillColor: [241, 245, 249], cellWidth: 38 } },
-      { content: act.contenidoFormativo || 'No especificado' },
+      { content: blockTitleLabelMacro, styles: { fontStyle: 'bold', fillColor: [241, 245, 249], cellWidth: 38 } },
+      { content: isProgresiones ? (act.name || act.contenidoFormativo || 'No especificado') : (act.contenidoFormativo || act.name || 'No especificado') },
     ]);
 
-    // Saberes curriculares vinculados al contenido formativo
+    // Saberes curriculares vinculados
     if (act.saberes && (act.saberes.saber || act.saberes.saberHacer || act.saberes.saberSer)) {
       macroRows.push([
         { content: 'Saber (Teórico):', styles: { fontStyle: 'bold', fillColor: [241, 245, 249], cellWidth: 38 } },
@@ -567,6 +622,9 @@ export async function generateSecuenciaPDF(
   );
   const semesterVal = Number(planning.semester ?? rawPlan.semester ?? s1?.semester ?? 1) || 1;
   const isUac = semesterVal >= 5;
+  const rawComponent = String(planning.component || rawPlan.component || s1?.component || '');
+  const isLaboral = rawComponent.toLowerCase().includes('laboral') || false;
+  const isProgresiones = semesterVal >= 5 || rawPlan.model_type === 'progresiones' || rawPlan.modelType === 'progresiones';
   const { totalHours: totalHoursVal, weeklyHours: weeklyHoursVal } = resolveCanonicalHours(
     rawUacName,
     s1?.totalHours,
@@ -697,23 +755,65 @@ export async function generateSecuenciaPDF(
     .map((act, index) => `${index + 1}. ${act.name || `Bloque ${index + 1}`}: ${act.contenidoFormativo || 'No especificado'}`)
     .join('\n');
 
+  const sectionIIHeadSec = isLaboral
+    ? 'II. RESULTADO DE APRENDIZAJE Y ACTIVIDADES CLAVE (FORMACIÓN LABORAL)'
+    : isProgresiones
+      ? 'II. METAS EDUCATIVAS Y PROGRESIONES DE APRENDIZAJE MCCEMS'
+      : 'II. META EDUCATIVA, PROPÓSITOS FORMATIVOS Y CONTENIDOS FORMATIVOS';
+
+  const sectionIIBodySec: RowInput[] = isLaboral
+    ? [
+        [
+          { content: 'Resultado de Aprendizaje (Módulo):', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 42 } },
+          { content: s2?.purpose || 'Desarrollar competencias laborales técnicas y operativas.' },
+        ],
+        [
+          { content: 'Actividades Clave Oficiales:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
+          { content: activities.map((a, i) => `${i + 1}. ${a.name}`).join('\n') || 'Actividades clave del programa.' },
+        ],
+        [
+          { content: 'Problemática Central / Contexto (PAEC):', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
+          { content: s2?.paecConnection || 'Vinculación técnico-productiva con el entorno comunitario.' },
+        ],
+      ]
+    : isProgresiones
+      ? [
+          [
+            { content: 'Meta Educativa / Trayectoria:', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 42 } },
+            { content: s2?.purpose || 'Desarrollar progresiones de aprendizaje integrales mediante pensamiento crítico y modelado.' },
+          ],
+          [
+            { content: 'Progresiones de Aprendizaje Oficiales:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
+            { content: activities.map((a, i) => `${i + 1}. ${a.name}`).join('\n') || propositosFormativos || 'Progresiones de aprendizaje oficiales del MCCEMS.' },
+          ],
+          [
+            { content: 'Categorías y Subcategorías:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
+            { content: propositosFormativos || 'Categorías y subcategorías curriculares vinculadas a la UAC.' },
+          ],
+          [
+            { content: 'Problemática Central / Contexto (PAEC):', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
+            { content: s2?.paecConnection || 'Contextualización a las necesidades socioformativas de la comunidad.' },
+          ],
+        ]
+      : [
+          [
+            { content: 'Meta educativa:', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 42 } },
+            { content: s2?.purpose || 'Desarrollar competencias integrales mediante metodologías activas y pensamiento crítico.' },
+          ],
+          [
+            { content: 'Propósitos Formativos:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
+            { content: propositosFormativos || 'Alcanzar los propósitos formativos establecidos en el MCCEMS.' },
+          ],
+          [
+            { content: 'Contenidos Formativos:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
+            { content: contenidosFormativos || 'Contenidos formativos establecidos en el programa de estudio.' },
+          ],
+        ];
+
   autoTable(doc, {
     startY: currentY,
-    head: [[{ content: 'II. META EDUCATIVA, PROPÓSITOS FORMATIVOS Y CONTENIDOS FORMATIVOS', colSpan: 2, styles: { fillColor: NAVY, fontStyle: 'bold', textColor: [255, 255, 255] } }]],
-    body: [
-      [
-        { content: 'Meta educativa:', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 42 } },
-        { content: s2?.purpose || 'Desarrollar competencias integrales mediante metodologías activas y pensamiento crítico.' },
-      ],
-      [
-        { content: 'Propósitos Formativos:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-        { content: propositosFormativos || 'Alcanzar los propósitos formativos establecidos en el MCCEMS.' },
-      ],
-      [
-        { content: 'Contenidos Formativos:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-        { content: contenidosFormativos || 'Contenidos formativos establecidos en el programa de estudio.' },
-      ],
-    ],
+    head: [[{ content: sectionIIHeadSec, colSpan: 2, styles: { fillColor: NAVY, fontStyle: 'bold', textColor: [255, 255, 255] } }]],
+    body: sectionIIBodySec,
     theme: 'grid',
     styles: { fontSize: 6.8, cellPadding: 1.5, textColor: TEXT_DARK },
     margin: { left: margin, right: margin },
@@ -722,6 +822,17 @@ export async function generateSecuenciaPDF(
   currentY = doc.lastAutoTable!.finalY + 4;
 
   // Bloques y Sesiones
+  const blockTitleLabelSec = isLaboral 
+    ? 'Actividad Clave:' 
+    : isProgresiones 
+      ? 'Progresión de Aprendizaje:' 
+      : 'Contenido Formativo:';
+  const saberesHeaderLabelSec = isLaboral
+    ? 'Saberes técnicos vinculados a la actividad clave'
+    : isProgresiones
+      ? 'Saberes curriculares vinculados a la progresión'
+      : 'Saberes curriculares vinculados al contenido formativo';
+
   activities.forEach((act, idx) => {
     const blockSeq = sequenceData?.[idx];
     const sessions = blockSeq?.sessions || [];
@@ -729,15 +840,15 @@ export async function generateSecuenciaPDF(
     const rows: RowInput[] = [];
 
     rows.push([
-      { content: 'Contenido Formativo:', styles: { fontStyle: 'bold', fontSize: 6.5, fillColor: GRAY_BG, cellWidth: 38 } },
-      { content: act.contenidoFormativo || 'No especificado', colSpan: 3, styles: { fontSize: 6.5 } },
+      { content: blockTitleLabelSec, styles: { fontStyle: 'bold', fontSize: 6.5, fillColor: GRAY_BG, cellWidth: 38 } },
+      { content: isProgresiones ? (act.name || act.contenidoFormativo || 'No especificado') : (act.contenidoFormativo || act.name || 'No especificado'), colSpan: 3, styles: { fontSize: 6.5 } },
     ]);
 
     // Saberes curriculares vinculados al contenido formativo
     if (act.saberes && (act.saberes.saber || act.saberes.saberHacer || act.saberes.saberSer)) {
       rows.push([
         {
-          content: 'Saberes curriculares vinculados al contenido formativo',
+          content: saberesHeaderLabelSec,
           colSpan: 4,
           styles: { fillColor: [241, 245, 249], textColor: [30, 41, 59], fontStyle: 'bold', fontSize: 7 },
         },

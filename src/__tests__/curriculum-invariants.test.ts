@@ -108,4 +108,44 @@ describe('GUARDIÁN DE INVARIANTES CURRICULARES (SEP / MCCEMS 2026-2027)', () =>
     expect(CANONICAL_UAC_PACKS['arte y cultura i']).toBe('artes');
     expect(CANONICAL_UAC_PACKS['procesos contables i']).toBe('laboral');
   });
+
+  it('INVARIANTE 7: Progresiones íntegras sin truncamiento para FFE de 5.° y 6.° semestre (8 en Variacional I)', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const canonicalList = require('../../scripts/data/curriculum_canonical_203.json');
+
+    // 1. Taller de Pensamiento Variacional I (Sem 5)
+    const var1 = canonicalList.find((u: any) => u.semester === 5 && u.uac_name.includes('Variacional'));
+    expect(var1).toBeDefined();
+    expect(var1.activities).toHaveLength(8);
+    const var1Orders = var1.activities.map((a: any) => a.order);
+    expect(var1Orders).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    for (const act of var1.activities) {
+      expect(act.name.length).toBeGreaterThan(60);
+      expect(act.hours).toBeGreaterThan(0);
+    }
+    const var1HoursSum = var1.activities.reduce((s: number, a: any) => s + a.hours, 0);
+    expect(var1HoursSum).toBe(54);
+
+    // 2. Dibujo Técnico I (Sem 5)
+    const dib1 = canonicalList.find((u: any) => u.semester === 5 && u.uac_name.includes('Dibujo') && u.uac_name.includes('I'));
+    expect(dib1).toBeDefined();
+    expect(dib1.activities).toHaveLength(7);
+    const dib1Orders = dib1.activities.map((a: any) => a.order);
+    expect(dib1Orders).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    for (const act of dib1.activities) {
+      expect(act.name.length).toBeGreaterThan(60);
+    }
+
+    // 3. Dibujo Técnico II (Sem 6)
+    const dib2 = canonicalList.find((u: any) => u.semester === 6 && u.uac_name.includes('Dibujo') && u.uac_name.includes('II'));
+    expect(dib2).toBeDefined();
+    expect(dib2.activities).toHaveLength(8);
+    const dib2Orders = dib2.activities.map((a: any) => a.order);
+    expect(dib2Orders).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+
+    // 4. Taller de Pensamiento Variacional II (Sem 6)
+    const var2 = canonicalList.find((u: any) => u.semester === 6 && u.uac_name.includes('Variacional'));
+    expect(var2).toBeDefined();
+    expect(var2.activities).toHaveLength(7);
+  });
 });

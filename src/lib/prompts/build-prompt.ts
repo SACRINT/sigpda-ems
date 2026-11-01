@@ -475,7 +475,10 @@ ${getDisciplinaryAdapter(
 1. VINCULACIÓN SITUADA: Conecta explícitamente las secuencias de aprendizaje con la problemática del PAEC: "${context.paecProjectName || context.paecProblem.substring(0, 70)}".
 ${(context.usePaecActivity !== false && context.paecOperationalActivity?.actividad) ? `   - Integra OBLIGATORIAMENTE en la Sección III y en la secuencia de la Sección IV la actividad oficial del Plan Operativo: "${context.paecOperationalActivity.actividad}".` : '   - Propón actividades transversales pertinentes que atiendan la problemática comunitaria diagnosticada.'}
 2. METODOLOGÍAS ACTIVAS: ${context.metodologiaActiva ? `Aplica EXCLUSIVAMENTE la metodología ${CATALOGO_METODOLOGIAS_ACTIVAS.find(m => m.id === context.metodologiaActiva)?.nombre ?? context.metodologiaActiva} respetando sus fases en el orden indicado arriba.` : 'Aplica estrictamente metodologías activas (Aprendizaje Basado en Proyectos, Estudio de Casos, Simulación y Prácticas de Campo). Prohibidas clases expositivas pasivas.'}
-   - Para asignaturas no laborales: Especifica obligatoriamente el "contenidoFormativo" oficial exacto desarrollado en la secuencia.
+${isTransitionSemester
+  ? '   - MCCEMS 5.° y 6.° SEMESTRE (FFE Optativas): Esta UAC se rige por PROGRESIONES DE APRENDIZAJE y METAS. En cada bloque de la Sección IV asigna la Progresión oficial auténtica en "name" y en "contenidoFormativo" vincula las metas y categorías curriculares correspondientes. PROHIBIDO inventar propósitos formativos.'
+  : '   - Para asignaturas no laborales: Especifica obligatoriamente el "contenidoFormativo" oficial exacto desarrollado en la secuencia.'
+}
    - Para Formación Laboral (BGE): Exige que el Desarrollo alcance Nivel 2 de complejidad técnica y el Cierre sea una simulación práctica evaluable con lista de cotejo/rúbrica.
    - Para Carrera Técnica (Bachillerato Tecnológico): Exige que el Desarrollo implemente prácticas de taller/laboratorio, simulación técnica y resolución de problemas profesionales reales con equipo o software correspondiente a la especialidad técnica.
 3. TAXONOMÍA EXPLÍCITA DE LOS 3 SABERES (OBLIGATORIO EN CADA ACTIVIDAD DE LA SECCIÓN IV):

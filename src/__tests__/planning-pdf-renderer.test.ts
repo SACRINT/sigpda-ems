@@ -214,4 +214,40 @@ describe('Planeación Didáctica PDF — Tipografía Editorial y Anti-F11 (Fase 
     expect(synced[0].sessions[0].evidence).toBe('Tabla de despejes lineales verificados');
     expect(synced[1].sessions[0].evidence).toBe('Sistema 2x2 resuelto y comprobado');
   });
+
+  it('usa nomenclatura oficial MCCEMS (Progresiones de Aprendizaje) para semestres 5 y 6', async () => {
+    const planSem5 = {
+      ...mockPlanning,
+      id: 'plan-sem5-variacional',
+      semester: 5,
+      uacName: 'Taller de Pensamiento Variacional I',
+      contentJson: {
+        ...(mockPlanning.contentJson || {}),
+        sectionI: {
+          ...(mockPlanning.contentJson?.sectionI || {}),
+          semester: 'Quinto',
+          component: 'Formación Propedéutica Optativa',
+          uacName: 'Taller de Pensamiento Variacional I',
+        },
+        sectionIV: {
+          activities: [
+            {
+              name: 'Progresión 1: Aplica técnicas aritméticas y algebraicas...',
+              hours: 7,
+              apertura: { activities: 'Exploración inicial', materials: 'Libreta' },
+              ejecucion: { activities: 'Desarrollo analítico', materials: 'Calculadora' },
+              conclusion: { activities: 'Cierre y síntesis', materials: 'Rúbrica' },
+              saberes: { saber: 'Derivadas', saberHacer: 'Cálculo', saberSer: 'Rigor' },
+            },
+          ],
+        },
+      },
+    } as unknown as Planning;
+
+    const docPlan = await generatePlanningPDF(planSem5);
+    expect(docPlan).toBeDefined();
+
+    const docSec = await generateSecuenciaPDF(planSem5);
+    expect(docSec).toBeDefined();
+  });
 });

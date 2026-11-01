@@ -64,7 +64,7 @@ describe('Widget Process Flow Banner 100% Offline — Renderizado, Extractor y A
     const steps = extractProcessFlowSteps(mockPhases);
     expect(steps).toHaveLength(3);
     expect(steps[0].stepNumber).toBe(1);
-    expect(steps[0].title).toBe('Diagnóstico técnico...');
+    expect(steps[0].title).toBe('Diagnóstico técnico y diseño');
     expect(steps[0].subtitle).toBe('2 hrs');
     expect(steps[1].stepNumber).toBe(2);
     expect(steps[1].title).toBe('Ensamble del circuito');
