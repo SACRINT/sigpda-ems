@@ -332,7 +332,16 @@ export default function DocumentA4Viewer({
                   </td>
                   <td style={{ fontWeight: 'bold', color: '#1f3864' }}>{planning.uacName}</td>
                   <td className="label-cell">Componente:</td>
-                  <td>{planning.component === 'laboral' ? 'Formación Laboral' : 'Fundamental / Ampliado'}</td>
+                  <td>
+                    {(() => {
+                      const comp = (planning.component || '').toLowerCase();
+                      if (comp.includes('laboral')) return 'Formación Laboral';
+                      if (comp.includes('optativa') || comp === 'ffe_optativa' || comp === 'ext_optativo') return 'Formación Fundamental Extendida (Optativa)';
+                      if (comp === 'ffeo' || comp === 'ext_obligatorio') return 'Formación Fundamental Extendida (Obligatoria)';
+                      if (comp === 'ampliado' || comp === 'socioemocional') return 'Currículum Ampliado';
+                      return s1?.component || 'Formación Fundamental';
+                    })()}
+                  </td>
                 </tr>
                 <tr>
                   <td className="label-cell">Horas Semanales / Totales:</td>

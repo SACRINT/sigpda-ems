@@ -105,6 +105,16 @@ function formatActivityMetasCategorias(act: unknown): string {
   return '';
 }
 
+function resolveComponentLabel(rawComp: string, fallback?: string): string {
+  const c = (rawComp || '').toLowerCase();
+  if (c.includes('laboral')) return 'Formación Laboral';
+  if (c.includes('optativa') || c === 'ffe_optativa' || c === 'ext_optativo') return 'Formación Fundamental Extendida (Optativa)';
+  if (c === 'ffeo' || c === 'ext_obligatorio') return 'Formación Fundamental Extendida (Obligatoria)';
+  if (c === 'ampliado' || c === 'socioemocional') return 'Currículum Ampliado';
+  if (fallback && fallback !== 'Fundamental / Ampliado') return fallback;
+  return 'Formación Fundamental';
+}
+
 function resolveCanonicalHours(
   uacName: string,
   s1TotalHours?: number,
@@ -300,7 +310,7 @@ export async function generatePlanningPDF(
         { content: subjectLabel, styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
         { content: rawUacName, styles: { fontStyle: 'bold', textColor: NAVY } },
         { content: 'Componente:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-        { content: rawComponent.toLowerCase().includes('laboral') ? 'Formación Laboral' : 'Fundamental / Ampliado' },
+        { content: resolveComponentLabel(rawComponent, s1?.component) },
       ],
       [
         { content: 'Horas Semanales / Totales:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
@@ -834,7 +844,7 @@ export async function generateSecuenciaPDF(
       ],
       [
         { content: 'Componente:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-        { content: s1?.component || 'Formación Fundamental' },
+        { content: resolveComponentLabel(rawComponent, s1?.component) },
         { content: 'Ciclo Escolar:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
         { content: s1?.schoolYear || SCHOOL_YEAR },
       ],

@@ -351,8 +351,12 @@ export function buildUserPrompt(
     laboral: isTec ? 'Carrera Técnica (Módulos y Submódulos Profesionales)' : 'Formación Laboral (3 Actividades Clave)',
     fundamental: 'Currículum Fundamental',
     ampliado: 'Currículum Ampliado',
+    socioemocional: 'Currículum Ampliado',
+    ffe_optativa: 'Formación Fundamental Extendida (Optativa)',
+    ffeo: 'Formación Fundamental Extendida (Obligatoria)',
     ext_optativo: 'Formación Fundamental Extendida (Optativa)',
     ext_obligatorio: 'Formación Fundamental Extendida (Obligatoria)',
+    optativa: 'Formación Fundamental Extendida (Optativa)',
   };
 
   const location = [context.municipality, context.state].filter(Boolean).join(', ');
