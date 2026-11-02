@@ -6,6 +6,7 @@ import {
   validateHorasPorCorte,
   evaluatePlanningQuality,
 } from '@/lib/planning/quality-pipeline';
+import { distributeProgressionHoursAndCorte } from '@/lib/pdf-parser';
 import type { Planning, RetoSituado, KeyActivityPlan, SecuenciaBloque } from '@/types/planning';
 
 describe('PlanningQualityPipeline', () => {
@@ -260,6 +261,35 @@ describe('PlanningQualityPipeline', () => {
       const sinAcento = validateHorasPorCorte('pensamiento matematico i', 72);
       expect(conAcento.expectedWeeklyHours).toBe(4);
       expect(sinAcento.expectedWeeklyHours).toBe(4);
+    });
+
+    it('distribuye horas de forma equitativa sumando exactamente totalHours / 3 por corte para 54h y 72h (18h o 24h)', () => {
+      for (const totalHours of [54, 72]) {
+        const expectedPerCorte = Math.round(totalHours / 3);
+        // Para progresiones habituales de MCCEMS (5 a 10 progresiones)
+        for (const totalProgressions of [5, 6, 7, 8, 9, 10]) {
+          const cortes: Record<'Corte 1' | 'Corte 2' | 'Corte 3', number> = {
+            'Corte 1': 0,
+            'Corte 2': 0,
+            'Corte 3': 0,
+          };
+          for (let i = 0; i < totalProgressions; i++) {
+            const p = distributeProgressionHoursAndCorte(i, totalProgressions, totalHours);
+            cortes[p.corte] += p.hours;
+          }
+          expect(cortes['Corte 1']).toBe(expectedPerCorte);
+          expect(cortes['Corte 2']).toBe(expectedPerCorte);
+          expect(cortes['Corte 3']).toBe(expectedPerCorte);
+
+          const validation = validateHorasPorCorte(
+            totalHours === 54 ? 'Lengua y Comunicación I' : 'Pensamiento Matemático I',
+            totalHours,
+            { horasPorCorte: [cortes['Corte 1'], cortes['Corte 2'], cortes['Corte 3']] }
+          );
+          expect(validation.isBalanced).toBe(true);
+          expect(validation.discrepancy).toBe(0);
+        }
+      }
     });
   });
 

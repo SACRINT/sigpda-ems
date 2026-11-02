@@ -40,11 +40,29 @@ export function distributeProgressionHoursAndCorte(
       corte: cortesList[index] ?? 'Corte 3',
     };
   }
-  const base = Math.floor(totalHours / Math.max(1, totalProgressions));
-  const rem = totalHours % Math.max(1, totalProgressions);
-  const hours = base + (index < rem ? 1 : 0);
-  const corteNum = Math.min(3, Math.floor((index * 3) / Math.max(1, totalProgressions)) + 1) as 1 | 2 | 3;
-  return { hours, corte: `Corte ${corteNum}` };
+  // Fallback determinista: cada uno de los 3 cortes debe sumar exactamente totalHours / 3
+  // (18h para 54h semestrales, 24h para 72h semestrales). Las progresiones se reparten
+  // entre los cortes lo más equitativamente posible y las horas dentro de cada corte se
+  // dosifican para que la suma del corte sea exacta.
+  const expectedHoursPerCorte = Math.round(totalHours / 3);
+  const cortes: Array<'Corte 1' | 'Corte 2' | 'Corte 3'> = [
+    'Corte 1', 'Corte 2', 'Corte 3',
+  ];
+
+  // Cuántas progresiones va cada corte (diferencia de a lo sumo 1 entre cortes)
+  const progresionesPorCorte = Math.ceil(totalProgressions / 3);
+  const corteIndex = Math.min(2, Math.floor(index / progresionesPorCorte));
+  const posicionEnCorte = index % progresionesPorCorte;
+  const totalEnEsteCorte = Math.min(
+    progresionesPorCorte,
+    totalProgressions - corteIndex * progresionesPorCorte,
+  );
+
+  const base = Math.floor(expectedHoursPerCorte / totalEnEsteCorte);
+  const rem = expectedHoursPerCorte % totalEnEsteCorte;
+  const hours = base + (posicionEnCorte < rem ? 1 : 0);
+
+  return { hours, corte: cortes[corteIndex] };
 }
 
 /**
