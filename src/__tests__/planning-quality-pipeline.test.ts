@@ -263,11 +263,10 @@ describe('PlanningQualityPipeline', () => {
       expect(sinAcento.expectedWeeklyHours).toBe(4);
     });
 
-    it('distribuye horas de forma equitativa sumando exactamente totalHours / 3 por corte para 54h y 72h (18h o 24h)', () => {
+    it('distribuye horas de forma equitativa sumando exactamente totalHours y balanceando los 3 cortes (N=1..10)', () => {
       for (const totalHours of [54, 72]) {
         const expectedPerCorte = Math.round(totalHours / 3);
-        // Para progresiones habituales de MCCEMS (5 a 10 progresiones)
-        for (const totalProgressions of [5, 6, 7, 8, 9, 10]) {
+        for (const totalProgressions of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
           const cortes: Record<'Corte 1' | 'Corte 2' | 'Corte 3', number> = {
             'Corte 1': 0,
             'Corte 2': 0,
@@ -277,17 +276,22 @@ describe('PlanningQualityPipeline', () => {
             const p = distributeProgressionHoursAndCorte(i, totalProgressions, totalHours);
             cortes[p.corte] += p.hours;
           }
-          expect(cortes['Corte 1']).toBe(expectedPerCorte);
-          expect(cortes['Corte 2']).toBe(expectedPerCorte);
-          expect(cortes['Corte 3']).toBe(expectedPerCorte);
+          const totalPlanned = cortes['Corte 1'] + cortes['Corte 2'] + cortes['Corte 3'];
+          expect(totalPlanned).toBe(totalHours);
 
-          const validation = validateHorasPorCorte(
-            totalHours === 54 ? 'Lengua y Comunicación I' : 'Pensamiento Matemático I',
-            totalHours,
-            { horasPorCorte: [cortes['Corte 1'], cortes['Corte 2'], cortes['Corte 3']] }
-          );
-          expect(validation.isBalanced).toBe(true);
-          expect(validation.discrepancy).toBe(0);
+          if (totalProgressions >= 3) {
+            expect(cortes['Corte 1']).toBe(expectedPerCorte);
+            expect(cortes['Corte 2']).toBe(expectedPerCorte);
+            expect(cortes['Corte 3']).toBe(expectedPerCorte);
+
+            const validation = validateHorasPorCorte(
+              totalHours === 54 ? 'Lengua y Comunicación I' : 'Pensamiento Matemático I',
+              totalHours,
+              { horasPorCorte: [cortes['Corte 1'], cortes['Corte 2'], cortes['Corte 3']] }
+            );
+            expect(validation.isBalanced).toBe(true);
+            expect(validation.discrepancy).toBe(0);
+          }
         }
       }
     });

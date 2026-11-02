@@ -40,29 +40,50 @@ export function distributeProgressionHoursAndCorte(
       corte: cortesList[index] ?? 'Corte 3',
     };
   }
-  // Fallback determinista: cada uno de los 3 cortes debe sumar exactamente totalHours / 3
+  // Casos límite cuando hay menos de 3 progresiones
+  if (totalProgressions <= 1) {
+    return { hours: totalHours, corte: 'Corte 1' };
+  }
+  if (totalProgressions === 2) {
+    const base = Math.floor(totalHours / 2);
+    const rem = totalHours % 2;
+    const hours = index === 0 ? base + rem : base;
+    return { hours, corte: index === 0 ? 'Corte 1' : 'Corte 2' };
+  }
+
+  // Fallback determinista para N >= 3: cada uno de los 3 cortes debe sumar exactamente totalHours / 3
   // (18h para 54h semestrales, 24h para 72h semestrales). Las progresiones se reparten
-  // entre los cortes lo más equitativamente posible y las horas dentro de cada corte se
-  // dosifican para que la suma del corte sea exacta.
+  // entre los 3 cortes garantizando que ningún corte quede vacío.
   const expectedHoursPerCorte = Math.round(totalHours / 3);
-  const cortes: Array<'Corte 1' | 'Corte 2' | 'Corte 3'> = [
-    'Corte 1', 'Corte 2', 'Corte 3',
-  ];
+  const baseCount = Math.floor(totalProgressions / 3);
+  const remCount = totalProgressions % 3;
+  const c1Count = baseCount + (remCount > 0 ? 1 : 0);
+  const c2Count = baseCount + (remCount > 1 ? 1 : 0);
+  const c3Count = baseCount;
 
-  // Cuántas progresiones va cada corte (diferencia de a lo sumo 1 entre cortes)
-  const progresionesPorCorte = Math.ceil(totalProgressions / 3);
-  const corteIndex = Math.min(2, Math.floor(index / progresionesPorCorte));
-  const posicionEnCorte = index % progresionesPorCorte;
-  const totalEnEsteCorte = Math.min(
-    progresionesPorCorte,
-    totalProgressions - corteIndex * progresionesPorCorte,
-  );
+  let corte: 'Corte 1' | 'Corte 2' | 'Corte 3' = 'Corte 1';
+  let posicionEnCorte = index;
+  let totalEnEsteCorte = c1Count;
 
-  const base = Math.floor(expectedHoursPerCorte / totalEnEsteCorte);
-  const rem = expectedHoursPerCorte % totalEnEsteCorte;
-  const hours = base + (posicionEnCorte < rem ? 1 : 0);
+  if (index < c1Count) {
+    corte = 'Corte 1';
+    posicionEnCorte = index;
+    totalEnEsteCorte = c1Count;
+  } else if (index < c1Count + c2Count) {
+    corte = 'Corte 2';
+    posicionEnCorte = index - c1Count;
+    totalEnEsteCorte = c2Count;
+  } else {
+    corte = 'Corte 3';
+    posicionEnCorte = index - c1Count - c2Count;
+    totalEnEsteCorte = c3Count;
+  }
 
-  return { hours, corte: cortes[corteIndex] };
+  const baseHours = Math.floor(expectedHoursPerCorte / totalEnEsteCorte);
+  const remHours = expectedHoursPerCorte % totalEnEsteCorte;
+  const hours = baseHours + (posicionEnCorte < remHours ? 1 : 0);
+
+  return { hours, corte };
 }
 
 /**
