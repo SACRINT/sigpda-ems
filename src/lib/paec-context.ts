@@ -127,7 +127,11 @@ export function matchOperationalActivity(
   for (const row of planRows) {
     const asignatura = firstStr(row, ['uac', 'asignatura', 'uacName']);
     const actividad = firstStr(row, ['activity', 'actividad', 'macroActivities']);
-    if (!actividad || !uacMatches(asignatura, targetUac)) continue;
+    if (!actividad || !asignatura) continue;
+    const normAsig = normalizeUnicode(asignatura).toLowerCase().trim();
+    const normAct = normalizeUnicode(actividad).toLowerCase().trim();
+    // Descartar filas de ruido donde la actividad es idéntica o equivalente al nombre de la asignatura
+    if (normAct === normAsig || uacMatches(actividad, asignatura) || !uacMatches(asignatura, targetUac)) continue;
     return {
       asignatura,
       actividad,

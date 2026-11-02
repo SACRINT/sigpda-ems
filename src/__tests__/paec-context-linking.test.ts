@@ -81,6 +81,17 @@ describe('H-322 — matchOperationalActivity', () => {
     expect(matchOperationalActivity([rowReal('Física', '')], 'Física')).toBeNull();
     expect(matchOperationalActivity([rowReal('Física', 'X')], '')).toBeNull();
   });
+
+  it('ignora filas de ruido donde la actividad es idéntica a la asignatura y devuelve la oficial', () => {
+    const rows = [
+      { uac: 'Dibujo Técnico I', activity: 'Dibujo Técnico I', week: '1' },
+      { uac: 'Dibujo Técnico I', activity: 'Mapeo participativo y levantamiento de datos espaciales preliminares', week: '2' },
+    ];
+    const act = matchOperationalActivity(rows, 'Dibujo Técnico I')!;
+    expect(act).not.toBeNull();
+    expect(act.actividad).toBe('Mapeo participativo y levantamiento de datos espaciales preliminares');
+    expect(act.semana).toBe('Semana 2');
+  });
 });
 
 describe('H-322 — matchCurricularMapping', () => {

@@ -188,4 +188,22 @@ Propósito general: Fortalecer estilos de vida saludables.
     expect(res.studentContext).toContain('semiurbana');
     expect(res.studentContext).toContain('espacios recreativos techados');
   });
+
+  it('10. parsePlanOperativoHeuristics descarta filas espurias donde actividad === asignatura y tolera saltos === PÁGINA ===', () => {
+    const markdown = `
+| Semestre | Fase | Asignatura / UAC | Actividad / Acción | Estrategia |
+|---|---|---|---|---|
+| 5to | Fase 1 | Dibujo Técnico I | Dibujo Técnico I | Estrategia repetida |
+| 5to | Fase 1 | Dibujo Técnico I | Mapeo participativo y levantamiento de datos espaciales preliminares | Croquis y levantamiento |
+=== PÁGINA 14 ===
+| 5to | Fase 1 | Taller Pensamiento Variacional I | Taller Pensamiento Variacional I | Estrategia |
+| 5to | Fase 1 | Taller Pensamiento Variacional I | Análisis y correlación de variables sociodemográficas | Análisis estadístico |
+`;
+    const res = parsePlanOperativoHeuristics(markdown);
+    expect(res).toHaveLength(2);
+    expect(res[0].asignatura).toBe('Dibujo Técnico I');
+    expect(res[0].actividad).toBe('Mapeo participativo y levantamiento de datos espaciales preliminares');
+    expect(res[1].asignatura).toBe('Taller Pensamiento Variacional I');
+    expect(res[1].actividad).toBe('Análisis y correlación de variables sociodemográficas');
+  });
 });

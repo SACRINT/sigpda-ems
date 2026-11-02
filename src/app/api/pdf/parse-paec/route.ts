@@ -122,20 +122,27 @@ export async function POST(request: NextRequest) {
 
     if (heuristicResult.planOperativo?.length) {
       for (const hItem of heuristicResult.planOperativo) {
-        combinedPlan.push(hItem);
-        seenUac.add(normalizeUnicode(hItem.asignatura).toLowerCase().trim());
+        const normAsig = normalizeUnicode(hItem.asignatura).toLowerCase().trim();
+        const normAct = normalizeUnicode(hItem.actividad).toLowerCase().trim();
+        if (normAsig && normAct && normAsig !== normAct) {
+          combinedPlan.push(hItem);
+          seenUac.add(normAsig);
+        }
       }
     }
 
     if (Array.isArray(parsedData.planOperativo)) {
       for (const aiItem of parsedData.planOperativo) {
         const normAiAsig = normalizeUnicode(aiItem.asignatura).toLowerCase().trim();
-        const alreadyCovered = Array.from(seenUac).some(existingAsig =>
-          existingAsig === normAiAsig || uacMatches(existingAsig, normAiAsig)
-        );
-        if (!alreadyCovered) {
-          combinedPlan.push(aiItem);
-          seenUac.add(normAiAsig);
+        const normAiAct = normalizeUnicode(aiItem.actividad).toLowerCase().trim();
+        if (normAiAsig && normAiAct && normAiAsig !== normAiAct) {
+          const alreadyCovered = Array.from(seenUac).some(existingAsig =>
+            existingAsig === normAiAsig || uacMatches(existingAsig, normAiAsig)
+          );
+          if (!alreadyCovered) {
+            combinedPlan.push(aiItem);
+            seenUac.add(normAiAsig);
+          }
         }
       }
     }

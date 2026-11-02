@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import type { ExtractedPdfData, TeacherContext, PaecOperationalActivity } from '@/types/planning';
 import { CATALOGO_METODOLOGIAS_ACTIVAS, type MetodologiaActiva } from '@/lib/catalogo-metodologias';
 import { buscarPlantelPorCct, buscarPlantelPorNombre } from '@/lib/catalogo-escuelas';
-import { recomendarMetodologia, recomendarMetodologiaConDetalle } from '@/lib/recomendador-metodologia';
+import { recomendarMetodologiaConDetalle } from '@/lib/recomendador-metodologia';
 import { logger } from '@/lib/logger';
 
 interface Props {
@@ -200,6 +200,7 @@ export default function StepContext({
 
   useEffect(() => {
     if (uacName && !form.metodologiaActiva && recomendacionDetalle?.metodologiaId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setForm(f => ({ ...f, metodologiaActiva: recomendacionDetalle.metodologiaId }));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -234,9 +235,12 @@ export default function StepContext({
         // Emparejamiento automático con el Plan Operativo del PAEC
         let matchedAct: PaecOperationalActivity | null = null;
         if (Array.isArray(result.data.planOperativo) && result.data.planOperativo.length > 0) {
-          matchedAct = result.data.planOperativo.find((item: PaecOperationalActivity) =>
-            matchSubject(uacName, item.asignatura)
-          ) || null;
+          matchedAct = result.data.planOperativo.find((item: PaecOperationalActivity) => {
+            if (!matchSubject(uacName, item.asignatura)) return false;
+            const normAsig = (item.asignatura || '').trim().toLowerCase();
+            const normAct = (item.actividad || '').trim().toLowerCase();
+            return !!(normAct && normAct !== normAsig && !matchSubject(item.actividad, item.asignatura));
+          }) || null;
         }
 
         if (matchedAct) {

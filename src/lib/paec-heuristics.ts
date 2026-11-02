@@ -56,6 +56,9 @@ export function parsePlanOperativoHeuristics(text: string): PaecOperationalActiv
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
+    if (line.startsWith('=== PÁGINA')) {
+      continue;
+    }
     if (!line.startsWith('|') || !line.endsWith('|')) {
       inTable = false;
       continue;
@@ -109,7 +112,18 @@ export function parsePlanOperativoHeuristics(text: string): PaecOperationalActiv
       const asigText = cleanTableCell(cells[colMap.asignatura] || '');
       const actText = cleanTableCell(cells[colMap.actividad] || '');
 
-      if (asigText && actText && !asigText.toLowerCase().includes('asignatura') && asigText.length > 2) {
+      const normAsig = normalizeUnicode(asigText).toLowerCase().trim();
+      const normAct = normalizeUnicode(actText).toLowerCase().trim();
+
+      // Descartar filas vacías, encabezados residuales y ruido donde actividad === asignatura
+      if (
+        asigText &&
+        actText &&
+        normAsig.length > 2 &&
+        normAct.length > 2 &&
+        !normAsig.includes('asignatura') &&
+        normAsig !== normAct
+      ) {
         activities.push({
           asignatura: asigText,
           actividad: actText,
