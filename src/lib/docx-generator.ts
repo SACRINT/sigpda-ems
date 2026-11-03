@@ -9,6 +9,7 @@ import { PHASE_COLORS_HEX } from '@/lib/visual-engine/design-tokens';
 import { bdr } from '@/lib/docx-helpers';
 import { formatearBadgeMetodologia } from '@/lib/catalogo-metodologias';
 import { stripMaterialTokens } from '@/lib/materials/material-tokens';
+import { buildPlanningActivityHeading } from '@/lib/planning-activity-labels';
 
 // ── Color palette (MCCEMS institutional) ─────────────────────────────────────────────
 const C = {
@@ -484,7 +485,7 @@ function buildSectionIV(content: GeneratedPlanningContent, sequenceJson?: Record
   content.sectionIV.activities.forEach((activity, i) => {
     const blockMet = activity.methodology || content.sectionI.metodologiaActiva;
     const badge = formatearBadgeMetodologia(blockMet);
-    elements.push(subH(`▶ ${label} ${i + 1}: ${activity.name} (${activity.hours} horas) · ${badge}`));
+    elements.push(subH(`▶ ${buildPlanningActivityHeading(activity, i, content.sectionIV.activities, { isProgresiones, uppercase: true })} (${activity.hours} horas) · ${badge} — ${label}`));
     elements.push(buildActivityTable(activity, isLaboral, isProgresiones));
     elements.push(sp());
 
@@ -589,14 +590,15 @@ function buildSectionVI(content: GeneratedPlanningContent): (Paragraph | Table)[
   ];
 }
 
-function buildSectionVII(): (Paragraph | Table)[] {
+function buildSectionVII(content: GeneratedPlanningContent): (Paragraph | Table)[] {
   const c3 = Math.floor(CONTENT / 3), rem = CONTENT - c3 * 3;
+  const s1 = content.sectionI;
   return [
-    secHeading('VII. VALIDACIÓN Y FIRMAS'),
+    secHeading('VII. VALIDACIÓN Y AUTORIZACIÓN OFICIAL'),
     tbl([
-      new TableRow({ children: [tcM('Elaboró', { w: c3, align: AlignmentType.CENTER }), tcM('Revisó\n(Coordinador/a Académico/a)', { w: c3, align: AlignmentType.CENTER }), tcM('Autorizó\n(Director/a del Plantel)', { w: c3+rem, align: AlignmentType.CENTER })] }),
+      new TableRow({ children: [tcM('DOCENTE TITULAR', { w: c3, align: AlignmentType.CENTER }), tcM('DIRECTOR(A) DEL PLANTEL', { w: c3, align: AlignmentType.CENTER }), tcM('SUPERVISIÓN DE ZONA', { w: c3+rem, align: AlignmentType.CENTER })] }),
       new TableRow({ height: { value: 1200, rule: 'atLeast' }, children: [new TableCell({ width: { size: c3, type: WidthType.DXA }, shading: { fill: C.white, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [new Paragraph('')] }), new TableCell({ width: { size: c3, type: WidthType.DXA }, shading: { fill: C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [new Paragraph('')] }), new TableCell({ width: { size: c3+rem, type: WidthType.DXA }, shading: { fill: C.white, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [new Paragraph('')] })] }),
-      new TableRow({ children: [tcL('Nombre y Firma', { w: c3, align: AlignmentType.CENTER }), tcL('Nombre y Firma', { w: c3, align: AlignmentType.CENTER }), tcL('Nombre y Firma', { w: c3+rem, align: AlignmentType.CENTER })] }),
+      new TableRow({ children: [tcL(s1.teacherName || 'Nombre y Firma', { w: c3, align: AlignmentType.CENTER }), tcL(s1.directorName || 'Nombre, Firma y Sello Oficial', { w: c3, align: AlignmentType.CENTER }), tcL(s1.supervisorName || 'Vo. Bo. / Sello de Zona', { w: c3+rem, align: AlignmentType.CENTER })] }),
       new TableRow({ children: [tc('Fecha: ___/___/______', { w: c3 }), tc('Fecha: ___/___/______', { w: c3, fill: C.alt }), tc('Fecha: ___/___/______', { w: c3+rem })] }),
     ], [c3, c3, c3+rem]),
     sp(),
@@ -655,7 +657,7 @@ export async function generateDocx(
         ...buildSectionV(content),
         pb(),
         ...buildSectionVI(content),
-        ...buildSectionVII(),
+        ...buildSectionVII(content),
       ],
     }],
   });
@@ -716,7 +718,7 @@ export async function generateSecuenciaDocx(
         sp(),
         ...buildSectionIV(content, sequenceJson),
         sp(),
-        ...buildSectionVII(),
+        ...buildSectionVII(content),
       ],
     }],
   });

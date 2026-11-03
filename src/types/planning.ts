@@ -77,6 +77,8 @@ export interface FechasCortes {
 
 export interface TeacherContext {
   teacherName: string;
+  directorName?: string;         // Nombre del director(a) del plantel (firma oficial)
+  supervisorName?: string;       // Nombre del supervisor(a) de zona (Vo. Bo. oficial)
   schoolName: string;
   cct?: string;                  // Clave de Centro de Trabajo oficial
   locality?: string;             // Localidad o comunidad específica
@@ -114,6 +116,8 @@ export interface KeyActivityPlan {
   contenidoFormativo?: string;
   hours: number;
   methodology: string;
+  order?: number;
+  corte?: string;
   apertura: ActivityPhase;
   ejecucion: ActivityPhase;
   conclusion: ActivityPhase;
@@ -208,6 +212,8 @@ export interface GeneratedPlanningContent {
   // Section I - Admin Data (pre-filled from context)
   sectionI: {
     teacherName: string;
+    directorName?: string;
+    supervisorName?: string;
     uacName: string;
     semester: number;
     groups: string;

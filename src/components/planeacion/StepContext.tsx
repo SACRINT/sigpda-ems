@@ -95,6 +95,8 @@ export default function StepContext({
 }: Props) {
   const [form, setForm] = useState<TeacherContext>(() => ({
     teacherName: initialContext?.teacherName || '',
+    directorName: initialContext?.directorName || '',
+    supervisorName: initialContext?.supervisorName || '',
     schoolName: initialContext?.schoolName || '',
     cct: initialContext?.cct || '',
     schoolZone: initialContext?.schoolZone || '',
@@ -397,6 +399,35 @@ export default function StepContext({
 
                 <div className="form-row">
                   <div className="form-group">
+                    <label className="form-label">Nombre del director(a) del plantel</label>
+                    <input
+                      id="input-directorName"
+                      name="directorName"
+                      className="form-input"
+                      autoComplete="off"
+                      placeholder="Ej: Mtro. Juan Pérez Ramírez"
+                      value={form.directorName || ''}
+                      onChange={e => set({ directorName: e.target.value })}
+                    />
+                    <span className="form-hint">Se imprimirá en la firma de autorización del documento.</span>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Nombre del supervisor(a) de zona</label>
+                    <input
+                      id="input-supervisorName"
+                      name="supervisorName"
+                      className="form-input"
+                      autoComplete="off"
+                      placeholder="Ej: Mtra. Ana Gómez Silva"
+                      value={form.supervisorName || ''}
+                      onChange={e => set({ supervisorName: e.target.value })}
+                    />
+                    <span className="form-hint">Se imprimirá en el Vo. Bo. de supervisión.</span>
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
                     <label className="form-label form-label-required">Nombre del plantel</label>
                     <input
                       id="input-schoolName"
@@ -504,30 +535,81 @@ export default function StepContext({
                 <div className="form-group">
                   <label className="form-label">Fechas oficiales de los cortes de evaluación</label>
                   <div className="form-row-3">
-                    <input
-                      className="form-input"
-                      autoComplete="off"
-                      aria-label="Fechas del Corte 1"
-                      placeholder="Corte 1"
-                      value={form.fechasCortes?.corte1 ?? ''}
-                      onChange={e => setFechaCorte('corte1', e.target.value)}
-                    />
-                    <input
-                      className="form-input"
-                      autoComplete="off"
-                      aria-label="Fechas del Corte 2"
-                      placeholder="Corte 2"
-                      value={form.fechasCortes?.corte2 ?? ''}
-                      onChange={e => setFechaCorte('corte2', e.target.value)}
-                    />
-                    <input
-                      className="form-input"
-                      autoComplete="off"
-                      aria-label="Fechas del Corte 3"
-                      placeholder="Corte 3"
-                      value={form.fechasCortes?.corte3 ?? ''}
-                      onChange={e => setFechaCorte('corte3', e.target.value)}
-                    />
+                    <div>
+                      <label
+                        htmlFor="fecha-corte-1"
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          color: 'var(--c-text-muted)',
+                          display: 'block',
+                          marginBottom: '4px',
+                          textTransform: 'none',
+                          letterSpacing: 'normal',
+                        }}
+                      >
+                        1.ᵉʳ Corte
+                      </label>
+                      <input
+                        id="fecha-corte-1"
+                        className="form-input"
+                        autoComplete="off"
+                        aria-label="Fechas del Corte 1"
+                        placeholder="Del 12 al 16 de octubre de 2026"
+                        value={form.fechasCortes?.corte1 ?? ''}
+                        onChange={e => setFechaCorte('corte1', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="fecha-corte-2"
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          color: 'var(--c-text-muted)',
+                          display: 'block',
+                          marginBottom: '4px',
+                          textTransform: 'none',
+                          letterSpacing: 'normal',
+                        }}
+                      >
+                        2.º Corte
+                      </label>
+                      <input
+                        id="fecha-corte-2"
+                        className="form-input"
+                        autoComplete="off"
+                        aria-label="Fechas del Corte 2"
+                        placeholder="Del 23 al 27 de noviembre de 2026"
+                        value={form.fechasCortes?.corte2 ?? ''}
+                        onChange={e => setFechaCorte('corte2', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="fecha-corte-3"
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          color: 'var(--c-text-muted)',
+                          display: 'block',
+                          marginBottom: '4px',
+                          textTransform: 'none',
+                          letterSpacing: 'normal',
+                        }}
+                      >
+                        3.ᵉʳ Corte
+                      </label>
+                      <input
+                        id="fecha-corte-3"
+                        className="form-input"
+                        autoComplete="off"
+                        aria-label="Fechas del Corte 3"
+                        placeholder="Del 25 al 29 de enero de 2027"
+                        value={form.fechasCortes?.corte3 ?? ''}
+                        onChange={e => setFechaCorte('corte3', e.target.value)}
+                      />
+                    </div>
                   </div>
                   <span className="form-hint">
                     Se imprimen en la Sección II del documento y guían la dosificación de cada corte.

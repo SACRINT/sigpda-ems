@@ -218,6 +218,19 @@ export async function POST(
               }
             }
 
+            // Firmas institucionales: persistencia determinista desde el Paso 3
+            const directorName = context.directorName?.trim()
+              || (typeof existingSectionI?.directorName === 'string' ? existingSectionI.directorName : '');
+            if (directorName) {
+              parsedContent.sectionI.directorName = directorName;
+            }
+
+            const supervisorName = context.supervisorName?.trim()
+              || (typeof existingSectionI?.supervisorName === 'string' ? existingSectionI.supervisorName : '');
+            if (supervisorName) {
+              parsedContent.sectionI.supervisorName = supervisorName;
+            }
+
             const identidad = resolverIdentidadEscolar({
               schoolName: context.schoolName || existingSectionI?.schoolName || teacher.school_name,
               cct: context.cct || existingSectionI?.cct || teacher.cct,

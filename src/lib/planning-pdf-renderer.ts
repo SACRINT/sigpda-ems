@@ -5,7 +5,7 @@
 
 import jsPDF from 'jspdf';
 import autoTable, { RowInput } from 'jspdf-autotable';
-import type { GeneratedPlanningContent, Planning, SecuenciaBloque } from '@/types/planning';
+import type { FechasCortes, GeneratedPlanningContent, Planning, SecuenciaBloque } from '@/types/planning';
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
 import { loadAllLogos } from './pdf-logos';
 import { SCHOOL_YEAR } from '@/lib/config';
@@ -22,6 +22,7 @@ import { DEFAULT_UAC_WEEKLY_HOURS, normalizeUacKey } from '@/lib/planning/uac-ho
 import { buildFullSequenceFromWorkbooks } from '@/lib/planning/workbook-sequence-sync';
 import { stripMaterialTokens } from '@/lib/materials/material-tokens';
 import { resolveSchoolIdentity, resolverIdentidadEscolar, CCT_NO_REGISTRADO } from '@/lib/school-identity';
+import { buildPlanningActivityHeading } from '@/lib/planning-activity-labels';
 
 const NAVY: [number, number, number] = [31, 56, 100];       // #1F3864 - Azul Institucional
 const BLUE_MID: [number, number, number] = [46, 116, 181];   // #2E74B5 - Azul Secundario
@@ -31,6 +32,34 @@ const TEXT_DARK: [number, number, number] = [30, 41, 59];    // #1E293B - Texto
 
 // Colores institucionales de fases didácticas (homologados MCCEMS vía design-tokens)
 const { PHASE_APERTURA, PHASE_DESARROLLO, PHASE_CIERRE } = COLORS;
+
+function drawFechasCortesTable(
+  doc: jsPDF,
+  startY: number,
+  fechas: FechasCortes | undefined,
+  margin: number
+): number {
+  if (!fechas) return startY;
+
+  autoTable(doc, {
+    startY,
+    head: [[{
+      content: 'FECHAS OFICIALES DE LOS CORTES DE EVALUACIÓN',
+      colSpan: 2,
+      styles: { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: 'bold' },
+    }]],
+    body: [
+      [{ content: '1.ᵉʳ Corte:', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 42 } }, { content: fechas.corte1 }],
+      [{ content: '2.º Corte:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, { content: fechas.corte2 }],
+      [{ content: '3.ᵉʳ Corte:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, { content: fechas.corte3 }],
+    ],
+    theme: 'grid',
+    styles: { fontSize: 6.5, cellPadding: 1.4, textColor: TEXT_DARK },
+    margin: { left: margin, right: margin },
+  });
+
+  return doc.lastAutoTable!.finalY + 2.5;
+}
 
 /**
  * Extrae únicamente las Categorías y Subcategorías reales del programa MCCEMS (C1.., S1..),
@@ -414,6 +443,7 @@ export async function generatePlanningPDF(
   });
 
   currentY = doc.lastAutoTable!.finalY + 2.5;
+  currentY = drawFechasCortesTable(doc, currentY, s1?.fechasCortes, margin);
 
   // ─── Sección III: Transversalidad y PAEC ──────────────────────────────────
   const transItems = [
@@ -524,7 +554,7 @@ export async function generatePlanningPDF(
     }
     macroHead.push([
       {
-        content: `Bloque / Actividad ${idx + 1}: ${act.name} (${act.hours || 18} Horas) — Metodología: ${act.methodology || 'ABP'}`,
+        content: `${buildPlanningActivityHeading(act, idx, activities, { isProgresiones })} (${act.hours || 18} Horas) — Metodología: ${act.methodology || 'ABP'}`,
         colSpan: 2,
         styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], fontStyle: 'bold' },
       },
@@ -665,11 +695,11 @@ export async function generatePlanningPDF(
           styles: { halign: 'center', cellWidth: 62 },
         },
         {
-          content: '\n\n___________________________________\nDIRECTOR(A) DEL PLANTEL\nNombre, Firma y Sello Oficial',
+          content: `\n\n___________________________________\nDIRECTOR(A) DEL PLANTEL\n${s1?.directorName || 'Nombre, Firma y Sello Oficial'}`,
           styles: { halign: 'center', cellWidth: 62 },
         },
         {
-          content: `\n\n___________________________________\n${identidad.supervision}\nVo. Bo. / Sello de Zona`,
+          content: `\n\n___________________________________\n${identidad.supervision}\n${s1?.supervisorName || 'Vo. Bo. / Sello de Zona'}`,
           styles: { halign: 'center', cellWidth: 62 },
         },
       ],
@@ -938,6 +968,7 @@ export async function generateSecuenciaPDF(
   });
 
   currentY = doc.lastAutoTable!.finalY + 4;
+  currentY = drawFechasCortesTable(doc, currentY, s1?.fechasCortes, margin);
 
   // Bloques y Sesiones
   const blockTitleLabelSec = isLaboral 
@@ -1044,7 +1075,7 @@ export async function generateSecuenciaPDF(
       startY: currentY,
       head: [[
         {
-          content: `BLOQUE / UNIDAD ${idx + 1}: ${act.name} (${act.hours || 12} HORAS) — Metodología: ${act.methodology || 'ABP'}`,
+          content: `${buildPlanningActivityHeading(act, idx, activities, { isProgresiones, uppercase: true })} (${act.hours || 12} HORAS) — Metodología: ${act.methodology || 'ABP'}`,
           colSpan: 4,
           styles: { fillColor: NAVY, fontStyle: 'bold', textColor: [255, 255, 255], fontSize: 7.5 },
         },

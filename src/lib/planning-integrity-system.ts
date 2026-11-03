@@ -16,6 +16,11 @@ import type { GeneratedPlanningContent, Planning, KeyActivityPlan, CurriculumCom
 import { SCHOOL_YEAR } from '@/lib/config';
 import { resolveSchoolIdentity } from '@/lib/school-identity';
 import { stripMaterialTokens } from '@/lib/materials/material-tokens';
+import {
+  buildPlanningActivityHeading,
+  buildPlanningActivityLabel,
+  resolvePlanningBlockNumber,
+} from '@/lib/planning-activity-labels';
 
 export interface IntegrityValidationResult {
   isValid: boolean;
@@ -64,11 +69,9 @@ export function validatePlanningIntegrity(
   }
 
   const s1 = content.sectionI;
-  const s2 = content.sectionII;
   const s3 = content.sectionIII;
   const s4 = content.sectionIV;
   const s5 = content.sectionV;
-  const s6 = content.sectionVI;
 
   // 2. Validación de horas y actividades
   const isLaboral = (component || s1?.component || '').toLowerCase().includes('laboral');
@@ -82,17 +85,18 @@ export function validatePlanningIntegrity(
     activities.forEach((act, idx) => {
       const h = Number(act.hours) || 0;
       calculatedHours += h;
+      const blockNumber = resolvePlanningBlockNumber(act, idx, activities);
       if (!act.name || act.name.trim().length === 0) {
-        errors.push(`El Bloque / Actividad ${idx + 1} no tiene nombre asignado.`);
+        errors.push(`El ${buildPlanningActivityLabel(act, idx, activities)} no tiene nombre asignado.`);
       }
       if (!act.apertura?.activities || act.apertura.activities.trim().length < 20) {
-        warnings.push(`La fase de Apertura del Bloque ${idx + 1} es demasiado breve o incompleta.`);
+        warnings.push(`La fase de Apertura del Bloque ${blockNumber} es demasiado breve o incompleta.`);
       }
       if (!act.ejecucion?.activities || act.ejecucion.activities.trim().length < 30) {
-        errors.push(`La fase de Desarrollo/Ejecución del Bloque ${idx + 1} está incompleta.`);
+        errors.push(`La fase de Desarrollo/Ejecución del Bloque ${blockNumber} está incompleta.`);
       }
       if (!act.conclusion?.activities || act.conclusion.activities.trim().length < 20) {
-        warnings.push(`La fase de Cierre del Bloque ${idx + 1} es demasiado breve.`);
+        warnings.push(`La fase de Cierre del Bloque ${blockNumber} es demasiado breve.`);
       }
     });
   }
@@ -171,9 +175,6 @@ export function enrichWithExplicitSaberes(
     }
 
     const nameLower = act.name.toLowerCase();
-    const contenidoLower = (act.contenidoFormativo || '').toLowerCase();
-    const ejecucionText = act.ejecucion?.activities || '';
-    const procesosText = act.ejecucion?.processes || '';
 
     // Extracción inteligente de conceptos clave
     let saberTeorico = '';
@@ -304,7 +305,7 @@ export function getSafeEvaluationContext(
   lines.push(`- Vinculación PAEC/Problemática: ${s2?.paecConnection || p.paecContext || p.paec_context || 'Vinculación comunitaria activa.'}`);
   lines.push(`- Dosificación de Bloques / Actividades Clave:`);
   (s2?.activities || []).forEach((act, i) => {
-    lines.push(`  * ${act.corte || `Corte ${i + 1}`}: ${act.name} (${act.hours} hrs)`);
+    lines.push(`  * ${act.corte || `Corte ${resolvePlanningBlockNumber(act, i, s2?.activities || [])}`}: ${act.name} (${act.hours} hrs)`);
   });
   lines.push('\n');
 
@@ -323,7 +324,7 @@ export function getSafeEvaluationContext(
   lines.push(`Nota Metodológica: ${s4?.note || 'Metodología activa socioformativa.'}`);
   (s4?.activities || []).forEach((act: KeyActivityPlan, i: number) => {
     lines.push(`\n--------------------------------------------------------------------------------`);
-    lines.push(`▶ BLOQUE / ACTIVIDAD CLAVE ${i + 1}: ${act.name} (${act.hours} Horas)`);
+    lines.push(`▶ ${buildPlanningActivityHeading(act, i, s4?.activities || [], { uppercase: true })} (${act.hours} Horas)`);
     lines.push(`  Metodología: ${act.methodology}`);
     if (act.contenidoFormativo) lines.push(`  Contenido Formativo: ${act.contenidoFormativo}`);
 

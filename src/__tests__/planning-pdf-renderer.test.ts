@@ -250,4 +250,27 @@ describe('Planeación Didáctica PDF — Tipografía Editorial y Anti-F11 (Fase 
     const docSec = await generateSecuenciaPDF(planSem5);
     expect(docSec).toBeDefined();
   });
+
+  it('incluye las fechas oficiales de cortes en el PDF de planeación y en la secuencia', async () => {
+    const planConCortes = {
+      ...mockPlanning,
+      contentJson: {
+        ...(mockPlanning.contentJson || {}),
+        sectionI: {
+          ...(mockPlanning.contentJson?.sectionI || {}),
+          fechasCortes: {
+            corte1: 'Del 12 al 16 de octubre de 2026',
+            corte2: 'Del 23 al 27 de noviembre de 2026',
+            corte3: 'Del 25 al 29 de enero de 2027',
+          },
+        },
+      },
+    } as unknown as Planning;
+
+    const docPlan = await generatePlanningPDF(planConCortes);
+    const docSec = await generateSecuenciaPDF(planConCortes);
+
+    expect(docPlan.output('arraybuffer').byteLength).toBeGreaterThan(3000);
+    expect(docSec.output('arraybuffer').byteLength).toBeGreaterThan(3000);
+  });
 });

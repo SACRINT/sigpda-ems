@@ -404,6 +404,15 @@ export default function DocumentA4Viewer({
               </table>
             )}
 
+            {s1?.fechasCortes && (
+              <div style={{ marginTop: '6px', fontSize: '11px', color: '#1f3864', background: '#f2f4f8', padding: '6px 10px', borderRadius: '4px' }}>
+                <strong>Fechas Oficiales de Cortes:</strong>{' '}
+                1.ᵉʳ Corte: <em>{s1.fechasCortes.corte1}</em> |{' '}
+                2.º Corte: <em>{s1.fechasCortes.corte2}</em> |{' '}
+                3.ᵉʳ Corte: <em>{s1.fechasCortes.corte3}</em>
+              </div>
+            )}
+
             {/* SECCIÓN III */}
             <table className="a4-table">
               <thead>
@@ -675,13 +684,13 @@ export default function DocumentA4Viewer({
                   </td>
                   <td style={{ textAlign: 'center', width: '33.3%', paddingBottom: '10px' }}>
                     <div style={{ borderTop: '1px solid #000', margin: '36px 12px 4px 12px' }} />
-                    <div style={{ fontWeight: 'bold', fontSize: '10px', color: '#1f3864' }}>DIRECTOR DEL PLANTEL</div>
-                    <div style={{ fontSize: '9px', color: '#64748b' }}>Firma y Sello</div>
+                    <div style={{ fontWeight: 'bold', fontSize: '10px', color: '#1f3864' }}>DIRECTOR(A) DEL PLANTEL</div>
+                    <div style={{ fontSize: '9px', color: '#64748b' }}>{s1?.directorName || 'Nombre, Firma y Sello Oficial'}</div>
                   </td>
                   <td style={{ textAlign: 'center', width: '33.3%', paddingBottom: '10px' }}>
                     <div style={{ borderTop: '1px solid #000', margin: '36px 12px 4px 12px' }} />
                     <div style={{ fontWeight: 'bold', fontSize: '10px', color: '#1f3864' }}>SUPERVISIÓN DE ZONA</div>
-                    <div style={{ fontSize: '9px', color: '#64748b' }}>Vo. Bo. Oficial</div>
+                    <div style={{ fontSize: '9px', color: '#64748b' }}>{s1?.supervisorName || 'Vo. Bo. / Sello de Zona'}</div>
                   </td>
                 </tr>
               </tbody>

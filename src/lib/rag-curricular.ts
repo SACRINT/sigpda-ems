@@ -11,7 +11,7 @@ import { logger } from '@/lib/logger';
 // vigente es gemini-embedding-001; se fuerza 768 dims para conservar el
 // contrato de la columna pgvector existente.
 const EMBEDDING_MODEL = process.env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-001';
-const EMBEDDING_DIM = 768;
+export const EMBEDDING_DIM = 768;
 
 export interface CurriculumChunk {
   id: string;
