@@ -6,6 +6,11 @@ import { CATALOGO_METODOLOGIAS_ACTIVAS, type MetodologiaActiva } from '@/lib/cat
 import { buscarPlantelPorCct, buscarPlantelPorNombre } from '@/lib/catalogo-escuelas';
 import { recomendarMetodologiaConDetalle } from '@/lib/recomendador-metodologia';
 import { logger } from '@/lib/logger';
+import {
+  componerProductoIntegrador,
+  type EvidenciaDisciplinar,
+  type ProblemaPAEC,
+} from '@/lib/curriculum-evidence-engine';
 
 interface Props {
   extractedData: ExtractedPdfData;
@@ -182,6 +187,7 @@ export default function StepContext({
       }
     }
     loadTeacherProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Sugerencia automática de metodología según UAC/materia y contenidos oficiales
@@ -998,6 +1004,67 @@ export default function StepContext({
                     </span>
                   </div>
                 ) : null;
+              })()}
+
+              {form.metodologiaActiva && form.paecProblem && (() => {
+                const selMet = CATALOGO_METODOLOGIAS_ACTIVAS.find((m: MetodologiaActiva) => m.id === form.metodologiaActiva);
+                const probObj: ProblemaPAEC = {
+                  texto: form.paecProblem,
+                  comunidad: form.locality || form.schoolName || 'Plantel escolar',
+                  alcance: 'plantel',
+                };
+                const evidenciasBase: EvidenciaDisciplinar[] = (extractedData?.evidenciasEstructuradas && extractedData.evidenciasEstructuradas.length > 0)
+                  ? extractedData.evidenciasEstructuradas
+                  : (extractedData?.evidences || []).map((e, idx) => ({
+                      id: `ev-${idx + 1}`,
+                      orden: idx + 1,
+                      tipo: 'producto',
+                      nivelCognitivo: 'aplicar',
+                      verboDisciplinar: 'elaborar',
+                      producto: e,
+                      descripcion: e,
+                      criterios: ['Calidad procedimental'],
+                      fuente: 'derivada',
+                      progresionOrigen: idx + 1,
+                    }));
+                const pi = componerProductoIntegrador(
+                  evidenciasBase,
+                  probObj,
+                  { id: form.metodologiaActiva, nombre: selMet?.nombre || form.metodologiaActiva }
+                );
+                return (
+                  <div
+                    style={{
+                      marginTop: '14px',
+                      padding: '16px',
+                      background: 'rgba(99, 102, 241, 0.08)',
+                      border: '1px solid rgba(99, 102, 241, 0.25)',
+                      borderRadius: '8px',
+                      color: 'var(--c-text)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                      <span style={{ fontSize: '18px' }}>🎯</span>
+                      <strong style={{ color: '#818cf8', fontSize: '14px' }}>
+                        Producto Integrador Situado Sugerido (PAEC + Metodología + UAC)
+                      </strong>
+                    </div>
+                    <p style={{ margin: '0 0 10px 0', fontSize: '13.5px', fontWeight: 600, color: 'var(--c-text)' }}>
+                      {pi.artefacto}
+                    </p>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '8px', fontSize: '12px', color: 'var(--c-text-muted)' }}>
+                      {pi.fases.map((f, fIdx) => (
+                        <div key={fIdx} style={{ padding: '8px', background: 'rgba(255, 255, 255, 0.04)', borderRadius: '6px' }}>
+                          <span style={{ textTransform: 'capitalize', color: '#a5b4fc', fontWeight: 600 }}>{f.momento}: </span>
+                          {f.actividad}
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ marginTop: '10px', fontSize: '12px', color: 'var(--c-text-muted)' }}>
+                      <em>{pi.aplicacionComunitaria}</em>
+                    </div>
+                  </div>
+                );
               })()}
             </div>
           </div>

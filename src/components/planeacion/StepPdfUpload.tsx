@@ -4,15 +4,24 @@ import { useState, useCallback, useRef } from 'react';
 import type { ExtractedPdfData, KeyActivity } from '@/types/planning';
 import { isTechnologicalSubsystem } from '@/lib/subsystem-config';
 import { removeHyphens, normalizeContenidos } from '@/lib/text-utils';
+import {
+  normalizarEvidenciasPaso2,
+  type EvidenciaDisciplinar,
+  type ProgresionResumida,
+} from '@/lib/curriculum-evidence-engine';
 
 interface ContenidoFormativoItem {
   order?: number;
   proposito?: string;
   contenidos?: string[] | string;
+  metas?: string[];
+  categorias?: string[];
+  subcategorias?: string[];
+  progresion?: string;
 }
 
-function cleanData(data: ExtractedPdfData): ExtractedPdfData {
-  return {
+function cleanData(data: ExtractedPdfData, component?: string): ExtractedPdfData {
+  const cleaned: ExtractedPdfData = {
     ...data,
     uacName: removeHyphens(data.uacName || ''),
     learningOutcome: removeHyphens(data.learningOutcome || ''),
@@ -28,6 +37,42 @@ function cleanData(data: ExtractedPdfData): ExtractedPdfData {
           contenidos: normalizeContenidos(cf.contenidos),
         }))
       : data.contenidosFormativos,
+  };
+
+  const needsDerivation =
+    !cleaned.evidences ||
+    cleaned.evidences.length === 0 ||
+    (cleaned.evidences.length === 1 && (!cleaned.evidences[0] || cleaned.evidences[0].trim() === '')) ||
+    cleaned.evidences.some(e => e.includes('Ensayo crítico') || e.includes('Portafolio de evidencias de aprendizaje y evaluación formativa'));
+
+  if (!needsDerivation) {
+    return cleaned;
+  }
+
+  const rawContenidos = cleaned.contenidosFormativos;
+  const progsList: ProgresionResumida[] = Array.isArray(rawContenidos) && rawContenidos.length > 0
+    ? rawContenidos.map((cf: ContenidoFormativoItem, idx: number) => ({
+        orden: cf.order || (idx + 1),
+        nombre: cf.proposito || cf.progresion || `Progresión ${idx + 1}`,
+        descripcion: cf.progresion || cf.proposito || '',
+        metas: cf.metas || [],
+        categorias: cf.categorias || [],
+        subcategorias: cf.subcategorias || [],
+      }))
+    : (cleaned.activities || []).map((a, idx) => ({
+        orden: a.order || (idx + 1),
+        nombre: a.name,
+        descripcion: a.name,
+        metas: [],
+        categorias: [],
+        subcategorias: [],
+      }));
+
+  const res = normalizarEvidenciasPaso2(progsList, cleaned.uacName, component, cleaned.teacherOverrides);
+  return {
+    ...cleaned,
+    evidences: res.evidencias.map(e => e.producto),
+    evidenciasEstructuradas: res.evidencias,
   };
 }
 
@@ -74,9 +119,9 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
   
   const [formData, setFormData] = useState<ExtractedPdfData>(() => {
     if (initialData) {
-      return cleanData(initialData);
+      return cleanData(initialData, uacSelection.component);
     }
-    return {
+    const emptyBase: ExtractedPdfData = {
       uacName: uacSelection.uacName,
       learningOutcome: '',
       totalHours: 54,
@@ -88,6 +133,7 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
       evidences: [''],
       parseConfidence: 'failed',
     };
+    return cleanData(emptyBase, uacSelection.component);
   });
 
   const hasPreloadedData = !!(initialData && initialData.activities && initialData.activities.length > 0);
@@ -102,7 +148,7 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
     if (checked) {
       setShowUploadZone(false);
       if (initialData) {
-        setFormData(cleanData(initialData));
+        setFormData(cleanData(initialData, uacSelection.component));
       }
       setFile(null);
       setParseResult(null);
@@ -205,7 +251,7 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onNext(cleanData(formData));
+    onNext(cleanData(formData, uacSelection.component));
   };
 
   const confidenceLabel: Record<string, string> = {
@@ -526,17 +572,45 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
                   placeholder={`Evidencia ${idx + 1}`}
                   value={ev}
                   onChange={e => {
+                    const newVal = e.target.value;
                     const updated = [...formData.evidences];
-                    updated[idx] = e.target.value;
-                    setFormData({ ...formData, evidences: updated });
+                    updated[idx] = newVal;
+                    const estructuradas = [...(formData.evidenciasEstructuradas || [])];
+                    if (estructuradas[idx]) {
+                      estructuradas[idx] = { ...estructuradas[idx], producto: newVal, fuente: 'docente' };
+                    }
+                    const editadas = { ...(formData.teacherOverrides?.editadas || {}) };
+                    if (estructuradas[idx]?.id) {
+                      editadas[estructuradas[idx].id] = { producto: newVal };
+                    }
+                    setFormData({
+                      ...formData,
+                      evidences: updated,
+                      evidenciasEstructuradas: estructuradas,
+                      teacherOverrides: {
+                        ...(formData.teacherOverrides || {}),
+                        editadas,
+                      },
+                    });
                   }}
                 />
                 <button
                   type="button"
                   className="btn btn-ghost btn-sm"
-                  onClick={() =>
-                    setFormData({ ...formData, evidences: formData.evidences.filter((_, i) => i !== idx) })
-                  }
+                  onClick={() => {
+                    const idAEliminar = formData.evidenciasEstructuradas?.[idx]?.id;
+                    const eliminados = [...(formData.teacherOverrides?.eliminados || [])];
+                    if (idAEliminar) eliminados.push(idAEliminar);
+                    setFormData({
+                      ...formData,
+                      evidences: formData.evidences.filter((_, i) => i !== idx),
+                      evidenciasEstructuradas: formData.evidenciasEstructuradas?.filter((_, i) => i !== idx),
+                      teacherOverrides: {
+                        ...(formData.teacherOverrides || {}),
+                        eliminados,
+                      },
+                    });
+                  }}
                 >
                   ✕
                 </button>
@@ -545,7 +619,31 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
             <button
               type="button"
               className="btn btn-secondary btn-sm"
-              onClick={() => setFormData({ ...formData, evidences: [...formData.evidences, ''] })}
+              onClick={() => {
+                const nuevaId = `docente-${Date.now()}`;
+                const nuevaEv: EvidenciaDisciplinar = {
+                  id: nuevaId,
+                  orden: formData.evidences.length + 1,
+                  tipo: 'producto',
+                  nivelCognitivo: 'aplicar',
+                  verboDisciplinar: 'elaborar',
+                  producto: '',
+                  descripcion: 'Evidencia incorporada por el docente.',
+                  criterios: ['Calidad procedimental', 'Presentación del entregable'],
+                  fuente: 'docente',
+                  progresionOrigen: formData.evidences.length + 1,
+                };
+                const nuevas = [...(formData.teacherOverrides?.nuevas || []), nuevaEv];
+                setFormData({
+                  ...formData,
+                  evidences: [...formData.evidences, ''],
+                  evidenciasEstructuradas: [...(formData.evidenciasEstructuradas || []), nuevaEv],
+                  teacherOverrides: {
+                    ...(formData.teacherOverrides || {}),
+                    nuevas,
+                  },
+                });
+              }}
             >
               + Agregar evidencia
             </button>

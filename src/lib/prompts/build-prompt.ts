@@ -8,6 +8,13 @@ import { isTechnologicalSubsystem } from '@/lib/subsystem-config';
 import { resolverIdentidadEscolar } from '@/lib/school-identity';
 import { SCHOOL_YEAR } from '@/lib/config';
 import {
+  normalizarEvidenciasPaso2,
+  componerProductoIntegrador,
+  type EvidenciaDisciplinar,
+  type ProblemaPAEC,
+  type ProgresionResumida,
+} from '@/lib/curriculum-evidence-engine';
+import {
   buildMaterialSlugIndex,
   getMaterialCategoriesForContext,
   MATERIAL_INDEX_MAX_CHARS,
@@ -324,14 +331,103 @@ export function buildUserPrompt(
     })
     .join('\n\n');
 
-  // ── Evidencias oficiales o inferidas ─────────────────────────────────────────
-  const evidencesSource = (officialProgram?.evidences && Array.isArray(officialProgram.evidences) && officialProgram.evidences.length > 0)
-    ? officialProgram.evidences
-    : extractedData.evidences;
+  // ── Evidencias con prioridad: teacherOverrides > evidencias estructuradas > evidencias texto > catálogo ─
+  let structuredEvidences: EvidenciaDisciplinar[] = [];
+
+  const teacherHasOverrides = !!(
+    extractedData.teacherOverrides?.nuevas?.length ||
+    Object.keys(extractedData.teacherOverrides?.editadas || {}).length ||
+    extractedData.teacherOverrides?.eliminados?.length
+  );
+
+  if (extractedData.evidenciasEstructuradas && extractedData.evidenciasEstructuradas.length > 0) {
+    // Máxima prioridad: colección estructurada rica generada en Step 2 con overrides aplicados
+    structuredEvidences = extractedData.evidenciasEstructuradas;
+  } else if (teacherHasOverrides || !extractedData.evidences?.length || extractedData.evidences.some(e => e.includes('Ensayo crítico'))) {
+    // Derivación determinista en caliente aplicando teacherOverrides explícitos
+    const rawContenidos = officialProgram?.contenidos_formativos || extractedData.contenidosFormativos;
+    const progsList: ProgresionResumida[] = Array.isArray(rawContenidos) && rawContenidos.length > 0
+      ? rawContenidos.map((cf: Record<string, unknown>, idx: number) => ({
+          orden: (cf.order as number) || (cf.numero as number) || (idx + 1),
+          nombre: (cf.proposito as string) || (cf.progresion as string) || `Progresión ${idx + 1}`,
+          descripcion: (cf.progresion as string) || (cf.proposito as string) || '',
+          metas: (cf.metas as string[]) || [],
+          categorias: (cf.categorias as string[]) || [],
+          subcategorias: (cf.subcategorias as string[]) || [],
+        }))
+      : (extractedData.activities || []).map((a, idx) => ({
+          orden: a.order || (idx + 1),
+          nombre: a.name,
+          descripcion: a.name,
+          metas: [],
+          categorias: [],
+          subcategorias: [],
+        }));
+    const derivadas = normalizarEvidenciasPaso2(
+      progsList,
+      extractedData.uacName || officialProgram?.uac_name || '',
+      component,
+      extractedData.teacherOverrides
+    );
+    structuredEvidences = derivadas.evidencias;
+  } else if (extractedData.evidences && extractedData.evidences.length > 0) {
+    structuredEvidences = extractedData.evidences.map((p, idx) => ({
+      id: `ev-ext-${idx + 1}`,
+      orden: idx + 1,
+      tipo: 'producto',
+      nivelCognitivo: 'aplicar',
+      verboDisciplinar: 'elaborar',
+      producto: p,
+      descripcion: p,
+      criterios: ['Rigor técnico y procedimental'],
+      fuente: 'docente',
+      progresionOrigen: idx + 1,
+    }));
+  } else if (officialProgram?.evidences && Array.isArray(officialProgram.evidences) && officialProgram.evidences.length > 0) {
+    structuredEvidences = (officialProgram.evidences as string[]).map((p, idx) => ({
+      id: `ev-cat-${idx + 1}`,
+      orden: idx + 1,
+      tipo: 'producto',
+      nivelCognitivo: 'aplicar',
+      verboDisciplinar: 'elaborar',
+      producto: p,
+      descripcion: p,
+      criterios: ['Rigor técnico y procedimental'],
+      fuente: 'derivada',
+      progresionOrigen: idx + 1,
+    }));
+  }
+
+  const evidencesSource: string[] = structuredEvidences.map(e => e.producto);
 
   const evidencesText = evidencesSource && evidencesSource.length > 0
     ? evidencesSource.map(e => `  - ${e}`).join('\n')
-    : '  - Evidencia de producto técnico\n  - Reporte de desempeño de simulación\n  - Instrumento de evaluación formativa';
+    : '  - Evidencia de producto técnico disciplinar\n  - Reporte de desempeño y aplicación práctica\n  - Instrumento de evaluación formativa';
+
+  // ── Composición funcional del Producto Integrador Situado (PAEC + Metodología) ─
+  let productoIntegradorBlock = '';
+  if (context.paecProblem && context.metodologiaActiva) {
+    const metObj = CATALOGO_METODOLOGIAS_ACTIVAS.find(m => m.id === context.metodologiaActiva) || {
+      id: context.metodologiaActiva,
+      nombre: context.metodologiaActiva,
+    };
+    const probObj: ProblemaPAEC = {
+      texto: context.paecProblem,
+      comunidad: context.locality || context.municipality || context.schoolName || 'Comunidad escolar',
+      alcance: 'plantel',
+    };
+    const pi = componerProductoIntegrador(structuredEvidences, probObj, { id: metObj.id, nombre: metObj.nombre });
+    productoIntegradorBlock = `
+═══════════ PRODUCTO INTEGRADOR SITUADO (PAEC + METODOLOGÍA + UAC) ═══════════
+Artefacto Integrador: "${pi.artefacto}"
+Propósito Situado: ${pi.descripcion}
+Aplicación Comunitaria: ${pi.aplicacionComunitaria}
+Fases Didácticas Articuladas:
+${pi.fases.map(f => `  • [${f.momento.toUpperCase()}]: ${f.actividad} (Responsable: ${f.responsable})`).join('\n')}
+Criterios de Evaluación Integrativa:
+${pi.criteriosIntegracion.map(c => `  - ${c}`).join('\n')}
+`;
+  }
 
   // ── Subsistema y Componente Labels ──────────────────────────────────────────
   const subsystemLabels: Record<string, string> = {
@@ -515,7 +611,7 @@ ${activitiesText}
 
 Evidencias e Instrumentos Sugeridos por el Programa Oficial:
 ${evidencesText}
-${ffeContinuityBlock}${auditRemediationBlock}
+${productoIntegradorBlock}${ffeContinuityBlock}${auditRemediationBlock}
 ═══════════ DISTRIBUCIÓN HORARIA OBLIGATORIA POR CORTE ═══════════
 REGLA MATEMÁTICA ESTRICTA — NO MODIFICAR:
   • El semestre se divide en 3 Cortes de evaluación (Corte 1, Corte 2, Corte 3).
@@ -561,11 +657,15 @@ ${context.paecOperationalActivity.estrategiaDidactica ? `• Estrategia didácti
 ${(context.paecOperationalActivity.propositoFormativo || context.paecOperationalActivity.progresion) ? `• Propósito formativo / Progresión: ${context.paecOperationalActivity.propositoFormativo || context.paecOperationalActivity.progresion}` : ''}
 
 INSTRUCCIONES OBLIGATORIAS PARA ESTA ACTIVIDAD:
-1. SECCIÓN III (Transversalidad y PAEC): Describe explícitamente cómo esta UAC (${extractedData.uacName}) vincula sus aprendizajes con la actividad institucional acordada: "${context.paecOperationalActivity.actividad}".
+1. SECCIÓN III (Transversalidad, PAEC y Producto Integrador):
+   - Describe explícitamente cómo esta UAC (${extractedData.uacName}) vincula sus aprendizajes con la actividad institucional acordada: "${context.paecOperationalActivity.actividad}".
+   - En "transversalidad.productoIntegrador", integra OBLIGATORIAMENTE el Producto Integrador Situado compuesto arriba, detallando el Artefacto Integrador, sus fases metodológicas y su impacto en la comunidad escolar.
 2. SECCIÓN IV (Secuencia Didáctica): Integra y desarrolla esta actividad concreta en la secuencia didáctica (en la fase de Desarrollo o Cierre del Corte correspondiente), articulándola directamente con los saberes y contenidos oficiales.
 ` : `ESTADO DEL PLAN OPERATIVO DEL PAEC:
 Esta asignatura (${extractedData.uacName}) no cuenta con una actividad preasignada en el Plan Operativo del documento escolar.
-INSTRUCCIÓN: Genera en la SECCIÓN III y en la SECCIÓN IV propuestas formativas pertinentes y situadas que vinculen de forma natural la asignatura con la problemática comunitaria: "${context.paecProjectName || context.paecProblem.substring(0, 80)}".`}
+INSTRUCCIÓN:
+1. SECCIÓN III (Transversalidad, PAEC y Producto Integrador): Genera propuestas formativas pertinentes y situadas que vinculen la UAC con la problemática: "${context.paecProjectName || context.paecProblem.substring(0, 80)}". En "transversalidad.productoIntegrador", plasma de forma explícita el Producto Integrador Situado compuesto arriba con su artefacto y aplicación comunitaria.
+2. SECCIÓN IV (Secuencia Didáctica): Articula las secuencias formativas con las fases del Producto Integrador y las evidencias disciplinares oficiales.`}
 
 Caracterización y Perfil de los Estudiantes:
 ${context.studentContext || 'Estudiantes de bachillerato con interés en proyectos prácticos y resolución de problemas comunitarios.'}
@@ -606,7 +706,10 @@ ${isTransitionSemester
    - "saber": Conocimientos conceptuales, principios teóricos, normativas técnicas y fundamentos que el alumno domina.
    - "saberHacer": Procedimientos aplicados, destrezas técnicas, mediciones, cálculos, manipulación de herramientas y resolución operativa.
    - "saberSer": Actitudes profesionales, ética, seguridad e higiene, compromiso comunitario y trabajo colaborativo.
-4. SECCIÓN V (EVALUACIÓN): Incluye el Acuerdo de Acreditación formal firmado y asegura que las ponderaciones sumen exactamente 100%.
+4. SECCIÓN V (EVALUACIÓN FORMATIVA Y SUMATIVA CON EVIDENCIAS REALES):
+   - En cada momento de evaluación ("evaluacion"), utiliza OBLIGATORIAMENTE las Evidencias Sugeridas oficiales listadas arriba (respetando la máxima prioridad de teacherOverrides y las evidencias disciplinares derivadas). Queda ESTRICTAMENTE PROHIBIDO inventar textos genéricos como "Ensayo crítico" o "Portafolio de evidencias" cuando no correspondan a la naturaleza de la UAC.
+   - Evalúa formativa y sumativamente el Producto Integrador Situado a través de los criterios e instrumentos de acreditación formal.
+   - Asegura que las ponderaciones de los criterios sumen exactamente 100% e incluye el Acuerdo de Acreditación formal firmado.
 5. SECCIÓN VI (MATERIALES): En "teacherMaterials" incluye ÚNICAMENTE materiales diseñados por el docente (guías, manuales, hojas de trabajo). NUNCA infraestructura física escolar (proyector, internet, pizarrones).
 6. SECCIÓN I: Asigna el período de aplicación: ${context.applicationPeriod || `Ciclo escolar ${SCHOOL_YEAR}`}.
 7. SECCIÓN II (RETO SITUADO 4/4 Y DIAGNÓSTICO EN 3 DIMENSIONES):

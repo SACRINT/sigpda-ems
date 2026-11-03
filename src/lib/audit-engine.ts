@@ -55,7 +55,7 @@ export interface AuditReport {
   dimension_scores: DimensionScores;
   findings: AuditFindings;
   recommendations: AuditRecommendation[];
-  official_program_ref?: any;
+  official_program_ref?: unknown;
   audited_by: string;
   created_at?: string;
 }
@@ -203,7 +203,7 @@ Contenidos Formativos / Temas Oficiales:
 ${JSON.stringify(officialRef.contenidos_formativos, null, 2)}
 
 Evidencias Sugeridas Oficiales:
-${JSON.stringify(officialRef.evidences, null, 2)}
+${JSON.stringify(officialRef.evidences || [], null, 2)}
 
 === DATOS DE LA PLANEACIÓN DOCENTE A AUDITAR ===
 Nombre de la UAC en Planeación: ${plan.uac_name}

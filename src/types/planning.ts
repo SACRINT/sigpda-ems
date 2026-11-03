@@ -1,3 +1,9 @@
+import type {
+  EvidenciaDisciplinar,
+  DocenteOverride,
+  ProductoIntegrador,
+} from '@/lib/curriculum-evidence-engine';
+
 export type PlanningStatus = 'draft' | 'generated' | 'downloaded';
 
 // Open string to support all subsystems (BGE, Digital, EMSAD, CECyTE, CBTIS, CBTA, CONALEP, DGB, etc.)
@@ -35,6 +41,9 @@ export interface ExtractedPdfData {
     saberes?: string[];
   }> | null;
   carreraTecnica?: string;
+  evidenciasEstructuradas?: EvidenciaDisciplinar[];
+  teacherOverrides?: DocenteOverride;
+  productoIntegrador?: ProductoIntegrador;
 }
 
 export interface PaecOperationalActivity {
@@ -335,4 +344,3 @@ export interface ImageAsset {
   height?: number | null;
   createdAt: Date;
 }
-
