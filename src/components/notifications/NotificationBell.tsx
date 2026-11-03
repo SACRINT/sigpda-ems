@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Bell, CheckCheck, Trash2, ExternalLink, AlertTriangle, Info, CheckCircle2, XCircle } from 'lucide-react';
 import Link from 'next/link';
+import styles from './NotificationBell.module.css';
 
 interface Notification {
   id: string;
@@ -108,10 +109,10 @@ export default function NotificationBell() {
 
   const getSeverityIcon = (sev: string) => {
     switch (sev) {
-      case 'warning': return <AlertTriangle size={16} className="text-amber-400" />;
-      case 'error': return <XCircle size={16} className="text-red-400" />;
-      case 'success': return <CheckCircle2 size={16} className="text-emerald-400" />;
-      default: return <Info size={16} className="text-indigo-400" />;
+      case 'warning': return <AlertTriangle size={16} />;
+      case 'error': return <XCircle size={16} />;
+      case 'success': return <CheckCircle2 size={16} />;
+      default: return <Info size={16} />;
     }
   };
 
@@ -122,19 +123,17 @@ export default function NotificationBell() {
   });
 
   return (
-    <div className="relative inline-block" ref={dropdownRef}>
+    <div className={styles.root} ref={dropdownRef}>
       {/* Botón Campana */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         aria-label="Ver notificaciones y alertas"
-        className="relative p-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/80 transition-all border border-transparent hover:border-slate-700/60 focus:outline-none"
-        style={{
-          background: isOpen ? 'rgba(30, 41, 59, 0.8)' : 'transparent',
-        }}
+        data-open={isOpen}
+        className={styles.trigger}
       >
-        <Bell size={20} className={unreadCount > 0 ? 'text-indigo-400' : ''} />
+        <Bell size={20} className={unreadCount > 0 ? styles.triggerActive : undefined} />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-r from-red-500 to-rose-600 text-[11px] font-bold text-white shadow-lg shadow-rose-500/30 animate-pulse">
+          <span className={styles.badge}>
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -142,16 +141,13 @@ export default function NotificationBell() {
 
       {/* Popover Dropdown */}
       {isOpen && (
-        <div
-          className="absolute right-0 mt-3 w-80 sm:w-96 rounded-2xl bg-slate-950 border border-slate-700 shadow-2xl shadow-black/80 z-[100] overflow-hidden text-slate-200"
-          style={{ maxHeight: '80vh', display: 'flex', flexDirection: 'column', backgroundColor: '#020617' }}
-        >
+        <div className={styles.panel}>
           {/* Header del Popover */}
-          <div className="p-4 border-b border-slate-800 bg-slate-950/40 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-base font-bold text-slate-100">Notificaciones y Alertas</span>
+          <div className={styles.panelHeader}>
+            <div className={styles.headerTitleWrap}>
+              <span className={styles.headerTitle}>Notificaciones y Alertas</span>
               {unreadCount > 0 && (
-                <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                <span className={styles.newBadge}>
                   {unreadCount} nuevas
                 </span>
               )}
@@ -160,7 +156,7 @@ export default function NotificationBell() {
               <button
                 onClick={handleMarkAllAsRead}
                 disabled={loading}
-                className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 hover:underline disabled:opacity-50"
+                className={styles.markAll}
               >
                 <CheckCheck size={14} /> Marcar leídas
               </button>
@@ -168,71 +164,57 @@ export default function NotificationBell() {
           </div>
 
           {/* Filtros rápidos */}
-          <div className="flex px-3 pt-2 pb-1 gap-1 border-b border-slate-800/80 bg-slate-900/50 text-xs">
+          <div className={styles.filters}>
             <button
               onClick={() => setFilter('all')}
-              className={`px-3 py-1 rounded-lg transition-all ${
-                filter === 'all'
-                  ? 'bg-indigo-600 text-white font-medium shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-              }`}
+              className={`${styles.filter} ${filter === 'all' ? styles.filterActive : ''}`}
             >
               Todas ({notifications.length})
             </button>
             <button
               onClick={() => setFilter('unread')}
-              className={`px-3 py-1 rounded-lg transition-all ${
-                filter === 'unread'
-                  ? 'bg-indigo-600 text-white font-medium shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-              }`}
+              className={`${styles.filter} ${filter === 'unread' ? styles.filterActive : ''}`}
             >
               No leídas ({unreadCount})
             </button>
             <button
               onClick={() => setFilter('alerts')}
-              className={`px-3 py-1 rounded-lg transition-all ${
-                filter === 'alerts'
-                  ? 'bg-indigo-600 text-white font-medium shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-              }`}
+              className={`${styles.filter} ${filter === 'alerts' ? styles.filterActive : ''}`}
             >
               Alertas ⚠️
             </button>
           </div>
 
           {/* Lista de Notificaciones */}
-          <div className="overflow-y-auto divide-y divide-slate-800/60" style={{ maxHeight: '360px' }}>
+          <div className={styles.list}>
             {filteredNotifications.length === 0 ? (
-              <div className="p-8 text-center text-slate-500">
-                <Bell size={32} className="mx-auto mb-2 opacity-30" />
-                <p className="text-sm font-medium">No hay notificaciones</p>
-                <p className="text-xs text-slate-600 mt-1">Estás al día con tus planeaciones y horarios</p>
+              <div className={styles.empty}>
+                <Bell size={32} className={styles.emptyIcon} />
+                <p className={styles.emptyTitle}>No hay notificaciones</p>
+                <p className={styles.emptyHint}>Estás al día con tus planeaciones y horarios</p>
               </div>
             ) : (
               filteredNotifications.map(item => (
                 <div
                   key={item.id}
-                  className={`p-3.5 transition-colors flex items-start gap-3 hover:bg-slate-800/60 ${
-                    !item.read ? 'bg-indigo-950/20' : ''
-                  }`}
+                  className={`${styles.item} ${!item.read ? styles.itemUnread : ''}`}
                 >
-                  <div className="mt-0.5 p-1.5 rounded-lg bg-slate-800 border border-slate-700/50 shrink-0">
+                  <div className={styles.iconBox} data-severity={item.severity}>
                     {getSeverityIcon(item.severity)}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-1 mb-1">
-                      <h4 className={`text-xs font-semibold truncate ${!item.read ? 'text-slate-100' : 'text-slate-300'}`}>
+                  <div className={styles.body}>
+                    <div className={styles.topRow}>
+                      <h4 className={`${styles.title} ${!item.read ? styles.titleUnread : ''}`}>
                         {item.title}
                       </h4>
-                      <span className="text-[10px] text-slate-500 whitespace-nowrap">
+                      <span className={styles.date}>
                         {new Date(item.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed mb-1.5">
+                    <p className={styles.message}>
                       {item.message}
                     </p>
-                    <div className="flex items-center gap-3">
+                    <div className={styles.actions}>
                       {item.link && (
                         <Link
                           href={item.link}
@@ -240,7 +222,7 @@ export default function NotificationBell() {
                             if (!item.read) handleMarkAsRead(item.id);
                             setIsOpen(false);
                           }}
-                          className="text-[11px] font-medium text-indigo-400 hover:text-indigo-300 flex items-center gap-1 hover:underline"
+                          className={styles.detailLink}
                         >
                           Ver detalle <ExternalLink size={11} />
                         </Link>
@@ -248,14 +230,14 @@ export default function NotificationBell() {
                       {!item.read && (
                         <button
                           onClick={() => handleMarkAsRead(item.id)}
-                          className="text-[11px] text-slate-500 hover:text-slate-300 hover:underline ml-auto"
+                          className={styles.markRead}
                         >
                           Marcar leída
                         </button>
                       )}
                       <button
                         onClick={() => handleDelete(item.id)}
-                        className="text-[11px] text-slate-500 hover:text-red-400 transition-colors p-0.5 rounded ml-auto"
+                        className={styles.delete}
                         title="Eliminar"
                       >
                         <Trash2 size={12} />
@@ -268,8 +250,8 @@ export default function NotificationBell() {
           </div>
 
           {/* Footer del Popover */}
-          <div className="p-2.5 bg-slate-950/60 border-t border-slate-800 text-center">
-            <span className="text-[11px] text-slate-500">
+          <div className={styles.footer}>
+            <span>
               Sistema de Alertas Inteligente · MCCEMS Puebla
             </span>
           </div>
