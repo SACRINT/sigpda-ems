@@ -327,6 +327,30 @@ function buildSectionII(content: GeneratedPlanningContent): (Paragraph | Table)[
         tcL('100%', { w: cA3, align: AlignmentType.CENTER })
       ] }),
     ], [cA0, cA1, cA2, cA3]),
+    ...(content.sectionI.fechasCortes
+      ? [
+          sp(),
+          subH('Fechas Oficiales de los Cortes de Evaluación'),
+          tbl([
+            new TableRow({ children: [
+              tcH('CORTE', { w: cL, align: AlignmentType.CENTER, size: 20 }),
+              tcH('FECHAS OFICIALES', { w: cR, align: AlignmentType.CENTER, size: 20 }),
+            ] }),
+            new TableRow({ children: [
+              tcL('Corte 1', { w: cL }),
+              tc(content.sectionI.fechasCortes.corte1, { w: cR }),
+            ] }),
+            new TableRow({ children: [
+              tcL('Corte 2', { w: cL }),
+              tc(content.sectionI.fechasCortes.corte2, { w: cR }),
+            ] }),
+            new TableRow({ children: [
+              tcL('Corte 3', { w: cL }),
+              tc(content.sectionI.fechasCortes.corte3, { w: cR }),
+            ] }),
+          ], [cL, cR]),
+        ]
+      : []),
     sp(),
   ];
 }

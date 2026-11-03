@@ -23,7 +23,8 @@ import {
   enforceOfficialProgresiones,
 } from '@/lib/planning/progresiones-enforcer';
 import { resolverIdentidadEscolar } from '@/lib/school-identity';
-import type { ExtractedPdfData, TeacherContext, GeneratedPlanningContent } from '@/types/planning';
+import { resolveFechasCortes } from '@/lib/fechas-cortes';
+import type { ExtractedPdfData, TeacherContext, GeneratedPlanningContent, FechasCortes } from '@/types/planning';
 import type { RagContext } from '@/lib/rag-curricular';
 
 export const runtime = 'nodejs';
@@ -199,6 +200,14 @@ export async function POST(
               parsedContent.sectionI.paecOperationalActivity = context.paecOperationalActivity;
             } else if (existingSectionI?.paecOperationalActivity) {
               parsedContent.sectionI.paecOperationalActivity = existingSectionI.paecOperationalActivity;
+            }
+
+            // Fechas oficiales de cortes: persistencia determinista (no dependen de la IA)
+            const fechasCortesPersistidas = context.fechasCortes
+              ? resolveFechasCortes(context.fechasCortes)
+              : (existingSectionI?.fechasCortes as FechasCortes | undefined);
+            if (fechasCortesPersistidas) {
+              parsedContent.sectionI.fechasCortes = fechasCortesPersistidas;
             }
             if (!parsedContent.sectionI.teacherName) {
               if (context.teacherName) {

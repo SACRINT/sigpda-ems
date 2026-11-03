@@ -134,7 +134,9 @@ export class GeminiProvider implements AIProvider {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(60000), // 60 segundos
+      // El timeout cubre todo el ciclo request+body del stream. 60 s abortaba
+      // generaciones largas a mitad de stream; se alinea con maxDuration=120.
+      signal: AbortSignal.timeout(110000),
     });
 
     if (!res.ok || !res.body) {

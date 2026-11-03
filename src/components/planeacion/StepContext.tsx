@@ -6,6 +6,7 @@ import { CATALOGO_METODOLOGIAS_ACTIVAS, type MetodologiaActiva } from '@/lib/cat
 import { buscarPlantelPorCct, buscarPlantelPorNombre } from '@/lib/catalogo-escuelas';
 import { recomendarMetodologiaConDetalle } from '@/lib/recomendador-metodologia';
 import { logger } from '@/lib/logger';
+import { resolveFechasCortes } from '@/lib/fechas-cortes';
 import {
   componerProductoIntegrador,
   type EvidenciaDisciplinar,
@@ -103,6 +104,7 @@ export default function StepContext({
     subsystem: initialContext?.subsystem || 'bge',
     groupInfo: initialContext?.groupInfo || '',
     applicationPeriod: initialContext?.applicationPeriod || '',
+    fechasCortes: resolveFechasCortes(initialContext?.fechasCortes),
     paecProjectName: initialContext?.paecProjectName || '',
     paecObjective: initialContext?.paecObjective || '',
     paecProblem: initialContext?.paecProblem || '',
@@ -337,6 +339,13 @@ export default function StepContext({
     }
   };
 
+  const setFechaCorte = (corte: 'corte1' | 'corte2' | 'corte3', value: string) => {
+    setForm(f => ({
+      ...f,
+      fechasCortes: { ...(f.fechasCortes ?? resolveFechasCortes(null)), [corte]: value },
+    }));
+  };
+
   const handleSchoolNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const schoolName = e.target.value;
     const ficha = buscarPlantelPorNombre(schoolName);
@@ -490,6 +499,39 @@ export default function StepContext({
                       onChange={e => set({ applicationPeriod: e.target.value })}
                     />
                   </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Fechas oficiales de los cortes de evaluación</label>
+                  <div className="form-row-3">
+                    <input
+                      className="form-input"
+                      autoComplete="off"
+                      aria-label="Fechas del Corte 1"
+                      placeholder="Corte 1"
+                      value={form.fechasCortes?.corte1 ?? ''}
+                      onChange={e => setFechaCorte('corte1', e.target.value)}
+                    />
+                    <input
+                      className="form-input"
+                      autoComplete="off"
+                      aria-label="Fechas del Corte 2"
+                      placeholder="Corte 2"
+                      value={form.fechasCortes?.corte2 ?? ''}
+                      onChange={e => setFechaCorte('corte2', e.target.value)}
+                    />
+                    <input
+                      className="form-input"
+                      autoComplete="off"
+                      aria-label="Fechas del Corte 3"
+                      placeholder="Corte 3"
+                      value={form.fechasCortes?.corte3 ?? ''}
+                      onChange={e => setFechaCorte('corte3', e.target.value)}
+                    />
+                  </div>
+                  <span className="form-hint">
+                    Se imprimen en la Sección II del documento y guían la dosificación de cada corte.
+                  </span>
                 </div>
 
                 <div className="form-group">

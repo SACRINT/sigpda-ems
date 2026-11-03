@@ -30,8 +30,12 @@ export interface RagContext {
  * Generate embedding vector for a text using Gemini
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error('GEMINI_API_KEY not configured');
+  // Resolver la clave con el mismo pool/prioridad que el resto del pipeline
+  // (docente → tabla api_keys → env). Leer process.env.GEMINI_API_KEY directo
+  // provocaba 401 ACCESS_TOKEN_TYPE_UNSUPPORTED cuando esa variable estaba
+  // revocada, aun teniendo claves válidas en el pool.
+  const { resolveKey } = await import('./ai-provider/key-rotator');
+  const { apiKey } = await resolveKey('gemini');
 
   const res = await fetch(
     `${API_CONFIG.gemini}/${EMBEDDING_MODEL}:embedContent?key=${apiKey}`,

@@ -69,6 +69,12 @@ export interface PaecParseResult {
   planOperativo?: PaecOperationalActivity[];
 }
 
+export interface FechasCortes {
+  corte1: string;
+  corte2: string;
+  corte3: string;
+}
+
 export interface TeacherContext {
   teacherName: string;
   schoolName: string;
@@ -81,6 +87,7 @@ export interface TeacherContext {
   subsystem: Subsystem;
   groupInfo: string;
   applicationPeriod?: string;    // Período de aplicación (Ago-Dic 2026)
+  fechasCortes?: FechasCortes;   // Fechas oficiales de los 3 cortes de evaluación
   paecProjectName?: string;      // Nombre del proyecto PAEC/PEC
   paecObjective?: string;        // Objetivo general del proyecto
   paecProblem: string;           // Problemática comunitaria (requerido)
@@ -219,6 +226,7 @@ export interface GeneratedPlanningContent {
     totalHoursSemester?: number;
     paecOperationalActivity?: PaecOperationalActivity | null;
     metodologiaActiva?: string;
+    fechasCortes?: FechasCortes;
   };
   // Section II - Curricular Intent
   sectionII: {

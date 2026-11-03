@@ -73,9 +73,13 @@ export default function StepGenerate({
         }
       }
 
-      // Check if server sent an error marker through the stream
-      if (accumulatedText.startsWith('__ERROR__:')) {
-        const rawError = accumulatedText.replace('__ERROR__:', '').trim();
+      // Check if server sent an error marker through the stream.
+      // El marcador se anexa al final del texto ya emitido, por lo que no
+      // puede detectarse con startsWith: se busca en cualquier posición.
+      const errorMarker = '__ERROR__:';
+      const errorIndex = accumulatedText.lastIndexOf(errorMarker);
+      if (errorIndex >= 0) {
+        const rawError = accumulatedText.slice(errorIndex + errorMarker.length).trim();
         // Translate common Gemini API errors to readable Spanish messages
         if (rawError.includes('429') || rawError.toLowerCase().includes('quota')) {
           throw new Error(

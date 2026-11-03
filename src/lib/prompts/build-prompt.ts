@@ -7,6 +7,7 @@ import { formatearEstrategiasParaPrompt } from '@/lib/catalogo-estrategias';
 import { isTechnologicalSubsystem } from '@/lib/subsystem-config';
 import { resolverIdentidadEscolar } from '@/lib/school-identity';
 import { SCHOOL_YEAR } from '@/lib/config';
+import { resolveFechasCortes } from '@/lib/fechas-cortes';
 import {
   normalizarEvidenciasPaso2,
   componerProductoIntegrador,
@@ -638,6 +639,10 @@ Estado: ${context.state || 'Puebla'}
 Subsistema: ${subsystemLabel}
 Grupos: ${context.groupInfo || 'Grupo A'}
 Período de aplicación: ${context.applicationPeriod || `Ciclo escolar ${SCHOOL_YEAR}`}
+${(() => {
+  const f = resolveFechasCortes(context.fechasCortes);
+  return `Fechas oficiales de cortes de evaluación:\n  • Corte 1: ${f.corte1}\n  • Corte 2: ${f.corte2}\n  • Corte 3: ${f.corte3}`;
+})()}
 Recursos disponibles: ${context.schoolResources || 'Recursos básicos de aula y tecnología accesible'}
 
 DIRECTRICES DE IDENTIDAD TERRITORIAL Y ADMINISTRATIVA OBLIGATORIAS:
@@ -711,7 +716,7 @@ ${isTransitionSemester
    - Evalúa formativa y sumativamente el Producto Integrador Situado a través de los criterios e instrumentos de acreditación formal.
    - Asegura que las ponderaciones de los criterios sumen exactamente 100% e incluye el Acuerdo de Acreditación formal firmado.
 5. SECCIÓN VI (MATERIALES): En "teacherMaterials" incluye ÚNICAMENTE materiales diseñados por el docente (guías, manuales, hojas de trabajo). NUNCA infraestructura física escolar (proyector, internet, pizarrones).
-6. SECCIÓN I: Asigna el período de aplicación: ${context.applicationPeriod || `Ciclo escolar ${SCHOOL_YEAR}`}.
+6. SECCIÓN I: Asigna el período de aplicación: ${context.applicationPeriod || `Ciclo escolar ${SCHOOL_YEAR}`}. Respeta las fechas oficiales de cortes (Corte 1: ${resolveFechasCortes(context.fechasCortes).corte1}; Corte 2: ${resolveFechasCortes(context.fechasCortes).corte2}; Corte 3: ${resolveFechasCortes(context.fechasCortes).corte3}) al dosificar las actividades y progresiones de cada corte.
 7. SECCIÓN II (RETO SITUADO 4/4 Y DIAGNÓSTICO EN 3 DIMENSIONES):
    - "retoSituado": Genera un reto de alta utilidad real con verbo en infinitivo (Diseñar, Construir, Diagnosticar, Evaluar, Mitigar, Optimizar), contexto local concreto de Puebla (${location}), problemática real de la comunidad ("${context.paecProblem.substring(0, 80)}") y propósito curricular articulado.
    - "diagnosticoSituado3D": Desarrolla la dimensión territorial, la dimensión de praxis juvenil (reconociendo al 44% de alumnos que trabajan) y la dimensión de aula/EDIEMS (rezago diagnóstico y BAP).
