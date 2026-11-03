@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { ExtractedPdfData, TeacherContext } from '@/types/planning';
 
 interface Props {
@@ -26,13 +26,48 @@ function delay(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+/**
+ * Comprueba si el servidor ya persistió las 7 secciones de la planeación.
+ * Se usa para no reportar un error cuando el stream del navegador se corta
+ * después de que el backend terminó y guardó el documento.
+ */
+async function fetchPlanningIfComplete(planningId: string, attemptStartedAt: number): Promise<boolean> {
+  try {
+    const res = await fetch(`/api/plannings/${planningId}`, { cache: 'no-store' });
+    if (!res.ok) return false;
+    const data = await res.json();
+    const content = data?.planning?.content_json;
+    if (!content || typeof content !== 'object') return false;
+    const updatedAt = Date.parse(data?.planning?.updated_at);
+    if (!Number.isNaN(updatedAt) && updatedAt < attemptStartedAt - 30_000) return false;
+    return Boolean(
+      content.sectionI &&
+      content.sectionII &&
+      content.sectionIII &&
+      content.sectionIV &&
+      content.sectionV &&
+      content.sectionVI &&
+      content.sectionVII !== undefined
+    );
+  } catch {
+    return false;
+  }
+}
+
 export default function StepGenerate({
   planningId, extractedData, context, onDone, onBack,
 }: Props) {
   const [currentStep, setCurrentStep] = useState<GenStep>('preparing');
   const [error, setError] = useState<string | null>(null);
+  const inFlightRef = useRef<boolean>(false);
+  const autoStartedFor = useRef<string | null>(null);
 
   const runGeneration = useCallback(async () => {
+    // Evita generaciones concurrentes si el componente se re-renderiza o el
+    // efecto se vuelve a disparar (cada request consume cuota y compite).
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
+    const attemptStartedAt = Date.now();
     setError(null);
     try {
       setCurrentStep('preparing');
@@ -92,6 +127,7 @@ export default function StepGenerate({
       }
 
       // Simple validation of the final JSON result structure
+      let streamLooksComplete = true;
       try {
         const cleanJson = accumulatedText
           .replace(/^```(?:json)?\n?/m, '')
@@ -99,6 +135,12 @@ export default function StepGenerate({
           .trim();
         JSON.parse(cleanJson);
       } catch {
+        streamLooksComplete = false;
+      }
+
+      // Falso negativo: el navegador puede cortar el stream aunque el
+      // servidor haya terminado y persistido la planeación completa.
+      if (!streamLooksComplete && !(await fetchPlanningIfComplete(planningId, attemptStartedAt))) {
         console.error('Incomplete stream content:', accumulatedText);
         throw new Error('La respuesta del servidor no se completó correctamente. Por favor intenta de nuevo.');
       }
@@ -112,13 +154,17 @@ export default function StepGenerate({
       onDone(planningId);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error inesperado al generar la planeación');
+    } finally {
+      inFlightRef.current = false;
     }
   }, [context, extractedData, onDone, planningId]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!planningId) return;
+    if (autoStartedFor.current === planningId) return;
+    autoStartedFor.current = planningId;
     runGeneration();
-  }, [runGeneration]);
+  }, [planningId, runGeneration]);
 
   const stepIndex = GEN_STEPS.findIndex(s => s.key === currentStep);
 

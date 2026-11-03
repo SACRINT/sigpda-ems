@@ -208,6 +208,57 @@ export async function resolveKey(
   );
 }
 
+export interface KeyAttempt {
+  apiKey: string;
+  keyId: string | null;
+  source: 'user' | 'pool' | 'env';
+  modelOverride: string | null;
+}
+
+/**
+ * Devuelve la lista ordenada de claves a intentar para un proveedor:
+ * clave del docente → pool de BD → variable de entorno.
+ * Se expone para que los flujos de streaming también puedan rotar.
+ */
+export async function resolveKeyAttempts(
+  provider: string,
+  teacherId?: string
+): Promise<KeyAttempt[]> {
+  const attempts: KeyAttempt[] = [];
+
+  // 1. Teacher's own key (highest priority)
+  if (teacherId) {
+    const teacherKey = await getTeacherKey(teacherId, provider);
+    if (teacherKey) {
+      attempts.push({ apiKey: teacherKey, keyId: null, source: 'user', modelOverride: null });
+    }
+  }
+
+  // 2. Pool keys from DB (already sorted by priority ASC, error_count ASC)
+  let poolKeys: ApiKeyRecord[] = [];
+  try {
+    poolKeys = await getActiveKeys(provider);
+    for (const k of poolKeys) {
+      try {
+        attempts.push({
+          apiKey: decryptKey(k.key_encrypted),
+          keyId: k.id,
+          source: 'pool',
+          modelOverride: k.model_default || null,
+        });
+      } catch { /* skip unreadable */ }
+    }
+  } catch { /* DB unavailable */ }
+
+  // 3. Env var as last resort (only if pool is empty)
+  const fallback = getFallbackKey(provider);
+  if (fallback && poolKeys.length === 0 && attempts.filter(a => a.source !== 'user').length === 0) {
+    attempts.push({ apiKey: fallback, keyId: null, source: 'env', modelOverride: null });
+  }
+
+  return attempts;
+}
+
 /**
  * Wraps an AI API call with automatic key rotation on 429 errors.
  * Tries each active key in priority order until one succeeds.
@@ -224,32 +275,7 @@ export async function withKeyRotation<T>(
   teacherId?: string
 ): Promise<T> {
   // ── Build the ordered list of keys to try ────────────────────────────────
-  const attempts: Array<{ apiKey: string; keyId: string | null; source: string }> = [];
-
-  // 1. Teacher's own key (highest priority)
-  if (teacherId) {
-    const teacherKey = await getTeacherKey(teacherId, provider);
-    if (teacherKey) {
-      attempts.push({ apiKey: teacherKey, keyId: null, source: 'user' });
-    }
-  }
-
-  // 2. Pool keys from DB (already sorted by priority ASC, error_count ASC)
-  let poolKeys: ApiKeyRecord[] = [];
-  try {
-    poolKeys = await getActiveKeys(provider);
-    for (const k of poolKeys) {
-      try {
-        attempts.push({ apiKey: decryptKey(k.key_encrypted), keyId: k.id, source: 'pool' });
-      } catch { /* skip unreadable */ }
-    }
-  } catch { /* DB unavailable */ }
-
-  // 3. Env var as last resort (only if pool is empty)
-  const fallback = getFallbackKey(provider);
-  if (fallback && poolKeys.length === 0 && attempts.filter(a => a.source !== 'user').length === 0) {
-    attempts.push({ apiKey: fallback, keyId: null, source: 'env' });
-  }
+  const attempts = await resolveKeyAttempts(provider, teacherId);
 
   if (attempts.length === 0) {
     throw new Error(

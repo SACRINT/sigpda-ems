@@ -228,11 +228,77 @@ export async function* generateStreamWithRotation(
   isPremium = false
 ): AsyncGenerator<string> {
   const { provider, model } = await getActiveConfig(isPremium);
-  const { resolveKey } = await import('./key-rotator');
-  const resolved = await resolveKey(provider, teacherId);
-  const finalModel = resolved.modelOverride || model;
-  const ai = buildProvider(provider, finalModel, resolved.apiKey);
-  yield* ai.generateStream(systemPrompt, userPrompt);
+  const { resolveKeyAttempts } = await import('./key-rotator');
+
+  // Cadena de proveedores: primario + alternativas con claves activas.
+  const providerChain: Array<{ provider: string; model: string }> = [{ provider, model }];
+  try {
+    const alternatives = await getAlternativeProviders(provider);
+    for (const alt of alternatives) {
+      providerChain.push({
+        provider: alt,
+        model: DEFAULT_MODEL_BY_PROVIDER[alt] || 'gpt-4o-mini',
+      });
+    }
+  } catch {
+    /* sin alternativas disponibles */
+  }
+
+  let emittedAnyChunk = false;
+  let lastError: unknown = null;
+
+  for (const cfg of providerChain) {
+    const attempts = await resolveKeyAttempts(
+      cfg.provider,
+      cfg.provider === provider ? teacherId : undefined
+    );
+
+    for (let i = 0; i < attempts.length; i++) {
+      const { apiKey, modelOverride } = attempts[i];
+      const ai = buildProvider(cfg.provider, modelOverride || cfg.model, apiKey);
+
+      try {
+        for await (const chunk of ai.generateStream(systemPrompt, userPrompt)) {
+          emittedAnyChunk = true;
+          yield chunk;
+        }
+        return;
+      } catch (err: unknown) {
+        lastError = err;
+        const msg = err instanceof Error ? err.message : String(err);
+
+        // Si ya se emitió contenido no se puede reiniciar el stream sin
+        // duplicar texto en el cliente: se propaga el error.
+        const isTransient =
+          /503|429|UNAVAILABLE|high demand|RESOURCE_EXHAUSTED|MODEL_CAPACITY_EXCEEDED|rate.?limit|timeout|service unavailable|overloaded/i.test(
+            msg
+          );
+
+        if (emittedAnyChunk || !isTransient) {
+          throw err;
+        }
+
+        if (i < attempts.length - 1) {
+          logger.warn(
+            `[ai-provider] Stream ${cfg.provider} clave #${i + 1}/${attempts.length} falló transitoriamente (${msg.slice(0, 140)}). Rotando...`
+          );
+          const backoffMs = Math.min(3000, 400 * Math.pow(2, i));
+          await new Promise((resolve) => setTimeout(resolve, backoffMs));
+        } else if (cfg !== providerChain[providerChain.length - 1]) {
+          logger.warn(
+            `[ai-provider] Claves de "${cfg.provider}" agotadas por saturación. Probando proveedor alternativo...`
+          );
+        }
+      }
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error(
+        `No API key configured for provider "${provider}". ` +
+        `Add one from the Admin Panel or set the environment variable.`
+      );
 }
 
 /**

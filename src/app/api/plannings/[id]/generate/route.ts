@@ -24,6 +24,7 @@ import {
 } from '@/lib/planning/progresiones-enforcer';
 import { resolverIdentidadEscolar } from '@/lib/school-identity';
 import { resolveFechasCortes } from '@/lib/fechas-cortes';
+import { isUpstreamAIError, AI_OUTAGE_USER_MESSAGE } from '@/lib/ai-resilience';
 import type { ExtractedPdfData, TeacherContext, GeneratedPlanningContent, FechasCortes } from '@/types/planning';
 import type { RagContext } from '@/lib/rag-curricular';
 
@@ -302,9 +303,10 @@ export async function POST(
           controller.close();
         } catch (streamErr) {
           const errMsg = streamErr instanceof Error ? streamErr.message : 'Error desconocido al generar';
+          const userMsg = isUpstreamAIError(streamErr) ? AI_OUTAGE_USER_MESSAGE : errMsg;
           logger.error('Stream generation error:', errMsg);
           // Send the error as a readable marker through the stream so the frontend can show it
-          controller.enqueue(encoder.encode(`__ERROR__:${errMsg}`));
+          controller.enqueue(encoder.encode(`__ERROR__:${userMsg}`));
           controller.close();
         }
       }

@@ -7,7 +7,10 @@ import { API_CONFIG } from './config';
 import { logger } from '@/lib/logger';
 
 // ── Gemini embedding model ────────────────────────────────────────────────
-const EMBEDDING_MODEL = 'text-embedding-004';
+// text-embedding-004 fue retirado del endpoint v1beta (HTTP 404). El modelo
+// vigente es gemini-embedding-001; se fuerza 768 dims para conservar el
+// contrato de la columna pgvector existente.
+const EMBEDDING_MODEL = process.env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-001';
 const EMBEDDING_DIM = 768;
 
 export interface CurriculumChunk {
@@ -46,6 +49,7 @@ export async function generateEmbedding(text: string): Promise<number[]> {
         model: `models/${EMBEDDING_MODEL}`,
         content: { parts: [{ text }] },
         taskType: 'RETRIEVAL_DOCUMENT',
+        outputDimensionality: EMBEDDING_DIM,
       }),
     }
   );

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Bell, CheckCheck, Trash2, ExternalLink, AlertTriangle, Info, CheckCircle2, XCircle } from 'lucide-react';
 import Link from 'next/link';
 
@@ -23,11 +23,25 @@ export default function NotificationBell() {
   const [loading, setLoading] = useState<boolean>(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const res = await fetch('/api/notifications');
+      if (res.ok) {
+        const data = await res.json();
+        setNotifications(data.notifications || []);
+        setUnreadCount(data.unreadCount || 0);
+      }
+    } catch (e) {
+      console.warn('Error fetching notifications:', e);
+    }
+  }, []);
+
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 60000); // Polling cada 60s
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchNotifications]);
 
   // Cerrar dropdown al hacer clic afuera
   useEffect(() => {
@@ -43,19 +57,6 @@ export default function NotificationBell() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isOpen]);
-
-  const fetchNotifications = async () => {
-    try {
-      const res = await fetch('/api/notifications');
-      if (res.ok) {
-        const data = await res.json();
-        setNotifications(data.notifications || []);
-        setUnreadCount(data.unreadCount || 0);
-      }
-    } catch (e) {
-      console.warn('Error fetching notifications:', e);
-    }
-  };
 
   const handleMarkAsRead = async (id: string) => {
     try {
@@ -142,8 +143,8 @@ export default function NotificationBell() {
       {/* Popover Dropdown */}
       {isOpen && (
         <div
-          className="absolute right-0 mt-3 w-80 sm:w-96 rounded-2xl bg-slate-900/95 backdrop-blur-xl border border-slate-700/80 shadow-2xl shadow-black/80 z-50 overflow-hidden text-slate-200"
-          style={{ maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}
+          className="absolute right-0 mt-3 w-80 sm:w-96 rounded-2xl bg-slate-950 border border-slate-700 shadow-2xl shadow-black/80 z-[100] overflow-hidden text-slate-200"
+          style={{ maxHeight: '80vh', display: 'flex', flexDirection: 'column', backgroundColor: '#020617' }}
         >
           {/* Header del Popover */}
           <div className="p-4 border-b border-slate-800 bg-slate-950/40 flex items-center justify-between">
