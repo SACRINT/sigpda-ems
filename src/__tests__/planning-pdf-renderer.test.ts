@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { PDFParse } from 'pdf-parse';
 import * as fontLoader from '@/lib/visual-engine/font-loader';
 import { generatePlanningPDF, generateSecuenciaPDF } from '@/lib/planning-pdf-renderer';
 import { buildFullSequenceFromWorkbooks } from '@/lib/planning/workbook-sequence-sync';
@@ -272,5 +273,33 @@ describe('Planeación Didáctica PDF — Tipografía Editorial y Anti-F11 (Fase 
 
     expect(docPlan.output('arraybuffer').byteLength).toBeGreaterThan(3000);
     expect(docSec.output('arraybuffer').byteLength).toBeGreaterThan(3000);
+  });
+
+  it('incluye director y supervisor en las firmas de planeación y secuencia', async () => {
+    const planConFirmas = {
+      ...mockPlanning,
+      contentJson: {
+        ...(mockPlanning.contentJson || {}),
+        sectionI: {
+          ...(mockPlanning.contentJson?.sectionI || {}),
+          directorName: 'Mtra. Ana Directora',
+          supervisorName: 'Lic. Luis Supervisor',
+        },
+      },
+    } as unknown as Planning;
+
+    for (const doc of [
+      await generatePlanningPDF(planConFirmas),
+      await generateSecuenciaPDF(planConFirmas),
+    ]) {
+      const parser = new PDFParse({ data: new Uint8Array(doc.output('arraybuffer')) });
+      try {
+        const { text } = await parser.getText();
+        expect(text).toContain('Mtra. Ana Directora');
+        expect(text).toContain('Lic. Luis Supervisor');
+      } finally {
+        await parser.destroy();
+      }
+    }
   });
 });

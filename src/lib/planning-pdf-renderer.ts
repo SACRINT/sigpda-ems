@@ -1179,11 +1179,11 @@ export async function generateSecuenciaPDF(
           styles: { halign: 'center', cellWidth: 62 },
         },
         {
-          content: '\n\n\n___________________________________\nDIRECTOR(A) DEL PLANTEL\nNombre, Firma y Sello Oficial',
+          content: `\n\n\n___________________________________\nDIRECTOR(A) DEL PLANTEL\n${s1?.directorName || 'Nombre, Firma y Sello Oficial'}`,
           styles: { halign: 'center', cellWidth: 62 },
         },
         {
-          content: `\n\n\n___________________________________\n${identidad.supervision}\nVo. Bo. / Sello de Zona`,
+          content: `\n\n\n___________________________________\n${identidad.supervision}\n${s1?.supervisorName || 'Vo. Bo. / Sello de Zona'}`,
           styles: { halign: 'center', cellWidth: 62 },
         },
       ],
