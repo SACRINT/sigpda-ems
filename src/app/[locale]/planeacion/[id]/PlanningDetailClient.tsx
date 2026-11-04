@@ -7,7 +7,8 @@ import type { GeneratedPlanningContent, Planning, PlanningExtra, SecuenciaBloque
 import { ExtraPreviewModal } from '@/components/planeacion/ExtraPreviewModal';
 import DeletePlanningButton from '@/components/planeacion/DeletePlanningButton';
 import { generatePlanningPDF, generateSecuenciaPDF } from '@/lib/planning-pdf-renderer';
-import { generateBlockSessions, type DetailedSession } from '@/lib/session-progression-engine';
+import { generateBlockSessions, generateCurricularBlockSessions, type DetailedSession } from '@/lib/session-progression-engine';
+import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
 import { exportPlanningPdfWithFallback, generateSequenceWithFallback } from '@/lib/planeaciones/strangler-client';
 import type { ActiveWorkTextbook, GenerationProgressState } from '@/types/work-textbook';
 // ── Lucide Icons ────────────────────────────────────────────────────────────
@@ -91,13 +92,12 @@ function PlanningDetailModular({
   };
 
   const allBlocksCollapsed =
-    (content?.sectionIV?.activities || []).length > 0 &&
-    (content?.sectionIV?.activities || []).every((_, idx) => !!collapsedBlocks[idx]);
+    [0, 1, 2].every((idx) => !!collapsedBlocks[idx]);
 
   const toggleAllBlocks = () => {
     const shouldCollapse = !allBlocksCollapsed;
     const next: Record<number, boolean> = {};
-    (content?.sectionIV?.activities || []).forEach((_, idx) => {
+    [0, 1, 2].forEach((idx) => {
       next[idx] = shouldCollapse;
     });
     setCollapsedBlocks(next);
@@ -438,7 +438,7 @@ function PlanningDetailModular({
 
   const initialWorkbooks: Record<number, BlockWorkbookItem> = {};
   const rawWorkbooks = ((planning as any).workbooksJson || (planning as any).workbooks_json || {}) as Record<string, any>;
-  (content?.sectionIV?.activities || []).forEach((_, idx) => {
+  [0, 1, 2].forEach((idx) => {
     const entry = rawWorkbooks[`block_${idx}`];
     initialWorkbooks[idx] = {
       loaded: Boolean(entry?.current),
@@ -465,8 +465,7 @@ function PlanningDetailModular({
 
   // Sync / verify existing workbooks on mount
   useEffect(() => {
-    const acts = content?.sectionIV?.activities || [];
-    acts.forEach(async (_, idx) => {
+    [0, 1, 2].forEach(async (idx) => {
       try {
         const res = await fetch(`/api/planeaciones/${planning.id}/libro-bloque?blockIndex=${idx}`);
         if (res.ok) {
@@ -487,7 +486,7 @@ function PlanningDetailModular({
         // ignore background fetch errors
       }
     });
-  }, [planning.id, content?.sectionIV?.activities]);
+  }, [planning.id]);
 
   const handleGenerateWorkbook = async (blockIndex: number) => {
     setBlockWorkbooks(prev => ({
@@ -644,17 +643,17 @@ function PlanningDetailModular({
     }
   };
 
-  const totalWorkbookBlocks = content?.sectionIV?.activities?.length || 0;
-  const generatedWorkbookCount = (content?.sectionIV?.activities || []).filter(
-    (_, idx) => Boolean(blockWorkbooks[idx]?.workbook)
+  const totalWorkbookBlocks = 3;
+  const generatedWorkbookCount = [0, 1, 2].filter(
+    (idx) => Boolean(blockWorkbooks[idx]?.workbook)
   ).length;
-  const allBlocksGenerated = totalWorkbookBlocks > 0 && generatedWorkbookCount === totalWorkbookBlocks;
+  const allBlocksGenerated = generatedWorkbookCount === 3;
 
   const isBt = isLaboral || (planning.component || '').toLowerCase().includes('laboral') || (planning.component || '').toLowerCase().includes('profesional');
   const macroTargetWords = isBt ? 25000 : 17500;
 
-  const accumulatedWorkbookWords = (content?.sectionIV?.activities || []).reduce(
-    (acc, _, idx) => {
+  const accumulatedWorkbookWords = [0, 1, 2].reduce(
+    (acc, idx) => {
       const wb = blockWorkbooks[idx]?.workbook;
       const prog = blockWorkbooks[idx]?.progress;
       const words = wb?.totalWords || prog?.totalWords || prog?.wordCount || 0;
@@ -663,8 +662,8 @@ function PlanningDetailModular({
     0
   );
 
-  const blockWordCountDetails = (content?.sectionIV?.activities || []).map((_, idx) => {
-    const roman = idx === 0 ? 'I' : idx === 1 ? 'II' : idx === 2 ? 'III' : `${idx + 1}`;
+  const blockWordCountDetails = [0, 1, 2].map((idx) => {
+    const roman = idx === 0 ? 'I' : idx === 1 ? 'II' : 'III';
     const wb = blockWorkbooks[idx]?.workbook;
     const prog = blockWorkbooks[idx]?.progress;
     const words = wb?.totalWords || prog?.totalWords || prog?.wordCount;
@@ -690,11 +689,11 @@ function PlanningDetailModular({
   const semestralThresholdMet = accumulatedWorkbookWords >= macroTargetWords;
   const semestralReady = allBlocksGenerated;
 
-  // Generate detailed pedagogical sessions for all blocks using Session Progression Engine
-  const blockSessionsMap: DetailedSession[][] = (content?.sectionIV?.activities || []).map((act, actIdx) => {
-    const outcome = content?.sectionII?.learningOutcomes?.[actIdx] || '';
-    const savedSeq = sequenceData?.[actIdx] || null;
-    return generateBlockSessions(act, actIdx, act.hours || (isLaboral ? 18 : 12), outcome, isLaboral, savedSeq);
+  // Generate detailed pedagogical sessions for all 3 curricular blocks using Session Progression Engine
+  const curricularBlocks = resolveCurricularBlocks(content);
+  const blockSessionsMap: DetailedSession[][] = curricularBlocks.map((block) => {
+    const savedSeq = sequenceData?.[block.blockIndex] || null;
+    return generateCurricularBlockSessions(block, isLaboral, savedSeq);
   });
   const allDetailedSessions: DetailedSession[] = blockSessionsMap.flat();
   const lessonSessions = allDetailedSessions;

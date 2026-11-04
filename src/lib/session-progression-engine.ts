@@ -8,6 +8,7 @@
  */
 
 import type { KeyActivityPlan, SecuenciaBloque } from '@/types/planning';
+import type { CurricularBlock } from '@/lib/curricular-blocks';
 
 export interface DetailedSession {
   sessionNum: number;
@@ -117,7 +118,6 @@ export function generateBlockSessions(
     cierreCount = 1;
   }
 
-  const desarrolloCount = Math.max(1, sessionsCount - aperturaCount - cierreCount);
 
   const sessions: DetailedSession[] = [];
 
@@ -308,4 +308,72 @@ export function generateBlockSessions(
   }
 
   return sessions;
+}
+
+/**
+ * Genera la secuencia detallada de sesiones (50 min c/u) para un Bloque Curricular completo (Corte 1, 2 o 3).
+ * Si el bloque ya cuenta con una secuencia persistida en sequence_json[blockIndex], la utiliza directamente.
+ * De lo contrario, genera las sesiones articuladas de todas las actividades/progresiones pertenecientes a este corte,
+ * asignando numeración continua de sesiones (1..totalHours) con sus momentos pedagógicos.
+ */
+export function generateCurricularBlockSessions(
+  block: CurricularBlock,
+  isLaboral: boolean = false,
+  savedSequence?: SecuenciaBloque | null
+): DetailedSession[] {
+  if (savedSequence && Array.isArray(savedSequence.sessions) && savedSequence.sessions.length > 0) {
+    return savedSequence.sessions.map((s) => ({
+      sessionNum: s.sessionNum,
+      totalSessions: savedSequence.sessions.length,
+      activityIndex: (s as unknown as Record<string, unknown>).activityIndex != null ? Number((s as unknown as Record<string, unknown>).activityIndex) : (block.activityIndices[0] ?? block.blockIndex),
+      activityName: ((s as unknown as Record<string, unknown>).activityName as string) ?? block.name,
+      phase: s.phase,
+      phaseColor: PHASE_STYLES[s.phase] || PHASE_STYLES.Desarrollo,
+      title: s.title,
+      teachingActivity: s.teachingActivity,
+      learningActivity: s.learningActivity,
+      evidence: s.evidence,
+      evaluation: s.evaluation,
+      description: `[Docente]: ${s.teachingActivity} | [Estudiantes]: ${s.learningActivity}`,
+      focus: `Evidencia: ${s.evidence}${s.evaluation ? ` | Instrumento: ${s.evaluation}` : ''}`,
+    }));
+  }
+
+  if (block.activities.length === 0) {
+    const dummyAct: KeyActivityPlan = {
+      name: block.name,
+      hours: block.hours,
+      methodology: block.methodology,
+      apertura: { activities: 'Encuadre y diagnóstico de saberes previos', processes: '', materials: '' },
+      ejecucion: { activities: 'Desarrollo de aprendizajes y práctica formativa', processes: '', materials: '' },
+      conclusion: { activities: 'Cierre, evaluación formativa y metacognición', processes: '', materials: '' },
+    };
+    return generateBlockSessions(dummyAct, block.blockIndex, block.hours, block.learningOutcome, isLaboral);
+  }
+
+  const allSessions: DetailedSession[] = [];
+  let currentSessionNum = 1;
+
+  block.activities.forEach((act, actSubIdx) => {
+    const originalIndex = block.activityIndices[actSubIdx] ?? actSubIdx;
+    const actHours = act.hours || Math.round(block.hours / block.activities.length);
+    const actSessions = generateBlockSessions(
+      act,
+      originalIndex,
+      actHours,
+      block.learningOutcome,
+      isLaboral
+    );
+
+    actSessions.forEach((sess) => {
+      allSessions.push({
+        ...sess,
+        sessionNum: currentSessionNum,
+        totalSessions: block.hours,
+      });
+      currentSessionNum++;
+    });
+  });
+
+  return allSessions;
 }

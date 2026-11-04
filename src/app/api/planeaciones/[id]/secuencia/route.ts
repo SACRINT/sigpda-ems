@@ -10,6 +10,7 @@ import { ensureRetoSituadoCalidad, validateRetoSituado } from '@/lib/planning-ev
 import type { SecuenciaBloque, SecuenciaSesion, RetoSituado } from '@/types/planning';
 import { isFeatureEnabled } from '@/lib/platform/feature-flags';
 import { planeacionesOrchestrator, PlaneacionOrchestratorError } from '@/lib/planeaciones/orchestrator';
+import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -208,18 +209,19 @@ export async function POST(
       return NextResponse.json({ error: 'Acceso denegado a esta planeación' }, { status: 403 });
     }
     const content = plan.content_json || {};
-    const activities = content.sectionIV?.activities || [];
-    const blockActivity = activities[blockIndex];
+    const curricularBlocks = resolveCurricularBlocks(content);
+    const targetBlock = curricularBlocks[blockIndex];
 
-    if (!blockActivity) {
-      return NextResponse.json({ error: `Bloque ${blockIndex} no encontrado en la planeación` }, { status: 404 });
+    if (!targetBlock) {
+      return NextResponse.json({ error: `Bloque ${blockIndex} no encontrado en la planeación (debe ser 0, 1 o 2)` }, { status: 404 });
     }
 
-    const hours = customHours || blockActivity.hours || (plan.component === 'laboral' ? 18 : 12);
-    const learningOutcome = content.sectionII?.learningOutcomes?.[blockIndex] || '';
-    const saberes = blockActivity.saberes || null;
+    const blockActivity = targetBlock.activities[0] || {};
+    const hours = customHours || targetBlock.hours || (plan.component === 'laboral' ? 18 : 12);
+    const learningOutcome = targetBlock.learningOutcome || content.sectionII?.learningOutcomes?.[blockIndex] || '';
+    const saberes = targetBlock.saberes || blockActivity.saberes || null;
     const paecContext = plan.paec_context || '';
-    const rawMet = blockActivity.methodology || plan.metodologia_activa || 'abp';
+    const rawMet = targetBlock.methodology || blockActivity.methodology || plan.metodologia_activa || 'abp';
     const metObj = obtenerMetodologiaPorId(rawMet) ||
       CATALOGO_METODOLOGIAS_ACTIVAS.find(m => m.nombre === rawMet);
     const methodology = metObj?.nombre || rawMet || 'Aprendizaje Basado en Proyectos (ABP)';
@@ -232,8 +234,8 @@ export async function POST(
           totalHours: hours,
           planningId: id,
           uacName: plan.uac_name,
-          blockName: blockActivity.name,
-          contenidoFormativo: blockActivity.contenidoFormativo,
+          blockName: targetBlock.title,
+          contenidoFormativo: targetBlock.contenidoFormativo,
           saberes,
           learningOutcome,
           methodology,
@@ -245,7 +247,7 @@ export async function POST(
           ...(plan.sequence_json || {}),
           [blockIndex]: {
             blockIndex,
-            blockName: blockActivity.name || `Bloque ${blockIndex + 1}`,
+            blockName: targetBlock.title,
             hours,
             sessions: rawSessions,
             updatedAt: new Date().toISOString(),
@@ -302,20 +304,20 @@ export async function POST(
     }
     const desarrolloCount = sessionsCount - aperturaCount - cierreCount;
 
-    const aperturaText = blockActivity.apertura?.activities || '';
-    const aperturaProcesses = blockActivity.apertura?.processes || '';
-    const aperturaMaterials = blockActivity.apertura?.materials || '';
+    const aperturaText = targetBlock.activities.map(a => a.apertura?.activities).filter(Boolean).join(' · ');
+    const aperturaProcesses = targetBlock.activities.map(a => a.apertura?.processes).filter(Boolean).join(' · ');
+    const aperturaMaterials = targetBlock.activities.map(a => a.apertura?.materials).filter(Boolean).join(' · ');
 
-    const ejecucionText = blockActivity.ejecucion?.activities || '';
-    const ejecucionProcesses = blockActivity.ejecucion?.processes || '';
-    const ejecucionMaterials = blockActivity.ejecucion?.materials || '';
+    const ejecucionText = targetBlock.activities.map(a => a.ejecucion?.activities).filter(Boolean).join(' · ');
+    const ejecucionProcesses = targetBlock.activities.map(a => a.ejecucion?.processes).filter(Boolean).join(' · ');
+    const ejecucionMaterials = targetBlock.activities.map(a => a.ejecucion?.materials).filter(Boolean).join(' · ');
 
-    const conclusionText = blockActivity.conclusion?.activities || '';
-    const conclusionProcesses = blockActivity.conclusion?.processes || '';
-    const conclusionMaterials = blockActivity.conclusion?.materials || '';
+    const conclusionText = targetBlock.activities.map(a => a.conclusion?.activities).filter(Boolean).join(' · ');
+    const conclusionProcesses = targetBlock.activities.map(a => a.conclusion?.processes).filter(Boolean).join(' · ');
+    const conclusionMaterials = targetBlock.activities.map(a => a.conclusion?.materials).filter(Boolean).join(' · ');
 
     const systemPrompt = `Eres un Diseñador Curricular Senior y Especialista en Didáctica del Bachillerato General Estatal (SEMS Puebla / MCCEMS).
-Tu tarea es generar la SECUENCIA DIDÁCTICA MICRO detallada para cada una de las ${sessionsCount} sesiones de 50 minutos del Bloque/Actividad ${blockIndex + 1}.
+Tu tarea es generar la SECUENCIA DIDÁCTICA MICRO detallada para cada una de las ${sessionsCount} sesiones de 50 minutos del ${targetBlock.title}.
 
 DIRECTRIZ DE ALINEACIÓN PEDAGÓGICA FUNDAMENTAL:
 La IA DEBE desglosar y enriquecer las actividades planificadas por el docente para este bloque, manteniendo estrictamente su intención formativa. Puede agregar detalles, ejemplos contextualizados, dinámicas participativas y pasos operativos, pero NO puede inventar temas nuevos o propósitos ajenos a la actividad planificada.
@@ -438,7 +440,7 @@ Genera la secuencia didáctica completa de exactamente ${sessionsCount} sesiones
     const currentSequence: Record<number, SecuenciaBloque> = plan.sequence_json || {};
     const newBlockData: SecuenciaBloque = {
       blockIndex,
-      blockName: blockActivity.name,
+      blockName: targetBlock.title,
       hours,
       sessions: formattedSessions,
       updatedAt: new Date().toISOString(),
@@ -613,8 +615,9 @@ export async function PUT(
       return NextResponse.json({ error: 'Acceso denegado a esta planeación' }, { status: 403 });
     }
     const content = plan.content_json || {};
-    const activities = content.sectionIV?.activities || [];
-    const blockActivity = activities[blockIndex];
+    const curricularBlocks = resolveCurricularBlocks(content);
+    const targetBlock = curricularBlocks[blockIndex];
+    const blockActivity = targetBlock?.activities[0] || content.sectionIV?.activities?.[blockIndex];
 
     const retoContext = {
       municipality: content.sectionI?.schoolMunicipality || content.sectionI?.municipality,
@@ -677,7 +680,7 @@ export async function PUT(
     const currentSequence: Record<number, SecuenciaBloque> = plan.sequence_json || {};
     currentSequence[blockIndex] = {
       blockIndex,
-      blockName: blockActivity?.name || `Bloque ${blockIndex + 1}`,
+      blockName: targetBlock?.title || blockActivity?.name || `Bloque ${blockIndex + 1}`,
       hours: sanitizedSessions.length,
       sessions: sanitizedSessions,
       updatedAt: new Date().toISOString(),

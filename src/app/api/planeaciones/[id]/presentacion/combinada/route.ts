@@ -7,6 +7,10 @@ import { generateCombinedSacrintPptx } from '@/lib/visual-engine/sacrint/sacrint
 import { logger } from '@/lib/logger';
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 120;
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -63,8 +67,13 @@ export async function GET(
     const modeParam = searchParams.get('mode');
     const deckMode = modeParam === 'full' ? 'full' : 'classroom';
 
+    // Restringir canónicamente a los 3 Cortes MCCEMS (0, 1, 2)
+    const validBlockIndices = new Set([0, 1, 2]);
+    const canonicalEntries = entries.filter((e) => validBlockIndices.has(e.blockIndex));
+    const effectiveEntries = canonicalEntries.length > 0 ? canonicalEntries : entries.slice(0, 3);
+
     const sacrintDecks: SacrintDeckSpec[] = [];
-    for (const entry of entries) {
+    for (const entry of effectiveEntries) {
       const missionCount = Math.max(1, (entry.workbook.missions ?? []).length);
       for (let missionIndex = 0; missionIndex < missionCount; missionIndex += 1) {
         sacrintDecks.push(buildSacrintDeck(entry.workbook, { missionIndex, mode: deckMode }));

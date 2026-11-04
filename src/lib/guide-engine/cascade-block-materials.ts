@@ -20,6 +20,7 @@ import {
 import { buildBlockSequenceFromWorkbook } from '@/lib/planning/workbook-sequence-sync';
 import { resolveVisualForMission } from '@/lib/visual-engine/visual-asset-manager';
 import { stripMaterialTokens } from '@/lib/materials/material-tokens';
+import { resolveBlockNumber } from '@/lib/curricular-blocks';
 import { logger } from '@/lib/logger';
 
 export interface CascadeResult {
@@ -324,7 +325,7 @@ export async function cascadeBlockMaterials(
     // 1. Extraer materiales determinísticamente del Libro de Bloque inyectando la secuencia didáctica
     const extracted = extractMaterialsFromWorkbook(workbook, blockSequence, curricularAnchor);
     const planes = extracted.planesDeClase || [];
-    const blockNum = blockIndex + 1;
+    const blockNum = resolveBlockNumber(blockIndex) ?? (blockIndex + 1);
     const blockTitle = workbook.blockName || `Bloque ${blockNum}`;
 
     // 1.1 Sincronizar canónicamente plannings.sequence_json desde el libro activo (Fuente Única de Verdad)

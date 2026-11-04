@@ -12,6 +12,7 @@
 import { SCHOOL_YEAR } from '@/lib/config';
 import { CCT_NO_REGISTRADO, PLANTEL_NO_REGISTRADO } from '@/lib/school-identity';
 import type { RGB } from '@/lib/visual-engine/design-tokens';
+import { resolveBlockNumber } from '@/lib/curricular-blocks';
 
 export interface BrandingContext {
   cct?: string;
@@ -174,7 +175,8 @@ export function resolveFooterBranding(
     color: [26, 26, 46] as RGB,
   };
 
-  const blockSuffix = blockIndex != null ? ` · Bloque ${blockIndex + 1}` : '';
+  const blockNum = resolveBlockNumber(blockIndex);
+  const blockSuffix = blockNum != null ? ` · Bloque ${blockNum}` : '';
   const leftText = docType === 'lesson_plan'
     ? `SIGPDA-EMS · ${meta.shortLabel}${blockSuffix}`
     : `SIGPDA-EMS · ${meta.shortLabel} · ${(title || '').substring(0, 50)}`;

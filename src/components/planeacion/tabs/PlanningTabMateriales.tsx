@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { MaterialFigure } from '@/components/planeacion/MaterialFigure';
 import { parseMaterialTokensWithFallback, isStructuredVisualPayload } from '@/lib/materials/material-tokens';
+import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
 
 /** Metadata de tarjeta para tipos conocidos; cualquier otro tipo cae en fallback genérico. */
 const COMBINED_TYPE_META: Record<string, { icon: string; label: string; color: string }> = {
@@ -108,6 +109,7 @@ export default function PlanningTabMateriales({
   const content = planning.contentJson as GeneratedPlanningContent | null;
   const s1 = content?.sectionI;
   const isLaboral = s1?.component?.toLowerCase().includes('laboral') || false;
+  const curricularBlocks = React.useMemo(() => resolveCurricularBlocks(content), [content]);
 
   // Tipos presentes en esta planeación con contenido renderizable (excluye payloads visuales JSON).
   // La barra es 100% data-driven: cualquier tipo nuevo (incluidos los futuros) aparece solo.
@@ -200,18 +202,18 @@ export default function PlanningTabMateriales({
                 );
               })()}
 
-              {/* One card per key activity */}
+              {/* One card per canonical curricular block (Corte 1, 2, 3) */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {content?.sectionIV?.activities?.map((act, actIdx) => {
-                  const practiceNum = actIdx + 1;
-                  const practiceTitle = act.name;
-                  const generatedGuide = findExtra('teacher_guide', actIdx);
-                  const loadingKey = `teacher_guide-${actIdx}--`;
+                {curricularBlocks.map((block) => {
+                  const practiceNum = block.blockIndex + 1;
+                  const practiceTitle = block.title;
+                  const generatedGuide = findExtra('teacher_guide', block.blockIndex);
+                  const loadingKey = `teacher_guide-${block.blockIndex}--`;
                   const isCurrentGenerating = generatingKey?.startsWith(loadingKey);
 
                   return (
                     <div
-                      key={actIdx}
+                      key={block.blockIndex}
                       style={{
                         border: '1px solid rgba(124, 58, 237, 0.25)',
                         borderRadius: '10px',
@@ -232,10 +234,10 @@ export default function PlanningTabMateriales({
                       }}>
                         <div>
                           <span style={{ fontWeight: 700, color: '#e9d5ff', fontSize: '15px' }}>
-                            📘 Solucionario Docente {practiceNum}: {practiceTitle}
+                            📘 Solucionario Docente · Bloque {practiceNum} ({block.corteLabel}): {practiceTitle}
                           </span>
                           <div style={{ fontSize: '12px', color: '#c4b5fd', marginTop: '2px' }}>
-                            {act.hours} hrs · {act.methodology || 'Metodología activa'} · Clave de Respuestas
+                            {block.hours} hrs · {block.methodology || 'Metodología activa'} · Clave de Respuestas
                           </div>
                         </div>
 
@@ -280,10 +282,10 @@ export default function PlanningTabMateriales({
                               onClick={() =>
                                 handleGenerateExtra(
                                   'teacher_guide',
-                                  `Guía del Docente y Solucionario ${practiceNum}: ${practiceTitle}`,
-                                  actIdx,
+                                  `Guía del Docente y Solucionario · Bloque ${practiceNum}: ${practiceTitle}`,
+                                  block.blockIndex,
                                   {
-                                    activityName: act.name,
+                                    activityName: block.title,
                                     practiceNumber: practiceNum,
                                     practiceTitle: practiceTitle,
                                   }
@@ -309,18 +311,18 @@ export default function PlanningTabMateriales({
                       </div>
 
                       {/* Preview of learning outcome if available */}
-                      {content?.sectionII?.learningOutcomes?.[actIdx] && (
+                      {block.learningOutcome && (
                         <div style={{ padding: '10px 16px', fontSize: '13px', color: '#6d28d9', borderTop: '1px dashed #ddd6fe' }}>
-                          <strong>📌 Resultado de aprendizaje:</strong> {content.sectionII.learningOutcomes[actIdx]}
+                          <strong>📌 Resultado de aprendizaje:</strong> {block.learningOutcome}
                         </div>
                       )}
                     </div>
                   );
                 })}
 
-                {(!content?.sectionIV?.activities || content.sectionIV.activities.length === 0) && (
+                {curricularBlocks.length === 0 && (
                   <div style={{ textAlign: 'center', color: 'var(--c-text-muted)', padding: '40px 0', fontSize: '14px' }}>
-                    No se encontraron actividades clave en la Sección IV de esta planeación.
+                    No se encontraron bloques curriculares en esta planeación.
                   </div>
                 )}
               </div>
@@ -476,26 +478,26 @@ export default function PlanningTabMateriales({
           )}
 
           {/* SECCIONES CONTINUAS POR BLOQUE (En la misma página) */}
-          {(content?.sectionIV?.activities || []).map((act, actIdx) => {
-            const roman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'][actIdx] || `${actIdx + 1}`;
-            const blockNumStr = isLaboral ? `AC ${actIdx + 1}` : `Bloque ${roman}`;
-            const blockTitle = act.name || `Bloque ${roman}`;
+          {curricularBlocks.map((block) => {
+            const roman = ['I', 'II', 'III'][block.blockIndex] || `${block.blockIndex + 1}`;
+            const blockNumStr = isLaboral ? `AC ${block.blockIndex + 1}` : `Bloque ${roman} (${block.corteLabel})`;
+            const blockTitle = block.title || block.name;
 
             // Buscar recursos derivados de este bloque
-            const rubricExtra = findExtra('rubric', actIdx);
-            const checklistExtra = findExtra('checklist', actIdx);
-            const materialExtra = findExtra('material', actIdx);
-            const guideExtra = findExtra('teacher_guide', actIdx);
+            const rubricExtra = findExtra('rubric', block.blockIndex);
+            const checklistExtra = findExtra('checklist', block.blockIndex);
+            const materialExtra = findExtra('material', block.blockIndex);
+            const guideExtra = findExtra('teacher_guide', block.blockIndex);
             const visualExtras = extras.filter((ex) => {
               if (ex.type !== 'visual') return false;
-              return ex.keyIndex === actIdx;
+              return ex.keyIndex === block.blockIndex;
             });
 
-            const hasWorkbook = Boolean(blockWorkbooks[actIdx]?.workbook);
+            const hasWorkbook = Boolean(blockWorkbooks[block.blockIndex]?.workbook);
             const hasAnyMaterial = Boolean(rubricExtra || checklistExtra || materialExtra || guideExtra || visualExtras.length > 0);
 
             return (
-              <div key={actIdx} className="section-card" style={{ border: hasAnyMaterial ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid var(--c-border)' }}>
+              <div key={block.blockIndex} className="section-card" style={{ border: hasAnyMaterial ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid var(--c-border)' }}>
                 {/* Header de Bloque */}
                 <div
                   className="section-card-header"
@@ -637,12 +639,12 @@ export default function PlanningTabMateriales({
                               </div>
                             ) : (
                               <button
-                                onClick={() => handleSyncSuite(actIdx)}
-                                disabled={syncingSuite === actIdx}
+                                onClick={() => handleSyncSuite(block.blockIndex)}
+                                disabled={syncingSuite === block.blockIndex}
                                 className="btn btn-navy"
                                 style={{ padding: '6px 12px', fontSize: '11.5px', borderRadius: '4px', cursor: 'pointer' }}
                               >
-                                {syncingSuite === actIdx ? '⏳ Sincronizando…' : '⚡ Extraer del Libro'}
+                                {syncingSuite === block.blockIndex ? '⏳ Sincronizando…' : '⚡ Extraer del Libro'}
                               </button>
                             )}
                           </div>
@@ -711,12 +713,12 @@ export default function PlanningTabMateriales({
                               </div>
                             ) : (
                               <button
-                                onClick={() => handleSyncSuite(actIdx)}
-                                disabled={syncingSuite === actIdx}
+                                onClick={() => handleSyncSuite(block.blockIndex)}
+                                disabled={syncingSuite === block.blockIndex}
                                 className="btn btn-navy"
                                 style={{ padding: '6px 12px', fontSize: '11.5px', borderRadius: '4px', cursor: 'pointer' }}
                               >
-                                {syncingSuite === actIdx ? '⏳ Sincronizando…' : '⚡ Extraer del Libro'}
+                                {syncingSuite === block.blockIndex ? '⏳ Sincronizando…' : '⚡ Extraer del Libro'}
                               </button>
                             )}
                           </div>
@@ -751,9 +753,11 @@ export default function PlanningTabMateriales({
                             {(() => {
                               const blockText = [
                                 materialExtra?.contentText || '',
-                                act.apertura?.materials || '',
-                                act.ejecucion?.materials || '',
-                                act.conclusion?.materials || '',
+                                ...block.activities.flatMap((a) => [
+                                  a.apertura?.materials || '',
+                                  a.ejecucion?.materials || '',
+                                  a.conclusion?.materials || '',
+                                ]),
                               ].join(' ');
                               const detected = parseMaterialTokensWithFallback(blockText);
                               const allUnique = Array.from(new Map(detected.map((m) => [m.slug, m])).values());
@@ -816,12 +820,12 @@ export default function PlanningTabMateriales({
                               </div>
                             ) : (
                               <button
-                                onClick={() => handleSyncSuite(actIdx)}
-                                disabled={syncingSuite === actIdx}
+                                onClick={() => handleSyncSuite(block.blockIndex)}
+                                disabled={syncingSuite === block.blockIndex}
                                 className="btn btn-navy"
                                 style={{ padding: '6px 12px', fontSize: '11.5px', borderRadius: '4px', cursor: 'pointer' }}
                               >
-                                {syncingSuite === actIdx ? '⏳ Sincronizando…' : '⚡ Extraer del Libro'}
+                                {syncingSuite === block.blockIndex ? '⏳ Sincronizando…' : '⚡ Extraer del Libro'}
                               </button>
                             )}
                           </div>
@@ -914,12 +918,12 @@ export default function PlanningTabMateriales({
                               </div>
                             ) : (
                               <button
-                                onClick={() => handleSyncSuite(actIdx)}
-                                disabled={syncingSuite === actIdx}
+                                onClick={() => handleSyncSuite(block.blockIndex)}
+                                disabled={syncingSuite === block.blockIndex}
                                 className="btn btn-navy"
                                 style={{ padding: '6px 12px', fontSize: '11.5px', borderRadius: '4px', cursor: 'pointer' }}
                               >
-                                {syncingSuite === actIdx ? '⏳ Sincronizando…' : '⚡ Extraer del Libro'}
+                                {syncingSuite === block.blockIndex ? '⏳ Sincronizando…' : '⚡ Extraer del Libro'}
                               </button>
                             )}
                           </div>
@@ -945,8 +949,8 @@ export default function PlanningTabMateriales({
                         </span>
                         <button
                           type="button"
-                          onClick={() => handleSyncSuite(actIdx)}
-                          disabled={syncingSuite === actIdx}
+                          onClick={() => handleSyncSuite(block.blockIndex)}
+                          disabled={syncingSuite === block.blockIndex}
                           style={{
                             background: 'transparent',
                             border: 'none',
@@ -959,12 +963,12 @@ export default function PlanningTabMateriales({
                             gap: '4px'
                           }}
                         >
-                          <RefreshCw size={12} className={syncingSuite === actIdx ? 'animate-spin' : ''} />
-                          {syncingSuite === actIdx ? 'Sincronizando…' : 'Volver a sincronizar Suite'}
+                          <RefreshCw size={12} className={syncingSuite === block.blockIndex ? 'animate-spin' : ''} />
+                          {syncingSuite === block.blockIndex ? 'Sincronizando…' : 'Volver a sincronizar Suite'}
                         </button>
                       </div>
 
-                      <BlockPresentationActions planningId={planning.id} blockIndex={actIdx} />
+                      <BlockPresentationActions planningId={planning.id} blockIndex={block.blockIndex} />
                     </div>
                   ) : (
                     /* Tarjeta de Bloque Pendiente */
@@ -993,7 +997,7 @@ export default function PlanningTabMateriales({
                         onClick={() => {
                           setActiveTab('planning');
                           setTimeout(() => {
-                            const el = document.getElementById(`workbook-card-${actIdx}`);
+                            const el = document.getElementById(`workbook-card-${block.blockIndex}`);
                             if (el) el.scrollIntoView({ behavior: 'smooth' });
                           }, 100);
                         }}

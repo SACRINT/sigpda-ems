@@ -1129,13 +1129,14 @@ function renderHook(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Extract
   const accent = deck.pack.accent;
   const accent2 = deck.pack.accent2;
   addHud(slide, 'Fenómeno situado', `MISIÓN ${String(deck.meta.missionNumber).padStart(2, '0')} // CONTEXTO`, 1, accent);
-  addText(slide, spec.title, 80, 214, 980, 136, {
+  addText(slide, spec.title, 80, 214, 980, 130, {
     fontFace: FONT_DISPLAY,
-    fontSize: pt(54),
+    fontSize: pt(spec.title.length > 45 ? 38 : 48),
     bold: true,
     color: C.white,
+    maxLines: 2,
   });
-  addLabel(slide, spec.subtitle ?? '', 80, 360, 600, 20, accent, 10);
+  addLabel(slide, spec.subtitle ?? '', 80, 354, 600, 20, accent, 10);
   addText(slide, '“', 82, 400, 80, 72, { fontFace: FONT_DISPLAY, fontSize: pt(72), bold: true, color: accent });
   addText(slide, spec.story, 146, 420, 860, 360, {
     fontSize: pt(spec.story.length > 520 ? 16 : spec.story.length > 360 ? 19 : 22),
@@ -1173,13 +1174,14 @@ function renderConcept(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Extr
   const accent = deck.pack.accent;
   const accent2 = deck.pack.accent2;
   addHud(slide, 'Núcleo técnico', `MISIÓN ${String(deck.meta.missionNumber).padStart(2, '0')} // CONCEPTO CERO`, 2, accent);
-  addText(slide, spec.title, 80, 210, 700, 120, {
+  addText(slide, spec.title, 80, 210, 700, 116, {
     fontFace: FONT_DISPLAY,
-    fontSize: pt(42),
+    fontSize: pt(spec.title.length > 40 ? 32 : 40),
     bold: true,
     color: C.white,
+    maxLines: 2,
   });
-  addLabel(slide, spec.subtitle ?? '', 80, 336, 520, 18, accent, 9);
+  addLabel(slide, spec.subtitle ?? '', 80, 334, 520, 18, accent, 9);
 
   addPanel(slide, 80, 354, 700, 232, { fill: C.panel, transparency: 12 });
   addLabel(slide, 'Analogía física', 104, 382, 300, 18, accent, 9);
@@ -1226,7 +1228,7 @@ function renderConcept(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Extr
     addPanel(slide, x, 802, tileW, 132, { fill: C.panel, transparency: 16, stroke: C.strokeSoft });
     addText(slide, variable.symbol, x + 18, 826, 44, 40, { fontFace: FONT_DISPLAY, fontSize: pt(30), bold: true, color });
     addLabel(slide, variable.label, x + 62, 820, tileW - 78, 18, C.muted, 7);
-    addText(slide, variable.meaning, x + 62, 846, tileW - 78, 68, { fontSize: pt(18), color: C.textSoft });
+    addText(slide, variable.meaning, x + 62, 846, tileW - 78, 68, { fontSize: pt(16), color: C.textSoft, maxLines: 2 });
   });
 
   addFooter(slide, deck, diagramFooterLabel(spec.diagram), accent);
@@ -1293,7 +1295,13 @@ function renderDemo(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Extract
   const accent = deck.pack.accent;
   const accent2 = deck.pack.accent2;
   addHud(slide, 'Yo hago', `MISIÓN ${String(deck.meta.missionNumber).padStart(2, '0')} // DEMOSTRACIÓN`, 4, accent);
-  addText(slide, spec.title, 80, 214, 860, 110, { fontFace: FONT_DISPLAY, fontSize: pt(38), bold: true, color: C.white });
+  addText(slide, spec.title, 80, 214, 860, 110, {
+    fontFace: FONT_DISPLAY,
+    fontSize: pt(spec.title.length > 45 ? 30 : 38),
+    bold: true,
+    color: C.white,
+    maxLines: 2,
+  });
   addLabel(slide, spec.eyebrow, 80, 326, 600, 18, accent, 9);
 
   addPanel(slide, 80, 344, 860, 268, { fill: C.panel, transparency: 12 });
@@ -1329,7 +1337,13 @@ function renderPractice(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Ext
   const accent = deck.pack.accent;
   const accent2 = deck.pack.accent2;
   addHud(slide, 'Hacemos', `MISIÓN ${String(deck.meta.missionNumber).padStart(2, '0')} // PRÁCTICA GUIADA`, 5, accent);
-  addText(slide, spec.title, 80, 214, 900, 110, { fontFace: FONT_DISPLAY, fontSize: pt(38), bold: true, color: C.white });
+  addText(slide, spec.title, 80, 214, 900, 110, {
+    fontFace: FONT_DISPLAY,
+    fontSize: pt(spec.title.length > 45 ? 30 : 38),
+    bold: true,
+    color: C.white,
+    maxLines: 2,
+  });
   addLabel(slide, spec.eyebrow, 80, 326, 600, 18, accent, 9);
 
   addPanel(slide, 80, 344, 900, 330, { fill: C.panel, transparency: 12 });
@@ -1359,7 +1373,13 @@ function renderChallenge(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Ex
   const accent = deck.pack.accent;
   const accent2 = deck.pack.accent2;
   addHud(slide, 'Tú haces', `MISIÓN ${String(deck.meta.missionNumber).padStart(2, '0')} // RETO Y PROYECTO`, 6, accent);
-  addText(slide, spec.title, 80, 214, 940, 110, { fontFace: FONT_DISPLAY, fontSize: pt(38), bold: true, color: C.white });
+  addText(slide, spec.title, 80, 214, 940, 110, {
+    fontFace: FONT_DISPLAY,
+    fontSize: pt(spec.title.length > 45 ? 30 : 38),
+    bold: true,
+    color: C.white,
+    maxLines: 2,
+  });
   addLabel(slide, spec.eyebrow, 80, 326, 600, 18, accent, 9);
 
   addPanel(slide, 80, 344, 940, 288, { fill: C.panel, transparency: 12 });

@@ -7,6 +7,7 @@ import type { ActiveWorkTextbook, GenerationProgressState } from '@/types/work-t
 import DocumentA4Viewer from '@/components/common/DocumentA4Viewer';
 import { useEditorialBook } from '@/hooks/useEditorialBook';
 import EditorialSubscriptionModal from '@/components/ui/EditorialSubscriptionModal';
+import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
 import {
   FileText, Zap, BookOpen, Download, RefreshCw, AlertTriangle,
   CheckCircle, ChevronDown, ChevronUp, Library
@@ -89,10 +90,10 @@ export default function PlanningTabDocumento({
   editorialEngineEnabled = false,
 }: PlanningTabDocumentoProps) {
   const content = planning?.contentJson as GeneratedPlanningContent | null;
+  const curricularBlocks = resolveCurricularBlocks(content);
   const s1 = content?.sectionI;
   const isLaboral = s1?.component?.toLowerCase().includes('laboral') || false;
   const activityLabel = isLaboral ? 'Actividades Clave' : 'Propósitos y Contenidos formativos';
-  const prefix = isLaboral ? 'AC' : 'PC';
   const allBlocksGenerated = (generatedWorkbookCount === totalWorkbookBlocks && totalWorkbookBlocks > 0);
   const isEditorialEngineEnabled = Boolean(editorialEngineEnabled);
   const hasPlanningId = Boolean(planning?.id);
@@ -635,7 +636,7 @@ export default function PlanningTabDocumento({
                 </div>
               </div>
 
-              {content?.sectionIV?.activities?.map((a, i) => {
+              {curricularBlocks.map((block, i) => {
                 const seq = sequenceData[i];
                 const hasSeq = Boolean(seq && seq.sessions && seq.sessions.length > 0);
                 const isGenerating = generatingSeqBlock === i;
@@ -676,10 +677,10 @@ export default function PlanningTabDocumento({
                       <div style={{ flex: 1, minWidth: '240px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                           <strong style={{ fontSize: '15px', color: 'var(--c-accent-bright)' }}>
-                            {prefix}{i + 1}: {a.name}
+                            {block.title}
                           </strong>
                           <span style={{ fontSize: '12px', color: 'var(--c-text-muted)' }}>
-                            ({a.hours} hrs. — <em style={{ color: 'var(--c-accent-bright)' }}>{a.methodology}</em>)
+                            ({block.hours} hrs. — <em style={{ color: 'var(--c-accent-bright)' }}>{block.methodology}</em>)
                           </span>
                         </div>
 
@@ -705,7 +706,7 @@ export default function PlanningTabDocumento({
                             </span>
                           ) : null}
 
-                          {a.saberes && (
+                          {block.saberes && (
                             <span style={{ fontSize: '11px', color: 'var(--c-text-muted)' }}>
                               • Taxonomía 3 Saberes activa
                             </span>
@@ -754,7 +755,7 @@ export default function PlanningTabDocumento({
                             type="button"
                             onClick={() => {
                               if (hasSeq) {
-                                if (confirm(`¿Deseas volver a generar la secuencia didáctica del Bloque ${i + 1} con IA? Se consumirán tokens de IA y se actualizarán las ${a.hours} sesiones.`)) {
+                                if (confirm(`¿Deseas volver a generar la secuencia didáctica del Bloque ${i + 1} con IA? Se consumirán tokens de IA y se actualizarán las ${block.hours} sesiones.`)) {
                                   handleGenerateSecuencia(i);
                                 }
                               } else {
@@ -846,7 +847,7 @@ export default function PlanningTabDocumento({
                               <BookOpen size={12} /> Libro de Bloque (35-80 págs)
                             </span>
                             <strong style={{ fontSize: '14px', color: '#f1f5f9' }}>
-                              Cuaderno de Trabajo Activo · {prefix}{i + 1}
+                              Cuaderno de Trabajo Activo · Bloque {i + 1} ({block.corteLabel})
                             </strong>
 
                             {wbItem?.workbook ? (
@@ -1337,7 +1338,7 @@ export default function PlanningTabDocumento({
                               ⚡ Secuencia Didáctica Micro no generada para este bloque
                             </p>
                             <p style={{ fontSize: '13px', color: 'var(--c-text-muted)', maxWidth: '520px', margin: '0 auto', lineHeight: 1.5 }}>
-                              Usa el botón <strong>&quot;Generar Secuencia (IA)&quot;</strong> en el encabezado del bloque para generar las {a.hours} sesiones de 50 minutos con momentos didácticos (Apertura, Desarrollo, Cierre).
+                              Usa el botón <strong>&quot;Generar Secuencia (IA)&quot;</strong> en el encabezado del bloque para generar las {block.hours} sesiones de 50 minutos con momentos didácticos (Apertura, Desarrollo, Cierre).
                             </p>
                           </div>
                         )}

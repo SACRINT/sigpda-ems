@@ -29,6 +29,7 @@ import {
 } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { resolveSchoolIdentity } from '@/lib/school-identity';
+import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
 import { extractCurriculumContext } from './curriculum-context-agent';
 import { buildBlockBlueprint } from './blueprint-architect-agent';
 import { generateFoundationMission } from './writers/foundation-writer';
@@ -175,31 +176,32 @@ export async function generateBlockWorkTextbook(
     sequenceJson: rawPlanning.sequence_json || null,
   };
 
-  const blockActivities = planning.contentJson?.sectionIV?.activities || [];
-  const currentBlockActivity = blockActivities[blockIndex];
-  const blockName = currentBlockActivity?.name || `Bloque ${blockIndex + 1}`;
+  const curricularBlocks = resolveCurricularBlocks(planning.contentJson);
+  const targetBlock = curricularBlocks[blockIndex];
+  const currentBlockActivity = targetBlock?.activities[0] || planning.contentJson?.sectionIV?.activities?.[blockIndex];
+  const blockName = targetBlock?.title || currentBlockActivity?.name || `Bloque ${blockIndex + 1}`;
 
   // ── Construcción de PlanningActivities para alineación guía ↔ planeación ──
-  const planningActivities: PlanningActivities | undefined = currentBlockActivity
+  const planningActivities: PlanningActivities | undefined = targetBlock
     ? {
         apertura: {
-          description: currentBlockActivity.apertura?.activities || '',
-          processes: currentBlockActivity.apertura?.processes || '',
-          materials: currentBlockActivity.apertura?.materials || '',
+          description: targetBlock.activities.map(a => a.apertura?.activities).filter(Boolean).join(' · '),
+          processes: targetBlock.activities.map(a => a.apertura?.processes).filter(Boolean).join(' · '),
+          materials: targetBlock.activities.map(a => a.apertura?.materials).filter(Boolean).join(' · '),
         },
         ejecucion: {
-          description: currentBlockActivity.ejecucion?.activities || '',
-          processes: currentBlockActivity.ejecucion?.processes || '',
-          materials: currentBlockActivity.ejecucion?.materials || '',
+          description: targetBlock.activities.map(a => a.ejecucion?.activities).filter(Boolean).join(' · '),
+          processes: targetBlock.activities.map(a => a.ejecucion?.processes).filter(Boolean).join(' · '),
+          materials: targetBlock.activities.map(a => a.ejecucion?.materials).filter(Boolean).join(' · '),
         },
         conclusion: {
-          description: currentBlockActivity.conclusion?.activities || '',
-          processes: currentBlockActivity.conclusion?.processes || '',
-          materials: currentBlockActivity.conclusion?.materials || '',
+          description: targetBlock.activities.map(a => a.conclusion?.activities).filter(Boolean).join(' · '),
+          processes: targetBlock.activities.map(a => a.conclusion?.processes).filter(Boolean).join(' · '),
+          materials: targetBlock.activities.map(a => a.conclusion?.materials).filter(Boolean).join(' · '),
         },
-        saberes: currentBlockActivity.saberes,
-        contenidoFormativo: currentBlockActivity.contenidoFormativo,
-        methodology: currentBlockActivity.methodology,
+        saberes: targetBlock.saberes || currentBlockActivity?.saberes,
+        contenidoFormativo: targetBlock.contenidoFormativo || currentBlockActivity?.contenidoFormativo,
+        methodology: targetBlock.methodology || currentBlockActivity?.methodology,
       }
     : undefined;
 

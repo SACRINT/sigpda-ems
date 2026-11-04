@@ -7,6 +7,10 @@ import { renderCombinedSacrintInfographicsPdf } from '@/lib/visual-engine/sacrin
 import { logger } from '@/lib/logger';
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 120;
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -69,9 +73,12 @@ export async function GET(
     const layout = layoutParam === 'letter' ? 'letter' : 'wide';
     const blockIndexParam = searchParams.get('blockIndex');
     const targetBlock = blockIndexParam !== null ? parseInt(blockIndexParam, 10) : null;
+    // Restringir canónicamente a los 3 Cortes MCCEMS (0, 1, 2)
+    const validBlockIndices = new Set([0, 1, 2]);
+    const canonicalEntries = entries.filter((e) => validBlockIndices.has(e.blockIndex));
     const effectiveEntries = (targetBlock !== null && !isNaN(targetBlock))
       ? entries.filter((e) => e.blockIndex === targetBlock)
-      : entries;
+      : (canonicalEntries.length > 0 ? canonicalEntries : entries.slice(0, 3));
 
     if (effectiveEntries.length === 0) {
       return NextResponse.json(

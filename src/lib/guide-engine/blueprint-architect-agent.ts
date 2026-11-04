@@ -9,7 +9,8 @@
  * estructurar el libro en 3 a 5 Misiones Didácticas completas.
  */
 
-import { generateBlockSessions, type DetailedSession } from '@/lib/session-progression-engine';
+import { generateBlockSessions, generateCurricularBlockSessions, type DetailedSession } from '@/lib/session-progression-engine';
+import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
 import type { KeyActivityPlan, Planning, SecuenciaSesion } from '@/types/planning';
 import type { CurriculumContext } from './curriculum-context-agent';
 
@@ -189,23 +190,30 @@ export function buildBlockBlueprint(params: {
       normalizeToDetailedSession(s, blockIndex, blockName)
     );
   } else {
-    // Autogeneración silenciosa en 5ms leyendo directamente la Sección IV planificada
+    // Autogeneración silenciosa en 5ms leyendo directamente los bloques curriculares
     const isLaboral = curriculum.subsystem === 'bt' || curriculum.component === 'laboral';
-    const content = (planning.contentJson || (planning as Record<string, any>).content_json) as Record<string, any> | undefined;
-    const realActivity = content?.sectionIV?.activities?.[blockIndex];
-    const hours = realActivity?.hours || (curriculum.subsystem === 'bt' ? 18 : 12);
-    const activityPlan: KeyActivityPlan = {
-      name: realActivity?.name || blockName,
-      hours,
-      methodology: realActivity?.methodology || planning.metodologiaActiva || 'abp',
-      apertura: realActivity?.apertura || { activities: 'Encuadre, saberes previos y problematización', processes: '', materials: '' },
-      ejecucion: realActivity?.ejecucion || { activities: 'Indagación, práctica y resolución situada', processes: '', materials: '' },
-      conclusion: realActivity?.conclusion || { activities: 'Síntesis, coevaluación y metacognición', processes: '', materials: '' },
-      contenidoFormativo: realActivity?.contenidoFormativo,
-      saberes: realActivity?.saberes,
-    };
-    const outcome = content?.sectionII?.learningOutcomes?.[blockIndex] || '';
-    sessions = generateBlockSessions(activityPlan, blockIndex, hours, outcome, isLaboral);
+    const content = (planning.contentJson || (planning as Record<string, any>).content_json) as any;
+    const curricularBlocks = resolveCurricularBlocks(content);
+    const targetBlock = curricularBlocks[blockIndex];
+
+    if (targetBlock) {
+      sessions = generateCurricularBlockSessions(targetBlock, isLaboral, null);
+    } else {
+      const realActivity = content?.sectionIV?.activities?.[blockIndex];
+      const hours = realActivity?.hours || (curriculum.subsystem === 'bt' ? 18 : 12);
+      const activityPlan: KeyActivityPlan = {
+        name: realActivity?.name || blockName,
+        hours,
+        methodology: realActivity?.methodology || planning.metodologiaActiva || 'abp',
+        apertura: realActivity?.apertura || { activities: 'Encuadre, saberes previos y problematización', processes: '', materials: '' },
+        ejecucion: realActivity?.ejecucion || { activities: 'Indagación, práctica y resolución situada', processes: '', materials: '' },
+        conclusion: realActivity?.conclusion || { activities: 'Síntesis, coevaluación y metacognición', processes: '', materials: '' },
+        contenidoFormativo: realActivity?.contenidoFormativo,
+        saberes: realActivity?.saberes,
+      };
+      const outcome = content?.sectionII?.learningOutcomes?.[blockIndex] || '';
+      sessions = generateBlockSessions(activityPlan, blockIndex, hours, outcome, isLaboral);
+    }
   }
 
   // 2. Agrupar sesiones en Misiones coherentes usando s.phase y s.title

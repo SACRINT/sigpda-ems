@@ -37,6 +37,7 @@ import {
 } from '@/lib/visual-engine/design-tokens';
 import { resolveHeaderBranding, type BrandingContext } from '@/lib/document-branding';
 import { getExtraContentForRender } from '@/lib/materials/material-tokens';
+import { resolveBlockNumber } from '@/lib/curricular-blocks';
 
 // ── Paleta de Colores Institucionales DOCX (Hexadecimal sin #) ──────────────
 export const DOCX_COLORS = {
@@ -720,7 +721,7 @@ export async function buildExtraDocx(
                       branding.topSup,
                       branding.shortLabel,
                       extra.type === 'lesson_plan'
-                        ? (extra.keyIndex != null ? `Bloque ${extra.keyIndex + 1}` : '')
+                        ? (extra.keyIndex != null ? `Bloque ${resolveBlockNumber(extra.keyIndex)}` : '')
                         : title.substring(0, 45),
                     ].filter(Boolean).join(' | '),
                     size: 14,

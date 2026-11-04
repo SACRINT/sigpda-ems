@@ -2,7 +2,8 @@
 
 import React from 'react';
 import type { GeneratedPlanningContent, Planning, PlanningExtra, SecuenciaBloque } from '@/types/planning';
-import { generateBlockSessions, type DetailedSession } from '@/lib/session-progression-engine';
+import { generateCurricularBlockSessions, type DetailedSession } from '@/lib/session-progression-engine';
+import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
 import GenerationFeedback from '@/components/feedback/GenerationFeedback';
 import { Clock, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
 
@@ -59,10 +60,10 @@ export default function PlanningTabSecuencias({
   const s1 = content?.sectionI;
   const isLaboral = s1?.component?.toLowerCase().includes('laboral') || false;
 
-  const blockSessionsMap: DetailedSession[][] = (content?.sectionIV?.activities || []).map((act, actIdx) => {
-    const outcome = content?.sectionII?.learningOutcomes?.[actIdx] || '';
-    const savedSeq = sequenceData?.[actIdx] || null;
-    return generateBlockSessions(act, actIdx, act.hours || (isLaboral ? 18 : 12), outcome, isLaboral, savedSeq);
+  const curricularBlocks = resolveCurricularBlocks(content);
+  const blockSessionsMap: DetailedSession[][] = curricularBlocks.map((block) => {
+    const savedSeq = sequenceData?.[block.blockIndex] || null;
+    return generateCurricularBlockSessions(block, isLaboral, savedSeq);
   });
   const allDetailedSessions: DetailedSession[] = blockSessionsMap.flat();
   const generatedLessonPlans = allDetailedSessions.filter(
@@ -102,14 +103,13 @@ export default function PlanningTabSecuencias({
                     fontWeight: 600,
                   }}
                 >
-                  {allDetailedSessions.length} Sesiones · {content?.sectionIV?.activities?.length || 0} {isLaboral ? 'Actividades Clave' : 'Bloques'}
+                  {allDetailedSessions.length} Sesiones · 3 Bloques de Evaluación Formativa
                 </span>
                 {handleSyncSuite && (
                   <button
                     type="button"
                     onClick={async () => {
-                      const acts = content?.sectionIV?.activities || [];
-                      for (let b = 0; b < (acts.length || 1); b++) {
+                      for (let b = 0; b < 3; b++) {
                         await handleSyncSuite(b);
                       }
                     }}
@@ -238,28 +238,18 @@ export default function PlanningTabSecuencias({
           </div>
 
           {/* Distinct physical sections per block */}
-          {content?.sectionIV?.activities?.map((act, actIdx) => {
-            const romanNumerals = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
+          {curricularBlocks.map((block, actIdx) => {
+            const romanNumerals = ['I', 'II', 'III'];
             const blockNumStr = romanNumerals[actIdx] || String(actIdx + 1);
             const blockSessions = blockSessionsMap[actIdx] || [];
             const generatedCount = blockSessions.filter(
-              (s) => !!findExtra('lesson_plan', s.activityIndex, undefined, s.sessionNum)
+              (s) =>
+                !!findExtra('lesson_plan', block.blockIndex, undefined, s.sessionNum) ||
+                !!findExtra('lesson_plan', s.activityIndex, undefined, s.sessionNum)
             ).length;
             const isCollapsed = !!collapsedBlocks[actIdx];
-
-            // Clean title formatting
-            const hasBlockPrefix =
-              act.name.toLowerCase().startsWith('bloque') ||
-              act.name.toLowerCase().startsWith('actividad') ||
-              act.name.toLowerCase().startsWith('práctica') ||
-              act.name.toLowerCase().startsWith('módulo') ||
-              act.name.toLowerCase().startsWith('submódulo');
-
-            const blockDisplayTitle = hasBlockPrefix
-              ? act.name
-              : `${isLaboral ? 'Actividad Clave' : 'Bloque'} ${blockNumStr}: ${act.name}`;
-
-            const learningOutcome = content?.sectionII?.learningOutcomes?.[actIdx];
+            const blockDisplayTitle = block.title;
+            const learningOutcome = block.learningOutcome;
 
             return (
               <div
@@ -323,17 +313,17 @@ export default function PlanningTabSecuencias({
                       }}
                     >
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#cbd5e1' }}>
-                        ⏱️ <strong>{act.hours || blockSessions.length} horas</strong> curriculares
+                        ⏱️ <strong>{block.hours || blockSessions.length} horas</strong> curriculares
                       </span>
                       <span>•</span>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#cbd5e1' }}>
                         📝 <strong>{blockSessions.length} sesiones</strong> (50 min c/u)
                       </span>
-                      {act.methodology && (
+                      {block.methodology && (
                         <>
                           <span>•</span>
                           <span style={{ background: 'rgba(124, 58, 237, 0.15)', color: '#c4b5fd', border: '1px solid rgba(124, 58, 237, 0.3)', padding: '1px 8px', borderRadius: '4px', fontSize: '11.5px', fontWeight: 600 }}>
-                            🎯 {act.methodology}
+                            🎯 {block.methodology}
                           </span>
                         </>
                       )}
@@ -457,10 +447,10 @@ export default function PlanningTabSecuencias({
                         gap: '8px',
                       }}
                     >
-                      {act.contenidoFormativo && (
+                      {block.contenidoFormativo && (
                         <div style={{ fontSize: '13px', color: '#cbd5e1' }}>
                           <strong style={{ color: '#60a5fa' }}>📌 Contenido formativo / Subtemas:</strong>{' '}
-                          {act.contenidoFormativo}
+                          {block.contenidoFormativo}
                         </div>
                       )}
                       {learningOutcome && (
@@ -469,21 +459,21 @@ export default function PlanningTabSecuencias({
                           {learningOutcome}
                         </div>
                       )}
-                      {act.saberes && (
+                      {block.saberes && (
                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '4px', fontSize: '11.5px' }}>
-                          {act.saberes.saber && (
+                          {block.saberes.saber && (
                             <span style={{ background: 'rgba(59, 130, 246, 0.12)', border: '1px solid rgba(59, 130, 246, 0.25)', color: '#93c5fd', padding: '2px 8px', borderRadius: '4px' }}>
-                              🧠 <strong>Saber:</strong> {act.saberes.saber.substring(0, 60)}…
+                              🧠 <strong>Saber:</strong> {block.saberes.saber.substring(0, 60)}…
                             </span>
                           )}
-                          {act.saberes.saberHacer && (
+                          {block.saberes.saberHacer && (
                             <span style={{ background: 'rgba(245, 158, 11, 0.12)', border: '1px solid rgba(245, 158, 11, 0.25)', color: '#fcd34d', padding: '2px 8px', borderRadius: '4px' }}>
-                              ⚙️ <strong>Hacer:</strong> {act.saberes.saberHacer.substring(0, 60)}…
+                              ⚙️ <strong>Hacer:</strong> {block.saberes.saberHacer.substring(0, 60)}…
                             </span>
                           )}
-                          {act.saberes.saberSer && (
+                          {block.saberes.saberSer && (
                             <span style={{ background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.25)', color: '#6ee7b7', padding: '2px 8px', borderRadius: '4px' }}>
-                              🤝 <strong>Ser:</strong> {act.saberes.saberSer.substring(0, 60)}…
+                              🤝 <strong>Ser:</strong> {block.saberes.saberSer.substring(0, 60)}…
                             </span>
                           )}
                         </div>
@@ -502,8 +492,12 @@ export default function PlanningTabSecuencias({
                     {/* Sessions List */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       {blockSessions.map((session, sIdx) => {
-                        const generated = findExtra('lesson_plan', session.activityIndex, undefined, session.sessionNum);
-                        const hasBlockWorkbook = Boolean(blockWorkbooks[session.activityIndex]?.workbook);
+                        const generated =
+                          findExtra('lesson_plan', block.blockIndex, undefined, session.sessionNum) ||
+                          findExtra('lesson_plan', session.activityIndex, undefined, session.sessionNum);
+                        const hasBlockWorkbook = Boolean(
+                          blockWorkbooks[block.blockIndex]?.workbook || blockWorkbooks[session.activityIndex]?.workbook
+                        );
 
                         return (
                           <div
@@ -563,6 +557,25 @@ export default function PlanningTabSecuencias({
                                 >
                                   Sesión {session.sessionNum} de {session.totalSessions} (50 min)
                                 </span>
+
+                                {block.activities.length > 1 && session.activityName && (
+                                  <span
+                                    style={{
+                                      fontSize: '11px',
+                                      fontWeight: 600,
+                                      color: '#93c5fd',
+                                      background: 'rgba(59, 130, 246, 0.15)',
+                                      border: '1px solid rgba(59, 130, 246, 0.3)',
+                                      padding: '1px 6px',
+                                      borderRadius: '4px',
+                                    }}
+                                    title={session.activityName}
+                                  >
+                                    {session.activityName.length > 32
+                                      ? `${session.activityName.substring(0, 32)}…`
+                                      : session.activityName}
+                                  </span>
+                                )}
 
                                 {/* Status badge */}
                                 {generated ? (
