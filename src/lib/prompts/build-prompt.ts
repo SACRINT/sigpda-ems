@@ -11,9 +11,11 @@ import { resolveFechasCortes } from '@/lib/fechas-cortes';
 import {
   normalizarEvidenciasPaso2,
   componerProductoIntegrador,
+  construirProgresionesResumidas,
+  requiereDerivacionEvidencias,
+  type ContenidoFormativoFuente,
   type EvidenciaDisciplinar,
   type ProblemaPAEC,
-  type ProgresionResumida,
 } from '@/lib/curriculum-evidence-engine';
 import {
   buildMaterialSlugIndex,
@@ -344,26 +346,13 @@ export function buildUserPrompt(
   if (extractedData.evidenciasEstructuradas && extractedData.evidenciasEstructuradas.length > 0) {
     // Máxima prioridad: colección estructurada rica generada en Step 2 con overrides aplicados
     structuredEvidences = extractedData.evidenciasEstructuradas;
-  } else if (teacherHasOverrides || !extractedData.evidences?.length || extractedData.evidences.some(e => e.includes('Ensayo crítico'))) {
+  } else if (teacherHasOverrides || requiereDerivacionEvidencias(extractedData.evidences)) {
     // Derivación determinista en caliente aplicando teacherOverrides explícitos
     const rawContenidos = officialProgram?.contenidos_formativos || extractedData.contenidosFormativos;
-    const progsList: ProgresionResumida[] = Array.isArray(rawContenidos) && rawContenidos.length > 0
-      ? rawContenidos.map((cf: Record<string, unknown>, idx: number) => ({
-          orden: (cf.order as number) || (cf.numero as number) || (idx + 1),
-          nombre: (cf.proposito as string) || (cf.progresion as string) || `Progresión ${idx + 1}`,
-          descripcion: (cf.progresion as string) || (cf.proposito as string) || '',
-          metas: (cf.metas as string[]) || [],
-          categorias: (cf.categorias as string[]) || [],
-          subcategorias: (cf.subcategorias as string[]) || [],
-        }))
-      : (extractedData.activities || []).map((a, idx) => ({
-          orden: a.order || (idx + 1),
-          nombre: a.name,
-          descripcion: a.name,
-          metas: [],
-          categorias: [],
-          subcategorias: [],
-        }));
+    const progsList = construirProgresionesResumidas(
+      rawContenidos as ContenidoFormativoFuente[] | undefined,
+      extractedData.activities
+    );
     const derivadas = normalizarEvidenciasPaso2(
       progsList,
       extractedData.uacName || officialProgram?.uac_name || '',

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { ExtractedPdfData } from '@/types/planning';
 import {
   FORMACIONES_LABORALES_BGE,
@@ -26,23 +26,42 @@ interface Props {
   onNext: (data: UACSelection, initialData?: ExtractedPdfData) => void;
   selectedSubsystem: string;
   onSubsystemChange: (subsystem: string) => void;
+  initialSelection?: UACSelection | null;
 }
 
-export default function StepUAC_BGE({ onNext, selectedSubsystem, onSubsystemChange }: Props) {
-  const [form, setForm] = useState<UACSelection>({
-    uacName: '',
-    semester: 3,
-    component: 'fundamental',
-    subsystem: selectedSubsystem || 'bge',
-    curriculumName: '',
-  });
+export default function StepUAC_BGE({
+  onNext,
+  selectedSubsystem,
+  onSubsystemChange,
+  initialSelection,
+}: Props) {
+  const [form, setForm] = useState<UACSelection>(() => initialSelection
+    ? {
+        ...initialSelection,
+        semester: initialSelection.semester || 3,
+        component: initialSelection.component || 'fundamental',
+        subsystem: initialSelection.subsystem || selectedSubsystem || 'bge',
+        curriculumName: initialSelection.curriculumName || '',
+      }
+    : {
+        uacName: '',
+        semester: 3,
+        component: 'fundamental',
+        subsystem: selectedSubsystem || 'bge',
+        curriculumName: '',
+      });
 
   const [catalogPrograms, setCatalogPrograms] = useState<any[]>([]);
   const [selectedCatalogUac, setSelectedCatalogUac] = useState<any>(null);
-  const [isManualInput, setIsManualInput] = useState(false);
+  const [isManualInput, setIsManualInput] = useState(Boolean(initialSelection?.uacName));
   const [loadingPrograms, setLoadingPrograms] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [selectedSpecialty, setSelectedSpecialty] = useState<string>('');
+  const [selectedSpecialty, setSelectedSpecialty] = useState<string>(() =>
+    initialSelection?.component === 'laboral' && initialSelection.curriculumName
+      ? initialSelection.curriculumName
+      : ''
+  );
+  const restoredInitialRef = useRef(!initialSelection?.uacName);
 
   const isLaboralDisabled = SEMESTERS_WITHOUT_COMPONENT.bge.includes(form.semester);
   const isFfeDisabled = form.semester < 5;
@@ -117,9 +136,26 @@ export default function StepUAC_BGE({ onNext, selectedSubsystem, onSubsystemChan
           const filtered = data.programs;
           setCatalogPrograms(filtered);
 
+          const restoringInitial = !restoredInitialRef.current;
+          const initialUacKey = initialSelection?.uacName ? normalizeKey(initialSelection.uacName) : '';
+          const matchesInitialSelection = (program: { uac_name?: string }) => Boolean(
+            restoringInitial &&
+            initialUacKey &&
+            (
+              normalizeKey(program.uac_name || '') === initialUacKey ||
+              normalizeKey(cleanSocioemotionalName(program.uac_name || '', form.semester)) === initialUacKey
+            )
+          );
+
           if (form.component === 'laboral') {
             let currentSpec = selectedSpecialty;
-            if (!currentSpec || currentSpec === 'manual_specialty' || !specialties.some(s => normalizeKey(s) === normalizeKey(currentSpec))) {
+            const validSpecialty = Boolean(
+              currentSpec &&
+              currentSpec !== 'manual_specialty' &&
+              specialties.some(s => normalizeKey(s) === normalizeKey(currentSpec))
+            );
+
+            if (!validSpecialty && !(restoringInitial && initialSelection?.component === 'laboral')) {
               currentSpec = specialties[0] || '';
               setSelectedSpecialty(currentSpec);
             }
@@ -163,31 +199,44 @@ export default function StepUAC_BGE({ onNext, selectedSubsystem, onSubsystemChan
               }
 
               if (matches.length > 0) {
-                const first = matches[0];
-                setSelectedCatalogUac(first);
-                setForm(prev => ({
-                  ...prev,
-                  uacName: first.uac_name,
-                  curriculumName: currentSpec,
-                  subsystem: selectedSubsystem,
-                }));
-                setIsManualInput(false);
+                const selected = restoringInitial
+                  ? matches.find(matchesInitialSelection)
+                  : matches[0];
+
+                if (selected) {
+                  setSelectedCatalogUac(selected);
+                  setSelectedSpecialty(currentSpec);
+                  setForm(prev => ({
+                    ...prev,
+                    uacName: selected.uac_name,
+                    curriculumName: currentSpec,
+                    subsystem: selectedSubsystem,
+                  }));
+                  setIsManualInput(false);
+                }
               }
             }
           } else {
             // Para otros componentes (fundamental, ampliado, etc.)
             if (filtered.length > 0) {
-              const first = filtered[0];
-              setSelectedCatalogUac(first);
-              setForm(prev => ({
-                ...prev,
-                uacName: form.component === 'ampliado' ? cleanSocioemotionalName(first.uac_name, form.semester) : first.uac_name,
-                curriculumName: first.curriculum_name || '',
-                subsystem: selectedSubsystem,
-              }));
-              setIsManualInput(false);
+              const selected = restoringInitial
+                ? filtered.find(matchesInitialSelection)
+                : filtered[0];
+
+              if (selected) {
+                setSelectedCatalogUac(selected);
+                setForm(prev => ({
+                  ...prev,
+                  uacName: form.component === 'ampliado' ? cleanSocioemotionalName(selected.uac_name, form.semester) : selected.uac_name,
+                  curriculumName: selected.curriculum_name || '',
+                  subsystem: selectedSubsystem,
+                }));
+                setIsManualInput(false);
+              }
             }
           }
+
+          restoredInitialRef.current = true;
         }
       } catch (err) {
         console.error('Error fetching BGE catalog programs:', err);
@@ -197,7 +246,7 @@ export default function StepUAC_BGE({ onNext, selectedSubsystem, onSubsystemChan
     };
 
     fetchPrograms();
-  }, [form.semester, form.component, selectedSubsystem]);
+  }, [form.semester, form.component, selectedSubsystem, initialSelection]);
 
   // Cambio de semestre
   const handleSemesterChange = (newSemester: number) => {

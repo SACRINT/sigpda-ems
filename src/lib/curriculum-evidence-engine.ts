@@ -122,6 +122,24 @@ export interface ProgresionResumida {
 }
 export type ProgresiónResumida = ProgresionResumida;
 
+export interface ContenidoFormativoFuente {
+  order?: number;
+  numero?: number;
+  proposito?: string;
+  progresion?: string;
+  actividad?: string;
+  contenidos?: string[] | string;
+  metas?: string[];
+  saberes?: string[];
+  categorias?: string[];
+  subcategorias?: string[];
+}
+
+export interface ActividadFuente {
+  order?: number;
+  name?: string;
+}
+
 // ---------------------------------------------------------------------------
 // 1. Taxonomía de Verbos Operativos por Familia Disciplinar
 // ---------------------------------------------------------------------------
@@ -152,6 +170,13 @@ export const TAXONOMIA_VERBOS: VerboDisciplinar[] = [
   { verbo: 'argumentar', stem: 'argumen', familia: 'humanidades_filosofia', nivelCognitivo: 'evaluar', tipoEvidenciaSugerido: 'disertacion', prefijoArtefacto: 'Disertación filosófica y argumentación crítica sobre' },
   { verbo: 'reflexionar', stem: 'reflex', familia: 'humanidades_filosofia', nivelCognitivo: 'evaluar', tipoEvidenciaSugerido: 'disertacion', prefijoArtefacto: 'Ensayo reflexivo y diálogo socrático en torno a' },
   { verbo: 'analizar', stem: 'analiz', familia: 'humanidades_filosofia', nivelCognitivo: 'analizar', tipoEvidenciaSugerido: 'antologia', prefijoArtefacto: 'Fichero analítico de dilemas éticos y lecturas contextualizadas de' },
+  { verbo: 'construir', stem: 'constru', familia: 'humanidades_filosofia', nivelCognitivo: 'crear', tipoEvidenciaSugerido: 'producto', prefijoArtefacto: 'Construcción y sustentación argumentada de' },
+  { verbo: 'cuestionar', stem: 'cuestion', familia: 'humanidades_filosofia', nivelCognitivo: 'evaluar', tipoEvidenciaSugerido: 'disertacion', prefijoArtefacto: 'Cuestionario crítico y argumentación sobre' },
+  { verbo: 'explicar', stem: 'explic', familia: 'humanidades_filosofia', nivelCognitivo: 'entender', tipoEvidenciaSugerido: 'reporte', prefijoArtefacto: 'Explicación razonada y reporte de' },
+  { verbo: 'comprender', stem: 'comprend', familia: 'humanidades_filosofia', nivelCognitivo: 'entender', tipoEvidenciaSugerido: 'reporte', prefijoArtefacto: 'Reporte de comprensión y síntesis de' },
+  { verbo: 'interpretar', stem: 'interpret', familia: 'humanidades_filosofia', nivelCognitivo: 'analizar', tipoEvidenciaSugerido: 'reporte', prefijoArtefacto: 'Reporte interpretativo y análisis de' },
+  { verbo: 'investigar', stem: 'investig', familia: 'humanidades_filosofia', nivelCognitivo: 'analizar', tipoEvidenciaSugerido: 'reporte', prefijoArtefacto: 'Reporte de investigación sobre' },
+  { verbo: 'comparar', stem: 'compar', familia: 'humanidades_filosofia', nivelCognitivo: 'analizar', tipoEvidenciaSugerido: 'reporte', prefijoArtefacto: 'Cuadro comparativo y análisis de' },
 
   // ── Lengua y Comunicación ──
   { verbo: 'redactar', stem: 'redac', familia: 'lengua_comunicacion', nivelCognitivo: 'crear', tipoEvidenciaSugerido: 'disertacion', prefijoArtefacto: 'Composición de texto argumentativo / ensayo estructurado sobre' },
@@ -161,6 +186,7 @@ export const TAXONOMIA_VERBOS: VerboDisciplinar[] = [
   // ── Económico Administrativo ──
   { verbo: 'diagnosticar', stem: 'diagnost', familia: 'economico_administrativo', nivelCognitivo: 'analizar', tipoEvidenciaSugerido: 'reporte', prefijoArtefacto: 'Diagnóstico situacional y estudio de mercado de' },
   { verbo: 'gestionar', stem: 'gestion', familia: 'economico_administrativo', nivelCognitivo: 'aplicar', tipoEvidenciaSugerido: 'producto', prefijoArtefacto: 'Plan operativo de gestión y administración de' },
+  { verbo: 'administrar', stem: 'administr', familia: 'economico_administrativo', nivelCognitivo: 'aplicar', tipoEvidenciaSugerido: 'producto', prefijoArtefacto: 'Plan de gestión operativa y reporte de desempeño de' },
   { verbo: 'presupuestar', stem: 'presupues', familia: 'economico_administrativo', nivelCognitivo: 'aplicar', tipoEvidenciaSugerido: 'fichaTecnica', prefijoArtefacto: 'Cédula presupuestal y proyección de flujo financiero de' },
 
   // ── Formación Laboral y Técnica ──
@@ -168,6 +194,18 @@ export const TAXONOMIA_VERBOS: VerboDisciplinar[] = [
   { verbo: 'mantener', stem: 'manten', familia: 'formacion_laboral', nivelCognitivo: 'aplicar', tipoEvidenciaSugerido: 'bitacora', prefijoArtefacto: 'Bitácora técnica de mantenimiento preventivo y correctivo en' },
   { verbo: 'reparar', stem: 'repar', familia: 'formacion_laboral', nivelCognitivo: 'aplicar', tipoEvidenciaSugerido: 'prototipo', prefijoArtefacto: 'Demostración práctica de protocolo técnico estandarizado para' },
   { verbo: 'elaborar', stem: 'elabor', familia: 'formacion_laboral', nivelCognitivo: 'crear', tipoEvidenciaSugerido: 'manual', prefijoArtefacto: 'Manual de procedimientos operativos y control de calidad en' },
+  { verbo: 'administrar', stem: 'administr', familia: 'formacion_laboral', nivelCognitivo: 'aplicar', tipoEvidenciaSugerido: 'producto', prefijoArtefacto: 'Plan de gestión operativa y reporte de desempeño de' },
+  { verbo: 'configurar', stem: 'configur', familia: 'formacion_laboral', nivelCognitivo: 'aplicar', tipoEvidenciaSugerido: 'producto', prefijoArtefacto: 'Configuración técnica documentada y prueba funcional de' },
+  { verbo: 'operar', stem: 'oper', familia: 'formacion_laboral', nivelCognitivo: 'aplicar', tipoEvidenciaSugerido: 'reporte', prefijoArtefacto: 'Reporte técnico de operación y control de' },
+  { verbo: 'instalar', stem: 'instal', familia: 'formacion_laboral', nivelCognitivo: 'aplicar', tipoEvidenciaSugerido: 'prototipo', prefijoArtefacto: 'Protocolo de instalación y puesta en marcha de' },
+  { verbo: 'ensamblar', stem: 'ensambl', familia: 'formacion_laboral', nivelCognitivo: 'aplicar', tipoEvidenciaSugerido: 'prototipo', prefijoArtefacto: 'Ensamblaje y prueba funcional de' },
+  { verbo: 'calibrar', stem: 'calibr', familia: 'formacion_laboral', nivelCognitivo: 'aplicar', tipoEvidenciaSugerido: 'reporte', prefijoArtefacto: 'Reporte de calibración y control metrológico de' },
+  { verbo: 'supervisar', stem: 'supervis', familia: 'formacion_laboral', nivelCognitivo: 'evaluar', tipoEvidenciaSugerido: 'reporte', prefijoArtefacto: 'Reporte de supervisión y control de calidad de' },
+  { verbo: 'verificar', stem: 'verific', familia: 'formacion_laboral', nivelCognitivo: 'evaluar', tipoEvidenciaSugerido: 'fichaTecnica', prefijoArtefacto: 'Lista de verificación y ficha técnica de' },
+  { verbo: 'registrar', stem: 'registr', familia: 'formacion_laboral', nivelCognitivo: 'aplicar', tipoEvidenciaSugerido: 'reporte', prefijoArtefacto: 'Registro técnico y reporte de control de' },
+  { verbo: 'preparar', stem: 'prepar', familia: 'formacion_laboral', nivelCognitivo: 'aplicar', tipoEvidenciaSugerido: 'producto', prefijoArtefacto: 'Protocolo y producto preparado de' },
+  { verbo: 'producir', stem: 'produc', familia: 'formacion_laboral', nivelCognitivo: 'crear', tipoEvidenciaSugerido: 'producto', prefijoArtefacto: 'Producto terminado y ficha de producción de' },
+  { verbo: 'seleccionar', stem: 'seleccion', familia: 'formacion_laboral', nivelCognitivo: 'aplicar', tipoEvidenciaSugerido: 'fichaTecnica', prefijoArtefacto: 'Ficha de selección técnica de' },
 
   // ── Socioemocional ──
   { verbo: 'reflexionar', stem: 'reflex', familia: 'socioemocional', nivelCognitivo: 'evaluar', tipoEvidenciaSugerido: 'bitacora', prefijoArtefacto: 'Bitácora socioemocional y plan de autorregulación sobre' },
@@ -285,6 +323,124 @@ export function detectarFamilia(uacName: string, component?: string): FamiliaDis
   return 'otra';
 }
 
+function normalizarEvidenciaParaComparar(texto: string): string {
+  return (texto || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ');
+}
+
+const PATRONES_EVIDENCIA_GENERICA: RegExp[] = [
+  /^ensayo critico\b/,
+  /^portafolio de evidencias de aprendizaje(?: y evaluacion formativa)?$/,
+  /^portafolio de evidencias$/,
+  /^portafolio de evidencias integrador$/,
+  /^portafolio de evidencias de capacitacion$/,
+  /^evidencia de aprendizaje\s*\/\s*producto$/,
+  /^reporte de practica$/,
+  /^reporte de practica\s*\/\s*demostracion tecnica\b/,
+  /^portafolio de desempeno en\b/,
+  /^portafolio de evidencias de practicas tecnicas y de laboratorio$/,
+  /^reporte tecnico de ejecucion de competencias laborales$/,
+  /^guia de observacion\s*\/\s*rubrica de desempeno tecnico profesional$/,
+  /^proyecto integrador$/,
+  /^producto integrador$/,
+  /^evaluacion formativa$/,
+];
+
+/**
+ * Detecta evidencias de relleno o plantillas repetidas que no describen un
+ * producto disciplinar específico. Se usa tanto en el cliente (Paso 2) como
+ * en el servidor (prompt) para forzar la derivación desde las progresiones.
+ */
+export function esEvidenciaGenerica(evidencia: string): boolean {
+  const normalizada = normalizarEvidenciaParaComparar(evidencia);
+  if (!normalizada) return true;
+  return PATRONES_EVIDENCIA_GENERICA.some((patron) => patron.test(normalizada));
+}
+
+/**
+ * True cuando el conjunto de evidencias debe sustituirse por evidencias
+ * derivadas de las progresiones/actividades oficiales.
+ */
+export function requiereDerivacionEvidencias(evidencias?: string[] | null): boolean {
+  const validas = (evidencias ?? []).map((e) => (e || '').trim()).filter(Boolean);
+  return validas.length === 0 || validas.some(esEvidenciaGenerica);
+}
+
+function textoDeContenido(cf: ContenidoFormativoFuente): string {
+  const directo = (cf.progresion || cf.proposito || cf.actividad || '').trim();
+  if (directo) return directo;
+
+  if (Array.isArray(cf.contenidos)) {
+    return cf.contenidos.map((c) => (c || '').trim()).filter(Boolean).join('. ');
+  }
+  return (cf.contenidos || '').trim();
+}
+
+/**
+ * Construye progresiones resumidas a partir de los contenidos formativos o,
+ * en su defecto, de las actividades clave. Soporta los formatos BGE
+ * (proposito/progresion) y Bachillerato Técnico (actividad/saberes).
+ */
+export function construirProgresionesResumidas(
+  contenidosFormativos?: ContenidoFormativoFuente[] | null,
+  actividades?: ActividadFuente[] | null
+): ProgresionResumida[] {
+  const desdeContenidos: ProgresionResumida[] = (contenidosFormativos ?? []).map((cf, idx) => {
+    const orden = cf.order || cf.numero || (idx + 1);
+    const descripcion = textoDeContenido(cf);
+    return {
+      orden,
+      nombre: descripcion || `Progresión ${orden}`,
+      descripcion,
+      metas: (cf.metas ?? []).filter((m) => (m || '').trim().length > 3),
+      categorias: cf.categorias ?? [],
+      subcategorias: cf.subcategorias ?? [],
+    };
+  });
+
+  if (desdeContenidos.some((p) => (p.descripcion || '').trim().length > 0)) {
+    return desdeContenidos;
+  }
+
+  return (actividades ?? []).map((a, idx) => ({
+    orden: a.order || (idx + 1),
+    nombre: (a.name || '').trim() || `Progresión ${idx + 1}`,
+    descripcion: (a.name || '').trim(),
+    metas: [],
+    categorias: [],
+    subcategorias: [],
+  }));
+}
+
+function prefijoFallbackPorFamilia(familia: FamiliaDisciplinar): string {
+  switch (familia) {
+    case 'dibujo_tecnico':
+      return 'Lámina técnica normalizada de';
+    case 'pensamiento_variacional':
+      return 'Reporte de aplicación matemática de';
+    case 'fisica_quimica':
+      return 'Reporte experimental de';
+    case 'humanidades_filosofia':
+      return 'Producto argumentativo sobre';
+    case 'lengua_comunicacion':
+      return 'Producto comunicativo sobre';
+    case 'economico_administrativo':
+      return 'Reporte de gestión de';
+    case 'formacion_laboral':
+      return 'Reporte técnico de ejecución de';
+    case 'socioemocional':
+      return 'Bitácora socioemocional de';
+    case 'cultura_digital':
+      return 'Producto digital de';
+    default:
+      return 'Producto integrador de aplicación práctica de';
+  }
+}
+
 function limpiarTextoNucleo(texto: string): string {
   return (texto || '')
     .replace(/^(?:progresi[oó]n|prop[oó]sito|etapa|c\d+m\d+|\d+)\s*[:.\-–—]?\s*/i, '')
@@ -304,12 +460,16 @@ function clasificarVerboEnTexto(texto: string, familia: FamiliaDisciplinar): Ver
   for (const token of tokens) {
     const st = stemEspanol(token);
     // 1. Intentar coincidencia en la familia de la UAC
-    const matchFamilia = TAXONOMIA_VERBOS.find(v => v.familia === familia && (v.stem === st || st.startsWith(v.stem) || v.stem.startsWith(st)));
+    const matchFamilia = TAXONOMIA_VERBOS.find(v => v.familia === familia && (v.stem === st || st.startsWith(v.stem)));
     if (matchFamilia) return matchFamilia;
 
-    // 2. Coincidencia en cualquier familia
-    const matchGeneral = TAXONOMIA_VERBOS.find(v => v.stem === st || st.startsWith(v.stem) || v.stem.startsWith(st));
-    if (matchGeneral) return matchGeneral;
+    // 2. Para familias no identificadas, buscar en la taxonomía general.
+    //    En familias conocidas se evita el cruce semántico (ej. "medir" en dibujo
+    //    no debe convertirse en una práctica experimental de Física).
+    if (familia === 'otra') {
+      const matchGeneral = TAXONOMIA_VERBOS.find(v => v.stem === st || st.startsWith(v.stem));
+      if (matchGeneral) return matchGeneral;
+    }
   }
 
   return null;
@@ -336,6 +496,7 @@ export function derivarEvidenciasDisciplinares(
 
   const derivadas: EvidenciaDisciplinar[] = [];
   const verbosRegistrados = new Set<string>();
+  const productosRegistrados = new Set<string>();
 
   for (const prog of progresiones) {
     const orden = prog.orden || 1;
@@ -350,7 +511,7 @@ export function derivarEvidenciasDisciplinares(
         familia,
         nivelCognitivo: 'aplicar' as NivelCognitivo,
         tipoEvidenciaSugerido: (familia === 'dibujo_tecnico' ? 'croquis' : familia === 'pensamiento_variacional' ? 'reporte' : 'producto') as TipoEvidencia,
-        prefijoArtefacto: familia === 'dibujo_tecnico' ? 'Lámina técnica normalizada de' : 'Reporte de aplicación de',
+        prefijoArtefacto: prefijoFallbackPorFamilia(familia),
       };
 
       // Evitar duplicar el mismo verbo dentro de la misma progresión
@@ -389,15 +550,13 @@ export function derivarEvidenciasDisciplinares(
       };
 
       const override = editadas[id];
-      if (override) {
-        derivadas.push({
-          ...base,
-          ...override,
-          fuente: override.fuente ?? 'derivada',
-        });
-      } else {
-        derivadas.push(base);
-      }
+      const final = override
+        ? { ...base, ...override, fuente: override.fuente ?? 'derivada' }
+        : base;
+      const claveProductoFinal = normalizarEvidenciaParaComparar(final.producto);
+      if (productosRegistrados.has(claveProductoFinal)) continue;
+      productosRegistrados.add(claveProductoFinal);
+      derivadas.push(final);
     }
   }
 

@@ -15,6 +15,7 @@
 import { sql } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { normalizeUnicode } from '@/lib/utils/normalize';
+import { isActivityAnotherSubjectName } from '@/lib/paec-subject-matching';
 
 export interface PaecLinkedActivity {
   asignatura: string;
@@ -124,6 +125,11 @@ export function matchOperationalActivity(
   targetUac: string
 ): PaecLinkedActivity | null {
   if (!normalizeUnicode(targetUac).trim()) return null;
+
+  const subjectNames = planRows
+    .map((row) => firstStr(row, ['uac', 'asignatura', 'uacName']))
+    .filter(Boolean);
+
   for (const row of planRows) {
     const asignatura = firstStr(row, ['uac', 'asignatura', 'uacName']);
     const actividad = firstStr(row, ['activity', 'actividad', 'macroActivities']);
@@ -132,6 +138,8 @@ export function matchOperationalActivity(
     const normAct = normalizeUnicode(actividad).toLowerCase().trim();
     // Descartar filas de ruido donde la actividad es idéntica o equivalente al nombre de la asignatura
     if (normAct === normAsig || uacMatches(actividad, asignatura) || !uacMatches(asignatura, targetUac)) continue;
+    // Descartar extracciones donde la "actividad" es en realidad el nombre de otra asignatura del PAEC
+    if (isActivityAnotherSubjectName(actividad, subjectNames)) continue;
     return {
       asignatura,
       actividad,

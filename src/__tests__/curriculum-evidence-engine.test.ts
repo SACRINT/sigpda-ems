@@ -18,6 +18,9 @@ import {
   derivarEvidenciasDisciplinares,
   componerProductoIntegrador,
   normalizarEvidenciasPaso2,
+  construirProgresionesResumidas,
+  esEvidenciaGenerica,
+  requiereDerivacionEvidencias,
 } from '@/lib/curriculum-evidence-engine';
 import type {
   EvidenciaDisciplinar,
@@ -262,7 +265,139 @@ describe('Composición funcional — Producto Integrador', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 5. normalizarEvidenciasPaso2
+// 5. Detección general de evidencias genéricas
+// ---------------------------------------------------------------------------
+
+describe('Detección de evidencias genéricas', () => {
+  it.each([
+    '',
+    'Ensayo crítico en la UAC',
+    'Portafolio de evidencias de aprendizaje y evaluación formativa',
+    'Portafolio de evidencias',
+    'Reporte de práctica / Demostración técnica de Administra redes de una organización',
+    'Portafolio de desempeño en Redes y Mantenimiento',
+    'Portafolio de evidencias de prácticas técnicas y de laboratorio',
+    'Reporte técnico de ejecución de competencias laborales',
+    'Guía de observación / Rúbrica de desempeño técnico profesional',
+    'Evidencia de aprendizaje / Producto',
+  ])('Marca como genérica: "%s"', (evidencia) => {
+    expect(esEvidenciaGenerica(evidencia)).toBe(true);
+  });
+
+  it.each([
+    'Proyecto de investigación sobre problemáticas ambientales locales y propuesta de solución',
+    'Portafolio de análisis de fuentes históricas documentales e iconográficas',
+    'Reporte de práctica de laboratorio de análisis de suelos',
+    'Infografía de ciclos biogeoquímicos y su impacto en la comunidad',
+  ])('No marca como genérica una evidencia disciplinar: "%s"', (evidencia) => {
+    expect(esEvidenciaGenerica(evidencia)).toBe(false);
+  });
+
+  it('Requiere derivación si faltan evidencias o alguna es genérica', () => {
+    expect(requiereDerivacionEvidencias([])).toBe(true);
+    expect(requiereDerivacionEvidencias(undefined)).toBe(true);
+    expect(requiereDerivacionEvidencias(['', '   '])).toBe(true);
+    expect(requiereDerivacionEvidencias([
+      'Proyecto comunitario de alimentación consciente',
+      'Portafolio de desempeño en Redes y Mantenimiento',
+    ])).toBe(true);
+  });
+
+  it('No requiere derivación cuando todas las evidencias son específicas', () => {
+    expect(requiereDerivacionEvidencias([
+      'Proyecto comunitario de alimentación consciente',
+      'Campaña escolar de prevención de adicciones',
+    ])).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 6. Construcción de progresiones desde contenidos BGE y BT
+// ---------------------------------------------------------------------------
+
+describe('construirProgresionesResumidas', () => {
+  it('Usa proposito/progresion del formato BGE', () => {
+    const progresiones = construirProgresionesResumidas([
+      {
+        order: 1,
+        proposito: 'Analiza el entorno comunitario',
+        progresion: 'Progresión 1: Analiza el entorno comunitario y sus problemáticas.',
+        metas: ['Analiza datos del entorno'],
+      },
+    ], []);
+
+    expect(progresiones).toHaveLength(1);
+    expect(progresiones[0].descripcion).toContain('Analiza el entorno comunitario');
+    expect(progresiones[0].metas).toEqual(['Analiza datos del entorno']);
+  });
+
+  it('Usa actividad/saberes del formato de Bachillerato Técnico', () => {
+    const progresiones = construirProgresionesResumidas([
+      {
+        order: 1,
+        actividad: 'Administra redes de acuerdo con los requerimientos de la organización',
+        saberes: ['Topologías de red', 'Configuración de switches'],
+      },
+    ], []);
+
+    expect(progresiones[0].descripcion).toContain('Administra redes');
+    expect(progresiones[0].descripcion).not.toContain('Progresión 1');
+  });
+
+  it('Cae a las actividades clave cuando los contenidos no tienen texto aprovechable', () => {
+    const progresiones = construirProgresionesResumidas(
+      [{ order: 1, contenidos: [], metas: [] }],
+      [{ order: 1, name: 'Elabora un reporte técnico de mantenimiento' }]
+    );
+
+    expect(progresiones[0].descripcion).toBe('Elabora un reporte técnico de mantenimiento');
+  });
+
+  it('No repite productos cuando varias progresiones comparten metas', () => {
+    const progresiones = [
+      {
+        orden: 1,
+        descripcion: 'Realiza representaciones geométricas de objetos',
+        metas: ['C1M1. Realiza representaciones geométricas de objetos'],
+      },
+      {
+        orden: 2,
+        descripcion: 'Realiza representaciones geométricas de objetos',
+        metas: ['C1M1. Realiza representaciones geométricas de objetos'],
+      },
+    ];
+    const evidencias = derivarEvidenciasDisciplinares(progresiones, 'Dibujo Técnico I', 'ffe_optativa');
+    const productos = evidencias.map((e) => e.producto.toLowerCase());
+
+    expect(new Set(productos).size).toBe(productos.length);
+  });
+
+  it('No confunde palabras cortas como "redes" con el verbo "redactar"', () => {
+    const progresiones = construirProgresionesResumidas([
+      { actividad: 'Administra redes de una organización' },
+    ], []);
+    const evidencias = derivarEvidenciasDisciplinares(progresiones, 'Administra redes', 'laboral');
+
+    expect(evidencias[0].verboDisciplinar).not.toBe('redactar');
+    expect(evidencias[0].producto).not.toContain('texto argumentativo');
+  });
+
+  it('Deriva evidencias específicas para una actividad laboral BT', () => {
+    const progresiones = construirProgresionesResumidas([
+      { actividad: 'Administra redes de acuerdo con los requerimientos de la organización' },
+      { actividad: 'Configura servicios de red para una organización' },
+    ], []);
+    const evidencias = derivarEvidenciasDisciplinares(progresiones, 'Administra redes', 'laboral');
+
+    expect(evidencias).toHaveLength(2);
+    expect(evidencias[0].producto).toContain('redes');
+    expect(evidencias[1].producto).toContain('servicios de red');
+    expect(evidencias[0].producto).not.toBe(evidencias[1].producto);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 7. normalizarEvidenciasPaso2
 // ---------------------------------------------------------------------------
 
 describe('normalizarEvidenciasPaso2', () => {

@@ -5,8 +5,12 @@
  *
  * ACCIÓN (--up):
  *   1. Crea tabla de backup: programs_catalog_evidences_backup_<YYYYMMDDHHMMSS>
- *   2. Pone evidences = '[]'::jsonb en filas donde evidences contenga
- *      "Ensayo crítico" o "Portafolio de evidencias de aprendizaje y evaluación formativa".
+ *   2. Pone evidences = '[]'::jsonb en filas con evidencias genéricas:
+ *      "Ensayo crítico", "Portafolio de evidencias de aprendizaje...",
+ *      plantillas BT ("Portafolio de evidencias de prácticas técnicas...",
+ *      "Reporte técnico de ejecución...", "Guía de observación / Rúbrica...")
+ *      y plantillas laborales ("Reporte de práctica / Demostración técnica de...",
+ *      "Portafolio de desempeño en...").
  *   3. Es idempotente: solo toca filas que aún tengan el texto genérico.
  *   4. Todo dentro de una transacción BEGIN/COMMIT con ROLLBACK en caso de error.
  *
@@ -30,6 +34,12 @@ const BACKUP_TABLE_ESCAPED = `"${BACKUP_TABLE}"`;
 const GENERIC_PATTERNS = [
   '%Ensayo crítico%',
   '%Portafolio de evidencias de aprendizaje y evaluación formativa%',
+  '%Reporte de práctica / Demostración técnica de %',
+  '%Portafolio de desempeño en %',
+  '%Portafolio de evidencias de prácticas técnicas y de laboratorio%',
+  '%Reporte técnico de ejecución de competencias laborales%',
+  '%Guía de observación / Rúbrica de desempeño técnico profesional%',
+  '%Evidencia de aprendizaje / Producto%',
 ];
 
 // Construye un array PostgreSQL explícito para ILIKE ANY

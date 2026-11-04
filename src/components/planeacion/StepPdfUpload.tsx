@@ -5,24 +5,17 @@ import type { ExtractedPdfData, KeyActivity } from '@/types/planning';
 import { isTechnologicalSubsystem } from '@/lib/subsystem-config';
 import { removeHyphens, normalizeContenidos } from '@/lib/text-utils';
 import {
+  construirProgresionesResumidas,
   normalizarEvidenciasPaso2,
+  requiereDerivacionEvidencias,
+  type ContenidoFormativoFuente,
   type EvidenciaDisciplinar,
-  type ProgresionResumida,
 } from '@/lib/curriculum-evidence-engine';
-
-interface ContenidoFormativoItem {
-  order?: number;
-  proposito?: string;
-  contenidos?: string[] | string;
-  metas?: string[];
-  categorias?: string[];
-  subcategorias?: string[];
-  progresion?: string;
-}
 
 function cleanData(data: ExtractedPdfData, component?: string): ExtractedPdfData {
   const cleaned: ExtractedPdfData = {
     ...data,
+    component: component || data.component,
     uacName: removeHyphens(data.uacName || ''),
     learningOutcome: removeHyphens(data.learningOutcome || ''),
     activities: (data.activities || []).map(a => ({
@@ -31,42 +24,23 @@ function cleanData(data: ExtractedPdfData, component?: string): ExtractedPdfData
     })),
     evidences: (data.evidences || []).map(e => removeHyphens(e || '')),
     contenidosFormativos: Array.isArray(data.contenidosFormativos)
-      ? data.contenidosFormativos.map((cf: ContenidoFormativoItem) => ({
+      ? data.contenidosFormativos.map((cf: ContenidoFormativoFuente) => ({
           ...cf,
           proposito: removeHyphens(cf.proposito || ''),
+          actividad: removeHyphens(cf.actividad || ''),
           contenidos: normalizeContenidos(cf.contenidos),
         }))
       : data.contenidosFormativos,
   };
 
-  const needsDerivation =
-    !cleaned.evidences ||
-    cleaned.evidences.length === 0 ||
-    (cleaned.evidences.length === 1 && (!cleaned.evidences[0] || cleaned.evidences[0].trim() === '')) ||
-    cleaned.evidences.some(e => e.includes('Ensayo crítico') || e.includes('Portafolio de evidencias de aprendizaje y evaluación formativa'));
-
-  if (!needsDerivation) {
+  if (!requiereDerivacionEvidencias(cleaned.evidences)) {
     return cleaned;
   }
 
-  const rawContenidos = cleaned.contenidosFormativos;
-  const progsList: ProgresionResumida[] = Array.isArray(rawContenidos) && rawContenidos.length > 0
-    ? rawContenidos.map((cf: ContenidoFormativoItem, idx: number) => ({
-        orden: cf.order || (idx + 1),
-        nombre: cf.proposito || cf.progresion || `Progresión ${idx + 1}`,
-        descripcion: cf.progresion || cf.proposito || '',
-        metas: cf.metas || [],
-        categorias: cf.categorias || [],
-        subcategorias: cf.subcategorias || [],
-      }))
-    : (cleaned.activities || []).map((a, idx) => ({
-        orden: a.order || (idx + 1),
-        nombre: a.name,
-        descripcion: a.name,
-        metas: [],
-        categorias: [],
-        subcategorias: [],
-      }));
+  const progsList = construirProgresionesResumidas(
+    cleaned.contenidosFormativos as ContenidoFormativoFuente[] | undefined,
+    cleaned.activities
+  );
 
   const res = normalizarEvidenciasPaso2(progsList, cleaned.uacName, component, cleaned.teacherOverrides);
   return {
@@ -80,7 +54,7 @@ interface Props {
   uacSelection: { uacName: string; semester: number; component: string; subsystem?: string };
   initialData?: ExtractedPdfData | null;
   onNext: (data: ExtractedPdfData) => void;
-  onBack: () => void;
+  onBack: (data: ExtractedPdfData) => void;
 }
 
 export default function StepPdfUpload({ uacSelection, initialData, onNext, onBack }: Props) {
@@ -222,13 +196,13 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
       let newCfs = prev.contenidosFormativos;
       if (Array.isArray(newCfs)) {
         newCfs = newCfs
-          .filter((cf: ContenidoFormativoItem, i: number) => {
+          .filter((cf: ContenidoFormativoFuente, i: number) => {
             if (removedActivity?.order && cf.order) {
               return cf.order !== removedActivity.order;
             }
             return i !== idx;
           })
-          .map((cf: ContenidoFormativoItem, i: number) => ({
+          .map((cf: ContenidoFormativoFuente, i: number) => ({
             ...cf,
             order: i + 1,
           }));
@@ -418,9 +392,9 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
           <div className="form-group">
             <label className="form-label form-label-required">{activityLabel}</label>
             {formData.activities.map((a, idx) => {
-              const currentCf = (formData.contenidosFormativos as ContenidoFormativoItem[] | undefined)?.find(
+              const currentCf = (formData.contenidosFormativos as ContenidoFormativoFuente[] | undefined)?.find(
                 cf => cf.order === a.order
-              ) || (formData.contenidosFormativos as ContenidoFormativoItem[] | undefined)?.[idx];
+              ) || (formData.contenidosFormativos as ContenidoFormativoFuente[] | undefined)?.[idx];
               const contenidos = normalizeContenidos(currentCf?.contenidos);
 
               return (
@@ -482,7 +456,7 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
                             onChange={e => {
                               const val = e.target.value;
                               setFormData(prev => {
-                                const cfs = [...((prev.contenidosFormativos as ContenidoFormativoItem[]) || [])];
+                                const cfs = [...((prev.contenidosFormativos as ContenidoFormativoFuente[]) || [])];
                                 let cfIndex = cfs.findIndex(cf => cf?.order === a.order);
                                 if (cfIndex === -1 && idx < cfs.length && !cfs[idx]?.order) {
                                   cfIndex = idx;
@@ -505,7 +479,7 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
                             style={{ padding: '2px 8px' }}
                             onClick={() => {
                               setFormData(prev => {
-                                const cfs = [...((prev.contenidosFormativos as ContenidoFormativoItem[]) || [])];
+                                const cfs = [...((prev.contenidosFormativos as ContenidoFormativoFuente[]) || [])];
                                 let cfIndex = cfs.findIndex(cf => cf?.order === a.order);
                                 if (cfIndex === -1 && idx < cfs.length && !cfs[idx]?.order) {
                                   cfIndex = idx;
@@ -529,7 +503,7 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
                         style={{ fontSize: '11px', padding: '2px 8px' }}
                         onClick={() => {
                           setFormData(prev => {
-                            const cfs = [...((prev.contenidosFormativos as ContenidoFormativoItem[]) || [])];
+                            const cfs = [...((prev.contenidosFormativos as ContenidoFormativoFuente[]) || [])];
                             let cfIndex = cfs.findIndex(cf => cf?.order === a.order);
                             if (cfIndex === -1 && idx < cfs.length && !cfs[idx]?.order) {
                               cfIndex = idx;
@@ -652,7 +626,13 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px' }}>
-        <button type="button" className="btn btn-secondary" onClick={onBack}>← Atrás</button>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => onBack(cleanData(formData, uacSelection.component))}
+        >
+          ← Atrás
+        </button>
         <button type="submit" className="btn btn-primary">Continuar →</button>
       </div>
     </form>

@@ -8,6 +8,7 @@ import StepUAC_BT from './StepUAC_BT';
 
 interface Props {
   onNext: (data: UACSelection, initialData?: ExtractedPdfData) => void;
+  initialSelection?: UACSelection | null;
 }
 
 /**
@@ -15,8 +16,10 @@ interface Props {
  * Implementa el Patrón Estrategia (Strategy Pattern) para bifurcar limpiamente
  * entre Bachillerato General Estatal (BGE) y Bachilleratos Tecnológicos (BT).
  */
-export default function StepUAC({ onNext }: Props) {
-  const [selectedSubsystem, setSelectedSubsystem] = useState<string>('bge');
+export default function StepUAC({ onNext, initialSelection }: Props) {
+  const [selectedSubsystem, setSelectedSubsystem] = useState<string>(
+    initialSelection?.subsystem || 'bge'
+  );
 
   const isTec = isTechnologicalSubsystem(selectedSubsystem);
 
@@ -24,6 +27,7 @@ export default function StepUAC({ onNext }: Props) {
     return (
       <StepUAC_BT
         onNext={onNext}
+        initialSelection={initialSelection}
         selectedSubsystem={selectedSubsystem}
         onSubsystemChange={setSelectedSubsystem}
       />
@@ -33,6 +37,7 @@ export default function StepUAC({ onNext }: Props) {
   return (
     <StepUAC_BGE
       onNext={onNext}
+      initialSelection={initialSelection}
       selectedSubsystem={selectedSubsystem}
       onSubsystemChange={setSelectedSubsystem}
     />

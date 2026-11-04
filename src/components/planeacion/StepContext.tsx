@@ -5,6 +5,7 @@ import type { ExtractedPdfData, TeacherContext, PaecOperationalActivity } from '
 import { CATALOGO_METODOLOGIAS_ACTIVAS, type MetodologiaActiva } from '@/lib/catalogo-metodologias';
 import { buscarPlantelPorCct, buscarPlantelPorNombre } from '@/lib/catalogo-escuelas';
 import { recomendarMetodologiaConDetalle } from '@/lib/recomendador-metodologia';
+import { selectPaecOperationalActivity } from '@/lib/paec-subject-matching';
 import { logger } from '@/lib/logger';
 import { resolveFechasCortes } from '@/lib/fechas-cortes';
 import {
@@ -15,9 +16,10 @@ import {
 
 interface Props {
   extractedData: ExtractedPdfData;
+  component?: string;
   initialContext?: TeacherContext | null;
   onNext: (ctx: TeacherContext) => void;
-  onBack: () => void;
+  onBack: (ctx: TeacherContext) => void;
   isSubmitting?: boolean;
   submissionError?: string | null;
 }
@@ -36,57 +38,9 @@ const SUBSYSTEMS = [
   { value: 'otro',    label: 'Otro subsistema' },
 ];
 
-/**
- * Función de coincidencia difusa para emparejar la UAC seleccionada con
- * las asignaturas listadas en el Plan Operativo del PAEC
- */
-function matchSubject(targetUac: string, paecSubject: string): boolean {
-  if (!targetUac || !paecSubject) return false;
-  const clean = (s: string) =>
-    s
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-
-  const tNorm = clean(targetUac);
-  const pNorm = clean(paecSubject);
-
-  if (tNorm === pNorm) return true;
-  if (tNorm.includes(pNorm) || pNorm.includes(tNorm)) return true;
-
-  // Normalizar números romanos y arábigos: ' i' <-> ' 1', ' ii' <-> ' 2', ' iii' <-> ' 3', etc.
-  const toArabic = (s: string) =>
-    ` ${s} `
-      .replace(/\bvi\b/gi, '6')
-      .replace(/\bv\b/gi, '5')
-      .replace(/\biv\b/gi, '4')
-      .replace(/\biii\b/gi, '3')
-      .replace(/\bii\b/gi, '2')
-      .replace(/\bi\b/gi, '1')
-      .trim();
-
-  const tArabic = toArabic(tNorm);
-  const pArabic = toArabic(pNorm);
-
-  if (tArabic === pArabic) return true;
-  if (tArabic.includes(pArabic) || pArabic.includes(tArabic)) return true;
-
-  // Comparación por palabras clave significativas (ej: "pensamiento matematico", "materia interacciones")
-  const tWords = tArabic.split(' ').filter(w => w.length > 3);
-  const pWords = pArabic.split(' ').filter(w => w.length > 3);
-  if (tWords.length > 0 && pWords.length > 0) {
-    const common = tWords.filter(w => pWords.includes(w));
-    if (common.length >= Math.min(2, tWords.length)) return true;
-  }
-
-  return false;
-}
-
 export default function StepContext({
   extractedData,
+  component: selectedComponent,
   initialContext,
   onNext,
   onBack,
@@ -196,7 +150,7 @@ export default function StepContext({
 
   // Sugerencia automática de metodología según UAC/materia y contenidos oficiales
   const uacName = (extractedData as { uacName?: string })?.uacName || '';
-  const component = (extractedData as { component?: string })?.component || '';
+  const component = extractedData.component || selectedComponent || '';
 
   const recomendacionDetalle = useMemo(() => {
     if (!uacName) return null;
@@ -243,15 +197,10 @@ export default function StepContext({
 
       if (res.ok && result.data) {
         // Emparejamiento automático con el Plan Operativo del PAEC
-        let matchedAct: PaecOperationalActivity | null = null;
-        if (Array.isArray(result.data.planOperativo) && result.data.planOperativo.length > 0) {
-          matchedAct = result.data.planOperativo.find((item: PaecOperationalActivity) => {
-            if (!matchSubject(uacName, item.asignatura)) return false;
-            const normAsig = (item.asignatura || '').trim().toLowerCase();
-            const normAct = (item.actividad || '').trim().toLowerCase();
-            return !!(normAct && normAct !== normAsig && !matchSubject(item.actividad, item.asignatura));
-          }) || null;
-        }
+        const matchedAct: PaecOperationalActivity | null = selectPaecOperationalActivity(
+          uacName,
+          result.data.planOperativo
+        );
 
         if (matchedAct) {
           setDetectedPaecActivity(matchedAct);
@@ -1236,7 +1185,12 @@ export default function StepContext({
       )}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px' }}>
-        <button type="button" className="btn btn-secondary" onClick={onBack} disabled={isSubmitting}>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => onBack(form)}
+          disabled={isSubmitting}
+        >
           ← Atrás
         </button>
         <button

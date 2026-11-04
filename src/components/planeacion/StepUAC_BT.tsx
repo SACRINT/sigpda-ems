@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import type { ExtractedPdfData } from '@/types/planning';
+import { normalizeUnicode } from '@/lib/utils/normalize';
 import {
   loadCarrerasTecnicas,
   type BTCarrera,
@@ -23,34 +24,98 @@ interface Props {
   onNext: (data: UACSelection, initialData?: ExtractedPdfData) => void;
   selectedSubsystem: string;
   onSubsystemChange: (subsystem: string) => void;
+  initialSelection?: UACSelection | null;
 }
 
-export default function StepUAC_BT({ onNext, selectedSubsystem, onSubsystemChange }: Props) {
-  const [form, setForm] = useState<UACSelection>({
-    uacName: '',
-    semester: 2, // En Bachillerato Tecnológico, la Carrera Técnica inicia desde 2° semestre
-    component: 'laboral', // En BT el componente técnico es protagonista
-    subsystem: selectedSubsystem || 'tecnologico',
-    curriculumName: 'Contabilidad',
-  });
+export default function StepUAC_BT({
+  onNext,
+  selectedSubsystem,
+  onSubsystemChange,
+  initialSelection,
+}: Props) {
+  const [form, setForm] = useState<UACSelection>(() => initialSelection
+    ? {
+        ...initialSelection,
+        semester: initialSelection.semester || 2,
+        component: initialSelection.component || 'laboral',
+        subsystem: initialSelection.subsystem || selectedSubsystem || 'tecnologico',
+        curriculumName: initialSelection.curriculumName || '',
+      }
+    : {
+        uacName: '',
+        semester: 2, // En Bachillerato Tecnológico, la Carrera Técnica inicia desde 2º semestre
+        component: 'laboral', // En BT el componente técnico es protagonista
+        subsystem: selectedSubsystem || 'tecnologico',
+        curriculumName: 'Contabilidad',
+      });
 
   const [searchCareerQuery, setSearchCareerQuery] = useState('');
   const [selectedCarreraId, setSelectedCarreraId] = useState<string>('contabilidad');
   const [selectedSubmoduloIndex, setSelectedSubmoduloIndex] = useState<number>(0);
+  const restoredLaboralInitialRef = useRef(
+    !(initialSelection?.component === 'laboral' && initialSelection?.uacName)
+  );
+  const restoredCatalogInitialRef = useRef(
+    !(initialSelection?.component !== 'laboral' && initialSelection?.uacName)
+  );
+  const userChangedSelectionRef = useRef(false);
   
   // Para componentes no laborales (fundamental, ampliado, etc.)
   const [catalogPrograms, setCatalogPrograms] = useState<any[]>([]);
   const [selectedCatalogUac, setSelectedCatalogUac] = useState<any>(null);
   
-  const [isManualInput, setIsManualInput] = useState(false);
+  const [isManualInput, setIsManualInput] = useState(Boolean(initialSelection?.uacName));
   const [loadingPrograms, setLoadingPrograms] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [carreras, setCarreras] = useState<BTCarrera[]>([]);
 
   useEffect(() => {
-    loadCarrerasTecnicas().then(setCarreras);
-  }, []);
+    let cancelled = false;
+
+    loadCarrerasTecnicas().then(loaded => {
+      if (cancelled) return;
+      setCarreras(loaded);
+
+      if (
+        restoredLaboralInitialRef.current ||
+        initialSelection?.component !== 'laboral' ||
+        !initialSelection.uacName
+      ) {
+        return;
+      }
+
+      const norm = (value: string) =>
+        normalizeUnicode(value || '').replace(/\s+/g, ' ').trim();
+      const curriculumKey = norm(initialSelection.curriculumName || '');
+
+      const career = curriculumKey
+        ? loaded.find(c => norm(c.nombre) === curriculumKey || norm(c.id) === curriculumKey)
+        : undefined;
+
+      if (career) {
+        setSelectedCarreraId(career.id);
+        const modulo = career.modulos?.find(m => m.semestre === initialSelection.semester);
+        const uacKey = norm(initialSelection.uacName);
+        const submoduleIndex = modulo?.submodulos.findIndex(sub => {
+          const subKey = norm(sub.uac_name || '');
+          const nameKey = norm(sub.nombre || '');
+          return subKey === uacKey || Boolean(nameKey && uacKey.includes(nameKey));
+        });
+
+        if (typeof submoduleIndex === 'number' && submoduleIndex >= 0) {
+          setSelectedSubmoduloIndex(submoduleIndex);
+          setIsManualInput(false);
+        }
+      }
+
+      restoredLaboralInitialRef.current = true;
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialSelection]);
 
   const isLaboral = form.component === 'laboral';
   // En BT, Carrera Técnica solo se deshabilita en 1er semestre
@@ -89,6 +154,14 @@ export default function StepUAC_BT({ onNext, selectedSubsystem, onSubsystemChang
 
   // Sincronizar form cuando cambia carrera, módulo o submódulo en Carrera Técnica
   useEffect(() => {
+    if (
+      initialSelection?.component === 'laboral' &&
+      initialSelection.uacName &&
+      !userChangedSelectionRef.current
+    ) {
+      return;
+    }
+
     if (isLaboral && activeCarrera && activeModulo && activeSubmodulo && !isManualInput) {
       setForm(prev => ({
         ...prev,
@@ -97,7 +170,7 @@ export default function StepUAC_BT({ onNext, selectedSubsystem, onSubsystemChang
         subsystem: selectedSubsystem,
       }));
     }
-  }, [isLaboral, activeCarrera, activeModulo, activeSubmodulo, selectedSubmoduloIndex, selectedSubsystem, isManualInput]);
+  }, [isLaboral, activeCarrera, activeModulo, activeSubmodulo, selectedSubmoduloIndex, selectedSubsystem, isManualInput, initialSelection]);
 
   // Carga de catálogo para componentes no técnicos (fundamental, ampliado, etc.)
   useEffect(() => {
@@ -114,17 +187,35 @@ export default function StepUAC_BT({ onNext, selectedSubsystem, onSubsystemChang
           const filtered = data.programs;
           setCatalogPrograms(filtered);
 
-          if (filtered.length > 0) {
-            const first = filtered[0];
-            setSelectedCatalogUac(first);
+          const restoringInitial = !restoredCatalogInitialRef.current;
+          const initialUacKey = initialSelection?.uacName
+            ? normalizeUnicode(initialSelection.uacName).replace(/\s+/g, ' ').trim()
+            : '';
+          const matchesInitialSelection = (program: { uac_name?: string }) => Boolean(
+            restoringInitial &&
+            initialUacKey &&
+            (
+              normalizeUnicode(program.uac_name || '').replace(/\s+/g, ' ').trim() === initialUacKey ||
+              normalizeUnicode(cleanSocioemotionalName(program.uac_name || '', form.semester)).replace(/\s+/g, ' ').trim() === initialUacKey
+            )
+          );
+
+          const selected = restoringInitial
+            ? filtered.find(matchesInitialSelection)
+            : filtered[0];
+
+          if (selected) {
+            setSelectedCatalogUac(selected);
             setForm(prev => ({
               ...prev,
-              uacName: form.component === 'ampliado' ? cleanSocioemotionalName(first.uac_name, form.semester) : first.uac_name,
-              curriculumName: first.curriculum_name || '',
+              uacName: form.component === 'ampliado' ? cleanSocioemotionalName(selected.uac_name, form.semester) : selected.uac_name,
+              curriculumName: selected.curriculum_name || '',
               subsystem: selectedSubsystem,
             }));
             setIsManualInput(false);
           }
+
+          restoredCatalogInitialRef.current = true;
         }
       } catch (err) {
         console.error('Error fetching BT catalog programs:', err);
@@ -134,10 +225,11 @@ export default function StepUAC_BT({ onNext, selectedSubsystem, onSubsystemChang
     };
 
     fetchPrograms();
-  }, [form.semester, form.component, selectedSubsystem, isLaboral]);
+  }, [form.semester, form.component, selectedSubsystem, isLaboral, initialSelection]);
 
   // Cambio de semestre
   const handleSemesterChange = (newSemester: number) => {
+    userChangedSelectionRef.current = true;
     let nextComponent = form.component;
     if (SEMESTERS_WITHOUT_COMPONENT.bt.includes(newSemester) && form.component === 'laboral') {
       nextComponent = 'fundamental';
@@ -155,6 +247,7 @@ export default function StepUAC_BT({ onNext, selectedSubsystem, onSubsystemChang
 
   // Cambio de componente
   const handleComponentChange = (newComponent: string) => {
+    userChangedSelectionRef.current = true;
     const isNowLaboral = newComponent === 'laboral';
     setForm(prev => ({
       ...prev,
@@ -168,6 +261,7 @@ export default function StepUAC_BT({ onNext, selectedSubsystem, onSubsystemChang
 
   // Cambio de Carrera Técnica
   const handleCarreraChange = (carreraId: string) => {
+    userChangedSelectionRef.current = true;
     if (carreraId === 'manual_career') {
       setIsManualInput(true);
       setForm(prev => ({ ...prev, uacName: '', curriculumName: '' }));
@@ -180,6 +274,7 @@ export default function StepUAC_BT({ onNext, selectedSubsystem, onSubsystemChang
 
   // Cambio de Submódulo
   const handleSubmoduloChange = (val: string) => {
+    userChangedSelectionRef.current = true;
     if (val === 'manual_submodulo') {
       setIsManualInput(true);
       setForm(prev => ({ ...prev, uacName: '' }));
@@ -192,6 +287,7 @@ export default function StepUAC_BT({ onNext, selectedSubsystem, onSubsystemChang
 
   // Manejador para UACs no laborales (fundamental, ampliado)
   const handleNonLaboralUacChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    userChangedSelectionRef.current = true;
     const val = e.target.value;
     if (val === 'manual') {
       setIsManualInput(true);

@@ -8,6 +8,10 @@ import StepPdfUpload from '@/components/planeacion/StepPdfUpload';
 import StepContext from '@/components/planeacion/StepContext';
 import StepGenerate from '@/components/planeacion/StepGenerate';
 import { useWizardPersistence } from '@/hooks/useWizardPersistence';
+import {
+  applyUacSelection,
+  type WizardUacSelection,
+} from '@/lib/planeacion-wizard-state';
 
 const STEPS = [
   { num: 1, label: 'Datos UAC' },
@@ -18,12 +22,7 @@ const STEPS = [
 
 const STORAGE_KEY = 'didactica_planeacion_draft';
 
-interface UACSelection {
-  uacName: string;
-  semester: number;
-  component: string;
-  curriculumName?: string;
-}
+type UACSelection = WizardUacSelection;
 
 interface WizardDraft {
   step: number;
@@ -64,16 +63,19 @@ export default function NuevaPlaneacionClient({ locale }: Props) {
   };
 
   const handleUACNext = (data: UACSelection, initialData?: ExtractedPdfData) => {
-    setDraft(prev => ({
-      ...prev,
-      uacSelection: data,
-      extractedData: initialData ?? null,
-      step: 2,
-    }));
+    setDraft(prev => applyUacSelection(prev, data, initialData));
   };
 
   const handlePdfNext = (data: ExtractedPdfData) => {
     setDraft(prev => ({ ...prev, extractedData: data, step: 3 }));
+  };
+
+  const handlePdfBack = (data: ExtractedPdfData) => {
+    setDraft(prev => ({ ...prev, extractedData: data, step: 1 }));
+  };
+
+  const handleContextBack = (context: TeacherContext) => {
+    setDraft(prev => ({ ...prev, context, step: 2 }));
   };
 
   const handleContextNext = async (ctx: TeacherContext) => {
@@ -171,7 +173,10 @@ export default function NuevaPlaneacionClient({ locale }: Props) {
         ) : (
           <>
             {draft.step === 1 && (
-              <StepUAC onNext={handleUACNext} />
+              <StepUAC
+                onNext={handleUACNext}
+                initialSelection={draft.uacSelection}
+              />
             )}
 
             {draft.step === 2 && draft.uacSelection && (
@@ -179,16 +184,17 @@ export default function NuevaPlaneacionClient({ locale }: Props) {
                 uacSelection={draft.uacSelection}
                 initialData={draft.extractedData}
                 onNext={handlePdfNext}
-                onBack={() => setStep(1)}
+                onBack={handlePdfBack}
               />
             )}
 
-            {draft.step === 3 && draft.extractedData && (
+            {draft.step === 3 && draft.extractedData && draft.uacSelection && (
               <StepContext
                 extractedData={draft.extractedData}
+                component={draft.uacSelection.component}
                 initialContext={draft.context}
                 onNext={handleContextNext}
-                onBack={() => setStep(2)}
+                onBack={handleContextBack}
                 isSubmitting={isCreatingPlanning}
                 submissionError={planningError}
               />

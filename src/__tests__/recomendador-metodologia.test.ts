@@ -63,6 +63,16 @@ describe('recomendarMetodologia', () => {
     ).toBe('abr');
   });
 
+  it('recomienda práctica de taller para una UAC de formación laboral', () => {
+    expect(
+      recomendarMetodologia(
+        'Prepara materiales en cantidad y calidad especificada para llevar a cabo diferentes tipos de mezclas bajo la supervisión del experto',
+        'laboral',
+        'bge'
+      )
+    ).toBe('practica_laboratorio');
+  });
+
   describe('Inmunidad a falsos amigos de Talleres y Laboratorios Académicos (MCCEMS)', () => {
     it('recomienda STEAM para Taller Pensamiento Variacional I (no práctica de taller)', () => {
       const res = recomendarMetodologia('Taller Pensamiento Variacional I', 'ffe_optativa');

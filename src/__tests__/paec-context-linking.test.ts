@@ -92,6 +92,14 @@ describe('H-322 — matchOperationalActivity', () => {
     expect(act.actividad).toBe('Mapeo participativo y levantamiento de datos espaciales preliminares');
     expect(act.semana).toBe('Semana 2');
   });
+
+  it('descarta una extracción donde la actividad es el nombre de otra asignatura del PAEC', () => {
+    const rows = [
+      rowReal('Ciencias Naturales, Experimentales y Tecnología I', 'Indagación sobre mezclas'),
+      rowReal('Prepara materiales para mezclas', 'Ciencias Naturales, Experimentales y Tecnología I'),
+    ];
+    expect(matchOperationalActivity(rows, 'Prepara materiales para mezclas')).toBeNull();
+  });
 });
 
 describe('H-322 — matchCurricularMapping', () => {

@@ -20,6 +20,7 @@ export interface KeyActivity {
 
 export interface ExtractedPdfData {
   uacName: string;
+  component?: string;
   learningOutcome: string;
   totalHours: number;
   activities: KeyActivity[];
