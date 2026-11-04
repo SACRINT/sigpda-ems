@@ -6,7 +6,9 @@
  */
 
 import { getMaterial, type MaterialCatalogItem } from './materials-catalog';
-import { autoTokenizeMaterials } from './auto-tokenize';
+import { autoTokenizeMaterials, type AutoTokenizeOptions } from './auto-tokenize';
+
+export type { AutoTokenizeOptions };
 
 /**
  * Expresión regular para detectar tokens de materiales en textos.
@@ -69,9 +71,35 @@ export function resolveMaterialTokensForMarkdown(text: string): string {
   });
 }
 
-/** Fachada para consumidores de render/UI: primero recupera tokens del texto libre, luego parsea. */
-export function parseMaterialTokensWithFallback(text: string): ResolvedMaterial[] {
-  return parseMaterialTokens(autoTokenizeMaterials(text));
+/** Fachada para consumidores de render/UI: primero recupera tokens del texto libre, luego parsea con soporte de filtrado disciplinar. */
+export function parseMaterialTokensWithFallback(
+  text: string,
+  options?: AutoTokenizeOptions
+): ResolvedMaterial[] {
+  const tokenized = autoTokenizeMaterials(text, options);
+  const parsed = parseMaterialTokens(tokenized);
+  if (!options?.uacName) return parsed;
+
+  const normUac = (options.uacName + ' ' + (options.component || '')).toLowerCase();
+  const isCulinary = /gastronom|alimentos y bebidas|reposteri|panaderi|culinari|cocina\b/i.test(normUac);
+  const isDrawingOrExact = /dibujo|expresion grafica|arquitectur|cad\b|pensamiento matematico|fisica|quimica/i.test(normUac);
+
+  return parsed.filter((m) => {
+    if (!m.item) return true;
+    if (!isCulinary && m.item.category === 'alimentos') return false;
+    if (
+      isDrawingOrExact &&
+      (m.item.category === 'alimentos' ||
+        m.slug.includes('cortar') ||
+        m.slug.includes('cocina') ||
+        m.slug.includes('cuchillo') ||
+        m.slug.includes('batidora'))
+    ) {
+      return false;
+    }
+    if (options.forbiddenSlugs?.includes(m.slug)) return false;
+    return true;
+  });
 }
 
 /**

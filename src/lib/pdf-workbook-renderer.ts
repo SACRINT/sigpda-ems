@@ -333,10 +333,23 @@ export async function renderWorkbookToPdf(
     drawPlantelComunidadPage(doc, workbook, planning, margin, contentWidth, pageHeight);
   }
 
-  // ── 3. Índice de Misiones (Página Reservada para TOC Real) ───────────────────
+  // ── 3. Índice de Misiones (Páginas Reservadas para TOC Real) ───────────────────
+  const totalExpectedTocEntries =
+    workbook.missions.length +
+    (workbook.projectSection ? 1 : 0) +
+    (workbook.evaluationSection ? 1 : 0);
+  const tocPagesCount = totalExpectedTocEntries > 18 ? 2 : 1;
+
   doc.addPage();
   const tocPageNumber = doc.getNumberOfPages();
   pageContextMap.set(tocPageNumber, { isSpecialPage: true, uacName: coverOpts.uacName });
+
+  let tocSecondPageNumber: number | null = null;
+  if (tocPagesCount > 1) {
+    doc.addPage();
+    tocSecondPageNumber = doc.getNumberOfPages();
+    pageContextMap.set(tocSecondPageNumber, { isSpecialPage: true, uacName: coverOpts.uacName });
+  }
   const tocStartY = margin + 6;
 
   // ── 4. Misiones Didácticas ─────────────────────────────────────────────────
@@ -421,7 +434,16 @@ export async function renderWorkbookToPdf(
       new Set(workbook.missions.flatMap((m) => m.coveredSessions || []))
     ).sort((a, b) => a - b);
     const sessionList = allWorkbookSessions.length > 0 ? allWorkbookSessions : undefined;
-    currentY = drawProjectSection(doc, workbook.projectSection, margin, contentWidth, pageHeight, currentY, sessionList);
+    currentY = drawProjectSection(
+      doc,
+      workbook.projectSection,
+      margin,
+      contentWidth,
+      pageHeight,
+      currentY,
+      sessionList,
+      workbook.coverData?.subjectName
+    );
   }
 
   // ── 6. Evaluación Formativa y Sumativa NEM (Rúbrica y Lista de Cotejo) ─────
@@ -447,8 +469,15 @@ export async function renderWorkbookToPdf(
 
   // ── 7. Renderizado Final del TOC con Números de Página Reales (Fase V4) ────
   const lastContentPage = doc.getNumberOfPages();
-  doc.setPage(tocPageNumber);
-  drawRealTableOfContents(doc, realTocEntries, margin, contentWidth, tocStartY);
+  drawRealTableOfContents(
+    doc,
+    realTocEntries,
+    margin,
+    contentWidth,
+    tocStartY,
+    tocPageNumber,
+    tocSecondPageNumber
+  );
   doc.setPage(lastContentPage);
 
   // ── 8. Página de Créditos Institucionales y Atribuciones Creative Commons (Fase V5) ──
@@ -1346,23 +1375,24 @@ export interface RealTocEntry {
   pageNumber: number;
 }
 
-function drawRealTableOfContents(
+function renderTocPart(
   doc: jsPDF,
   entries: RealTocEntry[],
   margin: number,
   contentWidth: number,
-  startY: number
+  startY: number,
+  title: string
 ) {
   setFontBody(doc, 'bold');
-  doc.setFontSize(12);
+  doc.setFontSize(11);
   doc.setTextColor(...NAVY);
-  doc.text('ÍNDICE GENERAL Y DOSIFICACIÓN DIDÁCTICA', margin, startY);
+  doc.text(title, margin, startY);
 
   setFontBody(doc, 'normal');
-  doc.setFontSize(8.5);
+  doc.setFontSize(7.8);
   doc.setTextColor(...DARK_TEXT);
   doc.text(
-    'Estructura de misiones pedagógicas, proyectos comunitarios y evaluaciones con su paginación oficial:',
+    'Estructura de misiones pedagógicas, proyectos comunitarios y cortes de evaluación formativa:',
     margin,
     startY + 5
   );
@@ -1384,20 +1414,68 @@ function drawRealTableOfContents(
       fillColor: NAVY,
       textColor: [255, 255, 255],
       fontStyle: 'bold',
-      fontSize: 8,
+      fontSize: 7.5,
     },
     styles: {
-      fontSize: 7.5,
-      cellPadding: 2.2,
+      fontSize: 7.0,
+      cellPadding: 1.5,
       textColor: DARK_TEXT,
     },
     columnStyles: {
       0: { cellWidth: 26, fontStyle: 'bold' },
       1: { cellWidth: 'auto' },
-      2: { cellWidth: 38 },
-      3: { cellWidth: 20, halign: 'center', fontStyle: 'bold', textColor: NAVY },
+      2: { cellWidth: 36 },
+      3: { cellWidth: 18, halign: 'center', fontStyle: 'bold', textColor: NAVY },
     },
   });
+}
+
+function drawRealTableOfContents(
+  doc: jsPDF,
+  entries: RealTocEntry[],
+  margin: number,
+  contentWidth: number,
+  startY: number,
+  tocPageNumber: number,
+  tocSecondPageNumber: number | null = null
+) {
+  if (tocSecondPageNumber && entries.length > 18) {
+    const splitIndex = Math.ceil(entries.length / 2);
+    const firstPart = entries.slice(0, splitIndex);
+    const secondPart = entries.slice(splitIndex);
+
+    // Página 1
+    doc.setPage(tocPageNumber);
+    renderTocPart(
+      doc,
+      firstPart,
+      margin,
+      contentWidth,
+      startY,
+      'ÍNDICE GENERAL Y DOSIFICACIÓN DIDÁCTICA (PARTE I)'
+    );
+
+    // Página 2
+    doc.setPage(tocSecondPageNumber);
+    renderTocPart(
+      doc,
+      secondPart,
+      margin,
+      contentWidth,
+      startY,
+      'ÍNDICE GENERAL Y DOSIFICACIÓN DIDÁCTICA (PARTE II)'
+    );
+  } else {
+    doc.setPage(tocPageNumber);
+    renderTocPart(
+      doc,
+      entries,
+      margin,
+      contentWidth,
+      startY,
+      'ÍNDICE GENERAL Y DOSIFICACIÓN DIDÁCTICA'
+    );
+  }
 }
 
 function drawPlantelComunidadPage(
@@ -3175,28 +3253,36 @@ async function drawMission(
     generateMissionRubric(mission, subjectName, blockName);
 
   if (missionRubric && missionRubric.length > 0) {
-    y = checkSpace(y, 44);
+    const spaceLeft = flow.contentBottom - y;
+    const useCompactRubric = spaceLeft >= 24 && spaceLeft < 44;
+    if (!useCompactRubric && spaceLeft < 24) {
+      y = checkSpace(y, 44);
+    }
     y = drawMissionRubricTable(
       doc,
       missionRubric,
       margin,
       mainW,
       y,
-      momentColor
+      momentColor,
+      useCompactRubric
     );
-    y += 2;
+    y += 1.5;
   }
 
   // ── Cierre de Misión: Sello Curricular MCCEMS al pie si quedó espacio ────────
   {
     const sealText = `SELLO CURRICULAR MCCEMS · Hash: ${hashMission.slice(0, 20)}... · MCCEMS Puebla · ${SCHOOL_YEAR}`;
-    y = checkSpace(y, 10);
+    // Guardián anti-páginas huérfanas: el sello de 1 línea NUNCA debe generar una página nueva vacía
+    if (y + 8 > pageHeight - margin) {
+      y = Math.min(y, pageHeight - margin - 4);
+    }
     setFontBody(doc, 'normal');
-    doc.setFontSize(6.2);
+    doc.setFontSize(6.0);
     doc.setTextColor(...MUTED_TEXT);
     const sealLines = doc.splitTextToSize(sanitizePdfText(sealText), mainW);
     doc.text(sealLines, margin, y);
-    y += sealLines.length * 3.2 + 4;
+    y += sealLines.length * 3.0 + 2;
   }
 
   flow.finalize();
@@ -3349,7 +3435,8 @@ function drawProjectSection(
   contentWidth: number,
   pageHeight: number,
   startY: number,
-  sessionList?: number[]
+  sessionList?: number[],
+  uacName?: string
 ): number {
   let y = startY;
 
@@ -3426,8 +3513,9 @@ function drawProjectSection(
     y += 3;
 
     // Figuras de materiales en anexo/sección con imagen fija y alt del catálogo como pie (T-IMG-05)
+    // Con blindaje disciplinar de UAC (Fase 1) para evitar contaminación cruzada de utensilios ajenos
     const allTokens = project.requiredMaterials.flatMap((mat) =>
-      parseMaterialTokensWithFallback(resolveMaterialString(mat))
+      parseMaterialTokensWithFallback(resolveMaterialString(mat), { uacName })
     );
     const uniqueTokens = Array.from(new Map(allTokens.map((t) => [t.slug, t])).values());
 

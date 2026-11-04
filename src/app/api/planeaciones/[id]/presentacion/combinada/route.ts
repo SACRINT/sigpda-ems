@@ -59,11 +59,15 @@ export async function GET(
       );
     }
 
+    const { searchParams } = new URL(request.url);
+    const modeParam = searchParams.get('mode');
+    const deckMode = modeParam === 'full' ? 'full' : 'classroom';
+
     const sacrintDecks: SacrintDeckSpec[] = [];
     for (const entry of entries) {
       const missionCount = Math.max(1, (entry.workbook.missions ?? []).length);
       for (let missionIndex = 0; missionIndex < missionCount; missionIndex += 1) {
-        sacrintDecks.push(buildSacrintDeck(entry.workbook, { missionIndex }));
+        sacrintDecks.push(buildSacrintDeck(entry.workbook, { missionIndex, mode: deckMode }));
       }
     }
 

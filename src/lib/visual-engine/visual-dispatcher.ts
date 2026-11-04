@@ -24,6 +24,12 @@ import {
   generateSocialStatsChart,
 } from './generators/humanities-generator';
 import {
+  generateMonteaTriplanar,
+  generateIsometricPrism,
+  generateTechnicalDimensioning,
+  generateGeometricConstructions,
+} from './generators/technical-drawing-generator';
+import {
   generateTechnicalFlow,
   generateBlockDiagram,
   generateGanttChart,
@@ -42,7 +48,6 @@ import { normalizeUnicode } from '@/lib/utils/normalize';
 const STEM_KEYWORDS = [
   'pensamiento matemático',
   'análisis de fenómenos físicos',
-  'dibujo técnico',
   'física',
   'fisica',
   'química',
@@ -141,6 +146,34 @@ const LABORAL_KEYWORDS = [
   'taller tecnico',
   'taller técnico',
 ];
+
+const TECHNICAL_DRAWING_KEYWORDS = [
+  'dibujo tecnico',
+  'dibujo técnico',
+  'dibujo arquitectonico',
+  'dibujo arquitectónico',
+  'dibujo industrial',
+  'geometria descriptiva',
+  'geometría descriptiva',
+  'diseno arquitectonico',
+  'diseño arquitectónico',
+  'diseno tecnico',
+  'diseño técnico',
+  'planos y maquetas',
+  'trazo tecnico',
+  'trazo técnico',
+];
+
+/**
+ * Determina si una UAC pertenece al área de Dibujo Técnico y Arquitectura.
+ */
+export function isTechnicalDrawingSubject(uacName: string): boolean {
+  const norm = normalizeUnicode(uacName);
+  return TECHNICAL_DRAWING_KEYWORDS.some((kw) => {
+    const normKw = normalizeUnicode(kw);
+    return norm.includes(normKw);
+  });
+}
 
 /**
  * Determina si una UAC pertenece al área STEM / Ciencias Exactas.
@@ -268,6 +301,100 @@ function tryExtractQuadraticParameters(text: string): { a: number; b: number; c:
 }
 
 /**
+ * Despachador especializado para Dibujo Técnico I, II y Arquitectura.
+ * Garantiza diagramas normativos (Montea Triplanar, Isométrico, Acotación, Trazados Geométricos)
+ * en lugar de ecuaciones algebraicas 2x2 o gráficas cartesianas.
+ */
+export function dispatchTechnicalDrawing(
+  topic: string,
+  contextText?: string,
+  missionIndex = 1
+): VisualResult {
+  const searchText = normalizeUnicode(`${topic} ${contextText || ''}`);
+
+  // 1. Montea Triplanar / Vistas Diédricas / Proyecciones Ortogonales
+  if (
+    searchText.includes('montea') ||
+    searchText.includes('diedric') ||
+    searchText.includes('ortogonal') ||
+    searchText.includes('vista') ||
+    searchText.includes('planta') ||
+    searchText.includes('alzado') ||
+    searchText.includes('perfil') ||
+    searchText.includes('proyeccion')
+  ) {
+    return generateMonteaTriplanar({
+      title: `Montea Triplanar: ${topic.slice(0, 40)}`,
+    });
+  }
+
+  // 2. Perspectiva Isométrica / Axonométrica / Volumen 3D
+  if (
+    searchText.includes('isometric') ||
+    searchText.includes('axonometric') ||
+    searchText.includes('perspectiva') ||
+    searchText.includes('volumen') ||
+    searchText.includes('3d') ||
+    searchText.includes('solido') ||
+    searchText.includes('arista')
+  ) {
+    return generateIsometricPrism({
+      title: `Perspectiva Isométrica: ${topic.slice(0, 40)}`,
+    });
+  }
+
+  // 3. Acotación y Normalización Técnica
+  if (
+    searchText.includes('acotaci') ||
+    searchText.includes('cota') ||
+    searchText.includes('norma') ||
+    searchText.includes('dimension') ||
+    searchText.includes('escala') ||
+    searchText.includes('tolerancia')
+  ) {
+    return generateTechnicalDimensioning({
+      title: `Acotación Normalizada: ${topic.slice(0, 40)}`,
+    });
+  }
+
+  // 4. Trazados Geométricos / Enlaces / Tangencias / Óvalos
+  if (
+    searchText.includes('tangente') ||
+    searchText.includes('tangencia') ||
+    searchText.includes('empalme') ||
+    searchText.includes('ovalo') ||
+    searchText.includes('elipse') ||
+    searchText.includes('curva') ||
+    searchText.includes('geometri')
+  ) {
+    return generateGeometricConstructions({
+      title: `Trazado Geométrico: ${topic.slice(0, 40)}`,
+    });
+  }
+
+  // Rotación pedagógica determinística por índice de misión
+  const mod = ((missionIndex - 1) % 4) + 1;
+  if (mod === 1) {
+    return generateMonteaTriplanar({
+      title: `Montea Triplanar y Proyecciones: ${topic.slice(0, 36)}`,
+    });
+  }
+  if (mod === 2) {
+    return generateIsometricPrism({
+      title: `Perspectiva Isométrica Normalizada: ${topic.slice(0, 34)}`,
+    });
+  }
+  if (mod === 3) {
+    return generateTechnicalDimensioning({
+      title: `Sistema de Acotación Técnica: ${topic.slice(0, 36)}`,
+    });
+  }
+  return generateGeometricConstructions({
+    title: `Construcciones Geométricas Básicas: ${topic.slice(0, 34)}`,
+  });
+}
+
+/**
  * Despacha el recurso gráfico vectorial adecuado según la asignatura, el tema,
  * el contexto completo de la misión y el índice de misión para evitar repeticiones.
  *
@@ -283,6 +410,11 @@ export function dispatchVisual(
   contextText?: string,
   missionIndex = 1
 ): VisualResult | null {
+  // ── 0. DISPATCHER ESPECIALIZADO: DIBUJO TÉCNICO Y ARQUITECTURA ──────────
+  if (isTechnicalDrawingSubject(uacName)) {
+    return dispatchTechnicalDrawing(topic, contextText, missionIndex);
+  }
+
   const isStem = isStemSubject(uacName);
   const isHumanities = isHumanitiesSubject(uacName);
   const isLaboral = isLaboralSubject(uacName);

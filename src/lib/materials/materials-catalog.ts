@@ -518,7 +518,7 @@ export const MATERIALES_CATALOG: readonly MaterialCatalogItem[] = [
   {
     slug: 'horno-reposteria',
     name: 'Horno de Convección / Estufa de Cocina',
-    category: 'laboratorio_quimica',
+    category: 'alimentos',
     priority: 'P1',
     altText: 'Horno con control de temperatura para panificación y conservación',
     aliases: ['horno-cocina', 'estufa-alimentos'],
@@ -527,7 +527,7 @@ export const MATERIALES_CATALOG: readonly MaterialCatalogItem[] = [
   {
     slug: 'batidora',
     name: 'Batidora de Pedestal / Manual de Alimentos',
-    category: 'laboratorio_quimica',
+    category: 'alimentos',
     priority: 'P1',
     altText: 'Batidora eléctrica para preparación de masas y emulsiones',
     aliases: ['batidora-electrica', 'mezcladora-alimentos'],
@@ -536,7 +536,7 @@ export const MATERIALES_CATALOG: readonly MaterialCatalogItem[] = [
   {
     slug: 'tabla-cortar',
     name: 'Tabla de Picar de Polietileno Grado Alimenticio',
-    category: 'laboratorio_quimica',
+    category: 'alimentos',
     priority: 'P1',
     altText: 'Tabla higiénica de polietileno para corte seguro de materias primas',
     aliases: ['tabla-picar', 'tabla-polietileno'],
@@ -563,7 +563,7 @@ export const MATERIALES_CATALOG: readonly MaterialCatalogItem[] = [
     category: 'arte',
     priority: 'P1',
     altText: 'Escuadras de acrílico sin bisel para dibujo técnico geométrico',
-    aliases: ['juego-escuadras', 'escuadra-cartabon'],
+    aliases: ['juego-escuadras', 'escuadra-cartabon', 'escuadra', 'escuadras'],
     equivalenteVirtual: {
       nombre: 'GeoGebra Suite Geométrica',
       url: 'https://www.geogebra.org/geometry',

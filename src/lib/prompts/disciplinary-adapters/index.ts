@@ -381,14 +381,22 @@ const ADAPTERS: Record<DisciplinaryDomainId, DisciplinaryAdapter> = {
     ],
     forbiddenCrossDomainTerms: [
       'tabla de cortar',
+      'tabla de picar',
       'cuchillo',
+      'cuchillo de chef',
+      'chef',
+      'cocina',
+      'alimentos',
+      'receta',
+      'sartén',
+      'olla',
       'matraz',
       'reactivo químico',
       'balanza romana',
       'cautín',
     ],
     workbookVoiceDirective:
-      'Detalla trazos geométricos paso a paso con instrumentos (escuadras, compás, escalímetro), calidades de línea (continua gruesa, fina, oculta, ejes), cálculo de escalas (E = D / R) y vistas ortogonales/isométricas.',
+      'Detalla trazos geométricos paso a paso con instrumentos (escuadras, compás, escalímetro), calidades de línea (continua gruesa, fina, oculta, ejes), cálculo de escalas (E = D / R) y vistas ortogonales/isométricas. Usa analogías situadas EXCLUSIVAMENTE en arquitectura, obras civiles, urbanismo, mecánica, diseño industrial, topografía o construcción. QUEDA TERMINANTEMENTE PROHIBIDO usar analogías de gastronomía, chefs, cocina o preparación de alimentos.',
     fewShotExampleBlock: `SECUENCIA DIDÁCTICA EJEMPLO (Dibujo Técnico I | 18h | Corte 1):
   APERTURA (3h):
   - Levantamiento Dimensional Situado (1.5h): Recorrido técnico en el plantel o espacio público del PAEC para identificar estructuras que requieren representación en planos a escala.

@@ -122,61 +122,64 @@ function renderHook(deck: SacrintDeckSpec, slide: Extract<SacrintSlide, { kind: 
     fill: SACRINT.white,
     family: 'display',
     weight: 'bold',
-    maxFontSize: 58,
-    minFontSize: 36,
+    maxFontSize: 52,
+    minFontSize: 32,
     maxLines: 2,
     lineHeightRatio: 1.04,
     letterSpacing: -0.8,
-    truncate: false,
+    truncate: true,
   });
   parts.push(title.svg);
-  parts.push(singleLine(uppercaseLabel(slide.subtitle ?? ''), leftX, 220 + title.fitted.height + 26, { fill: accent, fontSize: 13, weight: 'semibold', letterSpacing: 2.2 }));
+  const subY = 220 + title.fitted.height + 18;
+  parts.push(singleLine(uppercaseLabel(slide.subtitle ?? ''), leftX, subY, { fill: accent, fontSize: 13, weight: 'semibold', letterSpacing: 2.2 }));
 
-  parts.push(singleLine('“', leftX + 2, 442, { fill: accent, fontSize: 92, family: 'display', weight: 'bold', opacity: 0.45 }));
+  const storyY = Math.max(370, subY + 32);
+  parts.push(singleLine('“', leftX + 2, storyY + 22, { fill: accent, fontSize: 80, family: 'display', weight: 'bold', opacity: 0.45 }));
   const story = textBlock(slide.story, leftW - 70, {
     x: leftX + 66,
-    y: 420,
+    y: storyY,
     fill: SACRINT.text,
     family: 'body',
     weight: 'regular',
-    maxFontSize: 25,
-    minFontSize: 13.5,
-    maxLines: 14,
+    maxFontSize: 23,
+    minFontSize: 17,
+    maxLines: 6,
     lineHeightRatio: 1.35,
-    truncate: false,
+    truncate: true,
   });
   parts.push(story.svg);
-  parts.push(line(leftX + 66, Math.min(826, 420 + story.fitted.height + 24), leftX + leftW, Math.min(826, 420 + story.fitted.height + 24), accent, 1, 'stroke-opacity="0.35"'));
+  parts.push(line(leftX + 66, Math.min(826, storyY + story.fitted.height + 20), leftX + leftW, Math.min(826, storyY + story.fitted.height + 20), accent, 1, 'stroke-opacity="0.35"'));
 
-  parts.push(panel(rightX, 166, rightW, 276, { fill: 'rgba(7,17,29,0.86)', radius: 22 }));
-  parts.push(rect(rightX, 166, 4, 276, `fill="${accent}"`));
+  parts.push(panel(rightX, 166, rightW, 250, { fill: 'rgba(7,17,29,0.86)', radius: 22 }));
+  parts.push(rect(rightX, 166, 4, 250, `fill="${accent}"`));
   parts.push(chip(rightX + 28, 194, 'PREGUNTA DETONADORA', accent));
   const question = textBlock(slide.question, rightW - 56, {
     x: rightX + 28,
-    y: 282,
+    y: 260,
     fill: SACRINT.white,
     family: 'display',
     weight: 'medium',
-    maxFontSize: 31,
+    maxFontSize: 28,
     minFontSize: 20,
     maxLines: 4,
     lineHeightRatio: 1.28,
   });
   parts.push(question.svg);
 
-  const nodeY = 486;
-  const nodeH = 118;
+  const nodeY = 446;
+  const nodeH = 96;
+  const nodeGap = 14;
   slide.nodes.slice(0, 3).forEach((node, index) => {
-    const y = nodeY + index * (nodeH + 14);
+    const y = nodeY + index * (nodeH + nodeGap);
     parts.push(panel(rightX, y, rightW, nodeH, { fill: 'rgba(5,12,20,0.66)', radius: 14, stroke: SACRINT.strokeSoft }));
-    parts.push(singleLine(String(index + 1).padStart(2, '0'), rightX + 22, y + 34, { fill: accent2, fontSize: 12, weight: 'semibold', letterSpacing: 1.6 }));
-    parts.push(singleLine(uppercaseLabel(node.label), rightX + 62, y + 34, { fill: accent, fontSize: 11, weight: 'semibold', letterSpacing: 1.8 }));
+    parts.push(singleLine(String(index + 1).padStart(2, '0'), rightX + 22, y + 30, { fill: accent2, fontSize: 13, weight: 'semibold', letterSpacing: 1.6 }));
+    parts.push(singleLine(uppercaseLabel(node.label), rightX + 62, y + 30, { fill: accent, fontSize: 12, weight: 'semibold', letterSpacing: 1.8 }));
     const detail = textBlock(node.detail, rightW - 92, {
       x: rightX + 62,
-      y: y + 66,
+      y: y + 56,
       fill: SACRINT.textSoft,
-      maxFontSize: 16,
-      minFontSize: 12,
+      maxFontSize: 17,
+      minFontSize: 14,
       maxLines: 2,
       lineHeightRatio: 1.35,
     });
@@ -210,39 +213,44 @@ function renderConcept(deck: SacrintDeckSpec, slide: Extract<SacrintSlide, { kin
     family: 'display',
     weight: 'bold',
     maxFontSize: 46,
-    minFontSize: 30,
+    minFontSize: 28,
     maxLines: 2,
     lineHeightRatio: 1.06,
     letterSpacing: -0.6,
-    truncate: false,
+    truncate: true,
   });
   parts.push(title.svg);
-  parts.push(singleLine(uppercaseLabel(slide.subtitle ?? ''), leftX, 216 + title.fitted.height + 24, { fill: accent, fontSize: 12, weight: 'semibold', letterSpacing: 2 }));
+  const subY = 216 + title.fitted.height + 18;
+  parts.push(singleLine(uppercaseLabel(slide.subtitle ?? ''), leftX, subY, { fill: accent, fontSize: 13, weight: 'semibold', letterSpacing: 2 }));
 
-  parts.push(panel(leftX, 354, leftW, 232, { fill: 'rgba(8,17,29,0.78)', radius: 18 }));
-  parts.push(sectionLabel(leftX + 24, 386, leftW - 48, 'Analogía física', accent, 'A'));
+  const analogyPanelY = Math.max(330, subY + 30);
+  const analogyPanelH = 205;
+  parts.push(panel(leftX, analogyPanelY, leftW, analogyPanelH, { fill: 'rgba(8,17,29,0.78)', radius: 18 }));
+  parts.push(sectionLabel(leftX + 24, analogyPanelY + 28, leftW - 48, 'Analogía física', accent, 'A'));
   const analogy = textBlock(slide.analogy, leftW - 48, {
     x: leftX + 24,
-    y: 424,
+    y: analogyPanelY + 58,
     fill: SACRINT.text,
-    maxFontSize: 19,
-    minFontSize: 13,
-    maxLines: 7,
-    lineHeightRatio: 1.42,
+    maxFontSize: 20,
+    minFontSize: 15,
+    maxLines: 5,
+    lineHeightRatio: 1.38,
     truncate: true,
   });
   parts.push(analogy.svg);
 
-  parts.push(panel(leftX, 606, leftW, 182, { fill: 'rgba(30,8,12,0.5)', radius: 18, stroke: 'rgba(255,49,49,0.42)' }));
-  parts.push(sectionLabel(leftX + 24, 638, leftW - 48, 'Error común', SACRINT.red, 'B'));
+  const misconceptionY = analogyPanelY + analogyPanelH + 16;
+  const misconceptionH = Math.min(180, 785 - misconceptionY);
+  parts.push(panel(leftX, misconceptionY, leftW, misconceptionH, { fill: 'rgba(30,8,12,0.5)', radius: 18, stroke: 'rgba(255,49,49,0.42)' }));
+  parts.push(sectionLabel(leftX + 24, misconceptionY + 28, leftW - 48, 'Error común', SACRINT.red, 'B'));
   const misconception = textBlock(slide.misconception, leftW - 48, {
     x: leftX + 24,
-    y: 676,
+    y: misconceptionY + 56,
     fill: SACRINT.textSoft,
-    maxFontSize: 17,
-    minFontSize: 12,
-    maxLines: 4,
-    lineHeightRatio: 1.4,
+    maxFontSize: 18,
+    minFontSize: 14,
+    maxLines: 3,
+    lineHeightRatio: 1.38,
     truncate: true,
   });
   parts.push(misconception.svg);

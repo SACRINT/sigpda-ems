@@ -53,7 +53,7 @@ function inch(px: number): number {
 }
 
 function pt(px: number): number {
-  return Math.max(6, Math.round(px * 0.375 * 10) / 10);
+  return Math.max(10, Math.round(px * 0.5 * 10) / 10);
 }
 
 type TextOptions = Omit<PptxGenJS.TextPropsOptions, 'x' | 'y' | 'w' | 'h'> & {
@@ -76,9 +76,9 @@ function addText(
     lineSpacingMultiple,
     ...textOptions
   } = options;
-  const pxSize = Math.max(6, (textOptions.fontSize ?? pt(16)) / 0.375);
+  const pxSize = Math.max(16, (textOptions.fontSize ?? pt(20)) / 0.5);
   const lineHeightRatio = explicitLineHeightRatio ?? lineSpacingMultiple ?? 1.2;
-  const minFontSize = Math.max(6, Math.round(pxSize * 0.48));
+  const minFontSize = Math.max(14, Math.round(pxSize * 0.55));
   const maxLines = explicitMaxLines ?? Math.max(1, Math.floor(height / (minFontSize * lineHeightRatio)));
   const fitted = fitText(value, width, {
     family: textOptions.fontFace === FONT_DISPLAY ? 'display' : 'body',

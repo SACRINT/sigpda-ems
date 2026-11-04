@@ -164,23 +164,24 @@ export function drawMissionRubricTable(
   margin: number,
   drawWidth: number,
   y: number,
-  missionColor: RGB = COLOR.NAVY
+  missionColor: RGB = COLOR.NAVY,
+  compactMode = false
 ): number {
   if (!rubric || rubric.length === 0) return y;
 
   // Banner compacto de la Rúbrica
-  const bannerH = 6.5;
+  const bannerH = compactMode ? 4.5 : 6.5;
   doc.setFillColor(...COLOR.TABLE_ALT_ROW);
   doc.roundedRect(margin, y, drawWidth, bannerH, RADIUS.SM, RADIUS.SM, 'F');
   doc.setFillColor(...missionColor);
   doc.roundedRect(margin, y, 3.5, bannerH, RADIUS.SM, RADIUS.SM, 'F');
 
   setFontHeading(doc);
-  doc.setFontSize(7.5);
+  doc.setFontSize(compactMode ? 6.8 : 7.5);
   doc.setTextColor(...missionColor);
-  doc.text('RÚBRICA FORMATIVA ANALÍTICA DE LA MISIÓN (MCCEMS)', margin + 6, y + 4.5);
+  doc.text('RÚBRICA FORMATIVA ANALÍTICA DE LA MISIÓN (MCCEMS)', margin + 6, y + (compactMode ? 3.3 : 4.5));
 
-  y += bannerH + 2.5;
+  y += bannerH + (compactMode ? 1.5 : 2.5);
 
   const tableBody = rubric.map((crit) => {
     const getLevelDesc = (lvlName: string): string => {
@@ -220,13 +221,13 @@ export function drawMissionRubricTable(
     headStyles: {
       fillColor: missionColor,
       textColor: [255, 255, 255],
-      fontSize: 6.2,
+      fontSize: compactMode ? 5.4 : 6.2,
       fontStyle: 'bold',
       halign: 'center',
     },
     styles: {
-      fontSize: 5.5,
-      cellPadding: 1.5,
+      fontSize: compactMode ? 4.8 : 5.5,
+      cellPadding: compactMode ? 0.8 : 1.5,
       textColor: COLOR.TEXT_PRIMARY,
       lineColor: COLOR.TABLE_BORDER,
       lineWidth: STROKE.HAIRLINE,
@@ -240,5 +241,5 @@ export function drawMissionRubricTable(
     },
   });
 
-  return (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 4 : y + 30;
+  return (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + (compactMode ? 2 : 4) : y + 30;
 }

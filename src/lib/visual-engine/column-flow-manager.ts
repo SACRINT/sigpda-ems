@@ -554,7 +554,13 @@ export class ColumnFlowManager {
         const lines = this.doc.splitTextToSize(p, pWidth);
 
         for (let li = 0; li < lines.length; li++) {
-          if (py + lineHeight > this.contentBottom) {
+          const remainingLines = lines.length - li;
+          const isTightFit =
+            (remainingLines === 1 && py + lineHeight <= this.contentBottom + 4.5) ||
+            (remainingLines === 2 && py + remainingLines * (lineHeight * 0.9) <= this.contentBottom + 4.5);
+          const currentLineH = (remainingLines <= 2 && isTightFit) ? lineHeight * 0.9 : lineHeight;
+
+          if (py + currentLineH > this.contentBottom && !isTightFit) {
             py = this.advancePage();
             setFontBody(this.doc, bodyWeight);
             this.doc.setFontSize(size);
@@ -566,7 +572,7 @@ export class ColumnFlowManager {
           } else {
             this.doc.text(lines[li], leftMargin, py);
           }
-          py += lineHeight;
+          py += currentLineH;
         }
         if (pIdx < rawParagraphs.length - 1) {
           py += paragraphSpacing;
@@ -581,7 +587,13 @@ export class ColumnFlowManager {
     const lines = this.doc.splitTextToSize(clean, this.mainW);
 
     for (let li = 0; li < lines.length; li++) {
-      if (py + lineHeight > this.contentBottom) {
+      const remainingLines = lines.length - li;
+      const isTightFit =
+        (remainingLines === 1 && py + lineHeight <= this.contentBottom + 4.5) ||
+        (remainingLines === 2 && py + remainingLines * (lineHeight * 0.9) <= this.contentBottom + 4.5);
+      const currentLineH = (remainingLines <= 2 && isTightFit) ? lineHeight * 0.9 : lineHeight;
+
+      if (py + currentLineH > this.contentBottom && !isTightFit) {
         py = this.advancePage();
         setFontBody(this.doc, bodyWeight);
         this.doc.setFontSize(size);
@@ -593,7 +605,7 @@ export class ColumnFlowManager {
       } else {
         this.doc.text(lines[li], this.margin, py);
       }
-      py += lineHeight;
+      py += currentLineH;
     }
     this.mainY = py;
     return py;

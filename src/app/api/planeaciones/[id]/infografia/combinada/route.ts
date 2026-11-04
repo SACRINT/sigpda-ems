@@ -67,9 +67,22 @@ export async function GET(
 
     const layoutParam = (searchParams.get('layout') || 'wide').toLowerCase();
     const layout = layoutParam === 'letter' ? 'letter' : 'wide';
+    const blockIndexParam = searchParams.get('blockIndex');
+    const targetBlock = blockIndexParam !== null ? parseInt(blockIndexParam, 10) : null;
+    const effectiveEntries = (targetBlock !== null && !isNaN(targetBlock))
+      ? entries.filter((e) => e.blockIndex === targetBlock)
+      : entries;
+
+    if (effectiveEntries.length === 0) {
+      return NextResponse.json(
+        { error: `No se encontraron infografías para el bloque ${targetBlock !== null ? targetBlock + 1 : ''}` },
+        { status: 404 }
+      );
+    }
+
     const specs: SacrintInfographicSpec[] = [];
 
-    for (const entry of entries) {
+    for (const entry of effectiveEntries) {
       const missionCount = Math.max(1, (entry.workbook.missions ?? []).length);
       for (let missionPos = 0; missionPos < missionCount; missionPos++) {
         try {

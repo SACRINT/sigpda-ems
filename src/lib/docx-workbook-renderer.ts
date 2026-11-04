@@ -339,7 +339,13 @@ export async function renderWorkbookToDocx(
       new Set(workbook.missions.flatMap((m) => m.coveredSessions || []))
     ).sort((a, b) => a - b);
     const sessionList = allWorkbookSessions.length > 0 ? allWorkbookSessions : undefined;
-    bodyChildren.push(...buildProjectSection(workbook.projectSection, sessionList));
+    bodyChildren.push(
+      ...buildProjectSection(
+        workbook.projectSection,
+        sessionList,
+        workbook.coverData?.subjectName
+      )
+    );
     bodyChildren.push(new Paragraph({ spacing: { before: 0, after: 0 }, children: [new PageBreak()] }));
   }
 
@@ -4928,7 +4934,11 @@ function buildTroubleshootTable(items: TroubleshootItem[]): Table {
   });
 }
 
-function buildProjectSection(project: ProjectSection, sessionList?: number[]): (Paragraph | Table)[] {
+function buildProjectSection(
+  project: ProjectSection,
+  sessionList?: number[],
+  uacName?: string
+): (Paragraph | Table)[] {
   // Paridad Libro ↔ Plan: tokens [[material:...]] de fases/instrucciones/cronograma →
   // etiqueta humana. requiredMaterials se conserva crudo: de ahí se resuelven las
   // figuras de materiales (T-IMG-06).
@@ -5032,7 +5042,7 @@ function buildProjectSection(project: ProjectSection, sessionList?: number[]): (
 
     // Figuras de materiales resueltas con ImageRun y readMaterialPng (T-IMG-06)
     const allTokens = project.requiredMaterials.flatMap((mat) =>
-      parseMaterialTokensWithFallback(resolveMaterialString(mat))
+      parseMaterialTokensWithFallback(resolveMaterialString(mat), { uacName })
     );
     const uniqueTokens = Array.from(new Map(allTokens.map((t) => [t.slug, t])).values());
 

@@ -6,8 +6,16 @@
  * SIGPDA-EMS · Ciclo Escolar 2026-2027
  */
 
-import { MATERIALES_CATALOG, getMaterial } from './materials-catalog';
+import { MATERIALES_CATALOG, getMaterial, type MaterialCategory } from './materials-catalog';
 import { normalizeUnicode } from '@/lib/utils/normalize';
+
+export interface AutoTokenizeOptions {
+  uacName?: string;
+  component?: string;
+  allowedCategories?: MaterialCategory[];
+  forbiddenSlugs?: string[];
+  forbiddenCrossDomainTerms?: string[];
+}
 
 interface CatalogVariant {
   slug: string;
@@ -148,12 +156,22 @@ interface MatchSpan {
 /**
  * Encuentra coincidencias no solapadas en un texto normalizado y extrae los spans correspondientes.
  */
-function findSpansInSegment(segment: string): MatchSpan[] {
+function findSpansInSegment(segment: string, options?: AutoTokenizeOptions): MatchSpan[] {
   if (!segment || !/[a-zA-Z]/.test(segment)) return [];
 
   const normSegment = normalizeUnicode(segment);
   const variants = getSortedVariants();
   const spans: MatchSpan[] = [];
+
+  const normUac = options?.uacName
+    ? normalizeUnicode(`${options.uacName} ${options.component || ''}`).toLowerCase()
+    : '';
+  const isCulinary = normUac
+    ? /gastronom|alimentos y bebidas|reposteri|panaderi|culinari|cocina\b/i.test(normUac)
+    : false;
+  const isDrawingOrExact = normUac
+    ? /dibujo|expresion grafica|arquitectur|cad\b|pensamiento matematico|fisica|quimica/i.test(normUac)
+    : false;
 
   for (const variant of variants) {
     variant.regex.lastIndex = 0;
@@ -179,16 +197,58 @@ function findSpansInSegment(segment: string): MatchSpan[] {
         continue;
       }
 
-      const matchedText = segment.slice(start, end);
-      // Validar que el slug exista realmente en el catálogo (D9)
-      if (getMaterial(variant.slug)) {
-        spans.push({
-          start,
-          end,
-          slug: variant.slug,
-          matchedText,
-        });
+      const item = getMaterial(variant.slug);
+      if (!item) continue;
+
+      // 4. Blindaje Disciplinar (Fase 1)
+      if (options) {
+        if (options.forbiddenSlugs?.includes(variant.slug)) {
+          continue;
+        }
+
+        if (options.allowedCategories && options.allowedCategories.length > 0) {
+          if (!options.allowedCategories.includes(item.category)) {
+            continue;
+          }
+        }
+
+        if (normUac) {
+          // Bloquear materiales culinarios/alimentos en cualquier disciplina no culinaria
+          if (!isCulinary && item.category === 'alimentos') {
+            continue;
+          }
+
+          // En dibujo técnico y ciencias exactas, bloquear slugs o alias de cocina
+          if (isDrawingOrExact && (
+            item.category === 'alimentos' ||
+            variant.slug.includes('cortar') ||
+            variant.slug.includes('cocina') ||
+            variant.slug.includes('cuchillo') ||
+            variant.slug.includes('batidora') ||
+            variant.normalizedPattern.includes('tabla de picar') ||
+            variant.normalizedPattern.includes('cuchillo')
+          )) {
+            continue;
+          }
+
+          if (options.forbiddenCrossDomainTerms && options.forbiddenCrossDomainTerms.length > 0) {
+            const normPat = variant.normalizedPattern.toLowerCase();
+            const isBlocked = options.forbiddenCrossDomainTerms.some((term) => {
+              const normTerm = normalizeUnicode(term).toLowerCase();
+              return normPat.includes(normTerm) || variant.slug.includes(normTerm);
+            });
+            if (isBlocked) continue;
+          }
+        }
       }
+
+      const matchedText = segment.slice(start, end);
+      spans.push({
+        start,
+        end,
+        slug: variant.slug,
+        matchedText,
+      });
     }
   }
 
@@ -200,8 +260,9 @@ function findSpansInSegment(segment: string): MatchSpan[] {
 /**
  * Transforma texto libre reemplazando menciones a materiales del catálogo con tokens [[material:slug]].
  * Idempotente y seguro: no altera URLs, tokens existentes ni palabras cortas (< 6 caracteres).
+ * Soporta opciones de filtrado disciplinar (Fase 1).
  */
-export function autoTokenizeMaterials(text: string): string {
+export function autoTokenizeMaterials(text: string, options?: AutoTokenizeOptions): string {
   if (!text || typeof text !== 'string' || !/[a-zA-Z]/.test(text)) {
     return text;
   }
@@ -219,7 +280,7 @@ export function autoTokenizeMaterials(text: string): string {
         return part;
       }
 
-      const spans = findSpansInSegment(part);
+      const spans = findSpansInSegment(part, options);
       if (spans.length === 0) {
         return part;
       }
@@ -249,7 +310,8 @@ export function autoTokenizeMaterials(text: string): string {
  * Devuelve slugs únicos en orden de aparición.
  */
 export function detectCatalogMaterials(
-  text: string
+  text: string,
+  options?: AutoTokenizeOptions
 ): { slug: string; matchedText: string }[] {
   if (!text || typeof text !== 'string' || !/[a-zA-Z]/.test(text)) {
     return [];
@@ -275,7 +337,7 @@ export function detectCatalogMaterials(
       continue;
     }
 
-    const spans = findSpansInSegment(part);
+    const spans = findSpansInSegment(part, options);
     for (const span of spans) {
       if (!seenSlugs.has(span.slug)) {
         seenSlugs.add(span.slug);

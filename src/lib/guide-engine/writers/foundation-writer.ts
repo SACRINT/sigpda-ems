@@ -43,7 +43,7 @@ REGLAS DE VOZ (CRÍTICO — el libro es del ESTUDIANTE):
 
 REGLAS DE PROFUNDIDAD Y CUADERNO ACTIVO:
 1. Concepto Cero (MÍNIMO 2,000-3,000 palabras en total entre physicalAnalogy y coreExplanation):
-   - physicalAnalogy: Analogía cotidiana vívida e intuitiva (80-140 palabras) de la vida real o comunidad, sin tecnicismos previos.
+   - physicalAnalogy: Analogía cotidiana vívida e intuitiva (80-140 palabras) de la vida real o comunidad situada EXCLUSIVAMENTE en el ámbito disciplinar de "${input.uacName}" (ej. arquitectura, diseño, construcción, ingeniería civil, mecánica o topografía para Dibujo Técnico). QUEDA TERMINANTEMENTE PROHIBIDO usar analogías de gastronomía, cocina, chefs, cuchillos o recetas salvo que la UAC sea expresamente de Alimentos o Gastronomía.
    - coreExplanation: Al menos 2 párrafos explicativos extensos + 1 EJEMPLO RESUELTO PASO A PASO con datos cuantitativos/procedimentales + 1 tabla de contraste <!--workbook:table:cols=Aspecto Cotidiano,Concepto Técnico Formal,Función en el Problema-->.
 2. Gancho fenomenológico: Desafío real motivador de Puebla contextualizado en el proyecto PAEC: "${input.paecContext}".
 3. Yo Hago (1,500-2,000 palabras): Tutorial maestro modelado paso a paso (código funcional comentado en BT; modelación/experimento en BGE).

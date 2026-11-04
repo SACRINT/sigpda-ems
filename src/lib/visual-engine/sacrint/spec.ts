@@ -203,6 +203,7 @@ export interface SacrintBuildOptions {
   missionIndex?: number;
   xLabel?: string;
   yLabel?: string;
+  mode?: 'classroom' | 'full';
 }
 
 function clean(value: string | null | undefined): string {
@@ -491,7 +492,12 @@ export function buildSacrintDeck(workbook: ActiveWorkTextbook, options: SacrintB
     facts,
   };
 
-  return { meta, pack, style: resolveSacrintStyle(pack.id), slides: [cover, hook, concept, demo, practice, challenge, evidence, closing] };
+  const allSlides: SacrintSlide[] = [cover, hook, concept, demo, practice, challenge, evidence, closing];
+  const slides = options.mode === 'classroom'
+    ? [hook, concept, demo, challenge]
+    : allSlides;
+
+  return { meta, pack, style: resolveSacrintStyle(pack.id), slides };
 }
 
 function buildSteps(mission: MissionSection, pack: SacrintPack): SacrintInfographicStep[] {

@@ -83,23 +83,33 @@ export async function renderCombinedSacrintInfographicsPdf(
 
   const pageWidth = isWide ? 279.4 : 215.9;
   const pageHeight = isWide ? 157.16 : 279.4;
+  let renderedCount = 0;
 
   for (let index = 0; index < specs.length; index += 1) {
-    const spec = { ...specs[index], format: layout };
-    const png = await renderInfographicPng(spec, 2);
-    if (index > 0) {
-      doc.addPage(isWide ? [279.4, 157.16] : 'letter', isWide ? 'landscape' : 'portrait');
+    try {
+      const spec = { ...specs[index], format: layout };
+      const png = await renderInfographicPng(spec, 1);
+      if (renderedCount > 0) {
+        doc.addPage(isWide ? [279.4, 157.16] : 'letter', isWide ? 'landscape' : 'portrait');
+      }
+      doc.addImage(
+        new Uint8Array(png.buffer),
+        'PNG',
+        0,
+        0,
+        pageWidth,
+        pageHeight,
+        undefined,
+        'FAST'
+      );
+      renderedCount++;
+    } catch (renderErr) {
+      console.warn(`[sacrint-rasterizer] Error al rasterizar infografía ${index + 1}:`, renderErr);
     }
-    doc.addImage(
-      `data:image/png;base64,${png.buffer.toString('base64')}`,
-      'PNG',
-      0,
-      0,
-      pageWidth,
-      pageHeight,
-      undefined,
-      'FAST'
-    );
+  }
+
+  if (renderedCount === 0) {
+    throw new Error('No se pudo rasterizar ninguna de las infografías solicitadas.');
   }
 
   return Buffer.from(doc.output('arraybuffer'));
