@@ -244,7 +244,7 @@ INSTRUCCIONES CRÍTICAS PARA LA EXTRACCIÓN:
 5. "schoolName": Nombre oficial del bachillerato o plantel (si aparece en portada o encabezados).
 6. "municipality": Municipio o localidad donde está ubicado el plantel.
 7. "cct": Clave CCT de 10 caracteres alfanuméricos (ej: 21EBH0200X).
-8. "planOperativo": Busca de manera exhaustiva tablas o secciones tituladas "Plan Operativo", "Cronograma Operativo del PEC", "Plan de Trabajo por Asignaturas", "Cronograma de Actividades", "Mapeo de UACs" o "Matriz de Vinculación Curricular". Extrae un elemento para CADA asignatura o UAC que tenga una actividad asignada (incluyendo Pensamiento Matemático, Lengua y Comunicación, La Materia y sus Interacciones, Ciencias Sociales, Humanidades, Cultura Digital, Inglés, etc. en cualquier semestre del proyecto). Si no se contemplan actividades por asignatura, retorna un arreglo vacío [].
+8. "planOperativo": Busca ÚNICAMENTE tablas o secciones cuyo título sea "Plan Operativo", "Cronograma Operativo del PEC", "Plan de Trabajo por Asignaturas" o "Cronograma de Actividades". Extrae un elemento por cada asignatura o UAC que tenga una actividad operativa concreta asignada. NO uses tablas de "Mapeo de UACs", "Mapeo Curricular", "Matriz de Vinculación Curricular", "Cobertura Curricular" ni tablas equivalentes: en esas tablas la columna de UAC es la asignatura, no una actividad, y su texto de vinculación no es una actividad operativa. Si una fila no tiene una actividad accionable distinta del nombre de la UAC, descártala. Si no se contemplan actividades operativas por asignatura, retorna un arreglo vacío [].
 9. Si no encuentras algún campo con certeza absoluta, asigna null (o [] en planOperativo).
 
 TEXTO DEL DOCUMENTO:

@@ -206,4 +206,23 @@ Propósito general: Fortalecer estilos de vida saludables.
     expect(res[1].asignatura).toBe('Taller Pensamiento Variacional I');
     expect(res[1].actividad).toBe('Análisis y correlación de variables sociodemográficas');
   });
+
+  it('11. descarta tablas de mapeo curricular aunque su primera fila de datos parezca cabecera del plan operativo', () => {
+    const markdown = `
+### Tabla 8. Mapeo Curricular
+| sem. | unidad de aprendizaje (uac) | eje tematico / progresion | hrs/sem | vinculacion con el proyecto comunitario |
+| --- | --- | --- | --- | --- |
+| 1° | Ciencias Naturales, Experimentales y Tecnología I | El método científico y la medición | 4 h | Vinculación curricular situada: esta UAC aporta actividades de análisis fisicoquímico. |
+| 1° | Prepara materiales en cantidad y calidad especificada para diferentes tipos de mezclas | Dosificación de mezclas | 4 h | Vinculación curricular situada: aporta la actividad operativa del proyecto. |
+
+## Plan Operativo Oficial
+| Fase | Asignatura / UAC | Actividad / Acción | Semana | Producto o Evidencia |
+|---|---|---|---|---|
+| Fase 3 | Prepara materiales en cantidad y calidad especificada para diferentes tipos de mezclas | Dosificación y preparación de mezclas pétreas | Semana 9 | Mezcla dosificada |
+`;
+    const res = parsePlanOperativoHeuristics(markdown);
+    expect(res).toHaveLength(1);
+    expect(res[0].asignatura).toBe('Prepara materiales en cantidad y calidad especificada para diferentes tipos de mezclas');
+    expect(res[0].actividad).toBe('Dosificación y preparación de mezclas pétreas');
+  });
 });

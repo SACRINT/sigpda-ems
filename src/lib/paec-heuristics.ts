@@ -44,6 +44,7 @@ export function parsePlanOperativoHeuristics(text: string): PaecOperationalActiv
   const lines = text.split(/\r?\n/);
 
   let inTable = false;
+  let tableHeaderEvaluated = false;
   let colMap = {
     fase: -1,
     actividad: -1,
@@ -56,49 +57,56 @@ export function parsePlanOperativoHeuristics(text: string): PaecOperationalActiv
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
-    if (line.startsWith('=== PÁGINA')) {
+    if (/^===\s*P/i.test(line)) {
       continue;
     }
     if (!line.startsWith('|') || !line.endsWith('|')) {
       inTable = false;
+      tableHeaderEvaluated = false;
       continue;
     }
 
     const cells = line.split('|').map(c => c.trim()).slice(1, -1);
     if (cells.length < 2) continue;
 
-    // Normalizar celdas para detección de cabeceras
-    const lowerCells = cells.map(c => normalizeUnicode(c).toLowerCase());
-    const hasAsignatura = lowerCells.some(c => c.includes('asignatura') || c.includes('uac') || c.includes('materia') || c.includes('disciplina'));
-    const hasActividad = lowerCells.some(c => c.includes('actividad') || c.includes('accion') || c.includes('tarea'));
-    const hasPlanMarkers = lowerCells.some(c =>
-      c.includes('producto') ||
-      c.includes('evidencia') ||
-      c.includes('responsable') ||
-      c.includes('semana') ||
-      c.includes('periodo') ||
-      c.includes('cronograma') ||
-      c.includes('tiempo') ||
-      c.includes('fase') ||
-      c.includes('etapa')
-    );
-    const isExcludedTable = lowerCells.some(c =>
-      c.includes('actividades macro') ||
-      c.includes('asignaturas viga maestra') ||
-      c.includes('viga maestra')
-    );
+    // Solo la primera fila de cada bloque de tabla puede ser cabecera.
+    // Si no cumple, se descarta el bloque completo para no reutilizar el colMap
+    // de una tabla anterior ni confundir una fila de datos con cabecera.
+    if (!tableHeaderEvaluated) {
+      tableHeaderEvaluated = true;
 
-    if (!inTable && hasAsignatura && hasActividad && hasPlanMarkers && !isExcludedTable) {
-      inTable = true;
-      colMap = {
-        fase: lowerCells.findIndex(c => c.includes('fase') || c.includes('etapa')),
-        actividad: lowerCells.findIndex(c => c.includes('actividad') || c.includes('accion') || c.includes('tarea')),
-        asignatura: lowerCells.findIndex(c => c.includes('asignatura') || c.includes('uac') || c.includes('materia') || c.includes('disciplina')),
-        proposito: lowerCells.findIndex(c => c.includes('proposito') || c.includes('aprendizaje') || c.includes('objetivo')),
-        estrategia: lowerCells.findIndex(c => c.includes('estrategia') || c.includes('metodolog')),
-        semana: lowerCells.findIndex(c => c.includes('semana') || c.includes('periodo') || c.includes('fecha') || c.includes('tiempo')),
-        progresion: lowerCells.findIndex(c => c.includes('progresion') || c.includes('meta')),
-      };
+      const lowerCells = cells.map(c => normalizeUnicode(c).toLowerCase());
+      const hasAsignatura = lowerCells.some(c => c.includes('asignatura') || c.includes('uac') || c.includes('materia') || c.includes('disciplina'));
+      const hasActividad = lowerCells.some(c => c.includes('actividad') || c.includes('accion') || c.includes('tarea'));
+      const hasPlanMarkers = lowerCells.some(c =>
+        c.includes('producto') ||
+        c.includes('evidencia') ||
+        c.includes('responsable') ||
+        c.includes('semana') ||
+        c.includes('periodo') ||
+        c.includes('cronograma') ||
+        c.includes('tiempo') ||
+        c.includes('fase') ||
+        c.includes('etapa')
+      );
+      const isExcludedTable = lowerCells.some(c =>
+        c.includes('actividades macro') ||
+        c.includes('asignaturas viga maestra') ||
+        c.includes('viga maestra')
+      );
+
+      if (hasAsignatura && hasActividad && hasPlanMarkers && !isExcludedTable) {
+        inTable = true;
+        colMap = {
+          fase: lowerCells.findIndex(c => c.includes('fase') || c.includes('etapa')),
+          actividad: lowerCells.findIndex(c => c.includes('actividad') || c.includes('accion') || c.includes('tarea')),
+          asignatura: lowerCells.findIndex(c => c.includes('asignatura') || c.includes('uac') || c.includes('materia') || c.includes('disciplina')),
+          proposito: lowerCells.findIndex(c => c.includes('proposito') || c.includes('aprendizaje') || c.includes('objetivo')),
+          estrategia: lowerCells.findIndex(c => c.includes('estrategia') || c.includes('metodolog')),
+          semana: lowerCells.findIndex(c => c.includes('semana') || c.includes('periodo') || c.includes('fecha') || c.includes('tiempo')),
+          progresion: lowerCells.findIndex(c => c.includes('progresion') || c.includes('meta')),
+        };
+      }
       continue;
     }
 
