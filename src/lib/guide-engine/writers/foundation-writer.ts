@@ -18,6 +18,7 @@ import { type WriterInput, type WriterOutput, evaluateQuality, completeSessionPl
 import { buildPlanningAlignmentPrompt } from './planning-alignment-prompt';
 import { logger } from '@/lib/logger';
 import { lintPedagogicalTerminology, FORBIDDEN_PM3_TERMINOLOGY_REGEX } from '../pedagogical-quality-gate';
+import { countSessionPlanWords } from '../content-budget';
 
 export async function generateFoundationMission(input: WriterInput): Promise<WriterOutput> {
   const foundationMission = input.missions.find((m) => m.missionType === 'foundation') || input.missions[0];
@@ -42,14 +43,14 @@ REGLAS DE VOZ (CRÍTICO — el libro es del ESTUDIANTE):
 - El contenido debe ser REAL y AUTODIDACTA: definiciones, fórmulas, explicaciones, ejemplos resueltos con NÚMEROS y ejercicios con datos concretos. Un estudiante que lee el libro aprende el tema.
 
 REGLAS DE PROFUNDIDAD Y CUADERNO ACTIVO:
-1. Concepto Cero (MÍNIMO 2,000-3,000 palabras en total entre physicalAnalogy y coreExplanation):
+1. Concepto Cero (400 a 600 palabras en total entre physicalAnalogy y coreExplanation):
    - physicalAnalogy: Analogía cotidiana vívida e intuitiva (80-140 palabras) de la vida real o comunidad situada EXCLUSIVAMENTE en el ámbito disciplinar de "${input.uacName}" (ej. arquitectura, diseño, construcción, ingeniería civil, mecánica o topografía para Dibujo Técnico). QUEDA TERMINANTEMENTE PROHIBIDO usar analogías de gastronomía, cocina, chefs, cuchillos o recetas salvo que la UAC sea expresamente de Alimentos o Gastronomía.
-   - coreExplanation: Al menos 2 párrafos explicativos extensos + 1 EJEMPLO RESUELTO PASO A PASO con datos cuantitativos/procedimentales + 1 tabla de contraste <!--workbook:table:cols=Aspecto Cotidiano,Concepto Técnico Formal,Función en el Problema-->.
+   - coreExplanation: Al menos 2 párrafos explicativos conceptuales + 1 EJEMPLO RESUELTO PASO A PASO con datos cuantitativos/procedimentales + 1 tabla de contraste <!--workbook:table:cols=Aspecto Cotidiano,Concepto Técnico Formal,Función en el Problema-->.
 2. Gancho fenomenológico: Desafío real motivador de Puebla contextualizado en el proyecto PAEC: "${input.paecContext}".
-3. Yo Hago (1,500-2,000 palabras): Tutorial maestro modelado paso a paso (código funcional comentado en BT; modelación/experimento en BGE).
-4. Hacemos Juntos (1,000-1,500 palabras): Práctica colaborativa en equipo. OBLIGATORIO: cada actividad debe plantear un PROBLEMA REAL de la vida diaria del estudiante en Puebla, su comunidad o el proyecto PAEC ("${input.paecContext}"), con datos cuantitativos concretos y aplicables. PROHIBIDO usar ejercicios abstractos desconectados de la realidad (ej. 'resuelve 2x+5=15' sin contexto). Cada práctica debe responder '¿dónde veo esto en mi vida?'.
-5. Tú Haces (800-1,200 palabras): Desafío individual de aplicación real con espacios de trabajo, anclado a una situación cotidiana verificable del entorno del estudiante.
-6. Contenido por sesión para el ESTUDIANTE (OBLIGATORIO — genera un "plan" por cada sesión cubierta):
+3. Yo Hago (350 a 500 palabras): Tutorial maestro modelado paso a paso (código funcional comentado en BT; modelación/experimento en BGE).
+4. Hacemos Juntos (300 a 450 palabras): Práctica colaborativa en equipo. OBLIGATORIO: cada actividad debe plantear un PROBLEMA REAL de la vida diaria del estudiante en Puebla, su comunidad o el proyecto PAEC ("${input.paecContext}"), con datos cuantitativos concretos y aplicables. PROHIBIDO usar ejercicios abstractos desconectados de la realidad (ej. 'resuelve 2x+5=15' sin contexto). Cada práctica debe responder '¿dónde veo esto en mi vida?'.
+5. Tú Haces (250 a 400 palabras): Desafío individual de aplicación real con espacios de trabajo, anclado a una situación cotidiana verificable del entorno del estudiante.
+6. Contenido por sesión para el ESTUDIANTE (OBLIGATORIO — genera un "plan" por cada sesión cubierta, ~250-400 palabras por plan):
    Para CADA sesión de "Sesiones cubiertas" genera un objeto en "sessionPlans". Cada objeto es material que el estudiante LEE para aprender solo. Incluye:
    (a) objetivo: "Lo que vas a aprender" (1-2 frases, en tú);
    (b) motivacion: un caso real / historia detonadora de la comunidad o PAEC contada AL estudiante;
@@ -235,7 +236,10 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
       ? `${parsed.formativeCheckpoint.question || ''} ${(parsed.formativeCheckpoint.reflectionPrompts || []).join(' ')} ${(parsed.formativeCheckpoint.criteriaChecklist || []).join(' ')}`
       : '';
     const sectionContent = `${parsed.phenomenonStory || ''} ${parsed.detonatingQuestion || ''} ${parsed.physicalAnalogy || ''} ${parsed.coreExplanation || ''} ${cleanIDoDemo} ${cleanWeDoPractice} ${cleanYouDoChallenge} ${formativeText}`.trim();
-    const wordCount = sectionContent.split(/\s+/).filter(Boolean).length;
+    const sectionWordCount = sectionContent.split(/\s+/).filter(Boolean).length;
+    const sessionPlans = completeSessionPlans(parsed.sessionPlans, coveredSessions);
+    const sessionPlansWords = sessionPlans.reduce((acc, sp) => acc + countSessionPlanWords(sp), 0);
+    const totalMissionWords = sectionWordCount + sessionPlansWords;
 
     const missionSection: MissionSection = {
       missionIndex: foundationMission?.missionIndex || 1,
@@ -268,12 +272,12 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
         reflectionPrompts: parsed.formativeCheckpoint?.reflectionPrompts || ['Identifica un ejemplo similar en tu entorno.'],
         criteriaChecklist: parsed.formativeCheckpoint?.criteriaChecklist || ['Explico el concepto sin memorizar fórmulas.'],
       },
-      sessionPlans: completeSessionPlans(parsed.sessionPlans, coveredSessions),
-      wordCount,
+      sessionPlans,
+      wordCount: totalMissionWords,
     };
 
     const quality = evaluateQuality({
-      wordCount,
+      wordCount: totalMissionWords,
       targetWords: input.targetWords,
       content: sectionContent,
       subsystem: input.subsystem,
@@ -281,16 +285,16 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
     });
 
     if (attempt === 1) {
-      logger.info(`[FoundationWriter] ✅ Generado en intento 1 — ${wordCount} palabras`);
+      logger.info(`[FoundationWriter] ✅ Generado en intento 1 — ${totalMissionWords} palabras (${sectionWordCount} sección + ${sessionPlansWords} sesiones)`);
     } else {
-      logger.info(`[FoundationWriter] ⚠️ Reintento necesario — ${wordCount} palabras en intento 2`);
+      logger.info(`[FoundationWriter] ⚠️ Reintento necesario — ${totalMissionWords} palabras en intento 2`);
     }
 
     return {
       type: 'foundation',
       section: missionSection,
-      wordCount,
-      tokensUsed: Math.round(wordCount * 1.3),
+      wordCount: totalMissionWords,
+      tokensUsed: Math.round(totalMissionWords * 1.3),
       qualityScore: quality.qualityScore,
       warnings: quality.warnings,
     };
@@ -300,6 +304,10 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
     }
     logger.error('[generateFoundationMission] Error:', err);
     // Fallback de resiliencia estructurado
+    const fallbackPlans = completeSessionPlans([], coveredSessions);
+    const fallbackPlansWords = fallbackPlans.reduce((acc, sp) => acc + countSessionPlanWords(sp), 0);
+    const fallbackTotalWords = 500 + fallbackPlansWords;
+
     const fallbackSection: MissionSection = {
       missionIndex: foundationMission?.missionIndex || 1,
       title: missionTitle,
@@ -346,14 +354,14 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
         reflectionPrompts: ['Revisa los pasos que seguiste y contrástalos con tu compañero.'],
         criteriaChecklist: ['Identifico el propósito central de la misión.'],
       },
-      sessionPlans: completeSessionPlans([], coveredSessions),
-      wordCount: 500,
+      sessionPlans: fallbackPlans,
+      wordCount: fallbackTotalWords,
     };
 
     return {
       type: 'foundation',
       section: fallbackSection,
-      wordCount: 500,
+      wordCount: fallbackTotalWords,
       tokensUsed: 0,
       qualityScore: 70,
       warnings: ['Generado con fallback estructurado por timeout o error en modelo: ' + (err instanceof Error ? err.message : String(err))],

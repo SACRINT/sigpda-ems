@@ -271,6 +271,18 @@ export interface ActiveWorkTextbook {
   targetPages: number;
   totalPages: number;
   totalWords: number;
+  // ── Calibración editorial por sesiones (Fase P3) ─────────────────────────
+  sessionsPerBlock?: number;
+  targetWords?: number;
+  pagesDelta?: number;
+  wordsDelta?: number;
+  coverageReport?: {
+    sessionsCovered: number;
+    sessionsExpected: number;
+    allSessionsPresent: boolean;
+    averageWordsPerSession: number;
+    withinTargetRange: boolean;
+  };
   generatedAt: string;
   qualityScore: number;           // 0 - 100
   qualityWarning: boolean;        // true si se us� fallback de calidad

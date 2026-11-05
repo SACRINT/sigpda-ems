@@ -16,6 +16,7 @@ import type { MissionSection, ProjectSection, WorkbookElement } from '@/types/wo
 import { type WriterInput, type WriterOutput, evaluateQuality, completeSessionPlans } from './writer-contract';
 import { buildPlanningAlignmentPrompt } from './planning-alignment-prompt';
 import { logger } from '@/lib/logger';
+import { countSessionPlanWords } from '../content-budget';
 import {
   buildMaterialSlugIndex,
   getMaterialCategoriesForContext,
@@ -41,13 +42,13 @@ ${planningAlignmentChunk}
 
 DIRECTIVAS DEL PROYECTO Y METAS FORMATIVAS:
 1. Artefacto Real: Producto auténtico útil para la vida diaria o el empleo (no un mero resumen).
-2. Utilidad Comunitaria (1,000-1,500 palabras): Vinculación profunda con la problemática PAEC: "${input.paecContext}", justificando beneficiarios e impacto.
+2. Utilidad Comunitaria (300 a 500 palabras): Vinculación profunda con la problemática PAEC: "${input.paecContext}", justificando beneficiarios e impacto.
 3. Objetivos y Materiales: 3 a 5 learningObjectives de orden superior y lista detallada de requiredMaterials con especificaciones. Cada requiredMaterials que corresponda a un instrumento/herramienta/insumo del INDICE DE MATERIALES debe escribirse como token normativo [[material:slug]] o [[material:slug|etiqueta con especificación]] usando SOLO slugs de ese índice (prohibido inventar slugs o URLs); los materiales fuera del índice van en texto plano.
-4. Fases y Pasos (1,500-2,000 palabras en total): 6 a 8 executionSteps secuenciales y 3 a 5 phases con entregables verificables e instrucciones detalladas.
+4. Fases y Pasos (400 a 600 palabras en total): 6 a 8 executionSteps secuenciales y 3 a 5 phases con entregables verificables e instrucciones detalladas.
 5. Criterios de Entrega y Aceptación: 4 a 6 deliveryCriteria formales y acceptanceCriteria medibles con normas NOM/ISO.
 6. Bitácora de Registro: registrationFormat estructurado con campos de sesión, parámetros, incidencias, firmas y sellos.
 7. Rúbrica y Desafío Autónomo: Rúbrica en 4 niveles NEM (Excelente 10-9, Bueno 8-7, Suficiente 6-5, Insuficiente 4-1) y reto autónomo de campo (You Do - 200-350 palabras).
-8. Contenido por sesión para el ESTUDIANTE (OBLIGATORIO — genera un "plan" por cada sesión asignada): Para CADA sesión de "Sesiones asignadas" genera un objeto en "sessionPlans". Cada objeto es material que el estudiante LEE para aprender solo. Incluye: (a) objetivo ("Lo que vas a aprender", 1-2 frases en tú); (b) motivacion (caso real de la comunidad o PAEC contado al estudiante); (c) saberesPrevios (qué ya sabe); (d) contenido (LA TEORÍA REAL de la sesión — definiciones, fórmulas, criterios o fase de construcción del artefacto explicada con detalle, varios párrafos, no 1-2 frases); (e) ejemploResuelto (ejemplo con NÚMEROS paso a paso); (f) practica (2-3 ejercicios/tareas concretas con datos; cada uno con "pista" hint para empezar Y "solucion" con 3-6 pasos numerados que resuelven la tarea con números — la "solucion" SOLO la lee el solucionario docente, el libro del estudiante solo imprime enunciado y pista); (g) aplicacion (tarea aplicada a la vida real); (h) autoevaluacion (2-3 preguntas de autorevisión); (i) recursos (1-2 enlaces reales a video YouTube o web de ampliación); (j) productoIntegrador (qué agrega el estudiante a su proyecto hoy). Cada sesión de esta misión corresponde a un avance concreto del artefacto: VARIA el contenido entre sesiones y ancla cada una a su fase de construcción en el contexto PAEC. VOZ DE ESTUDIANTE en todo.
+8. Contenido por sesión para el ESTUDIANTE (OBLIGATORIO — genera un "plan" por cada sesión asignada, ~250-400 palabras por plan): Para CADA sesión de "Sesiones asignadas" genera un objeto en "sessionPlans". Cada objeto es material que el estudiante LEE para aprender solo. Incluye: (a) objetivo ("Lo que vas a aprender", 1-2 frases en tú); (b) motivacion (caso real de la comunidad o PAEC contado al estudiante); (c) saberesPrevios (qué ya sabe); (d) contenido (LA TEORÍA REAL de la sesión — definiciones, fórmulas, criterios o fase de construcción del artefacto explicada con detalle, varios párrafos, no 1-2 frases); (e) ejemploResuelto (ejemplo con NÚMEROS paso a paso); (f) practica (2-3 ejercicios/tareas concretas con datos; cada uno con "pista" hint para empezar Y "solucion" con 3-6 pasos numerados que resuelven la tarea con números — la "solucion" SOLO la lee el solucionario docente, el libro del estudiante solo imprime enunciado y pista); (g) aplicacion (tarea aplicada a la vida real); (h) autoevaluacion (2-3 preguntas de autorevisión); (i) recursos (1-2 enlaces reales a video YouTube o web de ampliación); (j) productoIntegrador (qué agrega el estudiante a su proyecto hoy). Cada sesión de esta misión corresponde a un avance concreto del artefacto: VARIA el contenido entre sesiones y ancla cada una a su fase de construcción en el contexto PAEC. VOZ DE ESTUDIANTE en todo.
 9. Sintaxis JSON: Usa comillas simples ('...') en código/citas. Cero comillas dobles sin escapar dentro de valores JSON.
 
 Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
@@ -287,7 +288,10 @@ Redacta la Misión del Proyecto y Construcción del Artefacto Real:`;
     const specsText = Array.isArray(projectSection.technicalSpecs) ? projectSection.technicalSpecs.join(' ') : '';
     const criteriaText = Array.isArray(projectSection.acceptanceCriteria) ? projectSection.acceptanceCriteria.join(' ') : '';
     const fullText = `${projectSection.artifactName}\n${projectSection.communityUtility}\n${phasesText}\n${autonomousChallenge}\n${specsText}\n${criteriaText}\n${rubricText}`;
-    const wordCount = fullText.split(/\s+/).filter(Boolean).length;
+    const sectionWordCount = fullText.split(/\s+/).filter(Boolean).length;
+    const sessionPlans = completeSessionPlans(parsed.sessionPlans, coveredSessions);
+    const sessionPlansWords = sessionPlans.reduce((acc, sp) => acc + countSessionPlanWords(sp), 0);
+    const totalMissionWords = sectionWordCount + sessionPlansWords;
 
     const missionSection: MissionSection = {
       missionIndex: projectMission?.missionIndex || 3,
@@ -320,12 +324,12 @@ Redacta la Misión del Proyecto y Construcción del Artefacto Real:`;
         reflectionPrompts: ['Evalúa la viabilidad y durabilidad de tu propuesta.'],
         criteriaChecklist: ['El artefacto cumple los criterios de aceptación acordados.'],
       },
-      sessionPlans: completeSessionPlans(parsed.sessionPlans, coveredSessions),
-      wordCount,
+      sessionPlans,
+      wordCount: totalMissionWords,
     };
 
     const quality = evaluateQuality({
-      wordCount,
+      wordCount: totalMissionWords,
       targetWords: input.targetWords,
       content: fullText,
       subsystem: input.subsystem,
@@ -333,17 +337,17 @@ Redacta la Misión del Proyecto y Construcción del Artefacto Real:`;
     });
 
     if (attempt === 1) {
-      logger.info(`[ProjectWriter] ✅ Generado en intento 1 — ${wordCount} palabras`);
+      logger.info(`[ProjectWriter] ✅ Generado en intento 1 — ${totalMissionWords} palabras (${sectionWordCount} sección + ${sessionPlansWords} sesiones)`);
     } else {
-      logger.info(`[ProjectWriter] ⚠️ Reintento necesario — ${wordCount} palabras en intento 2`);
+      logger.info(`[ProjectWriter] ⚠️ Reintento necesario — ${totalMissionWords} palabras en intento 2`);
     }
 
     return {
       type: 'project',
       section: missionSection,
       projectSection,
-      wordCount,
-      tokensUsed: Math.round(wordCount * 1.3),
+      wordCount: totalMissionWords,
+      tokensUsed: Math.round(totalMissionWords * 1.3),
       qualityScore: quality.qualityScore,
       warnings: quality.warnings,
     };
@@ -353,6 +357,10 @@ Redacta la Misión del Proyecto y Construcción del Artefacto Real:`;
     }
     logger.error('[generateProjectMission] Error:', err);
     // Fallback estructurado de proyecto
+    const fallbackPlans = completeSessionPlans([], coveredSessions);
+    const fallbackPlansWords = fallbackPlans.reduce((acc, sp) => acc + countSessionPlanWords(sp), 0);
+    const fallbackTotalWords = 500 + fallbackPlansWords;
+
     const fallbackProject: ProjectSection = {
       artifactName: `Artefacto Integrador: Solución para ${input.uacName}`,
       communityUtility: `Propuesta de intervención técnica vinculada a ${input.paecContext}.`,
@@ -410,15 +418,15 @@ Redacta la Misión del Proyecto y Construcción del Artefacto Real:`;
         reflectionPrompts: ['Reflexiona sobre el valor del trabajo en equipo.'],
         criteriaChecklist: ['Cumplí con todos los entregables de la misión.'],
       },
-      sessionPlans: completeSessionPlans([], coveredSessions),
-      wordCount: 500,
+      sessionPlans: fallbackPlans,
+      wordCount: fallbackTotalWords,
     };
 
     return {
       type: 'project',
       section: fallbackSection,
       projectSection: fallbackProject,
-      wordCount: 500,
+      wordCount: fallbackTotalWords,
       tokensUsed: 0,
       qualityScore: 70,
       warnings: ['Generado con fallback estructurado de proyecto: ' + String((err as Error)?.message || err)],

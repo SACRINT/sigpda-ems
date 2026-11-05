@@ -33,6 +33,13 @@ import { resolveSchoolIdentity } from '@/lib/school-identity';
 import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
 import { extractCurriculumContext } from './curriculum-context-agent';
 import { buildBlockBlueprint } from './blueprint-architect-agent';
+import {
+  computeContentBudget,
+  resolveWeeklyHours,
+  validateSessionCoverage,
+  countSessionPlanWords,
+  WORDS_PER_PAGE,
+} from './content-budget';
 import { generateFoundationMission } from './writers/foundation-writer';
 import { generateLabMission } from './writers/lab-writer';
 import { generateProjectMission } from './writers/project-writer';
@@ -179,20 +186,20 @@ export async function generateBlockWorkTextbook(
 
   const planning: Planning = {
     id: rawPlanning.id,
-    teacherId: rawPlanning.teacher_id,
-    uacName: rawPlanning.uac_name,
-    semester: rawPlanning.semester,
-    component: rawPlanning.component,
-    curriculumName: rawPlanning.curriculum_name || '',
-    paecContext: rawPlanning.paec_context || '',
-    extractedData: rawPlanning.extracted_data,
-    contentJson: rawPlanning.content_json,
-    status: rawPlanning.status,
-    createdAt: rawPlanning.created_at,
-    updatedAt: rawPlanning.updated_at,
-    metodologiaActiva: rawPlanning.metodologia_activa || undefined,
-    evaluationJson: rawPlanning.evaluation_json || null,
-    sequenceJson: rawPlanning.sequence_json || null,
+    teacherId: rawPlanning.teacher_id || (rawPlanning as any).teacherId || 'teacher-default',
+    uacName: rawPlanning.uac_name || (rawPlanning as any).uacName || 'Unidad de Aprendizaje Curricular',
+    semester: rawPlanning.semester || 1,
+    component: rawPlanning.component || (rawPlanning as any).component || 'fundamental',
+    curriculumName: rawPlanning.curriculum_name || (rawPlanning as any).curriculumName || '',
+    paecContext: rawPlanning.paec_context || (rawPlanning as any).paecContext || '',
+    extractedData: rawPlanning.extracted_data || (rawPlanning as any).extractedData,
+    contentJson: rawPlanning.content_json || (rawPlanning as any).contentJson,
+    status: rawPlanning.status || 'draft',
+    createdAt: rawPlanning.created_at || (rawPlanning as any).createdAt || new Date(),
+    updatedAt: rawPlanning.updated_at || (rawPlanning as any).updatedAt || new Date(),
+    metodologiaActiva: rawPlanning.metodologia_activa || (rawPlanning as any).metodologiaActiva || undefined,
+    evaluationJson: rawPlanning.evaluation_json || (rawPlanning as any).evaluationJson || null,
+    sequenceJson: rawPlanning.sequence_json || (rawPlanning as any).sequenceJson || null,
   };
 
   const curricularBlocks = resolveCurricularBlocks(planning.contentJson);
@@ -231,12 +238,16 @@ export async function generateBlockWorkTextbook(
     percent: 20,
   });
 
+  const weeklyHours = resolveWeeklyHours(rawPlanning || planning, options.customHours);
+  const budget = computeContentBudget(weeklyHours);
+
   const curriculumContext = extractCurriculumContext({
     uacName: planning.uacName,
     semester: planning.semester,
     subsystem: teacherContext.subsystem,
     component: planning.component,
     teacherContext,
+    weeklyHours,
   });
 
   // ── Fase 3: Blueprint de Dosificación y Clustering de Misiones ─────────
@@ -283,15 +294,6 @@ export async function generateBlockWorkTextbook(
   }
 
   // ── Fase 5: Preparación de Inputs para los 4 Redactores ────────────────
-  const blockMinWords = Math.round(curriculumContext.targetWords.min / 3);  // ~8,333 BT, ~5,833 BGE
-  const blockIdealWords = Math.round((curriculumContext.targetWords.min / 3) * 1.6);  // ~13,333 BT, ~9,333 BGE
-  const blockMaxWords = Math.max(
-    Math.round(curriculumContext.targetWords.max / 3),
-    Math.round(blockIdealWords * 1.25)
-  );  // ~16,666 BT, ~11,666 BGE
-
-  const writerSplits = { foundation: 0.30, lab: 0.30, project: 0.25, evaluation: 0.15 };
-
   const baseWriterInput: WriterInput = {
     planning,
     blockIndex,
@@ -304,11 +306,7 @@ export async function generateBlockWorkTextbook(
     studentProfile: curriculumContext.studentProfile.contextDescription,
     subsystem: curriculumContext.subsystem,
     uacName: planning.uacName,
-    targetWords: {
-      min: Math.round(blockMinWords * 0.25),
-      ideal: Math.round(blockIdealWords * 0.25),
-      max: Math.round(blockMaxWords * 0.25),
-    },
+    targetWords: budget.missionBudgets.foundation.targetWords,
     planningActivities,
     signal: options.signal,
   };
@@ -332,11 +330,7 @@ export async function generateBlockWorkTextbook(
       fn: () =>
         generateFoundationMission({
           ...baseWriterInput,
-          targetWords: {
-            min: Math.round(blockMinWords * writerSplits.foundation),
-            ideal: Math.round(blockIdealWords * writerSplits.foundation),
-            max: Math.round(blockMaxWords * writerSplits.foundation),
-          },
+          targetWords: budget.missionBudgets.foundation.targetWords,
         }),
     },
     {
@@ -344,11 +338,7 @@ export async function generateBlockWorkTextbook(
       fn: () =>
         generateLabMission({
           ...baseWriterInput,
-          targetWords: {
-            min: Math.round(blockMinWords * writerSplits.lab),
-            ideal: Math.round(blockIdealWords * writerSplits.lab),
-            max: Math.round(blockMaxWords * writerSplits.lab),
-          },
+          targetWords: budget.missionBudgets.lab.targetWords,
         }),
     },
     {
@@ -356,11 +346,7 @@ export async function generateBlockWorkTextbook(
       fn: () =>
         generateProjectMission({
           ...baseWriterInput,
-          targetWords: {
-            min: Math.round(blockMinWords * writerSplits.project),
-            ideal: Math.round(blockIdealWords * writerSplits.project),
-            max: Math.round(blockMaxWords * writerSplits.project),
-          },
+          targetWords: budget.missionBudgets.project.targetWords,
         }),
     },
     {
@@ -368,11 +354,7 @@ export async function generateBlockWorkTextbook(
       fn: () =>
         generateEvaluationSection({
           ...baseWriterInput,
-          targetWords: {
-            min: Math.round(blockMinWords * writerSplits.evaluation),
-            ideal: Math.round(blockIdealWords * writerSplits.evaluation),
-            max: Math.round(blockMaxWords * writerSplits.evaluation),
-          },
+          targetWords: budget.missionBudgets.evaluation.targetWords,
         }),
     },
   ];
@@ -421,11 +403,7 @@ export async function generateBlockWorkTextbook(
   let validation = validateBlockGuideQuality({
     writerOutputs,
     subsystem: curriculumContext.subsystem,
-    targetWords: {
-      min: blockMinWords,
-      ideal: blockIdealWords,
-      max: blockMaxWords,
-    },
+    targetWords: budget.targetWords,
   });
 
   // Si hay redactores reintentables, ejecutar reintentos específicos (máx 2 por redactor)
@@ -443,14 +421,9 @@ export async function generateBlockWorkTextbook(
         logger.info(`[orchestrator] Reintentando ${writerType} (Intento ${attempts}/${maxRetries})...`);
 
         try {
-          const split = writerSplits[writerType];
           const writerSpecificInput: WriterInput = {
             ...baseWriterInput,
-            targetWords: {
-              min: Math.round(blockMinWords * split),
-              ideal: Math.round(blockIdealWords * split),
-              max: Math.round(blockMaxWords * split),
-            },
+            targetWords: budget.missionBudgets[writerType].targetWords,
           };
 
           let reRunOutput: WriterOutput;
@@ -474,11 +447,7 @@ export async function generateBlockWorkTextbook(
     validation = validateBlockGuideQuality({
       writerOutputs,
       subsystem: curriculumContext.subsystem,
-      targetWords: {
-        min: blockMinWords,
-        ideal: blockIdealWords,
-        max: blockMaxWords,
-      },
+      targetWords: budget.targetWords,
     });
   }
 
@@ -521,14 +490,9 @@ export async function generateBlockWorkTextbook(
 
         logger.info(`[orchestrator] Reintento de alineación para ${writerType} (faltan ${lacking.length} términos)...`);
         try {
-          const split = writerSplits[writerType];
           const alignInput: WriterInput = {
             ...baseWriterInput,
-            targetWords: {
-              min: Math.round(blockMinWords * split),
-              ideal: Math.round(blockIdealWords * split),
-              max: Math.round(blockMaxWords * split),
-            },
+            targetWords: budget.missionBudgets[writerType].targetWords,
             alignmentDirective,
           };
           let reRun: WriterOutput;
@@ -546,7 +510,7 @@ export async function generateBlockWorkTextbook(
       validation = validateBlockGuideQuality({
         writerOutputs,
         subsystem: curriculumContext.subsystem,
-        targetWords: { min: blockMinWords, ideal: blockIdealWords, max: blockMaxWords },
+        targetWords: budget.targetWords,
       });
       alignmentReport = evaluatePlanningContentAlignment(alignmentSource(), planningActivities);
     }
@@ -638,14 +602,31 @@ export async function generateBlockWorkTextbook(
 
   const totalWords = validation.totalWordCount;
   // Estimación transparente y real basada en densidad editorial de texto y espacios de trabajo:
-  const totalPages = Math.max(1, Math.round(totalWords / 450));
+  const totalPages = Math.max(1, Math.round(totalWords / WORDS_PER_PAGE));
 
   const tableOfContents = missions.map((m, idx) => ({
     missionIndex: idx + 1,
     title: m.title,
     sessionsRange: `Sesiones ${m.coveredSessions?.join(', ') || 'N/A'}`,
-    pageEstimate: Math.max(4, Math.round(m.wordCount / 450)),
+    pageEstimate: Math.max(4, Math.round(m.wordCount / WORDS_PER_PAGE)),
   }));
+
+  // Extraer todas las sesiones cubiertas y planes de sesión para validar cobertura
+  const coveredSessionNumbers = Array.from(
+    new Set(
+      missions.flatMap((m) => [
+        ...(m.coveredSessions || []),
+        ...((m.sessionPlans || []).map((sp) => sp.sessionNumber)),
+      ])
+    )
+  ).sort((a, b) => a - b);
+
+  const coverageReport = validateSessionCoverage({
+    sessions: coveredSessionNumbers.map((sessionNumber) => ({ sessionNumber })),
+    expectedSessionsCount: budget.sessionsPerBlock,
+    totalWords,
+    budget,
+  });
 
   const activeWorkTextbook: ActiveWorkTextbook = {
     id: `wtb-${planningId}-b${blockIndex}`,
@@ -654,9 +635,20 @@ export async function generateBlockWorkTextbook(
     blockName,
     version: 1, // saveBlockWorkbook se encargará de asignar la versión correlativa
     subsystem: curriculumContext.subsystem,
-    targetPages: curriculumContext.subsystem === 'bt' ? 65 : 42,
+    targetPages: budget.targetPages.ideal,
     totalPages,
     totalWords,
+    sessionsPerBlock: budget.sessionsPerBlock,
+    targetWords: budget.targetWords.ideal,
+    pagesDelta: coverageReport.pagesDelta,
+    wordsDelta: coverageReport.wordsDelta,
+    coverageReport: {
+      sessionsCovered: coverageReport.sessionsCovered,
+      sessionsExpected: coverageReport.sessionsExpected,
+      allSessionsPresent: coverageReport.allSessionsPresent,
+      averageWordsPerSession: coverageReport.averageWordsPerSession,
+      withinTargetRange: coverageReport.withinTargetRange,
+    },
     generatedAt: new Date().toISOString(),
     qualityScore: validation.qualityScore,
     qualityWarning: validation.qualityWarning || !alignmentReport.pass,
@@ -728,7 +720,7 @@ export async function generateBlockWorkTextbook(
       source: 'ai_generated',
       qualityScore: validation.qualityScore,
     };
-    await saveCanonicalSeed(seedCandidate).catch((e) =>
+    await Promise.resolve(saveCanonicalSeed(seedCandidate)).catch((e) =>
       logger.warn('[orchestrator] Error al guardar semilla canónica:', { error: String(e) })
     );
   }
@@ -846,6 +838,9 @@ function createEmergencyFallbackOutput(
     Array.isArray(emergencyMission?.sessionNumbers) && emergencyMission.sessionNumbers.length > 0
       ? emergencyMission.sessionNumbers
       : [1, 2];
+  const fallbackPlans = completeSessionPlans([], coveredSessions);
+  const fallbackPlansWords = fallbackPlans.reduce((acc, sp) => acc + countSessionPlanWords(sp), 0);
+  const totalEmergencyWords = 500 + fallbackPlansWords;
 
   const fallbackSection: MissionSection = {
     missionIndex: emergencyMission?.missionIndex || 1,
@@ -880,14 +875,14 @@ function createEmergencyFallbackOutput(
       reflectionPrompts: ['Revisa los pasos realizados.'],
       criteriaChecklist: ['Identifico los conceptos centrales.'],
     },
-    sessionPlans: completeSessionPlans([], coveredSessions),
-    wordCount: 500,
+    sessionPlans: fallbackPlans,
+    wordCount: totalEmergencyWords,
   };
 
   return {
     type,
     section: fallbackSection,
-    wordCount: 500,
+    wordCount: totalEmergencyWords,
     tokensUsed: 0,
     qualityScore: 60,
     warnings: [`Generado mediante contingencia crítica de redactor (${type}): ${errorMsg}`],

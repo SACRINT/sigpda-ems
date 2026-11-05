@@ -10,6 +10,7 @@
 
 import { findBgeUac, getBgeNormativeContext } from '@/lib/bge-catalog';
 import type { TeacherContext } from '@/types/planning';
+import { computeContentBudget, type ContentBudget } from './content-budget';
 
 export interface CurriculumContext {
   uacName: string;
@@ -18,6 +19,8 @@ export interface CurriculumContext {
   component: string;
   targetPages: { min: number; max: number };
   targetWords: { min: number; max: number };
+  sessionsPerBlock?: number;
+  budget?: ContentBudget;
   disciplineArea: string;
   pedagogicalOrientation: string;
   applicableNorms: string[];
@@ -39,6 +42,7 @@ export function extractCurriculumContext(params: {
   subsystem?: string;
   component?: string;
   teacherContext: TeacherContext;
+  weeklyHours?: number;
 }): CurriculumContext {
   const isBt = (params.subsystem || '').toLowerCase().includes('bt') ||
                (params.subsystem || '').toLowerCase().includes('tecnol') ||
@@ -48,11 +52,17 @@ export function extractCurriculumContext(params: {
 
   const subsystem: 'bge' | 'bt' = isBt ? 'bt' : 'bge';
   const semester = params.semester || 1;
-  const uacName = params.uacName.trim();
+  const uacName = (params.uacName || '').trim() || 'Unidad de Aprendizaje Curricular';
 
-  // 1. Determinar metas de extensión según el subsistema
-  const targetPages = subsystem === 'bt' ? { min: 50, max: 80 } : { min: 35, max: 50 };
-  const targetWords = subsystem === 'bt' ? { min: 25000, max: 40000 } : { min: 17500, max: 25000 };
+  // 1. Determinar metas de extensión según el presupuesto editorial por horas reales
+  const defaultHours = subsystem === 'bt' ? 4 : 3;
+  const resolvedHours = typeof params.weeklyHours === 'number' && params.weeklyHours > 0
+    ? params.weeklyHours
+    : defaultHours;
+  const budget = computeContentBudget(resolvedHours);
+
+  const targetPages = { min: budget.targetPages.min, max: budget.targetPages.max };
+  const targetWords = { min: budget.targetWords.min, max: budget.targetWords.max };
 
   // 2. Extracción de contexto normativo específico
   let disciplineArea = 'Formación Propedéutica y Fundamental';
@@ -112,6 +122,8 @@ export function extractCurriculumContext(params: {
     component: params.component || (subsystem === 'bt' ? 'laboral' : 'fundamental'),
     targetPages,
     targetWords,
+    sessionsPerBlock: budget.sessionsPerBlock,
+    budget,
     disciplineArea,
     pedagogicalOrientation,
     applicableNorms,

@@ -23,6 +23,7 @@ import type {
 import { type WriterInput, type WriterOutput, evaluateQuality, completeSessionPlans } from './writer-contract';
 import { buildPlanningAlignmentPrompt } from './planning-alignment-prompt';
 import { logger } from '@/lib/logger';
+import { countSessionPlanWords } from '../content-budget';
 
 export async function generateEvaluationSection(input: WriterInput): Promise<WriterOutput> {
   const extras = input.existingExtras || {};
@@ -48,12 +49,12 @@ ${planningAlignmentChunk}
 ${extrasContext}
 
 ESTÁNDARES FORMATIVOS OBLIGATORIOS Y METAS NEM:
-1. Rúbrica analítica (800-1,200 palabras): Exactamente 4 escalas (Excelente 10-9, Bueno 8-7, Suficiente 6-5, Requiere Apoyo 4-1) y 4 a 6 criterios (suma 100%).
-2. Lista de verificación técnica (500-800 palabras): 15 a 20 reactivos medibles clasificados por categorías.
-3. Cuestionario de juicio crítico (800-1,200 palabras): 3 a 5 escenarios reales en Puebla con retroalimentación docente formativa > 150 palabras.
-4. Autoevaluación metacognitiva (500-800 palabras): 5 a 8 preguntas abiertas de reflexión y transferencia.
-5. Evaluación Escalonada (tieredExercises - 800-1,200 palabras): EXACTAMENTE 3 NIVELES ('basico', 'intermedio', 'avanzado') con al menos 2 ejercicios por nivel (mínimo 6 ejercicios en total) con statement, contextOrData, expectedOutputOrCriteria y hint.
-6. Contenido por sesión para el ESTUDIANTE (OBLIGATORIO — genera un "plan" por cada sesión asignada): Para CADA sesión de "Sesiones asignadas" genera un objeto en "sessionPlans". Cada objeto es material que el estudiante LEE para aprender solo. Incluye: (a) objetivo ("Lo que vas a aprender", 1-2 frases en tú); (b) motivacion (caso real de la comunidad o PAEC contado al estudiante); (c) saberesPrevios (qué ya sabe); (d) contenido (LA TEORÍA REAL de la sesión — definiciones, fórmulas, criterios de evaluación o fase de cierre explicada con detalle, varios párrafos, no 1-2 frases); (e) ejemploResuelto (ejemplo con NÚMEROS paso a paso); (f) practica (2-3 ejercicios concretos con datos; cada uno con "pista" hint para empezar Y "solucion" con 3-6 pasos numerados que resuelven el ejercicio con números — la "solucion" SOLO la lee el solucionario docente, el libro del estudiante solo imprime enunciado y pista); (g) aplicacion (tarea aplicada a la vida real); (h) autoevaluacion (2-3 preguntas de autorevisión); (i) recursos (1-2 enlaces reales a video YouTube o web de ampliación); (j) productoIntegrador (qué agrega el estudiante a su proyecto hoy). Los planes deben VARIAR entre sesiones y ser específicos del contexto PAEC/comunidad. VOZ DE ESTUDIANTE en todo.
+1. Rúbrica analítica (300 a 500 palabras): Exactamente 4 escalas (Excelente 10-9, Bueno 8-7, Suficiente 6-5, Requiere Apoyo 4-1) y 4 a 6 criterios (suma 100%).
+2. Lista de verificación técnica (200 a 350 palabras): 10 a 15 reactivos medibles clasificados por categorías.
+3. Cuestionario de juicio crítico (250 a 400 palabras): 3 a 5 escenarios reales en Puebla con retroalimentación docente formativa.
+4. Autoevaluación metacognitiva (150 a 250 palabras): 4 a 6 preguntas abiertas de reflexión y transferencia.
+5. Evaluación Escalonada (tieredExercises - 300 a 500 palabras): EXACTAMENTE 3 NIVELES ('basico', 'intermedio', 'avanzado') con al menos 2 ejercicios por nivel (mínimo 6 ejercicios en total) con statement, contextOrData, expectedOutputOrCriteria y hint.
+6. Contenido por sesión para el ESTUDIANTE (OBLIGATORIO — genera un "plan" por cada sesión asignada, ~250-400 palabras por plan): Para CADA sesión de "Sesiones asignadas" genera un objeto en "sessionPlans". Cada objeto es material que el estudiante LEE para aprender solo. Incluye: (a) objetivo ("Lo que vas a aprender", 1-2 frases en tú); (b) motivacion (caso real de la comunidad o PAEC contado al estudiante); (c) saberesPrevios (qué ya sabe); (d) contenido (LA TEORÍA REAL de la sesión — definiciones, fórmulas, criterios de evaluación o fase de cierre explicada con detalle, varios párrafos, no 1-2 frases); (e) ejemploResuelto (ejemplo con NÚMEROS paso a paso); (f) practica (2-3 ejercicios concretos con datos; cada uno con "pista" hint para empezar Y "solucion" con 3-6 pasos numerados que resuelven el ejercicio con números — la "solucion" SOLO la lee el solucionario docente, el libro del estudiante solo imprime enunciado y pista); (g) aplicacion (tarea aplicada a la vida real); (h) autoevaluacion (2-3 preguntas de autorevisión); (i) recursos (1-2 enlaces reales a video YouTube o web de ampliación); (j) productoIntegrador (qué agrega el estudiante a su proyecto hoy). Los planes deben VARIAR entre sesiones y ser específicos del contexto PAEC/comunidad. VOZ DE ESTUDIANTE en todo.
 7. Sintaxis JSON: Usa comillas simples ('...') en código/citas. Cero comillas dobles sin escapar dentro de valores JSON.
 
 Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
@@ -256,13 +257,16 @@ Genera el paquete oficial de 4 instrumentos de evaluación NEM con ejercicios es
     };
 
     const missionSection = buildEvaluationMissionSection(input, evaluationSection);
-    missionSection.sessionPlans = completeSessionPlans(parsed.sessionPlans, coveredSessions);
+    const sessionPlans = completeSessionPlans(parsed.sessionPlans, coveredSessions);
+    missionSection.sessionPlans = sessionPlans;
     const evalRealText = getEvaluationRealText(evaluationSection);
-    const wordCount = evalRealText.split(/\s+/).filter(Boolean).length;
-    missionSection.wordCount = wordCount;
+    const sectionWordCount = evalRealText.split(/\s+/).filter(Boolean).length;
+    const sessionPlansWords = sessionPlans.reduce((acc, sp) => acc + countSessionPlanWords(sp), 0);
+    const totalMissionWords = sectionWordCount + sessionPlansWords;
+    missionSection.wordCount = totalMissionWords;
 
     const quality = evaluateQuality({
-      wordCount,
+      wordCount: totalMissionWords,
       targetWords: input.targetWords,
       content: evalRealText,
       subsystem: input.subsystem,
@@ -270,17 +274,17 @@ Genera el paquete oficial de 4 instrumentos de evaluación NEM con ejercicios es
     });
 
     if (attempt === 1) {
-      logger.info(`[EvaluationWriter] ✅ Generado en intento 1 — ${wordCount} palabras`);
+      logger.info(`[EvaluationWriter] ✅ Generado en intento 1 — ${totalMissionWords} palabras (${sectionWordCount} sección + ${sessionPlansWords} sesiones)`);
     } else {
-      logger.info(`[EvaluationWriter] ⚠️ Reintento necesario — ${wordCount} palabras en intento 2`);
+      logger.info(`[EvaluationWriter] ⚠️ Reintento necesario — ${totalMissionWords} palabras en intento 2`);
     }
 
     return {
       type: 'evaluation',
       section: missionSection,
       evaluationSection,
-      wordCount,
-      tokensUsed: Math.round(wordCount * 1.3),
+      wordCount: totalMissionWords,
+      tokensUsed: Math.round(totalMissionWords * 1.3),
       qualityScore: quality.qualityScore,
       warnings: quality.warnings,
     };
@@ -395,13 +399,17 @@ Genera el paquete oficial de 4 instrumentos de evaluación NEM con ejercicios es
     };
 
     const missionSection = buildEvaluationMissionSection(input, fallbackEval);
-    missionSection.sessionPlans = completeSessionPlans([], coveredSessions);
+    const fallbackPlans = completeSessionPlans([], coveredSessions);
+    const fallbackPlansWords = fallbackPlans.reduce((acc, sp) => acc + countSessionPlanWords(sp), 0);
+    const fallbackTotalWords = 450 + fallbackPlansWords;
+    missionSection.sessionPlans = fallbackPlans;
+    missionSection.wordCount = fallbackTotalWords;
 
     return {
       type: 'evaluation',
       section: missionSection,
       evaluationSection: fallbackEval,
-      wordCount: 450,
+      wordCount: fallbackTotalWords,
       tokensUsed: 0,
       qualityScore: 75,
       warnings: ['Generado con instrumentos NEM de respaldo por contingencia: ' + String((err instanceof Error ? err.message : null) || err)],

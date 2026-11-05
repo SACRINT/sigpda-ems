@@ -17,6 +17,7 @@ import type { MissionSection, WorkbookElement, TroubleshootItem } from '@/types/
 import { type WriterInput, type WriterOutput, evaluateQuality, completeSessionPlans } from './writer-contract';
 import { buildPlanningAlignmentPrompt } from './planning-alignment-prompt';
 import { logger } from '@/lib/logger';
+import { countSessionPlanWords } from '../content-budget';
 
 export async function generateLabMission(input: WriterInput): Promise<WriterOutput> {
   const labMission = input.missions.find((m) => m.missionType === 'lab') || input.missions[1] || input.missions[0];
@@ -54,11 +55,11 @@ REGLAS DE VOZ (CRÍTICO — el libro es del ESTUDIANTE):
 
 DIRECTIVAS TÉCNICAS Y METAS DE EXTENSIÓN:
 1. Objetivo y Materiales: Formulación técnica rigurosa y lista de insumos con casilla de verificación [✓].
-2. Procedimiento paso a paso (1,500 a 2,500 palabras, 10-16 pasos): Explicación técnica de cada paso con espacios <!--workbook:lines:rows=3--> o tablas.
+2. Procedimiento paso a paso (400 a 600 palabras, 8-12 pasos): Explicación técnica de cada paso con espacios <!--workbook:lines:rows=3--> o tablas.
 3. Tabla de datos vacía: Encabezados descriptivos con <!--workbook:table:cols=Parámetro,Teórico,Medición 1,Medición 2,Error,Unidad-->.
-4. Código o protocolo experimental (800 a 1,500 palabras): Bloques de código reales y comentados en BT; protocolo experimental exhaustivo en BGE.
-5. Reto autónomo ("Tú Haces" - 350 a 600 palabras): EXACTAMENTE 5 a 7 PASOS NUMERADOS con variables cuantitativas y vinculación PAEC: "${input.paecContext}". OBLIGATORIO: anclar cada paso a una aplicación real en la vida diaria del estudiante o su comunidad en Puebla (no ejercicios abstractos); el estudiante debe percibir para qué le sirve en la práctica.
-6. Contenido por sesión para el ESTUDIANTE (OBLIGATORIA — genera un "plan" por cada sesión asignada): Para CADA sesión de "Sesiones asignadas" genera un objeto en "sessionPlans". Cada objeto es material que el estudiante LEE para aprender solo. Incluye: (a) objetivo ("Lo que vas a aprender", 1-2 frases en tú); (b) motivacion (caso real de la comunidad o PAEC contado al estudiante); (c) saberesPrevios (qué ya sabe); (d) contenido (LA TEORÍA REAL: definiciones, fórmulas, procedimiento explicado — varios párrafos, no 1-2 frases); (e) ejemploResuelto (ejemplo con NÚMEROS paso a paso); (f) practica (2-3 ejercicios concretos con datos; cada uno con "pista" hint para empezar Y "solucion" con 3-6 pasos numerados que resuelven el ejercicio con números — la "solucion" SOLO la lee el solucionario docente, el libro del estudiante solo imprime enunciado y pista); (g) aplicacion (tarea a la vida real); (h) autoevaluacion (2-3 preguntas de autorevisión); (i) recursos (1-2 enlaces reales a video YouTube o web de ampliación); (j) productoIntegrador (qué agrega el estudiante a su proyecto hoy). Los planes deben VARIAR entre sesiones y ser específicos del contexto PAEC/comunidad. VOZ DE ESTUDIANTE en todo.
+4. Código o protocolo experimental (300 a 500 palabras): Bloques de código reales y comentados en BT; protocolo experimental exhaustivo en BGE.
+5. Reto autónomo ("Tú Haces" - 200 a 350 palabras): EXACTAMENTE 5 a 7 PASOS NUMERADOS con variables cuantitativas y vinculación PAEC: "${input.paecContext}". OBLIGATORIO: anclar cada paso a una aplicación real en la vida diaria del estudiante o su comunidad en Puebla (no ejercicios abstractos); el estudiante debe percibir para qué le sirve en la práctica.
+6. Contenido por sesión para el ESTUDIANTE (OBLIGATORIA — genera un "plan" por cada sesión asignada, ~250-400 palabras por plan): Para CADA sesión de "Sesiones asignadas" genera un objeto en "sessionPlans". Cada objeto es material que el estudiante LEE para aprender solo. Incluye: (a) objetivo ("Lo que vas a aprender", 1-2 frases en tú); (b) motivacion (caso real de la comunidad o PAEC contado al estudiante); (c) saberesPrevios (qué ya sabe); (d) contenido (LA TEORÍA REAL: definiciones, fórmulas, procedimiento explicado — varios párrafos, no 1-2 frases); (e) ejemploResuelto (ejemplo con NÚMEROS paso a paso); (f) practica (2-3 ejercicios concretos con datos; cada uno con "pista" hint para empezar Y "solucion" con 3-6 pasos numerados que resuelven el ejercicio con números — la "solucion" SOLO la lee el solucionario docente, el libro del estudiante solo imprime enunciado y pista); (g) aplicacion (tarea a la vida real); (h) autoevaluacion (2-3 preguntas de autorevisión); (i) recursos (1-2 enlaces reales a video YouTube o web de ampliación); (j) productoIntegrador (qué agrega el estudiante a su proyecto hoy). Los planes deben VARIAR entre sesiones y ser específicos del contexto PAEC/comunidad. VOZ DE ESTUDIANTE en todo.
 7. Preguntas y Casos de Error: 4-6 preguntas analíticas amplias y al menos 3 casos de fallo (Síntoma → Causa → Solución → Prevención).
 8. Sintaxis JSON: Usa comillas simples ('...') en código/citas. Cero comillas dobles sin escapar dentro de valores JSON.
 
@@ -250,7 +251,10 @@ Redacta la Misión Práctica de Laboratorio/Taller completa:`;
       preventionTip: typeof t.preventionTip === 'string' ? t.preventionTip : 'Revisar manual antes de energizar',
     }));
 
-    const wordCount = fullText.split(/\s+/).filter(Boolean).length;
+    const sectionWordCount = fullText.split(/\s+/).filter(Boolean).length;
+    const sessionPlans = completeSessionPlans(parsed.sessionPlans, coveredSessions);
+    const sessionPlansWords = sessionPlans.reduce((acc, sp) => acc + countSessionPlanWords(sp), 0);
+    const totalMissionWords = sectionWordCount + sessionPlansWords;
 
     const missionSection: MissionSection = {
       missionIndex: labMission?.missionIndex || 2,
@@ -291,12 +295,12 @@ Redacta la Misión Práctica de Laboratorio/Taller completa:`;
         reflectionPrompts: parsed.reflectionQuestions || ['Analiza las causas de dispersión de tus datos.'],
         criteriaChecklist: ['Registré todas las lecturas con sus unidades de medida correspondientes.'],
       },
-      sessionPlans: completeSessionPlans(parsed.sessionPlans, coveredSessions),
-      wordCount,
+      sessionPlans,
+      wordCount: totalMissionWords,
     };
 
     const quality = evaluateQuality({
-      wordCount,
+      wordCount: totalMissionWords,
       targetWords: input.targetWords,
       content: fullText,
       subsystem: input.subsystem,
@@ -304,16 +308,16 @@ Redacta la Misión Práctica de Laboratorio/Taller completa:`;
     });
 
     if (attempt === 1) {
-      logger.info(`[LabWriter] ✅ Generado en intento 1 — ${wordCount} palabras`);
+      logger.info(`[LabWriter] ✅ Generado en intento 1 — ${totalMissionWords} palabras (${sectionWordCount} sección + ${sessionPlansWords} sesiones)`);
     } else {
-      logger.info(`[LabWriter] ⚠️ Reintento necesario — ${wordCount} palabras en intento 2`);
+      logger.info(`[LabWriter] ⚠️ Reintento necesario — ${totalMissionWords} palabras en intento 2`);
     }
 
     return {
       type: 'lab',
       section: missionSection,
-      wordCount,
-      tokensUsed: Math.round(wordCount * 1.3),
+      wordCount: totalMissionWords,
+      tokensUsed: Math.round(totalMissionWords * 1.3),
       qualityScore: quality.qualityScore,
       warnings: quality.warnings,
     };
@@ -323,6 +327,10 @@ Redacta la Misión Práctica de Laboratorio/Taller completa:`;
     }
     logger.error('[generateLabMission] Error:', err);
     // Fallback estructurado de laboratorio
+    const fallbackPlans = completeSessionPlans([], coveredSessions);
+    const fallbackPlansWords = fallbackPlans.reduce((acc, sp) => acc + countSessionPlanWords(sp), 0);
+    const fallbackTotalWords = 600 + fallbackPlansWords;
+
     const fallbackSection: MissionSection = {
       missionIndex: labMission?.missionIndex || 2,
       title: missionTitle,
@@ -376,14 +384,14 @@ Redacta la Misión Práctica de Laboratorio/Taller completa:`;
         reflectionPrompts: ['Evalúa el impacto de la precisión técnica.'],
         criteriaChecklist: ['Completé la tabla de datos y las observaciones del taller.'],
       },
-      sessionPlans: completeSessionPlans([], coveredSessions),
-      wordCount: 600,
+      sessionPlans: fallbackPlans,
+      wordCount: fallbackTotalWords,
     };
 
     return {
       type: 'lab',
       section: fallbackSection,
-      wordCount: 600,
+      wordCount: fallbackTotalWords,
       tokensUsed: 0,
       qualityScore: 70,
       warnings: ['Generado con fallback estructurado de laboratorio: ' + (err instanceof Error ? err.message : String(err))],

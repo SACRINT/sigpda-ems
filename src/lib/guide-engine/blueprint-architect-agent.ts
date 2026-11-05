@@ -13,6 +13,7 @@ import { generateBlockSessions, generateCurricularBlockSessions, type DetailedSe
 import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
 import type { KeyActivityPlan, Planning, SecuenciaSesion } from '@/types/planning';
 import type { CurriculumContext } from './curriculum-context-agent';
+import { WORDS_PER_PAGE } from './content-budget';
 
 export interface PlannedMissionBlueprint {
   missionIndex: number;
@@ -152,8 +153,8 @@ function createMissionBlueprint(
   }
 
   const title = `${titlePrefix} — ${mainTitle}`;
-  const pages = Math.max(6, sessionGroup.length * 3);
-  const words = pages * 1250;
+  const pages = Math.max(3, Math.round(sessionGroup.length * 2.65));
+  const words = pages * WORDS_PER_PAGE;
 
   return {
     missionIndex: index,
@@ -220,19 +221,19 @@ export function buildBlockBlueprint(params: {
   const missions = clusterSessionsIntoMissions(sessions);
 
   // 3. Blueprint del Proyecto / Artefacto Real
-  const projectPages = curriculum.subsystem === 'bt' ? 10 : 8;
-  const projectWords = projectPages * 1250;
+  const projectPages = curriculum.subsystem === 'bt' ? 8 : 6;
+  const projectWords = projectPages * WORDS_PER_PAGE;
   const lastMissions = missions.filter((m) => m.missionType === 'project' || m.missionType === 'lab');
   const projectSessions = lastMissions.flatMap((m) => m.sessionNumbers).slice(-4);
 
   // 4. Blueprint de Evaluación
-  const evalPages = curriculum.subsystem === 'bt' ? 8 : 6;
-  const evalWords = evalPages * 1250;
+  const evalPages = curriculum.subsystem === 'bt' ? 6 : 4;
+  const evalWords = evalPages * WORDS_PER_PAGE;
 
   // 5. Balancear metas de palabras para asegurar que alcancen el mínimo oficial
   const totalMissionsWords = missions.reduce((acc, m) => acc + m.targetWords, 0);
   const totalPlannedWords = totalMissionsWords + projectWords + evalWords;
-  const totalPlannedPages = Math.round(totalPlannedWords / 1250);
+  const totalPlannedPages = Math.round(totalPlannedWords / WORDS_PER_PAGE);
 
   return {
     blockIndex,
