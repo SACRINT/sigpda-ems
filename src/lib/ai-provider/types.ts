@@ -15,13 +15,29 @@ export interface AIProvider {
   generate(
     systemPrompt: string,
     userPrompt: string,
-    options?: { temperature?: number; jsonMode?: boolean; maxTokens?: number }
+    options?: {
+      temperature?: number;
+      jsonMode?: boolean;
+      maxTokens?: number;
+      timeoutMs?: number;
+      remainingBudgetMs?: number;
+      signal?: AbortSignal;
+      responseSchema?: object;
+    }
   ): Promise<string>;
 
   /**
    * Generate text as an async stream of string chunks.
    */
-  generateStream(systemPrompt: string, userPrompt: string): AsyncGenerator<string>;
+  generateStream(
+    systemPrompt: string,
+    userPrompt: string,
+    options?: {
+      timeoutMs?: number;
+      remainingBudgetMs?: number;
+      signal?: AbortSignal;
+    }
+  ): AsyncGenerator<string>;
 }
 
 export interface AiTokenUsage {

@@ -9,6 +9,7 @@ export default defineConfig({
     globals: true,
     testTimeout: 25000,
     include: ['src/__tests__/**/*.test.ts', 'src/__tests__/**/*.test.tsx'],
+    exclude: ['**/node_modules/**', '**/dist/**', '**/*.integration.test.ts', '**/*.integration.test.tsx'],
   },
   resolve: {
     alias: {

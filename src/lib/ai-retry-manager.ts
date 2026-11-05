@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { parseAIResponse } from './ai-response-parser';
-import { getAIProvider } from './ai-provider';
+import { generateWithRotation } from './ai-provider';
 import { logger } from './logger';
 
 // ============================================================================
@@ -108,13 +108,13 @@ export async function generateWithRetry<T>(
   // Registrar intento en métricas
   metrics.attemptsTotalByRoute[route] = (metrics.attemptsTotalByRoute[route] || 0) + 1;
 
-  let allWarnings: string[] = [];
+  const allWarnings: string[] = [];
   let lastError = '';
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     let currentTemp = baseTemp;
     let currentSystemPrompt = systemPrompt;
-    let currentUserPrompt = userPrompt;
+    const currentUserPrompt = userPrompt;
 
     if (attempt === 2) {
       currentTemp = 0.1;
@@ -130,8 +130,13 @@ export async function generateWithRetry<T>(
       if (options?.customGenerateFn) {
         rawResponse = await options.customGenerateFn(currentSystemPrompt, currentUserPrompt, { temperature: currentTemp });
       } else {
-        const ai = await getAIProvider(options?.isPremium ?? false);
-        rawResponse = await ai.generate(currentSystemPrompt, currentUserPrompt, { temperature: currentTemp });
+        rawResponse = await generateWithRotation(
+          currentSystemPrompt,
+          currentUserPrompt,
+          undefined,
+          options?.isPremium ?? false,
+          { temperature: currentTemp, jsonMode: true }
+        );
       }
 
       if (!rawResponse || !rawResponse.trim()) {
@@ -173,9 +178,10 @@ export async function generateWithRetry<T>(
       }
 
       logger.warn(`[AI-RETRY] [${route}] Intento ${attempt}/${maxRetries} falló: ${lastError}`);
-    } catch (callErr: any) {
+    } catch (callErr: unknown) {
       metrics.failuresTotalByReason.UNKNOWN_ERROR++;
-      lastError = callErr.message || 'Excepción no controlada durante llamada a IA';
+      const errObj = callErr as { message?: string } | null;
+      lastError = errObj?.message || 'Excepción no controlada durante llamada a IA';
       logger.error(`[AI-RETRY] [${route}] Excepción en intento ${attempt}/${maxRetries}:`, callErr);
     }
   }

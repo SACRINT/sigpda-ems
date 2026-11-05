@@ -15,6 +15,24 @@ export function sanitizeGeminiModel(model?: string | null): string {
   return 'gemini-3.5-flash-lite';
 }
 
+export interface GeminiGenerateOptions {
+  temperature?: number;
+  jsonMode?: boolean;
+  maxTokens?: number;
+  timeoutMs?: number;
+  remainingBudgetMs?: number;
+  signal?: AbortSignal;
+  responseSchema?: object;
+}
+
+export interface GeminiMultimodalOptions {
+  timeoutMs?: number;
+  remainingBudgetMs?: number;
+  signal?: AbortSignal;
+  responseSchema?: object;
+  jsonMode?: boolean;
+}
+
 export class GeminiProvider implements AIProvider {
   providerId = 'gemini';
   modelId: string;
@@ -28,30 +46,62 @@ export class GeminiProvider implements AIProvider {
   async generate(
     systemPrompt: string,
     userPrompt: string,
-    options?: { temperature?: number; jsonMode?: boolean; maxTokens?: number }
+    options?: GeminiGenerateOptions
   ): Promise<string> {
     const url = `${API_CONFIG.gemini}/${this.modelId}:generateContent?key=${this.apiKey}`;
-    const payload = {
+    const wantsJson = Boolean(options?.jsonMode || options?.responseSchema);
+    const payload: {
+      contents: Array<{ role: string; parts: Array<{ text: string }> }>;
+      systemInstruction: { parts: Array<{ text: string }> };
+      generationConfig: {
+        temperature: number;
+        topP: number;
+        maxOutputTokens: number;
+        responseMimeType: string;
+        responseSchema?: object;
+      };
+    } = {
       contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
       systemInstruction: { parts: [{ text: systemPrompt }] },
       generationConfig: {
         temperature: options?.temperature !== undefined ? options.temperature : 0.4,
         topP: 0.95,
         maxOutputTokens: options?.maxTokens || 8192,
-        responseMimeType: options?.jsonMode ? 'application/json' : 'text/plain',
+        responseMimeType: wantsJson ? 'application/json' : 'text/plain',
       },
     };
+
+    if (options?.responseSchema) {
+      payload.generationConfig.responseSchema = options.responseSchema;
+    }
+
+    // Dynamic timeout: min(timeoutPorIntento, tiempoRestante), clamped >= 1ms
+    const timeoutLimit = Math.max(
+      1,
+      Math.min(options?.timeoutMs ?? 60000, options?.remainingBudgetMs ?? 60000)
+    );
+    const timeoutSignal = AbortSignal.timeout(timeoutLimit);
+    const effectiveSignal = options?.signal
+      ? (typeof AbortSignal.any === 'function'
+          ? AbortSignal.any([options.signal, timeoutSignal])
+          : timeoutSignal)
+      : timeoutSignal;
 
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(60000), // 60 segundos
+      signal: effectiveSignal,
     });
 
     if (!res.ok) {
       const errText = await res.text();
-      throw new Error(`HTTP ${res.status}: ${errText}`);
+      const err: Error & { status?: number; statusCode?: number } = new Error(
+        `HTTP ${res.status}: ${errText}`
+      );
+      err.status = res.status;
+      err.statusCode = res.status;
+      throw err;
     }
 
     const data = await res.json();
@@ -63,19 +113,35 @@ export class GeminiProvider implements AIProvider {
   async generateMultimodal(
     systemPrompt: string,
     userPrompt: string,
-    inlineData: { mimeType: string; data: string }
+    inlineData: { mimeType: string; data: string },
+    options?: GeminiMultimodalOptions
   ): Promise<string> {
-    const result = await this.generateMultimodalWithUsage(systemPrompt, userPrompt, inlineData);
+    const result = await this.generateMultimodalWithUsage(systemPrompt, userPrompt, inlineData, options);
     return result.text;
   }
 
   async generateMultimodalWithUsage(
     systemPrompt: string,
     userPrompt: string,
-    inlineData: { mimeType: string; data: string }
+    inlineData: { mimeType: string; data: string },
+    options?: GeminiMultimodalOptions
   ): Promise<MultimodalResult> {
     const url = `${API_CONFIG.gemini}/${this.modelId}:generateContent?key=${this.apiKey}`;
-    const payload = {
+    const wantsJson = Boolean(options?.jsonMode || options?.responseSchema);
+    const payload: {
+      contents: Array<{
+        role: string;
+        parts: Array<{ inlineData?: { mimeType: string; data: string }; text?: string }>;
+      }>;
+      systemInstruction: { parts: Array<{ text: string }> };
+      generationConfig: {
+        temperature: number;
+        topP: number;
+        maxOutputTokens: number;
+        responseMimeType: string;
+        responseSchema?: object;
+      };
+    } = {
       contents: [
         {
           role: 'user',
@@ -90,20 +156,40 @@ export class GeminiProvider implements AIProvider {
         temperature: 0.2,
         topP: 0.95,
         maxOutputTokens: 8192,
-        responseMimeType: 'text/plain',
+        responseMimeType: wantsJson ? 'application/json' : 'text/plain',
       },
     };
+
+    if (options?.responseSchema) {
+      payload.generationConfig.responseSchema = options.responseSchema;
+    }
+
+    const timeoutLimit = Math.max(
+      1,
+      Math.min(options?.timeoutMs ?? 90000, options?.remainingBudgetMs ?? 90000)
+    );
+    const timeoutSignal = AbortSignal.timeout(timeoutLimit);
+    const effectiveSignal = options?.signal
+      ? (typeof AbortSignal.any === 'function'
+          ? AbortSignal.any([options.signal, timeoutSignal])
+          : timeoutSignal)
+      : timeoutSignal;
 
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(90000), // 90s para PDFs
+      signal: effectiveSignal,
     });
 
     if (!res.ok) {
       const errText = await res.text();
-      throw new Error(`HTTP ${res.status}: ${errText}`);
+      const err: Error & { status?: number; statusCode?: number } = new Error(
+        `HTTP ${res.status}: ${errText}`
+      );
+      err.status = res.status;
+      err.statusCode = res.status;
+      throw err;
     }
 
     const data = await res.json();
@@ -119,7 +205,11 @@ export class GeminiProvider implements AIProvider {
     return { text, usage: hasUsage ? usage : undefined };
   }
 
-  async *generateStream(systemPrompt: string, userPrompt: string): AsyncGenerator<string> {
+  async *generateStream(
+    systemPrompt: string,
+    userPrompt: string,
+    options?: { timeoutMs?: number; remainingBudgetMs?: number; signal?: AbortSignal }
+  ): AsyncGenerator<string> {
     const url = `${API_CONFIG.gemini}/${this.modelId}:streamGenerateContent?key=${this.apiKey}&alt=sse`;
     const payload = {
       contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
@@ -130,18 +220,32 @@ export class GeminiProvider implements AIProvider {
       },
     };
 
+    const timeoutLimit = Math.max(
+      1,
+      Math.min(options?.timeoutMs ?? 110000, options?.remainingBudgetMs ?? 110000)
+    );
+    const timeoutSignal = AbortSignal.timeout(timeoutLimit);
+    const effectiveSignal = options?.signal
+      ? (typeof AbortSignal.any === 'function'
+          ? AbortSignal.any([options.signal, timeoutSignal])
+          : timeoutSignal)
+      : timeoutSignal;
+
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
-      // El timeout cubre todo el ciclo request+body del stream. 60 s abortaba
-      // generaciones largas a mitad de stream; se alinea con maxDuration=120.
-      signal: AbortSignal.timeout(110000),
+      signal: effectiveSignal,
     });
 
     if (!res.ok || !res.body) {
       const errText = await res.text();
-      throw new Error(`HTTP ${res.status}: ${errText}`);
+      const err: Error & { status?: number; statusCode?: number } = new Error(
+        `HTTP ${res.status}: ${errText}`
+      );
+      err.status = res.status;
+      err.statusCode = res.status;
+      throw err;
     }
 
     const reader = res.body.getReader();

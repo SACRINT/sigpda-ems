@@ -32,7 +32,11 @@ export class OpenAICompatibleProvider implements AIProvider {
     return new OpenAI({ apiKey: this.apiKey, baseURL: this.baseURL });
   }
 
-  async generate(systemPrompt: string, userPrompt: string, options?: { temperature?: number }): Promise<string> {
+  async generate(
+    systemPrompt: string,
+    userPrompt: string,
+    options?: Parameters<AIProvider['generate']>[2]
+  ): Promise<string> {
     const client = this.getClient();
 
     const response = await client.chat.completions.create({

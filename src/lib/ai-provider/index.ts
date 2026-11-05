@@ -1,24 +1,34 @@
 import { sql } from '@/lib/db/client';
 /**
- * AI Provider Factory — main entry point.
+ * AI Provider Factory — Gateway Único de IA de SIGPDA-EMS
+ * MCCEMS Ciclo Escolar 2026-2027
  *
- * Usage in any API route:
- *   import { getAIProvider } from '@/lib/ai-provider';
- *   const ai = await getAIProvider();
- *   const result = await ai.generate(systemPrompt, userPrompt);
+ * Puntos de entrada unificados:
+ * - getAIProvider: Obtiene instancia de AIProvider con resolución atómica y envoltura de rotación
+ * - generateWithRotation: Generación de texto estructurado con rotación atómica y deadlines dinámicos
+ * - generateStreamWithRotation: Generación streaming con rotación atómica y pool real
+ * - generateMultimodalWithRotation: Generación multimodal/visión con rotación atómica y schema JSON
+ * - generateMultimodalWithMetadata: Extracción multimodal con metadatos de tokens
  *
- * The factory reads the active provider + model from platform_config in DB.
- * Supports two tiers:
- *   - Standard (docentes): active_provider / active_model  → gemini-3.5-flash-lite by default
- *   - Premium  (admins / authorized users): admin_provider / admin_model → configurable
- *
- * Multi-provider fallback (v2):
- *   If the primary provider pool is exhausted, the orchestrator automatically
- *   tries alternative providers that have keys configured in the DB.
- *   Fallback order: openrouter → mistral → openai → claude → gemini (excluding primary)
+ * Políticas estrictas de costo y resiliencia:
+ * - Exclusivamente Gemini gratuito activo por defecto.
+ * - Sin desvíos a APIs de pago (OpenRouter, OpenAI, Claude, Mistral) no autorizados.
+ * - Si el pool gratuito de Gemini se agota o satura, se devuelve error controlado HTTP 503
+ *   mediante `AiServiceUnavailableError` (reconocido por `isUpstreamAIError`).
  */
 
-import { withKeyRotation } from './key-rotator';
+import {
+  withKeyRotation,
+  resolveKey,
+  claimApiKey,
+  recordUsage,
+  recordError,
+  AiServiceUnavailableError,
+  AiCooldownExhaustedError,
+  MAX_POOL_ROUNDS,
+  FAST_FAIL_503_THRESHOLD,
+  type AttemptMetadata,
+} from './key-rotator';
 import { GeminiProvider, sanitizeGeminiModel } from './gemini';
 import { ClaudeProvider } from './claude';
 import { OpenAICompatibleProvider } from './openai';
@@ -27,7 +37,15 @@ import { logger } from '@/lib/logger';
 import { resolveUserIsPremium } from './resolve-premium';
 
 export type { AIProvider, AiTokenUsage, MultimodalResult };
-export { resolveUserIsPremium };
+export {
+  resolveUserIsPremium,
+  resolveKey,
+  claimApiKey,
+  recordUsage,
+  recordError,
+  AiServiceUnavailableError,
+  AiCooldownExhaustedError,
+};
 
 // ── Default model constants ──────────────────────────────────────────────────
 export const DEFAULT_STANDARD_MODEL = 'gemini-3.5-flash-lite';
@@ -35,11 +53,7 @@ export const DEFAULT_STANDARD_PROVIDER = 'gemini';
 export const DEFAULT_PREMIUM_MODEL = 'gemini-3.5-flash-lite';
 export const DEFAULT_PREMIUM_PROVIDER = 'gemini';
 
-// ── Fallback provider order (excludes primary, tried in sequence) ────────────
-// Prioritizes free-tier / low-cost providers first
-const FALLBACK_PROVIDER_ORDER = ['openrouter', 'mistral', 'openai', 'claude', 'gemini'];
-
-// ── Default models per provider for fallback calls ───────────────────────────
+// ── Default models per provider ──────────────────────────────────────────────
 export const DEFAULT_MODEL_BY_PROVIDER: Record<string, string> = {
   gemini:     'gemini-3.5-flash-lite',
   claude:     'claude-haiku-4-5',
@@ -93,31 +107,6 @@ async function getActiveConfig(isPremium = false): Promise<ActiveConfig> {
   }
 }
 
-/**
- * Returns providers (other than the given primary) that have active keys in DB.
- * Used for multi-provider fallback orchestration.
- */
-async function getAlternativeProviders(primaryProvider: string): Promise<string[]> {
-  try {
-    if (!process.env.DATABASE_URL) return [];
-    const db = sql();
-    const rows = await db`
-      SELECT DISTINCT provider FROM api_keys
-      WHERE is_active = true AND provider != ${primaryProvider}
-    `;
-    const availableProviders = new Set(
-      rows.map((r: { provider?: unknown }) => String(r.provider || ''))
-    );
-    // Return in fallback order, only those with active keys
-    return FALLBACK_PROVIDER_ORDER.filter(p => p !== primaryProvider && availableProviders.has(p));
-  } catch {
-    return [];
-  }
-}
-
-// resolveUserIsPremium is now exported from './resolve-premium' and re-exported above.
-// This avoids creating a circular dependency with src/lib/gemini.ts.
-
 // ── Provider factory ─────────────────────────────────────────────────────────
 
 function buildProvider(provider: string, model: string, apiKey: string): AIProvider {
@@ -138,27 +127,29 @@ function buildProvider(provider: string, model: string, apiKey: string): AIProvi
 }
 
 /**
- * Returns an AIProvider instance configured with the active provider, model
- * and the best available API key (from DB with rotation, falling back to env vars).
+ * Returns an AIProvider instance. Calls to .generate() and .generateStream()
+ * are automatically routed through the centralized rotation gateway.
  * @param isPremium - set true for admins or premium-authorized users
  */
 export async function getAIProvider(isPremium = false): Promise<AIProvider> {
   const { provider, model } = await getActiveConfig(isPremium);
 
-  // Resolve the API key with fallback to env var
-  const { resolveKey } = await import('./key-rotator');
-  const resolved = await resolveKey(provider);
-  const finalModel = resolved.modelOverride || model;
-
-  return buildProvider(provider, finalModel, resolved.apiKey);
+  return {
+    providerId: provider,
+    modelId: model,
+    async generate(systemPrompt, userPrompt, options) {
+      return generateWithRotation(systemPrompt, userPrompt, undefined, isPremium, options);
+    },
+    async *generateStream(systemPrompt, userPrompt, options) {
+      yield* generateStreamWithRotation(systemPrompt, userPrompt, undefined, isPremium, options);
+    },
+  };
 }
 
 /**
- * Generates text with automatic key rotation on quota errors.
- * If the primary provider pool is exhausted, falls back to alternative providers
- * that have keys configured in the DB (multi-provider orchestration).
+ * Generates text with automatic atomic key rotation on quota / 503 errors.
+ * Dynamically wires deadlines, attempt timeouts, and structured output.
  *
- * Priority: teacher's own key → primary pool → alternative providers
  * @param isPremium - set true for admins or premium-authorized users
  */
 export async function generateWithRotation(
@@ -166,64 +157,46 @@ export async function generateWithRotation(
   userPrompt: string,
   teacherId?: string,
   isPremium = false,
-  options?: { temperature?: number; jsonMode?: boolean; maxTokens?: number }
+  options?: {
+    temperature?: number;
+    jsonMode?: boolean;
+    maxTokens?: number;
+    timeoutMs?: number;
+    remainingBudgetMs?: number;
+    signal?: AbortSignal;
+    responseSchema?: object;
+  }
 ): Promise<string> {
   const { provider, model } = await getActiveConfig(isPremium);
 
-  // Try primary provider first (with full key rotation)
-  try {
-    return await withKeyRotation(provider, async (apiKey, _keyId, round) => {
-      // Si la Vuelta 1 sufrió 503 en Google, en la Vuelta 2 probamos con gemini-3.1-flash-lite
-      // para esquivar la congestión del clúster de gemini-3.5-flash-lite
+  return withKeyRotation(
+    provider,
+    async (apiKey, _keyId, round, meta: AttemptMetadata) => {
+      // Si la Vuelta 1 sufrió 503/429 en Google, en Vuelta 2 probamos con gemini-3.1-flash-lite
       const effectiveModel =
         provider === 'gemini' && round === 2 && model === 'gemini-3.5-flash-lite'
           ? 'gemini-3.1-flash-lite'
           : model;
       const ai = buildProvider(provider, effectiveModel, apiKey);
-      return ai.generate(systemPrompt, userPrompt, options);
-    }, teacherId);
-  } catch (primaryErr: unknown) {
-    const primaryMsg = primaryErr instanceof Error ? primaryErr.message : String(primaryErr);
-    logger.warn(
-      `[ai-provider] Primary provider "${provider}" pool exhausted. ` +
-      `Trying alternative providers...`
-    );
-
-    // Try alternative providers in fallback order
-    const alternatives = await getAlternativeProviders(provider);
-    for (const altProvider of alternatives) {
-      const altModel = DEFAULT_MODEL_BY_PROVIDER[altProvider] || 'gpt-4o-mini';
-      try {
-        const result = await withKeyRotation(altProvider, async (apiKey) => {
-          const ai = buildProvider(altProvider, altModel, apiKey);
-          return ai.generate(systemPrompt, userPrompt, options);
-        });
-        logger.info(`[ai-provider] ✅ Fallback provider "${altProvider}" (${altModel}) succeeded.`);
-        return result;
-      } catch (altErr: unknown) {
-        const altMsg = altErr instanceof Error ? altErr.message : String(altErr);
-        logger.warn(
-          `[ai-provider] Fallback provider "${altProvider}" also failed: ${altMsg}`
-        );
-      }
+      return ai.generate(systemPrompt, userPrompt, {
+        ...options,
+        timeoutMs: meta?.timeoutMs ?? options?.timeoutMs,
+        remainingBudgetMs: meta?.remainingBudgetMs ?? options?.remainingBudgetMs,
+      });
+    },
+    {
+      teacherId,
+      remainingBudgetMs: options?.remainingBudgetMs,
+      timeoutPerAttemptMs: options?.timeoutMs ?? 60000,
+      signal: options?.signal,
     }
-
-    // All providers exhausted — throw descriptive error
-    throw new Error(
-      `[ai-provider] All AI providers exhausted. Primary: ${provider}. ` +
-      `Alternatives tried: ${alternatives.join(', ') || 'none available'}. ` +
-      `Original error: ${primaryMsg}`
-    );
-  }
+  );
 }
 
 /**
- * Generates a stream with automatic key rotation on quota errors.
+ * Generates a stream with automatic atomic key rotation.
+ * Respects real pool size, MAX_POOL_ROUNDS, and excludes failed keys in SQL.
  * Returns an AsyncGenerator<string>.
- *
- * NOTE: Multi-provider fallback is not supported for streams because a stream
- * must stay connected to a single provider connection. The key-rotator will
- * still rotate through all keys of the primary provider.
  *
  * @param isPremium - set true for admins or premium-authorized users
  */
@@ -231,85 +204,146 @@ export async function* generateStreamWithRotation(
   systemPrompt: string,
   userPrompt: string,
   teacherId?: string,
-  isPremium = false
+  isPremium = false,
+  options?: {
+    timeoutMs?: number;
+    remainingBudgetMs?: number;
+    signal?: AbortSignal;
+  }
 ): AsyncGenerator<string> {
   const { provider, model } = await getActiveConfig(isPremium);
-  const { resolveKeyAttempts } = await import('./key-rotator');
 
-  // Cadena de proveedores: primario + alternativas con claves activas.
-  const providerChain: Array<{ provider: string; model: string }> = [{ provider, model }];
+  let poolSize = 6;
   try {
-    const alternatives = await getAlternativeProviders(provider);
-    for (const alt of alternatives) {
-      providerChain.push({
-        provider: alt,
-        model: DEFAULT_MODEL_BY_PROVIDER[alt] || 'gpt-4o-mini',
-      });
-    }
-  } catch {
-    /* sin alternativas disponibles */
-  }
+    const db = sql();
+    const rows = await db`SELECT COUNT(*)::int as cnt FROM api_keys WHERE provider = ${provider} AND is_active = true`;
+    if (rows && rows[0]?.cnt) poolSize = Math.max(1, Number(rows[0].cnt));
+  } catch { /* fallback */ }
 
+  const maxAttempts = poolSize * MAX_POOL_ROUNDS;
   let emittedAnyChunk = false;
   let lastError: unknown = null;
+  const permanentlyFailedKeyIds = new Set<string>();
+  const triedKeyIdsInRound = new Set<string>();
+  let consecutive503Count = 0;
+  let excludeTeacherKey = false;
+  let excludeEnv = false;
 
-  for (const cfg of providerChain) {
-    const attempts = await resolveKeyAttempts(
-      cfg.provider,
-      cfg.provider === provider ? teacherId : undefined
-    );
+  const startTime = Date.now();
+  const deadline = options?.remainingBudgetMs ? startTime + options.remainingBudgetMs : null;
 
-    for (let i = 0; i < attempts.length; i++) {
-      const { apiKey, modelOverride } = attempts[i];
-      const ai = buildProvider(cfg.provider, modelOverride || cfg.model, apiKey);
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    if (options?.signal?.aborted) {
+      throw (options.signal.reason instanceof Error
+        ? options.signal.reason
+        : new DOMException('The operation was aborted', 'AbortError'));
+    }
 
-      try {
-        for await (const chunk of ai.generateStream(systemPrompt, userPrompt)) {
-          emittedAnyChunk = true;
-          yield chunk;
-        }
-        return;
-      } catch (err: unknown) {
-        lastError = err;
-        const msg = err instanceof Error ? err.message : String(err);
+    // Reiniciar llaves transitorias intentadas al cambiar de vuelta
+    if (attempt % poolSize === 0) {
+      triedKeyIdsInRound.clear();
+    }
 
-        // Si ya se emitió contenido no se puede reiniciar el stream sin
-        // duplicar texto en el cliente: se propaga el error.
-        const isTransient =
-          /503|429|UNAVAILABLE|high demand|RESOURCE_EXHAUSTED|MODEL_CAPACITY_EXCEEDED|rate.?limit|timeout|service unavailable|overloaded/i.test(
-            msg
-          );
+    const now = Date.now();
+    const currentRemaining = deadline ? Math.max(0, deadline - now) : undefined;
+    if (currentRemaining !== undefined && currentRemaining <= 1) {
+      throw new AiServiceUnavailableError(
+        'El presupuesto de tiempo de ejecución de la solicitud se agotó antes del siguiente intento de streaming.'
+      );
+    }
 
-        if (emittedAnyChunk || !isTransient) {
-          throw err;
-        }
+    const claimed = await claimApiKey(provider, {
+      teacherId: excludeTeacherKey ? undefined : teacherId,
+      excludeKeyIds: new Set([...permanentlyFailedKeyIds, ...triedKeyIdsInRound]),
+      excludeTeacherKey,
+      excludeEnv,
+      maxWaitMs: currentRemaining ? Math.min(5000, currentRemaining / 2) : 5000,
+      signal: options?.signal,
+    });
 
-        if (i < attempts.length - 1) {
-          logger.warn(
-            `[ai-provider] Stream ${cfg.provider} clave #${i + 1}/${attempts.length} falló transitoriamente (${msg.slice(0, 140)}). Rotando...`
-          );
-          const backoffMs = Math.min(3000, 400 * Math.pow(2, i));
-          await new Promise((resolve) => setTimeout(resolve, backoffMs));
-        } else if (cfg !== providerChain[providerChain.length - 1]) {
-          logger.warn(
-            `[ai-provider] Claves de "${cfg.provider}" agotadas por saturación. Probando proveedor alternativo...`
-          );
+    if (!claimed) {
+      throw new AiServiceUnavailableError(
+        `No hay claves de API disponibles para streaming en "${provider}".`
+      );
+    }
+
+    const { apiKey, keyId, source, modelOverride } = claimed;
+
+    const ai = buildProvider(provider, modelOverride || model, apiKey);
+
+    try {
+      const streamOptions = {
+        timeoutMs: currentRemaining ? Math.max(1, Math.min(options?.timeoutMs ?? 110000, currentRemaining)) : options?.timeoutMs,
+        remainingBudgetMs: currentRemaining,
+        signal: options?.signal,
+      };
+
+      for await (const chunk of (ai as GeminiProvider).generateStream(systemPrompt, userPrompt, streamOptions)) {
+        emittedAnyChunk = true;
+        yield chunk;
+      }
+      if (keyId && source === 'pool') {
+        await recordUsage(keyId);
+      }
+      return;
+    } catch (err: unknown) {
+      const isAbort =
+        options?.signal?.aborted ||
+        (err instanceof Error && (err.name === 'AbortError' || err.message.toLowerCase().includes('aborted')));
+      if (isAbort) {
+        throw (err instanceof Error ? err : new DOMException('The operation was aborted', 'AbortError'));
+      }
+
+      lastError = err;
+      const msg = err instanceof Error ? err.message : String(err);
+      const is503 = /503|UNAVAILABLE|high demand|service unavailable|overloaded/i.test(msg);
+      const isTransient = is503 || /429|RESOURCE_EXHAUSTED|rate.?limit|timeout/i.test(msg);
+
+      if (source === 'user') {
+        excludeTeacherKey = true;
+      } else if (source === 'env') {
+        excludeEnv = true;
+      } else if (keyId && source === 'pool') {
+        triedKeyIdsInRound.add(keyId);
+        if (/401|403|unauthorized/i.test(msg)) {
+          permanentlyFailedKeyIds.add(keyId);
+          await recordError(keyId, 'permanent');
+        } else if (isTransient) {
+          await recordError(keyId, 'transient');
         }
       }
+
+      // Si ya se emitió contenido no se puede reiniciar el stream sin duplicar texto
+      if (emittedAnyChunk || !isTransient) {
+        throw err;
+      }
+
+      if (is503) {
+        consecutive503Count++;
+        if (consecutive503Count >= FAST_FAIL_503_THRESHOLD) {
+          throw new AiServiceUnavailableError(
+            'Google Gemini está experimentando alta demanda (503). Streaming cortado para proteger cuentas.'
+          );
+        }
+      } else {
+        consecutive503Count = 0;
+      }
+
+      logger.warn(
+        `[ai-provider] Stream falló transitoriamente (${msg.slice(0, 100)}). Rotando clave...`
+      );
     }
   }
 
-  throw lastError instanceof Error
-    ? lastError
-    : new Error(
-        `No API key configured for provider "${provider}". ` +
-        `Add one from the Admin Panel or set the environment variable.`
-      );
+  throw (
+    lastError instanceof Error
+      ? lastError
+      : new AiServiceUnavailableError('Streaming agotó los intentos disponibles.')
+  );
 }
 
 /**
- * Genera texto a partir de datos multimodales (ej: PDF escaneado en base64) utilizando
- * el pool de llaves con rotación y modelos optimizados para visión/OCR documental.
+ * Genera texto a partir de datos multimodales con rotación atómica y soporte structured output.
  */
 export interface MultimodalCallResult extends MultimodalResult {
   provider: string;
@@ -321,28 +355,52 @@ export async function generateMultimodalWithMetadata(
   userPrompt: string,
   inlineData: { mimeType: string; data: string },
   teacherId?: string,
-  isPremium = false
+  isPremium = false,
+  options?: {
+    timeoutMs?: number;
+    remainingBudgetMs?: number;
+    signal?: AbortSignal;
+    responseSchema?: object;
+    jsonMode?: boolean;
+  }
 ): Promise<MultimodalCallResult> {
-  // Uses GeminiProvider.generateMultimodal directly to avoid importing src/lib/gemini.ts
-  // (which would recreate the ai-provider <-> gemini circular dependency).
   const { provider, model } = await getActiveConfig(isPremium);
-  const { resolveKey } = await import('./key-rotator');
-  const resolved = await resolveKey(provider, teacherId);
-  const finalModel = resolved.modelOverride || model;
-  const geminiProvider = new GeminiProvider(resolved.apiKey, finalModel);
+  const resolvedModel = provider === 'gemini' ? sanitizeGeminiModel(model) : model;
+
   try {
-    const result = await geminiProvider.generateMultimodalWithUsage(systemPrompt, userPrompt, inlineData);
-    return {
-      text: result.text,
-      usage: result.usage,
-      provider: geminiProvider.providerId,
-      model: geminiProvider.modelId,
-    };
+    return await withKeyRotation(
+      provider,
+      async (apiKey, _keyId, _round, meta: AttemptMetadata) => {
+        const geminiProvider = new GeminiProvider(apiKey, resolvedModel);
+        const result = await geminiProvider.generateMultimodalWithUsage(
+          systemPrompt,
+          userPrompt,
+          inlineData,
+          {
+            ...options,
+            timeoutMs: meta?.timeoutMs ?? options?.timeoutMs,
+            remainingBudgetMs: meta?.remainingBudgetMs ?? options?.remainingBudgetMs,
+          }
+        );
+        return {
+          text: result.text,
+          usage: result.usage,
+          provider: geminiProvider.providerId,
+          model: geminiProvider.modelId,
+        };
+      },
+      {
+        teacherId,
+        remainingBudgetMs: options?.remainingBudgetMs,
+        timeoutPerAttemptMs: options?.timeoutMs ?? 90000,
+        signal: options?.signal,
+      }
+    );
   } catch (err) {
     const failure = err instanceof Error ? err : new Error(String(err));
     throw Object.assign(failure, {
-      provider: geminiProvider.providerId,
-      model: geminiProvider.modelId,
+      provider,
+      model: resolvedModel,
     });
   }
 }
@@ -352,14 +410,22 @@ export async function generateMultimodalWithRotation(
   userPrompt: string,
   inlineData: { mimeType: string; data: string },
   teacherId?: string,
-  isPremium = false
+  isPremium = false,
+  options?: {
+    timeoutMs?: number;
+    remainingBudgetMs?: number;
+    signal?: AbortSignal;
+    responseSchema?: object;
+    jsonMode?: boolean;
+  }
 ): Promise<string> {
   const result = await generateMultimodalWithMetadata(
     systemPrompt,
     userPrompt,
     inlineData,
     teacherId,
-    isPremium
+    isPremium,
+    options
   );
   return result.text;
 }

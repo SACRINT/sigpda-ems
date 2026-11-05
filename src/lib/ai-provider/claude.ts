@@ -15,7 +15,11 @@ export class ClaudeProvider implements AIProvider {
     this.modelId = modelId;
   }
 
-  async generate(systemPrompt: string, userPrompt: string, options?: { temperature?: number }): Promise<string> {
+  async generate(
+    systemPrompt: string,
+    userPrompt: string,
+    options?: Parameters<AIProvider['generate']>[2]
+  ): Promise<string> {
     const client = new Anthropic({ apiKey: this.apiKey });
 
     const response = await client.messages.create({
