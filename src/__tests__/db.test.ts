@@ -673,7 +673,13 @@ describe('db.ts — Core Database Queries (Fase 20A)', () => {
 
   // ── 6. Generation Jobs queries (Fase 20A) ───────────────────────────────────
 
-  it('createGenerationJob — retorna job activo existente si ya hay uno reciente (< 10 min)', async () => {
+  it('createGenerationJob — retorna job activo existente si hay colisión de índice único parcial (23505)', async () => {
+    const conflictErr = Object.assign(new Error('duplicate key value violates unique constraint "idx_active_generation_job"'), {
+      code: '23505',
+    });
+    // 1. INSERT falla por colisión atómica en PostgreSQL
+    mockQueryFn.mockRejectedValueOnce(conflictErr);
+
     const existingActiveJob = {
       id: 'job-active-1',
       planning_id: 'plan-job-1',
@@ -681,6 +687,7 @@ describe('db.ts — Core Database Queries (Fase 20A)', () => {
       status: 'running',
       progress: 50,
     };
+    // 2. SELECT recupera el job activo existente
     mockQueryFn.mockResolvedValueOnce([existingActiveJob]);
 
     const result = await createGenerationJob('plan-job-1', 'teacher-1', 0);
@@ -690,10 +697,8 @@ describe('db.ts — Core Database Queries (Fase 20A)', () => {
     expect(result.progress).toBe(50);
   });
 
-  it('createGenerationJob — crea un nuevo job en estado pending si no hay activo previo', async () => {
-    // 1. SELECT active jobs -> ninguno
-    mockQueryFn.mockResolvedValueOnce([]);
-    // 2. INSERT generation_jobs -> nuevo job creado
+  it('createGenerationJob — crea un nuevo job en estado pending atómicamente si no hay conflicto', async () => {
+    // 1. INSERT generation_jobs -> nuevo job creado directamente
     const newJob = {
       id: 'job-new-1',
       planning_id: 'plan-job-2',

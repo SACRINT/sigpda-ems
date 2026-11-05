@@ -26,6 +26,7 @@ import {
   updateWorkbookProgress,
   updateGenerationJobProgress,
   incrementSeedUsage,
+  WorkerLeaseLostError,
 } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { resolveSchoolIdentity } from '@/lib/school-identity';
@@ -86,6 +87,9 @@ export interface OrchestratorOptions {
   customHours?: number;
   maxRetriesPerWriter?: number;
   jobId?: string;
+  leaseId?: string;
+  signal?: AbortSignal;
+  persistWorkbook?: boolean;
 }
 
 /**
@@ -98,8 +102,20 @@ export async function generateBlockWorkTextbook(
 ): Promise<ActiveWorkTextbook> {
   const maxRetries = options.maxRetriesPerWriter ?? 2;
   const jobId = options.jobId;
+  const leaseId = options.leaseId;
+  const signal = options.signal;
   const startTime = Date.now();
   const MAX_ORCHESTRATOR_BUDGET_MS = 230_000; // Presupuesto preventivo ante el límite de 300s de Vercel
+
+  const checkAbort = () => {
+    if (signal?.aborted) {
+      throw signal.reason instanceof Error
+        ? signal.reason
+        : new DOMException('Generation aborted', 'AbortError');
+    }
+  };
+
+  checkAbort();
 
   const notifyProgress = async (params: {
     phase: GenerationProgressState['phase'];
@@ -110,7 +126,8 @@ export async function generateBlockWorkTextbook(
     totalWords?: number;
     error?: string;
   }) => {
-    await reportProgress(planningId, blockIndex, params, jobId);
+    checkAbort();
+    await reportProgress(planningId, blockIndex, params, jobId, leaseId);
   };
 
   // ── Fase 1: Análisis y Recuperación de Datos ─────────────────────────────
@@ -666,14 +683,27 @@ export async function generateBlockWorkTextbook(
   };
 
   // ── Fase 10: Persistencia en DB con Versionamiento ─────────────────────
-  if (validation.accepted) {
-    await saveBlockWorkbook(planningId, blockIndex, activeWorkTextbook);
+  // Si persistWorkbook es false (ej. ejecutado por el worker con persistencia única), el worker guardará al completar.
+  const shouldPersist = options.persistWorkbook ?? (!options.jobId);
+  if (shouldPersist) {
+    if (!validation.accepted) {
+      logger.warn(
+        `[Orchestrator] Block ${blockIndex} NOT accepted: qualityScore=${validation.qualityScore}, words=${validation.totalWordCount}. Guardando con advertencia activa.`
+      );
+      activeWorkTextbook.qualityWarning = true;
+    }
+    if (jobId) {
+      await saveBlockWorkbook(planningId, blockIndex, activeWorkTextbook, jobId);
+    } else {
+      await saveBlockWorkbook(planningId, blockIndex, activeWorkTextbook);
+    }
   } else {
-    logger.warn(
-      `[Orchestrator] Block ${blockIndex} NOT accepted: qualityScore=${validation.qualityScore}, words=${validation.totalWordCount}. Guardando con advertencia activa.`
-    );
-    activeWorkTextbook.qualityWarning = true;
-    await saveBlockWorkbook(planningId, blockIndex, activeWorkTextbook);
+    if (!validation.accepted) {
+      logger.warn(
+        `[Orchestrator] Block ${blockIndex} NOT accepted: qualityScore=${validation.qualityScore}, words=${validation.totalWordCount}. Marcando advertencia activa.`
+      );
+      activeWorkTextbook.qualityWarning = true;
+    }
   }
 
   // Si alcanzó estándar alto (qualityScore >= 80) y no existía semilla previa, guardarla
@@ -730,7 +760,8 @@ async function reportProgress(
     totalWords?: number;
     error?: string;
   },
-  jobId?: string
+  jobId?: string,
+  leaseId?: string
 ): Promise<void> {
   const state: GenerationProgressState = {
     planningId,
@@ -749,13 +780,19 @@ async function reportProgress(
   );
 
   if (jobId) {
-    await updateGenerationJobProgress(jobId, {
-      progress: params.percent,
-      current_phase: params.phase,
-      current_step: params.currentStep,
-    }).catch((err: unknown) =>
-      logger.warn('[Orchestrator] Job progress update failed:', { error: err instanceof Error ? err.message : String(err) })
-    );
+    try {
+      await updateGenerationJobProgress(jobId, {
+        progress: params.percent,
+        current_phase: params.phase,
+        current_step: params.currentStep,
+      }, leaseId);
+    } catch (err: unknown) {
+      if (err instanceof WorkerLeaseLostError) {
+        logger.error(`[Orchestrator] Fencing: lease ${leaseId} revocado/expirado en job ${jobId}. Abortando orquestador.`);
+        throw err;
+      }
+      logger.warn('[Orchestrator] Job progress update failed:', { error: err instanceof Error ? err.message : String(err) });
+    }
   }
 }
 

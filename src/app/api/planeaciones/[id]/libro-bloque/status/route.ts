@@ -73,11 +73,12 @@ export async function GET(
       Date.now() - new Date(job.updated_at).getTime() > STALE_RUNNING_SECONDS * 1000;
 
     if (isStalePending || isStaleRunning) {
-      const claimed = await claimGenerationJob(job.id, isStalePending ? 0 : STALE_RUNNING_SECONDS);
-      if (claimed) {
+      const claimed = await claimGenerationJob(job.id);
+      if (claimed && claimed.lease_id) {
+        const leaseId = claimed.lease_id;
         after(async () => {
           try {
-            await processGenerationJob(job.id);
+            await processGenerationJob(job.id, leaseId);
           } catch (err: unknown) {
             logger.warn(`[status] Auto-trigger falló para job ${job.id}:`, {
               error: err instanceof Error ? err.message : String(err),

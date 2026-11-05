@@ -203,11 +203,14 @@ export async function incrementSeedUsage(seedId: string): Promise<void> {
 /**
  * Guarda o actualiza el Libro de Trabajo de un bloque en la columna workbooks_json de plannings
  * Maneja historial de versiones (version: 1, 2, ...) y valida que la planeación exista.
+ * Soporta idempotencia mediante jobId: si el bloque ya fue persistido por el mismo jobId,
+ * retorna la versión existente sin incrementar correlativo ni duplicar historial.
  */
 export async function saveBlockWorkbook(
   planningId: string,
   blockIndex: number,
-  workbook: ActiveWorkTextbook
+  workbook: ActiveWorkTextbook,
+  jobId?: string
 ): Promise<{ version: number; success: boolean; error?: string }> {
   if (isNaN(blockIndex) || blockIndex < 0) {
     return { version: 0, success: false, error: 'blockIndex inválido (NaN o negativo)' };
@@ -229,8 +232,20 @@ export async function saveBlockWorkbook(
       return { version: 0, success: false, error: 'Planning not found' };
     }
 
-    const currentWorkbooks = (rows[0]?.workbooks_json || {}) as Record<string, { version?: number; history?: unknown[]; current?: ActiveWorkTextbook }>;
+    const currentWorkbooks = (rows[0]?.workbooks_json || {}) as Record<string, {
+      version?: number;
+      lastJobId?: string | null;
+      history?: unknown[];
+      current?: ActiveWorkTextbook;
+    }>;
     const existingBlockData = currentWorkbooks[blockKey] || { version: 0, history: [] };
+
+    // Idempotencia: si este job_id ya persistió exitosamente el workbook de este bloque, devolver versión existente
+    if (jobId && existingBlockData.lastJobId === jobId && existingBlockData.current) {
+      logger.info(`[saveBlockWorkbook] Job ${jobId} ya persistió el bloque ${blockIndex}. Retornando versión existente v${existingBlockData.version}.`);
+      return { version: existingBlockData.version || 1, success: true };
+    }
+
     const expectedVersion = existingBlockData.version || 0;
     const newVersion = expectedVersion + 1;
     workbook.version = newVersion;
@@ -238,6 +253,7 @@ export async function saveBlockWorkbook(
     const historyItem = existingBlockData.current
       ? {
           version: existingBlockData.version,
+          jobId: existingBlockData.lastJobId || null,
           generatedAt: existingBlockData.current.generatedAt,
           totalPages: existingBlockData.current.totalPages,
           totalWords: existingBlockData.current.totalWords,
@@ -253,6 +269,7 @@ export async function saveBlockWorkbook(
 
     const blockEntry = {
       version: newVersion,
+      lastJobId: jobId || null,
       current: workbook,
       history: updatedHistory,
     };

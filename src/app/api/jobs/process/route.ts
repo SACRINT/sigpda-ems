@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { claimNextPendingJob, getGenerationJobById } from '@/lib/db';
+import { claimNextPendingJob, claimGenerationJob, JOB_LEASE_SECONDS, type GenerationJob } from '@/lib/db';
 import { processGenerationJob } from '@/lib/job-worker';
 import { logger } from '@/lib/logger';
 import { auth } from '@/lib/auth';
@@ -52,11 +52,26 @@ async function handleProcess(request: NextRequest) {
       }
     }
 
-    let jobToProcess = null;
+    let jobToProcess: GenerationJob | null = null;
+    let claimedLeaseId: string | undefined = undefined;
+
     if (targetJobId) {
-      jobToProcess = await getGenerationJobById(targetJobId);
+      // Reclamar atómicamente con lease antes de procesar para evitar ejecuciones concurrentes duplicadas
+      const claimed = await claimGenerationJob(targetJobId, JOB_LEASE_SECONDS);
+      if (!claimed || !claimed.lease_id) {
+        return NextResponse.json({
+          success: false,
+          processed: false,
+          message: 'El trabajo ya está siendo procesado por otro worker con lease activo o no se encuentra disponible.',
+        }, { status: 409 });
+      }
+      jobToProcess = claimed;
+      claimedLeaseId = claimed.lease_id;
     } else {
-      jobToProcess = await claimNextPendingJob();
+      jobToProcess = await claimNextPendingJob(JOB_LEASE_SECONDS);
+      if (jobToProcess?.lease_id) {
+        claimedLeaseId = jobToProcess.lease_id;
+      }
     }
 
     if (!jobToProcess) {
@@ -67,10 +82,10 @@ async function handleProcess(request: NextRequest) {
       });
     }
 
-    logger.info(`[api/jobs/process] Iniciando procesamiento de job ${jobToProcess.id}...`);
+    logger.info(`[api/jobs/process] Iniciando procesamiento de job ${jobToProcess.id} con lease ${claimedLeaseId}...`);
 
-    // Procesar el trabajo
-    const completedJob = await processGenerationJob(jobToProcess.id);
+    // Procesar el trabajo propagando el leaseId
+    const completedJob = await processGenerationJob(jobToProcess.id, claimedLeaseId);
 
     return NextResponse.json({
       success: true,
