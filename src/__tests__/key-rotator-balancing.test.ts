@@ -225,4 +225,27 @@ describe('Balanceador Inteligente de API Keys (key-rotator.ts)', () => {
     const k2 = await resolveKey('gemini');
     expect(k2.apiKey).toBe('gemini-key-account-B');
   });
+
+  it('pasa el número de vuelta (round 1 y round 2) a la función para permitir fallback de modelo', async () => {
+    const encKeyA = encryptKey('gemini-key-account-A');
+
+    mockSqlFn.mockResolvedValue([
+      { id: 'uuid-a', label: 'Cuenta A', key_encrypted: encKeyA, is_active: true, priority: 1 },
+    ]);
+
+    const roundsReceived: number[] = [];
+    const fn = vi.fn().mockImplementation(async (_apiKey: string, _keyId: string | null, round: number) => {
+      roundsReceived.push(round);
+      if (round === 1) {
+        const err: any = new Error('503 High demand');
+        err.status = 503;
+        throw err;
+      }
+      return 'Exitoso en round 2';
+    });
+
+    const result = await withKeyRotation('gemini', fn);
+    expect(result).toBe('Exitoso en round 2');
+    expect(roundsReceived).toEqual([1, 2]);
+  });
 });

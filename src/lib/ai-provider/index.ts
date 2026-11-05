@@ -172,8 +172,14 @@ export async function generateWithRotation(
 
   // Try primary provider first (with full key rotation)
   try {
-    return await withKeyRotation(provider, async (apiKey) => {
-      const ai = buildProvider(provider, model, apiKey);
+    return await withKeyRotation(provider, async (apiKey, _keyId, round) => {
+      // Si la Vuelta 1 sufrió 503 en Google, en la Vuelta 2 probamos con gemini-3.1-flash-lite
+      // para esquivar la congestión del clúster de gemini-3.5-flash-lite
+      const effectiveModel =
+        provider === 'gemini' && round === 2 && model === 'gemini-3.5-flash-lite'
+          ? 'gemini-3.1-flash-lite'
+          : model;
+      const ai = buildProvider(provider, effectiveModel, apiKey);
       return ai.generate(systemPrompt, userPrompt, options);
     }, teacherId);
   } catch (primaryErr: unknown) {

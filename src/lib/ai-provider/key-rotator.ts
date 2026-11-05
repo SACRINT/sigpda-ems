@@ -291,7 +291,7 @@ export const MAX_POOL_ROUNDS = 2;
  */
 export async function withKeyRotation<T>(
   provider: string,
-  fn: (apiKey: string, keyId: string | null) => Promise<T>,
+  fn: (apiKey: string, keyId: string | null, round: number) => Promise<T>,
   teacherId?: string
 ): Promise<T> {
   // ── Build the ordered list of keys to try ────────────────────────────────
@@ -320,7 +320,7 @@ export async function withKeyRotation<T>(
     }
 
     try {
-      const result = await fn(apiKey, keyId);
+      const result = await fn(apiKey, keyId, round);
       // On success: record usage and reset errors for pool keys
       if (keyId && source === 'pool') {
         await recordUsage(keyId);
@@ -394,9 +394,13 @@ export async function withKeyRotation<T>(
         );
 
         // Si fue credencial inválida, rotamos de inmediato sin esperar backoff
-        // Si fue cuota/503, aplicamos backoff ligero adaptado (250ms a 1500ms)
+        // Si fue cuota/503, aplicamos backoff: si cambiamos de vuelta (Round 1 -> Round 2),
+        // damos una pausa de enfriamiento de 3000ms para que Google disipe el pico de demanda (503).
         if (!isPermanentError) {
-          const backoffMs = Math.min(1500, 250 * Math.pow(1.5, keyIndex));
+          const isTransitioningRound = nextRound > round;
+          const backoffMs = isTransitioningRound
+            ? (process.env.NODE_ENV === 'test' ? 10 : 3000)
+            : Math.min(1500, 250 * Math.pow(1.5, keyIndex));
           await new Promise((resolve) => setTimeout(resolve, backoffMs));
         }
         continue;
