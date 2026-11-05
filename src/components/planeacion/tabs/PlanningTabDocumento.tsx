@@ -8,9 +8,10 @@ import DocumentA4Viewer from '@/components/common/DocumentA4Viewer';
 import { useEditorialBook } from '@/hooks/useEditorialBook';
 import EditorialSubscriptionModal from '@/components/ui/EditorialSubscriptionModal';
 import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
+import QuickEditPlanningModal from '@/components/planeacion/QuickEditPlanningModal';
 import {
   FileText, Zap, BookOpen, Download, RefreshCw, AlertTriangle,
-  CheckCircle, ChevronDown, ChevronUp, Library
+  CheckCircle, ChevronDown, ChevronUp, Library, Edit3, Lock
 } from 'lucide-react';
 
 export interface BlockWorkbookItem {
@@ -55,6 +56,8 @@ export interface PlanningTabDocumentoProps {
   setEditingSeqBlock?: React.Dispatch<React.SetStateAction<number | null>>;
   handleStartEdit?: (blockIdx: number) => void;
   handleUpdateEditedSession?: (blockIndex: number, sessionIdx: number, field: keyof SecuenciaSesion, val: unknown) => void;
+  canEditDocument?: boolean;
+  onPlanningUpdated?: (updatedContent: GeneratedPlanningContent) => void;
 }
 
 export default function PlanningTabDocumento({
@@ -88,8 +91,20 @@ export default function PlanningTabDocumento({
   isEditorialGenerating = false,
   handleExportEditorial,
   editorialEngineEnabled = false,
+  canEditDocument = false,
+  onPlanningUpdated,
 }: PlanningTabDocumentoProps) {
-  const content = planning?.contentJson as GeneratedPlanningContent | null;
+  const [localContent, setLocalContent] = useState<GeneratedPlanningContent | null>(
+    (planning?.contentJson as GeneratedPlanningContent) || null
+  );
+
+  React.useEffect(() => {
+    if (planning?.contentJson) {
+      setLocalContent(planning.contentJson as GeneratedPlanningContent);
+    }
+  }, [planning?.contentJson]);
+
+  const content = localContent || (planning?.contentJson as GeneratedPlanningContent | null);
   const curricularBlocks = resolveCurricularBlocks(content);
   const s1 = content?.sectionI;
   const isLaboral = s1?.component?.toLowerCase().includes('laboral') || false;
@@ -99,6 +114,7 @@ export default function PlanningTabDocumento({
   const hasPlanningId = Boolean(planning?.id);
 
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [showQuickEditModal, setShowQuickEditModal] = useState(false);
   const editorialBook = useEditorialBook({
     planningId: planning?.id,
     onPremiumRequired: () => {
@@ -253,8 +269,55 @@ export default function PlanningTabDocumento({
           )}
           {/* Section I */}
           <div className="section-card">
-            <div className="section-card-header">
+            <div className="section-card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
               <span className="section-card-title">I. Datos Generales y Administrativos</span>
+              <div>
+                {canEditDocument ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowQuickEditModal(true)}
+                    className="btn btn-secondary btn-sm"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontSize: '12px',
+                      padding: '4px 10px',
+                      border: '1px solid rgba(59, 130, 246, 0.4)',
+                      background: 'rgba(59, 130, 246, 0.1)',
+                      color: '#60a5fa',
+                      borderRadius: '6px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                    title="Modifica grupos, docente, plantel o propósitos antes de descargar"
+                  >
+                    <Edit3 size={13} /> Editar Datos (Premium)
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowSubscriptionModal(true)}
+                    className="btn btn-secondary btn-sm"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontSize: '12px',
+                      padding: '4px 10px',
+                      border: '1px solid rgba(234, 179, 8, 0.4)',
+                      background: 'rgba(234, 179, 8, 0.1)',
+                      color: '#facc15',
+                      borderRadius: '6px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                    title="Exclusivo para cuentas Premium o Administrador"
+                  >
+                    <Lock size={13} /> Editar Datos <span style={{ fontSize: '9px', background: '#eab308', color: '#000', padding: '1px 4px', borderRadius: '3px', fontWeight: 800 }}>PRO</span>
+                  </button>
+                )}
+              </div>
             </div>
             <div className="section-card-body">
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
@@ -267,6 +330,21 @@ export default function PlanningTabDocumento({
               </div>
             </div>
           </div>
+
+          {content && (
+            <QuickEditPlanningModal
+              isOpen={showQuickEditModal}
+              onClose={() => setShowQuickEditModal(false)}
+              planningId={planning.id}
+              content={content}
+              onSaveSuccess={(updated) => {
+                setLocalContent(updated);
+                if (onPlanningUpdated) {
+                  onPlanningUpdated(updated);
+                }
+              }}
+            />
+          )}
 
           {/* Section II */}
           <div className="section-card">

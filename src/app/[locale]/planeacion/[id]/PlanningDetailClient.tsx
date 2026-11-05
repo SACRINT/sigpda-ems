@@ -22,6 +22,7 @@ interface PlanningDetailClientProps {
   planning: Planning;
   initialExtras: PlanningExtra[];
   editorialEngineEnabled?: boolean;
+  canEditDocument?: boolean;
 }
 
 import PlanningDetailLegacy from './legacy/PlanningDetailLegacy';
@@ -44,10 +45,24 @@ export default function PlanningDetailClient(props: PlanningDetailClientProps) {
 
 function PlanningDetailModular({
   locale,
-  planning,
+  planning: initialPlanning,
   initialExtras,
   editorialEngineEnabled,
+  canEditDocument = false,
 }: PlanningDetailClientProps) {
+  const [planning, setPlanning] = useState<Planning>(initialPlanning);
+
+  useEffect(() => {
+    setPlanning(initialPlanning);
+  }, [initialPlanning]);
+
+  const handlePlanningUpdated = (updatedContent: GeneratedPlanningContent) => {
+    setPlanning((prev) => ({
+      ...prev,
+      contentJson: updatedContent,
+    }));
+  };
+
   const content = planning.contentJson as GeneratedPlanningContent | null;
   const s1 = content?.sectionI;
   const isLaboral = s1?.component?.toLowerCase().includes('laboral') || false;
@@ -1054,6 +1069,8 @@ function PlanningDetailModular({
           setEditingSeqBlock={setEditingSeqBlock}
           handleStartEdit={handleStartEdit}
           handleUpdateEditedSession={handleUpdateEditedSession}
+          canEditDocument={canEditDocument}
+          onPlanningUpdated={handlePlanningUpdated}
         />
       )}
 

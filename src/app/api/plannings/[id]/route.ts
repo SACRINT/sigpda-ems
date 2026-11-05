@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, getPlanningById, deletePlanning, updatePlanningContent } from '@/lib/db';
+import { getSubscriptionStatus } from '@/lib/subscription-gate';
 
 export async function GET(
   request: NextRequest,
@@ -56,6 +57,15 @@ export async function PUT(
     const teacher = await getTeacherByEmail(session.user.email);
     if (!teacher) return NextResponse.json({ error: 'No encontrado' }, { status: 404 });
 
+    // Guardián Premium / Admin: Edición directa reservada
+    const subStatus = await getSubscriptionStatus(teacher.id, session.user.email);
+    if (!subStatus.isAdmin && !subStatus.hasActiveSubscription) {
+      return NextResponse.json(
+        { error: 'La edición directa de documentos es una función exclusiva del Plan Premium' },
+        { status: 403 }
+      );
+    }
+
     const { id } = await params;
     const body = await request.json();
     const { content_json } = body;
@@ -65,7 +75,7 @@ export async function PUT(
     }
 
     const updated = await updatePlanningContent(id, teacher.id, content_json);
-    return NextResponse.json({ planning: updated });
+    return NextResponse.json({ success: true, planning: updated });
   } catch (error) {
     return NextResponse.json({ error: 'Error al guardar' }, { status: 500 });
   }

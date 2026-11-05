@@ -31,6 +31,8 @@ interface PlanningDetailClientProps {
   locale: string;
   planning: Planning;
   initialExtras: PlanningExtra[];
+  editorialEngineEnabled?: boolean;
+  canEditDocument?: boolean;
 }
 
 export default function PlanningDetailLegacy({
