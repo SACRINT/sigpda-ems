@@ -651,7 +651,11 @@ export async function generateBlockWorkTextbook(
     },
     generatedAt: new Date().toISOString(),
     qualityScore: validation.qualityScore,
-    qualityWarning: validation.qualityWarning || !alignmentReport.pass,
+    qualityWarning:
+      validation.qualityWarning ||
+      !alignmentReport.pass ||
+      !coverageReport.allSessionsPresent ||
+      !coverageReport.withinTargetRange,
     coverData: {
       title: `Cuaderno de Aprendizaje Activo: ${blockName}`,
       subtitle: `Misiones Didácticas Orientadas al Proyecto PAEC Comunitario`,

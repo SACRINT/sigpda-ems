@@ -107,18 +107,29 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
   ]
 }`;
 
+  const sessionCount = Math.max(1, coveredSessions.length);
+  const targetWordsPerPlan = 850;
+  const totalPlansTarget = sessionCount * targetWordsPerPlan;
+  const remainingNarrativeTarget = Math.max(500, input.targetWords.ideal - totalPlansTarget);
+
+  const procedureTarget = Math.round(remainingNarrativeTarget * 0.45);
+  const protocolTarget = Math.round(remainingNarrativeTarget * 0.25);
+  const challengeTarget = Math.round(remainingNarrativeTarget * 0.15);
+  const reflectionTarget = Math.round(remainingNarrativeTarget * 0.15);
+
   const prompt = `UAC: ${input.uacName}
 Subsistema: ${input.subsystem.toUpperCase()}
 Misión: ${missionTitle}
-Sesiones asignadas: Sesiones ${coveredSessions.join(', ')}
+Sesiones asignadas: Sesiones ${coveredSessions.join(', ')} (${sessionCount} sesiones)
 Problemática PAEC: ${input.paecContext}
-Meta de palabras para esta misión: mínimo ${input.targetWords.min} palabras (ideal ~${input.targetWords.ideal} palabras).
+Presupuesto total para esta misión: mínimo ${input.targetWords.min} palabras (ideal ~${input.targetWords.ideal} palabras).
 
-DISTRIBUCIÓN SUGERIDA DE PALABRAS:
-- stepByStepProcedure: 1,500 a 2,500 palabras (desarrolla cada paso con claridad y rigor técnico)
-- executableCodeOrProtocol: 800 a 1,500 palabras (código fuente funcional o protocolo experimental)
-- autonomousChallenge: 350 a 600 palabras (OBLIGATORIAMENTE de 5 a 7 pasos numerados correlativos con instrucciones técnicas precisas)
-- reflectionQuestions: 350 a 500 palabras (análisis técnico y transferencia)
+DISTRIBUCIÓN CALIBRADA DE PALABRAS:
+- sessionPlans (${sessionCount} sesiones): OBLIGATORIO redactar las ${sessionCount} sesiones completas, con ~${targetWordsPerPlan} palabras por sesión (total planes: ~${totalPlansTarget} palabras).
+- stepByStepProcedure: ~${procedureTarget} palabras (desarrolla cada paso con claridad y rigor técnico)
+- executableCodeOrProtocol: ~${protocolTarget} palabras (código fuente funcional o protocolo experimental)
+- autonomousChallenge: ~${challengeTarget} palabras (OBLIGATORIAMENTE de 5 a 7 pasos numerados correlativos con instrucciones técnicas precisas)
+- reflectionQuestions: ~${reflectionTarget} palabras (análisis técnico y transferencia)
 
 Redacta la Misión Práctica de Laboratorio/Taller completa:`;
 

@@ -1,13 +1,15 @@
 /**
  * content-budget.test.ts
  *
- * Pruebas unitarias de la fórmula única de presupuesto editorial por sesiones (Fase P3).
+ * Pruebas unitarias de la fórmula única de presupuesto editorial por sesiones (Fase P3.1).
  * Valida la tabla de 1 a 5 horas/semana, proporciones por misión y validación de cobertura.
+ * Verifica rigurosamente el soporte dual de contentJson y content_json (DB Neon real).
  */
 
 import { describe, it, expect } from 'vitest';
 import {
   computeContentBudget,
+  computeMissionBudget,
   resolveWeeklyHours,
   countSessionPlanWords,
   validateSessionCoverage,
@@ -93,13 +95,27 @@ describe('P3 — content-budget.ts (Fórmula única de presupuesto editorial)', 
     });
   });
 
-  describe('2. Distribución y suma de presupuestos por misión', () => {
-    it('la suma de los presupuestos ideales de misión coincide aproximadamente con el total ideal', () => {
+  describe('2. computeMissionBudget y distribución por sesiones reales', () => {
+    it('calcula presupuesto exacto por sesión individual', () => {
+      const mb3 = computeMissionBudget(3);
+      expect(mb3.sessionsCount).toBe(3);
+      expect(mb3.targetWords.min).toBe(3 * 1125); // 3375
+      expect(mb3.targetWords.max).toBe(3 * 1250); // 3750
+      expect(mb3.targetWords.ideal).toBe(3563);
+
+      const mb6 = computeMissionBudget(6);
+      expect(mb6.sessionsCount).toBe(6);
+      expect(mb6.targetWords.min).toBe(6 * 1125); // 6750
+      expect(mb6.targetWords.max).toBe(6 * 1250); // 7500
+      expect(mb6.targetWords.ideal).toBe(7125);
+    });
+
+    it('la suma de los presupuestos ideales de misión coincide exactamente con el total del libro', () => {
       const budget = computeContentBudget(3);
       const { foundation, lab, project, evaluation } = budget.missionBudgets;
-
       const sumIdeal = foundation.targetWords.ideal + lab.targetWords.ideal + project.targetWords.ideal + evaluation.targetWords.ideal;
-      // La suma de 30% + 30% + 25% + 15% = 100%
+      // 3 + 6 + 6 + 3 = 18 sesiones exactas
+      expect(foundation.sessionsCount + lab.sessionsCount + project.sessionsCount + evaluation.sessionsCount).toBe(18);
       expect(Math.abs(sumIdeal - budget.targetWords.ideal)).toBeLessThanOrEqual(2);
     });
 
@@ -112,8 +128,8 @@ describe('P3 — content-budget.ts (Fórmula única de presupuesto editorial)', 
     });
   });
 
-  describe('3. resolveWeeklyHours: jerarquía de fallbacks', () => {
-    it('prioriza totalHoursWeekly de sectionI', () => {
+  describe('3. resolveWeeklyHours: jerarquía de fallbacks y compatibilidad contentJson vs content_json', () => {
+    it('prioriza totalHoursWeekly de contentJson', () => {
       const planning = {
         contentJson: {
           sectionI: {
@@ -125,7 +141,30 @@ describe('P3 — content-budget.ts (Fórmula única de presupuesto editorial)', 
       expect(resolveWeeklyHours(planning, 5)).toBe(4);
     });
 
-    it('usa totalHours de sectionI si totalHoursWeekly no está pero totalHours <= 10', () => {
+    it('prioriza totalHoursWeekly de content_json (DB Neon real sin camelCase)', () => {
+      const planning = {
+        content_json: {
+          sectionI: {
+            totalHoursWeekly: 5,
+            totalHours: 90,
+          },
+        },
+      };
+      expect(resolveWeeklyHours(planning, 2)).toBe(5);
+    });
+
+    it('usa totalHours de content_json si totalHoursWeekly no está pero totalHours <= 10', () => {
+      const planning = {
+        content_json: {
+          sectionI: {
+            totalHours: 2,
+          },
+        },
+      };
+      expect(resolveWeeklyHours(planning, 5)).toBe(2);
+    });
+
+    it('usa totalHours de contentJson si totalHoursWeekly no está pero totalHours <= 10', () => {
       const planning = {
         contentJson: {
           sectionI: {
@@ -136,16 +175,16 @@ describe('P3 — content-budget.ts (Fórmula única de presupuesto editorial)', 
       expect(resolveWeeklyHours(planning, 5)).toBe(2);
     });
 
-    it('usa customHours como segundo fallback si sectionI no tiene horas válidas', () => {
+    it('usa customHours como segundo fallback si ni contentJson ni content_json tienen horas válidas', () => {
       const planning = {
-        contentJson: {
+        content_json: {
           sectionI: {},
         },
       };
       expect(resolveWeeklyHours(planning, 5)).toBe(5);
     });
 
-    it('usa 3 h/semana como default final seguro si no hay datos', () => {
+    it('usa 3 h/semana como default final seguro si el objeto de planeación es null o undefined', () => {
       expect(resolveWeeklyHours(null)).toBe(3);
       expect(resolveWeeklyHours(undefined)).toBe(3);
     });
@@ -172,8 +211,8 @@ describe('P3 — content-budget.ts (Fórmula única de presupuesto editorial)', 
       expect(wordCount).toBeGreaterThanOrEqual(80);
     });
 
-    it('validateSessionCoverage detecta cuando faltan sesiones y calcula deltas', () => {
-      const budget = computeContentBudget(3); // 18 sesiones, 48 págs, 21375 palabras
+    it('validateSessionCoverage detecta cuando todas las sesiones están presentes y dentro del rango', () => {
+      const budget = computeContentBudget(3); // 18 sesiones, 48 págs, 21375 palabras (rango 20250 - 22500)
       const sessions = Array.from({ length: 18 }, (_, i) => ({ sessionNumber: i + 1 }));
 
       const report = validateSessionCoverage({
@@ -205,6 +244,29 @@ describe('P3 — content-budget.ts (Fórmula única de presupuesto editorial)', 
       expect(report.allSessionsPresent).toBe(false);
       expect(report.sessionsCovered).toBe(2);
       expect(report.withinTargetRange).toBe(false);
+    });
+
+    it('validateSessionCoverage marca withinTargetRange false si se desvía del presupuesto estricto', () => {
+      const budget = computeContentBudget(3); // 20,250 a 22,500 palabras
+      const sessions = Array.from({ length: 18 }, (_, i) => ({ sessionNumber: i + 1 }));
+
+      // Muy bajo: 15,000 palabras (~33 páginas)
+      const reportLow = validateSessionCoverage({
+        sessions,
+        expectedSessionsCount: 18,
+        totalWords: 15000,
+        budget,
+      });
+      expect(reportLow.withinTargetRange).toBe(false);
+
+      // Muy alto: 28,000 palabras (~62 páginas)
+      const reportHigh = validateSessionCoverage({
+        sessions,
+        expectedSessionsCount: 18,
+        totalWords: 28000,
+        budget,
+      });
+      expect(reportHigh.withinTargetRange).toBe(false);
     });
   });
 });

@@ -92,7 +92,7 @@ const planningRow = {
   paec_project_name: 'Proyecto Demo',
   extracted_data: null,
   content_json: {
-    sectionI: { teacherName: 'Mtra. Prueba', paecProjectName: 'Proyecto Demo' },
+    sectionI: { teacherName: 'Mtra. Prueba', paecProjectName: 'Proyecto Demo', totalHoursWeekly: 1 },
     sectionIV: {
       note: '',
       activities: [
@@ -123,15 +123,29 @@ const validationOk: QualityValidatorOutput = {
   qualityWarning: false,
   failedWriters: [],
   retryableWriters: [],
-  totalWordCount: 4500,
+  totalWordCount: 7125,
   warnings: [],
 };
 
-function makeSection(content: string): MissionSection {
+function makeSection(content: string, sessions: number[] = [1], wordCount = 1800): MissionSection {
+  const sessionPlans = sessions.map((s) => ({
+    sessionNumber: s,
+    objetivo: `Objetivo sesión ${s}: ${content}`,
+    motivacion: `Motivación sesión ${s}: ${content}`,
+    saberesPrevios: `Saberes previos: ${content}`,
+    contenido: `Contenido desarrollado: ${content} `.repeat(5),
+    ejemploResuelto: `Ejemplo resuelto: ${content}`,
+    practica: [{ enunciado: `Práctica guiada: ${content}`, pista: 'Pista' }],
+    aplicacion: `Aplicación situada: ${content}`,
+    autoevaluacion: ['¿Autoevaluación 1?', '¿Autoevaluación 2?'],
+    recursos: [{ titulo: 'Recurso didáctico', url: 'https://ejemplo.edu.mx', tipo: 'web' as const }],
+    productoIntegrador: `Evidencia de sesión ${s}`,
+  }));
+
   return {
     missionIndex: 1,
     title: 'Misión Formativa: Fotónica aplicada',
-    coveredSessions: [1, 2],
+    coveredSessions: sessions,
     sessionTopic: 'Tema Demo',
     sessionFocus: content,
     phenomenonHook: { story: content, detonatingQuestion: '¿Cómo aplicar lo aprendido?' },
@@ -141,15 +155,22 @@ function makeSection(content: string): MissionSection {
     youDoSection: { autonomousChallenge: content, workbookElements: [] },
     troubleshooting: [],
     formativeCheckpoint: { question: content, reflectionPrompts: [], criteriaChecklist: [] },
-    wordCount: 1200,
+    sessionPlans,
+    wordCount,
   };
 }
 
-function makeOutput(type: WriterOutput['type'], content: string): WriterOutput {
+function makeOutput(type: WriterOutput['type'], content: string, sessions?: number[]): WriterOutput {
+  const assignedSessions = sessions ?? (
+    type === 'foundation' ? [1] :
+    type === 'lab' ? [2, 3] :
+    type === 'project' ? [4, 5] :
+    [6]
+  );
   return {
     type,
-    section: makeSection(content),
-    wordCount: 1200,
+    section: makeSection(content, assignedSessions, 1800),
+    wordCount: 1800,
     tokensUsed: 0,
     qualityScore: 85,
     warnings: [],

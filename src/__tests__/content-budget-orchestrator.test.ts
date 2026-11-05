@@ -2,15 +2,18 @@
  * content-budget-orchestrator.test.ts
  * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
- * Suite de pruebas unitarias e integración de la Fase P3:
+ * Suite de pruebas unitarias e integración de la Fase P3 / P3.1:
  * - Calibración editorial por sesiones de aprendizaje
  * - Conexión de horas reales semanales con presupuesto de páginas y palabras
  * - Validación de cobertura de sesiones y reporte en ActiveWorkTextbook
  * - Contabilidad completa de palabras incluyendo sessionPlans estudiantiles
+ * - Validación E2E del compilador PDF para libro calibrado de 18 sesiones (45-50 páginas)
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { PDFParse } from 'pdf-parse';
 import { generateBlockWorkTextbook } from '@/lib/guide-engine/block-guide-orchestrator';
+import { renderWorkbookToPdf } from '@/lib/pdf-workbook-renderer';
 import {
   getPlanningById,
   getTeacherById,
@@ -41,6 +44,8 @@ vi.mock('@/lib/db', () => ({
   updateWorkbookProgress: vi.fn(),
   updateGenerationJobProgress: vi.fn(),
   incrementSeedUsage: vi.fn(),
+  getImageAssetByMission: vi.fn().mockResolvedValue(null),
+  saveImageAsset: vi.fn().mockResolvedValue({ id: 'mock-saved-asset-id' }),
 }));
 
 // Mock Resilience Agent
@@ -67,8 +72,8 @@ import { generateLabMission } from '@/lib/guide-engine/writers/lab-writer';
 import { generateProjectMission } from '@/lib/guide-engine/writers/project-writer';
 import { generateEvaluationSection } from '@/lib/guide-engine/writers/evaluation-writer';
 
-function makeMockSessionPlan(sessionNumber: number, wordsPerPlan = 250): SessionPlan {
-  const chunkWords = Math.max(5, Math.floor(wordsPerPlan / 8));
+function makeMockSessionPlan(sessionNumber: number, wordsPerPlan = 850): SessionPlan {
+  const chunkWords = Math.max(10, Math.floor(wordsPerPlan / 8));
   const dummyText = 'palabra '.repeat(chunkWords).trim();
   return {
     sessionNumber,
@@ -93,7 +98,7 @@ function makeMockWriterOutput(params: {
   baseWords?: number;
   wordsPerPlan?: number;
 }): WriterOutput {
-  const { type, sessions, baseWords = 400, wordsPerPlan = 250 } = params;
+  const { type, sessions, baseWords = 500, wordsPerPlan = 850 } = params;
   const sessionPlans = sessions.map((s) => makeMockSessionPlan(s, wordsPerPlan));
   const plansWords = sessionPlans.reduce((acc, p) => acc + countSessionPlanWords(p), 0);
   const totalWords = baseWords + plansWords;
@@ -105,21 +110,21 @@ function makeMockWriterOutput(params: {
     sessionTopic: `Tópico de ${type}`,
     sessionFocus: `Enfoque pedagógico ${type}`,
     phenomenonHook: {
-      story: 'Caso situado en Puebla',
+      story: 'Caso situado en Puebla sobre recursos y comunidad.',
       detonatingQuestion: '¿Cómo modelamos este fenómeno?',
     },
     conceptZero: {
-      physicalAnalogy: 'Analogía intuitiva del entorno',
-      coreExplanation: 'Explicación técnica rigurosa',
+      physicalAnalogy: 'Analogía intuitiva del entorno escolar.',
+      coreExplanation: 'Explicación técnica rigurosa y formal del concepto.',
     },
-    iDoSection: { stepByStepDemo: 'Demostración paso a paso' },
-    weDoSection: { guidedPractice: 'Práctica guiada en equipo', workbookElements: [] },
-    youDoSection: { autonomousChallenge: 'Reto autónomo en cuaderno', workbookElements: [] },
+    iDoSection: { stepByStepDemo: 'Demostración paso a paso del protocolo docente.' },
+    weDoSection: { guidedPractice: 'Práctica guiada en equipo colaborativo.', workbookElements: [] },
+    youDoSection: { autonomousChallenge: 'Reto autónomo en cuaderno de trabajo.', workbookElements: [] },
     troubleshooting: [],
     formativeCheckpoint: {
       question: '¿Qué aprendiste?',
-      reflectionPrompts: ['Reflexiona sobre tu avance'],
-      criteriaChecklist: ['Criterio 1'],
+      reflectionPrompts: ['Reflexiona sobre tu avance en la sesión'],
+      criteriaChecklist: ['Criterio 1: Rigor', 'Criterio 2: Procedimiento'],
     },
     sessionPlans,
     wordCount: totalWords,
@@ -135,7 +140,7 @@ function makeMockWriterOutput(params: {
   };
 }
 
-describe('Phase P3: Content Budget and Editorial Orchestration', () => {
+describe('Phase P3 / P3.1: Content Budget and Editorial Orchestration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
@@ -153,7 +158,7 @@ describe('Phase P3: Content Budget and Editorial Orchestration', () => {
     vi.mocked(updateGenerationJobProgress).mockResolvedValue(true);
   });
 
-  it('calibra correctamente una asignatura de 3 h/semana (18 sesiones estándar)', async () => {
+  it('calibra correctamente una asignatura de 3 h/semana (18 sesiones estándar: 45-50 páginas)', async () => {
     vi.mocked(getPlanningById).mockResolvedValue({
       id: 'plan-3h',
       teacher_id: 'teacher-1',
@@ -176,18 +181,22 @@ describe('Phase P3: Content Budget and Editorial Orchestration', () => {
       },
     } as any);
 
-    // 18 sesiones divididas en 4 misiones: [1-5], [6-10], [11-15], [16-18]
+    // 18 sesiones divididas en 4 misiones con distribución pedagógica real:
+    // Apertura: [1, 2, 3] (3 sesiones -> ~3,563 palabras)
+    // Lab: [4, 5, 6, 7, 8, 9] (6 sesiones -> ~7,125 palabras)
+    // Proyecto: [10, 11, 12, 13, 14, 15] (6 sesiones -> ~7,125 palabras)
+    // Evaluación: [16, 17, 18] (3 sesiones -> ~3,563 palabras)
     vi.mocked(generateFoundationMission).mockResolvedValue(
-      makeMockWriterOutput({ type: 'foundation', sessions: [1, 2, 3, 4, 5], baseWords: 400, wordsPerPlan: 1050 })
+      makeMockWriterOutput({ type: 'foundation', sessions: [1, 2, 3], baseWords: 1013, wordsPerPlan: 850 })
     );
     vi.mocked(generateLabMission).mockResolvedValue(
-      makeMockWriterOutput({ type: 'lab', sessions: [6, 7, 8, 9, 10], baseWords: 400, wordsPerPlan: 1050 })
+      makeMockWriterOutput({ type: 'lab', sessions: [4, 5, 6, 7, 8, 9], baseWords: 2025, wordsPerPlan: 850 })
     );
     vi.mocked(generateProjectMission).mockResolvedValue(
-      makeMockWriterOutput({ type: 'project', sessions: [11, 12, 13, 14, 15], baseWords: 400, wordsPerPlan: 1050 })
+      makeMockWriterOutput({ type: 'project', sessions: [10, 11, 12, 13, 14, 15], baseWords: 2025, wordsPerPlan: 850 })
     );
     vi.mocked(generateEvaluationSection).mockResolvedValue(
-      makeMockWriterOutput({ type: 'evaluation', sessions: [16, 17, 18], baseWords: 400, wordsPerPlan: 1050 })
+      makeMockWriterOutput({ type: 'evaluation', sessions: [16, 17, 18], baseWords: 1013, wordsPerPlan: 850 })
     );
 
     const workbook = await generateBlockWorkTextbook('plan-3h', 0);
@@ -195,8 +204,10 @@ describe('Phase P3: Content Budget and Editorial Orchestration', () => {
     expect(workbook.sessionsPerBlock).toBe(18);
     expect(workbook.targetPages).toBe(48); // ideal de 45-50
     expect(workbook.targetWords).toBe(21375); // ideal de 20,250 a 22,500
-    expect(workbook.totalPages).toBeGreaterThanOrEqual(40);
-    expect(workbook.totalPages).toBeLessThanOrEqual(55);
+    expect(workbook.totalPages).toBeGreaterThanOrEqual(45);
+    expect(workbook.totalPages).toBeLessThanOrEqual(50);
+    expect(workbook.totalWords).toBeGreaterThanOrEqual(20250);
+    expect(workbook.totalWords).toBeLessThanOrEqual(22500);
 
     expect(workbook.coverageReport).toBeDefined();
     expect(workbook.coverageReport?.sessionsExpected).toBe(18);
@@ -206,7 +217,7 @@ describe('Phase P3: Content Budget and Editorial Orchestration', () => {
     expect(workbook.qualityWarning).toBe(false);
   });
 
-  it('calibra correctamente una asignatura de 1 h/semana (6 sesiones cortas)', async () => {
+  it('calibra correctamente una asignatura de 1 h/semana (6 sesiones cortas: 15-17 páginas)', async () => {
     vi.mocked(getPlanningById).mockResolvedValue({
       id: 'plan-1h',
       teacher_id: 'teacher-1',
@@ -227,18 +238,18 @@ describe('Phase P3: Content Budget and Editorial Orchestration', () => {
       },
     } as any);
 
-    // 6 sesiones divididas: [1, 2], [3, 4], [5], [6]
+    // 6 sesiones divididas: [1], [2, 3], [4, 5], [6]
     vi.mocked(generateFoundationMission).mockResolvedValue(
-      makeMockWriterOutput({ type: 'foundation', sessions: [1, 2], baseWords: 250, wordsPerPlan: 1000 })
+      makeMockWriterOutput({ type: 'foundation', sessions: [1], baseWords: 338, wordsPerPlan: 850 })
     );
     vi.mocked(generateLabMission).mockResolvedValue(
-      makeMockWriterOutput({ type: 'lab', sessions: [3, 4], baseWords: 250, wordsPerPlan: 1000 })
+      makeMockWriterOutput({ type: 'lab', sessions: [2, 3], baseWords: 675, wordsPerPlan: 850 })
     );
     vi.mocked(generateProjectMission).mockResolvedValue(
-      makeMockWriterOutput({ type: 'project', sessions: [5], baseWords: 250, wordsPerPlan: 1000 })
+      makeMockWriterOutput({ type: 'project', sessions: [4, 5], baseWords: 675, wordsPerPlan: 850 })
     );
     vi.mocked(generateEvaluationSection).mockResolvedValue(
-      makeMockWriterOutput({ type: 'evaluation', sessions: [6], baseWords: 250, wordsPerPlan: 1000 })
+      makeMockWriterOutput({ type: 'evaluation', sessions: [6], baseWords: 338, wordsPerPlan: 850 })
     );
 
     const workbook = await generateBlockWorkTextbook('plan-1h', 0);
@@ -246,12 +257,16 @@ describe('Phase P3: Content Budget and Editorial Orchestration', () => {
     expect(workbook.sessionsPerBlock).toBe(6);
     expect(workbook.targetPages).toBe(16); // ideal de 15 a 17 págs
     expect(workbook.targetWords).toBe(7125); // ideal de 6,750 a 7,500
-    expect(workbook.totalPages).toBeGreaterThanOrEqual(14);
-    expect(workbook.totalPages).toBeLessThanOrEqual(20);
+    expect(workbook.totalPages).toBeGreaterThanOrEqual(15);
+    expect(workbook.totalPages).toBeLessThanOrEqual(17);
+    expect(workbook.totalWords).toBeGreaterThanOrEqual(6750);
+    expect(workbook.totalWords).toBeLessThanOrEqual(7500);
 
     expect(workbook.coverageReport?.sessionsExpected).toBe(6);
     expect(workbook.coverageReport?.sessionsCovered).toBe(6);
     expect(workbook.coverageReport?.allSessionsPresent).toBe(true);
+    expect(workbook.coverageReport?.withinTargetRange).toBe(true);
+    expect(workbook.qualityWarning).toBe(false);
   });
 
   it('detecta sesiones incompletas y enciende qualityWarning en el libro', async () => {
@@ -311,25 +326,90 @@ describe('Phase P3: Content Budget and Editorial Orchestration', () => {
 
     // Con customHours = 4, se esperan 24 sesiones (6 semanas * 4 h)
     vi.mocked(generateFoundationMission).mockResolvedValue(
-      makeMockWriterOutput({ type: 'foundation', sessions: [1, 2, 3, 4, 5, 6], baseWords: 600, wordsPerPlan: 1100 })
+      makeMockWriterOutput({ type: 'foundation', sessions: [1, 2, 3, 4], baseWords: 1350, wordsPerPlan: 850 })
     );
     vi.mocked(generateLabMission).mockResolvedValue(
-      makeMockWriterOutput({ type: 'lab', sessions: [7, 8, 9, 10, 11, 12], baseWords: 600, wordsPerPlan: 1100 })
+      makeMockWriterOutput({ type: 'lab', sessions: [5, 6, 7, 8, 9, 10, 11, 12], baseWords: 2700, wordsPerPlan: 850 })
     );
     vi.mocked(generateProjectMission).mockResolvedValue(
-      makeMockWriterOutput({ type: 'project', sessions: [13, 14, 15, 16, 17, 18], baseWords: 600, wordsPerPlan: 1100 })
+      makeMockWriterOutput({ type: 'project', sessions: [13, 14, 15, 16, 17, 18, 19, 20], baseWords: 2700, wordsPerPlan: 850 })
     );
     vi.mocked(generateEvaluationSection).mockResolvedValue(
-      makeMockWriterOutput({ type: 'evaluation', sessions: [19, 20, 21, 22, 23, 24], baseWords: 600, wordsPerPlan: 1100 })
+      makeMockWriterOutput({ type: 'evaluation', sessions: [21, 22, 23, 24], baseWords: 1350, wordsPerPlan: 850 })
     );
 
     const workbook = await generateBlockWorkTextbook('plan-custom-hours', 0, { customHours: 4 });
 
     expect(workbook.sessionsPerBlock).toBe(24);
-    expect(workbook.targetPages).toBe(64); // ideal para 24 sesiones
-    expect(workbook.targetWords).toBe(28500); // ideal para 24 sesiones
+    expect(workbook.targetPages).toBe(64); // ideal para 24 sesiones (60-67 págs)
+    expect(workbook.targetWords).toBe(28500); // ideal para 24 sesiones (27,000-30,000)
     expect(workbook.coverageReport?.sessionsExpected).toBe(24);
     expect(workbook.coverageReport?.sessionsCovered).toBe(24);
     expect(workbook.coverageReport?.allSessionsPresent).toBe(true);
+    expect(workbook.coverageReport?.withinTargetRange).toBe(true);
+    expect(workbook.qualityWarning).toBe(false);
+  });
+
+  it('E2E Real: Renderiza el libro de 18 sesiones en PDF formal completo verificando 45-50 páginas y cobertura total', async () => {
+    const planningMock = {
+      id: 'plan-3h-pdf',
+      teacher_id: 'teacher-1',
+      teacherId: 'teacher-1',
+      uac_name: 'Pensamiento Matemático I',
+      uacName: 'Pensamiento Matemático I',
+      semester: 1,
+      component: 'fundamental',
+      paec_context: 'Cuidado del agua en la comunidad escolar de Puebla',
+      paecContext: 'Cuidado del agua en la comunidad escolar de Puebla',
+      content_json: {
+        sectionI: { totalHoursWeekly: 3, teacherName: 'Mtro. Juan Pérez' },
+      },
+      contentJson: {
+        sectionI: { totalHoursWeekly: 3, teacherName: 'Mtro. Juan Pérez' },
+      },
+    } as any;
+
+    vi.mocked(getPlanningById).mockResolvedValue(planningMock);
+
+    vi.mocked(generateFoundationMission).mockResolvedValue(
+      makeMockWriterOutput({ type: 'foundation', sessions: [1, 2, 3], baseWords: 1013, wordsPerPlan: 850 })
+    );
+    vi.mocked(generateLabMission).mockResolvedValue(
+      makeMockWriterOutput({ type: 'lab', sessions: [4, 5, 6, 7, 8, 9], baseWords: 2025, wordsPerPlan: 850 })
+    );
+    vi.mocked(generateProjectMission).mockResolvedValue(
+      makeMockWriterOutput({ type: 'project', sessions: [10, 11, 12, 13, 14, 15], baseWords: 2025, wordsPerPlan: 850 })
+    );
+    vi.mocked(generateEvaluationSection).mockResolvedValue(
+      makeMockWriterOutput({ type: 'evaluation', sessions: [16, 17, 18], baseWords: 1013, wordsPerPlan: 850 })
+    );
+
+    const workbook = await generateBlockWorkTextbook('plan-3h-pdf', 0);
+    expect(workbook.qualityWarning).toBe(false);
+    expect(workbook.coverageReport?.allSessionsPresent).toBe(true);
+    expect(workbook.coverageReport?.withinTargetRange).toBe(true);
+
+    const pdfBuffer = await renderWorkbookToPdf(workbook, planningMock, { forceFallbackCover: true });
+    expect(Buffer.isBuffer(pdfBuffer)).toBe(true);
+    expect(pdfBuffer.length).toBeGreaterThan(50000);
+
+    const parser = new PDFParse({ data: pdfBuffer });
+    const pdfData = await parser.getText();
+    await parser.destroy();
+
+    // Verificación de volumen formal de páginas (calibración 45-50 páginas)
+    expect(pdfData.total).toBeGreaterThanOrEqual(40);
+    expect(pdfData.total).toBeLessThanOrEqual(55);
+
+    // Verificación de cobertura textual de todas las 18 sesiones (badge o texto descriptivo)
+    const lowerText = pdfData.text.toLowerCase();
+    for (let s = 1; s <= 18; s++) {
+      const found = lowerText.includes(`sesion ${s}`) || lowerText.includes(`sesión ${s}`) || lowerText.includes(`sesiones ${s}`);
+      expect(found).toBe(true);
+    }
+
+    // Verificación de datos de identidad y contexto
+    expect(pdfData.text).toContain('Pensamiento Matemático I');
+    expect(pdfData.text).toContain('Cuidado del agua');
   });
 });

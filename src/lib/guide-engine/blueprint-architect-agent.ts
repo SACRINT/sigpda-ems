@@ -13,7 +13,7 @@ import { generateBlockSessions, generateCurricularBlockSessions, type DetailedSe
 import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
 import type { KeyActivityPlan, Planning, SecuenciaSesion } from '@/types/planning';
 import type { CurriculumContext } from './curriculum-context-agent';
-import { WORDS_PER_PAGE } from './content-budget';
+import { WORDS_PER_PAGE, computeMissionBudget } from './content-budget';
 
 export interface PlannedMissionBlueprint {
   missionIndex: number;
@@ -153,8 +153,9 @@ function createMissionBlueprint(
   }
 
   const title = `${titlePrefix} — ${mainTitle}`;
-  const pages = Math.max(3, Math.round(sessionGroup.length * 2.65));
-  const words = pages * WORDS_PER_PAGE;
+  const missionBudget = computeMissionBudget(sessionGroup.length);
+  const pages = missionBudget.targetPages.ideal;
+  const words = missionBudget.targetWords.ideal;
 
   return {
     missionIndex: index,
@@ -220,19 +221,21 @@ export function buildBlockBlueprint(params: {
   // 2. Agrupar sesiones en Misiones coherentes usando s.phase y s.title
   const missions = clusterSessionsIntoMissions(sessions);
 
-  // 3. Blueprint del Proyecto / Artefacto Real
-  const projectPages = curriculum.subsystem === 'bt' ? 8 : 6;
-  const projectWords = projectPages * WORDS_PER_PAGE;
+  // 3. Blueprint del Proyecto / Artefacto Real y Evaluación Formativa derivados directamente de las misiones
+  const projectMission = missions.find((m) => m.missionType === 'project') || missions[2];
+  const evalMission = missions.find((m) => m.missionType === 'evaluation') || missions[3];
+
+  const projectPages = projectMission?.targetPages || (curriculum.budget ? curriculum.budget.missionBudgets.project.targetPages.ideal : 6);
+  const projectWords = projectMission?.targetWords || (curriculum.budget ? curriculum.budget.missionBudgets.project.targetWords.ideal : projectPages * WORDS_PER_PAGE);
+
   const lastMissions = missions.filter((m) => m.missionType === 'project' || m.missionType === 'lab');
   const projectSessions = lastMissions.flatMap((m) => m.sessionNumbers).slice(-4);
 
-  // 4. Blueprint de Evaluación
-  const evalPages = curriculum.subsystem === 'bt' ? 6 : 4;
-  const evalWords = evalPages * WORDS_PER_PAGE;
+  const evalPages = evalMission?.targetPages || (curriculum.budget ? curriculum.budget.missionBudgets.evaluation.targetPages.ideal : 4);
+  const evalWords = evalMission?.targetWords || (curriculum.budget ? curriculum.budget.missionBudgets.evaluation.targetWords.ideal : evalPages * WORDS_PER_PAGE);
 
-  // 5. Balancear metas de palabras para asegurar que alcancen el mínimo oficial
-  const totalMissionsWords = missions.reduce((acc, m) => acc + m.targetWords, 0);
-  const totalPlannedWords = totalMissionsWords + projectWords + evalWords;
+  // 4. El libro completo está compuesto por las 4 misiones curriculares sin doble conteo (única fuente de verdad)
+  const totalPlannedWords = missions.reduce((acc, m) => acc + m.targetWords, 0);
   const totalPlannedPages = Math.round(totalPlannedWords / WORDS_PER_PAGE);
 
   return {

@@ -171,19 +171,31 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
   ]
 }`;
 
+  const sessionCount = Math.max(1, coveredSessions.length);
+  const targetWordsPerPlan = 850;
+  const totalPlansTarget = sessionCount * targetWordsPerPlan;
+  const remainingNarrativeTarget = Math.max(500, input.targetWords.ideal - totalPlansTarget);
+
+  const rubricTarget = Math.round(remainingNarrativeTarget * 0.25);
+  const checklistTarget = Math.round(remainingNarrativeTarget * 0.15);
+  const tieredTarget = Math.round(remainingNarrativeTarget * 0.30);
+  const quizTarget = Math.round(remainingNarrativeTarget * 0.18);
+  const metaTarget = Math.round(remainingNarrativeTarget * 0.12);
+
   const prompt = `UAC: ${input.uacName}
 Subsistema: ${input.subsystem.toUpperCase()}
 Bloque: ${input.blockName} (Índice ${input.blockIndex})
-Sesiones asignadas: Sesiones ${coveredSessions.join(', ')}
+Sesiones asignadas: Sesiones ${coveredSessions.join(', ')} (${sessionCount} sesiones)
 Problemática PAEC comunitaria: ${input.paecContext}
-Meta de palabras para esta misión: mínimo ${input.targetWords.min} palabras (ideal ${input.targetWords.ideal} palabras).
+Presupuesto total para esta misión: mínimo ${input.targetWords.min} palabras (ideal ~${input.targetWords.ideal} palabras).
 
-DISTRIBUCIÓN SUGERIDA DE PALABRAS:
-- rubric: 800 a 1,200 palabras
-- checklist: 500 a 800 palabras
-- tieredExercises: 800 a 1,200 palabras (3 niveles, mínimo 6 ejercicios completos)
-- criticalThinkingQuiz: 800 a 1,200 palabras
-- metacognitiveReflection: 500 a 800 palabras
+DISTRIBUCIÓN CALIBRADA DE PALABRAS:
+- sessionPlans (${sessionCount} sesiones): OBLIGATORIO redactar las ${sessionCount} sesiones completas, con ~${targetWordsPerPlan} palabras por sesión (total planes: ~${totalPlansTarget} palabras).
+- rubric: ~${rubricTarget} palabras
+- checklist: ~${checklistTarget} palabras
+- tieredExercises: ~${tieredTarget} palabras (3 niveles escalonados, mínimo 6 ejercicios completos con andamiaje)
+- criticalThinkingQuiz: ~${quizTarget} palabras
+- metacognitiveReflection: ~${metaTarget} palabras
 
 Genera el paquete oficial de 4 instrumentos de evaluación NEM con ejercicios escalonados:`;
 

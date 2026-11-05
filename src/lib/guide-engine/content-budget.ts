@@ -68,9 +68,10 @@ export interface ContentBudget {
 
 /**
  * Resuelve las horas semanales asignadas a la planeación didáctica:
- * 1. Prioridad: planning.contentJson.sectionI.totalHoursWeekly (o totalHours si < 10)
- * 2. Fallback: customHours explícito del orquestador
- * 3. Default canónico MCCEMS: 3 horas/semana
+ * 1. Prioridad: planning.contentJson.sectionI.totalHoursWeekly o planning.content_json.sectionI.totalHoursWeekly
+ * 2. Fallback: totalHours si <= 10
+ * 3. Fallback: customHours explícito del orquestador
+ * 4. Default canónico MCCEMS: 3 horas/semana
  */
 export function resolveWeeklyHours(
   planning?: {
@@ -113,6 +114,34 @@ export function resolveWeeklyHours(
 }
 
 /**
+ * Calcula el presupuesto formal de una misión didáctica individual a partir de sus sesiones reales.
+ * Fórmula unificada de la Fase P3.1:
+ * - minWords = S * 1,125
+ * - idealWords = S * 1,188
+ * - maxWords = S * 1,250
+ */
+export function computeMissionBudget(sessionCountInput: number): MissionBudget {
+  const sessionsCount = Math.max(1, Math.round(sessionCountInput));
+  const minWords = sessionsCount * MIN_WORDS_PER_SESSION;
+  const maxWords = sessionsCount * MAX_WORDS_PER_SESSION;
+  const idealWords = Math.round((minWords + maxWords) / 2);
+
+  return {
+    targetWords: {
+      min: minWords,
+      ideal: idealWords,
+      max: maxWords,
+    },
+    targetPages: {
+      min: Math.max(2, Math.round(minWords / WORDS_PER_PAGE)),
+      ideal: Math.max(3, Math.round(idealWords / WORDS_PER_PAGE)),
+      max: Math.max(4, Math.round(maxWords / WORDS_PER_PAGE)),
+    },
+    sessionsCount,
+  };
+}
+
+/**
  * Calcula el presupuesto formal de páginas y palabras para un bloque de 6 semanas
  * a partir de las horas semanales de la asignatura.
  */
@@ -128,39 +157,15 @@ export function computeContentBudget(weeklyHoursInput?: number): ContentBudget {
   const maxWords = sessionsPerBlock * MAX_WORDS_PER_SESSION;
   const idealWords = Math.round((minWords + maxWords) / 2);
 
-  // Proporción por dimensión: Fundamentación 30%, Laboratorio 30%, Proyecto 25%, Evaluación 15%
-  const splits = {
-    foundation: 0.30,
-    lab: 0.30,
-    project: 0.25,
-    evaluation: 0.15,
-  };
-
-  const createMissionBudget = (split: number, defaultSessions: number): MissionBudget => {
-    const mMinWords = Math.round(minWords * split);
-    const mMaxWords = Math.round(maxWords * split);
-    const mIdealWords = Math.round(idealWords * split);
-
-    return {
-      targetWords: {
-        min: mMinWords,
-        ideal: mIdealWords,
-        max: mMaxWords,
-      },
-      targetPages: {
-        min: Math.max(2, Math.round(mMinWords / WORDS_PER_PAGE)),
-        ideal: Math.max(3, Math.round(mIdealWords / WORDS_PER_PAGE)),
-        max: Math.max(4, Math.round(mMaxWords / WORDS_PER_PAGE)),
-      },
-      sessionsCount: defaultSessions,
-    };
-  };
-
-  // Estimación de sesiones por misión
-  const sFoundation = Math.round(sessionsPerBlock * splits.foundation);
-  const sLab = Math.round(sessionsPerBlock * splits.lab);
-  const sProject = Math.round(sessionsPerBlock * splits.project);
-  const sEval = Math.max(1, sessionsPerBlock - (sFoundation + sLab + sProject));
+  // Estimación de sesiones por misión basada en la estructura curricular real:
+  // Apertura (fundamentación) ~1/6, Cierre (evaluación) ~1/6, y el resto dividido equitativamente
+  // entre Laboratorio (desarrollo 1) y Proyecto (desarrollo 2).
+  // Para 18 sesiones: 3 + 6 + 6 + 3 = 18 sesiones exactas.
+  const sFoundation = Math.max(1, Math.round(sessionsPerBlock / 6));
+  const sEval = Math.max(1, Math.round(sessionsPerBlock / 6));
+  const sDev = Math.max(2, sessionsPerBlock - (sFoundation + sEval));
+  const sLab = Math.ceil(sDev / 2);
+  const sProject = sDev - sLab;
 
   const budget: ContentBudget = {
     weeklyHours,
@@ -182,14 +187,14 @@ export function computeContentBudget(weeklyHoursInput?: number): ContentBudget {
     },
     wordsPerSession: {
       min: MIN_WORDS_PER_SESSION,
-      ideal: Math.round(((MIN_WORDS_PER_SESSION + MAX_WORDS_PER_SESSION) / 2)),
+      ideal: Math.round((MIN_WORDS_PER_SESSION + MAX_WORDS_PER_SESSION) / 2),
       max: MAX_WORDS_PER_SESSION,
     },
     missionBudgets: {
-      foundation: createMissionBudget(splits.foundation, sFoundation),
-      lab: createMissionBudget(splits.lab, sLab),
-      project: createMissionBudget(splits.project, sProject),
-      evaluation: createMissionBudget(splits.evaluation, sEval),
+      foundation: computeMissionBudget(sFoundation),
+      lab: computeMissionBudget(sLab),
+      project: computeMissionBudget(sProject),
+      evaluation: computeMissionBudget(sEval),
     },
   };
 
@@ -235,6 +240,8 @@ export function countSessionPlanWords(plan: {
 
 /**
  * Valida la cobertura de sesiones y consistencia de páginas/palabras frente al presupuesto.
+ * Aplica tolerancia editorial estricta: para 3h/semana requiere estrictamente entre 45 y 50 páginas
+ * (20,250 a 22,500 palabras) con tolerancia editorial máxima de ±2% por oscilaciones de tokenización.
  */
 export function validateSessionCoverage(params: {
   sessions: Array<{ sessionNumber: number }>;
@@ -260,9 +267,9 @@ export function validateSessionCoverage(params: {
   const averageWordsPerSession = sessionsCovered > 0 ? Math.round(totalWords / sessionsCovered) : 0;
   const totalPages = Math.max(1, Math.round(totalWords / WORDS_PER_PAGE));
 
-  // Tolerancia editorial de ±10% sobre el rango presupuestal
-  const minAllowedWords = Math.round(budget.targetWords.min * 0.90);
-  const maxAllowedWords = Math.round(budget.targetWords.max * 1.15);
+  // Tolerancia editorial estricta (±2% sobre el rango presupuestal formal)
+  const minAllowedWords = Math.round(budget.targetWords.min * 0.98);
+  const maxAllowedWords = Math.round(budget.targetWords.max * 1.02);
   const withinTargetRange = totalWords >= minAllowedWords && totalWords <= maxAllowedWords;
 
   const pagesDelta = totalPages - budget.targetPages.ideal;

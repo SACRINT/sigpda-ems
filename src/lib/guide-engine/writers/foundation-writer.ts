@@ -104,20 +104,31 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
   ]
 }`;
 
+  const sessionCount = Math.max(1, coveredSessions.length);
+  const targetWordsPerPlan = 850;
+  const totalPlansTarget = sessionCount * targetWordsPerPlan;
+  const remainingNarrativeTarget = Math.max(500, input.targetWords.ideal - totalPlansTarget);
+
+  const coreTarget = Math.round(remainingNarrativeTarget * 0.40);
+  const iDoTarget = Math.round(remainingNarrativeTarget * 0.25);
+  const weDoTarget = Math.round(remainingNarrativeTarget * 0.20);
+  const youDoTarget = Math.round(remainingNarrativeTarget * 0.15);
+
   const prompt = `UAC: ${input.uacName}
 Subsistema: ${input.subsystem.toUpperCase()} (Enfoque: ${approach})
 Semestre: ${input.planning.semester}
 Bloque: ${input.blockName} (Índice ${input.blockIndex})
 Misión a redactar: ${missionTitle}
-Sesiones cubiertas: Sesiones ${coveredSessions.join(', ')}
+Sesiones cubiertas: Sesiones ${coveredSessions.join(', ')} (${sessionCount} sesiones)
 Perfil de estudiantes: ${input.studentProfile}
-Meta de palabras para esta misión: mínimo ${input.targetWords.min} palabras (ideal ${input.targetWords.ideal} palabras).
+Presupuesto total para esta misión: mínimo ${input.targetWords.min} palabras (ideal ~${input.targetWords.ideal} palabras).
 
-DISTRIBUCIÓN OBLIGATORIA DE PALABRAS:
-- coreExplanation + physicalAnalogy: 2,000 a 3,000 palabras
-- iDoDemo: 1,500 a 2,000 palabras
-- weDoPractice: 1,000 a 1,500 palabras
-- youDoChallenge: 800 a 1,200 palabras
+DISTRIBUCIÓN CALIBRADA DE PALABRAS:
+- sessionPlans (${sessionCount} sesiones): OBLIGATORIO redactar las ${sessionCount} sesiones completas, con ~${targetWordsPerPlan} palabras por sesión (total planes: ~${totalPlansTarget} palabras).
+- coreExplanation + physicalAnalogy: ~${coreTarget} palabras (explicación formal rigurosa y analogía intuitiva)
+- iDoDemo: ~${iDoTarget} palabras (demostración docente modelada paso a paso)
+- weDoPractice: ~${weDoTarget} palabras (práctica guiada colaborativa)
+- youDoChallenge: ~${youDoTarget} palabras (reto autónomo escalonado)
 
 GUARDRAIL TERMINOLÓGICO OBLIGATORIO:
 - Queda estrictamente PROHIBIDO usar 'balanza romana' o 'báscula de dos platillos'.
@@ -136,13 +147,14 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
     );
     let parsed = robustJsonParse(rawResponse);
 
-    // Validación de extensión mínima (MEJORA 1)
+    // Validación de extensión mínima calibrada según el presupuesto
     const coreWords = (parsed.coreExplanation || '').split(/\s+/).filter(Boolean).length;
-    if (coreWords < 500) {
+    const minCoreWords = Math.min(400, Math.max(150, Math.round(coreTarget * 0.5)));
+    if (coreWords < minCoreWords) {
       attempt = 2;
-      logger.warn(`[FoundationWriter] coreExplanation tiene solo ${coreWords} palabras (< 500). Reintentando con instrucción estricta...`);
+      logger.warn(`[FoundationWriter] coreExplanation tiene solo ${coreWords} palabras (< ${minCoreWords}). Reintentando con instrucción estricta...`);
       try {
-        const retryPrompt = `${prompt}\n\n[REQUISITO CRÍTICO DE PROFUNDIDAD]: Tu respuesta anterior fue insuficiente (${coreWords} palabras en coreExplanation). Redacta OBLIGATORIAMENTE un 'coreExplanation' de MÍNIMO 500 palabras con al menos dos párrafos explicativos extensos, desarrollando paso a paso la fundamentación formal y física del concepto sin resumir.`;
+        const retryPrompt = `${prompt}\n\n[REQUISITO CRÍTICO DE PROFUNDIDAD]: Tu respuesta anterior fue insuficiente (${coreWords} palabras en coreExplanation). Redacta OBLIGATORIAMENTE un 'coreExplanation' de MÍNIMO ${minCoreWords} palabras con al menos dos párrafos explicativos extensos, desarrollando paso a paso la fundamentación formal y física del concepto sin resumir.`;
         const retryResponse = await generateWithRotation(
           systemInstruction,
           retryPrompt,

@@ -130,20 +130,31 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
 INDICE DE MATERIALES AUTORIZADOS (usa SOLO estos slugs en los tokens [[material:slug]] de requiredMaterials; lo que no esté aquí, en texto plano):
 ${buildMaterialSlugIndex(getMaterialCategoriesForContext(input.uacName, input.subsystem), MATERIAL_INDEX_MAX_CHARS - 300)}`;
 
+  const sessionCount = Math.max(1, coveredSessions.length);
+  const targetWordsPerPlan = 850;
+  const totalPlansTarget = sessionCount * targetWordsPerPlan;
+  const remainingNarrativeTarget = Math.max(500, input.targetWords.ideal - totalPlansTarget);
+
+  const utilityTarget = Math.round(remainingNarrativeTarget * 0.30);
+  const phasesTarget = Math.round(remainingNarrativeTarget * 0.45);
+  const challengeTarget = Math.round(remainingNarrativeTarget * 0.10);
+  const rubricTarget = Math.round(remainingNarrativeTarget * 0.15);
+
   const prompt = `UAC: ${input.uacName}
 Subsistema: ${input.subsystem.toUpperCase()}
 Misión: ${missionTitle}
-Sesiones asignadas: Sesiones ${coveredSessions.join(', ')}
+Sesiones asignadas: Sesiones ${coveredSessions.join(', ')} (${sessionCount} sesiones)
 Problemática PAEC: ${input.paecContext}
-Meta de palabras para esta misión: mínimo ${input.targetWords.min} palabras (ideal ~${input.targetWords.ideal} palabras).
+Presupuesto total para esta misión: mínimo ${input.targetWords.min} palabras (ideal ~${input.targetWords.ideal} palabras).
 
-DISTRIBUCIÓN SUGERIDA DE PALABRAS:
-- communityUtility (descripción e impacto): 1,000 a 1,500 palabras
-- phases (instrucciones detalladas por fases de construcción): 1,500 a 2,000 palabras
-- autonomousChallenge (validación autónoma de campo): 200 a 350 palabras
-- rubricSummary (criterios y descriptores analíticos): 500 a 800 palabras
+DISTRIBUCIÓN CALIBRADA DE PALABRAS:
+- sessionPlans (${sessionCount} sesiones): OBLIGATORIO redactar las ${sessionCount} sesiones completas, con ~${targetWordsPerPlan} palabras por sesión (total planes: ~${totalPlansTarget} palabras).
+- communityUtility: ~${utilityTarget} palabras (descripción e impacto comunitario PAEC)
+- phases: ~${phasesTarget} palabras (instrucciones detalladas y operativas por fases de construcción)
+- autonomousChallenge: ~${challengeTarget} palabras (validación autónoma de campo)
+- rubricSummary: ~${rubricTarget} palabras (criterios y descriptores analíticos)
 
-IMPORTANTE: Esta sección debe tener MÍNIMO 2,000 palabras sumando fases y descripción, y más de ${input.targetWords.min} palabras en total.
+Esta sección narrativa debe sumar aproximadamente ${remainingNarrativeTarget} palabras, y cada plan de sesión debe contener ~${targetWordsPerPlan} palabras para alcanzar el presupuesto total de ~${input.targetWords.ideal} palabras.
 Incluye explicaciones detalladas, ejemplos múltiples, pasos numerados extensos y espacios para que el estudiante trabaje.
 
 Redacta la Misión del Proyecto y Construcción del Artefacto Real:`;
