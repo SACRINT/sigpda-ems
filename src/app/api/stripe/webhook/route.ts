@@ -162,16 +162,23 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 async function handleSubscriptionUpdated(sub: Stripe.Subscription) {
   const stripeSubscriptionId = sub.id;
   const status = sub.status; // active | past_due | canceled | trialing | etc.
-  const currentPeriodEnd = new Date((sub as any).current_period_end * 1000).toISOString();
-  const currentPeriodStart = new Date((sub as any).current_period_start * 1000).toISOString();
-  const cancelAtPeriodEnd = (sub as any).cancel_at_period_end;
+  const rawPeriodEnd = (sub as any).current_period_end;
+  const rawPeriodStart = (sub as any).current_period_start;
+
+  const currentPeriodEnd = typeof rawPeriodEnd === 'number' && !isNaN(rawPeriodEnd)
+    ? new Date(rawPeriodEnd * 1000).toISOString()
+    : null;
+  const currentPeriodStart = typeof rawPeriodStart === 'number' && !isNaN(rawPeriodStart)
+    ? new Date(rawPeriodStart * 1000).toISOString()
+    : null;
+  const cancelAtPeriodEnd = Boolean((sub as any).cancel_at_period_end);
 
   await sql()`
     UPDATE subscriptions
     SET
       status                = ${status},
-      current_period_start  = ${currentPeriodStart},
-      current_period_end    = ${currentPeriodEnd},
+      current_period_start  = COALESCE(${currentPeriodStart}, current_period_start),
+      current_period_end    = COALESCE(${currentPeriodEnd}, current_period_end),
       cancel_at_period_end  = ${cancelAtPeriodEnd},
       updated_at            = NOW()
     WHERE stripe_subscription_id = ${stripeSubscriptionId}

@@ -98,6 +98,8 @@ export async function generateBlockWorkTextbook(
 ): Promise<ActiveWorkTextbook> {
   const maxRetries = options.maxRetriesPerWriter ?? 2;
   const jobId = options.jobId;
+  const startTime = Date.now();
+  const MAX_ORCHESTRATOR_BUDGET_MS = 230_000; // Presupuesto preventivo ante el límite de 300s de Vercel
 
   const notifyProgress = async (params: {
     phase: GenerationProgressState['phase'];
@@ -390,6 +392,10 @@ export async function generateBlockWorkTextbook(
   // Si hay redactores reintentables, ejecutar reintentos específicos (máx 2 por redactor)
   if (validation.retryableWriters.length > 0) {
     for (const writerType of validation.retryableWriters) {
+      if (Date.now() - startTime > MAX_ORCHESTRATOR_BUDGET_MS) {
+        logger.warn('[orchestrator] Presupuesto de tiempo agotado para reintentos (230s). Ensamblando libro con contenido existente para evitar timeout de Vercel.');
+        break;
+      }
       let attempts = 0;
       let improved = false;
 

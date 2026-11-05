@@ -36,7 +36,7 @@ describe('Nivel 1: PUT /api/plannings/[id] — Guardián de Edición Rápida', (
   });
 
   it('1. Debe rechazar con 401 si no hay sesión autenticada', async () => {
-    vi.mocked(auth).mockResolvedValueOnce(null);
+    vi.mocked(auth).mockResolvedValueOnce(null as never);
 
     const req = new NextRequest(`http://localhost:3000/api/plannings/${planningId}`, {
       method: 'PUT',
@@ -51,7 +51,7 @@ describe('Nivel 1: PUT /api/plannings/[id] — Guardián de Edición Rápida', (
     vi.mocked(auth).mockResolvedValueOnce({
       user: { email: teacherEmail },
       expires: '2026-12-31',
-    });
+    } as never);
     vi.mocked(getTeacherByEmail).mockResolvedValueOnce({
       id: teacherId,
       email: teacherEmail,
@@ -79,7 +79,7 @@ describe('Nivel 1: PUT /api/plannings/[id] — Guardián de Edición Rápida', (
     vi.mocked(auth).mockResolvedValueOnce({
       user: { email: 'admin@sigpda.mx' },
       expires: '2026-12-31',
-    });
+    } as never);
     vi.mocked(getTeacherByEmail).mockResolvedValueOnce({
       id: teacherId,
       email: 'admin@sigpda.mx',
@@ -119,7 +119,7 @@ describe('Nivel 1: PUT /api/plannings/[id] — Guardián de Edición Rápida', (
     vi.mocked(auth).mockResolvedValueOnce({
       user: { email: teacherEmail },
       expires: '2026-12-31',
-    });
+    } as never);
     vi.mocked(getTeacherByEmail).mockResolvedValueOnce({
       id: teacherId,
       email: teacherEmail,
