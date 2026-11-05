@@ -86,12 +86,14 @@ async function getActiveKeys(provider: string): Promise<ApiKeyRecord[]> {
   await reactivateCooledKeys(provider);
 
   const sql = getDb();
+  // Balanceador inteligente: Prioriza llaves nunca usadas (NULLS FIRST),
+  // luego las menos recientemente usadas (LRU), luego menor conteo de uso y finalmente prioridad
   const rows = await sql`
     SELECT id, label, provider, model_default, key_encrypted, key_preview,
            is_active, priority, usage_count, error_count, last_used_at, last_error_at
     FROM api_keys
     WHERE provider = ${provider} AND is_active = true
-    ORDER BY priority ASC, error_count ASC
+    ORDER BY last_used_at ASC NULLS FIRST, usage_count ASC, priority ASC
   `;
   return rows as ApiKeyRecord[];
 }
@@ -164,48 +166,12 @@ export interface ResolvedKey {
   source: 'user' | 'pool' | 'env';
 }
 
-/**
- * Resolves the best available API key for a given provider.
- * Priority: teacher's own key → pool → env fallback.
- */
-export async function resolveKey(
-  provider: string,
-  teacherId?: string
-): Promise<ResolvedKey> {
-  // 1. Teacher's own key takes absolute priority
-  if (teacherId) {
-    const teacherKey = await getTeacherKey(teacherId, provider);
-    if (teacherKey) {
-      return { apiKey: teacherKey, keyId: null, modelOverride: null, source: 'user' };
-    }
-  }
+// ── Round-Robin In-Memory Scatterer ──────────────────────────────────────────
+// Distribuye equitativamente las peticiones concurrentes entre las distintas llaves del pool
+let globalKeyRoundRobinIndex = 0;
 
-  // 2. Pool from DB
-  try {
-    const keys = await getActiveKeys(provider);
-    if (keys.length > 0) {
-      const key = keys[0];
-      return {
-        apiKey: decryptKey(key.key_encrypted),
-        keyId: key.id,
-        modelOverride: key.model_default || null,
-        source: 'pool',
-      };
-    }
-  } catch (err) {
-    logger.warn('[key-rotator] DB lookup failed, using env fallback:', err);
-  }
-
-  // 3. Env var fallback
-  const fallback = getFallbackKey(provider);
-  if (fallback) {
-    return { apiKey: fallback, keyId: null, modelOverride: null, source: 'env' };
-  }
-
-  throw new Error(
-    `No API key available for provider "${provider}". ` +
-    `Add one from the Admin Panel or set the environment variable.`
-  );
+export function resetKeyRotationIndexForTesting(): void {
+  globalKeyRoundRobinIndex = 0;
 }
 
 export interface KeyAttempt {
@@ -217,7 +183,7 @@ export interface KeyAttempt {
 
 /**
  * Devuelve la lista ordenada de claves a intentar para un proveedor:
- * clave del docente → pool de BD → variable de entorno.
+ * clave del docente → pool de BD (balanceado LRU + Round Robin) → variable de entorno.
  * Se expone para que los flujos de streaming también puedan rotar.
  */
 export async function resolveKeyAttempts(
@@ -234,10 +200,15 @@ export async function resolveKeyAttempts(
     }
   }
 
-  // 2. Pool keys from DB (already sorted by priority ASC, error_count ASC)
+  // 2. Pool keys from DB (already sorted by LRU / lowest usage via getActiveKeys)
   let poolKeys: ApiKeyRecord[] = [];
   try {
     poolKeys = await getActiveKeys(provider);
+    if (poolKeys.length > 1) {
+      // In-memory round-robin offset para dispersar llamadas concurrentes simultáneas
+      const offset = (globalKeyRoundRobinIndex++) % poolKeys.length;
+      poolKeys = [...poolKeys.slice(offset), ...poolKeys.slice(0, offset)];
+    }
     for (const k of poolKeys) {
       try {
         attempts.push({
@@ -260,10 +231,59 @@ export async function resolveKeyAttempts(
 }
 
 /**
- * Wraps an AI API call with automatic key rotation on 429 errors.
- * Tries each active key in priority order until one succeeds.
- *
- * BUG FIX v2: tracks position by index (not object reference) to properly rotate.
+ * Resolves the best available API key for a given provider.
+ * Priority: teacher's own key → pool (LRU + Round-Robin) → env fallback.
+ */
+export async function resolveKey(
+  provider: string,
+  teacherId?: string
+): Promise<ResolvedKey> {
+  // 1. Teacher's own key takes absolute priority
+  if (teacherId) {
+    const teacherKey = await getTeacherKey(teacherId, provider);
+    if (teacherKey) {
+      return { apiKey: teacherKey, keyId: null, modelOverride: null, source: 'user' };
+    }
+  }
+
+  // 2. Pool from DB (usando la dispersión balanceada de resolveKeyAttempts)
+  try {
+    const attempts = await resolveKeyAttempts(provider);
+    const poolAttempt = attempts.find(a => a.source === 'pool');
+    if (poolAttempt) {
+      return {
+        apiKey: poolAttempt.apiKey,
+        keyId: poolAttempt.keyId,
+        modelOverride: poolAttempt.modelOverride,
+        source: 'pool',
+      };
+    }
+  } catch (err) {
+    logger.warn('[key-rotator] DB lookup failed, using env fallback:', err);
+  }
+
+  // 3. Env var fallback
+  const fallback = getFallbackKey(provider);
+  if (fallback) {
+    return { apiKey: fallback, keyId: null, modelOverride: null, source: 'env' };
+  }
+
+  throw new Error(
+    `No API key available for provider "${provider}". ` +
+    `Add one from the Admin Panel or set the environment variable.`
+  );
+}
+
+/**
+ * Límite máximo de vueltas al pool de llaves ante fallas transitorias (429/503).
+ * Evita ciclos infinitos o miles de llamadas que puedan provocar bloqueo de cuentas por Google.
+ */
+export const MAX_POOL_ROUNDS = 2;
+
+/**
+ * Wraps an AI API call with automatic key rotation on 429/503 errors.
+ * Tries keys up to MAX_POOL_ROUNDS (máximo 2 vueltas completas al pool).
+ * Si tras 2 vueltas no hay éxito, el circuito de corte se activa y se detiene inmediatamente.
  *
  * @param provider  AI provider name ('gemini', 'claude', etc.)
  * @param fn        Function that receives (apiKey, keyId) and calls the AI API
@@ -284,12 +304,21 @@ export async function withKeyRotation<T>(
     );
   }
 
-  // ── Try each key in order ─────────────────────────────────────────────────
+  // Límite estricto: máximo 2 vueltas al pool (ej. si hay 6 llaves, máximo 12 intentos totales)
+  const maxAttempts = attempts.length * MAX_POOL_ROUNDS;
   let lastError: Error | null = null;
-  let consecutiveServiceOutageCount = 0;
+  const permanentlyFailedKeyIds = new Set<string>();
 
-  for (let i = 0; i < attempts.length; i++) {
-    const { apiKey, keyId, source } = attempts[i];
+  for (let attemptIndex = 0; attemptIndex < maxAttempts; attemptIndex++) {
+    const round = Math.floor(attemptIndex / attempts.length) + 1; // Vuelta 1 o Vuelta 2
+    const keyIndex = attemptIndex % attempts.length;
+    const { apiKey, keyId, source } = attempts[keyIndex];
+
+    // Si la llave falló por credenciales inválidas (401/403) en la vuelta 1, se ignora en la vuelta 2
+    if (keyId && permanentlyFailedKeyIds.has(keyId)) {
+      continue;
+    }
+
     try {
       const result = await fn(apiKey, keyId);
       // On success: record usage and reset errors for pool keys
@@ -310,12 +339,6 @@ export async function withKeyRotation<T>(
         errStr.toLowerCase().includes('high demand') ||
         errStr.toLowerCase().includes('service unavailable') ||
         errStr.toLowerCase().includes('overloaded');
-
-      if (isServiceOutage) {
-        consecutiveServiceOutageCount++;
-      } else {
-        consecutiveServiceOutageCount = 0;
-      }
 
       // Detect transient rate-limit / demand errors — do NOT penalize the key
       const isRateLimit =
@@ -339,12 +362,12 @@ export async function withKeyRotation<T>(
 
       if (keyId && source === 'pool') {
         if (isPermanentError) {
-          // Bad credential: increment error count (may lead to deactivation)
-          logger.warn(`[key-rotator] Permanent credential error on key ${keyId}. Recording error.`);
+          permanentlyFailedKeyIds.add(keyId);
+          logger.warn(`[key-rotator] Error permanente de credenciales en llave ${keyId}. Registrando error.`);
           await recordError(keyId);
         } else if (isRateLimit) {
-          // Transient quota: just update last_error_at without penalizing
-          logger.warn(`[key-rotator] Rate-limit on key ${keyId}. NOT penalizing — will rotate.`);
+          // Transient quota / high demand: update last_error_at without penalizing error_count
+          logger.warn(`[key-rotator] Rate-limit/high-demand en llave ${keyId}. Actualizando timestamp sin penalizar.`);
           try {
             const sql = getDb();
             await sql`UPDATE api_keys SET last_error_at = NOW() WHERE id = ${keyId}`;
@@ -353,31 +376,39 @@ export async function withKeyRotation<T>(
         // Other errors (network, etc.): no DB update
       }
 
-      // Fast-fail to allow fallback providers if the upstream service is experiencing a global outage (503)
-      if (isServiceOutage && consecutiveServiceOutageCount >= 2 && i < attempts.length - 1) {
-        logger.warn(
-          `[key-rotator] Upstream service for "${provider}" is experiencing global high demand/outage (2 consecutive 503s). Fast-failing to allow alternative fallback providers.`
-        );
-        throw lastError;
+      // Si es un error permanente de credencial (401/403) y NO es del pool (ej. llave fija del docente) o no hay más llaves, abortar de inmediato
+      if (isPermanentError && (source !== 'pool' || attempts.length === 1)) {
+        throw err;
       }
 
-      if ((isRateLimit || !isPermanentError) && i < attempts.length - 1) {
-        // Rotate to next key transparently for rate-limits and transient errors
+      // Si aún restan intentos dentro de las 2 vueltas máximas permitidas:
+      if (attemptIndex < maxAttempts - 1) {
+        const nextAttempt = attemptIndex + 1;
+        const nextRound = Math.floor(nextAttempt / attempts.length) + 1;
+        const nextKeyIdx = nextAttempt % attempts.length;
+
         logger.warn(
-          `[key-rotator] Key #${i + 1} (${source}:${keyId ?? 'env'}) failed (${
-            isRateLimit ? 'rate-limit' : 'transient'
-          }). Rotating to key #${i + 2}/${attempts.length}...`
+          `[key-rotator] Intento ${attemptIndex + 1}/${maxAttempts} (Llave #${keyIndex + 1}, Vuelta ${round}/${MAX_POOL_ROUNDS}) falló (${
+            isPermanentError ? 'credencial inválida' : isRateLimit ? 'cuota/503' : 'transitorio'
+          }). Rotando a llave #${nextKeyIdx + 1} (Vuelta ${nextRound})...`
         );
-        // Exponential backoff to avoid slamming providers on rate limit
-        const backoffMs = Math.min(5000, 500 * Math.pow(2, i));
-        await new Promise((resolve) => setTimeout(resolve, backoffMs));
+
+        // Si fue credencial inválida, rotamos de inmediato sin esperar backoff
+        // Si fue cuota/503, aplicamos backoff ligero adaptado (250ms a 1500ms)
+        if (!isPermanentError) {
+          const backoffMs = Math.min(1500, 250 * Math.pow(1.5, keyIndex));
+          await new Promise((resolve) => setTimeout(resolve, backoffMs));
+        }
         continue;
       }
 
-      // Permanent error or no more keys — throw immediately
-      throw err;
+      // Se completaron las 2 vueltas máximas o es un error no recuperable -> CORTAR TERMINANTEMENTE
+      logger.error(
+        `[key-rotator] 🛑 LÍMITE DE SEGURIDAD ALCANZADO: Se completaron ${MAX_POOL_ROUNDS} vueltas completas (${maxAttempts} intentos) al pool de "${provider}" sin éxito. Deteniendo rotación inmediatamente para proteger las llaves de bloqueo por Google.`
+      );
+      throw lastError;
     }
   }
 
-  throw lastError || new Error('All API keys exhausted');
+  throw lastError || new Error(`[key-rotator] Pool agotado tras ${MAX_POOL_ROUNDS} vueltas máximas de seguridad.`);
 }

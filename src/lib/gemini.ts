@@ -135,7 +135,7 @@ async function callGeminiInternal({
     SELECT id, label, key_encrypted
     FROM api_keys
     WHERE provider = 'gemini' AND is_active = true
-    ORDER BY priority ASC, error_count ASC
+    ORDER BY last_used_at ASC NULLS FIRST, usage_count ASC, priority ASC
   `;
 
   if (keys.length === 0) {
