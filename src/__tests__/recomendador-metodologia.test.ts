@@ -129,4 +129,49 @@ describe('recomendarMetodologia', () => {
       expect(res).toBe('steam');
     });
   });
+
+  describe('Blindaje SSoT Pensamiento Matemático (Inmunidad Absoluta a Indagación)', () => {
+    it('recomienda ABProblemas para Pensamiento Matemático III con números romanos', () => {
+      const res = recomendarMetodologia('Pensamiento Matemático III', 'fundamental');
+      expect(res).toBe('abproblemas');
+    });
+
+    it('recomienda ABProblemas para Pensamiento Matemático 3 con números arábigos', () => {
+      const res = recomendarMetodologia('Pensamiento Matemático 3', 'fundamental');
+      expect(res).toBe('abproblemas');
+    });
+
+    it('recomienda ABProblemas para Pensamiento Matemático III con subtítulo o sufijo', () => {
+      const res1 = recomendarMetodologia('Pensamiento Matemático III: Álgebra y Geometría', 'fundamental');
+      expect(res1).toBe('abproblemas');
+
+      const res2 = recomendarMetodologia('Pensamiento Matemático 3 (Bachillerato General)', 'fundamental');
+      expect(res2).toBe('abproblemas');
+    });
+
+    it('recomienda ABProblemas para Pensamiento Matemático III INCLUSO si el contenido menciona hipótesis y recolección de datos', () => {
+      // Caso exacto del reclamo del usuario: el texto de probabilidad/estadística o PAEC contiene
+      // términos de hipótesis y recolección de datos, pero la disciplina matemática es inviolable.
+      const res = recomendarMetodologia('Pensamiento Matemático III', 'fundamental', 'bge', {
+        learningOutcome: 'Formulación de hipótesis sobre muestras estadísticas y recolección de datos en el entorno escolar',
+        contenidosFormativos: [
+          { proposito: 'Contrastación empírica e hipótesis estadísticas', saberes: ['Recolección de datos muestrales'] }
+        ],
+      });
+      expect(res).toBe('abproblemas');
+      expect(res).not.toBe('indagacion');
+    });
+
+    it('recomienda ABProblemas para Pensamiento Matemático II y IV con números arábigos y romanos', () => {
+      expect(recomendarMetodologia('Pensamiento Matemático II', 'fundamental')).toBe('abproblemas');
+      expect(recomendarMetodologia('Pensamiento Matemático 2', 'fundamental')).toBe('abproblemas');
+      expect(recomendarMetodologia('Pensamiento Matemático IV', 'fundamental')).toBe('abproblemas');
+      expect(recomendarMetodologia('Pensamiento Matemático 4', 'fundamental')).toBe('abproblemas');
+    });
+
+    it('recomienda ABProblemas para Pensamiento Matemático Aplicado a las Finanzas', () => {
+      expect(recomendarMetodologia('Pensamiento Matemático Aplicado a las Finanzas I', 'ffe_optativa')).toBe('abproblemas');
+      expect(recomendarMetodologia('Pensamiento Matemático Aplicado a las Finanzas 1', 'ffe_optativa')).toBe('abproblemas');
+    });
+  });
 });

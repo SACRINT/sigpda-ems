@@ -51,7 +51,17 @@ export const CANONICAL_UAC_METODOLOGIAS: Record<string, { id: string; razon: str
     razon: 'Modelado matemático, funciones y análisis dinámico del cambio',
     dominio: 'Matemáticas y Modelado',
   },
+  'taller de pensamiento variacional 1': {
+    id: 'steam',
+    razon: 'Modelado matemático, funciones y análisis dinámico del cambio',
+    dominio: 'Matemáticas y Modelado',
+  },
   'taller pensamiento variacional i': {
+    id: 'steam',
+    razon: 'Modelado matemático, funciones y análisis dinámico del cambio',
+    dominio: 'Matemáticas y Modelado',
+  },
+  'taller pensamiento variacional 1': {
     id: 'steam',
     razon: 'Modelado matemático, funciones y análisis dinámico del cambio',
     dominio: 'Matemáticas y Modelado',
@@ -61,7 +71,17 @@ export const CANONICAL_UAC_METODOLOGIAS: Record<string, { id: string; razon: str
     razon: 'Modelado matemático, cálculo y análisis dinámico del cambio',
     dominio: 'Matemáticas y Modelado',
   },
+  'taller de pensamiento variacional 2': {
+    id: 'steam',
+    razon: 'Modelado matemático, cálculo y análisis dinámico del cambio',
+    dominio: 'Matemáticas y Modelado',
+  },
   'taller pensamiento variacional ii': {
+    id: 'steam',
+    razon: 'Modelado matemático, cálculo y análisis dinámico del cambio',
+    dominio: 'Matemáticas y Modelado',
+  },
+  'taller pensamiento variacional 2': {
     id: 'steam',
     razon: 'Modelado matemático, cálculo y análisis dinámico del cambio',
     dominio: 'Matemáticas y Modelado',
@@ -76,7 +96,17 @@ export const CANONICAL_UAC_METODOLOGIAS: Record<string, { id: string; razon: str
     razon: 'Indagación y modelado matemático avanzado',
     dominio: 'Matemáticas Avanzadas',
   },
+  'temas selectos de matematicas 1': {
+    id: 'steam',
+    razon: 'Indagación y modelado matemático avanzado',
+    dominio: 'Matemáticas Avanzadas',
+  },
   'temas selectos de matematicas ii': {
+    id: 'steam',
+    razon: 'Indagación y modelado matemático avanzado',
+    dominio: 'Matemáticas Avanzadas',
+  },
+  'temas selectos de matematicas 2': {
     id: 'steam',
     razon: 'Indagación y modelado matemático avanzado',
     dominio: 'Matemáticas Avanzadas',
@@ -88,7 +118,17 @@ export const CANONICAL_UAC_METODOLOGIAS: Record<string, { id: string; razon: str
     razon: 'Resolución heurística de situaciones problemáticas y modelado',
     dominio: 'Pensamiento Matemático',
   },
+  'pensamiento matematico 1': {
+    id: 'abproblemas',
+    razon: 'Resolución heurística de situaciones problemáticas y modelado',
+    dominio: 'Pensamiento Matemático',
+  },
   'pensamiento matematico ii': {
+    id: 'abproblemas',
+    razon: 'Resolución inductiva de problemas geométricos y algebraicos',
+    dominio: 'Pensamiento Matemático',
+  },
+  'pensamiento matematico 2': {
     id: 'abproblemas',
     razon: 'Resolución inductiva de problemas geométricos y algebraicos',
     dominio: 'Pensamiento Matemático',
@@ -98,7 +138,17 @@ export const CANONICAL_UAC_METODOLOGIAS: Record<string, { id: string; razon: str
     razon: 'Resolución de problemas de probabilidad y optimización',
     dominio: 'Pensamiento Matemático',
   },
+  'pensamiento matematico 3': {
+    id: 'abproblemas',
+    razon: 'Resolución de problemas de probabilidad y optimización',
+    dominio: 'Pensamiento Matemático',
+  },
   'pensamiento matematico iv': {
+    id: 'abproblemas',
+    razon: 'Modelado y resolución de problemas cuantitativos complejos',
+    dominio: 'Pensamiento Matemático',
+  },
+  'pensamiento matematico 4': {
     id: 'abproblemas',
     razon: 'Modelado y resolución de problemas cuantitativos complejos',
     dominio: 'Pensamiento Matemático',
@@ -108,7 +158,17 @@ export const CANONICAL_UAC_METODOLOGIAS: Record<string, { id: string; razon: str
     razon: 'Análisis de datos, inferencia y resolución de problemas estocásticos',
     dominio: 'Pensamiento Matemático',
   },
+  'taller de probabilidad y estadistica 1': {
+    id: 'abproblemas',
+    razon: 'Análisis de datos, inferencia y resolución de problemas estocásticos',
+    dominio: 'Pensamiento Matemático',
+  },
   'taller de probabilidad y estadistica ii': {
+    id: 'abproblemas',
+    razon: 'Inferencia estadística y resolución de problemas del entorno',
+    dominio: 'Pensamiento Matemático',
+  },
+  'taller de probabilidad y estadistica 2': {
     id: 'abproblemas',
     razon: 'Inferencia estadística y resolución de problemas del entorno',
     dominio: 'Pensamiento Matemático',
@@ -118,7 +178,17 @@ export const CANONICAL_UAC_METODOLOGIAS: Record<string, { id: string; razon: str
     razon: 'Resolución de problemas financieros y de toma de decisiones',
     dominio: 'Pensamiento Matemático',
   },
+  'pensamiento matematico aplicado a las finanzas 1': {
+    id: 'abproblemas',
+    razon: 'Resolución de problemas financieros y de toma de decisiones',
+    dominio: 'Pensamiento Matemático',
+  },
   'pensamiento matematico aplicado a las finanzas ii': {
+    id: 'abproblemas',
+    razon: 'Resolución de problemas financieros y presupuestos',
+    dominio: 'Pensamiento Matemático',
+  },
+  'pensamiento matematico aplicado a las finanzas 2': {
     id: 'abproblemas',
     razon: 'Resolución de problemas financieros y presupuestos',
     dominio: 'Pensamiento Matemático',
@@ -722,6 +792,57 @@ function extractFullCurriculumText(contextData?: ContextDataRecomendacion): stri
   return normalizeUnicode(chunks.join(' '));
 }
 
+// ─── Utilidades de Normalización Curricular Canónica ─────────────────────────
+
+export function normalizeUacCanonical(uacName: string): { clean: string; variants: string[] } {
+  const norm = normalizeUnicode(uacName || '').trim();
+  if (!norm) return { clean: '', variants: [] };
+
+  // Remover prefijos comunes
+  const stripped = norm.replace(/^(uac\s*[:.-]?\s*|asignatura\s*[:.-]?\s*|materia\s*[:.-]?\s*)/i, '');
+  // Remover subtítulos entre paréntesis, corchetes o después de guion/dos puntos
+  const withoutSubtitles = stripped
+    .replace(/\s*[\(\[].*?[\)\]]/g, '')
+    .replace(/\s*[-–—:]\s*.*$/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // Generar variantes equivalentes (romanos ↔ arábigos)
+  const rawVariants = [norm, stripped, withoutSubtitles];
+  const allVariants: string[] = [];
+
+  for (const v of rawVariants) {
+    if (!v) continue;
+    allVariants.push(v);
+    const asArabic = v
+      .replace(/\bvi\b/g, '6')
+      .replace(/\bv\b/g, '5')
+      .replace(/\biv\b/g, '4')
+      .replace(/\biii\b/g, '3')
+      .replace(/\bii\b/g, '2')
+      .replace(/\bi\b/g, '1')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (asArabic !== v) allVariants.push(asArabic);
+
+    const asRoman = v
+      .replace(/\b6\b/g, 'vi')
+      .replace(/\b5\b/g, 'v')
+      .replace(/\b4\b/g, 'iv')
+      .replace(/\b3\b/g, 'iii')
+      .replace(/\b2\b/g, 'ii')
+      .replace(/\b1\b/g, 'i')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (asRoman !== v) allVariants.push(asRoman);
+  }
+
+  return {
+    clean: withoutSubtitles || stripped || norm,
+    variants: Array.from(new Set(allVariants)),
+  };
+}
+
 // ─── Funciones Principales de Recomendación ───────────────────────────────────
 
 /**
@@ -735,122 +856,155 @@ export function recomendarMetodologiaConDetalle(
   contextData?: ContextDataRecomendacion
 ): RecomendacionDetalle {
   const normUac = normalizeUnicode(uacName || '').trim();
+  const { clean: cleanUac, variants: uacVariants } = normalizeUacCanonical(uacName || '');
   const componentLower = (component || '').toLowerCase().trim();
   const isLaboral = componentLower === 'laboral' || componentLower.includes('laboral') || componentLower.includes('profesional');
   const isBt = isTechnologicalSubsystem(subsystem);
 
   // ── PASO 1: Catálogo Canónico Curricular SSoT (Máxima Precisión) ─────────────
-  if (normUac && CANONICAL_UAC_METODOLOGIAS[normUac]) {
-    const entry = CANONICAL_UAC_METODOLOGIAS[normUac];
+  // Se evalúa la UAC normalizada y todas sus variantes equivalentes (romanos ↔ arábigos, sin subtítulos)
+  for (const variant of uacVariants) {
+    if (variant && CANONICAL_UAC_METODOLOGIAS[variant]) {
+      const entry = CANONICAL_UAC_METODOLOGIAS[variant];
+      return {
+        metodologiaId: entry.id,
+        razon: `Sugerencia basada en el enfoque de ${entry.razon} (${entry.dominio})`,
+        dominioDisciplinar: entry.dominio,
+      };
+    }
+  }
+
+  // ── PASO 2: Bloqueo Disciplinar Primario Inviolable (Domain Lock SSoT) ────────
+  // Regla absoluta MCCEMS: si el nombre de la UAC identifica su disciplina,
+  // la metodología activa asignada es mandataria e INMUNE a falsos positivos en texto libre.
+  
+  // 2.1 PENSAMIENTO MATEMÁTICO → ABProblemas (Inviolable para todo el recurso sociocognitivo)
+  const isMath = uacVariants.some(v =>
+    v.includes('pensamiento matematico') ||
+    v.includes('matematica') ||
+    v.includes('algebra') ||
+    v.includes('geometria') ||
+    v.includes('trigonometria') ||
+    v.includes('probabilidad') ||
+    v.includes('estadistica') ||
+    v.includes('calculo') ||
+    v.includes('financiera')
+  );
+  if (isMath) {
     return {
-      metodologiaId: entry.id,
-      razon: `Sugerencia basada en el enfoque de ${entry.razon} (${entry.dominio})`,
-      dominioDisciplinar: entry.dominio,
+      metodologiaId: 'abproblemas',
+      razon: 'Sugerencia de Aprendizaje Basado en Problemas para el razonamiento inductivo y heurístico matemático',
+      dominioDisciplinar: 'Pensamiento Matemático',
     };
   }
 
-  // ── PASO 2: Análisis Pedagógico de Propósitos y Contenidos Oficiales ─────────
-  const fullText = extractFullCurriculumText(contextData);
-  if (fullText) {
-    // 2.1 Modelado del cambio y fenómenos dinámicos → STEAM
-    if (
-      fullText.includes('variacional') ||
-      fullText.includes('razon de cambio') ||
-      fullText.includes('razones de cambio') ||
-      fullText.includes('calculo diferencial') ||
-      fullText.includes('calculo integral') ||
-      fullText.includes('derivada') ||
-      fullText.includes('integral') ||
-      fullText.includes('modelado matematico') ||
-      fullText.includes('sistemas dinamicos') ||
-      fullText.includes('optimizacion')
-    ) {
+  // 2.2 LENGUA EXTRANJERA (Inglés) → Gamificación
+  const isEnglish = uacVariants.some(v => v.includes('ingles') || v.includes('lengua extranjera') || v.includes('idioma'));
+  if (isEnglish) {
+    return {
+      metodologiaId: 'gamificacion',
+      razon: 'Sugerencia de Gamificación Pedagógica para retos comunicativos y fluidez lingüística',
+      dominioDisciplinar: 'Lengua Extranjera',
+    };
+  }
+
+  // 2.3 LENGUA Y COMUNICACIÓN → ABP
+  const isComm = uacVariants.some(v =>
+    v.includes('lengua y comunicacion') ||
+    v.includes('lectura') ||
+    v.includes('redaccion') ||
+    v.includes('literatura')
+  );
+  if (isComm) {
+    return {
+      metodologiaId: 'abp',
+      razon: 'Sugerencia de Aprendizaje Basado en Proyectos para la comprensión y producción comunicativa auténtica',
+      dominioDisciplinar: 'Lengua y Comunicación',
+    };
+  }
+
+  // 2.4 CIENCIAS SOCIALES, HUMANIDADES Y CONCIENCIA HISTÓRICA → Estudio de Casos
+  const isSocialOrHumanities = uacVariants.some(v =>
+    v.includes('ciencias social') ||
+    v.includes('conciencia historica') ||
+    v.includes('humanidades') ||
+    v.includes('filosofia') ||
+    v.includes('etica') ||
+    v.includes('derecho')
+  );
+  if (isSocialOrHumanities) {
+    return {
+      metodologiaId: 'estudio_casos',
+      razon: 'Sugerencia de Estudio de Casos Situados para la deliberación ética y comprensión histórica/social',
+      dominioDisciplinar: 'Humanidades y Ciencias Sociales',
+    };
+  }
+
+  // 2.5 CULTURA DIGITAL → ABR
+  const isDigital = uacVariants.some(v =>
+    v.includes('cultura digital') ||
+    v.includes('programacion') ||
+    v.includes('software') ||
+    v.includes('algoritmo') ||
+    v.includes('computacion')
+  );
+  if (isDigital) {
+    return {
+      metodologiaId: 'abr',
+      razon: 'Sugerencia de Retos Ágiles (ABR) para desarrollo digital y pensamiento computacional',
+      dominioDisciplinar: 'Cultura Digital',
+    };
+  }
+
+  // 2.6 FORMACIÓN LABORAL / TÉCNICA → Práctica de Taller / Simulación Técnica o ABR
+  if (isLaboral || isBt) {
+    return {
+      metodologiaId: 'practica_laboratorio',
+      razon: 'Sugerencia de Práctica de Taller y Protocolos Técnicos para formación laboral',
+      dominioDisciplinar: 'Formación para el Trabajo',
+    };
+  }
+
+  // 2.7 CIENCIAS NATURALES Y EXPERIMENTALES → Indagación ABI (o STEAM si es energía/tecnología)
+  const isScience = uacVariants.some(v =>
+    v.includes('ciencias natural') ||
+    v.includes('la materia') ||
+    v.includes('energia') ||
+    v.includes('ecosistema') ||
+    v.includes('quimica') ||
+    v.includes('biologia') ||
+    matchExactWord(v, 'fisica') ||
+    matchExactWord(v, 'fisico')
+  );
+  if (isScience) {
+    const isEnergyOrPhysics = uacVariants.some(v => v.includes('energia') || v.includes('fisica') || v.includes('robotica'));
+    if (isEnergyOrPhysics && (normUac.includes('prototipo') || normUac.includes('conservacion') || normUac.includes('ingenieria'))) {
       return {
         metodologiaId: 'steam',
-        razon: 'Sugerencia basada en el análisis de cambio dinámico, funciones y modelado matemático en los contenidos del programa',
-        dominioDisciplinar: 'Pensamiento Variacional',
+        razon: 'Sugerencia interdisciplinaria STEAM para modelado y experimentación técnico-científica',
+        dominioDisciplinar: 'Ciencias Naturales y Tecnología',
       };
     }
+    return {
+      metodologiaId: 'indagacion',
+      razon: 'Sugerencia de Indagación Científica Escolar (ABI) para experimentación y contrastación empírica',
+      dominioDisciplinar: 'Ciencias Naturales',
+    };
+  }
 
-    // 2.2 Indagación científica y contrastación empírica → ABI
-    if (
-      fullText.includes('preguntas investigables') ||
-      fullText.includes('hipotesis') ||
-      fullText.includes('experimentacion escolar') ||
-      fullText.includes('recoleccion de datos') ||
-      fullText.includes('fenomenos naturales') ||
-      fullText.includes('ecosistemas') ||
-      fullText.includes('materia y sus interacciones')
-    ) {
-      return {
-        metodologiaId: 'indagacion',
-        razon: 'Sugerencia basada en la formulación de hipótesis, experimentación y contrastación empírica en el programa',
-        dominioDisciplinar: 'Ciencias Naturales',
-      };
-    }
-
-    // 2.3 Estudio de Casos Situados (Dilemas éticos, históricos, normativos)
-    if (
-      fullText.includes('estudio de casos') ||
-      fullText.includes('dilema moral') ||
-      fullText.includes('dilema etico') ||
-      fullText.includes('deliberacion') ||
-      fullText.includes('derechos humanos') ||
-      fullText.includes('conciencia historica') ||
-      fullText.includes('marco normativo')
-    ) {
-      return {
-        metodologiaId: 'estudio_casos',
-        razon: 'Sugerencia basada en el análisis deliberativo de dilemas, fuentes y situaciones del entorno en el programa',
-        dominioDisciplinar: 'Humanidades y Ciencias Sociales',
-      };
-    }
-
-    // 2.4 Retos ágiles de software / tecnología → ABR
-    if (
-      fullText.includes('desafio tecnico') ||
-      fullText.includes('algoritmo') ||
-      fullText.includes('desarrollo de software') ||
-      fullText.includes('cultura digital') ||
-      fullText.includes('lenguaje de programacion')
-    ) {
-      return {
-        metodologiaId: 'abr',
-        razon: 'Sugerencia basada en la resolución de retos técnicos, algoritmos y prototipado ágil',
-        dominioDisciplinar: 'Cultura Digital',
-      };
-    }
-
-    // 2.5 Actividades motrices y lúdicas → Gamificación
-    if (
-      fullText.includes('motricidad') ||
-      fullText.includes('frecuencia cardiaca') ||
-      fullText.includes('circuito motriz') ||
-      fullText.includes('juego motor') ||
-      fullText.includes('condicion fisica')
-    ) {
-      return {
-        metodologiaId: 'gamificacion',
-        razon: 'Sugerencia basada en retos motrices, estaciones fisiológicas y dinámicas de juego formativo',
-        dominioDisciplinar: 'Educación Física y Deporte',
-      };
-    }
-
-    // 2.6 Protocolos técnicos y seguridad de taller (ÚNICAMENTE si es laboral/técnico)
-    if (
-      (isLaboral || isBt) &&
-      (fullText.includes('protocolo tecnico') ||
-        fullText.includes('seguridad industrial') ||
-        fullText.includes('herramientas y maquinaria') ||
-        fullText.includes('equipo de proteccion personal') ||
-        fullText.includes('troubleshooting'))
-    ) {
-      return {
-        metodologiaId: 'practica_laboratorio',
-        razon: 'Sugerencia basada en la ejecución de protocolos técnicos, normas de seguridad y manual de taller',
-        dominioDisciplinar: 'Formación para el Trabajo',
-      };
-    }
+  // 2.8 EDUCACIÓN FÍSICA Y SALUD → Gamificación
+  const isPe = uacVariants.some(v =>
+    v.includes('actividades fisicas') ||
+    v.includes('educacion fisica') ||
+    v.includes('deport') ||
+    v.includes('condicion fisica')
+  );
+  if (isPe) {
+    return {
+      metodologiaId: 'gamificacion',
+      razon: 'Sugerencia de Gamificación para retos motrices y dinámicas lúdicas',
+      dominioDisciplinar: 'Educación Física y Deporte',
+    };
   }
 
   // ── PASO 3: Reglas Heurísticas Seguras ──────────────────────────────────────
@@ -904,20 +1058,8 @@ export function recomendarMetodologiaConDetalle(
   // ── PASO 4: Inferencia por Dominio Disciplinar Canónico (resolveSacrintPack) ──
   const pack = resolveSacrintPack(normUac, component);
   if (pack && pack.id !== 'general') {
-    switch (pack.id) {
+    switch (pack.id as string) {
       case 'matematicas': {
-        if (
-          normUac.includes('variacional') ||
-          normUac.includes('calculo') ||
-          normUac.includes('funciones') ||
-          normUac.includes('razon de cambio')
-        ) {
-          return {
-            metodologiaId: 'steam',
-            razon: 'Sugerencia interdisciplinaria STEAM para modelado matemático y análisis del cambio',
-            dominioDisciplinar: 'Pensamiento Variacional',
-          };
-        }
         return {
           metodologiaId: 'abproblemas',
           razon: 'Sugerencia de Aprendizaje Basado en Problemas para el razonamiento matemático inductivo',
@@ -925,7 +1067,6 @@ export function recomendarMetodologiaConDetalle(
         };
       }
       case 'fisica': {
-        // Exigir límite de palabra para física para evitar falsos positivos con "físicas"
         if (!matchExactWord(normUac, 'física') && !matchExactWord(normUac, 'fisica')) {
           break;
         }
@@ -947,55 +1088,137 @@ export function recomendarMetodologiaConDetalle(
         return {
           metodologiaId: 'gamificacion',
           razon: 'Sugerencia de Gamificación Pedagógica para dinámicas lúdicas y retos motrices',
-          dominioDisciplinar: 'Educación Física y Salud',
+          dominioDisciplinar: 'Educación Física y Deporte',
         };
       case 'ingles':
         return {
           metodologiaId: 'gamificacion',
-          razon: 'Sugerencia de Gamificación para misiones comunicativas y roles lingüísticos interactivos',
+          razon: 'Sugerencia de Gamificación Pedagógica para desarrollo de fluidez comunicativa',
           dominioDisciplinar: 'Lengua Extranjera',
         };
-      case 'tecnologia':
-        return {
-          metodologiaId: 'abr',
-          razon: 'Sugerencia de Aprendizaje Basado en Retos para desafíos tecnológicos y prototipado',
-          dominioDisciplinar: 'Cultura Digital',
-        };
-      case 'filosofia':
-      case 'historia':
-        return {
-          metodologiaId: 'estudio_casos',
-          razon: 'Sugerencia de Estudio de Casos Situados para deliberación y análisis crítico',
-          dominioDisciplinar: pack.label,
-        };
-      case 'literatura':
+      case 'comunicacion':
         return {
           metodologiaId: 'abp',
-          razon: 'Sugerencia de Aprendizaje Basado en Proyectos para productos comunicativos y textos',
+          razon: 'Sugerencia de Aprendizaje Basado en Proyectos para redacción y análisis de textos',
           dominioDisciplinar: 'Lengua y Comunicación',
         };
-      case 'artes':
+      case 'sociales':
+      case 'humanidades':
         return {
-          metodologiaId: 'abp',
-          razon: 'Sugerencia de ABP para proyectos de creación y expresión artística comunitaria',
-          dominioDisciplinar: 'Artes y Cultura',
+          metodologiaId: 'estudio_casos',
+          razon: 'Sugerencia de Estudio de Casos Situados para deliberación y pensamiento crítico',
+          dominioDisciplinar: pack.label,
         };
-      case 'socioemocional':
+      case 'digital':
         return {
-          metodologiaId: 'aprendizaje_servicio',
-          razon: 'Sugerencia de Aprendizaje-Servicio para proyectos socioemocionales comunitarios',
-          dominioDisciplinar: 'Formación Socioemocional',
-        };
-      case 'laboral':
-        return {
-          metodologiaId: 'practica_laboratorio',
-          razon: 'Sugerencia de Práctica de Taller / Manual Técnico para formación laboral y módulos profesionales',
-          dominioDisciplinar: 'Formación para el Trabajo',
+          metodologiaId: 'abr',
+          razon: 'Sugerencia de Retos Ágiles (ABR) para diseño y cultura digital',
+          dominioDisciplinar: 'Cultura Digital',
         };
     }
   }
 
-  // ── PASO 5: Desempate Institucional por Subsistema ───────────────────────────
+  // ── PASO 5: Análisis Pedagógico de Propósitos y Contenidos Oficiales ─────────
+  // Solo se evalúa como último recurso si el nombre de la UAC es completamente desconocido o genérico.
+  const fullText = extractFullCurriculumText(contextData);
+  if (fullText) {
+    // 5.1 Modelado del cambio y fenómenos dinámicos → STEAM
+    if (
+      fullText.includes('variacional') ||
+      fullText.includes('razon de cambio') ||
+      fullText.includes('razones de cambio') ||
+      fullText.includes('calculo diferencial') ||
+      fullText.includes('calculo integral') ||
+      fullText.includes('derivada') ||
+      fullText.includes('integral') ||
+      fullText.includes('modelado matematico') ||
+      fullText.includes('sistemas dinamicos') ||
+      fullText.includes('optimizacion')
+    ) {
+      return {
+        metodologiaId: 'steam',
+        razon: 'Sugerencia basada en el análisis de cambio dinámico, funciones y modelado matemático en los contenidos del programa',
+        dominioDisciplinar: 'Pensamiento Variacional',
+      };
+    }
+
+    // 5.2 Indagación científica escolar → ABI (requiere explícitamente contexto de ciencias de la naturaleza)
+    if (
+      (fullText.includes('preguntas investigables') || fullText.includes('hipotesis') || fullText.includes('experimentacion escolar')) &&
+      (fullText.includes('fenomenos naturales') || fullText.includes('ecosistemas') || fullText.includes('materia y sus interacciones') || fullText.includes('laboratorio escolar') || fullText.includes('ciencias naturales') || fullText.includes('reaccion quimica'))
+    ) {
+      return {
+        metodologiaId: 'indagacion',
+        razon: 'Sugerencia basada en la formulación de hipótesis, experimentación y contrastación empírica en el programa',
+        dominioDisciplinar: 'Ciencias Naturales',
+      };
+    }
+
+    // 5.3 Estudio de Casos Situados (Dilemas éticos, históricos, normativos)
+    if (
+      fullText.includes('estudio de casos') ||
+      fullText.includes('dilema moral') ||
+      fullText.includes('dilema etico') ||
+      fullText.includes('deliberacion') ||
+      fullText.includes('derechos humanos') ||
+      fullText.includes('conciencia historica') ||
+      fullText.includes('marco normativo')
+    ) {
+      return {
+        metodologiaId: 'estudio_casos',
+        razon: 'Sugerencia basada en el análisis deliberativo de dilemas, fuentes y situaciones del entorno en el programa',
+        dominioDisciplinar: 'Humanidades y Ciencias Sociales',
+      };
+    }
+
+    // 5.4 Retos ágiles de software / tecnología → ABR
+    if (
+      fullText.includes('desafio tecnico') ||
+      fullText.includes('algoritmo') ||
+      fullText.includes('desarrollo de software') ||
+      fullText.includes('cultura digital') ||
+      fullText.includes('lenguaje de programacion')
+    ) {
+      return {
+        metodologiaId: 'abr',
+        razon: 'Sugerencia basada en la resolución de retos técnicos, algoritmos y prototipado ágil',
+        dominioDisciplinar: 'Cultura Digital',
+      };
+    }
+
+    // 5.5 Actividades motrices y lúdicas → Gamificación
+    if (
+      fullText.includes('motricidad') ||
+      fullText.includes('frecuencia cardiaca') ||
+      fullText.includes('circuito motriz') ||
+      fullText.includes('juego motor') ||
+      fullText.includes('condicion fisica')
+    ) {
+      return {
+        metodologiaId: 'gamificacion',
+        razon: 'Sugerencia basada en retos motrices, estaciones fisiológicas y dinámicas de juego formativo',
+        dominioDisciplinar: 'Educación Física y Deporte',
+      };
+    }
+
+    // 5.6 Protocolos técnicos y seguridad de taller (ÚNICAMENTE si es laboral/técnico)
+    if (
+      (isLaboral || isBt) &&
+      (fullText.includes('protocolo tecnico') ||
+        fullText.includes('seguridad industrial') ||
+        fullText.includes('herramientas y maquinaria') ||
+        fullText.includes('equipo de proteccion personal') ||
+        fullText.includes('troubleshooting'))
+    ) {
+      return {
+        metodologiaId: 'practica_laboratorio',
+        razon: 'Sugerencia basada en la ejecución de protocolos técnicos, normas de seguridad y manual de taller',
+        dominioDisciplinar: 'Formación para el Trabajo',
+      };
+    }
+  }
+
+  // ── PASO 6: Desempate Institucional por Subsistema ───────────────────────────
   if (isBt && isLaboral) {
     return {
       metodologiaId: 'practica_laboratorio',

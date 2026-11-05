@@ -5,6 +5,7 @@ import { getTeacherByEmail, getPlanningById, getPlanningExtrasByType } from '@/l
 import { generateExtraPdfDocument } from '@/lib/pdf-extra-renderer';
 import { isStructuredVisualPayload } from '@/lib/materials/material-tokens';
 import { sanitizeDocFilename, type BrandingContext } from '@/lib/document-branding';
+import { resolveBlockNumber } from '@/lib/curricular-blocks';
 import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
@@ -83,7 +84,12 @@ async function handleCombinedPdf(request: NextRequest) {
 
     // Todos los bloques del tipo solicitado, excluyendo payloads visuales JSON (no renderizables)
     const fetched = await getPlanningExtrasByType(planningId, teacher.id, cleanType);
-    const allExtras = fetched.filter((ex) => !isStructuredVisualPayload(ex.content_text));
+    let allExtras = fetched.filter((ex) => !isStructuredVisualPayload(ex.content_text));
+
+    // Si es un recurso a nivel de bloque curricular, solo permitimos bloques canónicos 0, 1 y 2
+    if (['rubric', 'checklist', 'material', 'teacher_guide', 'practice_guide'].includes(cleanType)) {
+      allExtras = allExtras.filter((ex) => ex.key_index === null || [0, 1, 2].includes(Number(ex.key_index)));
+    }
 
     if (allExtras.length === 0) {
       return new Response('No se encontraron documentos de este tipo para combinar', { status: 404 });
@@ -95,7 +101,10 @@ async function handleCombinedPdf(request: NextRequest) {
 
     for (const extra of allExtras) {
       try {
-        const pdfDoc = generateExtraPdfDocument({ ...extra, keyIndex: extra.key_index }, brandingCtx);
+        const canonicalKeyIndex = extra.key_index !== null && extra.key_index !== undefined
+          ? (resolveBlockNumber(extra.key_index) !== null ? resolveBlockNumber(extra.key_index)! - 1 : extra.key_index)
+          : null;
+        const pdfDoc = generateExtraPdfDocument({ ...extra, keyIndex: canonicalKeyIndex }, brandingCtx);
         const bytes = Buffer.from(pdfDoc.output('arraybuffer'));
         const individualPdf = await PDFDocument.load(bytes);
         const pages = await mergedPdf.copyPages(individualPdf, individualPdf.getPageIndices());

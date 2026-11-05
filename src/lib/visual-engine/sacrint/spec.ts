@@ -387,9 +387,9 @@ export function buildSacrintDeck(workbook: ActiveWorkTextbook, options: SacrintB
     question: clean(mission.phenomenonHook?.detonatingQuestion) || '¿Qué decisión permite transformar el problema?',
     facts,
     nodes: [
-      { label: 'CONTEXTO', detail: clip(firstSentence(mission.phenomenonHook?.story), 140) },
-      { label: 'PREGUNTA', detail: clip(clean(mission.phenomenonHook?.detonatingQuestion), 140) },
-      { label: 'FOCO', detail: clip(firstSentence(mission.sessionFocus) || clean(mission.sessionFocus), 140) },
+      { label: 'CONTEXTO', detail: firstSentence(mission.phenomenonHook?.story) || 'Sin situación registrada.' },
+      { label: 'PREGUNTA', detail: clean(mission.phenomenonHook?.detonatingQuestion) || '¿Qué decisión permite transformar el problema?' },
+      { label: 'FOCO', detail: firstSentence(mission.sessionFocus) || clean(mission.sessionFocus) || 'Sin foco pedagógico registrado.' },
     ],
   };
 

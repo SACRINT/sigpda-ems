@@ -1411,7 +1411,7 @@ export default function PlanningDetailLegacy({
                 </div>
               </div>
 
-              {content?.sectionIV?.activities?.map((a, i) => {
+              {curricularBlocks.map((block, i) => {
                 const seq = sequenceData[i];
                 const hasSeq = Boolean(seq && seq.sessions && seq.sessions.length > 0);
                 const isGenerating = generatingSeqBlock === i;
@@ -1452,10 +1452,10 @@ export default function PlanningDetailLegacy({
                       <div style={{ flex: 1, minWidth: '240px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                           <strong style={{ fontSize: '15px', color: 'var(--c-accent-bright)' }}>
-                            {prefix}{i + 1}: {a.name}
+                            Bloque {i + 1} ({block.corteLabel}): {block.title}
                           </strong>
                           <span style={{ fontSize: '12px', color: 'var(--c-text-muted)' }}>
-                            ({a.hours} hrs. — <em style={{ color: 'var(--c-accent-bright)' }}>{a.methodology}</em>)
+                            ({block.hours} hrs. — <em style={{ color: 'var(--c-accent-bright)' }}>{block.methodology}</em>)
                           </span>
                         </div>
 
@@ -1481,7 +1481,7 @@ export default function PlanningDetailLegacy({
                             </span>
                           ) : null}
 
-                          {a.saberes && (
+                          {block.saberes && (
                             <span style={{ fontSize: '11px', color: 'var(--c-text-muted)' }}>
                               • Taxonomía 3 Saberes activa
                             </span>
@@ -1530,7 +1530,7 @@ export default function PlanningDetailLegacy({
                             type="button"
                             onClick={() => {
                               if (hasSeq) {
-                                if (confirm(`¿Deseas volver a generar la secuencia didáctica del Bloque ${i + 1} con IA? Se consumirán tokens de IA y se actualizarán las ${a.hours} sesiones.`)) {
+                                if (confirm(`¿Deseas volver a generar la secuencia didáctica del Bloque ${i + 1} (${block.corteLabel}) con IA? Se consumirán tokens de IA y se actualizarán las ${block.hours} sesiones.`)) {
                                   handleGenerateSecuencia(i);
                                 }
                               } else {
@@ -1622,7 +1622,7 @@ export default function PlanningDetailLegacy({
                               <BookOpen size={12} /> Libro de Bloque (35-80 págs)
                             </span>
                             <strong style={{ fontSize: '14px', color: '#f1f5f9' }}>
-                              Cuaderno de Trabajo Activo · {prefix}{i + 1}
+                              Cuaderno de Trabajo Activo · Bloque {i + 1} ({block.corteLabel})
                             </strong>
 
                             {wbItem?.workbook ? (
@@ -2096,7 +2096,7 @@ export default function PlanningDetailLegacy({
                               ⚡ Secuencia Didáctica Micro no generada para este bloque
                             </p>
                             <p style={{ fontSize: '13px', color: 'var(--c-text-muted)', maxWidth: '520px', margin: '0 auto', lineHeight: 1.5 }}>
-                              Usa el botón <strong>"Generar Secuencia (IA)"</strong> en el encabezado del bloque para generar las {a.hours} sesiones de 50 minutos con momentos didácticos (Apertura, Desarrollo, Cierre).
+                              Usa el botón <strong>"Generar Secuencia (IA)"</strong> en el encabezado del bloque para generar las {block.hours} sesiones de 50 minutos con momentos didácticos (Apertura, Desarrollo, Cierre).
                             </p>
                           </div>
                         )}
@@ -2164,11 +2164,11 @@ export default function PlanningDetailLegacy({
             </div>
           )}
 
-          {/* SECCIONES CONTINUAS POR BLOQUE (En la misma página) */}
-          {(content?.sectionIV?.activities || []).map((act, actIdx) => {
-            const roman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'][actIdx] || `${actIdx + 1}`;
-            const blockNumStr = isLaboral ? `AC ${actIdx + 1}` : `Bloque ${roman}`;
-            const blockTitle = act.name || `Bloque ${roman}`;
+          {/* SECCIONES CONTINUAS POR BLOQUE (Exactamente 3 Bloques Curriculares MCCEMS) */}
+          {curricularBlocks.map((block, actIdx) => {
+            const roman = ['I', 'II', 'III'][actIdx] || `${actIdx + 1}`;
+            const blockNumStr = isLaboral ? `AC ${actIdx + 1}` : `Bloque ${roman} (${block.corteLabel})`;
+            const blockTitle = block.title;
 
             // Buscar recursos derivados de este bloque
             const rubricExtra = findExtra('rubric', actIdx);
@@ -2748,9 +2748,9 @@ export default function PlanningDetailLegacy({
                     fontWeight: 600,
                   }}
                 >
-                  {allDetailedSessions.length} Sesiones · {content?.sectionIV?.activities?.length || 0} {isLaboral ? 'Actividades Clave' : 'Bloques'}
+                  {allDetailedSessions.length} Sesiones · {curricularBlocks.length} {isLaboral ? 'Actividades Clave' : 'Bloques'}
                 </span>
-                {(content?.sectionIV?.activities?.length || 0) > 1 && (
+                {curricularBlocks.length > 1 && (
                   <button
                     type="button"
                     onClick={toggleAllBlocks}
@@ -2807,29 +2807,20 @@ export default function PlanningDetailLegacy({
             </div>
           </div>
 
-          {/* Distinct physical sections per block */}
-          {content?.sectionIV?.activities?.map((act, actIdx) => {
-            const romanNumerals = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
+          {/* Distinct physical sections per block (Exactamente 3 Bloques Curriculares MCCEMS) */}
+          {curricularBlocks.map((block, actIdx) => {
+            const romanNumerals = ['I', 'II', 'III'];
             const blockNumStr = romanNumerals[actIdx] || String(actIdx + 1);
             const blockSessions = blockSessionsMap[actIdx] || [];
             const generatedCount = blockSessions.filter(
-              (s) => !!findExtra('lesson_plan', s.activityIndex, undefined, s.sessionNum)
+              (s) =>
+                !!findExtra('lesson_plan', block.blockIndex, undefined, s.sessionNum) ||
+                !!findExtra('lesson_plan', s.activityIndex, undefined, s.sessionNum)
             ).length;
             const isCollapsed = !!collapsedBlocks[actIdx];
 
-            // Clean title formatting
-            const hasBlockPrefix =
-              act.name.toLowerCase().startsWith('bloque') ||
-              act.name.toLowerCase().startsWith('actividad') ||
-              act.name.toLowerCase().startsWith('práctica') ||
-              act.name.toLowerCase().startsWith('módulo') ||
-              act.name.toLowerCase().startsWith('submódulo');
-
-            const blockDisplayTitle = hasBlockPrefix
-              ? act.name
-              : `${isLaboral ? 'Actividad Clave' : 'Bloque'} ${blockNumStr}: ${act.name}`;
-
-            const learningOutcome = content?.sectionII?.learningOutcomes?.[actIdx];
+            const blockDisplayTitle = block.title;
+            const learningOutcome = block.learningOutcome;
 
             return (
               <div
@@ -2893,17 +2884,17 @@ export default function PlanningDetailLegacy({
                       }}
                     >
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#cbd5e1' }}>
-                        ⏱️ <strong>{act.hours || blockSessions.length} horas</strong> curriculares
+                        ⏱️ <strong>{block.hours || blockSessions.length} horas</strong> curriculares
                       </span>
                       <span>•</span>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#cbd5e1' }}>
                         📝 <strong>{blockSessions.length} sesiones</strong> (50 min c/u)
                       </span>
-                      {act.methodology && (
+                      {block.methodology && (
                         <>
                           <span>•</span>
                           <span style={{ background: 'rgba(124, 58, 237, 0.15)', color: '#c4b5fd', border: '1px solid rgba(124, 58, 237, 0.3)', padding: '1px 8px', borderRadius: '4px', fontSize: '11.5px', fontWeight: 600 }}>
-                            🎯 {act.methodology}
+                            🎯 {block.methodology}
                           </span>
                         </>
                       )}
@@ -3027,10 +3018,10 @@ export default function PlanningDetailLegacy({
                         gap: '8px',
                       }}
                     >
-                      {act.contenidoFormativo && (
+                      {block.contenidoFormativo && (
                         <div style={{ fontSize: '13px', color: '#cbd5e1' }}>
                           <strong style={{ color: '#60a5fa' }}>📌 Contenido formativo / Subtemas:</strong>{' '}
-                          {act.contenidoFormativo}
+                          {block.contenidoFormativo}
                         </div>
                       )}
                       {learningOutcome && (
@@ -3039,21 +3030,21 @@ export default function PlanningDetailLegacy({
                           {learningOutcome}
                         </div>
                       )}
-                      {act.saberes && (
+                      {block.saberes && (
                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '4px', fontSize: '11.5px' }}>
-                          {act.saberes.saber && (
+                          {block.saberes.saber && (
                             <span style={{ background: 'rgba(59, 130, 246, 0.12)', border: '1px solid rgba(59, 130, 246, 0.25)', color: '#93c5fd', padding: '2px 8px', borderRadius: '4px' }}>
-                              🧠 <strong>Saber:</strong> {act.saberes.saber.substring(0, 60)}…
+                              🧠 <strong>Saber:</strong> {block.saberes.saber.substring(0, 60)}…
                             </span>
                           )}
-                          {act.saberes.saberHacer && (
+                          {block.saberes.saberHacer && (
                             <span style={{ background: 'rgba(245, 158, 11, 0.12)', border: '1px solid rgba(245, 158, 11, 0.25)', color: '#fcd34d', padding: '2px 8px', borderRadius: '4px' }}>
-                              ⚙️ <strong>Hacer:</strong> {act.saberes.saberHacer.substring(0, 60)}…
+                              ⚙️ <strong>Hacer:</strong> {block.saberes.saberHacer.substring(0, 60)}…
                             </span>
                           )}
-                          {act.saberes.saberSer && (
+                          {block.saberes.saberSer && (
                             <span style={{ background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.25)', color: '#6ee7b7', padding: '2px 8px', borderRadius: '4px' }}>
-                              🤝 <strong>Ser:</strong> {act.saberes.saberSer.substring(0, 60)}…
+                              🤝 <strong>Ser:</strong> {block.saberes.saberSer.substring(0, 60)}…
                             </span>
                           )}
                         </div>
@@ -3072,8 +3063,8 @@ export default function PlanningDetailLegacy({
                     {/* Sessions List */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       {blockSessions.map((session, sIdx) => {
-                        const generated = findExtra('lesson_plan', session.activityIndex, undefined, session.sessionNum);
-                        const loadingKey = `lesson_plan-${session.activityIndex}-${session.sessionNum}-`;
+                        const generated = findExtra('lesson_plan', block.blockIndex, undefined, session.sessionNum) || findExtra('lesson_plan', session.activityIndex, undefined, session.sessionNum);
+                        const loadingKey = `lesson_plan-${block.blockIndex}-${session.sessionNum}-`;
                         const isCurrentGenerating = generatingKey?.startsWith(loadingKey);
 
                         return (
@@ -3213,7 +3204,7 @@ export default function PlanningDetailLegacy({
                                       handleGenerateExtra(
                                         'lesson_plan',
                                         `Plan de Clase: Sesión ${session.sessionNum} - ${session.title}`,
-                                        session.activityIndex,
+                                        block.blockIndex,
                                         {
                                           sessionNum: session.sessionNum,
                                           totalSessions: session.totalSessions,
@@ -3318,11 +3309,11 @@ export default function PlanningDetailLegacy({
                 )}
               </div>
 
-              {/* One card per key activity */}
+              {/* One card per curricular block (Exactamente 3 Solucionarios MCCEMS) */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {content?.sectionIV?.activities?.map((act, actIdx) => {
+                {curricularBlocks.map((block, actIdx) => {
                   const practiceNum = actIdx + 1;
-                  const practiceTitle = act.name;
+                  const practiceTitle = block.title;
                   const generatedGuide = findExtra('teacher_guide', actIdx);
                   const loadingKey = `teacher_guide-${actIdx}--`;
                   const isCurrentGenerating = generatingKey?.startsWith(loadingKey);
@@ -3350,10 +3341,10 @@ export default function PlanningDetailLegacy({
                       }}>
                         <div>
                           <span style={{ fontWeight: 700, color: '#e0f2fe', fontSize: '15px' }}>
-                            📋 Solucionario {practiceNum}: {practiceTitle}
+                            📋 Solucionario Bloque {practiceNum} ({block.corteLabel}): {practiceTitle}
                           </span>
                           <div style={{ fontSize: '12px', color: '#7dd3fc', marginTop: '2px' }}>
-                            {act.hours} hrs · {act.methodology || 'Metodología activa'}
+                            {block.hours} hrs · {block.methodology || 'Metodología activa'}
                           </div>
                         </div>
 
@@ -3403,7 +3394,7 @@ export default function PlanningDetailLegacy({
                                   `Solucionario y Guía Pedagógica: ${practiceTitle}`,
                                   actIdx,
                                   {
-                                    activityName: act.name,
+                                    activityName: block.name,
                                     practiceNumber: practiceNum,
                                     practiceTitle: practiceTitle,
                                   }
@@ -3429,18 +3420,18 @@ export default function PlanningDetailLegacy({
                       </div>
 
                       {/* Preview of learning outcome if available */}
-                      {content?.sectionII?.learningOutcomes?.[actIdx] && (
+                      {block.learningOutcome && (
                         <div style={{ padding: '10px 16px', fontSize: '13px', color: '#6d28d9', borderTop: '1px dashed #ddd6fe' }}>
-                          <strong>📌 Resultado de aprendizaje:</strong> {content.sectionII.learningOutcomes[actIdx]}
+                          <strong>📌 Resultado de aprendizaje:</strong> {block.learningOutcome}
                         </div>
                       )}
                     </div>
                   );
                 })}
 
-                {(!content?.sectionIV?.activities || content.sectionIV.activities.length === 0) && (
+                {curricularBlocks.length === 0 && (
                   <div style={{ textAlign: 'center', color: 'var(--c-text-muted)', padding: '40px 0', fontSize: '14px' }}>
-                    No se encontraron actividades clave en la Sección IV de esta planeación.
+                    No se encontraron bloques curriculares en la Sección IV de esta planeación.
                   </div>
                 )}
               </div>

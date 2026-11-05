@@ -10,6 +10,7 @@ import {
 import { generateExtraPdfDocument } from '@/lib/pdf-extra-renderer';
 import { isStructuredVisualPayload } from '@/lib/materials/material-tokens';
 import { sanitizeDocFilename, sanitizeDocFilenameWithBlock, type BrandingContext } from '@/lib/document-branding';
+import { resolveBlockNumber } from '@/lib/curricular-blocks';
 import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
@@ -84,7 +85,7 @@ async function handleBulkPdf(request: NextRequest) {
       };
 
       extras = await getPlanningExtrasByBlock(planningId, blockIndex, teacher.id, type);
-      const blockNum = blockIndex + 1;
+      const blockNum = resolveBlockNumber(blockIndex) ?? (blockIndex + 1);
       const typeLabel = type === 'lesson_plan' ? 'Planes_de_Clase' : 'Materiales';
       const cleanSubject = sanitizeDocFilename(planning.uac_name || 'UAC', 30);
       zipName = `${typeLabel}_Bloque_${blockNum}_${cleanSubject}_PDF.zip`;
@@ -124,7 +125,10 @@ async function handleBulkPdf(request: NextRequest) {
       const generated = await Promise.all(
         batch.map(async ({ item, fileName }) => {
           try {
-            const pdfDoc = generateExtraPdfDocument({ ...item, keyIndex: item.key_index }, brandingCtx);
+            const canonicalKeyIndex = item.key_index !== null && item.key_index !== undefined
+              ? (resolveBlockNumber(item.key_index) !== null ? resolveBlockNumber(item.key_index)! - 1 : item.key_index)
+              : null;
+            const pdfDoc = generateExtraPdfDocument({ ...item, keyIndex: canonicalKeyIndex }, brandingCtx);
             const pdfBytes = Buffer.from(pdfDoc.output('arraybuffer'));
             return { fileName, pdfBytes };
           } catch (err) {

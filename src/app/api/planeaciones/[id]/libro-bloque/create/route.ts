@@ -36,8 +36,9 @@ export async function POST(
     const body = await request.json().catch(() => ({}));
     const { blockIndex } = body;
 
-    if (blockIndex === undefined || blockIndex === null) {
-      return NextResponse.json({ error: 'blockIndex es requerido' }, { status: 400 });
+    const bIndex = Number(blockIndex);
+    if (blockIndex === undefined || blockIndex === null || isNaN(bIndex) || bIndex < 0 || bIndex > 2) {
+      return NextResponse.json({ error: 'blockIndex debe ser estrictamente 0, 1 o 2 (Cortes 1, 2 y 3 del MCCEMS)' }, { status: 400 });
     }
 
     const planning = await getPlanningById(id);
@@ -49,7 +50,7 @@ export async function POST(
     }
 
     // Crear trabajo en Neon PostgreSQL (o recuperar el activo si ya está corriendo)
-    const job = await createGenerationJob(id, teacher.id, Number(blockIndex));
+    const job = await createGenerationJob(id, teacher.id, bIndex);
 
     const isPending = job.status === 'pending';
     const isStaleRunning =

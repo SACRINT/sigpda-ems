@@ -72,7 +72,7 @@ export default function StepContext({
   }));
 
   const [paecLoading, setPaecLoading] = useState(false);
-  const [paecSuccess, setPaecSuccess] = useState(false);
+  const [paecSuccess, setPaecSuccess] = useState<boolean>(() => Boolean(initialContext?.paecProblem || initialContext?.paecProjectName));
   const [paecPrecargedFromDb, setPaecPrecargedFromDb] = useState(false);
   const [paecError, setPaecError] = useState<string | null>(null);
   const [isSuggestedProblem, setIsSuggestedProblem] = useState<boolean | null>(null);
@@ -630,16 +630,37 @@ export default function StepContext({
                       {paecLoading ? 'Procesando el documento...' : 'Extrae el nombre, objetivo y problemática de forma automática.'}
                     </span>
                   </div>
-                  {paecSuccess && (
-                    <div className="alert alert-success" style={{ margin: '8px 0 0 0', padding: '8px 12px', fontSize: '13px' }}>
-                      ✓ Datos del PAEC extraídos correctamente e integrados en el formulario. Por favor, revísalos.
+                  {Boolean(form.paecProjectName || form.paecProblem) ? (
+                    <div
+                      style={{
+                        margin: '8px 0 0 0',
+                        padding: '10px 14px',
+                        background: 'rgba(16, 185, 129, 0.1)',
+                        border: '1px solid rgba(16, 185, 129, 0.35)',
+                        borderRadius: '6px',
+                        fontSize: '13px',
+                        color: 'var(--c-text)',
+                      }}
+                    >
+                      <div style={{ fontWeight: 700, color: '#34d399', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>✓</span>
+                        <span>Datos del PAEC guardados y activos en esta planeación</span>
+                      </div>
+                      <div style={{ marginTop: '4px', fontSize: '12px', color: 'var(--c-text-muted)' }}>
+                        Proyecto: <strong>{form.paecProjectName || 'Sin título'}</strong>
+                        {detectedPaecActivity?.actividad && (
+                          <span> · Actividad vinculada: <strong>{detectedPaecActivity.actividad}</strong></span>
+                        )}
+                      </div>
+                      <div style={{ marginTop: '2px', fontSize: '11px', color: 'var(--c-text-muted)' }}>
+                        Tus datos se conservan automáticamente al navegar entre pasos. No es necesario recargar el archivo salvo que desees cambiarlo.
+                      </div>
                     </div>
-                  )}
-                  {!paecSuccess && paecPrecargedFromDb && (
+                  ) : paecPrecargedFromDb ? (
                     <div className="alert alert-info" style={{ margin: '8px 0 0 0', padding: '8px 12px', fontSize: '13px', background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.3)', color: '#93c5fd' }}>
                       ℹ️ Se precargaron datos institucionales previos de tu plantel. Si tienes el documento PAEC-PEC (.pdf o .docx), cárgalo arriba para extraer todos los campos actualizados.
                     </div>
-                  )}
+                  ) : null}
                   {paecError && (
                     <div className="alert alert-warning" style={{ margin: '8px 0 0 0', padding: '8px 12px', fontSize: '13px' }}>
                       ⚠️ {paecError}
