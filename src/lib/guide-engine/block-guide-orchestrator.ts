@@ -295,55 +295,76 @@ export async function generateBlockWorkTextbook(
     planningActivities,
   };
 
-  // ── Fase 6: Redacción Concurrente con Promise.allSettled() ─────────────
+  // ── Fase 6: Redacción Concurrente Suavizada con Micro-desfase ──────────
   await notifyProgress({
     phase: 'writing',
     currentStep: 'Redactando concurrentemente las 4 dimensiones del libro...',
     percent: 50,
   });
 
-  const writerPromises = [
-    runWriterSafely('foundation', () =>
-      generateFoundationMission({
-        ...baseWriterInput,
-        targetWords: {
-          min: Math.round(blockMinWords * writerSplits.foundation),
-          ideal: Math.round(blockIdealWords * writerSplits.foundation),
-          max: Math.round(blockMaxWords * writerSplits.foundation),
-        },
-      })
-    ),
-    runWriterSafely('lab', () =>
-      generateLabMission({
-        ...baseWriterInput,
-        targetWords: {
-          min: Math.round(blockMinWords * writerSplits.lab),
-          ideal: Math.round(blockIdealWords * writerSplits.lab),
-          max: Math.round(blockMaxWords * writerSplits.lab),
-        },
-      })
-    ),
-    runWriterSafely('project', () =>
-      generateProjectMission({
-        ...baseWriterInput,
-        targetWords: {
-          min: Math.round(blockMinWords * writerSplits.project),
-          ideal: Math.round(blockIdealWords * writerSplits.project),
-          max: Math.round(blockMaxWords * writerSplits.project),
-        },
-      })
-    ),
-    runWriterSafely('evaluation', () =>
-      generateEvaluationSection({
-        ...baseWriterInput,
-        targetWords: {
-          min: Math.round(blockMinWords * writerSplits.evaluation),
-          ideal: Math.round(blockIdealWords * writerSplits.evaluation),
-          max: Math.round(blockMaxWords * writerSplits.evaluation),
-        },
-      })
-    ),
+  // Micro-desfase suave (500ms) entre el lanzamiento de cada redactor para evitar
+  // ráfagas masivas simultáneas en el milisegundo 0 que saturen la concurrencia de Google AI Studio (503).
+  // En entorno de tests Vitest (NODE_ENV=test) el delay es 0ms para ejecución instantánea.
+  const STAGGER_DELAY_MS = process.env.NODE_ENV === 'test' ? 0 : 500;
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  const writerTasks = [
+    {
+      type: 'foundation' as const,
+      fn: () =>
+        generateFoundationMission({
+          ...baseWriterInput,
+          targetWords: {
+            min: Math.round(blockMinWords * writerSplits.foundation),
+            ideal: Math.round(blockIdealWords * writerSplits.foundation),
+            max: Math.round(blockMaxWords * writerSplits.foundation),
+          },
+        }),
+    },
+    {
+      type: 'lab' as const,
+      fn: () =>
+        generateLabMission({
+          ...baseWriterInput,
+          targetWords: {
+            min: Math.round(blockMinWords * writerSplits.lab),
+            ideal: Math.round(blockIdealWords * writerSplits.lab),
+            max: Math.round(blockMaxWords * writerSplits.lab),
+          },
+        }),
+    },
+    {
+      type: 'project' as const,
+      fn: () =>
+        generateProjectMission({
+          ...baseWriterInput,
+          targetWords: {
+            min: Math.round(blockMinWords * writerSplits.project),
+            ideal: Math.round(blockIdealWords * writerSplits.project),
+            max: Math.round(blockMaxWords * writerSplits.project),
+          },
+        }),
+    },
+    {
+      type: 'evaluation' as const,
+      fn: () =>
+        generateEvaluationSection({
+          ...baseWriterInput,
+          targetWords: {
+            min: Math.round(blockMinWords * writerSplits.evaluation),
+            ideal: Math.round(blockIdealWords * writerSplits.evaluation),
+            max: Math.round(blockMaxWords * writerSplits.evaluation),
+          },
+        }),
+    },
   ];
+
+  const writerPromises = writerTasks.map(async (task, index) => {
+    if (index > 0 && STAGGER_DELAY_MS > 0) {
+      await sleep(index * STAGGER_DELAY_MS);
+    }
+    return runWriterSafely(task.type, task.fn);
+  });
 
   const initialResults = await Promise.allSettled(writerPromises);
   const writerOutputs: WriterOutput[] = initialResults.map((res, i) => {
@@ -466,6 +487,10 @@ export async function generateBlockWorkTextbook(
         missingTerms.join(' | ');
 
       for (const writerType of ['foundation', 'lab', 'project', 'evaluation'] as const) {
+        if (Date.now() - startTime > MAX_ORCHESTRATOR_BUDGET_MS) {
+          logger.warn('[orchestrator] Presupuesto de tiempo agotado para reintento de alineación (230s). Continuando con ensamblado.');
+          break;
+        }
         const idx = writerOutputs.findIndex((w) => w.type === writerType);
         if (idx === -1) continue;
         const own = writerOutputs[idx];
