@@ -296,8 +296,11 @@ export async function* generateStreamWithRotation(
 
       lastError = err;
       const msg = err instanceof Error ? err.message : String(err);
-      const is503 = /503|UNAVAILABLE|high demand|service unavailable|overloaded/i.test(msg);
-      const isTransient = is503 || /429|RESOURCE_EXHAUSTED|rate.?limit|timeout/i.test(msg);
+      const isPermanent = /401|403|unauthorized|permission denied/i.test(msg);
+      const is503 = !isPermanent && /503|UNAVAILABLE|high demand|service unavailable|overloaded/i.test(msg);
+      const isQuota429 = !isPermanent && !is503 && /429|RESOURCE_EXHAUSTED|rate.?limit/i.test(msg);
+      const isNetworkOrTimeout = !isPermanent && !is503 && !isQuota429 && /timeout|econnreset|fetch failed|network|socket/i.test(msg);
+      const isTransient = is503 || isQuota429 || isNetworkOrTimeout;
 
       if (source === 'user') {
         excludeTeacherKey = true;
@@ -305,12 +308,14 @@ export async function* generateStreamWithRotation(
         excludeEnv = true;
       } else if (keyId && source === 'pool') {
         triedKeyIdsInRound.add(keyId);
-        if (/401|403|unauthorized/i.test(msg)) {
+        if (isPermanent) {
           permanentlyFailedKeyIds.add(keyId);
           await recordError(keyId, 'permanent');
-        } else if (isTransient) {
+        } else if (is503 || isQuota429) {
+          // Solo 429 y 503 imponen cooldown en Neon DB a la llave
           await recordError(keyId, 'transient');
         }
+        // Errores de red o timeout rotan la clave en la ronda actual sin penalizarla con cooldown en DB
       }
 
       // Si ya se emitió contenido no se puede reiniciar el stream sin duplicar texto

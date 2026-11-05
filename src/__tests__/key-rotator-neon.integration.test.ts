@@ -40,9 +40,7 @@ function loadEnvLocal() {
 
 loadEnvLocal();
 
-const isOptInIntegration = Boolean(
-  process.env.RUN_DB_INTEGRATION === '1' && process.env.DATABASE_URL && process.env.ADMIN_ENCRYPTION_KEY
-);
+const isOptInIntegration = process.env.RUN_DB_INTEGRATION === '1';
 
 import { claimApiKey, reactivateCooledKeys, encryptKey } from '@/lib/ai-provider/key-rotator';
 import { sql } from '@/lib/db/client';
@@ -53,6 +51,9 @@ describe.runIf(isOptInIntegration)('Neon DB Real Integration: Concurrencia Atóm
   const testKeyIds: string[] = [];
 
   beforeAll(async () => {
+    if (!process.env.DATABASE_URL || !process.env.ADMIN_ENCRYPTION_KEY) {
+      throw new Error('DATABASE_URL y ADMIN_ENCRYPTION_KEY son obligatorias para el test de integración');
+    }
     const db = sql();
     // Limpieza previa defensiva
     await db`DELETE FROM api_keys WHERE provider = ${TEST_PROVIDER}`;

@@ -342,7 +342,7 @@ describe('Gateway Único y Rotador Atómico de API Keys (P1 - Blindaje Integral)
     expect(postClaimBudget).toBeLessThanOrEqual(5000);
   });
 
-  it('10. generateStreamWithRotation permite segunda vuelta al reiniciar triedKeyIds por ronda ante error transitorio', async () => {
+  it('10. generateStreamWithRotation permite segunda vuelta al reiniciar triedKeyIds por ronda ante error transitorio de red', async () => {
     const mockDbKeys = [
       { id: 'stream-key-1', label: 'Stream Key 1', key_encrypted: encryptKey('stream-key-1'), is_active: true, last_error_at: null as Date | null },
     ];
@@ -357,7 +357,6 @@ describe('Gateway Único y Rotador Atómico de API Keys (P1 - Blindaje Integral)
         return [{ cnt: 1 }]; // 1 llave -> maxAttempts = 2 (2 vueltas)
       }
       if (q.includes('UPDATE api_keys') && q.includes('last_error_at = NOW()')) {
-        // Simula la mutación real de cooldown que ejecuta recordError
         mockDbKeys[0].last_error_at = new Date();
         return [];
       }
@@ -366,7 +365,6 @@ describe('Gateway Único y Rotador Atómico de API Keys (P1 - Blindaje Integral)
         const excludedParam = values.find((v) => Array.isArray(v)) as string[] | undefined;
         capturedExclusions = excludedParam || [];
         if (capturedExclusions.includes('stream-key-1')) {
-          // Si la llave está en excludeKeyIds, la consulta SQL devuelve vacío
           return [];
         }
         return [mockDbKeys[0]];
@@ -379,14 +377,10 @@ describe('Gateway Único y Rotador Atómico de API Keys (P1 - Blindaje Integral)
     global.fetch = vi.fn().mockImplementation(async () => {
       attemptCount++;
       if (attemptCount === 1) {
-        // Intento 1 (Vuelta 1): 429 transitorio de Google
-        return {
-          ok: false,
-          status: 429,
-          text: async () => 'Resource Exhausted 429',
-        } as unknown as Response;
+        // Intento 1 (Vuelta 1): Error transitorio de red / timeout de socket
+        throw new Error('fetch failed: ECONNRESET socket closed by peer');
       }
-      // Intento 2 (Vuelta 2): Exitoso
+      // Intento 2 (Vuelta 2): Exitoso tras reset de triedKeyIdsInRound
       const stream = new ReadableStream({
         start(controller) {
           controller.enqueue(new TextEncoder().encode('data: {"candidates":[{"content":{"parts":[{"text":"Chunk stream vuelta 2"}]}}]}\n\n'));
@@ -407,8 +401,8 @@ describe('Gateway Único y Rotador Atómico de API Keys (P1 - Blindaje Integral)
       expect(chunks).toEqual(['Chunk stream vuelta 2']);
       expect(attemptCount).toBe(2);
 
-      // Certifica que el error 429 actualizó el cooldown real (last_error_at) en BD
-      expect(mockDbKeys[0].last_error_at).not.toBeNull();
+      // Certifica que errores transitorios de red NO penalizan la llave con cooldown en BD
+      expect(mockDbKeys[0].last_error_at).toBeNull();
       // Certifica que al inicio de la vuelta 2 la clave NO quedó excluida permanentemente
       expect(capturedExclusions).not.toContain('stream-key-1');
     } finally {
