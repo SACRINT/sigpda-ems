@@ -173,4 +173,39 @@ describe.runIf(isOptInIntegration)('Neon DB Real Integration: P2 Idempotencia y 
     `;
     expect(finalJob[0].status).toBe('completed');
   });
+
+  it('5. Expiración de lease_until: previene renovación tardía, permite reclamo por nuevo worker y bloquea persistencia vieja', async () => {
+    const job = await createGenerationJob(TEST_PLANNING_ID, TEST_TEACHER_ID, 0);
+    const claimed1 = await claimGenerationJob(job.id, 60);
+    const leaseId1 = claimed1!.lease_id!;
+
+    // Simular que el lease expiró en Neon DB (pasaron los 120s)
+    const db = sql();
+    await db`
+      UPDATE generation_jobs
+      SET lease_until = NOW() - INTERVAL '10 seconds'
+      WHERE id = ${job.id}::uuid
+    `;
+
+    // 1. Worker 1 intenta renovar el lease vencido -> debe fallar porque lease_until <= NOW()
+    const renewed = await renewGenerationJobLease(job.id, leaseId1, 60);
+    expect(renewed).toBe(false);
+
+    // 2. Worker 2 reclama el trabajo estancado por lease vencido -> debe tener éxito con nuevo lease_id
+    const claimed2 = await claimGenerationJob(job.id, 60);
+    expect(claimed2).not.toBeNull();
+    expect(claimed2!.lease_id).not.toBe(leaseId1);
+    const leaseId2 = claimed2!.lease_id!;
+
+    // 3. Worker 1 (zombie) intenta persistir en plannings con su leaseId1 -> debe fallar con WorkerLeaseLostError
+    const { saveBlockWorkbook } = await import('@/lib/db');
+    const dummyWb = { title: 'Libro Zombie', totalWords: 3000 } as unknown as ActiveWorkTextbook;
+    await expect(
+      saveBlockWorkbook(TEST_PLANNING_ID, 0, dummyWb, job.id, leaseId1)
+    ).rejects.toThrow(WorkerLeaseLostError);
+
+    // 4. Worker 2 (legítimo) persiste con su leaseId2 -> éxito
+    const saveResult = await saveBlockWorkbook(TEST_PLANNING_ID, 0, dummyWb, job.id, leaseId2);
+    expect(saveResult.success).toBe(true);
+  });
 });

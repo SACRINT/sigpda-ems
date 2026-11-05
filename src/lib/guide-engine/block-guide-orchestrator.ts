@@ -310,6 +310,7 @@ export async function generateBlockWorkTextbook(
       max: Math.round(blockMaxWords * 0.25),
     },
     planningActivities,
+    signal: options.signal,
   };
 
   // ── Fase 6: Redacción Concurrente Suavizada con Micro-desfase ──────────
@@ -693,7 +694,7 @@ export async function generateBlockWorkTextbook(
       activeWorkTextbook.qualityWarning = true;
     }
     if (jobId) {
-      await saveBlockWorkbook(planningId, blockIndex, activeWorkTextbook, jobId);
+      await saveBlockWorkbook(planningId, blockIndex, activeWorkTextbook, jobId, leaseId);
     } else {
       await saveBlockWorkbook(planningId, blockIndex, activeWorkTextbook);
     }
@@ -746,7 +747,9 @@ export async function generateBlockWorkTextbook(
 }
 
 /**
- * Reporta el avance de la generación a la base de datos para el progreso en tiempo real
+ * Reporta el avance de la generación a la base de datos para el progreso en tiempo real.
+ * Aplica fencing estricto: primero valida y actualiza generation_jobs con leaseId;
+ * si el lease fue revocado o expiró, aborta inmediatamente sin mutar plannings.workbook_progress.
  */
 async function reportProgress(
   planningId: string,
@@ -763,6 +766,28 @@ async function reportProgress(
   jobId?: string,
   leaseId?: string
 ): Promise<void> {
+  // 1. Primero actualizar generation_jobs con fencing si corre bajo un worker
+  if (jobId) {
+    try {
+      await updateGenerationJobProgress(
+        jobId,
+        {
+          progress: params.percent,
+          current_phase: params.phase,
+          current_step: params.currentStep,
+        },
+        leaseId
+      );
+    } catch (err: unknown) {
+      if (err instanceof WorkerLeaseLostError) {
+        logger.error(`[Orchestrator] Fencing: lease ${leaseId} revocado/expirado en job ${jobId}. Abortando orquestador.`);
+        throw err;
+      }
+      logger.warn('[Orchestrator] Job progress update failed:', { error: err instanceof Error ? err.message : String(err) });
+    }
+  }
+
+  // 2. Solo tras validar generation_jobs, actualizar plannings.workbook_progress con fencing
   const state: GenerationProgressState = {
     planningId,
     blockIndex,
@@ -775,24 +800,19 @@ async function reportProgress(
     error: params.error,
     updatedAt: new Date().toISOString(),
   };
-  await updateWorkbookProgress(planningId, blockIndex, state).catch((err: unknown) =>
-    logger.warn('[Orchestrator] Progress update failed:', { error: err instanceof Error ? err.message : String(err) })
-  );
 
-  if (jobId) {
-    try {
-      await updateGenerationJobProgress(jobId, {
-        progress: params.percent,
-        current_phase: params.phase,
-        current_step: params.currentStep,
-      }, leaseId);
-    } catch (err: unknown) {
-      if (err instanceof WorkerLeaseLostError) {
-        logger.error(`[Orchestrator] Fencing: lease ${leaseId} revocado/expirado en job ${jobId}. Abortando orquestador.`);
-        throw err;
-      }
-      logger.warn('[Orchestrator] Job progress update failed:', { error: err instanceof Error ? err.message : String(err) });
+  try {
+    if (jobId) {
+      await updateWorkbookProgress(planningId, blockIndex, state, jobId, leaseId);
+    } else {
+      await updateWorkbookProgress(planningId, blockIndex, state);
     }
+  } catch (err: unknown) {
+    if (err instanceof WorkerLeaseLostError) {
+      logger.error(`[Orchestrator] Fencing: lease ${leaseId} revocado en updateWorkbookProgress. Abortando.`);
+      throw err;
+    }
+    logger.warn('[Orchestrator] Progress update failed:', { error: err instanceof Error ? err.message : String(err) });
   }
 }
 

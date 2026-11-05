@@ -154,7 +154,7 @@ Redacta la Misión del Proyecto y Construcción del Artefacto Real:`;
       prompt,
       input.planning.teacherId,
       false,
-      { jsonMode: true, maxTokens: 16384 }
+      { jsonMode: true, maxTokens: 16384, signal: input.signal }
     );
     let parsed = robustJsonParse(rawResponse);
 
@@ -185,7 +185,7 @@ Redacta la Misión del Proyecto y Construcción del Artefacto Real:`;
           retryPrompt,
           input.planning.teacherId,
           false,
-          { jsonMode: true, maxTokens: 16384 }
+          { jsonMode: true, maxTokens: 16384, signal: input.signal }
         );
         const retryParsed = robustJsonParse(retryResponse);
         const retryObjCount = Array.isArray(retryParsed.learningObjectives) ? retryParsed.learningObjectives.length : 0;
@@ -347,7 +347,10 @@ Redacta la Misión del Proyecto y Construcción del Artefacto Real:`;
       qualityScore: quality.qualityScore,
       warnings: quality.warnings,
     };
-  } catch (err) {
+  } catch (err: unknown) {
+    if (input.signal?.aborted || (err instanceof Error && (err.name === 'AbortError' || err.message.includes('aborted') || err.message.includes('AbortError')))) {
+      throw (input.signal?.reason || err);
+    }
     logger.error('[generateProjectMission] Error:', err);
     // Fallback estructurado de proyecto
     const fallbackProject: ProjectSection = {

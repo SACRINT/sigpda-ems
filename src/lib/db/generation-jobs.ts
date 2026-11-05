@@ -224,6 +224,7 @@ export async function renewGenerationJobLease(
     WHERE id = ${jobId}::uuid
       AND lease_id = ${leaseId}::uuid
       AND status = 'running'
+      AND (lease_until IS NULL OR lease_until > NOW())
     RETURNING id
   `;
   return Boolean(rows && rows.length > 0);

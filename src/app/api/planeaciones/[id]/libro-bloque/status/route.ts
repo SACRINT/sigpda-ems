@@ -10,10 +10,6 @@ export const runtime = 'nodejs';
 // que el pipeline editorial completo.
 export const maxDuration = 300;
 
-// Un job `running` sin heartbeat por más de 5 min está muerto con certeza:
-// ninguna invocación puede vivir más de 300 s (maxDuration).
-const STALE_RUNNING_SECONDS = 300;
-
 // ── GET: Consultar el estado y progreso en tiempo real de un trabajo ────────
 export async function GET(
   request: NextRequest,
@@ -61,18 +57,19 @@ export async function GET(
       );
     }
 
-    // Mecanismo de auto-recuperación:
+    // Mecanismo de auto-recuperación determinista:
     // 1. Si el job quedó en 'pending' por más de 5 s, disparar worker de respaldo.
-    // 2. Si está 'running' pero sin heartbeat por más de 5 min, la invocación
-    //    anterior murió (p. ej. timeout de Vercel): reanudar el trabajo.
-    // El claim atómico garantiza un solo worker aunque haya varios polls.
+    // 2. Si está 'running' pero su lease_until expiró (o es null), el worker anterior
+    //    murió (p. ej. timeout o corte): reanudar atómicamente de inmediato sin retraso de 300 s.
+    // El claim atómico en Neon garantiza un solo worker aunque haya múltiples polls concurrentes.
+    const now = Date.now();
     const isStalePending =
-      job.status === 'pending' && Date.now() - new Date(job.created_at).getTime() > 5000;
-    const isStaleRunning =
+      job.status === 'pending' && now - new Date(job.created_at).getTime() > 5000;
+    const isLeaseExpired =
       job.status === 'running' &&
-      Date.now() - new Date(job.updated_at).getTime() > STALE_RUNNING_SECONDS * 1000;
+      (!job.lease_until || new Date(job.lease_until).getTime() < now);
 
-    if (isStalePending || isStaleRunning) {
+    if (isStalePending || isLeaseExpired) {
       const claimed = await claimGenerationJob(job.id);
       if (claimed && claimed.lease_id) {
         const leaseId = claimed.lease_id;

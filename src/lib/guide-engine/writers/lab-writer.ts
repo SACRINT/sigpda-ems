@@ -128,7 +128,7 @@ Redacta la Misión Práctica de Laboratorio/Taller completa:`;
       prompt,
       input.planning.teacherId,
       false,
-      { jsonMode: true, maxTokens: 16384 }
+      { jsonMode: true, maxTokens: 16384, signal: input.signal }
     );
     let parsed = robustJsonParse(rawResponse);
 
@@ -147,7 +147,7 @@ Redacta la Misión Práctica de Laboratorio/Taller completa:`;
           retryPrompt,
           input.planning.teacherId,
           false,
-          { jsonMode: true, maxTokens: 16384 }
+          { jsonMode: true, maxTokens: 16384, signal: input.signal }
         );
         const retryParsed = robustJsonParse(retryResponse);
         const retryText = typeof retryParsed.autonomousChallenge === 'string' ? retryParsed.autonomousChallenge : '';
@@ -318,6 +318,9 @@ Redacta la Misión Práctica de Laboratorio/Taller completa:`;
       warnings: quality.warnings,
     };
   } catch (err: unknown) {
+    if (input.signal?.aborted || (err instanceof Error && (err.name === 'AbortError' || err.message.includes('aborted') || err.message.includes('AbortError')))) {
+      throw (input.signal?.reason || err);
+    }
     logger.error('[generateLabMission] Error:', err);
     // Fallback estructurado de laboratorio
     const fallbackSection: MissionSection = {

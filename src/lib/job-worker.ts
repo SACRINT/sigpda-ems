@@ -73,8 +73,11 @@ export async function processGenerationJob(
   const abortController = new AbortController();
   let leaseLost = false;
 
-  // 1. Heartbeat en segundo plano (cada 25 s) para renovar el lease y detectar fencing
+  // 1. Heartbeat en segundo plano (cada 25 s) para renovar el lease y detectar fencing sin solapamiento
+  let isRenewing = false;
   const heartbeatInterval = setInterval(async () => {
+    if (isRenewing || leaseLost || abortController.signal.aborted) return;
+    isRenewing = true;
     try {
       const renewed = await renewGenerationJobLease(jobId, leaseId!, JOB_LEASE_SECONDS);
       if (!renewed) {
@@ -85,6 +88,8 @@ export async function processGenerationJob(
       }
     } catch (hbErr) {
       logger.warn(`[job-worker] Error renovando lease de job ${jobId}:`, hbErr);
+    } finally {
+      isRenewing = false;
     }
   }, 25_000);
 
@@ -107,8 +112,8 @@ export async function processGenerationJob(
       }
     );
 
-    // 1. Persistir el workbook en la planeación (idempotente por jobId)
-    const saveResult = await saveBlockWorkbook(job.planning_id, job.block_index, workbook, jobId);
+    // 1. Persistir el workbook en la planeación (idempotente por jobId y protegido por leaseId)
+    const saveResult = await saveBlockWorkbook(job.planning_id, job.block_index, workbook, jobId, leaseId);
     if (!saveResult.success) {
       throw new Error(`Fallo al persistir workbook: ${saveResult.error || 'error de concurrencia'}`);
     }

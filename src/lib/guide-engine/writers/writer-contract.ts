@@ -71,6 +71,10 @@ export interface WriterInput {
   /** Actividades de la planeación para alinear contenido de la guía */
   planningActivities?: PlanningActivities;
   /**
+   * Señal de aborto para cancelar llamadas de IA en curso ante expiración de lease o timeout
+   */
+  signal?: AbortSignal;
+  /**
    * Términos faltantes detectados por la Fase 8.5 (alineación dura). Se inyecta
    * textual en el prompt SOLO durante el reintento dirigido de alineación.
    */

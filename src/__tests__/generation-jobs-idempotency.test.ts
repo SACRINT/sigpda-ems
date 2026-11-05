@@ -23,6 +23,14 @@ vi.mock('@neondatabase/serverless', () => ({
 vi.mock('@/lib/ai-provider/key-rotator', () => ({
   decryptKey: vi.fn((s: string) => `decrypted:${s}`),
   encryptKey: vi.fn((s: string) => `encrypted:${s}`),
+  withKeyRotation: vi.fn(async (_prov, fn, options) => {
+    if (options?.signal?.aborted) {
+      throw options.signal.reason instanceof Error
+        ? options.signal.reason
+        : new DOMException('This operation was aborted', 'AbortError');
+    }
+    return fn('mocked-api-key', 'gemini');
+  }),
 }));
 
 // Mock logger para mantener salida de tests limpia
@@ -44,10 +52,13 @@ import {
   completeGenerationJob,
   failGenerationJob,
   saveBlockWorkbook,
+  updateWorkbookProgress,
   WorkerLeaseLostError,
 } from '@/lib/db';
 import { cascadeBlockMaterials } from '@/lib/guide-engine/cascade-block-materials';
+import { generateFoundationMission } from '@/lib/guide-engine/writers/foundation-writer';
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
+import type { WriterInput } from '@/lib/guide-engine/writers/writer-contract';
 
 describe('Fase P2: Idempotencia, Lease Fencing y Concurrencia de Workers', () => {
   beforeAll(() => {
@@ -291,6 +302,44 @@ describe('Fase P2: Idempotencia, Lease Fencing y Concurrencia de Workers', () =>
       // Solo hizo el SELECT inicial; NO ejecutó UPDATE de plannings (idempotencia)
       expect(mockQueryFn).toHaveBeenCalledTimes(1);
     });
+
+    it('saveBlockWorkbook lanza WorkerLeaseLostError y no actualiza si el lease fue revocado o venció', async () => {
+      // 1. SELECT id FROM generation_jobs ... -> 0 filas porque el lease expiró
+      mockQueryFn.mockResolvedValueOnce([]);
+
+      const mockWorkbook = { title: 'Libro Desfasado', totalWords: 4000 } as unknown as ActiveWorkTextbook;
+
+      await expect(
+        saveBlockWorkbook('plan-1', 0, mockWorkbook, 'job-stale', 'expired-lease')
+      ).rejects.toThrow(WorkerLeaseLostError);
+
+      // Certificar que NO se ejecutó ningún UPDATE en plannings
+      const calls = mockQueryFn.mock.calls;
+      const executedQueries = calls.map((c) => String(c[0] || ''));
+      expect(executedQueries.some((q) => q.includes('UPDATE plannings'))).toBe(false);
+    });
+
+    it('updateWorkbookProgress lanza WorkerLeaseLostError y no muta plannings si el lease fue revocado', async () => {
+      // 1. SELECT id FROM generation_jobs ... -> 0 filas
+      mockQueryFn.mockResolvedValueOnce([]);
+
+      const progressState = {
+        planningId: 'plan-1',
+        blockIndex: 0,
+        phase: 'writing' as const,
+        currentStep: 'Paso...',
+        percent: 50,
+        updatedAt: new Date().toISOString(),
+      };
+
+      await expect(
+        updateWorkbookProgress('plan-1', 0, progressState, 'job-stale', 'revoked-lease')
+      ).rejects.toThrow(WorkerLeaseLostError);
+
+      const calls = mockQueryFn.mock.calls;
+      const executedQueries = calls.map((c) => String(c[0] || ''));
+      expect(executedQueries.some((q) => q.includes('UPDATE plannings'))).toBe(false);
+    });
   });
 
   // ── 6. cascadeBlockMaterials: Fencing contra zombies ───────────────────────
@@ -318,14 +367,45 @@ describe('Fase P2: Idempotencia, Lease Fencing y Concurrencia de Workers', () =>
       expect(executedQueries.some((q) => q.includes('DELETE FROM planning_extras'))).toBe(false);
     });
 
-    it('continúa normalmente con la cascada si el lease está activo y verificado', async () => {
-      // 1. SELECT id FROM generation_jobs -> lease válido
+    it('aborta y lanza WorkerLeaseLostError si el lease se revoca entre el anclaje inicial y el DELETE', async () => {
+      // 1. SELECT id FROM generation_jobs (inicio) -> lease válido
+      mockQueryFn.mockResolvedValueOnce([{ id: 'job-stale-worker' }]);
+      // 2. SELECT plannings (anclaje curricular) -> hit
+      mockQueryFn.mockResolvedValueOnce([
+        { sequence_json: null, content_json: null, extracted_data: null },
+      ]);
+      // 3. SELECT id FROM generation_jobs (justo antes de DELETE planning_extras) -> lease perdido!
+      mockQueryFn.mockResolvedValueOnce([]);
+
+      const mockWorkbook = {
+        blockName: 'Bloque 1',
+        coverData: { subjectName: 'Física', semester: 1 },
+        missions: [],
+      } as unknown as ActiveWorkTextbook;
+
+      await expect(
+        cascadeBlockMaterials('plan-1', 0, mockWorkbook, 'teacher-1', {
+          jobId: 'job-stale-worker',
+          leaseId: 'revoked-lease-uuid',
+        })
+      ).rejects.toThrow(WorkerLeaseLostError);
+
+      // Certificar que NO se ejecutó el DELETE en planning_extras
+      const calls = mockQueryFn.mock.calls;
+      const executedQueries = calls.map((c) => String(c[0] || ''));
+      expect(executedQueries.some((q) => q.includes('DELETE FROM planning_extras'))).toBe(false);
+    });
+
+    it('continúa normalmente con la cascada si el lease está activo y verificado en todas las fases', async () => {
+      // 1. SELECT id FROM generation_jobs (inicio) -> lease válido
       mockQueryFn.mockResolvedValueOnce([{ id: 'job-active-worker' }]);
       // 2. SELECT sequence_json, content_json, extracted_data FROM plannings
       mockQueryFn.mockResolvedValueOnce([
         { sequence_json: null, content_json: null, extracted_data: null },
       ]);
-      // 3. DELETE FROM planning_extras
+      // 3. SELECT id FROM generation_jobs (antes de DELETE) -> lease válido
+      mockQueryFn.mockResolvedValueOnce([{ id: 'job-active-worker' }]);
+      // 4. DELETE FROM planning_extras
       mockQueryFn.mockResolvedValueOnce([]);
 
       const mockWorkbook = {
@@ -341,6 +421,54 @@ describe('Fase P2: Idempotencia, Lease Fencing y Concurrencia de Workers', () =>
 
       expect(result.success).toBe(true);
       expect(result.blockIndex).toBe(0);
+    });
+  });
+
+  // ── 7. AbortSignal en Writers ──────────────────────────────────────────────
+  describe('P2.7: Propagación de AbortSignal a Writers', () => {
+    it('cancela de inmediato la llamada si el AbortSignal ya está abortado', async () => {
+      const abortController = new AbortController();
+      abortController.abort(new Error('Job duration exceeded 270s'));
+
+      const mockWriterInput: WriterInput = {
+        planning: {
+          id: 'plan-1',
+          teacherId: 'teacher-1',
+          uacName: 'Química I',
+          semester: 1,
+          component: 'fundamental',
+          curriculumName: 'MCCEMS',
+          paecContext: 'Agua',
+          status: 'draft',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          extractedData: null,
+          contentJson: null,
+        } as unknown as WriterInput['planning'],
+        blockIndex: 0,
+        blockName: 'Bloque 1',
+        sessions: [],
+        missions: [
+          {
+            missionIndex: 1,
+            title: 'Misión 1',
+            sessionNumbers: [1, 2],
+            sessionTopic: 'Fundamentos',
+            focus: 'Concepto Cero',
+            missionType: 'foundation',
+            targetPages: 4,
+            targetWords: 1500,
+          },
+        ],
+        paecContext: 'Agua',
+        studentProfile: 'Perfil',
+        subsystem: 'bge',
+        uacName: 'Química I',
+        targetWords: { min: 1000, ideal: 1500, max: 2000 },
+        signal: abortController.signal,
+      };
+
+      await expect(generateFoundationMission(mockWriterInput)).rejects.toThrow('Job duration exceeded 270s');
     });
   });
 });

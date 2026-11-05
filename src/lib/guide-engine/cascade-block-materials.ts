@@ -272,20 +272,26 @@ export async function cascadeBlockMaterials(
   try {
     const db = sql();
 
-    // Verificación estricta de fencing: si corre bajo un worker con lease, certificar que el lease no fue revocado
-    if (options?.jobId && options?.leaseId) {
-      const checkLease = await db`
-        SELECT id FROM generation_jobs
-        WHERE id = ${options.jobId}::uuid
-          AND lease_id = ${options.leaseId}::uuid
-          AND status = 'running'
-        LIMIT 1
-      `;
-      if (!checkLease || checkLease.length === 0) {
-        logger.warn(`[cascadeBlockMaterials] Abortando cascada: worker perdió el lease del job ${options.jobId}`);
-        throw new WorkerLeaseLostError(`Lease revocado o vencido para job ${options.jobId}`);
+    // Verificación estricta de fencing con función re-ejecutable antes de cada mutación
+    const assertLeaseValid = async (phaseName: string) => {
+      if (options?.jobId && options?.leaseId) {
+        const checkLease = await db`
+          SELECT id FROM generation_jobs
+          WHERE id = ${options.jobId}::uuid
+            AND lease_id = ${options.leaseId}::uuid
+            AND status = 'running'
+            AND (lease_until IS NULL OR lease_until > NOW())
+          LIMIT 1
+        `;
+        if (!checkLease || checkLease.length === 0) {
+          logger.warn(`[cascadeBlockMaterials] Abortando en ${phaseName}: worker perdió el lease del job ${options.jobId}`);
+          throw new WorkerLeaseLostError(`Lease revocado o vencido para job ${options.jobId} antes de ${phaseName}`);
+        }
       }
-    }
+    };
+
+    // 0. Validar lease al inicio de la cascada
+    await assertLeaseValid('inicio');
 
     // 0. Consultar el anclaje curricular oficial y la secuencia didáctica del planning
     let blockSequence: SecuenciaBloque | null = null;
@@ -352,6 +358,7 @@ export async function cascadeBlockMaterials(
         blockTitle
       );
       if (syncedBlockSeq && syncedBlockSeq.sessions.length > 0) {
+        await assertLeaseValid('sequence_json');
         await db`
           UPDATE plannings
           SET sequence_json = jsonb_set(
@@ -365,11 +372,13 @@ export async function cascadeBlockMaterials(
         `;
       }
     } catch (seqSyncErr) {
+      if (seqSyncErr instanceof WorkerLeaseLostError) throw seqSyncErr;
       logger.warn(`[cascadeBlockMaterials] Advertencia al sincronizar sequence_json del bloque ${blockIndex}:`, seqSyncErr);
     }
 
     // 2. Limpiar registros previos generados automáticamente para este bloque
     // (Permite regeneración idempotente y limpia sin duplicar planes)
+    await assertLeaseValid('DELETE planning_extras');
     await db`
       DELETE FROM planning_extras
       WHERE planning_id = ${planningId}::uuid

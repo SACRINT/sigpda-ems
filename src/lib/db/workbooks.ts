@@ -5,6 +5,7 @@ import type {
 } from '@/types/work-textbook';
 import { logger } from '@/lib/logger';
 import { sql } from './client';
+import { WorkerLeaseLostError } from './generation-jobs';
 
 // ─── Work-Textbook & Canonical Seeds Engine ─────────────────────────────────
 
@@ -210,13 +211,31 @@ export async function saveBlockWorkbook(
   planningId: string,
   blockIndex: number,
   workbook: ActiveWorkTextbook,
-  jobId?: string
+  jobId?: string,
+  leaseId?: string
 ): Promise<{ version: number; success: boolean; error?: string }> {
   if (isNaN(blockIndex) || blockIndex < 0) {
     return { version: 0, success: false, error: 'blockIndex inválido (NaN o negativo)' };
   }
 
   const client = sql();
+
+  // Fencing de persistencia: si corre bajo un worker con lease, certificar que no fue revocado o venció
+  if (jobId && leaseId) {
+    const leaseCheck = await client`
+      SELECT id FROM generation_jobs
+      WHERE id = ${jobId}::uuid
+        AND lease_id = ${leaseId}::uuid
+        AND status = 'running'
+        AND (lease_until IS NULL OR lease_until > NOW())
+      LIMIT 1
+    `;
+    if (!leaseCheck || leaseCheck.length === 0) {
+      logger.warn(`[saveBlockWorkbook] Abortando persistencia: lease ${leaseId} inválido o vencido en job ${jobId}`);
+      throw new WorkerLeaseLostError(`Lease revocado o vencido para job ${jobId}`);
+    }
+  }
+
   const blockKey = `block_${blockIndex}`;
 
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -341,14 +360,31 @@ export async function getAllBlockWorkbooks(
 }
 
 /**
- * Actualiza el progreso en vivo de la generación del libro
+ * Actualiza el progreso en vivo de la generación del libro con fencing opcional de worker.
  */
 export async function updateWorkbookProgress(
   planningId: string,
   blockIndex: number,
-  progress: GenerationProgressState
+  progress: GenerationProgressState,
+  jobId?: string,
+  leaseId?: string
 ): Promise<void> {
   const client = sql();
+
+  if (jobId && leaseId) {
+    const leaseCheck = await client`
+      SELECT id FROM generation_jobs
+      WHERE id = ${jobId}::uuid
+        AND lease_id = ${leaseId}::uuid
+        AND status = 'running'
+        AND (lease_until IS NULL OR lease_until > NOW())
+      LIMIT 1
+    `;
+    if (!leaseCheck || leaseCheck.length === 0) {
+      throw new WorkerLeaseLostError(`Lease revocado o vencido para job ${jobId}`);
+    }
+  }
+
   const blockKey = `block_${blockIndex}`;
   const patchObj = JSON.stringify({ [blockKey]: progress });
 
