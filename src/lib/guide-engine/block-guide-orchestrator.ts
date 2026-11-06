@@ -359,19 +359,31 @@ export async function generateBlockWorkTextbook(
     },
   ];
 
-  const writerPromises = writerTasks.map(async (task, index) => {
-    if (index > 0 && STAGGER_DELAY_MS > 0) {
-      await sleep(index * STAGGER_DELAY_MS);
+  // Ejecución secuencial de los 4 redactores con notificación de progreso:
+  // Evita ráfagas masivas simultáneas en el milisegundo 0 que saturen la cuota de concurrencia
+  // de Google AI Studio (503 / Fast-fail).
+  const writerOutputs: WriterOutput[] = [];
+  for (let i = 0; i < writerTasks.length; i++) {
+    const task = writerTasks[i];
+    if (options.signal?.aborted) {
+      throw new Error('Operación cancelada por signal.');
     }
-    return runWriterSafely(task.type, task.fn);
-  });
-
-  const initialResults = await Promise.allSettled(writerPromises);
-  const writerOutputs: WriterOutput[] = initialResults.map((res, i) => {
-    if (res.status === 'fulfilled') return res.value;
-    const types: ('foundation' | 'lab' | 'project' | 'evaluation')[] = ['foundation', 'lab', 'project', 'evaluation'];
-    return createEmergencyFallbackOutput(types[i], baseWriterInput, String(res.reason));
-  });
+    if (i > 0 && STAGGER_DELAY_MS > 0) {
+      await sleep(1000);
+    }
+    await notifyProgress({
+      phase: 'writing',
+      currentStep: `Redactando dimensión ${i + 1}/4 (${task.type}) con rigor editorial...`,
+      percent: 50 + i * 5,
+    });
+    try {
+      const out = await runWriterSafely(task.type, task.fn);
+      writerOutputs.push(out);
+    } catch (err) {
+      logger.error(`[Orchestrator] Redactor ${task.type} falló; aplicando fallback de emergencia:`, err);
+      writerOutputs.push(createEmergencyFallbackOutput(task.type, baseWriterInput, String(err)));
+    }
+  }
 
   // ── Fase 7: Zona de Depuración y Resiliencia ────────────────────────────
   await notifyProgress({

@@ -25,7 +25,13 @@ import {
   WORDS_PER_PAGE,
 } from '../src/lib/guide-engine/content-budget';
 import { renderWorkbookToPdf } from '../src/lib/pdf-workbook-renderer';
-import type { ActiveWorkTextbook, SessionPlan, MissionSection } from '../src/types/work-textbook';
+import type {
+  ActiveWorkTextbook,
+  SessionPlan,
+  MissionSection,
+  ProjectSection,
+  EvaluationSection,
+} from '../src/types/work-textbook';
 
 function loadEnvLocal(): void {
   const envPath = join(process.cwd(), '.env.local');
@@ -41,23 +47,23 @@ function loadEnvLocal(): void {
   }
 }
 
-function makeMockSessionPlan(sessionNumber: number, wordsPerPlan = 850): SessionPlan {
-  const chunkWords = Math.max(10, Math.floor(wordsPerPlan / 8));
-  const dummyText = 'palabra formativa de rigor técnico '.repeat(Math.ceil(chunkWords / 5)).trim();
+function makeMockSessionPlan(sessionNumber: number, wordsPerPlan = 590): SessionPlan {
+  const wordsPerField = Math.max(10, Math.floor((wordsPerPlan - 30) / 7));
+  const dummyText = 'palabra '.repeat(wordsPerField).trim();
   return {
     sessionNumber,
-    objetivo: `Objetivo de aprendizaje de la sesión ${sessionNumber}: desarrollo conceptual y procedimental sobre ${dummyText}.`,
-    motivacion: `Motivación cotidiana situada en la región de Puebla: aplicación real sobre ${dummyText}.`,
-    saberesPrevios: `Saberes previos requeridos: ${dummyText}.`,
-    contenido: `Fundamentación teórica paso a paso: desarrollo exhaustivo sin atajos sobre ${dummyText}. ${dummyText}`,
-    ejemploResuelto: `Ejemplo resuelto numérico y analítico: cálculo paso a paso con variables ${dummyText}.`,
+    objetivo: `Objetivo de aprendizaje sesión ${sessionNumber}: ${dummyText}`,
+    motivacion: `Motivación cotidiana situada: ${dummyText}`,
+    saberesPrevios: `Saberes previos: ${dummyText}`,
+    contenido: `Fundamentación teórica paso a paso: ${dummyText}`,
+    ejemploResuelto: `Ejemplo resuelto numérico: ${dummyText}`,
     practica: [
-      { enunciado: `Actividad práctica guiada 1: modelado y cálculo de ${dummyText}.`, pista: 'Aplica la fórmula analizada en clase.' },
+      { enunciado: `Ejercicio 1 con datos: ${dummyText}`, pista: 'Pista guiada para resolver' },
     ],
-    aplicacion: `Aplicación en el entorno real o comunitario del estudiante: solución técnica a ${dummyText}.`,
-    autoevaluacion: ['¿Comprendo la base teórica y su formulación matemática?', '¿Puedo resolver el problema de forma autónoma?'],
-    recursos: [{ titulo: 'Video explicativo complementario', url: 'https://youtube.com/watch?v=demo', tipo: 'video' }],
-    productoIntegrador: `Avance del artefacto formativo en sesión ${sessionNumber}: registro de mediciones y evidencias.`,
+    aplicacion: `Aplicación en el entorno real o comunidad: ${dummyText}`,
+    autoevaluacion: ['¿Comprendo el concepto principal?', '¿Puedo resolver el ejercicio solo?'],
+    recursos: [{ titulo: 'Video explicativo', url: 'https://youtube.com/watch?v=demo', tipo: 'video' }],
+    productoIntegrador: `Avance del artefacto en sesión ${sessionNumber}`,
   };
 }
 
@@ -208,13 +214,60 @@ async function runVerification(): Promise<void> {
 
   // 5. Compilación y renderizado E2E a PDF formal
   console.log('\n[5/5] Ejecutando compilación E2E del libro de 18 sesiones a PDF formal...');
-  const sFoundation = makeMissionSection({ index: 1, type: 'foundation', sessions: [1, 2, 3], baseWords: 1013, wordsPerPlan: 850 });
-  const sLab = makeMissionSection({ index: 2, type: 'lab', sessions: [4, 5, 6, 7, 8, 9], baseWords: 2025, wordsPerPlan: 850 });
-  const sProject = makeMissionSection({ index: 3, type: 'project', sessions: [10, 11, 12, 13, 14, 15], baseWords: 2025, wordsPerPlan: 850 });
-  const sEval = makeMissionSection({ index: 4, type: 'evaluation', sessions: [16, 17, 18], baseWords: 1013, wordsPerPlan: 850 });
+  const sFoundation = makeMissionSection({ index: 1, type: 'foundation', sessions: [1, 2, 3], baseWords: 1650, wordsPerPlan: 590 });
+  const sLab = makeMissionSection({ index: 2, type: 'lab', sessions: [4, 5, 6, 7, 8, 9], baseWords: 3300, wordsPerPlan: 590 });
+  const sProject = makeMissionSection({ index: 3, type: 'project', sessions: [10, 11, 12, 13, 14, 15], baseWords: 3300, wordsPerPlan: 590 });
+  const sEval = makeMissionSection({ index: 4, type: 'evaluation', sessions: [16, 17, 18], baseWords: 1650, wordsPerPlan: 590 });
 
   const totalWords = sFoundation.wordCount + sLab.wordCount + sProject.wordCount + sEval.wordCount;
-  const totalPages = Math.round(totalWords / WORDS_PER_PAGE);
+  const allSessions = [sFoundation, sLab, sProject, sEval].flatMap((m) => m.sessionPlans || []);
+
+  // Validación mediante el Quality Gate oficial validateSessionCoverage (sin auto-aprobación sintética)
+  const coverageReport = validateSessionCoverage({
+    sessions: allSessions,
+    expectedSessionsCount: budget3h.sessionsPerBlock,
+    totalWords,
+    budget: budget3h,
+  });
+
+  const defaultProjectSection: ProjectSection = {
+    artifactName: 'Artefacto Demostrativo Comunitario',
+    communityUtility: 'Solución técnica comunitaria orientada a la sostenibilidad del agua en Puebla.',
+    phases: [
+      { phaseNum: 1, title: 'Fase 1: Diagnóstico', allocatedHours: 2, deliverables: ['Boceto'], instructions: 'Definir especificaciones técnicas.' },
+      { phaseNum: 2, title: 'Fase 2: Construcción', allocatedHours: 4, deliverables: ['Prototipo'], instructions: 'Montaje de la solución comunitaria.' },
+    ],
+  };
+
+  const defaultEvaluationSection: EvaluationSection = {
+    source: 'generated_fresh',
+    rubric: [
+      {
+        criterion: 'Calidad Técnica y Procedimental',
+        weightPercent: 50,
+        levels: {
+          inicial: 'Identifica conceptos básicos sin aplicarlos.',
+          basico: 'Aplica conceptos con apoyo continuo.',
+          autonomo: 'Aplica conceptos con autonomía y precisión.',
+          estrategico: 'Aplica e innova proponiendo soluciones comunitarias.',
+        },
+      },
+      {
+        criterion: 'Impacto Comunitario y Trabajo Colaborativo',
+        weightPercent: 50,
+        levels: {
+          inicial: 'Participación pasiva en el equipo.',
+          basico: 'Cumple tareas asignadas con supervisión.',
+          autonomo: 'Colabora activamente y entrega productos a tiempo.',
+          estrategico: 'Lidera la vinculación comunitaria y propone mejoras.',
+        },
+      },
+    ],
+    checklist: [
+      { item: 'Bitácora de campo completa con registros cuantitativos.', required: true },
+      { item: 'Prototipo funcional verificado con pruebas comunitarias.', required: true },
+    ],
+  };
 
   const mockWorkbook: ActiveWorkTextbook = {
     id: 'wtb-verify-p3',
@@ -224,22 +277,16 @@ async function runVerification(): Promise<void> {
     version: 1,
     subsystem: 'bge',
     targetPages: budget3h.targetPages.ideal,
-    totalPages,
+    totalPages: coverageReport.totalPages,
     totalWords,
     sessionsPerBlock: 18,
     targetWords: budget3h.targetWords.ideal,
-    pagesDelta: 0,
-    wordsDelta: totalWords - budget3h.targetWords.ideal,
-    coverageReport: {
-      sessionsCovered: 18,
-      sessionsExpected: 18,
-      allSessionsPresent: true,
-      averageWordsPerSession: Math.round(totalWords / 18),
-      withinTargetRange: true,
-    },
+    pagesDelta: coverageReport.pagesDelta,
+    wordsDelta: coverageReport.wordsDelta,
+    coverageReport,
     generatedAt: new Date().toISOString(),
     qualityScore: 92,
-    qualityWarning: false,
+    qualityWarning: !coverageReport.allSessionsPresent || !coverageReport.withinTargetRange,
     coverData: {
       title: 'Cuaderno de Aprendizaje Activo: Bloque 1',
       subtitle: 'Misiones Didácticas Orientadas al Proyecto PAEC Comunitario',
@@ -258,6 +305,8 @@ async function runVerification(): Promise<void> {
       { missionIndex: 4, title: 'Misión 4: Demostración y Evaluación Formativa', sessionsRange: 'Sesiones 16-18', pageEstimate: 8 },
     ],
     missions: [sFoundation, sLab, sProject, sEval],
+    projectSection: defaultProjectSection,
+    evaluationSection: defaultEvaluationSection,
   };
 
   const mockPlanning = {
@@ -275,7 +324,8 @@ async function runVerification(): Promise<void> {
   } as any;
 
   console.log(`  - Total palabras calculadas en libro: ${totalWords.toLocaleString()} (Rango esperado: 20,250 a 22,500)`);
-  console.log(`  - Total páginas estimadas: ${totalPages} páginas (Rango esperado: 45 a 50)`);
+  console.log(`  - Total páginas estimadas: ${coverageReport.totalPages} páginas (Rango esperado: 45 a 50)`);
+  console.log(`  - Cobertura validada: allSessionsPresent=${coverageReport.allSessionsPresent}, withinTargetRange=${coverageReport.withinTargetRange}, qualityWarning=${mockWorkbook.qualityWarning}`);
 
   const startTime = Date.now();
   const pdfBuffer = await renderWorkbookToPdf(mockWorkbook, mockPlanning, { forceFallbackCover: true });
@@ -298,10 +348,16 @@ async function runVerification(): Promise<void> {
     }
   }
 
-  if (pdfData.total >= 45 && pdfData.total <= 55 && missingSessionsCount === 0) {
-    console.log(`  ✓ PDF validado con éxito: ${pdfData.total} páginas, 18/18 sesiones impresas con rigor editorial.`);
+  if (
+    pdfData.total >= 45 &&
+    pdfData.total <= 50 &&
+    missingSessionsCount === 0 &&
+    coverageReport.withinTargetRange &&
+    !mockWorkbook.qualityWarning
+  ) {
+    console.log(`  ✓ PDF validado con éxito: ${pdfData.total} páginas (estrictamente entre 45-50), ${totalWords.toLocaleString()} palabras (dentro de [20250, 22500]), 18/18 sesiones impresas con rigor editorial.`);
   } else {
-    console.error(`  ❌ Validación del PDF insatisfecha: páginas=${pdfData.total}, faltantes=${missingSessionsCount}`);
+    console.error(`  ❌ Validación del PDF insatisfecha: páginas=${pdfData.total}, faltantes=${missingSessionsCount}, withinTargetRange=${coverageReport.withinTargetRange}, qualityWarning=${mockWorkbook.qualityWarning}`);
     passed = false;
   }
 

@@ -105,9 +105,9 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
 }`;
 
   const sessionCount = Math.max(1, coveredSessions.length);
-  const targetWordsPerPlan = 850;
+  const targetWordsPerPlan = Math.round((input.targetWords.ideal / sessionCount) * 0.72);
   const totalPlansTarget = sessionCount * targetWordsPerPlan;
-  const remainingNarrativeTarget = Math.max(500, input.targetWords.ideal - totalPlansTarget);
+  const remainingNarrativeTarget = Math.max(300, input.targetWords.ideal - totalPlansTarget);
 
   const coreTarget = Math.round(remainingNarrativeTarget * 0.40);
   const iDoTarget = Math.round(remainingNarrativeTarget * 0.25);
@@ -143,7 +143,7 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
       prompt,
       input.planning.teacherId,
       false,
-      { jsonMode: true, maxTokens: 16384, signal: input.signal }
+      { jsonMode: true, maxTokens: 16384, timeoutMs: 85000, signal: input.signal }
     );
     let parsed = robustJsonParse(rawResponse);
 
@@ -160,7 +160,7 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
           retryPrompt,
           input.planning.teacherId,
           false,
-          { jsonMode: true, maxTokens: 16384, signal: input.signal }
+          { jsonMode: true, maxTokens: 16384, timeoutMs: 85000, signal: input.signal }
         );
         const retryParsed = robustJsonParse(retryResponse);
         const retryWords = (retryParsed.coreExplanation || '').split(/\s+/).filter(Boolean).length;

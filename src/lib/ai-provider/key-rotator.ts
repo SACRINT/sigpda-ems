@@ -594,9 +594,16 @@ export async function withKeyRotation<T>(
       }
       return result;
     } catch (err: unknown) {
+      const errStr = String((err as { message?: string })?.message || err || '');
+      const isTimeout =
+        (err instanceof Error && err.name === 'TimeoutError') ||
+        errStr.toLowerCase().includes('timeout') ||
+        errStr.toLowerCase().includes('timed out');
+
       const isAbort =
-        signal?.aborted ||
-        (err instanceof Error && (err.name === 'AbortError' || err.message.toLowerCase().includes('aborted')));
+        !isTimeout &&
+        (Boolean(signal?.aborted) ||
+          (err instanceof Error && err.name === 'AbortError'));
 
       if (isAbort) {
         // Cancelación solicitada por el cliente: NO registrar error a la clave,
@@ -610,7 +617,10 @@ export async function withKeyRotation<T>(
 
       lastError = err instanceof Error ? err : new Error(String(err));
       const errorObj = err as { status?: number; statusCode?: number; message?: string } | null;
-      const errStr = String(errorObj?.message || err || '');
+      if (errorObj?.message) {
+        // Enriquecer errStr si viene en el objeto estructurado
+        // errStr ya contiene err.message
+      }
 
       const is503 =
         errorObj?.status === 503 ||
@@ -649,7 +659,7 @@ export async function withKeyRotation<T>(
         if (isPermanent) {
           permanentlyFailedKeyIds.add(keyId);
           await recordError(keyId, 'permanent');
-        } else if (is503 || is429) {
+        } else if (is503 || is429 || isTimeout) {
           await recordError(keyId, 'transient');
         }
       }
@@ -669,6 +679,9 @@ export async function withKeyRotation<T>(
             `Google Gemini está experimentando alta demanda (HTTP 503). Fast-fail activado tras ${FAST_FAIL_503_THRESHOLD} errores consecutivos.`
           );
         }
+        if (attempt < maxAttempts - 1) {
+          await new Promise((r) => setTimeout(r, 1500));
+        }
       } else {
         consecutive503Count = 0;
       }
@@ -676,7 +689,15 @@ export async function withKeyRotation<T>(
       if (attempt < maxAttempts - 1) {
         logger.warn(
           `[key-rotator] Intento ${attempt + 1}/${maxAttempts} (Vuelta ${round}) falló (${
-            isPermanent ? 'credencial inválida' : is503 ? '503 alta demanda' : is429 ? 'cuota 429' : 'error transitorio'
+            isPermanent
+              ? 'credencial inválida'
+              : is503
+              ? '503 alta demanda'
+              : is429
+              ? 'cuota 429'
+              : isTimeout
+              ? 'timeout de intento'
+              : 'error transitorio'
           }). Rotando a siguiente clave...`
         );
         continue;

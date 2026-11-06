@@ -134,12 +134,12 @@ describe('P3.1 — Calibración dinámica de prompts de los 4 Writers', () => {
 
     // Debe contener el cálculo dinámico proporcional
     expect(prompt).toContain('sessionPlans (3 sesiones)');
-    expect(prompt).toContain('total planes: ~2550 palabras');
+    expect(prompt).toContain('total planes: ~2565 palabras');
     expect(prompt).toContain('Presupuesto total para esta misión: mínimo 3375 palabras (ideal ~3563 palabras)');
     expect(prompt).toContain('Sesiones cubiertas: Sesiones 1, 2, 3 (3 sesiones)');
   });
 
-  it('lab-writer escala el prompt según sesiones (6 sesiones: ~5100 palabras de planes y resto práctico)', async () => {
+  it('lab-writer escala el prompt según sesiones (6 sesiones: ~5130 palabras de planes y resto práctico)', async () => {
     // 6 sesiones de lab: ideal 7,125 palabras
     const input6h = makeWriterInput({
       missionType: 'lab',
@@ -159,7 +159,7 @@ describe('P3.1 — Calibración dinámica de prompts de los 4 Writers', () => {
 
     // Debe contener cálculo dinámico para 6 sesiones
     expect(prompt).toContain('sessionPlans (6 sesiones)');
-    expect(prompt).toContain('total planes: ~5100 palabras');
+    expect(prompt).toContain('total planes: ~5130 palabras');
     expect(prompt).toContain('Presupuesto total para esta misión: mínimo 6750 palabras (ideal ~7125 palabras)');
   });
 
@@ -182,7 +182,7 @@ describe('P3.1 — Calibración dinámica de prompts de los 4 Writers', () => {
 
     // Debe reflejar las 6 sesiones asignadas
     expect(prompt).toContain('sessionPlans (6 sesiones)');
-    expect(prompt).toContain('total planes: ~5100 palabras');
+    expect(prompt).toContain('total planes: ~5130 palabras');
     expect(prompt).toContain('Presupuesto total para esta misión: mínimo 6750 palabras (ideal ~7125 palabras)');
   });
 
@@ -206,7 +206,7 @@ describe('P3.1 — Calibración dinámica de prompts de los 4 Writers', () => {
 
     // Debe reflejar las 3 sesiones asignadas
     expect(prompt).toContain('sessionPlans (3 sesiones)');
-    expect(prompt).toContain('total planes: ~2550 palabras');
+    expect(prompt).toContain('total planes: ~2565 palabras');
     expect(prompt).toContain('Presupuesto total para esta misión: mínimo 3375 palabras (ideal ~3563 palabras)');
   });
 });

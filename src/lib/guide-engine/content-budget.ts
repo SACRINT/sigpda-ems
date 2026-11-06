@@ -267,10 +267,25 @@ export function validateSessionCoverage(params: {
   const averageWordsPerSession = sessionsCovered > 0 ? Math.round(totalWords / sessionsCovered) : 0;
   const totalPages = Math.max(1, Math.round(totalWords / WORDS_PER_PAGE));
 
-  // Tolerancia editorial estricta (±2% sobre el rango presupuestal formal)
-  const minAllowedWords = Math.round(budget.targetWords.min * 0.98);
-  const maxAllowedWords = Math.round(budget.targetWords.max * 1.02);
-  const withinTargetRange = totalWords >= minAllowedWords && totalWords <= maxAllowedWords;
+  // Gate editorial estricto: estrictamente dentro del rango de palabras [min, max] (para 3h: 20,250 a 22,500 palabras = 45 a 50 páginas)
+  const withinTargetRange = totalWords >= budget.targetWords.min && totalWords <= budget.targetWords.max;
+
+  // Tolerancia de advertencia: si se desvía dentro de ±2%, emite advertencia leve; si se desvía más, advertencia crítica
+  const minWarningWords = Math.round(budget.targetWords.min * 0.98);
+  const maxWarningWords = Math.round(budget.targetWords.max * 1.02);
+  const isNearTargetRange = totalWords >= minWarningWords && totalWords <= maxWarningWords;
+
+  if (!withinTargetRange) {
+    if (isNearTargetRange) {
+      logger.warn(
+        `[validateSessionCoverage] Advertencia leve: totalWords=${totalWords} fuera del rango formal [${budget.targetWords.min}, ${budget.targetWords.max}], pero dentro del margen ±2% [${minWarningWords}, ${maxWarningWords}].`
+      );
+    } else {
+      logger.warn(
+        `[validateSessionCoverage] Advertencia crítica: totalWords=${totalWords} fuera del rango formal [${budget.targetWords.min}, ${budget.targetWords.max}] y del margen ±2%.`
+      );
+    }
+  }
 
   const pagesDelta = totalPages - budget.targetPages.ideal;
   const wordsDelta = totalWords - budget.targetWords.ideal;

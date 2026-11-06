@@ -131,9 +131,9 @@ INDICE DE MATERIALES AUTORIZADOS (usa SOLO estos slugs en los tokens [[material:
 ${buildMaterialSlugIndex(getMaterialCategoriesForContext(input.uacName, input.subsystem), MATERIAL_INDEX_MAX_CHARS - 300)}`;
 
   const sessionCount = Math.max(1, coveredSessions.length);
-  const targetWordsPerPlan = 850;
+  const targetWordsPerPlan = Math.round((input.targetWords.ideal / sessionCount) * 0.72);
   const totalPlansTarget = sessionCount * targetWordsPerPlan;
-  const remainingNarrativeTarget = Math.max(500, input.targetWords.ideal - totalPlansTarget);
+  const remainingNarrativeTarget = Math.max(300, input.targetWords.ideal - totalPlansTarget);
 
   const utilityTarget = Math.round(remainingNarrativeTarget * 0.30);
   const phasesTarget = Math.round(remainingNarrativeTarget * 0.45);
@@ -166,7 +166,7 @@ Redacta la Misión del Proyecto y Construcción del Artefacto Real:`;
       prompt,
       input.planning.teacherId,
       false,
-      { jsonMode: true, maxTokens: 16384, signal: input.signal }
+      { jsonMode: true, maxTokens: 16384, timeoutMs: 85000, signal: input.signal }
     );
     let parsed = robustJsonParse(rawResponse);
 
@@ -197,7 +197,7 @@ Redacta la Misión del Proyecto y Construcción del Artefacto Real:`;
           retryPrompt,
           input.planning.teacherId,
           false,
-          { jsonMode: true, maxTokens: 16384, signal: input.signal }
+          { jsonMode: true, maxTokens: 16384, timeoutMs: 85000, signal: input.signal }
         );
         const retryParsed = robustJsonParse(retryResponse);
         const retryObjCount = Array.isArray(retryParsed.learningObjectives) ? retryParsed.learningObjectives.length : 0;

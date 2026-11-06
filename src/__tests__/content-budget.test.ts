@@ -246,27 +246,21 @@ describe('P3 — content-budget.ts (Fórmula única de presupuesto editorial)', 
       expect(report.withinTargetRange).toBe(false);
     });
 
-    it('validateSessionCoverage marca withinTargetRange false si se desvía del presupuesto estricto', () => {
+    it('validateSessionCoverage marca withinTargetRange false si se desvía del presupuesto estricto [20250, 22500]', () => {
       const budget = computeContentBudget(3); // 20,250 a 22,500 palabras
       const sessions = Array.from({ length: 18 }, (_, i) => ({ sessionNumber: i + 1 }));
 
-      // Muy bajo: 15,000 palabras (~33 páginas)
-      const reportLow = validateSessionCoverage({
-        sessions,
-        expectedSessionsCount: 18,
-        totalWords: 15000,
-        budget,
-      });
-      expect(reportLow.withinTargetRange).toBe(false);
+      // Fronteras exactas aceptadas
+      expect(validateSessionCoverage({ sessions, expectedSessionsCount: 18, totalWords: 20250, budget }).withinTargetRange).toBe(true);
+      expect(validateSessionCoverage({ sessions, expectedSessionsCount: 18, totalWords: 22500, budget }).withinTargetRange).toBe(true);
 
-      // Muy alto: 28,000 palabras (~62 páginas)
-      const reportHigh = validateSessionCoverage({
-        sessions,
-        expectedSessionsCount: 18,
-        totalWords: 28000,
-        budget,
-      });
-      expect(reportHigh.withinTargetRange).toBe(false);
+      // Fuera de la frontera estricta
+      expect(validateSessionCoverage({ sessions, expectedSessionsCount: 18, totalWords: 20240, budget }).withinTargetRange).toBe(false);
+      expect(validateSessionCoverage({ sessions, expectedSessionsCount: 18, totalWords: 22510, budget }).withinTargetRange).toBe(false);
+
+      // Desvíos mayores
+      expect(validateSessionCoverage({ sessions, expectedSessionsCount: 18, totalWords: 15000, budget }).withinTargetRange).toBe(false);
+      expect(validateSessionCoverage({ sessions, expectedSessionsCount: 18, totalWords: 28000, budget }).withinTargetRange).toBe(false);
     });
   });
 });
