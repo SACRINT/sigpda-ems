@@ -63,8 +63,6 @@ const ADAPTERS: Record<DisciplinaryDomainId, DisciplinaryAdapter> = {
       'cautín',
       'matraz erlenmeyer',
       'mechero bunsen',
-      'balanza romana',
-      'báscula de dos platillos',
     ],
     workbookVoiceDirective:
       'Desarrolla demostraciones paso a paso con tasas de cambio, tabulaciones numéricas reales, gráficas en el plano cartesiano y modelación algebraica contextualizada.',
@@ -813,7 +811,11 @@ export function getDisciplinaryAdapter(
     combined.includes('enfermeria') ||
     combined.includes('laboratorista') ||
     combined.includes('agropecuari') ||
-    combined.includes('construccion') ||
+    combined.includes('construc') ||
+    combined.includes('vivienda') ||
+    combined.includes('plomer') ||
+    combined.includes('hidrosanitari') ||
+    combined.includes('instalaciones hidraulicas') ||
     combined.includes('biotecnologia') ||
     combined.includes('soldadura')
   ) {

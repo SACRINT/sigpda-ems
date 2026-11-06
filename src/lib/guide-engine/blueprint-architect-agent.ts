@@ -14,6 +14,7 @@ import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
 import type { KeyActivityPlan, Planning, SecuenciaSesion } from '@/types/planning';
 import type { CurriculumContext } from './curriculum-context-agent';
 import { WORDS_PER_PAGE, computeMissionBudget } from './content-budget';
+import { getDisciplinaryAdapter } from '@/lib/prompts/disciplinary-adapters';
 
 export interface PlannedMissionBlueprint {
   missionIndex: number;
@@ -90,7 +91,8 @@ function normalizeToDetailedSession(
  * 4. Misión 4 (evaluation): Cierre, demostración integral y evaluación formativa NEM
  */
 function clusterSessionsIntoMissions(
-  sessions: DetailedSession[]
+  sessions: DetailedSession[],
+  planning?: Planning
 ): PlannedMissionBlueprint[] {
   if (sessions.length === 0) return [];
 
@@ -125,10 +127,10 @@ function clusterSessionsIntoMissions(
   const finalLabGroup = labGroup.length > 0 ? labGroup : (apertura.length > 1 ? [apertura[apertura.length - 1]] : sessions.slice(0, 1));
   const finalProjectGroup = projectGroup.length > 0 ? projectGroup : (cierre.length > 1 ? [cierre[0]] : sessions.slice(-1));
 
-  const mission1 = createMissionBlueprint(1, apertura.length > 0 ? apertura : sessions.slice(0, 1), 'foundation');
-  const mission2 = createMissionBlueprint(2, finalLabGroup, 'lab');
-  const mission3 = createMissionBlueprint(3, finalProjectGroup, 'project');
-  const mission4 = createMissionBlueprint(4, cierre.length > 0 ? cierre : sessions.slice(-1), 'evaluation');
+  const mission1 = createMissionBlueprint(1, apertura.length > 0 ? apertura : sessions.slice(0, 1), 'foundation', planning);
+  const mission2 = createMissionBlueprint(2, finalLabGroup, 'lab', planning);
+  const mission3 = createMissionBlueprint(3, finalProjectGroup, 'project', planning);
+  const mission4 = createMissionBlueprint(4, cierre.length > 0 ? cierre : sessions.slice(-1), 'evaluation', planning);
 
   return [mission1, mission2, mission3, mission4];
 }
@@ -136,20 +138,26 @@ function clusterSessionsIntoMissions(
 function createMissionBlueprint(
   index: number,
   sessionGroup: DetailedSession[],
-  missionType: 'foundation' | 'lab' | 'project' | 'evaluation'
+  missionType: 'foundation' | 'lab' | 'project' | 'evaluation',
+  planning?: Planning
 ): PlannedMissionBlueprint {
   const sessionNumbers = sessionGroup.map((s) => s.sessionNum);
   const mainTitle = sessionGroup[0]?.title || `Tema ${index}`;
+  const discipline = getDisciplinaryAdapter(
+    planning?.uacName,
+    planning?.component,
+    planning?.curriculumName
+  );
 
   let titlePrefix = `Misión ${index}`;
   if (missionType === 'foundation') {
-    titlePrefix = `Misión ${index}: Fundamentación e Intuición`;
+    titlePrefix = `Misión ${index}: Fundamentación y Activación`;
   } else if (missionType === 'lab') {
-    titlePrefix = `Misión ${index}: Laboratorio y Taller Experimental`;
+    titlePrefix = `Misión ${index}: Práctica y Aplicación (${discipline.displayName})`;
   } else if (missionType === 'project') {
-    titlePrefix = `Misión ${index}: Construcción del Artefacto Real`;
+    titlePrefix = `Misión ${index}: Proyecto Integrador`;
   } else if (missionType === 'evaluation') {
-    titlePrefix = `Misión ${index}: Demostración Integral y Evaluación Formativa`;
+    titlePrefix = `Misión ${index}: Evaluación y Cierre`;
   }
 
   const title = `${titlePrefix} — ${mainTitle}`;
@@ -184,17 +192,21 @@ export function buildBlockBlueprint(params: {
 
   // 1. Obtener las sesiones desde sequenceJson / sequence_json o autogenerarlas si no existen
   let sessions: DetailedSession[] = [];
-  const sequenceData = planning.sequenceJson || (planning as Record<string, any>).sequence_json || {};
+  const legacyPlanning = planning as Planning & {
+    sequence_json?: Planning['sequenceJson'];
+    content_json?: Planning['contentJson'];
+  };
+  const sequenceData = planning.sequenceJson || legacyPlanning.sequence_json || {};
   const currentBlockSeq = sequenceData[blockIndex];
 
   if (currentBlockSeq && Array.isArray(currentBlockSeq.sessions) && currentBlockSeq.sessions.length > 0) {
-    sessions = currentBlockSeq.sessions.map((s: any) =>
+    sessions = currentBlockSeq.sessions.map((s: SecuenciaSesion | DetailedSession) =>
       normalizeToDetailedSession(s, blockIndex, blockName)
     );
   } else {
-    // Autogeneración silenciosa en 5ms leyendo directamente los bloques curriculares
+    // Autogeneraci��n silenciosa en 5ms leyendo directamente los bloques curriculares
     const isLaboral = curriculum.subsystem === 'bt' || curriculum.component === 'laboral';
-    const content = (planning.contentJson || (planning as Record<string, any>).content_json) as any;
+    const content = planning.contentJson || legacyPlanning.content_json;
     const curricularBlocks = resolveCurricularBlocks(content);
     const targetBlock = curricularBlocks[blockIndex];
 
@@ -219,7 +231,7 @@ export function buildBlockBlueprint(params: {
   }
 
   // 2. Agrupar sesiones en Misiones coherentes usando s.phase y s.title
-  const missions = clusterSessionsIntoMissions(sessions);
+  const missions = clusterSessionsIntoMissions(sessions, planning);
 
   // 3. Blueprint del Proyecto / Artefacto Real y Evaluación Formativa derivados directamente de las misiones
   const projectMission = missions.find((m) => m.missionType === 'project') || missions[2];
@@ -245,7 +257,7 @@ export function buildBlockBlueprint(params: {
     sessions,
     missions,
     projectBlueprint: {
-      artifactName: `Artefacto Formativo Integrador: Solución Aplicada para ${curriculum.paecConnection.projectName}`,
+      artifactName: `Producto Integrador: Solución Aplicada para ${curriculum.paecConnection.projectName}`,
       targetPages: projectPages,
       targetWords: projectWords,
       targetSessions: projectSessions.length > 0 ? projectSessions : [sessions.length - 2, sessions.length - 1],

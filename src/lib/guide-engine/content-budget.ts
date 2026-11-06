@@ -12,7 +12,28 @@
 import { logger } from '@/lib/logger';
 
 export const WEEKS_PER_BLOCK = 6;
+export const BLOCKS_PER_SEMESTER = 3;
+export const SEMESTER_WEEKS = WEEKS_PER_BLOCK * BLOCKS_PER_SEMESTER;
 export const WORDS_PER_PAGE = 450;
+
+/**
+ * Política oficial de sesiones por carga horaria semanal (MCCEMS Puebla):
+ * cada semana del bloque aporta las horas semanales de la UAC como sesiones.
+ * 1 h → 6, 2 h → 12, 3 h → 18, 4 h → 24, 5 h → 30 sesiones por bloque.
+ * No se normaliza: una UAC de 4 h/semana conserva 24 sesiones por bloque (72 totales).
+ */
+export const SESSIONS_PER_BLOCK_BY_WEEKLY_HOURS: Readonly<Record<number, number>> = {
+  1: 6,
+  2: 12,
+  3: 18,
+  4: 24,
+  5: 30,
+};
+
+export function resolveSessionsPerBlock(weeklyHoursInput: number): number {
+  const weeklyHours = Math.max(1, Math.min(8, Math.round(weeklyHoursInput)));
+  return SESSIONS_PER_BLOCK_BY_WEEKLY_HOURS[weeklyHours] ?? weeklyHours * WEEKS_PER_BLOCK;
+}
 
 export const MIN_PAGES_PER_SESSION = 2.5;
 export const MAX_PAGES_PER_SESSION = 50 / 18; // ~2.7777778 (18 sesiones = 50 páginas)
@@ -69,9 +90,10 @@ export interface ContentBudget {
 /**
  * Resuelve las horas semanales asignadas a la planeación didáctica:
  * 1. Prioridad: planning.contentJson.sectionI.totalHoursWeekly o planning.content_json.sectionI.totalHoursWeekly
- * 2. Fallback: totalHours si <= 10
- * 3. Fallback: customHours explícito del orquestador
- * 4. Default canónico MCCEMS: 3 horas/semana
+ * 2. Fallback: totalHours <= 10 se interpreta como horas semanales directas
+ * 3. Fallback: totalHours de semestre (18/36/54/72/90) se divide entre las 18 semanas
+ * 4. Fallback: customHours explícito del orquestador
+ * 5. Default canónico MCCEMS: 3 horas/semana
  */
 export function resolveWeeklyHours(
   planning?: {
@@ -98,12 +120,13 @@ export function resolveWeeklyHours(
     return Math.round(content.sectionI.totalHoursWeekly);
   }
 
-  if (
-    typeof content?.sectionI?.totalHours === 'number' &&
-    content.sectionI.totalHours > 0 &&
-    content.sectionI.totalHours <= 10
-  ) {
-    return Math.round(content.sectionI.totalHours);
+  if (typeof content?.sectionI?.totalHours === 'number' && content.sectionI.totalHours > 0) {
+    const totalHours = content.sectionI.totalHours;
+    if (totalHours <= 10) {
+      return Math.round(totalHours);
+    }
+    // totalHours de semestre: 18 semanas × horas/semana.
+    return Math.max(1, Math.round(totalHours / SEMESTER_WEEKS));
   }
 
   if (typeof customHours === 'number' && customHours > 0) {
@@ -147,7 +170,7 @@ export function computeMissionBudget(sessionCountInput: number): MissionBudget {
  */
 export function computeContentBudget(weeklyHoursInput?: number): ContentBudget {
   const weeklyHours = Math.max(1, Math.min(8, Math.round(weeklyHoursInput ?? 3)));
-  const sessionsPerBlock = weeklyHours * WEEKS_PER_BLOCK;
+  const sessionsPerBlock = resolveSessionsPerBlock(weeklyHours);
 
   const minPages = Math.round(sessionsPerBlock * MIN_PAGES_PER_SESSION);
   const maxPages = Math.round(sessionsPerBlock * MAX_PAGES_PER_SESSION);

@@ -107,9 +107,9 @@ function makeMockWriterOutput(params: {
   const totalWords = baseWords + plansWords;
 
   const pTheory1 =
-    'El análisis formal de la variación requiere la integración de representaciones algebraicas, tabulares y gráficas situadas en el entorno comunitario. Mediante el estudio sistemático de las razones de cambio, los estudiantes identifican comportamientos tendenciales, puntos críticos de inflexión y condiciones de estabilidad en problemáticas reales del Estado de Puebla, vinculando la teoría matemática con la toma de decisiones informada y transformadora.';
+    'El análisis de los procesos formativos requiere integrar conceptos, procedimientos y evidencias situadas en el entorno comunitario. Mediante el estudio sistemático de cada tema, los estudiantes identifican relaciones, criterios de calidad y aplicaciones en problemáticas reales del Estado de Puebla, vinculando la teoría con la toma de decisiones informada y transformadora.';
   const pTheory2 =
-    'Para caracterizar este comportamiento con rigor científico, definimos formalmente la tasa de variación media como el cociente entre el cambio observado en la magnitud dependiente y el cambio en la variable de control. Esta relación nos permite no solo describir el estado actual de un sistema, sino también proyectar tendencias futuras y estimar puntos críticos de estabilidad o riesgo en los proyectos comunitarios escolares.';
+    'Para caracterizar cada proceso con rigor, se definen los conceptos centrales, se revisan los procedimientos propios de la disciplina y se contrastan los resultados con los criterios acordados. Esta relación permite describir el estado actual de una situación, proyectar mejoras y estimar riesgos en los proyectos comunitarios escolares.';
 
   const section: MissionSection = {
     missionIndex: type === 'foundation' ? 1 : type === 'lab' ? 2 : type === 'project' ? 3 : 4,
@@ -119,7 +119,7 @@ function makeMockWriterOutput(params: {
     sessionFocus: `Enfoque Pedagógico Situado de ${type}`,
     phenomenonHook: {
       story: `Caso situado en una comunidad escolar del Estado de Puebla para contextualizar el aprendizaje formativo en ${type}. ${pTheory1}`,
-      detonatingQuestion: '¿Cómo podemos modelar e intervenir positivamente ante este reto comunitario mediante pensamiento cuantitativo?',
+      detonatingQuestion: '¿Cómo podemos intervenir positivamente ante este reto comunitario desde nuestra disciplina?',
     },
     conceptZero: {
       physicalAnalogy: 'Analogía física cotidiana que ilustra el fenómeno con elementos del entorno del estudiante y recursos locales comprobables.',
@@ -129,7 +129,7 @@ function makeMockWriterOutput(params: {
     weDoSection: { guidedPractice: `Práctica guiada en equipos de trabajo colaborativo para resolución situada en el aula escolar.\n\n${pTheory2}`, workbookElements: [] },
     youDoSection: { autonomousChallenge: `Reto autónomo individual en el cuaderno activo con 5 pasos numerados para consolidar el aprendizaje significativo.\n\n${pTheory1}`, workbookElements: [] },
     troubleshooting: [
-      { id: 'tb-mock-1', symptom: 'Desviación en el cálculo de la razón de cambio', rootCause: 'Inversión en los pares ordenados delta y y delta x', solutionSteps: ['Verificar coordenadas iniciales y finales', 'Recalcular cociente'], preventionTip: 'Rotular explícitamente variables dependiente e independiente' },
+      { id: 'tb-mock-1', symptom: 'Desviación en el resultado del procedimiento', rootCause: 'Omisión de un paso o criterio de revisión', solutionSteps: ['Verificar los datos iniciales y finales', 'Recalcular el resultado'], preventionTip: 'Registrar explícitamente los criterios y pasos del procedimiento' },
     ],
     formativeCheckpoint: {
       question: '¿Qué aprendiste?',
@@ -279,7 +279,7 @@ describe('Phase P3 / P3.1: Content Budget and Editorial Orchestration', () => {
     expect(workbook.qualityWarning).toBe(false);
   });
 
-  it('detecta sesiones incompletas y enciende qualityWarning en el libro', async () => {
+  it('rechaza sesiones incompletas sin persistir el bloque', async () => {
     vi.mocked(getPlanningById).mockResolvedValue({
       id: 'plan-incomplete',
       teacher_id: 'teacher-1',
@@ -313,13 +313,8 @@ describe('Phase P3 / P3.1: Content Budget and Editorial Orchestration', () => {
       makeMockWriterOutput({ type: 'evaluation', sessions: [10, 11, 12], baseWords: 500, wordsPerPlan: 500 })
     );
 
-    const workbook = await generateBlockWorkTextbook('plan-incomplete', 0);
-
-    expect(workbook.sessionsPerBlock).toBe(18);
-    expect(workbook.coverageReport?.sessionsExpected).toBe(18);
-    expect(workbook.coverageReport?.sessionsCovered).toBe(12);
-    expect(workbook.coverageReport?.allSessionsPresent).toBe(false);
-    expect(workbook.qualityWarning).toBe(true);
+    await expect(generateBlockWorkTextbook('plan-incomplete', 0)).rejects.toThrow(/BlockIntegrity/);
+    expect(saveBlockWorkbook).not.toHaveBeenCalled();
   });
 
   it('respeta customHours provisto en options sobreescribiendo el valor por defecto', async () => {
@@ -424,5 +419,42 @@ describe('Phase P3 / P3.1: Content Budget and Editorial Orchestration', () => {
     // Verificación de datos de identidad y contexto
     expect(pdfData.text).toContain('Pensamiento Matemático I');
     expect(pdfData.text).toContain('Cuidado del agua');
+  });
+
+  it('fail-closed: rechaza y no persiste un bloque con contaminación cruzada', async () => {
+    vi.mocked(getPlanningById).mockResolvedValue({
+      id: 'plan-contaminated',
+      teacher_id: 'teacher-1',
+      teacherId: 'teacher-1',
+      uac_name: 'Tutoría y Orientación Educativa',
+      uacName: 'Tutoría y Orientación Educativa',
+      semester: 1,
+      component: 'fundamental',
+      content_json: { sectionI: { totalHoursWeekly: 1 } },
+      contentJson: { sectionI: { totalHoursWeekly: 1 } },
+    } as any);
+
+    const contaminatedFoundation = makeMockWriterOutput({
+      type: 'foundation',
+      sessions: [1],
+      baseWords: 580,
+      wordsPerPlan: 590,
+    });
+    contaminatedFoundation.section.conceptZero.coreExplanation =
+      'En esta sesión se realiza el ensamblaje físico del prototipo de riego y la prueba de estanqueidad de tuberías.';
+
+    vi.mocked(generateFoundationMission).mockResolvedValue(contaminatedFoundation);
+    vi.mocked(generateLabMission).mockResolvedValue(
+      makeMockWriterOutput({ type: 'lab', sessions: [2, 3], baseWords: 1170, wordsPerPlan: 590 })
+    );
+    vi.mocked(generateProjectMission).mockResolvedValue(
+      makeMockWriterOutput({ type: 'project', sessions: [4, 5], baseWords: 1170, wordsPerPlan: 590 })
+    );
+    vi.mocked(generateEvaluationSection).mockResolvedValue(
+      makeMockWriterOutput({ type: 'evaluation', sessions: [6], baseWords: 580, wordsPerPlan: 590 })
+    );
+
+    await expect(generateBlockWorkTextbook('plan-contaminated', 0)).rejects.toThrow(/CrossContamination/);
+    expect(saveBlockWorkbook).not.toHaveBeenCalled();
   });
 });

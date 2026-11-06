@@ -25,11 +25,18 @@ import { buildPlanningAlignmentPrompt } from './planning-alignment-prompt';
 import { logger } from '@/lib/logger';
 import { lintPedagogicalTerminology, FORBIDDEN_PM3_TERMINOLOGY_REGEX } from '../pedagogical-quality-gate';
 import { countSessionPlanWords } from '../content-budget';
+import { getDisciplinaryAdapter } from '@/lib/prompts/disciplinary-adapters';
 
 export async function generateFoundationMission(input: WriterInput): Promise<WriterOutput> {
   const foundationMission = input.missions.find((m) => m.missionType === 'foundation') || input.missions[0];
   const coveredSessions = foundationMission ? foundationMission.sessionNumbers : [1, 2];
   const missionTitle = foundationMission ? foundationMission.title : `Misión 1: Fundamentación e Intuición`;
+  const discipline = getDisciplinaryAdapter(
+    input.uacName,
+    input.component,
+    input.curriculumName || input.careerOrProgramName
+  );
+  const equipmentHint = discipline.allowedPhysicalEquipment.slice(0, 4).join(', ');
   const fallbackContext: FallbackPlanContext = {
     uacName: input.uacName,
     blockName: input.blockName,
@@ -37,10 +44,20 @@ export async function generateFoundationMission(input: WriterInput): Promise<Wri
     sessionFocus: foundationMission?.focus || 'Concepto Cero y Andamiaje',
     paecContext: input.paecContext,
     subsystem: input.subsystem,
+    component: input.component,
+    curriculumName: input.curriculumName,
+    careerOrProgramName: input.careerOrProgramName,
   };
 
   const approach = input.subsystem === 'bt' ? 'estándar industrial y tecnológico' : 'indagación científica y dialógica';
-  const planningAlignmentChunk = buildPlanningAlignmentPrompt(input.planningActivities, 'foundation', input.uacName) +
+  const planningAlignmentChunk = buildPlanningAlignmentPrompt(
+    input.planningActivities,
+    'foundation',
+    input.uacName,
+    input.component,
+    input.curriculumName,
+    input.careerOrProgramName
+  ) +
   (input.alignmentDirective ? ` 
 ALINEACION DURA — TERMINOS OBLIGATORIOS DE LA PLANEACION (reproduce su redaccion original en tu seccion): ` + input.alignmentDirective + ` 
  ` : '');
@@ -58,7 +75,7 @@ REGLAS DE VOZ (CRÍTICO — el libro es del ESTUDIANTE):
 
 REGLAS DE PROFUNDIDAD Y CUADERNO ACTIVO:
 1. Concepto Cero (400 a 600 palabras en total entre physicalAnalogy y coreExplanation):
-   - physicalAnalogy: Analogía cotidiana vívida e intuitiva (80-140 palabras) de la vida real o comunidad situada EXCLUSIVAMENTE en el ámbito disciplinar de "${input.uacName}" (ej. arquitectura, diseño, construcción, ingeniería civil, mecánica o topografía para Dibujo Técnico). QUEDA TERMINANTEMENTE PROHIBIDO usar analogías de gastronomía, cocina, chefs, cuchillos o recetas salvo que la UAC sea expresamente de Alimentos o Gastronomía.
+   - physicalAnalogy: Analogía cotidiana vívida e intuitiva (80-140 palabras) de la vida real o comunidad situada EXCLUSIVAMENTE en el ámbito disciplinar de "${input.uacName}" (${discipline.displayName}). Usa como referencia el equipo, los recursos o las prácticas propias de esta disciplina: ${equipmentHint || 'los recursos pertinentes de la UAC'}. No introduzcas instrumentos, escenarios ni ejemplos de otras disciplinas.
    - coreExplanation: Al menos 2 párrafos explicativos conceptuales + 1 EJEMPLO RESUELTO PASO A PASO con datos cuantitativos/procedimentales + 1 tabla de contraste <!--workbook:table:cols=Aspecto Cotidiano,Concepto Técnico Formal,Función en el Problema-->.
 2. Gancho fenomenológico: Desafío real motivador de Puebla contextualizado en el proyecto PAEC: "${input.paecContext}".
 3. Yo Hago (350 a 500 palabras): Tutorial maestro modelado paso a paso (código funcional comentado en BT; modelación/experimento en BGE).
@@ -328,69 +345,7 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
     if (input.signal?.aborted || (err instanceof Error && (err.name === 'AbortError' || err.message.includes('aborted') || err.message.includes('AbortError')))) {
       throw (input.signal?.reason || err);
     }
-    logger.error('[generateFoundationMission] Error:', err);
-    // Fallback de resiliencia estructurado
-    const fallbackPlans = completeSessionPlans([], coveredSessions, fallbackContext);
-    const fallbackPlansWords = fallbackPlans.reduce((acc, sp) => acc + countSessionPlanWords(sp), 0);
-    const fallbackTotalWords = 500 + fallbackPlansWords;
-
-    const fallbackSection: MissionSection = {
-      missionIndex: foundationMission?.missionIndex || 1,
-      title: missionTitle,
-      coveredSessions,
-      sessionTopic: 'Fundamentación e Intuición',
-      sessionFocus: 'Concepto Cero y saberes previos',
-      phenomenonHook: {
-        story: `En la comunidad de la escuela, nos enfrentamos cotidianamente a situaciones vinculadas a ${input.uacName}. Reflexionar sobre cómo funciona nuestro entorno nos permite plantear soluciones concretas para el proyecto PAEC: ${input.paecContext}.`,
-        detonatingQuestion: '¿De qué manera los principios que estudiaremos hoy transforman las decisiones técnicas en la vida real?',
-      },
-      conceptZero: {
-        physicalAnalogy: 'Imaginemos este concepto como un sistema interconectado donde cada componente cumple un rol indispensable.',
-        coreExplanation: `El estudio de ${input.uacName} permite comprender los principios operativos y formales que rigen la disciplina.`,
-      },
-      iDoSection: {
-        stepByStepDemo: 'El docente modela el análisis inicial en el pizarrón demostrando el procedimiento estándar.',
-      },
-      weDoSection: {
-        guidedPractice: 'En parejas, analicen el siguiente caso aplicando los principios revisados.',
-        workbookElements: [
-          {
-            id: 'fb-lines-1',
-            type: 'lines',
-            title: 'Hipótesis de trabajo',
-            instruction: 'Anota en tres renglones tu propuesta inicial:',
-            config: { rows: 4 },
-          },
-        ],
-      },
-      youDoSection: {
-        autonomousChallenge: 'Resuelve el ejercicio de aplicación de forma individual en tu cuaderno.',
-        workbookElements: [
-          {
-            id: 'fb-table-1',
-            type: 'empty_table',
-            title: 'Tabla de registro individual',
-            config: { cols: ['Etapa', 'Observación', 'Conclusión'], sampleRows: 4 },
-          },
-        ],
-      },
-      troubleshooting: [],
-      formativeCheckpoint: {
-        question: '¿Qué dificultades encontraste al abordar este concepto por primera vez?',
-        reflectionPrompts: ['Revisa los pasos que seguiste y contrástalos con tu compañero.'],
-        criteriaChecklist: ['Identifico el propósito central de la misión.'],
-      },
-      sessionPlans: fallbackPlans,
-      wordCount: fallbackTotalWords,
-    };
-
-    return {
-      type: 'foundation',
-      section: fallbackSection,
-      wordCount: fallbackTotalWords,
-      tokensUsed: 0,
-      qualityScore: 70,
-      warnings: ['Generado con fallback estructurado por timeout o error en modelo: ' + (err instanceof Error ? err.message : String(err))],
-    };
+    logger.error('[generateFoundationMission] Error sin fallback sintético:', err);
+    throw err;
   }
 }

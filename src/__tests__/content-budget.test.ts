@@ -11,9 +11,11 @@ import {
   computeContentBudget,
   computeMissionBudget,
   resolveWeeklyHours,
+  resolveSessionsPerBlock,
   countSessionPlanWords,
   validateSessionCoverage,
   WORDS_PER_PAGE,
+  SESSIONS_PER_BLOCK_BY_WEEKLY_HOURS,
 } from '@/lib/guide-engine/content-budget';
 
 describe('P3 — content-budget.ts (Fórmula única de presupuesto editorial)', () => {
@@ -187,6 +189,33 @@ describe('P3 — content-budget.ts (Fórmula única de presupuesto editorial)', 
     it('usa 3 h/semana como default final seguro si el objeto de planeación es null o undefined', () => {
       expect(resolveWeeklyHours(null)).toBe(3);
       expect(resolveWeeklyHours(undefined)).toBe(3);
+    });
+
+    it('deriva horas semanales desde totalHours de semestre: 54 h → 3 h/semana', () => {
+      const planning = { content_json: { sectionI: { totalHours: 54 } } };
+      expect(resolveWeeklyHours(planning)).toBe(3);
+      expect(computeContentBudget(resolveWeeklyHours(planning)).sessionsPerBlock).toBe(18);
+    });
+
+    it('deriva horas semanales desde totalHours de semestre: 72 h → 4 h/semana', () => {
+      const planning = { content_json: { sectionI: { totalHours: 72 } } };
+      expect(resolveWeeklyHours(planning)).toBe(4);
+      expect(computeContentBudget(resolveWeeklyHours(planning)).sessionsPerBlock).toBe(24);
+    });
+  });
+
+  describe('3.1 Política persistida de sesiones por horas semanales', () => {
+    it('mapea 1-5 h/semana a 6, 12, 18, 24 y 30 sesiones por bloque', () => {
+      expect(SESSIONS_PER_BLOCK_BY_WEEKLY_HOURS).toEqual({ 1: 6, 2: 12, 3: 18, 4: 24, 5: 30 });
+      for (const [hours, sessions] of Object.entries(SESSIONS_PER_BLOCK_BY_WEEKLY_HOURS)) {
+        expect(resolveSessionsPerBlock(Number(hours))).toBe(sessions);
+      }
+    });
+
+    it('no normaliza 4 h/semana a 18: conserva 24 sesiones por bloque', () => {
+      expect(resolveSessionsPerBlock(4)).toBe(24);
+      expect(computeContentBudget(4).sessionsPerBlock).toBe(24);
+      expect(computeContentBudget(4).targetWords.min).toBe(27_000);
     });
   });
 

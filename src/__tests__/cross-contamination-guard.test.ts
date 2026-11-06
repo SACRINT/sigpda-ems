@@ -221,21 +221,17 @@ describe('Cross-Contamination Guard (P3.1.2)', () => {
       expect(issues).toEqual([]);
     });
 
-    it('completeSessionPlans completa sesiones faltantes con fallback contextual y marca isFallback: true', () => {
+    it('completeSessionPlans rechaza sesiones faltantes sin relleno sintético', () => {
       const covered = [10, 11, 12];
-      const completed = completeSessionPlans([], covered, {
-        uacName: 'Coloca elementos constructivos básicos de una vivienda',
-        blockName: 'Bloque 2: Instalaciones de Plomería',
-        sessionTopic: 'Técnicas de unión y corte de tuberías',
-      });
+      expect(() =>
+        completeSessionPlans([], covered, {
+          uacName: 'Coloca elementos constructivos básicos de una vivienda',
+          blockName: 'Bloque 2: Instalaciones de Plomería',
+          sessionTopic: 'Técnicas de unión y corte de tuberías',
+        })
+      ).toThrow(/sessionPlans incompletos/);
 
-      expect(completed.length).toBe(3);
-      expect(completed.map((p) => p.sessionNumber)).toEqual([10, 11, 12]);
-      expect(completed.every((p) => p.isFallback === true)).toBe(true);
-
-      // detectFallbackWords debe detectar el 100% de las palabras generadas por fallback
-      const fbWords = detectFallbackWords(completed, 'Coloca elementos constructivos básicos de una vivienda');
-      expect(fbWords).toBeGreaterThan(1500);
+      expect(detectFallbackWords([], 'Coloca elementos constructivos básicos de una vivienda')).toBe(0);
     });
   });
 
@@ -315,6 +311,96 @@ describe('Cross-Contamination Guard (P3.1.2)', () => {
       expect(report.issues.length).toBeGreaterThan(0);
       expect(report.issues[0].sessionNumber).toBe(10);
       expect(report.issues[0].actualDiscipline).toBe('Pensamiento Matemático');
+    });
+  });
+
+  describe('6. Contaminación inversa y cobertura por adaptador', () => {
+    it('detecta construcción dentro de una UAC matemática', () => {
+      const mathPlan = createMockPlan({
+        sessionNumber: 5,
+        objetivo: 'Fase 3: Ensamblaje físico del prototipo de riego para la comunidad.',
+        contenido: 'En esta sesión se realiza la prueba de estanqueidad y la conexión de tuberías de CPVC.',
+        isFallback: false,
+      });
+
+      const issues = validateSessionPlanContamination(mathPlan, 'Pensamiento Matemático I');
+      expect(issues.length).toBeGreaterThan(0);
+      expect(issues.some((i) => i.actualDiscipline === 'Construccion e Instalaciones')).toBe(true);
+    });
+
+    it('detecta matemáticas dentro de una UAC de humanidades', () => {
+      const humanitiesPlan = createMockPlan({
+        sessionNumber: 8,
+        objetivo: 'Analizar el texto argumentativo desde la ética.',
+        contenido: 'Calcula la tasa de variación media y representa el modelo algebraico en el plano.',
+        isFallback: false,
+      });
+
+      const issues = validateSessionPlanContamination(humanitiesPlan, 'Humanidades II');
+      expect(issues.length).toBeGreaterThan(0);
+      expect(issues[0].actualDiscipline).toBe('Pensamiento Matemático');
+    });
+
+    it('detecta simulaciones de ciencias ajenas en una UAC de construcción', () => {
+      const constructionPlan = createMockPlan({
+        sessionNumber: 11,
+        objetivo: 'Instalar una red hidráulica residencial.',
+        recursos: [
+          {
+            titulo: 'Simulador de presión en fluidos (PhET)',
+            url: 'https://phet.colorado.edu/es/simulations/under-pressure',
+            tipo: 'web',
+          },
+        ],
+        isFallback: false,
+      });
+
+      const issues = validateSessionPlanContamination(
+        constructionPlan,
+        'Coloca elementos constructivos básicos de una vivienda'
+      );
+      expect(issues.some((i) => i.field === 'recursos[0]')).toBe(true);
+      expect(issues.some((i) => i.actualDiscipline === 'Ciencias Naturales')).toBe(true);
+    });
+
+    it('revisa también el texto de la misión, no solo los planes de sesión', () => {
+      const mission: MissionSection = {
+        missionIndex: 1,
+        title: 'Misión 1: Fundamentación',
+        coveredSessions: [1],
+        sessionTopic: 'Introducción',
+        sessionFocus: 'Conceptos base',
+        phenomenonHook: {
+          story: 'Fase 3: Ensamblaje físico del prototipo de riego.',
+          detonatingQuestion: '¿Cómo iniciar?',
+        },
+        conceptZero: { physicalAnalogy: 'Analogía', coreExplanation: 'Explicación' },
+        iDoSection: { stepByStepDemo: 'Demo' },
+        weDoSection: { guidedPractice: 'Práctica', workbookElements: [] },
+        youDoSection: { autonomousChallenge: 'Reto', workbookElements: [] },
+        troubleshooting: [],
+        formativeCheckpoint: { question: 'Pregunta', reflectionPrompts: [], criteriaChecklist: [] },
+        sessionPlans: [createMockPlan({ sessionNumber: 1 })],
+        wordCount: 800,
+      };
+
+      const report = validateBlockCrossContamination([mission], 'Pensamiento Matemático III');
+      expect(report.clean).toBe(false);
+      expect(report.issues.some((i) => i.field.includes('phenomenonHook.story'))).toBe(true);
+    });
+
+    it('el fallback matemático es neutral y no inyecta construcción', () => {
+      const plan = buildContextualFallbackPlan(3, {
+        uacName: 'Pensamiento Matemático I',
+        blockName: 'Bloque 1: Variación y cambio',
+        sessionTopic: 'Razón de cambio',
+        paecContext: 'Cuidado del agua',
+        subsystem: 'bge',
+      });
+
+      const issues = validateSessionPlanContamination(plan, 'Pensamiento Matemático I');
+      expect(issues).toEqual([]);
+      expect(plan.contenido).not.toMatch(/tuber[ií]a|estanqueidad|ensamblaje f[ií]sico/i);
     });
   });
 });

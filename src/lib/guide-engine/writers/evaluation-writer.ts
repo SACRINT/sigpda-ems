@@ -3,11 +3,11 @@
  * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
  * Genera los instrumentos de evaluación formativa y sumativa del bloque:
- * - Lógica de reutilización (0 tokens): Si existingExtras ya cuenta con rúbrica,
- *   lista de verificación, autoevaluación o criterios de producto, los aprovecha directamente.
- * - Si faltan instrumentos, genera los 4 oficiales bajo el estándar NEM:
+ * - Genera siempre instrumentos frescos; no reutiliza extras previos para evitar
+ *   heredar rúbricas/checklists contaminados de versiones anteriores.
+ * - Genera los 4 oficiales bajo el estándar NEM:
  *   1. Rúbrica analítica (4 niveles: Sobresaliente 10-9, Notable 8-7, Suficiente 6-5, Insuficiente 4-1).
- *   2. Lista de verificación técnica del artefacto/producto.
+ *   2. Lista de verificación de calidad del producto/evidencia.
  *   3. Cuestionario formativo de pensamiento crítico con escenarios y justificación.
  *   4. Formato de autoevaluación y reflexión metacognitiva.
  * - Devuelve WriterOutput uniforme con section: MissionSection obligatorio y evaluationSection estructurado.
@@ -32,9 +32,6 @@ import { logger } from '@/lib/logger';
 import { countSessionPlanWords } from '../content-budget';
 
 export async function generateEvaluationSection(input: WriterInput): Promise<WriterOutput> {
-  const extras = input.existingExtras || {};
-  const hasExistingRubric = Boolean(extras.rubric || extras.rubrica);
-  const hasExistingChecklist = Boolean(extras.checklist || extras.lista_verificacion);
   const { evalMission, coveredSessions } = resolveEvaluationMission(input);
   const fallbackContext: FallbackPlanContext = {
     uacName: input.uacName,
@@ -43,16 +40,19 @@ export async function generateEvaluationSection(input: WriterInput): Promise<Wri
     sessionFocus: evalMission?.focus || 'Evaluación Formativa y Cierre',
     paecContext: input.paecContext,
     subsystem: input.subsystem,
+    component: input.component,
+    curriculumName: input.curriculumName,
+    careerOrProgramName: input.careerOrProgramName,
   };
 
-  let extrasContext = '';
-  if (hasExistingRubric || hasExistingChecklist) {
-    extrasContext = `\nANTECEDENTES DE EVALUACIÓN DE LA PLANEACIÓN (referencia):
-- Rúbrica previa: ${JSON.stringify(extras.rubric || extras.rubrica || {})}
-- Lista previa: ${JSON.stringify(extras.checklist || extras.lista_verificacion || {})}`;
-  }
-
-  const planningAlignmentChunk = buildPlanningAlignmentPrompt(input.planningActivities, 'evaluation', input.uacName) +
+  const planningAlignmentChunk = buildPlanningAlignmentPrompt(
+    input.planningActivities,
+    'evaluation',
+    input.uacName,
+    input.component,
+    input.curriculumName,
+    input.careerOrProgramName
+  ) +
   (input.alignmentDirective ? ` 
 ALINEACION DURA — TERMINOS OBLIGATORIOS DE LA PLANEACION (reproduce su redaccion original en tu seccion): ` + input.alignmentDirective + ` 
  ` : '');
@@ -60,7 +60,6 @@ ALINEACION DURA — TERMINOS OBLIGATORIOS DE LA PLANEACION (reproduce su redacci
   const systemInstruction = `Eres un evaluador educativo de élite especializado en el Marco Curricular Común de la EMS (NEM / MCCEMS Puebla).
 Tu tarea es redactar el paquete integral de 4 instrumentos de evaluación formativa y sumativa para: "${input.uacName}" (${input.subsystem.toUpperCase()}).
 ${planningAlignmentChunk}
-${extrasContext}
 
 ESTÁNDARES FORMATIVOS OBLIGATORIOS Y METAS NEM:
 1. Rúbrica analítica (300 a 500 palabras): Exactamente 4 escalas (Excelente 10-9, Bueno 8-7, Suficiente 6-5, Requiere Apoyo 4-1) y 4 a 6 criterios (suma 100%).
@@ -79,7 +78,7 @@ ESTÁNDARES FORMATIVOS OBLIGATORIOS Y METAS NEM:
    (g) aplicacion: (80 a 120 palabras) transferencia integradora al entorno comunitario;
    (h) autoevaluacion: 2-3 preguntas reflexivas;
    (i) recursos: 1-2 enlaces de consulta y profundización;
-   (j) productoIntegrador: (60 a 90 palabras) evaluación final, sustentación y acreditación del artefacto.
+   (j) productoIntegrador: (60 a 90 palabras) evaluación final, sustentación y acreditación del producto o evidencia.
    Los planes deben VARIAR entre sesiones y ser específicos del contexto PAEC/comunidad. VOZ DE ESTUDIANTE en todo.
 7. Sintaxis JSON: Usa comillas simples ('...') en código/citas. Cero comillas dobles sin escapar dentro de valores JSON.
 
@@ -124,7 +123,7 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
     {
       "level": "intermedio",
       "levelName": "Nivel Intermedio: Análisis y Modelación en Contexto",
-      "description": "Problemas situados con variables contextuales de Puebla o taller.",
+      "description": "Problemas situados con variables contextuales de Puebla y de la disciplina.",
       "exercises": [
         {
           "number": 3,
@@ -330,128 +329,8 @@ Genera los 4 instrumentos oficiales de evaluación NEM Y las ${sessionCount} ses
     if (input.signal?.aborted || (err instanceof Error && (err.name === 'AbortError' || err.message.includes('aborted') || err.message.includes('AbortError')))) {
       throw (input.signal?.reason || err);
     }
-    logger.error('[generateEvaluationSection] Error:', err);
-    // Fallback estructurado de evaluación NEM con 3 niveles escalonados
-    const fallbackEval: EvaluationSection = {
-      source: 'generated_fresh',
-      rubric: [
-        {
-          criterion: 'Aplicación de Principios Técnicos y Disciplinares',
-          weightPercent: 50,
-          levels: [
-            { levelName: 'Excelente', points: 10, descriptor: 'Sobresaliente (10-9): Demuestra dominio pleno y fundamentado de los conceptos.' },
-            { levelName: 'Bueno', points: 8, descriptor: 'Notable (8-7): Aplica los conceptos correctamente con mínimas omisiones.' },
-            { levelName: 'Suficiente', points: 6, descriptor: 'Suficiente (6-5): Cumple los requisitos indispensables de forma básica.' },
-            { levelName: 'Requiere Apoyo', points: 4, descriptor: 'Insuficiente (4-1): No logra integrar los conceptos en el producto.' },
-          ],
-        },
-        {
-          criterion: 'Vinculación Comunitaria y Solución PAEC',
-          weightPercent: 50,
-          levels: [
-            { levelName: 'Excelente', points: 10, descriptor: 'Sobresaliente (10-9): Colabora activamente y vincula el producto al PAEC escolar.' },
-            { levelName: 'Bueno', points: 8, descriptor: 'Notable (8-7): Participa en equipo y comprende la vinculación comunitaria.' },
-            { levelName: 'Suficiente', points: 6, descriptor: 'Suficiente (6-5): Participación pasiva en las tareas asignadas.' },
-            { levelName: 'Requiere Apoyo', points: 4, descriptor: 'Insuficiente (4-1): Dificultades para integrarse en el trabajo grupal.' },
-          ],
-        },
-      ],
-      checklist: [
-        { item: 'Presentación formal del reporte y bitácora de trabajo completa', category: 'Formato' },
-        { item: 'Demostración de funcionamiento del artefacto o prototipo', category: 'Técnico' },
-        { item: 'Participación honesta y reflexiva en la sesión de coevaluación', category: 'Actitudinal' },
-      ],
-      tieredExercises: [
-        {
-          level: 'basico',
-          levelName: 'Nivel Básico: Comprensión y Algoritmos Directos',
-          description: 'Ejercicios de aplicación directa de conceptos esenciales del bloque.',
-          exercises: [
-            {
-              number: 1,
-              statement: `Identifica y define los conceptos rectores de ${input.uacName} estudiados en este bloque, señalando su unidad de medida y formulación base.`,
-              contextOrData: 'Conceptos fundamentales y definiciones técnicas tratadas en la sesión inicial.',
-              expectedOutputOrCriteria: 'Definición precisa y aplicación directa sin errores conceptuales.',
-            },
-            {
-              number: 2,
-              statement: 'Calcula o resuelve un caso elemental aplicando el procedimiento modelado en la sección "Yo Hago".',
-              contextOrData: 'Valores nominales de referencia indicados en el cuaderno de trabajo.',
-              expectedOutputOrCriteria: 'Resultado cuantitativo exacto con sustitución paso a paso.',
-            },
-          ],
-        },
-        {
-          level: 'intermedio',
-          levelName: 'Nivel Intermedio: Modelación y Análisis en Contexto',
-          description: 'Problemas de aplicación procedimental con variables combinadas en situaciones reales.',
-          exercises: [
-            {
-              number: 3,
-              statement: `Modela una situación de tu entorno escolar donde intervengan las variables de ${input.uacName}, calculando los parámetros resultantes.`,
-              contextOrData: `Entorno escolar y comunitario vinculado a ${input.paecContext}.`,
-              expectedOutputOrCriteria: 'Modelo estructurado con tabla de variables y desarrollo matemático/lógico.',
-            },
-            {
-              number: 4,
-              statement: 'Determina las condiciones óptimas de operación o respuesta ante una variación imprevista en las condiciones iniciales.',
-              contextOrData: 'Incremento del 15% en la carga o demanda operativa.',
-              expectedOutputOrCriteria: 'Análisis de sensibilidad y justificación procedimental fundamentada.',
-            },
-          ],
-        },
-        {
-          level: 'avanzado',
-          levelName: 'Nivel Avanzado: Juicio Crítico y Transferencia Socioproductiva',
-          description: 'Retos de alta complejidad cognitiva para optimización y solución de problemáticas comunitarias.',
-          exercises: [
-            {
-              number: 5,
-              statement: `Diseña una propuesta de optimización técnica que resuelva una limitación detectada en la comunidad escolar relacionada con ${input.paecContext}.`,
-              contextOrData: 'Restricciones de presupuesto, sustentabilidad y normativas vigentes aplicables.',
-              expectedOutputOrCriteria: 'Propuesta técnica viable con justificación de impacto social y cálculos de soporte.',
-            },
-            {
-              number: 6,
-              statement: 'Audita y diagnostica una falla inducida en el sistema o procedimiento, deduciendo la causa raíz y proponiendo la medida preventiva.',
-              contextOrData: 'Registro de datos anómalos obtenidos en las pruebas de campo.',
-              expectedOutputOrCriteria: 'Informe de diagnóstico técnico con ruta crítica de corrección.',
-            },
-          ],
-        },
-      ],
-      criticalThinkingQuiz: [
-        {
-          questionNumber: 1,
-          question: `¿De qué manera el proyecto desarrollado contribuye a mitigar ${input.paecContext}?`,
-          scenario: 'Presentación de resultados en el aula ante la comunidad escolar.',
-          answerExplanation: 'El estudiante debe argumentar con datos concretos el beneficio de su solución.',
-        },
-      ],
-      metacognitiveReflection: {
-        prompts: [
-          '¿Qué habilidad desarrollaste con mayor éxito durante este bloque?',
-          '¿Qué compromiso personal estableces para consolidar tus aprendizajes en el siguiente parcial?',
-        ],
-      },
-    };
-
-    const missionSection = buildEvaluationMissionSection(input, fallbackEval);
-    const fallbackPlans = completeSessionPlans([], coveredSessions, fallbackContext);
-    const fallbackPlansWords = fallbackPlans.reduce((acc, sp) => acc + countSessionPlanWords(sp), 0);
-    const fallbackTotalWords = 450 + fallbackPlansWords;
-    missionSection.sessionPlans = fallbackPlans;
-    missionSection.wordCount = fallbackTotalWords;
-
-    return {
-      type: 'evaluation',
-      section: missionSection,
-      evaluationSection: fallbackEval,
-      wordCount: fallbackTotalWords,
-      tokensUsed: 0,
-      qualityScore: 75,
-      warnings: ['Generado con instrumentos NEM de respaldo por contingencia: ' + String((err instanceof Error ? err.message : null) || err)],
-    };
+    logger.error('[generateEvaluationSection] Error sin fallback sintético:', err);
+    throw err;
   }
 }
 
@@ -488,7 +367,7 @@ function buildEvaluationMissionSection(
     {
       id: 'wb-eval-checklist-box',
       type: 'checkbox_list',
-      title: 'Lista de Cotejo Técnica del Artefacto (Coevaluación entre Pares)',
+      title: 'Lista de Cotejo del Producto o Evidencia (Coevaluación entre Pares)',
       instruction: 'Intercambia tu proyecto con un compañero y verifica objetivamente el cumplimiento de cada indicador:',
       config: {
         checkboxes: evaluation.checklist.map((c) => `[${c.category}] ${c.item}`),

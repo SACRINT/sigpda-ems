@@ -264,21 +264,17 @@ describe('block-guide-orchestrator — Fase 8.5: alineación dura + reintento di
     expect(saveCanonicalSeed).not.toHaveBeenCalled();
   }, 30000);
 
-  it('B: si el reintento no repara, expone pass=false y qualityWarning=true', async () => {
+  it('B: si el reintento no repara, rechaza el bloque sin persistir', async () => {
     enqueue(vi.mocked(generateFoundationMission), [makeOutput('foundation', GENERIC), makeOutput('foundation', GENERIC)]);
     enqueue(vi.mocked(generateLabMission), [makeOutput('lab', GENERIC), makeOutput('lab', GENERIC)]);
     enqueue(vi.mocked(generateProjectMission), [makeOutput('project', GENERIC), makeOutput('project', GENERIC)]);
     enqueue(vi.mocked(generateEvaluationSection), [makeOutput('evaluation', GENERIC), makeOutput('evaluation', GENERIC)]);
 
-    const wb = await generateBlockWorkTextbook('pl-1', 0);
+    await expect(generateBlockWorkTextbook('pl-1', 0)).rejects.toThrow(/BlockIntegrity/);
 
     expect(generateFoundationMission).toHaveBeenCalledTimes(2);
     expect(generateEvaluationSection).toHaveBeenCalledTimes(2);
-
-    expect(wb.planningAlignment?.pass).toBe(false);
-    expect(wb.planningAlignment?.score).toBeLessThan(60);
-    expect(wb.qualityWarning).toBe(true);
-    expect(saveBlockWorkbook).toHaveBeenCalledTimes(1);
+    expect(saveBlockWorkbook).not.toHaveBeenCalled();
   }, 30000);
 
   it('C: sin huecos de alineación NO reintenta (1 llamada por writer)', async () => {

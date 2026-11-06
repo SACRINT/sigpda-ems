@@ -12,6 +12,7 @@ import type { MissionBlueprint } from '../blueprint-architect-agent';
 import { logger } from '@/lib/logger';
 import { countSessionPlanWords } from '../content-budget';
 import { isMathUAC, validateSessionPlanContamination } from '../cross-contamination-guard';
+import { getDisciplinaryAdapter } from '@/lib/prompts/disciplinary-adapters';
 import type {
   CanonicalSeed,
   MissionSection,
@@ -69,6 +70,9 @@ export interface WriterInput {
   studentProfile: string;
   subsystem: 'bge' | 'bt';
   uacName: string;
+  component?: string;
+  curriculumName?: string;
+  careerOrProgramName?: string;
   targetWords: { min: number; ideal: number; max: number };
   /** Actividades de la planeación para alinear contenido de la guía */
   planningActivities?: PlanningActivities;
@@ -374,6 +378,9 @@ export interface FallbackPlanContext {
   sessionFocus?: string;
   paecContext?: string;
   subsystem?: string;
+  component?: string;
+  curriculumName?: string;
+  careerOrProgramName?: string;
 }
 
 /**
@@ -392,26 +399,34 @@ export function buildContextualFallbackPlan(
   const topic = context?.sessionTopic || context?.blockName || 'los procesos formativos del bloque';
   const paec = context?.paecContext || 'el proyecto escolar y comunitario';
   const mathUac = isMathUAC(uac);
+  const adapter = getDisciplinaryAdapter(
+    uac,
+    context?.component,
+    context?.curriculumName || context?.careerOrProgramName
+  );
+  const discipline = adapter.displayName;
+  const equipment = adapter.allowedPhysicalEquipment.slice(0, 4).join(', ');
+  const digitalTools = adapter.allowedDigitalTools.slice(0, 3).join(', ');
 
   const objetivo = mathUac
     ? `Al término de la sesión ${sessionNumber}, serás capaz de modelar e interpretar los procesos cuantitativos de ${topic} en el marco de ${uac}, aplicando el razonamiento formal y procedimental correspondiente.`
-    : `Al término de la sesión ${sessionNumber}, serás capaz de analizar y aplicar los principios y procedimientos normativos correspondientes a ${topic} en el marco formativo de ${uac}, vinculando las destrezas técnicas con las necesidades del entorno escolar y comunitario.`;
+    : `Al término de la sesión ${sessionNumber}, serás capaz de analizar y aplicar los principios, procedimientos y criterios de ${topic} en el marco formativo de ${uac} (${discipline}), vinculando las destrezas de la disciplina con las necesidades del entorno escolar y comunitario.`;
 
   const motivacion = mathUac
     ? `En nuestra región y comunidad escolar, el análisis riguroso de problemáticas situadas requiere herramientas matemáticas para modelar comportamientos dinámicos vinculados a ${paec}. En esta sesión ${sessionNumber}, explorarás cómo los métodos formales permiten tomar decisiones fundamentadas.`
-    : `En la comunidad escolar y su entorno regional, las actividades vinculadas a ${uac} demandan un dominio riguroso de ${topic}. Desarrollar habilidades prácticas y criterios técnicos fundamentados permite responder con precisión, eficiencia y seguridad a las problemáticas identificadas en ${paec}, garantizando resultados duraderos y de calidad profesional.`;
+    : `En la comunidad escolar y su entorno regional, las actividades vinculadas a ${uac} demandan un dominio riguroso de ${topic}. Desarrollar habilidades propias de ${discipline} permite responder con precisión, pertinencia y responsabilidad a las problemáticas identificadas en ${paec}, aprovechando recursos como ${equipment || 'los materiales pertinentes de la disciplina'}.`;
 
   const saberesPrevios = mathUac
     ? `Antes de iniciar, reflexiona sobre lo estudiado en las sesiones previas respecto a las magnitudes y relaciones funcionales: ¿cómo identificas las variables clave de un problema y qué representaciones permiten analizar su comportamiento con exactitud?`
-    : `Antes de comenzar las actividades prácticas de la sesión ${sessionNumber}, reflexiona en tu cuaderno de trabajo activo sobre tus experiencias previas y conocimientos adquiridos: ¿Cuáles son las herramientas, materiales y medidas de seguridad esenciales al trabajar con ${topic}? ¿Qué normativas o criterios técnicos deben verificarse antes de dar por aceptado un procedimiento en ${uac}? Redacta tus notas iniciales.`;
+    : `Antes de comenzar las actividades de la sesión ${sessionNumber}, reflexiona en tu cuaderno sobre tus experiencias previas y conocimientos adquiridos: ¿qué saberes de ${uac} se relacionan con ${topic}? ¿Qué criterios de la disciplina deben verificarse antes de dar por aceptado un producto, procedimiento o argumento? ¿Qué recursos o herramientas de ${discipline} necesitas preparar? Redacta tus notas iniciales.`;
 
   const contenido = mathUac
     ? `En esta sesión ${sessionNumber}, profundizaremos en los fundamentos conceptuales de ${topic}. Cuando estudiamos fenómenos en el contexto real, analizamos interacciones cuantitativas donde las relaciones estructuradas permiten proyectar tendencias y evaluar alternativas de solución sustentables.\n\nEl tratamiento riguroso de los datos exige delimitar claramente las condiciones de frontera y las restricciones contextuales del problema, asegurando que cada representación gráfica, tabular o analítica mantenga coherencia lógica y pertinencia comunitaria.\n\nAl integrar estos saberes, fortaleces tu pensamiento reflexivo y capacidad de argumentación fundamentada en beneficio del entorno escolar.`
-    : `En esta sesión ${sessionNumber}, profundizaremos en los fundamentos técnicos, criterios normativos y secuencias procedimentales que caracterizan a ${topic}. En toda práctica profesional y de taller en ${uac}, el cumplimiento de tolerancias, la selección adecuada de insumos y el manejo responsable de herramientas constituyen la base para garantizar intervenciones seguras y de alto estándar técnico.\n\nEl desarrollo ordenado de cada procedimiento implica fases claramente delimitadas: la preparación del área de trabajo, la inspección preventiva de los elementos a intervenir, la ejecución metódica siguiendo las especificaciones técnicas o manuales del fabricante, y la verificación funcional inmediata. Omitir cualquiera de estas fases incrementa el riesgo de fallas operativas, retrabajos o accidentes en el área de práctica.\n\nAsimismo, el trabajo en el marco de ${uac} exige considerar el impacto ambiental y social de las intervenciones. El uso eficiente de los recursos, la gestión responsable de residuos y la adopción constante de equipos de protección personal (EPP) reflejan un compromiso ético tanto con la preservación del entorno escolar como con la salud y bienestar de la comunidad.`;
+    : `En esta sesión ${sessionNumber}, profundizaremos en los fundamentos, criterios y secuencias de trabajo que caracterizan a ${topic} dentro de ${uac}. El enfoque de ${discipline} exige comprender el propósito formativo de cada actividad, seleccionar los recursos pertinentes y aplicar criterios de calidad coherentes con la disciplina.\n\nEl desarrollo ordenado de cada actividad implica fases claramente delimitadas: la preparación del espacio y de los recursos, la revisión de las condiciones iniciales, la ejecución metódica de la actividad y la verificación de los resultados. Omitir cualquiera de estas fases incrementa el riesgo de errores, retrabajos o conclusiones poco fundamentadas.\n\nAsimismo, el trabajo en ${uac} exige considerar el impacto social y formativo de lo que produces. El uso eficiente de los recursos, la documentación del proceso y la comunicación clara de los resultados reflejan un compromiso ético con el aprendizaje y con la comunidad. Puedes apoyarte en ${equipment || 'los materiales pertinentes'} y en ${digitalTools || 'herramientas digitales de consulta verificada'}.`;
 
   const ejemploResuelto = mathUac
     ? `Planteamiento del Caso: Un equipo escolar analiza datos cuantitativos relacionados con ${topic} en el contexto de ${paec}.\n\nPaso 1: Identificación de variables y parámetros observables.\nPaso 2: Registro estructurado y formulación de relaciones iniciales.\nPaso 3: Desarrollo procedimental paso a paso contrastando hipótesis.\nPaso 4: Interpretación cualitativa y cuantitativa de los resultados obtenidos para la toma de decisiones comunitarias.`
-    : `Planteamiento del Caso Práctico: Un equipo de trabajo debe realizar la intervención y diagnóstico operativo correspondiente a ${topic} en el contexto de ${uac}, atendiendo una solicitud formativa vinculada a ${paec}.\n\nPaso 1: Diagnóstico inicial e inspección de condiciones. Se realiza el reconocimiento visual y técnico del área de trabajo, verificando la ausencia de riesgos inmediatos, la disponibilidad de los insumos requeridos para ${topic} y el uso obligatorio del equipo de protección personal normativo.\n\nPaso 2: Selección y preparación de herramientas e insumos. Se eligen las herramientas específicas y los materiales estandarizados, comprobando que las especificaciones de resistencia, dimensión y compatibilidad técnica cumplan los requerimientos del procedimiento.\n\nPaso 3: Ejecución controlada del procedimiento técnico. Siguiendo la secuencia metodológica establecida, se lleva a cabo la maniobra técnica cuidando la alineación, fijación, ajuste o conexión precisa de cada elemento sin forzar los componentes mecánicos ni alterar las tolerancias admisibles.\n\nPaso 4: Pruebas de verificación, control de calidad y bitácora. Se aplican las pruebas de funcionamiento y estanqueidad o estabilidad correspondientes, constatando que no existan fallas, fugas ni holguras indebidas. Se asienta el resultado en la bitácora técnica de obra con firma de supervisión y fecha formal.`;
+    : `Planteamiento del Caso: Un equipo de trabajo analiza una situación real vinculada a ${topic} en el contexto de ${uac} y ${paec}.\n\nPaso 1: Delimitación del caso y de los criterios de trabajo propios de ${discipline}.\nPaso 2: Selección de recursos, fuentes o instrumentos pertinentes y verificación de sus condiciones.\nPaso 3: Desarrollo ordenado de la actividad, registrando decisiones, datos y evidencias parciales.\nPaso 4: Verificación de resultados, identificación de mejoras y comunicación de conclusiones con argumentos claros.`;
 
   const practica: PracticaItem[] = mathUac
     ? [
@@ -436,29 +451,29 @@ export function buildContextualFallbackPlan(
       ]
     : [
         {
-          enunciado: `Ejercicio 1: Elabora un diagrama de flujo procedimental para la intervención en ${topic}, detallando la secuencia de 4 pasos técnicos obligatorios y los puntos críticos de inspección de seguridad en ${uac}.`,
-          pista: `Revisa la secuencia desde la preparación del área de trabajo y selección de herramientas hasta la verificación final y registro en bitácora.`,
+          enunciado: `Ejercicio 1: Elabora un esquema o diagrama de proceso para abordar ${topic} en ${uac}, detallando cuatro pasos de trabajo y los criterios de revisión propios de ${discipline}.`,
+          pista: `Revisa la secuencia desde la preparación de los recursos hasta la verificación final y el registro de evidencias.`,
           solucion: [
-            'Paso 1: Inspección de seguridad y delimitación del área con EPP completo.',
-            'Paso 2: Selección y calibración de herramientas y materiales normativos.',
-            'Paso 3: Ejecución técnica controlada siguiendo especificaciones.',
-            'Paso 4: Prueba funcional de control de calidad y entrega formal con bitácora.',
+            'Paso 1: Preparación del espacio, los recursos y las condiciones iniciales.',
+            'Paso 2: Selección y revisión de los instrumentos o fuentes pertinentes.',
+            'Paso 3: Ejecución ordenada de la actividad siguiendo los criterios de la disciplina.',
+            'Paso 4: Verificación de resultados y registro de conclusiones en la bitácora.',
           ],
         },
         {
-          enunciado: `Ejercicio 2: Identifica dos posibles fallas o defectos comunes que pueden presentarse durante el manejo de ${topic} en ${uac}, explicando la causa raíz técnica y la acción correctiva preventiva inmediata.`,
-          pista: `Considera errores en el ajuste de uniones, desgaste de herramientas, omisión de pruebas de hermeticidad o falta de limpieza en las superficies.`,
+          enunciado: `Ejercicio 2: Identifica dos dificultades frecuentes que pueden presentarse al trabajar ${topic} en ${uac}, explica su causa y propone una acción preventiva.`,
+          pista: `Considera errores de interpretación, selección inadecuada de recursos, omisión de pasos o falta de verificación de resultados.`,
           solucion: [
-            'Defecto A: Holgura o desalineación por apriete desigual; corrección: verificación con nivel y ajuste progresivo en cruz.',
-            'Defecto B: Fuga o pérdida de estanqueidad por impurezas en la unión; corrección: limpieza minuciosa y reemplazo de sellos normativos.',
-            'Conclusión: El control preventivo evita retrabajos y garantiza la vida útil de la instalación.',
+            'Dificultad A: Interpretación incompleta de la consigna; corrección: releer el propósito y los criterios de la actividad.',
+            'Dificultad B: Verificación insuficiente del resultado; corrección: aplicar una lista de cotejo antes de entregar.',
+            'Conclusión: La revisión sistemática mejora la calidad de la evidencia y evita retrabajos.',
           ],
         },
       ];
 
   const aplicacion = mathUac
     ? `Aplica los principios analizados a una problemática real de tu entorno escolar: recolecta datos cuantitativos sobre el uso de recursos y elabora una propuesta fundamentada para optimizar su distribución en ${paec}.`
-    : `Aplica lo analizado a tu entorno escolar o comunitario: inspecciona un área o instalación donde se requiera aplicar criterios técnicos de ${topic}. Registra en tu cuaderno las observaciones de campo, el estado actual de los elementos y redacta una propuesta de mejora o mantenimiento preventivo con enfoque de beneficio comunitario para ${paec}.`;
+    : `Aplica lo analizado a tu entorno escolar o comunitario: observa una situación relacionada con ${topic}, registra evidencias y elabora una propuesta de mejora fundamentada en los criterios de ${uac}. Vincula tu propuesta con ${paec} y explica su utilidad para la comunidad.`;
 
   const autoevaluacion = mathUac
     ? [
@@ -467,25 +482,25 @@ export function buildContextualFallbackPlan(
         `¿Registré las evidencias, desarrollos y conclusiones en mi cuaderno de trabajo activo con fecha formal?`,
       ]
     : [
-        `¿Comprendo la secuencia técnica y las medidas de seguridad requeridas para intervenir en ${topic}?`,
-        `¿Puedo identificar las herramientas adecuadas y justificar su uso conforme a especificaciones técnicas?`,
-        `¿Consigné en mi cuaderno activo las observaciones, diagramas y conclusiones con rigor y limpieza?`,
+        `¿Comprendo el propósito y los criterios de la actividad realizada en ${topic}?`,
+        `¿Puedo justificar las decisiones y los recursos que utilicé conforme a la disciplina?`,
+        `¿Registré observaciones, evidencias y conclusiones con claridad y orden?`,
       ];
 
   const recursos: RecursoItem[] = [
     {
-      titulo: `Guía formativa y criterios normativos aplicables a ${uac}`,
+      titulo: `Guía formativa y criterios académicos aplicables a ${uac}`,
       url: `https://educacionmediasuperior.sep.gob.mx`,
       tipo: `web`,
     },
     {
-      titulo: `Manual de buenas prácticas y seguridad técnica en el taller escolar`,
+      titulo: `Recursos de consulta y buenas prácticas para ${discipline}`,
       url: `https://www.gob.mx/sep`,
       tipo: `web`,
     },
   ];
 
-  const productoIntegrador = `Para tu portafolio y proyecto comunitario PAEC (${paec}), elabora la ficha técnica de la sesión ${sessionNumber}: incluye el reporte de actividades de ${topic}, la lista de verificación de calidad y una justificación técnica sobre la relevancia de este proceso para ${uac}.`;
+  const productoIntegrador = `Para tu portafolio y proyecto comunitario PAEC (${paec}), elabora la ficha de la sesión ${sessionNumber}: incluye el reporte de actividades de ${topic}, la lista de verificación de calidad y una justificación sobre la relevancia de este proceso para ${uac}.`;
 
   return {
     sessionNumber,
@@ -512,12 +527,29 @@ export const buildRichFallbackPlan = (
 ): SessionPlan => buildContextualFallbackPlan(sessionNumber, context);
 
 /**
- * Garantía de cobertura total de sesiones (anti "36 vs 72").
+ * Error fail-closed: la IA no devolvió un plan real para cada sesión cubierta.
+ * El orquestador debe reintentar el writer; nunca debe persistir un bloque incompleto.
+ */
+export class IncompleteSessionPlansError extends Error {
+  readonly missingSessions: number[];
+  readonly coveredSessions: number[];
+
+  constructor(missingSessions: number[], coveredSessions: number[], uacName?: string) {
+    super(
+      `sessionPlans incompletos para ${uacName || 'la UAC'}: faltan las sesiones ${missingSessions.join(', ')} de ${coveredSessions.join(', ')}. No se permite relleno sintético.`
+    );
+    this.name = 'IncompleteSessionPlansError';
+    this.missingSessions = missingSessions;
+    this.coveredSessions = coveredSessions;
+  }
+}
+
+/**
+ * Garantía de cobertura total de sesiones SIN relleno sintético.
  *
- * Devuelve SIEMPRE un plan por cada sesión cubierta: primero sanitiza lo que la IA
- * respondió y luego completa las sesiones faltantes (IA que omitió planes o writer
- * en fallback de error) con planes contextuales específicos de la UAC, registrando un
- * warning en el log. Todo plan completado mediante fallback queda marcado con `isFallback: true`.
+ * Sanitiza y deduplica los planes reales de la IA. Si falta una sola sesión,
+ * lanza `IncompleteSessionPlansError` para que el orquestador reintente el writer
+ * o falle antes de persistir. No completa sesiones con contenido de contingencia.
  */
 export function completeSessionPlans(
   raw: unknown,
@@ -541,16 +573,11 @@ export function completeSessionPlans(
   }
 
   const missing = coveredSessions.filter((n) => !present.has(n));
-
   if (missing.length > 0) {
-    logger.warn(
-      `[writer-contract] sessionPlans incompletos: faltan las sesiones ${missing.join(', ')} de ${coveredSessions.join(', ')}. Completando con planes contextuales de ${context?.uacName || 'la UAC'}.`
+    logger.error(
+      `[writer-contract] sessionPlans incompletos: faltan las sesiones ${missing.join(', ')} de ${coveredSessions.join(', ')}. Se aborta el bloque para reintentar sin fallback.`
     );
-    for (const n of missing) {
-      const fbPlan = buildContextualFallbackPlan(n, context);
-      fbPlan.isFallback = true;
-      plans.push(fbPlan);
-    }
+    throw new IncompleteSessionPlansError(missing, coveredSessions, context?.uacName);
   }
 
   return plans.sort((a, b) => a.sessionNumber - b.sessionNumber);

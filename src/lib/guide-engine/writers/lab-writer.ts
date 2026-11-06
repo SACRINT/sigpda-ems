@@ -24,18 +24,33 @@ import {
 import { buildPlanningAlignmentPrompt } from './planning-alignment-prompt';
 import { logger } from '@/lib/logger';
 import { countSessionPlanWords } from '../content-budget';
+import { getDisciplinaryAdapter } from '@/lib/prompts/disciplinary-adapters';
 
 export async function generateLabMission(input: WriterInput): Promise<WriterOutput> {
   const labMission = input.missions.find((m) => m.missionType === 'lab') || input.missions[1] || input.missions[0];
   const coveredSessions = labMission ? labMission.sessionNumbers : [3, 4, 5];
-  const missionTitle = labMission ? labMission.title : `Misión 2: Laboratorio y Taller Experimental`;
+  const missionTitle = labMission ? labMission.title : `Misión 2: Práctica y Aplicación`;
+  const discipline = getDisciplinaryAdapter(
+    input.uacName,
+    input.component,
+    input.curriculumName || input.careerOrProgramName
+  );
+  const equipmentHint = discipline.allowedPhysicalEquipment.slice(0, 4).join(', ');
+  const practiceLabel = discipline.id === 'pensamiento_matematico'
+    ? 'práctica de modelación y resolución'
+    : /artes|lengua|humanidades|conciencia/.test(discipline.id)
+      ? 'taller de producción y análisis'
+      : 'práctica disciplinar';
   const fallbackContext: FallbackPlanContext = {
     uacName: input.uacName,
     blockName: input.blockName,
-    sessionTopic: labMission?.sessionTopic || 'Práctica de Laboratorio',
+    sessionTopic: labMission?.sessionTopic || 'Práctica disciplinar',
     sessionFocus: labMission?.focus || 'Destrezas prácticas y procedimentales',
     paecContext: input.paecContext,
     subsystem: input.subsystem,
+    component: input.component,
+    curriculumName: input.curriculumName,
+    careerOrProgramName: input.careerOrProgramName,
   };
 
   // Construir contexto de semilla canónica si existe
@@ -50,15 +65,23 @@ BASE DE CONOCIMIENTO (SEMILLA CANÓNICA PRE-VALIDADA):
 - Errores comunes: ${input.canonicalSeed.content.commonErrors?.map((e) => e.symptom).join('; ') || 'Ninguno'}`;
   }
 
-  const planningAlignmentChunk = buildPlanningAlignmentPrompt(input.planningActivities, 'lab', input.uacName) +
+  const planningAlignmentChunk = buildPlanningAlignmentPrompt(
+    input.planningActivities,
+    'lab',
+    input.uacName,
+    input.component,
+    input.curriculumName,
+    input.careerOrProgramName
+  ) +
   (input.alignmentDirective ? ` 
 ALINEACION DURA — TERMINOS OBLIGATORIOS DE LA PLANEACION (reproduce su redaccion original en tu seccion): ` + input.alignmentDirective + ` 
  ` : '');
 
   // NOTA DE DISEÑO (F-06): materialsList de manuales no se tokeniza; los renderers strippan defensivamente.
-  const systemInstruction = `Eres AUTOR DE LIBRO DE TEXTO práctico para estudiantes de Bachillerato en Puebla (MCCEMS), especialista en laboratorio y taller.
-Tu tarea es redactar la misión práctica ("${missionTitle}") de un LIBRO PARA EL ESTUDIANTE, NO una guía para el docente: el estudiante debe poder realizar la práctica SOLO, leyendo el libro, sin que el maestro esté presente.
+  const systemInstruction = `Eres AUTOR DE LIBRO DE TEXTO práctico para estudiantes de Bachillerato en Puebla (MCCEMS), especialista en ${discipline.displayName}.
+Tu tarea es redactar la misión de ${practiceLabel} ("${missionTitle}") de un LIBRO PARA EL ESTUDIANTE, NO una guía para el docente: el estudiante debe poder realizar la actividad SOLO, leyendo el libro, sin que el maestro esté presente.
 UAC: "${input.uacName}" (${input.subsystem.toUpperCase()}).
+Equipo, recursos o instrumentos pertinentes: ${equipmentHint || 'los recursos propios de la disciplina'}.
 ${planningAlignmentChunk}
 ${seedPromptChunk}
 
@@ -68,10 +91,10 @@ REGLAS DE VOZ (CRÍTICO — el libro es del ESTUDIANTE):
 - El contenido debe ser REAL y AUTODIDACTA: procedimientos, fórmulas, tabla de datos, ejemplos con NÚMEROS y ejercicios con datos concretos. Un estudiante que lee el libro realiza la práctica y aprende.
 
 DIRECTIVAS TÉCNICAS Y METAS DE EXTENSIÓN:
-1. Objetivo y Materiales: Formulación técnica rigurosa y lista de insumos con casilla de verificación [✓].
-2. Procedimiento paso a paso (400 a 600 palabras, 8-12 pasos): Explicación técnica de cada paso con espacios <!--workbook:lines:rows=3--> o tablas.
-3. Tabla de datos vacía: Encabezados descriptivos con <!--workbook:table:cols=Parámetro,Teórico,Medición 1,Medición 2,Error,Unidad-->.
-4. Código o protocolo experimental (300 a 500 palabras): Bloques de código reales y comentados en BT; protocolo experimental exhaustivo en BGE.
+1. Objetivo y Materiales: Formulación rigurosa y lista de recursos pertinentes con casilla de verificación [✓].
+2. Procedimiento paso a paso (400 a 600 palabras, 8-12 pasos): Explicación de cada paso con espacios <!--workbook:lines:rows=3--> o tablas.
+3. Tabla o formato de registro: Encabezados descriptivos con <!--workbook:table:cols=Parámetro,Referencia,Registro 1,Registro 2,Observaciones,Unidad-->.
+4. Código, protocolo o producto (300 a 500 palabras): Bloques de código reales y comentados en BT; protocolo, análisis o producto disciplinar en BGE, según corresponda a ${discipline.displayName}.
 5. Reto autónomo ("Tú Haces" - 200 a 350 palabras): EXACTAMENTE 5 a 7 PASOS NUMERADOS con variables cuantitativas y vinculación PAEC: "${input.paecContext}". OBLIGATORIO: anclar cada paso a una aplicación real en la vida diaria del estudiante o su comunidad en Puebla (no ejercicios abstractos); el estudiante debe percibir para qué le sirve en la práctica.
 6. Contenido por sesión para el ESTUDIANTE (OBLIGATORIO — genera un "plan" por cada sesión de ${coveredSessions.join(', ')}, ~950 a 1,150 palabras por plan):
    Para CADA sesión asignada (${coveredSessions.join(', ')}) genera un objeto en "sessionPlans". NUNCA omitas ninguna sesión ni uses resúmenes telegráficos. Cada objeto es material que el estudiante LEE para aprender de forma autodidacta:
@@ -95,11 +118,11 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
   "objective": "Objetivo claro y contundente...",
   "materialsList": ["✓ Insumo / Herramienta 1", "✓ Software / Equipo 2"],
   "stepByStepProcedure": "1. Paso uno con explicación técnica...\\n<!--workbook:lines:rows=3-->\\n2. Paso dos...",
-  "dataTableColumns": ["Parámetro", "Valor Teórico", "Medición 1", "Medición 2", "Unidad"],
-  "executableCodeOrProtocol": "Código ejecutable completo comentado o protocolo experimental...",
-  "autonomousChallenge": "1. Paso uno con instrucción cuantitativa...\\n2. Paso dos...\\n3. Paso tres...\\n4. Paso cuatro...\\n5. Paso cinco...",
+  "dataTableColumns": ["Parámetro", "Referencia", "Registro 1", "Registro 2", "Observaciones", "Unidad"],
+  "executableCodeOrProtocol": "Código, protocolo, análisis o producto completo según la disciplina...",
+  "autonomousChallenge": "1. Paso uno con instrucción clara...\\n2. Paso dos...\\n3. Paso tres...\\n4. Paso cuatro...\\n5. Paso cinco...",
   "reflectionQuestions": [
-    "¿Qué relación observaste entre la variable manipulada y la respuesta del sistema?",
+    "¿Qué relación observaste entre las variables o categorías de la actividad?",
     "¿Cómo aplicarías este procedimiento para resolver un problema en tu comunidad?"
   ],
   "quickTroubleshooting": [
@@ -206,7 +229,7 @@ Redacta la Misión Práctica de Laboratorio/Taller Y las ${sessionCount} sesione
       : '';
     const autonomousChallenge = typeof parsed.autonomousChallenge === 'string' && parsed.autonomousChallenge.trim().length > 30
       ? parsed.autonomousChallenge.trim()
-      : `Desafío autónomo individual (Tú Haces):\n1. Configura el escenario experimental o entorno de trabajo verificando las condiciones iniciales.\n2. Modifica una variable operativa o parámetro crítico (-20% o +20%) respecto a la prueba base.\n3. Ejecuta la medición u operación por duplicado anotando lecturas en tu libreta técnica.\n4. Calcula la desviación o porcentaje de variación obtenido respecto al valor esperado.\n5. Evalúa el impacto de dicha variación en la solución del reto comunitario PAEC (${input.paecContext}).\n6. Documenta tus conclusiones y presenta la evidencia validada a tu docente.`;
+      : `Desafío autónomo individual (Tú Haces):\n1. Prepara el espacio, los recursos y las condiciones iniciales de la actividad.\n2. Realiza la actividad siguiendo los criterios de ${discipline.displayName}.\n3. Registra por duplicado los datos, observaciones o evidencias obtenidas.\n4. Compara tus resultados con los criterios o referentes establecidos.\n5. Evalúa el impacto de la actividad en la solución del reto comunitario PAEC (${input.paecContext}).\n6. Documenta tus conclusiones y presenta la evidencia a tu docente.`;
 
     const fullText = [
       parsed.objective,
@@ -233,8 +256,8 @@ Redacta la Misión Práctica de Laboratorio/Taller Y las ${sessionCount} sesione
         {
           id: 'wb-table-data',
           type: 'data_recording',
-          title: 'Hoja de Registro Experimental y Mediciones',
-          instruction: 'Registra los datos cuantitativos obtenidos durante el desarrollo de la práctica:',
+          title: 'Hoja de registro y evidencias de la actividad',
+          instruction: 'Registra los datos, observaciones o evidencias obtenidas durante el desarrollo de la actividad:',
           config: {
             cols,
             sampleRows: 6,
@@ -243,14 +266,14 @@ Redacta la Misión Práctica de Laboratorio/Taller Y las ${sessionCount} sesione
         {
           id: 'wb-check-safety',
           type: 'checkbox_list',
-          title: 'Lista de verificación de seguridad y calidad técnica',
-          instruction: 'Marca cada casilla conforme verifiques el cumplimiento del protocolo:',
+          title: 'Lista de verificación y calidad del trabajo',
+          instruction: 'Marca cada casilla conforme verifiques el cumplimiento de los criterios:',
           config: {
             checkboxes: [
-              'Instrumental revisado y calibrado antes de iniciar.',
-              'Protocolo de seguridad cumplido (equipo de protección y orden en mesa).',
-              'Mediciones registradas por duplicado para control de dispersión.',
-              'Espacio de trabajo limpio y respaldos de información guardados.',
+              'Recursos revisados y preparados antes de iniciar.',
+              'Condiciones de trabajo y criterios de la disciplina verificados.',
+              'Registros u observaciones consignados por duplicado.',
+              'Espacio de trabajo ordenado y evidencias resguardadas.',
             ],
           },
         },
@@ -297,14 +320,14 @@ Redacta la Misión Práctica de Laboratorio/Taller Y las ${sessionCount} sesione
       missionIndex: labMission?.missionIndex || 2,
       title: missionTitle,
       coveredSessions,
-      sessionTopic: labMission?.sessionTopic || 'Práctica de Laboratorio',
+      sessionTopic: labMission?.sessionTopic || 'Práctica disciplinar',
       sessionFocus: labMission?.focus || 'Destrezas prácticas y procedimentales',
       phenomenonHook: {
         story: `Durante esta práctica en el aula o taller, abordaremos directamente cómo manipular variables operativas de ${input.uacName} para resolver retos vinculados a ${input.paecContext}.`,
         detonatingQuestion: '¿De qué forma la precisión en la recolección de datos y la ejecución determina la confiabilidad del producto final?',
       },
       conceptZero: {
-        physicalAnalogy: 'Cada medición experimental es como un mapa de navegación: un error de un milímetro en el punto de partida te lleva a kilómetros del destino.',
+        physicalAnalogy: 'Cada registro de la actividad es como un mapa de navegación: un dato impreciso en el punto de partida te aleja del resultado esperado.',
         coreExplanation: parsed.objective || 'Desarrollar habilidades operativas y analíticas con rigor procedimental.',
       },
       iDoSection: {
@@ -362,76 +385,7 @@ Redacta la Misión Práctica de Laboratorio/Taller Y las ${sessionCount} sesione
     if (input.signal?.aborted || (err instanceof Error && (err.name === 'AbortError' || err.message.includes('aborted') || err.message.includes('AbortError')))) {
       throw (input.signal?.reason || err);
     }
-    logger.error('[generateLabMission] Error:', err);
-    // Fallback estructurado de laboratorio
-    const fallbackPlans = completeSessionPlans([], coveredSessions, fallbackContext);
-    const fallbackPlansWords = fallbackPlans.reduce((acc, sp) => acc + countSessionPlanWords(sp), 0);
-    const fallbackTotalWords = 600 + fallbackPlansWords;
-
-    const fallbackSection: MissionSection = {
-      missionIndex: labMission?.missionIndex || 2,
-      title: missionTitle,
-      coveredSessions,
-      sessionTopic: 'Práctica Experimental y de Taller',
-      sessionFocus: 'Ejecución procedimental guiada',
-      phenomenonHook: {
-        story: `En esta sesión aplicamos los conocimientos de ${input.uacName} en el taller o laboratorio escolar.`,
-        detonatingQuestion: '¿Cómo garantizamos la calidad y exactitud en los resultados?',
-      },
-      conceptZero: {
-        physicalAnalogy: 'El rigor en el procedimiento es la garantía del éxito técnico.',
-        coreExplanation: 'La práctica permite contrastar la teoría con datos empíricos tangibles.',
-      },
-      iDoSection: {
-        stepByStepDemo: 'El docente presenta el instrumental y demuestra las normas de seguridad del taller.',
-      },
-      weDoSection: {
-        guidedPractice: 'Los equipos de trabajo montan el dispositivo o configuran el software según las especificaciones.',
-        workbookElements: [
-          {
-            id: 'fb-lab-table',
-            type: 'empty_table',
-            title: 'Tabla de mediciones',
-            config: { cols: ['Muestra', 'Parámetro Teórico', 'Lectura Real', 'Unidad'], sampleRows: 5 },
-          },
-        ],
-      },
-      youDoSection: {
-        autonomousChallenge: 'Analiza los datos registrados y redacta tus conclusiones.',
-        workbookElements: [
-          {
-            id: 'fb-lab-lines',
-            type: 'lines',
-            title: 'Conclusión técnica',
-            config: { rows: 4 },
-          },
-        ],
-      },
-      troubleshooting: [
-        {
-          id: 'tb-fb-1',
-          symptom: 'Discrepancia en las lecturas de medición',
-          rootCause: 'Falta de calibración o contacto deficiente',
-          solutionSteps: ['Verificar conexiones y repetir la medición'],
-          preventionTip: 'Inspeccionar el equipo antes de comenzar',
-        },
-      ],
-      formativeCheckpoint: {
-        question: '¿Qué mejoras harías al procedimiento para optimizar el tiempo de ejecución?',
-        reflectionPrompts: ['Evalúa el impacto de la precisión técnica.'],
-        criteriaChecklist: ['Completé la tabla de datos y las observaciones del taller.'],
-      },
-      sessionPlans: fallbackPlans,
-      wordCount: fallbackTotalWords,
-    };
-
-    return {
-      type: 'lab',
-      section: fallbackSection,
-      wordCount: fallbackTotalWords,
-      tokensUsed: 0,
-      qualityScore: 70,
-      warnings: ['Generado con fallback estructurado de laboratorio: ' + (err instanceof Error ? err.message : String(err))],
-    };
+    logger.error('[generateLabMission] Error sin fallback sintético:', err);
+    throw err;
   }
 }

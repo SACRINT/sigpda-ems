@@ -2,10 +2,10 @@
  * Real Project / Artifact Mission Writer
  * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
- * Redacta la misión de construcción del Artefacto Real / Proyecto Comunitario:
+ * Redacta la misión de desarrollo del Producto / Proyecto Integrador:
  * - Nombre motivador y situado del proyecto.
- * - Descripción del artefacto útil para la vida diaria o empleo.
- * - Fases de construcción sesión por sesión con entregables verificables.
+ * - Descripción del producto o evidencia útil para la vida diaria, la comunidad o el perfil formativo.
+ * - Fases de desarrollo sesión por sesión con entregables verificables.
  * - Criterios de aceptación técnica y calidad.
  * - Espacios de trabajo para diagramación, bitácora y portafolio de evidencias.
  */
@@ -29,33 +29,50 @@ import {
   MATERIAL_INDEX_MAX_CHARS,
 } from '@/lib/materials/slug-index';
 import { autoTokenizeMaterials } from '@/lib/materials/auto-tokenize';
+import { getDisciplinaryAdapter } from '@/lib/prompts/disciplinary-adapters';
 
 export async function generateProjectMission(input: WriterInput): Promise<WriterOutput> {
   const projectMission = input.missions.find((m) => m.missionType === 'project') || input.missions[input.missions.length - 2] || input.missions[0];
   const coveredSessions = projectMission
     ? projectMission.sessionNumbers
     : [Math.max(1, input.sessions.length - 3), Math.max(2, input.sessions.length - 2)];
-  const missionTitle = projectMission ? projectMission.title : `Misión 3: Construcción del Artefacto Real`;
+  const missionTitle = projectMission ? projectMission.title : `Misión 3: Proyecto Integrador`;
+  const discipline = getDisciplinaryAdapter(
+    input.uacName,
+    input.component,
+    input.curriculumName || input.careerOrProgramName
+  );
+  const equipmentHint = discipline.allowedPhysicalEquipment.slice(0, 4).join(', ') || 'recursos pertinentes de la disciplina';
   const fallbackContext: FallbackPlanContext = {
     uacName: input.uacName,
     blockName: input.blockName,
-    sessionTopic: projectMission?.sessionTopic || 'Construcción del Artefacto Real',
-    sessionFocus: projectMission?.focus || 'Construcción del artefacto e integración socioproductiva',
+    sessionTopic: projectMission?.sessionTopic || 'Proyecto integrador',
+    sessionFocus: projectMission?.focus || 'Desarrollo del producto e integración socioproductiva',
     paecContext: input.paecContext,
     subsystem: input.subsystem,
+    component: input.component,
+    curriculumName: input.curriculumName,
+    careerOrProgramName: input.careerOrProgramName,
   };
 
-  const planningAlignmentChunk = buildPlanningAlignmentPrompt(input.planningActivities, 'project', input.uacName) +
+  const planningAlignmentChunk = buildPlanningAlignmentPrompt(
+    input.planningActivities,
+    'project',
+    input.uacName,
+    input.component,
+    input.curriculumName,
+    input.careerOrProgramName
+  ) +
   (input.alignmentDirective ? ` 
 ALINEACION DURA — TERMINOS OBLIGATORIOS DE LA PLANEACION (reproduce su redaccion original en tu seccion): ` + input.alignmentDirective + ` 
  ` : '');
 
-  const systemInstruction = `Eres un diseñador pedagógico y director de proyectos socioproductivos para Educación Media Superior en Puebla (MCCEMS).
-Tu tarea es redactar la misión cumbre del bloque: la construcción de un "Artefacto Tecnológico o Comunitario Real" para la UAC: "${input.uacName}" (${input.subsystem.toUpperCase()}).
+  const systemInstruction = `Eres un diseñador pedagógico y director de proyectos formativos para Educación Media Superior en Puebla (MCCEMS).
+Tu tarea es redactar la misión cumbre del bloque: el desarrollo de un producto, proyecto o evidencia integradora para la UAC: "${input.uacName}" (${input.subsystem.toUpperCase()}), dentro de ${discipline.displayName}.
 ${planningAlignmentChunk}
 
 DIRECTIVAS DEL PROYECTO Y METAS FORMATIVAS:
-1. Artefacto Real: Producto auténtico útil para la vida diaria o el empleo (no un mero resumen).
+1. Producto o proyecto real: resultado auténtico y útil para la vida diaria, la comunidad o el perfil formativo (no un mero resumen). Usa como referencia recursos propios de la disciplina: ${equipmentHint}.
 2. Utilidad Comunitaria (300 a 500 palabras): Vinculación profunda con la problemática PAEC: "${input.paecContext}", justificando beneficiarios e impacto.
 3. Objetivos y Materiales: 3 a 5 learningObjectives de orden superior y lista detallada de requiredMaterials con especificaciones. Cada requiredMaterials que corresponda a un instrumento/herramienta/insumo del INDICE DE MATERIALES debe escribirse como token normativo [[material:slug]] o [[material:slug|etiqueta con especificación]] usando SOLO slugs de ese índice (prohibido inventar slugs o URLs); los materiales fuera del índice van en texto plano.
 4. Fases y Pasos (400 a 600 palabras en total): 6 a 8 executionSteps secuenciales y 3 a 5 phases con entregables verificables e instrucciones detalladas.
@@ -65,45 +82,44 @@ DIRECTIVAS DEL PROYECTO Y METAS FORMATIVAS:
 8. Contenido por sesión para el ESTUDIANTE (OBLIGATORIO — genera un "plan" por cada sesión de ${coveredSessions.join(', ')}, ~950 a 1,150 palabras por plan):
    Para CADA sesión asignada (${coveredSessions.join(', ')}) genera un objeto en "sessionPlans". NUNCA omitas ninguna sesión ni uses resúmenes telegráficos. Cada objeto es material que el estudiante LEE para aprender de forma autodidacta:
    (a) objetivo: "Lo que vas a aprender" (1-2 frases en voz de estudiante);
-   (b) motivacion: (80 a 120 palabras) caso o necesidad comunitaria PAEC que detona este avance del artefacto;
+   (b) motivacion: (80 a 120 palabras) caso o necesidad comunitaria PAEC que detona este avance del producto o proyecto;
    (c) saberesPrevios: (50 a 80 palabras) qué fundamentos previos sustentan la etapa actual;
-   (d) contenido: (OBLIGATORIO MÍNIMO 440 A 520 PALABRAS) LA TEORÍA REAL de la sesión — especificaciones técnicas, fórmulas, modelos matemáticos o de ingeniería para la fase constructiva en 3 párrafos sustanciales (al menos 150 palabras por párrafo);
-   (e) ejemploResuelto: (OBLIGATORIO MÍNIMO 300 A 360 PALABRAS) ejemplo numérico o procedimental resuelto paso a paso con datos de dimensionamiento, costos o materiales en 4 pasos numerados;
+   (d) contenido: (OBLIGATORIO MÍNIMO 440 A 520 PALABRAS) LA TEORÍA REAL de la sesión — especificaciones, criterios, fórmulas o modelos propios de ${discipline.displayName} para la fase de desarrollo en 3 párrafos sustanciales (al menos 150 palabras por párrafo);
+   (e) ejemploResuelto: (OBLIGATORIO MÍNIMO 300 A 360 PALABRAS) ejemplo numérico, procedimental o analítico resuelto paso a paso con datos del proyecto en 4 pasos numerados;
    (f) practica: 2 tareas/ejercicios con datos concretos; enunciados detallados (mínimo 60 palabras cada uno) con "pista" (mínimo 30 palabras) y "solucion" con 3-6 pasos numerados;
    (g) aplicacion: (80 a 120 palabras) transferencia a la solución comunitaria real;
    (h) autoevaluacion: 2-3 preguntas reflexivas;
    (i) recursos: 1-2 enlaces de ampliación técnica;
-   (j) productoIntegrador: (60 a 90 palabras) avance físico o documental específico del artefacto en esta sesión.
-   Cada sesión corresponde a un avance concreto del artefacto: VARIA el contenido entre sesiones y ancla cada una a su fase de construcción en el contexto PAEC. VOZ DE ESTUDIANTE en todo.
+   (j) productoIntegrador: (60 a 90 palabras) avance concreto o evidencia específica del producto/proyecto en esta sesión.
+   Cada sesión corresponde a un avance concreto del producto o proyecto: VARIA el contenido entre sesiones y ancla cada una a su fase de desarrollo en el contexto PAEC. VOZ DE ESTUDIANTE en todo.
 9. Sintaxis JSON: Usa comillas simples ('...') en código/citas. Cero comillas dobles sin escapar dentro de valores JSON.
 
 Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
 {
-  "artifactName": "Nombre motivador y descriptivo del artefacto...",
+  "artifactName": "Nombre motivador y descriptivo del producto o proyecto...",
   "communityUtility": "Descripción extensa de utilidad comunitaria e impacto...",
   "learningObjectives": [
-    "Diseñar la arquitectura técnica del artefacto...",
-    "Construir y verificar el prototipo funcional...",
+    "Diseñar la propuesta o producto de la disciplina...",
+    "Desarrollar y verificar la evidencia o producto...",
     "Validar el impacto comunitario en el entorno PAEC..."
   ],
   "requiredMaterials": [
-    "[[material:multimetro|Multímetro digital autorango de 3½ dígitos]]",
-    "[[material:cable-red|Cable de red UTP Cat 6 — 3 m]]",
-    "Insumo específico no catalogado con su especificación técnica"
+    "Insumo o herramienta específica de ${input.uacName} con especificación técnica",
+    "Material de registro y documentación del proyecto"
   ],
   "executionSteps": [
     "1. Planificación y acopio...",
-    "2. Diagramación y diseño...",
-    "3. Ensamble o codificación...",
-    "4. Calibración y pruebas...",
+    "2. Diseño o diagramación...",
+    "3. Desarrollo o producción...",
+    "4. Revisión y pruebas...",
     "5. Integración comunitaria...",
     "6. Documentación final..."
   ],
   "deliveryCriteria": [
-    "Prototipo 100% operativo para demostración",
-    "Memoria técnica impresa o digital con esquemas",
-    "Bitácora de campo firmada por fase",
-    "Presentación ejecutiva ante el grupo"
+    "Producto o evidencia terminado y verificado",
+    "Memoria o reporte con esquemas o registros",
+    "Bitácora o registro firmado por fase",
+    "Presentación ante el grupo"
   ],
   "registrationFormat": "BITÁCORA TÉCNICA DE PROYECTO\\nSemana: [ ] Fecha: [ ] Equipo: [ ]\\nActividad: _________________\\nParámetros: ___________ Error: ______\\nIncidencia: _________________ Solución: _________________\\nFirma Docente: _________ Sello: [ ]",
   "phases": [
@@ -117,17 +133,17 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
   ],
   "technicalSpecs": ["Especificación técnica 1", "Norma aplicable NOM/ISO"],
   "acceptanceCriteria": [
-    "El artefacto ejecuta la función principal en condiciones normales",
-    "Cumple con los parámetros de tolerancia dimensionales o de ejecución"
+    "El producto o evidencia cumple la función principal en condiciones normales",
+    "Cumple con los criterios de calidad y pertinencia de la disciplina"
   ],
-  "autonomousChallenge": "Instrucción y desafío técnico autónomo (Tú Haces) de 200-350 palabras para validación de campo...",
+  "autonomousChallenge": "Instrucción y desafío autónomo (Tú Haces) de 200-350 palabras para validación de campo...",
   "rubricSummary": [
     {
-      "criterion": "Funcionalidad y Calidad del Artefacto",
-      "excellent": "Opera al 100% cumpliendo todos los criterios de aceptación.",
-      "good": "Opera cumpliendo criterios principales con detalles menores.",
-      "sufficient": "Opera de forma básica con asistencia docente.",
-      "insufficient": "No opera o no cumple especificaciones mínimas."
+      "criterion": "Calidad y Pertinencia del Producto o Evidencia",
+      "excellent": "Cumple al 100% los criterios de aceptación.",
+      "good": "Cumple los criterios principales con detalles menores.",
+      "sufficient": "Cumple de forma básica con asistencia docente.",
+      "insufficient": "No cumple las especificaciones mínimas."
     }
   ],
   "sessionPlans": [
@@ -136,14 +152,14 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
       "objetivo": "Lo que vas a aprender en la sesión 13 (1-2 frases)...",
       "motivacion": "Caso real / historia contada al estudiante...",
       "saberesPrevios": "Qué ya sabes que conecta con esto...",
-      "contenido": "Párrafo 1: En esta sesión aprenderás las bases conceptuales y normativas de esta fase técnica...\\n\\nPárrafo 2: El procedimiento formal de diseño, cálculo y ensamblaje requiere...\\n\\nPárrafo 3: Las restricciones de tolerancia y control de calidad en el entorno son...",
-      "ejemploResuelto": "Planteamiento: Se analiza un caso técnico concreto con variables dimensionales y operativas reales...\\nPaso 1: Identificación de variables y parámetros de entrada...\\nPaso 2: Formulación del modelo y sustitución analítica...\\nPaso 3: Cálculo numérico y verificación de márgenes de tolerancia...\\nPaso 4: Conclusión técnica y validación del entregable...",
+      "contenido": "Párrafo 1: En esta sesión aprenderás las bases conceptuales y criterios de esta fase del proyecto...\\n\\nPárrafo 2: El desarrollo del producto o evidencia requiere...\\n\\nPárrafo 3: Los criterios de calidad y pertinencia en el entorno comunitario son...",
+      "ejemploResuelto": "Planteamiento: Se analiza un caso concreto del proyecto con datos y criterios reales...\\nPaso 1: Identificación de variables, recursos y criterios de entrada...\\nPaso 2: Formulación de la propuesta o modelo...\\nPaso 3: Desarrollo y verificación de resultados...\\nPaso 4: Conclusión y validación del entregable...",
       "practica": [
         { "enunciado": "Ejercicio 1 con datos concretos", "pista": "Pista de cómo empezar (sin solución)", "solucion": ["Paso 1: sustituir datos...", "Paso 2: operar y verificar...", "Respuesta final: ..."] },
         { "enunciado": "Ejercicio 2 con datos concretos", "pista": "Pista de cómo empezar (sin solución)", "solucion": ["Paso 1: ...", "Respuesta final: ..."] }
       ],
       "aplicacion": "Aplicación a la vida real del estudiante...",
-      "autoevaluacion": ["¿Puedo explicar el avance de mi artefacto?", "¿Logré la práctica sin mirar?"],
+      "autoevaluacion": ["¿Puedo explicar el avance de mi producto o proyecto?", "¿Logré la práctica sin mirar?"],
       "recursos": [
         { "titulo": "Video de proyecto aplicado", "url": "https://www.youtube.com/results?search_query=proyecto+educacion+media+superior", "tipo": "video" },
         { "titulo": "Consulta temática de ampliación", "url": "https://www.google.com/search?q=proyecto+bachillerato", "tipo": "web" }
@@ -174,16 +190,16 @@ Problemática PAEC: ${input.paecContext}
 Presupuesto total para esta misión: mínimo ${input.targetWords.min} palabras (ideal ~${input.targetWords.ideal} palabras).
 
 DISTRIBUCIÓN CALIBRADA DE PALABRAS:
-- sessionPlans (${sessionCount} sesiones): OBLIGATORIO redactar las ${sessionCount} sesiones completas (${coveredSessions.join(', ')}), con ~${targetWordsPerPlan} palabras por sesión (total planes: ~${totalPlansTarget} palabras). Cada plan debe contener mínimo 440 a 500 palabras en contenido (3 párrafos técnicos detallados sobre diseño, manufactura y tolerancias técnicas, mínimo 150 palabras por párrafo) y mínimo 300 a 360 palabras en ejemploResuelto (planteamiento concreto y 4 pasos de cálculo y validación de tolerancias).
+- sessionPlans (${sessionCount} sesiones): OBLIGATORIO redactar las ${sessionCount} sesiones completas (${coveredSessions.join(', ')}), con ~${targetWordsPerPlan} palabras por sesión (total planes: ~${totalPlansTarget} palabras). Cada plan debe contener mínimo 440 a 500 palabras en contenido (3 párrafos con criterios y desarrollo propios de ${discipline.displayName}, mínimo 150 palabras por párrafo) y mínimo 300 a 360 palabras en ejemploResuelto (planteamiento concreto y 4 pasos de desarrollo y verificación).
 - communityUtility: ~${utilityTarget} palabras (descripción e impacto comunitario PAEC)
-- phases: ~${phasesTarget} palabras (instrucciones detalladas y operativas por fases de construcción)
+- phases: ~${phasesTarget} palabras (instrucciones detalladas y operativas por fases de desarrollo)
 - autonomousChallenge: ~${challengeTarget} palabras (validación autónoma de campo)
 - rubricSummary: ~${rubricTarget} palabras (criterios y descriptores analíticos)
 
 Esta sección narrativa debe sumar aproximadamente ${remainingNarrativeTarget} palabras, y cada plan de sesión debe contener ~${targetWordsPerPlan} palabras para alcanzar el presupuesto total de ~${input.targetWords.ideal} palabras.
 Incluye explicaciones detalladas, ejemplos múltiples, pasos numerados extensos y espacios para que el estudiante trabaje.
 
-Redacta la Misión del Proyecto, la Construcción del Artefacto Real Y las ${sessionCount} sesiones completas (${coveredSessions.join(', ')}) con máxima extensión técnica y profundidad sin abreviar:`;
+Redacta la Misión del Proyecto, el Desarrollo del Producto o Evidencia Y las ${sessionCount} sesiones completas (${coveredSessions.join(', ')}) con máxima extensión y profundidad sin abreviar:`;
 
   try {
     let attempt: 1 | 2 = 1;
@@ -245,38 +261,38 @@ Redacta la Misión del Proyecto, la Construcción del Artefacto Real Y las ${ses
     }));
 
     const projectSection: ProjectSection = {
-      artifactName: parsed.artifactName || `Solución Aplicada para ${input.uacName}`,
-      communityUtility: parsed.communityUtility || `Mejora técnica orientada a ${input.paecContext}`,
+      artifactName: parsed.artifactName || `Producto Integrador: ${input.uacName}`,
+      communityUtility: parsed.communityUtility || `Mejora orientada a ${input.paecContext}`,
       learningObjectives: Array.isArray(parsed.learningObjectives) && parsed.learningObjectives.length > 0
         ? parsed.learningObjectives
         : [
             `Diseñar e implementar una solución integral de ${input.uacName} para mitigar ${input.paecContext}.`,
-            'Aplicar procedimientos técnicos y normas de calidad en la construcción del artefacto.',
-            'Evaluar la efectividad del producto mediante pruebas de campo y bitácora de registro.',
+            `Aplicar procedimientos y criterios de calidad propios de ${discipline.displayName} en el desarrollo del producto.`,
+            'Evaluar la efectividad del producto o evidencia mediante criterios y registro de avances.',
           ],
       requiredMaterials: Array.isArray(parsed.requiredMaterials) && parsed.requiredMaterials.length > 0
         ? parsed.requiredMaterials.map((m: unknown) => (typeof m === 'string' ? autoTokenizeMaterials(m) : m))
         : [
-            'Insumos específicos de la disciplina según la fase de planeación.',
-            'Instrumental y herramientas de taller con especificaciones de seguridad.',
-            'Cuaderno o bitácora de registro técnico para control de avances.',
+            `Insumos o recursos específicos de ${input.uacName} según la fase de planeación.`,
+            `Herramientas o materiales pertinentes: ${equipmentHint}.`,
+            'Cuaderno, portafolio o bitácora de registro para control de avances.',
           ],
       executionSteps: Array.isArray(parsed.executionSteps) && parsed.executionSteps.length > 0
         ? parsed.executionSteps
         : [
             '1. Diagnóstico y definición de alcances con el equipo de trabajo.',
-            '2. Diseño de arquitectura y especificación de parámetros operativos.',
-            '3. Ensamble, configuración o desarrollo procedimental del artefacto.',
-            '4. Pruebas de funcionamiento y calibración de tolerancias.',
+            '2. Diseño de la propuesta y especificación de criterios.',
+            '3. Desarrollo, producción o configuración del producto o evidencia.',
+            '4. Revisión y pruebas de acuerdo con los criterios de la disciplina.',
             '5. Despliegue situado para evaluación de impacto en el entorno escolar/comunitario.',
-            '6. Elaboración de memoria técnica y entrega final ante el grupo.',
+            '6. Elaboración de memoria o reporte y entrega final ante el grupo.',
           ],
       deliveryCriteria: Array.isArray(parsed.deliveryCriteria) && parsed.deliveryCriteria.length > 0
         ? parsed.deliveryCriteria
         : [
-            'Artefacto o prototipo completamente operativo y verificado.',
-            'Memoria técnica con memoria de cálculo o diagrama arquitectónico.',
-            'Bitácora de registro con seguimiento firmado de cada fase.',
+            'Producto o evidencia terminado y verificado.',
+            'Memoria o reporte con registros y criterios de calidad.',
+            'Bitácora o registro con seguimiento firmado de cada fase.',
           ],
       registrationFormat: typeof parsed.registrationFormat === 'string' && parsed.registrationFormat.trim().length > 20
         ? parsed.registrationFormat.trim()
@@ -288,14 +304,14 @@ Redacta la Misión del Proyecto, la Construcción del Artefacto Real Y las ${ses
 
     const autonomousChallenge = typeof parsed.autonomousChallenge === 'string' && parsed.autonomousChallenge.trim().length > 30
       ? parsed.autonomousChallenge.trim()
-      : `Desafío autónomo individual (Tú Haces): Realiza de manera independiente la validación operativa y de calidad de tu artefacto aplicando la lista de verificación y la bitácora de campo. Contrasta los resultados obtenidos con los criterios de aceptación y documenta cualquier ajuste técnico necesario para maximizar su impacto en ${input.paecContext}.`;
+      : `Desafío autónomo individual (Tú Haces): Realiza de manera independiente la validación y revisión de calidad de tu producto o evidencia aplicando la lista de verificación y el registro de avances. Contrasta los resultados obtenidos con los criterios de aceptación y documenta cualquier ajuste necesario para maximizar su impacto en ${input.paecContext}.`;
 
     const workbookElements: WorkbookElement[] = [
       {
         id: 'wb-project-diagram',
         type: 'drawing_box',
-        title: 'Diagrama de Arquitectura y Esquema de Conexión del Artefacto',
-        instruction: 'Dibuja el diagrama de bloques, esquema funcional o circuito de tu solución:',
+        title: 'Diagrama o esquema del producto o proyecto',
+        instruction: 'Dibuja el diagrama, esquema o representación de tu propuesta:',
         config: { heightPx: 160 },
       },
       {
@@ -335,13 +351,13 @@ Redacta la Misión del Proyecto, la Construcción del Artefacto Real Y las ${ses
       title: missionTitle,
       coveredSessions,
       sessionTopic: projectSection.artifactName,
-      sessionFocus: 'Construcción del artefacto e integración socioproductiva',
+      sessionFocus: 'Desarrollo del producto e integración socioproductiva',
       phenomenonHook: {
-        story: `Llegamos a la fase de transferencia y aplicación: aquí transformamos el conocimiento de ${input.uacName} en un artefacto real que atiende la problemática de ${input.paecContext}.`,
-        detonatingQuestion: '¿De qué manera una solución técnica bien diseñada puede mejorar la calidad de vida en nuestro entorno escolar y comunitario?',
+        story: `Llegamos a la fase de transferencia y aplicación: aquí transformamos el conocimiento de ${input.uacName} en un producto o proyecto real que atiende la problemática de ${input.paecContext}.`,
+        detonatingQuestion: '¿De qué manera una solución bien diseñada puede mejorar la calidad de vida o el aprendizaje en nuestro entorno escolar y comunitario?',
       },
       conceptZero: {
-        physicalAnalogy: 'Un proyecto es como construir un puente: no basta con que los cálculos sean elegantes en papel, debe soportar el peso de las personas que lo cruzan.',
+        physicalAnalogy: 'Un proyecto es como resolver un problema real: no basta con tener una idea, hay que probarla, revisarla y mejorarla con evidencias.',
         coreExplanation: projectSection.communityUtility,
       },
       iDoSection: {
@@ -357,9 +373,9 @@ Redacta la Misión del Proyecto, la Construcción del Artefacto Real Y las ${ses
       },
       troubleshooting: [],
       formativeCheckpoint: {
-        question: '¿Qué impacto esperado tiene tu artefacto en la comunidad o en tu perfil profesional?',
-        reflectionPrompts: ['Evalúa la viabilidad y durabilidad de tu propuesta.'],
-        criteriaChecklist: ['El artefacto cumple los criterios de aceptación acordados.'],
+        question: '¿Qué impacto esperado tiene tu producto o proyecto en la comunidad o en tu perfil profesional?',
+        reflectionPrompts: ['Evalúa la viabilidad y pertinencia de tu propuesta.'],
+        criteriaChecklist: ['El producto o evidencia cumple los criterios de aceptación acordados.'],
       },
       sessionPlans,
       wordCount: totalMissionWords,
@@ -392,81 +408,7 @@ Redacta la Misión del Proyecto, la Construcción del Artefacto Real Y las ${ses
     if (input.signal?.aborted || (err instanceof Error && (err.name === 'AbortError' || err.message.includes('aborted') || err.message.includes('AbortError')))) {
       throw (input.signal?.reason || err);
     }
-    logger.error('[generateProjectMission] Error:', err);
-    // Fallback estructurado de proyecto
-    const fallbackPlans = completeSessionPlans([], coveredSessions, fallbackContext);
-    const fallbackPlansWords = fallbackPlans.reduce((acc, sp) => acc + countSessionPlanWords(sp), 0);
-    const fallbackTotalWords = 500 + fallbackPlansWords;
-
-    const fallbackProject: ProjectSection = {
-      artifactName: `Artefacto Integrador: Solución para ${input.uacName}`,
-      communityUtility: `Propuesta de intervención técnica vinculada a ${input.paecContext}.`,
-      phases: [
-        { phaseNum: 1, title: 'Fase 1: Definición y Diseño', allocatedHours: 2, deliverables: ['Boceto'], instructions: 'Definir el alcance y materiales.' },
-        { phaseNum: 2, title: 'Fase 2: Construcción y Ensamble', allocatedHours: 4, deliverables: ['Prototipo'], instructions: 'Ejecutar el montaje o programación.' },
-        { phaseNum: 3, title: 'Fase 3: Pruebas y Entrega', allocatedHours: 2, deliverables: ['Bitácora'], instructions: 'Verificar funcionamiento con rúbrica.' },
-      ],
-      technicalSpecs: ['Normas básicas de calidad y presentación formal'],
-      acceptanceCriteria: ['El producto opera de acuerdo con su propósito formativo'],
-    };
-
-    const fallbackSection: MissionSection = {
-      missionIndex: projectMission?.missionIndex || 3,
-      title: missionTitle,
-      coveredSessions,
-      sessionTopic: fallbackProject.artifactName,
-      sessionFocus: 'Integración del proyecto formativo',
-      phenomenonHook: {
-        story: `Culminamos el bloque aplicando lo aprendido para el proyecto PAEC: ${input.paecContext}.`,
-        detonatingQuestion: '¿Cómo validamos que nuestra solución es técnicamente viable?',
-      },
-      conceptZero: {
-        physicalAnalogy: 'El conocimiento cobra verdadero sentido cuando se materializa en una solución tangible.',
-        coreExplanation: fallbackProject.communityUtility,
-      },
-      iDoSection: {
-        stepByStepDemo: 'El docente presenta la guía de entrega y los parámetros de evaluación del proyecto.',
-      },
-      weDoSection: {
-        guidedPractice: 'Trabajo en equipo en el desarrollo de las fases del artefacto.',
-        workbookElements: [
-          {
-            id: 'fb-proj-draw',
-            type: 'drawing_box',
-            title: 'Boceto de la solución',
-            config: { heightPx: 140 },
-          },
-        ],
-      },
-      youDoSection: {
-        autonomousChallenge: 'Pruebas finales, verificación de especificaciones de diseño y autoevaluación del desempeño.',
-        workbookElements: [
-          {
-            id: 'fb-proj-check',
-            type: 'checkbox_list',
-            title: 'Verificación de entrega',
-            config: { checkboxes: ['Entrega en tiempo', 'Funcionalidad comprobada', 'Bitácora firmada'] },
-          },
-        ],
-      },
-      troubleshooting: [],
-      formativeCheckpoint: {
-        question: '¿Qué aprendiste al construir este proyecto que no venía en los libros teóricos?',
-        reflectionPrompts: ['Reflexiona sobre el valor del trabajo en equipo.'],
-        criteriaChecklist: ['Cumplí con todos los entregables de la misión.'],
-      },
-      sessionPlans: fallbackPlans,
-      wordCount: fallbackTotalWords,
-    };
-
-    return {
-      type: 'project',
-      section: fallbackSection,
-      projectSection: fallbackProject,
-      wordCount: fallbackTotalWords,
-      tokensUsed: 0,
-      qualityScore: 70,
-      warnings: ['Generado con fallback estructurado de proyecto: ' + String((err as Error)?.message || err)],
-    };
+    logger.error('[generateProjectMission] Error sin fallback sintético:', err);
+    throw err;
   }
 }

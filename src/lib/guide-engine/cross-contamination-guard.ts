@@ -1,20 +1,18 @@
 /**
  * cross-contamination-guard.ts
- * SIGPDA-EMS · Validador Estricto Anti-Contaminación Cruzada y Coherencia Editorial
+ * SIGPDA-EMS - Validador bidireccional anti-contaminacion cruzada.
  *
- * Previene la mezcla indebida de contenidos entre asignaturas (ej. lecciones de Pensamiento
- * Matemático inyectadas en Construcción, Plomería, Ciencias o Humanidades).
- *
- * Reglas de Validación:
- * 1. Detección de firmas y términos prohibidos fuera de su disciplina nativa.
- * 2. Coherencia semántica entre el título de la sesión y el cuerpo redactado.
- * 3. Inspección exhaustiva de TODOS los campos del SessionPlan (objetivo, motivación,
- *    saberes previos, contenido, ejemplo resuelto, práctica, autoevaluación, recursos, producto).
- * 4. Cero falsos positivos con vocabulario técnico interdisciplinar válido (ej. "caudal", "FEM",
- *    "corrosión galvánica", "velocidad de corte", "problemática derivada...", etc.).
+ * El guard parte del adaptador disciplinar de la UAC y revisa todos los textos
+ * de la mision y de los planes de sesion. No asume que solo las UAC no
+ * matematicas pueden contaminarse: una UAC de matematicas tambien se marca si
+ * contiene practicas de construccion, laboratorio o cocina ajenas.
  */
 
 import type { SessionPlan, MissionSection } from '@/types/work-textbook';
+import {
+  getDisciplinaryAdapter,
+  type DisciplinaryDomainId,
+} from '@/lib/prompts/disciplinary-adapters';
 
 export interface ContaminationIssue {
   sessionNumber: number;
@@ -31,76 +29,196 @@ export interface ContaminationReport {
   summary: string;
 }
 
-/**
- * Determina si la UAC pertenece al campo de Pensamiento Matemático.
- */
+interface Rule {
+  pattern: RegExp;
+  label: string;
+  actualDiscipline: string;
+}
+
+interface TextField {
+  name: string;
+  value: string;
+}
+
 export function isMathUAC(uacName?: string | null): boolean {
   if (!uacName) return false;
-  const n = uacName.toLowerCase();
+  const n = normalize(uacName);
   return (
-    n.includes('pensamiento matemático') ||
     n.includes('pensamiento matematico') ||
-    n.includes('matemática') ||
     n.includes('matematica') ||
-    n.includes('matemáticas') ||
     n.includes('matematicas') ||
-    n.includes('álgebra') ||
     n.includes('algebra') ||
-    n.includes('geometría') ||
     n.includes('geometria') ||
-    n.includes('trigonometría') ||
     n.includes('trigonometria') ||
-    n.includes('cálculo') ||
     n.includes('calculo') ||
     n.includes('probabilidad') ||
-    n.includes('estadística') ||
     n.includes('estadistica') ||
-    n.includes('pensamiento variacional') ||
-    n.includes('taller de pensamiento variacional')
+    n.includes('pensamiento variacional')
   );
 }
 
 /**
- * Frases y patrones canónicos que representan contaminación matemática específica
- * (extraídos del antiguo fallback genérico o lecciones algebraicas fuera de lugar).
+ * Firmas matematicas inequivocas. Se conservan por compatibilidad con los
+ * tests y con el resto del motor.
  */
 export const FORBIDDEN_MATH_PATTERNS: { pattern: RegExp; label: string }[] = [
-  { pattern: /modelar\s+e\s+interpretar\s+los\s+fen[oó]menos\s+de\s+variaci[oó]n/i, label: 'modelar e interpretar los fenómenos de variación' },
-  { pattern: /an[aá]lisis\s+sistem[aá]tico\s+de\s+la\s+variaci[oó]n/i, label: 'análisis sistemático de la variación' },
-  { pattern: /propiedades\s+algebraicas\s+y\s+anal[ií]ticas/i, label: 'propiedades algebraicas y analíticas' },
-  { pattern: /raz[oó]n\s+de\s+cambio\s+constante\s+de\s+una\s+variable/i, label: 'razón de cambio constante de una variable' },
-  { pattern: /tasa\s+de\s+variaci[oó]n\s+media/i, label: 'tasa de variación media' },
+  { pattern: /modelar\s+e\s+interpretar\s+los\s+fen[oó]menos\s+de\s+variaci[oó]n/i, label: 'modelar e interpretar los fenomenos de variacion' },
+  { pattern: /an[aá]lisis\s+sistem[aá]tico\s+de\s+la\s+variaci[oó]n/i, label: 'analisis sistematico de la variacion' },
+  { pattern: /propiedades\s+algebraicas\s+y\s+anal[ií]ticas/i, label: 'propiedades algebraicas y analiticas' },
+  { pattern: /raz[oó]n\s+de\s+cambio\s+constante\s+de\s+una\s+variable/i, label: 'razon de cambio constante de una variable' },
+  { pattern: /tasa\s+de\s+variaci[oó]n\s+media/i, label: 'tasa de variacion media' },
   { pattern: /delta\s+y\s+entre\s+delta\s+x/i, label: 'delta y entre delta x' },
   { pattern: /cociente\s+incremental/i, label: 'cociente incremental' },
   { pattern: /forma\s+punto-pendiente/i, label: 'forma punto-pendiente' },
   { pattern: /ahorro\s+acumulado\s+para\s+la\s+compra\s+de\s+filtros/i, label: 'ahorro acumulado para la compra de filtros de agua' },
-  { pattern: /45\s*kg\s+de\s+PET/i, label: 'recolección de 45 kg de PET' },
+  { pattern: /45\s*kg\s+de\s+PET/i, label: 'recoleccion de 45 kg de PET' },
   { pattern: /phet\.colorado\.edu\/es\/simulations\/graphing-lines/i, label: 'PhET graphing-lines' },
   { pattern: /search_query=pensamiento\+variacional/i, label: 'YouTube pensamiento variacional' },
   { pattern: /modelo\s+algebraico/i, label: 'modelo algebraico' },
   { pattern: /pensamiento\s+variacional/i, label: 'pensamiento variacional' },
   { pattern: /magnitud\s+variable/i, label: 'magnitud variable' },
-  { pattern: /gr[aá]fica\s+de\s+variaci[oó]n/i, label: 'gráfica de variación' },
+  { pattern: /gr[aá]fica\s+de\s+variaci[oó]n/i, label: 'grafica de variacion' },
   { pattern: /regla\s+de\s+correspondencia\s+lineal/i, label: 'regla de correspondencia lineal' },
-  { pattern: /funci[oó]n\s+(?:lineal\s+)?(?:de\s+ahorro\s+)?S\(t\)/i, label: 'función de ahorro S(t)' },
+  { pattern: /funci[oó]n\s+(?:lineal\s+)?(?:de\s+ahorro\s+)?S\(t\)/i, label: 'funcion de ahorro S(t)' },
 ];
 
-/**
- * Inspecciona un SessionPlan individual en busca de contaminación cruzada.
- */
-export function validateSessionPlanContamination(
-  plan: SessionPlan,
-  uacName: string
-): ContaminationIssue[] {
-  const issues: ContaminationIssue[] = [];
-  const mathUAC = isMathUAC(uacName);
+const MATH_RULES: Rule[] = FORBIDDEN_MATH_PATTERNS.map((r) => ({
+  ...r,
+  actualDiscipline: 'Pensamiento Matemático',
+}));
 
-  if (mathUAC) {
-    return issues; // En matemáticas, estos términos son legítimos
+const CONSTRUCTION_RULES: Rule[] = [
+  { pattern: /instalaci[oó]n(?:es)?\s+(?:hidr[aá]ulica|sanitaria|hidrosanitaria|el[eé]ctrica|de gas)/i, label: 'instalacion hidraulica/sanitaria/electrica/de gas', actualDiscipline: 'Construccion e Instalaciones' },
+  { pattern: /redes?\s+(?:hidr[aá]ulica|sanitaria|de gas|de distribuci[oó]n)/i, label: 'red hidraulica/sanitaria/de gas', actualDiscipline: 'Construccion e Instalaciones' },
+  { pattern: /\btuber[ií]as?\s+(?:de|para)\s+(?:agua|cobre|cpvc|ppr|pvc|gas|desag[uü]e)/i, label: 'tuberia de agua/cobre/cpvc/ppr/pvc/gas/desague', actualDiscipline: 'Construccion e Instalaciones' },
+  { pattern: /prueba(?:s)?\s+de\s+estanqueidad/i, label: 'prueba de estanqueidad', actualDiscipline: 'Construccion e Instalaciones' },
+  { pattern: /soldadura\s+(?:de\s+)?(?:tuber[ií]a|tubo|cobre)/i, label: 'soldadura de tuberia/tubo/cobre', actualDiscipline: 'Construccion e Instalaciones' },
+  { pattern: /llave\s+de\s+paso/i, label: 'llave de paso', actualDiscipline: 'Construccion e Instalaciones' },
+  { pattern: /c[eé]dula\s*(?:40|80)/i, label: 'cedula 40/80 de tuberia', actualDiscipline: 'Construccion e Instalaciones' },
+  { pattern: /conexi[oó]n(?:es)?\s+(?:de|para)\s+gas/i, label: 'conexion de gas', actualDiscipline: 'Construccion e Instalaciones' },
+  { pattern: /muro(?:es)?\s+de\s+(?:block|tabique|concreto|ladrillo)/i, label: 'muro de block/tabique/concreto/ladrillo', actualDiscipline: 'Construccion e Instalaciones' },
+  { pattern: /colado\s+de\s+(?:losa|firme|castillo)/i, label: 'colado de losa/firme/castillo', actualDiscipline: 'Construccion e Instalaciones' },
+  { pattern: /varilla(?:s)?\s+corrugada/i, label: 'varilla corrugada', actualDiscipline: 'Construccion e Instalaciones' },
+  { pattern: /mezcla\s+de\s+(?:cemento|concreto|mortero)/i, label: 'mezcla de cemento/concreto/mortero', actualDiscipline: 'Construccion e Instalaciones' },
+  { pattern: /impermeabilizaci[oó]n/i, label: 'impermeabilizacion', actualDiscipline: 'Construccion e Instalaciones' },
+  { pattern: /bit[aá]cora\s+de\s+obra/i, label: 'bitacora de obra', actualDiscipline: 'Construccion e Instalaciones' },
+  { pattern: /equipo\s+de\s+protecci[oó]n\s+personal/i, label: 'equipo de proteccion personal', actualDiscipline: 'Construccion e Instalaciones' },
+  { pattern: /ensamblaje\s+f[ií]sico/i, label: 'ensamblaje fisico de prototipo', actualDiscipline: 'Construccion e Instalaciones' },
+  { pattern: /prototipo\s+de\s+riego/i, label: 'prototipo de riego', actualDiscipline: 'Construccion e Instalaciones' },
+  { pattern: /mult[ií]metro\s+digital/i, label: 'multimetro digital', actualDiscipline: 'Electricidad/Electronica' },
+  { pattern: /cable(?:-|\s)?red\s+utp/i, label: 'cable de red UTP', actualDiscipline: 'Electricidad/Electronica' },
+  { pattern: /\bcaut[ií]n\b/i, label: 'cautin', actualDiscipline: 'Electricidad/Electronica' },
+];
+
+const SCIENCE_RULES: Rule[] = [
+  { pattern: /phet\.colorado\.edu\/es\/simulations?\/(?:under-pressure|build-a-molecule|circuit-construction-kit)/i, label: 'simulacion PhET de ciencias', actualDiscipline: 'Ciencias Naturales' },
+  { pattern: /simulador\s+de\s+presi[oó]n\s+en\s+fluidos/i, label: 'simulador de presion en fluidos', actualDiscipline: 'Ciencias Naturales' },
+  { pattern: /matraz\s+erlenmeyer/i, label: 'matraz erlenmeyer', actualDiscipline: 'Ciencias Naturales' },
+  { pattern: /mechero\s+bunsen/i, label: 'mechero bunsen', actualDiscipline: 'Ciencias Naturales' },
+  { pattern: /microscopio\s+(?:[oó]ptico|compuesto)/i, label: 'microscopio optico/compuesto', actualDiscipline: 'Ciencias Naturales' },
+  { pattern: /c[eé]lula\s+(?:vegetal|animal|procariota|eucariota)/i, label: 'celula vegetal/animal', actualDiscipline: 'Ciencias Naturales' },
+  { pattern: /fotos[ií]ntesis/i, label: 'fotosintesis', actualDiscipline: 'Ciencias Naturales' },
+  { pattern: /titulaci[oó]n\s+[aá]cido[-\s]base/i, label: 'titulacion acido-base', actualDiscipline: 'Ciencias Naturales' },
+];
+
+const KITCHEN_RULES: Rule[] = [
+  { pattern: /tabla\s+de\s+(?:cortar|picar)/i, label: 'tabla de cortar/picar', actualDiscipline: 'Gastronomia' },
+  { pattern: /cuchillo\s+(?:de\s+)?chef/i, label: 'cuchillo de chef', actualDiscipline: 'Gastronomia' },
+];
+
+const DIGITAL_RULES: Rule[] = [
+  { pattern: /c[oó]digo\s+(?:en\s+)?(?:python|javascript|java|c\+\+|html)/i, label: 'codigo de programacion', actualDiscipline: 'Cultura Digital' },
+  { pattern: /compilador|depurador\s+de\s+c[oó]digo/i, label: 'compilador/depurador', actualDiscipline: 'Cultura Digital' },
+];
+
+function normalize(value: string): string {
+  return (value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function compact(value: string, max = 180): string {
+  return (value || '').replace(/\s+/g, ' ').trim().slice(0, max);
+}
+
+function isCulinary(uacName: string, component: string, curriculumName: string): boolean {
+  return /gastronom|alimentos y bebidas|reposteri|panaderi|culinari/i.test(
+    `${uacName} ${component} ${curriculumName}`
+  );
+}
+
+function isNative(
+  id: DisciplinaryDomainId,
+  group: 'math' | 'construction' | 'science' | 'digital'
+): boolean {
+  switch (group) {
+    case 'math':
+      return id === 'pensamiento_matematico';
+    case 'construction':
+      return id === 'formacion_laboral_industrial_agro_salud' || id === 'dibujo_tecnico_diseno_arquitectura';
+    case 'science':
+      return (
+        id === 'ciencias_fisica_ingenieria' ||
+        id === 'ciencias_quimica_biologia_ambiental' ||
+        id === 'actividades_fisicas_deportivas_salud' ||
+        id === 'socioemocional_tutoria_educacion_integral'
+      );
+    case 'digital':
+      return id === 'cultura_digital_programacion_ti';
   }
+}
 
-  // Campos de texto directo
-  const textFields: { name: keyof SessionPlan; value: unknown }[] = [
+function buildRules(
+  id: DisciplinaryDomainId,
+  uacName: string,
+  component: string,
+  curriculumName: string,
+  adapterRules: Rule[]
+): Rule[] {
+  const culinary = isCulinary(uacName, component, curriculumName);
+  const rules: Rule[] = [];
+
+  if (!isNative(id, 'math')) rules.push(...MATH_RULES);
+  if (!isNative(id, 'construction')) rules.push(...CONSTRUCTION_RULES);
+  if (!isNative(id, 'science')) rules.push(...SCIENCE_RULES);
+  if (!isNative(id, 'digital')) rules.push(...DIGITAL_RULES);
+  if (!culinary) rules.push(...KITCHEN_RULES);
+
+  rules.push(...adapterRules);
+
+  const seen = new Set<string>();
+  return rules.filter((rule) => {
+    const key = `${rule.pattern.source}|${rule.label}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function adapterRulesFor(
+  adapterId: DisciplinaryDomainId,
+  forbiddenTerms: string[],
+  culinary: boolean
+): Rule[] {
+  const terms = culinary
+    ? forbiddenTerms
+    : forbiddenTerms.filter((term) => !/cocina|cuchillo|tabla de picar|tabla de cortar|cofia/i.test(term));
+
+  return terms.map((term) => ({
+    pattern: new RegExp(`\\b${escapeRegExp(term)}\\b`, 'iu'),
+    label: term,
+    actualDiscipline: `Vocabulario ajeno a ${adapterId}`,
+  }));
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function collectPlanTextFields(plan: SessionPlan): TextField[] {
+  const fields: TextField[] = [];
+  const direct: { name: keyof SessionPlan; value: unknown }[] = [
     { name: 'objetivo', value: plan.objetivo },
     { name: 'motivacion', value: plan.motivacion },
     { name: 'saberesPrevios', value: plan.saberesPrevios },
@@ -110,92 +228,121 @@ export function validateSessionPlanContamination(
     { name: 'productoIntegrador', value: plan.productoIntegrador },
   ];
 
-  for (const { name, value } of textFields) {
-    if (typeof value !== 'string' || !value) continue;
+  for (const { name, value } of direct) {
+    if (typeof value === 'string' && value) fields.push({ name, value });
+  }
 
-    for (const { pattern, label } of FORBIDDEN_MATH_PATTERNS) {
-      const m = value.match(pattern);
-      if (m) {
-        issues.push({
-          sessionNumber: plan.sessionNumber,
-          field: name,
-          forbiddenTerm: label,
-          snippet: m[0],
-          expectedDiscipline: uacName,
-          actualDiscipline: 'Pensamiento Matemático',
-        });
-      }
+  if (Array.isArray(plan.practica)) {
+    plan.practica.forEach((pr, idx) => {
+      fields.push({
+        name: `practica[${idx}]`,
+        value: `${pr.enunciado || ''} ${pr.pista || ''} ${(pr.solucion || []).join(' ')}`,
+      });
+    });
+  }
+
+  if (Array.isArray(plan.autoevaluacion)) {
+    plan.autoevaluacion.forEach((item, idx) => {
+      if (typeof item === 'string' && item) fields.push({ name: `autoevaluacion[${idx}]`, value: item });
+    });
+  }
+
+  if (Array.isArray(plan.recursos)) {
+    plan.recursos.forEach((rec, idx) => {
+      fields.push({
+        name: `recursos[${idx}]`,
+        value: `${rec.titulo || ''} ${rec.url || ''}`,
+      });
+    });
+  }
+
+  return fields;
+}
+
+function collectStrings(value: unknown, path: string, out: TextField[], depth = 0): void {
+  if (depth > 8 || value == null) return;
+  if (typeof value === 'string') {
+    if (value.trim()) out.push({ name: path, value });
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item, idx) => collectStrings(item, `${path}[${idx}]`, out, depth + 1));
+    return;
+  }
+  if (typeof value === 'object') {
+    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+      if (key === 'sessionPlans' || key === 'wordCount') continue;
+      collectStrings(child, path ? `${path}.${key}` : key, out, depth + 1);
     }
   }
+}
 
-  // Práctica (enunciado, pista, soluciones)
-  if (Array.isArray(plan.practica)) {
-    plan.practica.forEach((pr, prIdx) => {
-      const combinedPractice = `${pr.enunciado || ''} ${pr.pista || ''} ${(pr.solucion || []).join(' ')}`;
-      for (const { pattern, label } of FORBIDDEN_MATH_PATTERNS) {
-        const m = combinedPractice.match(pattern);
-        if (m) {
-          issues.push({
-            sessionNumber: plan.sessionNumber,
-            field: `practica[${prIdx}]`,
-            forbiddenTerm: label,
-            snippet: m[0],
-            expectedDiscipline: uacName,
-            actualDiscipline: 'Pensamiento Matemático',
-          });
-        }
-      }
-    });
-  }
+function findIssues(
+  fields: TextField[],
+  rules: Rule[],
+  sessionNumber: number,
+  expectedDiscipline: string
+): ContaminationIssue[] {
+  const issues: ContaminationIssue[] = [];
+  const seen = new Set<string>();
 
-  // Autoevaluación
-  if (Array.isArray(plan.autoevaluacion)) {
-    plan.autoevaluacion.forEach((ae, aeIdx) => {
-      if (typeof ae === 'string') {
-        for (const { pattern, label } of FORBIDDEN_MATH_PATTERNS) {
-          const m = ae.match(pattern);
-          if (m) {
-            issues.push({
-              sessionNumber: plan.sessionNumber,
-              field: `autoevaluacion[${aeIdx}]`,
-              forbiddenTerm: label,
-              snippet: m[0],
-              expectedDiscipline: uacName,
-              actualDiscipline: 'Pensamiento Matemático',
-            });
-          }
-        }
-      }
-    });
-  }
-
-  // Recursos (título, url)
-  if (Array.isArray(plan.recursos)) {
-    plan.recursos.forEach((rec, recIdx) => {
-      const combinedRec = `${rec.titulo || ''} ${rec.url || ''}`;
-      for (const { pattern, label } of FORBIDDEN_MATH_PATTERNS) {
-        const m = combinedRec.match(pattern);
-        if (m) {
-          issues.push({
-            sessionNumber: plan.sessionNumber,
-            field: `recursos[${recIdx}]`,
-            forbiddenTerm: label,
-            snippet: m[0],
-            expectedDiscipline: uacName,
-            actualDiscipline: 'Pensamiento Matemático',
-          });
-        }
-      }
-    });
+  for (const { name, value } of fields) {
+    for (const rule of rules) {
+      const match = value.match(rule.pattern);
+      if (!match) continue;
+      const key = `${name}|${rule.label}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      issues.push({
+        sessionNumber,
+        field: name,
+        forbiddenTerm: rule.label,
+        snippet: compact(match[0] || value),
+        expectedDiscipline,
+        actualDiscipline: rule.actualDiscipline,
+      });
+    }
   }
 
   return issues;
 }
 
+function resolveRules(
+  uacName: string,
+  component: string,
+  curriculumName: string,
+  careerOrProgramName: string
+): { rules: Rule[]; expectedDiscipline: string } {
+  const adapter = getDisciplinaryAdapter(uacName, component, curriculumName || careerOrProgramName);
+  const culinary = isCulinary(uacName, component, curriculumName || careerOrProgramName);
+  const adapterRules = adapterRulesFor(adapter.id, adapter.forbiddenCrossDomainTerms, culinary);
+  return {
+    rules: buildRules(adapter.id, uacName, component, curriculumName || careerOrProgramName, adapterRules),
+    expectedDiscipline: adapter.displayName,
+  };
+}
+
 /**
- * Valida la coherencia semántica entre el título de la sesión y su contenido.
- * Si el título es de una UAC técnica/práctica (ej. Plomería, Construcción) y el cuerpo
- * presenta términos inequívocos de otra disciplina, detecta la inconsistencia.
+ * Inspecciona un SessionPlan individual en busca de contaminacion cruzada.
+ */
+export function validateSessionPlanContamination(
+  plan: SessionPlan,
+  uacName: string,
+  component: string = '',
+  curriculumName: string = '',
+  careerOrProgramName: string = ''
+): ContaminationIssue[] {
+  const { rules, expectedDiscipline } = resolveRules(uacName, component, curriculumName, careerOrProgramName);
+  return findIssues(
+    collectPlanTextFields(plan),
+    rules,
+    plan.sessionNumber,
+    expectedDiscipline
+  );
+}
+
+/**
+ * Coherencia entre el titulo de la mision y el cuerpo del plan.
  */
 export function validateSessionTitleCoherence(
   plan: SessionPlan,
@@ -203,7 +350,7 @@ export function validateSessionTitleCoherence(
   uacName?: string | null
 ): ContaminationIssue[] {
   const issues: ContaminationIssue[] = [];
-  const title = (sessionTitle || '').toLowerCase();
+  const title = normalize(sessionTitle || '');
   const mathUAC = isMathUAC(uacName);
 
   if (!mathUAC) {
@@ -219,18 +366,14 @@ export function validateSessionTitleCoherence(
       title.includes('obra');
 
     if (isConstructionTitle) {
-      const body = `${plan.objetivo || ''} ${plan.contenido || ''}`.toLowerCase();
-      if (
-        body.includes('modelar e interpretar los fenómenos de variación') ||
-        body.includes('análisis sistemático de la variación') ||
-        body.includes('modelo algebraico')
-      ) {
+      const body = `${plan.objetivo || ''} ${plan.contenido || ''} ${plan.ejemploResuelto || ''}`;
+      if (MATH_RULES.some((rule) => rule.pattern.test(body))) {
         issues.push({
           sessionNumber: plan.sessionNumber,
           field: 'tituloVsCuerpo',
           forbiddenTerm: 'Contradicción Título Construcción vs Cuerpo Matemático',
-          snippet: `Título: "${sessionTitle}" | Inicio cuerpo: "${(plan.contenido || plan.objetivo || '').slice(0, 80)}"`,
-          expectedDiscipline: uacName || 'Construcción',
+          snippet: `Titulo: "${sessionTitle}" | Inicio cuerpo: "${compact(plan.contenido || plan.objetivo || '', 80)}"`,
+          expectedDiscipline: uacName || 'Construccion',
           actualDiscipline: 'Pensamiento Matemático',
         });
       }
@@ -241,33 +384,49 @@ export function validateSessionTitleCoherence(
 }
 
 /**
- * Valida un conjunto de misiones completas de un libro de bloque o compendio.
+ * Valida misiones completas (texto de mision + planes de sesion).
  */
 export function validateBlockCrossContamination(
   missions: MissionSection[],
-  uacName: string
+  uacName: string,
+  component: string = '',
+  curriculumName: string = '',
+  careerOrProgramName: string = ''
 ): ContaminationReport {
+  const { rules, expectedDiscipline } = resolveRules(uacName, component, curriculumName, careerOrProgramName);
   const allIssues: ContaminationIssue[] = [];
 
   for (const mission of missions) {
+    const missionFields: TextField[] = [];
+    collectStrings(mission, `mision${mission.missionIndex}`, missionFields);
+    allIssues.push(
+      ...findIssues(
+        missionFields,
+        rules,
+        mission.coveredSessions?.[0] || 0,
+        expectedDiscipline
+      )
+    );
+
     const plans = mission.sessionPlans || [];
     for (const plan of plans) {
-      const planIssues = validateSessionPlanContamination(plan, uacName);
-      allIssues.push(...planIssues);
-
-      const coherenceIssues = validateSessionTitleCoherence(
-        plan,
-        mission.sessionTopic || mission.title,
-        uacName
+      allIssues.push(
+        ...findIssues(collectPlanTextFields(plan), rules, plan.sessionNumber, expectedDiscipline)
       );
-      allIssues.push(...coherenceIssues);
+      allIssues.push(
+        ...validateSessionTitleCoherence(
+          plan,
+          mission.sessionTopic || mission.title,
+          uacName
+        )
+      );
     }
   }
 
   const clean = allIssues.length === 0;
   const summary = clean
-    ? `✅ Verificación anti-contaminación aprobada: 0 términos foráneos detectados en las sesiones de ${uacName}.`
-    : `❌ Contaminación cruzada detectada en ${allIssues.length} puntos. Sesiones afectadas: ${Array.from(new Set(allIssues.map((i) => i.sessionNumber))).join(', ')}.`;
+    ? `OK. Verificacion anti-contaminacion aprobada: 0 terminos ajenos detectados en las sesiones de ${uacName}.`
+    : `ALERTA. Contaminacion cruzada detectada en ${allIssues.length} puntos. Sesiones afectadas: ${Array.from(new Set(allIssues.map((i) => i.sessionNumber))).join(', ')}.`;
 
   return {
     clean,

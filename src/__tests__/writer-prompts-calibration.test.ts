@@ -33,6 +33,15 @@ describe('P3.1 — Calibración dinámica de prompts de los 4 Writers', () => {
 
     vi.mocked(generateWithRotation).mockImplementation(async (_sys, prompt) => {
       capturedPrompts.push(prompt);
+      const sessionMatch = prompt.match(
+        /(?:Sesiones cubiertas|Sesiones asignadas): Sesiones ([0-9, y]+)/
+      );
+      const plannedSessions = sessionMatch
+        ? sessionMatch[1]
+            .split(/,\s*|\s+y\s+/)
+            .map((value) => Number(value))
+            .filter((value) => Number.isFinite(value))
+        : [1, 2, 3];
       // Retornar un JSON mínimo válido para evitar reintentos en el test
       return JSON.stringify({
         coreExplanation: 'Explicación formal extensa '.repeat(30),
@@ -57,11 +66,11 @@ describe('P3.1 — Calibración dinámica de prompts de los 4 Writers', () => {
         ],
         criticalThinkingQuiz: [],
         metacognitiveReflection: { prompts: [] },
-        sessionPlans: [
-          { sessionNumber: 1, objetivo: 'Obj 1', contenido: 'Contenido 1' },
-          { sessionNumber: 2, objetivo: 'Obj 2', contenido: 'Contenido 2' },
-          { sessionNumber: 3, objetivo: 'Obj 3', contenido: 'Contenido 3' },
-        ],
+        sessionPlans: plannedSessions.map((sessionNumber) => ({
+          sessionNumber,
+          objetivo: `Obj ${sessionNumber}`,
+          contenido: `Contenido ${sessionNumber}`,
+        })),
       });
     });
   });

@@ -10,6 +10,7 @@
     "test": "vitest run && npm run test:keywords",
     "test:integration": "node scripts/run-integration-tests.mjs",
     "test:keywords": "npx tsx scripts/audit-recommender-keywords.ts",
+    "audit:contamination": "npx tsx scripts/audit-cross-contamination.ts",
     "test:watch": "vitest",
     "seed:catalogo": "node --env-file=.env.local scripts/seed-catalogo-metas.ts"
   },

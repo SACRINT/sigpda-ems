@@ -19,7 +19,6 @@
 import {
   getPlanningById,
   getTeacherById,
-  getPlanningExtras,
   findCanonicalSeed,
   saveCanonicalSeed,
   saveBlockWorkbook,
@@ -37,7 +36,6 @@ import {
   computeContentBudget,
   resolveWeeklyHours,
   validateSessionCoverage,
-  countSessionPlanWords,
   WORDS_PER_PAGE,
 } from './content-budget';
 import { generateFoundationMission } from './writers/foundation-writer';
@@ -52,7 +50,7 @@ import {
   sectionCorpus,
   corpusCoversTerm,
 } from './planning-content-alignment';
-import { completeSessionPlans, detectFallbackWords, type WriterInput, type WriterOutput, type PlanningActivities } from './writers/writer-contract';
+import { detectFallbackWords, type WriterInput, type WriterOutput, type PlanningActivities } from './writers/writer-contract';
 import { validateBlockCrossContamination } from './cross-contamination-guard';
 import type {
   ActiveWorkTextbook,
@@ -99,6 +97,8 @@ export interface OrchestratorOptions {
   signal?: AbortSignal;
   persistWorkbook?: boolean;
   maxBudgetMs?: number;
+  /** Solo habilitar con semillas auditadas; por defecto se generan bloques frescos. */
+  allowCanonicalSeedReuse?: boolean;
 }
 
 /**
@@ -273,40 +273,37 @@ export async function generateBlockWorkTextbook(
     percent: 30,
   });
 
-  const extrasRows = await getPlanningExtras(planningId, planning.teacherId).catch((err: unknown) => {
-    logger.warn('[orchestrator] Error obteniendo extras:', { error: err instanceof Error ? err.message : String(err) });
-    return [];
-  });
-  const existingExtras: Record<string, unknown> = {};
-  for (const extra of extrasRows) {
-    existingExtras[extra.type] = extra.content_text || extra;
-  }
-
+  // No se reutilizan extras previos: la regeneración debe producir instrumentos
+  // frescos y evitar heredar rúbricas/checklists contaminados de versiones anteriores.
   const blueprint = buildBlockBlueprint({
     blockIndex,
     blockName,
     planning,
     curriculum: curriculumContext,
-    hasExistingExtras: Object.keys(existingExtras).length > 0,
+    hasExistingExtras: false,
   });
 
-  // ── Fase 4: Búsqueda de Semilla Canónica Reutilizable ───────────────────
+  // ── Fase 4: Semilla Canónica (opt-in, solo con semillas auditadas) ─────
+  // Por defecto NO se reutilizan semillas: una semilla vieja puede reinyectar
+  // contenido contaminado aunque el writer genere el resto del bloque.
   let canonicalSeed: CanonicalSeed | null = null;
-  try {
-    const seedTopic =
-      blueprint.missions[0]?.sessionTopic ||
-      blueprint.missions[blueprint.missions.length - 1]?.sessionTopic ||
-      blockName;
-    canonicalSeed = await findCanonicalSeed(
-      curriculumContext.uacName,
-      seedTopic,
-      curriculumContext.subsystem
-    );
-    if (canonicalSeed && canonicalSeed.id) {
-      await incrementSeedUsage(canonicalSeed.id);
+  if (options.allowCanonicalSeedReuse === true) {
+    try {
+      const seedTopic =
+        blueprint.missions[0]?.sessionTopic ||
+        blueprint.missions[blueprint.missions.length - 1]?.sessionTopic ||
+        blockName;
+      canonicalSeed = await findCanonicalSeed(
+        curriculumContext.uacName,
+        seedTopic,
+        curriculumContext.subsystem
+      );
+      if (canonicalSeed && canonicalSeed.id) {
+        await incrementSeedUsage(canonicalSeed.id);
+      }
+    } catch (seedErr) {
+      logger.warn('[orchestrator] Error al buscar semilla canónica:', { error: String(seedErr) });
     }
-  } catch (seedErr) {
-    logger.warn('[orchestrator] Error al buscar semilla canónica:', { error: String(seedErr) });
   }
 
   // ── Fase 5: Preparación de Inputs para los 4 Redactores ────────────────
@@ -317,11 +314,12 @@ export async function generateBlockWorkTextbook(
     sessions: blueprint.sessions,
     missions: blueprint.missions,
     canonicalSeed: canonicalSeed || undefined,
-    existingExtras,
     paecContext: curriculumContext.paecConnection.communityProblem || planning.paecContext || 'Problema comunitario escolar',
     studentProfile: curriculumContext.studentProfile.contextDescription,
     subsystem: curriculumContext.subsystem,
     uacName: planning.uacName,
+    component: planning.component,
+    curriculumName: planning.curriculumName,
     targetWords: budget.missionBudgets.foundation.targetWords,
     planningActivities,
     signal: options.signal,
@@ -388,9 +386,10 @@ export async function generateBlockWorkTextbook(
     }
     const remainingTimeMs = MAX_ORCHESTRATOR_BUDGET_MS - (Date.now() - startTime);
     if (remainingTimeMs < 30_000) {
-      logger.warn(`[orchestrator] Presupuesto crítico antes de iniciar ${task.type} (${Math.round(remainingTimeMs / 1000)}s restantes). Aplicando fallback de emergencia para preservar entrega.`);
-      writerOutputs.push(createEmergencyFallbackOutput(task.type, baseWriterInput, 'Presupuesto de tiempo agotado'));
-      continue;
+      throw new Error(
+        `[orchestrator] Presupuesto crítico antes de iniciar ${task.type} (${Math.round(remainingTimeMs / 1000)}s restantes). ` +
+          'Se aborta el bloque sin fallback sintético; el job debe reintentarse.'
+      );
     }
     await notifyProgress({
       phase: 'writing',
@@ -401,8 +400,8 @@ export async function generateBlockWorkTextbook(
       const out = await runWriterSafely(task.type, task.fn);
       writerOutputs.push(out);
     } catch (err) {
-      logger.error(`[Orchestrator] Redactor ${task.type} falló; aplicando fallback de emergencia:`, err);
-      writerOutputs.push(createEmergencyFallbackOutput(task.type, baseWriterInput, String(err)));
+      logger.error(`[Orchestrator] Redactor ${task.type} falló; se aborta sin fallback sintético:`, err);
+      throw err;
     }
   }
 
@@ -424,6 +423,8 @@ export async function generateBlockWorkTextbook(
     canonicalSeed: canonicalSeed || undefined,
     writerWarnings: allWarnings,
     sampleTopics,
+    component: planning.component,
+    curriculumName: planning.curriculumName,
   });
 
   // ── Fase 8: Validación de Calidad y Reintentos Dirigidos ────────────────
@@ -619,15 +620,15 @@ export async function generateBlockWorkTextbook(
   ].filter(Boolean);
 
   const defaultProjectSection: ProjectSection = {
-    artifactName: `Artefacto Demostrativo para ${planning.uacName}`,
-    communityUtility: `Solución técnica comunitaria orientada a ${curriculumContext.paecConnection.communityProblem}`,
+    artifactName: `Producto Integrador para ${planning.uacName}`,
+    communityUtility: `Solución comunitaria orientada a ${curriculumContext.paecConnection.communityProblem}`,
     phases: [
-      { phaseNum: 1, title: 'Fase 1: Diagnóstico', allocatedHours: 2, deliverables: ['Boceto'], instructions: 'Definir especificaciones.' },
-      { phaseNum: 2, title: 'Fase 2: Construcción', allocatedHours: 4, deliverables: ['Prototipo'], instructions: 'Montaje de la solución.' },
-      { phaseNum: 3, title: 'Fase 3: Pruebas y Entrega', allocatedHours: 2, deliverables: ['Bitácora'], instructions: 'Validación en campo.' },
+      { phaseNum: 1, title: 'Fase 1: Diagnóstico', allocatedHours: 2, deliverables: ['Propuesta'], instructions: 'Definir alcances y criterios.' },
+      { phaseNum: 2, title: 'Fase 2: Desarrollo', allocatedHours: 4, deliverables: ['Producto o evidencia'], instructions: 'Desarrollar la propuesta.' },
+      { phaseNum: 3, title: 'Fase 3: Revisión y Entrega', allocatedHours: 2, deliverables: ['Registro o bitácora'], instructions: 'Verificar resultados en campo.' },
     ],
-    technicalSpecs: ['Estándares de calidad formal'],
-    acceptanceCriteria: ['El artefacto opera según los requerimientos'],
+    technicalSpecs: ['Criterios de calidad y presentación formal'],
+    acceptanceCriteria: ['El producto o evidencia cumple los requerimientos'],
   };
 
   const defaultEvaluationSection: EvaluationSection = {
@@ -710,12 +711,53 @@ export async function generateBlockWorkTextbook(
     budget,
   });
 
-  const crossContaminationReport = validateBlockCrossContamination(missions, planning.uacName);
+  const crossContaminationReport = validateBlockCrossContamination(
+    missions,
+    planning.uacName,
+    planning.component,
+    planning.curriculumName
+  );
   if (!crossContaminationReport.clean) {
-    logger.warn(`[Orchestrator] Contaminación cruzada detectada en bloque ${blockIndex}: ${crossContaminationReport.summary}`, {
+    logger.error(`[Orchestrator] Contaminación cruzada detectada en bloque ${blockIndex}: ${crossContaminationReport.summary}`, {
       issues: crossContaminationReport.issues,
     });
-    validation.accepted = false;
+    throw new Error(
+      `[CrossContamination] El bloque ${blockIndex} de "${planning.uacName}" contiene contenido de otra disciplina. ` +
+        `${crossContaminationReport.summary} ` +
+        `Campos: ${crossContaminationReport.issues
+          .slice(0, 8)
+          .map((issue) => `${issue.field}: ${issue.forbiddenTerm}`)
+          .join(' | ')}`
+    );
+  }
+
+  // Gate fail-closed: no se persiste un bloque con fallback, sesiones incompletas,
+  // presupuesto fuera de rango, calidad insuficiente o desalineación con la planeación.
+  const integrityBlockers: string[] = [];
+  if (fallbackWords > 0) {
+    integrityBlockers.push(`fallbackWords=${fallbackWords} (debe ser 0)`);
+  }
+  if (!coverageReport.allSessionsPresent) {
+    integrityBlockers.push(
+      `sesiones=${coverageReport.sessionsCovered}/${coverageReport.sessionsExpected} (deben estar completas)`
+    );
+  }
+  if (!coverageReport.withinTargetRange) {
+    integrityBlockers.push(
+      `palabras_ai=${coverageReport.aiWords}/${budget.targetWords.min}-${budget.targetWords.max} (fuera de rango)`
+    );
+  }
+  if (!validation.accepted) {
+    integrityBlockers.push(`qualityScore=${validation.qualityScore} (no aceptado)`);
+  }
+  if (!alignmentReport.pass) {
+    integrityBlockers.push(`alineacion_planeacion=${alignmentReport.score} (${alignmentReport.summary})`);
+  }
+  if (integrityBlockers.length > 0) {
+    throw new Error(
+      `[BlockIntegrity] El bloque ${blockIndex} de "${planning.uacName}" no cumple el gate editorial: ` +
+        `${integrityBlockers.join(' | ')}. No se persiste; reintente el bloque.`
+    );
   }
 
   const activeWorkTextbook: ActiveWorkTextbook = {
@@ -922,77 +964,4 @@ async function runWriterSafely(
     logger.error(`[runWriterSafely] Falló el redactor ${type}:`, err);
     throw err;
   }
-}
-
-/**
- * Construye una salida de emergencia con contenido mínimo en caso de fallo crítico
- */
-function createEmergencyFallbackOutput(
-  type: 'foundation' | 'lab' | 'project' | 'evaluation',
-  input: WriterInput,
-  errorMsg: string
-): WriterOutput {
-  // Usa las sesiones REALES de la misión correspondiente (nunca un rango fijo):
-  // el workbook resultante debe seguir cubriendo el 100% de las sesiones del bloque.
-  const emergencyMission = input.missions.find((m) => m.missionType === type) || input.missions[0];
-  const coveredSessions =
-    Array.isArray(emergencyMission?.sessionNumbers) && emergencyMission.sessionNumbers.length > 0
-      ? emergencyMission.sessionNumbers
-      : [1, 2];
-  const fallbackPlans = completeSessionPlans([], coveredSessions, {
-    uacName: input.uacName,
-    blockName: input.blockName,
-    sessionTopic: emergencyMission?.sessionTopic || input.uacName,
-    sessionFocus: emergencyMission?.focus || 'Desarrollo de competencias esenciales',
-    paecContext: input.paecContext,
-    subsystem: input.subsystem,
-  });
-  const fallbackPlansWords = fallbackPlans.reduce((acc, sp) => acc + countSessionPlanWords(sp), 0);
-  const totalEmergencyWords = 500 + fallbackPlansWords;
-
-  const fallbackSection: MissionSection = {
-    missionIndex: emergencyMission?.missionIndex || 1,
-    title: `Misión Formativa: ${input.blockName}`,
-    coveredSessions,
-    sessionTopic: input.uacName,
-    sessionFocus: 'Desarrollo de competencias esenciales',
-    phenomenonHook: {
-      story: `Abordamos los fundamentos esenciales de ${input.uacName} para atender ${input.paecContext}.`,
-      detonatingQuestion: '¿De qué forma este conocimiento transforma nuestro entorno escolar?',
-    },
-    conceptZero: {
-      physicalAnalogy: 'Cada concepto es un eslabón indispensable en la cadena de soluciones técnicas.',
-      coreExplanation: `Fundamentos de ${input.uacName} para el Bachillerato.`,
-    },
-    iDoSection: { stepByStepDemo: 'Demostración inicial de los protocolos de trabajo.' },
-    weDoSection: {
-      guidedPractice: 'Actividad en equipos de trabajo en el aula.',
-      workbookElements: [
-        { id: 'em-1', type: 'lines', title: 'Registro inicial', config: { rows: 4 } },
-      ],
-    },
-    youDoSection: {
-      autonomousChallenge: 'Resolución autónoma de los ejercicios en el cuaderno.',
-      workbookElements: [
-        { id: 'em-2', type: 'lines', title: 'Conclusiones', config: { rows: 4 } },
-      ],
-    },
-    troubleshooting: [],
-    formativeCheckpoint: {
-      question: '¿Qué aprendizaje clave consolidas en esta misión?',
-      reflectionPrompts: ['Revisa los pasos realizados.'],
-      criteriaChecklist: ['Identifico los conceptos centrales.'],
-    },
-    sessionPlans: fallbackPlans,
-    wordCount: totalEmergencyWords,
-  };
-
-  return {
-    type,
-    section: fallbackSection,
-    wordCount: totalEmergencyWords,
-    tokensUsed: 0,
-    qualityScore: 60,
-    warnings: [`Generado mediante contingencia crítica de redactor (${type}): ${errorMsg}`],
-  };
 }

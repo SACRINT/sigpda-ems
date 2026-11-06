@@ -15,6 +15,14 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Todo llamado de IA en la app debe pasar por `src/lib/ai-provider` (`generateWithRotation` / `generateStreamWithRotation`), nunca llamar SDKs externos directamente desde rutas API o componentes.
 - Los scripts offline que llamen IA deben reutilizar las claves del proyecto (env o tabla `api_keys`), nunca introducir claves nuevas ni pedirlas al usuario.
 
+## Política de sesiones por carga horaria (2026-11-06)
+- **No normalizar** todas las UAC a 18 sesiones. Cada asignatura conserva las sesiones que corresponden a sus horas semanales.
+- Fórmula: `sesionesPorBloque = horasSemanales × 6` (6 semanas por bloque).
+- Mapa oficial: **1 h → 6**, **2 h → 12**, **3 h → 18**, **4 h → 24**, **5 h → 30** sesiones por bloque.
+- Totales del semestre (3 bloques): **18, 36, 54, 72 y 90** sesiones respectivamente.
+- `totalHours` de 54 h equivale a 3 h/semana (18/bloque); `totalHours` de 72 h equivale a 4 h/semana (24/bloque).
+- Fuente única: `resolveSessionsPerBlock` y `SESSIONS_PER_BLOCK_BY_WEEKLY_HOURS` en `src/lib/guide-engine/content-budget.ts`. No duplicar esta tabla en otros módulos.
+
 ## Normateca SEP (tablas `normativa_documentos` / `normativa_articulos`)
 - `scripts/ingest-normateca.js` procesa SOLO las carpetas de `documentos_referencia\[08] Normateca` listadas en `ALLOWED_FOLDERS`.
 - Reglas de extracción obligatorias (verificables en el prompt del script):

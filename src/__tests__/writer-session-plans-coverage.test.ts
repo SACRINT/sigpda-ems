@@ -182,27 +182,20 @@ describe('completeSessionPlans — cobertura garantizada', () => {
     expect(plans[0].practica[0].solucion?.length).toBeGreaterThan(0);
   });
 
-  it('completa las sesiones faltantes con planes genéricos en voz de estudiante', () => {
-    const plans = completeSessionPlans(makeRawPlans([1]), [1, 2, 3]);
-    expect(plans.map((p) => p.sessionNumber)).toEqual([1, 2, 3]);
-    expect(plans[1].objetivo).toContain('sesión 2');
-    expect(plans[2].objetivo).toContain('sesión 3');
-    expect(plans[1].motivacion.length).toBeGreaterThan(20);
-    expect(plans[1].practica.length).toBeGreaterThan(0);
+  it('rechaza sesiones faltantes sin relleno sintético', () => {
+    expect(() => completeSessionPlans(makeRawPlans([1]), [1, 2, 3])).toThrow(/sessionPlans incompletos/);
   });
 
   it('deduplica sesiones repetidas y descarta planes fuera de la misión', () => {
     const plans = completeSessionPlans(
       [makeRawPlan(13), makeRawPlan(13), makeRawPlan(99)],
-      [13, 14]
+      [13]
     );
-    expect(plans.map((p) => p.sessionNumber)).toEqual([13, 14]);
+    expect(plans.map((p) => p.sessionNumber)).toEqual([13]);
   });
 
-  it('con IA sin planes utilizables cubre todas las sesiones con contenido base', () => {
-    const plans = completeSessionPlans(undefined, [4, 5]);
-    expect(plans.map((p) => p.sessionNumber)).toEqual([4, 5]);
-    expect(plans[0].contenido.length).toBeGreaterThan(20);
+  it('con IA sin planes utilizables rechaza el bloque', () => {
+    expect(() => completeSessionPlans(undefined, [4, 5])).toThrow(/sessionPlans incompletos/);
   });
 
   it('sin sesiones cubiertas devuelve arreglo vacío', () => {
@@ -237,34 +230,24 @@ describe('project-writer — sessionPlans de las sesiones 13-21', () => {
     expect(plans[0].practica[0].solucion?.length).toBeGreaterThan(0);
   }, 20000);
 
-  it('si la IA omite planes, reintenta con instrucción y termina cubriendo las 9 sesiones', async () => {
+  it('si la IA omite planes, reintenta y rechaza el bloque sin relleno', async () => {
     const partial = projectResponse({ sessionPlans: makeRawPlans([13, 14, 15, 16, 17]) });
     vi.mocked(generateWithRotation)
       .mockResolvedValue(partial)
       .mockResolvedValue(partial);
 
-    const out = await generateProjectMission(makeInput());
+    await expect(generateProjectMission(makeInput())).rejects.toThrow(/sessionPlans incompletos/);
 
     expect(generateWithRotation).toHaveBeenCalledTimes(2);
     const retryPrompt = vi.mocked(generateWithRotation).mock.calls[1][1] as string;
     expect(retryPrompt).toContain('sessionPlans');
     expect(retryPrompt).toContain('13, 14, 15, 16, 17, 18, 19, 20, 21');
-
-    const plans = out.section.sessionPlans ?? [];
-    expect(plans.map((p) => p.sessionNumber)).toEqual(PROJECT_SESSIONS);
-    // Las 4 sesiones que la IA omitió quedan con plan genérico (no desaparecen).
-    expect(plans.find((p) => p.sessionNumber === 18)?.objetivo).toContain('sesión 18');
   }, 20000);
 
-  it('si el modelo falla por completo, el fallback cubre las 9 sesiones', async () => {
+  it('si el modelo falla por completo, rechaza el bloque sin fallback', async () => {
     vi.mocked(generateWithRotation).mockRejectedValue(new Error('upstream 503'));
 
-    const out = await generateProjectMission(makeInput());
-
-    expect(out.warnings.join(' ')).toContain('fallback');
-    const plans = out.section.sessionPlans ?? [];
-    expect(plans.map((p) => p.sessionNumber)).toEqual(PROJECT_SESSIONS);
-    expect(plans[0].contenido.length).toBeGreaterThan(20);
+    await expect(generateProjectMission(makeInput())).rejects.toThrow(/upstream 503/);
   }, 20000);
 });
 
@@ -288,29 +271,22 @@ describe('evaluation-writer — sessionPlans de las sesiones 22-24', () => {
     expect(plans[0].practica[0].solucion?.length).toBeGreaterThan(0);
   }, 20000);
 
-  it('si la IA no emite planes, reintenta y completa la cobertura de las 3 sesiones', async () => {
+  it('si la IA no emite planes, reintenta y rechaza el bloque sin relleno', async () => {
     const noPlans = evaluationResponse({ sessionPlans: [] });
     vi.mocked(generateWithRotation)
       .mockResolvedValue(noPlans)
       .mockResolvedValue(noPlans);
 
-    const out = await generateEvaluationSection(makeInput());
+    await expect(generateEvaluationSection(makeInput())).rejects.toThrow(/sessionPlans incompletos/);
 
     expect(generateWithRotation).toHaveBeenCalledTimes(2);
     const retryPrompt = vi.mocked(generateWithRotation).mock.calls[1][1] as string;
     expect(retryPrompt).toContain('EXACTAMENTE 3 objetos en \'sessionPlans\'');
-
-    const plans = out.section.sessionPlans ?? [];
-    expect(plans.map((p) => p.sessionNumber)).toEqual(EVAL_SESSIONS);
   }, 20000);
 
-  it('si el modelo falla por completo, el fallback cubre las 3 sesiones', async () => {
+  it('si el modelo falla por completo, rechaza el bloque sin fallback', async () => {
     vi.mocked(generateWithRotation).mockRejectedValue(new Error('timeout upstream'));
 
-    const out = await generateEvaluationSection(makeInput());
-
-    expect(out.warnings.join(' ')).toContain('contingencia');
-    const plans = out.section.sessionPlans ?? [];
-    expect(plans.map((p) => p.sessionNumber)).toEqual(EVAL_SESSIONS);
+    await expect(generateEvaluationSection(makeInput())).rejects.toThrow(/timeout upstream/);
   }, 20000);
 });

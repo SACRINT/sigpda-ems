@@ -17,9 +17,14 @@ export type WriterRoleFocus = 'foundation' | 'lab' | 'project' | 'evaluation';
 export function buildPlanningAlignmentPrompt(
   pa?: PlanningActivities,
   focus: WriterRoleFocus = 'foundation',
-  uacName: string = ''
+  uacName: string = '',
+  component: string = '',
+  curriculumName: string = '',
+  careerOrProgramName: string = ''
 ): string {
-  const disciplinaryBlock = uacName ? buildDisciplinaryPromptBlock(uacName) : '';
+  const disciplinaryBlock = uacName
+    ? buildDisciplinaryPromptBlock(uacName, component, curriculumName || careerOrProgramName)
+    : '';
   const urlGuardrail = `
 REGLA DE ENLACES EDUCATIVOS RESILIENTES (CERO 404):
 - En el arreglo "recursos" de cada "sessionPlans", NUNCA inventes IDs de video ("watch?v=...") que no existen.
