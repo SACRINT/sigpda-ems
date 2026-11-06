@@ -368,9 +368,6 @@ export async function generateBlockWorkTextbook(
     if (options.signal?.aborted) {
       throw new Error('Operación cancelada por signal.');
     }
-    if (i > 0 && STAGGER_DELAY_MS > 0) {
-      await sleep(1000);
-    }
     await notifyProgress({
       phase: 'writing',
       currentStep: `Redactando dimensión ${i + 1}/4 (${task.type}) con rigor editorial...`,
@@ -445,9 +442,15 @@ export async function generateBlockWorkTextbook(
           else reRunOutput = await generateEvaluationSection(writerSpecificInput);
 
           const idx = writerOutputs.findIndex((w) => w.type === writerType);
-          if (idx !== -1 && reRunOutput.qualityScore > writerOutputs[idx].qualityScore) {
-            writerOutputs[idx] = reRunOutput;
-            improved = true;
+          if (idx !== -1) {
+            const current = writerOutputs[idx];
+            const targetMin = budget.missionBudgets[writerType].targetWords.min;
+            const wordsImproved = current.wordCount < targetMin && reRunOutput.wordCount > current.wordCount;
+            const qualityImproved = reRunOutput.qualityScore > current.qualityScore;
+            if (wordsImproved || qualityImproved) {
+              writerOutputs[idx] = reRunOutput;
+              improved = true;
+            }
           }
         } catch (retryErr) {
           logger.warn(`[orchestrator] Falló reintento de ${writerType}:`, { error: String(retryErr) });

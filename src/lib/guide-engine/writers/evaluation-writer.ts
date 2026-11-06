@@ -54,7 +54,19 @@ ESTÁNDARES FORMATIVOS OBLIGATORIOS Y METAS NEM:
 3. Cuestionario de juicio crítico (250 a 400 palabras): 3 a 5 escenarios reales en Puebla con retroalimentación docente formativa.
 4. Autoevaluación metacognitiva (150 a 250 palabras): 4 a 6 preguntas abiertas de reflexión y transferencia.
 5. Evaluación Escalonada (tieredExercises - 300 a 500 palabras): EXACTAMENTE 3 NIVELES ('basico', 'intermedio', 'avanzado') con al menos 2 ejercicios por nivel (mínimo 6 ejercicios en total) con statement, contextOrData, expectedOutputOrCriteria y hint.
-6. Contenido por sesión para el ESTUDIANTE (OBLIGATORIO — genera un "plan" por cada sesión asignada, ~250-400 palabras por plan): Para CADA sesión de "Sesiones asignadas" genera un objeto en "sessionPlans". Cada objeto es material que el estudiante LEE para aprender solo. Incluye: (a) objetivo ("Lo que vas a aprender", 1-2 frases en tú); (b) motivacion (caso real de la comunidad o PAEC contado al estudiante); (c) saberesPrevios (qué ya sabe); (d) contenido (LA TEORÍA REAL de la sesión — definiciones, fórmulas, criterios de evaluación o fase de cierre explicada con detalle, varios párrafos, no 1-2 frases); (e) ejemploResuelto (ejemplo con NÚMEROS paso a paso); (f) practica (2-3 ejercicios concretos con datos; cada uno con "pista" hint para empezar Y "solucion" con 3-6 pasos numerados que resuelven el ejercicio con números — la "solucion" SOLO la lee el solucionario docente, el libro del estudiante solo imprime enunciado y pista); (g) aplicacion (tarea aplicada a la vida real); (h) autoevaluacion (2-3 preguntas de autorevisión); (i) recursos (1-2 enlaces reales a video YouTube o web de ampliación); (j) productoIntegrador (qué agrega el estudiante a su proyecto hoy). Los planes deben VARIAR entre sesiones y ser específicos del contexto PAEC/comunidad. VOZ DE ESTUDIANTE en todo.
+6. Contenido por sesión para el ESTUDIANTE (OBLIGATORIO — genera un "plan" por cada sesión de ${coveredSessions.join(', ')}, ~750 a 900 palabras por plan):
+   Para CADA sesión asignada (${coveredSessions.join(', ')}) genera un objeto en "sessionPlans". NUNCA omitas ninguna sesión ni uses resúmenes telegráficos. Cada objeto es material que el estudiante LEE para aprender de forma autodidacta:
+   (a) objetivo: "Lo que vas a aprender" (1-2 frases en voz de estudiante);
+   (b) motivacion: (60 a 90 palabras) caso o contexto de síntesis y cierre formativo en Puebla;
+   (c) saberesPrevios: (40 a 60 palabras) qué aprendizajes consolidados del bloque se ponen en juego;
+   (d) contenido: (260 a 320 palabras) LA TEORÍA REAL de la sesión — marcos conceptuales de evaluación, validación de hipótesis o modelación formal en 3 párrafos sustanciales;
+   (e) ejemploResuelto: (180 a 240 palabras) ejemplo evaluativo resuelto paso a paso con rúbrica comentada y cálculos;
+   (f) practica: 2 reactivos formativos complejos con datos; enunciados detallados (mínimo 40 palabras cada uno) con "pista" (mínimo 20 palabras) y "solucion" con 3-6 pasos numerados;
+   (g) aplicacion: (60 a 80 palabras) transferencia integradora al entorno comunitario;
+   (h) autoevaluacion: 2-3 preguntas reflexivas;
+   (i) recursos: 1-2 enlaces de consulta y profundización;
+   (j) productoIntegrador: (40 a 60 palabras) evaluación final, sustentación y acreditación del artefacto.
+   Los planes deben VARIAR entre sesiones y ser específicos del contexto PAEC/comunidad. VOZ DE ESTUDIANTE en todo.
 7. Sintaxis JSON: Usa comillas simples ('...') en código/citas. Cero comillas dobles sin escapar dentro de valores JSON.
 
 Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
@@ -190,7 +202,7 @@ Problemática PAEC comunitaria: ${input.paecContext}
 Presupuesto total para esta misión: mínimo ${input.targetWords.min} palabras (ideal ~${input.targetWords.ideal} palabras).
 
 DISTRIBUCIÓN CALIBRADA DE PALABRAS:
-- sessionPlans (${sessionCount} sesiones): OBLIGATORIO redactar las ${sessionCount} sesiones completas, con ~${targetWordsPerPlan} palabras por sesión (total planes: ~${totalPlansTarget} palabras).
+- sessionPlans (${sessionCount} sesiones): OBLIGATORIO redactar las ${sessionCount} sesiones completas (${coveredSessions.join(', ')}), con ~${targetWordsPerPlan} palabras por sesión (total planes: ~${totalPlansTarget} palabras). Cada plan debe contener mínimo 260 palabras en contenido y 180 palabras en ejemploResuelto.
 - rubric: ~${rubricTarget} palabras
 - checklist: ~${checklistTarget} palabras
 - tieredExercises: ~${tieredTarget} palabras (3 niveles escalonados, mínimo 6 ejercicios completos con andamiaje)

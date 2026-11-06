@@ -25,6 +25,7 @@ import {
   WORDS_PER_PAGE,
 } from '../src/lib/guide-engine/content-budget';
 import { renderWorkbookToPdf } from '../src/lib/pdf-workbook-renderer';
+import { buildRichFallbackPlan } from '../src/lib/guide-engine/writers/writer-contract';
 import type {
   ActiveWorkTextbook,
   SessionPlan,
@@ -47,24 +48,8 @@ function loadEnvLocal(): void {
   }
 }
 
-function makeMockSessionPlan(sessionNumber: number, wordsPerPlan = 590): SessionPlan {
-  const wordsPerField = Math.max(10, Math.floor((wordsPerPlan - 30) / 7));
-  const dummyText = 'palabra '.repeat(wordsPerField).trim();
-  return {
-    sessionNumber,
-    objetivo: `Objetivo de aprendizaje sesión ${sessionNumber}: ${dummyText}`,
-    motivacion: `Motivación cotidiana situada: ${dummyText}`,
-    saberesPrevios: `Saberes previos: ${dummyText}`,
-    contenido: `Fundamentación teórica paso a paso: ${dummyText}`,
-    ejemploResuelto: `Ejemplo resuelto numérico: ${dummyText}`,
-    practica: [
-      { enunciado: `Ejercicio 1 con datos: ${dummyText}`, pista: 'Pista guiada para resolver' },
-    ],
-    aplicacion: `Aplicación en el entorno real o comunidad: ${dummyText}`,
-    autoevaluacion: ['¿Comprendo el concepto principal?', '¿Puedo resolver el ejercicio solo?'],
-    recursos: [{ titulo: 'Video explicativo', url: 'https://youtube.com/watch?v=demo', tipo: 'video' }],
-    productoIntegrador: `Avance del artefacto en sesión ${sessionNumber}`,
-  };
+function makeMockSessionPlan(sessionNumber: number): SessionPlan {
+  return buildRichFallbackPlan(sessionNumber);
 }
 
 function makeMissionSection(params: {
@@ -72,12 +57,16 @@ function makeMissionSection(params: {
   type: 'foundation' | 'lab' | 'project' | 'evaluation';
   sessions: number[];
   baseWords: number;
-  wordsPerPlan: number;
 }): MissionSection {
-  const { index, type, sessions, baseWords, wordsPerPlan } = params;
-  const sessionPlans = sessions.map((s) => makeMockSessionPlan(s, wordsPerPlan));
+  const { index, type, sessions, baseWords } = params;
+  const sessionPlans = sessions.map((s) => makeMockSessionPlan(s));
   const plansWords = sessionPlans.reduce((acc, p) => acc + countSessionPlanWords(p), 0);
   const totalWords = baseWords + plansWords;
+
+  const pTheory1 =
+    'El análisis formal de la variación requiere la integración de representaciones algebraicas, tabulares y gráficas situadas en el entorno comunitario. Mediante el estudio sistemático de las razones de cambio, los estudiantes identifican comportamientos tendenciales, puntos críticos de inflexión y condiciones de estabilidad en problemáticas reales del Estado de Puebla, vinculando la teoría matemática con la toma de decisiones informada y transformadora.';
+  const pTheory2 =
+    'Para caracterizar este comportamiento con rigor científico, definimos formalmente la tasa de variación media como el cociente entre el cambio observado en la magnitud dependiente y el cambio en la variable de control. Esta relación nos permite no solo describir el estado actual de un sistema, sino también proyectar tendencias futuras y estimar puntos críticos de estabilidad o riesgo en los proyectos comunitarios escolares.';
 
   return {
     missionIndex: index,
@@ -86,21 +75,23 @@ function makeMissionSection(params: {
     sessionTopic: `Tópico Curricular de la Misión ${index}`,
     sessionFocus: `Enfoque Pedagógico Situado de ${type}`,
     phenomenonHook: {
-      story: 'Caso situado en una comunidad escolar del Estado de Puebla para contextualizar el aprendizaje formativo.',
-      detonatingQuestion: '¿Cómo podemos modelar e intervenir positivamente ante este reto comunitario?',
+      story: `Caso situado en una comunidad escolar del Estado de Puebla para contextualizar el aprendizaje formativo en la misión ${index}. ${pTheory1}`,
+      detonatingQuestion: '¿Cómo podemos modelar e intervenir positivamente ante este reto comunitario mediante pensamiento cuantitativo?',
     },
     conceptZero: {
-      physicalAnalogy: 'Analogía física cotidiana que ilustra el fenómeno con elementos del entorno del estudiante.',
-      coreExplanation: 'Explicación formal, rigurosa y analítica del concepto central sin simplificaciones ni resúmenes.',
+      physicalAnalogy: 'Analogía física cotidiana que ilustra el fenómeno con elementos del entorno del estudiante y recursos locales comprobables.',
+      coreExplanation: `${pTheory1}\n\n${pTheory2}`,
     },
-    iDoSection: { stepByStepDemo: 'Demostración paso a paso modelada por el docente con variables claras y procedimiento.' },
-    weDoSection: { guidedPractice: 'Práctica guiada en equipos de trabajo colaborativo para resolución situada.', workbookElements: [] },
-    youDoSection: { autonomousChallenge: 'Reto autónomo individual en el cuaderno activo con 5 pasos numerados.', workbookElements: [] },
-    troubleshooting: [],
+    iDoSection: { stepByStepDemo: `Demostración paso a paso modelada por el docente con variables claras y procedimiento cuantitativo.\n\n${pTheory1}` },
+    weDoSection: { guidedPractice: `Práctica guiada en equipos de trabajo colaborativo para resolución situada en el aula escolar.\n\n${pTheory2}`, workbookElements: [] },
+    youDoSection: { autonomousChallenge: `Reto autónomo individual en el cuaderno activo con 5 pasos numerados para consolidar el aprendizaje significativo.\n\n${pTheory1}`, workbookElements: [] },
+    troubleshooting: [
+      { symptom: 'Desviación en el cálculo de la razón de cambio', rootCause: 'Inversión en los pares ordenados delta y y delta x', solutionSteps: ['Verificar coordenadas iniciales y finales', 'Recalcular cociente'], preventionTip: 'Rotular explícitamente variables dependiente e independiente' }
+    ],
     formativeCheckpoint: {
-      question: '¿Qué aprendizajes clave consolidaste en esta sesión formativa?',
-      reflectionPrompts: ['Analiza los pasos seguidos', 'Identifica oportunidades de mejora técnica'],
-      criteriaChecklist: ['Rigor metodológico', 'Precisión en los cálculos'],
+      question: '¿Qué aprendizajes clave y procedimientos analíticos consolidaste en esta misión formativa?',
+      reflectionPrompts: ['Analiza los pasos seguidos y su justificación', 'Identifica oportunidades de mejora técnica en tu modelo'],
+      criteriaChecklist: ['Rigor metodológico y conceptual', 'Precisión en los cálculos y gráficas'],
     },
     sessionPlans,
     wordCount: totalWords,
@@ -214,10 +205,10 @@ async function runVerification(): Promise<void> {
 
   // 5. Compilación y renderizado E2E a PDF formal
   console.log('\n[5/5] Ejecutando compilación E2E del libro de 18 sesiones a PDF formal...');
-  const sFoundation = makeMissionSection({ index: 1, type: 'foundation', sessions: [1, 2, 3], baseWords: 1650, wordsPerPlan: 590 });
-  const sLab = makeMissionSection({ index: 2, type: 'lab', sessions: [4, 5, 6, 7, 8, 9], baseWords: 3300, wordsPerPlan: 590 });
-  const sProject = makeMissionSection({ index: 3, type: 'project', sessions: [10, 11, 12, 13, 14, 15], baseWords: 3300, wordsPerPlan: 590 });
-  const sEval = makeMissionSection({ index: 4, type: 'evaluation', sessions: [16, 17, 18], baseWords: 1650, wordsPerPlan: 590 });
+  const sFoundation = makeMissionSection({ index: 1, type: 'foundation', sessions: [1, 2, 3], baseWords: 1200 });
+  const sLab = makeMissionSection({ index: 2, type: 'lab', sessions: [4, 5, 6, 7, 8, 9], baseWords: 1400 });
+  const sProject = makeMissionSection({ index: 3, type: 'project', sessions: [10, 11, 12, 13, 14, 15], baseWords: 1400 });
+  const sEval = makeMissionSection({ index: 4, type: 'evaluation', sessions: [16, 17, 18], baseWords: 1200 });
 
   const totalWords = sFoundation.wordCount + sLab.wordCount + sProject.wordCount + sEval.wordCount;
   const allSessions = [sFoundation, sLab, sProject, sEval].flatMap((m) => m.sessionPlans || []);
@@ -338,6 +329,12 @@ async function runVerification(): Promise<void> {
   await parser.destroy();
 
   console.log(`  - Páginas binarias reales en el PDF: ${pdfData.total} páginas.`);
+  if (pdfData.pages) {
+    console.log('--- CONTENT OF P.11 ---');
+    console.log(pdfData.pages[10]?.text);
+    console.log('--- CONTENT OF P.12 ---');
+    console.log(pdfData.pages[11]?.text);
+  }
 
   const lowerText = pdfData.text.toLowerCase();
   let missingSessionsCount = 0;

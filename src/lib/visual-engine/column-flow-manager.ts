@@ -140,8 +140,8 @@ export class ColumnFlowManager {
     this.missionHash = opts.missionHash;
 
     // Límites de contenido vertical para páginas con cabecera y pie editorial
-    this.contentTop = opts.margin + 12; // Deja 12mm de margen superior para drawPageHeader
-    this.contentBottom = opts.pageHeight - opts.margin - 14; // Deja 14mm para drawPageFooter
+    this.contentTop = opts.margin + 8; // Deja 8mm de margen superior para drawPageHeader
+    this.contentBottom = opts.pageHeight - opts.margin - 4; // Deja espacio seguro antes de drawPageFooter (y-3=pageHeight-11)
 
     this.mainY = this.contentTop;
     this.sideY = this.contentTop;
@@ -478,13 +478,13 @@ export class ColumnFlowManager {
     } = {}
   ): number {
     const {
-      size = 9.0,
+      size = 7.6,
       fontStyle = 'normal',
       color = COLOR.TEXT_PRIMARY,
-      lineHeight = 6.0,
+      lineHeight = 3.5,
       justify = true,
       parseParagraphs = false,
-      paragraphSpacing = 6.5,
+      paragraphSpacing = 2.0,
     } = opts;
 
     const bodyWeight = fontStyle === 'bold' ? 'bold' : 'normal';

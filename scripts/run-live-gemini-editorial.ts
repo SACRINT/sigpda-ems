@@ -170,11 +170,8 @@ async function main(): Promise<void> {
     console.log('  ✅ VEREDICTO: CUMPLIMIENTO AL 100% DE LA FASE P3.1');
     console.log('  Calibración editorial, rotación de claves Gemini y PDF en estricto estándar.');
   } else {
-    console.log('  ⚠️ VEREDICTO: GENERACIÓN EN VIVO EXITOSA CON ADVERTENCIA DE CALIDAD (INSUMO P4)');
-    console.log('  - Cobertura de sesiones: 18/18 (100% presentes en libro y PDF)');
-    console.log('  - Rotación de claves Gemini gratuita: 100% operativa (0 fallos no recuperados)');
-    console.log(`  - Discrepancia documentada: ${workbook.totalWords.toLocaleString()} palabras generadas produjeron ${pdfData.total} páginas en PDF.`);
-    console.log('  - Insumo para Fase P4: calibrar densidad visual (widgets/tablas vs densidad de texto) en la plantilla.');
+    console.error('  ❌ VEREDICTO: CALIBRACIÓN INCOMPLETA O DISCREPANCIA DE CRITERIOS');
+    process.exit(1);
   }
 }
 

@@ -72,24 +72,29 @@ import { generateLabMission } from '@/lib/guide-engine/writers/lab-writer';
 import { generateProjectMission } from '@/lib/guide-engine/writers/project-writer';
 import { generateEvaluationSection } from '@/lib/guide-engine/writers/evaluation-writer';
 
-function makeMockSessionPlan(sessionNumber: number, wordsPerPlan = 590): SessionPlan {
-  const wordsPerField = Math.max(10, Math.floor((wordsPerPlan - 30) / 7));
-  const dummyText = 'palabra '.repeat(wordsPerField).trim();
-  return {
-    sessionNumber,
-    objetivo: `Objetivo de aprendizaje sesión ${sessionNumber}: ${dummyText}`,
-    motivacion: `Motivación cotidiana situada: ${dummyText}`,
-    saberesPrevios: `Saberes previos: ${dummyText}`,
-    contenido: `Fundamentación teórica paso a paso: ${dummyText}`,
-    ejemploResuelto: `Ejemplo resuelto numérico: ${dummyText}`,
-    practica: [
-      { enunciado: `Ejercicio 1 con datos: ${dummyText}`, pista: 'Pista guiada para resolver' },
-    ],
-    aplicacion: `Aplicación en el entorno real o comunidad: ${dummyText}`,
-    autoevaluacion: ['¿Comprendo el concepto principal?', '¿Puedo resolver el ejercicio solo?'],
-    recursos: [{ titulo: 'Video explicativo', url: 'https://youtube.com/watch?v=demo', tipo: 'video' }],
-    productoIntegrador: `Avance del artefacto en sesión ${sessionNumber}`,
-  };
+import { buildRichFallbackPlan } from '@/lib/guide-engine/writers/writer-contract';
+
+function makeMockSessionPlan(sessionNumber: number, wordsPerPlan?: number): SessionPlan {
+  if (wordsPerPlan) {
+    const wordsPerField = Math.max(10, Math.floor((wordsPerPlan - 30) / 7));
+    const dummyText = 'palabra '.repeat(wordsPerField).trim();
+    return {
+      sessionNumber,
+      objetivo: `Objetivo de aprendizaje sesión ${sessionNumber}: ${dummyText}`,
+      motivacion: `Motivación cotidiana situada: ${dummyText}`,
+      saberesPrevios: `Saberes previos: ${dummyText}`,
+      contenido: `Fundamentación teórica paso a paso: ${dummyText}`,
+      ejemploResuelto: `Ejemplo resuelto numérico: ${dummyText}`,
+      practica: [
+        { enunciado: `Ejercicio 1 con datos: ${dummyText}`, pista: 'Pista guiada para resolver' },
+      ],
+      aplicacion: `Aplicación en el entorno real o comunidad: ${dummyText}`,
+      autoevaluacion: ['¿Comprendo el concepto principal?', '¿Puedo resolver el ejercicio solo?'],
+      recursos: [{ titulo: 'Video explicativo', url: 'https://youtube.com/watch?v=demo', tipo: 'video' }],
+      productoIntegrador: `Avance del artefacto en sesión ${sessionNumber}`,
+    };
+  }
+  return buildRichFallbackPlan(sessionNumber);
 }
 
 function makeMockWriterOutput(params: {
@@ -98,29 +103,36 @@ function makeMockWriterOutput(params: {
   baseWords?: number;
   wordsPerPlan?: number;
 }): WriterOutput {
-  const { type, sessions, baseWords = 500, wordsPerPlan = 590 } = params;
+  const { type, sessions, baseWords = 1200, wordsPerPlan } = params;
   const sessionPlans = sessions.map((s) => makeMockSessionPlan(s, wordsPerPlan));
   const plansWords = sessionPlans.reduce((acc, p) => acc + countSessionPlanWords(p), 0);
   const totalWords = baseWords + plansWords;
+
+  const pTheory1 =
+    'El análisis formal de la variación requiere la integración de representaciones algebraicas, tabulares y gráficas situadas en el entorno comunitario. Mediante el estudio sistemático de las razones de cambio, los estudiantes identifican comportamientos tendenciales, puntos críticos de inflexión y condiciones de estabilidad en problemáticas reales del Estado de Puebla, vinculando la teoría matemática con la toma de decisiones informada y transformadora.';
+  const pTheory2 =
+    'Para caracterizar este comportamiento con rigor científico, definimos formalmente la tasa de variación media como el cociente entre el cambio observado en la magnitud dependiente y el cambio en la variable de control. Esta relación nos permite no solo describir el estado actual de un sistema, sino también proyectar tendencias futuras y estimar puntos críticos de estabilidad o riesgo en los proyectos comunitarios escolares.';
 
   const section: MissionSection = {
     missionIndex: type === 'foundation' ? 1 : type === 'lab' ? 2 : type === 'project' ? 3 : 4,
     title: `Misión ${type.toUpperCase()}`,
     coveredSessions: sessions,
-    sessionTopic: `Tópico de ${type}`,
-    sessionFocus: `Enfoque pedagógico ${type}`,
+    sessionTopic: `Tópico Curricular de ${type}`,
+    sessionFocus: `Enfoque Pedagógico Situado de ${type}`,
     phenomenonHook: {
-      story: 'Caso situado en Puebla sobre recursos y comunidad.',
-      detonatingQuestion: '¿Cómo modelamos este fenómeno?',
+      story: `Caso situado en una comunidad escolar del Estado de Puebla para contextualizar el aprendizaje formativo en ${type}. ${pTheory1}`,
+      detonatingQuestion: '¿Cómo podemos modelar e intervenir positivamente ante este reto comunitario mediante pensamiento cuantitativo?',
     },
     conceptZero: {
-      physicalAnalogy: 'Analogía intuitiva del entorno escolar.',
-      coreExplanation: 'Explicación técnica rigurosa y formal del concepto.',
+      physicalAnalogy: 'Analogía física cotidiana que ilustra el fenómeno con elementos del entorno del estudiante y recursos locales comprobables.',
+      coreExplanation: `${pTheory1}\n\n${pTheory2}`,
     },
-    iDoSection: { stepByStepDemo: 'Demostración paso a paso del protocolo docente.' },
-    weDoSection: { guidedPractice: 'Práctica guiada en equipo colaborativo.', workbookElements: [] },
-    youDoSection: { autonomousChallenge: 'Reto autónomo en cuaderno de trabajo.', workbookElements: [] },
-    troubleshooting: [],
+    iDoSection: { stepByStepDemo: `Demostración paso a paso modelada por el docente con variables claras y procedimiento cuantitativo.\n\n${pTheory1}` },
+    weDoSection: { guidedPractice: `Práctica guiada en equipos de trabajo colaborativo para resolución situada en el aula escolar.\n\n${pTheory2}`, workbookElements: [] },
+    youDoSection: { autonomousChallenge: `Reto autónomo individual en el cuaderno activo con 5 pasos numerados para consolidar el aprendizaje significativo.\n\n${pTheory1}`, workbookElements: [] },
+    troubleshooting: [
+      { id: 'tb-mock-1', symptom: 'Desviación en el cálculo de la razón de cambio', rootCause: 'Inversión en los pares ordenados delta y y delta x', solutionSteps: ['Verificar coordenadas iniciales y finales', 'Recalcular cociente'], preventionTip: 'Rotular explícitamente variables dependiente e independiente' },
+    ],
     formativeCheckpoint: {
       question: '¿Qué aprendiste?',
       reflectionPrompts: ['Reflexiona sobre tu avance en la sesión'],
@@ -187,16 +199,16 @@ describe('Phase P3 / P3.1: Content Budget and Editorial Orchestration', () => {
     // Proyecto: [10, 11, 12, 13, 14, 15] (6 sesiones -> ~6,840 palabras)
     // Evaluación: [16, 17, 18] (3 sesiones -> ~3,420 palabras)
     vi.mocked(generateFoundationMission).mockResolvedValue(
-      makeMockWriterOutput({ type: 'foundation', sessions: [1, 2, 3], baseWords: 1650, wordsPerPlan: 590 })
+      makeMockWriterOutput({ type: 'foundation', sessions: [1, 2, 3], baseWords: 900 })
     );
     vi.mocked(generateLabMission).mockResolvedValue(
-      makeMockWriterOutput({ type: 'lab', sessions: [4, 5, 6, 7, 8, 9], baseWords: 3300, wordsPerPlan: 590 })
+      makeMockWriterOutput({ type: 'lab', sessions: [4, 5, 6, 7, 8, 9], baseWords: 1800 })
     );
     vi.mocked(generateProjectMission).mockResolvedValue(
-      makeMockWriterOutput({ type: 'project', sessions: [10, 11, 12, 13, 14, 15], baseWords: 3300, wordsPerPlan: 590 })
+      makeMockWriterOutput({ type: 'project', sessions: [10, 11, 12, 13, 14, 15], baseWords: 1800 })
     );
     vi.mocked(generateEvaluationSection).mockResolvedValue(
-      makeMockWriterOutput({ type: 'evaluation', sessions: [16, 17, 18], baseWords: 1650, wordsPerPlan: 590 })
+      makeMockWriterOutput({ type: 'evaluation', sessions: [16, 17, 18], baseWords: 900 })
     );
 
     const workbook = await generateBlockWorkTextbook('plan-3h', 0);
@@ -372,16 +384,16 @@ describe('Phase P3 / P3.1: Content Budget and Editorial Orchestration', () => {
     vi.mocked(getPlanningById).mockResolvedValue(planningMock);
 
     vi.mocked(generateFoundationMission).mockResolvedValue(
-      makeMockWriterOutput({ type: 'foundation', sessions: [1, 2, 3], baseWords: 1650, wordsPerPlan: 590 })
+      makeMockWriterOutput({ type: 'foundation', sessions: [1, 2, 3], baseWords: 900 })
     );
     vi.mocked(generateLabMission).mockResolvedValue(
-      makeMockWriterOutput({ type: 'lab', sessions: [4, 5, 6, 7, 8, 9], baseWords: 3300, wordsPerPlan: 590 })
+      makeMockWriterOutput({ type: 'lab', sessions: [4, 5, 6, 7, 8, 9], baseWords: 1800 })
     );
     vi.mocked(generateProjectMission).mockResolvedValue(
-      makeMockWriterOutput({ type: 'project', sessions: [10, 11, 12, 13, 14, 15], baseWords: 3300, wordsPerPlan: 590 })
+      makeMockWriterOutput({ type: 'project', sessions: [10, 11, 12, 13, 14, 15], baseWords: 1800 })
     );
     vi.mocked(generateEvaluationSection).mockResolvedValue(
-      makeMockWriterOutput({ type: 'evaluation', sessions: [16, 17, 18], baseWords: 1650, wordsPerPlan: 590 })
+      makeMockWriterOutput({ type: 'evaluation', sessions: [16, 17, 18], baseWords: 900 })
     );
 
     const workbook = await generateBlockWorkTextbook('plan-3h-pdf', 0);

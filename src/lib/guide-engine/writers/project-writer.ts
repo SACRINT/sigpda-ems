@@ -48,7 +48,19 @@ DIRECTIVAS DEL PROYECTO Y METAS FORMATIVAS:
 5. Criterios de Entrega y Aceptación: 4 a 6 deliveryCriteria formales y acceptanceCriteria medibles con normas NOM/ISO.
 6. Bitácora de Registro: registrationFormat estructurado con campos de sesión, parámetros, incidencias, firmas y sellos.
 7. Rúbrica y Desafío Autónomo: Rúbrica en 4 niveles NEM (Excelente 10-9, Bueno 8-7, Suficiente 6-5, Insuficiente 4-1) y reto autónomo de campo (You Do - 200-350 palabras).
-8. Contenido por sesión para el ESTUDIANTE (OBLIGATORIO — genera un "plan" por cada sesión asignada, ~250-400 palabras por plan): Para CADA sesión de "Sesiones asignadas" genera un objeto en "sessionPlans". Cada objeto es material que el estudiante LEE para aprender solo. Incluye: (a) objetivo ("Lo que vas a aprender", 1-2 frases en tú); (b) motivacion (caso real de la comunidad o PAEC contado al estudiante); (c) saberesPrevios (qué ya sabe); (d) contenido (LA TEORÍA REAL de la sesión — definiciones, fórmulas, criterios o fase de construcción del artefacto explicada con detalle, varios párrafos, no 1-2 frases); (e) ejemploResuelto (ejemplo con NÚMEROS paso a paso); (f) practica (2-3 ejercicios/tareas concretas con datos; cada uno con "pista" hint para empezar Y "solucion" con 3-6 pasos numerados que resuelven la tarea con números — la "solucion" SOLO la lee el solucionario docente, el libro del estudiante solo imprime enunciado y pista); (g) aplicacion (tarea aplicada a la vida real); (h) autoevaluacion (2-3 preguntas de autorevisión); (i) recursos (1-2 enlaces reales a video YouTube o web de ampliación); (j) productoIntegrador (qué agrega el estudiante a su proyecto hoy). Cada sesión de esta misión corresponde a un avance concreto del artefacto: VARIA el contenido entre sesiones y ancla cada una a su fase de construcción en el contexto PAEC. VOZ DE ESTUDIANTE en todo.
+8. Contenido por sesión para el ESTUDIANTE (OBLIGATORIO — genera un "plan" por cada sesión de ${coveredSessions.join(', ')}, ~750 a 900 palabras por plan):
+   Para CADA sesión asignada (${coveredSessions.join(', ')}) genera un objeto en "sessionPlans". NUNCA omitas ninguna sesión ni uses resúmenes telegráficos. Cada objeto es material que el estudiante LEE para aprender de forma autodidacta:
+   (a) objetivo: "Lo que vas a aprender" (1-2 frases en voz de estudiante);
+   (b) motivacion: (60 a 90 palabras) caso o necesidad comunitaria PAEC que detona este avance del artefacto;
+   (c) saberesPrevios: (40 a 60 palabras) qué fundamentos previos sustentan la etapa actual;
+   (d) contenido: (260 a 320 palabras) LA TEORÍA REAL de la sesión — especificaciones técnicas, fórmulas, modelos matemáticos o de ingeniería para la fase constructiva en 3 párrafos sustanciales;
+   (e) ejemploResuelto: (180 a 240 palabras) ejemplo numérico o procedimental resuelto paso a paso con datos de dimensionamiento, costos o materiales;
+   (f) practica: 2 tareas/ejercicios con datos concretos; enunciados detallados (mínimo 40 palabras cada uno) con "pista" (mínimo 20 palabras) y "solucion" con 3-6 pasos numerados;
+   (g) aplicacion: (60 a 80 palabras) transferencia a la solución comunitaria real;
+   (h) autoevaluacion: 2-3 preguntas reflexivas;
+   (i) recursos: 1-2 enlaces de ampliación técnica;
+   (j) productoIntegrador: (40 a 60 palabras) avance físico o documental específico del artefacto en esta sesión.
+   Cada sesión corresponde a un avance concreto del artefacto: VARIA el contenido entre sesiones y ancla cada una a su fase de construcción en el contexto PAEC. VOZ DE ESTUDIANTE en todo.
 9. Sintaxis JSON: Usa comillas simples ('...') en código/citas. Cero comillas dobles sin escapar dentro de valores JSON.
 
 Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
@@ -148,7 +160,7 @@ Problemática PAEC: ${input.paecContext}
 Presupuesto total para esta misión: mínimo ${input.targetWords.min} palabras (ideal ~${input.targetWords.ideal} palabras).
 
 DISTRIBUCIÓN CALIBRADA DE PALABRAS:
-- sessionPlans (${sessionCount} sesiones): OBLIGATORIO redactar las ${sessionCount} sesiones completas, con ~${targetWordsPerPlan} palabras por sesión (total planes: ~${totalPlansTarget} palabras).
+- sessionPlans (${sessionCount} sesiones): OBLIGATORIO redactar las ${sessionCount} sesiones completas (${coveredSessions.join(', ')}), con ~${targetWordsPerPlan} palabras por sesión (total planes: ~${totalPlansTarget} palabras). Cada plan debe contener mínimo 260 palabras en contenido y 180 palabras en ejemploResuelto.
 - communityUtility: ~${utilityTarget} palabras (descripción e impacto comunitario PAEC)
 - phases: ~${phasesTarget} palabras (instrucciones detalladas y operativas por fases de construcción)
 - autonomousChallenge: ~${challengeTarget} palabras (validación autónoma de campo)

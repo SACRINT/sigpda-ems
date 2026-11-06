@@ -469,6 +469,7 @@ export async function renderWorkbookToPdf(
 
   // ── 7. Renderizado Final del TOC con Números de Página Reales (Fase V4) ────
   const lastContentPage = doc.getNumberOfPages();
+  console.log('[TOC Entries]:', realTocEntries, 'lastContentPage:', lastContentPage);
   drawRealTableOfContents(
     doc,
     realTocEntries,
@@ -1560,22 +1561,22 @@ function drawPlantelComunidadPage(
       ['Metodología Activa:', metBadge],
     ],
     theme: 'grid',
-    headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
-    styles: { fontSize: 7.5, cellPadding: 2.2, textColor: DARK_TEXT },
+    headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5 },
+    styles: { fontSize: 7, cellPadding: 1.6, textColor: DARK_TEXT },
     columnStyles: {
-      0: { cellWidth: 60, fontStyle: 'bold', textColor: NAVY },
+      0: { cellWidth: 55, fontStyle: 'bold', textColor: NAVY },
       1: { cellWidth: 'auto' },
     },
   });
 
-  y = doc.lastAutoTable!.finalY + 8;
+  y = doc.lastAutoTable!.finalY + 5;
 
   // Bloque PAEC
   setFontBody(doc, 'bold');
-  doc.setFontSize(8.5);
+  doc.setFontSize(8);
   doc.setTextColor(...NAVY);
   doc.text('Proyecto de Aula, Escuela y Comunidad (PAEC) — Eje Articulador Territorial:', margin, y);
-  y += 4;
+  y += 3.5;
 
   autoTable(doc, {
     startY: y,
@@ -1590,26 +1591,25 @@ function drawPlantelComunidadPage(
       ],
     ],
     theme: 'grid',
-    headStyles: { fillColor: VINO_PUEBLA, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
-    styles: { fontSize: 7.5, cellPadding: 2.2, textColor: DARK_TEXT },
+    headStyles: { fillColor: VINO_PUEBLA, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5 },
+    styles: { fontSize: 7, cellPadding: 1.6, textColor: DARK_TEXT },
     columnStyles: {
-      0: { cellWidth: 60, fontStyle: 'bold', textColor: VINO_PUEBLA },
+      0: { cellWidth: 55, fontStyle: 'bold', textColor: VINO_PUEBLA },
       1: { cellWidth: 'auto' },
     },
   });
 
-  y = doc.lastAutoTable!.finalY + 12;
+  y = doc.lastAutoTable!.finalY + 6;
 
   // Cuadro de Compromisos y Acreditación de Firmas
-  y = ensureVerticalSpace(doc, y, 32, margin, pageHeight);
   setFontBody(doc, 'bold');
-  doc.setFontSize(8);
+  doc.setFontSize(7.8);
   doc.setTextColor(...NAVY);
   doc.text('Validación Colegiada y Autorización Escolar:', margin, y);
-  y += 5;
+  y += 4;
 
   const colW = (contentWidth - 10) / 3;
-  const sigY = y + 14;
+  const sigY = y + 10;
 
   // Línea 1: Docente Titular
   doc.setDrawColor(180, 190, 205);
@@ -1895,7 +1895,7 @@ function drawPracticeTasksWithDottedLines(
     .map((t) => sanitizePdfText(stripMarkdown(t)).trim())
     .filter((t) => t.length > 5);
 
-  const selectedTasks = validTasks;
+  const selectedTasks = validTasks.slice(0, Math.min(Math.max(3, defaultTaskCount), 4));
   if (selectedTasks.length === 0) {
     const cleanRaw = sanitizePdfText(stripMarkdown(rawText)).trim();
     if (!cleanRaw) return y;
@@ -1918,28 +1918,28 @@ function drawPracticeTasksWithDottedLines(
       `[  ] Tarea ${idx + 1}: ${cleanTaskText}`,
       clampTextWidth(drawWidth, drawWidth, 8)
     );
-    const neededH = taskLines.length * 4 + 18;
+    const neededH = taskLines.length * 3.8 + 11;
     y = checkSpace(y, neededH);
 
     setFontBody(doc, 'bold');
     doc.setFontSize(7.8);
     doc.setTextColor(...DARK_TEXT);
     taskLines.forEach((tl: string, i: number) => {
-      doc.text(tl, margin + 2, y + i * 4);
+      doc.text(tl, margin + 2, y + i * 3.8);
     });
-    y += taskLines.length * 4 + 2.5;
+    y += taskLines.length * 3.8 + 1.5;
 
     doc.setDrawColor(203, 213, 225);
     doc.setLineWidth(0.3);
     doc.setLineDashPattern([1, 1.5], 0);
 
-    y += 4.5;
+    y += 3.5;
     doc.line(margin + 6, y, margin + drawWidth, y);
-    y += 4.5;
+    y += 3.5;
     doc.line(margin + 6, y, margin + drawWidth, y);
 
     doc.setLineDashPattern([], 0);
-    y += 3.5;
+    y += 2.2;
   }
 
   return y + 2;
@@ -2037,10 +2037,10 @@ function printSessionPhaseLabel(
   startY: number
 ): number {
   return flow.printMainParagraph(`  ${label}`, startY, {
-    size: 7.0,
+    size: 6.8,
     fontStyle: 'bold',
     color,
-    lineHeight: 4.2,
+    lineHeight: 3.4,
     justify: false,
   });
 }
@@ -2053,10 +2053,10 @@ function printPdfSubLabel(
   startY: number
 ): number {
   return flow.printMainParagraph(label, startY, {
-    size: 7.2,
+    size: 6.8,
     fontStyle: 'bold',
     color,
-    lineHeight: 4.0,
+    lineHeight: 3.4,
     justify: false,
   });
 }
@@ -2163,38 +2163,36 @@ function drawSingleTaskWithDottedLines(
   const pistaLines = cleanPista
     ? doc.splitTextToSize(`Pista: ${cleanPista}`, clampTextWidth(drawWidth, drawWidth, 10))
     : [];
-  const neededH = taskLines.length * 4 + pistaLines.length * 3.4 + 18;
+  const neededH = taskLines.length * 3.8 + pistaLines.length * 3.0 + 11;
   y = checkSpace(y, neededH);
 
   setFontBody(doc, 'bold');
   doc.setFontSize(7.8);
   doc.setTextColor(...DARK_TEXT);
   taskLines.forEach((tl: string, i: number) => {
-    doc.text(tl, margin + 2, y + i * 4);
+    doc.text(tl, margin + 2, y + i * 3.8);
   });
-  y += taskLines.length * 4 + 2.5;
+  y += taskLines.length * 3.8 + 1.5;
 
   if (pistaLines.length > 0) {
     setFontBody(doc, 'normal');
     doc.setFontSize(6.8);
     doc.setTextColor(100, 116, 139);
     pistaLines.forEach((pl: string, i: number) => {
-      doc.text(pl, margin + 6, y + i * 3.4);
+      doc.text(pl, margin + 6, y + i * 3.0);
     });
-    y += pistaLines.length * 3.4 + 2;
+    y += pistaLines.length * 3.0 + 1.5;
   }
 
   doc.setDrawColor(203, 213, 225);
   doc.setLineWidth(0.3);
   doc.setLineDashPattern([1, 1.5], 0);
 
-  y += 4.5;
-  doc.line(margin + 6, y, margin + drawWidth, y);
-  y += 4.5;
+  y += 3.0;
   doc.line(margin + 6, y, margin + drawWidth, y);
 
   doc.setLineDashPattern([], 0);
-  return y + 3.5;
+  return y + 2.0;
 }
 
 async function drawMission(
@@ -2392,21 +2390,21 @@ async function drawMission(
       if (!visual) return curY;
       const img = await svgToPngBuffer(visual.svg);
       if (!img) return curY;
-      const imgW = Math.min(110, mainW * 0.85);
-      const imgH = imgW * 0.65;
-      let ny = checkSpace(curY, imgH + 16);
+      const imgW = Math.min(52, mainW * 0.50);
+      const imgH = imgW * 0.38;
+      let ny = checkSpace(curY, imgH + 5);
       const imgX = margin + (mainW - imgW) / 2;
       addMainFlowImage(img.buffer, img.format, imgX, ny, imgW, imgH);
       if (visual.annotations && visual.annotations.length > 0) {
         drawVisualAnnotations(doc, visual.annotations, imgX, ny, imgW, imgH);
       }
-      ny += imgH + 3.5;
+      ny += imgH + 1.5;
       setFontCaption(doc);
-      doc.setFontSize(7.5);
+      doc.setFontSize(6.8);
       doc.setTextColor(...MUTED_TEXT);
       const capLines = doc.splitTextToSize(`Figura S${sNum} - ${topic}`, mainW * 0.88);
       doc.text(capLines, margin + mainW / 2, ny, { align: 'center' });
-      ny += capLines.length * 3.2 + 3.5;
+      ny += capLines.length * 2.5 + 1.5;
       return ny;
     } catch (sessionFigureErr) {
       logger.warn('[pdf-workbook] Figura de sesión omitida:', { error: String(sessionFigureErr) });
@@ -2437,9 +2435,9 @@ async function drawMission(
     // humana del catálogo (mismo texto que imprime el plan de clase).
     plan = plan ? stripMaterialTokensDeep(plan) : plan;
     const para = (text: string): number =>
-      flow.printMainParagraph(sanitizePdfText(stripMarkdown(text)), y, { size: 7.2, lineHeight: 3.8, justify: true, parseParagraphs: true });
+      flow.printMainParagraph(sanitizePdfText(stripMarkdown(text)), y, { size: 6.8, lineHeight: 3.3, paragraphSpacing: 1.4, justify: true, parseParagraphs: true });
     const lead = (l: string, t: string): number =>
-      flow.printMainParagraph(`${sanitizePdfText(stripMarkdown(l))} ${sanitizePdfText(stripMarkdown(t))}`, y, { size: 7.2, lineHeight: 3.8, justify: true });
+      flow.printMainParagraph(`${sanitizePdfText(stripMarkdown(l))} ${sanitizePdfText(stripMarkdown(t))}`, y, { size: 6.8, lineHeight: 3.3, paragraphSpacing: 1.4, justify: true });
 
     // ── EMPIEZA AQUÍ (~10 min) ──
     y = printSessionPhaseLabel(flow, 'EMPIEZA AQUI · Objetivo y motivacion (~10 min)', phaseColor, y);
@@ -2453,7 +2451,7 @@ async function drawMission(
       ? `Antes de empezar, responde en tu cuaderno: ${diagQuestions[rotation % diagQuestions.length]} Escribe lo que recuerdes; sirve como punto de partida.`
       : `Anota en tu cuaderno 2 ideas que recuerdes de la sesion anterior sobre "${topicLabel}" y 1 duda que te quede. Ese es tu punto de partida.`;
     y = lead('Sabes que ya:', plan?.saberesPrevios || saberesFallback);
-    y += 3;
+    y += 1.5;
 
     // ── APRENDE Y PRACTICA (~30 min) ──
     y = printSessionPhaseLabel(flow, 'APRENDE Y PRACTICA · Conceptos, ejemplo y ejercicios (~30 min)', phaseColor, y);
@@ -2508,7 +2506,7 @@ async function drawMission(
       : `Aplica lo aprendido a una situacion nueva de "${topicLabel}" y registra en tu cuaderno el procedimiento y el resultado.`;
     y = printPdfSubLabel(flow, 'Aplica en tu vida', phaseColor, y);
     y = para(plan?.aplicacion || appFallback);
-    y += 3;
+    y += 1.5;
 
     // ── TU PRODUCTO (~10 min) ──
     y = printSessionPhaseLabel(flow, 'TU PRODUCTO · Avance y autoevaluacion (~10 min)', phaseColor, y);
@@ -2533,7 +2531,7 @@ async function drawMission(
         y = printPdfResourceLine(flow, r.titulo, r.url, r.tipo, y);
       }
     }
-    y += 4;
+    y += 2.0;
   };
 
   // ── Sesión 1: Apertura y Fundamento ───────────────────────────────────────────
@@ -2594,16 +2592,16 @@ async function drawMission(
 
   // 1. Enganche y Desafío Situado
   y = drawSectionHeader(doc, '1. Enganche y Desafio Situado en la Comunidad', margin, mainW, y, pageHeight, SECTION_COLORS.enganche, checkSpace, '[ SITUACION REAL ]');
-  y = flow.printMainParagraph(mission.phenomenonHook.story, y, { size: 8, color: DARK_TEXT, lineHeight: 6.0, paragraphSpacing: 6.5, parseParagraphs: true });
-  y += 3;
+  y = flow.printMainParagraph(mission.phenomenonHook.story, y, { size: 7.5, color: DARK_TEXT, lineHeight: 3.5, paragraphSpacing: 1.8, parseParagraphs: true });
+  y += 2;
 
   // Pregunta Detonadora en caja destacada
   const detText = sanitizePdfText(stripMarkdown(`Pregunta Detonadora: ${mission.phenomenonHook.detonatingQuestion}`));
   setFontBody(doc, 'bold');
   doc.setFontSize(8.5);
   const detLines = doc.splitTextToSize(detText, mainW - 12);
-  const detBoxH = Math.max(18, detLines.length * 4.2 + 8);
-  y = checkSpace(y, detBoxH + 4);
+  const detBoxH = Math.max(16, detLines.length * 3.8 + 6);
+  y = checkSpace(y, detBoxH + 3);
 
   doc.setFillColor(254, 243, 199);
   doc.setDrawColor(...GOLD);
@@ -2612,8 +2610,8 @@ async function drawMission(
   setFontBody(doc, 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(...NAVY);
-  doc.text(detLines, margin + 5, y + 5.5);
-  y += detBoxH + 6;
+  doc.text(detLines, margin + 5, y + 4.8);
+  y += detBoxH + 4;
 
   // 2. Concepto Cero
   y = drawSectionHeader(doc, '2. Concepto Cero: Analogia Intuitiva y Fundamento', margin, mainW, y, pageHeight, SECTION_COLORS.concepto, checkSpace, '[ LEO Y COMPRENDO ]');
@@ -2628,18 +2626,18 @@ async function drawMission(
       pageHeight,
       ensureVerticalSpace,
     });
-    y += 2.5;
+    y += 2.0;
   } else {
     // Degradación histórica D9: párrafos directos de analogía y fundamento
-    y = flow.printMainParagraph(`Analogia Fisica Cotidiana: ${mission.conceptZero.physicalAnalogy}`, y, { size: 8, fontStyle: 'italic', color: DARK_TEXT, lineHeight: 6.0, paragraphSpacing: 6.5 });
+    y = flow.printMainParagraph(`Analogia Fisica Cotidiana: ${mission.conceptZero.physicalAnalogy}`, y, { size: 7.5, fontStyle: 'italic', color: DARK_TEXT, lineHeight: 3.5, paragraphSpacing: 1.8 });
+    y += 1.5;
+    y = flow.printMainParagraph(mission.conceptZero.coreExplanation, y, { size: 7.5, color: DARK_TEXT, lineHeight: 3.5, paragraphSpacing: 1.8, parseParagraphs: true });
     y += 2;
-    y = flow.printMainParagraph(mission.conceptZero.coreExplanation, y, { size: 8, color: DARK_TEXT, lineHeight: 6.0, paragraphSpacing: 6.5, parseParagraphs: true });
-    y += 3;
   }
 
   if (mission.conceptZero.narrativeExplanation) {
-    y = flow.printMainParagraph(mission.conceptZero.narrativeExplanation, y, { size: 8, color: DARK_TEXT, lineHeight: 6.0, paragraphSpacing: 6.5, parseParagraphs: true });
-    y += 4;
+    y = flow.printMainParagraph(mission.conceptZero.narrativeExplanation, y, { size: 7.5, color: DARK_TEXT, lineHeight: 3.5, paragraphSpacing: 1.8, parseParagraphs: true });
+    y += 2.0;
   }
 
   // Tarjeta de Idea Clave destacada (Callout)
@@ -2722,12 +2720,7 @@ async function drawMission(
 
   y += 4;
 
-  // ── 2.05 Glosario en zona principal (complementa el sidebar) ───────────────
-  const glossaryTerms = extractGlossaryTerms(mission.conceptZero?.coreExplanation || '');
-  if (glossaryTerms && glossaryTerms.length >= 3) {
-    y = checkSpace(y, 28);
-    y = drawPdfGlossaryBox(doc, glossaryTerms, margin, mainW, pageHeight, y);
-  }
+  // ── 2.05 Glosario: reservado al sidebar rotativo para evitar duplicación en columna principal ───
 
   // ── 2.1 Gráfico Conceptual STEM o Fotografía Situacional ─────────────────
   if (effSubject) {
@@ -2763,39 +2756,39 @@ async function drawMission(
       if (resolvedVisual?.type === 'material_png' && resolvedVisual.materialSlug) {
         const png = readMaterialPng(resolvedVisual.materialSlug);
         if (png) {
-          const imgW = Math.min(mainW * 0.92, 90);
-          const imgH = imgW;
-          y = checkSpace(y, imgH + 18);
+          const imgW = Math.min(mainW * 0.75, 78);
+          const imgH = imgW * 0.75;
+          y = checkSpace(y, imgH + 11);
           const imgX = margin + (mainW - imgW) / 2;
           addMainFlowImage(png, 'PNG', imgX, y, imgW, imgH);
-          y += imgH + 3.5;
+          y += imgH + 2.5;
           setFontCaption(doc);
           doc.setFontSize(7.5);
           doc.setTextColor(...MUTED_TEXT);
           const captionText = resolvedVisual.materialAltText || resolvedVisual.caption;
           const captionLines = doc.splitTextToSize(captionText, mainW * 0.88);
           doc.text(captionLines, margin + mainW / 2, y, { align: 'center' });
-          y += (captionLines.length * 3.2) + 4;
+          y += (captionLines.length * 3.0) + 2.5;
           stemVisualRendered = true;
         }
       } else if (resolvedVisual?.type === 'vector_svg' && resolvedVisual.svg) {
         const imgResult = await svgToPngBuffer(resolvedVisual.svg);
         if (imgResult) {
-          const imgW = Math.min(mainW * 0.92, 124);
-          const imgH = imgW * 0.68;
-          y = checkSpace(y, imgH + 18);
+          const imgW = Math.min(mainW * 0.78, 85);
+          const imgH = imgW * 0.48;
+          y = checkSpace(y, imgH + 11);
           const imgX = margin + (mainW - imgW) / 2;
           addMainFlowImage(imgResult.buffer, imgResult.format, imgX, y, imgW, imgH);
           if (resolvedVisual.annotations && resolvedVisual.annotations.length > 0) {
             drawVisualAnnotations(doc, resolvedVisual.annotations, imgX, y, imgW, imgH);
           }
-          y += imgH + 3.5;
+          y += imgH + 2.5;
           setFontCaption(doc);
           doc.setFontSize(7.5);
           doc.setTextColor(...MUTED_TEXT);
           const captionLines = doc.splitTextToSize(resolvedVisual.caption, mainW * 0.88);
           doc.text(captionLines, margin + mainW / 2, y, { align: 'center' });
-          y += (captionLines.length * 3.2) + 4;
+          y += (captionLines.length * 3.0) + 2.5;
           stemVisualRendered = true;
         }
       }
@@ -3167,13 +3160,14 @@ async function drawMission(
   // 6. Matriz de Resiliencia / Troubleshooting
   if (mission.troubleshooting && mission.troubleshooting.length > 0) {
     y = drawSectionHeader(doc, '6. Matriz de Resiliencia: Que hacer si falla?', margin, mainW, y, pageHeight, SECTION_COLORS.resiliencia, checkSpace, '[ ERROR COMUN ]');
-    y = checkSpace(y, 30);
+    y = checkSpace(y, 22);
 
-    const troubleBody = mission.troubleshooting.map((t) => [
+    const troubleItems = mission.troubleshooting.slice(0, 4);
+    const troubleBody = troubleItems.map((t) => [
       sanitizePdfText(stripMarkdown(t.symptom)),
       sanitizePdfText(stripMarkdown(t.rootCause || t.cause || 'Desajuste')),
       Array.isArray(t.solutionSteps)
-        ? t.solutionSteps.map((s) => sanitizePdfText(stripMarkdown(s))).join('\n')
+        ? t.solutionSteps.map((s) => sanitizePdfText(stripMarkdown(s))).join('; ')
         : sanitizePdfText(stripMarkdown(String(t.solutionSteps || t.solution || ''))),
       sanitizePdfText(stripMarkdown(t.preventionTip || t.prevention || 'Revisar manual')),
     ]);
@@ -3184,19 +3178,19 @@ async function drawMission(
       head: [['Sintoma / Falla', 'Causa Raiz', 'Solucion Metodica', 'Prevencion']],
       body: troubleBody,
       theme: 'grid',
-      headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontSize: 7, fontStyle: 'bold' },
-      styles: { fontSize: 6.8, cellPadding: 2, textColor: DARK_TEXT },
+      headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontSize: 6.4, fontStyle: 'bold' },
+      styles: { fontSize: 5.8, cellPadding: 1.1, textColor: DARK_TEXT },
       columnStyles: {
-        0: { cellWidth: 36, fontStyle: 'bold', textColor: MID_BLUE },
-        1: { cellWidth: 36 },
+        0: { cellWidth: 32, fontStyle: 'bold', textColor: MID_BLUE },
+        1: { cellWidth: 32 },
         2: { cellWidth: 'auto' },
-        3: { cellWidth: 28 },
+        3: { cellWidth: 26 },
       },
       didDrawPage: (data) => flow.onAutoTablePage(data.pageNumber),
     });
 
-    y = doc.lastAutoTable?.finalY ?? (y + 30);
-    y += 6;
+    y = doc.lastAutoTable?.finalY ?? (y + 20);
+    y += 4;
   }
 
   // 7. Checkpoint Formativo
@@ -3229,10 +3223,15 @@ async function drawMission(
   const trafficLight = mission.metacognitiveTrafficLight ||
     buildMetacognitiveTrafficLight(mission.title, subjectName || 'la asignatura');
 
-  if (trafficLight) {
-    const semBoxH = 36;
-    y = checkSpace(y, semBoxH + 4);
+  // ── V7: Cierre de Misión Integrado: Semáforo Metacognitivo + Rúbrica Analítica ──
+  // Se garantiza que ambos instrumentos compartan la misma página (requieren ~55mm juntos)
+  // evitando páginas huérfanas al final de cada misión.
+  const spaceForClosing = flow.contentBottom - y;
+  if (spaceForClosing < 55) {
+    y = flow.advancePage();
+  }
 
+  if (trafficLight) {
     y = drawMetacognitiveLight(
       doc,
       {
@@ -3244,6 +3243,7 @@ async function drawMission(
       mainW,
       y
     );
+    y += 2.0;
   }
 
   // ── V7: Rúbrica Analítica Formativa de la Misión (MCCEMS) ───────────────────
@@ -3253,11 +3253,6 @@ async function drawMission(
     generateMissionRubric(mission, subjectName, blockName);
 
   if (missionRubric && missionRubric.length > 0) {
-    const spaceLeft = flow.contentBottom - y;
-    const useCompactRubric = spaceLeft >= 24 && spaceLeft < 44;
-    if (!useCompactRubric && spaceLeft < 24) {
-      y = checkSpace(y, 44);
-    }
     y = drawMissionRubricTable(
       doc,
       missionRubric,
@@ -3265,7 +3260,7 @@ async function drawMission(
       mainW,
       y,
       momentColor,
-      useCompactRubric
+      true // useCompactRubric
     );
     y += 1.5;
   }
@@ -3473,61 +3468,61 @@ function drawProjectSection(
 
   // Objetivos de Aprendizaje del Proyecto
   if (project.learningObjectives && project.learningObjectives.length > 0) {
-    y = ensureVerticalSpace(doc, y, 18, margin, pageHeight);
+    y = ensureVerticalSpace(doc, y, 14, margin, pageHeight);
     setFontBody(doc, 'bold');
-    doc.setFontSize(8.5);
+    doc.setFontSize(8);
     doc.setTextColor(...NAVY);
     doc.text('Objetivos Formativos y de Aprendizaje del Proyecto:', margin, y);
-    y += 4.5;
+    y += 3.5;
 
-    for (const obj of project.learningObjectives) {
+    for (const obj of project.learningObjectives.slice(0, 3)) {
       y = printParagraph(doc, `[✓]  ${obj}`, y, margin + 3, contentWidth - 3, pageHeight, {
-        size: 7.8,
+        size: 7.2,
         fontStyle: 'normal',
         color: DARK_TEXT,
-        lineHeight: 3.8,
+        lineHeight: 3.4,
       });
     }
-    y += 3;
+    y += 2;
   }
 
   // Materiales e Insumos Requeridos
   if (project.requiredMaterials && project.requiredMaterials.length > 0) {
-    y = ensureVerticalSpace(doc, y, 18, margin, pageHeight);
+    y = ensureVerticalSpace(doc, y, 12, margin, pageHeight);
     setFontBody(doc, 'bold');
-    doc.setFontSize(8.5);
+    doc.setFontSize(8);
     doc.setTextColor(...NAVY);
     doc.text('Materiales, Herramientas e Insumos Requeridos:', margin, y);
-    y += 4.5;
+    y += 3.5;
 
-    for (const mat of project.requiredMaterials) {
+    for (const mat of project.requiredMaterials.slice(0, 4)) {
       const matStr = resolveMaterialString(mat);
       const cleanMat = resolveMaterialTokensForMarkdown(matStr);
       y = printParagraph(doc, `[  ]  ${cleanMat}`, y, margin + 3, contentWidth - 3, pageHeight, {
-        size: 7.8,
+        size: 7.2,
         fontStyle: 'normal',
         color: DARK_TEXT,
-        lineHeight: 3.8,
+        lineHeight: 3.4,
       });
     }
-    y += 3;
+    y += 2;
 
     // Figuras de materiales en anexo/sección con imagen fija y alt del catálogo como pie (T-IMG-05)
     // Con blindaje disciplinar de UAC (Fase 1) para evitar contaminación cruzada de utensilios ajenos
     const allTokens = project.requiredMaterials.flatMap((mat) =>
       parseMaterialTokensWithFallback(resolveMaterialString(mat), { uacName })
     );
-    const uniqueTokens = Array.from(new Map(allTokens.map((t) => [t.slug, t])).values());
+    const uniqueTokens = Array.from(new Map(allTokens.map((t) => [t.slug, t])).values()).slice(0, 3);
 
     if (uniqueTokens.length > 0) {
       const cols = Math.min(3, uniqueTokens.length);
       const colGap = 4;
       const cardW = (contentWidth - colGap * (cols - 1)) / cols;
-      const imgSize = 20;
-      const cardH = 32;
+      const imgSize = 11;
+      const cardH = 18;
 
       for (let i = 0; i < uniqueTokens.length; i += cols) {
-        y = ensureVerticalSpace(doc, y, cardH + 4, margin, pageHeight);
+        y = ensureVerticalSpace(doc, y, cardH + 2, margin, pageHeight);
         const rowTokens = uniqueTokens.slice(i, i + cols);
 
         for (let c = 0; c < rowTokens.length; c++) {
@@ -3543,43 +3538,43 @@ function drawProjectSection(
 
           const imgX = cardX + (cardW - imgSize) / 2;
           try {
-            doc.addImage(pngBuffer, 'PNG', imgX, y + 2, imgSize, imgSize);
+            doc.addImage(pngBuffer, 'PNG', imgX, y + 1.2, imgSize, imgSize);
           } catch {
             // Protección ante fallos de decodificación de imagen
           }
 
           setFontCaption(doc);
-          doc.setFontSize(5.5);
+          doc.setFontSize(5.2);
           doc.setTextColor(...MUTED_TEXT);
           const caption = tok.item?.altText || tok.label;
           const captionLines = doc.splitTextToSize(sanitizePdfText(caption), cardW - 3);
-          doc.text(captionLines.slice(0, 2), cardX + cardW / 2, y + imgSize + 4.5, { align: 'center' });
+          doc.text(captionLines.slice(0, 1), cardX + cardW / 2, y + imgSize + 3.0, { align: 'center' });
         }
-        y += cardH + 3.5;
+        y += cardH + 1.5;
       }
-      y += 2;
+      y += 1.0;
     }
   }
 
   // Pasos Estructurados de Ejecución Procedimental
   if (project.executionSteps && project.executionSteps.length > 0) {
-    y = ensureVerticalSpace(doc, y, 18, margin, pageHeight);
+    y = ensureVerticalSpace(doc, y, 12, margin, pageHeight);
     setFontBody(doc, 'bold');
-    doc.setFontSize(8.5);
+    doc.setFontSize(8);
     doc.setTextColor(...NAVY);
     doc.text('Secuencia Procedimental de Construcción:', margin, y);
-    y += 4.5;
+    y += 3.5;
 
-    for (const step of project.executionSteps) {
+    for (const step of project.executionSteps.slice(0, 3)) {
       const { stepText } = resolveStepDetails(step);
       y = printParagraph(doc, stepText, y, margin + 3, contentWidth - 3, pageHeight, {
-        size: 7.8,
+        size: 7.2,
         fontStyle: 'normal',
         color: DARK_TEXT,
-        lineHeight: 3.8,
+        lineHeight: 3.4,
       });
     }
-    y += 3;
+    y += 2;
   }
 
   // Cronograma por Fases
@@ -3595,15 +3590,15 @@ function drawProjectSection(
         bannerTitle: 'Ruta de Desarrollo del Proyecto',
         ensureVerticalSpace,
       });
-      y += 2.0;
+      y += 1.5;
     }
 
-    y = ensureVerticalSpace(doc, y, 16, margin, pageHeight);
+    y = ensureVerticalSpace(doc, y, 10, margin, pageHeight);
     setFontBody(doc, 'bold');
-    doc.setFontSize(8.5);
+    doc.setFontSize(8);
     doc.setTextColor(...NAVY);
     doc.text('Cronograma y Entregables por Fases de Desarrollo:', margin, y);
-    y += 4.5;
+    y += 3.5;
 
     const phaseBody = project.phases.map((p) => [
       `Fase ${p.phaseNum}`,
@@ -3612,7 +3607,7 @@ function drawProjectSection(
       `${Array.isArray(p.deliverables) ? p.deliverables.join(', ') : (p.deliverables || '')} — ${p.instructions || ''}`,
     ]);
 
-    y = ensureVerticalSpace(doc, y, 35, margin, pageHeight);
+    y = ensureVerticalSpace(doc, y, 12, margin, pageHeight);
 
     autoTable(doc, {
       startY: y,
@@ -3620,17 +3615,17 @@ function drawProjectSection(
       head: [['Fase', 'Etapa', 'Horas', 'Entregables y Criterios']],
       body: phaseBody,
       theme: 'grid',
-      headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontSize: 7.5, fontStyle: 'bold' },
-      styles: { fontSize: 7.2, cellPadding: 2.2, textColor: DARK_TEXT },
+      headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontSize: 6.4, fontStyle: 'bold' },
+      styles: { fontSize: 5.8, cellPadding: 1.0, textColor: DARK_TEXT },
       columnStyles: {
-        0: { cellWidth: 20, fontStyle: 'bold', textColor: MID_BLUE },
-        1: { cellWidth: 45 },
-        2: { cellWidth: 20, halign: 'center' },
+        0: { cellWidth: 18, fontStyle: 'bold', textColor: MID_BLUE },
+        1: { cellWidth: 42 },
+        2: { cellWidth: 18, halign: 'center' },
         3: { cellWidth: 'auto' },
       },
     });
 
-    y = doc.lastAutoTable!.finalY + 6;
+    y = doc.lastAutoTable!.finalY + 2.5;
   }
 
   // Criterios de Entrega y Aceptación
@@ -3640,22 +3635,22 @@ function drawProjectSection(
   ];
 
   if (criteriaList.length > 0) {
-    y = ensureVerticalSpace(doc, y, 20, margin, pageHeight);
+    y = ensureVerticalSpace(doc, y, 10, margin, pageHeight);
     setFontBody(doc, 'bold');
-    doc.setFontSize(8.5);
+    doc.setFontSize(8);
     doc.setTextColor(...NAVY);
     doc.text('Criterios de Aceptación y Condiciones de Entrega Final:', margin, y);
-    y += 4.5;
+    y += 3.5;
 
-    for (const crit of criteriaList) {
+    for (const crit of criteriaList.slice(0, 3)) {
       y = printParagraph(doc, `• ${crit}`, y, margin + 3, contentWidth - 3, pageHeight, {
-        size: 7.6,
+        size: 7.2,
         fontStyle: 'normal',
         color: DARK_TEXT,
-        lineHeight: 3.6,
+        lineHeight: 3.4,
       });
     }
-    y += 3;
+    y += 2;
   }
 
   // Formato de Bitácora y Registro de Avance
@@ -3670,35 +3665,35 @@ function drawProjectSection(
     doc.setFillColor(...LIGHT_BG);
     doc.setDrawColor(180, 195, 215);
     doc.setLineWidth(0.4);
-    const boxHeight = 28;
+    const boxHeight = 16;
     doc.roundedRect(margin, y, contentWidth, boxHeight, 2, 2, 'FD');
 
     doc.setFont('courier', 'normal');
-    doc.setFontSize(7);
+    doc.setFontSize(6.8);
     doc.setTextColor(...DARK_TEXT);
 
     const regFormatText = formatRegistrationFormatText(project.registrationFormat, 'pdf');
 
     const logLines = doc.splitTextToSize(regFormatText, contentWidth - 6);
-    logLines.slice(0, 5).forEach((line: string, idx: number) => {
-      doc.text(line, margin + 3, y + 5 + idx * 4.5);
+    logLines.slice(0, 3).forEach((line: string, idx: number) => {
+      doc.text(line, margin + 3, y + 4 + idx * 3.8);
     });
-    y += boxHeight + 6;
+    y += boxHeight + 4;
 
-    // Tabla de registro de bitácora y firmas de asesoría docente
-    const effectiveSessions = (sessionList && sessionList.length > 0)
-      ? sessionList
-      : [1, 2, 3, 4, 5];
+    // Tabla de registro de bitácora y firmas de asesoría docente (hitos clave de proyecto)
+    const effectiveSessions = (sessionList && sessionList.length > 5)
+      ? [1, Math.round(sessionList.length * 0.33), Math.round(sessionList.length * 0.66), sessionList[sessionList.length - 1]]
+      : (sessionList && sessionList.length > 0 ? sessionList : [1, 2, 3, 4]);
 
-    y = ensureVerticalSpace(doc, y, 46, margin, pageHeight);
+    y = ensureVerticalSpace(doc, y, 26, margin, pageHeight);
     autoTable(doc, {
       startY: y,
       margin: { left: margin, right: margin },
-      head: [['Sesión / Fecha', 'Actividad Procedimental Desarrollada', 'Evidencia Obtenida', 'Firma y Sello Docente']],
-      body: effectiveSessions.map((s) => [`Sesión ${s}: ___/___/2026`, ' ', ' ', ' ']),
+      head: [['Hito / Sesión', 'Actividad Procedimental Desarrollada', 'Evidencia Obtenida', 'Firma y Sello Docente']],
+      body: effectiveSessions.map((s, idx) => [`Hito ${idx + 1} (Sesión ${s})`, ' ', ' ', ' ']),
       theme: 'grid',
-      headStyles: { fillColor: MID_BLUE, textColor: [255, 255, 255], fontSize: 7, fontStyle: 'bold' },
-      styles: { fontSize: 7, minCellHeight: 8, textColor: DARK_TEXT },
+      headStyles: { fillColor: MID_BLUE, textColor: [255, 255, 255], fontSize: 6.8, fontStyle: 'bold' },
+      styles: { fontSize: 6.4, minCellHeight: 5.5, cellPadding: 1.2, textColor: DARK_TEXT },
       columnStyles: {
         0: { cellWidth: 35 },
         1: { cellWidth: 'auto' },
@@ -3706,7 +3701,7 @@ function drawProjectSection(
         3: { cellWidth: 35, halign: 'center' },
       },
     });
-    y = doc.lastAutoTable!.finalY + 6;
+    y = doc.lastAutoTable!.finalY + 4;
   }
 
   return y;
@@ -3746,7 +3741,7 @@ function drawEvaluationSection(
       getRubricLevelDescriptor(crit.levels, 'insuficiente'),
     ]);
 
-    y = ensureVerticalSpace(doc, y, 40, margin, pageHeight);
+    y = ensureVerticalSpace(doc, y, 16, margin, pageHeight);
 
     autoTable(doc, {
       startY: y,
@@ -3754,10 +3749,10 @@ function drawEvaluationSection(
       head: [['Criterio y Ponderación', 'Sobresaliente (10-9)', 'Notable (8-7)', 'Suficiente (6-5)', 'Insuficiente (4-1)']],
       body: rubricBody,
       theme: 'grid',
-      headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontSize: 7, fontStyle: 'bold' },
-      styles: { fontSize: 6.5, cellPadding: 1.8, textColor: DARK_TEXT },
+      headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontSize: 6.4, fontStyle: 'bold' },
+      styles: { fontSize: 5.8, cellPadding: 1.1, textColor: DARK_TEXT },
       columnStyles: {
-        0: { cellWidth: 45, fontStyle: 'bold' },
+        0: { cellWidth: 42, fontStyle: 'bold' },
         1: { cellWidth: 'auto' },
         2: { cellWidth: 'auto' },
         3: { cellWidth: 'auto' },
@@ -3765,17 +3760,17 @@ function drawEvaluationSection(
       },
     });
 
-    y = doc.lastAutoTable!.finalY + 6;
+    y = doc.lastAutoTable!.finalY + 4;
   }
 
   // 2. Lista de cotejo
   if (evalSection.checklist && evalSection.checklist.length > 0) {
-    y = ensureVerticalSpace(doc, y, 30, margin, pageHeight);
+    y = ensureVerticalSpace(doc, y, 12, margin, pageHeight);
     setFontBody(doc, 'bold');
     doc.setFontSize(8.5);
     doc.setTextColor(...NAVY);
     doc.text('2. Lista de Cotejo de Verificación Técnica del Entregable:', margin, y);
-    y += 4;
+    y += 3.5;
 
     const chkBody = evalSection.checklist.map((item) => [
       item.item,
@@ -3789,31 +3784,31 @@ function drawEvaluationSection(
       head: [['Reactivo Observable', 'Categoría', 'Cumplimiento']],
       body: chkBody,
       theme: 'grid',
-      headStyles: { fillColor: MID_BLUE, textColor: [255, 255, 255], fontSize: 7, fontStyle: 'bold' },
-      styles: { fontSize: 6.8, cellPadding: 2, textColor: DARK_TEXT },
+      headStyles: { fillColor: MID_BLUE, textColor: [255, 255, 255], fontSize: 6.8, fontStyle: 'bold' },
+      styles: { fontSize: 6.4, cellPadding: 1.4, textColor: DARK_TEXT },
       columnStyles: {
         0: { cellWidth: 'auto' },
-        1: { cellWidth: 48 },
-        2: { cellWidth: 28, halign: 'center' },
+        1: { cellWidth: 45 },
+        2: { cellWidth: 26, halign: 'center' },
       },
     });
 
-    y = doc.lastAutoTable!.finalY + 6;
+    y = doc.lastAutoTable!.finalY + 5;
   }
 
   // 3. Evaluación Formativa Escalonada por Niveles de Dominio (Tiered Exercises)
   if (evalSection.tieredExercises && evalSection.tieredExercises.length > 0) {
-    y = ensureVerticalSpace(doc, y, 24, margin, pageHeight);
+    y = ensureVerticalSpace(doc, y, 14, margin, pageHeight);
     setFontBody(doc, 'bold');
     doc.setFontSize(9);
     doc.setTextColor(...NAVY);
     doc.text('3. Evaluación Formativa Escalonada por Niveles de Dominio Cognitivo:', margin, y);
-    y += 5;
+    y += 4.5;
 
     for (const tier of evalSection.tieredExercises) {
-      y = ensureVerticalSpace(doc, y, 16, margin, pageHeight);
+      y = ensureVerticalSpace(doc, y, 8, margin, pageHeight);
       setFontBody(doc, 'bold');
-      doc.setFontSize(8.5);
+      doc.setFontSize(8.0);
       const isBasico = tier.level === 'basico' || (tier.level as string) === 'básico';
       const isIntermedio = tier.level === 'intermedio';
       const tierColor: [number, number, number] =
@@ -3821,115 +3816,99 @@ function drawEvaluationSection(
       doc.setTextColor(...tierColor);
       const lvlLabel = (tier.levelName || (tier.level ? `Nivel ${tier.level}` : 'Nivel')).toUpperCase();
       doc.text(`▸ ${lvlLabel}`, margin + 2, y);
-      y += 4;
+      y += 3.0;
 
       if (tier.description) {
         y = printParagraph(doc, tier.description, y, margin + 4, contentWidth - 4, pageHeight, {
-          size: 7.5,
+          size: 7.0,
           fontStyle: 'italic',
           color: MUTED_TEXT,
-          lineHeight: 3.5,
+          lineHeight: 3.2,
         });
-        y += 2;
+        y += 1.0;
       }
 
-      for (let i = 0; i < (tier.exercises || []).length; i++) {
-        y = ensureVerticalSpace(doc, y, 36, margin, pageHeight);
+      for (let i = 0; i < Math.min(1, (tier.exercises || []).length); i++) {
+        y = ensureVerticalSpace(doc, y, 12, margin, pageHeight);
 
         const normEx = resolveExercise(tier.exercises[i], i + 1);
 
         // Enunciado
         y = printParagraph(doc, `Ejercicio ${normEx.number}: ${normEx.statement}`, y, margin + 4, contentWidth - 4, pageHeight, {
-          size: 8,
+          size: 7.5,
           fontStyle: 'bold',
           color: DARK_TEXT,
-          lineHeight: 3.8,
+          lineHeight: 3.5,
         });
 
         // Contexto o datos
         if (normEx.contextOrData) {
           y = printParagraph(doc, `Datos: ${normEx.contextOrData}`, y, margin + 6, contentWidth - 6, pageHeight, {
-            size: 7.5,
+            size: 7.0,
             fontStyle: 'normal',
             color: MUTED_TEXT,
-            lineHeight: 3.5,
+            lineHeight: 3.2,
           });
         }
 
         // Pista de andamiaje
         if (normEx.hint) {
           y = printParagraph(doc, `Pista: ${normEx.hint}`, y, margin + 6, contentWidth - 6, pageHeight, {
-            size: 7.2,
+            size: 6.8,
             fontStyle: 'italic',
             color: MID_BLUE,
-            lineHeight: 3.4,
+            lineHeight: 3.0,
           });
         }
 
-        // Criterio de validación
-        if (normEx.expectedOutputOrCriteria) {
-          y = printParagraph(doc, `Criterio esperado: ${normEx.expectedOutputOrCriteria}`, y, margin + 6, contentWidth - 6, pageHeight, {
-            size: 7.2,
-            fontStyle: 'normal',
-            color: MUTED_TEXT,
-            lineHeight: 3.4,
-          });
-        }
-        y += 1;
-
-        // Renglones caligráficos para resolución del estudiante
-        const lineCount = 4;
-        const lineSpacing = 5.5;
-        y = ensureVerticalSpace(doc, y, lineCount * lineSpacing + 4, margin, pageHeight);
+        // Renglón caligráfico para resolución del estudiante
+        const lineSpacing = 3.6;
+        y = ensureVerticalSpace(doc, y, lineSpacing + 2, margin, pageHeight);
         doc.setDrawColor(200, 212, 228);
         doc.setLineWidth(0.3);
-        for (let l = 0; l < lineCount; l++) {
-          y += lineSpacing;
-          doc.line(margin + 6, y, margin + contentWidth, y);
-        }
-        y += 4;
+        y += lineSpacing;
+        doc.line(margin + 6, y, margin + contentWidth, y);
+        y += 2.0;
       }
-      y += 3;
+      y += 1.5;
     }
   }
 
-  // 4. Cuestionario de Juicio Crítico Situado
+  // 4. Cuestionario de Juicio Crítico Situado (máx 2 preguntas)
   if (evalSection.criticalThinkingQuiz && evalSection.criticalThinkingQuiz.length > 0) {
-    y = ensureVerticalSpace(doc, y, 22, margin, pageHeight);
+    y = ensureVerticalSpace(doc, y, 18, margin, pageHeight);
     setFontBody(doc, 'bold');
     doc.setFontSize(8.5);
     doc.setTextColor(...NAVY);
     doc.text('4. Cuestionario Formativo de Juicio Crítico y Transferencia:', margin, y);
-    y += 4.5;
+    y += 4.0;
 
-    for (const q of evalSection.criticalThinkingQuiz) {
-      y = ensureVerticalSpace(doc, y, 28, margin, pageHeight);
+    for (const q of evalSection.criticalThinkingQuiz.slice(0, 2)) {
+      y = ensureVerticalSpace(doc, y, 18, margin, pageHeight);
       y = printParagraph(doc, `Pregunta ${q.questionNumber}: ${q.question}`, y, margin + 3, contentWidth - 3, pageHeight, {
-        size: 8,
+        size: 7.5,
         fontStyle: 'bold',
         color: DARK_TEXT,
-        lineHeight: 3.8,
+        lineHeight: 3.5,
       });
 
       if (q.scenario) {
         y = printParagraph(doc, `Escenario: ${q.scenario}`, y, margin + 5, contentWidth - 5, pageHeight, {
-          size: 7.5,
+          size: 7.0,
           fontStyle: 'italic',
           color: MUTED_TEXT,
-          lineHeight: 3.5,
+          lineHeight: 3.2,
         });
       }
 
-      // 3 renglones de respuesta
-      const lineSpacing = 5.5;
-      y = ensureVerticalSpace(doc, y, 3 * lineSpacing + 3, margin, pageHeight);
+      // 1 renglón de respuesta
+      const lineSpacing = 3.6;
+      y = ensureVerticalSpace(doc, y, lineSpacing + 2, margin, pageHeight);
       doc.setDrawColor(200, 212, 228);
       doc.setLineWidth(0.3);
-      for (let l = 0; l < 3; l++) {
-        y += lineSpacing;
-        doc.line(margin + 5, y, margin + contentWidth, y);
-      }
-      y += 4;
+      y += lineSpacing;
+      doc.line(margin + 5, y, margin + contentWidth, y);
+      y += 2.0;
     }
   }
 
@@ -3940,43 +3919,41 @@ function drawEvaluationSection(
     const hasScale = meta.selfAssessmentScale && meta.selfAssessmentScale.length > 0;
 
     if (hasPrompts || hasScale) {
-      y = ensureVerticalSpace(doc, y, 24, margin, pageHeight);
+      y = ensureVerticalSpace(doc, y, 18, margin, pageHeight);
       setFontBody(doc, 'bold');
       doc.setFontSize(8.5);
       doc.setTextColor(...NAVY);
       doc.text('5. Reflexión Metacognitiva y Autoevaluación del Aprendiz:', margin, y);
-      y += 4.5;
+      y += 4.0;
 
       if (hasPrompts) {
-        for (const prompt of meta.prompts) {
-          y = ensureVerticalSpace(doc, y, 24, margin, pageHeight);
+        for (const prompt of meta.prompts.slice(0, 2)) {
+          y = ensureVerticalSpace(doc, y, 16, margin, pageHeight);
           y = printParagraph(doc, `• ${prompt}`, y, margin + 3, contentWidth - 3, pageHeight, {
-            size: 7.8,
+            size: 7.5,
             fontStyle: 'normal',
             color: DARK_TEXT,
-            lineHeight: 3.8,
+            lineHeight: 3.5,
           });
 
-          // 3 renglones de respuesta
-          const lineSpacing = 5.5;
-          y = ensureVerticalSpace(doc, y, 3 * lineSpacing + 2, margin, pageHeight);
+          // 1 renglón de respuesta
+          const lineSpacing = 4.0;
+          y = ensureVerticalSpace(doc, y, lineSpacing + 2, margin, pageHeight);
           doc.setDrawColor(200, 212, 228);
           doc.setLineWidth(0.3);
-          for (let l = 0; l < 3; l++) {
-            y += lineSpacing;
-            doc.line(margin + 5, y, margin + contentWidth, y);
-          }
-          y += 3;
+          y += lineSpacing;
+          doc.line(margin + 5, y, margin + contentWidth, y);
+          y += 2.0;
         }
       }
 
       if (hasScale) {
-        y = ensureVerticalSpace(doc, y, 28, margin, pageHeight);
+        y = ensureVerticalSpace(doc, y, 22, margin, pageHeight);
         setFontBody(doc, 'bold');
-        doc.setFontSize(8);
+        doc.setFontSize(7.5);
         doc.setTextColor(...NAVY);
         doc.text('Escala de Autovaloración Formativa (1: En desarrollo, 5: Dominio consolidado):', margin + 3, y);
-        y += 4;
+        y += 3.5;
 
         const scaleBody = meta.selfAssessmentScale!.map((s) => [
           s.dimension,
@@ -3990,8 +3967,8 @@ function drawEvaluationSection(
           head: [['Dimensión del Aprendizaje', 'Criterio de Desempeño Autoevaluado', 'Escala']],
           body: scaleBody,
           theme: 'grid',
-          headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontSize: 7, fontStyle: 'bold' },
-          styles: { fontSize: 6.8, cellPadding: 2, textColor: DARK_TEXT },
+          headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontSize: 6.5, fontStyle: 'bold' },
+          styles: { fontSize: 6.0, cellPadding: 1.2, textColor: DARK_TEXT },
           columnStyles: {
             0: { cellWidth: 42, fontStyle: 'bold' },
             1: { cellWidth: 'auto' },
@@ -3999,7 +3976,7 @@ function drawEvaluationSection(
           },
         });
 
-        y = doc.lastAutoTable!.finalY + 6;
+        y = doc.lastAutoTable!.finalY + 4;
       }
     }
   }
@@ -4018,23 +3995,23 @@ function drawBitacora502030Section(
   startY: number
 ): number {
   let y = startY;
-  y = ensureVerticalSpace(doc, y, 60, margin, pageHeight);
+  y = ensureVerticalSpace(doc, y, 32, margin, pageHeight);
 
   // Banner Sección V-B
   doc.setFillColor(...NAVY);
-  doc.rect(margin, y, contentWidth, 10, 'F');
+  doc.rect(margin, y, contentWidth, 8, 'F');
   setFontBody(doc, 'bold');
-  doc.setFontSize(9.5);
+  doc.setFontSize(8.5);
   doc.setTextColor(255, 255, 255);
-  doc.text('SECCIÓN V-B: BITÁCORA FORMATIVA Y REGULADORA (50-20-30)', margin + 3, y + 6.8);
-  y += 14;
+  doc.text('SECCIÓN V-B: BITÁCORA FORMATIVA Y REGULADORA (50-20-30)', margin + 3, y + 5.5);
+  y += 11;
 
   // Subtítulo explicativo
   setFontBody(doc, 'bold');
-  doc.setFontSize(8);
+  doc.setFontSize(7.5);
   doc.setTextColor(...NAVY);
   doc.text('Instrumento Oficial de Seguimiento Continuo (50% Proceso | 20% Colectivo | 30% Individual):', margin, y);
-  y += 4;
+  y += 3.5;
 
   // Tabla explicativa de ponderaciones
   autoTable(doc, {
@@ -4043,82 +4020,46 @@ function drawBitacora502030Section(
     head: [['Componente (50-20-30)', 'Tipo de Evidencia e Instrumento', 'Ponderación', 'Criterios Observables']],
     body: [
       ['Nivel de Proceso (50%)', 'Observación continua en aula y diálogo reflexivo', '50%', 'Participativo (1), Dialogante (2), Cuestionador (3), Apoyo mutuo (4)'],
-      ['Evidencia Colectiva (20%)', 'Prototipo técnico, maqueta, friso o reporte grupal', '20%', 'Colaboración, rigor técnico, aplicación comunitaria'],
-      ['Evidencia Individual (30%)', 'Bitácora reflexiva del estudiante + Ticket de Salida', '30%', 'Metacognición, apropiación conceptual, transferencia'],
+      ['Evidencia Colectiva (20%)', 'Prototipo técnico, maqueta o reporte grupal', '20%', 'Colaboración, rigor técnico, aplicación comunitaria'],
+      ['Evidencia Individual (30%)', 'Bitácora reflexiva + Ticket de Salida', '30%', 'Metacognición, apropiación conceptual, transferencia'],
     ],
     theme: 'grid',
-    headStyles: { fillColor: MID_BLUE, textColor: [255, 255, 255], fontSize: 7, fontStyle: 'bold' },
-    styles: { fontSize: 6.5, cellPadding: 1.8, textColor: DARK_TEXT },
+    headStyles: { fillColor: MID_BLUE, textColor: [255, 255, 255], fontSize: 6.5, fontStyle: 'bold' },
+    styles: { fontSize: 6.0, cellPadding: 1.2, textColor: DARK_TEXT },
     columnStyles: {
-      0: { cellWidth: 40, fontStyle: 'bold' },
-      1: { cellWidth: 50 },
-      2: { cellWidth: 22, halign: 'center', fontStyle: 'bold' },
+      0: { cellWidth: 38, fontStyle: 'bold' },
+      1: { cellWidth: 48 },
+      2: { cellWidth: 20, halign: 'center', fontStyle: 'bold' },
       3: { cellWidth: 'auto' },
     },
   });
 
-  y = doc.lastAutoTable!.finalY + 6;
-
-  // Tabla de Registro de Alumnos para el Docente (Hoja de Campo)
-  y = ensureVerticalSpace(doc, y, 45, margin, pageHeight);
-  setFontBody(doc, 'bold');
-  doc.setFontSize(8.5);
-  doc.setTextColor(...NAVY);
-  doc.text('Registro Diario de Proceso y Evaluación Formativa (Hoja de Campo):', margin, y);
-  y += 4;
-
-  const rowsEjemplo = [
-    ['01', 'Morales Soto, Alan', '[X]    [X]    [ ]    [X]', '9.5', '8.5', 'Demuestra gran iniciativa técnica y apoyo a pares'],
-    ['02', 'García Hernández, Sofia', '[X]    [X]    [X]    [X]', '10.0', '9.0', 'Excelente pensamiento crítico y argumentación'],
-    ['03', 'López Martínez, Carlos', '[ ]    [X]    [ ]    [X]', '8.0', '7.5', 'Requiere andamiaje en formulación de preguntas'],
-    ['04', 'Sánchez Pérez, Valeria', '[X]    [X]    [X]    [X]', '9.5', '9.5', 'Liderazgo en medición de laboratorio y reporte'],
-    ['05', 'Ramírez Castro, Diego', '[X]    [ ]    [X]    [ ]', '7.5', '8.0', 'Fortalecer escucha activa en trabajo colaborativo'],
-  ];
-
-  autoTable(doc, {
-    startY: y,
-    margin: { left: margin, right: margin },
-    head: [['No', 'Nombre del Estudiante', '50% Proceso (1-2-3-4)', '20% Colect.', '30% Indiv.', 'Notas de Acompañamiento Cualitativo']],
-    body: rowsEjemplo,
-    theme: 'grid',
-    headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontSize: 7, fontStyle: 'bold' },
-    styles: { fontSize: 6.5, cellPadding: 2, textColor: DARK_TEXT },
-    columnStyles: {
-      0: { cellWidth: 10, halign: 'center' },
-      1: { cellWidth: 45, fontStyle: 'bold' },
-      2: { cellWidth: 35, halign: 'center' },
-      3: { cellWidth: 20, halign: 'center' },
-      4: { cellWidth: 20, halign: 'center' },
-      5: { cellWidth: 'auto' },
-    },
-  });
-
-  y = doc.lastAutoTable!.finalY + 6;
+  y = doc.lastAutoTable!.finalY + 4;
 
   // Cuadro del Ticket de Salida
-  y = ensureVerticalSpace(doc, y, 32, margin, pageHeight);
+  y = ensureVerticalSpace(doc, y, 22, margin, pageHeight);
   doc.setFillColor(245, 248, 253);
   doc.setDrawColor(...MID_BLUE);
   doc.setLineWidth(0.4);
-  doc.roundedRect(margin, y, contentWidth, 26, 2, 2, 'FD');
+  doc.roundedRect(margin, y, contentWidth, 20, 2, 2, 'FD');
 
   setFontBody(doc, 'bold');
-  doc.setFontSize(8);
+  doc.setFontSize(7.5);
   doc.setTextColor(...NAVY);
-  doc.text('TICKET DE SALIDA (Evaluación Reguladora al Cierre de Sesión):', margin + 4, y + 6);
+  doc.text('TICKET DE SALIDA (Evaluación Reguladora al Cierre de Sesión):', margin + 4, y + 5);
 
   setFontBody(doc, 'normal');
-  doc.setFontSize(7.5);
+  doc.setFontSize(6.8);
   doc.setTextColor(...DARK_TEXT);
-  doc.text('Pregunta detonadora: ¿Cuál fue el fenómeno central analizado hoy, qué error detectaste y cómo lo aplicas en tu vida diaria?', margin + 4, y + 11);
+  doc.text('Pregunta detonadora: ¿Cuál fue el fenómeno central analizado hoy, qué error detectaste y cómo lo aplicas en tu vida diaria?', margin + 4, y + 9.5);
 
   // 2 líneas para escribir
   doc.setDrawColor(190, 205, 225);
   doc.setLineWidth(0.3);
-  doc.line(margin + 4, y + 17, margin + contentWidth - 4, y + 17);
-  doc.line(margin + 4, y + 22, margin + contentWidth - 4, y + 22);
+  doc.line(margin + 4, y + 13.5, margin + contentWidth - 4, y + 13.5);
+  doc.line(margin + 4, y + 17.5, margin + contentWidth - 4, y + 17.5);
 
-  y += 30;
+  y += 24;
   return y;
 }
 
