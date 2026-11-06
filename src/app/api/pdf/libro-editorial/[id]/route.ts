@@ -561,10 +561,12 @@ export async function GET(
     }
 
     if (!book) {
-      return NextResponse.json(
-        { error: 'No se encontró un libro editorial para esta planeación', code: 'NOT_FOUND' },
-        { status: 404 },
-      );
+      return NextResponse.json({
+        success: true,
+        status: 'idle',
+        downloadUrl: null,
+        editorialBook: null,
+      });
     }
 
     // El registro más reciente puede ser un `local://` huérfano (escrito en otra instancia

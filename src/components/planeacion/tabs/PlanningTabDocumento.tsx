@@ -564,7 +564,7 @@ export default function PlanningTabDocumento({
                   {/* Detalle de palabras por bloque */}
                   <div style={{ marginTop: '10px', fontSize: '12px', color: '#cbd5e1', display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
                     <span style={{ fontWeight: 700, color: '#93c5fd' }}>Volumen por bloque:</span>
-                    <span>{blockWordCountDetails.join(' · ')}</span>
+                    <span suppressHydrationWarning>{blockWordCountDetails.join(' · ')}</span>
                     <span style={{
                       fontWeight: 700,
                       color: semestralThresholdMet ? '#34d399' : '#fcd34d',
@@ -573,7 +573,7 @@ export default function PlanningTabDocumento({
                       borderRadius: '10px',
                       border: semestralThresholdMet ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(245, 158, 11, 0.3)',
                     }}>
-                      Total: {accumulatedWorkbookWords.toLocaleString()} / {macroTargetWords.toLocaleString()} palabras ({Math.min(100, Math.round((accumulatedWorkbookWords / macroTargetWords) * 100))}%)
+                      Total: {accumulatedWorkbookWords.toLocaleString()} / {macroTargetWords.toLocaleString()} palabras ({Math.min(100, Math.round((accumulatedWorkbookWords / (macroTargetWords || 1)) * 100))}%)
                     </span>
                   </div>
                 </div>

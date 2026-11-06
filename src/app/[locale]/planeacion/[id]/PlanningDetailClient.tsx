@@ -10,6 +10,7 @@ import { generatePlanningPDF, generateSecuenciaPDF } from '@/lib/planning-pdf-re
 import { generateBlockSessions, generateCurricularBlockSessions, type DetailedSession } from '@/lib/session-progression-engine';
 import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
 import { exportPlanningPdfWithFallback, generateSequenceWithFallback } from '@/lib/planeaciones/strangler-client';
+import { resolveWeeklyHours, computeContentBudget } from '@/lib/guide-engine/content-budget';
 import type { ActiveWorkTextbook, GenerationProgressState } from '@/types/work-textbook';
 // ── Lucide Icons ────────────────────────────────────────────────────────────
 import {
@@ -51,6 +52,11 @@ function PlanningDetailModular({
   canEditDocument = false,
 }: PlanningDetailClientProps) {
   const [planning, setPlanning] = useState<Planning>(initialPlanning);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     setPlanning(initialPlanning);
@@ -664,8 +670,10 @@ function PlanningDetailModular({
   ).length;
   const allBlocksGenerated = generatedWorkbookCount === 3;
 
-  const isBt = isLaboral || (planning.component || '').toLowerCase().includes('laboral') || (planning.component || '').toLowerCase().includes('profesional');
-  const macroTargetWords = isBt ? 25000 : 17500;
+  const weeklyHours = resolveWeeklyHours(planning as any);
+  const blockBudget = computeContentBudget(weeklyHours);
+  // Presupuesto macro unificado semestral (3 bloques curriculares de 6 semanas)
+  const macroTargetWords = blockBudget.targetWords.ideal * totalWorkbookBlocks;
 
   const accumulatedWorkbookWords = [0, 1, 2].reduce(
     (acc, idx) => {
@@ -684,8 +692,9 @@ function PlanningDetailModular({
     const words = wb?.totalWords || prog?.totalWords || prog?.wordCount;
     if (words) {
       const generatedAt = wb?.generatedAt ? new Date(wb.generatedAt) : null;
+      // Solo renderizar stamp localizado una vez montado para evitar error de hidratación #418 SSR vs cliente
       const stamp =
-        generatedAt && !Number.isNaN(generatedAt.getTime())
+        mounted && generatedAt && !Number.isNaN(generatedAt.getTime())
           ? ` (${generatedAt.toLocaleDateString('es-MX', {
               day: '2-digit',
               month: '2-digit',
@@ -701,7 +710,7 @@ function PlanningDetailModular({
     return `Bloque ${roman}: pendiente`;
   });
 
-  const semestralThresholdMet = accumulatedWorkbookWords >= macroTargetWords;
+  const semestralThresholdMet = accumulatedWorkbookWords >= blockBudget.targetWords.min * totalWorkbookBlocks;
   const semestralReady = allBlocksGenerated;
 
   // Generate detailed pedagogical sessions for all 3 curricular blocks using Session Progression Engine

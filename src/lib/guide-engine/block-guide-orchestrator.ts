@@ -108,7 +108,7 @@ export async function generateBlockWorkTextbook(
   blockIndex: number,
   options: OrchestratorOptions = {}
 ): Promise<ActiveWorkTextbook> {
-  const maxRetries = options.maxRetriesPerWriter ?? 2;
+  const maxRetries = options.maxRetriesPerWriter ?? 1;
   const jobId = options.jobId;
   const leaseId = options.leaseId;
   const signal = options.signal;
@@ -117,7 +117,9 @@ export async function generateBlockWorkTextbook(
     options.maxBudgetMs ??
     (process.env.JOB_MAX_DURATION_SECONDS
       ? Number(process.env.JOB_MAX_DURATION_SECONDS) * 1000 - 30_000
-      : 420_000);
+      : 240_000);
+
+  const writerOutputs: WriterOutput[] = [];
 
   const checkAbort = () => {
     if (signal?.aborted) {
@@ -138,7 +140,15 @@ export async function generateBlockWorkTextbook(
     totalWords?: number;
     error?: string;
   }) => {
-    checkAbort();
+    if (signal?.aborted) {
+      // Si la señal se abortó pero los 4 redactores ya están completos, no lanzar excepción;
+      // permitir avanzar al ensamblado degradado para persistir el mejor borrador.
+      if (writerOutputs.length === 4) {
+        logger.warn(`[orchestrator] Signal abortada durante fase '${params.phase}', pero redactores ya completados. Continuando ensamblado.`);
+        return;
+      }
+      checkAbort();
+    }
     await reportProgress(planningId, blockIndex, params, jobId, leaseId);
   };
 
@@ -367,7 +377,6 @@ export async function generateBlockWorkTextbook(
   // Ejecución secuencial de los 4 redactores con notificación de progreso:
   // Evita ráfagas masivas simultáneas en el milisegundo 0 que saturen la cuota de concurrencia
   // de Google AI Studio (503 / Fast-fail).
-  const writerOutputs: WriterOutput[] = [];
   for (let i = 0; i < writerTasks.length; i++) {
     if (i > 0 && STAGGER_DELAY_MS > 0) {
       await sleep(STAGGER_DELAY_MS);
@@ -375,6 +384,12 @@ export async function generateBlockWorkTextbook(
     const task = writerTasks[i];
     if (options.signal?.aborted) {
       throw new Error('Operación cancelada por signal.');
+    }
+    const remainingTimeMs = MAX_ORCHESTRATOR_BUDGET_MS - (Date.now() - startTime);
+    if (remainingTimeMs < 30_000) {
+      logger.warn(`[orchestrator] Presupuesto crítico antes de iniciar ${task.type} (${Math.round(remainingTimeMs / 1000)}s restantes). Aplicando fallback de emergencia para preservar entrega.`);
+      writerOutputs.push(createEmergencyFallbackOutput(task.type, baseWriterInput, 'Presupuesto de tiempo agotado'));
+      continue;
     }
     await notifyProgress({
       phase: 'writing',
@@ -423,24 +438,43 @@ export async function generateBlockWorkTextbook(
     targetWords: budget.targetWords,
   });
 
-  // Si hay redactores reintentables, ejecutar reintentos específicos (máx 2 por redactor)
+  // Si hay redactores reintentables, ejecutar reintentos específicos (máx 1 por redactor)
   if (validation.retryableWriters.length > 0) {
     for (const writerType of validation.retryableWriters) {
-      if (Date.now() - startTime > MAX_ORCHESTRATOR_BUDGET_MS) {
-        logger.warn('[orchestrator] Presupuesto de tiempo agotado para reintentos (230s). Ensamblando libro con contenido existente para evitar timeout de Vercel.');
+      const remainingBudget = MAX_ORCHESTRATOR_BUDGET_MS - (Date.now() - startTime);
+      if (remainingBudget < 45_000 || signal?.aborted) {
+        logger.warn(
+          `[orchestrator] Presupuesto de tiempo agotado para reintentos (${Math.round(remainingBudget / 1000)}s restantes < 45s). Ensamblando libro con contenido existente para evitar timeout de Vercel.`
+        );
         break;
       }
+
+      const current = writerOutputs.find((w) => w.type === writerType);
+      const currentWords = current?.wordCount || 0;
+      const targetMin = budget.missionBudgets[writerType].targetWords.min;
+      if (currentWords >= targetMin) {
+        logger.info(`[orchestrator] Redactor ${writerType} ya cumple con el mínimo (${currentWords} >= ${targetMin}); omitiendo reintento.`);
+        continue;
+      }
+
       let attempts = 0;
       let improved = false;
 
       while (attempts < maxRetries && !improved) {
+        const remainingForAttempt = MAX_ORCHESTRATOR_BUDGET_MS - (Date.now() - startTime);
+        if (remainingForAttempt < 45_000 || signal?.aborted) {
+          logger.warn(
+            `[orchestrator] Presupuesto insuficiente para intento ${attempts + 1} de ${writerType} (${Math.round(remainingForAttempt / 1000)}s < 45s). Omitiendo.`
+          );
+          break;
+        }
+
         attempts++;
-        logger.info(`[orchestrator] Reintentando ${writerType} (Intento ${attempts}/${maxRetries})...`);
+        logger.info(
+          `[orchestrator] Reintentando ${writerType} (Intento ${attempts}/${maxRetries}, actual: ${currentWords}, meta mínima: ${targetMin})...`
+        );
 
         try {
-          const current = writerOutputs.find((w) => w.type === writerType);
-          const currentWords = current?.wordCount || 0;
-          const targetMin = budget.missionBudgets[writerType].targetWords.min;
           const deficit = Math.max(0, targetMin - currentWords);
           const expansionDirective = deficit > 0
             ? `[REQUISITO CRÍTICO DE EXPANSIÓN EDITORIAL]: El borrador previo tuvo ${currentWords} palabras y fue insuficiente para el presupuesto formal (faltan al menos ${deficit} palabras para el mínimo de ${targetMin}). Redacta CADA sesión con al menos 950 a 1,050 palabras: expande 'contenido' a 3 párrafos conceptuales extensos de al menos 160 palabras cada uno y 'ejemploResuelto' con 4 pasos detallados de desarrollo sin omitir operaciones ni fórmulas.`
@@ -465,6 +499,9 @@ export async function generateBlockWorkTextbook(
             if (wordsImproved && reRunOutput.qualityScore >= 70) {
               writerOutputs[idx] = reRunOutput;
               improved = true;
+              logger.info(`[orchestrator] Reintento de ${writerType} EXITOSO: ${current.wordCount} -> ${reRunOutput.wordCount} palabras.`);
+            } else {
+              logger.info(`[orchestrator] Reintento de ${writerType} descartado: no mejoró el volumen (${reRunOutput.wordCount} <= ${current.wordCount}) o calidad insuficiente (${reRunOutput.qualityScore} < 70).`);
             }
           }
         } catch (retryErr) {
@@ -499,50 +536,56 @@ export async function generateBlockWorkTextbook(
   if (!alignmentReport.pass && planningActivities) {
     const missingTerms = extractMissingTerms(alignmentReport);
     if (missingTerms.length > 0) {
-      const alignmentDirective =
-        'TERMINOS OBLIGATORIOS DE LA PLANEACION (reproduce su redaccion original en tu seccion): ' +
-        missingTerms.join(' | ');
+      const remainingForAlign = MAX_ORCHESTRATOR_BUDGET_MS - (Date.now() - startTime);
+      if (remainingForAlign < 45_000 || signal?.aborted) {
+        logger.warn(`[orchestrator] Presupuesto de tiempo agotado para reintento de alineación (${Math.round(remainingForAlign / 1000)}s restantes < 45s). Continuando con ensamblado.`);
+      } else {
+        const alignmentDirective =
+          'TERMINOS OBLIGATORIOS DE LA PLANEACION (reproduce su redaccion original en tu seccion): ' +
+          missingTerms.join(' | ');
 
-      for (const writerType of ['foundation', 'lab', 'project', 'evaluation'] as const) {
-        if (Date.now() - startTime > MAX_ORCHESTRATOR_BUDGET_MS) {
-          logger.warn('[orchestrator] Presupuesto de tiempo agotado para reintento de alineación (230s). Continuando con ensamblado.');
-          break;
-        }
-        const idx = writerOutputs.findIndex((w) => w.type === writerType);
-        if (idx === -1) continue;
-        const own = writerOutputs[idx];
-        const ownCorpus =
-          sectionCorpus(own.section) +
-          ' ' +
-          sectionCorpus(own.evaluationSection ?? own.projectSection ?? null);
-        const lacking = missingTerms.filter((t) => !corpusCoversTerm(ownCorpus, t));
-        if (lacking.length === 0) continue;
+        for (const writerType of ['foundation', 'lab', 'project', 'evaluation'] as const) {
+          const remainingInLoop = MAX_ORCHESTRATOR_BUDGET_MS - (Date.now() - startTime);
+          if (remainingInLoop < 45_000 || signal?.aborted) {
+            logger.warn('[orchestrator] Presupuesto de tiempo agotado en bucle de alineación. Continuando con ensamblado.');
+            break;
+          }
+          const idx = writerOutputs.findIndex((w) => w.type === writerType);
+          if (idx === -1) continue;
+          const own = writerOutputs[idx];
+          const ownCorpus =
+            sectionCorpus(own.section) +
+            ' ' +
+            sectionCorpus(own.evaluationSection ?? own.projectSection ?? null);
+          const lacking = missingTerms.filter((t) => !corpusCoversTerm(ownCorpus, t));
+          if (lacking.length === 0) continue;
 
-        logger.info(`[orchestrator] Reintento de alineación para ${writerType} (faltan ${lacking.length} términos)...`);
-        try {
-          const alignInput: WriterInput = {
-            ...baseWriterInput,
-            targetWords: budget.missionBudgets[writerType].targetWords,
-            alignmentDirective,
-          };
-          let reRun: WriterOutput;
-          if (writerType === 'foundation') reRun = await generateFoundationMission(alignInput);
-          else if (writerType === 'lab') reRun = await generateLabMission(alignInput);
-          else if (writerType === 'project') reRun = await generateProjectMission(alignInput);
-          else reRun = await generateEvaluationSection(alignInput);
-          if (reRun.qualityScore >= own.qualityScore) writerOutputs[idx] = reRun;
-        } catch (alignErr) {
-          logger.warn(`[orchestrator] Falló reintento de alineación de ${writerType}:`, { error: String(alignErr) });
+          logger.info(`[orchestrator] Reintento de alineación para ${writerType} (faltan ${lacking.length} términos)...`);
+          try {
+            const alignInput: WriterInput = {
+              ...baseWriterInput,
+              targetWords: budget.missionBudgets[writerType].targetWords,
+              alignmentDirective,
+            };
+            let reRun: WriterOutput;
+            if (writerType === 'foundation') reRun = await generateFoundationMission(alignInput);
+            else if (writerType === 'lab') reRun = await generateLabMission(alignInput);
+            else if (writerType === 'project') reRun = await generateProjectMission(alignInput);
+            else reRun = await generateEvaluationSection(alignInput);
+            if (reRun.qualityScore >= own.qualityScore) writerOutputs[idx] = reRun;
+          } catch (alignErr) {
+            logger.warn(`[orchestrator] Falló reintento de alineación de ${writerType}:`, { error: String(alignErr) });
+          }
         }
+
+        // Re-validar volumen/calidad y re-medir alineación tras el reintento
+        validation = validateBlockGuideQuality({
+          writerOutputs,
+          subsystem: curriculumContext.subsystem,
+          targetWords: budget.targetWords,
+        });
+        alignmentReport = evaluatePlanningContentAlignment(alignmentSource(), planningActivities);
       }
-
-      // Re-validar volumen/qualidad y re-medir alineación tras el reintento
-      validation = validateBlockGuideQuality({
-        writerOutputs,
-        subsystem: curriculumContext.subsystem,
-        targetWords: budget.targetWords,
-      });
-      alignmentReport = evaluatePlanningContentAlignment(alignmentSource(), planningActivities);
     }
   }
 
@@ -698,7 +741,8 @@ export async function generateBlockWorkTextbook(
       !alignmentReport.pass ||
       !coverageReport.allSessionsPresent ||
       !coverageReport.withinTargetRange ||
-      fallbackWords > 0,
+      fallbackWords > 0 ||
+      Boolean(signal?.aborted),
     coverData: {
       title: `Cuaderno de Aprendizaje Activo: ${blockName}`,
       subtitle: `Misiones Didácticas Orientadas al Proyecto PAEC Comunitario`,

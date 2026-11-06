@@ -99,6 +99,9 @@ export async function processGenerationJob(
     abortController.abort(new Error(`JOB_MAX_DURATION_SECONDS (${JOB_MAX_DURATION_SECONDS}s) alcanzado`));
   }, JOB_MAX_DURATION_SECONDS * 1000);
 
+  // Presupuesto máximo del orquestador (240s = 270s - 30s) para ensamblar y persistir antes del corte
+  const maxBudgetMs = (JOB_MAX_DURATION_SECONDS - 30) * 1000;
+
   try {
     // Ejecutar el orquestador editorial completo (con persistWorkbook: false para persistencia única)
     const workbook = await generateBlockWorkTextbook(
@@ -109,6 +112,7 @@ export async function processGenerationJob(
         leaseId,
         signal: abortController.signal,
         persistWorkbook: false,
+        maxBudgetMs,
       }
     );
 

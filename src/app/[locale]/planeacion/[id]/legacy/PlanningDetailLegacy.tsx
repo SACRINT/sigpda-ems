@@ -12,6 +12,7 @@ import { generatePlanningPDF, generateSecuenciaPDF } from '@/lib/planning-pdf-re
 import { exportPlanningPdfWithFallback } from '@/lib/planeaciones/strangler-client';
 import { generateBlockSessions, generateCurricularBlockSessions, type DetailedSession } from '@/lib/session-progression-engine';
 import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
+import { resolveWeeklyHours, computeContentBudget } from '@/lib/guide-engine/content-budget';
 import type { ActiveWorkTextbook, GenerationProgressState } from '@/types/work-textbook';
 // ── Lucide Icons ────────────────────────────────────────────────────────────
 import {
@@ -590,8 +591,9 @@ export default function PlanningDetailLegacy({
   ).length;
   const allBlocksGenerated = totalWorkbookBlocks > 0 && generatedWorkbookCount === totalWorkbookBlocks;
 
-  const isBt = isLaboral || (planning.component || '').toLowerCase().includes('laboral') || (planning.component || '').toLowerCase().includes('profesional');
-  const macroTargetWords = isBt ? 25000 : 17500;
+  const weeklyHours = resolveWeeklyHours(planning as any);
+  const blockBudget = computeContentBudget(weeklyHours);
+  const macroTargetWords = blockBudget.targetWords.ideal * totalWorkbookBlocks;
 
   const accumulatedWorkbookWords = workbookBlocks.reduce(
     (acc, idx) => {
@@ -614,7 +616,7 @@ export default function PlanningDetailLegacy({
     return `Bloque ${roman}: pendiente`;
   });
 
-  const semestralThresholdMet = accumulatedWorkbookWords >= macroTargetWords;
+  const semestralThresholdMet = accumulatedWorkbookWords >= blockBudget.targetWords.min * totalWorkbookBlocks;
   const semestralReady = allBlocksGenerated;
 
   // Generate detailed pedagogical sessions for all 3 canonical blocks using Session Progression Engine
@@ -1263,7 +1265,7 @@ export default function PlanningDetailLegacy({
                   {/* Detalle de palabras por bloque */}
                   <div style={{ marginTop: '10px', fontSize: '12px', color: '#cbd5e1', display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
                     <span style={{ fontWeight: 700, color: '#93c5fd' }}>Volumen por bloque:</span>
-                    <span>{blockWordCountDetails.join(' · ')}</span>
+                    <span suppressHydrationWarning>{blockWordCountDetails.join(' · ')}</span>
                     <span style={{
                       fontWeight: 700,
                       color: semestralThresholdMet ? '#34d399' : '#fcd34d',
@@ -1272,7 +1274,7 @@ export default function PlanningDetailLegacy({
                       borderRadius: '10px',
                       border: semestralThresholdMet ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(245, 158, 11, 0.3)',
                     }}>
-                      Total: {accumulatedWorkbookWords.toLocaleString()} / {macroTargetWords.toLocaleString()} palabras ({Math.min(100, Math.round((accumulatedWorkbookWords / macroTargetWords) * 100))}%)
+                      Total: {accumulatedWorkbookWords.toLocaleString()} / {macroTargetWords.toLocaleString()} palabras ({Math.min(100, Math.round((accumulatedWorkbookWords / (macroTargetWords || 1)) * 100))}%)
                     </span>
                   </div>
                 </div>

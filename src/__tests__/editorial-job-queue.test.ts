@@ -393,15 +393,16 @@ describe('Motor Editorial Fase 2 — Pipeline Asíncrono, Worker y Subscription 
   // 5. Preservación de Rutas Legacy de Aula (No-Regresión)
   // ==========================================================================
   describe('5. Preservación de Rutas Legacy de Aula (No-Regresión)', () => {
-    it('el módulo GET /api/pdf/libro-editorial responde 404 si no existe libro', async () => {
+    it('el módulo GET /api/pdf/libro-editorial responde 200 con status idle si no existe libro', async () => {
       vi.mocked(getLatestEditorialBookForPlanning).mockResolvedValueOnce(null);
 
       const req = new NextRequest(`http://localhost:3000/api/pdf/libro-editorial/${planningId}`);
       const res = await GET(req, { params: Promise.resolve({ id: planningId }) });
       const data = await res.json();
 
-      expect(res.status).toBe(404);
-      expect(data.code).toBe('NOT_FOUND');
+      expect(res.status).toBe(200);
+      expect(data.status).toBe('idle');
+      expect(data.downloadUrl).toBeNull();
     });
 
     it('el módulo GET /api/pdf/libro-editorial responde 200 con downloadUrl si existe libro completado', async () => {
