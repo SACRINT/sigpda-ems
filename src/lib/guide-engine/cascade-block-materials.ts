@@ -344,13 +344,10 @@ export async function cascadeBlockMaterials(
       logger.warn(`[cascadeBlockMaterials] Advertencia al obtener el anclaje curricular de ${planningId}:`, ctxErr);
     }
 
-    // 1. Extraer materiales determinísticamente del Libro de Bloque inyectando la secuencia didáctica
-    const extracted = extractMaterialsFromWorkbook(workbook, blockSequence, curricularAnchor);
-    const planes = extracted.planesDeClase || [];
     const blockNum = resolveBlockNumber(blockIndex) ?? (blockIndex + 1);
     const blockTitle = workbook.blockName || `Bloque ${blockNum}`;
 
-    // 1.1 Sincronizar canónicamente plannings.sequence_json desde el libro activo (Fuente Única de Verdad)
+    // 1. Sincronizar canónicamente plannings.sequence_json desde el libro activo (Fuente Única de Verdad)
     try {
       const syncedBlockSeq = buildBlockSequenceFromWorkbook(
         workbook,
@@ -358,6 +355,7 @@ export async function cascadeBlockMaterials(
         blockTitle
       );
       if (syncedBlockSeq && syncedBlockSeq.sessions.length > 0) {
+        blockSequence = syncedBlockSeq;
         await assertLeaseValid('sequence_json');
         await db`
           UPDATE plannings
@@ -376,7 +374,11 @@ export async function cascadeBlockMaterials(
       logger.warn(`[cascadeBlockMaterials] Advertencia al sincronizar sequence_json del bloque ${blockIndex}:`, seqSyncErr);
     }
 
-    // 2. Limpiar registros previos generados automáticamente para este bloque
+    // 2. Extraer materiales determinísticamente del Libro de Bloque inyectando la secuencia didáctica sincronizada
+    const extracted = extractMaterialsFromWorkbook(workbook, blockSequence, curricularAnchor);
+    const planes = extracted.planesDeClase || [];
+
+    // 3. Limpiar registros previos generados automáticamente para este bloque
     // (Permite regeneración idempotente y limpia sin duplicar planes)
     await assertLeaseValid('DELETE planning_extras');
     await db`

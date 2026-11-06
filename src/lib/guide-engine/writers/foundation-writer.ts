@@ -14,7 +14,13 @@ import { generateWithRotation } from '@/lib/ai-provider';
 import { robustJsonParse } from '@/lib/ai-response-parser';
 import { extractWorkbookTags, consolidateWorkbookElements, stripWorkbookTags } from '../workbook-tags';
 import type { MissionSection, WorkbookElement } from '@/types/work-textbook';
-import { type WriterInput, type WriterOutput, evaluateQuality, completeSessionPlans } from './writer-contract';
+import {
+  type WriterInput,
+  type WriterOutput,
+  type FallbackPlanContext,
+  evaluateQuality,
+  completeSessionPlans,
+} from './writer-contract';
 import { buildPlanningAlignmentPrompt } from './planning-alignment-prompt';
 import { logger } from '@/lib/logger';
 import { lintPedagogicalTerminology, FORBIDDEN_PM3_TERMINOLOGY_REGEX } from '../pedagogical-quality-gate';
@@ -24,6 +30,14 @@ export async function generateFoundationMission(input: WriterInput): Promise<Wri
   const foundationMission = input.missions.find((m) => m.missionType === 'foundation') || input.missions[0];
   const coveredSessions = foundationMission ? foundationMission.sessionNumbers : [1, 2];
   const missionTitle = foundationMission ? foundationMission.title : `Misión 1: Fundamentación e Intuición`;
+  const fallbackContext: FallbackPlanContext = {
+    uacName: input.uacName,
+    blockName: input.blockName,
+    sessionTopic: foundationMission?.sessionTopic || 'Fundamentos',
+    sessionFocus: foundationMission?.focus || 'Concepto Cero y Andamiaje',
+    paecContext: input.paecContext,
+    subsystem: input.subsystem,
+  };
 
   const approach = input.subsystem === 'bt' ? 'estándar industrial y tecnológico' : 'indagación científica y dialógica';
   const planningAlignmentChunk = buildPlanningAlignmentPrompt(input.planningActivities, 'foundation', input.uacName) +
@@ -249,7 +263,7 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
       : '';
     const sectionContent = `${parsed.phenomenonStory || ''} ${parsed.detonatingQuestion || ''} ${parsed.physicalAnalogy || ''} ${parsed.coreExplanation || ''} ${cleanIDoDemo} ${cleanWeDoPractice} ${cleanYouDoChallenge} ${formativeText}`.trim();
     const sectionWordCount = sectionContent.split(/\s+/).filter(Boolean).length;
-    const sessionPlans = completeSessionPlans(parsed.sessionPlans, coveredSessions);
+    const sessionPlans = completeSessionPlans(parsed.sessionPlans, coveredSessions, fallbackContext);
     const sessionPlansWords = sessionPlans.reduce((acc, sp) => acc + countSessionPlanWords(sp), 0);
     const totalMissionWords = sectionWordCount + sessionPlansWords;
 
@@ -316,7 +330,7 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
     }
     logger.error('[generateFoundationMission] Error:', err);
     // Fallback de resiliencia estructurado
-    const fallbackPlans = completeSessionPlans([], coveredSessions);
+    const fallbackPlans = completeSessionPlans([], coveredSessions, fallbackContext);
     const fallbackPlansWords = fallbackPlans.reduce((acc, sp) => acc + countSessionPlanWords(sp), 0);
     const fallbackTotalWords = 500 + fallbackPlansWords;
 

@@ -20,7 +20,13 @@ import type {
   MissionSection,
   WorkbookElement,
 } from '@/types/work-textbook';
-import { type WriterInput, type WriterOutput, evaluateQuality, completeSessionPlans } from './writer-contract';
+import {
+  type WriterInput,
+  type WriterOutput,
+  type FallbackPlanContext,
+  evaluateQuality,
+  completeSessionPlans,
+} from './writer-contract';
 import { buildPlanningAlignmentPrompt } from './planning-alignment-prompt';
 import { logger } from '@/lib/logger';
 import { countSessionPlanWords } from '../content-budget';
@@ -29,7 +35,15 @@ export async function generateEvaluationSection(input: WriterInput): Promise<Wri
   const extras = input.existingExtras || {};
   const hasExistingRubric = Boolean(extras.rubric || extras.rubrica);
   const hasExistingChecklist = Boolean(extras.checklist || extras.lista_verificacion);
-  const { coveredSessions } = resolveEvaluationMission(input);
+  const { evalMission, coveredSessions } = resolveEvaluationMission(input);
+  const fallbackContext: FallbackPlanContext = {
+    uacName: input.uacName,
+    blockName: input.blockName,
+    sessionTopic: evalMission?.sessionTopic || 'Demostración Integral y Evaluación Formativa',
+    sessionFocus: evalMission?.focus || 'Evaluación Formativa y Cierre',
+    paecContext: input.paecContext,
+    subsystem: input.subsystem,
+  };
 
   let extrasContext = '';
   if (hasExistingRubric || hasExistingChecklist) {
@@ -281,7 +295,7 @@ Genera los 4 instrumentos oficiales de evaluación NEM Y las ${sessionCount} ses
     };
 
     const missionSection = buildEvaluationMissionSection(input, evaluationSection);
-    const sessionPlans = completeSessionPlans(parsed.sessionPlans, coveredSessions);
+    const sessionPlans = completeSessionPlans(parsed.sessionPlans, coveredSessions, fallbackContext);
     missionSection.sessionPlans = sessionPlans;
     const evalRealText = getEvaluationRealText(evaluationSection);
     const sectionWordCount = evalRealText.split(/\s+/).filter(Boolean).length;
@@ -423,7 +437,7 @@ Genera los 4 instrumentos oficiales de evaluación NEM Y las ${sessionCount} ses
     };
 
     const missionSection = buildEvaluationMissionSection(input, fallbackEval);
-    const fallbackPlans = completeSessionPlans([], coveredSessions);
+    const fallbackPlans = completeSessionPlans([], coveredSessions, fallbackContext);
     const fallbackPlansWords = fallbackPlans.reduce((acc, sp) => acc + countSessionPlanWords(sp), 0);
     const fallbackTotalWords = 450 + fallbackPlansWords;
     missionSection.sessionPlans = fallbackPlans;

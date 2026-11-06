@@ -51,3 +51,5 @@ __pycache__/
 # fuentes JPG de material sin referencia en la app (el asset canonico es el PNG 512x512 en root)
 public/images/materiales/_extras/
 
+
+output/

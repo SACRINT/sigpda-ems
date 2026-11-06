@@ -11,6 +11,7 @@ import type { DetailedSession } from '@/lib/session-progression-engine';
 import type { MissionBlueprint } from '../blueprint-architect-agent';
 import { logger } from '@/lib/logger';
 import { countSessionPlanWords } from '../content-budget';
+import { isMathUAC, validateSessionPlanContamination } from '../cross-contamination-guard';
 import type {
   CanonicalSeed,
   MissionSection,
@@ -363,69 +364,166 @@ export function sanitizeSessionPlans(
 }
 
 /**
- * Genera un plan de sesión formativo completo y de alta densidad pedagógica (~800 palabras)
- * cuando la IA omite una sesión o devuelve contenido insuficiente.
+ * Contexto de la UAC y sesión para generar planes de contingencia (fallback) contextuales,
+ * impidiendo la inyección cruzada de contenidos foráneos (ej. matemáticas en construcción).
  */
-export function buildRichFallbackPlan(sessionNumber: number): SessionPlan {
+export interface FallbackPlanContext {
+  uacName?: string;
+  blockName?: string;
+  sessionTopic?: string;
+  sessionFocus?: string;
+  paecContext?: string;
+  subsystem?: string;
+}
+
+/**
+ * Genera un plan de sesión de contingencia estructurado y contextual (~700-800 palabras)
+ * cuando la IA omite una sesión o devuelve contenido insuficiente.
+ *
+ * REGLA ESTRICTA DE AISLAMIENTO DISCIPLINAR:
+ * Jamás inyecta fórmulas, simulaciones ni ejemplos algebraicos en UACs no matemáticas.
+ * Todo plan generado mediante fallback queda marcado con `isFallback: true`.
+ */
+export function buildContextualFallbackPlan(
+  sessionNumber: number,
+  context?: FallbackPlanContext
+): SessionPlan {
+  const uac = context?.uacName || 'la Unidad de Aprendizaje Curricular';
+  const topic = context?.sessionTopic || context?.blockName || 'los procesos formativos del bloque';
+  const paec = context?.paecContext || 'el proyecto escolar y comunitario';
+  const mathUac = isMathUAC(uac);
+
+  const objetivo = mathUac
+    ? `Al término de la sesión ${sessionNumber}, serás capaz de modelar e interpretar los procesos cuantitativos de ${topic} en el marco de ${uac}, aplicando el razonamiento formal y procedimental correspondiente.`
+    : `Al término de la sesión ${sessionNumber}, serás capaz de analizar y aplicar los principios y procedimientos normativos correspondientes a ${topic} en el marco formativo de ${uac}, vinculando las destrezas técnicas con las necesidades del entorno escolar y comunitario.`;
+
+  const motivacion = mathUac
+    ? `En nuestra región y comunidad escolar, el análisis riguroso de problemáticas situadas requiere herramientas matemáticas para modelar comportamientos dinámicos vinculados a ${paec}. En esta sesión ${sessionNumber}, explorarás cómo los métodos formales permiten tomar decisiones fundamentadas.`
+    : `En la comunidad escolar y su entorno regional, las actividades vinculadas a ${uac} demandan un dominio riguroso de ${topic}. Desarrollar habilidades prácticas y criterios técnicos fundamentados permite responder con precisión, eficiencia y seguridad a las problemáticas identificadas en ${paec}, garantizando resultados duraderos y de calidad profesional.`;
+
+  const saberesPrevios = mathUac
+    ? `Antes de iniciar, reflexiona sobre lo estudiado en las sesiones previas respecto a las magnitudes y relaciones funcionales: ¿cómo identificas las variables clave de un problema y qué representaciones permiten analizar su comportamiento con exactitud?`
+    : `Antes de comenzar las actividades prácticas de la sesión ${sessionNumber}, reflexiona en tu cuaderno de trabajo activo sobre tus experiencias previas y conocimientos adquiridos: ¿Cuáles son las herramientas, materiales y medidas de seguridad esenciales al trabajar con ${topic}? ¿Qué normativas o criterios técnicos deben verificarse antes de dar por aceptado un procedimiento en ${uac}? Redacta tus notas iniciales.`;
+
+  const contenido = mathUac
+    ? `En esta sesión ${sessionNumber}, profundizaremos en los fundamentos conceptuales de ${topic}. Cuando estudiamos fenómenos en el contexto real, analizamos interacciones cuantitativas donde las relaciones estructuradas permiten proyectar tendencias y evaluar alternativas de solución sustentables.\n\nEl tratamiento riguroso de los datos exige delimitar claramente las condiciones de frontera y las restricciones contextuales del problema, asegurando que cada representación gráfica, tabular o analítica mantenga coherencia lógica y pertinencia comunitaria.\n\nAl integrar estos saberes, fortaleces tu pensamiento reflexivo y capacidad de argumentación fundamentada en beneficio del entorno escolar.`
+    : `En esta sesión ${sessionNumber}, profundizaremos en los fundamentos técnicos, criterios normativos y secuencias procedimentales que caracterizan a ${topic}. En toda práctica profesional y de taller en ${uac}, el cumplimiento de tolerancias, la selección adecuada de insumos y el manejo responsable de herramientas constituyen la base para garantizar intervenciones seguras y de alto estándar técnico.\n\nEl desarrollo ordenado de cada procedimiento implica fases claramente delimitadas: la preparación del área de trabajo, la inspección preventiva de los elementos a intervenir, la ejecución metódica siguiendo las especificaciones técnicas o manuales del fabricante, y la verificación funcional inmediata. Omitir cualquiera de estas fases incrementa el riesgo de fallas operativas, retrabajos o accidentes en el área de práctica.\n\nAsimismo, el trabajo en el marco de ${uac} exige considerar el impacto ambiental y social de las intervenciones. El uso eficiente de los recursos, la gestión responsable de residuos y la adopción constante de equipos de protección personal (EPP) reflejan un compromiso ético tanto con la preservación del entorno escolar como con la salud y bienestar de la comunidad.`;
+
+  const ejemploResuelto = mathUac
+    ? `Planteamiento del Caso: Un equipo escolar analiza datos cuantitativos relacionados con ${topic} en el contexto de ${paec}.\n\nPaso 1: Identificación de variables y parámetros observables.\nPaso 2: Registro estructurado y formulación de relaciones iniciales.\nPaso 3: Desarrollo procedimental paso a paso contrastando hipótesis.\nPaso 4: Interpretación cualitativa y cuantitativa de los resultados obtenidos para la toma de decisiones comunitarias.`
+    : `Planteamiento del Caso Práctico: Un equipo de trabajo debe realizar la intervención y diagnóstico operativo correspondiente a ${topic} en el contexto de ${uac}, atendiendo una solicitud formativa vinculada a ${paec}.\n\nPaso 1: Diagnóstico inicial e inspección de condiciones. Se realiza el reconocimiento visual y técnico del área de trabajo, verificando la ausencia de riesgos inmediatos, la disponibilidad de los insumos requeridos para ${topic} y el uso obligatorio del equipo de protección personal normativo.\n\nPaso 2: Selección y preparación de herramientas e insumos. Se eligen las herramientas específicas y los materiales estandarizados, comprobando que las especificaciones de resistencia, dimensión y compatibilidad técnica cumplan los requerimientos del procedimiento.\n\nPaso 3: Ejecución controlada del procedimiento técnico. Siguiendo la secuencia metodológica establecida, se lleva a cabo la maniobra técnica cuidando la alineación, fijación, ajuste o conexión precisa de cada elemento sin forzar los componentes mecánicos ni alterar las tolerancias admisibles.\n\nPaso 4: Pruebas de verificación, control de calidad y bitácora. Se aplican las pruebas de funcionamiento y estanqueidad o estabilidad correspondientes, constatando que no existan fallas, fugas ni holguras indebidas. Se asienta el resultado en la bitácora técnica de obra con firma de supervisión y fecha formal.`;
+
+  const practica: PracticaItem[] = mathUac
+    ? [
+        {
+          enunciado: `Ejercicio 1: Analiza un conjunto de datos contextuales de tu comunidad vinculados a ${topic} y determina la tendencia o relación observable.`,
+          pista: `Organiza la información en una tabla de doble entrada para facilitar la comparación entre los valores.`,
+          solucion: [
+            'Paso 1: Organización y ordenamiento de los datos en tabla estructurada.',
+            'Paso 2: Comparación de variaciones relativas entre observaciones consecutivas.',
+            'Paso 3: Deducción de conclusiones fundamentadas en los datos analizados.',
+          ],
+        },
+        {
+          enunciado: `Ejercicio 2: Propón una formulación cuantitativa que permita estimar el comportamiento de ${topic} ante un incremento del 20% en la demanda comunitaria.`,
+          pista: `Aplica proporcionalidad directa considerando las restricciones del entorno escolar.`,
+          solucion: [
+            'Paso 1: Identificación del factor de escala (1.20).',
+            'Paso 2: Aplicación del factor a las cantidades base del problema.',
+            'Paso 3: Verificación de viabilidad y redacción del reporte formal.',
+          ],
+        },
+      ]
+    : [
+        {
+          enunciado: `Ejercicio 1: Elabora un diagrama de flujo procedimental para la intervención en ${topic}, detallando la secuencia de 4 pasos técnicos obligatorios y los puntos críticos de inspección de seguridad en ${uac}.`,
+          pista: `Revisa la secuencia desde la preparación del área de trabajo y selección de herramientas hasta la verificación final y registro en bitácora.`,
+          solucion: [
+            'Paso 1: Inspección de seguridad y delimitación del área con EPP completo.',
+            'Paso 2: Selección y calibración de herramientas y materiales normativos.',
+            'Paso 3: Ejecución técnica controlada siguiendo especificaciones.',
+            'Paso 4: Prueba funcional de control de calidad y entrega formal con bitácora.',
+          ],
+        },
+        {
+          enunciado: `Ejercicio 2: Identifica dos posibles fallas o defectos comunes que pueden presentarse durante el manejo de ${topic} en ${uac}, explicando la causa raíz técnica y la acción correctiva preventiva inmediata.`,
+          pista: `Considera errores en el ajuste de uniones, desgaste de herramientas, omisión de pruebas de hermeticidad o falta de limpieza en las superficies.`,
+          solucion: [
+            'Defecto A: Holgura o desalineación por apriete desigual; corrección: verificación con nivel y ajuste progresivo en cruz.',
+            'Defecto B: Fuga o pérdida de estanqueidad por impurezas en la unión; corrección: limpieza minuciosa y reemplazo de sellos normativos.',
+            'Conclusión: El control preventivo evita retrabajos y garantiza la vida útil de la instalación.',
+          ],
+        },
+      ];
+
+  const aplicacion = mathUac
+    ? `Aplica los principios analizados a una problemática real de tu entorno escolar: recolecta datos cuantitativos sobre el uso de recursos y elabora una propuesta fundamentada para optimizar su distribución en ${paec}.`
+    : `Aplica lo analizado a tu entorno escolar o comunitario: inspecciona un área o instalación donde se requiera aplicar criterios técnicos de ${topic}. Registra en tu cuaderno las observaciones de campo, el estado actual de los elementos y redacta una propuesta de mejora o mantenimiento preventivo con enfoque de beneficio comunitario para ${paec}.`;
+
+  const autoevaluacion = mathUac
+    ? [
+        `¿Puedo explicar con claridad y rigor formal los conceptos abordados en esta sesión?`,
+        `¿Fui capaz de resolver los ejercicios de análisis de manera ordenada y autónoma?`,
+        `¿Registré las evidencias, desarrollos y conclusiones en mi cuaderno de trabajo activo con fecha formal?`,
+      ]
+    : [
+        `¿Comprendo la secuencia técnica y las medidas de seguridad requeridas para intervenir en ${topic}?`,
+        `¿Puedo identificar las herramientas adecuadas y justificar su uso conforme a especificaciones técnicas?`,
+        `¿Consigné en mi cuaderno activo las observaciones, diagramas y conclusiones con rigor y limpieza?`,
+      ];
+
+  const recursos: RecursoItem[] = [
+    {
+      titulo: `Guía formativa y criterios normativos aplicables a ${uac}`,
+      url: `https://educacionmediasuperior.sep.gob.mx`,
+      tipo: `web`,
+    },
+    {
+      titulo: `Manual de buenas prácticas y seguridad técnica en el taller escolar`,
+      url: `https://www.gob.mx/sep`,
+      tipo: `web`,
+    },
+  ];
+
+  const productoIntegrador = `Para tu portafolio y proyecto comunitario PAEC (${paec}), elabora la ficha técnica de la sesión ${sessionNumber}: incluye el reporte de actividades de ${topic}, la lista de verificación de calidad y una justificación técnica sobre la relevancia de este proceso para ${uac}.`;
+
   return {
     sessionNumber,
-    objetivo: `Al término de la sesión ${sessionNumber}, serás capaz de modelar e interpretar los fenómenos de variación y cambio cuantitativo en problemáticas situadas de tu comunidad, aplicando las propiedades algebraicas y analíticas pertinentes con rigor procedimental.`,
-    motivacion: `En una comunidad de nuestra región de Puebla, un comité comunitario analiza el comportamiento dinámico de los recursos locales y los factores de bienestar social. Para tomar decisiones informadas, necesitan identificar con precisión cómo cambia una magnitud respecto al tiempo o a variables de demanda. En esta sesión ${sessionNumber}, descubrirás cómo las herramientas formales te permiten comprender y proponer alternativas de solución viables para tu entorno escolar y social.`,
-    saberesPrevios: `Antes de iniciar, reflexiona sobre lo estudiado en las sesiones previas respecto a las magnitudes constantes y variables. Responde en tu cuaderno activo: ¿qué diferencia una razón de cambio constante de una variable? ¿Cómo identificas si un modelo lineal o no lineal describe adecuadamente una situación real? Escribe tus conclusiones iniciales.`,
-    contenido: `En esta sesión ${sessionNumber}, profundizaremos en el análisis sistemático de la variación y su formalización analítica. Cuando estudiamos fenómenos en la naturaleza o en la sociedad, observamos que las variables rara vez permanecen estáticas; interactúan mediante dependencias funcionales donde el incremento o decremento de una variable independiente genera una respuesta cuantificable en la variable dependiente.\n\nPara caracterizar este comportamiento con rigor científico, definimos formalmente la tasa de variación media como el cociente entre el cambio observado en la magnitud dependiente y el cambio en la variable de control, expresado matemáticamente como delta y entre delta x. Esta relación nos permite no solo describir el estado actual de un sistema, sino también proyectar tendencias futuras y estimar puntos críticos de estabilidad o riesgo.\n\nAsimismo, es indispensable verificar las restricciones del dominio y del codominio en el contexto real. Por ejemplo, variables como tiempo, población, concentración o volumen poseen fronteras físicas que delimitan la validez del modelo matemático, impidiendo valores negativos o discontinuidades no interpretables. Al dominar estas herramientas, adquieres la capacidad de construir representaciones tabulares, gráficas y algebraicas coherentes que fundamentan tus propuestas comunitarias.`,
-    ejemploResuelto: `Planteamiento: Un equipo de trabajo monitorea el consumo y la distribución de agua potable en un módulo escolar comunitario. Se registra que al inicio de la jornada (t = 0 h) la reserva contiene 1,200 litros, y tras 4 horas de uso controlado (t = 4 h) el volumen desciende a 720 litros siguiendo una tasa de variación constante.\n\nPaso 1: Identificación de datos y variables. Variable independiente: tiempo transcurrido en horas (t). Variable dependiente: volumen de reserva en litros, V(t). Puntos de observación: P1(0, 1200) y P2(4, 720).\n\nPaso 2: Cálculo de la tasa de variación. Aplicamos el cociente incremental: m = (720 - 1200) / (4 - 0) = -480 / 4 = -120 litros por hora. El signo negativo indica una pérdida o consumo continuo a razón de 120 L/h.\n\nPaso 3: Construcción de la ecuación de balance. La función lineal correspondiente es V(t) = 1200 - 120t, válida para el intervalo donde V(t) >= 0.\n\nPaso 4: Determinación del tiempo de agotamiento. Igualando V(t) = 0: 0 = 1200 - 120t, lo que implica 120t = 1200, obteniendo t = 10 horas. Conclusión: La reserva se agotará exactamente en 10 horas si el ritmo de demanda se mantiene constante, lo que permite programar la recarga comunitaria antes de la sexta hora para evitar el desabasto.`,
-    practica: [
-      {
-        enunciado: `Ejercicio 1: Un comité escolar registra el ahorro acumulado para la compra de filtros de agua. En la semana 2 tienen acumulados $1,850 pesos y en la semana 6 cuentan con $4,250 pesos bajo aportaciones semanales fijas. Modela algebraicamente la función de ahorro S(t), calcula la aportación semanal y determina en qué semana alcanzarán la meta de $7,250 pesos.`,
-        pista: `Calcula la razón de cambio entre los puntos (2, 1850) y (6, 4250). Luego utiliza la forma punto-pendiente para establecer la ecuación de la recta y despejar el valor del tiempo t.`,
-        solucion: [
-          'Paso 1: m = (4250 - 1850) / (6 - 2) = 2400 / 4 = 600 pesos por semana.',
-          'Paso 2: Ecuación S(t) = 1850 + 600(t - 2) = 600t + 650.',
-          'Paso 3: Igualar a 7250: 600t + 650 = 7250 -> 600t = 6600 -> t = 11 semanas.',
-          'Respuesta final: La aportación semanal es de $600 pesos y la meta se alcanzará en la semana 11.',
-        ],
-      },
-      {
-        enunciado: `Ejercicio 2: Durante una campaña de reciclaje en el plantel, se recolectan 45 kg de PET el primer día y se observa un incremento sostenido de 12 kg diarios adicionales durante los siguientes 8 días. Construye la tabla de valores de los primeros 5 días y escribe la regla de correspondencia que modela la recolección acumulada.`,
-        pista: `Identifica la condición inicial y suma el incremento diario constante para cada día consecutivo, verificando la relación entre el número de días transcurridos y el total acopiado.`,
-        solucion: [
-          'Paso 1: Día 1 = 45 kg, Día 2 = 57 kg, Día 3 = 69 kg, Día 4 = 81 kg, Día 5 = 93 kg.',
-          'Paso 2: Regla de correspondencia lineal: R(d) = 45 + 12(d - 1) = 12d + 33 kg.',
-          'Respuesta final: El modelo es R(d) = 12d + 33 kg con crecimiento lineal uniforme.',
-        ],
-      },
-    ],
-    aplicacion: `Lleva lo aprendido a tu hogar o comunidad escolar: identifica una magnitud variable susceptible de medición semanal (consumo de energía eléctrica, uso de gas doméstico o generación de residuos sólidos). Registra al menos tres mediciones consecutivas, calcula la variación observada y formula una propuesta cuantitativa para hacer más eficiente el consumo de dicho recurso en tu entorno.`,
-    autoevaluacion: [
-      `¿Puedo explicar con claridad y rigor conceptual el significado de una tasa de variación en un fenómeno real?`,
-      `¿Fui capaz de resolver los ejercicios de práctica de manera autónoma siguiendo un procedimiento matemático ordenado?`,
-      `¿Registré las evidencias, fórmulas y conclusiones en mi cuaderno de trabajo activo con fecha y presentación formal?`,
-    ],
-    recursos: [
-      {
-        titulo: `Simulación interactiva de razones de cambio y modelación lineal`,
-        url: `https://phet.colorado.edu/es/simulations/graphing-lines`,
-        tipo: `web`,
-      },
-      {
-        titulo: `Video tutorial: Aplicación de modelos funcionales en situaciones comunitarias`,
-        url: `https://www.youtube.com/results?search_query=pensamiento+variacional+modelacion+lineal+bachillerato`,
-        tipo: `video`,
-      },
-    ],
-    productoIntegrador: `Para tu portafolio y proyecto comunitario PAEC, integra la ficha técnica de la sesión ${sessionNumber}: incluye el modelo algebraico validado, la gráfica de variación correspondiente y un párrafo de interpretación cualitativa sobre el impacto social de los resultados obtenidos.`,
+    objetivo,
+    motivacion,
+    saberesPrevios,
+    contenido,
+    ejemploResuelto,
+    practica,
+    aplicacion,
+    autoevaluacion,
+    recursos,
+    productoIntegrador,
+    isFallback: true,
   };
 }
+
+/**
+ * Alias de compatibilidad hacia atrás para `buildContextualFallbackPlan`.
+ */
+export const buildRichFallbackPlan = (
+  sessionNumber: number,
+  context?: FallbackPlanContext
+): SessionPlan => buildContextualFallbackPlan(sessionNumber, context);
 
 /**
  * Garantía de cobertura total de sesiones (anti "36 vs 72").
  *
  * Devuelve SIEMPRE un plan por cada sesión cubierta: primero sanitiza lo que la IA
  * respondió y luego completa las sesiones faltantes (IA que omitió planes o writer
- * en fallback de error) con planes genéricos enriquecidos en voz de estudiante, registrando un
- * warning en el log. Nunca se descarta una sesión en silencio.
+ * en fallback de error) con planes contextuales específicos de la UAC, registrando un
+ * warning en el log. Todo plan completado mediante fallback queda marcado con `isFallback: true`.
  */
-export function completeSessionPlans(raw: unknown, coveredSessions: number[]): SessionPlan[] {
+export function completeSessionPlans(
+  raw: unknown,
+  coveredSessions: number[],
+  context?: FallbackPlanContext
+): SessionPlan[] {
   if (coveredSessions.length === 0) return [];
 
   const sanitized = sanitizeSessionPlans(raw, coveredSessions) ?? [];
@@ -446,10 +544,10 @@ export function completeSessionPlans(raw: unknown, coveredSessions: number[]): S
 
   if (missing.length > 0) {
     logger.warn(
-      `[writer-contract] sessionPlans incompletos: faltan las sesiones ${missing.join(', ')} de ${coveredSessions.join(', ')}. Completando con planes pedagógicos calibrados.`
+      `[writer-contract] sessionPlans incompletos: faltan las sesiones ${missing.join(', ')} de ${coveredSessions.join(', ')}. Completando con planes contextuales de ${context?.uacName || 'la UAC'}.`
     );
     for (const n of missing) {
-      const fbPlan = buildRichFallbackPlan(n);
+      const fbPlan = buildContextualFallbackPlan(n, context);
       fbPlan.isFallback = true;
       plans.push(fbPlan);
     }
@@ -461,15 +559,21 @@ export function completeSessionPlans(raw: unknown, coveredSessions: number[]): S
 export const FALLBACK_SIGNATURE_SNIPPET = 'profundizaremos en el análisis sistemático de la variación';
 
 /**
- * Detecta y cuantifica de forma determinista cualquier palabra proveniente de fallback o relleno sintético.
+ * Detecta y cuantifica de forma determinista cualquier palabra proveniente de fallback o relleno sintético,
+ * así como contaminación cruzada matemática en UACs no matemáticas.
  */
-export function detectFallbackWords(sessions: SessionPlan[]): number {
+export function detectFallbackWords(sessions: SessionPlan[], uacName?: string): number {
   let fallbackWords = 0;
   for (const plan of sessions) {
     if (plan.isFallback) {
       fallbackWords += countSessionPlanWords(plan);
     } else if (plan.contenido && plan.contenido.includes(FALLBACK_SIGNATURE_SNIPPET)) {
-      fallbackWords += buildRichFallbackPlan(plan.sessionNumber).contenido.split(/\s+/).filter(Boolean).length;
+      fallbackWords += countSessionPlanWords(plan);
+    } else if (uacName && !isMathUAC(uacName)) {
+      const issues = validateSessionPlanContamination(plan, uacName);
+      if (issues.length > 0) {
+        fallbackWords += countSessionPlanWords(plan);
+      }
     }
   }
   return fallbackWords;

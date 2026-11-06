@@ -53,6 +53,7 @@ import {
   corpusCoversTerm,
 } from './planning-content-alignment';
 import { completeSessionPlans, detectFallbackWords, type WriterInput, type WriterOutput, type PlanningActivities } from './writers/writer-contract';
+import { validateBlockCrossContamination } from './cross-contamination-guard';
 import type {
   ActiveWorkTextbook,
   CanonicalSeed,
@@ -695,7 +696,7 @@ export async function generateBlockWorkTextbook(
   ).sort((a, b) => a - b);
 
   const allSessionPlans = missions.flatMap((m) => m.sessionPlans || []);
-  const fallbackWords = detectFallbackWords(allSessionPlans);
+  const fallbackWords = detectFallbackWords(allSessionPlans, planning.uacName);
   const aiWords = Math.max(0, totalWords - fallbackWords);
 
   const coverageReport = validateSessionCoverage({
@@ -708,6 +709,14 @@ export async function generateBlockWorkTextbook(
     fallbackWords,
     budget,
   });
+
+  const crossContaminationReport = validateBlockCrossContamination(missions, planning.uacName);
+  if (!crossContaminationReport.clean) {
+    logger.warn(`[Orchestrator] Contaminación cruzada detectada en bloque ${blockIndex}: ${crossContaminationReport.summary}`, {
+      issues: crossContaminationReport.issues,
+    });
+    validation.accepted = false;
+  }
 
   const activeWorkTextbook: ActiveWorkTextbook = {
     id: `wtb-${planningId}-b${blockIndex}`,
@@ -742,6 +751,7 @@ export async function generateBlockWorkTextbook(
       !coverageReport.allSessionsPresent ||
       !coverageReport.withinTargetRange ||
       fallbackWords > 0 ||
+      !crossContaminationReport.clean ||
       Boolean(signal?.aborted),
     coverData: {
       title: `Cuaderno de Aprendizaje Activo: ${blockName}`,
@@ -929,7 +939,14 @@ function createEmergencyFallbackOutput(
     Array.isArray(emergencyMission?.sessionNumbers) && emergencyMission.sessionNumbers.length > 0
       ? emergencyMission.sessionNumbers
       : [1, 2];
-  const fallbackPlans = completeSessionPlans([], coveredSessions);
+  const fallbackPlans = completeSessionPlans([], coveredSessions, {
+    uacName: input.uacName,
+    blockName: input.blockName,
+    sessionTopic: emergencyMission?.sessionTopic || input.uacName,
+    sessionFocus: emergencyMission?.focus || 'Desarrollo de competencias esenciales',
+    paecContext: input.paecContext,
+    subsystem: input.subsystem,
+  });
   const fallbackPlansWords = fallbackPlans.reduce((acc, sp) => acc + countSessionPlanWords(sp), 0);
   const totalEmergencyWords = 500 + fallbackPlansWords;
 

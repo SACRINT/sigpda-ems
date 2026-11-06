@@ -13,7 +13,13 @@
 import { generateWithRotation } from '@/lib/ai-provider';
 import { robustJsonParse } from '@/lib/ai-response-parser';
 import type { MissionSection, ProjectSection, WorkbookElement } from '@/types/work-textbook';
-import { type WriterInput, type WriterOutput, evaluateQuality, completeSessionPlans } from './writer-contract';
+import {
+  type WriterInput,
+  type WriterOutput,
+  type FallbackPlanContext,
+  evaluateQuality,
+  completeSessionPlans,
+} from './writer-contract';
 import { buildPlanningAlignmentPrompt } from './planning-alignment-prompt';
 import { logger } from '@/lib/logger';
 import { countSessionPlanWords } from '../content-budget';
@@ -30,6 +36,14 @@ export async function generateProjectMission(input: WriterInput): Promise<Writer
     ? projectMission.sessionNumbers
     : [Math.max(1, input.sessions.length - 3), Math.max(2, input.sessions.length - 2)];
   const missionTitle = projectMission ? projectMission.title : `Misión 3: Construcción del Artefacto Real`;
+  const fallbackContext: FallbackPlanContext = {
+    uacName: input.uacName,
+    blockName: input.blockName,
+    sessionTopic: projectMission?.sessionTopic || 'Construcción del Artefacto Real',
+    sessionFocus: projectMission?.focus || 'Construcción del artefacto e integración socioproductiva',
+    paecContext: input.paecContext,
+    subsystem: input.subsystem,
+  };
 
   const planningAlignmentChunk = buildPlanningAlignmentPrompt(input.planningActivities, 'project', input.uacName) +
   (input.alignmentDirective ? ` 
@@ -312,7 +326,7 @@ Redacta la Misión del Proyecto, la Construcción del Artefacto Real Y las ${ses
     const criteriaText = Array.isArray(projectSection.acceptanceCriteria) ? projectSection.acceptanceCriteria.join(' ') : '';
     const fullText = `${projectSection.artifactName}\n${projectSection.communityUtility}\n${phasesText}\n${autonomousChallenge}\n${specsText}\n${criteriaText}\n${rubricText}`;
     const sectionWordCount = fullText.split(/\s+/).filter(Boolean).length;
-    const sessionPlans = completeSessionPlans(parsed.sessionPlans, coveredSessions);
+    const sessionPlans = completeSessionPlans(parsed.sessionPlans, coveredSessions, fallbackContext);
     const sessionPlansWords = sessionPlans.reduce((acc, sp) => acc + countSessionPlanWords(sp), 0);
     const totalMissionWords = sectionWordCount + sessionPlansWords;
 
@@ -380,7 +394,7 @@ Redacta la Misión del Proyecto, la Construcción del Artefacto Real Y las ${ses
     }
     logger.error('[generateProjectMission] Error:', err);
     // Fallback estructurado de proyecto
-    const fallbackPlans = completeSessionPlans([], coveredSessions);
+    const fallbackPlans = completeSessionPlans([], coveredSessions, fallbackContext);
     const fallbackPlansWords = fallbackPlans.reduce((acc, sp) => acc + countSessionPlanWords(sp), 0);
     const fallbackTotalWords = 500 + fallbackPlansWords;
 

@@ -14,7 +14,13 @@ import { generateWithRotation } from '@/lib/ai-provider';
 import { robustJsonParse } from '@/lib/ai-response-parser';
 import { extractWorkbookTags, consolidateWorkbookElements, stripWorkbookTags } from '../workbook-tags';
 import type { MissionSection, WorkbookElement, TroubleshootItem } from '@/types/work-textbook';
-import { type WriterInput, type WriterOutput, evaluateQuality, completeSessionPlans } from './writer-contract';
+import {
+  type WriterInput,
+  type WriterOutput,
+  type FallbackPlanContext,
+  evaluateQuality,
+  completeSessionPlans,
+} from './writer-contract';
 import { buildPlanningAlignmentPrompt } from './planning-alignment-prompt';
 import { logger } from '@/lib/logger';
 import { countSessionPlanWords } from '../content-budget';
@@ -23,6 +29,14 @@ export async function generateLabMission(input: WriterInput): Promise<WriterOutp
   const labMission = input.missions.find((m) => m.missionType === 'lab') || input.missions[1] || input.missions[0];
   const coveredSessions = labMission ? labMission.sessionNumbers : [3, 4, 5];
   const missionTitle = labMission ? labMission.title : `Misión 2: Laboratorio y Taller Experimental`;
+  const fallbackContext: FallbackPlanContext = {
+    uacName: input.uacName,
+    blockName: input.blockName,
+    sessionTopic: labMission?.sessionTopic || 'Práctica de Laboratorio',
+    sessionFocus: labMission?.focus || 'Destrezas prácticas y procedimentales',
+    paecContext: input.paecContext,
+    subsystem: input.subsystem,
+  };
 
   // Construir contexto de semilla canónica si existe
   let seedPromptChunk = '';
@@ -275,7 +289,7 @@ Redacta la Misión Práctica de Laboratorio/Taller Y las ${sessionCount} sesione
     }));
 
     const sectionWordCount = fullText.split(/\s+/).filter(Boolean).length;
-    const sessionPlans = completeSessionPlans(parsed.sessionPlans, coveredSessions);
+    const sessionPlans = completeSessionPlans(parsed.sessionPlans, coveredSessions, fallbackContext);
     const sessionPlansWords = sessionPlans.reduce((acc, sp) => acc + countSessionPlanWords(sp), 0);
     const totalMissionWords = sectionWordCount + sessionPlansWords;
 
@@ -350,7 +364,7 @@ Redacta la Misión Práctica de Laboratorio/Taller Y las ${sessionCount} sesione
     }
     logger.error('[generateLabMission] Error:', err);
     // Fallback estructurado de laboratorio
-    const fallbackPlans = completeSessionPlans([], coveredSessions);
+    const fallbackPlans = completeSessionPlans([], coveredSessions, fallbackContext);
     const fallbackPlansWords = fallbackPlans.reduce((acc, sp) => acc + countSessionPlanWords(sp), 0);
     const fallbackTotalWords = 600 + fallbackPlansWords;
 
