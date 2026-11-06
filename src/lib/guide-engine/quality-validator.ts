@@ -105,13 +105,14 @@ export function validateBlockGuideQuality(input: QualityValidatorInput): Quality
       `Extensión insuficiente (${totalWordCount}/${minRequiredWords} palabras). Se programa reintento del redactor con menor puntaje.`
     );
 
-    // Encontrar el redactor con menor puntaje
-    const sortedByScore = [...input.writerOutputs].sort(
-      (a, b) => a.qualityScore - b.qualityScore
+    // Priorizar reintentos en orden de menor volumen de palabras generado
+    const sortedByWords = [...input.writerOutputs].sort(
+      (a, b) => (a.wordCount || 0) - (b.wordCount || 0)
     );
-    const lowest = sortedByScore[0];
-    if (lowest && !retryableWriters.includes(lowest.type)) {
-      retryableWriters.push(lowest.type);
+    for (const w of sortedByWords) {
+      if (!retryableWriters.includes(w.type)) {
+        retryableWriters.push(w.type);
+      }
     }
   } else {
     // totalWordCount >= minRequiredWords

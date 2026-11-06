@@ -1895,7 +1895,7 @@ function drawPracticeTasksWithDottedLines(
     .map((t) => sanitizePdfText(stripMarkdown(t)).trim())
     .filter((t) => t.length > 5);
 
-  const selectedTasks = validTasks.slice(0, Math.min(Math.max(3, defaultTaskCount), 4));
+  const selectedTasks = validTasks;
   if (selectedTasks.length === 0) {
     const cleanRaw = sanitizePdfText(stripMarkdown(rawText)).trim();
     if (!cleanRaw) return y;
@@ -2159,40 +2159,40 @@ function drawSingleTaskWithDottedLines(
     clampTextWidth(drawWidth, drawWidth, 8)
   );
   setFontBody(doc, 'normal');
-  doc.setFontSize(6.8);
+  doc.setFontSize(6.6);
   const pistaLines = cleanPista
     ? doc.splitTextToSize(`Pista: ${cleanPista}`, clampTextWidth(drawWidth, drawWidth, 10))
     : [];
-  const neededH = taskLines.length * 3.8 + pistaLines.length * 3.0 + 11;
+  const neededH = taskLines.length * 3.3 + pistaLines.length * 2.6 + 8;
   y = checkSpace(y, neededH);
 
   setFontBody(doc, 'bold');
-  doc.setFontSize(7.8);
+  doc.setFontSize(7.6);
   doc.setTextColor(...DARK_TEXT);
   taskLines.forEach((tl: string, i: number) => {
-    doc.text(tl, margin + 2, y + i * 3.8);
+    doc.text(tl, margin + 2, y + i * 3.3);
   });
-  y += taskLines.length * 3.8 + 1.5;
+  y += taskLines.length * 3.3 + 1.0;
 
   if (pistaLines.length > 0) {
     setFontBody(doc, 'normal');
-    doc.setFontSize(6.8);
+    doc.setFontSize(6.6);
     doc.setTextColor(100, 116, 139);
     pistaLines.forEach((pl: string, i: number) => {
-      doc.text(pl, margin + 6, y + i * 3.0);
+      doc.text(pl, margin + 6, y + i * 2.6);
     });
-    y += pistaLines.length * 3.0 + 1.5;
+    y += pistaLines.length * 2.6 + 1.0;
   }
 
   doc.setDrawColor(203, 213, 225);
   doc.setLineWidth(0.3);
   doc.setLineDashPattern([1, 1.5], 0);
 
-  y += 3.0;
+  y += 2.2;
   doc.line(margin + 6, y, margin + drawWidth, y);
 
   doc.setLineDashPattern([], 0);
-  return y + 2.0;
+  return y + 1.2;
 }
 
 async function drawMission(
@@ -2390,21 +2390,21 @@ async function drawMission(
       if (!visual) return curY;
       const img = await svgToPngBuffer(visual.svg);
       if (!img) return curY;
-      const imgW = Math.min(52, mainW * 0.50);
-      const imgH = imgW * 0.38;
-      let ny = checkSpace(curY, imgH + 5);
+      const imgW = Math.min(34, mainW * 0.34);
+      const imgH = imgW * 0.25;
+      let ny = checkSpace(curY, imgH + 3.5);
       const imgX = margin + (mainW - imgW) / 2;
       addMainFlowImage(img.buffer, img.format, imgX, ny, imgW, imgH);
       if (visual.annotations && visual.annotations.length > 0) {
         drawVisualAnnotations(doc, visual.annotations, imgX, ny, imgW, imgH);
       }
-      ny += imgH + 1.5;
+      ny += imgH + 1.0;
       setFontCaption(doc);
-      doc.setFontSize(6.8);
+      doc.setFontSize(6.4);
       doc.setTextColor(...MUTED_TEXT);
       const capLines = doc.splitTextToSize(`Figura S${sNum} - ${topic}`, mainW * 0.88);
       doc.text(capLines, margin + mainW / 2, ny, { align: 'center' });
-      ny += capLines.length * 2.5 + 1.5;
+      ny += capLines.length * 2.2 + 1.0;
       return ny;
     } catch (sessionFigureErr) {
       logger.warn('[pdf-workbook] Figura de sesión omitida:', { error: String(sessionFigureErr) });
@@ -2435,9 +2435,9 @@ async function drawMission(
     // humana del catálogo (mismo texto que imprime el plan de clase).
     plan = plan ? stripMaterialTokensDeep(plan) : plan;
     const para = (text: string): number =>
-      flow.printMainParagraph(sanitizePdfText(stripMarkdown(text)), y, { size: 6.8, lineHeight: 3.3, paragraphSpacing: 1.4, justify: true, parseParagraphs: true });
+      flow.printMainParagraph(sanitizePdfText(stripMarkdown(text)), y, { size: 6.7, lineHeight: 3.10, paragraphSpacing: 0.8, justify: true, parseParagraphs: true });
     const lead = (l: string, t: string): number =>
-      flow.printMainParagraph(`${sanitizePdfText(stripMarkdown(l))} ${sanitizePdfText(stripMarkdown(t))}`, y, { size: 6.8, lineHeight: 3.3, paragraphSpacing: 1.4, justify: true });
+      flow.printMainParagraph(`${sanitizePdfText(stripMarkdown(l))} ${sanitizePdfText(stripMarkdown(t))}`, y, { size: 6.7, lineHeight: 3.10, paragraphSpacing: 0.8, justify: true });
 
     // ── EMPIEZA AQUÍ (~10 min) ──
     y = printSessionPhaseLabel(flow, 'EMPIEZA AQUI · Objetivo y motivacion (~10 min)', phaseColor, y);
@@ -3680,20 +3680,20 @@ function drawProjectSection(
     });
     y += boxHeight + 4;
 
-    // Tabla de registro de bitácora y firmas de asesoría docente (hitos clave de proyecto)
-    const effectiveSessions = (sessionList && sessionList.length > 5)
-      ? [1, Math.round(sessionList.length * 0.33), Math.round(sessionList.length * 0.66), sessionList[sessionList.length - 1]]
-      : (sessionList && sessionList.length > 0 ? sessionList : [1, 2, 3, 4]);
+    // Tabla de registro de bitácora y firmas de asesoría docente
+    const effectiveSessions = (sessionList && sessionList.length > 0)
+      ? sessionList
+      : [1, 2, 3, 4, 5];
 
-    y = ensureVerticalSpace(doc, y, 26, margin, pageHeight);
+    y = ensureVerticalSpace(doc, y, 32, margin, pageHeight);
     autoTable(doc, {
       startY: y,
       margin: { left: margin, right: margin },
-      head: [['Hito / Sesión', 'Actividad Procedimental Desarrollada', 'Evidencia Obtenida', 'Firma y Sello Docente']],
-      body: effectiveSessions.map((s, idx) => [`Hito ${idx + 1} (Sesión ${s})`, ' ', ' ', ' ']),
+      head: [['Sesión / Fecha', 'Actividad Procedimental Desarrollada', 'Evidencia Obtenida', 'Firma y Sello Docente']],
+      body: effectiveSessions.map((s) => [`Sesión ${s}: ___/___/2026`, ' ', ' ', ' ']),
       theme: 'grid',
       headStyles: { fillColor: MID_BLUE, textColor: [255, 255, 255], fontSize: 6.8, fontStyle: 'bold' },
-      styles: { fontSize: 6.4, minCellHeight: 5.5, cellPadding: 1.2, textColor: DARK_TEXT },
+      styles: { fontSize: 6.2, minCellHeight: 4.8, cellPadding: 0.8, textColor: DARK_TEXT },
       columnStyles: {
         0: { cellWidth: 35 },
         1: { cellWidth: 'auto' },

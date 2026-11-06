@@ -244,9 +244,10 @@ export function countSessionPlanWords(plan: {
  * (20,250 a 22,500 palabras) con tolerancia editorial máxima de ±2% por oscilaciones de tokenización.
  */
 export function validateSessionCoverage(params: {
-  sessions: Array<{ sessionNumber: number }>;
+  sessions: Array<{ sessionNumber: number; isFallback?: boolean }>;
   expectedSessionsCount: number;
   totalWords: number;
+  fallbackWords?: number;
   budget: ContentBudget;
 }): {
   allSessionsPresent: boolean;
@@ -257,8 +258,12 @@ export function validateSessionCoverage(params: {
   totalPages: number;
   pagesDelta: number;
   wordsDelta: number;
+  aiWords: number;
+  fallbackWords: number;
 } {
   const { sessions, expectedSessionsCount, totalWords, budget } = params;
+  const fallbackWords = params.fallbackWords ?? 0;
+  const aiWords = Math.max(0, totalWords - fallbackWords);
 
   const presentNumbers = new Set(sessions.map((s) => s.sessionNumber));
   const sessionsCovered = presentNumbers.size;
@@ -267,28 +272,38 @@ export function validateSessionCoverage(params: {
   const averageWordsPerSession = sessionsCovered > 0 ? Math.round(totalWords / sessionsCovered) : 0;
   const totalPages = Math.max(1, Math.round(totalWords / WORDS_PER_PAGE));
 
-  // Gate editorial estricto: estrictamente dentro del rango de palabras [min, max] (para 3h: 20,250 a 22,500 palabras = 45 a 50 páginas)
-  const withinTargetRange = totalWords >= budget.targetWords.min && totalWords <= budget.targetWords.max;
+  // Gate editorial estricto: aiWords debe estar estrictamente dentro del rango de palabras [min, max]
+  // Y fallbackWords debe ser estrictamente 0 (cero relleno sintético/hardcodeado).
+  const withinTargetRange =
+    fallbackWords === 0 &&
+    aiWords >= budget.targetWords.min &&
+    aiWords <= budget.targetWords.max;
+
+  if (fallbackWords > 0) {
+    logger.warn(
+      `[validateSessionCoverage] Advertencia crítica: se detectaron ${fallbackWords} palabras de fallback/relleno sintético. El estándar contractual exige 0 fallback.`
+    );
+  }
 
   // Tolerancia de advertencia: si se desvía dentro de ±2%, emite advertencia leve; si se desvía más, advertencia crítica
   const minWarningWords = Math.round(budget.targetWords.min * 0.98);
   const maxWarningWords = Math.round(budget.targetWords.max * 1.02);
-  const isNearTargetRange = totalWords >= minWarningWords && totalWords <= maxWarningWords;
+  const isNearTargetRange = aiWords >= minWarningWords && aiWords <= maxWarningWords;
 
-  if (!withinTargetRange) {
+  if (!withinTargetRange && fallbackWords === 0) {
     if (isNearTargetRange) {
       logger.warn(
-        `[validateSessionCoverage] Advertencia leve: totalWords=${totalWords} fuera del rango formal [${budget.targetWords.min}, ${budget.targetWords.max}], pero dentro del margen ±2% [${minWarningWords}, ${maxWarningWords}].`
+        `[validateSessionCoverage] Advertencia leve: aiWords=${aiWords} fuera del rango formal [${budget.targetWords.min}, ${budget.targetWords.max}], pero dentro del margen ±2% [${minWarningWords}, ${maxWarningWords}].`
       );
     } else {
       logger.warn(
-        `[validateSessionCoverage] Advertencia crítica: totalWords=${totalWords} fuera del rango formal [${budget.targetWords.min}, ${budget.targetWords.max}] y del margen ±2%.`
+        `[validateSessionCoverage] Advertencia crítica: aiWords=${aiWords} fuera del rango formal [${budget.targetWords.min}, ${budget.targetWords.max}] y del margen ±2%.`
       );
     }
   }
 
   const pagesDelta = totalPages - budget.targetPages.ideal;
-  const wordsDelta = totalWords - budget.targetWords.ideal;
+  const wordsDelta = aiWords - budget.targetWords.ideal;
 
   if (!allSessionsPresent) {
     logger.warn(
@@ -305,5 +320,7 @@ export function validateSessionCoverage(params: {
     totalPages,
     pagesDelta,
     wordsDelta,
+    aiWords,
+    fallbackWords,
   };
 }

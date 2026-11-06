@@ -478,13 +478,13 @@ export class ColumnFlowManager {
     } = {}
   ): number {
     const {
-      size = 7.6,
+      size = 9.0,
       fontStyle = 'normal',
       color = COLOR.TEXT_PRIMARY,
-      lineHeight = 3.5,
+      lineHeight = 6.0,
       justify = true,
       parseParagraphs = false,
-      paragraphSpacing = 2.0,
+      paragraphSpacing = 6.5,
     } = opts;
 
     const bodyWeight = fontStyle === 'bold' ? 'bold' : 'normal';

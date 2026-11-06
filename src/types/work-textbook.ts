@@ -187,6 +187,8 @@ export interface SessionPlan {
   recursos: RecursoItem[];
   /** Producto integrador: qué agrega el estudiante a su proyecto hoy. */
   productoIntegrador: string;
+  /** Marca interna: indica si el plan proviene de fallback/stub sintético en lugar de IA directa. */
+  isFallback?: boolean;
 }
 
 export interface ProjectPhase {
@@ -274,6 +276,8 @@ export interface ActiveWorkTextbook {
   // ── Calibración editorial por sesiones (Fase P3) ─────────────────────────
   sessionsPerBlock?: number;
   targetWords?: number;
+  aiWords?: number;
+  fallbackWords?: number;
   pagesDelta?: number;
   wordsDelta?: number;
   coverageReport?: {
@@ -282,6 +286,8 @@ export interface ActiveWorkTextbook {
     allSessionsPresent: boolean;
     averageWordsPerSession: number;
     withinTargetRange: boolean;
+    aiWords?: number;
+    fallbackWords?: number;
   };
   generatedAt: string;
   qualityScore: number;           // 0 - 100

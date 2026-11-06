@@ -111,11 +111,16 @@ async function main(): Promise<void> {
   // 3. Validar Quality Gates de Cobertura y Presupuesto
   console.log('\n[3/5] Evaluando Quality Gates editoriales en el libro generado...');
   const coverage = workbook.coverageReport;
+  const fallbackWords = workbook.fallbackWords ?? coverage?.fallbackWords ?? 0;
+  const aiWords = workbook.aiWords ?? coverage?.aiWords ?? Math.max(0, workbook.totalWords - fallbackWords);
 
   console.log(`      Sesiones cubiertas: ${coverage?.sessionsCovered}/${coverage?.sessionsExpected}`);
   console.log(`      allSessionsPresent: ${coverage?.allSessionsPresent}`);
   console.log(`      withinTargetRange: ${coverage?.withinTargetRange}`);
+  console.log(`      qualityScore: ${workbook.qualityScore}`);
   console.log(`      qualityWarning: ${workbook.qualityWarning}`);
+  console.log(`      Palabras IA puras: ${aiWords.toLocaleString()}`);
+  console.log(`      Palabras Fallback: ${fallbackWords}`);
 
   // 4. Renderizar a PDF formal completo
   console.log('\n[4/5] Renderizando ActiveWorkTextbook a PDF formal institucional...');
@@ -150,8 +155,11 @@ async function main(): Promise<void> {
     coverage?.allSessionsPresent === true &&
     coverage?.withinTargetRange === true &&
     workbook.qualityWarning === false &&
-    pdfData.total >= 45 &&
-    pdfData.total <= 50;
+    fallbackWords === 0 &&
+    aiWords >= 20250 &&
+    aiWords <= 22500 &&
+    pdfData.total >= 47 &&
+    pdfData.total <= 49;
 
   console.log('\n' + '='.repeat(75));
   console.log('  RESUMEN DE AUDITORÍA FORMAL P3.1 EN VIVO');
@@ -159,10 +167,13 @@ async function main(): Promise<void> {
   console.log(`  - Planeación ID: ${planning.id}`);
   console.log(`  - Asignatura: ${planning.uacName}`);
   console.log(`  - Horas: 3 h/sem -> 18 sesiones de bloque`);
-  console.log(`  - Total palabras: ${workbook.totalWords.toLocaleString()} (Exigido: 20,250 a 22,500)`);
-  console.log(`  - Páginas del PDF: ${pdfData.total} páginas (Exigido: 45 a 50 páginas)`);
-  console.log(`  - Cobertura de sesiones: ${coverage?.sessionsCovered}/18 (Faltantes en PDF: ${missingSessionsCount})`);
+  console.log(`  - Total palabras (bruto): ${workbook.totalWords.toLocaleString()}`);
+  console.log(`  - Palabras IA (puras): ${aiWords.toLocaleString()} (Exigido: 20,250 a 22,500)`);
+  console.log(`  - Palabras Fallback: ${fallbackWords} (Exigido: estrictamente 0)`);
+  console.log(`  - Quality Score: ${workbook.qualityScore}/100`);
   console.log(`  - Quality Warning: ${workbook.qualityWarning ? 'ACTIVO (RECHAZADO)' : 'INACTIVO (APROBADO)'}`);
+  console.log(`  - Páginas del PDF: ${pdfData.total} páginas (Exigido: 47 a 49 páginas)`);
+  console.log(`  - Cobertura de sesiones: ${coverage?.sessionsCovered}/18 (Faltantes en PDF: ${missingSessionsCount})`);
   console.log(`  - Tiempo total de ejecución: ${((Date.now() - t0) / 1000).toFixed(1)} s`);
   console.log('='.repeat(75));
 

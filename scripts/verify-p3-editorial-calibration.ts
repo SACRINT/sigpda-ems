@@ -25,7 +25,10 @@ import {
   WORDS_PER_PAGE,
 } from '../src/lib/guide-engine/content-budget';
 import { renderWorkbookToPdf } from '../src/lib/pdf-workbook-renderer';
-import { buildRichFallbackPlan } from '../src/lib/guide-engine/writers/writer-contract';
+import {
+  buildRichFallbackPlan,
+  detectFallbackWords,
+} from '../src/lib/guide-engine/writers/writer-contract';
 import type {
   ActiveWorkTextbook,
   SessionPlan,
@@ -48,8 +51,25 @@ function loadEnvLocal(): void {
   }
 }
 
-function makeMockSessionPlan(sessionNumber: number): SessionPlan {
-  return buildRichFallbackPlan(sessionNumber);
+function makeMockSessionPlan(sessionNumber: number, wordsPerPlan = 890): SessionPlan {
+  const wordsPerField = Math.max(10, Math.floor((wordsPerPlan - 30) / 7));
+  const dummyText = 'término conceptual explicativo del tema curricular '.repeat(Math.ceil(wordsPerField / 7)).trim().split(/\s+/).slice(0, wordsPerField).join(' ');
+  return {
+    sessionNumber,
+    objetivo: `Objetivo de aprendizaje sesión ${sessionNumber}: ${dummyText}`,
+    motivacion: `Motivación cotidiana situada: ${dummyText}`,
+    saberesPrevios: `Saberes previos: ${dummyText}`,
+    contenido: `Fundamentación teórica paso a paso: ${dummyText}`,
+    ejemploResuelto: `Ejemplo resuelto numérico: ${dummyText}`,
+    practica: [
+      { enunciado: `Ejercicio 1 con datos: ${dummyText}`, pista: 'Pista guiada para resolver' },
+      { enunciado: `Ejercicio 2 con datos: ${dummyText}`, pista: 'Pista guiada para resolver' },
+    ],
+    aplicacion: `Aplicación en el entorno real o comunidad: ${dummyText}`,
+    autoevaluacion: ['¿Comprendo el concepto principal?', '¿Puedo resolver el ejercicio solo?'],
+    recursos: [{ titulo: 'Video explicativo', url: 'https://youtube.com/watch?v=demo', tipo: 'video' }],
+    productoIntegrador: `Avance del artefacto en sesión ${sessionNumber}`,
+  };
 }
 
 function makeMissionSection(params: {
@@ -212,12 +232,15 @@ async function runVerification(): Promise<void> {
 
   const totalWords = sFoundation.wordCount + sLab.wordCount + sProject.wordCount + sEval.wordCount;
   const allSessions = [sFoundation, sLab, sProject, sEval].flatMap((m) => m.sessionPlans || []);
+  const fallbackWords = detectFallbackWords(allSessions);
+  const aiWords = Math.max(0, totalWords - fallbackWords);
 
   // Validación mediante el Quality Gate oficial validateSessionCoverage (sin auto-aprobación sintética)
   const coverageReport = validateSessionCoverage({
     sessions: allSessions,
     expectedSessionsCount: budget3h.sessionsPerBlock,
     totalWords,
+    fallbackWords,
     budget: budget3h,
   });
 
@@ -270,6 +293,8 @@ async function runVerification(): Promise<void> {
     targetPages: budget3h.targetPages.ideal,
     totalPages: coverageReport.totalPages,
     totalWords,
+    aiWords,
+    fallbackWords,
     sessionsPerBlock: 18,
     targetWords: budget3h.targetWords.ideal,
     pagesDelta: coverageReport.pagesDelta,
@@ -277,7 +302,7 @@ async function runVerification(): Promise<void> {
     coverageReport,
     generatedAt: new Date().toISOString(),
     qualityScore: 92,
-    qualityWarning: !coverageReport.allSessionsPresent || !coverageReport.withinTargetRange,
+    qualityWarning: !coverageReport.allSessionsPresent || !coverageReport.withinTargetRange || fallbackWords > 0,
     coverData: {
       title: 'Cuaderno de Aprendizaje Activo: Bloque 1',
       subtitle: 'Misiones Didácticas Orientadas al Proyecto PAEC Comunitario',

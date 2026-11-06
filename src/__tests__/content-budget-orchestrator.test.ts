@@ -74,27 +74,25 @@ import { generateEvaluationSection } from '@/lib/guide-engine/writers/evaluation
 
 import { buildRichFallbackPlan } from '@/lib/guide-engine/writers/writer-contract';
 
-function makeMockSessionPlan(sessionNumber: number, wordsPerPlan?: number): SessionPlan {
-  if (wordsPerPlan) {
-    const wordsPerField = Math.max(10, Math.floor((wordsPerPlan - 30) / 7));
-    const dummyText = 'palabra '.repeat(wordsPerField).trim();
-    return {
-      sessionNumber,
-      objetivo: `Objetivo de aprendizaje sesión ${sessionNumber}: ${dummyText}`,
-      motivacion: `Motivación cotidiana situada: ${dummyText}`,
-      saberesPrevios: `Saberes previos: ${dummyText}`,
-      contenido: `Fundamentación teórica paso a paso: ${dummyText}`,
-      ejemploResuelto: `Ejemplo resuelto numérico: ${dummyText}`,
-      practica: [
-        { enunciado: `Ejercicio 1 con datos: ${dummyText}`, pista: 'Pista guiada para resolver' },
-      ],
-      aplicacion: `Aplicación en el entorno real o comunidad: ${dummyText}`,
-      autoevaluacion: ['¿Comprendo el concepto principal?', '¿Puedo resolver el ejercicio solo?'],
-      recursos: [{ titulo: 'Video explicativo', url: 'https://youtube.com/watch?v=demo', tipo: 'video' }],
-      productoIntegrador: `Avance del artefacto en sesión ${sessionNumber}`,
-    };
-  }
-  return buildRichFallbackPlan(sessionNumber);
+function makeMockSessionPlan(sessionNumber: number, wordsPerPlan = 880): SessionPlan {
+  const wordsPerField = Math.max(10, Math.floor((wordsPerPlan - 30) / 7));
+  const dummyText = 'término conceptual explicativo del tema curricular '.repeat(Math.ceil(wordsPerField / 7)).trim().split(/\s+/).slice(0, wordsPerField).join(' ');
+  return {
+    sessionNumber,
+    objetivo: `Objetivo de aprendizaje sesión ${sessionNumber}: ${dummyText}`,
+    motivacion: `Motivación cotidiana situada: ${dummyText}`,
+    saberesPrevios: `Saberes previos: ${dummyText}`,
+    contenido: `Fundamentación teórica paso a paso: ${dummyText}`,
+    ejemploResuelto: `Ejemplo resuelto numérico: ${dummyText}`,
+    practica: [
+      { enunciado: `Ejercicio 1 con datos: ${dummyText}`, pista: 'Pista guiada para resolver' },
+      { enunciado: `Ejercicio 2 con datos: ${dummyText}`, pista: 'Pista guiada para resolver' },
+    ],
+    aplicacion: `Aplicación en el entorno real o comunidad: ${dummyText}`,
+    autoevaluacion: ['¿Comprendo el concepto principal?', '¿Puedo resolver el ejercicio solo?'],
+    recursos: [{ titulo: 'Video explicativo', url: 'https://youtube.com/watch?v=demo', tipo: 'video' }],
+    productoIntegrador: `Avance del artefacto en sesión ${sessionNumber}`,
+  };
 }
 
 function makeMockWriterOutput(params: {

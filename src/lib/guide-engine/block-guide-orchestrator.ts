@@ -52,7 +52,7 @@ import {
   sectionCorpus,
   corpusCoversTerm,
 } from './planning-content-alignment';
-import { completeSessionPlans, type WriterInput, type WriterOutput, type PlanningActivities } from './writers/writer-contract';
+import { completeSessionPlans, detectFallbackWords, type WriterInput, type WriterOutput, type PlanningActivities } from './writers/writer-contract';
 import type {
   ActiveWorkTextbook,
   CanonicalSeed,
@@ -97,6 +97,7 @@ export interface OrchestratorOptions {
   leaseId?: string;
   signal?: AbortSignal;
   persistWorkbook?: boolean;
+  maxBudgetMs?: number;
 }
 
 /**
@@ -112,7 +113,11 @@ export async function generateBlockWorkTextbook(
   const leaseId = options.leaseId;
   const signal = options.signal;
   const startTime = Date.now();
-  const MAX_ORCHESTRATOR_BUDGET_MS = 230_000; // Presupuesto preventivo ante el límite de 300s de Vercel
+  const MAX_ORCHESTRATOR_BUDGET_MS =
+    options.maxBudgetMs ??
+    (process.env.JOB_MAX_DURATION_SECONDS
+      ? Number(process.env.JOB_MAX_DURATION_SECONDS) * 1000 - 30_000
+      : 420_000);
 
   const checkAbort = () => {
     if (signal?.aborted) {
@@ -318,10 +323,10 @@ export async function generateBlockWorkTextbook(
     percent: 50,
   });
 
-  // Micro-desfase suave (500ms) entre el lanzamiento de cada redactor para evitar
-  // ráfagas masivas simultáneas en el milisegundo 0 que saturen la concurrencia de Google AI Studio (503).
+  // Micro-desfase suave (3500ms) entre el lanzamiento de cada redactor para evitar
+  // ráfagas masivas simultáneas que saturen la concurrencia de Google AI Studio (503).
   // En entorno de tests Vitest (NODE_ENV=test) el delay es 0ms para ejecución instantánea.
-  const STAGGER_DELAY_MS = process.env.NODE_ENV === 'test' ? 0 : 500;
+  const STAGGER_DELAY_MS = process.env.NODE_ENV === 'test' ? 0 : 4500;
   const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
   const writerTasks = [
@@ -364,6 +369,9 @@ export async function generateBlockWorkTextbook(
   // de Google AI Studio (503 / Fast-fail).
   const writerOutputs: WriterOutput[] = [];
   for (let i = 0; i < writerTasks.length; i++) {
+    if (i > 0 && STAGGER_DELAY_MS > 0) {
+      await sleep(STAGGER_DELAY_MS);
+    }
     const task = writerTasks[i];
     if (options.signal?.aborted) {
       throw new Error('Operación cancelada por signal.');
@@ -430,9 +438,18 @@ export async function generateBlockWorkTextbook(
         logger.info(`[orchestrator] Reintentando ${writerType} (Intento ${attempts}/${maxRetries})...`);
 
         try {
+          const current = writerOutputs.find((w) => w.type === writerType);
+          const currentWords = current?.wordCount || 0;
+          const targetMin = budget.missionBudgets[writerType].targetWords.min;
+          const deficit = Math.max(0, targetMin - currentWords);
+          const expansionDirective = deficit > 0
+            ? `[REQUISITO CRÍTICO DE EXPANSIÓN EDITORIAL]: El borrador previo tuvo ${currentWords} palabras y fue insuficiente para el presupuesto formal (faltan al menos ${deficit} palabras para el mínimo de ${targetMin}). Redacta CADA sesión con al menos 950 a 1,050 palabras: expande 'contenido' a 3 párrafos conceptuales extensos de al menos 160 palabras cada uno y 'ejemploResuelto' con 4 pasos detallados de desarrollo sin omitir operaciones ni fórmulas.`
+            : undefined;
+
           const writerSpecificInput: WriterInput = {
             ...baseWriterInput,
             targetWords: budget.missionBudgets[writerType].targetWords,
+            alignmentDirective: expansionDirective,
           };
 
           let reRunOutput: WriterOutput;
@@ -444,10 +461,8 @@ export async function generateBlockWorkTextbook(
           const idx = writerOutputs.findIndex((w) => w.type === writerType);
           if (idx !== -1) {
             const current = writerOutputs[idx];
-            const targetMin = budget.missionBudgets[writerType].targetWords.min;
-            const wordsImproved = current.wordCount < targetMin && reRunOutput.wordCount > current.wordCount;
-            const qualityImproved = reRunOutput.qualityScore > current.qualityScore;
-            if (wordsImproved || qualityImproved) {
+            const wordsImproved = reRunOutput.wordCount > current.wordCount;
+            if (wordsImproved && reRunOutput.qualityScore >= 70) {
               writerOutputs[idx] = reRunOutput;
               improved = true;
             }
@@ -636,10 +651,18 @@ export async function generateBlockWorkTextbook(
     )
   ).sort((a, b) => a - b);
 
+  const allSessionPlans = missions.flatMap((m) => m.sessionPlans || []);
+  const fallbackWords = detectFallbackWords(allSessionPlans);
+  const aiWords = Math.max(0, totalWords - fallbackWords);
+
   const coverageReport = validateSessionCoverage({
-    sessions: coveredSessionNumbers.map((sessionNumber) => ({ sessionNumber })),
+    sessions: coveredSessionNumbers.map((sessionNumber) => {
+      const sp = allSessionPlans.find((p) => p.sessionNumber === sessionNumber);
+      return { sessionNumber, isFallback: sp?.isFallback };
+    }),
     expectedSessionsCount: budget.sessionsPerBlock,
     totalWords,
+    fallbackWords,
     budget,
   });
 
@@ -653,6 +676,8 @@ export async function generateBlockWorkTextbook(
     targetPages: budget.targetPages.ideal,
     totalPages,
     totalWords,
+    aiWords,
+    fallbackWords,
     sessionsPerBlock: budget.sessionsPerBlock,
     targetWords: budget.targetWords.ideal,
     pagesDelta: coverageReport.pagesDelta,
@@ -663,6 +688,8 @@ export async function generateBlockWorkTextbook(
       allSessionsPresent: coverageReport.allSessionsPresent,
       averageWordsPerSession: coverageReport.averageWordsPerSession,
       withinTargetRange: coverageReport.withinTargetRange,
+      aiWords,
+      fallbackWords,
     },
     generatedAt: new Date().toISOString(),
     qualityScore: validation.qualityScore,
@@ -670,7 +697,8 @@ export async function generateBlockWorkTextbook(
       validation.qualityWarning ||
       !alignmentReport.pass ||
       !coverageReport.allSessionsPresent ||
-      !coverageReport.withinTargetRange,
+      !coverageReport.withinTargetRange ||
+      fallbackWords > 0,
     coverData: {
       title: `Cuaderno de Aprendizaje Activo: ${blockName}`,
       subtitle: `Misiones Didácticas Orientadas al Proyecto PAEC Comunitario`,

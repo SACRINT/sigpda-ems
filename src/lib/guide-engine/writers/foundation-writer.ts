@@ -50,18 +50,18 @@ REGLAS DE PROFUNDIDAD Y CUADERNO ACTIVO:
 3. Yo Hago (350 a 500 palabras): Tutorial maestro modelado paso a paso (código funcional comentado en BT; modelación/experimento en BGE).
 4. Hacemos Juntos (300 a 450 palabras): Práctica colaborativa en equipo. OBLIGATORIO: cada actividad debe plantear un PROBLEMA REAL de la vida diaria del estudiante en Puebla, su comunidad o el proyecto PAEC ("${input.paecContext}"), con datos cuantitativos concretos y aplicables. PROHIBIDO usar ejercicios abstractos desconectados de la realidad (ej. 'resuelve 2x+5=15' sin contexto). Cada práctica debe responder '¿dónde veo esto en mi vida?'.
 5. Tú Haces (250 a 400 palabras): Desafío individual de aplicación real con espacios de trabajo, anclado a una situación cotidiana verificable del entorno del estudiante.
-6. Contenido por sesión para el ESTUDIANTE (OBLIGATORIO — genera un "plan" por cada sesión de ${coveredSessions.join(', ')}, ~750 a 900 palabras por plan):
+6. Contenido por sesión para el ESTUDIANTE (OBLIGATORIO — genera un "plan" por cada sesión de ${coveredSessions.join(', ')}, ~950 a 1,150 palabras por plan):
    Para CADA sesión cubierta (${coveredSessions.join(', ')}) genera un objeto en "sessionPlans". NUNCA omitas ninguna sesión ni uses resúmenes telegráficos. Cada objeto es material que el estudiante LEE para aprender de forma autodidacta:
    (a) objetivo: "Lo que vas a aprender" (1-2 frases concretas, voz en tú);
-   (b) motivacion: (60 a 90 palabras) caso o dilema real de la comunidad escolar de Puebla o del proyecto PAEC contada directamente al estudiante;
-   (c) saberesPrevios: (40 a 60 palabras) qué conocimientos previos conectan con la sesión y qué preguntas diagnósticas debe responder en su cuaderno;
-   (d) contenido: (260 a 320 palabras) LA TEORÍA REAL de la sesión — definiciones formales, leyes o fórmulas explicadas con rigor, desarrollo teórico estructurado en 3 párrafos sustanciales. NO resumas en 1-2 frases; explica como un verdadero libro de texto Santillana/Pearson;
-   (e) ejemploResuelto: (180 a 240 palabras) ejemplo numérico o procedimental con planteamiento contextualizado, datos explícitos, desarrollo paso a paso numerado y análisis del resultado;
-   (f) practica: 2 ejercicios contextualizados con datos reales; enunciados detallados (mínimo 40 palabras cada uno) con "pista" orientadora (mínimo 20 palabras) y "solucion" con 3-6 pasos numerados con operaciones completas;
-   (g) aplicacion: (60 a 80 palabras) tarea de transferencia y aplicación al entorno comunitario;
+   (b) motivacion: (80 a 120 palabras) caso o dilema real de la comunidad escolar de Puebla o del proyecto PAEC contada directamente al estudiante;
+   (c) saberesPrevios: (50 a 80 palabras) qué conocimientos previos conectan con la sesión y qué preguntas diagnósticas debe responder en su cuaderno;
+   (d) contenido: (OBLIGATORIO MÍNIMO 440 A 520 PALABRAS) LA TEORÍA REAL de la sesión — definiciones formales, leyes o fórmulas explicadas con rigor, desarrollo teórico estructurado en 3 párrafos sustanciales (al menos 150 palabras por párrafo). NO resumas en 1-2 frases; explica como un verdadero libro de texto Santillana/Pearson;
+   (e) ejemploResuelto: (OBLIGATORIO MÍNIMO 300 A 360 PALABRAS) ejemplo numérico o procedimental con planteamiento contextualizado, datos explícitos, desarrollo paso a paso numerado en 4 pasos y análisis del resultado;
+   (f) practica: 2 ejercicios contextualizados con datos reales; enunciados detallados (mínimo 60 palabras cada uno) con "pista" orientadora (mínimo 30 palabras) y "solucion" con 3-6 pasos numerados con operaciones completas;
+   (g) aplicacion: (80 a 120 palabras) tarea de transferencia y aplicación al entorno comunitario;
    (h) autoevaluacion: 2-3 preguntas reflexivas metacognitivas;
    (i) recursos: 1-2 enlaces verosímiles de ampliación (YouTube o web);
-   (j) productoIntegrador: (40 a 60 palabras) avance concreto y fechado del entregable para el portafolio.
+   (j) productoIntegrador: (60 a 90 palabras) avance concreto y fechado del entregable para el portafolio.
    Los planes deben VARIAR entre sesiones (cada sesión aborda una arista distinta del tema) y ser específicos del contexto PAEC/comunidad. VOZ DE ESTUDIANTE en todo.
 7. Cuaderno activo: Incluye 2-4 etiquetas <!--workbook:...--> (lines:rows=8, table:cols=..., code:lines=15, drawing:height=160).
 8. Sintaxis JSON: Usa comillas simples ('...') en código/citas. Cero comillas dobles sin escapar dentro de valores JSON.
@@ -87,8 +87,8 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
       "objetivo": "Lo que vas a aprender en la sesión 1 (1-2 frases)...",
       "motivacion": "Caso real / historia contada al estudiante...",
       "saberesPrevios": "Qué ya sabes que conecta con esto...",
-      "contenido": "TEORÍA REAL de la sesión: definiciones, fórmulas, explicación (varios párrafos)...",
-      "ejemploResuelto": "Ejemplo con números resuelto paso a paso...",
+      "contenido": "Párrafo 1: En esta sesión aprenderás las bases conceptuales y definiciones fundamentales...\\n\\nPárrafo 2: El desarrollo analítico formal de los modelos matemáticos y leyes físicas requiere...\\n\\nPárrafo 3: La vinculación con los fenómenos cotidianos y la intuición visual demuestran...",
+      "ejemploResuelto": "Planteamiento: Se analiza un caso fundamental con datos cuantitativos concretos...\\nPaso 1: Identificación de datos conocidos e incógnitas...\\nPaso 2: Selección y justificación del modelo o ecuación...\\nPaso 3: Operaciones numéricas paso a paso y despeje...\\nPaso 4: Interpretación del resultado y comprobación física...",
       "practica": [
         { "enunciado": "Ejercicio 1 con datos concretos", "pista": "Pista de cómo empezar (sin solución)", "solucion": ["Paso 1: sustituir datos en la fórmula...", "Paso 2: operar y despejar...", "Respuesta final: ..."] },
         { "enunciado": "Ejercicio 2 con datos concretos", "pista": "Pista de cómo empezar (sin solución)", "solucion": ["Paso 1: ...", "Respuesta final: ..."] }
@@ -124,7 +124,7 @@ Perfil de estudiantes: ${input.studentProfile}
 Presupuesto total para esta misión: mínimo ${input.targetWords.min} palabras (ideal ~${input.targetWords.ideal} palabras).
 
 DISTRIBUCIÓN CALIBRADA DE PALABRAS:
-- sessionPlans (${sessionCount} sesiones): OBLIGATORIO redactar las ${sessionCount} sesiones completas (${coveredSessions.join(', ')}), con ~${targetWordsPerPlan} palabras por sesión (total planes: ~${totalPlansTarget} palabras). Cada plan debe contener mínimo 260 palabras en contenido y 180 palabras en ejemploResuelto.
+- sessionPlans (${sessionCount} sesiones): OBLIGATORIO redactar las ${sessionCount} sesiones completas (${coveredSessions.join(', ')}), con ~${targetWordsPerPlan} palabras por sesión (total planes: ~${totalPlansTarget} palabras). Cada plan debe contener mínimo 440 a 500 palabras en contenido (3 párrafos conceptuales profundos, mínimo 150 palabras por párrafo) y mínimo 300 a 360 palabras en ejemploResuelto (caso formal con 4 pasos numéricos de desarrollo detallado).
 - coreExplanation + physicalAnalogy: ~${coreTarget} palabras (explicación formal rigurosa y analogía intuitiva)
 - iDoDemo: ~${iDoTarget} palabras (demostración docente modelada paso a paso)
 - weDoPractice: ~${weDoTarget} palabras (práctica guiada colaborativa)

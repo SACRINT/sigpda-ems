@@ -59,18 +59,18 @@ DIRECTIVAS TÉCNICAS Y METAS DE EXTENSIÓN:
 3. Tabla de datos vacía: Encabezados descriptivos con <!--workbook:table:cols=Parámetro,Teórico,Medición 1,Medición 2,Error,Unidad-->.
 4. Código o protocolo experimental (300 a 500 palabras): Bloques de código reales y comentados en BT; protocolo experimental exhaustivo en BGE.
 5. Reto autónomo ("Tú Haces" - 200 a 350 palabras): EXACTAMENTE 5 a 7 PASOS NUMERADOS con variables cuantitativas y vinculación PAEC: "${input.paecContext}". OBLIGATORIO: anclar cada paso a una aplicación real en la vida diaria del estudiante o su comunidad en Puebla (no ejercicios abstractos); el estudiante debe percibir para qué le sirve en la práctica.
-6. Contenido por sesión para el ESTUDIANTE (OBLIGATORIO — genera un "plan" por cada sesión de ${coveredSessions.join(', ')}, ~750 a 900 palabras por plan):
+6. Contenido por sesión para el ESTUDIANTE (OBLIGATORIO — genera un "plan" por cada sesión de ${coveredSessions.join(', ')}, ~950 a 1,150 palabras por plan):
    Para CADA sesión asignada (${coveredSessions.join(', ')}) genera un objeto en "sessionPlans". NUNCA omitas ninguna sesión ni uses resúmenes telegráficos. Cada objeto es material que el estudiante LEE para aprender de forma autodidacta:
    (a) objetivo: "Lo que vas a aprender" (1-2 frases en voz de estudiante);
-   (b) motivacion: (60 a 90 palabras) caso real de la comunidad o PAEC contado al estudiante;
-   (c) saberesPrevios: (40 a 60 palabras) qué ya sabe y preguntas diagnósticas;
-   (d) contenido: (260 a 320 palabras) LA TEORÍA REAL: definiciones, fórmulas, procedimiento de taller/laboratorio explicado con rigor en 3 párrafos sustanciales;
-   (e) ejemploResuelto: (180 a 240 palabras) ejemplo numérico/experimental paso a paso con datos de laboratorio y cálculos;
-   (f) practica: 2 ejercicios/tareas concretas con datos; enunciados detallados (mínimo 40 palabras cada uno) con "pista" (mínimo 20 palabras) y "solucion" con 3-6 pasos numerados;
-   (g) aplicacion: (60 a 80 palabras) tarea aplicada al entorno real o comunitario;
+   (b) motivacion: (80 a 120 palabras) caso real de la comunidad o PAEC contado al estudiante;
+   (c) saberesPrevios: (50 a 80 palabras) qué ya sabe y preguntas diagnósticas;
+   (d) contenido: (OBLIGATORIO MÍNIMO 440 A 520 PALABRAS) LA TEORÍA REAL en 3 párrafos formales separados por saltos de línea (\n\n): definiciones, fórmulas y procedimiento de taller/laboratorio explicado con rigor conceptual (al menos 150 palabras por párrafo). PROHIBIDO redactar menos de 440 palabras en contenido;
+   (e) ejemploResuelto: (OBLIGATORIO MÍNIMO 300 A 360 PALABRAS) ejemplo numérico/experimental paso a paso con datos de laboratorio, sustitución y cálculos en 4 pasos numerados (Planteamiento, Paso 1 Datos, Paso 2 Ecuación, Paso 3 Operaciones, Paso 4 Conclusión). PROHIBIDO redactar menos de 300 palabras en ejemploResuelto;
+   (f) practica: 2 ejercicios/tareas concretas con datos; enunciados detallados (mínimo 60 palabras cada uno) con "pista" (mínimo 30 palabras) y "solucion" con 3-6 pasos numerados;
+   (g) aplicacion: (80 a 120 palabras) tarea aplicada al entorno real o comunitario;
    (h) autoevaluacion: 2-3 preguntas de autorevisión;
    (i) recursos: 1-2 enlaces reales a video o web de ampliación;
-   (j) productoIntegrador: (40 a 60 palabras) qué agrega el estudiante a su proyecto hoy.
+   (j) productoIntegrador: (60 a 90 palabras) qué agrega el estudiante a su proyecto hoy.
    Los planes deben VARIAR entre sesiones y ser específicos del contexto PAEC/comunidad. VOZ DE ESTUDIANTE en todo.
 7. Preguntas y Casos de Error: 4-6 preguntas analíticas amplias y al menos 3 casos de fallo (Síntoma → Causa → Solución → Prevención).
 8. Sintaxis JSON: Usa comillas simples ('...') en código/citas. Cero comillas dobles sin escapar dentro de valores JSON.
@@ -102,8 +102,8 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
       "objetivo": "Lo que vas a aprender en la sesión 3 (1-2 frases)...",
       "motivacion": "Caso real / historia contada al estudiante...",
       "saberesPrevios": "Qué ya sabes que conecta con esto...",
-      "contenido": "TEORÍA REAL: definiciones, fórmulas, procedimiento (varios párrafos)...",
-      "ejemploResuelto": "Ejemplo con números resuelto paso a paso...",
+      "contenido": "Párrafo 1: En esta sesión aprenderás las bases conceptuales...\\n\\nPárrafo 2: El procedimiento analítico formal requiere...\\n\\nPárrafo 3: Las restricciones prácticas en el entorno comunitario son...",
+      "ejemploResuelto": "Planteamiento: Se monitorea la magnitud...\\nPaso 1: Variables...\\nPaso 2: Ecuación y sustitución...\\nPaso 3: Cálculo...\\nPaso 4: Conclusión e impacto...",
       "practica": [
         { "enunciado": "Ejercicio 1 con datos concretos", "pista": "Pista de cómo empezar (sin solución)", "solucion": ["Paso 1: sustituir los datos medidos...", "Paso 2: operar y despejar...", "Respuesta final: ..."] },
         { "enunciado": "Ejercicio 2 con datos concretos", "pista": "Pista de cómo empezar (sin solución)", "solucion": ["Paso 1: ...", "Respuesta final: ..."] }
@@ -120,7 +120,7 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
 }`;
 
   const sessionCount = Math.max(1, coveredSessions.length);
-  const targetWordsPerPlan = Math.round((input.targetWords.ideal / sessionCount) * 0.72);
+  const targetWordsPerPlan = Math.max(900, Math.round((input.targetWords.ideal / sessionCount) * 0.78));
   const totalPlansTarget = sessionCount * targetWordsPerPlan;
   const remainingNarrativeTarget = Math.max(300, input.targetWords.ideal - totalPlansTarget);
 
@@ -137,13 +137,13 @@ Problemática PAEC: ${input.paecContext}
 Presupuesto total para esta misión: mínimo ${input.targetWords.min} palabras (ideal ~${input.targetWords.ideal} palabras).
 
 DISTRIBUCIÓN CALIBRADA DE PALABRAS:
-- sessionPlans (${sessionCount} sesiones): OBLIGATORIO redactar las ${sessionCount} sesiones completas (${coveredSessions.join(', ')}), con ~${targetWordsPerPlan} palabras por sesión (total planes: ~${totalPlansTarget} palabras). Cada plan debe contener mínimo 260 palabras en contenido y 180 palabras en ejemploResuelto.
-- stepByStepProcedure: ~${procedureTarget} palabras (desarrolla cada paso con claridad y rigor técnico)
-- executableCodeOrProtocol: ~${protocolTarget} palabras (código fuente funcional o protocolo experimental)
+- sessionPlans (${sessionCount} sesiones): OBLIGATORIO redactar las ${sessionCount} sesiones completas (${coveredSessions.join(', ')}), con ~${targetWordsPerPlan} palabras por sesión (total planes: ~${totalPlansTarget} palabras). Cada plan debe contener mínimo 440 a 500 palabras en contenido (3 párrafos extensos de fundamentación y modelación técnica, mínimo 150 palabras por párrafo) y mínimo 300 a 360 palabras en ejemploResuelto (planteamiento concreto y 4 pasos detallados de desarrollo algebraico y numérico).
+- stepByStepProcedure: ~${procedureTarget} palabras (redacta 8 a 10 pasos experimentales exhaustivos con parámetros técnicos y mediciones de laboratorio)
+- executableCodeOrProtocol: ~${protocolTarget} palabras (código fuente funcional documentado o protocolo experimental riguroso)
 - autonomousChallenge: ~${challengeTarget} palabras (OBLIGATORIAMENTE de 5 a 7 pasos numerados correlativos con instrucciones técnicas precisas)
 - reflectionQuestions: ~${reflectionTarget} palabras (análisis técnico y transferencia)
 
-Redacta la Misión Práctica de Laboratorio/Taller completa:`;
+Redacta la Misión Práctica de Laboratorio/Taller Y las ${sessionCount} sesiones completas (${coveredSessions.join(', ')}) con máxima profundidad y rigor experimental sin abreviar:`;
 
   try {
     let attempt: 1 | 2 = 1;

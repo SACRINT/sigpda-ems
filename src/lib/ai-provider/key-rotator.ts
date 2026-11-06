@@ -680,7 +680,8 @@ export async function withKeyRotation<T>(
           );
         }
         if (attempt < maxAttempts - 1) {
-          await new Promise((r) => setTimeout(r, 1500));
+          const wait503Ms = process.env.NODE_ENV === 'test' ? 100 : 4000;
+          await new Promise((r) => setTimeout(r, wait503Ms));
         }
       } else {
         consecutive503Count = 0;
