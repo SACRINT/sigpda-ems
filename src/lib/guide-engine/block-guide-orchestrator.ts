@@ -98,7 +98,7 @@ export interface OrchestratorOptions {
   signal?: AbortSignal;
   persistWorkbook?: boolean;
   maxBudgetMs?: number;
-  /** Expande sesiones deficientes con una pasada editorial dirigida (solo regeneración offline). */
+  /** Expande sesiones deficientes con una pasada editorial dirigida cuando queda presupuesto. */
   expandDeficientSessions?: boolean;
   /** Solo habilitar con semillas auditadas; por defecto se generan bloques frescos. */
   allowCanonicalSeedReuse?: boolean;

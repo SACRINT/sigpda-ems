@@ -113,6 +113,9 @@ export async function processGenerationJob(
         signal: abortController.signal,
         persistWorkbook: false,
         maxBudgetMs,
+        // Misma ruta editorial que la regeneración offline: expande sesiones
+        // deficientes solo si queda presupuesto suficiente (ver orquestador).
+        expandDeficientSessions: true,
       }
     );
 

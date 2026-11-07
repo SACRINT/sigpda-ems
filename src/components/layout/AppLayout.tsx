@@ -6,7 +6,6 @@ import { logger } from '@/lib/logger';
 import { signOutAction, signOutPlain } from '@/lib/server-actions';
 import SignOutButton from './SignOutButton';
 import HeartbeatSender from './HeartbeatSender';
-import PedagogicalChatWidget from '../PedagogicalChatWidget';
 import NotificationBell from '../notifications/NotificationBell';
 
 import { getUserRole } from '@/lib/admin-unified';
@@ -212,7 +211,6 @@ export default async function AppLayout({ children, locale, activeSection }: Pro
       {/* Main */}
       <main className="app-main">
         <HeartbeatSender />
-        <PedagogicalChatWidget />
         {children}
       </main>
     </div>
