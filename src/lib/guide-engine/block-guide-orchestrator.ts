@@ -44,6 +44,7 @@ import { generateProjectMission } from './writers/project-writer';
 import { generateEvaluationSection } from './writers/evaluation-writer';
 import { generateTroubleshootingMatrix } from './resilience-agent';
 import { validateBlockGuideQuality } from './quality-validator';
+import { expandDeficientSessionPlans } from './session-plan-expansion';
 import {
   evaluatePlanningContentAlignment,
   extractMissingTerms,
@@ -97,6 +98,8 @@ export interface OrchestratorOptions {
   signal?: AbortSignal;
   persistWorkbook?: boolean;
   maxBudgetMs?: number;
+  /** Expande sesiones deficientes con una pasada editorial dirigida (solo regeneración offline). */
+  expandDeficientSessions?: boolean;
   /** Solo habilitar con semillas auditadas; por defecto se generan bloques frescos. */
   allowCanonicalSeedReuse?: boolean;
 }
@@ -595,6 +598,33 @@ export async function generateBlockWorkTextbook(
     logger.warn(`[Orchestrator] Alineación planeación↔libro bajo umbral: ${alignmentReport.summary}`);
   }
 
+  if (options.expandDeficientSessions) {
+    const remainingForExpansion = MAX_ORCHESTRATOR_BUDGET_MS - (Date.now() - startTime);
+    if (remainingForExpansion > 60_000 && !signal?.aborted) {
+      const expansion = await expandDeficientSessionPlans({
+        writerOutputs,
+        missionBudgets: budget.missionBudgets,
+        blockTargetWords: budget.targetWords,
+        uacName: planning.uacName,
+        blockName,
+        subsystem: curriculumContext.subsystem,
+        teacherId: planning.teacherId,
+        signal,
+        remainingBudgetMs: remainingForExpansion,
+      });
+      if (expansion.expandedPlans > 0) {
+        logger.info(
+          `[Orchestrator] Expansión dirigida: ${expansion.expandedPlans} planes, +${expansion.addedWords} palabras.`
+        );
+        validation = validateBlockGuideQuality({
+          writerOutputs,
+          subsystem: curriculumContext.subsystem,
+          targetWords: budget.targetWords,
+        });
+      }
+    }
+  }
+
   // ── Fase 9: Ensamblado del ActiveWorkTextbook ───────────────────────────
   await reportProgress(planningId, blockIndex, {
     phase: 'assembling',
@@ -754,6 +784,13 @@ export async function generateBlockWorkTextbook(
     integrityBlockers.push(`alineacion_planeacion=${alignmentReport.score} (${alignmentReport.summary})`);
   }
   if (integrityBlockers.length > 0) {
+    logger.warn(
+      `[Orchestrator] Validación final del bloque ${blockIndex}: ` +
+        writerOutputs
+          .map((w) => `${w.type}=${w.wordCount}w/${w.qualityScore}pts`)
+          .join(' | ') +
+        ` | warnings: ${validation.warnings.join(' || ') || 'ninguno'}`
+    );
     throw new Error(
       `[BlockIntegrity] El bloque ${blockIndex} de "${planning.uacName}" no cumple el gate editorial: ` +
         `${integrityBlockers.join(' | ')}. No se persiste; reintente el bloque.`

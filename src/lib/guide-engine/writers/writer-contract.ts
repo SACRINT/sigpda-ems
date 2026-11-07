@@ -123,7 +123,7 @@ export function evaluateQuality(params: {
   }
 
   // 2. +25 si no hay placeholders genéricos ni truncados
-  const hasPlaceholders = /\[completar\]|\[escribe aquí\]|\[placeholder\]|\[aquí escribe\]|\.\.\./i.test(params.content);
+  const hasPlaceholders = /\[completar\]|\[escribe aquí\]|\[placeholder\]|\[aquí escribe\]|\[texto\]|\[insertar\]|\[pendiente\]|\[tbd\]|\[\s*\.\.\.\s*\]/i.test(params.content);
   if (!hasPlaceholders) {
     score += 25;
   } else {

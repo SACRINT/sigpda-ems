@@ -238,10 +238,12 @@ describe('project-writer — sessionPlans de las sesiones 13-21', () => {
 
     await expect(generateProjectMission(makeInput())).rejects.toThrow(/sessionPlans incompletos/);
 
-    expect(generateWithRotation).toHaveBeenCalledTimes(2);
+    expect(generateWithRotation).toHaveBeenCalledTimes(4);
     const retryPrompt = vi.mocked(generateWithRotation).mock.calls[1][1] as string;
     expect(retryPrompt).toContain('sessionPlans');
     expect(retryPrompt).toContain('13, 14, 15, 16, 17, 18, 19, 20, 21');
+    const completionPrompt = vi.mocked(generateWithRotation).mock.calls[3][1] as string;
+    expect(completionPrompt).toContain('Sesiones faltantes: 18, 19, 20, 21');
   }, 20000);
 
   it('si el modelo falla por completo, rechaza el bloque sin fallback', async () => {

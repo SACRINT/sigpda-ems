@@ -56,6 +56,12 @@ export const FAST_FAIL_503_THRESHOLD = 2;      // 2 errores 503 consecutivos dis
 export const MAX_POOL_ROUNDS = 2;              // Máximo 2 vueltas completas al pool
 export const COOLDOWN_PERMANENT_MINUTES = 60;  // Auto-reactivación tras 60 min de errores permanentes
 
+export function getFastFail503Threshold(): number {
+  const raw = Number(process.env.AI_FAST_FAIL_503_THRESHOLD);
+  if (Number.isInteger(raw) && raw >= 1 && raw <= 10) return raw;
+  return FAST_FAIL_503_THRESHOLD;
+}
+
 // ── Encryption / Decryption ──────────────────────────────────────────────────
 
 function getEncKey(): Buffer {
@@ -670,13 +676,14 @@ export async function withKeyRotation<T>(
 
       // Regla Fast-Fail estricta: 2 errores 503 consecutivos
       if (is503) {
+        const fastFailThreshold = getFastFail503Threshold();
         consecutive503Count++;
-        if (consecutive503Count >= FAST_FAIL_503_THRESHOLD) {
+        if (consecutive503Count >= fastFailThreshold) {
           logger.warn(
-            `[key-rotator] 🛑 FAST-FAIL: ${FAST_FAIL_503_THRESHOLD} errores 503 consecutivos en "${provider}". Cortando inmediatamente para proteger las cuentas.`
+            `[key-rotator] 🛑 FAST-FAIL: ${fastFailThreshold} errores 503 consecutivos en "${provider}". Cortando inmediatamente para proteger las cuentas.`
           );
           throw new AiServiceUnavailableError(
-            `Google Gemini está experimentando alta demanda (HTTP 503). Fast-fail activado tras ${FAST_FAIL_503_THRESHOLD} errores consecutivos.`
+            `Google Gemini está experimentando alta demanda (HTTP 503). Fast-fail activado tras ${fastFailThreshold} errores consecutivos.`
           );
         }
         if (attempt < maxAttempts - 1) {

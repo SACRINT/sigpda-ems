@@ -21,6 +21,11 @@ import {
   evaluateQuality,
   completeSessionPlans,
 } from './writer-contract';
+import {
+  generateMissingSessionPlans,
+  getPresentSessionNumbers,
+  mergeSessionPlans,
+} from './session-plan-completion';
 import { buildPlanningAlignmentPrompt } from './planning-alignment-prompt';
 import { logger } from '@/lib/logger';
 import { countSessionPlanWords } from '../content-budget';
@@ -193,31 +198,67 @@ Redacta la Misión Práctica de Laboratorio/Taller Y las ${sessionCount} sesione
     );
     let parsed = robustJsonParse(rawResponse);
 
-    // Validación de extensión mínima (MEJORA 1)
+    // Validación de extensión mínima y cobertura total de sesiones (MEJORA 1)
     const challengeText = typeof parsed.autonomousChallenge === 'string' ? parsed.autonomousChallenge : '';
     const stepMatches = challengeText.match(/(?:Paso\s*\d+|\b\d+[\.\)])/gi) || [];
     const stepCount = stepMatches.length;
+    const planCount = Array.isArray(parsed.sessionPlans) ? parsed.sessionPlans.length : 0;
+    const missingPlans = planCount < coveredSessions.length;
 
-    if (stepCount < 5) {
+    if (stepCount < 5 || missingPlans) {
       attempt = 2;
-      logger.warn(`[LabWriter] autonomousChallenge tiene solo ${stepCount} pasos (< 5). Reintentando con instrucción estricta...`);
-      try {
-        const retryPrompt = `${prompt}\n\n[REQUISITO CRÍTICO DE PROFUNDIDAD]: Tu respuesta anterior tuvo menos de 5 pasos en 'autonomousChallenge'. Redacta OBLIGATORIAMENTE el 'autonomousChallenge' en EXACTAMENTE 5 a 7 PASOS NUMERADOS (Paso 1 al Paso 5, 6 o 7), cada uno con una instrucción cuantitativa clara, variables precisas y acción técnica concreta del estudiante.`;
-        const retryResponse = await generateWithRotation(
-          systemInstruction,
-          retryPrompt,
-          input.planning.teacherId,
-          false,
-          { jsonMode: true, maxTokens: 16384, timeoutMs: 85000, signal: input.signal }
-        );
-        const retryParsed = robustJsonParse(retryResponse);
-        const retryText = typeof retryParsed.autonomousChallenge === 'string' ? retryParsed.autonomousChallenge : '';
-        const retryMatches = retryText.match(/(?:Paso\s*\d+|\b\d+[\.\)])/gi) || [];
-        if (retryMatches.length >= stepCount) {
-          parsed = retryParsed;
+      logger.warn(
+        `[LabWriter] autonomousChallenge=${stepCount} pasos (<5: ${stepCount < 5}) o sessionPlans=${planCount}/${coveredSessions.length}. Reintentando con instrucción estricta...`
+      );
+      let retryStepCount = stepCount;
+      let retryPlanCount = planCount;
+      for (let retry = 0; retry < 2; retry++) {
+        if (input.signal?.aborted) break;
+        const strictDirectives: string[] = [];
+        if (retryStepCount < 5) {
+          strictDirectives.push(
+            `Tu respuesta anterior tuvo menos de 5 pasos en 'autonomousChallenge'. Redacta OBLIGATORIAMENTE el 'autonomousChallenge' en EXACTAMENTE 5 a 7 PASOS NUMERADOS (Paso 1 al Paso 5, 6 o 7), cada uno con una instrucción cuantitativa clara, variables precisas y acción técnica concreta del estudiante.`
+          );
         }
-      } catch (retryErr) {
-        logger.warn('[LabWriter] Error en reintento, preservando primera respuesta:', { error: String(retryErr) });
+        if (retryPlanCount < coveredSessions.length) {
+          strictDirectives.push(
+            `Tu respuesta anterior solo incluyó ${retryPlanCount} de ${coveredSessions.length} planes en 'sessionPlans'. Genera OBLIGATORIAMENTE UN plan por cada sesión asignada (${coveredSessions.join(', ')}), es decir EXACTAMENTE ${coveredSessions.length} objetos en 'sessionPlans', cada uno con su "sessionNumber" correcto y contenido real de estudiante (voz en tú). No omitas ninguna sesión.`
+          );
+        }
+        try {
+          const retryPrompt = `${prompt}\n\n[REQUISITO CRÍTICO - REINTENTO OBLIGATORIO]: ${strictDirectives.join(' ')}`;
+          const retryResponse = await generateWithRotation(
+            systemInstruction,
+            retryPrompt,
+            input.planning.teacherId,
+            false,
+            { jsonMode: true, maxTokens: 16384, timeoutMs: 85000, signal: input.signal }
+          );
+          const retryParsed = robustJsonParse(retryResponse);
+          const retryText =
+            typeof retryParsed.autonomousChallenge === 'string' ? retryParsed.autonomousChallenge : '';
+          const retryMatches = retryText.match(/(?:Paso\s*\d+|\b\d+[\.\)])/gi) || [];
+          const nextStepCount = retryMatches.length;
+          const nextPlanCount = Array.isArray(retryParsed.sessionPlans)
+            ? retryParsed.sessionPlans.length
+            : 0;
+          if (nextPlanCount >= coveredSessions.length) {
+            parsed = {
+              ...parsed,
+              sessionPlans: retryParsed.sessionPlans,
+              autonomousChallenge:
+                nextStepCount >= retryStepCount ? retryText || parsed.autonomousChallenge : parsed.autonomousChallenge,
+            };
+            break;
+          }
+          retryStepCount = nextStepCount;
+          retryPlanCount = nextPlanCount;
+          logger.warn(
+            `[LabWriter] Reintento ${retry + 1} incompleto: sessionPlans=${nextPlanCount}/${coveredSessions.length}.`
+          );
+        } catch (retryErr) {
+          logger.warn('[LabWriter] Error en reintento, preservando primera respuesta:', { error: String(retryErr) });
+        }
       }
     }
 
@@ -312,6 +353,27 @@ Redacta la Misión Práctica de Laboratorio/Taller Y las ${sessionCount} sesione
     }));
 
     const sectionWordCount = fullText.split(/\s+/).filter(Boolean).length;
+    const currentPlans = Array.isArray(parsed.sessionPlans) ? (parsed.sessionPlans as unknown[]) : [];
+    const presentSessions = getPresentSessionNumbers(currentPlans);
+    const missingSessions = coveredSessions.filter((sessionNumber) => !presentSessions.has(sessionNumber));
+    if (missingSessions.length > 0) {
+      try {
+        const generated = await generateMissingSessionPlans({
+          missionType: 'lab',
+          uacName: input.uacName,
+          blockName: input.blockName,
+          subsystem: input.subsystem,
+          coveredSessions,
+          missingSessions,
+          existingPlans: currentPlans,
+          teacherId: input.planning.teacherId,
+          signal: input.signal,
+        });
+        parsed.sessionPlans = mergeSessionPlans(currentPlans, generated, coveredSessions);
+      } catch (err) {
+        logger.warn('[LabWriter] No se pudieron completar las sesiones faltantes:', { error: String(err) });
+      }
+    }
     const sessionPlans = completeSessionPlans(parsed.sessionPlans, coveredSessions, fallbackContext);
     const sessionPlansWords = sessionPlans.reduce((acc, sp) => acc + countSessionPlanWords(sp), 0);
     const totalMissionWords = sectionWordCount + sessionPlansWords;

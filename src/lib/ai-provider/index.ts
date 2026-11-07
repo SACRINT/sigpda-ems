@@ -26,7 +26,7 @@ import {
   AiServiceUnavailableError,
   AiCooldownExhaustedError,
   MAX_POOL_ROUNDS,
-  FAST_FAIL_503_THRESHOLD,
+  getFastFail503Threshold,
   type AttemptMetadata,
 } from './key-rotator';
 import { GeminiProvider, sanitizeGeminiModel } from './gemini';
@@ -325,7 +325,7 @@ export async function* generateStreamWithRotation(
 
       if (is503) {
         consecutive503Count++;
-        if (consecutive503Count >= FAST_FAIL_503_THRESHOLD) {
+        if (consecutive503Count >= getFastFail503Threshold()) {
           throw new AiServiceUnavailableError(
             'Google Gemini está experimentando alta demanda (503). Streaming cortado para proteger cuentas.'
           );
