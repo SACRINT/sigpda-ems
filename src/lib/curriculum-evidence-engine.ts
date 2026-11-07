@@ -116,6 +116,7 @@ export interface ProgresionResumida {
   orden: number;
   nombre?: string;
   descripcion: string;
+  contenidos?: string[];
   metas?: string[];
   categorias?: string[];
   subcategorias?: string[];
@@ -392,10 +393,17 @@ export function construirProgresionesResumidas(
   const desdeContenidos: ProgresionResumida[] = (contenidosFormativos ?? []).map((cf, idx) => {
     const orden = cf.order || cf.numero || (idx + 1);
     const descripcion = textoDeContenido(cf);
+    const listaContenidos = Array.isArray(cf.contenidos)
+      ? cf.contenidos.map((c) => (c || '').trim()).filter(Boolean)
+      : typeof cf.contenidos === 'string' && cf.contenidos.trim()
+        ? [cf.contenidos.trim()]
+        : (cf.saberes ?? []).map((s) => (s || '').trim()).filter(Boolean);
+
     return {
       orden,
       nombre: descripcion || `Progresión ${orden}`,
       descripcion,
+      ...(listaContenidos.length > 0 ? { contenidos: listaContenidos } : {}),
       metas: (cf.metas ?? []).filter((m) => (m || '').trim().length > 3),
       categorias: cf.categorias ?? [],
       subcategorias: cf.subcategorias ?? [],
@@ -445,7 +453,43 @@ function limpiarTextoNucleo(texto: string): string {
   return (texto || '')
     .replace(/^(?:progresi[oó]n|prop[oó]sito|etapa|c\d+m\d+|\d+)\s*[:.\-–—]?\s*/i, '')
     .replace(/^(?:el\s+estudiante|las\s+y\s+los\s+estudiantes|las\s+y\s+los\s+aprendientes|comprende\s+que|analiza\s+que)\s*/i, '')
+    .replace(
+      /^(?:aplica\s+la\s+aritm[eé]tica(?:,\s*el\s+manejo\s+del\s+[aá]lgebra\s+y\s+el\s+m[eé]todo\s+gr[aá]fico|\s+y\s+el\s+manejo\s+del\s+[aá]lgebra)\s+para\s+)/i,
+      ''
+    )
+    .replace(
+      /^(?:expresa\s+y\s+resuelve\s+diversas\s+situaciones\s+de\s+inter[eé]s\s+a\s+trav[eé]s\s+de\s+)/i,
+      ''
+    )
+    .replace(/^revisa\s+el\s+/i, '')
+    .replace(/\s*,?\s*que\s+refieran\s+a\s+situaciones\s+de\s+inter[eé]s\.?$/i, '')
+    .replace(/\s*,?\s*para\s+comprender\s+su\s+relevancia\s+en\s+otras\s+[aá]reas.*$/i, '')
+    .replace(
+      /\s*,?\s*consider[aá]ndolo\s+como\s+un\s+problema-meta\s+para\s+aplicar\s+resultados\s+de\s+la\s+(geometr[ií]a\s+euclidiana)\.?$/i,
+      ' y $1'
+    )
+    .replace(/\.$/, '')
     .trim();
+}
+
+function truncarEnPalabra(texto: string, maxLen = 160): string {
+  if (texto.length <= maxLen) return texto;
+  const corte = texto.slice(0, maxLen - 3);
+  const ultimoEspacio = corte.lastIndexOf(' ');
+  return `${ultimoEspacio > 40 ? corte.slice(0, ultimoEspacio) : corte}...`;
+}
+
+function enriquecerNucleoConContenidos(nucleo: string, contenidos?: string[]): string {
+  if (!contenidos || contenidos.length === 0) return truncarEnPalabra(nucleo, 160);
+  const nucleoNorm = normalizarEvidenciaParaComparar(nucleo);
+  const faltantes = contenidos
+    .map((c) => (c || '').replace(/\.$/, '').trim())
+    .filter((c) => c.length > 2 && !nucleoNorm.includes(normalizarEvidenciaParaComparar(c)));
+
+  if (faltantes.length === 0) return truncarEnPalabra(nucleo, 160);
+  const resumenTemas = faltantes.slice(0, 3).join(', ');
+  const combinado = `${nucleo} (${resumenTemas})`;
+  return truncarEnPalabra(combinado, 160);
 }
 
 /**
@@ -522,13 +566,15 @@ export function derivarEvidenciasDisciplinares(
       const id = slugify(`${uacName}-${orden}-${clasificado.verbo}`);
       if (eliminados.has(id)) continue;
 
-      const nucleo = limpiarTextoNucleo(fuente || prog.descripcion || '');
-      const nucleoCorto = nucleo.length > 70 ? `${nucleo.slice(0, 67)}...` : nucleo;
+      const nucleoBase = limpiarTextoNucleo(fuente || prog.descripcion || '');
+      const nucleoCorto = metasValidas.length > 0
+        ? truncarEnPalabra(nucleoBase, 160)
+        : enriquecerNucleoConContenidos(nucleoBase, prog.contenidos);
       const producto = nucleoCorto
         ? `${clasificado.prefijoArtefacto} ${nucleoCorto.toLowerCase()}`
         : `${clasificado.prefijoArtefacto} saberes disciplinares`;
 
-      const descripcion = `Estudiante ejecuta la acción formativa "${clasificado.verbo}" aplicando saberes de ${familia.replace(/_/g, ' ')} sobre: ${nucleo}. Evidencia formativa técnica de proceso y desempeño.`;
+      const descripcion = `Estudiante ejecuta la acción formativa "${clasificado.verbo}" aplicando saberes de ${familia.replace(/_/g, ' ')} sobre: ${nucleoBase}. Evidencia formativa técnica de proceso y desempeño.`;
 
       const criterios = [
         `Rigor técnico y procedimental en la acción de ${clasificado.verbo}.`,
@@ -591,6 +637,201 @@ export function derivarEvidenciasDisciplinares(
   }
 
   return derivadas;
+}
+
+const STOPWORDS_COBERTURA_CURRICULAR = new Set([
+  'para', 'como', 'con', 'por', 'los', 'las', 'una', 'uno', 'unos', 'unas',
+  'del', 'al', 'que', 'sus', 'sobre', 'entre', 'mediante', 'traves', 'hacia',
+  'aplica', 'aplicar', 'aplicacion', 'contextualizada', 'resuelve', 'resolver',
+  'resolucion', 'situaciones', 'interes', 'distintos', 'distintas', 'tipos',
+  'diversas', 'diversos', 'problemas', 'problema', 'meta', 'resultados',
+  'concepto', 'conceptos', 'procedimiento', 'procedimientos', 'forma', 'formas',
+  'general', 'estandar', 'manejo', 'estudio', 'analisis', 'analiza', 'analizar',
+  'comprende', 'comprender', 'revisa', 'revisar', 'expresa', 'expresar',
+  'identifica', 'identificar', 'describe', 'describir', 'descripcion',
+  'determinar', 'determina', 'encontrar', 'encuentra', 'valor', 'valores',
+  'parte', 'partes', 'metodo', 'metodos', 'multiples', 'basicos', 'basicas',
+  'introduccion', 'definicion', 'componentes', 'elementos', 'relevancia',
+  'otras', 'areas', 'conocimiento', 'fenomenos', 'naturales', 'esferas',
+  'vida', 'humana', 'cotidiana', 'cotidianas', 'contexto', 'contextos',
+  'reporte', 'problemario', 'proyecto', 'portafolio', 'bitacora', 'ensayo',
+  'practica', 'tecnica', 'tecnico', 'manual', 'ficha', 'lamina', 'croquis',
+]);
+
+function extraerTokensDominio(texto: string): string[] {
+  const norm = normalizarEvidenciaParaComparar(texto);
+  return norm
+    .split(/[^a-z0-9]+/)
+    .filter((t) => t.length >= 4 && !STOPWORDS_COBERTURA_CURRICULAR.has(t));
+}
+
+function tokensCoinciden(t1: string, t2: string): boolean {
+  if (t1 === t2) return true;
+  const minLen = Math.min(t1.length, t2.length);
+  if (minLen >= 5 && (t1.startsWith(t2.slice(0, 5)) || t2.startsWith(t1.slice(0, 5)))) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Guardián de Cobertura Curricular de Evidencias.
+ * Si no hay evidencias o contienen genéricos, deriva el conjunto completo.
+ * Si existen evidencias válidas en el catálogo (ej. 3 de álgebra), las preserva
+ * y verifica que cada propósito/progresión esté cubierto. Para cualquier propósito
+ * huérfano (ej. Geometría / Napoleón / Pitágoras), deriva e inyecta su evidencia
+ * disciplinar correspondiente de forma idempotente.
+ */
+export function asegurarCoberturaEvidenciasEstructuradas(
+  evidenciasActuales: string[] | null | undefined,
+  progresiones: ProgresionResumida[],
+  uacName: string,
+  component?: string,
+  docenteOverrides?: DocenteOverride
+): EvidenciaDisciplinar[] {
+  const limpias = (evidenciasActuales ?? []).map((e) => (e || '').trim()).filter(Boolean);
+
+  if (requiereDerivacionEvidencias(limpias)) {
+    return derivarEvidenciasDisciplinares(progresiones, uacName, component, docenteOverrides);
+  }
+
+  if (!progresiones || progresiones.length === 0) {
+    return limpias.map((producto, idx) => ({
+      id: slugify(`${uacName}-cat-${idx + 1}`),
+      orden: idx + 1,
+      tipo: 'producto' as TipoEvidencia,
+      nivelCognitivo: 'aplicar' as NivelCognitivo,
+      verboDisciplinar: 'aplicar',
+      producto,
+      descripcion: `Evidencia curricular oficial para ${uacName}: ${producto}`,
+      criterios: ['Rigor disciplinar', 'Calidad procedimental', 'Presentación conforme al MCCEMS'],
+      fuente: 'derivada' as const,
+      progresionOrigen: idx + 1,
+    }));
+  }
+
+  const eliminados = new Set(docenteOverrides?.eliminados ?? []);
+  const editadas = docenteOverrides?.editadas ?? {};
+
+  // Emparejar cada progresión con a lo sumo una evidencia existente aún disponible
+  const evidenciasTokens = limpias.map((ev) => extraerTokensDominio(ev));
+  const evidenciaReclamada = new Set<number>();
+  const progresionesCubiertas = new Set<number>();
+
+  for (let pIdx = 0; pIdx < progresiones.length; pIdx++) {
+    const prog = progresiones[pIdx];
+    const textoProg = [
+      prog.descripcion || '',
+      ...(prog.contenidos ?? []),
+      ...(prog.metas ?? []),
+    ].join(' ');
+    const tokensProg = extraerTokensDominio(textoProg);
+    const tokensContenidos = extraerTokensDominio((prog.contenidos ?? []).join(' '));
+
+    let mejorEvIdx = -1;
+    let mejorScore = 0;
+
+    for (let eIdx = 0; eIdx < limpias.length; eIdx++) {
+      if (evidenciaReclamada.has(eIdx)) continue;
+      const tEv = evidenciasTokens[eIdx];
+      let coincidencias = 0;
+      for (const tp of tokensProg) {
+        if (tEv.some((te) => tokensCoinciden(tp, te))) {
+          coincidencias++;
+        }
+      }
+      const coincideContenido =
+        tokensContenidos.length === 0 ||
+        tokensContenidos.some((tc) => tEv.some((te) => tokensCoinciden(tc, te)));
+
+      if (coincideContenido && coincidencias > mejorScore) {
+        mejorScore = coincidencias;
+        mejorEvIdx = eIdx;
+      }
+    }
+
+    if (mejorEvIdx !== -1 && mejorScore >= 1) {
+      evidenciaReclamada.add(mejorEvIdx);
+      progresionesCubiertas.add(pIdx);
+    }
+  }
+
+  const resultado: EvidenciaDisciplinar[] = [];
+  const productosRegistrados = new Set<string>();
+
+  // 1. Conservar todas las evidencias válidas existentes
+  for (let i = 0; i < limpias.length; i++) {
+    const id = slugify(`${uacName}-cat-${i + 1}`);
+    if (eliminados.has(id)) continue;
+    const baseProd = editadas[id]?.producto || limpias[i];
+    const norm = normalizarEvidenciaParaComparar(baseProd);
+    if (productosRegistrados.has(norm)) continue;
+    productosRegistrados.add(norm);
+
+    resultado.push({
+      id,
+      orden: resultado.length + 1,
+      tipo: 'producto',
+      nivelCognitivo: 'aplicar',
+      verboDisciplinar: 'aplicar',
+      producto: baseProd,
+      descripcion: `Evidencia curricular oficial para ${uacName}: ${baseProd}`,
+      criterios: ['Rigor disciplinar', 'Calidad procedimental', 'Presentación conforme al MCCEMS'],
+      fuente: 'derivada',
+      progresionOrigen: Math.min(i + 1, progresiones.length),
+      ...(editadas[id] ? editadas[id] : {}),
+    });
+  }
+
+  // 2. Derivar evidencias únicamente para las progresiones/propósitos huérfanos
+  const progresionesFaltantes = progresiones.filter((_, idx) => !progresionesCubiertas.has(idx));
+  if (progresionesFaltantes.length > 0) {
+    const derivadasFaltantes = derivarEvidenciasDisciplinares(
+      progresionesFaltantes,
+      uacName,
+      component,
+      docenteOverrides
+    );
+    for (const der of derivadasFaltantes) {
+      if (der.fuente === 'docente') continue; // Se agregan al final
+      const norm = normalizarEvidenciaParaComparar(der.producto);
+      if (productosRegistrados.has(norm)) continue;
+      productosRegistrados.add(norm);
+      resultado.push({
+        ...der,
+        orden: resultado.length + 1,
+      });
+    }
+  }
+
+  // 3. Incorporar nuevas del docente si existen
+  if (Array.isArray(docenteOverrides?.nuevas)) {
+    for (const nueva of docenteOverrides.nuevas) {
+      resultado.push({
+        ...nueva,
+        orden: resultado.length + 1,
+        fuente: 'docente',
+      });
+    }
+  }
+
+  return resultado;
+}
+
+export function asegurarCoberturaEvidencias(
+  evidenciasActuales: string[] | null | undefined,
+  progresiones: ProgresionResumida[],
+  uacName: string,
+  component?: string,
+  docenteOverrides?: DocenteOverride
+): string[] {
+  return asegurarCoberturaEvidenciasEstructuradas(
+    evidenciasActuales,
+    progresiones,
+    uacName,
+    component,
+    docenteOverrides
+  ).map((e) => e.producto);
 }
 
 // ---------------------------------------------------------------------------

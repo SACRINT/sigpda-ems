@@ -5,9 +5,8 @@ import type { ExtractedPdfData, KeyActivity } from '@/types/planning';
 import { isTechnologicalSubsystem } from '@/lib/subsystem-config';
 import { removeHyphens, normalizeContenidos } from '@/lib/text-utils';
 import {
+  asegurarCoberturaEvidenciasEstructuradas,
   construirProgresionesResumidas,
-  normalizarEvidenciasPaso2,
-  requiereDerivacionEvidencias,
   type ContenidoFormativoFuente,
   type EvidenciaDisciplinar,
 } from '@/lib/curriculum-evidence-engine';
@@ -33,7 +32,14 @@ function cleanData(data: ExtractedPdfData, component?: string): ExtractedPdfData
       : data.contenidosFormativos,
   };
 
-  if (!requiereDerivacionEvidencias(cleaned.evidences)) {
+  const hasTeacherManualChanges = Boolean(
+    cleaned.evidenciasEstructuradas?.length &&
+      (cleaned.teacherOverrides?.eliminados?.length ||
+        cleaned.teacherOverrides?.nuevas?.length ||
+        Object.keys(cleaned.teacherOverrides?.editadas || {}).length > 0)
+  );
+
+  if (hasTeacherManualChanges) {
     return cleaned;
   }
 
@@ -42,11 +48,18 @@ function cleanData(data: ExtractedPdfData, component?: string): ExtractedPdfData
     cleaned.activities
   );
 
-  const res = normalizarEvidenciasPaso2(progsList, cleaned.uacName, component, cleaned.teacherOverrides);
+  const estructuradas = asegurarCoberturaEvidenciasEstructuradas(
+    cleaned.evidences,
+    progsList,
+    cleaned.uacName,
+    component || cleaned.component,
+    cleaned.teacherOverrides
+  );
+
   return {
     ...cleaned,
-    evidences: res.evidencias.map(e => e.producto),
-    evidenciasEstructuradas: res.evidencias,
+    evidences: estructuradas.map(e => e.producto),
+    evidenciasEstructuradas: estructuradas,
   };
 }
 
