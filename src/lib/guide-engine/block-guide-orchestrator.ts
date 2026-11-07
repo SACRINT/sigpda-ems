@@ -102,6 +102,10 @@ export interface OrchestratorOptions {
   expandDeficientSessions?: boolean;
   /** Solo habilitar con semillas auditadas; por defecto se generan bloques frescos. */
   allowCanonicalSeedReuse?: boolean;
+  /** Redactores ya persistidos en un checkpoint para reanudar sin repetir llamadas. */
+  previousWriterOutputs?: WriterOutput[];
+  /** Persiste el avance tras cada redactor, reintento o expansión. */
+  onCheckpoint?: (writerOutputs: WriterOutput[]) => void | Promise<void>;
 }
 
 /**
@@ -123,13 +127,24 @@ export async function generateBlockWorkTextbook(
       ? Number(process.env.JOB_MAX_DURATION_SECONDS) * 1000 - 30_000
       : 240_000);
 
-  const writerOutputs: WriterOutput[] = [];
+  const writerOutputs: WriterOutput[] = [...(options.previousWriterOutputs ?? [])];
 
   const checkAbort = () => {
     if (signal?.aborted) {
       throw signal.reason instanceof Error
         ? signal.reason
         : new DOMException('Generation aborted', 'AbortError');
+    }
+  };
+
+  const persistCheckpoint = async () => {
+    if (!options.onCheckpoint) return;
+    try {
+      await options.onCheckpoint(writerOutputs);
+    } catch (checkpointErr) {
+      logger.warn('[orchestrator] No se pudo persistir el checkpoint de redactores:', {
+        error: String(checkpointErr),
+      });
     }
   };
 
@@ -379,11 +394,15 @@ export async function generateBlockWorkTextbook(
   // Ejecución secuencial de los 4 redactores con notificación de progreso:
   // Evita ráfagas masivas simultáneas en el milisegundo 0 que saturen la cuota de concurrencia
   // de Google AI Studio (503 / Fast-fail).
-  for (let i = 0; i < writerTasks.length; i++) {
+  const pendingWriterTasks = writerTasks.filter(
+    (task) => !writerOutputs.some((output) => output.type === task.type)
+  );
+
+  for (let i = 0; i < pendingWriterTasks.length; i++) {
     if (i > 0 && STAGGER_DELAY_MS > 0) {
       await sleep(STAGGER_DELAY_MS);
     }
-    const task = writerTasks[i];
+    const task = pendingWriterTasks[i];
     if (options.signal?.aborted) {
       throw new Error('Operación cancelada por signal.');
     }
@@ -396,12 +415,13 @@ export async function generateBlockWorkTextbook(
     }
     await notifyProgress({
       phase: 'writing',
-      currentStep: `Redactando dimensión ${i + 1}/4 (${task.type}) con rigor editorial...`,
-      percent: 50 + i * 5,
+      currentStep: `Redactando dimensión ${i + 1}/${pendingWriterTasks.length} (${task.type}) con rigor editorial...`,
+      percent: 50 + Math.round((writerOutputs.length / 4) * 30),
     });
     try {
       const out = await runWriterSafely(task.type, task.fn);
       writerOutputs.push(out);
+      await persistCheckpoint();
     } catch (err) {
       logger.error(`[Orchestrator] Redactor ${task.type} falló; se aborta sin fallback sintético:`, err);
       throw err;
@@ -504,6 +524,7 @@ export async function generateBlockWorkTextbook(
             if (wordsImproved && reRunOutput.qualityScore >= 70) {
               writerOutputs[idx] = reRunOutput;
               improved = true;
+              await persistCheckpoint();
               logger.info(`[orchestrator] Reintento de ${writerType} EXITOSO: ${current.wordCount} -> ${reRunOutput.wordCount} palabras.`);
             } else {
               logger.info(`[orchestrator] Reintento de ${writerType} descartado: no mejoró el volumen (${reRunOutput.wordCount} <= ${current.wordCount}) o calidad insuficiente (${reRunOutput.qualityScore} < 70).`);
@@ -577,7 +598,10 @@ export async function generateBlockWorkTextbook(
             else if (writerType === 'lab') reRun = await generateLabMission(alignInput);
             else if (writerType === 'project') reRun = await generateProjectMission(alignInput);
             else reRun = await generateEvaluationSection(alignInput);
-            if (reRun.qualityScore >= own.qualityScore) writerOutputs[idx] = reRun;
+            if (reRun.qualityScore >= own.qualityScore) {
+              writerOutputs[idx] = reRun;
+              await persistCheckpoint();
+            }
           } catch (alignErr) {
             logger.warn(`[orchestrator] Falló reintento de alineación de ${writerType}:`, { error: String(alignErr) });
           }
@@ -621,6 +645,7 @@ export async function generateBlockWorkTextbook(
           subsystem: curriculumContext.subsystem,
           targetWords: budget.targetWords,
         });
+        await persistCheckpoint();
       }
     }
   }

@@ -18,13 +18,36 @@ import {
   completeGenerationJob,
   failGenerationJob,
   saveBlockWorkbook,
+  saveGenerationJobCheckpoint,
+  requeueGenerationJob,
   WorkerLeaseLostError,
   JOB_LEASE_SECONDS,
   JOB_MAX_DURATION_SECONDS,
   type GenerationJob,
 } from '@/lib/db';
 import { generateBlockWorkTextbook } from './guide-engine/block-guide-orchestrator';
+import type { WriterOutput } from './guide-engine/writers/writer-contract';
 import { logger } from '@/lib/logger';
+
+const MAX_CHECKPOINT_REQUEUES = 8;
+
+interface JobCheckpoint {
+  writerOutputs: WriterOutput[];
+  attempts: number;
+  updatedAt: string;
+}
+
+function readCheckpoint(result: unknown): JobCheckpoint | null {
+  if (!result || typeof result !== 'object') return null;
+  const candidate = result as Record<string, unknown>;
+  if (!Array.isArray(candidate.writerOutputs)) return null;
+  if (typeof candidate.attempts !== 'number') return null;
+  return {
+    writerOutputs: candidate.writerOutputs as WriterOutput[],
+    attempts: candidate.attempts,
+    updatedAt: typeof candidate.updatedAt === 'string' ? candidate.updatedAt : new Date().toISOString(),
+  };
+}
 
 export async function processGenerationJob(
   jobId: string,
@@ -54,7 +77,23 @@ export async function processGenerationJob(
     leaseId = claimed.lease_id;
   }
 
-  logger.info(`[job-worker] Iniciando procesamiento de job ${jobId} (lease: ${leaseId}, Planeación: ${job.planning_id}, Bloque: ${job.block_index})...`);
+  const checkpoint = readCheckpoint(job.result);
+  let checkpointState: JobCheckpoint = checkpoint ?? {
+    writerOutputs: [],
+    attempts: 0,
+    updatedAt: new Date().toISOString(),
+  };
+  const previousWriterOutputs = checkpointState.writerOutputs;
+
+  if (checkpointState.attempts >= MAX_CHECKPOINT_REQUEUES) {
+    const errorMsg = `Se agotaron los reintentos de reanudación (${MAX_CHECKPOINT_REQUEUES}) para el job ${jobId}.`;
+    await failGenerationJob(jobId, errorMsg, leaseId).catch((failErr) =>
+      logger.error(`[job-worker] No se pudo marcar job como fallido:`, failErr)
+    );
+    throw new Error(errorMsg);
+  }
+
+  logger.info(`[job-worker] Iniciando procesamiento de job ${jobId} (lease: ${leaseId}, Planeación: ${job.planning_id}, Bloque: ${job.block_index}, redactores recuperados: ${previousWriterOutputs.length})...`);
 
   // Marcar en running si estaba en pending
   if (job.status === 'pending') {
@@ -102,6 +141,19 @@ export async function processGenerationJob(
   // Presupuesto máximo del orquestador (240s = 270s - 30s) para ensamblar y persistir antes del corte
   const maxBudgetMs = (JOB_MAX_DURATION_SECONDS - 30) * 1000;
 
+  const persistCheckpoint = async (writerOutputs: WriterOutput[]) => {
+    checkpointState = {
+      writerOutputs,
+      attempts: checkpointState.attempts,
+      updatedAt: new Date().toISOString(),
+    };
+    await saveGenerationJobCheckpoint(
+      jobId,
+      checkpointState as unknown as Record<string, unknown>,
+      leaseId
+    );
+  };
+
   try {
     // Ejecutar el orquestador editorial completo (con persistWorkbook: false para persistencia única)
     const workbook = await generateBlockWorkTextbook(
@@ -116,6 +168,8 @@ export async function processGenerationJob(
         // Misma ruta editorial que la regeneración offline: expande sesiones
         // deficientes solo si queda presupuesto suficiente (ver orquestador).
         expandDeficientSessions: true,
+        previousWriterOutputs,
+        onCheckpoint: persistCheckpoint,
       }
     );
 
@@ -146,6 +200,34 @@ export async function processGenerationJob(
 
     const errorMsg = error instanceof Error ? error.message : String(error);
     logger.error(`[job-worker] Falló job ${jobId}:`, error);
+
+    const canResume =
+      checkpointState.writerOutputs.length > 0 &&
+      checkpointState.attempts < MAX_CHECKPOINT_REQUEUES;
+
+    if (canResume) {
+      const nextCheckpoint: JobCheckpoint = {
+        writerOutputs: checkpointState.writerOutputs,
+        attempts: checkpointState.attempts + 1,
+        updatedAt: new Date().toISOString(),
+      };
+      try {
+        const requeued = await requeueGenerationJob(
+          jobId,
+          nextCheckpoint as unknown as Record<string, unknown>,
+          leaseId,
+          45
+        );
+        if (requeued) {
+          logger.warn(
+            `[job-worker] Job ${jobId} reencolado con ${nextCheckpoint.writerOutputs.length} redactores (reintento ${nextCheckpoint.attempts}/${MAX_CHECKPOINT_REQUEUES}).`
+          );
+          return await getGenerationJobById(jobId);
+        }
+      } catch (requeueErr) {
+        logger.error(`[job-worker] No se pudo reencolar job ${jobId}:`, requeueErr);
+      }
+    }
 
     await failGenerationJob(jobId, errorMsg, leaseId).catch((failErr) =>
       logger.error(`[job-worker] No se pudo marcar job como fallido:`, failErr)

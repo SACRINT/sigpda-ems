@@ -325,3 +325,58 @@ export async function failGenerationJob(
   }
   return updated;
 }
+
+export async function saveGenerationJobCheckpoint(
+  jobId: string,
+  checkpoint: Record<string, unknown>,
+  leaseId?: string
+): Promise<boolean> {
+  const client = sql();
+  const rows = await client`
+    UPDATE generation_jobs
+    SET result = ${JSON.stringify(checkpoint)}::jsonb,
+        updated_at = NOW()
+    WHERE id = ${jobId}::uuid
+      AND status = 'running'
+      AND (${leaseId || null}::uuid IS NULL OR lease_id = ${leaseId}::uuid)
+    RETURNING id
+  `;
+
+  const updated = Boolean(rows && rows.length > 0);
+  if (!updated && leaseId) {
+    throw new WorkerLeaseLostError(`No se pudo guardar el checkpoint del job ${jobId}: lease ${leaseId} revocado o inválido.`);
+  }
+  return updated;
+}
+
+export async function requeueGenerationJob(
+  jobId: string,
+  checkpoint: Record<string, unknown>,
+  leaseId?: string,
+  progress = 45
+): Promise<boolean> {
+  const client = sql();
+  const rows = await client`
+    UPDATE generation_jobs
+    SET status = 'pending',
+        progress = ${progress},
+        current_phase = 'queued',
+        current_step = 'Reanudando generación desde el último checkpoint...',
+        result = ${JSON.stringify(checkpoint)}::jsonb,
+        error = NULL,
+        lease_id = NULL,
+        heartbeat_at = NULL,
+        lease_until = NULL,
+        updated_at = NOW()
+    WHERE id = ${jobId}::uuid
+      AND status = 'running'
+      AND (${leaseId || null}::uuid IS NULL OR lease_id = ${leaseId}::uuid)
+    RETURNING id
+  `;
+
+  const updated = Boolean(rows && rows.length > 0);
+  if (!updated && leaseId) {
+    throw new WorkerLeaseLostError(`No se pudo reencolar el job ${jobId}: lease ${leaseId} revocado o inválido.`);
+  }
+  return updated;
+}

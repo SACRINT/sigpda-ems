@@ -4,7 +4,7 @@ import { getPlanningById, getBlockWorkbook, getTeacherByEmail } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
-export const maxDuration = 90;
+export const maxDuration = 300;
 
 // ── GET: Obtener el Libro de Trabajo generado para un bloque ────────────────
 export async function GET(
