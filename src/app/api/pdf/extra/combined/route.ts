@@ -12,7 +12,7 @@ import {
   reviewBlockMaterials,
   type ReviewIssue,
 } from '@/lib/guide-engine/material-review';
-import type { GeneratedPlanningContent } from '@/types/planning';
+import type { GeneratedPlanningContent, SecuenciaBloque } from '@/types/planning';
 import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
@@ -160,8 +160,12 @@ async function handleCombinedPdf(request: NextRequest) {
               return cIdx === bIdx;
             });
 
+      const rawSeq = planning.sequence_json as Record<string | number, SecuenciaBloque> | undefined;
+      const blockSeq = rawSeq?.[bIdx] ?? rawSeq?.[String(bIdx)] ?? null;
+
       const review = reviewBlockMaterials({
         workbook,
+        blockSequence: blockSeq,
         persistedExtras: blockExtras,
         checkFullBlockPersistence: false,
         checkLessonPlanCount: cleanType === 'lesson_plan',

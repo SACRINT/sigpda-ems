@@ -848,11 +848,13 @@ export function reviewBlockMaterials(input: ReviewBlockMaterialsInput): Material
           const normFresh = normalizeForMatch(serializePlanContent(freshPlan));
           const { coverage, missing } = computeLessonPlanFieldCoverage(rawText, freshPlan);
 
-          const hasApertura = /fase de apertura|\bapertura\b/i.test(rawText);
-          const hasDesarrollo = /fase de desarrollo|\bdesarrollo\b/i.test(rawText);
-          const hasCierre = /fase de cierre|\bcierre\b/i.test(rawText);
-          const hasEvaluacion = /evaluaci[oó]n|producto esperado/i.test(rawText);
-          const hasEssentialPhases = hasApertura && hasDesarrollo && hasCierre && hasEvaluacion;
+          const phasePatterns = {
+            apertura: /fase de apertura|\bapertura\b|activaci[oó]n|\binicio\b/i,
+            desarrollo: /fase de desarrollo|\bdesarrollo\b|construcci[oó]n|modelado|conquista/i,
+            cierre: /fase de cierre|\bcierre\b|consolidaci[oó]n|s[ií]ntesis/i,
+            evaluacion: /evaluaci[oó]n|producto esperado|evidencia|instrumento/i,
+          };
+          const hasEssentialPhases = Object.values(phasePatterns).every((rx) => rx.test(rawText));
 
           const severelyShort =
             normPersisted.length > 0 &&

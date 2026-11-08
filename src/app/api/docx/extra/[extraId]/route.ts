@@ -9,6 +9,7 @@ import {
 import { buildExtraDocx } from '@/lib/docx-helpers';
 import { sanitizeDocFilenameWithBlock } from '@/lib/document-branding';
 import { resolveBlockNumber } from '@/lib/curricular-blocks';
+import type { SecuenciaBloque } from '@/types/planning';
 import {
   mapExtraTypeToMaterialType,
   reviewBlockMaterials,
@@ -53,9 +54,12 @@ export async function GET(
         getPlanningById(extra.planning_id, teacher.id).catch(() => null),
       ]);
       if (workbook) {
+        const rawSeq = planning?.sequence_json as Record<string | number, SecuenciaBloque> | undefined;
+        const blockSeq = rawSeq?.[canonicalBlockIdx] ?? rawSeq?.[String(canonicalBlockIdx)] ?? null;
         const mType = mapExtraTypeToMaterialType(extra.type, extra.content_text, extra.title);
         const review = reviewBlockMaterials({
           workbook,
+          blockSequence: blockSeq,
           persistedExtras: [extra],
           checkFullBlockPersistence: false,
           uacName: planning?.uac_name || workbook.coverData?.subjectName || '',

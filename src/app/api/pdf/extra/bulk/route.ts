@@ -12,6 +12,7 @@ import { generateExtraPdfDocument } from '@/lib/pdf-extra-renderer';
 import { isStructuredVisualPayload } from '@/lib/materials/material-tokens';
 import { sanitizeDocFilename, sanitizeDocFilenameWithBlock, type BrandingContext } from '@/lib/document-branding';
 import { resolveBlockNumber } from '@/lib/curricular-blocks';
+import type { SecuenciaBloque } from '@/types/planning';
 import {
   mapExtraTypeToMaterialType,
   reviewBlockMaterials,
@@ -152,8 +153,12 @@ async function handleBulkPdf(request: NextRequest) {
         const workbook = await getBlockWorkbook(groupPlanId, bIdx);
         if (!workbook) continue;
 
+        const rawSeq = planningForReview?.sequence_json as Record<string | number, SecuenciaBloque> | undefined;
+        const blockSeq = rawSeq?.[bIdx] ?? rawSeq?.[String(bIdx)] ?? null;
+
         const review = reviewBlockMaterials({
           workbook,
+          blockSequence: blockSeq,
           persistedExtras: blockExtras,
           checkFullBlockPersistence: isFullSuite,
           checkLessonPlanCount: isFullSuite || type === 'lesson_plan',
