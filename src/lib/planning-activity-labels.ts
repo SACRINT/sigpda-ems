@@ -1,4 +1,5 @@
 import type { KeyActivityPlan } from '@/types/planning';
+import { mapActivityIndexToBlockIndex } from '@/lib/curricular-blocks';
 
 export type PlanningActivityLike = Pick<KeyActivityPlan, 'name'> & {
   order?: number;
@@ -46,7 +47,7 @@ export function resolvePlanningBlockNumber(
 
   const total = activities.length;
   if (total <= 0) return 1;
-  return clampBlock(Math.floor((index * 3) / total) + 1);
+  return clampBlock(mapActivityIndexToBlockIndex(index, total) + 1);
 }
 
 export function resolvePlanningActivityNumber(

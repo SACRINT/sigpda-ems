@@ -7,6 +7,8 @@ import { exportPlanningPdfWithFallback } from '@/lib/planeaciones/strangler-clie
 import { enrichWithExplicitSaberes } from '@/lib/planning-integrity-system';
 import { stripMaterialTokens } from '@/lib/materials/material-tokens';
 import { resolveSchoolIdentity } from '@/lib/school-identity';
+import { buildPlanningActivityHeading } from '@/lib/planning-activity-labels';
+import { getSessionsForActivity } from '@/lib/planning-session-partitioner';
 
 interface DocumentA4ViewerProps {
   planning: Planning;
@@ -477,7 +479,9 @@ export default function DocumentA4Viewer({
                 <thead>
                   <tr style={{ background: '#1f3864', color: '#fff' }}>
                     <th colSpan={4} style={{ padding: '6px 8px', fontSize: '10.5px' }}>
-                      Bloque {idx + 1}: {act.name} ({act.hours || 18} Horas) — Metodología: {act.methodology}
+                      {buildPlanningActivityHeading(act, idx, s4?.activities || [], {
+                        isProgresiones: Number(planning.semester || s1?.semester || 1) >= 5,
+                      })} ({act.hours || 18} Horas) — Metodología: {act.methodology}
                     </th>
                   </tr>
                 </thead>
@@ -536,8 +540,13 @@ export default function DocumentA4Viewer({
                   </tr>
 
                   {/* Micro-Sesiones de 50 min (from sequence_json) */}
-                  {sequenceData && sequenceData[idx] && sequenceData[idx].sessions && sequenceData[idx].sessions.length > 0 && (() => {
-                    const sessions = sequenceData[idx].sessions;
+                  {(() => {
+                    const { sessions, totalBlockSessions } = getSessionsForActivity(
+                      idx,
+                      s4?.activities || [],
+                      sequenceData
+                    );
+                    if (sessions.length === 0) return null;
                     const phaseColors: Record<string, { bg: string; text: string }> = {
                       Apertura:   { bg: '#e0f2fe', text: '#0369a1' },
                       Desarrollo: { bg: '#dcfce7', text: '#15803d' },
@@ -567,7 +576,7 @@ export default function DocumentA4Viewer({
                                 <span style={{ display: 'inline-block', padding: '1px 5px', borderRadius: '3px', background: pc.bg, color: pc.text, fontWeight: 700, fontSize: '7.5px' }}>
                                   {s.phase.charAt(0)}
                                 </span>
-                                <div style={{ fontSize: '7.5px', color: '#64748b', marginTop: '1px' }}>{s.sessionNum}/{s.totalSessions}</div>
+                                <div style={{ fontSize: '7.5px', color: '#64748b', marginTop: '1px' }}>{s.sessionNum}/{s.totalSessions ?? (totalBlockSessions || sessions.length)}</div>
                               </td>
                               <td style={{ padding: '4px 6px', fontSize: '8px', fontWeight: 600, color: '#1e293b', lineHeight: 1.3 }}>{s.title}</td>
                               <td style={{ padding: '4px 6px', fontSize: '7.5px', color: '#334155', lineHeight: 1.3 }}>{s.teachingActivity}</td>

@@ -23,6 +23,7 @@ import { buildFullSequenceFromWorkbooks } from '@/lib/planning/workbook-sequence
 import { stripMaterialTokens } from '@/lib/materials/material-tokens';
 import { resolveSchoolIdentity, resolverIdentidadEscolar, CCT_NO_REGISTRADO } from '@/lib/school-identity';
 import { buildPlanningActivityHeading } from '@/lib/planning-activity-labels';
+import { getSessionsForActivity } from '@/lib/planning-session-partitioner';
 
 const NAVY: [number, number, number] = [31, 56, 100];       // #1F3864 - Azul Institucional
 const BLUE_MID: [number, number, number] = [46, 116, 181];   // #2E74B5 - Azul Secundario
@@ -574,14 +575,14 @@ export async function generatePlanningPDF(
     currentY = doc.lastAutoTable!.finalY;
 
     // Micro-Sesiones de 50 min (Tabla independiente de 4 columnas con sus propios títulos)
-    const blockSeq = sequenceData?.[idx];
-    if (blockSeq && blockSeq.sessions && blockSeq.sessions.length > 0) {
-      const sessionRows: RowInput[] = blockSeq.sessions.map((s) => {
+    const { sessions: actSessions, totalBlockSessions } = getSessionsForActivity(idx, activities, sequenceData);
+    if (actSessions.length > 0) {
+      const sessionRows: RowInput[] = actSessions.map((s) => {
         const isAp = s.phase === 'Apertura';
         const isDes = s.phase === 'Desarrollo';
         const phaseName = isAp ? 'Apertura' : isDes ? 'Desarrollo' : 'Cierre';
         const phaseColor = isAp ? PHASE_APERTURA : isDes ? PHASE_DESARROLLO : PHASE_CIERRE;
-        const total = s.totalSessions ?? blockSeq.sessions.length;
+        const total = s.totalSessions ?? (totalBlockSessions || actSessions.length);
         return [
           { content: `S${s.sessionNum}/${total}\n[${phaseName}]`, styles: { fontStyle: 'bold', cellWidth: 22, fontSize: 5.8, textColor: phaseColor, halign: 'center' } },
           { content: s.title, styles: { fontStyle: 'bold', fontSize: 6, cellWidth: 42 } },
@@ -595,7 +596,7 @@ export async function generatePlanningPDF(
         head: [
           [
             {
-              content: `Sesiones de 50 minutos — ${blockSeq.sessions.length} sesiones totales`,
+              content: `Sesiones de 50 minutos — ${actSessions.length} sesiones totales`,
               colSpan: 4,
               styles: { fillColor: [241, 245, 249], textColor: [30, 41, 59], fontStyle: 'bold', fontSize: 6.5 },
             },
@@ -983,8 +984,7 @@ export async function generateSecuenciaPDF(
       : 'Saberes curriculares vinculados al contenido formativo';
 
   activities.forEach((act, idx) => {
-    const blockSeq = sequenceData?.[idx];
-    const sessions = blockSeq?.sessions || [];
+    const { sessions, totalBlockSessions } = getSessionsForActivity(idx, activities, sequenceData);
 
     const rows: RowInput[] = [];
 
@@ -1047,7 +1047,7 @@ export async function generateSecuenciaPDF(
         const phaseColor = isAp ? PHASE_APERTURA : isDes ? PHASE_DESARROLLO : PHASE_CIERRE;
         rows.push([
           {
-            content: `S${s.sessionNum}/${s.totalSessions ?? sessions.length}\n[${s.phase}]`,
+            content: `S${s.sessionNum}/${s.totalSessions ?? (totalBlockSessions || sessions.length)}\n[${s.phase}]`,
             styles: { fontStyle: 'bold', fontSize: 6.5, halign: 'center', textColor: phaseColor },
           },
           { content: s.title, styles: { fontStyle: 'bold', fontSize: 6.5 } },
