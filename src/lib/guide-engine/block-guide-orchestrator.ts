@@ -832,7 +832,9 @@ export async function generateBlockWorkTextbook(
     missions,
     planning.uacName,
     planning.component,
-    planning.curriculumName
+    planning.curriculumName,
+    '',
+    true
   );
   if (!crossContaminationReport.clean) {
     logger.error(`[Orchestrator] Contaminación cruzada detectada en bloque ${blockIndex}: ${crossContaminationReport.summary}`, {

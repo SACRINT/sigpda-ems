@@ -131,3 +131,4 @@ describe('PlanningTabSecuencias - Conteo dinámico de planes generados', () => {
     expect(count).toBe(36);
   });
 });
+

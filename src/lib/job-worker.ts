@@ -230,8 +230,34 @@ export async function processGenerationJob(
       checkpointState.attempts < MAX_CHECKPOINT_REQUEUES;
 
     if (canResume) {
+      let writersToKeep = [...checkpointState.writerOutputs];
+
+      // Si todos los redactores (4) ya estaban completos pero el job falló en validación o ensamblado:
+      // Conservar los 4 redactores provocaría que el worker repita el fallo de forma determinista.
+      // Descartamos el redactor responsable de las sesiones afectadas (o el último) para que se regenere con IA fresca.
+      if (writersToKeep.length >= 4) {
+        let evictedType: 'foundation' | 'lab' | 'project' | 'evaluation' = 'lab';
+        const errorMsgLower = errorMsg.toLowerCase();
+        const match = errorMsgLower.match(/sesi[oó]n(?:es)?(?:\s+afectadas?)?[:\s]+(\d+)/i);
+        if (match) {
+          const sNum = parseInt(match[1], 10);
+          if (sNum <= 3) evictedType = 'foundation';
+          else if (sNum <= 9) evictedType = 'lab';
+          else if (sNum <= 15) evictedType = 'project';
+          else evictedType = 'evaluation';
+        } else if (errorMsgLower.includes('evaluation') || errorMsgLower.includes('rúbrica') || errorMsgLower.includes('rubric')) {
+          evictedType = 'evaluation';
+        } else if (errorMsgLower.includes('project') || errorMsgLower.includes('proyecto')) {
+          evictedType = 'project';
+        }
+        writersToKeep = writersToKeep.filter((w) => w.type !== evictedType);
+        logger.warn(
+          `[job-worker] Error post-redacción detectado en job ${jobId}; descartando redactor '${evictedType}' del checkpoint para forzar regeneración fresca en el reintento.`
+        );
+      }
+
       const nextCheckpoint: JobCheckpoint = {
-        writerOutputs: checkpointState.writerOutputs,
+        writerOutputs: writersToKeep,
         attempts: checkpointState.attempts + 1,
         updatedAt: new Date().toISOString(),
       };

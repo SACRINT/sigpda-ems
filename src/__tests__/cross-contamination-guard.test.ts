@@ -371,7 +371,7 @@ describe('Cross-Contamination Guard (P3.1.2)', () => {
         sessionTopic: 'Introducción',
         sessionFocus: 'Conceptos base',
         phenomenonHook: {
-          story: 'Fase 3: Ensamblaje físico del prototipo de riego.',
+          story: 'Fase 3: Instalación hidráulica y colado de losa de concreto para la obra.',
           detonatingQuestion: '¿Cómo iniciar?',
         },
         conceptZero: { physicalAnalogy: 'Analogía', coreExplanation: 'Explicación' },
@@ -400,7 +400,54 @@ describe('Cross-Contamination Guard (P3.1.2)', () => {
 
       const issues = validateSessionPlanContamination(plan, 'Pensamiento Matemático I');
       expect(issues).toEqual([]);
-      expect(plan.contenido).not.toMatch(/tuber[ií]a|estanqueidad|ensamblaje f[ií]sico/i);
+      expect(plan.contenido).not.toMatch(/tuber[ií]a|estanqueidad/i);
+    });
+
+    it('permite "ensamblaje físico" en Taller de Pensamiento Variacional I sin falsos positivos de construcción', () => {
+      const variacionalPlan = createMockPlan({
+        sessionNumber: 9,
+        objetivo: 'Construir un modelo para el análisis de variación.',
+        contenido: 'En esta sesión se realiza el ensamblaje físico del dispositivo de medición y registro de datos.',
+        isFallback: false,
+      });
+
+      const issues = validateSessionPlanContamination(variacionalPlan, 'Taller de Pensamiento Variacional I');
+      expect(issues).toEqual([]);
+    });
+
+    it('autoSanitizeCrossContamination neutraliza incidencias aisladas permitiendo que el reporte quede limpio', () => {
+      const contaminatedMission: MissionSection = {
+        missionIndex: 2,
+        title: 'Misión 2: Taller de Variación',
+        coveredSessions: [9],
+        sessionTopic: 'Modelado práctico',
+        sessionFocus: 'Construcción del modelo',
+        phenomenonHook: { story: 'Comunidad', detonatingQuestion: '¿Cómo?' },
+        conceptZero: { physicalAnalogy: 'Analogía', coreExplanation: 'Explicación' },
+        iDoSection: { stepByStepDemo: 'Demo' },
+        weDoSection: { guidedPractice: 'Práctica', workbookElements: [] },
+        youDoSection: { autonomousChallenge: 'Reto', workbookElements: [] },
+        troubleshooting: [],
+        formativeCheckpoint: { question: 'Pregunta', reflectionPrompts: [], criteriaChecklist: [] },
+        sessionPlans: [
+          createMockPlan({
+            sessionNumber: 9,
+            objetivo: 'Identificarás el colado de losa y la mezcla de cemento.',
+            contenido: 'Análisis con varilla corrugada.',
+            isFallback: false,
+          }),
+        ],
+        wordCount: 1500,
+      };
+
+      // Sin auto-sanitizar: se reportan las incidencias
+      const dirtyReport = validateBlockCrossContamination([contaminatedMission], 'Taller de Pensamiento Variacional I', '', '', '', false);
+      expect(dirtyReport.clean).toBe(false);
+
+      // Con auto-sanitizar activado: se neutralizan las incidencias aisladas
+      const cleanReport = validateBlockCrossContamination([contaminatedMission], 'Taller de Pensamiento Variacional I', '', '', '', true);
+      expect(cleanReport.clean).toBe(true);
+      expect(cleanReport.issues).toHaveLength(0);
     });
   });
 });

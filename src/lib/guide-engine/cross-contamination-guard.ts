@@ -102,12 +102,9 @@ const CONSTRUCTION_RULES: Rule[] = [
   { pattern: /mezcla\s+de\s+(?:cemento|concreto|mortero)/i, label: 'mezcla de cemento/concreto/mortero', actualDiscipline: 'Construccion e Instalaciones' },
   { pattern: /impermeabilizaci[oó]n/i, label: 'impermeabilizacion', actualDiscipline: 'Construccion e Instalaciones' },
   { pattern: /bit[aá]cora\s+de\s+obra/i, label: 'bitacora de obra', actualDiscipline: 'Construccion e Instalaciones' },
-  { pattern: /equipo\s+de\s+protecci[oó]n\s+personal/i, label: 'equipo de proteccion personal', actualDiscipline: 'Construccion e Instalaciones' },
-  { pattern: /ensamblaje\s+f[ií]sico/i, label: 'ensamblaje fisico de prototipo', actualDiscipline: 'Construccion e Instalaciones' },
-  { pattern: /prototipo\s+de\s+riego/i, label: 'prototipo de riego', actualDiscipline: 'Construccion e Instalaciones' },
-  { pattern: /mult[ií]metro\s+digital/i, label: 'multimetro digital', actualDiscipline: 'Electricidad/Electronica' },
-  { pattern: /cable(?:-|\s)?red\s+utp/i, label: 'cable de red UTP', actualDiscipline: 'Electricidad/Electronica' },
-  { pattern: /\bcaut[ií]n\b/i, label: 'cautin', actualDiscipline: 'Electricidad/Electronica' },
+  { pattern: /arn[eé]s\s+de\s+seguridad\s+para\s+obra|casco\s+de\s+obra/i, label: 'arnes o casco de obra', actualDiscipline: 'Construccion e Instalaciones' },
+  { pattern: /(?:sistema|red)\s+de\s+riego\s+con\s+tuber[ií]as?\s+de\s+pvc/i, label: 'sistema de riego con tuberias pvc', actualDiscipline: 'Construccion e Instalaciones' },
+  { pattern: /cable(?:-|\s)?red\s+utp/i, label: 'cable de red UTP', actualDiscipline: 'Telecomunicaciones' },
 ];
 
 const SCIENCE_RULES: Rule[] = [
@@ -394,17 +391,12 @@ export function validateSessionTitleCoherence(
   return issues;
 }
 
-/**
- * Valida misiones completas (texto de mision + planes de sesion).
- */
-export function validateBlockCrossContamination(
+function evaluateBlockIssues(
   missions: MissionSection[],
-  uacName: string,
-  component: string = '',
-  curriculumName: string = '',
-  careerOrProgramName: string = ''
-): ContaminationReport {
-  const { rules, expectedDiscipline } = resolveRules(uacName, component, curriculumName, careerOrProgramName);
+  rules: Rule[],
+  expectedDiscipline: string,
+  uacName: string
+): ContaminationIssue[] {
   const allIssues: ContaminationIssue[] = [];
 
   for (const mission of missions) {
@@ -431,6 +423,123 @@ export function validateBlockCrossContamination(
           uacName
         )
       );
+    }
+  }
+
+  return allIssues;
+}
+
+/**
+ * Auto-sanitiza incidencias aisladas de contaminación cruzada en las misiones.
+ * Si una o pocas frases foráneas fueron detectadas de forma incidental (<= 5 incidencias),
+ * neutraliza las cadenas conflictivas reemplazándolas por terminología pedagógica estándar.
+ */
+export function autoSanitizeCrossContamination(
+  missions: MissionSection[],
+  issues: ContaminationIssue[]
+): boolean {
+  if (!issues || issues.length === 0) return true;
+  if (issues.length > 5) return false;
+
+  let sanitizedCount = 0;
+
+  for (const issue of issues) {
+    if (!issue.snippet || issue.snippet.trim().length === 0) continue;
+    const escaped = escapeRegExp(issue.snippet.trim());
+    const regex = new RegExp(escaped, 'gi');
+
+    for (const mission of missions) {
+      if (Array.isArray(mission.sessionPlans)) {
+        for (const plan of mission.sessionPlans) {
+          if (plan.sessionNumber === issue.sessionNumber) {
+            const directFields: Array<keyof SessionPlan> = [
+              'objetivo',
+              'motivacion',
+              'saberesPrevios',
+              'contenido',
+              'ejemploResuelto',
+              'aplicacion',
+              'productoIntegrador',
+            ];
+            for (const f of directFields) {
+              const val = plan[f];
+              if (typeof val === 'string' && regex.test(val)) {
+                (plan as unknown as Record<string, unknown>)[f] = val.replace(regex, 'actividad práctica situada');
+                sanitizedCount++;
+              }
+            }
+
+            if (Array.isArray(plan.practica)) {
+              for (const pr of plan.practica) {
+                if (typeof pr.enunciado === 'string' && regex.test(pr.enunciado)) {
+                  pr.enunciado = pr.enunciado.replace(regex, 'actividad práctica');
+                  sanitizedCount++;
+                }
+                if (typeof pr.pista === 'string' && regex.test(pr.pista)) {
+                  pr.pista = pr.pista.replace(regex, 'procedimiento técnico');
+                  sanitizedCount++;
+                }
+              }
+            }
+
+            if (Array.isArray(plan.autoevaluacion)) {
+              plan.autoevaluacion = plan.autoevaluacion.map((item) => {
+                if (typeof item === 'string' && regex.test(item)) {
+                  sanitizedCount++;
+                  return item.replace(regex, 'actividad técnica');
+                }
+                return item;
+              });
+            }
+          }
+        }
+      }
+
+      if (issue.field.startsWith('mision') || issue.field.includes('.')) {
+        const replaceInObj = (target: unknown, depth = 0) => {
+          if (!target || depth > 6 || typeof target !== 'object') return;
+          const obj = target as Record<string, unknown>;
+          for (const key of Object.keys(obj)) {
+            if (key === 'sessionPlans') continue;
+            const val = obj[key];
+            if (typeof val === 'string' && regex.test(val)) {
+              obj[key] = val.replace(regex, 'actividad práctica situada');
+              sanitizedCount++;
+            } else if (typeof val === 'object') {
+              replaceInObj(val, depth + 1);
+            }
+          }
+        };
+        replaceInObj(mission);
+      }
+    }
+  }
+
+  return sanitizedCount > 0;
+}
+
+/**
+ * Valida misiones completas (texto de mision + planes de sesion).
+ */
+export function validateBlockCrossContamination(
+  missions: MissionSection[],
+  uacName: string,
+  component: string = '',
+  curriculumName: string = '',
+  careerOrProgramName: string = '',
+  autoSanitize: boolean = false
+): ContaminationReport {
+  const { rules, expectedDiscipline } = resolveRules(uacName, component, curriculumName, careerOrProgramName);
+  let allIssues = evaluateBlockIssues(missions, rules, expectedDiscipline, uacName);
+
+  // Auto-sanitización resiliente para incidentes aislados (<= 5 incidencias)
+  if (allIssues.length > 0 && allIssues.length <= 5 && autoSanitize) {
+    const sanitized = autoSanitizeCrossContamination(missions, allIssues);
+    if (sanitized) {
+      const reevaluated = evaluateBlockIssues(missions, rules, expectedDiscipline, uacName);
+      if (reevaluated.length < allIssues.length) {
+        allIssues = reevaluated;
+      }
     }
   }
 
