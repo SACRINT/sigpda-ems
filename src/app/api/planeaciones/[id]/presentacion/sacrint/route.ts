@@ -7,6 +7,7 @@ import { renderDeckSvgs } from '@/lib/visual-engine/sacrint/slide-renderer';
 import { generateSacrintPptx } from '@/lib/visual-engine/sacrint/sacrint-pptx-generator';
 import { renderSvgToPng } from '@/lib/visual-engine/sacrint/sacrint-rasterizer';
 import { SLIDE } from '@/lib/visual-engine/sacrint/tokens';
+import { reviewBlockMaterials } from '@/lib/guide-engine/material-review';
 import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
@@ -101,6 +102,33 @@ export async function GET(
     }
 
     const deck = buildSacrintDeck(workbook, { missionIndex: missionPos });
+    const review = reviewBlockMaterials({
+      workbook,
+      deck,
+      uacName: planRows[0].uac_name,
+      component: planRows[0].component || '',
+    });
+    const deckIssues = review.byMaterial.deck.issues;
+    const deckErrors = deckIssues.filter((i) => i.severity === 'error');
+    const deckWarnings = deckIssues.filter((i) => i.severity === 'warning');
+
+    if (deckErrors.length > 0) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: 'Material bloqueado por inconsistencia estructural',
+          issues: deckErrors,
+          review,
+        },
+        { status: 422 }
+      );
+    }
+
+    const warningHeaders: Record<string, string> =
+      deckWarnings.length > 0
+        ? { 'X-Material-Warnings': String(deckWarnings.length) }
+        : {};
+
     const pptxBaseName = `SACRINT_${safeFilename(deck.meta.subjectName)}_B${blockIndex + 1}_M${deck.meta.missionNumber}`;
 
     if (format === 'pptx') {
@@ -111,6 +139,7 @@ export async function GET(
           'Content-Type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
           'Content-Disposition': `attachment; filename="${pptxBaseName}.pptx"`,
           'Cache-Control': 'no-store',
+          ...warningHeaders,
         },
       });
     }
@@ -118,19 +147,23 @@ export async function GET(
     const rendered = renderDeckSvgs(deck);
 
     if (format === 'json') {
-      return NextResponse.json({
-        success: true,
-        blockIndex,
-        missionIndex: missionPos,
-        missions,
-        width: SLIDE.width,
-        height: SLIDE.height,
-        deck: {
-          meta: deck.meta,
-          pack: deck.pack,
-          slides: rendered.map(({ kind, filename }) => ({ kind, filename })),
+      return NextResponse.json(
+        {
+          success: true,
+          blockIndex,
+          missionIndex: missionPos,
+          missions,
+          width: SLIDE.width,
+          height: SLIDE.height,
+          review: review.byMaterial.deck,
+          deck: {
+            meta: deck.meta,
+            pack: deck.pack,
+            slides: rendered.map(({ kind, filename }) => ({ kind, filename })),
+          },
         },
-      });
+        { headers: warningHeaders }
+      );
     }
 
     const slide = rendered[slidePos];
@@ -141,7 +174,11 @@ export async function GET(
     if (format === 'svg') {
       return new NextResponse(slide.svg, {
         status: 200,
-        headers: { 'Content-Type': 'image/svg+xml; charset=utf-8', 'Cache-Control': 'no-store' },
+        headers: {
+          'Content-Type': 'image/svg+xml; charset=utf-8',
+          'Cache-Control': 'no-store',
+          ...warningHeaders,
+        },
       });
     }
 
@@ -154,6 +191,7 @@ export async function GET(
         'Content-Type': 'image/png',
         'Content-Disposition': `${disposition}; filename="${baseName}.png"`,
         'Cache-Control': 'no-store',
+        ...warningHeaders,
       },
     });
   } catch (error: unknown) {

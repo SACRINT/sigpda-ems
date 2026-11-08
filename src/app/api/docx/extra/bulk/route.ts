@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import JSZip from 'jszip';
 import { auth } from '@/lib/auth';
 import {
@@ -6,11 +6,18 @@ import {
   getPlanningById,
   getPlanningExtrasByBlock,
   getPlanningExtrasByIds,
+  getBlockWorkbook,
 } from '@/lib/db';
 import { buildExtraDocx } from '@/lib/docx-helpers';
 import { isStructuredVisualPayload } from '@/lib/materials/material-tokens';
 import { sanitizeDocFilename, sanitizeDocFilenameWithBlock, type BrandingContext } from '@/lib/document-branding';
 import { resolveBlockNumber } from '@/lib/curricular-blocks';
+import {
+  mapExtraTypeToMaterialType,
+  reviewBlockMaterials,
+  type MaterialType,
+  type ReviewIssue,
+} from '@/lib/guide-engine/material-review';
 import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
@@ -101,6 +108,50 @@ async function handleBulkDocx(request: NextRequest) {
       return new Response('No se encontraron materiales para empaquetar', { status: 404 });
     }
 
+    // Gate determinista R1 fail-closed
+    let warningCount = 0;
+    const resolvedPlanId = planningId || extras[0]?.planning_id;
+    const rawBlockIdx =
+      blockIndex !== null && !isNaN(blockIndex)
+        ? blockIndex
+        : extras[0]?.key_index ?? null;
+    const canonicalBlockIdx =
+      rawBlockIdx !== null && rawBlockIdx !== undefined
+        ? (resolveBlockNumber(rawBlockIdx) !== null ? resolveBlockNumber(rawBlockIdx)! - 1 : rawBlockIdx)
+        : null;
+
+    if (resolvedPlanId && canonicalBlockIdx !== null && canonicalBlockIdx >= 0) {
+      const workbook = await getBlockWorkbook(resolvedPlanId, canonicalBlockIdx);
+      if (workbook) {
+        const isFullSuite = !type && (!extraIds || extraIds.length === 0);
+        const review = reviewBlockMaterials({
+          workbook,
+          persistedExtras: extras,
+          checkFullBlockPersistence: isFullSuite,
+          checkLessonPlanCount: isFullSuite || type === 'lesson_plan',
+        });
+        const scopedTypes = new Set<MaterialType>(
+          type
+            ? [mapExtraTypeToMaterialType(type)]
+            : extras.map((e) => mapExtraTypeToMaterialType(e.type, e.content_text, e.title))
+        );
+        const scopedIssues: ReviewIssue[] = review.issues.filter((i) => scopedTypes.has(i.material));
+        const scopedErrors = scopedIssues.filter((i) => i.severity === 'error');
+        const scopedWarnings = scopedIssues.filter((i) => i.severity === 'warning');
+        if (scopedErrors.length > 0) {
+          return NextResponse.json(
+            {
+              ok: false,
+              error: 'Material bloqueado por inconsistencia estructural',
+              issues: scopedErrors,
+            },
+            { status: 422 }
+          );
+        }
+        warningCount = scopedWarnings.length;
+      }
+    }
+
     const zip = new JSZip();
     const usedNames = new Set<string>();
 
@@ -156,12 +207,17 @@ async function handleBulkDocx(request: NextRequest) {
       compressionOptions: { level: 6 },
     });
 
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/zip',
+      'Content-Disposition': `attachment; filename="${zipName}"`,
+    };
+    if (warningCount > 0) {
+      headers['X-Material-Warnings'] = String(warningCount);
+    }
+
     return new Response(new Uint8Array(zipBuffer), {
       status: 200,
-      headers: {
-        'Content-Type': 'application/zip',
-        'Content-Disposition': `attachment; filename="${zipName}"`,
-      },
+      headers,
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Error desconocido';

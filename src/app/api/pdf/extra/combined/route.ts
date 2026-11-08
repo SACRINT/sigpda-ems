@@ -1,12 +1,17 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { PDFDocument } from 'pdf-lib';
 import { auth } from '@/lib/auth';
-import { getTeacherByEmail, getPlanningById, getPlanningExtrasByType } from '@/lib/db';
+import { getTeacherByEmail, getPlanningById, getPlanningExtrasByType, getBlockWorkbook } from '@/lib/db';
 import { generateExtraPdfDocument } from '@/lib/pdf-extra-renderer';
 import { isStructuredVisualPayload } from '@/lib/materials/material-tokens';
 import { sanitizeDocFilename, type BrandingContext } from '@/lib/document-branding';
 import { resolveBlockNumber } from '@/lib/curricular-blocks';
 import { selectExtrasForBlock } from '@/lib/planning-extras-for-block';
+import {
+  mapExtraTypeToMaterialType,
+  reviewBlockMaterials,
+  type ReviewIssue,
+} from '@/lib/guide-engine/material-review';
 import type { GeneratedPlanningContent } from '@/types/planning';
 import { logger } from '@/lib/logger';
 
@@ -120,6 +125,67 @@ async function handleCombinedPdf(request: NextRequest) {
       return new Response('No se encontraron documentos de este tipo para combinar', { status: 404 });
     }
 
+    // Gate determinista R1 fail-closed
+    const mType = mapExtraTypeToMaterialType(cleanType);
+    const blockIndicesToCheck =
+      blockIndex !== null
+        ? [blockIndex]
+        : Array.from(
+            new Set(
+              allExtras
+                .map((ex) => {
+                  const rawIdx = ex.key_index;
+                  if (rawIdx === null || rawIdx === undefined) return null;
+                  return resolveBlockNumber(rawIdx) !== null ? resolveBlockNumber(rawIdx)! - 1 : rawIdx;
+                })
+                .filter((idx): idx is number => typeof idx === 'number' && idx >= 0 && idx <= 2)
+            )
+          );
+
+    const accumulatedErrors: ReviewIssue[] = [];
+    const accumulatedWarnings: ReviewIssue[] = [];
+
+    for (const bIdx of blockIndicesToCheck) {
+      const workbook = await getBlockWorkbook(planningId, bIdx);
+      if (!workbook) continue;
+      const blockExtras =
+        blockIndex !== null
+          ? allExtras
+          : allExtras.filter((ex) => {
+              const rawIdx = ex.key_index;
+              const cIdx =
+                rawIdx !== null && rawIdx !== undefined
+                  ? (resolveBlockNumber(rawIdx) !== null ? resolveBlockNumber(rawIdx)! - 1 : rawIdx)
+                  : null;
+              return cIdx === bIdx;
+            });
+
+      const review = reviewBlockMaterials({
+        workbook,
+        persistedExtras: blockExtras,
+        checkFullBlockPersistence: false,
+        checkLessonPlanCount: cleanType === 'lesson_plan',
+        uacName: planning.uac_name,
+      });
+
+      const scopedIssues = review.byMaterial[mType]?.issues ?? [];
+      for (const issue of scopedIssues) {
+        if (issue.severity === 'error') accumulatedErrors.push(issue);
+        else accumulatedWarnings.push(issue);
+      }
+    }
+
+    if (accumulatedErrors.length > 0) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: 'Material bloqueado por inconsistencia estructural',
+          issues: accumulatedErrors,
+        },
+        { status: 422 }
+      );
+    }
+
     // Generar PDF individual por extra y fusionar con pdf-lib
     const mergedPdf = await PDFDocument.create();
     let generatedCount = 0;
@@ -161,12 +227,17 @@ async function handleCombinedPdf(request: NextRequest) {
       ? `${typeLabel(cleanType)}_Bloque_${(resolveBlockNumber(blockIndex) ?? blockIndex + 1)}_${cleanSubject}.pdf`
       : `${typeLabel(cleanType)}_Todos_Bloques_${cleanSubject}.pdf`;
 
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${fileName}"`,
+    };
+    if (accumulatedWarnings.length > 0) {
+      headers['X-Material-Warnings'] = String(accumulatedWarnings.length);
+    }
+
     return new Response(new Uint8Array(mergedBytes), {
       status: 200,
-      headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${fileName}"`,
-      },
+      headers,
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Error desconocido';

@@ -4,6 +4,7 @@ import { getTeacherByEmail, getBlockWorkbook, sql } from '@/lib/db';
 import { isAdmin } from '@/lib/admin-unified';
 import { extractMaterialsFromWorkbook } from '@/lib/guide-engine/material-extractor';
 import { cascadeBlockMaterials } from '@/lib/guide-engine/cascade-block-materials';
+import { reviewBlockMaterials } from '@/lib/guide-engine/material-review';
 import { logger } from '@/lib/logger';
 
 async function handleMaterialesBloque(
@@ -66,14 +67,46 @@ async function handleMaterialesBloque(
       currentTeacher?.id
     );
 
-    // 4. Extracción para respuesta
+    // 4. Extracción para respuesta y reporte determinista R1
     const materials = extractMaterialsFromWorkbook(workbook);
+    const review =
+      cascadeResult?.review ??
+      reviewBlockMaterials({
+        workbook,
+        extracted: materials,
+        uacName: planRows[0].uac_name,
+      });
+    const omitted = cascadeResult?.omitted ?? [];
+
+    if (
+      request.method === 'POST' &&
+      cascadeResult?.review &&
+      !cascadeResult.review.ok
+    ) {
+      return NextResponse.json(
+        {
+          ok: false,
+          success: false,
+          blockIndex,
+          planningTitle: planRows[0].uac_name,
+          error: 'Material bloqueado por inconsistencia estructural',
+          issues: cascadeResult.review.errors,
+          review: cascadeResult.review,
+          omitted,
+          cascade: cascadeResult,
+          materials,
+        },
+        { status: 422 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
       blockIndex,
       planningTitle: planRows[0].uac_name,
       cascade: cascadeResult,
+      review,
+      omitted,
       materials,
     });
   } catch (error: unknown) {

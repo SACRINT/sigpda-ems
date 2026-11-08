@@ -307,19 +307,30 @@ function findIssues(
   return issues;
 }
 
+const RESOLVED_RULES_CACHE = new Map<string, { rules: Rule[]; expectedDiscipline: string }>();
+
 function resolveRules(
   uacName: string,
   component: string,
   curriculumName: string,
   careerOrProgramName: string
 ): { rules: Rule[]; expectedDiscipline: string } {
+  const cacheKey = `${uacName}|${component}|${curriculumName}|${careerOrProgramName}`;
+  const cached = RESOLVED_RULES_CACHE.get(cacheKey);
+  if (cached) return cached;
+
   const adapter = getDisciplinaryAdapter(uacName, component, curriculumName || careerOrProgramName);
   const culinary = isCulinary(uacName, component, curriculumName || careerOrProgramName);
   const adapterRules = adapterRulesFor(adapter.id, adapter.forbiddenCrossDomainTerms, culinary);
-  return {
+  const result = {
     rules: buildRules(adapter.id, uacName, component, curriculumName || careerOrProgramName, adapterRules),
     expectedDiscipline: adapter.displayName,
   };
+  if (RESOLVED_RULES_CACHE.size > 128) {
+    RESOLVED_RULES_CACHE.clear();
+  }
+  RESOLVED_RULES_CACHE.set(cacheKey, result);
+  return result;
 }
 
 /**

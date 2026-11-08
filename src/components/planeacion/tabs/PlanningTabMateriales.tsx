@@ -11,6 +11,7 @@ import {
 import { MaterialFigure } from '@/components/planeacion/MaterialFigure';
 import { parseMaterialTokensWithFallback, isStructuredVisualPayload } from '@/lib/materials/material-tokens';
 import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
+import { reviewBlockMaterials, type MaterialReviewReport } from '@/lib/guide-engine/material-review';
 
 /** Metadata de tarjeta para tipos conocidos; cualquier otro tipo cae en fallback genérico. */
 const COMBINED_TYPE_META: Record<string, { icon: string; label: string; color: string }> = {
@@ -134,6 +135,23 @@ export default function PlanningTabMateriales({
     .filter((index) => Number.isFinite(index))
     .sort((a, b) => a - b);
 
+  // Revisión determinista R1 en memoria por bloque (<15ms, 0 tokens)
+  const blockReviews = React.useMemo(() => {
+    const map: Record<number, MaterialReviewReport> = {};
+    for (const [key, item] of Object.entries(blockWorkbooks)) {
+      const idx = Number(key);
+      if (Number.isFinite(idx) && item?.workbook) {
+        map[idx] = reviewBlockMaterials({
+          workbook: item.workbook,
+          uacName: planning.uacName || s1?.uacName || '',
+          component: planning.component || s1?.component || '',
+          curriculumName: planning.curriculumName || '',
+        });
+      }
+    }
+    return map;
+  }, [blockWorkbooks, planning.uacName, planning.component, planning.curriculumName, s1?.uacName, s1?.component]);
+
   if (activeSubTab === 'teacherGuides') {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -243,40 +261,65 @@ export default function PlanningTabMateriales({
 
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                           {generatedGuide ? (
-                            <>
-                              <span style={{ fontSize: '12px', color: '#34d399', fontWeight: 600, background: 'rgba(16,185,129,0.15)', padding: '3px 10px', borderRadius: '12px' }}>
-                                ✓ Solucionario generado
-                              </span>
-                              <button
-                                onClick={() => setPreviewExtra(generatedGuide)}
-                                className="btn"
-                                style={{ padding: '6px 14px', fontSize: '12px', background: 'rgba(124,58,237,0.2)', border: '1px solid #7c3aed', color: '#c4b5fd', borderRadius: '6px' }}
-                              >
-                                👁️ Ver Solucionario
-                              </button>
-                              <a
-                                href={`/api/docx/extra/${generatedGuide.id}`}
-                                className="btn"
-                                style={{ padding: '6px 14px', fontSize: '12px', background: '#7c3aed', color: '#fff', borderRadius: '6px', textDecoration: 'none', fontWeight: 600 }}
-                              >
-                                ↓ Word
-                              </a>
-                              <a
-                                href={`/api/pdf/extra/${generatedGuide.id}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{ padding: '6px 14px', fontSize: '12px', background: '#dc2626', color: '#fff', borderRadius: '6px', textDecoration: 'none', fontWeight: 600 }}
-                              >
-                                ↓ PDF
-                              </a>
-                              <button
-                                onClick={() => handleDeleteExtra(generatedGuide.id)}
-                                className="btn"
-                                style={{ padding: '6px 12px', fontSize: '12px', background: 'rgba(244,63,94,0.15)', border: '1px solid rgba(244,63,94,0.3)', color: '#fb7185', borderRadius: '6px' }}
-                              >
-                                🗑️
-                              </button>
-                            </>
+                            (() => {
+                              const bReview = blockReviews[block.blockIndex];
+                              const akIssues = bReview?.byMaterial.answer_key.issues ?? [];
+                              const akBlocked = bReview ? !bReview.byMaterial.answer_key.ok : false;
+                              const akTooltip = akBlocked
+                                ? akIssues
+                                    .filter((i) => i.severity === 'error')
+                                    .map((i) => `${i.code}: ${i.message}`)
+                                    .join('\n')
+                                : akIssues.length > 0
+                                  ? akIssues.map((i) => `${i.code}: ${i.message}`).join('\n')
+                                  : undefined;
+                              return (
+                                <>
+                                  <span style={{ fontSize: '12px', color: akBlocked ? '#fb7185' : '#34d399', fontWeight: 600, background: akBlocked ? 'rgba(244,63,94,0.15)' : 'rgba(16,185,129,0.15)', padding: '3px 10px', borderRadius: '12px' }} title={akTooltip}>
+                                    {akBlocked ? '⚠️ Solucionario bloqueado (R1)' : '✓ Solucionario generado'}
+                                  </span>
+                                  <button
+                                    onClick={() => setPreviewExtra(generatedGuide)}
+                                    className="btn"
+                                    style={{ padding: '6px 14px', fontSize: '12px', background: 'rgba(124,58,237,0.2)', border: '1px solid #7c3aed', color: '#c4b5fd', borderRadius: '6px' }}
+                                  >
+                                    👁️ Ver Solucionario
+                                  </button>
+                                  <a
+                                    href={akBlocked ? '#' : `/api/docx/extra/${generatedGuide.id}`}
+                                    onClick={(e) => {
+                                      if (akBlocked) e.preventDefault();
+                                    }}
+                                    aria-disabled={akBlocked}
+                                    title={akTooltip}
+                                    className="btn"
+                                    style={{ padding: '6px 14px', fontSize: '12px', background: '#7c3aed', color: '#fff', borderRadius: '6px', textDecoration: 'none', fontWeight: 600, opacity: akBlocked ? 0.45 : 1, cursor: akBlocked ? 'not-allowed' : 'pointer' }}
+                                  >
+                                    ↓ Word
+                                  </a>
+                                  <a
+                                    href={akBlocked ? '#' : `/api/pdf/extra/${generatedGuide.id}`}
+                                    target={akBlocked ? undefined : '_blank'}
+                                    rel={akBlocked ? undefined : 'noopener noreferrer'}
+                                    onClick={(e) => {
+                                      if (akBlocked) e.preventDefault();
+                                    }}
+                                    aria-disabled={akBlocked}
+                                    title={akTooltip}
+                                    style={{ padding: '6px 14px', fontSize: '12px', background: '#dc2626', color: '#fff', borderRadius: '6px', textDecoration: 'none', fontWeight: 600, opacity: akBlocked ? 0.45 : 1, cursor: akBlocked ? 'not-allowed' : 'pointer' }}
+                                  >
+                                    ↓ PDF
+                                  </a>
+                                  <button
+                                    onClick={() => handleDeleteExtra(generatedGuide.id)}
+                                    className="btn"
+                                    style={{ padding: '6px 12px', fontSize: '12px', background: 'rgba(244,63,94,0.15)', border: '1px solid rgba(244,63,94,0.3)', color: '#fb7185', borderRadius: '6px' }}
+                                  >
+                                    🗑️
+                                  </button>
+                                </>
+                              );
+                            })()
                           ) : (
                             <button
                               onClick={() =>
@@ -495,6 +538,13 @@ export default function PlanningTabMateriales({
 
             const hasWorkbook = Boolean(blockWorkbooks[block.blockIndex]?.workbook);
             const hasAnyMaterial = Boolean(rubricExtra || checklistExtra || materialExtra || guideExtra || visualExtras.length > 0);
+            const blockReview = blockReviews[block.blockIndex];
+            const rubricBlocked = blockReview ? !blockReview.byMaterial.rubric.ok : false;
+            const rubricTooltip = blockReview?.byMaterial.rubric.issues.map((i) => `${i.code}: ${i.message}`).join('\n') || undefined;
+            const checklistBlocked = blockReview ? !blockReview.byMaterial.checklist.ok : false;
+            const checklistTooltip = blockReview?.byMaterial.checklist.issues.map((i) => `${i.code}: ${i.message}`).join('\n') || undefined;
+            const materialBlocked = blockReview ? !blockReview.byMaterial.didactic_material.ok : false;
+            const materialTooltip = blockReview?.byMaterial.didactic_material.issues.map((i) => `${i.code}: ${i.message}`).join('\n') || undefined;
 
             return (
               <div key={block.blockIndex} className="section-card" style={{ border: hasAnyMaterial ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid var(--c-border)' }}>
@@ -533,7 +583,52 @@ export default function PlanningTabMateriales({
                     </span>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    {blockReview && (() => {
+                      const isClean = blockReview.ok && blockReview.warnings.length === 0;
+                      const isWarn = blockReview.ok && blockReview.warnings.length > 0;
+                      const bg = isClean
+                        ? 'rgba(16, 185, 129, 0.15)'
+                        : isWarn
+                          ? 'rgba(245, 158, 11, 0.15)'
+                          : 'rgba(244, 63, 94, 0.15)';
+                      const fg = isClean ? '#34d399' : isWarn ? '#fbbf24' : '#fb7185';
+                      const border = isClean
+                        ? 'rgba(16, 185, 129, 0.35)'
+                        : isWarn
+                          ? 'rgba(245, 158, 11, 0.35)'
+                          : 'rgba(244, 63, 94, 0.4)';
+                      const dot = isClean ? '🟢' : isWarn ? '🟡' : '🔴';
+                      const label = isClean
+                        ? 'Materiales: Verificados'
+                        : isWarn
+                          ? `Materiales: ${blockReview.warnings.length} advertencia${blockReview.warnings.length === 1 ? '' : 's'}`
+                          : `Materiales: ${blockReview.errors.length} error${blockReview.errors.length === 1 ? '' : 'es'}`;
+                      const tooltip = isClean
+                        ? `Revisión determinista R1 aprobada (${blockReview.score}/100)`
+                        : (blockReview.ok ? blockReview.warnings : blockReview.errors)
+                            .map((iss) => `${iss.code}: ${iss.message}`)
+                            .join('\n');
+                      return (
+                        <span
+                          style={{
+                            fontSize: '11.5px',
+                            fontWeight: 700,
+                            padding: '3px 10px',
+                            borderRadius: '12px',
+                            background: bg,
+                            border: `1px solid ${border}`,
+                            color: fg,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                          }}
+                          title={tooltip}
+                        >
+                          {dot} {label}
+                        </span>
+                      );
+                    })()}
                     {hasAnyMaterial ? (
                       <span
                         style={{
@@ -613,18 +708,28 @@ export default function PlanningTabMateriales({
                                   👁️ Ver
                                 </button>
                                 <a
-                                  href={`/api/docx/extra/${rubricExtra.id}`}
+                                  href={rubricBlocked ? '#' : `/api/docx/extra/${rubricExtra.id}`}
+                                  onClick={(e) => {
+                                    if (rubricBlocked) e.preventDefault();
+                                  }}
+                                  aria-disabled={rubricBlocked}
+                                  title={rubricTooltip}
                                   className="btn btn-amber"
-                                  style={{ padding: '5px 10px', fontSize: '11.5px', borderRadius: '4px', textDecoration: 'none', fontWeight: 600 }}
+                                  style={{ padding: '5px 10px', fontSize: '11.5px', borderRadius: '4px', textDecoration: 'none', fontWeight: 600, opacity: rubricBlocked ? 0.45 : 1, cursor: rubricBlocked ? 'not-allowed' : 'pointer' }}
                                 >
                                   ↓ Word
                                 </a>
                                 <a
-                                  href={`/api/pdf/extra/${rubricExtra.id}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
+                                  href={rubricBlocked ? '#' : `/api/pdf/extra/${rubricExtra.id}`}
+                                  target={rubricBlocked ? undefined : '_blank'}
+                                  rel={rubricBlocked ? undefined : 'noopener noreferrer'}
+                                  onClick={(e) => {
+                                    if (rubricBlocked) e.preventDefault();
+                                  }}
+                                  aria-disabled={rubricBlocked}
+                                  title={rubricTooltip}
                                   className="btn"
-                                  style={{ padding: '5px 10px', fontSize: '11.5px', borderRadius: '4px', textDecoration: 'none', background: '#dc2626', color: '#fff', fontWeight: 600 }}
+                                  style={{ padding: '5px 10px', fontSize: '11.5px', borderRadius: '4px', textDecoration: 'none', background: '#dc2626', color: '#fff', fontWeight: 600, opacity: rubricBlocked ? 0.45 : 1, cursor: rubricBlocked ? 'not-allowed' : 'pointer' }}
                                 >
                                   ↓ PDF
                                 </a>
@@ -687,18 +792,28 @@ export default function PlanningTabMateriales({
                                   👁️ Ver
                                 </button>
                                 <a
-                                  href={`/api/docx/extra/${checklistExtra.id}`}
+                                  href={checklistBlocked ? '#' : `/api/docx/extra/${checklistExtra.id}`}
+                                  onClick={(e) => {
+                                    if (checklistBlocked) e.preventDefault();
+                                  }}
+                                  aria-disabled={checklistBlocked}
+                                  title={checklistTooltip}
                                   className="btn btn-amber"
-                                  style={{ padding: '5px 10px', fontSize: '11.5px', borderRadius: '4px', textDecoration: 'none', fontWeight: 600 }}
+                                  style={{ padding: '5px 10px', fontSize: '11.5px', borderRadius: '4px', textDecoration: 'none', fontWeight: 600, opacity: checklistBlocked ? 0.45 : 1, cursor: checklistBlocked ? 'not-allowed' : 'pointer' }}
                                 >
                                   ↓ Word
                                 </a>
                                 <a
-                                  href={`/api/pdf/extra/${checklistExtra.id}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
+                                  href={checklistBlocked ? '#' : `/api/pdf/extra/${checklistExtra.id}`}
+                                  target={checklistBlocked ? undefined : '_blank'}
+                                  rel={checklistBlocked ? undefined : 'noopener noreferrer'}
+                                  onClick={(e) => {
+                                    if (checklistBlocked) e.preventDefault();
+                                  }}
+                                  aria-disabled={checklistBlocked}
+                                  title={checklistTooltip}
                                   className="btn"
-                                  style={{ padding: '5px 10px', fontSize: '11.5px', borderRadius: '4px', textDecoration: 'none', background: '#dc2626', color: '#fff', fontWeight: 600 }}
+                                  style={{ padding: '5px 10px', fontSize: '11.5px', borderRadius: '4px', textDecoration: 'none', background: '#dc2626', color: '#fff', fontWeight: 600, opacity: checklistBlocked ? 0.45 : 1, cursor: checklistBlocked ? 'not-allowed' : 'pointer' }}
                                 >
                                   ↓ PDF
                                 </a>
@@ -794,18 +909,28 @@ export default function PlanningTabMateriales({
                                   👁️ Ver
                                 </button>
                                 <a
-                                  href={`/api/docx/extra/${materialExtra.id}`}
+                                  href={materialBlocked ? '#' : `/api/docx/extra/${materialExtra.id}`}
+                                  onClick={(e) => {
+                                    if (materialBlocked) e.preventDefault();
+                                  }}
+                                  aria-disabled={materialBlocked}
+                                  title={materialTooltip}
                                   className="btn btn-amber"
-                                  style={{ padding: '5px 10px', fontSize: '11.5px', borderRadius: '4px', textDecoration: 'none', fontWeight: 600 }}
+                                  style={{ padding: '5px 10px', fontSize: '11.5px', borderRadius: '4px', textDecoration: 'none', fontWeight: 600, opacity: materialBlocked ? 0.45 : 1, cursor: materialBlocked ? 'not-allowed' : 'pointer' }}
                                 >
                                   ↓ Word
                                 </a>
                                 <a
-                                  href={`/api/pdf/extra/${materialExtra.id}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
+                                  href={materialBlocked ? '#' : `/api/pdf/extra/${materialExtra.id}`}
+                                  target={materialBlocked ? undefined : '_blank'}
+                                  rel={materialBlocked ? undefined : 'noopener noreferrer'}
+                                  onClick={(e) => {
+                                    if (materialBlocked) e.preventDefault();
+                                  }}
+                                  aria-disabled={materialBlocked}
+                                  title={materialTooltip}
                                   className="btn"
-                                  style={{ padding: '5px 10px', fontSize: '11.5px', borderRadius: '4px', textDecoration: 'none', background: '#dc2626', color: '#fff', fontWeight: 600 }}
+                                  style={{ padding: '5px 10px', fontSize: '11.5px', borderRadius: '4px', textDecoration: 'none', background: '#dc2626', color: '#fff', fontWeight: 600, opacity: materialBlocked ? 0.45 : 1, cursor: materialBlocked ? 'not-allowed' : 'pointer' }}
                                 >
                                   ↓ PDF
                                 </a>

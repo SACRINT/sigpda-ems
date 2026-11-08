@@ -58,3 +58,4 @@
 ## 3. Invariantes de Calidad Preservados
 - **Cero Hardcoding**: Toda la extracción de términos, partición de sesiones y cálculo de presupuestos opera dinámicamente a partir de `PlanningActivities`, `DetailedSession` y `ContentBudget` para cualquier UAC de BGE o BT (6, 18, 24, 30+ sesiones).
 - **Gate Fail-Closed Intacto**: Se mantienen íntegros los controles de `fallbackWords === 0`, cobertura total de sesiones, presupuesto de palabras, `validateBlockCrossContamination` y `evaluatePlanningContentAlignment`.
+

@@ -193,10 +193,21 @@ export async function processGenerationJob(
 
     // 2. Cascada automática de materiales derivados a planning_extras (verificando lease)
     const { cascadeBlockMaterials } = await import('@/lib/guide-engine/cascade-block-materials');
-    await cascadeBlockMaterials(job.planning_id, job.block_index, workbook, job.teacher_id, {
+    const cascadeResult = await cascadeBlockMaterials(job.planning_id, job.block_index, workbook, job.teacher_id, {
       jobId,
       leaseId,
     });
+    if (
+      !cascadeResult.success ||
+      (cascadeResult.omitted && cascadeResult.omitted.length > 0) ||
+      (cascadeResult.review && !cascadeResult.review.ok)
+    ) {
+      const errorCodes = (cascadeResult.review?.errors ?? []).map((e) => e.code).join(', ');
+      logger.error(
+        `[job-worker] Revisión R1 detectó inconsistencias en materiales del bloque ${job.block_index} (job ${jobId}): ` +
+          `omitidos=[${(cascadeResult.omitted ?? []).join(', ')}], errores=[${errorCodes || cascadeResult.error || 'desconocido'}].`
+      );
+    }
 
     // 3. Marcar el job como completado con fencing de leaseId
     await completeGenerationJob(jobId, workbook, leaseId);

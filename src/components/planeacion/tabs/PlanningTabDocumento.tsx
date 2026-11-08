@@ -9,6 +9,7 @@ import { useEditorialBook } from '@/hooks/useEditorialBook';
 import EditorialSubscriptionModal from '@/components/ui/EditorialSubscriptionModal';
 import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
 import { partitionBlockSessionsByActivities } from '@/lib/planning-session-partitioner';
+import { reviewBlockMaterials } from '@/lib/guide-engine/material-review';
 import QuickEditPlanningModal from '@/components/planeacion/QuickEditPlanningModal';
 import {
   FileText, Zap, BookOpen, Download, RefreshCw, AlertTriangle,
@@ -95,15 +96,7 @@ export default function PlanningTabDocumento({
   canEditDocument = false,
   onPlanningUpdated,
 }: PlanningTabDocumentoProps) {
-  const [localContent, setLocalContent] = useState<GeneratedPlanningContent | null>(
-    (planning?.contentJson as GeneratedPlanningContent) || null
-  );
-
-  React.useEffect(() => {
-    if (planning?.contentJson) {
-      setLocalContent(planning.contentJson as GeneratedPlanningContent);
-    }
-  }, [planning?.contentJson]);
+  const [localContent, setLocalContent] = useState<GeneratedPlanningContent | null>(null);
 
   const content = localContent || (planning?.contentJson as GeneratedPlanningContent | null);
   const curricularBlocks = resolveCurricularBlocks(content);
@@ -1012,6 +1005,55 @@ export default function PlanningTabDocumento({
                                 Alineación: {wbItem.workbook.planningAlignment.score}/100
                               </span>
                             )}
+
+                            {wbItem?.workbook && (() => {
+                              const matReview = reviewBlockMaterials({
+                                workbook: wbItem.workbook,
+                                blockSequence: sequenceData?.[i] ?? null,
+                                uacName: planning.uacName || s1?.uacName || '',
+                                component: planning.component || s1?.component || '',
+                                curriculumName: planning.curriculumName || '',
+                              });
+                              const isClean = matReview.ok && matReview.warnings.length === 0;
+                              const isWarn = matReview.ok && matReview.warnings.length > 0;
+                              const bg = isClean
+                                ? 'rgba(16, 185, 129, 0.15)'
+                                : isWarn
+                                  ? 'rgba(245, 158, 11, 0.15)'
+                                  : 'rgba(244, 63, 94, 0.15)';
+                              const fg = isClean ? '#34d399' : isWarn ? '#fbbf24' : '#fb7185';
+                              const border = isClean
+                                ? 'rgba(16, 185, 129, 0.3)'
+                                : isWarn
+                                  ? 'rgba(245, 158, 11, 0.3)'
+                                  : 'rgba(244, 63, 94, 0.35)';
+                              const label = isClean
+                                ? 'Materiales: Verificados'
+                                : isWarn
+                                  ? `Materiales: ${matReview.warnings.length} advertencia${matReview.warnings.length === 1 ? '' : 's'}`
+                                  : `Materiales: ${matReview.errors.length} error${matReview.errors.length === 1 ? '' : 'es'}`;
+                              const tooltip = isClean
+                                ? `Revisión determinista R1 aprobada (${matReview.score}/100)`
+                                : (matReview.ok ? matReview.warnings : matReview.errors)
+                                    .map((iss) => `${iss.code}: ${iss.message}`)
+                                    .join('\n');
+                              return (
+                                <span
+                                  style={{
+                                    fontSize: '11px',
+                                    fontWeight: 700,
+                                    padding: '2px 7px',
+                                    borderRadius: '12px',
+                                    background: bg,
+                                    color: fg,
+                                    border: `1px solid ${border}`,
+                                  }}
+                                  title={tooltip}
+                                >
+                                  {label}
+                                </span>
+                              );
+                            })()}
                           </div>
 
                           <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#94a3b8', lineHeight: 1.4 }}>

@@ -106,8 +106,15 @@ export function resolveTargetSessionsForWorkbook(
   if (blockSequence?.hours && blockSequence.hours >= 6) {
     return Math.round(blockSequence.hours);
   }
+  if (
+    typeof workbook.sessionsPerBlock === 'number' &&
+    workbook.sessionsPerBlock >= 6 &&
+    workbook.sessionsPerBlock <= 36
+  ) {
+    return Math.round(workbook.sessionsPerBlock);
+  }
   const missions = workbook.missions || [];
-  if (missions.length >= 4) {
+  if (missions.length >= 1) {
     const allSessions = missions.flatMap((m) =>
       Array.isArray(m.coveredSessions) ? m.coveredSessions : []
     );
@@ -219,8 +226,9 @@ export function extractMaterialsFromWorkbook(
   const instrumentosEvaluacion = buildInstrumentosEvaluacionMarkdown(workbook);
 
   // 4. Extraer Material Didáctico (Insumos, reactivos, herramientas y equipo por sesión)
-  const materialDidactico = buildMaterialDidacticoMarkdown(workbook, planesDeClase);
-  const fichasTrabajo = buildFichasTrabajoMarkdown(workbook, planesDeClase);
+  const sharedSessionMaterials = buildSessionMaterialIndex(workbook, planesDeClase);
+  const materialDidactico = buildMaterialDidacticoMarkdown(workbook, planesDeClase, sharedSessionMaterials);
+  const fichasTrabajo = buildFichasTrabajoMarkdown(workbook, planesDeClase, sharedSessionMaterials);
 
   // 5. Extraer Quiz de Pensamiento Crítico
   const quiz = (workbook.evaluationSection?.criticalThinkingQuiz || []).map((q, idx) => ({
@@ -859,11 +867,12 @@ function buildInstrumentosEvaluacionMarkdown(workbook: ActiveWorkTextbook): stri
 
 function buildMaterialDidacticoMarkdown(
   workbook: ActiveWorkTextbook,
-  planes: PlanDeClaseDerivado[]
+  planes: PlanDeClaseDerivado[],
+  precomputedSessionMaterials?: Map<number, ResolvedMaterial[]>
 ): string {
   const parts: string[] = [];
   const blockNum = (workbook.blockIndex ?? 0) + 1;
-  const sessionMaterials = buildSessionMaterialIndex(workbook, planes);
+  const sessionMaterials = precomputedSessionMaterials ?? buildSessionMaterialIndex(workbook, planes);
   const resolvedBySlug = new Map<string, ResolvedMaterial>();
   const usage = new Map<string, number[]>();
 
@@ -1045,6 +1054,7 @@ function buildSessionMaterialIndex(
 ): Map<number, ResolvedMaterial[]> {
   const { bookPlanBySession, missionBySession } = buildSessionLookup(workbook);
   const index = new Map<number, ResolvedMaterial[]>();
+  const resourceTokensCache = new Map<string, ResolvedMaterial[]>();
 
   for (const plan of planes) {
     const textParts = buildSessionTextParts(
@@ -1053,7 +1063,12 @@ function buildSessionMaterialIndex(
       missionBySession.get(plan.numeroSesion)
     );
     const explicitTokens = collectMaterialsFromText(textParts.filter(Boolean).join('\n'), false);
-    const resourceTokens = collectMaterialsFromText(plan.desarrollo.recursosDidacticos, true);
+    const rawRec = plan.desarrollo.recursosDidacticos || '';
+    let resourceTokens = resourceTokensCache.get(rawRec);
+    if (!resourceTokens) {
+      resourceTokens = collectMaterialsFromText(rawRec, true);
+      resourceTokensCache.set(rawRec, resourceTokens);
+    }
     index.set(plan.numeroSesion, mergeMaterials(explicitTokens, resourceTokens));
   }
 
@@ -1231,7 +1246,8 @@ function sanitizeTableCell(value: string): string {
 
 function buildFichasTrabajoMarkdown(
   workbook: ActiveWorkTextbook,
-  planes: PlanDeClaseDerivado[]
+  planes: PlanDeClaseDerivado[],
+  precomputedSessionMaterials?: Map<number, ResolvedMaterial[]>
 ): string {
   if (planes.length === 0) return '';
   const blockNum = (workbook.blockIndex ?? 0) + 1;
@@ -1241,7 +1257,7 @@ function buildFichasTrabajoMarkdown(
       bookPlanBySession.set(sessionPlan.sessionNumber, sessionPlan);
     }
   }
-  const sessionMaterials = buildSessionMaterialIndex(workbook, planes);
+  const sessionMaterials = precomputedSessionMaterials ?? buildSessionMaterialIndex(workbook, planes);
 
   const parts: string[] = [];
   parts.push(`# FICHAS DE TRABAJO IMPRIMIBLES · BLOQUE ${blockNum}`);

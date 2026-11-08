@@ -17,6 +17,11 @@ import {
   type BlockCurricularAnchor,
   type PlanDeClaseDerivado,
 } from './material-extractor';
+import {
+  reviewBlockMaterials,
+  type MaterialReviewReport,
+  type MaterialType,
+} from './material-review';
 import { buildBlockSequenceFromWorkbook } from '@/lib/planning/workbook-sequence-sync';
 import { resolveVisualForMission } from '@/lib/visual-engine/visual-asset-manager';
 import { stripMaterialTokens } from '@/lib/materials/material-tokens';
@@ -29,6 +34,8 @@ export interface CascadeResult {
   planesCount: number;
   extrasInserted: number;
   executionTimeMs: number;
+  review?: MaterialReviewReport;
+  omitted?: MaterialType[];
   error?: string;
 }
 
@@ -378,6 +385,16 @@ export async function cascadeBlockMaterials(
     const extracted = extractMaterialsFromWorkbook(workbook, blockSequence, curricularAnchor);
     const planes = extracted.planesDeClase || [];
 
+    // 2.1 Ejecutar Revisor Determinista R1 antes de persistir para omitir materiales defectuosos
+    const review = reviewBlockMaterials({
+      workbook,
+      blockSequence,
+      curricularAnchor,
+      extracted,
+      uacName: workbook.coverData?.subjectName || '',
+    });
+    const omitted: MaterialType[] = [];
+
     // 3. Limpiar registros previos generados automáticamente para este bloque
     // (Permite regeneración idempotente y limpia sin duplicar planes)
     await assertLeaseValid('DELETE planning_extras');
@@ -389,37 +406,41 @@ export async function cascadeBlockMaterials(
 
     let insertedCount = 0;
 
-    // 3. Insertar los 24 Planes de Clase individuales
-    for (const plan of planes) {
-      const sessionTitle = cleanSessionTitle(plan.tituloSesion, plan.numeroSesion);
-      const planTitle = sessionTitle
-        ? `Plan de Clase: Sesión ${plan.numeroSesion} · ${sessionTitle}`
-        : `Plan de Clase: Sesión ${plan.numeroSesion}`;
-      const planMarkdown = formatPlanDeClaseMarkdown(plan, workbook, evaluationSummary);
+    // 3. Insertar los Planes de Clase individuales (solo si superan la revisión R1)
+    if (review.byMaterial.lesson_plan.ok) {
+      for (const plan of planes) {
+        const sessionTitle = cleanSessionTitle(plan.tituloSesion, plan.numeroSesion);
+        const planTitle = sessionTitle
+          ? `Plan de Clase: Sesión ${plan.numeroSesion} · ${sessionTitle}`
+          : `Plan de Clase: Sesión ${plan.numeroSesion}`;
+        const planMarkdown = formatPlanDeClaseMarkdown(plan, workbook, evaluationSummary);
 
-      await db`
-        INSERT INTO planning_extras (
-          planning_id,
-          type,
-          title,
-          key_index,
-          content_text,
-          created_at
-        ) VALUES (
-          ${planningId}::uuid,
-          'lesson_plan',
-          ${planTitle},
-          ${blockIndex},
-          ${planMarkdown},
-          NOW()
-        )
-      `;
-      insertedCount++;
+        await db`
+          INSERT INTO planning_extras (
+            planning_id,
+            type,
+            title,
+            key_index,
+            content_text,
+            created_at
+          ) VALUES (
+            ${planningId}::uuid,
+            'lesson_plan',
+            ${planTitle},
+            ${blockIndex},
+            ${planMarkdown},
+            NOW()
+          )
+        `;
+        insertedCount++;
+      }
+    } else {
+      omitted.push('lesson_plan');
     }
 
     // 4. Insertar Rúbrica Analítica de Desempeño del Bloque (Contenido estructurado oficial)
     const rubricContent = extracted.rubricaEvaluacion || extracted.instrumentosEvaluacion || '';
-    if (rubricContent) {
+    if (rubricContent && review.byMaterial.rubric.ok) {
       await db`
         INSERT INTO planning_extras (
           planning_id,
@@ -438,11 +459,13 @@ export async function cascadeBlockMaterials(
         )
       `;
       insertedCount++;
+    } else if (!review.byMaterial.rubric.ok) {
+      omitted.push('rubric');
     }
 
     // 5. Insertar Lista de Cotejo Formativa del Bloque (Contenido estructurado oficial)
     const checklistContent = extracted.listaCotejo || '';
-    if (checklistContent) {
+    if (checklistContent && review.byMaterial.checklist.ok) {
       await db`
         INSERT INTO planning_extras (
           planning_id,
@@ -461,10 +484,12 @@ export async function cascadeBlockMaterials(
         )
       `;
       insertedCount++;
+    } else if (!review.byMaterial.checklist.ok) {
+      omitted.push('checklist');
     }
 
     // 6. Insertar Materiales Didácticos e Insumos del Docente del Bloque
-    if (extracted.materialDidactico) {
+    if (extracted.materialDidactico && review.byMaterial.didactic_material.ok) {
       await db`
         INSERT INTO planning_extras (
           planning_id,
@@ -483,10 +508,12 @@ export async function cascadeBlockMaterials(
         )
       `;
       insertedCount++;
+    } else if (!review.byMaterial.didactic_material.ok) {
+      omitted.push('didactic_material');
     }
 
     // 7. Insertar Fichas de Trabajo Imprimibles por Sesión
-    if (extracted.fichasTrabajo) {
+    if (extracted.fichasTrabajo && review.byMaterial.recovery_cards.ok) {
       await db`
         INSERT INTO planning_extras (
           planning_id,
@@ -505,10 +532,12 @@ export async function cascadeBlockMaterials(
         )
       `;
       insertedCount++;
+    } else if (!review.byMaterial.recovery_cards.ok) {
+      omitted.push('recovery_cards');
     }
 
     // 8. Insertar Solucionario y Guía Pedagógica del Docente (Uso exclusivo docente)
-    if (extracted.solucionarioDocente) {
+    if (extracted.solucionarioDocente && review.byMaterial.answer_key.ok) {
       await db`
         INSERT INTO planning_extras (
           planning_id,
@@ -527,6 +556,8 @@ export async function cascadeBlockMaterials(
         )
       `;
       insertedCount++;
+    } else if (!review.byMaterial.answer_key.ok) {
+      omitted.push('answer_key');
     }
 
     // 9. Insertar Recursos Gráficos Determinísticos del Bloque (Visual Engine)
@@ -560,41 +591,61 @@ export async function cascadeBlockMaterials(
           subjectName,
         });
 
-        await db`
-          INSERT INTO planning_extras (
-            planning_id,
-            type,
-            title,
-            key_index,
-            content_text,
-            created_at
-          ) VALUES (
-            ${planningId}::uuid,
-            'material',
-            ${visualTitle},
-            ${blockIndex},
-            ${visualPayload},
-            NOW()
-          )
-        `;
-        insertedCount++;
+        const hasValidVisualContent = Boolean(
+          resolved.type &&
+            ((typeof resolved.svg === 'string' && resolved.svg.trim().length > 0) ||
+              (typeof resolved.mediaAsset?.imageUrl === 'string' &&
+                resolved.mediaAsset.imageUrl.trim().length > 0)) &&
+            !/\bundefined\b|\$\{[^}]*\}/i.test(visualPayload)
+        );
+
+        if (hasValidVisualContent) {
+          await db`
+            INSERT INTO planning_extras (
+              planning_id,
+              type,
+              title,
+              key_index,
+              content_text,
+              created_at
+            ) VALUES (
+              ${planningId}::uuid,
+              'material',
+              ${visualTitle},
+              ${blockIndex},
+              ${visualPayload},
+              NOW()
+            )
+          `;
+          insertedCount++;
+        } else if (!omitted.includes('visual_asset')) {
+          omitted.push('visual_asset');
+        }
       }
     }
 
     const endTime = performance.now();
     const executionTimeMs = Math.round((endTime - startTime) * 100) / 100;
 
-    logger.info(
-      `[cascadeBlockMaterials] ✅ Bloque ${blockIndex} sincronizado: ${planes.length} planes de clase y ${insertedCount} extras en ${executionTimeMs}ms.` +
-        (teacherId ? ` (docente: ${teacherId})` : '')
-    );
+    if (omitted.length > 0) {
+      logger.warn(
+        `[cascadeBlockMaterials] ⚠️ Bloque ${blockIndex} sincronizado parcialmente: omitidos [${omitted.join(', ')}] por revisión R1 (${review.errors.length} errores).`
+      );
+    } else {
+      logger.info(
+        `[cascadeBlockMaterials] ✅ Bloque ${blockIndex} sincronizado: ${planes.length} planes de clase y ${insertedCount} extras en ${executionTimeMs}ms.` +
+          (teacherId ? ` (docente: ${teacherId})` : '')
+      );
+    }
 
     return {
       success: true,
       blockIndex,
-      planesCount: planes.length,
+      planesCount: review.byMaterial.lesson_plan.ok ? planes.length : 0,
       extrasInserted: insertedCount,
       executionTimeMs,
+      review,
+      omitted,
     };
   } catch (error: unknown) {
     if (error instanceof WorkerLeaseLostError) {

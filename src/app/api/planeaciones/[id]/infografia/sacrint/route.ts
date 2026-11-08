@@ -7,6 +7,7 @@ import { buildSacrintInfographic, type SacrintInfographicFormat } from '@/lib/vi
 import { renderInfographicSvg } from '@/lib/visual-engine/sacrint/infographic-renderer';
 import { renderInfographicPng } from '@/lib/visual-engine/sacrint/sacrint-rasterizer';
 import { INFOGRAPHIC } from '@/lib/visual-engine/sacrint/tokens';
+import { reviewBlockMaterials } from '@/lib/guide-engine/material-review';
 import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
@@ -100,27 +101,62 @@ export async function GET(
     }
 
     const size = INFOGRAPHIC[layout];
-    if (format === 'json') {
-      return NextResponse.json({
-        success: true,
-        blockIndex,
-        missionIndex: missionPos,
-        layout,
-        width: size.width,
-        height: size.height,
-        missions,
-      });
-    }
-
     const spec = buildSacrintInfographic(workbook, layout as SacrintInfographicFormat, {
       missionIndex: missionPos,
     });
+    const review = reviewBlockMaterials({
+      workbook,
+      infographic: spec,
+      uacName: planRows[0].uac_name,
+      component: planRows[0].component || '',
+    });
+    const infoIssues = review.byMaterial.infographic.issues;
+    const infoErrors = infoIssues.filter((i) => i.severity === 'error');
+    const infoWarnings = infoIssues.filter((i) => i.severity === 'warning');
+
+    if (infoErrors.length > 0) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: 'Material bloqueado por inconsistencia estructural',
+          issues: infoErrors,
+          review,
+        },
+        { status: 422 }
+      );
+    }
+
+    const warningHeaders: Record<string, string> =
+      infoWarnings.length > 0
+        ? { 'X-Material-Warnings': String(infoWarnings.length) }
+        : {};
+
+    if (format === 'json') {
+      return NextResponse.json(
+        {
+          success: true,
+          blockIndex,
+          missionIndex: missionPos,
+          layout,
+          width: size.width,
+          height: size.height,
+          missions,
+          review: review.byMaterial.infographic,
+        },
+        { headers: warningHeaders }
+      );
+    }
+
     const baseName = `SACRINT_Infografia_${safeFilename(spec.meta.subjectName)}_B${blockIndex + 1}_M${spec.meta.missionNumber}_${layout}`;
 
     if (format === 'svg') {
       return new NextResponse(renderInfographicSvg(spec), {
         status: 200,
-        headers: { 'Content-Type': 'image/svg+xml; charset=utf-8', 'Cache-Control': 'no-store' },
+        headers: {
+          'Content-Type': 'image/svg+xml; charset=utf-8',
+          'Cache-Control': 'no-store',
+          ...warningHeaders,
+        },
       });
     }
 
@@ -134,6 +170,7 @@ export async function GET(
           'Content-Type': 'image/png',
           'Content-Disposition': `${disposition}; filename="${baseName}.png"`,
           'Cache-Control': 'no-store',
+          ...warningHeaders,
         },
       });
     }
@@ -156,6 +193,7 @@ export async function GET(
         'Content-Type': 'application/pdf',
         'Content-Disposition': `${disposition}; filename="${baseName}.pdf"`,
         'Cache-Control': 'no-store',
+        ...warningHeaders,
       },
     });
   } catch (error: unknown) {
