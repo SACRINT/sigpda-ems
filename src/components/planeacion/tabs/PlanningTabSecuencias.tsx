@@ -363,9 +363,53 @@ export default function PlanningTabSecuencias({
                     </span>
 
                     {generatedCount > 0 && (
-                      <div style={{ display: 'flex', gap: '6px' }} onClick={(e) => e.stopPropagation()}>
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }} onClick={(e) => e.stopPropagation()}>
                         <a
-                          href={`/api/docx/extra/bulk?planningId=${planning.id}&blockIndex=${actIdx}&type=lesson_plan`}
+                          href={`/api/pdf/extra/combined?planningId=${planning.id}&blockIndex=${block.blockIndex}&type=lesson_plan`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Descarga los planes de clase de este bloque unidos en un solo archivo PDF"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            background: 'linear-gradient(135deg, rgba(220, 38, 38, 0.35) 0%, rgba(185, 28, 28, 0.45) 100%)',
+                            border: '1px solid rgba(239, 68, 68, 0.55)',
+                            color: '#fecaca',
+                            fontSize: '11.5px',
+                            fontWeight: 700,
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            textDecoration: 'none',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          📄 PDF ({generatedCount} en 1)
+                        </a>
+                        <a
+                          href={`/api/docx/extra/combined?planningId=${planning.id}&blockIndex=${block.blockIndex}&type=lesson_plan`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Descarga los planes de clase de este bloque unidos en un solo documento Word"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.35) 0%, rgba(30, 64, 175, 0.45) 100%)',
+                            border: '1px solid rgba(59, 130, 246, 0.55)',
+                            color: '#bfdbfe',
+                            fontSize: '11.5px',
+                            fontWeight: 700,
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            textDecoration: 'none',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          📝 Word ({generatedCount} en 1)
+                        </a>
+                        <a
+                          href={`/api/docx/extra/bulk?planningId=${planning.id}&blockIndex=${block.blockIndex}&type=lesson_plan`}
                           download
                           title="Descargar todos los planes de clase de este bloque en formato Word (.zip)"
                           style={{
@@ -386,7 +430,7 @@ export default function PlanningTabSecuencias({
                           📦 Word (.zip)
                         </a>
                         <a
-                          href={`/api/pdf/extra/bulk?planningId=${planning.id}&blockIndex=${actIdx}&type=lesson_plan`}
+                          href={`/api/pdf/extra/bulk?planningId=${planning.id}&blockIndex=${block.blockIndex}&type=lesson_plan`}
                           download
                           title="Descargar todos los planes de clase de este bloque en formato PDF (.zip)"
                           style={{

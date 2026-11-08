@@ -47,7 +47,11 @@ async function fetchPlanningIfComplete(planningId: string, attemptStartedAt: num
       content.sectionIV &&
       content.sectionV &&
       content.sectionVI &&
-      content.sectionVII !== undefined
+      content.sectionVII !== undefined &&
+      Array.isArray(content.sectionIV.activities) &&
+      content.sectionIV.activities.length > 0 &&
+      Array.isArray(content.sectionV.evaluations) &&
+      content.sectionV.evaluations.length > 0
     );
   } catch {
     return false;

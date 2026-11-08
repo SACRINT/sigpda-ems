@@ -29,15 +29,18 @@ export interface AIProvider {
   /**
    * Generate text as an async stream of string chunks.
    */
-  generateStream(
-    systemPrompt: string,
-    userPrompt: string,
-    options?: {
-      timeoutMs?: number;
-      remainingBudgetMs?: number;
-      signal?: AbortSignal;
-    }
-  ): AsyncGenerator<string>;
+   generateStream(
+     systemPrompt: string,
+     userPrompt: string,
+     options?: {
+       timeoutMs?: number;
+       remainingBudgetMs?: number;
+       signal?: AbortSignal;
+       jsonMode?: boolean;
+       maxTokens?: number;
+       responseSchema?: object;
+     }
+   ): AsyncGenerator<string>;
 }
 
 export interface AiTokenUsage {

@@ -9,8 +9,12 @@ import { buildCombinedExtraDocx } from '@/lib/docx-helpers';
 import { isStructuredVisualPayload } from '@/lib/materials/material-tokens';
 import { sanitizeDocFilename, type BrandingContext } from '@/lib/document-branding';
 import { logger } from '@/lib/logger';
+import { resolveBlockNumber } from '@/lib/curricular-blocks';
+import { selectExtrasForBlock } from '@/lib/planning-extras-for-block';
+import type { GeneratedPlanningContent } from '@/types/planning';
 
 export const runtime = 'nodejs';
+export const maxDuration = 300;
 
 /** Etiquetas conocidas de tipo → nombre de archivo. Cualquier otro tipo se acepta con fallback. */
 const TYPE_LABELS: Record<string, string> = {
@@ -50,12 +54,14 @@ async function handleCombinedDocx(request: NextRequest) {
 
     let planningId: string | null = null;
     let type: string | undefined = undefined;
+    let blockIndex: number | null = null;
 
     if (request.method === 'POST') {
       try {
         const body = await request.json();
         planningId = body.planningId || null;
         type = body.type;
+        blockIndex = typeof body.blockIndex === 'number' ? body.blockIndex : null;
       } catch {
         // Ignorar
       }
@@ -64,6 +70,16 @@ async function handleCombinedDocx(request: NextRequest) {
     if (!planningId) {
       planningId = request.nextUrl.searchParams.get('planningId');
       type = type || request.nextUrl.searchParams.get('type') || undefined;
+    }
+    if (blockIndex === null) {
+      const bIdx = request.nextUrl.searchParams.get('blockIndex');
+      if (bIdx !== null && bIdx !== '') {
+        const parsed = parseInt(bIdx, 10);
+        if (!Number.isNaN(parsed)) blockIndex = parsed;
+      }
+    }
+    if (blockIndex !== null && (blockIndex < 0 || blockIndex > 2)) {
+      return new Response('blockIndex inválido: debe ser 0, 1 o 2', { status: 400 });
     }
 
     const cleanType = (type || '').trim();
@@ -86,7 +102,17 @@ async function handleCombinedDocx(request: NextRequest) {
 
     // Todos los bloques del tipo solicitado, excluyendo payloads visuales JSON (no renderizables)
     const fetched = await getPlanningExtrasByType(planningId, teacher.id, cleanType);
-    const allExtras = fetched.filter((ex) => !isStructuredVisualPayload(ex.content_text));
+    let allExtras = fetched.filter((ex) => !isStructuredVisualPayload(ex.content_text));
+
+    // Descarga unificada de UN bloque: filtrado determinista y orden numérico de sesiones
+    if (blockIndex !== null) {
+      allExtras = selectExtrasForBlock(
+        allExtras,
+        planning.content_json as GeneratedPlanningContent | null,
+        blockIndex,
+        cleanType
+      );
+    }
 
     if (allExtras.length === 0) {
       return new Response('No se encontraron documentos de este tipo para combinar', { status: 404 });
@@ -95,7 +121,11 @@ async function handleCombinedDocx(request: NextRequest) {
     // UN SOLO .docx con todos los documentos separados por salto de página
     let docxBuffer: Buffer;
     try {
-      docxBuffer = await buildCombinedExtraDocx(allExtras, brandingCtx);
+      const blockNum = blockIndex !== null ? (resolveBlockNumber(blockIndex) ?? blockIndex + 1) : null;
+      const combinedTitle = blockNum !== null
+        ? `${typeLabel(cleanType).replace(/_/g, ' ')} · Bloque ${blockNum} · ${allExtras.length} documentos`
+        : undefined;
+      docxBuffer = await buildCombinedExtraDocx(allExtras, brandingCtx, combinedTitle);
     } catch (err) {
       logger.error('Error construyendo DOCX combinado:', {
         error: err instanceof Error ? err.message : String(err),
@@ -104,7 +134,9 @@ async function handleCombinedDocx(request: NextRequest) {
     }
 
     const cleanSubject = sanitizeDocFilename(planning.uac_name || 'UAC', 30);
-    const fileName = `${typeLabel(cleanType)}_Todos_Bloques_${cleanSubject}.docx`;
+    const fileName = blockIndex !== null
+      ? `${typeLabel(cleanType)}_Bloque_${(resolveBlockNumber(blockIndex) ?? blockIndex + 1)}_${cleanSubject}.docx`
+      : `${typeLabel(cleanType)}_Todos_Bloques_${cleanSubject}.docx`;
 
     return new Response(new Uint8Array(docxBuffer), {
       status: 200,

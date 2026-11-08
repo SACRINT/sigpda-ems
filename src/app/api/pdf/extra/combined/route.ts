@@ -6,9 +6,12 @@ import { generateExtraPdfDocument } from '@/lib/pdf-extra-renderer';
 import { isStructuredVisualPayload } from '@/lib/materials/material-tokens';
 import { sanitizeDocFilename, type BrandingContext } from '@/lib/document-branding';
 import { resolveBlockNumber } from '@/lib/curricular-blocks';
+import { selectExtrasForBlock } from '@/lib/planning-extras-for-block';
+import type { GeneratedPlanningContent } from '@/types/planning';
 import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
+export const maxDuration = 300;
 
 /** Etiquetas conocidas de tipo → nombre de archivo. Cualquier otro tipo se acepta con fallback. */
 const TYPE_LABELS: Record<string, string> = {
@@ -48,12 +51,14 @@ async function handleCombinedPdf(request: NextRequest) {
 
     let planningId: string | null = null;
     let type: string | undefined = undefined;
+    let blockIndex: number | null = null;
 
     if (request.method === 'POST') {
       try {
         const body = await request.json();
         planningId = body.planningId || null;
         type = body.type;
+        blockIndex = typeof body.blockIndex === 'number' ? body.blockIndex : null;
       } catch {
         // Ignorar
       }
@@ -62,6 +67,16 @@ async function handleCombinedPdf(request: NextRequest) {
     if (!planningId) {
       planningId = request.nextUrl.searchParams.get('planningId');
       type = type || request.nextUrl.searchParams.get('type') || undefined;
+    }
+    if (blockIndex === null) {
+      const bIdx = request.nextUrl.searchParams.get('blockIndex');
+      if (bIdx !== null && bIdx !== '') {
+        const parsed = parseInt(bIdx, 10);
+        if (!Number.isNaN(parsed)) blockIndex = parsed;
+      }
+    }
+    if (blockIndex !== null && (blockIndex < 0 || blockIndex > 2)) {
+      return new Response('blockIndex inválido: debe ser 0, 1 o 2', { status: 400 });
     }
 
     const cleanType = (type || '').trim();
@@ -86,8 +101,18 @@ async function handleCombinedPdf(request: NextRequest) {
     const fetched = await getPlanningExtrasByType(planningId, teacher.id, cleanType);
     let allExtras = fetched.filter((ex) => !isStructuredVisualPayload(ex.content_text));
 
+    // Descarga unificada de UN bloque: filtrado determinista y orden numérico de sesiones
+    if (blockIndex !== null) {
+      allExtras = selectExtrasForBlock(
+        allExtras,
+        planning.content_json as GeneratedPlanningContent | null,
+        blockIndex,
+        cleanType
+      );
+    }
+
     // Si es un recurso a nivel de bloque curricular, solo permitimos bloques canónicos 0, 1 y 2
-    if (['rubric', 'checklist', 'material', 'teacher_guide', 'practice_guide'].includes(cleanType)) {
+    if (blockIndex === null && ['rubric', 'checklist', 'material', 'teacher_guide', 'practice_guide'].includes(cleanType)) {
       allExtras = allExtras.filter((ex) => ex.key_index === null || [0, 1, 2].includes(Number(ex.key_index)));
     }
 
@@ -122,10 +147,19 @@ async function handleCombinedPdf(request: NextRequest) {
     if (generatedCount === 0) {
       return new Response('No se pudo generar ningún documento', { status: 500 });
     }
+    // En descarga por bloque nunca entregar un archivo incompleto en silencio
+    if (blockIndex !== null && generatedCount !== allExtras.length) {
+      return new Response(
+        `No se pudo generar el documento completo del bloque (${generatedCount} de ${allExtras.length}). Intenta de nuevo.`,
+        { status: 500 }
+      );
+    }
 
     const mergedBytes = await mergedPdf.save();
     const cleanSubject = sanitizeDocFilename(planning.uac_name || 'UAC', 30);
-    const fileName = `${typeLabel(cleanType)}_Todos_Bloques_${cleanSubject}.pdf`;
+    const fileName = blockIndex !== null
+      ? `${typeLabel(cleanType)}_Bloque_${(resolveBlockNumber(blockIndex) ?? blockIndex + 1)}_${cleanSubject}.pdf`
+      : `${typeLabel(cleanType)}_Todos_Bloques_${cleanSubject}.pdf`;
 
     return new Response(new Uint8Array(mergedBytes), {
       status: 200,

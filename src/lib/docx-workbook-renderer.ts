@@ -43,6 +43,7 @@ import {
   type ResolvedEquipmentVisual,
 } from '@/lib/visual-engine/visual-asset-manager';
 import { svgToPngBuffer } from '@/lib/visual-engine/svg-to-png';
+import { extractSvgDimensions } from '@/lib/visual-engine/svg-dimensions';
 import { dispatchVisual } from '@/lib/visual-engine/visual-dispatcher';
 import { downloadAndProcessImage } from '@/lib/visual-engine/image-downloader';
 import { SCHOOL_YEAR } from '@/lib/config';
@@ -3684,7 +3685,7 @@ async function buildMissionContent(
           children: [
             new ImageRun({
               data: img.buffer,
-              transformation: { width: 340, height: 221 },
+              transformation: { width: 340, height: Math.round(340 * (extractSvgDimensions(visual.svg).height / extractSvgDimensions(visual.svg).width)) },
               type: img.format.toLowerCase() === 'png' ? 'png' : 'jpg',
             }),
           ],
@@ -4193,7 +4194,7 @@ async function buildMissionContent(
                   children: [
                     new ImageRun({
                       data: imgResult.buffer,
-                      transformation: { width: 440, height: 286 },
+                      transformation: { width: 440, height: Math.round(440 * (extractSvgDimensions(vectorResult.svg).height / extractSvgDimensions(vectorResult.svg).width)) },
                       type: imgResult.format.toLowerCase() === 'png' ? 'png' : 'jpg',
                     }),
                   ],
@@ -4225,7 +4226,7 @@ async function buildMissionContent(
               children: [
                 new ImageRun({
                   data: imgResult.buffer,
-                  transformation: { width: 500, height: 325 },
+                  transformation: { width: 500, height: Math.round(500 * (extractSvgDimensions(resolvedVisual.svg).height / extractSvgDimensions(resolvedVisual.svg).width)) },
                   type: imgResult.format.toLowerCase() === 'png' ? 'png' : 'jpg',
                 }),
               ],

@@ -208,17 +208,41 @@ export class GeminiProvider implements AIProvider {
   async *generateStream(
     systemPrompt: string,
     userPrompt: string,
-    options?: { timeoutMs?: number; remainingBudgetMs?: number; signal?: AbortSignal }
+    options?: {
+      timeoutMs?: number;
+      remainingBudgetMs?: number;
+      signal?: AbortSignal;
+      jsonMode?: boolean;
+      maxTokens?: number;
+      responseSchema?: object;
+    }
   ): AsyncGenerator<string> {
     const url = `${API_CONFIG.gemini}/${this.modelId}:streamGenerateContent?key=${this.apiKey}&alt=sse`;
-    const payload = {
+    const wantsJson = Boolean(options?.jsonMode || options?.responseSchema);
+    const payload: {
+      contents: Array<{ role: string; parts: Array<{ text: string }> }>;
+      systemInstruction: { parts: Array<{ text: string }> };
+      generationConfig: {
+        temperature: number;
+        topP: number;
+        maxOutputTokens: number;
+        responseMimeType: string;
+        responseSchema?: object;
+      };
+    } = {
       contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
       systemInstruction: { parts: [{ text: systemPrompt }] },
       generationConfig: {
         temperature: 0.4,
         topP: 0.95,
+        maxOutputTokens: options?.maxTokens || 8192,
+        responseMimeType: wantsJson ? 'application/json' : 'text/plain',
       },
     };
+
+    if (options?.responseSchema) {
+      payload.generationConfig.responseSchema = options.responseSchema;
+    }
 
     const timeoutLimit = Math.max(
       1,
@@ -251,6 +275,22 @@ export class GeminiProvider implements AIProvider {
     const reader = res.body.getReader();
     const decoder = new TextDecoder('utf-8');
     let buffer = '';
+    let finishReason: string | undefined;
+
+    // Procesa una línea SSE; devuelve el texto (todas las parts) y registra finishReason.
+    const processLine = (line: string): string => {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith('data: ')) return '';
+      try {
+        const data = JSON.parse(trimmed.substring(6));
+        const candidate = data?.candidates?.[0];
+        if (candidate?.finishReason) finishReason = candidate.finishReason;
+        const parts: Array<{ text?: string }> = candidate?.content?.parts ?? [];
+        return parts.map((p) => (typeof p?.text === 'string' ? p.text : '')).join('');
+      } catch {
+        return ''; // Non-JSON line in SSE
+      }
+    };
 
     while (true) {
       const { done, value } = await reader.read();
@@ -260,17 +300,21 @@ export class GeminiProvider implements AIProvider {
       buffer = lines.pop() || '';
 
       for (const line of lines) {
-        const trimmed = line.trim();
-        if (trimmed.startsWith('data: ')) {
-          try {
-            const data = JSON.parse(trimmed.substring(6));
-            const chunkText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (chunkText) yield chunkText;
-          } catch {
-            // Non-JSON line in SSE
-          }
-        }
+        const chunkText = processLine(line);
+        if (chunkText) yield chunkText;
       }
+    }
+
+    // Procesar el buffer SSE restante al terminar (última línea sin salto final)
+    buffer += decoder.decode();
+    if (buffer.trim()) {
+      const tail = processLine(buffer);
+      if (tail) yield tail;
+    }
+
+    // Terminación anómala: nunca dejar pasar un JSON truncado en silencio
+    if (finishReason && finishReason !== 'STOP') {
+      throw new Error(`Gemini terminó la generación de forma anómala (finishReason=${finishReason}).`);
     }
   }
 }

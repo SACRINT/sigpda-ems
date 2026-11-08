@@ -30,7 +30,7 @@ import type { ExtractedPdfData, TeacherContext, GeneratedPlanningContent, Fechas
 import type { RagContext } from '@/lib/rag-curricular';
 
 export const runtime = 'nodejs';
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 export async function POST(
   request: NextRequest,
@@ -175,7 +175,7 @@ export async function POST(
         let accumulatedText = '';
         try {
           const isPremium = await resolveUserIsPremium(teacher.id);
-          const textGenerator = generateStreamWithRotation(SYSTEM_PROMPT, fullUserPrompt, teacher.id, isPremium);
+          const textGenerator = generateStreamWithRotation(SYSTEM_PROMPT, fullUserPrompt, teacher.id, isPremium, { jsonMode: true, maxTokens: 32768, timeoutMs: 270000, remainingBudgetMs: 280000 });
           
           for await (const chunk of textGenerator) {
             accumulatedText += chunk;
@@ -327,6 +327,11 @@ export async function POST(
             }
           } catch (dbErr) {
             logger.error('Failed to parse or save accumulated JSON stream to database:', dbErr);
+            // No cerrar en silencio: el cliente debe saber que NO se guardó la planeación
+            const dbMsg = dbErr instanceof Error ? dbErr.message : 'Error desconocido';
+            controller.enqueue(
+              encoder.encode(`\n__ERROR__:No se pudo validar o guardar la planeación generada (${dbMsg.slice(0, 160)}). Intenta de nuevo.`)
+            );
           }
 
 

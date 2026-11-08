@@ -209,6 +209,9 @@ export async function* generateStreamWithRotation(
     timeoutMs?: number;
     remainingBudgetMs?: number;
     signal?: AbortSignal;
+    jsonMode?: boolean;
+    maxTokens?: number;
+    responseSchema?: object;
   }
 ): AsyncGenerator<string> {
   const { provider, model } = await getActiveConfig(isPremium);
@@ -276,6 +279,9 @@ export async function* generateStreamWithRotation(
         timeoutMs: currentRemaining ? Math.max(1, Math.min(options?.timeoutMs ?? 110000, currentRemaining)) : options?.timeoutMs,
         remainingBudgetMs: currentRemaining,
         signal: options?.signal,
+        jsonMode: options?.jsonMode,
+        maxTokens: options?.maxTokens,
+        responseSchema: options?.responseSchema,
       };
 
       for await (const chunk of (ai as GeminiProvider).generateStream(systemPrompt, userPrompt, streamOptions)) {

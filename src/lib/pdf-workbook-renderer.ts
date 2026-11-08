@@ -30,6 +30,7 @@ import {
   resolveEquipmentVisualForMission,
 } from '@/lib/visual-engine/visual-asset-manager';
 import { svgToPngBuffer } from '@/lib/visual-engine/svg-to-png';
+import { extractSvgDimensions } from '@/lib/visual-engine/svg-dimensions';
 import { isStemSubject, dispatchVisual } from '@/lib/visual-engine/visual-dispatcher';
 import { downloadAndProcessImage } from '@/lib/visual-engine/image-downloader';
 import type { VisualAnnotation } from '@/lib/visual-engine/generators/stem-generator';
@@ -2390,13 +2391,15 @@ async function drawMission(
       if (!visual) return curY;
       const img = await svgToPngBuffer(visual.svg);
       if (!img) return curY;
-      const imgW = Math.min(34, mainW * 0.34);
-      const imgH = imgW * 0.25;
-      let ny = checkSpace(curY, imgH + 3.5);
+      // Proporción REAL del SVG (nunca forzar una altura fija: aplasta ejes y etiquetas)
+      const svgDim = extractSvgDimensions(visual.svg);
+      const imgW = Math.min(72, mainW * 0.62);
+      const imgH = imgW * (svgDim.height / svgDim.width);
+      let ny = checkSpace(curY, imgH + 5.0);
       const imgX = margin + (mainW - imgW) / 2;
       addMainFlowImage(img.buffer, img.format, imgX, ny, imgW, imgH);
       if (visual.annotations && visual.annotations.length > 0) {
-        drawVisualAnnotations(doc, visual.annotations, imgX, ny, imgW, imgH);
+        drawVisualAnnotations(doc, visual.annotations, imgX, ny, imgW, imgH, svgDim.width, svgDim.height);
       }
       ny += imgH + 1.0;
       setFontCaption(doc);
@@ -2775,12 +2778,13 @@ async function drawMission(
         const imgResult = await svgToPngBuffer(resolvedVisual.svg);
         if (imgResult) {
           const imgW = Math.min(mainW * 0.78, 85);
-          const imgH = imgW * 0.48;
+          const svgDim = extractSvgDimensions(resolvedVisual.svg!);
+          const imgH = imgW * (svgDim.height / svgDim.width);
           y = checkSpace(y, imgH + 11);
           const imgX = margin + (mainW - imgW) / 2;
           addMainFlowImage(imgResult.buffer, imgResult.format, imgX, y, imgW, imgH);
           if (resolvedVisual.annotations && resolvedVisual.annotations.length > 0) {
-            drawVisualAnnotations(doc, resolvedVisual.annotations, imgX, y, imgW, imgH);
+            drawVisualAnnotations(doc, resolvedVisual.annotations, imgX, y, imgW, imgH, svgDim.width, svgDim.height);
           }
           y += imgH + 2.5;
           setFontCaption(doc);
@@ -2802,12 +2806,13 @@ async function drawMission(
           const imgResult = await svgToPngBuffer(vectorResult.svg);
           if (imgResult) {
             const imgW = Math.min(mainW * 0.92, 124);
-            const imgH = imgW * 0.68;
+            const svgDim = extractSvgDimensions(vectorResult.svg);
+            const imgH = imgW * (svgDim.height / svgDim.width);
             y = checkSpace(y, imgH + 18);
             const imgX = margin + (mainW - imgW) / 2;
             addMainFlowImage(imgResult.buffer, imgResult.format, imgX, y, imgW, imgH);
             if (vectorResult.annotations && vectorResult.annotations.length > 0) {
-              drawVisualAnnotations(doc, vectorResult.annotations, imgX, y, imgW, imgH);
+              drawVisualAnnotations(doc, vectorResult.annotations, imgX, y, imgW, imgH, svgDim.width, svgDim.height);
             }
             y += imgH + 3.5;
             setFontCaption(doc);
@@ -2870,12 +2875,13 @@ async function drawMission(
               const imgResult = await svgToPngBuffer(vectorResult.svg);
               if (imgResult) {
                 const imgW = Math.min(120, mainW * 0.88);
-                const imgH = imgW * 0.65;
+                const svgDim = extractSvgDimensions(vectorResult.svg);
+                const imgH = imgW * (svgDim.height / svgDim.width);
                 y = checkSpace(y, imgH + 16);
                 const imgX = margin + (mainW - imgW) / 2;
                 addMainFlowImage(imgResult.buffer, imgResult.format, imgX, y, imgW, imgH);
                 if (vectorResult.annotations && vectorResult.annotations.length > 0) {
-                  drawVisualAnnotations(doc, vectorResult.annotations, imgX, y, imgW, imgH);
+                  drawVisualAnnotations(doc, vectorResult.annotations, imgX, y, imgW, imgH, svgDim.width, svgDim.height);
                 }
                 y += imgH + 3.5;
                 setFontCaption(doc);
@@ -2892,12 +2898,13 @@ async function drawMission(
           const imgResult = await svgToPngBuffer(resolvedVisual.svg);
           if (imgResult) {
             const imgW = Math.min(120, mainW * 0.88);
-            const imgH = imgW * 0.65;
+            const svgDim = extractSvgDimensions(resolvedVisual.svg!);
+            const imgH = imgW * (svgDim.height / svgDim.width);
             y = checkSpace(y, imgH + 16);
             const imgX = margin + (mainW - imgW) / 2;
             addMainFlowImage(imgResult.buffer, imgResult.format, imgX, y, imgW, imgH);
             if (resolvedVisual.annotations && resolvedVisual.annotations.length > 0) {
-              drawVisualAnnotations(doc, resolvedVisual.annotations, imgX, y, imgW, imgH);
+              drawVisualAnnotations(doc, resolvedVisual.annotations, imgX, y, imgW, imgH, svgDim.width, svgDim.height);
             }
             y += imgH + 3.5;
             setFontCaption(doc);
@@ -2934,12 +2941,13 @@ async function drawMission(
               const fallbackImg = await svgToPngBuffer(vectorResult.svg);
               if (fallbackImg) {
                 const imgW = Math.min(mainW * 0.92, 124);
-                const imgH = imgW * 0.68;
+                const svgDim = extractSvgDimensions(vectorResult.svg);
+                const imgH = imgW * (svgDim.height / svgDim.width);
                 y = checkSpace(y, imgH + 16);
                 const imgX = margin + (mainW - imgW) / 2;
                 addMainFlowImage(fallbackImg.buffer, fallbackImg.format, imgX, y, imgW, imgH);
                 if (vectorResult.annotations && vectorResult.annotations.length > 0) {
-                  drawVisualAnnotations(doc, vectorResult.annotations, imgX, y, imgW, imgH);
+                  drawVisualAnnotations(doc, vectorResult.annotations, imgX, y, imgW, imgH, svgDim.width, svgDim.height);
                 }
                 y += imgH + 3.5;
                 setFontCaption(doc);

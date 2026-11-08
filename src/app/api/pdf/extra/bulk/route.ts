@@ -14,6 +14,7 @@ import { resolveBlockNumber } from '@/lib/curricular-blocks';
 import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
+export const maxDuration = 300;
 
 export async function GET(request: NextRequest) {
   return handleBulkPdf(request);
