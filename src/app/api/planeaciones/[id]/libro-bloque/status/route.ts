@@ -63,8 +63,9 @@ export async function GET(
     //    murió (p. ej. timeout o corte): reanudar atómicamente de inmediato sin retraso de 300 s.
     // El claim atómico en Neon garantiza un solo worker aunque haya múltiples polls concurrentes.
     const now = Date.now();
+    const lastActivity = new Date(job.updated_at || job.created_at).getTime();
     const isStalePending =
-      job.status === 'pending' && now - new Date(job.created_at).getTime() > 5000;
+      job.status === 'pending' && now - lastActivity > 10000;
     const isLeaseExpired =
       job.status === 'running' &&
       (!job.lease_until || new Date(job.lease_until).getTime() < now);

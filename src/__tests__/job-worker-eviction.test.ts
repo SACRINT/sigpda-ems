@@ -9,19 +9,27 @@ describe('JobWorker - Descarte selectivo de redactor en errores post-redacción'
     if (writersToKeep.length >= 4) {
       let evictedType: 'foundation' | 'lab' | 'project' | 'evaluation' = 'lab';
       const errorMsgLower = errorMsg.toLowerCase();
-      const match = errorMsgLower.match(/sesi[oó]n(?:es)?(?:\s+afectadas?)?[:\s]+(\d+)/i);
-      if (match) {
-        const sNum = parseInt(match[1], 10);
-        if (sNum <= 3) evictedType = 'foundation';
-        else if (sNum <= 9) evictedType = 'lab';
-        else if (sNum <= 15) evictedType = 'project';
-        else evictedType = 'evaluation';
-      } else if (errorMsgLower.includes('evaluation') || errorMsgLower.includes('rúbrica') || errorMsgLower.includes('rubric')) {
-        evictedType = 'evaluation';
-      } else if (errorMsgLower.includes('project') || errorMsgLower.includes('proyecto')) {
-        evictedType = 'project';
+      const isQuotaOrNetwork =
+        errorMsgLower.includes('cooldown') ||
+        errorMsgLower.includes('enfriamiento') ||
+        errorMsgLower.includes('503') ||
+        errorMsgLower.includes('serviceunavailable');
+
+      if (!isQuotaOrNetwork) {
+        const match = errorMsgLower.match(/sesi[oó]n(?:es)?(?:\s+afectadas?)?[:\s]+(\d+)/i);
+        if (match) {
+          const sNum = parseInt(match[1], 10);
+          if (sNum <= 3) evictedType = 'foundation';
+          else if (sNum <= 9) evictedType = 'lab';
+          else if (sNum <= 15) evictedType = 'project';
+          else evictedType = 'evaluation';
+        } else if (errorMsgLower.includes('evaluation') || errorMsgLower.includes('rúbrica') || errorMsgLower.includes('rubric')) {
+          evictedType = 'evaluation';
+        } else if (errorMsgLower.includes('project') || errorMsgLower.includes('proyecto')) {
+          evictedType = 'project';
+        }
+        writersToKeep = writersToKeep.filter((w) => w.type !== evictedType);
       }
-      writersToKeep = writersToKeep.filter((w) => w.type !== evictedType);
     }
     return writersToKeep;
   }
@@ -60,5 +68,12 @@ describe('JobWorker - Descarte selectivo de redactor en errores post-redacción'
     const kept = computeWritersToKeep(all4, errorMsg);
     expect(kept).toHaveLength(3);
     expect(kept.map((w) => w.type)).toEqual(['foundation', 'lab', 'project']);
+  });
+
+  it('NO descarta redactores cuando el fallo es transitorio por cuota o 503', () => {
+    const errorMsg = 'AiCooldownExhaustedError: Todas las claves de "gemini" están en enfriamiento por cuota (restan 22s). Cortando por deadline.';
+    const kept = computeWritersToKeep(all4, errorMsg);
+    expect(kept).toHaveLength(4);
+    expect(kept.map((w) => w.type)).toEqual(['foundation', 'lab', 'project', 'evaluation']);
   });
 });

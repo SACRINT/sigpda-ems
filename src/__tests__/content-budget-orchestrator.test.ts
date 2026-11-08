@@ -9,6 +9,7 @@
  * - Contabilidad completa de palabras incluyendo sessionPlans estudiantiles
  * - Validación E2E del compilador PDF para libro calibrado de 18 sesiones (45-50 páginas)
  */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PDFParse } from 'pdf-parse';
@@ -225,6 +226,44 @@ describe('Phase P3 / P3.1: Content Budget and Editorial Orchestration', () => {
     expect(workbook.coverageReport?.allSessionsPresent).toBe(true);
     expect(workbook.coverageReport?.withinTargetRange).toBe(true);
     expect(workbook.qualityWarning).toBe(false);
+  });
+
+  it('tolera variaciones naturales leves de la IA (22,611 palabras, +111 palabras sobre el máximo) sin bloquear por BlockIntegrity', async () => {
+    vi.mocked(getPlanningById).mockResolvedValue({
+      id: 'plan-overshoot-mild',
+      teacher_id: 'teacher-1',
+      teacherId: 'teacher-1',
+      uac_name: 'Taller de Pensamiento Variacional I',
+      uacName: 'Taller de Pensamiento Variacional I',
+      semester: 3,
+      content_json: {
+        sectionI: { totalHoursWeekly: 3 },
+      },
+      contentJson: {
+        sectionI: { totalHoursWeekly: 3 },
+      },
+    } as any);
+
+    // 4 redactores que suman exactamente 22,611 palabras (caso real del incidente de Taller de Pensamiento Variacional I)
+    vi.mocked(generateFoundationMission).mockResolvedValue(
+      makeMockWriterOutput({ type: 'foundation', sessions: [1, 2, 3], baseWords: 4501 - 3 * 1044, wordsPerPlan: 1044 })
+    );
+    vi.mocked(generateLabMission).mockResolvedValue(
+      makeMockWriterOutput({ type: 'lab', sessions: [4, 5, 6, 7, 8, 9], baseWords: 7065 - 6 * 931, wordsPerPlan: 931 })
+    );
+    vi.mocked(generateProjectMission).mockResolvedValue(
+      makeMockWriterOutput({ type: 'project', sessions: [10, 11, 12, 13, 14, 15], baseWords: 6506 - 6 * 850, wordsPerPlan: 850 })
+    );
+    vi.mocked(generateEvaluationSection).mockResolvedValue(
+      makeMockWriterOutput({ type: 'evaluation', sessions: [16, 17, 18], baseWords: 4539 - 3 * 1100, wordsPerPlan: 1100 })
+    );
+
+    const workbook = await generateBlockWorkTextbook('plan-overshoot-mild', 0, { expandDeficientSessions: false });
+
+    expect(workbook).toBeDefined();
+    expect(workbook.totalWords).toBeGreaterThan(22500);
+    expect(workbook.totalWords).toBeLessThanOrEqual(23287);
+    expect(saveBlockWorkbook).toHaveBeenCalled();
   });
 
   it('calibra correctamente una asignatura de 1 h/semana (6 sesiones cortas: 15-17 páginas)', async () => {
